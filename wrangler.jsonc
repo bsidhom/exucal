@@ -1,0 +1,21 @@
+// Wrangler configuration for deploying the built site to Cloudflare Workers.
+// https://developers.cloudflare.com/workers/wrangler/configuration/
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pwa-units",
+  // The Workers runtime behaves as it did on this date. Keep it as recent as
+  // the pinned wrangler supports: it must not be newer than the workerd
+  // version that wrangler bundles (see its version in pnpm-lock.yaml), and
+  // it is worth bumping whenever wrangler is updated.
+  "compatibility_date": "2026-09-08",
+  // Wrangler sends usage telemetry to Cloudflare by default. Opt out here so
+  // it stays off for every machine and CI run that uses this config, without
+  // relying on a per-user `wrangler telemetry disable` or an environment
+  // variable. See
+  // https://github.com/cloudflare/workers-sdk/blob/main/packages/wrangler/telemetry.md
+  "send_metrics": false,
+  // The site is static assets only. `pnpm build` writes them to `dist`.
+  "assets": {
+    "directory": "./dist",
+  },
+}

@@ -1,0 +1,22 @@
+// Compiler options shared by every program in tsconfig.json.
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "composite": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "erasableSyntaxOnly": true
+  }
+}

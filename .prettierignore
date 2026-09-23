@@ -1,7 +1,5 @@
 # Files Prettier must not format or check. Prettier also honors .gitignore by
 # default, so everything ignored there (node_modules, dist, .wrangler, logs and
-# local overrides) is already skipped; this file only needs to list generated
-# files that are committed. dist is repeated so that the build output stays
-# ignored even when Prettier is run with an explicit --ignore-path.
+# local overrides) is already skipped; this file only lists generated files
+# that are committed.
 pnpm-lock.yaml
-dist/

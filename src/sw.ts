@@ -1,7 +1,10 @@
-/// <reference lib="webworker" />
-
 /**
  * The service worker: an offline-first cache of the whole app.
+ *
+ * `tsconfig.sw.json` checks this file against TypeScript's `webworker` lib,
+ * which is where `ServiceWorkerGlobalScope`, `FetchEvent` and the rest of the
+ * service worker API are declared: TypeScript has no service-worker-specific
+ * lib, and `webworker` covers dedicated, shared and service workers alike.
  *
  * On install it downloads every file the built app consists of into a cache
  * named after this build's version, so the app is fully cached the first time

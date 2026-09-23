@@ -26,8 +26,13 @@ uses [pnpm](https://pnpm.io) for package management.
 | `pnpm build`        | Type-check and build a production bundle in `dist`. |
 | `pnpm preview`      | Serve the production bundle locally.                |
 | `pnpm typecheck`    | Type-check without building.                        |
+| `pnpm test`         | Run the tests with Node's built-in test runner.     |
 | `pnpm format`       | Format all source files with Prettier.              |
 | `pnpm format:check` | Verify that all source files are formatted.         |
+
+Run `pnpm format` before every commit: the repository is expected to be
+formatted with Prettier at all times, and `pnpm format:check` is how that is
+verified.
 
 The service worker is only registered in production builds, so `pnpm dev`
 never caches anything. To try the offline behavior, run `pnpm build` and then
@@ -51,6 +56,8 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
   installable, and `public/icons/` holds the icons it points to.
 - `vite-plugin-precache.ts` is the Vite plugin that builds the service worker
   and injects the list of files to cache into it. `vite.config.ts` enables it.
+  `vite-plugin-precache.test.ts` checks the injection (see Offline behavior
+  below).
 - `tsconfig.json` type-checks three separate programs, each with its own
   config, because they need different `lib` settings: `tsconfig.app.json`
   covers the app (`dom`), `tsconfig.sw.json` the service worker
@@ -84,7 +91,14 @@ up automatically after a deploy. The pieces involved:
   `vite build`, emitted unhashed as `dist/sw.js` (its location decides the
   scope it controls, which must be the whole site), and prepends a
   `__PRECACHE__` constant listing the URL of every other file in `dist` along
-  with a version hashed from all of their contents.
+  with a version hashed from all of their contents. That constant is generated
+  code, so the plugin makes sure file names cannot end up as anything but
+  strings in it: the manifest is serialized with `JSON.stringify` (JSON is a
+  subset of JavaScript, so its output is always a valid expression), every URL
+  is validated against a conservative character set first, and the result is
+  parsed with Vite's own JavaScript parser and rejected unless it starts with
+  a `const` declaration whose value is a literal of plain objects, arrays and
+  strings. `pnpm test` covers these checks.
 - **Updates.** Because the version is derived from the contents of the build,
   any change to the app changes `sw.js`, and browsers check for a changed
   worker on every navigation (at most once a day, bypassing the HTTP cache).

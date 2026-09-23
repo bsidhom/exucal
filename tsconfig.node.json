@@ -6,5 +6,9 @@
     "types": ["node"],
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
   },
-  "include": ["vite.config.ts", "vite-plugin-precache.ts"]
+  "include": [
+    "vite.config.ts",
+    "vite-plugin-precache.ts",
+    "vite-plugin-precache.test.ts"
+  ]
 }

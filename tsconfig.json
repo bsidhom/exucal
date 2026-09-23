@@ -1,0 +1,12 @@
+// The type-checking entry point. The project is checked as three separate
+// programs because each needs a different `lib`: the app runs in a window
+// (`dom`), the service worker runs in a worker (`webworker`, which conflicts
+// with `dom`), and the Vite config runs in Node.js. `tsc -b` checks all three.
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.sw.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}

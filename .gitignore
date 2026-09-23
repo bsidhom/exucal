@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Local environment overrides
+*.local
+
+# Logs
+*.log
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+
+# Wrangler local state
+.wrangler/

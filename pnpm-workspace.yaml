@@ -1,0 +1,42 @@
+# pnpm settings. pnpm 12 reads project settings from this file and rejects
+# any key it does not recognize.
+
+# Never resolve a version published less than 24 hours ago. Malicious
+# releases are usually yanked within hours of publication; with this cutoff
+# a fresh `pnpm install` cannot pull one in before it is caught.
+minimumReleaseAge: 1440
+
+# Refuse a dependency whose newest version is published with weaker
+# provenance/trust guarantees than an earlier version was.
+trustPolicy: no-downgrade
+
+# Refuse transitive dependencies that resolve to git repositories, tarball
+# URLs, or other sources that bypass the registry.
+blockExoticSubdeps: true
+
+# Dependencies may not run install-time (lifecycle) scripts unless they are
+# explicitly listed under `allowBuilds`. Fail the install instead of silently
+# skipping a build so that the decision is always made deliberately.
+strictDepBuilds: true
+
+# Refuse to run scripts when node_modules is out of sync with the lockfile.
+verifyDepsBeforeRun: error
+
+# Fail the install if a package does not support the current Node.js version.
+engineStrict: true
+
+# Record exact versions in package.json instead of semver ranges.
+saveExact: true
+
+# The only dependencies that ship install scripts, and whether they may run
+# them. `strictDepBuilds` above fails the install for any package with a
+# script that is not decided here, so every entry is an explicit decision.
+# Both packages are pulled in by wrangler. Neither script needs to run: each
+# only checks for (and would otherwise download) the platform-specific binary
+# that pnpm already installs as an optional dependency, and `wrangler deploy`
+# for static assets does not run workerd at all. Denying them keeps the
+# deploy working without executing any third-party code at install time.
+# Flip an entry to `true` only if a build genuinely needs that script.
+allowBuilds:
+  esbuild: false
+  workerd: false

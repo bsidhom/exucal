@@ -53,7 +53,12 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
 - `src/index.css` holds the few global styles for the document. Component
   styles live in each component.
 - `public/manifest.webmanifest` is the web app manifest that makes the app
-  installable, and `public/icons/` holds the icons it points to.
+  installable, and `public/icons/` holds the icons it points to. They are the
+  source of every icon the app has (see Icons below).
+- `vite-plugin-icons.ts` is the Vite plugin that renders the PNG icons that
+  some platforms need from the SVG ones, at build time and on request during
+  development. `rasterize-svg.ts` does the rendering without any dependencies,
+  and `rasterize-svg.test.ts` checks it.
 - `vite-plugin-precache.ts` is the Vite plugin that builds the service worker
   and injects the list of files to cache into it. `vite.config.ts` enables it.
   `vite-plugin-precache.test.ts` checks the injection (see Offline behavior
@@ -82,16 +87,18 @@ up automatically after a deploy. The pieces involved:
 
 - **Precaching.** When `src/sw.ts` is installed, it downloads every file of the
   build into a cache named after the build's version: the page, the hashed
-  scripts and styles, and everything in `public/`. Requests for those files are
-  then answered from the cache without touching the network; any other
-  same-origin request goes to the network as usual. The page is cached under
+  scripts and styles, and everything in `public/`, except the app icons (see
+  Icons below for why). Requests for those files are then answered from the
+  cache without touching the network; any other same-origin request goes to
+  the network as usual. The page is cached under
   `/` and served for navigations regardless of the query string.
 - **The precache manifest.** The service worker does not know what the build
   contains, so `vite-plugin-precache.ts` builds it as a second entry point of
   `vite build`, emitted unhashed as `dist/sw.js` (its location decides the
   scope it controls, which must be the whole site), and prepends a
-  `__PRECACHE__` constant listing the URL of every other file in `dist` along
-  with a version hashed from all of their contents. That constant is generated
+  `__PRECACHE__` constant listing the URL of every other file in `dist`, minus
+  the ones its `exclude` option in `vite.config.ts` rules out, along with a
+  version hashed from all of their contents. That constant is generated
   code, so the plugin makes sure file names cannot end up as anything but
   strings in it: the manifest is serialized with `JSON.stringify` (JSON is a
   subset of JavaScript, so its output is always a valid expression), every URL
@@ -110,7 +117,74 @@ up automatically after a deploy. The pieces involved:
 - **Installation.** `public/manifest.webmanifest` gives the app its name,
   icons, and standalone display mode. The icons are SVG, which Chromium-based
   browsers accept for installation. Safari ignores manifest icons and needs a
-  PNG `apple-touch-icon`, which the skeleton does not yet provide.
+  PNG `apple-touch-icon`, which the build renders from the SVG (see Icons
+  below).
+
+### Icons
+
+The SVG files in `public/icons/` are the only icon sources; every other form
+of the icon is rendered from them, so changing an SVG updates them all on the
+next build. Nothing rendered is committed.
+
+- `icon.svg` is the regular icon, with its own rounded corners, and
+  `icon-maskable.svg` is the maskable variant: it fills its whole square and
+  keeps its content inside the safe zone, for platforms that cut the icon into
+  their own shape. The manifest points at both.
+- `apple-touch-icon.png` is what Safari uses for the iOS home screen, since
+  it ignores the manifest's icons and cannot use SVG there. `index.html` links
+  it, and it is placed at the site root, where iOS also looks for it by name.
+  It is rendered at 180 pixels (the largest size iOS uses, 60 points at 3x)
+  from the maskable variant, because iOS rounds the corners itself and shows
+  transparent pixels as black, so a full-bleed square is the right source.
+
+`vite-plugin-icons.ts` does the rendering. It is configured in
+`vite.config.ts` with a list of PNGs to make (source SVG, output file name and
+size), and adds each one to the bundle on every `vite build`, so they end up
+in `dist` like every other file. During `pnpm dev` it renders them on request
+instead, from the current SVG. To add a PNG, add an entry to the list; nothing
+needs to be checked in.
+
+The icons, rendered and SVG alike, are deliberately left out of the service
+worker's precache (the `exclude` option of `precache()` in `vite.config.ts`).
+The browser or OS fetches an icon when the app is installed, which happens
+online, and keeps its own copy with the installed app; the page never requests
+icons itself. Precaching them would make every visitor download the whole
+icon set on their first visit, which with several sizes can outweigh the app,
+and would ship a new service worker on every icon change, for no benefit. The
+favicon is the exception and stays precached, because the browser requests it
+on every page load.
+
+How a changed icon reaches users is up to each platform, and the service
+worker plays no part in it on any of them: the worker only sees the page's
+own requests, and browsers only check it for updates when the page is
+visited, while icons are never requested by the page. On iOS the home screen
+icon is copied when the user adds the app and never fetched again; only
+removing and re-adding the app picks up a new one, and nothing served by the
+site can change that. Chromium-based browsers re-read the manifest when an
+installed app is launched, at most once a day, and fetch its icons from the
+network as part of that check. A changed icon URL is what that check is
+guaranteed to notice, so an icon that must update reliably there should get a
+new file name (and a matching manifest entry) rather than new contents under
+the old name. Precaching would not have helped either platform: on iOS
+nothing re-fetches, and on Chromium the check goes to the network regardless.
+At worst, a precached icon could have been served to that check from the
+cache, which is one more reason to leave icons out.
+
+Node.js cannot render SVG on its own, and the alternatives (a native or
+WebAssembly rendering library, or a headless browser) all add a dependency,
+which this project avoids where it reasonably can; Cloudflare Workers Builds,
+which runs the deploy, has no browser to lean on either. So `rasterize-svg.ts`
+is a small rasterizer of its own, written for the subset of SVG that flat
+icons use: the basic shapes and paths (with curves and arcs), transforms,
+solid colors with opacity, both fill rules, and strokes with every cap and
+join. Its header comment lists exactly what it accepts. Anything outside that
+subset, such as gradients, `style` attributes, text or filters, fails the
+build with a message naming the feature, rather than rendering it wrong. The
+strictness is deliberate: it is what makes the SVG safe to treat as the
+source of truth. If an icon ever needs something beyond the subset, either
+extend the rasterizer or replace the call in `vite-plugin-icons.ts` with a
+rendering library; the plugin and the rest of the build do not care how the
+PNG is made.
 
 ### Deployment
 

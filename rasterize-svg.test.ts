@@ -85,10 +85,10 @@ function render(svg: string, width: number, height = width): Image {
   return decodePng(rasterizeSvg(svg, { width, height }));
 }
 
-const transparent = [0, 0, 0, 0];
-const black = [0, 0, 0, 255];
-const white = [255, 255, 255, 255];
-const red = [255, 0, 0, 255];
+const transparent = Object.freeze([0, 0, 0, 0]);
+const black = Object.freeze([0, 0, 0, 255]);
+const white = Object.freeze([255, 255, 255, 255]);
+const red = Object.freeze([255, 0, 0, 255]);
 
 test("a PNG round-trips through the encoder", () => {
   const pixels = new Uint8Array([

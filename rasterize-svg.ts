@@ -131,9 +131,10 @@ const maxSourceLength = 1024 * 1024;
  * - External entity attacks (XXE) are impossible: nothing here reads a file
  *   or a URL. The renderer rejects every element and attribute that could
  *   reference another resource (`<use>`, `<image>`, `href`, `url(...)`).
- * - Element and attribute names only select from allowlists, and names are
- *   kept in a `Map`, so a name such as `__proto__` or `constructor` is just
- *   an unknown name that fails the build; it cannot reach a prototype.
+ * - Element and attribute names only select from allowlists: frozen tables
+ *   without a prototype (see `table`) and sets. A name such as `__proto__`
+ *   or `constructor` is just an unknown name that fails the build; it
+ *   cannot reach a prototype, and the tables cannot be changed.
  * - Resource use is bounded: the input is capped at `maxSourceLength`, the
  *   regular expressions below are anchored by literal delimiters and cannot
  *   backtrack exponentially, the renderer caps how finely each curve is
@@ -271,9 +272,9 @@ interface Subpath {
 }
 
 /** An affine transform `[a, b, c, d, e, f]` mapping (x, y) to (ax + cy + e, bx + dy + f). */
-type Matrix = [number, number, number, number, number, number];
+type Matrix = readonly [number, number, number, number, number, number];
 
-const identity: Matrix = [1, 0, 0, 1, 0, 0];
+const identity: Matrix = Object.freeze([1, 0, 0, 1, 0, 0] as const);
 
 /** The transform that applies `n` first and then `m`. */
 function multiply(m: Matrix, n: Matrix): Matrix {
@@ -849,8 +850,8 @@ interface Style {
   miterLimit: number;
 }
 
-const defaultStyle: Style = {
-  fill: { r: 0, g: 0, b: 0, a: 1 },
+const defaultStyle: Readonly<Style> = Object.freeze({
+  fill: Object.freeze({ r: 0, g: 0, b: 0, a: 1 }),
   fillRule: "nonzero",
   fillOpacity: 1,
   stroke: null,
@@ -859,32 +860,47 @@ const defaultStyle: Style = {
   lineCap: "butt",
   lineJoin: "miter",
   miterLimit: 4,
-};
+});
 
-const namedColors = new Map(
-  Object.entries({
-    black: "#000000",
-    silver: "#c0c0c0",
-    gray: "#808080",
-    grey: "#808080",
-    white: "#ffffff",
-    maroon: "#800000",
-    red: "#ff0000",
-    purple: "#800080",
-    fuchsia: "#ff00ff",
-    magenta: "#ff00ff",
-    green: "#008000",
-    lime: "#00ff00",
-    olive: "#808000",
-    yellow: "#ffff00",
-    navy: "#000080",
-    blue: "#0000ff",
-    teal: "#008080",
-    aqua: "#00ffff",
-    cyan: "#00ffff",
-    orange: "#ffa500",
-  }),
-);
+/**
+ * A frozen lookup table with no prototype, for keys that come from the SVG:
+ * only the table's own entries resolve, so a key such as `__proto__` or
+ * `constructor` finds nothing rather than something inherited from
+ * `Object.prototype`, and nothing can add or change an entry later. (A `Map`
+ * would resolve keys just as safely, but its contents cannot be frozen.)
+ */
+function table<T>(
+  entries: Record<string, T>,
+): Readonly<Partial<Record<string, T>>> {
+  const result: Partial<Record<string, T>> = Object.create(null);
+  for (const [key, value] of Object.entries(entries)) {
+    result[key] = Object.freeze(value);
+  }
+  return Object.freeze(result);
+}
+
+const namedColors = table({
+  black: "#000000",
+  silver: "#c0c0c0",
+  gray: "#808080",
+  grey: "#808080",
+  white: "#ffffff",
+  maroon: "#800000",
+  red: "#ff0000",
+  purple: "#800080",
+  fuchsia: "#ff00ff",
+  magenta: "#ff00ff",
+  green: "#008000",
+  lime: "#00ff00",
+  olive: "#808000",
+  yellow: "#ffff00",
+  navy: "#000080",
+  blue: "#0000ff",
+  teal: "#008080",
+  aqua: "#00ffff",
+  cyan: "#00ffff",
+  orange: "#ffa500",
+});
 
 /** Parses a paint value into a color, or `null` for `none`. */
 export function parsePaint(value: string): Color | null {
@@ -895,7 +911,7 @@ export function parsePaint(value: string): Color | null {
   if (paint === "transparent") {
     return { r: 0, g: 0, b: 0, a: 0 };
   }
-  const named = namedColors.get(paint);
+  const named = namedColors[paint];
   if (named !== undefined) {
     return parsePaint(named);
   }
@@ -997,7 +1013,7 @@ export function parseTransform(value: string): Matrix {
     let next: Matrix;
     switch (`${name}/${args.length}`) {
       case "matrix/6":
-        next = args as Matrix;
+        next = [args[0]!, args[1]!, args[2]!, args[3]!, args[4]!, args[5]!];
         break;
       case "translate/1":
         next = [1, 0, 0, 1, args[0]!, 0];
@@ -1043,7 +1059,7 @@ export function parseTransform(value: string): Matrix {
 // ---------------------------------------------------------------------------
 
 /** Attributes that never affect rendering and are allowed on any element. */
-const inertAttributes = new Set([
+const inertAttributes: ReadonlySet<string> = new Set([
   "id",
   "class",
   "xml:space",
@@ -1051,7 +1067,7 @@ const inertAttributes = new Set([
   "role",
 ]);
 
-const styleAttributes = new Set([
+const styleAttributes: ReadonlySet<string> = new Set([
   "fill",
   "fill-rule",
   "fill-opacity",
@@ -1064,22 +1080,20 @@ const styleAttributes = new Set([
 ]);
 
 /** The attributes each element may carry, beyond the inert and style ones. */
-const elementAttributes = new Map<string, readonly string[]>(
-  Object.entries({
-    svg: ["viewBox", "width", "height"],
-    g: ["transform", "opacity"],
-    rect: ["x", "y", "width", "height", "rx", "ry", "transform", "opacity"],
-    circle: ["cx", "cy", "r", "transform", "opacity"],
-    ellipse: ["cx", "cy", "rx", "ry", "transform", "opacity"],
-    line: ["x1", "y1", "x2", "y2", "transform", "opacity"],
-    polyline: ["points", "transform", "opacity"],
-    polygon: ["points", "transform", "opacity"],
-    path: ["d", "transform", "opacity"],
-  }),
-);
+const elementAttributes = table<readonly string[]>({
+  svg: ["viewBox", "width", "height"],
+  g: ["transform", "opacity"],
+  rect: ["x", "y", "width", "height", "rx", "ry", "transform", "opacity"],
+  circle: ["cx", "cy", "r", "transform", "opacity"],
+  ellipse: ["cx", "cy", "rx", "ry", "transform", "opacity"],
+  line: ["x1", "y1", "x2", "y2", "transform", "opacity"],
+  polyline: ["points", "transform", "opacity"],
+  polygon: ["points", "transform", "opacity"],
+  path: ["d", "transform", "opacity"],
+});
 
 function checkAttributes(element: XmlElement): void {
-  const allowed = elementAttributes.get(element.name);
+  const allowed = elementAttributes[element.name];
   if (allowed === undefined) {
     throw unsupported(`the element <${element.name}>`);
   }

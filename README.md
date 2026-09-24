@@ -154,6 +154,22 @@ and would ship a new service worker on every icon change, for no benefit. The
 favicon is the exception and stays precached, because the browser requests it
 on every page load.
 
+How a changed icon reaches users is up to each platform, and the service
+worker plays no part in it on any of them: the worker only sees the page's
+own requests, and browsers only check it for updates when the page is
+visited, while icons are never requested by the page. On iOS the home screen
+icon is copied when the user adds the app and never fetched again; only
+removing and re-adding the app picks up a new one, and nothing served by the
+site can change that. Chromium-based browsers re-read the manifest when an
+installed app is launched, at most once a day, and fetch its icons from the
+network as part of that check. A changed icon URL is what that check is
+guaranteed to notice, so an icon that must update reliably there should get a
+new file name (and a matching manifest entry) rather than new contents under
+the old name. Precaching would not have helped either platform: on iOS
+nothing re-fetches, and on Chromium the check goes to the network regardless.
+At worst, a precached icon could have been served to that check from the
+cache, which is one more reason to leave icons out.
+
 Node.js cannot render SVG on its own, and the alternatives (a native or
 WebAssembly rendering library, or a headless browser) all add a dependency,
 which this project avoids where it reasonably can; Cloudflare Workers Builds,

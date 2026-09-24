@@ -38,17 +38,105 @@ type Rational = { readonly num: bigint; readonly den: bigint }; // den > 0, gcd 
 Rationals rather than arbitrary-precision floats because almost every unit
 definition is a rational (`2.54 cm`, `0.45359237 kg`), so conversions are
 exact and rounding happens only once, at display time. Decimal literals parse
-exactly (`1.5e-3` is `3/2000`).
+exactly (`1.5e-3` is `3/2000`). Irrational constants such as `pi` are plain
+decimal literals in the definitions file, as in GNU units.
 
-The only irrational operation in the first iteration is the n-th root, needed
-for fractional exponents. It, and any future special function, takes a
-`Precision` (a count of significant digits) and truncates its result back to a
-`Rational`. Irrational constants such as `pi` are plain decimal literals in the
-definitions file, as in GNU units.
+`src/core/rational.ts` provides the arithmetic (`add`, `subtract`,
+`multiply`, `divide`, `invert`, `negate`, `pow` with an integer exponent),
+comparison, the n-th root and `powRational` for rational exponents, rounding
+to significant digits (`truncate`, `round`), `parseDecimal` and `format`.
 
-`format(r, digits)` renders a rational as a decimal string, rounding to the
-requested significant digits and switching to exponent notation when the
-magnitude warrants it.
+### Precision and rounding
+
+Three rules say where, and only where, a value can lose precision:
+
+1. **Exact operations never round.** Addition, subtraction, multiplication,
+   division, integer powers and comparisons are exact, and their results are
+   as long as they need to be. Nothing in the pipeline rounds an intermediate
+   to keep it small.
+
+2. **Inexact operations truncate once, immediately.** The n-th root is the
+   only irrational operation in the first iteration; it, and any future
+   special function (`ln`, `exp`, trigonometry), takes a `Precision` (a count
+   of significant digits), computes its result correct to at least that many
+   digits, and truncates it toward zero to exactly that many. The truncated
+   value is an ordinary `Rational`, and everything downstream of it is exact
+   again. So the number of roundings in a computation equals the number of
+   inexact operations in it, and each one is visible in the code as a
+   `precision` argument. A root that is rational (`sqrt(9/4)`, `sqrt(2.25)`,
+   `cbrt(-8)`) is detected and returned exactly, so `(4 m^2)^(1/2)` is
+   exactly `2 m`.
+
+   Truncation rather than rounding to nearest, because truncation composes:
+   truncating a truncated value to fewer digits gives what truncating the
+   exact value would, so the digits an inexact result carries are always the
+   true leading digits of the exact result. `x^(p/q)` is computed as the
+   `q`-th root of `x^p`, not the `p`-th power of the root, so that its single
+   truncation comes last and the rule holds for it too.
+
+3. **Display rounds to nearest, once.** `format(r, digits)` rounds to
+   `digits` significant digits, ties away from zero (the `halfExpand` mode of
+   `Intl.NumberFormat`; C's `%g` differs only on exact ties, which are rare
+   with doubles but ordinary with rationals: `0.125` at two digits is `0.13`).
+   `round(r, digits)` is the same rounding as a `Rational`, so
+   `equals(round(r, digits), r)` tells the UI whether what it shows is exact
+   (`1 in = 2.54 cm`) or an approximation (`1 m ≈ 39.370079 in`).
+
+**Working precision.** `evaluate` takes one precision and passes it to every
+inexact operation; it is a working precision, not the display precision. The
+app passes `DEFAULT_PRECISION` (40 significant digits) everywhere, including
+when building the unit table, and lets the display precision vary
+independently below it (GNU units shows 8 digits). Each truncation is a
+relative error below `10^(1-p)`, and the exact operations that follow it
+combine such errors at worst additively, scaled by any integer exponent
+applied afterwards, so with a display precision that stays well under the
+working precision, the truncation errors never reach the displayed digits.
+What remains is the double-rounding case: a truncated value can sit on the
+near side of a display rounding boundary that the exact value is on the far
+side of, if the exact value lies within `10^(1-p)` of the boundary. At 40
+working digits this is accepted as unreachable in practice, and it is why the
+working precision is fixed high rather than derived from the display
+precision.
+
+### Size limits
+
+Exact arithmetic cannot overflow, but it can grow without bound:
+`10^(10^9)`, `1e999999999` and `2^(1/999999999)` are all valid input. The
+operations whose result can be exponentially larger than their inputs (`pow`,
+`root`, and the exponent of a decimal literal) predict the size of their
+result from the sizes of the inputs and return `tooLarge` instead of
+computing anything beyond `MAX_BITS` (2^16 bits, about 19,700 decimal
+digits, at which every operation still takes milliseconds). The operations
+that grow their inputs by at most a constant factor do not check: an
+expression of bounded length applies a bounded number of them.
+
+### Failures
+
+A value that cannot be computed is a `Result` error, never an exception:
+
+```ts
+type RationalError =
+  | { kind: "divisionByZero" } // divide, invert, 0 to a negative power
+  | { kind: "negativeRadicand"; degree: bigint } // an even root of a negative
+  | { kind: "tooLarge" } // beyond MAX_BITS
+  | { kind: "invalidNumber" }; // parseDecimal
+```
+
+A violated precondition (a zero denominator passed to the `rational`
+constructor, a precision that is not a positive integer, a root degree below
+one) is a bug in the caller, not a value that can fail, and throws
+`RangeError`, as `1n / 0n` does. Every value that can be zero or negative
+because the user typed it reaches the numerics through `divide`, `pow`,
+`root` and `powRational`, which report it.
+
+### Formatting
+
+`format(r, digits)` renders a rational as a decimal string in the style of
+C's `%g`: rounded to `digits` significant digits as above, trailing zeros
+dropped, and exponent notation when the decimal exponent is below -4 or at
+least `digits`, with the exponent written as JavaScript writes it (`1.5e+21`,
+`1e-7`). Nothing goes through a `number` on the way, so a value of any
+magnitude renders exactly.
 
 ## Quantities, dimensions and kinds
 
@@ -212,7 +300,7 @@ src/core/definitions.ts   Definition, parseDefinitions
 src/core/table.ts         UnitTable, buildTable, name lookup
 src/core/evaluate.ts      evaluate
 src/core/convert.ts       convert
-src/core/result.ts        Result and the error types
+src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions
 src/unit-converter.ts     the component
 ```

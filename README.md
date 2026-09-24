@@ -49,6 +49,9 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
   manifest and sets the theme color that installed copies of the app use.
 - `src/main.ts` is the entry point. It registers the app's components and the
   service worker.
+- `src/core/` is the pure conversion core that `ARCHITECTURE.md` describes:
+  no I/O, no DOM, and failures returned as `Result` values. Each module has
+  a `*.test.ts` beside it.
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every
   part of the app renders inside. For now it renders the greeting.
 - `src/register-service-worker.ts` registers `sw.js` once the page has loaded,
@@ -71,8 +74,9 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
   config, because they need different `lib` settings: `tsconfig.app.json`
   covers the app (`dom`), `tsconfig.sw.json` the service worker
   (`webworker`, which cannot be combined with `dom` in one program), and
-  `tsconfig.node.json` the Vite config and plugin (Node.js). The options they
-  share live in `tsconfig.base.json`.
+  `tsconfig.node.json` the Vite config and plugin (Node.js), along with the
+  tests, which run under Node.js and need its types, and the core they
+  exercise. The options they share live in `tsconfig.base.json`.
 - Components use TypeScript's `experimentalDecorators`, as Vite's own Lit
   template does, because Vite does not yet transform standard (TC39)
   decorators.

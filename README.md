@@ -53,7 +53,12 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
 - `src/index.css` holds the few global styles for the document. Component
   styles live in each component.
 - `public/manifest.webmanifest` is the web app manifest that makes the app
-  installable, and `public/icons/` holds the icons it points to.
+  installable, and `public/icons/` holds the icons it points to. They are the
+  source of every icon the app has (see Icons below).
+- `vite-plugin-icons.ts` is the Vite plugin that renders the PNG icons that
+  some platforms need from the SVG ones, at build time and on request during
+  development. `rasterize-svg.ts` does the rendering without any dependencies,
+  and `rasterize-svg.test.ts` checks it.
 - `vite-plugin-precache.ts` is the Vite plugin that builds the service worker
   and injects the list of files to cache into it. `vite.config.ts` enables it.
   `vite-plugin-precache.test.ts` checks the injection (see Offline behavior
@@ -110,7 +115,48 @@ up automatically after a deploy. The pieces involved:
 - **Installation.** `public/manifest.webmanifest` gives the app its name,
   icons, and standalone display mode. The icons are SVG, which Chromium-based
   browsers accept for installation. Safari ignores manifest icons and needs a
-  PNG `apple-touch-icon`, which the skeleton does not yet provide.
+  PNG `apple-touch-icon`, which the build renders from the SVG (see Icons
+  below).
+
+### Icons
+
+The SVG files in `public/icons/` are the only icon sources; every other form
+of the icon is rendered from them, so changing an SVG updates them all on the
+next build. Nothing rendered is committed.
+
+- `icon.svg` is the regular icon, with its own rounded corners, and
+  `icon-maskable.svg` is the maskable variant: it fills its whole square and
+  keeps its content inside the safe zone, for platforms that cut the icon into
+  their own shape. The manifest points at both.
+- `apple-touch-icon.png` is what Safari uses for the iOS home screen, since
+  it ignores the manifest's icons and cannot use SVG there. `index.html` links
+  it, and it is placed at the site root, where iOS also looks for it by name.
+  It is rendered at 180 pixels (the largest size iOS uses, 60 points at 3x)
+  from the maskable variant, because iOS rounds the corners itself and shows
+  transparent pixels as black, so a full-bleed square is the right source.
+
+`vite-plugin-icons.ts` does the rendering. It is configured in
+`vite.config.ts` with a list of PNGs to make (source SVG, output file name and
+size), and adds each one to the bundle on every `vite build`, so they end up
+in `dist` and in the service worker's precache list like every other file.
+During `pnpm dev` it renders them on request instead, from the current SVG.
+To add a PNG, add an entry to the list; nothing needs to be checked in.
+
+Node.js cannot render SVG on its own, and the alternatives (a native or
+WebAssembly rendering library, or a headless browser) all add a dependency,
+which this project avoids where it reasonably can; Cloudflare Workers Builds,
+which runs the deploy, has no browser to lean on either. So `rasterize-svg.ts`
+is a small rasterizer of its own, written for the subset of SVG that flat
+icons use: the basic shapes and paths (with curves and arcs), transforms,
+solid colors with opacity, both fill rules, and strokes with every cap and
+join. Its header comment lists exactly what it accepts. Anything outside that
+subset, such as gradients, `style` attributes, text or filters, fails the
+build with a message naming the feature, rather than rendering it wrong. The
+strictness is deliberate: it is what makes the SVG safe to treat as the
+source of truth. If an icon ever needs something beyond the subset, either
+extend the rasterizer or replace the call in `vite-plugin-icons.ts` with a
+rendering library; the plugin and the rest of the build do not care how the
+PNG is made.
 
 ### Deployment
 

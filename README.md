@@ -4,6 +4,10 @@ An offline-first progressive web app (PWA) skeleton. It renders a single page
 that says "hello PWA units", can be installed to the home screen, and works
 without a network connection once it has been loaded once.
 
+`ARCHITECTURE.md` describes the design of the unit converter itself: the
+conversion pipeline, the number type, and how units, dimensions and kinds are
+modeled.
+
 ## Development
 
 The app is built with [Lit](https://lit.dev) and [Vite](https://vite.dev),

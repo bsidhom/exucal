@@ -123,8 +123,18 @@ type UnitTable = {
 };
 ```
 
-Name lookup tries, in order: an exact unit name, a prefix followed by a unit
-name, and the same with a trailing `s` stripped.
+A name in an expression resolves to an exact unit name if there is one, and
+otherwise to one prefix followed by a unit name. Prefixes do not stack, and
+there is no plural handling: `inches  inch` is an ordinary alias definition.
+
+Every name is known once the table is built, so ambiguity is a property of the
+table rather than of the input, and `buildTable` checks for it. A name with
+two different prefix-unit splits (`d`+`am` against `da`+`m`, were `am` a unit)
+is a build error, so a table that builds has at most one split per name. A
+unit name that is also a valid split (`min`, the minute, against `m`+`in`) is
+allowed, because real unit conventions are full of them, and the exact name
+wins. The check is cheap: for each pair of prefixes where one extends the
+other, and each unit, one map lookup.
 
 ## Expressions
 
@@ -135,13 +145,18 @@ decimal numbers, unit names, juxtaposition and `*` for multiplication, `/`,
 GNU units precedence. No functions, unit lists or `+`/`-` yet.
 
 ```ts
-type Expr =
-  | { kind: "number"; value: Rational; span: Span }
-  | { kind: "unit"; name: string; span: Span }
-  | { kind: "mul"; left: Expr; right: Expr; span: Span }
-  | { kind: "div"; left: Expr; right: Expr; span: Span }
-  | { kind: "pow"; base: Expr; exponent: Rational; span: Span };
+type Span = { readonly start: number; readonly end: number };
+type Expr = { readonly span: Span; readonly node: ExprNode };
+type ExprNode =
+  | { kind: "number"; value: Rational }
+  | { kind: "unit"; name: string }
+  | { kind: "binary"; op: "mul" | "div"; left: Expr; right: Expr }
+  | { kind: "pow"; base: Expr; exponent: Rational };
 ```
+
+Juxtaposition is surface syntax only: it parses to a `mul` node like `*`
+does, and differs from it only in precedence (it binds tighter than `/`, as
+in GNU units), which is the parser's business.
 
 `parseExpr(text): Result<Expr, ParseError>` knows nothing about units;
 `evaluate(expr, table, precision): Result<Quantity, EvalError>` knows nothing
@@ -151,21 +166,18 @@ so the UI can highlight the offending input.
 ## Conversion
 
 ```ts
-type Conversion = {
-  readonly factor: Rational;
-  readonly have: Quantity;
-  readonly want: Quantity;
-};
 type ConvertError = DimensionMismatch | KindMismatch;
 
 function convert(
   have: Quantity,
   want: Quantity,
-): Result<Conversion, ConvertError>;
+): Result<Rational, ConvertError>;
 ```
 
-After the conformance check the factor is simply `have.value / want.value`.
-`want` may carry a magnitude (`3 ft` into `in` gives `36`), matching GNU units.
+The result is the output value: how many `want`s make up `have`, which after
+the conformance check is simply `have.value / want.value`, since each quantity
+already carries its own scale. `want` may have a magnitude (`3 ft` into `in`
+gives `36`), matching GNU units.
 The mismatch errors carry both dimension vectors, and a core function formats a
 `Dimension` as text (`m^2 / s`), so the UI can explain the failure without
 interpreting anything itself.
@@ -215,7 +227,7 @@ Planned extensions, listed to show that they fit without reshaping the core:
   definition form; each function takes and returns a `Quantity` and a
   `Precision`.
 - **Unit lists** (`ft;in`) are a second output mode over the same
-  `Conversion`.
+  `convert`.
 - **User definitions** are already supported by `buildTable`; only storage and
   an editor are missing.
 - **Lenient kind conversion** (converting `rad/s` to `Hz` on request) is a flag

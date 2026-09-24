@@ -20,11 +20,9 @@ export interface RasterIcon {
  * `apple-touch-icon` for the iOS home screen. Rather than committing PNGs
  * that would go stale whenever the SVG changes, this plugin renders them on
  * every build (with `rasterize-svg.ts`, which needs no dependencies) and adds
- * them to the bundle, so they land in `dist` next to everything else and
- * `vite-plugin-precache.ts` lists them for the service worker like any other
- * file. The development server renders them on request instead, so the
- * icons are served under the same URLs during `vite dev`, always from the
- * current SVG.
+ * them to the bundle, so they land in `dist` next to everything else. The
+ * development server renders them on request instead, so the icons are
+ * served under the same URLs during `vite dev`, always from the current SVG.
  */
 export function icons(icons: RasterIcon[]): Plugin {
   let config: ResolvedConfig;

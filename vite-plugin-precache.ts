@@ -11,11 +11,13 @@ import { parseAst, type Plugin, type ResolvedConfig } from "vite";
  * scope covers the whole site. Once the rest of the bundle is known, it
  * prepends a `__PRECACHE__` constant to the worker's code listing the URL of
  * every file in the build (the page, the hashed scripts and styles, and the
- * static assets copied from `public/`) along with a version derived from the
- * contents of all of them. Any change to the build therefore changes `sw.js`,
- * which is what makes browsers install the update.
+ * static assets copied from `public/`), except those `options.exclude`
+ * rules out, along with a version derived from the contents of all of them.
+ * Any change to the build therefore changes `sw.js`, which is what makes
+ * browsers install the update.
  */
-export function precache(): Plugin {
+export function precache(options: PrecacheOptions = {}): Plugin {
+  const exclude = options.exclude ?? (() => false);
   const swEntry = "sw";
   const swFileName = `${swEntry}.js`;
   let config: ResolvedConfig;
@@ -52,7 +54,7 @@ export function precache(): Plugin {
       // by the path it will be served from and mapped to its contents.
       const files = new Map<string, string | Uint8Array>();
       for (const [fileName, output] of Object.entries(bundle)) {
-        if (fileName !== swFileName) {
+        if (fileName !== swFileName && !exclude(fileName)) {
           files.set(
             fileName,
             output.type === "chunk" ? output.code : output.source,
@@ -60,7 +62,9 @@ export function precache(): Plugin {
         }
       }
       for (const fileName of listFiles(config.publicDir)) {
-        files.set(fileName, readFileSync(join(config.publicDir, fileName)));
+        if (!exclude(fileName)) {
+          files.set(fileName, readFileSync(join(config.publicDir, fileName)));
+        }
       }
 
       const hash = createHash("sha256");
@@ -83,6 +87,17 @@ export function precache(): Plugin {
       sw.code = injectManifest(manifest, sw.code);
     },
   };
+}
+
+export interface PrecacheOptions {
+  /**
+   * Returns whether to leave a file out of the precache, given its path
+   * relative to the output root with `/` separators (`icons/icon.svg`). Left
+   * out files are still built and served; they are just fetched from the
+   * network when requested rather than downloaded up front, and changing
+   * them does not produce a new service worker.
+   */
+  exclude?: (fileName: string) => boolean;
 }
 
 /** What the service worker's `__PRECACHE__` constant holds. */

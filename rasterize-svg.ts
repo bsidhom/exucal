@@ -101,14 +101,60 @@ interface XmlElement {
   children: XmlElement[];
 }
 
+/** The largest SVG the parser accepts; icons are a few kilobytes. */
+const maxSourceLength = 1024 * 1024;
+
 /**
  * Parses the small amount of XML an SVG icon needs: nested elements with
  * quoted attributes, plus a prolog, doctype and comments, which are dropped.
  * Elements whose text content is irrelevant to rendering (`<title>`,
  * `<desc>`, `<metadata>`) are dropped whole. Any other text content is an
  * error, since text is not rendered.
+ *
+ * Security. Node.js has no XML parser of its own (`DOMParser` exists only in
+ * browsers), and this project takes no third-party dependencies for the
+ * build, so the parser is written here. That is also an opportunity: the
+ * classic XML attacks live in the parts of XML this parser does not have.
+ * The SVGs it reads are committed to this repository, but it treats them as
+ * untrusted data all the same, so that neither a careless edit nor a
+ * malicious one can do more than fail the build:
+ *
+ * - Nothing in the file is ever evaluated, executed, or interpolated into
+ *   code, markup or a shell command. The file only ever becomes an element
+ *   tree of strings, and from there numbers, colors and pixels. The outputs
+ *   of the whole module are a PNG and error messages; a PNG is inert data,
+ *   and the messages go to the build log.
+ * - Entity expansion attacks ("billion laughs") are impossible: only the
+ *   five predefined entities and numeric character references are decoded,
+ *   and a DOCTYPE with an internal subset, where entities would be declared,
+ *   is rejected outright. So are CDATA sections.
+ * - External entity attacks (XXE) are impossible: nothing here reads a file
+ *   or a URL. The renderer rejects every element and attribute that could
+ *   reference another resource (`<use>`, `<image>`, `href`, `url(...)`).
+ * - Element and attribute names only select from allowlists, and names are
+ *   kept in a `Map`, so a name such as `__proto__` or `constructor` is just
+ *   an unknown name that fails the build; it cannot reach a prototype.
+ * - Resource use is bounded: the input is capped at `maxSourceLength`, the
+ *   regular expressions below are anchored by literal delimiters and cannot
+ *   backtrack exponentially, the renderer caps how finely each curve is
+ *   flattened, and the canvas is the requested size and no larger.
+ * - Everything not explicitly understood is an error (see `rasterizeSvg`),
+ *   so the parser fails closed rather than guessing.
  */
 export function parseXml(source: string): XmlElement {
+  if (source.length > maxSourceLength) {
+    throw new Error(
+      `Malformed SVG: ${source.length} characters is larger than the ${maxSourceLength} allowed.`,
+    );
+  }
+  if (/<!DOCTYPE[^>]*\[/i.test(source)) {
+    throw unsupported(
+      "a DOCTYPE with an internal subset (entity declarations)",
+    );
+  }
+  if (source.includes("<![CDATA[")) {
+    throw unsupported("CDATA sections");
+  }
   const text = source
     .replace(/<\?[\s\S]*?\?>/g, "")
     .replace(/<!--[\s\S]*?-->/g, "")
@@ -192,12 +238,18 @@ function decodeEntities(value: string): string {
           return '"';
         case "apos":
           return "'";
-        default:
-          return String.fromCodePoint(
+        default: {
+          const codePoint =
             body[1] === "x"
               ? parseInt(body.slice(2), 16)
-              : parseInt(body.slice(1), 10),
-          );
+              : parseInt(body.slice(1), 10);
+          if (codePoint > 0x10ffff) {
+            throw new Error(
+              `Malformed SVG: invalid character reference &${body};.`,
+            );
+          }
+          return String.fromCodePoint(codePoint);
+        }
       }
     },
   );
@@ -809,28 +861,30 @@ const defaultStyle: Style = {
   miterLimit: 4,
 };
 
-const namedColors: Record<string, string> = {
-  black: "#000000",
-  silver: "#c0c0c0",
-  gray: "#808080",
-  grey: "#808080",
-  white: "#ffffff",
-  maroon: "#800000",
-  red: "#ff0000",
-  purple: "#800080",
-  fuchsia: "#ff00ff",
-  magenta: "#ff00ff",
-  green: "#008000",
-  lime: "#00ff00",
-  olive: "#808000",
-  yellow: "#ffff00",
-  navy: "#000080",
-  blue: "#0000ff",
-  teal: "#008080",
-  aqua: "#00ffff",
-  cyan: "#00ffff",
-  orange: "#ffa500",
-};
+const namedColors = new Map(
+  Object.entries({
+    black: "#000000",
+    silver: "#c0c0c0",
+    gray: "#808080",
+    grey: "#808080",
+    white: "#ffffff",
+    maroon: "#800000",
+    red: "#ff0000",
+    purple: "#800080",
+    fuchsia: "#ff00ff",
+    magenta: "#ff00ff",
+    green: "#008000",
+    lime: "#00ff00",
+    olive: "#808000",
+    yellow: "#ffff00",
+    navy: "#000080",
+    blue: "#0000ff",
+    teal: "#008080",
+    aqua: "#00ffff",
+    cyan: "#00ffff",
+    orange: "#ffa500",
+  }),
+);
 
 /** Parses a paint value into a color, or `null` for `none`. */
 export function parsePaint(value: string): Color | null {
@@ -841,7 +895,7 @@ export function parsePaint(value: string): Color | null {
   if (paint === "transparent") {
     return { r: 0, g: 0, b: 0, a: 0 };
   }
-  const named = namedColors[paint];
+  const named = namedColors.get(paint);
   if (named !== undefined) {
     return parsePaint(named);
   }
@@ -1010,20 +1064,22 @@ const styleAttributes = new Set([
 ]);
 
 /** The attributes each element may carry, beyond the inert and style ones. */
-const elementAttributes: Record<string, readonly string[]> = {
-  svg: ["viewBox", "width", "height"],
-  g: ["transform", "opacity"],
-  rect: ["x", "y", "width", "height", "rx", "ry", "transform", "opacity"],
-  circle: ["cx", "cy", "r", "transform", "opacity"],
-  ellipse: ["cx", "cy", "rx", "ry", "transform", "opacity"],
-  line: ["x1", "y1", "x2", "y2", "transform", "opacity"],
-  polyline: ["points", "transform", "opacity"],
-  polygon: ["points", "transform", "opacity"],
-  path: ["d", "transform", "opacity"],
-};
+const elementAttributes = new Map<string, readonly string[]>(
+  Object.entries({
+    svg: ["viewBox", "width", "height"],
+    g: ["transform", "opacity"],
+    rect: ["x", "y", "width", "height", "rx", "ry", "transform", "opacity"],
+    circle: ["cx", "cy", "r", "transform", "opacity"],
+    ellipse: ["cx", "cy", "rx", "ry", "transform", "opacity"],
+    line: ["x1", "y1", "x2", "y2", "transform", "opacity"],
+    polyline: ["points", "transform", "opacity"],
+    polygon: ["points", "transform", "opacity"],
+    path: ["d", "transform", "opacity"],
+  }),
+);
 
 function checkAttributes(element: XmlElement): void {
-  const allowed = elementAttributes[element.name];
+  const allowed = elementAttributes.get(element.name);
   if (allowed === undefined) {
     throw unsupported(`the element <${element.name}>`);
   }

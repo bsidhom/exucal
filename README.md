@@ -87,16 +87,18 @@ up automatically after a deploy. The pieces involved:
 
 - **Precaching.** When `src/sw.ts` is installed, it downloads every file of the
   build into a cache named after the build's version: the page, the hashed
-  scripts and styles, and everything in `public/`. Requests for those files are
-  then answered from the cache without touching the network; any other
-  same-origin request goes to the network as usual. The page is cached under
+  scripts and styles, and everything in `public/`, except the app icons (see
+  Icons below for why). Requests for those files are then answered from the
+  cache without touching the network; any other same-origin request goes to
+  the network as usual. The page is cached under
   `/` and served for navigations regardless of the query string.
 - **The precache manifest.** The service worker does not know what the build
   contains, so `vite-plugin-precache.ts` builds it as a second entry point of
   `vite build`, emitted unhashed as `dist/sw.js` (its location decides the
   scope it controls, which must be the whole site), and prepends a
-  `__PRECACHE__` constant listing the URL of every other file in `dist` along
-  with a version hashed from all of their contents. That constant is generated
+  `__PRECACHE__` constant listing the URL of every other file in `dist`, minus
+  the ones its `exclude` option in `vite.config.ts` rules out, along with a
+  version hashed from all of their contents. That constant is generated
   code, so the plugin makes sure file names cannot end up as anything but
   strings in it: the manifest is serialized with `JSON.stringify` (JSON is a
   subset of JavaScript, so its output is always a valid expression), every URL
@@ -138,9 +140,19 @@ next build. Nothing rendered is committed.
 `vite-plugin-icons.ts` does the rendering. It is configured in
 `vite.config.ts` with a list of PNGs to make (source SVG, output file name and
 size), and adds each one to the bundle on every `vite build`, so they end up
-in `dist` and in the service worker's precache list like every other file.
-During `pnpm dev` it renders them on request instead, from the current SVG.
-To add a PNG, add an entry to the list; nothing needs to be checked in.
+in `dist` like every other file. During `pnpm dev` it renders them on request
+instead, from the current SVG. To add a PNG, add an entry to the list; nothing
+needs to be checked in.
+
+The icons, rendered and SVG alike, are deliberately left out of the service
+worker's precache (the `exclude` option of `precache()` in `vite.config.ts`).
+The browser or OS fetches an icon when the app is installed, which happens
+online, and keeps its own copy with the installed app; the page never requests
+icons itself. Precaching them would make every visitor download the whole
+icon set on their first visit, which with several sizes can outweigh the app,
+and would ship a new service worker on every icon change, for no benefit. The
+favicon is the exception and stays precached, because the browser requests it
+on every page load.
 
 Node.js cannot render SVG on its own, and the alternatives (a native or
 WebAssembly rendering library, or a headless browser) all add a dependency,

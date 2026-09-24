@@ -400,6 +400,25 @@ test("the XML parser keeps elements and attributes and drops the rest", () => {
   for (const bad of ["<svg><g></svg>", "<svg/><svg/>", "", "<svg>text</svg>"]) {
     assert.throws(() => parseXml(bad), /Malformed SVG|Unsupported SVG/, bad);
   }
+  // A plain DOCTYPE is dropped; one that declares entities is refused.
+  assert.equal(
+    parseXml('<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "x.dtd"><svg/>')
+      .name,
+    "svg",
+  );
+  assert.throws(
+    () => parseXml('<!DOCTYPE svg [<!ENTITY a "aaaa">]><svg viewBox="&a;"/>'),
+    /internal subset/,
+  );
+  assert.throws(() => parseXml("<svg><![CDATA[x]]></svg>"), /CDATA/);
+  assert.throws(
+    () => parseXml('<svg id="&#x110000;"/>'),
+    /character reference/,
+  );
+  assert.throws(
+    () => parseXml(`<svg id="${"x".repeat(1024 * 1024)}"/>`),
+    /larger than/,
+  );
 });
 
 test("anything outside the supported subset is rejected by name", () => {
@@ -433,6 +452,15 @@ test("anything outside the supported subset is rejected by name", () => {
     ['<svg viewBox="0 0 1 1"><svg viewBox="0 0 1 1"/></svg>', /nested <svg>/],
     ["<svg><rect/></svg>", /without a viewBox/],
     ['<html><svg viewBox="0 0 1 1"/></html>', /root element <html>/],
+    ['<svg viewBox="0 0 1 1"><__proto__/></svg>', /the element <__proto__>/],
+    [
+      '<svg viewBox="0 0 1 1"><constructor/></svg>',
+      /the element <constructor>/,
+    ],
+    [
+      '<svg viewBox="0 0 1 1"><rect fill="constructor"/></svg>',
+      /the color "constructor"/,
+    ],
   ];
   for (const [svg, message] of cases) {
     assert.throws(

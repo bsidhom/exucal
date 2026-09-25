@@ -49,7 +49,18 @@ import { err, ok, type Result } from "./result.ts";
 // ---------------------------------------------------------------------------
 // Types
 
-/** An exponent vector over primitive names; zero exponents are left out. */
+/**
+ * An exponent vector over primitive names; zero exponents are left out.
+ *
+ * TODO: Replace the `Map` with a purely applicative container (a persistent
+ * map type). `ReadonlyMap` only hides the mutators behind the type, so a
+ * dimension is immutable by convention rather than by construction, and the
+ * arithmetic below builds each result by mutating a fresh `Map` while the
+ * conformance check collects and filters names imperatively. A container
+ * with applicative `set`, `remove`, `merge` and `filter` would make the
+ * immutability real and let that logic be written as the plain expressions
+ * it is.
+ */
 export type Dimension = ReadonlyMap<string, Rational>;
 
 /** What a primitive is: a physical base quantity, or a dimensionless marker of a kind. */

@@ -221,14 +221,18 @@ dimensionless), and the spans inside its body serve the errors within it.
 
 `buildTable` evaluates each body to a quantity, resolving references on
 demand with memoization and a visiting set, so definitions may appear in any
-order and cycles are reported rather than looping. Prefix bodies must be
-dimensionless. The result is the unit table: the primitives with their roles,
-the prefixes with their factors, and the units with their quantities, each a
-map keyed by name.
+order and cycles are reported rather than looping. Prefix bodies must be plain
+numbers: no dimension and no kind. The result is the unit table: the
+primitives with their roles, the prefixes with their factors, and the units
+with their quantities, each a map keyed by name in declaration order. The
+primitives are among the units, as quantities of one of themselves, so that a
+lookup is one map read.
 
-A name in an expression resolves to an exact unit name if there is one, and
-otherwise to one prefix followed by a unit name. Prefixes do not stack, and
-there is no plural handling: `inches  inch` is an ordinary alias definition.
+Prefixes and units are separate namespaces, so `m-` (milli) and `m` (the
+metre) coexist, while a primitive and a unit share one. A name in an
+expression resolves to an exact unit name if there is one, and otherwise to
+one prefix followed by a unit name. Prefixes do not stack, and there is no
+plural handling: `inches  inch` is an ordinary alias definition.
 
 Every name is known once the table is built, so ambiguity is a property of the
 table rather than of the input, and `buildTable` checks for it. A name with
@@ -238,6 +242,31 @@ unit name that is also a valid split (`min`, the minute, against `m`+`in`) is
 allowed, because real unit conventions are full of them, and the exact name
 wins. The check is cheap: for each pair of prefixes where one extends the
 other, and each unit, one map lookup.
+
+Building is four concerns in four modules. `table.ts` holds the `UnitTable`
+itself and the lookup over it that the evaluator resolves user input against.
+`names.ts` holds the resolution rule and the ambiguity check, generic in what
+a prefix or a unit maps to, because the build applies the same rule over
+definitions before any quantity exists. `graph.ts` is the on-demand
+evaluation: a walker takes a function that computes a node's value given a
+way to request the values of the nodes it depends on, and memoizes each
+result; a request for a node whose evaluation is in progress is a cycle, and
+the walker returns it to the requester, which knows where the request came
+from. Nothing in it knows what a definition is. `build.ts` puts them together
+in a fixed order: index the definitions by name, rejecting a duplicate;
+check the index for an ambiguous name; then walk every definition in order,
+where a body is evaluated by `evaluate` against a lookup that resolves each
+name through the index and requests the definitions it means from the
+walker. The first failure ends the build.
+
+A build error is one of: a duplicate name, carrying both definitions; an
+ambiguous name with its two splits; an unknown name, at its reference; a
+cycle, carrying the definitions on it in order and the span of the reference
+that closed it; a prefix whose body is not a plain number, carrying the
+definition and the dimension it has; or an arithmetic failure from the
+evaluator, located as the evaluator locates it. Every span is an offset into
+the whole definitions text, and a definition's span covers its text from name
+to body, so each error points at something the user can see.
 
 ## Expressions
 
@@ -436,7 +465,10 @@ src/core/span.ts          Span, a location in the input text
 src/core/parser.ts        Parser combinators, ParseError
 src/core/expr.ts          Expr, parseExpr
 src/core/definitions.ts   Definition, parseDefinitions
-src/core/table.ts         UnitTable, buildTable, name lookup
+src/core/graph.ts         on-demand evaluation of a dependency graph, cycles
+src/core/names.ts         the prefix-unit resolution rule, the ambiguity check
+src/core/table.ts         UnitTable, the lookup over it
+src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup
 src/core/convert.ts       convert
 src/core/result.ts        Result; each module defines its own error types

@@ -18,6 +18,7 @@
     "rasterize-svg.ts",
     "rasterize-svg.test.ts",
     "src/core/**/*.ts",
+    "src/units.test.ts",
     "bench/**/*.ts"
   ]
 }

@@ -190,25 +190,22 @@ for the root of a non-integer exponent.
 
 ## Definitions
 
-System units are not special: they live in a static definitions file that is
-bundled into the app (a raw string import, so it is precached with the rest of
-the build) and go through the same parser as any user-supplied definitions.
-`buildTable` takes one list of definitions, so user definitions are simply
-appended to the system ones.
+System units are not special: they live in a static definitions file,
+`src/units.txt`, that is bundled into the app (a raw string import, so it is
+precached with the rest of the build) and go through the same parser as any
+user-supplied definitions. `buildTable` takes one list of definitions, so
+user definitions are simply appended to the system ones.
 
-The format is in the spirit of a GNU units file, pared down: one definition
-per line, name then whitespace then body, `#` comments. The whitespace after
-the name is required, so that `inch2.54 cm` is an error rather than a
-definition of `inch2`.
-
-```
-m         !                 # dimension primitive
-radian    !kind             # kind primitive (dimensionless)
-kilo-     1000              # prefix (trailing dash)
-inch      2.54 cm           # unit, defined by an expression
-newton    kg m / s^2
-hertz     1 / s
-```
+The format, the name rules and the expression language are user-facing, so
+README.md ("Unit definitions") describes them, along with what the system
+file contains and how to add to it. This section covers what the core does
+with a definitions file. In short, the format is in the spirit of a GNU
+units file, pared down: one definition per line, name then whitespace then
+body, `#` comments, where a name with a trailing dash is a prefix and a body
+of `!` or `!kind` declares a primitive. The whitespace after the name is
+required, so that `inch2.54 cm` is an error rather than a definition of
+`inch2`. `src/units.test.ts` builds the system file and checks a sample of
+conversions from each of its sections.
 
 A definition is one of three things: a primitive with its role, a prefix
 (named without its dash) with a body, or a unit with a body, where a body is
@@ -231,8 +228,9 @@ lookup is one map read.
 Prefixes and units are separate namespaces, so `m-` (milli) and `m` (the
 metre) coexist, while a primitive and a unit share one. A name in an
 expression resolves to an exact unit name if there is one, and otherwise to
-one prefix followed by a unit name. Prefixes do not stack, and there is no
-plural handling: `inches  inch` is an ordinary alias definition.
+one prefix followed by a unit name (the rule README.md states for users).
+Prefixes do not stack, and there is no plural handling: `inches  inch` is
+an ordinary alias definition.
 
 Every name is known once the table is built, so ambiguity is a property of the
 table rather than of the input, and `buildTable` checks for it. A name with
@@ -275,7 +273,9 @@ to body, so each error points at something the user can see.
 ## Expressions
 
 One grammar serves both definition bodies and user input, so anything that can
-be typed can also be defined. It is a small expression language: decimal
+be typed can also be defined. README.md ("Unit definitions") describes it
+from the user's side; this section is about how it is parsed and what the
+tree holds. It is a small expression language: decimal
 numbers, unit names, juxtaposition and `*` for multiplication, `/`, `^` with
 a literal exponent, and parentheses. The precedence follows GNU units:
 juxtaposition binds tighter than `*` and `/`, which are one left-associative
@@ -477,7 +477,7 @@ src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup
 src/core/convert.ts       convert
 src/core/result.ts        Result; each module defines its own error types
-src/units.txt             the system definitions
+src/units.txt             the system definitions; src/units.test.ts checks them
 src/unit-converter.ts     the component
 ```
 

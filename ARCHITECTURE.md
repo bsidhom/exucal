@@ -601,6 +601,44 @@ the expression it is and could be typed back as a `have`. A term of zero is
 left out, as it would be in speech (`1 hr + 1 s`), except that a sum of
 nothing but zeros keeps its last term (`0 in`).
 
+GNU units answers every conversion twice, with the number to multiply by
+(`* 36`) and the number to divide by (`/ 0.027777778`), which in its verbose
+form is `3 ft = 36 in` and `3 ft = (1 / 0.027777778) in`. The converter
+shows the second line too when its `reciprocal` property is set, in that
+verbose form, so that it reads as an expression like the first and could be
+typed back as a `have` (the parentheses keep `1 / 0.027777778` apart from
+the unit, which juxtaposition would otherwise take first). Its relation is
+decided as the first line's is, from the reciprocal value: `2 m = 2 m` and
+`2 m = (1 / 0.5) m` are both exact, while `1 in = 2.54 cm` has the
+approximate `1 in ≈ (1 / 0.39370079) cm`. The reciprocal is `invert` of the
+ratio the pipeline returns, and it stays in the component: it is a second
+view of the same value, like the rounding, not a step of the conversion.
+
+Only a conversion into one unit has a reciprocal. That conversion is one
+ratio, `have / want`, and the reciprocal is the same ratio the other way
+round, `want / have`, which says the same thing. A conversion into a unit
+list is not a ratio but a sum, `3 ft + 3.3700787 in`, a positional way of
+writing one quantity, and there is no other way round for it: inverting
+each term gives numbers that add up to nothing, `1 / have` in the same
+list never conforms (its dimension is the inverse), and the reciprocal of
+the total in any one unit of the list would be a reciprocal of a different
+conversion, for a unit chosen by some rule the user did not ask for. GNU
+units prints no reciprocal for a unit list either. So the property has no
+effect on a list, typed or named, nor on a blank `want`, which shows a
+definition, as GNU units shows one without a reciprocal. A value of zero
+has no reciprocal (`0 ft = 0 in`, and nothing is divided by zero), and the
+line is left out rather than shown as anything.
+
+The property is a setting: `<app-shell>` owns the settings, one JSON object
+in `localStorage` read and written through `src/settings.ts`, renders the
+checkbox that flips it under the converter, and hands the value down as a
+property, so that the converter's state is still the two strings and it
+never reads storage. The settings module has no DOM dependency (the store
+is an argument) and absorbs every way storage can fail, a store that is
+missing or throws or holds something that is not settings, into the
+defaults for what could not be read, so that a bad stored value can never
+keep the app from starting; `src/settings.test.ts` checks each way.
+
 The errors the core returns are values with spans and dimensions, not
 sentences; `src/messages.ts` puts them into words, quoting the text at fault
 and formatting dimensions with `formatDimension`, so that the wording is
@@ -633,6 +671,7 @@ src/core/pipeline.ts      convertText, evaluateText: the pipeline over text
 src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions; src/units.test.ts checks them
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
+src/settings.ts           the settings and their storage; src/settings.test.ts checks them
 src/system-table.ts       loadSystemTable: fetches and builds the system table, once
 src/unit-converter.ts     the component
 src/app-shell.ts          the host: loads the table, renders the component

@@ -14,6 +14,7 @@ import {
   absolute,
   equals,
   format,
+  invert,
   isZero,
   round,
   sign,
@@ -32,6 +33,13 @@ export const DISPLAY_PRECISION = 8;
 /** One term of a result: `value` of `unit`, where `unit` is text to show after the value. */
 type Term = { readonly value: Rational; readonly unit: string };
 
+/**
+ * The reciprocal of a conversion into one unit: `have` is `relation`
+ * `1 / value` of the unit, so that `value` is what a count of the unit is
+ * divided by to give a count of `have`s.
+ */
+type Reciprocal = { readonly relation: "=" | "≈"; readonly value: Rational };
+
 /** What the output area shows for the current pair of texts. */
 type Outcome =
   /** Nothing to convert yet. */
@@ -40,12 +48,15 @@ type Outcome =
    * `have` is `relation` the sum of `terms`: `3 ft = 36 in`,
    * `1 m ≈ 39.370079 in`, `1 m ≈ 3 ft + 3.3700787 in`. A conversion into
    * one unit is one term; one into a unit list is a term per unit shown.
+   * `reciprocal`, when there is one, is the same conversion from the other
+   * side, shown on a second line: `3 ft ≈ (1 / 0.027777778) in`.
    */
   | {
       readonly kind: "result";
       readonly have: string;
       readonly relation: "=" | "≈";
       readonly terms: readonly Term[];
+      readonly reciprocal?: Reciprocal;
     }
   /** `message` says what is wrong, with the text on `side` if it is one text's fault. */
   | { readonly kind: "error"; readonly side?: Side; readonly message: string };
@@ -61,6 +72,15 @@ type Outcome =
  * (`in = 0.0254 m`), the answer GNU units gives to the same question. A
  * `want` that is a unit list, typed (`ft;in`) or by name (`time`), gives
  * the sum the pipeline computes, one term per unit.
+ *
+ * With `reciprocal` set, a conversion into one unit is also shown from the
+ * other side, on a second line, as GNU units shows every conversion:
+ * `3 ft = 36 in` and `3 ft ≈ (1 / 0.027777778) in`, the number to multiply
+ * by and the number to divide by. Only a conversion into one unit has a
+ * reciprocal: it is one ratio, and the reciprocal is the same ratio the
+ * other way. A conversion into a unit list is a sum, not a ratio, so there
+ * is nothing to invert and no line is added; nor for a blank `want`, which
+ * shows a definition; nor for a value of zero, which has no reciprocal.
  */
 @customElement("unit-converter")
 export class UnitConverter extends LitElement {
@@ -132,6 +152,9 @@ export class UnitConverter extends LitElement {
 
   /** The units to convert with. Not an attribute: a table is not a string. */
   @property({ attribute: false }) table?: UnitTable;
+
+  /** Whether to show a conversion into one unit from the other side too. */
+  @property({ type: Boolean }) reciprocal = false;
 
   @state() private have = "";
   @state() private want = "";
@@ -207,7 +230,7 @@ export class UnitConverter extends LitElement {
       };
     }
     return conversion.value.kind === "unit"
-      ? result(have, conversion.value.value, wantText(want))
+      ? result(have, conversion.value.value, wantText(want), this.reciprocal)
       : listResult(have, conversion.value);
   }
 }
@@ -280,13 +303,34 @@ function renderInput(
   `;
 }
 
-/** The result outcome for `value` `unit`, marked exact or approximate. */
-function result(have: string, value: Rational, unit: string): Outcome {
+/**
+ * The result outcome for `value` `unit`, marked exact or approximate, and
+ * with its reciprocal when `withReciprocal` asks for it and there is one:
+ * a `value` of zero has none (`0 ft = 0 in`, and nothing is divided by
+ * zero), so the line is left out rather than shown as anything.
+ */
+function result(
+  have: string,
+  value: Rational,
+  unit: string,
+  withReciprocal = false,
+): Outcome {
   return {
     kind: "result",
     have,
     relation: shownExactly(value) ? "=" : "≈",
     terms: [{ value, unit }],
+    reciprocal: withReciprocal ? reciprocalOf(value) : undefined,
+  };
+}
+
+/** The reciprocal of `value`, marked exact or approximate, or none for zero. */
+function reciprocalOf(value: Rational): Reciprocal | undefined {
+  const inverse = invert(value);
+  if (!inverse.ok) return undefined;
+  return {
+    relation: shownExactly(inverse.value) ? "=" : "≈",
+    value: inverse.value,
   };
 }
 
@@ -334,8 +378,15 @@ function renderOutcome(outcome: Outcome): TemplateResult {
         to, such as <code>in</code> or <code>ft;in</code>.
       </span>`;
     case "result":
-      return html`<span>${outcome.have}</span> ${outcome.relation}
-        ${outcome.terms.map(renderTerm)}`;
+      return html`<div>
+          <span>${outcome.have}</span> ${outcome.relation}
+          ${outcome.terms.map(renderTerm)}
+        </div>
+        ${
+          outcome.reciprocal === undefined
+            ? nothing
+            : renderReciprocal(outcome.have, outcome.terms, outcome.reciprocal)
+        }`;
     case "error":
       return html`<span class="error">${outcome.message}</span>`;
   }
@@ -352,6 +403,25 @@ function renderTerm(term: Term, index: number): TemplateResult {
   const operator = index === 0 ? "" : sign(term.value) < 0 ? " - " : " + ";
   const text = format(value, DISPLAY_PRECISION);
   return html`${operator}<span class="value">${text}</span> ${term.unit}`;
+}
+
+/**
+ * The reciprocal line of a result into one unit, in the form GNU units
+ * writes it: `3 ft ≈ (1 / 0.027777778) in`, where the unit is the one
+ * `term` of the result. The line reads as the expression it means, and
+ * could be typed back as a `have`: the parentheses keep `1 / 0.027777778`
+ * apart from the unit, which juxtaposition would otherwise take first.
+ */
+function renderReciprocal(
+  have: string,
+  terms: readonly Term[],
+  reciprocal: Reciprocal,
+): TemplateResult {
+  const text = format(reciprocal.value, DISPLAY_PRECISION);
+  return html`<div class="reciprocal">
+    <span>${have}</span> ${reciprocal.relation} (1 /
+    <span class="value">${text}</span>) ${terms[0]!.unit}
+  </div>`;
 }
 
 declare global {

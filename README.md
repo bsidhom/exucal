@@ -1,8 +1,9 @@
 # pwa-units
 
-An offline-first progressive web app (PWA) skeleton. It renders a single page
-that says "hello PWA units", can be installed to the home screen, and works
-without a network connection once it has been loaded once.
+An offline-first progressive web app (PWA) that converts units, in the
+spirit of GNU units: type a quantity you have (`3 ft`) and a unit you want
+(`in`), and it answers `3 ft = 36 in`. It can be installed to the home screen
+and works without a network connection once it has been loaded once.
 
 `ARCHITECTURE.md` describes the design of the unit converter itself: the
 conversion pipeline, the number type, and how units, dimensions and kinds are
@@ -189,7 +190,13 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
 - `bench/` holds the performance benchmarks of the core, run by
   `pnpm bench` (see Benchmarks below); `ARCHITECTURE.md` describes them.
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every
-  part of the app renders inside. For now it renders the greeting.
+  part of the app renders inside. It builds the unit table from `units.txt`
+  once, when the app loads, and hands it to the converter.
+- `src/unit-converter.ts` defines `<unit-converter>`, the two inputs and the
+  output area that make up the app; `ARCHITECTURE.md` ("UI") describes it.
+- `src/messages.ts` turns the errors the core returns into the sentences the
+  converter shows. It has no DOM dependency, so `src/messages.test.ts` checks
+  the wording under Node.js.
 - `src/register-service-worker.ts` registers `sw.js` once the page has loaded,
   in production builds only.
 - `src/sw.ts` is the service worker (see Offline behavior below).

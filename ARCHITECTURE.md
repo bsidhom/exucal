@@ -447,17 +447,37 @@ an error, with each module defining its own error type.
 
 ## UI
 
-`<unit-converter>` is a Lit component with two text inputs and an output area.
-Its only state is the two strings; on every change it runs the pipeline and
-renders either the formatted result or the error. `<app-shell>` hosts it. The
-`UnitTable` is built once at startup from the bundled definitions and passed
-down as a property.
+`<unit-converter>` is a Lit component with two text inputs, "you have" and
+"you want", and an output area. Its only state is the two strings; on every
+change it runs the pipeline and renders either the formatted result or the
+error. `<app-shell>` hosts it. The `UnitTable` is built once at startup from
+the bundled definitions and passed down as a property; should the bundled
+file fail to build, which `units.test.ts` guards against, the shell says so
+instead of rendering a converter.
 
-Because the core's whole surface is `(table, haveText, wantText) → Result`
-plus the table itself, richer UX later is a matter of new components that
-edit the same two strings or read the table: autocomplete lists
-`table.units` and `table.prefixes`, unit buttons insert text, and error spans
-drive highlighting. None of that needs changes to the core.
+The core's whole surface to the UI is `(table, haveText, wantText) →
+Result`, and `src/core/pipeline.ts` is that function: `convertText` parses
+and evaluates each text and converts the pair, and returns each step's own
+error tagged with the side (`have` or `want`) it came from, so that the
+component can mark the input at fault. `evaluateText` is the first half
+alone; with the `want` field blank, the component uses it to show what
+`have` is in the primitives (`1 in = 0.0254 m`), as GNU units does.
+
+The output shows the two texts and the value between `=` or `≈`, decided by
+`equals(round(value, digits), value)` at the display precision of 8
+significant digits (`DISPLAY_PRECISION`, kept apart from the working
+precision as "Precision and rounding" describes). A `want` with a magnitude
+of its own is written with a multiplication sign (`1 mi = 5.28 × 1000 ft`),
+since juxtaposing two numbers would read as one product.
+
+The errors the core returns are values with spans and dimensions, not
+sentences; `src/messages.ts` puts them into words, quoting the text at fault
+and formatting dimensions with `formatDimension`, so that the wording is
+tested under Node.js beside the core rather than in a browser. Richer UX
+later is a matter of new components that edit the same two strings or read
+the table: autocomplete lists `table.units` and `table.prefixes`, unit
+buttons insert text, and error spans drive highlighting. None of that needs
+changes to the core.
 
 ## Layout
 
@@ -476,9 +496,12 @@ src/core/table.ts         UnitTable, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup
 src/core/convert.ts       convert
+src/core/pipeline.ts      convertText, evaluateText: the pipeline over text
 src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions; src/units.test.ts checks them
+src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/unit-converter.ts     the component
+src/app-shell.ts          the host: builds the table, renders the component
 ```
 
 Each core module has a `*.test.ts` beside it, run by `pnpm test`.

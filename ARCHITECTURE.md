@@ -38,22 +38,17 @@ table, evaluation never checks conformance, and conversion never formats.
 
 ## Numbers: `Rational`
 
-The number type is an exact rational over `bigint`:
+The number type is an exact rational over `bigint`: a numerator and a
+positive denominator, kept in lowest terms. Rationals rather than
+arbitrary-precision floats because almost every unit definition is a rational
+(`2.54 cm`, `0.45359237 kg`), so conversions are exact and rounding happens
+only once, at display time. Decimal literals parse exactly (`1.5e-3` is
+`3/2000`). Irrational constants such as `pi` are plain decimal literals in the
+definitions file, as in GNU units.
 
-```ts
-type Rational = { readonly num: bigint; readonly den: bigint }; // den > 0, gcd 1
-```
-
-Rationals rather than arbitrary-precision floats because almost every unit
-definition is a rational (`2.54 cm`, `0.45359237 kg`), so conversions are
-exact and rounding happens only once, at display time. Decimal literals parse
-exactly (`1.5e-3` is `3/2000`). Irrational constants such as `pi` are plain
-decimal literals in the definitions file, as in GNU units.
-
-`src/core/rational.ts` provides the arithmetic (`add`, `subtract`,
-`multiply`, `divide`, `invert`, `negate`, `pow` with an integer exponent),
-comparison, the n-th root and `powRational` for rational exponents, rounding
-to significant digits (`truncate`, `round`), `parseDecimal` and `format`.
+`src/core/rational.ts` provides the arithmetic and comparison, integer powers
+and rational powers (through the n-th root), rounding to significant digits,
+and conversion to and from decimal text.
 
 ### Precision and rounding
 
@@ -122,14 +117,8 @@ expression of bounded length applies a bounded number of them.
 ### Failures
 
 A value that cannot be computed is a `Result` error, never an exception:
-
-```ts
-type RationalError =
-  | { kind: "divisionByZero" } // divide, invert, 0 to a negative power
-  | { kind: "negativeRadicand"; degree: bigint } // an even root of a negative
-  | { kind: "tooLarge" } // beyond MAX_BITS
-  | { kind: "invalidNumber" }; // parseDecimal
-```
+division by zero (including `0` to a negative power), an even root of a
+negative number, a result beyond `MAX_BITS`, or text that is not a number.
 
 A violated precondition (a zero denominator passed to the `rational`
 constructor, a precision that is not a positive integer, a root degree below
@@ -149,15 +138,10 @@ magnitude renders exactly.
 
 ## Quantities, dimensions and kinds
 
-```ts
-type BaseId = string; // the name of a primitive unit, e.g. "m", "radian"
-type Dimension = ReadonlyMap<BaseId, Rational>; // exponent vector; zeros omitted
-type Quantity = { readonly value: Rational; readonly dimension: Dimension };
-```
-
-Every unit resolves to a `Quantity`: a magnitude and an exponent vector over
-the primitive units. Exponents are rational so that roots are exact on the
-dimension side (`sqrt(m)` is `m^(1/2)`).
+Every unit resolves to a quantity: a magnitude, which is a `Rational`, and a
+dimension, which is an exponent vector over the primitive units, keyed by
+primitive name with zero exponents left out. Exponents are rational so that
+roots are exact on the dimension side (`sqrt(m)` is `m^(1/2)`).
 
 Primitives come in two roles, declared in the definitions file:
 
@@ -189,9 +173,9 @@ the build) and go through the same parser as any user-supplied definitions.
 appended to the system ones.
 
 The format is in the spirit of a GNU units file, pared down: one definition
-per line, name then whitespace then body, `#` comments. The whitespace after the name is
-required, so that `inch2.54 cm` is an error rather than a definition of
-`inch2`.
+per line, name then whitespace then body, `#` comments. The whitespace after
+the name is required, so that `inch2.54 cm` is an error rather than a
+definition of `inch2`.
 
 ```
 m         !                 # dimension primitive
@@ -202,32 +186,21 @@ newton    kg m / s^2
 hertz     1 / s
 ```
 
-```ts
-type Definition =
-  | { kind: "primitive"; name: string; role: "dimension" | "kind"; span: Span }
-  | { kind: "prefix"; name: string; body: Expr; span: Span }
-  | { kind: "unit"; name: string; body: Expr; span: Span };
-```
+A definition is one of three things: a primitive with its role, a prefix
+(named without its dash) with a body, or a unit with a body, where a body is
+an expression. `parseDefinitions` returns them in the order written,
+duplicates included, and knows nothing about what they mean. Every span is an
+offset into the whole text, not the line: a definition carries the span of
+its text from name to body, for the errors `buildTable` reports against a
+definition as a whole (a duplicate name, a cycle, a prefix that is not
+dimensionless), and the spans inside its body serve the errors within it.
 
-`parseDefinitions(text): Result<Definition[], ParseError>` returns the
-definitions in the order written, duplicates included. Every span is an
-offset into the whole text, not the line: a definition's `span` covers it
-from name to body, for the errors `buildTable` reports against a definition
-as a whole (a duplicate name, a cycle, a prefix that is not dimensionless),
-and the spans inside its body serve the errors within it.
-
-`buildTable` evaluates each body to a `Quantity`, resolving references on
+`buildTable` evaluates each body to a quantity, resolving references on
 demand with memoization and a visiting set, so definitions may appear in any
 order and cycles are reported rather than looping. Prefix bodies must be
-dimensionless. The result:
-
-```ts
-type UnitTable = {
-  readonly primitives: ReadonlyMap<BaseId, "dimension" | "kind">;
-  readonly prefixes: ReadonlyMap<string, Rational>;
-  readonly units: ReadonlyMap<string, Quantity>;
-};
-```
+dimensionless. The result is the unit table: the primitives with their roles,
+the prefixes with their factors, and the units with their quantities, each a
+map keyed by name.
 
 A name in an expression resolves to an exact unit name if there is one, and
 otherwise to one prefix followed by a unit name. Prefixes do not stack, and
@@ -252,68 +225,44 @@ juxtaposition binds tighter than `*` and `/`, which are one left-associative
 level, so `kg m / s^2` is `(kg m) / (s^2)` and `m/s*s` is `(m/s)*s`. No
 functions, unit lists or `+`/`-` yet.
 
+Juxtaposition means "this many of these units" (`2 m`) or a product of units
+(`kg m`), so a number may only be the first factor of a product: `m 2`,
+`1 2 3` and `2 3 m` are errors, and multiplying numbers is written with `*`.
+In the tree it is an ordinary multiplication, indistinguishable from `*`.
+
 An exponent is a signed decimal (`m^2`, `s^-1`, `m^0.5`) or a parenthesized
 rational (`m^(1/2)`), never an expression, so it is known at parse time and
 travels in the tree as a `Rational`. A unit name is a letter or underscore
-followed by letters, digits and underscores, in any script; names are
-maximal, so `m2` is the name `m2` and never `m` squared, and whether such a
-name means anything is the table's business. Whitespace is spaces and tabs,
-never a newline, because a definition body is one line.
+followed by letters, digits and underscores, in any script, taken as long as
+it goes: `m2` is one name rather than `m` beside `2`, and whether a name
+means anything is decided by the table, not the parser. Whitespace is spaces
+and tabs, never a newline, because a definition body is one line.
 
-```ts
-type Span = { readonly start: number; readonly end: number };
-type Expr = { readonly span: Span; readonly node: ExprNode };
-type ExprNode =
-  | { kind: "number"; value: Rational }
-  | { kind: "unit"; name: string }
-  | { kind: "binary"; op: "mul" | "div"; left: Expr; right: Expr }
-  | { kind: "pow"; base: Expr; exponent: Rational };
-```
-
-Juxtaposition is surface syntax only: it parses to a `mul` node like `*`
-does. It differs from `*` in precedence (it binds tighter), which is the
-parser's business, and in what it may join: it means "this many of these
-units" (`2 m`) or a product of units (`kg m`), so a number may only be the
-first factor of a product. `m 2`, `1 2 3` and `2 3 m` are errors, and
-multiplying numbers is written with `*`.
-
-`parseExpr(text): Result<Expr, ParseError>` knows nothing about units;
-`evaluate(expr, table, precision): Result<Quantity, EvalError>` knows nothing
-about text. Spans (character offsets) travel from the parser into every error
-so the UI can highlight the offending input. `Span` and `ParseError` are
-defined by the parsing toolkit below, which both `parseExpr` and
-`parseDefinitions` are built from.
+The tree has four kinds of node: a number, a unit name, a multiplication or
+division of two subtrees, and a subtree raised to a rational exponent. Every
+node carries the span of text it came from, so an error found later in the
+pipeline (an unknown unit, a dimension mismatch) can point back at the input.
+`parseExpr` knows nothing about units, and `evaluate` knows nothing about
+text. `Span` and `ParseError` come from the parsing toolkit below, which both
+parsers are built from.
 
 ## Parsing
 
 Both parsers are assembled from a small set of parser combinators in
-`src/core/parser.ts`. A parser is a plain function, and a grammar is plain
-code that combines parsers into parsers:
-
-```ts
-type Parser<A> = (text: string, pos: number) => Reply<A>;
-type Reply<A> =
-  | { ok: true; value: A; end: number; furthest: Expectation }
-  | { ok: false; error: ParseError };
-```
-
-A reply is either the value recognized and the position just past it, or an
-error. The primitives are `string(literal)`, `regex(pattern, label)`, `eof`,
-`succeed(value)` and `fail(label)`; the combinators are `map`, `flatMap`,
-`seq` (a tuple of parsers to a parser of a tuple), `alt` (the first
-alternative that matches), `optional`, `many`, `many1`, `chainl1` (one
-left-associative precedence level), `spanned` (pairs a value with its span),
-`check` (validates a recognized value) and `lazy` (lets a grammar refer to
-itself). `parse(parser, text)` runs a parser over the whole text and returns
-a `Result`. The types carry the grammar's shape: `seq(a, b)` is a
-`Parser<[A, B]>`, `alt(a, b)` a `Parser<A | B>`, `many1(p)` a
-`Parser<[A, ...A[]]>`, so a grammar that type-checks produces the tree its
-types say it does.
+`src/core/parser.ts`. A parser is a plain function from the input text and a
+position to a reply: the value it recognized and the position just past it,
+or an error. A grammar is plain code that combines parsers into parsers, with
+primitives for literals, patterns and the end of input, and combinators for
+sequencing, ordered choice, repetition, one left-associative precedence level
+(`chainl1`), attaching spans (`spanned`), validating a recognized value
+(`check`) and self-reference (`lazy`). The types carry the grammar's shape: a
+sequence of parsers is a parser of a tuple and a choice is a parser of a
+union, so a grammar that type-checks produces the tree its types say it does.
 
 We chose combinators instead of a hand-written recursive-descent parser or a
 Pratt (top-down operator precedence) parser because the grammars are small
 and fixed. The expression language has a handful of precedence levels, each
-of which is one `chainl1` (or `many1`, for juxtaposition) over the level
+of which is one `chainl1` (or `many`, for juxtaposition) over the level
 below, and the definitions file is a line with two or three fields. A Pratt
 parser is general: it drives a table of operators with numeric binding powers
 from a loop whose invariant has to be checked. That generality buys nothing
@@ -377,15 +326,10 @@ Three properties make the combinators simple to reason about:
   reports as `tooLarge` becomes a parse error pointing at the literal.
   `check` is the only source of `rejected` errors.
 
-```ts
-type ParseError =
-  | { kind: "unexpected"; pos: number; expected: readonly string[] }
-  | { kind: "rejected"; span: Span; reason: string };
-```
-
-Spans are attached where they are needed with `spanned`, typically on the
-leaves; a composite node's span runs from its first child's start to its last
-child's end, which is the folding function's business in `chainl1`.
+A parse error is therefore one of two things: nothing acceptable at a
+position, with the labels of what would have been, or text at a span that was
+recognized and rejected, with the reason. Spans are attached with `spanned`
+on the leaves, and a composite node spans from its first child to its last.
 
 The combinators are pure: a parser is a closure over its configuration and a
 function of `(text, pos)`. The two pieces of mutable state are internal and
@@ -396,28 +340,16 @@ grammar, not an input that can fail, and it throws.
 
 ## Conversion
 
-```ts
-type ConvertError = DimensionMismatch | KindMismatch;
+`convert` takes the two quantities and returns the output value: how many
+`want`s make up `have`, which after the conformance check is simply the ratio
+of their magnitudes, since each quantity already carries its own scale.
+`want` may have a magnitude (`3 ft` into `in` gives `36`), as in GNU units.
+A failure is a dimension mismatch or a kind mismatch, carrying both dimension
+vectors; a core function formats a dimension as text (`m^2 / s`), so the UI
+can explain the failure without interpreting anything itself.
 
-function convert(
-  have: Quantity,
-  want: Quantity,
-): Result<Rational, ConvertError>;
-```
-
-The result is the output value: how many `want`s make up `have`, which after
-the conformance check is simply `have.value / want.value`, since each quantity
-already carries its own scale. `want` may have a magnitude (`3 ft` into `in`
-gives `36`), matching GNU units.
-The mismatch errors carry both dimension vectors, and a core function formats a
-`Dimension` as text (`m^2 / s`), so the UI can explain the failure without
-interpreting anything itself.
-
-All errors are plain discriminated unions:
-
-```ts
-type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
-```
+Every failure in the core is a `Result`: a discriminated union of a value or
+an error, with each module defining its own error type.
 
 ## UI
 

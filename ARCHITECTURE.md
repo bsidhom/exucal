@@ -241,13 +241,17 @@ is a build error, so a table that builds has at most one split per name. A
 unit name that is also a valid split (`min`, the minute, against `m`+`in`) is
 allowed, because real unit conventions are full of them, and the exact name
 wins. The check is cheap: for each pair of prefixes where one extends the
-other, and each unit, one map lookup.
+other, one map lookup per unit that starts with the extension, found in an
+index of the unit names, which for most extensions (`icro`, `eci`) is no
+unit at all.
 
 Building is four concerns in four modules. `table.ts` holds the `UnitTable`
 itself and the lookup over it that the evaluator resolves user input against.
 `names.ts` holds the resolution rule and the ambiguity check, generic in what
 a prefix or a unit maps to, because the build applies the same rule over
-definitions before any quantity exists. `graph.ts` is the on-demand
+definitions before any quantity exists; `name-index.ts` is the index the
+check searches, the names sorted so that those starting with any text are
+one contiguous run. `graph.ts` is the on-demand
 evaluation: a walker takes a function that computes a node's value given a
 way to request the values of the nodes it depends on, and memoizes each
 result; a request for a node whose evaluation is in progress is a cycle, and
@@ -467,6 +471,7 @@ src/core/expr.ts          Expr, parseExpr
 src/core/definitions.ts   Definition, parseDefinitions
 src/core/graph.ts         on-demand evaluation of a dependency graph, cycles
 src/core/names.ts         the prefix-unit resolution rule, the ambiguity check
+src/core/name-index.ts    the names that start with a text, by binary search
 src/core/table.ts         UnitTable, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup

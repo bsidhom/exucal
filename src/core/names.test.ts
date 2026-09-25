@@ -128,3 +128,20 @@ test("an ambiguity is found whichever prefix comes first", () => {
   assert.deepEqual(findAmbiguity(names("d", "da"), names("m", "am")), expected);
   assert.deepEqual(findAmbiguity(names("da", "d"), names("am", "m")), expected);
 });
+
+test("a unit that is an extension itself leaves nothing to split", () => {
+  // `da` + `m` is `dam`; `d` + `am` would be its other split, but `am` is
+  // not a unit, and `a` alone (the extension) completes nothing.
+  assert.equal(findAmbiguity(names("d", "da"), names("a", "m")), undefined);
+});
+
+test("an ambiguity is found among many units that start alike", () => {
+  const units = names("m", "aa", "ab", "ac", "am", "az");
+  assert.deepEqual(findAmbiguity(names("d", "da"), units), {
+    name: "dam",
+    splits: [
+      { prefix: "d", unit: "am" },
+      { prefix: "da", unit: "m" },
+    ],
+  });
+});

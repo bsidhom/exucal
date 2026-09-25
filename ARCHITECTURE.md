@@ -221,14 +221,18 @@ dimensionless), and the spans inside its body serve the errors within it.
 
 `buildTable` evaluates each body to a quantity, resolving references on
 demand with memoization and a visiting set, so definitions may appear in any
-order and cycles are reported rather than looping. Prefix bodies must be
-dimensionless. The result is the unit table: the primitives with their roles,
-the prefixes with their factors, and the units with their quantities, each a
-map keyed by name.
+order and cycles are reported rather than looping. Prefix bodies must be plain
+numbers: no dimension and no kind. The result is the unit table: the
+primitives with their roles, the prefixes with their factors, and the units
+with their quantities, each a map keyed by name in declaration order. The
+primitives are among the units, as quantities of one of themselves, so that a
+lookup is one map read.
 
-A name in an expression resolves to an exact unit name if there is one, and
-otherwise to one prefix followed by a unit name. Prefixes do not stack, and
-there is no plural handling: `inches  inch` is an ordinary alias definition.
+Prefixes and units are separate namespaces, so `m-` (milli) and `m` (the
+metre) coexist, while a primitive and a unit share one. A name in an
+expression resolves to an exact unit name if there is one, and otherwise to
+one prefix followed by a unit name. Prefixes do not stack, and there is no
+plural handling: `inches  inch` is an ordinary alias definition.
 
 Every name is known once the table is built, so ambiguity is a property of the
 table rather than of the input, and `buildTable` checks for it. A name with
@@ -237,7 +241,36 @@ is a build error, so a table that builds has at most one split per name. A
 unit name that is also a valid split (`min`, the minute, against `m`+`in`) is
 allowed, because real unit conventions are full of them, and the exact name
 wins. The check is cheap: for each pair of prefixes where one extends the
-other, and each unit, one map lookup.
+other, one map lookup per unit that starts with the extension, found in an
+index of the unit names, which for most extensions (`icro`, `eci`) is no
+unit at all.
+
+Building is four concerns in four modules. `table.ts` holds the `UnitTable`
+itself and the lookup over it that the evaluator resolves user input against.
+`names.ts` holds the resolution rule and the ambiguity check, generic in what
+a prefix or a unit maps to, because the build applies the same rule over
+definitions before any quantity exists; `name-index.ts` is the index the
+check searches, the names sorted so that those starting with any text are
+one contiguous run. `graph.ts` is the on-demand
+evaluation: a walker takes a function that computes a node's value given a
+way to request the values of the nodes it depends on, and memoizes each
+result; a request for a node whose evaluation is in progress is a cycle, and
+the walker returns it to the requester, which knows where the request came
+from. Nothing in it knows what a definition is. `build.ts` puts them together
+in a fixed order: index the definitions by name, rejecting a duplicate;
+check the index for an ambiguous name; then walk every definition in order,
+where a body is evaluated by `evaluate` against a lookup that resolves each
+name through the index and requests the definitions it means from the
+walker. The first failure ends the build.
+
+A build error is one of: a duplicate name, carrying both definitions; an
+ambiguous name with its two splits; an unknown name, at its reference; a
+cycle, carrying the definitions on it in order and the span of the reference
+that closed it; a prefix whose body is not a plain number, carrying the
+definition and the dimension it has; or an arithmetic failure from the
+evaluator, located as the evaluator locates it. Every span is an offset into
+the whole definitions text, and a definition's span covers its text from name
+to body, so each error points at something the user can see.
 
 ## Expressions
 
@@ -436,7 +469,11 @@ src/core/span.ts          Span, a location in the input text
 src/core/parser.ts        Parser combinators, ParseError
 src/core/expr.ts          Expr, parseExpr
 src/core/definitions.ts   Definition, parseDefinitions
-src/core/table.ts         UnitTable, buildTable, name lookup
+src/core/graph.ts         on-demand evaluation of a dependency graph, cycles
+src/core/names.ts         the prefix-unit resolution rule, the ambiguity check
+src/core/name-index.ts    the names that start with a text, by binary search
+src/core/table.ts         UnitTable, the lookup over it
+src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup
 src/core/convert.ts       convert
 src/core/result.ts        Result; each module defines its own error types
@@ -445,6 +482,51 @@ src/unit-converter.ts     the component
 ```
 
 Each core module has a `*.test.ts` beside it, run by `pnpm test`.
+
+## Benchmarks
+
+The core has costs that a later change could quietly undo: the ambiguity
+check is indexed so that it does not grow with the number of prefixes, and
+the walker memoizes so that a definition is evaluated once however many
+others refer to it. The benchmarks in `bench/` exist to catch such
+regressions; README.md ("Benchmarks") says how and when to run them.
+
+They are `*.bench.ts` files, run by `pnpm bench` through Node's test runner
+and nothing else: no benchmark library, in keeping with the rule against
+third-party dependencies. The suffix keeps them out of `pnpm test`, whose
+default discovery never matches it, so the two are separate without a second
+runner. `tsconfig.node.json` includes `bench/`, so they type-check with the
+tests. The rest of the directory is what they share:
+
+- `bench/harness.ts` holds a seeded random source (mulberry32), so that
+  every run measures the same data, and `bestOf`, which times a function
+  several times after one untimed run and takes the shortest, the estimate
+  least disturbed by whatever else the machine is doing.
+- `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
+  drawn from the letters `n` to `z` and unit names from `a` to `m`, so
+  that no name is ambiguous and the ambiguity check scans everything: its
+  cost when it finds nothing is its cost on a table that builds. The names
+  are short, like real ones, so prefixes extend one another more often than
+  real prefixes do, which makes the tables the hard case for the check. A
+  synthetic definitions file has two primitives, the prefixes, and units
+  that are each a small expression over one earlier unit, so that building
+  it walks reference chains of the depth random references make and every
+  body goes through the evaluator.
+
+A timing in milliseconds depends on the machine, so a benchmark reports its
+timings as diagnostics, for a person to compare between runs, and asserts
+only how a cost scales between two sizes measured in the same run, which
+holds anywhere. `names.bench.ts` asserts that the ambiguity check with 1076
+prefixes costs at most five times the check with 76 (it costs about the
+same; before the index it cost fifty times as much and failed), and with
+12000 units at most eight times that with 3000 (the sort makes it a little
+more than linear). `build.bench.ts` asserts that parsing and building 6000
+units each cost at most eight times parsing and building 1500, since each
+definition is parsed once and evaluated once; a walk that re-evaluated its
+dependencies would cost more. The thresholds are twice the expected ratios,
+so that noise never fails a benchmark that a regression would not fail by a
+wide margin. It also reports, without asserting, the cost of a file the size
+of the GNU units database, as a reference for the startup cost.
 
 ## Later
 

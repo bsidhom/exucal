@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test": "node --test",
+    "bench": "node --test \"bench/**/*.bench.ts\"",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

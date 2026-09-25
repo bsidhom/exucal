@@ -115,9 +115,8 @@ language:
 
 - **Numbers** are unsigned decimals, with an optional exponent: `2`, `2.54`,
   `.5`, `1e-3`. They are read exactly, so a unit defined by a decimal
-  converts exactly. A sign is part of a number only in its exponent (`1e-3`
-  is a thousandth, `1 - 3` is a difference), and there is no negation:
-  `-2 m` is an error, and a negative quantity is written as a difference.
+  converts exactly. A sign is part of a number only in its exponent: `1e-3`
+  is a thousandth, `1 - 3` is a difference, and `-2` is the negation of `2`.
 - **Juxtaposition** multiplies: `2 m` is two metres and `kg m` is a
   kilogram-metre. A number may only be the first factor of a product, so
   `m 2` and `2 3 m` are errors; multiplying numbers is written `2 * 3`.
@@ -131,6 +130,11 @@ language:
   `have` and `want` must pass: `1 m + 1 s` is an error (length and time),
   and so are `1 rad + 1` (an angle and a plain number) and `1 m + 0`, since
   `0` is a number and not a length. A difference may be zero or negative.
+- **`-` before a product** negates it: `-2 m` is minus two metres and
+  `2 * -3` is minus six. It binds tighter than `*` and `/` and looser than
+  juxtaposition and `^`, so `-2 m / s` is `(-(2 m)) / s` and `-2^2` is `-4`;
+  write `(-2)^2` for `4`. It does not stack (`--2` is an error; write
+  `-(-2)`), and there is no `+` in front of anything.
 - **`^`** raises to a literal exponent, which is a signed decimal (`m^2`,
   `s^-1`, `m^0.5`) or a parenthesized fraction (`m^(1/2)`), never an
   expression. It binds tightest, so `m^2 - 1` is `(m^2) - 1`.

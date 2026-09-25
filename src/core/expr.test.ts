@@ -20,6 +20,8 @@ function show(e: Expr): string {
       return `(${show(node.left)} ${OPERATOR[node.op]} ${show(node.right)})`;
     case "pow":
       return `${show(node.base)}^${toFraction(node.exponent)}`;
+    case "neg":
+      return `-${show(node.operand)}`;
   }
 }
 
@@ -51,7 +53,9 @@ function rejected(span: Span, reason: string): ParseError {
 }
 
 /** What can start an operand. */
-const OPERAND = ["a number", "a unit name", '"("'];
+const OPERAND = ["a number", "a unit name", '"("', '"-"'];
+/** What can start the operand of a negation, which does not stack. */
+const UNSIGNED_OPERAND = ["a number", "a unit name", '"("'];
 /** What can follow a raised factor, short of whatever closes the expression. */
 const AFTER_POWER = ["a unit name", '"("', '"*"', '"/"', '"+"', '"-"'];
 /** What can follow a factor that has no exponent yet. */
@@ -129,6 +133,48 @@ test("+ and - are one left-associative level below * and /", () => {
   assertParses("(a + b) c", "((a + b) * c)");
   assertParses("(a + b)^2", "(a + b)^2");
   assertParses("a (b - c)", "(a * (b - c))");
+});
+
+test("a leading - negates a product", () => {
+  assertParses("-2", "-2");
+  assertParses("-m", "-m");
+  assertParses("-2 m", "-(2 * m)");
+  assertParses("- 2 m", "-(2 * m)");
+  assertParses("-kg m", "-(kg * m)");
+  assertParses("-(2 m)", "-(2 * m)");
+  assertParses("-(-2)", "--2");
+});
+
+test("negation binds tighter than * and /, looser than juxtaposition and ^", () => {
+  assertParses("-2 m / s", "(-(2 * m) / s)");
+  assertParses("2 * -3", "(2 * -3)");
+  assertParses("2 * -3 m", "(2 * -(3 * m))");
+  assertParses("2 / -3 m", "(2 / -(3 * m))");
+  assertParses("-2 * -3", "(-2 * -3)");
+  assertParses("-2^2", "-2^2");
+  assertParses("-m^2 s", "-(m^2 * s)");
+  assertParses("(-2)^2", "-2^2");
+  assert.equal(parsed("(-2)^2").node.kind, "pow");
+  assert.equal(parsed("-2^2").node.kind, "neg");
+});
+
+test("negation may follow + and -, and - - is a difference of a negation", () => {
+  assertParses("2 - -3", "(2 - -3)");
+  assertParses("2 + -3 m", "(2 + -(3 * m))");
+  assertParses("-2 + 3", "(-2 + 3)");
+  assertParses("-2 - 3", "(-2 - 3)");
+  assertParses("2 -3", "(2 - 3)");
+  assertParses("-2 m + -3 m - -m", "((-(2 * m) + -(3 * m)) - -m)");
+});
+
+test("negation does not stack, and there is no unary +", () => {
+  assert.deepEqual(failed("--2"), unexpected(1, ...UNSIGNED_OPERAND));
+  assert.deepEqual(failed("- -2"), unexpected(2, ...UNSIGNED_OPERAND));
+  assert.deepEqual(failed("2 * --3"), unexpected(5, ...UNSIGNED_OPERAND));
+  assert.deepEqual(failed("+2 m"), unexpected(0, ...OPERAND));
+  assert.deepEqual(failed("2 * +3"), unexpected(4, ...OPERAND));
+  assert.deepEqual(failed("-"), unexpected(1, ...UNSIGNED_OPERAND));
+  assert.deepEqual(failed("2 -"), unexpected(3, ...OPERAND));
 });
 
 test("- after an exponent is a subtraction, not part of it", () => {
@@ -232,12 +278,16 @@ test("numbers are decimal literals, parsed exactly", () => {
   assertParses("0.1 * 0.2", "(1/10 * 1/5)");
 });
 
-test("a number has no sign, and there is no negation", () => {
-  assert.deepEqual(failed("-2 m"), unexpected(0, ...OPERAND));
-  assert.deepEqual(failed("+2 m"), unexpected(0, ...OPERAND));
-  assert.deepEqual(failed("2 * -3"), unexpected(4, ...OPERAND));
-  assert.deepEqual(failed("2 - -3"), unexpected(4, ...OPERAND));
-  assert.deepEqual(failed("(-2) m"), unexpected(1, ...OPERAND));
+test("a number has no sign: -2 is the negation of 2", () => {
+  const e = parsed("-2");
+  assert.equal(e.node.kind, "neg");
+  assert.deepEqual(e.node.operand, {
+    span: { start: 1, end: 2 },
+    node: { kind: "number", value: rational(2n) },
+  });
+  assertParses("(-2) m", "(-2 * m)");
+  // So `2 -3 m` is a difference, not a number beside a negative one.
+  assertParses("2 -3 m", "(2 - (3 * m))");
 });
 
 test("an e that does not start an exponent is a unit name", () => {
@@ -309,6 +359,15 @@ test("a composite node spans from its first part to its last", () => {
   assert.deepEqual(e.node.right.span, { start: 7, end: 10 });
   assert.equal(e.node.right.node.kind, "pow");
   assert.deepEqual(e.node.right.node.base.span, { start: 7, end: 8 });
+});
+
+test("a negation spans from its - to the end of its operand", () => {
+  const e = parsed(" - 2 m / s");
+  assert.equal(e.node.kind, "binary");
+  const neg = e.node.left;
+  assert.deepEqual(neg.span, { start: 1, end: 6 });
+  assert.equal(neg.node.kind, "neg");
+  assert.deepEqual(neg.node.operand.span, { start: 3, end: 6 });
 });
 
 test("a sum spans its operands, and the operator lies between them", () => {

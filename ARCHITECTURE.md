@@ -604,11 +604,10 @@ nothing but zeros keeps its last term (`0 in`).
 GNU units answers every conversion twice, with the number to multiply by
 (`* 36`) and the number to divide by (`/ 0.027777778`). Dividing by the
 second number converts the other way, from `want`s to `have`s, so it is the
-reverse conversion in disguise: one `in` is `0.027777778` of `3 ft`. When
-its `reciprocal` property is set, the converter shows that reverse
-conversion on a second line, written as the first line is with the sides
-swapped, so that both read as statements about quantities and could be
-typed back as a `have`:
+reverse conversion in disguise: one `in` is `0.027777778` of `3 ft`. The
+converter shows that reverse conversion on a second line, written as the
+first line is with the sides swapped, so that both read as statements about
+quantities and could be typed back as a `have`:
 
 ```
 3 ft = 36 in
@@ -638,21 +637,11 @@ each term gives numbers that add up to nothing, `1 / have` in the same
 list never conforms (its dimension is the inverse), and the reciprocal of
 the total in any one unit of the list would be a reciprocal of a different
 conversion, for a unit chosen by some rule the user did not ask for. GNU
-units prints no reciprocal for a unit list either. So the property has no
-effect on a list, typed or named, nor on a blank `want`, which shows a
+units prints no reciprocal for a unit list either. So a list, typed or
+named, gets no second line, nor does a blank `want`, which shows a
 definition, as GNU units shows one without a reciprocal. A value of zero
 has no reciprocal (`0 ft = 0 in`, and nothing is a multiple of `0 ft`), and
 the line is left out rather than shown as anything.
-
-The property is a setting: `<app-shell>` owns the settings, one JSON object
-in `localStorage` read and written through `src/settings.ts`, renders the
-checkbox that flips it under the converter, and hands the value down as a
-property, so that the converter's state is still the two strings and it
-never reads storage. The settings module has no DOM dependency (the store
-is an argument) and absorbs every way storage can fail, a store that is
-missing or throws or holds something that is not settings, into the
-defaults for what could not be read, so that a bad stored value can never
-keep the app from starting; `src/settings.test.ts` checks each way.
 
 The errors the core returns are values with spans and dimensions, not
 sentences; `src/messages.ts` puts them into words, quoting the text at fault
@@ -686,7 +675,6 @@ src/core/pipeline.ts      convertText, evaluateText: the pipeline over text
 src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions; src/units.test.ts checks them
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
-src/settings.ts           the settings and their storage; src/settings.test.ts checks them
 src/system-table.ts       loadSystemTable: fetches and builds the system table, once
 src/unit-converter.ts     the component
 src/app-shell.ts          the host: loads the table, renders the component

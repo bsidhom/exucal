@@ -3,11 +3,10 @@
 An offline-first progressive web app (PWA) that converts units, in the
 spirit of GNU units: type a quantity you have (`3 ft`) and a unit you want
 (`in`), and it answers `3 ft = 36 in`; want a list of units (`ft;in`) and
-it answers `1 m ≈ 3 ft + 3.3700787 in`. A checkbox under the converter adds
-the reciprocal that GNU units shows with every answer, the conversion the
-other way round: `3 ft = 36 in` and then `in ≈ 0.027777778 × 3 ft`. It goes
-with a conversion into one unit only, since a sum over a list has no other
-way round, and the choice is remembered between visits. The app can be
+it answers `1 m ≈ 3 ft + 3.3700787 in`. As GNU units does, it also
+answers the other way round: `3 ft = 36 in` and then `in ≈ 0.027777778 ×
+3 ft`. That goes with a conversion into one unit only, since a sum over a
+list has no other way round. The app can be
 installed to the home screen and works without a network connection once it
 has been loaded once.
 
@@ -267,11 +266,6 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
 - `src/messages.ts` turns the errors the core returns into the sentences the
   converter shows. It has no DOM dependency, so `src/messages.test.ts` checks
   the wording under Node.js.
-- `src/settings.ts` reads and writes the settings (the reciprocal checkbox)
-  as one JSON object in `localStorage`, which the shell owns and hands down
-  to the converter as properties. It has no DOM dependency either, taking
-  the store as an argument, and `src/settings.test.ts` checks that no
-  stored value, however wrong, can keep the app from starting.
 - `src/register-service-worker.ts` registers `sw.js` once the page has loaded,
   in production builds only.
 - `src/sw.ts` is the service worker (see Offline behavior below).

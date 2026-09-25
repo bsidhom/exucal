@@ -50,7 +50,7 @@ type Outcome =
   /** Nothing to convert yet. */
   | { readonly kind: "empty" }
   /**
-   * The conversion, as one line, or two when the reciprocal is shown: the
+   * The conversion, as one line, or two when it has a reciprocal: the
    * conversion and then the same conversion the other way round, `3 ft =
    * 36 in` and `in ≈ 0.027777778 × 3 ft`.
    */
@@ -70,18 +70,18 @@ type Outcome =
  * `want` that is a unit list, typed (`ft;in`) or by name (`time`), gives
  * the sum the pipeline computes, one term per unit.
  *
- * With `reciprocal` set, a conversion into one unit is also shown the
- * other way round, on a second line, as GNU units shows every conversion
- * twice (`* 36` and `/ 0.027777778`, the number to multiply by and the
- * number to divide by): `3 ft = 36 in` and then `in ≈ 0.027777778 × 3 ft`,
- * the `want` converted into the `have`, which is what dividing by the
- * second number does. The two lines have the same shape with the sides
- * swapped, and each reads as a statement about quantities. Only a
- * conversion into one unit has a reciprocal: it is one ratio, and the
- * reciprocal is the same ratio the other way round. A conversion into a
- * unit list is a sum, not a ratio, so there is no other way round and no
- * line is added; nor for a blank `want`, which shows a definition; nor for
- * a value of zero, which has no reciprocal.
+ * A conversion into one unit is also shown the other way round, on a
+ * second line, as GNU units shows every conversion twice (`* 36` and
+ * `/ 0.027777778`, the number to multiply by and the number to divide by):
+ * `3 ft = 36 in` and then `in ≈ 0.027777778 × 3 ft`, the `want` converted
+ * into the `have`, which is what dividing by the second number does. The
+ * two lines have the same shape with the sides swapped, and each reads as
+ * a statement about quantities. Only a conversion into one unit has a
+ * reciprocal: it is one ratio, and the reciprocal is the same ratio the
+ * other way round. A conversion into a unit list is a sum, not a ratio, so
+ * there is no other way round and no line is added; nor for a blank
+ * `want`, which shows a definition; nor for a value of zero, which has no
+ * reciprocal.
  */
 @customElement("unit-converter")
 export class UnitConverter extends LitElement {
@@ -153,9 +153,6 @@ export class UnitConverter extends LitElement {
 
   /** The units to convert with. Not an attribute: a table is not a string. */
   @property({ attribute: false }) table?: UnitTable;
-
-  /** Whether to show a conversion into one unit from the other side too. */
-  @property({ type: Boolean }) reciprocal = false;
 
   @state() private have = "";
   @state() private want = "";
@@ -231,7 +228,7 @@ export class UnitConverter extends LitElement {
       };
     }
     return conversion.value.kind === "unit"
-      ? unitResult(have, want, conversion.value.value, this.reciprocal)
+      ? unitResult(have, want, conversion.value.value)
       : listResult(have, conversion.value);
   }
 }
@@ -312,23 +309,18 @@ function result(have: string, value: Rational, unit: string): Outcome {
 
 /**
  * The result outcome for a conversion of `have` into the one unit `want`,
- * `have` being `value` `want`s, and, when `withReciprocal` asks for it,
- * the reciprocal beneath it: the same conversion the other way round,
- * `want` being `1 / value` `have`s, written as the first line is with the
- * sides swapped (`in ≈ 0.027777778 × 3 ft`), the `have` taking the place
- * of the unit and written as a unit is. A `value` of zero has no
- * reciprocal (`0 ft = 0 in`, and nothing is a multiple of `0 ft`), so
- * the second line is left out rather than shown as anything.
+ * `have` being `value` `want`s, with the reciprocal beneath it: the same
+ * conversion the other way round, `want` being `1 / value` `have`s,
+ * written as the first line is with the sides swapped
+ * (`in ≈ 0.027777778 × 3 ft`), the `have` taking the place of the unit and
+ * written as a unit is. A `value` of zero has no reciprocal (`0 ft = 0 in`,
+ * and nothing is a multiple of `0 ft`), so the second line is left out
+ * rather than shown as anything.
  */
-function unitResult(
-  have: string,
-  want: string,
-  value: Rational,
-  withReciprocal: boolean,
-): Outcome {
+function unitResult(have: string, want: string, value: Rational): Outcome {
   const lines = [line(have, value, wantText(want))];
-  const inverse = withReciprocal ? invert(value) : undefined;
-  if (inverse?.ok) lines.push(line(want, inverse.value, wantText(have)));
+  const inverse = invert(value);
+  if (inverse.ok) lines.push(line(want, inverse.value, wantText(have)));
   return { kind: "result", lines };
 }
 

@@ -2,12 +2,6 @@ import { LitElement, css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { type Result } from "./core/result.ts";
 import { type UnitTable } from "./core/table.ts";
-import {
-  loadSettings,
-  saveSettings,
-  type Settings,
-  type SettingsStore,
-} from "./settings.ts";
 import { loadSystemTable, type SystemTableError } from "./system-table.ts";
 import "./unit-converter.ts";
 
@@ -75,36 +69,10 @@ export class AppShell extends LitElement {
       color: inherit;
       cursor: pointer;
     }
-
-    .settings {
-      width: 100%;
-      max-width: 32rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      font-size: 0.875rem;
-    }
-
-    .settings label {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      cursor: pointer;
-    }
-
-    .settings input {
-      margin: 0;
-      width: 1rem;
-      height: 1rem;
-      accent-color: #3b5bdb;
-    }
   `;
 
   /** The system table once loaded, or why it could not be; unset until then. */
   @state() private table?: Result<UnitTable, SystemTableError>;
-
-  /** The current settings, read from storage once and saved on each change. */
-  @state() private settings: Settings = loadSettings(settingsStore());
 
   connectedCallback() {
     super.connectedCallback();
@@ -155,42 +123,7 @@ export class AppShell extends LitElement {
         <button type="button" @click=${this.load}>Retry</button>
       </div>`;
     }
-    return html`
-      <unit-converter
-        .table=${table.value}
-        .reciprocal=${this.settings.reciprocal}
-      ></unit-converter>
-      <div class="settings">
-        <label>
-          <input
-            type="checkbox"
-            .checked=${this.settings.reciprocal}
-            @change=${this.onReciprocalChange}
-          />
-          Show the reciprocal too
-        </label>
-      </div>
-    `;
-  }
-
-  private onReciprocalChange(event: Event) {
-    const reciprocal = (event.target as HTMLInputElement).checked;
-    this.settings = { ...this.settings, reciprocal };
-    saveSettings(settingsStore(), this.settings);
-  }
-}
-
-/**
- * The browser's local storage as a settings store, or none when the page
- * has no access to it: reading `localStorage` itself throws in a browser
- * that denies storage (a sandboxed frame, some privacy settings), and the
- * settings then hold for the visit only.
- */
-function settingsStore(): SettingsStore | undefined {
-  try {
-    return globalThis.localStorage;
-  } catch {
-    return undefined;
+    return html`<unit-converter .table=${table.value}></unit-converter>`;
   }
 }
 

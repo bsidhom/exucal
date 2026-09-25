@@ -262,8 +262,11 @@ type ExprNode =
 ```
 
 Juxtaposition is surface syntax only: it parses to a `mul` node like `*`
-does, and differs from it only in precedence (it binds tighter than `/`, as
-in GNU units), which is the parser's business.
+does. It differs from `*` in precedence (it binds tighter), which is the
+parser's business, and in what it may join: it means "this many of these
+units" (`2 m`) or a product of units (`kg m`), so a number may only be the
+first factor of a product. `m 2`, `1 2 3` and `2 3 m` are errors, and
+multiplying numbers is written with `*`.
 
 `parseExpr(text): Result<Expr, ParseError>` knows nothing about units;
 `evaluate(expr, table, precision): Result<Quantity, EvalError>` knows nothing

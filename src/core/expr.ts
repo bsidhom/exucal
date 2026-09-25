@@ -5,19 +5,24 @@
 //
 // The grammar, from the loosest binding to the tightest:
 //
-//   expr     := product (("*" | "/") product)*        left-associative
-//   product  := power power*                          juxtaposition
-//   power    := atom ("^" exponent)?
-//   atom     := number | name | "(" expr ")"
-//   exponent := signed number | "(" signed number ("/" number)? ")"
+//   expr      := product (("*" | "/") product)*       left-associative
+//   product   := power unitPower*                     juxtaposition
+//   power     := atom ("^" exponent)?
+//   unitPower := unitAtom ("^" exponent)?
+//   atom      := number | unitAtom
+//   unitAtom  := name | "(" expr ")"
+//   exponent  := signed number | "(" signed number ("/" number)? ")"
 //
-// This is GNU units precedence: juxtaposition binds tighter than `*` and
-// `/`, so `kg m / s^2` is `(kg m) / (s^2)` and `1/2 m` is `1 / (2 m)`, while
-// `*` and `/` are one left-associative level, so `m/s*s` is `(m/s)*s`. `^`
-// binds tightest and takes a literal exponent, not an expression: an
-// optionally signed decimal (`m^2`, `s^-1`, `m^0.5`) or a parenthesized
-// rational (`m^(1/2)`, `m^(-3/2)`), so the exponent is known at parse time
-// and travels in the tree as a `Rational`.
+// Juxtaposition means "this many of these units" (`2 m`) or a product of
+// units (`kg m`), so a number may only be the first factor of a product:
+// `m 2`, `1 2 3` and `2 3 m` are errors, and multiplying numbers is written
+// with `*`. Juxtaposition binds tighter than `*` and `/`, so `kg m / s^2` is
+// `(kg m) / (s^2)` and `1/2 m` is `1 / (2 m)`, while `*` and `/` are one
+// left-associative level, so `m/s*s` is `(m/s)*s`. `^` binds tightest and
+// takes a literal exponent, not an expression: an optionally signed decimal
+// (`m^2`, `s^-1`, `m^0.5`) or a parenthesized rational (`m^(1/2)`,
+// `m^(-3/2)`), so the exponent is known at parse time and travels in the
+// tree as a `Rational`.
 //
 // Numbers are unsigned decimal literals as `parseDecimal` reads them (`2`,
 // `2.54`, `.5`, `1e-3`), parsed exactly; there is no `+` or `-` operator yet.
@@ -38,7 +43,7 @@ import {
   chainl1,
   check,
   lazy,
-  many1,
+  many,
   map,
   optional,
   parse,
@@ -153,11 +158,10 @@ const parenthesized: Parser<Expr> = map(
   ({ value: [, inner], span }) => ({ span, node: inner.node }),
 );
 
-const atom: Parser<Expr> = alt(
-  map(number, leaf),
-  map(name, leaf),
-  parenthesized,
-);
+/** An atom that can follow another factor by juxtaposition: not a number. */
+const unitAtom: Parser<Expr> = alt(map(name, leaf), parenthesized);
+
+const atom: Parser<Expr> = alt(map(number, leaf), unitAtom);
 
 /**
  * The exponent of `^`: a signed decimal, or a parenthesized rational written
@@ -197,19 +201,26 @@ function divideExponent(
   return result.ok ? result : err("the exponent divides by zero");
 }
 
-const power: Parser<Expr> = map(
-  seq(atom, optional(seq(symbol("^"), exponent))),
-  ([base, raised]) =>
-    raised === undefined
-      ? base
-      : {
-          span: { start: base.span.start, end: raised[1].span.end },
-          node: { kind: "pow", base, exponent: raised[1].value },
-        },
-);
+/** `atom`, optionally raised to an exponent. */
+function raised(atom: Parser<Expr>): Parser<Expr> {
+  return map(
+    seq(atom, optional(seq(symbol("^"), exponent))),
+    ([base, power]) =>
+      power === undefined
+        ? base
+        : {
+            span: { start: base.span.start, end: power[1].span.end },
+            node: { kind: "pow", base, exponent: power[1].value },
+          },
+  );
+}
 
-const product: Parser<Expr> = map(many1(power), ([first, ...rest]) =>
-  rest.reduce(binary("mul"), first),
+const power: Parser<Expr> = raised(atom);
+const unitPower: Parser<Expr> = raised(unitAtom);
+
+const product: Parser<Expr> = map(
+  seq(power, many(unitPower)),
+  ([first, rest]) => rest.reduce(binary("mul"), first),
 );
 
 const quotient: Parser<Expr> = chainl1(

@@ -49,8 +49,10 @@ function rejected(span: Span, reason: string): ParseError {
 
 /** What can start an operand. */
 const OPERAND = ["a number", "a unit name", '"("'];
-/** What can follow a complete factor, short of whatever closes the expression. */
-const AFTER_FACTOR = ['"^"', ...OPERAND, '"*"', '"/"'];
+/** What can follow a raised factor, short of whatever closes the expression. */
+const AFTER_POWER = ["a unit name", '"("', '"*"', '"/"'];
+/** What can follow a factor that has no exponent yet. */
+const AFTER_FACTOR = ['"^"', ...AFTER_POWER];
 
 // ---------------------------------------------------------------------------
 // Structure and precedence
@@ -71,7 +73,26 @@ test("juxtaposition and * multiply, / divides", () => {
   assertParses("2m", "(2 * m)");
   assertParses("2 * m", "(2 * m)");
   assertParses("m / s", "(m / s)");
-  assertParses("2 3 4", "((2 * 3) * 4)");
+  assertParses("kg m s", "((kg * m) * s)");
+  assertParses("2 * 3 * 4", "((2 * 3) * 4)");
+});
+
+test("a number may only be the first factor of a product", () => {
+  // Juxtaposition means "this many of these units" or a product of units;
+  // multiplying numbers is written with `*`.
+  assertParses("2 m", "(2 * m)");
+  assertParses("2 (m s)", "(2 * (m * s))");
+  assertParses("2 (3 m)", "(2 * (3 * m))");
+  assertParses("2^2 m", "(2^2 * m)");
+  const expected = [...AFTER_FACTOR, "end of input"];
+  assert.deepEqual(failed("1 2 3"), unexpected(2, ...expected));
+  assert.deepEqual(failed("m 2"), unexpected(2, ...expected));
+  assert.deepEqual(failed("2 3 m"), unexpected(2, ...expected));
+  assert.deepEqual(failed("2 m 3"), unexpected(4, ...expected));
+  assert.deepEqual(
+    failed("m^2 2"),
+    unexpected(4, ...AFTER_POWER, "end of input"),
+  );
 });
 
 test("juxtaposition binds tighter than * and /", () => {
@@ -154,7 +175,7 @@ test("an exponent that divides by zero is rejected with its span", () => {
 test("a base takes at most one exponent", () => {
   assert.deepEqual(
     failed("m^2^3"),
-    unexpected(3, ...OPERAND, '"*"', '"/"', "end of input"),
+    unexpected(3, ...AFTER_POWER, "end of input"),
   );
 });
 
@@ -169,7 +190,7 @@ test("numbers are decimal literals, parsed exactly", () => {
   assertParses("1e3", "1000");
   assertParses("1.5e-3", "3/2000");
   assertParses("2E+2", "200");
-  assertParses("0.1 0.2", "(1/10 * 1/5)");
+  assertParses("0.1 * 0.2", "(1/10 * 1/5)");
 });
 
 test("a number has no sign", () => {
@@ -183,7 +204,7 @@ test("a number has no sign", () => {
 test("an e that does not start an exponent is a unit name", () => {
   assertParses("3e", "(3 * e)");
   assertParses("3em", "(3 * em)");
-  assertParses("3e 3", "((3 * e) * 3)");
+  assertParses("3e m", "((3 * e) * m)");
 });
 
 test("a number too large to represent is rejected with its span", () => {
@@ -213,7 +234,7 @@ test("a name is a letter or underscore followed by letters, digits and underscor
 test("names are maximal, so a trailing digit is part of the name", () => {
   assertParses("m2", "m2");
   assertParses("2m2", "(2 * m2)");
-  assertParses("m 2", "(m * 2)");
+  assertParses("m_2 m", "(m_2 * m)");
 });
 
 test("a name never starts with a digit or contains a symbol", () => {
@@ -275,7 +296,7 @@ test("the furthest expectation survives backtracking", () => {
 
 test("an error lists what could have continued the input", () => {
   // In the order the parser tried them: the exponent of the last factor,
-  // another factor by juxtaposition, `*` and `/`, and the end.
+  // a unit by juxtaposition, `*` and `/`, and the end.
   assert.deepEqual(
     failed("3 m )"),
     unexpected(4, ...AFTER_FACTOR, "end of input"),

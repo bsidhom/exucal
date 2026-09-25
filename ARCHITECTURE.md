@@ -249,7 +249,119 @@ in GNU units), which is the parser's business.
 `parseExpr(text): Result<Expr, ParseError>` knows nothing about units;
 `evaluate(expr, table, precision): Result<Quantity, EvalError>` knows nothing
 about text. Spans (character offsets) travel from the parser into every error
-so the UI can highlight the offending input.
+so the UI can highlight the offending input. `Span` and `ParseError` are
+defined by the parsing toolkit below, which both `parseExpr` and
+`parseDefinitions` are built from.
+
+## Parsing
+
+Both parsers are assembled from a small set of parser combinators in
+`src/core/parser.ts`. A parser is a plain function, and a grammar is plain
+code that combines parsers into parsers:
+
+```ts
+type Parser<A> = (text: string, pos: number) => Reply<A>;
+type Reply<A> =
+  | { ok: true; value: A; end: number; furthest: Expectation }
+  | { ok: false; error: ParseError };
+```
+
+A reply is either the value recognized and the position just past it, or an
+error. The primitives are `string(literal)`, `regex(pattern, label)`, `eof`,
+`succeed(value)` and `fail(label)`; the combinators are `map`, `flatMap`,
+`seq` (a tuple of parsers to a parser of a tuple), `alt` (the first
+alternative that matches), `optional`, `many`, `many1`, `chainl1` (one
+left-associative precedence level), `spanned` (pairs a value with its span),
+`check` (validates a recognized value) and `lazy` (lets a grammar refer to
+itself). `parse(parser, text)` runs a parser over the whole text and returns
+a `Result`. The types carry the grammar's shape: `seq(a, b)` is a
+`Parser<[A, B]>`, `alt(a, b)` a `Parser<A | B>`, `many1(p)` a
+`Parser<[A, ...A[]]>`, so a grammar that type-checks produces the tree its
+types say it does.
+
+We chose combinators instead of a hand-written recursive-descent parser or a
+Pratt (top-down operator precedence) parser because the grammars are small
+and fixed. The expression language has a handful of precedence levels, each
+of which is one `chainl1` (or `many1`, for juxtaposition) over the level
+below, and the definitions file is a line with two or three fields. A Pratt
+parser is general: it drives a table of operators with numeric binding powers
+from a loop whose invariant has to be checked. That generality buys nothing
+here, while a combinator grammar is checked by reading it against the grammar
+it transcribes. Should the language ever need user-defined or many-levelled
+operators, a Pratt loop can be written with `flatMap` on the same primitives,
+without changing them.
+
+Three properties make the combinators simple to reason about:
+
+- **`alt` is ordered choice, and the only backtracking is local.**
+  `alt(a, b)` tries `a`; if `a` fails, however far into the input it got
+  before failing, the position is rewound and `b` is tried from the same
+  place. The first alternative that matches is taken for good: a failure
+  later in the parse never reopens an earlier choice to try its remaining
+  alternatives, so the parser never searches a space of parse trees.
+  "Backtracking" here means only that rewinding, which is what lets an
+  alternative be written without lookahead: an optional exponent, written
+  `optional(seq(string("^"), exponent))`, may consume the `^` before finding
+  no exponent, and still cleanly matches nothing.
+
+  That makes the cost easy to bound. The work of a parse is the number of
+  primitive (`string`, `regex`) matches attempted. Text is read more than
+  once only when an alternative fails after consuming some of it and the next
+  alternative reads the same text again. That is the exponential case of
+  unmemoized ordered choice: `alt(seq(p, a), seq(p, b))` parses `p` twice,
+  and nesting that pattern `k` deep parses the innermost `p` `2^k` times. Our
+  grammars never share a prefix between alternatives. At every `alt`, the
+  alternatives are told apart by their first character (a digit, a letter,
+  `(`, or an operator symbol), so all but at most one of them fail on their
+  first primitive, at constant cost. The one way an alternative fails after
+  consuming input is an operator with nothing valid after it (`3 m ^`), which
+  rewinds by one token and is followed at once by a failure at that token. So
+  each character is consumed by exactly one primitive, each failed alternative
+  costs one primitive attempt, and a parse costs a constant number of
+  primitive attempts per token, times the depth of the grammar for passing
+  each reply up through the enclosing combinators. A hundred-character line
+  is a few hundred primitive attempts. The discipline that keeps this true,
+  and that any new grammar built on these combinators must follow, is that
+  the alternatives of one `alt` begin with different tokens, and repetition
+  is expressed with `many`, `many1` or `chainl1` rather than with a
+  recursive alternative.
+
+- **Every reply carries the furthest expectation.** An `Expectation` is a
+  position and the labels of the primitives tried there. Not only failures but
+  successes carry one, and every combinator keeps whichever of its parts got
+  furthest (merging the labels of those that tie), so the error reported for a
+  parse is where the parser got furthest and what it wanted there, whatever
+  alternatives it undid afterwards. This is what makes the error for `3 m ^` say
+  "expected a number" after the `^`: the optional exponent fails there, the
+  parser backs out of it, the product ends, and `eof` fails earlier at the
+  `^`; the furthest expectation survives. Without it, backtracking parsers
+  report the position where the outermost rule gave up, which is usually not
+  where the mistake is.
+
+- **Rejection is final.** `check(parser, validate)` turns a recognized value
+  into a `rejected` error carrying its span and a reason when `validate` says
+  so, and no combinator retries past a rejection: the text was understood and
+  found unacceptable, not misread, so trying another reading would only
+  produce a worse error. This is how a numeric literal that `parseDecimal`
+  reports as `tooLarge` becomes a parse error pointing at the literal.
+  `check` is the only source of `rejected` errors.
+
+```ts
+type ParseError =
+  | { kind: "unexpected"; pos: number; expected: readonly string[] }
+  | { kind: "rejected"; span: Span; reason: string };
+```
+
+Spans are attached where they are needed with `spanned`, typically on the
+leaves; a composite node's span runs from its first child's start to its last
+child's end, which is the folding function's business in `chainl1`.
+
+The combinators are pure: a parser is a closure over its configuration and a
+function of `(text, pos)`. The two pieces of mutable state are internal and
+unobservable: `regex` reuses one sticky `RegExp` whose `lastIndex` it sets
+before every use, and `lazy` memoizes the parser it builds. `many` of a
+parser that matches the empty string would loop forever; that is a bug in the
+grammar, not an input that can fail, and it throws.
 
 ## Conversion
 
@@ -295,7 +407,8 @@ drive highlighting. None of that needs changes to the core.
 ```
 src/core/rational.ts      Rational, arithmetic, root, parsing and formatting
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
-src/core/expr.ts          Expr, Span, parseExpr
+src/core/parser.ts        Parser combinators, Span, ParseError
+src/core/expr.ts          Expr, parseExpr
 src/core/definitions.ts   Definition, parseDefinitions
 src/core/table.ts         UnitTable, buildTable, name lookup
 src/core/evaluate.ts      evaluate

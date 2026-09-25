@@ -20,8 +20,8 @@ import {
   checkConformance,
   type ConformanceError,
   type Primitives,
-  type Quantity,
 } from "./dimension.ts";
+import { type Quantity } from "./quantity.ts";
 import { divide, type Rational } from "./rational.ts";
 import { err, type Result } from "./result.ts";
 

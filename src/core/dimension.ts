@@ -29,11 +29,6 @@
 // A name absent from the primitives map is treated as a dimension primitive,
 // the default role, and ordered after the declared ones; a table cannot
 // produce one, but nothing here depends on that.
-//
-// A `Quantity` is what every unit and every expression evaluates to: a
-// magnitude, which is a `Rational`, and the dimension it is a multiple of. It
-// lives here rather than in the evaluator because the conversion step, which
-// consumes quantities, needs nothing from the evaluator.
 
 import {
   ONE,
@@ -67,15 +62,6 @@ import { err, ok, type Result } from "./result.ts";
  * it is.
  */
 export type Dimension = ReadonlyMap<string, Rational>;
-
-/**
- * A magnitude and the dimension it is a multiple of: `2.54 cm` is the
- * magnitude `127/5000` of the dimension `m`, given `m` as the primitive.
- */
-export type Quantity = {
-  readonly magnitude: Rational;
-  readonly dimension: Dimension;
-};
 
 /** What a primitive is: a physical base quantity, or a dimensionless marker of a kind. */
 export type Role = "dimension" | "kind";

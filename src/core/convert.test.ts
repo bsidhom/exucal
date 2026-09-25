@@ -2,12 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { convert, type ConvertError } from "./convert.ts";
-import {
-  DIMENSIONLESS,
-  type Dimension,
-  type Primitives,
-  type Quantity,
-} from "./dimension.ts";
+import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
+import { type Quantity } from "./quantity.ts";
 import {
   ONE,
   ZERO,

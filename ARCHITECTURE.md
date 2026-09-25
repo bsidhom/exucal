@@ -164,18 +164,24 @@ So `rad/s` does not conform to `Hz` (`1/s`), because the former carries
 units with a `/ radian` factor as the SI brochure suggests. Which kinds exist
 is entirely a matter of the definitions file; the core has no list of them.
 
-`src/core/dimension.ts` holds the `Quantity` type (a magnitude and a
-dimension), the dimension arithmetic (multiplication, division and raising to
-a rational power, with exponents that cancel to zero dropped), the conformance
-check and the formatter. The check takes the primitives with their roles from
-the table, in declaration order, so the kinds a `KindMismatch` names come out
-in that order; a name the table does not declare counts as a dimension
-primitive. A dimension formats in the expression
+`src/core/dimension.ts` holds the dimension arithmetic (multiplication,
+division and raising to a rational power, with exponents that cancel to zero
+dropped), the conformance check and the formatter. The check takes the
+primitives with their roles from the table, in declaration order, so the kinds
+a `KindMismatch` names come out in that order; a name the table does not
+declare counts as a dimension primitive. A dimension formats in the expression
 language itself: the primitives in declaration order, those with positive
 exponents first and those with negative ones after a `/` (`kg m^2 / s^3 A`,
 which the grammar reads as `(kg m^2) / (s^3 A)`), `1` standing in for an
 empty numerator, and a non-integer exponent parenthesized (`m^(1/2)`). So what
 the UI shows in an error is something the user could type back.
+
+`src/core/quantity.ts` holds the `Quantity` type itself, and is the layer
+that pairs the two below it: a `Rational` from `rational.ts` and a
+`Dimension` from `dimension.ts`, neither of which knows about the other. The
+table stores quantities, the evaluator produces them (and its arithmetic on
+them, a magnitude operation beside the matching dimension operation, belongs
+in this module when it is written), and the converter consumes them.
 
 ## Definitions
 
@@ -387,7 +393,8 @@ drive highlighting. None of that needs changes to the core.
 
 ```
 src/core/rational.ts      Rational, arithmetic, root, parsing and formatting
-src/core/dimension.ts     Quantity, Dimension arithmetic, conformance check, formatting
+src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
+src/core/quantity.ts      Quantity: a Rational magnitude with a Dimension
 src/core/parser.ts        Parser combinators, Span, ParseError
 src/core/expr.ts          Expr, parseExpr
 src/core/definitions.ts   Definition, parseDefinitions

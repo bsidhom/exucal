@@ -566,7 +566,7 @@ stlb        stone;lb
 tonlb       ton;lb
 galqtpt     gal;qt;pt;floz
 cups        cup;tbsp;tsp
-pace        hr/mi;min/mi;s/mi
+mipace      hr/mi;min/mi;s/mi
 kmpace      hr/km;min/km;s/km
 
 # ---------------------------------------------------------------------------

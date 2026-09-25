@@ -43,7 +43,7 @@ that can be typed can also be defined.
   (`hr;min;s`, also `hms`), `dhms` and `ydhms` with days and years in
   front, `dms` (`deg;arcmin;arcsec`), `ftin`, `ydftin` and `miftin`,
   `lboz`, `stlb` and `tonlb`, `galqtpt` (`gal;qt;pt;floz`), `cups`
-  (`cup;tbsp;tsp`), and `pace` and `kmpace` for a running pace
+  (`cup;tbsp;tsp`), and `mipace` and `kmpace` for a running pace
   (`hr/mi;min/mi;s/mi` and the same per kilometre).
 
 Where the US and the UK give one name to different units, the plain name is

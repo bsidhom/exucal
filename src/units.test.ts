@@ -511,7 +511,7 @@ test("the unit lists are defined, with the units named in the file", () => {
       ["tonlb", "ton;lb"],
       ["galqtpt", "gal;qt;pt;floz"],
       ["cups", "cup;tbsp;tsp"],
-      ["pace", "hr/mi;min/mi;s/mi"],
+      ["mipace", "hr/mi;min/mi;s/mi"],
       ["kmpace", "hr/km;min/km;s/km"],
     ],
   );
@@ -529,7 +529,7 @@ test("the unit lists convert", () => {
   assertList("1 gal", "galqtpt", ["1", "0", "0", "0"]);
   assertList("1 L", "cups", ["4", "3", "297176309/157725491"]);
   // A ten-minute mile, as time per distance.
-  assertList("1 hr / 6 mi", "pace", ["0", "10", "0"]);
-  assertList("2 hr / 26.2 mi", "pace", ["0", "4", "4560/131"]);
+  assertList("1 hr / 6 mi", "mipace", ["0", "10", "0"]);
+  assertList("2 hr / 26.2 mi", "mipace", ["0", "4", "4560/131"]);
   assertList("1 hr / 12 km", "kmpace", ["0", "5", "0"]);
 });

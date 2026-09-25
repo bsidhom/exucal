@@ -33,6 +33,7 @@
 // name, a cycle, a prefix that is not dimensionless), and its body carries
 // its own spans for errors within it.
 
+import { type Role } from "./dimension.ts";
 import { NAME, expr, token, ws, type Expr } from "./expr.ts";
 import {
   alt,
@@ -59,7 +60,7 @@ export type Definition =
   | {
       readonly kind: "primitive";
       readonly name: string;
-      readonly role: "dimension" | "kind";
+      readonly role: Role;
       readonly span: Span;
     }
   /** A prefix, written with a trailing dash; `name` is without it. */
@@ -103,7 +104,7 @@ const name: Parser<string> = regex(
 /** The whitespace between a name and its body, which must be there. */
 const gap: Parser<string> = regex(/[ \t]+/, "a space");
 
-const primitive: Parser<{ role: "dimension" | "kind"; end: number }> = token(
+const primitive: Parser<{ role: Role; end: number }> = token(
   map(
     spanned(seq(string("!"), optional(string("kind")))),
     ({ value: [, kind], span }) => ({
@@ -117,7 +118,7 @@ const primitive: Parser<{ role: "dimension" | "kind"; end: number }> = token(
 type UnitBody =
   | {
       readonly kind: "primitive";
-      readonly role: "dimension" | "kind";
+      readonly role: Role;
       readonly end: number;
     }
   | { readonly kind: "unit"; readonly body: Expr; readonly end: number };

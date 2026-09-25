@@ -164,6 +164,18 @@ So `rad/s` does not conform to `Hz` (`1/s`), because the former carries
 units with a `/ radian` factor as the SI brochure suggests. Which kinds exist
 is entirely a matter of the definitions file; the core has no list of them.
 
+`src/core/dimension.ts` holds the dimension arithmetic (multiplication,
+division and raising to a rational power, with exponents that cancel to zero
+dropped), the conformance check and the formatter. The check takes the
+primitives with their roles from the table, in declaration order, so the kinds
+a `KindMismatch` names come out in that order; a name the table does not
+declare counts as a dimension primitive. A dimension formats in the expression
+language itself: the primitives in declaration order, those with positive
+exponents first and those with negative ones after a `/` (`kg m^2 / s^3 A`,
+which the grammar reads as `(kg m^2) / (s^3 A)`), `1` standing in for an
+empty numerator, and a non-integer exponent parenthesized (`m^(1/2)`). So what
+the UI shows in an error is something the user could type back.
+
 ## Definitions
 
 System units are not special: they live in a static definitions file that is

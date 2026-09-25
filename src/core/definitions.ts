@@ -3,7 +3,7 @@
 // and knows nothing about what they mean; `buildTable` evaluates them.
 // ARCHITECTURE.md ("Definitions") gives the overview.
 //
-// The format is a pared-down GNU units file: one definition per line, the
+// The format is in the spirit of a GNU units file: one definition per line, the
 // name, whitespace, then the body, and `#` starts a comment that runs to the
 // end of the line. Blank and comment-only lines are skipped.
 //

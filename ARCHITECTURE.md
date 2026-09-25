@@ -1,8 +1,17 @@
 # Architecture
 
-A unit converter in the style of GNU units. The user types a quantity to
-convert (**have**) and a unit to convert it to (**want**); the app answers with
-the converted value, or with an error saying why the two do not conform.
+A unit converter inspired by GNU units. The user types a quantity to convert
+(**have**) and a unit to convert it to (**want**); the app answers with the
+converted value, or with an error saying why the two do not conform.
+
+GNU units is the source of the conceptual patterns: a definitions file that
+defines every unit in terms of others down to a few primitives, an expression
+language that serves both the definitions and the input, and the have/want
+interaction. It is not a specification. Where this design borrows a rule from
+GNU units it says so, and where it diverges in grammar (a number may only
+start a product; a name is never split into a unit and an exponent) or in
+behavior (exact rational arithmetic; kinds that keep angles apart from plain
+numbers) it does so deliberately, and the GNU units behavior is not a fallback.
 
 Two rules shape everything below:
 
@@ -179,8 +188,8 @@ the build) and go through the same parser as any user-supplied definitions.
 `buildTable` takes one list of definitions, so user definitions are simply
 appended to the system ones.
 
-The format is a pared-down GNU units file: one definition per line, name then
-whitespace then body, `#` comments. The whitespace after the name is
+The format is in the spirit of a GNU units file, pared down: one definition
+per line, name then whitespace then body, `#` comments. The whitespace after the name is
 required, so that `inch2.54 cm` is an error rather than a definition of
 `inch2`.
 
@@ -236,9 +245,9 @@ other, and each unit, one map lookup.
 ## Expressions
 
 One grammar serves both definition bodies and user input, so anything that can
-be typed can also be defined. It is the basic GNU units expression language:
-decimal numbers, unit names, juxtaposition and `*` for multiplication, `/`,
-`^` with a literal exponent, and parentheses, with GNU units precedence:
+be typed can also be defined. It is a small expression language: decimal
+numbers, unit names, juxtaposition and `*` for multiplication, `/`, `^` with
+a literal exponent, and parentheses. The precedence follows GNU units:
 juxtaposition binds tighter than `*` and `/`, which are one left-associative
 level, so `kg m / s^2` is `(kg m) / (s^2)` and `m/s*s` is `(m/s)*s`. No
 functions, unit lists or `+`/`-` yet.

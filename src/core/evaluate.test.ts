@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { DIMENSIONLESS, type Dimension } from "./dimension.ts";
+import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
 import { evaluate, type EvaluateError, type Lookup } from "./evaluate.ts";
 import { parseExpr, type Expr } from "./expr.ts";
 import { type Quantity } from "./quantity.ts";
@@ -82,6 +82,14 @@ const UNITS: Record<string, Quantity> = {
 
 const lookup = lookupIn(UNITS);
 
+/** The primitives the units above are over, with the radian as a kind. */
+const PRIMITIVES: Primitives = new Map([
+  ["m", "dimension"],
+  ["kg", "dimension"],
+  ["s", "dimension"],
+  ["radian", "kind"],
+]);
+
 type Failure = EvaluateError | UnknownUnit;
 
 /** Evaluates `text` with the units above at the default precision. */
@@ -89,7 +97,7 @@ function run(
   text: string,
   precision = DEFAULT_PRECISION,
 ): Result<Quantity, Failure> {
-  return evaluate(parsed(text), lookup, precision);
+  return evaluate(parsed(text), lookup, PRIMITIVES, precision);
 }
 
 function value(result: Result<Quantity, Failure>): Quantity {
@@ -141,7 +149,7 @@ test("the lookup is given the name and the span of the reference", () => {
     seen.push([name, span]);
     return { ok: true, value: UNITS.m };
   };
-  evaluate(parsed("  kg m / s^2"), spy, DEFAULT_PRECISION);
+  evaluate(parsed("  kg m / s^2"), spy, PRIMITIVES, DEFAULT_PRECISION);
   assert.deepEqual(seen, [
     ["kg", { start: 2, end: 4 }],
     ["m", { start: 5, end: 6 }],
@@ -170,6 +178,26 @@ test("/ divides", () => {
   assertEvaluates("kg m / s / s", UNITS.N);
 });
 
+test("+ and - add and subtract quantities of one dimension", () => {
+  assertEvaluates("2 + 3", quantity("5"));
+  assertEvaluates("5 - 3", quantity("2"));
+  assertEvaluates("2 m + 3 m", quantity("5", { m: 1 }));
+  assertEvaluates("ft + inch", quantity("0.3302", { m: 1 }));
+  assertEvaluates("ft - inch", quantity("0.2794", { m: 1 }));
+  assertEvaluates("h + s", quantity("3601", { s: 1 }));
+  assertEvaluates("2 N - kg m / s^2", UNITS.N);
+  assertEvaluates("radian + radian", quantity("2", { radian: 1 }));
+  assertEvaluates("m + m - m + m", quantity("2", { m: 1 }));
+});
+
+test("a difference may be zero or negative", () => {
+  assertEvaluates("m - m", quantity("0", { m: 1 }));
+  assertEvaluates("3 - 5", quantity("-2"));
+  assertEvaluates("inch - ft", quantity("-0.2794", { m: 1 }));
+  assertEvaluates("(0 m^3 - 8 m^3)^(1/3)", quantity("-2", { m: 1 }));
+  assertEvaluates("(m - m) / s", quantity("0", { m: 1, s: -1 }));
+});
+
 test("evaluation follows the tree the parser built", () => {
   // Juxtaposition binds tighter than `/`: 1 / (2 m).
   assertEvaluates("1/2 m", { magnitude: half, dimension: dim({ m: -1 }) });
@@ -181,6 +209,13 @@ test("evaluation follows the tree the parser built", () => {
   assertEvaluates("kg m / s^2", UNITS.N);
   assertEvaluates("2 m^2", quantity("2", { m: 2 }));
   assertEvaluates("(2 m)^2", quantity("4", { m: 2 }));
+  // `+` and `-` bind loosest: (2 m * 3) + (m / 2), and 1 / (2 m) is not a
+  // length.
+  assertEvaluates("2 m * 3 + m / 2", quantity("6.5", { m: 1 }));
+  assertEvaluates("(m + m) m", quantity("2", { m: 2 }));
+  assertEvaluates("(2 m - m)^2", quantity("1", { m: 2 }));
+  assert.equal(failure(run("1 m + 1/2 m")).kind, "nonconformingOperands");
+  assert.equal(failure(run("m - 1 / s^-1")).kind, "nonconformingOperands");
 });
 
 test("an integer power is exact", () => {
@@ -273,10 +308,10 @@ test("a lookup failure comes back unchanged", () => {
     ok: false,
     error: `no ${name}`,
   });
-  assert.deepEqual(evaluate(parsed("2 m"), failing, DEFAULT_PRECISION), {
-    ok: false,
-    error: "no m",
-  });
+  assert.deepEqual(
+    evaluate(parsed("2 m"), failing, PRIMITIVES, DEFAULT_PRECISION),
+    { ok: false, error: "no m" },
+  );
 });
 
 test("operands are evaluated left to right and the first failure wins", () => {
@@ -289,6 +324,10 @@ test("operands are evaluated left to right and the first failure wins", () => {
   assert.equal(failure(run("m / 0 / bogus")).kind, "divisionByZero");
   assert.equal(failure(run("(m / 0) bogus")).kind, "divisionByZero");
   assert.equal(failure(run("bogus (m / 0)")).kind, "unknownUnit");
+  assert.equal(failure(run("bogus + s")).kind, "unknownUnit");
+  assert.equal(failure(run("m + bogus")).kind, "unknownUnit");
+  assert.equal(failure(run("m + s + bogus")).kind, "nonconformingOperands");
+  assert.equal(failure(run("m + s / 0")).kind, "divisionByZero");
 });
 
 test("a division by zero points at the divisor", () => {
@@ -352,14 +391,81 @@ test("a division by zero inside a power is the division's", () => {
   });
 });
 
+test("a sum of nonconforming operands points at the sum and both operands", () => {
+  // A dimension mismatch, carrying both dimensions as a conversion would.
+  assert.deepEqual(failure(run("2 m + 3 s")), {
+    kind: "nonconformingOperands",
+    op: "add",
+    span: { start: 0, end: 9 },
+    left: { start: 0, end: 3 },
+    right: { start: 6, end: 9 },
+    mismatch: {
+      kind: "dimensionMismatch",
+      have: dim({ m: 1 }),
+      want: dim({ s: 1 }),
+    },
+  });
+  // A parenthesized sum spans its parentheses, as any parenthesized node does.
+  assert.deepEqual(failure(run("kg (m - 2 s^2)")), {
+    kind: "nonconformingOperands",
+    op: "sub",
+    span: { start: 3, end: 14 },
+    left: { start: 4, end: 5 },
+    right: { start: 8, end: 13 },
+    mismatch: {
+      kind: "dimensionMismatch",
+      have: dim({ m: 1 }),
+      want: dim({ s: 2 }),
+    },
+  });
+  // A kind mismatch: the same physical dimension, told apart by the roles.
+  assert.deepEqual(failure(run("radian / s + 1 / s")), {
+    kind: "nonconformingOperands",
+    op: "add",
+    span: { start: 0, end: 18 },
+    left: { start: 0, end: 10 },
+    right: { start: 13, end: 18 },
+    mismatch: {
+      kind: "kindMismatch",
+      have: dim({ radian: 1, s: -1 }),
+      want: dim({ s: -1 }),
+      kinds: ["radian"],
+    },
+  });
+  assert.equal(failure(run("radian - 1")).kind, "nonconformingOperands");
+});
+
+test("a plain number is not a quantity of anything, zero included", () => {
+  assert.equal(failure(run("m + 0")).kind, "nonconformingOperands");
+  assert.equal(failure(run("0 + zero")).kind, "nonconformingOperands");
+  assert.equal(failure(run("2 - m")).kind, "nonconformingOperands");
+  assertEvaluates("zero + 0 m", quantity("0", { m: 1 }));
+});
+
+test("the roles given decide what a mismatch is", () => {
+  // With the radian declared as a dimension, the mismatch is a dimension's.
+  const asDimension: Primitives = new Map([["radian", "dimension"]]);
+  const result = evaluate(
+    parsed("radian + 1"),
+    lookup,
+    asDimension,
+    DEFAULT_PRECISION,
+  );
+  assert.ok(!result.ok);
+  assert.equal(result.error.kind, "nonconformingOperands");
+  assert.ok(result.error.kind === "nonconformingOperands");
+  assert.equal(result.error.mismatch.kind, "dimensionMismatch");
+});
+
 // ---------------------------------------------------------------------------
 // Purity
 
 test("evaluation leaves the tree and the units alone", () => {
   const expr = parsed("2 kg m / s^2 / zero");
   const copy = structuredClone(expr);
-  evaluate(expr, lookup, DEFAULT_PRECISION);
-  evaluate(parsed("(3 N)^(1/2)"), lookup, DEFAULT_PRECISION);
+  evaluate(expr, lookup, PRIMITIVES, DEFAULT_PRECISION);
+  evaluate(parsed("(3 N)^(1/2)"), lookup, PRIMITIVES, DEFAULT_PRECISION);
+  evaluate(parsed("2 ft + inch - cm"), lookup, PRIMITIVES, DEFAULT_PRECISION);
   assert.deepEqual(expr, copy);
   assert.deepEqual(UNITS.N, quantity("1", { kg: 1, m: 1, s: -2 }));
   assert.deepEqual(UNITS.zero, quantity("0", { m: 1 }));

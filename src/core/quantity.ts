@@ -13,21 +13,32 @@
 // magnitude operation beside the matching dimension operation, and nothing
 // else. Multiplication is exact; division fails on a zero divisor; and a
 // power takes the working precision that its one inexact step, the root of
-// a non-integer exponent, truncates to. The failures are the `rational.ts`
-// ones, since only the magnitude can fail: a dimension can be multiplied,
-// divided and raised to any rational power.
+// a non-integer exponent, truncates to. For those, the failures are the
+// `rational.ts` ones, since only the magnitude can fail: a dimension can be
+// multiplied, divided and raised to any rational power. Addition and
+// subtraction are the other way about: the magnitudes always add, but only
+// quantities of one dimension have a sum, so the dimension side is the
+// conformance check of `dimension.ts`, the same one `convert` applies to a
+// `have` and a `want`, and the failure is its `ConformanceError`. The check
+// tells dimensions from kinds by the roles of the table's primitives, so
+// these two operations take them, as `convert` does.
 
 import {
   DIMENSIONLESS,
+  checkConformance,
   divideDimensions,
   multiplyDimensions,
   powDimension,
+  type ConformanceError,
   type Dimension,
+  type Primitives,
 } from "./dimension.ts";
 import {
+  add,
   divide,
   multiply,
   powRational,
+  subtract,
   type Precision,
   type Rational,
   type RationalError,
@@ -43,6 +54,44 @@ export type Quantity = {
 /** A plain number: `magnitude` of no dimension. */
 export function scalar(magnitude: Rational): Quantity {
   return { magnitude, dimension: DIMENSIONLESS };
+}
+
+/**
+ * `a + b`, exactly, provided the two conform: `1 ft` plus `1 in` is
+ * `0.3302 m`. The sum has the dimension its terms share; `1 m + 1 s`,
+ * `1 radian + 1` and `1 m + 0` (a plain number, not a length) have none,
+ * and fail with the mismatch, `a` as its `have` and `b` as its `want`.
+ */
+export function addQuantities(
+  a: Quantity,
+  b: Quantity,
+  primitives: Primitives,
+): Result<Quantity, ConformanceError> {
+  return combineConforming(a, b, primitives, add);
+}
+
+/** `a - b`, exactly, provided the two conform, as `addQuantities` requires. */
+export function subtractQuantities(
+  a: Quantity,
+  b: Quantity,
+  primitives: Primitives,
+): Result<Quantity, ConformanceError> {
+  return combineConforming(a, b, primitives, subtract);
+}
+
+/** `op` over the magnitudes of `a` and `b`, in the dimension they share. */
+function combineConforming(
+  a: Quantity,
+  b: Quantity,
+  primitives: Primitives,
+  op: (x: Rational, y: Rational) => Rational,
+): Result<Quantity, ConformanceError> {
+  const conformance = checkConformance(a.dimension, b.dimension, primitives);
+  if (!conformance.ok) return conformance;
+  return ok({
+    magnitude: op(a.magnitude, b.magnitude),
+    dimension: a.dimension,
+  });
 }
 
 /** `a b`, exactly: `2 m` times `3 s` is `6 m s`. */

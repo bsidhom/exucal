@@ -48,9 +48,10 @@ exactly `0.45359237 kg`, and conversions between them are exact.
 
 Two things are deliberately absent. Temperature units (`degC`, `degF`,
 `degR`) are intervals only: they convert temperature differences, and
-converting a reading needs the offset, which the expression language does
-not have yet. Logarithmic units (neper, bel) are left out for the same
-reason.
+converting a reading means adding the offset yourself (`20 degC + 273.15 K`
+into `K` is `293.15`, and `300 K - 459.67 degR` into `degF` is `80.33`),
+since there is no function that adds it for you yet. Logarithmic units
+(neper, bel) are left out for the same reason.
 
 ### The format
 
@@ -114,21 +115,31 @@ language:
 
 - **Numbers** are unsigned decimals, with an optional exponent: `2`, `2.54`,
   `.5`, `1e-3`. They are read exactly, so a unit defined by a decimal
-  converts exactly. There is no `+` or `-`.
+  converts exactly. A sign is part of a number only in its exponent (`1e-3`
+  is a thousandth, `1 - 3` is a difference), and there is no negation:
+  `-2 m` is an error, and a negative quantity is written as a difference.
 - **Juxtaposition** multiplies: `2 m` is two metres and `kg m` is a
   kilogram-metre. A number may only be the first factor of a product, so
   `m 2` and `2 3 m` are errors; multiplying numbers is written `2 * 3`.
 - **`*` and `/`** multiply and divide, at one level, left to right, and
   juxtaposition binds tighter than either: `kg m / s^2` is `(kg m) / (s^2)`
   and `m/s*s` is `(m/s)*s`.
+- **`+` and `-`** add and subtract, at one level, left to right, binding
+  loosest of all: `1 ft + 3 in` is fifteen inches, `2 m * 3 + 1 m` is
+  `(2 m * 3) + (1 m)`, and `5 ft - 2 in + 1 in` is `((5 ft - 2 in) + 1 in)`.
+  The two sides must be quantities of the same thing, by the same test that
+  `have` and `want` must pass: `1 m + 1 s` is an error (length and time),
+  and so are `1 rad + 1` (an angle and a plain number) and `1 m + 0`, since
+  `0` is a number and not a length. A difference may be zero or negative.
 - **`^`** raises to a literal exponent, which is a signed decimal (`m^2`,
   `s^-1`, `m^0.5`) or a parenthesized fraction (`m^(1/2)`), never an
-  expression. It binds tightest.
+  expression. It binds tightest, so `m^2 - 1` is `(m^2) - 1`.
 - **Parentheses** group.
 
 The one thing to watch is a fraction before a unit: `1/12 year` is
 `1 / (12 year)`, a frequency, because the juxtaposition is read first.
-Write `year / 12` or `(1/12) year` instead.
+Write `year / 12` or `(1/12) year` instead. The same rule makes
+`1 m + 1/2 m` an error, `1 m` plus `1 / (2 m)`; write `1 m + m/2`.
 
 ### Adding a unit
 

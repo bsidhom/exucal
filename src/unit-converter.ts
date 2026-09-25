@@ -1,6 +1,7 @@
 import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { formatDimension, isDimensionless } from "./core/dimension.ts";
+import { parseExpr } from "./core/expr.ts";
 import { convertText, evaluateText, type Side } from "./core/pipeline.ts";
 import {
   DEFAULT_PRECISION,
@@ -153,7 +154,11 @@ export class UnitConverter extends LitElement {
         return {
           kind: "error",
           side: "have",
-          message: describeTextError(quantity.error, this.have),
+          message: describeTextError(
+            quantity.error,
+            this.have,
+            table.primitives,
+          ),
         };
       }
       const { magnitude, dimension } = quantity.value;
@@ -184,15 +189,27 @@ export class UnitConverter extends LitElement {
         ),
       };
     }
-    // `1 mi` in `1000 ft` is `5.28 × 1000 ft`; without the sign, the number
-    // would read as one product with the want. A want that starts with a
-    // unit name needs no sign: `36 in`.
-    return result(
-      have,
-      conversion.value.value,
-      /^[\d.]/.test(want) ? `× ${want}` : want,
-    );
+    return result(have, conversion.value.value, wantText(want));
   }
+}
+
+/**
+ * The `want` as the output writes it after the value, so that the whole
+ * line reads as the expression it means. `1 mi` in `1000 ft` is
+ * `5.28 × 1000 ft`; without the sign, the number would read as one product
+ * with the want. A want that is a sum or difference is parenthesized,
+ * `3.0284676 (ft + in)`, since `3.0284676 ft + in` would read as
+ * `(3.0284676 ft) + in`. A want that starts with a unit name needs neither:
+ * `36 in`. The text is trimmed, and it parsed a moment ago.
+ */
+function wantText(want: string): string {
+  const expr = parseExpr(want);
+  const isSum =
+    expr.ok &&
+    expr.value.node.kind === "binary" &&
+    (expr.value.node.op === "add" || expr.value.node.op === "sub");
+  if (isSum) return `(${want})`;
+  return /^[\d.]/.test(want) ? `× ${want}` : want;
 }
 
 /**

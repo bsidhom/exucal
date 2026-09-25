@@ -60,7 +60,7 @@ export function evaluateText(
 ): Result<Quantity, TextError> {
   const expr = parseExpr(text);
   if (!expr.ok) return expr;
-  return evaluate(expr.value, unitLookup(table), precision);
+  return evaluate(expr.value, unitLookup(table), table.primitives, precision);
 }
 
 /**

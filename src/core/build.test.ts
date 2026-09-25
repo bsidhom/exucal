@@ -406,6 +406,57 @@ test("a division by zero is reported at the divisor", () => {
   });
 });
 
+test("a body may be a sum, checked against the primitives declared", () => {
+  const table = built(
+    "m !",
+    "radian !kind",
+    "inch 0.0254 m",
+    "ft 12 inch",
+    "cubit ft + 6 inch",
+    "twelve- 6 + 6",
+  );
+  assertQuantity(table.units.get("cubit"), "0.4572", { m: 1 });
+  assertFactor(table.prefixes.get("twelve"), "12");
+  // The primitives serve the check before every definition is walked, so a
+  // sum may involve a primitive declared after it.
+  assertQuantity(built("late K + K", "K !").units.get("late"), "2", { K: 1 });
+});
+
+test("a nonconforming sum in a body is reported at the sum", () => {
+  const lines = ["m !", "s !", "bad 2 m + 3 s"];
+  assert.deepEqual(failed(...lines), {
+    kind: "nonconformingOperands",
+    op: "add",
+    span: spanOf(lines, "2 m + 3 s"),
+    left: spanOf(lines, "2 m"),
+    right: spanOf(lines, "3 s"),
+    mismatch: {
+      kind: "dimensionMismatch",
+      have: dim({ m: 1 }),
+      want: dim({ s: 1 }),
+    },
+  });
+  // The roles come from the declarations, so a kind is told apart from a
+  // dimension, wherever it is declared.
+  const kinds = [
+    "s !",
+    "Hz 1 / s",
+    "bad rpm - Hz",
+    "rpm radian / 60 s",
+    "radian !kind",
+  ];
+  const error = failed(...kinds);
+  assert.equal(error.kind, "nonconformingOperands");
+  assert.ok(error.kind === "nonconformingOperands");
+  assert.equal(error.op, "sub");
+  assert.deepEqual(error.mismatch, {
+    kind: "kindMismatch",
+    have: dim({ radian: 1, s: -1 }),
+    want: dim({ s: -1 }),
+    kinds: ["radian"],
+  });
+});
+
 test("a failed power is reported at the power", () => {
   const lines = ["m !", "big 10^99999 m"];
   assert.deepEqual(failed(...lines), {
@@ -459,7 +510,12 @@ test("a built table converts", () => {
   const quantity = (text: string): Quantity => {
     const expr = parseExpr(text);
     assert.ok(expr.ok, inspect(expr));
-    const result = evaluate(expr.value, lookup, DEFAULT_PRECISION);
+    const result = evaluate(
+      expr.value,
+      lookup,
+      table.primitives,
+      DEFAULT_PRECISION,
+    );
     assert.ok(result.ok, inspect(result));
     return result.value;
   };

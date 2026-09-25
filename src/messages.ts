@@ -8,15 +8,25 @@
 // blanks; the spans the core reports are offsets into the untrimmed text, so
 // slicing uses the text as given.
 
-import { formatDimension, type Primitives } from "./core/dimension.ts";
+import {
+  formatDimension,
+  type ConformanceError,
+  type Primitives,
+} from "./core/dimension.ts";
 import { type ConversionError, type TextError } from "./core/pipeline.ts";
 import { type Span } from "./core/span.ts";
 
 /**
  * Why `text` denotes no quantity, as one sentence: what was expected where
- * the parser stopped, or which part of the text the evaluator rejected.
+ * the parser stopped, or which part of the text the evaluator rejected. A
+ * sum whose operands do not conform is described as a conversion between
+ * them would be, with both dimensions, which `primitives` formats.
  */
-export function describeTextError(error: TextError, text: string): string {
+export function describeTextError(
+  error: TextError,
+  text: string,
+  primitives: Primitives,
+): string {
   switch (error.kind) {
     case "unexpected": {
       const expected = list(error.expected);
@@ -34,6 +44,15 @@ export function describeTextError(error: TextError, text: string): string {
       return `${quote(slice(text, error.span))} takes an even root of a negative value.`;
     case "tooLarge":
       return `${quote(slice(text, error.span))} is too large to compute.`;
+    case "nonconformingOperands": {
+      const left = quote(slice(text, error.left));
+      const right = quote(slice(text, error.right));
+      const operation =
+        error.op === "add"
+          ? `Cannot add ${left} and ${right}`
+          : `Cannot subtract ${right} from ${left}`;
+      return `${operation}: ${describeMismatch(error.mismatch, left, right, primitives)}.`;
+    }
   }
 }
 
@@ -54,18 +73,11 @@ export function describeConversionError(
       return describeTextError(
         error.error,
         error.side === "have" ? have : want,
+        primitives,
       );
     case "dimensionMismatch":
-      return (
-        `${quote(have.trim())} has dimension ${formatDimension(error.have, primitives)}, ` +
-        `but ${quote(want.trim())} has dimension ${formatDimension(error.want, primitives)}.`
-      );
     case "kindMismatch":
-      return (
-        `${quote(have.trim())} (${formatDimension(error.have, primitives)}) and ` +
-        `${quote(want.trim())} (${formatDimension(error.want, primitives)}) ` +
-        `differ in kind: ${error.kinds.join(", ")}.`
-      );
+      return `${describeMismatch(error, quote(have.trim()), quote(want.trim()), primitives)}.`;
     case "zeroWant":
       return `${quote(want.trim())} is zero, so nothing is a multiple of it.`;
   }
@@ -73,6 +85,27 @@ export function describeConversionError(
 
 // ---------------------------------------------------------------------------
 // Helpers
+
+/**
+ * How the quoted texts `have` and `want` fail to conform, without the final
+ * period: each with its dimension when the dimensions differ, and both with
+ * the kinds that differ when only those do.
+ */
+function describeMismatch(
+  error: ConformanceError,
+  have: string,
+  want: string,
+  primitives: Primitives,
+): string {
+  const haveDimension = formatDimension(error.have, primitives);
+  const wantDimension = formatDimension(error.want, primitives);
+  switch (error.kind) {
+    case "dimensionMismatch":
+      return `${have} has dimension ${haveDimension}, but ${want} has dimension ${wantDimension}`;
+    case "kindMismatch":
+      return `${have} (${haveDimension}) and ${want} (${wantDimension}) differ in kind: ${error.kinds.join(", ")}`;
+  }
+}
 
 function quote(text: string): string {
   return `"${text}"`;

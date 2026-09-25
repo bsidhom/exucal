@@ -34,7 +34,9 @@ want text ──parseExpr──▶ Expr ──evaluate──▶ Quantity ─┘
 ```
 
 Each arrow is one pure function in its own module. Parsing never touches the
-table, evaluation never checks conformance, and conversion never formats.
+table, and conversion never formats. Evaluation checks conformance in one
+place only, between the operands of a sum, and with the same check that
+conversion applies to the pair.
 
 ## Numbers: `Rational`
 
@@ -186,7 +188,16 @@ operation beside the matching dimension operation. Only the magnitude can
 fail (a zero divisor, `0` to a negative power, an even root of a negative
 number, a result beyond `MAX_BITS`), so the failures are those of
 `rational.ts`, and the power is the one operation that takes a `Precision`,
-for the root of a non-integer exponent.
+for the root of a non-integer exponent. Addition and subtraction are the
+other way about: the magnitudes always combine, but only quantities of one
+dimension have a sum, so the dimension side is the conformance check above,
+the sum has the dimension its terms share, and the failure is a
+`ConformanceError`. Since that check tells dimensions from kinds by the
+roles of the primitives, these two operations take the primitives as
+`convert` does; `1 rad + 1` is a kind mismatch and `1 m + 1 s` a dimension
+mismatch, exactly as the same pair would be as `have` and `want`. There is
+no special case for zero: `0` is a plain number, and `1 m + 0` is a
+mismatch, as in GNU units.
 
 ## Definitions
 
@@ -224,7 +235,10 @@ numbers: no dimension and no kind. The result is the unit table: the
 primitives with their roles, the prefixes with their factors, and the units
 with their quantities, each a map keyed by name in declaration order. The
 primitives are among the units, as quantities of one of themselves, so that a
-lookup is one map read.
+lookup is one map read. The primitives with their roles are collected from
+the definitions before any body is evaluated, because a body that is a sum
+needs them to check its operands, and a body may refer to a primitive
+declared after it.
 
 Prefixes and units are separate namespaces, so `m-` (milli) and `m` (the
 metre) coexist, while a primitive and a unit share one. A name in an
@@ -257,10 +271,11 @@ result; a request for a node whose evaluation is in progress is a cycle, and
 the walker returns it to the requester, which knows where the request came
 from. Nothing in it knows what a definition is. `build.ts` puts them together
 in a fixed order: index the definitions by name, rejecting a duplicate;
-check the index for an ambiguous name; then walk every definition in order,
-where a body is evaluated by `evaluate` against a lookup that resolves each
-name through the index and requests the definitions it means from the
-walker. The first failure ends the build.
+check the index for an ambiguous name; collect the primitives and their
+roles; then walk every definition in order, where a body is evaluated by
+`evaluate` against a lookup that resolves each name through the index and
+requests the definitions it means from the walker, with those primitives.
+The first failure ends the build.
 
 A build error is one of: a duplicate name, carrying both definitions; an
 ambiguous name with its two splits; an unknown name, at its reference; a
@@ -277,16 +292,27 @@ One grammar serves both definition bodies and user input, so anything that can
 be typed can also be defined. README.md ("Unit definitions") describes it
 from the user's side; this section is about how it is parsed and what the
 tree holds. It is a small expression language: decimal
-numbers, unit names, juxtaposition and `*` for multiplication, `/`, `^` with
-a literal exponent, and parentheses. The precedence follows GNU units:
-juxtaposition binds tighter than `*` and `/`, which are one left-associative
-level, so `kg m / s^2` is `(kg m) / (s^2)` and `m/s*s` is `(m/s)*s`. No
-functions, unit lists or `+`/`-` yet.
+numbers, unit names, juxtaposition and `*` for multiplication, `/`, `+` and
+`-`, `^` with a literal exponent, and parentheses. The precedence follows
+GNU units: juxtaposition binds tighter than `*` and `/`, which are one
+left-associative level, so `kg m / s^2` is `(kg m) / (s^2)` and `m/s*s` is
+`(m/s)*s`; `+` and `-` are one more left-associative level below those, so
+`1 ft + 3 in` is `(1 ft) + (3 in)` and `2 m * 3 + 1 m` is
+`(2 m * 3) + (1 m)`. No functions or unit lists yet, and no negation: a
+number is unsigned outside its exponent, `-` is only the binary operator,
+and a negative quantity is written as a difference.
 
 Juxtaposition means "this many of these units" (`2 m`) or a product of units
 (`kg m`), so a number may only be the first factor of a product: `m 2`,
 `1 2 3` and `2 3 m` are errors, and multiplying numbers is written with `*`.
 In the tree it is an ordinary multiplication, indistinguishable from `*`.
+
+Whether the two sides of a sum can be added is not the parser's concern:
+`1 m + 1 s` parses, and the evaluator rejects it. What the parser decides is
+where a `-` belongs. A number's literal is read as far as it goes, so `2e-3`
+is one number and `2 - 3` a difference, and an exponent's sign is part of
+the exponent, so `m^-1` is a power while `m^2 - 1` and `m^2-1` are
+differences.
 
 An exponent is a signed decimal (`m^2`, `s^-1`, `m^0.5`) or a parenthesized
 rational (`m^(1/2)`), never an expression, so it is known at parse time and
@@ -296,8 +322,9 @@ it goes: `m2` is one name rather than `m` beside `2`, and whether a name
 means anything is decided by the table, not the parser. Whitespace is spaces
 and tabs, never a newline, because a definition body is one line.
 
-The tree has four kinds of node: a number, a unit name, a multiplication or
-division of two subtrees, and a subtree raised to a rational exponent. Every
+The tree has four kinds of node: a number, a unit name, a binary operation
+(a sum, difference, product or quotient) of two subtrees, and a subtree
+raised to a rational exponent. Every
 node carries the span of text it came from, so an error found later in the
 pipeline (an unknown unit, a dimension mismatch) can point back at the input.
 `parseExpr` knows nothing about units, and `evaluate` knows nothing about
@@ -399,13 +426,20 @@ grammar, not an input that can fail, and it throws.
 
 ## Evaluation
 
-`evaluate` takes an `Expr`, a `Lookup` for unit names and the working
-`Precision`, and returns the `Quantity` the expression denotes. A number is a
-dimensionless quantity, a unit name is whatever the lookup says it is, and the
-operators are the quantity arithmetic above: juxtaposition and `*` multiply,
-`/` divides, and `^` raises to the exponent the parser already read. The
-precision goes to every power, where the root of a non-integer exponent is
-the only operation that can lose digits; everything else is exact.
+`evaluate` takes an `Expr`, a `Lookup` for unit names, the table's
+`Primitives` and the working `Precision`, and returns the `Quantity` the
+expression denotes. A number is a dimensionless quantity, a unit name is
+whatever the lookup says it is, and the operators are the quantity
+arithmetic above: juxtaposition and `*` multiply, `/` divides, `+` and `-`
+add and subtract, and `^` raises to the exponent the parser already read.
+The precision goes to every power, where the root of a non-integer exponent
+is the only operation that can lose digits; everything else is exact. The
+primitives go to every sum, whose operands must conform: this is the one
+place evaluation checks conformance, and it is the same check, with the
+same roles, that conversion applies to `have` and `want`, so that what can
+be added is exactly what can be converted. The primitives come from the
+table for user input, and from the definitions, collected before the walk,
+while the table is being built.
 
 Names are resolved through a lookup function rather than a table, because the
 same evaluator serves both ends of the pipeline. The table supplies a lookup
@@ -424,8 +458,12 @@ The evaluator's own errors are the arithmetic failures, each located in the
 input: a division by zero points at the divisor, since its value is what is
 wrong, and a power that fails (`0^-1`, an even root of a negative magnitude,
 a result beyond `MAX_BITS`) points at the whole power, since it is the
-combination of base and exponent that fails. The evaluator never checks
-conformance, and never sees the text: the spans in the tree are all it knows
+combination of base and exponent that fails. A sum whose operands do not
+conform points at the whole sum for the same reason, and carries the span of
+each operand and the `ConformanceError` between them, with the left
+operand's dimension as its `have` and the right's as its `want`, so that a
+message can say what each side is, in the words a conversion error uses.
+The evaluator never sees the text: the spans in the tree are all it knows
 of it.
 
 ## Conversion
@@ -471,14 +509,21 @@ alone; with the `want` field blank, the component uses it to show what
 The output shows the two texts and the value between `=` or `≈`, decided by
 `equals(round(value, digits), value)` at the display precision of 8
 significant digits (`DISPLAY_PRECISION`, kept apart from the working
-precision as "Precision and rounding" describes). A `want` with a magnitude
-of its own is written with a multiplication sign (`1 mi = 5.28 × 1000 ft`),
-since juxtaposing two numbers would read as one product.
+precision as "Precision and rounding" describes). The line is written so
+that it reads as the expression it means: a `want` with a magnitude of its
+own is written with a multiplication sign (`1 mi = 5.28 × 1000 ft`), since
+juxtaposing two numbers would read as one product, and a `want` that is a
+sum or difference is parenthesized (`1 m ≈ 3.0284676 (ft + in)`), since
+`3.0284676 ft + in` would read as `(3.0284676 ft) + in`. The component
+parses the `want` once more to tell, which is the same parse the pipeline
+did a moment earlier.
 
 The errors the core returns are values with spans and dimensions, not
 sentences; `src/messages.ts` puts them into words, quoting the text at fault
 and formatting dimensions with `formatDimension`, so that the wording is
-tested under Node.js beside the core rather than in a browser. Richer UX
+tested under Node.js beside the core rather than in a browser. A sum that
+does not conform is worded as the same mismatch between `have` and `want`
+would be, with the two operands quoted in place of the two texts. Richer UX
 later is a matter of new components that edit the same two strings or read
 the table: autocomplete lists `table.units` and `table.prefixes`, unit
 buttons insert text, and error spans drive highlighting. None of that needs
@@ -568,5 +613,11 @@ Planned extensions, listed to show that they fit without reshaping the core:
   `convert`.
 - **User definitions** are already supported by `buildTable`; only storage and
   an editor are missing.
+- **Negation** (`-2 m`) is a unary `-` at the level of a product, so that
+  `-2 m` is `-(2 m)` and `2 - -3` is allowed; it needs no new quantity
+  operation, only `0 - x`. Until then, a negative quantity is written as a
+  difference.
 - **Lenient kind conversion** (converting `rad/s` to `Hz` on request) is a flag
-  to `convert` that skips step 2 of the conformance check.
+  to `convert` that skips step 2 of the conformance check. Sums would keep
+  the strict check: adding an angle to a plain number is a mistake whether
+  or not the user asked to convert between them.

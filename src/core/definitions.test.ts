@@ -258,7 +258,17 @@ test("what follows a body must be a comment or the end of the line", () => {
   // The expression could also have continued, so the error lists that too.
   assert.deepEqual(
     failed("m 2 )"),
-    unexpected(4, '"^"', "a unit name", '"("', '"*"', '"/"', ...END_OF_LINE),
+    unexpected(
+      4,
+      '"^"',
+      "a unit name",
+      '"("',
+      '"*"',
+      '"/"',
+      '"+"',
+      '"-"',
+      ...END_OF_LINE,
+    ),
   );
 });
 

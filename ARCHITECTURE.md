@@ -279,33 +279,59 @@ a `Result`. The types carry the grammar's shape: `seq(a, b)` is a
 `Parser<[A, ...A[]]>`, so a grammar that type-checks produces the tree its
 types say it does.
 
-Combinators over a hand-written recursive descent or a Pratt parser because
-the grammars are small and fixed. The expression language has a handful of
-precedence levels, each of which is one `chainl1` (or `many1`, for
-juxtaposition) over the level below, and the definitions file is a line with
-two or three fields. A Pratt parser's generality, a table of operators with
-numeric binding powers and a loop whose invariant has to be checked, buys
-nothing here, while a combinator grammar is checked by reading it against the
-grammar it transcribes. Should the language ever need user-defined or
-many-levelled operators, a Pratt loop can be written with `flatMap` on the
-same primitives, without changing them.
+We chose combinators instead of a hand-written recursive-descent parser or a
+Pratt (top-down operator precedence) parser because the grammars are small
+and fixed. The expression language has a handful of precedence levels, each
+of which is one `chainl1` (or `many1`, for juxtaposition) over the level
+below, and the definitions file is a line with two or three fields. A Pratt
+parser is general: it drives a table of operators with numeric binding powers
+from a loop whose invariant has to be checked. That generality buys nothing
+here, while a combinator grammar is checked by reading it against the grammar
+it transcribes. Should the language ever need user-defined or many-levelled
+operators, a Pratt loop can be written with `flatMap` on the same primitives,
+without changing them.
 
 Three properties make the combinators simple to reason about:
 
-- **`alt` backtracks freely.** There are no commit points, no lookahead
-  annotations and no notion of consumed input: an alternative that fails
-  anywhere is undone entirely and the next is tried at the same position, so
-  ordering matters only among alternatives that both match. In principle this
-  is exponential; in practice the grammars have no nested ambiguity and the
-  inputs are single lines, and `regex` does the character-level work in one
-  step.
+- **`alt` is ordered choice, and the only backtracking is local.**
+  `alt(a, b)` tries `a`; if `a` fails, however far into the input it got
+  before failing, the position is rewound and `b` is tried from the same
+  place. The first alternative that matches is taken for good: a failure
+  later in the parse never reopens an earlier choice to try its remaining
+  alternatives, so the parser never searches a space of parse trees.
+  "Backtracking" here means only that rewinding, which is what lets an
+  alternative be written without lookahead: an optional exponent, written
+  `optional(seq(string("^"), exponent))`, may consume the `^` before finding
+  no exponent, and still cleanly matches nothing.
+
+  That makes the cost easy to bound. The work of a parse is the number of
+  primitive (`string`, `regex`) matches attempted. Text is read more than
+  once only when an alternative fails after consuming some of it and the next
+  alternative reads the same text again. That is the exponential case of
+  unmemoized ordered choice: `alt(seq(p, a), seq(p, b))` parses `p` twice,
+  and nesting that pattern `k` deep parses the innermost `p` `2^k` times. Our
+  grammars never share a prefix between alternatives. At every `alt`, the
+  alternatives are told apart by their first character (a digit, a letter,
+  `(`, or an operator symbol), so all but at most one of them fail on their
+  first primitive, at constant cost. The one way an alternative fails after
+  consuming input is an operator with nothing valid after it (`3 m ^`), which
+  rewinds by one token and is followed at once by a failure at that token. So
+  each character is consumed by exactly one primitive, each failed alternative
+  costs one primitive attempt, and a parse costs a constant number of
+  primitive attempts per token, times the depth of the grammar for passing
+  each reply up through the enclosing combinators. A hundred-character line
+  is a few hundred primitive attempts. The discipline that keeps this true,
+  and that any new grammar built on these combinators must follow, is that
+  the alternatives of one `alt` begin with different tokens, and repetition
+  is expressed with `many`, `many1` or `chainl1` rather than with a
+  recursive alternative.
 
 - **Every reply carries the furthest expectation.** An `Expectation` is a
   position and the labels of the primitives tried there. Not only failures but
   successes carry one, and every combinator keeps whichever of its parts got
   furthest (merging the labels of those that tie), so the error reported for a
-  parse is where the parser got furthest and what it wanted there, however it
-  backtracked afterwards. This is what makes the error for `3 m ^` say
+  parse is where the parser got furthest and what it wanted there, whatever
+  alternatives it undid afterwards. This is what makes the error for `3 m ^` say
   "expected a number" after the `^`: the optional exponent fails there, the
   parser backs out of it, the product ends, and `eof` fails earlier at the
   `^`; the furthest expectation survives. Without it, backtracking parsers

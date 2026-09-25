@@ -8,13 +8,16 @@
 //
 // Two decisions shape the design:
 //
-// - `alt` backtracks freely: there are no commit points and no lookahead to
-//   annotate. So that backtracking does not lose the useful error, every
-//   reply, successful or not, carries the furthest position the parser
-//   examined and what it expected there, and combinators keep whichever of
-//   their parts got furthest. That is what lets the error for `3 m ^` say
-//   "expected a number" after the `^`, even though the parser backtracked out
-//   of the exponent and went on to fail at the `^` itself.
+// - `alt` is ordered choice: an alternative that fails, however far it got,
+//   is undone and the next is tried from the same position, and the first
+//   that matches is taken for good. No lookahead has to be written, and no
+//   later failure reopens an earlier choice. So that undoing a failed
+//   alternative does not lose the useful error, every reply, successful or
+//   not, carries the furthest position the parser examined and what it
+//   expected there, and combinators keep whichever of their parts got
+//   furthest. That is what lets the error for `3 m ^` say "expected a
+//   number" after the `^`, even though the parser undid the exponent and
+//   went on to fail at the `^` itself.
 // - `check` lets a parser reject text it recognized (a numeric literal too
 //   large to represent). A rejection ends the parse: no alternative is tried,
 //   because the text was understood and found unacceptable, not misread.
@@ -59,9 +62,9 @@ export type ParseError =
 
 /**
  * A match: `value` was parsed from the input between the start position and
- * `end`. `furthest` is the furthest expectation met on the way, including in
- * alternatives that were tried and abandoned; a failure later in the same
- * parse at or before that position is reported together with it.
+ * `end`. `furthest` is the furthest expectation met on the way, including
+ * any in alternatives that were tried and abandoned; a failure later in the
+ * same parse at or before that position is reported together with it.
  */
 export type Success<A> = {
   readonly ok: true;
@@ -222,14 +225,19 @@ export function seq<T extends readonly unknown[]>(
       end = reply.end;
       furthest = further(furthest, reply.furthest);
     }
+    // The loop pushes one value per parser, in order, which is exactly what
+    // the mapped parameter type promises `T` is, but the type checker cannot
+    // follow a tuple built element by element, so this is the one place a
+    // grammar's shape is asserted rather than inferred.
     return success(values as unknown as T, end, furthest);
   };
 }
 
 /**
- * Tries the parsers in order at the same position and takes the first that
- * matches: `alt(a, b)` is a `Parser<A | B>`. A rejection by any of them ends
- * the search.
+ * Ordered choice: tries the parsers in order at the same position and takes
+ * the first that matches, for good; `alt(a, b)` is a `Parser<A | B>`. An
+ * alternative that fails after consuming input is undone entirely before the
+ * next is tried, and a rejection by any of them ends the search.
  */
 export function alt<T extends readonly unknown[]>(
   ...parsers: { readonly [K in keyof T]: Parser<T[K]> }

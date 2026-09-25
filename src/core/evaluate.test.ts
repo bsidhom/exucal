@@ -4,7 +4,6 @@ import { inspect } from "node:util";
 import { DIMENSIONLESS, type Dimension } from "./dimension.ts";
 import { evaluate, type EvaluateError, type Lookup } from "./evaluate.ts";
 import { parseExpr, type Expr } from "./expr.ts";
-import { type Span } from "./parser.ts";
 import { type Quantity } from "./quantity.ts";
 import {
   DEFAULT_PRECISION,
@@ -17,6 +16,7 @@ import {
   type Rational,
 } from "./rational.ts";
 import type { Result } from "./result.ts";
+import { type Span } from "./span.ts";
 
 /** Builds a dimension from integer exponents (or rationals, for roots). */
 function dim(exponents: Record<string, number | Rational>): Dimension {

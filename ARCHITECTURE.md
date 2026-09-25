@@ -267,8 +267,9 @@ division of two subtrees, and a subtree raised to a rational exponent. Every
 node carries the span of text it came from, so an error found later in the
 pipeline (an unknown unit, a dimension mismatch) can point back at the input.
 `parseExpr` knows nothing about units, and `evaluate` knows nothing about
-text. `Span` and `ParseError` come from the parsing toolkit below, which both
-parsers are built from.
+text. `ParseError` comes from the parsing toolkit below, which both parsers
+are built from; `Span` has its own small module, because it is not a parsing
+concept but the vocabulary every later stage uses to locate its errors.
 
 ## Parsing
 
@@ -377,11 +378,11 @@ same evaluator serves both ends of the pipeline. The table supplies a lookup
 over its finished units for the user's `have` and `want`, applying the
 prefix-splitting rule described under Definitions; `buildTable` supplies one
 that evaluates definitions on demand, with its memoization and visiting set,
-while the table is still being built. What a lookup can fail with is its own
-business (an unknown name, a cycle among definitions), so its error type is a
-type parameter of `evaluate`, and a lookup failure is returned unchanged. The
-lookup is given the span of the reference along with the name, so that its
-error can point at the text as the evaluator's own errors do.
+while the table is still being built. Each lookup defines its own error type
+(an unknown name, a cycle among definitions); `evaluate` takes that type as a
+type parameter and returns a lookup failure unchanged. The lookup is given
+the span of the reference along with the name, so that its error can point
+at the text as the evaluator's own errors do.
 
 Operands are evaluated left to right and the first failure ends the
 evaluation, so `bogus / 0` reports the unknown unit rather than the division.
@@ -431,7 +432,8 @@ drive highlighting. None of that needs changes to the core.
 src/core/rational.ts      Rational, arithmetic, root, parsing and formatting
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Rational with a Dimension), its arithmetic
-src/core/parser.ts        Parser combinators, Span, ParseError
+src/core/span.ts          Span, a location in the input text
+src/core/parser.ts        Parser combinators, ParseError
 src/core/expr.ts          Expr, parseExpr
 src/core/definitions.ts   Definition, parseDefinitions
 src/core/table.ts         UnitTable, buildTable, name lookup

@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { parseExpr, type Expr } from "./expr.ts";
-import { type ParseError, type Span } from "./parser.ts";
+import { type ParseError } from "./parser.ts";
 import { rational, toFraction } from "./rational.ts";
+import { type Span } from "./span.ts";
 
 /** Renders an expression with explicit grouping, for comparing structure. */
 function show(e: Expr): string {

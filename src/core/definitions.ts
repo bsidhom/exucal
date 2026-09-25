@@ -48,9 +48,9 @@ import {
   string,
   type ParseError,
   type Parser,
-  type Span,
 } from "./parser.ts";
 import { type Result } from "./result.ts";
+import { type Span } from "./span.ts";
 
 // ---------------------------------------------------------------------------
 // Types

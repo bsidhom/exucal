@@ -4,6 +4,12 @@
 // this module sits between them and knows nothing about text or about
 // conformance. ARCHITECTURE.md ("Evaluation") gives the overview.
 //
+// TODO: This header, like those of the other core modules, restates much of
+// what ARCHITECTURE.md says about the module. Keep the design and intent in
+// one place (the architecture doc) and reduce the module headers to what is
+// specific to the code: the invariants, the edge cases and the reasons for a
+// particular implementation choice.
+//
 // A number is a dimensionless quantity, a unit name is whatever the `Lookup`
 // says it is, and the operators are the quantity arithmetic of `quantity.ts`:
 // juxtaposition and `*` multiply, `/` divides, and `^` raises to the rational
@@ -15,9 +21,9 @@
 // evaluator serves both ends of the pipeline: the table supplies a lookup
 // over its finished units for the user's `have` and `want`, and `buildTable`
 // supplies one that evaluates definitions on demand while the table is still
-// being built. What a lookup can fail with is its own business (an unknown
-// name, a cycle among definitions), so its error type is a parameter, and a
-// lookup failure comes back from `evaluate` unchanged. The lookup is given
+// being built. Each lookup defines its own error type (an unknown name, a
+// cycle among definitions); `evaluate` takes that type as a type parameter
+// and returns a lookup failure unchanged. The lookup is given
 // the span of the reference along with the name, so that its error can point
 // at the text as this module's own errors do.
 //
@@ -30,7 +36,6 @@
 // since it is the combination of base and exponent that fails.
 
 import { type Expr } from "./expr.ts";
-import { type Span } from "./parser.ts";
 import {
   divideQuantities,
   multiplyQuantities,
@@ -40,6 +45,7 @@ import {
 } from "./quantity.ts";
 import { type Precision, type RationalError } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
+import { type Span } from "./span.ts";
 
 // ---------------------------------------------------------------------------
 // Types

@@ -483,6 +483,51 @@ src/unit-converter.ts     the component
 
 Each core module has a `*.test.ts` beside it, run by `pnpm test`.
 
+## Benchmarks
+
+The core has costs that a later change could quietly undo: the ambiguity
+check is indexed so that it does not grow with the number of prefixes, and
+the walker memoizes so that a definition is evaluated once however many
+others refer to it. The benchmarks in `bench/` exist to catch such
+regressions; README.md ("Benchmarks") says how and when to run them.
+
+They are `*.bench.ts` files, run by `pnpm bench` through Node's test runner
+and nothing else: no benchmark library, in keeping with the rule against
+third-party dependencies. The suffix keeps them out of `pnpm test`, whose
+default discovery never matches it, so the two are separate without a second
+runner. `tsconfig.node.json` includes `bench/`, so they type-check with the
+tests. The rest of the directory is what they share:
+
+- `bench/harness.ts` holds a seeded random source (mulberry32), so that
+  every run measures the same data, and `bestOf`, which times a function
+  several times after one untimed run and takes the shortest, the estimate
+  least disturbed by whatever else the machine is doing.
+- `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
+  drawn from the letters `n` to `z` and unit names from `a` to `m`, so
+  that no name is ambiguous and the ambiguity check scans everything: its
+  cost when it finds nothing is its cost on a table that builds. The names
+  are short, like real ones, so prefixes extend one another more often than
+  real prefixes do, which makes the tables the hard case for the check. A
+  synthetic definitions file has two primitives, the prefixes, and units
+  that are each a small expression over one earlier unit, so that building
+  it walks reference chains of the depth random references make and every
+  body goes through the evaluator.
+
+A timing in milliseconds depends on the machine, so a benchmark reports its
+timings as diagnostics, for a person to compare between runs, and asserts
+only how a cost scales between two sizes measured in the same run, which
+holds anywhere. `names.bench.ts` asserts that the ambiguity check with 1076
+prefixes costs at most five times the check with 76 (it costs about the
+same; before the index it cost fifty times as much and failed), and with
+12000 units at most eight times that with 3000 (the sort makes it a little
+more than linear). `build.bench.ts` asserts that parsing and building 6000
+units each cost at most eight times parsing and building 1500, since each
+definition is parsed once and evaluated once; a walk that re-evaluated its
+dependencies would cost more. The thresholds are twice the expected ratios,
+so that noise never fails a benchmark that a regression would not fail by a
+wide margin. It also reports, without asserting, the cost of a file the size
+of the GNU units database, as a reference for the startup cost.
+
 ## Later
 
 Planned extensions, listed to show that they fit without reshaping the core:

@@ -53,9 +53,8 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
 - `src/core/` is the pure conversion core that `ARCHITECTURE.md` describes:
   no I/O, no DOM, and failures returned as `Result` values. Each module has
   a `*.test.ts` beside it.
-- `bench/` holds the performance benchmarks of the core (see Benchmarks
-  below): `*.bench.ts` files, run by `pnpm bench`, and the harness and
-  synthetic data they share.
+- `bench/` holds the performance benchmarks of the core, run by
+  `pnpm bench` (see Benchmarks below); `ARCHITECTURE.md` describes them.
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every
   part of the app renders inside. For now it renders the greeting.
 - `src/register-service-worker.ts` registers `sw.js` once the page has loaded,
@@ -93,26 +92,20 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
 
 ### Benchmarks
 
-`pnpm bench` runs the performance benchmarks in `bench/` with Node's test
-runner, apart from the tests, which never include them. They have no
-dependencies beyond Node.js. Each one builds synthetic tables of a chosen
-size from a fixed random seed, so that every run measures the same data,
-times the core on them, taking the best of several runs, and reports the
-timings as diagnostics for comparison between runs and machines:
+`pnpm bench` runs the performance benchmarks in `bench/`. They take a few
+seconds and need nothing beyond Node.js. Each prints the timings it measured
+as diagnostics, for comparison with an earlier run on the same machine:
 
 ```
 ℹ 76 prefixes, 3000 units: parse 41.77 ms (13.6 µs per definition), build 9.95 ms (3.2 µs per definition)
 ```
 
-What a benchmark asserts is not a timing, which depends on the machine, but
-how a cost scales with the size of the input, measured in the same run: that
-the ambiguity check over unit names does not grow with the number of
-prefixes, and that parsing and building grow linearly with the number of
-definitions. A change that breaks one of those, such as a lookup that tries
-every unit or a walk that re-evaluates its dependencies, fails the benchmark
-by a wide margin, which is what they are for. Run them after a change to
-the core's data structures or algorithms, and add one when introducing a
-cost that a later change could quietly undo.
+A benchmark fails when a cost no longer scales with the size of its input
+as it should, not when a timing is slow, so a failure is a regression
+whatever the machine. Run them after any change to the core's data
+structures or algorithms, alongside `pnpm test`, and add one when a change
+introduces a cost that a later change could quietly undo. `ARCHITECTURE.md`
+("Benchmarks") describes how they are built and what each one asserts.
 
 ### Offline behavior
 

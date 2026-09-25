@@ -1,8 +1,8 @@
 // What the benchmarks share: a deterministic random source, so that every
 // run measures the same synthetic data, and a timer that takes the best of
 // several runs, the estimate least disturbed by whatever else the machine is
-// doing. README.md ("Benchmarks") says how they are run and what they are
-// for.
+// doing. ARCHITECTURE.md ("Benchmarks") describes the benchmarks and what
+// they are for; README.md says how and when to run them.
 //
 // A benchmark reports its timings as diagnostics, for a person to compare
 // between runs, and asserts only how a cost scales with the size of its

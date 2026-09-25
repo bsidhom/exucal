@@ -29,12 +29,10 @@
 // match nothing) is a programming error and throws.
 
 import { err, ok, type Result } from "./result.ts";
+import { type Span } from "./span.ts";
 
 // ---------------------------------------------------------------------------
 // Types
-
-/** A range of the input as character offsets: `start` inclusive, `end` exclusive. */
-export type Span = { readonly start: number; readonly end: number };
 
 /** A parsed value together with the span of input it came from. */
 export type Spanned<A> = { readonly value: A; readonly span: Span };

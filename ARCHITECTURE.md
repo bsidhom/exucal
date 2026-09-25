@@ -179,9 +179,14 @@ the UI shows in an error is something the user could type back.
 `src/core/quantity.ts` holds the `Quantity` type itself, and is the layer
 that pairs the two below it: a `Rational` from `rational.ts` and a
 `Dimension` from `dimension.ts`, neither of which knows about the other. The
-table stores quantities, the evaluator produces them (and its arithmetic on
-them, a magnitude operation beside the matching dimension operation, belongs
-in this module when it is written), and the converter consumes them.
+table stores quantities, the evaluator produces them, and the converter
+consumes them. The arithmetic the evaluator needs lives here as well:
+multiplication, division and raising to a rational power, each a magnitude
+operation beside the matching dimension operation. Only the magnitude can
+fail (a zero divisor, `0` to a negative power, an even root of a negative
+number, a result beyond `MAX_BITS`), so the failures are those of
+`rational.ts`, and the power is the one operation that takes a `Precision`,
+for the root of a non-integer exponent.
 
 ## Definitions
 
@@ -262,8 +267,9 @@ division of two subtrees, and a subtree raised to a rational exponent. Every
 node carries the span of text it came from, so an error found later in the
 pipeline (an unknown unit, a dimension mismatch) can point back at the input.
 `parseExpr` knows nothing about units, and `evaluate` knows nothing about
-text. `Span` and `ParseError` come from the parsing toolkit below, which both
-parsers are built from.
+text. `ParseError` comes from the parsing toolkit below, which both parsers
+are built from; `Span` has its own small module, because it is not a parsing
+concept but the vocabulary every later stage uses to locate its errors.
 
 ## Parsing
 
@@ -357,6 +363,37 @@ before every use, and `lazy` memoizes the parser it builds. `many` of a
 parser that matches the empty string would loop forever; that is a bug in the
 grammar, not an input that can fail, and it throws.
 
+## Evaluation
+
+`evaluate` takes an `Expr`, a `Lookup` for unit names and the working
+`Precision`, and returns the `Quantity` the expression denotes. A number is a
+dimensionless quantity, a unit name is whatever the lookup says it is, and the
+operators are the quantity arithmetic above: juxtaposition and `*` multiply,
+`/` divides, and `^` raises to the exponent the parser already read. The
+precision goes to every power, where the root of a non-integer exponent is
+the only operation that can lose digits; everything else is exact.
+
+Names are resolved through a lookup function rather than a table, because the
+same evaluator serves both ends of the pipeline. The table supplies a lookup
+over its finished units for the user's `have` and `want`, applying the
+prefix-splitting rule described under Definitions; `buildTable` supplies one
+that evaluates definitions on demand, with its memoization and visiting set,
+while the table is still being built. Each lookup defines its own error type
+(an unknown name, a cycle among definitions); `evaluate` takes that type as a
+type parameter and returns a lookup failure unchanged. The lookup is given
+the span of the reference along with the name, so that its error can point
+at the text as the evaluator's own errors do.
+
+Operands are evaluated left to right and the first failure ends the
+evaluation, so `bogus / 0` reports the unknown unit rather than the division.
+The evaluator's own errors are the arithmetic failures, each located in the
+input: a division by zero points at the divisor, since its value is what is
+wrong, and a power that fails (`0^-1`, an even root of a negative magnitude,
+a result beyond `MAX_BITS`) points at the whole power, since it is the
+combination of base and exponent that fails. The evaluator never checks
+conformance, and never sees the text: the spans in the tree are all it knows
+of it.
+
 ## Conversion
 
 `convert` takes the two quantities and the table's primitives (whose roles
@@ -394,12 +431,13 @@ drive highlighting. None of that needs changes to the core.
 ```
 src/core/rational.ts      Rational, arithmetic, root, parsing and formatting
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
-src/core/quantity.ts      Quantity: a Rational magnitude with a Dimension
-src/core/parser.ts        Parser combinators, Span, ParseError
+src/core/quantity.ts      Quantity (a Rational with a Dimension), its arithmetic
+src/core/span.ts          Span, a location in the input text
+src/core/parser.ts        Parser combinators, ParseError
 src/core/expr.ts          Expr, parseExpr
 src/core/definitions.ts   Definition, parseDefinitions
 src/core/table.ts         UnitTable, buildTable, name lookup
-src/core/evaluate.ts      evaluate
+src/core/evaluate.ts      evaluate, Lookup
 src/core/convert.ts       convert
 src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions

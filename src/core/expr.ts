@@ -53,11 +53,11 @@ import {
   string,
   type ParseError,
   type Parser,
-  type Span,
   type Spanned,
 } from "./parser.ts";
 import { divide, parseDecimal, type Rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
+import { type Span } from "./span.ts";
 
 // ---------------------------------------------------------------------------
 // Types

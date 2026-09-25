@@ -196,34 +196,16 @@ precached with the rest of the build) and go through the same parser as any
 user-supplied definitions. `buildTable` takes one list of definitions, so
 user definitions are simply appended to the system ones.
 
-The system file declares the seven SI base units as dimension primitives, the
-radian as a kind primitive and the bit as one more dimension, and defines the
-SI prefixes (by name and by symbol, with the binary prefixes beside them),
-the derived units with special names, the non-SI units accepted for use with
-the SI, the US customary units of NIST Handbook 44 and the imperial units of
-the UK Weights and Measures Act 1985, plus the customary force, pressure,
-energy and power units built on them. Where the US and the UK give one name
-to different units, the plain name is the US unit and the `imp` or `uk`
-prefixed one the imperial (`gallon` and `impgallon`, `ton` and `longton`).
-Every factor is the exact one its defining document states, so `1 in` is
-exactly `2.54 cm` and `1 lb` exactly `0.45359237 kg`. Temperature units are
-intervals only and logarithmic units are left out, since the expression
-language has neither offsets nor functions yet. `src/units.test.ts` builds
-the file and checks a sample of conversions from each of its sections.
-
-The format is in the spirit of a GNU units file, pared down: one definition
-per line, name then whitespace then body, `#` comments. The whitespace after
-the name is required, so that `inch2.54 cm` is an error rather than a
-definition of `inch2`.
-
-```
-m         !                 # dimension primitive
-radian    !kind             # kind primitive (dimensionless)
-kilo-     1000              # prefix (trailing dash)
-inch      2.54 cm           # unit, defined by an expression
-newton    kg m / s^2
-hertz     1 / s
-```
+The format, the name rules and the expression language are user-facing, so
+README.md ("Unit definitions") describes them, along with what the system
+file contains and how to add to it. This section covers what the core does
+with a definitions file. In short, the format is in the spirit of a GNU
+units file, pared down: one definition per line, name then whitespace then
+body, `#` comments, where a name with a trailing dash is a prefix and a body
+of `!` or `!kind` declares a primitive. The whitespace after the name is
+required, so that `inch2.54 cm` is an error rather than a definition of
+`inch2`. `src/units.test.ts` builds the system file and checks a sample of
+conversions from each of its sections.
 
 A definition is one of three things: a primitive with its role, a prefix
 (named without its dash) with a body, or a unit with a body, where a body is
@@ -246,8 +228,9 @@ lookup is one map read.
 Prefixes and units are separate namespaces, so `m-` (milli) and `m` (the
 metre) coexist, while a primitive and a unit share one. A name in an
 expression resolves to an exact unit name if there is one, and otherwise to
-one prefix followed by a unit name. Prefixes do not stack, and there is no
-plural handling: `inches  inch` is an ordinary alias definition.
+one prefix followed by a unit name (the rule README.md states for users).
+Prefixes do not stack, and there is no plural handling: `inches  inch` is
+an ordinary alias definition.
 
 Every name is known once the table is built, so ambiguity is a property of the
 table rather than of the input, and `buildTable` checks for it. A name with
@@ -290,7 +273,9 @@ to body, so each error points at something the user can see.
 ## Expressions
 
 One grammar serves both definition bodies and user input, so anything that can
-be typed can also be defined. It is a small expression language: decimal
+be typed can also be defined. README.md ("Unit definitions") describes it
+from the user's side; this section is about how it is parsed and what the
+tree holds. It is a small expression language: decimal
 numbers, unit names, juxtaposition and `*` for multiplication, `/`, `^` with
 a literal exponent, and parentheses. The precedence follows GNU units:
 juxtaposition binds tighter than `*` and `/`, which are one left-associative

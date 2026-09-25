@@ -1,34 +1,15 @@
-# The system unit definitions. ARCHITECTURE.md ("Definitions") describes the
-# format and src/core/definitions.ts holds its grammar; in short:
+# The system unit definitions: every unit the app knows, defined in terms of
+# others down to the primitives. README.md ("Unit definitions") describes
+# the format, how names and expressions are read, what this file covers and
+# how to add to it. Two reminders from there that matter most when editing:
 #
-#   - One definition per line: a name, whitespace, then a body. `#` starts a
-#     comment. Names are letters, digits and underscores, in any script, and
-#     must start with a letter or underscore, so `µm` and `Ω` are names
-#     while `°`, `%` and `'` are not.
-#   - `name !` declares a dimension primitive, `name !kind` a kind primitive
-#     (a dimensionless marker that keeps angles apart from plain numbers),
-#     `name- body` a prefix, and `name body` a unit.
-#   - A body is an expression: a number may only start a product, and
-#     juxtaposition binds tighter than `*` and `/`, so `kg m / s^2` is
-#     `(kg m) / (s^2)`. Beware that `1/12 year` is `1 / (12 year)`, which
-#     is a frequency: write `year / 12`. Decimals are exact, so a unit
-#     defined by one converts exactly.
-#   - A name resolves to a unit if there is one of that name, and otherwise
-#     to one prefix followed by a unit. Prefixes do not stack, and there is
-#     no plural handling. A name that reads as two different prefix-unit
-#     pairs is a build error, which is why a couple of conventional symbols
-#     are left out below (see `au`).
+#   - Juxtaposition binds tighter than `/`, so `1/12 year` is a frequency;
+#     write `year / 12`.
+#   - A name that reads as two different prefix-unit pairs fails the build,
+#     which is why `u` (dalton) and `at` (technical atmosphere) are absent;
+#     see `au` below.
 #
-# Everything in the SI brochure (9th edition, 2019, with the 2022 prefixes)
-# is here: the base units, the prefixes, the derived units with special
-# names, and the non-SI units accepted for use with the SI. So are the
-# customary units of the United States (NIST Handbook 44, Appendix C) and
-# the imperial units of the United Kingdom (Weights and Measures Act 1985),
-# under the names each system uses: `gallon` is the US gallon and
-# `impgallon` the imperial one, `ton` is the short ton and `longton` the
-# imperial one, and so on. Temperature units are intervals only, since the
-# expression language has no offsets yet, and logarithmic units (neper,
-# bel) are left out for the same reason.
+# Where a factor is not obvious, a comment says where it comes from.
 
 # ---------------------------------------------------------------------------
 # Primitives

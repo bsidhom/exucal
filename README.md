@@ -8,6 +8,135 @@ without a network connection once it has been loaded once.
 conversion pipeline, the number type, and how units, dimensions and kinds are
 modeled.
 
+## Unit definitions
+
+Every unit the app knows comes from a definitions file, `src/units.txt`,
+which defines each unit in terms of others down to a few primitives, in the
+spirit of a GNU units file. This section describes that file: what it
+contains, how to read it, and how to add to it. The same expression language
+serves the definitions and what you type into the converter, so anything
+that can be typed can also be defined.
+
+### What the file contains
+
+- **The SI in full**, after the 9th edition of the SI brochure with the 2022
+  prefixes: the seven base units, every prefix by name and by symbol (with
+  three spellings of micro, `µ`, `μ` and `u`, and the binary prefixes `Ki`,
+  `Mi`, ... beside them), the derived units with special names, and the
+  non-SI units accepted for use with the SI (`min`, `h`, `d`, `ha`, `L`,
+  `t`, `au`, `eV`, `Da`, the degree and its subdivisions).
+- **US customary units**, after NIST Handbook 44: the international inch,
+  foot, yard and mile with their subdivisions and multiples, the US survey
+  foot and the land-survey units built on it, liquid and dry measure,
+  avoirdupois, troy and apothecaries' mass, and the customary force,
+  pressure, energy, power and speed units (`lbf`, `psi`, `Btu`, `hp`,
+  `mph`, ...).
+- **UK imperial units**, after the Weights and Measures Act 1985: the
+  imperial gallon and its subdivisions, stone, quarter, long hundredweight
+  and long ton, rood and cental.
+- **Some common extras**: the constants the definitions need (`pi`, `c`,
+  `gravity`, ...), CGS units, conventional pressure units (`atm`, `torr`,
+  `mmHg`, `inH2O`), calories, time units beyond the day, and bits and bytes.
+
+Where the US and the UK give one name to different units, the plain name is
+the US unit and the name with `imp` or `uk` in front is the imperial one:
+`gallon` is 231 cubic inches and `impgallon` is 4.54609 litres, `ton` is
+2000 pounds and `longton` (or `ukton`) is 2240. Every factor is the exact
+one its defining document states, so `1 in` is exactly `2.54 cm` and `1 lb`
+exactly `0.45359237 kg`, and conversions between them are exact.
+
+Two things are deliberately absent. Temperature units (`degC`, `degF`,
+`degR`) are intervals only: they convert temperature differences, and
+converting a reading needs the offset, which the expression language does
+not have yet. Logarithmic units (neper, bel) are left out for the same
+reason.
+
+### The format
+
+One definition per line: a name, whitespace, then a body. `#` starts a
+comment that runs to the end of the line, and blank lines are skipped.
+
+```
+m         !                 # dimension primitive
+radian    !kind             # kind primitive (dimensionless)
+kilo-     1000              # prefix (trailing dash)
+inch      2.54 cm           # unit, defined by an expression
+newton    kg m / s^2
+hertz     1 / s
+```
+
+A definition is one of three things:
+
+- **A primitive**, with a body of `!`, is a base unit that everything else
+  is defined in terms of: the metre, the kilogram, the second and the other
+  SI base units. A body of `!kind` declares a kind primitive instead: a
+  dimensionless marker that keeps quantities apart which would otherwise
+  look alike. The radian is one, so that `rad/s` does not convert to `Hz`
+  (a revolution per second is not a cycle per second) and `rpm` converts
+  to `rad/s` but not to `Hz`.
+- **A prefix**, written with a trailing dash (`kilo-`), has a body that is a
+  plain number.
+- **A unit** has a body that is an expression over numbers and other units.
+
+Definitions may appear in any order; a unit may be defined by one that
+comes later. A name defined twice, a circular definition, or a prefix
+whose body has a dimension is an error.
+
+### Names
+
+A name is a letter or underscore followed by letters, digits and
+underscores, in any script, so `µm`, `Ω`, `Å`, `degF` and `N_A` are
+names while `°`, `%` and `'` cannot be. Names are case-sensitive (`mm` and
+`Mm`, `S` and `s`) and read as long as they go, so `m2` is the name `m2`,
+not `m` squared.
+
+A name means the unit of that name if there is one, and otherwise one prefix
+followed by a unit: `km` is `k` + `m` and `kilometre` is `kilo` + `metre`.
+An exact name always wins, so `min` is the minute and not `m` + `in`, and
+`ha` is defined as the hectare even though `h` + `a` would give the same.
+Prefixes do not stack (`kkm` is nothing), and there is no plural handling
+(`inches` is nothing unless it is defined as an alias). Prefixes and units
+are separate namespaces, which is how `m-` (milli) and `m` (the metre)
+coexist.
+
+A name that could be read as two different prefix-unit pairs is an error
+when the file is loaded, not an ambiguity resolved by some rule. That is why
+two conventional symbols are missing: `u` for the dalton, because with `au`
+a unit `dau` would be both `d` + `au` and `da` + `u`, and `at` for the
+technical atmosphere, for the same reason against `t`. The longer names
+(`Da`, `amu`, `technicalatmosphere`) are there.
+
+### Expressions
+
+A body, like the text typed into the converter, is a small expression
+language:
+
+- **Numbers** are unsigned decimals, with an optional exponent: `2`, `2.54`,
+  `.5`, `1e-3`. They are read exactly, so a unit defined by a decimal
+  converts exactly. There is no `+` or `-`.
+- **Juxtaposition** multiplies: `2 m` is two metres and `kg m` is a
+  kilogram-metre. A number may only be the first factor of a product, so
+  `m 2` and `2 3 m` are errors; multiplying numbers is written `2 * 3`.
+- **`*` and `/`** multiply and divide, at one level, left to right, and
+  juxtaposition binds tighter than either: `kg m / s^2` is `(kg m) / (s^2)`
+  and `m/s*s` is `(m/s)*s`.
+- **`^`** raises to a literal exponent, which is a signed decimal (`m^2`,
+  `s^-1`, `m^0.5`) or a parenthesized fraction (`m^(1/2)`), never an
+  expression. It binds tightest.
+- **Parentheses** group.
+
+The one thing to watch is a fraction before a unit: `1/12 year` is
+`1 / (12 year)`, a frequency, because the juxtaposition is read first.
+Write `year / 12` or `(1/12) year` instead.
+
+### Adding a unit
+
+Append a line to `src/units.txt`, or edit one, and run `pnpm test`:
+`src/units.test.ts` loads the file and fails with the offending definition
+if it does not build. Keep a new unit in the section its kind belongs to,
+prefer the exact factor from a defining document over a rounded one, and
+say where the factor comes from in a comment when it is not obvious.
+
 ## Development
 
 The app is built with [Lit](https://lit.dev) and [Vite](https://vite.dev),
@@ -54,10 +183,9 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
   no I/O, no DOM, and failures returned as `Result` values. Each module has
   a `*.test.ts` beside it.
 - `src/units.txt` is the system definitions file: the units and prefixes the
-  app knows, in the format `ARCHITECTURE.md` ("Definitions") describes. It
-  covers the SI in full, the US customary units and the UK imperial units,
-  and its header comment says how to add to it. `src/units.test.ts` checks
-  that it builds and that a sample of its units converts as its sources say.
+  app knows, described under Unit definitions above. `src/units.test.ts`
+  checks that it builds and that a sample of its units converts as its
+  sources say.
 - `bench/` holds the performance benchmarks of the core, run by
   `pnpm bench` (see Benchmarks below); `ARCHITECTURE.md` describes them.
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every

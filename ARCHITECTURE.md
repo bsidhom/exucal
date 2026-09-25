@@ -176,6 +176,13 @@ which the grammar reads as `(kg m^2) / (s^3 A)`), `1` standing in for an
 empty numerator, and a non-integer exponent parenthesized (`m^(1/2)`). So what
 the UI shows in an error is something the user could type back.
 
+`src/core/quantity.ts` holds the `Quantity` type itself, and is the layer
+that pairs the two below it: a `Rational` from `rational.ts` and a
+`Dimension` from `dimension.ts`, neither of which knows about the other. The
+table stores quantities, the evaluator produces them (and its arithmetic on
+them, a magnitude operation beside the matching dimension operation, belongs
+in this module when it is written), and the converter consumes them.
+
 ## Definitions
 
 System units are not special: they live in a static definitions file that is
@@ -352,13 +359,18 @@ grammar, not an input that can fail, and it throws.
 
 ## Conversion
 
-`convert` takes the two quantities and returns the output value: how many
-`want`s make up `have`, which after the conformance check is simply the ratio
-of their magnitudes, since each quantity already carries its own scale.
-`want` may have a magnitude (`3 ft` into `in` gives `36`), as in GNU units.
-A failure is a dimension mismatch or a kind mismatch, carrying both dimension
-vectors; a core function formats a dimension as text (`m^2 / s`), so the UI
-can explain the failure without interpreting anything itself.
+`convert` takes the two quantities and the table's primitives (whose roles
+the conformance check needs) and returns the output value: how many `want`s
+make up `have`, which after the conformance check is simply the ratio of their
+magnitudes, since each quantity already carries its own scale. `want` may have
+a magnitude (`3 ft` into `in` gives `36`), as in GNU units. The ratio is exact,
+so `1 m` into `in` is `5000/127`, and the display is where it becomes
+`39.370079`. A failure is a dimension mismatch or a kind mismatch, carrying
+both dimension vectors, or a `want` whose magnitude is zero, of which nothing
+is a multiple; the conformance check comes first, so `0 s` as the `want` for
+a length is reported as the mismatch it is. A core function formats a
+dimension as text (`m^2 / s`), so the UI can explain a mismatch without
+interpreting anything itself.
 
 Every failure in the core is a `Result`: a discriminated union of a value or
 an error, with each module defining its own error type.
@@ -382,6 +394,7 @@ drive highlighting. None of that needs changes to the core.
 ```
 src/core/rational.ts      Rational, arithmetic, root, parsing and formatting
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
+src/core/quantity.ts      Quantity: a Rational magnitude with a Dimension
 src/core/parser.ts        Parser combinators, Span, ParseError
 src/core/expr.ts          Expr, parseExpr
 src/core/definitions.ts   Definition, parseDefinitions

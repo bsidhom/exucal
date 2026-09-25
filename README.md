@@ -31,6 +31,7 @@ uses [pnpm](https://pnpm.io) for package management.
 | `pnpm preview`      | Serve the production bundle locally.                |
 | `pnpm typecheck`    | Type-check without building.                        |
 | `pnpm test`         | Run the tests with Node's built-in test runner.     |
+| `pnpm bench`        | Run the performance benchmarks (see Benchmarks).    |
 | `pnpm format`       | Format all source files with Prettier.              |
 | `pnpm format:check` | Verify that all source files are formatted.         |
 
@@ -52,6 +53,9 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
 - `src/core/` is the pure conversion core that `ARCHITECTURE.md` describes:
   no I/O, no DOM, and failures returned as `Result` values. Each module has
   a `*.test.ts` beside it.
+- `bench/` holds the performance benchmarks of the core (see Benchmarks
+  below): `*.bench.ts` files, run by `pnpm bench`, and the harness and
+  synthetic data they share.
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every
   part of the app renders inside. For now it renders the greeting.
 - `src/register-service-worker.ts` registers `sw.js` once the page has loaded,
@@ -75,8 +79,8 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
   covers the app (`dom`), `tsconfig.sw.json` the service worker
   (`webworker`, which cannot be combined with `dom` in one program), and
   `tsconfig.node.json` the Vite config and plugin (Node.js), along with the
-  tests, which run under Node.js and need its types, and the core they
-  exercise. The options they share live in `tsconfig.base.json`.
+  tests and benchmarks, which run under Node.js and need its types, and the
+  core they exercise. The options they share live in `tsconfig.base.json`.
 - Components use TypeScript's `experimentalDecorators`, as Vite's own Lit
   template does, because Vite does not yet transform standard (TC39)
   decorators.
@@ -86,6 +90,29 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
   Deployment below).
 - `.env` holds wrangler's system environment variables. It is committed, so it
   must never contain secrets; those belong in the gitignored `.env.local`.
+
+### Benchmarks
+
+`pnpm bench` runs the performance benchmarks in `bench/` with Node's test
+runner, apart from the tests, which never include them. They have no
+dependencies beyond Node.js. Each one builds synthetic tables of a chosen
+size from a fixed random seed, so that every run measures the same data,
+times the core on them, taking the best of several runs, and reports the
+timings as diagnostics for comparison between runs and machines:
+
+```
+ℹ 76 prefixes, 3000 units: parse 41.77 ms (13.6 µs per definition), build 9.95 ms (3.2 µs per definition)
+```
+
+What a benchmark asserts is not a timing, which depends on the machine, but
+how a cost scales with the size of the input, measured in the same run: that
+the ambiguity check over unit names does not grow with the number of
+prefixes, and that parsing and building grow linearly with the number of
+definitions. A change that breaks one of those, such as a lookup that tries
+every unit or a walk that re-evaluates its dependencies, fails the benchmark
+by a wide margin, which is what they are for. Run them after a change to
+the core's data structures or algorithms, and add one when introducing a
+cost that a later change could quietly undo.
 
 ### Offline behavior
 

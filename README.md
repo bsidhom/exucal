@@ -53,6 +53,11 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
 - `src/core/` is the pure conversion core that `ARCHITECTURE.md` describes:
   no I/O, no DOM, and failures returned as `Result` values. Each module has
   a `*.test.ts` beside it.
+- `src/units.txt` is the system definitions file: the units and prefixes the
+  app knows, in the format `ARCHITECTURE.md` ("Definitions") describes. It
+  covers the SI in full, the US customary units and the UK imperial units,
+  and its header comment says how to add to it. `src/units.test.ts` checks
+  that it builds and that a sample of its units converts as its sources say.
 - `bench/` holds the performance benchmarks of the core, run by
   `pnpm bench` (see Benchmarks below); `ARCHITECTURE.md` describes them.
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every

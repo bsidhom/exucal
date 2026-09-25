@@ -190,11 +190,26 @@ for the root of a non-integer exponent.
 
 ## Definitions
 
-System units are not special: they live in a static definitions file that is
-bundled into the app (a raw string import, so it is precached with the rest of
-the build) and go through the same parser as any user-supplied definitions.
-`buildTable` takes one list of definitions, so user definitions are simply
-appended to the system ones.
+System units are not special: they live in a static definitions file,
+`src/units.txt`, that is bundled into the app (a raw string import, so it is
+precached with the rest of the build) and go through the same parser as any
+user-supplied definitions. `buildTable` takes one list of definitions, so
+user definitions are simply appended to the system ones.
+
+The system file declares the seven SI base units as dimension primitives, the
+radian as a kind primitive and the bit as one more dimension, and defines the
+SI prefixes (by name and by symbol, with the binary prefixes beside them),
+the derived units with special names, the non-SI units accepted for use with
+the SI, the US customary units of NIST Handbook 44 and the imperial units of
+the UK Weights and Measures Act 1985, plus the customary force, pressure,
+energy and power units built on them. Where the US and the UK give one name
+to different units, the plain name is the US unit and the `imp` or `uk`
+prefixed one the imperial (`gallon` and `impgallon`, `ton` and `longton`).
+Every factor is the exact one its defining document states, so `1 in` is
+exactly `2.54 cm` and `1 lb` exactly `0.45359237 kg`. Temperature units are
+intervals only and logarithmic units are left out, since the expression
+language has neither offsets nor functions yet. `src/units.test.ts` builds
+the file and checks a sample of conversions from each of its sections.
 
 The format is in the spirit of a GNU units file, pared down: one definition
 per line, name then whitespace then body, `#` comments. The whitespace after
@@ -477,7 +492,7 @@ src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup
 src/core/convert.ts       convert
 src/core/result.ts        Result; each module defines its own error types
-src/units.txt             the system definitions
+src/units.txt             the system definitions; src/units.test.ts checks them
 src/unit-converter.ts     the component
 ```
 

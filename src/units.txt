@@ -1,0 +1,575 @@
+# The system unit definitions. ARCHITECTURE.md ("Definitions") describes the
+# format and src/core/definitions.ts holds its grammar; in short:
+#
+#   - One definition per line: a name, whitespace, then a body. `#` starts a
+#     comment. Names are letters, digits and underscores, in any script, and
+#     must start with a letter or underscore, so `µm` and `Ω` are names
+#     while `°`, `%` and `'` are not.
+#   - `name !` declares a dimension primitive, `name !kind` a kind primitive
+#     (a dimensionless marker that keeps angles apart from plain numbers),
+#     `name- body` a prefix, and `name body` a unit.
+#   - A body is an expression: a number may only start a product, and
+#     juxtaposition binds tighter than `*` and `/`, so `kg m / s^2` is
+#     `(kg m) / (s^2)`. Beware that `1/12 year` is `1 / (12 year)`, which
+#     is a frequency: write `year / 12`. Decimals are exact, so a unit
+#     defined by one converts exactly.
+#   - A name resolves to a unit if there is one of that name, and otherwise
+#     to one prefix followed by a unit. Prefixes do not stack, and there is
+#     no plural handling. A name that reads as two different prefix-unit
+#     pairs is a build error, which is why a couple of conventional symbols
+#     are left out below (see `au`).
+#
+# Everything in the SI brochure (9th edition, 2019, with the 2022 prefixes)
+# is here: the base units, the prefixes, the derived units with special
+# names, and the non-SI units accepted for use with the SI. So are the
+# customary units of the United States (NIST Handbook 44, Appendix C) and
+# the imperial units of the United Kingdom (Weights and Measures Act 1985),
+# under the names each system uses: `gallon` is the US gallon and
+# `impgallon` the imperial one, `ton` is the short ton and `longton` the
+# imperial one, and so on. Temperature units are intervals only, since the
+# expression language has no offsets yet, and logarithmic units (neper,
+# bel) are left out for the same reason.
+
+# ---------------------------------------------------------------------------
+# Primitives
+
+m         !                 # metre: length
+kg        !                 # kilogram: mass
+s         !                 # second: time
+A         !                 # ampere: electric current
+K         !                 # kelvin: thermodynamic temperature
+mol       !                 # mole: amount of substance
+cd        !                 # candela: luminous intensity
+radian    !kind             # plane angle, so that rad/s and Hz stay apart
+bit       !                 # information
+
+# ---------------------------------------------------------------------------
+# SI prefixes, by name and by symbol. `da` (deca) is the only two-letter
+# symbol, and `d` (deci) is a prefix too, so a unit name starting with `a`
+# whose remainder is also a unit would make `d...` ambiguous; see `au`.
+
+quetta-   1e30
+ronna-    1e27
+yotta-    1e24
+zetta-    1e21
+exa-      1e18
+peta-     1e15
+tera-     1e12
+giga-     1e9
+mega-     1e6
+kilo-     1e3
+hecto-    1e2
+deca-     1e1
+deka-     1e1
+deci-     1e-1
+centi-    1e-2
+milli-    1e-3
+micro-    1e-6
+nano-     1e-9
+pico-     1e-12
+femto-    1e-15
+atto-     1e-18
+zepto-    1e-21
+yocto-    1e-24
+ronto-    1e-27
+quecto-   1e-30
+Q-        1e30
+R-        1e27
+Y-        1e24
+Z-        1e21
+E-        1e18
+P-        1e15
+T-        1e12
+G-        1e9
+M-        1e6
+k-        1e3
+h-        1e2
+da-       1e1
+d-        1e-1
+c-        1e-2
+m-        1e-3
+µ-        1e-6              # U+00B5 micro sign
+μ-        1e-6              # U+03BC Greek small letter mu
+u-        1e-6              # ASCII stand-in
+n-        1e-9
+p-        1e-12
+f-        1e-15
+a-        1e-18
+z-        1e-21
+y-        1e-24
+r-        1e-27
+q-        1e-30
+
+# Binary prefixes (IEC 80000-13), for bits and bytes.
+
+kibi-     1024
+mebi-     1024^2
+gibi-     1024^3
+tebi-     1024^4
+pebi-     1024^5
+exbi-     1024^6
+zebi-     1024^7
+yobi-     1024^8
+
+Ki-       1024
+Mi-       1024^2
+Gi-       1024^3
+Ti-       1024^4
+Pi-       1024^5
+Ei-       1024^6
+Zi-       1024^7
+Yi-       1024^8
+
+# ---------------------------------------------------------------------------
+# Mathematical and physical constants used in definitions below. The
+# defining constants of the SI are exact; pi is a decimal literal.
+
+pi          3.14159265358979323846264338327950288
+c           299792458 m / s              # speed of light in vacuum (exact)
+e           1.602176634e-19 C            # elementary charge (exact)
+planck      6.62607015e-34 J s           # Planck constant (exact)
+boltzmann   1.380649e-23 J / K           # Boltzmann constant (exact)
+avogadro    6.02214076e23 / mol          # Avogadro constant (exact)
+N_A         avogadro
+gravity     9.80665 m / s^2              # standard acceleration of gravity
+g0          gravity
+
+# ---------------------------------------------------------------------------
+# SI base units, by name
+
+metre       m
+meter       m
+kilogram    kg
+second      s
+ampere      A
+kelvin      K
+mole        mol
+candela     cd
+
+gram        kg / 1000
+g           gram
+tonne       1000 kg                      # accepted for use with the SI
+t           tonne
+metricton   tonne
+
+# ---------------------------------------------------------------------------
+# SI derived units with special names
+
+rad         radian
+sr          radian^2                     # solid angle
+steradian   sr
+Hz          1 / s
+hertz       Hz
+N           kg m / s^2
+newton      N
+Pa          N / m^2
+pascal      Pa
+J           N m
+joule       J
+W           J / s
+watt        W
+C           A s
+coulomb     C
+V           W / A
+volt        V
+F           C / V
+farad       F
+Ω           V / A                        # U+03A9 Greek capital letter omega
+ohm         Ω
+S           A / V
+siemens     S
+mho         S
+Wb          V s
+weber       Wb
+T           Wb / m^2
+tesla       T
+H           Wb / A
+henry       H
+lm          cd sr
+lumen       lm
+lx          lm / m^2
+lux         lx
+Bq          1 / s
+becquerel   Bq
+Gy          J / kg
+gray        Gy
+Sv          J / kg
+sievert     Sv
+kat         mol / s
+katal       kat
+
+# Temperature intervals. A degree Celsius is the same size as a kelvin, and
+# a degree Fahrenheit or Rankine is five ninths of one. These convert
+# temperature differences; converting a temperature reading needs the
+# offset, which the expression language does not have yet.
+
+degC        K
+celsius     degC
+degF        5 K / 9
+fahrenheit  degF
+degR        degF
+rankine     degR
+
+# ---------------------------------------------------------------------------
+# Non-SI units accepted for use with the SI
+
+min         60 s
+minute      min
+h           60 min
+hr          h
+hour        h
+d           24 h
+day         d
+
+deg         pi radian / 180
+degree      deg
+arcmin      deg / 60
+arcminute   arcmin
+arcsec      arcmin / 60
+arcsecond   arcsec
+
+ha          10000 m^2
+hectare     ha
+are         100 m^2
+
+L           dm^3
+l           L
+litre       L
+liter       L
+
+au          149597870700 m               # astronomical unit (IAU 2012)
+AU          au
+astronomicalunit  au
+
+eV          e V
+electronvolt      eV
+
+# The dalton is also written `u`, but that name is left out: with `au` a
+# unit, `dau` would read as both `d` + `au` and `da` + `u`. The technical
+# atmosphere's symbol `at` is left out for the same reason, against `t`.
+Da          1.66053906660e-27 kg         # CODATA 2018
+dalton      Da
+amu         Da
+atomicmassunit    Da
+
+# ---------------------------------------------------------------------------
+# Other common metric and scientific units
+
+Å           1e-10 m                      # U+00C5 Latin capital letter A with ring
+angstrom    Å
+micron      µm
+fermi       fm
+
+cc          cm^3
+
+dyn         g cm / s^2                   # CGS
+dyne        dyn
+erg         dyn cm
+Gal         cm / s^2                     # galileo, the CGS acceleration unit
+poise       g / (cm s)
+St          cm^2 / s
+stokes      St
+gauss       1e-4 T
+Mx          1e-8 Wb
+maxwell     Mx
+oersted     1000 A / (4 pi m)
+Oe          oersted
+
+bar         100000 Pa
+atm         101325 Pa                    # standard atmosphere
+atmosphere  atm
+torr        atm / 760
+mmHg        133.322387415 Pa             # conventional millimetre of mercury
+cmHg        10 mmHg
+inHg        25.4 mmHg
+mmH2O       gravity kg / m^2             # conventional millimetre of water
+cmH2O       10 mmH2O
+inH2O       25.4 mmH2O
+kgf         kg gravity                   # kilogram-force
+kilopond    kgf
+kp          kgf
+gf          g gravity
+technicalatmosphere  kgf / cm^2       # its symbol `at` is left out; see `au`
+
+cal         4.184 J                      # thermochemical calorie
+calorie     cal
+cal_IT      4.1868 J                     # International Table calorie
+Wh          W h
+Ah          A h
+tonTNT      4.184 GJ
+
+metrichp    75 kgf m / s
+PS          metrichp                     # Pferdestärke
+
+kph         km / h
+kmh         kph
+
+Ci          3.7e10 Bq
+curie       Ci
+rem         Sv / 100
+roentgen    2.58e-4 C / kg
+# The rad (absorbed dose, 0.01 Gy) is not defined: `rad` is the radian.
+
+carat       200 mg
+ct          carat
+
+barn        1e-28 m^2
+
+# ---------------------------------------------------------------------------
+# Time beyond the day
+
+wk          7 day
+week        wk
+fortnight   2 week
+julianyear  365.25 day
+year        julianyear
+yr          year
+tropicalyear   365.24219 day
+siderealyear   365.256363004 day
+month       year / 12
+decade      10 year
+century     100 year
+millennium  1000 year
+
+# ---------------------------------------------------------------------------
+# Angles and rotation
+
+grad        pi radian / 200
+gon         grad
+gradian     grad
+turn        2 pi radian
+rev         turn
+revolution  turn
+circle      turn
+rpm         rev / min
+rps         rev / s
+
+# ---------------------------------------------------------------------------
+# US customary and imperial length. The inch, foot, yard and mile are the
+# international ones of the 1959 agreement, shared by both systems.
+
+in          2.54 cm
+inch        in
+ft          12 in
+foot        ft
+yd          3 ft
+yard        yd
+mi          5280 ft
+mile        mi
+statutemile mi
+mil         in / 1000
+thou        mil
+hand        4 in
+fathom      6 ft
+chain       66 ft
+link        chain / 100
+rod         16.5 ft
+pole        rod
+perch       rod
+furlong     10 chain
+league      3 mi
+nmi         1852 m                       # international nautical mile
+nmile       nmi
+nauticalmile  nmi
+point       in / 72                      # desktop publishing point
+pica        12 point
+
+# The US survey foot, defined by the Mendenhall Order of 1893 and retired at
+# the end of 2022, still underlies older survey data; the US Public Land
+# Survey System units are defined in terms of it.
+
+surveyfoot  1200 m / 3937
+surveyft    surveyfoot
+surveyyard  3 surveyft
+surveymile  5280 surveyft
+surveychain 66 surveyft
+surveylink  surveychain / 100
+surveyrod   16.5 surveyft
+surveyfurlong  10 surveychain
+surveyacre  10 surveychain^2
+section     surveymile^2
+township    36 section
+
+# Astronomical
+
+lightyear   c julianyear
+ly          lightyear
+parsec      648000 au / pi
+pc          parsec
+
+# ---------------------------------------------------------------------------
+# Area
+
+acre        10 chain^2                   # 4840 yd^2, the international acre
+rood        acre / 4
+acrefoot    acre ft
+
+# ---------------------------------------------------------------------------
+# US customary liquid measure
+
+gallon      231 in^3
+gal         gallon
+quart       gallon / 4
+qt          quart
+pint        quart / 2
+pt          pint
+cup         pint / 2
+gill        pint / 4
+floz        pint / 16
+fluidounce  floz
+tbsp        floz / 2
+tablespoon  tbsp
+tsp         tbsp / 3
+teaspoon    tsp
+fldram      floz / 8
+fluiddram   fldram
+minim       fldram / 60
+barrel      42 gallon                    # petroleum barrel
+bbl         barrel
+hogshead    63 gallon
+
+# US customary dry measure
+
+bushel      2150.42 in^3
+bu          bushel
+peck        bushel / 4
+pk          peck
+drygallon   bushel / 8
+dryquart    drygallon / 4
+drypint     dryquart / 2
+drybarrel   7056 in^3
+
+# Other US customary volumes
+
+cord        128 ft^3
+boardfoot   144 in^3
+fbm         boardfoot
+
+# ---------------------------------------------------------------------------
+# Imperial (UK) capacity measure
+
+impgallon   4.54609 L
+impgal      impgallon
+ukgallon    impgallon
+impquart    impgallon / 4
+ukquart     impquart
+imppint     impquart / 2
+ukpint      imppint
+impgill     imppint / 4
+ukgill      impgill
+impfloz     imppint / 20
+ukfloz      impfloz
+impfldram   impfloz / 8
+impminim    impfldram / 60
+imppeck     2 impgallon
+ukpeck      imppeck
+impbushel   8 impgallon
+ukbushel    impbushel
+
+# ---------------------------------------------------------------------------
+# Avoirdupois mass, shared by both systems up to the hundredweight, where
+# the US counts 100 pounds and the UK 112.
+
+lb          0.45359237 kg
+pound       lb
+lbm         lb
+oz          lb / 16
+ounce       oz
+dr          oz / 16
+dram        dr
+drachm      dr
+grain       lb / 7000
+gr          grain
+stone       14 lb
+st          stone
+quarter     2 stone
+cental      100 lb
+shorthundredweight  100 lb
+longhundredweight   112 lb
+hundredweight       shorthundredweight
+cwt         hundredweight
+ushundredweight     shorthundredweight
+imphundredweight    longhundredweight
+ukhundredweight     longhundredweight
+impcwt      longhundredweight
+shortton    2000 lb
+longton     2240 lb
+ton         shortton
+uston       shortton
+impton      longton
+ukton       longton
+
+# Troy mass
+
+troyounce   480 grain
+ozt         troyounce
+troypound   12 troyounce
+lbt         troypound
+pennyweight 24 grain
+dwt         pennyweight
+
+# Apothecaries' mass
+
+scruple     20 grain
+apdram      3 scruple
+apounce     8 apdram
+appound     12 apounce
+
+# ---------------------------------------------------------------------------
+# Force, pressure, energy and power in customary units
+
+lbf         lb gravity
+poundforce  lbf
+ozf         lbf / 16
+kip         1000 lbf
+tonforce    2000 lbf
+poundal     lb ft / s^2
+pdl         poundal
+slug        lbf s^2 / ft
+
+psi         lbf / in^2
+psf         lbf / ft^2
+ksi         1000 psi
+
+Btu         1055.05585262 J              # International Table Btu
+btu         Btu
+BTU         Btu
+therm       100000 Btu
+quad        1e15 Btu
+
+hp          550 ft lbf / s               # mechanical horsepower
+horsepower  hp
+tonrefrigeration  12000 Btu / h
+
+# ---------------------------------------------------------------------------
+# Speed
+
+mph         mi / h
+fps         ft / s
+knot        nmi / h
+kn          knot
+
+# ---------------------------------------------------------------------------
+# Light
+
+footcandle  lm / ft^2
+fc          footcandle
+phot        lm / cm^2
+
+# ---------------------------------------------------------------------------
+# Information
+
+byte        8 bit
+B           byte
+b           bit
+bps         bit / s
+
+# ---------------------------------------------------------------------------
+# Counts and ratios
+
+percent     1 / 100
+permille    1 / 1000
+ppm         1e-6
+ppb         1e-9
+dozen       12
+gross       144

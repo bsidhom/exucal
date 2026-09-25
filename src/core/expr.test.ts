@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { parseExpr, type Expr } from "./expr.ts";
+import { parseExpr, parseUnitList, type Expr } from "./expr.ts";
 import { type ParseError } from "./parser.ts";
 import { rational, toFraction } from "./rational.ts";
 import { type Span } from "./span.ts";
@@ -422,4 +422,73 @@ test("an error lists what could have continued the input", () => {
   assert.deepEqual(failed("2 m + "), unexpected(6, ...OPERAND));
   assert.deepEqual(failed("2 + * 3"), unexpected(4, ...OPERAND));
   assert.deepEqual(failed("(2 + 3"), unexpected(6, ...AFTER_FACTOR, '")"'));
+});
+
+// ---------------------------------------------------------------------------
+// Unit lists
+
+/** The items of the unit list `text`, each rendered by `show`. */
+function items(text: string): string[] {
+  const result = parseUnitList(text);
+  assert.ok(result.ok, `expected success, got ${inspect(result)}`);
+  return result.value.map(show);
+}
+
+function listFailed(text: string): ParseError {
+  const result = parseUnitList(text);
+  assert.ok(!result.ok, `expected failure, got ${inspect(result)}`);
+  return result.error;
+}
+
+test("a unit list is expressions separated by semicolons", () => {
+  assert.deepEqual(items("ft;in"), ["ft", "in"]);
+  assert.deepEqual(items("hr ; min ; s"), ["hr", "min", "s"]);
+  assert.deepEqual(items("hr/mi;min/mi;s/mi"), [
+    "(hr / mi)",
+    "(min / mi)",
+    "(s / mi)",
+  ]);
+  assert.deepEqual(items("ft;in/8"), ["ft", "(in / 8)"]);
+});
+
+test("an expression alone is a list of one", () => {
+  assert.deepEqual(items("ft"), ["ft"]);
+  assert.deepEqual(items(" 3 ft + 1 in "), ["((3 * ft) + (1 * in))"]);
+});
+
+test("a semicolon binds looser than anything and cannot be parenthesized", () => {
+  assert.deepEqual(items("1 ft + 1 in;2 in"), [
+    "((1 * ft) + (1 * in))",
+    "(2 * in)",
+  ]);
+  assert.deepEqual(
+    listFailed("(ft;in)"),
+    unexpected(3, '"^"', ...AFTER_POWER, '")"'),
+  );
+});
+
+test("each item's span is its own place in the text", () => {
+  const result = parseUnitList("ft; 2 in ");
+  assert.ok(result.ok);
+  assert.deepEqual(
+    result.value.map((e) => e.span),
+    [
+      { start: 0, end: 2 },
+      { start: 4, end: 8 },
+    ],
+  );
+});
+
+test("a list may not be empty or have an empty item", () => {
+  assert.deepEqual(listFailed(""), unexpected(0, ...OPERAND));
+  assert.deepEqual(listFailed("ft;"), unexpected(3, ...OPERAND));
+  assert.deepEqual(listFailed("ft;;in"), unexpected(3, ...OPERAND));
+  assert.deepEqual(listFailed(";in"), unexpected(0, ...OPERAND));
+});
+
+test("a semicolon is not part of an expression", () => {
+  assert.deepEqual(
+    failed("ft;in"),
+    unexpected(2, '"^"', ...AFTER_POWER, "end of input"),
+  );
 });

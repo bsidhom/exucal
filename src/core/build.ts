@@ -8,9 +8,21 @@
 //
 // Prefixes and units are separate namespaces: `m-` (milli) and `m` (the
 // metre) coexist, while a primitive and a unit of the same name are a
-// duplicate. The walker's nodes are the definitions themselves, and a name
-// referenced in a body resolves through the index to the definition it
-// means, so a reference to `km` visits the definitions of `k-` and `m`.
+// duplicate. The walker's nodes are the definitions that denote a quantity,
+// and a name referenced in a body resolves through the index to the
+// definition it means, so a reference to `km` visits the definitions of
+// `k-` and `m`.
+//
+// Unit lists share the unit namespace but are not units: nothing can refer
+// to one, so they stay out of the walker, and each is evaluated in its
+// place in the order, item by item, through the same lookup as a body. A
+// list is a `want` on its own, so its name must not also read as a unit
+// the other way names do, as a prefix followed by a unit: `ms` typed as
+// the want would mean the list, and typed as the have the milliseconds,
+// and the build rejects the name instead. A list's units are checked here
+// for what `convertToList` checks of any list, that they are of one
+// dimension, positive and decreasing, so that a defined list can fail to
+// convert only for not conforming to the `have`.
 //
 // The first failure ends the build. Errors within a body (an unknown name,
 // a division by zero, a reference that closes a cycle) carry the span of
@@ -26,6 +38,7 @@ import {
   type Primitives,
   type Role,
 } from "./dimension.ts";
+import { convertToList, type UnitListError } from "./convert.ts";
 import { evaluate, type EvaluateError, type Lookup } from "./evaluate.ts";
 import { walker, type Cycle, type Visit } from "./graph.ts";
 import { findAmbiguity, resolveName, type Split } from "./names.ts";
@@ -33,14 +46,25 @@ import { multiplyQuantities, type Quantity } from "./quantity.ts";
 import { ONE, type Precision, type Rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import { type Span } from "./span.ts";
-import { type UnitTable, type UnknownUnit } from "./table.ts";
+import {
+  type ListedUnit,
+  type UnitList,
+  type UnitTable,
+  type UnknownUnit,
+} from "./table.ts";
 
 // ---------------------------------------------------------------------------
 // Types
 
 export type PrefixDefinition = Extract<Definition, { kind: "prefix" }>;
-/** A definition in the unit namespace: a primitive or a unit. */
-export type UnitDefinition = Exclude<Definition, { kind: "prefix" }>;
+/** A definition of a unit: a primitive or a unit proper. */
+export type UnitDefinition = Extract<
+  Definition,
+  { kind: "primitive" | "unit" }
+>;
+export type UnitListDefinition = Extract<Definition, { kind: "unitList" }>;
+/** A definition that denotes a quantity: what the walker evaluates. */
+type QuantityDefinition = PrefixDefinition | UnitDefinition;
 
 export type BuildError =
   /** `second` defines a name that `first` already defined in the same namespace. */
@@ -72,12 +96,29 @@ export type BuildError =
       readonly definition: PrefixDefinition;
       readonly dimension: Dimension;
     }
+  /** The name of the unit list `definition` also reads as `split`, a prefix followed by a unit. */
+  | {
+      readonly kind: "prefixedListName";
+      readonly definition: UnitListDefinition;
+      readonly split: Split;
+    }
+  /** The units of the unit list `definition` do not make a list, as `error` says of the item at its index. */
+  | {
+      readonly kind: "invalidUnitList";
+      readonly definition: UnitListDefinition;
+      readonly error: UnitListError;
+    }
   | EvaluateError;
 
-/** The definitions by name, one map per namespace, in definition order. */
+/**
+ * The definitions by name, one map per namespace, in definition order. The
+ * unit lists are in the unit namespace, but apart, since a name in a body
+ * resolves among the units alone.
+ */
 type Index = {
   readonly prefixes: ReadonlyMap<string, PrefixDefinition>;
   readonly units: ReadonlyMap<string, UnitDefinition>;
+  readonly unitLists: ReadonlyMap<string, UnitListDefinition>;
 };
 
 // ---------------------------------------------------------------------------
@@ -100,21 +141,50 @@ export function buildTable(
   if (ambiguity !== undefined) {
     return err({ kind: "ambiguousName", ...ambiguity });
   }
+  for (const definition of index.unitLists.values()) {
+    const split = resolveName(definition.name, index.prefixes, index.units);
+    // An exact unit of the name would have been a duplicate.
+    if (split !== undefined && split.kind === "prefixed") {
+      return err({
+        kind: "prefixedListName",
+        definition,
+        split: {
+          prefix: split.prefix.name,
+          unit: split.unit.name,
+        },
+      });
+    }
+  }
   // The primitives are known before any body is evaluated, and a body may
   // need their roles (a sum checks that its operands conform), so they are
   // collected first and serve the walk as well as the finished table.
   const primitives = declaredPrimitives(index.units.values());
-  const walk = walker<Definition, Quantity, BuildError>((definition, visit) =>
-    evaluateDefinition(
-      definition,
-      lookupIn(index, visit),
-      primitives,
-      precision,
-    ),
+  const walk = walker<QuantityDefinition, Quantity, BuildError>(
+    (definition, visit) =>
+      evaluateDefinition(
+        definition,
+        lookupIn(index, visit),
+        primitives,
+        precision,
+      ),
   );
   const prefixes = new Map<string, Rational>();
   const units = new Map<string, Quantity>();
+  const unitLists = new Map<string, UnitList>();
   for (const definition of definitions) {
+    if (definition.kind === "unitList") {
+      // Nothing refers to a list, so its items are evaluated outside the
+      // walk, requesting what they refer to from the top.
+      const list = evaluateUnitList(
+        definition,
+        lookupIn(index, walk),
+        primitives,
+        precision,
+      );
+      if (!list.ok) return list;
+      unitLists.set(definition.name, list.value);
+      continue;
+    }
     const result = walk(definition);
     if (!result.ok) return result;
     switch (definition.kind) {
@@ -127,7 +197,7 @@ export function buildTable(
         break;
     }
   }
-  return ok({ primitives, prefixes, units });
+  return ok({ primitives, prefixes, units, unitLists });
 }
 
 /** The primitives among `definitions`, with their roles, in the order given. */
@@ -146,21 +216,29 @@ function indexDefinitions(
 ): Result<Index, BuildError> {
   const prefixes = new Map<string, PrefixDefinition>();
   const units = new Map<string, UnitDefinition>();
+  const unitLists = new Map<string, UnitListDefinition>();
   for (const definition of definitions) {
     const first =
       definition.kind === "prefix"
         ? prefixes.get(definition.name)
-        : units.get(definition.name);
+        : (units.get(definition.name) ?? unitLists.get(definition.name));
     if (first !== undefined) {
       return err({ kind: "duplicate", first, second: definition });
     }
-    if (definition.kind === "prefix") {
-      prefixes.set(definition.name, definition);
-    } else {
-      units.set(definition.name, definition);
+    switch (definition.kind) {
+      case "prefix":
+        prefixes.set(definition.name, definition);
+        break;
+      case "primitive":
+      case "unit":
+        units.set(definition.name, definition);
+        break;
+      case "unitList":
+        unitLists.set(definition.name, definition);
+        break;
     }
   }
-  return ok({ prefixes, units });
+  return ok({ prefixes, units, unitLists });
 }
 
 // ---------------------------------------------------------------------------
@@ -172,7 +250,7 @@ function indexDefinitions(
  * to, provided that is a plain number.
  */
 function evaluateDefinition(
-  definition: Definition,
+  definition: QuantityDefinition,
   lookup: Lookup<BuildError>,
   primitives: Primitives,
   precision: Precision,
@@ -194,14 +272,44 @@ function evaluateDefinition(
 }
 
 /**
+ * The units of the unit list `definition`: each item evaluated, with its
+ * text, and the list checked as `convertToList` checks one, against its
+ * own first unit, so that a list in the table converts for any `have` of
+ * its dimension.
+ */
+function evaluateUnitList(
+  definition: UnitListDefinition,
+  lookup: Lookup<BuildError>,
+  primitives: Primitives,
+  precision: Precision,
+): Result<UnitList, BuildError> {
+  const units: ListedUnit[] = [];
+  for (const item of definition.items) {
+    const quantity = evaluate(item.expr, lookup, primitives, precision);
+    if (!quantity.ok) return quantity;
+    units.push({ text: item.text, quantity: quantity.value });
+  }
+  const checked = convertToList(
+    units[0]!.quantity,
+    units.map((unit) => unit.quantity),
+    primitives,
+  );
+  if (!checked.ok) {
+    return err({ kind: "invalidUnitList", definition, error: checked.error });
+  }
+  return ok(units);
+}
+
+/**
  * The lookup for the bodies being evaluated: resolves a name through the
  * index and requests the definitions it means through `visit`. A cycle is
  * located at the reference that closed it; any other failure of a
- * dependency is passed up as it is.
+ * dependency is passed up as it is. Outside the walk, the walker itself
+ * serves as `visit`, since a request from the top never closes a cycle.
  */
 function lookupIn(
   index: Index,
-  visit: Visit<Definition, Quantity, BuildError>,
+  visit: Visit<QuantityDefinition, Quantity, BuildError>,
 ): Lookup<BuildError> {
   return (name, span) => {
     const found = resolveName(name, index.prefixes, index.units);
@@ -216,7 +324,7 @@ function lookupIn(
 
 /** Turns a `Cycle` closed by the reference at `span` into a build error. */
 function locate(
-  result: Result<Quantity, BuildError | Cycle<Definition>>,
+  result: Result<Quantity, BuildError | Cycle<QuantityDefinition>>,
   span: Span,
 ): Result<Quantity, BuildError> {
   if (result.ok) return result;

@@ -27,6 +27,7 @@ import {
   sign,
   subtract,
   toFraction,
+  trunc,
   truncate,
   type Rational,
   type RationalError,
@@ -278,6 +279,15 @@ test("decimalExponent is the position of the leading digit", () => {
   assert.equal(decimalExponent(rational(10n, 11n)), -1);
   assert.equal(decimalExponent(rational(99n, 10n)), 0);
   assert.throws(() => decimalExponent(ZERO), RangeError);
+});
+
+test("trunc drops the fraction, toward zero", () => {
+  assert.equal(toFraction(trunc(rational(7n, 2n))), "3");
+  assert.equal(toFraction(trunc(rational(-7n, 2n))), "-3");
+  assert.equal(toFraction(trunc(rational(1n, 3n))), "0");
+  assert.equal(toFraction(trunc(rational(-1n, 3n))), "0");
+  assert.equal(toFraction(trunc(rational(5n))), "5");
+  assert.equal(toFraction(trunc(ZERO)), "0");
 });
 
 test("truncate keeps the leading digits and drops the rest", () => {

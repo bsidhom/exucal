@@ -55,6 +55,7 @@ const TABLE: UnitTable = {
     ["in", quantity("0.0254", { m: 1 })],
     ["h", quantity("3600", { s: 1 })],
   ]),
+  unitLists: new Map(),
 };
 
 const lookup = unitLookup(TABLE);

@@ -1,13 +1,22 @@
 import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { roundTerms } from "./core/convert.ts";
 import { formatDimension, isDimensionless } from "./core/dimension.ts";
 import { parseExpr } from "./core/expr.ts";
-import { convertText, evaluateText, type Side } from "./core/pipeline.ts";
+import {
+  convertText,
+  evaluateText,
+  type Conversion,
+  type Side,
+} from "./core/pipeline.ts";
 import {
   DEFAULT_PRECISION,
+  absolute,
   equals,
   format,
+  isZero,
   round,
+  sign,
   type Rational,
 } from "./core/rational.ts";
 import { type UnitTable } from "./core/table.ts";
@@ -20,17 +29,23 @@ import { describeConversionError, describeTextError } from "./messages.ts";
  */
 export const DISPLAY_PRECISION = 8;
 
+/** One term of a result: `value` of `unit`, where `unit` is text to show after the value. */
+type Term = { readonly value: Rational; readonly unit: string };
+
 /** What the output area shows for the current pair of texts. */
 type Outcome =
   /** Nothing to convert yet. */
   | { readonly kind: "empty" }
-  /** `have` is `relation` `value` `unit`: `3 ft = 36 in`, `1 m ≈ 39.370079 in`. */
+  /**
+   * `have` is `relation` the sum of `terms`: `3 ft = 36 in`,
+   * `1 m ≈ 39.370079 in`, `1 m ≈ 3 ft + 3.3700787 in`. A conversion into
+   * one unit is one term; one into a unit list is a term per unit shown.
+   */
   | {
       readonly kind: "result";
       readonly have: string;
       readonly relation: "=" | "≈";
-      readonly value: string;
-      readonly unit: string;
+      readonly terms: readonly Term[];
     }
   /** `message` says what is wrong, with the text on `side` if it is one text's fault. */
   | { readonly kind: "error"; readonly side?: Side; readonly message: string };
@@ -43,7 +58,9 @@ type Outcome =
  * `table` to convert against is a property, built by the host.
  *
  * With `want` blank, the output is what `have` is in the table's primitives
- * (`in = 0.0254 m`), the answer GNU units gives to the same question.
+ * (`in = 0.0254 m`), the answer GNU units gives to the same question. A
+ * `want` that is a unit list, typed (`ft;in`) or by name (`time`), gives
+ * the sum the pipeline computes, one term per unit.
  */
 @customElement("unit-converter")
 export class UnitConverter extends LitElement {
@@ -189,7 +206,9 @@ export class UnitConverter extends LitElement {
         ),
       };
     }
-    return result(have, conversion.value.value, wantText(want));
+    return conversion.value.kind === "unit"
+      ? result(have, conversion.value.value, wantText(want))
+      : listResult(have, conversion.value);
   }
 }
 
@@ -263,14 +282,48 @@ function renderInput(
 
 /** The result outcome for `value` `unit`, marked exact or approximate. */
 function result(have: string, value: Rational, unit: string): Outcome {
-  const exact = equals(round(value, DISPLAY_PRECISION), value);
   return {
     kind: "result",
     have,
-    relation: exact ? "=" : "≈",
-    value: format(value, DISPLAY_PRECISION),
-    unit,
+    relation: shownExactly(value) ? "=" : "≈",
+    terms: [{ value, unit }],
   };
+}
+
+/**
+ * The result outcome for a conversion into a unit list: the terms rounded
+ * for display by `roundTerms`, so that a remainder which rounds up to a
+ * whole of an earlier unit carries into it, and exact when every exact
+ * term already shows as it is. A term of zero is left out, as it would be
+ * in speech (`1 hr + 1 s`, not `1 hr + 0 min + 1 s`), except that a sum of
+ * nothing but zeros keeps its last term (`0 in`).
+ */
+function listResult(
+  have: string,
+  conversion: Extract<Conversion, { kind: "list" }>,
+): Outcome {
+  const { units, terms } = conversion;
+  const shown = roundTerms(
+    units.map((unit) => unit.quantity),
+    terms,
+    DISPLAY_PRECISION,
+  );
+  const all = shown.map((value, i) => ({
+    value,
+    unit: wantText(units[i]!.text),
+  }));
+  const nonzero = all.filter((term) => !isZero(term.value));
+  return {
+    kind: "result",
+    have,
+    relation: terms.every(shownExactly) ? "=" : "≈",
+    terms: nonzero.length > 0 ? nonzero : all.slice(-1),
+  };
+}
+
+/** Whether `value` is what its display at `DISPLAY_PRECISION` digits says. */
+function shownExactly(value: Rational): boolean {
+  return equals(round(value, DISPLAY_PRECISION), value);
 }
 
 function renderOutcome(outcome: Outcome): TemplateResult {
@@ -278,14 +331,27 @@ function renderOutcome(outcome: Outcome): TemplateResult {
     case "empty":
       return html`<span class="hint">
         Type a quantity, such as <code>3 ft</code>, and the unit to convert it
-        to, such as <code>in</code>.
+        to, such as <code>in</code> or <code>ft;in</code>.
       </span>`;
     case "result":
       return html`<span>${outcome.have}</span> ${outcome.relation}
-        <span class="value">${outcome.value}</span> ${outcome.unit}`;
+        ${outcome.terms.map(renderTerm)}`;
     case "error":
       return html`<span class="error">${outcome.message}</span>`;
   }
+}
+
+/**
+ * One term of a result. The first is written with its own sign; each later
+ * one is joined to the sum by `+` or `-` and written unsigned, so that the
+ * line reads as the expression it is (`-3 ft - 3.3700787 in`), and could
+ * be typed back as a `have`.
+ */
+function renderTerm(term: Term, index: number): TemplateResult {
+  const value = index === 0 ? term.value : absolute(term.value);
+  const operator = index === 0 ? "" : sign(term.value) < 0 ? " - " : " + ";
+  const text = format(value, DISPLAY_PRECISION);
+  return html`${operator}<span class="value">${text}</span> ${term.unit}`;
 }
 
 declare global {

@@ -547,6 +547,29 @@ b           bit
 bps         bit / s
 
 # ---------------------------------------------------------------------------
+# Unit lists. A `want` that is one of these names shows the value as a sum
+# of the units listed, largest first, with a whole number of each but the
+# last: `1 m` in `ftin` is `3 ft + 3.3700787 in`. A list's units must be
+# of one dimension, positive and decreasing, and its name must not read as
+# a unit, exactly or as a prefix followed by one (see README.md).
+
+time        hr;min;s
+hms         hr;min;s
+dhms        day;hr;min;s
+ydhms       year;day;hr;min;s
+dms         deg;arcmin;arcsec
+ftin        ft;in
+ydftin      yd;ft;in
+miftin      mi;ft;in
+lboz        lb;oz
+stlb        stone;lb
+tonlb       ton;lb
+galqtpt     gal;qt;pt;floz
+cups        cup;tbsp;tsp
+pace        hr/mi;min/mi;s/mi
+kmpace      hr/km;min/km;s/km
+
+# ---------------------------------------------------------------------------
 # Counts and ratios
 
 percent     1 / 100

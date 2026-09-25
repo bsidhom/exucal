@@ -54,6 +54,17 @@ export function resolveName<P, U>(
  * The first name, in the order of `prefixes` and then of `units`, that has
  * two different splits, or `undefined` if none does. Costs one lookup per
  * unit for each pair of prefixes where one extends the other.
+ *
+ * TODO: Index the units so that each pair tries only the units that start
+ * with its extension, instead of every unit. A sorted array of the unit
+ * names with a binary search for the range that starts with the extension
+ * does it (a trie would too); for most extensions (`icro`, `eci`) the range
+ * is empty. Measured on synthetic tables of 3000 units, the check as
+ * written takes about 16 ms with 76 prefixes (some 50 pairs, and a third
+ * of the whole build) and about 480 ms with 1000 prefixes (nearly all of
+ * it), while the indexed check takes about 1 ms in both cases. It matters
+ * once the table is rebuilt as the user edits definitions, or once user
+ * definitions can add many prefixes; until then the build runs once.
  */
 export function findAmbiguity(
   prefixes: ReadonlyMap<string, unknown>,

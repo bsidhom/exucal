@@ -53,7 +53,21 @@ export class AppShell extends LitElement {
     }
 
     .failure {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
       color: #c92a2a;
+    }
+
+    button {
+      font: inherit;
+      padding: 0.5rem 1rem;
+      border: 1px solid currentColor;
+      border-radius: 0.5rem;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
     }
   `;
 
@@ -63,6 +77,17 @@ export class AppShell extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     // The load is memoized, so being connected again costs nothing.
+    this.load();
+  }
+
+  /**
+   * Asks for the table and shows the loading message until it arrives. A
+   * failed load is not memoized, so calling this again after a failure is
+   * a retry: the user, who may know that the network was down a moment
+   * ago, decides when, rather than the app retrying on its own.
+   */
+  private load() {
+    this.table = undefined;
     void loadSystemTable().then((table) => {
       if (!table.ok) {
         console.error("The unit definitions failed to load:", table.error);
@@ -86,14 +111,17 @@ export class AppShell extends LitElement {
       return html`<p class="loading" aria-live="polite">Loading units…</p>`;
     }
     if (!table.ok) {
-      return html`<p class="failure" role="alert">
-        The unit definitions could not be loaded (${table.error.kind}).
-        ${
-          table.error.kind === "fetchFailed"
-            ? "Check your connection and reload the page."
-            : "This is a bug in the app, not in what you typed."
-        }
-      </p>`;
+      return html`<div class="failure" role="alert">
+        <p>
+          The unit definitions could not be loaded (${table.error.kind}).
+          ${
+            table.error.kind === "fetchFailed"
+              ? "Check your connection and try again."
+              : "This is a bug in the app, not in what you typed."
+          }
+        </p>
+        <button type="button" @click=${this.load}>Retry</button>
+      </div>`;
     }
     return html`<unit-converter .table=${table.value}></unit-converter>`;
   }

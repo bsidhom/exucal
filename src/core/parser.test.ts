@@ -246,6 +246,14 @@ test("lazy allows a grammar to refer to itself", () => {
 // numbers and names, juxtaposition and `*` for products, `/`, `^` with an
 // integer exponent, and parentheses. Products bind tighter than `/`, as in
 // GNU units, and every operand carries its span.
+//
+// TODO: This grammar exists to prove the combinators out before the real
+// grammars are written. It is too brittle and heavyweight for a unit test of
+// a generic library: once the expression and definitions parsers exist, test
+// the behaviour below (precedence, spans, the furthest expectation surviving
+// a rewind, rejection with a span) against the real parsers, and replace
+// this section with substantially simpler, targeted tests of the combinators
+// themselves.
 
 type Expr =
   | { kind: "num"; value: number; span: Span }

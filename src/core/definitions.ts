@@ -12,6 +12,7 @@
 //   kilo-     1000              # prefix (trailing dash)
 //   inch      2.54 cm           # unit, defined by an expression
 //   newton    kg m / s^2
+//   time      hr;min;s          # unit list (two or more expressions)
 //
 // The grammar:
 //
@@ -19,12 +20,19 @@
 //   line       := ws definition? comment?
 //   definition := name " "+ body
 //   body       := "!" "kind"?              only for a unit name
-//               | expr                     (expr.ts)
+//               | unitList                 (expr.ts)
 //
 // A name is a unit name as expr.ts defines it, with a trailing `-` making it
 // a prefix. The whitespace after the name is required, so that `inch2.54`
 // is an error rather than the definition of `inch2`. A prefix must have an
-// expression body: a primitive prefix means nothing.
+// expression body: a primitive prefix means nothing, and neither does a
+// prefix that is a list. A body that is a unit list of two or more items
+// defines a unit list, the same thing the user may type as `want`
+// (`ft;in`), under a name; a list of one item is an ordinary unit
+// definition, since a list of one converts as the unit does. Each item
+// keeps the text it was written as, since that is what the converter shows
+// beside its term (`1 m ≈ 3 ft + 3.37 in`), and the table has no other
+// way to get at it.
 //
 // Spans are offsets into the whole text, not the line, so an error anywhere
 // in the pipeline can be shown against the file as the user sees it. Each
@@ -34,7 +42,7 @@
 // its own spans for errors within it.
 
 import { type Role } from "./dimension.ts";
-import { NAME, expr, token, ws, type Expr } from "./expr.ts";
+import { NAME, expr, token, unitListOf, ws, type Expr } from "./expr.ts";
 import {
   alt,
   flatMap,
@@ -48,6 +56,7 @@ import {
   string,
   type ParseError,
   type Parser,
+  type Reply,
 } from "./parser.ts";
 import { type Result } from "./result.ts";
 import { type Span } from "./span.ts";
@@ -76,7 +85,20 @@ export type Definition =
       readonly name: string;
       readonly body: Expr;
       readonly span: Span;
+    }
+  /** A unit list: its `items`, two or more, largest unit first. */
+  | {
+      readonly kind: "unitList";
+      readonly name: string;
+      readonly items: readonly UnitListItem[];
+      readonly span: Span;
     };
+
+/** One item of a unit list definition, with its `text` as written. */
+export type UnitListItem = {
+  readonly expr: Expr;
+  readonly text: string;
+};
 
 // ---------------------------------------------------------------------------
 // Parsing
@@ -114,6 +136,17 @@ const primitive: Parser<{ role: Role; end: number }> = token(
   ),
 );
 
+/** An expression with the text it was parsed from; a parser needs the text. */
+const item: Parser<UnitListItem> = (text, pos): Reply<UnitListItem> => {
+  const reply = expr(text, pos);
+  if (!reply.ok) return reply;
+  const { span } = reply.value;
+  return {
+    ...reply,
+    value: { expr: reply.value, text: text.slice(span.start, span.end) },
+  };
+};
+
 /** The body of a unit definition, with where it ends. */
 type UnitBody =
   | {
@@ -121,7 +154,12 @@ type UnitBody =
       readonly role: Role;
       readonly end: number;
     }
-  | { readonly kind: "unit"; readonly body: Expr; readonly end: number };
+  | { readonly kind: "unit"; readonly body: Expr; readonly end: number }
+  | {
+      readonly kind: "unitList";
+      readonly items: readonly UnitListItem[];
+      readonly end: number;
+    };
 
 const unitBody: Parser<UnitBody> = alt(
   map(primitive, ({ role, end }): UnitBody => ({
@@ -129,7 +167,13 @@ const unitBody: Parser<UnitBody> = alt(
     role,
     end,
   })),
-  map(expr, (body): UnitBody => ({ kind: "unit", body, end: body.span.end })),
+  map(unitListOf(item), (items): UnitBody => {
+    const [first, ...rest] = items;
+    const last = rest[rest.length - 1];
+    return last === undefined
+      ? { kind: "unit", body: first.expr, end: first.expr.span.end }
+      : { kind: "unitList", items, end: last.expr.span.end };
+  }),
 );
 
 const definition: Parser<Definition> = flatMap(
@@ -144,9 +188,24 @@ const definition: Parser<Definition> = flatMap(
         }))
       : map(seq(gap, unitBody), ([, parsed]): Definition => {
           const span = { start, end: parsed.end };
-          return parsed.kind === "primitive"
-            ? { kind: "primitive", name: written, role: parsed.role, span }
-            : { kind: "unit", name: written, body: parsed.body, span };
+          switch (parsed.kind) {
+            case "primitive":
+              return {
+                kind: "primitive",
+                name: written,
+                role: parsed.role,
+                span,
+              };
+            case "unit":
+              return { kind: "unit", name: written, body: parsed.body, span };
+            case "unitList":
+              return {
+                kind: "unitList",
+                name: written,
+                items: parsed.items,
+                span,
+              };
+          }
         }),
 );
 

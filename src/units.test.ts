@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { buildTable } from "./core/build.ts";
-import { convert, type ConvertError } from "./core/convert.ts";
+import { convert, convertToList, type ConvertError } from "./core/convert.ts";
 import { parseDefinitions } from "./core/definitions.ts";
 import { evaluate } from "./core/evaluate.ts";
 import { parseExpr } from "./core/expr.ts";
@@ -465,4 +465,71 @@ test("time, CGS, radiation and information", () => {
     ["1 percent", "1", "0.01"],
     ["1 dozen", "1", "12"],
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// Unit lists
+
+/** Asserts that `have` in the list `name` is exactly the `expected` terms, as `number` reads them. */
+function assertList(
+  have: string,
+  name: string,
+  expected: readonly string[],
+): void {
+  const list = table.unitLists.get(name);
+  assert.ok(list !== undefined, `no unit list ${JSON.stringify(name)}`);
+  const result = convertToList(
+    quantity(have),
+    list.map((unit) => unit.quantity),
+    table.primitives,
+  );
+  assert.ok(result.ok, `${have} in ${name}: ${inspect(result)}`);
+  assert.deepEqual(
+    result.value.map(toFraction),
+    expected.map((text) => toFraction(number(text))),
+    `${have} in ${name}`,
+  );
+}
+
+test("the unit lists are defined, with the units named in the file", () => {
+  assert.deepEqual(
+    [...table.unitLists].map(([name, units]) => [
+      name,
+      units.map((unit) => unit.text).join(";"),
+    ]),
+    [
+      ["time", "hr;min;s"],
+      ["hms", "hr;min;s"],
+      ["dhms", "day;hr;min;s"],
+      ["ydhms", "year;day;hr;min;s"],
+      ["dms", "deg;arcmin;arcsec"],
+      ["ftin", "ft;in"],
+      ["ydftin", "yd;ft;in"],
+      ["miftin", "mi;ft;in"],
+      ["lboz", "lb;oz"],
+      ["stlb", "stone;lb"],
+      ["tonlb", "ton;lb"],
+      ["galqtpt", "gal;qt;pt;floz"],
+      ["cups", "cup;tbsp;tsp"],
+      ["mipace", "hr/mi;min/mi;s/mi"],
+      ["kmpace", "hr/km;min/km;s/km"],
+    ],
+  );
+});
+
+test("the unit lists convert", () => {
+  assertList("3661.5 s", "time", ["1", "1", "1.5"]);
+  assertList("100000 s", "dhms", ["1", "3", "46", "40"]);
+  assertList("1.5 deg", "dms", ["1", "30", "0"]);
+  assertList("1 m", "ftin", ["3", "428/127"]);
+  assertList("100 in", "ydftin", ["2", "2", "4"]);
+  assertList("1 km", "miftin", ["0", "3280", "1280/127"]);
+  assertList("1 kg", "lboz", ["2", "148504416/45359237"]);
+  assertList("80 kg", "stlb", ["12", "379648184/45359237"]);
+  assertList("1 gal", "galqtpt", ["1", "0", "0", "0"]);
+  assertList("1 L", "cups", ["4", "3", "297176309/157725491"]);
+  // A ten-minute mile, as time per distance.
+  assertList("1 hr / 6 mi", "mipace", ["0", "10", "0"]);
+  assertList("2 hr / 26.2 mi", "mipace", ["0", "4", "4560/131"]);
+  assertList("1 hr / 12 km", "kmpace", ["0", "5", "0"]);
 });

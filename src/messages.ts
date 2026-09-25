@@ -13,6 +13,7 @@ import {
   type ConformanceError,
   type Primitives,
 } from "./core/dimension.ts";
+import { type UnitListError } from "./core/convert.ts";
 import { type ConversionError, type TextError } from "./core/pipeline.ts";
 import { type Span } from "./core/span.ts";
 
@@ -60,7 +61,8 @@ export function describeTextError(
  * Why `have` does not convert to `want`, as one sentence. An error in one of
  * the texts is described as `describeTextError` does; a conformance error
  * shows both dimensions, in the expression language, so that the user can
- * see what each side is a quantity of.
+ * see what each side is a quantity of; an error in a unit list quotes the
+ * unit of the list at fault.
  */
 export function describeConversionError(
   error: ConversionError,
@@ -80,6 +82,31 @@ export function describeConversionError(
       return `${describeMismatch(error, quote(have.trim()), quote(want.trim()), primitives)}.`;
     case "zeroWant":
       return `${quote(want.trim())} is zero, so nothing is a multiple of it.`;
+    case "unitListError":
+      return describeUnitListError(error.error, have, error.units, primitives);
+  }
+}
+
+/**
+ * Why the unit at fault in a list typed as the `want` fails, as one
+ * sentence: a mismatch with `have` is worded as a conversion into that
+ * unit alone would be, and the two rules a list must follow are stated
+ * with the unit that breaks them.
+ */
+function describeUnitListError(
+  error: UnitListError,
+  have: string,
+  units: readonly string[],
+  primitives: Primitives,
+): string {
+  const unit = quote(units[error.index]!);
+  switch (error.kind) {
+    case "nonconformingUnit":
+      return `${describeMismatch(error.mismatch, quote(have.trim()), unit, primitives)}.`;
+    case "nonpositiveUnit":
+      return `${unit} is not positive, and every unit in a list must be.`;
+    case "unitOutOfOrder":
+      return `${unit} is not smaller than the unit before it; a list runs from the largest unit to the smallest.`;
   }
 }
 

@@ -5,6 +5,7 @@
 //
 // The grammar, from the loosest binding to the tightest:
 //
+//   unitList  := expr (";" expr)*                    a want of several units
 //   expr      := sum
 //   sum       := quotient (("+" | "-") quotient)*     left-associative
 //   quotient  := signed (("*" | "/") signed)*         left-associative
@@ -33,6 +34,13 @@
 // (`m^2`, `s^-1`, `m^0.5`) or a parenthesized rational (`m^(1/2)`,
 // `m^(-3/2)`), so the exponent is known at parse time and travels in the
 // tree as a `Rational`.
+//
+// A unit list, `ft;in`, is what the user may type as `want` to have the
+// value shown as a sum of units (ARCHITECTURE.md, "Unit lists"), and what
+// the body of a unit list definition is. It is one or more expressions
+// separated by `;`, and is not an expression itself: `;` binds looser than
+// anything and cannot appear inside parentheses. `parseUnitList` reads one,
+// and an expression alone is a list of one item.
 //
 // Numbers are unsigned decimal literals as `parseDecimal` reads them (`2`,
 // `2.54`, `.5`, `1e-3`), parsed exactly. A sign is never part of a number
@@ -101,6 +109,20 @@ export type ExprNode =
 export function parseExpr(text: string): Result<Expr, ParseError> {
   return parse(
     map(seq(ws, expr), ([, e]) => e),
+    text,
+  );
+}
+
+/**
+ * Parses the whole of `text` as a unit list: one or more expressions
+ * separated by `;`, in order. Surrounding spaces are allowed, and an
+ * expression alone is a list of one.
+ */
+export function parseUnitList(
+  text: string,
+): Result<readonly [Expr, ...Expr[]], ParseError> {
+  return parse(
+    map(seq(ws, unitList), ([, list]) => list),
     text,
   );
 }
@@ -266,3 +288,21 @@ const sum: Parser<Expr> = chainl1(
     map(symbol("-"), () => binary("sub")),
   ),
 );
+
+// ---------------------------------------------------------------------------
+// Unit lists
+
+/**
+ * `item (";" item)*`: the items of a unit list, for a grammar that wants
+ * something other than a bare expression as an item (the definitions parser
+ * keeps each item's text beside it).
+ */
+export function unitListOf<A>(item: Parser<A>): Parser<readonly [A, ...A[]]> {
+  return map(seq(item, many(seq(symbol(";"), item))), ([first, rest]) => [
+    first,
+    ...rest.map(([, e]) => e),
+  ]);
+}
+
+/** The unit list grammar itself: expressions separated by `;`. */
+export const unitList: Parser<readonly [Expr, ...Expr[]]> = unitListOf(expr);

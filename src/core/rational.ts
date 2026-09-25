@@ -273,6 +273,11 @@ export function decimalExponent(r: Rational): number {
   return atLeast ? d : d - 1;
 }
 
+/** `r` truncated toward zero to an integer: `7/2` is `3` and `-7/2` is `-3`. */
+export function trunc(r: Rational): Rational {
+  return isInteger(r) ? r : rational(r.num / r.den);
+}
+
 /** `r` truncated toward zero to `digits` significant digits. */
 export function truncate(r: Rational, digits: Precision): Rational {
   return roundWith(r, digits, (num, den) => num / den);

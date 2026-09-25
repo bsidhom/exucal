@@ -1,17 +1,29 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { convert, type ConvertError } from "./convert.ts";
+import {
+  convert,
+  convertToList,
+  roundTerms,
+  type ConvertError,
+  type UnitListError,
+} from "./convert.ts";
 import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
 import { type Quantity } from "./quantity.ts";
 import {
   ONE,
   ZERO,
+  absolute,
+  add,
+  compare,
   equals,
   format,
+  multiply,
   parseDecimal,
   rational,
   round,
+  subtract,
+  toFraction,
   type Rational,
 } from "./rational.ts";
 import type { Result } from "./result.ts";
@@ -279,4 +291,233 @@ test("conversion leaves its operands alone", () => {
   assert.deepEqual(have, times("3", FOOT));
   assert.deepEqual(want, times("0", INCH));
   assert.deepEqual(SI, primitives("kg", "m", "s", "A", "radian!kind"));
+});
+
+// ---------------------------------------------------------------------------
+// Unit lists
+
+const MINUTE = quantity("60", { s: 1 });
+
+function terms(
+  result: Result<readonly Rational[], UnitListError>,
+): readonly Rational[] {
+  assert.ok(result.ok, `expected terms, got ${inspect(result)}`);
+  return result.value;
+}
+
+function listFailure(
+  result: Result<readonly Rational[], UnitListError>,
+): UnitListError {
+  assert.ok(!result.ok, `expected a failure, got ${inspect(result)}`);
+  return result.error;
+}
+
+/** Asserts that `actual` are exactly the rationals `expected` denote: decimals, or fractions `a/b`. */
+function assertTerms(
+  actual: readonly Rational[],
+  expected: readonly string[],
+): void {
+  assert.deepEqual(
+    actual.map(toFraction),
+    expected.map((text) => {
+      const [numerator, denominator] = text.split("/");
+      const num = quantity(numerator!).magnitude;
+      if (denominator === undefined) return toFraction(num);
+      const den = quantity(denominator).magnitude;
+      return toFraction(rational(num.num * den.den, num.den * den.num));
+    }),
+  );
+}
+
+test("a list conversion is an integer count of each unit but the last, and the exact remainder", () => {
+  assertTerms(terms(convertToList(METRE, [FOOT, INCH], SI)), ["3", "428/127"]);
+  assertTerms(
+    terms(
+      convertToList(quantity("3661", { s: 1 }), [HOUR, MINUTE, SECOND], SI),
+    ),
+    ["1", "1", "1"],
+  );
+  assertTerms(
+    terms(
+      convertToList(quantity("59.5", { s: 1 }), [HOUR, MINUTE, SECOND], SI),
+    ),
+    ["0", "0", "59.5"],
+  );
+});
+
+test("a list of one unit gives the ratio, as convert does", () => {
+  const have = quantity("3", { m: 1 });
+  const [ratio] = terms(convertToList(have, [FOOT], SI));
+  assert.ok(equals(ratio!, value(convert(have, FOOT, SI))));
+  assertTerms([ratio!], ["1250/127"]);
+});
+
+test("the terms sum to have exactly", () => {
+  const have = quantity("1.234567", { m: 1 });
+  const [feet, inches] = terms(convertToList(have, [FOOT, INCH], SI));
+  const sum = add(
+    multiply(feet!, FOOT.magnitude),
+    multiply(inches!, INCH.magnitude),
+  );
+  assert.ok(equals(sum, have.magnitude));
+});
+
+test("counts are truncated toward zero, so every term has the sign of have", () => {
+  assertTerms(
+    terms(convertToList(quantity("-1", { m: 1 }), [FOOT, INCH], SI)),
+    ["-3", "-428/127"],
+  );
+  assertTerms(
+    terms(
+      convertToList(quantity("-3661", { s: 1 }), [HOUR, MINUTE, SECOND], SI),
+    ),
+    ["-1", "-1", "-1"],
+  );
+  assertTerms(
+    terms(convertToList(quantity("0", { s: 1 }), [HOUR, MINUTE, SECOND], SI)),
+    ["0", "0", "0"],
+  );
+});
+
+test("the units may carry a magnitude, and need not be multiples of one another", () => {
+  // 1 mi = 1.609344 km.
+  const KILOMETRE = quantity("1000", { m: 1 });
+  assertTerms(
+    terms(convertToList(quantity("5000", { m: 1 }), [MILE, KILOMETRE], SI)),
+    ["3", "0.171968"],
+  );
+  assertTerms(
+    terms(convertToList(METRE, [FOOT, quantity("0.003175", { m: 1 })], SI)),
+    ["3", "3424/127"],
+  );
+});
+
+test("every unit must conform to have, and the first that does not is reported", () => {
+  assert.deepEqual(listFailure(convertToList(METRE, [FOOT, SECOND], SI)), {
+    kind: "nonconformingUnit",
+    index: 1,
+    mismatch: {
+      kind: "dimensionMismatch",
+      have: METRE.dimension,
+      want: SECOND.dimension,
+    },
+  });
+  const rpm = quantity("1", { radian: 1, s: -1 });
+  const hertz = quantity("1", { s: -1 });
+  assert.deepEqual(listFailure(convertToList(rpm, [hertz], SI)), {
+    kind: "nonconformingUnit",
+    index: 0,
+    mismatch: {
+      kind: "kindMismatch",
+      have: rpm.dimension,
+      want: hertz.dimension,
+      kinds: ["radian"],
+    },
+  });
+});
+
+test("every unit must be positive", () => {
+  assert.deepEqual(
+    listFailure(convertToList(METRE, [FOOT, quantity("0", { m: 1 })], SI)),
+    { kind: "nonpositiveUnit", index: 1 },
+  );
+  assert.deepEqual(
+    listFailure(convertToList(METRE, [quantity("-1", { m: 1 }), INCH], SI)),
+    { kind: "nonpositiveUnit", index: 0 },
+  );
+});
+
+test("the units must decrease", () => {
+  assert.deepEqual(listFailure(convertToList(METRE, [INCH, FOOT], SI)), {
+    kind: "unitOutOfOrder",
+    index: 1,
+  });
+  assert.deepEqual(listFailure(convertToList(METRE, [FOOT, FOOT], SI)), {
+    kind: "unitOutOfOrder",
+    index: 1,
+  });
+  assert.deepEqual(
+    listFailure(convertToList(METRE, [MILE, FOOT, CENTIMETRE, INCH], SI)),
+    { kind: "unitOutOfOrder", index: 3 },
+  );
+});
+
+test("the checks are in order, unit by unit", () => {
+  // The second unit is out of order and the third does not conform.
+  assert.deepEqual(
+    listFailure(convertToList(METRE, [INCH, FOOT, SECOND], SI)),
+    { kind: "unitOutOfOrder", index: 1 },
+  );
+  // Conformance before positivity, for one unit.
+  assert.deepEqual(
+    listFailure(convertToList(METRE, [quantity("0", { s: 1 })], SI)).kind,
+    "nonconformingUnit",
+  );
+});
+
+test("an empty list is a programming error", () => {
+  assert.throws(() => convertToList(METRE, [], SI), RangeError);
+});
+
+test("roundTerms leaves terms alone when the remainder shows exactly", () => {
+  const exact = terms(
+    convertToList(quantity("3661.5", { s: 1 }), [HOUR, MINUTE, SECOND], SI),
+  );
+  assert.equal(roundTerms([HOUR, MINUTE, SECOND], exact, 8), exact);
+});
+
+test("roundTerms rounds the remainder to the digits given", () => {
+  const rounded = roundTerms(
+    [FOOT, INCH],
+    terms(convertToList(METRE, [FOOT, INCH], SI)),
+    8,
+  );
+  assertTerms(rounded, ["3", "3.3700787"]);
+});
+
+test("a remainder that rounds up to a whole of an earlier unit carries into it", () => {
+  // 2 ft + 11.9999999988 in would show as 2 ft + 12 in.
+  const have = quantity("0.91439999997", { m: 1 });
+  assertTerms(terms(convertToList(have, [FOOT, INCH], SI)), [
+    "2",
+    "30479999997/2540000000",
+  ]);
+  assertTerms(
+    roundTerms([FOOT, INCH], terms(convertToList(have, [FOOT, INCH], SI)), 8),
+    ["3", "0"],
+  );
+  // The carry runs through as many units as it must.
+  const almostAnHour = quantity("3599.9999999999", { s: 1 });
+  const units = [HOUR, MINUTE, SECOND];
+  assertTerms(
+    roundTerms(units, terms(convertToList(almostAnHour, units, SI)), 8),
+    ["1", "0", "0"],
+  );
+  // And of a negative value.
+  const negative = quantity("-0.91439999997", { m: 1 });
+  assertTerms(
+    roundTerms(
+      [FOOT, INCH],
+      terms(convertToList(negative, [FOOT, INCH], SI)),
+      8,
+    ),
+    ["-3", "0"],
+  );
+});
+
+test("roundTerms rounds by less than a unit in the last digit shown", () => {
+  const have = quantity("0.91439999997", { m: 1 });
+  const rounded = roundTerms(
+    [FOOT, INCH],
+    terms(convertToList(have, [FOOT, INCH], SI)),
+    8,
+  );
+  const shown = add(
+    multiply(rounded[0]!, FOOT.magnitude),
+    multiply(rounded[1]!, INCH.magnitude),
+  );
+  // Within 1e-7 in of the exact value: the resolution of 11.999999 at 8 digits.
+  const difference = subtract(shown, have.magnitude);
+  const resolution = multiply(quantity("1e-7").magnitude, INCH.magnitude);
+  assert.ok(compare(absolute(difference), resolution) < 0);
 });

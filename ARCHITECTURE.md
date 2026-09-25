@@ -29,14 +29,17 @@ definitions text ──parseDefinitions──▶ Definition[] ──buildTable�
                                                                         │
 have text ──parseExpr──▶ Expr ──evaluate──▶ Quantity ─┐                 │
                                                       ├─▶ convert ──▶ Result<Conversion>
-want text ──parseExpr──▶ Expr ──evaluate──▶ Quantity ─┘
+want text ──parseUnitList──▶ Expr[] ──evaluate──▶ Quantity[] ─┘   (or convertToList)
                                                               └──▶ format ──▶ string
 ```
 
 Each arrow is one pure function in its own module. Parsing never touches the
 table, and conversion never formats. Evaluation checks conformance in one
 place only, between the operands of a sum, and with the same check that
-conversion applies to the pair.
+conversion applies to the pair. The `want` is read as a unit list, of which
+one expression is a list of one: one unit goes through `convert`, several
+(or the name of a list the table defines) through `convertToList`, which
+"Unit lists" below describes.
 
 ## Numbers: `Rational`
 
@@ -220,9 +223,12 @@ required, so that `inch2.54 cm` is an error rather than a definition of
 `inch2`. `src/units.test.ts` builds the system file and checks a sample of
 conversions from each of its sections.
 
-A definition is one of three things: a primitive with its role, a prefix
-(named without its dash) with a body, or a unit with a body, where a body is
-an expression. `parseDefinitions` returns them in the order written,
+A definition is one of four things: a primitive with its role, a prefix
+(named without its dash) with a body, a unit with a body, where a body is
+an expression, or a unit list, whose body is two or more expressions
+separated by `;` (a body of one is a unit), each kept with the text it was
+written as, since that text is what the UI shows beside its term and the
+table has no other way to get at it. `parseDefinitions` returns them in the order written,
 duplicates included, and knows nothing about what they mean. Every span is an
 offset into the whole text, not the line: a definition carries the span of
 its text from name to body, for the errors `buildTable` reports against a
@@ -247,6 +253,20 @@ expression resolves to an exact unit name if there is one, and otherwise to
 one prefix followed by a unit name (the rule README.md states for users).
 Prefixes do not stack, and there is no plural handling: `inches  inch` is
 an ordinary alias definition.
+
+Unit lists share the unit namespace (a list and a unit of one name are a
+duplicate) but are not units: no expression can refer to one, so they stay
+out of the walk, and each is evaluated in its place in the order, item by
+item, through the same lookup a body uses, requesting what it refers to
+from the top of the walker (which can never close a cycle). Since a list's
+name means the list only as a bare `want`, while a unit's name means the
+unit everywhere, a list's name that also reads as a prefix followed by a
+unit (`ms`) would make one text mean two things in the two fields, and the
+build rejects it once the ambiguity check has passed. A list's units are
+checked as `convertToList` checks any list, against the first of them, so
+that a defined list can fail to convert only for not conforming to the
+`have`. The table holds each list as its units with their texts, apart from
+the units.
 
 Every name is known once the table is built, so ambiguity is a property of the
 table rather than of the input, and `buildTable` checks for it. A name with
@@ -279,10 +299,13 @@ requests the definitions it means from the walker, with those primitives.
 The first failure ends the build.
 
 A build error is one of: a duplicate name, carrying both definitions; an
-ambiguous name with its two splits; an unknown name, at its reference; a
-cycle, carrying the definitions on it in order and the span of the reference
-that closed it; a prefix whose body is not a plain number, carrying the
-definition and the dimension it has; or an arithmetic failure from the
+ambiguous name with its two splits; a unit list whose name reads as a
+prefix and a unit, carrying the definition and the split; an unknown name,
+at its reference; a cycle, carrying the definitions on it in order and the
+span of the reference that closed it; a prefix whose body is not a plain
+number, carrying the definition and the dimension it has; a unit list whose
+units do not make a list, carrying the definition and the list error with
+the index of the unit at fault; or an arithmetic failure from the
 evaluator, located as the evaluator locates it. Every span is an offset into
 the whole definitions text, and a definition's span covers its text from name
 to body, so each error points at something the user can see.
@@ -302,7 +325,11 @@ left-associative level, so `kg m / s^2` is `(kg m) / (s^2)` and `m/s*s` is
 `(2 m * 3) + (1 m)`. A `-` before a product negates it, binding tighter than
 `*` and `/` and looser than juxtaposition and `^`, so `-2 m` is `-(2 m)`,
 `2 * -3` is `2 * (-3)` and `-2^2` is `-(2^2)`, as in arithmetic; it does
-not stack, and there is no unary `+`. No functions or unit lists yet.
+not stack, and there is no unary `+`. A unit list, `ft;in`, is one or more
+expressions separated by `;`, and is not an expression: `;` binds looser
+than anything and cannot appear inside parentheses. `parseUnitList` reads
+one, and `expr.ts` exports the list grammar over any item parser, since the
+definitions parser wants each item with its text. No functions yet.
 
 Juxtaposition means "this many of these units" (`2 m`) or a product of units
 (`kg m`), so a number may only be the first factor of a product: `m 2`,
@@ -490,6 +517,46 @@ interpreting anything itself.
 Every failure in the core is a `Result`: a discriminated union of a value or
 an error, with each module defining its own error type.
 
+### Unit lists
+
+`convertToList` is the second output mode, over the same conformance check:
+`have` as a sum over a list of units, largest first, `1 m` into `ft;in`
+being `3 ft` plus `3.37 in`. Each unit but the last gets the integer count
+of it that fits in what the earlier units left, truncated toward zero so
+that every term has the sign of `have` (`-1 m` is `-3 ft - 3.37 in`), and
+the last gets the exact remainder, so the terms times the units add up to
+`have` exactly. That is only a meaningful sum when the units run from the
+largest to the smallest, so the units are checked in order, each for
+conformance with `have`, for a positive magnitude, and for being smaller
+than the one before it, and the first failure is reported with the index
+of the unit at fault. The units need not be multiples of one another
+(`mi;km` works) and may carry magnitudes (`ft;in/8`).
+
+The terms are exact, as the ratio `convert` returns is, and rounding them
+for display is more than rounding each: a remainder of `11.9999999988 in`
+shown at eight digits is `12 in`, which beside `2 ft` reads wrongly. So
+`roundTerms` is the display rounding that goes with the sum: it rounds the
+remainder to the display precision as `round` does and, when that changes
+it, takes the counts again from the rounded sum, so that a remainder which
+rounds up to a whole of an earlier unit carries into it, through as many
+units as it must (`3599.9999999999 s` in `hr;min;s` is `1 hr`). That is
+one rounding of the whole sum, by less than a unit in the last digit of the
+remainder, and the second decomposition is exact. The counts are integers
+and are left alone; one too long for the display is the display's to round,
+as any value is. When the remainder is already exact at the display
+precision, the terms come back as they are.
+
+The pipeline reads the `want` as a unit list. One item that is a bare name
+of a list in the table means that list, with the texts of its units from
+the definition; any other one item is a unit and goes through `convert`;
+two or more items are a list typed out, each evaluated as an expression and
+paired with its text, sliced from the `want` by its span. A unit of a
+typed list that fails the list's checks is reported with the texts of all
+of them, so that a message can quote the one at fault; a list from the
+table passed those checks when it was built, and can fail only for not
+conforming to the `have`, which is reported as the mismatch of the pair, as
+for a single `want`, so that the message quotes the name the user typed.
+
 ## UI
 
 `<unit-converter>` is a Lit component with two text inputs, "you have" and
@@ -524,6 +591,15 @@ sum, a difference or a negation is parenthesized (`1 m ≈ 3.0284676 (ft + in)`,
 `(3.0284676 ft) + in` and `-3.2808399 -ft` as a difference. The component
 parses the `want` once more to tell, which is the same parse the pipeline
 did a moment earlier.
+
+A conversion into a unit list is shown as the sum of its terms, each unit
+written as a single `want` would be, with `roundTerms` applied at the
+display precision and the relation `=` only when every exact term shows as
+it is. The first term keeps its sign and each later one is joined by `+` or
+`-` and written unsigned, so that `-1 m ≈ -3 ft - 3.3700787 in` reads as
+the expression it is and could be typed back as a `have`. A term of zero is
+left out, as it would be in speech (`1 hr + 1 s`), except that a sum of
+nothing but zeros keeps its last term (`0 in`).
 
 The errors the core returns are values with spans and dimensions, not
 sentences; `src/messages.ts` puts them into words, quoting the text at fault
@@ -616,8 +692,6 @@ Planned extensions, listed to show that they fit without reshaping the core:
 - **Functions** (`tempC(x)`, `ln`) add a `call` node to `Expr` and a function
   definition form; each function takes and returns a `Quantity` and a
   `Precision`.
-- **Unit lists** (`ft;in`) are a second output mode over the same
-  `convert`.
 - **User definitions** are already supported by `buildTable`; only storage and
   an editor are missing.
 - **Lenient kind conversion** (converting `rad/s` to `Hz` on request) is a flag

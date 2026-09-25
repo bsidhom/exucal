@@ -68,6 +68,10 @@ function spanOf(whole: string, text: string): Span {
 
 /** What can start a definition body. */
 const BODY = ['"!"', "a number", "a unit name", '"("', '"-"'];
+/** What can start an item of a unit list. */
+const ITEM = ["a number", "a unit name", '"("', '"-"'];
+/** What can follow a complete expression, short of whatever ends it. */
+const AFTER_EXPR = ['"^"', "a unit name", '"("', '"*"', '"/"', '"+"', '"-"'];
 /** What can end a line. */
 const END_OF_LINE = ["a comment", "a newline", "end of input"];
 
@@ -274,20 +278,16 @@ test("a line must start with a name or a comment", () => {
 });
 
 test("what follows a body must be a comment or the end of the line", () => {
-  // The expression could also have continued, so the error lists that too.
+  // The expression could also have continued, or a list, so the error
+  // lists those too.
   assert.deepEqual(
     failed("m 2 )"),
-    unexpected(
-      4,
-      '"^"',
-      "a unit name",
-      '"("',
-      '"*"',
-      '"/"',
-      '"+"',
-      '"-"',
-      ...END_OF_LINE,
-    ),
+    unexpected(4, ...AFTER_EXPR, '";"', ...END_OF_LINE),
+  );
+  // A prefix body is an expression alone, never a list.
+  assert.deepEqual(
+    failed("k- 2 )"),
+    unexpected(5, ...AFTER_EXPR, ...END_OF_LINE),
   );
 });
 
@@ -315,4 +315,58 @@ test("a definition's span excludes the indentation, comment and line ending", ()
     parsed(text).map((d) => d.span),
     [spanOf(text, "m   !"), spanOf(text, "inch 2.54 cm")],
   );
+});
+
+// ---------------------------------------------------------------------------
+// Unit lists
+
+test("a body of two or more items is a unit list, with each item's text", () => {
+  const text = "time   hr;min;s   # a list";
+  assert.deepEqual(parsed(text), [
+    {
+      kind: "unitList",
+      name: "time",
+      items: [
+        { expr: exprAt("hr", 7), text: "hr" },
+        { expr: exprAt("min", 10), text: "min" },
+        { expr: exprAt("s", 14), text: "s" },
+      ],
+      span: spanOf(text, "time   hr;min;s"),
+    },
+  ]);
+});
+
+test("an item is any expression, and its text is as written, without the space around it", () => {
+  const text = "pace  hr / mi ; min/mi ;s/mi";
+  const [definition] = parsed(text);
+  assert.ok(definition?.kind === "unitList");
+  assert.deepEqual(
+    definition.items.map((item) => item.text),
+    ["hr / mi", "min/mi", "s/mi"],
+  );
+  assert.deepEqual(definition.items[1].expr, exprAt("min/mi", 16));
+  assert.deepEqual(definition.span, { start: 0, end: text.length });
+});
+
+test("a list of one item is a unit", () => {
+  assert.deepEqual(parsed("ft  12 in"), [
+    {
+      kind: "unit",
+      name: "ft",
+      body: exprAt("12 in", 4),
+      span: { start: 0, end: 9 },
+    },
+  ]);
+});
+
+test("a prefix cannot be a list", () => {
+  assert.deepEqual(
+    failed("k-  1000;100"),
+    unexpected(8, ...AFTER_EXPR, ...END_OF_LINE),
+  );
+});
+
+test("a list may not end in a semicolon or have an empty item", () => {
+  assert.deepEqual(failed("time  hr;min;"), unexpected(13, ...ITEM));
+  assert.deepEqual(failed("time  hr;;s"), unexpected(9, ...ITEM));
 });

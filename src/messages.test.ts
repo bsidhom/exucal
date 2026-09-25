@@ -46,6 +46,11 @@ test("a parse error names what was expected and what was found", () => {
     textMessage("3 😀"),
     'Unexpected "😀": expected "^", a unit name, "(", "*", "/", "+", "-" or end of input.',
   );
+  // A want may go on as a list, and says so.
+  assert.equal(
+    conversionMessage("3 ft", "in 😀"),
+    'Unexpected "😀": expected "^", a unit name, "(", "*", "/", "+", "-", ";" or end of input.',
+  );
   assert.equal(
     textMessage("m /"),
     'Unexpected end of input: expected a number, a unit name, "(" or "-".',
@@ -109,5 +114,32 @@ test("a zero want is reported as such", () => {
   assert.equal(
     conversionMessage("3 ft", "0 m"),
     '"0 m" is zero, so nothing is a multiple of it.',
+  );
+});
+
+test("a unit in a typed list at fault is quoted from the list", () => {
+  assert.equal(
+    conversionMessage("3 ft", "ft; min"),
+    '"3 ft" has dimension m, but "min" has dimension s.',
+  );
+  assert.equal(
+    conversionMessage("1 rpm", "rev/min;Hz"),
+    '"1 rpm" (radian / s) and "Hz" (1 / s) differ in kind: radian.',
+  );
+  assert.equal(
+    conversionMessage("3 ft", "ft;0 in"),
+    '"0 in" is not positive, and every unit in a list must be.',
+  );
+  assert.equal(
+    conversionMessage("3 ft", "in;ft"),
+    '"ft" is not smaller than the unit before it; a list runs from the largest unit to the smallest.',
+  );
+  assert.equal(conversionMessage("3 ft", "ft;bogus"), 'Unknown unit "bogus".');
+});
+
+test("a named list that does not conform is the mismatch of the pair", () => {
+  assert.equal(
+    conversionMessage("3 ft", "time"),
+    '"3 ft" has dimension m, but "time" has dimension s.',
   );
 });

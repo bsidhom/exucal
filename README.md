@@ -2,8 +2,9 @@
 
 An offline-first progressive web app (PWA) that converts units, in the
 spirit of GNU units: type a quantity you have (`3 ft`) and a unit you want
-(`in`), and it answers `3 ft = 36 in`. It can be installed to the home screen
-and works without a network connection once it has been loaded once.
+(`in`), and it answers `3 ft = 36 in`; want a list of units (`ft;in`) and
+it answers `1 m ≈ 3 ft + 3.3700787 in`. It can be installed to the home
+screen and works without a network connection once it has been loaded once.
 
 `ARCHITECTURE.md` describes the design of the unit converter itself: the
 conversion pipeline, the number type, and how units, dimensions and kinds are
@@ -38,6 +39,12 @@ that can be typed can also be defined.
 - **Some common extras**: the constants the definitions need (`pi`, `c`,
   `gravity`, ...), CGS units, conventional pressure units (`atm`, `torr`,
   `mmHg`, `inH2O`), calories, time units beyond the day, and bits and bytes.
+- **Unit lists** (see Unit lists below) for the sums people say: `time`
+  (`hr;min;s`, also `hms`), `dhms` and `ydhms` with days and years in
+  front, `dms` (`deg;arcmin;arcsec`), `ftin`, `ydftin` and `miftin`,
+  `lboz`, `stlb` and `tonlb`, `galqtpt` (`gal;qt;pt;floz`), `cups`
+  (`cup;tbsp;tsp`), and `mipace` and `kmpace` for a running pace
+  (`hr/mi;min/mi;s/mi` and the same per kilometre).
 
 Where the US and the UK give one name to different units, the plain name is
 the US unit and the name with `imp` or `uk` in front is the imperial one:
@@ -65,9 +72,10 @@ kilo-     1000              # prefix (trailing dash)
 inch      2.54 cm           # unit, defined by an expression
 newton    kg m / s^2
 hertz     1 / s
+time      hr;min;s          # unit list (expressions separated by `;`)
 ```
 
-A definition is one of three things:
+A definition is one of four things:
 
 - **A primitive**, with a body of `!`, is a base unit that everything else
   is defined in terms of: the metre, the kilogram, the second and the other
@@ -79,10 +87,14 @@ A definition is one of three things:
 - **A prefix**, written with a trailing dash (`kilo-`), has a body that is a
   plain number.
 - **A unit** has a body that is an expression over numbers and other units.
+- **A unit list** has a body of two or more expressions separated by `;`,
+  the same thing that can be typed as the unit to convert to; Unit lists
+  below describes both.
 
 Definitions may appear in any order; a unit may be defined by one that
-comes later. A name defined twice, a circular definition, or a prefix
-whose body has a dimension is an error.
+comes later. A name defined twice, a circular definition, a prefix whose
+body has a dimension, or a unit list that breaks the rules below is an
+error.
 
 ### Names
 
@@ -145,13 +157,48 @@ The one thing to watch is a fraction before a unit: `1/12 year` is
 Write `year / 12` or `(1/12) year` instead. The same rule makes
 `1 m + 1/2 m` an error, `1 m` plus `1 / (2 m)`; write `1 m + m/2`.
 
+### Unit lists
+
+The unit to convert to may be a list of units separated by `;`, largest
+first, and the answer is then a sum: a whole number of each unit but the
+last, and the rest in the last. `1 m` in `ft;in` is `3 ft + 3.3700787 in`,
+`3661 s` in `hr;min;s` is `1 hr + 1 min + 1 s`, and `1 hr / 7 mi` in
+`min/mi;s/mi` is `8 min/mi + 34.285714 s/mi`. A unit that would get a
+count of zero is left out (`3601 s` is `1 hr + 1 s`), a negative quantity
+gives negative terms (`-3 ft - 3.3700787 in`), and the line is written so
+that it can be typed back as a quantity. Each item is any expression, so
+`ft;in/8` counts eighths of an inch. The rest is shown rounded to eight
+significant digits as any answer is, and when that rounding would reach a
+whole of the unit before it, the sum is rounded as a whole instead:
+`2.9999999999 ft` in `ft;in` is `3 ft`, never `2 ft + 12 in`.
+
+The units of a list must all convert to the quantity, must be positive,
+and must decrease along the list (`in;ft` is an error, as is `ft;12 in`).
+A list is an output form only: it can be typed as the unit to convert to,
+never as the quantity to convert.
+
+A list can be defined under a name in the definitions file, as `time` is
+(`time  hr;min;s`), and that name typed alone as the unit to convert to
+means the list. The name lives among the unit names, so it cannot also be
+a unit, and it may not read as a prefix followed by a unit either (`ms`
+could not name a list, because it means milliseconds): unlike a unit's
+name, a list's name only means anything as the unit to convert to, and
+the same text should not mean different things in the two fields. A
+list's name is not a unit anywhere else: `2 time`, or `time` in a list
+or in a definition, is an unknown unit. The file checks a defined list by
+the rules above when it is loaded, so that a defined list can fail only
+for not matching the quantity.
+
 ### Adding a unit
 
 Append a line to `src/units.txt`, or edit one, and run `pnpm test`:
 `src/units.test.ts` loads the file and fails with the offending definition
 if it does not build. Keep a new unit in the section its kind belongs to,
 prefer the exact factor from a defining document over a rounded one, and
-say where the factor comes from in a comment when it is not obvious.
+say where the factor comes from in a comment when it is not obvious. Unit
+lists have a section of their own at the end of the file, and
+`src/units.test.ts` checks the list of them, so adding one means adding it
+there too.
 
 ## Development
 

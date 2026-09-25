@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { buildTable, type BuildError } from "./build.ts";
-import { convert } from "./convert.ts";
+import { convert, convertToList } from "./convert.ts";
 import { parseDefinitions, type Definition } from "./definitions.ts";
 import { type Dimension } from "./dimension.ts";
 import { evaluate } from "./evaluate.ts";
@@ -47,10 +47,14 @@ function failed(...lines: string[]): BuildError {
   return result.error;
 }
 
-/** The span of the first occurrence of `text` in the lines joined. */
-function spanOf(lines: readonly string[], text: string): Span {
-  const start = lines.join("\n").indexOf(text);
-  assert.notEqual(start, -1, `${JSON.stringify(text)} not found`);
+/** The span of the `occurrence`th (from 1) occurrence of `text` in the lines joined. */
+function spanOf(lines: readonly string[], text: string, occurrence = 1): Span {
+  const whole = lines.join("\n");
+  let start = -1;
+  for (let i = 0; i < occurrence; i++) {
+    start = whole.indexOf(text, start + 1);
+    assert.notEqual(start, -1, `${JSON.stringify(text)} not found`);
+  }
   return { start, end: start + text.length };
 }
 
@@ -546,4 +550,144 @@ test("building leaves the definitions alone", () => {
   built("m !", "k- 1000", "km 1000 m");
   buildTable(defs, DEFAULT_PRECISION);
   assert.deepEqual(defs, before);
+});
+
+// ---------------------------------------------------------------------------
+// Unit lists
+
+const TIME = [
+  "s  !",
+  "min  60 s",
+  "hr  60 min",
+  "m  !",
+  "in  0.0254 m",
+  "ft  12 in",
+];
+
+test("a unit list is built as its units, with their texts, largest first", () => {
+  const table = built(...TIME, "time  hr;min;s", "ftin  ft ; in / 8");
+  assert.deepEqual([...table.unitLists.keys()], ["time", "ftin"]);
+  const time = table.unitLists.get("time")!;
+  assert.deepEqual(
+    time.map((unit) => unit.text),
+    ["hr", "min", "s"],
+  );
+  assertQuantity(time[0]!.quantity, "3600", { s: 1 });
+  assertQuantity(time[1]!.quantity, "60", { s: 1 });
+  assertQuantity(time[2]!.quantity, "1", { s: 1 });
+  const ftin = table.unitLists.get("ftin")!;
+  assert.deepEqual(
+    ftin.map((unit) => unit.text),
+    ["ft", "in / 8"],
+  );
+  assertQuantity(ftin[1]!.quantity, "0.003175", { m: 1 });
+});
+
+test("a unit list is not a unit", () => {
+  const table = built(...TIME, "time  hr;min;s");
+  assert.equal(table.units.has("time"), false);
+  assert.deepEqual(failed(...TIME, "time  hr;min;s", "twice  2 time"), {
+    kind: "unknownUnit",
+    name: "time",
+    span: spanOf([...TIME, "time  hr;min;s", "twice  2 time"], "time", 2),
+  });
+});
+
+test("a list may refer to units defined after it, and through prefixes", () => {
+  const table = built("pace  hr/km;min/km;s/km", "k-  1000", ...TIME);
+  const pace = table.unitLists.get("pace")!;
+  assertQuantity(pace[0]!.quantity, "3.6", { s: 1, m: -1 });
+  assertQuantity(pace[2]!.quantity, "0.001", { s: 1, m: -1 });
+});
+
+test("a unit list and a unit share a namespace", () => {
+  const lines = [...TIME, "hms  hr;min;s", "hms  s"];
+  const [first, second] = definitions(...lines).slice(-2);
+  assert.deepEqual(failed(...lines), { kind: "duplicate", first, second });
+  const reversed = [...TIME, "hms  s", "hms  hr;min;s"];
+  const [unit, list] = definitions(...reversed).slice(-2);
+  assert.deepEqual(failed(...reversed), {
+    kind: "duplicate",
+    first: unit,
+    second: list,
+  });
+});
+
+test("a unit list's name may not read as a prefix followed by a unit", () => {
+  const lines = ["m-  0.001", ...TIME, "ms  min;s"];
+  const [definition] = definitions(...lines).slice(-1);
+  assert.deepEqual(failed(...lines), {
+    kind: "prefixedListName",
+    definition,
+    split: { prefix: "m", unit: "s" },
+  });
+});
+
+test("the units of a list must conform to one another", () => {
+  const lines = [...TIME, "mixed  hr;ft"];
+  const [definition] = definitions(...lines).slice(-1);
+  const error = failed(...lines);
+  assert.equal(error.kind, "invalidUnitList");
+  assert.ok(error.kind === "invalidUnitList");
+  assert.deepEqual(error.definition, definition);
+  assert.equal(error.error.kind, "nonconformingUnit");
+  assert.equal(error.error.index, 1);
+});
+
+test("the units of a list must be positive and decreasing", () => {
+  const zero = [...TIME, "bad  hr;0 min;s"];
+  const [zeroList] = definitions(...zero).slice(-1);
+  assert.deepEqual(failed(...zero), {
+    kind: "invalidUnitList",
+    definition: zeroList,
+    error: { kind: "nonpositiveUnit", index: 1 },
+  });
+  const rising = [...TIME, "bad  min;hr;s"];
+  const [risingList] = definitions(...rising).slice(-1);
+  assert.deepEqual(failed(...rising), {
+    kind: "invalidUnitList",
+    definition: risingList,
+    error: { kind: "unitOutOfOrder", index: 1 },
+  });
+});
+
+test("an error in an item is reported at the item", () => {
+  const lines = [...TIME, "bad  hr;bogus;s"];
+  assert.deepEqual(failed(...lines), {
+    kind: "unknownUnit",
+    name: "bogus",
+    span: spanOf(lines, "bogus"),
+  });
+  const zero = [...TIME, "bad  hr;min/0;s"];
+  const divisor = spanOf(zero, "min/0").end;
+  assert.deepEqual(failed(...zero), {
+    kind: "divisionByZero",
+    span: { start: divisor - 1, end: divisor },
+  });
+});
+
+test("a list's failing dependency is the list's failure, and the build stops in order", () => {
+  const lines = [
+    ...TIME,
+    "bad  hr;broken;s",
+    "broken  1 / 0 hr",
+    "later  bogus",
+  ];
+  assert.deepEqual(failed(...lines), {
+    kind: "divisionByZero",
+    span: spanOf(lines, "0 hr"),
+  });
+});
+
+test("a built list converts", () => {
+  const table = built(...TIME, "time  hr;min;s");
+  const time = table.unitLists.get("time")!;
+  const have = { magnitude: decimal("3661"), dimension: dim({ s: 1 }) };
+  const result = convertToList(
+    have,
+    time.map((unit) => unit.quantity),
+    table.primitives,
+  );
+  assert.ok(result.ok);
+  assert.deepEqual(result.value.map(toFraction), ["1", "1", "1"]);
 });

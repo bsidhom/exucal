@@ -602,17 +602,32 @@ left out, as it would be in speech (`1 hr + 1 s`), except that a sum of
 nothing but zeros keeps its last term (`0 in`).
 
 GNU units answers every conversion twice, with the number to multiply by
-(`* 36`) and the number to divide by (`/ 0.027777778`), which in its verbose
-form is `3 ft = 36 in` and `3 ft = (1 / 0.027777778) in`. The converter
-shows the second line too when its `reciprocal` property is set, in that
-verbose form, so that it reads as an expression like the first and could be
-typed back as a `have` (the parentheses keep `1 / 0.027777778` apart from
-the unit, which juxtaposition would otherwise take first). Its relation is
-decided as the first line's is, from the reciprocal value: `2 m = 2 m` and
-`2 m = (1 / 0.5) m` are both exact, while `1 in = 2.54 cm` has the
-approximate `1 in ≈ (1 / 0.39370079) cm`. The reciprocal is `invert` of the
-ratio the pipeline returns, and it stays in the component: it is a second
-view of the same value, like the rounding, not a step of the conversion.
+(`* 36`) and the number to divide by (`/ 0.027777778`). Dividing by the
+second number converts the other way, from `want`s to `have`s, so it is the
+reverse conversion in disguise: one `in` is `0.027777778` of `3 ft`. When
+its `reciprocal` property is set, the converter shows that reverse
+conversion on a second line, written as the first line is with the sides
+swapped, so that both read as statements about quantities and could be
+typed back as a `have`:
+
+```
+3 ft = 36 in
+in ≈ 0.027777778 × 3 ft
+```
+
+The `have` takes the unit's place and is written as a unit is, by the same
+rule as a `want`: with a multiplication sign when it starts with a number,
+since `0.027777778 3 ft` would read as one product, and parenthesized when
+it is a sum, a difference or a negation (`in ≈ -0.027777778 (-3 ft)`). Each
+line's relation is decided from its own value: `2 m = 2 m` and `m = 0.5 ×
+2 m` are both exact, while `1 in = 2.54 cm` has the approximate `cm ≈
+0.39370079 × 1 in`. The reciprocal is `invert` of the ratio the pipeline
+returns (the ratio of `want` to `have`, as `convert` would give it with the
+two swapped), and it stays in the component: it is a second view of the
+same value, like the rounding, not a step of the conversion. GNU units'
+verbose form writes the second line as `3 ft = (1 / 0.027777778) in`
+instead, which is true but reads as nothing; the swapped line says what
+the number is for.
 
 Only a conversion into one unit has a reciprocal. That conversion is one
 ratio, `have / want`, and the reciprocal is the same ratio the other way
@@ -626,8 +641,8 @@ conversion, for a unit chosen by some rule the user did not ask for. GNU
 units prints no reciprocal for a unit list either. So the property has no
 effect on a list, typed or named, nor on a blank `want`, which shows a
 definition, as GNU units shows one without a reciprocal. A value of zero
-has no reciprocal (`0 ft = 0 in`, and nothing is divided by zero), and the
-line is left out rather than shown as anything.
+has no reciprocal (`0 ft = 0 in`, and nothing is a multiple of `0 ft`), and
+the line is left out rather than shown as anything.
 
 The property is a setting: `<app-shell>` owns the settings, one JSON object
 in `localStorage` read and written through `src/settings.ts`, renders the

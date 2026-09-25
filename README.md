@@ -4,10 +4,10 @@ An offline-first progressive web app (PWA) that converts units, in the
 spirit of GNU units: type a quantity you have (`3 ft`) and a unit you want
 (`in`), and it answers `3 ft = 36 in`; want a list of units (`ft;in`) and
 it answers `1 m ≈ 3 ft + 3.3700787 in`. A checkbox under the converter adds
-the reciprocal that GNU units shows with every answer, the number to divide
-by beside the number to multiply by: `3 ft ≈ (1 / 0.027777778) in`. It goes
-with a conversion into one unit only, since a sum over a list has no
-reciprocal, and the choice is remembered between visits. The app can be
+the reciprocal that GNU units shows with every answer, the conversion the
+other way round: `3 ft = 36 in` and then `in ≈ 0.027777778 × 3 ft`. It goes
+with a conversion into one unit only, since a sum over a list has no other
+way round, and the choice is remembered between visits. The app can be
 installed to the home screen and works without a network connection once it
 has been loaded once.
 

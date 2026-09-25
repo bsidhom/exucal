@@ -12,10 +12,14 @@
 //
 // A number is a dimensionless quantity, a unit name is whatever the `Lookup`
 // says it is, and the operators are the quantity arithmetic of `quantity.ts`:
-// juxtaposition and `*` multiply, `/` divides, and `^` raises to the rational
-// exponent the parser already read. The one `Precision` given is the working
-// precision, passed to every power, where the root of a non-integer exponent
-// is the only operation that can lose digits.
+// juxtaposition and `*` multiply, `/` divides, `+` and `-` add and subtract,
+// and `^` raises to the rational exponent the parser already read. The one
+// `Precision` given is the working precision, passed to every power, where
+// the root of a non-integer exponent is the only operation that can lose
+// digits. The `Primitives` given are the table's, with their roles: a sum
+// is the one place the evaluator checks conformance, between its operands,
+// and the check tells a dimension mismatch from a kind mismatch by those
+// roles, exactly as `convert` does for a `have` and a `want`.
 //
 // Names are resolved through a `Lookup` rather than a table, so that the same
 // evaluator serves both ends of the pipeline: the table supplies a lookup
@@ -33,14 +37,20 @@
 // located in the input: a division by zero points at the divisor, since its
 // value is what is wrong, and a power that fails (`0^-1`, an even root of a
 // negative magnitude, a result beyond `MAX_BITS`) points at the whole power,
-// since it is the combination of base and exponent that fails.
+// since it is the combination of base and exponent that fails. A sum whose
+// operands do not conform (`1 m + 1 s`) points at the whole sum for the
+// same reason, and carries the span of each operand besides, so that a
+// message can say what each one is.
 
+import { type ConformanceError, type Primitives } from "./dimension.ts";
 import { type Expr } from "./expr.ts";
 import {
+  addQuantities,
   divideQuantities,
   multiplyQuantities,
   powQuantity,
   scalar,
+  subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
 import { type Precision, type RationalError } from "./rational.ts";
@@ -69,18 +79,34 @@ export type EvaluateError =
       readonly span: Span;
     }
   /** The power at `span` would exceed `MAX_BITS` and was not computed. */
-  | { readonly kind: "tooLarge"; readonly span: Span };
+  | { readonly kind: "tooLarge"; readonly span: Span }
+  /**
+   * The sum (`add`) or difference (`sub`) at `span` has operands, at `left`
+   * and `right`, that do not conform, as `mismatch` says with the left
+   * operand's dimension as its `have` and the right's as its `want`.
+   */
+  | {
+      readonly kind: "nonconformingOperands";
+      readonly op: "add" | "sub";
+      readonly span: Span;
+      readonly left: Span;
+      readonly right: Span;
+      readonly mismatch: ConformanceError;
+    };
 
 // ---------------------------------------------------------------------------
 // Evaluation
 
 /**
- * The quantity `expr` denotes, with unit names resolved by `lookup` and
- * every inexact operation truncated to `precision` significant digits.
+ * The quantity `expr` denotes, with unit names resolved by `lookup`, the
+ * operands of every sum checked for conformance by the roles in
+ * `primitives`, and every inexact operation truncated to `precision`
+ * significant digits.
  */
 export function evaluate<E>(
   expr: Expr,
   lookup: Lookup<E>,
+  primitives: Primitives,
   precision: Precision,
 ): Result<Quantity, EvaluateError | E> {
   const { node, span } = expr;
@@ -90,16 +116,37 @@ export function evaluate<E>(
     case "unit":
       return lookup(node.name, span);
     case "binary": {
-      const left = evaluate(node.left, lookup, precision);
+      const left = evaluate(node.left, lookup, primitives, precision);
       if (!left.ok) return left;
-      const right = evaluate(node.right, lookup, precision);
+      const right = evaluate(node.right, lookup, primitives, precision);
       if (!right.ok) return right;
-      return node.op === "mul"
-        ? ok(multiplyQuantities(left.value, right.value))
-        : locate(divideQuantities(left.value, right.value), node.right.span);
+      switch (node.op) {
+        case "add":
+        case "sub": {
+          const combine =
+            node.op === "add" ? addQuantities : subtractQuantities;
+          const sum = combine(left.value, right.value, primitives);
+          if (sum.ok) return sum;
+          return err({
+            kind: "nonconformingOperands",
+            op: node.op,
+            span,
+            left: node.left.span,
+            right: node.right.span,
+            mismatch: sum.error,
+          });
+        }
+        case "mul":
+          return ok(multiplyQuantities(left.value, right.value));
+        case "div":
+          return locate(
+            divideQuantities(left.value, right.value),
+            node.right.span,
+          );
+      }
     }
     case "pow": {
-      const base = evaluate(node.base, lookup, precision);
+      const base = evaluate(node.base, lookup, primitives, precision);
       if (!base.ok) return base;
       return locate(powQuantity(base.value, node.exponent, precision), span);
     }

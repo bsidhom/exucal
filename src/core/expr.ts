@@ -5,7 +5,9 @@
 //
 // The grammar, from the loosest binding to the tightest:
 //
-//   expr      := product (("*" | "/") product)*       left-associative
+//   expr      := sum
+//   sum       := quotient (("+" | "-") quotient)*     left-associative
+//   quotient  := product (("*" | "/") product)*       left-associative
 //   product   := power unitPower*                     juxtaposition
 //   power     := atom ("^" exponent)?
 //   unitPower := unitAtom ("^" exponent)?
@@ -18,14 +20,21 @@
 // `m 2`, `1 2 3` and `2 3 m` are errors, and multiplying numbers is written
 // with `*`. Juxtaposition binds tighter than `*` and `/`, so `kg m / s^2` is
 // `(kg m) / (s^2)` and `1/2 m` is `1 / (2 m)`, while `*` and `/` are one
-// left-associative level, so `m/s*s` is `(m/s)*s`. `^` binds tightest and
+// left-associative level, so `m/s*s` is `(m/s)*s`. `+` and `-` are another
+// left-associative level below them, the loosest of all, so `1 ft + 3 in`
+// is `(1 ft) + (3 in)`, `2 m * 3 + 1 m` is `(2 m * 3) + (1 m)` and
+// `1 m + 1/2 m` is `(1 m) + (1 / (2 m))`. `^` binds tightest and
 // takes a literal exponent, not an expression: an optionally signed decimal
 // (`m^2`, `s^-1`, `m^0.5`) or a parenthesized rational (`m^(1/2)`,
 // `m^(-3/2)`), so the exponent is known at parse time and travels in the
 // tree as a `Rational`.
 //
 // Numbers are unsigned decimal literals as `parseDecimal` reads them (`2`,
-// `2.54`, `.5`, `1e-3`), parsed exactly; there is no `+` or `-` operator yet.
+// `2.54`, `.5`, `1e-3`), parsed exactly. A sign is never part of a number
+// outside an exponent: `-` is only the binary operator, so `-2 m` is an
+// error (there is no negation yet), `2-3` is a difference and `2e-3` a
+// literal, since the literal is read as far as it goes. Whether the operands
+// of a sum conform is the evaluator's business, not the parser's.
 // A name is a letter or underscore followed by letters, digits and
 // underscores, in any script: `m`, `mu0`, `µ`, `degF`. Names are maximal, so
 // `m2` is the name `m2`, never `m` squared; whether such a name means
@@ -64,12 +73,15 @@ import { type Span } from "./span.ts";
 
 export type Expr = { readonly span: Span; readonly node: ExprNode };
 
+/** The binary operators: `+`, `-`, `*` (or juxtaposition) and `/`. */
+export type BinaryOp = "add" | "sub" | "mul" | "div";
+
 export type ExprNode =
   | { readonly kind: "number"; readonly value: Rational }
   | { readonly kind: "unit"; readonly name: string }
   | {
       readonly kind: "binary";
-      readonly op: "mul" | "div";
+      readonly op: BinaryOp;
       readonly left: Expr;
       readonly right: Expr;
     }
@@ -143,7 +155,7 @@ function leaf({ value, span }: Spanned<Rational | string>): Expr {
     : { span, node: { kind: "number", value } };
 }
 
-function binary(op: "mul" | "div"): (left: Expr, right: Expr) => Expr {
+function binary(op: BinaryOp): (left: Expr, right: Expr) => Expr {
   return (left, right) => ({
     span: { start: left.span.start, end: right.span.end },
     node: { kind: "binary", op, left, right },
@@ -151,7 +163,7 @@ function binary(op: "mul" | "div"): (left: Expr, right: Expr) => Expr {
 }
 
 /** The expression grammar itself, for embedding in another grammar. */
-export const expr: Parser<Expr> = lazy(() => quotient);
+export const expr: Parser<Expr> = lazy(() => sum);
 
 const parenthesized: Parser<Expr> = map(
   token(spanned(seq(symbol("("), expr, string(")")))),
@@ -228,5 +240,13 @@ const quotient: Parser<Expr> = chainl1(
   alt(
     map(symbol("*"), () => binary("mul")),
     map(symbol("/"), () => binary("div")),
+  ),
+);
+
+const sum: Parser<Expr> = chainl1(
+  quotient,
+  alt(
+    map(symbol("+"), () => binary("add")),
+    map(symbol("-"), () => binary("sub")),
   ),
 );

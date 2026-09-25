@@ -96,6 +96,16 @@ test("want may carry a magnitude of its own", () => {
   assertConverts("1 mi", "1000 ft", "5.28");
 });
 
+test("either text may be a sum or a difference", () => {
+  assertConverts("1 ft + 1 in", "in", "13");
+  assertConverts("1 ft - 1 in", "in", "11");
+  assertConverts("5 ft + 3 in - 2 in", "in", "61");
+  assertConverts("1 mi", "1000 ft + 1000 ft", "2.64");
+  assertConverts("ft + in", "in", "13");
+  assertConverts("1 in - 1 ft", "in", "-11");
+  assertConverts("1 rpm + 1 rpm", "rpm", "2");
+});
+
 test("the conversion carries both quantities", () => {
   const { have, want } = value("3 ft", "in");
   assert.ok(equals(have.magnitude, decimal("0.9144")));
@@ -150,6 +160,24 @@ test("an evaluation error fails on its side, at its span", () => {
     side: "have",
     error: { kind: "divisionByZero", span: { start: 4, end: 5 } },
   });
+});
+
+test("a nonconforming sum is its side's error, checked by the table's roles", () => {
+  const error = failure("3 ft", "1 in + 1 min");
+  assert.equal(error.kind, "inputError");
+  assert.ok(error.kind === "inputError");
+  assert.equal(error.side, "want");
+  assert.equal(error.error.kind, "nonconformingOperands");
+  assert.ok(error.error.kind === "nonconformingOperands");
+  assert.deepEqual(error.error.span, { start: 0, end: 12 });
+  assert.equal(error.error.mismatch.kind, "dimensionMismatch");
+  const kinds = failure("1 rpm + 1 Hz", "Hz");
+  assert.equal(kinds.kind, "inputError");
+  assert.ok(kinds.kind === "inputError");
+  assert.equal(kinds.side, "have");
+  assert.equal(kinds.error.kind, "nonconformingOperands");
+  assert.ok(kinds.error.kind === "nonconformingOperands");
+  assert.equal(kinds.error.mismatch.kind, "kindMismatch");
 });
 
 test("have is tried first, so its failure is reported when both fail", () => {

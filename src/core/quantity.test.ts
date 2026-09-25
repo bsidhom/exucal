@@ -1,12 +1,19 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { DIMENSIONLESS, type Dimension } from "./dimension.ts";
 import {
+  DIMENSIONLESS,
+  type ConformanceError,
+  type Dimension,
+  type Primitives,
+} from "./dimension.ts";
+import {
+  addQuantities,
   divideQuantities,
   multiplyQuantities,
   powQuantity,
   scalar,
+  subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
 import {
@@ -19,7 +26,6 @@ import {
   rational,
   truncate,
   type Rational,
-  type RationalError,
 } from "./rational.ts";
 import type { Result } from "./result.ts";
 
@@ -43,12 +49,12 @@ function quantity(
   return { magnitude: magnitude.value, dimension: dim(exponents) };
 }
 
-function value(result: Result<Quantity, RationalError>): Quantity {
+function value<E>(result: Result<Quantity, E>): Quantity {
   assert.ok(result.ok, `expected a value, got ${inspect(result)}`);
   return result.value;
 }
 
-function failure(result: Result<Quantity, RationalError>): RationalError {
+function failure<E>(result: Result<Quantity, E>): E {
   assert.ok(!result.ok, `expected a failure, got ${inspect(result)}`);
   return result.error;
 }
@@ -67,7 +73,15 @@ const half = rational(1n, 2n);
 const METRE = quantity("1", { m: 1 });
 const SECOND = quantity("1", { s: 1 });
 const FOOT = quantity("0.3048", { m: 1 });
+const INCH = quantity("0.0254", { m: 1 });
 const RADIAN = quantity("1", { radian: 1 });
+
+/** The primitives above, with the radian as a kind. */
+const PRIMITIVES: Primitives = new Map([
+  ["m", "dimension"],
+  ["s", "dimension"],
+  ["radian", "kind"],
+]);
 
 // ---------------------------------------------------------------------------
 // Construction
@@ -93,6 +107,74 @@ test("multiplication multiplies magnitudes and adds exponents", () => {
     multiplyQuantities(scalar(rational(3n)), FOOT),
     quantity("0.9144", { m: 1 }),
   );
+});
+
+test("addition and subtraction combine magnitudes of one dimension", () => {
+  assertQuantity(
+    value(addQuantities(FOOT, INCH, PRIMITIVES)),
+    quantity("0.3302", { m: 1 }),
+  );
+  assertQuantity(
+    value(subtractQuantities(FOOT, INCH, PRIMITIVES)),
+    quantity("0.2794", { m: 1 }),
+  );
+  assertQuantity(
+    value(subtractQuantities(INCH, FOOT, PRIMITIVES)),
+    quantity("-0.2794", { m: 1 }),
+  );
+  assertQuantity(
+    value(addQuantities(scalar(rational(2n)), scalar(half), PRIMITIVES)),
+    quantity("2.5"),
+  );
+  assertQuantity(
+    value(subtractQuantities(METRE, METRE, PRIMITIVES)),
+    quantity("0", { m: 1 }),
+  );
+  assertQuantity(
+    value(addQuantities(RADIAN, RADIAN, PRIMITIVES)),
+    quantity("2", { radian: 1 }),
+  );
+  // Exact, as every sum is: a third of a metre plus a metre is four thirds.
+  const third = { magnitude: rational(1n, 3n), dimension: dim({ m: 1 }) };
+  assertQuantity(value(addQuantities(METRE, third, PRIMITIVES)), {
+    magnitude: rational(4n, 3n),
+    dimension: dim({ m: 1 }),
+  });
+});
+
+test("a sum of quantities that do not conform fails with the mismatch", () => {
+  const lengthAndTime: ConformanceError = {
+    kind: "dimensionMismatch",
+    have: dim({ m: 1 }),
+    want: dim({ s: 1 }),
+  };
+  assert.deepEqual(
+    failure(addQuantities(METRE, SECOND, PRIMITIVES)),
+    lengthAndTime,
+  );
+  assert.deepEqual(
+    failure(subtractQuantities(METRE, SECOND, PRIMITIVES)),
+    lengthAndTime,
+  );
+  // A plain number, zero included, is not a quantity of any dimension.
+  assert.deepEqual(failure(addQuantities(METRE, scalar(ZERO), PRIMITIVES)), {
+    kind: "dimensionMismatch",
+    have: dim({ m: 1 }),
+    want: DIMENSIONLESS,
+  });
+  // The roles tell a kind mismatch from a dimension mismatch, as `convert`'s
+  // check does; with no roles given, every primitive is a dimension.
+  assert.deepEqual(failure(addQuantities(RADIAN, scalar(ONE), PRIMITIVES)), {
+    kind: "kindMismatch",
+    have: dim({ radian: 1 }),
+    want: DIMENSIONLESS,
+    kinds: ["radian"],
+  });
+  assert.deepEqual(failure(addQuantities(RADIAN, scalar(ONE), new Map())), {
+    kind: "dimensionMismatch",
+    have: dim({ radian: 1 }),
+    want: DIMENSIONLESS,
+  });
 });
 
 test("division divides magnitudes and subtracts exponents", () => {
@@ -288,6 +370,8 @@ test("the operations leave their operands alone", () => {
   multiplyQuantities(a, b);
   divideQuantities(a, b);
   divideQuantities(b, a);
+  addQuantities(a, b, PRIMITIVES);
+  subtractQuantities(b, b, PRIMITIVES);
   powQuantity(a, half, DEFAULT_PRECISION);
   powQuantity(b, rational(-1n), DEFAULT_PRECISION);
   assert.deepEqual(a, quantity("2", { m: 1, s: -1 }));

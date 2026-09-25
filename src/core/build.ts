@@ -23,6 +23,7 @@ import {
   isDimensionless,
   primitive,
   type Dimension,
+  type Primitives,
   type Role,
 } from "./dimension.ts";
 import { evaluate, type EvaluateError, type Lookup } from "./evaluate.ts";
@@ -99,10 +100,18 @@ export function buildTable(
   if (ambiguity !== undefined) {
     return err({ kind: "ambiguousName", ...ambiguity });
   }
+  // The primitives are known before any body is evaluated, and a body may
+  // need their roles (a sum checks that its operands conform), so they are
+  // collected first and serve the walk as well as the finished table.
+  const primitives = declaredPrimitives(index.units.values());
   const walk = walker<Definition, Quantity, BuildError>((definition, visit) =>
-    evaluateDefinition(definition, lookupIn(index, visit), precision),
+    evaluateDefinition(
+      definition,
+      lookupIn(index, visit),
+      primitives,
+      precision,
+    ),
   );
-  const primitives = new Map<string, Role>();
   const prefixes = new Map<string, Rational>();
   const units = new Map<string, Quantity>();
   for (const definition of definitions) {
@@ -110,9 +119,6 @@ export function buildTable(
     if (!result.ok) return result;
     switch (definition.kind) {
       case "primitive":
-        primitives.set(definition.name, definition.role);
-        units.set(definition.name, result.value);
-        break;
       case "unit":
         units.set(definition.name, result.value);
         break;
@@ -122,6 +128,17 @@ export function buildTable(
     }
   }
   return ok({ primitives, prefixes, units });
+}
+
+/** The primitives among `definitions`, with their roles, in the order given. */
+function declaredPrimitives(definitions: Iterable<UnitDefinition>): Primitives {
+  const primitives = new Map<string, Role>();
+  for (const definition of definitions) {
+    if (definition.kind === "primitive") {
+      primitives.set(definition.name, definition.role);
+    }
+  }
+  return primitives;
 }
 
 function indexDefinitions(
@@ -157,15 +174,16 @@ function indexDefinitions(
 function evaluateDefinition(
   definition: Definition,
   lookup: Lookup<BuildError>,
+  primitives: Primitives,
   precision: Precision,
 ): Result<Quantity, BuildError> {
   switch (definition.kind) {
     case "primitive":
       return ok({ magnitude: ONE, dimension: primitive(definition.name) });
     case "unit":
-      return evaluate(definition.body, lookup, precision);
+      return evaluate(definition.body, lookup, primitives, precision);
     case "prefix": {
-      const body = evaluate(definition.body, lookup, precision);
+      const body = evaluate(definition.body, lookup, primitives, precision);
       if (!body.ok) return body;
       const { dimension } = body.value;
       return isDimensionless(dimension)

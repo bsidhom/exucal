@@ -30,7 +30,7 @@ const table: UnitTable = (() => {
 function textMessage(text: string): string {
   const result = evaluateText(table, text, DEFAULT_PRECISION);
   assert.ok(!result.ok, `expected ${JSON.stringify(text)} to fail`);
-  return describeTextError(result.error, text);
+  return describeTextError(result.error, text, table.primitives);
 }
 
 /** The message for the error converting `have` to `want` fails with. */
@@ -44,7 +44,7 @@ test("a parse error names what was expected and what was found", () => {
   // The character found is quoted as a whole code point, not a surrogate.
   assert.equal(
     textMessage("3 😀"),
-    'Unexpected "😀": expected "^", a unit name, "(", "*", "/" or end of input.',
+    'Unexpected "😀": expected "^", a unit name, "(", "*", "/", "+", "-" or end of input.',
   );
   assert.equal(
     textMessage("m /"),
@@ -60,20 +60,38 @@ test("an evaluation error quotes the text at fault", () => {
   assert.equal(textMessage("3 bogus"), 'Unknown unit "bogus".');
   assert.equal(textMessage("m / 0"), 'Division by zero in "0".');
   assert.equal(textMessage("2^99999 m"), '"2^99999" is too large to compute.');
-  // No expression can be negative yet (there is no `-`), so this error is
-  // described from a constructed instance.
   assert.equal(
-    describeTextError(
-      { kind: "negativeRadicand", degree: 2n, span: { start: 0, end: 5 } },
-      "x^0.5",
-    ),
-    '"x^0.5" takes an even root of a negative value.',
+    textMessage("(0 - 4)^0.5 m"),
+    '"(0 - 4)^0.5" takes an even root of a negative value.',
+  );
+});
+
+test("a nonconforming sum quotes both operands with their dimensions", () => {
+  assert.equal(
+    textMessage("3 ft + 1 min"),
+    'Cannot add "3 ft" and "1 min": "3 ft" has dimension m, but "1 min" has dimension s.',
+  );
+  assert.equal(
+    textMessage("2 (3 ft - 1 min)"),
+    'Cannot subtract "1 min" from "3 ft": "3 ft" has dimension m, but "1 min" has dimension s.',
+  );
+  assert.equal(
+    textMessage("1 rpm + 1 Hz"),
+    'Cannot add "1 rpm" and "1 Hz": "1 rpm" (radian / s) and "1 Hz" (1 / s) differ in kind: radian.',
+  );
+  assert.equal(
+    textMessage("1 m + 0"),
+    'Cannot add "1 m" and "0": "1 m" has dimension m, but "0" has dimension 1.',
   );
 });
 
 test("an input error is sliced from the text of its own side", () => {
   // Both texts have something at the span; only the want's is at fault.
   assert.equal(conversionMessage("3 ft", "3 xy"), 'Unknown unit "xy".');
+  assert.equal(
+    conversionMessage("3 ft + 1 in", "1 in + 1 s"),
+    'Cannot add "1 in" and "1 s": "1 in" has dimension m, but "1 s" has dimension s.',
+  );
 });
 
 test("a conformance error shows both dimensions", () => {

@@ -6,6 +6,8 @@ import { type ParseError } from "./parser.ts";
 import { rational, toFraction } from "./rational.ts";
 import { type Span } from "./span.ts";
 
+const OPERATOR = { add: "+", sub: "-", mul: "*", div: "/" } as const;
+
 /** Renders an expression with explicit grouping, for comparing structure. */
 function show(e: Expr): string {
   const { node } = e;
@@ -15,7 +17,7 @@ function show(e: Expr): string {
     case "unit":
       return node.name;
     case "binary":
-      return `(${show(node.left)} ${node.op === "mul" ? "*" : "/"} ${show(node.right)})`;
+      return `(${show(node.left)} ${OPERATOR[node.op]} ${show(node.right)})`;
     case "pow":
       return `${show(node.base)}^${toFraction(node.exponent)}`;
   }
@@ -51,7 +53,7 @@ function rejected(span: Span, reason: string): ParseError {
 /** What can start an operand. */
 const OPERAND = ["a number", "a unit name", '"("'];
 /** What can follow a raised factor, short of whatever closes the expression. */
-const AFTER_POWER = ["a unit name", '"("', '"*"', '"/"'];
+const AFTER_POWER = ["a unit name", '"("', '"*"', '"/"', '"+"', '"-"'];
 /** What can follow a factor that has no exponent yet. */
 const AFTER_FACTOR = ['"^"', ...AFTER_POWER];
 
@@ -110,6 +112,42 @@ test("* and / are one left-associative level", () => {
   assertParses("m * s / s", "((m * s) / s)");
   assertParses("a / b / c", "((a / b) / c)");
   assertParses("kg m / s^2 / 3 mol", "(((kg * m) / s^2) / (3 * mol))");
+});
+
+test("+ and - are one left-associative level below * and /", () => {
+  assertParses("a + b", "(a + b)");
+  assertParses("a - b", "(a - b)");
+  assertParses("a+b-c", "((a + b) - c)");
+  assertParses("a - b + c", "((a - b) + c)");
+  assertParses("1 ft + 3 in", "((1 * ft) + (3 * in))");
+  assertParses("a + b * c", "(a + (b * c))");
+  assertParses("a * b + c / d", "((a * b) + (c / d))");
+  assertParses("2 m * 3 + 1 m", "(((2 * m) * 3) + (1 * m))");
+  assertParses("a / b - c d", "((a / b) - (c * d))");
+  // The fraction-before-a-unit rule holds inside a sum: 1 / (2 m).
+  assertParses("1 m + 1/2 m", "((1 * m) + (1 / (2 * m)))");
+  assertParses("(a + b) c", "((a + b) * c)");
+  assertParses("(a + b)^2", "(a + b)^2");
+  assertParses("a (b - c)", "(a * (b - c))");
+});
+
+test("- after an exponent is a subtraction, not part of it", () => {
+  // The exponent literal is read as far as it goes, and a sign only starts it.
+  assertParses("m^-1", "m^-1");
+  assertParses("m^2 - 1", "(m^2 - 1)");
+  assertParses("m^2-1", "(m^2 - 1)");
+  assertParses("m^-2-1", "(m^-2 - 1)");
+  assertParses("m ^ -2", "m^-2");
+});
+
+test("a sign is part of a number only in its exponent", () => {
+  assertParses("2e-3", "1/500");
+  assertParses("2e+3", "2000");
+  assertParses("2e - 3", "((2 * e) - 3)");
+  assertParses("2 - 3", "(2 - 3)");
+  assertParses("2-3", "(2 - 3)");
+  assertParses("2+3", "(2 + 3)");
+  assertParses("2.-3.", "(2 - 3)");
 });
 
 test("parentheses group", () => {
@@ -194,12 +232,12 @@ test("numbers are decimal literals, parsed exactly", () => {
   assertParses("0.1 * 0.2", "(1/10 * 1/5)");
 });
 
-test("a number has no sign", () => {
+test("a number has no sign, and there is no negation", () => {
   assert.deepEqual(failed("-2 m"), unexpected(0, ...OPERAND));
-  assert.deepEqual(
-    failed("2 - m"),
-    unexpected(2, ...AFTER_FACTOR, "end of input"),
-  );
+  assert.deepEqual(failed("+2 m"), unexpected(0, ...OPERAND));
+  assert.deepEqual(failed("2 * -3"), unexpected(4, ...OPERAND));
+  assert.deepEqual(failed("2 - -3"), unexpected(4, ...OPERAND));
+  assert.deepEqual(failed("(-2) m"), unexpected(1, ...OPERAND));
 });
 
 test("an e that does not start an exponent is a unit name", () => {
@@ -273,6 +311,20 @@ test("a composite node spans from its first part to its last", () => {
   assert.deepEqual(e.node.right.node.base.span, { start: 7, end: 8 });
 });
 
+test("a sum spans its operands, and the operator lies between them", () => {
+  const e = parsed(" 2 ft + 3 in - cm ");
+  assert.deepEqual(e.span, { start: 1, end: 17 });
+  assert.equal(e.node.kind, "binary");
+  assert.equal(e.node.op, "sub");
+  assert.deepEqual(e.node.right.span, { start: 15, end: 17 });
+  const sum = e.node.left;
+  assert.deepEqual(sum.span, { start: 1, end: 12 });
+  assert.equal(sum.node.kind, "binary");
+  assert.equal(sum.node.op, "add");
+  assert.deepEqual(sum.node.left.span, { start: 1, end: 5 });
+  assert.deepEqual(sum.node.right.span, { start: 8, end: 12 });
+});
+
 test("a parenthesized expression spans its parentheses, and nothing beyond", () => {
   const e = parsed("2 ( m s ) ^2");
   assert.equal(e.node.kind, "binary");
@@ -307,4 +359,8 @@ test("an error lists what could have continued the input", () => {
   assert.deepEqual(failed("2 /"), unexpected(3, ...OPERAND));
   assert.deepEqual(failed("2 * * 3"), unexpected(4, ...OPERAND));
   assert.deepEqual(failed("()"), unexpected(1, ...OPERAND));
+  assert.deepEqual(failed("2 m +"), unexpected(5, ...OPERAND));
+  assert.deepEqual(failed("2 m + "), unexpected(6, ...OPERAND));
+  assert.deepEqual(failed("2 + * 3"), unexpected(4, ...OPERAND));
+  assert.deepEqual(failed("(2 + 3"), unexpected(6, ...AFTER_FACTOR, '")"'));
 });

@@ -181,8 +181,9 @@ katal       kat
 
 # Temperature intervals. A degree Celsius is the same size as a kelvin, and
 # a degree Fahrenheit or Rankine is five ninths of one. These convert
-# temperature differences; converting a temperature reading needs the
-# offset, which the expression language does not have yet.
+# temperature differences; converting a temperature reading means adding
+# the offset by hand (`20 degC + 273.15 K` into `K`), since there is no
+# function that does it yet.
 
 degC        K
 celsius     degC

@@ -109,7 +109,12 @@ test("an unknown name fails with its span", () => {
 });
 
 test("the lookup serves the evaluator", () => {
-  const result = evaluate(parsed("3 km / h"), lookup, DEFAULT_PRECISION);
+  const result = evaluate(
+    parsed("3 km / h"),
+    lookup,
+    TABLE.primitives,
+    DEFAULT_PRECISION,
+  );
   assert.ok(result.ok, inspect(result));
   assertQuantity(result.value, {
     magnitude: rational(5n, 6n),
@@ -119,7 +124,12 @@ test("the lookup serves the evaluator", () => {
 
 test("an unknown unit in the input is the evaluator's failure", () => {
   assert.deepEqual(
-    evaluate(parsed("3 furlong / h"), lookup, DEFAULT_PRECISION),
+    evaluate(
+      parsed("3 furlong / h"),
+      lookup,
+      TABLE.primitives,
+      DEFAULT_PRECISION,
+    ),
     {
       ok: false,
       error: {
@@ -132,15 +142,35 @@ test("an unknown unit in the input is the evaluator's failure", () => {
 });
 
 test("the table's primitives serve the converter", () => {
-  const have = evaluate(parsed("1 min"), lookup, DEFAULT_PRECISION);
-  const want = evaluate(parsed("ms"), lookup, DEFAULT_PRECISION);
+  const have = evaluate(
+    parsed("1 min"),
+    lookup,
+    TABLE.primitives,
+    DEFAULT_PRECISION,
+  );
+  const want = evaluate(
+    parsed("ms"),
+    lookup,
+    TABLE.primitives,
+    DEFAULT_PRECISION,
+  );
   assert.ok(have.ok && want.ok);
   const result = convert(have.value, want.value, TABLE.primitives);
   assert.ok(result.ok, inspect(result));
   assert.ok(equals(result.value, rational(60000n)));
 
-  const angle = evaluate(parsed("radian / s"), lookup, DEFAULT_PRECISION);
-  const rate = evaluate(parsed("1 / s"), lookup, DEFAULT_PRECISION);
+  const angle = evaluate(
+    parsed("radian / s"),
+    lookup,
+    TABLE.primitives,
+    DEFAULT_PRECISION,
+  );
+  const rate = evaluate(
+    parsed("1 / s"),
+    lookup,
+    TABLE.primitives,
+    DEFAULT_PRECISION,
+  );
   assert.ok(angle.ok && rate.ok);
   const mismatch = convert(angle.value, rate.value, TABLE.primitives);
   assert.ok(!mismatch.ok);

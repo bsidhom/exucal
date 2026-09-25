@@ -45,7 +45,12 @@ const lookup = unitLookup(table);
 function quantity(source: string): Quantity {
   const expr = parseExpr(source);
   assert.ok(expr.ok, `${JSON.stringify(source)} does not parse`);
-  const value = evaluate(expr.value, lookup, DEFAULT_PRECISION);
+  const value = evaluate(
+    expr.value,
+    lookup,
+    table.primitives,
+    DEFAULT_PRECISION,
+  );
   assert.ok(
     value.ok,
     `${JSON.stringify(source)} does not evaluate: ${inspect(value)}`,
@@ -177,6 +182,17 @@ test("a prefix applies to any unit, and an exact name wins over a split", () => 
     ["1 cd", "candela", "1"],
     // `ha` is a unit of its own, and also what `h`+`a` would give.
     ["1 ha", "are", "100"],
+  ]);
+});
+
+test("temperature readings convert by adding the offset by hand", () => {
+  // The units are intervals, so a reading is converted by writing out the
+  // offset: 20 °C is 293.15 K, and 300 K is 80.33 °F.
+  assertAll([
+    ["20 degC + 273.15 K", "K", "293.15"],
+    ["300 K - 459.67 degR", "degF", "80.33"],
+    ["212 degF - 32 degF", "degC", "100"],
+    ["98.6 degF + 459.67 degR", "K", "310.15"],
   ]);
 });
 

@@ -197,18 +197,20 @@ export class UnitConverter extends LitElement {
  * The `want` as the output writes it after the value, so that the whole
  * line reads as the expression it means. `1 mi` in `1000 ft` is
  * `5.28 × 1000 ft`; without the sign, the number would read as one product
- * with the want. A want that is a sum or difference is parenthesized,
- * `3.0284676 (ft + in)`, since `3.0284676 ft + in` would read as
- * `(3.0284676 ft) + in`. A want that starts with a unit name needs neither:
- * `36 in`. The text is trimmed, and it parsed a moment ago.
+ * with the want. A want that is a sum, a difference or a negation is
+ * parenthesized, `3.0284676 (ft + in)` and `-3.2808399 (-ft)`, since
+ * `3.0284676 ft + in` would read as `(3.0284676 ft) + in` and
+ * `-3.2808399 -ft` as a difference. A want that starts with a unit name
+ * needs neither: `36 in`. The text is trimmed, and it parsed a moment ago.
  */
 function wantText(want: string): string {
   const expr = parseExpr(want);
-  const isSum =
+  const loose =
     expr.ok &&
-    expr.value.node.kind === "binary" &&
-    (expr.value.node.op === "add" || expr.value.node.op === "sub");
-  if (isSum) return `(${want})`;
+    (expr.value.node.kind === "neg" ||
+      (expr.value.node.kind === "binary" &&
+        (expr.value.node.op === "add" || expr.value.node.op === "sub")));
+  if (loose) return `(${want})`;
   return /^[\d.]/.test(want) ? `× ${want}` : want;
 }
 

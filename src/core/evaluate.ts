@@ -13,7 +13,8 @@
 // A number is a dimensionless quantity, a unit name is whatever the `Lookup`
 // says it is, and the operators are the quantity arithmetic of `quantity.ts`:
 // juxtaposition and `*` multiply, `/` divides, `+` and `-` add and subtract,
-// and `^` raises to the rational exponent the parser already read. The one
+// a leading `-` negates, and `^` raises to the rational exponent the parser
+// already read. The one
 // `Precision` given is the working precision, passed to every power, where
 // the root of a non-integer exponent is the only operation that can lose
 // digits. The `Primitives` given are the table's, with their roles: a sum
@@ -48,6 +49,7 @@ import {
   addQuantities,
   divideQuantities,
   multiplyQuantities,
+  negateQuantity,
   powQuantity,
   scalar,
   subtractQuantities,
@@ -149,6 +151,11 @@ export function evaluate<E>(
       const base = evaluate(node.base, lookup, primitives, precision);
       if (!base.ok) return base;
       return locate(powQuantity(base.value, node.exponent, precision), span);
+    }
+    case "neg": {
+      const operand = evaluate(node.operand, lookup, primitives, precision);
+      if (!operand.ok) return operand;
+      return ok(negateQuantity(operand.value));
     }
   }
 }

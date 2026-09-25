@@ -198,6 +198,38 @@ test("a difference may be zero or negative", () => {
   assertEvaluates("(m - m) / s", quantity("0", { m: 1, s: -1 }));
 });
 
+test("a leading - negates the magnitude and keeps the dimension", () => {
+  assertEvaluates("-2", quantity("-2"));
+  assertEvaluates("-2 m", quantity("-2", { m: 1 }));
+  assertEvaluates("-ft", quantity("-0.3048", { m: 1 }));
+  assertEvaluates("-kg m / s^2", quantity("-1", { kg: 1, m: 1, s: -2 }));
+  assertEvaluates("-(ft + inch)", quantity("-0.3302", { m: 1 }));
+  assertEvaluates("-neg", quantity("4", { m: 2 }));
+  assertEvaluates("-zero", quantity("0", { m: 1 }));
+  assertEvaluates("-(-2 m)", quantity("2", { m: 1 }));
+  assertEvaluates("-radian", quantity("-1", { radian: 1 }));
+});
+
+test("negation follows the tree: below ^ and juxtaposition, above * and /", () => {
+  assertEvaluates("-2^2", quantity("-4"));
+  assertEvaluates("(-2)^2", quantity("4"));
+  assertEvaluates("2 * -3", quantity("-6"));
+  assertEvaluates("2 - -3", quantity("5"));
+  assertEvaluates("-2 m * -3", quantity("6", { m: 1 }));
+  assertEvaluates("m / -2 s", {
+    magnitude: rational(-1n, 2n),
+    dimension: dim({ m: 1, s: -1 }),
+  });
+  assertEvaluates("-8^(1/3)", quantity("-2"));
+  // `neg` is -4 m^2: the root comes first, so it is the root of a negative.
+  assertEvaluates("(-neg)^(1/2)", quantity("2", { m: 1 }));
+  assert.deepEqual(failure(run("-neg^(1/2)")), {
+    kind: "negativeRadicand",
+    degree: 2n,
+    span: { start: 1, end: 10 },
+  });
+});
+
 test("evaluation follows the tree the parser built", () => {
   // Juxtaposition binds tighter than `/`: 1 / (2 m).
   assertEvaluates("1/2 m", { magnitude: half, dimension: dim({ m: -1 }) });
@@ -325,6 +357,8 @@ test("operands are evaluated left to right and the first failure wins", () => {
   assert.equal(failure(run("(m / 0) bogus")).kind, "divisionByZero");
   assert.equal(failure(run("bogus (m / 0)")).kind, "unknownUnit");
   assert.equal(failure(run("bogus + s")).kind, "unknownUnit");
+  assert.equal(failure(run("-bogus")).kind, "unknownUnit");
+  assert.equal(failure(run("-(m / 0)")).kind, "divisionByZero");
   assert.equal(failure(run("m + bogus")).kind, "unknownUnit");
   assert.equal(failure(run("m + s + bogus")).kind, "nonconformingOperands");
   assert.equal(failure(run("m + s / 0")).kind, "divisionByZero");
@@ -466,6 +500,7 @@ test("evaluation leaves the tree and the units alone", () => {
   evaluate(expr, lookup, PRIMITIVES, DEFAULT_PRECISION);
   evaluate(parsed("(3 N)^(1/2)"), lookup, PRIMITIVES, DEFAULT_PRECISION);
   evaluate(parsed("2 ft + inch - cm"), lookup, PRIMITIVES, DEFAULT_PRECISION);
+  evaluate(parsed("-N"), lookup, PRIMITIVES, DEFAULT_PRECISION);
   assert.deepEqual(expr, copy);
   assert.deepEqual(UNITS.N, quantity("1", { kg: 1, m: 1, s: -2 }));
   assert.deepEqual(UNITS.zero, quantity("0", { m: 1 }));

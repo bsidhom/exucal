@@ -48,7 +48,7 @@ test("a parse error names what was expected and what was found", () => {
   );
   assert.equal(
     textMessage("m /"),
-    'Unexpected end of input: expected a number, a unit name or "(".',
+    'Unexpected end of input: expected a number, a unit name, "(" or "-".',
   );
   assert.equal(
     textMessage("1e999999999 m"),
@@ -61,8 +61,8 @@ test("an evaluation error quotes the text at fault", () => {
   assert.equal(textMessage("m / 0"), 'Division by zero in "0".');
   assert.equal(textMessage("2^99999 m"), '"2^99999" is too large to compute.');
   assert.equal(
-    textMessage("(0 - 4)^0.5 m"),
-    '"(0 - 4)^0.5" takes an even root of a negative value.',
+    textMessage("(-4)^0.5 m"),
+    '"(-4)^0.5" takes an even root of a negative value.',
   );
 });
 

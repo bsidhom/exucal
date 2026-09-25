@@ -11,6 +11,7 @@ import {
   addQuantities,
   divideQuantities,
   multiplyQuantities,
+  negateQuantity,
   powQuantity,
   scalar,
   subtractQuantities,
@@ -140,6 +141,14 @@ test("addition and subtraction combine magnitudes of one dimension", () => {
     magnitude: rational(4n, 3n),
     dimension: dim({ m: 1 }),
   });
+});
+
+test("negation negates the magnitude and keeps the dimension", () => {
+  assertQuantity(negateQuantity(FOOT), quantity("-0.3048", { m: 1 }));
+  assertQuantity(negateQuantity(negateQuantity(FOOT)), FOOT);
+  assertQuantity(negateQuantity(scalar(ZERO)), scalar(ZERO));
+  assertQuantity(negateQuantity(RADIAN), quantity("-1", { radian: 1 }));
+  assert.equal(negateQuantity(FOOT).dimension, FOOT.dimension);
 });
 
 test("a sum of quantities that do not conform fails with the mismatch", () => {
@@ -372,6 +381,7 @@ test("the operations leave their operands alone", () => {
   divideQuantities(b, a);
   addQuantities(a, b, PRIMITIVES);
   subtractQuantities(b, b, PRIMITIVES);
+  negateQuantity(a);
   powQuantity(a, half, DEFAULT_PRECISION);
   powQuantity(b, rational(-1n), DEFAULT_PRECISION);
   assert.deepEqual(a, quantity("2", { m: 1, s: -1 }));

@@ -7,7 +7,8 @@
 //
 //   expr      := sum
 //   sum       := quotient (("+" | "-") quotient)*     left-associative
-//   quotient  := product (("*" | "/") product)*       left-associative
+//   quotient  := signed (("*" | "/") signed)*         left-associative
+//   signed    := product | "-" product                negation
 //   product   := power unitPower*                     juxtaposition
 //   power     := atom ("^" exponent)?
 //   unitPower := unitAtom ("^" exponent)?
@@ -23,7 +24,11 @@
 // left-associative level, so `m/s*s` is `(m/s)*s`. `+` and `-` are another
 // left-associative level below them, the loosest of all, so `1 ft + 3 in`
 // is `(1 ft) + (3 in)`, `2 m * 3 + 1 m` is `(2 m * 3) + (1 m)` and
-// `1 m + 1/2 m` is `(1 m) + (1 / (2 m))`. `^` binds tightest and
+// `1 m + 1/2 m` is `(1 m) + (1 / (2 m))`. A `-` before a product negates
+// it: it binds tighter than `*` and `/` and looser than juxtaposition and
+// `^`, so `-2 m` is `-(2 m)`, `2 * -3 m` is `2 * (-(3 m))` and `-2^2` is
+// `-(2^2)`, as in arithmetic. It does not stack (`--2` is an error;
+// `-(-2)` is fine), and there is no unary `+`. `^` binds tightest and
 // takes a literal exponent, not an expression: an optionally signed decimal
 // (`m^2`, `s^-1`, `m^0.5`) or a parenthesized rational (`m^(1/2)`,
 // `m^(-3/2)`), so the exponent is known at parse time and travels in the
@@ -31,10 +36,10 @@
 //
 // Numbers are unsigned decimal literals as `parseDecimal` reads them (`2`,
 // `2.54`, `.5`, `1e-3`), parsed exactly. A sign is never part of a number
-// outside an exponent: `-` is only the binary operator, so `-2 m` is an
-// error (there is no negation yet), `2-3` is a difference and `2e-3` a
-// literal, since the literal is read as far as it goes. Whether the operands
-// of a sum conform is the evaluator's business, not the parser's.
+// outside an exponent: `-2` is the negation of `2`, `2-3` is a difference
+// and `2e-3` a literal, since the literal is read as far as it goes. Whether
+// the operands of a sum conform is the evaluator's business, not the
+// parser's.
 // A name is a letter or underscore followed by letters, digits and
 // underscores, in any script: `m`, `mu0`, `µ`, `degF`. Names are maximal, so
 // `m2` is the name `m2`, never `m` squared; whether such a name means
@@ -85,7 +90,9 @@ export type ExprNode =
       readonly left: Expr;
       readonly right: Expr;
     }
-  | { readonly kind: "pow"; readonly base: Expr; readonly exponent: Rational };
+  | { readonly kind: "pow"; readonly base: Expr; readonly exponent: Rational }
+  /** `-operand`. */
+  | { readonly kind: "neg"; readonly operand: Expr };
 
 // ---------------------------------------------------------------------------
 // Parsing
@@ -235,8 +242,17 @@ const product: Parser<Expr> = map(
   ([first, rest]) => rest.reduce(binary("mul"), first),
 );
 
-const quotient: Parser<Expr> = chainl1(
+/** A product, or a product negated by one leading `-`. */
+const signed: Parser<Expr> = alt(
   product,
+  map(seq(spanned(symbol("-")), product), ([minus, operand]): Expr => ({
+    span: { start: minus.span.start, end: operand.span.end },
+    node: { kind: "neg", operand },
+  })),
+);
+
+const quotient: Parser<Expr> = chainl1(
+  signed,
   alt(
     map(symbol("*"), () => binary("mul")),
     map(symbol("/"), () => binary("div")),

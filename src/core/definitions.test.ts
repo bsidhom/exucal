@@ -51,6 +51,11 @@ function shift(e: Expr, offset: number): Expr {
       };
     case "pow":
       return { span, node: { ...node, base: shift(node.base, offset) } };
+    case "neg":
+      return {
+        span,
+        node: { kind: "neg", operand: shift(node.operand, offset) },
+      };
   }
 }
 
@@ -62,7 +67,7 @@ function spanOf(whole: string, text: string): Span {
 }
 
 /** What can start a definition body. */
-const BODY = ['"!"', "a number", "a unit name", '"("'];
+const BODY = ['"!"', "a number", "a unit name", '"("', '"-"'];
 /** What can end a line. */
 const END_OF_LINE = ["a comment", "a newline", "end of input"];
 
@@ -131,6 +136,20 @@ test("a body may be any expression", () => {
   ]);
 });
 
+test("a dash after a space starts the body, not a prefix", () => {
+  // `m- 1000` is the prefix `m`; `m -1000` is the unit `m` with a negated
+  // body, since the dash of a prefix follows its name with no space.
+  const text = "m -1000";
+  assert.deepEqual(parsed(text), [
+    {
+      kind: "unit",
+      name: "m",
+      body: exprAt("-1000", 2),
+      span: { start: 0, end: text.length },
+    },
+  ]);
+});
+
 test("a prefix is a name with a trailing dash, stored without it", () => {
   const [prefix] = parsed("kilo- 1000");
   assert.equal(prefix?.kind, "prefix");
@@ -141,7 +160,7 @@ test("a prefix is a name with a trailing dash, stored without it", () => {
 test("a prefix cannot be primitive", () => {
   assert.deepEqual(
     failed("kilo- !"),
-    unexpected(6, "a number", "a unit name", '"("'),
+    unexpected(6, "a number", "a unit name", '"("', '"-"'),
   );
 });
 

@@ -188,7 +188,8 @@ operation beside the matching dimension operation. Only the magnitude can
 fail (a zero divisor, `0` to a negative power, an even root of a negative
 number, a result beyond `MAX_BITS`), so the failures are those of
 `rational.ts`, and the power is the one operation that takes a `Precision`,
-for the root of a non-integer exponent. Addition and subtraction are the
+for the root of a non-integer exponent. Negation touches the magnitude alone
+and cannot fail. Addition and subtraction are the
 other way about: the magnitudes always combine, but only quantities of one
 dimension have a sum, so the dimension side is the conformance check above,
 the sum has the dimension its terms share, and the failure is a
@@ -298,9 +299,10 @@ GNU units: juxtaposition binds tighter than `*` and `/`, which are one
 left-associative level, so `kg m / s^2` is `(kg m) / (s^2)` and `m/s*s` is
 `(m/s)*s`; `+` and `-` are one more left-associative level below those, so
 `1 ft + 3 in` is `(1 ft) + (3 in)` and `2 m * 3 + 1 m` is
-`(2 m * 3) + (1 m)`. No functions or unit lists yet, and no negation: a
-number is unsigned outside its exponent, `-` is only the binary operator,
-and a negative quantity is written as a difference.
+`(2 m * 3) + (1 m)`. A `-` before a product negates it, binding tighter than
+`*` and `/` and looser than juxtaposition and `^`, so `-2 m` is `-(2 m)`,
+`2 * -3` is `2 * (-3)` and `-2^2` is `-(2^2)`, as in arithmetic; it does
+not stack, and there is no unary `+`. No functions or unit lists yet.
 
 Juxtaposition means "this many of these units" (`2 m`) or a product of units
 (`kg m`), so a number may only be the first factor of a product: `m 2`,
@@ -312,7 +314,10 @@ Whether the two sides of a sum can be added is not the parser's concern:
 where a `-` belongs. A number's literal is read as far as it goes, so `2e-3`
 is one number and `2 - 3` a difference, and an exponent's sign is part of
 the exponent, so `m^-1` is a power while `m^2 - 1` and `m^2-1` are
-differences.
+differences. Elsewhere a `-` where an operand can start is a negation and a
+`-` after an operand is a subtraction, so `2 -3` is a difference and
+`2 * -3` a product with a negation. A number is never negative in the tree:
+`-2` is the negation of `2`.
 
 An exponent is a signed decimal (`m^2`, `s^-1`, `m^0.5`) or a parenthesized
 rational (`m^(1/2)`), never an expression, so it is known at parse time and
@@ -322,9 +327,9 @@ it goes: `m2` is one name rather than `m` beside `2`, and whether a name
 means anything is decided by the table, not the parser. Whitespace is spaces
 and tabs, never a newline, because a definition body is one line.
 
-The tree has four kinds of node: a number, a unit name, a binary operation
-(a sum, difference, product or quotient) of two subtrees, and a subtree
-raised to a rational exponent. Every
+The tree has five kinds of node: a number, a unit name, a binary operation
+(a sum, difference, product or quotient) of two subtrees, a negated
+subtree, and a subtree raised to a rational exponent. Every
 node carries the span of text it came from, so an error found later in the
 pipeline (an unknown unit, a dimension mismatch) can point back at the input.
 `parseExpr` knows nothing about units, and `evaluate` knows nothing about
@@ -431,7 +436,8 @@ grammar, not an input that can fail, and it throws.
 expression denotes. A number is a dimensionless quantity, a unit name is
 whatever the lookup says it is, and the operators are the quantity
 arithmetic above: juxtaposition and `*` multiply, `/` divides, `+` and `-`
-add and subtract, and `^` raises to the exponent the parser already read.
+add and subtract, a leading `-` negates, and `^` raises to the exponent the
+parser already read.
 The precision goes to every power, where the root of a non-integer exponent
 is the only operation that can lose digits; everything else is exact. The
 primitives go to every sum, whose operands must conform: this is the one
@@ -513,8 +519,9 @@ precision as "Precision and rounding" describes). The line is written so
 that it reads as the expression it means: a `want` with a magnitude of its
 own is written with a multiplication sign (`1 mi = 5.28 × 1000 ft`), since
 juxtaposing two numbers would read as one product, and a `want` that is a
-sum or difference is parenthesized (`1 m ≈ 3.0284676 (ft + in)`), since
-`3.0284676 ft + in` would read as `(3.0284676 ft) + in`. The component
+sum, a difference or a negation is parenthesized (`1 m ≈ 3.0284676 (ft + in)`,
+`1 m ≈ -3.2808399 (-ft)`), since `3.0284676 ft + in` would read as
+`(3.0284676 ft) + in` and `-3.2808399 -ft` as a difference. The component
 parses the `want` once more to tell, which is the same parse the pipeline
 did a moment earlier.
 
@@ -613,10 +620,6 @@ Planned extensions, listed to show that they fit without reshaping the core:
   `convert`.
 - **User definitions** are already supported by `buildTable`; only storage and
   an editor are missing.
-- **Negation** (`-2 m`) is a unary `-` at the level of a product, so that
-  `-2 m` is `-(2 m)` and `2 - -3` is allowed; it needs no new quantity
-  operation, only `0 - x`. Until then, a negative quantity is written as a
-  difference.
 - **Lenient kind conversion** (converting `rad/s` to `Hz` on request) is a flag
   to `convert` that skips step 2 of the conformance check. Sums would keep
   the strict check: adding an angle to a plain number is a mistake whether

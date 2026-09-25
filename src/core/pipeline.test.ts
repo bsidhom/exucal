@@ -106,6 +106,14 @@ test("either text may be a sum or a difference", () => {
   assertConverts("1 rpm + 1 rpm", "rpm", "2");
 });
 
+test("either text may be negated", () => {
+  assertConverts("-3 ft", "in", "-36");
+  assertConverts("3 ft", "-in", "-36");
+  assertConverts("-3 ft", "-in", "36");
+  assertConverts("-(1 ft + 1 in)", "in", "-13");
+  assertConverts("2 - -3", "1", "5");
+});
+
 test("the conversion carries both quantities", () => {
   const { have, want } = value("3 ft", "in");
   assert.ok(equals(have.magnitude, decimal("0.9144")));

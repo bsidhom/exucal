@@ -193,6 +193,8 @@ test("temperature readings convert by adding the offset by hand", () => {
     ["300 K - 459.67 degR", "degF", "80.33"],
     ["212 degF - 32 degF", "degC", "100"],
     ["98.6 degF + 459.67 degR", "K", "310.15"],
+    ["-40 degC + 273.15 K", "K", "233.15"],
+    ["-40 degC + 273.15 K - 459.67 degR", "degF", "-40"],
   ]);
 });
 

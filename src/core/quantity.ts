@@ -15,7 +15,8 @@
 // power takes the working precision that its one inexact step, the root of
 // a non-integer exponent, truncates to. For those, the failures are the
 // `rational.ts` ones, since only the magnitude can fail: a dimension can be
-// multiplied, divided and raised to any rational power. Addition and
+// multiplied, divided and raised to any rational power. Negation touches the
+// magnitude alone and cannot fail. Addition and
 // subtraction are the other way about: the magnitudes always add, but only
 // quantities of one dimension have a sum, so the dimension side is the
 // conformance check of `dimension.ts`, the same one `convert` applies to a
@@ -37,6 +38,7 @@ import {
   add,
   divide,
   multiply,
+  negate,
   powRational,
   subtract,
   type Precision,
@@ -92,6 +94,11 @@ function combineConforming(
     magnitude: op(a.magnitude, b.magnitude),
     dimension: a.dimension,
   });
+}
+
+/** `-q`: the magnitude negated, in the same dimension. Cannot fail. */
+export function negateQuantity(q: Quantity): Quantity {
+  return { magnitude: negate(q.magnitude), dimension: q.dimension };
 }
 
 /** `a b`, exactly: `2 m` times `3 s` is `6 m s`. */

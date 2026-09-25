@@ -191,9 +191,10 @@ for the root of a non-integer exponent.
 ## Definitions
 
 System units are not special: they live in a static definitions file,
-`src/units.txt`, that is bundled into the app (a raw string import, so it is
-precached with the rest of the build) and go through the same parser as any
-user-supplied definitions. `buildTable` takes one list of definitions, so
+`src/units.txt`, that is bundled into the app as an asset of its own (a URL
+import, so it is emitted beside the scripts and precached with the rest of
+the build, and fetched when the app starts) and go through the same parser
+as any user-supplied definitions. `buildTable` takes one list of definitions, so
 user definitions are simply appended to the system ones.
 
 The format, the name rules and the expression language are user-facing, so
@@ -450,10 +451,14 @@ an error, with each module defining its own error type.
 `<unit-converter>` is a Lit component with two text inputs, "you have" and
 "you want", and an output area. Its only state is the two strings; on every
 change it runs the pipeline and renders either the formatted result or the
-error. `<app-shell>` hosts it. The `UnitTable` is built once at startup from
-the bundled definitions and passed down as a property; should the bundled
-file fail to build, which `units.test.ts` guards against, the shell says so
-instead of rendering a converter.
+error. `<app-shell>` hosts it and owns the `UnitTable`: `src/system-table.ts`
+fetches the bundled definitions, parses and builds them on the main thread
+(a few milliseconds) and memoizes the result, and the shell starts that load
+when it is connected, shows a loading message until the promise settles, and
+then passes the table down as a property. Loading the components never waits
+on the table. Should the fetch fail, or the file fail to build (which
+`units.test.ts` guards against), the shell says so instead of rendering a
+converter.
 
 The core's whole surface to the UI is `(table, haveText, wantText) →
 Result`, and `src/core/pipeline.ts` is that function: `convertText` parses
@@ -500,8 +505,9 @@ src/core/pipeline.ts      convertText, evaluateText: the pipeline over text
 src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions; src/units.test.ts checks them
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
+src/system-table.ts       loadSystemTable: fetches and builds the system table, once
 src/unit-converter.ts     the component
-src/app-shell.ts          the host: builds the table, renders the component
+src/app-shell.ts          the host: loads the table, renders the component
 ```
 
 Each core module has a `*.test.ts` beside it, run by `pnpm test`.

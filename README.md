@@ -190,8 +190,11 @@ never caches anything. To try the offline behavior, run `pnpm build` and then
 - `bench/` holds the performance benchmarks of the core, run by
   `pnpm bench` (see Benchmarks below); `ARCHITECTURE.md` describes them.
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every
-  part of the app renders inside. It builds the unit table from `units.txt`
-  once, when the app loads, and hands it to the converter.
+  part of the app renders inside. It loads the unit table when it is
+  connected, shows a loading message until it arrives, and hands it to the
+  converter.
+- `src/system-table.ts` fetches `units.txt`, which the build emits as an
+  asset of its own, and parses and builds it into the table, once.
 - `src/unit-converter.ts` defines `<unit-converter>`, the two inputs and the
   output area that make up the app; `ARCHITECTURE.md` ("UI") describes it.
 - `src/messages.ts` turns the errors the core returns into the sentences the

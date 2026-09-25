@@ -1,35 +1,20 @@
 import { LitElement, css, html } from "lit";
-import { customElement } from "lit/decorators.js";
-import { buildTable, type BuildError } from "./core/build.ts";
-import { parseDefinitions } from "./core/definitions.ts";
-import { type ParseError } from "./core/parser.ts";
-import { DEFAULT_PRECISION } from "./core/rational.ts";
+import { customElement, state } from "lit/decorators.js";
 import { type Result } from "./core/result.ts";
 import { type UnitTable } from "./core/table.ts";
+import { loadSystemTable, type SystemTableError } from "./system-table.ts";
 import "./unit-converter.ts";
-import definitionsText from "./units.txt?raw";
-
-/**
- * The system unit table, built once when the app loads from the definitions
- * bundled with it. Building takes a few milliseconds, so it happens up front,
- * synchronously, and every component that converts is given the result.
- *
- * The definitions file is checked by `units.test.ts`, so a failure here is a
- * bug in the build rather than something the user can act on; the shell says
- * so rather than rendering a converter that cannot convert.
- */
-const table: Result<UnitTable, ParseError | BuildError> = (() => {
-  const definitions = parseDefinitions(definitionsText);
-  if (!definitions.ok) return definitions;
-  return buildTable(definitions.value, DEFAULT_PRECISION);
-})();
-
-if (!table.ok) {
-  console.error("The unit definitions failed to build:", table.error);
-}
 
 /**
  * The top-level shell of the app. Every page of the app renders inside it.
+ *
+ * The shell owns the system unit table: it starts loading it when it is
+ * connected, shows a loading message until it arrives, and then hands it
+ * down to the converter as a property. Nothing waits on the table before
+ * that: the components are defined and the page renders while the fetch is
+ * in flight. The load is one promise whose result is set on reactive state
+ * when it settles, the plain Lit pattern for a single asynchronous value;
+ * `@lit/task` would be the tool if the shell grew more of them.
  */
 @customElement("app-shell")
 export class AppShell extends LitElement {
@@ -58,26 +43,59 @@ export class AppShell extends LitElement {
       font-weight: 600;
     }
 
-    .failure {
-      color: #c92a2a;
+    p {
+      margin: 0;
       max-width: 32rem;
     }
+
+    .loading {
+      opacity: 0.7;
+    }
+
+    .failure {
+      color: #c92a2a;
+    }
   `;
+
+  /** The system table once loaded, or why it could not be; unset until then. */
+  @state() private table?: Result<UnitTable, SystemTableError>;
+
+  connectedCallback() {
+    super.connectedCallback();
+    // The load is memoized, so being connected again costs nothing.
+    void loadSystemTable().then((table) => {
+      if (!table.ok) {
+        console.error("The unit definitions failed to load:", table.error);
+      }
+      this.table = table;
+    });
+  }
 
   render() {
     return html`
       <main>
         <h1>Units</h1>
-        ${
-          table.ok
-            ? html`<unit-converter .table=${table.value}></unit-converter>`
-            : html`<p class="failure" role="alert">
-                The unit definitions could not be loaded (${table.error.kind}).
-                This is a bug in the app, not in what you typed.
-              </p>`
-        }
+        ${this.renderContent()}
       </main>
     `;
+  }
+
+  private renderContent() {
+    const { table } = this;
+    if (table === undefined) {
+      return html`<p class="loading" aria-live="polite">Loading units…</p>`;
+    }
+    if (!table.ok) {
+      return html`<p class="failure" role="alert">
+        The unit definitions could not be loaded (${table.error.kind}).
+        ${
+          table.error.kind === "fetchFailed"
+            ? "Check your connection and reload the page."
+            : "This is a bug in the app, not in what you typed."
+        }
+      </p>`;
+    }
+    return html`<unit-converter .table=${table.value}></unit-converter>`;
   }
 }
 

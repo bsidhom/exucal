@@ -121,38 +121,10 @@ export class UnitConverter extends LitElement {
   render() {
     const outcome = this.outcome();
     const invalid = (side: Side) =>
-      outcome.kind === "error" && outcome.side === side ? "true" : nothing;
+      outcome.kind === "error" && outcome.side === side;
     return html`
-      <label>
-        You have
-        <input
-          type="text"
-          placeholder="3 ft"
-          autocomplete="off"
-          autocapitalize="off"
-          autocorrect="off"
-          spellcheck="false"
-          enterkeyhint="next"
-          aria-invalid=${invalid("have")}
-          .value=${this.have}
-          @input=${this.onHaveInput}
-        />
-      </label>
-      <label>
-        You want
-        <input
-          type="text"
-          placeholder="in"
-          autocomplete="off"
-          autocapitalize="off"
-          autocorrect="off"
-          spellcheck="false"
-          enterkeyhint="done"
-          aria-invalid=${invalid("want")}
-          .value=${this.want}
-          @input=${this.onWantInput}
-        />
-      </label>
+      ${renderInput("You have", "3 ft", "next", invalid("have"), this.have, this.onHaveInput)}
+      ${renderInput("You want", "in", "done", invalid("want"), this.want, this.onWantInput)}
       <output aria-live="polite">${renderOutcome(outcome)}</output>
     `;
   }
@@ -221,6 +193,53 @@ export class UnitConverter extends LitElement {
       /^[\d.]/.test(want) ? `× ${want}` : want,
     );
   }
+}
+
+/**
+ * One of the two text fields, labelled `label`. Both fields are rendered
+ * here so that they cannot differ in what they turn off. Units and
+ * expressions are neither words nor sentences, so every assistant the
+ * browser or an extension offers a text field is in the way:
+ *
+ * - `autocomplete="off"` keeps the browser from suggesting earlier entries
+ *   and, per the HTML spec, from restoring the field's value when the page
+ *   is reloaded or revisited (Firefox restores other fields). The fields
+ *   also have no `name` and sit in no `<form>`, so nothing is ever submitted
+ *   or saved to the browser's form history in the first place.
+ * - `autocorrect`, `autocapitalize` and `spellcheck` are the on-screen
+ *   keyboard and spell-checker: `Ft` is not a unit, and `km` is not a typo.
+ * - `data-gramm`, `data-1p-ignore` and `data-lpignore` are what Grammarly
+ *   and the 1Password and LastPass extensions look for to leave a field
+ *   alone; there is no standard attribute for that.
+ */
+function renderInput(
+  label: string,
+  placeholder: string,
+  enterKeyHint: "next" | "done",
+  invalid: boolean,
+  value: string,
+  onInput: (event: Event) => void,
+): TemplateResult {
+  return html`
+    <label>
+      ${label}
+      <input
+        type="text"
+        placeholder=${placeholder}
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        enterkeyhint=${enterKeyHint}
+        data-gramm="false"
+        data-1p-ignore
+        data-lpignore="true"
+        aria-invalid=${invalid ? "true" : nothing}
+        .value=${value}
+        @input=${onInput}
+      />
+    </label>
+  `;
 }
 
 /** The result outcome for `value` `unit`, marked exact or approximate. */

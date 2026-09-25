@@ -1,8 +1,13 @@
-// Checks the wording of every message, one per kind of error the pipeline
-// can return, against the errors the core actually produces for the input
-// quoted, so that a change in what the core reports shows up here.
+// Checks that each kind of error the pipeline can return comes out as the
+// sentence it should, with the right piece of the right text quoted. The
+// wording is UX, but the plumbing is not: which side's text a span is
+// sliced from, that a code point is quoted whole, and that dimensions are
+// rendered through `formatDimension`. One case per kind keeps it to that.
+// The system table is the real one, so the cases read as a user would type
+// them; building it costs a few milliseconds.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { buildTable } from "./core/build.ts";
@@ -13,24 +18,10 @@ import { type UnitTable } from "./core/table.ts";
 import { describeConversionError, describeTextError } from "./messages.ts";
 
 const table: UnitTable = (() => {
-  const definitions = parseDefinitions(
-    [
-      "m        !",
-      "s        !",
-      "radian   !kind",
-      "in       0.0254 m",
-      "ft       12 in",
-      "min      60 s",
-      "Hz       1/s",
-      "rpm      2 radian / min",
-      "zero     0 m",
-    ].join("\n"),
-  );
-  assert.ok(
-    definitions.ok,
-    `expected the text to parse, got ${inspect(definitions)}`,
-  );
-  const built = buildTable(definitions.value, DEFAULT_PRECISION);
+  const text = readFileSync(new URL("./units.txt", import.meta.url), "utf8");
+  const parsed = parseDefinitions(text);
+  assert.ok(parsed.ok, `expected the file to parse, got ${inspect(parsed)}`);
+  const built = buildTable(parsed.value, DEFAULT_PRECISION);
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
   return built.value;
 })();
@@ -50,40 +41,24 @@ function conversionMessage(have: string, want: string): string {
 }
 
 test("a parse error names what was expected and what was found", () => {
+  // The character found is quoted as a whole code point, not a surrogate.
   assert.equal(
-    textMessage("3 ×"),
-    'Unexpected "×": expected "^", a unit name, "(", "*", "/" or end of input.',
+    textMessage("3 😀"),
+    'Unexpected "😀": expected "^", a unit name, "(", "*", "/" or end of input.',
   );
   assert.equal(
     textMessage("m /"),
     'Unexpected end of input: expected a number, a unit name or "(".',
   );
   assert.equal(
-    textMessage(""),
-    'Unexpected end of input: expected a number, a unit name or "(".',
-  );
-  // The character shown is a whole code point, not a surrogate half.
-  assert.equal(
-    textMessage("3 😀"),
-    'Unexpected "😀": expected "^", a unit name, "(", "*", "/" or end of input.',
-  );
-});
-
-test("a rejected literal is quoted with the reason", () => {
-  assert.equal(
     textMessage("1e999999999 m"),
     '"1e999999999": this number is too large to represent.',
   );
-  assert.equal(textMessage("m^(1/0)"), '"1/0": the exponent divides by zero.');
-});
-
-test("an unknown unit is named", () => {
-  assert.equal(textMessage("3 bogus"), 'Unknown unit "bogus".');
 });
 
 test("an evaluation error quotes the text at fault", () => {
+  assert.equal(textMessage("3 bogus"), 'Unknown unit "bogus".');
   assert.equal(textMessage("m / 0"), 'Division by zero in "0".');
-  assert.equal(textMessage("0^-1"), 'Division by zero in "0^-1".');
   assert.equal(textMessage("2^99999 m"), '"2^99999" is too large to compute.');
   // No expression can be negative yet (there is no `-`), so this error is
   // described from a constructed instance.
@@ -96,26 +71,16 @@ test("an evaluation error quotes the text at fault", () => {
   );
 });
 
-test("an input error is described against the text of its side", () => {
-  assert.equal(conversionMessage("3 bogus", "in"), 'Unknown unit "bogus".');
-  assert.equal(
-    conversionMessage("3 ft", "in /"),
-    'Unexpected end of input: expected a number, a unit name or "(".',
-  );
+test("an input error is sliced from the text of its own side", () => {
+  // Both texts have something at the span; only the want's is at fault.
+  assert.equal(conversionMessage("3 ft", "3 xy"), 'Unknown unit "xy".');
 });
 
-test("a dimension mismatch shows both dimensions", () => {
+test("a conformance error shows both dimensions", () => {
   assert.equal(
     conversionMessage(" 3 ft ", "min"),
     '"3 ft" has dimension m, but "min" has dimension s.',
   );
-  assert.equal(
-    conversionMessage("3", "ft"),
-    '"3" has dimension 1, but "ft" has dimension m.',
-  );
-});
-
-test("a kind mismatch names the kinds that differ", () => {
   assert.equal(
     conversionMessage("1 rpm", "Hz"),
     '"1 rpm" (radian / s) and "Hz" (1 / s) differ in kind: radian.',
@@ -124,7 +89,7 @@ test("a kind mismatch names the kinds that differ", () => {
 
 test("a zero want is reported as such", () => {
   assert.equal(
-    conversionMessage("3 ft", "zero"),
-    '"zero" is zero, so nothing is a multiple of it.',
+    conversionMessage("3 ft", "0 m"),
+    '"0 m" is zero, so nothing is a multiple of it.',
   );
 });

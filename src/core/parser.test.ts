@@ -24,7 +24,7 @@ import {
   type Span,
   type Spanned,
 } from "./parser.ts";
-import { err, ok, type Result } from "./result.ts";
+import { err, ok } from "./result.ts";
 
 /** Runs `parser` on the whole of `text`, which is expected to parse. */
 function unwrap<A>(parser: Parser<A>, text: string): A {
@@ -242,176 +242,47 @@ test("lazy allows a grammar to refer to itself", () => {
 });
 
 // ---------------------------------------------------------------------------
-// An expression grammar in the shape of the one the converter will use:
-// numbers and names, juxtaposition and `*` for products, `/`, `^` with an
-// integer exponent, and parentheses. Products bind tighter than `/`, as in
-// GNU units, and every operand carries its span.
-//
-// TODO: This grammar exists to prove the combinators out before the real
-// grammars are written. It is too brittle and heavyweight for a unit test of
-// a generic library: once the expression and definitions parsers exist, test
-// the behaviour below (precedence, spans, the furthest expectation surviving
-// a rewind, rejection with a span) against the real parsers, and replace
-// this section with substantially simpler, targeted tests of the combinators
-// themselves.
+// The interplay that the real grammars (expr.ts, definitions.ts) rely on:
+// an undone alternative keeps the expectation it met, a success keeps the
+// expectations of what it tried and did not take, and a rejection surfaces
+// through any nesting. Those tests exercise the behaviour on real input; the
+// ones here pin down the mechanism on the smallest parsers that show it.
 
-type Expr =
-  | { kind: "num"; value: number; span: Span }
-  | { kind: "name"; name: string; span: Span }
-  | { kind: "bin"; op: "*" | "/"; left: Expr; right: Expr; span: Span }
-  | { kind: "pow"; base: Expr; exponent: number; span: Span };
-
-const ws = regex(/\s*/, "whitespace");
-const token = <A>(parser: Parser<A>): Parser<A> =>
-  map(seq(parser, ws), ([value]) => value);
-const symbol = (s: string) => token(string(s));
-
-const number: Parser<Expr> = map(
-  token(
-    spanned(
-      check(digits, (text) =>
-        text.length <= 4 ? ok(Number(text)) : err("too large"),
-      ),
-    ),
-  ),
-  ({ value, span }) => ({ kind: "num", value, span }),
-);
-const name: Parser<Expr> = map(
-  token(spanned(regex(/[a-z]+/, "a unit name"))),
-  ({ value, span }) => ({ kind: "name", name: value, span }),
-);
-const expr: Parser<Expr> = lazy(() => quotient);
-const parenthesized = map(
-  seq(symbol("("), expr, symbol(")")),
-  ([, inner]) => inner,
-);
-const atom = alt(number, name, parenthesized);
-const factor = map(
-  seq(atom, optional(seq(symbol("^"), token(spanned(integer))))),
-  ([base, power]): Expr =>
-    power === undefined
-      ? base
-      : {
-          kind: "pow",
-          base,
-          exponent: power[1].value,
-          span: { start: base.span.start, end: power[1].span.end },
-        },
-);
-const binary =
-  (op: "*" | "/") =>
-  (left: Expr, right: Expr): Expr => ({
-    kind: "bin",
-    op,
-    left,
-    right,
-    span: { start: left.span.start, end: right.span.end },
-  });
-const product = chainl1(
-  factor,
-  alt(
-    map(symbol("*"), () => binary("*")),
-    succeed(binary("*")),
-  ),
-);
-const quotient = chainl1(
-  product,
-  map(symbol("/"), () => binary("/")),
-);
-const parseExpr = (text: string): Result<Expr, ParseError> =>
-  parse(
-    map(seq(ws, expr), ([, e]) => e),
-    text,
-  );
-
-/** Renders an expression with explicit grouping, for comparing structure. */
-function show(e: Expr): string {
-  switch (e.kind) {
-    case "num":
-      return String(e.value);
-    case "name":
-      return e.name;
-    case "bin":
-      return `(${show(e.left)} ${e.op} ${show(e.right)})`;
-    case "pow":
-      return `${show(e.base)}^${e.exponent}`;
-  }
-}
-
-function parsed(text: string): Expr {
-  const result = parseExpr(text);
-  assert.ok(result.ok, `expected success, got ${inspect(result)}`);
-  return result.value;
-}
-
-function rejected(text: string): ParseError {
-  const result = parseExpr(text);
-  assert.ok(!result.ok, `expected failure, got ${inspect(result)}`);
-  return result.error;
-}
-
-test("the example grammar parses with GNU units precedence", () => {
-  assert.equal(show(parsed("2 m")), "(2 * m)");
-  assert.equal(show(parsed("2m")), "(2 * m)");
-  assert.equal(show(parsed("kg m / s^2")), "((kg * m) / s^2)");
-  assert.equal(
-    show(parsed("kg m / s^2 / 3 mol")),
-    "(((kg * m) / s^2) / (3 * mol))",
-  );
-  assert.equal(show(parsed(" 1 / (2 * 3) ")), "(1 / (2 * 3))");
-  assert.equal(show(parsed("(m s)^2")), "(m * s)^2");
+test("an undone partial match keeps the expectation it met", () => {
+  // The exponent is optional, but once `^` has been read a digit must
+  // follow. The parser undoes the `^`, `eof` fails at it, and the error is
+  // nevertheless the one further in.
+  const p = seq(optional(seq(string("^"), digit)), eof);
+  assert.deepEqual(failure(p, "^x"), unexpected(1, "a digit"));
+  assert.deepEqual(failure(p, "^"), unexpected(1, "a digit"));
 });
 
-test("the example grammar attaches spans", () => {
-  const e = parsed("2 m / s");
-  assert.deepEqual(e.span, { start: 0, end: 7 });
-  assert.equal(e.kind, "bin");
-  assert.deepEqual(e.left.span, { start: 0, end: 3 });
-  assert.deepEqual(e.right.span, { start: 6, end: 7 });
-});
-
-test("the furthest expectation survives backtracking", () => {
-  // The exponent is missing after `^`. The parser backtracks out of the
-  // optional exponent, then the product ends and `eof` fails at the `^`
-  // itself; the reported error is nevertheless the one furthest in.
-  assert.deepEqual(rejected("3 m ^"), unexpected(5, "a number"));
-  assert.deepEqual(rejected("3 m ^ x"), unexpected(6, "a number"));
+test("a success keeps the expectations of what it tried and did not take", () => {
+  // `many` stopped because no letter followed; `eof` fails at the same
+  // position, and the error lists both continuations.
   assert.deepEqual(
-    rejected("(2 m"),
-    unexpected(4, '"^"', '"*"', "a number", "a unit name", '"("', '"/"', '")"'),
+    failure(seq(many(letter), eof), "ab1"),
+    unexpected(2, "a letter", "end of input"),
+  );
+  assert.deepEqual(
+    failure(seq(optional(string("-")), integer), "x"),
+    unexpected(0, '"-"', "a number"),
   );
 });
 
-test("the example grammar reports what could have continued the input", () => {
-  // In the order the parser tried them: the exponent and `*` of the last
-  // factor, another factor by juxtaposition, `/`, and the end.
-  assert.deepEqual(
-    rejected("3 m )"),
-    unexpected(
-      4,
-      '"^"',
-      '"*"',
-      "a number",
-      "a unit name",
-      '"("',
-      '"/"',
-      "end of input",
+test("a rejection surfaces through nested combinators with its span", () => {
+  const small = check(integer, (n) => (n < 100 ? ok(n) : err("too large")));
+  const plus = map(string("+"), () => (a: number, b: number) => a + b);
+  const sum: Parser<number> = lazy(() =>
+    alt(
+      map(seq(string("("), sum, string(")")), ([, n]) => n),
+      chainl1(small, plus),
     ),
   );
-  assert.deepEqual(
-    rejected(""),
-    unexpected(0, "a number", "a unit name", '"("'),
-  );
-  assert.deepEqual(
-    rejected("2 /"),
-    unexpected(3, "a number", "a unit name", '"("'),
-  );
-});
-
-test("the example grammar rejects an unrepresentable literal with its span", () => {
-  assert.deepEqual(rejected("m / 12345 s"), {
+  assert.equal(unwrap(sum, "(1+2)"), 3);
+  assert.deepEqual(failure(sum, "(1+420)"), {
     kind: "rejected",
-    span: { start: 4, end: 9 },
+    span: { start: 3, end: 6 },
     reason: "too large",
   });
 });

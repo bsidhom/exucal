@@ -180,7 +180,9 @@ the build) and go through the same parser as any user-supplied definitions.
 appended to the system ones.
 
 The format is a pared-down GNU units file: one definition per line, name then
-whitespace then body, `#` comments.
+whitespace then body, `#` comments. The whitespace after the name is
+required, so that `inch2.54 cm` is an error rather than a definition of
+`inch2`.
 
 ```
 m         !                 # dimension primitive
@@ -193,10 +195,17 @@ hertz     1 / s
 
 ```ts
 type Definition =
-  | { kind: "primitive"; name: string; role: "dimension" | "kind" }
-  | { kind: "prefix"; name: string; body: Expr }
-  | { kind: "unit"; name: string; body: Expr };
+  | { kind: "primitive"; name: string; role: "dimension" | "kind"; span: Span }
+  | { kind: "prefix"; name: string; body: Expr; span: Span }
+  | { kind: "unit"; name: string; body: Expr; span: Span };
 ```
+
+`parseDefinitions(text): Result<Definition[], ParseError>` returns the
+definitions in the order written, duplicates included. Every span is an
+offset into the whole text, not the line: a definition's `span` covers it
+from name to body, for the errors `buildTable` reports against a definition
+as a whole (a duplicate name, a cycle, a prefix that is not dimensionless),
+and the spans inside its body serve the errors within it.
 
 `buildTable` evaluates each body to a `Quantity`, resolving references on
 demand with memoization and a visiting set, so definitions may appear in any
@@ -229,8 +238,18 @@ other, and each unit, one map lookup.
 One grammar serves both definition bodies and user input, so anything that can
 be typed can also be defined. It is the basic GNU units expression language:
 decimal numbers, unit names, juxtaposition and `*` for multiplication, `/`,
-`^` with an integer or parenthesized rational exponent, and parentheses, with
-GNU units precedence. No functions, unit lists or `+`/`-` yet.
+`^` with a literal exponent, and parentheses, with GNU units precedence:
+juxtaposition binds tighter than `*` and `/`, which are one left-associative
+level, so `kg m / s^2` is `(kg m) / (s^2)` and `m/s*s` is `(m/s)*s`. No
+functions, unit lists or `+`/`-` yet.
+
+An exponent is a signed decimal (`m^2`, `s^-1`, `m^0.5`) or a parenthesized
+rational (`m^(1/2)`), never an expression, so it is known at parse time and
+travels in the tree as a `Rational`. A unit name is a letter or underscore
+followed by letters, digits and underscores, in any script; names are
+maximal, so `m2` is the name `m2` and never `m` squared, and whether such a
+name means anything is the table's business. Whitespace is spaces and tabs,
+never a newline, because a definition body is one line.
 
 ```ts
 type Span = { readonly start: number; readonly end: number };

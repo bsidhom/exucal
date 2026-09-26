@@ -3,8 +3,12 @@
 An offline-first progressive web app (PWA) that converts units, in the
 spirit of GNU units: type a quantity you have (`3 ft`) and a unit you want
 (`in`), and it answers `3 ft = 36 in`; want a list of units (`ft;in`) and
-it answers `1 m ≈ 3 ft + 3.3700787 in`. It can be installed to the home
-screen and works without a network connection once it has been loaded once.
+it answers `1 m ≈ 3 ft + 3.3700787 in`. As GNU units does, it also
+answers the other way round: `3 ft = 36 in` and then `in ≈ 0.027777778 ×
+3 ft`. That goes with a conversion into one unit only, since a sum over a
+list has no other way round. The app can be
+installed to the home screen and works without a network connection once it
+has been loaded once.
 
 `ARCHITECTURE.md` describes the design of the unit converter itself: the
 conversion pipeline, the number type, and how units, dimensions and kinds are

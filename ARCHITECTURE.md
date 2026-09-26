@@ -601,6 +601,48 @@ the expression it is and could be typed back as a `have`. A term of zero is
 left out, as it would be in speech (`1 hr + 1 s`), except that a sum of
 nothing but zeros keeps its last term (`0 in`).
 
+GNU units answers every conversion twice, with the number to multiply by
+(`* 36`) and the number to divide by (`/ 0.027777778`). Dividing by the
+second number converts the other way, from `want`s to `have`s, so it is the
+reverse conversion in disguise: one `in` is `0.027777778` of `3 ft`. The
+converter shows that reverse conversion on a second line, written as the
+first line is with the sides swapped, so that both read as statements about
+quantities and could be typed back as a `have`:
+
+```
+3 ft = 36 in
+in ≈ 0.027777778 × 3 ft
+```
+
+The `have` takes the unit's place and is written as a unit is, by the same
+rule as a `want`: with a multiplication sign when it starts with a number,
+since `0.027777778 3 ft` would read as one product, and parenthesized when
+it is a sum, a difference or a negation (`in ≈ -0.027777778 (-3 ft)`). Each
+line's relation is decided from its own value: `2 m = 2 m` and `m = 0.5 ×
+2 m` are both exact, while `1 in = 2.54 cm` has the approximate `cm ≈
+0.39370079 × 1 in`. The reciprocal is `invert` of the ratio the pipeline
+returns (the ratio of `want` to `have`, as `convert` would give it with the
+two swapped), and it stays in the component: it is a second view of the
+same value, like the rounding, not a step of the conversion. GNU units'
+verbose form writes the second line as `3 ft = (1 / 0.027777778) in`
+instead, which is true but reads as nothing; the swapped line says what
+the number is for.
+
+Only a conversion into one unit has a reciprocal. That conversion is one
+ratio, `have / want`, and the reciprocal is the same ratio the other way
+round, `want / have`, which says the same thing. A conversion into a unit
+list is not a ratio but a sum, `3 ft + 3.3700787 in`, a positional way of
+writing one quantity, and there is no other way round for it: inverting
+each term gives numbers that add up to nothing, `1 / have` in the same
+list never conforms (its dimension is the inverse), and the reciprocal of
+the total in any one unit of the list would be a reciprocal of a different
+conversion, for a unit chosen by some rule the user did not ask for. GNU
+units prints no reciprocal for a unit list either. So a list, typed or
+named, gets no second line, nor does a blank `want`, which shows a
+definition, as GNU units shows one without a reciprocal. A value of zero
+has no reciprocal (`0 ft = 0 in`, and nothing is a multiple of `0 ft`), and
+the line is left out rather than shown as anything.
+
 The errors the core returns are values with spans and dimensions, not
 sentences; `src/messages.ts` puts them into words, quoting the text at fault
 and formatting dimensions with `formatDimension`, so that the wording is

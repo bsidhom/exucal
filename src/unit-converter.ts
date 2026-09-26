@@ -14,6 +14,7 @@ import {
   absolute,
   equals,
   format,
+  invert,
   isZero,
   round,
   sign,
@@ -32,21 +33,28 @@ export const DISPLAY_PRECISION = 8;
 /** One term of a result: `value` of `unit`, where `unit` is text to show after the value. */
 type Term = { readonly value: Rational; readonly unit: string };
 
+/**
+ * One line of a result: `have` is `relation` the sum of `terms`, as in
+ * `3 ft = 36 in`, `1 m ≈ 39.370079 in` and `1 m ≈ 3 ft + 3.3700787 in`. A
+ * conversion into one unit is one term; one into a unit list is a term per
+ * unit shown.
+ */
+type Line = {
+  readonly have: string;
+  readonly relation: "=" | "≈";
+  readonly terms: readonly Term[];
+};
+
 /** What the output area shows for the current pair of texts. */
 type Outcome =
   /** Nothing to convert yet. */
   | { readonly kind: "empty" }
   /**
-   * `have` is `relation` the sum of `terms`: `3 ft = 36 in`,
-   * `1 m ≈ 39.370079 in`, `1 m ≈ 3 ft + 3.3700787 in`. A conversion into
-   * one unit is one term; one into a unit list is a term per unit shown.
+   * The conversion, as one line, or two when it has a reciprocal: the
+   * conversion and then the same conversion the other way round, `3 ft =
+   * 36 in` and `in ≈ 0.027777778 × 3 ft`.
    */
-  | {
-      readonly kind: "result";
-      readonly have: string;
-      readonly relation: "=" | "≈";
-      readonly terms: readonly Term[];
-    }
+  | { readonly kind: "result"; readonly lines: readonly Line[] }
   /** `message` says what is wrong, with the text on `side` if it is one text's fault. */
   | { readonly kind: "error"; readonly side?: Side; readonly message: string };
 
@@ -61,6 +69,19 @@ type Outcome =
  * (`in = 0.0254 m`), the answer GNU units gives to the same question. A
  * `want` that is a unit list, typed (`ft;in`) or by name (`time`), gives
  * the sum the pipeline computes, one term per unit.
+ *
+ * A conversion into one unit is also shown the other way round, on a
+ * second line, as GNU units shows every conversion twice (`* 36` and
+ * `/ 0.027777778`, the number to multiply by and the number to divide by):
+ * `3 ft = 36 in` and then `in ≈ 0.027777778 × 3 ft`, the `want` converted
+ * into the `have`, which is what dividing by the second number does. The
+ * two lines have the same shape with the sides swapped, and each reads as
+ * a statement about quantities. Only a conversion into one unit has a
+ * reciprocal: it is one ratio, and the reciprocal is the same ratio the
+ * other way round. A conversion into a unit list is a sum, not a ratio, so
+ * there is no other way round and no line is added; nor for a blank
+ * `want`, which shows a definition; nor for a value of zero, which has no
+ * reciprocal.
  */
 @customElement("unit-converter")
 export class UnitConverter extends LitElement {
@@ -207,13 +228,14 @@ export class UnitConverter extends LitElement {
       };
     }
     return conversion.value.kind === "unit"
-      ? result(have, conversion.value.value, wantText(want))
+      ? unitResult(have, want, conversion.value.value)
       : listResult(have, conversion.value);
   }
 }
 
 /**
- * The `want` as the output writes it after the value, so that the whole
+ * The `want` as the output writes it after the value (or the `have`, on
+ * the reciprocal line, where it takes the want's place), so that the whole
  * line reads as the expression it means. `1 mi` in `1000 ft` is
  * `5.28 × 1000 ft`; without the sign, the number would read as one product
  * with the want. A want that is a sum, a difference or a negation is
@@ -282,8 +304,29 @@ function renderInput(
 
 /** The result outcome for `value` `unit`, marked exact or approximate. */
 function result(have: string, value: Rational, unit: string): Outcome {
+  return { kind: "result", lines: [line(have, value, unit)] };
+}
+
+/**
+ * The result outcome for a conversion of `have` into the one unit `want`,
+ * `have` being `value` `want`s, with the reciprocal beneath it: the same
+ * conversion the other way round, `want` being `1 / value` `have`s,
+ * written as the first line is with the sides swapped
+ * (`in ≈ 0.027777778 × 3 ft`), the `have` taking the place of the unit and
+ * written as a unit is. A `value` of zero has no reciprocal (`0 ft = 0 in`,
+ * and nothing is a multiple of `0 ft`), so the second line is left out
+ * rather than shown as anything.
+ */
+function unitResult(have: string, want: string, value: Rational): Outcome {
+  const lines = [line(have, value, wantText(want))];
+  const inverse = invert(value);
+  if (inverse.ok) lines.push(line(want, inverse.value, wantText(have)));
+  return { kind: "result", lines };
+}
+
+/** The line `have` is `value` `unit`, marked exact or approximate. */
+function line(have: string, value: Rational, unit: string): Line {
   return {
-    kind: "result",
     have,
     relation: shownExactly(value) ? "=" : "≈",
     terms: [{ value, unit }],
@@ -315,9 +358,13 @@ function listResult(
   const nonzero = all.filter((term) => !isZero(term.value));
   return {
     kind: "result",
-    have,
-    relation: terms.every(shownExactly) ? "=" : "≈",
-    terms: nonzero.length > 0 ? nonzero : all.slice(-1),
+    lines: [
+      {
+        have,
+        relation: terms.every(shownExactly) ? "=" : "≈",
+        terms: nonzero.length > 0 ? nonzero : all.slice(-1),
+      },
+    ],
   };
 }
 
@@ -334,11 +381,17 @@ function renderOutcome(outcome: Outcome): TemplateResult {
         to, such as <code>in</code> or <code>ft;in</code>.
       </span>`;
     case "result":
-      return html`<span>${outcome.have}</span> ${outcome.relation}
-        ${outcome.terms.map(renderTerm)}`;
+      return html`${outcome.lines.map(renderLine)}`;
     case "error":
       return html`<span class="error">${outcome.message}</span>`;
   }
+}
+
+/** One line of a result, on a line of its own. */
+function renderLine(line: Line): TemplateResult {
+  return html`<div>
+    <span>${line.have}</span> ${line.relation} ${line.terms.map(renderTerm)}
+  </div>`;
 }
 
 /**

@@ -2,9 +2,10 @@
 
 Status: design study, no code. This document weighs a list of features
 against the core as it stands and says which fit together, which have to
-be toggled against one another, and which are ruled out. It stays in broad
-strokes on purpose: each feature it admits gets a design of its own later,
-in the manner of docs/functions.md, and nothing here is that design.
+be toggled against one another, which are set aside for later, and which
+are ruled out. It stays in broad strokes on purpose: each feature it
+admits gets a design of its own later, in the manner of docs/functions.md,
+and nothing here is that design.
 
 The features, in the order of their priority:
 
@@ -178,8 +179,9 @@ value instead would be the one choice that has to be redone.
   rounded before `sin` sees it; `sqrt(2)^2` is `2 ± ε` at every
   precision. Escalation stops at the ceiling and the display shows what
   is true: `≈ 0`, with an absolute bound, or `≈ 2.000...0`. Exactness for
-  such identities needs symbolic constants, which are ruled out below;
-  no numeric system, Arb included, does otherwise.
+  such identities needs symbolic constants, which are not a goal now
+  ("Not now, but not ruled out" below); no numeric system, Arb included,
+  does otherwise.
 - It cannot guarantee `p` digits at every precision the user might set,
   because the retry has a ceiling in time. Beyond it the display shows
   the digits that are certified and says that they are fewer than asked.
@@ -290,7 +292,8 @@ What they need from the core, in broad strokes:
   `negativeRadicand`. With balls, an argument whose ball straddles the
   edge of the domain (`ln` of a value that cannot be told from zero) is
   the same error once escalation has given up. All functions are
-  real-valued; there is no complex result (see "Ruled out").
+  real-valued; a complex result is not a goal now ("Not now, but not
+  ruled out" below).
 - **Exact cases.** As `root` returns `sqrt(9/4)` exactly today, a
   built-in returns an exact value, radius zero, wherever the value is
   rational and cheaply recognized: `exp(0)`, `ln(1)`, `sin(0)`, `cos(0)`,
@@ -388,10 +391,12 @@ Ruled out, at least as built-ins:
 - **Bessel `Y` and `K`**, and any Bessel function at large argument:
   they need the asymptotic expansions and the logarithmic limits for
   integer order; too much machinery for the use they would get here.
-- **Anything with a complex value or argument**: `ln(-1)`, `sqrt(-1)`,
-  `gamma` off the real line. The number type is real and stays real.
 - **Statistical distributions as built-ins**: they are compositions of
   feature 2, and feature 6 is the right home for them.
+
+Complex values and arguments (`ln(-1)`, `sqrt(-1)`, `gamma` off the real
+line) are not a goal of this design either, but they are set aside rather
+than ruled out; see "Not now, but not ruled out".
 
 ### 4 and 5. Floating point and decimal: one feature, not two
 
@@ -615,6 +620,27 @@ What is toggled, and what is concurrent:
   is not a mode: it is what exact mode means, and decimal mode is
   per-operation by definition.
 
+## Not now, but not ruled out
+
+Two extensions that this design does not pursue, and takes care not to
+prevent. docs/future.md records each in full: what it is, why not now,
+what it would take, and what in this design keeps it possible.
+
+- **Symbolic constants** (`pi` kept as a symbol, so that `sin(pi()/6)` is
+  exactly `1/2` and `turn` into `deg` is `= 360`). Not now, because a
+  general form is a computer algebra system, and the numeric model
+  already gives correct digits with a conservative `≈`. Kept possible,
+  because an exact value is a ball of radius zero whatever its midpoint
+  holds, and `pi()` is a function that can return a symbolic value under
+  a setting and digits otherwise.
+- **Complex numbers**, as values and as results of `ln`, `sqrt` and
+  `gamma` off the real line. Not now, because every built-in would need
+  a second implementation and there is no complex use in sight, so such
+  arguments are domain errors. Kept possible, because the magnitude is
+  one type behind one module, a complex ball is the next type after the
+  real one, and domain errors are `Result` values a mode can turn into
+  values.
+
 ## Ruled out, and why
 
 - **A float with a rational mantissa as a third number type.** Subsumed:
@@ -633,18 +659,9 @@ What is toggled, and what is concurrent:
   replaced the day the first propagation rule is written; see "The
   precision model" for why the radius is the shape to start with even
   when the rules come later.
-- **Symbolic constants** (`pi` kept as a symbol so that `sin(pi())` is
-  exactly `0`). That is a computer algebra system: simplification rules,
-  a normal form for expressions in `pi`, and decisions of equality that
-  are undecidable in general. `pi()` is a function that produces digits,
-  and `sin(pi())` is a ball around zero, as in every numeric system.
 - **Stored digits of `pi` or `e`.** Measured against the payload and the
   cost of computing them (feature 1), they buy nothing at any precision a
   user will set. Computation on demand, memoized, instead.
-- **Complex numbers**, as values or as results of `ln`, `sqrt` and
-  `gamma` off the real line. Every function would need a second
-  implementation and every conversion a meaning for a complex magnitude.
-  Negative arguments outside a function's real domain are errors.
 - **General hypergeometric functions, Bessel `Y` and `K`, Bessel
   functions at large argument.** See feature 3: library-sized casework
   for little use here.

@@ -842,3 +842,7 @@ Planned extensions, listed to show that they fit without reshaping the core:
   to `convert` that skips step 2 of the conformance check. Sums would keep
   the strict check: adding an angle to a plain number is a mistake whether
   or not the user asked to convert between them.
+- **Symbolic constants and complex numbers** are not planned, and would
+  reshape the number type rather than fit around it; docs/future.md
+  records what each would take and what keeps it possible, so that no
+  design closes the door on them by accident.

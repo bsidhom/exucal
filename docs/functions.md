@@ -82,19 +82,40 @@ so `2 tempC(100)`, `tempC(100)^2` and `-tempC(100)` mean what they look
 like, and the argument is any expression: `tempC(20 + 5)`, `tempC(x)`
 inside another definition.
 
-This is the one whitespace-sensitive rule in the grammar, and it is
-forced: `kg (m/s)` is a product today, and the parser cannot ask the table
-whether `kg` is a function, since parsing never touches the table (GNU
-units decides in its lexer, which has the table). So `kg(m/s)` becomes a
-call, and fails as one, since `kg` is not a function; the error says so and
-suggests the space. `Expr` gains a `call` node: the name with its span, and
-the argument.
+**Decision: a call is decided by the text alone.** The parser cannot ask
+the table whether `kg` is a function, since parsing never touches the
+table; GNU units decides in its lexer, which has the table. The
+alternative, parsing every `name(...)` as one node and letting the
+evaluator multiply when the name is a unit, would change what
+`kg(m/s)^2` means, so the rule is lexical: no space before `(` is a call,
+a space is a product. `kg (m/s)` stays the product it is today, and
+`kg(m/s)` becomes a call of `kg`, which is not a function. That is the
+one whitespace-sensitive rule in the grammar, and the one way existing
+input changes meaning; nothing in `src/units.txt` writes a product that
+way. `Expr` gains a `call` node: the name with its own span, and the
+argument.
+
+Since a call of a unit is the likeliest mistake, the failure has to say
+what happened. The name of a call resolves among the functions alone, and
+when there is none the error, `notAFunction`, carries the name, its span,
+the span of the whole call, and what the name is otherwise: a unit, a
+prefix followed by a unit, or nothing. The message says which, and for a
+unit shows the product the user probably meant, with the space:
+
+```
+kg(m/s)       "kg" is a unit, not a function. For a product, write "kg (m/s)", with a space.
+km(2)         "km" is a unit, not a function. For a product, write "km (2)", with a space.
+foo(2)        Unknown function "foo".
+```
+
+The check is the evaluator's, since only the table knows the names, and
+the input is marked invalid on the side the call is on, as any unknown
+unit is.
 
 A call evaluates in four steps, and the first failure ends it:
 
-1. The name resolves among the functions; an unknown one is an
-   `unknownFunction` error at the name (with a hint when the name is a
-   unit).
+1. The name resolves among the functions; a name that is not one is the
+   `notAFunction` error above.
 2. The argument evaluates as any expression.
 3. The argument must conform to the declared argument unit, by the same
    check a sum applies to its operands; a failure is an `argumentMismatch`
@@ -241,3 +262,4 @@ same name rule the build did.
   already the notation the user typed.
 - **Deciding calls by the table**, so that `kg(m/s)` stays a product: it
   makes the parser depend on the table, which the architecture rules out.
+  See the decision under "Calls in expressions".

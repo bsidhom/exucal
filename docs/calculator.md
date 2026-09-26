@@ -20,41 +20,46 @@ The features, in the order of their priority:
 6. User-defined functions as shorthand compositions of the above, written
    as ordinary expressions and agnostic to the precision and rounding mode
    in force.
+7. Optional rational (fractional) display, toggled against the decimal
+   display.
 
 The constraints: no external dependencies, correctness first, but the app
-runs on phones, so latency and memory still matter.
+runs on phones, so latency and memory still matter. The precision is the
+user's to set, and arbitrary: nothing below assumes a fixed working
+precision, and the rule the core applies today (compute to 40 digits,
+truncate once, display 8) is replaced, not extended.
 
 ## Verdict in brief
 
 | Feature                        | Verdict                                                         |
 | ------------------------------ | --------------------------------------------------------------- |
-| 1. Elementary functions        | Feasible; fits the existing `call` node and precision rule      |
+| 1. Elementary functions        | Feasible; fits the existing `call` node                         |
 | 2. Gamma and Beta families     | Feasible; the incomplete forms are the hardest to make rigorous |
 | 3. Other special functions     | Feasible for a named list below; a few ruled out                |
 | 4. Floating point              | Feasible, but not as a third number type: it merges with 5      |
 | 5. Decimal with rounding modes | Feasible; one of two modes of one number type                   |
 | 6. User-defined compositions   | Feasible; exists in embryo, needs three extensions              |
+| 7. Rational display            | Feasible; a display setting, given one bit of state on values   |
 
-Everything admitted can be present in the code at once. Only one pair is
-toggled at run time: the exact mode (today's rationals) and the decimal
-mode (feature 5, which feature 4 turns out to be). The rest is concurrent.
+Everything admitted can be present in the code at once. Two pairs are
+toggled at run time: the exact mode (today's rationals) against the
+decimal mode (feature 5, which feature 4 turns out to be), and the
+decimal display against the rational display (feature 7). The rest is
+concurrent.
 
-The one finding that reshapes the plan is not any single feature but the
-precision model they share, which the next section explains before the
-features are taken one by one.
+The features share one precision model, which is fixed first, because
+every function below plugs into it the same way.
 
 ## What the core gives us
 
 The pieces that matter here, from ARCHITECTURE.md:
 
 - **The number type is an exact rational** over `bigint`. Exact operations
-  never round. The one inexact operation, the n-th root, computes its
-  result correct to a working `Precision` of significant digits and
-  truncates it once to exactly that many; the truncated value is an
-  ordinary rational and everything downstream is exact again. The app
-  works at 40 digits and displays 8, rounding to nearest once at display.
-- **`Precision` is already threaded** through `evaluate`, `buildTable`
-  and the pipeline as a parameter. There is no global.
+  never round. The one inexact operation, the n-th root, takes a
+  `Precision` in significant digits. How it uses that precision (compute
+  beyond it, truncate to it) is the rule this document replaces; that it
+  takes one, and that the evaluator, the build and the pipeline thread
+  one through as a parameter, is what carries over. There is no global.
 - **A `Quantity` is a magnitude and a dimension**, and the dimension's
   exponents are rationals too, so roots are exact on the dimension side.
 - **Functions exist**: a definition `tempC(x) [1;K] body ; inverse` is a
@@ -63,75 +68,87 @@ The pieces that matter here, from ARCHITECTURE.md:
   that today knows only defined functions. The build checks a function by
   evaluating its body at one of the declared argument unit.
 - **Irrational constants are decimal literals**: `pi` is a 36-digit
-  literal in `src/units.txt`, as in GNU units.
+  literal in `src/units.txt`, as in GNU units. Six definitions use it.
 - **Failures are `Result` values**, never exceptions, and every module has
   its own error type.
 
-## The finding: the precision rule does not survive composition
+## The precision model
 
-ARCHITECTURE.md argues that a working precision of 40 digits keeps the
-truncation errors of inexact operations out of the 8 displayed digits,
-because the exact operations that follow a truncation "combine such errors
-at worst additively". That is true of absolute errors, but a subtraction
-can leave a result far smaller than its operands, and then a fixed
-absolute error is an unbounded relative one. The app shows this today:
+Everything transcendental in this program is computed under one rule,
+which is the rule MPFR gives its users and mpmath approximates:
 
-```
-2^(1/2) * 2^(1/2) - 2      displays as   ≈ -1.9003505e-39
-(10^(1/3))^3 - 10          displays as   ≈ -4.8032395e-39
-```
+**Every inexact operation returns the true value correctly rounded to the
+working precision, in the rounding mode in force.** Correctly rounded
+means the nearest representable value in that mode, not "within one unit
+in the last place": given the precision, the result of the operation is
+right to that many digits, with no qualification. The mechanism is the
+standard one: detect the exactly representable cases first (`exp(0)`,
+`sqrt(9/4)`, `log10(1000)`), compute the rest with guard digits, and
+retry with more when the guard digits do not settle which way to round
+(the Ziv strategy). For the elementary functions at rational arguments
+the retry always terminates, because their values off the exact cases
+are irrational, and in practice it is rarely taken at all. For the
+special functions, where irrationality is not always known, the retry has
+a cap and falls back to a faithful rounding; a case that reaches the cap
+would be a discovery in number theory.
 
-Both are zero. What is shown is the truncation error of one root, with
-eight confident digits that mean nothing. With roots alone this is a
-curiosity, because roots rarely cancel. With elementary functions it is
-everyday arithmetic: `exp(x) - 1` for small `x`, `ln(1 + x)`,
-`1 - cos(x)`, `sin(pi)`, or a user-defined function whose body is any of
-these. And `sin(pi)` has a second problem: with `pi` a 36-digit literal,
-`sin(pi)` is about `4e-36` at every working precision, since the
-argument is not pi. Raising the working precision cannot fix a constant
-that has 36 digits.
+What the rule does and does not promise about a composition:
 
-Feature 6 asks that user-defined compositions "handle rounding and
-precision correctly" while being written without regard to either. Under
-the current rule they cannot: the body `(exp(x) - 1) / x` would display
-eight wrong digits for `x = 1e-30`, and no working precision the user did
-not choose by hand would save it. So the precision rule has to change,
-and the change is shared by features 1, 2, 3 and 6. Three ways to change
-it, all compatible with every feature:
+- It promises nothing about the whole expression, and the design does not
+  propagate error through compositional steps. `exp(x) - 1` for small `x`
+  loses digits to cancellation and gets them back only if the user raises
+  the precision; `sin(pi())` is not zero but a value of the order of
+  `10^-p`, since `pi()` is rounded before `sin` sees it. This is the
+  arithmetic every arbitrary-precision library exposes to a user who
+  asked for a precision and got it per operation, and it is what "the
+  result is correct to the precision" means here: per operation, exactly.
+- A user-defined function is a composition and inherits this: its body is
+  evaluated under the context of the call, each operation correctly
+  rounded, and the definition never mentions precision. It is agnostic by
+  construction.
+- Should a whole-expression guarantee ever be wanted, nothing here blocks
+  it: it is either an error bound carried internally beside each value
+  and used only to raise the precision and re-evaluate (never shown), or
+  a re-evaluation at rising precision until the leading digits settle.
+  Both are out of scope, and the second is the one to reach for, since it
+  touches no type.
 
-- **A. Keep the rule, expose the knob.** Leave the fixed working
-  precision and let the user raise it in settings. Cheapest, and not
-  correct: the display still cannot tell a cancelled zero from a small
-  number, and the user has to know when to reach for the knob.
-- **B. Carry an error bound with every value.** A magnitude becomes a
-  midpoint and a radius (a ball, in the sense of Arb). Exact operations
-  propagate the radius exactly (a sum adds radii, a product scales them),
-  and every inexact function adds its own truncation error and bounds how
-  it magnifies the error of its argument. A value with no inexact
-  operation behind it has radius zero, so nothing changes for the
-  converter as it is today. The display then shows only the digits the
-  radius certifies, shows a value whose radius covers zero as `0` with
-  `≈`, and writes `=` only for radius zero. Rigorous, and it makes
-  feature 6 true by construction: a composition is correct because the
-  digits it displays are proven, whatever its body does. The cost is a
-  radius beside every magnitude and an error rule for every built-in
-  function, both well understood.
-- **C. Re-evaluate at rising precision until the displayed digits
-  settle.** No type change; two or three evaluations per keystroke; can
-  never conclude that a value is zero (each evaluation of `sin(pi)` gives
-  a different tiny number), so it needs a heuristic cutoff.
+The precision itself:
 
-The recommendation is B, with C as the fallback if the radius is judged
-too heavy for the first iteration. Whichever is chosen, it is one
-decision, made once, and every function below plugs into it the same
-way: a built-in computes its value to the working precision and reports
-its error; the evaluator does the rest. In decimal mode (below) every
-rounding step adds half a unit in the last place to the radius, so the
-decimal mode gets certified digits for free too.
+- **One setting, in significant decimal digits**, as `Precision` already
+  is. Bits are the natural unit inside the kernel, and the conversion is
+  a constant factor; the user sees digits. A display shorter than the
+  precision remains a display preference, not a second precision, because
+  a value correct to `p` digits shown at `p` digits needs no cushion of
+  extra working digits, which is what today's 40-against-8 split was for.
+- **The precision has a ceiling**, for the reasons under "Fitting
+  together": evaluation is synchronous on every keystroke, and a
+  special function at ten thousand digits takes seconds.
 
-What none of the three can give is exactness for transcendental
-identities: no arithmetic on approximations will find that `sin(pi)` is
-exactly `0`. That needs symbolic constants, and it is ruled out below.
+Exactness, the last piece of the model, is one bit:
+
+**Every value carries an inexact flag.** A literal, a unit and the result
+of an exact operation on exact values are exact; any operation that
+rounded (an inexact function; in decimal mode, any operation whose result
+did not fit the precision) produces an inexact value, and any operation
+with an inexact operand does too. This is the `Inexact` condition of IEEE
+754 and of Python's decimal context, and it is what decides `=` against
+`≈` in every display below. Today the app decides that by whether the
+displayed digits are all the digits of the held value; under arbitrary
+precision that test fails, since `sqrt(2)` computed to 20 digits and
+shown at 20 would read as `=`. The flag says what the test cannot: not
+whether the digits shown are the digits held, but whether the digits held
+are the truth. And it settles the worry that a value which passed
+through an irrational step might come out looking rational: it may, and
+it is still inexact, because the flag remembers the step. `sqrt(2)^2` is
+`≈ 2.0000000000000000000` (or a string of nines), never `= 2`, and
+`sqrt(4)` is `= 2`, because the exact case was detected and nothing
+rounded. The flag is conservative by design: it never claims exactness
+falsely, and it will say `≈` where a rounded constant happened to cancel
+(`turn` into `deg` is exactly `360`, but both are defined through a
+rounded `pi()`, so the flag says `≈ 360`). That is the one visible cost
+of `pi()` being a runtime function rather than a literal, and it is
+accepted: a conservative `≈` is honest, a false `=` is not.
 
 ## The features, one by one
 
@@ -139,15 +156,15 @@ exactly `0`. That needs symbolic constants, and it is ruled out below.
 
 `exp`, `ln`, `log10`, `log2`, `log(x, b)`, `sqrt`, `cbrt`, `pow(x, y)`,
 the six trigonometric functions and their inverses, `atan2`, the
-hyperbolic functions and their inverses. All are computable to any
-number of significant digits from a handful of series with argument
-reduction: `exp` by halving and squaring, `ln` by Newton on `exp` or by
-the `atanh` series after reduction by powers of two, `sin` and `cos` by
-reducing the argument modulo `pi/2` against a `pi` computed to the
-working precision, `atan` by half-angle reduction. At 40 digits each is
-a few dozen multiplications of 130-bit integers, well under a
-millisecond on a phone; at 1000 digits, milliseconds. None needs a
-table, a polynomial fit or a library.
+hyperbolic functions and their inverses, and the constants as functions,
+`pi()` and `exp(1)`. All are computable to any number of significant
+digits from a handful of series with argument reduction: `exp` by halving
+and squaring, `ln` by Newton on `exp` or by the `atanh` series after
+reduction by powers of two, `sin` and `cos` by reducing the argument
+modulo `pi/2`, `atan` by half-angle reduction. At 40 digits each is a few
+dozen multiplications of 130-bit integers, well under a millisecond on a
+phone; at 1000 digits, milliseconds. None needs a table, a polynomial fit
+or a library.
 
 What they need from the core, in broad strokes:
 
@@ -156,56 +173,61 @@ What they need from the core, in broad strokes:
   expression, so the resolved function becomes a union: a defined
   function with its bodies, or a built-in with an arity, a rule for the
   dimensions of its arguments and result, and a native implementation
-  from magnitudes and a precision to a magnitude with its error. The
+  from magnitudes and a context to a magnitude with its inexact flag. The
   `call` case of the evaluator switches on it. Built-ins live in the
   function namespace, so a user definition of the same name is the
-  duplicate the build already rejects. The names that collide with
-  units today are `pi`, `e` (the elementary charge) and `W` (the watt),
-  so Euler's number is `exp(1)`, as in GNU units, and Lambert's function
-  gets a longer name.
-- **Calls with several arguments.** The grammar reads `name(expr)`; it
-  needs `name(expr, expr, ...)`. The comma is unused, so this is a local
-  change to the `call` rule and node, and user-defined functions can
-  take several parameters with it (feature 6).
+  duplicate the build already rejects. The unit names that would collide
+  are `e` (the elementary charge) and `W` (the watt), so Euler's number
+  is `exp(1)`, as in GNU units, and Lambert's function gets a longer
+  name.
+- **Calls with any number of arguments.** The grammar reads `name(expr)`;
+  it needs `name()` and `name(expr, expr, ...)`. The comma is unused, so
+  this is a local change to the `call` rule and node, and user-defined
+  functions can take several parameters with it (feature 6).
+- **`pi()` as a function that produces digits at the precision asked.**
+  Not a constant and not a literal: a call of no arguments, so that a
+  definition body reads `pi() radian / 180` and gets the precision the
+  table is built at. Its digits come from a hard-coded prefix up to a
+  limit chosen against the asset size (ten thousand digits is ten
+  kilobytes of text, about four and a half compressed, which covers
+  every precision a user will set in practice) and from computation
+  beyond it: a Machin-type formula is enough to some thousands of digits,
+  and Chudnovsky's series with binary splitting, which is what QuickJS's
+  libbf uses, beyond that. Spigot algorithms produce digits one at a time
+  but cost quadratic time and bring nothing here over a stored prefix.
+  Whatever is computed is cached for the session at the largest precision
+  reached, and shorter requests round from it. Since `deg`, `turn` and
+  `grad` call `pi()`, the table's quantities depend on the working
+  precision, so the table is built at the working precision and rebuilt
+  when the setting changes (a few milliseconds). The definitions file
+  loses the literal and its six uses become calls.
 - **Dimension rules.** The argument of `exp`, `ln` or `asin` must be a
   plain number, and `exp(1 m)` is an error that names the dimension.
   Trigonometric functions must also accept an angle, which in this table
-  carries the `radian` kind (`30 deg` is `pi radian / 6`), so their rule
-  is "dimensionless, or the radian kind treated as 1". Whether `asin`
-  returns a plain number or an angle in radians is a choice for the
-  design: the second makes `asin(0.5)` convert to `deg` and is
+  carries the `radian` kind (`30 deg` is `pi() radian / 6`), so their
+  rule is "dimensionless, or the radian kind treated as 1". Whether
+  `asin` returns a plain number or an angle in radians is a choice for
+  the design: the second makes `asin(0.5)` convert to `deg` and is
   consistent with the kind system, at the price that `2 asin(0.5) + 1`
   is a kind mismatch. Either fits.
 - **Domain errors.** `ln(0)`, `ln(-1)`, `asin(2)`, `acosh(0.5)` are a new
   evaluator error, located at the call, beside `divisionByZero` and
   `negativeRadicand`. All functions are real-valued; there is no complex
   result (see "Ruled out").
-- **Exact cases.** As `root` returns `sqrt(9/4)` exactly, a built-in
-  returns an exact rational wherever the value is rational and cheaply
-  recognized: `exp(0)`, `ln(1)`, `sin(0)`, `cos(0)`, `log10(1000)`,
-  `log(8, 2)`, `pow(x, p/q)` through the existing `powRational`. The
-  rule is the one the architecture already states for roots. What it
-  cannot do is recognize `ln(8) / ln(2)` as `3`: two truncations and a
-  division give a value within `1e-39` of `3`, displayed as `≈ 3`, which
-  option B above makes honest by showing exactly the digits that are
-  certain.
-- **`pi` as a built-in, not a literal.** A constant computed to the
-  working precision is an inexact operation of no arguments, truncated
-  once as the rule requires. Since `deg`, `turn` and `grad` are defined
-  through `pi`, the table's quantities depend on the working precision,
-  so the table is built at the working precision and rebuilt when the
-  setting changes (a few milliseconds). The definitions file loses the
-  literal and gains nothing: `pi` resolves as a built-in name in the
-  unit namespace.
+- **Exact cases.** As `root` returns `sqrt(9/4)` exactly today, a
+  built-in returns an exact rational wherever the value is rational and
+  cheaply recognized: `exp(0)`, `ln(1)`, `sin(0)`, `cos(0)`,
+  `log10(1000)`, `log(8, 2)`, `pow(x, p/q)` through the existing
+  `powRational`. What it cannot do is recognize `ln(8) / ln(2)` as `3`:
+  two roundings and a division give a value within a unit in the last
+  place of `3`, flagged inexact and shown `≈ 3`.
 - **A fixed-point kernel under `rational.ts`.** The series must not run
   in exact rational arithmetic, whose denominators would grow with every
   term. They run on scaled `bigint`s at the working precision plus guard
-  digits, a small module that `root` could be moved onto as well, and
-  hand back a rational (or a coefficient and exponent in decimal mode).
-  This is where the "correct to at least that many digits, then
-  truncated once" promise is kept, with the Ziv strategy (retry with more
-  guard digits in the rare case the result sits too near a digit
-  boundary) if the promise is to be exact about the leading digits.
+  digits, in binary, where shifting is free, and hand back a value
+  rounded to the decimal precision in the mode in force; the Ziv retry
+  lives here, once, for every function. `root` moves onto the same
+  kernel and gives up its private truncation.
 
 The payoff beyond the calculator: with `ln` and `log10` available in
 definition bodies, the definitions file can at last define the neper and
@@ -221,7 +243,7 @@ the bel as functions, which README.md today says it cannot.
   the poles at the non-positive integers are domain errors. Positive
   integers are exact factorials. At 40 digits this is a few dozen
   evaluations of `exp` and `sqrt`; at 1000 digits it approaches a
-  second, which is why the working precision needs a ceiling and the
+  second, which is one reason the precision has a ceiling and the
   evaluation may have to leave the main thread (see "Fitting together").
 - **`lgamma(x)`** beside it, because `gamma(20000)` has 77,000 digits and
   cannot be a value under `MAX_BITS` in exact mode; in decimal mode it
@@ -235,19 +257,19 @@ the bel as functions, which README.md today says it cannot.
   is large relative to `s`, since `Γ(s) - γ(s, x)` cancels catastrophically
   there. Choosing the region and bounding the truncation of the continued
   fraction is where the rigor is; mpmath does exactly this, and its
-  choices are documented.
+  choices are documented. These bounds are what let the kernel round
+  correctly rather than merely closely.
 - **The incomplete beta function** and its regularized form
   `I_x(a, b)`: one continued fraction with a symmetry that keeps it
   converging, the same shape of work as the upper incomplete gamma.
 
 Nothing here touches the core beyond what feature 1 adds; these are more
-built-ins with more delicate implementations. Their error rules under
-option B are the rules of the series and fractions they are built from.
-They also make `erf` and `erfc` free (`erf(x) = P(1/2, x^2)`), and they
-turn the common statistical distributions into one-line user-defined
-functions (feature 6): the normal, chi-squared, Student's t and F
-cumulative distributions are `erfc`, `P` and `I_x` at the right
-arguments, so they need not be built-ins.
+built-ins with more delicate implementations. They also make `erf` and
+`erfc` free (`erf(x) = P(1/2, x^2)`), and they turn the common
+statistical distributions into one-line user-defined functions
+(feature 6): the normal, chi-squared, Student's t and F cumulative
+distributions are `erfc`, `P` and `I_x` at the right arguments, so they
+need not be built-ins.
 
 ### 3. Other special functions: a list is feasible, a list is not
 
@@ -324,15 +346,17 @@ of the rational with different invariants. Concretely, one number type
 `num / den × 10^e` in lowest terms, with two modes:
 
 - **Exact mode**: `den` is free, `e` is only a lazy factor that keeps
-  trailing zeros out of `num` and `den`, and no operation rounds. This
-  is today's behavior; the only visible difference is that `1e999999999`
-  parses and multiplies where it fails today, while `1e999999999 + 1`
-  still fails as `tooLarge`, since aligning it is beyond `MAX_BITS`.
+  trailing zeros out of `num` and `den`, and no exact operation rounds.
+  Only the inexact functions round, to the precision, in the mode in
+  force. The visible difference from today is that `1e999999999` parses
+  and multiplies where it fails today, while `1e999999999 + 1` still
+  fails as `tooLarge`, since aligning it is beyond `MAX_BITS`.
 - **Decimal mode**: after every operation the value is rounded to the
   context's `p` significant digits with its rounding mode, so `den` is
-  always `1` and `num` has at most `p` digits. `1/3 * 3` is
-  `0.999...9` and displays as `≈ 1`, which is what a user who chose the
-  mode expects, and which option B above reports honestly.
+  always `1` and `num` has at most `p` digits, and the inexact flag is
+  raised whenever the rounding changed the value. `1/3 * 3` is
+  `0.999...9`, inexact, and displays as `≈ 1`, which is what a user who
+  chose the mode expects.
 
 The alternative, a second number type beside `Rational` with the core
 made generic over the two, doubles the numeric surface for every special
@@ -345,7 +369,7 @@ float; it is worth its cost, which is confined to `rational.ts`.
 
 The consequences that reach beyond `rational.ts`:
 
-- **`Precision` becomes a context**: the mode, the working precision, the
+- **`Precision` becomes a context**: the mode, the precision, the
   rounding mode. It goes where `precision` goes today (`evaluate`,
   `buildTable`, the pipeline) and to the two places that do arithmetic
   without it: `convert` and `roundTerms`, and the reciprocal the UI
@@ -366,14 +390,12 @@ The consequences that reach beyond `rational.ts`:
   now.
 - **The rounding modes** are the standard seven (half even, half away
   from zero, half toward zero, toward zero, away from zero, ceiling,
-  floor). They govern the decimal mode's rounding after each operation,
-  the display rounding (today fixed at half away from zero), and the
-  `round` function. They do not govern the exact mode's inexact
-  functions, which keep truncating for the reason ARCHITECTURE.md gives:
-  truncation composes, so the digits an inexact result carries are true
-  leading digits of the exact value. Making a transcendental function
-  honor a directed rounding mode exactly is the correctly-rounded
-  problem, and it is deferred (see "Ruled out").
+  floor), named once. One mode is in force at a time and governs every
+  rounding there is: the inexact functions in both modes, the decimal
+  mode's rounding after each operation, the display rounding (today
+  fixed at half away from zero), and the `round` function's default.
+  There is no separate policy for any of them, and nothing truncates
+  unless the mode says toward zero.
 - **The exponent has a bound**, generous but finite (say `10^18`), so
   that formatting is always possible and `10^(10^30)` fails cleanly
   instead of looping.
@@ -385,7 +407,8 @@ written as ordinary expressions, with an inverse and declared units, and
 a call already evaluates the body through the evaluator with the
 parameter bound. So a user function is agnostic to precision and
 rounding by construction: its body runs under whatever context the call
-does, and nothing in the definition mentions either. What remains is:
+does, each operation correctly rounded, and nothing in the definition
+mentions either. What remains is:
 
 - **Several parameters**, from the call grammar of feature 1: `f(x, y)`
   in the definition and in the call. The inverse and the function want
@@ -412,53 +435,85 @@ does, and nothing in the definition mentions either. What remains is:
   addition) become worth having at the same time, since `normcdf` has a
   meaning outside its domain but `ln` does not.
 
-And "handles rounding and precision correctly" is the finding above: a
-user function is correct because the digits it displays are certified,
-not because its author chose a working precision. Nothing about that is
-specific to user functions; it is what makes them safe to write freely.
+### 7. Rational display: feasible, and cheap once the flag exists
+
+A display setting, toggled against the decimal display: a value is
+written as a fraction in lowest terms, `1 m = (5000/127) in`, rather than
+as `≈ 39.370079 in`. It is a setting of the display alone; nothing in
+the core changes what it computes. What the display needs to know is
+whether the fraction it would write is the value's truth or an artifact
+of rounding, and that is the inexact flag of the precision model.
+
+- **An exact value is written as its fraction, with `=`.** In exact mode
+  most conversions are such values, and this is where the mode shines:
+  `1 in = (127/50) cm`, `1 mi = (25146/15625) km`, a unit list as
+  `1 m = 3 ft + (437/127) in`. An integer is written as an integer.
+- **An inexact value is not written as a fraction.** After `sqrt(2)` at
+  20 digits the value held is `141421356237309504880 / 10^20`, a true
+  fraction of what is held and no truth about `sqrt(2)`. Writing it
+  would be honest and useless. So an inexact value falls back to the
+  decimal display with `≈`, whatever the setting. A later refinement is
+  the simplest fraction within the precision (the continued fraction
+  convergent, `355/113` for `pi()` at seven digits), written with `≈`
+  and clearly as an approximant; it is a separate small design, not a
+  condition of this one.
+- **The fraction is parenthesized before a unit**, because the grammar
+  reads `5000/127 in` as `5000 / (127 in)`, the pitfall README.md warns
+  about, and every line the app writes must be typeable back as a
+  `have`. A dimensionless result needs no parentheses.
+- **In decimal mode** the setting still applies, and shows fewer
+  fractions: a value that fit the precision without rounding
+  (`1/4 = 0.25`) is exact and may be written `1/4`; one that did not is
+  inexact and shows as a decimal.
+
+Since exactness is a property of the value, not of the display, the
+decimal display uses the same flag for its `=` against `≈`, and the two
+displays never disagree about what is exact.
 
 ## Fitting together
 
-The features are not six unrelated additions. They call for the same few
-cross-cutting changes, each needed by several of them, which is the
-strongest sign that the result is one coherent design rather than six
+The features are not seven unrelated additions. They call for the same
+few cross-cutting changes, each needed by several of them, which is the
+strongest sign that the result is one coherent design rather than seven
 patched on:
 
-| Change                                                                     | Needed by  |
-| -------------------------------------------------------------------------- | ---------- |
-| A number context (mode, precision, rounding) in place of `Precision`       | 4, 5, all  |
-| A built-in kind of function beside defined functions, with dimension rules | 1, 2, 3, 6 |
-| Calls with several arguments                                               | 1, 2, 3, 6 |
-| Certified digits (error bounds, or re-evaluation)                          | 1, 2, 3, 6 |
-| A fixed-point `bigint` kernel for series and fractions                     | 1, 2, 3    |
-| `pi` as a precision-aware built-in; table built at the working precision   | 1, 4, 5    |
-| The build's function check over dimensions rather than at `1`              | 1, 6       |
-| Settings in the UI: mode, working precision, rounding, display digits      | 4, 5       |
+| Change                                                                       | Needed by  |
+| ---------------------------------------------------------------------------- | ---------- |
+| A number context (mode, precision, rounding) in place of `Precision`         | 4, 5, all  |
+| A built-in kind of function beside defined functions, with dimension rules   | 1, 2, 3, 6 |
+| Calls with any number of arguments                                           | 1, 2, 3, 6 |
+| Correct rounding to the precision in the kernel, with exact-case detection   | 1, 2, 3    |
+| An inexact flag on every value                                               | 1 to 5, 7  |
+| A fixed-point `bigint` kernel for series and fractions                       | 1, 2, 3    |
+| `pi()` as a function of the precision; table built at the working precision  | 1, 4, 5    |
+| The build's function check over dimensions rather than at `1`                | 1, 6       |
+| Settings in the UI: mode, precision, rounding mode, display digits, fraction | 4, 5, 7    |
 
 Two runtime concerns cut across everything:
 
 - **The main thread.** The pipeline runs on every keystroke and today
   takes microseconds. A `gamma` at 1000 digits takes on the order of a
-  second, which would freeze the input. Either the working precision is
-  capped where every function stays under some tens of milliseconds, or
+  second, which would freeze the input. Either the precision is capped
+  where every function stays under some tens of milliseconds, or
   evaluation moves to a Web Worker. The core is pure and takes plain
-  data, so a worker is a thin wrapper, not a redesign; the cap is
-  needed anyway, as `MAX_BITS` is today.
+  data, so a worker is a thin wrapper, not a redesign; a cap is needed
+  anyway, as `MAX_BITS` is today.
 - **Memory.** Exact mode's growth is already bounded by `MAX_BITS`; the
   decimal mode bounds values by construction; the kernel's intermediates
-  are at most a few times the working precision. Nothing here changes the
-  memory picture on a phone as long as the precision has a ceiling.
+  are at most a few times the precision; the stored digits of `pi()` are
+  a fixed asset. Nothing here changes the memory picture on a phone as
+  long as the precision has a ceiling.
 
 What is toggled, and what is concurrent:
 
-- **Toggled**: exact mode against decimal mode. They are two invariants
-  of one type, and every function is written once for the type; the
-  setting changes which invariant the evaluator maintains.
+- **Toggled**: exact mode against decimal mode, two invariants of one
+  type, every function written once for the type; and the decimal
+  display against the rational display, two renderings of one value and
+  one flag.
 - **Concurrent**: everything else. Elementary and special functions, the
   exact functions, and user definitions are present in both modes and
-  behave in each mode as the mode says. The rounding mode is a setting
-  that has effect in decimal mode, at display, and in `round`, and none
-  in exact mode's arithmetic, which is not a conflict but a definition.
+  behave in each mode as the mode says. The rounding mode is one setting
+  and governs every rounding in either mode.
 
 ## Ruled out, and why
 
@@ -467,30 +522,31 @@ What is toggled, and what is concurrent:
   features 4 and 5).
 - **Binary floats or a configurable radix.** Decimal literals would no
   longer parse exactly and display would need conversion; nothing a
-  calculator user types is binary.
-- **Symbolic constants** (`pi` kept as a symbol so that `sin(pi)` is
+  calculator user types is binary. Binary is the kernel's business
+  alone.
+- **Error bounds carried with values and reported** (Arb-style balls as
+  a user-facing thing). The requirement is that each result be correct to
+  the precision, which per-operation correct rounding gives without
+  propagating anything; a radius beside every value would be paid for on
+  every operation and shown to no one. The one bit that is wanted, exact
+  or not, is kept.
+- **Symbolic constants** (`pi` kept as a symbol so that `sin(pi())` is
   exactly `0`). That is a computer algebra system: simplification rules,
   a normal form for expressions in `pi`, and decisions of equality that
-  are undecidable in general. The certified-digits design says `0` with
-  `≈` and a radius instead, which is the truth about an approximation.
+  are undecidable in general. `pi()` is a function that produces digits,
+  and `sin(pi())` is a small inexact number, as in every numeric system.
 - **Complex numbers**, as values or as results of `ln`, `sqrt` and
   `gamma` off the real line. Every function would need a second
   implementation and every conversion a meaning for a complex magnitude.
   Negative arguments outside a function's real domain are errors.
-- **Correctly-rounded transcendental functions under every rounding
-  mode**, as a guarantee. It is achievable with the Ziv strategy in the
-  kernel, and the kernel should be built so that it can be added, but
-  the certified digits of option B already tell the user what is known,
-  and the guarantee is not needed for correctness in that sense.
-  Deferred rather than refused.
 - **General hypergeometric functions, Bessel `Y` and `K`, Bessel
   functions at large argument.** See feature 3: library-sized casework
   for little use here.
 - **Statistical distributions as built-ins.** They are one-line user
   functions over feature 2.
-- **A rounding mode inside exact mode's inexact functions.** Truncation
-  stays, for its composition property; the mode has its three homes
-  above.
+- **A whole-expression precision guarantee.** Out of scope, not refused;
+  see "The precision model" for the two ways it could be added later
+  without disturbing anything here.
 - **An unbounded exponent.** Bounded so that every value can be
   formatted and every failure is clean.
 
@@ -499,21 +555,21 @@ What is toggled, and what is concurrent:
 Each is a design of its own; this is only the order that lets each stand
 on the one before it.
 
-1. The number context in place of `Precision`, threaded everywhere,
-   with the settings UI. Small, and it unlocks the decimal mode's
-   semantics before any new function exists.
-2. Built-in functions: the union in the lookup, calls with several
-   arguments, dimension rules, domain errors, the kernel, `pi` as a
-   built-in with the table built at the working precision, the
-   dimension-only build check, and the elementary set. The neper and
-   the bel in the definitions file.
-3. Certified digits (option B, or C), and the display rules that use
-   them. Before the special functions, so that they are born under it.
+1. The number context in place of `Precision`, the inexact flag on
+   values, and the settings UI. Small, and it fixes the meaning of `=`
+   before any new function exists.
+2. The kernel with correct rounding and the Ziv retry, `root` moved onto
+   it, and `pi()` with its stored digits.
+3. Built-in functions: the union in the lookup, calls with any number of
+   arguments, dimension rules, domain errors, the table built at the
+   working precision, the dimension-only build check, and the elementary
+   set. The definitions file's `pi` becomes `pi()`, and the neper and the
+   bel appear.
 4. The exponent field and the decimal mode proper: `num / den × 10^e`,
-   rounding after every operation, the rounding modes at their three
-   homes.
-5. The Gamma and Beta families with `erf` and `erfc`; then the exact
+   rounding after every operation, the rounding modes at their homes.
+5. The rational display.
+6. The Gamma and Beta families with `erf` and `erfc`; then the exact
    functions and the rest of the feasible list of feature 3 as wanted.
-6. The user-function extensions: several parameters, optional inverse
+7. The user-function extensions: several parameters, optional inverse
    and declaration, domain and range. Storage and an editor for user
    definitions are the "Later" item ARCHITECTURE.md already lists.

@@ -825,6 +825,13 @@ Planned extensions, listed to show that they fit without reshaping the core:
 - **Built-in functions** (`ln`, `sqrt`) are the "special function" of
   "Precision and rounding", which would take the working precision. They
   need only the `call` node, resolved by a lookup that knows them.
+  docs/calculator.md weighs them, with the special functions, a decimal
+  mode with rounding modes, a rational display and richer user-defined
+  functions, as one program toward an arbitrary-precision calculator,
+  under a precision model that replaces the fixed working precision and
+  the truncation rule above with whole-expression precision in the
+  manner of Arb: a radius beside every magnitude, and an internal
+  precision raised until the digits the user asked for are certified.
 - **Domain and range** on a function definition (`tempC(-300)` is a
   negative temperature today) are two optional bounds, checked at the call
   and at the inverse; docs/functions.md lists them with the other
@@ -835,3 +842,7 @@ Planned extensions, listed to show that they fit without reshaping the core:
   to `convert` that skips step 2 of the conformance check. Sums would keep
   the strict check: adding an angle to a plain number is a mistake whether
   or not the user asked to convert between them.
+- **Symbolic values and complex numbers** are not planned, and would
+  reshape the number type rather than fit around it; docs/future.md
+  records what each would take and what keeps it possible, so that no
+  design closes the door on them by accident.

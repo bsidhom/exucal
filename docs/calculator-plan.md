@@ -40,15 +40,12 @@ refer to them:
   caught.
 - **Containment.** For a routine that returns a ball, the ball computed at
   precision `p` must contain the midpoint computed at precision `4p`, over
-  a seeded set of arguments across the routine's domain. This is the test
-  that the radius is honest, and every inexact routine has one.
+  a seeded set of arguments across the routine's domain, drawn from the
+  shared random source of 1.3. This is the test that the radius is honest,
+  and every inexact routine has one.
 - **Exact case.** Every input the routine is required to recognize as
   exact gives a ball of radius zero with the exact midpoint (`sqrt(9/4)`,
   `exp(0)`, `log(8, 2)`), and an input next to it does not.
-
-Prerequisites for the follow-up: Node.js 24 and `pnpm install` (the
-container this plan was written in has Node.js 22 and no
-`node_modules`, so nothing was run here).
 
 ## Decisions
 
@@ -73,14 +70,29 @@ effect from stage 1 (the display's rounding, `roundTerms`, and from stage
 2 every inexact midpoint), so it is in the context from the start; the
 exact-or-decimal mode has none until the decimal mode exists.
 
-**D3. The radius is a coarse binary magnitude.** `mant × 2^exp` with
-`mant` zero or a normalized 30-bit integer, or the distinguished value
-unbounded. Every operation on radii rounds up, so a radius is always a
-true bound; the tightness lost to 30 bits is a relative `2^-29`, invisible
-at any precision. It is binary because the kernel is binary, and coarse so
-that propagating it through an expression costs nothing and never grows.
-The exact value of a bounded radius is a rational, obtained when a
-comparison needs it (certification, division), and never stored.
+**D3. The radius is a coarse binary magnitude, a type of its own.**
+`Radius`, in radius.ts, is `{ mant, exp }` standing for `mant × 2^exp`,
+with `mant` zero or a normalized 30-bit bigint and `exp` a bigint, or the
+distinguished value unbounded; it is neither a `Rational` nor a `number`.
+Every operation on radii rounds up, so a radius is always a true bound;
+the tightness lost to 30 bits is a relative `2^-29`, invisible at any
+precision. It is binary because the kernel is binary, and coarse so that
+propagating it through an expression costs nothing and never grows. The
+exact value of a bounded radius is a rational, obtained when a comparison
+needs it (certification, division), and never stored.
+
+Not a float64, although one has precision to spare, because of range. The
+radius is absolute, and the product rule scales it by the other operand's
+magnitude (`|a| rb + |b| ra`), so radii span the range of the values
+themselves: `10^±19700` today (`MAX_BITS`) and `10^±(10^18)` once stage 4
+adds the exponent, against a float64's `10^±308`. A radius that overflowed
+to infinity would be an honest but useless bound on any large value, and
+one that underflowed to zero would be a false claim of exactness.
+JavaScript also has no directed rounding, so every float64 operation would
+need a manual nudge up by an ulp, the same care as the integer arithmetic
+here with less to show for it. The exponent is a bigint for the same
+reason: the binary exponent of a value near `10^(10^18)` is about
+`3.3 × 10^18`, beyond a safe integer.
 
 **D4. `unresolved` is an error kind of its own.** An operation whose
 answer depends on which side of a boundary the true value lies, when the
@@ -99,22 +111,52 @@ onto the kernel, where it honors the mode and propagates its argument's
 radius by the derivative bound. Writing that propagation on the decimal
 path in stage 1 would be work thrown away a stage later.
 
-**D6. The table is built once per setting, at the ceiling of the retry
-schedule.** From stage 3 the angle units call `pi()`, so their quantities
-carry a radius that no later evaluation can shrink. A pass of the retry
-loop at internal precision `q` can certify the digits it is asked for only
-if every unit it touches is accurate beyond `q`, so the table is built at
-the highest internal precision the schedule can reach for the setting, and
-rebuilt only when the setting changes. `system-table.ts` memoizes one
-table per precision, and the definitions text is fetched once.
+**D6. The table is built once, at the ceiling of the retry schedule, for
+every setting.** From stage 3 the angle units call `pi()`, so their
+quantities carry a radius, and a unit's radius is fixed when the table is
+built: the passes of the retry loop re-evaluate the expression, not the
+table, so no pass can shrink it. A unit's precision must therefore lie
+above every pass, or a pass that would otherwise certify `p` digits is
+held back by the unit. The schedule of D12 doubles up to one absolute
+ceiling, `CEILING_DIGITS`, the same for every setting, so the table is
+built once at that ceiling and never rebuilt: the digits setting changes
+what the display asks for and what the passes compute at, never the
+table. At a ceiling of 1,000 digits `pi()` costs under a millisecond once,
+each angle unit holds a rational of a thousand digits, which the exact
+operations carry through at microseconds a step, and a conversion at `p`
+digits certifies from a unit accurate to a thousand, with `1000 - p`
+digits of room for cancellation on the unit's side: `turn` into `deg`
+certifies every one of its `p` digits of `360`, and shows `≈` only
+because the radius is not zero, as the study accepts. So the precision a
+user asks for is always reachable through `pi`; what is not reachable is
+exactness, which is the symbolic layer's business (docs/future.md). The
+alternatives: rebuilding the table at each pass's precision, milliseconds
+per pass and a table per pass, for no gain, since no pass needs a unit
+beyond the ceiling; and a table per setting at the setting's own ceiling,
+which the absolute ceiling makes unnecessary and which would hold one
+table per setting the session had seen. `system-table.ts` holds the one
+table, and the definitions text is fetched once.
 
 **D7. Certification is "both ends round alike".** A ball certifies `d`
 digits in a rounding mode when `mid - rad` and `mid + rad`, as exact
 rationals, round to the same `d`-digit value in that mode. Rounding is
 monotone, so every value between them rounds to it too, and the shown
-digits are the true value's. This one definition covers the nearest and
-the directed modes, ties, and the carry across a power of ten, without
-special cases.
+digits are what rounding the true value would give: correctly rounded,
+not merely close. The ball is symmetric about its midpoint but the
+rounding cells are not aligned with it, which is why the rule looks at
+the two ends rather than at the radius. The natural alternative, a radius
+below half a unit in the `d`-th digit, is necessary but not sufficient:
+a ball of radius `10^-30` around `1.2345` fails it at four digits under
+half away from zero, because the true value may lie on either side of the
+tie and the fourth digit is `4` or `5` accordingly, and showing `1.235`
+there would show a digit the ball does not know. The price of the
+stronger rule is a retry when the true value lies near a boundary (the
+next pass narrows the ball past it), and a value exactly on a boundary
+reached through an irrational step, which no pass resolves, ends at the
+ceiling with one digit fewer than asked; the study lists that case, and
+it is the one the radius-only rule would get wrong rather than slow. This
+one definition covers the nearest and the directed modes, ties, and the
+carry across a power of ten, without special cases.
 
 **D8. Unit list counts are taken from the midpoint.** In `convertToList`
 each count is the truncated ratio of midpoints and the remainder is the
@@ -136,32 +178,83 @@ series is taken at the upper end of the argument's interval. The kernel
 hands back a ball whose midpoint is rounded to the context's decimal
 precision in its mode and whose radius covers `error` and that rounding.
 
-**D10. `pi` and `exp(1)` are memoized privately.** The core has no
-globals, but a memo of a pure function of its precision is unobservable,
-as `lazy` in parser.ts is, and the study asks for exactly that memo. It
-lives in the module that computes the constant, holds the value at the
-largest precision computed so far, and answers shorter requests from it.
+Fixed rather than floating point: `bits` is the position of the binary
+point, so the integer part is `value >> bits` and the fraction the low
+`bits` bits, with no separate field for either. It is fixed for a routine
+and chosen after its argument reduction, so that every routine works on
+values of order one and the error count, which is absolute, is a relative
+error too. What that implies: a routine whose result is small (`sin` near
+zero, `exp` of a large negative argument) states its result's scale and
+accounts for it in `fixedToBall`, and the count grows by at least one per
+operation, so a series of a thousand terms spends ten of the 32 guard
+bits, which is why the guard is bits rather than digits. The alternatives
+considered: a ball at every step of the kernel, as Arb does, uniform with
+the value type but a radius operation per arithmetic operation and a
+second representation to reason about inside every series; two integer
+endpoints, an interval per intermediate, twice the arithmetic and a
+rounding direction to choose per operation; and guard digits with no
+error count, the classic approach, which is not rigorous and could not
+produce a radius at all. The integer count is the cheapest of these that
+yields a proof, and its rules are the textbook ones.
 
-**D11. Inverse trigonometric functions return plain numbers.** `sin`,
-`cos` and `tan` accept a plain number or the `radian` kind, treated as
-one; `asin`, `acos`, `atan` and `atan2` return a dimensionless value, and
-`asin(0.5) radian` is how to get an angle. The study says either choice
-fits; this one keeps `2 asin(0.5) + 1` a number and every built-in's
-result dimensionless, so the dimension rules have one shape. It can be
-flipped in stage 3's design note without touching anything else.
+**D10. `pi` and `exp(1)` are memoized privately, and the memo is
+bounded.** The core has no globals, but a memo of a pure function of its
+precision is unobservable through the core's results, as `lazy` in
+parser.ts is, and the study asks for exactly that memo. Through memory it
+is observable, so its footprint is bounded by construction: each
+constant's module holds one value, the digits at the largest precision
+computed so far, answers a shorter request from it, and replaces it on a
+larger one. The precision of a request is bounded in turn: at most the
+ceiling of D12 plus, for the argument reduction of `sin` and `cos`, the
+bit length of the argument, itself under `MAX_BITS`, and an argument
+whose reduction would need more is refused as `tooLarge`. So a memo holds
+at most about 21,000 digits, under 10 KB, and two constants exist. There
+is no eviction policy because there is nothing to evict: one entry per
+constant, bounded in size, replaced in place.
 
-**D12. The retry schedule is three passes.** Internal precisions
-`p + 10`, `2 (p + 10)` and `4 (p + 10)` for `p` digits wanted; the
-ceiling is the last. The digits setting is capped at `MAX_DIGITS`, 200 in
-stage 2, chosen so that every routine of stage 3 stays under tens of
-milliseconds at the ceiling on a phone; stage 8 measures and revisits it.
+**D11. The trigonometric functions take an angle, and their inverses
+return one.** `sin`, `cos` and `tan` require an argument of the `radian`
+kind, the kind primitive units.txt declares and every angle unit carries
+(`deg` is `pi() radian / 180`, so `sin(30 deg)` is `sin(pi() / 6)` inside
+the kernel, which sees the magnitude in radians); a plain number is a kind
+mismatch, worded to say that an angle is wanted and how to write one
+(`sin(1 radian)`, `sin(pi() radian / 4)`). `asin`, `acos`, `atan` and
+`atan2` return a value of the `radian` kind, so `asin(0.5)` converts to
+`deg`, `asin(sin(x))` has the kind `x` has, and `2 asin(0.5) + 1` is the
+kind mismatch it is. `atan2(y, x)` takes two quantities of one dimension
+and returns their angle, so `atan2(3 m, 4 m)` works. The hyperbolic
+functions and their inverses take and return plain numbers, since their
+arguments are not angles. The study says either choice fits; this one is
+chosen because kinds exist to keep an angle from being mistaken for a
+number, and the degree-radian confusion is the mistake they were
+introduced against. Its cost is that `sin(pi())` is an error and is
+written `sin(pi() radian)`. The rule names the primitive `radian` by
+convention; a table that declares no such primitive has no angles, and
+the trigonometric functions say so.
+
+**D12. The retry schedule doubles up to an absolute ceiling.** The
+internal precisions are `p + 10`, `2 (p + 10)`, `4 (p + 10)`, ..., for
+`p` digits wanted, doubling up to and including `CEILING_DIGITS`, the same
+for every setting: 1,000 in stage 2, which is seven passes at `p = 8` and
+four at `p = 200`. A pass that certifies ends the loop, so the length of
+the schedule costs nothing in the common case; the expressions that never
+resolve (`sin(pi() radian)`, `sqrt(2)^2 - 2`) run to the ceiling however
+it is set, which is what bounds their latency: every elementary function
+at a thousand digits is milliseconds, and the special functions of stage
+6 are where the ceiling is measured (stage 8). The digits setting is
+capped at `MAX_DIGITS`, 200 in stage 2, so that the schedule always has
+room above the setting for cancellation. The fixed ceiling is also what
+lets D6 build the table once.
 
 **D13. The midpoint's canonical form, once it has an exponent (stage 4).**
 `num / den × 10^e` with `den` coprime to 10 and `num` not divisible by 10
 unless zero, so that equal values have equal representations and `equals`
 stays structural. Stripping the factors of 2 and 5 from a denominator and
 the trailing zeros from a numerator is a loop of small divisions, done in
-the constructor as the gcd is today.
+the constructor as the gcd is today. The form is internal: `format`,
+`roundTo`, `toFraction` and the fraction display of stage 5 are functions
+of the value, not of where its powers of ten sit, and a test asserts that
+`2.54`, `254/100` and `127/50` render alike in every display.
 
 **D14. The exact functions (`abs`, `floor`, `gcd`, ...) come after the
 elementary set and before the Gamma family.** They depend only on the
@@ -223,14 +316,22 @@ radius at or above `|r|`; `addRadius`, `multiplyRadius`, `maxRadius`, and
 `powRadius(rad, n)` for a non-negative bigint `n` by squaring, all
 rounding up and all absorbing unbounded; `radiusUpper(rad)`, the exact
 rational a bounded radius stands for, which throws on unbounded (a caller
-checks first). Exponents are JavaScript numbers; every value in the app is
-under `MAX_BITS`, so they fit.
+checks first). The type is written out: `Radius = { kind: "bounded";
+mant: bigint; exp: bigint } | { kind: "unbounded" }`, with `mant` zero or
+in `[2^29, 2^30)`; it is a type of its own, and D3 says why neither a
+`Rational` nor a `number` serves.
+
+Also new, first: `src/testing/random.ts`, the one seeded random source
+for tests and benchmarks. The generator (mulberry32) moves out of
+`bench/harness.ts`, which imports it from here, and gains `randomBigInt`,
+`randomRational` and, from 1.5, `randomBall`, so that every numeric test
+draws its seeded inputs the same way and no test carries a generator of
+its own. `tsconfig.node.json` includes the directory.
 
 Tests: `radiusAbove` is at or above its argument and within a relative
-`2^-29` of it, over a seeded set of rationals (a small linear congruential
-generator inside the test; the benchmark harness is not imported by
-tests); each operation's `radiusUpper` is at or above the exact result
-over the same set; unbounded absorbs; zero is the identity of `add` and
+`2^-29` of it, over a seeded set of rationals from the shared source;
+each operation's `radiusUpper` is at or above the exact result over the
+same set; unbounded absorbs; zero is the identity of `add` and
 annihilates `multiply`.
 
 Behavior: none; the module is unused.
@@ -257,7 +358,8 @@ parameter.
 
 ### 1.5 The ball
 
-New `src/core/ball.ts`. `Ball = { mid: Rational; rad: Radius }`,
+New `src/core/ball.ts`. `Ball = { mid: Rational; rad: Radius }`, the
+radius being the type of 1.3 and not a number;
 `BallError = RationalError | { kind: "unresolved" }` (D4), `exact(r)`,
 `isExact`, `containsZero`, `magnitudeAbove(b)` (a radius at or above
 `|mid| + rad`), and the exact operations on balls: `negateBall`,
@@ -366,10 +468,13 @@ then it passes `DEFAULT_DIGITS` and `DEFAULT_ROUNDING`.
 
 Tests: `show` on an exact `127/50` at eight digits is exact, on `1/3` is
 not, on `sqrt 2` (a ball of one ulp) is not however many digits, on
-`2 ± 0` from `sqrt(4)` is exact.
+`2 ± 0` from `sqrt(4)` is exact. These are the decimal display's answers:
+stage 5's fractions setting changes what `show` returns for an exact
+value (`1/3` becomes `= 1/3`), and 5.1 restates them under that setting.
 
 Behavior: one visible change, `sqrt(2)^2` shows `≈ 2.0000000` rather than
-`= 2`, which is the fix the study describes.
+`= 2`, which is the fix the study describes (and the case the symbolic
+values of docs/future.md would make `= 2`).
 
 ### 1.10 Settings and the UI
 
@@ -409,7 +514,9 @@ correct digits.
 ### 2.1 The kernel's values and exact operations
 
 New `src/core/fixed.ts`, per D9: `Fixed = { value: bigint; error: bigint;
-bits: number }`; `bitsFor(precision)`, the bits for a decimal precision
+bits: number }`, fixed point, so `bits` is the position of the binary
+point, the integer part is `value >> bits` and the fraction is the low
+`bits` bits, with no field for either; `bitsFor(precision)`, the bits for a decimal precision
 plus `GUARD_BITS` (32); `fixedFromRational(r, bits)` (rounded to nearest,
 error 1); `fixedFromBall(b, bits)` (the midpoint so, plus the radius in
 ulps rounded up; unbounded is a precondition failure, since the caller
@@ -487,7 +594,8 @@ that within the schedule.
 ### 2.5 The retry loop
 
 `src/core/pipeline.ts`, per D12: `SCHEDULE(p)` yields the working contexts
-`p + 10`, `2 (p + 10)`, `4 (p + 10)`; `resolve(context, run, done)` calls
+`p + 10`, `2 (p + 10)`, ..., doubling, and last `CEILING_DIGITS`, which
+context.ts holds beside `MAX_DIGITS`; `resolve(context, run, done)` calls
 `run` with each working context in turn and returns the first result that
 `done` accepts, an error other than `unresolved`, or the last result at
 the ceiling; `evaluateText` and `convertText` go through it, with `done`
@@ -499,8 +607,10 @@ user sees. The stage 1 working rule (`max(40, p + 10)`) goes.
 Tests: `sqrt(2)` at 8 and at 50 digits certifies on the first pass;
 `sqrt(2)^2 - 2` ends at the ceiling as `zero` with a bound;
 `1 / (sqrt(2)^2 - 2)` is `unresolved`; `(sqrt(2) + 1e-15) - sqrt(2)` at
-8 digits needs a second pass and certifies (the test counts passes through
-a `run` that records its contexts); an error in the text returns at once.
+8 digits needs a second pass and certifies, and `(sqrt(2) + 1e-60) -
+sqrt(2)` a fourth (the test counts passes through a `run` that records its
+contexts); at 8 digits the schedule ends at 1,000 digits after seven
+passes; an error in the text returns at once.
 
 Behavior: certified digits, or fewer with a note.
 
@@ -524,7 +634,8 @@ reports the timing at 1,000, 10,000 and 100,000 digits and asserts that
 twenty).
 
 Tests: reference digits to 100; the 36-digit literal in units.txt as a
-second reference; the memo answers a shorter request with the same digits.
+second reference; the memo answers a shorter request with the same digits
+and holds one value after requests at three precisions.
 
 Behavior: none; unused until stage 3.
 
@@ -539,7 +650,7 @@ kernel benchmark; README "Settings" explains the note about fewer digits.
 Firm in shape; the list of functions is the study's. What lands: calls
 with any number of arguments; a built-in kind of function beside defined
 ones, with dimension rules and domain errors; the table built at the
-setting's ceiling; the build's function check over dimensions; `pi()`
+ceiling; the build's function check over dimensions; `pi()`
 and the elementary set; the definitions file's `pi` replaced and the
 neper and the bel defined.
 
@@ -558,7 +669,13 @@ the stage implements it.
 symbol and appears nowhere else. `src/core/evaluate.ts`: a call of a
 defined function with other than one argument fails with a new
 `arityMismatch { name, span, expected, given }`; `src/messages.ts` words
-it. `docs/functions.md` and README note the grammar.
+it. `docs/functions.md` and README note the grammar. The decision on
+arity: the grammar accepts any number of arguments, and what a function
+accepts is its own. A built-in declares a range `{ min, max }` (`log` is
+1 to 2, `round` in stage 6 is 1 to 3), a defined function takes exactly
+its parameters (one until stage 7), and no function is variadic in this
+stage: `max`, `min` or `gcd` over a list would need only an unbounded
+`max` in the range and no change to the grammar, and none is planned.
 
 Tests: `f()`, `f(1)`, `f(1, 2 m)`, `f(1,)` is an error at the `)`, the
 spans; `tempC(1, 2)` is an arity mismatch.
@@ -567,7 +684,8 @@ Behavior: `tempC(1, 2)` is an arity error rather than a parse error.
 
 ### 3.2 The built-in kind
 
-New `src/core/builtins.ts`: `Builtin = { name; arity; dimensions(args:
+New `src/core/builtins.ts`: `Builtin = { name; arity: { min; max };
+dimensions(args:
 Dimension[], primitives): Result<Dimension, DimensionRuleError>; apply(args:
 Ball[], context): Result<Ball, BuiltinError> }`, `BUILTINS` as a map by
 name (empty in this task), and the two error types: a dimension rule's
@@ -591,16 +709,16 @@ empty), every branch; the build rejects a unit named like a built-in.
 
 Behavior: none visible; no built-in exists.
 
-### 3.3 The table at the setting's ceiling
+### 3.3 The table at the ceiling
 
-Per D6. `src/core/pipeline.ts` exports `ceilingContext(context)` (the last
-of `SCHEDULE`). `src/system-table.ts`: `loadSystemTable(context)` fetches
-the text once and memoizes one table per working precision. `app-shell.ts`
-builds the table for the current settings and rebuilds when the digits
-change, on the main thread (milliseconds). `build.bench.ts` builds at a
-ceiling context.
+Per D6 and D12. `src/core/pipeline.ts` exports `ceilingContext()`, the
+last context of `SCHEDULE(p)` for every `p`. `src/system-table.ts` builds
+the one table at it, as it builds one table today; `app-shell.ts` has no
+reason to rebuild when the digits change, and does not. `build.bench.ts`
+builds at the ceiling context.
 
-Tests: the memo builds once per precision and shares the text.
+Tests: `ceilingContext()` is the last of `SCHEDULE(p)` for every `p` up
+to `MAX_DIGITS`.
 
 Behavior: none visible yet; the table is precision-independent until 3.4.
 
@@ -693,25 +811,30 @@ whose message says to write `(2 m)^2`; `pow(0, 0)` is exact one as
 `pi / 2`, with `pi` taken at `bits` plus the argument's bit length so the
 reduction keeps its digits for large arguments, then Taylor; the quadrant
 from the multiple. `tan` is the quotient, `unresolved` when `cos`'s ball
-contains zero. The rule accepts a dimensionless argument or one of the
-`radian` kind alone (D11). Exact cases: zero.
+contains zero. The rule requires the `radian` kind (D11) and hands the
+kernel the magnitude, which is in radians since `radian` is the
+primitive. Exact cases: zero.
 
 Tests: reference digits of `sin 1` and `cos 1`; containment across
 `[-100, 100]` and at `10^20`; `sin(30 deg)` certifies `0.5` at the digits
-asked and is not exact; `sin(1 m)` is a dimension-rule error; `sin(pi())`
-is `zero` with a bound at the ceiling.
+asked and is not exact; `sin(1)` is a kind mismatch whose message says to
+write `sin(1 radian)`, and `sin(1 m)` a dimension mismatch;
+`sin(pi() radian)` is `zero` with a bound at the ceiling.
 
 ### 3.10 `asin`, `acos`, `atan`, `atan2`
 
 `atanFixed` by half-angle reduction a few times, then Taylor; `asin` and
 `acos` through `atan` and `sqrt` with the domain `[-1, 1]`, a ball
 straddling an end `unresolved`, outside a domain error; `atan2(y, x)` by
-quadrant, with `atan2(0, 0)` a domain error. Exact cases: zero, and
-`acos(1)`.
+quadrant, with `atan2(0, 0)` a domain error. All four return the
+`radian` kind (D11), and `atan2` takes two quantities of one dimension.
+Exact cases: zero, and `acos(1)`.
 
 Tests: reference digits of `atan 1` (a quarter of `pi`); containment;
-`asin(2)` domain; `atan2` in every quadrant against `atan`; the pipeline
-certifies `asin(sin(0.5))` at 30 digits.
+`asin(2)` domain; `atan2` in every quadrant against `atan`; `asin(0.5)`
+into `deg` certifies `30`; `atan2(3 m, 4 m)` is an angle and
+`atan2(3 m, 4 s)` a dimension mismatch; the pipeline certifies
+`asin(sin(0.5 radian))` at 30 digits.
 
 ### 3.11 The hyperbolic functions and their inverses
 
@@ -940,9 +1063,9 @@ README "Functions", docs/functions.md, ARCHITECTURE.md.
 ## Stage 8: runtime
 
 Provisional, and possibly unnecessary. After stage 6 the cost of the
-slowest function at the ceiling for `MAX_DIGITS` is measured on a phone.
-If it stays under tens of milliseconds, `MAX_DIGITS` is raised as far as
-that allows and nothing else happens. If not, the pipeline moves to a Web
+slowest function at `CEILING_DIGITS` is measured on a phone. If it stays
+under tens of milliseconds, `CEILING_DIGITS` and `MAX_DIGITS` are raised
+as far as that allows and nothing else happens. If not, the pipeline moves to a Web
 Worker: the core is pure and takes plain data, so the worker is a thin
 wrapper around `convertText`, the component debounces and shows the last
 result until the next arrives, and the table is built in the worker. The

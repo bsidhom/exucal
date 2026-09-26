@@ -829,8 +829,9 @@ Planned extensions, listed to show that they fit without reshaping the core:
   mode with rounding modes, a rational display and richer user-defined
   functions, as one program toward an arbitrary-precision calculator,
   under a precision model that replaces the fixed working precision and
-  the truncation rule above with correct rounding to a precision the
-  user sets.
+  the truncation rule above with whole-expression precision in the
+  manner of Arb: a radius beside every magnitude, and an internal
+  precision raised until the digits the user asked for are certified.
 - **Domain and range** on a function definition (`tempC(-300)` is a
   negative temperature today) are two optional bounds, checked at the call
   and at the inverse; docs/functions.md lists them with the other

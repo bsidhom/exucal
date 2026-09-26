@@ -15,11 +15,12 @@
 #    under which pnpm refuses to run (ERR_PNPM_BAD_RUNTIME_VERSION). The
 #    export goes into $CLAUDE_ENV_FILE, which Claude Code sources for every
 #    command it runs in the session.
-# 2. Install the dependencies from the lockfile, `pnpm install
-#    --frozen-lockfile`, exactly as README.md tells a developer to. pnpm
-#    only: never npm, npx, yarn or corepack (see README.md). The install is
-#    incremental, so a rerun with node_modules already in sync is a second's
-#    check.
+# 2. Install the dependencies from the lockfile with `pnpm install`. The
+#    lockfile is frozen by pnpm-workspace.yaml for every install, so the
+#    `--frozen-lockfile` below changes nothing and is written out so that
+#    the hook says what it does. pnpm only: never npm, npx, yarn or corepack
+#    (see README.md). The install is incremental, so a rerun with
+#    node_modules already in sync is a second's check.
 #
 # It runs only on the web ($CLAUDE_CODE_REMOTE): on a developer's machine the
 # toolchain is theirs to manage, and the hook exits at once. A missing

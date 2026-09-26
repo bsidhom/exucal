@@ -18,9 +18,10 @@
 #                         base image's directories and break when they move.
 #   WRANGLER_SEND_METRICS Already `false` in .env, which wrangler reads from
 #                         the project root on every command.
-#   CI                    Not set. `pnpm install --frozen-lockfile` is passed
-#                         explicitly by the hook, and CI=true changes the
-#                         output of other tools (vite, wrangler) for no gain.
+#   CI                    Not set. The lockfile is frozen for every install
+#                         by pnpm-workspace.yaml, so CI=true would add
+#                         nothing there and changes the output of other
+#                         tools (vite, wrangler) for no gain.
 #   Secrets and tokens    Never. Nothing the project runs needs one, and a
 #                         deploy is done from a developer's machine (README.md,
 #                         "Deployment"), not from a cloud session.

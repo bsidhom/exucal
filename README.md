@@ -277,7 +277,7 @@ declaration (`npx`, for one, stops with `EBADDEVENGINES`). The equivalents:
 
 | Instead of                    | Run                                        |
 | ----------------------------- | ------------------------------------------ |
-| `npm install`, `npm ci`       | `pnpm install` (`--frozen-lockfile` in CI) |
+| `npm install`, `npm ci`       | `pnpm install`                             |
 | `npm run <script>`            | `pnpm <script>`                            |
 | `npx <bin>` of a dependency   | `pnpm exec <bin>`                          |
 | `npx <package>` not installed | Do not. Add it as a `devDependency` first. |
@@ -300,7 +300,7 @@ Cloud environment below), so nothing above has to be done there by hand.
 
 | Command             | What it does                                        |
 | ------------------- | --------------------------------------------------- |
-| `pnpm install`      | Install dependencies from the lockfile.             |
+| `pnpm install`      | Install the dependencies the lockfile records.      |
 | `pnpm dev`          | Start the development server with hot reloading.    |
 | `pnpm build`        | Type-check and build a production bundle in `dist`. |
 | `pnpm preview`      | Serve the production bundle locally.                |
@@ -309,6 +309,17 @@ Cloud environment below), so nothing above has to be done there by hand.
 | `pnpm bench`        | Run the performance benchmarks (see Benchmarks).    |
 | `pnpm format`       | Format all source files with Prettier.              |
 | `pnpm format:check` | Verify that all source files are formatted.         |
+
+The lockfile is frozen for every install, everywhere, not only in CI:
+`frozenLockfile: true` in `pnpm-workspace.yaml` makes `pnpm install` fail
+when `pnpm-lock.yaml` is out of step with `package.json`, rather than
+rewrite it. The lockfile changes only when a dependency is changed on
+purpose, with `pnpm add`, `pnpm remove` or `pnpm update`, which the setting
+does not affect; the resulting lockfile change is committed and reviewed
+with the `package.json` change it belongs to. There is no reason to pass
+`--frozen-lockfile` by hand, and no reason ever to pass
+`--no-frozen-lockfile`. (The one place the flag is still written out is the
+cloud session hook, so that the hook reads as what it does.)
 
 Run `pnpm format` before every commit: the repository is expected to be
 formatted with Prettier at all times, and `pnpm format:check` is how that is

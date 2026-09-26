@@ -179,9 +179,9 @@ value instead would be the one choice that has to be redone.
   rounded before `sin` sees it; `sqrt(2)^2` is `2 ± ε` at every
   precision. Escalation stops at the ceiling and the display shows what
   is true: `≈ 0`, with an absolute bound, or `≈ 2.000...0`. Exactness for
-  such identities needs symbolic constants, which are not a goal now
-  ("Not now, but not ruled out" below); no numeric system, Arb included,
-  does otherwise.
+  such identities needs symbolic values, which are not a goal now ("Not
+  now, but not ruled out" below); no numeric system, Arb included, does
+  otherwise.
 - It cannot guarantee `p` digits at every precision the user might set,
   because the retry has a ceiling in time. Beyond it the display shows
   the digits that are certified and says that they are fewer than asked.
@@ -626,13 +626,17 @@ Two extensions that this design does not pursue, and takes care not to
 prevent. docs/future.md records each in full: what it is, why not now,
 what it would take, and what in this design keeps it possible.
 
-- **Symbolic constants** (`pi` kept as a symbol, so that `sin(pi()/6)` is
-  exactly `1/2` and `turn` into `deg` is `= 360`). Not now, because a
-  general form is a computer algebra system, and the numeric model
-  already gives correct digits with a conservative `≈`. Kept possible,
+- **Symbolic values** (radicals, `pi` and `e` kept exact through the
+  steps algebra can keep exact, so that `sqrt(2)^2 - 2` is `= 0`,
+  `sin(pi()/6)` is `= 1/2` and `turn` into `deg` is `= 360`): the one
+  way to a certified zero, and a cancellation that costs nothing where
+  the numeric model pays for it with a retry. Not now, because it is a
+  canonical form with its simplification and tables of exact cases,
+  which needs the numeric model in place to fall back on. Kept possible,
   because an exact value is a ball of radius zero whatever its midpoint
-  holds, and `pi()` is a function that can return a symbolic value under
-  a setting and digits otherwise.
+  holds, `root` already detects the exact rational cases, and `pi()` and
+  `exp` are functions that can return a symbolic value under a setting
+  and digits otherwise.
 - **Complex numbers**, as values and as results of `ln`, `sqrt` and
   `gamma` off the real line. Not now, because every built-in would need
   a second implementation and there is no complex use in sight, so such

@@ -8,45 +8,88 @@ that fit without reshaping the core; the entries here are the ones that
 would reshape part of it, and a design that touches that part should read
 the entry first.
 
-## Symbolic constants
+## Symbolic values
 
-**What.** Keeping `pi`, and with it the other transcendental constants a
-calculation names, as a symbol rather than as digits, so that identities
-hold exactly: `turn` into `deg` is `= 360`, `sin(pi()/6)` is `= 1/2`, and
-an angle in radians can be written `pi/6`.
+**What.** Keeping a value exact through the irrational steps that algebra
+can keep exact, so that zeros and equalities survive as late into an
+evaluation as possible: `sqrt(2)^2 - 2` is `= 0`, `sqrt(8) / sqrt(2)` is
+`= 2`, `turn` into `deg` is `= 360`, `sin(pi()/6)` is `= 1/2`, and
+`exp(1)^2 / exp(2)` is `= 1`. The value goes to digits only when a step
+that no bounded algebra keeps exact forces it (`exp(sqrt(2))`,
+`ln(3)`, `gamma(1/3)`), and from the exact form, so that nothing has been
+lost before that step. The goal is final precision, not a symbolic
+calculator: a certified `= 0` where the numeric model can only say
+`≈ 0` with a bound, and a cancellation that costs nothing where the
+numeric model pays for it with a retry at higher precision.
 
 **Why not now.** docs/calculator.md chooses a numeric model,
-whole-expression precision over balls, in which `pi()` produces digits at
-the precision asked and `sin(pi())` is a ball around zero. Exact
-identities are a computer algebra feature, and a general one
-(simplification rules, normal forms, decisions of equality) is out of
-reach here. The numeric model already gives correct digits and, where a
-rounded constant cancels, a conservative `≈` rather than a false `=`.
+whole-expression precision over balls, in which `sqrt(2)` and `pi()` are
+digits at the internal precision and `sqrt(2)^2 - 2` is a ball around
+zero. The numeric model already gives correct digits, and where a rounded
+value cancels, a conservative `≈` rather than a false `=`. The symbolic
+layer is the one way to a certified zero, and it is real work: canonical
+forms, the simplification that keeps them canonical, and tables of the
+exact cases of the functions. It comes after the numeric model, and only
+after the numeric model is in place to fall back on.
 
-**What it would take**, in the bounded form worth having: magnitudes that
-are rational functions of `pi`, polynomials in `pi` with rational
-coefficients over each other. Equality there is decidable, since `pi` is
-transcendental: two such values are equal exactly when their normal forms
-are. The set is closed under the exact operations (sums, products,
-quotients, integer powers), and a root or a transcendental function of a
-symbolic value falls back to digits, as any exact value does today, except
-at the exact cases a table records (`sin(pi/6)`, `cos(pi/4)`, `tan(pi/4)`,
-`exp(0)`), which is where the identities users notice live. The rational
-display extends to write `pi/6`; the decimal display is unchanged. The
+**What it would take**, in the bounded form worth having: a symbolic
+midpoint that is a sum of rational multiples of monomials, each monomial
+a product of prime radicals with rational exponents (`2^(1/2)`,
+`3^(-1/3)`) and integer powers of the transcendental symbols `pi` and
+`e`. That form is closed under sums, products and integer powers, and
+under roots of a monomial (a root of a sum is not a monomial and goes to
+digits, or stays a root over a sum if the layer is taken further). It has
+a canonical form, so equality is a comparison, not a search: like
+monomials combine, a monomial's exponents are reduced so that the
+rational part is factored out, and a sum is zero exactly when every
+coefficient is. Simplification is that normalization and nothing more.
+Three facts make the form sound. Radicals of distinct prime powers are
+linearly independent over the rationals, so a sum of radical monomials
+is zero only when its coefficients are. `pi` and `e` are each
+transcendental, so a rational function of either alone vanishes only
+when it does formally. Their algebraic independence from each other is
+conjectured (it follows from Schanuel's conjecture) and not proven, so a
+value that mixes `pi` and `e` is exact on that assumption, and the
+design should say so; a case where the assumption fails would be a
+theorem nobody has.
+
+Division by a sum needs the denominator rationalized, which the norm
+over the radicals gives for a pure radical sum and which has no general
+form with `pi` and `e` in it, so the layer decides once where division
+goes to digits. The radicand of a root has to be factored into primes,
+which trial division does for the sizes that occur in practice, and a
+radicand it cannot factor goes to digits, as does anything past a bound
+on the number of terms. The functions gain exact cases on symbolic
+arguments: `exp` of a rational is a monomial in `e`; `ln` of a monomial
+in `e` is rational; `sin`, `cos` and `tan` at a rational multiple of
+`pi` with a small denominator come from a table of the values in
+radicals (`sin(pi/6)`, `sin(pi/4)`, `cos(pi/5)`); `sqrt` and the other
+roots of a monomial are monomials. Everything else evaluates the
+symbolic argument to a ball at the internal precision and proceeds
+numerically. A further symbol set (`ln 2`, `ln 3`, `sqrt(pi)`) could be
+adjoined the same way, and is where "not a symbolic calculator" draws
+the line.
+
+The rational display of feature 7 extends to write a symbolic value as
+it is (`sqrt(2)/2`, `pi/6`, `2 e`); the decimal display is unchanged. The
 angle units, all rational multiples of `pi`, become exact, and the
 conservative `≈` that docs/calculator.md accepts for `turn` into `deg`
-goes away.
+goes away; `(2 m^2)^(1/2)` becomes exactly `sqrt(2) m`.
 
 **What keeps it possible.** The magnitude is one type behind one module.
-An exact value is a ball of radius zero whatever its midpoint holds, so a
-symbolic value is such a ball with a richer midpoint, and nothing
-downstream of the magnitude changes. `pi()` is a built-in function, so it
-can return a symbolic value under a setting and digits otherwise, with no
-change to the grammar or the definitions file. The rational display
-already has the rule "exact, so write it as a fraction" that `pi/6`
-extends. What would change: the midpoint type gains a symbolic kind, every
-exact operation gains a case for it, and the kernel's exact-case detection
-consults a table.
+An exact value is a ball of radius zero whatever its midpoint holds, so
+a symbolic value is such a ball with a richer midpoint, and nothing
+downstream of the magnitude changes; the retry loop, which re-evaluates
+from the expression, would re-evaluate a symbolic value to any precision
+on demand. `root` already detects the exact rational cases, which is the
+degenerate form of the radical monomial. `pi()` and `exp` are built-in
+functions, so they can return a symbolic value under a setting and digits
+otherwise, with no change to the grammar or the definitions file. The
+rational display already has the rule "exact, so write it as it is" that
+`sqrt(2)/2` extends. What would change: the midpoint type gains a
+symbolic kind, every exact operation gains a case for it and a rule for
+when it gives up, the kernel's exact-case detection consults the tables,
+and the radicand factoring joins the kernel.
 
 ## Complex numbers
 

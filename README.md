@@ -353,10 +353,15 @@ text of `scripts/cloud-setup.sh` under Setup script and the assignments of
 the repository at session start. When either file changes, paste it again;
 when the pinned pnpm version in `package.json` or the Node.js line in
 `engines` changes, bump the pins at the top of the setup script (their
-comments name the fields they mirror) and paste it again. A session that
-starts with the wrong toolchain, or with `npx` or `npm` on its path, is
-what this arrangement exists to prevent; if one does, the hook's output at
-session start says which part is out of date.
+comments name the fields they mirror) and paste it again.
+`scripts/cloud-setup.test.ts` enforces the second half of that: it fails
+`pnpm test` when the script's pins disagree with `package.json` or with
+the integrity strings in `pnpm-lock.yaml`, and its message says which pin
+to bump and to paste the script again. The pasting itself cannot be
+checked from the repository, so the failing test is the reminder. A
+session that starts with the wrong toolchain, or with `npx` or `npm` on
+its path, is what this arrangement exists to prevent; if one does, the
+hook's output at session start says which part is out of date.
 
 ### Layout
 
@@ -421,7 +426,9 @@ session start says which part is out of date.
   `.claude/hooks/session-start.sh` with `.claude/settings.json` the hook
   that runs at the start of each of its sessions (see Cloud environment
   above). The two under `scripts/` are pasted into the environment's
-  settings and kept in sync by hand.
+  settings and kept in sync by hand; `scripts/cloud-setup.test.ts` fails
+  when the setup script's version pins drift from `package.json` or
+  `pnpm-lock.yaml`.
 
 ### Benchmarks
 

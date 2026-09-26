@@ -22,6 +22,8 @@ function show(e: Expr): string {
       return `${show(node.base)}^${toFraction(node.exponent)}`;
     case "neg":
       return `-${show(node.operand)}`;
+    case "call":
+      return `${node.name}(${show(node.argument)})`;
   }
 }
 
@@ -422,6 +424,57 @@ test("an error lists what could have continued the input", () => {
   assert.deepEqual(failed("2 m + "), unexpected(6, ...OPERAND));
   assert.deepEqual(failed("2 + * 3"), unexpected(4, ...OPERAND));
   assert.deepEqual(failed("(2 + 3"), unexpected(6, ...AFTER_FACTOR, '")"'));
+});
+
+// ---------------------------------------------------------------------------
+// Calls
+
+test("a name directly followed by ( is a call", () => {
+  assertParses("tempC(100)", "tempC(100)");
+  assertParses("tempC(20 + 5)", "tempC((20 + 5))");
+  assertParses("tempC( 100 )", "tempC(100)");
+  assertParses("kg(m/s)", "kg((m / s))");
+  assertParses("f(g(x))", "f(g(x))");
+});
+
+test("a call is an atom: it may be juxtaposed, raised and negated", () => {
+  assertParses("2 tempC(100)", "(2 * tempC(100))");
+  assertParses("tempC(100) K", "(tempC(100) * K)");
+  assertParses("tempC(100)^2", "tempC(100)^2");
+  assertParses("-tempC(100)", "-tempC(100)");
+  assertParses("tempC(100) - tempC(0)", "(tempC(100) - tempC(0))");
+  assertParses("K / tempC(100)", "(K / tempC(100))");
+});
+
+test("a space before ( makes a product, not a call", () => {
+  assertParses("kg (m/s)", "(kg * (m / s))");
+  assertParses("kg(m/s)^2", "kg((m / s))^2");
+  assertParses("kg (m/s)^2", "(kg * (m / s)^2)");
+  // Only a name can be called; a number before a parenthesis is a product.
+  assertParses("2(3)", "(2 * 3)");
+});
+
+test("a call spans the name to the closing parenthesis, and keeps the name's span", () => {
+  const { node, span } = parsed(" 2 tempC( 100 ) ");
+  assert.equal(span.end, 15);
+  assert.ok(node.kind === "binary");
+  assert.deepEqual(node.right.span, { start: 3, end: 15 });
+  assert.ok(node.right.node.kind === "call");
+  assert.equal(node.right.node.name, "tempC");
+  assert.deepEqual(node.right.node.nameSpan, { start: 3, end: 8 });
+  assert.deepEqual(node.right.node.argument.span, { start: 10, end: 13 });
+});
+
+test("a call needs an argument and a closing parenthesis", () => {
+  assert.deepEqual(failed("tempC("), unexpected(6, ...OPERAND));
+  assert.deepEqual(failed("tempC()"), unexpected(6, ...OPERAND));
+  assert.deepEqual(failed("tempC(100"), unexpected(9, ...AFTER_FACTOR, '")"'));
+  // A name not followed by ( expects nothing of a call: the errors are as
+  // they were before calls existed.
+  assert.deepEqual(
+    failed("m)"),
+    unexpected(1, ...AFTER_FACTOR, "end of input"),
+  );
 });
 
 // ---------------------------------------------------------------------------

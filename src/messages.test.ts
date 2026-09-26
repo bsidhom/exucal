@@ -26,18 +26,36 @@ const table: UnitTable = (() => {
   return built.value;
 })();
 
-/** The message for the error `text` fails with. */
-function textMessage(text: string): string {
-  const result = evaluateText(table, text, DEFAULT_PRECISION);
+/** A table of functions whose bodies fail for some value, which the system table has none of. */
+const failing: UnitTable = (() => {
+  const parsed = parseDefinitions(
+    [
+      "recip(x)  [1;1]  1 / x ; 1 / recip",
+      "bad(x)  [1;1]  recip(x) ; recip(bad)",
+    ].join("\n"),
+  );
+  assert.ok(parsed.ok, `expected the text to parse, got ${inspect(parsed)}`);
+  const built = buildTable(parsed.value, DEFAULT_PRECISION);
+  assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
+  return built.value;
+})();
+
+/** The message for the error `text` fails with, in `against`. */
+function textMessage(text: string, against: UnitTable = table): string {
+  const result = evaluateText(against, text, DEFAULT_PRECISION);
   assert.ok(!result.ok, `expected ${JSON.stringify(text)} to fail`);
-  return describeTextError(result.error, text, table.primitives);
+  return describeTextError(result.error, text, against.primitives);
 }
 
-/** The message for the error converting `have` to `want` fails with. */
-function conversionMessage(have: string, want: string): string {
-  const result = convertText(table, have, want, DEFAULT_PRECISION);
+/** The message for the error converting `have` to `want` fails with, in `against`. */
+function conversionMessage(
+  have: string,
+  want: string,
+  against: UnitTable = table,
+): string {
+  const result = convertText(against, have, want, DEFAULT_PRECISION);
   assert.ok(!result.ok, `expected ${have} in ${want} to fail`);
-  return describeConversionError(result.error, have, want, table.primitives);
+  return describeConversionError(result.error, have, want, against.primitives);
 }
 
 test("a parse error names what was expected and what was found", () => {
@@ -141,5 +159,66 @@ test("a named list that does not conform is the mismatch of the pair", () => {
   assert.equal(
     conversionMessage("3 ft", "time"),
     '"3 ft" has dimension m, but "time" has dimension s.',
+  );
+});
+
+test("a call of something that is not a function says what it is", () => {
+  assert.equal(
+    textMessage("kg(m/s)"),
+    '"kg" is a unit, not a function. For a product, write "kg (m/s)", with a space.',
+  );
+  assert.equal(
+    textMessage("2 km( 2 )"),
+    '"km" is a unit, not a function. For a product, write "km ( 2 )", with a space.',
+  );
+  assert.equal(textMessage("foo(2)"), 'Unknown function "foo".');
+  assert.equal(conversionMessage("1 K", "time(2)"), 'Unknown function "time".');
+});
+
+test("a function used as a unit shows the call form", () => {
+  assert.equal(
+    textMessage("2 tempC"),
+    '"tempC" is a function, not a unit. To apply it to a value, write "tempC(value)".',
+  );
+  assert.equal(
+    conversionMessage("1 K", "tempC;degC"),
+    '"tempC" is a function, not a unit. To apply it to a value, write "tempC(value)".',
+  );
+});
+
+test("an argument that does not conform is worded as a mismatch with what the function takes", () => {
+  assert.equal(
+    textMessage("tempC(1 m)"),
+    'Cannot apply "tempC" to "1 m": "1 m" has dimension m, but the argument of "tempC" has dimension 1.',
+  );
+  assert.equal(
+    textMessage("tempC(1 radian)"),
+    'Cannot apply "tempC" to "1 radian": "1 radian" (radian) and the argument of "tempC" (1) differ in kind: radian.',
+  );
+});
+
+test("a body that fails is described by what the definition does", () => {
+  assert.equal(
+    textMessage("recip(0)", failing),
+    'Cannot compute "recip(0)": the definition of "recip" divides by zero.',
+  );
+  assert.equal(
+    textMessage("2 bad( 0 )", failing),
+    'Cannot compute "bad( 0 )": the definition of "bad" calls "recip", whose definition divides by zero.',
+  );
+  assert.equal(
+    conversionMessage(" 0 ", "recip", failing),
+    'Cannot invert "recip" for "0": the inverse of "recip" divides by zero.',
+  );
+  assert.equal(
+    conversionMessage("0", "bad", failing),
+    'Cannot invert "bad" for "0": the inverse of "bad" calls "recip", whose definition divides by zero.',
+  );
+});
+
+test("a have that does not conform to a function is the mismatch of the pair", () => {
+  assert.equal(
+    conversionMessage("3 ft", "tempC"),
+    '"3 ft" has dimension m, but "tempC" has dimension K.',
   );
 });

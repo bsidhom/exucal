@@ -11,10 +11,23 @@
 // unknown unit), and only a `want` that is exactly a list's name means the
 // list. Each unit of a list keeps the text it was defined as, for the
 // converter to show beside its term.
+//
+// The functions are apart from the units in the same way (docs/functions.md):
+// a function's name means something only in a call, `tempC(100)`, or as a
+// `want` on its own, and typed as a unit it is a `functionAsUnit` error,
+// which says so. A function is held as its two bodies, as expressions, with
+// the units it declares for its argument and its result, each with its
+// text as written, since the converter writes a recovered argument in it;
+// the builder has checked the bodies against the declaration, so a call
+// can fail only on its argument or on a value. The name of a call resolves
+// among the functions alone, and a name that is not one is a
+// `notAFunction` error that says what the name is otherwise, so that the
+// message for `kg(m/s)` can show the product the user probably meant.
 
 import { type Primitives } from "./dimension.ts";
 import { type Lookup } from "./evaluate.ts";
-import { resolveName } from "./names.ts";
+import { type Expr } from "./expr.ts";
+import { resolveName, type Resolution } from "./names.ts";
 import { multiplyQuantities, scalar, type Quantity } from "./quantity.ts";
 import { type Rational } from "./rational.ts";
 import { err, ok } from "./result.ts";
@@ -29,15 +42,36 @@ export type UnitTable = {
   readonly units: ReadonlyMap<string, Quantity>;
   /** The units of each unit list, by name, largest first. */
   readonly unitLists: ReadonlyMap<string, UnitList>;
+  /** The functions, by name. */
+  readonly functions: ReadonlyMap<string, UnitFunction>;
 };
 
 /** A unit list: two or more units, all of one dimension, positive and decreasing. */
 export type UnitList = readonly ListedUnit[];
 
-/** One unit of a unit list, with the `text` it was written as. */
-export type ListedUnit = {
+/** A unit with the `text` it was written as, for the converter to show. */
+export type WrittenUnit = {
   readonly text: string;
   readonly quantity: Quantity;
+};
+
+/** One unit of a unit list. */
+export type ListedUnit = WrittenUnit;
+
+/**
+ * A function: `forward` is its body, in which `parameter` stands for the
+ * argument, and `inverse` the body of its inverse, in which `name` stands
+ * for the value. `argument` and `result` are the units it declares for the
+ * two: the builder has checked that `forward` conforms to `result` and
+ * `inverse` to `argument`, and that each is nonzero.
+ */
+export type UnitFunction = {
+  readonly name: string;
+  readonly parameter: string;
+  readonly argument: WrittenUnit;
+  readonly result: WrittenUnit;
+  readonly forward: Expr;
+  readonly inverse: Expr;
 };
 
 /** The name at `span` is neither a unit nor a prefix followed by one. */
@@ -47,19 +81,70 @@ export type UnknownUnit = {
   readonly span: Span;
 };
 
+/** The name at `span`, used as a unit, is a function, which only a call applies. */
+export type FunctionAsUnit = {
+  readonly kind: "functionAsUnit";
+  readonly name: string;
+  readonly span: Span;
+};
+
+/**
+ * The name at `span`, called at `call`, is not a function; `otherwise`
+ * says what it is instead, so that a message can show the product the
+ * call probably stood for.
+ */
+export type NotAFunction = {
+  readonly kind: "notAFunction";
+  readonly name: string;
+  readonly span: Span;
+  readonly call: Span;
+  readonly otherwise: "unit" | "prefixedUnit" | "nothing";
+};
+
+/** Why a name in the input means nothing, or not what it was used as. */
+export type LookupError = UnknownUnit | FunctionAsUnit | NotAFunction;
+
 /**
  * The lookup the evaluator resolves user input against: an exact unit name
  * if the table has one, otherwise one prefix followed by a unit name, whose
- * quantity is the unit's scaled by the prefix's factor.
+ * quantity is the unit's scaled by the prefix's factor; and, for a call,
+ * a function by its name.
  */
-export function unitLookup(table: UnitTable): Lookup<UnknownUnit> {
-  return (name, span) => {
-    const found = resolveName(name, table.prefixes, table.units);
-    if (found === undefined) return err({ kind: "unknownUnit", name, span });
-    return ok(
-      found.kind === "unit"
-        ? found.unit
-        : multiplyQuantities(scalar(found.prefix), found.unit),
-    );
+export function unitLookup(table: UnitTable): Lookup<LookupError> {
+  return {
+    unit: (name, span) => {
+      const found = resolveName(name, table.prefixes, table.units);
+      if (found === undefined) {
+        return err(
+          table.functions.has(name)
+            ? { kind: "functionAsUnit", name, span }
+            : { kind: "unknownUnit", name, span },
+        );
+      }
+      return ok(
+        found.kind === "unit"
+          ? found.unit
+          : multiplyQuantities(scalar(found.prefix), found.unit),
+      );
+    },
+    function: (name, span, call) => {
+      const found = table.functions.get(name);
+      if (found !== undefined) return ok(found);
+      return err({
+        kind: "notAFunction",
+        name,
+        span,
+        call,
+        otherwise: otherwiseOf(resolveName(name, table.prefixes, table.units)),
+      });
+    },
   };
+}
+
+/** What a name that is not a function is, from its resolution as a unit. */
+export function otherwiseOf(
+  found: Resolution<unknown, unknown> | undefined,
+): NotAFunction["otherwise"] {
+  if (found === undefined) return "nothing";
+  return found.kind === "unit" ? "unit" : "prefixedUnit";
 }

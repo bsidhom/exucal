@@ -1,10 +1,9 @@
 # Functions in the definitions file
 
-Status: design, not implemented. ARCHITECTURE.md ("Later") reserves a
-`call` node and a function definition form for this; this document fills
-them in. The goal is `tempC` and `tempF` for temperature readings, defined
-in `src/units.txt` the way GNU units defines them, without adding anything
-to the core that only temperature needs.
+Status: implemented; "Implementation notes" at the end records where the
+code departs from the text. The goal is `tempC` and `tempF` for temperature
+readings, defined in `src/units.txt` the way GNU units defines them,
+without adding anything to the core that only temperature needs.
 
 ## The problem
 
@@ -44,7 +43,7 @@ declared units of the argument and the result in brackets, then the
 forward body, `;`, and the inverse body:
 
 ```
-tempC(x)  [1;K]  x K + 273.15 K       ; tempC - 273.15 K
+tempC(x)  [1;K]  x K + 273.15 K       ; tempC / K - 273.15
 tempF(x)  [1;K]  (x + 459.67) degF    ; tempF / degF - 459.67
 ```
 
@@ -59,8 +58,9 @@ tempF(x)  [1;K]  (x + 459.67) degF    ; tempF / degF - 459.67
 - **The forward body** is an expression in which the parameter stands for
   the argument. **The inverse body** is an expression in which the
   function's own name stands for its value, as in GNU units, so that
-  `tempC - 273.15 K` reads as "the temperature less 273.15 K". A bound
-  name is resolved before any unit or prefix.
+  `tempC / K - 273.15` reads as "the temperature in kelvin, less 273.15",
+  a plain number, as the declaration requires. A bound name is resolved
+  before any unit or prefix.
 - **`;` between the bodies** is the same separator a unit list uses. There
   is no conflict: the name form has already chosen the function grammar,
   which reads exactly two bodies.
@@ -263,3 +263,41 @@ same name rule the build did.
 - **Deciding calls by the table**, so that `kg(m/s)` stays a product: it
   makes the parser depend on the table, which the architecture rules out.
   See the decision under "Calls in expressions".
+
+## Implementation notes
+
+Where the code departs from the text above, and why:
+
+- **The declared units must be nonzero.** A recovered argument is written
+  as a count of the declared argument unit, which a unit of zero cannot
+  be, so the build rejects a declared unit of zero (`zeroDeclaredUnit`)
+  rather than leave the display to fail. The result unit is held to the
+  same rule for symmetry.
+- **The prefixed-name check is one error for lists and functions.** The
+  build error `prefixedListName` became `prefixedName`, carrying either
+  definition, since the rule and the reason are the same.
+- **A function used as a unit is its own error**, `functionAsUnit`, beside
+  `unknownUnit`, rather than a field on it, so that the existing error and
+  its tests stay as they were; the message shows the call form as
+  described.
+- **`callFailed` carries the body's own error only.** The evaluator is
+  generic in the lookup's error type, and a type that carries that type
+  inside `callFailed` would have to refer to itself through a generic
+  alias, which TypeScript does not allow. So a body is evaluated through a
+  lookup whose failures are boxed, the evaluator's own failures are
+  wrapped in `callFailed`, and a lookup failure inside a body, which a
+  built table cannot produce, is passed up unchanged. `applyFunction` and
+  `invertFunction` return the two apart (`BodyError`), so that the build
+  can report a body's failure with its span in the definitions and the
+  pipeline can wrap it as `inverseFailed`.
+- **`Lookup` is an object** with `unit` and `function` resolvers, and the
+  function resolver is given the span of the whole call as well as the
+  name's, since `notAFunction` carries both and the evaluator returns a
+  lookup's failure unchanged.
+- **The `function` conversion also carries the count.** Beside the have,
+  the name, the recovered argument and the declared unit, it carries the
+  argument as a count of that unit, so that the UI does no arithmetic.
+- **The example `tempC` inverse in the first draft**, `tempC - 273.15 K`,
+  gave a temperature where a plain number was declared, and the build
+  check of step 3 rejected it, as it should; it is `tempC / K - 273.15`
+  above.

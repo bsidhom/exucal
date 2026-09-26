@@ -14,7 +14,8 @@
 //   power     := atom ("^" exponent)?
 //   unitPower := unitAtom ("^" exponent)?
 //   atom      := number | unitAtom
-//   unitAtom  := name | "(" expr ")"
+//   unitAtom  := call | name | "(" expr ")"
+//   call      := name "(" expr ")"                     no space before "("
 //   exponent  := signed number | "(" signed number ("/" number)? ")"
 //
 // Juxtaposition means "this many of these units" (`2 m`) or a product of
@@ -34,6 +35,16 @@
 // (`m^2`, `s^-1`, `m^0.5`) or a parenthesized rational (`m^(1/2)`,
 // `m^(-3/2)`), so the exponent is known at parse time and travels in the
 // tree as a `Rational`.
+//
+// A call, `tempC(100)`, is a name directly followed by `(`, an expression
+// and `)`. It is an atom like a name, so `2 tempC(100)`, `tempC(100)^2` and
+// `-tempC(100)` mean what they look like, and the argument is any
+// expression. Whether the name is a function is the evaluator's business;
+// the parser decides a call by the text alone, and the one rule it applies
+// is lexical: no space between the name and the `(` makes a call, and a
+// space makes a product, so `kg (m/s)` is a product and `kg(m/s)` is a
+// call of `kg`, which the evaluator will reject. That is the one
+// whitespace-sensitive rule in the grammar (docs/functions.md says why).
 //
 // A unit list, `ft;in`, is what the user may type as `want` to have the
 // value shown as a sum of units (ARCHITECTURE.md, "Unit lists"), and what
@@ -100,7 +111,14 @@ export type ExprNode =
     }
   | { readonly kind: "pow"; readonly base: Expr; readonly exponent: Rational }
   /** `-operand`. */
-  | { readonly kind: "neg"; readonly operand: Expr };
+  | { readonly kind: "neg"; readonly operand: Expr }
+  /** `name(argument)`: a call of the function `name`, which is at `nameSpan`. */
+  | {
+      readonly kind: "call";
+      readonly name: string;
+      readonly nameSpan: Span;
+      readonly argument: Expr;
+    };
 
 // ---------------------------------------------------------------------------
 // Parsing
@@ -175,6 +193,15 @@ const number: Parser<Spanned<Rational>> = token(
   spanned(decimal(UNSIGNED, "a number")),
 );
 
+/**
+ * The name of a call: a unit name directly followed by `(`, which is left
+ * for the call to read. It is labelled as a name is, since wherever a name
+ * may start a call may too, and an error should not list the two apart.
+ */
+const callName: Parser<Spanned<string>> = spanned(
+  regex(new RegExp(`${NAME.source}(?=\\()`, "u"), "a unit name"),
+);
+
 // ---------------------------------------------------------------------------
 // Grammar
 
@@ -199,8 +226,22 @@ const parenthesized: Parser<Expr> = map(
   ({ value: [, inner], span }) => ({ span, node: inner.node }),
 );
 
+/** `name(argument)`, with the name's own span kept for the evaluator's errors. */
+const call: Parser<Expr> = map(
+  token(spanned(seq(callName, symbol("("), expr, string(")")))),
+  ({ value: [callee, , argument], span }): Expr => ({
+    span,
+    node: {
+      kind: "call",
+      name: callee.value,
+      nameSpan: callee.span,
+      argument,
+    },
+  }),
+);
+
 /** An atom that can follow another factor by juxtaposition: not a number. */
-const unitAtom: Parser<Expr> = alt(map(name, leaf), parenthesized);
+const unitAtom: Parser<Expr> = alt(call, map(name, leaf), parenthesized);
 
 const atom: Parser<Expr> = alt(map(number, leaf), unitAtom);
 

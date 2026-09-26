@@ -32,6 +32,21 @@
 // the span of the reference along with the name, so that its error can point
 // at the text as this module's own errors do.
 //
+// A call, `tempC(100)`, applies a function the lookup resolves by name
+// (docs/functions.md): the argument is evaluated, checked to conform to the
+// unit the function declares for it, and bound to the parameter while the
+// forward body is evaluated through the same lookup, so that the body's
+// units resolve as the user's would. The body's own failures carry spans
+// into the definitions text, which the user cannot see, so they come back
+// as one `callFailed` at the call, carrying the body's error. Only the
+// evaluator's own failures are wrapped that way: a lookup failure inside a
+// body is passed up as any lookup failure is, which is why the body is
+// evaluated through a lookup whose failures are boxed, so that the two can
+// be told apart without knowing the lookup's error type. A table built by
+// `buildTable` has checked every body, so a call against it can fail only
+// on its argument or on a value. `invertFunction` is the same evaluation
+// under a binding for the inverse body, for the pipeline's function want.
+//
 // Operands are evaluated left to right and the first failure ends the
 // evaluation, so `bogus / 0` reports the unknown unit, not the division.
 // The arithmetic failures are those of `rational.ts` that a value can cause,
@@ -41,9 +56,15 @@
 // since it is the combination of base and exponent that fails. A sum whose
 // operands do not conform (`1 m + 1 s`) points at the whole sum for the
 // same reason, and carries the span of each operand besides, so that a
-// message can say what each one is.
+// message can say what each one is; a call whose argument does not conform
+// to the declared unit points at the whole call and carries the argument's
+// span the same way.
 
-import { type ConformanceError, type Primitives } from "./dimension.ts";
+import {
+  checkConformance,
+  type ConformanceError,
+  type Primitives,
+} from "./dimension.ts";
 import { type Expr } from "./expr.ts";
 import {
   addQuantities,
@@ -58,15 +79,25 @@ import {
 import { type Precision, type RationalError } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import { type Span } from "./span.ts";
+import { type UnitFunction } from "./table.ts";
 
 // ---------------------------------------------------------------------------
 // Types
 
 /**
- * Resolves the unit `name`, referenced at `span`, to its quantity, or fails
- * with the caller's own error, which `evaluate` returns as it is.
+ * Resolves the names in an expression, or fails with the caller's own
+ * error, which `evaluate` returns as it is: `unit` resolves the unit
+ * `name`, referenced at `span`, to its quantity, and `function` resolves
+ * the function `name`, at `span`, called at `call`.
  */
-export type Lookup<E> = (name: string, span: Span) => Result<Quantity, E>;
+export type Lookup<E> = {
+  readonly unit: (name: string, span: Span) => Result<Quantity, E>;
+  readonly function: (
+    name: string,
+    span: Span,
+    call: Span,
+  ) => Result<UnitFunction, E>;
+};
 
 export type EvaluateError =
   /**
@@ -94,7 +125,39 @@ export type EvaluateError =
       readonly left: Span;
       readonly right: Span;
       readonly mismatch: ConformanceError;
+    }
+  /**
+   * The call of `name` at `span` has an argument, at `argument`, that does
+   * not conform to the unit the function declares for it, as `mismatch`
+   * says with the argument's dimension as its `have` and the declared one
+   * as its `want`.
+   */
+  | {
+      readonly kind: "argumentMismatch";
+      readonly name: string;
+      readonly span: Span;
+      readonly argument: Span;
+      readonly mismatch: ConformanceError;
+    }
+  /**
+   * The body of `name`, called at `span`, failed for this argument as
+   * `error` says; its spans are into the definitions text.
+   */
+  | {
+      readonly kind: "callFailed";
+      readonly name: string;
+      readonly span: Span;
+      readonly error: EvaluateError;
     };
+
+/**
+ * Why a function's body failed to evaluate for a value: its own failure,
+ * whose spans are into the definitions text, or a failure of the lookup,
+ * which is the caller's and comes back unchanged.
+ */
+export type BodyError<E> =
+  | { readonly kind: "body"; readonly error: EvaluateError }
+  | { readonly kind: "lookup"; readonly error: E };
 
 // ---------------------------------------------------------------------------
 // Evaluation
@@ -116,7 +179,7 @@ export function evaluate<E>(
     case "number":
       return ok(scalar(node.value));
     case "unit":
-      return lookup(node.name, span);
+      return lookup.unit(node.name, span);
     case "binary": {
       const left = evaluate(node.left, lookup, primitives, precision);
       if (!left.ok) return left;
@@ -157,8 +220,120 @@ export function evaluate<E>(
       if (!operand.ok) return operand;
       return ok(negateQuantity(operand.value));
     }
+    case "call": {
+      const fn = lookup.function(node.name, node.nameSpan, span);
+      if (!fn.ok) return fn;
+      const argument = evaluate(node.argument, lookup, primitives, precision);
+      if (!argument.ok) return argument;
+      const conformance = checkConformance(
+        argument.value.dimension,
+        fn.value.argument.quantity.dimension,
+        primitives,
+      );
+      if (!conformance.ok) {
+        return err({
+          kind: "argumentMismatch",
+          name: node.name,
+          span,
+          argument: node.argument.span,
+          mismatch: conformance.error,
+        });
+      }
+      const value = applyFunction(
+        fn.value,
+        argument.value,
+        lookup,
+        primitives,
+        precision,
+      );
+      if (value.ok) return value;
+      const { error } = value;
+      return err(
+        error.kind === "lookup"
+          ? error.error
+          : { kind: "callFailed", name: node.name, span, error: error.error },
+      );
+    }
   }
 }
+
+/**
+ * The value of `fn` at `argument`: its forward body evaluated with the
+ * parameter bound to `argument`, which must conform to the declared
+ * argument unit, as the call case checks before calling this.
+ */
+export function applyFunction<E>(
+  fn: UnitFunction,
+  argument: Quantity,
+  lookup: Lookup<E>,
+  primitives: Primitives,
+  precision: Precision,
+): Result<Quantity, BodyError<E>> {
+  return evaluateBound(
+    fn.forward,
+    fn.parameter,
+    argument,
+    lookup,
+    primitives,
+    precision,
+  );
+}
+
+/**
+ * The argument `fn` gives `value` for: its inverse body evaluated with the
+ * function's own name bound to `value`, which must conform to the declared
+ * result unit, as the pipeline checks before calling this.
+ */
+export function invertFunction<E>(
+  fn: UnitFunction,
+  value: Quantity,
+  lookup: Lookup<E>,
+  primitives: Primitives,
+  precision: Precision,
+): Result<Quantity, BodyError<E>> {
+  return evaluateBound(
+    fn.inverse,
+    fn.name,
+    value,
+    lookup,
+    primitives,
+    precision,
+  );
+}
+
+/**
+ * `body` evaluated with `name` bound to `value`. The bound name is resolved
+ * before any unit or prefix, and every other name through `lookup`, whose
+ * failures are boxed on the way in and unboxed on the way out, so that
+ * they come back apart from the body's own.
+ */
+function evaluateBound<E>(
+  body: Expr,
+  name: string,
+  value: Quantity,
+  lookup: Lookup<E>,
+  primitives: Primitives,
+  precision: Precision,
+): Result<Quantity, BodyError<E>> {
+  const bound: Lookup<Boxed<E>> = {
+    unit: (unit, span) => {
+      if (unit === name) return ok(value);
+      const found = lookup.unit(unit, span);
+      return found.ok ? found : err({ kind: "lookup", error: found.error });
+    },
+    function: (fn, span, call) => {
+      const found = lookup.function(fn, span, call);
+      return found.ok ? found : err({ kind: "lookup", error: found.error });
+    },
+  };
+  const result = evaluate(body, bound, primitives, precision);
+  if (result.ok) return result;
+  const { error } = result;
+  return err(error.kind === "lookup" ? error : { kind: "body", error });
+}
+
+/** A lookup failure as `evaluateBound` boxes it. */
+type Boxed<E> = Extract<BodyError<E>, { kind: "lookup" }>;
 
 /** Attaches `span` to the failure of `result`, if it failed. */
 function locate(

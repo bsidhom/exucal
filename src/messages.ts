@@ -14,14 +14,24 @@ import {
   type Primitives,
 } from "./core/dimension.ts";
 import { type UnitListError } from "./core/convert.ts";
-import { type ConversionError, type TextError } from "./core/pipeline.ts";
+import { type EvaluateError } from "./core/evaluate.ts";
+import {
+  type ConversionError,
+  type InverseFailed,
+  type TextError,
+} from "./core/pipeline.ts";
 import { type Span } from "./core/span.ts";
 
 /**
  * Why `text` denotes no quantity, as one sentence: what was expected where
  * the parser stopped, or which part of the text the evaluator rejected. A
  * sum whose operands do not conform is described as a conversion between
- * them would be, with both dimensions, which `primitives` formats.
+ * them would be, with both dimensions, which `primitives` formats, and so
+ * is a call whose argument does not conform to what the function takes. A
+ * call of a unit shows the product it probably stood for, with the space
+ * that makes it one, and a function used as a unit shows the call form. A
+ * call whose body fails is described by what the body does, since its
+ * spans are into the definitions text, which is not the text shown.
  */
 export function describeTextError(
   error: TextError,
@@ -39,6 +49,15 @@ export function describeTextError(
       return `${quote(slice(text, error.span))}: ${error.reason}.`;
     case "unknownUnit":
       return `Unknown unit ${quote(error.name)}.`;
+    case "functionAsUnit":
+      return `${quote(error.name)} is a function, not a unit. To apply it to a value, write ${quote(`${error.name}(value)`)}.`;
+    case "notAFunction": {
+      if (error.otherwise === "nothing") {
+        return `Unknown function ${quote(error.name)}.`;
+      }
+      const argument = text.slice(error.span.end, error.call.end);
+      return `${quote(error.name)} is a unit, not a function. For a product, write ${quote(`${error.name} ${argument}`)}, with a space.`;
+    }
     case "divisionByZero":
       return `Division by zero in ${quote(slice(text, error.span))}.`;
     case "negativeRadicand":
@@ -54,6 +73,13 @@ export function describeTextError(
           : `Cannot subtract ${right} from ${left}`;
       return `${operation}: ${describeMismatch(error.mismatch, left, right, primitives)}.`;
     }
+    case "argumentMismatch": {
+      const name = quote(error.name);
+      const argument = quote(slice(text, error.argument));
+      return `Cannot apply ${name} to ${argument}: ${describeMismatch(error.mismatch, argument, `the argument of ${name}`, primitives)}.`;
+    }
+    case "callFailed":
+      return `Cannot compute ${quote(slice(text, error.span))}: the definition of ${quote(error.name)} ${describeBody(error.error)}.`;
   }
 }
 
@@ -72,11 +98,13 @@ export function describeConversionError(
 ): string {
   switch (error.kind) {
     case "inputError":
-      return describeTextError(
-        error.error,
-        error.side === "have" ? have : want,
-        primitives,
-      );
+      return error.error.kind === "inverseFailed"
+        ? describeInverseFailed(error.error, have)
+        : describeTextError(
+            error.error,
+            error.side === "have" ? have : want,
+            primitives,
+          );
     case "dimensionMismatch":
     case "kindMismatch":
       return `${describeMismatch(error, quote(have.trim()), quote(want.trim()), primitives)}.`;
@@ -107,6 +135,35 @@ function describeUnitListError(
       return `${unit} is not positive, and every unit in a list must be.`;
     case "unitOutOfOrder":
       return `${unit} is not smaller than the unit before it; a list runs from the largest unit to the smallest.`;
+  }
+}
+
+/** Why the want's function has no argument for `have`, as one sentence. */
+function describeInverseFailed(error: InverseFailed, have: string): string {
+  return `Cannot invert ${quote(error.name)} for ${quote(have.trim())}: the inverse of ${quote(error.name)} ${describeBody(error.error)}.`;
+}
+
+/**
+ * What the body of a function does that fails, as a predicate of the
+ * definition (`divides by zero`), without the text: the body's spans are
+ * into the definitions, which the user does not see.
+ */
+function describeBody(error: EvaluateError): string {
+  switch (error.kind) {
+    case "divisionByZero":
+      return "divides by zero";
+    case "negativeRadicand":
+      return "takes an even root of a negative value";
+    case "tooLarge":
+      return "computes a value too large to represent";
+    case "nonconformingOperands":
+      return error.op === "add"
+        ? "adds quantities that do not conform"
+        : "subtracts quantities that do not conform";
+    case "argumentMismatch":
+      return `passes ${quote(error.name)} an argument that does not conform`;
+    case "callFailed":
+      return `calls ${quote(error.name)}, whose definition ${describeBody(error.error)}`;
   }
 }
 

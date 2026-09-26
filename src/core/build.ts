@@ -8,10 +8,10 @@
 //
 // Prefixes and units are separate namespaces: `m-` (milli) and `m` (the
 // metre) coexist, while a primitive and a unit of the same name are a
-// duplicate. The walker's nodes are the definitions that denote a quantity,
-// and a name referenced in a body resolves through the index to the
-// definition it means, so a reference to `km` visits the definitions of
-// `k-` and `m`.
+// duplicate. The walker's nodes are the definitions that denote a quantity
+// and the functions, and a name referenced in a body resolves through the
+// index to the definition it means, so a reference to `km` visits the
+// definitions of `k-` and `m`, and a call of `tempC` visits the function.
 //
 // Unit lists share the unit namespace but are not units: nothing can refer
 // to one, so they stay out of the walker, and each is evaluated in its
@@ -24,6 +24,21 @@
 // dimension, positive and decreasing, so that a defined list can fail to
 // convert only for not conforming to the `have`.
 //
+// Functions share the unit namespace too, and a function's name is subject
+// to the same rule as a list's, for the same reason: typed as the want it
+// would mean the inverse, and typed as the have a prefixed unit. A function
+// is a node of the walk, so that a unit may be defined by a call, a body
+// may call another function, and a cycle through a function is reported
+// like any other. Checking a function (docs/functions.md) means evaluating
+// its declared units, evaluating the forward body with the parameter bound
+// to one of the declared argument unit and the inverse body with the name
+// bound to one of the declared result unit, through the walk's own lookup,
+// and checking that each body conforms to what it should give. That
+// catches a body that fails for every argument and a body of the wrong
+// dimension at load time, so that a call at run time can fail only on its
+// argument or on a value. A declared unit of zero is rejected as well,
+// since a recovered argument is written as a count of it.
+//
 // The first failure ends the build. Errors within a body (an unknown name,
 // a division by zero, a reference that closes a cycle) carry the span of
 // the text at fault, which is an offset into the whole definitions text;
@@ -32,25 +47,36 @@
 
 import { type Definition } from "./definitions.ts";
 import {
+  checkConformance,
   isDimensionless,
   primitive,
+  type ConformanceError,
   type Dimension,
   type Primitives,
   type Role,
 } from "./dimension.ts";
 import { convertToList, type UnitListError } from "./convert.ts";
-import { evaluate, type EvaluateError, type Lookup } from "./evaluate.ts";
+import {
+  applyFunction,
+  evaluate,
+  invertFunction,
+  type EvaluateError,
+  type Lookup,
+} from "./evaluate.ts";
 import { walker, type Cycle, type Visit } from "./graph.ts";
 import { findAmbiguity, resolveName, type Split } from "./names.ts";
 import { multiplyQuantities, type Quantity } from "./quantity.ts";
-import { ONE, type Precision, type Rational } from "./rational.ts";
+import { ONE, isZero, type Precision, type Rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import {
+  otherwiseOf,
   type ListedUnit,
+  type LookupError,
+  type UnitFunction,
   type UnitList,
   type UnitTable,
-  type UnknownUnit,
+  type WrittenUnit,
 } from "./table.ts";
 
 // ---------------------------------------------------------------------------
@@ -63,8 +89,16 @@ export type UnitDefinition = Extract<
   { kind: "primitive" | "unit" }
 >;
 export type UnitListDefinition = Extract<Definition, { kind: "unitList" }>;
-/** A definition that denotes a quantity: what the walker evaluates. */
+export type FunctionDefinition = Extract<Definition, { kind: "function" }>;
+/** A definition that denotes a quantity. */
 type QuantityDefinition = PrefixDefinition | UnitDefinition;
+/** A definition the walker evaluates: one that denotes a quantity, or a function. */
+type Node = QuantityDefinition | FunctionDefinition;
+
+/** What a node of the walk evaluates to. */
+type Built =
+  | { readonly kind: "quantity"; readonly value: Quantity }
+  | { readonly kind: "function"; readonly value: UnitFunction };
 
 export type BuildError =
   /** `second` defines a name that `first` already defined in the same namespace. */
@@ -79,7 +113,7 @@ export type BuildError =
       readonly name: string;
       readonly splits: readonly [Split, Split];
     }
-  | UnknownUnit
+  | LookupError
   /**
    * The `definitions` refer to one another in a circle, each to the next
    * and the last to the first; the reference at `span`, in the last, closes
@@ -96,10 +130,10 @@ export type BuildError =
       readonly definition: PrefixDefinition;
       readonly dimension: Dimension;
     }
-  /** The name of the unit list `definition` also reads as `split`, a prefix followed by a unit. */
+  /** The name of the unit list or function `definition` also reads as `split`, a prefix followed by a unit. */
   | {
-      readonly kind: "prefixedListName";
-      readonly definition: UnitListDefinition;
+      readonly kind: "prefixedName";
+      readonly definition: UnitListDefinition | FunctionDefinition;
       readonly split: Split;
     }
   /** The units of the unit list `definition` do not make a list, as `error` says of the item at its index. */
@@ -108,17 +142,32 @@ export type BuildError =
       readonly definition: UnitListDefinition;
       readonly error: UnitListError;
     }
+  /** The `body` of the function `definition` does not conform to the unit it should give, as `mismatch` says. */
+  | {
+      readonly kind: "functionMismatch";
+      readonly definition: FunctionDefinition;
+      readonly body: "forward" | "inverse";
+      readonly mismatch: ConformanceError;
+    }
+  /** The declared `unit` of the function `definition` is zero, of which nothing is a count. */
+  | {
+      readonly kind: "zeroDeclaredUnit";
+      readonly definition: FunctionDefinition;
+      readonly unit: "argument" | "result";
+    }
   | EvaluateError;
 
 /**
  * The definitions by name, one map per namespace, in definition order. The
- * unit lists are in the unit namespace, but apart, since a name in a body
- * resolves among the units alone.
+ * unit lists and the functions are in the unit namespace, but apart, since
+ * a name in a body resolves among the units alone, and a call among the
+ * functions alone.
  */
 type Index = {
   readonly prefixes: ReadonlyMap<string, PrefixDefinition>;
   readonly units: ReadonlyMap<string, UnitDefinition>;
   readonly unitLists: ReadonlyMap<string, UnitListDefinition>;
+  readonly functions: ReadonlyMap<string, FunctionDefinition>;
 };
 
 // ---------------------------------------------------------------------------
@@ -127,8 +176,9 @@ type Index = {
 /**
  * The table `definitions` describe, with every body evaluated at the
  * working `precision`, or the first error found: a duplicate name, an
- * ambiguous name, and then, in definition order, whatever evaluating each
- * body fails with.
+ * ambiguous name, a list's or function's name that reads as a prefixed
+ * unit, and then, in definition order, whatever evaluating each body
+ * fails with.
  */
 export function buildTable(
   definitions: readonly Definition[],
@@ -141,12 +191,15 @@ export function buildTable(
   if (ambiguity !== undefined) {
     return err({ kind: "ambiguousName", ...ambiguity });
   }
-  for (const definition of index.unitLists.values()) {
+  for (const definition of [
+    ...index.unitLists.values(),
+    ...index.functions.values(),
+  ]) {
     const split = resolveName(definition.name, index.prefixes, index.units);
     // An exact unit of the name would have been a duplicate.
     if (split !== undefined && split.kind === "prefixed") {
       return err({
-        kind: "prefixedListName",
+        kind: "prefixedName",
         definition,
         split: {
           prefix: split.prefix.name,
@@ -159,18 +212,13 @@ export function buildTable(
   // need their roles (a sum checks that its operands conform), so they are
   // collected first and serve the walk as well as the finished table.
   const primitives = declaredPrimitives(index.units.values());
-  const walk = walker<QuantityDefinition, Quantity, BuildError>(
-    (definition, visit) =>
-      evaluateDefinition(
-        definition,
-        lookupIn(index, visit),
-        primitives,
-        precision,
-      ),
+  const walk = walker<Node, Built, BuildError>((definition, visit) =>
+    evaluateNode(definition, lookupIn(index, visit), primitives, precision),
   );
   const prefixes = new Map<string, Rational>();
   const units = new Map<string, Quantity>();
   const unitLists = new Map<string, UnitList>();
+  const functions = new Map<string, UnitFunction>();
   for (const definition of definitions) {
     if (definition.kind === "unitList") {
       // Nothing refers to a list, so its items are evaluated outside the
@@ -187,17 +235,21 @@ export function buildTable(
     }
     const result = walk(definition);
     if (!result.ok) return result;
+    const built = result.value;
     switch (definition.kind) {
       case "primitive":
       case "unit":
-        units.set(definition.name, result.value);
+        units.set(definition.name, asQuantity(built));
         break;
       case "prefix":
-        prefixes.set(definition.name, result.value.magnitude);
+        prefixes.set(definition.name, asQuantity(built).magnitude);
+        break;
+      case "function":
+        functions.set(definition.name, asFunction(built));
         break;
     }
   }
-  return ok({ primitives, prefixes, units, unitLists });
+  return ok({ primitives, prefixes, units, unitLists, functions });
 }
 
 /** The primitives among `definitions`, with their roles, in the order given. */
@@ -217,11 +269,14 @@ function indexDefinitions(
   const prefixes = new Map<string, PrefixDefinition>();
   const units = new Map<string, UnitDefinition>();
   const unitLists = new Map<string, UnitListDefinition>();
+  const functions = new Map<string, FunctionDefinition>();
   for (const definition of definitions) {
     const first =
       definition.kind === "prefix"
         ? prefixes.get(definition.name)
-        : (units.get(definition.name) ?? unitLists.get(definition.name));
+        : (units.get(definition.name) ??
+          unitLists.get(definition.name) ??
+          functions.get(definition.name));
     if (first !== undefined) {
       return err({ kind: "duplicate", first, second: definition });
     }
@@ -236,39 +291,170 @@ function indexDefinitions(
       case "unitList":
         unitLists.set(definition.name, definition);
         break;
+      case "function":
+        functions.set(definition.name, definition);
+        break;
     }
   }
-  return ok({ prefixes, units, unitLists });
+  return ok({ prefixes, units, unitLists, functions });
 }
 
 // ---------------------------------------------------------------------------
 // Evaluating one definition
 
 /**
- * The quantity `definition` denotes: a primitive is one of itself, a unit
- * is what its body evaluates to, and a prefix is what its body evaluates
- * to, provided that is a plain number.
+ * What the node `definition` evaluates to: a primitive is one of itself, a
+ * unit is what its body evaluates to, a prefix is what its body evaluates
+ * to, provided that is a plain number, and a function is its checked self.
  */
-function evaluateDefinition(
-  definition: QuantityDefinition,
+function evaluateNode(
+  definition: Node,
   lookup: Lookup<BuildError>,
   primitives: Primitives,
   precision: Precision,
-): Result<Quantity, BuildError> {
+): Result<Built, BuildError> {
   switch (definition.kind) {
     case "primitive":
-      return ok({ magnitude: ONE, dimension: primitive(definition.name) });
-    case "unit":
-      return evaluate(definition.body, lookup, primitives, precision);
+      return ok(
+        quantity({ magnitude: ONE, dimension: primitive(definition.name) }),
+      );
+    case "unit": {
+      const body = evaluate(definition.body, lookup, primitives, precision);
+      return body.ok ? ok(quantity(body.value)) : body;
+    }
     case "prefix": {
       const body = evaluate(definition.body, lookup, primitives, precision);
       if (!body.ok) return body;
       const { dimension } = body.value;
       return isDimensionless(dimension)
-        ? body
+        ? ok(quantity(body.value))
         : err({ kind: "dimensionedPrefix", definition, dimension });
     }
+    case "function": {
+      const fn = checkFunction(definition, lookup, primitives, precision);
+      return fn.ok ? ok({ kind: "function", value: fn.value }) : fn;
+    }
   }
+}
+
+function quantity(value: Quantity): Built {
+  return { kind: "quantity", value };
+}
+
+/** The quantity of a node that denotes one; a function's node never reaches here. */
+function asQuantity(built: Built): Quantity {
+  if (built.kind !== "quantity") {
+    throw new Error("A unit or prefix definition evaluated to a function");
+  }
+  return built.value;
+}
+
+function asFunction(built: Built): UnitFunction {
+  if (built.kind !== "function") {
+    throw new Error("A function definition evaluated to a quantity");
+  }
+  return built.value;
+}
+
+/**
+ * The function `definition` defines, once checked: its declared units
+ * evaluated, its forward body evaluated with the parameter bound to one of
+ * the declared argument unit and found to conform to the declared result,
+ * and its inverse body evaluated with the name bound to one of the
+ * declared result unit and found to conform to the declared argument. A
+ * body's failure is reported as it is, with its span in the definitions
+ * text, where it belongs.
+ */
+function checkFunction(
+  definition: FunctionDefinition,
+  lookup: Lookup<BuildError>,
+  primitives: Primitives,
+  precision: Precision,
+): Result<UnitFunction, BuildError> {
+  const argument = evaluateDeclared(
+    definition,
+    "argument",
+    lookup,
+    primitives,
+    precision,
+  );
+  if (!argument.ok) return argument;
+  const result = evaluateDeclared(
+    definition,
+    "result",
+    lookup,
+    primitives,
+    precision,
+  );
+  if (!result.ok) return result;
+  const fn: UnitFunction = {
+    name: definition.name,
+    parameter: definition.parameter,
+    argument: argument.value,
+    result: result.value,
+    forward: definition.forward,
+    inverse: definition.inverse,
+  };
+  const forward = applyFunction(
+    fn,
+    argument.value.quantity,
+    lookup,
+    primitives,
+    precision,
+  );
+  if (!forward.ok) return err(forward.error.error);
+  const forwardConforms = checkConformance(
+    forward.value.dimension,
+    result.value.quantity.dimension,
+    primitives,
+  );
+  if (!forwardConforms.ok) {
+    return err({
+      kind: "functionMismatch",
+      definition,
+      body: "forward",
+      mismatch: forwardConforms.error,
+    });
+  }
+  const inverse = invertFunction(
+    fn,
+    result.value.quantity,
+    lookup,
+    primitives,
+    precision,
+  );
+  if (!inverse.ok) return err(inverse.error.error);
+  const inverseConforms = checkConformance(
+    inverse.value.dimension,
+    argument.value.quantity.dimension,
+    primitives,
+  );
+  if (!inverseConforms.ok) {
+    return err({
+      kind: "functionMismatch",
+      definition,
+      body: "inverse",
+      mismatch: inverseConforms.error,
+    });
+  }
+  return ok(fn);
+}
+
+/** The declared `unit` of the function `definition`, evaluated, with its text; zero is rejected. */
+function evaluateDeclared(
+  definition: FunctionDefinition,
+  unit: "argument" | "result",
+  lookup: Lookup<BuildError>,
+  primitives: Primitives,
+  precision: Precision,
+): Result<WrittenUnit, BuildError> {
+  const declared = definition[unit];
+  const value = evaluate(declared.expr, lookup, primitives, precision);
+  if (!value.ok) return value;
+  if (isZero(value.value.magnitude)) {
+    return err({ kind: "zeroDeclaredUnit", definition, unit });
+  }
+  return ok({ text: declared.text, quantity: value.value });
 }
 
 /**
@@ -309,24 +495,51 @@ function evaluateUnitList(
  */
 function lookupIn(
   index: Index,
-  visit: Visit<QuantityDefinition, Quantity, BuildError>,
+  visit: Visit<Node, Built, BuildError>,
 ): Lookup<BuildError> {
-  return (name, span) => {
-    const found = resolveName(name, index.prefixes, index.units);
-    if (found === undefined) return err({ kind: "unknownUnit", name, span });
-    const unit = locate(visit(found.unit), span);
-    if (found.kind === "unit" || !unit.ok) return unit;
-    const prefix = locate(visit(found.prefix), span);
-    if (!prefix.ok) return prefix;
-    return ok(multiplyQuantities(prefix.value, unit.value));
+  return {
+    unit: (name, span) => {
+      const found = resolveName(name, index.prefixes, index.units);
+      if (found === undefined) {
+        return err(
+          index.functions.has(name)
+            ? { kind: "functionAsUnit", name, span }
+            : { kind: "unknownUnit", name, span },
+        );
+      }
+      const unit = locate(visit(found.unit), span);
+      if (!unit.ok) return unit;
+      if (found.kind === "unit") return ok(asQuantity(unit.value));
+      const prefix = locate(visit(found.prefix), span);
+      if (!prefix.ok) return prefix;
+      return ok(
+        multiplyQuantities(asQuantity(prefix.value), asQuantity(unit.value)),
+      );
+    },
+    function: (name, span, call) => {
+      const found = index.functions.get(name);
+      if (found === undefined) {
+        return err({
+          kind: "notAFunction",
+          name,
+          span,
+          call,
+          otherwise: otherwiseOf(
+            resolveName(name, index.prefixes, index.units),
+          ),
+        });
+      }
+      const fn = locate(visit(found), span);
+      return fn.ok ? ok(asFunction(fn.value)) : fn;
+    },
   };
 }
 
 /** Turns a `Cycle` closed by the reference at `span` into a build error. */
 function locate(
-  result: Result<Quantity, BuildError | Cycle<QuantityDefinition>>,
+  result: Result<Built, BuildError | Cycle<Node>>,
   span: Span,
-): Result<Quantity, BuildError> {
+): Result<Built, BuildError> {
   if (result.ok) return result;
   const { error } = result;
   return error.kind === "cycle"

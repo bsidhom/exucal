@@ -181,9 +181,8 @@ katal       kat
 
 # Temperature intervals. A degree Celsius is the same size as a kelvin, and
 # a degree Fahrenheit or Rankine is five ninths of one. These convert
-# temperature differences; converting a temperature reading means adding
-# the offset by hand (`20 degC + 273.15 K` into `K`), since there is no
-# function that does it yet.
+# temperature differences; a temperature reading is converted through the
+# functions below.
 
 degC        K
 celsius     degC
@@ -191,6 +190,15 @@ degF        5 K / 9
 fahrenheit  degF
 degR        degF
 rankine     degR
+
+# Temperature readings, as functions of a plain number: `tempC(100)` is the
+# boiling point of water as a temperature in kelvin, and `tempF(212)` into
+# `tempC` is `tempC(100)`. The declaration `[1;K]` says the argument is a
+# plain number and the result a temperature; the body after it gives the
+# reading, and the body after the `;` recovers the number from a reading.
+
+tempC(x)    [1;K]  x K + 273.15 K       ; tempC / K - 273.15
+tempF(x)    [1;K]  (x + 459.67) degF    ; tempF / degF - 459.67
 
 # ---------------------------------------------------------------------------
 # Non-SI units accepted for use with the SI

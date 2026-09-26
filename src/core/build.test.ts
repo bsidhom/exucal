@@ -4,8 +4,8 @@ import { inspect } from "node:util";
 import { buildTable, type BuildError } from "./build.ts";
 import { convert, convertToList } from "./convert.ts";
 import { parseDefinitions, type Definition } from "./definitions.ts";
-import { type Dimension } from "./dimension.ts";
-import { evaluate } from "./evaluate.ts";
+import { DIMENSIONLESS, type Dimension } from "./dimension.ts";
+import { evaluate, invertFunction } from "./evaluate.ts";
 import { parseExpr } from "./expr.ts";
 import { type Quantity } from "./quantity.ts";
 import {
@@ -617,7 +617,7 @@ test("a unit list's name may not read as a prefix followed by a unit", () => {
   const lines = ["m-  0.001", ...TIME, "ms  min;s"];
   const [definition] = definitions(...lines).slice(-1);
   assert.deepEqual(failed(...lines), {
-    kind: "prefixedListName",
+    kind: "prefixedName",
     definition,
     split: { prefix: "m", unit: "s" },
   });
@@ -690,4 +690,249 @@ test("a built list converts", () => {
   );
   assert.ok(result.ok);
   assert.deepEqual(result.value.map(toFraction), ["1", "1", "1"]);
+});
+
+// ---------------------------------------------------------------------------
+// Functions
+
+const TEMP = [
+  "K  !",
+  "degF  5 K / 9",
+  "tempC(x)  [1;K]  x K + 273.15 K ; tempC / K - 273.15",
+  "tempF(x)  [1;K]  (x + 459.67) degF ; tempF / degF - 459.67",
+];
+
+/** The quantity `text` denotes in `table`. */
+function quantityIn(table: UnitTable, text: string): Quantity {
+  const expr = parseExpr(text);
+  assert.ok(expr.ok, inspect(expr));
+  const result = evaluate(
+    expr.value,
+    unitLookup(table),
+    table.primitives,
+    DEFAULT_PRECISION,
+  );
+  assert.ok(result.ok, inspect(result));
+  return result.value;
+}
+
+test("a function is built as its bodies, with its declared units and their texts", () => {
+  const table = built(...TEMP);
+  assert.deepEqual([...table.functions.keys()], ["tempC", "tempF"]);
+  const tempC = table.functions.get("tempC")!;
+  const [, , definition] = definitions(...TEMP);
+  assert.ok(definition?.kind === "function");
+  assert.equal(tempC.name, "tempC");
+  assert.equal(tempC.parameter, "x");
+  assert.equal(tempC.argument.text, "1");
+  assertQuantity(tempC.argument.quantity, "1", {});
+  assert.equal(tempC.result.text, "K");
+  assertQuantity(tempC.result.quantity, "1", { K: 1 });
+  assert.deepEqual(tempC.forward, definition.forward);
+  assert.deepEqual(tempC.inverse, definition.inverse);
+  assert.equal(table.units.has("tempC"), false);
+});
+
+test("a built function applies and inverts", () => {
+  const table = built(...TEMP);
+  const boiling = quantityIn(table, "tempF(212)");
+  assertQuantity(boiling, "373.15", { K: 1 });
+  const argument = invertFunction(
+    table.functions.get("tempC")!,
+    boiling,
+    unitLookup(table),
+    table.primitives,
+    DEFAULT_PRECISION,
+  );
+  assert.ok(argument.ok, inspect(argument));
+  assertQuantity(argument.value, "100", {});
+});
+
+test("a unit may be defined by a call, in any order", () => {
+  const table = built("boiling  tempC(100)", ...TEMP);
+  assertQuantity(table.units.get("boiling"), "373.15", { K: 1 });
+});
+
+test("a body may call another function, and a declared unit may be any unit", () => {
+  const table = built(
+    ...TEMP,
+    "twice(x)  [1;K]  tempC(2 x) ; (twice / K - 273.15) / 2",
+    "m  !",
+    "in  0.0254 m",
+    "ft  12 in",
+    "dozen(x)  [in;ft]  12 x ; dozen / 12",
+  );
+  assertQuantity(quantityIn(table, "twice(50)"), "373.15", { K: 1 });
+  assertQuantity(quantityIn(table, "dozen(2 in)"), "0.6096", { m: 1 });
+  const dozen = table.functions.get("dozen")!;
+  assert.equal(dozen.argument.text, "in");
+  assertQuantity(dozen.argument.quantity, "0.0254", { m: 1 });
+});
+
+test("a function is not a unit", () => {
+  const body = [...TEMP, "twice  2 tempC"];
+  assert.deepEqual(failed(...body), {
+    kind: "functionAsUnit",
+    name: "tempC",
+    span: spanOf(body, "tempC", 3),
+  });
+  const list = [...TEMP, "readings  tempC;K"];
+  assert.deepEqual(failed(...list), {
+    kind: "functionAsUnit",
+    name: "tempC",
+    span: spanOf(list, "tempC", 3),
+  });
+});
+
+test("a call of a unit, or of nothing, in a body is not a function", () => {
+  const unit = ["m  !", "bad  m(2)"];
+  const call = spanOf(unit, "m(2)");
+  assert.deepEqual(failed(...unit), {
+    kind: "notAFunction",
+    name: "m",
+    span: { start: call.start, end: call.start + 1 },
+    call,
+    otherwise: "unit",
+  });
+  const prefixed = ["k-  1000", "m  !", "bad  km(2)"];
+  assert.equal(failed(...prefixed).kind, "notAFunction");
+  assert.ok(failed(...prefixed).kind === "notAFunction");
+  assert.equal(
+    (failed(...prefixed) as { otherwise: string }).otherwise,
+    "prefixedUnit",
+  );
+  const nothing = ["m  !", "bad  foo(2)"];
+  assert.equal(
+    (failed(...nothing) as { otherwise: string }).otherwise,
+    "nothing",
+  );
+});
+
+test("a function and a unit share a namespace", () => {
+  const lines = [...TEMP, "tempC  K"];
+  const [first, second] = [definitions(...lines)[2], definitions(...lines)[4]];
+  assert.deepEqual(failed(...lines), { kind: "duplicate", first, second });
+  const reversed = ["tempC  K", ...TEMP];
+  const [unit, fn] = [definitions(...reversed)[0], definitions(...reversed)[3]];
+  assert.deepEqual(failed(...reversed), {
+    kind: "duplicate",
+    first: unit,
+    second: fn,
+  });
+});
+
+test("a function's name may not read as a prefix followed by a unit", () => {
+  const lines = ["m-  0.001", "s  !", "ms(x)  [1;s]  x s ; ms / s"];
+  const [definition] = definitions(...lines).slice(-1);
+  assert.deepEqual(failed(...lines), {
+    kind: "prefixedName",
+    definition,
+    split: { prefix: "m", unit: "s" },
+  });
+});
+
+test("the declared units are evaluated, and neither may be zero", () => {
+  const unknown = [...TEMP, "f(x)  [bogus;K]  x K ; f / K"];
+  assert.deepEqual(failed(...unknown), {
+    kind: "unknownUnit",
+    name: "bogus",
+    span: spanOf(unknown, "bogus"),
+  });
+  const zeroArgument = [...TEMP, "f(x)  [0;K]  x K ; f / K"];
+  const [argumentDefinition] = definitions(...zeroArgument).slice(-1);
+  assert.deepEqual(failed(...zeroArgument), {
+    kind: "zeroDeclaredUnit",
+    definition: argumentDefinition,
+    unit: "argument",
+  });
+  const zeroResult = [...TEMP, "f(x)  [1;0 K]  x K ; f / K"];
+  const [resultDefinition] = definitions(...zeroResult).slice(-1);
+  assert.deepEqual(failed(...zeroResult), {
+    kind: "zeroDeclaredUnit",
+    definition: resultDefinition,
+    unit: "result",
+  });
+});
+
+test("a body that fails for every argument fails the build, at the body", () => {
+  const division = ["bad(x)  [1;1]  1 / (x - 1) ; bad"];
+  assert.deepEqual(failed(...division), {
+    kind: "divisionByZero",
+    span: spanOf(division, "(x - 1)"),
+  });
+  const unknown = ["bad(x)  [1;1]  x ; bad bogus"];
+  assert.deepEqual(failed(...unknown), {
+    kind: "unknownUnit",
+    name: "bogus",
+    span: spanOf(unknown, "bogus"),
+  });
+  // The parameter is bound only in the forward body, and the name only in
+  // the inverse: elsewhere the name is the function, which is not a unit.
+  const nameInForward = ["bad(x)  [1;1]  bad ; bad"];
+  assert.deepEqual(failed(...nameInForward), {
+    kind: "functionAsUnit",
+    name: "bad",
+    span: spanOf(nameInForward, "bad", 2),
+  });
+  const parameterInInverse = ["bad(x)  [1;1]  x ; x"];
+  assert.deepEqual(failed(...parameterInInverse), {
+    kind: "unknownUnit",
+    name: "x",
+    span: spanOf(parameterInInverse, "x", 3),
+  });
+});
+
+test("each body must conform to the unit it should give", () => {
+  const forward = [...TEMP.slice(0, 2), "f(x)  [1;K]  x ; f"];
+  const [forwardDefinition] = definitions(...forward).slice(-1);
+  assert.deepEqual(failed(...forward), {
+    kind: "functionMismatch",
+    definition: forwardDefinition,
+    body: "forward",
+    mismatch: {
+      kind: "dimensionMismatch",
+      have: DIMENSIONLESS,
+      want: dim({ K: 1 }),
+    },
+  });
+  // An inverse that gives a temperature where a plain number is declared.
+  const inverse = [
+    ...TEMP.slice(0, 2),
+    "tempC(x)  [1;K]  x K + 273.15 K ; tempC - 273.15 K",
+  ];
+  const [inverseDefinition] = definitions(...inverse).slice(-1);
+  assert.deepEqual(failed(...inverse), {
+    kind: "functionMismatch",
+    definition: inverseDefinition,
+    body: "inverse",
+    mismatch: {
+      kind: "dimensionMismatch",
+      have: dim({ K: 1 }),
+      want: DIMENSIONLESS,
+    },
+  });
+});
+
+test("a cycle through a function is reported like any other", () => {
+  const calls = ["f(x)  [1;1]  g(x) ; f", "g(x)  [1;1]  f(x) ; g"];
+  const [f, g] = definitions(...calls);
+  const reference = spanOf(calls, "f(x)", 2);
+  assert.deepEqual(failed(...calls), {
+    kind: "circularDefinition",
+    definitions: [f, g],
+    span: { start: reference.start, end: reference.start + 1 },
+  });
+  // Through a declared unit: the unit is defined by the function, whose
+  // declaration names the unit.
+  const declared = [
+    "boil  tempC(100)",
+    "tempC(x)  [1;boil]  x K + 273.15 K ; tempC / K - 273.15",
+    "K  !",
+  ];
+  const [boil, tempC] = definitions(...declared);
+  assert.deepEqual(failed(...declared), {
+    kind: "circularDefinition",
+    definitions: [boil, tempC],
+    span: spanOf(declared, "boil", 2),
+  });
 });

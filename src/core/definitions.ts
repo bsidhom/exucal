@@ -13,6 +13,7 @@
 //   inch      2.54 cm           # unit, defined by an expression
 //   newton    kg m / s^2
 //   time      hr;min;s          # unit list (two or more expressions)
+//   tempC(x)  [1;K]  x K + 273.15 K ; tempC - 273.15 K   # function
 //
 // The grammar:
 //
@@ -21,9 +22,11 @@
 //   definition := name " "+ body
 //   body       := "!" "kind"?              only for a unit name
 //               | unitList                 (expr.ts)
+//               | "[" expr ";" expr "]" expr ";" expr   only for a function
 //
 // A name is a unit name as expr.ts defines it, with a trailing `-` making it
-// a prefix. The whitespace after the name is required, so that `inch2.54`
+// a prefix and a parameter in parentheses, `tempC(x)`, making it a function.
+// The whitespace after the name is required, so that `inch2.54`
 // is an error rather than the definition of `inch2`. A prefix must have an
 // expression body: a primitive prefix means nothing, and neither does a
 // prefix that is a list. A body that is a unit list of two or more items
@@ -33,6 +36,16 @@
 // keeps the text it was written as, since that is what the converter shows
 // beside its term (`1 m ≈ 3 ft + 3.37 in`), and the table has no other
 // way to get at it.
+//
+// A function's body (docs/functions.md) declares the units of its argument
+// and its result in brackets, `[1;K]`, and then gives two expressions
+// separated by `;`: the forward body, in which the parameter stands for
+// the argument, and the inverse body, in which the function's own name
+// stands for its value, as in GNU units. The declaration is required,
+// since the converter writes a recovered argument in the declared unit,
+// and each declared unit keeps its text as a list's items do. The name
+// form has already chosen this grammar, so the `;` that separates the
+// bodies is no conflict with a list's.
 //
 // Spans are offsets into the whole text, not the line, so an error anywhere
 // in the pipeline can be shown against the file as the user sees it. Each
@@ -92,13 +105,32 @@ export type Definition =
       readonly name: string;
       readonly items: readonly UnitListItem[];
       readonly span: Span;
+    }
+  /**
+   * A function: `forward` is its body, in which `parameter` stands for the
+   * argument, and `inverse` the body of its inverse, in which `name`
+   * stands for the value; `argument` and `result` are the declared units
+   * of the two.
+   */
+  | {
+      readonly kind: "function";
+      readonly name: string;
+      readonly parameter: string;
+      readonly argument: WrittenExpr;
+      readonly result: WrittenExpr;
+      readonly forward: Expr;
+      readonly inverse: Expr;
+      readonly span: Span;
     };
 
-/** One item of a unit list definition, with its `text` as written. */
-export type UnitListItem = {
+/** An expression with the `text` it was written as. */
+export type WrittenExpr = {
   readonly expr: Expr;
   readonly text: string;
 };
+
+/** One item of a unit list definition, with its `text` as written. */
+export type UnitListItem = WrittenExpr;
 
 // ---------------------------------------------------------------------------
 // Parsing
@@ -117,14 +149,42 @@ export function parseDefinitions(
 // ---------------------------------------------------------------------------
 // Grammar
 
-/** A definition name, with the dash that marks a prefix. */
-const name: Parser<string> = regex(
-  new RegExp(`${NAME.source}-?`, "u"),
-  "a name",
+/** What a definition's name says it defines. */
+type Head =
+  | { readonly kind: "prefix" | "unit"; readonly name: string }
+  | {
+      readonly kind: "function";
+      readonly name: string;
+      readonly parameter: string;
+    };
+
+/**
+ * A definition name, with the dash that marks a prefix or the parameter
+ * that marks a function, read as one token so that the error for a name
+ * followed by the wrong thing is the same whichever it is.
+ */
+const head: Parser<Head> = map(
+  regex(new RegExp(`${NAME.source}(?:-|\\(${NAME.source}\\))?`, "u"), "a name"),
+  (written): Head => {
+    if (written.endsWith("-")) {
+      return { kind: "prefix", name: written.slice(0, -1) };
+    }
+    const paren = written.indexOf("(");
+    if (paren === -1) return { kind: "unit", name: written };
+    return {
+      kind: "function",
+      name: written.slice(0, paren),
+      parameter: written.slice(paren + 1, -1),
+    };
+  },
 );
 
 /** The whitespace between a name and its body, which must be there. */
 const gap: Parser<string> = regex(/[ \t]+/, "a space");
+
+function symbol(literal: string): Parser<string> {
+  return token(string(literal));
+}
 
 const primitive: Parser<{ role: Role; end: number }> = token(
   map(
@@ -137,7 +197,7 @@ const primitive: Parser<{ role: Role; end: number }> = token(
 );
 
 /** An expression with the text it was parsed from; a parser needs the text. */
-const item: Parser<UnitListItem> = (text, pos): Reply<UnitListItem> => {
+const item: Parser<WrittenExpr> = (text, pos): Reply<WrittenExpr> => {
   const reply = expr(text, pos);
   if (!reply.ok) return reply;
   const { span } = reply.value;
@@ -176,37 +236,76 @@ const unitBody: Parser<UnitBody> = alt(
   }),
 );
 
+/** The body of a function definition: the declaration and the two bodies. */
+type FunctionBody = {
+  readonly argument: WrittenExpr;
+  readonly result: WrittenExpr;
+  readonly forward: Expr;
+  readonly inverse: Expr;
+};
+
+const functionBody: Parser<FunctionBody> = map(
+  seq(
+    symbol("["),
+    item,
+    symbol(";"),
+    item,
+    symbol("]"),
+    expr,
+    symbol(";"),
+    expr,
+  ),
+  ([, argument, , result, , forward, , inverse]) => ({
+    argument,
+    result,
+    forward,
+    inverse,
+  }),
+);
+
 const definition: Parser<Definition> = flatMap(
-  spanned(name),
-  ({ value: written, span: { start } }) =>
-    written.endsWith("-")
-      ? map(seq(gap, expr), ([, body]): Definition => ({
+  spanned(head),
+  ({ value: head, span: { start } }) => {
+    switch (head.kind) {
+      case "prefix":
+        return map(seq(gap, expr), ([, body]): Definition => ({
           kind: "prefix",
-          name: written.slice(0, -1),
+          name: head.name,
           body,
           span: { start, end: body.span.end },
-        }))
-      : map(seq(gap, unitBody), ([, parsed]): Definition => {
+        }));
+      case "function":
+        return map(seq(gap, functionBody), ([, parsed]): Definition => ({
+          kind: "function",
+          name: head.name,
+          parameter: head.parameter,
+          ...parsed,
+          span: { start, end: parsed.inverse.span.end },
+        }));
+      case "unit":
+        return map(seq(gap, unitBody), ([, parsed]): Definition => {
           const span = { start, end: parsed.end };
           switch (parsed.kind) {
             case "primitive":
               return {
                 kind: "primitive",
-                name: written,
+                name: head.name,
                 role: parsed.role,
                 span,
               };
             case "unit":
-              return { kind: "unit", name: written, body: parsed.body, span };
+              return { kind: "unit", name: head.name, body: parsed.body, span };
             case "unitList":
               return {
                 kind: "unitList",
-                name: written,
+                name: head.name,
                 items: parsed.items,
                 span,
               };
           }
-        }),
+        });
+    }
+  },
 );
 
 const comment: Parser<string> = regex(/#[^\n]*/, "a comment");

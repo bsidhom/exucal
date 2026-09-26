@@ -13,6 +13,7 @@ import { convert, convertToList, type ConvertError } from "./core/convert.ts";
 import { parseDefinitions } from "./core/definitions.ts";
 import { evaluate } from "./core/evaluate.ts";
 import { parseExpr } from "./core/expr.ts";
+import { convertText } from "./core/pipeline.ts";
 import { type Quantity } from "./core/quantity.ts";
 import {
   DEFAULT_PRECISION,
@@ -185,9 +186,45 @@ test("a prefix applies to any unit, and an exact name wins over a split", () => 
   ]);
 });
 
-test("temperature readings convert by adding the offset by hand", () => {
-  // The units are intervals, so a reading is converted by writing out the
-  // offset: 20 °C is 293.15 K, and 300 K is 80.33 °F.
+test("temperature readings convert through tempC and tempF", () => {
+  assert.deepEqual([...table.functions.keys()], ["tempC", "tempF"]);
+  assertAll([
+    ["tempC(100)", "K", "373.15"],
+    ["tempF(212)", "K", "373.15"],
+    ["tempC(-40)", "tempF(-40)", "1"],
+    ["tempF(98.6)", "K", "310.15"],
+    // A difference of two readings is an interval.
+    ["tempC(100) - tempC(0)", "degF", "180"],
+  ]);
+  // As the want, a function is answered by the call that gives the have.
+  assertCall("tempF(212)", "tempC", "100");
+  assertCall("tempC(100)", "tempF", "212");
+  assertCall("300 K", "tempF", "80.33");
+  assertCall("tempF(-40)", "tempC", "-40");
+  assertCall("0 K", "tempC", "-273.15");
+  // The argument is a plain number.
+  const result = convertText(table, "tempC(1 m)", "K", DEFAULT_PRECISION);
+  assert.ok(!result.ok);
+  assert.ok(result.error.kind === "inputError");
+  assert.equal(result.error.error.kind, "argumentMismatch");
+});
+
+/** Asserts that `have` in the function `want` is the call of it at exactly `expected`. */
+function assertCall(have: string, want: string, expected: string): void {
+  const result = convertText(table, have, want, DEFAULT_PRECISION);
+  assert.ok(result.ok, `${have} in ${want}: ${inspect(result)}`);
+  assert.ok(result.value.kind === "function", `${have} in ${want}: not a call`);
+  assert.equal(result.value.name, want);
+  assert.equal(result.value.unit.text, "1");
+  assert.ok(
+    equals(result.value.value, number(expected)),
+    `${have} in ${want}: expected ${expected}, got ${toFraction(result.value.value)}`,
+  );
+}
+
+test("temperature intervals convert, and a reading may still be converted by hand", () => {
+  // The units are intervals, so a reading is also what writing out the
+  // offset gives: 20 °C is 293.15 K, and 300 K is 80.33 °F.
   assertAll([
     ["20 degC + 273.15 K", "K", "293.15"],
     ["300 K - 459.67 degR", "degF", "80.33"],

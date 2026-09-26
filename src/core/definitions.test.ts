@@ -56,6 +56,18 @@ function shift(e: Expr, offset: number): Expr {
         span,
         node: { kind: "neg", operand: shift(node.operand, offset) },
       };
+    case "call":
+      return {
+        span,
+        node: {
+          ...node,
+          nameSpan: {
+            start: node.nameSpan.start + offset,
+            end: node.nameSpan.end + offset,
+          },
+          argument: shift(node.argument, offset),
+        },
+      };
   }
 }
 
@@ -369,4 +381,87 @@ test("a prefix cannot be a list", () => {
 test("a list may not end in a semicolon or have an empty item", () => {
   assert.deepEqual(failed("time  hr;min;"), unexpected(13, ...ITEM));
   assert.deepEqual(failed("time  hr;;s"), unexpected(9, ...ITEM));
+});
+
+// ---------------------------------------------------------------------------
+// Functions
+
+test("a name with a parameter defines a function: its declared units, then its two bodies", () => {
+  const text =
+    "tempC(x)  [1;K]  x K + 273.15 K ; tempC / K - 273.15   # a reading";
+  assert.deepEqual(parsed(text), [
+    {
+      kind: "function",
+      name: "tempC",
+      parameter: "x",
+      argument: { expr: exprAt("1", text.indexOf("1;")), text: "1" },
+      result: { expr: exprAt("K", text.indexOf("K]")), text: "K" },
+      forward: exprAt("x K + 273.15 K", text.indexOf("x K")),
+      inverse: exprAt("tempC / K - 273.15", text.indexOf("tempC /")),
+      span: spanOf(
+        text,
+        "tempC(x)  [1;K]  x K + 273.15 K ; tempC / K - 273.15",
+      ),
+    },
+  ]);
+});
+
+test("the declared units are any expressions, kept with their text as written", () => {
+  const text = "f(v)  [ m / s ; 2 K ]v K;f";
+  const [definition] = parsed(text);
+  assert.ok(definition?.kind === "function");
+  assert.equal(definition.argument.text, "m / s");
+  assert.deepEqual(definition.argument.expr, exprAt("m / s", 8));
+  assert.equal(definition.result.text, "2 K");
+  assert.deepEqual(definition.forward, exprAt("v K", 21));
+  assert.deepEqual(definition.inverse, exprAt("f", 25));
+  assert.deepEqual(definition.span, { start: 0, end: text.length });
+});
+
+test("a body may contain a call, with its spans in the whole text", () => {
+  const text = "boiling  tempC(100)";
+  assert.deepEqual(parsed(text), [
+    {
+      kind: "unit",
+      name: "boiling",
+      body: exprAt("tempC(100)", 9),
+      span: { start: 0, end: text.length },
+    },
+  ]);
+});
+
+test("the parameter follows the name with no space, as a prefix's dash does", () => {
+  // `tempC (x) K` is the unit `tempC` with a body that starts with `(x)`.
+  const text = "tempC (x) K";
+  assert.deepEqual(parsed(text), [
+    {
+      kind: "unit",
+      name: "tempC",
+      body: exprAt("(x) K", 6),
+      span: { start: 0, end: text.length },
+    },
+  ]);
+});
+
+test("a function needs its declaration and both bodies", () => {
+  assert.deepEqual(failed("tempC(x)"), unexpected(8, "a space"));
+  assert.deepEqual(failed("tempC(x)  x K"), unexpected(10, '"["'));
+  assert.deepEqual(
+    failed("tempC(x)  [1]  x K ; tempC"),
+    unexpected(12, ...AFTER_EXPR, '";"'),
+  );
+  assert.deepEqual(
+    failed("tempC(x)  [1;K]  x K"),
+    unexpected(20, ...AFTER_EXPR, '";"'),
+  );
+  assert.deepEqual(
+    failed("tempC(x)  [1;K]  x K ; tempC ; 2"),
+    unexpected(29, ...AFTER_EXPR, ...END_OF_LINE),
+  );
+});
+
+test("a parameter is a name", () => {
+  assert.deepEqual(failed("f(2)  [1;1]  2 ; f"), unexpected(1, "a space"));
+  assert.deepEqual(failed("f()  [1;1]  2 ; f"), unexpected(1, "a space"));
+  assert.deepEqual(failed("f( x )  [1;1]  2 ; f"), unexpected(1, "a space"));
 });

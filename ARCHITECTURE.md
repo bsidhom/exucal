@@ -34,12 +34,13 @@ want text ──parseUnitList──▶ Expr[] ──evaluate──▶ Quantity[]
 ```
 
 Each arrow is one pure function in its own module. Parsing never touches the
-table, and conversion never formats. Evaluation checks conformance in one
-place only, between the operands of a sum, and with the same check that
+table, and conversion never formats. Evaluation checks conformance in the
+operands of a sum and the argument of a call, and with the same check that
 conversion applies to the pair. The `want` is read as a unit list, of which
 one expression is a list of one: one unit goes through `convert`, several
 (or the name of a list the table defines) through `convertToList`, which
-"Unit lists" below describes.
+"Unit lists" below describes, and the name of a function the table defines
+through `invertFunction`, which "Functions" below describes.
 
 ## Numbers: `Rational`
 
@@ -223,12 +224,16 @@ required, so that `inch2.54 cm` is an error rather than a definition of
 `inch2`. `src/units.test.ts` builds the system file and checks a sample of
 conversions from each of its sections.
 
-A definition is one of four things: a primitive with its role, a prefix
+A definition is one of five things: a primitive with its role, a prefix
 (named without its dash) with a body, a unit with a body, where a body is
-an expression, or a unit list, whose body is two or more expressions
+an expression, a unit list, whose body is two or more expressions
 separated by `;` (a body of one is a unit), each kept with the text it was
 written as, since that text is what the UI shows beside its term and the
-table has no other way to get at it. `parseDefinitions` returns them in the order written,
+table has no other way to get at it, or a function, named with its
+parameter in parentheses, whose body declares the units of its argument
+and its result in brackets (each kept with its text, as a list's items
+are) and then gives the forward body and, after a `;`, the inverse body
+("Functions" below). `parseDefinitions` returns them in the order written,
 duplicates included, and knows nothing about what they mean. Every span is an
 offset into the whole text, not the line: a definition carries the span of
 its text from name to body, for the errors `buildTable` reports against a
@@ -268,6 +273,21 @@ that a defined list can fail to convert only for not conforming to the
 `have`. The table holds each list as its units with their texts, apart from
 the units.
 
+Functions share the unit namespace as lists do, and their names are held
+to the same rule against reading as a prefixed unit, for the same reason.
+Unlike a list, a function can be referred to, by a call in any body, so a
+function is a node of the walk, and evaluating it means checking it
+("Functions" below): its declared units are evaluated, its forward body is
+evaluated with the parameter bound to one of the declared argument unit
+and its inverse body with the name bound to one of the declared result
+unit, through the walk's own lookup, and each body is checked to conform
+to what it should give. A unit may then be defined by a call
+(`boiling  tempC(100)`), a function's body may call another, and a cycle
+through a function is reported like any other. The table holds each
+function as its two bodies, still as expressions, with the declared units
+and their texts: a call evaluates the forward body afresh, through the
+table's lookup.
+
 Every name is known once the table is built, so ambiguity is a property of the
 table rather than of the input, and `buildTable` checks for it. A name with
 two different prefix-unit splits (`d`+`am` against `da`+`m`, were `am` a unit)
@@ -299,16 +319,20 @@ requests the definitions it means from the walker, with those primitives.
 The first failure ends the build.
 
 A build error is one of: a duplicate name, carrying both definitions; an
-ambiguous name with its two splits; a unit list whose name reads as a
-prefix and a unit, carrying the definition and the split; an unknown name,
-at its reference; a cycle, carrying the definitions on it in order and the
-span of the reference that closed it; a prefix whose body is not a plain
-number, carrying the definition and the dimension it has; a unit list whose
-units do not make a list, carrying the definition and the list error with
-the index of the unit at fault; or an arithmetic failure from the
-evaluator, located as the evaluator locates it. Every span is an offset into
-the whole definitions text, and a definition's span covers its text from name
-to body, so each error points at something the user can see.
+ambiguous name with its two splits; a unit list or function whose name
+reads as a prefix and a unit, carrying the definition and the split; a
+lookup failure at its reference (an unknown name, a function used as a
+unit, or a call of what is not a function); a cycle, carrying the
+definitions on it in order and the span of the reference that closed it; a
+prefix whose body is not a plain number, carrying the definition and the
+dimension it has; a unit list whose units do not make a list, carrying the
+definition and the list error with the index of the unit at fault; a
+function whose body does not conform to its declaration, carrying the
+definition, which body, and the mismatch; a function whose declared unit is
+zero; or an arithmetic failure from the evaluator, located as the evaluator
+locates it. Every span is an offset into the whole definitions text, and a
+definition's span covers its text from name to body, so each error points
+at something the user can see.
 
 ## Expressions
 
@@ -329,7 +353,18 @@ not stack, and there is no unary `+`. A unit list, `ft;in`, is one or more
 expressions separated by `;`, and is not an expression: `;` binds looser
 than anything and cannot appear inside parentheses. `parseUnitList` reads
 one, and `expr.ts` exports the list grammar over any item parser, since the
-definitions parser wants each item with its text. No functions yet.
+definitions parser wants each item with its text.
+
+A call, `tempC(100)`, is a name directly followed by `(`, an expression and
+`)`, and is an atom like a name: `2 tempC(100)`, `tempC(100)^2` and
+`-tempC(100)` mean what they look like. The parser decides a call by the
+text alone, since it cannot ask the table whether a name is a function,
+and the rule is lexical: no space before the `(` makes a call, and a space
+makes a product, so `kg (m/s)` stays the product it always was and
+`kg(m/s)` is a call of `kg`, which the evaluator rejects with a message
+that shows the product with the space. That is the one whitespace-sensitive
+rule in the grammar; docs/functions.md weighs the alternative. The tree
+holds a call as the name with its own span and the argument.
 
 Juxtaposition means "this many of these units" (`2 m`) or a product of units
 (`kg m`), so a number may only be the first factor of a product: `m 2`,
@@ -458,13 +493,16 @@ grammar, not an input that can fail, and it throws.
 
 ## Evaluation
 
-`evaluate` takes an `Expr`, a `Lookup` for unit names, the table's
-`Primitives` and the working `Precision`, and returns the `Quantity` the
-expression denotes. A number is a dimensionless quantity, a unit name is
-whatever the lookup says it is, and the operators are the quantity
+`evaluate` takes an `Expr`, a `Lookup` for unit and function names, the
+table's `Primitives` and the working `Precision`, and returns the `Quantity`
+the expression denotes. A number is a dimensionless quantity, a unit name
+is whatever the lookup says it is, and the operators are the quantity
 arithmetic above: juxtaposition and `*` multiply, `/` divides, `+` and `-`
 add and subtract, a leading `-` negates, and `^` raises to the exponent the
-parser already read.
+parser already read. A call resolves its name among the functions, through
+the lookup, evaluates its argument, checks that the argument conforms to
+the unit the function declares for it, and evaluates the forward body with
+the parameter bound to the argument ("Functions" below).
 The precision goes to every power, where the root of a non-integer exponent
 is the only operation that can lose digits; everything else is exact. The
 primitives go to every sum, whose operands must conform: this is the one
@@ -496,8 +534,14 @@ conform points at the whole sum for the same reason, and carries the span of
 each operand and the `ConformanceError` between them, with the left
 operand's dimension as its `have` and the right's as its `want`, so that a
 message can say what each side is, in the words a conversion error uses.
-The evaluator never sees the text: the spans in the tree are all it knows
-of it.
+A call whose argument does not conform points at the whole call and carries
+the argument's span the same way. A call whose body fails for the argument
+is one `callFailed` at the call, naming the function and carrying the
+body's error, whose spans are into the definitions text; only the
+evaluator's own failures are wrapped so, and a lookup failure inside a body
+(which a table that built cannot produce) comes back as any lookup failure
+does. The evaluator never sees the text: the spans in the tree are all it
+knows of it.
 
 ## Conversion
 
@@ -557,6 +601,46 @@ table passed those checks when it was built, and can fail only for not
 conforming to the `have`, which is reported as the mismatch of the pair, as
 for a single `want`, so that the message quotes the name the user typed.
 
+### Functions
+
+A function (docs/functions.md is the design, with the reasoning) is a pair
+of bodies with a declaration of the units of its argument and its result.
+It exists for readings such as a temperature, which are not multiples of a
+unit, without giving `Quantity` an offset that every operation would then
+need a rule for; GNU units defines them the same way. Nothing about
+functions touches quantities: a call is a quantity like any other once the
+forward body has run, and the rest of the expression goes on as before.
+
+The pipeline reads a `want` that is the bare name of a function, after a
+list's name and before a unit's, as the third output mode: the answer is
+the call that would produce the `have`, `tempF(212)` into `tempC` being
+`tempC(100)`. The `have` must conform to the declared result, which is the
+ordinary mismatch of the pair when it does not, and `invertFunction`
+evaluates the inverse body with the function's name bound to the `have`,
+through the table's lookup; the conversion carries the recovered argument,
+the declared argument unit with its text, and the argument as a count of
+that unit, so that the UI writes it as it writes any value beside a unit.
+An inverse body that fails for the value is an `inverseFailed` on the want
+side, carrying the body's error as a call carries its body's. A `want`
+that is a call is not special: it is an expression, and the conversion is
+the ratio, with a reciprocal.
+
+The build checks each function once so that a call at run time can fail
+only on its argument or on a value: the declared units are evaluated and
+must be nonzero, since an argument is written as a count of the declared
+one; the forward body is evaluated with the parameter bound to one of the
+declared argument unit and the inverse body with the name bound to one of
+the declared result unit, through the walk's own lookup, so that a body
+which fails for every argument, or refers to nothing, fails the build with
+its span in the definitions text; and each body's dimension is checked
+against what it should give, which a body's dimension cannot vary with the
+value of its argument. Applying and inverting are one operation, a body
+evaluated under a binding, and `applyFunction` and `invertFunction` share
+it: the bound name is resolved before any unit or prefix, and the lookup's
+failures are boxed on the way in and unboxed on the way out, so that the
+body's own failures can be told from the lookup's without the evaluator
+knowing the lookup's error type.
+
 ## UI
 
 `<unit-converter>` is a Lit component with two text inputs, "you have" and
@@ -578,6 +662,13 @@ error tagged with the side (`have` or `want`) it came from, so that the
 component can mark the input at fault. `evaluateText` is the first half
 alone; with the `want` field blank, the component uses it to show what
 `have` is in the primitives (`1 in = 0.0254 m`), as GNU units does.
+
+A conversion into a function is one line, the `have` and then the call at
+the recovered argument, `tempF(212) = tempC(100)`, the argument written as
+a count of the declared argument unit followed by that unit's text as a
+`want`'s is written, and by nothing when the declared unit is `1`. There is
+no reciprocal line: a call is not a ratio, so there is no other way round,
+as there is none for a list.
 
 The output shows the two texts and the value between `=` or `≈`, decided by
 `equals(round(value, digits), value)` at the display precision of 8
@@ -667,9 +758,9 @@ src/core/definitions.ts   Definition, parseDefinitions
 src/core/graph.ts         on-demand evaluation of a dependency graph, cycles
 src/core/names.ts         the prefix-unit resolution rule, the ambiguity check
 src/core/name-index.ts    the names that start with a text, by binary search
-src/core/table.ts         UnitTable, the lookup over it
+src/core/table.ts         UnitTable, UnitFunction, the lookup over it
 src/core/build.ts         buildTable
-src/core/evaluate.ts      evaluate, Lookup
+src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction
 src/core/convert.ts       convert
 src/core/pipeline.ts      convertText, evaluateText: the pipeline over text
 src/core/result.ts        Result; each module defines its own error types
@@ -731,9 +822,13 @@ of the GNU units database, as a reference for the startup cost.
 
 Planned extensions, listed to show that they fit without reshaping the core:
 
-- **Functions** (`tempC(x)`, `ln`) add a `call` node to `Expr` and a function
-  definition form; each function takes and returns a `Quantity` and a
-  `Precision`.
+- **Built-in functions** (`ln`, `sqrt`) are the "special function" of
+  "Precision and rounding", which would take the working precision. They
+  need only the `call` node, resolved by a lookup that knows them.
+- **Domain and range** on a function definition (`tempC(-300)` is a
+  negative temperature today) are two optional bounds, checked at the call
+  and at the inverse; docs/functions.md lists them with the other
+  extensions of functions.
 - **User definitions** are already supported by `buildTable`; only storage and
   an editor are missing.
 - **Lenient kind conversion** (converting `rad/s` to `Hz` on request) is a flag

@@ -49,6 +49,9 @@ that can be typed can also be defined.
   `lboz`, `stlb` and `tonlb`, `galqtpt` (`gal;qt;pt;floz`), `cups`
   (`cup;tbsp;tsp`), and `mipace` and `kmpace` for a running pace
   (`hr/mi;min/mi;s/mi` and the same per kilometre).
+- **Temperature readings** as the functions `tempC` and `tempF` (see
+  Functions below): `tempC(20)` is a temperature, and `tempF(212)`
+  converted to `tempC` is `tempC(100)`.
 
 Where the US and the UK give one name to different units, the plain name is
 the US unit and the name with `imp` or `uk` in front is the imperial one:
@@ -57,12 +60,12 @@ the US unit and the name with `imp` or `uk` in front is the imperial one:
 one its defining document states, so `1 in` is exactly `2.54 cm` and `1 lb`
 exactly `0.45359237 kg`, and conversions between them are exact.
 
-Two things are deliberately absent. Temperature units (`degC`, `degF`,
-`degR`) are intervals only: they convert temperature differences, and
-converting a reading means adding the offset yourself (`20 degC + 273.15 K`
-into `K` is `293.15`, and `300 K - 459.67 degR` into `degF` is `80.33`),
-since there is no function that adds it for you yet. Logarithmic units
-(neper, bel) are left out for the same reason.
+The temperature units `degC`, `degF` and `degR` are intervals: they convert
+temperature differences, so `1 degC` is `1 K` and `212 degF - 32 degF` into
+`degC` is `100`. A temperature reading is written as a call of `tempC` or
+`tempF`, which adds the offset for you. Logarithmic units (neper, bel) are
+deliberately absent, since they need functions of a kind the file cannot
+yet define (`ln`).
 
 ### The format
 
@@ -77,9 +80,10 @@ inch      2.54 cm           # unit, defined by an expression
 newton    kg m / s^2
 hertz     1 / s
 time      hr;min;s          # unit list (expressions separated by `;`)
+tempC(x)  [1;K]  x K + 273.15 K ; tempC / K - 273.15   # function
 ```
 
-A definition is one of four things:
+A definition is one of five things:
 
 - **A primitive**, with a body of `!`, is a base unit that everything else
   is defined in terms of: the metre, the kilogram, the second and the other
@@ -94,11 +98,14 @@ A definition is one of four things:
 - **A unit list** has a body of two or more expressions separated by `;`,
   the same thing that can be typed as the unit to convert to; Unit lists
   below describes both.
+- **A function**, written with a parameter in parentheses (`tempC(x)`),
+  has a body that declares the units of its argument and its result, then
+  gives the function and its inverse; Functions below describes it.
 
 Definitions may appear in any order; a unit may be defined by one that
 comes later. A name defined twice, a circular definition, a prefix whose
-body has a dimension, or a unit list that breaks the rules below is an
-error.
+body has a dimension, a unit list that breaks the rules below, or a
+function whose bodies do not fit their declaration is an error.
 
 ### Names
 
@@ -155,6 +162,10 @@ language:
   `s^-1`, `m^0.5`) or a parenthesized fraction (`m^(1/2)`), never an
   expression. It binds tightest, so `m^2 - 1` is `(m^2) - 1`.
 - **Parentheses** group.
+- **A call**, a name directly followed by parentheses (`tempC(100)`),
+  applies a function to the expression inside; Functions below describes
+  it. The space matters: `kg (m/s)` is a product, and `kg(m/s)` is a call
+  of `kg`, which is not a function and says so.
 
 The one thing to watch is a fraction before a unit: `1/12 year` is
 `1 / (12 year)`, a frequency, because the juxtaposition is read first.
@@ -192,6 +203,51 @@ list's name is not a unit anywhere else: `2 time`, or `time` in a list
 or in a definition, is an unknown unit. The file checks a defined list by
 the rules above when it is loaded, so that a defined list can fail only
 for not matching the quantity.
+
+### Functions
+
+A function turns a number, or a quantity, into another by a rule that is
+not a plain factor. The temperature readings are the case in point: a
+Celsius reading is not a multiple of a kelvin, since the two scales start
+in different places, so `tempC` is defined as a function of the number on
+the thermometer. To use one, call it with the argument in parentheses:
+`tempC(20)` is 293.15 K, `tempF(98.6)` is 310.15 K, and a call goes
+anywhere a unit goes, so `tempC(100) - tempC(0)` into `degF` is `180`, and
+`tempC(100)` into `K` is `373.15`. A call is a name directly followed by
+`(`; with a space between, `kg (m/s)` is the product it looks like, and
+`kg(m/s)` is an error that shows the product with the space.
+
+Typed as the unit to convert to, a function's name asks for the reading
+that gives the quantity, and the answer is written as the call that would
+produce it: `tempF(212)` into `tempC` is `tempC(100)`, `300 K` into `tempF`
+is `tempF(80.33)`, and `tempF(-40)` into `tempC` is `tempC(-40)`. The line
+reads as what it is and can be typed back as a quantity. A function's name
+is not a unit anywhere else: `2 tempC`, or `tempC` in a list, is an error
+that shows the call form.
+
+A function is defined by a line with its parameter in parentheses after
+the name, and a body in three parts: the units of the argument and the
+result in brackets, the expression that computes the function, and after a
+`;` the expression that inverts it, in which the function's own name
+stands for its value:
+
+```
+tempC(x)  [1;K]  x K + 273.15 K       ; tempC / K - 273.15
+tempF(x)  [1;K]  (x + 459.67) degF    ; tempF / degF - 459.67
+```
+
+`[1;K]` says the argument is a plain number and the result a temperature.
+The argument may have a unit of its own, declared in place of the `1`, and
+a converted quantity is then written as a count of that unit inside the
+call: with a function `dozen` declared `[in;ft]`, `2 ft` converted to
+`dozen` is `dozen(2 in)`. Both bodies are checked when the file is loaded,
+for evaluating at all and for giving what they declare, so a call can fail
+only for its argument (`tempC(1 m)`) or for a value its body cannot
+compute. A function's name may not read as a prefix followed by a unit,
+for the reason a list's may not. There is no domain checking yet:
+`tempC(-300)` is a negative temperature rather than an error. Nor can a
+call be inverted inside an expression; only the unit to convert to may
+name a function.
 
 ### Adding a unit
 

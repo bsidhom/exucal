@@ -37,12 +37,15 @@ type Term = { readonly value: Rational; readonly unit: string };
  * One line of a result: `have` is `relation` the sum of `terms`, as in
  * `3 ft = 36 in`, `1 m ≈ 39.370079 in` and `1 m ≈ 3 ft + 3.3700787 in`. A
  * conversion into one unit is one term; one into a unit list is a term per
- * unit shown.
+ * unit shown; one into a function is one term, the argument, written
+ * inside a call of the function, `tempF(212) = tempC(100)`, whose name is
+ * `call`.
  */
 type Line = {
   readonly have: string;
   readonly relation: "=" | "≈";
   readonly terms: readonly Term[];
+  readonly call?: string;
 };
 
 /** What the output area shows for the current pair of texts. */
@@ -68,7 +71,10 @@ type Outcome =
  * With `want` blank, the output is what `have` is in the table's primitives
  * (`in = 0.0254 m`), the answer GNU units gives to the same question. A
  * `want` that is a unit list, typed (`ft;in`) or by name (`time`), gives
- * the sum the pipeline computes, one term per unit.
+ * the sum the pipeline computes, one term per unit. A `want` that names a
+ * function gives the call that would produce the `have`,
+ * `tempF(212) = tempC(100)`, the recovered argument written as a count of
+ * the unit the function declares for it.
  *
  * A conversion into one unit is also shown the other way round, on a
  * second line, as GNU units shows every conversion twice (`* 36` and
@@ -78,10 +84,10 @@ type Outcome =
  * two lines have the same shape with the sides swapped, and each reads as
  * a statement about quantities. Only a conversion into one unit has a
  * reciprocal: it is one ratio, and the reciprocal is the same ratio the
- * other way round. A conversion into a unit list is a sum, not a ratio, so
- * there is no other way round and no line is added; nor for a blank
- * `want`, which shows a definition; nor for a value of zero, which has no
- * reciprocal.
+ * other way round. A conversion into a unit list is a sum, not a ratio, and
+ * one into a function is a call, so there is no other way round and no
+ * line is added; nor for a blank `want`, which shows a definition; nor for
+ * a value of zero, which has no reciprocal.
  */
 @customElement("unit-converter")
 export class UnitConverter extends LitElement {
@@ -227,9 +233,14 @@ export class UnitConverter extends LitElement {
         ),
       };
     }
-    return conversion.value.kind === "unit"
-      ? unitResult(have, want, conversion.value.value)
-      : listResult(have, conversion.value);
+    switch (conversion.value.kind) {
+      case "unit":
+        return unitResult(have, want, conversion.value.value);
+      case "list":
+        return listResult(have, conversion.value);
+      case "function":
+        return functionResult(have, conversion.value);
+    }
   }
 }
 
@@ -368,6 +379,33 @@ function listResult(
   };
 }
 
+/**
+ * The result outcome for a conversion into a function: one line, the
+ * `have` being the call of the function at the recovered argument,
+ * `tempF(212) = tempC(100)`. The argument is written as a count of the
+ * unit the function declares for it, followed by that unit's text as a
+ * want's is written, and by nothing when the declared unit is `1`, a
+ * plain number. The relation is `=` when the count shows exactly, as for
+ * any value. There is no reciprocal: a call is not a ratio.
+ */
+function functionResult(
+  have: string,
+  conversion: Extract<Conversion, { kind: "function" }>,
+): Outcome {
+  const { name, value, unit } = conversion;
+  return {
+    kind: "result",
+    lines: [
+      {
+        have,
+        relation: shownExactly(value) ? "=" : "≈",
+        terms: [{ value, unit: unit.text === "1" ? "" : wantText(unit.text) }],
+        call: name,
+      },
+    ],
+  };
+}
+
 /** Whether `value` is what its display at `DISPLAY_PRECISION` digits says. */
 function shownExactly(value: Rational): boolean {
   return equals(round(value, DISPLAY_PRECISION), value);
@@ -387,11 +425,11 @@ function renderOutcome(outcome: Outcome): TemplateResult {
   }
 }
 
-/** One line of a result, on a line of its own. */
+/** One line of a result, on a line of its own; the terms inside a call when the line is one. */
 function renderLine(line: Line): TemplateResult {
-  return html`<div>
-    <span>${line.have}</span> ${line.relation} ${line.terms.map(renderTerm)}
-  </div>`;
+  const terms = line.terms.map(renderTerm);
+  const sum = line.call === undefined ? terms : html`${line.call}(${terms})`;
+  return html`<div><span>${line.have}</span> ${line.relation} ${sum}</div>`;
 }
 
 /**
@@ -404,7 +442,8 @@ function renderTerm(term: Term, index: number): TemplateResult {
   const value = index === 0 ? term.value : absolute(term.value);
   const operator = index === 0 ? "" : sign(term.value) < 0 ? " - " : " + ";
   const text = format(value, DISPLAY_PRECISION);
-  return html`${operator}<span class="value">${text}</span> ${term.unit}`;
+  const unit = term.unit === "" ? nothing : html` ${term.unit}`;
+  return html`${operator}<span class="value">${text}</span>${unit}`;
 }
 
 declare global {

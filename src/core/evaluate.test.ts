@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
-import { evaluate, type EvaluateError, type Lookup } from "./evaluate.ts";
+import {
+  applyFunction,
+  evaluate,
+  invertFunction,
+  type EvaluateError,
+  type Lookup,
+} from "./evaluate.ts";
 import { parseExpr, type Expr } from "./expr.ts";
 import { type Quantity } from "./quantity.ts";
 import {
@@ -17,6 +23,7 @@ import {
 } from "./rational.ts";
 import type { Result } from "./result.ts";
 import { type Span } from "./span.ts";
+import { type UnitFunction } from "./table.ts";
 
 /** Builds a dimension from integer exponents (or rationals, for roots). */
 function dim(exponents: Record<string, number | Rational>): Dimension {
@@ -54,13 +61,32 @@ type UnknownUnit = {
   readonly span: Span;
 };
 
-/** A lookup over the units given, as the table's would be. */
-function lookupIn(units: Record<string, Quantity>): Lookup<UnknownUnit> {
-  return (name, span) => {
-    const unit = Object.hasOwn(units, name) ? units[name] : undefined;
-    return unit === undefined
-      ? { ok: false, error: { kind: "unknownUnit", name, span } }
-      : { ok: true, value: unit };
+/** What the lookup fails with for a call of a name that is not a function. */
+type UnknownFunction = {
+  readonly kind: "unknownFunction";
+  readonly name: string;
+  readonly span: Span;
+  readonly call: Span;
+};
+
+/** A lookup over the units and functions given, as the table's would be. */
+function lookupIn(
+  units: Record<string, Quantity>,
+  functions: Record<string, UnitFunction> = {},
+): Lookup<UnknownUnit | UnknownFunction> {
+  return {
+    unit: (name, span) => {
+      const unit = Object.hasOwn(units, name) ? units[name] : undefined;
+      return unit === undefined
+        ? { ok: false, error: { kind: "unknownUnit", name, span } }
+        : { ok: true, value: unit };
+    },
+    function: (name, span, call) => {
+      const fn = Object.hasOwn(functions, name) ? functions[name] : undefined;
+      return fn === undefined
+        ? { ok: false, error: { kind: "unknownFunction", name, span, call } }
+        : { ok: true, value: fn };
+    },
   };
 }
 
@@ -75,22 +101,74 @@ const UNITS: Record<string, Quantity> = {
   h: quantity("3600", { s: 1 }),
   radian: quantity("1", { radian: 1 }),
   N: quantity("1", { kg: 1, m: 1, s: -2 }),
+  K: quantity("1", { K: 1 }),
   zero: quantity("0", { m: 1 }),
   neg: quantity("-4", { m: 2 }),
   neg8: quantity("-8", { m: 3 }),
 };
 
-const lookup = lookupIn(UNITS);
+/**
+ * A function as the table would hold it, with its bodies parsed from
+ * `forward` and `inverse`, so that the spans of a body's errors are into
+ * those texts.
+ */
+function fn(
+  name: string,
+  parameter: string,
+  argument: Quantity,
+  result: Quantity,
+  forward: string,
+  inverse: string,
+): UnitFunction {
+  return {
+    name,
+    parameter,
+    argument: { text: "argument", quantity: argument },
+    result: { text: "result", quantity: result },
+    forward: parsed(forward),
+    inverse: parsed(inverse),
+  };
+}
+
+/** Some functions over the units above. */
+const FUNCTIONS: Record<string, UnitFunction> = {
+  tempC: fn(
+    "tempC",
+    "x",
+    quantity("1"),
+    UNITS.K,
+    "x K + 273.15 K",
+    "tempC / K - 273.15",
+  ),
+  double: fn("double", "x", UNITS.m, UNITS.m, "2 x", "double / 2"),
+  recip: fn("recip", "x", quantity("1"), quantity("1"), "1 / x", "1 / recip"),
+  twice: fn(
+    "twice",
+    "x",
+    quantity("1"),
+    UNITS.K,
+    "tempC(2 x)",
+    "(twice / K - 273.15) / 2",
+  ),
+  // A parameter named like a unit: the binding wins inside the body.
+  shadow: fn("shadow", "m", quantity("1"), quantity("1"), "2 m", "shadow / 2"),
+  // Bodies that fail: for a lookup, and through another function.
+  broken: fn("broken", "x", quantity("1"), quantity("1"), "x bogus", "broken"),
+  bad: fn("bad", "x", quantity("1"), quantity("1"), "recip(x)", "recip(bad)"),
+};
+
+const lookup = lookupIn(UNITS, FUNCTIONS);
 
 /** The primitives the units above are over, with the radian as a kind. */
 const PRIMITIVES: Primitives = new Map([
   ["m", "dimension"],
   ["kg", "dimension"],
   ["s", "dimension"],
+  ["K", "dimension"],
   ["radian", "kind"],
 ]);
 
-type Failure = EvaluateError | UnknownUnit;
+type Failure = EvaluateError | UnknownUnit | UnknownFunction;
 
 /** Evaluates `text` with the units above at the default precision. */
 function run(
@@ -145,15 +223,35 @@ test("a unit is whatever the lookup says it is", () => {
 
 test("the lookup is given the name and the span of the reference", () => {
   const seen: [string, Span][] = [];
-  const spy: Lookup<never> = (name, span) => {
-    seen.push([name, span]);
-    return { ok: true, value: UNITS.m };
+  const spy: Lookup<never> = {
+    unit: (name, span) => {
+      seen.push([name, span]);
+      return { ok: true, value: UNITS.m };
+    },
+    function: () => {
+      throw new Error("no call here");
+    },
   };
   evaluate(parsed("  kg m / s^2"), spy, PRIMITIVES, DEFAULT_PRECISION);
   assert.deepEqual(seen, [
     ["kg", { start: 2, end: 4 }],
     ["m", { start: 5, end: 6 }],
     ["s", { start: 9, end: 10 }],
+  ]);
+});
+
+test("the lookup is given a call's name with its span, and the span of the call", () => {
+  const seen: [string, Span, Span][] = [];
+  const spy: Lookup<never> = {
+    unit: () => ({ ok: true, value: UNITS.m }),
+    function: (name, span, call) => {
+      seen.push([name, span, call]);
+      return { ok: true, value: FUNCTIONS.double };
+    },
+  };
+  evaluate(parsed(" 2 double( m )"), spy, PRIMITIVES, DEFAULT_PRECISION);
+  assert.deepEqual(seen, [
+    ["double", { start: 3, end: 9 }, { start: 3, end: 14 }],
   ]);
 });
 
@@ -336,13 +434,17 @@ test("a lookup failure comes back unchanged", () => {
     span: { start: 6, end: 11 },
   });
   // Whatever the lookup's error type is.
-  const failing: Lookup<string> = (name) => ({
-    ok: false,
-    error: `no ${name}`,
-  });
+  const failing: Lookup<string> = {
+    unit: (name) => ({ ok: false, error: `no ${name}` }),
+    function: (name) => ({ ok: false, error: `no function ${name}` }),
+  };
   assert.deepEqual(
     evaluate(parsed("2 m"), failing, PRIMITIVES, DEFAULT_PRECISION),
     { ok: false, error: "no m" },
+  );
+  assert.deepEqual(
+    evaluate(parsed("f(2)"), failing, PRIMITIVES, DEFAULT_PRECISION),
+    { ok: false, error: "no function f" },
   );
 });
 
@@ -506,4 +608,179 @@ test("evaluation leaves the tree and the units alone", () => {
   assert.deepEqual(UNITS.zero, quantity("0", { m: 1 }));
   assert.ok(equals(UNITS.m.magnitude, ONE));
   assert.ok(equals(UNITS.zero.magnitude, ZERO));
+});
+
+// ---------------------------------------------------------------------------
+// Calls
+
+test("a call applies the function's forward body to its argument", () => {
+  assertEvaluates("tempC(100)", quantity("373.15", { K: 1 }));
+  assertEvaluates("tempC(20 + 5)", quantity("298.15", { K: 1 }));
+  assertEvaluates("tempC(-40)", quantity("233.15", { K: 1 }));
+  assertEvaluates("double(3 m)", quantity("6", { m: 1 }));
+  assertEvaluates("double(2 cm)", quantity("0.04", { m: 1 }));
+});
+
+test("a call is an atom, and its value is a quantity like any other", () => {
+  assertEvaluates("2 tempC(100)", quantity("746.3", { K: 1 }));
+  assertEvaluates("tempC(100)^2", quantity("139240.9225", { K: 2 }));
+  assertEvaluates("-tempC(100)", quantity("-373.15", { K: 1 }));
+  assertEvaluates("tempC(100) - tempC(0)", quantity("100", { K: 1 }));
+  assertEvaluates("K / tempC(100)", {
+    magnitude: rational(100n, 37315n),
+    dimension: DIMENSIONLESS,
+  });
+});
+
+test("a call may nest, and a body may call another function", () => {
+  assertEvaluates("double(double(1 m))", quantity("4", { m: 1 }));
+  assertEvaluates("twice(50)", quantity("373.15", { K: 1 }));
+});
+
+test("the parameter is bound before any unit, and only inside the body", () => {
+  assertEvaluates("shadow(3)", quantity("6"));
+  assertEvaluates("shadow(3) m", quantity("6", { m: 1 }));
+});
+
+test("the name of a call resolves among the functions alone", () => {
+  assert.deepEqual(failure(run("m(2)")), {
+    kind: "unknownFunction",
+    name: "m",
+    span: { start: 0, end: 1 },
+    call: { start: 0, end: 4 },
+  });
+  // And a function's name is not a unit.
+  assert.deepEqual(failure(run("2 tempC")), {
+    kind: "unknownUnit",
+    name: "tempC",
+    span: { start: 2, end: 7 },
+  });
+});
+
+test("the argument must conform to the declared argument unit", () => {
+  assert.deepEqual(failure(run("tempC(1 m)")), {
+    kind: "argumentMismatch",
+    name: "tempC",
+    span: { start: 0, end: 10 },
+    argument: { start: 6, end: 9 },
+    mismatch: {
+      kind: "dimensionMismatch",
+      have: dim({ m: 1 }),
+      want: DIMENSIONLESS,
+    },
+  });
+  assert.deepEqual(failure(run("2 double(2)")), {
+    kind: "argumentMismatch",
+    name: "double",
+    span: { start: 2, end: 11 },
+    argument: { start: 9, end: 10 },
+    mismatch: {
+      kind: "dimensionMismatch",
+      have: DIMENSIONLESS,
+      want: dim({ m: 1 }),
+    },
+  });
+  const kind = failure(run("double(radian m)"));
+  assert.ok(kind.kind === "argumentMismatch");
+  assert.equal(kind.mismatch.kind, "kindMismatch");
+});
+
+test("a body that fails for the argument is a callFailed at the call, carrying the body's error", () => {
+  // The body's error is located in the body's own text: the `x` of `1 / x`.
+  assert.deepEqual(failure(run("2 recip(0)")), {
+    kind: "callFailed",
+    name: "recip",
+    span: { start: 2, end: 10 },
+    error: { kind: "divisionByZero", span: { start: 4, end: 5 } },
+  });
+  // Through a body's call: each call wraps its own body's failure.
+  assert.deepEqual(failure(run("bad(0)")), {
+    kind: "callFailed",
+    name: "bad",
+    span: { start: 0, end: 6 },
+    error: {
+      kind: "callFailed",
+      name: "recip",
+      span: { start: 0, end: 8 },
+      error: { kind: "divisionByZero", span: { start: 4, end: 5 } },
+    },
+  });
+});
+
+test("the argument is evaluated first, and its failure is its own", () => {
+  assert.deepEqual(failure(run("tempC(bogus)")), {
+    kind: "unknownUnit",
+    name: "bogus",
+    span: { start: 6, end: 11 },
+  });
+  assert.deepEqual(failure(run("recip(recip(0))")).span, {
+    start: 6,
+    end: 14,
+  });
+  assert.equal(failure(run("bogus(recip(0))")).kind, "unknownFunction");
+});
+
+test("a lookup failure inside a body is passed up unchanged", () => {
+  assert.deepEqual(failure(run("broken(1)")), {
+    kind: "unknownUnit",
+    name: "bogus",
+    span: { start: 2, end: 7 },
+  });
+});
+
+test("applyFunction and invertFunction evaluate a body under a binding, telling its failure from the lookup's", () => {
+  const applied = applyFunction(
+    FUNCTIONS.double,
+    quantity("3", { m: 1 }),
+    lookup,
+    PRIMITIVES,
+    DEFAULT_PRECISION,
+  );
+  assert.ok(applied.ok, inspect(applied));
+  assert.deepEqual(applied.value, quantity("6", { m: 1 }));
+  const inverted = invertFunction(
+    FUNCTIONS.tempC,
+    quantity("373.15", { K: 1 }),
+    lookup,
+    PRIMITIVES,
+    DEFAULT_PRECISION,
+  );
+  assert.ok(inverted.ok, inspect(inverted));
+  assert.deepEqual(inverted.value, quantity("100"));
+  assert.deepEqual(
+    invertFunction(
+      FUNCTIONS.recip,
+      quantity("0"),
+      lookup,
+      PRIMITIVES,
+      DEFAULT_PRECISION,
+    ),
+    {
+      ok: false,
+      error: {
+        kind: "body",
+        error: { kind: "divisionByZero", span: { start: 4, end: 9 } },
+      },
+    },
+  );
+  assert.deepEqual(
+    applyFunction(
+      FUNCTIONS.broken,
+      quantity("1"),
+      lookup,
+      PRIMITIVES,
+      DEFAULT_PRECISION,
+    ),
+    {
+      ok: false,
+      error: {
+        kind: "lookup",
+        error: {
+          kind: "unknownUnit",
+          name: "bogus",
+          span: { start: 2, end: 7 },
+        },
+      },
+    },
+  );
 });

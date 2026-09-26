@@ -41,6 +41,12 @@ const table: UnitTable = (() => {
       "hr       60 min",
       "time     hr;min;s",
       "ftin     ft;in",
+      "K        !",
+      "degF     5 K / 9",
+      "tempC(x) [1;K]  x K + 273.15 K ; tempC / K - 273.15",
+      "tempF(x) [1;K]  (x + 459.67) degF ; tempF / degF - 459.67",
+      "recip(x) [1;1]  1 / x ; 1 / recip",
+      "dozen(x) [in;ft]  12 x ; dozen / 12",
     ].join("\n"),
   );
   assert.ok(
@@ -78,6 +84,17 @@ function list(
   assert.ok(result.ok, `expected a conversion, got ${inspect(result)}`);
   assert.equal(result.value.kind, "list", `expected a list, got one unit`);
   assert.ok(result.value.kind === "list");
+  return result.value;
+}
+
+function call(
+  have: string,
+  want: string,
+): Extract<Conversion, { kind: "function" }> {
+  const result = converted(have, want);
+  assert.ok(result.ok, `expected a conversion, got ${inspect(result)}`);
+  assert.equal(result.value.kind, "function", `expected a function`);
+  assert.ok(result.value.kind === "function");
   return result.value;
 }
 
@@ -341,4 +358,124 @@ test("a have that fails is reported before the list is read", () => {
   const error = failure("bogus", "ft;in;");
   assert.equal(error.kind, "inputError");
   assert.equal(error.side, "have");
+});
+
+// ---------------------------------------------------------------------------
+// Functions
+
+/** Asserts that `have` in the function `want` is the call of it at the decimal `expected`. */
+function assertCall(have: string, want: string, expected: string): void {
+  const conversion = call(have, want);
+  assert.equal(conversion.name, want.trim());
+  assert.ok(
+    equals(conversion.value, decimal(expected)),
+    `${have} in ${want}: expected ${expected}, got ${toFraction(conversion.value)}`,
+  );
+}
+
+test("a want that names a function is the call of it that would produce the have", () => {
+  assertCall("tempF(212)", "tempC", "100");
+  assertCall("tempC(100)", "tempF", "212");
+  assertCall("300 K", "tempF", "80.33");
+  assertCall("tempF(-40)", "tempC", "-40");
+  assertCall("0 K", "tempC", "-273.15");
+  assertCall("tempF(212)", " tempC ", "100");
+  const { have, argument, unit } = call("tempF(212)", "tempC");
+  assert.ok(equals(have.magnitude, decimal("373.15")));
+  assert.ok(equals(argument.magnitude, decimal("100")));
+  assert.deepEqual([...argument.dimension.keys()], []);
+  assert.equal(unit.text, "1");
+});
+
+test("the recovered argument is counted in the declared argument unit", () => {
+  const conversion = call("2 ft", "dozen");
+  assert.ok(equals(conversion.value, decimal("2")));
+  assert.equal(conversion.unit.text, "in");
+  assert.ok(equals(conversion.unit.quantity.magnitude, decimal("0.0254")));
+  assert.ok(equals(conversion.argument.magnitude, decimal("0.0508")));
+});
+
+test("a call as the have or the want is an expression like any other", () => {
+  assertConverts("tempC(100)", "K", "373.15");
+  assertConverts("tempC(100) - tempC(0)", "degF", "180");
+  assertConverts("tempC(100)", "tempC(100)", "1");
+  assertConverts("2 tempC(100)", "K", "746.3");
+  assert.ok(equals(value("K", "tempC(100)").value, rational(100n, 37315n)));
+});
+
+test("a function's name means the function only on its own", () => {
+  assert.deepEqual(failure("1 K", "2 tempC"), {
+    kind: "inputError",
+    side: "want",
+    error: {
+      kind: "functionAsUnit",
+      name: "tempC",
+      span: { start: 2, end: 7 },
+    },
+  });
+  assert.deepEqual(failure("1 K", "tempC;K"), {
+    kind: "inputError",
+    side: "want",
+    error: {
+      kind: "functionAsUnit",
+      name: "tempC",
+      span: { start: 0, end: 5 },
+    },
+  });
+  assert.deepEqual(failure("tempC", "K"), {
+    kind: "inputError",
+    side: "have",
+    error: {
+      kind: "functionAsUnit",
+      name: "tempC",
+      span: { start: 0, end: 5 },
+    },
+  });
+});
+
+test("a have that does not conform to a function is the mismatch of the pair", () => {
+  const error = failure("3 ft", "tempC");
+  assert.equal(error.kind, "dimensionMismatch");
+  assert.ok(error.kind === "dimensionMismatch");
+  assert.deepEqual([...error.have.keys()], ["m"]);
+  assert.deepEqual([...error.want.keys()], ["K"]);
+});
+
+test("a call that fails is its side's error", () => {
+  const argument = failure("tempC(1 m)", "K");
+  assert.equal(argument.kind, "inputError");
+  assert.ok(argument.kind === "inputError");
+  assert.equal(argument.side, "have");
+  assert.equal(argument.error.kind, "argumentMismatch");
+  assert.deepEqual(failure("1 K", "in(2)"), {
+    kind: "inputError",
+    side: "want",
+    error: {
+      kind: "notAFunction",
+      name: "in",
+      span: { start: 0, end: 2 },
+      call: { start: 0, end: 5 },
+      otherwise: "unit",
+    },
+  });
+  const body = failure("recip(0)", "1");
+  assert.ok(body.kind === "inputError" && body.side === "have");
+  assert.equal(body.error.kind, "callFailed");
+});
+
+test("an inverse that fails for the have's value is an inverseFailed on the want side", () => {
+  // The body's error is located in the definitions: at the divisor of
+  // `1 / recip`, the inverse body.
+  const inverse = table.functions.get("recip")!.inverse;
+  assert.ok(inverse.node.kind === "binary");
+  assert.deepEqual(failure("0", "recip"), {
+    kind: "inputError",
+    side: "want",
+    error: {
+      kind: "inverseFailed",
+      name: "recip",
+      error: { kind: "divisionByZero", span: inverse.node.right.span },
+    },
+  });
+  assertCall("4", "recip", "0.25");
 });

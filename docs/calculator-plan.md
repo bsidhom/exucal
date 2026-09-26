@@ -201,16 +201,24 @@ yields a proof, and its rules are the textbook ones.
 bounded.** The core has no globals, but a memo of a pure function of its
 precision is unobservable through the core's results, as `lazy` in
 parser.ts is, and the study asks for exactly that memo. Through memory it
-is observable, so its footprint is bounded by construction: each
-constant's module holds one value, the digits at the largest precision
-computed so far, answers a shorter request from it, and replaces it on a
-larger one. The precision of a request is bounded in turn: at most the
-ceiling of D12 plus, for the argument reduction of `sin` and `cos`, the
-bit length of the argument, itself under `MAX_BITS`, and an argument
-whose reduction would need more is refused as `tooLarge`. So a memo holds
-at most about 21,000 digits, under 10 KB, and two constants exist. There
-is no eviction policy because there is nothing to evict: one entry per
-constant, bounded in size, replaced in place.
+is observable, so its footprint is fixed by construction rather than
+bounded by an eviction policy: each constant's module holds exactly one
+value, the digits at `CEILING_DIGITS` of D12, computed on first use, and
+every request at or below the ceiling, which is every request the retry
+loop can make, rounds from it. The footprint is therefore a constant of
+the program (about 415 bytes per constant at a ceiling of 1,000 digits,
+two constants), the same whatever the user's setting, so lowering the
+setting has nothing to free and raising it nothing to grow; the only way
+it changes is stage 8 raising the ceiling. The one request above the
+ceiling is the argument reduction of `sin` and `cos` at a large argument,
+which needs `pi` to the ceiling plus the argument's bit length (under
+`MAX_BITS`; an argument beyond that is refused as `tooLarge`): it is
+computed for that call and not kept, so a `sin(1e5000)` costs its
+milliseconds each time it is typed and leaves nothing behind. The
+alternative, keeping the largest value seen, is what the study describes
+and would be bounded too (about 21,000 digits), but its footprint would
+depend on what the user had typed, and freeing it would need a policy;
+the fixed value needs none.
 
 **D11. The trigonometric functions take an angle, and their inverses
 return one.** `sin`, `cos` and `tan` require an argument of the `radian`
@@ -228,9 +236,33 @@ arguments are not angles. The study says either choice fits; this one is
 chosen because kinds exist to keep an angle from being mistaken for a
 number, and the degree-radian confusion is the mistake they were
 introduced against. Its cost is that `sin(pi())` is an error and is
-written `sin(pi() radian)`. The rule names the primitive `radian` by
-convention; a table that declares no such primitive has no angles, and
-the trigonometric functions say so.
+written `sin(pi() radian)`, and a physicist's `sin(2 pi() f t)`, whose
+argument is a plain number in this table (`Hz` carries no kind, as the
+table's own separation of `rad/s` from `Hz` decides), is written
+`sin(f t turn)`, which is what it says. The rule names the primitive
+`radian` by convention; a table that declares no such primitive has no
+angles, and the trigonometric functions say so.
+
+Why the inverses return an angle rather than a number, since that half is
+the less obvious: the argument of `asin` is a ratio, a plain number
+(`asin(3 m / 5 m)` works, the metres cancelling), and the result is the
+angle that has that ratio, which is exactly what the kind system has a
+word for. Returning it as an angle is what lets `asin(0.5)` be converted
+into `deg` at all, the one thing a converter's user does with an angle;
+as a plain number it could not be, since `1` does not conform to `deg`.
+It is also the only choice under which the forward and inverse functions
+agree: `sin(asin(0.5))` evaluates and `asin(sin(x))` has the kind `x` has,
+where a number-valued inverse would make `sin(asin(0.5))` a kind error
+and the round trip lose the kind. What it costs is the places where an
+angle is wanted as a bare number: `2 asin(0.5) + 1` is a kind mismatch,
+correctly, and `asin(0.5) / pi()` is an angle, not a fraction of a turn.
+Three ways to the number exist, each one token: the `want` field
+(`asin(0.5)` into `turn` is `≈ 0.083333`, into `radian` the count in
+radians), `/ radian` in the expression, or the lenient kind conversion
+that ARCHITECTURE.md already lists under "Later", a flag on `convert`
+that would let `asin(0.5)` into `1` succeed on request. None of these is
+needed to use an inverse the way the app is for: an angle in, an angle
+out, a unit to show it in.
 
 **D12. The retry schedule doubles up to an absolute ceiling.** The
 internal precisions are `p + 10`, `2 (p + 10)`, `4 (p + 10)`, ..., for
@@ -634,8 +666,9 @@ reports the timing at 1,000, 10,000 and 100,000 digits and asserts that
 twenty).
 
 Tests: reference digits to 100; the 36-digit literal in units.txt as a
-second reference; the memo answers a shorter request with the same digits
-and holds one value after requests at three precisions.
+second reference; the memo holds the ceiling's value after requests at
+three lower precisions, and a request above the ceiling adds nothing to
+it.
 
 Behavior: none; unused until stage 3.
 

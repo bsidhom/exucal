@@ -1,0 +1,959 @@
+# Implementation plan for the calculator
+
+Status: plan, no code. docs/calculator.md is the design study and its
+"A sequence for the follow-ups" is the order this plan follows. This
+document turns that sequence into tasks small enough that each is one
+commit, reviewable on its own, with the tests that prove it and the state
+the code is left in. Where the study leaves a choice open, this plan makes
+it and says so under "Decisions", so that a reviewer can object to a
+decision before any code depends on it.
+
+The plan is firm for stages 1 to 3, whose shape follows from the code as it
+stands, and provisional for stages 4 to 8, whose first task is a short
+design note in the manner of docs/functions.md, written once the stages
+before it have landed and refined against what they turned out to need.
+The provisional stages are still listed task by task, so that the whole
+program is visible and nothing in an early stage closes a door on a late
+one.
+
+## How to read a task
+
+Every task is one commit on the branch, in the order given. Each names the
+files it touches, what changes, what must not change, and the tests. The
+order is topological: a task depends only on the tasks before it, and the
+cross-cutting primitives (rounding modes, the radius, the context, the
+ball, the kernel) come before anything that uses them. A task that only
+adds a module leaves the app's behavior untouched, and says so; a task
+that changes behavior says exactly which behavior.
+
+Every task ends in the same state: `pnpm typecheck`, `pnpm test` and
+`pnpm format:check` pass, and the module headers and ARCHITECTURE.md say
+what the code now does (the last task of each stage sweeps the docs, but
+a task must not leave a header that lies). The tests are the `*.test.ts`
+beside each module, under Node's test runner, with no new dependency.
+Numeric tests follow three patterns, named here so that later tasks can
+refer to them:
+
+- **Reference digits.** A value checked against digits from a trusted
+  source (the first hundred digits of `pi`, `e`, `ln 2`, `sqrt 2`), to at
+  least fifty digits, so that an algorithm that is wrong in its tail is
+  caught.
+- **Containment.** For a routine that returns a ball, the ball computed at
+  precision `p` must contain the midpoint computed at precision `4p`, over
+  a seeded set of arguments across the routine's domain. This is the test
+  that the radius is honest, and every inexact routine has one.
+- **Exact case.** Every input the routine is required to recognize as
+  exact gives a ball of radius zero with the exact midpoint (`sqrt(9/4)`,
+  `exp(0)`, `log(8, 2)`), and an input next to it does not.
+
+Prerequisites for the follow-up: Node.js 24 and `pnpm install` (the
+container this plan was written in has Node.js 22 and no
+`node_modules`, so nothing was run here).
+
+## Decisions
+
+Numbered so that tasks can cite them. Each is a choice the study leaves
+open or a detail it does not reach, and the reasoning is given once here.
+
+**D1. One context type, with `precision` meaning the working precision
+below the pipeline and the digits wanted at its boundary.** `NumberContext`
+is `{ precision, rounding }` in stage 1 and gains `mode` in stage 4. Every
+core function that does arithmetic takes one and treats `precision` as the
+precision it computes at. The pipeline is the one place that knows the
+difference between the digits the user asked for and the precision the
+evaluation runs at: it takes the user's context and derives working
+contexts from it (a fixed guard in stage 1, the retry schedule from
+stage 2). A second type for the user's settings would be the same fields
+with one renamed, and the distinction is one of level, stated in the
+pipeline's header, not of shape.
+
+**D2. `mode` enters the context in stage 4, not stage 1.** A field with no
+effect is a field a reviewer cannot audit. The rounding mode has an
+effect from stage 1 (the display's rounding, `roundTerms`, and from stage
+2 every inexact midpoint), so it is in the context from the start; the
+exact-or-decimal mode has none until the decimal mode exists.
+
+**D3. The radius is a coarse binary magnitude.** `mant × 2^exp` with
+`mant` zero or a normalized 30-bit integer, or the distinguished value
+unbounded. Every operation on radii rounds up, so a radius is always a
+true bound; the tightness lost to 30 bits is a relative `2^-29`, invisible
+at any precision. It is binary because the kernel is binary, and coarse so
+that propagating it through an expression costs nothing and never grows.
+The exact value of a bounded radius is a rational, obtained when a
+comparison needs it (certification, division), and never stored.
+
+**D4. `unresolved` is an error kind of its own.** An operation whose
+answer depends on which side of a boundary the true value lies, when the
+ball straddles that boundary (a divisor that cannot be told from zero; in
+later stages `ln` at a ball straddling zero, `floor` at a ball straddling
+an integer), fails with `unresolved`. It is distinct from `divisionByZero`
+(the divisor is exactly zero), because the retry loop retries on the first
+and never on the second. At the ceiling the pipeline reports it, and the
+message says the value cannot be told from zero at this precision.
+
+**D5. Stage 1's `root` is the least that is honest.** It returns the
+truncated digits it computes today with a radius of one unit in the last
+digit, ignores the rounding mode (truncation is the toward-zero mode), and
+returns an unbounded radius when its argument is inexact. Stage 2 moves it
+onto the kernel, where it honors the mode and propagates its argument's
+radius by the derivative bound. Writing that propagation on the decimal
+path in stage 1 would be work thrown away a stage later.
+
+**D6. The table is built once per setting, at the ceiling of the retry
+schedule.** From stage 3 the angle units call `pi()`, so their quantities
+carry a radius that no later evaluation can shrink. A pass of the retry
+loop at internal precision `q` can certify the digits it is asked for only
+if every unit it touches is accurate beyond `q`, so the table is built at
+the highest internal precision the schedule can reach for the setting, and
+rebuilt only when the setting changes. `system-table.ts` memoizes one
+table per precision, and the definitions text is fetched once.
+
+**D7. Certification is "both ends round alike".** A ball certifies `d`
+digits in a rounding mode when `mid - rad` and `mid + rad`, as exact
+rationals, round to the same `d`-digit value in that mode. Rounding is
+monotone, so every value between them rounds to it too, and the shown
+digits are the true value's. This one definition covers the nearest and
+the directed modes, ties, and the carry across a power of ten, without
+special cases.
+
+**D8. Unit list counts are taken from the midpoint.** In `convertToList`
+each count is the truncated ratio of midpoints and the remainder is the
+ball `have - count × size`, computed with the exact ball operations, so
+that the terms times the units still contain `have`. A remainder that
+comes out slightly negative, or slightly above a whole of the unit before
+it, is the display's carry case, which `roundTerms` already handles; a
+count is never `unresolved`.
+
+**D9. The kernel is fixed point with an integer error count.** A kernel
+value is `{ value, error, bits }`: the integer `value` stands for
+`value × 2^-bits`, and `error` is an upper bound, in units of `2^-bits`,
+on its distance from what it stands for. Every operation updates `error`
+by an over-approximation that is a few lines of integer arithmetic, so
+the bound can be checked by reading. A series runs on such values with the
+argument's error included from the start, which propagates the argument's
+radius without a separate derivative bound; the truncation bound of a
+series is taken at the upper end of the argument's interval. The kernel
+hands back a ball whose midpoint is rounded to the context's decimal
+precision in its mode and whose radius covers `error` and that rounding.
+
+**D10. `pi` and `exp(1)` are memoized privately.** The core has no
+globals, but a memo of a pure function of its precision is unobservable,
+as `lazy` in parser.ts is, and the study asks for exactly that memo. It
+lives in the module that computes the constant, holds the value at the
+largest precision computed so far, and answers shorter requests from it.
+
+**D11. Inverse trigonometric functions return plain numbers.** `sin`,
+`cos` and `tan` accept a plain number or the `radian` kind, treated as
+one; `asin`, `acos`, `atan` and `atan2` return a dimensionless value, and
+`asin(0.5) radian` is how to get an angle. The study says either choice
+fits; this one keeps `2 asin(0.5) + 1` a number and every built-in's
+result dimensionless, so the dimension rules have one shape. It can be
+flipped in stage 3's design note without touching anything else.
+
+**D12. The retry schedule is three passes.** Internal precisions
+`p + 10`, `2 (p + 10)` and `4 (p + 10)` for `p` digits wanted; the
+ceiling is the last. The digits setting is capped at `MAX_DIGITS`, 200 in
+stage 2, chosen so that every routine of stage 3 stays under tens of
+milliseconds at the ceiling on a phone; stage 8 measures and revisits it.
+
+**D13. The midpoint's canonical form, once it has an exponent (stage 4).**
+`num / den × 10^e` with `den` coprime to 10 and `num` not divisible by 10
+unless zero, so that equal values have equal representations and `equals`
+stays structural. Stripping the factors of 2 and 5 from a denominator and
+the trailing zeros from a numerator is a loop of small divisions, done in
+the constructor as the gcd is today.
+
+**D14. The exact functions (`abs`, `floor`, `gcd`, ...) come after the
+elementary set and before the Gamma family.** They depend only on the
+built-in mechanism, and they exercise the one dimension rule the
+elementary set does not need, a result that keeps its argument's
+dimension. The study lists them with feature 3; they open stage 6 here so
+that stage 3 stays about one thing.
+
+## Stage 1: the context and the ball
+
+Firm. What lands: the seven rounding modes, named once; the context in
+place of `Precision`; the radius and the ball; the magnitude a ball
+everywhere, with radius zero except after `root`; the display's `=`
+decided by the radius; the settings UI for digits and rounding mode.
+Nothing new can be computed after this stage, and a user sees two
+differences: the digits and the rounding mode are theirs to set, and
+`sqrt(4 m^2)` is `= 2 m` where `sqrt(2) m^2 ...` is `≈`, as it was, but for
+the right reason.
+
+### 1.1 The rounding modes
+
+New `src/core/rounding.ts`. `RoundingMode` is the union of the seven
+names (`halfEven`, `halfAwayFromZero`, `halfTowardZero`, `towardZero`,
+`awayFromZero`, `ceiling`, `floor`), `ROUNDING_MODES` lists them in that
+order for the UI, and `divideRounded(num, den, mode)` is the integer
+division of a signed `num` by a positive `den` rounded in `mode`. This is
+the one place a rounding mode is interpreted; everything else rounds by
+scaling to an integer division and calling it, as `roundWith` in
+rational.ts does today with a fixed rule.
+
+Tests: a table over `±7/2`, `±5/2`, `±1/3`, `±2/3`, `±1/2` and exact
+quotients, one row per mode, every cell written out; `halfEven` on `5/2`
+and `7/2` (2 and 4); `ceiling` and `floor` on negatives.
+
+Behavior: none; the module is unused.
+
+### 1.2 Rounding to digits in a mode
+
+`src/core/rational.ts`: `roundTo(r, digits, mode)` replaces `round` and
+`truncate` (`roundWith` takes the mode and calls `divideRounded`);
+`format(r, digits, mode)` rounds in the mode too, keeping the carry
+across a power of ten, which holds in every mode. `trunc` (to an integer)
+stays. The two callers change with it: `roundTerms` in convert.ts takes a
+mode, and `shownExactly` and `renderTerm` in unit-converter.ts pass
+`halfAwayFromZero`, the rule they apply today.
+
+Tests: the existing `round` and `truncate` tests become `roundTo` tests
+with the mode written out; `format` under `ceiling` and `floor` (`2.54`
+at two digits is `2.6` and `2.5`); the carry under `ceiling` (`9.99` at
+two digits is `10`); `roundTerms` under a directed mode.
+
+Behavior: none; every call site passes the mode it applied before.
+
+### 1.3 The radius
+
+New `src/core/radius.ts`, per D3. The type, `ZERO_RADIUS`, `UNBOUNDED`,
+`isZeroRadius`, `isUnbounded`; `radiusAbove(r)`, the least representable
+radius at or above `|r|`; `addRadius`, `multiplyRadius`, `maxRadius`, and
+`powRadius(rad, n)` for a non-negative bigint `n` by squaring, all
+rounding up and all absorbing unbounded; `radiusUpper(rad)`, the exact
+rational a bounded radius stands for, which throws on unbounded (a caller
+checks first). Exponents are JavaScript numbers; every value in the app is
+under `MAX_BITS`, so they fit.
+
+Tests: `radiusAbove` is at or above its argument and within a relative
+`2^-29` of it, over a seeded set of rationals (a small linear congruential
+generator inside the test; the benchmark harness is not imported by
+tests); each operation's `radiusUpper` is at or above the exact result
+over the same set; unbounded absorbs; zero is the identity of `add` and
+annihilates `multiply`.
+
+Behavior: none; the module is unused.
+
+### 1.4 The context, threaded
+
+New `src/core/context.ts`: `NumberContext = { precision: Precision;
+rounding: RoundingMode }`, `DEFAULT_ROUNDING` (`halfAwayFromZero`, the
+display's rule today), `DEFAULT_DIGITS` (8, `DISPLAY_PRECISION` today),
+and `checkContext`. `Precision` stays in rational.ts. Then the parameter
+widening the study calls the natural first step, with no change of
+behavior: `evaluate`, `applyFunction`, `invertFunction`, `powQuantity`,
+`buildTable`, `evaluateText` and `convertText` take a `NumberContext`
+where they took a `Precision`, and pass its `precision` where they passed
+the number. The pipeline derives its working context here already
+(`max(40, precision + 10)`, with 40 the working precision of today, so
+that nothing regresses before stage 2 replaces the rule); `system-table.ts`
+and `bench/build.bench.ts` build at a working context of 40 digits. Every
+test that passed `DEFAULT_PRECISION` passes a context of the same
+precision.
+
+Behavior: none, by construction; the tests do not change beyond the
+parameter.
+
+### 1.5 The ball
+
+New `src/core/ball.ts`. `Ball = { mid: Rational; rad: Radius }`,
+`BallError = RationalError | { kind: "unresolved" }` (D4), `exact(r)`,
+`isExact`, `containsZero`, `magnitudeAbove(b)` (a radius at or above
+`|mid| + rad`), and the exact operations on balls: `negateBall`,
+`addBalls`, `subtractBalls` (radii add), `multiplyBalls` (the midpoint is
+the exact product; the radius is `|a| rb + |b| ra + ra rb`, rounded up),
+`divideBalls` (fails `divisionByZero` when the divisor is exactly zero and
+`unresolved` when it contains zero; otherwise the midpoint is the exact
+quotient and the radius `(|a| rb + |b| ra) / (|b| (|b| - rb))` rounded up,
+which is the bound for `a / b` over the two intervals), and `powBall(b, n)`
+for a bigint `n`: an exact ball goes through `pow`; otherwise the midpoint
+is `pow(mid, |n|)`, which does the `MAX_BITS` check, the radius is
+`n (|mid| + rad)^(n-1) rad` in the coarse arithmetic, and a negative `n`
+inverts by the division rule. Midpoints are never rounded here: in exact
+mode the exact operations stay exact, and only the radius says what has
+been lost upstream.
+
+Tests: on exact balls every operation agrees with rational.ts; containment
+over seeded balls (the result's interval contains the exact result at the
+interval's ends and midpoint); `divideBalls` by a ball around zero is
+`unresolved` and by exact zero `divisionByZero`; `powBall` with a negative
+exponent of a ball around zero is `unresolved`.
+
+Behavior: none; the module is unused.
+
+### 1.6 `root` split, and `rootBall`
+
+`src/core/rational.ts`: `root` becomes two functions with the same tests
+between them: `exactRoot(r, degree)`, the rational root if both numerator
+and denominator are perfect powers (the negative and even-degree rules as
+today), and `truncatedRoot(r, degree, precision)`, the digits (today's
+scaling and integer root, unchanged). `src/core/ball.ts`: `rootBall(b,
+degree, context)`, per D5: an exact argument with an exact root is exact;
+an exact argument otherwise is `truncatedRoot` with a radius of one unit
+in its last digit (`radiusAbove` of `10^(e - precision + 1)` for the
+result's decimal exponent `e`); an inexact argument gives the truncated
+root of the midpoint with an unbounded radius. `powRationalBall(b,
+exponent, context)` composes `powBall` and `rootBall` as `powRational`
+does, root last. `powRational` is rewritten over the two new functions
+with the same behavior, so that `powQuantity` and its tests are untouched
+until 1.7 moves them onto the ball and deletes it; `root` is deleted here.
+
+Tests: the `root` tests split between `exactRoot` and `truncatedRoot`;
+`rootBall` on `9/4` is exact, on `2` has radius one ulp and contains the
+reference `sqrt 2`, on an inexact ball is unbounded; `powRationalBall` on
+`(4)^(1/2)` is exact.
+
+Behavior: none; nothing calls `rootBall` yet.
+
+### 1.7 The magnitude becomes a ball
+
+`Quantity.magnitude` is a `Ball`. Mechanical, and confined to what the
+type change forces:
+
+- `src/core/quantity.ts`: `scalar` takes a `Rational` and makes an exact
+  ball; the arithmetic calls the ball operations; `powQuantity` calls
+  `powRationalBall`; the error type is `BallError`.
+- `src/core/evaluate.ts`: `EvaluateError` gains an `unresolved` kind with
+  a span, located at the divisor as `divisionByZero` is, or at the power;
+  `locate` maps it.
+- `src/core/table.ts`: a prefix's factor is a `Ball`; `unitLookup` scales
+  by it with `multiplyQuantities`.
+- `src/core/build.ts`: `zeroDeclaredUnit` fires when the declared unit's
+  ball contains zero (an exact zero, or an inexact ball around it, of
+  which nothing is a count either).
+- `src/core/convert.ts` and `src/core/pipeline.ts`: every site that reads a
+  magnitude as a rational reads `.mid`, and nothing else changes; the
+  radius is dropped at the converter until 1.8, which is stated in a
+  comment at each site.
+- `src/messages.ts`: the wording for `unresolved` ("cannot be told from
+  zero at this precision"), in `describeTextError` and `describeBody`.
+- Tests: `deepEqual` on quantities compares balls; helpers that built a
+  magnitude build an exact ball.
+
+Behavior: none visible. The one new outcome, `unresolved`, needs an
+inexact divisor around zero (`1 / (sqrt(2)^2 - 2)`), which today shows a
+huge number and now reports the error; that is a fix, and a test.
+
+### 1.8 The converter and the pipeline on balls
+
+`convert` returns a `Ball`, the quotient of the two balls; `convertToList`
+returns balls per D8, with the ordering and positivity checks on
+midpoints; `roundTerms` rounds the remainder's midpoint and keeps its
+radius on the rounded term. `Conversion.value` and the list's `terms` are
+balls, and the function conversion's count is the ball quotient of the
+argument by the declared unit (nonzero, as the build checked). The UI's
+reciprocal is `divideBalls(exact(1), value)`, still in the component, and
+still left out when it fails.
+
+Tests: `convert` of an inexact `have` carries its radius; a list of an
+inexact `have` has the radius on its remainder alone; `roundTerms` keeps
+the radius; the pipeline tests read `.mid` where they read the value.
+
+Behavior: none visible; the radius now reaches the UI and is ignored
+there until 1.9.
+
+### 1.9 The display rule
+
+New `src/core/display.ts`: `show(ball, digits, mode)` returns `{ text,
+exact }`: `text` is `format(mid, digits, mode)` and `exact` is true when
+the radius is zero and `roundTo(mid, digits, mode)` equals `mid`, which is
+the study's rule for `=` (radius zero, and every digit held is shown).
+`unit-converter.ts` calls it for every term and `shownExactly` goes; the
+list's relation is `=` when every term is `exact`. The digits and the
+mode come from the component's context property, which 1.11 wires; until
+then it passes `DEFAULT_DIGITS` and `DEFAULT_ROUNDING`.
+
+Tests: `show` on an exact `127/50` at eight digits is exact, on `1/3` is
+not, on `sqrt 2` (a ball of one ulp) is not however many digits, on
+`2 ± 0` from `sqrt(4)` is exact.
+
+Behavior: one visible change, `sqrt(2)^2` shows `≈ 2.0000000` rather than
+`= 2`, which is the fix the study describes.
+
+### 1.10 Settings and the UI
+
+New `src/settings.ts` (app, not core): `Settings = { digits; rounding }`,
+`DEFAULT_SETTINGS`, `loadSettings` and `saveSettings` over `localStorage`
+with validation (an integer `digits` in `[1, MAX_DIGITS]`, a name in
+`ROUNDING_MODES`; anything else is the default), and `contextOf(settings)`.
+`app-shell.ts` owns the settings, renders a `<details>` with a number
+input for the digits and a `<select>` for the mode, saves on change, and
+passes the context to `<unit-converter>` as a property. The component
+uses it in `evaluateText`, `convertText`, `roundTerms` and `show`.
+`DISPLAY_PRECISION` goes; `MAX_DIGITS` lives in context.ts (its value is
+D12's, set here at 200 and cited there).
+
+Tests: `settings.ts` under Node with a fake storage object (parse, clamp,
+round trip). The component is not tested, as today.
+
+Behavior: the digits and the rounding mode are the user's.
+
+### 1.11 Stage 1 docs
+
+ARCHITECTURE.md: "Precision and rounding" rewritten around the ball and
+the context, "UI" for the settings and the `=` rule, "Layout" for the new
+modules; README.md gains a short "Settings" section; module headers that
+mention truncation or `DEFAULT_PRECISION` are corrected; docs/calculator.md
+gets a status line naming this plan.
+
+## Stage 2: the kernel, `root`, `pi`, the retry loop
+
+Firm. What lands: the fixed-point kernel on which every inexact function
+will run; `root` on it, honoring the mode and propagating its argument's
+radius; certification and the display's rule for fewer digits than asked;
+the retry loop in the pipeline; `pi` computed on demand. After this stage
+`sqrt(2)^2 - 2` is `≈ 0` with a bound and `sqrt(2)` at 50 digits is 50
+correct digits.
+
+### 2.1 The kernel's values and exact operations
+
+New `src/core/fixed.ts`, per D9: `Fixed = { value: bigint; error: bigint;
+bits: number }`; `bitsFor(precision)`, the bits for a decimal precision
+plus `GUARD_BITS` (32); `fixedFromRational(r, bits)` (rounded to nearest,
+error 1); `fixedFromBall(b, bits)` (the midpoint so, plus the radius in
+ulps rounded up; unbounded is a precondition failure, since the caller
+returns unbounded without computing); `fixedToBall(f, context)` (the
+midpoint `value × 2^-bits` rounded to the context's precision in its mode,
+the radius `radiusAbove` of `error × 2^-bits` plus the rounding's error,
+which is one unit in the last decimal digit at most); `addFixed`,
+`subtractFixed`, `multiplyFixed` (the value is the product shifted down
+by `bits`; the error is `|a| eb + |b| ea + ea eb` shifted down and rounded
+up, plus one for the shift), `divideFixed` (a precondition that the
+divisor's interval excludes zero), `shiftFixed`, `absFixed`, `compareFixed`
+where the intervals allow it. Every routine's doc comment states its error
+rule.
+
+Tests: containment over seeded rationals for every operation, checking
+`|exact - value × 2^-bits| <= error × 2^-bits` with rational arithmetic;
+`fixedToBall` under each rounding mode contains the exact value.
+
+Behavior: none; unused.
+
+### 2.2 The kernel's roots
+
+`sqrtFixed` and `rootFixed(f, degree)` by Newton on the scaled integer
+(the `integerRoot` of rational.ts, moved here), with the error rule:
+one ulp of truncation plus the propagated error, bounded by the derivative
+`(1/n) x^(1/n - 1)` at the lower end of the argument's interval, which
+must be positive (a precondition; the caller decides what a ball around
+zero means).
+
+Tests: containment; reference digits of `sqrt 2` and `cbrt 2` at 100
+digits through `fixedToBall`.
+
+### 2.3 `rootBall` on the kernel
+
+`rootBall` in ball.ts: the exact cases as before; an exact or inexact
+argument whose ball excludes zero goes through `fixedFromBall`, `rootFixed`
+and `fixedToBall`, so the midpoint is rounded in the mode and the radius
+covers the argument's; a ball containing zero is exact zero if exact, and
+otherwise `unresolved` for an even degree (the sign is undecided) and, for
+an odd degree, a ball around zero with a radius from the interval's ends
+(the root is monotone, so `[root(lo), root(hi)]` is the answer). D5's
+unbounded radius goes, and `truncatedRoot` in rational.ts goes with it if
+nothing else uses it.
+
+Tests: the stage 1 tests, with the unbounded case replaced by containment
+over inexact arguments; directed modes give a midpoint on the side asked;
+`sqrt` of a ball straddling zero is `unresolved`, `cbrt` of one contains
+zero.
+
+Behavior: `sqrt(2)` at `p` digits now honors the rounding mode.
+
+### 2.4 Certification and the display rule
+
+`src/core/ball.ts`: `certifies(b, digits, mode)`, per D7, and
+`certifiedDigits(b, maxDigits, mode)`, the largest `d <= maxDigits` that
+`certifies`, or none. `src/core/display.ts`: `show` returns a `Shown`
+with a `kind`: `exact` (as in 1.9); `certified` (inexact, all `digits`
+certified, `text` rounded to them); `partial` (fewer, `certified: d`,
+`text` rounded to `d`); `zero` (no digit certified, the ball contains
+zero, `bound` the formatted radius, so the UI can say `≈ 0, within 1e-30`);
+`unbounded` (an unbounded radius, `text` the midpoint at `digits`, certifying
+none, as the study says the per-operation stage displays). A ball that
+certifies no digit and excludes zero is `partial` with zero digits, which
+the retry loop below prevents from reaching the display except at the
+ceiling.
+
+Tests: each kind from a constructed ball; `certifies` at a tie under each
+mode; the carry (`0.99999 ± 0.00002` at three digits certifies under
+`halfAwayFromZero`, `9.9999 ± 0.0002` at two digits does not).
+
+Behavior: the display is still called with a single pass, so `partial`
+now appears where 1.9 showed digits it could not certify. 2.5 removes
+that within the schedule.
+
+### 2.5 The retry loop
+
+`src/core/pipeline.ts`, per D12: `SCHEDULE(p)` yields the working contexts
+`p + 10`, `2 (p + 10)`, `4 (p + 10)`; `resolve(context, run, done)` calls
+`run` with each working context in turn and returns the first result that
+`done` accepts, an error other than `unresolved`, or the last result at
+the ceiling; `evaluateText` and `convertText` go through it, with `done`
+checking that every value in the result (the unit value, each list term,
+the function count) is exact, certified at `context.precision`, or
+unbounded. The `unresolved` that survives the ceiling is the error the
+user sees. The stage 1 working rule (`max(40, p + 10)`) goes.
+
+Tests: `sqrt(2)` at 8 and at 50 digits certifies on the first pass;
+`sqrt(2)^2 - 2` ends at the ceiling as `zero` with a bound;
+`1 / (sqrt(2)^2 - 2)` is `unresolved`; `(sqrt(2) + 1e-15) - sqrt(2)` at
+8 digits needs a second pass and certifies (the test counts passes through
+a `run` that records its contexts); an error in the text returns at once.
+
+Behavior: certified digits, or fewer with a note.
+
+### 2.6 The UI for the display kinds
+
+`unit-converter.ts` renders `partial` with a note ("8 of 12 digits are
+certain"), `zero` as `≈ 0` with its bound, and `unbounded` with a note
+that the digits are not certified. The settings panel caps the digits at
+`MAX_DIGITS` in the input's attributes as well as in validation.
+
+Behavior: the notes.
+
+### 2.7 `pi`
+
+New `src/core/constants.ts`: `piFixed(bits)` by Chudnovsky's series with
+binary splitting, the error bound of the truncated series stated in the
+comment (the terms decrease by a factor of about `10^14` each), memoized
+per D10; `piBall(context)` through `fixedToBall`. `bench/kernel.bench.ts`
+reports the timing at 1,000, 10,000 and 100,000 digits and asserts that
+10,000 digits cost at most thirty times 1,000 (the study measured
+twenty).
+
+Tests: reference digits to 100; the 36-digit literal in units.txt as a
+second reference; the memo answers a shorter request with the same digits.
+
+Behavior: none; unused until stage 3.
+
+### 2.8 Stage 2 docs
+
+ARCHITECTURE.md "Precision and rounding" gains the kernel, certification
+and the schedule; "Layout" the new modules; the benchmark section the
+kernel benchmark; README "Settings" explains the note about fewer digits.
+
+## Stage 3: built-in functions
+
+Firm in shape; the list of functions is the study's. What lands: calls
+with any number of arguments; a built-in kind of function beside defined
+ones, with dimension rules and domain errors; the table built at the
+setting's ceiling; the build's function check over dimensions; `pi()`
+and the elementary set; the definitions file's `pi` replaced and the
+neper and the bel defined.
+
+### 3.0 Design note
+
+docs/builtins.md, short: the names (Euler's number is `exp(1)`, Lambert's
+function is `lambertw`, no built-in collides with a unit of units.txt),
+each function's dimension rule, domain, exact cases and propagation, and
+D11 restated with the alternative. Written from this plan; the rest of
+the stage implements it.
+
+### 3.1 Calls with any number of arguments
+
+`src/core/expr.ts`: the `call` rule reads `name "(" (expr ("," expr)*)?
+")"` and the node holds `arguments: readonly Expr[]`; the comma is a new
+symbol and appears nowhere else. `src/core/evaluate.ts`: a call of a
+defined function with other than one argument fails with a new
+`arityMismatch { name, span, expected, given }`; `src/messages.ts` words
+it. `docs/functions.md` and README note the grammar.
+
+Tests: `f()`, `f(1)`, `f(1, 2 m)`, `f(1,)` is an error at the `)`, the
+spans; `tempC(1, 2)` is an arity mismatch.
+
+Behavior: `tempC(1, 2)` is an arity error rather than a parse error.
+
+### 3.2 The built-in kind
+
+New `src/core/builtins.ts`: `Builtin = { name; arity; dimensions(args:
+Dimension[], primitives): Result<Dimension, DimensionRuleError>; apply(args:
+Ball[], context): Result<Ball, BuiltinError> }`, `BUILTINS` as a map by
+name (empty in this task), and the two error types: a dimension rule's
+failure (which argument, what it must be) and `domain` (which argument,
+why). `src/core/table.ts`: `ResolvedFunction = { kind: "defined"; fn } |
+{ kind: "builtin"; fn }`; `Lookup.function` returns it; `unitLookup`
+resolves defined functions first and built-ins second (the build keeps
+them disjoint); a built-in's name used as a unit is `functionAsUnit`.
+`src/core/evaluate.ts`: the `call` case switches on the kind; the built-in
+branch evaluates every argument, applies the dimension rule (its failure
+is a new `builtinArgument` error at the call, carrying the rule's error
+and the argument's span), applies the function, and locates `domain` as
+a new `domainError` at the call and the ball errors as usual.
+`src/core/build.ts`: a definition named like a built-in is a `duplicate`
+(the error's `first` becomes a union of a definition or a built-in name),
+and the prefixed-name check runs over the built-in names too. Messages
+for the three new errors.
+
+Tests: with a test-only built-in injected through a lookup (the map is
+empty), every branch; the build rejects a unit named like a built-in.
+
+Behavior: none visible; no built-in exists.
+
+### 3.3 The table at the setting's ceiling
+
+Per D6. `src/core/pipeline.ts` exports `ceilingContext(context)` (the last
+of `SCHEDULE`). `src/system-table.ts`: `loadSystemTable(context)` fetches
+the text once and memoizes one table per working precision. `app-shell.ts`
+builds the table for the current settings and rebuilds when the digits
+change, on the main thread (milliseconds). `build.bench.ts` builds at a
+ceiling context.
+
+Tests: the memo builds once per precision and shares the text.
+
+Behavior: none visible yet; the table is precision-independent until 3.4.
+
+### 3.4 `pi()`, and the definitions file
+
+`BUILTINS` gains `pi` (arity zero, dimensionless, `piBall`); units.txt
+loses the `pi` literal and its six uses become `pi()`. `units.test.ts`:
+the angle conversions that were exact are now `≈` (`turn` into `deg`
+certifies 360 to the digits asked and is not exact), which the study
+accepts; a unit that reads `pi` is now a `functionAsUnit` error whose
+message shows `pi()`.
+
+Behavior: angle units carry a radius; `pi` alone is an error that says
+to write `pi()`.
+
+### 3.5 The build's check over dimensions
+
+New `src/core/dimension-of.ts`: `dimensionOf(expr, lookup, primitives)`,
+the abstract interpretation the study describes: a number is
+dimensionless, a unit is its dimension through the lookup (which still
+visits the walk, so unknown names and cycles are found as before), a sum
+checks conformance and takes the left's, a product or quotient combines,
+a power raises, a negation keeps, a call applies the callee's rule (a
+defined function's argument must conform to its declared unit and the
+result is the declared result's dimension; a built-in's rule is its
+`dimensions`). Its errors are the subset of `EvaluateError` a dimension
+can cause, so the messages hold. `build.ts`'s `checkFunction` evaluates
+the declared units and runs `dimensionOf` on each body with the bound
+name at the declared dimension, in place of evaluating at one of the
+unit; `applyFunction` and `invertFunction` are no longer called at build
+time. docs/functions.md's "Build-time checks" and its acceptance of the
+`1 / (x - 1)` failure are updated.
+
+Tests: `recip(x) [1;1] 1 / (x - 1) ; ...` builds; a body of the wrong
+dimension still fails with `functionMismatch`; a body that adds a length
+to a time fails with `nonconformingOperands` at its span; the walk still
+reports a cycle through a function.
+
+Behavior: functions whose bodies fail at `1` now build.
+
+### 3.6 `exp`
+
+`src/core/fixed.ts` gains `expFixed`: reduce by halving until the argument
+is below `2^-8`, Taylor with the truncation bound at the interval's upper
+end, then square back, each squaring doubling the relative error plus one
+ulp, with the guard bits raised by the number of squarings. `constants.ts`
+gains `eFixed(bits)`, the series at one by binary splitting, memoized.
+`BUILTINS` gains `exp` (one dimensionless argument; `exp(0)` exact;
+`exp(1)` from the memo).
+
+Tests: reference digits of `e` to 100; containment; exact case; the
+pipeline certifies `exp(1)` at 50 digits in one pass; `exp(1 m)` is a
+dimension-rule error whose message names the dimension.
+
+### 3.7 `ln`, `log10`, `log2`, `log(x, b)`
+
+`lnFixed`: the argument as `m × 2^k` with `m` in `[1, 2)`, `ln 2` from the
+`atanh` series at `1/3` (memoized), `m` brought near one by a few square
+roots, then `2 atanh((m - 1) / (m + 1))`. The built-ins: domain `x > 0`,
+with a ball containing zero `unresolved` and one entirely non-positive a
+`domain` error; `ln(1)` exact; `log10` and `log2` as quotients by the
+memoized constants, with the exact cases where `x` is an exact rational
+power of the base (`log10(1000)`, `log2(1/8)`), found by `exactRoot`
+style detection on the numerator and denominator; `log(x, b)` as the
+quotient of two `ln`, exact when `x` is an exact rational power of `b`
+(`log(8, 2)`, `log(1/9, 3)`), and `b` must not be one.
+
+Tests: reference digits of `ln 2` and `ln 10`; containment; every exact
+case and its neighbor; `ln(0)`, `ln(-1)` are domain errors; `ln` of
+`sqrt(2)^2 - 2` is `unresolved`; the pipeline certifies `exp(ln(3))` and
+`ln(exp(3))` at 30 digits.
+
+### 3.8 `sqrt`, `cbrt`, `pow(x, y)`
+
+`sqrt` and `cbrt` are `rootBall` under a name, with the same exact cases
+as `^(1/2)` and `^(1/3)`, so `sqrt(9/4)` is exact and `sqrt(-1)` a domain
+error (the message says a negative value has no real root). `pow(x, y)`
+is for a dimensionless base only (the rule says so): an exact rational
+`y` goes through `powRationalBall`, so `pow(2, 1/2)` is `sqrt(2)` and
+`pow(8, 1/3)` is exact `2`; otherwise `exp(y ln x)` for `x > 0`, and a
+non-positive `x` with an inexact `y` is a domain error.
+
+Tests: exact cases; containment; `pow(2 m, 2)` is a dimension-rule error
+whose message says to write `(2 m)^2`; `pow(0, 0)` is exact one as
+`0^0` is.
+
+### 3.9 `sin`, `cos`, `tan`
+
+`sinFixed` and `cosFixed`: reduce the argument by the nearest multiple of
+`pi / 2`, with `pi` taken at `bits` plus the argument's bit length so the
+reduction keeps its digits for large arguments, then Taylor; the quadrant
+from the multiple. `tan` is the quotient, `unresolved` when `cos`'s ball
+contains zero. The rule accepts a dimensionless argument or one of the
+`radian` kind alone (D11). Exact cases: zero.
+
+Tests: reference digits of `sin 1` and `cos 1`; containment across
+`[-100, 100]` and at `10^20`; `sin(30 deg)` certifies `0.5` at the digits
+asked and is not exact; `sin(1 m)` is a dimension-rule error; `sin(pi())`
+is `zero` with a bound at the ceiling.
+
+### 3.10 `asin`, `acos`, `atan`, `atan2`
+
+`atanFixed` by half-angle reduction a few times, then Taylor; `asin` and
+`acos` through `atan` and `sqrt` with the domain `[-1, 1]`, a ball
+straddling an end `unresolved`, outside a domain error; `atan2(y, x)` by
+quadrant, with `atan2(0, 0)` a domain error. Exact cases: zero, and
+`acos(1)`.
+
+Tests: reference digits of `atan 1` (a quarter of `pi`); containment;
+`asin(2)` domain; `atan2` in every quadrant against `atan`; the pipeline
+certifies `asin(sin(0.5))` at 30 digits.
+
+### 3.11 The hyperbolic functions and their inverses
+
+`sinh`, `cosh`, `tanh` through `exp`, with `sinh` for small arguments
+through its own series to avoid the cancellation of `exp(x) - exp(-x)`;
+`asinh`, `acosh`, `atanh` through `ln` and `sqrt`, `asinh` by symmetry
+for negative arguments; domains `acosh(x >= 1)` and `atanh(|x| < 1)`, the
+edges as in 3.10. Exact cases: zero, `cosh(0)`, `acosh(1)`.
+
+Tests: reference digits; containment, including `sinh(1e-10)`; the domain
+errors; identities within the radius (`cosh^2 - sinh^2` contains one).
+
+### 3.12 The neper and the bel
+
+units.txt defines `neper(x) [1;1] exp(x) ; ln(neper)`, `bel(x) [1;1]
+pow(10, x) ; log10(bel)` and `dB(x) [1;1] pow(10, x / 10) ; 10 log10(dB)`,
+with a comment on what a logarithmic unit is; README's "What the file
+contains" loses the sentence that says they cannot be defined.
+
+Tests: `dB(20)` is `= 100`, `bel(2)` is `= 100` (exact cases), `1000` into
+`dB` is `dB(30)`.
+
+### 3.13 Stage 3 docs
+
+ARCHITECTURE.md: "Functions" gains the built-in kind and the dimension
+rules; "Evaluation" the new errors; "Definitions" the check over
+dimensions; "Later" loses built-in functions; "Layout" the new modules.
+README: a "Functions in expressions" section listing the built-ins, and
+the settings note that the table is rebuilt when the digits change.
+docs/builtins.md gains its implementation notes.
+
+## Stage 4: the exponent and the decimal mode
+
+Provisional. The study's features 4 and 5 as one: the midpoint gains a
+power-of-ten exponent, and a decimal mode rounds after every operation.
+The shape below is firm; the first task refines the details against the
+kernel as it landed.
+
+### 4.0 Design note
+
+docs/decimal.md: the canonical form (D13), the alignment rule for sums and
+its `tooLarge`, the exponent bound (`10^18`), what "after every operation"
+means for a unit looked up, a power, a call, and a defined function's body
+(every result the evaluator produces is settled, in one place), and what
+the retry loop does in decimal mode (nothing).
+
+### 4.1 The exponent field, construction and comparison
+
+`rational.ts`: `Rational` gains `exp`; the constructor normalizes per D13;
+`equals` stays structural; `compare` and `sign` compare by exponent and
+digit count before any multiplication, so that `1e999999999` compares
+with `1` without being formed. `ZERO` and `ONE` unchanged in meaning.
+
+### 4.2 The exact operations with an exponent
+
+`add` and `subtract` align exponents and fail `tooLarge` when the
+alignment would exceed `MAX_BITS` (a new `Result` for two operations that
+could not fail before, which reaches `addQuantities` and the evaluator as
+a located `tooLarge`); `multiply`, `divide`, `pow` and `invert` combine
+exponents and check the bound. `dimension.ts` is untouched: its exponents
+never carry a power of ten.
+
+### 4.3 Text, rounding and digits with an exponent
+
+`parseDecimal` keeps a literal's exponent lazily, so `1e999999999` parses;
+`decimalExponent`, `roundTo`, `format` and `toFraction` account for
+`exp`; `format` writes the exponent form for anything the fixed form
+cannot hold.
+
+### 4.4 The exponent bound
+
+`MAX_EXPONENT` (`10^18`) checked wherever an exponent is combined, failing
+`tooLarge`, so that formatting is always possible.
+
+### 4.5 `mode` in the context, and settling
+
+`NumberContext` gains `mode: "exact" | "decimal"`, default exact.
+`ball.ts` gains `settle(b, context)`: in decimal mode the midpoint is
+rounded to the context's precision in its mode and the radius grows by
+the rounding's error; in exact mode it is the identity. `evaluate` settles
+every result it produces, in one place, and `unitLookup` settles a unit
+once when it is looked up; the table itself stays exact, as built.
+
+### 4.6 The pipeline in decimal mode
+
+`resolve` runs one pass in decimal mode, at the context's own precision,
+and the display marks what the radius does not certify; the schedule
+applies in exact mode only.
+
+### 4.7 The UI
+
+The mode setting beside the digits and the rounding mode; the settings
+validation; README.
+
+### 4.8 Stage 4 docs
+
+ARCHITECTURE.md "Numbers" for the exponent and the two modes.
+
+## Stage 5: the rational display
+
+Provisional; small.
+
+### 5.0 Design note
+
+A section in docs/decimal.md or its own page: the rules of feature 7, and
+the size at which an exact value's fraction is written in exponent
+notation instead (`1e+999999999` is exact and short; its digits are not).
+
+### 5.1 `show` with fractions
+
+`display.ts`: a `fractions` flag; an exact ball is written as an integer
+or a fraction in lowest terms (recovering the ordinary fraction from
+D13's form), with `needsParentheses` set for the UI when a fraction will
+precede a unit; an inexact ball falls back to the decimal display and
+says so in its kind.
+
+### 5.2 The UI
+
+The setting; the parentheses before a unit and none for a dimensionless
+value; README's example lines.
+
+## Stage 6: the exact functions, then the Gamma and Beta families
+
+Provisional; each function is a task with the three test patterns. The
+exact functions come first (D14).
+
+### 6.0 Design note
+
+docs/special.md: the dimension rules of the exact functions (`abs`,
+`floor`, `ceil`, `trunc`, `round` keep their argument's dimension; `sign`
+is dimensionless; `mod` requires conformance and keeps the dimension;
+`gcd`, `lcm`, `factorial`, `binomial`, `doublefactorial` take
+dimensionless integers), `round(x, digits)` with the context's mode as
+the default and an optional mode argument named as in `ROUNDING_MODES`,
+`floor` and its kin on a ball straddling an integer (`unresolved`), and
+for the Gamma family the algorithm per function and the bound it owes.
+
+### 6.1 The exact functions
+
+`abs`, `sign`, `floor`, `ceil`, `trunc`, `round`, `mod`, `gcd`, `lcm`,
+`factorial`, `binomial`, `doublefactorial`, each exact on exact balls,
+and on an inexact ball either exact where the interval decides (`floor`
+of a ball inside one integer's cell) or `unresolved`. `factorial` and
+`binomial` check `MAX_BITS`.
+
+### 6.2 `digamma`
+
+The recurrence up and the asymptotic series with Bernoulli numbers
+(exact rationals, computed once per precision and memoized), with the
+truncation bound of the asymptotic series stated; needed by `gamma`'s
+propagation rule.
+
+### 6.3 `gamma` and `lgamma`
+
+The shift up, the Stirling series, reflection for negative arguments,
+poles as domain errors, positive integers as exact factorials;
+propagation by `gamma × digamma`; `lgamma` alongside, since `gamma(20000)`
+exceeds `MAX_BITS` in exact mode.
+
+### 6.4 `beta`
+
+Three `gamma`s, or through `lgamma` for large arguments; exact for
+integer arguments.
+
+### 6.5 The incomplete gamma functions
+
+Lower by the power series on balls, upper by the continued fraction with
+its truncation bound, the region rule as mpmath documents it, and the
+regularized `P` and `Q`. Until the continued fraction's bound is written,
+the upper form returns an unbounded radius, which the display shows as the
+study describes.
+
+### 6.6 `erf` and `erfc`
+
+As `P(1/2, x^2)` and its complement, with the sign handling, and the
+exact case at zero.
+
+### 6.7 The incomplete beta function
+
+The continued fraction with the symmetry, its bound, and `I_x(a, b)`.
+
+### 6.8 The rest of feature 3, as wanted
+
+`zeta` (Borwein), `lambertw` (Halley on `exp`), the complete elliptic
+integrals `K` and `E` (the arithmetic-geometric mean), `legendre` and
+`chebyshev` (exact for integer order at a rational argument), Bessel `J`
+and `I` last. Each its own task and commit.
+
+### 6.9 Stage 6 docs
+
+README's list of built-ins; docs/special.md's implementation notes; the
+payload measured and recorded in docs/calculator.md against its estimate.
+
+## Stage 7: the user-function extensions
+
+Provisional.
+
+### 7.0 Design note
+
+An update to docs/functions.md: several parameters, the optional
+declaration (a missing one means plain numbers), the optional inverse (a
+function without one is not usable as a want, with an error that says so),
+and domain and range bounds, their syntax and where they are checked.
+
+### 7.1 Several parameters
+
+`definitions.ts`: the head reads `name(a, b)`; `Definition` and
+`UnitFunction` hold a list of parameters; `evaluate` binds them by position
+and `arityMismatch` covers definitions; the inverse and the want stay
+single-parameter, as the study says.
+
+### 7.2 Optional declaration and inverse
+
+The grammar and the build check for each; the pipeline's function want
+rejects a function without an inverse.
+
+### 7.3 Domain and range
+
+Two optional bounds on a definition, checked at the call and at the
+inverse, with an error that names the bound.
+
+### 7.4 Stage 7 docs
+
+README "Functions", docs/functions.md, ARCHITECTURE.md.
+
+## Stage 8: runtime
+
+Provisional, and possibly unnecessary. After stage 6 the cost of the
+slowest function at the ceiling for `MAX_DIGITS` is measured on a phone.
+If it stays under tens of milliseconds, `MAX_DIGITS` is raised as far as
+that allows and nothing else happens. If not, the pipeline moves to a Web
+Worker: the core is pure and takes plain data, so the worker is a thin
+wrapper around `convertText`, the component debounces and shows the last
+result until the next arrives, and the table is built in the worker. The
+payload is measured against the study's estimate at the end of stages 3
+and 6 in any case, and recorded in docs/calculator.md.
+
+## The first follow-up
+
+Tasks 1.1 to 1.3 are pure leaf modules with no callers and complete
+tests, and are the right first review: they fix the rounding modes, the
+radius and its rounding-up discipline before anything depends on them.
+1.4 is the mechanical widening and can go with them or alone. 1.5 to 1.9
+are the ball reaching the display, each a state the app runs in. After
+1.11 the plan is re-read against what landed, and stage 2 begins.

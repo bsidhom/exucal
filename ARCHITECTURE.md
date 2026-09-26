@@ -825,6 +825,11 @@ Planned extensions, listed to show that they fit without reshaping the core:
 - **Built-in functions** (`ln`, `sqrt`) are the "special function" of
   "Precision and rounding", which would take the working precision. They
   need only the `call` node, resolved by a lookup that knows them.
+  docs/calculator.md weighs them, with the special functions, a decimal
+  mode with rounding modes and richer user-defined functions, as one
+  program toward an arbitrary-precision calculator, and finds that the
+  precision rule above must first learn to bound the error of a
+  composition.
 - **Domain and range** on a function definition (`tempC(-300)` is a
   negative temperature today) are two optional bounds, checked at the call
   and at the inverse; docs/functions.md lists them with the other

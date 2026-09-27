@@ -398,10 +398,22 @@ guarded. This is Arb's discipline: whole-expression precision is
 untouched, since the errors settling adds are at the working precision,
 far below the digits asked, and the retry loop raises that precision
 until the digits certify; the midpoint that settling changes is one that
-nothing but the tests can see. In exact mode `settle` rounds to nearest at
-the working precision; in stage 4's decimal mode the same function rounds
-at the user's precision in the user's mode, which is that mode's
-per-operation semantics, and the two modes differ in nothing else.
+nothing but the tests can see.
+
+Where the user's rounding mode applies, then, is settled here for both
+modes. In exact mode it applies exactly once, by the display, to the
+certified value of the whole expression, and no intermediate operation
+rounds in it: settling rounds to nearest at the working precision, which
+is not a rounding the user chose but a bound on the size of a number the
+user never sees, and certification guarantees that the display's rounding
+of the midpoint is the true value's rounding in the mode, so a mode
+applied inside would change nothing that is certified and would be a
+double rounding besides. That is whole-expression rounding, the
+counterpart of whole-expression precision. In stage 4's decimal mode the
+same `settle` rounds every result at the user's precision in the user's
+mode, and the mode therefore applies at every operation: that is the
+per-operation semantics the user chooses by choosing the mode, and 4.5
+says why. The two modes differ in nothing else.
 
 **D16. Two limits, on two axes, both the user's to set.** Range and
 precision are different quantities, as a float's exponent width and
@@ -433,6 +445,18 @@ largest values whose cost stays under a latency budget per pass. The
 probe runs only when asked, since a benchmark at every launch would be
 noise on the main thread for a number the user can also type; stage 8's
 measurements of the special functions revise its budget and the defaults.
+The probe measures time alone, and memory is an explicit omission. A
+browser exposes no portable measure of the memory a page may use:
+`performance.memory` is one vendor's and deprecated,
+`navigator.deviceMemory` is a coarse bucket absent from two of the three
+engines, and `measureUserAgentSpecificMemory` needs cross-origin
+isolation; and the one way to find the limit without an API, allocating
+geometrically until something fails, can leave the page in an
+indeterminate state or crash the tab, neither of which is acceptable. The
+budget on time bounds memory indirectly for these workloads, since a
+value of `n` bits is `n / 8` bytes and the operations timed hold a few of
+them, kilobytes to a few megabytes at any latency a phone can meet. The
+decision is revisited if a portable measure appears.
 
 ## Stage 1: the context and the ball
 
@@ -940,9 +964,9 @@ it, clamped to the hard bounds and to the dependency between the two, and
 rounded down to round numbers. The budget is a constant of the module,
 with the argument for it in the header; the operations it times are named
 in one place, so that a later stage with a costlier built-in changes the
-list and nothing else. `app-shell.ts` gains a button in the settings
-panel that runs it and applies the result to both limits, disabled while
-it runs.
+list and nothing else. It measures time and not memory, for the reasons
+D16 gives. `app-shell.ts` gains a button in the settings panel that runs
+it and applies the result to both limits, disabled while it runs.
 
 Tests: with a fake clock that charges a set cost per bit, the
 recommendation is the largest size under the budget, is clamped, and
@@ -1293,11 +1317,28 @@ Behavior: `1e999999999` parses and multiplies where it fails today;
 
 `NumberContext` gains `mode: "exact" | "decimal"`, default exact. `settle`
 (2.5, D15) reads it: in decimal mode the midpoint is rounded to the
-context's precision in its mode, as a decimal, and the radius grows by the
-rounding's error; in exact mode it rounds to nearest at the working
-precision as it does from stage 2. The evaluator and the lookup already
-settle every result in one place, so nothing else changes; the table
-itself stays exact, as built.
+context's precision in the user's mode, as a decimal, and the radius
+grows by the rounding's error; in exact mode it rounds to nearest at the
+working precision as it does from stage 2. The evaluator and the lookup
+already settle every result in one place, so nothing else changes; the
+table itself stays exact, as built.
+
+What the user's rounding mode means in each mode, stated once. In exact
+mode it is applied once, by the display, to the certified value of the
+whole expression (D15). In decimal mode it governs every operation:
+`1 / 3 * 3` is `0.99999999` under `towardZero` at eight digits and `1`
+under `halfEven`, and the display's rounding is then the identity on a
+value that already has `p` digits. The difference is the point of having
+two modes rather than a quirk of the second. Decimal mode is where a user
+who wants fixed-precision arithmetic with a rounding mode, as a hand
+calculator or a decimal library gives it, gets exactly that, and rounding
+only at the end, or raising the internal precision as the retry loop
+does, would compute something other than what was asked; exact mode is
+where "compute this to `p` digits" is meant literally, and there a mode
+inside would only be a double rounding of digits certification already
+guarantees. The radius tracks each rounding in either mode, so the
+display marks the digits it does not certify in decimal mode too, as the
+study says, without escalating (4.6).
 
 ### 4.6 The pipeline in decimal mode
 

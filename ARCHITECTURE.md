@@ -749,6 +749,7 @@ changes to the core.
 
 ```
 src/core/rational.ts      Rational, arithmetic, root, parsing and formatting
+src/core/rounding.ts      RoundingMode, divideRounded: the one place a mode is interpreted
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Rational with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text

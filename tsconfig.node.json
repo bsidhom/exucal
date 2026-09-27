@@ -1,8 +1,9 @@
 // Everything that runs in Node.js rather than a browser: the build
-// configuration and its plugins, the tests and the benchmarks. The core's
-// tests run here too, and a composite project must list every file it
-// reaches, so the core itself is included as well; it is pure TypeScript
-// with no DOM dependency and checks the same under either `lib`.
+// configuration and its plugins, the tests, the test support in
+// src/testing/ and the benchmarks. The core's tests run here too, and a
+// composite project must list every file it reaches, so the core itself is
+// included as well; it is pure TypeScript with no DOM dependency and checks
+// the same under either `lib`.
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
@@ -18,6 +19,7 @@
     "rasterize-svg.ts",
     "rasterize-svg.test.ts",
     "src/core/**/*.ts",
+    "src/testing/**/*.ts",
     "src/units.test.ts",
     "src/messages.ts",
     "src/messages.test.ts",

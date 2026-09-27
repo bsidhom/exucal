@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { findAmbiguity } from "../src/core/names.ts";
-import { bestOf, millis, random } from "./harness.ts";
+import { random } from "../src/testing/random.ts";
+import { bestOf, millis } from "./harness.ts";
 import { syntheticPrefixes, syntheticUnits } from "./synthetic.ts";
 
 /** Runs the check on a table of the given size and reports the timing. */

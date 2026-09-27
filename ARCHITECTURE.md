@@ -104,6 +104,19 @@ Three rules say where, and only where, a value can lose precision:
    Truncation is the `towardZero` mode, so `root` rounds by the same
    function with that mode fixed.
 
+These three rules are being replaced by the precision model of
+docs/calculator.md, stage by stage along docs/calculator-plan.md: every
+magnitude becomes a ball, a midpoint with a radius that bounds its
+distance from the true value, and `=` is shown when the radius is zero.
+`src/core/radius.ts` is the radius, in place ahead of the ball: a coarse
+binary magnitude, `mant × 2^exp` with a 30-bit mantissa and a bigint
+exponent, or the distinguished value unbounded, with the operations a
+propagation rule needs (`radiusAbove`, the sum, the product, the power,
+the maximum, and the exact rational a bounded radius stands for), every
+one rounding up so that a radius is always a true bound. The plan's D3
+says why it is neither a `Rational` nor a `number`. Nothing uses it yet;
+until the ball lands, the rules above are the ones in force.
+
 **Working precision.** `evaluate` takes one precision and passes it to every
 inexact operation; it is a working precision, not the display precision. The
 app passes `DEFAULT_PRECISION` (40 significant digits) everywhere, including
@@ -767,6 +780,7 @@ changes to the core.
 ```
 src/core/rational.ts      Rational, arithmetic, root, parsing and formatting
 src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted
+src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Rational with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text
@@ -783,6 +797,7 @@ src/core/convert.ts       convert
 src/core/pipeline.ts      convertText, evaluateText: the pipeline over text
 src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions; src/units.test.ts checks them
+src/testing/random.ts     the seeded random source the tests and benchmarks share
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemTable: fetches and builds the system table, once
 src/unit-converter.ts     the component
@@ -806,10 +821,15 @@ default discovery never matches it, so the two are separate without a second
 runner. `tsconfig.node.json` includes `bench/`, so they type-check with the
 tests. The rest of the directory is what they share:
 
-- `bench/harness.ts` holds a seeded random source (mulberry32), so that
-  every run measures the same data, and `bestOf`, which times a function
-  several times after one untimed run and takes the shortest, the estimate
-  least disturbed by whatever else the machine is doing.
+- `src/testing/random.ts` is the one seeded random source (mulberry32)
+  that the tests and the benchmarks share, with `randomBigInt` and
+  `randomRational` for the numeric tests, so that every run measures the
+  same data, every property test draws its inputs the same way, and no
+  test carries a generator of its own. `bench/harness.ts` holds what only
+  the benchmarks need: `word`, which draws a name from it, and `bestOf`,
+  which times a function several times after one untimed run and takes
+  the shortest, the estimate least disturbed by whatever else the machine
+  is doing.
 - `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
   drawn from the letters `n` to `z` and unit names from `a` to `m`, so
   that no name is ambiguous and the ambiguity check scans everything: its

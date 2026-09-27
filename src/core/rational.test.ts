@@ -33,6 +33,7 @@ import {
 } from "./rational.ts";
 import type { Result } from "./result.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./rounding.ts";
+import { random, randomRational } from "../testing/random.ts";
 
 /** Unwraps a result that is expected to succeed. */
 function unwrap<T>(result: Result<T, RationalError>): T {
@@ -674,31 +675,10 @@ test("format and parseDecimal round-trip", () => {
 // ---------------------------------------------------------------------------
 // Properties over pseudo-random inputs
 
-/** A small deterministic generator, so that failures reproduce. */
-function* lcg(seed: number): Generator<number> {
-  let state = seed;
-  for (;;) {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-    yield state;
-  }
-}
-
+/** `count` seeded rationals of about six digits over six, at magnitudes up to `10^±20`. */
 function randomRationals(count: number): Rational[] {
-  const values: Rational[] = [];
-  const random = lcg(12345);
-  for (let i = 0; i < count; i++) {
-    const num = BigInt((random.next().value % 2_000_001) - 1_000_000);
-    const den = BigInt((random.next().value % 1_000_000) + 1);
-    // Mix in some very large and very small magnitudes.
-    const scale = (random.next().value % 41) - 20;
-    const r = rational(num, den);
-    values.push(
-      scale >= 0
-        ? multiply(r, rational(10n ** BigInt(scale)))
-        : multiply(r, rational(1n, 10n ** BigInt(-scale))),
-    );
-  }
-  return values;
+  const rand = random(12345);
+  return Array.from({ length: count }, () => randomRational(rand, 20, 20));
 }
 
 /** One unit in the last of `digits` significant digits of `r`. */

@@ -10,11 +10,20 @@
 
 import {
   formatDimension,
+  isDimensionless,
   type ConformanceError,
+  type Dimension,
   type Primitives,
 } from "./core/dimension.ts";
+import {
+  RADIAN,
+  type DimensionRuleError,
+  type DomainReason,
+  type Edge,
+} from "./core/builtins.ts";
 import { type UnitListError } from "./core/convert.ts";
-import { type EvaluateError } from "./core/evaluate.ts";
+import { type Arity, type EvaluateError } from "./core/evaluate.ts";
+import { ZERO, equals, toFraction } from "./core/rational.ts";
 import {
   type ConversionError,
   type InverseFailed,
@@ -29,9 +38,16 @@ import { type Span } from "./core/span.ts";
  * them would be, with both dimensions, which `primitives` formats, and so
  * is a call whose argument does not conform to what the function takes. A
  * call of a unit shows the product it probably stood for, with the space
- * that makes it one, and a function used as a unit shows the call form. A
+ * that makes it one, and a function used as a unit shows the call form; a
+ * call with the wrong count of arguments says how many the function takes. A
  * call whose body fails is described by what the body does, since its
- * spans are into the definitions text, which is not the text shown.
+ * spans are into the definitions text, which is not the text shown. A
+ * built-in whose dimension rule fails is worded from the rule's data: what
+ * the argument must be, and how to write the call when there is a way
+ * (`sin(1 radian)` for a plain number where an angle is wanted, `(2 m)^2`
+ * for a quantity as the base of `pow`); one outside its domain quotes the
+ * argument and says the domain; a value that straddles an edge names the
+ * edge (zero, `1`, `-1`, or a pole of the tangent).
  */
 export function describeTextError(
   error: TextError,
@@ -50,7 +66,7 @@ export function describeTextError(
     case "unknownUnit":
       return `Unknown unit ${quote(error.name)}.`;
     case "functionAsUnit":
-      return `${quote(error.name)} is a function, not a unit. To apply it to a value, write ${quote(`${error.name}(value)`)}.`;
+      return `${quote(error.name)} is a function, not a unit. ${callForm(error.name, error.arity)}`;
     case "notAFunction": {
       if (error.otherwise === "nothing") {
         return `Unknown function ${quote(error.name)}.`;
@@ -60,8 +76,10 @@ export function describeTextError(
     }
     case "divisionByZero":
       return `Division by zero in ${quote(slice(text, error.span))}.`;
-    case "unresolved":
-      return `${quote(slice(text, error.span))} cannot be told from zero at this precision, and the result depends on which side of zero it lies.`;
+    case "unresolved": {
+      const edge = describeEdge(error.edge);
+      return `${quote(slice(text, error.span))} cannot be told from ${edge} at this precision, and the result depends on which side of ${error.edge === "pole" ? "it" : edge} it lies.`;
+    }
     case "negativeRadicand":
       return `${quote(slice(text, error.span))} takes an even root of a negative value.`;
     case "tooLarge":
@@ -75,13 +93,156 @@ export function describeTextError(
           : `Cannot subtract ${right} from ${left}`;
       return `${operation}: ${describeMismatch(error.mismatch, left, right, primitives)}.`;
     }
+    case "arityMismatch":
+      return `${quote(error.name)} takes ${describeArity(error.expected)}, but ${quote(slice(text, error.span))} gives ${count(error.given, "argument")}.`;
     case "argumentMismatch": {
       const name = quote(error.name);
       const argument = quote(slice(text, error.argument));
       return `Cannot apply ${name} to ${argument}: ${describeMismatch(error.mismatch, argument, `the argument of ${name}`, primitives)}.`;
     }
     case "callFailed":
-      return `Cannot compute ${quote(slice(text, error.span))}: the definition of ${quote(error.name)} ${describeBody(error.error)}.`;
+      return `Cannot compute ${quote(slice(text, error.span))}: the definition of ${quote(error.name)} ${describeBody(error.error, primitives)}.`;
+    case "builtinArgument":
+      return describeBuiltinArgument(error, text, primitives);
+    case "domainError": {
+      const argument = quote(slice(text, error.arguments[error.argument]!));
+      return `Cannot compute ${quote(slice(text, error.span))}: ${describeDomain(error.name, error.reason, argument)}.`;
+    }
+  }
+}
+
+/**
+ * Why the built-in `name` does not accept its arguments' dimensions, as
+ * one sentence from the rule's data: the argument quoted, what it must be
+ * (a plain number, or an angle when the dimension wanted is the radian
+ * kind), and how to write the call when there is a way.
+ */
+function describeBuiltinArgument(
+  error: Extract<EvaluateError, { kind: "builtinArgument" }>,
+  text: string,
+  primitives: Primitives,
+): string {
+  const name = quote(error.name);
+  const rule = error.error;
+  const argumentText = (index: number) =>
+    quote(slice(text, error.arguments[index]!));
+  switch (rule.kind) {
+    case "argumentDimension": {
+      const argument = argumentText(rule.argument);
+      const have = formatDimension(rule.mismatch.have, primitives);
+      if (isAngle(rule.want, primitives)) {
+        return isDimensionless(rule.mismatch.have)
+          ? `Cannot apply ${name} to ${argument}: ${argument} is a plain number, but ${name} takes an angle; write ${quote(`${error.name}(${slice(text, error.arguments[rule.argument]!)} ${RADIAN})`)}.`
+          : `Cannot apply ${name} to ${argument}: ${argument} has dimension ${have}, but ${name} takes an angle.`;
+      }
+      if (error.name === "pow" && rule.argument === 0) {
+        const exponent = error.arguments[1];
+        const power =
+          exponent === undefined
+            ? ""
+            : `; for a power of a quantity, write ${quote(`(${slice(text, error.arguments[0]!)})^${slice(text, exponent)}`)}`;
+        return `Cannot apply ${name} to ${argument}: the base must be a plain number${power}.`;
+      }
+      return `Cannot apply ${name} to ${argument}: ${argument} has dimension ${have}, but ${whichArgument(rule.argument, error.arguments.length)} of ${name} must be a plain number.`;
+    }
+    case "nonconformingArguments": {
+      const left = argumentText(rule.left);
+      const right = argumentText(rule.right);
+      return `Cannot apply ${name} to ${left} and ${right}: ${describeMismatch(rule.mismatch, left, right, primitives)}.`;
+    }
+    case "noAngles":
+      return `${name} takes an angle, and these units declare none.`;
+  }
+}
+
+/** Whether `want`, the dimension a rule asks for, is the radian kind. */
+function isAngle(want: Dimension, primitives: Primitives): boolean {
+  return (
+    want.size === 1 && want.has(RADIAN) && primitives.get(RADIAN) === "kind"
+  );
+}
+
+/** `the argument`, or `the first argument` of several. */
+function whichArgument(index: number, count: number): string {
+  if (count <= 1) return "the argument";
+  const ordinal =
+    ["first", "second", "third", "fourth"][index] ?? `${index + 1}th`;
+  return `the ${ordinal} argument`;
+}
+
+/**
+ * Why the `argument` of the built-in `name` is outside its domain, without
+ * the final period: the reason as a clause about the value quoted.
+ */
+function describeDomain(
+  name: string,
+  reason: DomainReason,
+  argument: string,
+): string {
+  const fn = quote(name);
+  switch (reason) {
+    case "notPositive":
+      return name === "pow"
+        ? `${argument} is not positive, and a power with an inexact exponent is defined only for a positive base`
+        : `${argument} is not positive, and a logarithm is defined only for positive values`;
+    case "baseOne":
+      return `the base ${argument} is one, and no logarithm has base one`;
+    case "outsideClosedUnitInterval":
+      return `${argument} lies outside [-1, 1], where ${fn} is defined`;
+    case "belowOne":
+      return `${argument} is less than 1, and ${fn} is defined only from 1 up`;
+    case "outsideOpenUnitInterval":
+      return `${argument} is not strictly between -1 and 1, where ${fn} is defined`;
+    case "origin":
+      return `both arguments are zero, and the origin has no direction`;
+  }
+}
+
+/** What a reason says the value is, as a noun phrase, for a body's description. */
+function domainValue(reason: DomainReason): string {
+  switch (reason) {
+    case "notPositive":
+      return "a value that is not positive";
+    case "baseOne":
+      return "a base of one";
+    case "outsideClosedUnitInterval":
+      return "a value outside [-1, 1]";
+    case "belowOne":
+      return "a value less than 1";
+    case "outsideOpenUnitInterval":
+      return "a value not strictly between -1 and 1";
+    case "origin":
+      return "the origin";
+  }
+}
+
+/** The edge a value cannot be told from, in words: `zero`, `1`, `-1`, `a pole of the tangent`. */
+function describeEdge(edge: Edge): string {
+  if (edge === "pole") return "a pole of the tangent";
+  return equals(edge, ZERO) ? "zero" : toFraction(edge);
+}
+
+/** How to call the function `name` of `arity`, as the message for a name used as a unit says it. */
+function callForm(name: string, arity: Arity): string {
+  if (arity.max === 0) return `To call it, write ${quote(`${name}()`)}.`;
+  if (arity.min <= 1) {
+    return `To apply it to a value, write ${quote(`${name}(value)`)}.`;
+  }
+  const values = Array.from({ length: arity.min }, () => "value").join(", ");
+  return `To apply it to values, write ${quote(`${name}(${values})`)}.`;
+}
+
+/** What a rule's failure says the argument is not, for a body's description. */
+function ruleWants(rule: DimensionRuleError, primitives: Primitives): string {
+  switch (rule.kind) {
+    case "argumentDimension":
+      return isAngle(rule.want, primitives)
+        ? "an argument that is not an angle"
+        : "an argument that is not a plain number";
+    case "nonconformingArguments":
+      return "arguments that do not conform";
+    case "noAngles":
+      return "an angle in units that declare none";
   }
 }
 
@@ -101,7 +262,7 @@ export function describeConversionError(
   switch (error.kind) {
     case "inputError":
       return error.error.kind === "inverseFailed"
-        ? describeInverseFailed(error.error, have)
+        ? describeInverseFailed(error.error, have, primitives)
         : describeTextError(
             error.error,
             error.side === "have" ? have : want,
@@ -143,8 +304,12 @@ function describeUnitListError(
 }
 
 /** Why the want's function has no argument for `have`, as one sentence. */
-function describeInverseFailed(error: InverseFailed, have: string): string {
-  return `Cannot invert ${quote(error.name)} for ${quote(have.trim())}: the inverse of ${quote(error.name)} ${describeBody(error.error)}.`;
+function describeInverseFailed(
+  error: InverseFailed,
+  have: string,
+  primitives: Primitives,
+): string {
+  return `Cannot invert ${quote(error.name)} for ${quote(have.trim())}: the inverse of ${quote(error.name)} ${describeBody(error.error, primitives)}.`;
 }
 
 /**
@@ -152,12 +317,12 @@ function describeInverseFailed(error: InverseFailed, have: string): string {
  * definition (`divides by zero`), without the text: the body's spans are
  * into the definitions, which the user does not see.
  */
-function describeBody(error: EvaluateError): string {
+function describeBody(error: EvaluateError, primitives: Primitives): string {
   switch (error.kind) {
     case "divisionByZero":
       return "divides by zero";
     case "unresolved":
-      return "depends on a value that cannot be told from zero at this precision";
+      return `depends on a value that cannot be told from ${describeEdge(error.edge)} at this precision`;
     case "negativeRadicand":
       return "takes an even root of a negative value";
     case "tooLarge":
@@ -166,10 +331,16 @@ function describeBody(error: EvaluateError): string {
       return error.op === "add"
         ? "adds quantities that do not conform"
         : "subtracts quantities that do not conform";
+    case "arityMismatch":
+      return `gives ${quote(error.name)} ${count(error.given, "argument")}, where it takes ${describeArity(error.expected)}`;
     case "argumentMismatch":
       return `passes ${quote(error.name)} an argument that does not conform`;
     case "callFailed":
-      return `calls ${quote(error.name)}, whose definition ${describeBody(error.error)}`;
+      return `calls ${quote(error.name)}, whose definition ${describeBody(error.error, primitives)}`;
+    case "builtinArgument":
+      return `passes ${quote(error.name)} ${ruleWants(error.error, primitives)}`;
+    case "domainError":
+      return `applies ${quote(error.name)} to ${domainValue(error.reason)}`;
   }
 }
 
@@ -195,6 +366,18 @@ function describeMismatch(
     case "kindMismatch":
       return `${have} (${haveDimension}) and ${want} (${wantDimension}) differ in kind: ${error.kinds.join(", ")}`;
   }
+}
+
+/** `no arguments`, `1 argument`, `2 arguments`, `1 to 3 arguments`: how many a function takes. */
+function describeArity(arity: Arity): string {
+  if (arity.min === arity.max) return count(arity.min, "argument");
+  return `${arity.min} to ${arity.max} arguments`;
+}
+
+/** `no things`, `1 thing`, `2 things`. */
+function count(n: number, noun: string): string {
+  if (n === 0) return `no ${noun}s`;
+  return n === 1 ? `1 ${noun}` : `${n} ${noun}s`;
 }
 
 function quote(text: string): string {

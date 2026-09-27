@@ -668,6 +668,7 @@ test("a function's name means the function only on its own", () => {
       kind: "functionAsUnit",
       name: "tempC",
       span: { start: 2, end: 7 },
+      arity: { min: 1, max: 1 },
     },
   });
   assert.deepEqual(failure("1 K", "tempC;K"), {
@@ -677,6 +678,7 @@ test("a function's name means the function only on its own", () => {
       kind: "functionAsUnit",
       name: "tempC",
       span: { start: 0, end: 5 },
+      arity: { min: 1, max: 1 },
     },
   });
   assert.deepEqual(failure("tempC", "K"), {
@@ -686,6 +688,7 @@ test("a function's name means the function only on its own", () => {
       kind: "functionAsUnit",
       name: "tempC",
       span: { start: 0, end: 5 },
+      arity: { min: 1, max: 1 },
     },
   });
 });

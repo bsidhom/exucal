@@ -15,19 +15,25 @@
 // The functions are apart from the units in the same way (docs/functions.md):
 // a function's name means something only in a call, `tempC(100)`, or as a
 // `want` on its own, and typed as a unit it is a `functionAsUnit` error,
-// which says so. A function is held as its two bodies, as expressions, with
-// the units it declares for its argument and its result, each with its
-// text as written, since the converter writes a recovered argument in it;
-// the builder has checked the bodies against the declaration, so a call
-// can fail only on its argument or on a value. The name of a call resolves
-// among the functions alone, and a name that is not one is a
-// `notAFunction` error that says what the name is otherwise, so that the
-// message for `kg(m/s)` can show the product the user probably meant.
+// which says so and carries the count of arguments the function takes, so
+// that the message can show the call form. A function is held as its two
+// bodies, as expressions, with the units it declares for its argument and
+// its result, each with its text as written, since the converter writes a
+// recovered argument in it; the builder has checked the bodies against
+// the declaration, so a call can fail only on its argument or on a value.
+// The built-ins (builtins.ts, docs/builtins.md) share the namespace: the
+// table carries the set it was built against, the builder having kept the
+// two disjoint, and the name of a call resolves among the defined
+// functions first and the built-ins second, as a `ResolvedFunction` that
+// says which kind it found. A name that is neither is a `notAFunction`
+// error that says what the name is otherwise, so that the message for
+// `kg(m/s)` can show the product the user probably meant.
 
 import { type NumberContext } from "./context.ts";
 import { type Ball } from "./ball.ts";
+import { type Builtin, type Builtins } from "./builtins.ts";
 import { DIMENSIONLESS, type Primitives } from "./dimension.ts";
-import { type Lookup } from "./evaluate.ts";
+import { ONE_ARGUMENT, type Arity, type Lookup } from "./evaluate.ts";
 import { type Expr } from "./expr.ts";
 import { resolveName, type Resolution } from "./names.ts";
 import {
@@ -49,6 +55,8 @@ export type UnitTable = {
   readonly unitLists: ReadonlyMap<string, UnitList>;
   /** The functions, by name. */
   readonly functions: ReadonlyMap<string, UnitFunction>;
+  /** The built-ins the table was built against, disjoint from the functions and the units. */
+  readonly builtins: Builtins;
 };
 
 /** A unit list: two or more units, all of one dimension, positive and decreasing. */
@@ -86,11 +94,21 @@ export type UnknownUnit = {
   readonly span: Span;
 };
 
-/** The name at `span`, used as a unit, is a function, which only a call applies. */
+/** What a call's name resolves to: a function the table defines, or a built-in. */
+export type ResolvedFunction =
+  | { readonly kind: "defined"; readonly fn: UnitFunction }
+  | { readonly kind: "builtin"; readonly fn: Builtin };
+
+/**
+ * The name at `span`, used as a unit, is a function, which only a call
+ * applies; `arity` is how many arguments it takes, for the call form the
+ * message shows.
+ */
 export type FunctionAsUnit = {
   readonly kind: "functionAsUnit";
   readonly name: string;
   readonly span: Span;
+  readonly arity: Arity;
 };
 
 /**
@@ -114,7 +132,7 @@ export type LookupError = UnknownUnit | FunctionAsUnit | NotAFunction;
  * `context`: an exact unit name if the table has one, otherwise one prefix
  * followed by a unit name, whose quantity is the unit's scaled by the
  * prefix's factor, each settled to the context's precision; and, for a
- * call, a function by its name.
+ * call, a function by its name, defined first and built-in second.
  */
 export function unitLookup(
   table: UnitTable,
@@ -124,10 +142,11 @@ export function unitLookup(
     unit: (name, span) => {
       const found = resolveName(name, table.prefixes, table.units);
       if (found === undefined) {
+        const arity = functionArity(name, table.functions, table.builtins);
         return err(
-          table.functions.has(name)
-            ? { kind: "functionAsUnit", name, span }
-            : { kind: "unknownUnit", name, span },
+          arity === undefined
+            ? { kind: "unknownUnit", name, span }
+            : { kind: "functionAsUnit", name, span, arity },
         );
       }
       // Settled once here (D15): a unit built at a higher precision is cut
@@ -145,7 +164,7 @@ export function unitLookup(
       );
     },
     function: (name, span, call) => {
-      const found = table.functions.get(name);
+      const found = resolveFunction(name, table.functions, table.builtins);
       if (found !== undefined) return ok(found);
       return err({
         kind: "notAFunction",
@@ -156,6 +175,36 @@ export function unitLookup(
       });
     },
   };
+}
+
+/**
+ * The function `name` resolves to among `functions` and then `builtins`,
+ * or `undefined`. The build's lookup applies the same order over the
+ * definitions it indexes.
+ */
+export function resolveFunction(
+  name: string,
+  functions: ReadonlyMap<string, UnitFunction>,
+  builtins: Builtins,
+): ResolvedFunction | undefined {
+  const defined = functions.get(name);
+  if (defined !== undefined) return { kind: "defined", fn: defined };
+  const builtin = builtins.get(name);
+  return builtin === undefined ? undefined : { kind: "builtin", fn: builtin };
+}
+
+/**
+ * How many arguments the function `name` takes, among `functions` (one)
+ * and `builtins`, or `undefined` when there is no such function: what a
+ * `functionAsUnit` error carries.
+ */
+export function functionArity<F>(
+  name: string,
+  functions: ReadonlyMap<string, F>,
+  builtins: Builtins,
+): Arity | undefined {
+  if (functions.has(name)) return ONE_ARGUMENT;
+  return builtins.get(name)?.arity;
 }
 
 /** What a name that is not a function is, from its resolution as a unit. */

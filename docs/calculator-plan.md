@@ -5,7 +5,10 @@ landed" and "Stage 2 as it landed" at the end record where the code
 diverged from the tasks as first written. D13 was revised in review of
 the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
-2.2 and 2.5 among others); the stage's introduction lists the changes. docs/calculator.md is the design study
+2.2 and 2.5 among others); the stage's introduction lists the changes.
+Stage 3 was reviewed the same way against the stage 2 code and revised
+(D1, D4, D10, D12, D16 and every task from 3.1 to 3.13); its introduction
+lists the changes. docs/calculator.md is the design study
 and its "A sequence for the follow-ups" is the order this plan follows.
 This document turns that sequence into tasks small enough that each is one
 commit, reviewable on its own, with the tests that prove it and the state
@@ -40,7 +43,8 @@ Numeric tests follow three patterns, named here so that later tasks can
 refer to them:
 
 - **Reference digits.** A value checked against digits from a trusted
-  source (the first hundred digits of `pi`, `e`, `ln 2`, `sqrt 2`), to at
+  source (the first hundred digits of `pi()`, `exp(1)`, `ln(2)`,
+  `sqrt(2)`), to at
   least fifty digits, so that an algorithm that is wrong in its tail is
   caught.
 - **Containment.** For a routine that returns a ball, the ball computed at
@@ -50,7 +54,7 @@ refer to them:
   and every inexact routine has one.
 - **Exact case.** Every input the routine is required to recognize as
   exact gives a ball of radius zero with the exact midpoint (`sqrt(9/4)`,
-  `exp(0)`, `log(8, 2)`), and an input next to it does not.
+  `exp(0)`, `log(2, 8)`), and an input next to it does not.
 
 ## Decisions
 
@@ -60,7 +64,8 @@ open or a detail it does not reach, and the reasoning is given once here.
 **D1. One context type, with `precision` meaning the working precision
 below the pipeline and the digits wanted at its boundary.** `NumberContext`
 is `{ precision, rounding }` in stage 1, gains `maxBits` (the range limit
-of D16) in stage 2 and `mode` in stage 4. Every
+of D16) in stage 2, `ceiling` (the top of the retry schedule, D12) in
+stage 3 and `mode` in stage 4. Every
 core function that does arithmetic takes one and treats `precision` as the
 precision it computes at. The pipeline is the one place that knows the
 difference between the digits the user asked for and the precision the
@@ -68,7 +73,17 @@ evaluation runs at: it takes the user's context and derives working
 contexts from it (a fixed guard in stage 1, the retry schedule from
 stage 2). A second type for the user's settings would be the same fields
 with one renamed, and the distinction is one of level, stated in the
-pipeline's header, not of shape.
+pipeline's header, not of shape. `maxBits` and `ceiling` are the same at
+both levels: the one bounds what any pass may form, the other how far the
+passes may rise, and `checkContext` holds `precision <= ceiling`. The
+ceiling is in the context so that it reaches a built-in: the memos of D10
+are sized by it, and `pi()` reads it from the context it is called with.
+Stage 3's review weighed the alternatives, a parameter beside the context
+on every function that does arithmetic, which is what this decision
+exists to avoid, and a lookup closing over the ceiling, which the table's
+lookup and the build's would each have to carry; the field removed the
+parameter the pipeline and the shell already passed beside the context
+rather than adding one.
 
 **D2. `mode` enters the context in stage 4, not stage 1.** A field with no
 effect is a field a reviewer cannot audit. The rounding mode has an
@@ -108,7 +123,12 @@ later stages `ln` at a ball straddling zero, `floor` at a ball straddling
 an integer), fails with `unresolved`. It is distinct from `divisionByZero`
 (the divisor is exactly zero), because the retry loop retries on the first
 and never on the second. At the ceiling the pipeline reports it, and the
-message says the value cannot be told from zero at this precision.
+message says the value cannot be told, at this precision, from the edge
+the result depends on: zero for a divisor or a base, and from stage 3
+also `1` or `-1` (`asin` at the end of its domain, `log` at base one) or a
+pole of `tan`. The error carries the edge as data (`edge: Rational |
+"pole"`, zero at every producer before stage 3) and messages.ts words it,
+so that one sentence pattern serves every case.
 
 **D5. Stage 1's `root` is the least that is honest.** It returns the
 truncated digits it computes today with a radius of one unit in the last
@@ -230,20 +250,26 @@ bounded.** The core has no globals, but a memo of a pure function of its
 precision is unobservable through the core's results, as `lazy` in
 parser.ts is, and the study asks for exactly that memo. Through memory it
 is observable, so its footprint is fixed by construction rather than
-bounded by an eviction policy: each constant's module holds exactly one
-value, the digits at the ceiling of D12, computed on first use at the
-ceiling however low the first request, and every request at or below the
-ceiling, which is every request the retry loop can make, rounds down from
-it. A request at a higher ceiling, after the cap setting is raised,
-replaces the value; a lower one leaves it. The footprint is therefore
-fixed by the ceiling (about 1.7 KB per constant at the default ceiling of
-4,040 digits, two constants), never by what the user has typed, and the
-largest it can be is set by the hard bound on the cap (D16). The one
-request above the ceiling is the argument reduction of `sin` and `cos` at
-a large argument, which needs `pi` to the ceiling plus the argument's bit
-length (under the range limit; an argument beyond that is refused as
-`tooLarge`): it is computed for that call and not kept, so a `sin(1e5000)`
-costs its milliseconds each time it is typed and leaves nothing behind.
+bounded by an eviction policy: each constant holds exactly one value, the
+digits at the ceiling of D12 plus a margin of 64 bits, computed on first
+use however low the first request, and every request at or below that,
+which is every request the retry loop can make, is truncated from it. A
+request at a higher ceiling, after the cap setting is raised, replaces
+the value; a lower one leaves it. The footprint is therefore fixed by the
+ceiling (about 1.7 KB per constant at the default ceiling of 4,040
+digits; four constants, `pi()`, `exp(1)`, `ln(2)` and `ln(10)`), never by what the
+user has typed, and the largest it can be is set by the hard bound on the
+cap (D16). The margin is for the argument reduction of `sin` and `cos`,
+which needs `pi` to the working bits plus the argument's bit length: at
+the ceiling pass that exceeds the ceiling by the argument's bit length,
+so without the margin every `sin(1 radian)` would recompute `pi` there;
+with it, every argument below `2^64` is served from the memo at every
+pass. The one request above the memo is that reduction at a larger
+argument (under the range limit; an argument beyond that is refused as
+`tooLarge`): it is computed for that call and not kept, so a `sin(1e5000
+radian)` costs its milliseconds each time it is typed, at most `pi` to the
+range limit plus the ceiling, about 25 ms at the defaults, and leaves
+nothing behind.
 The alternative, keeping the largest value seen, is what the study
 describes and would be bounded too, but its footprint would depend on
 what the user had typed, and freeing it would need a policy; the value at
@@ -308,9 +334,16 @@ never resolve (`sin(pi() radian)`, `sqrt(2)^2 - 2`) run to the ceiling
 however it is set, which is what bounds their latency, and the cap is
 therefore a cost setting: every elementary function at four thousand
 digits is milliseconds, and the special functions of stage 6 are where
-the cost is measured (stage 8). The ceiling is the pipeline's parameter,
-passed beside the user's context by the shell, which owns the setting; a
-context whose precision exceeds the cap is a precondition failure. The
+the cost is measured (stage 8). The ceiling is a field of the context (D1), set by
+the shell from the cap it owns and the same in every working context the
+schedule derives; a context whose precision exceeds the cap is a
+precondition failure of the schedule. The ceiling is static, the user's:
+it bounds the schedule, and so the latency, and it sizes the memos of
+D10. An operation that needs more headroom than the working precision
+takes it inside the kernel (the guard bits, the extra terms of a series,
+`pi` to the working bits plus the argument's bit length for a reduction)
+and never moves the ceiling, since headroom is a property of one routine
+at one argument and the ceiling a property of the whole schedule. The
 hard bound on the cap comes from the range limit, D16, since a settled
 midpoint at the ceiling must fit it with room for a product of two: at
 the default range limit the cap may be raised to about 2,400 digits, and
@@ -440,7 +473,9 @@ the settings panel offers to recommend them: a probe (app code, beside
 settings.ts) times the app's costliest operations at increasing sizes, an
 exact operation on values of a given size for the range limit and the
 costliest inexact operation the app has at a given precision for the cap
-(the root and `pi` in stage 2; a later stage names its own), and takes the
+(the root in stage 2; from stage 3 a composite expression of the
+costliest built-ins, chosen from the kernel benchmark's report of every
+routine, 3.11), and takes the
 largest values whose cost stays under a latency budget per pass. The
 probe runs only when asked, since a benchmark at every launch would be
 noise on the main thread for a number the user can also type; stage 8's
@@ -1068,90 +1103,215 @@ mode governs every rounding" gains the qualification of D15.
 
 ## Stage 3: built-in functions
 
-Firm in shape; the list of functions is the study's. What lands: calls
-with any number of arguments; a built-in kind of function beside defined
-ones, with dimension rules and domain errors; the table built at the
-ceiling; the build's function check over dimensions; `pi()`
-and the elementary set; the definitions file's `pi` replaced and the
-neper and the bel defined.
+Firm in shape; the list of functions is the study's. Reviewed against
+the stage 2 code before implementation, and revised: the ceiling is a
+field of the context, which is how it reaches `pi()` (D1, D12, 3.3); the
+memos hold the ceiling plus a margin, and there are four (D10);
+`unresolved` carries the edge the value straddles, since stage 3's edges
+are not all zero (D4); `log` takes exactly two arguments and the decibel
+is `decibel`, since `dB` reads as a prefixed unit (3.1, 3.12); a power
+with a rational exponent falls back to `exp(y ln x)` where the exact
+power would not fit the range limit, which is a behavior change for `^`
+(3.8); the build's lookup resolves built-ins and the tests build the
+system table at the ceiling as the app does (3.2, 3.3); the kernel
+benchmark reports every routine at the ceiling and the probe times a
+composite of the costliest (3.6, 3.11); and each task says what its
+errors are worded as. Two rules hold for every built-in and are stated
+here once: a built-in returns the kernel's ball as `fixedToBall` hands it
+back, or an exact ball for an exact case, and rounds in no mode, since
+the evaluator settles every result it produces (D15); and an argument of
+unbounded radius gives the function of its midpoint with an unbounded
+radius, as `rootBall` rules. What lands: calls with any number of
+arguments; a built-in kind of function beside defined ones, with
+dimension rules and domain errors; the table built at the ceiling; the
+build's function check over dimensions; `pi()` and the elementary set;
+the definitions file's `pi` replaced and the neper, the bel and the
+decibel defined.
 
 ### 3.0 Design note
 
 docs/builtins.md, short: the names (Euler's number is `exp(1)`, Lambert's
-function is `lambertw`, no built-in collides with a unit of units.txt),
-each function's dimension rule, domain, exact cases and propagation, and
-D11 restated with the alternative. Written from this plan; the rest of
-the stage implements it.
+function is `lambertw`, `log` is the two-argument logarithm and `ln`,
+`log10` and `log2` the one-argument ones, the decibel is `decibel`
+because `dB` reads as `d` + `B`, and no built-in collides with a unit or
+reads as a prefix followed by one in units.txt), each function's
+dimension rule, domain, exact cases and propagation, the two rules the
+stage's introduction states (the evaluator settles, unbounded propagates),
+the edges an `unresolved` can name, and D11 restated with the
+alternative. Written from this plan; the rest of the stage implements it,
+and 3.13 adds the implementation notes.
+
+Behavior: none; a document.
 
 ### 3.1 Calls with any number of arguments
 
 `src/core/expr.ts`: the `call` rule reads `name "(" (expr ("," expr)*)?
 ")"` and the node holds `arguments: readonly Expr[]`; the comma is a new
-symbol and appears nowhere else. `src/core/evaluate.ts`: a call of a
+symbol and appears nowhere else. `src/core/evaluate.ts`: `Arity = { min;
+max }` is defined here (builtins.ts imports it in 3.2), and a call of a
 defined function with other than one argument fails with a new
-`arityMismatch { name, span, expected, given }`; `src/messages.ts` words
-it. `docs/functions.md` and README note the grammar. The decision on
-arity: the grammar accepts any number of arguments, and what a function
-accepts is its own. A built-in declares a range `{ min, max }` (`log` is
-1 to 2, `round` in stage 6 is 1 to 3), a defined function takes exactly
-its parameters (one until stage 7), and no function is variadic in this
-stage: `max`, `min` or `gcd` over a list would need only an unbounded
-`max` in the range and no change to the grammar, and none is planned.
+`arityMismatch { name, span, expected: Arity, given }`, checked once the
+name has resolved and before any argument is evaluated, since it is about
+the call's shape as `notAFunction` is, so `tempC(bogus, 1)` is the arity
+error and not the unknown unit. `src/messages.ts` words it: `"tempC"
+takes 1 argument, but "tempC(1, 2)" gives 2`, and `takes no arguments`,
+`takes 2 arguments`, `takes 1 to 3 arguments` for the ranges. The
+`argumentMismatch` error keeps its one argument's span. `docs/functions.md`
+and README note the grammar. The decision on arity: the grammar accepts
+any number of arguments, and what a function accepts is its own. A
+built-in declares a range `{ min, max }` (every elementary function is
+one fixed count, `round` in stage 6 is 1 to 3), a defined function takes
+exactly its parameters (one until stage 7), and no function is variadic
+in this stage: `max`, `min` or `gcd` over a list would need only an
+unbounded `max` in the range and no change to the grammar, and none is
+planned. `log` takes exactly two arguments, `log(b, x)` with the base
+first so that it reads as `log_b(x)`, so that `log(x)` never has to
+choose between the natural logarithm and the common one; `ln`, `log10`
+and `log2` are the one-argument forms.
 
 Tests: `f()`, `f(1)`, `f(1, 2 m)`, `f(1,)` is an error at the `)`, the
-spans; `tempC(1, 2)` is an arity mismatch.
+spans; `tempC(1, 2)` and `tempC()` are arity mismatches, and the message.
 
-Behavior: `tempC(1, 2)` is an arity error rather than a parse error.
+Behavior: `tempC(1, 2)` and `tempC()` are arity errors rather than parse
+errors.
 
 ### 3.2 The built-in kind
 
-New `src/core/builtins.ts`: `Builtin = { name; arity: { min; max };
-dimensions(args:
-Dimension[], primitives): Result<Dimension, DimensionRuleError>; apply(args:
-Ball[], context): Result<Ball, BuiltinError> }`, `BUILTINS` as a map by
-name (empty in this task), and the two error types: a dimension rule's
-failure (which argument, what it must be) and `domain` (which argument,
-why). `src/core/table.ts`: `ResolvedFunction = { kind: "defined"; fn } |
-{ kind: "builtin"; fn }`; `Lookup.function` returns it; `unitLookup`
-resolves defined functions first and built-ins second (the build keeps
-them disjoint); a built-in's name used as a unit is `functionAsUnit`.
-`src/core/evaluate.ts`: the `call` case switches on the kind; the built-in
-branch evaluates every argument, applies the dimension rule (its failure
-is a new `builtinArgument` error at the call, carrying the rule's error
-and the argument's span), applies the function, and locates `domain` as
-a new `domainError` at the call and the ball errors as usual.
-`src/core/build.ts`: a definition named like a built-in is a `duplicate`
-(the error's `first` becomes a union of a definition or a built-in name),
-and the prefixed-name check runs over the built-in names too. Messages
-for the three new errors.
+New `src/core/builtins.ts`: `Builtin = { name; arity: Arity;
+dimensions(args: Dimension[], primitives): Result<Dimension,
+DimensionRuleError>; apply(args: Ball[], context): Result<Ball,
+BuiltinError> }`, `BUILTINS` as a map by name (empty in this task), and
+the two error types. `DimensionRuleError` is `{ kind:
+"argumentDimension"; argument; want: Dimension; mismatch:
+ConformanceError }` (the argument at that index must have the dimension
+`want`, a plain number or the radian kind, and does not, as the
+conformance check says), `{ kind: "nonconformingArguments"; left; right;
+mismatch }` (two arguments must conform to each other, `atan2`'s) or `{
+kind: "noAngles" }` (the rule wants the radian kind and the table
+declares no `radian` primitive, D11's last sentence). `BuiltinError` is
+`{ kind: "domain"; argument; reason }` with `reason` one of
+`notPositive`, `baseOne`, `outsideClosedUnitInterval`, `belowOne`,
+`outsideOpenUnitInterval` and `origin`, `{ kind: "unresolved"; argument;
+edge }` with the edge of D4, and the ball's `divisionByZero`,
+`negativeRadicand` and `tooLarge`. `apply` returns the kernel's ball as
+it is, or an exact ball for an exact case; the evaluator settles it
+(D15, stated in the stage's introduction). `src/core/table.ts`:
+`ResolvedFunction = { kind: "defined"; fn } | { kind: "builtin"; fn }`;
+`Lookup.function` returns it; `unitLookup` resolves defined functions
+first and built-ins second (the build keeps them disjoint), and so does
+the build's own lookup in build.ts, so that a body may call a built-in
+(3.4's `pi()`); a built-in's name used as a unit, or typed as a `want`,
+is `functionAsUnit`, which gains the function's `arity` so that the
+message writes `pi()` for arity zero and `exp(value)` otherwise; no
+built-in has an inverse. `src/core/evaluate.ts`: `EvaluateError.unresolved`
+gains `edge: Rational | "pole"`, zero at the divisor and the base; the
+`call` case switches on the kind; the built-in branch checks the arity,
+evaluates every argument, applies the dimension rule (its failure is a
+new `builtinArgument` error at the call, carrying the rule's error and
+the spans of all the arguments, so that a message can write `sin(1
+radian)` or `(2 m)^2` from the text), applies the function, and locates
+`domain` as a new `domainError` at the call with the argument's index,
+`unresolved` at the argument at fault with its edge, and the other ball
+errors at the call. `src/core/build.ts`: a definition named like a
+built-in is a `duplicate` (the error's `first` becomes a union of a
+definition or a built-in name), and the prefixed-name check runs over the
+built-in names too, the error carrying the built-in's name in place of a
+definition. Messages for the new errors, from the data alone: `Cannot
+apply "exp" to "1 m": "1 m" has dimension m, but the argument of "exp"
+must be a plain number`; `Cannot apply "sin" to "1": "1" is a plain
+number, but "sin" takes an angle; write "sin(1 radian)"` (a kind
+mismatch against the radian kind), and `"1 m" has dimension m, but "sin"
+takes an angle` (a dimension mismatch); `Cannot apply "pow" to "2 m":
+the base must be a plain number; for a power of a quantity, write "(2
+m)^2"`; `Cannot apply "atan2" to "3 m" and "4 s": "3 m" has dimension m,
+but "4 s" has dimension s`; `"sin" takes an angle, and these units
+declare none`; the domain reasons, located at the call and quoting the
+argument: `Cannot compute "ln(-1)": "-1" is not positive, and a
+logarithm is defined only for positive values`, `Cannot compute "log(8,
+1)": the base "1" is one, and no logarithm has base one`, `Cannot compute
+"asin(2)": "2" lies outside [-1, 1], where "asin" is defined`, `Cannot
+compute "acosh(0.5)": "0.5" is less than 1, and "acosh" is defined only
+from 1 up`, `Cannot compute "atanh(1)": "1" is not strictly between -1
+and 1, where "atanh" is defined`, `Cannot compute "atan2(0, 0)": both
+arguments are zero, and the origin has no direction`, `Cannot compute
+"pow(-2, sqrt(2))": "-2" is not positive, and a power with an inexact
+exponent is defined only for a positive base`; and `unresolved` as one
+pattern, `"X" cannot be told from E at this precision, and the result
+depends on which side of E it lies`, with E `zero`, `1`, `-1` or `a pole
+of "tan"`, and for a body `depends on a value that cannot be told from E
+at this precision`. Each is a predicate for `describeBody` too.
 
-Tests: with a test-only built-in injected through a lookup (the map is
-empty), every branch; the build rejects a unit named like a built-in.
+Rulings the task did not reach: the table carries the set of built-ins
+it was built against (`UnitTable.builtins`), and `buildTable` takes the
+set as a parameter with the module's `BUILTINS` as its default, so that
+the build's disjointness check and the table's lookup work from one set
+and a test can build against a built-in of its own; `resolveFunction` and
+`functionArity` in table.ts are the one order and the one arity rule the
+two lookups share; the pole is worded `a pole of the tangent`, since
+`tan` is the one function with poles in this stage; and the body form of
+a dimension rule's failure can be reached only from an error built by
+hand, since a body whose rule fails does so for every argument and the
+build refuses it.
+
+Tests: with test-only built-ins injected through a lookup and through the
+build's parameter (the map is empty), every branch: the arity check
+before the arguments, each dimension-rule error with every argument's
+span, a domain error, an unresolved at an argument with an edge and at a
+pole, the ball errors at the call, a settled result and an unbounded one;
+the build rejects a unit, a primitive, a list and a function named like a
+built-in and a built-in whose name reads as a prefixed unit, and builds a
+body that calls one; the messages, through stand-ins that carry the real
+names.
 
 Behavior: none visible; no built-in exists.
 
-### 3.3 The table at the ceiling
+### 3.3 The ceiling in the context, and the table at the ceiling
 
-Per D6 and D12. `src/core/pipeline.ts` exports `ceilingContext(context,
-ceiling)`, the last context of `SCHEDULE(p, ceiling)`, the same for every
-`p`. `src/system-table.ts` builds the table at the ceiling in force and
-memoizes it by ceiling; `app-shell.ts` rebuilds when the cap setting
-changes the ceiling, which is the one reason it ever rebuilds, and not
-when the digits change. `build.bench.ts` builds at the default ceiling
-context.
+Per D1, D6 and D12. `NumberContext` gains `ceiling`, the top of the
+retry schedule; `checkContext` requires a positive integer at or above
+the precision, and `schedule` keeps its own precondition that four times
+the first pass fits under it. `schedule`, `resolve`, `evaluateText`,
+`convertText` and `piBall` lose their `ceiling` parameter and read the
+context's; `context.ts` exports `ceilingContext(context)`, the context at
+the ceiling, which is the last context of `schedule(context)` for every
+precision; `settings.ts`'s `contextOf` carries the ceiling and
+`ceilingOf` goes; the component loses its `ceiling` property. Every
+test's context literal gains the field, the default cap's ceiling unless
+the test is about the ceiling. Then the table: `src/system-table.ts`
+fetches and parses the definitions once, as now, and a new
+`src/system-build.ts`, without the asset import so that it is tested
+under Node, builds the table at the ceiling context and memoizes one
+table, keyed by the ceiling alone, since nothing in a build depends on
+the range limit beyond the clamp that already makes the ceiling fit it;
+`app-shell.ts` rebuilds when a settings change moves the ceiling, which
+is the one reason it ever rebuilds, and not when the digits change, and
+keeps the table it has on screen until the new one is built, which is
+synchronous and takes milliseconds (the present build plus `pi` from the
+memo and five products of it). The tests that build the system table
+(units.test.ts, messages.test.ts, build.bench.ts) build it at the ceiling
+context as the app does, so that no unit holds a pass back;
+`DEFAULT_PRECISION`'s comment loses its "until 3.3".
 
-Tests: `ceilingContext` is the last of `SCHEDULE(p, ceiling)` for every
-`p` up to the cap; a table is built once per ceiling.
+Tests: `checkContext` on the new field; `ceilingContext` is the last of
+`schedule(context)` for every precision up to the cap; the pipeline's
+tests pass the ceiling in the context; a table is built once per
+ceiling and again for another.
 
 Behavior: none visible yet; the table is precision-independent until 3.4.
 
 ### 3.4 `pi()`, and the definitions file
 
-`BUILTINS` gains `pi` (arity zero, dimensionless, `piBall`); units.txt
-loses the `pi` literal and its six uses become `pi()`. `units.test.ts`:
-the angle conversions that were exact are now `≈` (`turn` into `deg`
-certifies 360 to the digits asked and is not exact), which the study
-accepts; a unit that reads `pi` is now a `functionAsUnit` error whose
+`BUILTINS` gains `pi` (arity zero, dimensionless, `piBall(context)`,
+whose memo now holds the ceiling plus the margin of D10); units.txt loses
+the `pi` literal and its five uses (`deg`, `grad`, `turn`, `oersted`,
+`parsec`) become `pi()`. `constants.test.ts`'s second reference, the
+36-digit literal it read from units.txt, moves into the test as a named
+constant from GNU units. `units.test.ts`: the conversions that were exact
+through `pi` are now `≈` and are checked by containment and certified
+digits (`turn` into `deg` certifies 360 to the digits asked and is not
+exact, `gon` into `deg`, `rpm` into `rad/s`, `parsec` into `au`), which
+the study accepts; `1.5 deg` in `dms` ends in a term that cannot be told
+from zero; a unit that reads `pi` is now a `functionAsUnit` error whose
 message shows `pi()`.
 
 Behavior: angle units carry a radius; `pi` alone is an error that says
@@ -1164,21 +1324,29 @@ the abstract interpretation the study describes: a number is
 dimensionless, a unit is its dimension through the lookup (which still
 visits the walk, so unknown names and cycles are found as before), a sum
 checks conformance and takes the left's, a product or quotient combines,
-a power raises, a negation keeps, a call applies the callee's rule (a
-defined function's argument must conform to its declared unit and the
-result is the declared result's dimension; a built-in's rule is its
-`dimensions`). Its errors are the subset of `EvaluateError` a dimension
-can cause, so the messages hold. `build.ts`'s `checkFunction` evaluates
-the declared units and runs `dimensionOf` on each body with the bound
-name at the declared dimension, in place of evaluating at one of the
-unit; `applyFunction` and `invertFunction` are no longer called at build
-time. docs/functions.md's "Build-time checks" and its acceptance of the
-`1 / (x - 1)` failure are updated.
+a power raises, a negation keeps, a call checks the arity and applies the
+callee's rule (a defined function's argument must conform to its declared
+unit and the result is the declared result's dimension; a built-in's rule
+is its `dimensions`). The lookup it takes is over dimensions, with the
+bound parameter resolved before any unit as `evaluateBound` does. Its
+errors are the subset of `EvaluateError` a dimension can cause
+(`nonconformingOperands`, `argumentMismatch`, `arityMismatch`,
+`builtinArgument`, and the lookup's), so the messages hold; a literal is
+not checked against the range limit, so a body of `1e30000` builds and
+fails at the call, as a body that fails for every value (`1 / 0`,
+`ln(0)`) now does, which the study accepts. `build.ts`'s `checkFunction`
+evaluates the declared units and runs `dimensionOf` on each body with
+the bound name at the declared dimension, in place of evaluating at one
+of the unit; `applyFunction` and `invertFunction` are no longer called at
+build time. docs/functions.md's "Build-time checks" and its acceptance of
+the `1 / (x - 1)` failure are updated.
 
-Tests: `recip(x) [1;1] 1 / (x - 1) ; ...` builds; a body of the wrong
-dimension still fails with `functionMismatch`; a body that adds a length
-to a time fails with `nonconformingOperands` at its span; the walk still
-reports a cycle through a function.
+Tests: `recip(x) [1;1] 1 / (x - 1) ; ...` builds, and so does a body of
+`1 / 0`, which then fails at the call; a body of the wrong dimension
+still fails with `functionMismatch`; a body that adds a length to a time
+fails with `nonconformingOperands` at its span; a body that calls a
+function with the wrong count of arguments fails with `arityMismatch`;
+the walk still reports a cycle through a function.
 
 Behavior: functions whose bodies fail at `1` now build.
 
@@ -1187,107 +1355,216 @@ Behavior: functions whose bodies fail at `1` now build.
 `src/core/fixed.ts` gains `expFixed`: reduce by halving until the argument
 is below `2^-8`, Taylor with the truncation bound at the interval's upper
 end, then square back, each squaring doubling the relative error plus one
-ulp, with the guard bits raised by the number of squarings. `constants.ts`
-gains `eFixed(bits)`, the series at one by binary splitting, memoized.
-`BUILTINS` gains `exp` (one dimensionless argument; `exp(0)` exact;
-`exp(1)` from the memo).
+ulp, with the guard bits raised by the number of squarings; the result's
+`bits` follow its magnitude (D9), so `exp(-1000)` keeps its digits.
+`constants.ts` gains `eFixed(bits, ceilingBits)`, the series at one by
+binary splitting, memoized as `pi` is (D10). `BUILTINS` gains `exp` (one
+dimensionless argument; `exp(0)` exact; `exp(1)` from the memo); the
+built-in guards the result's magnitude against the range limit before
+computing, `tooLarge` at the call, since `exp(1e6)` is beyond any range
+limit. `bench/kernel.bench.ts` gains a report of every kernel routine at
+the default ceiling and at a quarter of it, one line per routine as each
+lands (this task's are `exp` and the roots), asserting that the ceiling
+costs at most 64 times the quarter, twice what a series of linear length
+over Karatsuba multiplication gives; the report is what 3.11 chooses the
+probe's composite from, and it is where D12's "milliseconds at four
+thousand digits" is measured rather than assumed.
 
-Tests: reference digits of `e` to 100; containment; exact case; the
-pipeline certifies `exp(1)` at 50 digits in one pass; `exp(1 m)` is a
-dimension-rule error whose message names the dimension.
+Tests: reference digits of `e` to 100 from Python's decimal module;
+containment over the shared source across magnitudes; exact case and its
+neighbor; the pipeline certifies `exp(1)` at 50 digits in one pass;
+`exp(1 m)` is a dimension-rule error whose message names the dimension;
+`exp(1e6)` is `tooLarge` at the call.
+
+Behavior: `exp` exists.
 
 ### 3.7 `ln`, `log10`, `log2`, `log(x, b)`
 
-`lnFixed`: the argument as `m × 2^k` with `m` in `[1, 2)`, `ln 2` from the
-`atanh` series at `1/3` (memoized), `m` brought near one by a few square
-roots, then `2 atanh((m - 1) / (m + 1))`. The built-ins: domain `x > 0`,
-with a ball containing zero `unresolved` and one entirely non-positive a
-`domain` error; `ln(1)` exact; `log10` and `log2` as quotients by the
-memoized constants, with the exact cases where `x` is an exact rational
-power of the base (`log10(1000)`, `log2(1/8)`), found by `exactRoot`
-style detection on the numerator and denominator; `log(x, b)` as the
-quotient of two `ln`, exact when `x` is an exact rational power of `b`
-(`log(8, 2)`, `log(1/9, 3)`), and `b` must not be one.
+`lnFixed`: the argument as `m × 2^k` with `m` in `[1, 2)`, `ln(2)` from the
+`atanh` series at `1/3` (memoized as `pi()` is, D10, with `ln(10)` beside
+it for `log10`), `m` brought near one by a few square roots, then `2
+atanh((m - 1) / (m + 1))`. The square roots are the first heavy use of
+`sqrtFixed`, whose integer square root costs twice the Newton cube root
+at the ceiling (the stage 2 re-read): this task replaces it with Newton
+on the reciprocal square root, multiplications only and verified by
+squaring as `sqrt10005` in constants.ts already is, keeps the integer
+root only if the kernel benchmark shows no gain, and records the two
+timings. The built-ins: domain `x > 0`, with a ball containing zero
+`unresolved` at edge zero and one entirely non-positive a `domain` error
+(`notPositive`); `ln(1)` exact; `log10` and `log2` as quotients by the
+memoized constants, with the exact cases where `x` is an exact integer
+power of the base (`log10(1000)`, `log2(1/8)`), found by repeated
+division of the numerator or the denominator; `log(b, x)`, of exactly two
+arguments with the base first (3.1), as the quotient of two `ln`, exact
+when `x` is an integer power of `b` (`log(2, 8)`, `log(3, 1/9)`) or `b`
+of `x` (`log(8, 2)` is `1/3`); `log(4, 8)` is `≈ 1.5`, since a rational
+exponent in general is not looked for. `b` must be positive and not one:
+`b` exactly one is a `domain` error (`baseOne`), a `b` straddling one is
+`unresolved` at edge `1`, and a `b` straddling zero at edge zero.
 
-Tests: reference digits of `ln 2` and `ln 10`; containment; every exact
-case and its neighbor; `ln(0)`, `ln(-1)` are domain errors; `ln` of
-`sqrt(2)^2 - 2` is `unresolved`; the pipeline certifies `exp(ln(3))` and
-`ln(exp(3))` at 30 digits.
+Tests: reference digits of `ln(2)` and `ln(10)` to 100 from Python's
+decimal module; containment across magnitudes; every exact case and its
+neighbor; `ln(0)`, `ln(-1)`, `log(1, 8)` and `log(-2, 8)` are domain
+errors with their messages; `ln` of `sqrt(2)^2 - 2` is `unresolved` at
+the argument, and `log(1 + (sqrt(2)^2 - 2), 8)` at edge one; the pipeline
+certifies `exp(ln(3))` and `ln(exp(3))` at 30 digits; the kernel
+benchmark's two square roots.
+
+Behavior: the logarithms exist.
 
 ### 3.8 `sqrt`, `cbrt`, `pow(x, y)`
 
 `sqrt` and `cbrt` are `rootBall` under a name, with the same exact cases
-as `^(1/2)` and `^(1/3)`, so `sqrt(9/4)` is exact and `sqrt(-1)` a domain
-error (the message says a negative value has no real root). `pow(x, y)`
-is for a dimensionless base only (the rule says so): an exact rational
-`y` goes through `powRationalBall`, so `pow(2, 1/2)` is `sqrt(2)` and
-`pow(8, 1/3)` is exact `2`; otherwise `exp(y ln x)` for `x > 0`, and a
-non-positive `x` with an inexact `y` is a domain error.
+as `^(1/2)` and `^(1/3)`, so `sqrt(9/4)` is exact and `sqrt(-1)` is the
+`negativeRadicand` that `(-1)^(1/2)` is, worded as it is: `"sqrt(-1)"
+takes an even root of a negative value`. `pow(x, y)` is for a
+dimensionless base and exponent (the rule says so). Its rule, and
+`powRationalBall`'s, which `^` shares: an integer `y` is `powBall`; a
+rational `y = p/q` in lowest terms is exact when `x` is exact and a
+perfect `q`-th power, found by `exactRoot(x, q)` and raised to `p`
+without ever forming `x^p`, since `x^(p/q)` is rational exactly when `x`
+is a perfect `q`-th power; otherwise, when `x^p` would fit the range
+limit, the root route as today, `rootBall` of `powBall`, which also
+serves a negative `x` under an odd `q` and reports a straddling `x`
+`unresolved`; otherwise, and for an inexact `y`, log space: `exp(y ln x)`
+for an `x` positive throughout, a `domain` error (`notPositive`) for one
+non-positive throughout with an inexact `y`, `negativeRadicand` for one
+negative throughout under an even `q`, and `unresolved` at edge zero for
+one straddling zero. Log space expands what can be computed at the cost
+of exactness only where nothing exact was reachable: `pow(10,
+2.3456789)` and `2^0.1234567` were `10^23456789` and `2^1234567`, refused
+as `tooLarge`, and are now values with a radius, which is what `decibel`
+needs for an ordinary reading (3.12). An exact zero base with an inexact
+exponent is exact zero when the exponent is positive throughout,
+`divisionByZero` when negative throughout, and `unresolved` at edge zero
+when it straddles zero; `pow(0, 0)` is exact one as `0^0` is.
 
-Tests: exact cases; containment; `pow(2 m, 2)` is a dimension-rule error
-whose message says to write `(2 m)^2`; `pow(0, 0)` is exact one as
-`0^0` is.
+Tests: exact cases and their neighbors, including `pow(8, 1/3)`,
+`pow(1/4, 3/2)`, `pow(10, 2)`; containment over the shared source for
+both routes; `pow(2 m, 2)` is a dimension-rule error whose message says to
+write `(2 m)^2`; `pow(0, 0)` is exact one; `pow(10, 2.3456789)` and
+`2^0.1234567` compute, against Python's decimal power at a working
+precision well above the digits taken; `pow(-2, 1/3)` is the negated
+root, `pow(-2, 1/2)` a `negativeRadicand`, `pow(-2, sqrt(2))` a domain
+error; the zero base's three cases.
+
+Behavior: `sqrt`, `cbrt` and `pow` exist, and `2^0.1234567` is a value
+where it was `tooLarge`.
 
 ### 3.9 `sin`, `cos`, `tan`
 
 `sinFixed` and `cosFixed`: reduce the argument by the nearest multiple of
 `pi / 2`, with `pi` taken at `bits` plus the argument's bit length so the
-reduction keeps its digits for large arguments, then Taylor; the quadrant
-from the multiple. `tan` is the quotient, `unresolved` when `cos`'s ball
-contains zero. The rule requires the `radian` kind (D11) and hands the
-kernel the magnitude, which is in radians since `radian` is the
-primitive. Exact cases: zero.
+reduction keeps its digits for large arguments (from the memo up to
+`2^64`, computed and not kept above it, D10), then Taylor; the quadrant
+from the multiple. `tan` is the quotient, `unresolved` at the argument
+with edge `"pole"` when `cos`'s ball contains zero. The rule requires the
+`radian` kind (D11) and hands the kernel the magnitude, which is in
+radians since `radian` is the primitive; `sin(0)` is the kind mismatch
+`1 m + 0` is, and `sin(0 radian)` the exact zero. The odd functions of
+this stage (`sin`, `tan`, and in 3.10 and 3.11 `asin`, `atan`, `sinh`,
+`tanh`, `asinh`, `atanh`) convert a tiny argument at the working bits
+plus its negative binary exponent, as `rootBall` scales its argument, so
+that `sin(1e-50 radian)` certifies on the first pass and not at the
+ceiling; the built-in does the scaling, the kernel sees a value of order
+one or larger. Exact cases: zero for `sin` and `tan`, one for `cos`.
 
-Tests: reference digits of `sin 1` and `cos 1`; containment across
-`[-100, 100]` and at `10^20`; `sin(30 deg)` certifies `0.5` at the digits
-asked and is not exact; `sin(1)` is a kind mismatch whose message says to
-write `sin(1 radian)`, and `sin(1 m)` a dimension mismatch;
-`sin(pi() radian)` is `zero` with a bound at the ceiling.
+Tests: reference digits of `sin 1` and `cos 1` to 100 from Python's
+decimal module (its own series at a higher precision, named in the test);
+containment across `[-100, 100]`, at `10^20` and at `1e-50`; `sin(30
+deg)` certifies `0.5` at the digits asked and is not exact; `sin(1)` is a
+kind mismatch whose message says to write `sin(1 radian)`, and `sin(1 m)`
+a dimension mismatch; `sin(pi() radian)` is `zero` with a bound at the
+ceiling; `tan(pi() radian / 2)` is `unresolved` at the argument with the
+pole's wording.
+
+Behavior: `sin`, `cos` and `tan` exist.
 
 ### 3.10 `asin`, `acos`, `atan`, `atan2`
 
 `atanFixed` by half-angle reduction a few times, then Taylor; `asin` and
 `acos` through `atan` and `sqrt` with the domain `[-1, 1]`, a ball
-straddling an end `unresolved`, outside a domain error; `atan2(y, x)` by
-quadrant, with `atan2(0, 0)` a domain error. All four return the
-`radian` kind (D11), and `atan2` takes two quantities of one dimension.
-Exact cases: zero, and `acos(1)`.
+straddling an end `unresolved` at edge `1` or `-1`, one outside a
+`domain` error (`outsideClosedUnitInterval`); `atan2(y, x)` by quadrant:
+`atan(y / x)` for an `x` positive throughout, that plus or minus `pi`
+by the sign of `y` for an `x` negative throughout, `±pi / 2 - atan(x /
+y)` for a `y` of definite sign when `x` straddles zero, `unresolved` at
+`y` with edge zero when `y` straddles zero and `x` is not positive
+throughout (the result jumps by `2 pi` there), and `atan2(0, 0)` a
+`domain` error (`origin`). All four return the `radian` kind (D11), and
+`atan2` takes two quantities of one dimension (`nonconformingArguments`
+otherwise). Exact cases: zero for `asin` and `atan`, `acos(1)`, and
+`atan2(0, x)` for an `x` positive throughout.
 
-Tests: reference digits of `atan 1` (a quarter of `pi`); containment;
-`asin(2)` domain; `atan2` in every quadrant against `atan`; `asin(0.5)`
-into `deg` certifies `30`; `atan2(3 m, 4 m)` is an angle and
+Tests: reference digits of `atan 1` (a quarter of `pi`) and `asin(1/2)`
+(a sixth) against the pi reference; containment, including near the
+ends of the domain; `asin(2)` and `acosh`'s neighbours' domain messages;
+`atan2` in every quadrant against `atan`, and its unresolved case;
+`asin(0.5)` into `deg` certifies `30`; `atan2(3 m, 4 m)` is an angle and
 `atan2(3 m, 4 s)` a dimension mismatch; the pipeline certifies
 `asin(sin(0.5 radian))` at 30 digits.
+
+Behavior: the inverse trigonometric functions exist.
 
 ### 3.11 The hyperbolic functions and their inverses
 
 `sinh`, `cosh`, `tanh` through `exp`, with `sinh` for small arguments
-through its own series to avoid the cancellation of `exp(x) - exp(-x)`;
-`asinh`, `acosh`, `atanh` through `ln` and `sqrt`, `asinh` by symmetry
-for negative arguments; domains `acosh(x >= 1)` and `atanh(|x| < 1)`, the
-edges as in 3.10. Exact cases: zero, `cosh(0)`, `acosh(1)`.
+through its own series to avoid the cancellation of `exp(x) - exp(-x)`,
+and `sinh` and `cosh` guarded by magnitude as `exp` is; `asinh`, `acosh`,
+`atanh` through `ln` and `sqrt`, `asinh` by symmetry for negative
+arguments; domains `acosh(x >= 1)` (`belowOne`) and `atanh(|x| < 1)`
+(`outsideOpenUnitInterval`), a ball straddling an edge `unresolved` at
+it as in 3.10. Exact cases: zero for `sinh`, `tanh`, `asinh` and
+`atanh`, `cosh(0)`, `acosh(1)`. The elementary set is complete here, so
+this task also settles what the probe times (D16, 2.7): from the kernel
+benchmark's report, `limits.ts`'s precision operation becomes a composite
+expression of the costliest built-ins at the candidate ceiling,
+evaluated through the pipeline at that one precision, named in one place
+with the measurements that chose it; the header says which and why.
 
-Tests: reference digits; containment, including `sinh(1e-10)`; the domain
-errors; identities within the radius (`cosh^2 - sinh^2` contains one).
+Tests: reference digits of `sinh 1`, `cosh 1` and `atanh(1/2)` (half of
+`ln(3)`) from Python's decimal module; containment, including
+`sinh(1e-10)`; the domain errors and their messages; identities within
+the radius (`cosh^2 - sinh^2` contains one, `asinh(sinh(x))` contains
+`x`); the probe's test with the composite.
 
-### 3.12 The neper and the bel
+Behavior: the hyperbolic functions exist, and the "Recommend limits"
+button measures the new costliest operation.
+
+### 3.12 The neper, the bel and the decibel
 
 units.txt defines `neper(x) [1;1] exp(x) ; ln(neper)`, `bel(x) [1;1]
-pow(10, x) ; log10(bel)` and `dB(x) [1;1] pow(10, x / 10) ; 10 log10(dB)`,
-with a comment on what a logarithmic unit is; README's "What the file
-contains" loses the sentence that says they cannot be defined.
+pow(10, x) ; log10(bel)` and `decibel(x) [1;1] pow(10, x / 10) ; 10
+log10(decibel)`, with a comment on what a logarithmic unit is and on why
+`dB` is absent: it reads as `d` + `B`, deci-byte, and a function's name
+may not read as a prefixed unit, the rule that keeps `u` and `at` out
+too. README's "What the file contains" loses the sentence that says
+logarithmic units cannot be defined and gains the three.
 
-Tests: `dB(20)` is `= 100`, `bel(2)` is `= 100` (exact cases), `1000` into
-`dB` is `dB(30)`.
+Tests: `decibel(20)` is `= 100`, `bel(2)` is `= 100` (exact cases, through
+3.8's exact power), `decibel(23.4)` is `≈ 218.77616` (the log-space
+route), `1000` into `decibel` is `decibel(30)` and into `bel` is `bel(3)`
+(exact, through the logarithm's exact case), `neper(1)` is `exp(1)`, and
+`e` is still the elementary charge.
+
+Behavior: the three logarithmic units.
 
 ### 3.13 Stage 3 docs
 
 ARCHITECTURE.md: "Functions" gains the built-in kind and the dimension
 rules; "Evaluation" the new errors; "Definitions" the check over
-dimensions; "Later" loses built-in functions; "Layout" the new modules.
-README: a "Functions in expressions" section listing the built-ins, and
-the settings note that the table is rebuilt when the digits change.
-docs/builtins.md gains its implementation notes.
+dimensions; "Precision and rounding" the elementary functions beside the
+root and the ceiling in the context; "Later" loses built-in functions;
+"Layout" the new modules; "Benchmarks" the kernel report. README: a
+"Functions in expressions" section listing the built-ins, and the
+settings note that the table is rebuilt when the "most digits" setting
+changes (not the digits, which never rebuild it: D6). docs/builtins.md
+gains its implementation notes; docs/calculator.md's status line names
+stage 3 as landed and records the payload after `pnpm build` against the
+study's estimate, as stage 8 asks at the end of this stage; and the plan
+gains "Stage 3 as it landed", as stages 1 and 2 have.
+
+Behavior: none; documentation.
 
 ## Stage 4: the `Scaled` midpoint and the decimal mode
 

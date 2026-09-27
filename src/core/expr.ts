@@ -15,7 +15,7 @@
 //   unitPower := unitAtom ("^" exponent)?
 //   atom      := number | unitAtom
 //   unitAtom  := call | name | "(" expr ")"
-//   call      := name "(" expr ")"                     no space before "("
+//   call      := name "(" (expr ("," expr)*)? ")"     no space before "("
 //   exponent  := signed number | "(" signed number ("/" number)? ")"
 //
 // Juxtaposition means "this many of these units" (`2 m`) or a product of
@@ -36,10 +36,14 @@
 // `m^(-3/2)`), so the exponent is known at parse time and travels in the
 // tree as a `Rational`.
 //
-// A call, `tempC(100)`, is a name directly followed by `(`, an expression
-// and `)`. It is an atom like a name, so `2 tempC(100)`, `tempC(100)^2` and
-// `-tempC(100)` mean what they look like, and the argument is any
-// expression. Whether the name is a function is the evaluator's business;
+// A call, `tempC(100)`, is a name directly followed by `(`, zero or more
+// expressions separated by commas, and `)`: `pi()`, `tempC(100)`,
+// `atan2(3 m, 4 m)`. It is an atom like a name, so `2 tempC(100)`,
+// `tempC(100)^2` and `-tempC(100)` mean what they look like, and each
+// argument is any expression. The comma appears nowhere else in the
+// grammar. How many arguments a function takes is its own business and the
+// evaluator's to check (docs/builtins.md, "Arity"); the parser accepts any
+// count. Whether the name is a function is the evaluator's business too;
 // the parser decides a call by the text alone, and the one rule it applies
 // is lexical: no space between the name and the `(` makes a call, and a
 // space makes a product, so `kg (m/s)` is a product and `kg(m/s)` is a
@@ -112,12 +116,12 @@ export type ExprNode =
   | { readonly kind: "pow"; readonly base: Expr; readonly exponent: Rational }
   /** `-operand`. */
   | { readonly kind: "neg"; readonly operand: Expr }
-  /** `name(argument)`: a call of the function `name`, which is at `nameSpan`. */
+  /** `name(arguments...)`: a call of the function `name`, which is at `nameSpan`, with zero or more arguments. */
   | {
       readonly kind: "call";
       readonly name: string;
       readonly nameSpan: Span;
-      readonly argument: Expr;
+      readonly arguments: readonly Expr[];
     };
 
 // ---------------------------------------------------------------------------
@@ -226,16 +230,23 @@ const parenthesized: Parser<Expr> = map(
   ({ value: [, inner], span }) => ({ span, node: inner.node }),
 );
 
-/** `name(argument)`, with the name's own span kept for the evaluator's errors. */
+/** The arguments of a call: zero or more expressions separated by commas. */
+const argumentList: Parser<readonly Expr[]> = map(
+  optional(seq(expr, many(seq(symbol(","), expr)))),
+  (found) =>
+    found === undefined ? [] : [found[0], ...found[1].map(([, e]) => e)],
+);
+
+/** `name(arguments...)`, with the name's own span kept for the evaluator's errors. */
 const call: Parser<Expr> = map(
-  token(spanned(seq(callName, symbol("("), expr, string(")")))),
-  ({ value: [callee, , argument], span }): Expr => ({
+  token(spanned(seq(callName, symbol("("), argumentList, string(")")))),
+  ({ value: [callee, , args], span }): Expr => ({
     span,
     node: {
       kind: "call",
       name: callee.value,
       nameSpan: callee.span,
-      argument,
+      arguments: args,
     },
   }),
 );

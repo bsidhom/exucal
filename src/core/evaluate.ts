@@ -32,11 +32,24 @@
 // the span of the reference along with the name, so that its error can point
 // at the text as this module's own errors do.
 //
-// A call, `tempC(100)`, applies a function the lookup resolves by name
-// (docs/functions.md): the argument is evaluated, checked to conform to the
-// unit the function declares for it, and bound to the parameter while the
-// forward body is evaluated through the same lookup, so that the body's
-// units resolve as the user's would. The body's own failures carry spans
+// A call, `tempC(100)`, applies a function the lookup resolves by name,
+// which is a function the table defines or a built-in (`ResolvedFunction`
+// of table.ts). For either, the count of arguments is checked against
+// what the function takes (`arityMismatch` otherwise, before any argument
+// is evaluated, since the count is about the call's shape as
+// `notAFunction` is). A defined function (docs/functions.md) takes exactly
+// one: the argument is evaluated, checked to conform to the unit the
+// function declares for it, and bound to the parameter while the forward
+// body is evaluated through the same lookup, so that the body's units
+// resolve as the user's would. A built-in (docs/builtins.md) has its
+// arguments evaluated, its dimension rule applied to their dimensions
+// (`builtinArgument` at the call when the rule fails, carrying the rule's
+// error and the spans of all the arguments, so that a message can write
+// the call as it should be), and its function applied to their
+// magnitudes; a `domain` error is located at the call with the argument's
+// index (`domainError`), an `unresolved` at the argument that straddles
+// the edge, with the edge, and any other failure at the call. The result
+// is settled like every other. The body's own failures carry spans
 // into the definitions text, which the user cannot see, so they come back
 // as one `callFailed` at the call, carrying the body's error. Only the
 // evaluator's own failures are wrapped that way: a lookup failure inside a
@@ -89,12 +102,18 @@ import {
   subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
-import { bitLength } from "./rational.ts";
+import { ZERO, bitLength } from "./rational.ts";
 import { type BallError } from "./ball.ts";
+import {
+  type Builtin,
+  type DimensionRuleError,
+  type DomainReason,
+  type Edge,
+} from "./builtins.ts";
 import { type NumberContext } from "./context.ts";
 import { err, ok, type Result } from "./result.ts";
 import { type Span } from "./span.ts";
-import { type UnitFunction } from "./table.ts";
+import { type ResolvedFunction, type UnitFunction } from "./table.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -111,8 +130,14 @@ export type Lookup<E> = {
     name: string,
     span: Span,
     call: Span,
-  ) => Result<UnitFunction, E>;
+  ) => Result<ResolvedFunction, E>;
 };
+
+/** How many arguments a function takes: from `min` to `max` of them. */
+export type Arity = { readonly min: number; readonly max: number };
+
+/** The arity of a defined function: exactly its one parameter. */
+export const ONE_ARGUMENT: Arity = { min: 1, max: 1 };
 
 export type EvaluateError =
   /**
@@ -121,12 +146,13 @@ export type EvaluateError =
    */
   | { readonly kind: "divisionByZero"; readonly span: Span }
   /**
-   * The value at `span`, a divisor or the base of a power, cannot be told
-   * from zero at this precision (its ball contains zero without being
-   * exactly zero), and the result depends on which side of zero it lies: a
-   * quotient by it, a negative power of it, or an even root of it.
+   * The value at `span` cannot be told from `edge` at this precision (its
+   * ball straddles it), and the result depends on which side of the edge
+   * it lies: a divisor or the base of a power at zero (a quotient by it, a
+   * negative power of it, or an even root of it), or the argument of a
+   * built-in at an edge of its domain, or at a pole of the tangent.
    */
-  | { readonly kind: "unresolved"; readonly span: Span }
+  | { readonly kind: "unresolved"; readonly span: Span; readonly edge: Edge }
   /** The power at `span` is an even (`degree`-th) root of a negative value. */
   | {
       readonly kind: "negativeRadicand";
@@ -152,6 +178,17 @@ export type EvaluateError =
       readonly mismatch: ConformanceError;
     }
   /**
+   * The call of `name` at `span` gives `given` arguments, where the
+   * function takes `expected`.
+   */
+  | {
+      readonly kind: "arityMismatch";
+      readonly name: string;
+      readonly span: Span;
+      readonly expected: Arity;
+      readonly given: number;
+    }
+  /**
    * The call of `name` at `span` has an argument, at `argument`, that does
    * not conform to the unit the function declares for it, as `mismatch`
    * says with the argument's dimension as its `have` and the declared one
@@ -173,6 +210,30 @@ export type EvaluateError =
       readonly name: string;
       readonly span: Span;
       readonly error: EvaluateError;
+    }
+  /**
+   * The built-in `name`, called at `span` with the arguments at
+   * `arguments`, does not accept their dimensions, as `error` says.
+   */
+  | {
+      readonly kind: "builtinArgument";
+      readonly name: string;
+      readonly span: Span;
+      readonly arguments: readonly Span[];
+      readonly error: DimensionRuleError;
+    }
+  /**
+   * The built-in `name`, called at `span` with the arguments at
+   * `arguments`, has its argument at index `argument` outside its domain
+   * throughout the argument's ball, for `reason`.
+   */
+  | {
+      readonly kind: "domainError";
+      readonly name: string;
+      readonly span: Span;
+      readonly arguments: readonly Span[];
+      readonly argument: number;
+      readonly reason: DomainReason;
     };
 
 /**
@@ -260,7 +321,7 @@ function evaluateNode<E>(
       // A base that cannot be told from zero is what is wrong, whether it
       // is raised to a negative power or put under an even root.
       if (!power.ok && power.error.kind === "unresolved") {
-        return err({ kind: "unresolved", span: node.base.span });
+        return err({ kind: "unresolved", span: node.base.span, edge: ZERO });
       }
       return locate(power, span);
     }
@@ -272,11 +333,27 @@ function evaluateNode<E>(
     case "call": {
       const fn = lookup.function(node.name, node.nameSpan, span);
       if (!fn.ok) return fn;
-      const argument = evaluate(node.argument, lookup, primitives, context);
+      const arity =
+        fn.value.kind === "defined" ? ONE_ARGUMENT : fn.value.fn.arity;
+      const given = node.arguments.length;
+      if (given < arity.min || given > arity.max) {
+        return err({
+          kind: "arityMismatch",
+          name: node.name,
+          span,
+          expected: arity,
+          given,
+        });
+      }
+      if (fn.value.kind === "builtin") {
+        return applyBuiltin(fn.value.fn, expr, lookup, primitives, context);
+      }
+      const argumentExpr = node.arguments[0]!;
+      const argument = evaluate(argumentExpr, lookup, primitives, context);
       if (!argument.ok) return argument;
       const conformance = checkConformance(
         argument.value.dimension,
-        fn.value.argument.quantity.dimension,
+        fn.value.fn.argument.quantity.dimension,
         primitives,
       );
       if (!conformance.ok) {
@@ -284,12 +361,12 @@ function evaluateNode<E>(
           kind: "argumentMismatch",
           name: node.name,
           span,
-          argument: node.argument.span,
+          argument: argumentExpr.span,
           mismatch: conformance.error,
         });
       }
       const value = applyFunction(
-        fn.value,
+        fn.value.fn,
         argument.value,
         lookup,
         primitives,
@@ -303,6 +380,73 @@ function evaluateNode<E>(
           : { kind: "callFailed", name: node.name, span, error: error.error },
       );
     }
+  }
+}
+
+/**
+ * The built-in `fn` applied at the call `expr`, whose arguments are as
+ * many as `fn` takes: each evaluated in turn, the dimension rule applied to
+ * their dimensions, and the function to their magnitudes, with each
+ * failure located as the module header says.
+ */
+function applyBuiltin<E>(
+  fn: Builtin,
+  expr: Expr,
+  lookup: Lookup<E>,
+  primitives: Primitives,
+  context: NumberContext,
+): Result<Quantity, EvaluateError | E> {
+  const { node, span } = expr;
+  if (node.kind !== "call") throw new Error("A built-in is applied by a call");
+  const values: Quantity[] = [];
+  for (const argument of node.arguments) {
+    const value = evaluate(argument, lookup, primitives, context);
+    if (!value.ok) return value;
+    values.push(value.value);
+  }
+  const spans = node.arguments.map((argument) => argument.span);
+  const dimension = fn.dimensions(
+    values.map((value) => value.dimension),
+    primitives,
+  );
+  if (!dimension.ok) {
+    return err({
+      kind: "builtinArgument",
+      name: node.name,
+      span,
+      arguments: spans,
+      error: dimension.error,
+    });
+  }
+  const magnitude = fn.apply(
+    values.map((value) => value.magnitude),
+    context,
+  );
+  if (magnitude.ok) {
+    return ok({ magnitude: magnitude.value, dimension: dimension.value });
+  }
+  const { error } = magnitude;
+  switch (error.kind) {
+    case "domain":
+      return err({
+        kind: "domainError",
+        name: node.name,
+        span,
+        arguments: spans,
+        argument: error.argument,
+        reason: error.reason,
+      });
+    case "unresolved":
+      return err({
+        kind: "unresolved",
+        span: spans[error.argument] ?? span,
+        edge: error.edge,
+      });
+    case "divisionByZero":
+    case "tooLarge":
+      return err({ kind: error.kind, span });
+    case "negativeRadicand":
+      return err({ kind: "negativeRadicand", degree: error.degree, span });
   }
 }
 
@@ -386,9 +530,10 @@ function locate(
   const { error } = result;
   switch (error.kind) {
     case "divisionByZero":
-    case "unresolved":
     case "tooLarge":
       return err({ kind: error.kind, span });
+    case "unresolved":
+      return err({ kind: "unresolved", span, edge: ZERO });
     case "negativeRadicand":
       return err({ kind: "negativeRadicand", degree: error.degree, span });
     case "invalidNumber":

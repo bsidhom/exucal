@@ -6,8 +6,9 @@ import {
 } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact, isExact, type Ball } from "./ball.ts";
+import { exact, isExact, multiplyBalls, type Ball } from "./ball.ts";
 import { buildTable, type BuildError } from "./build.ts";
+import { plainNumbers, type Builtin, type Builtins } from "./builtins.ts";
 import { convert, convertToList } from "./convert.ts";
 import { parseDefinitions, type Definition } from "./definitions.ts";
 import { DIMENSIONLESS, type Dimension } from "./dimension.ts";
@@ -27,7 +28,7 @@ import {
   type Rational,
 } from "./rational.ts";
 import { radiusUpper } from "./radius.ts";
-import { type Result } from "./result.ts";
+import { ok, type Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import { unitLookup, type UnitTable } from "./table.ts";
 
@@ -805,12 +806,14 @@ test("a function is not a unit", () => {
     kind: "functionAsUnit",
     name: "tempC",
     span: spanOf(body, "tempC", 3),
+    arity: { min: 1, max: 1 },
   });
   const list = [...TEMP, "readings  tempC;K"];
   assert.deepEqual(failed(...list), {
     kind: "functionAsUnit",
     name: "tempC",
     span: spanOf(list, "tempC", 3),
+    arity: { min: 1, max: 1 },
   });
 });
 
@@ -911,6 +914,7 @@ test("a body that fails for every argument fails the build, at the body", () => 
     kind: "functionAsUnit",
     name: "bad",
     span: spanOf(nameInForward, "bad", 2),
+    arity: { min: 1, max: 1 },
   });
   const parameterInInverse = ["bad(x)  [1;1]  x ; x"];
   assert.deepEqual(failed(...parameterInInverse), {
@@ -973,4 +977,90 @@ test("a cycle through a function is reported like any other", () => {
     definitions: [boil, tempC],
     span: spanOf(declared, "boil", 2),
   });
+});
+
+// ---------------------------------------------------------------------------
+// Built-ins
+
+/** A built-in as a test injects one: a plain number doubled, exactly. */
+const DBL: Builtin = {
+  name: "dbl",
+  arity: { min: 1, max: 1 },
+  dimensions: plainNumbers(1),
+  apply: ([x]) => ok(multiplyBalls(exact(rational(2n)), x!)),
+};
+
+const BUILTINS: Builtins = new Map([
+  ["dbl", DBL],
+  ["km", { ...DBL, name: "km" }],
+]);
+
+function buildWith(
+  builtins: Builtins,
+  ...lines: string[]
+): Result<UnitTable, BuildError> {
+  return buildTable(definitions(...lines), CONTEXT, builtins);
+}
+
+test("a body may call a built-in, and the table carries the built-ins it was built against", () => {
+  const result = buildWith(
+    new Map([["dbl", DBL]]),
+    "m  !",
+    "six  dbl(3) m",
+    "f(x)  [1;m]  dbl(x) m ; f / m / 2",
+  );
+  assert.ok(result.ok, inspect(result));
+  const table = result.value;
+  assertQuantity(table.units.get("six")!, "6", { m: 1 });
+  assert.equal(table.builtins.get("dbl"), DBL);
+  assertQuantity(quantityIn(table, "f(4)"), "8", { m: 1 });
+  assertQuantity(quantityIn(table, "dbl(f(4) / m)"), "16", {});
+});
+
+test("a built-in's name is not a unit in a body, and the failure carries its arity", () => {
+  const lines = ["m  !", "bad  2 dbl"];
+  assert.deepEqual(buildWith(new Map([["dbl", DBL]]), ...lines), {
+    ok: false,
+    error: {
+      kind: "functionAsUnit",
+      name: "dbl",
+      span: spanOf(lines, "dbl"),
+      arity: { min: 1, max: 1 },
+    },
+  });
+});
+
+test("a definition named like a built-in is a duplicate whose first is the built-in", () => {
+  for (const line of [
+    "dbl  2",
+    "dbl  !",
+    "dbl  m;cm",
+    "dbl(x)  [1;1]  x ; dbl",
+  ]) {
+    const lines = ["m  !", "cm  m / 100", line];
+    const [second] = definitions(...lines).slice(-1);
+    assert.deepEqual(buildWith(BUILTINS, ...lines), {
+      ok: false,
+      error: {
+        kind: "duplicate",
+        first: { kind: "builtin", name: "dbl" },
+        second,
+      },
+    });
+  }
+  // A prefix is another namespace.
+  assert.ok(buildWith(BUILTINS, "dbl-  2").ok);
+});
+
+test("a built-in's name may not read as a prefix followed by a unit", () => {
+  assert.deepEqual(buildWith(BUILTINS, "k-  1000", "m  !"), {
+    ok: false,
+    error: {
+      kind: "prefixedName",
+      definition: { kind: "builtin", name: "km" },
+      split: { prefix: "k", unit: "m" },
+    },
+  });
+  // Without the prefix the name means nothing else, and the table builds.
+  assert.ok(buildWith(BUILTINS, "m  !").ok);
 });

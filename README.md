@@ -166,7 +166,10 @@ An exact name always wins, so `min` is the minute and not `m` + `in`, and
 Prefixes do not stack (`kkm` is nothing), and there is no plural handling
 (`inches` is nothing unless it is defined as an alias). Prefixes and units
 are separate namespaces, which is how `m-` (milli) and `m` (the metre)
-coexist.
+coexist. Prefixes apply to units alone: the name of a function, defined
+in the file or built into the app, is looked up exactly, so `ktempC(1)`
+is a call of nothing, and a function's name may not itself read as a
+prefix followed by a unit (see Functions below).
 
 A name that could be read as two different prefix-unit pairs is an error
 when the file is loaded, not an ambiguity resolved by some rule. That is why
@@ -207,9 +210,11 @@ language:
   expression. It binds tightest, so `m^2 - 1` is `(m^2) - 1`.
 - **Parentheses** group.
 - **A call**, a name directly followed by parentheses (`tempC(100)`),
-  applies a function to the expression inside; Functions below describes
-  it. The space matters: `kg (m/s)` is a product, and `kg(m/s)` is a call
-  of `kg`, which is not a function and says so.
+  applies a function to the expressions inside, separated by commas when
+  there are several; Functions below describes it. Each function takes its
+  own number of arguments, and a call with another number is an error that
+  says how many. The space matters: `kg (m/s)` is a product, and `kg(m/s)`
+  is a call of `kg`, which is not a function and says so.
 
 The one thing to watch is a fraction before a unit: `1/12 year` is
 `1 / (12 year)`, a frequency, because the juxtaposition is read first.
@@ -259,7 +264,9 @@ the thermometer. To use one, call it with the argument in parentheses:
 anywhere a unit goes, so `tempC(100) - tempC(0)` into `degF` is `180`, and
 `tempC(100)` into `K` is `373.15`. A call is a name directly followed by
 `(`; with a space between, `kg (m/s)` is the product it looks like, and
-`kg(m/s)` is an error that shows the product with the space.
+`kg(m/s)` is an error that shows the product with the space. A function
+defined in the file takes one argument, so `tempC(1, 2)` and `tempC()`
+are errors that say so.
 
 Typed as the unit to convert to, a function's name asks for the reading
 that gives the quantity, and the answer is written as the call that would
@@ -288,7 +295,8 @@ call: with a function `dozen` declared `[in;ft]`, `2 ft` converted to
 for evaluating at all and for giving what they declare, so a call can fail
 only for its argument (`tempC(1 m)`) or for a value its body cannot
 compute. A function's name may not read as a prefix followed by a unit,
-for the reason a list's may not. There is no domain checking yet:
+for the reason a list's may not, and no prefix applies to a function:
+`ktempC(1)` is a call of nothing, not a thousand Celsius readings. There is no domain checking yet:
 `tempC(-300)` is a negative temperature rather than an error. Nor can a
 call be inverted inside an expression; only the unit to convert to may
 name a function.

@@ -390,7 +390,11 @@ metre) coexist, while a primitive and a unit share one. A name in an
 expression resolves to an exact unit name if there is one, and otherwise to
 one prefix followed by a unit name (the rule README.md states for users).
 Prefixes do not stack, and there is no plural handling: `inches  inch` is
-an ordinary alias definition.
+an ordinary alias definition. Prefixes apply to units alone: a call's
+name resolves among the functions and the built-ins exactly, so
+`ktempC(1)` is a call of nothing (`notAFunction`), and a function's or a
+built-in's name may not itself read as a prefix followed by a unit, which
+the build checks.
 
 Unit lists share the unit namespace (a list and a unit of one name are a
 duplicate) but are not units: no expression can refer to one, so they stay
@@ -451,9 +455,11 @@ roles; then walk every definition in order, where a body is evaluated by
 requests the definitions it means from the walker, with those primitives.
 The first failure ends the build.
 
-A build error is one of: a duplicate name, carrying both definitions; an
-ambiguous name with its two splits; a unit list or function whose name
-reads as a prefix and a unit, carrying the definition and the split; a
+A build error is one of: a duplicate name, carrying both definitions, or
+the built-in's name and the definition that takes it; an
+ambiguous name with its two splits; a unit list, function or built-in
+whose name reads as a prefix and a unit, carrying the definition (or the
+built-in's name) and the split; a
 lookup failure at its reference (an unknown name, a function used as a
 unit, or a call of what is not a function); a cycle, carrying the
 definitions on it in order and the span of the reference that closed it; a
@@ -489,16 +495,19 @@ than anything and cannot appear inside parentheses. `parseUnitList` reads
 one, and `expr.ts` exports the list grammar over any item parser, since the
 definitions parser wants each item with its text.
 
-A call, `tempC(100)`, is a name directly followed by `(`, an expression and
-`)`, and is an atom like a name: `2 tempC(100)`, `tempC(100)^2` and
-`-tempC(100)` mean what they look like. The parser decides a call by the
+A call, `tempC(100)`, is a name directly followed by `(`, zero or more
+expressions separated by commas, and `)` (`pi()`, `atan2(3 m, 4 m)`), and
+is an atom like a name: `2 tempC(100)`, `tempC(100)^2` and `-tempC(100)`
+mean what they look like. The comma appears nowhere else in the grammar,
+and how many arguments a function takes is the evaluator's to check, not
+the parser's. The parser decides a call by the
 text alone, since it cannot ask the table whether a name is a function,
 and the rule is lexical: no space before the `(` makes a call, and a space
 makes a product, so `kg (m/s)` stays the product it always was and
 `kg(m/s)` is a call of `kg`, which the evaluator rejects with a message
 that shows the product with the space. That is the one whitespace-sensitive
 rule in the grammar; docs/functions.md weighs the alternative. The tree
-holds a call as the name with its own span and the argument.
+holds a call as the name with its own span and its arguments.
 
 Juxtaposition means "this many of these units" (`2 m`) or a product of units
 (`kg m`), so a number may only be the first factor of a product: `m 2`,
@@ -634,9 +643,19 @@ is whatever the lookup says it is, and the operators are the quantity
 arithmetic above: juxtaposition and `*` multiply, `/` divides, `+` and `-`
 add and subtract, a leading `-` negates, and `^` raises to the exponent the
 parser already read. A call resolves its name among the functions, through
-the lookup, evaluates its argument, checks that the argument conforms to
-the unit the function declares for it, and evaluates the forward body with
-the parameter bound to the argument ("Functions" below).
+the lookup, to a function the table defines or a built-in (`ResolvedFunction`),
+checks that it gives as many arguments as the function takes
+(`arityMismatch` otherwise, before any argument is evaluated, since the
+count is about the call's shape; a defined function takes exactly one),
+and then, for a defined function, evaluates its argument, checks that the
+argument conforms to the unit the function declares for it, and evaluates
+the forward body with the parameter bound to the argument ("Functions"
+below); for a built-in it evaluates every argument, applies the built-in's
+dimension rule to their dimensions (`builtinArgument` at the call when it
+fails, carrying the rule's error and every argument's span) and its
+function to their magnitudes, and locates a `domain` failure at the call
+(`domainError`), an `unresolved` at the argument that straddles the edge
+the error names, and any other failure at the call.
 The precision goes to every power, where the root of a non-integer exponent
 is the only operation that can lose digits; everything else is exact. The
 primitives go to every sum, whose operands must conform: this is the one
@@ -774,6 +793,19 @@ An inverse body that fails for the value is an `inverseFailed` on the want
 side, carrying the body's error as a call carries its body's. A `want`
 that is a call is not special: it is an expression, and the conversion is
 the ratio, with a reciprocal.
+
+A built-in (docs/builtins.md; `src/core/builtins.ts`) is a function the
+core implements in code rather than a definition: a name, the count of
+arguments it takes, a dimension rule from its arguments' dimensions to
+its result's, and the function itself from balls to a ball at a working
+context, which returns the kernel's ball as it is and rounds in no mode,
+the evaluator settling it as it settles every result. Built-ins share the
+function namespace: the table carries the set it was built against, the
+build rejects a definition named like one as a duplicate and a built-in
+whose name reads as a prefixed unit as it rejects a function's, and a
+call's name resolves to a defined function first and a built-in second.
+A built-in has no inverse, so its name is not a `want`. The set is empty
+until stage 3's `pi()` and the elementary functions fill it.
 
 The build checks each function once so that a call at run time can fail
 only on its argument or on a value: the declared units are evaluated and
@@ -936,7 +968,8 @@ src/core/definitions.ts   Definition, parseDefinitions
 src/core/graph.ts         on-demand evaluation of a dependency graph, cycles
 src/core/names.ts         the prefix-unit resolution rule, the ambiguity check
 src/core/name-index.ts    the names that start with a text, by binary search
-src/core/table.ts         UnitTable, UnitFunction, the lookup over it
+src/core/builtins.ts      Builtin, BUILTINS: the built-in functions, their dimension rules and errors
+src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction
 src/core/convert.ts       convert

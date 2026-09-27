@@ -5,7 +5,7 @@
 // docs/calculator.md ("The precision model") is the design and
 // docs/calculator-plan.md (D3, D4, D5, tasks 1.5 and 1.6) the decisions;
 // this module is the type, its exact operations and the one inexact one,
-// the root, and nothing uses it yet.
+// the root; quantity.ts makes a ball the magnitude of every quantity.
 //
 // Each operation composes the exact arithmetic of rational.ts on the
 // midpoints with a propagation rule of radius.ts on the radii; neither of

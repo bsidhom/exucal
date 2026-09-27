@@ -52,10 +52,12 @@ export type RationalError =
 export const MAX_BITS = 1 << 16;
 
 /**
- * The working precision the app uses for every inexact operation, in
- * significant decimal digits: far beyond any display precision, so that the
- * truncation errors of inexact intermediates stay out of the displayed
- * digits. See ARCHITECTURE.md.
+ * The fixed working precision the app computed at before the number
+ * context existed, in significant decimal digits, and still the floor of
+ * the pipeline's working precision and the precision the table is built
+ * at: far beyond the digits shown by default, so that the truncation
+ * errors of inexact intermediates stay out of them. See ARCHITECTURE.md
+ * ("Working precision and the context").
  */
 export const DEFAULT_PRECISION: Precision = 40;
 

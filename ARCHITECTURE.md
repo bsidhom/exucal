@@ -61,117 +61,111 @@ which every rounding in the core scales its value down to.
 
 ### Precision and rounding
 
-Three rules say where, and only where, a value can lose precision:
+Every magnitude is a **ball**: a midpoint, the number computed, and a
+radius, a coarse bound on how far the midpoint may lie from the value it
+stands for. An exact value has radius zero, and `=` in the display means
+exactly that. This is the precision model of docs/calculator.md ("The
+precision model"), being built stage by stage along docs/calculator-plan.md;
+what is in place is its first stage, the ball as the value and the display
+rule, and what is not yet is said below. Three rules say where, and only
+where, a value can lose precision:
 
-1. **Exact operations never round.** Addition, subtraction, multiplication,
-   division, integer powers and comparisons are exact, and their results are
-   as long as they need to be. Nothing in the pipeline rounds an intermediate
-   to keep it small.
+1. **Exact operations never round a midpoint.** Addition, subtraction,
+   multiplication, division, integer powers and comparisons are exact on the
+   midpoints, and their results are as long as they need to be; nothing in
+   the pipeline rounds an intermediate to keep it small. What they do to the
+   radii is the elementary propagation (a sum's radii add, a product's
+   radius is `|a| rb + |b| ra + ra rb`, a quotient's `(|a| rb + |b| ra) /
+(|b| (|b| - rb))`, a power's the derivative bound), every step rounding
+   up, so that a result's interval contains the exact result over the
+   operands' intervals, and an exact value stays exact through them. A
+   divisor whose ball contains zero without being exactly zero cannot be
+   divided by, since the true quotient may have either sign: that is
+   `unresolved`, an error kind of its own beside `divisionByZero` (the
+   plan's D4), because the retry loop of stage 2 will retry on the first
+   and never on the second. `1 / (sqrt(2)^2 - 2)` reports it where it once
+   showed a huge number.
 
-2. **Inexact operations truncate once, immediately.** The n-th root is the
-   only irrational operation in the first iteration; it, and any future
-   special function (`ln`, `exp`, trigonometry), takes a `Precision` (a count
-   of significant digits), computes its result correct to at least that many
-   digits, and truncates it toward zero to exactly that many. The truncated
-   value is an ordinary `Rational`, and everything downstream of it is exact
-   again. So the number of roundings in a computation equals the number of
-   inexact operations in it, and each one is visible in the code as a
-   `precision` argument. A root that is rational (`sqrt(9/4)`, `sqrt(2.25)`,
+2. **The one inexact operation, the root, says what it lost.** The n-th
+   root is the only irrational operation so far (the elementary functions
+   come in stage 3). A root that is rational (`sqrt(9/4)`, `sqrt(2.25)`,
    `cbrt(-8)`) is detected and returned exactly, so `(4 m^2)^(1/2)` is
-   exactly `2 m`.
+   exactly `2 m`. Otherwise `rootBall` is the least that is honest in this
+   stage (the plan's D5): an exact argument gives the true root truncated
+   toward zero to the working precision, with a radius of one unit in its
+   last digit, which bounds a truncation; an inexact argument gives the
+   truncated root of the midpoint with an unbounded radius, the study's
+   per-operation fallback, since propagating the argument's radius on the
+   decimal path would be work thrown away when stage 2 moves the root onto
+   the kernel, where it honors the rounding mode and propagates the radius
+   by the derivative bound. Truncation composes (truncating a truncated
+   value to fewer digits gives what truncating the exact value would), and
+   `x^(p/q)` is the `q`-th root of `x^p`, root last, so the digits a root
+   carries are the true leading digits of the exact root.
 
-   Truncation rather than rounding to nearest, because truncation composes:
-   truncating a truncated value to fewer digits gives what truncating the
-   exact value would, so the digits an inexact result carries are always the
-   true leading digits of the exact result. `x^(p/q)` is computed as the
-   `q`-th root of `x^p`, not the `p`-th power of the root, so that its single
-   truncation comes last and the rule holds for it too.
+3. **Display rounds once, in a rounding mode, and `=` is the radius's to
+   decide.** `show(ball, digits, mode)` in `src/core/display.ts` formats the
+   midpoint at the digits the user asked for in one of the seven rounding
+   modes of `rounding.ts` (half even, half away from zero, half toward
+   zero, toward zero, away from zero, ceiling, floor; `divideRounded` is the
+   one place a mode is interpreted, and every rounding in the core scales to
+   an integer division and calls it), with the carry across a power of ten
+   (`9.99` at two digits is `10`) in every mode that rounds the magnitude
+   up. It says `=` when the radius is zero and rounding the midpoint to the
+   digits leaves it unchanged, so that every digit held is shown, and `≈`
+   otherwise. Exactness is a property of the value, not of the display: a
+   value that passes through a root and comes out looking rational
+   (`sqrt(2) / sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while
+   `sqrt(4)` is `= 2` because the exact case was detected and nothing was
+   rounded. The default mode is half away from zero, the rounding people
+   expect from `0.125 → 0.13` (the `halfExpand` of `Intl.NumberFormat`;
+   C's `%g` differs only on exact ties, which are rare with doubles but
+   ordinary with rationals).
 
-3. **Display rounds once, in a rounding mode.** `format(r, digits, mode)`
-   rounds to `digits` significant digits in one of the seven modes of
-   `rounding.ts` (half even, half away from zero, half toward zero, toward
-   zero, away from zero, ceiling, floor), with the carry across a power of
-   ten (`9.99` at two digits is `10`) in every mode that rounds the
-   magnitude up. The app passes `halfAwayFromZero`, to nearest with ties
-   away from zero (the `halfExpand` mode of `Intl.NumberFormat`; C's `%g`
-   differs only on exact ties, which are rare with doubles but ordinary with
-   rationals: `0.125` at two digits is `0.13`); docs/calculator-plan.md
-   (task 1.10) makes the mode the user's. `roundTo(r, digits, mode)` is the
-   same rounding as a `Rational`, and `equals(roundTo(r, digits, mode), r)`
-   is half of the display's `=` rule below: it says whether every digit a
-   value holds is shown, which holds in any mode, since a value with no
-   more digits than shown is its own rounding and no other is. Truncation
-   is the `towardZero` mode, so the roots round by the same function with
-   that mode fixed.
+**The types**, each layer adding one concept (the plan's D13 has the
+argument): `Rational` (`rational.ts`) is the exact fraction in lowest terms
+with total arithmetic, used for the midpoints, the exponents of dimensions
+and of `^`, and the exact value of a radius. `Radius` (`radius.ts`) is the
+coarse bound, `mant × 2^exp` with a 30-bit mantissa and a bigint exponent,
+or the distinguished value unbounded, with the operations a propagation
+rule needs (`radiusAbove`, the sum, the product, the power, the maximum,
+and the exact rational a bounded radius stands for), every one rounding up
+so that a radius is always a true bound; the plan's D3 says why it is
+binary, coarse, and neither a `Rational` nor a `number`. `Ball` (`ball.ts`)
+is a midpoint beside a radius, and its operations compose the arithmetic of
+the midpoint's type with the propagation rules of the radius's; neither
+module knows the other, and nothing stores a radius inside a number. Stage
+4 puts a `Scaled`, a fraction times a power of ten in a module of its own,
+between the fraction and the ball as the midpoint's type, so that
+`rational.ts` stays the total fraction it is.
 
-These three rules are being replaced by the precision model of
-docs/calculator.md, stage by stage along docs/calculator-plan.md: every
-magnitude becomes a ball, a midpoint with a radius that bounds its
-distance from the true value, and `=` is shown when the radius is zero.
-The ball is a type of its own (`src/core/ball.ts`), a midpoint beside a
-`Radius`, and its operations compose the arithmetic of the midpoint's
-type with the propagation rules of `radius.ts` on the radius; neither
-module knows the other, and nothing stores a radius inside a number. Its
-exact operations (negation, sum, difference, product, quotient, integer
-power) never round a midpoint and propagate the radii by the elementary
-bounds, so a result's interval contains the exact result over the
-operands' intervals; a divisor whose ball contains zero without being
-exactly zero is `unresolved`, an error kind of its own (the plan's D4),
-since the true quotient may have either sign. Its one inexact operation,
-`rootBall`, is the least that is honest in this stage (the plan's D5): an
-exact argument with a rational root is exact, an exact argument otherwise
-is the truncated root of `rational.ts` with a radius of one unit in its
-last digit, and an inexact argument gives an unbounded radius; stage 2
-moves it onto the kernel, where it honors the rounding mode and
-propagates its argument's radius. The
-midpoint is a `Rational` until stage 4 makes it a `Scaled`, a fraction
-times a power of ten in a module of its own (the plan's D13 says why the
-exponent is a type between the fraction and the ball rather than a field
-on either), so that `rational.ts` stays the exact fraction it is, with
-total arithmetic, for the exponents of dimensions and of `^` as much as
-for a midpoint's mantissa. `src/core/radius.ts` is the radius, in place
-ahead of the ball: a coarse
-binary magnitude, `mant × 2^exp` with a 30-bit mantissa and a bigint
-exponent, or the distinguished value unbounded, with the operations a
-propagation rule needs (`radiusAbove`, the sum, the product, the power,
-the maximum, and the exact rational a bounded radius stands for), every
-one rounding up so that a radius is always a true bound. The plan's D3
-says why it is neither a `Rational` nor a `number`. Every magnitude is a
-ball now, with radius zero everywhere but after a root, and the converter
-and the pipeline carry it through to the UI: a conversion's value and a
-list's terms are balls. The display's `=` is the radius's to decide
-(`src/core/display.ts`, `show`): a value is shown exactly when its radius
-is zero and every digit it holds is shown, and `≈` otherwise, so a value
-that passes through a root and comes out looking rational
-(`sqrt(2) / sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while
-`sqrt(4)` is `= 2` because the exact case was detected and nothing was
-rounded. The one other outcome the ball changes is a divisor that cannot
-be told from zero: `1 / (sqrt(2)^2 - 2)` is an `unresolved` error where it
-was a huge number, and such a value as the `want` is `unresolvedWant`.
+**Working precision and the context.** Every core function that does
+arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a
+`NumberContext` (`src/core/context.ts`: a precision in significant digits
+and a rounding mode) and computes at its precision; below the pipeline that
+precision is a working precision, not the digits shown. The pipeline
+(`evaluateText`, `convertText`) is the one place that knows the difference
+(the plan's D1): the context it takes is the user's, whose precision is the
+digits asked for, and it derives the working context it evaluates at,
+`max(40, digits + 10)`, 40 being `DEFAULT_PRECISION`, the fixed working
+precision the app had before the context existed, so that nothing computes
+at fewer digits than it did; stage 2's retry schedule replaces the rule.
+The table is built at a context of 40 digits by `system-table.ts`; a unit
+whose definition takes a root carries the radius that says so. The user's
+context comes from the settings ("UI" below): the digits, up to
+`MAX_DIGITS` (200), and the mode.
 
-**Working precision.** Every core function that does arithmetic (`evaluate`,
-`buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`:
-a precision in significant digits and a rounding mode) and computes at its
-precision; below the pipeline that precision is a working precision, not
-the display precision. The pipeline (`evaluateText`, `convertText`) is the
-one place that knows the difference: the context it takes is the user's,
-whose precision is the digits asked for (`DEFAULT_DIGITS`, GNU units'
-eight, until the settings of docs/calculator-plan.md, task 1.10, make it
-theirs), and it derives the working context it evaluates at, `max(40,
-digits + 10)`, 40 being `DEFAULT_PRECISION`, the fixed working precision
-the app had before the context existed, so that nothing computes at fewer
-digits than it did. The table is built at a context of 40 digits by
-`system-table.ts`. Each truncation is a
-relative error below `10^(1-p)`, and the exact operations that follow it
-combine such errors at worst additively, scaled by any integer exponent
-applied afterwards, so with a display precision that stays well under the
-working precision, the truncation errors never reach the displayed digits.
-What remains is the double-rounding case: a truncated value can sit on the
-near side of a display rounding boundary that the exact value is on the far
-side of, if the exact value lies within `10^(1-p)` of the boundary. At 40
-working digits this is accepted as unreachable in practice, and it is why the
-working precision is fixed high rather than derived from the display
-precision.
+The guard of ten digits is why the digits shown are right in practice, not
+by proof: a truncation at the working precision is a relative error below
+`10^(1-p)`, the exact operations that follow combine such errors at worst
+additively, scaled by any integer exponent applied afterwards, so with the
+digits shown well under the working precision the truncation errors never
+reach the digits shown, except in the double-rounding case, a truncated
+value on the near side of a rounding boundary that the exact value is on
+the far side of, within `10^(1-p)` of it, which at forty working digits is
+accepted as unreachable. Stage 2 replaces this argument with a proof: the
+digits shown are certified from the radius, and the working precision is
+raised until they are.
 
 ### Size limits
 
@@ -844,7 +838,7 @@ src/core/rational.ts      Rational, arithmetic, the exact and truncated roots, p
 src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted
 src/core/context.ts       NumberContext: the precision and the rounding mode arithmetic is done at
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
-src/core/ball.ts          Ball (a Rational midpoint with a Radius), its exact operations and root, unresolved
+src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations and root, unresolved
 src/core/display.ts       show: a ball's text at the digits asked, and whether it is exact
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Ball with a Dimension), its arithmetic
@@ -926,16 +920,17 @@ of the GNU units database, as a reference for the startup cost.
 
 Planned extensions, listed to show that they fit without reshaping the core:
 
-- **Built-in functions** (`ln`, `sqrt`) are the "special function" of
-  "Precision and rounding", which would take the working precision. They
-  need only the `call` node, resolved by a lookup that knows them.
+- **Built-in functions** (`ln`, `sqrt`) are the inexact operations beside
+  the root of "Precision and rounding", each returning a ball. They need
+  only the `call` node, resolved by a lookup that knows them.
   docs/calculator.md weighs them, with the special functions, a decimal
-  mode with rounding modes, a rational display and richer user-defined
-  functions, as one program toward an arbitrary-precision calculator,
-  under a precision model that replaces the fixed working precision and
-  the truncation rule above with whole-expression precision in the
-  manner of Arb: a radius beside every magnitude, and an internal
-  precision raised until the digits the user asked for are certified.
+  mode, a rational display and richer user-defined functions, as one
+  program toward an arbitrary-precision calculator under whole-expression
+  precision in the manner of Arb, and docs/calculator-plan.md is the plan:
+  stage 1 (the ball as the value, the context, the display rule and the
+  settings) has landed, and stage 2 (the kernel, certification and the
+  retry loop that raises the working precision until the digits asked for
+  are certified) is next.
 - **Domain and range** on a function definition (`tempC(-300)` is a
   negative temperature today) are two optional bounds, checked at the call
   and at the inverse; docs/functions.md lists them with the other

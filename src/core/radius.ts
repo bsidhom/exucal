@@ -1,8 +1,8 @@
 // The radius of a ball: a coarse upper bound on how far a computed midpoint
 // may lie from the value it stands for. docs/calculator-plan.md (D3 and task
 // 1.3) is the design; docs/calculator.md ("The precision model") says what
-// the ball is for. This module is the radius alone: the ball that pairs one
-// with a midpoint is task 1.5, and nothing uses a radius yet.
+// the ball is for. This module is the radius alone: ball.ts pairs one with
+// a midpoint, and quantity.ts makes that ball every magnitude.
 //
 // A bounded radius is `mant × 2^exp` with `mant` zero or a normalized 30-bit
 // integer, in `[2^29, 2^30)`, and `exp` a bigint; the distinguished value

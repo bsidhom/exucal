@@ -1,8 +1,9 @@
 # Implementation plan for the calculator
 
-Status: in progress; stage 1 has landed through task 1.3, and D13 was
-revised in review of that first follow-up. docs/calculator.md is the
-design study and its
+Status: in progress; stage 1 has landed, and "Stage 1 as it landed" at
+the end records where the code diverged from the tasks as first written.
+D13 was revised in review of the first follow-up. docs/calculator.md is
+the design study and its
 "A sequence for the follow-ups" is the order this plan follows. This
 document turns that sequence into tasks small enough that each is one
 commit, reviewable on its own, with the tests that prove it and the state
@@ -1213,3 +1214,41 @@ radius and its rounding-up discipline before anything depends on them.
 1.4 is the mechanical widening and can go with them or alone. 1.5 to 1.9
 are the ball reaching the display, each a state the app runs in. After
 1.11 the plan is re-read against what landed, and stage 2 begins.
+
+## Stage 1 as it landed
+
+The re-read after 1.11. Each task landed as one commit in the order
+given, and the tests pass under every task; where the code settled a
+question the task left open, or corrected the task, the task's text above
+was amended in the same commit, and this is the list of those points, so
+that stage 2 starts from what is rather than from what was planned.
+
+- **1.3.** Unbounded absorbs zero in `multiplyRadius` and `powRadius(rad,
+0)`, where the task's "zero annihilates multiply" and "all absorbing
+  unbounded" met: a loosened bound is always honest, and the ball is where
+  an exact zero times an unbounded value is recognized as exact (1.5).
+  `between` moved to the shared random source with the generator; `word`
+  stayed in the harness; tsconfig.app.json excludes `src/testing`.
+- **1.5.** Two rulings the task did not reach: an exact zero times
+  anything is exact zero, unbounded included, since unbounded stands for a
+  bound not known rather than an infinite value; and a divisor of
+  unbounded radius divides when its midpoint is nonzero, giving an
+  unbounded quotient (the study's per-operation fallback), and is
+  `unresolved` when its midpoint is zero.
+- **1.8.** `unresolvedWant` beside `zeroWant`, and a list unit that
+  cannot be told from zero is `nonpositiveUnit`; the task's text says why.
+- **1.9.** The visible change is `sqrt(2) / sqrt(2)` showing `≈ 1`, not
+  `sqrt(2)^2` showing `≈ 2`, which it already did; corrected in the task.
+- **1.10.** `loadSettings` and `saveSettings` take the storage as an
+  argument, so that settings.ts has no DOM dependency and is tested under
+  Node with a fake; the shell passes `localStorage`. A term of a result
+  carries its shown text, so that rendering needs no context.
+- **D13**, revised in review of the first follow-up: the exponent of stage
+  4 is a `Scaled` type between the fraction and the ball, not a field on
+  `Rational`; stage 4's tasks were rewritten to match, and D7 notes what
+  certification does at magnitudes that cannot be formed.
+
+What stage 2 inherits unchanged: the ball's midpoint is a `Rational`; the
+root is D5's; the pipeline's working rule is `max(40, p + 10)`, which 2.5
+replaces; the display shows every digit of the midpoint and says `≈`
+without saying how many digits are certain, which 2.4 and 2.6 change.

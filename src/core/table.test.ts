@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { convert } from "./convert.ts";
@@ -21,6 +22,12 @@ import {
   type UnitFunction,
   type UnitTable,
 } from "./table.ts";
+
+/** The context every test computes at: the working precision, in the default mode. */
+const CONTEXT: NumberContext = {
+  precision: DEFAULT_PRECISION,
+  rounding: DEFAULT_ROUNDING,
+};
 
 /** Builds a dimension from integer exponents. */
 function dim(exponents: Record<string, number>): Dimension {
@@ -139,7 +146,7 @@ test("the lookup serves the evaluator", () => {
     parsed("3 km / h"),
     lookup,
     TABLE.primitives,
-    DEFAULT_PRECISION,
+    CONTEXT,
   );
   assert.ok(result.ok, inspect(result));
   assertQuantity(result.value, {
@@ -150,12 +157,7 @@ test("the lookup serves the evaluator", () => {
 
 test("an unknown unit in the input is the evaluator's failure", () => {
   assert.deepEqual(
-    evaluate(
-      parsed("3 furlong / h"),
-      lookup,
-      TABLE.primitives,
-      DEFAULT_PRECISION,
-    ),
+    evaluate(parsed("3 furlong / h"), lookup, TABLE.primitives, CONTEXT),
     {
       ok: false,
       error: {
@@ -168,18 +170,8 @@ test("an unknown unit in the input is the evaluator's failure", () => {
 });
 
 test("the table's primitives serve the converter", () => {
-  const have = evaluate(
-    parsed("1 min"),
-    lookup,
-    TABLE.primitives,
-    DEFAULT_PRECISION,
-  );
-  const want = evaluate(
-    parsed("ms"),
-    lookup,
-    TABLE.primitives,
-    DEFAULT_PRECISION,
-  );
+  const have = evaluate(parsed("1 min"), lookup, TABLE.primitives, CONTEXT);
+  const want = evaluate(parsed("ms"), lookup, TABLE.primitives, CONTEXT);
   assert.ok(have.ok && want.ok);
   const result = convert(have.value, want.value, TABLE.primitives);
   assert.ok(result.ok, inspect(result));
@@ -189,14 +181,9 @@ test("the table's primitives serve the converter", () => {
     parsed("radian / s"),
     lookup,
     TABLE.primitives,
-    DEFAULT_PRECISION,
+    CONTEXT,
   );
-  const rate = evaluate(
-    parsed("1 / s"),
-    lookup,
-    TABLE.primitives,
-    DEFAULT_PRECISION,
-  );
+  const rate = evaluate(parsed("1 / s"), lookup, TABLE.primitives, CONTEXT);
   assert.ok(angle.ok && rate.ok);
   const mismatch = convert(angle.value, rate.value, TABLE.primitives);
   assert.ok(!mismatch.ok);
@@ -244,7 +231,7 @@ test("the lookup serves the evaluator for a call", () => {
     parsed("tempC(100) - tempC(0)"),
     lookup,
     TABLE.primitives,
-    DEFAULT_PRECISION,
+    CONTEXT,
   );
   assert.ok(result.ok, inspect(result));
   assertQuantity(result.value, quantity("100", { K: 1 }));

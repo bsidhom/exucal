@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import { buildTable } from "../src/core/build.ts";
 import { parseDefinitions, type Definition } from "../src/core/definitions.ts";
+import { DEFAULT_ROUNDING } from "../src/core/context.ts";
 import { DEFAULT_PRECISION } from "../src/core/rational.ts";
 import { random } from "../src/testing/random.ts";
 import { bestOf, millis } from "./harness.ts";
@@ -24,7 +25,10 @@ function timePipeline(
     definitions = result.value;
   });
   const build = bestOf(5, () => {
-    const result = buildTable(definitions, DEFAULT_PRECISION);
+    const result = buildTable(definitions, {
+      precision: DEFAULT_PRECISION,
+      rounding: DEFAULT_ROUNDING,
+    });
     assert.ok(result.ok, `expected a table, got ${inspect(result)}`);
   });
   const count = definitions.length;

@@ -12,8 +12,8 @@
 // The arithmetic the evaluator needs lives here too: each operation is a
 // magnitude operation beside the matching dimension operation, and nothing
 // else. Multiplication is exact; division fails on a zero divisor; and a
-// power takes the working precision that its one inexact step, the root of
-// a non-integer exponent, truncates to. For those, the failures are the
+// power takes the `NumberContext` whose precision its one inexact step, the
+// root of a non-integer exponent, truncates to. For those, the failures are the
 // `rational.ts` ones, since only the magnitude can fail: a dimension can be
 // multiplied, divided and raised to any rational power. Negation touches the
 // magnitude alone and cannot fail. Addition and
@@ -34,6 +34,7 @@ import {
   type Dimension,
   type Primitives,
 } from "./dimension.ts";
+import { type NumberContext } from "./context.ts";
 import {
   add,
   divide,
@@ -41,7 +42,6 @@ import {
   negate,
   powRational,
   subtract,
-  type Precision,
   type Rational,
   type RationalError,
 } from "./rational.ts";
@@ -124,7 +124,8 @@ export function divideQuantities(
 
 /**
  * `q` raised to `exponent`: the magnitude by `powRational`, so an integer
- * exponent is exact and any other truncates once to `precision` digits
+ * exponent is exact and any other truncates once to the precision of
+ * `context`
  * (`(4 m^2)^(1/2)` is exactly `2 m`, `(2 m^2)^(1/2)` is `1.414... m`), and
  * the dimension exactly, since its exponents are rational. Fails as the
  * magnitude does: `0` to a negative power, an even root of a negative
@@ -133,9 +134,9 @@ export function divideQuantities(
 export function powQuantity(
   q: Quantity,
   exponent: Rational,
-  precision: Precision,
+  context: NumberContext,
 ): Result<Quantity, RationalError> {
-  const magnitude = powRational(q.magnitude, exponent, precision);
+  const magnitude = powRational(q.magnitude, exponent, context.precision);
   if (!magnitude.ok) return magnitude;
   return ok({
     magnitude: magnitude.value,

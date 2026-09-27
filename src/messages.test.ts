@@ -7,6 +7,7 @@
 // them; building it costs a few milliseconds.
 
 import assert from "node:assert/strict";
+import { DEFAULT_ROUNDING, type NumberContext } from "./core/context.ts";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
@@ -17,11 +18,17 @@ import { DEFAULT_PRECISION } from "./core/rational.ts";
 import { type UnitTable } from "./core/table.ts";
 import { describeConversionError, describeTextError } from "./messages.ts";
 
+/** The context every test computes at: the working precision, in the default mode. */
+const CONTEXT: NumberContext = {
+  precision: DEFAULT_PRECISION,
+  rounding: DEFAULT_ROUNDING,
+};
+
 const table: UnitTable = (() => {
   const text = readFileSync(new URL("./units.txt", import.meta.url), "utf8");
   const parsed = parseDefinitions(text);
   assert.ok(parsed.ok, `expected the file to parse, got ${inspect(parsed)}`);
-  const built = buildTable(parsed.value, DEFAULT_PRECISION);
+  const built = buildTable(parsed.value, CONTEXT);
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
   return built.value;
 })();
@@ -35,14 +42,14 @@ const failing: UnitTable = (() => {
     ].join("\n"),
   );
   assert.ok(parsed.ok, `expected the text to parse, got ${inspect(parsed)}`);
-  const built = buildTable(parsed.value, DEFAULT_PRECISION);
+  const built = buildTable(parsed.value, CONTEXT);
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
   return built.value;
 })();
 
 /** The message for the error `text` fails with, in `against`. */
 function textMessage(text: string, against: UnitTable = table): string {
-  const result = evaluateText(against, text, DEFAULT_PRECISION);
+  const result = evaluateText(against, text, CONTEXT);
   assert.ok(!result.ok, `expected ${JSON.stringify(text)} to fail`);
   return describeTextError(result.error, text, against.primitives);
 }
@@ -53,7 +60,7 @@ function conversionMessage(
   want: string,
   against: UnitTable = table,
 ): string {
-  const result = convertText(against, have, want, DEFAULT_PRECISION);
+  const result = convertText(against, have, want, CONTEXT);
   assert.ok(!result.ok, `expected ${have} in ${want} to fail`);
   return describeConversionError(result.error, have, want, against.primitives);
 }

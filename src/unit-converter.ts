@@ -1,5 +1,10 @@
 import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import {
+  DEFAULT_DIGITS,
+  DEFAULT_ROUNDING,
+  type NumberContext,
+} from "./core/context.ts";
 import { roundTerms } from "./core/convert.ts";
 import { formatDimension, isDimensionless } from "./core/dimension.ts";
 import { parseExpr } from "./core/expr.ts";
@@ -10,7 +15,6 @@ import {
   type Side,
 } from "./core/pipeline.ts";
 import {
-  DEFAULT_PRECISION,
   absolute,
   equals,
   format,
@@ -25,18 +29,25 @@ import { type UnitTable } from "./core/table.ts";
 import { describeConversionError, describeTextError } from "./messages.ts";
 
 /**
- * The significant digits a result is shown with. The core computes at
- * `DEFAULT_PRECISION` and rounds once, here, to this; ARCHITECTURE.md
- * ("Precision and rounding") says why the two are kept apart.
+ * The significant digits a result is shown with. The pipeline derives the
+ * precision it computes at from this and rounds once, here, to it;
+ * ARCHITECTURE.md ("Precision and rounding") says why the two are kept
+ * apart.
  */
-export const DISPLAY_PRECISION = 8;
+export const DISPLAY_PRECISION = DEFAULT_DIGITS;
 
 /**
  * The rounding mode a result is shown in: to nearest, ties away from zero,
  * the rounding people expect from `0.125 → 0.13`. Task 1.10 of
  * docs/calculator-plan.md makes it, and the digits, the user's to set.
  */
-const DISPLAY_ROUNDING: RoundingMode = "halfAwayFromZero";
+const DISPLAY_ROUNDING: RoundingMode = DEFAULT_ROUNDING;
+
+/** The user's context, as the pipeline takes it: the digits shown, in the mode shown. */
+const DISPLAY_CONTEXT: NumberContext = {
+  precision: DISPLAY_PRECISION,
+  rounding: DISPLAY_ROUNDING,
+};
 
 /** One term of a result: `value` of `unit`, where `unit` is text to show after the value. */
 type Term = { readonly value: Rational; readonly unit: string };
@@ -201,7 +212,7 @@ export class UnitConverter extends LitElement {
     if (have === "") return { kind: "empty" };
     if (want === "") {
       // What `have` is in the primitives: the unit's definition, in effect.
-      const quantity = evaluateText(table, this.have, DEFAULT_PRECISION);
+      const quantity = evaluateText(table, this.have, DISPLAY_CONTEXT);
       if (!quantity.ok) {
         return {
           kind: "error",
@@ -226,7 +237,7 @@ export class UnitConverter extends LitElement {
       table,
       this.have,
       this.want,
-      DEFAULT_PRECISION,
+      DISPLAY_CONTEXT,
     );
     if (!conversion.ok) {
       const { error } = conversion;

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { buildTable, type BuildError } from "./build.ts";
@@ -21,6 +22,12 @@ import { type Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import { unitLookup, type UnitTable } from "./table.ts";
 
+/** The context every test computes at: the working precision, in the default mode. */
+const CONTEXT: NumberContext = {
+  precision: DEFAULT_PRECISION,
+  rounding: DEFAULT_ROUNDING,
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 
@@ -32,7 +39,7 @@ function definitions(...lines: string[]): readonly Definition[] {
 }
 
 function build(...lines: string[]): Result<UnitTable, BuildError> {
-  return buildTable(definitions(...lines), DEFAULT_PRECISION);
+  return buildTable(definitions(...lines), CONTEXT);
 }
 
 function built(...lines: string[]): UnitTable {
@@ -201,7 +208,10 @@ test("a shared dependency is evaluated once and is not a cycle", () => {
 test("bodies are evaluated at the working precision", () => {
   const two = rational(2n);
   for (const precision of [5, DEFAULT_PRECISION]) {
-    const result = buildTable(definitions("m !", "r 2^(1/2) m"), precision);
+    const result = buildTable(definitions("m !", "r 2^(1/2) m"), {
+      precision,
+      rounding: DEFAULT_ROUNDING,
+    });
     assert.ok(result.ok, inspect(result));
     const expected = root(two, 2n, precision);
     assert.ok(expected.ok);
@@ -220,7 +230,7 @@ test("a kind rides along in a dimension", () => {
 
 test("a name defined twice is a duplicate", () => {
   const defs = definitions("m !", "s !", "m 100 cm");
-  const result = buildTable(defs, DEFAULT_PRECISION);
+  const result = buildTable(defs, CONTEXT);
   assert.deepEqual(result, {
     ok: false,
     error: { kind: "duplicate", first: defs[0], second: defs[2] },
@@ -229,7 +239,7 @@ test("a name defined twice is a duplicate", () => {
 
 test("a primitive and a unit share a namespace", () => {
   const defs = definitions("m 100 cm", "m !");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: { kind: "duplicate", first: defs[0], second: defs[1] },
   });
@@ -237,7 +247,7 @@ test("a primitive and a unit share a namespace", () => {
 
 test("a prefix defined twice is a duplicate", () => {
   const defs = definitions("k- 1000", "m !", "k- 1024");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: { kind: "duplicate", first: defs[0], second: defs[2] },
   });
@@ -304,7 +314,7 @@ test("prefixes do not stack", () => {
 test("a definition that refers to itself is circular", () => {
   const lines = ["m !", "a 2 a"];
   const defs = definitions(...lines);
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: {
       kind: "circularDefinition",
@@ -321,7 +331,7 @@ test("a cycle is reported from the first definition on it, at the reference that
   const lines = ["m !", "a b m", "b c", "c a / m"];
   const defs = definitions(...lines);
   const text = lines.join("\n");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: {
       kind: "circularDefinition",
@@ -335,7 +345,7 @@ test("a cycle lists only the definitions on it", () => {
   const lines = ["m !", "a b", "b c", "c b"];
   const defs = definitions(...lines);
   const text = lines.join("\n");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: {
       kind: "circularDefinition",
@@ -350,7 +360,7 @@ test("a cycle may run through a prefix", () => {
   const lines = ["m !", "kilo- kilom / m"];
   const defs = definitions(...lines);
   const text = lines.join("\n");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: {
       kind: "circularDefinition",
@@ -374,7 +384,7 @@ test("a cycle is reported wherever the build reaches it first", () => {
 
 test("a prefix must be a plain number", () => {
   const defs = definitions("m !", "metric- m");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: {
       kind: "dimensionedPrefix",
@@ -386,7 +396,7 @@ test("a prefix must be a plain number", () => {
 
 test("a prefix may not carry a kind", () => {
   const defs = definitions("radian !kind", "angular- radian");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: {
       kind: "dimensionedPrefix",
@@ -514,12 +524,7 @@ test("a built table converts", () => {
   const quantity = (text: string): Quantity => {
     const expr = parseExpr(text);
     assert.ok(expr.ok, inspect(expr));
-    const result = evaluate(
-      expr.value,
-      lookup,
-      table.primitives,
-      DEFAULT_PRECISION,
-    );
+    const result = evaluate(expr.value, lookup, table.primitives, CONTEXT);
     assert.ok(result.ok, inspect(result));
     return result.value;
   };
@@ -548,7 +553,7 @@ test("building leaves the definitions alone", () => {
   const defs = definitions("m !", "k- 1000", "km 1000 m");
   const before = structuredClone(defs);
   built("m !", "k- 1000", "km 1000 m");
-  buildTable(defs, DEFAULT_PRECISION);
+  buildTable(defs, CONTEXT);
   assert.deepEqual(defs, before);
 });
 
@@ -710,7 +715,7 @@ function quantityIn(table: UnitTable, text: string): Quantity {
     expr.value,
     unitLookup(table),
     table.primitives,
-    DEFAULT_PRECISION,
+    CONTEXT,
   );
   assert.ok(result.ok, inspect(result));
   return result.value;
@@ -742,7 +747,7 @@ test("a built function applies and inverts", () => {
     boiling,
     unitLookup(table),
     table.primitives,
-    DEFAULT_PRECISION,
+    CONTEXT,
   );
   assert.ok(argument.ok, inspect(argument));
   assertQuantity(argument.value, "100", {});

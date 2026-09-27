@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { buildTable } from "./build.ts";
@@ -14,11 +15,18 @@ import {
   equals,
   parseDecimal,
   rational,
+  root,
   toFraction,
   type Rational,
 } from "./rational.ts";
 import { type Result } from "./result.ts";
 import { type UnitTable } from "./table.ts";
+
+/** The context every test computes at: the working precision, in the default mode. */
+const CONTEXT: NumberContext = {
+  precision: DEFAULT_PRECISION,
+  rounding: DEFAULT_ROUNDING,
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,7 +61,7 @@ const table: UnitTable = (() => {
     definitions.ok,
     `expected the text to parse, got ${inspect(definitions)}`,
   );
-  const built = buildTable(definitions.value, DEFAULT_PRECISION);
+  const built = buildTable(definitions.value, CONTEXT);
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
   return built.value;
 })();
@@ -62,7 +70,7 @@ function converted(
   have: string,
   want: string,
 ): Result<Conversion, ConversionError> {
-  return convertText(table, have, want, DEFAULT_PRECISION);
+  return convertText(table, have, want, CONTEXT);
 }
 
 function value(
@@ -163,8 +171,36 @@ test("surrounding spaces are allowed", () => {
   assertConverts("  3 ft ", " in  ", "36");
 });
 
+test("the working precision is derived from the digits asked for: max(40, digits + 10)", () => {
+  // sqrt(2) truncated to the working precision is root(2, 2, working).
+  const two = rational(2n);
+  const assertWorking = (precision: number, working: number) => {
+    const result = evaluateText(table, "2^(1/2)", {
+      precision,
+      rounding: DEFAULT_ROUNDING,
+    });
+    assert.ok(result.ok, inspect(result));
+    const expected = root(two, 2n, working);
+    assert.ok(expected.ok);
+    assert.ok(
+      equals(result.value.magnitude, expected.value),
+      `${precision} digits asked for compute at ${working}`,
+    );
+  };
+  assertWorking(1, 40);
+  assertWorking(8, 40);
+  assertWorking(30, 40);
+  assertWorking(31, 41);
+  assertWorking(50, 60);
+  assert.throws(
+    () =>
+      evaluateText(table, "1", { precision: 0, rounding: DEFAULT_ROUNDING }),
+    RangeError,
+  );
+});
+
 test("evaluateText is the pipeline up to the quantity", () => {
-  const result = evaluateText(table, "2 ft", DEFAULT_PRECISION);
+  const result = evaluateText(table, "2 ft", CONTEXT);
   assert.ok(result.ok, `expected a quantity, got ${inspect(result)}`);
   assert.ok(equals(result.value.magnitude, decimal("0.6096")));
   assert.deepEqual([...result.value.dimension.keys()], ["m"]);
@@ -232,7 +268,7 @@ test("have is tried first, so its failure is reported when both fail", () => {
 });
 
 test("evaluateText reports the text's own error, with no side", () => {
-  const result = evaluateText(table, "3 bogus", DEFAULT_PRECISION);
+  const result = evaluateText(table, "3 bogus", CONTEXT);
   assert.ok(!result.ok);
   assert.equal(result.error.kind, "unknownUnit");
 });

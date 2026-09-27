@@ -127,11 +127,19 @@ one rounding up so that a radius is always a true bound. The plan's D3
 says why it is neither a `Rational` nor a `number`. Nothing uses it yet;
 until the ball lands, the rules above are the ones in force.
 
-**Working precision.** `evaluate` takes one precision and passes it to every
-inexact operation; it is a working precision, not the display precision. The
-app passes `DEFAULT_PRECISION` (40 significant digits) everywhere, including
-when building the unit table, and lets the display precision vary
-independently below it (GNU units shows 8 digits). Each truncation is a
+**Working precision.** Every core function that does arithmetic (`evaluate`,
+`buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`:
+a precision in significant digits and a rounding mode) and computes at its
+precision; below the pipeline that precision is a working precision, not
+the display precision. The pipeline (`evaluateText`, `convertText`) is the
+one place that knows the difference: the context it takes is the user's,
+whose precision is the digits asked for (`DEFAULT_DIGITS`, GNU units'
+eight, until the settings of docs/calculator-plan.md, task 1.10, make it
+theirs), and it derives the working context it evaluates at, `max(40,
+digits + 10)`, 40 being `DEFAULT_PRECISION`, the fixed working precision
+the app had before the context existed, so that nothing computes at fewer
+digits than it did. The table is built at a context of 40 digits by
+`system-table.ts`. Each truncation is a
 relative error below `10^(1-p)`, and the exact operations that follow it
 combine such errors at worst additively, scaled by any integer exponent
 applied afterwards, so with a display precision that stays well under the
@@ -226,8 +234,9 @@ multiplication, division and raising to a rational power, each a magnitude
 operation beside the matching dimension operation. Only the magnitude can
 fail (a zero divisor, `0` to a negative power, an even root of a negative
 number, a result beyond `MAX_BITS`), so the failures are those of
-`rational.ts`, and the power is the one operation that takes a `Precision`,
-for the root of a non-integer exponent. Negation touches the magnitude alone
+`rational.ts`, and the power is the one operation that takes a
+`NumberContext`, for the root of a non-integer exponent. Negation touches
+the magnitude alone
 and cannot fail. Addition and subtraction are the
 other way about: the magnitudes always combine, but only quantities of one
 dimension have a sum, so the dimension side is the conformance check above,
@@ -529,7 +538,7 @@ grammar, not an input that can fail, and it throws.
 ## Evaluation
 
 `evaluate` takes an `Expr`, a `Lookup` for unit and function names, the
-table's `Primitives` and the working `Precision`, and returns the `Quantity`
+table's `Primitives` and the working `NumberContext`, and returns the `Quantity`
 the expression denotes. A number is a dimensionless quantity, a unit name
 is whatever the lookup says it is, and the operators are the quantity
 arithmetic above: juxtaposition and `*` multiply, `/` divides, `+` and `-`
@@ -790,6 +799,7 @@ changes to the core.
 ```
 src/core/rational.ts      Rational, arithmetic, root, parsing and formatting
 src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted
+src/core/context.ts       NumberContext: the precision and the rounding mode arithmetic is done at
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Rational with a Dimension), its arithmetic

@@ -16,6 +16,7 @@
 import { buildTable, type BuildError } from "./core/build.ts";
 import { parseDefinitions } from "./core/definitions.ts";
 import { type ParseError } from "./core/parser.ts";
+import { DEFAULT_ROUNDING, type NumberContext } from "./core/context.ts";
 import { DEFAULT_PRECISION } from "./core/rational.ts";
 import { err, type Result } from "./core/result.ts";
 import { type UnitTable } from "./core/table.ts";
@@ -26,6 +27,16 @@ export type SystemTableError =
   | { readonly kind: "fetchFailed"; readonly reason: string }
   | ParseError
   | BuildError;
+
+/**
+ * The working context the table is built at: the fixed working precision,
+ * as before the context existed. The rounding mode has no effect on a
+ * build today, since nothing in a build rounds but a root, which truncates.
+ */
+const BUILD_CONTEXT: NumberContext = {
+  precision: DEFAULT_PRECISION,
+  rounding: DEFAULT_ROUNDING,
+};
 
 let loading: Promise<Result<UnitTable, SystemTableError>> | undefined;
 
@@ -58,5 +69,5 @@ async function load(): Promise<Result<UnitTable, SystemTableError>> {
   }
   const definitions = parseDefinitions(text);
   if (!definitions.ok) return definitions;
-  return buildTable(definitions.value, DEFAULT_PRECISION);
+  return buildTable(definitions.value, BUILD_CONTEXT);
 }

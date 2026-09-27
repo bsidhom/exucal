@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import {
@@ -29,6 +30,12 @@ import {
   type Rational,
 } from "./rational.ts";
 import type { Result } from "./result.ts";
+
+/** The context every test computes at: the working precision, in the default mode. */
+const CONTEXT: NumberContext = {
+  precision: DEFAULT_PRECISION,
+  rounding: DEFAULT_ROUNDING,
+};
 
 /** Builds a dimension from integer exponents (or rationals, for roots). */
 function dim(exponents: Record<string, number | Rational>): Dimension {
@@ -249,67 +256,54 @@ test("dividing by a zero magnitude fails", () => {
 
 test("an integer power is exact and multiplies the exponents", () => {
   assertQuantity(
-    value(
-      powQuantity(quantity("2", { m: 1 }), rational(3n), DEFAULT_PRECISION),
-    ),
+    value(powQuantity(quantity("2", { m: 1 }), rational(3n), CONTEXT)),
     quantity("8", { m: 3 }),
   );
   assertQuantity(
-    value(powQuantity(FOOT, rational(2n), DEFAULT_PRECISION)),
+    value(powQuantity(FOOT, rational(2n), CONTEXT)),
     quantity("0.09290304", { m: 2 }),
   );
   assertQuantity(
-    value(
-      powQuantity(
-        quantity("2", { m: 1, s: -1 }),
-        rational(-2n),
-        DEFAULT_PRECISION,
-      ),
-    ),
+    value(powQuantity(quantity("2", { m: 1, s: -1 }), rational(-2n), CONTEXT)),
     { magnitude: rational(1n, 4n), dimension: dim({ m: -2, s: 2 }) },
   );
 });
 
 test("the zeroth power is the dimensionless one", () => {
   assertQuantity(
-    value(powQuantity(quantity("7", { m: 1, s: -2 }), ZERO, DEFAULT_PRECISION)),
+    value(powQuantity(quantity("7", { m: 1, s: -2 }), ZERO, CONTEXT)),
     scalar(ONE),
   );
-  assertQuantity(
-    value(powQuantity(scalar(ZERO), ZERO, DEFAULT_PRECISION)),
-    scalar(ONE),
-  );
+  assertQuantity(value(powQuantity(scalar(ZERO), ZERO, CONTEXT)), scalar(ONE));
 });
 
 test("a rational power that is exact stays exact", () => {
   assertQuantity(
-    value(powQuantity(quantity("4", { m: 2 }), half, DEFAULT_PRECISION)),
+    value(powQuantity(quantity("4", { m: 2 }), half, CONTEXT)),
     quantity("2", { m: 1 }),
   );
   assertQuantity(
-    value(powQuantity(quantity("2.25", { m: 2 }), half, DEFAULT_PRECISION)),
+    value(powQuantity(quantity("2.25", { m: 2 }), half, CONTEXT)),
     quantity("1.5", { m: 1 }),
   );
   assertQuantity(
-    value(
-      powQuantity(quantity("8", { m: 3 }), rational(2n, 3n), DEFAULT_PRECISION),
-    ),
+    value(powQuantity(quantity("8", { m: 3 }), rational(2n, 3n), CONTEXT)),
     quantity("4", { m: 2 }),
   );
 });
 
 test("a rational power of a primitive gives a rational exponent", () => {
   assertQuantity(
-    value(powQuantity(METRE, half, DEFAULT_PRECISION)),
+    value(powQuantity(METRE, half, CONTEXT)),
     quantity("1", { m: half }),
   );
   // And the root of that is the primitive again.
   assertQuantity(
     value(
       powQuantity(
-        value(powQuantity(METRE, half, DEFAULT_PRECISION)),
+        value(powQuantity(METRE, half, CONTEXT)),
         rational(2n),
-        DEFAULT_PRECISION,
+        CONTEXT,
       ),
     ),
     METRE,
@@ -318,10 +312,12 @@ test("a rational power of a primitive gives a rational exponent", () => {
 
 test("an inexact root truncates the magnitude once, to the precision", () => {
   const two = quantity("2", { m: 2 });
-  const root5 = value(powQuantity(two, half, 5));
+  const root5 = value(
+    powQuantity(two, half, { precision: 5, rounding: DEFAULT_ROUNDING }),
+  );
   assert.equal(format(root5.magnitude, 10, "halfAwayFromZero"), "1.4142");
   assert.deepEqual(root5.dimension, dim({ m: 1 }));
-  const root40 = value(powQuantity(two, half, DEFAULT_PRECISION));
+  const root40 = value(powQuantity(two, half, CONTEXT));
   assert.equal(
     format(root40.magnitude, 40, "halfAwayFromZero"),
     "1.414213562373095048801688724209698078569",
@@ -334,40 +330,24 @@ test("an inexact root truncates the magnitude once, to the precision", () => {
 
 test("a power fails as its magnitude does", () => {
   assert.deepEqual(
-    failure(
-      powQuantity(quantity("0", { m: 1 }), rational(-1n), DEFAULT_PRECISION),
-    ),
+    failure(powQuantity(quantity("0", { m: 1 }), rational(-1n), CONTEXT)),
     { kind: "divisionByZero" },
   );
   assert.deepEqual(
-    failure(
-      powQuantity(
-        quantity("0", { m: 1 }),
-        rational(-1n, 2n),
-        DEFAULT_PRECISION,
-      ),
-    ),
+    failure(powQuantity(quantity("0", { m: 1 }), rational(-1n, 2n), CONTEXT)),
     { kind: "divisionByZero" },
   );
+  assert.deepEqual(failure(powQuantity(scalar(rational(-4n)), half, CONTEXT)), {
+    kind: "negativeRadicand",
+    degree: 2n,
+  });
   assert.deepEqual(
-    failure(powQuantity(scalar(rational(-4n)), half, DEFAULT_PRECISION)),
-    { kind: "negativeRadicand", degree: 2n },
-  );
-  assert.deepEqual(
-    failure(
-      powQuantity(scalar(rational(10n)), rational(100000n), DEFAULT_PRECISION),
-    ),
+    failure(powQuantity(scalar(rational(10n)), rational(100000n), CONTEXT)),
     { kind: "tooLarge" },
   );
   // An odd root of a negative magnitude is fine.
   assertQuantity(
-    value(
-      powQuantity(
-        quantity("-8", { m: 3 }),
-        rational(1n, 3n),
-        DEFAULT_PRECISION,
-      ),
-    ),
+    value(powQuantity(quantity("-8", { m: 3 }), rational(1n, 3n), CONTEXT)),
     quantity("-2", { m: 1 }),
   );
 });
@@ -384,8 +364,8 @@ test("the operations leave their operands alone", () => {
   addQuantities(a, b, PRIMITIVES);
   subtractQuantities(b, b, PRIMITIVES);
   negateQuantity(a);
-  powQuantity(a, half, DEFAULT_PRECISION);
-  powQuantity(b, rational(-1n), DEFAULT_PRECISION);
+  powQuantity(a, half, CONTEXT);
+  powQuantity(b, rational(-1n), CONTEXT);
   assert.deepEqual(a, quantity("2", { m: 1, s: -1 }));
   assert.deepEqual(b, quantity("0", { m: 1 }));
 });

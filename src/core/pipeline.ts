@@ -40,6 +40,15 @@
 // body's error as a call carries its body's. `evaluateText` is the first
 // half on its own, for a caller that wants to know what one text denotes
 // without converting it.
+//
+// The `NumberContext` both take is the user's: its precision is the digits
+// asked for, not the precision anything is computed at. This is the one
+// place that knows the difference (D1 of docs/calculator-plan.md): the
+// working context the texts are evaluated at is derived here, at
+// `max(40, precision + 10)` digits, 40 being the fixed working precision
+// the app had before the context existed, so that nothing computes at fewer
+// digits than it did; stage 2's retry schedule replaces the rule. The
+// table is built at a working context of its own, by its builder.
 
 import {
   convert,
@@ -52,7 +61,13 @@ import { evaluate, invertFunction, type EvaluateError } from "./evaluate.ts";
 import { parseExpr, parseUnitList, type Expr } from "./expr.ts";
 import { type ParseError } from "./parser.ts";
 import { type Quantity } from "./quantity.ts";
-import { divide, type Precision, type Rational } from "./rational.ts";
+import { checkContext, type NumberContext } from "./context.ts";
+import {
+  DEFAULT_PRECISION,
+  divide,
+  type Precision,
+  type Rational,
+} from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import {
   unitLookup,
@@ -138,18 +153,33 @@ export type ConversionError =
 // ---------------------------------------------------------------------------
 // The pipeline
 
+/** The digits the guard adds to the digits asked for, in stage 1's rule. */
+const GUARD_DIGITS: Precision = 10;
+
 /**
- * The quantity `text` denotes in `table`, with every inexact operation
- * truncated to `precision` significant digits.
+ * The working context for the user's `context`: the same rounding mode, at
+ * `max(40, precision + 10)` digits, as the header explains.
+ */
+function workingContext(context: NumberContext): NumberContext {
+  checkContext(context);
+  return {
+    precision: Math.max(DEFAULT_PRECISION, context.precision + GUARD_DIGITS),
+    rounding: context.rounding,
+  };
+}
+
+/**
+ * The quantity `text` denotes in `table`, evaluated at the working context
+ * derived from the user's `context`.
  */
 export function evaluateText(
   table: UnitTable,
   text: string,
-  precision: Precision,
+  context: NumberContext,
 ): Result<Quantity, TextError> {
   const expr = parseExpr(text);
   if (!expr.ok) return expr;
-  return evaluateExpr(table, expr.value, precision);
+  return evaluateExpr(table, expr.value, workingContext(context));
 }
 
 /**
@@ -164,9 +194,10 @@ export function convertText(
   table: UnitTable,
   have: string,
   want: string,
-  precision: Precision,
+  context: NumberContext,
 ): Result<Conversion, ConversionError> {
-  const haveQuantity = evaluateText(table, have, precision);
+  const working = workingContext(context);
+  const haveQuantity = evaluateExpr(table, have, working);
   if (!haveQuantity.ok) return inputError("have", haveQuantity.error);
   const items = parseUnitList(want);
   if (!items.ok) return inputError("want", items.error);
@@ -179,9 +210,9 @@ export function convertText(
     }
     const fn = name === undefined ? undefined : table.functions.get(name);
     if (fn !== undefined) {
-      return convertToFunction(table, haveQuantity.value, fn, precision);
+      return convertToFunction(table, haveQuantity.value, fn, working);
     }
-    const wantQuantity = evaluateExpr(table, first, precision);
+    const wantQuantity = evaluateExpr(table, first, working);
     if (!wantQuantity.ok) return inputError("want", wantQuantity.error);
     const value = convert(
       haveQuantity.value,
@@ -198,7 +229,7 @@ export function convertText(
   }
   const units: ListedUnit[] = [];
   for (const item of items.value) {
-    const quantity = evaluateExpr(table, item, precision);
+    const quantity = evaluateExpr(table, item, working);
     if (!quantity.ok) return inputError("want", quantity.error);
     units.push({
       text: want.slice(item.span.start, item.span.end),
@@ -260,7 +291,7 @@ function convertToFunction(
   table: UnitTable,
   have: Quantity,
   fn: UnitFunction,
-  precision: Precision,
+  context: NumberContext,
 ): Result<Conversion, ConversionError> {
   const conformance = checkConformance(
     have.dimension,
@@ -273,7 +304,7 @@ function convertToFunction(
     have,
     unitLookup(table),
     table.primitives,
-    precision,
+    context,
   );
   if (!argument.ok) {
     const { error } = argument;
@@ -301,12 +332,18 @@ function convertToFunction(
   });
 }
 
+/** `expr`, or the text of one, evaluated against `table` at the working `context`. */
 function evaluateExpr(
   table: UnitTable,
-  expr: Expr,
-  precision: Precision,
+  expr: Expr | string,
+  context: NumberContext,
 ): Result<Quantity, TextError> {
-  return evaluate(expr, unitLookup(table), table.primitives, precision);
+  if (typeof expr === "string") {
+    const parsed = parseExpr(expr);
+    if (!parsed.ok) return parsed;
+    expr = parsed.value;
+  }
+  return evaluate(expr, unitLookup(table), table.primitives, context);
 }
 
 function inputError(

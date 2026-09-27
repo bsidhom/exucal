@@ -5,6 +5,7 @@
 // core/; these tests only exercise the data.
 
 import assert from "node:assert/strict";
+import { DEFAULT_ROUNDING, type NumberContext } from "./core/context.ts";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
@@ -26,6 +27,12 @@ import {
 import { type Result } from "./core/result.ts";
 import { unitLookup, type UnitTable } from "./core/table.ts";
 
+/** The context every test computes at: the working precision, in the default mode. */
+const CONTEXT: NumberContext = {
+  precision: DEFAULT_PRECISION,
+  rounding: DEFAULT_ROUNDING,
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 
@@ -35,7 +42,7 @@ const text = readFileSync(new URL("./units.txt", import.meta.url), "utf8");
 const table: UnitTable = (() => {
   const parsed = parseDefinitions(text);
   assert.ok(parsed.ok, `expected the file to parse, got ${inspect(parsed)}`);
-  const built = buildTable(parsed.value, DEFAULT_PRECISION);
+  const built = buildTable(parsed.value, CONTEXT);
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
   return built.value;
 })();
@@ -46,12 +53,7 @@ const lookup = unitLookup(table);
 function quantity(source: string): Quantity {
   const expr = parseExpr(source);
   assert.ok(expr.ok, `${JSON.stringify(source)} does not parse`);
-  const value = evaluate(
-    expr.value,
-    lookup,
-    table.primitives,
-    DEFAULT_PRECISION,
-  );
+  const value = evaluate(expr.value, lookup, table.primitives, CONTEXT);
   assert.ok(
     value.ok,
     `${JSON.stringify(source)} does not evaluate: ${inspect(value)}`,
@@ -203,7 +205,7 @@ test("temperature readings convert through tempC and tempF", () => {
   assertCall("tempF(-40)", "tempC", "-40");
   assertCall("0 K", "tempC", "-273.15");
   // The argument is a plain number.
-  const result = convertText(table, "tempC(1 m)", "K", DEFAULT_PRECISION);
+  const result = convertText(table, "tempC(1 m)", "K", CONTEXT);
   assert.ok(!result.ok);
   assert.ok(result.error.kind === "inputError");
   assert.equal(result.error.error.kind, "argumentMismatch");
@@ -211,7 +213,7 @@ test("temperature readings convert through tempC and tempF", () => {
 
 /** Asserts that `have` in the function `want` is the call of it at exactly `expected`. */
 function assertCall(have: string, want: string, expected: string): void {
-  const result = convertText(table, have, want, DEFAULT_PRECISION);
+  const result = convertText(table, have, want, CONTEXT);
   assert.ok(result.ok, `${have} in ${want}: ${inspect(result)}`);
   assert.ok(result.value.kind === "function", `${have} in ${want}: not a call`);
   assert.equal(result.value.name, want);

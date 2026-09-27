@@ -875,7 +875,9 @@ of 1.9 goes; the component reads the kind.
 
 Tests: each kind from a constructed ball; `certifies` at a tie under each
 mode; the carry (`0.99999 ± 0.00002` at three digits certifies under
-`halfAwayFromZero`, `9.9999 ± 0.0002` at two digits does not); the
+`halfAwayFromZero`, and so does `9.9999 ± 0.0002` at two, both ends
+rounding to `10`, where the first version of this task had it failing;
+at five digits it does not); the
 non-monotone case (`1.25 ± 0.004` certifies three digits and not two).
 
 Behavior: the display is still called with a single pass, so `partial`

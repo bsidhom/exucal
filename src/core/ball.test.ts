@@ -3,6 +3,8 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import {
   addBalls,
+  certifiedDigits,
+  certifies,
   containsZero,
   divideBalls,
   exact,
@@ -43,6 +45,7 @@ import {
   type Rational,
 } from "./rational.ts";
 import type { Result } from "./result.ts";
+import { ROUNDING_MODES } from "./rounding.ts";
 import { random, randomBall } from "../testing/random.ts";
 
 function dec(text: string): Rational {
@@ -512,4 +515,98 @@ test("powRationalBall composes the power and the root, root last", () => {
   );
   assert.ok(!isUnbounded(squared.rad));
   assert.deepEqual(squared.mid, rational(4n));
+});
+
+// ---------------------------------------------------------------------------
+// Certification
+
+test("certifies when both ends round alike, in the mode", () => {
+  const nearest = "halfAwayFromZero";
+  // 1.2345 ± 1e-30 straddles the tie of the fourth digit.
+  const tie = ball(dec("1.2345"), dec("1e-30"));
+  assert.ok(!certifies(tie, 4, nearest));
+  assert.ok(!certifies(tie, 4, "halfEven"));
+  assert.ok(!certifies(tie, 4, "halfTowardZero"));
+  assert.ok(certifies(tie, 4, "floor"));
+  assert.ok(certifies(tie, 4, "ceiling"));
+  assert.ok(certifies(tie, 4, "towardZero"));
+  assert.ok(certifies(tie, 4, "awayFromZero"));
+  for (const mode of ROUNDING_MODES) {
+    assert.ok(certifies(tie, 3, mode), mode);
+    assert.ok(!certifies(tie, 40, mode), mode);
+  }
+  // At five digits 1.2345 is a cell's centre under the nearest modes and a
+  // cell's edge under the directed ones, which the ball straddles.
+  for (const mode of [
+    "halfEven",
+    "halfAwayFromZero",
+    "halfTowardZero",
+  ] as const) {
+    assert.ok(certifies(tie, 5, mode), mode);
+  }
+  for (const mode of [
+    "towardZero",
+    "awayFromZero",
+    "ceiling",
+    "floor",
+  ] as const) {
+    assert.ok(!certifies(tie, 5, mode), mode);
+  }
+  // A directed mode has its own boundaries: 1.234 ± 1e-30 under floor
+  // straddles 1.234 at four digits.
+  assert.ok(!certifies(ball(dec("1.234"), dec("1e-30")), 4, "floor"));
+  assert.ok(certifies(ball(dec("1.234"), dec("1e-30")), 4, nearest));
+  // The carry across a power of ten holds when both ends carry.
+  assert.ok(certifies(ball(dec("0.99999"), dec("0.00002")), 3, nearest));
+  assert.ok(certifies(ball(dec("9.9999"), dec("0.0002")), 2, nearest));
+  assert.ok(!certifies(ball(dec("9.9999"), dec("0.0002")), 5, nearest));
+  // Exact balls certify every count; unbounded and zero-straddling none.
+  assert.ok(certifies(exact(rational(1n, 3n)), 100, nearest));
+  assert.ok(certifies(exact(ZERO), 1, nearest));
+  assert.ok(!certifies({ mid: ONE, rad: UNBOUNDED }, 1, nearest));
+  assert.ok(!certifies(ball(dec("0.001"), dec("0.002")), 1, nearest));
+  assert.ok(!certifies(ball(ZERO, dec("1e-30")), 1, nearest));
+});
+
+test("certifiedDigits is the largest count that certifies, which is not monotone", () => {
+  const nearest = "halfAwayFromZero";
+  // [1.246, 1.254] certifies three digits (1.25) but not two (1.2 or 1.3).
+  const around = ball(dec("1.25"), dec("0.004"));
+  assert.ok(certifies(around, 3, nearest));
+  assert.ok(!certifies(around, 2, nearest));
+  assert.equal(certifiedDigits(around, 8, nearest), 3);
+  assert.equal(certifiedDigits(around, 3, nearest), 3);
+  assert.equal(certifiedDigits(around, 2, nearest), 1);
+  // A root at forty digits certifies its digits and the guard's.
+  const root = unwrap(rootBall(exact(rational(2n)), 2n, at(40)));
+  const d = certifiedDigits(root, 100, nearest);
+  assert.ok(d >= 47 && d <= 50, `${d}`);
+  assert.equal(certifiedDigits(root, 8, nearest), 8);
+  // None: a straddling ball, an unbounded one, a tie at the first digit.
+  assert.equal(
+    certifiedDigits(ball(dec("0.001"), dec("0.002")), 8, nearest),
+    0,
+  );
+  assert.equal(certifiedDigits({ mid: ONE, rad: UNBOUNDED }, 8, nearest), 0);
+  assert.equal(certifiedDigits(ball(dec("1.5"), dec("1e-30")), 1, nearest), 0);
+  // Every count: an exact value, zero included.
+  assert.equal(certifiedDigits(exact(rational(1n, 3n)), 12, nearest), 12);
+  assert.equal(certifiedDigits(exact(ZERO), 12, nearest), 12);
+  // The scan's starting bound never cuts a count that certifies: over the
+  // shared source, the count found is one that certifies and the next one
+  // up does not, wherever the answer is below the cap.
+  const rand = random(2401);
+  for (let i = 0; i < 60; i++) {
+    const b = randomBall(rand, 24, 6);
+    if (containsZero(b) || isExact(b)) continue;
+    const found = certifiedDigits(b, 30, nearest);
+    if (found === 0) {
+      assert.ok(!certifies(b, 1, nearest));
+      continue;
+    }
+    assert.ok(certifies(b, found, nearest), `${found} certifies`);
+    for (let more = found + 1; more <= 30; more++) {
+      assert.ok(!certifies(b, more, nearest), `${more} does not`);
+    }
+  }
 });

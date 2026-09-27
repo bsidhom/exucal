@@ -105,24 +105,41 @@ where, a value can lose precision:
    ball fails as it always did. `x^(p/q)` is the `q`-th root of `x^p`,
    root last, so the one inexact step comes last.
 
-3. **Display rounds once, in a rounding mode, and `=` is the radius's to
-   decide.** `show(ball, digits, mode)` in `src/core/display.ts` formats the
-   midpoint at the digits the user asked for in one of the seven rounding
-   modes of `rounding.ts` (half even, half away from zero, half toward
-   zero, toward zero, away from zero, ceiling, floor; `divideRounded` is the
-   one place a mode is interpreted, and every rounding in the core scales to
-   an integer division and calls it), with the carry across a power of ten
-   (`9.99` at two digits is `10`) in every mode that rounds the magnitude
-   up. It says `=` when the radius is zero and rounding the midpoint to the
-   digits leaves it unchanged, so that every digit held is shown, and `≈`
-   otherwise. Exactness is a property of the value, not of the display: a
-   value that passes through a root and comes out looking rational
-   (`sqrt(2) / sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while
-   `sqrt(4)` is `= 2` because the exact case was detected and nothing was
-   rounded. The default mode is half away from zero, the rounding people
-   expect from `0.125 → 0.13` (the `halfExpand` of `Intl.NumberFormat`;
-   C's `%g` differs only on exact ties, which are rare with doubles but
-   ordinary with rationals).
+3. **Display rounds once, in a rounding mode, shows only the digits the
+   radius certifies, and `=` is the radius's to decide.** `show(ball,
+digits, mode)` in `src/core/display.ts` formats the midpoint at the
+   digits the user asked for in one of the seven rounding modes of
+   `rounding.ts` (half even, half away from zero, half toward zero, toward
+   zero, away from zero, ceiling, floor; `divideRounded` is the one place a
+   mode is interpreted, and every rounding in the core scales to an integer
+   division and calls it), with the carry across a power of ten (`9.99` at
+   two digits is `10`) in every mode that rounds the magnitude up. A digit
+   is shown only when it is certified (the plan's D7): the two ends of the
+   ball, `mid - rad` and `mid + rad` as exact rationals, round to the same
+   value at that many digits, so that, rounding being monotone, the digits
+   shown are what rounding the true value would give, correctly rounded
+   and not merely close. `certifies` and `certifiedDigits` in `ball.ts`
+   decide it; certification is not monotone in the digit count (`[1.246,
+1.254]` certifies three digits and not two), so the count is found from
+   the top down. `show` returns a kind with the text: `exact` (radius zero
+   and every digit held shown, the one kind shown with `=`), `certified`
+   (every digit asked for is certain), `partial` (fewer are, and the text
+   is those), `zero` (a ball containing zero without being it, shown as
+   `0` with a bound on how far from zero the value may lie), and
+   `unbounded` (a radius not known, the midpoint's digits certifying none).
+   Exactness is a property of the value, not of the display: a value that
+   passes through a root and comes out looking rational (`sqrt(2) /
+sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while `sqrt(4)` is
+   `= 2` because the exact case was detected and nothing was rounded. The
+   mode is applied here and nowhere else in exact mode (the plan's D15):
+   the digits shown are the true value's rounding in it, and no
+   intermediate step rounds in a mode. The default mode is half away from
+   zero, the rounding people expect from `0.125 → 0.13` (the `halfExpand`
+   of `Intl.NumberFormat`; C's `%g` differs only on exact ties, which are
+   rare with doubles but ordinary with rationals). Until the retry loop of
+   stage 2's 2.5 lands, the pipeline runs one pass, so `partial` and
+   `zero` can reach the component, which reads only whether the kind is
+   `exact` and shows the text; 2.6 shows the kinds.
 
 **The types**, each layer adding one concept (the plan's D13 has the
 argument): `Rational` (`rational.ts`) is the exact fraction in lowest terms
@@ -854,7 +871,7 @@ src/core/context.ts       NumberContext: the precision and the rounding mode ari
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root on the kernel, unresolved
 src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations
-src/core/display.ts       show: a ball's text at the digits asked, and whether it is exact
+src/core/display.ts       show: a ball's text at the digits it certifies, and its kind (exact, certified, partial, zero, unbounded)
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Ball with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text

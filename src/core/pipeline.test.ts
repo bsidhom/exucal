@@ -215,12 +215,15 @@ test("a value that looks rational after a root is inexact, and the display says 
   assert.ok(equals(ratio.mid, rational(1n)));
   assert.ok(!isExact(ratio));
   assert.deepEqual(show(ratio, 8, DEFAULT_ROUNDING), {
+    kind: "certified",
     text: "1",
-    exact: false,
   });
   // Whereas a root with an exact case is exact.
   const two = value("4^(1/2) m", "m").value;
-  assert.deepEqual(show(two, 8, DEFAULT_ROUNDING), { text: "2", exact: true });
+  assert.deepEqual(show(two, 8, DEFAULT_ROUNDING), {
+    kind: "exact",
+    text: "2",
+  });
 });
 
 test("evaluateText is the pipeline up to the quantity", () => {

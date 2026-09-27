@@ -67,16 +67,20 @@ import {
   add,
   bitLength,
   compare,
+  decimalExponent,
   divide,
+  equals,
   exactRoot,
   isZero,
   multiply,
   negate,
   pow,
   rational,
+  roundTo,
   scaleByPowerOfTwo,
   sign,
   subtract,
+  type Precision,
   type Rational,
   type RationalError,
 } from "./rational.ts";
@@ -93,6 +97,7 @@ import {
   type Radius,
 } from "./radius.ts";
 import { err, ok, type Result } from "./result.ts";
+import { type RoundingMode } from "./rounding.ts";
 
 /** A midpoint with the radius that bounds its distance from the true value. */
 export type Ball = {
@@ -341,6 +346,63 @@ export function powRationalBall(
   const power = powBall(b, exponent.num);
   if (!power.ok) return power;
   return rootBall(power.value, exponent.den, context);
+}
+
+// ---------------------------------------------------------------------------
+// Certification
+
+/**
+ * Whether `b` certifies `digits` significant digits in `mode` (D7 of the
+ * plan): its two ends, `mid - rad` and `mid + rad` as exact rationals,
+ * round to the same `digits`-digit value in `mode`. Rounding is monotone,
+ * so every value between them rounds to it too, and the shown digits are
+ * what rounding the true value would give: correctly rounded, not merely
+ * close. An exact ball certifies every count; an unbounded one none; a
+ * ball containing zero none, since its ends differ in sign.
+ */
+export function certifies(
+  b: Ball,
+  digits: Precision,
+  mode: RoundingMode,
+): boolean {
+  if (b.rad.kind === "unbounded") return false;
+  if (b.rad.mant === 0n) return true;
+  const rad = radiusUpper(b.rad);
+  return equals(
+    roundTo(subtract(b.mid, rad), digits, mode),
+    roundTo(add(b.mid, rad), digits, mode),
+  );
+}
+
+/**
+ * The largest `d <= maxDigits` that `b` certifies in `mode`, or 0 when it
+ * certifies none. Certification is not monotone in `d`: `[1.246, 1.254]`
+ * certifies three digits, both ends rounding to `1.25`, and not two,
+ * `1.25` being a two-digit tie; so the counts are tried from the top
+ * down, and the first that certifies is the answer. The scan starts where
+ * the radius allows: two ends within `2 rad` of each other cannot share a
+ * cell narrower than that, which bounds `d` by the exponents of the ends
+ * and the radius.
+ */
+export function certifiedDigits(
+  b: Ball,
+  maxDigits: Precision,
+  mode: RoundingMode,
+): number {
+  if (b.rad.kind === "unbounded" || containsZero(b)) {
+    return isExactZero(b) ? maxDigits : 0;
+  }
+  if (b.rad.mant === 0n) return maxDigits;
+  const rad = radiusUpper(b.rad);
+  const farthest =
+    compare(absolute(subtract(b.mid, rad)), absolute(add(b.mid, rad))) > 0
+      ? subtract(b.mid, rad)
+      : add(b.mid, rad);
+  const atMost = decimalExponent(farthest) - decimalExponent(rad) + 2;
+  for (let d = Math.min(maxDigits, atMost); d >= 1; d--) {
+    if (certifies(b, d, mode)) return d;
+  }
+  return 0;
 }
 
 // ---------------------------------------------------------------------------

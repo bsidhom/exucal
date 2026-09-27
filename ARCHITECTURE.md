@@ -171,43 +171,75 @@ elementary functions of stage 3 are the rest.
 
 **Working precision and the context.** Every core function that does
 arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a
-`NumberContext` (`src/core/context.ts`: a precision in significant digits
-and a rounding mode) and computes at its precision; below the pipeline that
-precision is a working precision, not the digits shown. The pipeline
-(`evaluateText`, `convertText`) is the one place that knows the difference
-(the plan's D1): the context it takes is the user's, whose precision is the
-digits asked for, and it derives the working context it evaluates at,
-`max(40, digits + 10)`, 40 being `DEFAULT_PRECISION`, the fixed working
-precision the app had before the context existed, so that nothing computes
-at fewer digits than it did; stage 2's retry schedule replaces the rule.
-The table is built at a context of 40 digits by `system-table.ts`; a unit
-whose definition takes a root carries the radius that says so. The user's
-context comes from the settings ("UI" below): the digits, up to
-`MAX_DIGITS` (200), and the mode.
+`NumberContext` (`src/core/context.ts`: a precision in significant digits,
+a rounding mode, and the range limit `maxBits`) and computes at its
+precision; below the pipeline that precision is a working precision, not
+the digits shown. The pipeline (`evaluateText`, `convertText`) is the one
+place that knows the difference (the plan's D1): the context it takes is
+the user's, whose precision is the digits asked for, and it derives the
+working contexts it evaluates at by the retry schedule of the plan's D12.
+`schedule` yields the digits asked for plus a guard of ten, then twice
+that, doubling, and last a ceiling, which the caller passes beside the
+context: the shell derives it from the cap on the digits setting,
+`ceilingFor` in context.ts, four times the cap plus the guard, so that
+the largest request has two doublings of room above its first pass (4,040
+digits for the default cap of 1,000; nine passes at eight digits, three at
+a thousand). `resolve` runs the evaluation at each working context in turn
+and stops at the first result whose every value is exact, certified at the
+digits asked for, or of unbounded radius; a result that certifies fewer
+digits is kept as the best so far and the next pass tried, since
+cancellation that cost `k` digits is paid for by `k` more working digits;
+an `unresolved`, at any depth of a call or an inverse, and the converter's
+`unresolvedWant` are retried the same way; any other error ends the loop,
+with the best result so far if a pass produced one (the only such error a
+later pass can newly raise is a `tooLarge` marking the pass unaffordable)
+and otherwise with the error. At the ceiling the best result so far, or
+the last error, is returned, and the display shows what is certified.
+Expressions that never certify, `sqrt(2)^2 - 2` and later `sin(pi()
+radian)`, run to the ceiling however it is set, which is what bounds their
+latency; the ceiling is therefore a cost setting. The table is built at a
+context of 40 digits by `system-table.ts` until stage 3 builds it at the
+ceiling. The user's context and the ceiling come from the settings ("UI"
+below): the digits, the mode, and the two limits.
 
-The guard of ten digits is why the digits shown are right in practice, not
-by proof: a truncation at the working precision is a relative error below
-`10^(1-p)`, the exact operations that follow combine such errors at worst
-additively, scaled by any integer exponent applied afterwards, so with the
-digits shown well under the working precision the truncation errors never
-reach the digits shown, except in the double-rounding case, a truncated
-value on the near side of a rounding boundary that the exact value is on
-the far side of, within `10^(1-p)` of it, which at forty working digits is
-accepted as unreachable. Stage 2 replaces this argument with a proof: the
-digits shown are certified from the radius, and the working precision is
-raised until they are.
+**Settling.** Every result the evaluator produces, and every unit the
+lookup hands out, is settled to the working context (the plan's D15):
+an inexact midpoint is rounded to nearest at the working precision's bits
+(`bitsFor`, the digits plus 32 guard bits), a dyadic, with half an ulp
+added to the radius; an exact value is never touched. So an inexact
+midpoint never grows beyond the working precision however long the
+expression, while exact values stay the exact rationals they are; the
+first version of this design let inexact midpoints grow as exact
+rationals, and a thirteen-thousand-bit dyadic to the fifth power was then
+a size the range limit refused. `powBall` on an inexact base squares with
+settling for the same reason, and only the magnitude of its result is
+guarded. Settling rounds to nearest, not in the user's mode: it bounds the
+size of a number the user never sees, and the mode is applied once, by
+the display, to the certified value of the whole expression, which
+certification guarantees is the true value's rounding in that mode.
 
 ### Size limits
 
 Exact arithmetic cannot overflow, but it can grow without bound:
-`10^(10^9)`, `1e999999999` and `2^(1/999999999)` are all valid input. The
-operations whose result can be exponentially larger than their inputs (`pow`,
-`root`, and the exponent of a decimal literal) predict the size of their
-result from the sizes of the inputs and return `tooLarge` instead of
-computing anything beyond `MAX_BITS` (2^16 bits, about 19,700 decimal
-digits, at which every operation still takes milliseconds). The operations
-that grow their inputs by at most a constant factor do not check: an
-expression of bounded length applies a bounded number of them.
+`10^(10^9)` and `1e999999999` are valid input. Two limits on two axes
+bound it (the plan's D16). The range limit, `maxBits` in the context,
+bounds the size of a numerator or denominator and so the magnitude of
+anything: the operations whose result can be exponentially larger than
+their inputs (`pow`, and a power of an inexact base by its magnitude)
+predict the size of their result and return `tooLarge` instead of
+computing anything beyond it, and the evaluator checks every literal
+against it. Its default is 2^16 bits (about 19,700 decimal digits, at
+which every exact operation still takes milliseconds) and it is the
+user's to set up to the hard bound `LIMIT_BITS` in rational.ts (2^20,
+about 315,000 digits), which the parser, having no context, applies to a
+literal. The operations that grow their inputs by at most a constant
+factor do not check: an expression of bounded length applies a bounded
+number of them, and settling keeps inexact midpoints at the working
+precision. The precision limit is the cap on the digits setting, from
+which the retry schedule's ceiling is derived; its own hard bound,
+`maxDigitsFor`, follows from the range limit, since a settled midpoint at
+the ceiling must fit it with room for a product of two: about 2,450
+digits at the default range limit.
 
 ### Failures
 
@@ -785,11 +817,25 @@ The output shows the two texts and the value between `=` or `≈`, decided by
 the user's settings (eight digits, half away from zero, by default; the
 digits asked for are kept apart from the working precision as "Precision
 and rounding" describes): `=` when the value's radius is zero and every
-digit it holds is shown, `≈` otherwise. The settings are the shell's
-(`src/settings.ts`, kept in `localStorage`, validated on the way in so
-that a stale entry never leaves the app without a usable context) and
-reach the component as its `context` property, the same `NumberContext`
-the pipeline takes. The line is written so
+digit it holds is shown, `≈` otherwise. What follows the relation is what
+`show` certifies: every digit asked for when the value allows, and
+otherwise a note in parentheses after the line, "8 of 12 digits are
+certain" with the certified digits shown, "within 2e-30 of zero" with the
+value shown as `0`, or "the digits are not certified" for a radius not
+known. A list is certified on its unrounded terms, its remainder is
+rounded at the digits certified, and its counts, exact integers, carry no
+note; the reciprocal line shows its own kind. The settings are the shell's
+(`src/settings.ts`, kept in `localStorage`, validated on the way in with
+the dependent ones clamped, so that a stale entry never leaves the app
+without a consistent context): the digits, the mode, the cap on the digits
+and the range limit in bits (the plan's D16), reaching the component as
+its `context` property, the same `NumberContext` the pipeline takes, and
+its `ceiling`, the top of the retry schedule derived from the cap. A
+button in the panel runs the probe of `src/limits.ts`, which times the
+costliest operation the app has on each axis at doubling sizes and
+recommends the largest limits that stay within a latency budget per pass;
+it runs only when asked, and it measures time alone (the plan's D16 says
+why memory is left out). The line is written so
 that it reads as the expression it means: a `want` with a magnitude of its
 own is written with a multiplication sign (`1 mi = 5.28 × 1000 ft`), since
 juxtaposing two numbers would read as one product, and a `want` that is a
@@ -891,7 +937,8 @@ src/units.txt             the system definitions; src/units.test.ts checks them
 src/testing/random.ts     the seeded random source the tests and benchmarks share
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemTable: fetches and builds the system table, once
-src/settings.ts           Settings: the digits and the rounding mode, in localStorage; contextOf
+src/settings.ts           Settings: the digits, the mode and the two limits, in localStorage; contextOf, ceilingOf
+src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
 src/unit-converter.ts     the component
 src/app-shell.ts          the host: loads the table, renders the component
 ```

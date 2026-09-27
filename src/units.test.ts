@@ -5,7 +5,13 @@
 // core/; these tests only exercise the data.
 
 import assert from "node:assert/strict";
-import { DEFAULT_ROUNDING, type NumberContext } from "./core/context.ts";
+import {
+  DEFAULT_MAX_BITS,
+  DEFAULT_MAX_DIGITS,
+  ceilingFor,
+  DEFAULT_ROUNDING,
+  type NumberContext,
+} from "./core/context.ts";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
@@ -32,7 +38,11 @@ import { unitLookup, type UnitTable } from "./core/table.ts";
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
+  maxBits: DEFAULT_MAX_BITS,
 };
+
+/** The ceiling of the retry schedule the tests run under: the default cap's. */
+const CEILING = ceilingFor(DEFAULT_MAX_DIGITS);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -48,7 +58,7 @@ const table: UnitTable = (() => {
   return built.value;
 })();
 
-const lookup = unitLookup(table);
+const lookup = unitLookup(table, CONTEXT);
 
 /** The quantity the expression `source` denotes in the table. */
 function quantity(source: string): Quantity {
@@ -207,7 +217,7 @@ test("temperature readings convert through tempC and tempF", () => {
   assertCall("tempF(-40)", "tempC", "-40");
   assertCall("0 K", "tempC", "-273.15");
   // The argument is a plain number.
-  const result = convertText(table, "tempC(1 m)", "K", CONTEXT);
+  const result = convertText(table, "tempC(1 m)", "K", CONTEXT, CEILING);
   assert.ok(!result.ok);
   assert.ok(result.error.kind === "inputError");
   assert.equal(result.error.error.kind, "argumentMismatch");
@@ -215,7 +225,7 @@ test("temperature readings convert through tempC and tempF", () => {
 
 /** Asserts that `have` in the function `want` is the call of it at exactly `expected`. */
 function assertCall(have: string, want: string, expected: string): void {
-  const result = convertText(table, have, want, CONTEXT);
+  const result = convertText(table, have, want, CONTEXT, CEILING);
   assert.ok(result.ok, `${have} in ${want}: ${inspect(result)}`);
   assert.ok(result.value.kind === "function", `${have} in ${want}: not a call`);
   assert.equal(result.value.name, want);

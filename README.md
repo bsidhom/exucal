@@ -16,26 +16,47 @@ modeled.
 
 ## Settings
 
-The Settings panel under the converter has two settings, kept in the
+The Settings panel under the converter has four settings, kept in the
 browser so that they survive a reload:
 
 - **Digits**: how many significant digits an answer is shown with, from 1
-  to 200; eight by default, as GNU units shows. `1 m` in `in` is
-  `≈ 39.370079 in` at eight digits and `≈ 39.3700787402 in` at twelve.
+  up to the "most digits" setting; eight by default, as GNU units shows.
+  `1 m` in `in` is `≈ 39.370079 in` at eight digits and `≈ 39.3700787402
+in` at twelve.
 - **Rounding**: how the last digit shown is rounded, one of the seven
   standard modes; to nearest with ties away from zero by default (`0.125`
   at two digits is `0.13`). The directed modes (toward zero, away from
   zero, up, down) show the value on the side they name, so at twelve digits
   `1 m` in `in` is `39.3700787401` rounded down and `39.3700787402` to
   nearest.
+- **Most digits**: the most digits an answer may be asked for, 1,000 by
+  default. It is a cost setting: the app computes at rising precisions
+  until the digits asked for are certain, up to four times this many plus
+  ten, and an expression whose digits can never be certain (`(2^(1/2))^2 -
+2`, which is zero within a bound) runs all the way up on every keystroke.
+- **Most bits**: the largest number the app will form, as the bits of a
+  numerator or denominator, 65,536 by default (about 19,700 digits). It is
+  what makes `10^(10^9)` an error rather than a hang, and it also bounds
+  the most digits: lowering it lowers that setting, and the digits, when
+  they no longer fit.
+
+Both limits are cost limits, and the right values depend on the device, so
+the panel's "Recommend limits" button measures what this one does within
+a fraction of a second and sets them; it runs only when pressed.
+
+An answer shows every digit asked for when the computation can vouch for
+them all. When it cannot, a note in parentheses says what the digits are
+worth: how many of them are certain ("8 of 12 digits are certain"), that
+the value is zero within a bound ("within 2e-30 of zero"), or that none
+is certified.
 
 An answer is written with `=` when it is exact and every digit it has is
 shown (`1 in = 2.54 cm`, `3 ft = 36 in`), and with `≈` when digits were
 rounded away or when a step of the computation was inexact: `1 m ≈
 39.370079 in`, and `2^(1/2) m` in `2^(1/2) m` is `≈ 1`, since the two roots
 were each computed to a finite number of digits, however exactly they
-cancel. A value that cannot be told from zero at the digits computed
-(`(2^(1/2))^2 - 2`) cannot be divided by, and the app says so.
+cancel. A value that cannot be told from zero at any precision up to the
+ceiling (`(2^(1/2))^2 - 2`) cannot be divided by, and the app says so.
 
 ## Unit definitions
 

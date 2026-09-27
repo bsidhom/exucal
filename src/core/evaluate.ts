@@ -56,9 +56,16 @@
 // ball contains zero without being exactly zero); a power whose base cannot
 // be told from zero, raised to a negative power or put under an even root,
 // points at the base for the same reason; any other power that fails
-// (`0^-1`, an even root of a negative magnitude, a result beyond
-// `MAX_BITS`) points at the whole power, since it is the combination of
-// base and exponent that fails. A sum whose
+// (`0^-1`, an even root of a negative magnitude, a result beyond the range
+// limit) points at the whole power, since it is the combination of base
+// and exponent that fails; a literal beyond the range limit, which the
+// parser let through under its hard bound, points at the literal.
+//
+// Every result is settled (D15 of the plan): an inexact magnitude is
+// rounded to the working precision after each operation, so that it never
+// grows beyond it, and its radius says so; exact values are never touched.
+// The settling is done once, in `evaluate`, around the switch over the
+// node kinds, so no case need remember it. A sum whose
 // operands do not conform (`1 m + 1 s`) points at the whole sum for the
 // same reason, and carries the span of each operand besides, so that a
 // message can say what each one is; a call whose argument does not conform
@@ -78,9 +85,11 @@ import {
   negateQuantity,
   powQuantity,
   scalar,
+  settleQuantity,
   subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
+import { bitLength } from "./rational.ts";
 import { type BallError } from "./ball.ts";
 import { type NumberContext } from "./context.ts";
 import { err, ok, type Result } from "./result.ts";
@@ -124,7 +133,10 @@ export type EvaluateError =
       readonly degree: bigint;
       readonly span: Span;
     }
-  /** The power at `span` would exceed `MAX_BITS` and was not computed. */
+  /**
+   * The power at `span` would exceed the range limit and was not computed,
+   * or the literal at `span` already does.
+   */
   | { readonly kind: "tooLarge"; readonly span: Span }
   /**
    * The sum (`add`) or difference (`sub`) at `span` has operands, at `left`
@@ -178,8 +190,9 @@ export type BodyError<E> =
 /**
  * The quantity `expr` denotes, with unit names resolved by `lookup`, the
  * operands of every sum checked for conformance by the roles in
- * `primitives`, and every inexact operation computed at the precision of
- * `context`.
+ * `primitives`, every inexact operation computed at the precision of
+ * `context`, every result settled to it (D15), and every literal checked
+ * against its range limit.
  */
 export function evaluate<E>(
   expr: Expr,
@@ -187,10 +200,27 @@ export function evaluate<E>(
   primitives: Primitives,
   context: NumberContext,
 ): Result<Quantity, EvaluateError | E> {
+  const result = evaluateNode(expr, lookup, primitives, context);
+  return result.ok ? ok(settleQuantity(result.value, context)) : result;
+}
+
+/** One node of `evaluate`, its operands evaluated (and settled) recursively. */
+function evaluateNode<E>(
+  expr: Expr,
+  lookup: Lookup<E>,
+  primitives: Primitives,
+  context: NumberContext,
+): Result<Quantity, EvaluateError | E> {
   const { node, span } = expr;
   switch (node.kind) {
-    case "number":
+    case "number": {
+      // The parser checked the literal against the hard bound; the range
+      // limit of the context is the setting.
+      const { num, den } = node.value;
+      const size = Math.max(bitLength(num < 0n ? -num : num), bitLength(den));
+      if (size > context.maxBits) return err({ kind: "tooLarge", span });
       return ok(scalar(node.value));
+    }
     case "unit":
       return lookup.unit(node.name, span);
     case "binary": {

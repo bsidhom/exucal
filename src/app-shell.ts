@@ -1,16 +1,22 @@
 import { LitElement, css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
-import { MAX_DIGITS } from "./core/context.ts";
+import { MIN_MAX_BITS, maxDigitsFor } from "./core/context.ts";
+import { LIMIT_BITS } from "./core/rational.ts";
 import { type Result } from "./core/result.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 import { type UnitTable } from "./core/table.ts";
 import {
+  ceilingOf,
+  clampSettings,
   contextOf,
   isDigits,
+  isMaxBits,
+  isMaxDigits,
   loadSettings,
   saveSettings,
   type Settings,
 } from "./settings.ts";
+import { recommendLimits } from "./limits.ts";
 import { loadSystemTable, type SystemTableError } from "./system-table.ts";
 import "./unit-converter.ts";
 
@@ -26,11 +32,20 @@ import "./unit-converter.ts";
  * `@lit/task` would be the tool if the shell grew more of them.
  *
  * The shell owns the settings too (settings.ts): the digits a result is
- * shown with and the rounding mode, read from `localStorage` when the shell
- * is created, edited in a panel under the converter, saved on every change,
- * and passed down to the converter as its context. The digits input
- * accepts an integer from 1 to `MAX_DIGITS`, and a value outside that is
- * not applied: the input snaps back to the setting in force.
+ * shown with, the rounding mode, and the two limits of the plan's D16, the
+ * cap on the digits and the range limit in bits, read from `localStorage`
+ * when the shell is created, edited in a panel under the converter, saved
+ * on every change, and passed down to the converter as its context and the
+ * ceiling of its retry schedule. Each number input accepts an integer in
+ * the range the settings above it allow (the digits up to the cap, the cap
+ * up to what the range limit holds, the range limit between its floor and
+ * the hard bound), and a value outside that is not applied: the input
+ * snaps back to the setting in force. Lowering a limit lowers what depends
+ * on it (`clampSettings`). A button beside them asks limits.ts to measure
+ * what this device does within its latency budget and applies the two
+ * limits it recommends; it is disabled while the probe runs, which blocks
+ * the main thread for a fraction of a second, and the probe runs only when
+ * asked (the plan's D16).
  */
 @customElement("app-shell")
 export class AppShell extends LitElement {
@@ -125,6 +140,10 @@ export class AppShell extends LitElement {
     .settings input {
       width: 6rem;
     }
+
+    .settings button {
+      align-self: flex-end;
+    }
   `;
 
   /** The system table once loaded, or why it could not be; unset until then. */
@@ -132,6 +151,9 @@ export class AppShell extends LitElement {
 
   /** The user's settings, from storage, saved on every change. */
   @state() private settings: Settings = loadSettings(localStorage);
+
+  /** Whether the probe for the recommended limits is running. */
+  @state() private recommending = false;
 
   connectedCallback() {
     super.connectedCallback();
@@ -164,25 +186,28 @@ export class AppShell extends LitElement {
     `;
   }
 
-  /** The settings panel: the digits and the rounding mode, saved on change. */
+  /** The settings panel: the digits, the rounding mode and the two limits, saved on change. */
   private renderSettings() {
-    const { digits, rounding } = this.settings;
+    const { digits, rounding, maxDigits, maxBits } = this.settings;
     return html`
       <details>
         <summary>Settings</summary>
         <div class="settings">
-          <label>
-            Digits
-            <input
-              type="number"
-              inputmode="numeric"
-              min="1"
-              max=${MAX_DIGITS}
-              step="1"
-              .value=${String(digits)}
-              @change=${this.onDigitsChange}
-            />
-          </label>
+          ${this.renderNumber("Digits", digits, 1, maxDigits, this.onDigitsChange)}
+          ${this.renderNumber(
+            "Most digits",
+            maxDigits,
+            1,
+            maxDigitsFor(maxBits),
+            this.onMaxDigitsChange,
+          )}
+          ${this.renderNumber(
+            "Most bits",
+            maxBits,
+            MIN_MAX_BITS,
+            LIMIT_BITS,
+            this.onMaxBitsChange,
+          )}
           <label>
             Rounding
             <select .value=${rounding} @change=${this.onRoundingChange}>
@@ -194,19 +219,70 @@ export class AppShell extends LitElement {
               )}
             </select>
           </label>
+          <button
+            type="button"
+            ?disabled=${this.recommending}
+            @click=${this.onRecommend}
+          >
+            ${this.recommending ? "Measuring…" : "Recommend limits"}
+          </button>
         </div>
       </details>
+    `;
+  }
+
+  /** A number input for a setting, accepting an integer in `[min, max]`. */
+  private renderNumber(
+    label: string,
+    value: number,
+    min: number,
+    max: number,
+    onChange: (event: Event) => void,
+  ) {
+    return html`
+      <label>
+        ${label}
+        <input
+          type="number"
+          inputmode="numeric"
+          min=${min}
+          max=${max}
+          step="1"
+          .value=${String(value)}
+          @change=${onChange}
+        />
+      </label>
     `;
   }
 
   private onDigitsChange(event: Event) {
     const input = event.target as HTMLInputElement;
     const digits = input.valueAsNumber;
-    if (isDigits(digits)) {
+    if (isDigits(digits, this.settings.maxDigits)) {
       this.applySettings({ digits });
     } else {
       // Not a setting: snap the input back to the one in force.
       input.value = String(this.settings.digits);
+    }
+  }
+
+  private onMaxDigitsChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const maxDigits = input.valueAsNumber;
+    if (isMaxDigits(maxDigits, this.settings.maxBits)) {
+      this.applySettings({ maxDigits });
+    } else {
+      input.value = String(this.settings.maxDigits);
+    }
+  }
+
+  private onMaxBitsChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const maxBits = input.valueAsNumber;
+    if (isMaxBits(maxBits)) {
+      this.applySettings({ maxBits });
+    } else {
+      input.value = String(this.settings.maxBits);
     }
   }
 
@@ -217,9 +293,26 @@ export class AppShell extends LitElement {
     }
   }
 
-  /** Applies a change to the settings and saves them. */
+  /**
+   * Runs the probe and applies the limits it recommends. The probe is
+   * synchronous and takes a fraction of a second, so the button is
+   * disabled and the frame painted before it starts.
+   */
+  private async onRecommend() {
+    this.recommending = true;
+    await this.updateComplete;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    try {
+      const { maxBits, maxDigits } = recommendLimits();
+      this.applySettings({ maxBits, maxDigits });
+    } finally {
+      this.recommending = false;
+    }
+  }
+
+  /** Applies a change to the settings, clamps what depends on it, and saves them. */
   private applySettings(change: Partial<Settings>) {
-    this.settings = { ...this.settings, ...change };
+    this.settings = clampSettings({ ...this.settings, ...change });
     saveSettings(localStorage, this.settings);
   }
 
@@ -244,6 +337,7 @@ export class AppShell extends LitElement {
     return html`<unit-converter
       .table=${table.value}
       .context=${contextOf(this.settings)}
+      .ceiling=${ceilingOf(this.settings)}
     ></unit-converter>`;
   }
 }

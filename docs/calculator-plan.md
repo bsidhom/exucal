@@ -905,8 +905,9 @@ limit as a parameter, and the evaluator's `number` case checks a literal
 against the setting, `tooLarge` at the literal's span. The comments of
 both constants say what each bounds.
 
-Then the schedule: `SCHEDULE(p, ceiling)` yields the working contexts
-`p + 10`, `2 (p + 10)`, ..., doubling, and last `ceiling`;
+Then the schedule: `schedule(context, ceiling)` yields the working
+contexts `p + 10`, `2 (p + 10)`, ..., doubling, and last `ceiling`, with
+the user's mode and range limit throughout;
 `ceilingFor(maxDigits)` is `4 (maxDigits + GUARD_DIGITS)` in context.ts
 beside `DEFAULT_MAX_DIGITS` (1,000) and `maxDigitsFor(maxBits)`, the hard
 bound on the cap (`bitsFor` of the ceiling at most half the range limit);
@@ -930,7 +931,17 @@ says it is the table's build precision until 3.3. Two gaps are accepted
 and stated here: a list unit whose ball straddles zero is
 `nonpositiveUnit` and not retried, and the reciprocal line the component
 computes is shown with whatever kind `1 / value` has, not retried on its
-own.
+own. Rulings the task did not reach: `settle` rounds to nearest with ties
+to even, leaves a zero midpoint as it is, and adds half an ulp, the
+rounding's bound, rather than the exact difference, which would cost a
+gcd; `powBall`'s magnitude guard is `|log2|` of the base's magnitude
+bound and of its midpoint, whichever is larger, plus one, times the
+exponent, against the range limit, so that a base near one is guarded by
+its true magnitude and not by its degree; a `want` that fails to parse is
+still reported after the `have`, which is evaluated once at the first
+pass for that, so that the pipeline's rule that `have` is tried first
+holds; and `MAX_DIGITS` (200) stays the settings' cap until 2.6 replaces
+it.
 
 Tests: `settle` is the identity on an exact ball, rounds an inexact one
 to the bits and grows the radius by the difference, over the shared
@@ -939,11 +950,12 @@ source; `sqrt(2)^1000` settles at every squaring and `sqrt(2)^(10^7)` is
 its span and one beyond the hard bound fails at parse; `sqrt(2)` at 8 and
 at 50 digits certifies on the first pass; `sqrt(2)^2 - 2` ends at the
 ceiling as `zero` with a bound; `1 / (sqrt(2)^2 - 2)` is `unresolved`;
-`(sqrt(2) + 1e-15) - sqrt(2)` at 8 digits needs a second pass and
-certifies, `(sqrt(2) + 1e-60) - sqrt(2)` a third and `(sqrt(2) +
-1e-100) - sqrt(2)` a fourth (the test counts passes through a `run` that
-records its contexts); at 8 digits the default schedule ends at 4,040
-digits after nine passes; a later pass that fails `tooLarge` returns the
+`(sqrt(2) + 1e-15) - sqrt(2)` at 8 digits still certifies on the first
+pass, which carries the kernel's 32 guard bits beyond its 18 digits, and
+`(sqrt(2) + 1e-20) - sqrt(2)` needs a second, `(sqrt(2) + 1e-60) -
+sqrt(2)` a third and `(sqrt(2) + 1e-100) - sqrt(2)` a fourth (the test
+counts passes through a `run` that records its contexts); at 8 digits the
+default schedule ends at 4,040 digits after nine passes; a later pass that fails `tooLarge` returns the
 earlier result; an error in the text returns at once; `ceilingFor` and
 `maxDigitsFor` at the defaults and the relation between them.
 
@@ -964,7 +976,16 @@ with the dependent clamps of D16, `contextOf` carrying `maxBits` and a new
 `ceilingOf(settings)`; `app-shell.ts` renders the two as number inputs
 beside the digits, whose `max` follows `maxDigits`, and passes the
 ceiling to the converter with the context, which the converter passes to
-the pipeline. `MAX_DIGITS` goes.
+the pipeline. `MAX_DIGITS` goes. Rulings the task did not reach: the
+inputs are labelled "Digits", "Most digits" and "Most bits", each with
+`min` and `max` from the settings above it, and `MIN_MAX_BITS` in
+context.ts, twice the kernel's bits at a cap of one digit, is the floor
+of the range limit, below which no digit fits; the panel applies a change
+through `clampSettings`, so lowering a limit lowers what depends on it;
+a list's counts are formatted at the digits asked for and its remainder
+at the digits certified, as `0` when it cannot be told from zero; and the
+note is written in parentheses after the line. README's "Settings"
+describes the four settings and the notes.
 
 Behavior: the notes, and the two limits are the user's.
 
@@ -982,7 +1003,19 @@ with the argument for it in the header; the operations it times are named
 in one place, so that a later stage with a costlier built-in changes the
 list and nothing else. It measures time and not memory, for the reasons
 D16 gives. `app-shell.ts` gains a button in the settings panel that runs
-it and applies the result to both limits, disabled while it runs.
+it and applies the result to both limits, disabled while it runs. Rulings
+the task did not reach: the clock and the two operations travel together
+as a `Probe`, which the test fakes and the shell takes as the real one;
+the range candidates are powers of two from 2^9 and the cap candidates 1,
+2 and 5 times a power of ten, so the recommendation is a round number by
+construction; each size is timed as the shortest of three runs after one
+untimed; the budget is 50 ms per pass, since the schedule's doubling makes
+an expression that runs to the ceiling cost about twice its last pass;
+the precision operation is a cube root, the kernel's Newton iteration, at
+the candidate cap's ceiling; the real probe's inputs come from a small
+congruential generator in the module, since the tests' random source is
+not part of the app; and the button yields a frame before the probe runs
+so that its disabled state is painted.
 
 Tests: with a fake clock that charges a set cost per bit, the
 recommendation is the largest size under the budget, is clamped, and

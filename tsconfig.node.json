@@ -25,6 +25,8 @@
     "src/messages.test.ts",
     "src/settings.ts",
     "src/settings.test.ts",
+    "src/limits.ts",
+    "src/limits.test.ts",
     "bench/**/*.ts",
     "scripts/cloud-setup.test.ts"
   ]

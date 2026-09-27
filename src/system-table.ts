@@ -16,7 +16,11 @@
 import { buildTable, type BuildError } from "./core/build.ts";
 import { parseDefinitions } from "./core/definitions.ts";
 import { type ParseError } from "./core/parser.ts";
-import { DEFAULT_ROUNDING, type NumberContext } from "./core/context.ts";
+import {
+  DEFAULT_MAX_BITS,
+  DEFAULT_ROUNDING,
+  type NumberContext,
+} from "./core/context.ts";
 import { DEFAULT_PRECISION } from "./core/rational.ts";
 import { err, type Result } from "./core/result.ts";
 import { type UnitTable } from "./core/table.ts";
@@ -36,6 +40,7 @@ export type SystemTableError =
 const BUILD_CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
+  maxBits: DEFAULT_MAX_BITS,
 };
 
 let loading: Promise<Result<UnitTable, SystemTableError>> | undefined;

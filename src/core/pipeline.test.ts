@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
+import {
+  DEFAULT_MAX_BITS,
+  DEFAULT_MAX_DIGITS,
+  ceilingFor,
+  DEFAULT_ROUNDING,
+  type NumberContext,
+} from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { exact, isExact } from "./ball.ts";
@@ -9,27 +15,36 @@ import { parseDefinitions } from "./definitions.ts";
 import {
   convertText,
   evaluateText,
+  resolve,
+  schedule,
   type Conversion,
   type ConversionError,
+  type TextError,
 } from "./pipeline.ts";
+import { evaluate } from "./evaluate.ts";
+import { parseExpr } from "./expr.ts";
+import { type Quantity } from "./quantity.ts";
+import { certifies } from "./ball.ts";
 import {
   DEFAULT_PRECISION,
-  compare,
   equals,
   parseDecimal,
   rational,
   toFraction,
   type Rational,
 } from "./rational.ts";
-import { radiusUpper } from "./radius.ts";
 import { type Result } from "./result.ts";
-import { type UnitTable } from "./table.ts";
+import { unitLookup, type UnitTable } from "./table.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
+  maxBits: DEFAULT_MAX_BITS,
 };
+
+/** The ceiling of the retry schedule the tests run under: the default cap's. */
+const CEILING = ceilingFor(DEFAULT_MAX_DIGITS);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -73,7 +88,7 @@ function converted(
   have: string,
   want: string,
 ): Result<Conversion, ConversionError> {
-  return convertText(table, have, want, CONTEXT);
+  return convertText(table, have, want, CONTEXT, CEILING);
 }
 
 function value(
@@ -175,37 +190,216 @@ test("surrounding spaces are allowed", () => {
   assertConverts("  3 ft ", " in  ", "36");
 });
 
-test("the working precision is derived from the digits asked for: max(40, digits + 10)", () => {
-  // The kernel's root at a working precision of `w` digits carries a
-  // radius of a few units at `bitsFor(w)` bits: between 10^-(w + 12) and
-  // 10^-(w + 8), which tells the working precisions apart.
-  const assertWorking = (precision: number, working: number) => {
-    const result = evaluateText(table, "2^(1/2)", {
-      precision,
-      rounding: DEFAULT_ROUNDING,
-    });
-    assert.ok(result.ok, inspect(result));
-    const rad = radiusUpper(result.value.magnitude.rad);
-    const label = `${precision} digits asked for compute at ${working}`;
-    assert.ok(
-      compare(rad, rational(1n, 10n ** BigInt(working + 8))) < 0,
-      label,
-    );
-    assert.ok(
-      compare(rad, rational(1n, 10n ** BigInt(working + 12))) > 0,
-      label,
-    );
-  };
-  assertWorking(1, 40);
-  assertWorking(8, 40);
-  assertWorking(30, 40);
-  assertWorking(31, 41);
-  assertWorking(50, 60);
+test("the schedule doubles from the digits asked for plus the guard, and ends at the ceiling", () => {
+  const precisions = (precision: number, ceiling: number) =>
+    schedule({ ...CONTEXT, precision }, ceiling).map((c) => c.precision);
+  assert.deepEqual(
+    precisions(8, CEILING),
+    [18, 36, 72, 144, 288, 576, 1152, 2304, 4040],
+  );
+  assert.deepEqual(precisions(1000, CEILING), [1010, 2020, 4040]);
+  assert.deepEqual(precisions(1, 44), [11, 22, 44]);
+  assert.deepEqual(precisions(1, 45), [11, 22, 44, 45]);
+  assert.equal(CEILING, 4040);
+  // The mode and the range limit are the user's throughout.
+  for (const working of schedule({ ...CONTEXT, rounding: "floor" }, CEILING)) {
+    assert.equal(working.rounding, "floor");
+    assert.equal(working.maxBits, CONTEXT.maxBits);
+  }
+  // A precision above the cap the ceiling was derived from is a bug.
   assert.throws(
-    () =>
-      evaluateText(table, "1", { precision: 0, rounding: DEFAULT_ROUNDING }),
+    () => schedule({ ...CONTEXT, precision: 1001 }, CEILING),
     RangeError,
   );
+  assert.throws(
+    () => schedule({ ...CONTEXT, precision: 0 }, CEILING),
+    RangeError,
+  );
+  assert.throws(
+    () =>
+      evaluateText(
+        table,
+        "1",
+        { precision: 0, rounding: DEFAULT_ROUNDING, maxBits: DEFAULT_MAX_BITS },
+        CEILING,
+      ),
+    RangeError,
+  );
+});
+
+/**
+ * Runs `text` through `resolve` as `evaluateText` does, at `digits`, and
+ * returns the outcome with the working precisions the passes ran at.
+ */
+function passes(
+  text: string,
+  digits: number,
+): { result: Result<Quantity, TextError>; at: number[] } {
+  const context = { ...CONTEXT, precision: digits };
+  const expr = parseExpr(text);
+  assert.ok(expr.ok, inspect(expr));
+  const at: number[] = [];
+  const result = resolve(
+    context,
+    CEILING,
+    (working) => {
+      at.push(working.precision);
+      return evaluate(
+        expr.value,
+        unitLookup(table, working),
+        table.primitives,
+        working,
+      );
+    },
+    (quantity) =>
+      isExact(quantity.magnitude) ||
+      certifies(quantity.magnitude, digits, context.rounding),
+    (error) => innermost(error).kind === "unresolved",
+  );
+  return { result, at };
+}
+
+/** The error inside any `callFailed` wrappers. */
+function innermost(error: TextError): TextError {
+  return error.kind === "callFailed" ? innermost(error.error) : error;
+}
+
+test("a pass that certifies the digits asked for ends the loop", () => {
+  assert.deepEqual(passes("2^(1/2)", 8).at, [18]);
+  assert.deepEqual(passes("2^(1/2)", 50).at, [60]);
+  assert.deepEqual(passes("2 ft", 8).at, [18]);
+  // Cancellation costs passes. The first pass carries eighteen digits and
+  // the kernel's guard bits, about twenty-seven in all, so fifteen digits
+  // of cancellation still certify on it; twenty need a second pass, sixty
+  // a third, a hundred a fourth.
+  assert.deepEqual(passes("(2^(1/2) + 1e-15) - 2^(1/2)", 8).at, [18]);
+  assert.deepEqual(passes("(2^(1/2) + 1e-20) - 2^(1/2)", 8).at, [18, 36]);
+  assert.deepEqual(passes("(2^(1/2) + 1e-60) - 2^(1/2)", 8).at, [18, 36, 72]);
+  assert.deepEqual(
+    passes("(2^(1/2) + 1e-100) - 2^(1/2)", 8).at,
+    [18, 36, 72, 144],
+  );
+  const certified = passes("(2^(1/2) + 1e-100) - 2^(1/2)", 8).result;
+  assert.ok(certified.ok);
+  assert.deepEqual(show(certified.value.magnitude, 8, DEFAULT_ROUNDING), {
+    kind: "certified",
+    text: "1e-100",
+  });
+});
+
+test("a value that never certifies runs to the ceiling and is shown as what it is", () => {
+  const zero = passes("(2^(1/2))^2 - 2", 8);
+  assert.equal(zero.at.length, 9);
+  assert.equal(zero.at[8], CEILING);
+  assert.ok(zero.result.ok);
+  const shown = show(zero.result.value.magnitude, 8, DEFAULT_ROUNDING);
+  assert.equal(shown.kind, "zero");
+  assert.ok(
+    shown.kind === "zero" && /e-40[0-9][0-9]$/.test(shown.bound),
+    shown.bound,
+  );
+  // Through the pipeline proper, the same.
+  const viaPipeline = evaluateText(
+    table,
+    "(2^(1/2))^2 - 2",
+    { ...CONTEXT, precision: 8 },
+    CEILING,
+  );
+  assert.ok(viaPipeline.ok);
+  assert.equal(
+    show(viaPipeline.value.magnitude, 8, DEFAULT_ROUNDING).kind,
+    "zero",
+  );
+});
+
+test("an unresolved is retried to the ceiling, and any other error returns at once", () => {
+  const unresolved = passes("1 / ((2^(1/2))^2 - 2)", 8);
+  assert.equal(unresolved.at.length, 9);
+  assert.ok(!unresolved.result.ok);
+  assert.equal(unresolved.result.error.kind, "unresolved");
+  const unknown = passes("bogus", 8);
+  assert.deepEqual(unknown.at, [18]);
+  assert.ok(!unknown.result.ok);
+  assert.equal(unknown.result.error.kind, "unknownUnit");
+  const zero = passes("1 / 0", 8);
+  assert.deepEqual(zero.at, [18]);
+  // The converter's unresolved want is retried too, through the pipeline.
+  const want = convertText(
+    table,
+    "3 ft",
+    "((2^(1/2))^2 - 2) m",
+    CONTEXT,
+    CEILING,
+  );
+  assert.ok(!want.ok);
+  assert.equal(want.error.kind, "unresolvedWant");
+  // An unresolved inside a call is retried as well.
+  const call = passes("recip((2^(1/2))^2 - 2)", 8);
+  assert.equal(call.at.length, 9);
+});
+
+test("resolve keeps the best result so far and returns it when a later pass is unaffordable", () => {
+  const seen: number[] = [];
+  const result = resolve<string, { kind: "tooLarge" | "unresolved" | "other" }>(
+    { ...CONTEXT, precision: 8 },
+    CEILING,
+    (working) => {
+      seen.push(working.precision);
+      if (working.precision === 18)
+        return { ok: false, error: { kind: "unresolved" } };
+      if (working.precision === 36) return { ok: true, value: "partial at 36" };
+      return { ok: false, error: { kind: "tooLarge" } };
+    },
+    () => false,
+    (error) => error.kind === "unresolved",
+  );
+  assert.deepEqual(seen, [18, 36, 72]);
+  assert.deepEqual(result, { ok: true, value: "partial at 36" });
+  // With no result before it, the error is returned.
+  const failed = resolve<string, { kind: string }>(
+    { ...CONTEXT, precision: 8 },
+    CEILING,
+    () => ({ ok: false, error: { kind: "other" } }),
+    () => false,
+    () => false,
+  );
+  assert.deepEqual(failed, { ok: false, error: { kind: "other" } });
+  // At the ceiling the best so far is returned, or the last error.
+  const exhausted = resolve<number, { kind: string }>(
+    { ...CONTEXT, precision: 1000 },
+    CEILING,
+    (working) => ({ ok: true, value: working.precision }),
+    () => false,
+    () => false,
+  );
+  assert.deepEqual(exhausted, { ok: true, value: 4040 });
+  const never = resolve<number, { kind: string }>(
+    { ...CONTEXT, precision: 1000 },
+    CEILING,
+    () => ({ ok: false, error: { kind: "unresolved" } }),
+    () => false,
+    () => true,
+  );
+  assert.deepEqual(never, { ok: false, error: { kind: "unresolved" } });
+});
+
+test("the range limit of the context reaches a literal and a power", () => {
+  const small = { ...CONTEXT, maxBits: 64 };
+  const literal = evaluateText(table, "1e30 m", small, CEILING);
+  assert.ok(!literal.ok);
+  assert.deepEqual(literal.error, {
+    kind: "tooLarge",
+    span: { start: 0, end: 4 },
+  });
+  assert.ok(evaluateText(table, "1e18 m", small, CEILING).ok);
+  const power = evaluateText(table, "2^100 m", small, CEILING);
+  assert.ok(!power.ok);
+  assert.equal(power.error.kind, "tooLarge");
+  // An inexact base is bounded by its magnitude, not by an exact power.
+  assert.ok(evaluateText(table, "(2^(1/2))^1000", CONTEXT, CEILING).ok);
+  const huge = evaluateText(table, "(2^(1/2))^10000000", CONTEXT, CEILING);
+  assert.ok(!huge.ok);
+  assert.equal(huge.error.kind, "tooLarge");
 });
 
 test("a value that looks rational after a root is inexact, and the display says so", () => {
@@ -227,7 +421,7 @@ test("a value that looks rational after a root is inexact, and the display says 
 });
 
 test("evaluateText is the pipeline up to the quantity", () => {
-  const result = evaluateText(table, "2 ft", CONTEXT);
+  const result = evaluateText(table, "2 ft", CONTEXT, CEILING);
   assert.ok(result.ok, `expected a quantity, got ${inspect(result)}`);
   assert.ok(equals(result.value.magnitude.mid, decimal("0.6096")));
   assert.deepEqual([...result.value.dimension.keys()], ["m"]);
@@ -295,7 +489,7 @@ test("have is tried first, so its failure is reported when both fail", () => {
 });
 
 test("evaluateText reports the text's own error, with no side", () => {
-  const result = evaluateText(table, "3 bogus", CONTEXT);
+  const result = evaluateText(table, "3 bogus", CONTEXT, CEILING);
   assert.ok(!result.ok);
   assert.equal(result.error.kind, "unknownUnit");
 });

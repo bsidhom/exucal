@@ -24,12 +24,17 @@
 // `notAFunction` error that says what the name is otherwise, so that the
 // message for `kg(m/s)` can show the product the user probably meant.
 
+import { type NumberContext } from "./context.ts";
 import { type Ball } from "./ball.ts";
 import { DIMENSIONLESS, type Primitives } from "./dimension.ts";
 import { type Lookup } from "./evaluate.ts";
 import { type Expr } from "./expr.ts";
 import { resolveName, type Resolution } from "./names.ts";
-import { multiplyQuantities, type Quantity } from "./quantity.ts";
+import {
+  multiplyQuantities,
+  settleQuantity,
+  type Quantity,
+} from "./quantity.ts";
 import { err, ok } from "./result.ts";
 import { type Span } from "./span.ts";
 
@@ -105,12 +110,16 @@ export type NotAFunction = {
 export type LookupError = UnknownUnit | FunctionAsUnit | NotAFunction;
 
 /**
- * The lookup the evaluator resolves user input against: an exact unit name
- * if the table has one, otherwise one prefix followed by a unit name, whose
- * quantity is the unit's scaled by the prefix's factor; and, for a call,
- * a function by its name.
+ * The lookup the evaluator resolves user input against, at the working
+ * `context`: an exact unit name if the table has one, otherwise one prefix
+ * followed by a unit name, whose quantity is the unit's scaled by the
+ * prefix's factor, each settled to the context's precision; and, for a
+ * call, a function by its name.
  */
-export function unitLookup(table: UnitTable): Lookup<LookupError> {
+export function unitLookup(
+  table: UnitTable,
+  context: NumberContext,
+): Lookup<LookupError> {
   return {
     unit: (name, span) => {
       const found = resolveName(name, table.prefixes, table.units);
@@ -121,13 +130,18 @@ export function unitLookup(table: UnitTable): Lookup<LookupError> {
             : { kind: "unknownUnit", name, span },
         );
       }
+      // Settled once here (D15): a unit built at a higher precision is cut
+      // to the working one, and an exact unit is untouched.
       return ok(
-        found.kind === "unit"
-          ? found.unit
-          : multiplyQuantities(
-              { magnitude: found.prefix, dimension: DIMENSIONLESS },
-              found.unit,
-            ),
+        settleQuantity(
+          found.kind === "unit"
+            ? found.unit
+            : multiplyQuantities(
+                { magnitude: found.prefix, dimension: DIMENSIONLESS },
+                found.unit,
+              ),
+          context,
+        ),
       );
     },
     function: (name, span, call) => {

@@ -1034,8 +1034,21 @@ term); `piFixed(bits, ceilingBits)`, memoized per D10 at the ceiling in
 force; `piBall(context, ceiling)` through `fixedToBall`; and
 `piMemoBits()`, which reports the memo's precision for the tests.
 `bench/kernel.bench.ts` reports the timing at 1,000, 10,000 and 100,000
-digits and asserts that 10,000 digits cost at most thirty times 1,000
-(the study measured twenty), and reports the root at the default ceiling.
+digits and asserts that 100,000 digits cost at most fifty times 10,000,
+and reports the roots at the default ceiling. Rulings the task did not
+reach: the term count is `ceil((bits + 40) / 46)`, since the terms shrink
+by a factor above `2^47` in their factorial part and by at most two less
+in their linear part; the error is stated as three ulps, one each for the
+tail, the square root and the final truncation; the square root of 10005
+is Newton on the reciprocal square root with multiplications only,
+verified by squaring, because V8 divides big integers quadratically and
+the integer square root of fixed.ts cost more than the series itself at a
+hundred thousand digits (869 ms against the series' 80); the memo hands
+out fewer bits through `truncateFixed`, exported from fixed.ts for it;
+and the benchmark asserts the upper decade at fifty rather than the lower
+at thirty, since at a thousand digits the series takes a tenth of a
+millisecond, within the timer's noise, and binary splitting grows as V8's
+Karatsuba multiplication does, about 38 times per decade, not linearly.
 
 Tests: reference digits to 100; the 36-digit literal in units.txt, read
 from the file, as a second reference; the memo holds the ceiling's value

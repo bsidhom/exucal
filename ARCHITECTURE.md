@@ -167,7 +167,11 @@ root by the integer square root of the argument's ends, exact because the
 root is monotone, and the root of any degree by Newton in fixed point,
 its error verified by raising the result back to the power rather than
 read off the iteration. `rootBall` is its one caller so far; the
-elementary functions of stage 3 are the rest.
+elementary functions of stage 3 are the rest. `constants.ts` computes `pi`
+on it by Chudnovsky's series with binary splitting, its tail bounded in
+the comment, and memoizes one value, the digits at the ceiling of the
+retry schedule in force, from which every request at or below the ceiling
+is truncated (the plan's D10); nothing calls it until stage 3's `pi()`.
 
 **Working precision and the context.** Every core function that does
 arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a
@@ -916,7 +920,8 @@ src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one p
 src/core/context.ts       NumberContext: the precision and the rounding mode arithmetic is done at
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root on the kernel, unresolved
-src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations
+src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations, the roots
+src/core/constants.ts     pi by Chudnovsky's series with binary splitting, memoized at the ceiling
 src/core/display.ts       show: a ball's text at the digits it certifies, and its kind (exact, certified, partial, zero, unbounded)
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Ball with a Dimension), its arithmetic
@@ -994,6 +999,15 @@ dependencies would cost more. The thresholds are twice the expected ratios,
 so that noise never fails a benchmark that a regression would not fail by a
 wide margin. It also reports, without asserting, the cost of a file the size
 of the GNU units database, as a reference for the startup cost.
+`kernel.bench.ts` times `pi` by Chudnovsky's series at 1,000, 10,000 and
+100,000 digits and asserts that the last costs at most fifty times the
+middle: binary splitting grows as V8's bigint multiplication does,
+Karatsuba at these sizes, about 38 times per decade of digits at most,
+where a series summed term by term would be quadratic and show a hundred;
+the upper decade is asserted because its timings are well above the
+timer's noise. It also reports the cost of a square and a cube root at
+the default ceiling of the retry schedule, the costliest pass an
+expression that never certifies runs.
 
 ## Later
 

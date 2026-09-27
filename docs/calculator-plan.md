@@ -2,10 +2,12 @@
 
 Status: in progress; stage 1 has landed, and "Stage 1 as it landed" at
 the end records where the code diverged from the tasks as first written.
-D13 was revised in review of the first follow-up. docs/calculator.md is
-the design study and its
-"A sequence for the follow-ups" is the order this plan follows. This
-document turns that sequence into tasks small enough that each is one
+D13 was revised in review of the first follow-up. Stage 2 was reviewed
+against the code before its implementation and revised (D9, D10, D12, the
+new D15 and D16, and tasks 2.2 and 2.5 among others); the stage's
+introduction lists the changes. docs/calculator.md is the design study
+and its "A sequence for the follow-ups" is the order this plan follows.
+This document turns that sequence into tasks small enough that each is one
 commit, reviewable on its own, with the tests that prove it and the state
 the code is left in. Where the study leaves a choice open, this plan makes
 it and says so under "Decisions", so that a reviewer can object to a
@@ -57,7 +59,8 @@ open or a detail it does not reach, and the reasoning is given once here.
 
 **D1. One context type, with `precision` meaning the working precision
 below the pipeline and the digits wanted at its boundary.** `NumberContext`
-is `{ precision, rounding }` in stage 1 and gains `mode` in stage 4. Every
+is `{ precision, rounding }` in stage 1, gains `maxBits` (the range limit
+of D16) in stage 2 and `mode` in stage 4. Every
 core function that does arithmetic takes one and treats `precision` as the
 precision it computes at. The pipeline is the one place that knows the
 difference between the digits the user asked for and the precision the
@@ -87,7 +90,8 @@ needs it (certification, division), and never stored.
 Not a float64, although one has precision to spare, because of range. The
 radius is absolute, and the product rule scales it by the other operand's
 magnitude (`|a| rb + |b| ra`), so radii span the range of the values
-themselves: `10^±19700` today (`MAX_BITS`) and `10^±(10^18)` once stage 4
+themselves: `10^±19700` at the default range limit (D16) and
+`10^±(10^18)` once stage 4
 adds the exponent, against a float64's `10^±308`. A radius that overflowed
 to infinity would be an honest but useless bound on any large value, and
 one that underflowed to zero would be a false claim of exactness.
@@ -120,15 +124,17 @@ quantities carry a radius, and a unit's radius is fixed when the table is
 built: the passes of the retry loop re-evaluate the expression, not the
 table, so no pass can shrink it. A unit's precision must therefore lie
 above every pass, or a pass that would otherwise certify `p` digits is
-held back by the unit. The schedule of D12 doubles up to one absolute
-ceiling, `CEILING_DIGITS`, the same for every setting, so the table is
-built once at that ceiling and never rebuilt: the digits setting changes
-what the display asks for and what the passes compute at, never the
-table. At a ceiling of 1,000 digits `pi()` costs under a millisecond once,
-each angle unit holds a rational of a thousand digits, which the exact
-operations carry through at microseconds a step, and a conversion at `p`
-digits certifies from a unit accurate to a thousand, with `1000 - p`
-digits of room for cancellation on the unit's side: `turn` into `deg`
+held back by the unit. The schedule of D12 doubles up to one
+ceiling, the same for every request under the cap setting, so the table
+is built once at that ceiling and rebuilt only when the cap changes it:
+the digits setting changes what the display asks for and what the passes
+compute at, never the table. At the default ceiling of 4,040 digits
+`pi()` costs a few milliseconds once, each angle unit holds a rational of
+four thousand digits, which the lookup settles to the pass's precision
+(D15) so that no pass carries more of it than it computes at, and a
+conversion at `p` digits certifies from a unit accurate to the ceiling,
+with the rest of the ceiling as room for cancellation on the unit's side:
+`turn` into `deg`
 certifies every one of its `p` digits of `360`, and shows `≈` only
 because the radius is not zero, as the study accepts. So the precision a
 user asks for is always reachable through `pi`; what is not reachable is
@@ -165,6 +171,15 @@ it is the one the radius-only rule would get wrong rather than slow. This
 one definition covers the nearest and the directed modes, ties, and the
 carry across a power of ten, without special cases.
 
+Certification is not monotone in the digit count: the ball `[1.246,
+1.254]` certifies three digits, both ends rounding to `1.25`, and not two,
+`1.25` being a two-digit tie, so `certifiedDigits` scans down from the
+digits asked and takes the first count that certifies, and the boundary
+case above ends with one digit fewer than asked in the usual case and with
+none when the digit asked for is the first. In stage 2 the two ends are
+formed as they are written here, the midpoint being a `Rational` under
+the range limit; the comparison by exponents is stage 4's.
+
 **D8. Unit list counts are taken from the midpoint.** In `convertToList`
 each count is the truncated ratio of midpoints and the remainder is the
 ball `have - count × size`, computed with the exact ball operations, so
@@ -182,27 +197,33 @@ the bound can be checked by reading. A series runs on such values with the
 argument's error included from the start, which propagates the argument's
 radius without a separate derivative bound; the truncation bound of a
 series is taken at the upper end of the argument's interval. The kernel
-hands back a ball whose midpoint is rounded to the context's decimal
-precision in its mode and whose radius covers `error` and that rounding.
+hands back a ball whose midpoint is the dyadic `value × 2^-bits` itself
+and whose radius is `error × 2^-bits` rounded up to a radius: nothing
+between the kernel and the display rounds in a mode (D15), the mode being
+the display's, applied once to a certified value, so that the digits shown
+are the true value's rounding in that mode whatever happened inside.
 
 Fixed rather than floating point: `bits` is the position of the binary
 point, so the integer part is `value >> bits` and the fraction the low
-`bits` bits, with no separate field for either. It is fixed for a routine
-and chosen after its argument reduction, so that every routine works on
-values of order one and the error count, which is absolute, is a relative
-error too. What that implies: a routine whose result is small (`sin` near
-zero, `exp` of a large negative argument) states its result's scale and
-accounts for it in `fixedToBall`, and the count grows by at least one per
-operation, so a series of a thousand terms spends ten of the 32 guard
-bits, which is why the guard is bits rather than digits. The alternatives
-considered: a ball at every step of the kernel, as Arb does, uniform with
-the value type but a radius operation per arithmetic operation and a
-second representation to reason about inside every series; two integer
-endpoints, an interval per intermediate, twice the arithmetic and a
-rounding direction to choose per operation; and guard digits with no
-error count, the classic approach, which is not rigorous and could not
-produce a radius at all. The integer count is the cheapest of these that
-yields a proof, and its rules are the textbook ones.
+`bits` bits, with no separate field for either. `bits` belongs to the
+value: a routine chooses its result's `bits` after its argument reduction
+so that a result of magnitude `2^k` keeps as many significant bits as an
+argument of order one, which is how a routine whose result is small or
+large (`sin` near zero, `exp` of a large negative argument, a root of a
+tiny argument) states its scale, and `shiftFixed` is the exact rebase that
+moves the binary point. Every routine works on values of order one after
+its reduction, so the error count, which is absolute, is a relative error
+too, and the count grows by at least one per operation, so a series of a
+thousand terms spends ten of the 32 guard bits, which is why the guard is
+bits rather than digits. The alternatives considered: a ball at every
+step of the kernel, as Arb does, uniform with the value type but a radius
+operation per arithmetic operation and a second representation to reason
+about inside every series; two integer endpoints, an interval per
+intermediate, twice the arithmetic and a rounding direction to choose per
+operation; and guard digits with no error count, the classic approach,
+which is not rigorous and could not produce a radius at all. The integer
+count is the cheapest of these that yields a proof, and its rules are the
+textbook ones.
 
 **D10. `pi` and `exp(1)` are memoized privately, and the memo is
 bounded.** The core has no globals, but a memo of a pure function of its
@@ -210,22 +231,23 @@ precision is unobservable through the core's results, as `lazy` in
 parser.ts is, and the study asks for exactly that memo. Through memory it
 is observable, so its footprint is fixed by construction rather than
 bounded by an eviction policy: each constant's module holds exactly one
-value, the digits at `CEILING_DIGITS` of D12, computed on first use, and
-every request at or below the ceiling, which is every request the retry
-loop can make, rounds from it. The footprint is therefore a constant of
-the program (about 415 bytes per constant at a ceiling of 1,000 digits,
-two constants), the same whatever the user's setting, so lowering the
-setting has nothing to free and raising it nothing to grow; the only way
-it changes is stage 8 raising the ceiling. The one request above the
-ceiling is the argument reduction of `sin` and `cos` at a large argument,
-which needs `pi` to the ceiling plus the argument's bit length (under
-`MAX_BITS`; an argument beyond that is refused as `tooLarge`): it is
-computed for that call and not kept, so a `sin(1e5000)` costs its
-milliseconds each time it is typed and leaves nothing behind. The
-alternative, keeping the largest value seen, is what the study describes
-and would be bounded too (about 21,000 digits), but its footprint would
-depend on what the user had typed, and freeing it would need a policy;
-the fixed value needs none.
+value, the digits at the ceiling of D12, computed on first use at the
+ceiling however low the first request, and every request at or below the
+ceiling, which is every request the retry loop can make, rounds down from
+it. A request at a higher ceiling, after the cap setting is raised,
+replaces the value; a lower one leaves it. The footprint is therefore
+fixed by the ceiling (about 1.7 KB per constant at the default ceiling of
+4,040 digits, two constants), never by what the user has typed, and the
+largest it can be is set by the hard bound on the cap (D16). The one
+request above the ceiling is the argument reduction of `sin` and `cos` at
+a large argument, which needs `pi` to the ceiling plus the argument's bit
+length (under the range limit; an argument beyond that is refused as
+`tooLarge`): it is computed for that call and not kept, so a `sin(1e5000)`
+costs its milliseconds each time it is typed and leaves nothing behind.
+The alternative, keeping the largest value seen, is what the study
+describes and would be bounded too, but its footprint would depend on
+what the user had typed, and freeing it would need a policy; the value at
+the ceiling needs none.
 
 **D11. The trigonometric functions take an angle, and their inverses
 return one.** `sin`, `cos` and `tan` require an argument of the `radian`
@@ -271,19 +293,29 @@ that would let `asin(0.5)` into `1` succeed on request. None of these is
 needed to use an inverse the way the app is for: an angle in, an angle
 out, a unit to show it in.
 
-**D12. The retry schedule doubles up to an absolute ceiling.** The
-internal precisions are `p + 10`, `2 (p + 10)`, `4 (p + 10)`, ..., for
-`p` digits wanted, doubling up to and including `CEILING_DIGITS`, the same
-for every setting: 1,000 in stage 2, which is seven passes at `p = 8` and
-four at `p = 200`. A pass that certifies ends the loop, so the length of
-the schedule costs nothing in the common case; the expressions that never
-resolve (`sin(pi() radian)`, `sqrt(2)^2 - 2`) run to the ceiling however
-it is set, which is what bounds their latency: every elementary function
-at a thousand digits is milliseconds, and the special functions of stage
-6 are where the ceiling is measured (stage 8). The digits setting is
-capped at `MAX_DIGITS`, 200 in stage 2, so that the schedule always has
-room above the setting for cancellation. The fixed ceiling is also what
-lets D6 build the table once.
+**D12. The retry schedule doubles up to a ceiling derived from the cap on
+the digits setting.** The internal precisions are `p + 10`, `2 (p + 10)`,
+`4 (p + 10)`, ..., for `p` digits wanted, doubling up to and including
+the ceiling, which is the same for every `p`: `ceilingFor(maxDigits) =
+4 (maxDigits + 10)`, where `maxDigits` is the cap on the digits setting,
+itself a setting (D16) with the default `DEFAULT_MAX_DIGITS`, 1,000, so
+that the default ceiling is 4,040 digits, nine passes at `p = 8` and
+three at `p = 1000`. The factor four gives the largest request two
+doublings of room for cancellation above it, and a smaller request has
+correspondingly more. A pass that certifies ends the loop, so the length
+of the schedule costs nothing in the common case; the expressions that
+never resolve (`sin(pi() radian)`, `sqrt(2)^2 - 2`) run to the ceiling
+however it is set, which is what bounds their latency, and the cap is
+therefore a cost setting: every elementary function at four thousand
+digits is milliseconds, and the special functions of stage 6 are where
+the cost is measured (stage 8). The ceiling is the pipeline's parameter,
+passed beside the user's context by the shell, which owns the setting; a
+context whose precision exceeds the cap is a precondition failure. The
+hard bound on the cap comes from the range limit, D16, since a settled
+midpoint at the ceiling must fit it with room for a product of two: at
+the default range limit the cap may be raised to about 2,400 digits, and
+a test pins the relation. The ceiling being the same for every `p` is
+also what lets D6 build the table once for the setting in force.
 
 **D13. The midpoint's exponent is a type of its own, `Scaled`, between
 the fraction and the ball (stage 4).** `Scaled = { mant: Rational; exp:
@@ -313,7 +345,7 @@ exponent the parser reads, and the exact value of a radius. One type
 would serve the magnitudes by degrading those. The canonical 10-free form
 belongs with the exponent, not with every fraction. And nearly everything
 in rational.ts beyond fraction arithmetic is decimal representation
-(`parseDecimal`, `format`, `roundTo`, `decimalExponent`, the `MAX_BITS`
+(`parseDecimal`, `format`, `roundTo`, `decimalExponent`, the range limit's
 sizing, the roots' scaling) and changes with the exponent, so it moves to
 scaled.ts and rational.ts is left the exact fraction. Not flat in the
 ball either: a midpoint must stand as a number on its own, with its own
@@ -328,7 +360,11 @@ number because it is a new concept; the exponent is not a field on the
 fraction because it is a new contract. Nothing in stages 1 to 3 changes:
 the ball's midpoint is a `Rational` until 4.4 makes it a `Scaled`, and
 since the ball hides the midpoint's type from the evaluator, the table
-and the build, the change reaches only the readers of `.mid`.
+and the build, the change reaches only the readers of `.mid`. How a
+settled dyadic midpoint (D15), `num × 2^-k`, becomes a `Scaled` with its
+power of ten is 4.1's to decide, by settling to a decimal in that stage
+or by a binary exponent beside the decimal one; nothing in stages 2 and 3
+depends on the answer.
 
 **D14. The exact functions (`abs`, `floor`, `gcd`, ...) come after the
 elementary set and before the Gamma family.** They depend only on the
@@ -336,6 +372,91 @@ built-in mechanism, and they exercise the one dimension rule the
 elementary set does not need, a result that keeps its argument's
 dimension. The study lists them with feature 3; they open stage 6 here so
 that stage 3 stays about one thing.
+
+**D15. Inexact midpoints are settled to the working precision; exact
+values never are.** Two things wear the name "exact mode" and only one of
+them is about exactness. An exact value, radius zero, is an exact rational
+however it was formed, and every exact operation on exact operands keeps
+it so: that is what `=` means, what stage 5 displays as a fraction, and
+what the range limit of D16 guards. An inexact value is a ball, and its
+midpoint is a number computed, not a number known; keeping it as the
+exact rational result of exact operations on kernel outputs spends
+exactness on a value that has none, and lets its size grow without bound
+through an expression (`x^5` of a 13,000-bit dyadic is an exact
+67,000-bit rational whose information is 13,000 bits), which is where the
+range limit and the precision collided in the first version of this plan.
+So the evaluator settles every inexact result it produces, in one place,
+as 4.5 planned for the decimal mode: `settle(b, context)` rounds the
+midpoint to nearest at `bitsFor(precision)` significant bits, a dyadic,
+and adds the rounding to the radius; an exact ball is returned as it is.
+The lookup settles a unit once when it is looked up (a unit built at the
+ceiling is thereby cut to the pass's precision, which is what makes D6's
+one table cheap at every pass), and `powBall` on an inexact base
+exponentiates by squaring with settling, so `sqrt(2)^1000` is ten
+multiplications at the working precision and only its magnitude is
+guarded. This is Arb's discipline: whole-expression precision is
+untouched, since the errors settling adds are at the working precision,
+far below the digits asked, and the retry loop raises that precision
+until the digits certify; the midpoint that settling changes is one that
+nothing but the tests can see.
+
+Where the user's rounding mode applies, then, is settled here for both
+modes. In exact mode it applies exactly once, by the display, to the
+certified value of the whole expression, and no intermediate operation
+rounds in it: settling rounds to nearest at the working precision, which
+is not a rounding the user chose but a bound on the size of a number the
+user never sees, and certification guarantees that the display's rounding
+of the midpoint is the true value's rounding in the mode, so a mode
+applied inside would change nothing that is certified and would be a
+double rounding besides. That is whole-expression rounding, the
+counterpart of whole-expression precision. In stage 4's decimal mode the
+same `settle` rounds every result at the user's precision in the user's
+mode, and the mode therefore applies at every operation: that is the
+per-operation semantics the user chooses by choosing the mode, and 4.5
+says why. The two modes differ in nothing else.
+
+**D16. Two limits, on two axes, both the user's to set.** Range and
+precision are different quantities, as a float's exponent width and
+mantissa width are, and one number cannot stand for both. The range
+limit, `maxBits`, bounds the size of an exact value, numerator and
+denominator, and so the magnitude of anything: it is what turns
+`10^(10^9)`, `1e999999999` and a power of an inexact value beyond any use
+into a clean `tooLarge` rather than a hang, and it is needed at every
+precision. It is the third field of `NumberContext`, since `pow` and the
+literal check apply it and every core function that does arithmetic
+already takes the context; the parser, which has no context, checks a
+literal against the hard bound `LIMIT_BITS` (2^20, about 315,000 digits,
+the most the setting may take), and the evaluator checks it against the
+setting when it reads the literal. Its default is the `MAX_BITS` of stage
+1, 2^16. The precision limit is the cap on the digits setting,
+`maxDigits`, from which D12 derives the ceiling; its default is 1,000 and
+its hard bound follows from the range limit as D12 says. Both are
+settings beside the digits and the mode, validated on the way in with the
+dependent one clamped (a range limit lowered below what the cap needs
+lowers the cap, and a cap lowered below the digits lowers the digits), so
+that a stored entry can never leave the app with an inconsistent context.
+And because both are cost limits whose right value depends on the device,
+the settings panel offers to recommend them: a probe (app code, beside
+settings.ts) times the app's costliest operations at increasing sizes, an
+exact operation on values of a given size for the range limit and the
+costliest inexact operation the app has at a given precision for the cap
+(the root and `pi` in stage 2; a later stage names its own), and takes the
+largest values whose cost stays under a latency budget per pass. The
+probe runs only when asked, since a benchmark at every launch would be
+noise on the main thread for a number the user can also type; stage 8's
+measurements of the special functions revise its budget and the defaults.
+The probe measures time alone, and memory is an explicit omission. A
+browser exposes no portable measure of the memory a page may use:
+`performance.memory` is one vendor's and deprecated,
+`navigator.deviceMemory` is a coarse bucket absent from two of the three
+engines, and `measureUserAgentSpecificMemory` needs cross-origin
+isolation; and the one way to find the limit without an API, allocating
+geometrically until something fails, can leave the page in an
+indeterminate state or crash the tab, neither of which is acceptable. The
+budget on time bounds memory indirectly for these workloads, since a
+value of `n` bits is `n / 8` bytes and the operations timed hold a few of
+them, kilobytes to a few megabytes at any latency a phone can meet. The
+decision is revisited if a portable measure appears.
 
 ## Stage 1: the context and the ball
 
@@ -444,11 +565,13 @@ the exact product; the radius is `|a| rb + |b| ra + ra rb`, rounded up),
 quotient and the radius `(|a| rb + |b| ra) / (|b| (|b| - rb))` rounded up,
 which is the bound for `a / b` over the two intervals), and `powBall(b, n)`
 for a bigint `n`: an exact ball goes through `pow`; otherwise the midpoint
-is `pow(mid, |n|)`, which does the `MAX_BITS` check, the radius is
+is `pow(mid, |n|)`, which does the size check, the radius is
 `n (|mid| + rad)^(n-1) rad` in the coarse arithmetic, and a negative `n`
 inverts by the division rule. Midpoints are never rounded here: in exact
 mode the exact operations stay exact, and only the radius says what has
-been lost upstream. The midpoint is a `Rational` through stages 1 to 3;
+been lost upstream (2.5 adds `settle`, per D15, a step the evaluator
+applies after them; the operations here stay exact on the midpoints). The
+midpoint is a `Rational` through stages 1 to 3;
 4.4 makes it a `Scaled` (D13), and nothing above the ball sees the change.
 
 Tests: on exact balls every operation agrees with rational.ts; containment
@@ -567,8 +690,9 @@ version named it as the change by mistake.
 
 New `src/settings.ts` (app, not core): `Settings = { digits; rounding }`,
 `DEFAULT_SETTINGS`, `loadSettings` and `saveSettings` over `localStorage`
-with validation (an integer `digits` in `[1, MAX_DIGITS]`, a name in
-`ROUNDING_MODES`; anything else is the default), and `contextOf(settings)`.
+with validation (an integer `digits` in `[1, MAX_DIGITS]`, 200 until 2.6,
+and a name in `ROUNDING_MODES`; anything else is the default), and
+`contextOf(settings)`.
 `app-shell.ts` owns the settings, renders a `<details>` with a number
 input for the digits and a `<select>` for the mode, saves on change, and
 passes the context to `<unit-converter>` as a property. The component
@@ -589,149 +713,296 @@ modules; README.md gains a short "Settings" section; module headers that
 mention truncation or `DEFAULT_PRECISION` are corrected; docs/calculator.md
 gets a status line naming this plan.
 
-## Stage 2: the kernel, `root`, `pi`, the retry loop
+## Stage 2: the kernel, `root`, settling, `pi`, the retry loop
 
-Firm. What lands: the fixed-point kernel on which every inexact function
-will run; `root` on it, honoring the mode and propagating its argument's
-radius; certification and the display's rule for fewer digits than asked;
-the retry loop in the pipeline; `pi` computed on demand. After this stage
-`sqrt(2)^2 - 2` is `≈ 0` with a bound and `sqrt(2)` at 50 digits is 50
-correct digits.
+Firm. Reviewed against the code before implementation, and revised: the
+kernel hands back its dyadic midpoint unrounded and the mode is the
+display's alone (D9); inexact midpoints are settled to the working
+precision (D15), moved here from 4.5; the roots are Newton in fixed point
+at any degree rather than the integer root on a scaled integer (2.2); the
+cap on the digits setting and the range limit are settings with a derived
+ceiling and a probe that recommends them (D12, D16), which adds 2.7 and
+moves `pi` and the docs to 2.8 and 2.9. What lands: the fixed-point
+kernel on which every inexact function will run; `root` on it,
+propagating its argument's radius; certification and the display's rule
+for fewer digits than asked; settling, the retry loop and the two limits
+in the pipeline and the settings; `pi` computed on demand. After this
+stage `sqrt(2)^2 - 2` is `≈ 0` with a bound and `sqrt(2)` at 50 digits is
+50 correct digits.
 
 ### 2.1 The kernel's values and exact operations
 
 New `src/core/fixed.ts`, per D9: `Fixed = { value: bigint; error: bigint;
 bits: number }`, fixed point, so `bits` is the position of the binary
 point, the integer part is `value >> bits` and the fraction is the low
-`bits` bits, with no field for either; `bitsFor(precision)`, the bits for a decimal precision
-plus `GUARD_BITS` (32); `fixedFromRational(r, bits)` (rounded to nearest,
-error 1); `fixedFromBall(b, bits)` (the midpoint so, plus the radius in
-ulps rounded up; unbounded is a precondition failure, since the caller
-returns unbounded without computing); `fixedToBall(f, context)` (the
-midpoint `value × 2^-bits` rounded to the context's precision in its mode,
-the radius `radiusAbove` of `error × 2^-bits` plus the rounding's error,
-which is one unit in the last decimal digit at most); `addFixed`,
-`subtractFixed`, `multiplyFixed` (the value is the product shifted down
-by `bits`; the error is `|a| eb + |b| ea + ea eb` shifted down and rounded
-up, plus one for the shift), `divideFixed` (a precondition that the
-divisor's interval excludes zero), `shiftFixed`, `absFixed`, `compareFixed`
-where the intervals allow it. Every routine's doc comment states its error
-rule.
+`bits` bits, with no field for either, and `bits`, a non-negative
+integer, belongs to the value; `GUARD_BITS` (32) and `bitsFor(precision)`,
+`ceil(precision × log2 10)` plus the guard; `fixedFromRational(r, bits)`
+(rounded to nearest; error 1, or 0 when the scaling is exact);
+`fixedFromBall(b, bits)` (the midpoint so, plus the radius in ulps
+rounded up; unbounded is a precondition failure, since the caller returns
+unbounded without computing); `fixedToBall(f)` (the midpoint the dyadic
+`value × 2^-bits` itself, the radius `radiusAbove` of `error × 2^-bits`;
+no context, since nothing here rounds in a mode); `addFixed` and
+`subtractFixed` (the operand with fewer bits rebased to the other's,
+exactly, then the values combined and the errors added); `multiplyFixed`
+(the value is the product shifted down by `bits`; the error is `|a| eb +
+|b| ea + ea eb` shifted down and rounded up, plus one for the shift);
+`divideFixed` (a precondition that the divisor's interval excludes zero;
+the quotient rounded down with one ulp for the rounding, and the
+propagated error bounded over the two intervals); `shiftFixed(f, k)`, the
+exact rebase that multiplies by `2^k` by moving the binary point;
+`absFixed`; `compareFixed`, which returns -1 or 1 when the intervals are
+disjoint, 0 when both are exact and equal, and `undefined` otherwise.
+Every routine's doc comment states its error rule, and a violated
+precondition throws `RangeError`, as `rational` does.
 
-Tests: containment over seeded rationals for every operation, checking
-`|exact - value × 2^-bits| <= error × 2^-bits` with rational arithmetic;
-`fixedToBall` under each rounding mode contains the exact value.
+Tests: containment over seeded rationals and balls from the shared random
+source for every operation, checking `|exact - value × 2^-bits| <= error
+× 2^-bits` with rational arithmetic at both ends of the operands'
+intervals; `fixedToBall` contains the exact value; the rebase is exact;
+the preconditions throw.
 
 Behavior: none; unused.
 
 ### 2.2 The kernel's roots
 
-`sqrtFixed` and `rootFixed(f, degree)` by Newton on the scaled integer
-(the `integerRoot` of rational.ts, moved here), with the error rule:
-one ulp of truncation plus the propagated error, bounded by the derivative
-`(1/n) x^(1/n - 1)` at the lower end of the argument's interval, which
-must be positive (a precondition; the caller decides what a ball around
-zero means).
+`sqrtFixed(f)`: the integer square root of the value scaled to twice the
+bits, by Newton, the `integerRoot` of rational.ts, which stays there for
+`exactRoot` and is exported; the root is monotone, so the result's
+interval is exact, its ends the integer roots of the argument's ends,
+floor below and floor plus one above, and no derivative bound is needed.
+`rootFixed(f, degree)` for any degree (two goes to `sqrtFixed`): Newton in
+fixed point at
+the argument's `bits`, `x ← ((n - 1) x + a / x^(n-1)) / n` with the power
+by squaring in fixed point, from a first guess taken through a double, so
+that the cost is logarithmic in the degree and no integer of `degree ×
+bits` bits is ever formed (the integer root on a scaled integer, which
+the first version of this task planned, admits only degree 4 at the
+default ceiling under the default range limit). The result's error is not
+read off the iteration but verified: the power `y^n` is recomputed with
+the error rule, its distance from the argument bounded, and the root's
+error follows by `|y - a^(1/n)| <= (4 |ε| / n) y` for `y^n = a (1 + ε)`
+with `|ε| <= 1/2`, one line of integer arithmetic stated in the comment;
+the distance is taken over the whole of the argument's interval, so the
+argument's own error enters the same bound and no derivative bound is
+needed. The lower end must be positive (a precondition; the caller
+decides what a ball around zero means). Both choose the result's `bits`
+so that a root of magnitude `2^k` keeps the argument's significant bits
+(D9), and a small argument keeps its digits only if it was converted at
+bits enough to hold them, which is the caller's reduction (2.3).
 
-Tests: containment; reference digits of `sqrt 2` and `cbrt 2` at 100
-digits through `fixedToBall`.
+Tests: containment over seeded arguments across magnitudes and degrees,
+including degrees in the thousands, checked on the integers by
+monotonicity; the error a few ulps for an exact argument; the result's
+bits at large and small arguments; reference digits of `sqrt 2` and
+`cbrt 2` at 100 digits through `fixedToBall`, and `10^(1/7)` and
+`2^(1/1000000)` at fewer, all from Python's decimal module as the
+independent source; the preconditions throw.
+
+Behavior: none; unused.
 
 ### 2.3 `rootBall` on the kernel
 
-`rootBall` in ball.ts: the exact cases as before; an exact or inexact
-argument whose ball excludes zero goes through `fixedFromBall`, `rootFixed`
-and `fixedToBall`, so the midpoint is rounded in the mode and the radius
-covers the argument's; a ball containing zero is exact zero if exact, and
-otherwise `unresolved` for an even degree (the sign is undecided) and, for
-an odd degree, a ball around zero with a radius from the interval's ends
-(the root is monotone, so `[root(lo), root(hi)]` is the answer). D5's
-unbounded radius goes, and `truncatedRoot` in rational.ts goes with it if
-nothing else uses it.
+`rootBall` in ball.ts: the exact cases as before; a ball, exact or
+inexact, whose interval excludes zero is scaled by an exact power of
+`2^degree` so that it is of order one (the reduction belongs here, on the
+ball, since a tiny ball converted at `bitsFor(precision)` would lose its
+digits), goes through `fixedFromBall`, `rootFixed` and `fixedToBall`, and
+is scaled back, so the radius covers the argument's; a negative ball of
+odd degree is the negated root of its magnitude; a ball containing zero
+is exact zero if exact, and otherwise `unresolved` for an even degree
+(the sign is undecided) and, for an odd degree, a ball around zero whose
+radius is the root of the larger of the interval's ends, computed the
+same way. D5's unbounded radius goes; `truncatedRoot` goes, and
+`powRational`, which nothing but its tests has called since 1.7, with it;
+the `tooLarge` a root of absurd degree returned is no longer needed.
+`unresolved` from a power (this root, or the negative power of 1.7) is
+located at the power's base in evaluate.ts, since the base is what cannot
+be told from zero, as the divisor is for a quotient; messages.ts words it
+for both: "`X` cannot be told from zero at this precision, and the result
+depends on which side of zero it lies", and for a body, "depends on a
+value that cannot be told from zero at this precision".
 
 Tests: the stage 1 tests, with the unbounded case replaced by containment
-over inexact arguments; directed modes give a midpoint on the side asked;
-`sqrt` of a ball straddling zero is `unresolved`, `cbrt` of one contains
-zero.
+over inexact arguments from the shared source; a tiny and a huge exact
+argument keep their digits; `sqrt` of a ball straddling zero is
+`unresolved`, `cbrt` of one contains zero and its ends; `2^(1/20)` at
+1,000 digits; the location and the wording of `unresolved` from a root.
+The tests in build.test.ts and pipeline.test.ts that computed an expected
+midpoint through `truncatedRoot` compare against reference digits and
+containment instead.
 
-Behavior: `sqrt(2)` at `p` digits now honors the rounding mode.
+Behavior: none visible. An inexact argument's root now has a bounded
+radius, which the display of 2.4 and 2.6 will show as certified digits
+rather than as uncertified ones; the digits shown at this task are the
+same.
 
 ### 2.4 Certification and the display rule
 
-`src/core/ball.ts`: `certifies(b, digits, mode)`, per D7, and
-`certifiedDigits(b, maxDigits, mode)`, the largest `d <= maxDigits` that
-`certifies`, or none. `src/core/display.ts`: `show` returns a `Shown`
-with a `kind`: `exact` (as in 1.9); `certified` (inexact, all `digits`
-certified, `text` rounded to them); `partial` (fewer, `certified: d`,
-`text` rounded to `d`); `zero` (no digit certified, the ball contains
-zero, `bound` the formatted radius, so the UI can say `≈ 0, within 1e-30`);
-`unbounded` (an unbounded radius, `text` the midpoint at `digits`, certifying
-none, as the study says the per-operation stage displays). A ball that
-certifies no digit and excludes zero is `partial` with zero digits, which
-the retry loop below prevents from reaching the display except at the
-ceiling.
+`src/core/ball.ts`: `certifies(b, digits, mode)`, per D7, forming the two
+ends as exact rationals (an unbounded ball certifies nothing; an exact one
+certifies every count), and `certifiedDigits(b, maxDigits, mode)`, the
+largest `d <= maxDigits` that certifies, found by scanning down since
+certification is not monotone in `d`, or 0. `src/core/display.ts`: `show`
+returns a `Shown` with a `kind`: `exact` (as in 1.9); `certified` (all
+`digits` certified, `text` rounded to them; this includes an exact value
+with more digits than shown, `1/3` at eight, which is `≈` with no note as
+today); `partial` (fewer, `certified: d`, `text` rounded to `d`; with `d`
+zero, which only a value on a rounding tie at the digits asked produces at
+the ceiling, `text` is the midpoint at `digits`); `zero` (the ball
+contains zero without being exactly zero, which certifies no digit;
+`text` is `0` and `bound` is `|mid| + rad` rounded up to one significant
+digit, so the UI can say `≈ 0, within 2e-30`); `unbounded` (an unbounded
+radius, `text` the midpoint at `digits`, certifying none, as the study
+says the per-operation stage displays). The tests are applied in that
+order: unbounded, exact, zero, then the digit count. The `exact` boolean
+of 1.9 goes; the component reads the kind.
 
 Tests: each kind from a constructed ball; `certifies` at a tie under each
 mode; the carry (`0.99999 ± 0.00002` at three digits certifies under
-`halfAwayFromZero`, `9.9999 ± 0.0002` at two digits does not).
+`halfAwayFromZero`, `9.9999 ± 0.0002` at two digits does not); the
+non-monotone case (`1.25 ± 0.004` certifies three digits and not two).
 
 Behavior: the display is still called with a single pass, so `partial`
-now appears where 1.9 showed digits it could not certify. 2.5 removes
-that within the schedule.
+now appears where 1.9 showed digits it could not certify, and the
+component says `≈` for it as before, since it does not yet read the kind.
+2.5 removes that within the schedule and 2.6 shows the kinds.
 
-### 2.5 The retry loop
+### 2.5 Settling, the range limit and the retry loop
 
-`src/core/pipeline.ts`, per D12: `SCHEDULE(p)` yields the working contexts
-`p + 10`, `2 (p + 10)`, ..., doubling, and last `CEILING_DIGITS`, which
-context.ts holds beside `MAX_DIGITS`; `resolve(context, run, done)` calls
-`run` with each working context in turn and returns the first result that
-`done` accepts, an error other than `unresolved`, or the last result at
-the ceiling; `evaluateText` and `convertText` go through it, with `done`
-checking that every value in the result (the unit value, each list term,
-the function count) is exact, certified at `context.precision`, or
-unbounded. The `unresolved` that survives the ceiling is the error the
-user sees. The stage 1 working rule (`max(40, p + 10)`) goes.
+Per D15, D16 and D12, in that order within the task. `src/core/ball.ts`
+gains `settle(b, context)`: an inexact midpoint rounded to nearest at
+`bitsFor(context.precision)` significant bits, a dyadic built in lowest
+terms without a gcd, its rounding added to the radius; an exact ball
+returned as it is. `powBall(b, n, context)` on an inexact base
+exponentiates by squaring with settling, and inverts by the division rule
+for a negative `n`; on an exact base it is `pow` as before.
+`src/core/quantity.ts` gains `settleQuantity`; `src/core/evaluate.ts`
+settles every result it produces, in one place, and `unitLookup(table,
+context)` settles a unit once when it is looked up. `NumberContext` gains
+`maxBits`, the range limit: `MAX_BITS` in rational.ts becomes
+`LIMIT_BITS` (2^20), the hard bound the parser applies through
+`parseDecimal`; context.ts holds `DEFAULT_MAX_BITS` (2^16), and
+`checkContext` accepts an integer in `[1, LIMIT_BITS]`; `pow` takes the
+limit as a parameter, and the evaluator's `number` case checks a literal
+against the setting, `tooLarge` at the literal's span. The comments of
+both constants say what each bounds.
 
-Tests: `sqrt(2)` at 8 and at 50 digits certifies on the first pass;
-`sqrt(2)^2 - 2` ends at the ceiling as `zero` with a bound;
-`1 / (sqrt(2)^2 - 2)` is `unresolved`; `(sqrt(2) + 1e-15) - sqrt(2)` at
-8 digits needs a second pass and certifies, and `(sqrt(2) + 1e-60) -
-sqrt(2)` a fourth (the test counts passes through a `run` that records its
-contexts); at 8 digits the schedule ends at 1,000 digits after seven
-passes; an error in the text returns at once.
+Then the schedule: `SCHEDULE(p, ceiling)` yields the working contexts
+`p + 10`, `2 (p + 10)`, ..., doubling, and last `ceiling`;
+`ceilingFor(maxDigits)` is `4 (maxDigits + GUARD_DIGITS)` in context.ts
+beside `DEFAULT_MAX_DIGITS` (1,000) and `maxDigitsFor(maxBits)`, the hard
+bound on the cap (`bitsFor` of the ceiling at most half the range limit);
+`resolve(context, ceiling, run, done, retries)` calls `run` with each
+working context in turn and returns the first result that `done` accepts;
+a result `done` rejects is kept as the best so far; an error that
+`retries` accepts (`unresolved` and `unresolvedWant`, at any depth of
+`callFailed` or `inverseFailed`) continues; any other error ends the loop
+with the best result so far if there is one, since the only such error a
+later pass can raise that an earlier one did not is a `tooLarge` that
+marks a pass as unaffordable, and otherwise with the error; at the
+ceiling the best result so far, or the last error, is returned.
+`evaluateText` and `convertText` take the ceiling beside the user's
+context and go through `resolve`, parsing once outside the passes, with
+`done` checking that every value in the result (the unit value, each list
+term unrounded, the function count) is exact, certified at
+`context.precision`, or unbounded; a context whose precision exceeds the
+cap the ceiling was derived from is a precondition failure. The stage 1
+working rule (`max(40, p + 10)`) goes, and `DEFAULT_PRECISION`'s comment
+says it is the table's build precision until 3.3. Two gaps are accepted
+and stated here: a list unit whose ball straddles zero is
+`nonpositiveUnit` and not retried, and the reciprocal line the component
+computes is shown with whatever kind `1 / value` has, not retried on its
+own.
 
-Behavior: certified digits, or fewer with a note.
+Tests: `settle` is the identity on an exact ball, rounds an inexact one
+to the bits and grows the radius by the difference, over the shared
+source; `sqrt(2)^1000` settles at every squaring and `sqrt(2)^(10^7)` is
+`tooLarge` by magnitude; a literal beyond the setting is `tooLarge` at
+its span and one beyond the hard bound fails at parse; `sqrt(2)` at 8 and
+at 50 digits certifies on the first pass; `sqrt(2)^2 - 2` ends at the
+ceiling as `zero` with a bound; `1 / (sqrt(2)^2 - 2)` is `unresolved`;
+`(sqrt(2) + 1e-15) - sqrt(2)` at 8 digits needs a second pass and
+certifies, `(sqrt(2) + 1e-60) - sqrt(2)` a third and `(sqrt(2) +
+1e-100) - sqrt(2)` a fourth (the test counts passes through a `run` that
+records its contexts); at 8 digits the default schedule ends at 4,040
+digits after nine passes; a later pass that fails `tooLarge` returns the
+earlier result; an error in the text returns at once; `ceilingFor` and
+`maxDigitsFor` at the defaults and the relation between them.
 
-### 2.6 The UI for the display kinds
+Behavior: certified digits, or fewer with a note; `1e30000` is `tooLarge`
+as before, and remains so until the range limit is raised.
+
+### 2.6 The UI for the display kinds and the two limits
 
 `unit-converter.ts` renders `partial` with a note ("8 of 12 digits are
-certain"), `zero` as `≈ 0` with its bound, and `unbounded` with a note
-that the digits are not certified. The settings panel caps the digits at
-`MAX_DIGITS` in the input's attributes as well as in validation.
+certain"), `zero` as `≈ 0` with its bound ("within 2e-30"), and
+`unbounded` with a note that the digits are not certified; a list is
+certified on its unrounded terms, its remainder rounded by `roundTerms`
+at the digits certified, and its counts are exact and carry no note; the
+reciprocal line shows its own kind. `settings.ts` gains `maxDigits`
+(default `DEFAULT_MAX_DIGITS`, at most `maxDigitsFor(maxBits)`) and
+`maxBits` (default `DEFAULT_MAX_BITS`, in `[1, LIMIT_BITS]`), validated
+with the dependent clamps of D16, `contextOf` carrying `maxBits` and a new
+`ceilingOf(settings)`; `app-shell.ts` renders the two as number inputs
+beside the digits, whose `max` follows `maxDigits`, and passes the
+ceiling to the converter with the context, which the converter passes to
+the pipeline. `MAX_DIGITS` goes.
 
-Behavior: the notes.
+Behavior: the notes, and the two limits are the user's.
 
-### 2.7 `pi`
+### 2.7 The recommended limits
 
-New `src/core/constants.ts`: `piFixed(bits)` by Chudnovsky's series with
-binary splitting, the error bound of the truncated series stated in the
-comment (the terms decrease by a factor of about `10^14` each), memoized
-per D10; `piBall(context)` through `fixedToBall`. `bench/kernel.bench.ts`
-reports the timing at 1,000, 10,000 and 100,000 digits and asserts that
-10,000 digits cost at most thirty times 1,000 (the study measured
-twenty).
+New `src/limits.ts` (app code, beside settings.ts): `recommendLimits(
+budget, now)` times, through a clock passed in so that it is tested under
+Node, the app's costliest operations at increasing sizes, an exact
+multiplication and reduction of two rationals of `n` bits for the range
+limit and a `rootBall` at a working precision for the cap, doubling until
+one exceeds `budget` milliseconds, and returns the largest values under
+it, clamped to the hard bounds and to the dependency between the two, and
+rounded down to round numbers. The budget is a constant of the module,
+with the argument for it in the header; the operations it times are named
+in one place, so that a later stage with a costlier built-in changes the
+list and nothing else. It measures time and not memory, for the reasons
+D16 gives. `app-shell.ts` gains a button in the settings panel that runs
+it and applies the result to both limits, disabled while it runs.
 
-Tests: reference digits to 100; the 36-digit literal in units.txt as a
-second reference; the memo holds the ceiling's value after requests at
-three lower precisions, and a request above the ceiling adds nothing to
-it.
+Tests: with a fake clock that charges a set cost per bit, the
+recommendation is the largest size under the budget, is clamped, and
+respects the dependency between the two.
+
+Behavior: the button.
+
+### 2.8 `pi`
+
+New `src/core/constants.ts`: `chudnovsky(bits)`, the series with binary
+splitting, exported so that the benchmark times it uncached, with the
+error bound of the truncated series stated in the comment (each term is
+below the one before it by a factor above `1.5 × 10^14`, and the tail of
+an alternating series of decreasing terms is below its first omitted
+term); `piFixed(bits, ceilingBits)`, memoized per D10 at the ceiling in
+force; `piBall(context, ceiling)` through `fixedToBall`; and
+`piMemoBits()`, which reports the memo's precision for the tests.
+`bench/kernel.bench.ts` reports the timing at 1,000, 10,000 and 100,000
+digits and asserts that 10,000 digits cost at most thirty times 1,000
+(the study measured twenty), and reports the root at the default ceiling.
+
+Tests: reference digits to 100; the 36-digit literal in units.txt, read
+from the file, as a second reference; the memo holds the ceiling's value
+after requests at three lower precisions, a request above the ceiling
+adds nothing to it, and a higher ceiling replaces it.
 
 Behavior: none; unused until stage 3.
 
-### 2.8 Stage 2 docs
+### 2.9 Stage 2 docs
 
-ARCHITECTURE.md "Precision and rounding" gains the kernel, certification
-and the schedule; "Layout" the new modules; the benchmark section the
-kernel benchmark; README "Settings" explains the note about fewer digits.
+ARCHITECTURE.md "Precision and rounding" gains the kernel, settling,
+certification, the schedule and the two limits; "Layout" the new modules;
+the benchmark section the kernel benchmark; README "Settings" explains
+the note about fewer digits, the two limits and the recommendation;
+docs/calculator.md's status line names stage 2 as landed, and its "one
+mode governs every rounding" gains the qualification of D15.
 
 ## Stage 3: built-in functions
 
@@ -799,14 +1070,16 @@ Behavior: none visible; no built-in exists.
 
 ### 3.3 The table at the ceiling
 
-Per D6 and D12. `src/core/pipeline.ts` exports `ceilingContext()`, the
-last context of `SCHEDULE(p)` for every `p`. `src/system-table.ts` builds
-the one table at it, as it builds one table today; `app-shell.ts` has no
-reason to rebuild when the digits change, and does not. `build.bench.ts`
-builds at the ceiling context.
+Per D6 and D12. `src/core/pipeline.ts` exports `ceilingContext(context,
+ceiling)`, the last context of `SCHEDULE(p, ceiling)`, the same for every
+`p`. `src/system-table.ts` builds the table at the ceiling in force and
+memoizes it by ceiling; `app-shell.ts` rebuilds when the cap setting
+changes the ceiling, which is the one reason it ever rebuilds, and not
+when the digits change. `build.bench.ts` builds at the default ceiling
+context.
 
-Tests: `ceilingContext()` is the last of `SCHEDULE(p)` for every `p` up
-to `MAX_DIGITS`.
+Tests: `ceilingContext` is the last of `SCHEDULE(p, ceiling)` for every
+`p` up to the cap; a table is built once per ceiling.
 
 Behavior: none visible yet; the table is precision-independent until 3.4.
 
@@ -975,7 +1248,7 @@ settled, in one place), and what the retry loop does in decimal mode
 New `src/core/scaled.ts`, per D13: `Scaled`, the constructor `scaled(mant,
 exp)` normalizing to the canonical form, `fromRational`, `toRational`
 (which fails `tooLarge` when forming the power of ten would exceed
-`MAX_BITS`), `ZERO` and `ONE`, `isZero`, `isInteger`, `sign`, `equals`
+the range limit), `ZERO` and `ONE`, `isZero`, `isInteger`, `sign`, `equals`
 (structural), and `compare`, which compares by exponent and digit count
 before any multiplication, so that `1e999999999` compares with `1`
 without being formed. `rational.ts` is untouched.
@@ -990,7 +1263,8 @@ Behavior: none; the module is unused.
 ### 4.2 The arithmetic with an exponent
 
 `scaled.ts`: `add` and `subtract` align exponents on the mantissas and
-fail `tooLarge` when the alignment would exceed `MAX_BITS` (`Result`s,
+fail `tooLarge` when the alignment would exceed the range limit
+(`Result`s,
 where the fraction's are total); `negate`, `multiply`, `divide`, `invert`
 and `pow` combine exponents; every one calls the fraction's operation on
 the mantissas and renormalizes. `MAX_EXPONENT` (`10^18`) is checked
@@ -1005,12 +1279,12 @@ the values fit; the alignment failure; the exponent bound.
 ### 4.3 Text, rounding, digits and roots on `Scaled`
 
 `parseDecimal`, `decimalExponent`, `roundTo`, `trunc`, `format` and the
-roots (`exactRoot`, and `truncatedRoot` if it still exists) move from
+root (`exactRoot`) move from
 rational.ts to scaled.ts and account for the exponent: `parseDecimal`
 keeps a literal's exponent lazily, so `1e999999999` parses where it is
 `tooLarge` today; `format` writes the exponent form for anything the fixed
-form cannot hold; the `MAX_BITS` sizing of `pow` and the roots moves with
-them. `rational.ts` keeps construction, comparison, the exact arithmetic,
+form cannot hold; the range limit's sizing of `pow` and the literal moves
+with them. `rational.ts` keeps construction, comparison, the exact arithmetic,
 `pow` by a bigint, `trunc` and `toFraction`, and `Precision` moves to
 rounding.ts. Nothing else changes yet: the callers still hold rationals,
 and convert through `fromRational` and `toRational` at the boundary until
@@ -1025,7 +1299,7 @@ Tests: the moved tests, with the exponent cases added.
 `Rational`, the exponent grammar converting with `toRational` so that
 `m^1e999999999` is refused there; `fixedFromRational` becomes
 `fixedFromScaled`, with a bound on the exponent it will form (an argument
-beyond `MAX_BITS` is `tooLarge`, per D10); `certifies` compares the
+beyond the range limit is `tooLarge`, per D10); `certifies` compares the
 midpoint with the radius by exponents and leading digits where forming
 either is infeasible (D7); the readers of `.mid` (the converter, the
 pipeline, the display, the messages) change type. The evaluator, the
@@ -1039,14 +1313,32 @@ exponent), and certification of `sqrt(1e999999999)`.
 Behavior: `1e999999999` parses and multiplies where it fails today;
 `1e999999999 + 1` still fails, as `tooLarge`.
 
-### 4.5 `mode` in the context, and settling
+### 4.5 `mode` in the context, and settling in decimal mode
 
-`NumberContext` gains `mode: "exact" | "decimal"`, default exact.
-`ball.ts` gains `settle(b, context)`: in decimal mode the midpoint is
-rounded to the context's precision in its mode and the radius grows by
-the rounding's error; in exact mode it is the identity. `evaluate` settles
-every result it produces, in one place, and `unitLookup` settles a unit
-once when it is looked up; the table itself stays exact, as built.
+`NumberContext` gains `mode: "exact" | "decimal"`, default exact. `settle`
+(2.5, D15) reads it: in decimal mode the midpoint is rounded to the
+context's precision in the user's mode, as a decimal, and the radius
+grows by the rounding's error; in exact mode it rounds to nearest at the
+working precision as it does from stage 2. The evaluator and the lookup
+already settle every result in one place, so nothing else changes; the
+table itself stays exact, as built.
+
+What the user's rounding mode means in each mode, stated once. In exact
+mode it is applied once, by the display, to the certified value of the
+whole expression (D15). In decimal mode it governs every operation:
+`1 / 3 * 3` is `0.99999999` under `towardZero` at eight digits and `1`
+under `halfEven`, and the display's rounding is then the identity on a
+value that already has `p` digits. The difference is the point of having
+two modes rather than a quirk of the second. Decimal mode is where a user
+who wants fixed-precision arithmetic with a rounding mode, as a hand
+calculator or a decimal library gives it, gets exactly that, and rounding
+only at the end, or raising the internal precision as the retry loop
+does, would compute something other than what was asked; exact mode is
+where "compute this to `p` digits" is meant literally, and there a mode
+inside would only be a double rounding of digits certification already
+guarantees. The radius tracks each rounding in either mode, so the
+display marks the digits it does not certify in decimal mode too, as the
+study says, without escalating (4.6).
 
 ### 4.6 The pipeline in decimal mode
 
@@ -1112,7 +1404,7 @@ for the Gamma family the algorithm per function and the bound it owes.
 `factorial`, `binomial`, `doublefactorial`, each exact on exact balls,
 and on an inexact ball either exact where the interval decides (`floor`
 of a ball inside one integer's cell) or `unresolved`. `factorial` and
-`binomial` check `MAX_BITS`.
+`binomial` check the range limit.
 
 ### 6.2 `digamma`
 
@@ -1126,7 +1418,7 @@ propagation rule.
 The shift up, the Stirling series, reflection for negative arguments,
 poles as domain errors, positive integers as exact factorials;
 propagation by `gamma × digamma`; `lgamma` alongside, since `gamma(20000)`
-exceeds `MAX_BITS` in exact mode.
+exceeds the range limit in exact mode.
 
 ### 6.4 `beta`
 
@@ -1197,14 +1489,15 @@ README "Functions", docs/functions.md, ARCHITECTURE.md.
 ## Stage 8: runtime
 
 Provisional, and possibly unnecessary. After stage 6 the cost of the
-slowest function at `CEILING_DIGITS` is measured on a phone. If it stays
-under tens of milliseconds, `CEILING_DIGITS` and `MAX_DIGITS` are raised
-as far as that allows and nothing else happens. If not, the pipeline moves to a Web
-Worker: the core is pure and takes plain data, so the worker is a thin
-wrapper around `convertText`, the component debounces and shows the last
-result until the next arrives, and the table is built in the worker. The
-payload is measured against the study's estimate at the end of stages 3
-and 6 in any case, and recorded in docs/calculator.md.
+slowest function at the default ceiling is measured on a phone, and the
+probe of 2.7 is revised to time it. If the default cap keeps every pass
+under the probe's budget, the defaults stay and nothing else happens; if
+not, the defaults are lowered or the pipeline moves to a Web Worker: the
+core is pure and takes plain data, so the worker is a thin wrapper around
+`convertText`, the component debounces and shows the last result until
+the next arrives, and the table is built in the worker. The payload is
+measured against the study's estimate at the end of stages 3 and 6 in
+any case, and recorded in docs/calculator.md.
 
 ## The first follow-up
 

@@ -137,7 +137,18 @@ the midpoint's type with the propagation rules of the radius's; neither
 module knows the other, and nothing stores a radius inside a number. Stage
 4 puts a `Scaled`, a fraction times a power of ten in a module of its own,
 between the fraction and the ball as the midpoint's type, so that
-`rational.ts` stays the total fraction it is.
+`rational.ts` stays the total fraction it is. Beside these, `Fixed`
+(`fixed.ts`) is the kernel's own representation, on which the inexact
+functions will run: an integer standing for `value × 2^-bits` with an
+error count in ulps, every operation updating the count by a stated
+over-approximation (the plan's D9), entered from a rational or a ball and
+left through `fixedToBall`, which hands back the dyadic midpoint itself
+and the count as a radius. Its first routines are the roots: the square
+root by the integer square root of the argument's ends, exact because the
+root is monotone, and the root of any degree by Newton in fixed point,
+its error verified by raising the result back to the power rather than
+read off the iteration. Stage 2 is putting it in place; nothing calls it
+yet, and `rootBall` still runs on the decimal path.
 
 **Working precision and the context.** Every core function that does
 arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a
@@ -839,6 +850,7 @@ src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one p
 src/core/context.ts       NumberContext: the precision and the rounding mode arithmetic is done at
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations and root, unresolved
+src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations
 src/core/display.ts       show: a ball's text at the digits asked, and whether it is exact
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Ball with a Dimension), its arithmetic

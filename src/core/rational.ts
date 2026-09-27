@@ -434,8 +434,11 @@ function gcd(a: bigint, b: bigint): bigint {
   return a;
 }
 
-/** The number of bits in the non-negative `n` (0 for zero). */
-function bitLength(n: bigint): number {
+/**
+ * The number of bits in the non-negative `n` (0 for zero). Exported for
+ * the kernel (fixed.ts), which sizes and rebases its values by it.
+ */
+export function bitLength(n: bigint): number {
   return n === 0n ? 0 : n.toString(2).length;
 }
 
@@ -446,9 +449,11 @@ function decimalDigits(n: bigint): number {
 
 /**
  * floor(n^(1/degree)) for a non-negative `n`, by Newton's method from an
- * overestimate: the iterates decrease monotonically to the floor.
+ * overestimate: the iterates decrease monotonically to the floor. Exported
+ * for the kernel's square root (fixed.ts), which takes it of the argument
+ * scaled to an integer; `exactRoot` uses it here to detect a perfect power.
  */
-function integerRoot(n: bigint, degree: bigint): bigint {
+export function integerRoot(n: bigint, degree: bigint): bigint {
   if (n < 2n || degree === 1n) return n;
   const bits = bitLength(n);
   // n < 2^bits <= 2^degree, so the root is below 2 (and the Newton step

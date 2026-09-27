@@ -252,7 +252,7 @@ export function sqrtFixed(f: Fixed): Fixed {
     error: value - low > high - value ? value - low : high - value,
     bits: computedAt,
   };
-  return computedAt === bits ? root : truncated(root, bits);
+  return computedAt === bits ? root : truncateFixed(root, bits);
 }
 
 /**
@@ -303,7 +303,7 @@ export function rootFixed(f: Fixed, degree: bigint): Fixed {
   const y = newtonRoot(reduced, degree);
   const root = shiftFixed(verifiedRoot(y, reduced, degree), k);
   const bits = Math.max(0, f.bits - k);
-  return root.bits > bits ? truncated(root, bits) : root;
+  return root.bits > bits ? truncateFixed(root, bits) : root;
 }
 
 /**
@@ -369,8 +369,14 @@ function verifiedRoot(y: bigint, a: Fixed, n: bigint): Fixed {
   return { ...exact, error: ceilDiv(4n * distance * y, n * least) };
 }
 
-/** `f` at fewer fraction bits, the value and the error truncated with an ulp for it. */
-function truncated(f: Fixed, bits: number): Fixed {
+/**
+ * `f` at `bits` fraction bits, fewer than its own: the value and the error
+ * shifted down, with an ulp added for the truncation. Exported for the
+ * memo of constants.ts, which holds a value at the ceiling and hands out
+ * fewer bits of it.
+ */
+export function truncateFixed(f: Fixed, bits: number): Fixed {
+  if (bits > f.bits) throw new RangeError("truncateFixed only removes bits");
   const down = BigInt(f.bits - bits);
   return { value: f.value >> down, error: (f.error >> down) + 1n, bits };
 }

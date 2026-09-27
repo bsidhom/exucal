@@ -442,9 +442,14 @@ hook's output at session start says which part is out of date.
 - `src/system-table.ts` fetches `units.txt`, which the build emits as an
   asset of its own, and parses and builds it into the table, once.
 - `src/settings.ts` holds the settings (see Settings above): reading and
-  validating them from the browser's storage, saving them, and turning
-  them into the context the core computes with. `src/settings.test.ts`
-  checks the parsing under Node.js with a fake storage.
+  validating them from the browser's storage, clamping the ones that
+  depend on others, saving them, and turning them into the context the
+  core computes with and the ceiling of its retry schedule.
+  `src/settings.test.ts` checks the parsing under Node.js with a fake
+  storage.
+- `src/limits.ts` is the probe behind the "Recommend limits" button: it
+  times the app's costliest operations on this device and proposes the two
+  limits. `src/limits.test.ts` checks it against a fake clock.
 - `src/unit-converter.ts` defines `<unit-converter>`, the two inputs and the
   output area that make up the app; `ARCHITECTURE.md` ("UI") describes it.
 - `src/messages.ts` turns the errors the core returns into the sentences the

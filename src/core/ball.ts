@@ -3,7 +3,8 @@
 // `Radius` of radius.ts, bounds its distance from the value it stands for.
 // An exact value has radius zero, and `=` in the display means exactly that.
 // docs/calculator.md ("The precision model") is the design and
-// docs/calculator-plan.md (D3, D4, D5, tasks 1.5 and 1.6) the decisions;
+// docs/calculator-plan.md (D3, D4, D7, D15, tasks 1.5, 2.3, 2.4 and 2.5) the
+// decisions;
 // this module is the type, its exact operations and the one inexact one,
 // the root; quantity.ts makes a ball the magnitude of every quantity.
 //
@@ -33,9 +34,9 @@
 // a bound that is not known, not for an infinite value. And a divisor that
 // contains zero without being exactly zero cannot be divided by, since the
 // true quotient may have either sign or none: that is `unresolved` (D4), a
-// kind of its own beside `divisionByZero`, because the retry loop of stage 2
-// retries on the first (a narrower ball may exclude zero) and never on the
-// second. A divisor of unbounded radius with a nonzero midpoint divides, and
+// kind of its own beside `divisionByZero`, because the retry loop of the
+// pipeline retries on the first (a narrower ball may exclude zero) and never
+// on the second. A divisor of unbounded radius with a nonzero midpoint divides, and
 // the quotient's radius is unbounded, as the study's per-operation fallback
 // says; one with a zero midpoint is `unresolved`, since nothing is known of
 // its sign.

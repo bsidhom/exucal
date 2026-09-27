@@ -434,8 +434,11 @@ function gcd(a: bigint, b: bigint): bigint {
   return a;
 }
 
-/** The number of bits in the non-negative `n` (0 for zero). */
-function bitLength(n: bigint): number {
+/**
+ * The number of bits in the non-negative `n` (0 for zero). Exported for
+ * the kernel (fixed.ts), which sizes and rebases its values by it.
+ */
+export function bitLength(n: bigint): number {
   return n === 0n ? 0 : n.toString(2).length;
 }
 

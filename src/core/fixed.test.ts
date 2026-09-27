@@ -12,7 +12,9 @@ import {
   fixedFromRational,
   fixedToBall,
   multiplyFixed,
+  rootFixed,
   shiftFixed,
+  sqrtFixed,
   subtractFixed,
   toRational,
   type Fixed,
@@ -368,4 +370,219 @@ test("a zero value is a value like any other", () => {
   assert.deepEqual(addFixed(zero, one), { value: 256n, error: 1n, bits: 8 });
   assert.ok(isZero(toRational(zero)));
   assert.deepEqual(negate(toRational(one)), rational(-1n));
+});
+
+// ---------------------------------------------------------------------------
+// The roots
+
+/** sqrt 2, cbrt 2 and 10^(1/7), from Python's decimal module at 140 digits. */
+const SQRT2 = dec(
+  "1.4142135623730950488016887242096980785696718753769480731766797379907324784621070388503875343276415727",
+);
+const CBRT2 = dec(
+  "1.2599210498948731647672106072782283505702514647015079800819751121552996765139594837293965624362550941",
+);
+const ROOT7_10 = dec(
+  "1.389495494373137637129985217353011622113046714491000204945628",
+);
+/** 2^(1/1000000) = 1 + ln 2 / 10^6 + ..., from the same source. */
+const ROOT_MILLIONTH_2 = dec("1.0000006931474207865077726362274070303773");
+
+/** `10^-digits`. */
+function tenTo(digits: number): Rational {
+  return rational(1n, 10n ** BigInt(digits));
+}
+
+/**
+ * Asserts that the ball's midpoint is within `tolerance` of `reference`,
+ * which is a truncation of the true value at that tolerance, and that its
+ * radius is within it too.
+ */
+function assertReference(
+  ball: Ball,
+  reference: Rational,
+  tolerance: Rational,
+  label: string,
+) {
+  const distance = absolute(subtract(ball.mid, reference));
+  assert.ok(compare(distance, tolerance) <= 0, `${label}: midpoint`);
+  assert.ok(compare(radiusUpper(ball.rad), tolerance) <= 0, `${label}: radius`);
+}
+
+/**
+ * Whether `[low, high]` contains the `degree`-th root of every value in
+ * `[from, to]`, all positive: by monotonicity, `low^degree <= from` and
+ * `high^degree >= to`, checked on the integers so that degrees in the
+ * thousands are affordable.
+ */
+function rootWithin(
+  low: Rational,
+  high: Rational,
+  from: Rational,
+  to: Rational,
+  degree: bigint,
+): boolean {
+  const below =
+    low.num <= 0n ||
+    low.num ** degree * from.den <= from.num * low.den ** degree;
+  const above = high.num ** degree * to.den >= to.num * high.den ** degree;
+  return below && above;
+}
+
+/** Positive seeded arguments: rationals as exact values and balls with a positive interval. */
+function positiveArguments(): Fixed[] {
+  const rand = random(2201);
+  const args: Fixed[] = [];
+  while (args.length < 60) {
+    const bits = 60 + (args.length % 4) * 10;
+    const f =
+      args.length % 2 === 0
+        ? fixedFromRational(randomRational(rand, 24, 12), bits)
+        : fixedFromBall(randomBall(rand, 24, 12), bits);
+    if (f.value - f.error > 0n) args.push(f);
+  }
+  return args;
+}
+
+test("sqrtFixed contains the root of every value in the argument's interval, tightly", () => {
+  for (const f of positiveArguments()) {
+    const root = sqrtFixed(f);
+    const [from, , to] = ends(f);
+    const [low, , high] = ends(root);
+    assert.ok(
+      rootWithin(low, high, from, to, 2n),
+      `sqrt of ${toFraction(from)}`,
+    );
+    // The value is the truncated root of the argument's value, and the
+    // error is at most two ulps beyond the argument's contribution.
+    const exact = toRational(f);
+    assert.ok(rootWithin(toRational(root), high, exact, exact, 2n));
+    if (f.error === 0n)
+      assert.ok(root.error <= 2n, `exact argument: ${root.error} ulps`);
+  }
+});
+
+test("rootFixed contains the root of every value in the argument's interval, at any degree", () => {
+  const degrees = [1n, 2n, 3n, 5n, 7n, 20n, 100n, 1234n];
+  for (const [i, f] of positiveArguments().entries()) {
+    for (const degree of degrees) {
+      if (degree > 20n && i % 4 !== 0) continue;
+      const root = rootFixed(f, degree);
+      const [from, , to] = ends(f);
+      const [low, , high] = ends(root);
+      assert.ok(
+        rootWithin(low, high, from, to, degree),
+        `root ${degree} of ${toFraction(from)} to ${toFraction(to)}`,
+      );
+      // Tight: a few ulps beyond what the argument's error forces.
+      if (f.error === 0n) {
+        assert.ok(
+          root.error <= 16n,
+          `exact argument, degree ${degree}: ${root.error} ulps`,
+        );
+      }
+    }
+  }
+});
+
+test("the roots keep the argument's significant bits for a root of any magnitude", () => {
+  const f = fixedFromRational(dec("2e20"), 64);
+  const root = sqrtFixed(f);
+  // sqrt(2e20) is about 2^33.7: 33 fewer fraction bits.
+  assert.equal(root.bits, 64 - 33);
+  assert.ok(root.error <= 2n);
+  assertReference(
+    fixedToBall(root),
+    dec("14142135623.73095048801688724209698078569671875376948073176679"),
+    tenTo(9),
+    "sqrt 2e20",
+  );
+  // A small argument needs the bits to hold it: 2e-20 is about 2^-65.4, so
+  // at 160 fraction bits it has 95 significant ones, and its root gains 33.
+  const tiny = sqrtFixed(fixedFromRational(dec("2e-20"), 160));
+  assert.equal(tiny.bits, 160 + 33);
+  assertReference(
+    fixedToBall(tiny),
+    dec("1.414213562373095048801688724209698078569671875376948073176679e-10"),
+    tenTo(38),
+    "sqrt 2e-20",
+  );
+  const cube = rootFixed(fixedFromRational(dec("8e30"), 64), 3n);
+  // cbrt(8e30) = 2e10, about 2^34.2.
+  assert.equal(cube.bits, 64 - 34);
+  assertReference(fixedToBall(cube), dec("2e10"), tenTo(8), "cbrt 8e30");
+  // 1e-30 is about 2^-99.7: at 160 bits, 60 significant ones.
+  const small = rootFixed(fixedFromRational(dec("1e-30"), 160), 3n);
+  assert.equal(small.bits, 160 + 33);
+  assertReference(fixedToBall(small), dec("1e-10"), tenTo(27), "cbrt 1e-30");
+  // At too few bits a small argument is no argument at all.
+  assert.throws(
+    () => sqrtFixed(fixedFromRational(dec("2e-20"), 64)),
+    RangeError,
+  );
+});
+
+test("reference digits: sqrt 2 and cbrt 2 at 100 digits, and other roots", () => {
+  const two = fixedFromRational(rational(2n), bitsFor(100));
+  assertReference(fixedToBall(sqrtFixed(two)), SQRT2, tenTo(100), "sqrt 2");
+  assertReference(fixedToBall(rootFixed(two, 3n)), CBRT2, tenTo(100), "cbrt 2");
+  const ten = fixedFromRational(rational(10n), bitsFor(60));
+  assertReference(
+    fixedToBall(rootFixed(ten, 7n)),
+    ROOT7_10,
+    tenTo(60),
+    "10^(1/7)",
+  );
+  const millionth = rootFixed(
+    fixedFromRational(rational(2n), bitsFor(40)),
+    1_000_000n,
+  );
+  assertReference(
+    fixedToBall(millionth),
+    ROOT_MILLIONTH_2,
+    tenTo(40),
+    "2^(1/10^6)",
+  );
+  // A perfect power comes out exact in value, within an ulp.
+  const nine = rootFixed(fixedFromRational(rational(9n), 80), 2n);
+  assert.deepEqual(toRational(nine), rational(3n));
+  const eighth = rootFixed(fixedFromRational(rational(1n, 8n), 80), 3n);
+  assert.ok(
+    compare(
+      absolute(subtract(toRational(eighth), rational(1n, 2n))),
+      ulp(80),
+    ) <= 0,
+  );
+});
+
+test("a root of degree one is the argument, and the preconditions throw", () => {
+  const f: Fixed = { value: 5n, error: 1n, bits: 2 };
+  assert.deepEqual(rootFixed(f, 1n), f);
+  assert.throws(() => rootFixed(f, 0n), RangeError);
+  assert.throws(() => rootFixed(f, -3n), RangeError);
+  // An interval that reaches zero, or is negative, has no root here.
+  assert.throws(() => sqrtFixed({ value: 1n, error: 1n, bits: 2 }), RangeError);
+  assert.throws(() => sqrtFixed({ value: 0n, error: 0n, bits: 2 }), RangeError);
+  assert.throws(
+    () => rootFixed({ value: -8n, error: 0n, bits: 2 }, 3n),
+    RangeError,
+  );
+  assert.throws(
+    () => rootFixed({ value: 3n, error: 4n, bits: 2 }, 5n),
+    RangeError,
+  );
+});
+
+test("a wide argument gives a wide root, and a root of a root composes", () => {
+  const wide: Fixed = { value: 1024n, error: 512n, bits: 8 }; // 4 ± 2
+  const root = sqrtFixed(wide);
+  const [low, , high] = ends(root);
+  assert.ok(rootWithin(low, high, rational(2n), rational(6n), 2n));
+  const fourth = sqrtFixed(sqrtFixed(fixedFromRational(rational(16n), 64)));
+  assert.deepEqual(toRational(fourth), rational(2n));
+  const viaRoot = rootFixed(fixedFromRational(rational(16n), 64), 4n);
+  assert.ok(
+    compare(absolute(subtract(toRational(viaRoot), rational(2n))), ulp(60)) <=
+      0,
+  );
 });

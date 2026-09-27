@@ -449,9 +449,11 @@ function decimalDigits(n: bigint): number {
 
 /**
  * floor(n^(1/degree)) for a non-negative `n`, by Newton's method from an
- * overestimate: the iterates decrease monotonically to the floor.
+ * overestimate: the iterates decrease monotonically to the floor. Exported
+ * for the kernel's square root (fixed.ts), which takes it of the argument
+ * scaled to an integer; `exactRoot` uses it here to detect a perfect power.
  */
-function integerRoot(n: bigint, degree: bigint): bigint {
+export function integerRoot(n: bigint, degree: bigint): bigint {
   if (n < 2n || degree === 1n) return n;
   const bits = bitLength(n);
   // n < 2^bits <= 2^degree, so the root is below 2 (and the Newton step

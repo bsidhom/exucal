@@ -745,9 +745,11 @@ Behavior: none; unused.
 
 `sqrtFixed(f)`: the integer square root of the value scaled to twice the
 bits, by Newton, the `integerRoot` of rational.ts, which stays there for
-`exactRoot` and is exported; one ulp of truncation plus the propagated
-error, bounded by the derivative at the lower end of the argument's
-interval. `rootFixed(f, degree)` for any degree: Newton in fixed point at
+`exactRoot` and is exported; the root is monotone, so the result's
+interval is exact, its ends the integer roots of the argument's ends,
+floor below and floor plus one above, and no derivative bound is needed.
+`rootFixed(f, degree)` for any degree (two goes to `sqrtFixed`): Newton in
+fixed point at
 the argument's `bits`, `x ← ((n - 1) x + a / x^(n-1)) / n` with the power
 by squaring in fixed point, from a first guess taken through a double, so
 that the cost is logarithmic in the degree and no integer of `degree ×
@@ -757,17 +759,22 @@ default ceiling under the default range limit). The result's error is not
 read off the iteration but verified: the power `y^n` is recomputed with
 the error rule, its distance from the argument bounded, and the root's
 error follows by `|y - a^(1/n)| <= (4 |ε| / n) y` for `y^n = a (1 + ε)`
-with `|ε| <= 1/2`, one line of integer arithmetic stated in the comment,
-plus the argument's own error through the derivative bound `(1/n)
-x^(1/n - 1)` at the lower end of its interval. The lower end must be
-positive (a precondition; the caller decides what a ball around zero
-means). Both choose the result's `bits` so that a root of magnitude `2^k`
-keeps the argument's significant bits (D9).
+with `|ε| <= 1/2`, one line of integer arithmetic stated in the comment;
+the distance is taken over the whole of the argument's interval, so the
+argument's own error enters the same bound and no derivative bound is
+needed. The lower end must be positive (a precondition; the caller
+decides what a ball around zero means). Both choose the result's `bits`
+so that a root of magnitude `2^k` keeps the argument's significant bits
+(D9), and a small argument keeps its digits only if it was converted at
+bits enough to hold them, which is the caller's reduction (2.3).
 
 Tests: containment over seeded arguments across magnitudes and degrees,
-including degrees in the thousands; reference digits of `sqrt 2` and
-`cbrt 2` at 100 digits through `fixedToBall`; `2^(1/1000000)` against its
-series `1 + ln 2 / 10^6 + ...` to thirty digits.
+including degrees in the thousands, checked on the integers by
+monotonicity; the error a few ulps for an exact argument; the result's
+bits at large and small arguments; reference digits of `sqrt 2` and
+`cbrt 2` at 100 digits through `fixedToBall`, and `10^(1/7)` and
+`2^(1/1000000)` at fewer, all from Python's decimal module as the
+independent source; the preconditions throw.
 
 Behavior: none; unused.
 

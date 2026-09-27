@@ -143,8 +143,12 @@ functions will run: an integer standing for `value × 2^-bits` with an
 error count in ulps, every operation updating the count by a stated
 over-approximation (the plan's D9), entered from a rational or a ball and
 left through `fixedToBall`, which hands back the dyadic midpoint itself
-and the count as a radius. Stage 2 is putting it in place; nothing calls
-it yet, and the root still runs on the decimal path.
+and the count as a radius. Its first routines are the roots: the square
+root by the integer square root of the argument's ends, exact because the
+root is monotone, and the root of any degree by Newton in fixed point,
+its error verified by raising the result back to the power rather than
+read off the iteration. Stage 2 is putting it in place; nothing calls it
+yet, and `rootBall` still runs on the decimal path.
 
 **Working precision and the context.** Every core function that does
 arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a

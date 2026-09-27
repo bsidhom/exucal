@@ -23,6 +23,16 @@
 // count grows by at least one per operation and a series of a thousand
 // terms spends ten of them.
 //
+// The roots are the first routines on the kernel (task 2.2): the square
+// root by the integer square root of the argument's ends, which is exact
+// because the root is monotone, and the root of any degree by Newton in
+// fixed point, its error verified by raising the result back to the power
+// with the error rule rather than read off the iteration, so that the
+// argument's error and the iteration's rounding enter one bound. The
+// elementary functions of stage 3 follow the same pattern: reduce the
+// argument, run a series or an iteration on values of order one, and bound
+// the result from what was computed.
+//
 // The kernel is entered from a rational or a ball (`fixedFromRational`,
 // `fixedFromBall`, both rounding to nearest with the rounding counted) and
 // left through `fixedToBall`, which hands back the dyadic `value × 2^-bits`
@@ -35,7 +45,13 @@
 
 import { type Ball } from "./ball.ts";
 import { isUnbounded, radiusAbove, type Radius } from "./radius.ts";
-import { ZERO, bitLength, type Precision, type Rational } from "./rational.ts";
+import {
+  ZERO,
+  bitLength,
+  integerRoot,
+  type Precision,
+  type Rational,
+} from "./rational.ts";
 import { divideRounded } from "./rounding.ts";
 
 /**
@@ -206,6 +222,168 @@ export function compareFixed(a: Fixed, b: Fixed): -1 | 0 | 1 | undefined {
   if (a.value - a.error > b.value + b.error) return 1;
   if (a.error === 0n && b.error === 0n) return 0;
   return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// The roots
+
+/**
+ * The square root of `f`, whose interval must be positive (a precondition;
+ * the caller decides what a ball around zero means). The root is monotone,
+ * so the result's interval is exact: its ends are the integer square roots
+ * of the argument's ends scaled to an integer, floor below and floor plus
+ * one above, and its value is the truncated root of the argument's value.
+ * The result's `bits` keep the argument's significant bits for a root of
+ * magnitude `2^k` (D9): `bits - k` fraction bits, and the value is
+ * computed at `ceil(bits / 2)` at least, since the scaling to an integer
+ * needs twice the result's bits to cover the argument's.
+ */
+export function sqrtFixed(f: Fixed): Fixed {
+  checkPositive(f);
+  const k = Math.trunc(exponentOf(f) / 2);
+  const bits = Math.max(0, f.bits - k);
+  const computedAt = Math.max(bits, Math.ceil(f.bits / 2));
+  const scale = BigInt(2 * computedAt - f.bits);
+  const low = integerRoot((f.value - f.error) << scale, 2n);
+  const high = integerRoot((f.value + f.error) << scale, 2n) + 1n;
+  const value = integerRoot(f.value << scale, 2n);
+  const root = {
+    value,
+    error: value - low > high - value ? value - low : high - value,
+    bits: computedAt,
+  };
+  return computedAt === bits ? root : truncated(root, bits);
+}
+
+/**
+ * The `degree`-th root of `f`, for any degree from one, whose interval
+ * must be positive (a precondition, as for `sqrtFixed`). Newton in fixed
+ * point, `x ← ((n - 1) x + a / x^(n-1)) / n` with the power by squaring, so
+ * that no integer of `degree × bits` bits is ever formed and the cost is
+ * logarithmic in the degree; the argument is first reduced by an exact
+ * power of `2^degree` so that the root lies in `[1/2, 2)`, and the
+ * reduction's working bits keep the reduced argument's significant bits.
+ * The first guess is taken through a double, some fifty correct bits, and
+ * the iteration stops when a step no longer shrinks it.
+ *
+ * The error is not read off the iteration but verified: the power `y^n`
+ * of the result is recomputed with the error rule of `multiplyFixed`, so
+ * that `D = |y^n - a| + error(y^n) + error(a)`, in ulps, bounds the
+ * distance of `y^n` from every argument in `a`'s interval; with `y^n =
+ * a* (1 + ε)` that gives `|ε| <= D / (a - error(a))`, and for `|ε| <= 1/2`
+ * the root is within `(4 |ε| / n) y` of `y`, since `|(1 + ε)^(-1/n) - 1| <=
+ * 4 |ε| / n` there (the logarithm is within `2 |ε|` and the exponential
+ * within twice its argument). The argument's own error thus enters the
+ * same bound, and no separate derivative bound is needed. The result's
+ * `bits` keep the argument's significant bits for a root of magnitude
+ * `2^k` (D9).
+ */
+export function rootFixed(f: Fixed, degree: bigint): Fixed {
+  if (degree < 1n) throw new RangeError("Root degree must be positive");
+  checkPositive(f);
+  if (degree === 1n) return f;
+  if (degree === 2n) return sqrtFixed(f);
+  // Reduce: a = m × 2^(k n), with m in [2^-n, 2^n) so that the root of m is
+  // in [1/2, 2). Both directions are exact rebases: a large argument keeps
+  // its bits and gains fraction bits, a small one shifts up.
+  const k = Number(BigInt(exponentOf(f)) / degree);
+  const shift = k * Number(degree);
+  const m: Fixed =
+    shift >= 0
+      ? { ...f, bits: f.bits + shift }
+      : {
+          value: f.value << BigInt(-shift),
+          error: f.error << BigInt(-shift),
+          bits: f.bits,
+        };
+  // Work at enough fraction bits that m, which may be far below one, and
+  // the powers of the iterate keep `bits` significant bits.
+  const working = m.bits + Math.max(0, -exponentOf(m));
+  const reduced = rebase(m, working);
+  const y = newtonRoot(reduced, degree);
+  const root = shiftFixed(verifiedRoot(y, reduced, degree), k);
+  const bits = Math.max(0, f.bits - k);
+  return root.bits > bits ? truncated(root, bits) : root;
+}
+
+/**
+ * Newton's iteration for the `n`-th root of `a`, at `a`'s bits, from a
+ * guess through a double, until a step stops shrinking; the value alone,
+ * to be verified.
+ */
+function newtonRoot(a: Fixed, n: bigint): bigint {
+  const shift = BigInt(a.bits);
+  const scaled = a.value << shift;
+  let x = firstGuess(a, n);
+  let previous: bigint | undefined;
+  for (let i = 0; i < 1000; i++) {
+    const power = powerValue(x, n - 1n, shift);
+    if (power === 0n) throw new Error("Newton's power underflowed");
+    const next = ((n - 1n) * x + scaled / power) / n;
+    const delta = abs(next - x);
+    x = next;
+    if (delta <= 2n || (previous !== undefined && delta >= previous)) return x;
+    previous = delta;
+  }
+  throw new Error("Newton's iteration did not converge");
+}
+
+/** `2^(log2(a) / n)` through doubles, as a fixed value at `a`'s bits. */
+function firstGuess(a: Fixed, n: bigint): bigint {
+  const length = bitLength(a.value);
+  const top = Math.max(0, length - 53);
+  const log2 = Math.log2(Number(a.value >> BigInt(top))) + top - a.bits;
+  const guess = Math.pow(2, log2 / Number(n));
+  // The guess lies in [1/2, 2): 52 bits of it as an integer, then placed.
+  const mantissa = BigInt(Math.floor(guess * 2 ** 52));
+  return a.bits >= 52
+    ? mantissa << BigInt(a.bits - 52)
+    : mantissa >> BigInt(52 - a.bits);
+}
+
+/** `x^e` at `shift` fraction bits, each product truncated; the value alone. */
+function powerValue(x: bigint, e: bigint, shift: bigint): bigint {
+  let result = 1n << shift;
+  let base = x;
+  for (let rest = e; rest > 0n; rest >>= 1n) {
+    if (rest & 1n) result = (result * base) >> shift;
+    if (rest > 1n) base = (base * base) >> shift;
+  }
+  return result;
+}
+
+/** `y` with the verified error of the `n`-th root of `a`, as `rootFixed`'s doc derives it. */
+function verifiedRoot(y: bigint, a: Fixed, n: bigint): Fixed {
+  const exact: Fixed = { value: y, error: 0n, bits: a.bits };
+  let power: Fixed = { value: 1n << BigInt(a.bits), error: 0n, bits: a.bits };
+  let base = exact;
+  for (let rest = n; rest > 0n; rest >>= 1n) {
+    if (rest & 1n) power = multiplyFixed(power, base);
+    if (rest > 1n) base = multiplyFixed(base, base);
+  }
+  const distance = abs(power.value - a.value) + power.error + a.error;
+  const least = a.value - a.error;
+  if (2n * distance > least) {
+    throw new Error("Newton's root is not within half of its argument");
+  }
+  return { ...exact, error: ceilDiv(4n * distance * y, n * least) };
+}
+
+/** `f` at fewer fraction bits, the value and the error truncated with an ulp for it. */
+function truncated(f: Fixed, bits: number): Fixed {
+  const down = BigInt(f.bits - bits);
+  return { value: f.value >> down, error: (f.error >> down) + 1n, bits };
+}
+
+/** `floor(log2 |f|)` of the value of `f`, which must be nonzero. */
+function exponentOf(f: Fixed): number {
+  return bitLength(abs(f.value)) - 1 - f.bits;
+}
+
+function checkPositive(f: Fixed): void {
+  if (f.value - f.error <= 0n) {
+    throw new RangeError("A root takes an argument whose interval is positive");
+  }
 }
 
 // ---------------------------------------------------------------------------

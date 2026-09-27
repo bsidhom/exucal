@@ -1,11 +1,11 @@
 # Implementation plan for the calculator
 
-Status: in progress; stage 1 has landed, and "Stage 1 as it landed" at
-the end records where the code diverged from the tasks as first written.
-D13 was revised in review of the first follow-up. Stage 2 was reviewed
-against the code before its implementation and revised (D9, D10, D12, the
-new D15 and D16, and tasks 2.2 and 2.5 among others); the stage's
-introduction lists the changes. docs/calculator.md is the design study
+Status: in progress; stages 1 and 2 have landed, and "Stage 1 as it
+landed" and "Stage 2 as it landed" at the end record where the code
+diverged from the tasks as first written. D13 was revised in review of
+the first follow-up. Stage 2 was reviewed against the code before its
+implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
+2.2 and 2.5 among others); the stage's introduction lists the changes. docs/calculator.md is the design study
 and its "A sequence for the follow-ups" is the order this plan follows.
 This document turns that sequence into tasks small enough that each is one
 commit, reviewable on its own, with the tests that prove it and the state
@@ -1607,3 +1607,71 @@ What stage 2 inherits unchanged: the ball's midpoint is a `Rational`; the
 root is D5's; the pipeline's working rule is `max(40, p + 10)`, which 2.5
 replaces; the display shows every digit of the midpoint and says `≈`
 without saying how many digits are certain, which 2.4 and 2.6 change.
+
+## Stage 2 as it landed
+
+The re-read after 2.9. Each task landed as one commit in the order given,
+in four pull requests, and the tests pass under every task; the rulings
+each task settled on its own were written into the task's text in the
+same commit, and this is the list of them, with what stage 3 inherits.
+
+- **2.1.** `fixedToBall` takes no context, since nothing in the kernel
+  rounds in a mode (D9 as revised); `bits` belongs to the value, and
+  `fixedFromRational` has error zero when its scaling is exact.
+- **2.2.** The square root's interval is exact, its ends the integer roots
+  of the argument's ends, and the general root's verified bound covers the
+  argument's error too, so neither needs a derivative bound. The reference
+  digits come from Python's decimal module.
+- **2.3.** An unbounded argument gives the root of its midpoint,
+  unbounded; a ball within an ulp of zero at the kernel's bits is treated
+  as containing zero; `powRationalBall` refuses a negative base under an
+  even root only when the ball is negative throughout; the scalings are
+  `scaleByPowerOfTwo` and `shiftRadius`, exact and without a gcd.
+- **2.4.** An exact value with more digits than shown is `certified`; the
+  zero kind's bound is one digit, rounded up twice (the radius to thirty
+  bits, the bound to a digit), so a round radius shows the next digit up;
+  a partial with no digit certified shows the midpoint at the digits asked;
+  `certifiedDigits` scans down from a bound the exponents give. The
+  plan's carry example was wrong: `9.9999 ± 0.0002` at two digits does
+  certify, both ends rounding to `10`.
+- **2.5.** `settle` rounds to nearest with ties to even, leaves a zero
+  midpoint alone and adds half an ulp as the rounding's bound; `powBall`'s
+  magnitude guard is `|log2|` of the base through doubles, so a base near
+  one is guarded by its magnitude and not its degree; a `want` that fails
+  to parse is reported after a `have` that fails to evaluate, tried once
+  at the first pass; the first pass carries the kernel's guard bits beyond
+  its digits, so the cancellation tests start at `1e-20`, not `1e-15`;
+  `schedule` is the function's name.
+- **2.6.** The inputs are "Digits", "Most digits" and "Most bits", with
+  `MIN_MAX_BITS`, twice the kernel's bits at a cap of one digit, as the
+  floor of the range limit; `clampSettings` applies in the panel as on
+  loading; a list's counts are formatted at the digits asked for and its
+  remainder at the digits certified, `0` when it cannot be told from zero;
+  the notes are in parentheses after the line. `MAX_DIGITS` went.
+- **2.7.** The clock and the operations travel as a `Probe`; the range
+  candidates are powers of two and the cap candidates 1, 2 and 5 times a
+  power of ten; the budget is 50 ms per pass; the precision operation is
+  a cube root; the real inputs come from a small congruential generator;
+  the button yields a frame before the probe runs. Memory is an explicit
+  omission (D16). On this project's cloud container, under headless
+  Chromium, the probe recommended 8,192 bits and 200 digits: a slow
+  sandbox against the budget, and the case the button exists for.
+- **2.8.** The term count is `ceil((bits + 40) / 46)`; the error is three
+  ulps; the square root of 10005 is Newton on the reciprocal square root,
+  since V8 divides big integers quadratically and the integer square root
+  cost ten times the series at a hundred thousand digits; `truncateFixed`
+  is exported for the memo; the benchmark asserts the upper decade at a
+  factor of fifty, binary splitting growing as V8's Karatsuba
+  multiplication does, not linearly.
+
+What stage 3 inherits: the table is built at 40 digits by system-table.ts
+until 3.3 builds it at the ceiling in force and the shell rebuilds it when
+the cap changes; every unit in units.txt is exact, so nothing is held back
+by the table until `pi()` enters it in 3.4; the integer square root of
+`sqrtFixed` costs twice the Newton cube root at the default ceiling (3.8
+against 1.7 ms in the kernel benchmark), which 3.8's `sqrt` may revisit;
+the probe times the root and `pi`, and a stage that adds a costlier
+built-in names it in limits.ts; the two gaps of 2.5 stand, a list unit
+straddling zero not retried and the reciprocal line not retried on its
+own; and the display's `unbounded` kind has no producer yet, since every
+operation now bounds its radius.

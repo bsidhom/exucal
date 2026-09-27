@@ -17,7 +17,7 @@
 // `want` whose magnitude cannot be told from zero at this precision (its
 // ball contains zero without being exactly zero), which is `unresolvedWant`,
 // kept apart from `zeroWant` as the ball's `unresolved` is from its division
-// by zero: the retry loop of stage 2 will retry the first and never the
+// by zero: the retry loop of the pipeline retries the first and never the
 // second. Conformance is checked first, so a `want` of `0 s` against a
 // `have` in metres is reported as the mismatch it is, not as a zero.
 //

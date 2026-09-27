@@ -34,7 +34,10 @@ want text ──parseUnitList──▶ Expr[] ──evaluate──▶ Quantity[]
 ```
 
 Each arrow is one pure function in its own module. Parsing never touches the
-table, and conversion never formats. Evaluation checks conformance in the
+table, and conversion never formats. The pipeline (`src/core/pipeline.ts`)
+runs the evaluation and the conversion at each working context of a retry
+schedule until every value is certified at the digits asked for; "Working
+precision and the context" below describes the schedule. Evaluation checks conformance in the
 operands of a sum and the argument of a call, and with the same check that
 conversion applies to the pair. The `want` is read as a unit list, of which
 one expression is a list of one: one unit goes through `convert`, several
@@ -82,7 +85,7 @@ where, a value can lose precision:
    divisor whose ball contains zero without being exactly zero cannot be
    divided by, since the true quotient may have either sign: that is
    `unresolved`, an error kind of its own beside `divisionByZero` (the
-   plan's D4), because the retry loop of stage 2 will retry on the first
+   plan's D4), because the retry loop of the pipeline retries on the first
    and never on the second. `1 / (sqrt(2)^2 - 2)` reports it where it once
    showed a huge number.
 
@@ -249,7 +252,8 @@ digits at the default range limit.
 
 A value that cannot be computed is a `Result` error, never an exception:
 division by zero (including `0` to a negative power), an even root of a
-negative number, a result beyond `MAX_BITS`, or text that is not a number.
+negative number, a result beyond the range limit, or text that is not a
+number.
 
 A violated precondition (a zero denominator passed to the `rational`
 constructor, a precision that is not a positive integer, a root degree below
@@ -318,7 +322,7 @@ The arithmetic the evaluator needs lives here as well: multiplication,
 division and raising to a rational power, each a ball operation beside the
 matching dimension operation. Only the magnitude can fail (a zero divisor,
 or one that cannot be told from zero, `0` to a negative power, an even root
-of a negative number, a result beyond `MAX_BITS`), so the failures are those
+of a negative number, a result beyond the range limit), so the failures are those
 of `ball.ts`, and the power is the one operation that takes a
 `NumberContext`, for the root of a non-integer exponent. Negation touches
 the magnitude alone
@@ -661,7 +665,7 @@ wrong, and so does a division by a value that cannot be told from zero at
 this precision (`unresolved`: the divisor's ball contains zero without
 being exactly zero, as `sqrt(2)^2 - 2` does), and a power that fails
 (`0^-1`, a ball around zero to a negative power, an even root of a negative
-magnitude, a result beyond `MAX_BITS`) points at the whole power, since it is the
+magnitude, a result beyond the range limit) points at the whole power, since it is the
 combination of base and exponent that fails. A sum whose operands do not
 conform points at the whole sum for the same reason, and carries the span of
 each operand and the `ConformanceError` between them, with the left
@@ -690,7 +694,7 @@ mismatch, carrying both dimension vectors, a `want` whose magnitude is zero,
 of which nothing is a multiple, or a `want` whose magnitude cannot be told
 from zero at this precision (`unresolvedWant`, kept apart from `zeroWant` as
 the ball's `unresolved` is from its division by zero, since the retry loop
-of stage 2 will retry the one and never the other); the conformance check
+retries the one and never the other); the conformance check
 comes first, so `0 s` as the `want` for a length is reported as the mismatch
 it is. A core function formats a
 dimension as text (`m^2 / s`), so the UI can explain a mismatch without
@@ -1014,16 +1018,18 @@ expression that never certifies runs.
 Planned extensions, listed to show that they fit without reshaping the core:
 
 - **Built-in functions** (`ln`, `sqrt`) are the inexact operations beside
-  the root of "Precision and rounding", each returning a ball. They need
-  only the `call` node, resolved by a lookup that knows them.
-  docs/calculator.md weighs them, with the special functions, a decimal
-  mode, a rational display and richer user-defined functions, as one
-  program toward an arbitrary-precision calculator under whole-expression
-  precision in the manner of Arb, and docs/calculator-plan.md is the plan:
-  stage 1 (the ball as the value, the context, the display rule and the
-  settings) has landed, and stage 2 (the kernel, certification and the
-  retry loop that raises the working precision until the digits asked for
-  are certified) is next.
+  the root of "Precision and rounding", each running on the kernel and
+  returning a ball. They need only the `call` node, resolved by a lookup
+  that knows them. docs/calculator.md weighs them, with the special
+  functions, a decimal mode, a rational display and richer user-defined
+  functions, as one program toward an arbitrary-precision calculator under
+  whole-expression precision in the manner of Arb, and
+  docs/calculator-plan.md is the plan: stage 1 (the ball as the value, the
+  context, the display rule and the settings) and stage 2 (the kernel,
+  settling, certification, the retry loop, the two limits and `pi`) have
+  landed, and stage 3 (the built-in kind of function, calls with any
+  number of arguments, `pi()` and the elementary set, the table at the
+  ceiling) is next.
 - **Domain and range** on a function definition (`tempC(-300)` is a
   negative temperature today) are two optional bounds, checked at the call
   and at the inverse; docs/functions.md lists them with the other

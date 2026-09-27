@@ -1,7 +1,7 @@
 # From unit converter to arbitrary-precision calculator: feasibility
 
 Status: design study; docs/calculator-plan.md is the implementation plan
-that follows from it, and stage 1 of the plan has landed. This document
+that follows from it, and stages 1 and 2 of the plan have landed. This document
 weighs a list of features
 against the core as it stands and says which fit together, which have to
 be toggled against one another, which are set aside for later, and which
@@ -270,7 +270,9 @@ What they need from the core, in broad strokes:
 
   So the recommendation is to **store no digits and compute `pi()` on
   demand**, memoized for the session at the largest precision reached,
-  shorter requests rounding from it. At the precisions a table build or
+  shorter requests rounding from it (the plan's D10 fixes the memo at the
+  ceiling of the retry schedule instead, so that its footprint does not
+  depend on what was typed). At the precisions a table build or
   a typical calculation uses, the computation is not measurable; at a
   hundred thousand digits it costs a second once per session, against a
   payload that would have grown by a third for a fifth of that range. A
@@ -617,9 +619,11 @@ What is toggled, and what is concurrent:
   value and one radius.
 - **Concurrent**: everything else. Elementary and special functions, the
   exact functions, and user definitions are present in both modes and
-  behave in each mode as the mode says. The rounding mode is one setting
-  and governs every rounding in either mode. Whole-expression precision
-  is not a mode: it is what exact mode means, and decimal mode is
+  behave in each mode as the mode says. The rounding mode is one setting:
+  in exact mode it governs the display's one rounding of the certified
+  value of the whole expression, and in decimal mode every operation's
+  (the plan's D15 says why the two differ). Whole-expression precision is
+  not a mode: it is what exact mode means, and decimal mode is
   per-operation by definition.
 
 ## Not now, but not ruled out

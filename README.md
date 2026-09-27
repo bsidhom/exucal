@@ -207,9 +207,11 @@ language:
   expression. It binds tightest, so `m^2 - 1` is `(m^2) - 1`.
 - **Parentheses** group.
 - **A call**, a name directly followed by parentheses (`tempC(100)`),
-  applies a function to the expression inside; Functions below describes
-  it. The space matters: `kg (m/s)` is a product, and `kg(m/s)` is a call
-  of `kg`, which is not a function and says so.
+  applies a function to the expressions inside, separated by commas when
+  there are several; Functions below describes it. Each function takes its
+  own number of arguments, and a call with another number is an error that
+  says how many. The space matters: `kg (m/s)` is a product, and `kg(m/s)`
+  is a call of `kg`, which is not a function and says so.
 
 The one thing to watch is a fraction before a unit: `1/12 year` is
 `1 / (12 year)`, a frequency, because the juxtaposition is read first.
@@ -259,7 +261,9 @@ the thermometer. To use one, call it with the argument in parentheses:
 anywhere a unit goes, so `tempC(100) - tempC(0)` into `degF` is `180`, and
 `tempC(100)` into `K` is `373.15`. A call is a name directly followed by
 `(`; with a space between, `kg (m/s)` is the product it looks like, and
-`kg(m/s)` is an error that shows the product with the space.
+`kg(m/s)` is an error that shows the product with the space. A function
+defined in the file takes one argument, so `tempC(1, 2)` and `tempC()`
+are errors that say so.
 
 Typed as the unit to convert to, a function's name asks for the reading
 that gives the quantity, and the answer is written as the call that would

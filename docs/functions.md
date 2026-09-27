@@ -76,11 +76,16 @@ declared units (expression and text), the two bodies, and the span.
 
 ## Calls in expressions
 
-A call is a name immediately followed by `(`, an expression, and `)`, with
-no space between the name and the parenthesis. It is an atom like a name,
-so `2 tempC(100)`, `tempC(100)^2` and `-tempC(100)` mean what they look
-like, and the argument is any expression: `tempC(20 + 5)`, `tempC(x)`
-inside another definition.
+A call is a name immediately followed by `(`, zero or more expressions
+separated by commas, and `)`, with no space between the name and the
+parenthesis (stage 3 of docs/calculator-plan.md widened the grammar from
+the one expression this design first read, so that built-ins such as
+`pi()` and `atan2(y, x)` can be called; the comma appears nowhere else).
+It is an atom like a name, so `2 tempC(100)`, `tempC(100)^2` and
+`-tempC(100)` mean what they look like, and each argument is any
+expression: `tempC(20 + 5)`, `tempC(x)` inside another definition. How
+many arguments a function takes is its own: a defined function takes
+exactly its one parameter, and the evaluator checks the count.
 
 **Decision: a call is decided by the text alone.** The parser cannot ask
 the table whether `kg` is a function, since parsing never touches the
@@ -112,16 +117,20 @@ The check is the evaluator's, since only the table knows the names, and
 the input is marked invalid on the side the call is on, as any unknown
 unit is.
 
-A call evaluates in four steps, and the first failure ends it:
+A call evaluates in five steps, and the first failure ends it:
 
 1. The name resolves among the functions; a name that is not one is the
    `notAFunction` error above.
-2. The argument evaluates as any expression.
-3. The argument must conform to the declared argument unit, by the same
+2. The call must give as many arguments as the function takes, one for a
+   defined function; another count is an `arityMismatch` at the call,
+   carrying the count taken and the count given, checked before any
+   argument is evaluated since it is about the call's shape.
+3. The argument evaluates as any expression.
+4. The argument must conform to the declared argument unit, by the same
    check a sum applies to its operands; a failure is an `argumentMismatch`
    at the call, carrying the conformance error with the argument's
    dimension as its have and the declared one as its want.
-4. The forward body evaluates with the parameter bound to the argument.
+5. The forward body evaluates with the parameter bound to the argument.
    Its failures (a division by zero for some value, say) carry spans into
    the definitions text, which the user cannot see, so they come back as a
    `callFailed` at the call, naming the function and carrying the body's

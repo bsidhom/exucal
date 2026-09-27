@@ -217,6 +217,21 @@ test("a function used as a unit shows the call form", () => {
   );
 });
 
+test("a call with the wrong count of arguments says how many the function takes", () => {
+  assert.equal(
+    textMessage("tempC(1, 2)"),
+    '"tempC" takes 1 argument, but "tempC(1, 2)" gives 2 arguments.',
+  );
+  assert.equal(
+    textMessage("2 tempC( )"),
+    '"tempC" takes 1 argument, but "tempC( )" gives no arguments.',
+  );
+  assert.equal(
+    conversionMessage("1 K", "tempF(1, 2, 3)"),
+    '"tempF" takes 1 argument, but "tempF(1, 2, 3)" gives 3 arguments.',
+  );
+});
+
 test("an argument that does not conform is worded as a mismatch with what the function takes", () => {
   assert.equal(
     textMessage("tempC(1 m)"),

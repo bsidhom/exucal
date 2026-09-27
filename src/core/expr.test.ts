@@ -23,7 +23,7 @@ function show(e: Expr): string {
     case "neg":
       return `-${show(node.operand)}`;
     case "call":
-      return `${node.name}(${show(node.argument)})`;
+      return `${node.name}(${node.arguments.map(show).join(", ")})`;
   }
 }
 
@@ -437,6 +437,20 @@ test("a name directly followed by ( is a call", () => {
   assertParses("f(g(x))", "f(g(x))");
 });
 
+test("a call takes any number of arguments, separated by commas", () => {
+  assertParses("pi()", "pi()");
+  assertParses("pi( )", "pi()");
+  assertParses("f(1)", "f(1)");
+  assertParses("f(1, 2 m)", "f(1, (2 * m))");
+  assertParses("f(1,2,3)", "f(1, 2, 3)");
+  assertParses(
+    "atan2(3 m, 4 m) / f(g(1, 2), 3)",
+    "(atan2((3 * m), (4 * m)) / f(g(1, 2), 3))",
+  );
+  // Each argument is a whole expression: the comma binds looser than any operator.
+  assertParses("f(1 + 2, 3 * 4)", "f((1 + 2), (3 * 4))");
+});
+
 test("a call is an atom: it may be juxtaposed, raised and negated", () => {
   assertParses("2 tempC(100)", "(2 * tempC(100))");
   assertParses("tempC(100) K", "(tempC(100) * K)");
@@ -462,13 +476,38 @@ test("a call spans the name to the closing parenthesis, and keeps the name's spa
   assert.ok(node.right.node.kind === "call");
   assert.equal(node.right.node.name, "tempC");
   assert.deepEqual(node.right.node.nameSpan, { start: 3, end: 8 });
-  assert.deepEqual(node.right.node.argument.span, { start: 10, end: 13 });
+  assert.deepEqual(
+    node.right.node.arguments.map((e) => e.span),
+    [{ start: 10, end: 13 }],
+  );
+  const two = parsed("f( 1 , 2 m )");
+  assert.ok(two.node.kind === "call");
+  assert.deepEqual(
+    two.node.arguments.map((e) => e.span),
+    [
+      { start: 3, end: 4 },
+      { start: 7, end: 10 },
+    ],
+  );
 });
 
-test("a call needs an argument and a closing parenthesis", () => {
-  assert.deepEqual(failed("tempC("), unexpected(6, ...OPERAND));
-  assert.deepEqual(failed("tempC()"), unexpected(6, ...OPERAND));
-  assert.deepEqual(failed("tempC(100"), unexpected(9, ...AFTER_FACTOR, '")"'));
+test("a call needs a closing parenthesis, and a comma needs an argument after it", () => {
+  assert.deepEqual(failed("tempC("), unexpected(6, ...OPERAND, '")"'));
+  assert.deepEqual(failed("f(1,)"), unexpected(4, ...OPERAND));
+  assert.deepEqual(failed("f(,1)"), unexpected(2, ...OPERAND, '")"'));
+  assert.deepEqual(
+    failed("f(1 2)"),
+    unexpected(4, ...AFTER_FACTOR, '","', '")"'),
+  );
+  assert.deepEqual(
+    failed("tempC(100"),
+    unexpected(9, ...AFTER_FACTOR, '","', '")"'),
+  );
+  // A comma is not part of an expression outside a call.
+  assert.deepEqual(
+    failed("1, 2"),
+    unexpected(1, ...AFTER_FACTOR, "end of input"),
+  );
   // A name not followed by ( expects nothing of a call: the errors are as
   // they were before calls existed.
   assert.deepEqual(

@@ -489,16 +489,19 @@ than anything and cannot appear inside parentheses. `parseUnitList` reads
 one, and `expr.ts` exports the list grammar over any item parser, since the
 definitions parser wants each item with its text.
 
-A call, `tempC(100)`, is a name directly followed by `(`, an expression and
-`)`, and is an atom like a name: `2 tempC(100)`, `tempC(100)^2` and
-`-tempC(100)` mean what they look like. The parser decides a call by the
+A call, `tempC(100)`, is a name directly followed by `(`, zero or more
+expressions separated by commas, and `)` (`pi()`, `atan2(3 m, 4 m)`), and
+is an atom like a name: `2 tempC(100)`, `tempC(100)^2` and `-tempC(100)`
+mean what they look like. The comma appears nowhere else in the grammar,
+and how many arguments a function takes is the evaluator's to check, not
+the parser's. The parser decides a call by the
 text alone, since it cannot ask the table whether a name is a function,
 and the rule is lexical: no space before the `(` makes a call, and a space
 makes a product, so `kg (m/s)` stays the product it always was and
 `kg(m/s)` is a call of `kg`, which the evaluator rejects with a message
 that shows the product with the space. That is the one whitespace-sensitive
 rule in the grammar; docs/functions.md weighs the alternative. The tree
-holds a call as the name with its own span and the argument.
+holds a call as the name with its own span and its arguments.
 
 Juxtaposition means "this many of these units" (`2 m`) or a product of units
 (`kg m`), so a number may only be the first factor of a product: `m 2`,
@@ -634,9 +637,12 @@ is whatever the lookup says it is, and the operators are the quantity
 arithmetic above: juxtaposition and `*` multiply, `/` divides, `+` and `-`
 add and subtract, a leading `-` negates, and `^` raises to the exponent the
 parser already read. A call resolves its name among the functions, through
-the lookup, evaluates its argument, checks that the argument conforms to
-the unit the function declares for it, and evaluates the forward body with
-the parameter bound to the argument ("Functions" below).
+the lookup, checks that it gives as many arguments as the function takes
+(`arityMismatch` otherwise, before any argument is evaluated, since the
+count is about the call's shape; a defined function takes exactly one),
+evaluates its argument, checks that the argument conforms to the unit the
+function declares for it, and evaluates the forward body with the
+parameter bound to the argument ("Functions" below).
 The precision goes to every power, where the root of a non-integer exponent
 is the only operation that can lose digits; everything else is exact. The
 primitives go to every sum, whose operands must conform: this is the one

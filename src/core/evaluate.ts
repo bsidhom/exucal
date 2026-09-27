@@ -33,10 +33,13 @@
 // at the text as this module's own errors do.
 //
 // A call, `tempC(100)`, applies a function the lookup resolves by name
-// (docs/functions.md): the argument is evaluated, checked to conform to the
-// unit the function declares for it, and bound to the parameter while the
-// forward body is evaluated through the same lookup, so that the body's
-// units resolve as the user's would. The body's own failures carry spans
+// (docs/functions.md): the count of arguments is checked against what the
+// function takes (`arityMismatch` otherwise, before any argument is
+// evaluated, since the count is about the call's shape as `notAFunction`
+// is; a defined function takes exactly one), the argument is evaluated,
+// checked to conform to the unit the function declares for it, and bound
+// to the parameter while the forward body is evaluated through the same
+// lookup, so that the body's units resolve as the user's would. The body's own failures carry spans
 // into the definitions text, which the user cannot see, so they come back
 // as one `callFailed` at the call, carrying the body's error. Only the
 // evaluator's own failures are wrapped that way: a lookup failure inside a
@@ -114,6 +117,12 @@ export type Lookup<E> = {
   ) => Result<UnitFunction, E>;
 };
 
+/** How many arguments a function takes: from `min` to `max` of them. */
+export type Arity = { readonly min: number; readonly max: number };
+
+/** The arity of a defined function: exactly its one parameter. */
+export const ONE_ARGUMENT: Arity = { min: 1, max: 1 };
+
 export type EvaluateError =
   /**
    * The divisor at `span` is zero, or the power at `span` is `0` to a
@@ -150,6 +159,17 @@ export type EvaluateError =
       readonly left: Span;
       readonly right: Span;
       readonly mismatch: ConformanceError;
+    }
+  /**
+   * The call of `name` at `span` gives `given` arguments, where the
+   * function takes `expected`.
+   */
+  | {
+      readonly kind: "arityMismatch";
+      readonly name: string;
+      readonly span: Span;
+      readonly expected: Arity;
+      readonly given: number;
     }
   /**
    * The call of `name` at `span` has an argument, at `argument`, that does
@@ -272,7 +292,17 @@ function evaluateNode<E>(
     case "call": {
       const fn = lookup.function(node.name, node.nameSpan, span);
       if (!fn.ok) return fn;
-      const argument = evaluate(node.argument, lookup, primitives, context);
+      const [argumentExpr] = node.arguments;
+      if (argumentExpr === undefined || node.arguments.length !== 1) {
+        return err({
+          kind: "arityMismatch",
+          name: node.name,
+          span,
+          expected: ONE_ARGUMENT,
+          given: node.arguments.length,
+        });
+      }
+      const argument = evaluate(argumentExpr, lookup, primitives, context);
       if (!argument.ok) return argument;
       const conformance = checkConformance(
         argument.value.dimension,
@@ -284,7 +314,7 @@ function evaluateNode<E>(
           kind: "argumentMismatch",
           name: node.name,
           span,
-          argument: node.argument.span,
+          argument: argumentExpr.span,
           mismatch: conformance.error,
         });
       }

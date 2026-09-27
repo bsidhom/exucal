@@ -721,6 +721,28 @@ test("the name of a call resolves among the functions alone", () => {
   });
 });
 
+test("a defined function takes exactly one argument, checked before the arguments are evaluated", () => {
+  assert.deepEqual(failure(run("tempC(1, 2)")), {
+    kind: "arityMismatch",
+    name: "tempC",
+    span: { start: 0, end: 11 },
+    expected: { min: 1, max: 1 },
+    given: 2,
+  });
+  assert.deepEqual(failure(run("2 tempC()")), {
+    kind: "arityMismatch",
+    name: "tempC",
+    span: { start: 2, end: 9 },
+    expected: { min: 1, max: 1 },
+    given: 0,
+  });
+  // The count is about the call's shape: an unknown unit among too many
+  // arguments is not reached.
+  assert.equal(failure(run("tempC(bogus, 1)")).kind, "arityMismatch");
+  // But the name resolves first.
+  assert.equal(failure(run("nosuch(1, 2)")).kind, "unknownFunction");
+});
+
 test("the argument must conform to the declared argument unit", () => {
   assert.deepEqual(failure(run("tempC(1 m)")), {
     kind: "argumentMismatch",

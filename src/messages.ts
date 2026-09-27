@@ -14,7 +14,7 @@ import {
   type Primitives,
 } from "./core/dimension.ts";
 import { type UnitListError } from "./core/convert.ts";
-import { type EvaluateError } from "./core/evaluate.ts";
+import { type Arity, type EvaluateError } from "./core/evaluate.ts";
 import {
   type ConversionError,
   type InverseFailed,
@@ -29,7 +29,8 @@ import { type Span } from "./core/span.ts";
  * them would be, with both dimensions, which `primitives` formats, and so
  * is a call whose argument does not conform to what the function takes. A
  * call of a unit shows the product it probably stood for, with the space
- * that makes it one, and a function used as a unit shows the call form. A
+ * that makes it one, and a function used as a unit shows the call form; a
+ * call with the wrong count of arguments says how many the function takes. A
  * call whose body fails is described by what the body does, since its
  * spans are into the definitions text, which is not the text shown.
  */
@@ -75,6 +76,8 @@ export function describeTextError(
           : `Cannot subtract ${right} from ${left}`;
       return `${operation}: ${describeMismatch(error.mismatch, left, right, primitives)}.`;
     }
+    case "arityMismatch":
+      return `${quote(error.name)} takes ${describeArity(error.expected)}, but ${quote(slice(text, error.span))} gives ${count(error.given, "argument")}.`;
     case "argumentMismatch": {
       const name = quote(error.name);
       const argument = quote(slice(text, error.argument));
@@ -166,6 +169,8 @@ function describeBody(error: EvaluateError): string {
       return error.op === "add"
         ? "adds quantities that do not conform"
         : "subtracts quantities that do not conform";
+    case "arityMismatch":
+      return `gives ${quote(error.name)} ${count(error.given, "argument")}, where it takes ${describeArity(error.expected)}`;
     case "argumentMismatch":
       return `passes ${quote(error.name)} an argument that does not conform`;
     case "callFailed":
@@ -195,6 +200,18 @@ function describeMismatch(
     case "kindMismatch":
       return `${have} (${haveDimension}) and ${want} (${wantDimension}) differ in kind: ${error.kinds.join(", ")}`;
   }
+}
+
+/** `no arguments`, `1 argument`, `2 arguments`, `1 to 3 arguments`: how many a function takes. */
+function describeArity(arity: Arity): string {
+  if (arity.min === arity.max) return count(arity.min, "argument");
+  return `${arity.min} to ${arity.max} arguments`;
+}
+
+/** `no things`, `1 thing`, `2 things`. */
+function count(n: number, noun: string): string {
+  if (n === 0) return `no ${noun}s`;
+  return n === 1 ? `1 ${noun}` : `${n} ${noun}s`;
 }
 
 function quote(text: string): string {

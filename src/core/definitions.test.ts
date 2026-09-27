@@ -65,7 +65,7 @@ function shift(e: Expr, offset: number): Expr {
             start: node.nameSpan.start + offset,
             end: node.nameSpan.end + offset,
           },
-          argument: shift(node.argument, offset),
+          arguments: node.arguments.map((e) => shift(e, offset)),
         },
       };
   }

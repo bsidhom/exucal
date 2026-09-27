@@ -61,7 +61,7 @@ export function describeTextError(
     case "divisionByZero":
       return `Division by zero in ${quote(slice(text, error.span))}.`;
     case "unresolved":
-      return `${quote(slice(text, error.span))} cannot be told from zero at this precision, so nothing can be divided by it.`;
+      return `${quote(slice(text, error.span))} cannot be told from zero at this precision, and the result depends on which side of zero it lies.`;
     case "negativeRadicand":
       return `${quote(slice(text, error.span))} takes an even root of a negative value.`;
     case "tooLarge":
@@ -157,7 +157,7 @@ function describeBody(error: EvaluateError): string {
     case "divisionByZero":
       return "divides by zero";
     case "unresolved":
-      return "divides by a value that cannot be told from zero at this precision";
+      return "depends on a value that cannot be told from zero at this precision";
     case "negativeRadicand":
       return "takes an even root of a negative value";
     case "tooLarge":

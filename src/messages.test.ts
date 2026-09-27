@@ -91,7 +91,13 @@ test("an evaluation error quotes the text at fault", () => {
   assert.equal(textMessage("m / 0"), 'Division by zero in "0".');
   assert.equal(
     textMessage("m / ((2^(1/2))^2 - 2)"),
-    '"((2^(1/2))^2 - 2)" cannot be told from zero at this precision, so nothing can be divided by it.',
+    '"((2^(1/2))^2 - 2)" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
+  );
+  // The base of a power is quoted the same way, under a negative power or
+  // an even root.
+  assert.equal(
+    textMessage("((2^(1/2))^2 - 2)^0.5 m"),
+    '"((2^(1/2))^2 - 2)" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
   );
   assert.equal(textMessage("2^99999 m"), '"2^99999" is too large to compute.');
   assert.equal(
@@ -223,7 +229,7 @@ test("a body that fails is described by what the definition does", () => {
   );
   assert.equal(
     textMessage("recip((2^(1/2))^2 - 2)", failing),
-    'Cannot compute "recip((2^(1/2))^2 - 2)": the definition of "recip" divides by a value that cannot be told from zero at this precision.',
+    'Cannot compute "recip((2^(1/2))^2 - 2)": the definition of "recip" depends on a value that cannot be told from zero at this precision.',
   );
   assert.equal(
     conversionMessage(" 0 ", "recip", failing),

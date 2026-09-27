@@ -86,41 +86,60 @@ where, a value can lose precision:
    and never on the second. `1 / (sqrt(2)^2 - 2)` reports it where it once
    showed a huge number.
 
-2. **The one inexact operation, the root, says what it lost.** The n-th
-   root is the only irrational operation so far (the elementary functions
-   come in stage 3). A root that is rational (`sqrt(9/4)`, `sqrt(2.25)`,
-   `cbrt(-8)`) is detected and returned exactly, so `(4 m^2)^(1/2)` is
-   exactly `2 m`. Otherwise `rootBall` is the least that is honest in this
-   stage (the plan's D5): an exact argument gives the true root truncated
-   toward zero to the working precision, with a radius of one unit in its
-   last digit, which bounds a truncation; an inexact argument gives the
-   truncated root of the midpoint with an unbounded radius, the study's
-   per-operation fallback, since propagating the argument's radius on the
-   decimal path would be work thrown away when stage 2 moves the root onto
-   the kernel, where it honors the rounding mode and propagates the radius
-   by the derivative bound. Truncation composes (truncating a truncated
-   value to fewer digits gives what truncating the exact value would), and
-   `x^(p/q)` is the `q`-th root of `x^p`, root last, so the digits a root
-   carries are the true leading digits of the exact root.
+2. **The one inexact operation, the root, runs on the kernel and says
+   what it lost.** The n-th root is the only irrational operation so far
+   (the elementary functions come in stage 3). A root that is rational
+   (`sqrt(9/4)`, `sqrt(2.25)`, `cbrt(-8)`) is detected and returned
+   exactly, so `(4 m^2)^(1/2)` is exactly `2 m`. Otherwise `rootBall`
+   scales the ball by an exact power of `2^n` so that it is of order one,
+   converts it to the kernel's fixed point at the bits of the working
+   precision plus a guard, takes the root there (`sqrtFixed`, `rootFixed`)
+   and hands back the kernel's dyadic midpoint with the kernel's error as
+   the radius, which covers the argument's own radius: an inexact argument
+   gives an inexact root with a bound, not an unbounded one. Nothing
+   rounds in a rounding mode on the way (the plan's D15): the mode is the
+   display's. A ball containing zero without being exactly zero is
+   `unresolved` under an even root, since whether there is a real root at
+   all depends on the sign, and under an odd root a ball around zero
+   bounded by the root of the farther end; an even root of a negative
+   ball fails as it always did. `x^(p/q)` is the `q`-th root of `x^p`,
+   root last, so the one inexact step comes last.
 
-3. **Display rounds once, in a rounding mode, and `=` is the radius's to
-   decide.** `show(ball, digits, mode)` in `src/core/display.ts` formats the
-   midpoint at the digits the user asked for in one of the seven rounding
-   modes of `rounding.ts` (half even, half away from zero, half toward
-   zero, toward zero, away from zero, ceiling, floor; `divideRounded` is the
-   one place a mode is interpreted, and every rounding in the core scales to
-   an integer division and calls it), with the carry across a power of ten
-   (`9.99` at two digits is `10`) in every mode that rounds the magnitude
-   up. It says `=` when the radius is zero and rounding the midpoint to the
-   digits leaves it unchanged, so that every digit held is shown, and `≈`
-   otherwise. Exactness is a property of the value, not of the display: a
-   value that passes through a root and comes out looking rational
-   (`sqrt(2) / sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while
-   `sqrt(4)` is `= 2` because the exact case was detected and nothing was
-   rounded. The default mode is half away from zero, the rounding people
-   expect from `0.125 → 0.13` (the `halfExpand` of `Intl.NumberFormat`;
-   C's `%g` differs only on exact ties, which are rare with doubles but
-   ordinary with rationals).
+3. **Display rounds once, in a rounding mode, shows only the digits the
+   radius certifies, and `=` is the radius's to decide.** `show(ball,
+digits, mode)` in `src/core/display.ts` formats the midpoint at the
+   digits the user asked for in one of the seven rounding modes of
+   `rounding.ts` (half even, half away from zero, half toward zero, toward
+   zero, away from zero, ceiling, floor; `divideRounded` is the one place a
+   mode is interpreted, and every rounding in the core scales to an integer
+   division and calls it), with the carry across a power of ten (`9.99` at
+   two digits is `10`) in every mode that rounds the magnitude up. A digit
+   is shown only when it is certified (the plan's D7): the two ends of the
+   ball, `mid - rad` and `mid + rad` as exact rationals, round to the same
+   value at that many digits, so that, rounding being monotone, the digits
+   shown are what rounding the true value would give, correctly rounded
+   and not merely close. `certifies` and `certifiedDigits` in `ball.ts`
+   decide it; certification is not monotone in the digit count (`[1.246,
+1.254]` certifies three digits and not two), so the count is found from
+   the top down. `show` returns a kind with the text: `exact` (radius zero
+   and every digit held shown, the one kind shown with `=`), `certified`
+   (every digit asked for is certain), `partial` (fewer are, and the text
+   is those), `zero` (a ball containing zero without being it, shown as
+   `0` with a bound on how far from zero the value may lie), and
+   `unbounded` (a radius not known, the midpoint's digits certifying none).
+   Exactness is a property of the value, not of the display: a value that
+   passes through a root and comes out looking rational (`sqrt(2) /
+sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while `sqrt(4)` is
+   `= 2` because the exact case was detected and nothing was rounded. The
+   mode is applied here and nowhere else in exact mode (the plan's D15):
+   the digits shown are the true value's rounding in it, and no
+   intermediate step rounds in a mode. The default mode is half away from
+   zero, the rounding people expect from `0.125 → 0.13` (the `halfExpand`
+   of `Intl.NumberFormat`; C's `%g` differs only on exact ties, which are
+   rare with doubles but ordinary with rationals). Until the retry loop of
+   stage 2's 2.5 lands, the pipeline runs one pass, so `partial` and
+   `zero` can reach the component, which reads only whether the kind is
+   `exact` and shows the text; 2.6 shows the kinds.
 
 **The types**, each layer adding one concept (the plan's D13 has the
 argument): `Rational` (`rational.ts`) is the exact fraction in lowest terms
@@ -147,8 +166,8 @@ and the count as a radius. Its first routines are the roots: the square
 root by the integer square root of the argument's ends, exact because the
 root is monotone, and the root of any degree by Newton in fixed point,
 its error verified by raising the result back to the power rather than
-read off the iteration. Stage 2 is putting it in place; nothing calls it
-yet, and `rootBall` still runs on the decimal path.
+read off the iteration. `rootBall` is its one caller so far; the
+elementary functions of stage 3 are the rest.
 
 **Working precision and the context.** Every core function that does
 arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a
@@ -201,8 +220,9 @@ constructor, a precision that is not a positive integer, a root degree below
 one) is a bug in the caller, not a value that can fail, and throws
 `RangeError`, as `1n / 0n` does. Every value that can be zero or negative
 because the user typed it reaches the numerics through the ball's
-`divideBalls`, `powBall` and `rootBall`, and through them `divide`, `pow`,
-`exactRoot` and `truncatedRoot`, which report it.
+`divideBalls`, `powBall` and `rootBall`, and through them `divide`, `pow`
+and `exactRoot`, which report it; the kernel's preconditions (a positive
+interval under a root) are checked by the ball before it calls in.
 
 ### Formatting
 
@@ -845,13 +865,13 @@ changes to the core.
 ## Layout
 
 ```
-src/core/rational.ts      Rational, arithmetic, the exact and truncated roots, parsing and formatting
+src/core/rational.ts      Rational, arithmetic, the exact root, parsing and formatting
 src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted
 src/core/context.ts       NumberContext: the precision and the rounding mode arithmetic is done at
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
-src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations and root, unresolved
+src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root on the kernel, unresolved
 src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations
-src/core/display.ts       show: a ball's text at the digits asked, and whether it is exact
+src/core/display.ts       show: a ball's text at the digits it certifies, and its kind (exact, certified, partial, zero, unbounded)
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Ball with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text

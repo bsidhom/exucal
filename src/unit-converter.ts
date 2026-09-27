@@ -352,9 +352,10 @@ function line(
 ): Line {
   return {
     have,
-    relation: show(value, context.precision, context.rounding).exact
-      ? "="
-      : "≈",
+    relation:
+      show(value, context.precision, context.rounding).kind === "exact"
+        ? "="
+        : "≈",
     terms: [term(value, unit, context)],
   };
 }
@@ -411,7 +412,7 @@ function listResult(
       {
         have,
         relation: terms.every(
-          (t) => show(t, context.precision, context.rounding).exact,
+          (t) => show(t, context.precision, context.rounding).kind === "exact",
         )
           ? "="
           : "≈",

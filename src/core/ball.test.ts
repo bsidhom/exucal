@@ -3,6 +3,8 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import {
   addBalls,
+  certifiedDigits,
+  certifies,
   containsZero,
   divideBalls,
   exact,
@@ -43,6 +45,7 @@ import {
   type Rational,
 } from "./rational.ts";
 import type { Result } from "./result.ts";
+import { ROUNDING_MODES } from "./rounding.ts";
 import { random, randomBall } from "../testing/random.ts";
 
 function dec(text: string): Rational {
@@ -292,10 +295,42 @@ test("an unbounded radius propagates, and a divisor of unbounded radius divides 
 // ---------------------------------------------------------------------------
 // The root
 
-/** sqrt(2) to sixty digits, from a reference table. */
+/** References from Python's decimal module: sqrt 2 to sixty digits and others. */
 const SQRT2 = dec(
   "1.41421356237309504880168872420969807856967187537694807317667974",
 );
+const CBRT2 = dec("1.259921049894873164767210607278228350570");
+const SQRT_2E20 = dec("14142135623.7309504880168872420969807856967");
+const SQRT_2E_40 = dec("1.4142135623730950488016887242096980785696e-20");
+const ROOT20_2 = dec(
+  "1.035264923841377504347788194211246197729610910324630157976698",
+);
+const ROOT_BILLIONTH_2 = dec(
+  "1.00000000069314718080017181643183694246616754030093",
+);
+const TWO_TO_3_HALVES = dec("2.8284271247461900976033774484193961571393");
+
+/** `10^-digits`. */
+function tenTo(digits: number): Rational {
+  return rational(1n, 10n ** BigInt(digits));
+}
+
+/**
+ * Whether the bounded `b` contains the `degree`-th root of every value in
+ * `[from, to]`, by monotonicity: the lower end's power is at most `from`
+ * and the upper end's at least `to`.
+ */
+function rootsWithin(b: Ball, from: Rational, to: Rational, degree: bigint) {
+  const [low, , high] = ends(b);
+  const lowPower = pow(low, degree);
+  const highPower = pow(high, degree);
+  assert.ok(lowPower.ok && highPower.ok);
+  const below =
+    degree % 2n === 0n && low.num < 0n
+      ? true
+      : compare(lowPower.value, from) <= 0;
+  return below && compare(highPower.value, to) >= 0;
+}
 
 test("rootBall of an exact argument with a rational root is exact", () => {
   assert.deepEqual(
@@ -312,40 +347,115 @@ test("rootBall of an exact argument with a rational root is exact", () => {
     exact(rational(7n, 3n)),
   );
   assertError(rootBall(exact(rational(-4n)), 2n, at(8)), "negativeRadicand");
+  assert.throws(() => rootBall(exact(rational(4n)), 0n, at(8)), RangeError);
 });
 
-test("rootBall of an exact argument otherwise has a radius of one unit in the last digit", () => {
-  for (const precision of [1, 8, 40, 60]) {
+test("rootBall of an exact argument otherwise is the kernel's root at the precision", () => {
+  for (const precision of [1, 8, 40]) {
     const root = unwrap(rootBall(exact(rational(2n)), 2n, at(precision)));
     assert.ok(!isExact(root));
-    // The midpoint is the truncation, and the radius is 10^(1 - precision)
-    // for a root in [1, 10).
-    const unit =
-      precision === 1 ? ONE : rational(1n, 10n ** BigInt(precision - 1));
-    assert.deepEqual(root.rad, radiusAbove(unit));
-    assert.ok(compare(root.mid, SQRT2) <= 0, "truncated below");
     assertContains(root, SQRT2, `sqrt 2 at ${precision}`);
+    // The radius is the kernel's: a few ulps at the precision plus the
+    // guard, between 10^-(p + 12) and 10^-(p + 8).
+    const rad = radiusUpper(root.rad);
+    assert.ok(compare(rad, tenTo(precision + 8)) < 0, `${precision}: radius`);
+    assert.ok(compare(rad, tenTo(precision + 12)) > 0, `${precision}: radius`);
   }
-  // The unit follows the root's exponent: sqrt(2e20) at 6 digits is
-  // 1.41421e10, and its last digit is 10^5.
+  // Beyond the reference's digits the midpoint agrees with them.
+  const sixty = unwrap(rootBall(exact(rational(2n)), 2n, at(60)));
+  assert.ok(compare(absolute(subtract(sixty.mid, SQRT2)), tenTo(59)) < 0);
+  // The magnitude is kept, however large or small the argument.
   const large = unwrap(rootBall(exact(dec("2e20")), 2n, at(6)));
-  assert.deepEqual(large.mid, dec("1.41421e10"));
-  assert.deepEqual(large.rad, radiusAbove(dec("1e5")));
-  // A negative odd root is bounded the same way.
-  const negative = unwrap(rootBall(exact(rational(-2n)), 3n, at(6)));
-  assert.deepEqual(negative.mid, dec("-1.25992"));
-  assert.deepEqual(negative.rad, radiusAbove(dec("1e-5")));
-  assertError(rootBall(exact(rational(2n)), 10n ** 9n, at(40)), "tooLarge");
+  assertContains(large, SQRT_2E20, "sqrt 2e20");
+  assert.ok(compare(radiusUpper(large.rad), dec("1e-3")) < 0);
+  const tiny = unwrap(rootBall(exact(dec("2e-40")), 2n, at(8)));
+  assertContains(tiny, SQRT_2E_40, "sqrt 2e-40");
+  assert.ok(compare(radiusUpper(tiny.rad), tenTo(36)) < 0);
+  // A negative odd root, and higher degrees, at any degree.
+  const negative = unwrap(rootBall(exact(rational(-2n)), 3n, at(8)));
+  assertContains(negative, negate(CBRT2), "cbrt -2");
+  const twentieth = unwrap(rootBall(exact(rational(2n)), 20n, at(1000)));
+  assert.ok(
+    compare(absolute(subtract(twentieth.mid, ROOT20_2)), tenTo(59)) < 0,
+  );
+  assert.ok(compare(radiusUpper(twentieth.rad), tenTo(1008)) < 0);
+  const billionth = unwrap(rootBall(exact(rational(2n)), 10n ** 9n, at(40)));
+  assertContains(billionth, ROOT_BILLIONTH_2, "2^(1/10^9)");
 });
 
-test("rootBall of an inexact argument is the truncated root of the midpoint, unbounded", () => {
+test("rootBall of an inexact argument covers the roots of its interval", () => {
   const root = unwrap(rootBall(ball(rational(2n), dec("1e-30")), 2n, at(10)));
-  assert.deepEqual(root, { mid: dec("1.414213562"), rad: UNBOUNDED });
-  // Even of a midpoint whose root is rational.
+  assert.ok(!isExact(root));
+  assertContains(root, SQRT2, "sqrt of 2 ± 1e-30");
+  assert.ok(rootsWithin(root, dec("2"), dec("2"), 2n));
+  const [from, , to] = ends(ball(rational(2n), dec("1e-30")));
+  assert.ok(rootsWithin(root, from, to, 2n));
+  // Even of a midpoint whose root is rational: the argument is not exact.
   const four = unwrap(rootBall(ball(rational(4n), dec("1e-30")), 2n, at(10)));
-  assert.deepEqual(four, { mid: rational(2n), rad: UNBOUNDED });
+  assert.ok(!isExact(four));
+  assertContains(four, rational(2n), "sqrt of 4 ± 1e-30");
+  // A wide argument gives a wide root.
+  const wide = unwrap(rootBall(ball(rational(4n), rational(2n)), 2n, at(10)));
+  assert.ok(rootsWithin(wide, rational(2n), rational(6n), 2n));
+  // A negative argument under an even root has no real value.
   assertError(
     rootBall(ball(rational(-4n), dec("0.1")), 2n, at(10)),
+    "negativeRadicand",
+  );
+  const negative = unwrap(
+    rootBall(ball(rational(-8n), dec("0.5")), 3n, at(10)),
+  );
+  assert.ok(rootsWithin(negative, dec("-8.5"), dec("-7.5"), 3n));
+  // Containment over the shared source, at every small degree.
+  for (const b of seeded()) {
+    if (containsZero(b) || b.mid.num < 0n) continue;
+    const [lo, , hi] = ends(b);
+    for (const degree of [2n, 3n, 5n]) {
+      const r = unwrap(rootBall(b, degree, at(20)));
+      assert.ok(
+        rootsWithin(r, lo, hi, degree),
+        `root ${degree} of ${toFraction(lo)} to ${toFraction(hi)}`,
+      );
+    }
+  }
+});
+
+test("a ball straddling zero is unresolved under an even root and a ball around zero under an odd one", () => {
+  const straddling = ball(dec("0.001"), dec("0.002"));
+  assertError(rootBall(straddling, 2n, at(10)), "unresolved");
+  assertError(rootBall(straddling, 4n, at(10)), "unresolved");
+  const cube = unwrap(rootBall(straddling, 3n, at(10)));
+  assert.ok(containsZero(cube));
+  assert.ok(rootsWithin(cube, dec("-0.001"), dec("0.003"), 3n));
+  // The bound is the root of the farther end, on either side.
+  const other = unwrap(rootBall(ball(dec("-0.001"), dec("0.002")), 3n, at(10)));
+  assert.ok(rootsWithin(other, dec("-0.003"), dec("0.001"), 3n));
+  assert.ok(compare(radiusUpper(other.rad), dec("0.15")) < 0);
+  assert.ok(isZero(cube.mid));
+});
+
+test("rootBall of an unbounded argument is the root of its midpoint, unbounded", () => {
+  const root = unwrap(
+    rootBall({ mid: rational(2n), rad: UNBOUNDED }, 2n, at(10)),
+  );
+  assert.ok(isUnbounded(root.rad));
+  assert.ok(compare(absolute(subtract(root.mid, SQRT2)), tenTo(10)) < 0);
+  assert.deepEqual(
+    unwrap(rootBall({ mid: ZERO, rad: UNBOUNDED }, 3n, at(10))),
+    {
+      mid: ZERO,
+      rad: UNBOUNDED,
+    },
+  );
+  assert.deepEqual(
+    unwrap(rootBall({ mid: rational(4n), rad: UNBOUNDED }, 2n, at(10))),
+    {
+      mid: rational(2n),
+      rad: UNBOUNDED,
+    },
+  );
+  assertError(
+    rootBall({ mid: rational(-4n), rad: UNBOUNDED }, 2n, at(10)),
     "negativeRadicand",
   );
 });
@@ -367,16 +477,24 @@ test("powRationalBall composes the power and the root, root last", () => {
     unwrap(powRationalBall(exact(rational(2n, 3n)), rational(-2n), at(8))),
     exact(rational(9n, 4n)),
   );
-  // 2^(3/2) = 2.828427124746...: the root is taken of 8, and the radius is
-  // one unit in the fifth digit.
+  // 2^(3/2) = 2.828427124746...: the root is taken of 8.
   const power = unwrap(
     powRationalBall(exact(rational(2n)), rational(3n, 2n), at(5)),
   );
-  assert.deepEqual(power.mid, dec("2.8284"));
-  assert.deepEqual(power.rad, radiusAbove(dec("1e-4")));
+  assertContains(power, TWO_TO_3_HALVES, "2^(3/2)");
+  assert.ok(compare(radiusUpper(power.rad), tenTo(12)) < 0);
   assertError(
     powRationalBall(exact(rational(-2n)), rational(1n, 2n), at(5)),
     "negativeRadicand",
+  );
+  assertError(
+    powRationalBall(ball(rational(-2n), dec("0.1")), rational(1n, 2n), at(5)),
+    "negativeRadicand",
+  );
+  // A ball straddling zero under an even root is undecided, not negative.
+  assertError(
+    powRationalBall(ball(dec("-0.1"), dec("0.2")), rational(1n, 2n), at(5)),
+    "unresolved",
   );
   assertError(
     powRationalBall(exact(ZERO), rational(-1n, 2n), at(5)),
@@ -386,15 +504,109 @@ test("powRationalBall composes the power and the root, root last", () => {
     powRationalBall(exact(rational(10n)), rational(100_000n, 3n), at(5)),
     "tooLarge",
   );
-  // An inexact base under a root is unbounded.
+  // An inexact base under a root stays bounded, as under an integer power.
   const inexact = unwrap(
     powRationalBall(ball(rational(2n), dec("1e-30")), rational(1n, 2n), at(5)),
   );
-  assert.ok(isUnbounded(inexact.rad));
-  // Under an integer power it stays bounded.
+  assert.ok(!isUnbounded(inexact.rad));
+  assertContains(inexact, SQRT2, "sqrt of 2 ± 1e-30");
   const squared = unwrap(
     powRationalBall(ball(rational(2n), dec("1e-30")), rational(2n), at(5)),
   );
   assert.ok(!isUnbounded(squared.rad));
   assert.deepEqual(squared.mid, rational(4n));
+});
+
+// ---------------------------------------------------------------------------
+// Certification
+
+test("certifies when both ends round alike, in the mode", () => {
+  const nearest = "halfAwayFromZero";
+  // 1.2345 ± 1e-30 straddles the tie of the fourth digit.
+  const tie = ball(dec("1.2345"), dec("1e-30"));
+  assert.ok(!certifies(tie, 4, nearest));
+  assert.ok(!certifies(tie, 4, "halfEven"));
+  assert.ok(!certifies(tie, 4, "halfTowardZero"));
+  assert.ok(certifies(tie, 4, "floor"));
+  assert.ok(certifies(tie, 4, "ceiling"));
+  assert.ok(certifies(tie, 4, "towardZero"));
+  assert.ok(certifies(tie, 4, "awayFromZero"));
+  for (const mode of ROUNDING_MODES) {
+    assert.ok(certifies(tie, 3, mode), mode);
+    assert.ok(!certifies(tie, 40, mode), mode);
+  }
+  // At five digits 1.2345 is a cell's centre under the nearest modes and a
+  // cell's edge under the directed ones, which the ball straddles.
+  for (const mode of [
+    "halfEven",
+    "halfAwayFromZero",
+    "halfTowardZero",
+  ] as const) {
+    assert.ok(certifies(tie, 5, mode), mode);
+  }
+  for (const mode of [
+    "towardZero",
+    "awayFromZero",
+    "ceiling",
+    "floor",
+  ] as const) {
+    assert.ok(!certifies(tie, 5, mode), mode);
+  }
+  // A directed mode has its own boundaries: 1.234 ± 1e-30 under floor
+  // straddles 1.234 at four digits.
+  assert.ok(!certifies(ball(dec("1.234"), dec("1e-30")), 4, "floor"));
+  assert.ok(certifies(ball(dec("1.234"), dec("1e-30")), 4, nearest));
+  // The carry across a power of ten holds when both ends carry.
+  assert.ok(certifies(ball(dec("0.99999"), dec("0.00002")), 3, nearest));
+  assert.ok(certifies(ball(dec("9.9999"), dec("0.0002")), 2, nearest));
+  assert.ok(!certifies(ball(dec("9.9999"), dec("0.0002")), 5, nearest));
+  // Exact balls certify every count; unbounded and zero-straddling none.
+  assert.ok(certifies(exact(rational(1n, 3n)), 100, nearest));
+  assert.ok(certifies(exact(ZERO), 1, nearest));
+  assert.ok(!certifies({ mid: ONE, rad: UNBOUNDED }, 1, nearest));
+  assert.ok(!certifies(ball(dec("0.001"), dec("0.002")), 1, nearest));
+  assert.ok(!certifies(ball(ZERO, dec("1e-30")), 1, nearest));
+});
+
+test("certifiedDigits is the largest count that certifies, which is not monotone", () => {
+  const nearest = "halfAwayFromZero";
+  // [1.246, 1.254] certifies three digits (1.25) but not two (1.2 or 1.3).
+  const around = ball(dec("1.25"), dec("0.004"));
+  assert.ok(certifies(around, 3, nearest));
+  assert.ok(!certifies(around, 2, nearest));
+  assert.equal(certifiedDigits(around, 8, nearest), 3);
+  assert.equal(certifiedDigits(around, 3, nearest), 3);
+  assert.equal(certifiedDigits(around, 2, nearest), 1);
+  // A root at forty digits certifies its digits and the guard's.
+  const root = unwrap(rootBall(exact(rational(2n)), 2n, at(40)));
+  const d = certifiedDigits(root, 100, nearest);
+  assert.ok(d >= 47 && d <= 50, `${d}`);
+  assert.equal(certifiedDigits(root, 8, nearest), 8);
+  // None: a straddling ball, an unbounded one, a tie at the first digit.
+  assert.equal(
+    certifiedDigits(ball(dec("0.001"), dec("0.002")), 8, nearest),
+    0,
+  );
+  assert.equal(certifiedDigits({ mid: ONE, rad: UNBOUNDED }, 8, nearest), 0);
+  assert.equal(certifiedDigits(ball(dec("1.5"), dec("1e-30")), 1, nearest), 0);
+  // Every count: an exact value, zero included.
+  assert.equal(certifiedDigits(exact(rational(1n, 3n)), 12, nearest), 12);
+  assert.equal(certifiedDigits(exact(ZERO), 12, nearest), 12);
+  // The scan's starting bound never cuts a count that certifies: over the
+  // shared source, the count found is one that certifies and the next one
+  // up does not, wherever the answer is below the cap.
+  const rand = random(2401);
+  for (let i = 0; i < 60; i++) {
+    const b = randomBall(rand, 24, 6);
+    if (containsZero(b) || isExact(b)) continue;
+    const found = certifiedDigits(b, 30, nearest);
+    if (found === 0) {
+      assert.ok(!certifies(b, 1, nearest));
+      continue;
+    }
+    assert.ok(certifies(b, found, nearest), `${found} certifies`);
+    for (let more = found + 1; more <= 30; more++) {
+      assert.ok(!certifies(b, more, nearest), `${more} does not`);
+    }
+  }
 });

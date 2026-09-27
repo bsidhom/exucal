@@ -53,10 +53,12 @@
 // located in the input: a division by zero points at the divisor, since its
 // value is what is wrong, and so does a division by a value that cannot be
 // told from zero (`unresolved`, D4 of docs/calculator-plan.md: the divisor's
-// ball contains zero without being exactly zero); a power that fails
-// (`0^-1`, a ball around zero to a negative power, an even root of a
-// negative magnitude, a result beyond `MAX_BITS`) points at the whole power,
-// since it is the combination of base and exponent that fails. A sum whose
+// ball contains zero without being exactly zero); a power whose base cannot
+// be told from zero, raised to a negative power or put under an even root,
+// points at the base for the same reason; any other power that fails
+// (`0^-1`, an even root of a negative magnitude, a result beyond
+// `MAX_BITS`) points at the whole power, since it is the combination of
+// base and exponent that fails. A sum whose
 // operands do not conform (`1 m + 1 s`) points at the whole sum for the
 // same reason, and carries the span of each operand besides, so that a
 // message can say what each one is; a call whose argument does not conform
@@ -110,9 +112,10 @@ export type EvaluateError =
    */
   | { readonly kind: "divisionByZero"; readonly span: Span }
   /**
-   * The divisor at `span` cannot be told from zero at this precision (its
-   * ball contains zero without being exactly zero), or the power at `span`
-   * raises such a value to a negative exponent.
+   * The value at `span`, a divisor or the base of a power, cannot be told
+   * from zero at this precision (its ball contains zero without being
+   * exactly zero), and the result depends on which side of zero it lies: a
+   * quotient by it, a negative power of it, or an even root of it.
    */
   | { readonly kind: "unresolved"; readonly span: Span }
   /** The power at `span` is an even (`degree`-th) root of a negative value. */
@@ -175,7 +178,7 @@ export type BodyError<E> =
 /**
  * The quantity `expr` denotes, with unit names resolved by `lookup`, the
  * operands of every sum checked for conformance by the roles in
- * `primitives`, and every inexact operation truncated to the precision of
+ * `primitives`, and every inexact operation computed at the precision of
  * `context`.
  */
 export function evaluate<E>(
@@ -223,7 +226,13 @@ export function evaluate<E>(
     case "pow": {
       const base = evaluate(node.base, lookup, primitives, context);
       if (!base.ok) return base;
-      return locate(powQuantity(base.value, node.exponent, context), span);
+      const power = powQuantity(base.value, node.exponent, context);
+      // A base that cannot be told from zero is what is wrong, whether it
+      // is raised to a negative power or put under an even root.
+      if (!power.ok && power.error.kind === "unresolved") {
+        return err({ kind: "unresolved", span: node.base.span });
+      }
+      return locate(power, span);
     }
     case "neg": {
       const operand = evaluate(node.operand, lookup, primitives, context);

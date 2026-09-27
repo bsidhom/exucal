@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import {
-  DEFAULT_PRECISION,
   MAX_BITS,
   ONE,
   ZERO,
@@ -20,15 +19,14 @@ import {
   negate,
   parseDecimal,
   pow,
-  powRational,
   exactRoot,
   rational,
+  scaleByPowerOfTwo,
   roundTo,
   sign,
   subtract,
   toFraction,
   trunc,
-  truncatedRoot,
   type Rational,
   type RationalError,
 } from "./rational.ts";
@@ -188,123 +186,38 @@ test("exactRoot says when a root is irrational", () => {
   assert.equal(unwrap(exactRoot(rational(2n), 10n ** 9n)), undefined);
 });
 
-test("truncatedRoot truncates to the requested significant digits", () => {
-  // sqrt(2) = 1.41421356237309504880...
-  assert.deepEqual(unwrap(truncatedRoot(rational(2n), 2n, 1)), rational(1n));
-  assert.deepEqual(unwrap(truncatedRoot(rational(2n), 2n, 4)), dec("1.414"));
-  assert.deepEqual(
-    unwrap(truncatedRoot(rational(2n), 2n, 10)),
-    dec("1.414213562"),
-  );
-  assert.deepEqual(
-    unwrap(truncatedRoot(rational(2n), 2n, 21)),
-    dec("1.41421356237309504880"),
-  );
-  // cbrt(10) = 2.15443469003188372175...
-  assert.deepEqual(unwrap(truncatedRoot(rational(10n), 3n, 6)), dec("2.15443"));
-  // sqrt(1/2) = 0.70710678118654752440...
-  assert.deepEqual(
-    unwrap(truncatedRoot(rational(1n, 2n), 2n, 6)),
-    dec("0.707106"),
-  );
-  // Truncation is toward zero, so a negative root rounds up.
-  // cbrt(2) = 1.25992104989...
-  assert.deepEqual(
-    unwrap(truncatedRoot(rational(-2n), 3n, 6)),
-    dec("-1.25992"),
-  );
-  // Tiny and huge radicands scale correctly: sqrt(2e-20) = 1.41421e-10.
-  assert.deepEqual(
-    unwrap(truncatedRoot(dec("2e-20"), 2n, 6)),
-    dec("1.41421e-10"),
-  );
-  assert.deepEqual(
-    unwrap(truncatedRoot(dec("2e20"), 2n, 6)),
-    dec("1.41421e10"),
-  );
-  // A root with more integer digits than the precision keeps only the
-  // leading ones: sqrt(2e40) = 1.41421356e20.
-  assert.deepEqual(unwrap(truncatedRoot(dec("2e40"), 2n, 3)), dec("1.41e20"));
-  // A rational root is truncated like any other, and zero is zero.
-  assert.deepEqual(unwrap(truncatedRoot(rational(9n, 4n), 2n, 3)), dec("1.5"));
-  assert.deepEqual(
-    unwrap(truncatedRoot(rational(1n, 3n), 1n, 3)),
-    dec("0.333"),
-  );
-  assert.deepEqual(
-    unwrap(truncatedRoot(rational(-7n, 3n), 1n, 2)),
-    dec("-2.3"),
-  );
-  assert.deepEqual(unwrap(truncatedRoot(ZERO, 2n, 5)), ZERO);
-});
-
 test("even roots of negative numbers fail", () => {
   const result = exactRoot(rational(-4n), 2n);
   assert.ok(!result.ok);
   assert.deepEqual(result.error, { kind: "negativeRadicand", degree: 2n });
   assertError(exactRoot(rational(-1n, 16n), 4n), "negativeRadicand");
-  assertError(truncatedRoot(rational(-4n), 2n, 5), "negativeRadicand");
-  assertError(truncatedRoot(rational(-2n), 2n, 5), "negativeRadicand");
 });
 
-test("roots of absurd degree fail rather than hang", () => {
-  assertError(truncatedRoot(rational(2n), 10n ** 9n, 40), "tooLarge");
-  assertError(truncatedRoot(rational(2n), BigInt(MAX_BITS), 40), "tooLarge");
-});
-
-test("the roots check their preconditions", () => {
+test("the root checks its preconditions", () => {
   assert.throws(() => exactRoot(rational(2n), 0n), RangeError);
   assert.throws(() => exactRoot(rational(2n), -2n), RangeError);
-  assert.throws(() => truncatedRoot(rational(2n), 0n, 5), RangeError);
-  assert.throws(() => truncatedRoot(rational(2n), -2n, 5), RangeError);
-  assert.throws(() => truncatedRoot(rational(2n), 2n, 0), RangeError);
-  assert.throws(() => truncatedRoot(rational(2n), 2n, 1.5), RangeError);
 });
 
-test("powRational combines pow and root, rounding once", () => {
+test("scaleByPowerOfTwo multiplies by a power of two exactly, in lowest terms", () => {
+  assert.deepEqual(scaleByPowerOfTwo(rational(3n, 8n), 2n), rational(3n, 2n));
+  assert.deepEqual(scaleByPowerOfTwo(rational(3n, 8n), 3n), rational(3n));
+  assert.deepEqual(scaleByPowerOfTwo(rational(3n, 8n), 5n), rational(12n));
+  assert.deepEqual(scaleByPowerOfTwo(rational(12n), -2n), rational(3n));
+  assert.deepEqual(scaleByPowerOfTwo(rational(12n), -3n), rational(3n, 2n));
   assert.deepEqual(
-    unwrap(powRational(rational(8n), rational(2n, 3n), 5)),
-    rational(4n),
+    scaleByPowerOfTwo(rational(-12n, 5n), -4n),
+    rational(-3n, 20n),
   );
-  assert.deepEqual(
-    unwrap(powRational(rational(8n), rational(-2n, 3n), 5)),
-    rational(1n, 4n),
-  );
-  assert.deepEqual(
-    unwrap(powRational(rational(-8n), rational(2n, 3n), 5)),
-    rational(4n),
-  );
-  assert.deepEqual(
-    unwrap(powRational(rational(-8n), rational(1n, 3n), 5)),
-    rational(-2n),
-  );
-  assert.deepEqual(
-    unwrap(powRational(rational(2n, 3n), rational(-2n), 5)),
-    rational(9n, 4n),
-  );
-  // 2^(3/2) = 2.828427124746...: the root is taken of 2^3 = 8, so the
-  // result carries the true leading digits (root first would give 2.8284).
-  assert.deepEqual(
-    unwrap(powRational(rational(2n), rational(3n, 2n), 5)),
-    dec("2.8284"),
-  );
-  assert.deepEqual(
-    unwrap(powRational(rational(2n), rational(3n, 2n), 13)),
-    dec("2.828427124746"),
-  );
-  assertError(
-    powRational(rational(-2n), rational(1n, 2n), 5),
-    "negativeRadicand",
-  );
-  assertError(powRational(ZERO, rational(-1n, 2n), 5), "divisionByZero");
-  assertError(
-    powRational(rational(10n), rational(100_000n, 3n), 5),
-    "tooLarge",
-  );
+  assert.deepEqual(scaleByPowerOfTwo(rational(7n, 3n), 0n), rational(7n, 3n));
+  assert.deepEqual(scaleByPowerOfTwo(ZERO, 100n), ZERO);
+  for (const r of randomRationals(60)) {
+    for (const k of [-70n, -3n, 1n, 64n]) {
+      const scaled = scaleByPowerOfTwo(r, k);
+      const factor = unwrap(pow(rational(2n), k));
+      assert.deepEqual(scaled, multiply(r, factor));
+    }
+  }
 });
-
-// ---------------------------------------------------------------------------
-// Rounding
 
 test("decimalExponent is the position of the leading digit", () => {
   const cases: [string, number][] = [
@@ -655,11 +568,7 @@ test("format renders like %g with the given significant digits", () => {
   assert.equal(format(rational(1n, 3000n), 3, nearest), "0.000333");
   assert.equal(format(rational(1n, 30000n), 3, nearest), "3.33e-5");
   assert.equal(
-    format(
-      unwrap(truncatedRoot(rational(2n), 2n, DEFAULT_PRECISION)),
-      8,
-      nearest,
-    ),
+    format(dec("1.41421356237309504880168872420969807856"), 8, nearest),
     "1.4142136",
   );
   // The GNU units default: 1 m in inches, to 8 digits.
@@ -803,30 +712,6 @@ test("roundTo is within an ulp on the side its mode says, and format agrees with
             : roundTo(r, digits, "ceiling"),
         ),
       );
-    }
-  }
-});
-
-test("truncatedRoot is the exact root truncated to the precision", () => {
-  for (const r of randomRationals(100)) {
-    if (isZero(r)) continue;
-    for (const degree of [2n, 3n, 5n]) {
-      if (sign(r) < 0 && degree % 2n === 0n) continue;
-      for (const precision of [1, 3, 10, 25]) {
-        const q = unwrap(truncatedRoot(r, degree, precision));
-        assert.equal(sign(q), sign(r));
-        const back = unwrap(pow(q, degree));
-        assert.ok(
-          compare(absolute(back), absolute(r)) <= 0,
-          `${toFraction(q)}^${degree} <= ${toFraction(r)}`,
-        );
-        if (equals(back, r)) continue;
-        const next = add(absolute(q), ulp(q, precision));
-        assert.ok(
-          compare(unwrap(pow(next, degree)), absolute(r)) > 0,
-          `(${toFraction(q)} + ulp)^${degree} > ${toFraction(r)}`,
-        );
-      }
     }
   }
 });

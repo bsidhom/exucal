@@ -3,8 +3,9 @@
 // `Radius` of radius.ts, bounds its distance from the value it stands for.
 // An exact value has radius zero, and `=` in the display means exactly that.
 // docs/calculator.md ("The precision model") is the design and
-// docs/calculator-plan.md (D3, D4, task 1.5) the decisions; this module is
-// the type and its exact operations, and nothing uses it yet.
+// docs/calculator-plan.md (D3, D4, D5, tasks 1.5 and 1.6) the decisions;
+// this module is the type, its exact operations and the one inexact one,
+// the root, and nothing uses it yet.
 //
 // Each operation composes the exact arithmetic of rational.ts on the
 // midpoints with a propagation rule of radius.ts on the radii; neither of
@@ -30,20 +31,35 @@
 // the quotient's radius is unbounded, as the study's per-operation fallback
 // says; one with a zero midpoint is `unresolved`, since nothing is known of
 // its sign.
+//
+// The root is the one inexact operation, and in stage 1 it is the least
+// that is honest (D5): an exact argument with an exact root is exact; an
+// exact argument otherwise is the truncated digits of rational.ts with a
+// radius of one unit in the last digit, which bounds a truncation; and an
+// inexact argument gives the truncated root of the midpoint with an
+// unbounded radius, since propagating the argument's radius through a root
+// on the decimal path would be work thrown away when stage 2 moves the root
+// onto the kernel, where it honors the rounding mode and propagates the
+// radius by the derivative bound. The rounding mode of the context is
+// ignored until then: truncation is the `towardZero` mode.
 
+import { type NumberContext } from "./context.ts";
 import {
   ONE,
   ZERO,
   absolute,
   add,
   compare,
+  decimalExponent,
   divide,
+  exactRoot,
   isZero,
   multiply,
   negate,
   pow,
   rational,
   subtract,
+  truncatedRoot,
   type Rational,
   type RationalError,
 } from "./rational.ts";
@@ -190,6 +206,62 @@ export function powBall(b: Ball, n: bigint): Result<Ball, BallError> {
     b.rad,
   );
   return ok({ mid: mid.value, rad });
+}
+
+// ---------------------------------------------------------------------------
+// The inexact operation
+
+/**
+ * The `degree`-th root of `b`, per D5: an exact argument with a rational
+ * root is exact; an exact argument otherwise is `truncatedRoot` at the
+ * precision of `context` with a radius of one unit in its last digit; an
+ * inexact argument is the truncated root of the midpoint with an unbounded
+ * radius. The sign rule is `exactRoot`'s: an even root of a negative
+ * midpoint fails with `negativeRadicand`.
+ */
+export function rootBall(
+  b: Ball,
+  degree: bigint,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  if (isExact(b)) {
+    const exactValue = exactRoot(b.mid, degree);
+    if (!exactValue.ok) return exactValue;
+    if (exactValue.value !== undefined) return ok(exact(exactValue.value));
+  }
+  const truncated = truncatedRoot(b.mid, degree, context.precision);
+  if (!truncated.ok) return truncated;
+  if (!isExact(b)) return ok({ mid: truncated.value, rad: UNBOUNDED });
+  // A truncation is short of the true root by less than one unit in the
+  // last of its `precision` digits, and truncation toward zero never
+  // crosses a power of ten, so the truncated value's exponent is the root's.
+  const last = decimalExponent(truncated.value) - context.precision + 1;
+  const unit =
+    last >= 0
+      ? rational(10n ** BigInt(last))
+      : rational(1n, 10n ** BigInt(-last));
+  return ok({ mid: truncated.value, rad: radiusAbove(unit) });
+}
+
+/**
+ * `b` raised to the rational power `exponent`, as `powRational` composes
+ * it: `powBall` when the exponent is an integer, and otherwise `rootBall`
+ * of `powBall` to the numerator, root last, so that the one inexact step
+ * comes last. A negative midpoint under an even root fails with
+ * `negativeRadicand` before anything is computed.
+ */
+export function powRationalBall(
+  b: Ball,
+  exponent: Rational,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  if (exponent.den === 1n) return powBall(b, exponent.num);
+  if (b.mid.num < 0n && exponent.den % 2n === 0n) {
+    return err({ kind: "negativeRadicand", degree: exponent.den });
+  }
+  const power = powBall(b, exponent.num);
+  if (!power.ok) return power;
+  return rootBall(power.value, exponent.den, context);
 }
 
 // ---------------------------------------------------------------------------

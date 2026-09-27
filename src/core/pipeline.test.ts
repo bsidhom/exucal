@@ -15,7 +15,7 @@ import {
   equals,
   parseDecimal,
   rational,
-  root,
+  truncatedRoot,
   toFraction,
   type Rational,
 } from "./rational.ts";
@@ -172,7 +172,7 @@ test("surrounding spaces are allowed", () => {
 });
 
 test("the working precision is derived from the digits asked for: max(40, digits + 10)", () => {
-  // sqrt(2) truncated to the working precision is root(2, 2, working).
+  // sqrt(2) truncated to the working precision is truncatedRoot(2, 2, working).
   const two = rational(2n);
   const assertWorking = (precision: number, working: number) => {
     const result = evaluateText(table, "2^(1/2)", {
@@ -180,7 +180,7 @@ test("the working precision is derived from the digits asked for: max(40, digits
       rounding: DEFAULT_ROUNDING,
     });
     assert.ok(result.ok, inspect(result));
-    const expected = root(two, 2n, working);
+    const expected = truncatedRoot(two, 2n, working);
     assert.ok(expected.ok);
     assert.ok(
       equals(result.value.magnitude, expected.value),

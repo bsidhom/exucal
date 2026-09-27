@@ -1,13 +1,15 @@
 // The number type of the converter: an exact rational over `bigint`, with the
-// arithmetic the evaluator needs, the one inexact operation (the n-th root),
-// rounding to significant digits, and conversion to and from decimal text.
+// arithmetic the evaluator needs, the one inexact operation (the n-th root,
+// in two halves: the exact case and the truncated digits), rounding to
+// significant digits, and conversion to and from decimal text.
 //
 // Everything here is exact except where a `Precision` is taken, and the rules
 // for when a value may lose precision are spelled out in ARCHITECTURE.md
-// ("Precision and rounding"). In short: arithmetic never rounds, `root`
-// truncates its result once to the precision it is given (truncation is the
-// `towardZero` mode; docs/calculator-plan.md, D5, says why `root` does not
-// yet take the mode), and `roundTo` and `format` round once more, to the
+// ("Precision and rounding"). In short: arithmetic never rounds,
+// `truncatedRoot` truncates its result once to the precision it is given
+// (truncation is the `towardZero` mode; docs/calculator-plan.md, D5, says
+// why the root does not yet take the mode), and `roundTo` and `format`
+// round once more, to the
 // digits and in the `RoundingMode` they are given, for display. Every
 // rounding here is a scaling to an integer division and back, and the
 // division is `divideRounded` of rounding.ts, the one place a mode is
@@ -175,37 +177,49 @@ export function pow(r: Rational, n: bigint): Result<Rational, RationalError> {
 // The inexact operation
 
 /**
- * The `degree`-th root of `r`, where `degree >= 1`.
- *
- * If the root is rational (both numerator and denominator are perfect
- * powers) it is returned exactly, so `root(9/4, 2)` is exactly `3/2`.
- * Otherwise the result is the true root truncated toward zero to `precision`
- * significant digits: those digits are the exact leading digits of the root,
- * and the error is less than one unit in the last of them.
- *
- * An odd root of a negative number is the negated root of its magnitude; an
- * even one has no real value and fails with `negativeRadicand`.
+ * The exact `degree`-th root of `r`, where `degree >= 1`: the rational root
+ * when both numerator and denominator are perfect powers (`exactRoot(9/4,
+ * 2)` is `3/2`), and `undefined` when the root is irrational. A root of
+ * degree one is `r` itself, whatever the value. An odd root of a negative
+ * number is the negated root of its magnitude; an even one has no real
+ * value and fails with `negativeRadicand`.
  */
-export function root(
+export function exactRoot(
+  r: Rational,
+  degree: bigint,
+): Result<Rational | undefined, RationalError> {
+  if (degree < 1n) throw new RangeError("Root degree must be positive");
+  if (degree === 1n || r.num === 0n) return ok(r);
+  if (r.num < 0n && degree % 2n === 0n) {
+    return err({ kind: "negativeRadicand", degree });
+  }
+  const num = perfectRoot(abs(r.num), degree);
+  const den = perfectRoot(r.den, degree);
+  if (num === undefined || den === undefined) return ok(undefined);
+  return ok({ num: r.num < 0n ? -num : num, den });
+}
+
+/**
+ * The `degree`-th root of `r`, where `degree >= 1`, truncated toward zero to
+ * `precision` significant digits: those digits are the exact leading digits
+ * of the root, and the error is less than one unit in the last of them. The
+ * root is truncated whether or not it is rational; `exactRoot` is the
+ * function that keeps the exact case. The sign rule is `exactRoot`'s.
+ */
+export function truncatedRoot(
   r: Rational,
   degree: bigint,
   precision: Precision,
 ): Result<Rational, RationalError> {
   if (degree < 1n) throw new RangeError("Root degree must be positive");
   checkPrecision(precision);
-  if (degree === 1n || r.num === 0n) return ok(r);
+  if (r.num === 0n) return ok(ZERO);
   if (r.num < 0n && degree % 2n === 0n) {
     return err({ kind: "negativeRadicand", degree });
   }
   const negative = r.num < 0n;
   const num = abs(r.num);
   const den = r.den;
-
-  const exactNum = perfectRoot(num, degree);
-  const exactDen = perfectRoot(den, degree);
-  if (exactNum !== undefined && exactDen !== undefined) {
-    return ok({ num: negative ? -exactNum : exactNum, den: exactDen });
-  }
 
   // Scale so that the truncated root has at least `precision` significant
   // digits: if 10^e <= |r| < 10^(e+1) then the root is at least
@@ -243,7 +257,8 @@ export function root(
 /**
  * `r` raised to the rational power `exponent`: `pow` when the exponent is an
  * integer, and otherwise the `exponent.den`-th root of `r` to the power
- * `exponent.num`, computed as the root of the power so that the single
+ * `exponent.num`, exact when `exactRoot` finds it so and otherwise
+ * truncated, computed as the root of the power so that the single
  * truncation happens last and the result carries `precision` true digits.
  */
 export function powRational(
@@ -257,7 +272,10 @@ export function powRational(
   }
   const power = pow(r, exponent.num);
   if (!power.ok) return power;
-  return root(power.value, exponent.den, precision);
+  const exact = exactRoot(power.value, exponent.den);
+  if (!exact.ok) return exact;
+  if (exact.value !== undefined) return ok(exact.value);
+  return truncatedRoot(power.value, exponent.den, precision);
 }
 
 // ---------------------------------------------------------------------------

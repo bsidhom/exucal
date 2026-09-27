@@ -11,10 +11,13 @@ import {
   multiplyBalls,
   negateBall,
   powBall,
+  powRationalBall,
+  rootBall,
   subtractBalls,
   type Ball,
   type BallError,
 } from "./ball.ts";
+import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
 import {
   UNBOUNDED,
   ZERO_RADIUS,
@@ -76,6 +79,11 @@ function assertContains(b: Ball, value: Rational, label: string) {
     compare(absolute(subtract(value, b.mid)), radiusUpper(b.rad)) <= 0,
     `${label}: ${toFraction(value)} within ${toFraction(b.mid)} ± ${toFraction(radiusUpper(b.rad))}`,
   );
+}
+
+/** A context at `precision` digits, in the default mode. */
+function at(precision: number): NumberContext {
+  return { precision, rounding: DEFAULT_ROUNDING };
 }
 
 /** The seeded balls the property tests are over. */
@@ -279,4 +287,114 @@ test("an unbounded radius propagates, and a divisor of unbounded radius divides 
   assertError(divideBalls(three, { mid: ZERO, rad: UNBOUNDED }), "unresolved");
   assertError(divideBalls(three, exact(ZERO)), "divisionByZero");
   assert.ok(isZero(unwrap(divideBalls(exact(ZERO), unbounded)).mid));
+});
+
+// ---------------------------------------------------------------------------
+// The root
+
+/** sqrt(2) to sixty digits, from a reference table. */
+const SQRT2 = dec(
+  "1.41421356237309504880168872420969807856967187537694807317667974",
+);
+
+test("rootBall of an exact argument with a rational root is exact", () => {
+  assert.deepEqual(
+    unwrap(rootBall(exact(rational(9n, 4n)), 2n, at(8))),
+    exact(rational(3n, 2n)),
+  );
+  assert.deepEqual(
+    unwrap(rootBall(exact(rational(-8n)), 3n, at(8))),
+    exact(rational(-2n)),
+  );
+  assert.deepEqual(unwrap(rootBall(exact(ZERO), 2n, at(8))), exact(ZERO));
+  assert.deepEqual(
+    unwrap(rootBall(exact(rational(7n, 3n)), 1n, at(8))),
+    exact(rational(7n, 3n)),
+  );
+  assertError(rootBall(exact(rational(-4n)), 2n, at(8)), "negativeRadicand");
+});
+
+test("rootBall of an exact argument otherwise has a radius of one unit in the last digit", () => {
+  for (const precision of [1, 8, 40, 60]) {
+    const root = unwrap(rootBall(exact(rational(2n)), 2n, at(precision)));
+    assert.ok(!isExact(root));
+    // The midpoint is the truncation, and the radius is 10^(1 - precision)
+    // for a root in [1, 10).
+    const unit =
+      precision === 1 ? ONE : rational(1n, 10n ** BigInt(precision - 1));
+    assert.deepEqual(root.rad, radiusAbove(unit));
+    assert.ok(compare(root.mid, SQRT2) <= 0, "truncated below");
+    assertContains(root, SQRT2, `sqrt 2 at ${precision}`);
+  }
+  // The unit follows the root's exponent: sqrt(2e20) at 6 digits is
+  // 1.41421e10, and its last digit is 10^5.
+  const large = unwrap(rootBall(exact(dec("2e20")), 2n, at(6)));
+  assert.deepEqual(large.mid, dec("1.41421e10"));
+  assert.deepEqual(large.rad, radiusAbove(dec("1e5")));
+  // A negative odd root is bounded the same way.
+  const negative = unwrap(rootBall(exact(rational(-2n)), 3n, at(6)));
+  assert.deepEqual(negative.mid, dec("-1.25992"));
+  assert.deepEqual(negative.rad, radiusAbove(dec("1e-5")));
+  assertError(rootBall(exact(rational(2n)), 10n ** 9n, at(40)), "tooLarge");
+});
+
+test("rootBall of an inexact argument is the truncated root of the midpoint, unbounded", () => {
+  const root = unwrap(rootBall(ball(rational(2n), dec("1e-30")), 2n, at(10)));
+  assert.deepEqual(root, { mid: dec("1.414213562"), rad: UNBOUNDED });
+  // Even of a midpoint whose root is rational.
+  const four = unwrap(rootBall(ball(rational(4n), dec("1e-30")), 2n, at(10)));
+  assert.deepEqual(four, { mid: rational(2n), rad: UNBOUNDED });
+  assertError(
+    rootBall(ball(rational(-4n), dec("0.1")), 2n, at(10)),
+    "negativeRadicand",
+  );
+});
+
+test("powRationalBall composes the power and the root, root last", () => {
+  assert.deepEqual(
+    unwrap(powRationalBall(exact(rational(4n)), rational(1n, 2n), at(8))),
+    exact(rational(2n)),
+  );
+  assert.deepEqual(
+    unwrap(powRationalBall(exact(rational(8n)), rational(2n, 3n), at(8))),
+    exact(rational(4n)),
+  );
+  assert.deepEqual(
+    unwrap(powRationalBall(exact(rational(8n)), rational(-2n, 3n), at(8))),
+    exact(rational(1n, 4n)),
+  );
+  assert.deepEqual(
+    unwrap(powRationalBall(exact(rational(2n, 3n)), rational(-2n), at(8))),
+    exact(rational(9n, 4n)),
+  );
+  // 2^(3/2) = 2.828427124746...: the root is taken of 8, and the radius is
+  // one unit in the fifth digit.
+  const power = unwrap(
+    powRationalBall(exact(rational(2n)), rational(3n, 2n), at(5)),
+  );
+  assert.deepEqual(power.mid, dec("2.8284"));
+  assert.deepEqual(power.rad, radiusAbove(dec("1e-4")));
+  assertError(
+    powRationalBall(exact(rational(-2n)), rational(1n, 2n), at(5)),
+    "negativeRadicand",
+  );
+  assertError(
+    powRationalBall(exact(ZERO), rational(-1n, 2n), at(5)),
+    "divisionByZero",
+  );
+  assertError(
+    powRationalBall(exact(rational(10n)), rational(100_000n, 3n), at(5)),
+    "tooLarge",
+  );
+  // An inexact base under a root is unbounded.
+  const inexact = unwrap(
+    powRationalBall(ball(rational(2n), dec("1e-30")), rational(1n, 2n), at(5)),
+  );
+  assert.ok(isUnbounded(inexact.rad));
+  // Under an integer power it stays bounded.
+  const squared = unwrap(
+    powRationalBall(ball(rational(2n), dec("1e-30")), rational(2n), at(5)),
+  );
+  assert.ok(!isUnbounded(squared.rad));
+  assert.deepEqual(squared.mid, rational(4n));
 });

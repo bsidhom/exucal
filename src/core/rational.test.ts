@@ -21,13 +21,14 @@ import {
   parseDecimal,
   pow,
   powRational,
+  exactRoot,
   rational,
-  root,
   roundTo,
   sign,
   subtract,
   toFraction,
   trunc,
+  truncatedRoot,
   type Rational,
   type RationalError,
 } from "./rational.ts";
@@ -155,63 +156,109 @@ test("pow refuses results beyond the size limit, but not trivial ones", () => {
 // ---------------------------------------------------------------------------
 // Roots
 
-test("rational roots are exact", () => {
-  assert.deepEqual(unwrap(root(rational(4n), 2n, 5)), rational(2n));
-  assert.deepEqual(unwrap(root(rational(9n, 4n), 2n, 5)), rational(3n, 2n));
-  assert.deepEqual(unwrap(root(dec("2.25"), 2n, 5)), dec("1.5"));
-  assert.deepEqual(unwrap(root(rational(-8n, 27n), 3n, 5)), rational(-2n, 3n));
-  assert.deepEqual(unwrap(root(rational(1n, 1024n), 10n, 5)), rational(1n, 2n));
-  assert.deepEqual(unwrap(root(ONE, 7n, 5)), ONE);
-  assert.deepEqual(unwrap(root(ZERO, 2n, 5)), ZERO);
+test("exactRoot finds rational roots", () => {
+  assert.deepEqual(unwrap(exactRoot(rational(4n), 2n)), rational(2n));
+  assert.deepEqual(unwrap(exactRoot(rational(9n, 4n), 2n)), rational(3n, 2n));
+  assert.deepEqual(unwrap(exactRoot(dec("2.25"), 2n)), dec("1.5"));
+  assert.deepEqual(
+    unwrap(exactRoot(rational(-8n, 27n), 3n)),
+    rational(-2n, 3n),
+  );
+  assert.deepEqual(
+    unwrap(exactRoot(rational(1n, 1024n), 10n)),
+    rational(1n, 2n),
+  );
+  assert.deepEqual(unwrap(exactRoot(ONE, 7n)), ONE);
+  assert.deepEqual(unwrap(exactRoot(ZERO, 2n)), ZERO);
   // Degree 1 is the identity, whatever the value.
-  assert.deepEqual(unwrap(root(rational(2n), 1n, 5)), rational(2n));
-  assert.deepEqual(unwrap(root(rational(-7n, 3n), 1n, 5)), rational(-7n, 3n));
+  assert.deepEqual(unwrap(exactRoot(rational(2n), 1n)), rational(2n));
+  assert.deepEqual(unwrap(exactRoot(rational(-7n, 3n), 1n)), rational(-7n, 3n));
+  // A rational root is exact whatever the degree.
+  assert.deepEqual(unwrap(exactRoot(ONE, 10n ** 9n)), ONE);
+  assert.deepEqual(unwrap(exactRoot(ZERO, 10n ** 9n)), ZERO);
 });
 
-test("irrational roots are truncated to the requested significant digits", () => {
+test("exactRoot says when a root is irrational", () => {
+  assert.equal(unwrap(exactRoot(rational(2n), 2n)), undefined);
+  assert.equal(unwrap(exactRoot(rational(8n), 2n)), undefined);
+  assert.equal(unwrap(exactRoot(rational(4n, 3n), 2n)), undefined);
+  assert.equal(unwrap(exactRoot(rational(3n, 4n), 2n)), undefined);
+  assert.equal(unwrap(exactRoot(rational(-2n), 3n)), undefined);
+  assert.equal(unwrap(exactRoot(dec("2.5"), 2n)), undefined);
+  assert.equal(unwrap(exactRoot(rational(2n), 10n ** 9n)), undefined);
+});
+
+test("truncatedRoot truncates to the requested significant digits", () => {
   // sqrt(2) = 1.41421356237309504880...
-  assert.deepEqual(unwrap(root(rational(2n), 2n, 1)), rational(1n));
-  assert.deepEqual(unwrap(root(rational(2n), 2n, 4)), dec("1.414"));
-  assert.deepEqual(unwrap(root(rational(2n), 2n, 10)), dec("1.414213562"));
+  assert.deepEqual(unwrap(truncatedRoot(rational(2n), 2n, 1)), rational(1n));
+  assert.deepEqual(unwrap(truncatedRoot(rational(2n), 2n, 4)), dec("1.414"));
   assert.deepEqual(
-    unwrap(root(rational(2n), 2n, 21)),
+    unwrap(truncatedRoot(rational(2n), 2n, 10)),
+    dec("1.414213562"),
+  );
+  assert.deepEqual(
+    unwrap(truncatedRoot(rational(2n), 2n, 21)),
     dec("1.41421356237309504880"),
   );
   // cbrt(10) = 2.15443469003188372175...
-  assert.deepEqual(unwrap(root(rational(10n), 3n, 6)), dec("2.15443"));
+  assert.deepEqual(unwrap(truncatedRoot(rational(10n), 3n, 6)), dec("2.15443"));
   // sqrt(1/2) = 0.70710678118654752440...
-  assert.deepEqual(unwrap(root(rational(1n, 2n), 2n, 6)), dec("0.707106"));
+  assert.deepEqual(
+    unwrap(truncatedRoot(rational(1n, 2n), 2n, 6)),
+    dec("0.707106"),
+  );
   // Truncation is toward zero, so a negative root rounds up.
   // cbrt(2) = 1.25992104989...
-  assert.deepEqual(unwrap(root(rational(-2n), 3n, 6)), dec("-1.25992"));
+  assert.deepEqual(
+    unwrap(truncatedRoot(rational(-2n), 3n, 6)),
+    dec("-1.25992"),
+  );
   // Tiny and huge radicands scale correctly: sqrt(2e-20) = 1.41421e-10.
-  assert.deepEqual(unwrap(root(dec("2e-20"), 2n, 6)), dec("1.41421e-10"));
-  assert.deepEqual(unwrap(root(dec("2e20"), 2n, 6)), dec("1.41421e10"));
+  assert.deepEqual(
+    unwrap(truncatedRoot(dec("2e-20"), 2n, 6)),
+    dec("1.41421e-10"),
+  );
+  assert.deepEqual(
+    unwrap(truncatedRoot(dec("2e20"), 2n, 6)),
+    dec("1.41421e10"),
+  );
   // A root with more integer digits than the precision keeps only the
   // leading ones: sqrt(2e40) = 1.41421356e20.
-  assert.deepEqual(unwrap(root(dec("2e40"), 2n, 3)), dec("1.41e20"));
+  assert.deepEqual(unwrap(truncatedRoot(dec("2e40"), 2n, 3)), dec("1.41e20"));
+  // A rational root is truncated like any other, and zero is zero.
+  assert.deepEqual(unwrap(truncatedRoot(rational(9n, 4n), 2n, 3)), dec("1.5"));
+  assert.deepEqual(
+    unwrap(truncatedRoot(rational(1n, 3n), 1n, 3)),
+    dec("0.333"),
+  );
+  assert.deepEqual(
+    unwrap(truncatedRoot(rational(-7n, 3n), 1n, 2)),
+    dec("-2.3"),
+  );
+  assert.deepEqual(unwrap(truncatedRoot(ZERO, 2n, 5)), ZERO);
 });
 
 test("even roots of negative numbers fail", () => {
-  const result = root(rational(-4n), 2n, 5);
+  const result = exactRoot(rational(-4n), 2n);
   assert.ok(!result.ok);
   assert.deepEqual(result.error, { kind: "negativeRadicand", degree: 2n });
-  assertError(root(rational(-1n, 16n), 4n, 5), "negativeRadicand");
+  assertError(exactRoot(rational(-1n, 16n), 4n), "negativeRadicand");
+  assertError(truncatedRoot(rational(-4n), 2n, 5), "negativeRadicand");
+  assertError(truncatedRoot(rational(-2n), 2n, 5), "negativeRadicand");
 });
 
 test("roots of absurd degree fail rather than hang", () => {
-  assertError(root(rational(2n), 10n ** 9n, 40), "tooLarge");
-  assertError(root(rational(2n), BigInt(MAX_BITS), 40), "tooLarge");
-  // A rational root is exact whatever the degree.
-  assert.deepEqual(unwrap(root(ONE, 10n ** 9n, 40)), ONE);
-  assert.deepEqual(unwrap(root(ZERO, 10n ** 9n, 40)), ZERO);
+  assertError(truncatedRoot(rational(2n), 10n ** 9n, 40), "tooLarge");
+  assertError(truncatedRoot(rational(2n), BigInt(MAX_BITS), 40), "tooLarge");
 });
 
-test("root checks its preconditions", () => {
-  assert.throws(() => root(rational(2n), 0n, 5), RangeError);
-  assert.throws(() => root(rational(2n), -2n, 5), RangeError);
-  assert.throws(() => root(rational(2n), 2n, 0), RangeError);
-  assert.throws(() => root(rational(2n), 2n, 1.5), RangeError);
+test("the roots check their preconditions", () => {
+  assert.throws(() => exactRoot(rational(2n), 0n), RangeError);
+  assert.throws(() => exactRoot(rational(2n), -2n), RangeError);
+  assert.throws(() => truncatedRoot(rational(2n), 0n, 5), RangeError);
+  assert.throws(() => truncatedRoot(rational(2n), -2n, 5), RangeError);
+  assert.throws(() => truncatedRoot(rational(2n), 2n, 0), RangeError);
+  assert.throws(() => truncatedRoot(rational(2n), 2n, 1.5), RangeError);
 });
 
 test("powRational combines pow and root, rounding once", () => {
@@ -608,7 +655,11 @@ test("format renders like %g with the given significant digits", () => {
   assert.equal(format(rational(1n, 3000n), 3, nearest), "0.000333");
   assert.equal(format(rational(1n, 30000n), 3, nearest), "3.33e-5");
   assert.equal(
-    format(unwrap(root(rational(2n), 2n, DEFAULT_PRECISION)), 8, nearest),
+    format(
+      unwrap(truncatedRoot(rational(2n), 2n, DEFAULT_PRECISION)),
+      8,
+      nearest,
+    ),
     "1.4142136",
   );
   // The GNU units default: 1 m in inches, to 8 digits.
@@ -756,13 +807,13 @@ test("roundTo is within an ulp on the side its mode says, and format agrees with
   }
 });
 
-test("root is the exact root truncated to the precision", () => {
+test("truncatedRoot is the exact root truncated to the precision", () => {
   for (const r of randomRationals(100)) {
     if (isZero(r)) continue;
     for (const degree of [2n, 3n, 5n]) {
       if (sign(r) < 0 && degree % 2n === 0n) continue;
       for (const precision of [1, 3, 10, 25]) {
-        const q = unwrap(root(r, degree, precision));
+        const q = unwrap(truncatedRoot(r, degree, precision));
         assert.equal(sign(q), sign(r));
         const back = unwrap(pow(q, degree));
         assert.ok(

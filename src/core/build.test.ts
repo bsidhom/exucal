@@ -14,7 +14,7 @@ import {
   equals,
   parseDecimal,
   rational,
-  root,
+  truncatedRoot,
   toFraction,
   type Rational,
 } from "./rational.ts";
@@ -213,7 +213,7 @@ test("bodies are evaluated at the working precision", () => {
       rounding: DEFAULT_ROUNDING,
     });
     assert.ok(result.ok, inspect(result));
-    const expected = root(two, 2n, precision);
+    const expected = truncatedRoot(two, 2n, precision);
     assert.ok(expected.ok);
     assertQuantity(result.value.units.get("r"), expected.value, { m: 1 });
   }

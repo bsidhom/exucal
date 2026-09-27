@@ -117,7 +117,13 @@ power) never round a midpoint and propagate the radii by the elementary
 bounds, so a result's interval contains the exact result over the
 operands' intervals; a divisor whose ball contains zero without being
 exactly zero is `unresolved`, an error kind of its own (the plan's D4),
-since the true quotient may have either sign. The
+since the true quotient may have either sign. Its one inexact operation,
+`rootBall`, is the least that is honest in this stage (the plan's D5): an
+exact argument with a rational root is exact, an exact argument otherwise
+is the truncated root of `rational.ts` with a radius of one unit in its
+last digit, and an inexact argument gives an unbounded radius; stage 2
+moves it onto the kernel, where it honors the rounding mode and
+propagates its argument's radius. The
 midpoint is a `Rational` until stage 4 makes it a `Scaled`, a fraction
 times a power of ten in a module of its own (the plan's D13 says why the
 exponent is a type between the fraction and the ball rather than a field
@@ -804,11 +810,11 @@ changes to the core.
 ## Layout
 
 ```
-src/core/rational.ts      Rational, arithmetic, root, parsing and formatting
+src/core/rational.ts      Rational, arithmetic, the exact and truncated roots, parsing and formatting
 src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted
 src/core/context.ts       NumberContext: the precision and the rounding mode arithmetic is done at
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
-src/core/ball.ts          Ball (a Rational midpoint with a Radius), its exact operations, unresolved
+src/core/ball.ts          Ball (a Rational midpoint with a Radius), its exact operations and root, unresolved
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Rational with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text

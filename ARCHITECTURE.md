@@ -108,10 +108,16 @@ These three rules are being replaced by the precision model of
 docs/calculator.md, stage by stage along docs/calculator-plan.md: every
 magnitude becomes a ball, a midpoint with a radius that bounds its
 distance from the true value, and `=` is shown when the radius is zero.
-The ball is a type of its own (`ball.ts`, task 1.5), a midpoint beside a
+The ball is a type of its own (`src/core/ball.ts`), a midpoint beside a
 `Radius`, and its operations compose the arithmetic of the midpoint's
 type with the propagation rules of `radius.ts` on the radius; neither
-module knows the other, and nothing stores a radius inside a number. The
+module knows the other, and nothing stores a radius inside a number. Its
+exact operations (negation, sum, difference, product, quotient, integer
+power) never round a midpoint and propagate the radii by the elementary
+bounds, so a result's interval contains the exact result over the
+operands' intervals; a divisor whose ball contains zero without being
+exactly zero is `unresolved`, an error kind of its own (the plan's D4),
+since the true quotient may have either sign. The
 midpoint is a `Rational` until stage 4 makes it a `Scaled`, a fraction
 times a power of ten in a module of its own (the plan's D13 says why the
 exponent is a type between the fraction and the ball rather than a field
@@ -124,8 +130,9 @@ exponent, or the distinguished value unbounded, with the operations a
 propagation rule needs (`radiusAbove`, the sum, the product, the power,
 the maximum, and the exact rational a bounded radius stands for), every
 one rounding up so that a radius is always a true bound. The plan's D3
-says why it is neither a `Rational` nor a `number`. Nothing uses it yet;
-until the ball lands, the rules above are the ones in force.
+says why it is neither a `Rational` nor a `number`. Nothing uses the ball
+or the radius yet; until the magnitude becomes a ball, the rules above are
+the ones in force.
 
 **Working precision.** Every core function that does arithmetic (`evaluate`,
 `buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`:
@@ -801,6 +808,7 @@ src/core/rational.ts      Rational, arithmetic, root, parsing and formatting
 src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted
 src/core/context.ts       NumberContext: the precision and the rounding mode arithmetic is done at
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
+src/core/ball.ts          Ball (a Rational midpoint with a Radius), its exact operations, unresolved
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Rational with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text

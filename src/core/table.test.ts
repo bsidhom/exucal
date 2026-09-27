@@ -6,7 +6,8 @@ import {
 } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact } from "./ball.ts";
+import { exact, multiplyBalls } from "./ball.ts";
+import { plainNumbers, type Builtin } from "./builtins.ts";
 import { convert } from "./convert.ts";
 import { type Dimension, type Primitives } from "./dimension.ts";
 import { evaluate } from "./evaluate.ts";
@@ -18,7 +19,7 @@ import {
   rational,
   type Rational,
 } from "./rational.ts";
-import { type Result } from "./result.ts";
+import { ok, type Result } from "./result.ts";
 import {
   unitLookup,
   type LookupError,
@@ -91,6 +92,7 @@ const TABLE: UnitTable = {
   ]),
   unitLists: new Map(),
   functions: new Map([["tempC", TEMP_C]]),
+  builtins: new Map(),
 };
 
 const lookup = unitLookup(TABLE, CONTEXT);
@@ -194,7 +196,76 @@ test("the table's primitives serve the converter", () => {
 test("a function resolves by its name, for a call", () => {
   assert.deepEqual(lookup.function("tempC", SPAN, CALL), {
     ok: true,
-    value: TEMP_C,
+    value: { kind: "defined", fn: TEMP_C },
+  });
+});
+
+/** A built-in as a test injects one: a plain number doubled, exactly. */
+const TWICE: Builtin = {
+  name: "twice",
+  arity: { min: 1, max: 1 },
+  dimensions: plainNumbers(1),
+  apply: ([x]) => ok(multiplyBalls(exact(rational(2n)), x!)),
+};
+
+/** The table with `twice` as a built-in, and a defined function of the same name. */
+const WITH_BUILTINS: UnitTable = {
+  ...TABLE,
+  functions: new Map([
+    ["tempC", TEMP_C],
+    ["shadow", { ...TEMP_C, name: "shadow" }],
+  ]),
+  builtins: new Map([
+    ["twice", TWICE],
+    ["shadow", { ...TWICE, name: "shadow" }],
+    ["nothing", { ...TWICE, name: "nothing", arity: { min: 0, max: 0 } }],
+  ]),
+};
+
+test("a built-in resolves by its name, after the defined functions", () => {
+  const lookup = unitLookup(WITH_BUILTINS, CONTEXT);
+  assert.deepEqual(lookup.function("twice", SPAN, CALL), {
+    ok: true,
+    value: { kind: "builtin", fn: TWICE },
+  });
+  // The build keeps the two disjoint; were they not, the defined one wins.
+  assert.deepEqual(lookup.function("shadow", SPAN, CALL), {
+    ok: true,
+    value: { kind: "defined", fn: WITH_BUILTINS.functions.get("shadow") },
+  });
+  const result = evaluate(
+    parsed("twice(3) m"),
+    lookup,
+    TABLE.primitives,
+    CONTEXT,
+  );
+  assert.ok(result.ok, inspect(result));
+  assertQuantity(result.value, quantity("6", { m: 1 }));
+});
+
+test("a built-in's name is not a unit either, and the failure says how many arguments it takes", () => {
+  const lookup = unitLookup(WITH_BUILTINS, CONTEXT);
+  assert.deepEqual(lookup.unit("twice", SPAN), {
+    ok: false,
+    error: {
+      kind: "functionAsUnit",
+      name: "twice",
+      span: SPAN,
+      arity: { min: 1, max: 1 },
+    },
+  });
+  assert.deepEqual(lookup.unit("nothing", SPAN), {
+    ok: false,
+    error: {
+      kind: "functionAsUnit",
+      name: "nothing",
+      span: SPAN,
+      arity: { min: 0, max: 0 },
+    },
+  });
+  assert.deepEqual(lookup.unit("ktwice", SPAN), {
+    ok: false,
+    error: { kind: "unknownUnit", name: "ktwice", span: SPAN },
   });
 });
 
@@ -218,7 +289,12 @@ test("a name that is not a function fails with what it is otherwise", () => {
 test("a function's name is not a unit, and the failure says so", () => {
   assert.deepEqual(lookup.unit("tempC", SPAN), {
     ok: false,
-    error: { kind: "functionAsUnit", name: "tempC", span: SPAN },
+    error: {
+      kind: "functionAsUnit",
+      name: "tempC",
+      span: SPAN,
+      arity: { min: 1, max: 1 },
+    },
   });
   // Nor is a prefix followed by a function anything.
   assert.deepEqual(lookup.unit("ktempC", SPAN), {

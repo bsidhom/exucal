@@ -17,8 +17,21 @@ import {
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
+import { exact, type Ball } from "./core/ball.ts";
 import { buildTable } from "./core/build.ts";
+import {
+  angle,
+  checkArgument,
+  plainNumbers,
+  type Builtin,
+  type Builtins,
+  type DomainReason,
+} from "./core/builtins.ts";
+import { checkConformance } from "./core/dimension.ts";
 import { parseDefinitions } from "./core/definitions.ts";
+import { ONE, sign } from "./core/rational.ts";
+import { err, ok } from "./core/result.ts";
+import { type EvaluateError } from "./core/evaluate.ts";
 import { convertText, evaluateText } from "./core/pipeline.ts";
 import { DEFAULT_PRECISION } from "./core/rational.ts";
 import { type UnitTable } from "./core/table.ts";
@@ -270,5 +283,277 @@ test("a have that does not conform to a function is the mismatch of the pair", (
   assert.equal(
     conversionMessage("3 ft", "tempC"),
     '"3 ft" has dimension m, but "tempC" has dimension K.',
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Built-ins, as stand-ins injected into a build: the map of builtins.ts is
+// empty, and these carry the names the real ones will, so that the wording
+// keyed on a name (`pow`, and the angle) is what the user will read.
+
+/** A built-in of `count` plain numbers, failing with `reason` on a non-positive first argument. */
+function domainStandIn(
+  name: string,
+  count: number,
+  reason: DomainReason,
+  argument = 0,
+): Builtin {
+  return {
+    name,
+    arity: { min: count, max: count },
+    dimensions: plainNumbers(count),
+    apply: (args) =>
+      sign(args[argument]!.mid) <= 0
+        ? err({ kind: "domain", argument, reason })
+        : ok(args[0]!),
+  };
+}
+
+const STAND_IN_LIST: Builtin[] = [
+  domainStandIn("ln", 1, "notPositive"),
+  domainStandIn("log", 2, "baseOne", 1),
+  domainStandIn("asin", 1, "outsideClosedUnitInterval"),
+  domainStandIn("acosh", 1, "belowOne"),
+  domainStandIn("atanh", 1, "outsideOpenUnitInterval"),
+  domainStandIn("atan2", 2, "origin"),
+  domainStandIn("pow", 2, "notPositive"),
+  {
+    name: "tau",
+    arity: { min: 0, max: 0 },
+    dimensions: plainNumbers(0),
+    apply: () => ok(exact(ONE)),
+  },
+  {
+    name: "exp",
+    arity: { min: 1, max: 1 },
+    dimensions: plainNumbers(1),
+    apply: ([x]) => ok(x!),
+  },
+  {
+    name: "sin",
+    arity: { min: 1, max: 1 },
+    dimensions: (args, primitives) => {
+      const radian = angle(primitives);
+      if (radian === undefined) return err({ kind: "noAngles" });
+      const checked = checkArgument(args, 0, radian, primitives);
+      return checked.ok ? ok(new Map()) : checked;
+    },
+    apply: ([x]) => ok(x!),
+  },
+  {
+    name: "hypot",
+    arity: { min: 2, max: 2 },
+    dimensions: (args, primitives) => {
+      const conformance = checkConformance(args[0]!, args[1]!, primitives);
+      return conformance.ok
+        ? ok(args[0]!)
+        : err({
+            kind: "nonconformingArguments",
+            left: 0,
+            right: 1,
+            mismatch: conformance.error,
+          });
+    },
+    apply: ([x]) => ok(x!),
+  },
+  {
+    // Unresolved at an edge of one, on the second argument, and at a pole.
+    name: "edge",
+    arity: { min: 2, max: 2 },
+    dimensions: plainNumbers(2),
+    apply: ([, b]): ReturnType<Builtin["apply"]> =>
+      b!.mid.num === 2n
+        ? err({ kind: "unresolved", argument: 1, edge: ONE })
+        : ok(b as Ball),
+  },
+  {
+    name: "tan",
+    arity: { min: 1, max: 1 },
+    dimensions: plainNumbers(1),
+    apply: ([x]): ReturnType<Builtin["apply"]> =>
+      x!.mid.num === 2n
+        ? err({ kind: "unresolved", argument: 0, edge: "pole" })
+        : ok(x as Ball),
+  },
+];
+
+const STAND_INS: Builtins = new Map(STAND_IN_LIST.map((fn) => [fn.name, fn]));
+
+/** The system table built against the stand-ins, with a few definitions that call them. */
+const withBuiltins: UnitTable = (() => {
+  const parsed = parseDefinitions(
+    [
+      readFileSync(new URL("./units.txt", import.meta.url), "utf8"),
+      "lnx(x)  [1;1]  ln(x) ; lnx",
+      "edgex(x)  [1;1]  edge(1, x) ; edgex",
+    ].join("\n"),
+  );
+  assert.ok(parsed.ok, `expected the text to parse, got ${inspect(parsed)}`);
+  const built = buildTable(parsed.value, CONTEXT, STAND_INS);
+  assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
+  return built.value;
+})();
+
+test("a built-in used as a unit shows its call form, with as many arguments as it takes", () => {
+  assert.equal(
+    textMessage("2 tau", withBuiltins),
+    '"tau" is a function, not a unit. To call it, write "tau()".',
+  );
+  assert.equal(
+    textMessage("exp", withBuiltins),
+    '"exp" is a function, not a unit. To apply it to a value, write "exp(value)".',
+  );
+  assert.equal(
+    conversionMessage("1", "log", withBuiltins),
+    '"log" is a function, not a unit. To apply it to values, write "log(value, value)".',
+  );
+});
+
+test("a built-in's dimension rule is worded from its data", () => {
+  assert.equal(
+    textMessage("exp(1 m)", withBuiltins),
+    'Cannot apply "exp" to "1 m": "1 m" has dimension m, but the argument of "exp" must be a plain number.',
+  );
+  assert.equal(
+    textMessage("log(2, 3 s)", withBuiltins),
+    'Cannot apply "log" to "3 s": "3 s" has dimension s, but the second argument of "log" must be a plain number.',
+  );
+  assert.equal(
+    textMessage("sin(1)", withBuiltins),
+    'Cannot apply "sin" to "1": "1" is a plain number, but "sin" takes an angle; write "sin(1 radian)".',
+  );
+  assert.equal(
+    textMessage("sin(tau() / 4)", withBuiltins),
+    'Cannot apply "sin" to "tau() / 4": "tau() / 4" is a plain number, but "sin" takes an angle; write "sin(tau() / 4 radian)".',
+  );
+  assert.equal(
+    textMessage("sin(1 m)", withBuiltins),
+    'Cannot apply "sin" to "1 m": "1 m" has dimension m, but "sin" takes an angle.',
+  );
+  assert.equal(
+    textMessage("pow(2 m, 2)", withBuiltins),
+    'Cannot apply "pow" to "2 m": the base must be a plain number; for a power of a quantity, write "(2 m)^2".',
+  );
+  assert.equal(
+    textMessage("hypot(3 m, 4 s)", withBuiltins),
+    'Cannot apply "hypot" to "3 m" and "4 s": "3 m" has dimension m, but "4 s" has dimension s.',
+  );
+  // A body whose rule fails does so for every argument, and cannot build;
+  // the body form is worded all the same, from an error built by hand.
+  const call = { start: 0, end: 6 };
+  const bodyForm = (error: EvaluateError) =>
+    describeTextError(
+      { kind: "callFailed", name: "f", span: call, error },
+      "f(1 m)",
+      withBuiltins.primitives,
+    );
+  assert.equal(
+    bodyForm({
+      kind: "builtinArgument",
+      name: "hypot",
+      span: call,
+      arguments: [call, call],
+      error: {
+        kind: "nonconformingArguments",
+        left: 0,
+        right: 1,
+        mismatch: {
+          kind: "dimensionMismatch",
+          have: new Map(),
+          want: new Map(),
+        },
+      },
+    }),
+    'Cannot compute "f(1 m)": the definition of "f" passes "hypot" arguments that do not conform.',
+  );
+  assert.equal(
+    bodyForm({
+      kind: "builtinArgument",
+      name: "sin",
+      span: call,
+      arguments: [call],
+      error: {
+        kind: "argumentDimension",
+        argument: 0,
+        want: new Map([["radian", ONE]]),
+        mismatch: {
+          kind: "kindMismatch",
+          have: new Map(),
+          want: new Map(),
+          kinds: ["radian"],
+        },
+      },
+    }),
+    'Cannot compute "f(1 m)": the definition of "f" passes "sin" an argument that is not an angle.',
+  );
+  assert.equal(
+    bodyForm({
+      kind: "builtinArgument",
+      name: "sin",
+      span: call,
+      arguments: [call],
+      error: { kind: "noAngles" },
+    }),
+    'Cannot compute "f(1 m)": the definition of "f" passes "sin" an angle in units that declare none.',
+  );
+  assert.equal(
+    bodyForm({
+      kind: "arityMismatch",
+      name: "exp",
+      span: call,
+      expected: { min: 1, max: 1 },
+      given: 2,
+    }),
+    'Cannot compute "f(1 m)": the definition of "f" gives "exp" 2 arguments, where it takes 1 argument.',
+  );
+});
+
+test("a built-in's domain error quotes the argument and says the domain", () => {
+  assert.equal(
+    textMessage("ln(-1)", withBuiltins),
+    'Cannot compute "ln(-1)": "-1" is not positive, and a logarithm is defined only for positive values.',
+  );
+  assert.equal(
+    textMessage("log(8, 0)", withBuiltins),
+    'Cannot compute "log(8, 0)": the base "0" is one, and no logarithm has base one.',
+  );
+  assert.equal(
+    textMessage("asin(-2)", withBuiltins),
+    'Cannot compute "asin(-2)": "-2" lies outside [-1, 1], where "asin" is defined.',
+  );
+  assert.equal(
+    textMessage("acosh(0)", withBuiltins),
+    'Cannot compute "acosh(0)": "0" is less than 1, and "acosh" is defined only from 1 up.',
+  );
+  assert.equal(
+    textMessage("atanh(-1)", withBuiltins),
+    'Cannot compute "atanh(-1)": "-1" is not strictly between -1 and 1, where "atanh" is defined.',
+  );
+  assert.equal(
+    textMessage("atan2(0, 0)", withBuiltins),
+    'Cannot compute "atan2(0, 0)": both arguments are zero, and the origin has no direction.',
+  );
+  assert.equal(
+    textMessage("pow(-2, 3)", withBuiltins),
+    'Cannot compute "pow(-2, 3)": "-2" is not positive, and a power with an inexact exponent is defined only for a positive base.',
+  );
+  assert.equal(
+    textMessage("2 lnx(0)", withBuiltins),
+    'Cannot compute "lnx(0)": the definition of "lnx" applies "ln" to a value that is not positive.',
+  );
+});
+
+test("a value that straddles an edge names the edge", () => {
+  assert.equal(
+    textMessage("edge(1, 1 + 1)", withBuiltins),
+    '"1 + 1" cannot be told from 1 at this precision, and the result depends on which side of 1 it lies.',
+  );
+  assert.equal(
+    textMessage("tan(2)", withBuiltins),
+    '"2" cannot be told from a pole of the tangent at this precision, and the result depends on which side of it it lies.',
+  );
+  assert.equal(
+    textMessage("edgex(2)", withBuiltins),
+    'Cannot compute "edgex(2)": the definition of "edgex" depends on a value that cannot be told from 1 at this precision.',
   );
 });

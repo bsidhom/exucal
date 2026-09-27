@@ -8,10 +8,19 @@
 //
 // Prefixes and units are separate namespaces: `m-` (milli) and `m` (the
 // metre) coexist, while a primitive and a unit of the same name are a
-// duplicate. The walker's nodes are the definitions that denote a quantity
-// and the functions, and a name referenced in a body resolves through the
-// index to the definition it means, so a reference to `km` visits the
-// definitions of `k-` and `m`, and a call of `tempC` visits the function.
+// duplicate. The built-ins (builtins.ts) are in the unit namespace too: a
+// unit, list or function named like one is a duplicate whose `first` is
+// the built-in's name, a built-in's name may not read as a prefix followed
+// by a unit any more than a function's may, and the table carries the set
+// it was built against, so that its lookup resolves calls against the same
+// set the build checked. The set is a parameter with the module's map as
+// its default, so that a test can build against a built-in of its own.
+// The walker's nodes are the definitions that denote a quantity and the
+// functions, and a name referenced in a body resolves through the index
+// to the definition it means, so a reference to `km` visits the
+// definitions of `k-` and `m`, and a call of `tempC` visits the function;
+// a call of a built-in resolves to it directly, since it has no
+// definition to visit.
 //
 // Unit lists share the unit namespace but are not units: nothing can refer
 // to one, so they stay out of the walker, and each is evaluated in its
@@ -69,12 +78,15 @@ import { walker, type Cycle, type Visit } from "./graph.ts";
 import { findAmbiguity, resolveName, type Split } from "./names.ts";
 import { multiplyQuantities, type Quantity } from "./quantity.ts";
 import { containsZero, exact, type Ball } from "./ball.ts";
+import { BUILTINS, type Builtins } from "./builtins.ts";
 import { checkContext, type NumberContext } from "./context.ts";
 import { ONE } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import {
+  functionArity,
   otherwiseOf,
+  resolveFunction,
   type ListedUnit,
   type LookupError,
   type UnitFunction,
@@ -104,11 +116,14 @@ type Built =
   | { readonly kind: "quantity"; readonly value: Quantity }
   | { readonly kind: "function"; readonly value: UnitFunction };
 
+/** A built-in, standing where a definition would in an error about a name. */
+export type BuiltinName = { readonly kind: "builtin"; readonly name: string };
+
 export type BuildError =
-  /** `second` defines a name that `first` already defined in the same namespace. */
+  /** `second` defines a name that `first`, a definition or a built-in, already has in the same namespace. */
   | {
       readonly kind: "duplicate";
-      readonly first: Definition;
+      readonly first: Definition | BuiltinName;
       readonly second: Definition;
     }
   /** `name` could be read as either of two prefix-unit `splits`. */
@@ -134,10 +149,11 @@ export type BuildError =
       readonly definition: PrefixDefinition;
       readonly dimension: Dimension;
     }
-  /** The name of the unit list or function `definition` also reads as `split`, a prefix followed by a unit. */
+  /** The name of the unit list, function or built-in `definition` also reads as `split`, a prefix followed by a unit. */
   | {
       readonly kind: "prefixedName";
-      readonly definition: UnitListDefinition | FunctionDefinition;
+      readonly definition:
+        UnitListDefinition | FunctionDefinition | BuiltinName;
       readonly split: Split;
     }
   /** The units of the unit list `definition` do not make a list, as `error` says of the item at its index. */
@@ -172,34 +188,42 @@ type Index = {
   readonly units: ReadonlyMap<string, UnitDefinition>;
   readonly unitLists: ReadonlyMap<string, UnitListDefinition>;
   readonly functions: ReadonlyMap<string, FunctionDefinition>;
+  /** The built-ins the table is built against. */
+  readonly builtins: Builtins;
 };
 
 // ---------------------------------------------------------------------------
 // Building
 
 /**
- * The table `definitions` describe, with every body evaluated at the
- * working `context`, or the first error found: a duplicate name, an
- * ambiguous name, a list's or function's name that reads as a prefixed
- * unit, and then, in definition order, whatever evaluating each body
- * fails with.
+ * The table `definitions` describe against the `builtins`, with every body
+ * evaluated at the working `context`, or the first error found: a
+ * duplicate name (a built-in's included), an ambiguous name, a list's,
+ * function's or built-in's name that reads as a prefixed unit, and then,
+ * in definition order, whatever evaluating each body fails with.
  */
 export function buildTable(
   definitions: readonly Definition[],
   context: NumberContext,
+  builtins: Builtins = BUILTINS,
 ): Result<UnitTable, BuildError> {
   checkContext(context);
-  const indexed = indexDefinitions(definitions);
+  const indexed = indexDefinitions(definitions, builtins);
   if (!indexed.ok) return indexed;
   const index = indexed.value;
   const ambiguity = findAmbiguity(index.prefixes, index.units);
   if (ambiguity !== undefined) {
     return err({ kind: "ambiguousName", ...ambiguity });
   }
-  for (const definition of [
+  const named: (UnitListDefinition | FunctionDefinition | BuiltinName)[] = [
     ...index.unitLists.values(),
     ...index.functions.values(),
-  ]) {
+    ...[...builtins.keys()].map((name): BuiltinName => ({
+      kind: "builtin",
+      name,
+    })),
+  ];
+  for (const definition of named) {
     const split = resolveName(definition.name, index.prefixes, index.units);
     // An exact unit of the name would have been a duplicate.
     if (split !== undefined && split.kind === "prefixed") {
@@ -254,7 +278,7 @@ export function buildTable(
         break;
     }
   }
-  return ok({ primitives, prefixes, units, unitLists, functions });
+  return ok({ primitives, prefixes, units, unitLists, functions, builtins });
 }
 
 /** The primitives among `definitions`, with their roles, in the order given. */
@@ -270,18 +294,22 @@ function declaredPrimitives(definitions: Iterable<UnitDefinition>): Primitives {
 
 function indexDefinitions(
   definitions: readonly Definition[],
+  builtins: Builtins,
 ): Result<Index, BuildError> {
   const prefixes = new Map<string, PrefixDefinition>();
   const units = new Map<string, UnitDefinition>();
   const unitLists = new Map<string, UnitListDefinition>();
   const functions = new Map<string, FunctionDefinition>();
   for (const definition of definitions) {
-    const first =
+    const first: Definition | BuiltinName | undefined =
       definition.kind === "prefix"
         ? prefixes.get(definition.name)
         : (units.get(definition.name) ??
           unitLists.get(definition.name) ??
-          functions.get(definition.name));
+          functions.get(definition.name) ??
+          (builtins.has(definition.name)
+            ? { kind: "builtin", name: definition.name }
+            : undefined));
     if (first !== undefined) {
       return err({ kind: "duplicate", first, second: definition });
     }
@@ -301,7 +329,7 @@ function indexDefinitions(
         break;
     }
   }
-  return ok({ prefixes, units, unitLists, functions });
+  return ok({ prefixes, units, unitLists, functions, builtins });
 }
 
 // ---------------------------------------------------------------------------
@@ -496,10 +524,12 @@ function evaluateUnitList(
 
 /**
  * The lookup for the bodies being evaluated: resolves a name through the
- * index and requests the definitions it means through `visit`. A cycle is
- * located at the reference that closed it; any other failure of a
- * dependency is passed up as it is. Outside the walk, the walker itself
- * serves as `visit`, since a request from the top never closes a cycle.
+ * index and requests the definitions it means through `visit`, and a
+ * call's name among the functions first and the built-ins second, as the
+ * table's lookup will. A cycle is located at the reference that closed
+ * it; any other failure of a dependency is passed up as it is. Outside the
+ * walk, the walker itself serves as `visit`, since a request from the top
+ * never closes a cycle.
  */
 function lookupIn(
   index: Index,
@@ -509,10 +539,11 @@ function lookupIn(
     unit: (name, span) => {
       const found = resolveName(name, index.prefixes, index.units);
       if (found === undefined) {
+        const arity = functionArity(name, index.functions, index.builtins);
         return err(
-          index.functions.has(name)
-            ? { kind: "functionAsUnit", name, span }
-            : { kind: "unknownUnit", name, span },
+          arity === undefined
+            ? { kind: "unknownUnit", name, span }
+            : { kind: "functionAsUnit", name, span, arity },
         );
       }
       const unit = locate(visit(found.unit), span);
@@ -527,6 +558,8 @@ function lookupIn(
     function: (name, span, call) => {
       const found = index.functions.get(name);
       if (found === undefined) {
+        const builtin = resolveFunction(name, new Map(), index.builtins);
+        if (builtin !== undefined) return ok(builtin);
         return err({
           kind: "notAFunction",
           name,
@@ -538,7 +571,7 @@ function lookupIn(
         });
       }
       const fn = locate(visit(found), span);
-      return fn.ok ? ok(asFunction(fn.value)) : fn;
+      return fn.ok ? ok({ kind: "defined", fn: asFunction(fn.value) }) : fn;
     },
   };
 }

@@ -6,8 +6,20 @@ import {
 } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { containsZero, exact, isExact } from "./ball.ts";
-import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
+import { UNBOUNDED } from "./radius.ts";
+import { containsZero, exact, isExact, multiplyBalls } from "./ball.ts";
+import {
+  angle,
+  checkArgument,
+  plainNumbers,
+  type Builtin,
+} from "./builtins.ts";
+import {
+  DIMENSIONLESS,
+  checkConformance,
+  type Dimension,
+  type Primitives,
+} from "./dimension.ts";
 import {
   applyFunction,
   evaluate,
@@ -33,6 +45,7 @@ import { radiusUpper } from "./radius.ts";
 import type { Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import { type UnitFunction } from "./table.ts";
+import { err, ok } from "./result.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */
 const CONTEXT: NumberContext = {
@@ -94,6 +107,7 @@ type UnknownFunction = {
 function lookupIn(
   units: Record<string, Quantity>,
   functions: Record<string, UnitFunction> = {},
+  builtins: Record<string, Builtin> = {},
 ): Lookup<UnknownUnit | UnknownFunction> {
   return {
     unit: (name, span) => {
@@ -104,9 +118,13 @@ function lookupIn(
     },
     function: (name, span, call) => {
       const fn = Object.hasOwn(functions, name) ? functions[name] : undefined;
-      return fn === undefined
+      if (fn !== undefined) return { ok: true, value: { kind: "defined", fn } };
+      const builtin = Object.hasOwn(builtins, name)
+        ? builtins[name]
+        : undefined;
+      return builtin === undefined
         ? { ok: false, error: { kind: "unknownFunction", name, span, call } }
-        : { ok: true, value: fn };
+        : { ok: true, value: { kind: "builtin", fn: builtin } };
     },
   };
 }
@@ -261,7 +279,7 @@ test("the lookup is given a call's name with its span, and the span of the call"
     unit: () => ({ ok: true, value: UNITS.m }),
     function: (name, span, call) => {
       seen.push([name, span, call]);
-      return { ok: true, value: FUNCTIONS.double };
+      return { ok: true, value: { kind: "defined", fn: FUNCTIONS.double } };
     },
   };
   evaluate(parsed(" 2 double( m )"), spy, PRIMITIVES, CONTEXT);
@@ -467,15 +485,18 @@ test("a value that cannot be told from zero is unresolved, at the divisor or the
   assert.deepEqual(failure(run(text)), {
     kind: "unresolved",
     span: { start: 4, end: text.length },
+    edge: ZERO,
   });
   const base = "((2^(1/2))^2 - 2)";
   assert.deepEqual(failure(run(`${base}^-1`)), {
     kind: "unresolved",
     span: { start: 0, end: base.length },
+    edge: ZERO,
   });
   assert.deepEqual(failure(run(`${base}^(1/2)`)), {
     kind: "unresolved",
     span: { start: 0, end: base.length },
+    edge: ZERO,
   });
   // An odd root of it is a ball around zero.
   const cube = value(run(`${base}^(1/3)`));
@@ -857,4 +878,221 @@ test("applyFunction and invertFunction evaluate a body under a binding, telling 
       },
     },
   );
+});
+
+// ---------------------------------------------------------------------------
+// Built-ins, injected through the lookup: the map of builtins.ts is empty
+
+/** A built-in of `count` plain numbers that returns `body` of their magnitudes. */
+function builtin(
+  name: string,
+  count: number,
+  body: Builtin["apply"],
+  dimensions: Builtin["dimensions"] = plainNumbers(count),
+): Builtin {
+  return { name, arity: { min: count, max: count }, dimensions, apply: body };
+}
+
+const BUILTINS: Record<string, Builtin> = {
+  // A plain number doubled, exactly.
+  dbl: builtin("dbl", 1, ([x]) => ok(multiplyBalls(exact(rational(2n)), x!))),
+  // No arguments: the constant three.
+  three: builtin("three", 0, () => ok(exact(rational(3n)))),
+  // An angle to a plain number: the argument itself, as the kernel would see it.
+  ang: builtin(
+    "ang",
+    1,
+    ([x]) => ok(x!),
+    (args, primitives) => {
+      const radian = angle(primitives);
+      if (radian === undefined) return err({ kind: "noAngles" });
+      const checked = checkArgument(args, 0, radian, primitives);
+      return checked.ok ? ok(DIMENSIONLESS) : checked;
+    },
+  ),
+  // Two quantities of one dimension to an angle: the first, as an angle.
+  pair: builtin(
+    "pair",
+    2,
+    ([y]) => ok(y!),
+    (args, primitives) => {
+      const conformance = checkConformance(args[0]!, args[1]!, primitives);
+      if (!conformance.ok) {
+        return err({
+          kind: "nonconformingArguments",
+          left: 0,
+          right: 1,
+          mismatch: conformance.error,
+        });
+      }
+      return ok(angle(primitives)!);
+    },
+  ),
+  // Failures, each on its argument.
+  domain: builtin("domain", 1, () =>
+    err({ kind: "domain", argument: 0, reason: "notPositive" }),
+  ),
+  edge: builtin("edge", 2, () =>
+    err({ kind: "unresolved", argument: 1, edge: ONE }),
+  ),
+  pole: builtin("pole", 1, () =>
+    err({ kind: "unresolved", argument: 0, edge: "pole" }),
+  ),
+  huge: builtin("huge", 1, () => err({ kind: "tooLarge" })),
+  even: builtin("even", 1, () => err({ kind: "negativeRadicand", degree: 2n })),
+  byzero: builtin("byzero", 1, () => err({ kind: "divisionByZero" })),
+  // An unbounded argument, propagated as the rules say.
+  wide: builtin("wide", 1, ([x]) => ok({ mid: x!.mid, rad: UNBOUNDED })),
+};
+
+const withBuiltins = lookupIn(UNITS, FUNCTIONS, BUILTINS);
+
+function runBuiltin(text: string): Result<Quantity, Failure> {
+  return evaluate(parsed(text), withBuiltins, PRIMITIVES, CONTEXT);
+}
+
+test("a call of a built-in evaluates its arguments, applies its rule and its function", () => {
+  assert.deepEqual(value(runBuiltin("dbl(3)")), quantity("6"));
+  assert.deepEqual(
+    value(runBuiltin("2 dbl(1 + 2) m")),
+    quantity("12", { m: 1 }),
+  );
+  assert.deepEqual(value(runBuiltin("three()")), quantity("3"));
+  assert.deepEqual(value(runBuiltin("dbl(three())")), quantity("6"));
+  // A built-in inside a defined function's body, and the other way about.
+  assert.deepEqual(value(runBuiltin("recip(dbl(4))")), quantity("0.125"));
+  assert.deepEqual(value(runBuiltin("dbl(recip(4))")), quantity("0.5"));
+  // The result takes the rule's dimension: an angle from a pair of lengths.
+  assert.deepEqual(
+    value(runBuiltin("pair(3 m, 4 m)")),
+    quantity("3", { radian: 1 }),
+  );
+  assert.deepEqual(value(runBuiltin("ang(2 radian)")), quantity("2"));
+});
+
+test("a built-in's arity is checked before its arguments are evaluated", () => {
+  assert.deepEqual(failure(runBuiltin("dbl()")), {
+    kind: "arityMismatch",
+    name: "dbl",
+    span: { start: 0, end: 5 },
+    expected: { min: 1, max: 1 },
+    given: 0,
+  });
+  assert.deepEqual(failure(runBuiltin("three(1)")), {
+    kind: "arityMismatch",
+    name: "three",
+    span: { start: 0, end: 8 },
+    expected: { min: 0, max: 0 },
+    given: 1,
+  });
+  assert.equal(failure(runBuiltin("dbl(bogus, 1)")).kind, "arityMismatch");
+  // Then the arguments, left to right, and the first failure ends it.
+  assert.equal(failure(runBuiltin("pair(bogus, 1 / 0)")).kind, "unknownUnit");
+  assert.equal(failure(runBuiltin("pair(1, 1 / 0)")).kind, "divisionByZero");
+});
+
+test("a built-in whose rule rejects its arguments is a builtinArgument at the call, with every argument's span", () => {
+  assert.deepEqual(failure(runBuiltin("2 dbl(3 m)")), {
+    kind: "builtinArgument",
+    name: "dbl",
+    span: { start: 2, end: 10 },
+    arguments: [{ start: 6, end: 9 }],
+    error: {
+      kind: "argumentDimension",
+      argument: 0,
+      want: DIMENSIONLESS,
+      mismatch: {
+        kind: "dimensionMismatch",
+        have: dim({ m: 1 }),
+        want: DIMENSIONLESS,
+      },
+    },
+  });
+  const plain = failure(runBuiltin("ang(1)"));
+  assert.ok(
+    plain.kind === "builtinArgument" &&
+      plain.error.kind === "argumentDimension",
+  );
+  assert.deepEqual(plain.error.want, dim({ radian: 1 }));
+  assert.equal(plain.error.mismatch.kind, "kindMismatch");
+  const lengths = failure(runBuiltin("pair(3 m, 4 s)"));
+  assert.ok(lengths.kind === "builtinArgument");
+  assert.deepEqual(lengths.arguments, [
+    { start: 5, end: 8 },
+    { start: 10, end: 13 },
+  ]);
+  assert.deepEqual(lengths.error, {
+    kind: "nonconformingArguments",
+    left: 0,
+    right: 1,
+    mismatch: {
+      kind: "dimensionMismatch",
+      have: dim({ m: 1 }),
+      want: dim({ s: 1 }),
+    },
+  });
+  // A table without the radian kind has no angles.
+  const noAngles = evaluate(
+    parsed("ang(1)"),
+    withBuiltins,
+    new Map([["m", "dimension"]]),
+    CONTEXT,
+  );
+  assert.ok(!noAngles.ok && noAngles.error.kind === "builtinArgument");
+  assert.deepEqual(noAngles.error.error, { kind: "noAngles" });
+});
+
+test("a built-in's failures are located: domain and the rest at the call, unresolved at the argument with its edge", () => {
+  assert.deepEqual(failure(runBuiltin("2 domain(-1)")), {
+    kind: "domainError",
+    name: "domain",
+    span: { start: 2, end: 12 },
+    arguments: [{ start: 9, end: 11 }],
+    argument: 0,
+    reason: "notPositive",
+  });
+  assert.deepEqual(failure(runBuiltin("edge(1, 2 + 3)")), {
+    kind: "unresolved",
+    span: { start: 8, end: 13 },
+    edge: ONE,
+  });
+  assert.deepEqual(failure(runBuiltin("pole(7)")), {
+    kind: "unresolved",
+    span: { start: 5, end: 6 },
+    edge: "pole",
+  });
+  assert.deepEqual(failure(runBuiltin("huge(1)")), {
+    kind: "tooLarge",
+    span: { start: 0, end: 7 },
+  });
+  assert.deepEqual(failure(runBuiltin("even(1)")), {
+    kind: "negativeRadicand",
+    degree: 2n,
+    span: { start: 0, end: 7 },
+  });
+  assert.deepEqual(failure(runBuiltin("byzero(1)")), {
+    kind: "divisionByZero",
+    span: { start: 0, end: 9 },
+  });
+});
+
+test("a built-in's result is settled like any other, and an unbounded one propagates", () => {
+  // dbl of an inexact value: the product is settled by the evaluator to
+  // the working precision (its midpoint is a dyadic of at most that many
+  // bits), which the built-in itself did not do. The reference is twice
+  // sqrt 2 to 60 digits from Python's decimal module.
+  const root = value(runBuiltin("dbl(2^(1/2))"));
+  assert.ok(!isExact(root.magnitude));
+  const reference = parseDecimal(
+    "2.82842712474619009760337744841939615713934375075389614635336",
+  );
+  assert.ok(reference.ok);
+  assert.ok(
+    compare(
+      absolute(subtract(root.magnitude.mid, reference.value)),
+      radiusUpper(root.magnitude.rad),
+    ) <= 0,
+  );
+  const wide = value(runBuiltin("wide(3) m"));
+  assert.deepEqual(wide.magnitude, { mid: rational(3n), rad: UNBOUNDED });
 });

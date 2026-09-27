@@ -1239,11 +1239,27 @@ depends on which side of E it lies`, with E `zero`, `1`, `-1` or `a pole
 of "tan"`, and for a body `depends on a value that cannot be told from E
 at this precision`. Each is a predicate for `describeBody` too.
 
-Tests: with a test-only built-in injected through a lookup (the map is
-empty), every branch, including the arity check, each dimension-rule
-error, a domain error, an unresolved at an argument with an edge, and an
-unbounded argument; the build rejects a unit named like a built-in and a
-built-in whose name reads as a prefixed unit; the messages.
+Rulings the task did not reach: the table carries the set of built-ins
+it was built against (`UnitTable.builtins`), and `buildTable` takes the
+set as a parameter with the module's `BUILTINS` as its default, so that
+the build's disjointness check and the table's lookup work from one set
+and a test can build against a built-in of its own; `resolveFunction` and
+`functionArity` in table.ts are the one order and the one arity rule the
+two lookups share; the pole is worded `a pole of the tangent`, since
+`tan` is the one function with poles in this stage; and the body form of
+a dimension rule's failure can be reached only from an error built by
+hand, since a body whose rule fails does so for every argument and the
+build refuses it.
+
+Tests: with test-only built-ins injected through a lookup and through the
+build's parameter (the map is empty), every branch: the arity check
+before the arguments, each dimension-rule error with every argument's
+span, a domain error, an unresolved at an argument with an edge and at a
+pole, the ball errors at the call, a settled result and an unbounded one;
+the build rejects a unit, a primitive, a list and a function named like a
+built-in and a built-in whose name reads as a prefixed unit, and builds a
+body that calls one; the messages, through stand-ins that carry the real
+names.
 
 Behavior: none visible; no built-in exists.
 

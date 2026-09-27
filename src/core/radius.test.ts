@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  MANT_BITS,
+  MANT_LIMIT,
+  MANT_MIN,
   UNBOUNDED,
   ZERO_RADIUS,
   addRadius,
@@ -28,9 +29,6 @@ import {
   type Rational,
 } from "./rational.ts";
 import { random, randomRational } from "../testing/random.ts";
-
-const MANT_MIN = 1n << BigInt(MANT_BITS - 1);
-const MANT_LIMIT = 1n << BigInt(MANT_BITS);
 
 /** A bounded radius written out, for the expected side of a `deepEqual`. */
 function bounded(mant: bigint, exp: bigint): Radius {

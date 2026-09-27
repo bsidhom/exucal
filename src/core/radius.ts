@@ -39,13 +39,15 @@ import { rational, type Rational } from "./rational.ts";
 
 /** The bits of a normalized mantissa. */
 export const MANT_BITS = 30;
-const MANT_MIN = 1n << BigInt(MANT_BITS - 1);
-const MANT_LIMIT = 1n << BigInt(MANT_BITS);
+/** The least normalized mantissa, `2^29`: the invariant's lower bound, inclusive. */
+export const MANT_MIN = 1n << BigInt(MANT_BITS - 1);
+/** One past the largest mantissa, `2^30`: the invariant's upper bound, exclusive. */
+export const MANT_LIMIT = 1n << BigInt(MANT_BITS);
 
 /**
  * A radius: `mant × 2^exp`, with `mant` zero (the radius of an exact value)
- * or in `[2^29, 2^30)`, or unbounded. Zero is `mant: 0n, exp: 0n`, so that
- * equal radii are structurally equal.
+ * or in `[MANT_MIN, MANT_LIMIT)`, or unbounded. Zero is `mant: 0n, exp: 0n`,
+ * so that equal radii are structurally equal.
  */
 export type Radius =
   | { readonly kind: "bounded"; readonly mant: bigint; readonly exp: bigint }

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
+import { exact, isExact, type Ball } from "./ball.ts";
 import { buildTable, type BuildError } from "./build.ts";
 import { convert, convertToList } from "./convert.ts";
 import { parseDefinitions, type Definition } from "./definitions.ts";
@@ -90,18 +91,20 @@ function assertQuantity(
   assert.ok(actual !== undefined, "expected a quantity");
   const expected =
     typeof magnitude === "string" ? decimal(magnitude) : magnitude;
-  assert.ok(
-    equals(actual.magnitude, expected),
-    `expected magnitude ${toFraction(expected)}, got ${toFraction(actual.magnitude)}`,
+  assert.deepEqual(
+    actual.magnitude,
+    exact(expected),
+    `expected magnitude ${toFraction(expected)}, got ${inspect(actual.magnitude)}`,
   );
   assert.deepEqual(actual.dimension, dim(exponents));
 }
 
-function assertFactor(actual: Rational | undefined, expected: string): void {
+function assertFactor(actual: Ball | undefined, expected: string): void {
   assert.ok(actual !== undefined, "expected a factor");
-  assert.ok(
-    equals(actual, decimal(expected)),
-    `expected ${expected}, got ${toFraction(actual)}`,
+  assert.deepEqual(
+    actual,
+    exact(decimal(expected)),
+    `expected ${expected}, got ${inspect(actual)}`,
   );
 }
 
@@ -215,7 +218,12 @@ test("bodies are evaluated at the working precision", () => {
     assert.ok(result.ok, inspect(result));
     const expected = truncatedRoot(two, 2n, precision);
     assert.ok(expected.ok);
-    assertQuantity(result.value.units.get("r"), expected.value, { m: 1 });
+    const r = result.value.units.get("r");
+    assert.ok(r !== undefined);
+    assert.ok(equals(r.magnitude.mid, expected.value));
+    // A truncated root is inexact, and the table says so.
+    assert.ok(!isExact(r.magnitude));
+    assert.deepEqual(r.dimension, dim({ m: 1 }));
   }
 });
 
@@ -687,7 +695,7 @@ test("a list's failing dependency is the list's failure, and the build stops in 
 test("a built list converts", () => {
   const table = built(...TIME, "time  hr;min;s");
   const time = table.unitLists.get("time")!;
-  const have = { magnitude: decimal("3661"), dimension: dim({ s: 1 }) };
+  const have = { magnitude: exact(decimal("3661")), dimension: dim({ s: 1 }) };
   const result = convertToList(
     have,
     time.map((unit) => unit.quantity),
@@ -856,6 +864,14 @@ test("the declared units are evaluated, and neither may be zero", () => {
     kind: "zeroDeclaredUnit",
     definition: resultDefinition,
     unit: "result",
+  });
+  // A declared unit that cannot be told from zero is no count either.
+  const aroundZero = [...TEMP, "f(x)  [(2^(1/2))^2 - 2;K]  x K ; f / K"];
+  const [aroundDefinition] = definitions(...aroundZero).slice(-1);
+  assert.deepEqual(failed(...aroundZero), {
+    kind: "zeroDeclaredUnit",
+    definition: aroundDefinition,
+    unit: "argument",
   });
 });
 

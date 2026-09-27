@@ -161,8 +161,8 @@ test("either text may be negated", () => {
 
 test("the conversion carries both quantities", () => {
   const { have, want } = value("3 ft", "in");
-  assert.ok(equals(have.magnitude, decimal("0.9144")));
-  assert.ok(equals(want.magnitude, decimal("0.0254")));
+  assert.ok(equals(have.magnitude.mid, decimal("0.9144")));
+  assert.ok(equals(want.magnitude.mid, decimal("0.0254")));
   assert.deepEqual([...have.dimension.keys()], ["m"]);
   assert.deepEqual([...want.dimension.keys()], ["m"]);
 });
@@ -183,7 +183,7 @@ test("the working precision is derived from the digits asked for: max(40, digits
     const expected = truncatedRoot(two, 2n, working);
     assert.ok(expected.ok);
     assert.ok(
-      equals(result.value.magnitude, expected.value),
+      equals(result.value.magnitude.mid, expected.value),
       `${precision} digits asked for compute at ${working}`,
     );
   };
@@ -202,7 +202,7 @@ test("the working precision is derived from the digits asked for: max(40, digits
 test("evaluateText is the pipeline up to the quantity", () => {
   const result = evaluateText(table, "2 ft", CONTEXT);
   assert.ok(result.ok, `expected a quantity, got ${inspect(result)}`);
-  assert.ok(equals(result.value.magnitude, decimal("0.6096")));
+  assert.ok(equals(result.value.magnitude.mid, decimal("0.6096")));
   assert.deepEqual([...result.value.dimension.keys()], ["m"]);
 });
 
@@ -314,12 +314,12 @@ test("a want of several units is a list conversion", () => {
 
 test("a list conversion carries the units with the text each was typed as", () => {
   const { have, units } = list("1 m", " ft ; 2 in ;in/8");
-  assert.ok(equals(have.magnitude, decimal("1")));
+  assert.ok(equals(have.magnitude.mid, decimal("1")));
   assert.deepEqual(
     units.map((unit) => unit.text),
     ["ft", "2 in", "in/8"],
   );
-  assert.ok(equals(units[1]!.quantity.magnitude, decimal("0.0508")));
+  assert.ok(equals(units[1]!.quantity.magnitude.mid, decimal("0.0508")));
 });
 
 test("a want that names a unit list in the table is that list", () => {
@@ -417,8 +417,8 @@ test("a want that names a function is the call of it that would produce the have
   assertCall("0 K", "tempC", "-273.15");
   assertCall("tempF(212)", " tempC ", "100");
   const { have, argument, unit } = call("tempF(212)", "tempC");
-  assert.ok(equals(have.magnitude, decimal("373.15")));
-  assert.ok(equals(argument.magnitude, decimal("100")));
+  assert.ok(equals(have.magnitude.mid, decimal("373.15")));
+  assert.ok(equals(argument.magnitude.mid, decimal("100")));
   assert.deepEqual([...argument.dimension.keys()], []);
   assert.equal(unit.text, "1");
 });
@@ -427,8 +427,8 @@ test("the recovered argument is counted in the declared argument unit", () => {
   const conversion = call("2 ft", "dozen");
   assert.ok(equals(conversion.value, decimal("2")));
   assert.equal(conversion.unit.text, "in");
-  assert.ok(equals(conversion.unit.quantity.magnitude, decimal("0.0254")));
-  assert.ok(equals(conversion.argument.magnitude, decimal("0.0508")));
+  assert.ok(equals(conversion.unit.quantity.magnitude.mid, decimal("0.0254")));
+  assert.ok(equals(conversion.argument.magnitude.mid, decimal("0.0508")));
 });
 
 test("a call as the have or the want is an expression like any other", () => {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
+import { containsZero, exact, isExact } from "./ball.ts";
 import {
   DIMENSIONLESS,
   type ConformanceError,
@@ -30,6 +31,7 @@ import {
   type Rational,
 } from "./rational.ts";
 import type { Result } from "./result.ts";
+import { radiusAbove } from "./radius.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */
 const CONTEXT: NumberContext = {
@@ -54,7 +56,7 @@ function quantity(
 ): Quantity {
   const magnitude = parseDecimal(text);
   assert.ok(magnitude.ok, `${JSON.stringify(text)} is not a number`);
-  return { magnitude: magnitude.value, dimension: dim(exponents) };
+  return { magnitude: exact(magnitude.value), dimension: dim(exponents) };
 }
 
 function value<E>(result: Result<Quantity, E>): Quantity {
@@ -69,10 +71,7 @@ function failure<E>(result: Result<Quantity, E>): E {
 
 /** Asserts that `actual` is exactly `expected`, dimension included. */
 function assertQuantity(actual: Quantity, expected: Quantity): void {
-  assert.ok(
-    equals(actual.magnitude, expected.magnitude),
-    `expected magnitude ${inspect(expected.magnitude)}, got ${inspect(actual.magnitude)}`,
-  );
+  assert.deepEqual(actual.magnitude, expected.magnitude);
   assert.deepEqual(actual.dimension, expected.dimension);
 }
 
@@ -96,7 +95,7 @@ const PRIMITIVES: Primitives = new Map([
 
 test("a scalar is a magnitude of no dimension", () => {
   assert.deepEqual(scalar(rational(5n, 2n)), {
-    magnitude: rational(5n, 2n),
+    magnitude: exact(rational(5n, 2n)),
     dimension: DIMENSIONLESS,
   });
   assert.ok(scalar(ZERO).dimension.size === 0);
@@ -143,9 +142,12 @@ test("addition and subtraction combine magnitudes of one dimension", () => {
     quantity("2", { radian: 1 }),
   );
   // Exact, as every sum is: a third of a metre plus a metre is four thirds.
-  const third = { magnitude: rational(1n, 3n), dimension: dim({ m: 1 }) };
+  const third = {
+    magnitude: exact(rational(1n, 3n)),
+    dimension: dim({ m: 1 }),
+  };
   assertQuantity(value(addQuantities(METRE, third, PRIMITIVES)), {
-    magnitude: rational(4n, 3n),
+    magnitude: exact(rational(4n, 3n)),
     dimension: dim({ m: 1 }),
   });
 });
@@ -207,7 +209,7 @@ test("division divides magnitudes and subtracts exponents", () => {
     value(
       divideQuantities(METRE, multiplyQuantities(scalar(rational(3n)), FOOT)),
     ),
-    { magnitude: rational(1250n, 1143n), dimension: DIMENSIONLESS },
+    { magnitude: exact(rational(1250n, 1143n)), dimension: DIMENSIONLESS },
   );
 });
 
@@ -265,7 +267,7 @@ test("an integer power is exact and multiplies the exponents", () => {
   );
   assertQuantity(
     value(powQuantity(quantity("2", { m: 1, s: -1 }), rational(-2n), CONTEXT)),
-    { magnitude: rational(1n, 4n), dimension: dim({ m: -2, s: 2 }) },
+    { magnitude: exact(rational(1n, 4n)), dimension: dim({ m: -2, s: 2 }) },
   );
 });
 
@@ -315,17 +317,50 @@ test("an inexact root truncates the magnitude once, to the precision", () => {
   const root5 = value(
     powQuantity(two, half, { precision: 5, rounding: DEFAULT_ROUNDING }),
   );
-  assert.equal(format(root5.magnitude, 10, "halfAwayFromZero"), "1.4142");
+  assert.equal(format(root5.magnitude.mid, 10, "halfAwayFromZero"), "1.4142");
   assert.deepEqual(root5.dimension, dim({ m: 1 }));
+  // The radius is one unit in the last digit.
+  assert.deepEqual(root5.magnitude.rad, radiusAbove(rational(1n, 10n ** 4n)));
   const root40 = value(powQuantity(two, half, CONTEXT));
   assert.equal(
-    format(root40.magnitude, 40, "halfAwayFromZero"),
+    format(root40.magnitude.mid, 40, "halfAwayFromZero"),
     "1.414213562373095048801688724209698078569",
   );
+  assert.deepEqual(root40.magnitude.rad, radiusAbove(rational(1n, 10n ** 39n)));
   // Truncation composes: the shorter result is the longer one truncated.
   assert.ok(
-    equals(roundTo(root40.magnitude, 5, "towardZero"), root5.magnitude),
+    equals(roundTo(root40.magnitude.mid, 5, "towardZero"), root5.magnitude.mid),
   );
+});
+
+test("an inexact magnitude carries its radius through the exact operations", () => {
+  const root = value(powQuantity(quantity("2", { m: 2 }), half, CONTEXT));
+  const doubled = multiplyQuantities(scalar(rational(2n)), root);
+  assert.ok(!isExact(doubled.magnitude));
+  assert.ok(!isExact(value(addQuantities(root, METRE, PRIMITIVES)).magnitude));
+  assert.ok(!isExact(negateQuantity(root).magnitude));
+  // Whereas an exact zero times it is exact zero.
+  assert.deepEqual(multiplyQuantities(scalar(ZERO), root), {
+    magnitude: exact(ZERO),
+    dimension: dim({ m: 1 }),
+  });
+});
+
+test("dividing by a magnitude that cannot be told from zero is unresolved", () => {
+  // sqrt(2)^2 - 2 is a ball around zero, not zero.
+  const root = value(powQuantity(scalar(rational(2n)), half, CONTEXT));
+  const squared = value(powQuantity(root, rational(2n), CONTEXT));
+  const almostZero = value(
+    subtractQuantities(squared, scalar(rational(2n)), PRIMITIVES),
+  );
+  assert.ok(containsZero(almostZero.magnitude));
+  assert.ok(!isExact(almostZero.magnitude));
+  assert.deepEqual(failure(divideQuantities(METRE, almostZero)), {
+    kind: "unresolved",
+  });
+  assert.deepEqual(failure(powQuantity(almostZero, rational(-1n), CONTEXT)), {
+    kind: "unresolved",
+  });
 });
 
 test("a power fails as its magnitude does", () => {

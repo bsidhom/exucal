@@ -5,8 +5,8 @@
 // The units map holds every name a user can type as a unit, the primitives
 // included, so that a lookup is one map read; the primitives map beside it
 // is what the conformance check needs, the roles in declaration order. A
-// prefix is stored as its factor alone, since the builder has checked that
-// its body is a plain number. The unit lists are apart from the units: a
+// prefix is stored as its factor alone, a ball, since the builder has checked
+// that its body is a plain number. The unit lists are apart from the units: a
 // list's name is not a unit (a body or a `have` that names one is an
 // unknown unit), and only a `want` that is exactly a list's name means the
 // list. Each unit of a list keeps the text it was defined as, for the
@@ -24,20 +24,20 @@
 // `notAFunction` error that says what the name is otherwise, so that the
 // message for `kg(m/s)` can show the product the user probably meant.
 
-import { type Primitives } from "./dimension.ts";
+import { type Ball } from "./ball.ts";
+import { DIMENSIONLESS, type Primitives } from "./dimension.ts";
 import { type Lookup } from "./evaluate.ts";
 import { type Expr } from "./expr.ts";
 import { resolveName, type Resolution } from "./names.ts";
-import { multiplyQuantities, scalar, type Quantity } from "./quantity.ts";
-import { type Rational } from "./rational.ts";
+import { multiplyQuantities, type Quantity } from "./quantity.ts";
 import { err, ok } from "./result.ts";
 import { type Span } from "./span.ts";
 
 export type UnitTable = {
   /** The primitives with their roles, in declaration order. */
   readonly primitives: Primitives;
-  /** The factor of each prefix, by name without the dash. */
-  readonly prefixes: ReadonlyMap<string, Rational>;
+  /** The factor of each prefix, by name without the dash: a plain number's ball. */
+  readonly prefixes: ReadonlyMap<string, Ball>;
   /** The quantity of each unit, by name; the primitives are among them. */
   readonly units: ReadonlyMap<string, Quantity>;
   /** The units of each unit list, by name, largest first. */
@@ -124,7 +124,10 @@ export function unitLookup(table: UnitTable): Lookup<LookupError> {
       return ok(
         found.kind === "unit"
           ? found.unit
-          : multiplyQuantities(scalar(found.prefix), found.unit),
+          : multiplyQuantities(
+              { magnitude: found.prefix, dimension: DIMENSIONLESS },
+              found.unit,
+            ),
       );
     },
     function: (name, span, call) => {

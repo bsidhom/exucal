@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
+import { exact } from "./ball.ts";
 import { convert } from "./convert.ts";
 import { type Dimension, type Primitives } from "./dimension.ts";
 import { evaluate } from "./evaluate.ts";
@@ -12,7 +13,6 @@ import {
   equals,
   parseDecimal,
   rational,
-  toFraction,
   type Rational,
 } from "./rational.ts";
 import { type Result } from "./result.ts";
@@ -44,7 +44,7 @@ function decimal(text: string): Rational {
 }
 
 function quantity(text: string, exponents: Record<string, number>): Quantity {
-  return { magnitude: decimal(text), dimension: dim(exponents) };
+  return { magnitude: exact(decimal(text)), dimension: dim(exponents) };
 }
 
 function parsed(text: string): Expr {
@@ -72,9 +72,9 @@ const TABLE: UnitTable = {
     ["radian", "kind"],
   ]) satisfies Primitives,
   prefixes: new Map([
-    ["k", decimal("1000")],
-    ["m", decimal("0.001")],
-    ["c", decimal("0.01")],
+    ["k", exact(decimal("1000"))],
+    ["m", exact(decimal("0.001"))],
+    ["c", exact(decimal("0.01"))],
   ]),
   units: new Map([
     ["m", quantity("1", { m: 1 })],
@@ -99,10 +99,7 @@ function found(result: Result<Quantity, LookupError>): Quantity {
 }
 
 function assertQuantity(actual: Quantity, expected: Quantity): void {
-  assert.ok(
-    equals(actual.magnitude, expected.magnitude),
-    `expected magnitude ${toFraction(expected.magnitude)}, got ${toFraction(actual.magnitude)}`,
-  );
+  assert.deepEqual(actual.magnitude, expected.magnitude);
   assert.deepEqual(actual.dimension, expected.dimension);
 }
 
@@ -150,7 +147,7 @@ test("the lookup serves the evaluator", () => {
   );
   assert.ok(result.ok, inspect(result));
   assertQuantity(result.value, {
-    magnitude: rational(5n, 6n),
+    magnitude: exact(rational(5n, 6n)),
     dimension: dim({ m: 1, s: -1 }),
   });
 });

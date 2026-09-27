@@ -31,6 +31,11 @@
 // `11.9999999988 in` shown as `12 in` beside `2 ft` would read wrongly, the
 // counts are taken again from the rounded sum, so that the rounding carries
 // (`3 ft`) as a digit does.
+//
+// A magnitude is a ball; this module reads its midpoint alone and drops the
+// radius, so that a conversion's value is still a rational. That is a state
+// on the way: task 1.8 of docs/calculator-plan.md makes the value a ball and
+// carries the radius through to the display.
 
 import {
   checkConformance,
@@ -88,7 +93,8 @@ export function convert(
     primitives,
   );
   if (!conformance.ok) return conformance;
-  const ratio = divide(have.magnitude, want.magnitude);
+  // The radius is dropped here until 1.8.
+  const ratio = divide(have.magnitude.mid, want.magnitude.mid);
   return ratio.ok ? ratio : err({ kind: "zeroWant" });
 }
 
@@ -123,16 +129,19 @@ export function convertToList(
         mismatch: conformance.error,
       });
     }
-    if (sign(unit.magnitude) <= 0) {
+    // The radii are dropped here until 1.8: the checks and the terms are
+    // over midpoints.
+    const size = unit.magnitude.mid;
+    if (sign(size) <= 0) {
       return err({ kind: "nonpositiveUnit", index });
     }
     const previous = sizes[index - 1];
-    if (previous !== undefined && compare(unit.magnitude, previous) >= 0) {
+    if (previous !== undefined && compare(size, previous) >= 0) {
       return err({ kind: "unitOutOfOrder", index });
     }
-    sizes.push(unit.magnitude);
+    sizes.push(size);
   }
-  return ok(decompose(have.magnitude, sizes));
+  return ok(decompose(have.magnitude.mid, sizes));
 }
 
 /**
@@ -159,7 +168,8 @@ export function roundTerms(
   const remainder = terms[last]!;
   const rounded = roundTo(remainder, digits, mode);
   if (equals(rounded, remainder)) return terms;
-  const sizes = units.map((unit) => unit.magnitude);
+  // The radii are dropped here until 1.8.
+  const sizes = units.map((unit) => unit.magnitude.mid);
   const total = terms
     .slice(0, last)
     .reduce(

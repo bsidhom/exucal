@@ -225,9 +225,10 @@ export class UnitConverter extends LitElement {
         };
       }
       const { magnitude, dimension } = quantity.value;
+      // The radius is dropped here until 1.8.
       return result(
         have,
-        magnitude,
+        magnitude.mid,
         isDimensionless(dimension)
           ? ""
           : formatDimension(dimension, table.primitives),

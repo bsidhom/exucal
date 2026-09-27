@@ -315,9 +315,10 @@ function convertToFunction(
         : { kind: "inverseFailed", name: fn.name, error: error.error },
     );
   }
+  // The radii are dropped here until 1.8.
   const value = divide(
-    argument.value.magnitude,
-    fn.argument.quantity.magnitude,
+    argument.value.magnitude.mid,
+    fn.argument.quantity.magnitude.mid,
   );
   if (!value.ok) {
     throw new Error("A function in the table declares a zero argument unit");

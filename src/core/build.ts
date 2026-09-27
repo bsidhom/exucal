@@ -36,8 +36,10 @@
 // and checking that each body conforms to what it should give. That
 // catches a body that fails for every argument and a body of the wrong
 // dimension at load time, so that a call at run time can fail only on its
-// argument or on a value. A declared unit of zero is rejected as well,
-// since a recovered argument is written as a count of it.
+// argument or on a value. A declared unit whose ball contains zero (an
+// exact zero, or an inexact value around it) is rejected as well, since a
+// recovered argument is written as a count of it and nothing is a count of
+// either.
 //
 // The first failure ends the build. Errors within a body (an unknown name,
 // a division by zero, a reference that closes a cycle) carry the span of
@@ -66,8 +68,9 @@ import {
 import { walker, type Cycle, type Visit } from "./graph.ts";
 import { findAmbiguity, resolveName, type Split } from "./names.ts";
 import { multiplyQuantities, type Quantity } from "./quantity.ts";
+import { containsZero, exact, type Ball } from "./ball.ts";
 import { checkContext, type NumberContext } from "./context.ts";
-import { ONE, isZero, type Rational } from "./rational.ts";
+import { ONE } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import {
@@ -150,7 +153,7 @@ export type BuildError =
       readonly body: "forward" | "inverse";
       readonly mismatch: ConformanceError;
     }
-  /** The declared `unit` of the function `definition` is zero, of which nothing is a count. */
+  /** The declared `unit` of the function `definition` is zero, or cannot be told from it; nothing is a count of either. */
   | {
       readonly kind: "zeroDeclaredUnit";
       readonly definition: FunctionDefinition;
@@ -217,7 +220,7 @@ export function buildTable(
   const walk = walker<Node, Built, BuildError>((definition, visit) =>
     evaluateNode(definition, lookupIn(index, visit), primitives, context),
   );
-  const prefixes = new Map<string, Rational>();
+  const prefixes = new Map<string, Ball>();
   const units = new Map<string, Quantity>();
   const unitLists = new Map<string, UnitList>();
   const functions = new Map<string, UnitFunction>();
@@ -318,7 +321,10 @@ function evaluateNode(
   switch (definition.kind) {
     case "primitive":
       return ok(
-        quantity({ magnitude: ONE, dimension: primitive(definition.name) }),
+        quantity({
+          magnitude: exact(ONE),
+          dimension: primitive(definition.name),
+        }),
       );
     case "unit": {
       const body = evaluate(definition.body, lookup, primitives, context);
@@ -442,7 +448,7 @@ function checkFunction(
   return ok(fn);
 }
 
-/** The declared `unit` of the function `definition`, evaluated, with its text; zero is rejected. */
+/** The declared `unit` of the function `definition`, evaluated, with its text; a ball containing zero is rejected. */
 function evaluateDeclared(
   definition: FunctionDefinition,
   unit: "argument" | "result",
@@ -453,7 +459,7 @@ function evaluateDeclared(
   const declared = definition[unit];
   const value = evaluate(declared.expr, lookup, primitives, context);
   if (!value.ok) return value;
-  if (isZero(value.value.magnitude)) {
+  if (containsZero(value.value.magnitude)) {
     return err({ kind: "zeroDeclaredUnit", definition, unit });
   }
   return ok({ text: declared.text, quantity: value.value });

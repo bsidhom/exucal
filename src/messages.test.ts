@@ -89,6 +89,10 @@ test("a parse error names what was expected and what was found", () => {
 test("an evaluation error quotes the text at fault", () => {
   assert.equal(textMessage("3 bogus"), 'Unknown unit "bogus".');
   assert.equal(textMessage("m / 0"), 'Division by zero in "0".');
+  assert.equal(
+    textMessage("m / ((2^(1/2))^2 - 2)"),
+    '"((2^(1/2))^2 - 2)" cannot be told from zero at this precision, so nothing can be divided by it.',
+  );
   assert.equal(textMessage("2^99999 m"), '"2^99999" is too large to compute.');
   assert.equal(
     textMessage("(-4)^0.5 m"),
@@ -212,6 +216,10 @@ test("a body that fails is described by what the definition does", () => {
   assert.equal(
     textMessage("2 bad( 0 )", failing),
     'Cannot compute "bad( 0 )": the definition of "bad" calls "recip", whose definition divides by zero.',
+  );
+  assert.equal(
+    textMessage("recip((2^(1/2))^2 - 2)", failing),
+    'Cannot compute "recip((2^(1/2))^2 - 2)": the definition of "recip" divides by a value that cannot be told from zero at this precision.',
   );
   assert.equal(
     conversionMessage(" 0 ", "recip", failing),

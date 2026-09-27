@@ -49,9 +49,12 @@
 //
 // Operands are evaluated left to right and the first failure ends the
 // evaluation, so `bogus / 0` reports the unknown unit, not the division.
-// The arithmetic failures are those of `rational.ts` that a value can cause,
+// The arithmetic failures are those of `ball.ts` that a value can cause,
 // located in the input: a division by zero points at the divisor, since its
-// value is what is wrong, and a power that fails (`0^-1`, an even root of a
+// value is what is wrong, and so does a division by a value that cannot be
+// told from zero (`unresolved`, D4 of docs/calculator-plan.md: the divisor's
+// ball contains zero without being exactly zero); a power that fails
+// (`0^-1`, a ball around zero to a negative power, an even root of a
 // negative magnitude, a result beyond `MAX_BITS`) points at the whole power,
 // since it is the combination of base and exponent that fails. A sum whose
 // operands do not conform (`1 m + 1 s`) points at the whole sum for the
@@ -76,8 +79,8 @@ import {
   subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
+import { type BallError } from "./ball.ts";
 import { type NumberContext } from "./context.ts";
-import { type RationalError } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import { type UnitFunction } from "./table.ts";
@@ -106,6 +109,12 @@ export type EvaluateError =
    * negative exponent.
    */
   | { readonly kind: "divisionByZero"; readonly span: Span }
+  /**
+   * The divisor at `span` cannot be told from zero at this precision (its
+   * ball contains zero without being exactly zero), or the power at `span`
+   * raises such a value to a negative exponent.
+   */
+  | { readonly kind: "unresolved"; readonly span: Span }
   /** The power at `span` is an even (`degree`-th) root of a negative value. */
   | {
       readonly kind: "negativeRadicand";
@@ -331,13 +340,14 @@ type Boxed<E> = Extract<BodyError<E>, { kind: "lookup" }>;
 
 /** Attaches `span` to the failure of `result`, if it failed. */
 function locate(
-  result: Result<Quantity, RationalError>,
+  result: Result<Quantity, BallError>,
   span: Span,
 ): Result<Quantity, EvaluateError> {
   if (result.ok) return result;
   const { error } = result;
   switch (error.kind) {
     case "divisionByZero":
+    case "unresolved":
     case "tooLarge":
       return err({ kind: error.kind, span });
     case "negativeRadicand":

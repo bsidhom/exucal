@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
+import { exact } from "./ball.ts";
 import {
   convert,
   convertToList,
@@ -45,7 +46,7 @@ function quantity(
 ): Quantity {
   const magnitude = parseDecimal(text);
   assert.ok(magnitude.ok, `${JSON.stringify(text)} is not a number`);
-  return { magnitude: magnitude.value, dimension: dim(exponents) };
+  return { magnitude: exact(magnitude.value), dimension: dim(exponents) };
 }
 
 /** A primitives map in the order given; names ending in `!kind` are kinds. */
@@ -102,10 +103,7 @@ function times(n: string, u: Quantity): Quantity {
   const factor = parseDecimal(n);
   assert.ok(factor.ok);
   return {
-    magnitude: rational(
-      factor.value.num * u.magnitude.num,
-      factor.value.den * u.magnitude.den,
-    ),
+    magnitude: exact(multiply(factor.value, u.magnitude.mid)),
     dimension: u.dimension,
   };
 }
@@ -144,7 +142,7 @@ test("want may have a magnitude of its own", () => {
 test("a compound dimension converts like any other", () => {
   // 60 mi/h in m/s.
   const milesPerHour: Quantity = {
-    magnitude: rational(1609344n, 1000n * 3600n),
+    magnitude: exact(rational(1609344n, 1000n * 3600n)),
     dimension: dim({ m: 1, s: -1 }),
   };
   const metresPerSecond = quantity("1", { m: 1, s: -1 });
@@ -161,8 +159,8 @@ test("dimensionless quantities convert to plain numbers", () => {
   // The empty dimension, however it was built.
   assertValue(
     convert(
-      { magnitude: rational(3n), dimension: DIMENSIONLESS },
-      { magnitude: ONE, dimension: new Map() },
+      { magnitude: exact(rational(3n)), dimension: DIMENSIONLESS },
+      { magnitude: exact(ONE), dimension: new Map() },
       SI,
     ),
     rational(3n),
@@ -183,7 +181,7 @@ test("signs carry through", () => {
 test("the order of a dimension's entries does not matter", () => {
   const a = quantity("1", { kg: 1, m: 2, s: -2 });
   const b: Quantity = {
-    magnitude: rational(2n),
+    magnitude: exact(rational(2n)),
     dimension: dim({ s: -2, kg: 1, m: 2 }),
   };
   assertValue(convert(a, b, SI), rational(1n, 2n));
@@ -195,7 +193,7 @@ test("kinds that match on both sides are no obstacle", () => {
     rational(2n),
   );
   const rpm: Quantity = {
-    magnitude: rational(2n * 314159n, 100000n * 60n),
+    magnitude: exact(rational(2n * 314159n, 100000n * 60n)),
     dimension: dim({ radian: 1, s: -1 }),
   };
   assert.ok(convert(rpm, RADIAN_PER_SECOND, SI).ok);
@@ -321,9 +319,9 @@ function assertTerms(
     actual.map(toFraction),
     expected.map((text) => {
       const [numerator, denominator] = text.split("/");
-      const num = quantity(numerator!).magnitude;
+      const num = quantity(numerator!).magnitude.mid;
       if (denominator === undefined) return toFraction(num);
-      const den = quantity(denominator).magnitude;
+      const den = quantity(denominator).magnitude.mid;
       return toFraction(rational(num.num * den.den, num.den * den.num));
     }),
   );
@@ -356,10 +354,10 @@ test("the terms sum to have exactly", () => {
   const have = quantity("1.234567", { m: 1 });
   const [feet, inches] = terms(convertToList(have, [FOOT, INCH], SI));
   const sum = add(
-    multiply(feet!, FOOT.magnitude),
-    multiply(inches!, INCH.magnitude),
+    multiply(feet!, FOOT.magnitude.mid),
+    multiply(inches!, INCH.magnitude.mid),
   );
-  assert.ok(equals(sum, have.magnitude));
+  assert.ok(equals(sum, have.magnitude.mid));
 });
 
 test("counts are truncated toward zero, so every term has the sign of have", () => {
@@ -576,11 +574,14 @@ test("roundTerms rounds by less than a unit in the last digit shown", () => {
     "halfAwayFromZero",
   );
   const shown = add(
-    multiply(rounded[0]!, FOOT.magnitude),
-    multiply(rounded[1]!, INCH.magnitude),
+    multiply(rounded[0]!, FOOT.magnitude.mid),
+    multiply(rounded[1]!, INCH.magnitude.mid),
   );
   // Within 1e-7 in of the exact value: the resolution of 11.999999 at 8 digits.
-  const difference = subtract(shown, have.magnitude);
-  const resolution = multiply(quantity("1e-7").magnitude, INCH.magnitude);
+  const difference = subtract(shown, have.magnitude.mid);
+  const resolution = multiply(
+    quantity("1e-7").magnitude.mid,
+    INCH.magnitude.mid,
+  );
   assert.ok(compare(absolute(difference), resolution) < 0);
 });

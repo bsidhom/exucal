@@ -136,9 +136,14 @@ exponent, or the distinguished value unbounded, with the operations a
 propagation rule needs (`radiusAbove`, the sum, the product, the power,
 the maximum, and the exact rational a bounded radius stands for), every
 one rounding up so that a radius is always a true bound. The plan's D3
-says why it is neither a `Rational` nor a `number`. Nothing uses the ball
-or the radius yet; until the magnitude becomes a ball, the rules above are
-the ones in force.
+says why it is neither a `Rational` nor a `number`. Every magnitude is a
+ball now, with radius zero everywhere but after a root; the converter and
+the pipeline still read the midpoint alone and drop the radius, and the
+display still decides `=` by the midpoint, until tasks 1.8 and 1.9 carry
+the radius through, so the rules above are still the ones the display
+follows. The one outcome the ball already changes is a divisor that
+cannot be told from zero: `1 / (sqrt(2)^2 - 2)` is an `unresolved` error
+where it was a huge number.
 
 **Working precision.** Every core function that does arithmetic (`evaluate`,
 `buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`:
@@ -186,8 +191,9 @@ A violated precondition (a zero denominator passed to the `rational`
 constructor, a precision that is not a positive integer, a root degree below
 one) is a bug in the caller, not a value that can fail, and throws
 `RangeError`, as `1n / 0n` does. Every value that can be zero or negative
-because the user typed it reaches the numerics through `divide`, `pow`,
-`root` and `powRational`, which report it.
+because the user typed it reaches the numerics through the ball's
+`divideBalls`, `powBall` and `rootBall`, and through them `divide`, `pow`,
+`exactRoot` and `truncatedRoot`, which report it.
 
 ### Formatting
 
@@ -200,7 +206,8 @@ magnitude renders exactly.
 
 ## Quantities, dimensions and kinds
 
-Every unit resolves to a quantity: a magnitude, which is a `Rational`, and a
+Every unit resolves to a quantity: a magnitude, which is a `Ball` (a
+`Rational` midpoint with a `Radius`; "Precision and rounding" above), and a
 dimension, which is an exponent vector over the primitive units, keyed by
 primitive name with zero exponents left out. Exponents are rational so that
 roots are exact on the dimension side (`sqrt(m)` is `m^(1/2)`).
@@ -239,15 +246,15 @@ empty numerator, and a non-integer exponent parenthesized (`m^(1/2)`). So what
 the UI shows in an error is something the user could type back.
 
 `src/core/quantity.ts` holds the `Quantity` type itself, and is the layer
-that pairs the two below it: a `Rational` from `rational.ts` and a
-`Dimension` from `dimension.ts`, neither of which knows about the other. The
-table stores quantities, the evaluator produces them, and the converter
-consumes them. The arithmetic the evaluator needs lives here as well:
-multiplication, division and raising to a rational power, each a magnitude
-operation beside the matching dimension operation. Only the magnitude can
-fail (a zero divisor, `0` to a negative power, an even root of a negative
-number, a result beyond `MAX_BITS`), so the failures are those of
-`rational.ts`, and the power is the one operation that takes a
+that pairs the two below it: a `Ball` from `ball.ts` and a `Dimension` from
+`dimension.ts`, neither of which knows about the other. The table stores
+quantities, the evaluator produces them, and the converter consumes them.
+The arithmetic the evaluator needs lives here as well: multiplication,
+division and raising to a rational power, each a ball operation beside the
+matching dimension operation. Only the magnitude can fail (a zero divisor,
+or one that cannot be told from zero, `0` to a negative power, an even root
+of a negative number, a result beyond `MAX_BITS`), so the failures are those
+of `ball.ts`, and the power is the one operation that takes a
 `NumberContext`, for the root of a non-integer exponent. Negation touches
 the magnitude alone
 and cannot fail. Addition and subtraction are the
@@ -386,7 +393,8 @@ dimension it has; a unit list whose units do not make a list, carrying the
 definition and the list error with the index of the unit at fault; a
 function whose body does not conform to its declaration, carrying the
 definition, which body, and the mismatch; a function whose declared unit is
-zero; or an arithmetic failure from the evaluator, located as the evaluator
+zero, or cannot be told from zero, since a recovered argument is written
+as a count of it; or an arithmetic failure from the evaluator, located as the evaluator
 locates it. Every span is an offset into the whole definitions text, and a
 definition's span covers its text from name to body, so each error points
 at something the user can see.
@@ -584,8 +592,11 @@ Operands are evaluated left to right and the first failure ends the
 evaluation, so `bogus / 0` reports the unknown unit rather than the division.
 The evaluator's own errors are the arithmetic failures, each located in the
 input: a division by zero points at the divisor, since its value is what is
-wrong, and a power that fails (`0^-1`, an even root of a negative magnitude,
-a result beyond `MAX_BITS`) points at the whole power, since it is the
+wrong, and so does a division by a value that cannot be told from zero at
+this precision (`unresolved`: the divisor's ball contains zero without
+being exactly zero, as `sqrt(2)^2 - 2` does), and a power that fails
+(`0^-1`, a ball around zero to a negative power, an even root of a negative
+magnitude, a result beyond `MAX_BITS`) points at the whole power, since it is the
 combination of base and exponent that fails. A sum whose operands do not
 conform points at the whole sum for the same reason, and carries the span of
 each operand and the `ConformanceError` between them, with the left
@@ -816,7 +827,7 @@ src/core/context.ts       NumberContext: the precision and the rounding mode ari
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/ball.ts          Ball (a Rational midpoint with a Radius), its exact operations and root, unresolved
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
-src/core/quantity.ts      Quantity (a Rational with a Dimension), its arithmetic
+src/core/quantity.ts      Quantity (a Ball with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text
 src/core/parser.ts        Parser combinators, ParseError
 src/core/expr.ts          Expr, parseExpr

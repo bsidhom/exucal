@@ -9,6 +9,7 @@ import { DEFAULT_ROUNDING, type NumberContext } from "./core/context.ts";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
+import { exact } from "./core/ball.ts";
 import { buildTable } from "./core/build.ts";
 import { convert, convertToList, type ConvertError } from "./core/convert.ts";
 import { parseDefinitions } from "./core/definitions.ts";
@@ -149,9 +150,10 @@ test("every SI prefix is defined by name and by symbol", () => {
     for (const prefix of [name, symbol]) {
       const actual = table.prefixes.get(prefix);
       assert.ok(actual !== undefined, `the prefix ${prefix} is missing`);
-      assert.ok(
-        equals(actual, number(factor)),
-        `${prefix}: expected ${factor}, got ${toFraction(actual)}`,
+      assert.deepEqual(
+        actual,
+        exact(number(factor)),
+        `${prefix}: expected ${factor}, got ${inspect(actual)}`,
       );
     }
   }

@@ -23,6 +23,8 @@
     "src/units.test.ts",
     "src/messages.ts",
     "src/messages.test.ts",
+    "src/settings.ts",
+    "src/settings.test.ts",
     "bench/**/*.ts",
     "scripts/cloud-setup.test.ts"
   ]

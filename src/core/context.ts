@@ -36,6 +36,14 @@ export const DEFAULT_DIGITS: Precision = 8;
 /** The rounding mode by default: to nearest, ties away from zero. */
 export const DEFAULT_ROUNDING: RoundingMode = "halfAwayFromZero";
 
+/**
+ * The most digits a user may ask for. The value is D12's: the retry
+ * schedule of stage 2 doubles from the digits asked for up to an absolute
+ * ceiling, and the setting is capped well below the ceiling so that the
+ * schedule always has room above it for cancellation.
+ */
+export const MAX_DIGITS: Precision = 200;
+
 /** Throws `RangeError` unless `context` is one a caller may compute at. */
 export function checkContext(context: NumberContext): void {
   const { precision, rounding } = context;

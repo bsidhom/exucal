@@ -756,11 +756,15 @@ no reciprocal line: a call is not a ratio, so there is no other way round,
 as there is none for a list.
 
 The output shows the two texts and the value between `=` or `≈`, decided by
-`equals(roundTo(value, digits, mode), value)` at the display precision of 8
-significant digits (`DISPLAY_PRECISION`, kept apart from the working
-precision as "Precision and rounding" describes) in the display's rounding
-mode (`halfAwayFromZero`, fixed in the component until the settings of
-docs/calculator-plan.md, task 1.10). The line is written so
+`show` of `src/core/display.ts` at the digits and in the rounding mode of
+the user's settings (eight digits, half away from zero, by default; the
+digits asked for are kept apart from the working precision as "Precision
+and rounding" describes): `=` when the value's radius is zero and every
+digit it holds is shown, `≈` otherwise. The settings are the shell's
+(`src/settings.ts`, kept in `localStorage`, validated on the way in so
+that a stale entry never leaves the app without a usable context) and
+reach the component as its `context` property, the same `NumberContext`
+the pipeline takes. The line is written so
 that it reads as the expression it means: a `want` with a magnitude of its
 own is written with a multiplication sign (`1 mi = 5.28 × 1000 ft`), since
 juxtaposing two numbers would read as one product, and a `want` that is a
@@ -861,6 +865,7 @@ src/units.txt             the system definitions; src/units.test.ts checks them
 src/testing/random.ts     the seeded random source the tests and benchmarks share
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemTable: fetches and builds the system table, once
+src/settings.ts           Settings: the digits and the rounding mode, in localStorage; contextOf
 src/unit-converter.ts     the component
 src/app-shell.ts          the host: loads the table, renders the component
 ```

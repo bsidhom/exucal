@@ -7,7 +7,7 @@ import {
 } from "./core/context.ts";
 import { roundTerms } from "./core/convert.ts";
 import { formatDimension, isDimensionless } from "./core/dimension.ts";
-import { show, type Shown } from "./core/display.ts";
+import { show } from "./core/display.ts";
 import { parseExpr } from "./core/expr.ts";
 import {
   convertText,
@@ -17,33 +17,21 @@ import {
 } from "./core/pipeline.ts";
 import { divideBalls, exact, type Ball } from "./core/ball.ts";
 import { ONE, absolute, isZero, sign } from "./core/rational.ts";
-import { type RoundingMode } from "./core/rounding.ts";
 import { type UnitTable } from "./core/table.ts";
 import { describeConversionError, describeTextError } from "./messages.ts";
 
 /**
- * The significant digits a result is shown with. The pipeline derives the
- * precision it computes at from this and rounds once, here, to it;
- * ARCHITECTURE.md ("Precision and rounding") says why the two are kept
- * apart.
+ * One term of a result: `text`, the value as `show` writes it at the
+ * context's digits in its mode, of `unit`, text to show after the value.
+ * `negative` says the sign of the value, since the text of every term but
+ * a line's first is written unsigned and the sign becomes the operator that
+ * joins it to the sum.
  */
-export const DISPLAY_PRECISION = DEFAULT_DIGITS;
-
-/**
- * The rounding mode a result is shown in: to nearest, ties away from zero,
- * the rounding people expect from `0.125 → 0.13`. Task 1.10 of
- * docs/calculator-plan.md makes it, and the digits, the user's to set.
- */
-const DISPLAY_ROUNDING: RoundingMode = DEFAULT_ROUNDING;
-
-/** The user's context, as the pipeline takes it: the digits shown, in the mode shown. */
-const DISPLAY_CONTEXT: NumberContext = {
-  precision: DISPLAY_PRECISION,
-  rounding: DISPLAY_ROUNDING,
+type Term = {
+  readonly text: string;
+  readonly negative: boolean;
+  readonly unit: string;
 };
-
-/** One term of a result: `value` of `unit`, where `unit` is text to show after the value. */
-type Term = { readonly value: Ball; readonly unit: string };
 
 /**
  * One line of a result: `have` is `relation` the sum of `terms`, as in
@@ -87,6 +75,13 @@ type Outcome =
  * function gives the call that would produce the `have`,
  * `tempF(212) = tempC(100)`, the recovered argument written as a count of
  * the unit the function declares for it.
+ *
+ * The `context` property is the user's settings as the pipeline takes them
+ * (the digits asked for and the rounding mode; `<app-shell>` owns the
+ * settings and passes it down): the pipeline derives the precision it
+ * computes at from it, `roundTerms` and `show` round to its digits in its
+ * mode, and `=` is decided at those digits. It defaults to the display's
+ * rules before the settings existed, eight digits half away from zero.
  *
  * A conversion into one unit is also shown the other way round, on a
  * second line, as GNU units shows every conversion twice (`* 36` and
@@ -172,6 +167,12 @@ export class UnitConverter extends LitElement {
   /** The units to convert with. Not an attribute: a table is not a string. */
   @property({ attribute: false }) table?: UnitTable;
 
+  /** The user's context: the digits to show, in which rounding mode. */
+  @property({ attribute: false }) context: NumberContext = {
+    precision: DEFAULT_DIGITS,
+    rounding: DEFAULT_ROUNDING,
+  };
+
   @state() private have = "";
   @state() private want = "";
 
@@ -194,9 +195,9 @@ export class UnitConverter extends LitElement {
     this.want = (event.target as HTMLInputElement).value;
   }
 
-  /** Runs the pipeline over the current texts. */
+  /** Runs the pipeline over the current texts, at the context given. */
   private outcome(): Outcome {
-    const { table } = this;
+    const { table, context } = this;
     if (table === undefined) {
       return { kind: "error", message: "No units are loaded." };
     }
@@ -205,7 +206,7 @@ export class UnitConverter extends LitElement {
     if (have === "") return { kind: "empty" };
     if (want === "") {
       // What `have` is in the primitives: the unit's definition, in effect.
-      const quantity = evaluateText(table, this.have, DISPLAY_CONTEXT);
+      const quantity = evaluateText(table, this.have, context);
       if (!quantity.ok) {
         return {
           kind: "error",
@@ -218,20 +219,12 @@ export class UnitConverter extends LitElement {
         };
       }
       const { magnitude, dimension } = quantity.value;
-      return result(
-        have,
-        magnitude,
-        isDimensionless(dimension)
-          ? ""
-          : formatDimension(dimension, table.primitives),
-      );
+      const unit = isDimensionless(dimension)
+        ? ""
+        : formatDimension(dimension, table.primitives);
+      return { kind: "result", lines: [line(have, magnitude, unit, context)] };
     }
-    const conversion = convertText(
-      table,
-      this.have,
-      this.want,
-      DISPLAY_CONTEXT,
-    );
+    const conversion = convertText(table, this.have, this.want, context);
     if (!conversion.ok) {
       const { error } = conversion;
       return {
@@ -247,11 +240,11 @@ export class UnitConverter extends LitElement {
     }
     switch (conversion.value.kind) {
       case "unit":
-        return unitResult(have, want, conversion.value.value);
+        return unitResult(have, want, conversion.value.value, context);
       case "list":
-        return listResult(have, conversion.value);
+        return listResult(have, conversion.value, context);
       case "function":
-        return functionResult(have, conversion.value);
+        return functionResult(have, conversion.value, context);
     }
   }
 }
@@ -325,11 +318,6 @@ function renderInput(
   `;
 }
 
-/** The result outcome for `value` `unit`, marked exact or approximate. */
-function result(have: string, value: Ball, unit: string): Outcome {
-  return { kind: "result", lines: [line(have, value, unit)] };
-}
-
 /**
  * The result outcome for a conversion of `have` into the one unit `want`,
  * `have` being `value` `want`s, with the reciprocal beneath it: the same
@@ -341,19 +329,53 @@ function result(have: string, value: Ball, unit: string): Outcome {
  * told from zero, so the second line is left out rather than shown as
  * anything.
  */
-function unitResult(have: string, want: string, value: Ball): Outcome {
-  const lines = [line(have, value, wantText(want))];
+function unitResult(
+  have: string,
+  want: string,
+  value: Ball,
+  context: NumberContext,
+): Outcome {
+  const lines = [line(have, value, wantText(want), context)];
   const inverse = divideBalls(exact(ONE), value);
-  if (inverse.ok) lines.push(line(want, inverse.value, wantText(have)));
+  if (inverse.ok) {
+    lines.push(line(want, inverse.value, wantText(have), context));
+  }
   return { kind: "result", lines };
 }
 
-/** The line `have` is `value` `unit`, marked exact or approximate. */
-function line(have: string, value: Ball, unit: string): Line {
+/** The line `have` is `value` `unit`, marked exact or approximate at `context`. */
+function line(
+  have: string,
+  value: Ball,
+  unit: string,
+  context: NumberContext,
+): Line {
   return {
     have,
-    relation: shown(value).exact ? "=" : "≈",
-    terms: [{ value, unit }],
+    relation: show(value, context.precision, context.rounding).exact
+      ? "="
+      : "≈",
+    terms: [term(value, unit, context)],
+  };
+}
+
+/**
+ * The term `value` of `unit` as shown at `context`, written unsigned when
+ * `unsigned`, for every term of a line but the first.
+ */
+function term(
+  value: Ball,
+  unit: string,
+  context: NumberContext,
+  unsigned = false,
+): Term {
+  const negative = sign(value.mid) < 0;
+  const written =
+    unsigned && negative ? { mid: absolute(value.mid), rad: value.rad } : value;
+  return {
+    text: show(written, context.precision, context.rounding).text,
+    negative,
+    unit,
   };
 }
 
@@ -368,26 +390,32 @@ function line(have: string, value: Ball, unit: string): Line {
 function listResult(
   have: string,
   conversion: Extract<Conversion, { kind: "list" }>,
+  context: NumberContext,
 ): Outcome {
   const { units, terms } = conversion;
   const rounded = roundTerms(
     units.map((unit) => unit.quantity),
     terms,
-    DISPLAY_PRECISION,
-    DISPLAY_ROUNDING,
+    context.precision,
+    context.rounding,
   );
   const all = rounded.map((value, i) => ({
     value,
     unit: wantText(units[i]!.text),
   }));
-  const nonzero = all.filter((term) => !isZero(term.value.mid));
+  const nonzero = all.filter((t) => !isZero(t.value.mid));
+  const kept = nonzero.length > 0 ? nonzero : all.slice(-1);
   return {
     kind: "result",
     lines: [
       {
         have,
-        relation: terms.every((term) => shown(term).exact) ? "=" : "≈",
-        terms: nonzero.length > 0 ? nonzero : all.slice(-1),
+        relation: terms.every(
+          (t) => show(t, context.precision, context.rounding).exact,
+        )
+          ? "="
+          : "≈",
+        terms: kept.map((t, i) => term(t.value, t.unit, context, i > 0)),
       },
     ],
   };
@@ -405,28 +433,16 @@ function listResult(
 function functionResult(
   have: string,
   conversion: Extract<Conversion, { kind: "function" }>,
+  context: NumberContext,
 ): Outcome {
   const { name, value, unit } = conversion;
-  return {
-    kind: "result",
-    lines: [
-      {
-        have,
-        relation: shown(value).exact ? "=" : "≈",
-        terms: [{ value, unit: unit.text === "1" ? "" : wantText(unit.text) }],
-        call: name,
-      },
-    ],
-  };
-}
-
-/**
- * `value` as the display shows it, at the display's digits in its mode: the
- * text, and whether the line may say `=` (the rule of display.ts: a radius
- * of zero and every digit held shown).
- */
-function shown(value: Ball): Shown {
-  return show(value, DISPLAY_PRECISION, DISPLAY_ROUNDING);
+  const { relation, terms } = line(
+    have,
+    value,
+    unit.text === "1" ? "" : wantText(unit.text),
+    context,
+  );
+  return { kind: "result", lines: [{ have, relation, terms, call: name }] };
 }
 
 function renderOutcome(outcome: Outcome): TemplateResult {
@@ -452,19 +468,14 @@ function renderLine(line: Line): TemplateResult {
 
 /**
  * One term of a result. The first is written with its own sign; each later
- * one is joined to the sum by `+` or `-` and written unsigned, so that the
- * line reads as the expression it is (`-3 ft - 3.3700787 in`), and could
- * be typed back as a `have`.
+ * one is joined to the sum by `+` or `-` and written unsigned (its text is
+ * already so), so that the line reads as the expression it is
+ * (`-3 ft - 3.3700787 in`), and could be typed back as a `have`.
  */
 function renderTerm(term: Term, index: number): TemplateResult {
-  const value =
-    index === 0
-      ? term.value
-      : { mid: absolute(term.value.mid), rad: term.value.rad };
-  const operator = index === 0 ? "" : sign(term.value.mid) < 0 ? " - " : " + ";
-  const { text } = shown(value);
+  const operator = index === 0 ? "" : term.negative ? " - " : " + ";
   const unit = term.unit === "" ? nothing : html` ${term.unit}`;
-  return html`${operator}<span class="value">${text}</span>${unit}`;
+  return html`${operator}<span class="value">${term.text}</span>${unit}`;
 }
 
 declare global {

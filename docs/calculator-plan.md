@@ -43,7 +43,8 @@ Numeric tests follow three patterns, named here so that later tasks can
 refer to them:
 
 - **Reference digits.** A value checked against digits from a trusted
-  source (the first hundred digits of `pi`, `e`, `ln 2`, `sqrt 2`), to at
+  source (the first hundred digits of `pi()`, `exp(1)`, `ln(2)`,
+  `sqrt(2)`), to at
   least fifty digits, so that an algorithm that is wrong in its tail is
   caught.
 - **Containment.** For a routine that returns a ball, the ball computed at
@@ -53,7 +54,7 @@ refer to them:
   and every inexact routine has one.
 - **Exact case.** Every input the routine is required to recognize as
   exact gives a ball of radius zero with the exact midpoint (`sqrt(9/4)`,
-  `exp(0)`, `log(8, 2)`), and an input next to it does not.
+  `exp(0)`, `log(2, 8)`), and an input next to it does not.
 
 ## Decisions
 
@@ -256,7 +257,7 @@ which is every request the retry loop can make, is truncated from it. A
 request at a higher ceiling, after the cap setting is raised, replaces
 the value; a lower one leaves it. The footprint is therefore fixed by the
 ceiling (about 1.7 KB per constant at the default ceiling of 4,040
-digits; four constants, `pi`, `e`, `ln 2` and `ln 10`), never by what the
+digits; four constants, `pi()`, `exp(1)`, `ln(2)` and `ln(10)`), never by what the
 user has typed, and the largest it can be is set by the hard bound on the
 cap (D16). The margin is for the argument reduction of `sin` and `cos`,
 which needs `pi` to the working bits plus the argument's bit length: at
@@ -1163,9 +1164,10 @@ one fixed count, `round` in stage 6 is 1 to 3), a defined function takes
 exactly its parameters (one until stage 7), and no function is variadic
 in this stage: `max`, `min` or `gcd` over a list would need only an
 unbounded `max` in the range and no change to the grammar, and none is
-planned. `log` takes exactly two arguments, `log(x, b)`, so that `log(x)`
-never has to choose between the natural logarithm and the common one;
-`ln`, `log10` and `log2` are the one-argument forms.
+planned. `log` takes exactly two arguments, `log(b, x)` with the base
+first so that it reads as `log_b(x)`, so that `log(x)` never has to
+choose between the natural logarithm and the common one; `ln`, `log10`
+and `log2` are the one-argument forms.
 
 Tests: `f()`, `f(1)`, `f(1, 2 m)`, `f(1,)` is an error at the `)`, the
 spans; `tempC(1, 2)` and `tempC()` are arity mismatches, and the message.
@@ -1378,8 +1380,8 @@ Behavior: `exp` exists.
 
 ### 3.7 `ln`, `log10`, `log2`, `log(x, b)`
 
-`lnFixed`: the argument as `m × 2^k` with `m` in `[1, 2)`, `ln 2` from the
-`atanh` series at `1/3` (memoized as `pi` is, D10, with `ln 10` beside
+`lnFixed`: the argument as `m × 2^k` with `m` in `[1, 2)`, `ln(2)` from the
+`atanh` series at `1/3` (memoized as `pi()` is, D10, with `ln(10)` beside
 it for `log10`), `m` brought near one by a few square roots, then `2
 atanh((m - 1) / (m + 1))`. The square roots are the first heavy use of
 `sqrtFixed`, whose integer square root costs twice the Newton cube root
@@ -1392,19 +1394,19 @@ timings. The built-ins: domain `x > 0`, with a ball containing zero
 (`notPositive`); `ln(1)` exact; `log10` and `log2` as quotients by the
 memoized constants, with the exact cases where `x` is an exact integer
 power of the base (`log10(1000)`, `log2(1/8)`), found by repeated
-division of the numerator or the denominator; `log(x, b)`, of exactly two
-arguments (3.1), as the quotient of two `ln`, exact when `x` is an
-integer power of `b` (`log(8, 2)`, `log(1/9, 3)`) or `b` of `x` (`log(2,
-8)` is `1/3`); `log(8, 4)` is `≈ 1.5`, since a rational exponent in
-general is not looked for. `b` must be positive and not one: `b` exactly
-one is a `domain` error (`baseOne`), a `b` straddling one is `unresolved`
-at edge `1`, and a `b` straddling zero at edge zero.
+division of the numerator or the denominator; `log(b, x)`, of exactly two
+arguments with the base first (3.1), as the quotient of two `ln`, exact
+when `x` is an integer power of `b` (`log(2, 8)`, `log(3, 1/9)`) or `b`
+of `x` (`log(8, 2)` is `1/3`); `log(4, 8)` is `≈ 1.5`, since a rational
+exponent in general is not looked for. `b` must be positive and not one:
+`b` exactly one is a `domain` error (`baseOne`), a `b` straddling one is
+`unresolved` at edge `1`, and a `b` straddling zero at edge zero.
 
-Tests: reference digits of `ln 2` and `ln 10` to 100 from Python's
+Tests: reference digits of `ln(2)` and `ln(10)` to 100 from Python's
 decimal module; containment across magnitudes; every exact case and its
-neighbor; `ln(0)`, `ln(-1)`, `log(8, 1)` and `log(8, -2)` are domain
+neighbor; `ln(0)`, `ln(-1)`, `log(1, 8)` and `log(-2, 8)` are domain
 errors with their messages; `ln` of `sqrt(2)^2 - 2` is `unresolved` at
-the argument, and `log(8, 1 + (sqrt(2)^2 - 2))` at edge one; the pipeline
+the argument, and `log(1 + (sqrt(2)^2 - 2), 8)` at edge one; the pipeline
 certifies `exp(ln(3))` and `ln(exp(3))` at 30 digits; the kernel
 benchmark's two square roots.
 
@@ -1521,7 +1523,7 @@ evaluated through the pipeline at that one precision, named in one place
 with the measurements that chose it; the header says which and why.
 
 Tests: reference digits of `sinh 1`, `cosh 1` and `atanh(1/2)` (half of
-`ln 3`) from Python's decimal module; containment, including
+`ln(3)`) from Python's decimal module; containment, including
 `sinh(1e-10)`; the domain errors and their messages; identities within
 the radius (`cosh^2 - sinh^2` contains one, `asinh(sinh(x))` contains
 `x`); the probe's test with the composite.

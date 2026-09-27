@@ -390,7 +390,11 @@ metre) coexist, while a primitive and a unit share one. A name in an
 expression resolves to an exact unit name if there is one, and otherwise to
 one prefix followed by a unit name (the rule README.md states for users).
 Prefixes do not stack, and there is no plural handling: `inches  inch` is
-an ordinary alias definition.
+an ordinary alias definition. Prefixes apply to units alone: a call's
+name resolves among the functions and the built-ins exactly, so
+`ktempC(1)` is a call of nothing (`notAFunction`), and a function's or a
+built-in's name may not itself read as a prefix followed by a unit, which
+the build checks.
 
 Unit lists share the unit namespace (a list and a unit of one name are a
 duplicate) but are not units: no expression can refer to one, so they stay

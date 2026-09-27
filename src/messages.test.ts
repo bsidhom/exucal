@@ -311,7 +311,7 @@ function domainStandIn(
 
 const STAND_IN_LIST: Builtin[] = [
   domainStandIn("ln", 1, "notPositive"),
-  domainStandIn("log", 2, "baseOne", 1),
+  domainStandIn("log", 2, "baseOne"),
   domainStandIn("asin", 1, "outsideClosedUnitInterval"),
   domainStandIn("acosh", 1, "belowOne"),
   domainStandIn("atanh", 1, "outsideOpenUnitInterval"),
@@ -514,8 +514,8 @@ test("a built-in's domain error quotes the argument and says the domain", () => 
     'Cannot compute "ln(-1)": "-1" is not positive, and a logarithm is defined only for positive values.',
   );
   assert.equal(
-    textMessage("log(8, 0)", withBuiltins),
-    'Cannot compute "log(8, 0)": the base "0" is one, and no logarithm has base one.',
+    textMessage("log(0, 8)", withBuiltins),
+    'Cannot compute "log(0, 8)": the base "0" is one, and no logarithm has base one.',
   );
   assert.equal(
     textMessage("asin(-2)", withBuiltins),

@@ -20,11 +20,11 @@ It has no inverse, so its name is not a `want`.
   charge in units.txt and `W` is the watt, so neither is free for a
   constant, and `pi()` is a call for the same reason a body can write it,
   to get the precision of the table it is built in (D6).
-- **`log` is the two-argument logarithm**, `log(x, b)`, and `ln`, `log10`
-  and `log2` are the one-argument ones. `log(x)` alone would have to
-  choose between the natural logarithm (C, Python, JavaScript) and the
-  common one (GNU units), and a call that never has to choose is not
-  ambiguous.
+- **`log` is the two-argument logarithm**, `log(b, x)`, the base first
+  so that it reads as `log_b(x)`, and `ln`, `log10` and `log2` are the
+  one-argument ones. `log(x)` alone would have to choose between the
+  natural logarithm (C, Python, JavaScript) and the common one (GNU
+  units), and a call that never has to choose is not ambiguous.
 - **The decibel is `decibel`**, a defined function in units.txt (3.12),
   not `dB`: `d-` is a prefix and `B` a unit, and a function's name may not
   read as a prefix followed by a unit, the rule that keeps `u` and `at`
@@ -35,7 +35,9 @@ It has no inverse, so its name is not a `want`.
   a prefix followed by one: `pi`, `exp`, `ln`, `log`, `log10`, `log2`,
   `sqrt`, `cbrt`, `pow`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`,
   `atan2`, `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`. The build
-  checks both for any table it builds.
+  checks both for any table it builds. Prefixes apply to units alone: a
+  call's name is looked up exactly, so `kpi()` and `mexp(1)` are calls of
+  nothing, and no built-in is a prefix of another's name either.
 
 ## Arity
 
@@ -82,7 +84,7 @@ dimension of its result, checked before it is applied; a failure is a
 | ------------------------------------------------- | ----------------------------------------------- | ------------- |
 | `pi()`                                            | none                                            | plain number  |
 | `exp`, `ln`, `log10`, `log2`, `sqrt`, `cbrt`      | a plain number                                  | plain number  |
-| `log(x, b)`, `pow(x, y)`                          | two plain numbers                               | plain number  |
+| `log(b, x)`, `pow(x, y)`                          | two plain numbers                               | plain number  |
 | `sin`, `cos`, `tan`                               | an angle: the `radian` kind                     | plain number  |
 | `asin`, `acos`, `atan`                            | a plain number                                  | `radian` kind |
 | `atan2(y, x)`                                     | two quantities of one dimension, kinds included | `radian` kind |
@@ -129,7 +131,7 @@ message says the value cannot be told from that edge.
 | `pi()`                 |                                                        | none                                                         |                                             |
 | `exp`                  | all                                                    | `exp(0)`                                                     |                                             |
 | `ln`, `log10`, `log2`  | `x > 0`                                                | `ln(1)`; an integer power of the base                        | zero                                        |
-| `log(x, b)`            | `x > 0`, `b > 0`, `b ≠ 1`                              | `x` an integer power of `b`, or `b` of `x`                   | zero for `x` and `b`; `1` for `b`           |
+| `log(b, x)`            | `b > 0`, `b ≠ 1`, `x > 0`                              | `x` an integer power of `b`, or `b` of `x`                   | zero for `b` and `x`; `1` for `b`           |
 | `sqrt`                 | `x >= 0`                                               | a perfect square                                             | zero                                        |
 | `cbrt`                 | all                                                    | a perfect cube                                               |                                             |
 | `pow(x, y)`            | `x > 0`, or `x <= 0` with a rational `y` as `^` allows | `x` a perfect `q`-th power for `y = p/q`; `pow(0, 0)` is `1` | zero for `x`; zero for `y` when `x` is zero |
@@ -157,15 +159,18 @@ was reachable. A non-positive base with an inexact exponent is a domain
 error, a negative base under an even root the `negativeRadicand` that
 `(-1)^(1/2)` is, and a base straddling zero `unresolved`.
 
-**`log`'s exact cases** are integer exponents either way: `log(8, 2)` is
-`3`, `log(1/9, 3)` is `-2`, `log(2, 8)` is `1/3`. A rational exponent in
-general is not looked for, so `log(8, 4)` is `≈ 1.5`.
+**`log`'s exact cases** are integer exponents either way: `log(2, 8)` is
+`3`, `log(3, 1/9)` is `-2`, `log(8, 2)` is `1/3`. A rational exponent in
+general is not looked for, so `log(4, 8)` is `≈ 1.5`.
 
 ## Memoized constants (D10)
 
-`pi`, `e`, `ln 2` and `ln 10` are each computed once, at the ceiling of the
-retry schedule plus 64 bits, and every request the schedule can make is
-truncated from that value; a higher ceiling replaces it. The margin serves
+The values of `pi()`, `exp(1)`, `ln(2)` and `ln(10)` are each computed
+once, at the ceiling of the retry schedule plus 64 bits, and every request
+the schedule can make is truncated from that value; a higher ceiling
+replaces it. The four calls are the exact cases the memos serve, and any
+other call of `exp` or `ln` computes its own value; `log10` and `log2`
+divide by the memoized `ln(10)` and `ln(2)`. The margin serves
 the argument reduction of `sin` and `cos`, which needs `pi` to the working
 bits plus the argument's bit length, so that arguments below `2^64` are
 served from the memo at every pass; a larger argument computes `pi` for

@@ -7,6 +7,7 @@ import {
 } from "./core/context.ts";
 import { roundTerms } from "./core/convert.ts";
 import { formatDimension, isDimensionless } from "./core/dimension.ts";
+import { show, type Shown } from "./core/display.ts";
 import { parseExpr } from "./core/expr.ts";
 import {
   convertText,
@@ -15,16 +16,7 @@ import {
   type Side,
 } from "./core/pipeline.ts";
 import { divideBalls, exact, type Ball } from "./core/ball.ts";
-import {
-  ONE,
-  absolute,
-  equals,
-  format,
-  isZero,
-  roundTo,
-  sign,
-  type Rational,
-} from "./core/rational.ts";
+import { ONE, absolute, isZero, sign } from "./core/rational.ts";
 import { type RoundingMode } from "./core/rounding.ts";
 import { type UnitTable } from "./core/table.ts";
 import { describeConversionError, describeTextError } from "./messages.ts";
@@ -360,7 +352,7 @@ function unitResult(have: string, want: string, value: Ball): Outcome {
 function line(have: string, value: Ball, unit: string): Line {
   return {
     have,
-    relation: shownExactly(value.mid) ? "=" : "≈",
+    relation: shown(value).exact ? "=" : "≈",
     terms: [{ value, unit }],
   };
 }
@@ -378,13 +370,13 @@ function listResult(
   conversion: Extract<Conversion, { kind: "list" }>,
 ): Outcome {
   const { units, terms } = conversion;
-  const shown = roundTerms(
+  const rounded = roundTerms(
     units.map((unit) => unit.quantity),
     terms,
     DISPLAY_PRECISION,
     DISPLAY_ROUNDING,
   );
-  const all = shown.map((value, i) => ({
+  const all = rounded.map((value, i) => ({
     value,
     unit: wantText(units[i]!.text),
   }));
@@ -394,7 +386,7 @@ function listResult(
     lines: [
       {
         have,
-        relation: terms.every((term) => shownExactly(term.mid)) ? "=" : "≈",
+        relation: terms.every((term) => shown(term).exact) ? "=" : "≈",
         terms: nonzero.length > 0 ? nonzero : all.slice(-1),
       },
     ],
@@ -420,7 +412,7 @@ function functionResult(
     lines: [
       {
         have,
-        relation: shownExactly(value.mid) ? "=" : "≈",
+        relation: shown(value).exact ? "=" : "≈",
         terms: [{ value, unit: unit.text === "1" ? "" : wantText(unit.text) }],
         call: name,
       },
@@ -429,12 +421,12 @@ function functionResult(
 }
 
 /**
- * Whether `value` is what its display at `DISPLAY_PRECISION` digits says.
- * The radius is not yet consulted: task 1.9 of docs/calculator-plan.md
- * decides `=` by it.
+ * `value` as the display shows it, at the display's digits in its mode: the
+ * text, and whether the line may say `=` (the rule of display.ts: a radius
+ * of zero and every digit held shown).
  */
-function shownExactly(value: Rational): boolean {
-  return equals(roundTo(value, DISPLAY_PRECISION, DISPLAY_ROUNDING), value);
+function shown(value: Ball): Shown {
+  return show(value, DISPLAY_PRECISION, DISPLAY_ROUNDING);
 }
 
 function renderOutcome(outcome: Outcome): TemplateResult {
@@ -465,9 +457,12 @@ function renderLine(line: Line): TemplateResult {
  * be typed back as a `have`.
  */
 function renderTerm(term: Term, index: number): TemplateResult {
-  const value = index === 0 ? term.value.mid : absolute(term.value.mid);
+  const value =
+    index === 0
+      ? term.value
+      : { mid: absolute(term.value.mid), rad: term.value.rad };
   const operator = index === 0 ? "" : sign(term.value.mid) < 0 ? " - " : " + ";
-  const text = format(value, DISPLAY_PRECISION, DISPLAY_ROUNDING);
+  const { text } = shown(value);
   const unit = term.unit === "" ? nothing : html` ${term.unit}`;
   return html`${operator}<span class="value">${text}</span>${unit}`;
 }

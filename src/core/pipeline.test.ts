@@ -3,6 +3,7 @@ import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { exact, isExact } from "./ball.ts";
+import { show } from "./display.ts";
 import { buildTable } from "./build.ts";
 import { parseDefinitions } from "./definitions.ts";
 import {
@@ -199,6 +200,21 @@ test("the working precision is derived from the digits asked for: max(40, digits
       evaluateText(table, "1", { precision: 0, rounding: DEFAULT_ROUNDING }),
     RangeError,
   );
+});
+
+test("a value that looks rational after a root is inexact, and the display says so", () => {
+  // The same truncated root divided by itself: the midpoint is exactly 1,
+  // the radius is not zero, so the display shows ≈ 1 rather than = 1.
+  const ratio = value("2^(1/2) m", "2^(1/2) m").value;
+  assert.ok(equals(ratio.mid, rational(1n)));
+  assert.ok(!isExact(ratio));
+  assert.deepEqual(show(ratio, 8, DEFAULT_ROUNDING), {
+    text: "1",
+    exact: false,
+  });
+  // Whereas a root with an exact case is exact.
+  const two = value("4^(1/2) m", "m").value;
+  assert.deepEqual(show(two, 8, DEFAULT_ROUNDING), { text: "2", exact: true });
 });
 
 test("evaluateText is the pipeline up to the quantity", () => {

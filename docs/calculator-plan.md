@@ -554,9 +554,13 @@ not, on `sqrt 2` (a ball of one ulp) is not however many digits, on
 stage 5's fractions setting changes what `show` returns for an exact
 value (`1/3` becomes `= 1/3`), and 5.1 restates them under that setting.
 
-Behavior: one visible change, `sqrt(2)^2` shows `≈ 2.0000000` rather than
-`= 2`, which is the fix the study describes (and the case the symbolic
-values of docs/future.md would make `= 2`).
+Behavior: one visible change, a value that passes through a root and comes
+out looking rational is `≈`: `sqrt(2) / sqrt(2)`, whose midpoint is exactly
+`1` because the same truncated value is divided by itself, shows `≈ 1`
+rather than `= 1`, which is the fix the study describes (and the case the
+symbolic values of docs/future.md would make `= 1`). `sqrt(2)^2` was
+already `≈ 2`, its midpoint being a hair below `2`; the plan's first
+version named it as the change by mistake.
 
 ### 1.10 Settings and the UI
 

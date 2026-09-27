@@ -97,12 +97,12 @@ Three rules say where, and only where, a value can lose precision:
    differs only on exact ties, which are rare with doubles but ordinary with
    rationals: `0.125` at two digits is `0.13`); docs/calculator-plan.md
    (task 1.10) makes the mode the user's. `roundTo(r, digits, mode)` is the
-   same rounding as a `Rational`, so `equals(roundTo(r, digits, mode), r)`
-   tells the UI whether what it shows is exact (`1 in = 2.54 cm`) or an
-   approximation (`1 m ≈ 39.370079 in`), which holds in any mode: a value
-   with no more digits than shown is its own rounding, and no other is.
-   Truncation is the `towardZero` mode, so `root` rounds by the same
-   function with that mode fixed.
+   same rounding as a `Rational`, and `equals(roundTo(r, digits, mode), r)`
+   is half of the display's `=` rule below: it says whether every digit a
+   value holds is shown, which holds in any mode, since a value with no
+   more digits than shown is its own rounding and no other is. Truncation
+   is the `towardZero` mode, so the roots round by the same function with
+   that mode fixed.
 
 These three rules are being replaced by the precision model of
 docs/calculator.md, stage by stage along docs/calculator-plan.md: every
@@ -139,12 +139,15 @@ one rounding up so that a radius is always a true bound. The plan's D3
 says why it is neither a `Rational` nor a `number`. Every magnitude is a
 ball now, with radius zero everywhere but after a root, and the converter
 and the pipeline carry it through to the UI: a conversion's value and a
-list's terms are balls. The display still decides `=` by the midpoint alone
-until task 1.9 decides it by the radius, so the rules above are still the
-ones the display follows. The one outcome the ball already changes is a
-divisor that cannot be told from zero: `1 / (sqrt(2)^2 - 2)` is an
-`unresolved` error where it was a huge number, and such a value as the
-`want` is `unresolvedWant`.
+list's terms are balls. The display's `=` is the radius's to decide
+(`src/core/display.ts`, `show`): a value is shown exactly when its radius
+is zero and every digit it holds is shown, and `≈` otherwise, so a value
+that passes through a root and comes out looking rational
+(`sqrt(2) / sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while
+`sqrt(4)` is `= 2` because the exact case was detected and nothing was
+rounded. The one other outcome the ball changes is a divisor that cannot
+be told from zero: `1 / (sqrt(2)^2 - 2)` is an `unresolved` error where it
+was a huge number, and such a value as the `want` is `unresolvedWant`.
 
 **Working precision.** Every core function that does arithmetic (`evaluate`,
 `buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`:
@@ -770,7 +773,7 @@ did a moment earlier.
 A conversion into a unit list is shown as the sum of its terms, each unit
 written as a single `want` would be, with `roundTerms` applied at the
 display precision in the display's mode, and the relation `=` only when
-every exact term shows as it is. The first term keeps its sign and each
+every term is exact by the same rule. The first term keeps its sign and each
 later one is joined by `+` or
 `-` and written unsigned, so that `-1 m ≈ -3 ft - 3.3700787 in` reads as
 the expression it is and could be typed back as a `have`. A term of zero is
@@ -838,6 +841,7 @@ src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one p
 src/core/context.ts       NumberContext: the precision and the rounding mode arithmetic is done at
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/ball.ts          Ball (a Rational midpoint with a Radius), its exact operations and root, unresolved
+src/core/display.ts       show: a ball's text at the digits asked, and whether it is exact
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Ball with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text

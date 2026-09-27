@@ -69,12 +69,6 @@ export const DEFAULT_MAX_BITS = 1 << 16;
  */
 export const DEFAULT_MAX_DIGITS: Precision = 1000;
 
-/**
- * The most digits a user may ask for, in stage 1's settings; 2.6 replaces
- * it with the cap setting of D16, whose default is `DEFAULT_MAX_DIGITS`.
- */
-export const MAX_DIGITS: Precision = 200;
-
 /** The digits the schedule adds to the digits asked for, at its first pass. */
 export const GUARD_DIGITS: Precision = 10;
 
@@ -102,6 +96,12 @@ export function maxDigitsFor(maxBits: number): Precision {
   while (fits(maxDigits + 1)) maxDigits++;
   return Math.max(0, maxDigits);
 }
+
+/**
+ * The least range limit that holds a digit: twice the kernel's bits at the
+ * ceiling of a cap of one digit (D16), the floor of the setting.
+ */
+export const MIN_MAX_BITS = 2 * bitsFor(ceilingFor(1));
 
 /** Throws `RangeError` unless `context` is one a caller may compute at. */
 export function checkContext(context: NumberContext): void {

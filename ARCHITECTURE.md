@@ -199,9 +199,8 @@ Expressions that never certify, `sqrt(2)^2 - 2` and later `sin(pi()
 radian)`, run to the ceiling however it is set, which is what bounds their
 latency; the ceiling is therefore a cost setting. The table is built at a
 context of 40 digits by `system-table.ts` until stage 3 builds it at the
-ceiling. The user's context comes from the settings ("UI" below): the
-digits, up to `MAX_DIGITS` (200, until 2.6 makes the cap a setting), and
-the mode.
+ceiling. The user's context and the ceiling come from the settings ("UI"
+below): the digits, the mode, and the two limits.
 
 **Settling.** Every result the evaluator produces, and every unit the
 lookup hands out, is settled to the working context (the plan's D15):
@@ -818,11 +817,20 @@ The output shows the two texts and the value between `=` or `≈`, decided by
 the user's settings (eight digits, half away from zero, by default; the
 digits asked for are kept apart from the working precision as "Precision
 and rounding" describes): `=` when the value's radius is zero and every
-digit it holds is shown, `≈` otherwise. The settings are the shell's
-(`src/settings.ts`, kept in `localStorage`, validated on the way in so
-that a stale entry never leaves the app without a usable context) and
-reach the component as its `context` property, the same `NumberContext`
-the pipeline takes. The line is written so
+digit it holds is shown, `≈` otherwise. What follows the relation is what
+`show` certifies: every digit asked for when the value allows, and
+otherwise a note in parentheses after the line, "8 of 12 digits are
+certain" with the certified digits shown, "within 2e-30 of zero" with the
+value shown as `0`, or "the digits are not certified" for a radius not
+known. A list is certified on its unrounded terms, its remainder is
+rounded at the digits certified, and its counts, exact integers, carry no
+note; the reciprocal line shows its own kind. The settings are the shell's
+(`src/settings.ts`, kept in `localStorage`, validated on the way in with
+the dependent ones clamped, so that a stale entry never leaves the app
+without a consistent context): the digits, the mode, the cap on the digits
+and the range limit in bits (the plan's D16), reaching the component as
+its `context` property, the same `NumberContext` the pipeline takes, and
+its `ceiling`, the top of the retry schedule derived from the cap. The line is written so
 that it reads as the expression it means: a `want` with a magnitude of its
 own is written with a multiplication sign (`1 mi = 5.28 × 1000 ft`), since
 juxtaposing two numbers would read as one product, and a `want` that is a

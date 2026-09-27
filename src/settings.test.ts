@@ -1,13 +1,25 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DEFAULT_MAX_BITS, MAX_DIGITS } from "./core/context.ts";
+import {
+  DEFAULT_MAX_BITS,
+  DEFAULT_MAX_DIGITS,
+  MIN_MAX_BITS,
+  ceilingFor,
+  maxDigitsFor,
+} from "./core/context.ts";
+import { LIMIT_BITS } from "./core/rational.ts";
 import {
   DEFAULT_SETTINGS,
   SETTINGS_KEY,
+  ceilingOf,
+  clampSettings,
   contextOf,
   isDigits,
+  isMaxBits,
+  isMaxDigits,
   loadSettings,
   saveSettings,
+  type Settings,
   type SettingsStorage,
 } from "./settings.ts";
 
@@ -23,59 +35,122 @@ function storage(entries: Record<string, string> = {}): SettingsStorage & {
   };
 }
 
+/** The settings `value` loads as, through a storage holding its JSON. */
+function load(value: unknown): Settings {
+  return loadSettings(storage({ [SETTINGS_KEY]: JSON.stringify(value) }));
+}
+
 test("an empty storage gives the defaults", () => {
   assert.deepEqual(loadSettings(storage()), DEFAULT_SETTINGS);
   assert.deepEqual(DEFAULT_SETTINGS, {
     digits: 8,
     rounding: "halfAwayFromZero",
+    maxDigits: 1000,
+    maxBits: 65536,
   });
 });
 
 test("stored settings are parsed", () => {
-  const stored = storage({
-    [SETTINGS_KEY]: JSON.stringify({ digits: 12, rounding: "floor" }),
-  });
-  assert.deepEqual(loadSettings(stored), { digits: 12, rounding: "floor" });
+  const stored = {
+    digits: 12,
+    rounding: "floor",
+    maxDigits: 100,
+    maxBits: 4096,
+  };
+  assert.deepEqual(load(stored), stored);
 });
 
 test("each field that is missing or invalid falls back to its default alone", () => {
-  const load = (value: unknown) =>
-    loadSettings(storage({ [SETTINGS_KEY]: JSON.stringify(value) }));
-  assert.deepEqual(load({ digits: 12 }), {
-    digits: 12,
-    rounding: "halfAwayFromZero",
-  });
+  assert.deepEqual(load({ digits: 12 }), { ...DEFAULT_SETTINGS, digits: 12 });
   assert.deepEqual(load({ rounding: "ceiling" }), {
-    digits: 8,
+    ...DEFAULT_SETTINGS,
     rounding: "ceiling",
   });
-  assert.deepEqual(load({ digits: 0, rounding: "ceiling" }), {
-    digits: 8,
-    rounding: "ceiling",
+  assert.deepEqual(load({ maxDigits: 50 }), {
+    ...DEFAULT_SETTINGS,
+    maxDigits: 50,
   });
-  assert.deepEqual(load({ digits: MAX_DIGITS + 1 }), DEFAULT_SETTINGS);
-  assert.deepEqual(load({ digits: MAX_DIGITS }), {
-    digits: MAX_DIGITS,
-    rounding: "halfAwayFromZero",
+  assert.deepEqual(load({ maxBits: 1 << 17 }), {
+    ...DEFAULT_SETTINGS,
+    maxBits: 1 << 17,
   });
-  assert.deepEqual(load({ digits: 1 }), {
-    digits: 1,
-    rounding: "halfAwayFromZero",
-  });
-  assert.deepEqual(load({ digits: 2.5 }), DEFAULT_SETTINGS);
-  assert.deepEqual(load({ digits: "12" }), DEFAULT_SETTINGS);
+  for (const digits of [0, -1, 2.5, "12", null]) {
+    assert.deepEqual(load({ digits, rounding: "ceiling" }), {
+      ...DEFAULT_SETTINGS,
+      rounding: "ceiling",
+    });
+  }
+  assert.deepEqual(load({ digits: 1 }), { ...DEFAULT_SETTINGS, digits: 1 });
   assert.deepEqual(load({ digits: 12, rounding: "nearest" }), {
+    ...DEFAULT_SETTINGS,
     digits: 12,
-    rounding: "halfAwayFromZero",
   });
   assert.deepEqual(load({ digits: 12, rounding: 3 }), {
+    ...DEFAULT_SETTINGS,
     digits: 12,
-    rounding: "halfAwayFromZero",
   });
+  for (const maxBits of [0, MIN_MAX_BITS - 1, LIMIT_BITS + 1, 1.5, "65536"]) {
+    assert.deepEqual(load({ maxBits }), DEFAULT_SETTINGS, `${maxBits}`);
+  }
+  assert.deepEqual(load({ maxBits: MIN_MAX_BITS }), {
+    ...DEFAULT_SETTINGS,
+    maxBits: MIN_MAX_BITS,
+    maxDigits: 1,
+    digits: 1,
+  });
+  assert.deepEqual(load({ maxBits: LIMIT_BITS }), {
+    ...DEFAULT_SETTINGS,
+    maxBits: LIMIT_BITS,
+  });
+  for (const maxDigits of [0, -3, 2.5, "500"]) {
+    assert.deepEqual(load({ maxDigits }), DEFAULT_SETTINGS, `${maxDigits}`);
+  }
   assert.deepEqual(load(null), DEFAULT_SETTINGS);
   assert.deepEqual(load([1, 2]), DEFAULT_SETTINGS);
   assert.deepEqual(load("floor"), DEFAULT_SETTINGS);
   assert.deepEqual(load(42), DEFAULT_SETTINGS);
+});
+
+test("the dependent settings are clamped: the cap to the range limit, the digits to the cap", () => {
+  // A cap above what the range limit holds comes down to it.
+  const cap = maxDigitsFor(DEFAULT_MAX_BITS);
+  assert.deepEqual(load({ maxDigits: cap + 1 }), {
+    ...DEFAULT_SETTINGS,
+    maxDigits: cap,
+  });
+  assert.deepEqual(load({ maxDigits: cap }), {
+    ...DEFAULT_SETTINGS,
+    maxDigits: cap,
+  });
+  // Digits above the cap come down to it.
+  assert.deepEqual(load({ digits: 1001 }), {
+    ...DEFAULT_SETTINGS,
+    digits: 1000,
+  });
+  assert.deepEqual(load({ digits: 300, maxDigits: 200 }), {
+    ...DEFAULT_SETTINGS,
+    digits: 200,
+    maxDigits: 200,
+  });
+  // A small range limit lowers both.
+  const small = load({ digits: 100, maxDigits: 500, maxBits: 1024 });
+  assert.equal(small.maxBits, 1024);
+  assert.equal(small.maxDigits, maxDigitsFor(1024));
+  assert.ok(small.maxDigits < 100);
+  assert.equal(small.digits, small.maxDigits);
+  // `clampSettings` is the same rule on its own, for the panel.
+  assert.deepEqual(clampSettings({ ...DEFAULT_SETTINGS, maxBits: 1024 }), {
+    ...DEFAULT_SETTINGS,
+    maxBits: 1024,
+    maxDigits: maxDigitsFor(1024),
+    digits: Math.min(8, maxDigitsFor(1024)),
+  });
+  assert.deepEqual(clampSettings(DEFAULT_SETTINGS), DEFAULT_SETTINGS);
+  assert.deepEqual(clampSettings({ ...DEFAULT_SETTINGS, maxDigits: 4 }), {
+    ...DEFAULT_SETTINGS,
+    maxDigits: 4,
+    digits: 4,
+  });
 });
 
 test("text that is not JSON, and a storage that throws, give the defaults", () => {
@@ -101,29 +176,56 @@ test("text that is not JSON, and a storage that throws, give the defaults", () =
 
 test("settings round-trip through storage, under one key", () => {
   const stored = storage();
-  saveSettings(stored, { digits: 30, rounding: "halfEven" });
+  const settings: Settings = {
+    digits: 30,
+    rounding: "halfEven",
+    maxDigits: 2000,
+    maxBits: 1 << 17,
+  };
+  saveSettings(stored, settings);
   assert.deepEqual([...stored.map.keys()], [SETTINGS_KEY]);
-  assert.deepEqual(loadSettings(stored), { digits: 30, rounding: "halfEven" });
+  assert.deepEqual(loadSettings(stored), settings);
   saveSettings(stored, DEFAULT_SETTINGS);
   assert.deepEqual(loadSettings(stored), DEFAULT_SETTINGS);
 });
 
-test("contextOf is the settings as the pipeline takes them", () => {
-  assert.deepEqual(contextOf({ digits: 12, rounding: "floor" }), {
+test("contextOf and ceilingOf are the settings as the pipeline takes them", () => {
+  const settings: Settings = {
+    digits: 12,
+    rounding: "floor",
+    maxDigits: 300,
+    maxBits: 4096,
+  };
+  assert.deepEqual(contextOf(settings), {
     precision: 12,
     rounding: "floor",
-    maxBits: DEFAULT_MAX_BITS,
+    maxBits: 4096,
   });
+  assert.equal(ceilingOf(settings), ceilingFor(300));
+  assert.equal(ceilingOf(DEFAULT_SETTINGS), 4040);
 });
 
-test("isDigits accepts the integers of the range and nothing else", () => {
-  assert.ok(isDigits(1));
-  assert.ok(isDigits(8));
-  assert.ok(isDigits(MAX_DIGITS));
-  assert.ok(!isDigits(0));
-  assert.ok(!isDigits(MAX_DIGITS + 1));
-  assert.ok(!isDigits(1.5));
-  assert.ok(!isDigits(NaN));
-  assert.ok(!isDigits("8"));
-  assert.ok(!isDigits(undefined));
+test("the validators accept the integers of their ranges and nothing else", () => {
+  assert.ok(isDigits(1, 8));
+  assert.ok(isDigits(8, 8));
+  assert.ok(!isDigits(9, 8));
+  assert.ok(!isDigits(0, 8));
+  assert.ok(!isDigits(1.5, 8));
+  assert.ok(!isDigits(NaN, 8));
+  assert.ok(!isDigits("8", 8));
+  assert.ok(!isDigits(undefined, 8));
+  const cap = maxDigitsFor(DEFAULT_MAX_BITS);
+  assert.ok(isMaxDigits(1, DEFAULT_MAX_BITS));
+  assert.ok(isMaxDigits(DEFAULT_MAX_DIGITS, DEFAULT_MAX_BITS));
+  assert.ok(isMaxDigits(cap, DEFAULT_MAX_BITS));
+  assert.ok(!isMaxDigits(cap + 1, DEFAULT_MAX_BITS));
+  assert.ok(!isMaxDigits(0, DEFAULT_MAX_BITS));
+  assert.ok(!isMaxDigits(1, 100));
+  assert.ok(isMaxBits(MIN_MAX_BITS));
+  assert.ok(isMaxBits(DEFAULT_MAX_BITS));
+  assert.ok(isMaxBits(LIMIT_BITS));
+  assert.ok(!isMaxBits(MIN_MAX_BITS - 1));
+  assert.ok(!isMaxBits(LIMIT_BITS + 1));
+  assert.ok(!isMaxBits(65536.5));
+  assert.ok(!isMaxBits("65536"));
 });

@@ -8,6 +8,7 @@ import {
   ceilingFor,
   type NumberContext,
 } from "./core/context.ts";
+import { type Shown } from "./core/display.ts";
 import { roundTerms } from "./core/convert.ts";
 import { formatDimension, isDimensionless } from "./core/dimension.ts";
 import { show } from "./core/display.ts";
@@ -19,7 +20,14 @@ import {
   type Side,
 } from "./core/pipeline.ts";
 import { divideBalls, exact, type Ball } from "./core/ball.ts";
-import { ONE, absolute, isZero, sign } from "./core/rational.ts";
+import {
+  ONE,
+  absolute,
+  format,
+  isZero,
+  sign,
+  type Precision,
+} from "./core/rational.ts";
 import { type UnitTable } from "./core/table.ts";
 import { describeConversionError, describeTextError } from "./messages.ts";
 
@@ -42,13 +50,16 @@ type Term = {
  * conversion into one unit is one term; one into a unit list is a term per
  * unit shown; one into a function is one term, the argument, written
  * inside a call of the function, `tempF(212) = tempC(100)`, whose name is
- * `call`.
+ * `call`. `note` says what the digits are worth when they are not all
+ * certain: how many are, that the value is within a bound of zero, or that
+ * none is certified.
  */
 type Line = {
   readonly have: string;
   readonly relation: "=" | "≈";
   readonly terms: readonly Term[];
   readonly call?: string;
+  readonly note?: string;
 };
 
 /** What the output area shows for the current pair of texts. */
@@ -80,11 +91,26 @@ type Outcome =
  * the unit the function declares for it.
  *
  * The `context` property is the user's settings as the pipeline takes them
- * (the digits asked for and the rounding mode; `<app-shell>` owns the
- * settings and passes it down): the pipeline derives the precision it
- * computes at from it, `roundTerms` and `show` round to its digits in its
- * mode, and `=` is decided at those digits. It defaults to the display's
- * rules before the settings existed, eight digits half away from zero.
+ * (the digits asked for, the rounding mode and the range limit;
+ * `<app-shell>` owns the settings and passes it down), and `ceiling` the
+ * top of the pipeline's retry schedule, derived by the shell from the cap
+ * on the digits: the pipeline computes at as many passes of rising
+ * precision as the digits asked for take, up to the ceiling, `roundTerms`
+ * and `show` round to the context's digits in its mode, and `=` is decided
+ * at those digits. They default to the display's rules before the settings
+ * existed, eight digits half away from zero, and the default cap's ceiling.
+ *
+ * What is shown is what `show` certifies (docs/calculator-plan.md, D7 and
+ * task 2.6): every digit asked for when the value allows, and otherwise
+ * the certified digits with a note saying how many of those asked for are
+ * certain, `≈ 0` with a note giving the bound within which the value lies
+ * when it cannot be told from zero, or the midpoint's digits with a note
+ * that none is certified when the radius is not known. A list is certified
+ * on its unrounded terms, since `roundTerms` moves the remainder's midpoint
+ * onto a rounding cell's edge in a directed mode, where re-certifying it
+ * would lose a digit; the remainder is then rounded at the digits
+ * certified, and the counts, which are exact integers, carry no note. The
+ * reciprocal line shows its own kind.
  *
  * A conversion into one unit is also shown the other way round, on a
  * second line, as GNU units shows every conversion twice (`* 36` and
@@ -156,6 +182,11 @@ export class UnitConverter extends LitElement {
       opacity: 0.7;
     }
 
+    .note {
+      opacity: 0.7;
+      font-size: 0.875rem;
+    }
+
     .error {
       color: #c92a2a;
     }
@@ -177,12 +208,9 @@ export class UnitConverter extends LitElement {
     maxBits: DEFAULT_MAX_BITS,
   };
 
-  /**
-   * The ceiling of the retry schedule, which the pipeline takes beside the
-   * context: derived from the default cap on the digits setting until 2.6
-   * wires the setting itself.
-   */
-  private readonly ceiling = ceilingFor(DEFAULT_MAX_DIGITS);
+  /** The ceiling of the retry schedule, which the pipeline takes beside the context. */
+  @property({ attribute: false }) ceiling: Precision =
+    ceilingFor(DEFAULT_MAX_DIGITS);
 
   @state() private have = "";
   @state() private want = "";
@@ -360,50 +388,51 @@ function unitResult(
   return { kind: "result", lines };
 }
 
-/** The line `have` is `value` `unit`, marked exact or approximate at `context`. */
+/**
+ * The line `have` is `value` `unit`, as `show` certifies it at `context`:
+ * `=` for an exact value, `≈` otherwise, and a note for the kinds that do
+ * not show every digit asked for.
+ */
 function line(
   have: string,
   value: Ball,
   unit: string,
   context: NumberContext,
 ): Line {
+  const shown = show(value, context.precision, context.rounding);
   return {
     have,
-    relation:
-      show(value, context.precision, context.rounding).kind === "exact"
-        ? "="
-        : "≈",
-    terms: [term(value, unit, context)],
+    relation: shown.kind === "exact" ? "=" : "≈",
+    terms: [{ text: shown.text, negative: sign(value.mid) < 0, unit }],
+    note: noteOf(shown, context.precision),
   };
 }
 
-/**
- * The term `value` of `unit` as shown at `context`, written unsigned when
- * `unsigned`, for every term of a line but the first.
- */
-function term(
-  value: Ball,
-  unit: string,
-  context: NumberContext,
-  unsigned = false,
-): Term {
-  const negative = sign(value.mid) < 0;
-  const written =
-    unsigned && negative ? { mid: absolute(value.mid), rad: value.rad } : value;
-  return {
-    text: show(written, context.precision, context.rounding).text,
-    negative,
-    unit,
-  };
+/** The note for a `shown` value at `digits` asked for, or none when every digit shown is certain. */
+function noteOf(shown: Shown, digits: Precision): string | undefined {
+  switch (shown.kind) {
+    case "partial":
+      return `${shown.certified} of ${digits} digits are certain`;
+    case "zero":
+      return `within ${shown.bound} of zero`;
+    case "unbounded":
+      return "the digits are not certified";
+    default:
+      return undefined;
+  }
 }
 
 /**
- * The result outcome for a conversion into a unit list: the terms rounded
- * for display by `roundTerms`, so that a remainder which rounds up to a
- * whole of an earlier unit carries into it, and exact when every exact
- * term already shows as it is. A term of zero is left out, as it would be
- * in speech (`1 hr + 1 s`, not `1 hr + 0 min + 1 s`), except that a sum of
- * nothing but zeros keeps its last term (`0 in`).
+ * The result outcome for a conversion into a unit list: the remainder
+ * certified unrounded, then the terms rounded for display by `roundTerms`
+ * at the digits it certifies, so that a remainder which rounds up to a
+ * whole of an earlier unit carries into it, and exact when every unrounded
+ * term is exact. The counts are exact integers, formatted at the digits
+ * asked for; the remainder's text is formatted at the digits certified, or
+ * is `0` when it cannot be told from zero, and the line's note is the
+ * remainder's. A term of zero is left out, as it would be in speech
+ * (`1 hr + 1 s`, not `1 hr + 0 min + 1 s`), except that a sum of nothing
+ * but zeros keeps its last term (`0 in`).
  */
 function listResult(
   have: string,
@@ -411,29 +440,47 @@ function listResult(
   context: NumberContext,
 ): Outcome {
   const { units, terms } = conversion;
+  const { precision, rounding } = context;
+  const last = terms.length - 1;
+  const shown = terms.map((t) => show(t, precision, rounding));
+  const remainder = shown[last]!;
+  const certified =
+    remainder.kind === "partial" && remainder.certified > 0
+      ? remainder.certified
+      : precision;
   const rounded = roundTerms(
     units.map((unit) => unit.quantity),
     terms,
-    context.precision,
-    context.rounding,
+    certified,
+    rounding,
   );
-  const all = rounded.map((value, i) => ({
-    value,
-    unit: wantText(units[i]!.text),
-  }));
+  const all = rounded.map((value, i) => {
+    const negative = sign(value.mid) < 0;
+    const magnitude = negative ? absolute(value.mid) : value.mid;
+    const text =
+      i < last
+        ? format(magnitude, precision, rounding)
+        : remainder.kind === "zero"
+          ? "0"
+          : format(magnitude, certified, rounding);
+    return { value, term: { text, negative, unit: wantText(units[i]!.text) } };
+  });
   const nonzero = all.filter((t) => !isZero(t.value.mid));
   const kept = nonzero.length > 0 ? nonzero : all.slice(-1);
+  // The first term shown keeps its sign in its text; the rest are unsigned.
+  const written = kept.map((t, i) =>
+    i === 0 && t.term.negative
+      ? { ...t.term, text: `-${t.term.text}` }
+      : t.term,
+  );
   return {
     kind: "result",
     lines: [
       {
         have,
-        relation: terms.every(
-          (t) => show(t, context.precision, context.rounding).kind === "exact",
-        )
-          ? "="
-          : "≈",
-        terms: kept.map((t, i) => term(t.value, t.unit, context, i > 0)),
+        relation: shown.every((s) => s.kind === "exact") ? "=" : "≈",
+        terms: written,
+        note: noteOf(remainder, precision),
       },
     ],
   };
@@ -477,11 +524,20 @@ function renderOutcome(outcome: Outcome): TemplateResult {
   }
 }
 
-/** One line of a result, on a line of its own; the terms inside a call when the line is one. */
+/**
+ * One line of a result, on a line of its own; the terms inside a call when
+ * the line is one, and the note, when there is one, after them.
+ */
 function renderLine(line: Line): TemplateResult {
   const terms = line.terms.map(renderTerm);
   const sum = line.call === undefined ? terms : html`${line.call}(${terms})`;
-  return html`<div><span>${line.have}</span> ${line.relation} ${sum}</div>`;
+  const note =
+    line.note === undefined
+      ? nothing
+      : html` <span class="note">(${line.note})</span>`;
+  return html`<div>
+    <span>${line.have}</span> ${line.relation} ${sum}${note}
+  </div>`;
 }
 
 /**

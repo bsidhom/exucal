@@ -976,7 +976,16 @@ with the dependent clamps of D16, `contextOf` carrying `maxBits` and a new
 `ceilingOf(settings)`; `app-shell.ts` renders the two as number inputs
 beside the digits, whose `max` follows `maxDigits`, and passes the
 ceiling to the converter with the context, which the converter passes to
-the pipeline. `MAX_DIGITS` goes.
+the pipeline. `MAX_DIGITS` goes. Rulings the task did not reach: the
+inputs are labelled "Digits", "Most digits" and "Most bits", each with
+`min` and `max` from the settings above it, and `MIN_MAX_BITS` in
+context.ts, twice the kernel's bits at a cap of one digit, is the floor
+of the range limit, below which no digit fits; the panel applies a change
+through `clampSettings`, so lowering a limit lowers what depends on it;
+a list's counts are formatted at the digits asked for and its remainder
+at the digits certified, as `0` when it cannot be told from zero; and the
+note is written in parentheses after the line. README's "Settings"
+describes the four settings and the notes.
 
 Behavior: the notes, and the two limits are the user's.
 

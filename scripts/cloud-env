@@ -1,0 +1,34 @@
+# Environment variables for the Claude Code cloud environment of pwa-units.
+#
+# KEEP IN SYNC: the cloud environment's "Environment variables" field
+# (claude.ai/code, environment settings) holds a pasted copy of the
+# assignments below, one KEY=VALUE per line. It is not read from the
+# repository. When this file changes, update the field too, and vice versa.
+# scripts/cloud-setup.sh (the setup script) and .claude/hooks/session-start.sh
+# (the per-session hook) are the other two parts; README.md ("Cloud
+# environment") describes how they fit together.
+#
+# The project needs no variable to build, test or run: the toolchain is on
+# PATH through the SessionStart hook, and the settings that matter are in
+# files the tools read on their own (pnpm-workspace.yaml for pnpm, .env for
+# wrangler). What is deliberately absent, so that nobody adds it back:
+#
+#   PATH                  Not here. The hook prepends /opt/node24/bin for the
+#                         session; a literal PATH set here would freeze the
+#                         base image's directories and break when they move.
+#   WRANGLER_SEND_METRICS Already `false` in .env, which wrangler reads from
+#                         the project root on every command.
+#   CI                    Not set. The lockfile is frozen for every install
+#                         by pnpm-workspace.yaml, so CI=true would add
+#                         nothing there and changes the output of other
+#                         tools (vite, wrangler) for no gain.
+#   Secrets and tokens    Never. Nothing the project runs needs one, and a
+#                         deploy is done from a developer's machine (README.md,
+#                         "Deployment"), not from a cloud session.
+#
+# The one assignment is a policy setting, not a requirement: the console
+# telemetry opt-out that tools honor by convention (wrangler among them, as
+# the comment in .env notes), kept alongside the repository's other telemetry
+# opt-outs so that a cloud session is silent in the same way a developer's
+# machine is asked to be.
+DO_NOT_TRACK=1

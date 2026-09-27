@@ -22,6 +22,14 @@ strictDepBuilds: true
 # Refuse to run scripts when node_modules is out of sync with the lockfile.
 verifyDepsBeforeRun: error
 
+# `pnpm install` never changes the lockfile: it fails when pnpm-lock.yaml is
+# out of step with package.json, on every machine and in every flow, not
+# only in CI (where this is pnpm's default anyway). The lockfile changes
+# only when a dependency is changed on purpose, through `pnpm add`, `pnpm
+# remove` or `pnpm update`, which this setting does not affect, and the
+# change is reviewed with the package.json change it belongs to.
+frozenLockfile: true
+
 # Fail the install if a package does not support the current Node.js version.
 engineStrict: true
 

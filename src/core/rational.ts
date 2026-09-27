@@ -1,19 +1,16 @@
 // The number type of the converter: an exact rational over `bigint`, with the
-// arithmetic the evaluator needs, the one inexact operation (the n-th root,
-// in two halves: the exact case and the truncated digits), rounding to
-// significant digits, and conversion to and from decimal text.
+// arithmetic the evaluator needs, the exact case of the n-th root, rounding
+// to significant digits, and conversion to and from decimal text.
 //
-// Everything here is exact except where a `Precision` is taken, and the rules
-// for when a value may lose precision are spelled out in ARCHITECTURE.md
-// ("Precision and rounding"). In short: arithmetic never rounds,
-// `truncatedRoot` truncates its result once to the precision it is given
-// (truncation is the `towardZero` mode; docs/calculator-plan.md, D5, says
-// why the root does not yet take the mode), and `roundTo` and `format`
-// round once more, to the
-// digits and in the `RoundingMode` they are given, for display. Every
-// rounding here is a scaling to an integer division and back, and the
-// division is `divideRounded` of rounding.ts, the one place a mode is
-// interpreted.
+// Everything here is exact, and the rules for when a value may lose
+// precision are spelled out in ARCHITECTURE.md ("Precision and rounding").
+// In short: arithmetic never rounds; the digits of an irrational root are
+// the kernel's business (fixed.ts, through `rootBall` of ball.ts), and
+// `exactRoot` here answers only whether a root is rational; and `roundTo`
+// and `format` round once, to the digits and in the `RoundingMode` they are
+// given, for display. Every rounding here is a scaling to an integer
+// division and back, and the division is `divideRounded` of rounding.ts,
+// the one place a mode is interpreted.
 //
 // Failures on values (dividing by zero, an even root of a negative number, a
 // result too large to compute, text that is not a number) are returned as
@@ -43,8 +40,8 @@ export type RationalError =
 /**
  * The size limit on numerators and denominators, in bits (about 19,700
  * decimal digits). Operations whose result can be exponentially larger than
- * their inputs (`pow`, `root`, and the exponent of a decimal literal) predict
- * the size of their result and return `tooLarge` instead of computing one
+ * their inputs (`pow` and the exponent of a decimal literal) predict the
+ * size of their result and return `tooLarge` instead of computing one
  * beyond this. Operations that grow their inputs by at most a constant factor
  * do not check, since an expression of bounded length can only apply a
  * bounded number of them.
@@ -55,7 +52,7 @@ export const MAX_BITS = 1 << 16;
  * The fixed working precision the app computed at before the number
  * context existed, in significant decimal digits, and still the floor of
  * the pipeline's working precision and the precision the table is built
- * at: far beyond the digits shown by default, so that the truncation
+ * at: far beyond the digits shown by default, so that the rounding
  * errors of inexact intermediates stay out of them. See ARCHITECTURE.md
  * ("Working precision and the context").
  */
@@ -136,6 +133,22 @@ export function multiply(a: Rational, b: Rational): Rational {
   return rational(a.num * b.num, a.den * b.den);
 }
 
+/**
+ * `r × 2^k`, exactly, for an integer `k` of either sign, without a gcd: the
+ * power of two cancels against the trailing zero bits of the numerator or
+ * the denominator, whichever it divides, and shifts the other. `rootBall`
+ * scales its argument by this before the kernel sees it.
+ */
+export function scaleByPowerOfTwo(r: Rational, k: bigint): Rational {
+  if (k === 0n || r.num === 0n) return r;
+  if (k > 0n) {
+    const cancel = min(k, trailingZeros(r.den));
+    return { num: r.num << (k - cancel), den: r.den >> cancel };
+  }
+  const cancel = min(-k, trailingZeros(r.num));
+  return { num: r.num >> cancel, den: r.den << (-k - cancel) };
+}
+
 /** The reciprocal of `r`; fails if `r` is zero. */
 export function invert(r: Rational): Result<Rational, RationalError> {
   if (r.num === 0n) return err({ kind: "divisionByZero" });
@@ -176,7 +189,7 @@ export function pow(r: Rational, n: bigint): Result<Rational, RationalError> {
 }
 
 // ---------------------------------------------------------------------------
-// The inexact operation
+// The exact root
 
 /**
  * The exact `degree`-th root of `r`, where `degree >= 1`: the rational root
@@ -199,85 +212,6 @@ export function exactRoot(
   const den = perfectRoot(r.den, degree);
   if (num === undefined || den === undefined) return ok(undefined);
   return ok({ num: r.num < 0n ? -num : num, den });
-}
-
-/**
- * The `degree`-th root of `r`, where `degree >= 1`, truncated toward zero to
- * `precision` significant digits: those digits are the exact leading digits
- * of the root, and the error is less than one unit in the last of them. The
- * root is truncated whether or not it is rational; `exactRoot` is the
- * function that keeps the exact case. The sign rule is `exactRoot`'s.
- */
-export function truncatedRoot(
-  r: Rational,
-  degree: bigint,
-  precision: Precision,
-): Result<Rational, RationalError> {
-  if (degree < 1n) throw new RangeError("Root degree must be positive");
-  checkPrecision(precision);
-  if (r.num === 0n) return ok(ZERO);
-  if (r.num < 0n && degree % 2n === 0n) {
-    return err({ kind: "negativeRadicand", degree });
-  }
-  const negative = r.num < 0n;
-  const num = abs(r.num);
-  const den = r.den;
-
-  // Scale so that the truncated root has at least `precision` significant
-  // digits: if 10^e <= |r| < 10^(e+1) then the root is at least
-  // 10^floor(e / degree), so multiplying it by 10^k with
-  // k = precision - 1 - floor(e / degree) puts it at or above 10^(precision-1).
-  // floor(root(|r|) * 10^k) is the integer root of floor(|r| * 10^(k*degree)),
-  // because for a non-negative y, floor(root(floor(y))) = floor(root(y)).
-  const exponent = decimalExponent(r);
-  const k = precision - 1 - Math.floor(exponent / Number(degree));
-  let scaled: bigint;
-  if (k >= 0) {
-    const scaleDigits = BigInt(k) * degree;
-    if (
-      scaleDigits > BigInt(MAX_BITS) ||
-      bitLength(num) + Number(scaleDigits) * BITS_PER_DIGIT > MAX_BITS
-    ) {
-      return err({ kind: "tooLarge" });
-    }
-    scaled = (num * 10n ** scaleDigits) / den;
-  } else {
-    // A root so large that fewer than `precision` digits of its integer
-    // part are wanted. Its denominator is bounded by the (already existing)
-    // numerator, so no size check is needed.
-    scaled = num / (den * 10n ** (BigInt(-k) * degree));
-  }
-  const digits = integerRoot(scaled, degree);
-  const value =
-    k >= 0
-      ? rational(digits, 10n ** BigInt(k))
-      : rational(digits * 10n ** BigInt(-k));
-  const truncated = roundTo(value, precision, "towardZero");
-  return ok(negative ? negate(truncated) : truncated);
-}
-
-/**
- * `r` raised to the rational power `exponent`: `pow` when the exponent is an
- * integer, and otherwise the `exponent.den`-th root of `r` to the power
- * `exponent.num`, exact when `exactRoot` finds it so and otherwise
- * truncated, computed as the root of the power so that the single
- * truncation happens last and the result carries `precision` true digits.
- */
-export function powRational(
-  r: Rational,
-  exponent: Rational,
-  precision: Precision,
-): Result<Rational, RationalError> {
-  if (exponent.den === 1n) return pow(r, exponent.num);
-  if (r.num < 0n && exponent.den % 2n === 0n) {
-    return err({ kind: "negativeRadicand", degree: exponent.den });
-  }
-  const power = pow(r, exponent.num);
-  if (!power.ok) return power;
-  const exact = exactRoot(power.value, exponent.den);
-  if (!exact.ok) return exact;
-  if (exact.value !== undefined) return ok(exact.value);
-  return truncatedRoot(power.value, exponent.den, precision);
 }
 
 // ---------------------------------------------------------------------------
@@ -425,6 +359,15 @@ const BITS_PER_DIGIT = 3.33;
 
 function abs(n: bigint): bigint {
   return n < 0n ? -n : n;
+}
+
+function min(a: bigint, b: bigint): bigint {
+  return a < b ? a : b;
+}
+
+/** The number of trailing zero bits of the nonzero `n`. */
+function trailingZeros(n: bigint): bigint {
+  return BigInt(bitLength(n & -n) - 1);
 }
 
 function gcd(a: bigint, b: bigint): bigint {

@@ -12,13 +12,17 @@ import { parseExpr } from "./expr.ts";
 import { type Quantity } from "./quantity.ts";
 import {
   DEFAULT_PRECISION,
+  absolute,
+  add,
+  compare,
   equals,
   parseDecimal,
   rational,
-  truncatedRoot,
+  subtract,
   toFraction,
   type Rational,
 } from "./rational.ts";
+import { radiusUpper } from "./radius.ts";
 import { type Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import { unitLookup, type UnitTable } from "./table.ts";
@@ -209,20 +213,24 @@ test("a shared dependency is evaluated once and is not a cycle", () => {
 });
 
 test("bodies are evaluated at the working precision", () => {
-  const two = rational(2n);
+  // sqrt 2 to forty digits, from Python's decimal module.
+  const sqrt2 = decimal("1.4142135623730950488016887242096980785697");
   for (const precision of [5, DEFAULT_PRECISION]) {
     const result = buildTable(definitions("m !", "r 2^(1/2) m"), {
       precision,
       rounding: DEFAULT_ROUNDING,
     });
     assert.ok(result.ok, inspect(result));
-    const expected = truncatedRoot(two, 2n, precision);
-    assert.ok(expected.ok);
     const r = result.value.units.get("r");
     assert.ok(r !== undefined);
-    assert.ok(equals(r.magnitude.mid, expected.value));
-    // A truncated root is inexact, and the table says so.
+    // The root is inexact, the table says so, its midpoint is within its
+    // radius of the reference (to the reference's forty digits), and the
+    // radius is the kernel's at the precision given: below 10^-(p + 8).
     assert.ok(!isExact(r.magnitude));
+    const rad = radiusUpper(r.magnitude.rad);
+    const distance = absolute(subtract(r.magnitude.mid, sqrt2));
+    assert.ok(compare(distance, add(rad, rational(1n, 10n ** 40n))) <= 0);
+    assert.ok(compare(rad, rational(1n, 10n ** BigInt(precision + 8))) < 0);
     assert.deepEqual(r.dimension, dim({ m: 1 }));
   }
 });

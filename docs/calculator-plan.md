@@ -814,7 +814,18 @@ odd degree is the negated root of its magnitude; a ball containing zero
 is exact zero if exact, and otherwise `unresolved` for an even degree
 (the sign is undecided) and, for an odd degree, a ball around zero whose
 radius is the root of the larger of the interval's ends, computed the
-same way. D5's unbounded radius goes; `truncatedRoot` goes, and
+same way. Three rulings the task did not reach: an argument of unbounded
+radius gives the root of its midpoint with an unbounded radius, as the
+other operations propagate unbounded, and its midpoint's sign decides
+`negativeRadicand`; a ball whose interval is positive as rationals but
+reaches within an ulp of zero at the kernel's bits is treated as
+containing zero, since the kernel cannot tell it apart; and
+`powRationalBall`'s refusal of a negative base under an even root applies
+only to a ball that is negative throughout, a ball straddling zero going
+on to the root, which reports it `unresolved`. The scalings are exact:
+`scaleByPowerOfTwo` in rational.ts cancels the power against the trailing
+zero bits rather than running a gcd, and `shiftRadius` in radius.ts moves
+the exponent. D5's unbounded radius goes; `truncatedRoot` goes, and
 `powRational`, which nothing but its tests has called since 1.7, with it;
 the `tooLarge` a root of absurd degree returned is no longer needed.
 `unresolved` from a power (this root, or the negative power of 1.7) is
@@ -828,10 +839,13 @@ Tests: the stage 1 tests, with the unbounded case replaced by containment
 over inexact arguments from the shared source; a tiny and a huge exact
 argument keep their digits; `sqrt` of a ball straddling zero is
 `unresolved`, `cbrt` of one contains zero and its ends; `2^(1/20)` at
-1,000 digits; the location and the wording of `unresolved` from a root.
-The tests in build.test.ts and pipeline.test.ts that computed an expected
-midpoint through `truncatedRoot` compare against reference digits and
-containment instead.
+1,000 digits and `2^(1/10^9)`; an unbounded argument; the location and
+the wording of `unresolved` from a root. The tests in build.test.ts,
+pipeline.test.ts, quantity.test.ts and evaluate.test.ts that computed an
+expected midpoint through `truncatedRoot`, or pinned its digits, compare
+against reference digits and the kernel's radius instead; the pipeline's
+test of the stage 1 working rule reads the working precision off the
+radius.
 
 Behavior: none visible. An inexact argument's root now has a bounded
 radius, which the display of 2.4 and 2.6 will show as certified digits

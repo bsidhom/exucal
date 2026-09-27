@@ -15,8 +15,8 @@
 // Multiplication is exact on the midpoints and propagates the radii;
 // division fails on a divisor that is exactly zero, or that cannot be told
 // from zero (`unresolved`); and a power takes the `NumberContext` whose
-// precision its one inexact step, the root of a non-integer exponent,
-// truncates to. For those, the failures are the `ball.ts` ones, since only
+// precision its one inexact step, the root of a non-integer exponent, is
+// computed at. For those, the failures are the `ball.ts` ones, since only
 // the magnitude can fail: a dimension can be multiplied, divided and raised
 // to any rational power. Negation touches the magnitude alone and cannot
 // fail. Addition and
@@ -132,13 +132,14 @@ export function divideQuantities(
 
 /**
  * `q` raised to `exponent`: the magnitude by `powRationalBall`, so an
- * integer exponent is exact on an exact magnitude and any other truncates
- * once to the precision of `context`, with a radius that says so
- * (`(4 m^2)^(1/2)` is exactly `2 m`, `(2 m^2)^(1/2)` is `1.414... m` within
- * a unit of its last digit), and the dimension exactly, since its exponents
- * are rational. Fails as the magnitude does: `0` to a negative power, a
- * ball around zero to a negative power (`unresolved`), an even root of a
- * negative magnitude, or a result beyond `MAX_BITS`.
+ * integer exponent is exact on an exact magnitude and any other is
+ * computed once on the kernel at the precision of `context`, with a radius
+ * that says so (`(4 m^2)^(1/2)` is exactly `2 m`, `(2 m^2)^(1/2)` is
+ * `1.414... m` within the kernel's error), and the dimension exactly, since
+ * its exponents are rational. Fails as the magnitude does: `0` to a
+ * negative power, a ball around zero to a negative power or under an even
+ * root (`unresolved`), an even root of a negative magnitude, or a result
+ * beyond `MAX_BITS`.
  */
 export function powQuantity(
   q: Quantity,

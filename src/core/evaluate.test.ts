@@ -17,12 +17,15 @@ import {
   DEFAULT_PRECISION,
   ONE,
   ZERO,
-  equals,
+  absolute,
+  compare,
   format,
   parseDecimal,
   rational,
+  subtract,
   type Rational,
 } from "./rational.ts";
+import { radiusUpper } from "./radius.ts";
 import type { Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import { type UnitFunction } from "./table.ts";
@@ -382,20 +385,36 @@ test("a rational power that is exact stays exact", () => {
   assertEvaluates("(m^(1/2))^2", UNITS.m);
 });
 
-test("an inexact root is truncated to the precision given", () => {
+test("an inexact root is computed at the precision given", () => {
   const root5 = value(run("(2 m^2)^(1/2)", at(5)));
-  assert.equal(format(root5.magnitude.mid, 10, "halfAwayFromZero"), "1.4142");
+  // Five digits plus the kernel's guard: a radius below 10^-13.
+  assert.equal(
+    format(root5.magnitude.mid, 10, "halfAwayFromZero"),
+    "1.414213562",
+  );
   assert.deepEqual(root5.dimension, dim({ m: 1 }));
   assert.ok(!isExact(root5.magnitude));
+  assert.ok(
+    compare(radiusUpper(root5.magnitude.rad), rational(1n, 10n ** 13n)) < 0,
+  );
   const root40 = value(run("(2 m^2)^(1/2)"));
   assert.equal(
     format(root40.magnitude.mid, 40, "halfAwayFromZero"),
-    "1.414213562373095048801688724209698078569",
+    "1.41421356237309504880168872420969807857",
   );
-  // The precision reaches a root anywhere in the tree.
+  // The precision reaches a root anywhere in the tree: 3 / sqrt 2 at three
+  // digits is within its radius of the reference, and that radius is the
+  // kernel's, below 10^-11, not one unit in the third digit.
   const nested = value(run("3 / (2^(1/2) s)", at(3)));
   assert.deepEqual(nested.dimension, dim({ s: -1 }));
-  assert.ok(equals(nested.magnitude.mid, rational(3000n, 1410n)));
+  const reference = parseDecimal("2.1213203435596425732025330863145471178545");
+  assert.ok(reference.ok);
+  const rad = radiusUpper(nested.magnitude.rad);
+  assert.ok(
+    compare(absolute(subtract(nested.magnitude.mid, reference.value)), rad) <=
+      0,
+  );
+  assert.ok(compare(rad, rational(1n, 10n ** 11n)) < 0);
   // The radius reaches the result: the quotient is not exact.
   assert.ok(!isExact(nested.magnitude));
 });
@@ -435,18 +454,28 @@ test("a zero magnitude is an ordinary value except as a divisor", () => {
   assertEvaluates("0^0", quantity("1"));
 });
 
-test("a divisor that cannot be told from zero is unresolved, at the divisor", () => {
-  // sqrt(2)^2 - 2 is a ball around zero: its midpoint is a hair below zero
-  // and its radius covers zero, so nothing can be divided by it.
+test("a value that cannot be told from zero is unresolved, at the divisor or the base", () => {
+  // sqrt(2)^2 - 2 is a ball around zero: its midpoint is within a hair of
+  // zero and its radius covers zero, so nothing can be divided by it, and
+  // neither a negative power nor an even root of it has a value.
   const text = "1 / ((2^(1/2))^2 - 2)";
   assert.deepEqual(failure(run(text)), {
     kind: "unresolved",
     span: { start: 4, end: text.length },
   });
-  assert.deepEqual(failure(run("((2^(1/2))^2 - 2)^-1")), {
+  const base = "((2^(1/2))^2 - 2)";
+  assert.deepEqual(failure(run(`${base}^-1`)), {
     kind: "unresolved",
-    span: { start: 0, end: "((2^(1/2))^2 - 2)^-1".length },
+    span: { start: 0, end: base.length },
   });
+  assert.deepEqual(failure(run(`${base}^(1/2)`)), {
+    kind: "unresolved",
+    span: { start: 0, end: base.length },
+  });
+  // An odd root of it is a ball around zero.
+  const cube = value(run(`${base}^(1/3)`));
+  assert.ok(containsZero(cube.magnitude));
+  assert.ok(!isExact(cube.magnitude));
   // Whereas the value itself evaluates, inexactly, and so does its product.
   const almostZero = value(run("(2^(1/2))^2 - 2"));
   assert.ok(!isExact(almostZero.magnitude));

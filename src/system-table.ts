@@ -31,7 +31,7 @@ export type SystemTableError =
 /**
  * The working context the table is built at: the fixed working precision,
  * as before the context existed. The rounding mode has no effect on a
- * build today, since nothing in a build rounds but a root, which truncates.
+ * build, since nothing in a build rounds in a mode (the plan's D15).
  */
 const BUILD_CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,

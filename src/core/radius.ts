@@ -118,6 +118,12 @@ export function multiplyRadius(a: Radius, b: Radius): Radius {
   return normalized(a.mant * b.mant, a.exp + b.exp);
 }
 
+/** `rad × 2^k` for an integer `k` of either sign. Exact: the exponent moves; unbounded absorbs. */
+export function shiftRadius(rad: Radius, k: bigint): Radius {
+  if (rad.kind === "unbounded" || rad.mant === 0n) return rad;
+  return { kind: "bounded", mant: rad.mant, exp: rad.exp + k };
+}
+
 /** The larger of `a` and `b`; unbounded absorbs. Exact: nothing is rounded. */
 export function maxRadius(a: Radius, b: Radius): Radius {
   if (a.kind === "unbounded" || b.kind === "unbounded") return UNBOUNDED;

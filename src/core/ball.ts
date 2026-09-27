@@ -32,25 +32,41 @@
 // says; one with a zero midpoint is `unresolved`, since nothing is known of
 // its sign.
 //
-// The root is the one inexact operation, and in stage 1 it is the least
-// that is honest (D5): an exact argument with an exact root is exact; an
-// exact argument otherwise is the truncated digits of rational.ts with a
-// radius of one unit in the last digit, which bounds a truncation; and an
-// inexact argument gives the truncated root of the midpoint with an
-// unbounded radius, since propagating the argument's radius through a root
-// on the decimal path would be work thrown away when stage 2 moves the root
-// onto the kernel, where it honors the rounding mode and propagates the
-// radius by the derivative bound. The rounding mode of the context is
-// ignored until then: truncation is the `towardZero` mode.
+// The root is the one inexact operation, and it runs on the kernel
+// (fixed.ts; task 2.3 of the plan). An exact argument with a rational root
+// is exact, as `exactRoot` finds it. Otherwise a ball whose interval
+// excludes zero is scaled by an exact power of `2^degree` so that it is of
+// order one (the scaling belongs here, on the ball, since a tiny ball
+// converted at the kernel's bits would lose its digits), converted at
+// `bitsFor(precision)`, rooted, scaled back and handed back through
+// `fixedToBall`, so that the radius covers the argument's radius and the
+// kernel's own error, and the midpoint is the kernel's dyadic, rounded in
+// no mode (D15: the mode is the display's). A negative ball of odd degree
+// is the negated root of its magnitude; one of even degree fails with
+// `negativeRadicand`. A ball containing zero without being exactly zero is
+// `unresolved` under an even degree, since the sign of the true value
+// decides whether there is a root at all, and under an odd degree a ball
+// around zero bounded by the root of the farther end of the interval, the
+// root being monotone. An argument of unbounded radius gives the root of
+// its midpoint with an unbounded radius, as the other operations propagate
+// unbounded. The context's precision is the working precision the kernel
+// computes at; nothing here reads its rounding mode.
 
 import { type NumberContext } from "./context.ts";
+import {
+  bitsFor,
+  fixedFromBall,
+  fixedToBall,
+  rootFixed,
+  shiftFixed,
+} from "./fixed.ts";
 import {
   ONE,
   ZERO,
   absolute,
   add,
+  bitLength,
   compare,
-  decimalExponent,
   divide,
   exactRoot,
   isZero,
@@ -58,8 +74,9 @@ import {
   negate,
   pow,
   rational,
+  scaleByPowerOfTwo,
+  sign,
   subtract,
-  truncatedRoot,
   type Rational,
   type RationalError,
 } from "./rational.ts";
@@ -72,6 +89,7 @@ import {
   powRadius,
   radiusAbove,
   radiusUpper,
+  shiftRadius,
   type Radius,
 } from "./radius.ts";
 import { err, ok, type Result } from "./result.ts";
@@ -212,43 +230,104 @@ export function powBall(b: Ball, n: bigint): Result<Ball, BallError> {
 // The inexact operation
 
 /**
- * The `degree`-th root of `b`, per D5: an exact argument with a rational
- * root is exact; an exact argument otherwise is `truncatedRoot` at the
- * precision of `context` with a radius of one unit in its last digit; an
- * inexact argument is the truncated root of the midpoint with an unbounded
- * radius. The sign rule is `exactRoot`'s: an even root of a negative
- * midpoint fails with `negativeRadicand`.
+ * The `degree`-th root of `b`, where `degree >= 1`, at the precision of
+ * `context`: an exact argument with a rational root is exact; a ball whose
+ * interval excludes zero goes through the kernel, scaled to order one
+ * first, so its radius covers the argument's; a ball containing zero
+ * without being exactly zero is `unresolved` under an even degree and a
+ * ball around zero under an odd one; an even root of a negative ball fails
+ * with `negativeRadicand`; an unbounded argument gives the root of its
+ * midpoint, unbounded.
  */
 export function rootBall(
   b: Ball,
   degree: bigint,
   context: NumberContext,
 ): Result<Ball, BallError> {
+  if (degree < 1n) throw new RangeError("Root degree must be positive");
   if (isExact(b)) {
     const exactValue = exactRoot(b.mid, degree);
     if (!exactValue.ok) return exactValue;
     if (exactValue.value !== undefined) return ok(exact(exactValue.value));
   }
-  const truncated = truncatedRoot(b.mid, degree, context.precision);
-  if (!truncated.ok) return truncated;
-  if (!isExact(b)) return ok({ mid: truncated.value, rad: UNBOUNDED });
-  // A truncation is short of the true root by less than one unit in the
-  // last of its `precision` digits, and truncation toward zero never
-  // crosses a power of ten, so the truncated value's exponent is the root's.
-  const last = decimalExponent(truncated.value) - context.precision + 1;
-  const unit =
-    last >= 0
-      ? rational(10n ** BigInt(last))
-      : rational(1n, 10n ** BigInt(-last));
-  return ok({ mid: truncated.value, rad: radiusAbove(unit) });
+  if (degree === 1n) return ok(b);
+  if (b.rad.kind === "unbounded") {
+    const root = rootBall(exact(b.mid), degree, context);
+    return root.ok ? ok({ mid: root.value.mid, rad: UNBOUNDED }) : root;
+  }
+  const even = degree % 2n === 0n;
+  if (containsZero(b)) {
+    return even
+      ? err({ kind: "unresolved" })
+      : ok(rootAroundZero(b, degree, context));
+  }
+  if (sign(b.mid) < 0) {
+    if (even) return err({ kind: "negativeRadicand", degree });
+    const root = positiveRoot(negateBall(b), degree, context);
+    return ok(
+      root === undefined
+        ? rootAroundZero(b, degree, context)
+        : negateBall(root),
+    );
+  }
+  const root = positiveRoot(b, degree, context);
+  if (root !== undefined) return ok(root);
+  // The interval is positive as rationals but not at the kernel's bits: the
+  // ball reaches within an ulp of zero, and is treated as containing it.
+  return even
+    ? err({ kind: "unresolved" })
+    : ok(rootAroundZero(b, degree, context));
 }
 
 /**
- * `b` raised to the rational power `exponent`, as `powRational` composes
- * it: `powBall` when the exponent is an integer, and otherwise `rootBall`
- * of `powBall` to the numerator, root last, so that the one inexact step
- * comes last. A negative midpoint under an even root fails with
- * `negativeRadicand` before anything is computed.
+ * The root of a bounded `b` whose interval is positive, through the kernel:
+ * `b` is scaled by `2^(-k × degree)` with `k` chosen so that its midpoint is
+ * of order one, converted at `bitsFor(precision)`, rooted, scaled back by
+ * `2^k` and handed back. `undefined` when the scaled ball's interval is not
+ * positive at those bits, which only a ball reaching within an ulp of zero
+ * can produce.
+ */
+function positiveRoot(
+  b: Ball,
+  degree: bigint,
+  context: NumberContext,
+): Ball | undefined {
+  const exponent = BigInt(bitLength(b.mid.num) - bitLength(b.mid.den));
+  const k = exponent / degree;
+  const shift = k * degree;
+  const scaled: Ball = {
+    mid: scaleByPowerOfTwo(b.mid, -shift),
+    rad: shiftRadius(b.rad, -shift),
+  };
+  const f = fixedFromBall(scaled, bitsFor(context.precision));
+  if (f.value <= f.error) return undefined;
+  return fixedToBall(shiftFixed(rootFixed(f, degree), Number(k)));
+}
+
+/**
+ * The odd-degree root of a bounded `b` containing zero: a ball around zero
+ * whose radius is the root of the farther end of `b`'s interval, which
+ * bounds the root of every value in it, the root being monotone and odd.
+ */
+function rootAroundZero(b: Ball, degree: bigint, context: NumberContext): Ball {
+  const rad = radiusUpper(b.rad);
+  const low = absolute(subtract(b.mid, rad));
+  const high = add(b.mid, rad);
+  const far = compare(low, high) > 0 ? low : high;
+  // `far` is positive: the ball is not exactly zero, so one end is not.
+  const root = positiveRoot(exact(far), degree, context);
+  if (root === undefined) throw new Error("An exact positive value has a root");
+  return { mid: ZERO, rad: radiusAbove(add(root.mid, radiusUpper(root.rad))) };
+}
+
+/**
+ * `b` raised to the rational power `exponent`: `powBall` when the exponent
+ * is an integer, and otherwise `rootBall` of `powBall` to the numerator,
+ * root last, so that the one inexact step comes last. A ball that is
+ * negative throughout under an even root fails with `negativeRadicand`
+ * before anything is computed, so that `(-8)^(2/4)` is refused rather
+ * than computed as the fourth root of 64; a ball straddling zero goes on
+ * to the root, which reports it `unresolved`.
  */
 export function powRationalBall(
   b: Ball,
@@ -256,7 +335,7 @@ export function powRationalBall(
   context: NumberContext,
 ): Result<Ball, BallError> {
   if (exponent.den === 1n) return powBall(b, exponent.num);
-  if (b.mid.num < 0n && exponent.den % 2n === 0n) {
+  if (b.mid.num < 0n && exponent.den % 2n === 0n && !containsZero(b)) {
     return err({ kind: "negativeRadicand", degree: exponent.den });
   }
   const power = powBall(b, exponent.num);

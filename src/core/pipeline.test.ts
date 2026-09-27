@@ -14,13 +14,14 @@ import {
 } from "./pipeline.ts";
 import {
   DEFAULT_PRECISION,
+  compare,
   equals,
   parseDecimal,
   rational,
-  truncatedRoot,
   toFraction,
   type Rational,
 } from "./rational.ts";
+import { radiusUpper } from "./radius.ts";
 import { type Result } from "./result.ts";
 import { type UnitTable } from "./table.ts";
 
@@ -175,19 +176,24 @@ test("surrounding spaces are allowed", () => {
 });
 
 test("the working precision is derived from the digits asked for: max(40, digits + 10)", () => {
-  // sqrt(2) truncated to the working precision is truncatedRoot(2, 2, working).
-  const two = rational(2n);
+  // The kernel's root at a working precision of `w` digits carries a
+  // radius of a few units at `bitsFor(w)` bits: between 10^-(w + 12) and
+  // 10^-(w + 8), which tells the working precisions apart.
   const assertWorking = (precision: number, working: number) => {
     const result = evaluateText(table, "2^(1/2)", {
       precision,
       rounding: DEFAULT_ROUNDING,
     });
     assert.ok(result.ok, inspect(result));
-    const expected = truncatedRoot(two, 2n, working);
-    assert.ok(expected.ok);
+    const rad = radiusUpper(result.value.magnitude.rad);
+    const label = `${precision} digits asked for compute at ${working}`;
     assert.ok(
-      equals(result.value.magnitude.mid, expected.value),
-      `${precision} digits asked for compute at ${working}`,
+      compare(rad, rational(1n, 10n ** BigInt(working + 8))) < 0,
+      label,
+    );
+    assert.ok(
+      compare(rad, rational(1n, 10n ** BigInt(working + 12))) > 0,
+      label,
     );
   };
   assertWorking(1, 40);

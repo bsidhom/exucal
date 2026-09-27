@@ -23,15 +23,14 @@ import {
   DEFAULT_PRECISION,
   ONE,
   ZERO,
-  equals,
   format,
+  compare,
   parseDecimal,
   rational,
-  roundTo,
   type Rational,
 } from "./rational.ts";
 import type { Result } from "./result.ts";
-import { radiusAbove } from "./radius.ts";
+import { radiusUpper } from "./radius.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */
 const CONTEXT: NumberContext = {
@@ -312,24 +311,28 @@ test("a rational power of a primitive gives a rational exponent", () => {
   );
 });
 
-test("an inexact root truncates the magnitude once, to the precision", () => {
+test("an inexact root is computed once on the kernel, at the precision", () => {
   const two = quantity("2", { m: 2 });
   const root5 = value(
     powQuantity(two, half, { precision: 5, rounding: DEFAULT_ROUNDING }),
   );
-  assert.equal(format(root5.magnitude.mid, 10, "halfAwayFromZero"), "1.4142");
+  // The kernel carries the precision plus its guard: five digits asked for
+  // give a radius between 10^-17 and 10^-13, and the digits to match.
+  assert.equal(
+    format(root5.magnitude.mid, 10, "halfAwayFromZero"),
+    "1.414213562",
+  );
   assert.deepEqual(root5.dimension, dim({ m: 1 }));
-  // The radius is one unit in the last digit.
-  assert.deepEqual(root5.magnitude.rad, radiusAbove(rational(1n, 10n ** 4n)));
+  const rad5 = radiusUpper(root5.magnitude.rad);
+  assert.ok(compare(rad5, rational(1n, 10n ** 13n)) < 0);
+  assert.ok(compare(rad5, rational(1n, 10n ** 17n)) > 0);
   const root40 = value(powQuantity(two, half, CONTEXT));
   assert.equal(
     format(root40.magnitude.mid, 40, "halfAwayFromZero"),
-    "1.414213562373095048801688724209698078569",
+    "1.41421356237309504880168872420969807857",
   );
-  assert.deepEqual(root40.magnitude.rad, radiusAbove(rational(1n, 10n ** 39n)));
-  // Truncation composes: the shorter result is the longer one truncated.
   assert.ok(
-    equals(roundTo(root40.magnitude.mid, 5, "towardZero"), root5.magnitude.mid),
+    compare(radiusUpper(root40.magnitude.rad), rational(1n, 10n ** 48n)) < 0,
   );
 });
 

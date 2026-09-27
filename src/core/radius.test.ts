@@ -16,6 +16,7 @@ import {
   type Radius,
 } from "./radius.ts";
 import {
+  LIMIT_BITS,
   ONE,
   ZERO,
   absolute,
@@ -174,7 +175,7 @@ test("each operation is at or above the exact result, within 2^-29 of it", () =>
       assert.deepEqual(max, compare(exact[i]!, exact[j]!) >= 0 ? a : b);
     }
     for (const n of powers) {
-      const p = pow(exact[i]!, n);
+      const p = pow(exact[i]!, n, LIMIT_BITS);
       assert.ok(p.ok);
       // One product per bit of `n` and one per squaring, each within the slack.
       const products = 2 * n.toString(2).length;

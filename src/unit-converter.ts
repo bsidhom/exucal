@@ -2,7 +2,10 @@ import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import {
   DEFAULT_DIGITS,
+  DEFAULT_MAX_BITS,
+  DEFAULT_MAX_DIGITS,
   DEFAULT_ROUNDING,
+  ceilingFor,
   type NumberContext,
 } from "./core/context.ts";
 import { roundTerms } from "./core/convert.ts";
@@ -171,7 +174,15 @@ export class UnitConverter extends LitElement {
   @property({ attribute: false }) context: NumberContext = {
     precision: DEFAULT_DIGITS,
     rounding: DEFAULT_ROUNDING,
+    maxBits: DEFAULT_MAX_BITS,
   };
+
+  /**
+   * The ceiling of the retry schedule, which the pipeline takes beside the
+   * context: derived from the default cap on the digits setting until 2.6
+   * wires the setting itself.
+   */
+  private readonly ceiling = ceilingFor(DEFAULT_MAX_DIGITS);
 
   @state() private have = "";
   @state() private want = "";
@@ -206,7 +217,7 @@ export class UnitConverter extends LitElement {
     if (have === "") return { kind: "empty" };
     if (want === "") {
       // What `have` is in the primitives: the unit's definition, in effect.
-      const quantity = evaluateText(table, this.have, context);
+      const quantity = evaluateText(table, this.have, context, this.ceiling);
       if (!quantity.ok) {
         return {
           kind: "error",
@@ -224,7 +235,13 @@ export class UnitConverter extends LitElement {
         : formatDimension(dimension, table.primitives);
       return { kind: "result", lines: [line(have, magnitude, unit, context)] };
     }
-    const conversion = convertText(table, this.have, this.want, context);
+    const conversion = convertText(
+      table,
+      this.have,
+      this.want,
+      context,
+      this.ceiling,
+    );
     if (!conversion.ok) {
       const { error } = conversion;
       return {

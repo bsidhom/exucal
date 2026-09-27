@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
+import {
+  DEFAULT_MAX_BITS,
+  DEFAULT_ROUNDING,
+  type NumberContext,
+} from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { containsZero, exact, isExact } from "./ball.ts";
@@ -34,11 +38,12 @@ import { type UnitFunction } from "./table.ts";
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
+  maxBits: DEFAULT_MAX_BITS,
 };
 
 /** A context at `precision` digits, in the default mode. */
 function at(precision: number): NumberContext {
-  return { precision, rounding: DEFAULT_ROUNDING };
+  return { precision, rounding: DEFAULT_ROUNDING, maxBits: DEFAULT_MAX_BITS };
 }
 
 /** Builds a dimension from integer exponents (or rationals, for roots). */

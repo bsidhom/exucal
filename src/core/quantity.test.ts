@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
+import {
+  DEFAULT_MAX_BITS,
+  DEFAULT_ROUNDING,
+  type NumberContext,
+} from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { containsZero, exact, isExact } from "./ball.ts";
@@ -36,6 +40,7 @@ import { radiusUpper } from "./radius.ts";
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
+  maxBits: DEFAULT_MAX_BITS,
 };
 
 /** Builds a dimension from integer exponents (or rationals, for roots). */
@@ -314,7 +319,11 @@ test("a rational power of a primitive gives a rational exponent", () => {
 test("an inexact root is computed once on the kernel, at the precision", () => {
   const two = quantity("2", { m: 2 });
   const root5 = value(
-    powQuantity(two, half, { precision: 5, rounding: DEFAULT_ROUNDING }),
+    powQuantity(two, half, {
+      precision: 5,
+      rounding: DEFAULT_ROUNDING,
+      maxBits: DEFAULT_MAX_BITS,
+    }),
   );
   // The kernel carries the precision plus its guard: five digits asked for
   // give a radius between 10^-17 and 10^-13, and the digits to match.

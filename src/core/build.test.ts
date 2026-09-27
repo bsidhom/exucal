@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
+import {
+  DEFAULT_MAX_BITS,
+  DEFAULT_ROUNDING,
+  type NumberContext,
+} from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { exact, isExact, type Ball } from "./ball.ts";
@@ -31,6 +35,7 @@ import { unitLookup, type UnitTable } from "./table.ts";
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
+  maxBits: DEFAULT_MAX_BITS,
 };
 
 // ---------------------------------------------------------------------------
@@ -219,6 +224,7 @@ test("bodies are evaluated at the working precision", () => {
     const result = buildTable(definitions("m !", "r 2^(1/2) m"), {
       precision,
       rounding: DEFAULT_ROUNDING,
+      maxBits: DEFAULT_MAX_BITS,
     });
     assert.ok(result.ok, inspect(result));
     const r = result.value.units.get("r");
@@ -536,7 +542,7 @@ test("a built table converts", () => {
     "hour 60 min",
     "hertz 1 / s",
   );
-  const lookup = unitLookup(table);
+  const lookup = unitLookup(table, CONTEXT);
   const quantity = (text: string): Quantity => {
     const expr = parseExpr(text);
     assert.ok(expr.ok, inspect(expr));
@@ -732,7 +738,7 @@ function quantityIn(table: UnitTable, text: string): Quantity {
   assert.ok(expr.ok, inspect(expr));
   const result = evaluate(
     expr.value,
-    unitLookup(table),
+    unitLookup(table, CONTEXT),
     table.primitives,
     CONTEXT,
   );
@@ -764,7 +770,7 @@ test("a built function applies and inverts", () => {
   const argument = invertFunction(
     table.functions.get("tempC")!,
     boiling,
-    unitLookup(table),
+    unitLookup(table, CONTEXT),
     table.primitives,
     CONTEXT,
   );

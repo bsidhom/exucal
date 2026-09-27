@@ -62,6 +62,11 @@ export const UNBOUNDED: Radius = { kind: "unbounded" };
 /** Exactly one: `2^29 × 2^-29`, the identity of `multiplyRadius`. */
 const ONE_RADIUS: Radius = { kind: "bounded", mant: MANT_MIN, exp: -29n };
 
+/** Exactly `2^k`, for a bigint `k`: the bound of a rounding to `-k` bits. */
+export function powerOfTwoRadius(k: bigint): Radius {
+  return { kind: "bounded", mant: MANT_MIN, exp: k - BigInt(MANT_BITS - 1) };
+}
+
 export function isZeroRadius(rad: Radius): boolean {
   return rad.kind === "bounded" && rad.mant === 0n;
 }

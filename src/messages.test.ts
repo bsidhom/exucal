@@ -7,7 +7,13 @@
 // them; building it costs a few milliseconds.
 
 import assert from "node:assert/strict";
-import { DEFAULT_ROUNDING, type NumberContext } from "./core/context.ts";
+import {
+  DEFAULT_MAX_BITS,
+  DEFAULT_MAX_DIGITS,
+  ceilingFor,
+  DEFAULT_ROUNDING,
+  type NumberContext,
+} from "./core/context.ts";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
@@ -22,7 +28,11 @@ import { describeConversionError, describeTextError } from "./messages.ts";
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
+  maxBits: DEFAULT_MAX_BITS,
 };
+
+/** The ceiling of the retry schedule the tests run under: the default cap's. */
+const CEILING = ceilingFor(DEFAULT_MAX_DIGITS);
 
 const table: UnitTable = (() => {
   const text = readFileSync(new URL("./units.txt", import.meta.url), "utf8");
@@ -49,7 +59,7 @@ const failing: UnitTable = (() => {
 
 /** The message for the error `text` fails with, in `against`. */
 function textMessage(text: string, against: UnitTable = table): string {
-  const result = evaluateText(against, text, CONTEXT);
+  const result = evaluateText(against, text, CONTEXT, CEILING);
   assert.ok(!result.ok, `expected ${JSON.stringify(text)} to fail`);
   return describeTextError(result.error, text, against.primitives);
 }
@@ -60,7 +70,7 @@ function conversionMessage(
   want: string,
   against: UnitTable = table,
 ): string {
-  const result = convertText(against, have, want, CONTEXT);
+  const result = convertText(against, have, want, CONTEXT, CEILING);
   assert.ok(!result.ok, `expected ${have} in ${want} to fail`);
   return describeConversionError(result.error, have, want, against.primitives);
 }

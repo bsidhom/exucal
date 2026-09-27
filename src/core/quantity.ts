@@ -44,6 +44,7 @@ import {
   multiplyBalls,
   negateBall,
   powRationalBall,
+  settle,
   subtractBalls,
   type Ball,
   type BallError,
@@ -61,6 +62,18 @@ export type Quantity = {
 /** A plain number, exactly: `value` of no dimension. */
 export function scalar(value: Rational): Quantity {
   return { magnitude: exact(value), dimension: DIMENSIONLESS };
+}
+
+/**
+ * `q` with its magnitude settled to the working precision of `context`
+ * (D15): an inexact midpoint rounded to that precision's bits with the
+ * rounding added to the radius, an exact one left as it is. The evaluator
+ * applies it to every result it produces, and the lookup to every unit it
+ * hands out.
+ */
+export function settleQuantity(q: Quantity, context: NumberContext): Quantity {
+  const magnitude = settle(q.magnitude, context);
+  return magnitude === q.magnitude ? q : { magnitude, dimension: q.dimension };
 }
 
 /**
@@ -139,7 +152,7 @@ export function divideQuantities(
  * its exponents are rational. Fails as the magnitude does: `0` to a
  * negative power, a ball around zero to a negative power or under an even
  * root (`unresolved`), an even root of a negative magnitude, or a result
- * beyond `MAX_BITS`.
+ * beyond the range limit.
  */
 export function powQuantity(
   q: Quantity,

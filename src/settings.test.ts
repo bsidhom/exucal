@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_DIGITS } from "./core/context.ts";
+import { DEFAULT_MAX_BITS, MAX_DIGITS } from "./core/context.ts";
 import {
   DEFAULT_SETTINGS,
   SETTINGS_KEY,
@@ -112,6 +112,7 @@ test("contextOf is the settings as the pipeline takes them", () => {
   assert.deepEqual(contextOf({ digits: 12, rounding: "floor" }), {
     precision: 12,
     rounding: "floor",
+    maxBits: DEFAULT_MAX_BITS,
   });
 });
 

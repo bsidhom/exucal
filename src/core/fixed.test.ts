@@ -37,6 +37,7 @@ import {
   subtract,
   toFraction,
   type Rational,
+  LIMIT_BITS,
 } from "./rational.ts";
 import { random, randomBall, randomRational } from "../testing/random.ts";
 
@@ -294,7 +295,7 @@ test("shiftFixed multiplies by a power of two by moving the binary point", () =>
   assert.deepEqual(shiftFixed(f, 6), { value: 20n, error: 4n, bits: 0 });
   for (const k of [-70, -3, 0, 2, 4, 9, 70]) {
     const shifted = shiftFixed(f, k);
-    const factor = pow(rational(2n), BigInt(k));
+    const factor = pow(rational(2n), BigInt(k), LIMIT_BITS);
     assert.ok(factor.ok);
     assert.ok(
       equals(toRational(shifted), multiply(toRational(f), factor.value)),

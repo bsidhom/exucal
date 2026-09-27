@@ -32,29 +32,33 @@ export type RationalError =
   | { readonly kind: "divisionByZero" }
   /** An even root of a negative number, which has no real value. */
   | { readonly kind: "negativeRadicand"; readonly degree: bigint }
-  /** The result would exceed `MAX_BITS` and was not computed. */
+  /** The result would exceed the range limit and was not computed. */
   | { readonly kind: "tooLarge" }
   /** The text is not a decimal number. */
   | { readonly kind: "invalidNumber" };
 
 /**
- * The size limit on numerators and denominators, in bits (about 19,700
- * decimal digits). Operations whose result can be exponentially larger than
- * their inputs (`pow` and the exponent of a decimal literal) predict the
- * size of their result and return `tooLarge` instead of computing one
- * beyond this. Operations that grow their inputs by at most a constant factor
- * do not check, since an expression of bounded length can only apply a
- * bounded number of them.
+ * The hard bound on the size of a numerator or denominator, in bits (2^20,
+ * about 315,000 decimal digits): the most the range limit of the context
+ * (`maxBits`, D16 of the plan) may be set to, and the bound the parser
+ * applies to a decimal literal through `parseDecimal`, since it has no
+ * context; the evaluator then checks the literal against the setting.
+ * Operations whose result can be exponentially larger than their inputs
+ * (`pow` and the exponent of a literal) predict the size of their result
+ * and return `tooLarge` instead of computing one beyond the limit they are
+ * given. Operations that grow their inputs by at most a constant factor do
+ * not check, since an expression of bounded length can only apply a
+ * bounded number of them, and inexact midpoints are settled to the working
+ * precision (D15), so only exact values grow.
  */
-export const MAX_BITS = 1 << 16;
+export const LIMIT_BITS = 1 << 20;
 
 /**
  * The fixed working precision the app computed at before the number
- * context existed, in significant decimal digits, and still the floor of
- * the pipeline's working precision and the precision the table is built
- * at: far beyond the digits shown by default, so that the rounding
- * errors of inexact intermediates stay out of them. See ARCHITECTURE.md
- * ("Working precision and the context").
+ * context existed, in significant decimal digits, and still the precision
+ * the table is built at (system-table.ts) until stage 3's 3.3 builds it at
+ * the retry schedule's ceiling; the tests use it as a working precision.
+ * See ARCHITECTURE.md ("Working precision and the context").
  */
 export const DEFAULT_PRECISION: Precision = 40;
 
@@ -167,9 +171,14 @@ export function divide(
 /**
  * `r` raised to the integer power `n`, exactly. A negative `n` inverts, so
  * `0` to a negative power is a division by zero. The result can be `|n|`
- * times as large as `r`, so it is checked against `MAX_BITS` first.
+ * times as large as `r`, so it is checked against `limit` bits first, the
+ * context's range limit.
  */
-export function pow(r: Rational, n: bigint): Result<Rational, RationalError> {
+export function pow(
+  r: Rational,
+  n: bigint,
+  limit: number,
+): Result<Rational, RationalError> {
   if (n === 0n) return ok(ONE);
   if (r.num === 0n) {
     return n < 0n ? err({ kind: "divisionByZero" }) : ok(ZERO);
@@ -179,7 +188,7 @@ export function pow(r: Rational, n: bigint): Result<Rational, RationalError> {
   }
   const magnitude = abs(n);
   const bits = Math.max(bitLength(abs(r.num)), bitLength(r.den));
-  if (magnitude > BigInt(MAX_BITS) || Number(magnitude) * bits > MAX_BITS) {
+  if (magnitude > BigInt(limit) || Number(magnitude) * bits > limit) {
     return err({ kind: "tooLarge" });
   }
   const num = r.num ** magnitude;
@@ -272,7 +281,7 @@ const DECIMAL = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/;
  * optional fraction (`12`, `1.5`, `.5`, `5.`) and an optional exponent
  * (`1.5e-3` is `3/2000`). Anything else, including surrounding whitespace,
  * is `invalidNumber`; an exponent that would make the number larger than
- * `MAX_BITS` is `tooLarge`.
+ * `LIMIT_BITS` is `tooLarge`.
  */
 export function parseDecimal(text: string): Result<Rational, RationalError> {
   const match = DECIMAL.exec(text);
@@ -286,8 +295,8 @@ export function parseDecimal(text: string): Result<Rational, RationalError> {
   const shift = exponent - BigInt(fraction.length);
   const magnitude = abs(shift);
   if (
-    magnitude > BigInt(MAX_BITS) ||
-    (Number(magnitude) + decimalDigits(mantissa)) * BITS_PER_DIGIT > MAX_BITS
+    magnitude > BigInt(LIMIT_BITS) ||
+    (Number(magnitude) + decimalDigits(mantissa)) * BITS_PER_DIGIT > LIMIT_BITS
   ) {
     return err({ kind: "tooLarge" });
   }

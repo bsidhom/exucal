@@ -15,11 +15,16 @@ import {
   powBall,
   powRationalBall,
   rootBall,
+  settle,
   subtractBalls,
   type Ball,
   type BallError,
 } from "./ball.ts";
-import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
+import {
+  DEFAULT_MAX_BITS,
+  DEFAULT_ROUNDING,
+  type NumberContext,
+} from "./context.ts";
 import {
   UNBOUNDED,
   ZERO_RADIUS,
@@ -34,6 +39,7 @@ import {
   add,
   compare,
   divide,
+  equals,
   isZero,
   multiply,
   negate,
@@ -43,6 +49,7 @@ import {
   subtract,
   toFraction,
   type Rational,
+  LIMIT_BITS,
 } from "./rational.ts";
 import type { Result } from "./result.ts";
 import { ROUNDING_MODES } from "./rounding.ts";
@@ -86,7 +93,7 @@ function assertContains(b: Ball, value: Rational, label: string) {
 
 /** A context at `precision` digits, in the default mode. */
 function at(precision: number): NumberContext {
-  return { precision, rounding: DEFAULT_ROUNDING };
+  return { precision, rounding: DEFAULT_ROUNDING, maxBits: DEFAULT_MAX_BITS };
 }
 
 /** The seeded balls the property tests are over. */
@@ -145,12 +152,15 @@ test("on exact balls every operation is the rational one, and stays exact", () =
     exact(unwrap(divide(a.mid, b.mid))),
   );
   for (const n of [0n, 1n, 3n, -2n]) {
-    assert.deepEqual(unwrap(powBall(b, n)), exact(unwrap(pow(b.mid, n))));
+    assert.deepEqual(
+      unwrap(powBall(b, n, at(8))),
+      exact(unwrap(pow(b.mid, n, LIMIT_BITS))),
+    );
   }
   assertError(divideBalls(a, exact(ZERO)), "divisionByZero");
-  assertError(powBall(exact(ZERO), -1n), "divisionByZero");
-  assertError(powBall(exact(rational(10n)), 100_000n), "tooLarge");
-  assert.deepEqual(unwrap(powBall(exact(ZERO), 0n)), exact(ONE));
+  assertError(powBall(exact(ZERO), -1n, at(8)), "divisionByZero");
+  assertError(powBall(exact(rational(10n)), 100_000n, at(8)), "tooLarge");
+  assert.deepEqual(unwrap(powBall(exact(ZERO), 0n, at(8))), exact(ONE));
 });
 
 // ---------------------------------------------------------------------------
@@ -188,7 +198,7 @@ test("each operation's interval contains the exact result over the operands' int
       }
     }
     for (const n of powers) {
-      const power = powBall(a, n);
+      const power = powBall(a, n, at(8));
       if (n < 0n && containsZero(a)) {
         assertError(power, isExact(a) ? "divisionByZero" : "unresolved");
         continue;
@@ -196,7 +206,7 @@ test("each operation's interval contains the exact result over the operands' int
       for (const x of ends(a)) {
         assertContains(
           unwrap(power),
-          unwrap(pow(x, n)),
+          unwrap(pow(x, n, LIMIT_BITS)),
           `${toFraction(x)}^${n}`,
         );
       }
@@ -217,8 +227,11 @@ test("the radii are tight where the bound is attained", () => {
     unwrap(divideBalls(a, b)).rad,
     radiusAbove(rational(1n, 3n)),
   );
-  // A square's: 2 (|mid| + rad) rad = 2 × 1.25 × 0.25.
-  assert.deepEqual(unwrap(powBall(a, 2n)).rad, radiusAbove(dec("0.625")));
+  // A square's is the product's, the base times itself, settled: 2 × 0.25
+  // + 0.0625, plus the half ulp of the settling.
+  const squared = radiusUpper(unwrap(powBall(a, 2n, at(8))).rad);
+  assert.ok(compare(squared, dec("0.5625")) >= 0);
+  assert.ok(compare(squared, dec("0.5626")) < 0);
 });
 
 // ---------------------------------------------------------------------------
@@ -253,10 +266,10 @@ test("division by a ball around zero is unresolved, by exact zero a division by 
 
 test("a ball around zero to a negative power is unresolved", () => {
   const around = ball(dec("0.1"), dec("0.2"));
-  assertError(powBall(around, -1n), "unresolved");
-  assertError(powBall(around, -2n), "unresolved");
-  assert.deepEqual(unwrap(powBall(around, 0n)), exact(ONE));
-  assert.ok(containsZero(unwrap(powBall(around, 2n))));
+  assertError(powBall(around, -1n, at(8)), "unresolved");
+  assertError(powBall(around, -2n, at(8)), "unresolved");
+  assert.deepEqual(unwrap(powBall(around, 0n, at(8))), exact(ONE));
+  assert.ok(containsZero(unwrap(powBall(around, 2n, at(8)))));
 });
 
 test("an unbounded radius propagates, and a divisor of unbounded radius divides unless its midpoint is zero", () => {
@@ -278,15 +291,15 @@ test("an unbounded radius propagates, and a divisor of unbounded radius divides 
     mid: rational(2n, 3n),
     rad: UNBOUNDED,
   });
-  assert.deepEqual(unwrap(powBall(unbounded, 3n)), {
+  assert.deepEqual(unwrap(powBall(unbounded, 3n, at(8))), {
     mid: rational(8n),
     rad: UNBOUNDED,
   });
-  assert.deepEqual(unwrap(powBall(unbounded, -1n)), {
+  assert.deepEqual(unwrap(powBall(unbounded, -1n, at(8))), {
     mid: rational(1n, 2n),
     rad: UNBOUNDED,
   });
-  assert.deepEqual(unwrap(powBall(unbounded, 0n)), exact(ONE));
+  assert.deepEqual(unwrap(powBall(unbounded, 0n, at(8))), exact(ONE));
   assertError(divideBalls(three, { mid: ZERO, rad: UNBOUNDED }), "unresolved");
   assertError(divideBalls(three, exact(ZERO)), "divisionByZero");
   assert.ok(isZero(unwrap(divideBalls(exact(ZERO), unbounded)).mid));
@@ -322,8 +335,8 @@ function tenTo(digits: number): Rational {
  */
 function rootsWithin(b: Ball, from: Rational, to: Rational, degree: bigint) {
   const [low, , high] = ends(b);
-  const lowPower = pow(low, degree);
-  const highPower = pow(high, degree);
+  const lowPower = pow(low, degree, LIMIT_BITS);
+  const highPower = pow(high, degree, LIMIT_BITS);
   assert.ok(lowPower.ok && highPower.ok);
   const below =
     degree % 2n === 0n && low.num < 0n
@@ -609,4 +622,94 @@ test("certifiedDigits is the largest count that certifies, which is not monotone
       assert.ok(!certifies(b, more, nearest), `${more} does not`);
     }
   }
+});
+
+// ---------------------------------------------------------------------------
+// Settling
+
+test("settle leaves an exact ball, or a zero midpoint, as it is", () => {
+  const third = exact(rational(1n, 3n));
+  assert.equal(settle(third, at(8)), third);
+  const zero = ball(ZERO, dec("1e-30"));
+  assert.equal(settle(zero, at(8)), zero);
+});
+
+test("settle rounds an inexact midpoint to the working bits and grows the radius by the rounding's bound", () => {
+  // 1/3 ± 1e-30 at eight digits: bitsFor(8) is 59 bits, so the midpoint
+  // becomes a dyadic of 59 significant bits and the radius grows by half
+  // an ulp of it.
+  const b = ball(rational(1n, 3n), dec("1e-30"));
+  const settled = settle(b, at(8));
+  assert.ok(!equals(settled.mid, b.mid));
+  assert.equal(settled.mid.den, 1n << 60n);
+  assert.ok(
+    compare(absolute(subtract(settled.mid, b.mid)), rational(1n, 1n << 61n)) <=
+      0,
+  );
+  const grown = radiusUpper(settled.rad);
+  assert.ok(compare(grown, radiusUpper(b.rad)) > 0);
+  assert.ok(
+    compare(grown, add(radiusUpper(b.rad), rational(1n, 1n << 60n))) <= 0,
+  );
+  // The midpoint's size is the working precision's, whatever the value's
+  // was: a 2,000-digit dyadic settles to 59 bits at eight digits, and a
+  // huge value keeps its magnitude as an integer.
+  const long = ball(rational(3n ** 2000n, 2n ** 3100n), dec("1e-40"));
+  assert.ok(settle(long, at(8)).mid.den <= 1n << 60n);
+  const huge = ball(rational(3n ** 2000n), dec("1"));
+  const settledHuge = settle(huge, at(8));
+  assert.equal(settledHuge.mid.den, 1n);
+  assert.ok(
+    compare(
+      absolute(subtract(settledHuge.mid, huge.mid)),
+      rational(2n ** 3110n),
+    ) < 0,
+  );
+  // Over the shared source: the settled ball contains the original's ends.
+  const rand = random(2501);
+  for (let i = 0; i < 60; i++) {
+    const original = randomBall(rand, 40, 12);
+    const context = at(1 + (i % 3) * 20);
+    const s = settle(original, context);
+    if (isExact(original) || isZero(original.mid)) {
+      assert.equal(s, original);
+      continue;
+    }
+    for (const x of ends(original)) {
+      assertContains(s, x, `settled ${toFraction(original.mid)}`);
+    }
+    // The midpoint is a dyadic of about bitsFor(precision) bits.
+    assert.ok(s.mid.den === 1n || (s.mid.den & (s.mid.den - 1n)) === 0n);
+  }
+});
+
+test("powBall on an inexact base squares with settling, and is guarded by magnitude", () => {
+  const root = unwrap(rootBall(exact(rational(2n)), 2n, at(20)));
+  const power = unwrap(powBall(root, 1000n, at(20)));
+  // 2^500, within the settled precision: the midpoint has about
+  // bitsFor(20) significant bits, not the 1000 × 100 of an exact power.
+  assert.ok(
+    compare(
+      absolute(subtract(power.mid, rational(2n ** 500n))),
+      rational(2n ** 470n),
+    ) < 0,
+  );
+  assert.ok(power.mid.den === 1n);
+  assert.ok(!isExact(power));
+  assertContains(power, rational(2n ** 500n), "sqrt(2)^1000");
+  // A negative power inverts, and stays settled.
+  const inverse = unwrap(powBall(root, -1000n, at(20)));
+  assertContains(inverse, rational(1n, 2n ** 500n), "sqrt(2)^-1000");
+  // The magnitude guard: 2^5000000 would have five million bits.
+  assertError(powBall(root, 10_000_000n, at(20)), "tooLarge");
+  // A base near one is guarded by its true magnitude, not by its degree.
+  const nearOne = ball(dec("1.0000001"), dec("1e-30"));
+  assert.ok(powBall(nearOne, 10_000_000n, at(20)).ok);
+  // The exact path is unchanged: an exact base is an exact power, under
+  // the range limit.
+  assert.deepEqual(
+    unwrap(powBall(exact(rational(3n)), 4n, at(8))),
+    exact(rational(81n)),
+  );
+  assertError(powBall(exact(rational(3n)), 100_000n, at(8)), "tooLarge");
 });

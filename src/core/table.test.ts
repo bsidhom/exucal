@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
+import {
+  DEFAULT_MAX_BITS,
+  DEFAULT_ROUNDING,
+  type NumberContext,
+} from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { exact } from "./ball.ts";
@@ -26,6 +30,7 @@ import {
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
+  maxBits: DEFAULT_MAX_BITS,
 };
 
 /** Builds a dimension from integer exponents. */
@@ -88,7 +93,7 @@ const TABLE: UnitTable = {
   functions: new Map([["tempC", TEMP_C]]),
 };
 
-const lookup = unitLookup(TABLE);
+const lookup = unitLookup(TABLE, CONTEXT);
 const SPAN = { start: 3, end: 5 };
 const CALL = { start: 3, end: 9 };
 

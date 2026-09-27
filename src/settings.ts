@@ -17,6 +17,7 @@
 
 import {
   DEFAULT_DIGITS,
+  DEFAULT_MAX_BITS,
   DEFAULT_ROUNDING,
   MAX_DIGITS,
   type NumberContext,
@@ -81,9 +82,16 @@ export function saveSettings(
   }
 }
 
-/** The context the pipeline takes for `settings`: the digits, in the mode. */
+/**
+ * The context the pipeline takes for `settings`: the digits, in the mode,
+ * within the default range limit until 2.6 makes the limit a setting.
+ */
 export function contextOf(settings: Settings): NumberContext {
-  return { precision: settings.digits, rounding: settings.rounding };
+  return {
+    precision: settings.digits,
+    rounding: settings.rounding,
+    maxBits: DEFAULT_MAX_BITS,
+  };
 }
 
 /** Whether `value` is a digits setting: an integer in `[1, MAX_DIGITS]`. */

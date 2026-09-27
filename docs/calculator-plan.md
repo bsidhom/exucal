@@ -1003,7 +1003,19 @@ with the argument for it in the header; the operations it times are named
 in one place, so that a later stage with a costlier built-in changes the
 list and nothing else. It measures time and not memory, for the reasons
 D16 gives. `app-shell.ts` gains a button in the settings panel that runs
-it and applies the result to both limits, disabled while it runs.
+it and applies the result to both limits, disabled while it runs. Rulings
+the task did not reach: the clock and the two operations travel together
+as a `Probe`, which the test fakes and the shell takes as the real one;
+the range candidates are powers of two from 2^9 and the cap candidates 1,
+2 and 5 times a power of ten, so the recommendation is a round number by
+construction; each size is timed as the shortest of three runs after one
+untimed; the budget is 50 ms per pass, since the schedule's doubling makes
+an expression that runs to the ceiling cost about twice its last pass;
+the precision operation is a cube root, the kernel's Newton iteration, at
+the candidate cap's ceiling; the real probe's inputs come from a small
+congruential generator in the module, since the tests' random source is
+not part of the app; and the button yields a frame before the probe runs
+so that its disabled state is painted.
 
 Tests: with a fake clock that charges a set cost per bit, the
 recommendation is the largest size under the budget, is clamped, and

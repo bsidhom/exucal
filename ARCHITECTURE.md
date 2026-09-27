@@ -830,7 +830,12 @@ the dependent ones clamped, so that a stale entry never leaves the app
 without a consistent context): the digits, the mode, the cap on the digits
 and the range limit in bits (the plan's D16), reaching the component as
 its `context` property, the same `NumberContext` the pipeline takes, and
-its `ceiling`, the top of the retry schedule derived from the cap. The line is written so
+its `ceiling`, the top of the retry schedule derived from the cap. A
+button in the panel runs the probe of `src/limits.ts`, which times the
+costliest operation the app has on each axis at doubling sizes and
+recommends the largest limits that stay within a latency budget per pass;
+it runs only when asked, and it measures time alone (the plan's D16 says
+why memory is left out). The line is written so
 that it reads as the expression it means: a `want` with a magnitude of its
 own is written with a multiplication sign (`1 mi = 5.28 × 1000 ft`), since
 juxtaposing two numbers would read as one product, and a `want` that is a
@@ -932,7 +937,8 @@ src/units.txt             the system definitions; src/units.test.ts checks them
 src/testing/random.ts     the seeded random source the tests and benchmarks share
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemTable: fetches and builds the system table, once
-src/settings.ts           Settings: the digits and the rounding mode, in localStorage; contextOf
+src/settings.ts           Settings: the digits, the mode and the two limits, in localStorage; contextOf, ceilingOf
+src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
 src/unit-converter.ts     the component
 src/app-shell.ts          the host: loads the table, renders the component
 ```

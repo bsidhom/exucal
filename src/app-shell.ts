@@ -16,6 +16,7 @@ import {
   saveSettings,
   type Settings,
 } from "./settings.ts";
+import { recommendLimits } from "./limits.ts";
 import { loadSystemTable, type SystemTableError } from "./system-table.ts";
 import "./unit-converter.ts";
 
@@ -40,7 +41,11 @@ import "./unit-converter.ts";
  * up to what the range limit holds, the range limit between its floor and
  * the hard bound), and a value outside that is not applied: the input
  * snaps back to the setting in force. Lowering a limit lowers what depends
- * on it (`clampSettings`).
+ * on it (`clampSettings`). A button beside them asks limits.ts to measure
+ * what this device does within its latency budget and applies the two
+ * limits it recommends; it is disabled while the probe runs, which blocks
+ * the main thread for a fraction of a second, and the probe runs only when
+ * asked (the plan's D16).
  */
 @customElement("app-shell")
 export class AppShell extends LitElement {
@@ -135,6 +140,10 @@ export class AppShell extends LitElement {
     .settings input {
       width: 6rem;
     }
+
+    .settings button {
+      align-self: flex-end;
+    }
   `;
 
   /** The system table once loaded, or why it could not be; unset until then. */
@@ -142,6 +151,9 @@ export class AppShell extends LitElement {
 
   /** The user's settings, from storage, saved on every change. */
   @state() private settings: Settings = loadSettings(localStorage);
+
+  /** Whether the probe for the recommended limits is running. */
+  @state() private recommending = false;
 
   connectedCallback() {
     super.connectedCallback();
@@ -207,6 +219,13 @@ export class AppShell extends LitElement {
               )}
             </select>
           </label>
+          <button
+            type="button"
+            ?disabled=${this.recommending}
+            @click=${this.onRecommend}
+          >
+            ${this.recommending ? "Measuring…" : "Recommend limits"}
+          </button>
         </div>
       </details>
     `;
@@ -271,6 +290,23 @@ export class AppShell extends LitElement {
     const { value } = event.target as HTMLSelectElement;
     if ((ROUNDING_MODES as readonly string[]).includes(value)) {
       this.applySettings({ rounding: value as RoundingMode });
+    }
+  }
+
+  /**
+   * Runs the probe and applies the limits it recommends. The probe is
+   * synchronous and takes a fraction of a second, so the button is
+   * disabled and the frame painted before it starts.
+   */
+  private async onRecommend() {
+    this.recommending = true;
+    await this.updateComplete;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    try {
+      const { maxBits, maxDigits } = recommendLimits();
+      this.applySettings({ maxBits, maxDigits });
+    } finally {
+      this.recommending = false;
     }
   }
 

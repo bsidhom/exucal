@@ -40,6 +40,10 @@ in` at twelve.
   the most digits: lowering it lowers that setting, and the digits, when
   they no longer fit.
 
+Both limits are cost limits, and the right values depend on the device, so
+the panel's "Recommend limits" button measures what this one does within
+a fraction of a second and sets them; it runs only when pressed.
+
 An answer shows every digit asked for when the computation can vouch for
 them all. When it cannot, a note in parentheses says what the digits are
 worth: how many of them are certain ("8 of 12 digits are certain"), that

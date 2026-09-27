@@ -1,22 +1,25 @@
 // Quantities: what every unit and every expression evaluates to. A quantity
-// is a magnitude, which is a `Rational`, and the dimension it is a multiple of:
-// `2.54 cm` is the magnitude `127/5000` of the dimension `m`, given `m` as
-// the primitive. ARCHITECTURE.md ("Quantities, dimensions and kinds") gives
-// the overview.
+// is a magnitude, which is a `Ball` (a midpoint with the radius that bounds
+// its distance from the true value; radius zero for an exact value), and the
+// dimension it is a multiple of: `2.54 cm` is the magnitude `127/5000`,
+// exactly, of the dimension `m`, given `m` as the primitive. ARCHITECTURE.md
+// ("Quantities, dimensions and kinds") gives the overview.
 //
-// This module is the layer that pairs the two below it. `rational.ts` knows
+// This module is the layer that pairs the two below it. `ball.ts` knows
 // nothing about dimensions and `dimension.ts` nothing about magnitudes; the
 // table stores quantities, the evaluator produces them, and the converter
 // consumes them, so they all build on this module rather than on one another.
 //
 // The arithmetic the evaluator needs lives here too: each operation is a
-// magnitude operation beside the matching dimension operation, and nothing
-// else. Multiplication is exact; division fails on a zero divisor; and a
-// power takes the working precision that its one inexact step, the root of
-// a non-integer exponent, truncates to. For those, the failures are the
-// `rational.ts` ones, since only the magnitude can fail: a dimension can be
-// multiplied, divided and raised to any rational power. Negation touches the
-// magnitude alone and cannot fail. Addition and
+// ball operation beside the matching dimension operation, and nothing else.
+// Multiplication is exact on the midpoints and propagates the radii;
+// division fails on a divisor that is exactly zero, or that cannot be told
+// from zero (`unresolved`); and a power takes the `NumberContext` whose
+// precision its one inexact step, the root of a non-integer exponent,
+// truncates to. For those, the failures are the `ball.ts` ones, since only
+// the magnitude can fail: a dimension can be multiplied, divided and raised
+// to any rational power. Negation touches the magnitude alone and cannot
+// fail. Addition and
 // subtraction are the other way about: the magnitudes always add, but only
 // quantities of one dimension have a sum, so the dimension side is the
 // conformance check of `dimension.ts`, the same one `convert` applies to a
@@ -35,27 +38,29 @@ import {
   type Primitives,
 } from "./dimension.ts";
 import {
-  add,
-  divide,
-  multiply,
-  negate,
-  powRational,
-  subtract,
-  type Precision,
-  type Rational,
-  type RationalError,
-} from "./rational.ts";
+  addBalls,
+  divideBalls,
+  exact,
+  multiplyBalls,
+  negateBall,
+  powRationalBall,
+  subtractBalls,
+  type Ball,
+  type BallError,
+} from "./ball.ts";
+import { type NumberContext } from "./context.ts";
+import { type Rational } from "./rational.ts";
 import { ok, type Result } from "./result.ts";
 
-/** A magnitude and the dimension it is a multiple of. */
+/** A magnitude, a ball, and the dimension it is a multiple of. */
 export type Quantity = {
-  readonly magnitude: Rational;
+  readonly magnitude: Ball;
   readonly dimension: Dimension;
 };
 
-/** A plain number: `magnitude` of no dimension. */
-export function scalar(magnitude: Rational): Quantity {
-  return { magnitude, dimension: DIMENSIONLESS };
+/** A plain number, exactly: `value` of no dimension. */
+export function scalar(value: Rational): Quantity {
+  return { magnitude: exact(value), dimension: DIMENSIONLESS };
 }
 
 /**
@@ -69,7 +74,7 @@ export function addQuantities(
   b: Quantity,
   primitives: Primitives,
 ): Result<Quantity, ConformanceError> {
-  return combineConforming(a, b, primitives, add);
+  return combineConforming(a, b, primitives, addBalls);
 }
 
 /** `a - b`, exactly, provided the two conform, as `addQuantities` requires. */
@@ -78,7 +83,7 @@ export function subtractQuantities(
   b: Quantity,
   primitives: Primitives,
 ): Result<Quantity, ConformanceError> {
-  return combineConforming(a, b, primitives, subtract);
+  return combineConforming(a, b, primitives, subtractBalls);
 }
 
 /** `op` over the magnitudes of `a` and `b`, in the dimension they share. */
@@ -86,7 +91,7 @@ function combineConforming(
   a: Quantity,
   b: Quantity,
   primitives: Primitives,
-  op: (x: Rational, y: Rational) => Rational,
+  op: (x: Ball, y: Ball) => Ball,
 ): Result<Quantity, ConformanceError> {
   const conformance = checkConformance(a.dimension, b.dimension, primitives);
   if (!conformance.ok) return conformance;
@@ -98,23 +103,26 @@ function combineConforming(
 
 /** `-q`: the magnitude negated, in the same dimension. Cannot fail. */
 export function negateQuantity(q: Quantity): Quantity {
-  return { magnitude: negate(q.magnitude), dimension: q.dimension };
+  return { magnitude: negateBall(q.magnitude), dimension: q.dimension };
 }
 
-/** `a b`, exactly: `2 m` times `3 s` is `6 m s`. */
+/** `a b`: `2 m` times `3 s` is `6 m s`, exactly on exact magnitudes. */
 export function multiplyQuantities(a: Quantity, b: Quantity): Quantity {
   return {
-    magnitude: multiply(a.magnitude, b.magnitude),
+    magnitude: multiplyBalls(a.magnitude, b.magnitude),
     dimension: multiplyDimensions(a.dimension, b.dimension),
   };
 }
 
-/** `a / b`, exactly; fails if the magnitude of `b` is zero. */
+/**
+ * `a / b`; fails if the magnitude of `b` is exactly zero, or contains zero
+ * without being exactly zero (`unresolved`).
+ */
 export function divideQuantities(
   a: Quantity,
   b: Quantity,
-): Result<Quantity, RationalError> {
-  const magnitude = divide(a.magnitude, b.magnitude);
+): Result<Quantity, BallError> {
+  const magnitude = divideBalls(a.magnitude, b.magnitude);
   if (!magnitude.ok) return magnitude;
   return ok({
     magnitude: magnitude.value,
@@ -123,19 +131,21 @@ export function divideQuantities(
 }
 
 /**
- * `q` raised to `exponent`: the magnitude by `powRational`, so an integer
- * exponent is exact and any other truncates once to `precision` digits
- * (`(4 m^2)^(1/2)` is exactly `2 m`, `(2 m^2)^(1/2)` is `1.414... m`), and
- * the dimension exactly, since its exponents are rational. Fails as the
- * magnitude does: `0` to a negative power, an even root of a negative
- * magnitude, or a result beyond `MAX_BITS`.
+ * `q` raised to `exponent`: the magnitude by `powRationalBall`, so an
+ * integer exponent is exact on an exact magnitude and any other truncates
+ * once to the precision of `context`, with a radius that says so
+ * (`(4 m^2)^(1/2)` is exactly `2 m`, `(2 m^2)^(1/2)` is `1.414... m` within
+ * a unit of its last digit), and the dimension exactly, since its exponents
+ * are rational. Fails as the magnitude does: `0` to a negative power, a
+ * ball around zero to a negative power (`unresolved`), an even root of a
+ * negative magnitude, or a result beyond `MAX_BITS`.
  */
 export function powQuantity(
   q: Quantity,
   exponent: Rational,
-  precision: Precision,
-): Result<Quantity, RationalError> {
-  const magnitude = powRational(q.magnitude, exponent, precision);
+  context: NumberContext,
+): Result<Quantity, BallError> {
+  const magnitude = powRationalBall(q.magnitude, exponent, context);
   if (!magnitude.ok) return magnitude;
   return ok({
     magnitude: magnitude.value,

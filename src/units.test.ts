@@ -5,9 +5,11 @@
 // core/; these tests only exercise the data.
 
 import assert from "node:assert/strict";
+import { DEFAULT_ROUNDING, type NumberContext } from "./core/context.ts";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
+import { exact, type Ball } from "./core/ball.ts";
 import { buildTable } from "./core/build.ts";
 import { convert, convertToList, type ConvertError } from "./core/convert.ts";
 import { parseDefinitions } from "./core/definitions.ts";
@@ -26,6 +28,12 @@ import {
 import { type Result } from "./core/result.ts";
 import { unitLookup, type UnitTable } from "./core/table.ts";
 
+/** The context every test computes at: the working precision, in the default mode. */
+const CONTEXT: NumberContext = {
+  precision: DEFAULT_PRECISION,
+  rounding: DEFAULT_ROUNDING,
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 
@@ -35,7 +43,7 @@ const text = readFileSync(new URL("./units.txt", import.meta.url), "utf8");
 const table: UnitTable = (() => {
   const parsed = parseDefinitions(text);
   assert.ok(parsed.ok, `expected the file to parse, got ${inspect(parsed)}`);
-  const built = buildTable(parsed.value, DEFAULT_PRECISION);
+  const built = buildTable(parsed.value, CONTEXT);
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
   return built.value;
 })();
@@ -46,12 +54,7 @@ const lookup = unitLookup(table);
 function quantity(source: string): Quantity {
   const expr = parseExpr(source);
   assert.ok(expr.ok, `${JSON.stringify(source)} does not parse`);
-  const value = evaluate(
-    expr.value,
-    lookup,
-    table.primitives,
-    DEFAULT_PRECISION,
-  );
+  const value = evaluate(expr.value, lookup, table.primitives, CONTEXT);
   assert.ok(
     value.ok,
     `${JSON.stringify(source)} does not evaluate: ${inspect(value)}`,
@@ -59,7 +62,7 @@ function quantity(source: string): Quantity {
   return value.value;
 }
 
-function converted(have: string, want: string): Result<Rational, ConvertError> {
+function converted(have: string, want: string): Result<Ball, ConvertError> {
   return convert(quantity(have), quantity(want), table.primitives);
 }
 
@@ -84,8 +87,8 @@ function assertConverts(have: string, want: string, expected: string): void {
     `${have} does not convert to ${want}: ${inspect(result)}`,
   );
   assert.ok(
-    equals(result.value, number(expected)),
-    `${have} in ${want}: expected ${expected}, got ${toFraction(result.value)}`,
+    equals(result.value.mid, number(expected)),
+    `${have} in ${want}: expected ${expected}, got ${toFraction(result.value.mid)}`,
   );
 }
 
@@ -147,9 +150,10 @@ test("every SI prefix is defined by name and by symbol", () => {
     for (const prefix of [name, symbol]) {
       const actual = table.prefixes.get(prefix);
       assert.ok(actual !== undefined, `the prefix ${prefix} is missing`);
-      assert.ok(
-        equals(actual, number(factor)),
-        `${prefix}: expected ${factor}, got ${toFraction(actual)}`,
+      assert.deepEqual(
+        actual,
+        exact(number(factor)),
+        `${prefix}: expected ${factor}, got ${inspect(actual)}`,
       );
     }
   }
@@ -203,7 +207,7 @@ test("temperature readings convert through tempC and tempF", () => {
   assertCall("tempF(-40)", "tempC", "-40");
   assertCall("0 K", "tempC", "-273.15");
   // The argument is a plain number.
-  const result = convertText(table, "tempC(1 m)", "K", DEFAULT_PRECISION);
+  const result = convertText(table, "tempC(1 m)", "K", CONTEXT);
   assert.ok(!result.ok);
   assert.ok(result.error.kind === "inputError");
   assert.equal(result.error.error.kind, "argumentMismatch");
@@ -211,14 +215,14 @@ test("temperature readings convert through tempC and tempF", () => {
 
 /** Asserts that `have` in the function `want` is the call of it at exactly `expected`. */
 function assertCall(have: string, want: string, expected: string): void {
-  const result = convertText(table, have, want, DEFAULT_PRECISION);
+  const result = convertText(table, have, want, CONTEXT);
   assert.ok(result.ok, `${have} in ${want}: ${inspect(result)}`);
   assert.ok(result.value.kind === "function", `${have} in ${want}: not a call`);
   assert.equal(result.value.name, want);
   assert.equal(result.value.unit.text, "1");
   assert.ok(
-    equals(result.value.value, number(expected)),
-    `${have} in ${want}: expected ${expected}, got ${toFraction(result.value.value)}`,
+    equals(result.value.value.mid, number(expected)),
+    `${have} in ${want}: expected ${expected}, got ${toFraction(result.value.value.mid)}`,
   );
 }
 
@@ -522,7 +526,7 @@ function assertList(
   );
   assert.ok(result.ok, `${have} in ${name}: ${inspect(result)}`);
   assert.deepEqual(
-    result.value.map(toFraction),
+    result.value.map((term) => toFraction(term.mid)),
     expected.map((text) => toFraction(number(text))),
     `${have} in ${name}`,
   );

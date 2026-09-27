@@ -36,8 +36,10 @@
 // and checking that each body conforms to what it should give. That
 // catches a body that fails for every argument and a body of the wrong
 // dimension at load time, so that a call at run time can fail only on its
-// argument or on a value. A declared unit of zero is rejected as well,
-// since a recovered argument is written as a count of it.
+// argument or on a value. A declared unit whose ball contains zero (an
+// exact zero, or an inexact value around it) is rejected as well, since a
+// recovered argument is written as a count of it and nothing is a count of
+// either.
 //
 // The first failure ends the build. Errors within a body (an unknown name,
 // a division by zero, a reference that closes a cycle) carry the span of
@@ -66,7 +68,9 @@ import {
 import { walker, type Cycle, type Visit } from "./graph.ts";
 import { findAmbiguity, resolveName, type Split } from "./names.ts";
 import { multiplyQuantities, type Quantity } from "./quantity.ts";
-import { ONE, isZero, type Precision, type Rational } from "./rational.ts";
+import { containsZero, exact, type Ball } from "./ball.ts";
+import { checkContext, type NumberContext } from "./context.ts";
+import { ONE } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import {
@@ -149,7 +153,7 @@ export type BuildError =
       readonly body: "forward" | "inverse";
       readonly mismatch: ConformanceError;
     }
-  /** The declared `unit` of the function `definition` is zero, of which nothing is a count. */
+  /** The declared `unit` of the function `definition` is zero, or cannot be told from it; nothing is a count of either. */
   | {
       readonly kind: "zeroDeclaredUnit";
       readonly definition: FunctionDefinition;
@@ -175,15 +179,16 @@ type Index = {
 
 /**
  * The table `definitions` describe, with every body evaluated at the
- * working `precision`, or the first error found: a duplicate name, an
+ * working `context`, or the first error found: a duplicate name, an
  * ambiguous name, a list's or function's name that reads as a prefixed
  * unit, and then, in definition order, whatever evaluating each body
  * fails with.
  */
 export function buildTable(
   definitions: readonly Definition[],
-  precision: Precision,
+  context: NumberContext,
 ): Result<UnitTable, BuildError> {
+  checkContext(context);
   const indexed = indexDefinitions(definitions);
   if (!indexed.ok) return indexed;
   const index = indexed.value;
@@ -213,9 +218,9 @@ export function buildTable(
   // collected first and serve the walk as well as the finished table.
   const primitives = declaredPrimitives(index.units.values());
   const walk = walker<Node, Built, BuildError>((definition, visit) =>
-    evaluateNode(definition, lookupIn(index, visit), primitives, precision),
+    evaluateNode(definition, lookupIn(index, visit), primitives, context),
   );
-  const prefixes = new Map<string, Rational>();
+  const prefixes = new Map<string, Ball>();
   const units = new Map<string, Quantity>();
   const unitLists = new Map<string, UnitList>();
   const functions = new Map<string, UnitFunction>();
@@ -227,7 +232,7 @@ export function buildTable(
         definition,
         lookupIn(index, walk),
         primitives,
-        precision,
+        context,
       );
       if (!list.ok) return list;
       unitLists.set(definition.name, list.value);
@@ -311,19 +316,22 @@ function evaluateNode(
   definition: Node,
   lookup: Lookup<BuildError>,
   primitives: Primitives,
-  precision: Precision,
+  context: NumberContext,
 ): Result<Built, BuildError> {
   switch (definition.kind) {
     case "primitive":
       return ok(
-        quantity({ magnitude: ONE, dimension: primitive(definition.name) }),
+        quantity({
+          magnitude: exact(ONE),
+          dimension: primitive(definition.name),
+        }),
       );
     case "unit": {
-      const body = evaluate(definition.body, lookup, primitives, precision);
+      const body = evaluate(definition.body, lookup, primitives, context);
       return body.ok ? ok(quantity(body.value)) : body;
     }
     case "prefix": {
-      const body = evaluate(definition.body, lookup, primitives, precision);
+      const body = evaluate(definition.body, lookup, primitives, context);
       if (!body.ok) return body;
       const { dimension } = body.value;
       return isDimensionless(dimension)
@@ -331,7 +339,7 @@ function evaluateNode(
         : err({ kind: "dimensionedPrefix", definition, dimension });
     }
     case "function": {
-      const fn = checkFunction(definition, lookup, primitives, precision);
+      const fn = checkFunction(definition, lookup, primitives, context);
       return fn.ok ? ok({ kind: "function", value: fn.value }) : fn;
     }
   }
@@ -369,14 +377,14 @@ function checkFunction(
   definition: FunctionDefinition,
   lookup: Lookup<BuildError>,
   primitives: Primitives,
-  precision: Precision,
+  context: NumberContext,
 ): Result<UnitFunction, BuildError> {
   const argument = evaluateDeclared(
     definition,
     "argument",
     lookup,
     primitives,
-    precision,
+    context,
   );
   if (!argument.ok) return argument;
   const result = evaluateDeclared(
@@ -384,7 +392,7 @@ function checkFunction(
     "result",
     lookup,
     primitives,
-    precision,
+    context,
   );
   if (!result.ok) return result;
   const fn: UnitFunction = {
@@ -400,7 +408,7 @@ function checkFunction(
     argument.value.quantity,
     lookup,
     primitives,
-    precision,
+    context,
   );
   if (!forward.ok) return err(forward.error.error);
   const forwardConforms = checkConformance(
@@ -421,7 +429,7 @@ function checkFunction(
     result.value.quantity,
     lookup,
     primitives,
-    precision,
+    context,
   );
   if (!inverse.ok) return err(inverse.error.error);
   const inverseConforms = checkConformance(
@@ -440,18 +448,18 @@ function checkFunction(
   return ok(fn);
 }
 
-/** The declared `unit` of the function `definition`, evaluated, with its text; zero is rejected. */
+/** The declared `unit` of the function `definition`, evaluated, with its text; a ball containing zero is rejected. */
 function evaluateDeclared(
   definition: FunctionDefinition,
   unit: "argument" | "result",
   lookup: Lookup<BuildError>,
   primitives: Primitives,
-  precision: Precision,
+  context: NumberContext,
 ): Result<WrittenUnit, BuildError> {
   const declared = definition[unit];
-  const value = evaluate(declared.expr, lookup, primitives, precision);
+  const value = evaluate(declared.expr, lookup, primitives, context);
   if (!value.ok) return value;
-  if (isZero(value.value.magnitude)) {
+  if (containsZero(value.value.magnitude)) {
     return err({ kind: "zeroDeclaredUnit", definition, unit });
   }
   return ok({ text: declared.text, quantity: value.value });
@@ -467,11 +475,11 @@ function evaluateUnitList(
   definition: UnitListDefinition,
   lookup: Lookup<BuildError>,
   primitives: Primitives,
-  precision: Precision,
+  context: NumberContext,
 ): Result<UnitList, BuildError> {
   const units: ListedUnit[] = [];
   for (const item of definition.items) {
-    const quantity = evaluate(item.expr, lookup, primitives, precision);
+    const quantity = evaluate(item.expr, lookup, primitives, context);
     if (!quantity.ok) return quantity;
     units.push({ text: item.text, quantity: quantity.value });
   }

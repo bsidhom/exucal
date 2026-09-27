@@ -7,31 +7,50 @@
 // `0.0254 m`), so once the two are known to conform, the output value is the
 // ratio of their magnitudes: `3 ft` into `in` gives `36`. As in GNU units,
 // `want` may have a magnitude of its own (`1 mile` into `1000 ft` gives
-// `5.28`). Nothing here rounds: division is exact, so the ratio is the exact
-// answer and display is where it is rounded, once.
+// `5.28`). Nothing here rounds: the ratio is the ball quotient, exact on
+// the midpoints with the radii propagated, so it is the exact answer for
+// exact quantities and display is where it is rounded, once.
 //
 // A failure is one of the two conformance errors (a dimension mismatch or a
-// kind mismatch, carrying both dimensions so that the UI can show them), or a
-// `want` whose magnitude is zero, of which nothing is a multiple. Conformance
-// is checked first, so a `want` of `0 s` against a `have` in metres is
-// reported as the mismatch it is, not as a zero.
+// kind mismatch, carrying both dimensions so that the UI can show them), a
+// `want` whose magnitude is zero, of which nothing is a multiple, or a
+// `want` whose magnitude cannot be told from zero at this precision (its
+// ball contains zero without being exactly zero), which is `unresolvedWant`,
+// kept apart from `zeroWant` as the ball's `unresolved` is from its division
+// by zero: the retry loop of stage 2 will retry the first and never the
+// second. Conformance is checked first, so a `want` of `0 s` against a
+// `have` in metres is reported as the mismatch it is, not as a zero.
 //
 // `convertToList` is the second output mode (ARCHITECTURE.md, "Unit lists"):
 // `have` as a sum over a list of units, `1 m` into `ft;in` being `3 ft` plus
 // `3.37 in`. Each unit but the last gets the integer count of it that fits
 // in what the earlier units left, truncated toward zero so that every term
-// has the sign of `have`, and the last gets the exact remainder. That is
-// only a meaningful sum when the units run from the largest to the
-// smallest, so a unit that is not smaller than the one before it is an
-// error, as is one that is zero or negative, of which nothing is a
-// positive count; and every unit must conform to `have`. The terms are
-// exact, like the ratio `convert` returns, and `roundTerms` is the display
-// rounding that goes with them: the remainder rounds to the display
-// precision in the display's rounding mode, and since a remainder of
-// `11.9999999988 in` shown as `12 in` beside `2 ft` would read wrongly, the
-// counts are taken again from the rounded sum, so that the rounding carries
-// (`3 ft`) as a digit does.
+// has the sign of `have`, and the last gets the remainder. The counts are
+// taken from the midpoints (D8 of docs/calculator-plan.md), so a count is
+// exact and never `unresolved`, and the remainder is the ball `have - count
+// × size`, computed with the ball operations, so that the terms times the
+// units still contain `have`; a remainder that comes out slightly negative,
+// or slightly above a whole of the unit before it, is the display's carry
+// case, which `roundTerms` handles. That is only a meaningful sum when the
+// units run from the largest to the smallest, so a unit that is not smaller
+// than the one before it (by midpoint) is an error, as is one that is zero
+// or negative or cannot be told from zero, of which nothing is a positive
+// count; and every unit must conform to `have`. `roundTerms` is the display
+// rounding that goes with the terms: the remainder's midpoint rounds to the
+// display precision in the display's rounding mode, keeping its radius, and
+// since a remainder of `11.9999999988 in` shown as `12 in` beside `2 ft`
+// would read wrongly, the counts are taken again from the rounded sum, so
+// that the rounding carries (`3 ft`) as a digit does.
 
+import {
+  addBalls,
+  containsZero,
+  divideBalls,
+  exact,
+  multiplyBalls,
+  subtractBalls,
+  type Ball,
+} from "./ball.ts";
 import {
   checkConformance,
   type ConformanceError,
@@ -39,17 +58,12 @@ import {
 } from "./dimension.ts";
 import { type Quantity } from "./quantity.ts";
 import {
-  add,
   compare,
-  divide,
   equals,
-  multiply,
   roundTo,
   sign,
-  subtract,
   trunc,
   type Precision,
-  type Rational,
 } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import { type RoundingMode } from "./rounding.ts";
@@ -57,7 +71,9 @@ import { type RoundingMode } from "./rounding.ts";
 export type ConvertError =
   | ConformanceError
   /** `want` has a zero magnitude (`0 m`), so nothing is a multiple of it. */
-  | { readonly kind: "zeroWant" };
+  | { readonly kind: "zeroWant" }
+  /** `want` has a magnitude that cannot be told from zero at this precision. */
+  | { readonly kind: "unresolvedWant" };
 
 /** Why a list of units is not a unit list for a `have`; `index` is the unit at fault. */
 export type UnitListError =
@@ -67,49 +83,59 @@ export type UnitListError =
       readonly index: number;
       readonly mismatch: ConformanceError;
     }
-  /** The unit at `index` has a zero or negative magnitude. */
+  /** The unit at `index` has a magnitude that is zero or negative, or cannot be told from zero. */
   | { readonly kind: "nonpositiveUnit"; readonly index: number }
   /** The unit at `index` is not smaller than the one before it. */
   | { readonly kind: "unitOutOfOrder"; readonly index: number };
 
 /**
- * How many `want`s make up `have`: the ratio of their magnitudes, once the
- * two are known to conform. `primitives` supplies the roles the conformance
- * check tells dimensions and kinds apart by; it is the table's.
+ * How many `want`s make up `have`: the ratio of their magnitudes, a ball,
+ * once the two are known to conform. `primitives` supplies the roles the
+ * conformance check tells dimensions and kinds apart by; it is the table's.
  */
 export function convert(
   have: Quantity,
   want: Quantity,
   primitives: Primitives,
-): Result<Rational, ConvertError> {
+): Result<Ball, ConvertError> {
   const conformance = checkConformance(
     have.dimension,
     want.dimension,
     primitives,
   );
   if (!conformance.ok) return conformance;
-  const ratio = divide(have.magnitude, want.magnitude);
-  return ratio.ok ? ratio : err({ kind: "zeroWant" });
+  const ratio = divideBalls(have.magnitude, want.magnitude);
+  if (ratio.ok) return ratio;
+  switch (ratio.error.kind) {
+    case "divisionByZero":
+      return err({ kind: "zeroWant" });
+    case "unresolved":
+      return err({ kind: "unresolvedWant" });
+    default:
+      // A quotient of balls grows neither operand beyond its own size.
+      throw new Error(`A ratio of magnitudes failed: ${ratio.error.kind}`);
+  }
 }
 
 /**
- * `have` as a sum over `units`, one term per unit: an integer count of
- * each but the last, truncated toward zero, and the exact remainder in the
- * last, so that the terms times the units add up to `have` exactly. The
- * units are checked in order, each for conformance with `have`, for a
- * positive magnitude, and for being smaller than the one before it, and
- * the first failure is reported with the unit's index. `units` must not be
- * empty.
+ * `have` as a sum over `units`, one term per unit: an exact integer count
+ * of each but the last, truncated toward zero from the ratio of midpoints,
+ * and the remainder in the last, the ball `have` less the counted units, so
+ * that the terms times the units add up to `have` (contain it, when `have`
+ * or a unit is inexact). The units are checked in order, each for
+ * conformance with `have`, for a positive magnitude whose ball excludes
+ * zero, and for being smaller than the one before it, and the first failure
+ * is reported with the unit's index. `units` must not be empty.
  */
 export function convertToList(
   have: Quantity,
   units: readonly Quantity[],
   primitives: Primitives,
-): Result<readonly Rational[], UnitListError> {
+): Result<readonly Ball[], UnitListError> {
   if (units.length === 0) {
     throw new RangeError("A unit list must have at least one unit");
   }
-  const sizes: Rational[] = [];
+  const sizes: Ball[] = [];
   for (const [index, unit] of units.entries()) {
     const conformance = checkConformance(
       have.dimension,
@@ -123,75 +149,76 @@ export function convertToList(
         mismatch: conformance.error,
       });
     }
-    if (sign(unit.magnitude) <= 0) {
+    // Positive means the whole ball is: a unit that cannot be told from
+    // zero is no size to count by either.
+    const size = unit.magnitude;
+    if (sign(size.mid) <= 0 || containsZero(size)) {
       return err({ kind: "nonpositiveUnit", index });
     }
     const previous = sizes[index - 1];
-    if (previous !== undefined && compare(unit.magnitude, previous) >= 0) {
+    if (previous !== undefined && compare(size.mid, previous.mid) >= 0) {
       return err({ kind: "unitOutOfOrder", index });
     }
-    sizes.push(unit.magnitude);
+    sizes.push(size);
   }
   return ok(decompose(have.magnitude, sizes));
 }
 
 /**
  * The `terms` of a sum over `units`, from `convertToList`, as they are to
- * be shown at `digits` significant digits in `mode`: the remainder rounded
- * to `digits` as `roundTo` rounds, and, when that changes it, the counts
- * taken again from the rounded sum, so that a remainder which rounds up to
- * a whole of an earlier unit is carried into that unit rather than shown
- * beside it (`2 ft + 11.9999999988 in` becomes `3 ft`, not `2 ft + 12 in`;
- * under `floor` it stays `2 ft + 11.999999 in`, since nothing rounds up).
- * When the remainder is already exact at `digits`, the terms come back as
- * they are. The rounding is one rounding of the whole sum, by less than a
- * unit in the last digit of the remainder; the counts are integers and are
- * left alone, and one too long to show in `digits` digits is the display's
- * to round.
+ * be shown at `digits` significant digits in `mode`: the remainder's
+ * midpoint rounded to `digits` as `roundTo` rounds, its radius kept, and,
+ * when that changes it, the counts taken again from the rounded sum, so
+ * that a remainder which rounds up to a whole of an earlier unit is carried
+ * into that unit rather than shown beside it (`2 ft + 11.9999999988 in`
+ * becomes `3 ft`, not `2 ft + 12 in`; under `floor` it stays `2 ft +
+ * 11.999999 in`, since nothing rounds up). When the remainder's midpoint is
+ * already exact at `digits`, the terms come back as they are. The rounding
+ * is one rounding of the whole sum, by less than a unit in the last digit
+ * of the remainder; the counts are integers and are left alone, and one too
+ * long to show in `digits` digits is the display's to round.
  */
 export function roundTerms(
   units: readonly Quantity[],
-  terms: readonly Rational[],
+  terms: readonly Ball[],
   digits: Precision,
   mode: RoundingMode,
-): readonly Rational[] {
+): readonly Ball[] {
   const last = terms.length - 1;
   const remainder = terms[last]!;
-  const rounded = roundTo(remainder, digits, mode);
-  if (equals(rounded, remainder)) return terms;
+  const rounded = roundTo(remainder.mid, digits, mode);
+  if (equals(rounded, remainder.mid)) return terms;
   const sizes = units.map((unit) => unit.magnitude);
   const total = terms
     .slice(0, last)
     .reduce(
-      (sum, count, i) => add(sum, multiply(count, sizes[i]!)),
-      multiply(rounded, sizes[last]!),
+      (sum, count, i) => addBalls(sum, multiplyBalls(count, sizes[i]!)),
+      multiplyBalls({ mid: rounded, rad: remainder.rad }, sizes[last]!),
     );
   return decompose(total, sizes);
 }
 
 /**
- * `magnitude` as a sum over the positive, decreasing `sizes`: the integer
- * count of each but the last that fits in what is left, and the exact
- * remainder in the last.
+ * `magnitude` as a sum over the positive, decreasing `sizes`, whose balls
+ * exclude zero: the exact integer count of each but the last that fits in
+ * what is left, from the ratio of midpoints, and the remainder in the last,
+ * the ball of what is left over the last size.
  */
-function decompose(
-  magnitude: Rational,
-  sizes: readonly Rational[],
-): Rational[] {
-  const terms: Rational[] = [];
+function decompose(magnitude: Ball, sizes: readonly Ball[]): Ball[] {
+  const terms: Ball[] = [];
   let rest = magnitude;
   for (const [i, size] of sizes.entries()) {
-    const ratio = divide(rest, size);
+    const ratio = divideBalls(rest, size);
     if (!ratio.ok) {
-      // The sizes were checked to be positive before they got here.
-      throw new Error("A unit list has a unit of zero magnitude");
+      // The sizes were checked to exclude zero before they got here.
+      throw new Error("A unit list has a unit that cannot be divided by");
     }
     if (i === sizes.length - 1) {
       terms.push(ratio.value);
     } else {
-      const count = trunc(ratio.value);
+      const count = exact(trunc(ratio.value.mid));
       terms.push(count);
-      rest = subtract(rest, multiply(count, size));
+      rest = subtractBalls(rest, multiplyBalls(count, size));
     }
   }
   return terms;

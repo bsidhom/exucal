@@ -14,6 +14,29 @@ has been loaded once.
 conversion pipeline, the number type, and how units, dimensions and kinds are
 modeled.
 
+## Settings
+
+The Settings panel under the converter has two settings, kept in the
+browser so that they survive a reload:
+
+- **Digits**: how many significant digits an answer is shown with, from 1
+  to 200; eight by default, as GNU units shows. `1 m` in `in` is
+  `≈ 39.370079 in` at eight digits and `≈ 39.3700787402 in` at twelve.
+- **Rounding**: how the last digit shown is rounded, one of the seven
+  standard modes; to nearest with ties away from zero by default (`0.125`
+  at two digits is `0.13`). The directed modes (toward zero, away from
+  zero, up, down) show the value on the side they name, so at twelve digits
+  `1 m` in `in` is `39.3700787401` rounded down and `39.3700787402` to
+  nearest.
+
+An answer is written with `=` when it is exact and every digit it has is
+shown (`1 in = 2.54 cm`, `3 ft = 36 in`), and with `≈` when digits were
+rounded away or when a step of the computation was inexact: `1 m ≈
+39.370079 in`, and `2^(1/2) m` in `2^(1/2) m` is `≈ 1`, since the two roots
+were each computed to a finite number of digits, however exactly they
+cancel. A value that cannot be told from zero at the digits computed
+(`(2^(1/2))^2 - 2`) cannot be divided by, and the app says so.
+
 ## Unit definitions
 
 Every unit the app knows comes from a definitions file, `src/units.txt`,
@@ -182,9 +205,9 @@ last, and the rest in the last. `1 m` in `ft;in` is `3 ft + 3.3700787 in`,
 count of zero is left out (`3601 s` is `1 hr + 1 s`), a negative quantity
 gives negative terms (`-3 ft - 3.3700787 in`), and the line is written so
 that it can be typed back as a quantity. Each item is any expression, so
-`ft;in/8` counts eighths of an inch. The rest is shown rounded to eight
-significant digits as any answer is, and when that rounding would reach a
-whole of the unit before it, the sum is rounded as a whole instead:
+`ft;in/8` counts eighths of an inch. The rest is shown rounded to the
+digits of the Settings as any answer is, and when that rounding would
+reach a whole of the unit before it, the sum is rounded as a whole instead:
 `2.9999999999 ft` in `ft;in` is `3 ft`, never `2 ft + 12 in`.
 
 The units of a list must all convert to the quantity, must be positive,
@@ -397,6 +420,10 @@ hook's output at session start says which part is out of date.
   converter.
 - `src/system-table.ts` fetches `units.txt`, which the build emits as an
   asset of its own, and parses and builds it into the table, once.
+- `src/settings.ts` holds the settings (see Settings above): reading and
+  validating them from the browser's storage, saving them, and turning
+  them into the context the core computes with. `src/settings.test.ts`
+  checks the parsing under Node.js with a fake storage.
 - `src/unit-converter.ts` defines `<unit-converter>`, the two inputs and the
   output area that make up the app; `ARCHITECTURE.md` ("UI") describes it.
 - `src/messages.ts` turns the errors the core returns into the sentences the

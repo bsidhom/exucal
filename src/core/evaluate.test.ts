@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
+import { containsZero, exact, isExact } from "./ball.ts";
 import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
 import {
   applyFunction,
@@ -25,6 +27,17 @@ import type { Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import { type UnitFunction } from "./table.ts";
 
+/** The context every test computes at: the working precision, in the default mode. */
+const CONTEXT: NumberContext = {
+  precision: DEFAULT_PRECISION,
+  rounding: DEFAULT_ROUNDING,
+};
+
+/** A context at `precision` digits, in the default mode. */
+function at(precision: number): NumberContext {
+  return { precision, rounding: DEFAULT_ROUNDING };
+}
+
 /** Builds a dimension from integer exponents (or rationals, for roots). */
 function dim(exponents: Record<string, number | Rational>): Dimension {
   return new Map(
@@ -42,7 +55,7 @@ function quantity(
 ): Quantity {
   const magnitude = parseDecimal(text);
   assert.ok(magnitude.ok, `${JSON.stringify(text)} is not a number`);
-  return { magnitude: magnitude.value, dimension: dim(exponents) };
+  return { magnitude: exact(magnitude.value), dimension: dim(exponents) };
 }
 
 function parsed(text: string): Expr {
@@ -170,11 +183,8 @@ const PRIMITIVES: Primitives = new Map([
 
 type Failure = EvaluateError | UnknownUnit | UnknownFunction;
 
-/** Evaluates `text` with the units above at the default precision. */
-function run(
-  text: string,
-  precision = DEFAULT_PRECISION,
-): Result<Quantity, Failure> {
+/** Evaluates `text` with the units above at the working precision given. */
+function run(text: string, precision = CONTEXT): Result<Quantity, Failure> {
   return evaluate(parsed(text), lookup, PRIMITIVES, precision);
 }
 
@@ -191,10 +201,7 @@ function failure(result: Result<Quantity, Failure>): Failure {
 /** Asserts that `text` evaluates to exactly `expected`, dimension included. */
 function assertEvaluates(text: string, expected: Quantity): void {
   const actual = value(run(text));
-  assert.ok(
-    equals(actual.magnitude, expected.magnitude),
-    `${JSON.stringify(text)}: expected magnitude ${inspect(expected.magnitude)}, got ${inspect(actual.magnitude)}`,
-  );
+  assert.deepEqual(actual.magnitude, expected.magnitude, text);
   assert.deepEqual(actual.dimension, expected.dimension, JSON.stringify(text));
 }
 
@@ -207,7 +214,7 @@ test("a number is a dimensionless quantity", () => {
   assertEvaluates("2", quantity("2"));
   assertEvaluates("2.54", quantity("2.54"));
   assertEvaluates("1e-3", {
-    magnitude: rational(1n, 1000n),
+    magnitude: exact(rational(1n, 1000n)),
     dimension: DIMENSIONLESS,
   });
   assertEvaluates("0", quantity("0"));
@@ -232,7 +239,7 @@ test("the lookup is given the name and the span of the reference", () => {
       throw new Error("no call here");
     },
   };
-  evaluate(parsed("  kg m / s^2"), spy, PRIMITIVES, DEFAULT_PRECISION);
+  evaluate(parsed("  kg m / s^2"), spy, PRIMITIVES, CONTEXT);
   assert.deepEqual(seen, [
     ["kg", { start: 2, end: 4 }],
     ["m", { start: 5, end: 6 }],
@@ -249,7 +256,7 @@ test("the lookup is given a call's name with its span, and the span of the call"
       return { ok: true, value: FUNCTIONS.double };
     },
   };
-  evaluate(parsed(" 2 double( m )"), spy, PRIMITIVES, DEFAULT_PRECISION);
+  evaluate(parsed(" 2 double( m )"), spy, PRIMITIVES, CONTEXT);
   assert.deepEqual(seen, [
     ["double", { start: 3, end: 9 }, { start: 3, end: 14 }],
   ]);
@@ -315,7 +322,7 @@ test("negation follows the tree: below ^ and juxtaposition, above * and /", () =
   assertEvaluates("2 - -3", quantity("5"));
   assertEvaluates("-2 m * -3", quantity("6", { m: 1 }));
   assertEvaluates("m / -2 s", {
-    magnitude: rational(-1n, 2n),
+    magnitude: exact(rational(-1n, 2n)),
     dimension: dim({ m: 1, s: -1 }),
   });
   assertEvaluates("-8^(1/3)", quantity("-2"));
@@ -330,8 +337,14 @@ test("negation follows the tree: below ^ and juxtaposition, above * and /", () =
 
 test("evaluation follows the tree the parser built", () => {
   // Juxtaposition binds tighter than `/`: 1 / (2 m).
-  assertEvaluates("1/2 m", { magnitude: half, dimension: dim({ m: -1 }) });
-  assertEvaluates("(1/2) m", { magnitude: half, dimension: dim({ m: 1 }) });
+  assertEvaluates("1/2 m", {
+    magnitude: exact(half),
+    dimension: dim({ m: -1 }),
+  });
+  assertEvaluates("(1/2) m", {
+    magnitude: exact(half),
+    dimension: dim({ m: 1 }),
+  });
   // `*` and `/` are one left-associative level: (m / s) * s.
   assertEvaluates("m/s*s", UNITS.m);
   assertEvaluates("m/(s*s)", quantity("1", { m: 1, s: -2 }));
@@ -354,7 +367,7 @@ test("an integer power is exact", () => {
   assertEvaluates("ft^2", quantity("0.09290304", { m: 2 }));
   assertEvaluates("2^10", quantity("1024"));
   assertEvaluates("2^-2", {
-    magnitude: rational(1n, 4n),
+    magnitude: exact(rational(1n, 4n)),
     dimension: DIMENSIONLESS,
   });
   assertEvaluates("m^0", quantity("1"));
@@ -370,29 +383,32 @@ test("a rational power that is exact stays exact", () => {
 });
 
 test("an inexact root is truncated to the precision given", () => {
-  const root5 = value(run("(2 m^2)^(1/2)", 5));
-  assert.equal(format(root5.magnitude, 10, "halfAwayFromZero"), "1.4142");
+  const root5 = value(run("(2 m^2)^(1/2)", at(5)));
+  assert.equal(format(root5.magnitude.mid, 10, "halfAwayFromZero"), "1.4142");
   assert.deepEqual(root5.dimension, dim({ m: 1 }));
+  assert.ok(!isExact(root5.magnitude));
   const root40 = value(run("(2 m^2)^(1/2)"));
   assert.equal(
-    format(root40.magnitude, 40, "halfAwayFromZero"),
+    format(root40.magnitude.mid, 40, "halfAwayFromZero"),
     "1.414213562373095048801688724209698078569",
   );
   // The precision reaches a root anywhere in the tree.
-  const nested = value(run("3 / (2^(1/2) s)", 3));
+  const nested = value(run("3 / (2^(1/2) s)", at(3)));
   assert.deepEqual(nested.dimension, dim({ s: -1 }));
-  assert.ok(equals(nested.magnitude, rational(3000n, 1410n)));
+  assert.ok(equals(nested.magnitude.mid, rational(3000n, 1410n)));
+  // The radius reaches the result: the quotient is not exact.
+  assert.ok(!isExact(nested.magnitude));
 });
 
 test("exact operations never round", () => {
   // 1 m in feet is 1250/381, which no decimal writes.
   assertEvaluates("m / ft", {
-    magnitude: rational(1250n, 381n),
+    magnitude: exact(rational(1250n, 381n)),
     dimension: DIMENSIONLESS,
   });
   // A long exact product stays exact.
   const big = value(run("1e30 m * 1e30 m / 3"));
-  assert.ok(equals(big.magnitude, rational(10n ** 60n, 3n)));
+  assert.deepEqual(big.magnitude, exact(rational(10n ** 60n, 3n)));
 });
 
 test("exponents that cancel are dropped", () => {
@@ -419,6 +435,25 @@ test("a zero magnitude is an ordinary value except as a divisor", () => {
   assertEvaluates("0^0", quantity("1"));
 });
 
+test("a divisor that cannot be told from zero is unresolved, at the divisor", () => {
+  // sqrt(2)^2 - 2 is a ball around zero: its midpoint is a hair below zero
+  // and its radius covers zero, so nothing can be divided by it.
+  const text = "1 / ((2^(1/2))^2 - 2)";
+  assert.deepEqual(failure(run(text)), {
+    kind: "unresolved",
+    span: { start: 4, end: text.length },
+  });
+  assert.deepEqual(failure(run("((2^(1/2))^2 - 2)^-1")), {
+    kind: "unresolved",
+    span: { start: 0, end: "((2^(1/2))^2 - 2)^-1".length },
+  });
+  // Whereas the value itself evaluates, inexactly, and so does its product.
+  const almostZero = value(run("(2^(1/2))^2 - 2"));
+  assert.ok(!isExact(almostZero.magnitude));
+  assert.ok(containsZero(almostZero.magnitude));
+  assert.ok(value(run("((2^(1/2))^2 - 2) m")).dimension.has("m"));
+});
+
 // ---------------------------------------------------------------------------
 // Failures
 
@@ -438,14 +473,14 @@ test("a lookup failure comes back unchanged", () => {
     unit: (name) => ({ ok: false, error: `no ${name}` }),
     function: (name) => ({ ok: false, error: `no function ${name}` }),
   };
-  assert.deepEqual(
-    evaluate(parsed("2 m"), failing, PRIMITIVES, DEFAULT_PRECISION),
-    { ok: false, error: "no m" },
-  );
-  assert.deepEqual(
-    evaluate(parsed("f(2)"), failing, PRIMITIVES, DEFAULT_PRECISION),
-    { ok: false, error: "no function f" },
-  );
+  assert.deepEqual(evaluate(parsed("2 m"), failing, PRIMITIVES, CONTEXT), {
+    ok: false,
+    error: "no m",
+  });
+  assert.deepEqual(evaluate(parsed("f(2)"), failing, PRIMITIVES, CONTEXT), {
+    ok: false,
+    error: "no function f",
+  });
 });
 
 test("operands are evaluated left to right and the first failure wins", () => {
@@ -581,12 +616,7 @@ test("a plain number is not a quantity of anything, zero included", () => {
 test("the roles given decide what a mismatch is", () => {
   // With the radian declared as a dimension, the mismatch is a dimension's.
   const asDimension: Primitives = new Map([["radian", "dimension"]]);
-  const result = evaluate(
-    parsed("radian + 1"),
-    lookup,
-    asDimension,
-    DEFAULT_PRECISION,
-  );
+  const result = evaluate(parsed("radian + 1"), lookup, asDimension, CONTEXT);
   assert.ok(!result.ok);
   assert.equal(result.error.kind, "nonconformingOperands");
   assert.ok(result.error.kind === "nonconformingOperands");
@@ -599,15 +629,15 @@ test("the roles given decide what a mismatch is", () => {
 test("evaluation leaves the tree and the units alone", () => {
   const expr = parsed("2 kg m / s^2 / zero");
   const copy = structuredClone(expr);
-  evaluate(expr, lookup, PRIMITIVES, DEFAULT_PRECISION);
-  evaluate(parsed("(3 N)^(1/2)"), lookup, PRIMITIVES, DEFAULT_PRECISION);
-  evaluate(parsed("2 ft + inch - cm"), lookup, PRIMITIVES, DEFAULT_PRECISION);
-  evaluate(parsed("-N"), lookup, PRIMITIVES, DEFAULT_PRECISION);
+  evaluate(expr, lookup, PRIMITIVES, CONTEXT);
+  evaluate(parsed("(3 N)^(1/2)"), lookup, PRIMITIVES, CONTEXT);
+  evaluate(parsed("2 ft + inch - cm"), lookup, PRIMITIVES, CONTEXT);
+  evaluate(parsed("-N"), lookup, PRIMITIVES, CONTEXT);
   assert.deepEqual(expr, copy);
   assert.deepEqual(UNITS.N, quantity("1", { kg: 1, m: 1, s: -2 }));
   assert.deepEqual(UNITS.zero, quantity("0", { m: 1 }));
-  assert.ok(equals(UNITS.m.magnitude, ONE));
-  assert.ok(equals(UNITS.zero.magnitude, ZERO));
+  assert.deepEqual(UNITS.m.magnitude, exact(ONE));
+  assert.deepEqual(UNITS.zero.magnitude, exact(ZERO));
 });
 
 // ---------------------------------------------------------------------------
@@ -627,7 +657,7 @@ test("a call is an atom, and its value is a quantity like any other", () => {
   assertEvaluates("-tempC(100)", quantity("-373.15", { K: 1 }));
   assertEvaluates("tempC(100) - tempC(0)", quantity("100", { K: 1 }));
   assertEvaluates("K / tempC(100)", {
-    magnitude: rational(100n, 37315n),
+    magnitude: exact(rational(100n, 37315n)),
     dimension: DIMENSIONLESS,
   });
 });
@@ -734,7 +764,7 @@ test("applyFunction and invertFunction evaluate a body under a binding, telling 
     quantity("3", { m: 1 }),
     lookup,
     PRIMITIVES,
-    DEFAULT_PRECISION,
+    CONTEXT,
   );
   assert.ok(applied.ok, inspect(applied));
   assert.deepEqual(applied.value, quantity("6", { m: 1 }));
@@ -743,18 +773,12 @@ test("applyFunction and invertFunction evaluate a body under a binding, telling 
     quantity("373.15", { K: 1 }),
     lookup,
     PRIMITIVES,
-    DEFAULT_PRECISION,
+    CONTEXT,
   );
   assert.ok(inverted.ok, inspect(inverted));
   assert.deepEqual(inverted.value, quantity("100"));
   assert.deepEqual(
-    invertFunction(
-      FUNCTIONS.recip,
-      quantity("0"),
-      lookup,
-      PRIMITIVES,
-      DEFAULT_PRECISION,
-    ),
+    invertFunction(FUNCTIONS.recip, quantity("0"), lookup, PRIMITIVES, CONTEXT),
     {
       ok: false,
       error: {
@@ -764,13 +788,7 @@ test("applyFunction and invertFunction evaluate a body under a binding, telling 
     },
   );
   assert.deepEqual(
-    applyFunction(
-      FUNCTIONS.broken,
-      quantity("1"),
-      lookup,
-      PRIMITIVES,
-      DEFAULT_PRECISION,
-    ),
+    applyFunction(FUNCTIONS.broken, quantity("1"), lookup, PRIMITIVES, CONTEXT),
     {
       ok: false,
       error: {

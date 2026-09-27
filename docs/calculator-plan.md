@@ -1,8 +1,9 @@
 # Implementation plan for the calculator
 
-Status: in progress; stage 1 has landed through task 1.3, and D13 was
-revised in review of that first follow-up. docs/calculator.md is the
-design study and its
+Status: in progress; stage 1 has landed, and "Stage 1 as it landed" at
+the end records where the code diverged from the tasks as first written.
+D13 was revised in review of the first follow-up. docs/calculator.md is
+the design study and its
 "A sequence for the follow-ups" is the order this plan follows. This
 document turns that sequence into tasks small enough that each is one
 commit, reviewable on its own, with the tests that prove it and the state
@@ -513,18 +514,26 @@ huge number and now reports the error; that is a fix, and a test.
 
 ### 1.8 The converter and the pipeline on balls
 
-`convert` returns a `Ball`, the quotient of the two balls; `convertToList`
-returns balls per D8, with the ordering and positivity checks on
-midpoints; `roundTerms` rounds the remainder's midpoint and keeps its
-radius on the rounded term. `Conversion.value` and the list's `terms` are
-balls, and the function conversion's count is the ball quotient of the
-argument by the declared unit (nonzero, as the build checked). The UI's
-reciprocal is `divideBalls(exact(1), value)`, still in the component, and
-still left out when it fails.
+`convert` returns a `Ball`, the quotient of the two balls; a `want` whose
+ball contains zero without being exactly zero is a new `ConvertError`,
+`unresolvedWant`, apart from `zeroWant` as the ball's `unresolved` is from
+its division by zero, so that the retry loop of 2.5 can retry the one and
+never the other, and messages.ts words it. `convertToList` returns balls
+per D8, with the ordering check on midpoints and the positivity check over
+the whole ball: a unit that cannot be told from zero is not positive
+(`nonpositiveUnit`), since it is no size to divide by, which is what keeps
+the remainder's division from ever being `unresolved`. `roundTerms` rounds
+the remainder's midpoint and keeps its radius on the rounded term.
+`Conversion.value` and the list's `terms` are balls, and the function
+conversion's count is the ball quotient of the argument by the declared
+unit (its ball excludes zero, as the build checked). The UI's reciprocal
+is `divideBalls(exact(1), value)`, still in the component, and still left
+out when it fails.
 
-Tests: `convert` of an inexact `have` carries its radius; a list of an
-inexact `have` has the radius on its remainder alone; `roundTerms` keeps
-the radius; the pipeline tests read `.mid` where they read the value.
+Tests: `convert` of an inexact `have` carries its radius; a `want` around
+zero is `unresolvedWant`; a list of an inexact `have` has the radius on its
+remainder alone, and a unit around zero is `nonpositiveUnit`; `roundTerms`
+keeps the radius; the pipeline tests read `.mid` where they read the value.
 
 Behavior: none visible; the radius now reaches the UI and is ignored
 there until 1.9.
@@ -546,9 +555,13 @@ not, on `sqrt 2` (a ball of one ulp) is not however many digits, on
 stage 5's fractions setting changes what `show` returns for an exact
 value (`1/3` becomes `= 1/3`), and 5.1 restates them under that setting.
 
-Behavior: one visible change, `sqrt(2)^2` shows `≈ 2.0000000` rather than
-`= 2`, which is the fix the study describes (and the case the symbolic
-values of docs/future.md would make `= 2`).
+Behavior: one visible change, a value that passes through a root and comes
+out looking rational is `≈`: `sqrt(2) / sqrt(2)`, whose midpoint is exactly
+`1` because the same truncated value is divided by itself, shows `≈ 1`
+rather than `= 1`, which is the fix the study describes (and the case the
+symbolic values of docs/future.md would make `= 1`). `sqrt(2)^2` was
+already `≈ 2`, its midpoint being a hair below `2`; the plan's first
+version named it as the change by mistake.
 
 ### 1.10 Settings and the UI
 
@@ -1201,3 +1214,41 @@ radius and its rounding-up discipline before anything depends on them.
 1.4 is the mechanical widening and can go with them or alone. 1.5 to 1.9
 are the ball reaching the display, each a state the app runs in. After
 1.11 the plan is re-read against what landed, and stage 2 begins.
+
+## Stage 1 as it landed
+
+The re-read after 1.11. Each task landed as one commit in the order
+given, and the tests pass under every task; where the code settled a
+question the task left open, or corrected the task, the task's text above
+was amended in the same commit, and this is the list of those points, so
+that stage 2 starts from what is rather than from what was planned.
+
+- **1.3.** Unbounded absorbs zero in `multiplyRadius` and `powRadius(rad,
+0)`, where the task's "zero annihilates multiply" and "all absorbing
+  unbounded" met: a loosened bound is always honest, and the ball is where
+  an exact zero times an unbounded value is recognized as exact (1.5).
+  `between` moved to the shared random source with the generator; `word`
+  stayed in the harness; tsconfig.app.json excludes `src/testing`.
+- **1.5.** Two rulings the task did not reach: an exact zero times
+  anything is exact zero, unbounded included, since unbounded stands for a
+  bound not known rather than an infinite value; and a divisor of
+  unbounded radius divides when its midpoint is nonzero, giving an
+  unbounded quotient (the study's per-operation fallback), and is
+  `unresolved` when its midpoint is zero.
+- **1.8.** `unresolvedWant` beside `zeroWant`, and a list unit that
+  cannot be told from zero is `nonpositiveUnit`; the task's text says why.
+- **1.9.** The visible change is `sqrt(2) / sqrt(2)` showing `≈ 1`, not
+  `sqrt(2)^2` showing `≈ 2`, which it already did; corrected in the task.
+- **1.10.** `loadSettings` and `saveSettings` take the storage as an
+  argument, so that settings.ts has no DOM dependency and is tested under
+  Node with a fake; the shell passes `localStorage`. A term of a result
+  carries its shown text, so that rendering needs no context.
+- **D13**, revised in review of the first follow-up: the exponent of stage
+  4 is a `Scaled` type between the fraction and the ball, not a field on
+  `Rational`; stage 4's tasks were rewritten to match, and D7 notes what
+  certification does at magnitudes that cannot be formed.
+
+What stage 2 inherits unchanged: the ball's midpoint is a `Rational`; the
+root is D5's; the pipeline's working rule is `max(40, p + 10)`, which 2.5
+replaces; the display shows every digit of the midpoint and says `≈`
+without saying how many digits are certain, which 2.4 and 2.6 change.

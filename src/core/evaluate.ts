@@ -14,8 +14,8 @@
 // says it is, and the operators are the quantity arithmetic of `quantity.ts`:
 // juxtaposition and `*` multiply, `/` divides, `+` and `-` add and subtract,
 // a leading `-` negates, and `^` raises to the rational exponent the parser
-// already read. The one
-// `Precision` given is the working precision, passed to every power, where
+// already read. The `NumberContext` given is the working one (D1 of
+// docs/calculator-plan.md): its precision is passed to every power, where
 // the root of a non-integer exponent is the only operation that can lose
 // digits. The `Primitives` given are the table's, with their roles: a sum
 // is the one place the evaluator checks conformance, between its operands,
@@ -49,9 +49,12 @@
 //
 // Operands are evaluated left to right and the first failure ends the
 // evaluation, so `bogus / 0` reports the unknown unit, not the division.
-// The arithmetic failures are those of `rational.ts` that a value can cause,
+// The arithmetic failures are those of `ball.ts` that a value can cause,
 // located in the input: a division by zero points at the divisor, since its
-// value is what is wrong, and a power that fails (`0^-1`, an even root of a
+// value is what is wrong, and so does a division by a value that cannot be
+// told from zero (`unresolved`, D4 of docs/calculator-plan.md: the divisor's
+// ball contains zero without being exactly zero); a power that fails
+// (`0^-1`, a ball around zero to a negative power, an even root of a
 // negative magnitude, a result beyond `MAX_BITS`) points at the whole power,
 // since it is the combination of base and exponent that fails. A sum whose
 // operands do not conform (`1 m + 1 s`) points at the whole sum for the
@@ -76,7 +79,8 @@ import {
   subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
-import { type Precision, type RationalError } from "./rational.ts";
+import { type BallError } from "./ball.ts";
+import { type NumberContext } from "./context.ts";
 import { err, ok, type Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import { type UnitFunction } from "./table.ts";
@@ -105,6 +109,12 @@ export type EvaluateError =
    * negative exponent.
    */
   | { readonly kind: "divisionByZero"; readonly span: Span }
+  /**
+   * The divisor at `span` cannot be told from zero at this precision (its
+   * ball contains zero without being exactly zero), or the power at `span`
+   * raises such a value to a negative exponent.
+   */
+  | { readonly kind: "unresolved"; readonly span: Span }
   /** The power at `span` is an even (`degree`-th) root of a negative value. */
   | {
       readonly kind: "negativeRadicand";
@@ -165,14 +175,14 @@ export type BodyError<E> =
 /**
  * The quantity `expr` denotes, with unit names resolved by `lookup`, the
  * operands of every sum checked for conformance by the roles in
- * `primitives`, and every inexact operation truncated to `precision`
- * significant digits.
+ * `primitives`, and every inexact operation truncated to the precision of
+ * `context`.
  */
 export function evaluate<E>(
   expr: Expr,
   lookup: Lookup<E>,
   primitives: Primitives,
-  precision: Precision,
+  context: NumberContext,
 ): Result<Quantity, EvaluateError | E> {
   const { node, span } = expr;
   switch (node.kind) {
@@ -181,9 +191,9 @@ export function evaluate<E>(
     case "unit":
       return lookup.unit(node.name, span);
     case "binary": {
-      const left = evaluate(node.left, lookup, primitives, precision);
+      const left = evaluate(node.left, lookup, primitives, context);
       if (!left.ok) return left;
-      const right = evaluate(node.right, lookup, primitives, precision);
+      const right = evaluate(node.right, lookup, primitives, context);
       if (!right.ok) return right;
       switch (node.op) {
         case "add":
@@ -211,19 +221,19 @@ export function evaluate<E>(
       }
     }
     case "pow": {
-      const base = evaluate(node.base, lookup, primitives, precision);
+      const base = evaluate(node.base, lookup, primitives, context);
       if (!base.ok) return base;
-      return locate(powQuantity(base.value, node.exponent, precision), span);
+      return locate(powQuantity(base.value, node.exponent, context), span);
     }
     case "neg": {
-      const operand = evaluate(node.operand, lookup, primitives, precision);
+      const operand = evaluate(node.operand, lookup, primitives, context);
       if (!operand.ok) return operand;
       return ok(negateQuantity(operand.value));
     }
     case "call": {
       const fn = lookup.function(node.name, node.nameSpan, span);
       if (!fn.ok) return fn;
-      const argument = evaluate(node.argument, lookup, primitives, precision);
+      const argument = evaluate(node.argument, lookup, primitives, context);
       if (!argument.ok) return argument;
       const conformance = checkConformance(
         argument.value.dimension,
@@ -244,7 +254,7 @@ export function evaluate<E>(
         argument.value,
         lookup,
         primitives,
-        precision,
+        context,
       );
       if (value.ok) return value;
       const { error } = value;
@@ -267,7 +277,7 @@ export function applyFunction<E>(
   argument: Quantity,
   lookup: Lookup<E>,
   primitives: Primitives,
-  precision: Precision,
+  context: NumberContext,
 ): Result<Quantity, BodyError<E>> {
   return evaluateBound(
     fn.forward,
@@ -275,7 +285,7 @@ export function applyFunction<E>(
     argument,
     lookup,
     primitives,
-    precision,
+    context,
   );
 }
 
@@ -289,16 +299,9 @@ export function invertFunction<E>(
   value: Quantity,
   lookup: Lookup<E>,
   primitives: Primitives,
-  precision: Precision,
+  context: NumberContext,
 ): Result<Quantity, BodyError<E>> {
-  return evaluateBound(
-    fn.inverse,
-    fn.name,
-    value,
-    lookup,
-    primitives,
-    precision,
-  );
+  return evaluateBound(fn.inverse, fn.name, value, lookup, primitives, context);
 }
 
 /**
@@ -313,7 +316,7 @@ function evaluateBound<E>(
   value: Quantity,
   lookup: Lookup<E>,
   primitives: Primitives,
-  precision: Precision,
+  context: NumberContext,
 ): Result<Quantity, BodyError<E>> {
   const bound: Lookup<Boxed<E>> = {
     unit: (unit, span) => {
@@ -326,7 +329,7 @@ function evaluateBound<E>(
       return found.ok ? found : err({ kind: "lookup", error: found.error });
     },
   };
-  const result = evaluate(body, bound, primitives, precision);
+  const result = evaluate(body, bound, primitives, context);
   if (result.ok) return result;
   const { error } = result;
   return err(error.kind === "lookup" ? error : { kind: "body", error });
@@ -337,13 +340,14 @@ type Boxed<E> = Extract<BodyError<E>, { kind: "lookup" }>;
 
 /** Attaches `span` to the failure of `result`, if it failed. */
 function locate(
-  result: Result<Quantity, RationalError>,
+  result: Result<Quantity, BallError>,
   span: Span,
 ): Result<Quantity, EvaluateError> {
   if (result.ok) return result;
   const { error } = result;
   switch (error.kind) {
     case "divisionByZero":
+    case "unresolved":
     case "tooLarge":
       return err({ kind: error.kind, span });
     case "negativeRadicand":

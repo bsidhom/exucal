@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
+import { containsZero, exact, isExact, type Ball } from "./ball.ts";
+import { radiusAbove, radiusUpper } from "./radius.ts";
 import {
   convert,
   convertToList,
@@ -45,7 +47,7 @@ function quantity(
 ): Quantity {
   const magnitude = parseDecimal(text);
   assert.ok(magnitude.ok, `${JSON.stringify(text)} is not a number`);
-  return { magnitude: magnitude.value, dimension: dim(exponents) };
+  return { magnitude: exact(magnitude.value), dimension: dim(exponents) };
 }
 
 /** A primitives map in the order given; names ending in `!kind` are kinds. */
@@ -62,26 +64,22 @@ function primitives(...names: string[]): Primitives {
 /** Enough of the SI base units for the tests, plus a kind for angles. */
 const SI = primitives("kg", "m", "s", "A", "radian!kind");
 
-function value(result: Result<Rational, ConvertError>): Rational {
+function value(result: Result<Ball, ConvertError>): Ball {
   assert.ok(result.ok, `expected a value, got ${inspect(result)}`);
   return result.value;
 }
 
-function failure(result: Result<Rational, ConvertError>): ConvertError {
+function failure(result: Result<Ball, ConvertError>): ConvertError {
   assert.ok(!result.ok, `expected a failure, got ${inspect(result)}`);
   return result.error;
 }
 
-/** Asserts that `result` is exactly the rational `expected`. */
+/** Asserts that `result` is exactly the rational `expected`: an exact ball of it. */
 function assertValue(
-  result: Result<Rational, ConvertError>,
+  result: Result<Ball, ConvertError>,
   expected: Rational,
 ): void {
-  const actual = value(result);
-  assert.ok(
-    equals(actual, expected),
-    `expected ${inspect(expected)}, got ${inspect(actual)}`,
-  );
+  assert.deepEqual(value(result), exact(expected));
 }
 
 // Some units, as the table would hold them: SI magnitudes over `m`, `s`, ...
@@ -102,10 +100,7 @@ function times(n: string, u: Quantity): Quantity {
   const factor = parseDecimal(n);
   assert.ok(factor.ok);
   return {
-    magnitude: rational(
-      factor.value.num * u.magnitude.num,
-      factor.value.den * u.magnitude.den,
-    ),
+    magnitude: exact(multiply(factor.value, u.magnitude.mid)),
     dimension: u.dimension,
   };
 }
@@ -122,12 +117,12 @@ test("the value is the ratio of the magnitudes", () => {
 
 test("the value is exact, never rounded", () => {
   // 1 m in inches is 5000/127, which no decimal writes exactly.
-  const inches = value(convert(METRE, INCH, SI));
+  const inches = value(convert(METRE, INCH, SI)).mid;
   assert.deepEqual(inches, rational(5000n, 127n));
   assert.ok(!equals(roundTo(inches, 8, "halfAwayFromZero"), inches));
   assert.equal(format(inches, 8, "halfAwayFromZero"), "39.370079");
   // Whereas 1 in in cm is exactly 2.54, and a display can say so.
-  const centimetres = value(convert(INCH, CENTIMETRE, SI));
+  const centimetres = value(convert(INCH, CENTIMETRE, SI)).mid;
   assert.ok(equals(roundTo(centimetres, 8, "halfAwayFromZero"), centimetres));
   assert.equal(format(centimetres, 8, "halfAwayFromZero"), "2.54");
 });
@@ -144,7 +139,7 @@ test("want may have a magnitude of its own", () => {
 test("a compound dimension converts like any other", () => {
   // 60 mi/h in m/s.
   const milesPerHour: Quantity = {
-    magnitude: rational(1609344n, 1000n * 3600n),
+    magnitude: exact(rational(1609344n, 1000n * 3600n)),
     dimension: dim({ m: 1, s: -1 }),
   };
   const metresPerSecond = quantity("1", { m: 1, s: -1 });
@@ -161,8 +156,8 @@ test("dimensionless quantities convert to plain numbers", () => {
   // The empty dimension, however it was built.
   assertValue(
     convert(
-      { magnitude: rational(3n), dimension: DIMENSIONLESS },
-      { magnitude: ONE, dimension: new Map() },
+      { magnitude: exact(rational(3n)), dimension: DIMENSIONLESS },
+      { magnitude: exact(ONE), dimension: new Map() },
       SI,
     ),
     rational(3n),
@@ -183,7 +178,7 @@ test("signs carry through", () => {
 test("the order of a dimension's entries does not matter", () => {
   const a = quantity("1", { kg: 1, m: 2, s: -2 });
   const b: Quantity = {
-    magnitude: rational(2n),
+    magnitude: exact(rational(2n)),
     dimension: dim({ s: -2, kg: 1, m: 2 }),
   };
   assertValue(convert(a, b, SI), rational(1n, 2n));
@@ -195,7 +190,7 @@ test("kinds that match on both sides are no obstacle", () => {
     rational(2n),
   );
   const rpm: Quantity = {
-    magnitude: rational(2n * 314159n, 100000n * 60n),
+    magnitude: exact(rational(2n * 314159n, 100000n * 60n)),
     dimension: dim({ radian: 1, s: -1 }),
   };
   assert.ok(convert(rpm, RADIAN_PER_SECOND, SI).ok);
@@ -299,14 +294,14 @@ test("conversion leaves its operands alone", () => {
 const MINUTE = quantity("60", { s: 1 });
 
 function terms(
-  result: Result<readonly Rational[], UnitListError>,
-): readonly Rational[] {
+  result: Result<readonly Ball[], UnitListError>,
+): readonly Ball[] {
   assert.ok(result.ok, `expected terms, got ${inspect(result)}`);
   return result.value;
 }
 
 function listFailure(
-  result: Result<readonly Rational[], UnitListError>,
+  result: Result<readonly Ball[], UnitListError>,
 ): UnitListError {
   assert.ok(!result.ok, `expected a failure, got ${inspect(result)}`);
   return result.error;
@@ -314,16 +309,17 @@ function listFailure(
 
 /** Asserts that `actual` are exactly the rationals `expected` denote: decimals, or fractions `a/b`. */
 function assertTerms(
-  actual: readonly Rational[],
+  actual: readonly Ball[],
   expected: readonly string[],
 ): void {
+  for (const term of actual) assert.ok(isExact(term), inspect(term));
   assert.deepEqual(
-    actual.map(toFraction),
+    actual.map((term) => toFraction(term.mid)),
     expected.map((text) => {
       const [numerator, denominator] = text.split("/");
-      const num = quantity(numerator!).magnitude;
+      const num = quantity(numerator!).magnitude.mid;
       if (denominator === undefined) return toFraction(num);
-      const den = quantity(denominator).magnitude;
+      const den = quantity(denominator).magnitude.mid;
       return toFraction(rational(num.num * den.den, num.den * den.num));
     }),
   );
@@ -348,7 +344,7 @@ test("a list conversion is an integer count of each unit but the last, and the e
 test("a list of one unit gives the ratio, as convert does", () => {
   const have = quantity("3", { m: 1 });
   const [ratio] = terms(convertToList(have, [FOOT], SI));
-  assert.ok(equals(ratio!, value(convert(have, FOOT, SI))));
+  assert.deepEqual(ratio!, value(convert(have, FOOT, SI)));
   assertTerms([ratio!], ["1250/127"]);
 });
 
@@ -356,10 +352,10 @@ test("the terms sum to have exactly", () => {
   const have = quantity("1.234567", { m: 1 });
   const [feet, inches] = terms(convertToList(have, [FOOT, INCH], SI));
   const sum = add(
-    multiply(feet!, FOOT.magnitude),
-    multiply(inches!, INCH.magnitude),
+    multiply(feet!.mid, FOOT.magnitude.mid),
+    multiply(inches!.mid, INCH.magnitude.mid),
   );
-  assert.ok(equals(sum, have.magnitude));
+  assert.ok(equals(sum, have.magnitude.mid));
 });
 
 test("counts are truncated toward zero, so every term has the sign of have", () => {
@@ -576,11 +572,113 @@ test("roundTerms rounds by less than a unit in the last digit shown", () => {
     "halfAwayFromZero",
   );
   const shown = add(
-    multiply(rounded[0]!, FOOT.magnitude),
-    multiply(rounded[1]!, INCH.magnitude),
+    multiply(rounded[0]!.mid, FOOT.magnitude.mid),
+    multiply(rounded[1]!.mid, INCH.magnitude.mid),
   );
   // Within 1e-7 in of the exact value: the resolution of 11.999999 at 8 digits.
-  const difference = subtract(shown, have.magnitude);
-  const resolution = multiply(quantity("1e-7").magnitude, INCH.magnitude);
+  const difference = subtract(shown, have.magnitude.mid);
+  const resolution = multiply(
+    quantity("1e-7").magnitude.mid,
+    INCH.magnitude.mid,
+  );
   assert.ok(compare(absolute(difference), resolution) < 0);
+});
+
+// ---------------------------------------------------------------------------
+// Inexact quantities
+
+/** `mid` with a radius at or above `rad`, in the dimension of `unit`. */
+function about(mid: string, rad: string, unit: Quantity): Quantity {
+  return {
+    magnitude: {
+      mid: quantity(mid).magnitude.mid,
+      rad: radiusAbove(quantity(rad).magnitude.mid),
+    },
+    dimension: unit.dimension,
+  };
+}
+
+test("convert of an inexact have carries its radius", () => {
+  // 1 m ± 1e-10 m in feet: the ratio is 1250/381 ± about 1e-10 / 0.3048.
+  const have = about("1", "1e-10", METRE);
+  const ratio = value(convert(have, FOOT, SI));
+  assert.ok(equals(ratio.mid, rational(1250n, 381n)));
+  assert.ok(!isExact(ratio));
+  const rad = radiusUpper(ratio.rad);
+  assert.ok(compare(rad, quantity("3.28e-10").magnitude.mid) >= 0);
+  assert.ok(compare(rad, quantity("3.29e-10").magnitude.mid) <= 0);
+  // And an inexact want too.
+  assert.ok(
+    !isExact(value(convert(METRE, about("0.3048", "1e-10", METRE), SI))),
+  );
+  // Exact quantities give an exact ratio.
+  assert.ok(isExact(value(convert(METRE, FOOT, SI))));
+});
+
+test("a want that cannot be told from zero is unresolvedWant, apart from zeroWant", () => {
+  assert.deepEqual(
+    failure(convert(METRE, about("1e-12", "1e-11", METRE), SI)),
+    {
+      kind: "unresolvedWant",
+    },
+  );
+  assert.deepEqual(failure(convert(METRE, about("0", "1e-30", METRE), SI)), {
+    kind: "unresolvedWant",
+  });
+  // Just clear of zero, it converts.
+  assert.ok(convert(METRE, about("1e-10", "1e-11", METRE), SI).ok);
+});
+
+test("a list of an inexact have has the radius on its remainder alone", () => {
+  const have = about("1", "1e-10", METRE);
+  const [feet, inches] = terms(convertToList(have, [FOOT, INCH], SI));
+  assert.deepEqual(feet, exact(rational(3n)));
+  assert.ok(inches !== undefined && !isExact(inches));
+  // The remainder is 1 m - 3 ft over an inch: 0.0856 m / 0.0254 m, within
+  // 1e-10 / 0.0254 of it.
+  assert.ok(equals(inches.mid, rational(856n, 254n)));
+  const rad = radiusUpper(inches.rad);
+  assert.ok(compare(rad, quantity("3.93e-9").magnitude.mid) >= 0);
+  assert.ok(compare(rad, quantity("3.94e-9").magnitude.mid) <= 0);
+  // An inexact unit puts a radius on the remainder too, but the counts stay exact.
+  const [count, rest] = terms(
+    convertToList(METRE, [about("0.3048", "1e-10", METRE), INCH], SI),
+  );
+  assert.deepEqual(count, exact(rational(3n)));
+  assert.ok(rest !== undefined && !isExact(rest));
+});
+
+test("a unit that cannot be told from zero is not positive", () => {
+  assert.deepEqual(
+    listFailure(
+      convertToList(METRE, [FOOT, about("1e-12", "1e-11", METRE)], SI),
+    ),
+    { kind: "nonpositiveUnit", index: 1 },
+  );
+  assert.deepEqual(
+    listFailure(convertToList(METRE, [about("0", "1e-30", METRE), INCH], SI)),
+    { kind: "nonpositiveUnit", index: 0 },
+  );
+  assert.ok(containsZero(about("0", "1e-30", METRE).magnitude));
+});
+
+test("roundTerms keeps the radius on the rounded remainder", () => {
+  const have = about("1", "1e-10", METRE);
+  const exactTerms = terms(convertToList(have, [FOOT, INCH], SI));
+  const rounded = roundTerms([FOOT, INCH], exactTerms, 8, "halfAwayFromZero");
+  assert.deepEqual(rounded[0], exact(rational(3n)));
+  assert.ok(equals(rounded[1]!.mid, quantity("3.3700787").magnitude.mid));
+  assert.ok(!isExact(rounded[1]!));
+  // A carry keeps it too: 2 ft + 11.9999999988 in ± a hair is 3 ft + 0 ± a hair.
+  const carried = roundTerms(
+    [FOOT, INCH],
+    terms(
+      convertToList(about("0.91439999997", "1e-12", METRE), [FOOT, INCH], SI),
+    ),
+    8,
+    "halfAwayFromZero",
+  );
+  assert.deepEqual(carried[0], exact(rational(3n)));
+  assert.ok(carried[1]!.mid.num === 0n);
+  assert.ok(!isExact(carried[1]!));
 });

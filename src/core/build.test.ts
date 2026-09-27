@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
+import { exact, isExact, type Ball } from "./ball.ts";
 import { buildTable, type BuildError } from "./build.ts";
 import { convert, convertToList } from "./convert.ts";
 import { parseDefinitions, type Definition } from "./definitions.ts";
@@ -13,13 +15,19 @@ import {
   equals,
   parseDecimal,
   rational,
-  root,
+  truncatedRoot,
   toFraction,
   type Rational,
 } from "./rational.ts";
 import { type Result } from "./result.ts";
 import { type Span } from "./span.ts";
 import { unitLookup, type UnitTable } from "./table.ts";
+
+/** The context every test computes at: the working precision, in the default mode. */
+const CONTEXT: NumberContext = {
+  precision: DEFAULT_PRECISION,
+  rounding: DEFAULT_ROUNDING,
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -32,7 +40,7 @@ function definitions(...lines: string[]): readonly Definition[] {
 }
 
 function build(...lines: string[]): Result<UnitTable, BuildError> {
-  return buildTable(definitions(...lines), DEFAULT_PRECISION);
+  return buildTable(definitions(...lines), CONTEXT);
 }
 
 function built(...lines: string[]): UnitTable {
@@ -83,18 +91,20 @@ function assertQuantity(
   assert.ok(actual !== undefined, "expected a quantity");
   const expected =
     typeof magnitude === "string" ? decimal(magnitude) : magnitude;
-  assert.ok(
-    equals(actual.magnitude, expected),
-    `expected magnitude ${toFraction(expected)}, got ${toFraction(actual.magnitude)}`,
+  assert.deepEqual(
+    actual.magnitude,
+    exact(expected),
+    `expected magnitude ${toFraction(expected)}, got ${inspect(actual.magnitude)}`,
   );
   assert.deepEqual(actual.dimension, dim(exponents));
 }
 
-function assertFactor(actual: Rational | undefined, expected: string): void {
+function assertFactor(actual: Ball | undefined, expected: string): void {
   assert.ok(actual !== undefined, "expected a factor");
-  assert.ok(
-    equals(actual, decimal(expected)),
-    `expected ${expected}, got ${toFraction(actual)}`,
+  assert.deepEqual(
+    actual,
+    exact(decimal(expected)),
+    `expected ${expected}, got ${inspect(actual)}`,
   );
 }
 
@@ -201,11 +211,19 @@ test("a shared dependency is evaluated once and is not a cycle", () => {
 test("bodies are evaluated at the working precision", () => {
   const two = rational(2n);
   for (const precision of [5, DEFAULT_PRECISION]) {
-    const result = buildTable(definitions("m !", "r 2^(1/2) m"), precision);
+    const result = buildTable(definitions("m !", "r 2^(1/2) m"), {
+      precision,
+      rounding: DEFAULT_ROUNDING,
+    });
     assert.ok(result.ok, inspect(result));
-    const expected = root(two, 2n, precision);
+    const expected = truncatedRoot(two, 2n, precision);
     assert.ok(expected.ok);
-    assertQuantity(result.value.units.get("r"), expected.value, { m: 1 });
+    const r = result.value.units.get("r");
+    assert.ok(r !== undefined);
+    assert.ok(equals(r.magnitude.mid, expected.value));
+    // A truncated root is inexact, and the table says so.
+    assert.ok(!isExact(r.magnitude));
+    assert.deepEqual(r.dimension, dim({ m: 1 }));
   }
 });
 
@@ -220,7 +238,7 @@ test("a kind rides along in a dimension", () => {
 
 test("a name defined twice is a duplicate", () => {
   const defs = definitions("m !", "s !", "m 100 cm");
-  const result = buildTable(defs, DEFAULT_PRECISION);
+  const result = buildTable(defs, CONTEXT);
   assert.deepEqual(result, {
     ok: false,
     error: { kind: "duplicate", first: defs[0], second: defs[2] },
@@ -229,7 +247,7 @@ test("a name defined twice is a duplicate", () => {
 
 test("a primitive and a unit share a namespace", () => {
   const defs = definitions("m 100 cm", "m !");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: { kind: "duplicate", first: defs[0], second: defs[1] },
   });
@@ -237,7 +255,7 @@ test("a primitive and a unit share a namespace", () => {
 
 test("a prefix defined twice is a duplicate", () => {
   const defs = definitions("k- 1000", "m !", "k- 1024");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: { kind: "duplicate", first: defs[0], second: defs[2] },
   });
@@ -304,7 +322,7 @@ test("prefixes do not stack", () => {
 test("a definition that refers to itself is circular", () => {
   const lines = ["m !", "a 2 a"];
   const defs = definitions(...lines);
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: {
       kind: "circularDefinition",
@@ -321,7 +339,7 @@ test("a cycle is reported from the first definition on it, at the reference that
   const lines = ["m !", "a b m", "b c", "c a / m"];
   const defs = definitions(...lines);
   const text = lines.join("\n");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: {
       kind: "circularDefinition",
@@ -335,7 +353,7 @@ test("a cycle lists only the definitions on it", () => {
   const lines = ["m !", "a b", "b c", "c b"];
   const defs = definitions(...lines);
   const text = lines.join("\n");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: {
       kind: "circularDefinition",
@@ -350,7 +368,7 @@ test("a cycle may run through a prefix", () => {
   const lines = ["m !", "kilo- kilom / m"];
   const defs = definitions(...lines);
   const text = lines.join("\n");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: {
       kind: "circularDefinition",
@@ -374,7 +392,7 @@ test("a cycle is reported wherever the build reaches it first", () => {
 
 test("a prefix must be a plain number", () => {
   const defs = definitions("m !", "metric- m");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: {
       kind: "dimensionedPrefix",
@@ -386,7 +404,7 @@ test("a prefix must be a plain number", () => {
 
 test("a prefix may not carry a kind", () => {
   const defs = definitions("radian !kind", "angular- radian");
-  assert.deepEqual(buildTable(defs, DEFAULT_PRECISION), {
+  assert.deepEqual(buildTable(defs, CONTEXT), {
     ok: false,
     error: {
       kind: "dimensionedPrefix",
@@ -514,18 +532,13 @@ test("a built table converts", () => {
   const quantity = (text: string): Quantity => {
     const expr = parseExpr(text);
     assert.ok(expr.ok, inspect(expr));
-    const result = evaluate(
-      expr.value,
-      lookup,
-      table.primitives,
-      DEFAULT_PRECISION,
-    );
+    const result = evaluate(expr.value, lookup, table.primitives, CONTEXT);
     assert.ok(result.ok, inspect(result));
     return result.value;
   };
   const miles = convert(quantity("1 mile"), quantity("km"), table.primitives);
   assert.ok(miles.ok, inspect(miles));
-  assert.ok(equals(miles.value, decimal("1.609344")));
+  assert.ok(equals(miles.value.mid, decimal("1.609344")));
 
   const speed = convert(
     quantity("60 mile / hour"),
@@ -533,7 +546,7 @@ test("a built table converts", () => {
     table.primitives,
   );
   assert.ok(speed.ok, inspect(speed));
-  assert.ok(equals(speed.value, decimal("26.8224")));
+  assert.ok(equals(speed.value.mid, decimal("26.8224")));
 
   const rate = convert(
     quantity("radian / s"),
@@ -548,7 +561,7 @@ test("building leaves the definitions alone", () => {
   const defs = definitions("m !", "k- 1000", "km 1000 m");
   const before = structuredClone(defs);
   built("m !", "k- 1000", "km 1000 m");
-  buildTable(defs, DEFAULT_PRECISION);
+  buildTable(defs, CONTEXT);
   assert.deepEqual(defs, before);
 });
 
@@ -682,14 +695,17 @@ test("a list's failing dependency is the list's failure, and the build stops in 
 test("a built list converts", () => {
   const table = built(...TIME, "time  hr;min;s");
   const time = table.unitLists.get("time")!;
-  const have = { magnitude: decimal("3661"), dimension: dim({ s: 1 }) };
+  const have = { magnitude: exact(decimal("3661")), dimension: dim({ s: 1 }) };
   const result = convertToList(
     have,
     time.map((unit) => unit.quantity),
     table.primitives,
   );
   assert.ok(result.ok);
-  assert.deepEqual(result.value.map(toFraction), ["1", "1", "1"]);
+  assert.deepEqual(
+    result.value.map((term) => toFraction(term.mid)),
+    ["1", "1", "1"],
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -710,7 +726,7 @@ function quantityIn(table: UnitTable, text: string): Quantity {
     expr.value,
     unitLookup(table),
     table.primitives,
-    DEFAULT_PRECISION,
+    CONTEXT,
   );
   assert.ok(result.ok, inspect(result));
   return result.value;
@@ -742,7 +758,7 @@ test("a built function applies and inverts", () => {
     boiling,
     unitLookup(table),
     table.primitives,
-    DEFAULT_PRECISION,
+    CONTEXT,
   );
   assert.ok(argument.ok, inspect(argument));
   assertQuantity(argument.value, "100", {});
@@ -851,6 +867,14 @@ test("the declared units are evaluated, and neither may be zero", () => {
     kind: "zeroDeclaredUnit",
     definition: resultDefinition,
     unit: "result",
+  });
+  // A declared unit that cannot be told from zero is no count either.
+  const aroundZero = [...TEMP, "f(x)  [(2^(1/2))^2 - 2;K]  x K ; f / K"];
+  const [aroundDefinition] = definitions(...aroundZero).slice(-1);
+  assert.deepEqual(failed(...aroundZero), {
+    kind: "zeroDeclaredUnit",
+    definition: aroundDefinition,
+    unit: "argument",
   });
 });
 

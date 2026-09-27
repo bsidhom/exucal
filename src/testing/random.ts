@@ -13,7 +13,16 @@
 // the 32 bits exactly, which is how `randomBigInt` builds a bigint of any
 // width from whole words rather than from the leading bits of a double.
 
-import { rational, type Rational } from "../core/rational.ts";
+import { exact, type Ball } from "../core/ball.ts";
+import { radiusAbove } from "../core/radius.ts";
+import {
+  ONE,
+  absolute,
+  isZero,
+  multiply,
+  rational,
+  type Rational,
+} from "../core/rational.ts";
 
 /** A source of numbers in `[0, 1)`, as `Math.random` is, but repeatable. */
 export type Random = () => number;
@@ -74,4 +83,20 @@ export function randomRational(
   return scale >= 0
     ? rational(signed * 10n ** BigInt(scale), den)
     : rational(signed, den * 10n ** BigInt(-scale));
+}
+
+/**
+ * A ball whose midpoint is `randomRational(rand, bits, exponent)`: exact one
+ * time in four, and otherwise with a radius of `10^-k` of the midpoint's
+ * magnitude (of one, for a zero midpoint) for `k` in `[1, 15]`, rounded up
+ * to a radius, so that most balls exclude zero and a division or a negative
+ * power of one is defined. The radius is never unbounded; a test that wants
+ * an unbounded ball writes one.
+ */
+export function randomBall(rand: Random, bits: number, exponent: number): Ball {
+  const mid = randomRational(rand, bits, exponent);
+  if (rand() < 0.25) return exact(mid);
+  const scale = isZero(mid) ? ONE : absolute(mid);
+  const k = BigInt(between(rand, 1, 15));
+  return { mid, rad: radiusAbove(multiply(scale, rational(1n, 10n ** k))) };
 }

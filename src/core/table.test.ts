@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { DEFAULT_ROUNDING, type NumberContext } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
+import { exact } from "./ball.ts";
 import { convert } from "./convert.ts";
 import { type Dimension, type Primitives } from "./dimension.ts";
 import { evaluate } from "./evaluate.ts";
@@ -8,10 +10,8 @@ import { parseExpr, type Expr } from "./expr.ts";
 import { type Quantity } from "./quantity.ts";
 import {
   DEFAULT_PRECISION,
-  equals,
   parseDecimal,
   rational,
-  toFraction,
   type Rational,
 } from "./rational.ts";
 import { type Result } from "./result.ts";
@@ -21,6 +21,12 @@ import {
   type UnitFunction,
   type UnitTable,
 } from "./table.ts";
+
+/** The context every test computes at: the working precision, in the default mode. */
+const CONTEXT: NumberContext = {
+  precision: DEFAULT_PRECISION,
+  rounding: DEFAULT_ROUNDING,
+};
 
 /** Builds a dimension from integer exponents. */
 function dim(exponents: Record<string, number>): Dimension {
@@ -37,7 +43,7 @@ function decimal(text: string): Rational {
 }
 
 function quantity(text: string, exponents: Record<string, number>): Quantity {
-  return { magnitude: decimal(text), dimension: dim(exponents) };
+  return { magnitude: exact(decimal(text)), dimension: dim(exponents) };
 }
 
 function parsed(text: string): Expr {
@@ -65,9 +71,9 @@ const TABLE: UnitTable = {
     ["radian", "kind"],
   ]) satisfies Primitives,
   prefixes: new Map([
-    ["k", decimal("1000")],
-    ["m", decimal("0.001")],
-    ["c", decimal("0.01")],
+    ["k", exact(decimal("1000"))],
+    ["m", exact(decimal("0.001"))],
+    ["c", exact(decimal("0.01"))],
   ]),
   units: new Map([
     ["m", quantity("1", { m: 1 })],
@@ -92,10 +98,7 @@ function found(result: Result<Quantity, LookupError>): Quantity {
 }
 
 function assertQuantity(actual: Quantity, expected: Quantity): void {
-  assert.ok(
-    equals(actual.magnitude, expected.magnitude),
-    `expected magnitude ${toFraction(expected.magnitude)}, got ${toFraction(actual.magnitude)}`,
-  );
+  assert.deepEqual(actual.magnitude, expected.magnitude);
   assert.deepEqual(actual.dimension, expected.dimension);
 }
 
@@ -139,23 +142,18 @@ test("the lookup serves the evaluator", () => {
     parsed("3 km / h"),
     lookup,
     TABLE.primitives,
-    DEFAULT_PRECISION,
+    CONTEXT,
   );
   assert.ok(result.ok, inspect(result));
   assertQuantity(result.value, {
-    magnitude: rational(5n, 6n),
+    magnitude: exact(rational(5n, 6n)),
     dimension: dim({ m: 1, s: -1 }),
   });
 });
 
 test("an unknown unit in the input is the evaluator's failure", () => {
   assert.deepEqual(
-    evaluate(
-      parsed("3 furlong / h"),
-      lookup,
-      TABLE.primitives,
-      DEFAULT_PRECISION,
-    ),
+    evaluate(parsed("3 furlong / h"), lookup, TABLE.primitives, CONTEXT),
     {
       ok: false,
       error: {
@@ -168,35 +166,20 @@ test("an unknown unit in the input is the evaluator's failure", () => {
 });
 
 test("the table's primitives serve the converter", () => {
-  const have = evaluate(
-    parsed("1 min"),
-    lookup,
-    TABLE.primitives,
-    DEFAULT_PRECISION,
-  );
-  const want = evaluate(
-    parsed("ms"),
-    lookup,
-    TABLE.primitives,
-    DEFAULT_PRECISION,
-  );
+  const have = evaluate(parsed("1 min"), lookup, TABLE.primitives, CONTEXT);
+  const want = evaluate(parsed("ms"), lookup, TABLE.primitives, CONTEXT);
   assert.ok(have.ok && want.ok);
   const result = convert(have.value, want.value, TABLE.primitives);
   assert.ok(result.ok, inspect(result));
-  assert.ok(equals(result.value, rational(60000n)));
+  assert.deepEqual(result.value, exact(rational(60000n)));
 
   const angle = evaluate(
     parsed("radian / s"),
     lookup,
     TABLE.primitives,
-    DEFAULT_PRECISION,
+    CONTEXT,
   );
-  const rate = evaluate(
-    parsed("1 / s"),
-    lookup,
-    TABLE.primitives,
-    DEFAULT_PRECISION,
-  );
+  const rate = evaluate(parsed("1 / s"), lookup, TABLE.primitives, CONTEXT);
   assert.ok(angle.ok && rate.ok);
   const mismatch = convert(angle.value, rate.value, TABLE.primitives);
   assert.ok(!mismatch.ok);
@@ -244,7 +227,7 @@ test("the lookup serves the evaluator for a call", () => {
     parsed("tempC(100) - tempC(0)"),
     lookup,
     TABLE.primitives,
-    DEFAULT_PRECISION,
+    CONTEXT,
   );
   assert.ok(result.ok, inspect(result));
   assertQuantity(result.value, quantity("100", { K: 1 }));

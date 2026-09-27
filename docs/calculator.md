@@ -1,6 +1,8 @@
 # From unit converter to arbitrary-precision calculator: feasibility
 
-Status: design study, no code. This document weighs a list of features
+Status: design study; docs/calculator-plan.md is the implementation plan
+that follows from it, and stage 1 of the plan has landed. This document
+weighs a list of features
 against the core as it stands and says which fit together, which have to
 be toggled against one another, which are set aside for later, and which
 are ruled out. It stays in broad strokes on purpose: each feature it

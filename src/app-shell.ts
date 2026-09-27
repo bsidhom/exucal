@@ -1,7 +1,16 @@
 import { LitElement, css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import { MAX_DIGITS } from "./core/context.ts";
 import { type Result } from "./core/result.ts";
+import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 import { type UnitTable } from "./core/table.ts";
+import {
+  contextOf,
+  isDigits,
+  loadSettings,
+  saveSettings,
+  type Settings,
+} from "./settings.ts";
 import { loadSystemTable, type SystemTableError } from "./system-table.ts";
 import "./unit-converter.ts";
 
@@ -15,6 +24,13 @@ import "./unit-converter.ts";
  * in flight. The load is one promise whose result is set on reactive state
  * when it settles, the plain Lit pattern for a single asynchronous value;
  * `@lit/task` would be the tool if the shell grew more of them.
+ *
+ * The shell owns the settings too (settings.ts): the digits a result is
+ * shown with and the rounding mode, read from `localStorage` when the shell
+ * is created, edited in a panel under the converter, saved on every change,
+ * and passed down to the converter as its context. The digits input
+ * accepts an integer from 1 to `MAX_DIGITS`, and a value outside that is
+ * not applied: the input snaps back to the setting in force.
  */
 @customElement("app-shell")
 export class AppShell extends LitElement {
@@ -69,10 +85,53 @@ export class AppShell extends LitElement {
       color: inherit;
       cursor: pointer;
     }
+
+    details {
+      width: 100%;
+      max-width: 32rem;
+      text-align: start;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .settings {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-top: 0.75rem;
+    }
+
+    .settings label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .settings input,
+    .settings select {
+      font: inherit;
+      padding: 0.375rem 0.5rem;
+      border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+      border-radius: 0.5rem;
+      background: transparent;
+      color: inherit;
+    }
+
+    .settings input {
+      width: 6rem;
+    }
   `;
 
   /** The system table once loaded, or why it could not be; unset until then. */
   @state() private table?: Result<UnitTable, SystemTableError>;
+
+  /** The user's settings, from storage, saved on every change. */
+  @state() private settings: Settings = loadSettings(localStorage);
 
   connectedCallback() {
     super.connectedCallback();
@@ -100,9 +159,68 @@ export class AppShell extends LitElement {
     return html`
       <main>
         <h1>Units</h1>
-        ${this.renderContent()}
+        ${this.renderContent()} ${this.renderSettings()}
       </main>
     `;
+  }
+
+  /** The settings panel: the digits and the rounding mode, saved on change. */
+  private renderSettings() {
+    const { digits, rounding } = this.settings;
+    return html`
+      <details>
+        <summary>Settings</summary>
+        <div class="settings">
+          <label>
+            Digits
+            <input
+              type="number"
+              inputmode="numeric"
+              min="1"
+              max=${MAX_DIGITS}
+              step="1"
+              .value=${String(digits)}
+              @change=${this.onDigitsChange}
+            />
+          </label>
+          <label>
+            Rounding
+            <select .value=${rounding} @change=${this.onRoundingChange}>
+              ${ROUNDING_MODES.map(
+                (mode) =>
+                  html`<option value=${mode} ?selected=${mode === rounding}>
+                    ${ROUNDING_LABELS[mode]}
+                  </option>`,
+              )}
+            </select>
+          </label>
+        </div>
+      </details>
+    `;
+  }
+
+  private onDigitsChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const digits = input.valueAsNumber;
+    if (isDigits(digits)) {
+      this.applySettings({ digits });
+    } else {
+      // Not a setting: snap the input back to the one in force.
+      input.value = String(this.settings.digits);
+    }
+  }
+
+  private onRoundingChange(event: Event) {
+    const { value } = event.target as HTMLSelectElement;
+    if ((ROUNDING_MODES as readonly string[]).includes(value)) {
+      this.applySettings({ rounding: value as RoundingMode });
+    }
+  }
+
+  /** Applies a change to the settings and saves them. */
+  private applySettings(change: Partial<Settings>) {
+    this.settings = { ...this.settings, ...change };
+    saveSettings(localStorage, this.settings);
   }
 
   private renderContent() {
@@ -123,9 +241,23 @@ export class AppShell extends LitElement {
         <button type="button" @click=${this.load}>Retry</button>
       </div>`;
     }
-    return html`<unit-converter .table=${table.value}></unit-converter>`;
+    return html`<unit-converter
+      .table=${table.value}
+      .context=${contextOf(this.settings)}
+    ></unit-converter>`;
   }
 }
+
+/** How each rounding mode is named in the settings, in the modes' order. */
+const ROUNDING_LABELS: Record<RoundingMode, string> = {
+  halfEven: "to nearest, ties to even",
+  halfAwayFromZero: "to nearest, ties away from zero",
+  halfTowardZero: "to nearest, ties toward zero",
+  towardZero: "toward zero",
+  awayFromZero: "away from zero",
+  ceiling: "up (toward +∞)",
+  floor: "down (toward −∞)",
+};
 
 declare global {
   interface HTMLElementTagNameMap {

@@ -27,9 +27,10 @@
 // positive count; and every unit must conform to `have`. The terms are
 // exact, like the ratio `convert` returns, and `roundTerms` is the display
 // rounding that goes with them: the remainder rounds to the display
-// precision, and since a remainder of `11.9999999988 in` shown as `12 in`
-// beside `2 ft` would read wrongly, the counts are taken again from the
-// rounded sum, so that the rounding carries (`3 ft`) as a digit does.
+// precision in the display's rounding mode, and since a remainder of
+// `11.9999999988 in` shown as `12 in` beside `2 ft` would read wrongly, the
+// counts are taken again from the rounded sum, so that the rounding carries
+// (`3 ft`) as a digit does.
 
 import {
   checkConformance,
@@ -43,7 +44,7 @@ import {
   divide,
   equals,
   multiply,
-  round,
+  roundTo,
   sign,
   subtract,
   trunc,
@@ -51,6 +52,7 @@ import {
   type Rational,
 } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
+import { type RoundingMode } from "./rounding.ts";
 
 export type ConvertError =
   | ConformanceError
@@ -135,11 +137,12 @@ export function convertToList(
 
 /**
  * The `terms` of a sum over `units`, from `convertToList`, as they are to
- * be shown at `digits` significant digits: the remainder rounded to
- * `digits` as `round` rounds, and, when that changes it, the counts taken
- * again from the rounded sum, so that a remainder which rounds up to a
- * whole of an earlier unit is carried into that unit rather than shown
- * beside it (`2 ft + 11.9999999988 in` becomes `3 ft`, not `2 ft + 12 in`).
+ * be shown at `digits` significant digits in `mode`: the remainder rounded
+ * to `digits` as `roundTo` rounds, and, when that changes it, the counts
+ * taken again from the rounded sum, so that a remainder which rounds up to
+ * a whole of an earlier unit is carried into that unit rather than shown
+ * beside it (`2 ft + 11.9999999988 in` becomes `3 ft`, not `2 ft + 12 in`;
+ * under `floor` it stays `2 ft + 11.999999 in`, since nothing rounds up).
  * When the remainder is already exact at `digits`, the terms come back as
  * they are. The rounding is one rounding of the whole sum, by less than a
  * unit in the last digit of the remainder; the counts are integers and are
@@ -150,10 +153,11 @@ export function roundTerms(
   units: readonly Quantity[],
   terms: readonly Rational[],
   digits: Precision,
+  mode: RoundingMode,
 ): readonly Rational[] {
   const last = terms.length - 1;
   const remainder = terms[last]!;
-  const rounded = round(remainder, digits);
+  const rounded = roundTo(remainder, digits, mode);
   if (equals(rounded, remainder)) return terms;
   const sizes = units.map((unit) => unit.magnitude);
   const total = terms

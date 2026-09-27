@@ -21,7 +21,7 @@ import {
   multiply,
   parseDecimal,
   rational,
-  round,
+  roundTo,
   subtract,
   toFraction,
   type Rational,
@@ -124,12 +124,12 @@ test("the value is exact, never rounded", () => {
   // 1 m in inches is 5000/127, which no decimal writes exactly.
   const inches = value(convert(METRE, INCH, SI));
   assert.deepEqual(inches, rational(5000n, 127n));
-  assert.ok(!equals(round(inches, 8), inches));
-  assert.equal(format(inches, 8), "39.370079");
+  assert.ok(!equals(roundTo(inches, 8, "halfAwayFromZero"), inches));
+  assert.equal(format(inches, 8, "halfAwayFromZero"), "39.370079");
   // Whereas 1 in in cm is exactly 2.54, and a display can say so.
   const centimetres = value(convert(INCH, CENTIMETRE, SI));
-  assert.ok(equals(round(centimetres, 8), centimetres));
-  assert.equal(format(centimetres, 8), "2.54");
+  assert.ok(equals(roundTo(centimetres, 8, "halfAwayFromZero"), centimetres));
+  assert.equal(format(centimetres, 8, "halfAwayFromZero"), "2.54");
 });
 
 test("want may have a magnitude of its own", () => {
@@ -463,7 +463,10 @@ test("roundTerms leaves terms alone when the remainder shows exactly", () => {
   const exact = terms(
     convertToList(quantity("3661.5", { s: 1 }), [HOUR, MINUTE, SECOND], SI),
   );
-  assert.equal(roundTerms([HOUR, MINUTE, SECOND], exact, 8), exact);
+  assert.equal(
+    roundTerms([HOUR, MINUTE, SECOND], exact, 8, "halfAwayFromZero"),
+    exact,
+  );
 });
 
 test("roundTerms rounds the remainder to the digits given", () => {
@@ -471,8 +474,33 @@ test("roundTerms rounds the remainder to the digits given", () => {
     [FOOT, INCH],
     terms(convertToList(METRE, [FOOT, INCH], SI)),
     8,
+    "halfAwayFromZero",
   );
   assertTerms(rounded, ["3", "3.3700787"]);
+});
+
+test("roundTerms rounds the remainder in the mode given", () => {
+  // The remainder is 3.37007874015... in.
+  const exact = terms(convertToList(METRE, [FOOT, INCH], SI));
+  assertTerms(roundTerms([FOOT, INCH], exact, 8, "floor"), ["3", "3.3700787"]);
+  assertTerms(roundTerms([FOOT, INCH], exact, 8, "ceiling"), [
+    "3",
+    "3.3700788",
+  ]);
+  assertTerms(roundTerms([FOOT, INCH], exact, 2, "towardZero"), ["3", "3.3"]);
+  assertTerms(roundTerms([FOOT, INCH], exact, 2, "awayFromZero"), ["3", "3.4"]);
+  // A directed mode rounds a negative remainder to its side of the line.
+  const negative = terms(
+    convertToList(quantity("-1", { m: 1 }), [FOOT, INCH], SI),
+  );
+  assertTerms(roundTerms([FOOT, INCH], negative, 8, "floor"), [
+    "-3",
+    "-3.3700788",
+  ]);
+  assertTerms(roundTerms([FOOT, INCH], negative, 8, "ceiling"), [
+    "-3",
+    "-3.3700787",
+  ]);
 });
 
 test("a remainder that rounds up to a whole of an earlier unit carries into it", () => {
@@ -483,14 +511,24 @@ test("a remainder that rounds up to a whole of an earlier unit carries into it",
     "30479999997/2540000000",
   ]);
   assertTerms(
-    roundTerms([FOOT, INCH], terms(convertToList(have, [FOOT, INCH], SI)), 8),
+    roundTerms(
+      [FOOT, INCH],
+      terms(convertToList(have, [FOOT, INCH], SI)),
+      8,
+      "halfAwayFromZero",
+    ),
     ["3", "0"],
   );
   // The carry runs through as many units as it must.
   const almostAnHour = quantity("3599.9999999999", { s: 1 });
   const units = [HOUR, MINUTE, SECOND];
   assertTerms(
-    roundTerms(units, terms(convertToList(almostAnHour, units, SI)), 8),
+    roundTerms(
+      units,
+      terms(convertToList(almostAnHour, units, SI)),
+      8,
+      "halfAwayFromZero",
+    ),
     ["1", "0", "0"],
   );
   // And of a negative value.
@@ -500,9 +538,33 @@ test("a remainder that rounds up to a whole of an earlier unit carries into it",
       [FOOT, INCH],
       terms(convertToList(negative, [FOOT, INCH], SI)),
       8,
+      "halfAwayFromZero",
     ),
     ["-3", "0"],
   );
+});
+
+test("the carry follows the mode: a directed mode carries only on its side", () => {
+  // 2 ft + 11.9999999988 in: ceiling rounds the remainder up to 12 in and
+  // carries; floor leaves 11.999999 in and nothing carries.
+  const have = quantity("0.91439999997", { m: 1 });
+  const exact = terms(convertToList(have, [FOOT, INCH], SI));
+  assertTerms(roundTerms([FOOT, INCH], exact, 8, "ceiling"), ["3", "0"]);
+  assertTerms(roundTerms([FOOT, INCH], exact, 8, "awayFromZero"), ["3", "0"]);
+  assertTerms(roundTerms([FOOT, INCH], exact, 8, "floor"), ["2", "11.999999"]);
+  assertTerms(roundTerms([FOOT, INCH], exact, 8, "towardZero"), [
+    "2",
+    "11.999999",
+  ]);
+  // On the negative value the sides swap: floor carries, ceiling does not.
+  const negative = terms(
+    convertToList(quantity("-0.91439999997", { m: 1 }), [FOOT, INCH], SI),
+  );
+  assertTerms(roundTerms([FOOT, INCH], negative, 8, "floor"), ["-3", "0"]);
+  assertTerms(roundTerms([FOOT, INCH], negative, 8, "ceiling"), [
+    "-2",
+    "-11.999999",
+  ]);
 });
 
 test("roundTerms rounds by less than a unit in the last digit shown", () => {
@@ -511,6 +573,7 @@ test("roundTerms rounds by less than a unit in the last digit shown", () => {
     [FOOT, INCH],
     terms(convertToList(have, [FOOT, INCH], SI)),
     8,
+    "halfAwayFromZero",
   );
   const shown = add(
     multiply(rounded[0]!, FOOT.magnitude),

@@ -5,8 +5,13 @@
 // Everything here is exact except where a `Precision` is taken, and the rules
 // for when a value may lose precision are spelled out in ARCHITECTURE.md
 // ("Precision and rounding"). In short: arithmetic never rounds, `root`
-// truncates its result once to the precision it is given, and `format`
-// rounds once more for display.
+// truncates its result once to the precision it is given (truncation is the
+// `towardZero` mode; docs/calculator-plan.md, D5, says why `root` does not
+// yet take the mode), and `roundTo` and `format` round once more, to the
+// digits and in the `RoundingMode` they are given, for display. Every
+// rounding here is a scaling to an integer division and back, and the
+// division is `divideRounded` of rounding.ts, the one place a mode is
+// interpreted.
 //
 // Failures on values (dividing by zero, an even root of a negative number, a
 // result too large to compute, text that is not a number) are returned as
@@ -15,6 +20,7 @@
 // throw `RangeError`, as `1n / 0n` does.
 
 import { err, ok, type Result } from "./result.ts";
+import { divideRounded, type RoundingMode } from "./rounding.ts";
 
 /** An exact rational number. Invariant: `den > 0` and `gcd(num, den) = 1`. */
 export type Rational = { readonly num: bigint; readonly den: bigint };
@@ -230,7 +236,7 @@ export function root(
     k >= 0
       ? rational(digits, 10n ** BigInt(k))
       : rational(digits * 10n ** BigInt(-k));
-  const truncated = truncate(value, precision);
+  const truncated = roundTo(value, precision, "towardZero");
   return ok(negative ? negate(truncated) : truncated);
 }
 
@@ -278,46 +284,28 @@ export function trunc(r: Rational): Rational {
   return isInteger(r) ? r : rational(r.num / r.den);
 }
 
-/** `r` truncated toward zero to `digits` significant digits. */
-export function truncate(r: Rational, digits: Precision): Rational {
-  return roundWith(r, digits, (num, den) => num / den);
-}
-
 /**
- * `r` rounded to the nearest value with `digits` significant digits, ties
- * away from zero (the `halfExpand` mode of `Intl.NumberFormat`, and the
- * rounding people expect from `0.125 → 0.13`). `equals(round(r, d), r)` says
- * whether `r` is displayed exactly at `d` digits.
+ * `r` rounded to `digits` significant digits in `mode`: `roundTo(r, 3,
+ * "halfAwayFromZero")` is the rounding people expect from `3.14159 → 3.14`
+ * and `0.125 → 0.13`, and `roundTo(r, 3, "towardZero")` the truncation
+ * `root` applies. `equals(roundTo(r, d, mode), r)` says whether `r` is
+ * displayed exactly at `d` digits, in any mode: a value with `d` or fewer
+ * significant digits is its own rounding, and no other value is.
  */
-export function round(r: Rational, digits: Precision): Rational {
-  return roundWith(r, digits, divideHalfAwayFromZero);
-}
-
-/**
- * Rescales `r` so that its `digits` leading digits form an integer, applies
- * `divide` (some rounding of a signed integer division by a positive one) and
- * scales back.
- */
-function roundWith(
+export function roundTo(
   r: Rational,
   digits: Precision,
-  divide: (num: bigint, den: bigint) => bigint,
+  mode: RoundingMode,
 ): Rational {
   checkPrecision(digits);
   if (r.num === 0n) return ZERO;
   const shift = digits - 1 - decimalExponent(r);
   if (shift >= 0) {
     const scale = 10n ** BigInt(shift);
-    return rational(divide(r.num * scale, r.den), scale);
+    return rational(divideRounded(r.num * scale, r.den, mode), scale);
   }
   const scale = 10n ** BigInt(-shift);
-  return rational(divide(r.num, r.den * scale) * scale);
-}
-
-/** `num / den` rounded to the nearest integer, ties away from zero; `den > 0`. */
-function divideHalfAwayFromZero(num: bigint, den: bigint): bigint {
-  const quotient = (2n * abs(num) + den) / (2n * den);
-  return num < 0n ? -quotient : quotient;
+  return rational(divideRounded(r.num, r.den * scale, mode) * scale);
 }
 
 // ---------------------------------------------------------------------------
@@ -358,28 +346,40 @@ export function parseDecimal(text: string): Result<Rational, RationalError> {
 }
 
 /**
- * Renders `r` rounded (by `round`) to `digits` significant digits, in the
- * style of C's `%g`: trailing zeros are dropped, and exponent notation is
- * used when the decimal exponent is below -4 or at least `digits`, with the
- * exponent written as JavaScript writes it (`1.5e+21`, `1e-7`).
+ * Renders `r` rounded (as `roundTo` rounds, in `mode`) to `digits`
+ * significant digits, in the style of C's `%g`: trailing zeros are dropped,
+ * and exponent notation is used when the decimal exponent is below -4 or at
+ * least `digits`, with the exponent written as JavaScript writes it
+ * (`1.5e+21`, `1e-7`).
  */
-export function format(r: Rational, digits: Precision): string {
+export function format(
+  r: Rational,
+  digits: Precision,
+  mode: RoundingMode,
+): string {
   checkPrecision(digits);
   if (r.num === 0n) return "0";
   let exponent = decimalExponent(r);
   const shift = digits - 1 - exponent;
-  const num = abs(r.num);
-  let mantissa =
-    shift >= 0
-      ? divideHalfAwayFromZero(num * 10n ** BigInt(shift), r.den)
-      : divideHalfAwayFromZero(num, r.den * 10n ** BigInt(-shift));
-  // Rounding can carry into a new leading digit (9.99 → 10.0).
+  // The signed numerator is rounded, since the directed modes tell the sign
+  // apart (`-9.99` at two digits is `-9.9` under `ceiling` and `-10` under
+  // `floor`), and the sign is taken from the result. Its magnitude has
+  // exactly `digits` digits: the scaled value is at least `10^(digits-1)`
+  // in magnitude, and every mode keeps it at or above that.
+  const signed = divideRounded(
+    shift >= 0 ? r.num * 10n ** BigInt(shift) : r.num,
+    shift >= 0 ? r.den : r.den * 10n ** BigInt(-shift),
+    mode,
+  );
+  let mantissa = abs(signed);
+  // Rounding can carry into a new leading digit (9.99 → 10.0), in any mode
+  // that rounds the magnitude up.
   if (mantissa === 10n ** BigInt(digits)) {
     mantissa /= 10n;
     exponent += 1;
   }
   const text = mantissa.toString(); // exactly `digits` characters
-  const sign = r.num < 0n ? "-" : "";
+  const sign = signed < 0n ? "-" : "";
   if (exponent < -4 || exponent >= digits) {
     const rest = trimZeros(text.slice(1));
     const exponentText = exponent < 0 ? `e-${-exponent}` : `e+${exponent}`;

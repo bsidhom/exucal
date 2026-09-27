@@ -16,10 +16,11 @@ import {
   format,
   invert,
   isZero,
-  round,
+  roundTo,
   sign,
   type Rational,
 } from "./core/rational.ts";
+import { type RoundingMode } from "./core/rounding.ts";
 import { type UnitTable } from "./core/table.ts";
 import { describeConversionError, describeTextError } from "./messages.ts";
 
@@ -29,6 +30,13 @@ import { describeConversionError, describeTextError } from "./messages.ts";
  * ("Precision and rounding") says why the two are kept apart.
  */
 export const DISPLAY_PRECISION = 8;
+
+/**
+ * The rounding mode a result is shown in: to nearest, ties away from zero,
+ * the rounding people expect from `0.125 → 0.13`. Task 1.10 of
+ * docs/calculator-plan.md makes it, and the digits, the user's to set.
+ */
+const DISPLAY_ROUNDING: RoundingMode = "halfAwayFromZero";
 
 /** One term of a result: `value` of `unit`, where `unit` is text to show after the value. */
 type Term = { readonly value: Rational; readonly unit: string };
@@ -361,6 +369,7 @@ function listResult(
     units.map((unit) => unit.quantity),
     terms,
     DISPLAY_PRECISION,
+    DISPLAY_ROUNDING,
   );
   const all = shown.map((value, i) => ({
     value,
@@ -408,7 +417,7 @@ function functionResult(
 
 /** Whether `value` is what its display at `DISPLAY_PRECISION` digits says. */
 function shownExactly(value: Rational): boolean {
-  return equals(round(value, DISPLAY_PRECISION), value);
+  return equals(roundTo(value, DISPLAY_PRECISION, DISPLAY_ROUNDING), value);
 }
 
 function renderOutcome(outcome: Outcome): TemplateResult {
@@ -441,7 +450,7 @@ function renderLine(line: Line): TemplateResult {
 function renderTerm(term: Term, index: number): TemplateResult {
   const value = index === 0 ? term.value : absolute(term.value);
   const operator = index === 0 ? "" : sign(term.value) < 0 ? " - " : " + ";
-  const text = format(value, DISPLAY_PRECISION);
+  const text = format(value, DISPLAY_PRECISION, DISPLAY_ROUNDING);
   const unit = term.unit === "" ? nothing : html` ${term.unit}`;
   return html`${operator}<span class="value">${text}</span>${unit}`;
 }

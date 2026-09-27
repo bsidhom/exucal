@@ -1,6 +1,8 @@
 # Implementation plan for the calculator
 
-Status: plan, no code. docs/calculator.md is the design study and its
+Status: in progress; stage 1 has landed through task 1.3, and D13 was
+revised in review of that first follow-up. docs/calculator.md is the
+design study and its
 "A sequence for the follow-ups" is the order this plan follows. This
 document turns that sequence into tasks small enough that each is one
 commit, reviewable on its own, with the tests that prove it and the state
@@ -139,7 +141,11 @@ table, and the definitions text is fetched once.
 
 **D7. Certification is "both ends round alike".** A ball certifies `d`
 digits in a rounding mode when `mid - rad` and `mid + rad`, as exact
-rationals, round to the same `d`-digit value in that mode. Rounding is
+rationals, round to the same `d`-digit value in that mode. That is the
+definition; the implementation forms the two ends only where it can, and
+once the midpoint carries an exponent (stage 4) it compares a decimal
+midpoint with a binary radius by their exponents and leading digits where
+forming either is infeasible (4.4). Rounding is
 monotone, so every value between them rounds to it too, and the shown
 digits are what rounding the true value would give: correctly rounded,
 not merely close. The ball is symmetric about its midpoint but the
@@ -278,15 +284,50 @@ capped at `MAX_DIGITS`, 200 in stage 2, so that the schedule always has
 room above the setting for cancellation. The fixed ceiling is also what
 lets D6 build the table once.
 
-**D13. The midpoint's canonical form, once it has an exponent (stage 4).**
-`num / den × 10^e` with `den` coprime to 10 and `num` not divisible by 10
-unless zero, so that equal values have equal representations and `equals`
-stays structural. Stripping the factors of 2 and 5 from a denominator and
-the trailing zeros from a numerator is a loop of small divisions, done in
-the constructor as the gcd is today. The form is internal: `format`,
-`roundTo`, `toFraction` and the fraction display of stage 5 are functions
-of the value, not of where its powers of ten sit, and a test asserts that
-`2.54`, `254/100` and `127/50` render alike in every display.
+**D13. The midpoint's exponent is a type of its own, `Scaled`, between
+the fraction and the ball (stage 4).** `Scaled = { mant: Rational; exp:
+bigint }` in `scaled.ts` stands for `mant × 10^exp`, in a canonical form:
+`mant` in lowest terms with its denominator coprime to 10 and its
+numerator not divisible by 10 unless zero, and zero as `exp` 0, so that
+equal values have equal representations and `equals` stays structural.
+Stripping the factors of 2 and 5 from a denominator and the trailing
+zeros from a numerator is a loop of small divisions, done in the
+constructor `scaled` on top of the lowest-terms invariant `rational`
+already keeps, each constructor owning one rule. The form is internal:
+`format`, `roundTo`, `toRational` and the fraction display of stage 5 are
+functions of the value, not of where its powers of ten sit, and a test
+asserts that `2.54`, `254/100` and `127/50` render alike in every display.
+The decimal mode is an invariant on the same type, a denominator of one
+and a numerator below `10^p`, not a type of its own.
+
+This revises the first version of the plan, which put `exp` on `Rational`
+itself, after review. The exponent does not change what the fraction
+denotes (`num / den × 10^e` is an exact rational) but it changes what
+the type promises: with an exponent, `add` and `subtract` can fail, since
+`1e999999999 + 1` cannot be aligned without forming a number of a billion
+digits, and `Rational` has users that need a total, small fraction with
+structural equality and no power of ten: the exponents of dimensions,
+which dimension.ts adds and subtracts through rational.ts, the `^`
+exponent the parser reads, and the exact value of a radius. One type
+would serve the magnitudes by degrading those. The canonical 10-free form
+belongs with the exponent, not with every fraction. And nearly everything
+in rational.ts beyond fraction arithmetic is decimal representation
+(`parseDecimal`, `format`, `roundTo`, `decimalExponent`, the `MAX_BITS`
+sizing, the roots' scaling) and changes with the exponent, so it moves to
+scaled.ts and rational.ts is left the exact fraction. Not flat in the
+ball either: a midpoint must stand as a number on its own, with its own
+comparison, rounding, formatting, certification and settling, and a
+parsed literal is a number before it is a ball. The types then form a
+ladder in which each layer adds one concept: `Rational` exactness (a
+fraction in lowest terms, total arithmetic), `Scaled` range (a power of
+ten, fallible alignment, the exponent bound, the decimal mode's
+invariant), `Radius` a coarse bound, `Ball` uncertainty (a midpoint with
+a radius), `Quantity` a dimension. The radius is not a field on the
+number because it is a new concept; the exponent is not a field on the
+fraction because it is a new contract. Nothing in stages 1 to 3 changes:
+the ball's midpoint is a `Rational` until 4.4 makes it a `Scaled`, and
+since the ball hides the midpoint's type from the evaluator, the table
+and the build, the change reaches only the readers of `.mid`.
 
 **D14. The exact functions (`abs`, `floor`, `gcd`, ...) come after the
 elementary set and before the Gamma family.** They depend only on the
@@ -406,7 +447,8 @@ is `pow(mid, |n|)`, which does the `MAX_BITS` check, the radius is
 `n (|mid| + rad)^(n-1) rad` in the coarse arithmetic, and a negative `n`
 inverts by the division rule. Midpoints are never rounded here: in exact
 mode the exact operations stay exact, and only the radius says what has
-been lost upstream.
+been lost upstream. The midpoint is a `Rational` through stages 1 to 3;
+4.4 makes it a `Scaled` (D13), and nothing above the ball sees the change.
 
 Tests: on exact balls every operation agrees with rational.ts; containment
 over seeded balls (the result's interval contains the exact result at the
@@ -899,48 +941,90 @@ README: a "Functions in expressions" section listing the built-ins, and
 the settings note that the table is rebuilt when the digits change.
 docs/builtins.md gains its implementation notes.
 
-## Stage 4: the exponent and the decimal mode
+## Stage 4: the `Scaled` midpoint and the decimal mode
 
-Provisional. The study's features 4 and 5 as one: the midpoint gains a
-power-of-ten exponent, and a decimal mode rounds after every operation.
-The shape below is firm; the first task refines the details against the
-kernel as it landed.
+Provisional. The study's features 4 and 5 as one: the midpoint becomes a
+`Scaled`, a fraction times a power of ten (D13), and a decimal mode rounds
+after every operation. The shape below is firm; the first task refines the
+details against the kernel as it landed.
 
 ### 4.0 Design note
 
-docs/decimal.md: the canonical form (D13), the alignment rule for sums and
-its `tooLarge`, the exponent bound (`10^18`), what "after every operation"
-means for a unit looked up, a power, a call, and a defined function's body
-(every result the evaluator produces is settled, in one place), and what
-the retry loop does in decimal mode (nothing).
+docs/decimal.md: the `Scaled` type and its canonical form (D13), the
+alignment rule for sums and its `tooLarge`, the exponent bound (`10^18`),
+what "after every operation" means for a unit looked up, a power, a call,
+and a defined function's body (every result the evaluator produces is
+settled, in one place), and what the retry loop does in decimal mode
+(nothing).
 
-### 4.1 The exponent field, construction and comparison
+### 4.1 The `Scaled` type, construction and comparison
 
-`rational.ts`: `Rational` gains `exp`; the constructor normalizes per D13;
-`equals` stays structural; `compare` and `sign` compare by exponent and
-digit count before any multiplication, so that `1e999999999` compares
-with `1` without being formed. `ZERO` and `ONE` unchanged in meaning.
+New `src/core/scaled.ts`, per D13: `Scaled`, the constructor `scaled(mant,
+exp)` normalizing to the canonical form, `fromRational`, `toRational`
+(which fails `tooLarge` when forming the power of ten would exceed
+`MAX_BITS`), `ZERO` and `ONE`, `isZero`, `isInteger`, `sign`, `equals`
+(structural), and `compare`, which compares by exponent and digit count
+before any multiplication, so that `1e999999999` compares with `1`
+without being formed. `rational.ts` is untouched.
 
-### 4.2 The exact operations with an exponent
+Tests: the canonical form (`2.54`, `254/100` and `127/50` are one value
+with one representation); `compare` across exponents that could not be
+aligned; the round trip through `toRational` where it fits and its
+failure where it does not.
 
-`add` and `subtract` align exponents and fail `tooLarge` when the
-alignment would exceed `MAX_BITS` (a new `Result` for two operations that
-could not fail before, which reaches `addQuantities` and the evaluator as
-a located `tooLarge`); `multiply`, `divide`, `pow` and `invert` combine
-exponents and check the bound. `dimension.ts` is untouched: its exponents
-never carry a power of ten.
+Behavior: none; the module is unused.
 
-### 4.3 Text, rounding and digits with an exponent
+### 4.2 The arithmetic with an exponent
 
-`parseDecimal` keeps a literal's exponent lazily, so `1e999999999` parses;
-`decimalExponent`, `roundTo`, `format` and `toFraction` account for
-`exp`; `format` writes the exponent form for anything the fixed form
-cannot hold.
+`scaled.ts`: `add` and `subtract` align exponents on the mantissas and
+fail `tooLarge` when the alignment would exceed `MAX_BITS` (`Result`s,
+where the fraction's are total); `negate`, `multiply`, `divide`, `invert`
+and `pow` combine exponents; every one calls the fraction's operation on
+the mantissas and renormalizes. `MAX_EXPONENT` (`10^18`) is checked
+wherever an exponent is combined, failing `tooLarge`, so that formatting
+is always possible (the study's bound, so that `10^(10^30)` fails cleanly
+instead of looping). `dimension.ts` and the `^` exponent go on using
+`Rational`, whose arithmetic stays total.
 
-### 4.4 The exponent bound
+Tests: every operation agrees with rational.ts through `toRational` where
+the values fit; the alignment failure; the exponent bound.
 
-`MAX_EXPONENT` (`10^18`) checked wherever an exponent is combined, failing
-`tooLarge`, so that formatting is always possible.
+### 4.3 Text, rounding, digits and roots on `Scaled`
+
+`parseDecimal`, `decimalExponent`, `roundTo`, `trunc`, `format` and the
+roots (`exactRoot`, and `truncatedRoot` if it still exists) move from
+rational.ts to scaled.ts and account for the exponent: `parseDecimal`
+keeps a literal's exponent lazily, so `1e999999999` parses where it is
+`tooLarge` today; `format` writes the exponent form for anything the fixed
+form cannot hold; the `MAX_BITS` sizing of `pow` and the roots moves with
+them. `rational.ts` keeps construction, comparison, the exact arithmetic,
+`pow` by a bigint, `trunc` and `toFraction`, and `Precision` moves to
+rounding.ts. Nothing else changes yet: the callers still hold rationals,
+and convert through `fromRational` and `toRational` at the boundary until
+4.4, where that boundary goes.
+
+Tests: the moved tests, with the exponent cases added.
+
+### 4.4 The midpoint becomes a `Scaled`
+
+`Ball.mid` is a `Scaled`; the `number` node of `expr.ts` holds a `Scaled`
+(the literal's exponent, lazily), while the `^` exponent stays a
+`Rational`, the exponent grammar converting with `toRational` so that
+`m^1e999999999` is refused there; `fixedFromRational` becomes
+`fixedFromScaled`, with a bound on the exponent it will form (an argument
+beyond `MAX_BITS` is `tooLarge`, per D10); `certifies` compares the
+midpoint with the radius by exponents and leading digits where forming
+either is infeasible (D7); the readers of `.mid` (the converter, the
+pipeline, the display, the messages) change type. The evaluator, the
+table and the build see only balls and do not change.
+
+Tests: the type change is covered by the existing tests; new ones for
+`1e999999999 * 1e999999999` (exact, with an exponent), `1e999999999 + 1`
+(`tooLarge`, located at the sum), `m^1e999999999` (rejected at the
+exponent), and certification of `sqrt(1e999999999)`.
+
+Behavior: `1e999999999` parses and multiplies where it fails today;
+`1e999999999 + 1` still fails, as `tooLarge`.
 
 ### 4.5 `mode` in the context, and settling
 
@@ -964,7 +1048,9 @@ validation; README.
 
 ### 4.8 Stage 4 docs
 
-ARCHITECTURE.md "Numbers" for the exponent and the two modes.
+ARCHITECTURE.md "Numbers" for the type ladder of D13 (`Rational`,
+`Scaled`, `Radius`, `Ball`, `Quantity`), the exponent and the two modes;
+"Layout" for scaled.ts.
 
 ## Stage 5: the rational display
 
@@ -979,8 +1065,10 @@ notation instead (`1e+999999999` is exact and short; its digits are not).
 ### 5.1 `show` with fractions
 
 `display.ts`: a `fractions` flag; an exact ball is written as an integer
-or a fraction in lowest terms (recovering the ordinary fraction from
-D13's form), with `needsParentheses` set for the UI when a fraction will
+or a fraction in lowest terms (recovering the ordinary fraction from the
+`Scaled` form of D13 through `toRational`, or the exponent notation of
+5.0 where that would not fit), with `needsParentheses` set for the UI
+when a fraction will
 precede a unit; an inexact ball falls back to the decimal display and
 says so in its kind.
 

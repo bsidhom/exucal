@@ -108,14 +108,17 @@ These three rules are being replaced by the precision model of
 docs/calculator.md, stage by stage along docs/calculator-plan.md: every
 magnitude becomes a ball, a midpoint with a radius that bounds its
 distance from the true value, and `=` is shown when the radius is zero.
-The ball is a type of its own (`ball.ts`, task 1.5), a `Rational` beside
-a `Radius`, and its operations compose the exact arithmetic of
-`rational.ts` on the midpoint with the propagation rules of `radius.ts`
-on the radius; neither module knows the other, and `rational.ts` stays
-the exact number type it is (the exponent of stage 4, D13, is the
-midpoint's, so that the exact operations align and compare it). Nothing
-stores a radius inside a rational. `src/core/radius.ts` is the radius,
-in place ahead of the ball: a coarse
+The ball is a type of its own (`ball.ts`, task 1.5), a midpoint beside a
+`Radius`, and its operations compose the arithmetic of the midpoint's
+type with the propagation rules of `radius.ts` on the radius; neither
+module knows the other, and nothing stores a radius inside a number. The
+midpoint is a `Rational` until stage 4 makes it a `Scaled`, a fraction
+times a power of ten in a module of its own (the plan's D13 says why the
+exponent is a type between the fraction and the ball rather than a field
+on either), so that `rational.ts` stays the exact fraction it is, with
+total arithmetic, for the exponents of dimensions and of `^` as much as
+for a midpoint's mantissa. `src/core/radius.ts` is the radius, in place
+ahead of the ball: a coarse
 binary magnitude, `mant × 2^exp` with a 30-bit mantissa and a bigint
 exponent, or the distinguished value unbounded, with the operations a
 propagation rule needs (`radiusAbove`, the sum, the product, the power,

@@ -10,7 +10,6 @@ import { parseExpr, type Expr } from "./expr.ts";
 import { type Quantity } from "./quantity.ts";
 import {
   DEFAULT_PRECISION,
-  equals,
   parseDecimal,
   rational,
   type Rational,
@@ -172,7 +171,7 @@ test("the table's primitives serve the converter", () => {
   assert.ok(have.ok && want.ok);
   const result = convert(have.value, want.value, TABLE.primitives);
   assert.ok(result.ok, inspect(result));
-  assert.ok(equals(result.value, rational(60000n)));
+  assert.deepEqual(result.value, exact(rational(60000n)));
 
   const angle = evaluate(
     parsed("radian / s"),

@@ -513,18 +513,26 @@ huge number and now reports the error; that is a fix, and a test.
 
 ### 1.8 The converter and the pipeline on balls
 
-`convert` returns a `Ball`, the quotient of the two balls; `convertToList`
-returns balls per D8, with the ordering and positivity checks on
-midpoints; `roundTerms` rounds the remainder's midpoint and keeps its
-radius on the rounded term. `Conversion.value` and the list's `terms` are
-balls, and the function conversion's count is the ball quotient of the
-argument by the declared unit (nonzero, as the build checked). The UI's
-reciprocal is `divideBalls(exact(1), value)`, still in the component, and
-still left out when it fails.
+`convert` returns a `Ball`, the quotient of the two balls; a `want` whose
+ball contains zero without being exactly zero is a new `ConvertError`,
+`unresolvedWant`, apart from `zeroWant` as the ball's `unresolved` is from
+its division by zero, so that the retry loop of 2.5 can retry the one and
+never the other, and messages.ts words it. `convertToList` returns balls
+per D8, with the ordering check on midpoints and the positivity check over
+the whole ball: a unit that cannot be told from zero is not positive
+(`nonpositiveUnit`), since it is no size to divide by, which is what keeps
+the remainder's division from ever being `unresolved`. `roundTerms` rounds
+the remainder's midpoint and keeps its radius on the rounded term.
+`Conversion.value` and the list's `terms` are balls, and the function
+conversion's count is the ball quotient of the argument by the declared
+unit (its ball excludes zero, as the build checked). The UI's reciprocal
+is `divideBalls(exact(1), value)`, still in the component, and still left
+out when it fails.
 
-Tests: `convert` of an inexact `have` carries its radius; a list of an
-inexact `have` has the radius on its remainder alone; `roundTerms` keeps
-the radius; the pipeline tests read `.mid` where they read the value.
+Tests: `convert` of an inexact `have` carries its radius; a `want` around
+zero is `unresolvedWant`; a list of an inexact `have` has the radius on its
+remainder alone, and a unit around zero is `nonpositiveUnit`; `roundTerms`
+keeps the radius; the pipeline tests read `.mid` where they read the value.
 
 Behavior: none visible; the radius now reaches the UI and is ignored
 there until 1.9.

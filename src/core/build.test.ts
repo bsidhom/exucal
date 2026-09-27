@@ -538,7 +538,7 @@ test("a built table converts", () => {
   };
   const miles = convert(quantity("1 mile"), quantity("km"), table.primitives);
   assert.ok(miles.ok, inspect(miles));
-  assert.ok(equals(miles.value, decimal("1.609344")));
+  assert.ok(equals(miles.value.mid, decimal("1.609344")));
 
   const speed = convert(
     quantity("60 mile / hour"),
@@ -546,7 +546,7 @@ test("a built table converts", () => {
     table.primitives,
   );
   assert.ok(speed.ok, inspect(speed));
-  assert.ok(equals(speed.value, decimal("26.8224")));
+  assert.ok(equals(speed.value.mid, decimal("26.8224")));
 
   const rate = convert(
     quantity("radian / s"),
@@ -702,7 +702,10 @@ test("a built list converts", () => {
     table.primitives,
   );
   assert.ok(result.ok);
-  assert.deepEqual(result.value.map(toFraction), ["1", "1", "1"]);
+  assert.deepEqual(
+    result.value.map((term) => toFraction(term.mid)),
+    ["1", "1", "1"],
+  );
 });
 
 // ---------------------------------------------------------------------------

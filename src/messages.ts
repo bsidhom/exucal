@@ -112,6 +112,8 @@ export function describeConversionError(
       return `${describeMismatch(error, quote(have.trim()), quote(want.trim()), primitives)}.`;
     case "zeroWant":
       return `${quote(want.trim())} is zero, so nothing is a multiple of it.`;
+    case "unresolvedWant":
+      return `${quote(want.trim())} cannot be told from zero at this precision, so nothing can be converted into it.`;
     case "unitListError":
       return describeUnitListError(error.error, have, error.units, primitives);
   }
@@ -134,7 +136,7 @@ function describeUnitListError(
     case "nonconformingUnit":
       return `${describeMismatch(error.mismatch, quote(have.trim()), unit, primitives)}.`;
     case "nonpositiveUnit":
-      return `${unit} is not positive, and every unit in a list must be.`;
+      return `${unit} is not positive (or cannot be told from zero), and every unit in a list must be.`;
     case "unitOutOfOrder":
       return `${unit} is not smaller than the unit before it; a list runs from the largest unit to the smallest.`;
   }

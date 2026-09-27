@@ -9,7 +9,7 @@ import { DEFAULT_ROUNDING, type NumberContext } from "./core/context.ts";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact } from "./core/ball.ts";
+import { exact, type Ball } from "./core/ball.ts";
 import { buildTable } from "./core/build.ts";
 import { convert, convertToList, type ConvertError } from "./core/convert.ts";
 import { parseDefinitions } from "./core/definitions.ts";
@@ -62,7 +62,7 @@ function quantity(source: string): Quantity {
   return value.value;
 }
 
-function converted(have: string, want: string): Result<Rational, ConvertError> {
+function converted(have: string, want: string): Result<Ball, ConvertError> {
   return convert(quantity(have), quantity(want), table.primitives);
 }
 
@@ -87,8 +87,8 @@ function assertConverts(have: string, want: string, expected: string): void {
     `${have} does not convert to ${want}: ${inspect(result)}`,
   );
   assert.ok(
-    equals(result.value, number(expected)),
-    `${have} in ${want}: expected ${expected}, got ${toFraction(result.value)}`,
+    equals(result.value.mid, number(expected)),
+    `${have} in ${want}: expected ${expected}, got ${toFraction(result.value.mid)}`,
   );
 }
 
@@ -221,8 +221,8 @@ function assertCall(have: string, want: string, expected: string): void {
   assert.equal(result.value.name, want);
   assert.equal(result.value.unit.text, "1");
   assert.ok(
-    equals(result.value.value, number(expected)),
-    `${have} in ${want}: expected ${expected}, got ${toFraction(result.value.value)}`,
+    equals(result.value.value.mid, number(expected)),
+    `${have} in ${want}: expected ${expected}, got ${toFraction(result.value.value.mid)}`,
   );
 }
 
@@ -526,7 +526,7 @@ function assertList(
   );
   assert.ok(result.ok, `${have} in ${name}: ${inspect(result)}`);
   assert.deepEqual(
-    result.value.map(toFraction),
+    result.value.map((term) => toFraction(term.mid)),
     expected.map((text) => toFraction(number(text))),
     `${have} in ${name}`,
   );

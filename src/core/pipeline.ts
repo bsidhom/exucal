@@ -61,13 +61,9 @@ import { evaluate, invertFunction, type EvaluateError } from "./evaluate.ts";
 import { parseExpr, parseUnitList, type Expr } from "./expr.ts";
 import { type ParseError } from "./parser.ts";
 import { type Quantity } from "./quantity.ts";
+import { divideBalls, type Ball } from "./ball.ts";
 import { checkContext, type NumberContext } from "./context.ts";
-import {
-  DEFAULT_PRECISION,
-  divide,
-  type Precision,
-  type Rational,
-} from "./rational.ts";
+import { DEFAULT_PRECISION, type Precision } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import {
   unitLookup,
@@ -103,8 +99,8 @@ export type Conversion =
       readonly kind: "unit";
       readonly have: Quantity;
       readonly want: Quantity;
-      /** How many `want`s make up `have`. */
-      readonly value: Rational;
+      /** How many `want`s make up `have`: a ball, exact for exact quantities. */
+      readonly value: Ball;
     }
   /** `have` is the sum of the `terms`, one per unit of the list `units`. */
   | {
@@ -112,8 +108,8 @@ export type Conversion =
       readonly have: Quantity;
       /** The units of the list, largest first, each with its text. */
       readonly units: readonly ListedUnit[];
-      /** The exact count of each unit but the last, and the remainder in the last. */
-      readonly terms: readonly Rational[];
+      /** The exact count of each unit but the last, and the remainder in the last, as balls. */
+      readonly terms: readonly Ball[];
     }
   /** `have` is `name(argument)`: the function `name` applied to `value` `unit`s. */
   | {
@@ -125,8 +121,8 @@ export type Conversion =
       readonly argument: Quantity;
       /** The unit the function declares for its argument, with its text. */
       readonly unit: WrittenUnit;
-      /** How many `unit`s make up `argument`. */
-      readonly value: Rational;
+      /** How many `unit`s make up `argument`: a ball. */
+      readonly value: Ball;
     };
 
 export type ConversionError =
@@ -284,8 +280,8 @@ function convertToNamedList(
  * `have` as the call of `fn` that would produce it: `have` must conform to
  * the declared result, which is the mismatch of the pair when it does not,
  * and the inverse body recovers the argument, whose count of the declared
- * argument unit is what the UI writes in the call. The unit is nonzero,
- * as `buildTable` checked, so the count always exists.
+ * argument unit is what the UI writes in the call. The unit's ball excludes
+ * zero, as `buildTable` checked, so the count always exists.
  */
 function convertToFunction(
   table: UnitTable,
@@ -315,10 +311,9 @@ function convertToFunction(
         : { kind: "inverseFailed", name: fn.name, error: error.error },
     );
   }
-  // The radii are dropped here until 1.8.
-  const value = divide(
-    argument.value.magnitude.mid,
-    fn.argument.quantity.magnitude.mid,
+  const value = divideBalls(
+    argument.value.magnitude,
+    fn.argument.quantity.magnitude,
   );
   if (!value.ok) {
     throw new Error("A function in the table declares a zero argument unit");

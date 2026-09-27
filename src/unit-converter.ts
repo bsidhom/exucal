@@ -14,11 +14,12 @@ import {
   type Conversion,
   type Side,
 } from "./core/pipeline.ts";
+import { divideBalls, exact, type Ball } from "./core/ball.ts";
 import {
+  ONE,
   absolute,
   equals,
   format,
-  invert,
   isZero,
   roundTo,
   sign,
@@ -50,7 +51,7 @@ const DISPLAY_CONTEXT: NumberContext = {
 };
 
 /** One term of a result: `value` of `unit`, where `unit` is text to show after the value. */
-type Term = { readonly value: Rational; readonly unit: string };
+type Term = { readonly value: Ball; readonly unit: string };
 
 /**
  * One line of a result: `have` is `relation` the sum of `terms`, as in
@@ -225,10 +226,9 @@ export class UnitConverter extends LitElement {
         };
       }
       const { magnitude, dimension } = quantity.value;
-      // The radius is dropped here until 1.8.
       return result(
         have,
-        magnitude.mid,
+        magnitude,
         isDimensionless(dimension)
           ? ""
           : formatDimension(dimension, table.primitives),
@@ -334,7 +334,7 @@ function renderInput(
 }
 
 /** The result outcome for `value` `unit`, marked exact or approximate. */
-function result(have: string, value: Rational, unit: string): Outcome {
+function result(have: string, value: Ball, unit: string): Outcome {
   return { kind: "result", lines: [line(have, value, unit)] };
 }
 
@@ -345,21 +345,22 @@ function result(have: string, value: Rational, unit: string): Outcome {
  * written as the first line is with the sides swapped
  * (`in ≈ 0.027777778 × 3 ft`), the `have` taking the place of the unit and
  * written as a unit is. A `value` of zero has no reciprocal (`0 ft = 0 in`,
- * and nothing is a multiple of `0 ft`), so the second line is left out
- * rather than shown as anything.
+ * and nothing is a multiple of `0 ft`), and nor does one that cannot be
+ * told from zero, so the second line is left out rather than shown as
+ * anything.
  */
-function unitResult(have: string, want: string, value: Rational): Outcome {
+function unitResult(have: string, want: string, value: Ball): Outcome {
   const lines = [line(have, value, wantText(want))];
-  const inverse = invert(value);
+  const inverse = divideBalls(exact(ONE), value);
   if (inverse.ok) lines.push(line(want, inverse.value, wantText(have)));
   return { kind: "result", lines };
 }
 
 /** The line `have` is `value` `unit`, marked exact or approximate. */
-function line(have: string, value: Rational, unit: string): Line {
+function line(have: string, value: Ball, unit: string): Line {
   return {
     have,
-    relation: shownExactly(value) ? "=" : "≈",
+    relation: shownExactly(value.mid) ? "=" : "≈",
     terms: [{ value, unit }],
   };
 }
@@ -387,13 +388,13 @@ function listResult(
     value,
     unit: wantText(units[i]!.text),
   }));
-  const nonzero = all.filter((term) => !isZero(term.value));
+  const nonzero = all.filter((term) => !isZero(term.value.mid));
   return {
     kind: "result",
     lines: [
       {
         have,
-        relation: terms.every(shownExactly) ? "=" : "≈",
+        relation: terms.every((term) => shownExactly(term.mid)) ? "=" : "≈",
         terms: nonzero.length > 0 ? nonzero : all.slice(-1),
       },
     ],
@@ -419,7 +420,7 @@ function functionResult(
     lines: [
       {
         have,
-        relation: shownExactly(value) ? "=" : "≈",
+        relation: shownExactly(value.mid) ? "=" : "≈",
         terms: [{ value, unit: unit.text === "1" ? "" : wantText(unit.text) }],
         call: name,
       },
@@ -427,7 +428,11 @@ function functionResult(
   };
 }
 
-/** Whether `value` is what its display at `DISPLAY_PRECISION` digits says. */
+/**
+ * Whether `value` is what its display at `DISPLAY_PRECISION` digits says.
+ * The radius is not yet consulted: task 1.9 of docs/calculator-plan.md
+ * decides `=` by it.
+ */
 function shownExactly(value: Rational): boolean {
   return equals(roundTo(value, DISPLAY_PRECISION, DISPLAY_ROUNDING), value);
 }
@@ -460,8 +465,8 @@ function renderLine(line: Line): TemplateResult {
  * be typed back as a `have`.
  */
 function renderTerm(term: Term, index: number): TemplateResult {
-  const value = index === 0 ? term.value : absolute(term.value);
-  const operator = index === 0 ? "" : sign(term.value) < 0 ? " - " : " + ";
+  const value = index === 0 ? term.value.mid : absolute(term.value.mid);
+  const operator = index === 0 ? "" : sign(term.value.mid) < 0 ? " - " : " + ";
   const text = format(value, DISPLAY_PRECISION, DISPLAY_ROUNDING);
   const unit = term.unit === "" ? nothing : html` ${term.unit}`;
   return html`${operator}<span class="value">${text}</span>${unit}`;

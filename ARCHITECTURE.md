@@ -137,13 +137,14 @@ propagation rule needs (`radiusAbove`, the sum, the product, the power,
 the maximum, and the exact rational a bounded radius stands for), every
 one rounding up so that a radius is always a true bound. The plan's D3
 says why it is neither a `Rational` nor a `number`. Every magnitude is a
-ball now, with radius zero everywhere but after a root; the converter and
-the pipeline still read the midpoint alone and drop the radius, and the
-display still decides `=` by the midpoint, until tasks 1.8 and 1.9 carry
-the radius through, so the rules above are still the ones the display
-follows. The one outcome the ball already changes is a divisor that
-cannot be told from zero: `1 / (sqrt(2)^2 - 2)` is an `unresolved` error
-where it was a huge number.
+ball now, with radius zero everywhere but after a root, and the converter
+and the pipeline carry it through to the UI: a conversion's value and a
+list's terms are balls. The display still decides `=` by the midpoint alone
+until task 1.9 decides it by the radius, so the rules above are still the
+ones the display follows. The one outcome the ball already changes is a
+divisor that cannot be told from zero: `1 / (sqrt(2)^2 - 2)` is an
+`unresolved` error where it was a huge number, and such a value as the
+`want` is `unresolvedWant`.
 
 **Working precision.** Every core function that does arithmetic (`evaluate`,
 `buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`:
@@ -617,12 +618,17 @@ knows of it.
 the conformance check needs) and returns the output value: how many `want`s
 make up `have`, which after the conformance check is simply the ratio of their
 magnitudes, since each quantity already carries its own scale. `want` may have
-a magnitude (`3 ft` into `in` gives `36`), as in GNU units. The ratio is exact,
-so `1 m` into `in` is `5000/127`, and the display is where it becomes
-`39.370079`. A failure is a dimension mismatch or a kind mismatch, carrying
-both dimension vectors, or a `want` whose magnitude is zero, of which nothing
-is a multiple; the conformance check comes first, so `0 s` as the `want` for
-a length is reported as the mismatch it is. A core function formats a
+a magnitude (`3 ft` into `in` gives `36`), as in GNU units. The ratio is the
+ball quotient of the two magnitudes, exact on the midpoints with the radii
+propagated, so `1 m` into `in` is exactly `5000/127`, and the display is
+where it becomes `39.370079`. A failure is a dimension mismatch or a kind
+mismatch, carrying both dimension vectors, a `want` whose magnitude is zero,
+of which nothing is a multiple, or a `want` whose magnitude cannot be told
+from zero at this precision (`unresolvedWant`, kept apart from `zeroWant` as
+the ball's `unresolved` is from its division by zero, since the retry loop
+of stage 2 will retry the one and never the other); the conformance check
+comes first, so `0 s` as the `want` for a length is reported as the mismatch
+it is. A core function formats a
 dimension as text (`m^2 / s`), so the UI can explain a mismatch without
 interpreting anything itself.
 
@@ -636,20 +642,26 @@ an error, with each module defining its own error type.
 being `3 ft` plus `3.37 in`. Each unit but the last gets the integer count
 of it that fits in what the earlier units left, truncated toward zero so
 that every term has the sign of `have` (`-1 m` is `-3 ft - 3.37 in`), and
-the last gets the exact remainder, so the terms times the units add up to
-`have` exactly. That is only a meaningful sum when the units run from the
-largest to the smallest, so the units are checked in order, each for
-conformance with `have`, for a positive magnitude, and for being smaller
-than the one before it, and the first failure is reported with the index
-of the unit at fault. The units need not be multiples of one another
-(`mi;km` works) and may carry magnitudes (`ft;in/8`).
+the last gets the remainder. The counts are taken from the midpoints (the
+plan's D8), so a count is an exact integer and never `unresolved`, and the
+remainder is the ball `have` less the counted units, computed with the ball
+operations, so the terms times the units add up to `have` exactly when
+everything is exact and contain it otherwise. That is only a meaningful sum
+when the units run from the largest to the smallest, so the units are
+checked in order, each for conformance with `have`, for a positive
+magnitude whose ball excludes zero (a unit that cannot be told from zero is
+no size to count by), and for being smaller than the one before it by
+midpoint, and the first failure is reported with the index of the unit at
+fault. The units need not be multiples of one another (`mi;km` works) and
+may carry magnitudes (`ft;in/8`).
 
-The terms are exact, as the ratio `convert` returns is, and rounding them
-for display is more than rounding each: a remainder of `11.9999999988 in`
-shown at eight digits is `12 in`, which beside `2 ft` reads wrongly. So
-`roundTerms` is the display rounding that goes with the sum: it rounds the
-remainder to the display precision, in the display's rounding mode, as
-`roundTo` does and, when that changes it, takes the counts again from the
+The terms are exact for exact quantities, as the ratio `convert` returns
+is, and rounding them for display is more than rounding each: a remainder
+of `11.9999999988 in` shown at eight digits is `12 in`, which beside `2 ft`
+reads wrongly. So `roundTerms` is the display rounding that goes with the
+sum: it rounds the remainder's midpoint to the display precision, in the
+display's rounding mode, as `roundTo` does, keeping its radius, and, when
+that changes it, takes the counts again from the
 rounded sum, so that a remainder which rounds up to a whole of an earlier
 unit carries into it, through as many units as it must
 (`3599.9999999999 s` in `hr;min;s` is `1 hr`; under `floor` nothing rounds

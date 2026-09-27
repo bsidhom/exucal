@@ -139,10 +139,14 @@ test("a conformance error shows both dimensions", () => {
   );
 });
 
-test("a zero want is reported as such", () => {
+test("a zero want is reported as such, and one that cannot be told from zero too", () => {
   assert.equal(
     conversionMessage("3 ft", "0 m"),
     '"0 m" is zero, so nothing is a multiple of it.',
+  );
+  assert.equal(
+    conversionMessage("3 ft", "((2^(1/2))^2 - 2) m"),
+    '"((2^(1/2))^2 - 2) m" cannot be told from zero at this precision, so nothing can be converted into it.',
   );
 });
 
@@ -157,7 +161,7 @@ test("a unit in a typed list at fault is quoted from the list", () => {
   );
   assert.equal(
     conversionMessage("3 ft", "ft;0 in"),
-    '"0 in" is not positive, and every unit in a list must be.',
+    '"0 in" is not positive (or cannot be told from zero), and every unit in a list must be.',
   );
   assert.equal(
     conversionMessage("3 ft", "in;ft"),

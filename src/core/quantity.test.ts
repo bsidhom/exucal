@@ -25,7 +25,7 @@ import {
   format,
   parseDecimal,
   rational,
-  truncate,
+  roundTo,
   type Rational,
 } from "./rational.ts";
 import type { Result } from "./result.ts";
@@ -319,15 +319,17 @@ test("a rational power of a primitive gives a rational exponent", () => {
 test("an inexact root truncates the magnitude once, to the precision", () => {
   const two = quantity("2", { m: 2 });
   const root5 = value(powQuantity(two, half, 5));
-  assert.equal(format(root5.magnitude, 10), "1.4142");
+  assert.equal(format(root5.magnitude, 10, "halfAwayFromZero"), "1.4142");
   assert.deepEqual(root5.dimension, dim({ m: 1 }));
   const root40 = value(powQuantity(two, half, DEFAULT_PRECISION));
   assert.equal(
-    format(root40.magnitude, 40),
+    format(root40.magnitude, 40, "halfAwayFromZero"),
     "1.414213562373095048801688724209698078569",
   );
   // Truncation composes: the shorter result is the longer one truncated.
-  assert.ok(equals(truncate(root40.magnitude, 5), root5.magnitude));
+  assert.ok(
+    equals(roundTo(root40.magnitude, 5, "towardZero"), root5.magnitude),
+  );
 });
 
 test("a power fails as its magnitude does", () => {

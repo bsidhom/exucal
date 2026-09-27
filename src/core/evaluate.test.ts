@@ -371,11 +371,11 @@ test("a rational power that is exact stays exact", () => {
 
 test("an inexact root is truncated to the precision given", () => {
   const root5 = value(run("(2 m^2)^(1/2)", 5));
-  assert.equal(format(root5.magnitude, 10), "1.4142");
+  assert.equal(format(root5.magnitude, 10, "halfAwayFromZero"), "1.4142");
   assert.deepEqual(root5.dimension, dim({ m: 1 }));
   const root40 = value(run("(2 m^2)^(1/2)"));
   assert.equal(
-    format(root40.magnitude, 40),
+    format(root40.magnitude, 40, "halfAwayFromZero"),
     "1.414213562373095048801688724209698078569",
   );
   // The precision reaches a root anywhere in the tree.

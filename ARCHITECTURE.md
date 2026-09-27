@@ -53,8 +53,11 @@ only once, at display time. Decimal literals parse exactly (`1.5e-3` is
 definitions file, as in GNU units.
 
 `src/core/rational.ts` provides the arithmetic and comparison, integer powers
-and rational powers (through the n-th root), rounding to significant digits,
-and conversion to and from decimal text.
+and rational powers (through the n-th root), rounding to significant digits
+in a rounding mode, and conversion to and from decimal text.
+`src/core/rounding.ts` names the seven rounding modes and is the one place a
+mode is interpreted: `divideRounded`, an integer division rounded in a mode,
+which every rounding in the core scales its value down to.
 
 ### Precision and rounding
 
@@ -84,13 +87,45 @@ Three rules say where, and only where, a value can lose precision:
    `q`-th root of `x^p`, not the `p`-th power of the root, so that its single
    truncation comes last and the rule holds for it too.
 
-3. **Display rounds to nearest, once.** `format(r, digits)` rounds to
-   `digits` significant digits, ties away from zero (the `halfExpand` mode of
-   `Intl.NumberFormat`; C's `%g` differs only on exact ties, which are rare
-   with doubles but ordinary with rationals: `0.125` at two digits is `0.13`).
-   `round(r, digits)` is the same rounding as a `Rational`, so
-   `equals(round(r, digits), r)` tells the UI whether what it shows is exact
-   (`1 in = 2.54 cm`) or an approximation (`1 m ≈ 39.370079 in`).
+3. **Display rounds once, in a rounding mode.** `format(r, digits, mode)`
+   rounds to `digits` significant digits in one of the seven modes of
+   `rounding.ts` (half even, half away from zero, half toward zero, toward
+   zero, away from zero, ceiling, floor), with the carry across a power of
+   ten (`9.99` at two digits is `10`) in every mode that rounds the
+   magnitude up. The app passes `halfAwayFromZero`, to nearest with ties
+   away from zero (the `halfExpand` mode of `Intl.NumberFormat`; C's `%g`
+   differs only on exact ties, which are rare with doubles but ordinary with
+   rationals: `0.125` at two digits is `0.13`); docs/calculator-plan.md
+   (task 1.10) makes the mode the user's. `roundTo(r, digits, mode)` is the
+   same rounding as a `Rational`, so `equals(roundTo(r, digits, mode), r)`
+   tells the UI whether what it shows is exact (`1 in = 2.54 cm`) or an
+   approximation (`1 m ≈ 39.370079 in`), which holds in any mode: a value
+   with no more digits than shown is its own rounding, and no other is.
+   Truncation is the `towardZero` mode, so `root` rounds by the same
+   function with that mode fixed.
+
+These three rules are being replaced by the precision model of
+docs/calculator.md, stage by stage along docs/calculator-plan.md: every
+magnitude becomes a ball, a midpoint with a radius that bounds its
+distance from the true value, and `=` is shown when the radius is zero.
+The ball is a type of its own (`ball.ts`, task 1.5), a midpoint beside a
+`Radius`, and its operations compose the arithmetic of the midpoint's
+type with the propagation rules of `radius.ts` on the radius; neither
+module knows the other, and nothing stores a radius inside a number. The
+midpoint is a `Rational` until stage 4 makes it a `Scaled`, a fraction
+times a power of ten in a module of its own (the plan's D13 says why the
+exponent is a type between the fraction and the ball rather than a field
+on either), so that `rational.ts` stays the exact fraction it is, with
+total arithmetic, for the exponents of dimensions and of `^` as much as
+for a midpoint's mantissa. `src/core/radius.ts` is the radius, in place
+ahead of the ball: a coarse
+binary magnitude, `mant × 2^exp` with a 30-bit mantissa and a bigint
+exponent, or the distinguished value unbounded, with the operations a
+propagation rule needs (`radiusAbove`, the sum, the product, the power,
+the maximum, and the exact rational a bounded radius stands for), every
+one rounding up so that a radius is always a true bound. The plan's D3
+says why it is neither a `Rational` nor a `number`. Nothing uses it yet;
+until the ball lands, the rules above are the ones in force.
 
 **Working precision.** `evaluate` takes one precision and passes it to every
 inexact operation; it is a working precision, not the display precision. The
@@ -580,10 +615,12 @@ The terms are exact, as the ratio `convert` returns is, and rounding them
 for display is more than rounding each: a remainder of `11.9999999988 in`
 shown at eight digits is `12 in`, which beside `2 ft` reads wrongly. So
 `roundTerms` is the display rounding that goes with the sum: it rounds the
-remainder to the display precision as `round` does and, when that changes
-it, takes the counts again from the rounded sum, so that a remainder which
-rounds up to a whole of an earlier unit carries into it, through as many
-units as it must (`3599.9999999999 s` in `hr;min;s` is `1 hr`). That is
+remainder to the display precision, in the display's rounding mode, as
+`roundTo` does and, when that changes it, takes the counts again from the
+rounded sum, so that a remainder which rounds up to a whole of an earlier
+unit carries into it, through as many units as it must
+(`3599.9999999999 s` in `hr;min;s` is `1 hr`; under `floor` nothing rounds
+up, and it stays `59 min + 59.999999 s`). That is
 one rounding of the whole sum, by less than a unit in the last digit of the
 remainder, and the second decomposition is exact. The counts are integers
 and are left alone; one too long for the display is the display's to round,
@@ -671,9 +708,11 @@ no reciprocal line: a call is not a ratio, so there is no other way round,
 as there is none for a list.
 
 The output shows the two texts and the value between `=` or `≈`, decided by
-`equals(round(value, digits), value)` at the display precision of 8
+`equals(roundTo(value, digits, mode), value)` at the display precision of 8
 significant digits (`DISPLAY_PRECISION`, kept apart from the working
-precision as "Precision and rounding" describes). The line is written so
+precision as "Precision and rounding" describes) in the display's rounding
+mode (`halfAwayFromZero`, fixed in the component until the settings of
+docs/calculator-plan.md, task 1.10). The line is written so
 that it reads as the expression it means: a `want` with a magnitude of its
 own is written with a multiplication sign (`1 mi = 5.28 × 1000 ft`), since
 juxtaposing two numbers would read as one product, and a `want` that is a
@@ -685,8 +724,9 @@ did a moment earlier.
 
 A conversion into a unit list is shown as the sum of its terms, each unit
 written as a single `want` would be, with `roundTerms` applied at the
-display precision and the relation `=` only when every exact term shows as
-it is. The first term keeps its sign and each later one is joined by `+` or
+display precision in the display's mode, and the relation `=` only when
+every exact term shows as it is. The first term keeps its sign and each
+later one is joined by `+` or
 `-` and written unsigned, so that `-1 m ≈ -3 ft - 3.3700787 in` reads as
 the expression it is and could be typed back as a `have`. A term of zero is
 left out, as it would be in speech (`1 hr + 1 s`), except that a sum of
@@ -749,6 +789,8 @@ changes to the core.
 
 ```
 src/core/rational.ts      Rational, arithmetic, root, parsing and formatting
+src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted
+src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/quantity.ts      Quantity (a Rational with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text
@@ -765,6 +807,7 @@ src/core/convert.ts       convert
 src/core/pipeline.ts      convertText, evaluateText: the pipeline over text
 src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions; src/units.test.ts checks them
+src/testing/random.ts     the seeded random source the tests and benchmarks share
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemTable: fetches and builds the system table, once
 src/unit-converter.ts     the component
@@ -788,10 +831,15 @@ default discovery never matches it, so the two are separate without a second
 runner. `tsconfig.node.json` includes `bench/`, so they type-check with the
 tests. The rest of the directory is what they share:
 
-- `bench/harness.ts` holds a seeded random source (mulberry32), so that
-  every run measures the same data, and `bestOf`, which times a function
-  several times after one untimed run and takes the shortest, the estimate
-  least disturbed by whatever else the machine is doing.
+- `src/testing/random.ts` is the one seeded random source (mulberry32)
+  that the tests and the benchmarks share, with `randomBigInt` and
+  `randomRational` for the numeric tests, so that every run measures the
+  same data, every property test draws its inputs the same way, and no
+  test carries a generator of its own. `bench/harness.ts` holds what only
+  the benchmarks need: `word`, which draws a name from it, and `bestOf`,
+  which times a function several times after one untimed run and takes
+  the shortest, the estimate least disturbed by whatever else the machine
+  is doing.
 - `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
   drawn from the letters `n` to `z` and unit names from `a` to `m`, so
   that no name is ambiguous and the ambiguity check scans everything: its

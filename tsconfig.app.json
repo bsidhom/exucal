@@ -1,5 +1,6 @@
-// The app: everything under `src/` except the service worker and the tests,
-// which run in Node.js and are checked by tsconfig.node.json.
+// The app: everything under `src/` except the service worker, the tests and
+// the test support in src/testing/, which run in Node.js and are checked by
+// tsconfig.node.json.
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
@@ -8,5 +9,5 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
   },
   "include": ["src"],
-  "exclude": ["src/sw.ts", "src/**/*.test.ts"]
+  "exclude": ["src/sw.ts", "src/**/*.test.ts", "src/testing"]
 }

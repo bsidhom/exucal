@@ -12,7 +12,8 @@
 // it walks a chain of references of the depth such random references make,
 // a few dozen at most, and every body exercises the evaluator.
 
-import { between, word, type Random } from "./harness.ts";
+import { between, type Random } from "../src/testing/random.ts";
+import { word } from "./harness.ts";
 
 const PREFIX_LETTERS = "nopqrstuvwxyz";
 const UNIT_LETTERS = "abcdefghijklm";

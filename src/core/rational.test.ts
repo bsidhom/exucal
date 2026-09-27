@@ -23,16 +23,17 @@ import {
   powRational,
   rational,
   root,
-  round,
+  roundTo,
   sign,
   subtract,
   toFraction,
   trunc,
-  truncate,
   type Rational,
   type RationalError,
 } from "./rational.ts";
 import type { Result } from "./result.ts";
+import { ROUNDING_MODES, type RoundingMode } from "./rounding.ts";
+import { random, randomRational } from "../testing/random.ts";
 
 /** Unwraps a result that is expected to succeed. */
 function unwrap<T>(result: Result<T, RationalError>): T {
@@ -290,7 +291,9 @@ test("trunc drops the fraction, toward zero", () => {
   assert.equal(toFraction(trunc(ZERO)), "0");
 });
 
-test("truncate keeps the leading digits and drops the rest", () => {
+test("roundTo toward zero keeps the leading digits and drops the rest", () => {
+  const truncate = (r: Rational, digits: number) =>
+    roundTo(r, digits, "towardZero");
   assert.deepEqual(truncate(dec("3.14159"), 3), dec("3.14"));
   assert.deepEqual(truncate(dec("3.14159"), 1), dec("3"));
   assert.deepEqual(truncate(dec("-3.14159"), 3), dec("-3.14"));
@@ -308,7 +311,9 @@ test("truncate keeps the leading digits and drops the rest", () => {
   );
 });
 
-test("round goes to the nearest value, ties away from zero", () => {
+test("roundTo half away from zero goes to the nearest value, ties away from zero", () => {
+  const round = (r: Rational, digits: number) =>
+    roundTo(r, digits, "halfAwayFromZero");
   assert.deepEqual(round(dec("3.14159"), 3), dec("3.14"));
   assert.deepEqual(round(dec("3.14159"), 4), dec("3.142"));
   assert.deepEqual(round(dec("-3.14159"), 4), dec("-3.142"));
@@ -326,11 +331,151 @@ test("round goes to the nearest value, ties away from zero", () => {
   assert.throws(() => round(ONE, 0), RangeError);
 });
 
+test("roundTo in every mode, on the ties and thirds of the rounding table", () => {
+  // 3.5, -3.5, 2.5, -2.5, 1/3, -1/3, 2/3, -2/3, 0.5, -0.5 at one digit,
+  // scaled into the second digit (35 → 40, 0.35 → 0.4) so that the
+  // rounding is of significant digits, not of a fraction.
+  const values = [
+    "35",
+    "-35",
+    "0.25",
+    "-0.25",
+    rational(1n, 30n),
+    rational(-1n, 30n),
+    rational(200n, 3n),
+    rational(-200n, 3n),
+    "0.0005",
+    "-0.0005",
+  ].map((v) => (typeof v === "string" ? dec(v) : v));
+  const expected: Record<RoundingMode, string[]> = {
+    halfEven: [
+      "40",
+      "-40",
+      "0.2",
+      "-0.2",
+      "0.03",
+      "-0.03",
+      "70",
+      "-70",
+      "0.0005",
+      "-0.0005",
+    ],
+    halfAwayFromZero: [
+      "40",
+      "-40",
+      "0.3",
+      "-0.3",
+      "0.03",
+      "-0.03",
+      "70",
+      "-70",
+      "0.0005",
+      "-0.0005",
+    ],
+    halfTowardZero: [
+      "30",
+      "-30",
+      "0.2",
+      "-0.2",
+      "0.03",
+      "-0.03",
+      "70",
+      "-70",
+      "0.0005",
+      "-0.0005",
+    ],
+    towardZero: [
+      "30",
+      "-30",
+      "0.2",
+      "-0.2",
+      "0.03",
+      "-0.03",
+      "60",
+      "-60",
+      "0.0005",
+      "-0.0005",
+    ],
+    awayFromZero: [
+      "40",
+      "-40",
+      "0.3",
+      "-0.3",
+      "0.04",
+      "-0.04",
+      "70",
+      "-70",
+      "0.0005",
+      "-0.0005",
+    ],
+    ceiling: [
+      "40",
+      "-30",
+      "0.3",
+      "-0.2",
+      "0.04",
+      "-0.03",
+      "70",
+      "-60",
+      "0.0005",
+      "-0.0005",
+    ],
+    floor: [
+      "30",
+      "-40",
+      "0.2",
+      "-0.3",
+      "0.03",
+      "-0.04",
+      "60",
+      "-70",
+      "0.0005",
+      "-0.0005",
+    ],
+  };
+  for (const mode of ROUNDING_MODES) {
+    values.forEach((value, i) => {
+      assert.deepEqual(
+        roundTo(value, 1, mode),
+        dec(expected[mode][i]!),
+        `${toFraction(value)} under ${mode}`,
+      );
+    });
+  }
+});
+
+test("the directed modes round to the side they name, and carry", () => {
+  assert.deepEqual(roundTo(dec("2.54"), 2, "ceiling"), dec("2.6"));
+  assert.deepEqual(roundTo(dec("2.54"), 2, "floor"), dec("2.5"));
+  assert.deepEqual(roundTo(dec("-2.54"), 2, "ceiling"), dec("-2.5"));
+  assert.deepEqual(roundTo(dec("-2.54"), 2, "floor"), dec("-2.6"));
+  assert.deepEqual(roundTo(dec("2.54"), 2, "towardZero"), dec("2.5"));
+  assert.deepEqual(roundTo(dec("2.54"), 2, "awayFromZero"), dec("2.6"));
+  assert.deepEqual(roundTo(dec("-2.54"), 2, "awayFromZero"), dec("-2.6"));
+  // The carry across a power of ten holds in every mode that rounds the
+  // magnitude up, and never happens in one that rounds it down.
+  assert.deepEqual(roundTo(dec("9.99"), 2, "ceiling"), dec("10"));
+  assert.deepEqual(roundTo(dec("9.91"), 2, "ceiling"), dec("10"));
+  assert.deepEqual(roundTo(dec("9.99"), 2, "floor"), dec("9.9"));
+  assert.deepEqual(roundTo(dec("-9.99"), 2, "floor"), dec("-10"));
+  assert.deepEqual(roundTo(dec("-9.99"), 2, "ceiling"), dec("-9.9"));
+  assert.deepEqual(roundTo(dec("0.0999"), 1, "awayFromZero"), dec("0.1"));
+  assert.deepEqual(roundTo(dec("0.0999"), 1, "towardZero"), dec("0.09"));
+  // A value with no more digits than asked is its own rounding, in any mode.
+  for (const mode of ROUNDING_MODES) {
+    assert.deepEqual(roundTo(dec("2.54"), 3, mode), dec("2.54"), mode);
+    assert.deepEqual(roundTo(dec("-2.54"), 3, mode), dec("-2.54"), mode);
+    assert.deepEqual(roundTo(dec("100"), 1, mode), dec("100"), mode);
+  }
+});
+
 test("rounding to the display precision tells whether the display is exact", () => {
-  assert.ok(equals(round(dec("2.54"), 8), dec("2.54")));
-  assert.ok(equals(round(rational(1n, 8n), 8), rational(1n, 8n)));
-  assert.ok(!equals(round(rational(1n, 3n), 8), rational(1n, 3n)));
-  assert.ok(!equals(round(rational(1n, 8n), 2), rational(1n, 8n)));
+  for (const mode of ROUNDING_MODES) {
+    assert.ok(equals(roundTo(dec("2.54"), 8, mode), dec("2.54")), mode);
+    assert.ok(equals(roundTo(rational(1n, 8n), 8, mode), rational(1n, 8n)));
+    assert.ok(!equals(roundTo(rational(1n, 3n), 8, mode), rational(1n, 3n)));
+    assert.ok(!equals(roundTo(rational(1n, 8n), 2, mode), rational(1n, 8n)));
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -443,30 +588,72 @@ test("format renders like %g with the given significant digits", () => {
     ["1234.5", 4, "1235"],
     ["-1234.5", 4, "-1235"],
   ];
+  const nearest = "halfAwayFromZero";
   for (const [text, digits, expected] of cases) {
-    assert.equal(format(dec(text), digits), expected, `${text} @ ${digits}`);
+    assert.equal(
+      format(dec(text), digits, nearest),
+      expected,
+      `${text} @ ${digits}`,
+    );
   }
-  assert.equal(format(rational(1n, 3n), 8), "0.33333333");
-  assert.equal(format(rational(2n, 3n), 8), "0.66666667");
-  assert.equal(format(rational(-2n, 3n), 8), "-0.66666667");
-  assert.equal(format(rational(1n, 3n), 1), "0.3");
-  assert.equal(format(rational(1n, 7n), 12), "0.142857142857");
-  assert.equal(format(rational(100n, 3n), 3), "33.3");
-  assert.equal(format(rational(1000n, 3n), 3), "333");
-  assert.equal(format(rational(10000n, 3n), 3), "3.33e+3");
-  assert.equal(format(rational(1n, 300n), 3), "0.00333");
-  assert.equal(format(rational(1n, 3000n), 3), "0.000333");
-  assert.equal(format(rational(1n, 30000n), 3), "3.33e-5");
+  assert.equal(format(rational(1n, 3n), 8, nearest), "0.33333333");
+  assert.equal(format(rational(2n, 3n), 8, nearest), "0.66666667");
+  assert.equal(format(rational(-2n, 3n), 8, nearest), "-0.66666667");
+  assert.equal(format(rational(1n, 3n), 1, nearest), "0.3");
+  assert.equal(format(rational(1n, 7n), 12, nearest), "0.142857142857");
+  assert.equal(format(rational(100n, 3n), 3, nearest), "33.3");
+  assert.equal(format(rational(1000n, 3n), 3, nearest), "333");
+  assert.equal(format(rational(10000n, 3n), 3, nearest), "3.33e+3");
+  assert.equal(format(rational(1n, 300n), 3, nearest), "0.00333");
+  assert.equal(format(rational(1n, 3000n), 3, nearest), "0.000333");
+  assert.equal(format(rational(1n, 30000n), 3, nearest), "3.33e-5");
   assert.equal(
-    format(unwrap(root(rational(2n), 2n, DEFAULT_PRECISION)), 8),
+    format(unwrap(root(rational(2n), 2n, DEFAULT_PRECISION)), 8, nearest),
     "1.4142136",
   );
   // The GNU units default: 1 m in inches, to 8 digits.
   assert.equal(
-    format(unwrap(divide(rational(100n), dec("2.54"))), 8),
+    format(unwrap(divide(rational(100n), dec("2.54"))), 8, nearest),
     "39.370079",
   );
-  assert.throws(() => format(ONE, 0), RangeError);
+  assert.throws(() => format(ONE, 0, nearest), RangeError);
+});
+
+test("format rounds in the mode it is given", () => {
+  assert.equal(format(dec("2.54"), 2, "ceiling"), "2.6");
+  assert.equal(format(dec("2.54"), 2, "floor"), "2.5");
+  assert.equal(format(dec("-2.54"), 2, "ceiling"), "-2.5");
+  assert.equal(format(dec("-2.54"), 2, "floor"), "-2.6");
+  assert.equal(format(dec("2.55"), 2, "halfEven"), "2.6");
+  assert.equal(format(dec("2.45"), 2, "halfEven"), "2.4");
+  assert.equal(format(dec("2.45"), 2, "halfAwayFromZero"), "2.5");
+  assert.equal(format(dec("2.45"), 2, "halfTowardZero"), "2.4");
+  assert.equal(format(dec("0.125"), 2, "halfEven"), "0.12");
+  assert.equal(format(dec("0.125"), 2, "towardZero"), "0.12");
+  assert.equal(format(dec("0.121"), 2, "awayFromZero"), "0.13");
+  assert.equal(format(rational(1n, 3n), 8, "ceiling"), "0.33333334");
+  assert.equal(format(rational(-1n, 3n), 8, "ceiling"), "-0.33333333");
+  assert.equal(format(rational(2n, 3n), 8, "floor"), "0.66666666");
+  assert.equal(format(rational(-2n, 3n), 8, "floor"), "-0.66666667");
+  // The carry across a power of ten holds in every mode that rounds up.
+  assert.equal(format(dec("9.99"), 2, "ceiling"), "10");
+  assert.equal(format(dec("9.91"), 2, "ceiling"), "10");
+  assert.equal(format(dec("9.99"), 2, "awayFromZero"), "10");
+  assert.equal(format(dec("-9.99"), 2, "floor"), "-10");
+  assert.equal(format(dec("99.9"), 2, "ceiling"), "1e+2");
+  assert.equal(format(dec("0.0999"), 1, "ceiling"), "0.1");
+  assert.equal(format(dec("999999999"), 8, "ceiling"), "1e+9");
+  // And never in one that rounds down.
+  assert.equal(format(dec("9.99"), 2, "floor"), "9.9");
+  assert.equal(format(dec("9.99"), 2, "towardZero"), "9.9");
+  assert.equal(format(dec("-9.99"), 2, "ceiling"), "-9.9");
+  assert.equal(format(dec("999999999"), 8, "floor"), "9.9999999e+8");
+  // A value that shows exactly shows the same in every mode.
+  for (const mode of ROUNDING_MODES) {
+    assert.equal(format(dec("2.54"), 8, mode), "2.54", mode);
+    assert.equal(format(dec("-1.5e-7"), 8, mode), "-1.5e-7", mode);
+    assert.equal(format(ZERO, 8, mode), "0", mode);
+  }
 });
 
 test("format and parseDecimal round-trip", () => {
@@ -481,38 +668,17 @@ test("format and parseDecimal round-trip", () => {
     "12345678",
     "1.2345679e+8",
   ]) {
-    assert.equal(format(dec(text), 8), text);
+    assert.equal(format(dec(text), 8, "halfAwayFromZero"), text);
   }
 });
 
 // ---------------------------------------------------------------------------
 // Properties over pseudo-random inputs
 
-/** A small deterministic generator, so that failures reproduce. */
-function* lcg(seed: number): Generator<number> {
-  let state = seed;
-  for (;;) {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-    yield state;
-  }
-}
-
+/** `count` seeded rationals of about six digits over six, at magnitudes up to `10^±20`. */
 function randomRationals(count: number): Rational[] {
-  const values: Rational[] = [];
-  const random = lcg(12345);
-  for (let i = 0; i < count; i++) {
-    const num = BigInt((random.next().value % 2_000_001) - 1_000_000);
-    const den = BigInt((random.next().value % 1_000_000) + 1);
-    // Mix in some very large and very small magnitudes.
-    const scale = (random.next().value % 41) - 20;
-    const r = rational(num, den);
-    values.push(
-      scale >= 0
-        ? multiply(r, rational(10n ** BigInt(scale)))
-        : multiply(r, rational(1n, 10n ** BigInt(-scale))),
-    );
-  }
-  return values;
+  const rand = random(12345);
+  return Array.from({ length: count }, () => randomRational(rand, 20, 20));
 }
 
 /** One unit in the last of `digits` significant digits of `r`. */
@@ -532,37 +698,60 @@ function assertExponent(r: Rational, e: number) {
   assert.ok(compare(absolute(r), upper) < 0, `${toFraction(r)} < 10^${e + 1}`);
 }
 
-test("truncate and round are within an ulp and format agrees with round", () => {
+test("roundTo is within an ulp on the side its mode says, and format agrees with it", () => {
+  const half = rational(1n, 2n);
   for (const r of randomRationals(300)) {
     if (isZero(r)) continue;
     assertExponent(r, decimalExponent(r));
     for (const digits of [1, 2, 5, 8, 12]) {
       const u = ulp(r, digits);
-      const t = truncate(r, digits);
-      assert.ok(compare(absolute(t), absolute(r)) <= 0, "truncate shrinks");
+      for (const mode of ROUNDING_MODES) {
+        const n = roundTo(r, digits, mode);
+        const label = `${toFraction(r)} at ${digits} under ${mode}`;
+        const error = subtract(n, r);
+        assert.ok(compare(absolute(error), u) < 0, `${label}: within an ulp`);
+        assert.ok(sign(n) === sign(r), `${label}: keeps the sign`);
+        // The rounded value has at most `digits` significant digits:
+        // rescaled by its own ulp, it is an integer.
+        assert.ok(
+          isInteger(multiply(n, unwrap(invert(ulp(n, digits))))),
+          `${label}: digits`,
+        );
+        // The side, by mode.
+        switch (mode) {
+          case "halfEven":
+          case "halfAwayFromZero":
+          case "halfTowardZero":
+            assert.ok(
+              compare(absolute(error), multiply(u, half)) <= 0,
+              `${label}: within half an ulp`,
+            );
+            break;
+          case "towardZero":
+            assert.ok(compare(absolute(n), absolute(r)) <= 0, label);
+            break;
+          case "awayFromZero":
+            assert.ok(compare(absolute(n), absolute(r)) >= 0, label);
+            break;
+          case "ceiling":
+            assert.ok(compare(n, r) >= 0, label);
+            break;
+          case "floor":
+            assert.ok(compare(n, r) <= 0, label);
+            break;
+        }
+        const text = format(r, digits, mode);
+        assert.ok(equals(dec(text), n), `${label}: format gives ${text}`);
+      }
+      // The two truncations agree, and ceiling and floor bracket the value.
       assert.ok(
-        compare(absolute(subtract(r, t)), u) < 0,
-        "truncate within ulp",
+        equals(
+          roundTo(r, digits, "towardZero"),
+          sign(r) > 0
+            ? roundTo(r, digits, "floor")
+            : roundTo(r, digits, "ceiling"),
+        ),
       );
-      assert.equal(
-        sign(t) === 0 || sign(t) === sign(r),
-        true,
-        "truncate keeps sign",
-      );
-      const n = round(r, digits);
-      assert.ok(
-        compare(absolute(subtract(r, n)), multiply(u, rational(1n, 2n))) <= 0,
-        "round within half ulp",
-      );
-      const text = format(r, digits);
-      assert.ok(
-        equals(dec(text), n),
-        `${text} is round(${toFraction(r)}, ${digits}) = ${toFraction(n)}`,
-      );
-      // Each has at most `digits` significant digits: rescaled, it is an integer.
-      assert.ok(isInteger(multiply(t, unwrap(invert(u)))), "truncate digits");
-      const nu = isZero(n) ? u : ulp(n, digits);
-      assert.ok(isInteger(multiply(n, unwrap(invert(nu)))), "round digits");
     }
   }
 });

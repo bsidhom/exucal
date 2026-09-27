@@ -4,7 +4,8 @@ import { inspect } from "node:util";
 import { buildTable } from "../src/core/build.ts";
 import { parseDefinitions, type Definition } from "../src/core/definitions.ts";
 import { DEFAULT_PRECISION } from "../src/core/rational.ts";
-import { bestOf, millis, random } from "./harness.ts";
+import { random } from "../src/testing/random.ts";
+import { bestOf, millis } from "./harness.ts";
 import { syntheticDefinitions } from "./synthetic.ts";
 
 type Timings = { readonly parse: number; readonly build: number };

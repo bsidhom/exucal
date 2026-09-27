@@ -387,6 +387,8 @@ hook's output at session start says which part is out of date.
   app knows, described under Unit definitions above. `src/units.test.ts`
   checks that it builds and that a sample of its units converts as its
   sources say.
+- `src/testing/` is test support, not part of the app: the seeded random
+  source that the core's property tests and the benchmarks draw from.
 - `bench/` holds the performance benchmarks of the core, run by
   `pnpm bench` (see Benchmarks below); `ARCHITECTURE.md` describes them.
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every

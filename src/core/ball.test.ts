@@ -21,6 +21,7 @@ import {
   type BallError,
 } from "./ball.ts";
 import {
+  DEFAULT_CEILING,
   DEFAULT_MAX_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
@@ -93,7 +94,12 @@ function assertContains(b: Ball, value: Rational, label: string) {
 
 /** A context at `precision` digits, in the default mode. */
 function at(precision: number): NumberContext {
-  return { precision, rounding: DEFAULT_ROUNDING, maxBits: DEFAULT_MAX_BITS };
+  return {
+    precision,
+    rounding: DEFAULT_ROUNDING,
+    maxBits: DEFAULT_MAX_BITS,
+    ceiling: DEFAULT_CEILING,
+  };
 }
 
 /** The seeded balls the property tests are over. */

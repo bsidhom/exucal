@@ -55,10 +55,9 @@ export const LIMIT_BITS = 1 << 20;
 
 /**
  * The fixed working precision the app computed at before the number
- * context existed, in significant decimal digits, and still the precision
- * the table is built at (system-table.ts) until stage 3's 3.3 builds it at
- * the retry schedule's ceiling; the tests use it as a working precision.
- * See ARCHITECTURE.md ("Working precision and the context").
+ * context existed, in significant decimal digits; the tests use it as a
+ * working precision. See ARCHITECTURE.md ("Working precision and the
+ * context").
  */
 export const DEFAULT_PRECISION: Precision = 40;
 

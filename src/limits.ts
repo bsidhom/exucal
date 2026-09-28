@@ -77,10 +77,12 @@ export function realProbe(): Probe {
       multiply(a, b);
     },
     precision: (digits) => {
+      const ceiling = ceilingFor(digits);
       rootBall(exact(rational(3n)), 3n, {
-        precision: ceilingFor(digits),
+        precision: ceiling,
         rounding: DEFAULT_ROUNDING,
         maxBits: LIMIT_BITS,
+        ceiling,
       });
     },
   };

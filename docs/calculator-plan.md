@@ -1292,10 +1292,22 @@ memo and five products of it). The tests that build the system table
 context as the app does, so that no unit holds a pass back;
 `DEFAULT_PRECISION`'s comment loses its "until 3.3".
 
-Tests: `checkContext` on the new field; `ceilingContext` is the last of
-`schedule(context)` for every precision up to the cap; the pipeline's
-tests pass the ceiling in the context; a table is built once per
-ceiling and again for another.
+Rulings the task did not reach: `DEFAULT_CEILING` in context.ts is the
+default cap's ceiling, 4,040, which the component's default context and
+the tests use; `ceilingContext` returns the context itself when it is
+already at its ceiling; the memo of system-build.ts is keyed by the
+definitions' identity and the ceiling, holds a failed build too (the
+system file is checked by its test, so a failure is a bug and rebuilding
+on every render would not change it), and the shell calls it from
+`render`, so the rebuild is a consequence of the settings changing rather
+than an event the shell handles.
+
+Tests: `checkContext` on the new field; `ceilingContext` is the context
+at its ceiling and the same for every precision under it; the pipeline's
+tests pass the ceiling in the context and its schedule test reads it off
+the working contexts; a table is built once per ceiling, again for
+another, and again on returning, since one is held; the component was
+checked in headless Chromium against the production build.
 
 Behavior: none visible yet; the table is precision-independent until 3.4.
 

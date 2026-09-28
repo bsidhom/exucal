@@ -8,9 +8,9 @@
 
 import assert from "node:assert/strict";
 import {
+  DEFAULT_CEILING,
   DEFAULT_MAX_BITS,
-  DEFAULT_MAX_DIGITS,
-  ceilingFor,
+  ceilingContext,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "./core/context.ts";
@@ -42,16 +42,14 @@ const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
   maxBits: DEFAULT_MAX_BITS,
+  ceiling: DEFAULT_CEILING,
 };
-
-/** The ceiling of the retry schedule the tests run under: the default cap's. */
-const CEILING = ceilingFor(DEFAULT_MAX_DIGITS);
 
 const table: UnitTable = (() => {
   const text = readFileSync(new URL("./units.txt", import.meta.url), "utf8");
   const parsed = parseDefinitions(text);
   assert.ok(parsed.ok, `expected the file to parse, got ${inspect(parsed)}`);
-  const built = buildTable(parsed.value, CONTEXT);
+  const built = buildTable(parsed.value, ceilingContext(CONTEXT));
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
   return built.value;
 })();
@@ -65,14 +63,14 @@ const failing: UnitTable = (() => {
     ].join("\n"),
   );
   assert.ok(parsed.ok, `expected the text to parse, got ${inspect(parsed)}`);
-  const built = buildTable(parsed.value, CONTEXT);
+  const built = buildTable(parsed.value, ceilingContext(CONTEXT));
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
   return built.value;
 })();
 
 /** The message for the error `text` fails with, in `against`. */
 function textMessage(text: string, against: UnitTable = table): string {
-  const result = evaluateText(against, text, CONTEXT, CEILING);
+  const result = evaluateText(against, text, CONTEXT);
   assert.ok(!result.ok, `expected ${JSON.stringify(text)} to fail`);
   return describeTextError(result.error, text, against.primitives);
 }
@@ -83,7 +81,7 @@ function conversionMessage(
   want: string,
   against: UnitTable = table,
 ): string {
-  const result = convertText(against, have, want, CONTEXT, CEILING);
+  const result = convertText(against, have, want, CONTEXT);
   assert.ok(!result.ok, `expected ${have} in ${want} to fail`);
   return describeConversionError(result.error, have, want, against.primitives);
 }
@@ -389,7 +387,7 @@ const withBuiltins: UnitTable = (() => {
     ].join("\n"),
   );
   assert.ok(parsed.ok, `expected the text to parse, got ${inspect(parsed)}`);
-  const built = buildTable(parsed.value, CONTEXT, STAND_INS);
+  const built = buildTable(parsed.value, ceilingContext(CONTEXT), STAND_INS);
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
   return built.value;
 })();

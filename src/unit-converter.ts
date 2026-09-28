@@ -1,11 +1,10 @@
 import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import {
+  DEFAULT_CEILING,
   DEFAULT_DIGITS,
   DEFAULT_MAX_BITS,
-  DEFAULT_MAX_DIGITS,
   DEFAULT_ROUNDING,
-  ceilingFor,
   type NumberContext,
 } from "./core/context.ts";
 import { type Shown } from "./core/display.ts";
@@ -91,14 +90,14 @@ type Outcome =
  * the unit the function declares for it.
  *
  * The `context` property is the user's settings as the pipeline takes them
- * (the digits asked for, the rounding mode and the range limit;
- * `<app-shell>` owns the settings and passes it down), and `ceiling` the
- * top of the pipeline's retry schedule, derived by the shell from the cap
- * on the digits: the pipeline computes at as many passes of rising
- * precision as the digits asked for take, up to the ceiling, `roundTerms`
- * and `show` round to the context's digits in its mode, and `=` is decided
- * at those digits. They default to the display's rules before the settings
- * existed, eight digits half away from zero, and the default cap's ceiling.
+ * (the digits asked for, the rounding mode, the range limit and the
+ * ceiling of the retry schedule, which the shell derives from the cap on
+ * the digits; `<app-shell>` owns the settings and passes it down): the
+ * pipeline computes at as many passes of rising precision as the digits
+ * asked for take, up to the ceiling, `roundTerms` and `show` round to the
+ * context's digits in its mode, and `=` is decided at those digits. It
+ * defaults to the display's rules before the settings existed, eight
+ * digits half away from zero, under the default cap's ceiling.
  *
  * What is shown is what `show` certifies (docs/calculator-plan.md, D7 and
  * task 2.6): every digit asked for when the value allows, and otherwise
@@ -201,16 +200,13 @@ export class UnitConverter extends LitElement {
   /** The units to convert with. Not an attribute: a table is not a string. */
   @property({ attribute: false }) table?: UnitTable;
 
-  /** The user's context: the digits to show, in which rounding mode. */
+  /** The user's context: the digits to show, in which rounding mode, within which limits. */
   @property({ attribute: false }) context: NumberContext = {
     precision: DEFAULT_DIGITS,
     rounding: DEFAULT_ROUNDING,
     maxBits: DEFAULT_MAX_BITS,
+    ceiling: DEFAULT_CEILING,
   };
-
-  /** The ceiling of the retry schedule, which the pipeline takes beside the context. */
-  @property({ attribute: false }) ceiling: Precision =
-    ceilingFor(DEFAULT_MAX_DIGITS);
 
   @state() private have = "";
   @state() private want = "";
@@ -245,7 +241,7 @@ export class UnitConverter extends LitElement {
     if (have === "") return { kind: "empty" };
     if (want === "") {
       // What `have` is in the primitives: the unit's definition, in effect.
-      const quantity = evaluateText(table, this.have, context, this.ceiling);
+      const quantity = evaluateText(table, this.have, context);
       if (!quantity.ok) {
         return {
           kind: "error",
@@ -263,13 +259,7 @@ export class UnitConverter extends LitElement {
         : formatDimension(dimension, table.primitives);
       return { kind: "result", lines: [line(have, magnitude, unit, context)] };
     }
-    const conversion = convertText(
-      table,
-      this.have,
-      this.want,
-      context,
-      this.ceiling,
-    );
+    const conversion = convertText(table, this.have, this.want, context);
     if (!conversion.ok) {
       const { error } = conversion;
       return {

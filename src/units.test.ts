@@ -6,9 +6,9 @@
 
 import assert from "node:assert/strict";
 import {
+  DEFAULT_CEILING,
   DEFAULT_MAX_BITS,
-  DEFAULT_MAX_DIGITS,
-  ceilingFor,
+  ceilingContext,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "./core/context.ts";
@@ -39,10 +39,8 @@ const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
   maxBits: DEFAULT_MAX_BITS,
+  ceiling: DEFAULT_CEILING,
 };
-
-/** The ceiling of the retry schedule the tests run under: the default cap's. */
-const CEILING = ceilingFor(DEFAULT_MAX_DIGITS);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,7 +51,7 @@ const text = readFileSync(new URL("./units.txt", import.meta.url), "utf8");
 const table: UnitTable = (() => {
   const parsed = parseDefinitions(text);
   assert.ok(parsed.ok, `expected the file to parse, got ${inspect(parsed)}`);
-  const built = buildTable(parsed.value, CONTEXT);
+  const built = buildTable(parsed.value, ceilingContext(CONTEXT));
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
   return built.value;
 })();
@@ -217,7 +215,7 @@ test("temperature readings convert through tempC and tempF", () => {
   assertCall("tempF(-40)", "tempC", "-40");
   assertCall("0 K", "tempC", "-273.15");
   // The argument is a plain number.
-  const result = convertText(table, "tempC(1 m)", "K", CONTEXT, CEILING);
+  const result = convertText(table, "tempC(1 m)", "K", CONTEXT);
   assert.ok(!result.ok);
   assert.ok(result.error.kind === "inputError");
   assert.equal(result.error.error.kind, "argumentMismatch");
@@ -225,7 +223,7 @@ test("temperature readings convert through tempC and tempF", () => {
 
 /** Asserts that `have` in the function `want` is the call of it at exactly `expected`. */
 function assertCall(have: string, want: string, expected: string): void {
-  const result = convertText(table, have, want, CONTEXT, CEILING);
+  const result = convertText(table, have, want, CONTEXT);
   assert.ok(result.ok, `${have} in ${want}: ${inspect(result)}`);
   assert.ok(result.value.kind === "function", `${have} in ${want}: not a call`);
   assert.equal(result.value.name, want);

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  DEFAULT_CEILING,
   DEFAULT_MAX_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
@@ -37,6 +38,7 @@ const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
   maxBits: DEFAULT_MAX_BITS,
+  ceiling: DEFAULT_CEILING,
 };
 
 // ---------------------------------------------------------------------------
@@ -223,9 +225,8 @@ test("bodies are evaluated at the working precision", () => {
   const sqrt2 = decimal("1.4142135623730950488016887242096980785697");
   for (const precision of [5, DEFAULT_PRECISION]) {
     const result = buildTable(definitions("m !", "r 2^(1/2) m"), {
+      ...CONTEXT,
       precision,
-      rounding: DEFAULT_ROUNDING,
-      maxBits: DEFAULT_MAX_BITS,
     });
     assert.ok(result.ok, inspect(result));
     const r = result.value.units.get("r");

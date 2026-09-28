@@ -448,11 +448,14 @@ hook's output at session start says which part is out of date.
   connected, shows a loading message until it arrives, and hands it to the
   converter.
 - `src/system-table.ts` fetches `units.txt`, which the build emits as an
-  asset of its own, and parses and builds it into the table, once.
+  asset of its own, and parses it, once; `src/system-build.ts` builds the
+  table from it at the ceiling of the retry schedule the settings give,
+  once per ceiling, and `src/system-build.test.ts` checks that memo.
 - `src/settings.ts` holds the settings (see Settings above): reading and
   validating them from the browser's storage, clamping the ones that
   depend on others, saving them, and turning them into the context the
-  core computes with and the ceiling of its retry schedule.
+  core computes with, whose ceiling is derived from the "most digits"
+  setting.
   `src/settings.test.ts` checks the parsing under Node.js with a fake
   storage.
 - `src/limits.ts` is the probe behind the "Recommend limits" button: it

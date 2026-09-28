@@ -96,8 +96,9 @@ test("piBall is pi at the context's precision", () => {
     precision: 50,
     rounding: DEFAULT_ROUNDING,
     maxBits: DEFAULT_MAX_BITS,
+    ceiling: 4040,
   };
-  const pi = piBall(context, 4040);
+  const pi = piBall(context);
   assert.ok(compare(absolute(subtract(pi.mid, PI)), radiusUpper(pi.rad)) <= 0);
   assert.ok(compare(radiusUpper(pi.rad), tenTo(58)) < 0);
   assert.equal(piMemoBits(), bitsFor(4040));

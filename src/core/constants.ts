@@ -45,7 +45,6 @@
 import { type Ball } from "./ball.ts";
 import { type NumberContext } from "./context.ts";
 import { bitsFor, fixedToBall, truncateFixed, type Fixed } from "./fixed.ts";
-import { type Precision } from "./rational.ts";
 
 /** The bits each term of the series is worth, at least: a safe floor of `2^-46` per term. */
 const BITS_PER_TERM = 46;
@@ -155,9 +154,11 @@ export function piFixed(bits: number, ceilingBits: number): Fixed {
   return memo.bits === bits ? memo : truncateFixed(memo, bits);
 }
 
-/** The ball of `pi` at the precision of `context`, under a schedule whose ceiling is `ceiling` digits. */
-export function piBall(context: NumberContext, ceiling: Precision): Ball {
-  return fixedToBall(piFixed(bitsFor(context.precision), bitsFor(ceiling)));
+/** The ball of `pi` at the precision of `context`, from the memo at the context's ceiling. */
+export function piBall(context: NumberContext): Ball {
+  return fixedToBall(
+    piFixed(bitsFor(context.precision), bitsFor(context.ceiling)),
+  );
 }
 
 /** The fraction bits of the value the memo holds, or `undefined` before the first request; for the tests. */

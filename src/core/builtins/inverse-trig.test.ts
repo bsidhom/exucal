@@ -1,0 +1,615 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
+import { inspect } from "node:util";
+import { exact, isExact, type Ball } from "../ball.ts";
+import { buildTable } from "../build.ts";
+import { RADIAN, type BuiltinError } from "../builtin.ts";
+import { BUILTINS } from "../builtins.ts";
+import {
+  DEFAULT_CEILING,
+  DEFAULT_MAX_BITS,
+  DEFAULT_ROUNDING,
+  type NumberContext,
+} from "../context.ts";
+import { parseDefinitions } from "../definitions.ts";
+import { DIMENSIONLESS, primitive, type Primitives } from "../dimension.ts";
+import { show } from "../display.ts";
+import { convertText, evaluateText } from "../pipeline.ts";
+import { UNBOUNDED, radiusAbove, radiusUpper } from "../radius.ts";
+import {
+  ONE,
+  ZERO,
+  absolute,
+  add,
+  compare,
+  multiply,
+  negate,
+  parseDecimal,
+  rational,
+  subtract,
+  type Rational,
+} from "../rational.ts";
+import type { Result } from "../result.ts";
+import { describeTextError } from "../../messages.ts";
+import {
+  acos,
+  acosBall,
+  asin,
+  asinBall,
+  atan,
+  atan2,
+  atan2Ball,
+  atanBall,
+} from "./inverse-trig.ts";
+
+const CONTEXT: NumberContext = {
+  precision: 40,
+  rounding: DEFAULT_ROUNDING,
+  maxBits: DEFAULT_MAX_BITS,
+  ceiling: DEFAULT_CEILING,
+};
+
+/** A metre, a second and the radian kind, as units.txt declares them. */
+const PRIMITIVES: Primitives = new Map([
+  ["m", "dimension"],
+  ["s", "dimension"],
+  [RADIAN, "kind"],
+]);
+
+function dec(text: string): Rational {
+  const result = parseDecimal(text);
+  assert.ok(result.ok);
+  return result.value;
+}
+
+function value(result: Result<Ball, BuiltinError>): Ball {
+  assert.ok(result.ok, inspect(result));
+  return result.value;
+}
+
+function failure(result: Result<Ball, BuiltinError>): BuiltinError {
+  assert.ok(!result.ok, inspect(result));
+  return result.error;
+}
+
+/** Asserts that `ball` contains `reference` and its radius is below `|reference| × 10^-digits`. */
+function assertNear(
+  ball: Ball,
+  reference: Rational,
+  digits: number,
+  label: string,
+) {
+  assert.ok(
+    compare(absolute(subtract(ball.mid, reference)), radiusUpper(ball.rad)) <=
+      0,
+    `${label}: midpoint`,
+  );
+  assert.ok(
+    compare(
+      radiusUpper(ball.rad),
+      multiply(absolute(reference), rational(1n, 10n ** BigInt(digits))),
+    ) < 0,
+    `${label}: radius`,
+  );
+}
+
+/** A ball of `mid` with the radius `rad`, as decimals. */
+function ball(mid: string, rad: string): Ball {
+  return { mid: dec(mid), rad: radiusAbove(dec(rad)) };
+}
+
+// References from Python's decimal module, by its own reductions and
+// series at a precision of 320 (fixed-trig.test.ts says how); the
+// fractions of pi are from the pi reference of constants.test.ts.
+const PI = dec(
+  "3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844610",
+);
+const PI_OVER_2 = multiply(PI, rational(1n, 2n));
+const PI_OVER_4 = multiply(PI, rational(1n, 4n));
+const PI_OVER_6 = multiply(PI, rational(1n, 6n));
+const PI_OVER_3 = multiply(PI, rational(1n, 3n));
+const ASIN_0_3 = dec(
+  "0.3046926540153975079720029612275291669545600317067763873929779487464729925120331594385999572313631487317349566307855469247966854234",
+);
+const ACOS_0_3 = dec(
+  "1.266103672779499111259318730412222275144024667980776523094494347407435210631071339875417455439695385259339086625855606398750236881",
+);
+const ASIN_MINUS_0_75 = dec(
+  "-0.8480620789814810080529443389984180800733662132631126428607181635702008212284742343491898017319572303009952272653075318338344538788",
+);
+const ACOS_MINUS_0_75 = dec(
+  "2.418858405776377627284266030638169522171950912950665553348190459724109024371578733663207214403015764292069270521948685157381376184",
+);
+const ACOS_0_999 = dec(
+  "0.04472508716873343124969623267155106990418055676215818283063770598116210048755344195836767648597939106723075958442507265744582295912",
+);
+const ASIN_NEAR_ONE = dec(
+  "1.570796326794895205017759318544702640409860489871623210617838998472360966112531818863105132083775645841904131051717442776048642691",
+);
+const ACOS_NEAR_ONE = dec(
+  "1.414213562373095048801688724209815929699869633297681547237030572680450912280587282888149169912204923710547498279614196494977245284e-15",
+);
+const ATAN_2_5 = dec(
+  "1.190289949682531732927733774829318337601178986029452072911166673829707745314101396955153966575185598813039185930215474374731346632",
+);
+const ATAN2_3_4 = dec(
+  "0.6435011087932843868028092287173226380415105911153123828656061187135124748116210887128168447012827488780143387542594782965352859415",
+);
+const ATAN2_1_MINUS_2 = dec(
+  "2.677945044588987122248387151818288482168632345088985557164011503587618542120467293327434541357229175425618234262091469133588026428",
+);
+
+test("asin, acos and atan take a plain number to an angle, and atan2 two conforming quantities", () => {
+  for (const [fn, name] of [
+    [asin, "asin"],
+    [acos, "acos"],
+    [atan, "atan"],
+  ] as const) {
+    assert.equal(fn.name, name);
+    assert.deepEqual(fn.arity, { min: 1, max: 1 });
+    assert.deepEqual(fn.dimensions([DIMENSIONLESS], PRIMITIVES), {
+      ok: true,
+      value: primitive(RADIAN),
+    });
+    const length = fn.dimensions([primitive("m")], PRIMITIVES);
+    assert.ok(
+      !length.ok &&
+        length.error.kind === "argumentDimension" &&
+        length.error.argument === 0 &&
+        length.error.mismatch.kind === "dimensionMismatch",
+    );
+    const angle = fn.dimensions([primitive(RADIAN)], PRIMITIVES);
+    assert.ok(
+      !angle.ok &&
+        angle.error.kind === "argumentDimension" &&
+        angle.error.mismatch.kind === "kindMismatch",
+    );
+    assert.deepEqual(fn.dimensions([DIMENSIONLESS], new Map()), {
+      ok: false,
+      error: { kind: "noAngles" },
+    });
+    assert.equal(BUILTINS.get(name), fn);
+  }
+  assert.equal(atan2.name, "atan2");
+  assert.deepEqual(atan2.arity, { min: 2, max: 2 });
+  for (const dimension of [DIMENSIONLESS, primitive("m"), primitive(RADIAN)]) {
+    assert.deepEqual(atan2.dimensions([dimension, dimension], PRIMITIVES), {
+      ok: true,
+      value: primitive(RADIAN),
+    });
+  }
+  const mixed = atan2.dimensions([primitive("m"), primitive("s")], PRIMITIVES);
+  assert.ok(
+    !mixed.ok &&
+      mixed.error.kind === "nonconformingArguments" &&
+      mixed.error.left === 0 &&
+      mixed.error.right === 1 &&
+      mixed.error.mismatch.kind === "dimensionMismatch",
+  );
+  const kinds = atan2.dimensions(
+    [primitive(RADIAN), DIMENSIONLESS],
+    PRIMITIVES,
+  );
+  assert.ok(
+    !kinds.ok &&
+      kinds.error.kind === "nonconformingArguments" &&
+      kinds.error.mismatch.kind === "kindMismatch",
+  );
+  assert.deepEqual(
+    atan2.dimensions([DIMENSIONLESS, DIMENSIONLESS], new Map()),
+    {
+      ok: false,
+      error: { kind: "noAngles" },
+    },
+  );
+  assert.equal(BUILTINS.get("atan2"), atan2);
+});
+
+test("the exact cases: asin(0), atan(0), acos(1) and atan2(0, x) for a positive x, and their neighbors are inexact", () => {
+  assert.deepEqual(value(asinBall(exact(ZERO), CONTEXT)), exact(ZERO));
+  assert.deepEqual(value(atanBall(exact(ZERO), CONTEXT)), exact(ZERO));
+  assert.deepEqual(value(acosBall(exact(ONE), CONTEXT)), exact(ZERO));
+  assert.deepEqual(
+    value(atan2Ball(exact(ZERO), exact(rational(2n)), CONTEXT)),
+    exact(ZERO),
+  );
+  assert.deepEqual(
+    value(atan2Ball(exact(ZERO), ball("2", "1"), CONTEXT)),
+    exact(ZERO),
+  );
+  for (const near of [dec("1e-30"), dec("-1e-30")]) {
+    assert.ok(!isExact(value(asinBall(exact(near), CONTEXT))));
+    assert.ok(!isExact(value(atanBall(exact(near), CONTEXT))));
+    assert.ok(!isExact(value(atan2Ball(exact(near), exact(ONE), CONTEXT))));
+  }
+  assert.ok(!isExact(value(acosBall(exact(dec("0.999999999")), CONTEXT))));
+  assert.ok(!isExact(value(asinBall(ball("0", "1e-30"), CONTEXT))));
+  // The ends of the domain are pi's memo, inexact.
+  assertNear(value(asinBall(exact(ONE), CONTEXT)), PI_OVER_2, 45, "asin(1)");
+  assertNear(
+    value(asinBall(exact(negate(ONE)), CONTEXT)),
+    negate(PI_OVER_2),
+    45,
+    "asin(-1)",
+  );
+  assertNear(value(acosBall(exact(negate(ONE)), CONTEXT)), PI, 45, "acos(-1)");
+  assertNear(value(acosBall(exact(ZERO), CONTEXT)), PI_OVER_2, 45, "acos(0)");
+});
+
+test("the values are the kernel's, within the radius: fractions of pi and the references", () => {
+  const half = exact(rational(1n, 2n));
+  assertNear(value(atanBall(exact(ONE), CONTEXT)), PI_OVER_4, 45, "atan(1)");
+  assertNear(value(asinBall(half, CONTEXT)), PI_OVER_6, 45, "asin(1/2)");
+  assertNear(value(acosBall(half, CONTEXT)), PI_OVER_3, 45, "acos(1/2)");
+  assertNear(
+    value(asinBall(exact(dec("0.3")), CONTEXT)),
+    ASIN_0_3,
+    45,
+    "asin(0.3)",
+  );
+  assertNear(
+    value(acosBall(exact(dec("0.3")), CONTEXT)),
+    ACOS_0_3,
+    45,
+    "acos(0.3)",
+  );
+  assertNear(
+    value(asinBall(exact(dec("-0.75")), CONTEXT)),
+    ASIN_MINUS_0_75,
+    45,
+    "asin(-0.75)",
+  );
+  assertNear(
+    value(acosBall(exact(dec("-0.75")), CONTEXT)),
+    ACOS_MINUS_0_75,
+    45,
+    "acos(-0.75)",
+  );
+  assertNear(
+    value(acosBall(exact(dec("0.999")), CONTEXT)),
+    ACOS_0_999,
+    45,
+    "acos(0.999)",
+  );
+  assertNear(
+    value(atanBall(exact(dec("2.5")), CONTEXT)),
+    ATAN_2_5,
+    45,
+    "atan(2.5)",
+  );
+  // Near the ends of the domain the digits are kept: acos(1 - 1e-30) is
+  // about 1.4e-15 with a relative radius, and asin of it is pi/2 less that.
+  const nearOne = exact(dec("0.999999999999999999999999999999"));
+  assertNear(
+    value(acosBall(nearOne, CONTEXT)),
+    ACOS_NEAR_ONE,
+    45,
+    "acos(1 - 1e-30)",
+  );
+  assertNear(
+    value(asinBall(nearOne, CONTEXT)),
+    ASIN_NEAR_ONE,
+    45,
+    "asin(1 - 1e-30)",
+  );
+  // A tiny argument keeps its digits.
+  const tiny = value(atanBall(exact(dec("1e-50")), CONTEXT));
+  assertNear(tiny, dec("1e-50"), 40, "atan(1e-50)");
+  assert.ok(compare(radiusUpper(tiny.rad), dec("1e-96")) < 0);
+  assertNear(
+    value(asinBall(exact(dec("1e-30")), CONTEXT)),
+    dec(
+      "1.0000000000000000000000000000000000000000000000000000000000001666667e-30",
+    ),
+    45,
+    "asin(1e-30)",
+  );
+});
+
+test("an inexact argument's inverse contains those of its ends, and a wide one is the trivial bound", () => {
+  const x = ball("0.5", "1e-20");
+  // Over the derivatives: 1 / sqrt(1 - x^2) is 1.1547 at one half, and
+  // 1 / (1 + x^2) is 0.8.
+  const s = value(asinBall(x, CONTEXT));
+  assertNear(s, PI_OVER_6, 19, "asin(0.5 ± 1e-20)");
+  assert.ok(compare(radiusUpper(s.rad), dec("1.15e-20")) > 0);
+  assert.ok(compare(radiusUpper(s.rad), dec("3e-20")) < 0);
+  const c = value(acosBall(x, CONTEXT));
+  assertNear(c, PI_OVER_3, 19, "acos(0.5 ± 1e-20)");
+  assert.ok(compare(radiusUpper(c.rad), dec("1.15e-20")) > 0);
+  assert.ok(compare(radiusUpper(c.rad), dec("3e-20")) < 0);
+  const t = value(atanBall(x, CONTEXT));
+  assert.ok(compare(radiusUpper(t.rad), dec("8e-21")) > 0);
+  assert.ok(compare(radiusUpper(t.rad), dec("1.6e-20")) < 0);
+  const wide = value(atanBall(ball("0", "10"), CONTEXT));
+  assert.deepEqual(wide, { mid: ZERO, rad: radiusAbove(rational(2n)) });
+  assert.deepEqual(
+    value(atan2Ball(ball("0", "1"), exact(rational(2n)), CONTEXT)),
+    {
+      mid: ZERO,
+      rad: radiusAbove(rational(2n)),
+    },
+  );
+});
+
+test("asin and acos outside [-1, 1] are domain errors, and a ball reaching an end is unresolved at it", () => {
+  for (const x of [
+    exact(rational(2n)),
+    exact(dec("-1.5")),
+    ball("2", "0.5"),
+    ball("-3", "1"),
+    exact(dec("1.000000000000000000000000000001")),
+  ]) {
+    for (const fn of [asinBall, acosBall]) {
+      assert.deepEqual(failure(fn(x, CONTEXT)), {
+        kind: "domain",
+        argument: 0,
+        reason: "outsideClosedUnitInterval",
+      });
+    }
+  }
+  for (const [x, edge] of [
+    [ball("1", "1e-10"), ONE],
+    [ball("0.5", "0.5"), ONE],
+    [ball("0.9", "0.2"), ONE],
+    [ball("-1", "1e-10"), negate(ONE)],
+    [ball("-0.5", "0.5"), negate(ONE)],
+    [ball("-1.5", "0.6"), negate(ONE)],
+  ] as const) {
+    for (const fn of [asinBall, acosBall]) {
+      assert.deepEqual(failure(fn(x, CONTEXT)), {
+        kind: "unresolved",
+        argument: 0,
+        edge,
+      });
+    }
+  }
+  // A ball close to one whose complement is positive resolves, since the
+  // complement is formed on the ball and its root is scaled to order one:
+  // 1 - x^2 is about 2e-60 ± 2e-70, and so does an exact value there.
+  const near = ball(
+    "0.999999999999999999999999999999999999999999999999999999999999",
+    "1e-70",
+  );
+  assert.ok(asinBall(near, CONTEXT).ok && acosBall(near, CONTEXT).ok);
+  const close = exact(
+    dec("0.999999999999999999999999999999999999999999999999999999999999"),
+  );
+  assert.ok(asinBall(close, CONTEXT).ok);
+  assertNear(
+    value(acosBall(close, CONTEXT)),
+    dec("1.4142135623730950488016887242096980785696718753769480731766797e-30"),
+    30,
+    "acos(1 - 1e-60)",
+  );
+});
+
+test("atan2 by quadrant, its exact and unresolved cases, and the origin", () => {
+  const three = exact(rational(3n));
+  const four = exact(rational(4n));
+  assertNear(
+    value(atan2Ball(three, four, CONTEXT)),
+    ATAN2_3_4,
+    45,
+    "atan2(3, 4)",
+  );
+  assertNear(
+    value(atan2Ball(exact(ONE), exact(rational(-2n)), CONTEXT)),
+    ATAN2_1_MINUS_2,
+    45,
+    "atan2(1, -2)",
+  );
+  assertNear(
+    value(atan2Ball(exact(negate(ONE)), exact(rational(-2n)), CONTEXT)),
+    negate(ATAN2_1_MINUS_2),
+    45,
+    "atan2(-1, -2)",
+  );
+  for (const [y, x, reference] of [
+    ["1", "1", PI_OVER_4],
+    ["-1", "1", negate(PI_OVER_4)],
+    ["1", "-1", multiply(PI, rational(3n, 4n))],
+    ["-1", "-1", multiply(PI, rational(-3n, 4n))],
+    ["1", "0", PI_OVER_2],
+    ["-1", "0", negate(PI_OVER_2)],
+    ["0", "-1", PI],
+    // atan(y / x) + pi, with atan(-2e30) a hair above -pi/2.
+    ["2", "-1e-30", add(PI_OVER_2, dec("5e-31"))],
+  ] as const) {
+    assertNear(
+      value(atan2Ball(exact(dec(y)), exact(dec(x)), CONTEXT)),
+      reference,
+      44,
+      `atan2(${y}, ${x})`,
+    );
+  }
+  // Against atan: the same ratio in the first quadrant, and its
+  // quantities' scale cancels.
+  const ratio = value(atanBall(exact(rational(3n, 4n)), CONTEXT));
+  const scaled = value(
+    atan2Ball(exact(rational(300n)), exact(rational(400n)), CONTEXT),
+  );
+  assert.ok(
+    compare(absolute(subtract(ratio.mid, scaled.mid)), dec("1e-45")) < 0,
+  );
+  // A straddling x with a y of definite sign is pi/2 less atan(x / y).
+  const straddling = value(
+    atan2Ball(exact(rational(2n)), ball("0", "1e-30"), CONTEXT),
+  );
+  assertNear(straddling, PI_OVER_2, 30, "atan2(2, 0 ± 1e-30)");
+  assert.ok(compare(radiusUpper(straddling.rad), dec("4.9e-31")) > 0);
+  assert.ok(compare(radiusUpper(straddling.rad), dec("6e-31")) < 0);
+  // A straddling y with an x not positive throughout is unresolved at y.
+  for (const x of [
+    exact(negate(ONE)),
+    ball("-1", "0.5"),
+    ball("0", "1"),
+    exact(ZERO),
+  ]) {
+    assert.deepEqual(failure(atan2Ball(ball("0", "1"), x, CONTEXT)), {
+      kind: "unresolved",
+      argument: 0,
+      edge: ZERO,
+    });
+  }
+  // A y of exactly zero: the sign of x decides.
+  assertNear(
+    value(atan2Ball(exact(ZERO), ball("-1", "0.5"), CONTEXT)),
+    PI,
+    45,
+    "atan2(0, -1 ± 0.5)",
+  );
+  assert.deepEqual(failure(atan2Ball(exact(ZERO), ball("0", "1"), CONTEXT)), {
+    kind: "unresolved",
+    argument: 1,
+    edge: ZERO,
+  });
+  assert.deepEqual(failure(atan2Ball(exact(ZERO), exact(ZERO), CONTEXT)), {
+    kind: "domain",
+    argument: 0,
+    reason: "origin",
+  });
+});
+
+test("an unbounded argument gives the function of its midpoint with an unbounded radius", () => {
+  const half = { mid: rational(1n, 2n), rad: UNBOUNDED };
+  for (const [result, reference] of [
+    [asinBall(half, CONTEXT), PI_OVER_6],
+    [acosBall(half, CONTEXT), PI_OVER_3],
+    [
+      atan2Ball(half, exact(ONE), CONTEXT),
+      dec("0.4636476090008061162142562314612144020285370542861202638109330887"),
+    ],
+    [
+      atan2Ball(exact(ONE), half, CONTEXT),
+      dec("1.1071487177940905030170654601785370400700476454014326466765392074"),
+    ],
+    [atan2Ball(half, half, CONTEXT), PI_OVER_4],
+  ] as const) {
+    const at = value(result);
+    assert.deepEqual(at.rad, UNBOUNDED);
+    assert.ok(compare(absolute(subtract(at.mid, reference)), dec("1e-40")) < 0);
+  }
+  const unboundedAtan = value(atanBall({ mid: ONE, rad: UNBOUNDED }, CONTEXT));
+  assert.deepEqual(unboundedAtan.rad, UNBOUNDED);
+  assert.ok(
+    compare(absolute(subtract(unboundedAtan.mid, PI_OVER_4)), dec("1e-40")) < 0,
+  );
+  // The midpoint is still held to the domain.
+  assert.deepEqual(
+    failure(asinBall({ mid: rational(2n), rad: UNBOUNDED }, CONTEXT)),
+    {
+      kind: "domain",
+      argument: 0,
+      reason: "outsideClosedUnitInterval",
+    },
+  );
+});
+
+test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angle, asin(sin(0.5 radian)) certifies thirty digits, and the errors are worded", () => {
+  const parsed = parseDefinitions(
+    readFileSync(new URL("../../units.txt", import.meta.url), "utf8"),
+  );
+  assert.ok(parsed.ok);
+  const context = { ...CONTEXT, ceiling: 200 };
+  const table = buildTable(parsed.value, { ...context, precision: 200 });
+  assert.ok(table.ok, inspect(table));
+  const at = (text: string, precision: number) =>
+    evaluateText(table.value, text, { ...context, precision });
+  for (const [have, want, digits] of [
+    ["asin(0.5)", "deg", "30"],
+    ["acos(0.5)", "deg", "60"],
+    ["atan(1)", "deg", "45"],
+    ["atan2(3 m, 4 m)", "deg", "36.869898"],
+    ["atan2(1 m, -2 m)", "radian", "2.677945"],
+    ["asin(0.5)", "turn", "0.083333333"],
+    ["asin(3 m / 5 m)", "deg", "36.869898"],
+    ["acos(1 - 1e-30)", "radian", "1.4142136e-15"],
+  ]) {
+    const result = convertText(table.value, have!, want!, {
+      ...context,
+      precision: 8,
+    });
+    assert.ok(
+      result.ok && result.value.kind === "unit",
+      `${have}: ${inspect(result)}`,
+    );
+    const shown = show(result.value.value, 8, DEFAULT_ROUNDING);
+    assert.equal(shown.kind, "certified", have);
+    assert.equal(shown.text, digits, have);
+  }
+  const roundTrip = at("asin(sin(0.5 radian))", 30);
+  assert.ok(roundTrip.ok, inspect(roundTrip));
+  assert.deepEqual(roundTrip.value.dimension, primitive(RADIAN));
+  assert.equal(
+    show(roundTrip.value.magnitude, 30, DEFAULT_ROUNDING).text,
+    "0.5",
+  );
+  const other = at("sin(asin(0.5))", 30);
+  assert.ok(
+    other.ok &&
+      show(other.value.magnitude, 30, DEFAULT_ROUNDING).text === "0.5",
+  );
+  const exactZero = at("atan2(0 s, 2 s) m", 8);
+  assert.ok(exactZero.ok && isExact(exactZero.value.magnitude));
+  const primitives = table.value.primitives;
+  for (const [text, message] of [
+    [
+      "asin(2)",
+      'Cannot compute "asin(2)": "2" lies outside [-1, 1], where "asin" is defined.',
+    ],
+    [
+      "acos(-1.5)",
+      'Cannot compute "acos(-1.5)": "-1.5" lies outside [-1, 1], where "acos" is defined.',
+    ],
+    [
+      "atan2(0, 0)",
+      'Cannot compute "atan2(0, 0)": both arguments are zero, and the origin has no direction.',
+    ],
+    [
+      "atan2(3 m, 4 s)",
+      'Cannot apply "atan2" to "3 m" and "4 s": "3 m" has dimension m, but "4 s" has dimension s.',
+    ],
+    [
+      "atan2(1 radian, 1)",
+      'Cannot apply "atan2" to "1 radian" and "1": "1 radian" (radian) and "1" (1) differ in kind: radian.',
+    ],
+    [
+      "asin(1 m)",
+      'Cannot apply "asin" to "1 m": "1 m" has dimension m, but the argument of "asin" must be a plain number.',
+    ],
+    [
+      "atan(1 radian)",
+      'Cannot apply "atan" to "1 radian": "1 radian" has dimension radian, but the argument of "atan" must be a plain number.',
+    ],
+    [
+      "2 asin(0.5) + 1",
+      'Cannot add "2 asin(0.5)" and "1": "2 asin(0.5)" (radian) and "1" (1) differ in kind: radian.',
+    ],
+    [
+      "asin(1 + ((2^(1/2))^2 - 2))",
+      '"1 + ((2^(1/2))^2 - 2)" cannot be told from 1 at this precision, and the result depends on which side of 1 it lies.',
+    ],
+    [
+      "acos(-1 - ((2^(1/2))^2 - 2))",
+      '"-1 - ((2^(1/2))^2 - 2)" cannot be told from -1 at this precision, and the result depends on which side of -1 it lies.',
+    ],
+    [
+      "atan2((2^(1/2))^2 - 2, -1)",
+      '"(2^(1/2))^2 - 2" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
+    ],
+    [
+      "asin(0.5, 1)",
+      '"asin" takes 1 argument, but "asin(0.5, 1)" gives 2 arguments.',
+    ],
+  ]) {
+    const result = at(text!, 8);
+    assert.ok(!result.ok, text);
+    assert.equal(
+      describeTextError(result.error, text!, primitives),
+      message,
+      text,
+    );
+  }
+});

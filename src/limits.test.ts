@@ -1,8 +1,20 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MIN_MAX_BITS, maxDigitsFor } from "./core/context.ts";
+import {
+  DEFAULT_ROUNDING,
+  MIN_MAX_BITS,
+  ceilingFor,
+  maxDigitsFor,
+} from "./core/context.ts";
 import { LIMIT_BITS } from "./core/rational.ts";
-import { BUDGET_MS, realProbe, recommendLimits, type Probe } from "./limits.ts";
+import {
+  BUDGET_MS,
+  COMPOSITE,
+  evaluateComposite,
+  realProbe,
+  recommendLimits,
+  type Probe,
+} from "./limits.ts";
 
 /**
  * A probe over a fake clock that charges `perBit` milliseconds per bit of
@@ -78,6 +90,24 @@ test("the recommendation respects the dependency and the hard bounds", () => {
   assert.equal(middling.maxBits, 4096);
   assert.ok(middling.maxDigits <= maxDigitsFor(4096));
   assert.ok(middling.maxDigits >= 100);
+});
+
+test("the composite names the four costliest built-ins and evaluates at a candidate's ceiling", () => {
+  // The four of the kernel benchmark's report, each once; a change here is
+  // a change of what the cap measures, and the header says why these.
+  for (const name of ["exp", "atan", "sin", "ln"]) {
+    assert.equal(COMPOSITE.split(`${name}(`).length, 2, name);
+  }
+  assert.equal(COMPOSITE, "sin(atan(exp(1)) + ln(3) radian)");
+  const ceiling = ceilingFor(8);
+  assert.doesNotThrow(() =>
+    evaluateComposite({
+      precision: ceiling,
+      rounding: DEFAULT_ROUNDING,
+      maxBits: LIMIT_BITS,
+      ceiling,
+    }),
+  );
 });
 
 test("the real probe answers within a small budget without hanging", () => {

@@ -18,7 +18,8 @@
 // full multiplications number about `2 sqrt(N)` rather than `N` (V8
 // multiplies at these sizes by the schoolbook rule, sixty microseconds at
 // the default ceiling, and the term-by-term sum cost four times the rest
-// of the routine). `ln(m)` is the sum times `2^9`, an exact shift that
+// of the routine; the series is exported for `atan`, whose series it is in
+// `-z^2`). `ln(m)` is the sum times `2^9`, an exact shift that
 // scales the error with it, and `k ln(2)` is added from the memo, so the
 // work is done at the bits plus nine plus the bit length of `k` plus a
 // guard, and the result is cut to the bits its magnitude calls for
@@ -102,9 +103,11 @@ export function lnFixed(
  * `w` in it: the `N` terms with `w^N` under a quarter of an ulp, which the
  * bits below the leading one of `|w|`'s bound give, summed by rectangular
  * splitting as the header says, and one ulp for the tail, which is below
- * `w^N / (1 - w)`.
+ * `|w|^N / (1 - |w|)`. With `w = z^2` it is `atanh(z) / z`, and with `w =
+ * -z^2` it is `atan(z) / z`, which is how fixed-trig.ts's `atanFixed`
+ * takes it.
  */
-function oddReciprocalSeries(w: Fixed): Fixed {
+export function oddReciprocalSeries(w: Fixed): Fixed {
   const bound = abs(w.value) + w.error;
   const leading = Math.max(1, w.bits - bitLength(bound));
   const terms = bound === 0n ? 1 : Math.ceil((w.bits + 2) / leading) + 1;

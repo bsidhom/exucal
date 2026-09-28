@@ -12,15 +12,28 @@
 // the range limit the operation is an exact multiplication of two rationals
 // of the candidate size followed by the reduction to lowest terms, whose
 // gcd is the quadratic step of exact arithmetic; the candidates are powers
-// of two from 2^9 to the hard bound. For the cap it is a cube root through
-// `rootBall`, the kernel's Newton iteration, at the ceiling the candidate
-// cap would give (D12: four times the cap plus the guard), since the
-// ceiling pass is the costliest an expression that never certifies runs;
+// of two from 2^9 to the hard bound. For the cap it is `COMPOSITE`, one
+// expression of the costliest built-ins, evaluated once at the ceiling the
+// candidate cap would give (D12: four times the cap plus the guard), since
+// the ceiling pass is the costliest an expression that never certifies
+// runs, and such an expression runs every built-in it names at that pass;
 // the candidates are 1, 2 and 5 times a power of ten, up to what the
-// recommended range limit holds (`maxDigitsFor`). Stage 3 replaces the
-// cube root with the costliest built-in it adds, and stage 8 revises the
-// budget from measurements of the special functions; the operations and
-// the budget are named in one place here so that nothing else changes.
+// recommended range limit holds (`maxDigitsFor`). The composite was chosen
+// from the kernel benchmark's report of every routine at the default
+// ceiling (bench/kernel.bench.ts, the plan's 3.11): `exp`, `atan`, `sin`
+// (with `cos`, computed together) and `ln` cost about 12, 12, 11 and 10 ms
+// each there on the machine it was chosen on, the roots 0.5 and 1.6 ms,
+// and the hyperbolic functions and the remaining inverses are compositions
+// of those, so the composite names each of the four once (the arctangent
+// is an angle, and so is the logarithm in radians, which the sine takes)
+// and costs about 45 ms at that ceiling, the pass an expression of four
+// such calls pays;
+// stage 2's probe timed a cube root, the costliest operation it had.
+// The expression is evaluated through the evaluator at that one precision,
+// not the pipeline's retry schedule, against a table of the one primitive
+// the angle needs, built at the same context. Stage 8 revises the budget
+// from measurements of the special functions; the operations and the
+// budget are named in one place here so that nothing else changes.
 //
 // The budget is per pass: the retry schedule doubles, so an expression that
 // runs to the ceiling costs about twice its last pass, and 50 ms a pass
@@ -37,14 +50,29 @@
 // here rather than the shared random source of the tests, which is not
 // part of the app; they need to be ordinary numbers, not random ones.
 
-import { exact, rootBall } from "./core/ball.ts";
+import { buildTable } from "./core/build.ts";
 import {
   DEFAULT_ROUNDING,
   MIN_MAX_BITS,
   ceilingFor,
   maxDigitsFor,
+  type NumberContext,
 } from "./core/context.ts";
+import { parseDefinitions } from "./core/definitions.ts";
+import { evaluate } from "./core/evaluate.ts";
+import { parseExpr } from "./core/expr.ts";
 import { LIMIT_BITS, multiply, rational } from "./core/rational.ts";
+import { unitLookup } from "./core/table.ts";
+
+/**
+ * The expression the precision probe evaluates: the four costliest
+ * built-ins of the kernel benchmark's report, each once, as the header
+ * says. Exported for the test that checks it evaluates.
+ */
+export const COMPOSITE = "sin(atan(exp(1)) + ln(3) radian)";
+
+/** The one primitive the composite needs: the angle its calls take and return. */
+const DEFINITIONS = "radian  !kind";
 
 /** The two limits the probe recommends. */
 export type Limits = {
@@ -78,7 +106,7 @@ export function realProbe(): Probe {
     },
     precision: (digits) => {
       const ceiling = ceilingFor(digits);
-      rootBall(exact(rational(3n)), 3n, {
+      evaluateComposite({
         precision: ceiling,
         rounding: DEFAULT_ROUNDING,
         maxBits: LIMIT_BITS,
@@ -86,6 +114,43 @@ export function realProbe(): Probe {
       });
     },
   };
+}
+
+/**
+ * `COMPOSITE` evaluated once at `context`, against a table of the one
+ * primitive built at the same context; a failure is a bug in the
+ * composite, and throws.
+ */
+export function evaluateComposite(context: NumberContext): void {
+  const table = buildTable(definitions(), context);
+  if (!table.ok) throw new Error("The probe's definitions do not build");
+  const result = evaluate(
+    composite(),
+    unitLookup(table.value, context),
+    table.value.primitives,
+    context,
+  );
+  if (!result.ok) throw new Error("The probe's composite does not evaluate");
+}
+
+/** The composite, parsed once. */
+const composite = memo(() => {
+  const parsed = parseExpr(COMPOSITE);
+  if (!parsed.ok) throw new Error("The probe's composite does not parse");
+  return parsed.value;
+});
+
+/** The probe's definitions, parsed once. */
+const definitions = memo(() => {
+  const parsed = parseDefinitions(DEFINITIONS);
+  if (!parsed.ok) throw new Error("The probe's definitions do not parse");
+  return parsed.value;
+});
+
+/** `compute` called once, on first use. */
+function memo<T>(compute: () => T): () => T {
+  let value: T | undefined;
+  return () => (value ??= compute());
 }
 
 /**

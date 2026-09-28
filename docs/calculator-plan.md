@@ -1486,7 +1486,7 @@ That is the `Scaled` midpoint of D13 and stage 4, which this limit adds a
 requirement to: the kernel's results must reach the midpoint as a
 mantissa and an exponent without the exponent ever being formed as bits
 (4.4 amended, and 4.9 added). Until then the guard stands, and `sinh`,
-`cosh` (3.10), a power in log space (3.8) and a large decibel (3.12) share
+`cosh` (3.11), a power in log space (3.8) and a large decibel (3.12) share
 it, since each ends in `exp`.
 
 ### 3.7 `ln`, `log10`, `log2`, `log(b, x)`
@@ -1653,6 +1653,35 @@ a dimension mismatch; `sin(pi() radian)` is `zero` with a bound at the
 ceiling; `tan(pi() radian / 2)` is `unresolved` at the argument with the
 pole's wording.
 
+As it landed. `sinCosFixed` in fixed-trig.ts computes the sine and the
+cosine together, since they share the reduction and the powers of the
+series, `sinFixed` and `cosFixed` are each one of the pair, and `tan` is
+their quotient in builtins/trig.ts, cut to the bits its magnitude calls
+for; `angleToNumber` in builtin.ts is the rule the three share. The
+reduction takes `n = round(2x / pi)` on the integers and pi at the bits
+asked for plus the bit length of the argument's integer part, so that
+pi's three ulps times `n / 2` are under one ulp of the result, which is
+what makes the memo's margin serve exactly the arguments below `2^64` at
+the ceiling pass (a test pins `2^63` served and `2^70` computed uncached).
+The two series, in `v = -r^2` with the powers shared, are summed by the
+rectangular splitting of 3.7, each block scaled through its largest
+product of consecutive integers so that it costs one division rather
+than one per term (a division per term cost more than all the rest),
+which puts `sin` and `cos` at the ceiling at the cost of `exp` and `ln`
+there (11 and 12 ms against 12 and 10 ms in the kernel benchmark, which
+gains `sin 1` and `cos 1`). Two rulings the task did not reach: an
+argument whose interval is wider than about a fifth of a radian after
+the reduction admits no series of shrinking terms, and both functions are
+then the trivial bound, zero within one, which the retry loop narrows and
+of which `tan` is `unresolved` at the pole; and the tiny argument's
+scaling is a conversion at the working bits plus its negative binary
+exponent, the kernel working at the larger of the bits asked for and the
+argument's bits, so `sin(1e-50 radian)` at forty digits has a radius of
+`1e-96`. The propagation counts the argument's error in `r` and in `r^2`
+both, so a radius exceeds the derivative bound by a small factor
+(`sin(1 ± 1e-20)` has radius `6e-21` against `cos(1) × 1e-20`, `5.4e-21`),
+which is the price of D9's rule over a derivative bound and is accepted.
+
 Behavior: `sin`, `cos` and `tan` exist.
 
 ### 3.10 `asin`, `acos`, `atan`, `atan2`
@@ -1679,6 +1708,33 @@ ends of the domain; `asin(2)` and `acosh`'s neighbours' domain messages;
 `atan2(3 m, 4 s)` a dimension mismatch; the pipeline certifies
 `asin(sin(0.5 radian))` at 30 digits.
 
+As it landed. The four share builtins/inverse-trig.ts, every one being an
+arctangent, and `numberToAngle` and `conformingToAngle` in builtin.ts are
+their rules. `atanFixed` in fixed-trig.ts inverts an argument above one
+against `pi/2` from the memo, halves the angle eight times through
+`sqrtFixed` with the argument's error carried through, and takes the
+logarithm's series in `-z^2` (`oddReciprocalSeries`, exported from
+fixed-log.ts for it), 12 ms at the ceiling in the kernel benchmark, which
+gains `atan 1`. `asin(x)` is `2 atan(x / (1 + sqrt(1 - x^2)))` and
+`acos(x)` is `2 atan(sqrt(1 - x^2) / (1 + x))` for `x` at or above zero
+and `pi - 2 atan(sqrt(1 - x^2) / (1 - x))` below it, so that neither
+divides by a value near zero and `acos(1 - 1e-30)` certifies its digits on
+the first pass; `1 - x^2` is formed on the ball, exactly for an exact `x`,
+and rooted by `rootBall`, which scales a tiny value to order one. The
+domain is read off that ball, and two rulings follow: a ball touching an
+end of the domain counts as straddling it, as `sideOfZero` counts a ball
+touching zero, and one the root cannot tell from the end at the working
+bits is the same `unresolved`, at the edge on the side of the midpoint;
+and `asin(±1)` and `acos(-1)` are the memo's `pi` in the same way as
+`exp(1)` is the memo's `e`. `atan2` with `y` exactly zero is the exact
+zero for an `x` positive throughout, `pi` for one negative throughout,
+`unresolved` at `x` with edge zero for one straddling it, and the `origin`
+error for one exactly zero, the case the task's list did not reach. An
+argument of `atan` whose interval is wider than one radian is zero within
+two, the trivial bound, as 3.9's wide arguments are; `atan2(0 ± 1, 2)` is
+that bound and the retry loop narrows it. The inverses cannot produce a
+large magnitude, so the limit of 3.6 does not reach them.
+
 Behavior: the inverse trigonometric functions exist.
 
 ### 3.11 The hyperbolic functions and their inverses
@@ -1702,6 +1758,64 @@ Tests: reference digits of `sinh 1`, `cosh 1` and `atanh(1/2)` (half of
 `sinh(1e-10)`; the domain errors and their messages; identities within
 the radius (`cosh^2 - sinh^2` contains one, `asinh(sinh(x))` contains
 `x`); the probe's test with the composite.
+
+As it landed. The six share builtins/hyperbolic.ts, the three forward
+functions one kernel routine and the three inverses one route through
+`ln` of a root. `sinhCoshFixed` in fixed-exp.ts computes the pair: an
+argument below one throughout its interval takes the two series in `x^2`
+over the factorials, which are 3.9's series without the alternating sign
+(`factorialSeries`, exported from fixed-trig.ts for it), so that `sinh`
+of a small argument never forms `(e^x - e^-x) / 2`, and any other
+argument goes through `expFixed` on its magnitude, where the difference
+loses at most a bit; the kernel benchmark gains `sinh 1/2` and `cosh 2`,
+9 and 12 ms at the ceiling. `sinh` and `cosh` share the limit of 3.6
+through `expFits`, the one guard, and nothing else in the module can
+reach a large magnitude: `tanh` of an argument whose magnitude throughout
+its ball is beyond what the working bits plus a margin can tell from one
+is `±1` within `2 e^-2|x|`, a radius the coarse type holds at any
+magnitude, so `tanh(1e6)` is `1` where `sinh(1e6)` is `tooLarge`, and
+4.9's retouch reaches this module only at the branch through `expFixed`.
+`asinh(x)` is `ln(x + sqrt(x^2 + 1))` on the kernel throughout, at the
+working bits plus the negative binary exponent of `x`, negated by
+symmetry for a negative `x`; `acosh(x)` is `ln(x + sqrt(x^2 - 1))` with
+`x^2 - 1` formed on the ball and rooted by `rootBall`; `atanh(x)` is `ln((1
+
+- x) / (1 - x)) / 2`with the quotient formed on the ball; the logarithm's
+argument is converted at the working bits plus the negative binary
+exponent of the small part it carries, so that`ln(1 + small)`keeps the
+digits of`small`and`asinh(1e-50)`, `atanh(1e-50)`and`acosh(1 +
+  1e-30)`certify on the first pass. Rulings the task did not reach: a ball
+touching an end of a domain counts as reaching it, as in 3.10, so`acosh`of a ball touching one from above and`atanh`of one touching`±1`are`unresolved`at the edge; an argument of`asinh`whose interval
+is wider than one half is taken at its midpoint with the argument's
+radius added,`asinh` being within the identity's slope everywhere,
+  since the square under the root would not stay positive under the error
+  rules; and the wide arguments of the forward functions go through the
+  exponential of the whole interval, which is honest and wide.
+
+The probe's composite is `sin(atan(exp(1)) + ln(3) radian)`, the four
+costliest routines of the kernel benchmark's report each once (`exp`,
+`atan`, `sin` and `ln`, about 12, 12, 11 and 10 ms at the default ceiling
+on the machine of this task, the roots 0.5 and 1.6, the hyperbolic
+functions and the remaining inverses compositions of those), evaluated
+through the evaluator at the candidate's ceiling against a table of the
+one primitive the angle needs, built at that context; the report notes
+that `exp`'s series, summed term by term, is the remaining candidate for
+the rectangular splitting the logarithm, the sine and the arctangent use
+(V8 multiplies integers of 13,500 bits by the schoolbook rule, about 60
+µs a product). Evaluating the composite found a cost of stage 2's: the
+sum of two settled midpoints cost 66 ms at the ceiling, more than the
+four routines together, because `rational` reduces every result by
+Euclid's algorithm, which on a dyadic of thirteen thousand bits over a
+power of two takes a step per few bits with a division of the whole
+number at each. The gcd now takes the common power of two off both
+numbers by their trailing zeros and runs Euclid on the odd parts, a step
+or two when one of them is small and none when both are one, so that sum
+costs 1.5 ms and the composite 38 ms, the sum of its routines; nothing
+about the results changes, and the range probe, which times Euclid on two
+random numerators, is unaffected and stays as it was. On this project's
+cloud container the probe recommends 8,192 bits and 200 digits under
+Node and 4,096 bits and 100 digits under headless Chromium, the range
+limit binding the cap in both, as in 2.7.
 
 Behavior: the hyperbolic functions exist, and the "Recommend limits"
 button measures the new costliest operation.
@@ -1901,7 +2015,7 @@ whose results can be large return a mantissa with a scale, never a value
 of the result's bits: `expFixed` renormalizes after each squaring, keeping
 the working bits and moving the rest into a binary exponent it returns
 beside the `Fixed` (so `exp(1e6)` costs what `exp(1)` costs plus the
-squarings), and `sinh`, `cosh` (3.10), `powLogSpace` (3.8) and `decibel`
+squarings), and `sinh`, `cosh` (3.11), `powLogSpace` (3.8) and `decibel`
 (3.12) inherit it through `exp`; `lnFixed` and `lnScaled` already take an
 argument's exponent as a scale, and `rootFixed` and the powers combine
 exponents exactly. `fixedToScaled` carries the scale into the midpoint's

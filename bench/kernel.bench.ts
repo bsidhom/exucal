@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { chudnovsky, eSeries } from "../src/core/constants.ts";
 import { DEFAULT_CEILING } from "../src/core/context.ts";
-import { expFixed } from "../src/core/fixed-exp.ts";
+import { expFixed, sinhCoshFixed } from "../src/core/fixed-exp.ts";
 import { ln2Series, ln10Series, lnFixed } from "../src/core/fixed-log.ts";
+import { atanFixed, cosFixed, sinFixed } from "../src/core/fixed-trig.ts";
 import {
   bitsFor,
   fixedFromRational,
@@ -42,9 +43,17 @@ test("pi by Chudnovsky grows as the multiplication does, not quadratically", (t)
 
 /**
  * Every routine of the kernel, each run at `bits` on an argument of order
- * one: the report of docs/calculator-plan.md's 3.6, from which 3.11 chooses
- * what the probe of limits.ts times, and where the cost of the ceiling pass
- * is measured rather than assumed. A routine joins the list as it lands.
+ * one: the report of docs/calculator-plan.md's 3.6, from which 3.11 chose
+ * what the probe of limits.ts times (the four costliest, `exp`, `atan`,
+ * `sin` and `ln`, each about 10 to 12 ms at the default ceiling on the
+ * machine of 3.11, against the roots' 0.5 and 1.6), and where the cost of
+ * the ceiling pass is measured rather than assumed. The logarithm, the
+ * sine and the arctangent sum their series by rectangular splitting, about
+ * `2 sqrt(N)` full multiplications for `N` terms; the exponential's series
+ * is summed term by term, one multiplication a term, and is the remaining
+ * candidate for the same splitting (V8 multiplies integers of 13,500 bits
+ * by the schoolbook rule, about 60 µs a product, and `exp 1` spends most
+ * of its time there). The series of `e` costs a fraction of any of them.
  */
 const ROUTINES: readonly [string, (bits: number) => void][] = [
   ["sqrt 2", (bits) => void sqrtFixed(fixedFromRational(rational(2n), bits))],
@@ -63,6 +72,27 @@ const ROUTINES: readonly [string, (bits: number) => void][] = [
   ],
   ["ln 2 series", (bits) => void ln2Series(bits)],
   ["ln 10 series", (bits) => void ln10Series(bits)],
+  [
+    "sin 1",
+    (bits) => void sinFixed(fixedFromRational(rational(1n), bits), bits, bits),
+  ],
+  [
+    "cos 1",
+    (bits) => void cosFixed(fixedFromRational(rational(1n), bits), bits, bits),
+  ],
+  [
+    "atan 1",
+    (bits) => void atanFixed(fixedFromRational(rational(1n), bits), bits, bits),
+  ],
+  [
+    "sinh 1/2",
+    (bits) =>
+      void sinhCoshFixed(fixedFromRational(rational(1n, 2n), bits), bits),
+  ],
+  [
+    "cosh 2",
+    (bits) => void sinhCoshFixed(fixedFromRational(rational(2n), bits), bits),
+  ],
 ];
 
 test("every kernel routine at the default ceiling costs at most 64 times what it costs at a quarter of it", (t) => {

@@ -427,11 +427,12 @@ Functions share the unit namespace as lists do, and their names are held
 to the same rule against reading as a prefixed unit, for the same reason.
 Unlike a list, a function can be referred to, by a call in any body, so a
 function is a node of the walk, and evaluating it means checking it
-("Functions" below): its declared units are evaluated, its forward body is
-evaluated with the parameter bound to one of the declared argument unit
-and its inverse body with the name bound to one of the declared result
-unit, through the walk's own lookup, and each body is checked to conform
-to what it should give. A unit may then be defined by a call
+("Functions" below): its declared units are evaluated, and each body's
+dimension is taken without evaluating it (`dimension-of.ts`), the forward
+body with the parameter bound to the declared argument's dimension and the
+inverse body with the name bound to the declared result's, through the
+walk's own lookup, and checked to conform to what it should give. A unit
+may then be defined by a call
 (`boiling  tempC(100)`), a function's body may call another, and a cycle
 through a function is reported like any other. The table holds each
 function as its two bodies, still as expressions, with the declared units
@@ -828,13 +829,21 @@ until stage 3's `pi()` and the elementary functions fill it.
 The build checks each function once so that a call at run time can fail
 only on its argument or on a value: the declared units are evaluated and
 must be nonzero, since an argument is written as a count of the declared
-one; the forward body is evaluated with the parameter bound to one of the
-declared argument unit and the inverse body with the name bound to one of
-the declared result unit, through the walk's own lookup, so that a body
-which fails for every argument, or refers to nothing, fails the build with
-its span in the definitions text; and each body's dimension is checked
-against what it should give, which a body's dimension cannot vary with the
-value of its argument. Applying and inverting are one operation, a body
+one; each body's dimension is taken without evaluating it, by
+`dimensionOf` in `dimension-of.ts`, the evaluator's rules over dimensions
+alone (a number is dimensionless, a unit is its dimension through the
+walk's lookup, a sum checks conformance, a product combines, a power
+raises, a call applies the callee's rule), with the parameter bound to
+the declared argument's dimension in the forward body and the name to the
+declared result's in the inverse, so that a body which refers to nothing,
+or is put together wrongly, fails the build with its span in the
+definitions text; and each body's dimension is checked against what it
+should give, which a body's dimension cannot vary with the value of its
+argument. A body that fails at some value, or at every value, builds and
+fails at the call that reaches the value; the first version of the check
+evaluated each body at one of the declared unit, which the elementary
+functions made untenable (`ln(x - 1)` fails at one). Applying and
+inverting are one operation, a body
 evaluated under a binding, and `applyFunction` and `invertFunction` share
 it: the bound name is resolved before any unit or prefix, and the lookup's
 failures are boxed on the way in and unboxed on the way out, so that the
@@ -983,6 +992,7 @@ src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error c
 src/core/constants.ts     pi by Chudnovsky's series with binary splitting, memoized at the ceiling
 src/core/display.ts       show: a ball's text at the digits it certifies, and its kind (exact, certified, partial, zero, unbounded)
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
+src/core/dimension-of.ts  dimensionOf: a body's dimension without its value, the build's function check
 src/core/quantity.ts      Quantity (a Ball with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text
 src/core/parser.ts        Parser combinators, ParseError

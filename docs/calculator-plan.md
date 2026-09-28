@@ -1398,12 +1398,23 @@ of the unit; `applyFunction` and `invertFunction` are no longer called at
 build time. docs/functions.md's "Build-time checks" and its acceptance of
 the `1 / (x - 1)` failure are updated.
 
+Rulings the task did not reach: the lookup `dimensionOf` takes,
+`DimensionLookup`, has the evaluator's two resolvers with the unit one
+giving a dimension, and the build wraps its own lookup in one with the
+bound name resolved first (`boundDimensions`); the errors are the subset
+`DimensionError` of `EvaluateError`; `applyFunction` and `invertFunction`
+stay in evaluate.ts for the evaluator and the pipeline, which still
+evaluate bodies at values.
+
 Tests: `recip(x) [1;1] 1 / (x - 1) ; ...` builds, and so does a body of
-`1 / 0`, which then fails at the call; a body of the wrong dimension
-still fails with `functionMismatch`; a body that adds a length to a time
-fails with `nonconformingOperands` at its span; a body that calls a
-function with the wrong count of arguments fails with `arityMismatch`;
-the walk still reports a cycle through a function.
+`x / 0` and one with a literal beyond the range limit, each of which then
+fails at the call; a body of the wrong dimension still fails with
+`functionMismatch`; a body that adds a length to a time fails with
+`nonconformingOperands` at its span, one that calls a function with the
+wrong count of arguments with `arityMismatch`, and one whose argument
+does not conform to the callee's declaration with `argumentMismatch`;
+the walk still reports a cycle through a function; dimension-of.test.ts
+checks every node kind, both callee kinds and the lookup's failures.
 
 Behavior: functions whose bodies fail at `1` now build.
 

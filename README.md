@@ -293,9 +293,9 @@ The argument may have a unit of its own, declared in place of the `1`, and
 a converted quantity is then written as a count of that unit inside the
 call: with a function `dozen` declared `[in;ft]`, `2 ft` converted to
 `dozen` is `dozen(2 in)`. Both bodies are checked when the file is loaded,
-for evaluating at all and for giving what they declare, so a call can fail
-only for its argument (`tempC(1 m)`) or for a value its body cannot
-compute. A function's name may not read as a prefix followed by a unit,
+for the units they give against what they declare, without being evaluated
+at any value, so a call can fail only for its argument (`tempC(1 m)`) or
+for a value its body cannot compute (`recip(0)` for a body of `1 / x`). A function's name may not read as a prefix followed by a unit,
 for the reason a list's may not, and no prefix applies to a function:
 `ktempC(1)` is a call of nothing, not a thousand Celsius readings. There is no domain checking yet:
 `tempC(-300)` is a negative temperature rather than an error. Nor can a

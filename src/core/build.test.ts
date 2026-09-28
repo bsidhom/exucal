@@ -734,6 +734,18 @@ const TEMP = [
   "tempF(x)  [1;K]  (x + 459.67) degF ; tempF / degF - 459.67",
 ];
 
+/** What `text` evaluates to in `table`, or its failure. */
+function resultIn(table: UnitTable, text: string) {
+  const expr = parseExpr(text);
+  assert.ok(expr.ok, inspect(expr));
+  return evaluate(
+    expr.value,
+    unitLookup(table, CONTEXT),
+    table.primitives,
+    CONTEXT,
+  );
+}
+
 /** The quantity `text` denotes in `table`. */
 function quantityIn(table: UnitTable, text: string): Quantity {
   const expr = parseExpr(text);
@@ -896,12 +908,55 @@ test("the declared units are evaluated, and neither may be zero", () => {
   });
 });
 
-test("a body that fails for every argument fails the build, at the body", () => {
-  const division = ["bad(x)  [1;1]  1 / (x - 1) ; bad"];
-  assert.deepEqual(failed(...division), {
-    kind: "divisionByZero",
-    span: spanOf(division, "(x - 1)"),
+test("a body is checked over dimensions, not evaluated: one that fails at a value builds", () => {
+  // `1 / (x - 1)` fails at one, the value the check once evaluated at, and
+  // `1 / 0` at every value; both build and fail at the call that reaches
+  // the value, with the body's error wrapped as a call's.
+  const table = built(
+    "recip(x)  [1;1]  1 / (x - 1) ; 1 / recip + 1",
+    "never(x)  [1;1]  x / 0 ; never",
+  );
+  assertQuantity(quantityIn(table, "recip(3)"), "0.5", {});
+  const atOne = resultIn(table, "recip(1)");
+  assert.ok(!atOne.ok && atOne.error.kind === "callFailed");
+  assert.equal(atOne.error.error.kind, "divisionByZero");
+  const never = resultIn(table, "never(2)");
+  assert.ok(!never.ok && never.error.kind === "callFailed");
+  // A literal is not checked against the range limit either.
+  assert.ok(build("huge(x)  [1;1]  1e30000 x ; huge").ok);
+});
+
+test("a body of the wrong shape fails the build, at the fault, without being evaluated", () => {
+  // A sum of a length and a time, in a body over lengths.
+  const sum = ["m  !", "s  !", "bad(x)  [m;m]  x + 1 s ; bad"];
+  assert.deepEqual(failed(...sum), {
+    kind: "nonconformingOperands",
+    op: "add",
+    span: spanOf(sum, "x + 1 s"),
+    left: spanOf(sum, "x", 2),
+    right: spanOf(sum, "1 s"),
+    mismatch: {
+      kind: "dimensionMismatch",
+      have: dim({ m: 1 }),
+      want: dim({ s: 1 }),
+    },
   });
+  // A call with the wrong count of arguments.
+  const arity = [...TEMP, "bad(x)  [1;K]  tempC(x, 1) ; bad / K"];
+  assert.deepEqual(failed(...arity), {
+    kind: "arityMismatch",
+    name: "tempC",
+    span: spanOf(arity, "tempC(x, 1)"),
+    expected: { min: 1, max: 1 },
+    given: 2,
+  });
+  // A call whose argument does not conform to the callee's declaration.
+  const mismatch = [...TEMP, "bad(x)  [K;K]  tempC(x) ; bad"];
+  const error = failed(...mismatch);
+  assert.equal(error.kind, "argumentMismatch");
+  assert.ok(error.kind === "argumentMismatch");
+  assert.deepEqual(error.span, spanOf(mismatch, "tempC(x)", 2));
+  // A name the body refers to that means nothing.
   const unknown = ["bad(x)  [1;1]  x ; bad bogus"];
   assert.deepEqual(failed(...unknown), {
     kind: "unknownUnit",

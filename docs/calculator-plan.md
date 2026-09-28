@@ -1326,6 +1326,27 @@ the study accepts; `1.5 deg` in `dms` ends in a term that cannot be told
 from zero; a unit that reads `pi` is now a `functionAsUnit` error whose
 message shows `pi()`.
 
+Rulings the task did not reach: each built-in lives in a module of its
+own under `src/core/builtins/` (several share one only when they share
+internal machinery), with its test beside it; builtin.ts holds the type,
+the errors and the rule helpers, which every such module imports, and
+builtins.ts gathers the modules into `BUILTINS`, so that no module under
+builtins/ depends on the map and the two cannot import each other in a
+cycle; the memo's margin is `MEMO_MARGIN` in constants.ts. And a finding:
+`deg` and `arcmin` are each settled on their own from the ceiling's `pi`,
+so `1.5 deg` in `dms` decomposes to `1 deg + 29 arcmin + 59.99... arcsec`
+before display, which is D8's carry case and `roundTerms` carries into
+`1 deg + 30 arcmin` at the display's digits. The last term after the
+carry is then a hair from zero, and since `roundTerms` moves the
+remainder's midpoint without widening its radius (1.8), the recomposed
+remainder's ball excludes zero and the component shows it as a certified
+`3.3e-4049 arcsec`, the digits of a rounding artefact. Raised for a
+decision at this task; the fix proposed is that `roundTerms` add the
+rounding's shift to the radius, so that the rounded terms contain `have`
+as 1.8 intends, and that the component judge the last term's kind on the
+rounded remainder when the counts changed, showing `0 arcsec` with its
+bound.
+
 Behavior: angle units carry a radius; `pi` alone is an error that says
 to write `pi()`.
 

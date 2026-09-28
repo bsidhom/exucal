@@ -52,8 +52,10 @@ positive denominator, kept in lowest terms. Rationals rather than
 arbitrary-precision floats because almost every unit definition is a rational
 (`2.54 cm`, `0.45359237 kg`), so conversions are exact and rounding happens
 only once, at display time. Decimal literals parse exactly (`1.5e-3` is
-`3/2000`). Irrational constants such as `pi` are plain decimal literals in the
-definitions file, as in GNU units.
+`3/2000`). The definitions file holds no irrational literal: the circle
+constant is the built-in `pi()`, computed to the precision of the table it
+is built in and of the pass an expression is evaluated at (stage 3 of the
+plan), where GNU units defines `pi` as a decimal literal.
 
 `src/core/rational.ts` provides the arithmetic and comparison, integer powers
 and rational powers (through the n-th root), rounding to significant digits
@@ -173,8 +175,11 @@ read off the iteration. `rootBall` is its one caller so far; the
 elementary functions of stage 3 are the rest. `constants.ts` computes `pi`
 on it by Chudnovsky's series with binary splitting, its tail bounded in
 the comment, and memoizes one value, the digits at the ceiling of the
-retry schedule in force, from which every request at or below the ceiling
-is truncated (the plan's D10); nothing calls it until stage 3's `pi()`.
+retry schedule in force plus a margin of 64 bits, from which every request
+at or below that is truncated (the plan's D10); the built-in `pi()`
+(`builtins/pi.ts`) hands it back as a ball at the context's precision, and
+the angle units of units.txt call it, so their quantities carry its radius
+and a conversion between them is `≈`.
 
 **Working precision and the context.** Every core function that does
 arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a
@@ -978,7 +983,9 @@ src/core/definitions.ts   Definition, parseDefinitions
 src/core/graph.ts         on-demand evaluation of a dependency graph, cycles
 src/core/names.ts         the prefix-unit resolution rule, the ambiguity check
 src/core/name-index.ts    the names that start with a text, by binary search
-src/core/builtins.ts      Builtin, BUILTINS: the built-in functions, their dimension rules and errors
+src/core/builtin.ts       Builtin, its errors and the shared rule helpers: what a built-in is
+src/core/builtins.ts      BUILTINS: the app's built-ins gathered by name from builtins/
+src/core/builtins/pi.ts   pi(): the circle constant from constants.ts, one module per built-in
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction

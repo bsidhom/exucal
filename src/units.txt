@@ -102,10 +102,13 @@ Zi-       1024^7
 Yi-       1024^8
 
 # ---------------------------------------------------------------------------
-# Mathematical and physical constants used in definitions below. The
-# defining constants of the SI are exact; pi is a decimal literal.
+# Physical constants used in definitions below. The defining constants of
+# the SI are exact. The circle constant is not a definition: `pi()` is a
+# built-in function of the app (README.md, "Functions in expressions"),
+# computed to the precision of the table when a body below calls it, so
+# the angle units carry its digits to the table's ceiling and no literal
+# limits them.
 
-pi          3.14159265358979323846264338327950288
 c           299792458 m / s              # speed of light in vacuum (exact)
 e           1.602176634e-19 C            # elementary charge (exact)
 planck      6.62607015e-34 J s           # Planck constant (exact)
@@ -211,7 +214,7 @@ hour        h
 d           24 h
 day         d
 
-deg         pi radian / 180
+deg         pi() radian / 180
 degree      deg
 arcmin      deg / 60
 arcminute   arcmin
@@ -262,7 +265,7 @@ stokes      St
 gauss       1e-4 T
 Mx          1e-8 Wb
 maxwell     Mx
-oersted     1000 A / (4 pi m)
+oersted     1000 A / (4 pi() m)
 Oe          oersted
 
 bar         100000 Pa
@@ -324,10 +327,10 @@ millennium  1000 year
 # ---------------------------------------------------------------------------
 # Angles and rotation
 
-grad        pi radian / 200
+grad        pi() radian / 200
 gon         grad
 gradian     grad
-turn        2 pi radian
+turn        2 pi() radian
 rev         turn
 revolution  turn
 circle      turn
@@ -384,7 +387,7 @@ township    36 section
 
 lightyear   c julianyear
 ly          lightyear
-parsec      648000 au / pi
+parsec      648000 au / pi()
 pc          parsec
 
 # ---------------------------------------------------------------------------

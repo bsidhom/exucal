@@ -8,7 +8,7 @@ import {
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { exact, multiplyBalls } from "./ball.ts";
-import { plainNumbers, type Builtin } from "./builtins.ts";
+import { plainNumbers, type Builtin } from "./builtin.ts";
 import { convert } from "./convert.ts";
 import { type Dimension, type Primitives } from "./dimension.ts";
 import { evaluate } from "./evaluate.ts";

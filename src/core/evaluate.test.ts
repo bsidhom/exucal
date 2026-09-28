@@ -9,12 +9,7 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import { UNBOUNDED } from "./radius.ts";
 import { containsZero, exact, isExact, multiplyBalls } from "./ball.ts";
-import {
-  angle,
-  checkArgument,
-  plainNumbers,
-  type Builtin,
-} from "./builtins.ts";
+import { angle, checkArgument, plainNumbers, type Builtin } from "./builtin.ts";
 import {
   DIMENSIONLESS,
   checkConformance,

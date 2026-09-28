@@ -15,19 +15,35 @@ import {
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact, type Ball } from "./core/ball.ts";
+import {
+  certifiedDigits,
+  containsZero,
+  exact,
+  isExact,
+  type Ball,
+} from "./core/ball.ts";
 import { buildTable } from "./core/build.ts";
-import { convert, convertToList, type ConvertError } from "./core/convert.ts";
+import {
+  convert,
+  convertToList,
+  roundTerms,
+  type ConvertError,
+} from "./core/convert.ts";
 import { parseDefinitions } from "./core/definitions.ts";
 import { evaluate } from "./core/evaluate.ts";
 import { parseExpr } from "./core/expr.ts";
 import { convertText } from "./core/pipeline.ts";
 import { type Quantity } from "./core/quantity.ts";
+import { radiusUpper } from "./core/radius.ts";
 import {
   DEFAULT_PRECISION,
+  absolute,
+  compare,
   divide,
   equals,
   parseDecimal,
+  rational,
+  subtract,
   toFraction,
   type Rational,
 } from "./core/rational.ts";
@@ -105,6 +121,39 @@ function assertAll(rows: readonly (readonly [string, string, string])[]): void {
   for (const [have, want, expected] of rows) {
     assertConverts(have, want, expected);
   }
+}
+
+/** pi to 60 digits, from Python's decimal module, for the units that call `pi()`. */
+const PI = number(
+  "3.14159265358979323846264338327950288419716939937510582097494459",
+);
+
+/**
+ * Asserts that `have` converts to `want` inexactly, that the ball contains
+ * `expected`, and that it certifies thirty digits at the working precision
+ * of forty: what a unit defined through `pi()` gives (the plan's 3.4).
+ */
+function assertApproximates(
+  have: string,
+  want: string,
+  expected: Rational,
+): void {
+  const result = converted(have, want);
+  assert.ok(
+    result.ok,
+    `${have} does not convert to ${want}: ${inspect(result)}`,
+  );
+  const ball = result.value;
+  assert.ok(!isExact(ball), `${have} in ${want}: exact`);
+  assert.ok(
+    compare(absolute(subtract(ball.mid, expected)), radiusUpper(ball.rad)) <= 0,
+    `${have} in ${want}: ${toFraction(ball.mid)} does not contain the expected value`,
+  );
+  assert.equal(
+    certifiedDigits(ball, 30, DEFAULT_ROUNDING),
+    30,
+    `${have} in ${want}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -252,13 +301,17 @@ test("angles are a kind of their own", () => {
   assert.ok(!result.ok && result.error.kind === "kindMismatch");
   assert.deepEqual(result.error.kinds, ["radian"]);
   assertAll([
-    ["1 turn", "deg", "360"],
-    ["1 deg", "arcsec", "3600"],
-    ["1 gon", "deg", "0.9"],
-    ["1 rpm", "rad/s", "3.14159265358979323846264338327950288/30"],
     ["1 lm", "cd sr", "1"],
     ["1 lx", "cd sr / m^2", "1"],
   ]);
+  // The angle units call `pi()`, so a conversion between them is a ratio
+  // of two inexact values: it certifies its digits and is `≈`, never `=`,
+  // however round it is (the study accepts the conservative `≈`).
+  assertApproximates("1 turn", "deg", rational(360n));
+  assertApproximates("1 deg", "arcsec", rational(3600n));
+  assertApproximates("1 gon", "deg", number("0.9"));
+  assertApproximates("1 rpm", "rad/s", rational(PI.num, 30n * PI.den));
+  assertApproximates("1 turn", "radian", rational(2n * PI.num, PI.den));
 });
 
 // ---------------------------------------------------------------------------
@@ -502,7 +555,6 @@ test("time, CGS, radiation and information", () => {
     ["1 year", "day", "365.25"],
     ["1 month", "day", "30.4375"],
     ["1 lightyear", "m", "9460730472580800"],
-    ["1 parsec", "au", "648000/3.14159265358979323846264338327950288"],
     ["1 dyn", "N", "1e-5"],
     ["1 erg", "J", "1e-7"],
     ["1 poise", "Pa s", "0.1"],
@@ -514,6 +566,9 @@ test("time, CGS, radiation and information", () => {
     ["1 percent", "1", "0.01"],
     ["1 dozen", "1", "12"],
   ]);
+  // The parsec and the oersted are defined through `pi()`.
+  assertApproximates("1 parsec", "au", rational(648000n * PI.den, PI.num));
+  assertApproximates("1 Oe", "A/m", rational(1000n * PI.den, 4n * PI.num));
 });
 
 // ---------------------------------------------------------------------------
@@ -569,7 +624,29 @@ test("the unit lists are defined, with the units named in the file", () => {
 test("the unit lists convert", () => {
   assertList("3661.5 s", "time", ["1", "1", "1.5"]);
   assertList("100000 s", "dhms", ["1", "3", "46", "40"]);
-  assertList("1.5 deg", "dms", ["1", "30", "0"]);
+  // The angle units carry `pi()`'s radius, and `deg` and `arcmin` were each
+  // settled on their own, so the raw remainder is a hair under a whole
+  // arcminute: `1 deg + 29 arcmin + 59.99... arcsec`, the carry case of D8,
+  // which `roundTerms` carries at the display's digits into `1 deg + 30
+  // arcmin` and a last term that cannot be told from zero.
+  const dms = table.unitLists.get("dms")!;
+  const raw = convertToList(
+    quantity("1.5 deg"),
+    dms.map((unit) => unit.quantity),
+    table.primitives,
+  );
+  assert.ok(raw.ok);
+  const terms = roundTerms(
+    dms.map((unit) => unit.quantity),
+    raw.value,
+    8,
+    DEFAULT_ROUNDING,
+  );
+  assert.deepEqual(terms.slice(0, 2), [
+    exact(rational(1n)),
+    exact(rational(30n)),
+  ]);
+  assert.ok(containsZero(terms[2]!) && !isExact(terms[2]!));
   assertList("1 m", "ftin", ["3", "428/127"]);
   assertList("100 in", "ydftin", ["2", "2", "4"]);
   assertList("1 km", "miftin", ["0", "3280", "1280/127"]);

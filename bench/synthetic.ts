@@ -10,8 +10,12 @@
 // A synthetic definitions file has two primitives, the prefixes, and units
 // that are each a small expression over one earlier unit, so that building
 // it walks a chain of references of the depth such random references make,
-// a few dozen at most, and every body exercises the evaluator.
+// a few dozen at most, and every body exercises the evaluator. A unit that
+// would make one of the app's built-ins read as a prefix followed by it
+// (`i` beside the prefix `p`, for `pi`) is renamed, since the build
+// rejects such a table as it would a real one; the draws are untouched.
 
+import { BUILTINS } from "../src/core/builtins.ts";
 import { between, type Random } from "../src/testing/random.ts";
 import { word } from "./harness.ts";
 
@@ -54,9 +58,22 @@ export function syntheticDefinitions(
   prefixCount: number,
   unitCount: number,
 ): string {
-  const units = [...syntheticUnits(rand, unitCount).keys()];
+  // The units are drawn before the prefixes, as they always were, and a
+  // unit that would make a built-in read as a prefix followed by it is
+  // renamed with a trailing underscore, which no drawn name has, so that
+  // the table is the same data seed for seed but for that one name.
+  const drawn = [...syntheticUnits(rand, unitCount).keys()];
+  const prefixes = [...syntheticPrefixes(rand, prefixCount).keys()];
+  const forbidden = new Set(
+    prefixes.flatMap((prefix) =>
+      [...BUILTINS.keys()]
+        .filter((name) => name.startsWith(prefix) && name !== prefix)
+        .map((name) => name.slice(prefix.length)),
+    ),
+  );
+  const units = drawn.map((unit) => (forbidden.has(unit) ? `${unit}_` : unit));
   const lines = ["LENGTH !", "TIME !"];
-  for (const prefix of syntheticPrefixes(rand, prefixCount).keys()) {
+  for (const prefix of prefixes) {
     lines.push(`${prefix}- 1000`);
   }
   units.forEach((unit, i) => {

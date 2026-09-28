@@ -26,7 +26,8 @@ import {
   type Builtin,
   type Builtins,
   type DomainReason,
-} from "./core/builtins.ts";
+} from "./core/builtin.ts";
+import { pi } from "./core/builtins/pi.ts";
 import { checkConformance } from "./core/dimension.ts";
 import { parseDefinitions } from "./core/definitions.ts";
 import { ONE, sign } from "./core/rational.ts";
@@ -308,6 +309,8 @@ function domainStandIn(
 }
 
 const STAND_IN_LIST: Builtin[] = [
+  // The real `pi`, since units.txt calls it.
+  pi,
   domainStandIn("ln", 1, "notPositive"),
   domainStandIn("log", 2, "baseOne"),
   domainStandIn("asin", 1, "outsideClosedUnitInterval"),
@@ -393,6 +396,10 @@ const withBuiltins: UnitTable = (() => {
 })();
 
 test("a built-in used as a unit shows its call form, with as many arguments as it takes", () => {
+  assert.equal(
+    textMessage("2 pi"),
+    '"pi" is a function, not a unit. To call it, write "pi()".',
+  );
   assert.equal(
     textMessage("2 tau", withBuiltins),
     '"tau" is a function, not a unit. To call it, write "tau()".',

@@ -179,8 +179,15 @@ the call and keeps nothing.
 ## Where it goes
 
 - `src/core/expr.ts`: calls with any number of arguments (3.1).
-- `src/core/builtins.ts`: the `Builtin` type, `BUILTINS`, the error types
-  and every function (3.2, 3.4, 3.6 to 3.11).
+- `src/core/builtin.ts`: the `Builtin` type, the error types and the rule
+  helpers every built-in shares (3.2).
+- `src/core/builtins/`: one module per built-in (`pi.ts`, `exp.ts`, ...),
+  several sharing a module only when they share internal machinery (the
+  logarithms, the trigonometric functions and their reduction), each with
+  its test beside it (3.4, 3.6 to 3.11).
+- `src/core/builtins.ts`: `BUILTINS`, the app's built-ins gathered by name
+  from those modules; the table and the build take it as their default
+  set.
 - `src/core/fixed.ts`: the kernel routines, `expFixed`, `lnFixed`,
   `sinFixed`, `cosFixed`, `atanFixed`, beside the roots.
 - `src/core/constants.ts`: the four memoized constants.

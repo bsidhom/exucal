@@ -84,8 +84,9 @@ that can be typed can also be defined.
 - **UK imperial units**, after the Weights and Measures Act 1985: the
   imperial gallon and its subdivisions, stone, quarter, long hundredweight
   and long ton, rood and cental.
-- **Some common extras**: the constants the definitions need (`pi`, `c`,
-  `gravity`, ...), CGS units, conventional pressure units (`atm`, `torr`,
+- **Some common extras**: the physical constants the definitions need
+  (`c`, `gravity`, ...; the circle constant is the built-in function
+  `pi()`, not a definition), CGS units, conventional pressure units (`atm`, `torr`,
   `mmHg`, `inH2O`), calories, time units beyond the day, and bits and bytes.
 - **Unit lists** (see Unit lists below) for the sums people say: `time`
   (`hr;min;s`, also `hms`), `dhms` and `ydhms` with days and years in

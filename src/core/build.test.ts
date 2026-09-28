@@ -9,7 +9,7 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import { exact, isExact, multiplyBalls, type Ball } from "./ball.ts";
 import { buildTable, type BuildError } from "./build.ts";
-import { plainNumbers, type Builtin, type Builtins } from "./builtins.ts";
+import { plainNumbers, type Builtin, type Builtins } from "./builtin.ts";
 import { convert, convertToList } from "./convert.ts";
 import { parseDefinitions, type Definition } from "./definitions.ts";
 import { DIMENSIONLESS, type Dimension } from "./dimension.ts";

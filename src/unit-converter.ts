@@ -22,6 +22,7 @@ import { divideBalls, exact, type Ball } from "./core/ball.ts";
 import {
   ONE,
   absolute,
+  equals,
   format,
   isZero,
   sign,
@@ -108,8 +109,14 @@ type Outcome =
  * on its unrounded terms, since `roundTerms` moves the remainder's midpoint
  * onto a rounding cell's edge in a directed mode, where re-certifying it
  * would lose a digit; the remainder is then rounded at the digits
- * certified, and the counts, which are exact integers, carry no note. The
- * reciprocal line shows its own kind.
+ * certified, and the counts, which are exact integers, carry no note.
+ * When the rounding carried into an earlier unit, though, the last term
+ * is a new value, what is left after the carried units, and its kind is
+ * judged on the rounded remainder, which is then a hair from zero; a last
+ * term that cannot be told from zero is left out as a term of zero is,
+ * with its note, so `1.5 deg` in `dms`, whose angle units carry `pi()`'s
+ * radius, shows `≈ 1 deg + 30 arcmin`, and a sum of nothing but zeros keeps
+ * its last term with its bound. The reciprocal line shows its own kind.
  *
  * A conversion into one unit is also shown the other way round, on a
  * second line, as GNU units shows every conversion twice (`* 36` and
@@ -421,8 +428,9 @@ function noteOf(shown: Shown, digits: Precision): string | undefined {
  * asked for; the remainder's text is formatted at the digits certified, or
  * is `0` when it cannot be told from zero, and the line's note is the
  * remainder's. A term of zero is left out, as it would be in speech
- * (`1 hr + 1 s`, not `1 hr + 0 min + 1 s`), except that a sum of nothing
- * but zeros keeps its last term (`0 in`).
+ * (`1 hr + 1 s`, not `1 hr + 0 min + 1 s`), and so is a last term that
+ * cannot be told from zero, with its note, except that a sum of nothing
+ * but zeros keeps its last term (`0 in`, with the bound).
  */
 function listResult(
   have: string,
@@ -433,10 +441,10 @@ function listResult(
   const { precision, rounding } = context;
   const last = terms.length - 1;
   const shown = terms.map((t) => show(t, precision, rounding));
-  const remainder = shown[last]!;
+  const unrounded = shown[last]!;
   const certified =
-    remainder.kind === "partial" && remainder.certified > 0
-      ? remainder.certified
+    unrounded.kind === "partial" && unrounded.certified > 0
+      ? unrounded.certified
       : precision;
   const rounded = roundTerms(
     units.map((unit) => unit.quantity),
@@ -444,6 +452,14 @@ function listResult(
     certified,
     rounding,
   );
+  // A carry leaves a new remainder, what is left after the carried units,
+  // judged on its own; without one the unrounded remainder's kind stands.
+  const carried = rounded
+    .slice(0, last)
+    .some((count, i) => !equals(count.mid, terms[i]!.mid));
+  const remainder = carried
+    ? show(rounded[last]!, precision, rounding)
+    : unrounded;
   const all = rounded.map((value, i) => {
     const negative = sign(value.mid) < 0;
     const magnitude = negative ? absolute(value.mid) : value.mid;
@@ -455,8 +471,15 @@ function listResult(
           : format(magnitude, certified, rounding);
     return { value, term: { text, negative, unit: wantText(units[i]!.text) } };
   });
-  const nonzero = all.filter((t) => !isZero(t.value.mid));
+  // A term of zero is left out, and so is a last term that cannot be told
+  // from zero, with its note; a sum of nothing but zeros keeps its last
+  // term, note and all.
+  const nonzero = all.filter(
+    (t, i) =>
+      !isZero(t.value.mid) && !(i === last && remainder.kind === "zero"),
+  );
   const kept = nonzero.length > 0 ? nonzero : all.slice(-1);
+  const keepsRemainder = kept.includes(all[last]!);
   // The first term shown keeps its sign in its text; the rest are unsigned.
   const written = kept.map((t, i) =>
     i === 0 && t.term.negative
@@ -470,7 +493,7 @@ function listResult(
         have,
         relation: shown.every((s) => s.kind === "exact") ? "=" : "≈",
         terms: written,
-        note: noteOf(remainder, precision),
+        note: keepsRemainder ? noteOf(remainder, precision) : undefined,
       },
     ],
   };

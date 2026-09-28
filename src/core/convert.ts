@@ -37,10 +37,13 @@
 // or negative or cannot be told from zero, of which nothing is a positive
 // count; and every unit must conform to `have`. `roundTerms` is the display
 // rounding that goes with the terms: the remainder's midpoint rounds to the
-// display precision in the display's rounding mode, keeping its radius, and
-// since a remainder of `11.9999999988 in` shown as `12 in` beside `2 ft`
+// display precision in the display's rounding mode, with its radius widened
+// by the rounding's shift so that the rounded terms still contain `have`,
+// and since a remainder of `11.9999999988 in` shown as `12 in` beside `2 ft`
 // would read wrongly, the counts are taken again from the rounded sum, so
-// that the rounding carries (`3 ft`) as a digit does.
+// that the rounding carries (`3 ft`) as a digit does. The widening matters
+// after a carry: the remainder that is left is then a hair from zero, and
+// its ball must say so (the plan's 3.4 found it claiming digits instead).
 
 import {
   addBalls,
@@ -57,11 +60,13 @@ import {
   type Primitives,
 } from "./dimension.ts";
 import { type Quantity } from "./quantity.ts";
+import { addRadius, radiusAbove } from "./radius.ts";
 import {
   compare,
   equals,
   roundTo,
   sign,
+  subtract,
   trunc,
   type Precision,
 } from "./rational.ts";
@@ -167,16 +172,18 @@ export function convertToList(
 /**
  * The `terms` of a sum over `units`, from `convertToList`, as they are to
  * be shown at `digits` significant digits in `mode`: the remainder's
- * midpoint rounded to `digits` as `roundTo` rounds, its radius kept, and,
- * when that changes it, the counts taken again from the rounded sum, so
- * that a remainder which rounds up to a whole of an earlier unit is carried
- * into that unit rather than shown beside it (`2 ft + 11.9999999988 in`
- * becomes `3 ft`, not `2 ft + 12 in`; under `floor` it stays `2 ft +
- * 11.999999 in`, since nothing rounds up). When the remainder's midpoint is
- * already exact at `digits`, the terms come back as they are. The rounding
- * is one rounding of the whole sum, by less than a unit in the last digit
- * of the remainder; the counts are integers and are left alone, and one too
- * long to show in `digits` digits is the display's to round.
+ * midpoint rounded to `digits` as `roundTo` rounds, its radius widened by
+ * the distance the rounding moved it, so that the rounded term still
+ * contains the value the unrounded one did, and, when that changes it, the
+ * counts taken again from the rounded sum, so that a remainder which rounds
+ * up to a whole of an earlier unit is carried into that unit rather than
+ * shown beside it (`2 ft + 11.9999999988 in` becomes `3 ft`, not `2 ft +
+ * 12 in`; under `floor` it stays `2 ft + 11.999999 in`, since nothing
+ * rounds up). When the remainder's midpoint is already exact at `digits`,
+ * the terms come back as they are. The rounding is one rounding of the
+ * whole sum, by less than a unit in the last digit of the remainder; the
+ * counts are integers and are left alone, and one too long to show in
+ * `digits` digits is the display's to round.
  */
 export function roundTerms(
   units: readonly Quantity[],
@@ -188,12 +195,14 @@ export function roundTerms(
   const remainder = terms[last]!;
   const rounded = roundTo(remainder.mid, digits, mode);
   if (equals(rounded, remainder.mid)) return terms;
+  const shift = radiusAbove(subtract(rounded, remainder.mid));
+  const widened: Ball = { mid: rounded, rad: addRadius(remainder.rad, shift) };
   const sizes = units.map((unit) => unit.magnitude);
   const total = terms
     .slice(0, last)
     .reduce(
       (sum, count, i) => addBalls(sum, multiplyBalls(count, sizes[i]!)),
-      multiplyBalls({ mid: rounded, rad: remainder.rad }, sizes[last]!),
+      multiplyBalls(widened, sizes[last]!),
     );
   return decompose(total, sizes);
 }

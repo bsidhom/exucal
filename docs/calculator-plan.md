@@ -681,7 +681,10 @@ per D8, with the ordering check on midpoints and the positivity check over
 the whole ball: a unit that cannot be told from zero is not positive
 (`nonpositiveUnit`), since it is no size to divide by, which is what keeps
 the remainder's division from ever being `unresolved`. `roundTerms` rounds
-the remainder's midpoint and keeps its radius on the rounded term.
+the remainder's midpoint and widens its radius by the rounding's shift, so
+that the rounded terms still contain `have` (amended at 3.4, whose angle
+units showed that a kept radius let a remainder left after a carry claim
+digits that were the rounding's).
 `Conversion.value` and the list's `terms` are balls, and the function
 conversion's count is the ball quotient of the argument by the declared
 unit (its ball excludes zero, as the build checked). The UI's reciprocal
@@ -1018,9 +1021,14 @@ context.ts, twice the kernel's bits at a cap of one digit, is the floor
 of the range limit, below which no digit fits; the panel applies a change
 through `clampSettings`, so lowering a limit lowers what depends on it;
 a list's counts are formatted at the digits asked for and its remainder
-at the digits certified, as `0` when it cannot be told from zero; and the
-note is written in parentheses after the line. README's "Settings"
-describes the four settings and the notes.
+at the digits certified, as `0` when it cannot be told from zero; the
+note is written in parentheses after the line; and (amended at 3.4) when
+the rounding carried into an earlier unit, the remainder left is a new
+value, what remains after the carried units, so its kind is judged on the
+rounded remainder rather than the unrounded one, and a last term that
+cannot be told from zero is left out as a term of zero is, with its note,
+unless it is the only term. README's "Settings" describes the four
+settings and the notes.
 
 Behavior: the notes, and the two limits are the user's.
 
@@ -1339,13 +1347,14 @@ before display, which is D8's carry case and `roundTerms` carries into
 `1 deg + 30 arcmin` at the display's digits. The last term after the
 carry is then a hair from zero, and since `roundTerms` moves the
 remainder's midpoint without widening its radius (1.8), the recomposed
-remainder's ball excludes zero and the component shows it as a certified
-`3.3e-4049 arcsec`, the digits of a rounding artefact. Raised for a
-decision at this task; the fix proposed is that `roundTerms` add the
-rounding's shift to the radius, so that the rounded terms contain `have`
-as 1.8 intends, and that the component judge the last term's kind on the
-rounded remainder when the counts changed, showing `0 arcsec` with its
-bound.
+remainder's ball excluded zero and the component showed it as a certified
+`3.3e-4049 arcsec`, the digits of a rounding artefact. Raised at this task
+and fixed in the commit after it: `roundTerms` adds the rounding's shift
+to the radius, so that the rounded terms contain `have` as 1.8 intends,
+and the component judges the last term's kind on the rounded remainder
+when the counts changed and leaves out a last term that cannot be told
+from zero as it leaves out a zero, so the line reads `≈ 1 deg + 30
+arcmin` (1.8 and 2.6 are amended).
 
 Behavior: angle units carry a radius; `pi` alone is an error that says
 to write `pi()`.

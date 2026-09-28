@@ -760,7 +760,8 @@ is, and rounding them for display is more than rounding each: a remainder
 of `11.9999999988 in` shown at eight digits is `12 in`, which beside `2 ft`
 reads wrongly. So `roundTerms` is the display rounding that goes with the
 sum: it rounds the remainder's midpoint to the display precision, in the
-display's rounding mode, as `roundTo` does, keeping its radius, and, when
+display's rounding mode, as `roundTo` does, widening its radius by the
+rounding's shift so that the rounded terms still contain `have`, and, when
 that changes it, takes the counts again from the
 rounded sum, so that a remainder which rounds up to a whole of an earlier
 unit carries into it, through as many units as it must
@@ -879,7 +880,10 @@ certain" with the certified digits shown, "within 2e-30 of zero" with the
 value shown as `0`, or "the digits are not certified" for a radius not
 known. A list is certified on its unrounded terms, its remainder is
 rounded at the digits certified, and its counts, exact integers, carry no
-note; the reciprocal line shows its own kind. The settings are the shell's
+note; when the rounding carried into an earlier unit the remainder left
+is a new value, judged on its own, and a last term that cannot be told
+from zero is left out as a term of zero is, with its note, unless it is
+the only term; the reciprocal line shows its own kind. The settings are the shell's
 (`src/settings.ts`, kept in `localStorage`, validated on the way in with
 the dependent ones clamped, so that a stale entry never leaves the app
 without a consistent context): the digits, the mode, the cap on the digits

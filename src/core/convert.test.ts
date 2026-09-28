@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { containsZero, exact, isExact, type Ball } from "./ball.ts";
+import {
+  addBalls,
+  containsZero,
+  exact,
+  isExact,
+  multiplyBalls,
+  type Ball,
+} from "./ball.ts";
 import { radiusAbove, radiusUpper } from "./radius.ts";
 import {
   convert,
@@ -313,6 +320,18 @@ function assertTerms(
   expected: readonly string[],
 ): void {
   for (const term of actual) assert.ok(isExact(term), inspect(term));
+  assertMidpoints(actual, expected);
+}
+
+/**
+ * Asserts that the midpoints of `actual` are the rationals `expected`
+ * denote: what `roundTerms` gives, whose rounded remainder carries the
+ * rounding's shift in its radius and is inexact.
+ */
+function assertMidpoints(
+  actual: readonly Ball[],
+  expected: readonly string[],
+): void {
   assert.deepEqual(
     actual.map((term) => toFraction(term.mid)),
     expected.map((text) => {
@@ -472,31 +491,80 @@ test("roundTerms rounds the remainder to the digits given", () => {
     8,
     "halfAwayFromZero",
   );
-  assertTerms(rounded, ["3", "3.3700787"]);
+  assertMidpoints(rounded, ["3", "3.3700787"]);
 });
 
 test("roundTerms rounds the remainder in the mode given", () => {
   // The remainder is 3.37007874015... in.
   const exact = terms(convertToList(METRE, [FOOT, INCH], SI));
-  assertTerms(roundTerms([FOOT, INCH], exact, 8, "floor"), ["3", "3.3700787"]);
-  assertTerms(roundTerms([FOOT, INCH], exact, 8, "ceiling"), [
+  assertMidpoints(roundTerms([FOOT, INCH], exact, 8, "floor"), [
+    "3",
+    "3.3700787",
+  ]);
+  assertMidpoints(roundTerms([FOOT, INCH], exact, 8, "ceiling"), [
     "3",
     "3.3700788",
   ]);
-  assertTerms(roundTerms([FOOT, INCH], exact, 2, "towardZero"), ["3", "3.3"]);
-  assertTerms(roundTerms([FOOT, INCH], exact, 2, "awayFromZero"), ["3", "3.4"]);
+  assertMidpoints(roundTerms([FOOT, INCH], exact, 2, "towardZero"), [
+    "3",
+    "3.3",
+  ]);
+  assertMidpoints(roundTerms([FOOT, INCH], exact, 2, "awayFromZero"), [
+    "3",
+    "3.4",
+  ]);
   // A directed mode rounds a negative remainder to its side of the line.
   const negative = terms(
     convertToList(quantity("-1", { m: 1 }), [FOOT, INCH], SI),
   );
-  assertTerms(roundTerms([FOOT, INCH], negative, 8, "floor"), [
+  assertMidpoints(roundTerms([FOOT, INCH], negative, 8, "floor"), [
     "-3",
     "-3.3700788",
   ]);
-  assertTerms(roundTerms([FOOT, INCH], negative, 8, "ceiling"), [
+  assertMidpoints(roundTerms([FOOT, INCH], negative, 8, "ceiling"), [
     "-3",
     "-3.3700787",
   ]);
+});
+
+test("roundTerms widens the remainder's radius by the rounding's shift, so the rounded terms still contain have", () => {
+  // 1 m in ft;in: the remainder 428/127 in is exact, and rounded to eight
+  // digits it moves by about 4e-8; the rounded term's ball must still
+  // contain 428/127, and the terms times the units must contain 1 m.
+  const unrounded = terms(convertToList(METRE, [FOOT, INCH], SI));
+  const rounded = roundTerms([FOOT, INCH], unrounded, 8, "halfAwayFromZero");
+  const remainder = rounded[1]!;
+  assert.ok(!isExact(remainder));
+  const trueRemainder = unrounded[1]!.mid;
+  assert.ok(
+    compare(
+      absolute(subtract(remainder.mid, trueRemainder)),
+      radiusUpper(remainder.rad),
+    ) <= 0,
+  );
+  const sum = addBalls(
+    multiplyBalls(rounded[0]!, FOOT.magnitude),
+    multiplyBalls(remainder, INCH.magnitude),
+  );
+  assert.ok(
+    compare(
+      absolute(subtract(sum.mid, METRE.magnitude.mid)),
+      radiusUpper(sum.rad),
+    ) <= 0,
+  );
+  // After a carry, the remainder left is a hair from zero and its ball says
+  // so: `have` a hair under 3 ft, whose rounded terms are 3 ft and a last
+  // term containing zero, not an exact zero.
+  const almost = quantity("0.91439999997", { m: 1 });
+  const carried = roundTerms(
+    [FOOT, INCH],
+    terms(convertToList(almost, [FOOT, INCH], SI)),
+    8,
+    "halfAwayFromZero",
+  );
+  assert.deepEqual(carried[0], exact(rational(3n)));
+  assert.ok(containsZero(carried[1]!));
+  assert.ok(!isExact(carried[1]!));
 });
 
 test("a remainder that rounds up to a whole of an earlier unit carries into it", () => {
@@ -506,7 +574,7 @@ test("a remainder that rounds up to a whole of an earlier unit carries into it",
     "2",
     "30479999997/2540000000",
   ]);
-  assertTerms(
+  assertMidpoints(
     roundTerms(
       [FOOT, INCH],
       terms(convertToList(have, [FOOT, INCH], SI)),
@@ -518,7 +586,7 @@ test("a remainder that rounds up to a whole of an earlier unit carries into it",
   // The carry runs through as many units as it must.
   const almostAnHour = quantity("3599.9999999999", { s: 1 });
   const units = [HOUR, MINUTE, SECOND];
-  assertTerms(
+  assertMidpoints(
     roundTerms(
       units,
       terms(convertToList(almostAnHour, units, SI)),
@@ -529,7 +597,7 @@ test("a remainder that rounds up to a whole of an earlier unit carries into it",
   );
   // And of a negative value.
   const negative = quantity("-0.91439999997", { m: 1 });
-  assertTerms(
+  assertMidpoints(
     roundTerms(
       [FOOT, INCH],
       terms(convertToList(negative, [FOOT, INCH], SI)),
@@ -545,10 +613,16 @@ test("the carry follows the mode: a directed mode carries only on its side", () 
   // carries; floor leaves 11.999999 in and nothing carries.
   const have = quantity("0.91439999997", { m: 1 });
   const exact = terms(convertToList(have, [FOOT, INCH], SI));
-  assertTerms(roundTerms([FOOT, INCH], exact, 8, "ceiling"), ["3", "0"]);
-  assertTerms(roundTerms([FOOT, INCH], exact, 8, "awayFromZero"), ["3", "0"]);
-  assertTerms(roundTerms([FOOT, INCH], exact, 8, "floor"), ["2", "11.999999"]);
-  assertTerms(roundTerms([FOOT, INCH], exact, 8, "towardZero"), [
+  assertMidpoints(roundTerms([FOOT, INCH], exact, 8, "ceiling"), ["3", "0"]);
+  assertMidpoints(roundTerms([FOOT, INCH], exact, 8, "awayFromZero"), [
+    "3",
+    "0",
+  ]);
+  assertMidpoints(roundTerms([FOOT, INCH], exact, 8, "floor"), [
+    "2",
+    "11.999999",
+  ]);
+  assertMidpoints(roundTerms([FOOT, INCH], exact, 8, "towardZero"), [
     "2",
     "11.999999",
   ]);
@@ -556,8 +630,8 @@ test("the carry follows the mode: a directed mode carries only on its side", () 
   const negative = terms(
     convertToList(quantity("-0.91439999997", { m: 1 }), [FOOT, INCH], SI),
   );
-  assertTerms(roundTerms([FOOT, INCH], negative, 8, "floor"), ["-3", "0"]);
-  assertTerms(roundTerms([FOOT, INCH], negative, 8, "ceiling"), [
+  assertMidpoints(roundTerms([FOOT, INCH], negative, 8, "floor"), ["-3", "0"]);
+  assertMidpoints(roundTerms([FOOT, INCH], negative, 8, "ceiling"), [
     "-2",
     "-11.999999",
   ]);

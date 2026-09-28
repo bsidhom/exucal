@@ -11,6 +11,7 @@
 // elementary set.
 
 import type { Builtin, Builtins } from "./builtin.ts";
+import { approx } from "./builtins/approx.ts";
 import { exp } from "./builtins/exp.ts";
 import { ln, log, log10, log2 } from "./builtins/log.ts";
 import { pi } from "./builtins/pi.ts";
@@ -52,5 +53,6 @@ export const BUILTINS: Builtins = new Map<string, Builtin>(
     asinh,
     acosh,
     atanh,
+    approx,
   ].map((fn) => [fn.name, fn]),
 );

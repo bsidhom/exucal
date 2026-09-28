@@ -331,6 +331,11 @@ which go anywhere a unit goes and are called the same way. They are:
   `36.869898`; `asin(0.5)` into `turn`, or `asin(0.5) / radian`, is the
   number.
 - `sinh`, `cosh`, `tanh`, `asinh`, `acosh` and `atanh`, of plain numbers.
+- `approx(x)`, the value of `x` known to the working precision and no
+  better: its argument is any quantity, its result has the argument's
+  units, and it is the one way to make an exact value inexact on purpose,
+  so `approx(2.54) cm` in `in` is `≈ 1` where `2.54 cm` in `in` is `= 1`.
+  It never narrows a value that is already inexact.
 
 Every built-in takes plain numbers, apart from the angles above, and
 `exp(1 m)` is an error that names the dimension. A value the function

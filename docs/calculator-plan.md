@@ -2585,6 +2585,18 @@ one unit in the last digit; a definition calling `approx` builds, and a
 conversion through it shows `≈`; `approx()` and `approx(1, 2)` are arity
 errors with their messages.
 
+As it landed. `sameAsArgument` returns the first argument's dimension
+and checks nothing, the arity check having seen to the count; the
+working digits are the context's precision in decimal mode and
+`workingDigits(context)` in exact mode, read in the built-in, so that
+the settle rounds the result in the mode as it rounds every result; a
+zero midpoint, exact or not, is returned as it is, since a unit of the
+last digit of zero would be a unit of nothing. `approx` is named in
+docs/builtins.md's names, dimension table and layout, and in README
+"Functions in expressions". The tests' definitions file defines `G
+approx(6.674e-11) m^3` and a function whose body calls `approx`, and
+converts through both with `≈`.
+
 Behavior: `approx` exists.
 
 ## Stage 5: the rational display

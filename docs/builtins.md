@@ -31,10 +31,13 @@ It has no inverse, so its name is not a `want`.
   out of the file. The neper is `neper` and the bel `bel`.
 - **Lambert's function is `lambertw`** when stage 6 adds it, since `W` is
   taken.
-- No built-in of this stage collides with a unit of units.txt or reads as
-  a prefix followed by one: `pi`, `exp`, `ln`, `log`, `log10`, `log2`,
-  `sqrt`, `cbrt`, `pow`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`,
-  `atan2`, `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`. The build
+- **`approx(x)` is the value known to the working precision and no
+  better** (docs/approximate.md; stage 4's 4.10): the one way to make an
+  exact value inexact on purpose, of any dimension, never narrowing.
+- No built-in collides with a unit of units.txt or reads as a prefix
+  followed by one: `pi`, `exp`, `ln`, `log`, `log10`, `log2`, `sqrt`,
+  `cbrt`, `pow`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`,
+  `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`, `approx`. The build
   checks both for any table it builds. Prefixes apply to units alone: a
   call's name is looked up exactly, so `kpi()` and `mexp(1)` are calls of
   nothing, and no built-in is a prefix of another's name either.
@@ -99,15 +102,16 @@ Each built-in states the dimensions its arguments must have and the
 dimension of its result, checked before it is applied; a failure is a
 `builtinArgument` error at the call, worded from the data (3.2).
 
-| Function                                          | Arguments                                       | Result        |
-| ------------------------------------------------- | ----------------------------------------------- | ------------- |
-| `pi()`                                            | none                                            | plain number  |
-| `exp`, `ln`, `log10`, `log2`, `sqrt`, `cbrt`      | a plain number                                  | plain number  |
-| `log(b, x)`, `pow(x, y)`                          | two plain numbers                               | plain number  |
-| `sin`, `cos`, `tan`                               | an angle: the `radian` kind                     | plain number  |
-| `asin`, `acos`, `atan`                            | a plain number                                  | `radian` kind |
-| `atan2(y, x)`                                     | two quantities of one dimension, kinds included | `radian` kind |
-| `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh` | a plain number                                  | plain number  |
+| Function                                          | Arguments                                       | Result         |
+| ------------------------------------------------- | ----------------------------------------------- | -------------- |
+| `pi()`                                            | none                                            | plain number   |
+| `exp`, `ln`, `log10`, `log2`, `sqrt`, `cbrt`      | a plain number                                  | plain number   |
+| `log(b, x)`, `pow(x, y)`                          | two plain numbers                               | plain number   |
+| `sin`, `cos`, `tan`                               | an angle: the `radian` kind                     | plain number   |
+| `asin`, `acos`, `atan`                            | a plain number                                  | `radian` kind  |
+| `atan2(y, x)`                                     | two quantities of one dimension, kinds included | `radian` kind  |
+| `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh` | a plain number                                  | plain number   |
+| `approx(x)`                                       | any quantity, kinds included                    | the argument's |
 
 **Angles (D11).** `sin`, `cos` and `tan` require the `radian` kind, which
 every angle unit of units.txt carries (`deg` is `pi() radian / 180`, so
@@ -201,9 +205,10 @@ the call and keeps nothing.
 - `src/core/builtin.ts`: the `Builtin` type, the error types and the rule
   helpers every built-in shares (3.2).
 - `src/core/builtins/`: one module per built-in (`pi.ts`, `exp.ts`,
-  `pow.ts`), several sharing a module only when they share internal
-  machinery (`log.ts`, `roots.ts`, `trig.ts`, `inverse-trig.ts`,
-  `hyperbolic.ts`), each with its test beside it (3.4, 3.6 to 3.11).
+  `pow.ts`, `approx.ts`), several sharing a module only when they share
+  internal machinery (`log.ts`, `roots.ts`, `trig.ts`, `inverse-trig.ts`,
+  `hyperbolic.ts`), each with its test beside it (3.4, 3.6 to 3.11,
+  4.10).
 - `src/core/builtins.ts`: `BUILTINS`, the app's built-ins gathered by name
   from those modules; the table and the build take it as their default
   set.

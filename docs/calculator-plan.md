@@ -2343,6 +2343,23 @@ digits or fewer and on zero; the examples above through `evaluate` at a
 decimal context, midpoint and radius both; `1e999999999 + 1` in decimal
 mode; `checkContext` rejects a mode that is neither.
 
+As it landed. `mode` is an optional field of `NumberContext`, absent
+meaning exact (`modeOf` reads it), so that every context written before
+the mode existed is an exact one without a word changed; `MODES` names
+the two, `checkContext` rejects a third, and `ceilingContext` sets exact
+mode only where the context's is decimal, keeping a context without a
+mode as it was. In decimal mode the settle's radius is `radiusAbove` of
+the exact difference where the difference can be formed and the coarse
+bound of scaled.ts otherwise. The reading of `1 / 3 * 3` above holds
+under the nearest modes: the ball is `[0.99999998, 1]` to within the
+coarse type, which certifies seven digits under `halfEven` and
+`halfAwayFromZero` and none under `towardZero`, since a directed mode
+has a boundary at `1` and the ends lie on either side of it; the display
+then shows the midpoint `0.99999999` with the note that none of its
+digits is certain, which is the honest reading of a value the roundings
+have made noise, and no decimal library's `0.99999999` is a digit the
+exact expression has.
+
 Behavior: none until 4.6 gives the mode a way in; `mode` defaults to
 exact and every existing caller builds an exact context.
 

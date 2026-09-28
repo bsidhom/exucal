@@ -333,7 +333,7 @@ settled, so in decimal mode
 
 - a literal is rounded to `p` digits if it has more, and the radius
   records it (`3.14159265358979` at eight digits is `3.1415927` within
-  `3.6e-9`); a literal with `p` digits or fewer is exact;
+  `4.7e-8`); a literal with `p` digits or fewer is exact;
 - a unit looked up is settled once, by `unitLookup`, so `surveyfoot`,
   built exactly at the ceiling as every unit is (D6, the table always
   exact), is `0.30480061 m` within `4e-10` at eight digits, and `1 ft`

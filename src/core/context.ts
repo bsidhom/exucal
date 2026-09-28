@@ -4,8 +4,12 @@
 // decimal digits, `rounding` one of the seven modes of rounding.ts,
 // `maxBits` the range limit, the most bits a numerator or denominator may
 // have, and `ceiling` the top of the retry schedule, the most digits any
-// pass may compute at; stage 4 adds the exact or decimal `mode`, which has
-// no effect until the decimal mode exists.
+// pass may compute at, and `mode` the exact or the decimal mode of stage 4
+// (docs/decimal.md, "The decimal mode"), absent meaning exact: in exact
+// mode an inexact midpoint is settled to the working digits to nearest and
+// the rounding mode is the display's alone; in decimal mode every result
+// is settled to `precision` digits in the rounding mode, so the mode
+// governs every operation, and the pipeline runs one pass.
 //
 // One type serves two levels (D1). Below the pipeline, `precision` is the
 // working precision: every core function that does arithmetic (`evaluate`,
@@ -41,11 +45,12 @@
 // stage 1 code had: eight digits, half away from zero, 2^16 bits, and a
 // cap of a thousand digits.
 //
-// A context whose precision is not a positive integer, whose mode is not
-// one of the seven, whose range limit is not an integer in `[1,
-// LIMIT_BITS]`, or whose ceiling is not an integer at or above the
-// precision, is a bug in the caller and `checkContext` throws
-// `RangeError`, as `rational` does for a zero denominator.
+// A context whose precision is not a positive integer, whose rounding mode
+// is not one of the seven, whose mode is neither exact nor decimal, whose
+// range limit is not an integer in `[1, LIMIT_BITS]`, or whose ceiling is
+// not an integer at or above the precision, is a bug in the caller and
+// `checkContext` throws `RangeError`, as `rational` does for a zero
+// denominator.
 
 import { bitsFor } from "./fixed.ts";
 import { LIMIT_BITS } from "./rational.ts";
@@ -56,7 +61,16 @@ import {
   type RoundingMode,
 } from "./rounding.ts";
 
-/** How arithmetic is done: at how many digits, rounded in which mode, within how many bits, under which ceiling. */
+/**
+ * The two modes of D15 and docs/decimal.md: `exact`, where an exact value
+ * is never rounded and the rounding mode is the display's, and `decimal`,
+ * where every result is rounded to the precision in the rounding mode.
+ */
+export type Mode = "exact" | "decimal";
+
+export const MODES: readonly Mode[] = ["exact", "decimal"];
+
+/** How arithmetic is done: at how many digits, rounded in which mode, within how many bits, under which ceiling, in which of the two modes. */
 export type NumberContext = {
   readonly precision: Precision;
   readonly rounding: RoundingMode;
@@ -64,7 +78,14 @@ export type NumberContext = {
   readonly maxBits: number;
   /** The top of the retry schedule: the most digits any pass computes at, at or above `precision`. */
   readonly ceiling: Precision;
+  /** Exact or decimal (4.5); absent is exact, so every context written before the mode existed is an exact one. */
+  readonly mode?: Mode;
 };
+
+/** The mode of `context`: exact where none is given. */
+export function modeOf(context: NumberContext): Mode {
+  return context.mode ?? "exact";
+}
 
 /**
  * The decimal digits of the working grid at `context`'s precision: the
@@ -112,14 +133,16 @@ export function ceilingFor(maxDigits: Precision): Precision {
 export const DEFAULT_CEILING: Precision = ceilingFor(DEFAULT_MAX_DIGITS);
 
 /**
- * `context` at its ceiling: the last working context of the retry
- * schedule, the same for every precision under one ceiling, and the
- * context the table is built at (D6).
+ * `context` at its ceiling, in exact mode: the last working context of
+ * the retry schedule, the same for every precision under one ceiling, and
+ * the context the table is built at (D6), whatever the user's mode, since
+ * a unit is settled in the user's mode when it is looked up (4.6).
  */
 export function ceilingContext(context: NumberContext): NumberContext {
-  return context.precision === context.ceiling
-    ? context
-    : { ...context, precision: context.ceiling };
+  const exact = modeOf(context) === "exact";
+  if (context.precision === context.ceiling && exact) return context;
+  const at = { ...context, precision: context.ceiling };
+  return exact ? at : { ...at, mode: "exact" };
 }
 
 /**
@@ -146,12 +169,15 @@ export const MIN_MAX_BITS = 2 * bitsFor(ceilingFor(1));
 
 /** Throws `RangeError` unless `context` is one a caller may compute at. */
 export function checkContext(context: NumberContext): void {
-  const { precision, rounding, maxBits, ceiling } = context;
+  const { precision, rounding, maxBits, ceiling, mode } = context;
   if (!Number.isInteger(precision) || precision < 1) {
     throw new RangeError(`Precision must be a positive integer: ${precision}`);
   }
   if (!ROUNDING_MODES.includes(rounding)) {
     throw new RangeError(`Not a rounding mode: ${String(rounding)}`);
+  }
+  if (mode !== undefined && !MODES.includes(mode)) {
+    throw new RangeError(`Not a mode: ${String(mode)}`);
   }
   if (!Number.isInteger(maxBits) || maxBits < 1 || maxBits > LIMIT_BITS) {
     throw new RangeError(

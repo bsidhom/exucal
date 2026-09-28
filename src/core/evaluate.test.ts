@@ -9,6 +9,7 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import { UNBOUNDED, radiusUpper } from "./radius.ts";
 import {
+  certifiedDigits,
   certifies,
   containsZero,
   exact,
@@ -41,7 +42,7 @@ import {
 } from "./rational.ts";
 import { ONE, ZERO, format, type Scaled } from "./scaled.ts";
 import { dec, fr, fraction } from "../testing/scaled.ts";
-import { DEFAULT_PRECISION } from "./rounding.ts";
+import { DEFAULT_PRECISION, type RoundingMode } from "./rounding.ts";
 import type { Result } from "./result.ts";
 import type { Span } from "./span.ts";
 import type { UnitFunction } from "./table.ts";
@@ -255,6 +256,76 @@ function assertEvaluates(text: string, expected: Quantity): void {
 }
 
 const half = rational(1n, 2n);
+
+/** A decimal-mode context at `precision` digits in `rounding` (4.5). */
+function decimal(precision: number, rounding: RoundingMode): NumberContext {
+  return { ...CONTEXT, precision, rounding, mode: "decimal" };
+}
+
+// ---------------------------------------------------------------------------
+// The decimal mode
+
+test("in decimal mode every result is settled to the precision in the rounding mode, and the radius records each rounding", () => {
+  // 1 / 3 * 3 at eight digits: 0.33333333 within 3.4e-9, times three
+  // 0.99999999 exactly, with eight digits and no further rounding, under
+  // towardZero and halfEven alike; the radius is the two roundings, so
+  // the ball is [0.99999998, 1], which certifies seven digits under a
+  // nearest mode and none under towardZero, where its ends lie on either
+  // side of the boundary at 1.
+  for (const mode of ["towardZero", "halfEven", "halfAwayFromZero"] as const) {
+    const q = value(run("1 / 3 * 3", decimal(8, mode))).magnitude;
+    assert.deepEqual(q.mid, dec("0.99999999"), mode);
+    const rad = radiusUpper(q.rad);
+    assert.ok(compareFractions(rad, fraction(dec("1e-8"))) >= 0, mode);
+    assert.ok(compareFractions(rad, fraction(dec("1.0000001e-8"))) < 0, mode);
+    assert.equal(
+      certifiedDigits(q, 8, mode),
+      mode === "towardZero" ? 0 : 7,
+      mode,
+    );
+  }
+  // 0.125 * 1 at two digits: the mode decides the tie.
+  assert.deepEqual(
+    value(run("0.125 * 1", decimal(2, "halfAwayFromZero"))).magnitude.mid,
+    dec("0.13"),
+  );
+  assert.deepEqual(
+    value(run("0.125 * 1", decimal(2, "halfEven"))).magnitude.mid,
+    dec("0.12"),
+  );
+  // 2 / 3 at eight: to nearest, and under the directed modes.
+  assert.deepEqual(
+    value(run("2 / 3", decimal(8, "halfEven"))).magnitude.mid,
+    dec("0.66666667"),
+  );
+  assert.deepEqual(
+    value(run("2 / 3", decimal(8, "towardZero"))).magnitude.mid,
+    dec("0.66666666"),
+  );
+  assert.deepEqual(
+    value(run("2 / 3", decimal(8, "floor"))).magnitude.mid,
+    dec("0.66666666"),
+  );
+  // A literal with more than p digits is rounded and the radius records
+  // it; one with p digits or fewer is exact.
+  const long = value(run("3.14159265358979", decimal(8, "halfEven"))).magnitude;
+  assert.deepEqual(long.mid, dec("3.1415927"));
+  assert.ok(!isExact(long));
+  assert.ok(
+    compareFractions(radiusUpper(long.rad), fraction(dec("4.7e-8"))) < 0,
+  );
+  assert.ok(isExact(value(run("2.54", decimal(8, "halfEven"))).magnitude));
+  // An exact power of an exact base is settled once.
+  const power = value(run("2^100", decimal(8, "halfEven"))).magnitude;
+  assert.deepEqual(power.mid, dec("1.2676506e30"));
+  assert.ok(!isExact(power));
+  // A sum that cannot be aligned is absorbed rather than refused.
+  const sum = value(run("1e999999999 + 1", decimal(8, "halfEven"))).magnitude;
+  assert.deepEqual(sum.mid, dec("1e999999999"));
+  assert.ok(compareFractions(radiusUpper(sum.rad), rational(1n)) >= 0);
+  // In exact mode none of this rounds: 2 / 3 is the exact fraction.
+  assert.ok(isExact(value(run("2 / 3", at(8))).magnitude));
+});
 
 // ---------------------------------------------------------------------------
 // Leaves

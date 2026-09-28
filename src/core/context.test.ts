@@ -1,16 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  DEFAULT_DIGITS,
   DEFAULT_CEILING,
+  DEFAULT_DIGITS,
   DEFAULT_MAX_BITS,
   DEFAULT_MAX_DIGITS,
   DEFAULT_ROUNDING,
   GUARD_DIGITS,
+  MODES,
   ceilingContext,
   ceilingFor,
   checkContext,
   maxDigitsFor,
+  modeOf,
   type NumberContext,
 } from "./context.ts";
 import { bitsFor } from "./fixed.ts";
@@ -127,6 +129,39 @@ test("ceilingContext is the context at its ceiling, the same for every precision
   const top = { ...context, precision: 840 };
   assert.equal(ceilingContext(top), top);
   assert.equal(DEFAULT_CEILING, 4040);
+  // In exact mode whatever the user's mode (4.6): the table is built
+  // exactly, and a unit is settled in the user's mode when looked up.
+  assert.deepEqual(ceilingContext({ ...context, mode: "decimal" }), {
+    ...context,
+    precision: 840,
+    mode: "exact",
+  });
+  assert.deepEqual(ceilingContext({ ...top, mode: "decimal" }), {
+    ...top,
+    mode: "exact",
+  });
+  assert.equal(ceilingContext({ ...top, mode: "exact" }).mode, "exact");
+});
+
+test("the mode is exact where none is given, and checkContext rejects a mode that is neither", () => {
+  const context = {
+    precision: 8,
+    rounding: "floor" as const,
+    maxBits: 4096,
+    ceiling: 840,
+  };
+  assert.equal(modeOf(context), "exact");
+  assert.equal(modeOf({ ...context, mode: "exact" }), "exact");
+  assert.equal(modeOf({ ...context, mode: "decimal" }), "decimal");
+  assert.deepEqual(MODES, ["exact", "decimal"]);
+  for (const mode of MODES) checkContext({ ...context, mode });
+  for (const mode of ["approximate", "", "Exact", 1, null]) {
+    assert.throws(
+      () => checkContext({ ...context, mode: mode as never }),
+      RangeError,
+      String(mode),
+    );
+  }
 });
 
 test("the ceiling is four times the cap plus the guard", () => {

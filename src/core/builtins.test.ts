@@ -24,6 +24,12 @@ test("the app's built-ins are gathered by name, each from its module", () => {
       "acos",
       "atan",
       "atan2",
+      "sinh",
+      "cosh",
+      "tanh",
+      "asinh",
+      "acosh",
+      "atanh",
     ],
   );
   assert.equal(BUILTINS.get("exp"), exp);

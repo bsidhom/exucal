@@ -19,7 +19,9 @@
 // bound is needed.
 //
 // `sin r` and `cos r` are the Taylor series in `v = -r^2`, `cos r = Σ v^k /
-// (2k)!` and `sin r = r Σ v^k / (2k+1)!`, whose powers of `v` are shared.
+// (2k)!` and `sin r = r Σ v^k / (2k+1)!`, whose powers of `v` are shared
+// (`factorialSeries`, which fixed-exp.ts takes in `v = x^2` for the
+// hyperbolic functions of a small argument).
 // Each is summed by the rectangular splitting of fixed-log.ts's logarithm:
 // the `N` terms that leave the first omitted term under a quarter of an
 // ulp (found from a bound on `|v|`, below one since `|r| < 1`) are taken in
@@ -107,7 +109,7 @@ export function sinCosFixed(
     const wide: Fixed = { value: 0n, error: one, bits: working };
     return { sin: wide, cos: wide };
   }
-  const { sin, cos } = series(r, working);
+  const { sin, cos } = series(r);
   const [s, c] =
     quadrant === 0
       ? [sin, cos]
@@ -166,12 +168,34 @@ function reduce(
 
 /**
  * `sin r` and `cos r` at `r`'s bits for `|r|` below one throughout its
- * interval, by the two series in `v = -r^2` summed by rectangular
- * splitting as the header says, each with one ulp for its tail.
+ * interval: the two series in `v = -r^2`.
  */
-function series(r: Fixed, working: number): SinCos {
+function series(r: Fixed): SinCos {
   const v = scaleFixed(multiplyFixed(r, r), -1n);
+  const { even, odd } = factorialSeries(v);
+  return { sin: multiplyFixed(r, odd), cos: even };
+}
+
+/** The two series in `v` over the factorials: `Σ v^k / (2k)!` (`even`) and `Σ v^k / (2k+1)!` (`odd`). */
+export type FactorialSeries = { readonly even: Fixed; readonly odd: Fixed };
+
+/**
+ * `Σ v^k / (2k)!` and `Σ v^k / (2k+1)!` at `v`'s bits, for `|v|` below one
+ * throughout its interval (a precondition), each summed by rectangular
+ * splitting as the header says with one ulp for its tail, and the powers
+ * of `v` computed once for both. With `v = -r^2` they are `cos r` and
+ * `sin r / r`; with `v = x^2` they are `cosh x` and `sinh x / x`, which is
+ * how fixed-exp.ts takes them for a small argument. The terms of either
+ * shrink by better than half each, so the tail after the first omitted
+ * term, which is under a quarter of an ulp, is under half an ulp whether
+ * the terms alternate or not.
+ */
+export function factorialSeries(v: Fixed): FactorialSeries {
+  const working = v.bits;
   const bound = abs(v.value) + v.error;
+  if (bound >= 1n << BigInt(working)) {
+    throw new RangeError("The factorial series take an argument below one");
+  }
   // The terms with the first omitted, v^N / (2N)!, under a quarter of an
   // ulp: `log2v` bounds log2 |v| from above, and the loop follows the
   // terms' magnitudes down.
@@ -190,9 +214,10 @@ function series(r: Fixed, working: number): SinCos {
   for (let i = 1; i <= blockSize; i++) {
     powers.push(multiplyFixed(powers[i - 1]!, v));
   }
-  const cos = splitSum(powers, blockSize, terms, 0);
-  const sinOverR = splitSum(powers, blockSize, terms, 1);
-  return { sin: multiplyFixed(r, sinOverR), cos };
+  return {
+    even: splitSum(powers, blockSize, terms, 0),
+    odd: splitSum(powers, blockSize, terms, 1),
+  };
 }
 
 /**

@@ -173,7 +173,9 @@ the precision doubling, and the root of any degree by Newton in fixed
 point, either one's error verified by raising the result back to the
 power rather than read off the iteration. The elementary functions of
 stage 3 are the routines beside it, one module per family: `fixed-exp.ts`
-(the exponential, by halving, a Taylor series and squaring) and
+(the exponential, by halving, a Taylor series and squaring, and the
+hyperbolic sine and cosine through it, or through the sine's series in
+`x^2` for a small argument) and
 `fixed-log.ts` (the logarithm, by square roots and the `atanh` series
 summed by rectangular splitting, with `ln(2)` and `ln(10)` memoized) and
 `fixed-trig.ts` (the sine and the cosine together, by a reduction modulo
@@ -916,7 +918,10 @@ and the range limit in bits (the plan's D16), reaching the component as
 its `context` property, the same `NumberContext` the pipeline takes, whose
 ceiling, the top of the retry schedule, is derived from the cap. A
 button in the panel runs the probe of `src/limits.ts`, which times the
-costliest operation the app has on each axis at doubling sizes and
+costliest operation the app has on each axis at doubling sizes (an exact
+product with its reduction for the range limit, and for the cap one
+expression of the four costliest built-ins of the kernel benchmark's
+report, evaluated at the candidate's ceiling) and
 recommends the largest limits that stay within a latency budget per pass;
 it runs only when asked, and it measures time alone (the plan's D16 says
 why memory is left out). The line is written so
@@ -1001,7 +1006,7 @@ src/core/context.ts       NumberContext: the precision, the rounding mode, the r
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root and the rational power on the kernel, unresolved
 src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations, the roots
-src/core/fixed-exp.ts     expFixed: the exponential on the kernel, by halving, Taylor and squaring
+src/core/fixed-exp.ts     expFixed and sinhCoshFixed: the exponential on the kernel, by halving, Taylor and squaring, and the hyperbolic pair through it
 src/core/fixed-log.ts     lnFixed: the logarithm on the kernel, by square roots and the atanh series; ln(2) and ln(10) memoized
 src/core/fixed-trig.ts    sinCosFixed and atanFixed: the sine, cosine and arctangent on the kernel, by reduction and the Taylor series
 src/core/constants.ts     pi by Chudnovsky's series and e by its series, both with binary splitting, memoized at the ceiling
@@ -1025,6 +1030,7 @@ src/core/builtins/roots.ts sqrt and cbrt: rootBall under a name, with its exact 
 src/core/builtins/pow.ts  pow(x, y): the rational power's rule for an exact exponent, log space for an inexact one
 src/core/builtins/trig.ts sin, cos and tan: the trigonometric functions of an angle, on fixed-trig.ts, sharing the reduction
 src/core/builtins/inverse-trig.ts asin, acos, atan and atan2: the inverses, returning an angle, every one an arctangent
+src/core/builtins/hyperbolic.ts sinh, cosh, tanh, asinh, acosh and atanh: through exp, and through ln of a root
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction

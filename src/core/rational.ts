@@ -378,11 +378,25 @@ function trailingZeros(n: bigint): bigint {
   return BigInt(bitLength(n & -n) - 1);
 }
 
+/**
+ * The greatest common divisor of the non-negative `a` and the positive
+ * `b`: the common power of two, read off the trailing zeros, times Euclid
+ * on the odd parts. Euclid alone on a settled midpoint, a dyadic of
+ * thousands of bits over a power of two, takes a step per few bits with a
+ * division of the whole number at each, tens of milliseconds at the
+ * ceiling of the retry schedule for one sum; on the odd parts it takes a
+ * step or two when one of them is small, and none when both are one.
+ */
 function gcd(a: bigint, b: bigint): bigint {
+  if (a === 0n) return b;
+  const twosA = trailingZeros(a);
+  const twosB = trailingZeros(b);
+  a >>= twosA;
+  b >>= twosB;
   while (b !== 0n) {
     [a, b] = [b, a % b];
   }
-  return a;
+  return a << (twosA < twosB ? twosA : twosB);
 }
 
 /**

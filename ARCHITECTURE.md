@@ -168,11 +168,18 @@ error count in ulps, every operation updating the count by a stated
 over-approximation (the plan's D9), entered from a rational or a ball and
 left through `fixedToBall`, which hands back the dyadic midpoint itself
 and the count as a radius. Its first routines are the roots: the square
-root by the integer square root of the argument's ends, exact because the
-root is monotone, and the root of any degree by Newton in fixed point,
-its error verified by raising the result back to the power rather than
-read off the iteration. `rootBall` is its one caller so far; the
-elementary functions of stage 3 are the rest. `constants.ts` computes `pi`
+root by Newton on the reciprocal square root, multiplications only with
+the precision doubling, and the root of any degree by Newton in fixed
+point, either one's error verified by raising the result back to the
+power rather than read off the iteration. The elementary functions of
+stage 3 are the routines beside it, one module per family: `fixed-exp.ts`
+(the exponential, by halving, a Taylor series and squaring) and
+`fixed-log.ts` (the logarithm, by square roots and the `atanh` series
+summed by rectangular splitting, with `ln(2)` and `ln(10)` memoized); a
+rational power that is neither exact nor small enough for the root of the
+power goes through them as `exp(y ln x)` (`powRationalBall`, which `^`
+and the built-in `pow` share), so that `2^0.1234567` is a value with a
+radius where it was too large. `constants.ts` computes `pi`
 on it by Chudnovsky's series with binary splitting, its tail bounded in
 the comment, and memoizes one value, the digits at the ceiling of the
 retry schedule in force plus a margin of 64 bits, from which every request
@@ -987,9 +994,11 @@ src/core/rational.ts      Rational, arithmetic, the exact root, parsing and form
 src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted
 src/core/context.ts       NumberContext: the precision, the rounding mode, the range limit and the ceiling arithmetic is done under
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
-src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root on the kernel, unresolved
+src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root and the rational power on the kernel, unresolved
 src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations, the roots
-src/core/constants.ts     pi by Chudnovsky's series with binary splitting, memoized at the ceiling
+src/core/fixed-exp.ts     expFixed: the exponential on the kernel, by halving, Taylor and squaring
+src/core/fixed-log.ts     lnFixed: the logarithm on the kernel, by square roots and the atanh series; ln(2) and ln(10) memoized
+src/core/constants.ts     pi by Chudnovsky's series and e by its series, both with binary splitting, memoized at the ceiling
 src/core/display.ts       show: a ball's text at the digits it certifies, and its kind (exact, certified, partial, zero, unbounded)
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/dimension-of.ts  dimensionOf: a body's dimension without its value, the build's function check
@@ -1004,6 +1013,10 @@ src/core/name-index.ts    the names that start with a text, by binary search
 src/core/builtin.ts       Builtin, its errors and the shared rule helpers: what a built-in is
 src/core/builtins.ts      BUILTINS: the app's built-ins gathered by name from builtins/
 src/core/builtins/pi.ts   pi(): the circle constant from constants.ts, one module per built-in
+src/core/builtins/exp.ts  exp(x): the exponential, on fixed-exp.ts, with e from constants.ts
+src/core/builtins/log.ts  ln, log10, log2 and log(b, x): the logarithms, on fixed-log.ts, sharing the domain rule
+src/core/builtins/roots.ts sqrt and cbrt: rootBall under a name, with its exact cases and errors
+src/core/builtins/pow.ts  pow(x, y): the rational power's rule for an exact exponent, log space for an inexact one
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction
@@ -1078,9 +1091,13 @@ middle: binary splitting grows as V8's bigint multiplication does,
 Karatsuba at these sizes, about 38 times per decade of digits at most,
 where a series summed term by term would be quadratic and show a hundred;
 the upper decade is asserted because its timings are well above the
-timer's noise. It also reports the cost of a square and a cube root at
-the default ceiling of the retry schedule, the costliest pass an
-expression that never certifies runs.
+timer's noise. It also times every routine of the kernel (the roots, `exp`,
+the series of `e`, and each elementary function as it lands) at the
+default ceiling of the retry schedule, the costliest pass an expression
+that never certifies runs, and at a quarter of it, asserting that the
+ceiling costs at most 64 times the quarter, twice what a series of linear
+length over Karatsuba multiplication gives; the report is what the probe
+of `limits.ts` chooses its operations from.
 
 ## Later
 

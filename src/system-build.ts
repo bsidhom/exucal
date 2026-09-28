@@ -21,9 +21,9 @@
 
 import { buildTable, type BuildError } from "./core/build.ts";
 import { ceilingContext, type NumberContext } from "./core/context.ts";
-import { type Definition } from "./core/definitions.ts";
-import { type Result } from "./core/result.ts";
-import { type UnitTable } from "./core/table.ts";
+import type { Definition } from "./core/definitions.ts";
+import type { Result } from "./core/result.ts";
+import type { UnitTable } from "./core/table.ts";
 
 /** The one table held: what it was built from, at which ceiling, and the result. */
 let memo:

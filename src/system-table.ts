@@ -17,7 +17,7 @@
 // rather than something to retry.
 
 import { parseDefinitions, type Definition } from "./core/definitions.ts";
-import { type ParseError } from "./core/parser.ts";
+import type { ParseError } from "./core/parser.ts";
 import { err, type Result } from "./core/result.ts";
 import definitionsUrl from "./units.txt?url";
 

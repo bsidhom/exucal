@@ -1,9 +1,9 @@
 import { LitElement, css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { MIN_MAX_BITS, maxDigitsFor } from "./core/context.ts";
-import { type Definition } from "./core/definitions.ts";
+import type { Definition } from "./core/definitions.ts";
 import { LIMIT_BITS } from "./core/rational.ts";
-import { type Result } from "./core/result.ts";
+import type { Result } from "./core/result.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 import {
   clampSettings,

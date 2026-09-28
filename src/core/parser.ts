@@ -29,7 +29,7 @@
 // match nothing) is a programming error and throws.
 
 import { err, ok, type Result } from "./result.ts";
-import { type Span } from "./span.ts";
+import type { Span } from "./span.ts";
 
 // ---------------------------------------------------------------------------
 // Types

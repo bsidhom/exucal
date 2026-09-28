@@ -68,7 +68,12 @@ once the name has resolved and before any argument is evaluated.
   first pass rather than at the ceiling.
 - **A result whose magnitude would exceed the range limit** is `tooLarge`
   before anything is computed: `exp`, `sinh`, `cosh` and `pow` predict it
-  from the argument.
+  from the argument. This is a limit of the midpoint's representation, not
+  of the functions: an inexact midpoint is a dyadic whose size is its
+  exponent, so `exp(1e6)`, about `2^1442695`, cannot be held, though it is
+  an ordinary value, `≈ 3.0332e434294`. Stage 4 of the plan (the `Scaled`
+  midpoint, its 4.9) lifts it, after which these functions have the range
+  of an exponent and only the exponent bound refuses.
 - **Propagation** is by running the series on the argument with its error
   included (D9), so no derivative bound is written separately; the
   truncation bound of a series is taken at the upper end of the argument's
@@ -188,9 +193,14 @@ the call and keeps nothing.
 - `src/core/builtins.ts`: `BUILTINS`, the app's built-ins gathered by name
   from those modules; the table and the build take it as their default
   set.
-- `src/core/fixed.ts`: the kernel routines, `expFixed`, `lnFixed`,
-  `sinFixed`, `cosFixed`, `atanFixed`, beside the roots.
-- `src/core/constants.ts`: the four memoized constants.
+- `src/core/fixed-exp.ts`, `fixed-log.ts`, `fixed-trig.ts`: the kernel
+  routines, `expFixed`, `lnFixed`, `sinFixed`, `cosFixed`, `atanFixed`,
+  beside fixed.ts, which keeps the representation, the exact operations
+  and the roots; the routines are below the ball so that `powRationalBall`
+  can reach `exp` and `ln`.
+- `src/core/constants.ts`: `pi` and `e`, memoized by one rule; `ln(2)`
+  and `ln(10)` are memoized the same way in fixed-log.ts, which computes
+  them.
 - `src/core/table.ts`, `src/core/evaluate.ts`, `src/core/build.ts`: the
   resolved function as a union, the call case, the duplicate and the
   prefixed-name checks (3.2); the ceiling in the context and the table at

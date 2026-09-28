@@ -15,7 +15,7 @@ import { parseDefinitions, type Definition } from "./definitions.ts";
 import { DIMENSIONLESS, type Dimension } from "./dimension.ts";
 import { evaluate, invertFunction } from "./evaluate.ts";
 import { parseExpr } from "./expr.ts";
-import { type Quantity } from "./quantity.ts";
+import type { Quantity } from "./quantity.ts";
 import {
   DEFAULT_PRECISION,
   absolute,
@@ -30,7 +30,7 @@ import {
 } from "./rational.ts";
 import { radiusUpper } from "./radius.ts";
 import { ok, type Result } from "./result.ts";
-import { type Span } from "./span.ts";
+import type { Span } from "./span.ts";
 import { unitLookup, type UnitTable } from "./table.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */

@@ -17,6 +17,7 @@ import {
   sqrtFixed,
   subtractFixed,
   toRational,
+  truncateFixed,
   type Fixed,
 } from "./fixed.ts";
 import { UNBOUNDED, ZERO_RADIUS, radiusAbove, radiusUpper } from "./radius.ts";
@@ -39,7 +40,12 @@ import {
   type Rational,
   LIMIT_BITS,
 } from "./rational.ts";
-import { random, randomBall, randomRational } from "../testing/random.ts";
+import {
+  between,
+  random,
+  randomBall,
+  randomRational,
+} from "../testing/random.ts";
 
 function dec(text: string): Rational {
   const result = parseDecimal(text);
@@ -310,6 +316,43 @@ test("shiftFixed multiplies by a power of two by moving the binary point", () =>
   assert.throws(() => shiftFixed(f, 0.5), RangeError);
 });
 
+test("truncateFixed contains the interval it truncates, at any error", () => {
+  // The value loses up to an ulp less a fraction and the error, rounded up
+  // to the new ulps, keeps what it covered: 3/4 ± 2/4 is [1/4, 5/4], and at
+  // no fraction bits it must still reach 5/4, so its error is 2, not 1 (an
+  // error rounded down there missed the upper end by a fraction of an ulp).
+  assert.deepEqual(truncateFixed({ value: 3n, error: 2n, bits: 2 }, 0), {
+    value: 0n,
+    error: 2n,
+    bits: 0,
+  });
+  assert.deepEqual(truncateFixed({ value: 3n, error: 0n, bits: 2 }, 0), {
+    value: 0n,
+    error: 1n,
+    bits: 0,
+  });
+  const rand = random(3113);
+  for (let i = 0; i < 400; i++) {
+    const f = fixedFromBall(randomBall(rand, 40, 3), between(rand, 40, 70));
+    const bits = between(rand, 0, f.bits);
+    const t = truncateFixed(f, bits);
+    for (const end of [
+      subtract(toRational(f), multiply(rational(f.error), ulp(f.bits))),
+      add(toRational(f), multiply(rational(f.error), ulp(f.bits))),
+    ]) {
+      const distance = absolute(subtract(end, toRational(t)));
+      assert.ok(
+        compare(distance, multiply(rational(t.error), ulp(t.bits))) <= 0,
+        `truncating ${toFraction(toRational(f))} ± ${f.error} ulps at ${f.bits} bits to ${bits}`,
+      );
+    }
+  }
+  assert.throws(
+    () => truncateFixed({ value: 1n, error: 0n, bits: 2 }, 3),
+    RangeError,
+  );
+});
+
 test("absFixed keeps the error", () => {
   assert.deepEqual(absFixed({ value: -5n, error: 2n, bits: 3 }), {
     value: 5n,
@@ -454,10 +497,7 @@ test("sqrtFixed contains the root of every value in the argument's interval, tig
       rootWithin(low, high, from, to, 2n),
       `sqrt of ${toFraction(from)}`,
     );
-    // The value is the truncated root of the argument's value, and the
-    // error is at most two ulps beyond the argument's contribution.
-    const exact = toRational(f);
-    assert.ok(rootWithin(toRational(root), high, exact, exact, 2n));
+    // The error is at most two ulps beyond the argument's contribution.
     if (f.error === 0n)
       assert.ok(root.error <= 2n, `exact argument: ${root.error} ulps`);
   }

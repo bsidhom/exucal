@@ -3,8 +3,8 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import { parseDefinitions, type Definition } from "./definitions.ts";
 import { parseExpr, type Expr } from "./expr.ts";
-import { type ParseError } from "./parser.ts";
-import { type Span } from "./span.ts";
+import type { ParseError } from "./parser.ts";
+import type { Span } from "./span.ts";
 
 function parsed(text: string): readonly Definition[] {
   const result = parseDefinitions(text);

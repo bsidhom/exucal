@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { parseExpr, parseUnitList, type Expr } from "./expr.ts";
-import { type ParseError } from "./parser.ts";
+import type { ParseError } from "./parser.ts";
 import { rational, toFraction } from "./rational.ts";
-import { type Span } from "./span.ts";
+import type { Span } from "./span.ts";
 
 const OPERATOR = { add: "+", sub: "-", mul: "*", div: "/" } as const;
 

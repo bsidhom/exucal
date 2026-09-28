@@ -54,7 +54,7 @@
 // name, a cycle, a prefix that is not dimensionless), and its body carries
 // its own spans for errors within it.
 
-import { type Role } from "./dimension.ts";
+import type { Role } from "./dimension.ts";
 import { NAME, expr, token, unitListOf, ws, type Expr } from "./expr.ts";
 import {
   alt,
@@ -71,8 +71,8 @@ import {
   type Parser,
   type Reply,
 } from "./parser.ts";
-import { type Result } from "./result.ts";
-import { type Span } from "./span.ts";
+import type { Result } from "./result.ts";
+import type { Span } from "./span.ts";
 
 // ---------------------------------------------------------------------------
 // Types

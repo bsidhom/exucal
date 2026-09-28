@@ -24,7 +24,7 @@ import {
   type Lookup,
 } from "./evaluate.ts";
 import { parseExpr, type Expr } from "./expr.ts";
-import { type Quantity } from "./quantity.ts";
+import type { Quantity } from "./quantity.ts";
 import {
   DEFAULT_PRECISION,
   ONE,
@@ -39,8 +39,8 @@ import {
 } from "./rational.ts";
 import { radiusUpper } from "./radius.ts";
 import type { Result } from "./result.ts";
-import { type Span } from "./span.ts";
-import { type UnitFunction } from "./table.ts";
+import type { Span } from "./span.ts";
+import type { UnitFunction } from "./table.ts";
 import { err, ok } from "./result.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */

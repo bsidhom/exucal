@@ -80,8 +80,8 @@ import {
 import { checkConformance } from "./dimension.ts";
 import { evaluate, invertFunction, type EvaluateError } from "./evaluate.ts";
 import { parseExpr, parseUnitList, type Expr } from "./expr.ts";
-import { type ParseError } from "./parser.ts";
-import { type Quantity } from "./quantity.ts";
+import type { ParseError } from "./parser.ts";
+import type { Quantity } from "./quantity.ts";
 import { certifies, divideBalls, isExact, type Ball } from "./ball.ts";
 import { GUARD_DIGITS, checkContext, type NumberContext } from "./context.ts";
 import { isUnbounded } from "./radius.ts";

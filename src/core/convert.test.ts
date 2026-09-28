@@ -18,7 +18,7 @@ import {
   type UnitListError,
 } from "./convert.ts";
 import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
-import { type Quantity } from "./quantity.ts";
+import type { Quantity } from "./quantity.ts";
 import {
   ONE,
   ZERO,

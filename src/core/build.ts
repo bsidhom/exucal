@@ -59,7 +59,7 @@
 // errors about a definition as a whole (a duplicate, a prefix whose body is
 // not a plain number) carry the definition, whose span covers its text.
 
-import { type Definition } from "./definitions.ts";
+import type { Definition } from "./definitions.ts";
 import {
   checkConformance,
   isDimensionless,
@@ -76,12 +76,12 @@ import { walker, type Cycle, type Visit } from "./graph.ts";
 import { findAmbiguity, resolveName, type Split } from "./names.ts";
 import { multiplyQuantities, type Quantity } from "./quantity.ts";
 import { containsZero, exact, type Ball } from "./ball.ts";
-import { type Builtins } from "./builtin.ts";
+import type { Builtins } from "./builtin.ts";
 import { BUILTINS } from "./builtins.ts";
 import { checkContext, type NumberContext } from "./context.ts";
 import { ONE } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
-import { type Span } from "./span.ts";
+import type { Span } from "./span.ts";
 import {
   functionArity,
   otherwiseOf,

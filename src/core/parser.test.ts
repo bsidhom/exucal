@@ -24,7 +24,7 @@ import {
   type Spanned,
 } from "./parser.ts";
 import { err, ok } from "./result.ts";
-import { type Span } from "./span.ts";
+import type { Span } from "./span.ts";
 
 /** Runs `parser` on the whole of `text`, which is expected to parse. */
 function unwrap<A>(parser: Parser<A>, text: string): A {

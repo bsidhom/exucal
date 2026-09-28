@@ -40,8 +40,8 @@
 // the tests take a set as a parameter with that one as the default, so that
 // a test can inject a built-in of its own.
 
-import { type Ball } from "./ball.ts";
-import { type NumberContext } from "./context.ts";
+import { containsZero, isExact, type Ball, type BallError } from "./ball.ts";
+import type { NumberContext } from "./context.ts";
 import {
   DIMENSIONLESS,
   checkConformance,
@@ -50,8 +50,16 @@ import {
   type Dimension,
   type Primitives,
 } from "./dimension.ts";
-import { type Arity } from "./evaluate.ts";
-import { type Rational } from "./rational.ts";
+import type { Arity } from "./evaluate.ts";
+import { UNBOUNDED, radiusUpper } from "./radius.ts";
+import {
+  ZERO,
+  add,
+  compare,
+  sign,
+  subtract,
+  type Rational,
+} from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 
 /** Why a built-in's arguments do not have the dimensions it wants. */
@@ -183,4 +191,77 @@ export function checkArgument(
  */
 export function angle(primitives: Primitives): Dimension | undefined {
   return primitives.has(RADIAN) ? primitive(RADIAN) : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// The helpers of `apply`
+
+/**
+ * Whether the bounded `x`, the argument at index `argument`, is positive
+ * throughout: a `domain` error (`notPositive`) when it is not positive
+ * anywhere, its interval ending at or below zero, and `unresolved` at
+ * edge zero when it reaches both zero and positive values.
+ */
+export function checkPositive(
+  x: Ball,
+  argument: number,
+): Result<undefined, BuiltinError> {
+  if (isExact(x)) {
+    return sign(x.mid) > 0
+      ? ok(undefined)
+      : err({ kind: "domain", argument, reason: "notPositive" });
+  }
+  if (compare(add(x.mid, radiusUpper(x.rad)), ZERO) <= 0) {
+    return err({ kind: "domain", argument, reason: "notPositive" });
+  }
+  if (containsZero(x)) return err({ kind: "unresolved", argument, edge: ZERO });
+  return ok(undefined);
+}
+
+/**
+ * Where the bounded `x` lies against zero: `positive` or `negative`
+ * throughout, exactly `zero`, or `straddles` when its interval contains
+ * zero without being it, touching it included, since a function that
+ * changes at zero (`0^y` at `y = 0`) cannot be decided there.
+ */
+export function sideOfZero(
+  x: Ball,
+): "positive" | "negative" | "zero" | "straddles" {
+  if (isExact(x)) {
+    const s = sign(x.mid);
+    return s > 0 ? "positive" : s < 0 ? "negative" : "zero";
+  }
+  if (containsZero(x)) return "straddles";
+  const upper = radiusUpper(x.rad);
+  if (compare(subtract(x.mid, upper), ZERO) > 0) return "positive";
+  if (compare(add(x.mid, upper), ZERO) < 0) return "negative";
+  return "straddles";
+}
+
+/** The result of a call on the midpoints of unbounded arguments, with an unbounded radius. */
+export function unboundedOf(
+  result: Result<Ball, BuiltinError>,
+): Result<Ball, BuiltinError> {
+  return result.ok ? ok({ mid: result.value.mid, rad: UNBOUNDED }) : result;
+}
+
+/**
+ * A ball operation's error as a built-in's: an `unresolved` is the
+ * argument at index `argument` straddling zero, the errors the two share
+ * are themselves, and a parse error cannot arise from a computation.
+ */
+export function fromBallError(
+  error: BallError,
+  argument: number,
+): BuiltinError {
+  switch (error.kind) {
+    case "unresolved":
+      return { kind: "unresolved", argument, edge: ZERO };
+    case "divisionByZero":
+    case "negativeRadicand":
+    case "tooLarge":
+      return error;
+    case "invalidNumber":
+      throw new Error("A computation does not parse a number");
+  }
 }

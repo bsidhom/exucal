@@ -10,7 +10,7 @@
 // input: a ratio between two sizes measured in the same run holds on any
 // machine, where a timing in milliseconds does not.
 
-import { type Random } from "../src/testing/random.ts";
+import type { Random } from "../src/testing/random.ts";
 
 /** A word of `length` letters drawn from `alphabet`. */
 export function word(rand: Random, alphabet: string, length: number): string {

@@ -1420,17 +1420,30 @@ Behavior: functions whose bodies fail at `1` now build.
 
 ### 3.6 `exp`
 
-`src/core/fixed.ts` gains `expFixed`: reduce by halving until the argument
-is below `2^-8`, Taylor with the truncation bound at the interval's upper
-end, then square back, each squaring doubling the relative error plus one
-ulp, with the guard bits raised by the number of squarings; the result's
-`bits` follow its magnitude (D9), so `exp(-1000)` keeps its digits.
-`constants.ts` gains `eFixed(bits, ceilingBits)`, the series at one by
-binary splitting, memoized as `pi` is (D10). `BUILTINS` gains `exp` (one
-dimensionless argument; `exp(0)` exact; `exp(1)` from the memo); the
-built-in guards the result's magnitude against the range limit before
-computing, `tooLarge` at the call, since `exp(1e6)` is beyond any range
-limit. `bench/kernel.bench.ts` gains a report of every kernel routine at
+New `src/core/fixed-exp.ts` (the kernel routines live in modules beside
+fixed.ts, one per family, so that fixed.ts stays the representation, the
+exact operations and the roots, and the routines stay below the ball,
+where `powRationalBall` can reach them; fixed.ts exports the helpers they
+share, `rebaseFixed`, `scaleFixed`, `divideFixedByInteger`, `exponentOf`
+and `keepSignificant`, the last being D9's rule for a result's bits):
+`expFixed(f, bits)` reduces by halving until the argument is below `2^-8`,
+sums the Taylor series in fixed point with the argument's error included
+from the start, stopping at the first term whose whole interval lies
+within an ulp, after which the tail is below a 255th of an ulp and one
+ulp covers it, then squares back, each squaring doubling the relative
+error plus one ulp, working at the bits plus the number of squarings plus
+a guard, and for a negative argument at as many more fraction bits as the
+result is below one; the result's `bits` follow its magnitude (D9), so
+`exp(-1000)` keeps its digits. `constants.ts` gains `eSeries(bits)`, `Σ
+1/n!` by binary splitting with the tail below `2 / (N + 1)!`, and
+`eFixed(bits, ceilingBits)`, memoized as `pi` is by one rule,
+`memoAtCeiling` (D10). `builtins/exp.ts` holds `expBall` and the built-in
+(one dimensionless argument; `exp(0)` exact; `exp(1)` from the memo; an
+unbounded argument gives an unbounded result); it guards the result's
+magnitude against the range limit before computing, `tooLarge` at the
+call, on either side of one, so that `exp(1e6)` and `exp(-1e6)` are
+refused alike, since the settled midpoint of the second would need a
+denominator beyond the limit. `bench/kernel.bench.ts` gains a report of every kernel routine at
 the default ceiling and at a quarter of it, one line per routine as each
 lands (this task's are `exp` and the roots), asserting that the ceiling
 costs at most 64 times the quarter, twice what a series of linear length
@@ -1444,41 +1457,109 @@ neighbor; the pipeline certifies `exp(1)` at 50 digits in one pass;
 `exp(1 m)` is a dimension-rule error whose message names the dimension;
 `exp(1e6)` is `tooLarge` at the call.
 
+Two findings as it landed. The containment test caught `truncateFixed`
+(2.x) rounding its error down: cutting `bits` from a value loses up to an
+ulp of the new size, and the old error, converted to the new ulps, must
+be rounded up, not down, before that ulp is added (3/4 ± 2/4 truncated to
+whole units is 0 ± 2, not 0 ± 1, since the interval reaches 5/4); the
+rule is now `ceil(error / 2^k) + 1`, a unit test holds the case, and the
+memo tests' exact error counts moved by one. And the kernel's modules had
+an import cycle through fixed.ts, ball.ts and context.ts that only
+type-only imports kept alive: under `verbatimModuleSyntax` an `import {
+type X }` still loads its module for side effects, so the cycle ran a
+module's top level before its constants existed once a test imported
+fixed-exp.ts first. Every type-only import in src and bench is now
+`import type`, which is erased, and the cycle is gone; nothing else about
+those modules changed.
+
 Behavior: `exp` exists.
 
-### 3.7 `ln`, `log10`, `log2`, `log(x, b)`
+Known limit, to be lifted in stage 4. `exp(1e6)` is `tooLarge`, and so is
+every argument beyond about 45,000 at the default range limit and
+727,000 at the hard bound, because a midpoint is a `Rational` and an
+inexact one is a dyadic `num × 2^-k` whose size is its exponent: `exp(1e6)`
+is about `2^1442695`, a numerator of 1.4 million bits, beyond
+`LIMIT_BITS`. The value asked for is an ordinary one, `≈ 3.0332e434294`,
+a mantissa at the working precision times an exponent, and `exp` is
+inexact whatever its argument, so nothing is lost by giving it as such.
+That is the `Scaled` midpoint of D13 and stage 4, which this limit adds a
+requirement to: the kernel's results must reach the midpoint as a
+mantissa and an exponent without the exponent ever being formed as bits
+(4.4 amended, and 4.9 added). Until then the guard stands, and `sinh`,
+`cosh` (3.10), a power in log space (3.8) and a large decibel (3.12) share
+it, since each ends in `exp`.
 
-`lnFixed`: the argument as `m × 2^k` with `m` in `[1, 2)`, `ln(2)` from the
-`atanh` series at `1/3` (memoized as `pi()` is, D10, with `ln(10)` beside
-it for `log10`), `m` brought near one by a few square roots, then `2
-atanh((m - 1) / (m + 1))`. The square roots are the first heavy use of
-`sqrtFixed`, whose integer square root costs twice the Newton cube root
-at the ceiling (the stage 2 re-read): this task replaces it with Newton
-on the reciprocal square root, multiplications only and verified by
-squaring as `sqrt10005` in constants.ts already is, keeps the integer
-root only if the kernel benchmark shows no gain, and records the two
-timings. The built-ins: domain `x > 0`, with a ball containing zero
-`unresolved` at edge zero and one entirely non-positive a `domain` error
-(`notPositive`); `ln(1)` exact; `log10` and `log2` as quotients by the
-memoized constants, with the exact cases where `x` is an exact integer
-power of the base (`log10(1000)`, `log2(1/8)`), found by repeated
-division of the numerator or the denominator; `log(b, x)`, of exactly two
-arguments with the base first (3.1), as the quotient of two `ln`, exact
-when `x` is an integer power of `b` (`log(2, 8)`, `log(3, 1/9)`) or `b`
-of `x` (`log(8, 2)` is `1/3`); `log(4, 8)` is `≈ 1.5`, since a rational
-exponent in general is not looked for. `b` must be positive and not one:
-`b` exactly one is a `domain` error (`baseOne`), a `b` straddling one is
-`unresolved` at edge `1`, and a `b` straddling zero at edge zero.
+### 3.7 `ln`, `log10`, `log2`, `log(b, x)`
+
+New `src/core/fixed-log.ts`, beside fixed-exp.ts: `lnFixed(f, bits,
+ceilingBits, scale)` writes the argument as `m × 2^k` with `m` in `[1,
+2)`, takes `ln(2)` from a memo at the ceiling (D10, `memoAtCeiling` from
+constants.ts, with `ln(10)` beside it for `log10`; `ln(2)` is `2
+atanh(1/3)` and `ln(10)` is `3 ln(2) + 2 atanh(1/9)`, each `atanh(1/q)` by
+binary splitting, two ulps), brings `m` within `2^-8` of one by eight
+square roots, and takes `2 atanh((m - 1) / (m + 1))` as the series in
+`z^2`, summed by rectangular splitting (the powers within a block of
+about `sqrt(N)` terms computed once and divided by their odd numbers,
+the blocks combined by Horner), so that the full multiplications number
+about `2 sqrt(N)`; the result keeps the bits its magnitude calls for
+(D9). The `scale` is the power of two a caller took off its value to
+convert it at order one, so that `ln(1e-300)` loses nothing to the
+conversion: builtins/log.ts scales every argument so. The square roots
+are the first heavy use of `sqrtFixed`, whose integer square root cost
+twice the Newton cube root at the ceiling (the stage 2 re-read): this
+task replaced it with Newton on the reciprocal square root,
+multiplications only with the precision doubling, verified by squaring
+with the bound `D s / (2 s^2 - D)`, about `D / 2s`, since the looser `D /
+s` would double the argument's error at every one of the logarithm's
+eight roots; `sqrt10005` in constants.ts, which had a Newton of its own,
+now calls it. The kernel benchmark's two square roots at the default
+ceiling of 4,040 digits: 5.09 ms before, 0.57 ms after (0.57 ms and 0.10
+ms at a quarter of it); `ln 3` there costs 19 ms, from 46 ms with the
+series summed term by term, since V8 multiplies at these sizes by the
+schoolbook rule, sixty microseconds a product, and the sum took 655 of
+them. `exp`'s series is a candidate for the same splitting, left for the
+report of 3.11.
+
+New `src/core/builtins/log.ts`, one module for the four since they share
+the domain rule and the kernel call: domain `x > 0`, an argument
+non-positive throughout its ball a `domain` error (`notPositive`), one
+straddling zero `unresolved` at edge zero, and one positive as rationals
+but reaching within an ulp of zero at the working bits `unresolved` the
+same way (a ball wider than its value at order one); `ln(1)` exact;
+`ln(2)` and `ln(10)` their memos; `log10` and `log2` as quotients by the
+memoized constants, exact where `x` is an exact integer power of the
+base either way (`log10(1000)`, `log2(1/8)`), found by repeated division
+of the numerator or the denominator with the other checked; `log(b, x)`,
+of exactly two arguments with the base first (3.1), as the quotient of
+two `ln`, exact when `x` is an integer power of `b` (`log(2, 8)`, `log(3,
+1/9)`, `log(2/3, 8/27)`) or `b` of `x` (`log(8, 2)` is `1/3`), and
+`log(b, 1)` zero for any valid base; `log(4, 8)` is `≈ 1.5`, since a
+rational exponent in general is not looked for. `b` must be positive and
+not one, checked before `x`: `b` exactly one is a `domain` error
+(`baseOne`), a `b` straddling one, or whose logarithm is a ball around
+zero at the working bits, is `unresolved` at edge `1`, and a `b`
+straddling zero at edge zero. An unbounded argument gives the function
+of its midpoint with an unbounded radius, the midpoint held to the
+domain. The quotient of two kernel logarithms is `divideFixed`, cut to
+the bits its magnitude calls for.
 
 Tests: reference digits of `ln(2)` and `ln(10)` to 100 from Python's
-decimal module; containment across magnitudes; every exact case and its
-neighbor; `ln(0)`, `ln(-1)`, `log(1, 8)` and `log(-2, 8)` are domain
-errors with their messages; `ln` of `sqrt(2)^2 - 2` is `unresolved` at
-the argument, and `log(1 + (sqrt(2)^2 - 2), 8)` at edge one; the pipeline
-certifies `exp(ln(3))` and `ln(exp(3))` at 30 digits; the kernel
-benchmark's two square roots.
+decimal module, and `ln` at six arguments including two through the
+scale; the memos hold the ceiling's value plus the margin; containment
+across magnitudes at a precision against four times it, at the value and
+both ends; the result's bits at three magnitudes and the preconditions;
+every exact case and its neighbor, with `integerPower` on its own; the
+domain and `unresolved` cases of each function with the argument index
+and the edge; `ln(0)`, `ln(-1)`, `log(1, 8)` and `log(-2, 8)` are domain
+errors with their messages, `ln(1 m)` a dimension-rule error; `ln` of
+`(2^(1/2))^2 - 2` is `unresolved` at the argument, and `log(1 +
+((2^(1/2))^2 - 2), 8)` at edge one, worded as such after the ceiling; the
+pipeline certifies `exp(ln(3))` and `ln(exp(3))` at 30 digits; the kernel
+benchmark gains `ln 3` and the two constants' series.
 
-Behavior: the logarithms exist.
+Behavior: the logarithms exist, and the square root's radius is what the
+new bound gives, an ulp or two, where the integer root's was exact to
+the ulp.
 
 ### 3.8 `sqrt`, `cbrt`, `pow(x, y)`
 
@@ -1515,6 +1596,32 @@ write `(2 m)^2`; `pow(0, 0)` is exact one; `pow(10, 2.3456789)` and
 precision well above the digits taken; `pow(-2, 1/3)` is the negated
 root, `pow(-2, 1/2)` a `negativeRadicand`, `pow(-2, sqrt(2))` a domain
 error; the zero base's three cases.
+
+As it landed. `sqrt` and `cbrt` share `builtins/roots.ts` (one rule under
+two names) and `pow` has `builtins/pow.ts`; the helpers the three share
+with the logarithms, `checkPositive` (the domain rule for a positive
+argument), `sideOfZero`, `unboundedOf` and `fromBallError` (a ball
+operation's error as a built-in's, an `unresolved` naming the argument
+and edge zero), moved into builtin.ts, and `radiusBound` and `expFits`
+from builtins/exp.ts into ball.ts, since `powLogSpace` there holds the
+result to the range limit as `exp` does. The log-space route is ball.ts's
+`powLogSpace(x, y, context)`, for a bounded base positive as rationals and
+any bounded exponent, on `lnScaled` (the scaling of the base to order one
+before conversion, which builtins/log.ts's `ln` shares) and `expFixed`:
+the logarithm is taken at the working bits plus the magnitudes of the
+exponent and of the logarithm, so that the product keeps the working
+bits, and `^` reaches it whenever `powBall` reports `x^p` too large for a
+base that excludes zero, negating by symmetry for a negative base under
+an odd root with an odd numerator; a base straddling zero whose power
+does not fit stays `tooLarge`, since its interval's result does not fit
+either. `exactRoot` on the base now comes first in `powRationalBall`, so
+that `8^(2/3)` is exact without forming `64`, as the task asks; the
+results are the ones the root route gave. A ball touching zero from below
+(`[-2, 0]`) is not positive anywhere, so it is a `domain` error for a
+logarithm or a base, while for the exponent of a zero base it is
+`unresolved`, since `0^0` differs from `0^-ε`; `sideOfZero` counts such
+a ball as straddling. Division by zero is worded as the evaluator words
+it everywhere (`Division by zero in "pow(0, -sqrt(2))"`).
 
 Behavior: `sqrt`, `cbrt` and `pow` exist, and `2^0.1234567` is a value
 where it was `tooLarge`.
@@ -1641,6 +1748,24 @@ Provisional. The study's features 4 and 5 as one: the midpoint becomes a
 after every operation. The shape below is firm; the first task refines the
 details against the kernel as it landed.
 
+Amended during stage 3 (3.6): the stage also lifts the magnitude limit on
+the inexact functions. Today an inexact midpoint is a dyadic whose size is
+its exponent, so `exp(1e6)`, about `2^1442695`, is refused as `tooLarge`
+at any range limit, though it is an ordinary value, `≈ 3.0332e434294`, a
+mantissa at the working precision times an exponent. With a `Scaled`
+midpoint the exponent is a number, not bits, so the stage must carry a
+large result from the kernel to the midpoint without ever forming its
+bits, and display it. That reaches the kernel (a routine that squares up
+to a large magnitude renormalizes its mantissa as it goes), the
+conversion `fixedToScaled`, the display (the decimal digits of `m × 2^e`
+for a large `e` are found in log space, through the memoized `ln 2` and
+`ln 10`, not by forming `10^E`), and D16, whose range limit then bounds
+the size of exact values and the alignment of sums, not the magnitude of
+an inexact result, which the exponent bound `MAX_EXPONENT` bounds. 4.4 and
+4.9 below say how; 4.0's design note settles the binary-or-decimal
+exponent question with this requirement in view, since a kernel result
+arrives with a binary exponent.
+
 ### 4.0 Design note
 
 docs/decimal.md: the `Scaled` type and its canonical form (D13), the
@@ -1705,12 +1830,16 @@ Tests: the moved tests, with the exponent cases added.
 (the literal's exponent, lazily), while the `^` exponent stays a
 `Rational`, the exponent grammar converting with `toRational` so that
 `m^1e999999999` is refused there; `fixedFromRational` becomes
-`fixedFromScaled`, with a bound on the exponent it will form (an argument
-beyond the range limit is `tooLarge`, per D10); `certifies` compares the
-midpoint with the radius by exponents and leading digits where forming
-either is infeasible (D7); the readers of `.mid` (the converter, the
-pipeline, the display, the messages) change type. The evaluator, the
-table and the build see only balls and do not change.
+`fixedFromScaled`, which converts the mantissa at the working bits and
+hands the exponent to the kernel as a scale (as `lnFixed`'s `scale` and
+`lnScaled` already take it in stage 3), so that no argument's exponent is
+formed as bits, and `fixedToScaled` takes a kernel result with its scale
+and builds the midpoint the same way; `certifies` compares the midpoint
+with the radius by exponents and leading digits where forming either is
+infeasible (D7), and the decimal digits of a midpoint with a large
+exponent are found in log space (4.9); the readers of `.mid` (the
+converter, the pipeline, the display, the messages) change type. The
+evaluator, the table and the build see only balls and do not change.
 
 Tests: the type change is covered by the existing tests; new ones for
 `1e999999999 * 1e999999999` (exact, with an exponent), `1e999999999 + 1`
@@ -1763,6 +1892,43 @@ validation; README.
 ARCHITECTURE.md "Numbers" for the type ladder of D13 (`Rational`,
 `Scaled`, `Radius`, `Ball`, `Quantity`), the exponent and the two modes;
 "Layout" for scaled.ts.
+
+### 4.9 Large results of the inexact functions
+
+Added during stage 3 (3.6), and possibly earlier in the stage's order
+than its number, since 4.4 depends on parts of it. The kernel routines
+whose results can be large return a mantissa with a scale, never a value
+of the result's bits: `expFixed` renormalizes after each squaring, keeping
+the working bits and moving the rest into a binary exponent it returns
+beside the `Fixed` (so `exp(1e6)` costs what `exp(1)` costs plus the
+squarings), and `sinh`, `cosh` (3.10), `powLogSpace` (3.8) and `decibel`
+(3.12) inherit it through `exp`; `lnFixed` and `lnScaled` already take an
+argument's exponent as a scale, and `rootFixed` and the powers combine
+exponents exactly. `fixedToScaled` carries the scale into the midpoint's
+exponent. The display finds the decimal digits of `m × 2^e` for a large
+`e` in log space: the decimal exponent is `floor(e log10 2 + log10 m)`
+and the leading digits are `10^(fraction)`, computed through `lnFixed`,
+`expFixed` and the memoized `ln 2` and `ln 10` at the working bits plus
+the bit length of `e`, with the radius carried, so that certification
+(D7) still compares both ends and marks what it cannot certify. `exp`'s
+guard becomes the exponent bound `MAX_EXPONENT` of 4.2 (`exp(1e30)` is
+`tooLarge`, since its exponent could not be formatted; `exp(1e6)` and
+`exp(-1e6)` are values), and D16 is restated as the stage 4 intro says:
+the range limit bounds exact sizes and alignments. The conversion of a
+large quantity between units keeps working, since a unit's factor is an
+exact rational and a product only adds to the exponent; a unit list
+(`convert.ts`) whose count would be a large integer shows the count as a
+value with an exponent rather than forming it.
+
+Tests: `exp(1e6)` against Python's decimal module at 30 digits
+(`3.0332153968...e434294`), `exp(-1e6)`, `pow(10, 1e6 / 3)`, `cosh(1e6)`
+and `1e6 decibel`, each certified and displayed with its exponent; the
+containment test of `exp` extended to large arguments; `exp(1e30)` is
+`tooLarge` at the exponent bound; the kernel benchmark's `exp 1e6` at
+the ceiling costs within a small factor of `exp 1`.
+
+Behavior: the inexact functions have the range of their exponent, not of
+the bits of their value.
 
 ## Stage 5: the rational display
 

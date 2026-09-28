@@ -8,7 +8,10 @@ implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
 Stage 3 was reviewed the same way against the stage 2 code and revised
 (D1, D4, D10, D12, D16 and every task from 3.1 to 3.13); its introduction
-lists the changes. docs/calculator.md is the design study
+lists the changes. Stage 4's design note (4.0, docs/decimal.md) was
+written against the stage 3 code and the stage revised against it (D13
+settled, D8, D15 and D16 restated, and every task from 4.1 to 4.9); its
+introduction lists the changes. docs/calculator.md is the design study
 and its "A sequence for the follow-ups" is the order this plan follows.
 This document turns that sequence into tasks small enough that each is one
 commit, reviewable on its own, with the tests that prove it and the state
@@ -16,8 +19,8 @@ the code is left in. Where the study leaves a choice open, this plan makes
 it and says so under "Decisions", so that a reviewer can object to a
 decision before any code depends on it.
 
-The plan is firm for stages 1 to 3, whose shape follows from the code as it
-stands, and provisional for stages 4 to 8, whose first task is a short
+The plan is firm for stages 1 to 4, whose shape follows from the code as it
+stands, and provisional for stages 5 to 8, whose first task is a short
 design note in the manner of docs/functions.md, written once the stages
 before it have landed and refined against what they turned out to need.
 The provisional stages are still listed task by task, so that the whole
@@ -219,6 +222,14 @@ an integer only when it is one. A remainder that comes out slightly
 negative that way, or slightly above a whole of the unit before it, is the
 display's carry case, which `roundTerms` handles.
 
+Amended in 4.0 for the exponent of stage 4: a count that would be an
+integer too large to form (`1e999999999 m` into `ft;in`) is the ratio
+settled toward zero at the working precision, an inexact value with an
+exponent, and the remainder is then a ball around zero whose radius says
+what the count left, which the display leaves out with its note; a count
+that is an integer of any size stays exact, and a count is still never
+`unresolved` (4.9).
+
 **D9. The kernel is fixed point with an integer error count.** A kernel
 value is `{ value, error, bits }`: the integer `value` stands for
 `value × 2^-bits`, and `error` is an upper bound, in units of `2^-bits`,
@@ -410,6 +421,23 @@ power of ten is 4.1's to decide, by settling to a decimal in that stage
 or by a binary exponent beside the decimal one; nothing in stages 2 and 3
 depends on the answer.
 
+Settled in 4.0 (docs/decimal.md): the kernel's binary scale is settled
+into the power of ten at the kernel's exit, and the type carries one
+exponent, as written above. A dyadic `d × 2^-k` entered exactly would be
+`d × 5^k × 10^-k`, three times its size for no information, so a kernel
+result is rounded to nearest at the working number of decimal digits as
+it leaves the kernel, the rounding into the radius, which is the settle
+D15 gives every inexact result; and `settle` rounds onto the same
+decimal grid, a division by a power of ten in place of a shift, measured
+at 0.2 ms against 0.04 ms at the default ceiling and nothing below it.
+Everything above the kernel then works in one base, exactly and totally
+within the range limit, and log space is needed only at the kernel's
+exit for a result whose binary exponent cannot be formed (4.9). The
+note's first draft carried a binary exponent beside the decimal one,
+which let both enter exactly but leaked the mixed base into every sum,
+comparison, certification and radius; the note records why that was
+withdrawn.
+
 **D14. The exact functions (`abs`, `floor`, `gcd`, ...) come after the
 elementary set and before the Gamma family.** They depend only on the
 built-in mechanism, and they exercise the one dimension rule the
@@ -459,6 +487,21 @@ mode, and the mode therefore applies at every operation: that is the
 per-operation semantics the user chooses by choosing the mode, and 4.5
 says why. The two modes differ in nothing else.
 
+Restated in 4.0 for the `Scaled` midpoint: in exact mode `settle` rounds
+an inexact midpoint to nearest at the working number of decimal digits,
+`digitsFor(bitsFor(precision))`, on the decimal grid the kernel's results
+are rounded onto as they leave the kernel, so the dyadic it speaks of
+becomes a decimal of the same size and the two modes are one `roundTo`
+with two parameters; in decimal mode the radius grows by the exact
+rounding error rather than the half-unit bound, since a value rounded to
+`p` digits with half a unit of radius has its ends on the rounding
+boundaries and would never certify its last digit (4.5). And a sum whose
+exact alignment does not fit the range limit settles its operands first
+and absorbs the smaller into the radius when they still do not align,
+whenever an operand is inexact, or in decimal mode, since the result was
+about to be settled anyway; two exact operands in exact mode are
+`tooLarge`, as exact values never round (4.4).
+
 **D16. Two limits, on two axes, both the user's to set.** Range and
 precision are different quantities, as a float's exponent width and
 mantissa width are, and one number cannot stand for both. The range
@@ -503,6 +546,18 @@ budget on time bounds memory indirectly for these workloads, since a
 value of `n` bits is `n / 8` bytes and the operations timed hold a few of
 them, kilobytes to a few megabytes at any latency a phone can meet. The
 decision is revisited if a portable measure appears.
+
+Restated in 4.0, as the stage 4 introduction says: once the midpoint
+carries exponents (D13), the range limit bounds the size of an exact
+value, a mantissa's numerator and denominator, and the alignment of a sum
+or a comparison, which is the size the exact result would have; it no
+longer bounds the magnitude of a value, which the exponent bound
+`MAX_EXPONENT` (`10^18`, 4.2) bounds for exact and inexact values alike. The literal
+check is the mantissa's digits against `LIMIT_BITS` in the parser and
+against the range limit in the evaluator, and the exponent against the
+exponent bound in the parser; `maxDigitsFor` is unchanged, since a
+settled midpoint at the ceiling must still fit the range limit with room
+for a product of two.
 
 ## Stage 1: the context and the ball
 
@@ -1867,10 +1922,11 @@ Behavior: none; documentation.
 
 ## Stage 4: the `Scaled` midpoint and the decimal mode
 
-Provisional. The study's features 4 and 5 as one: the midpoint becomes a
-`Scaled`, a fraction times a power of ten (D13), and a decimal mode rounds
-after every operation. The shape below is firm; the first task refines the
-details against the kernel as it landed.
+Firm in shape, as 4.0 settled it; docs/decimal.md is the design note and
+the reasoning, and this introduction lists what the note changed in the
+tasks as first written. The study's features 4 and 5 as one: the midpoint
+becomes a `Scaled`, a fraction times a power of ten (D13), and a decimal
+mode rounds after every operation in the user's mode.
 
 Amended during stage 3 (3.6): the stage also lifts the magnitude limit on
 the inexact functions. Today an inexact midpoint is a dyadic whose size is
@@ -1885,10 +1941,41 @@ conversion `fixedToScaled`, the display (the decimal digits of `m × 2^e`
 for a large `e` are found in log space, through the memoized `ln 2` and
 `ln 10`, not by forming `10^E`), and D16, whose range limit then bounds
 the size of exact values and the alignment of sums, not the magnitude of
-an inexact result, which the exponent bound `MAX_EXPONENT` bounds. 4.4 and
-4.9 below say how; 4.0's design note settles the binary-or-decimal
-exponent question with this requirement in view, since a kernel result
-arrives with a binary exponent.
+an inexact result, which the exponent bound `MAX_EXPONENT` bounds.
+
+Revised by 4.0 against the stage 3 code (docs/decimal.md has each
+argument): the type is the one decimal exponent D13 wrote down, and the
+kernel's binary base stops at the kernel's boundary, a result being
+rounded onto the decimal grid of the working precision as it leaves
+(`fixedToScaled`, 4.4) and `settle` rounding onto the same grid, a
+division by a power of ten in place of a shift, measured at 0.2 ms
+against 0.04 ms per settle at the default ceiling and nothing below it;
+the two modes are thereby one `settle` with two parameters (4.5); a sum
+whose alignment does not fit the range limit is `tooLarge` for two exact
+operands in exact mode and otherwise settles its operands first and
+absorbs the smaller into the radius when they still do not align, so
+`addBalls` and `subtractBalls` take the context and every sum, product
+and quotient of balls is a `Result` (4.4); the readers of `.mid` include
+the built-ins, and the quotient rule moves onto the coarse type (4.4);
+the kernel's large results travel as a `Floating`, a `Fixed` with a
+binary exponent, the log-space digits of one whose exponent cannot be
+formed are a module of their own, `digits.ts`, written in 4.9 since
+nothing in 4.4 needs them, and `powBall`'s magnitude guard becomes the
+exponent bound too, so `sqrt(2)^(10^7)` is a value (4.9); a unit list
+whose count cannot be formed shows it settled toward zero (4.9, D8
+amended); the decimal mode's radius is the exact rounding error, not the
+half-unit bound, so that a rounded value certifies its last digit, and
+`1 / 3 * 3` is `0.99999999` under every mode at eight digits, shown as
+`≈ 1` with seven digits certain, the first text's `1` under `halfEven`
+being wrong (4.5); the retry loop runs one pass in decimal mode and the
+table is built in exact mode at the ceiling whatever the user's mode
+(4.6); `Precision` and `DEFAULT_PRECISION` move to rounding.ts (4.3); and
+4.10, added in review, is the built-in `approx(x)`, which marks a value
+as known only to the working precision and never narrows a radius its
+argument carries (docs/approximate.md), placed
+after 4.9 since it is a use of the exponent and needs nothing after it,
+with its two-argument form, an absolute uncertainty, left as future work
+with the retry loop's stopping rule it will need.
 
 ### 4.0 Design note
 
@@ -1897,162 +1984,442 @@ alignment rule for sums and its `tooLarge`, the exponent bound (`10^18`),
 what "after every operation" means for a unit looked up, a power, a call,
 and a defined function's body (every result the evaluator produces is
 settled, in one place), and what the retry loop does in decimal mode
-(nothing).
+(nothing). Written against `fixedToBall`, which hands back `value ×
+2^-bits`, and against `lnFixed` and `lnScaled`, which already take a
+binary scale: the kernel's binary scale is settled into the power of ten
+at the kernel's exit, and the type carries one exponent; the note's
+first draft carried a binary exponent beside the decimal one, and the
+note records why that was withdrawn. The stage's tasks below were
+revised against it, and the note is reviewed before any code depends on
+it.
+
+Behavior: none; a document.
 
 ### 4.1 The `Scaled` type, construction and comparison
 
-New `src/core/scaled.ts`, per D13: `Scaled`, the constructor `scaled(mant,
-exp)` normalizing to the canonical form, `fromRational`, `toRational`
-(which fails `tooLarge` when forming the power of ten would exceed
-the range limit), `ZERO` and `ONE`, `isZero`, `isInteger`, `sign`, `equals`
-(structural), and `compare`, which compares by exponent and digit count
-before any multiplication, so that `1e999999999` compares with `1`
-without being formed. `rational.ts` is untouched.
+New `src/core/scaled.ts`, per D13: `Scaled = { mant, exp }` standing for
+`mant × 10^exp`, the constructor `scaled(mant, exp)` normalizing to the
+canonical form (the mantissa in lowest terms, its denominator coprime to
+ten and its numerator not divisible by ten unless zero, zero as `exp`
+zero), stripping the numerator's trailing zeros and moving the
+denominator's twos and fives into the exponent (`1/6` is `5/3 × 10^-1`),
+and checking the exponent bound of 4.2 (`tooLarge`; a `Result`);
+`fromRational`; `toRational(s, limit)`, which fails `tooLarge` when
+forming `10^|exp|` would exceed `limit` bits; `ZERO` and `ONE`; `isZero`,
+`isInteger` (a denominator of one and `exp` at or above zero), `sign`,
+`equals` (structural); `decimalExponent`, the mantissa's from its digit
+counts plus `exp`, exact for any exponent and moved here from
+rational.ts; `log2Bounds(s)`, a lower and an upper bound on `log2 |s|`
+within `2^-30`, from the bit lengths of the mantissa and `exp` times
+`log2 10` held as a 128-bit fraction, a constant of the module, for the
+radius (4.4); and `compare`, total, decided by the signs, by the decimal
+exponents, and, when those are within one of each other, by exact
+alignment, whose shift is then bounded by the mantissas' digit counts
+and never by the range limit. `rational.ts` is untouched.
 
 Tests: the canonical form (`2.54`, `254/100` and `127/50` are one value
-with one representation); `compare` across exponents that could not be
-aligned; the round trip through `toRational` where it fits and its
+with one representation, and so are `1e3`, `1000` and `8 × 125`; `1/6`
+and `1/1024` move their twos and fives, and a numerator's trailing zeros
+move); a hundred seeded rationals drawn by key round-trip through
+`fromRational` and `toRational` and equal structurally whichever form
+they were built from; `compare` across exponents that could not be
+aligned (`1e999999999` against `1`, against `-1`, against
+`1.0000000001e999999999`, and `1e-999999999` against zero); the `log2`
+bounds contain `log2` of seeded values within `2^-30`, at exponents up
+to the bound; the round trip through `toRational` where it fits and its
 failure where it does not.
 
 Behavior: none; the module is unused.
 
 ### 4.2 The arithmetic with an exponent
 
-`scaled.ts`: `add` and `subtract` align exponents on the mantissas and
-fail `tooLarge` when the alignment would exceed the range limit
-(`Result`s,
-where the fraction's are total); `negate`, `multiply`, `divide`, `invert`
-and `pow` combine exponents; every one calls the fraction's operation on
-the mantissas and renormalizes. `MAX_EXPONENT` (`10^18`) is checked
-wherever an exponent is combined, failing `tooLarge`, so that formatting
-is always possible (the study's bound, so that `10^(10^30)` fails cleanly
-instead of looping). `dimension.ts` and the `^` exponent go on using
-`Rational`, whose arithmetic stays total.
+`scaled.ts`: `add(a, b, limit)` and `subtract` align the mantissas by
+`10^|Δexp|` and fail `tooLarge` when the shift, `|Δexp| log2 10` bits,
+exceeds `limit` (`Result`s, where the fraction's are total); `negate`,
+`absolute`, `multiply`, `divide`, `invert` and `pow(s, n, limit)` combine
+exponents, the mantissa's power sized against `limit` as `pow` sizes it
+today and the exponent times `n` against the bound; every one calls the
+fraction's operation on the mantissas and renormalizes. `MAX_EXPONENT`
+(`10^18`) bounds `|exp|`, checked wherever an exponent is combined,
+failing `tooLarge`, so that formatting is always possible (the study's
+bound, so that `10^(10^30)` fails cleanly instead of looping).
+`dimension.ts` and the `^` exponent go on using `Rational`, whose
+arithmetic stays total.
 
-Tests: every operation agrees with rational.ts through `toRational` where
-the values fit; the alignment failure; the exponent bound.
+Tests: every operation agrees with rational.ts through `toRational` over
+seeded pairs drawn by key where the values fit; sums with large exponents
+(`1e999999999 + 3e999999998`, `1e999999999 - 1e999999999`) form exactly;
+the alignment failure (`1e999999999 + 1` at the default range limit, and
+the same sum under a limit that holds it); the exponent bound at the
+bound and one past it, in a product, a quotient and a power; `pow` of
+`10` to `1442695` is `{1, 1442695}` where `2` to the same is `tooLarge`
+by the mantissa and `1e9` to `1e9` is `{1, 9e9}`.
+
+Behavior: none; the module is unused.
 
 ### 4.3 Text, rounding, digits and roots on `Scaled`
 
-`parseDecimal`, `decimalExponent`, `roundTo`, `trunc`, `format` and the
-root (`exactRoot`) move from
-rational.ts to scaled.ts and account for the exponent: `parseDecimal`
-keeps a literal's exponent lazily, so `1e999999999` parses where it is
-`tooLarge` today; `format` writes the exponent form for anything the fixed
-form cannot hold; the range limit's sizing of `pow` and the literal moves
-with them. `rational.ts` keeps construction, comparison, the exact arithmetic,
-`pow` by a bigint, `trunc` and `toFraction`, and `Precision` moves to
-rounding.ts. Nothing else changes yet: the callers still hold rationals,
-and convert through `fromRational` and `toRational` at the boundary until
-4.4, where that boundary goes.
+`parseDecimal`, `roundTo`, `trunc` and `format` move from rational.ts to
+scaled.ts and account for the exponent: `parseDecimal` keeps a literal's
+exponent lazily, checking the mantissa against `LIMIT_BITS` and the
+exponent against `MAX_EXPONENT`, so `1e999999999` parses where it is
+`tooLarge` today; rounding to significant digits commutes with the power
+of ten, so `roundTo` and `format` act on the mantissa as they do today
+and add `exp` to the exponent, and a value of any exponent is rounded
+and written with nothing formed; `format` writes the exponent form for
+anything the fixed form cannot hold; `roundTo` gives a `Scaled`; `trunc`
+is the value itself for an integer, the exact truncation where the value
+can be formed within the bound given, zero for a value below one, and
+`undefined` for a fractional value whose integer part cannot be formed
+(4.9's count). `exactRoot(s, degree)` divides the exponent by the degree,
+folds the remainder's power of ten into the mantissa when it can be
+formed within the bound, and takes rational.ts's `exactRoot` of that,
+so `sqrt(1e999999998)` is exactly `1e499999999`, `sqrt(1e999999999)` is
+the kernel's, and a remainder that cannot be formed is no exact root.
+rational.ts keeps construction, comparison, the exact arithmetic, `pow`
+by a bigint, `trunc`, `exactRoot` on a fraction and `toFraction`;
+`Precision` and `DEFAULT_PRECISION` move to rounding.ts with
+`digitsFor(bits)`, the decimal digits `bits` binary digits are worth,
+`ceil(bits log10 2)`. The parser's literal becomes a `Scaled` with a lazy
+exponent, and the `number` node of expr.ts holds it; the `^` exponent
+stays a `Rational`, the exponent grammar converting with `toRational` at
+`LIMIT_BITS`, so that `m^1e999999999` is rejected where it is written
+and `m^1e300000` is what it is today. Nothing else changes yet: the
+callers still hold rationals, and convert through `fromRational` and
+`toRational` at the boundary until 4.4, where that boundary goes.
 
-Tests: the moved tests, with the exponent cases added.
+Tests: the moved tests, with the exponent cases added; `format`,
+`roundTo`, `trunc` and `decimalExponent` are functions of the value, not
+of where its power of ten sits (`2.54`, `254/100`, `127/50` and `{127/50,
+0}` against `{254, -2}` before normalization render alike in every mode
+at every digit count tried, and so do `1e3` and `1000`); `1e999999999`,
+its square and `1.5e-999999999` format and round in each of the seven
+modes at 1, 8 and 30 digits without forming a power, against Python's
+decimal module (name the source in the test); `exactRoot` of a value
+whose exponent divides and of one whose does not; the literal
+`1e999999999` parses and `1e1000000000000000001` is rejected, as is
+`m^1e999999999` with its message.
+
+Behavior: none; a literal beyond the range limit is still refused, now
+by the evaluator's check of the mantissa alone, and nothing reads the
+exponent yet.
 
 ### 4.4 The midpoint becomes a `Scaled`
 
-`Ball.mid` is a `Scaled`; the `number` node of `expr.ts` holds a `Scaled`
-(the literal's exponent, lazily), while the `^` exponent stays a
-`Rational`, the exponent grammar converting with `toRational` so that
-`m^1e999999999` is refused there; `fixedFromRational` becomes
-`fixedFromScaled`, which converts the mantissa at the working bits and
-hands the exponent to the kernel as a scale (as `lnFixed`'s `scale` and
-`lnScaled` already take it in stage 3), so that no argument's exponent is
-formed as bits, and `fixedToScaled` takes a kernel result with its scale
-and builds the midpoint the same way; `certifies` compares the midpoint
-with the radius by exponents and leading digits where forming either is
-infeasible (D7), and the decimal digits of a midpoint with a large
-exponent are found in log space (4.9); the readers of `.mid` (the
-converter, the pipeline, the display, the messages) change type. The
-evaluator, the table and the build see only balls and do not change.
+`Ball.mid` is a `Scaled`, and the kernel's boundary is where the base
+changes. `fixedToScaled(f, digits)` rounds `value × 2^-bits` to nearest
+at `digits` significant decimal digits, a multiplication by a memoized
+power of ten and a shift, and `fixedToBall(f, context)` takes the
+working digits, `digitsFor(bitsFor(precision))`, from the context and
+adds the rounding, half a unit in the last digit, to the radius beside
+the kernel's error; every built-in passes its context, and `piBall`,
+`eBall` and the memos' balls likewise. `fixedFromRational` becomes
+`fixedFromScaled(s, bits)`, the same division with the power of ten on
+one side, a precondition failure for a value whose power of ten cannot
+be formed within the range limit, which every routine that takes the
+value itself bounds first (`sin`, `cos` and `tan` refuse an argument
+whose integer part exceeds the range limit as `tooLarge`, since the
+reduction needs `pi` to its bits; `atan` beyond `2^bits` is `±pi/2`
+within `2^-bits`, and `asinh` and `acosh` beyond it are `ln(2|x|)` within
+`1/(4x^2)`, the saturations the note lists, put in here so that no
+argument reaches a routine it cannot enter); `lnScaled` takes the
+exponent as a decimal scale, `ln(m × 10^e) = ln m + e ln 10` from the
+memo, so `ln(1e999999999)` is `≈ 2302585092.994` on the first pass, and
+the logarithms' exact cases read exponents (`log10(1e999999999)` is
+exactly `999999999`); `positiveRoot` and `rootAroundZero` scale by
+`10^(q k)` in the exponent and root `m × 10^r` on the kernel when the
+remainder's power fits the range limit, and take `powLogSpace`
+otherwise, as a rational power does today when its power does not fit.
+`settle` in exact mode rounds an inexact midpoint to the working digits
+to nearest, `roundTo` on the decimal grid in place of the shift, and
+adds half a unit in the last digit to the radius (D15 restated).
+
+The ball's sums: `addBalls(a, b, context)` and `subtractBalls` align
+exactly where the shift fits the context's range limit; where it does
+not, two exact operands in exact mode are `tooLarge`, and otherwise (an
+inexact operand, or the decimal mode of 4.5, read here from the mode
+field 4.5 adds, exact until then) each inexact operand is settled first,
+the two are added exactly if they then align, and if they still do not
+the smaller, which then lies below the working precision of the larger,
+is absorbed into the radius; `multiplyBalls` and `divideBalls` combine
+exponents and fail `tooLarge` at the exponent bound; so all four are
+`Result`s, and `quantity.ts`, `evaluate.ts` (the sum, the product and the
+quotient located as the division is today, and the context reaching
+every sum) and `convert.ts` (`convert`, `convertToList` and `roundTerms`
+take the context, as the study foresaw; a failure the checks rule out
+throws, as `decompose` throws today) follow. The quotient rule moves
+onto the coarse type: `(|a| rb + |b| ra) / (|b| (|b| - rb))` with the
+magnitudes as radii from `radiusAbove` of a `Scaled`, new in radius.ts
+on scaled.ts's `log2Bounds`, and the divisor's distance from zero as a
+lower bound the quotient rounds up against (`divideRadius`, new), which
+loosens a radius by `2^-28` relative and forms no rational. `containsZero`,
+`magnitudeAbove`, `certifiedDigits`'s bound and every comparison of a
+midpoint with an edge (`checkPositive`, `sideOfZero`, the logarithm's base
+against one, `acosh` and `atanh` against their ends, `tanh`'s and
+`asinh`'s widths, the list's order and `countOf`) go through scaled.ts's
+`compare`; `extraBits` and `scaleOf` read `decimalExponent` and the
+bounds instead of bit lengths.
+
+`certifies` compares the midpoint with the radius by exponents and
+leading digits where forming the ends is infeasible (D7): where the
+radius aligns with the midpoint's grid within the range limit, the two
+ends are formed exactly, as today; otherwise the radius is rounded up to
+a decimal through the `log2 10` constant, the midpoint is taken to two
+digits beyond those asked, and the ends are that interval widened by the
+radius rounded up to a unit there, both of which must round alike at the
+digits asked, and a digit the interval cannot resolve is not certified.
+The display formats through scaled.ts; the readers of `.mid` (the
+converter, the pipeline, the display, the messages, the built-ins) change
+type. The evaluator, the table and the build see only balls and do not
+change beyond the context reaching the sums. The stage 2 tests that
+assert a dyadic midpoint (`settle`, `fixedToBall`, the memos' balls)
+assert the decimal within the rounding instead.
 
 Tests: the type change is covered by the existing tests; new ones for
-`1e999999999 * 1e999999999` (exact, with an exponent), `1e999999999 + 1`
-(`tooLarge`, located at the sum), `m^1e999999999` (rejected at the
-exponent), and certification of `sqrt(1e999999999)`.
+`1e999999999 * 1e999999999` (exact, with an exponent, shown
+`= 1e+1999999998`), `1e999999999 + 1` (`tooLarge`, located at the sum,
+with its message through `evaluateText` and `describeTextError`), the sum
+`1e999999999 + 3e999999998` (exact), `sqrt(2) + 1e999999999` and its
+reverse (a value, `≈ 1e+999999999` certified on the first pass, the root
+absorbed into the radius), `m^1e999999999` (rejected at the exponent),
+certification of `sqrt(1e999999999)` (`≈ 3.1622777e+499999999`, first
+pass) and of `sqrt(2) * 1e999999999` at 50 digits, `ln(1e999999999)`,
+`log10(1e999999999)` (exact), `1e999999999 m` into `mm` (exact),
+`sin(1e999999999 radian)` (`tooLarge` at the call), `atan(1e999999999)`
+into `deg` (`≈ 90`), `asinh(1e999999999)`; `fixedToBall`'s rounding is
+within half a unit of the working digits and its radius covers the
+dyadic, over seeded values drawn by key; the quotient rule's radius
+against the exact one over seeded balls, within `2^-27`; the kernel
+benchmark reports a settle and a product on the decimal grid at the
+ceiling beside the routines; and the containment tests of every routine
+still hold.
 
-Behavior: `1e999999999` parses and multiplies where it fails today;
-`1e999999999 + 1` still fails, as `tooLarge`.
+Behavior: `1e999999999` parses and multiplies where it fails today, and
+the values above are values; `1e999999999 + 1` still fails, as `tooLarge`;
+every other result is what it is today to within a settle at the working
+precision; `exp(1e6)` and its family are still `tooLarge` until 4.9.
 
 ### 4.5 `mode` in the context, and settling in decimal mode
 
-`NumberContext` gains `mode: "exact" | "decimal"`, default exact. `settle`
-(2.5, D15) reads it: in decimal mode the midpoint is rounded to the
-context's precision in the user's mode, as a decimal, and the radius
-grows by the rounding's error; in exact mode it rounds to nearest at the
-working precision as it does from stage 2. The evaluator and the lookup
-already settle every result in one place, so nothing else changes; the
-table itself stays exact, as built.
+`NumberContext` gains `mode: "exact" | "decimal"`, default exact, checked
+by `checkContext`; `settle` (2.5, D15) reads it, and the two modes are one
+`roundTo` with two parameters: in decimal mode every midpoint, an exact
+one included, is rounded to the context's precision in the user's mode,
+and the radius grows by the rounding's error, the exact difference
+between the rounded value and the midpoint (not the half-unit bound of
+exact mode: a value rounded to `p` digits with half a unit of radius has
+its ends on the rounding boundaries and certifies `p - 1`, where with
+the difference it certifies `p`; `1200/3937 m` rounded to `0.30480061` is
+within `4e-10`); a value with `p` digits or fewer is its own rounding and
+stays exact, and a zero midpoint is left alone; in exact mode it rounds
+an inexact midpoint to the working digits to nearest as it does from
+4.4. The evaluator and the lookup already settle every result in one
+place, so nothing else changes; the table itself stays exact, as built
+(`system-build.ts` and the tests build at the ceiling context in exact
+mode whatever the user's mode, 4.6). The sum rule of 4.4 reads the mode
+too: in decimal mode two exact operands whose sum cannot be aligned are
+settled and added as inexact ones are, since every operation rounds
+there, so `1e999999999 + 1` is `1e999999999` within one.
 
 What the user's rounding mode means in each mode, stated once. In exact
 mode it is applied once, by the display, to the certified value of the
-whole expression (D15). In decimal mode it governs every operation:
-`1 / 3 * 3` is `0.99999999` under `towardZero` at eight digits and `1`
-under `halfEven`, and the display's rounding is then the identity on a
-value that already has `p` digits. The difference is the point of having
-two modes rather than a quirk of the second. Decimal mode is where a user
-who wants fixed-precision arithmetic with a rounding mode, as a hand
-calculator or a decimal library gives it, gets exactly that, and rounding
-only at the end, or raising the internal precision as the retry loop
-does, would compute something other than what was asked; exact mode is
-where "compute this to `p` digits" is meant literally, and there a mode
-inside would only be a double rounding of digits certification already
-guarantees. The radius tracks each rounding in either mode, so the
-display marks the digits it does not certify in decimal mode too, as the
-study says, without escalating (4.6).
+whole expression (D15). In decimal mode it governs every operation, since
+every result the evaluator produces is settled: a literal with more than
+`p` digits is rounded and the radius records it; a unit is settled once
+when it is looked up, exactly when it has `p` digits or fewer (`1 ft` in
+`in` is `= 12 in` in either mode) and rounded otherwise; a power rounds
+at every squaring, as `powBall` settles each product; a call rounds once,
+on the kernel's result; a defined function's body is evaluated by the
+same evaluator, so every operation in it rounds. `1 / 3 * 3` at eight
+digits is the midpoint `0.99999999` under `towardZero` and under
+`halfEven` alike, since `0.33333333 × 3` has eight digits and rounds no
+further (the first text's `1` under `halfEven` was wrong), with the two
+roundings in the radius, and the display then shows the digits the
+radius certifies, `≈ 1` with seven of eight certain, as the study reads
+the case; `0.125 * 1` at two digits is `0.13` under `halfAwayFromZero`
+and `0.12` under `halfEven`, and `2 / 3` at eight is `0.66666667` to
+nearest and `0.66666666` under `towardZero` and `floor`. The difference is
+the point of having two modes rather than a quirk of the second. Decimal
+mode is where a user who wants fixed-precision arithmetic with a
+rounding mode, as a hand calculator or a decimal library gives it, gets
+exactly that, and rounding only at the end, or raising the internal
+precision as the retry loop does, would compute something other than
+what was asked; exact mode is where "compute this to `p` digits" is
+meant literally, and there a mode inside would only be a double rounding
+of digits certification already guarantees. The radius tracks each
+rounding in either mode, so the display marks the digits it does not
+certify in decimal mode too, as the study says, without escalating (4.6).
+
+Tests: `settle` in decimal mode rounds a seeded midpoint drawn by key to
+`p` digits in each of the seven modes against `roundTo`, grows the
+radius by exactly the difference, and is the identity on a value of `p`
+digits or fewer and on zero; the examples above through `evaluate` at a
+decimal context, midpoint and radius both; `1e999999999 + 1` in decimal
+mode; `checkContext` rejects a mode that is neither.
+
+Behavior: none until 4.6 gives the mode a way in; `mode` defaults to
+exact and every existing caller builds an exact context.
 
 ### 4.6 The pipeline in decimal mode
 
-`resolve` runs one pass in decimal mode, at the context's own precision,
-and the display marks what the radius does not certify; the schedule
-applies in exact mode only.
+`schedule` yields the user's context alone in decimal mode, so `resolve`
+runs one pass at the context's own precision, the kernel computing at
+its bits with the guard, and the display marks what the radius does not
+certify; an `unresolved` is final and reported at once, since no pass
+can narrow it; the schedule applies in exact mode only. The table is
+built at the ceiling context in exact mode whatever the user's mode
+(`ceilingContext` sets it), and `unitLookup` settles a unit in the user's
+mode. The conversion needs no settle of its own: the ratio is exact, and
+the display's rounding of it in the mode is the division's per-operation
+rounding; a list's counts and remainder are exact operations and
+`roundTerms` rounds in the mode; the reciprocal line is the display's
+rounding of the reciprocal. The probe of limits.ts is untouched.
+
+Tests: through `evaluateText` and `convertText` at a decimal context:
+`1 / 3 * 3` at eight digits under `towardZero` shows `≈ 1` with seven of
+eight digits certain, and the same under `halfEven`; `1 ft` in `in` is
+`= 12 in`; `1 surveyfoot` in `m` is `≈ 0.30480061`, certified; the
+quotient `1 / (1 / 3 * 3 - 1)` is `unresolved` at once, with its message,
+where exact mode reports the same after the ceiling; `exp(1)` at eight
+digits is `2.7182818` within the rounding, one pass (a `run` that records
+its contexts sees one); `sqrt(2)^2 - 2` is the mode's `0` or its rounded
+residue, one pass; a list and a function want in decimal mode.
+
+Behavior: the decimal mode exists, reachable through the context, and
+nothing in the app sets it until 4.7.
 
 ### 4.7 The UI
 
-The mode setting beside the digits and the rounding mode; the settings
-validation; README.
+The mode setting beside the digits and the rounding mode: a "Mode"
+select in the settings panel, `exact` ("every digit shown is certain, at
+rising precision") and `decimal` ("every step rounded to the digits, in
+the rounding mode"), stored as `mode` in settings.ts, validated on the
+way in with the rest (a value that is neither is the default), clamped
+with nothing, since it depends on nothing, and passed down in the
+context; the table is built in exact mode regardless (4.6). README
+"Settings" gains the setting, in 4.8's sweep.
+
+Tests: settings.ts loads, defaults and saves the mode; `contextOf` carries
+it; the UI check of the commit message records `1 / 3 * 3` at eight
+digits in each mode with "Rounding" toward zero, and `1 ft` in `in` in
+decimal mode.
+
+Behavior: the mode setting.
 
 ### 4.8 Stage 4 docs
 
 ARCHITECTURE.md "Numbers" for the type ladder of D13 (`Rational`,
-`Scaled`, `Radius`, `Ball`, `Quantity`), the exponent and the two modes;
-"Layout" for scaled.ts.
+`Scaled`, `Radius`, `Ball`, `Quantity`), the exponent, its bound and the
+two modes; "Precision and rounding" for the decimal grid at the kernel's
+boundary, the sums that settle first, certification by the digit
+interval, and the decimal mode's settle; "Size limits" for D16 restated;
+"Layout" for scaled.ts and digits.ts. README "Settings" for the mode,
+and "Functions in expressions" for the range of the inexact functions
+(`exp(1e6)` is a value; `exp(1e30)` is not). docs/builtins.md's rule on
+a large result and its implementation note on the limit.
+docs/calculator.md's status line names stage 4 as landed and the
+payload line is measured again after `pnpm build`. docs/decimal.md's
+"Implementation notes" and the plan's "Stage 4 as it landed", in the
+style of "Stage 3 as it landed".
+
+Behavior: none; documentation.
 
 ### 4.9 Large results of the inexact functions
 
-Added during stage 3 (3.6), and possibly earlier in the stage's order
-than its number, since 4.4 depends on parts of it. The kernel routines
-whose results can be large return a mantissa with a scale, never a value
-of the result's bits: `expFixed` renormalizes after each squaring, keeping
-the working bits and moving the rest into a binary exponent it returns
-beside the `Fixed` (so `exp(1e6)` costs what `exp(1)` costs plus the
-squarings), and `sinh`, `cosh` (3.11), `powLogSpace` (3.8) and `decibel`
-(3.12) inherit it through `exp`; `lnFixed` and `lnScaled` already take an
-argument's exponent as a scale, and `rootFixed` and the powers combine
-exponents exactly. `fixedToScaled` carries the scale into the midpoint's
-exponent. The display finds the decimal digits of `m × 2^e` for a large
-`e` in log space: the decimal exponent is `floor(e log10 2 + log10 m)`
-and the leading digits are `10^(fraction)`, computed through `lnFixed`,
-`expFixed` and the memoized `ln 2` and `ln 10` at the working bits plus
-the bit length of `e`, with the radius carried, so that certification
-(D7) still compares both ends and marks what it cannot certify. `exp`'s
-guard becomes the exponent bound `MAX_EXPONENT` of 4.2 (`exp(1e30)` is
-`tooLarge`, since its exponent could not be formatted; `exp(1e6)` and
-`exp(-1e6)` are values), and D16 is restated as the stage 4 intro says:
-the range limit bounds exact sizes and alignments. The conversion of a
-large quantity between units keeps working, since a unit's factor is an
-exact rational and a product only adds to the exponent; a unit list
-(`convert.ts`) whose count would be a large integer shows the count as a
-value with an exponent rather than forming it.
+Added during stage 3 (3.6), after 4.4 in the order, since the midpoint
+can then hold a large result and the display write it; this task changes
+the kernel and the guards, and nothing in 4.4 depends on it. `Floating =
+{ mant: Fixed; exp: bigint }` in fixed.ts stands for `mant × 2^exp`, and
+`fixedToScaled` takes one: exactly, as 4.4 has it, for an exponent that
+can be formed within the range limit, and otherwise through new
+`src/core/digits.ts`, above the kernel, which finds the decimal digits
+in log space: the decimal exponent is `floor(exp log10 2 + log10 mant)`
+and the leading digits are `10^fraction`, through `lnFixed`, `expFixed`
+and the memoized `ln 2` and `ln 10` at the working bits plus the bit
+length of the exponent plus a margin, the computation's error carried in
+the kernel's error counts and added to the radius beside the result's;
+it is the one place the program needs log space. `expFixed(f, bits)`
+returns a `Floating`: after each squaring of its loop the mantissa is
+cut to the working bits and the rest moved into the exponent (so
+`exp(1e6)` costs what `exp(1)` costs plus sixty squarings at the working
+bits), and a negative argument is the same loop with the exponent going
+negative, the `depth` of today's routine going with it; its precondition
+on the argument's magnitude (`MOST_MAGNITUDE`, `2^40`) becomes the
+exponent bound, and `expFits` becomes that check, an argument whose
+magnitude over its whole ball times `log10 e` exceeds `MAX_EXPONENT`
+being `tooLarge` before anything is computed. `sinhCoshFixed` and
+`tanhFixed` take the pair from the `Floating`: for an exponent beyond the
+working bits plus a margin the reciprocal `1/E` is below an ulp of `E`
+and is folded into the error, so that `sinh`, `cosh` and `tanh` of a
+large argument form nothing (`tanh`'s saturation stands and comes first);
+`powLogSpace` and `decibel` inherit the range through `expFixed`;
+`powBall`'s magnitude guard becomes the exponent bound, a power of an
+inexact base by squaring with settling having the range of its
+exponent. The kernel benchmark gains `exp 1e6` and `cosh 1e6` at the
+ceiling and asserts the first within a small factor of `exp 1`. A unit
+list whose count would be an integer that cannot be formed (`trunc`
+returns `undefined`) shows the count as the ratio settled toward zero at
+the working precision, an inexact value with an exponent, and the
+remainder is then a ball around zero whose radius says what the count
+left, which the display leaves out with its note (D8 amended); a count
+that is an integer of any size stays exact.
 
 Tests: `exp(1e6)` against Python's decimal module at 30 digits
-(`3.0332153968...e434294`), `exp(-1e6)`, `pow(10, 1e6 / 3)`, `cosh(1e6)`
-and `1e6 decibel`, each certified and displayed with its exponent; the
-containment test of `exp` extended to large arguments; `exp(1e30)` is
-`tooLarge` at the exponent bound; the kernel benchmark's `exp 1e6` at
-the ceiling costs within a small factor of `exp 1`.
+(`3.0332153968...e434294`), `exp(-1e6)`, `pow(10, 1e6 / 3)`, `cosh(1e6)`,
+`sinh(-1e6)` and `1e6 decibel`, each certified and displayed with its
+exponent through `evaluateText`; `digits.ts` against Python's decimal
+module for `2^1442695`, `2^-1442695`, `3 × 2^1442695` and `7 × 2^(3 ×
+10^18)` at 8, 30 and 60 digits, and its agreement with the exact
+conversion on every value both can form (`2^100000`, `2^-100000`, at the
+range limit and on both sides of it); `exp(1e18)` is a value and
+`exp(1e30)` is `tooLarge` at the exponent bound, with its message; the
+containment test of `exp` extended to arguments up to `1e6` of either
+sign, at a precision against four times it, at the value and both ends,
+drawn by key; `sqrt(2)^(10^7)` is a value where 2.5's test had it
+`tooLarge`, and `sqrt(2)^(10^19)` is `tooLarge` at the bound;
+`1e999999999 m` into `ft;in` shows `≈ 3.2808399e+999999999 ft` with its
+note and into `mm;m` is exact; the kernel benchmark's `exp 1e6` at the
+ceiling costs within a small factor of `exp 1`.
 
 Behavior: the inexact functions have the range of their exponent, not of
-the bits of their value.
+the bits of their value; a power of an inexact base likewise.
+
+### 4.10 `approx(x)`
+
+Added in review of 4.0 (docs/approximate.md is the design). New
+`src/core/builtins/approx.ts`: a built-in of one argument of any
+dimension, kinds included, whose result has the argument's dimension
+(`sameAsArgument`, new in builtin.ts, the rule D14 describes for the
+exact functions of stage 6, landing here ahead of them); the
+result is the ball whose midpoint is the argument's and whose radius is
+the larger of the argument's own and one unit in the last of the
+working digits, `digitsFor(bitsFor(precision))`, at the value's
+magnitude, rounded up, so that an exact argument gains the unit and an
+inexact one is never narrowed; a zero or unbounded argument is returned
+as it is; the evaluator settles the result as it settles every inexact
+one. In decimal mode the working digits are the user's `p`, and the
+mode's rounding follows as for every result. The
+retry loop needs no change, since the radius is the precision's and
+shrinks with each pass. docs/builtins.md and README "Functions in
+expressions" name it; the two-argument form, an absolute uncertainty,
+is future work the note lays out, with the retry loop's stopping rule
+it will need.
+
+Tests: the built-in's own (an exact value gains the working radius, an
+inexact one whose radius is larger is unchanged and one whose radius is
+smaller is widened to the unit, `approx` of an `approx` is the same
+ball, zero and unbounded are unchanged, any dimension passes and is
+kept, `approx(1 m)` included); through
+`evaluateText`: `approx(2.54) cm` in `in` is `≈ 1` certified on the first
+pass, `approx(1e999999999) + 1` is `≈ 1e+999999999`, `approx(0.1) +
+approx(0.2) - approx(0.3)` ends at the ceiling as a zero with a bound,
+`approx(1 ft)` in `in` is `≈ 12`, `approx(1/3)` at eight digits is
+`≈ 0.33333333` certified, and `approx(2)` in decimal mode is `2` within
+one unit in the last digit; a definition calling `approx` builds, and a
+conversion through it shows `≈`; `approx()` and `approx(1, 2)` are arity
+errors with their messages.
+
+Behavior: `approx` exists.
 
 ## Stage 5: the rational display
 

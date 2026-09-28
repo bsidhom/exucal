@@ -33,7 +33,7 @@ import { parseDefinitions } from "./core/definitions.ts";
 import { evaluate } from "./core/evaluate.ts";
 import { parseExpr } from "./core/expr.ts";
 import { convertText } from "./core/pipeline.ts";
-import { type Quantity } from "./core/quantity.ts";
+import type { Quantity } from "./core/quantity.ts";
 import { radiusUpper } from "./core/radius.ts";
 import {
   DEFAULT_PRECISION,
@@ -47,7 +47,7 @@ import {
   toFraction,
   type Rational,
 } from "./core/rational.ts";
-import { type Result } from "./core/result.ts";
+import type { Result } from "./core/result.ts";
 import { unitLookup, type UnitTable } from "./core/table.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */

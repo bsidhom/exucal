@@ -61,7 +61,7 @@
 // unbounded. The context's precision is the working precision the kernel
 // computes at; nothing here reads its rounding mode.
 
-import { type NumberContext } from "./context.ts";
+import type { NumberContext } from "./context.ts";
 import {
   bitsFor,
   fixedFromBall,
@@ -108,7 +108,7 @@ import {
 } from "./radius.ts";
 import { divideRounded } from "./rounding.ts";
 import { err, ok, type Result } from "./result.ts";
-import { type RoundingMode } from "./rounding.ts";
+import type { RoundingMode } from "./rounding.ts";
 
 /** A midpoint with the radius that bounds its distance from the true value. */
 export type Ball = {

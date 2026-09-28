@@ -15,11 +15,11 @@ import {
   type DimensionLookup,
 } from "./dimension-of.ts";
 import { parseExpr, type Expr } from "./expr.ts";
-import { type Quantity } from "./quantity.ts";
+import type { Quantity } from "./quantity.ts";
 import { ONE, rational, type Rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
-import { type Span } from "./span.ts";
-import { type UnitFunction } from "./table.ts";
+import type { Span } from "./span.ts";
+import type { UnitFunction } from "./table.ts";
 
 const PRIMITIVES: Primitives = new Map([
   ["m", "dimension"],

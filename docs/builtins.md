@@ -188,9 +188,14 @@ the call and keeps nothing.
 - `src/core/builtins.ts`: `BUILTINS`, the app's built-ins gathered by name
   from those modules; the table and the build take it as their default
   set.
-- `src/core/fixed.ts`: the kernel routines, `expFixed`, `lnFixed`,
-  `sinFixed`, `cosFixed`, `atanFixed`, beside the roots.
-- `src/core/constants.ts`: the four memoized constants.
+- `src/core/fixed-exp.ts`, `fixed-log.ts`, `fixed-trig.ts`: the kernel
+  routines, `expFixed`, `lnFixed`, `sinFixed`, `cosFixed`, `atanFixed`,
+  beside fixed.ts, which keeps the representation, the exact operations
+  and the roots; the routines are below the ball so that `powRationalBall`
+  can reach `exp` and `ln`.
+- `src/core/constants.ts`: `pi` and `e`, memoized by one rule; `ln(2)`
+  and `ln(10)` are memoized the same way in fixed-log.ts, which computes
+  them.
 - `src/core/table.ts`, `src/core/evaluate.ts`, `src/core/build.ts`: the
   resolved function as a union, the call case, the duplicate and the
   prefixed-name checks (3.2); the ceiling in the context and the table at

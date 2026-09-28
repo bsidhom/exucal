@@ -24,7 +24,7 @@ import {
 } from "./pipeline.ts";
 import { evaluate } from "./evaluate.ts";
 import { parseExpr } from "./expr.ts";
-import { type Quantity } from "./quantity.ts";
+import type { Quantity } from "./quantity.ts";
 import { certifies } from "./ball.ts";
 import {
   DEFAULT_PRECISION,
@@ -34,7 +34,7 @@ import {
   toFraction,
   type Rational,
 } from "./rational.ts";
-import { type Result } from "./result.ts";
+import type { Result } from "./result.ts";
 import { unitLookup, type UnitTable } from "./table.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */

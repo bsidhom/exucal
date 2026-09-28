@@ -1420,17 +1420,30 @@ Behavior: functions whose bodies fail at `1` now build.
 
 ### 3.6 `exp`
 
-`src/core/fixed.ts` gains `expFixed`: reduce by halving until the argument
-is below `2^-8`, Taylor with the truncation bound at the interval's upper
-end, then square back, each squaring doubling the relative error plus one
-ulp, with the guard bits raised by the number of squarings; the result's
-`bits` follow its magnitude (D9), so `exp(-1000)` keeps its digits.
-`constants.ts` gains `eFixed(bits, ceilingBits)`, the series at one by
-binary splitting, memoized as `pi` is (D10). `BUILTINS` gains `exp` (one
-dimensionless argument; `exp(0)` exact; `exp(1)` from the memo); the
-built-in guards the result's magnitude against the range limit before
-computing, `tooLarge` at the call, since `exp(1e6)` is beyond any range
-limit. `bench/kernel.bench.ts` gains a report of every kernel routine at
+New `src/core/fixed-exp.ts` (the kernel routines live in modules beside
+fixed.ts, one per family, so that fixed.ts stays the representation, the
+exact operations and the roots, and the routines stay below the ball,
+where `powRationalBall` can reach them; fixed.ts exports the helpers they
+share, `rebaseFixed`, `scaleFixed`, `divideFixedByInteger`, `exponentOf`
+and `keepSignificant`, the last being D9's rule for a result's bits):
+`expFixed(f, bits)` reduces by halving until the argument is below `2^-8`,
+sums the Taylor series in fixed point with the argument's error included
+from the start, stopping at the first term whose whole interval lies
+within an ulp, after which the tail is below a 255th of an ulp and one
+ulp covers it, then squares back, each squaring doubling the relative
+error plus one ulp, working at the bits plus the number of squarings plus
+a guard, and for a negative argument at as many more fraction bits as the
+result is below one; the result's `bits` follow its magnitude (D9), so
+`exp(-1000)` keeps its digits. `constants.ts` gains `eSeries(bits)`, `Σ
+1/n!` by binary splitting with the tail below `2 / (N + 1)!`, and
+`eFixed(bits, ceilingBits)`, memoized as `pi` is by one rule,
+`memoAtCeiling` (D10). `builtins/exp.ts` holds `expBall` and the built-in
+(one dimensionless argument; `exp(0)` exact; `exp(1)` from the memo; an
+unbounded argument gives an unbounded result); it guards the result's
+magnitude against the range limit before computing, `tooLarge` at the
+call, on either side of one, so that `exp(1e6)` and `exp(-1e6)` are
+refused alike, since the settled midpoint of the second would need a
+denominator beyond the limit. `bench/kernel.bench.ts` gains a report of every kernel routine at
 the default ceiling and at a quarter of it, one line per routine as each
 lands (this task's are `exp` and the roots), asserting that the ceiling
 costs at most 64 times the quarter, twice what a series of linear length
@@ -1443,6 +1456,21 @@ containment over the shared source across magnitudes; exact case and its
 neighbor; the pipeline certifies `exp(1)` at 50 digits in one pass;
 `exp(1 m)` is a dimension-rule error whose message names the dimension;
 `exp(1e6)` is `tooLarge` at the call.
+
+Two findings as it landed. The containment test caught `truncateFixed`
+(2.x) rounding its error down: cutting `bits` from a value loses up to an
+ulp of the new size, and the old error, converted to the new ulps, must
+be rounded up, not down, before that ulp is added (3/4 ± 2/4 truncated to
+whole units is 0 ± 2, not 0 ± 1, since the interval reaches 5/4); the
+rule is now `ceil(error / 2^k) + 1`, a unit test holds the case, and the
+memo tests' exact error counts moved by one. And the kernel's modules had
+an import cycle through fixed.ts, ball.ts and context.ts that only
+type-only imports kept alive: under `verbatimModuleSyntax` an `import {
+type X }` still loads its module for side effects, so the cycle ran a
+module's top level before its constants existed once a test imported
+fixed-exp.ts first. Every type-only import in src and bench is now
+`import type`, which is erased, and the cycle is gone; nothing else about
+those modules changed.
 
 Behavior: `exp` exists.
 

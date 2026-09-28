@@ -7,7 +7,7 @@ import {
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "./core/context.ts";
-import { type Shown } from "./core/display.ts";
+import type { Shown } from "./core/display.ts";
 import { roundTerms } from "./core/convert.ts";
 import { formatDimension, isDimensionless } from "./core/dimension.ts";
 import { show } from "./core/display.ts";
@@ -28,7 +28,7 @@ import {
   sign,
   type Precision,
 } from "./core/rational.ts";
-import { type UnitTable } from "./core/table.ts";
+import type { UnitTable } from "./core/table.ts";
 import { describeConversionError, describeTextError } from "./messages.ts";
 
 /**

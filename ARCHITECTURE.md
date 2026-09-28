@@ -989,7 +989,8 @@ src/core/context.ts       NumberContext: the precision, the rounding mode, the r
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root on the kernel, unresolved
 src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations, the roots
-src/core/constants.ts     pi by Chudnovsky's series with binary splitting, memoized at the ceiling
+src/core/fixed-exp.ts     expFixed: the exponential on the kernel, by halving, Taylor and squaring
+src/core/constants.ts     pi by Chudnovsky's series and e by its series, both with binary splitting, memoized at the ceiling
 src/core/display.ts       show: a ball's text at the digits it certifies, and its kind (exact, certified, partial, zero, unbounded)
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/dimension-of.ts  dimensionOf: a body's dimension without its value, the build's function check
@@ -1004,6 +1005,7 @@ src/core/name-index.ts    the names that start with a text, by binary search
 src/core/builtin.ts       Builtin, its errors and the shared rule helpers: what a built-in is
 src/core/builtins.ts      BUILTINS: the app's built-ins gathered by name from builtins/
 src/core/builtins/pi.ts   pi(): the circle constant from constants.ts, one module per built-in
+src/core/builtins/exp.ts  exp(x): the exponential, on fixed-exp.ts, with e from constants.ts
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction
@@ -1078,9 +1080,13 @@ middle: binary splitting grows as V8's bigint multiplication does,
 Karatsuba at these sizes, about 38 times per decade of digits at most,
 where a series summed term by term would be quadratic and show a hundred;
 the upper decade is asserted because its timings are well above the
-timer's noise. It also reports the cost of a square and a cube root at
-the default ceiling of the retry schedule, the costliest pass an
-expression that never certifies runs.
+timer's noise. It also times every routine of the kernel (the roots, `exp`,
+the series of `e`, and each elementary function as it lands) at the
+default ceiling of the retry schedule, the costliest pass an expression
+that never certifies runs, and at a quarter of it, asserting that the
+ceiling costs at most 64 times the quarter, twice what a series of linear
+length over Karatsuba multiplication gives; the report is what the probe
+of `limits.ts` chooses its operations from.
 
 ## Later
 

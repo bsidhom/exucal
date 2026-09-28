@@ -1,8 +1,10 @@
-// The constants the kernel computes on demand: `pi` for now, `exp(1)` in
-// stage 3. docs/calculator-plan.md (D10 and task 2.8) is the design and
-// docs/calculator.md ("Elementary functions") the measurement behind it: no
-// digits are shipped, since a thousand digits cost under a millisecond to
-// compute and a stored table would cost more payload than it saves.
+// The constants the kernel computes on demand and memoizes: `pi` and `e`
+// (`exp(1)`); the logarithms' `ln(2)` and `ln(10)` are memoized the same
+// way in fixed-log.ts, which computes them. docs/calculator-plan.md (D10,
+// tasks 2.8 and 3.6) is the design and docs/calculator.md ("Elementary
+// functions") the measurement behind it: no digits are shipped, since a
+// thousand digits cost under a millisecond to compute and a stored table
+// would cost more payload than it saves.
 //
 // `chudnovsky(bits)` is the Chudnovsky series with binary splitting, the
 // algorithm libbf and every fast library use: the terms of
@@ -29,26 +31,33 @@
 // the final division truncates by less than one: the error count is three
 // ulps in all, stated as such.
 //
-// `piFixed(bits, ceilingBits)` memoizes per D10: the module holds exactly
-// one value, the digits at the ceiling of the retry schedule in force plus
-// a margin of `MEMO_MARGIN` bits, computed on the first request however
-// low, and every request at or below that, which is every request the loop
-// can make, is that value with its low bits truncated (`truncateFixed`, an
-// ulp for the truncation). A request at a higher ceiling replaces the
-// value, a lower one leaves it, so the footprint is fixed by the ceiling,
-// about 1.7 KB at the default of 4,040 digits, and bounded by the hard
+// `eSeries(bits)` is `Σ 1/n!` by binary splitting, the same recursion on
+// `Q(a, b) = Π n` and `T(a, b) = Σ Π m`, with the tail `Σ_{n > N} 1/n!`
+// below `2 / (N + 1)!`, so `N` is the least count with `(N + 1)!` above
+// `2^(bits + 2)`, and the error is two ulps, one for the tail and one for
+// the final truncation.
+//
+// `piFixed(bits, ceilingBits)` and `eFixed(bits, ceilingBits)` memoize per
+// D10, by one rule (`memoAtCeiling`): each holds exactly one value, the
+// digits at the ceiling of the retry schedule in force plus a margin of
+// `MEMO_MARGIN` bits, computed on the first request however low, and every
+// request at or below that, which is every request the loop can make, is
+// that value with its low bits truncated (`truncateFixed`, an ulp for the
+// truncation). A request at a higher ceiling replaces the value, a lower
+// one leaves it, so the footprint is fixed by the ceiling, about 1.7 KB
+// per constant at the default of 4,040 digits, and bounded by the hard
 // bound on the cap. The margin is for the argument reduction of `sin` and
 // `cos` (3.9), which needs pi to the working bits plus the argument's bit
 // length: at the ceiling pass that exceeds the ceiling by the argument's
 // bit length, so without the margin every `sin(1 radian)` would recompute
 // pi there; with it, every argument below `2^64` is served from the memo
 // at every pass. A request above the memo (the reduction at a larger
-// argument) is computed for the call and not kept. The memo is
+// argument) is computed for the call and not kept. The memos are
 // unobservable through the core's results, as `lazy` in parser.ts is;
-// `piMemoBits` exposes its precision for the tests alone.
+// `piMemoBits` and `eMemoBits` expose their precision for the tests alone.
 
-import { type Ball } from "./ball.ts";
-import { type NumberContext } from "./context.ts";
+import type { Ball } from "./ball.ts";
+import type { NumberContext } from "./context.ts";
 import { bitsFor, fixedToBall, truncateFixed, type Fixed } from "./fixed.ts";
 
 /** The bits each term of the series is worth, at least: a safe floor of `2^-46` per term. */
@@ -142,27 +151,82 @@ function sqrt10005(bits: number): Fixed {
 }
 
 /**
+ * `e` at `bits` fraction bits by the series `Σ 1/n!` with binary
+ * splitting, uncached, with an error of two ulps as the header derives.
+ */
+export function eSeries(bits: number): Fixed {
+  if (!Number.isInteger(bits) || bits < 0) {
+    throw new RangeError(
+      `Fraction bits must be a non-negative integer: ${bits}`,
+    );
+  }
+  // The least N with (N + 1)! above 2^(bits + 2).
+  let terms = 1;
+  for (let log2 = 0; log2 <= bits + 2; terms++) {
+    log2 += Math.log2(terms + 1);
+  }
+  const { q, t } = splitFactorials(1n, BigInt(terms) + 1n);
+  const scale = 1n << BigInt(bits);
+  return { value: scale + (t * scale) / q, error: 2n, bits };
+}
+
+/**
+ * The binary splitting of `Σ_{n = a}^{b - 1} 1 / (a (a + 1) ... n)`: `q`
+ * the product of `a` to `b - 1`, and `t` the numerator of the sum over
+ * it, so that from `a = 1` the sum is `Σ 1 / n!`.
+ */
+function splitFactorials(a: bigint, b: bigint): { q: bigint; t: bigint } {
+  if (b - a === 1n) return { q: a, t: 1n };
+  const m = (a + b) >> 1n;
+  const left = splitFactorials(a, m);
+  const right = splitFactorials(m, b);
+  return { q: left.q * right.q, t: left.t * right.q + right.t };
+}
+
+/**
  * The bits a memo holds beyond the ceiling, so that the argument reduction
  * of the trigonometric functions at the ceiling pass is served from it for
  * arguments below `2^64` (D10).
  */
 export const MEMO_MARGIN = 64;
 
-/** The one value the module holds: pi at the ceiling in force plus the margin, or nothing yet. */
-let memo: Fixed | undefined;
+/** A constant memoized at the ceiling: its value at `bits` under `ceilingBits`, and the bits it holds. */
+type Memo = {
+  readonly at: (bits: number, ceilingBits: number) => Fixed;
+  readonly bits: () => number | undefined;
+};
 
 /**
- * `pi` at `bits` fraction bits, from the memo at `ceilingBits` plus the
- * margin (D10): the memo is computed at that many bits on the first
- * request at or below it, replaced when a higher ceiling is asked for, and
+ * The memo rule of D10 over `compute`, a constant at any bits: one value
+ * is held, computed at `ceilingBits` plus the margin on the first request
+ * at or below that, replaced when a higher ceiling is asked for, and
  * truncated to `bits` for every request it covers; a request above it is
  * computed for the call and not kept.
  */
+export function memoAtCeiling(compute: (bits: number) => Fixed): Memo {
+  let held: Fixed | undefined;
+  return {
+    at: (bits, ceilingBits) => {
+      const wanted = ceilingBits + MEMO_MARGIN;
+      if (bits > wanted) return compute(bits);
+      if (held === undefined || held.bits < wanted) held = compute(wanted);
+      return held.bits === bits ? held : truncateFixed(held, bits);
+    },
+    bits: () => held?.bits,
+  };
+}
+
+const piMemo = memoAtCeiling(chudnovsky);
+const eMemo = memoAtCeiling(eSeries);
+
+/** `pi` at `bits` fraction bits, from the memo at `ceilingBits` plus the margin (D10). */
 export function piFixed(bits: number, ceilingBits: number): Fixed {
-  const held = ceilingBits + MEMO_MARGIN;
-  if (bits > held) return chudnovsky(bits);
-  if (memo === undefined || memo.bits < held) memo = chudnovsky(held);
-  return memo.bits === bits ? memo : truncateFixed(memo, bits);
+  return piMemo.at(bits, ceilingBits);
+}
+
+/** `e` at `bits` fraction bits, from the memo at `ceilingBits` plus the margin (D10). */
+export function eFixed(bits: number, ceilingBits: number): Fixed {
+  return eMemo.at(bits, ceilingBits);
 }
 
 /** The ball of `pi` at the precision of `context`, from the memo at the context's ceiling. */
@@ -172,7 +236,19 @@ export function piBall(context: NumberContext): Ball {
   );
 }
 
-/** The fraction bits of the value the memo holds, or `undefined` before the first request; for the tests. */
+/** The ball of `e` at the precision of `context`, from the memo at the context's ceiling. */
+export function eBall(context: NumberContext): Ball {
+  return fixedToBall(
+    eFixed(bitsFor(context.precision), bitsFor(context.ceiling)),
+  );
+}
+
+/** The fraction bits of the value the memo of `pi` holds, or `undefined` before the first request; for the tests. */
 export function piMemoBits(): number | undefined {
-  return memo?.bits;
+  return piMemo.bits();
+}
+
+/** The fraction bits of the value the memo of `e` holds, or `undefined` before the first request; for the tests. */
+export function eMemoBits(): number | undefined {
+  return eMemo.bits();
 }

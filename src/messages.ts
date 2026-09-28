@@ -21,15 +21,15 @@ import {
   type DomainReason,
   type Edge,
 } from "./core/builtin.ts";
-import { type UnitListError } from "./core/convert.ts";
-import { type Arity, type EvaluateError } from "./core/evaluate.ts";
+import type { UnitListError } from "./core/convert.ts";
+import type { Arity, EvaluateError } from "./core/evaluate.ts";
 import { ZERO, equals, toFraction } from "./core/rational.ts";
-import {
-  type ConversionError,
-  type InverseFailed,
-  type TextError,
+import type {
+  ConversionError,
+  InverseFailed,
+  TextError,
 } from "./core/pipeline.ts";
-import { type Span } from "./core/span.ts";
+import type { Span } from "./core/span.ts";
 
 /**
  * Why `text` denotes no quantity, as one sentence: what was expected where

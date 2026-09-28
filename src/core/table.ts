@@ -29,12 +29,12 @@
 // error that says what the name is otherwise, so that the message for
 // `kg(m/s)` can show the product the user probably meant.
 
-import { type NumberContext } from "./context.ts";
-import { type Ball } from "./ball.ts";
-import { type Builtin, type Builtins } from "./builtin.ts";
+import type { NumberContext } from "./context.ts";
+import type { Ball } from "./ball.ts";
+import type { Builtin, Builtins } from "./builtin.ts";
 import { DIMENSIONLESS, type Primitives } from "./dimension.ts";
 import { ONE_ARGUMENT, type Arity, type Lookup } from "./evaluate.ts";
-import { type Expr } from "./expr.ts";
+import type { Expr } from "./expr.ts";
 import { resolveName, type Resolution } from "./names.ts";
 import {
   multiplyQuantities,
@@ -42,7 +42,7 @@ import {
   type Quantity,
 } from "./quantity.ts";
 import { err, ok } from "./result.ts";
-import { type Span } from "./span.ts";
+import type { Span } from "./span.ts";
 
 export type UnitTable = {
   /** The primitives with their roles, in declaration order. */

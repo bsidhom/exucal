@@ -94,7 +94,7 @@ import {
 } from "./parser.ts";
 import { divide, parseDecimal, type Rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
-import { type Span } from "./span.ts";
+import type { Span } from "./span.ts";
 
 // ---------------------------------------------------------------------------
 // Types

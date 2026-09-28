@@ -1,15 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { exact, rootBall } from "../src/core/ball.ts";
-import { chudnovsky } from "../src/core/constants.ts";
+import { chudnovsky, eSeries } from "../src/core/constants.ts";
+import { DEFAULT_CEILING } from "../src/core/context.ts";
+import { expFixed } from "../src/core/fixed-exp.ts";
 import {
-  DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
-  DEFAULT_MAX_DIGITS,
-  DEFAULT_ROUNDING,
-  ceilingFor,
-} from "../src/core/context.ts";
-import { bitsFor } from "../src/core/fixed.ts";
+  bitsFor,
+  fixedFromRational,
+  rootFixed,
+  sqrtFixed,
+} from "../src/core/fixed.ts";
 import { rational } from "../src/core/rational.ts";
 import { bestOf, millis } from "./harness.ts";
 
@@ -40,23 +39,41 @@ test("pi by Chudnovsky grows as the multiplication does, not quadratically", (t)
   );
 });
 
-test("a root at the default ceiling is milliseconds", (t) => {
-  // The costliest pass of the retry schedule under the default cap: the
-  // reference point for what an expression that never certifies costs.
-  const ceiling = ceilingFor(DEFAULT_MAX_DIGITS);
-  const context = {
-    precision: ceiling,
-    rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
-    ceiling: DEFAULT_CEILING,
-  };
-  const square = bestOf(5, () => {
-    assert.ok(rootBall(exact(rational(2n)), 2n, context).ok);
-  });
-  const cube = bestOf(5, () => {
-    assert.ok(rootBall(exact(rational(2n)), 3n, context).ok);
-  });
-  t.diagnostic(
-    `at the ceiling of ${ceiling} digits: sqrt 2 ${millis(square)}, cbrt 2 ${millis(cube)}`,
-  );
+/**
+ * Every routine of the kernel, each run at `bits` on an argument of order
+ * one: the report of docs/calculator-plan.md's 3.6, from which 3.11 chooses
+ * what the probe of limits.ts times, and where the cost of the ceiling pass
+ * is measured rather than assumed. A routine joins the list as it lands.
+ */
+const ROUTINES: readonly [string, (bits: number) => void][] = [
+  ["sqrt 2", (bits) => void sqrtFixed(fixedFromRational(rational(2n), bits))],
+  [
+    "cbrt 2",
+    (bits) => void rootFixed(fixedFromRational(rational(2n), bits), 3n),
+  ],
+  [
+    "exp 1",
+    (bits) => void expFixed(fixedFromRational(rational(1n), bits), bits),
+  ],
+  ["e series", (bits) => void eSeries(bits)],
+];
+
+test("every kernel routine at the default ceiling costs at most 64 times what it costs at a quarter of it", (t) => {
+  // The ceiling pass is the costliest an expression that never certifies
+  // runs (D12). A series of a length linear in the bits over Karatsuba
+  // multiplication grows as bits^2.58, about 36 times for four times the
+  // digits; 64 is twice that, so noise does not fail what a regression would
+  // not fail by a wide margin. The timings are the diagnostics to read.
+  const quarter = DEFAULT_CEILING / 4;
+  for (const [name, run] of ROUTINES) {
+    const low = bestOf(5, () => run(bitsFor(quarter)));
+    const high = bestOf(5, () => run(bitsFor(DEFAULT_CEILING)));
+    t.diagnostic(
+      `${name}: ${millis(high)} at the ceiling of ${DEFAULT_CEILING} digits, ${millis(low)} at ${quarter}`,
+    );
+    assert.ok(
+      high <= 64 * Math.max(low, 0.01),
+      `expected ${name} at the ceiling (${millis(high)}) to cost at most 64 times a quarter of it (${millis(low)})`,
+    );
+  }
 });

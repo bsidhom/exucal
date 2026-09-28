@@ -37,7 +37,7 @@ import {
   roundTo,
   type Precision,
 } from "./rational.ts";
-import { type RoundingMode } from "./rounding.ts";
+import type { RoundingMode } from "./rounding.ts";
 
 /** A ball as shown: its `text`, and the `kind` that says what the text is worth. */
 export type Shown =

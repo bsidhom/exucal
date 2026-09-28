@@ -40,8 +40,8 @@
 // the tests take a set as a parameter with that one as the default, so that
 // a test can inject a built-in of its own.
 
-import { type Ball } from "./ball.ts";
-import { type NumberContext } from "./context.ts";
+import type { Ball } from "./ball.ts";
+import type { NumberContext } from "./context.ts";
 import {
   DIMENSIONLESS,
   checkConformance,
@@ -50,8 +50,8 @@ import {
   type Dimension,
   type Primitives,
 } from "./dimension.ts";
-import { type Arity } from "./evaluate.ts";
-import { type Rational } from "./rational.ts";
+import type { Arity } from "./evaluate.ts";
+import type { Rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 
 /** Why a built-in's arguments do not have the dimensions it wants. */

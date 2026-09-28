@@ -10,10 +10,10 @@ import { inspect } from "node:util";
 import { exact, multiplyBalls } from "./ball.ts";
 import { plainNumbers, type Builtin } from "./builtin.ts";
 import { convert } from "./convert.ts";
-import { type Dimension, type Primitives } from "./dimension.ts";
+import type { Dimension, Primitives } from "./dimension.ts";
 import { evaluate } from "./evaluate.ts";
 import { parseExpr, type Expr } from "./expr.ts";
-import { type Quantity } from "./quantity.ts";
+import type { Quantity } from "./quantity.ts";
 import {
   DEFAULT_PRECISION,
   parseDecimal,

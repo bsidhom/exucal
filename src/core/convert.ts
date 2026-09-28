@@ -67,7 +67,7 @@ import {
   type ConformanceError,
   type Primitives,
 } from "./dimension.ts";
-import { type Quantity } from "./quantity.ts";
+import type { Quantity } from "./quantity.ts";
 import { addRadius, isZeroRadius, radiusAbove, radiusUpper } from "./radius.ts";
 import {
   absolute,

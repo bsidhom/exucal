@@ -49,8 +49,8 @@ import {
   type Ball,
   type BallError,
 } from "./ball.ts";
-import { type NumberContext } from "./context.ts";
-import { type Rational } from "./rational.ts";
+import type { NumberContext } from "./context.ts";
+import type { Rational } from "./rational.ts";
 import { ok, type Result } from "./result.ts";
 
 /** A magnitude, a ball, and the dimension it is a multiple of. */

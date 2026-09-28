@@ -29,9 +29,13 @@
 // fixed point, its error verified by raising the result back to the power
 // with the error rule rather than read off the iteration, so that the
 // argument's error and the iteration's rounding enter one bound. The
-// elementary functions of stage 3 follow the same pattern: reduce the
-// argument, run a series or an iteration on values of order one, and bound
-// the result from what was computed.
+// elementary functions of stage 3 follow the same pattern, reduce the
+// argument, run a series on values of order one with the argument's error
+// included from the start, and bound the result from what was computed,
+// each in a module of its own beside this one (fixed-exp.ts, fixed-log.ts,
+// ...) on the operations here and the helpers exported for them:
+// `rebaseFixed`, `scaleFixed`, `divideFixedByInteger`, `exponentOf` and
+// `keepSignificant`, the last being D9's rule for a result's `bits`.
 //
 // The kernel is entered from a rational or a ball (`fixedFromRational`,
 // `fixedFromBall`, both rounding to nearest with the rounding counted) and
@@ -43,7 +47,7 @@
 // programming error and throws `RangeError`, as `rational` does; the ball
 // layer decides what such values mean before calling in.
 
-import { type Ball } from "./ball.ts";
+import type { Ball } from "./ball.ts";
 import { isUnbounded, radiusAbove, type Radius } from "./radius.ts";
 import {
   ZERO,
@@ -191,6 +195,42 @@ export function divideFixed(a: Fixed, b: Fixed): Fixed {
     error: ceilDiv(numerator, denominator) + inexact,
     bits: a.bits,
   };
+}
+
+/** `f × n` for an integer `n`, exactly: the value and the error scaled. */
+export function scaleFixed(f: Fixed, n: bigint): Fixed {
+  return { value: f.value * n, error: f.error * abs(n), bits: f.bits };
+}
+
+/**
+ * `f / n` for a positive integer `n`: the value truncated toward zero by
+ * less than an ulp, and the error divided and rounded up, plus one for
+ * the truncation when it discarded anything.
+ */
+export function divideFixedByInteger(f: Fixed, n: bigint): Fixed {
+  if (n <= 0n) throw new RangeError(`A positive divisor is needed: ${n}`);
+  const value = f.value / n;
+  const inexact = f.value % n !== 0n ? 1n : 0n;
+  return { value, error: ceilDiv(f.error, n) + inexact, bits: f.bits };
+}
+
+/** `f` at `bits >= f.bits` fraction bits, exactly. */
+export function rebaseFixed(f: Fixed, bits: number): Fixed {
+  if (bits < f.bits) throw new RangeError("rebaseFixed only adds bits");
+  return rebase(f, bits);
+}
+
+/**
+ * `f` with its `bits` chosen for its magnitude (D9): a result of magnitude
+ * `2^k` keeps `bits` significant bits, so it is truncated to `bits - k`
+ * fraction bits (none for a value at or above `2^bits`) when it has more,
+ * and kept as it is when it has fewer, since truncation cannot add
+ * accuracy. A zero value is kept as it is.
+ */
+export function keepSignificant(f: Fixed, bits: number): Fixed {
+  if (f.value === 0n) return f;
+  const target = Math.max(0, bits - exponentOf(f));
+  return target < f.bits ? truncateFixed(f, target) : f;
 }
 
 /**
@@ -370,19 +410,22 @@ function verifiedRoot(y: bigint, a: Fixed, n: bigint): Fixed {
 }
 
 /**
- * `f` at `bits` fraction bits, fewer than its own: the value and the error
- * shifted down, with an ulp added for the truncation. Exported for the
- * memo of constants.ts, which holds a value at the ceiling and hands out
- * fewer bits of it.
+ * `f` at `bits` fraction bits, fewer than its own: the value shifted down
+ * (toward minus infinity, by less than a new ulp) and the error converted
+ * to the new ulps rounded up, with one added for the truncation, so that
+ * the interval still contains the old one. Exported for the memo of
+ * constants.ts, which holds a value at the ceiling and hands out fewer
+ * bits of it, and for the routines beside this module.
  */
 export function truncateFixed(f: Fixed, bits: number): Fixed {
   if (bits > f.bits) throw new RangeError("truncateFixed only removes bits");
   const down = BigInt(f.bits - bits);
-  return { value: f.value >> down, error: (f.error >> down) + 1n, bits };
+  return { value: f.value >> down, error: ceilShift(f.error, down) + 1n, bits };
 }
 
 /** `floor(log2 |f|)` of the value of `f`, which must be nonzero. */
-function exponentOf(f: Fixed): number {
+export function exponentOf(f: Fixed): number {
+  if (f.value === 0n) throw new RangeError("Zero has no binary exponent");
   return bitLength(abs(f.value)) - 1 - f.bits;
 }
 

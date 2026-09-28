@@ -90,7 +90,7 @@ import {
   type ConformanceError,
   type Primitives,
 } from "./dimension.ts";
-import { type Expr } from "./expr.ts";
+import type { Expr } from "./expr.ts";
 import {
   addQuantities,
   divideQuantities,
@@ -103,17 +103,17 @@ import {
   type Quantity,
 } from "./quantity.ts";
 import { ZERO, bitLength } from "./rational.ts";
-import { type BallError } from "./ball.ts";
-import {
-  type Builtin,
-  type DimensionRuleError,
-  type DomainReason,
-  type Edge,
+import type { BallError } from "./ball.ts";
+import type {
+  Builtin,
+  DimensionRuleError,
+  DomainReason,
+  Edge,
 } from "./builtin.ts";
-import { type NumberContext } from "./context.ts";
+import type { NumberContext } from "./context.ts";
 import { err, ok, type Result } from "./result.ts";
-import { type Span } from "./span.ts";
-import { type ResolvedFunction, type UnitFunction } from "./table.ts";
+import type { Span } from "./span.ts";
+import type { ResolvedFunction, UnitFunction } from "./table.ts";
 
 // ---------------------------------------------------------------------------
 // Types

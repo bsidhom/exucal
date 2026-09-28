@@ -39,10 +39,10 @@ import {
   type Primitives,
 } from "./dimension.ts";
 import { ONE_ARGUMENT, type EvaluateError } from "./evaluate.ts";
-import { type Expr } from "./expr.ts";
+import type { Expr } from "./expr.ts";
 import { err, ok, type Result } from "./result.ts";
-import { type Span } from "./span.ts";
-import { type ResolvedFunction } from "./table.ts";
+import type { Span } from "./span.ts";
+import type { ResolvedFunction } from "./table.ts";
 
 /** Resolves the names in an expression to dimensions, or fails with the caller's own error. */
 export type DimensionLookup<E> = {

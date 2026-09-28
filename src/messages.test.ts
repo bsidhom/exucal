@@ -32,10 +32,10 @@ import { checkConformance } from "./core/dimension.ts";
 import { parseDefinitions } from "./core/definitions.ts";
 import { ONE, sign } from "./core/rational.ts";
 import { err, ok } from "./core/result.ts";
-import { type EvaluateError } from "./core/evaluate.ts";
+import type { EvaluateError } from "./core/evaluate.ts";
 import { convertText, evaluateText } from "./core/pipeline.ts";
 import { DEFAULT_PRECISION } from "./core/rational.ts";
-import { type UnitTable } from "./core/table.ts";
+import type { UnitTable } from "./core/table.ts";
 import { describeConversionError, describeTextError } from "./messages.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */

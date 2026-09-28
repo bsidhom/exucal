@@ -746,7 +746,11 @@ the last gets the remainder. The counts are taken from the midpoints (the
 plan's D8), so a count is an exact integer and never `unresolved`, and the
 remainder is the ball `have` less the counted units, computed with the ball
 operations, so the terms times the units add up to `have` exactly when
-everything is exact and contain it otherwise. That is only a meaningful sum
+everything is exact and contain it otherwise. A ratio whose ball straddles
+an integer, as `turn / deg` does once both carry `pi()`'s radius, counts
+as that integer rather than its truncation, so that the remainder is a
+ball around zero, which the display leaves out, rather than a whole of the
+unit (`≈ 360 deg`, not `359 deg + 60 arcmin`). That is only a meaningful sum
 when the units run from the largest to the smallest, so the units are
 checked in order, each for conformance with `have`, for a positive
 magnitude whose ball excludes zero (a unit that cannot be told from zero is

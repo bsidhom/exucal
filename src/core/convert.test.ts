@@ -474,6 +474,66 @@ test("an empty list is a programming error", () => {
   assert.throws(() => convertToList(METRE, [], SI), RangeError);
 });
 
+test("a count whose ratio straddles an integer is that integer, and the remainder is then around zero", () => {
+  // A have of 360 ± 1e-30 degrees in degrees and minutes, the case of
+  // units that carry a radius (D8 as amended at 3.4): the ratio straddles
+  // 360, so the count is 360 and the remainder a ball around zero, not
+  // 359 and a whole degree of minutes.
+  const degree = quantity("1", { deg: 1 });
+  const minute: Quantity = {
+    magnitude: exact(rational(1n, 60n)),
+    dimension: dim({ deg: 1 }),
+  };
+  const straddling: Quantity = {
+    magnitude: {
+      mid: rational(360n),
+      rad: radiusAbove(rational(1n, 10n ** 30n)),
+    },
+    dimension: dim({ deg: 1 }),
+  };
+  const above = terms(convertToList(straddling, [degree, minute], SI));
+  assert.deepEqual(above[0], exact(rational(360n)));
+  assert.ok(containsZero(above[1]!) && !isExact(above[1]!));
+  // A hair below the integer, straddling it, the same; a hair below and
+  // not straddling, the truncated count and a remainder near sixty.
+  const below: Quantity = {
+    magnitude: {
+      mid: subtract(rational(360n), rational(1n, 10n ** 40n)),
+      rad: radiusAbove(rational(1n, 10n ** 30n)),
+    },
+    dimension: dim({ deg: 1 }),
+  };
+  assert.deepEqual(
+    terms(convertToList(below, [degree, minute], SI))[0],
+    exact(rational(360n)),
+  );
+  const apart: Quantity = {
+    magnitude: {
+      mid: subtract(rational(360n), rational(1n, 10n ** 20n)),
+      rad: radiusAbove(rational(1n, 10n ** 30n)),
+    },
+    dimension: dim({ deg: 1 }),
+  };
+  const truncated = terms(convertToList(apart, [degree, minute], SI));
+  assert.deepEqual(truncated[0], exact(rational(359n)));
+  assert.ok(compare(truncated[1]!.mid, rational(59n)) > 0);
+  // Negative values are counted toward the nearest integer the same way.
+  const negative: Quantity = {
+    magnitude: {
+      mid: rational(-360n),
+      rad: radiusAbove(rational(1n, 10n ** 30n)),
+    },
+    dimension: dim({ deg: 1 }),
+  };
+  assert.deepEqual(
+    terms(convertToList(negative, [degree, minute], SI))[0],
+    exact(rational(-360n)),
+  );
+  // An exact ratio straddles an integer only when it is one: the counts of
+  // exact values are as they were.
+  assertTerms(terms(convertToList(METRE, [FOOT, INCH], SI)), ["3", "428/127"]);
+});
+
 test("roundTerms leaves terms alone when the remainder shows exactly", () => {
   const exact = terms(
     convertToList(quantity("3661.5", { s: 1 }), [HOUR, MINUTE, SECOND], SI),

@@ -625,10 +625,10 @@ test("the unit lists convert", () => {
   assertList("3661.5 s", "time", ["1", "1", "1.5"]);
   assertList("100000 s", "dhms", ["1", "3", "46", "40"]);
   // The angle units carry `pi()`'s radius, and `deg` and `arcmin` were each
-  // settled on their own, so the raw remainder is a hair under a whole
-  // arcminute: `1 deg + 29 arcmin + 59.99... arcsec`, the carry case of D8,
-  // which `roundTerms` carries at the display's digits into `1 deg + 30
-  // arcmin` and a last term that cannot be told from zero.
+  // settled on their own, so `0.5 deg / arcmin` is `30 ± ε`, straddling 30:
+  // the count is 30 (D8 as amended at 3.4) and the last term a ball around
+  // zero, which the display leaves out; `roundTerms` then has nothing to
+  // round and returns the terms as they are.
   const dms = table.unitLists.get("dms")!;
   const raw = convertToList(
     quantity("1.5 deg"),
@@ -636,17 +636,24 @@ test("the unit lists convert", () => {
     table.primitives,
   );
   assert.ok(raw.ok);
+  assert.deepEqual(raw.value.slice(0, 2), [
+    exact(rational(1n)),
+    exact(rational(30n)),
+  ]);
+  assert.ok(containsZero(raw.value[2]!) && !isExact(raw.value[2]!));
   const terms = roundTerms(
     dms.map((unit) => unit.quantity),
     raw.value,
     8,
     DEFAULT_ROUNDING,
   );
-  assert.deepEqual(terms.slice(0, 2), [
-    exact(rational(1n)),
-    exact(rational(30n)),
-  ]);
-  assert.ok(containsZero(terms[2]!) && !isExact(terms[2]!));
+  assert.deepEqual(terms.slice(0, 2), raw.value.slice(0, 2));
+  // `turn / deg` straddles 360 the same way.
+  const dm = [quantity("deg"), quantity("arcmin")];
+  const turn = convertToList(quantity("1 turn"), dm, table.primitives);
+  assert.ok(turn.ok);
+  assert.deepEqual(turn.value[0], exact(rational(360n)));
+  assert.ok(containsZero(turn.value[1]!));
   assertList("1 m", "ftin", ["3", "428/127"]);
   assertList("100 in", "ydftin", ["2", "2", "4"]);
   assertList("1 km", "miftin", ["0", "3280", "1280/127"]);

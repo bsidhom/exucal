@@ -203,10 +203,21 @@ the range limit; the comparison by exponents is stage 4's.
 **D8. Unit list counts are taken from the midpoint.** In `convertToList`
 each count is the truncated ratio of midpoints and the remainder is the
 ball `have - count × size`, computed with the exact ball operations, so
-that the terms times the units still contain `have`. A remainder that
-comes out slightly negative, or slightly above a whole of the unit before
-it, is the display's carry case, which `roundTerms` already handles; a
-count is never `unresolved`.
+that the terms times the units still contain `have`; a count is never
+`unresolved`. One case goes the other way (amended at 3.4): when the
+ratio's ball straddles an integer, the count is that integer, not the
+truncation. Once the angle units carried `pi()`'s radius, `turn / deg` was
+`359.999... ± ε`, truncated to 359 with a remainder of `60 - ε arcmin`, and
+the carry `roundTerms` makes by exact arithmetic could not restore `360`
+from units settled on their own, so `1 turn` in `deg;arcmin` read `359
+deg + 60 arcmin`. A count that cannot be told from a boundary is best
+taken as the boundary: the count stays exact, the remainder is a ball
+around zero (a hair negative, perhaps), which the display leaves out as a
+zero, and the line reads `≈ 360 deg`, which under `≈` is the better
+reading. Exact units are untouched, since a ball of radius zero straddles
+an integer only when it is one. A remainder that comes out slightly
+negative that way, or slightly above a whole of the unit before it, is the
+display's carry case, which `roundTerms` handles.
 
 **D9. The kernel is fixed point with an integer error count.** A kernel
 value is `{ value, error, bits }`: the integer `value` stands for
@@ -1354,7 +1365,11 @@ to the radius, so that the rounded terms contain `have` as 1.8 intends,
 and the component judges the last term's kind on the rounded remainder
 when the counts changed and leaves out a last term that cannot be told
 from zero as it leaves out a zero, so the line reads `≈ 1 deg + 30
-arcmin` (1.8 and 2.6 are amended).
+arcmin` (1.8 and 2.6 are amended). A second finding followed: `1 turn` in
+`deg;arcmin` read `359 deg + 60 arcmin`, since the carry by exact
+arithmetic cannot restore a whole from units settled on their own; D8 is
+amended so that a count whose ratio straddles an integer is that integer,
+and the line reads `≈ 360 deg`.
 
 Behavior: angle units carry a radius; `pi` alone is an error that says
 to write `pi()`.

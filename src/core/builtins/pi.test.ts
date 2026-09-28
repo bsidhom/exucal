@@ -8,12 +8,13 @@ import {
 } from "../context.ts";
 import { DIMENSIONLESS } from "../dimension.ts";
 import { radiusUpper } from "../radius.ts";
-import { absolute, compare, parseDecimal, rational } from "../rational.ts";
+import { absolute, compare, rational } from "../rational.ts";
+import { parseFraction } from "../../testing/fraction.ts";
 import { pi } from "./pi.ts";
 
 /** pi to 60 digits, from Python's decimal module (mpmath's digits agree). */
 const PI = (() => {
-  const result = parseDecimal(
+  const result = parseFraction(
     "3.14159265358979323846264338327950288419716939937510582097494459",
   );
   assert.ok(result.ok);

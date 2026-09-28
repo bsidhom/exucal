@@ -19,11 +19,11 @@ import {
   ONE,
   absolute,
   compare,
-  parseDecimal,
   rational,
   subtract,
   type Rational,
 } from "../rational.ts";
+import { parseFraction } from "../../testing/fraction.ts";
 import { exp, expBall } from "./exp.ts";
 
 const CONTEXT: NumberContext = {
@@ -34,7 +34,7 @@ const CONTEXT: NumberContext = {
 };
 
 function dec(text: string): Rational {
-  const result = parseDecimal(text);
+  const result = parseFraction(text);
   assert.ok(result.ok);
   return result.value;
 }

@@ -313,10 +313,11 @@ test("errors carry offsets into the whole text", () => {
 });
 
 test("a rejected literal in a body carries its span in the whole text", () => {
-  const text = "m !\nbig 1e999999 m";
+  const literal = "9".repeat(320000);
+  const text = `m !\nbig ${literal} m`;
   assert.deepEqual(failed(text), {
     kind: "rejected",
-    span: spanOf(text, "1e999999"),
+    span: spanOf(text, literal),
     reason: "this number is too large to represent",
   });
 });

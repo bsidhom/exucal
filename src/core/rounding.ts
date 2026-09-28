@@ -24,6 +24,42 @@
 // `RangeError`, as `rational` does for a zero denominator: every caller has a
 // denominator that is a power of ten or a `Rational`'s, which is positive by
 // invariant.
+//
+// `Precision`, a count of significant decimal digits, lives here too (from
+// stage 4's 4.3, out of rational.ts, which is left the fraction alone),
+// with `checkPrecision`, `digitsFor`, the digits a count of binary digits
+// is worth, and `DEFAULT_PRECISION`, the working precision the app computed
+// at before the number context existed, which the tests still use.
+
+/** A count of significant decimal digits: a positive integer. */
+export type Precision = number;
+
+/**
+ * The fixed working precision the app computed at before the number
+ * context existed, in significant decimal digits; the tests use it as a
+ * working precision. See ARCHITECTURE.md ("Working precision and the
+ * context").
+ */
+export const DEFAULT_PRECISION: Precision = 40;
+
+/** Throws `RangeError` unless `precision` is a positive integer. */
+export function checkPrecision(precision: Precision): void {
+  if (!Number.isInteger(precision) || precision < 1) {
+    throw new RangeError(`Precision must be a positive integer: ${precision}`);
+  }
+}
+
+/**
+ * The decimal digits `bits` binary digits are worth, `ceil(bits log10 2)`:
+ * the digits a kernel result of `bits` significant bits is rounded to as
+ * it leaves the kernel, and settling's grid in exact mode (4.4).
+ */
+export function digitsFor(bits: number): Precision {
+  if (!Number.isInteger(bits) || bits < 1) {
+    throw new RangeError(`A bit count must be a positive integer: ${bits}`);
+  }
+  return Math.ceil(bits * Math.log10(2));
+}
 
 /** The seven rounding modes; `ROUNDING_MODES` lists them in a fixed order. */
 export type RoundingMode =

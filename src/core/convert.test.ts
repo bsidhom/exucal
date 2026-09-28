@@ -26,15 +26,17 @@ import {
   add,
   compare,
   equals,
-  format,
   multiply,
-  parseDecimal,
   rational,
-  roundTo,
   subtract,
   toFraction,
   type Rational,
 } from "./rational.ts";
+import {
+  formatFraction,
+  parseFraction,
+  roundFraction,
+} from "../testing/fraction.ts";
 import type { Result } from "./result.ts";
 
 /** Builds a dimension from integer exponents (or rationals, for roots). */
@@ -52,7 +54,7 @@ function quantity(
   text: string,
   exponents: Record<string, number | Rational> = {},
 ): Quantity {
-  const magnitude = parseDecimal(text);
+  const magnitude = parseFraction(text);
   assert.ok(magnitude.ok, `${JSON.stringify(text)} is not a number`);
   return { magnitude: exact(magnitude.value), dimension: dim(exponents) };
 }
@@ -104,7 +106,7 @@ const NEWTON_METRE = quantity("1", { kg: 1, m: 2, s: -2, radian: -1 });
 
 /** `n` of the unit `u`. */
 function times(n: string, u: Quantity): Quantity {
-  const factor = parseDecimal(n);
+  const factor = parseFraction(n);
   assert.ok(factor.ok);
   return {
     magnitude: exact(multiply(factor.value, u.magnitude.mid)),
@@ -126,12 +128,14 @@ test("the value is exact, never rounded", () => {
   // 1 m in inches is 5000/127, which no decimal writes exactly.
   const inches = value(convert(METRE, INCH, SI)).mid;
   assert.deepEqual(inches, rational(5000n, 127n));
-  assert.ok(!equals(roundTo(inches, 8, "halfAwayFromZero"), inches));
-  assert.equal(format(inches, 8, "halfAwayFromZero"), "39.370079");
+  assert.ok(!equals(roundFraction(inches, 8, "halfAwayFromZero"), inches));
+  assert.equal(formatFraction(inches, 8, "halfAwayFromZero"), "39.370079");
   // Whereas 1 in in cm is exactly 2.54, and a display can say so.
   const centimetres = value(convert(INCH, CENTIMETRE, SI)).mid;
-  assert.ok(equals(roundTo(centimetres, 8, "halfAwayFromZero"), centimetres));
-  assert.equal(format(centimetres, 8, "halfAwayFromZero"), "2.54");
+  assert.ok(
+    equals(roundFraction(centimetres, 8, "halfAwayFromZero"), centimetres),
+  );
+  assert.equal(formatFraction(centimetres, 8, "halfAwayFromZero"), "2.54");
 });
 
 test("want may have a magnitude of its own", () => {

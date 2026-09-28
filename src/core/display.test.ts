@@ -15,16 +15,11 @@ import {
 import { show, type Shown } from "./display.ts";
 import { UNBOUNDED, radiusAbove } from "./radius.ts";
 import { ROUNDING_MODES } from "./rounding.ts";
-import {
-  ZERO,
-  format,
-  parseDecimal,
-  rational,
-  type Rational,
-} from "./rational.ts";
+import { ZERO, rational, type Rational } from "./rational.ts";
+import { formatFraction, parseFraction } from "../testing/fraction.ts";
 
 function dec(text: string): Rational {
-  const result = parseDecimal(text);
+  const result = parseFraction(text);
   assert.ok(result.ok);
   return result.value;
 }
@@ -139,7 +134,7 @@ test("an inexact value that certifies fewer digits than asked is partial, at tho
   const reference = dec(
     "1.41421356237309504880168872420969807856967187537694807317667974",
   );
-  assert.equal(shown.text, format(reference, shown.certified, nearest));
+  assert.equal(shown.text, formatFraction(reference, shown.certified, nearest));
   // 1.2345 ± 1e-30 at four digits, to nearest: the fourth digit is a tie the
   // ball straddles, so three digits are certain and shown.
   assert.deepEqual(show(ball("1.2345", "1e-30"), 4, nearest), {

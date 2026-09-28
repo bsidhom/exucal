@@ -47,8 +47,12 @@
 // `RangeError`, as `rational` does for a zero denominator.
 
 import { bitsFor } from "./fixed.ts";
-import { LIMIT_BITS, type Precision } from "./rational.ts";
-import { ROUNDING_MODES, type RoundingMode } from "./rounding.ts";
+import { LIMIT_BITS } from "./rational.ts";
+import {
+  ROUNDING_MODES,
+  type Precision,
+  type RoundingMode,
+} from "./rounding.ts";
 
 /** How arithmetic is done: at how many digits, rounded in which mode, within how many bits, under which ceiling. */
 export type NumberContext = {

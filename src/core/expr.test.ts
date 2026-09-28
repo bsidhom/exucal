@@ -3,7 +3,8 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import { parseExpr, parseUnitList, type Expr } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
-import { rational, toFraction } from "./rational.ts";
+import { LIMIT_BITS, rational, toFraction } from "./rational.ts";
+import { fromRational, toRational } from "./scaled.ts";
 import type { Span } from "./span.ts";
 
 const OPERATOR = { add: "+", sub: "-", mul: "*", div: "/" } as const;
@@ -12,8 +13,14 @@ const OPERATOR = { add: "+", sub: "-", mul: "*", div: "/" } as const;
 function show(e: Expr): string {
   const { node } = e;
   switch (node.kind) {
-    case "number":
-      return toFraction(node.value);
+    case "number": {
+      // A literal that fits the hard bound renders as its fraction; one
+      // beyond it as its mantissa and exponent.
+      const fraction = toRational(node.value, LIMIT_BITS);
+      return fraction.ok
+        ? toFraction(fraction.value)
+        : `${toFraction(node.value.mant)}e${node.value.exp}`;
+    }
     case "unit":
       return node.name;
     case "binary":
@@ -69,7 +76,7 @@ const AFTER_FACTOR = ['"^"', ...AFTER_POWER];
 test("a lone number or unit is a leaf", () => {
   assert.deepEqual(parsed("2.5"), {
     span: { start: 0, end: 3 },
-    node: { kind: "number", value: rational(5n, 2n) },
+    node: { kind: "number", value: fromRational(rational(5n, 2n)) },
   });
   assert.deepEqual(parsed("m"), {
     span: { start: 0, end: 1 },
@@ -285,7 +292,7 @@ test("a number has no sign: -2 is the negation of 2", () => {
   assert.equal(e.node.kind, "neg");
   assert.deepEqual(e.node.operand, {
     span: { start: 1, end: 2 },
-    node: { kind: "number", value: rational(2n) },
+    node: { kind: "number", value: fromRational(rational(2n)) },
   });
   assertParses("(-2) m", "(-2 * m)");
   // So `2 -3 m` is a difference, not a number beside a negative one.
@@ -299,9 +306,22 @@ test("an e that does not start an exponent is a unit name", () => {
 });
 
 test("a number too large to represent is rejected with its span", () => {
+  // A literal's exponent is kept as the number it is (stage 4's 4.3), so
+  // `1e999999` parses; what is rejected is a mantissa beyond the hard
+  // bound, an exponent beyond the exponent bound, and a `^` exponent whose
+  // power of ten cannot be formed within the hard bound.
+  assertParses("m / 1e999999 s", "(m / (1e999999 * s))");
+  const long = "9".repeat(320000);
   assert.deepEqual(
-    failed("m / 1e999999 s"),
-    rejected({ start: 4, end: 12 }, "this number is too large to represent"),
+    failed(`m / ${long} s`),
+    rejected(
+      { start: 4, end: 4 + long.length },
+      "this number is too large to represent",
+    ),
+  );
+  assert.deepEqual(
+    failed("m / 1e1000000000000000001 s"),
+    rejected({ start: 4, end: 25 }, "this number is too large to represent"),
   );
   assert.deepEqual(
     failed("m^1e999999"),
@@ -311,6 +331,7 @@ test("a number too large to represent is rejected with its span", () => {
     failed("m^(1/1e999999)"),
     rejected({ start: 5, end: 13 }, "this number is too large to represent"),
   );
+  assertParses("m^1e5", "m^100000");
 });
 
 // ---------------------------------------------------------------------------

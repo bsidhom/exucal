@@ -73,16 +73,20 @@ import {
   absolute,
   compare,
   equals,
+  LIMIT_BITS,
   rational,
-  roundTo,
   sign,
   subtract,
   trunc,
-  type Precision,
   type Rational,
 } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
-import { divideRounded, type RoundingMode } from "./rounding.ts";
+import {
+  divideRounded,
+  type Precision,
+  type RoundingMode,
+} from "./rounding.ts";
+import { fromRational, roundTo, toRational } from "./scaled.ts";
 
 export type ConvertError =
   | ConformanceError
@@ -204,7 +208,7 @@ export function roundTerms(
 ): readonly Ball[] {
   const last = terms.length - 1;
   const remainder = terms[last]!;
-  const rounded = roundTo(remainder.mid, digits, mode);
+  const rounded = roundedFraction(remainder.mid, digits, mode);
   if (equals(rounded, remainder.mid)) return terms;
   const shift = radiusAbove(subtract(rounded, remainder.mid));
   const widened: Ball = { mid: rounded, rad: addRadius(remainder.rad, shift) };
@@ -216,6 +220,21 @@ export function roundTerms(
       multiplyBalls(widened, sizes[last]!),
     );
   return decompose(total, sizes);
+}
+
+/**
+ * `r` rounded to `digits` significant digits in `mode`, as a `Scaled`
+ * rounds (4.3), converted at the boundary that goes in 4.4: the rounded
+ * value has the digits of `r`'s exponent, which fit the hard bound.
+ */
+function roundedFraction(
+  r: Rational,
+  digits: Precision,
+  mode: RoundingMode,
+): Rational {
+  const back = toRational(roundTo(fromRational(r), digits, mode), LIMIT_BITS);
+  if (!back.ok) throw new Error("A rounded remainder fits the hard bound");
+  return back.value;
 }
 
 /**

@@ -23,11 +23,11 @@ import {
   absolute,
   compare,
   multiply,
-  parseDecimal,
   rational,
   subtract,
   type Rational,
 } from "../rational.ts";
+import { parseFraction } from "../../testing/fraction.ts";
 import type { Result } from "../result.ts";
 import { describeTextError } from "../../messages.ts";
 import { cos, cosBall, sin, sinBall, tan, tanBall } from "./trig.ts";
@@ -46,7 +46,7 @@ const PRIMITIVES: Primitives = new Map([
 ]);
 
 function dec(text: string): Rational {
-  const result = parseDecimal(text);
+  const result = parseFraction(text);
   assert.ok(result.ok);
   return result.value;
 }

@@ -17,17 +17,17 @@ import { evaluate, invertFunction } from "./evaluate.ts";
 import { parseExpr } from "./expr.ts";
 import type { Quantity } from "./quantity.ts";
 import {
-  DEFAULT_PRECISION,
   absolute,
   add,
   compare,
   equals,
-  parseDecimal,
   rational,
   subtract,
   toFraction,
   type Rational,
 } from "./rational.ts";
+import { parseFraction } from "../testing/fraction.ts";
+import { DEFAULT_PRECISION } from "./rounding.ts";
 import { radiusUpper } from "./radius.ts";
 import { ok, type Result } from "./result.ts";
 import type { Span } from "./span.ts";
@@ -90,7 +90,7 @@ function dim(exponents: Record<string, number | Rational>): Dimension {
 
 /** The rational the decimal `text` denotes, exactly. */
 function decimal(text: string): Rational {
-  const result = parseDecimal(text);
+  const result = parseFraction(text);
   assert.ok(result.ok, `${JSON.stringify(text)} is not a number`);
   return result.value;
 }

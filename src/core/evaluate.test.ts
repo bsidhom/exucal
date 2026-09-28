@@ -26,17 +26,16 @@ import {
 import { parseExpr, type Expr } from "./expr.ts";
 import type { Quantity } from "./quantity.ts";
 import {
-  DEFAULT_PRECISION,
   ONE,
   ZERO,
   absolute,
   compare,
-  format,
-  parseDecimal,
   rational,
   subtract,
   type Rational,
 } from "./rational.ts";
+import { formatFraction, parseFraction } from "../testing/fraction.ts";
+import { DEFAULT_PRECISION } from "./rounding.ts";
 import { radiusUpper } from "./radius.ts";
 import type { Result } from "./result.ts";
 import type { Span } from "./span.ts";
@@ -76,7 +75,7 @@ function quantity(
   text: string,
   exponents: Record<string, number | Rational> = {},
 ): Quantity {
-  const magnitude = parseDecimal(text);
+  const magnitude = parseFraction(text);
   assert.ok(magnitude.ok, `${JSON.stringify(text)} is not a number`);
   return { magnitude: exact(magnitude.value), dimension: dim(exponents) };
 }
@@ -414,7 +413,7 @@ test("an inexact root is computed at the precision given", () => {
   const root5 = value(run("(2 m^2)^(1/2)", at(5)));
   // Five digits plus the kernel's guard: a radius below 10^-13.
   assert.equal(
-    format(root5.magnitude.mid, 10, "halfAwayFromZero"),
+    formatFraction(root5.magnitude.mid, 10, "halfAwayFromZero"),
     "1.414213562",
   );
   assert.deepEqual(root5.dimension, dim({ m: 1 }));
@@ -424,7 +423,7 @@ test("an inexact root is computed at the precision given", () => {
   );
   const root40 = value(run("(2 m^2)^(1/2)"));
   assert.equal(
-    format(root40.magnitude.mid, 40, "halfAwayFromZero"),
+    formatFraction(root40.magnitude.mid, 40, "halfAwayFromZero"),
     "1.41421356237309504880168872420969807857",
   );
   // The precision reaches a root anywhere in the tree: 3 / sqrt 2 at three
@@ -432,7 +431,7 @@ test("an inexact root is computed at the precision given", () => {
   // kernel's, below 10^-11, not one unit in the third digit.
   const nested = value(run("3 / (2^(1/2) s)", at(3)));
   assert.deepEqual(nested.dimension, dim({ s: -1 }));
-  const reference = parseDecimal("2.1213203435596425732025330863145471178545");
+  const reference = parseFraction("2.1213203435596425732025330863145471178545");
   assert.ok(reference.ok);
   const rad = radiusUpper(nested.magnitude.rad);
   assert.ok(
@@ -1085,7 +1084,7 @@ test("a built-in's result is settled like any other, and an unbounded one propag
   // sqrt 2 to 60 digits from Python's decimal module.
   const root = value(runBuiltin("dbl(2^(1/2))"));
   assert.ok(!isExact(root.magnitude));
-  const reference = parseDecimal(
+  const reference = parseFraction(
     "2.82842712474619009760337744841939615713934375075389614635336",
   );
   assert.ok(reference.ok);

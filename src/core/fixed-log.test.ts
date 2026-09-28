@@ -25,13 +25,13 @@ import {
   add,
   compare,
   multiply,
-  parseDecimal,
   rational,
   scaleByPowerOfTwo,
   subtract,
   toFraction,
   type Rational,
 } from "./rational.ts";
+import { parseFraction } from "../testing/fraction.ts";
 import {
   foldIn,
   key,
@@ -41,7 +41,7 @@ import {
 } from "../testing/random.ts";
 
 function dec(text: string): Rational {
-  const result = parseDecimal(text);
+  const result = parseFraction(text);
   assert.ok(result.ok);
   return result.value;
 }

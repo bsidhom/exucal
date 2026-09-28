@@ -44,7 +44,6 @@ import {
   isZero,
   multiply,
   negate,
-  parseDecimal,
   pow,
   rational,
   subtract,
@@ -52,12 +51,13 @@ import {
   type Rational,
   LIMIT_BITS,
 } from "./rational.ts";
+import { parseFraction } from "../testing/fraction.ts";
 import type { Result } from "./result.ts";
 import { ROUNDING_MODES } from "./rounding.ts";
 import { foldIn, key, randomBall, split } from "../testing/random.ts";
 
 function dec(text: string): Rational {
-  const result = parseDecimal(text);
+  const result = parseFraction(text);
   assert.ok(result.ok);
   return result.value;
 }

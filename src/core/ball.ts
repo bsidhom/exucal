@@ -103,20 +103,16 @@ import {
   add,
   bitLength,
   compare,
-  decimalExponent,
   divide,
-  equals,
   exactRoot,
   isZero,
   multiply,
   negate,
   pow,
   rational,
-  roundTo,
   scaleByPowerOfTwo,
   sign,
   subtract,
-  type Precision,
   type Rational,
   type RationalError,
 } from "./rational.ts";
@@ -134,7 +130,13 @@ import {
 } from "./radius.ts";
 import { divideRounded } from "./rounding.ts";
 import { err, ok, type Result } from "./result.ts";
-import type { RoundingMode } from "./rounding.ts";
+import type { Precision, RoundingMode } from "./rounding.ts";
+import {
+  decimalExponent,
+  equals as equalsScaled,
+  fromRational,
+  roundTo,
+} from "./scaled.ts";
 
 /** A midpoint with the radius that bounds its distance from the true value. */
 export type Ball = {
@@ -567,9 +569,10 @@ export function certifies(
   if (b.rad.kind === "unbounded") return false;
   if (b.rad.mant === 0n) return true;
   const rad = radiusUpper(b.rad);
-  return equals(
-    roundTo(subtract(b.mid, rad), digits, mode),
-    roundTo(add(b.mid, rad), digits, mode),
+  // Rounded as a `Scaled` (4.3), through the boundary that goes in 4.4.
+  return equalsScaled(
+    roundTo(fromRational(subtract(b.mid, rad)), digits, mode),
+    roundTo(fromRational(add(b.mid, rad)), digits, mode),
   );
 }
 
@@ -597,7 +600,11 @@ export function certifiedDigits(
     compare(absolute(subtract(b.mid, rad)), absolute(add(b.mid, rad))) > 0
       ? subtract(b.mid, rad)
       : add(b.mid, rad);
-  const atMost = decimalExponent(farthest) - decimalExponent(rad) + 2;
+  const atMost =
+    Number(
+      decimalExponent(fromRational(farthest)) -
+        decimalExponent(fromRational(rad)),
+    ) + 2;
   for (let d = Math.min(maxDigits, atMost); d >= 1; d--) {
     if (certifies(b, d, mode)) return d;
   }

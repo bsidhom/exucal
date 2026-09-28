@@ -24,16 +24,9 @@ import {
   subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
-import {
-  DEFAULT_PRECISION,
-  ONE,
-  ZERO,
-  format,
-  compare,
-  parseDecimal,
-  rational,
-  type Rational,
-} from "./rational.ts";
+import { ONE, ZERO, compare, rational, type Rational } from "./rational.ts";
+import { formatFraction, parseFraction } from "../testing/fraction.ts";
+import { DEFAULT_PRECISION } from "./rounding.ts";
 import type { Result } from "./result.ts";
 import { radiusUpper } from "./radius.ts";
 
@@ -60,7 +53,7 @@ function quantity(
   text: string,
   exponents: Record<string, number | Rational> = {},
 ): Quantity {
-  const magnitude = parseDecimal(text);
+  const magnitude = parseFraction(text);
   assert.ok(magnitude.ok, `${JSON.stringify(text)} is not a number`);
   return { magnitude: exact(magnitude.value), dimension: dim(exponents) };
 }
@@ -331,7 +324,7 @@ test("an inexact root is computed once on the kernel, at the precision", () => {
   // The kernel carries the precision plus its guard: five digits asked for
   // give a radius between 10^-17 and 10^-13, and the digits to match.
   assert.equal(
-    format(root5.magnitude.mid, 10, "halfAwayFromZero"),
+    formatFraction(root5.magnitude.mid, 10, "halfAwayFromZero"),
     "1.414213562",
   );
   assert.deepEqual(root5.dimension, dim({ m: 1 }));
@@ -340,7 +333,7 @@ test("an inexact root is computed once on the kernel, at the precision", () => {
   assert.ok(compare(rad5, rational(1n, 10n ** 17n)) > 0);
   const root40 = value(powQuantity(two, half, CONTEXT));
   assert.equal(
-    format(root40.magnitude.mid, 40, "halfAwayFromZero"),
+    formatFraction(root40.magnitude.mid, 40, "halfAwayFromZero"),
     "1.41421356237309504880168872420969807857",
   );
   assert.ok(

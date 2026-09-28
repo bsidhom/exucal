@@ -54,8 +54,8 @@ arbitrary-precision floats because almost every unit definition is a rational
 only once, at display time. Decimal literals parse exactly (`1.5e-3` is
 `3/2000`). The definitions file holds no irrational literal: the circle
 constant is the built-in `pi()`, computed to the precision of the table it
-is built in and of the pass an expression is evaluated at (stage 3 of the
-plan), where GNU units defines `pi` as a decimal literal.
+is built in and of the pass an expression is evaluated at, where GNU
+units defines `pi` as a decimal literal.
 
 `src/core/rational.ts` provides the arithmetic and comparison, integer powers
 and rational powers (through the n-th root), rounding to significant digits
@@ -71,9 +71,10 @@ radius, a coarse bound on how far the midpoint may lie from the value it
 stands for. An exact value has radius zero, and `=` in the display means
 exactly that. This is the precision model of docs/calculator.md ("The
 precision model"), being built stage by stage along docs/calculator-plan.md;
-what is in place is its first stage, the ball as the value and the display
-rule, and what is not yet is said below. Three rules say where, and only
-where, a value can lose precision:
+what is in place is its first three stages, the ball as the value, the
+kernel with the root and the elementary functions on it, and the retry
+loop with certification; the exponent of stage 4 is said where it touches.
+Three rules say where, and only where, a value can lose precision:
 
 1. **Exact operations never round a midpoint.** Addition, subtraction,
    multiplication, division, integer powers and comparisons are exact on the
@@ -91,9 +92,8 @@ where, a value can lose precision:
    and never on the second. `1 / (sqrt(2)^2 - 2)` reports it where it once
    showed a huge number.
 
-2. **The one inexact operation, the root, runs on the kernel and says
-   what it lost.** The n-th root is the only irrational operation so far
-   (the elementary functions come in stage 3). A root that is rational
+2. **The inexact operations, the root and the built-in functions, run on
+   the kernel and say what they lost.** A root that is rational
    (`sqrt(9/4)`, `sqrt(2.25)`, `cbrt(-8)`) is detected and returned
    exactly, so `(4 m^2)^(1/2)` is exactly `2 m`. Otherwise `rootBall`
    scales the ball by an exact power of `2^n` so that it is of order one,
@@ -108,7 +108,20 @@ where, a value can lose precision:
    all depends on the sign, and under an odd root a ball around zero
    bounded by the root of the farther end; an even root of a negative
    ball fails as it always did. `x^(p/q)` is the `q`-th root of `x^p`,
-   root last, so the one inexact step comes last.
+   root last, so the one inexact step comes last, or `exp(y ln x)` on the
+   kernel when `x^p` would not fit the range limit. Every built-in
+   function does the same (docs/builtins.md): an exact case is returned
+   exactly (`exp(0)`, `log(2, 8)`, `cos(0 radian)`), and otherwise the
+   argument is converted at the working bits (a tiny argument of an odd
+   function at as many more as its magnitude is below one, so that it
+   keeps its digits), the routine runs its reduction and its series with
+   the argument's error carried through, and the kernel's ball comes back
+   with the error as its radius. An argument outside the function's
+   domain throughout its ball is a `domain` error, and one that straddles
+   an edge of the domain (`ln` at zero, `asin` at one, `tan` at a pole)
+   is `unresolved` at that edge, which the retry loop retries; a result
+   whose magnitude would exceed the range limit (`exp(1e6)`) is refused
+   before it is computed.
 
 3. **Display rounds once, in a rounding mode, shows only the digits the
    radius certifies, and `=` is the radius's to decide.** `show(ball,
@@ -141,10 +154,9 @@ sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while `sqrt(4)` is
    intermediate step rounds in a mode. The default mode is half away from
    zero, the rounding people expect from `0.125 → 0.13` (the `halfExpand`
    of `Intl.NumberFormat`; C's `%g` differs only on exact ties, which are
-   rare with doubles but ordinary with rationals). Until the retry loop of
-   stage 2's 2.5 lands, the pipeline runs one pass, so `partial` and
-   `zero` can reach the component, which reads only whether the kind is
-   `exact` and shows the text; 2.6 shows the kinds.
+   rare with doubles but ordinary with rationals). The retry loop below
+   narrows a `partial` or a `zero` where a pass can, and the component
+   shows each kind with its note ("UI" below).
 
 **The types**, each layer adding one concept (the plan's D13 has the
 argument): `Rational` (`rational.ts`) is the exact fraction in lowest terms
@@ -163,7 +175,7 @@ module knows the other, and nothing stores a radius inside a number. Stage
 between the fraction and the ball as the midpoint's type, so that
 `rational.ts` stays the total fraction it is. Beside these, `Fixed`
 (`fixed.ts`) is the kernel's own representation, on which the inexact
-functions will run: an integer standing for `value × 2^-bits` with an
+functions run: an integer standing for `value × 2^-bits` with an
 error count in ulps, every operation updating the count by a stated
 over-approximation (the plan's D9), entered from a rational or a ball and
 left through `fixedToBall`, which hands back the dyadic midpoint itself
@@ -171,8 +183,8 @@ and the count as a radius. Its first routines are the roots: the square
 root by Newton on the reciprocal square root, multiplications only with
 the precision doubling, and the root of any degree by Newton in fixed
 point, either one's error verified by raising the result back to the
-power rather than read off the iteration. The elementary functions of
-stage 3 are the routines beside it, one module per family: `fixed-exp.ts`
+power rather than read off the iteration. The elementary functions
+are the routines beside it, one module per family: `fixed-exp.ts`
 (the exponential, by halving, a Taylor series and squaring, and the
 hyperbolic sine and cosine through it, or through the sine's series in
 `x^2` for a small argument) and
@@ -229,8 +241,8 @@ Expressions that never certify, `sqrt(2)^2 - 2` and later `sin(pi()
 radian)`, run to the ceiling however it is set, which is what bounds their
 latency; the ceiling is therefore a cost setting. The table is built at
 the ceiling context (`ceilingContext`), once per ceiling, by
-`system-build.ts` (the plan's D6): from stage 3's `pi()` a unit's precision
-is fixed when the table is built and must lie above every pass, and one
+`system-build.ts` (the plan's D6): since the angle units call `pi()`, a
+unit's precision is fixed when the table is built and must lie above every pass, and one
 ceiling serves every digits setting under one cap, so the table is rebuilt
 only when the cap changes. The user's context comes from the settings
 ("UI" below): the digits, the mode, and the two limits, from which the
@@ -351,7 +363,8 @@ matching dimension operation. Only the magnitude can fail (a zero divisor,
 or one that cannot be told from zero, `0` to a negative power, an even root
 of a negative number, a result beyond the range limit), so the failures are those
 of `ball.ts`, and the power is the one operation that takes a
-`NumberContext`, for the root of a non-integer exponent. Negation touches
+`NumberContext`, for the root, or the log-space route, of a non-integer
+exponent. Negation touches
 the magnitude alone
 and cannot fail. Addition and subtraction are the
 other way about: the magnitudes always combine, but only quantities of one
@@ -684,8 +697,8 @@ fails, carrying the rule's error and every argument's span) and its
 function to their magnitudes, and locates a `domain` failure at the call
 (`domainError`), an `unresolved` at the argument that straddles the edge
 the error names, and any other failure at the call.
-The precision goes to every power, where the root of a non-integer exponent
-is the only operation that can lose digits; everything else is exact. The
+The context goes to every power and every built-in, the operations that
+can lose digits; everything else is exact, and every result is settled. The
 primitives go to every sum, whose operands must conform: this is the one
 place evaluation checks conformance, and it is the same check, with the
 same roles, that conversion applies to `have` and `want`, so that what can
@@ -837,8 +850,13 @@ function namespace: the table carries the set it was built against, the
 build rejects a definition named like one as a duplicate and a built-in
 whose name reads as a prefixed unit as it rejects a function's, and a
 call's name resolves to a defined function first and a built-in second.
-A built-in has no inverse, so its name is not a `want`. The set is empty
-until stage 3's `pi()` and the elementary functions fill it.
+A built-in has no inverse, so its name is not a `want`. The set is the
+elementary functions: `pi()`, `exp`, the logarithms, the roots, `pow`,
+the trigonometric and hyperbolic functions and their inverses;
+docs/builtins.md lists each one's rule, domain, exact cases and edges,
+and the modules under `builtins/` hold one function or one family each.
+The neper, the bel and the decibel are defined functions in units.txt
+whose bodies call the built-ins.
 
 The build checks each function once so that a call at run time can fail
 only on its argument or on a value: the declared units are evaluated and
@@ -1111,25 +1129,27 @@ default ceiling of the retry schedule, the costliest pass an expression
 that never certifies runs, and at a quarter of it, asserting that the
 ceiling costs at most 64 times the quarter, twice what a series of linear
 length over Karatsuba multiplication gives; the report is what the probe
-of `limits.ts` chooses its operations from.
+of `limits.ts` chose its composite from, and it notes that the series of
+`exp`, summed term by term, is the remaining candidate for the
+rectangular splitting the logarithm, the sine and the arctangent use.
 
 ## Later
 
 Planned extensions, listed to show that they fit without reshaping the core:
 
-- **Built-in functions** (`ln`, `sqrt`) are the inexact operations beside
-  the root of "Precision and rounding", each running on the kernel and
-  returning a ball. They need only the `call` node, resolved by a lookup
-  that knows them. docs/calculator.md weighs them, with the special
-  functions, a decimal mode, a rational display and richer user-defined
-  functions, as one program toward an arbitrary-precision calculator under
+- **The rest of the calculator program.** docs/calculator.md weighs the
+  special functions, a decimal mode, a rational display and richer
+  user-defined functions, with the elementary functions that have landed,
+  as one program toward an arbitrary-precision calculator under
   whole-expression precision in the manner of Arb, and
   docs/calculator-plan.md is the plan: stage 1 (the ball as the value, the
-  context, the display rule and the settings) and stage 2 (the kernel,
-  settling, certification, the retry loop, the two limits and `pi`) have
-  landed, and stage 3 (the built-in kind of function, calls with any
-  number of arguments, `pi()` and the elementary set, the table at the
-  ceiling) is next.
+  context, the display rule and the settings), stage 2 (the kernel,
+  settling, certification, the retry loop, the two limits and `pi`) and
+  stage 3 (the built-in kind of function, calls with any number of
+  arguments, the elementary set, the table at the ceiling and the
+  logarithmic units) have landed, and stage 4 (the `Scaled` midpoint and
+  the decimal mode, which also lifts the magnitude limit of the inexact
+  functions, so that `exp(1e6)` is a value) is next.
 - **Domain and range** on a function definition (`tempC(-300)` is a
   negative temperature today) are two optional bounds, checked at the call
   and at the inverse; docs/functions.md lists them with the other

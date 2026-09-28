@@ -36,6 +36,18 @@
 // the mantissa and the exponent times `log2 10` held as a 128-bit
 // fraction, with no call into the kernel.
 //
+// The arithmetic (4.2) is the fraction's on the mantissas with the
+// exponents combined and the result renormalized. A sum aligns the
+// mantissas by `10^|Δexp|`, which costs `|Δexp| log2 10` bits and is exact,
+// and fails `tooLarge` when that exceeds the limit given, the range limit:
+// the exact sum exists and cannot be held (`1e999999999 + 1`), which is
+// what the limit means; a product, a quotient and a power add, subtract
+// and multiply exponents and fail `tooLarge` at the bound, a power's
+// mantissa sized against the limit as the fraction's `pow` sizes it. So
+// `add`, `subtract`, `multiply`, `divide`, `invert` and `pow` are
+// `Result`s where the fraction's are total, and `negate` and `absolute`
+// stay total.
+//
 // Failures on values are `Result`s with the fraction's error kinds; a
 // violated precondition (the decimal exponent of zero) throws
 // `RangeError`, as `rational` does.
@@ -43,10 +55,17 @@
 import {
   ONE as ONE_FRACTION,
   ZERO as ZERO_FRACTION,
+  add as addFractions,
   bitLength,
   compare as compareFractions,
   decimalExponent as decimalExponentOf,
+  divide as divideFractions,
+  invert as invertFraction,
+  multiply as multiplyFractions,
+  negate as negateFraction,
+  pow as powFraction,
   sign as signOf,
+  subtract as subtractFractions,
   type Rational,
   type RationalError,
 } from "./rational.ts";
@@ -170,6 +189,101 @@ export function compare(a: Scaled, b: Scaled): -1 | 0 | 1 {
 }
 
 // ---------------------------------------------------------------------------
+// Arithmetic
+
+/** `-s`: the mantissa negated, the exponent kept; canonical as `s` is. */
+export function negate(s: Scaled): Scaled {
+  return isZero(s) ? s : { mant: negateFraction(s.mant), exp: s.exp };
+}
+
+/** `|s|`. */
+export function absolute(s: Scaled): Scaled {
+  return s.mant.num < 0n ? negate(s) : s;
+}
+
+/**
+ * `a + b`, exactly, the mantissas aligned by `10^|Δexp|`; `tooLarge` when
+ * the alignment would exceed `limit` bits, or the sum's exponent the bound.
+ */
+export function add(
+  a: Scaled,
+  b: Scaled,
+  limit: number,
+): Result<Scaled, ScaledError> {
+  return combine(a, b, limit, addFractions);
+}
+
+/** `a - b`, exactly, as `add` aligns and fails. */
+export function subtract(
+  a: Scaled,
+  b: Scaled,
+  limit: number,
+): Result<Scaled, ScaledError> {
+  return combine(a, b, limit, subtractFractions);
+}
+
+/** `op` over the mantissas of `a` and `b` brought to the lesser exponent. */
+function combine(
+  a: Scaled,
+  b: Scaled,
+  limit: number,
+  op: (x: Rational, y: Rational) => Rational,
+): Result<Scaled, ScaledError> {
+  if (isZero(a)) return scaled(op(ZERO_FRACTION, b.mant), b.exp);
+  if (isZero(b)) return scaled(op(a.mant, ZERO_FRACTION), a.exp);
+  const shift = abs(a.exp - b.exp);
+  if (shift > BigInt(limit) || Number(shift) * BITS_PER_DIGIT > limit) {
+    return err({ kind: "tooLarge" });
+  }
+  const exp = a.exp < b.exp ? a.exp : b.exp;
+  const left = a.exp > exp ? timesPowerOfTen(a.mant, shift) : a.mant;
+  const right = b.exp > exp ? timesPowerOfTen(b.mant, shift) : b.mant;
+  return scaled(op(left, right), exp);
+}
+
+/** `a × b`, exactly: the mantissas multiplied, the exponents added; `tooLarge` at the bound. */
+export function multiply(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
+  if (isZero(a) || isZero(b)) return ok(ZERO);
+  return scaled(multiplyFractions(a.mant, b.mant), a.exp + b.exp);
+}
+
+/** `a / b`, exactly: the mantissas divided, the exponents subtracted; fails on a zero `b` and at the bound. */
+export function divide(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
+  const mant = divideFractions(a.mant, b.mant);
+  if (!mant.ok) return mant;
+  if (isZero(a)) return ok(ZERO);
+  return scaled(mant.value, a.exp - b.exp);
+}
+
+/** The reciprocal of `s`; fails on zero and at the bound. */
+export function invert(s: Scaled): Result<Scaled, ScaledError> {
+  const mant = invertFraction(s.mant);
+  return mant.ok ? scaled(mant.value, -s.exp) : mant;
+}
+
+/**
+ * `s` raised to the integer power `n`, exactly: the exponent times `n`,
+ * checked against the bound first, and the mantissa's power as the
+ * fraction's `pow` sizes it against `limit` bits, so that `10^1442695` is
+ * `1 × 10^1442695` where `2^1442695` is `tooLarge` by its mantissa. A
+ * negative `n` inverts, so zero to a negative power is a division by
+ * zero; `s^0` is one for any `s`.
+ */
+export function pow(
+  s: Scaled,
+  n: bigint,
+  limit: number,
+): Result<Scaled, ScaledError> {
+  if (n === 0n) return ok(ONE);
+  if (isZero(s)) {
+    return n < 0n ? err({ kind: "divisionByZero" }) : ok(ZERO);
+  }
+  if (abs(s.exp) * abs(n) > MAX_EXPONENT) return err({ kind: "tooLarge" });
+  const mant = powFraction(s.mant, n, limit);
+  return mant.ok ? scaled(mant.value, s.exp * n) : mant;
+}
+
+// ---------------------------------------------------------------------------
 // The binary magnitude
 
 /** A binary logarithm as an integer part and a fraction in `[0, 1)`. */
@@ -243,7 +357,8 @@ function normalize(mant: Rational, exp: bigint): Scaled {
     num *= 5n ** denTwos;
     e -= denTwos;
   } else {
-    const denFives = fivesIn(den, undefined);
+    // A power of five has more than two bits per factor.
+    const denFives = fivesIn(den, BigInt(bitLength(den)) / 2n);
     if (denFives > 0n) {
       den /= 5n ** denFives;
       num <<= denFives;
@@ -267,17 +382,32 @@ function tensIn(n: bigint): bigint {
   return twos === 0n ? 0n : min(twos, fivesIn(n, twos));
 }
 
-/** The power of five dividing the positive `n`, counted up to `most` when given. */
-function fivesIn(n: bigint, most: bigint | undefined): bigint {
-  let count = 0n;
-  for (
-    let rest = n;
-    (most === undefined || count < most) && rest % 5n === 0n;
-    rest /= 5n
-  ) {
-    count++;
+/**
+ * The power of five dividing the positive `n`, or `most` if that is
+ * smaller: the count is read off in binary by dividing by `5^(2^k)` from
+ * the largest such power worth trying down to five, each once, which is a
+ * logarithmic number of divisions where one division per factor would be
+ * a quadratic loop on a mantissa full of tens (`10^300000` took a minute).
+ * With the top power chosen so that `2^(k+1)` exceeds `most`, the greedy
+ * count is exact below `most` and at least `most` otherwise.
+ */
+function fivesIn(n: bigint, most: bigint): bigint {
+  if (most <= 0n || n % 5n !== 0n) return 0n;
+  const powers = [5n];
+  while (1n << BigInt(powers.length) <= most) {
+    const next = powers[powers.length - 1]! ** 2n;
+    if (bitLength(next) > bitLength(n)) break;
+    powers.push(next);
   }
-  return count;
+  let count = 0n;
+  let rest = n;
+  for (let k = powers.length - 1; k >= 0; k--) {
+    if (rest % powers[k]! === 0n) {
+      rest /= powers[k]!;
+      count += 1n << BigInt(k);
+    }
+  }
+  return min(count, most);
 }
 
 /** The number of trailing zero bits of the positive `n`. */

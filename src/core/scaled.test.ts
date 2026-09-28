@@ -3,10 +3,17 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import {
   LIMIT_BITS,
+  absolute as absoluteFraction,
+  add as addFractions,
   compare as compareFractions,
-  multiply,
+  divide as divideFractions,
+  invert as invertFraction,
+  multiply as multiplyFractions,
+  negate as negateFraction,
   parseDecimal,
+  pow as powFraction,
   rational,
+  subtract as subtractFractions,
   ZERO as ZERO_FRACTION,
   type Rational,
 } from "./rational.ts";
@@ -15,15 +22,23 @@ import {
   MAX_EXPONENT,
   ONE,
   ZERO,
+  absolute,
+  add,
   compare,
   decimalExponent,
+  divide,
   equals,
   fromRational,
+  invert,
   isInteger,
   isZero,
   log2Bounds,
+  multiply,
+  negate,
+  pow,
   scaled,
   sign,
+  subtract,
   toRational,
   type Log2,
   type Scaled,
@@ -80,7 +95,7 @@ test("one value has one representation, wherever its powers of ten sit", () => {
   assert.deepEqual(dec("1e3"), thousand);
   assert.deepEqual(dec("1000"), thousand);
   assert.deepEqual(
-    fromRational(multiply(rational(8n), rational(125n))),
+    fromRational(multiplyFractions(rational(8n), rational(125n))),
     thousand,
   );
   assert.deepEqual(at(10n, 1n, 2n), thousand);
@@ -109,6 +124,28 @@ test("the numerator's trailing zeros move into the exponent, with the sign kept"
   assert.deepEqual(at(4n, 1n, 0n), { mant: rational(4n), exp: 0n });
   assert.deepEqual(at(25n, 1n, 0n), { mant: rational(25n), exp: 0n });
   assert.deepEqual(at(250n, 1n, 0n), { mant: rational(25n), exp: 1n });
+});
+
+test("a mantissa full of tens, twos or fives is normalized in a logarithmic number of divisions", () => {
+  const started = performance.now();
+  assert.deepEqual(fromRational(rational(10n ** 20000n)), at(1n, 1n, 20000n));
+  assert.deepEqual(fromRational(rational(1n, 5n ** 20000n)), {
+    mant: rational(1n << 20000n),
+    exp: -20000n,
+  });
+  assert.deepEqual(fromRational(rational(1n, 1n << 20000n)), {
+    mant: rational(5n ** 20000n),
+    exp: -20000n,
+  });
+  assert.deepEqual(fromRational(rational(3n * 10n ** 20001n, 7n)), {
+    mant: rational(3n, 7n),
+    exp: 20001n,
+  });
+  assert.deepEqual(fromRational(rational(2n ** 20000n * 5n ** 19999n)), {
+    mant: rational(2n),
+    exp: 19999n,
+  });
+  assert.ok(performance.now() - started < 2000, "fast");
 });
 
 test("zero is zero with exponent zero, whatever exponent it was given", () => {
@@ -206,14 +243,14 @@ test("toRational forms the power of ten where it fits", () => {
 });
 
 test("toRational refuses a power of ten beyond the bits it may form", () => {
-  assert.ok(toRational(dec("1e300000"), LIMIT_BITS).ok);
+  assert.ok(toRational(big("1", 300000n), LIMIT_BITS).ok);
   assertError(toRational(big("1", 400000n), LIMIT_BITS), "tooLarge");
   assertError(toRational(big("1", -400000n), LIMIT_BITS), "tooLarge");
   assertError(toRational(big("1", 999999999n), LIMIT_BITS), "tooLarge");
   assertError(toRational(big("1", -999999999n), LIMIT_BITS), "tooLarge");
   const sixteen = 1 << 16;
   assert.ok(toRational(dec("1e19000"), sixteen).ok);
-  assertError(toRational(dec("1e300000"), sixteen), "tooLarge");
+  assertError(toRational(big("1", 300000n), sixteen), "tooLarge");
   // The mantissa's digits count with the exponent's.
   assertError(
     toRational(at(10n ** 100n + 1n, 1n, 19600n), sixteen),
@@ -331,4 +368,183 @@ test("log2Bounds at exponents up to the bound, against Python's decimal module",
     assert.ok(above - below <= 2 ** -30, `${label}: width`);
   }
   assert.throws(() => log2Bounds(ZERO), RangeError);
+});
+
+// ---------------------------------------------------------------------------
+// Arithmetic
+
+test("negate and absolute keep the canonical form", () => {
+  assert.deepEqual(negate(dec("2.54")), dec("-2.54"));
+  assert.deepEqual(negate(ZERO), ZERO);
+  assert.deepEqual(absolute(dec("-2.54")), dec("2.54"));
+  assert.deepEqual(absolute(big("-1", 999999999n)), big("1", 999999999n));
+  assert.deepEqual(
+    negate(negate(big("7", -999999999n))),
+    big("7", -999999999n),
+  );
+});
+
+test("sums with large exponents of one base form exactly", () => {
+  const limit = 1 << 16;
+  assert.deepEqual(
+    unwrap(add(big("1", 999999999n), big("3", 999999998n), limit)),
+    big("1.3", 999999999n),
+  );
+  assert.deepEqual(
+    unwrap(subtract(big("1", 999999999n), big("1", 999999999n), limit)),
+    ZERO,
+  );
+  assert.deepEqual(
+    unwrap(subtract(big("1", 999999999n), big("3", 999999998n), limit)),
+    big("7", 999999998n),
+  );
+  assert.deepEqual(
+    unwrap(add(big("1", -999999999n), big("2", -999999999n), limit)),
+    big("3", -999999999n),
+  );
+  assert.deepEqual(unwrap(add(dec("0.1"), dec("0.2"), limit)), dec("0.3"));
+  assert.deepEqual(unwrap(add(dec("1e3"), dec("1"), limit)), dec("1001"));
+  assert.deepEqual(
+    unwrap(add(ZERO, big("1", 999999999n), limit)),
+    big("1", 999999999n),
+  );
+  assert.deepEqual(
+    unwrap(subtract(ZERO, big("1", 999999999n), limit)),
+    big("-1", 999999999n),
+  );
+  assert.deepEqual(
+    unwrap(add(big("1", 999999999n), ZERO, limit)),
+    big("1", 999999999n),
+  );
+  assert.deepEqual(
+    unwrap(add(at(1n, 3n, 5n), at(1n, 6n, 5n), limit)),
+    at(1n, 2n, 5n),
+  );
+});
+
+test("a sum whose alignment does not fit the limit is too large", () => {
+  const sixteen = 1 << 16;
+  assertError(add(big("1", 999999999n), ONE, sixteen), "tooLarge");
+  assertError(add(big("1", 999999999n), ONE, LIMIT_BITS), "tooLarge");
+  assertError(subtract(ONE, big("1", -999999999n), LIMIT_BITS), "tooLarge");
+  // `1e19000 + 1` aligns within the default range limit and not within
+  // 60,000 bits, which is what the limit means.
+  assert.deepEqual(
+    unwrap(add(big("1", 19000n), ONE, sixteen)),
+    fromRational(rational(10n ** 19000n + 1n)),
+  );
+  assertError(add(big("1", 19000n), ONE, 60000), "tooLarge");
+  // The sum's own exponent is held to the bound.
+  assertError(
+    add(at(9n, 1n, MAX_EXPONENT), at(1n, 1n, MAX_EXPONENT), sixteen),
+    "tooLarge",
+  );
+  assert.deepEqual(
+    unwrap(add(at(9n, 1n, MAX_EXPONENT), at(-1n, 1n, MAX_EXPONENT), sixteen)),
+    at(8n, 1n, MAX_EXPONENT),
+  );
+});
+
+test("products, quotients and powers combine exponents and hold the bound", () => {
+  assert.deepEqual(
+    unwrap(multiply(big("1", 999999999n), big("1", 999999999n))),
+    big("1", 1999999998n),
+  );
+  assert.deepEqual(
+    unwrap(multiply(big("2.5", 999999999n), big("4", -999999999n))),
+    dec("10"),
+  );
+  assert.deepEqual(
+    unwrap(divide(big("1", 999999999n), big("4", -999999999n))),
+    big("2.5", 1999999997n),
+  );
+  assert.deepEqual(unwrap(divide(ZERO, big("4", -999999999n))), ZERO);
+  assertError(divide(ONE, ZERO), "divisionByZero");
+  assertError(invert(ZERO), "divisionByZero");
+  assert.deepEqual(
+    unwrap(invert(big("4", -999999999n))),
+    big("2.5", 999999998n),
+  );
+  assert.deepEqual(unwrap(invert(dec("8"))), dec("0.125"));
+  assert.deepEqual(unwrap(multiply(ZERO, big("1", MAX_EXPONENT))), ZERO);
+  // At the bound and one past it.
+  const half = MAX_EXPONENT / 2n;
+  assert.ok(multiply(at(1n, 1n, half), at(1n, 1n, half)).ok);
+  assertError(multiply(at(1n, 1n, half), at(1n, 1n, half + 1n)), "tooLarge");
+  assertError(multiply(at(10n, 1n, half), at(1n, 1n, half)), "tooLarge");
+  assert.ok(divide(at(1n, 1n, half), at(1n, 1n, -half)).ok);
+  assertError(divide(at(1n, 1n, half), at(1n, 1n, -half - 1n)), "tooLarge");
+  assertError(divide(at(1n, 1n, -half), at(1n, 1n, half + 1n)), "tooLarge");
+  assert.ok(invert(at(1n, 1n, MAX_EXPONENT)).ok);
+  assertError(invert(at(5n, 1n, MAX_EXPONENT)), "tooLarge");
+});
+
+test("pow raises the mantissa against the limit and the exponent against the bound", () => {
+  assert.deepEqual(
+    unwrap(pow(dec("10"), 1442695n, LIMIT_BITS)),
+    at(1n, 1n, 1442695n),
+  );
+  assertError(pow(dec("2"), 1442695n, LIMIT_BITS), "tooLarge");
+  assert.deepEqual(
+    unwrap(pow(dec("1e9"), 10n ** 9n, LIMIT_BITS)),
+    at(1n, 1n, 9n * 10n ** 9n),
+  );
+  assert.deepEqual(unwrap(pow(dec("2.54"), 2n, LIMIT_BITS)), dec("6.4516"));
+  assert.deepEqual(
+    unwrap(pow(dec("2.54"), -1n, LIMIT_BITS)),
+    at(50n, 127n, 0n),
+  );
+  assert.deepEqual(unwrap(pow(dec("2e3"), 3n, LIMIT_BITS)), dec("8e9"));
+  assert.deepEqual(unwrap(pow(dec("2e3"), -3n, LIMIT_BITS)), at(1n, 8n, -9n));
+  assert.deepEqual(unwrap(pow(ZERO, 0n, LIMIT_BITS)), ONE);
+  assert.deepEqual(unwrap(pow(ZERO, 5n, LIMIT_BITS)), ZERO);
+  assertError(pow(ZERO, -1n, LIMIT_BITS), "divisionByZero");
+  assert.deepEqual(unwrap(pow(big("1", 999999999n), 0n, LIMIT_BITS)), ONE);
+  // The exponent's bound, at it and past it; the mantissa's limit.
+  assert.ok(pow(dec("1e9"), 10n ** 9n, LIMIT_BITS).ok);
+  assertError(pow(dec("1e9"), 10n ** 18n, LIMIT_BITS), "tooLarge");
+  assertError(pow(dec("1e-9"), 10n ** 18n, LIMIT_BITS), "tooLarge");
+  assertError(pow(dec("1e9"), 2n * 10n ** 17n, LIMIT_BITS), "tooLarge");
+  assert.ok(pow(dec("1e9"), 10n ** 17n, LIMIT_BITS).ok);
+  assertError(pow(dec("2"), 100n, 64), "tooLarge");
+  assert.ok(pow(dec("2"), 30n, 64).ok);
+  assertError(pow(dec("3e9"), 100_000n, 1 << 16), "tooLarge");
+});
+
+test("every operation agrees with the fraction's through toRational where the values fit", () => {
+  const values = randomRationals(40, 4201);
+  for (const a of values) {
+    for (const b of values.slice(0, 10)) {
+      const sa = fromRational(a);
+      const sb = fromRational(b);
+      const back = (s: Scaled) => unwrap(toRational(s, LIMIT_BITS));
+      assert.deepEqual(
+        back(unwrap(add(sa, sb, LIMIT_BITS))),
+        addFractions(a, b),
+      );
+      assert.deepEqual(
+        back(unwrap(subtract(sa, sb, LIMIT_BITS))),
+        subtractFractions(a, b),
+      );
+      assert.deepEqual(back(unwrap(multiply(sa, sb))), multiplyFractions(a, b));
+      if (b.num !== 0n) {
+        const quotient = divideFractions(a, b);
+        assert.ok(quotient.ok);
+        assert.deepEqual(back(unwrap(divide(sa, sb))), quotient.value);
+        const reciprocal = invertFraction(b);
+        assert.ok(reciprocal.ok);
+        assert.deepEqual(back(unwrap(invert(sb))), reciprocal.value);
+      }
+      assert.deepEqual(back(negate(sa)), negateFraction(a));
+      assert.deepEqual(back(absolute(sa)), absoluteFraction(a));
+      for (const n of [3n, -2n]) {
+        const power = powFraction(a, n, LIMIT_BITS);
+        if (power.ok) {
+          assert.deepEqual(back(unwrap(pow(sa, n, LIMIT_BITS))), power.value);
+        } else {
+          assertError(pow(sa, n, LIMIT_BITS), power.error.kind);
+        }
+      }
+    }
+  }
 });

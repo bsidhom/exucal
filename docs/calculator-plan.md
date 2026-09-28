@@ -2015,7 +2015,12 @@ within `2^-30`, from the bit lengths of the mantissa and `exp` times
 radius (4.4); and `compare`, total, decided by the signs, by the decimal
 exponents, and, when those are within one of each other, by exact
 alignment, whose shift is then bounded by the mantissas' digit counts
-and never by the range limit. `rational.ts` is untouched.
+and never by the range limit. `rational.ts` is untouched. As it landed
+(found by 4.2's tests): the constructor counts a mantissa's fives by
+dividing by `5^(2^k)` from the largest power worth trying down to five,
+each once, a logarithmic number of divisions, where one division per
+factor made normalizing `10^300000` take a minute; a test holds the cost
+on `10^20000`, `5^-20000` and `2^-20000`.
 
 Tests: the canonical form (`2.54`, `254/100` and `127/50` are one value
 with one representation, and so are `1e3`, `1000` and `8 × 125`; `1/6`
@@ -2049,8 +2054,9 @@ arithmetic stays total.
 Tests: every operation agrees with rational.ts through `toRational` over
 seeded pairs drawn by key where the values fit; sums with large exponents
 (`1e999999999 + 3e999999998`, `1e999999999 - 1e999999999`) form exactly;
-the alignment failure (`1e999999999 + 1` at the default range limit, and
-the same sum under a limit that holds it); the exponent bound at the
+the alignment failure (`1e999999999 + 1` at the default range limit and
+at the hard bound, which no limit holds, and `1e19000 + 1`, which the
+default range limit holds and 60,000 bits do not); the exponent bound at the
 bound and one past it, in a product, a quotient and a power; `pow` of
 `10` to `1442695` is `{1, 1442695}` where `2` to the same is `tooLarge`
 by the mantissa and `1e9` to `1e9` is `{1, 9e9}`.

@@ -235,8 +235,10 @@ says how many are certain ("3 of 8 digits are certain"). Tentatively:
   follows, which it follows trivially; README "Functions in
   expressions": one sentence with an example.
 - Tests: the built-in's own (an exact value gains the working radius, an
-  inexact one is unchanged, zero and unbounded are unchanged, any
-  dimension passes and is kept), and through `evaluateText`:
+  inexact one whose radius is larger is unchanged and one whose radius
+  is smaller is widened to the unit, `approx` of an `approx` is the same
+  ball, zero and unbounded are unchanged, any dimension passes and is
+  kept), and through `evaluateText`:
   `approx(2.54) cm` in `in` is `≈ 1` certified on the first pass,
   `approx(1e999999999) + 1` is `≈ 1e+999999999`, `approx(0.1) +
 approx(0.2) - approx(0.3)` ends at the ceiling as a zero with a bound,

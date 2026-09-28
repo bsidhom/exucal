@@ -354,6 +354,9 @@ Exact arithmetic cannot overflow, but it can grow without bound:
 bound it (the plan's D16 as stage 4 restated it). The magnitude is the
 exponent's, bounded by `MAX_EXPONENT`, `10^18`, in scaled.ts, beyond
 which an operation is `tooLarge`; within it a magnitude costs nothing.
+The bound is kept by decision, for the exponential's cost beyond it and
+the parts of the number type that are exact only within it
+(docs/decimal.md, "Decision: the bound stays at `10^18`").
 The range limit, `maxBits` in the context, bounds the size of a mantissa's
 numerator or denominator and the alignment of a sum: the operations whose
 mantissa can be exponentially larger than their inputs (`pow`, and a
@@ -374,6 +377,11 @@ which the retry schedule's ceiling is derived; its own hard bound,
 `maxDigitsFor`, follows from the range limit, since a settled midpoint at
 the ceiling must fit it with room for a product of two: about 2,450
 digits at the default range limit.
+`approx` bears on the range limit alone, and only in a sum, whose smaller
+operand it lets the radius absorb: it never changes an exponent, so a
+result past the exponent bound is `tooLarge` with it or without it
+(`exp(approx(1e999))`; docs/approximate.md, "`approx` and the exponent
+bound").
 
 ### Failures
 

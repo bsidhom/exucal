@@ -358,8 +358,114 @@ error that says what the domain is (`ln(-1)`, `asin(2)`, `acosh(0.5)`),
 one that cannot be told from an edge of it at any precision up to the
 ceiling says so (`tan(90 deg)` at a pole), and a result whose exponent
 would pass `10^18` is refused as too large (`exp(1e30)`, `sinh(1e30)`),
-where `exp(1e6)` is `≈ 3.0332154e+434294`.
+where `exp(1e6)` is `≈ 3.0332154e+434294`; the next section says why
+`approx` does not change that.
 No prefix applies to a function: `kpi()` is a call of nothing.
+
+### Very large results and `approx`
+
+`approx` says how well a value is known, not how large it is, so it
+cannot rescue a result that is too large: `exp(approx(1e999))` is refused
+exactly as `exp(1e999)` is. The message, that it is too large to compute,
+covers two different limits.
+
+A value is held as a mantissa times a power of ten. The settings limit
+the mantissa: Digits and Most digits say how many of its digits must be
+certain, and Most bits how large its numerator and denominator may grow.
+The exponent has a fixed bound of its own, `10^18` either way, which is
+not a setting. `1e999` is `1 × 10^999`, well within both. `exp(1e999)` has
+a mantissa that 32 digits hold with ease and an exponent that is itself a
+number of 999 digits:
+
+```
+exp(1e999) = 2.0307164965753263882718190599363 × 10^434294481903251827…4497145
+             └────────── mantissa ───────────┘      └─────── exponent ───────┘
+             the settings' part: Digits,            fixed, not a setting:
+             Most digits and Most bits;             at most 10^18 either
+             32 digits fit with ease                way; this one has 999
+                                                    digits, 4.3 × 10^998
+```
+
+The exponential of `x` has the decimal exponent `x log10 e`, so `exp(x)`
+is refused whenever `|x|` passes `10^18 ln 10`, about `2.3026e18`, with or
+without `approx`: `exp(2.3e18)` is `≈ 3.9591004e+998877308377479203` and
+`exp(2.31e18)` is refused. So is `exp(-1e999)`, whose exponent is as far
+below the bound as `exp(1e999)`'s is above it, although the message says
+"too large"; `sinh`, `cosh` and powers (`pow(10, 1e999)`, `10^1e999`)
+share the limit. What `approx` does relax is Most bits, in a sum:
+`1e999999999 + 1` is refused, since its exact value has a billion digits,
+while `approx(1e999999999) + 1` is `≈ 1e+999999999`, the `1` absorbed into
+the radius. It never changes an exponent.
+
+Nor would `approx` help if the exponent were allowed, because of what the
+exponential does to a radius: `exp(x ± r)` is `exp(x)` times a factor
+between `e^-r` and `e^r`, so the argument's radius, in absolute terms,
+becomes the result's relative error, and `exp` of a large argument needs
+that argument to many more digits than the result shows. `exp(1e999)` to
+32 digits needs `1e999` to about 1,033: its 1,000 digits before the point
+and 33 after. `approx(1e999)` is `1e999` within one unit in its last
+working digit, and the app computes at rising precisions until the digits
+asked for are certain, so the radius shrinks with each pass; but at 32
+digits, with Most digits 1,000 and Most bits 32,768, it stays above one,
+where `exp` would have no digit to show, until the sixth pass:
+
+```
+                   log10 r, where r is the radius of approx(1e999)
+            -400    -200      0      200     400     600     800     1000
+pass  digits  ┊       ┊       ┊       ┊       ┊       ┊       ┊       ┊
+  1      52                   ├─────────────────────────────────────●
+  2      94                   ├───────────────────────────────────●
+  3     178                   ├────────────────────────────────●
+  4     346                   ├─────────────────────────●
+  5     682                   ├────────────●
+  6    1354     ●─────────────┤
+              ┊       ┊       ┊       ┊       ┊       ┊       ┊       ┊
+         digits certain ◄── r = 1 ──► no digit certain
+```
+
+| Pass | Working digits | `approx(1e999)`  | `exp` of it, were its exponent allowed                  |
+| ---: | -------------: | ---------------- | ------------------------------------------------------- |
+|    1 |             52 | `1e999 ± 1e948`  | within a factor of `e^(10^948)`: no digit certain       |
+|    2 |             94 | `1e999 ± 1e906`  | within a factor of `e^(10^906)`: no digit certain       |
+|    3 |            178 | `1e999 ± 1e822`  | within a factor of `e^(10^822)`: no digit certain       |
+|    4 |            346 | `1e999 ± 1e654`  | within a factor of `e^(10^654)`: no digit certain       |
+|    5 |            682 | `1e999 ± 1e318`  | within a factor of `e^(10^318)`: no digit certain       |
+|    6 |          1,354 | `1e999 ± 1e-354` | within a relative `1e-354`: all 32 digits certain, done |
+
+What the relative precision of `approx(1e999)` bounds is the precision
+of the result's logarithm, not of the result: at the first pass the
+exponent would be known to 51 of its 999 digits, and the mantissa not at
+all. The app never gets that far today. At the first pass `exp` measures
+its argument over the whole ball, finds that the result's exponent would
+pass the bound, and refuses before computing anything; no later pass can
+change that, so the refusal is the answer. Without `approx`, `exp(1e999)`
+would be certain at the first pass, were its exponent allowed, since the
+exponential of an exact argument works to as many extra digits as the
+argument has: `approx` would cost it five passes.
+
+So the settings are not what stands in the way. The sixth pass is within
+the ceiling of 4,040 digits that Most digits of 1,000 gives, and its
+1,354-digit midpoint fits Most bits of 32,768. A test build with the
+exponent bound raised to `10^1100` found the right digits of `exp(1e999)`
+at the first pass and of `exp(approx(1e999))` at the sixth, each in under
+half a second: a 32-digit answer 1,034 characters long, most of them the
+exponent. The bound stays, though. Its cost grows fast with the argument
+(`exp(1e3000)` took a second and `exp(1e9000)` thirteen), and parts of
+the number type are exact only because the exponent is at most `10^18`,
+so the test build's digits were right but its guarantee that they were
+right was not. Keeping the bound is a decision, recorded with its
+reasons in `docs/decimal.md` ("Decision: the bound stays at `10^18`"),
+and `docs/approximate.md` has the measurements.
+
+Instead, work in log space, as on paper: `1e999 / ln(10)` is the
+decimal exponent of `exp(1e999)`, `≈ 4.3429448e+998`, and a quotient of
+exponentials is the exponential of a difference, so `exp(1e999) /
+exp(1e999 - 5)`, which is refused, is `exp(1e999 - (1e999 - 5))`, `≈
+148.41316`. Keep the arguments exact there: the difference
+`approx(1e999) - approx(1e999 - 5)` is `5` within about `2e948` at the
+first pass, and `exp` refuses it for the size that radius allows,
+although by the sixth pass it would be `5` within `2e-354` (issue
+[#40](https://github.com/bsidhom/pwa-units/issues/40)).
 
 ### Adding a unit
 

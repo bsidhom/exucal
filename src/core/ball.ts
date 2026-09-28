@@ -118,7 +118,7 @@
 // otherwise.
 
 import type { NumberContext } from "./context.ts";
-import { workingDigits } from "./context.ts";
+import { modeOf, workingDigits } from "./context.ts";
 import { floatingToBall } from "./digits.ts";
 import { expFixed } from "./fixed-exp.ts";
 import { ln10Fixed, lnFixed } from "./fixed-log.ts";
@@ -153,6 +153,7 @@ import {
   log2OfRadius,
   multiplyRadius,
   multiplyRadiusDown,
+  radiusAbove,
   radiusAboveScaled,
   radiusBelowScaled,
   radiusUpper,
@@ -331,7 +332,10 @@ export function addBalls(
   const sum = add(a.mid, b.mid, context.maxBits);
   if (sum.ok) return ok({ mid: sum.value, rad: addRadius(a.rad, b.rad) });
   if (sum.error.kind !== "tooLarge") return sum;
-  if (isExact(a) && isExact(b)) return sum;
+  // Two exact operands have an exact sum that cannot be held, except in
+  // decimal mode, where every operation rounds and the sum is settled as
+  // an inexact one is: `1e999999999 + 1` is `1e999999999` within one.
+  if (isExact(a) && isExact(b) && modeOf(context) === "exact") return sum;
   const sa = settle(a, context);
   const sb = settle(b, context);
   const settled = add(sa.mid, sb.mid, context.maxBits);
@@ -460,22 +464,42 @@ export function powBall(
 }
 
 /**
- * `b` settled to the working precision of `context` (D15): an inexact
- * midpoint is rounded to nearest at the working digits, the decimal grid
- * the kernel's results are rounded onto, and half a unit in the last of
- * those digits, its bound, is added to the radius when the rounding moved
- * it; an exact ball, or one with a zero midpoint, is returned as it is.
- * The rounding is to nearest and not in the context's mode: settling
- * bounds the size of a number the user never sees, and the mode is
- * applied once, by the display, to the certified value of the whole
- * expression (4.5 adds the decimal mode, which settles in the mode).
+ * `b` settled to the working precision of `context` (D15), one rounding
+ * with two parameters (docs/decimal.md, "The decimal mode"). In exact
+ * mode an inexact midpoint is rounded to nearest at the working digits,
+ * the decimal grid the kernel's results are rounded onto, and half a unit
+ * in the last of those digits, its bound, is added to the radius when the
+ * rounding moved it; an exact ball is returned as it is, since the
+ * rounding mode is the display's, applied once to the certified value of
+ * the whole expression. In decimal mode every midpoint, an exact one
+ * included, is rounded to the context's precision in its rounding mode,
+ * and the exact difference between the rounded value and the midpoint
+ * goes into the radius (not the bound: a value rounded to `p` digits with
+ * half a unit of radius has its ends on the rounding boundaries and
+ * certifies `p - 1`); a value with `p` digits or fewer is its own
+ * rounding and stays as it is. A zero midpoint is left alone in both.
  */
 export function settle(b: Ball, context: NumberContext): Ball {
-  if (isExact(b) || isZero(b.mid)) return b;
+  if (isZero(b.mid)) return b;
+  if (modeOf(context) === "decimal") {
+    const mid = roundTo(b.mid, context.precision, context.rounding);
+    if (equals(mid, b.mid)) return b;
+    const moved = subtract(mid, b.mid, LIMIT_BITS);
+    if (!moved.ok)
+      throw new Error("A rounding moves a value within its digits");
+    return { mid, rad: addRadius(b.rad, radiusOfDifference(moved.value)) };
+  }
+  if (isExact(b)) return b;
   const digits = workingDigits(context);
   const mid = roundTo(b.mid, digits, "halfEven");
   if (equals(mid, b.mid)) return b;
   return { mid, rad: addRadius(b.rad, halfUnitOf(mid, digits)) };
+}
+
+/** A radius at or above the difference `d` a rounding made: exact where the fraction can be formed, the coarse bound otherwise. */
+function radiusOfDifference(d: Scaled): Radius {
+  const r = toRational(d, FORMABLE_RADIUS_BITS);
+  return r.ok ? radiusAbove(r.value) : radiusAboveScaled(d);
 }
 
 /** A radius at or above half a unit in the last of `digits` significant digits of the nonzero `s`. */

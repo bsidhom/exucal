@@ -27,17 +27,21 @@ import {
   DEFAULT_MAX_DIGITS,
   DEFAULT_ROUNDING,
   MIN_MAX_BITS,
+  MODES,
   ceilingFor,
   maxDigitsFor,
+  type Mode,
   type NumberContext,
 } from "./core/context.ts";
 import { LIMIT_BITS } from "./core/rational.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 
-/** The settings: the digits shown, the rounding mode, and the two limits. */
+/** The settings: the digits shown, the rounding mode, the exact or decimal mode, and the two limits. */
 export type Settings = {
   readonly digits: number;
   readonly rounding: RoundingMode;
+  /** Exact or decimal (the plan's 4.7): whether every step rounds to the digits in the rounding mode. */
+  readonly mode: Mode;
   /** The cap on `digits`: the most digits a result may be asked for. */
   readonly maxDigits: number;
   /** The range limit: the most bits a numerator or denominator may have. */
@@ -47,6 +51,7 @@ export type Settings = {
 export const DEFAULT_SETTINGS: Settings = {
   digits: DEFAULT_DIGITS,
   rounding: DEFAULT_ROUNDING,
+  mode: "exact",
   maxDigits: DEFAULT_MAX_DIGITS,
   maxBits: DEFAULT_MAX_BITS,
 };
@@ -76,7 +81,7 @@ export function loadSettings(storage: SettingsStorage): Settings {
     return DEFAULT_SETTINGS;
   }
   if (typeof parsed !== "object" || parsed === null) return DEFAULT_SETTINGS;
-  const { digits, rounding, maxDigits, maxBits } = parsed as Record<
+  const { digits, rounding, mode, maxDigits, maxBits } = parsed as Record<
     string,
     unknown
   >;
@@ -84,6 +89,7 @@ export function loadSettings(storage: SettingsStorage): Settings {
   return clampSettings({
     digits: isPositiveInteger(digits) ? digits : DEFAULT_SETTINGS.digits,
     rounding: isRoundingMode(rounding) ? rounding : DEFAULT_SETTINGS.rounding,
+    mode: isMode(mode) ? mode : DEFAULT_SETTINGS.mode,
     maxDigits: isPositiveInteger(maxDigits)
       ? maxDigits
       : DEFAULT_SETTINGS.maxDigits,
@@ -118,6 +124,7 @@ export function saveSettings(
       JSON.stringify({
         digits: settings.digits,
         rounding: settings.rounding,
+        mode: settings.mode,
         maxDigits: settings.maxDigits,
         maxBits: settings.maxBits,
       }),
@@ -128,8 +135,9 @@ export function saveSettings(
 }
 
 /**
- * The context the pipeline takes for `settings`: the digits, in the mode,
- * within the range limit, under the ceiling the cap gives (D12).
+ * The context the pipeline takes for `settings`: the digits, in the
+ * rounding mode and the exact or decimal mode, within the range limit,
+ * under the ceiling the cap gives (D12).
  */
 export function contextOf(settings: Settings): NumberContext {
   return {
@@ -137,7 +145,13 @@ export function contextOf(settings: Settings): NumberContext {
     rounding: settings.rounding,
     maxBits: settings.maxBits,
     ceiling: ceilingFor(settings.maxDigits),
+    mode: settings.mode,
   };
+}
+
+/** Whether `value` is one of the two modes. */
+export function isMode(value: unknown): value is Mode {
+  return typeof value === "string" && (MODES as string[]).includes(value);
 }
 
 /** Whether `value` is a digits setting under the cap `maxDigits`: an integer in `[1, maxDigits]`. */

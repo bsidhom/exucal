@@ -16,6 +16,7 @@ import {
   isDigits,
   isMaxBits,
   isMaxDigits,
+  isMode,
   loadSettings,
   saveSettings,
   type Settings,
@@ -44,6 +45,7 @@ test("an empty storage gives the defaults", () => {
   assert.deepEqual(DEFAULT_SETTINGS, {
     digits: 8,
     rounding: "halfAwayFromZero",
+    mode: "exact",
     maxDigits: 1000,
     maxBits: 65536,
   });
@@ -53,10 +55,40 @@ test("stored settings are parsed", () => {
   const stored = {
     digits: 12,
     rounding: "floor",
+    mode: "decimal",
     maxDigits: 100,
     maxBits: 4096,
   };
   assert.deepEqual(load(stored), stored);
+});
+
+test("the mode loads, defaults to exact when missing or neither, saves and reaches the context", () => {
+  assert.equal(load({ mode: "decimal" }).mode, "decimal");
+  assert.equal(load({ mode: "exact" }).mode, "exact");
+  for (const mode of [undefined, "approximate", "Decimal", 1, null, ""]) {
+    assert.equal(load({ mode }).mode, "exact", String(mode));
+  }
+  // Settings stored before the mode existed load with it exact.
+  assert.deepEqual(
+    load({ digits: 12, rounding: "floor", maxDigits: 100, maxBits: 4096 }),
+    {
+      digits: 12,
+      rounding: "floor",
+      mode: "exact",
+      maxDigits: 100,
+      maxBits: 4096,
+    },
+  );
+  const store = storage();
+  saveSettings(store, { ...DEFAULT_SETTINGS, mode: "decimal" });
+  assert.equal(loadSettings(store).mode, "decimal");
+  assert.equal(
+    contextOf({ ...DEFAULT_SETTINGS, mode: "decimal" }).mode,
+    "decimal",
+  );
+  assert.equal(contextOf(DEFAULT_SETTINGS).mode, "exact");
+  assert.ok(isMode("exact") && isMode("decimal"));
+  assert.ok(!isMode("Exact") && !isMode(undefined) && !isMode(0));
 });
 
 test("each field that is missing or invalid falls back to its default alone", () => {
@@ -178,6 +210,7 @@ test("settings round-trip through storage, under one key", () => {
   const settings: Settings = {
     digits: 30,
     rounding: "halfEven",
+    mode: "decimal",
     maxDigits: 2000,
     maxBits: 1 << 17,
   };
@@ -192,6 +225,7 @@ test("contextOf is the settings as the pipeline takes them, with the cap's ceili
   const settings: Settings = {
     digits: 12,
     rounding: "floor",
+    mode: "decimal",
     maxDigits: 300,
     maxBits: 4096,
   };
@@ -200,6 +234,7 @@ test("contextOf is the settings as the pipeline takes them, with the cap's ceili
     rounding: "floor",
     maxBits: 4096,
     ceiling: ceilingFor(300),
+    mode: "decimal",
   });
   assert.equal(contextOf(DEFAULT_SETTINGS).ceiling, 4040);
 });

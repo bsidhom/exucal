@@ -50,7 +50,14 @@
 // context's `ceiling` (the shell derives it from the cap on the digits
 // setting, `ceilingFor` in context.ts, and it is the same in every working
 // context; a context whose precision exceeds that cap is a precondition
-// failure).
+// failure). In decimal mode (4.6) the schedule is the user's context
+// alone: every operation rounds to the digits asked for in the rounding
+// mode, so raising the internal precision would compute something other
+// than what the mode asks for, and the display marks what the radius does
+// not certify without escalating; an `unresolved` is then final and
+// reported at once. The table is built at the ceiling in exact mode
+// whatever the user's mode (`ceilingContext`), and the lookup settles a
+// unit in the user's mode.
 // `resolve` runs the evaluation at each working context in turn and stops
 // at the first result whose every value is exact, certified at the digits
 // asked for, or of unbounded radius, which no pass can narrow; a result
@@ -83,7 +90,12 @@ import { parseExpr, parseUnitList, type Expr } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
 import type { Quantity } from "./quantity.ts";
 import { certifies, divideBalls, isExact, type Ball } from "./ball.ts";
-import { GUARD_DIGITS, checkContext, type NumberContext } from "./context.ts";
+import {
+  GUARD_DIGITS,
+  checkContext,
+  modeOf,
+  type NumberContext,
+} from "./context.ts";
 import { isUnbounded } from "./radius.ts";
 import { err, ok, type Result } from "./result.ts";
 import {
@@ -174,13 +186,15 @@ export type ConversionError =
  * The working contexts for the user's `context`, per D12: the digits asked
  * for plus the guard, then that doubled, doubled again, and so on while
  * below the context's ceiling, and the ceiling last; the rounding mode,
- * the range limit and the ceiling are the user's throughout. A precision
- * above the cap the ceiling was derived from (`ceilingFor` in context.ts,
- * four times the cap plus the guard) is a precondition failure.
+ * the range limit, the ceiling and the mode are the user's throughout. In
+ * decimal mode the context itself, alone (4.6). A precision above the cap
+ * the ceiling was derived from (`ceilingFor` in context.ts, four times the
+ * cap plus the guard) is a precondition failure.
  */
 export function schedule(context: NumberContext): NumberContext[] {
   checkContext(context);
   const { ceiling } = context;
+  if (modeOf(context) === "decimal") return [context];
   const first = context.precision + GUARD_DIGITS;
   if (4 * first > ceiling) {
     throw new RangeError(

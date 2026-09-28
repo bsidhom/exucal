@@ -8,8 +8,9 @@ feature, not two") as one: a midpoint that carries an exponent, so that
 `1e999999999` is a value and `exp(1e6)` is `≈ 3.0332154e434294` rather
 than `tooLarge`, and a decimal mode that rounds after every operation in
 the user's rounding mode, as a hand calculator or a decimal library does.
-"Implementation notes" at the end is empty until the stage lands, and
-the plan's "Stage 4 as it landed" will record where the code departed.
+The stage has landed; "Implementation notes" at the end says where the
+code departed from this note, and the plan's "Stage 4 as it landed"
+records it task by task.
 
 ## The problem
 
@@ -333,7 +334,7 @@ settled, so in decimal mode
 
 - a literal is rounded to `p` digits if it has more, and the radius
   records it (`3.14159265358979` at eight digits is `3.1415927` within
-  `3.6e-9`); a literal with `p` digits or fewer is exact;
+  `4.7e-8`); a literal with `p` digits or fewer is exact;
 - a unit looked up is settled once, by `unitLookup`, so `surveyfoot`,
   built exactly at the ceiling as every unit is (D6, the table always
   exact), is `0.30480061 m` within `4e-10` at eight digits, and `1 ft`
@@ -496,4 +497,46 @@ setting, the docs. So the plan's numbering is the order.
 
 ## Implementation notes
 
-Written when the stage lands.
+The stage landed in four pull requests, one task per commit, and the
+plan's "Stage 4 as it landed" lists the rulings task by task. What
+departed from this note:
+
+- **The exponent's cost.** A power of ten costs nothing, so `10^100000`
+  is exactly `1e100000` and `10^(100000/3)` is a value, where the range
+  limit refused both; the note's `7^(100000/3)` and its kind are values
+  too, through log space, since 4.9 gave the exponential the range of
+  its exponent, and only the exponent bound refuses.
+- **The kernel's boundary.** `fixedToBall` takes the digit count, not the
+  context, and adds the half unit only when the rounding moved the value,
+  so a kernel value of no error on the grid is exact; `roundTo` and the
+  digit count of an integer were rewritten without a gcd and without
+  `toString`, after a settle at the ceiling measured 2 ms on the first
+  landing (0.4 ms after).
+- **Certification.** Where the ends cannot be formed, the distance from
+  the midpoint to the nearest rounding boundary is measured against the
+  radius, exact on the midpoint's side; the two-digit interval this note
+  described refused any count whose two digits beyond lay within two of
+  a boundary.
+- **The quotient rule** is within `2^-25` of the exact bound, not
+  `2^-28`, over the rule's five coarse roundings.
+- **The tiny end.** An argument below `2^-maxBits` throughout is answered
+  by its expansion at zero, which the note did not list beside the
+  saturations, and `extraBits` is held to the range limit.
+- **The decimal mode under a directed rounding mode** certifies at most
+  one digit fewer than asked: the rounded value is the boundary of its
+  own cell and the ball has no one-sided radius, so `2 / 3` under
+  `towardZero` at eight digits is `0.66666666` shown as `≈ 0.6666666`
+  with seven certain; and `1 / 3 * 3` under `towardZero` certifies no
+  digit, its ball reaching `1` from below. The note's reading holds under
+  the nearest modes. The quotient `1 / (1 / 3 * 3 - 1)` is a division by
+  zero in exact mode, the difference being exactly zero there.
+- **`mode`** is an optional field, absent meaning exact, so that every
+  context written before it existed is an exact one; `ceilingContext`
+  sets exact mode only for a decimal context.
+- **Log space** is `src/core/digits.ts`, entered through `floatingToBall`,
+  a `Result` that fails `tooLarge` only where the guard's double let an
+  exponent at the bound through; the first landing scaled `ln 2` by the
+  exponent less the mantissa's bits and gave `exp(1e6)` eighteen digits
+  short, which the tests against Python's digits caught. The log-space
+  conversion costs about 47 ms at the ceiling, the logarithm and the two
+  memos computed for the call at the ceiling's bits plus the exponent's.

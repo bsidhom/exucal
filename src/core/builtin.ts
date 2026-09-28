@@ -238,6 +238,14 @@ export function checkArgument(
 }
 
 /**
+ * The rule of a function of one argument of any dimension, kinds
+ * included, whose result has the argument's dimension: `approx` (4.10),
+ * ahead of the exact functions D14 describes.
+ */
+export const sameAsArgument: DimensionRule = (args) =>
+  ok(args[0] ?? DIMENSIONLESS);
+
+/**
  * The dimension of an angle, the radian kind, in a table whose
  * `primitives` declare `radian`; `undefined` when they do not, and the
  * table has no angles.

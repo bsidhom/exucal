@@ -3,8 +3,8 @@
 Status: design note, written during the review of docs/decimal.md
 (stage 4 of docs/calculator-plan.md) and placed as task 4.10 of that
 stage; "Future work" at the end records the uncertain-measurement form
-and how it will be implemented, tentatively. "Implementation notes" is
-empty until the task lands.
+and how it will be implemented, tentatively. The task has landed, and
+"Implementation notes" says how.
 
 ## The problem
 
@@ -247,4 +247,13 @@ approx(0.2) - approx(0.3)` ends at the ceiling as a zero with a bound,
 
 ## Implementation notes
 
-Written when the task lands.
+Landed as task 4.10, `src/core/builtins/approx.ts`, as this note
+describes: `sameAsArgument` in builtin.ts returns the first argument's
+dimension and checks nothing, the arity check having seen to the count;
+the working digits are read in the built-in, `workingDigits(context)` in
+exact mode and the context's precision in decimal mode, and the settle
+then rounds the result in the mode as it rounds every result; a zero
+midpoint, exact or not, is returned as it is, since a unit of the last
+digit of zero would be a unit of nothing; and `approx` is the last of
+the app's built-ins by name. The two-argument form waits on the retry
+loop's stopping rule above.

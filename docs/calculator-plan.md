@@ -1,8 +1,9 @@
 # Implementation plan for the calculator
 
-Status: in progress; stages 1 to 3 have landed, and "Stage 1 as it
-landed", "Stage 2 as it landed" and "Stage 3 as it landed" at the end
-record where the code diverged from the tasks as first written. D13 was revised in review of
+Status: in progress; stages 1 to 4 have landed, and "Stage 1 as it
+landed", "Stage 2 as it landed", "Stage 3 as it landed" and "Stage 4 as
+it landed" at the end record where the code diverged from the tasks as
+first written. D13 was revised in review of
 the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -2343,6 +2344,35 @@ digits or fewer and on zero; the examples above through `evaluate` at a
 decimal context, midpoint and radius both; `1e999999999 + 1` in decimal
 mode; `checkContext` rejects a mode that is neither.
 
+As it landed. `mode` is an optional field of `NumberContext`, absent
+meaning exact (`modeOf` reads it), so that every context written before
+the mode existed is an exact one without a word changed; `MODES` names
+the two, `checkContext` rejects a third, and `ceilingContext` sets exact
+mode only where the context's is decimal, keeping a context without a
+mode as it was. In decimal mode the settle's radius is `radiusAbove` of
+the exact difference where the difference can be formed and the coarse
+bound of scaled.ts otherwise. The reading of `1 / 3 * 3` above holds
+under the nearest modes: the ball is `[0.99999998, 1]` to within the
+coarse type, which certifies seven digits under `halfEven` and
+`halfAwayFromZero` and none under `towardZero`, since a directed mode
+has a boundary at `1` and the ends lie on either side of it; the display
+then shows the midpoint `0.99999999` with the note that none of its
+digits is certain, which is the honest reading of a value the roundings
+have made noise, and no decimal library's `0.99999999` is a digit the
+exact expression has. More generally, a value rounded in a directed
+mode certifies at most `p - 1` digits and never `p`: the rounded value
+is the boundary of its own cell, the exact value lies just inside the
+cell on one side, and the ball, which has no one-sided radius, reaches
+into the cell below by the same difference, so `2 / 3` under
+`towardZero` at eight digits is `0.66666666` shown as `≈ 0.6666666` with
+seven of eight certain, and a rounded value ending in zeros, on the
+boundary of wider cells too, certifies fewer (`1 surveyfoot` in `m` is
+`0.30480060`, shown as `≈ 0.3048` with six certain). The digit shown is
+the mode's rounding of the computed value,
+as a decimal library would show it, and the note says what the radius
+can vouch for; under the nearest modes the rounded value is inside its
+cell and the `p`-th digit certifies, as the text above says.
+
 Behavior: none until 4.6 gives the mode a way in; `mode` defaults to
 exact and every existing caller builds an exact context.
 
@@ -2371,6 +2401,17 @@ digits is `2.7182818` within the rounding, one pass (a `run` that records
 its contexts sees one); `sqrt(2)^2 - 2` is the mode's `0` or its rounded
 residue, one pass; a list and a function want in decimal mode.
 
+As it landed. `schedule` returns the context alone in decimal mode and
+`resolve` is untouched, one pass being a schedule of one; `1 / 3 * 3`
+under `towardZero` shows `0.99999999` with no digit certain, as 4.5
+records, and `≈ 1` with seven under the nearest modes; the residue of
+`sqrt(2)^2 - 2` is a ball around zero with the mode's bound in one pass.
+The quotient `1 / (1 / 3 * 3 - 1)` is `unresolved` at once in decimal
+mode, but in exact mode the difference is exactly zero and the quotient
+a division by zero, not an `unresolved` after the ceiling as the text
+above has it; `1 / (sqrt(2)^2 - 2)` is the quotient that is `unresolved`
+in both modes, at once in the one and after the ceiling in the other.
+
 Behavior: the decimal mode exists, reachable through the context, and
 nothing in the app sets it until 4.7.
 
@@ -2390,6 +2431,16 @@ it; the UI check of the commit message records `1 / 3 * 3` at eight
 digits in each mode with "Rounding" toward zero, and `1 ft` in `in` in
 decimal mode.
 
+As it landed. The mode is a "Mode" select after "Rounding", its two
+options worded "exact: every digit shown is certain, at rising
+precision" and "decimal: every step rounded to the digits, in the
+rounding mode"; settings stored before the mode existed load with it
+exact, and `isMode` is the validator beside the others. The UI check
+records what the pipeline's tests record: `1 / 3 * 3` in decimal mode
+is `≈ 1` with seven of eight digits certain under the nearest modes and
+`≈ 0.99999999` with none under `towardZero`, and `= 1` in exact mode
+under both.
+
 Behavior: the mode setting.
 
 ### 4.8 Stage 4 docs
@@ -2407,6 +2458,22 @@ docs/calculator.md's status line names stage 4 as landed and the
 payload line is measured again after `pnpm build`. docs/decimal.md's
 "Implementation notes" and the plan's "Stage 4 as it landed", in the
 style of "Stage 3 as it landed".
+
+As it landed. The sweep covered ARCHITECTURE.md ("Numbers", "Precision
+and rounding" with the settle in decimal mode and the one pass, "Working
+precision and the context", "Size limits", "UI", "Layout" and "Later"),
+README ("Settings" with the mode, "Functions in expressions" with the
+range of the inexact functions and `approx`, "Most bits" with the free
+power of ten), docs/builtins.md (the rules under the two modes, the
+large-argument rules, the limit on large results, `approx`),
+docs/decimal.md and docs/approximate.md ("Implementation notes" written,
+the status lines), docs/calculator.md (the status line and the payload)
+and this plan ("Stage 4 as it landed"); much of it was written task by
+task as each landed, since every commit leaves the module headers and
+ARCHITECTURE.md truthful. The production build after stage 4 precaches
+129 KB, 42 KB compressed: the script is 111 KB (35 KB compressed), 17 KB
+more than after stage 3 for scaled.ts, digits.ts, the `Floating` and
+`approx`, and the definitions file 16 KB (6 KB compressed).
 
 Behavior: none; documentation.
 
@@ -2534,6 +2601,18 @@ approx(0.2) - approx(0.3)` ends at the ceiling as a zero with a bound,
 one unit in the last digit; a definition calling `approx` builds, and a
 conversion through it shows `≈`; `approx()` and `approx(1, 2)` are arity
 errors with their messages.
+
+As it landed. `sameAsArgument` returns the first argument's dimension
+and checks nothing, the arity check having seen to the count; the
+working digits are the context's precision in decimal mode and
+`workingDigits(context)` in exact mode, read in the built-in, so that
+the settle rounds the result in the mode as it rounds every result; a
+zero midpoint, exact or not, is returned as it is, since a unit of the
+last digit of zero would be a unit of nothing. `approx` is named in
+docs/builtins.md's names, dimension table and layout, and in README
+"Functions in expressions". The tests' definitions file defines `G
+approx(6.674e-11) m^3` and a function whose body calls `approx`, and
+converts through both with `≈`.
 
 Behavior: `approx` exists.
 
@@ -2887,3 +2966,85 @@ threefry2x32 blocks under the key, checked against the published
 vectors), so that every seeded input is a function of its key and its
 index rather than of the draws before it; the seeded inputs of every
 containment test changed with it, and every test holds on the new ones.
+
+## Stage 4 as it landed
+
+The re-read after 4.10. Each task landed as one commit in the order of
+the stage's introduction (4.0, 4.1 to 4.3, 4.4 and 4.9, then 4.5 to 4.7,
+4.10 and 4.8), in four pull requests, and the tests pass under every
+task; the rulings each task settled on its own were written into the
+task's text in the same commit, and this is the list of them, with what
+stage 5 inherits.
+
+- **4.0.** The design note settled on one decimal exponent after a first
+  draft with two (a binary one beside it), the user's review having asked
+  for the representation to follow from the design intent; `approx`
+  (docs/approximate.md, 4.10) came out of the same review, a built-in
+  rather than a syntax, never narrowing, with exact values keeping their
+  radius of zero everywhere in exact mode.
+- **4.1.** The canonical form counts the fives of a denominator by
+  doubling (`fivesIn`), after one division per factor made `10^300000`
+  take a minute; `MAX_EXPONENT` is `10^18`.
+- **4.2.** The alignment limit is on the shift alone, not on the
+  mantissas' sizes; `1e19000 + 1` at the default range limit is the test
+  of it.
+- **4.3.** The tests of the modules that still held fractions read a
+  literal through `src/testing/fraction.ts`; the evaluator formed a
+  literal's fraction at the range limit until 4.4.
+- **4.4.** `fixedToBall(f, digits)` takes the digit count; an argument
+  below `2^-maxBits` throughout is answered by its expansion at zero, and
+  `extraBits` is held to the range limit; `convert` takes no context;
+  `ConvertError` gains `tooLarge`; D8's amended count landed here; a
+  power of ten costs nothing, so `10^100000` and `10^(100000/3)` are
+  values; the quotient rule is within `2^-25` of the exact bound; `log2Of`
+  reads the coarse bounds; `roundTo` and `decimalDigits` were rewritten
+  for speed; `Edge` is a `Scaled`; `position` is the one comparison of a
+  ball with a point; certification where the ends cannot be formed
+  measures the distance to the nearest rounding boundary, the two-digit
+  interval of the first landing having refused `sqrt(2) * 1e999999999`
+  at fifty digits; `fixedToBall` adds the half unit only when the
+  rounding moved the value; a quotient at the exponent bound is located
+  at the whole quotient; `src/testing/scaled.ts` is the test support.
+- **4.9.** `Floating` and its helpers are in fixed.ts and `expFixed`
+  returns one, its precondition an argument below `2^62` and its halvings
+  taken over the argument's whole interval; `floatingToBall` of digits.ts
+  is a `Result`; the first landing scaled `ln 2` by the wrong exponent;
+  `expFits` compares `bound log10 e` with `MAX_EXPONENT`; `powBall`'s
+  guard is the exponent bound and its loop returns a product's
+  `tooLarge`; `exp 1e6` costs what `exp 1` costs at the ceiling, and its
+  log-space digits 47 ms.
+- **4.5.** `mode` is optional, absent meaning exact; `ceilingContext`
+  sets exact mode only for a decimal context; the decimal settle's radius
+  is the exact difference where it can be formed; under a directed
+  rounding mode a rounded value certifies at most one digit fewer than
+  asked, and `1 / 3 * 3` under `towardZero` certifies none.
+- **4.6.** `schedule` returns the context alone in decimal mode and
+  `resolve` is untouched; `1 / (1 / 3 * 3 - 1)` is a division by zero in
+  exact mode, and `1 / (sqrt(2)^2 - 2)` the quotient `unresolved` in both.
+- **4.7.** A "Mode" select after "Rounding", worded "exact: every digit
+  shown is certain, at rising precision" and "decimal: every step rounded
+  to the digits, in the rounding mode"; settings stored before the mode
+  existed load with it exact; the UI check records `1 / 3 * 3` in each
+  mode under three rounding modes.
+- **4.10.** `sameAsArgument` returns the first argument's dimension; the
+  working digits are the precision in decimal mode; a zero midpoint is
+  returned as it is; `approx` is the last built-in by name.
+- **4.8.** The payload is 129 KB, 42 KB compressed.
+
+What stage 5 inherits: the midpoint is a `Scaled` and every reader of it
+formats through scaled.ts, so the rational display of stage 5 has the
+fraction at hand in the mantissa and the exponent beside it; the kernel's
+results leave on the decimal grid of the working digits and a
+`Floating` leaves through digits.ts, the one place that needs log space;
+the two modes are one settle with two parameters, and the display
+certifies the exact expression's digits in both, marking a decimal-mode
+value that the roundings moved off its cell; `approx` is the one way to
+make an exact value inexact, and its two-argument form waits on the retry
+loop's stopping rule docs/approximate.md lays out; the log-space
+conversion at the ceiling costs 47 ms, the logarithm and the two memos
+computed for the call, which a stage that runs it often may memoize at
+the ceiling plus the exponent's bits; the two gaps of 2.5 still stand;
+the display's `unbounded` kind still has no producer; and the probe of
+limits.ts still times the root, `pi` and the four costliest built-ins at
+their moderate arguments, the large arguments of 4.9 costing the same
+squarings.

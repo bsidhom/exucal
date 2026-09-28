@@ -1,6 +1,11 @@
 import { LitElement, css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
-import { MIN_MAX_BITS, maxDigitsFor } from "./core/context.ts";
+import {
+  MIN_MAX_BITS,
+  MODES,
+  maxDigitsFor,
+  type Mode,
+} from "./core/context.ts";
 import type { Definition } from "./core/definitions.ts";
 import { LIMIT_BITS } from "./core/rational.ts";
 import type { Result } from "./core/result.ts";
@@ -10,6 +15,7 @@ import {
   contextOf,
   isDigits,
   isMaxBits,
+  isMode,
   isMaxDigits,
   loadSettings,
   saveSettings,
@@ -40,8 +46,9 @@ import "./unit-converter.ts";
  * reason the table is ever rebuilt; the digits setting never rebuilds it.
  *
  * The shell owns the settings too (settings.ts): the digits a result is
- * shown with, the rounding mode, and the two limits of the plan's D16, the
- * cap on the digits and the range limit in bits, read from `localStorage`
+ * shown with, the rounding mode, the exact or decimal mode (the plan's
+ * 4.7, docs/decimal.md), and the two limits of the plan's D16, the cap on
+ * the digits and the range limit in bits, read from `localStorage`
  * when the shell is created, edited in a panel under the converter, saved
  * on every change, and passed down to the converter as its context, whose
  * ceiling is derived from the cap. Each number input accepts an integer in
@@ -200,9 +207,9 @@ export class AppShell extends LitElement {
     `;
   }
 
-  /** The settings panel: the digits, the rounding mode and the two limits, saved on change. */
+  /** The settings panel: the digits, the rounding mode, the mode and the two limits, saved on change. */
   private renderSettings() {
-    const { digits, rounding, maxDigits, maxBits } = this.settings;
+    const { digits, rounding, mode, maxDigits, maxBits } = this.settings;
     return html`
       <details>
         <summary>Settings</summary>
@@ -226,9 +233,20 @@ export class AppShell extends LitElement {
             Rounding
             <select .value=${rounding} @change=${this.onRoundingChange}>
               ${ROUNDING_MODES.map(
-                (mode) =>
-                  html`<option value=${mode} ?selected=${mode === rounding}>
-                    ${ROUNDING_LABELS[mode]}
+                (each) =>
+                  html`<option value=${each} ?selected=${each === rounding}>
+                    ${ROUNDING_LABELS[each]}
+                  </option>`,
+              )}
+            </select>
+          </label>
+          <label>
+            Mode
+            <select .value=${mode} @change=${this.onModeChange}>
+              ${MODES.map(
+                (each) =>
+                  html`<option value=${each} ?selected=${each === mode}>
+                    ${MODE_LABELS[each]}
                   </option>`,
               )}
             </select>
@@ -324,6 +342,11 @@ export class AppShell extends LitElement {
     }
   }
 
+  private onModeChange(event: Event) {
+    const { value } = event.target as HTMLSelectElement;
+    if (isMode(value)) this.applySettings({ mode: value });
+  }
+
   /** Applies a change to the settings, clamps what depends on it, and saves them. */
   private applySettings(change: Partial<Settings>) {
     this.settings = clampSettings({ ...this.settings, ...change });
@@ -373,6 +396,12 @@ const ROUNDING_LABELS: Record<RoundingMode, string> = {
   awayFromZero: "away from zero",
   ceiling: "up (toward +∞)",
   floor: "down (toward −∞)",
+};
+
+/** How each mode is named in the settings, with what it means. */
+const MODE_LABELS: Record<Mode, string> = {
+  exact: "exact: every digit shown is certain, at rising precision",
+  decimal: "decimal: every step rounded to the digits, in the rounding mode",
 };
 
 declare global {

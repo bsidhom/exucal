@@ -1,7 +1,7 @@
 # From unit converter to arbitrary-precision calculator: feasibility
 
 Status: design study; docs/calculator-plan.md is the implementation plan
-that follows from it, and stages 1 to 3 of the plan have landed. This document
+that follows from it, and stages 1 to 4 of the plan have landed. This document
 weighs a list of features
 against the core as it stands and says which fit together, which have to
 be toggled against one another, which are set aside for later, and which
@@ -79,11 +79,12 @@ The pieces that matter here, from ARCHITECTURE.md:
   literal in `src/units.txt`, as in GNU units. Six definitions use it.
 - **Failures are `Result` values**, never exceptions, and every module has
   its own error type.
-- **The payload is small.** The production build precaches about 68 KB,
-  24 KB compressed: the script is 48 KB (17 KB compressed), the
-  definitions file 15 KB (5.5 KB compressed), and the shell, icons,
-  manifest and service worker the rest. Every number below about size is
-  measured against that.
+- **The payload is small.** The production build precaches about 129 KB,
+  42 KB compressed, after stage 4: the script is 111 KB (35 KB
+  compressed), the definitions file 16 KB (6 KB compressed), and the
+  shell, stylesheet, favicon and manifest the rest (the stage 1 build was
+  68 KB, 24 KB compressed, with a 48 KB script). Every number below
+  about size is measured against that.
 
 ## The precision model
 
@@ -615,7 +616,11 @@ Three runtime concerns cut across everything:
   script (13 KB compressed), above this estimate before the Gamma family
   exists; the figure includes the settings panel, the display's kinds and
   the probe of the limits as well as the kernel and the elementary set,
-  and the definitions file grew by 1 KB (0.4 KB compressed).
+  and the definitions file grew by 1 KB (0.4 KB compressed). At the end
+  of stage 4 the script is 111 KB (35 KB compressed) and the whole
+  precache 129 KB (42 KB compressed): 17 KB of script (5 KB compressed)
+  for the `Scaled` midpoint, the `Floating` and its log-space digits, the
+  decimal mode and `approx`.
 
 What is toggled, and what is concurrent:
 

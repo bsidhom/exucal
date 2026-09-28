@@ -16,7 +16,7 @@ modeled.
 
 ## Settings
 
-The Settings panel under the converter has four settings, kept in the
+The Settings panel under the converter has five settings, kept in the
 browser so that they survive a reload:
 
 - **Digits**: how many significant digits an answer is shown with, from 1
@@ -29,6 +29,17 @@ in` at twelve.
   zero, up, down) show the value on the side they name, so at twelve digits
   `1 m` in `in` is `39.3700787401` rounded down and `39.3700787402` to
   nearest.
+- **Mode**: exact, the default, or decimal. In exact mode every digit
+  shown is certain: the app computes at rising precisions until the
+  digits asked for are certified, and nothing rounds before the display,
+  so `1 / 3 * 3` is `= 1`. In decimal mode every step is rounded to the
+  digits, in the rounding mode, as a hand calculator or a decimal library
+  does, in one pass: `1 / 3 * 3` at eight digits is `0.99999999`, shown as
+  `≈ 1` with a note that seven of the eight digits are certain, since the
+  exact value lies within the roundings. A value with the digits asked
+  for or fewer is exact in either mode (`1 ft` in `in` is `= 12 in`), and
+  under a directed rounding mode a rounded value's last digit is marked
+  uncertain, the exact value lying at the edge of the shown cell.
 - **Most digits**: the most digits an answer may be asked for, 1,000 by
   default. It is a cost setting: the app computes at rising precisions
   until the digits asked for are certain, up to four times this many plus
@@ -331,6 +342,11 @@ which go anywhere a unit goes and are called the same way. They are:
   `36.869898`; `asin(0.5)` into `turn`, or `asin(0.5) / radian`, is the
   number.
 - `sinh`, `cosh`, `tanh`, `asinh`, `acosh` and `atanh`, of plain numbers.
+- `approx(x)`, the value of `x` known to the working precision and no
+  better: its argument is any quantity, its result has the argument's
+  units, and it is the one way to make an exact value inexact on purpose,
+  so `approx(2.54) cm` in `in` is `≈ 1` where `2.54 cm` in `in` is `= 1`.
+  It never narrows a value that is already inexact.
 
 Every built-in takes plain numbers, apart from the angles above, and
 `exp(1 m)` is an error that names the dimension. A value the function

@@ -446,20 +446,26 @@ argument has: `approx` would cost it five passes.
 So the settings are not what stands in the way. The sixth pass is within
 the ceiling of 4,040 digits that Most digits of 1,000 gives, and its
 1,354-digit midpoint fits Most bits of 32,768. A test build with the
-exponent bound raised to `10^1100` answered `exp(1e999)` at the first
-pass and `exp(approx(1e999))` at the sixth, each in under half a second,
-with the value above: a 32-digit answer 1,034 characters long, most of
-them the exponent. Raising the bound is a change to the number type, not
-to `approx`, and `docs/approximate.md` records what it would take.
+exponent bound raised to `10^1100` found the right digits of `exp(1e999)`
+at the first pass and of `exp(approx(1e999))` at the sixth, each in under
+half a second: a 32-digit answer 1,034 characters long, most of them the
+exponent. The bound stays, though. Its cost grows fast with the argument
+(`exp(1e3000)` took a second and `exp(1e9000)` thirteen), and parts of
+the number type are exact only because the exponent is at most `10^18`,
+so the test build's digits were right but its guarantee that they were
+right was not. Keeping the bound is a decision, recorded with its
+reasons in `docs/decimal.md` ("Decision: the bound stays at `10^18`"),
+and `docs/approximate.md` has the measurements.
 
-Until then, work in log space, as on paper: `1e999 / ln(10)` is the
+Instead, work in log space, as on paper: `1e999 / ln(10)` is the
 decimal exponent of `exp(1e999)`, `≈ 4.3429448e+998`, and a quotient of
 exponentials is the exponential of a difference, so `exp(1e999) /
 exp(1e999 - 5)`, which is refused, is `exp(1e999 - (1e999 - 5))`, `≈
 148.41316`. Keep the arguments exact there: the difference
 `approx(1e999) - approx(1e999 - 5)` is `5` within about `2e948` at the
 first pass, and `exp` refuses it for the size that radius allows,
-although by the sixth pass it would be `5` within `2e-354`.
+although by the sixth pass it would be `5` within `2e-354` (issue
+[#40](https://github.com/bsidhom/pwa-units/issues/40)).
 
 ### Adding a unit
 

@@ -171,6 +171,34 @@ the same bound: an argument whose magnitude over its whole ball, times
 `log10 e`, exceeds `MAX_EXPONENT` is `tooLarge` (`exp(1e30)`; `exp(1e18)`
 is a value with the exponent `434294481903251827`).
 
+### Decision: the bound stays at `10^18`
+
+The exponent is a bigint; `10^18` is a check on it, not a storage limit,
+and it stays. A result beyond it is taken in log space: `1e999 / ln(10)`
+is the decimal exponent of `exp(1e999)`, and a quotient of exponentials
+is the exponential of a difference.
+
+- **Cost.** With the bound raised in a test build, the first pass of
+  `exp` at 32 digits took 127 ms for `exp(1e999)`, 1.0 s for
+  `exp(1e3000)` and 13.3 s for `exp(1e9000)`. The kernel squares once per
+  bit of the argument, each squaring at the working bits plus as many,
+  so the cost grows at least as the square of the argument's length.
+  The app evaluates on every keystroke within 50 ms (`BUDGET_MS`), which
+  anything past about `exp(1e500)` would exceed.
+- **Soundness.** Parts of the number type are exact only within the
+  bound. `log2Bounds` and `decimalExponentOfLog2` take the exponent
+  through a 128-bit `log2 10`, and every radius taken from a midpoint
+  rests on them, certification included. The magnitude guards
+  (`radiusBound`, `expFits`, `powLogSpace`) work in doubles, and
+  `MOST_MAGNITUDE` in fixed-exp.ts is a thrown precondition. All of them
+  would need rework.
+- **A bound is needed anyway.** `exp(exp(1000))` has a 434-digit
+  exponent, and `exp` of that has an exponent of `10^434` digits, which
+  no bigint holds. Raising the bound moves the wall without removing it.
+- **Little to show.** An answer beyond the bound is mostly its exponent:
+  32 digits of `exp(1e999)` take 1,034 characters, where log space gives
+  the part that can be read.
+
 ## Sums, comparisons and the radius
 
 **Alignment.** To add `m1 × 10^e1` and `m2 × 10^e2`, the mantissa of the
@@ -463,6 +491,8 @@ setting, the docs. So the plan's numbering is the order.
   value).
 - **A setting for the exponent bound**: it is a constant, generous and
   finite, as the study says; nothing a user computes needs `10^(10^18)`.
+  Raising it was considered again and declined ("Decision: the bound
+  stays at `10^18`" above).
 - **Decimal arithmetic on the kernel**: the kernel stays binary, and the
   mode rounds its results; a decimal kernel would double the numeric
   surface for every function, which the study rules out.

@@ -318,10 +318,26 @@ five and certified at the sixth, 391 ms in all. Without the rule on the
 radius, the first pass spent 30 s in the kernel's squarings, the error's
 bit length doubling with each once it passed the value's, and threw
 `RangeError: Maximum BigInt size exceeded`. So the settings suffice, and
-the bound alone refuses.
+the bound alone refuses; but the test build's certification was not
+sound, as the next list says (the magnitude a radius takes from a
+midpoint uses a 128-bit `log2 10` that is exact enough only up to the
+bound), so its digits, checked against Python, were right by
+construction of the midpoint and not by the certificate.
 
-**What raising the bound would take**, should it be raised; it is a
-change to the number type, and `approx` has no part in it:
+**Measured cost.** On the same build, the first pass of an exact
+argument, 32 digits: `exp(1e100)` 20 ms, `exp(1e999)` 127 ms, `exp(1e3000)`
+1.0 s, `exp(1e9000)` 13.3 s; `exp(approx(1e3000))`, which needs the loop
+to climb, 4.2 s. The kernel squares once per bit of the argument, each
+squaring at the working bits plus that many, so the cost grows as the
+square of the argument's length or worse, and a result of a few thousand
+exponent digits already blows the app's 50 ms budget (`BUDGET_MS` in
+limits.ts), on every keystroke.
+
+**What raising the bound would take.** It was decided not to
+(docs/decimal.md, "Decision: the bound stays at `10^18`"), for the cost
+above and the list below; the list is kept for whoever reopens the
+question. It is a change to the number type, and `approx` has no part
+in it:
 
 - `MAX_EXPONENT`, and a reason for its new value. docs/decimal.md sets a
   setting for the bound aside because nothing a user computes needs
@@ -337,6 +353,17 @@ change to the number type, and `approx` has no part in it:
   digit, before the kernel is entered, with a message for a refusal at
   the ceiling: `unresolved` served the test build, but its message speaks
   of an edge.
+- The binary magnitude of a midpoint: `log2Bounds` in scaled.ts takes
+  `exp × log2 10` through a 128-bit `LOG2_10_SCALED`, which its comment
+  sizes for an exponent at the bound (`2^-68`); an exponent of 3,300 bits
+  would put the error near `2^3200`, and every radius taken from a
+  midpoint (`radiusAboveScaled`, the product rule, certification, the
+  display's bound) would be unsound. `decimalExponentOfLog2` has the
+  same dependency. `log2 10` would have to be computed to the exponent's
+  bits plus a margin, from a memo.
+- Exponent towers: `exp(exp(1000))` has an exponent of 434 digits, and
+  `exp` of that one of `10^434` digits, which no bigint holds, so some
+  bound is needed in any case; the question is only which.
 - The display: a 32-digit answer carries its exponent in full, 999 digits
   here, 1,034 characters in all.
 - The cost: the exponential squares once per bit of its argument, so the
@@ -349,4 +376,7 @@ loop ends, although the sixth pass would give `5` within `2e-354` and
 `exp` of it at once. A guard that refused on the midpoint and reported
 a ball that only its radius takes past the bound as `unresolved` would
 let the loop go on; it is not written, and the README says to keep such
-arguments exact meanwhile.
+arguments exact meanwhile. It is tracked as issue #40 (https://github.com/bsidhom/pwa-units/issues/40), with
+the crash of `exp` and `pow` on a wide argument, #39 (https://github.com/bsidhom/pwa-units/issues/39); #38
+(https://github.com/bsidhom/pwa-units/issues/38), `tanh` of a wide ball certified as `±1`, and #41
+(https://github.com/bsidhom/pwa-units/issues/41), the one message for both limits, were found with it.

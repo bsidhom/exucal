@@ -108,9 +108,12 @@ exactly `0.45359237 kg`, and conversions between them are exact.
 The temperature units `degC`, `degF` and `degR` are intervals: they convert
 temperature differences, so `1 degC` is `1 K` and `212 degF - 32 degF` into
 `degC` is `100`. A temperature reading is written as a call of `tempC` or
-`tempF`, which adds the offset for you. Logarithmic units (neper, bel) are
-deliberately absent, since they need functions of a kind the file cannot
-yet define (`ln`).
+`tempF`, which adds the offset for you. The logarithmic units are
+functions the same way, since a level is the logarithm of a ratio rather
+than a multiple of a unit: `decibel(20)` is a power ratio of `100`, `bel(2)`
+the same, `neper(1)` the amplitude ratio `exp(1)`, and `1000` into
+`decibel` is `decibel(30)`. The decibel is spelled out because `dB` would
+read as `d` + `B`, a tenth of a byte.
 
 ### The format
 

@@ -1836,6 +1836,16 @@ route), `1000` into `decibel` is `decibel(30)` and into `bel` is `bel(3)`
 (exact, through the logarithm's exact case), `neper(1)` is `exp(1)`, and
 `e` is still the elementary charge.
 
+As it landed. The three follow the temperature readings in units.txt, so
+that the functions of the file stand together, with the comment the task
+asks for; `decibel(x / 10)` reaches the exact power for an integer level
+and the root or log-space route of 3.8 for any other, so a large level
+shares the limit of 3.6 through `pow`'s log-space route and its guard
+(`decibel(1000001)` is `tooLarge` inside the call, as `exp(1e6)` is), and
+nothing else about the units can reach a large magnitude. The message
+tests build units.txt against stand-ins for the built-ins, and gain one
+for `log10`, which the bel's inverse calls.
+
 Behavior: the three logarithmic units.
 
 ### 3.13 Stage 3 docs

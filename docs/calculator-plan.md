@@ -2388,6 +2388,17 @@ digits is `2.7182818` within the rounding, one pass (a `run` that records
 its contexts sees one); `sqrt(2)^2 - 2` is the mode's `0` or its rounded
 residue, one pass; a list and a function want in decimal mode.
 
+As it landed. `schedule` returns the context alone in decimal mode and
+`resolve` is untouched, one pass being a schedule of one; `1 / 3 * 3`
+under `towardZero` shows `0.99999999` with no digit certain, as 4.5
+records, and `≈ 1` with seven under the nearest modes; the residue of
+`sqrt(2)^2 - 2` is a ball around zero with the mode's bound in one pass.
+The quotient `1 / (1 / 3 * 3 - 1)` is `unresolved` at once in decimal
+mode, but in exact mode the difference is exactly zero and the quotient
+a division by zero, not an `unresolved` after the ceiling as the text
+above has it; `1 / (sqrt(2)^2 - 2)` is the quotient that is `unresolved`
+in both modes, at once in the one and after the ceiling in the other.
+
 Behavior: the decimal mode exists, reachable through the context, and
 nothing in the app sets it until 4.7.
 

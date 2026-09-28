@@ -1653,6 +1653,35 @@ a dimension mismatch; `sin(pi() radian)` is `zero` with a bound at the
 ceiling; `tan(pi() radian / 2)` is `unresolved` at the argument with the
 pole's wording.
 
+As it landed. `sinCosFixed` in fixed-trig.ts computes the sine and the
+cosine together, since they share the reduction and the powers of the
+series, `sinFixed` and `cosFixed` are each one of the pair, and `tan` is
+their quotient in builtins/trig.ts, cut to the bits its magnitude calls
+for; `angleToNumber` in builtin.ts is the rule the three share. The
+reduction takes `n = round(2x / pi)` on the integers and pi at the bits
+asked for plus the bit length of the argument's integer part, so that
+pi's three ulps times `n / 2` are under one ulp of the result, which is
+what makes the memo's margin serve exactly the arguments below `2^64` at
+the ceiling pass (a test pins `2^63` served and `2^70` computed uncached).
+The two series, in `v = -r^2` with the powers shared, are summed by the
+rectangular splitting of 3.7, each block scaled through its largest
+product of consecutive integers so that it costs one division rather
+than one per term (a division per term cost more than all the rest),
+which puts `sin` and `cos` at the ceiling at the cost of `exp` and `ln`
+there (11 and 12 ms against 12 and 10 ms in the kernel benchmark, which
+gains `sin 1` and `cos 1`). Two rulings the task did not reach: an
+argument whose interval is wider than about a fifth of a radian after
+the reduction admits no series of shrinking terms, and both functions are
+then the trivial bound, zero within one, which the retry loop narrows and
+of which `tan` is `unresolved` at the pole; and the tiny argument's
+scaling is a conversion at the working bits plus its negative binary
+exponent, the kernel working at the larger of the bits asked for and the
+argument's bits, so `sin(1e-50 radian)` at forty digits has a radius of
+`1e-96`. The propagation counts the argument's error in `r` and in `r^2`
+both, so a radius exceeds the derivative bound by a small factor
+(`sin(1 ± 1e-20)` has radius `6e-21` against `cos(1) × 1e-20`, `5.4e-21`),
+which is the price of D9's rule over a derivative bound and is accepted.
+
 Behavior: `sin`, `cos` and `tan` exist.
 
 ### 3.10 `asin`, `acos`, `atan`, `atan2`

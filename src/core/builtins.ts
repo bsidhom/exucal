@@ -6,7 +6,8 @@
 // map as their default set of built-ins (table.ts, build.ts), and a test
 // may pass a set of its own instead. `pi` is the first (task 3.4), `exp`
 // the second (3.6), the logarithms follow (3.7), then the roots and `pow`
-// (3.8); the rest of the elementary set follows in 3.9 to 3.11.
+// (3.8), then the trigonometric functions (3.9); the rest of the
+// elementary set follows in 3.10 and 3.11.
 
 import type { Builtin, Builtins } from "./builtin.ts";
 import { exp } from "./builtins/exp.ts";
@@ -14,8 +15,12 @@ import { ln, log, log10, log2 } from "./builtins/log.ts";
 import { pi } from "./builtins/pi.ts";
 import { pow } from "./builtins/pow.ts";
 import { cbrt, sqrt } from "./builtins/roots.ts";
+import { cos, sin, tan } from "./builtins/trig.ts";
 
 /** Every built-in the app has, by name. */
 export const BUILTINS: Builtins = new Map<string, Builtin>(
-  [pi, exp, ln, log10, log2, log, sqrt, cbrt, pow].map((fn) => [fn.name, fn]),
+  [pi, exp, ln, log10, log2, log, sqrt, cbrt, pow, sin, cos, tan].map((fn) => [
+    fn.name,
+    fn,
+  ]),
 );

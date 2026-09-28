@@ -163,6 +163,18 @@ export function plainNumbers(count: number): DimensionRule {
 }
 
 /**
+ * The rule of a function of one angle whose result is a plain number
+ * (`sin`, `cos`, `tan`; D11): the argument must have the radian kind, and
+ * a table that declares no `radian` primitive has no angles (`noAngles`).
+ */
+export const angleToNumber: DimensionRule = (args, primitives) => {
+  const radian = angle(primitives);
+  if (radian === undefined) return err({ kind: "noAngles" });
+  const checked = checkArgument(args, 0, radian, primitives);
+  return checked.ok ? ok(DIMENSIONLESS) : checked;
+};
+
+/**
  * Whether the argument at `index` of `args` has the dimension `want`, by
  * the conformance check, so that a dimension mismatch is told from a
  * kind mismatch as it is everywhere else.

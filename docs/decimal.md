@@ -364,6 +364,13 @@ the reading the study gives for the case (`0.999...9`, "displays as
 such rather than shown with digits the radius does not back, and a
 division by it is `unresolved` as in exact mode, reported at once.
 
+The built-in `approx` (docs/approximate.md) works in decimal mode as it
+does in exact mode, with the mode's rounding on top: it reduces the
+implied precision of its argument from the working precision, which
+there is the user's `p` digits, and never raises it, so `approx(x)` is
+`x` within one unit in the `p`-th digit and the settle then rounds the
+result in the user's mode like every other.
+
 The retry loop does nothing in decimal mode: `resolve` runs one pass, at
 the context's own precision, and the display marks what the radius does
 not certify without escalating, since raising the internal precision

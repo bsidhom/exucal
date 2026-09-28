@@ -60,18 +60,37 @@ whose result has the argument's dimension: the first built-in with the
 rule D14 describes for the exact functions of stage 6, a result that
 keeps its argument's dimension, which lands here ahead of them.
 
-The magnitude: an exact `x` becomes the ball whose midpoint is `x` and
-whose radius is one unit in the last of the working digits,
-`digitsFor(bitsFor(precision))` significant decimal digits at the
-value's magnitude, rounded up to a radius; an inexact `x` is returned as
-it is, since a value already known to some precision is not made worse
-by saying so, and `approx` is idempotent; an exact zero is returned as
-it is, since a value with no digits has no last digit and zero known to
+The magnitude: the result is the ball whose midpoint is `x`'s and whose
+radius is the larger of `x`'s own and one unit in the last of the
+working digits, `digitsFor(bitsFor(precision))` significant decimal
+digits at the value's magnitude, rounded up to a radius. So an exact
+`x` gains that unit; an inexact `x` whose radius is already larger, the
+result of a root or a transcendental function, say, keeps it, since a
+value known to some precision is not made worse by saying so, and one
+whose radius is smaller (a kernel result is within a few ulps, which is
+usually more than the unit, but a radius below it is possible) is
+widened to it; `approx` is idempotent. An exact zero is returned as it
+is, since a value with no digits has no last digit and zero known to
 any precision is zero; an unbounded `x` is returned as it is. The
 evaluator then settles the result as it settles every inexact result
 (D15), which rounds the midpoint to the working digits, so
 `approx(1/3)` is the working-precision decimal of a third with a radius
 of a unit or two in its last digit.
+
+`approx` never narrows. Its argument is any expression, not only a
+literal, and the precision is decided at the approximation point: the
+call says "known to this precision, and no better", and a radius the
+argument already carries, from an inexact function or an earlier
+`approx`, is a fact about the value that the call cannot undo. That is
+what makes the built-in sound in the ball model: widening a radius is
+always honest, and narrowing one would claim knowledge the computation
+does not have. So there is no way to "cast" a value to exact or to raise
+its precision through `approx`, and the two intentions should not share
+a name: if a reason for the second ever appears (none is known; the
+retry loop is how precision is raised, and it raises the working
+precision rather than a value's), it belongs to a built-in of its own,
+named for what it does, and it would have to say what it claims and why
+the claim is true.
 
 `approx` is the one way, in exact mode, to make an exact value inexact
 on purpose: nothing else in the arithmetic ever rounds a value of radius
@@ -96,9 +115,14 @@ cm` in `in` is `≈ 1` with every digit asked for certified on the first
   radius shrinks with each pass and ends at the ceiling with the bound
   the display shows. That is the ball model's honest reading, and the
   price of asking for it.
-- **In decimal mode** `approx(x)` is `x` within one unit in the `p`-th
-  digit, and the settle then rounds it in the user's mode as it rounds
-  everything; `approx` does not change what the mode does.
+- **In decimal mode** `approx` works as it does in exact mode, with the
+  mode's per-operation rounding on top: it reduces the implied precision
+  of its argument from the working precision, which there is the user's
+  `p` digits, so `approx(x)` is `x` within one unit in the `p`-th digit,
+  the binary form below is `x` within the larger of its radius and `u`,
+  and the settle then rounds the result in the user's mode as it rounds
+  everything. `approx` does not change what the mode does, and the mode
+  does not change what `approx` means.
 - **In a definitions file** a body may call `approx` as it may call any
   built-in, so a measured constant can be defined as one:
   `G  approx(6.674e-11) N m^2 / kg^2`. The build evaluates the body at
@@ -143,15 +167,25 @@ for `approx` used as a unit is the general one for a function's name.
 
 The binary form, `approx(x, u)`, marks `x` as known to within `u`, an
 absolute uncertainty: the result is the ball whose midpoint is `x`'s
-and whose radius is `x`'s radius plus the largest magnitude in `u`'s
-ball, rounded up, so that `approx(6.67430e-11, 0.00015e-11) N m^2 /
-kg^2` is the gravitational constant with its standard uncertainty, and
-`approx(2.54, 0.005) cm` is a length measured to the nearest hundredth
-of a centimetre. This is significant-figure propagation, and the ball
-model does it with no new machinery: the radius rides through every
-operation by the rules that exist, and the display shows the digits it
-leaves, with the note that says how many are certain ("3 of 8 digits
-are certain"). Tentatively:
+and whose radius is the larger of `x`'s own radius and the largest
+magnitude in `u`'s ball, rounded up, so that `approx(6.67430e-11,
+0.00015e-11) N m^2 / kg^2` is the gravitational constant with its
+standard uncertainty, and `approx(2.54, 0.005) cm` is a length measured
+to the nearest hundredth of a centimetre. The larger of the two, never
+`u` alone, for the reason the unary form gives: `x` may be any
+expression, and a radius it already carries is a fact about the value
+that the call cannot undo, so `approx(sqrt(2), 1e-30)` at eight digits
+keeps the root's radius where that is the larger and
+`approx(sqrt(2), 0.001)` is `≈ 1.41` with three digits certain, the
+precision decided at the approximation point in either case. (The sum
+of the two radii is the other sound choice, and would read as an
+uncertainty added to the value's own; the larger of the two reads as
+the precision the value is known to, which is what the call says, and
+the two differ only where the radii are of one size.) This is
+significant-figure propagation, and the ball model does it with no new
+machinery: the radius rides through every operation by the rules that
+exist, and the display shows the digits it leaves, with the note that
+says how many are certain ("3 of 8 digits are certain"). Tentatively:
 
 - **The second argument is absolute, and conforms to the first**, kinds
   included, by the same check a sum applies to its operands; a

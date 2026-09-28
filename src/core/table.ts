@@ -31,7 +31,7 @@
 
 import { type NumberContext } from "./context.ts";
 import { type Ball } from "./ball.ts";
-import { type Builtin, type Builtins } from "./builtins.ts";
+import { type Builtin, type Builtins } from "./builtin.ts";
 import { DIMENSIONLESS, type Primitives } from "./dimension.ts";
 import { ONE_ARGUMENT, type Arity, type Lookup } from "./evaluate.ts";
 import { type Expr } from "./expr.ts";

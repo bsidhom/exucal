@@ -3,7 +3,11 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import { buildTable } from "../src/core/build.ts";
 import { parseDefinitions, type Definition } from "../src/core/definitions.ts";
-import { DEFAULT_MAX_BITS, DEFAULT_ROUNDING } from "../src/core/context.ts";
+import {
+  DEFAULT_CEILING,
+  DEFAULT_MAX_BITS,
+  DEFAULT_ROUNDING,
+} from "../src/core/context.ts";
 import { DEFAULT_PRECISION } from "../src/core/rational.ts";
 import { random } from "../src/testing/random.ts";
 import { bestOf, millis } from "./harness.ts";
@@ -29,6 +33,7 @@ function timePipeline(
       precision: DEFAULT_PRECISION,
       rounding: DEFAULT_ROUNDING,
       maxBits: DEFAULT_MAX_BITS,
+      ceiling: DEFAULT_CEILING,
     });
     assert.ok(result.ok, `expected a table, got ${inspect(result)}`);
   });

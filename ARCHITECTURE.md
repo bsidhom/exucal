@@ -52,8 +52,10 @@ positive denominator, kept in lowest terms. Rationals rather than
 arbitrary-precision floats because almost every unit definition is a rational
 (`2.54 cm`, `0.45359237 kg`), so conversions are exact and rounding happens
 only once, at display time. Decimal literals parse exactly (`1.5e-3` is
-`3/2000`). Irrational constants such as `pi` are plain decimal literals in the
-definitions file, as in GNU units.
+`3/2000`). The definitions file holds no irrational literal: the circle
+constant is the built-in `pi()`, computed to the precision of the table it
+is built in and of the pass an expression is evaluated at (stage 3 of the
+plan), where GNU units defines `pi` as a decimal literal.
 
 `src/core/rational.ts` provides the arithmetic and comparison, integer powers
 and rational powers (through the n-th root), rounding to significant digits
@@ -173,8 +175,11 @@ read off the iteration. `rootBall` is its one caller so far; the
 elementary functions of stage 3 are the rest. `constants.ts` computes `pi`
 on it by Chudnovsky's series with binary splitting, its tail bounded in
 the comment, and memoizes one value, the digits at the ceiling of the
-retry schedule in force, from which every request at or below the ceiling
-is truncated (the plan's D10); nothing calls it until stage 3's `pi()`.
+retry schedule in force plus a margin of 64 bits, from which every request
+at or below that is truncated (the plan's D10); the built-in `pi()`
+(`builtins/pi.ts`) hands it back as a ball at the context's precision, and
+the angle units of units.txt call it, so their quantities carry its radius
+and a conversion between them is `≈`.
 
 **Working precision and the context.** Every core function that does
 arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a
@@ -186,12 +191,16 @@ place that knows the difference (the plan's D1): the context it takes is
 the user's, whose precision is the digits asked for, and it derives the
 working contexts it evaluates at by the retry schedule of the plan's D12.
 `schedule` yields the digits asked for plus a guard of ten, then twice
-that, doubling, and last a ceiling, which the caller passes beside the
-context: the shell derives it from the cap on the digits setting,
-`ceilingFor` in context.ts, four times the cap plus the guard, so that
-the largest request has two doublings of room above its first pass (4,040
-digits for the default cap of 1,000; nine passes at eight digits, three at
-a thousand). `resolve` runs the evaluation at each working context in turn
+that, doubling, and last the context's `ceiling`, its fourth field: the
+shell derives it from the cap on the digits setting, `ceilingFor` in
+context.ts, four times the cap plus the guard, so that the largest request
+has two doublings of room above its first pass (4,040 digits for the
+default cap of 1,000; nine passes at eight digits, three at a thousand),
+and it is the same in every working context, as the range limit is. The
+ceiling is in the context so that it reaches the built-ins, whose memoized
+constants hold their value at it (the plan's D10); it is static, the
+user's, and a routine that needs more headroom than the working precision
+takes it inside the kernel rather than moving the ceiling. `resolve` runs the evaluation at each working context in turn
 and stops at the first result whose every value is exact, certified at the
 digits asked for, or of unbounded radius; a result that certifies fewer
 digits is kept as the best so far and the next pass tried, since
@@ -204,10 +213,14 @@ and otherwise with the error. At the ceiling the best result so far, or
 the last error, is returned, and the display shows what is certified.
 Expressions that never certify, `sqrt(2)^2 - 2` and later `sin(pi()
 radian)`, run to the ceiling however it is set, which is what bounds their
-latency; the ceiling is therefore a cost setting. The table is built at a
-context of 40 digits by `system-table.ts` until stage 3 builds it at the
-ceiling. The user's context and the ceiling come from the settings ("UI"
-below): the digits, the mode, and the two limits.
+latency; the ceiling is therefore a cost setting. The table is built at
+the ceiling context (`ceilingContext`), once per ceiling, by
+`system-build.ts` (the plan's D6): from stage 3's `pi()` a unit's precision
+is fixed when the table is built and must lie above every pass, and one
+ceiling serves every digits setting under one cap, so the table is rebuilt
+only when the cap changes. The user's context comes from the settings
+("UI" below): the digits, the mode, and the two limits, from which the
+ceiling is derived.
 
 **Settling.** Every result the evaluator produces, and every unit the
 lookup hands out, is settled to the working context (the plan's D15):
@@ -414,11 +427,12 @@ Functions share the unit namespace as lists do, and their names are held
 to the same rule against reading as a prefixed unit, for the same reason.
 Unlike a list, a function can be referred to, by a call in any body, so a
 function is a node of the walk, and evaluating it means checking it
-("Functions" below): its declared units are evaluated, its forward body is
-evaluated with the parameter bound to one of the declared argument unit
-and its inverse body with the name bound to one of the declared result
-unit, through the walk's own lookup, and each body is checked to conform
-to what it should give. A unit may then be defined by a call
+("Functions" below): its declared units are evaluated, and each body's
+dimension is taken without evaluating it (`dimension-of.ts`), the forward
+body with the parameter bound to the declared argument's dimension and the
+inverse body with the name bound to the declared result's, through the
+walk's own lookup, and checked to conform to what it should give. A unit
+may then be defined by a call
 (`boiling  tempC(100)`), a function's body may call another, and a cycle
 through a function is reported like any other. The table holds each
 function as its two bodies, still as expressions, with the declared units
@@ -733,7 +747,11 @@ the last gets the remainder. The counts are taken from the midpoints (the
 plan's D8), so a count is an exact integer and never `unresolved`, and the
 remainder is the ball `have` less the counted units, computed with the ball
 operations, so the terms times the units add up to `have` exactly when
-everything is exact and contain it otherwise. That is only a meaningful sum
+everything is exact and contain it otherwise. A ratio whose ball straddles
+an integer, as `turn / deg` does once both carry `pi()`'s radius, counts
+as that integer rather than its truncation, so that the remainder is a
+ball around zero, which the display leaves out, rather than a whole of the
+unit (`≈ 360 deg`, not `359 deg + 60 arcmin`). That is only a meaningful sum
 when the units run from the largest to the smallest, so the units are
 checked in order, each for conformance with `have`, for a positive
 magnitude whose ball excludes zero (a unit that cannot be told from zero is
@@ -747,7 +765,8 @@ is, and rounding them for display is more than rounding each: a remainder
 of `11.9999999988 in` shown at eight digits is `12 in`, which beside `2 ft`
 reads wrongly. So `roundTerms` is the display rounding that goes with the
 sum: it rounds the remainder's midpoint to the display precision, in the
-display's rounding mode, as `roundTo` does, keeping its radius, and, when
+display's rounding mode, as `roundTo` does, widening its radius by the
+rounding's shift so that the rounded terms still contain `have`, and, when
 that changes it, takes the counts again from the
 rounded sum, so that a remainder which rounds up to a whole of an earlier
 unit carries into it, through as many units as it must
@@ -810,13 +829,21 @@ until stage 3's `pi()` and the elementary functions fill it.
 The build checks each function once so that a call at run time can fail
 only on its argument or on a value: the declared units are evaluated and
 must be nonzero, since an argument is written as a count of the declared
-one; the forward body is evaluated with the parameter bound to one of the
-declared argument unit and the inverse body with the name bound to one of
-the declared result unit, through the walk's own lookup, so that a body
-which fails for every argument, or refers to nothing, fails the build with
-its span in the definitions text; and each body's dimension is checked
-against what it should give, which a body's dimension cannot vary with the
-value of its argument. Applying and inverting are one operation, a body
+one; each body's dimension is taken without evaluating it, by
+`dimensionOf` in `dimension-of.ts`, the evaluator's rules over dimensions
+alone (a number is dimensionless, a unit is its dimension through the
+walk's lookup, a sum checks conformance, a product combines, a power
+raises, a call applies the callee's rule), with the parameter bound to
+the declared argument's dimension in the forward body and the name to the
+declared result's in the inverse, so that a body which refers to nothing,
+or is put together wrongly, fails the build with its span in the
+definitions text; and each body's dimension is checked against what it
+should give, which a body's dimension cannot vary with the value of its
+argument. A body that fails at some value, or at every value, builds and
+fails at the call that reaches the value; the first version of the check
+evaluated each body at one of the declared unit, which the elementary
+functions made untenable (`ln(x - 1)` fails at one). Applying and
+inverting are one operation, a body
 evaluated under a binding, and `applyFunction` and `invertFunction` share
 it: the bound name is resolved before any unit or prefix, and the lookup's
 failures are boxed on the way in and unboxed on the way out, so that the
@@ -829,13 +856,15 @@ knowing the lookup's error type.
 "you want", and an output area. Its only state is the two strings; on every
 change it runs the pipeline and renders either the formatted result or the
 error. `<app-shell>` hosts it and owns the `UnitTable`: `src/system-table.ts`
-fetches the bundled definitions, parses and builds them on the main thread
-(a few milliseconds) and memoizes the result, and the shell starts that load
-when it is connected, shows a loading message until the promise settles, and
-then passes the table down as a property. Loading the components never waits
-on the table. Should the fetch fail, or the file fail to build (which
-`units.test.ts` guards against), the shell says so instead of rendering a
-converter.
+fetches the bundled definitions and parses them on the main thread (a few
+milliseconds), once, and `src/system-build.ts` builds the table from them
+at the ceiling of the retry schedule in force, memoizing one table by its
+ceiling, so that the shell, which starts the load when it is connected and
+shows a loading message until the promise settles, builds in `render` and
+rebuilds only when the "most digits" setting moves the ceiling. Loading
+the components never waits on the table. Should the fetch fail, or the
+file fail to parse or build (which `units.test.ts` guards against), the
+shell says so instead of rendering a converter.
 
 The core's whole surface to the UI is `(table, haveText, wantText) →
 Result`, and `src/core/pipeline.ts` is that function: `convertText` parses
@@ -864,13 +893,16 @@ certain" with the certified digits shown, "within 2e-30 of zero" with the
 value shown as `0`, or "the digits are not certified" for a radius not
 known. A list is certified on its unrounded terms, its remainder is
 rounded at the digits certified, and its counts, exact integers, carry no
-note; the reciprocal line shows its own kind. The settings are the shell's
+note; when the rounding carried into an earlier unit the remainder left
+is a new value, judged on its own, and a last term that cannot be told
+from zero is left out as a term of zero is, with its note, unless it is
+the only term; the reciprocal line shows its own kind. The settings are the shell's
 (`src/settings.ts`, kept in `localStorage`, validated on the way in with
 the dependent ones clamped, so that a stale entry never leaves the app
 without a consistent context): the digits, the mode, the cap on the digits
 and the range limit in bits (the plan's D16), reaching the component as
-its `context` property, the same `NumberContext` the pipeline takes, and
-its `ceiling`, the top of the retry schedule derived from the cap. A
+its `context` property, the same `NumberContext` the pipeline takes, whose
+ceiling, the top of the retry schedule, is derived from the cap. A
 button in the panel runs the probe of `src/limits.ts`, which times the
 costliest operation the app has on each axis at doubling sizes and
 recommends the largest limits that stay within a latency budget per pass;
@@ -953,13 +985,14 @@ changes to the core.
 ```
 src/core/rational.ts      Rational, arithmetic, the exact root, parsing and formatting
 src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted
-src/core/context.ts       NumberContext: the precision and the rounding mode arithmetic is done at
+src/core/context.ts       NumberContext: the precision, the rounding mode, the range limit and the ceiling arithmetic is done under
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root on the kernel, unresolved
 src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations, the roots
 src/core/constants.ts     pi by Chudnovsky's series with binary splitting, memoized at the ceiling
 src/core/display.ts       show: a ball's text at the digits it certifies, and its kind (exact, certified, partial, zero, unbounded)
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
+src/core/dimension-of.ts  dimensionOf: a body's dimension without its value, the build's function check
 src/core/quantity.ts      Quantity (a Ball with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text
 src/core/parser.ts        Parser combinators, ParseError
@@ -968,7 +1001,9 @@ src/core/definitions.ts   Definition, parseDefinitions
 src/core/graph.ts         on-demand evaluation of a dependency graph, cycles
 src/core/names.ts         the prefix-unit resolution rule, the ambiguity check
 src/core/name-index.ts    the names that start with a text, by binary search
-src/core/builtins.ts      Builtin, BUILTINS: the built-in functions, their dimension rules and errors
+src/core/builtin.ts       Builtin, its errors and the shared rule helpers: what a built-in is
+src/core/builtins.ts      BUILTINS: the app's built-ins gathered by name from builtins/
+src/core/builtins/pi.ts   pi(): the circle constant from constants.ts, one module per built-in
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction
@@ -978,8 +1013,9 @@ src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions; src/units.test.ts checks them
 src/testing/random.ts     the seeded random source the tests and benchmarks share
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
-src/system-table.ts       loadSystemTable: fetches and builds the system table, once
-src/settings.ts           Settings: the digits, the mode and the two limits, in localStorage; contextOf, ceilingOf
+src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
+src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
+src/settings.ts           Settings: the digits, the mode and the two limits, in localStorage; contextOf
 src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
 src/unit-converter.ts     the component
 src/app-shell.ts          the host: loads the table, renders the component

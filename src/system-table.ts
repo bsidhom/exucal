@@ -1,56 +1,39 @@
-// Loading the system unit table. The definitions file is bundled as an asset
-// of its own (a URL import, so Vite hashes it, emits it beside the scripts
-// and the service worker precaches it) and fetched when first asked for,
-// rather than inlined into the app's script: loading the components never
-// waits on the table, and the page can render a loading message while the
-// fetch is in flight. Parsing and building happen on the main thread once
-// the text arrives; they take a few milliseconds, so a worker would cost
-// more than it saves.
+// Loading the system unit definitions. The definitions file is bundled as
+// an asset of its own (a URL import, so Vite hashes it, emits it beside the
+// scripts and the service worker precaches it) and fetched when first asked
+// for, rather than inlined into the app's script: loading the components
+// never waits on the definitions, and the page can render a loading message
+// while the fetch is in flight. Parsing happens on the main thread once the
+// text arrives; it takes a few milliseconds, so a worker would cost more
+// than it saves. Building the table is system-build.ts's: the table depends
+// on the ceiling of the retry schedule (D6 of docs/calculator-plan.md), so
+// it is built from these definitions once per ceiling, while the text is
+// fetched and parsed once.
 //
-// The result is memoized: every caller shares one fetch and one table.
-// A failure is not kept, so that a caller can ask again after a network
-// error rather than be stuck with it; a failure to parse or build would
-// repeat, but `units.test.ts` checks the bundled file, so that is a bug in
-// the build rather than something to retry.
+// The result is memoized: every caller shares one fetch and one parse. A
+// failure is not kept, so that a caller can ask again after a network
+// error rather than be stuck with it; a failure to parse would repeat, but
+// `units.test.ts` checks the bundled file, so that is a bug in the build
+// rather than something to retry.
 
-import { buildTable, type BuildError } from "./core/build.ts";
-import { parseDefinitions } from "./core/definitions.ts";
+import { parseDefinitions, type Definition } from "./core/definitions.ts";
 import { type ParseError } from "./core/parser.ts";
-import {
-  DEFAULT_MAX_BITS,
-  DEFAULT_ROUNDING,
-  type NumberContext,
-} from "./core/context.ts";
-import { DEFAULT_PRECISION } from "./core/rational.ts";
 import { err, type Result } from "./core/result.ts";
-import { type UnitTable } from "./core/table.ts";
 import definitionsUrl from "./units.txt?url";
 
-export type SystemTableError =
+export type SystemDefinitionsError =
   /** The definitions file could not be fetched; `reason` says why. */
-  | { readonly kind: "fetchFailed"; readonly reason: string }
-  | ParseError
-  | BuildError;
+  { readonly kind: "fetchFailed"; readonly reason: string } | ParseError;
+
+let loading:
+  Promise<Result<readonly Definition[], SystemDefinitionsError>> | undefined;
 
 /**
- * The working context the table is built at: the fixed working precision,
- * as before the context existed. The rounding mode has no effect on a
- * build, since nothing in a build rounds in a mode (the plan's D15).
- */
-const BUILD_CONTEXT: NumberContext = {
-  precision: DEFAULT_PRECISION,
-  rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
-};
-
-let loading: Promise<Result<UnitTable, SystemTableError>> | undefined;
-
-/**
- * The system table, fetched, parsed and built the first time this is called
+ * The system definitions, fetched and parsed the first time this is called
  * and shared by every call after that.
  */
-export function loadSystemTable(): Promise<
-  Result<UnitTable, SystemTableError>
+export function loadSystemDefinitions(): Promise<
+  Result<readonly Definition[], SystemDefinitionsError>
 > {
   return (loading ??= load().then((result) => {
     if (!result.ok) loading = undefined;
@@ -58,7 +41,9 @@ export function loadSystemTable(): Promise<
   }));
 }
 
-async function load(): Promise<Result<UnitTable, SystemTableError>> {
+async function load(): Promise<
+  Result<readonly Definition[], SystemDefinitionsError>
+> {
   let text: string;
   try {
     const response = await fetch(definitionsUrl);
@@ -72,7 +57,5 @@ async function load(): Promise<Result<UnitTable, SystemTableError>> {
   } catch (error) {
     return err({ kind: "fetchFailed", reason: String(error) });
   }
-  const definitions = parseDefinitions(text);
-  if (!definitions.ok) return definitions;
-  return buildTable(definitions.value, BUILD_CONTEXT);
+  return parseDefinitions(text);
 }

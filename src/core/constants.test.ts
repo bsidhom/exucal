@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { chudnovsky, piBall, piFixed, piMemoBits } from "./constants.ts";
+import {
+  MEMO_MARGIN,
+  chudnovsky,
+  piBall,
+  piFixed,
+  piMemoBits,
+} from "./constants.ts";
 import { DEFAULT_MAX_BITS, DEFAULT_ROUNDING } from "./context.ts";
 import { bitsFor, fixedToBall, toRational } from "./fixed.ts";
 import { radiusUpper } from "./radius.ts";
@@ -50,24 +55,26 @@ test("chudnovsky gives the reference digits of pi, with its radius", () => {
   assert.throws(() => chudnovsky(-1), RangeError);
 });
 
-test("the 36-digit literal of units.txt is a second reference", () => {
-  const text = readFileSync(new URL("../units.txt", import.meta.url), "utf8");
-  const literal = /^pi\s+([\d.]+)/m.exec(text);
-  assert.ok(literal !== null);
-  const reference = dec(literal[1]!);
-  assert.equal(literal[1]!.length, 37);
+/** The 36-digit literal GNU units defines `pi` as, and units.txt did until 3.4: a second reference. */
+const GNU_UNITS_PI = "3.14159265358979323846264338327950288";
+
+test("the 36-digit literal of GNU units is a second reference", () => {
+  const reference = dec(GNU_UNITS_PI);
+  assert.equal(GNU_UNITS_PI.length, 37);
   const pi = fixedToBall(chudnovsky(bitsFor(40)));
   assert.ok(compare(absolute(subtract(pi.mid, reference)), tenTo(35)) < 0);
 });
 
-test("the memo holds the ceiling's value, and every request under it is that value truncated", () => {
+test("the memo holds the ceiling's value plus the margin, and every request under it is that value truncated", () => {
   assert.equal(piMemoBits(), undefined);
+  assert.equal(MEMO_MARGIN, 64);
   const ceiling = bitsFor(500);
+  const held = ceiling + MEMO_MARGIN;
   const a = piFixed(bitsFor(8), ceiling);
-  assert.equal(piMemoBits(), ceiling);
+  assert.equal(piMemoBits(), held);
   const b = piFixed(bitsFor(40), ceiling);
   const c = piFixed(bitsFor(100), ceiling);
-  assert.equal(piMemoBits(), ceiling);
+  assert.equal(piMemoBits(), held);
   for (const f of [a, b, c]) {
     const pi = fixedToBall(f);
     assert.ok(
@@ -78,17 +85,22 @@ test("the memo holds the ceiling's value, and every request under it is that val
     assert.equal(f.error, 1n);
   }
   assert.equal(a.bits, bitsFor(8));
-  // At the ceiling itself the memo is handed out as it is.
-  assert.equal(piFixed(ceiling, ceiling).error, 3n);
-  // Above the ceiling nothing is kept.
+  // At the ceiling itself the memo is truncated by the margin; at the
+  // margin it is handed out as it is, and an argument of up to 64 bits
+  // reduced at the ceiling pass is served from it.
+  assert.equal(piFixed(ceiling, ceiling).error, 1n);
+  assert.equal(piFixed(held, ceiling).error, 3n);
+  assert.equal(piFixed(ceiling + 40, ceiling).bits, ceiling + 40);
+  assert.equal(piMemoBits(), held);
+  // Above the memo nothing is kept.
   const above = piFixed(bitsFor(700), ceiling);
   assert.equal(above.bits, bitsFor(700));
-  assert.equal(piMemoBits(), ceiling);
+  assert.equal(piMemoBits(), held);
   // A higher ceiling replaces the value; a lower one leaves it.
   piFixed(bitsFor(8), bitsFor(1000));
-  assert.equal(piMemoBits(), bitsFor(1000));
+  assert.equal(piMemoBits(), bitsFor(1000) + MEMO_MARGIN);
   piFixed(bitsFor(8), bitsFor(200));
-  assert.equal(piMemoBits(), bitsFor(1000));
+  assert.equal(piMemoBits(), bitsFor(1000) + MEMO_MARGIN);
 });
 
 test("piBall is pi at the context's precision", () => {
@@ -96,9 +108,10 @@ test("piBall is pi at the context's precision", () => {
     precision: 50,
     rounding: DEFAULT_ROUNDING,
     maxBits: DEFAULT_MAX_BITS,
+    ceiling: 4040,
   };
-  const pi = piBall(context, 4040);
+  const pi = piBall(context);
   assert.ok(compare(absolute(subtract(pi.mid, PI)), radiusUpper(pi.rad)) <= 0);
   assert.ok(compare(radiusUpper(pi.rad), tenTo(58)) < 0);
-  assert.equal(piMemoBits(), bitsFor(4040));
+  assert.equal(piMemoBits(), bitsFor(4040) + MEMO_MARGIN);
 });

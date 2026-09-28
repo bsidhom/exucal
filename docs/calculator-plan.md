@@ -203,10 +203,21 @@ the range limit; the comparison by exponents is stage 4's.
 **D8. Unit list counts are taken from the midpoint.** In `convertToList`
 each count is the truncated ratio of midpoints and the remainder is the
 ball `have - count × size`, computed with the exact ball operations, so
-that the terms times the units still contain `have`. A remainder that
-comes out slightly negative, or slightly above a whole of the unit before
-it, is the display's carry case, which `roundTerms` already handles; a
-count is never `unresolved`.
+that the terms times the units still contain `have`; a count is never
+`unresolved`. One case goes the other way (amended at 3.4): when the
+ratio's ball straddles an integer, the count is that integer, not the
+truncation. Once the angle units carried `pi()`'s radius, `turn / deg` was
+`359.999... ± ε`, truncated to 359 with a remainder of `60 - ε arcmin`, and
+the carry `roundTerms` makes by exact arithmetic could not restore `360`
+from units settled on their own, so `1 turn` in `deg;arcmin` read `359
+deg + 60 arcmin`. A count that cannot be told from a boundary is best
+taken as the boundary: the count stays exact, the remainder is a ball
+around zero (a hair negative, perhaps), which the display leaves out as a
+zero, and the line reads `≈ 360 deg`, which under `≈` is the better
+reading. Exact units are untouched, since a ball of radius zero straddles
+an integer only when it is one. A remainder that comes out slightly
+negative that way, or slightly above a whole of the unit before it, is the
+display's carry case, which `roundTerms` handles.
 
 **D9. The kernel is fixed point with an integer error count.** A kernel
 value is `{ value, error, bits }`: the integer `value` stands for
@@ -681,7 +692,10 @@ per D8, with the ordering check on midpoints and the positivity check over
 the whole ball: a unit that cannot be told from zero is not positive
 (`nonpositiveUnit`), since it is no size to divide by, which is what keeps
 the remainder's division from ever being `unresolved`. `roundTerms` rounds
-the remainder's midpoint and keeps its radius on the rounded term.
+the remainder's midpoint and widens its radius by the rounding's shift, so
+that the rounded terms still contain `have` (amended at 3.4, whose angle
+units showed that a kept radius let a remainder left after a carry claim
+digits that were the rounding's).
 `Conversion.value` and the list's `terms` are balls, and the function
 conversion's count is the ball quotient of the argument by the declared
 unit (its ball excludes zero, as the build checked). The UI's reciprocal
@@ -1018,9 +1032,14 @@ context.ts, twice the kernel's bits at a cap of one digit, is the floor
 of the range limit, below which no digit fits; the panel applies a change
 through `clampSettings`, so lowering a limit lowers what depends on it;
 a list's counts are formatted at the digits asked for and its remainder
-at the digits certified, as `0` when it cannot be told from zero; and the
-note is written in parentheses after the line. README's "Settings"
-describes the four settings and the notes.
+at the digits certified, as `0` when it cannot be told from zero; the
+note is written in parentheses after the line; and (amended at 3.4) when
+the rounding carried into an earlier unit, the remainder left is a new
+value, what remains after the carried units, so its kind is judged on the
+rounded remainder rather than the unrounded one, and a last term that
+cannot be told from zero is left out as a term of zero is, with its note,
+unless it is the only term. README's "Settings" describes the four
+settings and the notes.
 
 Behavior: the notes, and the two limits are the user's.
 
@@ -1292,10 +1311,22 @@ memo and five products of it). The tests that build the system table
 context as the app does, so that no unit holds a pass back;
 `DEFAULT_PRECISION`'s comment loses its "until 3.3".
 
-Tests: `checkContext` on the new field; `ceilingContext` is the last of
-`schedule(context)` for every precision up to the cap; the pipeline's
-tests pass the ceiling in the context; a table is built once per
-ceiling and again for another.
+Rulings the task did not reach: `DEFAULT_CEILING` in context.ts is the
+default cap's ceiling, 4,040, which the component's default context and
+the tests use; `ceilingContext` returns the context itself when it is
+already at its ceiling; the memo of system-build.ts is keyed by the
+definitions' identity and the ceiling, holds a failed build too (the
+system file is checked by its test, so a failure is a bug and rebuilding
+on every render would not change it), and the shell calls it from
+`render`, so the rebuild is a consequence of the settings changing rather
+than an event the shell handles.
+
+Tests: `checkContext` on the new field; `ceilingContext` is the context
+at its ceiling and the same for every precision under it; the pipeline's
+tests pass the ceiling in the context and its schedule test reads it off
+the working contexts; a table is built once per ceiling, again for
+another, and again on returning, since one is held; the component was
+checked in headless Chromium against the production build.
 
 Behavior: none visible yet; the table is precision-independent until 3.4.
 
@@ -1313,6 +1344,32 @@ exact, `gon` into `deg`, `rpm` into `rad/s`, `parsec` into `au`), which
 the study accepts; `1.5 deg` in `dms` ends in a term that cannot be told
 from zero; a unit that reads `pi` is now a `functionAsUnit` error whose
 message shows `pi()`.
+
+Rulings the task did not reach: each built-in lives in a module of its
+own under `src/core/builtins/` (several share one only when they share
+internal machinery), with its test beside it; builtin.ts holds the type,
+the errors and the rule helpers, which every such module imports, and
+builtins.ts gathers the modules into `BUILTINS`, so that no module under
+builtins/ depends on the map and the two cannot import each other in a
+cycle; the memo's margin is `MEMO_MARGIN` in constants.ts. And a finding:
+`deg` and `arcmin` are each settled on their own from the ceiling's `pi`,
+so `1.5 deg` in `dms` decomposes to `1 deg + 29 arcmin + 59.99... arcsec`
+before display, which is D8's carry case and `roundTerms` carries into
+`1 deg + 30 arcmin` at the display's digits. The last term after the
+carry is then a hair from zero, and since `roundTerms` moves the
+remainder's midpoint without widening its radius (1.8), the recomposed
+remainder's ball excluded zero and the component showed it as a certified
+`3.3e-4049 arcsec`, the digits of a rounding artefact. Raised at this task
+and fixed in the commit after it: `roundTerms` adds the rounding's shift
+to the radius, so that the rounded terms contain `have` as 1.8 intends,
+and the component judges the last term's kind on the rounded remainder
+when the counts changed and leaves out a last term that cannot be told
+from zero as it leaves out a zero, so the line reads `≈ 1 deg + 30
+arcmin` (1.8 and 2.6 are amended). A second finding followed: `1 turn` in
+`deg;arcmin` read `359 deg + 60 arcmin`, since the carry by exact
+arithmetic cannot restore a whole from units settled on their own; D8 is
+amended so that a count whose ratio straddles an integer is that integer,
+and the line reads `≈ 360 deg`.
 
 Behavior: angle units carry a radius; `pi` alone is an error that says
 to write `pi()`.
@@ -1341,12 +1398,23 @@ of the unit; `applyFunction` and `invertFunction` are no longer called at
 build time. docs/functions.md's "Build-time checks" and its acceptance of
 the `1 / (x - 1)` failure are updated.
 
+Rulings the task did not reach: the lookup `dimensionOf` takes,
+`DimensionLookup`, has the evaluator's two resolvers with the unit one
+giving a dimension, and the build wraps its own lookup in one with the
+bound name resolved first (`boundDimensions`); the errors are the subset
+`DimensionError` of `EvaluateError`; `applyFunction` and `invertFunction`
+stay in evaluate.ts for the evaluator and the pipeline, which still
+evaluate bodies at values.
+
 Tests: `recip(x) [1;1] 1 / (x - 1) ; ...` builds, and so does a body of
-`1 / 0`, which then fails at the call; a body of the wrong dimension
-still fails with `functionMismatch`; a body that adds a length to a time
-fails with `nonconformingOperands` at its span; a body that calls a
-function with the wrong count of arguments fails with `arityMismatch`;
-the walk still reports a cycle through a function.
+`x / 0` and one with a literal beyond the range limit, each of which then
+fails at the call; a body of the wrong dimension still fails with
+`functionMismatch`; a body that adds a length to a time fails with
+`nonconformingOperands` at its span, one that calls a function with the
+wrong count of arguments with `arityMismatch`, and one whose argument
+does not conform to the callee's declaration with `argumentMismatch`;
+the walk still reports a cycle through a function; dimension-of.test.ts
+checks every node kind, both callee kinds and the lookup's failures.
 
 Behavior: functions whose bodies fail at `1` now build.
 

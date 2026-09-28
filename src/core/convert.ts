@@ -29,18 +29,29 @@
 // taken from the midpoints (D8 of docs/calculator-plan.md), so a count is
 // exact and never `unresolved`, and the remainder is the ball `have - count
 // × size`, computed with the ball operations, so that the terms times the
-// units still contain `have`; a remainder that comes out slightly negative,
-// or slightly above a whole of the unit before it, is the display's carry
-// case, which `roundTerms` handles. That is only a meaningful sum when the
+// units still contain `have`. One case is decided the other way: when the
+// ratio's ball straddles an integer, as `turn / deg` does once both carry
+// `pi()`'s radius (`359.999... ± ε`), the count is that integer, since a
+// count that cannot be told from a boundary is best taken as the boundary,
+// and the remainder is then a ball around zero, which the display leaves
+// out, rather than a whole of the unit (`360 deg`, not `359 deg + 60
+// arcmin`; exact units are untouched, a ball of radius zero straddling an
+// integer only when it is one). A remainder that comes out slightly
+// negative that way, or slightly above a whole of the unit before it, is
+// the display's carry case, which `roundTerms` handles. That is only a
+// meaningful sum when the
 // units run from the largest to the smallest, so a unit that is not smaller
 // than the one before it (by midpoint) is an error, as is one that is zero
 // or negative or cannot be told from zero, of which nothing is a positive
 // count; and every unit must conform to `have`. `roundTerms` is the display
 // rounding that goes with the terms: the remainder's midpoint rounds to the
-// display precision in the display's rounding mode, keeping its radius, and
-// since a remainder of `11.9999999988 in` shown as `12 in` beside `2 ft`
+// display precision in the display's rounding mode, with its radius widened
+// by the rounding's shift so that the rounded terms still contain `have`,
+// and since a remainder of `11.9999999988 in` shown as `12 in` beside `2 ft`
 // would read wrongly, the counts are taken again from the rounded sum, so
-// that the rounding carries (`3 ft`) as a digit does.
+// that the rounding carries (`3 ft`) as a digit does. The widening matters
+// after a carry: the remainder that is left is then a hair from zero, and
+// its ball must say so (the plan's 3.4 found it claiming digits instead).
 
 import {
   addBalls,
@@ -57,16 +68,21 @@ import {
   type Primitives,
 } from "./dimension.ts";
 import { type Quantity } from "./quantity.ts";
+import { addRadius, isZeroRadius, radiusAbove, radiusUpper } from "./radius.ts";
 import {
+  absolute,
   compare,
   equals,
+  rational,
   roundTo,
   sign,
+  subtract,
   trunc,
   type Precision,
+  type Rational,
 } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
-import { type RoundingMode } from "./rounding.ts";
+import { divideRounded, type RoundingMode } from "./rounding.ts";
 
 export type ConvertError =
   | ConformanceError
@@ -167,16 +183,18 @@ export function convertToList(
 /**
  * The `terms` of a sum over `units`, from `convertToList`, as they are to
  * be shown at `digits` significant digits in `mode`: the remainder's
- * midpoint rounded to `digits` as `roundTo` rounds, its radius kept, and,
- * when that changes it, the counts taken again from the rounded sum, so
- * that a remainder which rounds up to a whole of an earlier unit is carried
- * into that unit rather than shown beside it (`2 ft + 11.9999999988 in`
- * becomes `3 ft`, not `2 ft + 12 in`; under `floor` it stays `2 ft +
- * 11.999999 in`, since nothing rounds up). When the remainder's midpoint is
- * already exact at `digits`, the terms come back as they are. The rounding
- * is one rounding of the whole sum, by less than a unit in the last digit
- * of the remainder; the counts are integers and are left alone, and one too
- * long to show in `digits` digits is the display's to round.
+ * midpoint rounded to `digits` as `roundTo` rounds, its radius widened by
+ * the distance the rounding moved it, so that the rounded term still
+ * contains the value the unrounded one did, and, when that changes it, the
+ * counts taken again from the rounded sum, so that a remainder which rounds
+ * up to a whole of an earlier unit is carried into that unit rather than
+ * shown beside it (`2 ft + 11.9999999988 in` becomes `3 ft`, not `2 ft +
+ * 12 in`; under `floor` it stays `2 ft + 11.999999 in`, since nothing
+ * rounds up). When the remainder's midpoint is already exact at `digits`,
+ * the terms come back as they are. The rounding is one rounding of the
+ * whole sum, by less than a unit in the last digit of the remainder; the
+ * counts are integers and are left alone, and one too long to show in
+ * `digits` digits is the display's to round.
  */
 export function roundTerms(
   units: readonly Quantity[],
@@ -188,12 +206,14 @@ export function roundTerms(
   const remainder = terms[last]!;
   const rounded = roundTo(remainder.mid, digits, mode);
   if (equals(rounded, remainder.mid)) return terms;
+  const shift = radiusAbove(subtract(rounded, remainder.mid));
+  const widened: Ball = { mid: rounded, rad: addRadius(remainder.rad, shift) };
   const sizes = units.map((unit) => unit.magnitude);
   const total = terms
     .slice(0, last)
     .reduce(
       (sum, count, i) => addBalls(sum, multiplyBalls(count, sizes[i]!)),
-      multiplyBalls({ mid: rounded, rad: remainder.rad }, sizes[last]!),
+      multiplyBalls(widened, sizes[last]!),
     );
   return decompose(total, sizes);
 }
@@ -201,8 +221,8 @@ export function roundTerms(
 /**
  * `magnitude` as a sum over the positive, decreasing `sizes`, whose balls
  * exclude zero: the exact integer count of each but the last that fits in
- * what is left, from the ratio of midpoints, and the remainder in the last,
- * the ball of what is left over the last size.
+ * what is left, from the ratio of midpoints (`countOf`), and the remainder
+ * in the last, the ball of what is left over the last size.
  */
 function decompose(magnitude: Ball, sizes: readonly Ball[]): Ball[] {
   const terms: Ball[] = [];
@@ -216,10 +236,30 @@ function decompose(magnitude: Ball, sizes: readonly Ball[]): Ball[] {
     if (i === sizes.length - 1) {
       terms.push(ratio.value);
     } else {
-      const count = exact(trunc(ratio.value.mid));
+      const count = exact(countOf(ratio.value));
       terms.push(count);
       rest = subtractBalls(rest, multiplyBalls(count, size));
     }
   }
   return terms;
+}
+
+/**
+ * The count a `ratio` of magnitudes gives (D8): its midpoint truncated
+ * toward zero, unless the ball straddles the integer nearest its midpoint,
+ * which is then the count, so that a ratio that cannot be told from a
+ * whole number is counted as that whole number and leaves a remainder
+ * around zero rather than a whole of the unit. An exact ratio straddles an
+ * integer only when it is one, and an unbounded one is truncated.
+ */
+function countOf(ratio: Ball): Rational {
+  const truncated = trunc(ratio.mid);
+  if (ratio.rad.kind === "unbounded" || isZeroRadius(ratio.rad)) {
+    return truncated;
+  }
+  const nearest = rational(
+    divideRounded(ratio.mid.num, ratio.mid.den, "halfEven"),
+  );
+  const distance = absolute(subtract(ratio.mid, nearest));
+  return compare(distance, radiusUpper(ratio.rad)) <= 0 ? nearest : truncated;
 }

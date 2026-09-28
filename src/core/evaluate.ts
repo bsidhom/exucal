@@ -109,7 +109,7 @@ import {
   type DimensionRuleError,
   type DomainReason,
   type Edge,
-} from "./builtins.ts";
+} from "./builtin.ts";
 import { type NumberContext } from "./context.ts";
 import { err, ok, type Result } from "./result.ts";
 import { type Span } from "./span.ts";

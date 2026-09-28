@@ -84,8 +84,9 @@ that can be typed can also be defined.
 - **UK imperial units**, after the Weights and Measures Act 1985: the
   imperial gallon and its subdivisions, stone, quarter, long hundredweight
   and long ton, rood and cental.
-- **Some common extras**: the constants the definitions need (`pi`, `c`,
-  `gravity`, ...), CGS units, conventional pressure units (`atm`, `torr`,
+- **Some common extras**: the physical constants the definitions need
+  (`c`, `gravity`, ...; the circle constant is the built-in function
+  `pi()`, not a definition), CGS units, conventional pressure units (`atm`, `torr`,
   `mmHg`, `inH2O`), calories, time units beyond the day, and bits and bytes.
 - **Unit lists** (see Unit lists below) for the sums people say: `time`
   (`hr;min;s`, also `hms`), `dhms` and `ydhms` with days and years in
@@ -292,9 +293,9 @@ The argument may have a unit of its own, declared in place of the `1`, and
 a converted quantity is then written as a count of that unit inside the
 call: with a function `dozen` declared `[in;ft]`, `2 ft` converted to
 `dozen` is `dozen(2 in)`. Both bodies are checked when the file is loaded,
-for evaluating at all and for giving what they declare, so a call can fail
-only for its argument (`tempC(1 m)`) or for a value its body cannot
-compute. A function's name may not read as a prefix followed by a unit,
+for the units they give against what they declare, without being evaluated
+at any value, so a call can fail only for its argument (`tempC(1 m)`) or
+for a value its body cannot compute (`recip(0)` for a body of `1 / x`). A function's name may not read as a prefix followed by a unit,
 for the reason a list's may not, and no prefix applies to a function:
 `ktempC(1)` is a call of nothing, not a thousand Celsius readings. There is no domain checking yet:
 `tempC(-300)` is a negative temperature rather than an error. Nor can a
@@ -448,11 +449,14 @@ hook's output at session start says which part is out of date.
   connected, shows a loading message until it arrives, and hands it to the
   converter.
 - `src/system-table.ts` fetches `units.txt`, which the build emits as an
-  asset of its own, and parses and builds it into the table, once.
+  asset of its own, and parses it, once; `src/system-build.ts` builds the
+  table from it at the ceiling of the retry schedule the settings give,
+  once per ceiling, and `src/system-build.test.ts` checks that memo.
 - `src/settings.ts` holds the settings (see Settings above): reading and
   validating them from the browser's storage, clamping the ones that
   depend on others, saving them, and turning them into the context the
-  core computes with and the ceiling of its retry schedule.
+  core computes with, whose ceiling is derived from the "most digits"
+  setting.
   `src/settings.test.ts` checks the parsing under Node.js with a fake
   storage.
 - `src/limits.ts` is the probe behind the "Recommend limits" button: it

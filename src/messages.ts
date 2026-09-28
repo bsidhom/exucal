@@ -20,7 +20,7 @@ import {
   type DimensionRuleError,
   type DomainReason,
   type Edge,
-} from "./core/builtins.ts";
+} from "./core/builtin.ts";
 import { type UnitListError } from "./core/convert.ts";
 import { type Arity, type EvaluateError } from "./core/evaluate.ts";
 import { ZERO, equals, toFraction } from "./core/rational.ts";

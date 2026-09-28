@@ -30,22 +30,26 @@
 // ulps in all, stated as such.
 //
 // `piFixed(bits, ceilingBits)` memoizes per D10: the module holds exactly
-// one value, the digits at the ceiling of the retry schedule in force,
-// computed on the first request however low, and every request at or below
-// the ceiling, which is every request the loop can make, is that value with
-// its low bits truncated (`truncateFixed`, an ulp for the truncation). A
-// request at a higher ceiling replaces the value, a lower one leaves it, so
-// the footprint is fixed by the ceiling, about 1.7 KB at the default of
-// 4,040 digits, and bounded by the hard bound on the cap. A request above
-// the ceiling (stage 3's argument reduction of `sin` at a large argument) is
-// computed for the call and not kept. The memo is unobservable through the
-// core's results, as `lazy` in parser.ts is; `piMemoBits` exposes its
-// precision for the tests alone.
+// one value, the digits at the ceiling of the retry schedule in force plus
+// a margin of `MEMO_MARGIN` bits, computed on the first request however
+// low, and every request at or below that, which is every request the loop
+// can make, is that value with its low bits truncated (`truncateFixed`, an
+// ulp for the truncation). A request at a higher ceiling replaces the
+// value, a lower one leaves it, so the footprint is fixed by the ceiling,
+// about 1.7 KB at the default of 4,040 digits, and bounded by the hard
+// bound on the cap. The margin is for the argument reduction of `sin` and
+// `cos` (3.9), which needs pi to the working bits plus the argument's bit
+// length: at the ceiling pass that exceeds the ceiling by the argument's
+// bit length, so without the margin every `sin(1 radian)` would recompute
+// pi there; with it, every argument below `2^64` is served from the memo
+// at every pass. A request above the memo (the reduction at a larger
+// argument) is computed for the call and not kept. The memo is
+// unobservable through the core's results, as `lazy` in parser.ts is;
+// `piMemoBits` exposes its precision for the tests alone.
 
 import { type Ball } from "./ball.ts";
 import { type NumberContext } from "./context.ts";
 import { bitsFor, fixedToBall, truncateFixed, type Fixed } from "./fixed.ts";
-import { type Precision } from "./rational.ts";
 
 /** The bits each term of the series is worth, at least: a safe floor of `2^-46` per term. */
 const BITS_PER_TERM = 46;
@@ -137,27 +141,35 @@ function sqrt10005(bits: number): Fixed {
   return root;
 }
 
-/** The one value the module holds: pi at the ceiling in force, or nothing yet. */
+/**
+ * The bits a memo holds beyond the ceiling, so that the argument reduction
+ * of the trigonometric functions at the ceiling pass is served from it for
+ * arguments below `2^64` (D10).
+ */
+export const MEMO_MARGIN = 64;
+
+/** The one value the module holds: pi at the ceiling in force plus the margin, or nothing yet. */
 let memo: Fixed | undefined;
 
 /**
- * `pi` at `bits` fraction bits, from the memo at `ceilingBits` (D10): the
- * memo is computed at `ceilingBits` on the first request at or below it,
- * replaced when a higher ceiling is asked for, and truncated to `bits` for
- * every request it covers; a request above the ceiling is computed for the
- * call and not kept.
+ * `pi` at `bits` fraction bits, from the memo at `ceilingBits` plus the
+ * margin (D10): the memo is computed at that many bits on the first
+ * request at or below it, replaced when a higher ceiling is asked for, and
+ * truncated to `bits` for every request it covers; a request above it is
+ * computed for the call and not kept.
  */
 export function piFixed(bits: number, ceilingBits: number): Fixed {
-  if (bits > ceilingBits) return chudnovsky(bits);
-  if (memo === undefined || memo.bits < ceilingBits) {
-    memo = chudnovsky(ceilingBits);
-  }
+  const held = ceilingBits + MEMO_MARGIN;
+  if (bits > held) return chudnovsky(bits);
+  if (memo === undefined || memo.bits < held) memo = chudnovsky(held);
   return memo.bits === bits ? memo : truncateFixed(memo, bits);
 }
 
-/** The ball of `pi` at the precision of `context`, under a schedule whose ceiling is `ceiling` digits. */
-export function piBall(context: NumberContext, ceiling: Precision): Ball {
-  return fixedToBall(piFixed(bitsFor(context.precision), bitsFor(ceiling)));
+/** The ball of `pi` at the precision of `context`, from the memo at the context's ceiling. */
+export function piBall(context: NumberContext): Ball {
+  return fixedToBall(
+    piFixed(bitsFor(context.precision), bitsFor(context.ceiling)),
+  );
 }
 
 /** The fraction bits of the value the memo holds, or `undefined` before the first request; for the tests. */

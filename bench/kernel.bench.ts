@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { exact, rootBall } from "../src/core/ball.ts";
 import { chudnovsky } from "../src/core/constants.ts";
 import {
+  DEFAULT_CEILING,
   DEFAULT_MAX_BITS,
   DEFAULT_MAX_DIGITS,
   DEFAULT_ROUNDING,
@@ -47,6 +48,7 @@ test("a root at the default ceiling is milliseconds", (t) => {
     precision: ceiling,
     rounding: DEFAULT_ROUNDING,
     maxBits: DEFAULT_MAX_BITS,
+    ceiling: DEFAULT_CEILING,
   };
   const square = bestOf(5, () => {
     assert.ok(rootBall(exact(rational(2n)), 2n, context).ok);

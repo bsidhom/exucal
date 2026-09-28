@@ -47,9 +47,10 @@
 // working contexts the texts are evaluated at are derived here, by the
 // retry schedule of D12. `schedule` yields the digits asked for plus a
 // guard of ten, then twice that, four times, doubling, and last the
-// `ceiling` the caller passes beside the context (the shell derives it
-// from the cap on the digits setting, `ceilingFor` in context.ts; a
-// context whose precision exceeds that cap is a precondition failure).
+// context's `ceiling` (the shell derives it from the cap on the digits
+// setting, `ceilingFor` in context.ts, and it is the same in every working
+// context; a context whose precision exceeds that cap is a precondition
+// failure).
 // `resolve` runs the evaluation at each working context in turn and stops
 // at the first result whose every value is exact, certified at the digits
 // asked for, or of unbounded radius, which no pass can narrow; a result
@@ -67,8 +68,8 @@
 // ball straddles zero is `nonpositiveUnit`, which is not retried, and the
 // reciprocal line the component computes is shown with whatever kind `1 /
 // value` has, not retried on its own. The texts are parsed once, outside
-// the passes. The table is built at a working context of its own, by its
-// builder.
+// the passes. The table is built at the ceiling context, by its builder
+// (D6), so that no unit holds a pass back.
 
 import {
   convert,
@@ -84,7 +85,6 @@ import { type Quantity } from "./quantity.ts";
 import { certifies, divideBalls, isExact, type Ball } from "./ball.ts";
 import { GUARD_DIGITS, checkContext, type NumberContext } from "./context.ts";
 import { isUnbounded } from "./radius.ts";
-import { type Precision } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import {
   unitLookup,
@@ -171,18 +171,16 @@ export type ConversionError =
 // The pipeline
 
 /**
- * The working contexts for the user's `context` under `ceiling`, per D12:
- * the digits asked for plus the guard, then that doubled, doubled again,
- * and so on while below the ceiling, and the ceiling last; the rounding
- * mode and the range limit are the user's throughout. A precision above
- * the cap the ceiling was derived from (`ceilingFor` in context.ts, four
- * times the cap plus the guard) is a precondition failure.
+ * The working contexts for the user's `context`, per D12: the digits asked
+ * for plus the guard, then that doubled, doubled again, and so on while
+ * below the context's ceiling, and the ceiling last; the rounding mode,
+ * the range limit and the ceiling are the user's throughout. A precision
+ * above the cap the ceiling was derived from (`ceilingFor` in context.ts,
+ * four times the cap plus the guard) is a precondition failure.
  */
-export function schedule(
-  context: NumberContext,
-  ceiling: Precision,
-): NumberContext[] {
+export function schedule(context: NumberContext): NumberContext[] {
   checkContext(context);
+  const { ceiling } = context;
   const first = context.precision + GUARD_DIGITS;
   if (4 * first > ceiling) {
     throw new RangeError(
@@ -198,7 +196,7 @@ export function schedule(
 }
 
 /**
- * `run` at each working context of `schedule(context, ceiling)` in turn:
+ * `run` at each working context of `schedule(context)` in turn:
  * the first result `done` accepts is returned; a result it rejects is kept
  * as the best so far; an error `retries` accepts continues; any other
  * error ends the loop with the best result so far, or with the error when
@@ -207,14 +205,13 @@ export function schedule(
  */
 export function resolve<T, E>(
   context: NumberContext,
-  ceiling: Precision,
   run: (working: NumberContext) => Result<T, E>,
   done: (value: T) => boolean,
   retries: (error: E) => boolean,
 ): Result<T, E> {
   let best: Result<T, E> | undefined;
   let last: Result<T, E> | undefined;
-  for (const working of schedule(context, ceiling)) {
+  for (const working of schedule(context)) {
     const result = run(working);
     last = result;
     if (result.ok) {
@@ -281,19 +278,17 @@ function conversionDone(
 
 /**
  * The quantity `text` denotes in `table`, evaluated through the retry
- * schedule of the user's `context` under `ceiling`.
+ * schedule of the user's `context`.
  */
 export function evaluateText(
   table: UnitTable,
   text: string,
   context: NumberContext,
-  ceiling: Precision,
 ): Result<Quantity, TextError> {
   const expr = parseExpr(text);
   if (!expr.ok) return expr;
   return resolve(
     context,
-    ceiling,
     (working) => evaluateExpr(table, expr.value, working),
     (quantity) => settled(quantity.magnitude, context),
     isUnresolved,
@@ -307,15 +302,13 @@ export function evaluateText(
  * `want` of several (`ft;in`), or the name of a unit list in the table,
  * gives the sum, and the name of a function gives the call that would
  * produce `have`. Both texts are parsed once, and the evaluation and the
- * conversion run through the retry schedule of the user's `context` under
- * `ceiling`.
+ * conversion run through the retry schedule of the user's `context`.
  */
 export function convertText(
   table: UnitTable,
   have: string,
   want: string,
   context: NumberContext,
-  ceiling: Precision,
 ): Result<Conversion, ConversionError> {
   const haveExpr = parseExpr(have);
   if (!haveExpr.ok) return inputError("have", haveExpr.error);
@@ -323,11 +316,7 @@ export function convertText(
   if (!items.ok) {
     // `have` is tried first: its failure to evaluate is reported before
     // the want's failure to parse, at the schedule's first pass.
-    const first = evaluateExpr(
-      table,
-      haveExpr.value,
-      schedule(context, ceiling)[0]!,
-    );
+    const first = evaluateExpr(table, haveExpr.value, schedule(context)[0]!);
     return inputError(
       first.ok ? "want" : "have",
       first.ok ? items.error : first.error,
@@ -335,7 +324,6 @@ export function convertText(
   }
   return resolve(
     context,
-    ceiling,
     (working) =>
       convertParsed(table, haveExpr.value, want, items.value, working),
     (conversion) => conversionDone(conversion, context),

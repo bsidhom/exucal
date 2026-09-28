@@ -1,9 +1,9 @@
 // The user's settings: the digits a result is shown with, the rounding
 // mode it is rounded in, and the two limits of D16, the cap on the digits
 // and the range limit in bits, kept in `localStorage` so that they survive
-// a reload, and turned into the `NumberContext` and the ceiling the
-// pipeline takes. This is app code, not core: the core takes a context and
-// a ceiling and knows nothing of where they come from.
+// a reload, and turned into the `NumberContext` the pipeline takes, whose
+// ceiling is derived from the cap. This is app code, not core: the core
+// takes a context and knows nothing of where it comes from.
 // docs/calculator-plan.md (tasks 1.10 and 2.6, D12 and D16) places it;
 // README.md ("Settings") describes the settings from the user's side.
 //
@@ -31,7 +31,7 @@ import {
   maxDigitsFor,
   type NumberContext,
 } from "./core/context.ts";
-import { LIMIT_BITS, type Precision } from "./core/rational.ts";
+import { LIMIT_BITS } from "./core/rational.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 
 /** The settings: the digits shown, the rounding mode, and the two limits. */
@@ -127,18 +127,17 @@ export function saveSettings(
   }
 }
 
-/** The context the pipeline takes for `settings`: the digits, in the mode, within the range limit. */
+/**
+ * The context the pipeline takes for `settings`: the digits, in the mode,
+ * within the range limit, under the ceiling the cap gives (D12).
+ */
 export function contextOf(settings: Settings): NumberContext {
   return {
     precision: settings.digits,
     rounding: settings.rounding,
     maxBits: settings.maxBits,
+    ceiling: ceilingFor(settings.maxDigits),
   };
-}
-
-/** The ceiling of the retry schedule for `settings`: the cap's (D12). */
-export function ceilingOf(settings: Settings): Precision {
-  return ceilingFor(settings.maxDigits);
 }
 
 /** Whether `value` is a digits setting under the cap `maxDigits`: an integer in `[1, maxDigits]`. */

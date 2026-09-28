@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  DEFAULT_CEILING,
   DEFAULT_MAX_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
@@ -7,7 +8,7 @@ import {
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { exact, multiplyBalls } from "./ball.ts";
-import { plainNumbers, type Builtin } from "./builtins.ts";
+import { plainNumbers, type Builtin } from "./builtin.ts";
 import { convert } from "./convert.ts";
 import { type Dimension, type Primitives } from "./dimension.ts";
 import { evaluate } from "./evaluate.ts";
@@ -32,6 +33,7 @@ const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
   maxBits: DEFAULT_MAX_BITS,
+  ceiling: DEFAULT_CEILING,
 };
 
 /** Builds a dimension from integer exponents. */

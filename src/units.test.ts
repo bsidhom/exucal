@@ -6,28 +6,44 @@
 
 import assert from "node:assert/strict";
 import {
+  DEFAULT_CEILING,
   DEFAULT_MAX_BITS,
-  DEFAULT_MAX_DIGITS,
-  ceilingFor,
+  ceilingContext,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "./core/context.ts";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact, type Ball } from "./core/ball.ts";
+import {
+  certifiedDigits,
+  containsZero,
+  exact,
+  isExact,
+  type Ball,
+} from "./core/ball.ts";
 import { buildTable } from "./core/build.ts";
-import { convert, convertToList, type ConvertError } from "./core/convert.ts";
+import {
+  convert,
+  convertToList,
+  roundTerms,
+  type ConvertError,
+} from "./core/convert.ts";
 import { parseDefinitions } from "./core/definitions.ts";
 import { evaluate } from "./core/evaluate.ts";
 import { parseExpr } from "./core/expr.ts";
 import { convertText } from "./core/pipeline.ts";
 import { type Quantity } from "./core/quantity.ts";
+import { radiusUpper } from "./core/radius.ts";
 import {
   DEFAULT_PRECISION,
+  absolute,
+  compare,
   divide,
   equals,
   parseDecimal,
+  rational,
+  subtract,
   toFraction,
   type Rational,
 } from "./core/rational.ts";
@@ -39,10 +55,8 @@ const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
   maxBits: DEFAULT_MAX_BITS,
+  ceiling: DEFAULT_CEILING,
 };
-
-/** The ceiling of the retry schedule the tests run under: the default cap's. */
-const CEILING = ceilingFor(DEFAULT_MAX_DIGITS);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,7 +67,7 @@ const text = readFileSync(new URL("./units.txt", import.meta.url), "utf8");
 const table: UnitTable = (() => {
   const parsed = parseDefinitions(text);
   assert.ok(parsed.ok, `expected the file to parse, got ${inspect(parsed)}`);
-  const built = buildTable(parsed.value, CONTEXT);
+  const built = buildTable(parsed.value, ceilingContext(CONTEXT));
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
   return built.value;
 })();
@@ -107,6 +121,39 @@ function assertAll(rows: readonly (readonly [string, string, string])[]): void {
   for (const [have, want, expected] of rows) {
     assertConverts(have, want, expected);
   }
+}
+
+/** pi to 60 digits, from Python's decimal module, for the units that call `pi()`. */
+const PI = number(
+  "3.14159265358979323846264338327950288419716939937510582097494459",
+);
+
+/**
+ * Asserts that `have` converts to `want` inexactly, that the ball contains
+ * `expected`, and that it certifies thirty digits at the working precision
+ * of forty: what a unit defined through `pi()` gives (the plan's 3.4).
+ */
+function assertApproximates(
+  have: string,
+  want: string,
+  expected: Rational,
+): void {
+  const result = converted(have, want);
+  assert.ok(
+    result.ok,
+    `${have} does not convert to ${want}: ${inspect(result)}`,
+  );
+  const ball = result.value;
+  assert.ok(!isExact(ball), `${have} in ${want}: exact`);
+  assert.ok(
+    compare(absolute(subtract(ball.mid, expected)), radiusUpper(ball.rad)) <= 0,
+    `${have} in ${want}: ${toFraction(ball.mid)} does not contain the expected value`,
+  );
+  assert.equal(
+    certifiedDigits(ball, 30, DEFAULT_ROUNDING),
+    30,
+    `${have} in ${want}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +264,7 @@ test("temperature readings convert through tempC and tempF", () => {
   assertCall("tempF(-40)", "tempC", "-40");
   assertCall("0 K", "tempC", "-273.15");
   // The argument is a plain number.
-  const result = convertText(table, "tempC(1 m)", "K", CONTEXT, CEILING);
+  const result = convertText(table, "tempC(1 m)", "K", CONTEXT);
   assert.ok(!result.ok);
   assert.ok(result.error.kind === "inputError");
   assert.equal(result.error.error.kind, "argumentMismatch");
@@ -225,7 +272,7 @@ test("temperature readings convert through tempC and tempF", () => {
 
 /** Asserts that `have` in the function `want` is the call of it at exactly `expected`. */
 function assertCall(have: string, want: string, expected: string): void {
-  const result = convertText(table, have, want, CONTEXT, CEILING);
+  const result = convertText(table, have, want, CONTEXT);
   assert.ok(result.ok, `${have} in ${want}: ${inspect(result)}`);
   assert.ok(result.value.kind === "function", `${have} in ${want}: not a call`);
   assert.equal(result.value.name, want);
@@ -254,13 +301,17 @@ test("angles are a kind of their own", () => {
   assert.ok(!result.ok && result.error.kind === "kindMismatch");
   assert.deepEqual(result.error.kinds, ["radian"]);
   assertAll([
-    ["1 turn", "deg", "360"],
-    ["1 deg", "arcsec", "3600"],
-    ["1 gon", "deg", "0.9"],
-    ["1 rpm", "rad/s", "3.14159265358979323846264338327950288/30"],
     ["1 lm", "cd sr", "1"],
     ["1 lx", "cd sr / m^2", "1"],
   ]);
+  // The angle units call `pi()`, so a conversion between them is a ratio
+  // of two inexact values: it certifies its digits and is `≈`, never `=`,
+  // however round it is (the study accepts the conservative `≈`).
+  assertApproximates("1 turn", "deg", rational(360n));
+  assertApproximates("1 deg", "arcsec", rational(3600n));
+  assertApproximates("1 gon", "deg", number("0.9"));
+  assertApproximates("1 rpm", "rad/s", rational(PI.num, 30n * PI.den));
+  assertApproximates("1 turn", "radian", rational(2n * PI.num, PI.den));
 });
 
 // ---------------------------------------------------------------------------
@@ -504,7 +555,6 @@ test("time, CGS, radiation and information", () => {
     ["1 year", "day", "365.25"],
     ["1 month", "day", "30.4375"],
     ["1 lightyear", "m", "9460730472580800"],
-    ["1 parsec", "au", "648000/3.14159265358979323846264338327950288"],
     ["1 dyn", "N", "1e-5"],
     ["1 erg", "J", "1e-7"],
     ["1 poise", "Pa s", "0.1"],
@@ -516,6 +566,9 @@ test("time, CGS, radiation and information", () => {
     ["1 percent", "1", "0.01"],
     ["1 dozen", "1", "12"],
   ]);
+  // The parsec and the oersted are defined through `pi()`.
+  assertApproximates("1 parsec", "au", rational(648000n * PI.den, PI.num));
+  assertApproximates("1 Oe", "A/m", rational(1000n * PI.den, 4n * PI.num));
 });
 
 // ---------------------------------------------------------------------------
@@ -571,7 +624,36 @@ test("the unit lists are defined, with the units named in the file", () => {
 test("the unit lists convert", () => {
   assertList("3661.5 s", "time", ["1", "1", "1.5"]);
   assertList("100000 s", "dhms", ["1", "3", "46", "40"]);
-  assertList("1.5 deg", "dms", ["1", "30", "0"]);
+  // The angle units carry `pi()`'s radius, and `deg` and `arcmin` were each
+  // settled on their own, so `0.5 deg / arcmin` is `30 ± ε`, straddling 30:
+  // the count is 30 (D8 as amended at 3.4) and the last term a ball around
+  // zero, which the display leaves out; `roundTerms` then has nothing to
+  // round and returns the terms as they are.
+  const dms = table.unitLists.get("dms")!;
+  const raw = convertToList(
+    quantity("1.5 deg"),
+    dms.map((unit) => unit.quantity),
+    table.primitives,
+  );
+  assert.ok(raw.ok);
+  assert.deepEqual(raw.value.slice(0, 2), [
+    exact(rational(1n)),
+    exact(rational(30n)),
+  ]);
+  assert.ok(containsZero(raw.value[2]!) && !isExact(raw.value[2]!));
+  const terms = roundTerms(
+    dms.map((unit) => unit.quantity),
+    raw.value,
+    8,
+    DEFAULT_ROUNDING,
+  );
+  assert.deepEqual(terms.slice(0, 2), raw.value.slice(0, 2));
+  // `turn / deg` straddles 360 the same way.
+  const dm = [quantity("deg"), quantity("arcmin")];
+  const turn = convertToList(quantity("1 turn"), dm, table.primitives);
+  assert.ok(turn.ok);
+  assert.deepEqual(turn.value[0], exact(rational(360n)));
+  assert.ok(containsZero(turn.value[1]!));
   assertList("1 m", "ftin", ["3", "428/127"]);
   assertList("100 in", "ydftin", ["2", "2", "4"]);
   assertList("1 km", "miftin", ["0", "3280", "1280/127"]);

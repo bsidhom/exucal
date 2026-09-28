@@ -1,11 +1,10 @@
 import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import {
+  DEFAULT_CEILING,
   DEFAULT_DIGITS,
   DEFAULT_MAX_BITS,
-  DEFAULT_MAX_DIGITS,
   DEFAULT_ROUNDING,
-  ceilingFor,
   type NumberContext,
 } from "./core/context.ts";
 import { type Shown } from "./core/display.ts";
@@ -23,6 +22,7 @@ import { divideBalls, exact, type Ball } from "./core/ball.ts";
 import {
   ONE,
   absolute,
+  equals,
   format,
   isZero,
   sign,
@@ -91,14 +91,14 @@ type Outcome =
  * the unit the function declares for it.
  *
  * The `context` property is the user's settings as the pipeline takes them
- * (the digits asked for, the rounding mode and the range limit;
- * `<app-shell>` owns the settings and passes it down), and `ceiling` the
- * top of the pipeline's retry schedule, derived by the shell from the cap
- * on the digits: the pipeline computes at as many passes of rising
- * precision as the digits asked for take, up to the ceiling, `roundTerms`
- * and `show` round to the context's digits in its mode, and `=` is decided
- * at those digits. They default to the display's rules before the settings
- * existed, eight digits half away from zero, and the default cap's ceiling.
+ * (the digits asked for, the rounding mode, the range limit and the
+ * ceiling of the retry schedule, which the shell derives from the cap on
+ * the digits; `<app-shell>` owns the settings and passes it down): the
+ * pipeline computes at as many passes of rising precision as the digits
+ * asked for take, up to the ceiling, `roundTerms` and `show` round to the
+ * context's digits in its mode, and `=` is decided at those digits. It
+ * defaults to the display's rules before the settings existed, eight
+ * digits half away from zero, under the default cap's ceiling.
  *
  * What is shown is what `show` certifies (docs/calculator-plan.md, D7 and
  * task 2.6): every digit asked for when the value allows, and otherwise
@@ -109,8 +109,14 @@ type Outcome =
  * on its unrounded terms, since `roundTerms` moves the remainder's midpoint
  * onto a rounding cell's edge in a directed mode, where re-certifying it
  * would lose a digit; the remainder is then rounded at the digits
- * certified, and the counts, which are exact integers, carry no note. The
- * reciprocal line shows its own kind.
+ * certified, and the counts, which are exact integers, carry no note.
+ * When the rounding carried into an earlier unit, though, the last term
+ * is a new value, what is left after the carried units, and its kind is
+ * judged on the rounded remainder, which is then a hair from zero; a last
+ * term that cannot be told from zero is left out as a term of zero is,
+ * with its note, so `1.5 deg` in `dms`, whose angle units carry `pi()`'s
+ * radius, shows `≈ 1 deg + 30 arcmin`, and a sum of nothing but zeros keeps
+ * its last term with its bound. The reciprocal line shows its own kind.
  *
  * A conversion into one unit is also shown the other way round, on a
  * second line, as GNU units shows every conversion twice (`* 36` and
@@ -201,16 +207,13 @@ export class UnitConverter extends LitElement {
   /** The units to convert with. Not an attribute: a table is not a string. */
   @property({ attribute: false }) table?: UnitTable;
 
-  /** The user's context: the digits to show, in which rounding mode. */
+  /** The user's context: the digits to show, in which rounding mode, within which limits. */
   @property({ attribute: false }) context: NumberContext = {
     precision: DEFAULT_DIGITS,
     rounding: DEFAULT_ROUNDING,
     maxBits: DEFAULT_MAX_BITS,
+    ceiling: DEFAULT_CEILING,
   };
-
-  /** The ceiling of the retry schedule, which the pipeline takes beside the context. */
-  @property({ attribute: false }) ceiling: Precision =
-    ceilingFor(DEFAULT_MAX_DIGITS);
 
   @state() private have = "";
   @state() private want = "";
@@ -245,7 +248,7 @@ export class UnitConverter extends LitElement {
     if (have === "") return { kind: "empty" };
     if (want === "") {
       // What `have` is in the primitives: the unit's definition, in effect.
-      const quantity = evaluateText(table, this.have, context, this.ceiling);
+      const quantity = evaluateText(table, this.have, context);
       if (!quantity.ok) {
         return {
           kind: "error",
@@ -263,13 +266,7 @@ export class UnitConverter extends LitElement {
         : formatDimension(dimension, table.primitives);
       return { kind: "result", lines: [line(have, magnitude, unit, context)] };
     }
-    const conversion = convertText(
-      table,
-      this.have,
-      this.want,
-      context,
-      this.ceiling,
-    );
+    const conversion = convertText(table, this.have, this.want, context);
     if (!conversion.ok) {
       const { error } = conversion;
       return {
@@ -431,8 +428,9 @@ function noteOf(shown: Shown, digits: Precision): string | undefined {
  * asked for; the remainder's text is formatted at the digits certified, or
  * is `0` when it cannot be told from zero, and the line's note is the
  * remainder's. A term of zero is left out, as it would be in speech
- * (`1 hr + 1 s`, not `1 hr + 0 min + 1 s`), except that a sum of nothing
- * but zeros keeps its last term (`0 in`).
+ * (`1 hr + 1 s`, not `1 hr + 0 min + 1 s`), and so is a last term that
+ * cannot be told from zero, with its note, except that a sum of nothing
+ * but zeros keeps its last term (`0 in`, with the bound).
  */
 function listResult(
   have: string,
@@ -443,10 +441,10 @@ function listResult(
   const { precision, rounding } = context;
   const last = terms.length - 1;
   const shown = terms.map((t) => show(t, precision, rounding));
-  const remainder = shown[last]!;
+  const unrounded = shown[last]!;
   const certified =
-    remainder.kind === "partial" && remainder.certified > 0
-      ? remainder.certified
+    unrounded.kind === "partial" && unrounded.certified > 0
+      ? unrounded.certified
       : precision;
   const rounded = roundTerms(
     units.map((unit) => unit.quantity),
@@ -454,6 +452,14 @@ function listResult(
     certified,
     rounding,
   );
+  // A carry leaves a new remainder, what is left after the carried units,
+  // judged on its own; without one the unrounded remainder's kind stands.
+  const carried = rounded
+    .slice(0, last)
+    .some((count, i) => !equals(count.mid, terms[i]!.mid));
+  const remainder = carried
+    ? show(rounded[last]!, precision, rounding)
+    : unrounded;
   const all = rounded.map((value, i) => {
     const negative = sign(value.mid) < 0;
     const magnitude = negative ? absolute(value.mid) : value.mid;
@@ -465,8 +471,15 @@ function listResult(
           : format(magnitude, certified, rounding);
     return { value, term: { text, negative, unit: wantText(units[i]!.text) } };
   });
-  const nonzero = all.filter((t) => !isZero(t.value.mid));
+  // A term of zero is left out, and so is a last term that cannot be told
+  // from zero, with its note; a sum of nothing but zeros keeps its last
+  // term, note and all.
+  const nonzero = all.filter(
+    (t, i) =>
+      !isZero(t.value.mid) && !(i === last && remainder.kind === "zero"),
+  );
   const kept = nonzero.length > 0 ? nonzero : all.slice(-1);
+  const keepsRemainder = kept.includes(all[last]!);
   // The first term shown keeps its sign in its text; the rest are unsigned.
   const written = kept.map((t, i) =>
     i === 0 && t.term.negative
@@ -480,7 +493,7 @@ function listResult(
         have,
         relation: shown.every((s) => s.kind === "exact") ? "=" : "≈",
         terms: written,
-        note: noteOf(remainder, precision),
+        note: keepsRemainder ? noteOf(remainder, precision) : undefined,
       },
     ],
   };

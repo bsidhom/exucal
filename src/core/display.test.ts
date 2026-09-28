@@ -7,7 +7,11 @@ import {
   subtractBalls,
   type Ball,
 } from "./ball.ts";
-import { DEFAULT_MAX_BITS, DEFAULT_ROUNDING } from "./context.ts";
+import {
+  DEFAULT_CEILING,
+  DEFAULT_MAX_BITS,
+  DEFAULT_ROUNDING,
+} from "./context.ts";
 import { show, type Shown } from "./display.ts";
 import { UNBOUNDED, radiusAbove } from "./radius.ts";
 import { ROUNDING_MODES } from "./rounding.ts";
@@ -39,6 +43,7 @@ function root(value: Rational, degree: bigint, precision: number): Ball {
     precision,
     rounding: DEFAULT_ROUNDING,
     maxBits: DEFAULT_MAX_BITS,
+    ceiling: DEFAULT_CEILING,
   });
   assert.ok(result.ok);
   return result.value;
@@ -214,6 +219,7 @@ test("a ball containing zero without being zero is the zero kind, with a bound",
     precision: 40,
     rounding: DEFAULT_ROUNDING,
     maxBits: DEFAULT_MAX_BITS,
+    ceiling: DEFAULT_CEILING,
   });
   assert.ok(squared.ok);
   const almostZero = subtractBalls(squared.value, exact(rational(2n)));

@@ -11,7 +11,6 @@ import { LIMIT_BITS } from "./core/rational.ts";
 import {
   DEFAULT_SETTINGS,
   SETTINGS_KEY,
-  ceilingOf,
   clampSettings,
   contextOf,
   isDigits,
@@ -189,7 +188,7 @@ test("settings round-trip through storage, under one key", () => {
   assert.deepEqual(loadSettings(stored), DEFAULT_SETTINGS);
 });
 
-test("contextOf and ceilingOf are the settings as the pipeline takes them", () => {
+test("contextOf is the settings as the pipeline takes them, with the cap's ceiling", () => {
   const settings: Settings = {
     digits: 12,
     rounding: "floor",
@@ -200,9 +199,9 @@ test("contextOf and ceilingOf are the settings as the pipeline takes them", () =
     precision: 12,
     rounding: "floor",
     maxBits: 4096,
+    ceiling: ceilingFor(300),
   });
-  assert.equal(ceilingOf(settings), ceilingFor(300));
-  assert.equal(ceilingOf(DEFAULT_SETTINGS), 4040);
+  assert.equal(contextOf(DEFAULT_SETTINGS).ceiling, 4040);
 });
 
 test("the validators accept the integers of their ranges and nothing else", () => {

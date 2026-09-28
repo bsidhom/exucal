@@ -200,25 +200,34 @@ a function's body may call another function, and a cycle through a
 function is reported like any other. Checking a function means:
 
 1. Evaluating the two declared units.
-2. Evaluating the forward body with the parameter bound to one of the
-   declared argument unit, and the inverse body with the name bound to one
-   of the declared result unit, each through the walk's own lookup. A
-   failure is an ordinary build error, with its span in the definitions
-   text, where it belongs.
+2. Taking the dimension of the forward body with the parameter bound to the
+   declared argument's dimension, and of the inverse body with the name
+   bound to the declared result's, each through the walk's own lookup
+   (`dimensionOf` in `src/core/dimension-of.ts`, stage 3 of
+   docs/calculator-plan.md): an interpretation of the body over dimensions
+   alone, which a body's dimension never depends on the value of its
+   argument makes well defined. A name that means nothing, a sum whose
+   operands do not conform, a call with the wrong count of arguments or an
+   argument of the wrong dimension is an ordinary build error, with its
+   span in the definitions text, where it belongs.
 3. Checking that the forward body conforms to the declared result and the
    inverse body to the declared argument; a failure is a
    `functionMismatch` build error: the definition, which body, and the
    conformance error.
 
-Step 2 catches a body that fails for every argument, and step 3 a body
-whose dimension does not match its declaration, both at load time, so
-that a call at run time can fail only on its argument (`argumentMismatch`)
-or on a value (`callFailed`). A body that fails only at the value one
-(`1 / (x - 1)`) fails the build; that is accepted, since no function in
-sight is like that. The bodies are not evaluated further at build time:
-the table holds them as expressions, and a call evaluates the forward
-body afresh, resolving units through the table's lookup, which applies the
-same name rule the build did.
+Step 2 catches a body that refers to nothing or is put together wrongly,
+and step 3 a body whose dimension does not match its declaration, both at
+load time, so that a call at run time can fail only on its argument
+(`argumentMismatch`) or on a value (`callFailed`). The bodies are not
+evaluated at build time at all: the first version of this check evaluated
+each at one of the declared unit and refused a body that failed there
+(`1 / (x - 1)`), which the elementary functions made untenable, since
+`ln(x - 1)`, `asin(x + 1)` and `1 / ln(x)` are all like that; such a body
+now builds and fails only at the call that reaches the value, and so does
+a body that fails at every value (`1 / 0`). The table holds the bodies as
+expressions, and a call evaluates the forward body afresh, resolving
+units through the table's lookup, which applies the same name rule the
+build did.
 
 ## Where it goes
 

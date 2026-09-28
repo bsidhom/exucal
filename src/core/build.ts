@@ -39,16 +39,19 @@
 // is a node of the walk, so that a unit may be defined by a call, a body
 // may call another function, and a cycle through a function is reported
 // like any other. Checking a function (docs/functions.md) means evaluating
-// its declared units, evaluating the forward body with the parameter bound
-// to one of the declared argument unit and the inverse body with the name
-// bound to one of the declared result unit, through the walk's own lookup,
-// and checking that each body conforms to what it should give. That
-// catches a body that fails for every argument and a body of the wrong
-// dimension at load time, so that a call at run time can fail only on its
-// argument or on a value. A declared unit whose ball contains zero (an
-// exact zero, or an inexact value around it) is rejected as well, since a
-// recovered argument is written as a count of it and nothing is a count of
-// either.
+// its declared units and taking each body's dimension without evaluating
+// it (dimension-of.ts), the forward body with the parameter bound to the
+// declared argument's dimension and the inverse body with the name bound
+// to the declared result's, through the walk's own lookup, and checking
+// that each conforms to what it should give. That catches a body of the
+// wrong dimension, or one that refers to nothing, at load time, so that a
+// call at run time can fail only on its argument or on a value; a body
+// that fails at some value, or at every value (`1 / (x - 1)`, `1 / 0`),
+// builds and fails at the call, where the first version of the check,
+// which evaluated the body at one of the declared unit, refused it. A
+// declared unit whose ball contains zero (an exact zero, or an inexact
+// value around it) is rejected as well, since a recovered argument is
+// written as a count of it and nothing is a count of either.
 //
 // The first failure ends the build. Errors within a body (an unknown name,
 // a division by zero, a reference that closes a cycle) carry the span of
@@ -67,18 +70,14 @@ import {
   type Role,
 } from "./dimension.ts";
 import { convertToList, type UnitListError } from "./convert.ts";
-import {
-  applyFunction,
-  evaluate,
-  invertFunction,
-  type EvaluateError,
-  type Lookup,
-} from "./evaluate.ts";
+import { dimensionOf, type DimensionLookup } from "./dimension-of.ts";
+import { evaluate, type EvaluateError, type Lookup } from "./evaluate.ts";
 import { walker, type Cycle, type Visit } from "./graph.ts";
 import { findAmbiguity, resolveName, type Split } from "./names.ts";
 import { multiplyQuantities, type Quantity } from "./quantity.ts";
 import { containsZero, exact, type Ball } from "./ball.ts";
-import { BUILTINS, type Builtins } from "./builtins.ts";
+import { type Builtins } from "./builtin.ts";
+import { BUILTINS } from "./builtins.ts";
 import { checkContext, type NumberContext } from "./context.ts";
 import { ONE } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
@@ -394,12 +393,12 @@ function asFunction(built: Built): UnitFunction {
 
 /**
  * The function `definition` defines, once checked: its declared units
- * evaluated, its forward body evaluated with the parameter bound to one of
- * the declared argument unit and found to conform to the declared result,
- * and its inverse body evaluated with the name bound to one of the
- * declared result unit and found to conform to the declared argument. A
- * body's failure is reported as it is, with its span in the definitions
- * text, where it belongs.
+ * evaluated, its forward body's dimension taken with the parameter bound
+ * to the declared argument's dimension and found to conform to the
+ * declared result, and its inverse body's with the name bound to the
+ * declared result's dimension and found to conform to the declared
+ * argument. A body's failure is reported as it is, with its span in the
+ * definitions text, where it belongs.
  */
 function checkFunction(
   definition: FunctionDefinition,
@@ -431,16 +430,18 @@ function checkFunction(
     forward: definition.forward,
     inverse: definition.inverse,
   };
-  const forward = applyFunction(
-    fn,
-    argument.value.quantity,
-    lookup,
+  const forward = dimensionOf(
+    definition.forward,
+    boundDimensions(
+      definition.parameter,
+      argument.value.quantity.dimension,
+      lookup,
+    ),
     primitives,
-    context,
   );
-  if (!forward.ok) return err(forward.error.error);
+  if (!forward.ok) return err(forward.error);
   const forwardConforms = checkConformance(
-    forward.value.dimension,
+    forward.value,
     result.value.quantity.dimension,
     primitives,
   );
@@ -452,16 +453,14 @@ function checkFunction(
       mismatch: forwardConforms.error,
     });
   }
-  const inverse = invertFunction(
-    fn,
-    result.value.quantity,
-    lookup,
+  const inverse = dimensionOf(
+    definition.inverse,
+    boundDimensions(definition.name, result.value.quantity.dimension, lookup),
     primitives,
-    context,
   );
-  if (!inverse.ok) return err(inverse.error.error);
+  if (!inverse.ok) return err(inverse.error);
   const inverseConforms = checkConformance(
-    inverse.value.dimension,
+    inverse.value,
     argument.value.quantity.dimension,
     primitives,
   );
@@ -474,6 +473,26 @@ function checkFunction(
     });
   }
   return ok(fn);
+}
+
+/**
+ * The lookup over dimensions a body is checked with: `name`, the bound
+ * parameter or function name, is `dimension` before any unit, and every
+ * other name is the walk's lookup's quantity, reduced to its dimension.
+ */
+function boundDimensions(
+  name: string,
+  dimension: Dimension,
+  lookup: Lookup<BuildError>,
+): DimensionLookup<BuildError> {
+  return {
+    unit: (unit, span) => {
+      if (unit === name) return ok(dimension);
+      const found = lookup.unit(unit, span);
+      return found.ok ? ok(found.value.dimension) : found;
+    },
+    function: lookup.function,
+  };
 }
 
 /** The declared `unit` of the function `definition`, evaluated, with its text; a ball containing zero is rejected. */

@@ -1,12 +1,11 @@
 import { LitElement, css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { MIN_MAX_BITS, maxDigitsFor } from "./core/context.ts";
+import { type Definition } from "./core/definitions.ts";
 import { LIMIT_BITS } from "./core/rational.ts";
 import { type Result } from "./core/result.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
-import { type UnitTable } from "./core/table.ts";
 import {
-  ceilingOf,
   clampSettings,
   contextOf,
   isDigits,
@@ -17,26 +16,35 @@ import {
   type Settings,
 } from "./settings.ts";
 import { recommendLimits } from "./limits.ts";
-import { loadSystemTable, type SystemTableError } from "./system-table.ts";
+import { buildSystemTable } from "./system-build.ts";
+import {
+  loadSystemDefinitions,
+  type SystemDefinitionsError,
+} from "./system-table.ts";
 import "./unit-converter.ts";
 
 /**
  * The top-level shell of the app. Every page of the app renders inside it.
  *
- * The shell owns the system unit table: it starts loading it when it is
- * connected, shows a loading message until it arrives, and then hands it
- * down to the converter as a property. Nothing waits on the table before
- * that: the components are defined and the page renders while the fetch is
- * in flight. The load is one promise whose result is set on reactive state
- * when it settles, the plain Lit pattern for a single asynchronous value;
- * `@lit/task` would be the tool if the shell grew more of them.
+ * The shell owns the system unit table: it starts loading the definitions
+ * when it is connected, shows a loading message until they arrive, builds
+ * the table from them at the ceiling of the retry schedule in force
+ * (system-build.ts; the plan's D6) and hands it down to the converter as a
+ * property. Nothing waits on the definitions before that: the components
+ * are defined and the page renders while the fetch is in flight. The load
+ * is one promise whose result is set on reactive state when it settles,
+ * the plain Lit pattern for a single asynchronous value; `@lit/task` would
+ * be the tool if the shell grew more of them. The build is synchronous and
+ * memoized by the ceiling, so it runs in `render` and reruns only when a
+ * change to the "most digits" setting moves the ceiling, which is the one
+ * reason the table is ever rebuilt; the digits setting never rebuilds it.
  *
  * The shell owns the settings too (settings.ts): the digits a result is
  * shown with, the rounding mode, and the two limits of the plan's D16, the
  * cap on the digits and the range limit in bits, read from `localStorage`
  * when the shell is created, edited in a panel under the converter, saved
- * on every change, and passed down to the converter as its context and the
- * ceiling of its retry schedule. Each number input accepts an integer in
+ * on every change, and passed down to the converter as its context, whose
+ * ceiling is derived from the cap. Each number input accepts an integer in
  * the range the settings above it allow (the digits up to the cap, the cap
  * up to what the range limit holds, the range limit between its floor and
  * the hard bound), and a value outside that is not applied: the input
@@ -146,8 +154,11 @@ export class AppShell extends LitElement {
     }
   `;
 
-  /** The system table once loaded, or why it could not be; unset until then. */
-  @state() private table?: Result<UnitTable, SystemTableError>;
+  /** The system definitions once loaded, or why they could not be; unset until then. */
+  @state() private definitions?: Result<
+    readonly Definition[],
+    SystemDefinitionsError
+  >;
 
   /** The user's settings, from storage, saved on every change. */
   @state() private settings: Settings = loadSettings(localStorage);
@@ -162,18 +173,21 @@ export class AppShell extends LitElement {
   }
 
   /**
-   * Asks for the table and shows the loading message until it arrives. A
-   * failed load is not memoized, so calling this again after a failure is
-   * a retry: the user, who may know that the network was down a moment
-   * ago, decides when, rather than the app retrying on its own.
+   * Asks for the definitions and shows the loading message until they
+   * arrive. A failed load is not memoized, so calling this again after a
+   * failure is a retry: the user, who may know that the network was down a
+   * moment ago, decides when, rather than the app retrying on its own.
    */
   private load() {
-    this.table = undefined;
-    void loadSystemTable().then((table) => {
-      if (!table.ok) {
-        console.error("The unit definitions failed to load:", table.error);
+    this.definitions = undefined;
+    void loadSystemDefinitions().then((definitions) => {
+      if (!definitions.ok) {
+        console.error(
+          "The unit definitions failed to load:",
+          definitions.error,
+        );
       }
-      this.table = table;
+      this.definitions = definitions;
     });
   }
 
@@ -316,11 +330,20 @@ export class AppShell extends LitElement {
     saveSettings(localStorage, this.settings);
   }
 
+  /**
+   * The converter over the table built from the definitions at the ceiling
+   * in force, or the loading message or the failure. The build is memoized
+   * by the ceiling, so rendering with unchanged limits costs one comparison.
+   */
   private renderContent() {
-    const { table } = this;
-    if (table === undefined) {
+    const { definitions } = this;
+    if (definitions === undefined) {
       return html`<p class="loading" aria-live="polite">Loading units…</p>`;
     }
+    const context = contextOf(this.settings);
+    const table = definitions.ok
+      ? buildSystemTable(definitions.value, context)
+      : definitions;
     if (!table.ok) {
       return html`<div class="failure" role="alert">
         <p>
@@ -336,8 +359,7 @@ export class AppShell extends LitElement {
     }
     return html`<unit-converter
       .table=${table.value}
-      .context=${contextOf(this.settings)}
-      .ceiling=${ceilingOf(this.settings)}
+      .context=${context}
     ></unit-converter>`;
   }
 }

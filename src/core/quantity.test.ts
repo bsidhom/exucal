@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  DEFAULT_CEILING,
   DEFAULT_MAX_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
@@ -41,6 +42,7 @@ const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
   maxBits: DEFAULT_MAX_BITS,
+  ceiling: DEFAULT_CEILING,
 };
 
 /** Builds a dimension from integer exponents (or rationals, for roots). */
@@ -323,6 +325,7 @@ test("an inexact root is computed once on the kernel, at the precision", () => {
       precision: 5,
       rounding: DEFAULT_ROUNDING,
       maxBits: DEFAULT_MAX_BITS,
+      ceiling: DEFAULT_CEILING,
     }),
   );
   // The kernel carries the precision plus its guard: five digits asked for

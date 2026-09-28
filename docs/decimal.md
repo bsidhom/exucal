@@ -418,8 +418,10 @@ setting, the docs. So the plan's numbering is the order.
   fraction display of an exact `Scaled` is the value's, not the form's,
   and lands in `display.ts`.
 - **An inexact literal**: a literal is exact whatever its length, up to
-  the range limit, in exact mode; a way to mark a literal as known only
-  approximately is a question of its own, not of the exponent.
+  the range limit, in exact mode. Marking a value as known only
+  approximately is docs/approximate.md's, the built-in `approx` of task
+  4.10, which the sum rule above serves (`approx(1e999999999) + 1` is a
+  value).
 - **A setting for the exponent bound**: it is a constant, generous and
   finite, as the study says; nothing a user computes needs `10^(10^18)`.
 - **Decimal arithmetic on the kernel**: the kernel stays binary, and the

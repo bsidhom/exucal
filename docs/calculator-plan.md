@@ -1969,7 +1969,12 @@ half-unit bound, so that a rounded value certifies its last digit, and
 `≈ 1` with seven digits certain, the first text's `1` under `halfEven`
 being wrong (4.5); the retry loop runs one pass in decimal mode and the
 table is built in exact mode at the ceiling whatever the user's mode
-(4.6); and `Precision` and `DEFAULT_PRECISION` move to rounding.ts (4.3).
+(4.6); `Precision` and `DEFAULT_PRECISION` move to rounding.ts (4.3); and
+4.10, added in review, is the built-in `approx(x)`, which marks a value
+as known only to the working precision (docs/approximate.md), placed
+after 4.9 since it is a use of the exponent and needs nothing after it,
+with its two-argument form, an absolute uncertainty, left as future work
+with the retry loop's stopping rule it will need.
 
 ### 4.0 Design note
 
@@ -2377,6 +2382,38 @@ ceiling costs within a small factor of `exp 1`.
 
 Behavior: the inexact functions have the range of their exponent, not of
 the bits of their value; a power of an inexact base likewise.
+
+### 4.10 `approx(x)`
+
+Added in review of 4.0 (docs/approximate.md is the design). New
+`src/core/builtins/approx.ts`: a built-in of one argument of any
+dimension, kinds included, whose result has the argument's dimension
+(`sameAsArgument`, new in builtin.ts, the rule D14 describes for the
+exact functions of stage 6, landing here ahead of them); an exact
+argument becomes the ball whose midpoint is the argument and whose
+radius is one unit in the last of the working digits,
+`digitsFor(bitsFor(precision))`, at the value's magnitude, rounded up;
+an inexact, zero or unbounded argument is returned as it is; the
+evaluator settles the result as it settles every inexact one. The
+retry loop needs no change, since the radius is the precision's and
+shrinks with each pass. docs/builtins.md and README "Functions in
+expressions" name it; the two-argument form, an absolute uncertainty,
+is future work the note lays out, with the retry loop's stopping rule
+it will need.
+
+Tests: the built-in's own (an exact value gains the working radius, an
+inexact one is unchanged, zero and unbounded are unchanged, any
+dimension passes and is kept, `approx(1 m)` included); through
+`evaluateText`: `approx(2.54) cm` in `in` is `≈ 1` certified on the first
+pass, `approx(1e999999999) + 1` is `≈ 1e+999999999`, `approx(0.1) +
+approx(0.2) - approx(0.3)` ends at the ceiling as a zero with a bound,
+`approx(1 ft)` in `in` is `≈ 12`, `approx(1/3)` at eight digits is
+`≈ 0.33333333` certified, and `approx(2)` in decimal mode is `2` within
+one unit in the last digit; a definition calling `approx` builds, and a
+conversion through it shows `≈`; `approx()` and `approx(1, 2)` are arity
+errors with their messages.
+
+Behavior: `approx` exists.
 
 ## Stage 5: the rational display
 

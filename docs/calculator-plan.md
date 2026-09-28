@@ -2358,7 +2358,19 @@ has a boundary at `1` and the ends lie on either side of it; the display
 then shows the midpoint `0.99999999` with the note that none of its
 digits is certain, which is the honest reading of a value the roundings
 have made noise, and no decimal library's `0.99999999` is a digit the
-exact expression has.
+exact expression has. More generally, a value rounded in a directed
+mode certifies at most `p - 1` digits and never `p`: the rounded value
+is the boundary of its own cell, the exact value lies just inside the
+cell on one side, and the ball, which has no one-sided radius, reaches
+into the cell below by the same difference, so `2 / 3` under
+`towardZero` at eight digits is `0.66666666` shown as `≈ 0.6666666` with
+seven of eight certain, and a rounded value ending in zeros, on the
+boundary of wider cells too, certifies fewer (`1 surveyfoot` in `m` is
+`0.30480060`, shown as `≈ 0.3048` with six certain). The digit shown is
+the mode's rounding of the computed value,
+as a decimal library would show it, and the note says what the radius
+can vouch for; under the nearest modes the rounded value is inside its
+cell and the `p`-th digit certifies, as the text above says.
 
 Behavior: none until 4.6 gives the mode a way in; `mode` defaults to
 exact and every existing caller builds an exact context.
@@ -2417,6 +2429,16 @@ Tests: settings.ts loads, defaults and saves the mode; `contextOf` carries
 it; the UI check of the commit message records `1 / 3 * 3` at eight
 digits in each mode with "Rounding" toward zero, and `1 ft` in `in` in
 decimal mode.
+
+As it landed. The mode is a "Mode" select after "Rounding", its two
+options worded "exact: every digit shown is certain, at rising
+precision" and "decimal: every step rounded to the digits, in the
+rounding mode"; settings stored before the mode existed load with it
+exact, and `isMode` is the validator beside the others. The UI check
+records what the pipeline's tests record: `1 / 3 * 3` in decimal mode
+is `≈ 1` with seven of eight digits certain under the nearest modes and
+`≈ 0.99999999` with none under `towardZero`, and `= 1` in exact mode
+under both.
 
 Behavior: the mode setting.
 

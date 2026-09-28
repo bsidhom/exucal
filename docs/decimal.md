@@ -221,20 +221,29 @@ from the bit lengths and a double, tight to the radius's own thirty
 bits; the quotient rule likewise takes a lower bound on the divisor's
 distance from zero from the same bounds, rounded down, and divides the
 coarse numerator by it, rounding up (`divideRadius`, new in radius.ts),
-which forms no rational and loosens a radius by `2^-28` relative.
+which forms no rational and loosens a radius by about `2^-25` relative
+over the rule's five coarse roundings (4.4 measured it against the exact
+bound over seeded balls).
 Certification (D7) needs the two ends `mid ± rad`: where the radius,
 as `r × 2^c`, aligns with the midpoint's grid within the range limit,
 they are formed exactly, as today; where it does not (a midpoint with a
 large exponent and a radius whose binary exponent is far from it), the
-radius is rounded up to a decimal `r' × 10^e` through the same constant,
-the midpoint is taken to two digits beyond those asked, and the ends are
-that interval widened by the radius rounded up to a unit there; both
-must round alike at the digits asked, and the rule errs only toward
-certifying less. That is the comparison "by exponents and leading digits"
-D7 promised, and it costs a few small operations. The retry loop narrows
-the radius, never the certification's own margin, which is two digits
-below what is asked and so below any radius that would otherwise
-certify.
+ends round alike exactly when no rounding boundary of the digits asked
+lies within the radius of the midpoint, so the distance from the
+midpoint to the nearest boundary is measured against the radius: in the
+units of the last digit asked the boundaries are the whole units under
+a directed mode and the half units under a nearest one, with the
+boundary just below the midpoint's power of ten taken too, where the
+cells are a tenth as wide; the distance is exact, an arithmetic within
+the midpoint's own digits, and is compared with the radius by the same
+bounds, a distance the bounds cannot tell from the radius certifying
+nothing. That is the comparison "by exponents and leading digits" D7
+promised, made exact on the midpoint's side, and it costs a few small
+operations. (The first landing of 4.4 widened the midpoint taken to two
+digits beyond those asked by a unit or two, which refused a count
+whenever the two digits beyond it lay within two of a boundary, as
+`sqrt(2) × 1e999999999` at fifty digits does; the distance has no such
+margin.)
 
 ## The kernel's boundary
 
@@ -267,7 +276,7 @@ error, so that neither is formed; `tanh` already saturates without
 forming anything. A power in log space and a large decibel inherit the
 range through `expFixed`. `lnScaled` takes the exponent as a decimal
 scale, `ln(m × 10^e) = ln m + e ln 10` from the memo, so `ln(1e999999999)`
-is `≈ 2302585092.994` on the first pass and `log10(1e999999999)` is
+is `≈ 2302585090.691` on the first pass and `log10(1e999999999)` is
 exactly `999999999` by the exact case, read off the exponent; `rootBall`
 scales by `10^(q k)` exactly and roots `m × 10^r` on the kernel when the
 remainder's power fits the range limit, and takes log space through
@@ -413,8 +422,8 @@ product of two.
 - `src/core/radius.ts` (4.4): `radiusAbove` of a `Scaled`; `divideRadius`.
 - `src/core/ball.ts` (4.4, 4.5, 4.9): the midpoint's type; the sums and
   products as `Result`s with the settle-first rule; certification by the
-  ends or by the digit interval; `settle` on the decimal grid, reading
-  the mode; the guards as the exponent bound.
+  ends or by the distance to the nearest boundary; `settle` on the
+  decimal grid, reading the mode; the guards as the exponent bound.
 - `src/core/context.ts` (4.5): `mode`.
 - `src/core/quantity.ts`, `evaluate.ts`, `convert.ts`, `pipeline.ts`,
   `display.ts`, the built-ins, `src/messages.ts` (4.4, 4.6): the readers

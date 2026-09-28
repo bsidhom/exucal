@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { exact, type Ball } from "./ball.ts";
+import { exact, isExact, type Ball } from "./ball.ts";
 import {
   GUARD_BITS,
   absFixed,
@@ -10,7 +10,9 @@ import {
   divideFixed,
   fixedFromBall,
   fixedFromRational,
+  fixedFromScaled,
   fixedToBall,
+  fixedToScaled,
   multiplyFixed,
   rootFixed,
   shiftFixed,
@@ -20,12 +22,13 @@ import {
   truncateFixed,
   type Fixed,
 } from "./fixed.ts";
-import { UNBOUNDED, ZERO_RADIUS, radiusAbove, radiusUpper } from "./radius.ts";
+import { UNBOUNDED, radiusAbove, radiusUpper } from "./radius.ts";
 import {
   ONE,
   ZERO,
   absolute,
   add,
+  bitLength,
   compare,
   divide,
   equals,
@@ -39,20 +42,37 @@ import {
   type Rational,
   LIMIT_BITS,
 } from "./rational.ts";
-import { parseFraction } from "../testing/fraction.ts";
+import { digitsFor } from "./rounding.ts";
+import {
+  ONE as ONE_SCALED,
+  ZERO as ZERO_SCALED,
+  decimalExponent,
+  fromRational,
+  roundTo,
+  scaled,
+  type Scaled,
+} from "./scaled.ts";
 import {
   between,
   foldIn,
   key,
   randomBall,
+  randomBigInt,
   randomRational,
   split,
+  uniform,
 } from "../testing/random.ts";
+import {
+  ball,
+  dec as decimal,
+  digitsOf,
+  fr,
+  fraction,
+} from "../testing/scaled.ts";
 
+/** The decimal literal `text` as the fraction it denotes. */
 function dec(text: string): Rational {
-  const result = parseFraction(text);
-  assert.ok(result.ok);
-  return result.value;
+  return fraction(decimal(text));
 }
 
 /** `2^-bits` as a rational. */
@@ -75,6 +95,43 @@ function assertContains(f: Fixed, value: Rational, label: string) {
     compare(distance, bound) <= 0,
     `${label}: ${toFraction(value)} within ${toFraction(toRational(f))} ± ${f.error} ulps at ${f.bits} bits`,
   );
+}
+
+/**
+ * The ball of `f` at two digits more than its significant bits are worth,
+ * so that the rounding onto the decimal grid, half a unit in the last
+ * digit added to the radius, stays under a tenth of an ulp and the
+ * tolerances below measure the kernel alone; a built-in takes a result
+ * out at `workingDigits` instead, and the tests of `fixedToBall` pass the
+ * digits themselves.
+ */
+function toBall(f: Fixed): Ball {
+  const magnitude = f.value < 0n ? -f.value : f.value;
+  return fixedToBall(f, digitsFor(Math.max(1, bitLength(magnitude))) + 2);
+}
+
+/**
+ * Asserts that the radius of `b` is at or above `bound` and within `2^-25`
+ * relative above it: the radius type's rounding up, on each part and on
+ * the sum.
+ */
+function assertRadiusAbove(b: Ball, bound: Rational, label: string) {
+  const rad = radiusUpper(b.rad);
+  assert.ok(
+    compare(rad, bound) >= 0,
+    `${label}: radius ${toFraction(rad)} at or above ${toFraction(bound)}`,
+  );
+  assert.ok(
+    compare(rad, multiply(bound, rational((1n << 25n) + 1n, 1n << 25n))) < 0,
+    `${label}: radius ${toFraction(rad)} within 2^-25 above ${toFraction(bound)}`,
+  );
+}
+
+/** Half a unit in the last of `digits` significant digits of the non-zero `s`. */
+function halfUnit(s: Scaled, digits: number): Rational {
+  const half = scaled(rational(5n), decimalExponent(s) - BigInt(digits));
+  assert.ok(half.ok);
+  return fraction(half.value);
 }
 
 /** The seeded rationals the property tests are over: a few digits to 10^±12. */
@@ -137,21 +194,76 @@ test("fixedFromRational rounds to nearest, with error 1, or 0 when exact", () =>
   assert.throws(() => fixedFromRational(ONE, 1.5), RangeError);
 });
 
+test("fixedFromScaled converts the fraction the value denotes, and refuses one whose power of ten cannot be formed", () => {
+  assert.deepEqual(fixedFromScaled(decimal("0.75"), 4), {
+    value: 12n,
+    error: 0n,
+    bits: 4,
+  });
+  assert.deepEqual(fixedFromScaled(decimal("1.5e3"), 0), {
+    value: 1500n,
+    error: 0n,
+    bits: 0,
+  });
+  // -0.1 is -1.6 sixteenths, rounded to -2 with the rounding counted.
+  assert.deepEqual(fixedFromScaled(decimal("-1e-1"), 4), {
+    value: -2n,
+    error: 1n,
+    bits: 4,
+  });
+  assert.deepEqual(fixedFromScaled(ZERO_SCALED, 100), {
+    value: 0n,
+    error: 0n,
+    bits: 100,
+  });
+  // On seeded values of moderate exponent it is `fixedFromRational` of the fraction.
+  const root = key(2105);
+  for (let i = 0; i < 80; i++) {
+    const r = randomRational(foldIn(foldIn(root, i), 0), 24, 12);
+    assert.deepEqual(
+      fixedFromScaled(fromRational(r), 100),
+      fixedFromRational(r, 100),
+    );
+    // With a power of ten of its own beside the fraction's.
+    const s = scaled(r, BigInt(between(foldIn(foldIn(root, i), 1), -40, 40)));
+    assert.ok(s.ok);
+    assert.deepEqual(
+      fixedFromScaled(s.value, 100),
+      fixedFromRational(fraction(s.value), 100),
+    );
+  }
+  // A power of ten beyond the hard bound is a precondition failure.
+  assert.throws(() => fixedFromScaled(decimal("1e999999999"), 8), RangeError);
+  assert.throws(() => fixedFromScaled(decimal("1e-999999999"), 8), RangeError);
+  assert.throws(() => fixedFromScaled(ONE_SCALED, -1), RangeError);
+});
+
 test("fixedFromBall adds the radius in ulps, rounded up", () => {
-  const b: Ball = { mid: rational(1n, 2n), rad: radiusAbove(dec("0.3")) };
+  const b = ball(fr(1n, 2n), decimal("0.3"));
   const f = fixedFromBall(b, 4);
   assert.equal(f.value, 8n);
   // 0.3 is 4.8 sixteenths, rounded up to a radius and then to 5 ulps.
   assert.equal(f.error, 5n);
+  // A midpoint with a power of ten: 2.5e-3 is 163.84 units of 2^-16,
+  // rounded to 164 with the rounding counted, and 1e-4 is 6.55 units,
+  // rounded up to 7.
+  assert.deepEqual(
+    fixedFromBall(ball(decimal("2.5e-3"), decimal("1e-4")), 16),
+    {
+      value: 164n,
+      error: 8n,
+      bits: 16,
+    },
+  );
   // A radius far below an ulp still counts as one.
-  const tiny: Ball = { mid: ONE, rad: radiusAbove(dec("1e-300")) };
+  const tiny = ball(ONE_SCALED, decimal("1e-300"));
   assert.deepEqual(fixedFromBall(tiny, 10), {
     value: 1024n,
     error: 1n,
     bits: 10,
   });
   // An exact ball is exact.
-  assert.deepEqual(fixedFromBall(exact(rational(5n, 8n)), 3), {
+  assert.deepEqual(fixedFromBall(exact(fr(5n, 8n)), 3), {
     value: 5n,
     error: 0n,
     bits: 3,
@@ -159,30 +271,156 @@ test("fixedFromBall adds the radius in ulps, rounded up", () => {
   for (const ball of seededBalls()) {
     const g = fixedFromBall(ball, 96);
     const rad = radiusUpper(ball.rad);
-    for (const x of [subtract(ball.mid, rad), ball.mid, add(ball.mid, rad)]) {
-      assertContains(g, x, `from ball ${toFraction(ball.mid)}`);
+    const mid = fraction(ball.mid);
+    for (const x of [subtract(mid, rad), mid, add(mid, rad)]) {
+      assertContains(g, x, `from ball ${toFraction(mid)}`);
     }
   }
   assert.throws(
-    () => fixedFromBall({ mid: ONE, rad: UNBOUNDED }, 8),
+    () => fixedFromBall({ mid: ONE_SCALED, rad: UNBOUNDED }, 8),
+    RangeError,
+  );
+  // A midpoint whose power of ten cannot be formed is refused as `fixedFromScaled` refuses it.
+  assert.throws(
+    () => fixedFromBall(ball(decimal("1e999999999"), ONE_SCALED), 8),
     RangeError,
   );
 });
 
-test("fixedToBall hands back the dyadic midpoint and the error as a radius", () => {
-  const f: Fixed = { value: 12n, error: 0n, bits: 3 };
-  assert.deepEqual(fixedToBall(f), exact(rational(3n, 2n)));
-  const g: Fixed = { value: -5n, error: 3n, bits: 4 };
-  assert.deepEqual(fixedToBall(g), {
-    mid: rational(-5n, 16n),
-    rad: radiusAbove(rational(3n, 16n)),
-  });
+test("fixedToScaled rounds the dyadic to nearest at the digits, halfEven, and finds the exponent next to a power of ten", () => {
+  // A value on the grid is itself, at any digits that hold it.
+  const threeHalves: Fixed = { value: 12n, error: 0n, bits: 3 };
+  assert.deepEqual(fixedToScaled(threeHalves, 8), decimal("1.5"));
+  assert.deepEqual(fixedToScaled(threeHalves, 2), decimal("1.5"));
   assert.deepEqual(
-    fixedToBall({ value: 0n, error: 0n, bits: 50 }),
-    exact(ZERO),
+    fixedToScaled({ value: -12n, error: 0n, bits: 3 }, 8),
+    decimal("-1.5"),
   );
-  assert.deepEqual(fixedToBall({ value: 0n, error: 2n, bits: 1 }), {
-    mid: ZERO,
+  assert.deepEqual(
+    fixedToScaled({ value: 1000n, error: 0n, bits: 0 }, 1),
+    decimal("1e3"),
+  );
+  // The error plays no part in the midpoint.
+  assert.deepEqual(
+    fixedToScaled({ value: 1000n, error: 7n, bits: 0 }, 1),
+    decimal("1e3"),
+  );
+  assert.deepEqual(
+    fixedToScaled({ value: 123456789n, error: 0n, bits: 0 }, 3),
+    decimal("1.23e8"),
+  );
+  // Ties, all dyadic here, go to even: 1.5 → 2, 2.5 → 2, 3.5 → 4, -2.5 →
+  // -2, 0.125 → 0.12, 0.375 → 0.38, 125 → 120, 135 → 140.
+  assert.deepEqual(fixedToScaled(threeHalves, 1), fr(2n));
+  assert.deepEqual(fixedToScaled({ value: 5n, error: 0n, bits: 1 }, 1), fr(2n));
+  assert.deepEqual(fixedToScaled({ value: 7n, error: 0n, bits: 1 }, 1), fr(4n));
+  assert.deepEqual(
+    fixedToScaled({ value: -5n, error: 0n, bits: 1 }, 1),
+    fr(-2n),
+  );
+  assert.deepEqual(
+    fixedToScaled({ value: 1n, error: 0n, bits: 3 }, 2),
+    decimal("0.12"),
+  );
+  assert.deepEqual(
+    fixedToScaled({ value: 3n, error: 0n, bits: 3 }, 2),
+    decimal("0.38"),
+  );
+  assert.deepEqual(
+    fixedToScaled({ value: 125n, error: 0n, bits: 0 }, 2),
+    decimal("1.2e2"),
+  );
+  assert.deepEqual(
+    fixedToScaled({ value: 135n, error: 0n, bits: 0 }, 2),
+    decimal("1.4e2"),
+  );
+  // Just below a power of ten the exponent estimated from the bit length
+  // is one too low, and the rounding may carry across the power: with its
+  // neighbours on either side.
+  const at = (text: string, bits: number) =>
+    fixedFromScaled(decimal(text), bits);
+  assert.deepEqual(fixedToScaled(at("0.999999999999", 64), 8), ONE_SCALED);
+  assert.deepEqual(fixedToScaled(at("-0.999999999999", 64), 8), fr(-1n));
+  assert.deepEqual(
+    fixedToScaled(at("0.999999999999", 64), 12),
+    decimal("0.999999999999"),
+  );
+  assert.deepEqual(
+    fixedToScaled(at("0.999999999999", 64), 13),
+    decimal("0.999999999999"),
+  );
+  assert.deepEqual(
+    fixedToScaled(at("0.99999999", 64), 8),
+    decimal("0.99999999"),
+  );
+  assert.deepEqual(
+    fixedToScaled(at("0.999999994", 64), 8),
+    decimal("0.99999999"),
+  );
+  assert.deepEqual(fixedToScaled(at("0.999999996", 64), 8), ONE_SCALED);
+  assert.deepEqual(fixedToScaled(at("9.9999999996", 64), 10), fr(10n));
+  assert.deepEqual(
+    fixedToScaled(at("9.9999999994", 64), 10),
+    decimal("9.999999999"),
+  );
+  // 9.9999999995 is a decimal tie at ten digits but not a dyadic: its
+  // nearest at 64 bits lies below it, so the rounding stays below ten.
+  const tie = at("9.9999999995", 64);
+  assert.ok(compare(toRational(tie), dec("9.9999999995")) < 0);
+  assert.deepEqual(fixedToScaled(tie, 10), decimal("9.999999999"));
+  // Zero is zero at any digits, whatever the error and the bits.
+  assert.deepEqual(
+    fixedToScaled({ value: 0n, error: 5n, bits: 50 }, 8),
+    ZERO_SCALED,
+  );
+  assert.deepEqual(
+    fixedToScaled({ value: 0n, error: 0n, bits: 0 }, 1),
+    ZERO_SCALED,
+  );
+  // Any magnitude: 2^200 and 2^-200 at five digits.
+  assert.deepEqual(
+    fixedToScaled({ value: 1n << 200n, error: 0n, bits: 0 }, 5),
+    decimal("1.6069e60"),
+  );
+  assert.deepEqual(
+    fixedToScaled({ value: 1n, error: 0n, bits: 200 }, 5),
+    decimal("6.2230e-61"),
+  );
+  assert.throws(() => fixedToScaled(threeHalves, 0), RangeError);
+  assert.throws(() => fixedToScaled(threeHalves, 1.5), RangeError);
+});
+
+test("fixedToBall rounds the midpoint to the digits and adds half a unit in the last to the error's radius when the rounding moved it", () => {
+  // 3/2 exactly, at eight digits: the midpoint is on the grid already, so
+  // no half unit is added and the ball is exact, as 7/4 is.
+  const f: Fixed = { value: 12n, error: 0n, bits: 3 };
+  assert.deepEqual(fixedToBall(f, 8), exact(decimal("1.5")));
+  assert.deepEqual(
+    fixedToBall({ value: 7n, error: 0n, bits: 2 }, 8),
+    exact(decimal("1.75")),
+  );
+  // 3/2 at one digit rounds to 2 (half even), and the half unit is added.
+  const one = fixedToBall(f, 1);
+  assert.deepEqual(one.mid, decimal("2"));
+  assertRadiusAbove(one, dec("0.5"), "3/2 at 1 digit");
+  assert.ok(!isExact(one));
+  // -5/16 ± 3/16, at eight digits, on the grid, and at two, where the
+  // midpoint rounds and the half unit joins the error.
+  const g: Fixed = { value: -5n, error: 3n, bits: 4 };
+  const eight = fixedToBall(g, 8);
+  assert.deepEqual(eight.mid, decimal("-0.3125"));
+  assertRadiusAbove(eight, rational(3n, 16n), "-5/16 at 8");
+  const two = fixedToBall(g, 2);
+  assert.deepEqual(two.mid, decimal("-0.31"));
+  assertRadiusAbove(two, add(rational(3n, 16n), dec("5e-3")), "-5/16 at 2");
+  // A zero value is zero, exact when the error is, and no half unit is
+  // added, a zero having no last digit.
+  assert.deepEqual(
+    fixedToBall({ value: 0n, error: 0n, bits: 50 }, 8),
+    exact(ZERO_SCALED),
+  );
+  assert.deepEqual(fixedToBall({ value: 0n, error: 2n, bits: 1 }, 8), {
+    mid: ZERO_SCALED,
     rad: radiusAbove(ONE),
   });
   // Lowest terms without a gcd: the trailing zeros cancel.
@@ -194,17 +432,75 @@ test("fixedToBall hands back the dyadic midpoint and the error as a radius", () 
     toRational({ value: 96n, error: 0n, bits: 7 }),
     rational(3n, 4n),
   );
-  assert.equal(fixedToBall({ value: 7n, error: 0n, bits: 2 }).rad, ZERO_RADIUS);
   // The round trip through a ball contains the ball.
   for (const ball of seededBalls()) {
-    const back = fixedToBall(fixedFromBall(ball, 96));
+    const back = toBall(fixedFromBall(ball, 96));
     const rad = radiusUpper(ball.rad);
     const backRad = radiusUpper(back.rad);
-    for (const x of [subtract(ball.mid, rad), add(ball.mid, rad)]) {
+    const mid = fraction(ball.mid);
+    for (const x of [subtract(mid, rad), add(mid, rad)]) {
       assert.ok(
-        compare(absolute(subtract(x, back.mid)), backRad) <= 0,
-        `round trip of ${toFraction(ball.mid)}`,
+        compare(absolute(subtract(x, fraction(back.mid))), backRad) <= 0,
+        `round trip of ${toFraction(mid)}`,
       );
+    }
+  }
+  assert.throws(() => fixedToBall(f, 0), RangeError);
+});
+
+test("fixedToBall's midpoint is the dyadic rounded to the digits, within half a unit, and its ball contains the kernel's interval", () => {
+  const root = key(2104);
+  for (let i = 0; i < 150; i++) {
+    // The value's width and bits, the fraction bits, the sign and the
+    // error, each from its own fold.
+    const k = foldIn(root, i);
+    const width = between(foldIn(k, 0), 1, 100);
+    const magnitude = randomBigInt(foldIn(k, 1), width);
+    const bits = between(foldIn(k, 2), 0, 130);
+    const value = uniform(foldIn(k, 3)) < 0.5 ? -magnitude : magnitude;
+    const error = randomBigInt(foldIn(k, 4), 6);
+    const f: Fixed = { value, error, bits };
+    const dyadic = toRational(f);
+    for (const digits of [1, 8, 18, 40]) {
+      const label = `${toFraction(dyadic)} ± ${error} ulps at ${bits} bits, ${digits} digits`;
+      const b = fixedToBall(f, digits);
+      if (value === 0n) {
+        assert.deepEqual(b.mid, ZERO_SCALED, label);
+        continue;
+      }
+      // The midpoint is the dyadic rounded to nearest, halfEven, at the
+      // digits: on the grid and within half a unit of the last digit.
+      assert.deepEqual(
+        b.mid,
+        roundTo(fromRational(dyadic), digits, "halfEven"),
+        label,
+      );
+      assert.ok(digitsOf(b.mid) <= digits, label);
+      const half = halfUnit(b.mid, digits);
+      assert.ok(
+        compare(absolute(subtract(fraction(b.mid), dyadic)), half) <= 0,
+        `${label}: within half a unit`,
+      );
+      // The radius is the error's plus that half unit when the rounding
+      // moved the value, rounded up, so the dyadic and the ends of the
+      // kernel's interval lie in the ball; a dyadic on the grid gets no
+      // half unit, and is exact when the error is zero.
+      const moved = !equals(fraction(b.mid), dyadic);
+      const expected = multiply(rational(error), ulp(bits));
+      if (moved) {
+        assertRadiusAbove(b, add(expected, half), label);
+      } else if (error === 0n) {
+        assert.ok(isExact(b), `${label}: exact on the grid`);
+      } else {
+        assertRadiusAbove(b, expected, label);
+      }
+      const rad = radiusUpper(b.rad);
+      for (const x of ends(f)) {
+        assert.ok(
+          compare(absolute(subtract(x, fraction(b.mid))), rad) <= 0,
+          `${label}: contains ${toFraction(x)}`,
+        );
+      }
     }
   }
 });
@@ -450,7 +746,7 @@ function assertReference(
   tolerance: Rational,
   label: string,
 ) {
-  const distance = absolute(subtract(ball.mid, reference));
+  const distance = absolute(subtract(fraction(ball.mid), reference));
   assert.ok(compare(distance, tolerance) <= 0, `${label}: midpoint`);
   assert.ok(compare(radiusUpper(ball.rad), tolerance) <= 0, `${label}: radius`);
 }
@@ -535,7 +831,7 @@ test("the roots keep the argument's significant bits for a root of any magnitude
   assert.equal(root.bits, 64 - 33);
   assert.ok(root.error <= 2n);
   assertReference(
-    fixedToBall(root),
+    toBall(root),
     dec("14142135623.73095048801688724209698078569671875376948073176679"),
     tenTo(9),
     "sqrt 2e20",
@@ -545,7 +841,7 @@ test("the roots keep the argument's significant bits for a root of any magnitude
   const tiny = sqrtFixed(fixedFromRational(dec("2e-20"), 160));
   assert.equal(tiny.bits, 160 + 33);
   assertReference(
-    fixedToBall(tiny),
+    toBall(tiny),
     dec("1.414213562373095048801688724209698078569671875376948073176679e-10"),
     tenTo(38),
     "sqrt 2e-20",
@@ -553,11 +849,11 @@ test("the roots keep the argument's significant bits for a root of any magnitude
   const cube = rootFixed(fixedFromRational(dec("8e30"), 64), 3n);
   // cbrt(8e30) = 2e10, about 2^34.2.
   assert.equal(cube.bits, 64 - 34);
-  assertReference(fixedToBall(cube), dec("2e10"), tenTo(8), "cbrt 8e30");
+  assertReference(toBall(cube), dec("2e10"), tenTo(8), "cbrt 8e30");
   // 1e-30 is about 2^-99.7: at 160 bits, 60 significant ones.
   const small = rootFixed(fixedFromRational(dec("1e-30"), 160), 3n);
   assert.equal(small.bits, 160 + 33);
-  assertReference(fixedToBall(small), dec("1e-10"), tenTo(27), "cbrt 1e-30");
+  assertReference(toBall(small), dec("1e-10"), tenTo(27), "cbrt 1e-30");
   // At too few bits a small argument is no argument at all.
   assert.throws(
     () => sqrtFixed(fixedFromRational(dec("2e-20"), 64)),
@@ -567,25 +863,15 @@ test("the roots keep the argument's significant bits for a root of any magnitude
 
 test("reference digits: sqrt 2 and cbrt 2 at 100 digits, and other roots", () => {
   const two = fixedFromRational(rational(2n), bitsFor(100));
-  assertReference(fixedToBall(sqrtFixed(two)), SQRT2, tenTo(100), "sqrt 2");
-  assertReference(fixedToBall(rootFixed(two, 3n)), CBRT2, tenTo(100), "cbrt 2");
+  assertReference(toBall(sqrtFixed(two)), SQRT2, tenTo(100), "sqrt 2");
+  assertReference(toBall(rootFixed(two, 3n)), CBRT2, tenTo(100), "cbrt 2");
   const ten = fixedFromRational(rational(10n), bitsFor(60));
-  assertReference(
-    fixedToBall(rootFixed(ten, 7n)),
-    ROOT7_10,
-    tenTo(60),
-    "10^(1/7)",
-  );
+  assertReference(toBall(rootFixed(ten, 7n)), ROOT7_10, tenTo(60), "10^(1/7)");
   const millionth = rootFixed(
     fixedFromRational(rational(2n), bitsFor(40)),
     1_000_000n,
   );
-  assertReference(
-    fixedToBall(millionth),
-    ROOT_MILLIONTH_2,
-    tenTo(40),
-    "2^(1/10^6)",
-  );
+  assertReference(toBall(millionth), ROOT_MILLIONTH_2, tenTo(40), "2^(1/10^6)");
   // A perfect power comes out exact in value, within an ulp.
   const nine = rootFixed(fixedFromRational(rational(9n), 80), 2n);
   assert.deepEqual(toRational(nine), rational(3n));

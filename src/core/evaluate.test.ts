@@ -7,8 +7,15 @@ import {
 } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { UNBOUNDED } from "./radius.ts";
-import { containsZero, exact, isExact, multiplyBalls } from "./ball.ts";
+import { UNBOUNDED, radiusUpper } from "./radius.ts";
+import {
+  certifies,
+  containsZero,
+  exact,
+  isExact,
+  multiplyBalls,
+  type Ball,
+} from "./ball.ts";
 import { angle, checkArgument, plainNumbers, type Builtin } from "./builtin.ts";
 import {
   DIMENSIONLESS,
@@ -26,17 +33,15 @@ import {
 import { parseExpr, type Expr } from "./expr.ts";
 import type { Quantity } from "./quantity.ts";
 import {
-  ONE,
-  ZERO,
-  absolute,
-  compare,
+  absolute as absoluteFraction,
+  compare as compareFractions,
   rational,
-  subtract,
+  subtract as subtractFractions,
   type Rational,
 } from "./rational.ts";
-import { formatFraction, parseFraction } from "../testing/fraction.ts";
+import { ONE, ZERO, format, type Scaled } from "./scaled.ts";
+import { dec, fr, fraction } from "../testing/scaled.ts";
 import { DEFAULT_PRECISION } from "./rounding.ts";
-import { radiusUpper } from "./radius.ts";
 import type { Result } from "./result.ts";
 import type { Span } from "./span.ts";
 import type { UnitFunction } from "./table.ts";
@@ -75,9 +80,26 @@ function quantity(
   text: string,
   exponents: Record<string, number | Rational> = {},
 ): Quantity {
-  const magnitude = parseFraction(text);
-  assert.ok(magnitude.ok, `${JSON.stringify(text)} is not a number`);
-  return { magnitude: exact(magnitude.value), dimension: dim(exponents) };
+  return { magnitude: exact(dec(text)), dimension: dim(exponents) };
+}
+
+/** A quantity with the exact magnitude `value`. */
+function of(
+  value: Scaled,
+  exponents: Record<string, number | Rational> = {},
+): Quantity {
+  return { magnitude: exact(value), dimension: dim(exponents) };
+}
+
+/** Asserts that the bounded ball `b` contains `reference`, exactly, as fractions. */
+function assertContains(b: Ball, reference: Scaled): void {
+  assert.ok(
+    compareFractions(
+      absoluteFraction(subtractFractions(fraction(b.mid), fraction(reference))),
+      radiusUpper(b.rad),
+    ) <= 0,
+    `${inspect(b)} contains ${inspect(reference)}`,
+  );
 }
 
 function parsed(text: string): Expr {
@@ -240,11 +262,35 @@ const half = rational(1n, 2n);
 test("a number is a dimensionless quantity", () => {
   assertEvaluates("2", quantity("2"));
   assertEvaluates("2.54", quantity("2.54"));
-  assertEvaluates("1e-3", {
-    magnitude: exact(rational(1n, 1000n)),
-    dimension: DIMENSIONLESS,
-  });
+  assertEvaluates("1e-3", of(fr(1n, 1000n)));
   assertEvaluates("0", quantity("0"));
+});
+
+test("a literal of any exponent is a value, and one whose mantissa exceeds the range limit is too large at its span", () => {
+  assertEvaluates("1e999999999", quantity("1e999999999"));
+  assertEvaluates("1.5e-999999999", quantity("1.5e-999999999"));
+  assertEvaluates("1e999999999 m", quantity("1e999999999", { m: 1 }));
+  // The exponent costs nothing; the mantissa is what the range limit
+  // bounds: twenty thousand digits are more bits than the default allows.
+  const long = "1".repeat(20000);
+  assert.deepEqual(failure(run(long)), {
+    kind: "tooLarge",
+    span: { start: 0, end: long.length },
+  });
+  assert.deepEqual(failure(run(`2 * ${long} m`)), {
+    kind: "tooLarge",
+    span: { start: 4, end: 4 + long.length },
+  });
+  // Whereas the `^` exponent is read as a fraction, and one whose power
+  // of ten cannot be formed within the hard bound is rejected by the parser.
+  const rejected = parseExpr("m^1e999999999");
+  assert.ok(!rejected.ok);
+  assert.deepEqual(rejected.error, {
+    kind: "rejected",
+    span: { start: 2, end: 13 },
+    reason: "this number is too large to represent",
+  });
+  assertEvaluates("m^1e3", quantity("1", { m: 1000 }));
 });
 
 test("a unit is whatever the lookup says it is", () => {
@@ -348,10 +394,7 @@ test("negation follows the tree: below ^ and juxtaposition, above * and /", () =
   assertEvaluates("2 * -3", quantity("-6"));
   assertEvaluates("2 - -3", quantity("5"));
   assertEvaluates("-2 m * -3", quantity("6", { m: 1 }));
-  assertEvaluates("m / -2 s", {
-    magnitude: exact(rational(-1n, 2n)),
-    dimension: dim({ m: 1, s: -1 }),
-  });
+  assertEvaluates("m / -2 s", of(fr(-1n, 2n), { m: 1, s: -1 }));
   assertEvaluates("-8^(1/3)", quantity("-2"));
   // `neg` is -4 m^2: the root comes first, so it is the root of a negative.
   assertEvaluates("(-neg)^(1/2)", quantity("2", { m: 1 }));
@@ -364,14 +407,8 @@ test("negation follows the tree: below ^ and juxtaposition, above * and /", () =
 
 test("evaluation follows the tree the parser built", () => {
   // Juxtaposition binds tighter than `/`: 1 / (2 m).
-  assertEvaluates("1/2 m", {
-    magnitude: exact(half),
-    dimension: dim({ m: -1 }),
-  });
-  assertEvaluates("(1/2) m", {
-    magnitude: exact(half),
-    dimension: dim({ m: 1 }),
-  });
+  assertEvaluates("1/2 m", of(fr(1n, 2n), { m: -1 }));
+  assertEvaluates("(1/2) m", of(fr(1n, 2n), { m: 1 }));
   // `*` and `/` are one left-associative level: (m / s) * s.
   assertEvaluates("m/s*s", UNITS.m);
   assertEvaluates("m/(s*s)", quantity("1", { m: 1, s: -2 }));
@@ -393,10 +430,7 @@ test("an integer power is exact", () => {
   assertEvaluates("s^-1", quantity("1", { s: -1 }));
   assertEvaluates("ft^2", quantity("0.09290304", { m: 2 }));
   assertEvaluates("2^10", quantity("1024"));
-  assertEvaluates("2^-2", {
-    magnitude: exact(rational(1n, 4n)),
-    dimension: DIMENSIONLESS,
-  });
+  assertEvaluates("2^-2", of(fr(1n, 4n)));
   assertEvaluates("m^0", quantity("1"));
 });
 
@@ -413,17 +447,20 @@ test("an inexact root is computed at the precision given", () => {
   const root5 = value(run("(2 m^2)^(1/2)", at(5)));
   // Five digits plus the kernel's guard: a radius below 10^-13.
   assert.equal(
-    formatFraction(root5.magnitude.mid, 10, "halfAwayFromZero"),
+    format(root5.magnitude.mid, 10, "halfAwayFromZero"),
     "1.414213562",
   );
   assert.deepEqual(root5.dimension, dim({ m: 1 }));
   assert.ok(!isExact(root5.magnitude));
   assert.ok(
-    compare(radiusUpper(root5.magnitude.rad), rational(1n, 10n ** 13n)) < 0,
+    compareFractions(
+      radiusUpper(root5.magnitude.rad),
+      rational(1n, 10n ** 13n),
+    ) < 0,
   );
   const root40 = value(run("(2 m^2)^(1/2)"));
   assert.equal(
-    formatFraction(root40.magnitude.mid, 40, "halfAwayFromZero"),
+    format(root40.magnitude.mid, 40, "halfAwayFromZero"),
     "1.41421356237309504880168872420969807857",
   );
   // The precision reaches a root anywhere in the tree: 3 / sqrt 2 at three
@@ -431,27 +468,79 @@ test("an inexact root is computed at the precision given", () => {
   // kernel's, below 10^-11, not one unit in the third digit.
   const nested = value(run("3 / (2^(1/2) s)", at(3)));
   assert.deepEqual(nested.dimension, dim({ s: -1 }));
-  const reference = parseFraction("2.1213203435596425732025330863145471178545");
-  assert.ok(reference.ok);
+  // 3 / sqrt 2, from Python's decimal module.
+  const reference = dec("2.1213203435596425732025330863145471178545");
   const rad = radiusUpper(nested.magnitude.rad);
-  assert.ok(
-    compare(absolute(subtract(nested.magnitude.mid, reference.value)), rad) <=
-      0,
-  );
-  assert.ok(compare(rad, rational(1n, 10n ** 11n)) < 0);
+  assertContains(nested.magnitude, reference);
+  assert.ok(compareFractions(rad, rational(1n, 10n ** 11n)) < 0);
   // The radius reaches the result: the quotient is not exact.
   assert.ok(!isExact(nested.magnitude));
 });
 
 test("exact operations never round", () => {
   // 1 m in feet is 1250/381, which no decimal writes.
-  assertEvaluates("m / ft", {
-    magnitude: exact(rational(1250n, 381n)),
-    dimension: DIMENSIONLESS,
-  });
+  assertEvaluates("m / ft", of(fr(1250n, 381n)));
   // A long exact product stays exact.
   const big = value(run("1e30 m * 1e30 m / 3"));
-  assert.deepEqual(big.magnitude, exact(rational(10n ** 60n, 3n)));
+  assert.deepEqual(big.magnitude, exact(fr(10n ** 60n, 3n)));
+});
+
+test("the exponent carries through the exact operations, and a sum that cannot be aligned is too large at the sum", () => {
+  assertEvaluates("1e999999999 * 1e999999999", quantity("1e1999999998"));
+  assertEvaluates(
+    "1e999999999 m / 1e-999999999 s",
+    quantity("1e1999999998", { m: 1, s: -1 }),
+  );
+  assertEvaluates("1e999999999 + 3e999999998", quantity("1.3e999999999"));
+  assertEvaluates("1e999999999 - 1e999999999", quantity("0"));
+  assertEvaluates("-1e999999999 m", quantity("-1e999999999", { m: 1 }));
+  // Two exact operands whose exponents cannot be aligned within the range
+  // limit have an exact sum that cannot be held: `1e999999999 + 1`.
+  assert.deepEqual(failure(run("1e999999999 + 1")), {
+    kind: "tooLarge",
+    span: { start: 0, end: 15 },
+  });
+  assert.deepEqual(failure(run("2 m * (1 - 1e999999999)")), {
+    kind: "tooLarge",
+    span: { start: 6, end: 23 },
+  });
+  // A product or a quotient that passes the exponent bound is too large
+  // at the whole operation, where a division by zero points at the
+  // divisor.
+  assert.deepEqual(failure(run("1e999999999999999999 * 1e10")), {
+    kind: "tooLarge",
+    span: { start: 0, end: 27 },
+  });
+  assert.deepEqual(failure(run("m (1e999999999999999999 * 1e10)")), {
+    kind: "tooLarge",
+    span: { start: 2, end: 31 },
+  });
+  assert.deepEqual(failure(run("1e-999999999999999999 / 1e10")), {
+    kind: "tooLarge",
+    span: { start: 0, end: 28 },
+  });
+  assert.deepEqual(failure(run("1 / 0")), {
+    kind: "divisionByZero",
+    span: { start: 4, end: 5 },
+  });
+});
+
+test("a sum with an inexact operand that cannot be aligned absorbs the smaller into the radius", () => {
+  // `sqrt(2) + 1e999999999`, either way round: the value is `1e999999999`
+  // within a radius that covers the root, which certifies fifty digits.
+  const huge = dec("1e999999999");
+  for (const text of ["2^(1/2) + 1e999999999", "1e999999999 + 2^(1/2)"]) {
+    const sum = value(run(text, at(8)));
+    assert.deepEqual(sum.dimension, DIMENSIONLESS);
+    assert.ok(!isExact(sum.magnitude), text);
+    assert.deepEqual(sum.magnitude.mid, huge, text);
+    const rad = radiusUpper(sum.magnitude.rad);
+    assert.ok(compareFractions(rad, fraction(dec("1.41"))) > 0, text);
+    assert.ok(compareFractions(rad, fraction(dec("1.5"))) < 0, text);
+    assert.ok(certifies(sum.magnitude, 50, "halfEven"), text);
+  }
+  const difference = value(run("2^(1/2) - 1e999999999 m / m", at(8)));
+  assert.deepEqual(difference.magnitude.mid, dec("-1e999999999"));
 });
 
 test("exponents that cancel are dropped", () => {
@@ -599,14 +688,16 @@ test("a power that fails points at the whole power", () => {
     degree: 4n,
     span: { start: 2, end: 10 },
   });
-  assert.deepEqual(failure(run("10^100000")), {
+  assert.deepEqual(failure(run("7^100000")), {
     kind: "tooLarge",
-    span: { start: 0, end: 9 },
+    span: { start: 0, end: 8 },
   });
-  assert.deepEqual(failure(run("m (10^100000)")), {
+  assert.deepEqual(failure(run("m (7^100000)")), {
     kind: "tooLarge",
-    span: { start: 2, end: 13 },
+    span: { start: 2, end: 12 },
   });
+  // Whereas a power of ten costs nothing: the exponent takes it.
+  assertEvaluates("10^100000", quantity("1e100000"));
   // An odd root of a negative magnitude is fine.
   assertEvaluates("neg8^(1/3)", quantity("-2", { m: 1 }));
 });
@@ -712,10 +803,7 @@ test("a call is an atom, and its value is a quantity like any other", () => {
   assertEvaluates("tempC(100)^2", quantity("139240.9225", { K: 2 }));
   assertEvaluates("-tempC(100)", quantity("-373.15", { K: 1 }));
   assertEvaluates("tempC(100) - tempC(0)", quantity("100", { K: 1 }));
-  assertEvaluates("K / tempC(100)", {
-    magnitude: exact(rational(100n, 37315n)),
-    dimension: DIMENSIONLESS,
-  });
+  assertEvaluates("K / tempC(100)", of(fr(100n, 37315n)));
 });
 
 test("a call may nest, and a body may call another function", () => {
@@ -896,9 +984,13 @@ function builtin(
 
 const BUILTINS: Record<string, Builtin> = {
   // A plain number doubled, exactly.
-  dbl: builtin("dbl", 1, ([x]) => ok(multiplyBalls(exact(rational(2n)), x!))),
+  dbl: builtin("dbl", 1, ([x]) => {
+    const product = multiplyBalls(exact(fr(2n)), x!);
+    if (!product.ok) throw new Error("Doubling passes the bound");
+    return ok(product.value);
+  }),
   // No arguments: the constant three.
-  three: builtin("three", 0, () => ok(exact(rational(3n)))),
+  three: builtin("three", 0, () => ok(exact(fr(3n)))),
   // An angle to a plain number: the argument itself, as the kernel would see it.
   ang: builtin(
     "ang",
@@ -1079,21 +1171,15 @@ test("a built-in's failures are located: domain and the rest at the call, unreso
 
 test("a built-in's result is settled like any other, and an unbounded one propagates", () => {
   // dbl of an inexact value: the product is settled by the evaluator to
-  // the working precision (its midpoint is a dyadic of at most that many
-  // bits), which the built-in itself did not do. The reference is twice
-  // sqrt 2 to 60 digits from Python's decimal module.
+  // the working precision (its midpoint is on the decimal grid of the
+  // working digits), which the built-in itself did not do. The reference
+  // is twice sqrt 2 to 60 digits from Python's decimal module.
   const root = value(runBuiltin("dbl(2^(1/2))"));
   assert.ok(!isExact(root.magnitude));
-  const reference = parseFraction(
-    "2.82842712474619009760337744841939615713934375075389614635336",
-  );
-  assert.ok(reference.ok);
-  assert.ok(
-    compare(
-      absolute(subtract(root.magnitude.mid, reference.value)),
-      radiusUpper(root.magnitude.rad),
-    ) <= 0,
+  assertContains(
+    root.magnitude,
+    dec("2.82842712474619009760337744841939615713934375075389614635336"),
   );
   const wide = value(runBuiltin("wide(3) m"));
-  assert.deepEqual(wide.magnitude, { mid: rational(3n), rad: UNBOUNDED });
+  assert.deepEqual(wide.magnitude, { mid: fr(3n), rad: UNBOUNDED });
 });

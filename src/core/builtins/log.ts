@@ -14,20 +14,22 @@
 //
 // The exact cases: `ln(1)` is zero; `ln(2)` and `ln(10)` are their memos;
 // `log10` and `log2` of an exact integer power of the base, either way
-// (`log10(1000)`, `log2(1/8)`), are that integer, found by repeated
-// division of the numerator or the denominator; `log(b, x)` of exact
-// arguments is the integer `n` with `x = b^n` (`log(2, 8)`, `log(3, 1/9)`)
-// or `1/n` with `b = x^n` (`log(8, 2)`), and `log(b, 1)` is zero; a
-// rational exponent in general is not looked for (`log(4, 8)` is `≈ 1.5`).
+// (`log10(1000)`, `log2(1/8)`, `log10(1e999999999)`), are that integer,
+// read off the canonical form without forming a power (`integerPower`);
+// `log(b, x)` of exact arguments is the integer `n` with `x = b^n`
+// (`log(2, 8)`, `log(3, 1/9)`) or `1/n` with `b = x^n` (`log(8, 2)`), and
+// `log(b, 1)` is zero; a rational exponent in general is not looked for
+// (`log(4, 8)` is `≈ 1.5`).
 // Every other value is the kernel's `ln`, or the quotient of two, handed
 // back as the kernel's ball for the evaluator to settle (D15). The
-// argument is scaled to order one by a power of two before it is
-// converted, and the power goes to the kernel (`lnScaled` of ball.ts,
-// which the log-space power shares), so that `ln(1e-300)` loses nothing
-// to the conversion. The domain check, `checkPositive`, and the unbounded
+// argument's mantissa is scaled to order one by a power of two before it
+// is converted, and the power goes to the kernel with the decimal
+// exponent (`lnScaled` of ball.ts, which the log-space power shares), so
+// that `ln(1e-300)` and `ln(1e999999999)` lose nothing to the conversion
+// and no argument is too large or too small for the logarithm. The domain check, `checkPositive`, and the unbounded
 // rule, `unboundedOf`, are builtin.ts's, shared with `pow`.
 
-import { exact, isExact, lnScaled, type Ball } from "../ball.ts";
+import { exact, isExact, lnScaled, position, type Ball } from "../ball.ts";
 import {
   checkPositive,
   plainNumbers,
@@ -35,7 +37,7 @@ import {
   type Builtin,
   type BuiltinError,
 } from "../builtin.ts";
-import type { NumberContext } from "../context.ts";
+import { workingDigits, type NumberContext } from "../context.ts";
 import { ln10Fixed, ln2Fixed } from "../fixed-log.ts";
 import {
   bitsFor,
@@ -44,22 +46,24 @@ import {
   keepSignificant,
   type Fixed,
 } from "../fixed.ts";
-import { radiusUpper } from "../radius.ts";
 import {
-  ONE,
-  ZERO,
-  absolute,
-  compare,
-  equals,
-  invert,
+  ONE as ONE_FRACTION,
+  equals as equalsFraction,
   rational,
-  subtract,
   type Rational,
 } from "../rational.ts";
 import { err, ok, type Result } from "../result.ts";
+import {
+  ONE,
+  ZERO,
+  equals,
+  fromRational,
+  invert,
+  type Scaled,
+} from "../scaled.ts";
 
-const TWO = rational(2n);
-const TEN = rational(10n);
+const TWO = fromRational(rational(2n));
+const TEN = fromRational(rational(10n));
 
 /** `ln(x)` at the context, as the header says. */
 export function lnBall(
@@ -70,7 +74,7 @@ export function lnBall(
     return unboundedOf(lnBall(exact(x.mid), context));
   if (isExact(x) && equals(x.mid, ONE)) return ok(exact(ZERO));
   const f = lnKernel(x, context, 0);
-  return f.ok ? ok(fixedToBall(f.value)) : f;
+  return f.ok ? ok(fixedToBall(f.value, workingDigits(context))) : f;
 }
 
 /** `log10(x)` at the context: exact for an integer power of ten, else `ln(x) / ln(10)`. */
@@ -109,8 +113,10 @@ export function logBall(
   if (isExact(b)) {
     if (equals(b.mid, ONE))
       return err({ kind: "domain", argument: 0, reason: "baseOne" });
-  } else if (compare(absolute(subtract(b.mid, ONE)), radiusUpper(b.rad)) <= 0) {
-    return err({ kind: "unresolved", argument: 0, edge: ONE });
+  } else {
+    const atOne = position(b, ONE);
+    if (atOne !== "above" && atOne !== "below")
+      return err({ kind: "unresolved", argument: 0, edge: ONE });
   }
   const positive = checkPositive(x, 1);
   if (!positive.ok) return positive;
@@ -118,9 +124,10 @@ export function logBall(
     if (equals(x.mid, ONE)) return ok(exact(ZERO));
     if (isExact(b)) {
       const n = integerPower(b.mid, x.mid);
-      if (n !== undefined) return ok(exact(rational(n)));
+      if (n !== undefined) return ok(exact(fromRational(rational(n))));
       const inverse = integerPower(x.mid, b.mid);
-      if (inverse !== undefined) return ok(exact(rational(1n, inverse)));
+      if (inverse !== undefined)
+        return ok(exact(fromRational(rational(1n, inverse))));
     }
   }
   const lnX = lnKernel(x, context, 1);
@@ -140,7 +147,7 @@ export function logBall(
 function logOfConstantBase(
   x: Ball,
   context: NumberContext,
-  base: Rational,
+  base: Scaled,
   constant: (bits: number, ceilingBits: number) => Fixed,
 ): Result<Ball, BuiltinError> {
   if (x.rad.kind === "unbounded") {
@@ -152,7 +159,7 @@ function logOfConstantBase(
     const positive = checkPositive(x, 0);
     if (!positive.ok) return positive;
     const n = integerPower(base, x.mid);
-    if (n !== undefined) return ok(exact(rational(n)));
+    if (n !== undefined) return ok(exact(fromRational(rational(n))));
   }
   const lnX = lnKernel(x, context, 0);
   if (!lnX.ok) return lnX;
@@ -167,6 +174,7 @@ function logOfConstantBase(
 function quotient(a: Fixed, b: Fixed, context: NumberContext): Ball {
   return fixedToBall(
     keepSignificant(divideFixed(a, b), bitsFor(context.precision)),
+    workingDigits(context),
   );
 }
 
@@ -197,28 +205,51 @@ function lnKernel(
 /**
  * The integer `n` with `value = base^n`, for a positive `base` other than
  * one and a positive `value`, or `undefined` when there is none: zero for
- * a value of one, else a positive power of the base or of its reciprocal.
+ * a value of one, else a positive power of the base, or of its reciprocal
+ * as a positive power of the value's reciprocal. Read off the canonical
+ * forms without forming a power: for `n >= 1`, `base^n` in canonical form
+ * is `mant^n × 10^(n exp)`, a numerator not divisible by ten and a
+ * denominator coprime to ten staying so under a power, so `n` is the
+ * power the mantissas are in, checked on the exponents, or the quotient
+ * of the exponents for a base that is a power of ten
+ * (`log10(1e999999999)`); a negative `n` inverts the value first, since
+ * the canonical form of `1/8` is `125 × 10^-3`.
  */
-export function integerPower(
-  base: Rational,
-  value: Rational,
-): bigint | undefined {
+export function integerPower(base: Scaled, value: Scaled): bigint | undefined {
   if (equals(value, ONE)) return 0n;
   const positive = positivePower(base, value);
   if (positive !== undefined) return positive;
-  const reciprocal = invert(base);
+  const reciprocal = invert(value);
   if (!reciprocal.ok) return undefined;
-  const negative = positivePower(reciprocal.value, value);
+  const negative = positivePower(base, reciprocal.value);
   return negative === undefined ? undefined : -negative;
 }
 
+/** The `n` of at least one with `value = base^n`, or `undefined`, as `integerPower` reads it off. */
+function positivePower(base: Scaled, value: Scaled): bigint | undefined {
+  if (equalsFraction(base.mant, ONE_FRACTION)) {
+    if (base.exp === 0n || !equalsFraction(value.mant, ONE_FRACTION)) {
+      return undefined;
+    }
+    if (value.exp % base.exp !== 0n) return undefined;
+    const n = value.exp / base.exp;
+    return n >= 1n ? n : undefined;
+  }
+  const n = positivePowerOfFraction(base.mant, value.mant);
+  if (n === undefined || value.exp !== n * base.exp) return undefined;
+  return n;
+}
+
 /**
- * The `n` of at least one with `value = base^n`, or `undefined`: with
- * `base = p/q` and `value = r/s` in lowest terms, `r = p^n` and `s = q^n`,
- * so `n` is read off one of them by repeated division and checked on the
- * other.
+ * The `n` of at least one with `value = base^n` on fractions in lowest
+ * terms, or `undefined`: with `base = p/q` and `value = r/s`, `r = p^n`
+ * and `s = q^n`, so `n` is read off one of them by repeated division and
+ * checked on the other.
  */
-function positivePower(base: Rational, value: Rational): bigint | undefined {
+function positivePowerOfFraction(
+  base: Rational,
+  value: Rational,
+): bigint | undefined {
   if (base.num === 1n) {
     return value.num === 1n ? exponentIn(value.den, base.den) : undefined;
   }

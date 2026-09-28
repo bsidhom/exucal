@@ -30,8 +30,10 @@ import {
 import { pi } from "./core/builtins/pi.ts";
 import { checkConformance } from "./core/dimension.ts";
 import { parseDefinitions } from "./core/definitions.ts";
-import { ONE, sign } from "./core/rational.ts";
+import { ONE as ONE_FRACTION } from "./core/rational.ts";
 import { err, ok } from "./core/result.ts";
+import { ONE, ZERO, equals, negate, sign, type Scaled } from "./core/scaled.ts";
+import { fr } from "./testing/scaled.ts";
 import type { EvaluateError } from "./core/evaluate.ts";
 import { convertText, evaluateText } from "./core/pipeline.ts";
 import { DEFAULT_PRECISION } from "./core/rounding.ts";
@@ -106,9 +108,15 @@ test("a parse error names what was expected and what was found", () => {
     textMessage(`${"9".repeat(320000)} m`),
     `"${"9".repeat(320000)}": this number is too large to represent.`,
   );
+  // A literal of any exponent is a value; the sum that cannot align it
+  // is what is too large, at the sum.
   assert.equal(
-    textMessage("1e999999999 m"),
-    '"1e999999999" is too large to compute.',
+    textMessage("1e999999999 + 1"),
+    '"1e999999999 + 1" is too large to compute.',
+  );
+  assert.equal(
+    textMessage("1e999999999 m - 1 m"),
+    '"1e999999999 m - 1 m" is too large to compute.',
   );
 });
 
@@ -126,6 +134,11 @@ test("an evaluation error quotes the text at fault", () => {
     '"((2^(1/2))^2 - 2)" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
   );
   assert.equal(textMessage("2^99999 m"), '"2^99999" is too large to compute.');
+  // A built-in that refuses an argument it cannot reduce fails at the call.
+  assert.equal(
+    textMessage("sin(1e999999999 radian)"),
+    '"sin(1e999999999 radian)" is too large to compute.',
+  );
   assert.equal(
     textMessage("(-4)^0.5 m"),
     '"(-4)^0.5" takes an even root of a negative value.',
@@ -179,6 +192,13 @@ test("a zero want is reported as such, and one that cannot be told from zero too
   assert.equal(
     conversionMessage("3 ft", "((2^(1/2))^2 - 2) m"),
     '"((2^(1/2))^2 - 2) m" cannot be told from zero at this precision, so nothing can be converted into it.',
+  );
+});
+
+test("a ratio beyond the exponent bound quotes both texts", () => {
+  assert.equal(
+    conversionMessage("1e999999999999999999 m", " 1e-999999999999999999 m "),
+    '"1e999999999999999999 m" into "1e-999999999999999999 m" is too large to compute.',
   );
 });
 
@@ -363,24 +383,34 @@ const STAND_IN_LIST: Builtin[] = [
     apply: ([x]) => ok(x!),
   },
   {
-    // Unresolved at an edge of one, on the second argument, and at a pole.
+    // Unresolved on the second argument, at an edge of one for a value of
+    // two, of minus one for three, of zero for four; and at a pole below.
     name: "edge",
     arity: { min: 2, max: 2 },
     dimensions: plainNumbers(2),
-    apply: ([, b]): ReturnType<Builtin["apply"]> =>
-      b!.mid.num === 2n
-        ? err({ kind: "unresolved", argument: 1, edge: ONE })
-        : ok(b as Ball),
+    apply: ([, b]): ReturnType<Builtin["apply"]> => {
+      const edge = EDGES.find(([at]) => equals(b!.mid, at))?.[1];
+      return edge === undefined
+        ? ok(b as Ball)
+        : err({ kind: "unresolved", argument: 1, edge });
+    },
   },
   {
     name: "tan",
     arity: { min: 1, max: 1 },
     dimensions: plainNumbers(1),
     apply: ([x]): ReturnType<Builtin["apply"]> =>
-      x!.mid.num === 2n
+      equals(x!.mid, fr(2n))
         ? err({ kind: "unresolved", argument: 0, edge: "pole" })
         : ok(x as Ball),
   },
+];
+
+/** The edge the `edge` stand-in reports for each value of its second argument. */
+const EDGES: readonly (readonly [Scaled, Scaled])[] = [
+  [fr(2n), ONE],
+  [fr(3n), negate(ONE)],
+  [fr(4n), ZERO],
 ];
 
 const STAND_INS: Builtins = new Map(STAND_IN_LIST.map((fn) => [fn.name, fn]));
@@ -485,7 +515,7 @@ test("a built-in's dimension rule is worded from its data", () => {
       error: {
         kind: "argumentDimension",
         argument: 0,
-        want: new Map([["radian", ONE]]),
+        want: new Map([["radian", ONE_FRACTION]]),
         mismatch: {
           kind: "kindMismatch",
           have: new Map(),
@@ -557,6 +587,14 @@ test("a value that straddles an edge names the edge", () => {
   assert.equal(
     textMessage("edge(1, 1 + 1)", withBuiltins),
     '"1 + 1" cannot be told from 1 at this precision, and the result depends on which side of 1 it lies.',
+  );
+  assert.equal(
+    textMessage("edge(1, 3)", withBuiltins),
+    '"3" cannot be told from -1 at this precision, and the result depends on which side of -1 it lies.',
+  );
+  assert.equal(
+    textMessage("edge(1, 4)", withBuiltins),
+    '"4" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
   );
   assert.equal(
     textMessage("tan(2)", withBuiltins),

@@ -9,7 +9,8 @@
 // `want` may have a magnitude of its own (`1 mile` into `1000 ft` gives
 // `5.28`). Nothing here rounds: the ratio is the ball quotient, exact on
 // the midpoints with the radii propagated, so it is the exact answer for
-// exact quantities and display is where it is rounded, once.
+// exact quantities and display is where it is rounded, once; a quotient
+// whose exponent passes the bound is `tooLarge`.
 //
 // A failure is one of the two conformance errors (a dimension mismatch or a
 // kind mismatch, carrying both dimensions so that the UI can show them), a
@@ -28,8 +29,13 @@
 // has the sign of `have`, and the last gets the remainder. The counts are
 // taken from the midpoints (D8 of docs/calculator-plan.md), so a count is
 // exact and never `unresolved`, and the remainder is the ball `have - count
-// × size`, computed with the ball operations, so that the terms times the
-// units still contain `have`. One case is decided the other way: when the
+// × size`, computed with the ball operations at the `NumberContext` the
+// sums align within (4.4), so that the terms times the units still
+// contain `have`; a ratio whose integer part cannot be formed within the
+// range limit (`1e999999999 m` into `km;m`) is counted as its midpoint
+// settled toward zero at the working digits, an integer of that many
+// digits, and the remainder is what that count leaves (D8 as 4.4 amended
+// it). One case is decided the other way: when the
 // ratio's ball straddles an integer, as `turn / deg` does once both carry
 // `pi()`'s radius (`359.999... ± ε`), the count is that integer, since a
 // count that cannot be told from a boundary is best taken as the boundary,
@@ -59,41 +65,45 @@ import {
   divideBalls,
   exact,
   multiplyBalls,
+  position,
   subtractBalls,
   type Ball,
+  type BallError,
 } from "./ball.ts";
+import { workingDigits, type NumberContext } from "./context.ts";
 import {
   checkConformance,
   type ConformanceError,
   type Primitives,
 } from "./dimension.ts";
 import type { Quantity } from "./quantity.ts";
-import { addRadius, isZeroRadius, radiusAbove, radiusUpper } from "./radius.ts";
+import { addRadius, isZeroRadius, radiusAboveScaled } from "./radius.ts";
+import { LIMIT_BITS } from "./rational.ts";
+import { err, ok, type Result } from "./result.ts";
+import type { Precision, RoundingMode } from "./rounding.ts";
 import {
+  ONE,
   absolute,
+  add,
   compare,
   equals,
-  LIMIT_BITS,
-  rational,
+  negate,
+  roundTo,
+  scaled,
   sign,
   subtract,
   trunc,
-  type Rational,
-} from "./rational.ts";
-import { err, ok, type Result } from "./result.ts";
-import {
-  divideRounded,
-  type Precision,
-  type RoundingMode,
-} from "./rounding.ts";
-import { fromRational, roundTo, toRational } from "./scaled.ts";
+  type Scaled,
+} from "./scaled.ts";
 
 export type ConvertError =
   | ConformanceError
   /** `want` has a zero magnitude (`0 m`), so nothing is a multiple of it. */
   | { readonly kind: "zeroWant" }
   /** `want` has a magnitude that cannot be told from zero at this precision. */
-  | { readonly kind: "unresolvedWant" };
+  | { readonly kind: "unresolvedWant" }
+  /** The ratio's exponent passes the bound. */
+  | { readonly kind: "tooLarge" };
 
 /** Why a list of units is not a unit list for a `have`; `index` is the unit at fault. */
 export type UnitListError =
@@ -131,6 +141,8 @@ export function convert(
       return err({ kind: "zeroWant" });
     case "unresolved":
       return err({ kind: "unresolvedWant" });
+    case "tooLarge":
+      return err({ kind: "tooLarge" });
     default:
       // A quotient of balls grows neither operand beyond its own size.
       throw new Error(`A ratio of magnitudes failed: ${ratio.error.kind}`);
@@ -140,17 +152,19 @@ export function convert(
 /**
  * `have` as a sum over `units`, one term per unit: an exact integer count
  * of each but the last, truncated toward zero from the ratio of midpoints,
- * and the remainder in the last, the ball `have` less the counted units, so
- * that the terms times the units add up to `have` (contain it, when `have`
- * or a unit is inexact). The units are checked in order, each for
- * conformance with `have`, for a positive magnitude whose ball excludes
- * zero, and for being smaller than the one before it, and the first failure
- * is reported with the unit's index. `units` must not be empty.
+ * and the remainder in the last, the ball `have` less the counted units,
+ * at `context`, so that the terms times the units add up to `have`
+ * (contain it, when `have` or a unit is inexact). The units are checked
+ * in order, each for conformance with `have`, for a positive magnitude
+ * whose ball excludes zero, and for being smaller than the one before it,
+ * and the first failure is reported with the unit's index. `units` must
+ * not be empty.
  */
 export function convertToList(
   have: Quantity,
   units: readonly Quantity[],
   primitives: Primitives,
+  context: NumberContext,
 ): Result<readonly Ball[], UnitListError> {
   if (units.length === 0) {
     throw new RangeError("A unit list must have at least one unit");
@@ -181,7 +195,7 @@ export function convertToList(
     }
     sizes.push(size);
   }
-  return ok(decompose(have.magnitude, sizes));
+  return ok(decompose(have.magnitude, sizes, context));
 }
 
 /**
@@ -205,59 +219,58 @@ export function roundTerms(
   terms: readonly Ball[],
   digits: Precision,
   mode: RoundingMode,
+  context: NumberContext,
 ): readonly Ball[] {
   const last = terms.length - 1;
   const remainder = terms[last]!;
-  const rounded = roundedFraction(remainder.mid, digits, mode);
+  const rounded = roundTo(remainder.mid, digits, mode);
   if (equals(rounded, remainder.mid)) return terms;
-  const shift = radiusAbove(subtract(rounded, remainder.mid));
+  const shift = radiusAboveScaled(
+    settled(subtract(rounded, remainder.mid, LIMIT_BITS)),
+  );
   const widened: Ball = { mid: rounded, rad: addRadius(remainder.rad, shift) };
   const sizes = units.map((unit) => unit.magnitude);
   const total = terms
     .slice(0, last)
     .reduce(
-      (sum, count, i) => addBalls(sum, multiplyBalls(count, sizes[i]!)),
-      multiplyBalls(widened, sizes[last]!),
+      (sum, count, i) =>
+        settled(
+          addBalls(sum, settled(multiplyBalls(count, sizes[i]!)), context),
+        ),
+      settled(multiplyBalls(widened, sizes[last]!)),
     );
-  return decompose(total, sizes);
-}
-
-/**
- * `r` rounded to `digits` significant digits in `mode`, as a `Scaled`
- * rounds (4.3), converted at the boundary that goes in 4.4: the rounded
- * value has the digits of `r`'s exponent, which fit the hard bound.
- */
-function roundedFraction(
-  r: Rational,
-  digits: Precision,
-  mode: RoundingMode,
-): Rational {
-  const back = toRational(roundTo(fromRational(r), digits, mode), LIMIT_BITS);
-  if (!back.ok) throw new Error("A rounded remainder fits the hard bound");
-  return back.value;
+  return decompose(total, sizes, context);
 }
 
 /**
  * `magnitude` as a sum over the positive, decreasing `sizes`, whose balls
  * exclude zero: the exact integer count of each but the last that fits in
  * what is left, from the ratio of midpoints (`countOf`), and the remainder
- * in the last, the ball of what is left over the last size.
+ * in the last, the ball of what is left over the last size, the sums
+ * aligned at `context`.
  */
-function decompose(magnitude: Ball, sizes: readonly Ball[]): Ball[] {
+function decompose(
+  magnitude: Ball,
+  sizes: readonly Ball[],
+  context: NumberContext,
+): Ball[] {
   const terms: Ball[] = [];
   let rest = magnitude;
   for (const [i, size] of sizes.entries()) {
     const ratio = divideBalls(rest, size);
     if (!ratio.ok) {
-      // The sizes were checked to exclude zero before they got here.
+      // The sizes were checked to exclude zero before they got here, and a
+      // quotient of values within the bound is within it.
       throw new Error("A unit list has a unit that cannot be divided by");
     }
     if (i === sizes.length - 1) {
       terms.push(ratio.value);
     } else {
-      const count = exact(countOf(ratio.value));
+      const count = exact(countOf(ratio.value, context));
       terms.push(count);
-      rest = subtractBalls(rest, multiplyBalls(count, size));
+      rest = settled(
+        subtractBalls(rest, settled(multiplyBalls(count, size)), context),
+      );
     }
   }
   return terms;
@@ -269,16 +282,55 @@ function decompose(magnitude: Ball, sizes: readonly Ball[]): Ball[] {
  * which is then the count, so that a ratio that cannot be told from a
  * whole number is counted as that whole number and leaves a remainder
  * around zero rather than a whole of the unit. An exact ratio straddles an
- * integer only when it is one, and an unbounded one is truncated.
+ * integer only when it is one, and an unbounded one is truncated. A
+ * midpoint whose integer part cannot be formed within the range limit of
+ * `context` is settled toward zero at the working digits instead, which
+ * is an integer, the value being that far above one.
  */
-function countOf(ratio: Ball): Rational {
-  const truncated = trunc(ratio.mid);
+function countOf(ratio: Ball, context: NumberContext): Scaled {
+  const truncated = trunc(ratio.mid, context.maxBits);
+  if (truncated === undefined) {
+    const count = trunc(
+      roundTo(ratio.mid, workingDigits(context), "towardZero"),
+      LIMIT_BITS,
+    );
+    if (count === undefined) throw new Error("A settled count is an integer");
+    return count;
+  }
   if (ratio.rad.kind === "unbounded" || isZeroRadius(ratio.rad)) {
     return truncated;
   }
-  const nearest = rational(
-    divideRounded(ratio.mid.num, ratio.mid.den, "halfEven"),
-  );
-  const distance = absolute(subtract(ratio.mid, nearest));
-  return compare(distance, radiusUpper(ratio.rad)) <= 0 ? nearest : truncated;
+  const nearest = nearestInteger(ratio.mid, truncated);
+  switch (position(ratio, nearest)) {
+    case "above":
+    case "below":
+      return truncated;
+    default:
+      return nearest;
+  }
+}
+
+/** The integer nearest `s`, given `truncated`, its truncation toward zero: a half rounds away from zero. */
+function nearestInteger(s: Scaled, truncated: Scaled): Scaled {
+  const fraction = settled(subtract(s, truncated, LIMIT_BITS));
+  if (compare(absolute(fraction), HALF) < 0) return truncated;
+  const step = sign(fraction) > 0 ? ONE : negate(ONE);
+  return settled(add(truncated, step, LIMIT_BITS));
+}
+
+const HALF: Scaled = ((): Scaled => {
+  const half = scaled({ num: 5n, den: 1n }, -1n);
+  if (!half.ok) throw new Error("One half is within the bound");
+  return half.value;
+})();
+
+/**
+ * The value of an operation the checks above rule out failing: a sum of
+ * terms that came from one decomposition aligns as it did, and a product
+ * of a count and a size is within the bound the ratio was.
+ */
+function settled<T>(result: Result<T, BallError>): T {
+  if (!result.ok)
+    throw new Error(`A unit list's arithmetic failed: ${result.error.kind}`);
+  return result.value;
 }

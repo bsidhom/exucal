@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact, isExact, type Ball } from "../ball.ts";
+import { certifies, exact, isExact, type Ball } from "../ball.ts";
 import { buildTable } from "../build.ts";
 import { RADIAN, type BuiltinError } from "../builtin.ts";
 import { BUILTINS } from "../builtins.ts";
@@ -16,21 +16,29 @@ import { parseDefinitions } from "../definitions.ts";
 import { DIMENSIONLESS, primitive, type Primitives } from "../dimension.ts";
 import { show } from "../display.ts";
 import { convertText, evaluateText } from "../pipeline.ts";
-import { UNBOUNDED, radiusAbove, radiusUpper } from "../radius.ts";
+import {
+  UNBOUNDED,
+  compareRadius,
+  radiusAbove,
+  radiusAboveScaled,
+  radiusUpper,
+} from "../radius.ts";
+import { LIMIT_BITS, rational } from "../rational.ts";
+import type { Result } from "../result.ts";
 import {
   ONE,
   ZERO,
   absolute,
   add,
   compare,
+  equals,
+  fromRational,
   multiply,
   negate,
-  rational,
   subtract,
-  type Rational,
-} from "../rational.ts";
-import { parseFraction } from "../../testing/fraction.ts";
-import type { Result } from "../result.ts";
+  type Scaled,
+} from "../scaled.ts";
+import { ball as ballOf, dec, fr } from "../../testing/scaled.ts";
 import { describeTextError } from "../../messages.ts";
 import {
   acos,
@@ -50,18 +58,15 @@ const CONTEXT: NumberContext = {
   ceiling: DEFAULT_CEILING,
 };
 
+/** The default context: eight digits, the default range limit. */
+const DEFAULT: NumberContext = { ...CONTEXT, precision: 8 };
+
 /** A metre, a second and the radian kind, as units.txt declares them. */
 const PRIMITIVES: Primitives = new Map([
   ["m", "dimension"],
   ["s", "dimension"],
   [RADIAN, "kind"],
 ]);
-
-function dec(text: string): Rational {
-  const result = parseFraction(text);
-  assert.ok(result.ok);
-  return result.value;
-}
 
 function value(result: Result<Ball, BuiltinError>): Ball {
   assert.ok(result.ok, inspect(result));
@@ -73,30 +78,56 @@ function failure(result: Result<Ball, BuiltinError>): BuiltinError {
   return result.error;
 }
 
+/** `|a - b|` on `Scaled`s of moderate exponent. */
+function distance(a: Scaled, b: Scaled): Scaled {
+  const d = subtract(a, b, LIMIT_BITS);
+  assert.ok(d.ok, `${inspect(a)} - ${inspect(b)} aligns`);
+  return absolute(d.value);
+}
+
+/** `a + b` on `Scaled`s of moderate exponent. */
+function plus(a: Scaled, b: Scaled): Scaled {
+  const sum = add(a, b, LIMIT_BITS);
+  assert.ok(sum.ok, `${inspect(a)} + ${inspect(b)} aligns`);
+  return sum.value;
+}
+
+/** `s × num / den`. */
+function scale(s: Scaled, num: bigint, den = 1n): Scaled {
+  const product = multiply(s, fr(num, den));
+  assert.ok(product.ok);
+  return product.value;
+}
+
+/** The radius of the bounded `b` as a `Scaled`. */
+function radiusOf(b: Ball): Scaled {
+  return fromRational(radiusUpper(b.rad));
+}
+
 /** Asserts that `ball` contains `reference` and its radius is below `|reference| × 10^-digits`. */
 function assertNear(
   ball: Ball,
-  reference: Rational,
+  reference: Scaled,
   digits: number,
   label: string,
 ) {
   assert.ok(
-    compare(absolute(subtract(ball.mid, reference)), radiusUpper(ball.rad)) <=
-      0,
+    compare(distance(ball.mid, reference), radiusOf(ball)) <= 0,
     `${label}: midpoint`,
   );
-  assert.ok(
-    compare(
-      radiusUpper(ball.rad),
-      multiply(absolute(reference), rational(1n, 10n ** BigInt(digits))),
-    ) < 0,
-    `${label}: radius`,
-  );
+  const bound = multiply(absolute(reference), dec(`1e-${digits}`));
+  assert.ok(bound.ok);
+  assert.ok(compare(radiusOf(ball), bound.value) < 0, `${label}: radius`);
 }
 
 /** A ball of `mid` with the radius `rad`, as decimals. */
 function ball(mid: string, rad: string): Ball {
-  return { mid: dec(mid), rad: radiusAbove(dec(rad)) };
+  return ballOf(dec(mid), dec(rad));
+}
+
+/** Whether the bounded radius of `b` is below the decimal `bound`, at any exponent. */
+function radiusBelow(b: Ball, bound: string): boolean {
+  return compareRadius(b.rad, radiusAboveScaled(dec(bound))) < 0;
 }
 
 // References from Python's decimal module, by its own reductions and
@@ -105,10 +136,10 @@ function ball(mid: string, rad: string): Ball {
 const PI = dec(
   "3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844610",
 );
-const PI_OVER_2 = multiply(PI, rational(1n, 2n));
-const PI_OVER_4 = multiply(PI, rational(1n, 4n));
-const PI_OVER_6 = multiply(PI, rational(1n, 6n));
-const PI_OVER_3 = multiply(PI, rational(1n, 3n));
+const PI_OVER_2 = scale(PI, 1n, 2n);
+const PI_OVER_4 = scale(PI, 1n, 4n);
+const PI_OVER_6 = scale(PI, 1n, 6n);
+const PI_OVER_3 = scale(PI, 1n, 3n);
 const ASIN_0_3 = dec(
   "0.3046926540153975079720029612275291669545600317067763873929779487464729925120331594385999572313631487317349566307855469247966854234",
 );
@@ -211,7 +242,7 @@ test("the exact cases: asin(0), atan(0), acos(1) and atan2(0, x) for a positive 
   assert.deepEqual(value(atanBall(exact(ZERO), CONTEXT)), exact(ZERO));
   assert.deepEqual(value(acosBall(exact(ONE), CONTEXT)), exact(ZERO));
   assert.deepEqual(
-    value(atan2Ball(exact(ZERO), exact(rational(2n)), CONTEXT)),
+    value(atan2Ball(exact(ZERO), exact(fr(2n)), CONTEXT)),
     exact(ZERO),
   );
   assert.deepEqual(
@@ -238,7 +269,7 @@ test("the exact cases: asin(0), atan(0), acos(1) and atan2(0, x) for a positive 
 });
 
 test("the values are the kernel's, within the radius: fractions of pi and the references", () => {
-  const half = exact(rational(1n, 2n));
+  const half = exact(fr(1n, 2n));
   assertNear(value(atanBall(exact(ONE), CONTEXT)), PI_OVER_4, 45, "atan(1)");
   assertNear(value(asinBall(half, CONTEXT)), PI_OVER_6, 45, "asin(1/2)");
   assertNear(value(acosBall(half, CONTEXT)), PI_OVER_3, 45, "acos(1/2)");
@@ -296,7 +327,7 @@ test("the values are the kernel's, within the radius: fractions of pi and the re
   // A tiny argument keeps its digits.
   const tiny = value(atanBall(exact(dec("1e-50")), CONTEXT));
   assertNear(tiny, dec("1e-50"), 40, "atan(1e-50)");
-  assert.ok(compare(radiusUpper(tiny.rad), dec("1e-96")) < 0);
+  assert.ok(compare(radiusOf(tiny), dec("1e-96")) < 0);
   assertNear(
     value(asinBall(exact(dec("1e-30")), CONTEXT)),
     dec(
@@ -307,35 +338,63 @@ test("the values are the kernel's, within the radius: fractions of pi and the re
   );
 });
 
+test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^-maxBits is the argument within its cube", () => {
+  /** pi/2 to forty digits, from Python's decimal module. */
+  const halfPi = dec("1.5707963267948966192313216916397514420986");
+  const far = value(atanBall(exact(dec("1e999999999")), DEFAULT));
+  assert.ok(!isExact(far));
+  assert.ok(compare(distance(far.mid, halfPi), dec("1e-17")) < 0);
+  assert.ok(certifies(far, 8, "halfEven"));
+  const negative = value(atanBall(exact(dec("-1e999999999")), DEFAULT));
+  assert.ok(compare(distance(negative.mid, negate(halfPi)), dec("1e-17")) < 0);
+  assert.ok(certifies(negative, 8, "halfEven"));
+  // The saturation's radius is 2^-bits plus pi's, and a wide argument far
+  // out keeps it.
+  assert.ok(radiusBelow(far, "1e-17"));
+  const wide = value(atanBall(ballOf(dec("1e100"), dec("1e90")), DEFAULT));
+  assert.ok(compare(distance(wide.mid, halfPi), dec("1e-17")) < 0);
+  assert.ok(certifies(wide, 8, "halfEven"));
+  // Below the range limit's reciprocal, the argument itself within its cube.
+  const tiny = dec("1e-999999999");
+  const small = value(atanBall(exact(tiny), DEFAULT));
+  assert.ok(!isExact(small));
+  assert.ok(equals(small.mid, tiny));
+  assert.ok(radiusBelow(small, "1e-2999999990"));
+  assert.ok(
+    compareRadius(small.rad, radiusAboveScaled(dec("1e-2999999998"))) > 0,
+  );
+  assert.ok(certifies(small, 8, "halfEven"));
+  const asinSmall = value(asinBall(exact(tiny), DEFAULT));
+  assert.ok(equals(asinSmall.mid, tiny));
+  assert.ok(certifies(asinSmall, 8, "halfEven"));
+});
+
 test("an inexact argument's inverse contains those of its ends, and a wide one is the trivial bound", () => {
   const x = ball("0.5", "1e-20");
   // Over the derivatives: 1 / sqrt(1 - x^2) is 1.1547 at one half, and
   // 1 / (1 + x^2) is 0.8.
   const s = value(asinBall(x, CONTEXT));
   assertNear(s, PI_OVER_6, 19, "asin(0.5 ± 1e-20)");
-  assert.ok(compare(radiusUpper(s.rad), dec("1.15e-20")) > 0);
-  assert.ok(compare(radiusUpper(s.rad), dec("3e-20")) < 0);
+  assert.ok(compare(radiusOf(s), dec("1.15e-20")) > 0);
+  assert.ok(compare(radiusOf(s), dec("3e-20")) < 0);
   const c = value(acosBall(x, CONTEXT));
   assertNear(c, PI_OVER_3, 19, "acos(0.5 ± 1e-20)");
-  assert.ok(compare(radiusUpper(c.rad), dec("1.15e-20")) > 0);
-  assert.ok(compare(radiusUpper(c.rad), dec("3e-20")) < 0);
+  assert.ok(compare(radiusOf(c), dec("1.15e-20")) > 0);
+  assert.ok(compare(radiusOf(c), dec("3e-20")) < 0);
   const t = value(atanBall(x, CONTEXT));
-  assert.ok(compare(radiusUpper(t.rad), dec("8e-21")) > 0);
-  assert.ok(compare(radiusUpper(t.rad), dec("1.6e-20")) < 0);
+  assert.ok(compare(radiusOf(t), dec("8e-21")) > 0);
+  assert.ok(compare(radiusOf(t), dec("1.6e-20")) < 0);
   const wide = value(atanBall(ball("0", "10"), CONTEXT));
   assert.deepEqual(wide, { mid: ZERO, rad: radiusAbove(rational(2n)) });
-  assert.deepEqual(
-    value(atan2Ball(ball("0", "1"), exact(rational(2n)), CONTEXT)),
-    {
-      mid: ZERO,
-      rad: radiusAbove(rational(2n)),
-    },
-  );
+  assert.deepEqual(value(atan2Ball(ball("0", "1"), exact(fr(2n)), CONTEXT)), {
+    mid: ZERO,
+    rad: radiusAbove(rational(2n)),
+  });
 });
 
 test("asin and acos outside [-1, 1] are domain errors, and a ball reaching an end is unresolved at it", () => {
   for (const x of [
-    exact(rational(2n)),
+    exact(fr(2n)),
     exact(dec("-1.5")),
     ball("2", "0.5"),
     ball("-3", "1"),
@@ -386,8 +445,8 @@ test("asin and acos outside [-1, 1] are domain errors, and a ball reaching an en
 });
 
 test("atan2 by quadrant, its exact and unresolved cases, and the origin", () => {
-  const three = exact(rational(3n));
-  const four = exact(rational(4n));
+  const three = exact(fr(3n));
+  const four = exact(fr(4n));
   assertNear(
     value(atan2Ball(three, four, CONTEXT)),
     ATAN2_3_4,
@@ -395,13 +454,13 @@ test("atan2 by quadrant, its exact and unresolved cases, and the origin", () => 
     "atan2(3, 4)",
   );
   assertNear(
-    value(atan2Ball(exact(ONE), exact(rational(-2n)), CONTEXT)),
+    value(atan2Ball(exact(ONE), exact(fr(-2n)), CONTEXT)),
     ATAN2_1_MINUS_2,
     45,
     "atan2(1, -2)",
   );
   assertNear(
-    value(atan2Ball(exact(negate(ONE)), exact(rational(-2n)), CONTEXT)),
+    value(atan2Ball(exact(negate(ONE)), exact(fr(-2n)), CONTEXT)),
     negate(ATAN2_1_MINUS_2),
     45,
     "atan2(-1, -2)",
@@ -409,13 +468,13 @@ test("atan2 by quadrant, its exact and unresolved cases, and the origin", () => 
   for (const [y, x, reference] of [
     ["1", "1", PI_OVER_4],
     ["-1", "1", negate(PI_OVER_4)],
-    ["1", "-1", multiply(PI, rational(3n, 4n))],
-    ["-1", "-1", multiply(PI, rational(-3n, 4n))],
+    ["1", "-1", scale(PI, 3n, 4n)],
+    ["-1", "-1", scale(PI, -3n, 4n)],
     ["1", "0", PI_OVER_2],
     ["-1", "0", negate(PI_OVER_2)],
     ["0", "-1", PI],
     // atan(y / x) + pi, with atan(-2e30) a hair above -pi/2.
-    ["2", "-1e-30", add(PI_OVER_2, dec("5e-31"))],
+    ["2", "-1e-30", plus(PI_OVER_2, dec("5e-31"))],
   ] as const) {
     assertNear(
       value(atan2Ball(exact(dec(y)), exact(dec(x)), CONTEXT)),
@@ -426,20 +485,16 @@ test("atan2 by quadrant, its exact and unresolved cases, and the origin", () => 
   }
   // Against atan: the same ratio in the first quadrant, and its
   // quantities' scale cancels.
-  const ratio = value(atanBall(exact(rational(3n, 4n)), CONTEXT));
-  const scaled = value(
-    atan2Ball(exact(rational(300n)), exact(rational(400n)), CONTEXT),
-  );
-  assert.ok(
-    compare(absolute(subtract(ratio.mid, scaled.mid)), dec("1e-45")) < 0,
-  );
+  const ratio = value(atanBall(exact(fr(3n, 4n)), CONTEXT));
+  const scaled = value(atan2Ball(exact(fr(300n)), exact(fr(400n)), CONTEXT));
+  assert.ok(compare(distance(ratio.mid, scaled.mid), dec("1e-45")) < 0);
   // A straddling x with a y of definite sign is pi/2 less atan(x / y).
   const straddling = value(
-    atan2Ball(exact(rational(2n)), ball("0", "1e-30"), CONTEXT),
+    atan2Ball(exact(fr(2n)), ball("0", "1e-30"), CONTEXT),
   );
   assertNear(straddling, PI_OVER_2, 30, "atan2(2, 0 ± 1e-30)");
-  assert.ok(compare(radiusUpper(straddling.rad), dec("4.9e-31")) > 0);
-  assert.ok(compare(radiusUpper(straddling.rad), dec("6e-31")) < 0);
+  assert.ok(compare(radiusOf(straddling), dec("4.9e-31")) > 0);
+  assert.ok(compare(radiusOf(straddling), dec("6e-31")) < 0);
   // A straddling y with an x not positive throughout is unresolved at y.
   for (const x of [
     exact(negate(ONE)),
@@ -473,7 +528,7 @@ test("atan2 by quadrant, its exact and unresolved cases, and the origin", () => 
 });
 
 test("an unbounded argument gives the function of its midpoint with an unbounded radius", () => {
-  const half = { mid: rational(1n, 2n), rad: UNBOUNDED };
+  const half = { mid: fr(1n, 2n), rad: UNBOUNDED };
   for (const [result, reference] of [
     [asinBall(half, CONTEXT), PI_OVER_6],
     [acosBall(half, CONTEXT), PI_OVER_3],
@@ -489,16 +544,14 @@ test("an unbounded argument gives the function of its midpoint with an unbounded
   ] as const) {
     const at = value(result);
     assert.deepEqual(at.rad, UNBOUNDED);
-    assert.ok(compare(absolute(subtract(at.mid, reference)), dec("1e-40")) < 0);
+    assert.ok(compare(distance(at.mid, reference), dec("1e-40")) < 0);
   }
   const unboundedAtan = value(atanBall({ mid: ONE, rad: UNBOUNDED }, CONTEXT));
   assert.deepEqual(unboundedAtan.rad, UNBOUNDED);
-  assert.ok(
-    compare(absolute(subtract(unboundedAtan.mid, PI_OVER_4)), dec("1e-40")) < 0,
-  );
+  assert.ok(compare(distance(unboundedAtan.mid, PI_OVER_4), dec("1e-40")) < 0);
   // The midpoint is still held to the domain.
   assert.deepEqual(
-    failure(asinBall({ mid: rational(2n), rad: UNBOUNDED }, CONTEXT)),
+    failure(asinBall({ mid: fr(2n), rad: UNBOUNDED }, CONTEXT)),
     {
       kind: "domain",
       argument: 0,
@@ -526,6 +579,9 @@ test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angl
     ["asin(0.5)", "turn", "0.083333333"],
     ["asin(3 m / 5 m)", "deg", "36.869898"],
     ["acos(1 - 1e-30)", "radian", "1.4142136e-15"],
+    ["atan(1e999999999)", "deg", "90"],
+    ["atan(-1e999999999)", "radian", "-1.5707963"],
+    ["atan(1e-999999999)", "radian", "1e-999999999"],
   ]) {
     const result = convertText(table.value, have!, want!, {
       ...context,

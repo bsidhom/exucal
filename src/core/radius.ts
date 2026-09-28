@@ -19,15 +19,28 @@
 // exponent is a bigint for the same reason: the binary exponent of a value
 // near `10^(10^18)` is beyond a safe integer.
 //
-// Every operation rounds up, so a radius is always a true bound: `radiusAbove`
-// is the least representable value at or above its argument, and the sum,
-// the product, the power and the maximum of true bounds are computed exactly
-// on the mantissas and then rounded up to 30 bits. The tightness lost to the
-// rounding is a relative `2^-29` per operation, invisible at any precision;
-// the tests check both directions, that each result is at or above the exact
-// one and within that factor of it. Unbounded absorbs everything, even zero:
-// a bound may always be loosened, and the ball is where an exact zero times
-// an unbounded value is recognized as exact, if it is worth recognizing.
+// Every operation rounds the safe way, so a radius is always a true bound:
+// `radiusAbove` is the least representable value at or above its argument,
+// and the sum, the product, the power and the maximum of true bounds are
+// computed exactly on the mantissas and then rounded up to 30 bits. The
+// tightness lost to the rounding is a relative `2^-29` per operation,
+// invisible at any precision; the tests check both directions, that each
+// result is at or above the exact one and within that factor of it.
+// Unbounded absorbs everything, even zero: a bound may always be loosened,
+// and the ball is where an exact zero times an unbounded value is
+// recognized as exact, if it is worth recognizing.
+//
+// The magnitude of a midpoint enters as a radius without its power of ten
+// being formed (4.4): `radiusAboveScaled` and `radiusBelowScaled` take the
+// upper and the lower bound of scaled.ts's `log2Bounds`, within `2^-30` of
+// the truth, and round the mantissa the same way, so the two bracket the
+// magnitude. A lower bound is what a quotient's rule divides by, and the
+// operations that produce one round down: `subtractRadiusDown` (a
+// divisor's distance from zero, `|b| - rb`, zero when the difference is
+// not positive), `multiplyRadiusDown`, and `divideRadius`, a quotient
+// rounded up against a divisor taken as a lower bound; `rootRadiusAbove`
+// is a root rounded up, and `log2OfRadius` the logarithm a decimal
+// exponent is found from. `compareRadius` orders radii by value.
 //
 // The exact value of a bounded radius, `radiusUpper`, is a rational, formed
 // when a comparison needs it (certification, a divisor's distance from zero)
@@ -36,6 +49,12 @@
 // equal and `deepEqual` compares them, as it does rationals.
 
 import { rational, type Rational } from "./rational.ts";
+import {
+  isZero as isZeroScaled,
+  log2Bounds,
+  type Log2,
+  type Scaled,
+} from "./scaled.ts";
 
 /** The bits of a normalized mantissa. */
 export const MANT_BITS = 30;
@@ -87,6 +106,125 @@ export function radiusAbove(r: Rational): Radius {
   const exp = BigInt(bitLength(num) - bitLength(den) - MANT_BITS);
   const mant = exp >= 0n ? ceilDiv(num, den << exp) : ceilDiv(num << -exp, den);
   return normalized(mant, exp);
+}
+
+/**
+ * The least representable radius at or above `|s|`, from the upper bound
+ * of scaled.ts's `log2Bounds`, so that nothing is formed whatever the
+ * exponent; zero for zero. Tight to `2^-29` of the value, the mantissa's
+ * own width, plus the bound's `2^-30`.
+ */
+export function radiusAboveScaled(s: Scaled): Radius {
+  if (isZeroScaled(s)) return ZERO_RADIUS;
+  return fromLog2(log2Bounds(s).upper, "up");
+}
+
+/**
+ * The greatest representable radius at or below `|s|`, from the lower
+ * bound of `log2Bounds`: a lower bound on a magnitude, for a divisor's
+ * distance from zero; zero for zero.
+ */
+export function radiusBelowScaled(s: Scaled): Radius {
+  if (isZeroScaled(s)) return ZERO_RADIUS;
+  return fromLog2(log2Bounds(s).lower, "down");
+}
+
+/** `2^(int + frac)` as a radius, its 30-bit mantissa rounded `up` or `down`. */
+function fromLog2(log2: Log2, direction: "up" | "down"): Radius {
+  const scaled = 2 ** log2.frac * 2 ** (MANT_BITS - 1);
+  const mant = BigInt(
+    direction === "up" ? Math.ceil(scaled) : Math.floor(scaled),
+  );
+  return normalized(mant, log2.int - BigInt(MANT_BITS - 1));
+}
+
+/**
+ * The binary logarithm of the bounded, nonzero `rad`, as an integer part
+ * and a fraction in `[0, 1)`: what a decimal exponent of a radius is found
+ * from.
+ */
+export function log2OfRadius(rad: Radius): Log2 {
+  if (rad.kind === "unbounded" || rad.mant === 0n) {
+    throw new RangeError("Only a bounded, nonzero radius has a logarithm");
+  }
+  const log2 = Math.log2(Number(rad.mant));
+  const whole = Math.floor(log2);
+  return { int: rad.exp + BigInt(whole), frac: log2 - whole };
+}
+
+/** Compares two radii by value: -1, 0 or 1; unbounded is above every bounded radius and equal to itself. */
+export function compareRadius(a: Radius, b: Radius): -1 | 0 | 1 {
+  if (a.kind === "unbounded") return b.kind === "unbounded" ? 0 : 1;
+  if (b.kind === "unbounded") return -1;
+  return compareBounded(a, b);
+}
+
+/**
+ * `a - b` rounded down, for bounded `a` and `b`: a lower bound on the
+ * difference, and zero when `b` is at or above `a`. Unbounded is a
+ * precondition failure, since a lower bound cannot come from one.
+ */
+export function subtractRadiusDown(a: Radius, b: Radius): Radius {
+  if (a.kind === "unbounded" || b.kind === "unbounded") {
+    throw new RangeError("A lower bound needs bounded radii");
+  }
+  if (b.mant === 0n) return a;
+  if (compareBounded(a, b) <= 0) return ZERO_RADIUS;
+  const gap = a.exp - b.exp;
+  // `b` is below `a`, so its exponent is at most `a`'s plus one; when it is
+  // far below, the difference rounded down is `a` less one unit.
+  if (gap > BigInt(MANT_BITS)) return normalizedDown(a.mant - 1n, a.exp);
+  return gap >= 0n
+    ? normalizedDown((a.mant << gap) - b.mant, b.exp)
+    : normalizedDown(a.mant - (b.mant << -gap), a.exp);
+}
+
+/**
+ * `a × b` rounded down, for bounded `a` and `b`: a lower bound on the
+ * product, for a divisor's distance from zero times its magnitude.
+ */
+export function multiplyRadiusDown(a: Radius, b: Radius): Radius {
+  if (a.kind === "unbounded" || b.kind === "unbounded") {
+    throw new RangeError("A lower bound needs bounded radii");
+  }
+  if (a.mant === 0n || b.mant === 0n) return ZERO_RADIUS;
+  return normalizedDown(a.mant * b.mant, a.exp + b.exp);
+}
+
+/**
+ * A radius at or above the `degree`-th root of the bounded `rad`: its
+ * logarithm divided by the degree, rounded up; unbounded absorbs.
+ */
+export function rootRadiusAbove(rad: Radius, degree: bigint): Radius {
+  if (degree < 1n) throw new RangeError("Root degree must be positive");
+  if (rad.kind === "unbounded" || rad.mant === 0n) return rad;
+  const log2 = log2OfRadius(rad);
+  // (int + frac) / degree: the integer quotient rounded toward minus
+  // infinity, and the rest as a fraction, both to a double's accuracy.
+  let int = log2.int / degree;
+  let rest = log2.int - int * degree;
+  if (rest < 0n) {
+    int -= 1n;
+    rest += degree;
+  }
+  const frac = (Number(rest) + log2.frac) / Number(degree);
+  return fromLog2({ int, frac: Math.min(frac, 1 - 2 ** -40) }, "up");
+}
+
+/**
+ * `num / den`, rounded up, for a bounded, nonzero `den` taken as a lower
+ * bound: a quotient's radius over a divisor's distance from zero. Unbounded
+ * absorbs; a zero divisor is a precondition failure.
+ */
+export function divideRadius(num: Radius, den: Radius): Radius {
+  if (num.kind === "unbounded" || den.kind === "unbounded") return UNBOUNDED;
+  if (den.mant === 0n) throw new RangeError("A radius is not divided by zero");
+  if (num.mant === 0n) return ZERO_RADIUS;
+  // The mantissas' quotient at 2^31 scale keeps 30 bits, rounded up.
+  return normalized(
+    ceilDiv(num.mant << BigInt(MANT_BITS + 1), den.mant),
+    num.exp - den.exp - BigInt(MANT_BITS + 1),
+  );
 }
 
 /**
@@ -181,6 +319,29 @@ function normalized(mant: bigint, exp: bigint): Radius {
     mant <<= BigInt(-excess);
     exp -= BigInt(-excess);
   }
+  return { kind: "bounded", mant, exp };
+}
+
+/**
+ * `mant × 2^exp` as a normalized radius, rounded down: a mantissa too wide
+ * is shifted down with its low bits dropped, and one too narrow shifted up
+ * exactly; zero for a non-positive mantissa.
+ */
+function normalizedDown(mant: bigint, exp: bigint): Radius {
+  if (mant <= 0n) return ZERO_RADIUS;
+  const excess = bitLength(mant) - MANT_BITS;
+  if (excess > 0)
+    return {
+      kind: "bounded",
+      mant: mant >> BigInt(excess),
+      exp: exp + BigInt(excess),
+    };
+  if (excess < 0)
+    return {
+      kind: "bounded",
+      mant: mant << BigInt(-excess),
+      exp: exp - BigInt(-excess),
+    };
   return { kind: "bounded", mant, exp };
 }
 

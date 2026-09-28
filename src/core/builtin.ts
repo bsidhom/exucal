@@ -40,7 +40,13 @@
 // the tests take a set as a parameter with that one as the default, so that
 // a test can inject a built-in of its own.
 
-import { containsZero, isExact, type Ball, type BallError } from "./ball.ts";
+import {
+  magnitudeAbove,
+  magnitudeBelow,
+  position,
+  type Ball,
+  type BallError,
+} from "./ball.ts";
 import type { NumberContext } from "./context.ts";
 import {
   DIMENSIONLESS,
@@ -51,16 +57,16 @@ import {
   type Primitives,
 } from "./dimension.ts";
 import type { Arity } from "./evaluate.ts";
-import { UNBOUNDED, radiusUpper } from "./radius.ts";
 import {
-  ZERO,
-  add,
-  compare,
-  sign,
-  subtract,
-  type Rational,
-} from "./rational.ts";
+  UNBOUNDED,
+  addRadius,
+  compareRadius,
+  multiplyRadius,
+  powerOfTwoRadius,
+  type Radius,
+} from "./radius.ts";
 import { err, ok, type Result } from "./result.ts";
+import { ONE, ZERO, isZero, log2Bounds, type Scaled } from "./scaled.ts";
 
 /** Why a built-in's arguments do not have the dimensions it wants. */
 export type DimensionRuleError =
@@ -95,11 +101,11 @@ export type DomainReason =
   | "origin";
 
 /**
- * What a value that cannot be told from it straddles (D4): a rational
- * point, zero for a divisor or a base, `1` or `-1` at the end of a
- * domain, or a pole of the tangent.
+ * What a value that cannot be told from it straddles (D4): a point, zero
+ * for a divisor or a base, `1` or `-1` at the end of a domain, or a pole
+ * of the tangent.
  */
-export type Edge = Rational | "pole";
+export type Edge = Scaled | "pole";
 
 export type BuiltinError =
   /** The argument at index `argument` is outside the domain throughout its ball, for `reason`. */
@@ -244,45 +250,125 @@ export function angle(primitives: Primitives): Dimension | undefined {
 // The helpers of `apply`
 
 /**
- * Whether the bounded `x`, the argument at index `argument`, is positive
- * throughout: a `domain` error (`notPositive`) when it is not positive
- * anywhere, its interval ending at or below zero, and `unresolved` at
- * edge zero when it reaches both zero and positive values.
+ * Whether `x`, the argument at index `argument`, is positive throughout:
+ * a `domain` error (`notPositive`) when it is not positive anywhere, its
+ * interval ending at or below zero, and `unresolved` at edge zero when it
+ * reaches both zero and positive values, or is unbounded.
  */
 export function checkPositive(
   x: Ball,
   argument: number,
 ): Result<undefined, BuiltinError> {
-  if (isExact(x)) {
-    return sign(x.mid) > 0
-      ? ok(undefined)
-      : err({ kind: "domain", argument, reason: "notPositive" });
+  switch (position(x, ZERO)) {
+    case "above":
+      return ok(undefined);
+    case "below":
+    case "touchingBelow":
+    case "at":
+      return err({ kind: "domain", argument, reason: "notPositive" });
+    default:
+      return err({ kind: "unresolved", argument, edge: ZERO });
   }
-  if (compare(add(x.mid, radiusUpper(x.rad)), ZERO) <= 0) {
-    return err({ kind: "domain", argument, reason: "notPositive" });
-  }
-  if (containsZero(x)) return err({ kind: "unresolved", argument, edge: ZERO });
-  return ok(undefined);
 }
 
 /**
- * Where the bounded `x` lies against zero: `positive` or `negative`
- * throughout, exactly `zero`, or `straddles` when its interval contains
- * zero without being it, touching it included, since a function that
- * changes at zero (`0^y` at `y = 0`) cannot be decided there.
+ * Where `x` lies against zero: `positive` or `negative` throughout,
+ * exactly `zero`, or `straddles` when its interval contains zero without
+ * being it, touching it included, since a function that changes at zero
+ * (`0^y` at `y = 0`) cannot be decided there; an unbounded `x` straddles.
  */
 export function sideOfZero(
   x: Ball,
 ): "positive" | "negative" | "zero" | "straddles" {
-  if (isExact(x)) {
-    const s = sign(x.mid);
-    return s > 0 ? "positive" : s < 0 ? "negative" : "zero";
+  switch (position(x, ZERO)) {
+    case "above":
+      return "positive";
+    case "below":
+      return "negative";
+    case "at":
+      return "zero";
+    default:
+      return "straddles";
   }
-  if (containsZero(x)) return "straddles";
-  const upper = radiusUpper(x.rad);
-  if (compare(subtract(x.mid, upper), ZERO) > 0) return "positive";
-  if (compare(add(x.mid, upper), ZERO) < 0) return "negative";
-  return "straddles";
+}
+
+/**
+ * The fraction bits a value of magnitude below one needs beyond the
+ * working bits to keep its digits through the kernel: its negative binary
+ * exponent, from the lower bound of `log2Bounds`, held to the range limit
+ * of `context`, since the kernel is handed nothing wider (a value below
+ * `2^-maxBits` converts to zero within an ulp there; `isTiny` is the rule
+ * that catches such a value first); zero for zero and for a magnitude at
+ * or above one.
+ */
+export function extraBits(s: Scaled, context: NumberContext): number {
+  if (isZero(s)) return 0;
+  const { int } = log2Bounds(s).lower;
+  if (int >= 0n) return 0;
+  return -int > BigInt(context.maxBits) ? context.maxBits : Number(-int);
+}
+
+/**
+ * Whether the bounded `x` lies throughout below `2^-maxBits` in
+ * magnitude, the range limit of `context`: below what the kernel can be
+ * handed at any bits within the limit, so a built-in answers it by the
+ * value's expansion at zero (`tinyOdd`, `tinyEven`) rather than by the
+ * kernel.
+ */
+export function isTiny(x: Ball, context: NumberContext): boolean {
+  return (
+    compareRadius(
+      magnitudeAbove(x),
+      powerOfTwoRadius(-BigInt(context.maxBits)),
+    ) < 0
+  );
+}
+
+/**
+ * Whether the bounded `x` reaches `2^maxBits` in magnitude, the range
+ * limit of `context`: beyond what the kernel can be handed, so a routine
+ * that takes the value itself refuses it as `tooLarge`.
+ */
+export function isHuge(x: Ball, context: NumberContext): boolean {
+  return (
+    compareRadius(
+      magnitudeAbove(x),
+      powerOfTwoRadius(BigInt(context.maxBits)),
+    ) >= 0
+  );
+}
+
+/**
+ * Whether the bounded `x` lies throughout at or beyond `2^bits` in
+ * magnitude: where the saturations of `atan`, `asinh` and `acosh` hold
+ * (docs/decimal.md, "The kernel's boundary").
+ */
+export function isBeyond(x: Ball, bits: number): boolean {
+  return compareRadius(magnitudeBelow(x), powerOfTwoRadius(BigInt(bits))) >= 0;
+}
+
+/**
+ * `f(x)` for an odd `f` with `|f(x) - x| <= |x|^3` near zero (the sine,
+ * the tangent, the arctangent and the hyperbolic three, and their
+ * inverses) on a tiny `x`: `x` itself, within the cube of its magnitude
+ * bound beside its radius.
+ */
+export function tinyOdd(x: Ball): Ball {
+  return { mid: x.mid, rad: addRadius(x.rad, cubeOf(magnitudeAbove(x))) };
+}
+
+/**
+ * `f(x)` for an even `f` with `|f(x) - 1| <= x^2` near zero (the cosine
+ * and the hyperbolic cosine) on a tiny `x`: one, within the square of its
+ * magnitude bound.
+ */
+export function tinyEven(x: Ball): Ball {
+  const m = magnitudeAbove(x);
+  return { mid: ONE, rad: multiplyRadius(m, m) };
+}
+
+function cubeOf(rad: Radius): Radius {
+  return multiplyRadius(rad, multiplyRadius(rad, rad));
 }
 
 /** The result of a call on the midpoints of unbounded arguments, with an unbounded radius. */

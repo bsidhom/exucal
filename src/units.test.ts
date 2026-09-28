@@ -32,6 +32,7 @@ import {
 import { parseDefinitions } from "./core/definitions.ts";
 import { evaluate } from "./core/evaluate.ts";
 import { parseExpr } from "./core/expr.ts";
+import { show } from "./core/display.ts";
 import { convertText } from "./core/pipeline.ts";
 import type { Quantity } from "./core/quantity.ts";
 import { radiusUpper } from "./core/radius.ts";
@@ -49,6 +50,7 @@ import { parseFraction } from "./testing/fraction.ts";
 import { DEFAULT_PRECISION } from "./core/rounding.ts";
 import type { Result } from "./core/result.ts";
 import { unitLookup, type UnitTable } from "./core/table.ts";
+import { dec, fr, fraction } from "./testing/scaled.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */
 const CONTEXT: NumberContext = {
@@ -110,9 +112,10 @@ function assertConverts(have: string, want: string, expected: string): void {
     result.ok,
     `${have} does not convert to ${want}: ${inspect(result)}`,
   );
+  const actual = fraction(result.value.mid);
   assert.ok(
-    equals(result.value.mid, number(expected)),
-    `${have} in ${want}: expected ${expected}, got ${toFraction(result.value.mid)}`,
+    equals(actual, number(expected)),
+    `${have} in ${want}: expected ${expected}, got ${toFraction(actual)}`,
   );
 }
 
@@ -145,9 +148,10 @@ function assertApproximates(
   );
   const ball = result.value;
   assert.ok(!isExact(ball), `${have} in ${want}: exact`);
+  const mid = fraction(ball.mid);
   assert.ok(
-    compare(absolute(subtract(ball.mid, expected)), radiusUpper(ball.rad)) <= 0,
-    `${have} in ${want}: ${toFraction(ball.mid)} does not contain the expected value`,
+    compare(absolute(subtract(mid, expected)), radiusUpper(ball.rad)) <= 0,
+    `${have} in ${want}: ${toFraction(mid)} does not contain the expected value`,
   );
   assert.equal(
     certifiedDigits(ball, 30, DEFAULT_ROUNDING),
@@ -209,7 +213,7 @@ test("every SI prefix is defined by name and by symbol", () => {
       assert.ok(actual !== undefined, `the prefix ${prefix} is missing`);
       assert.deepEqual(
         actual,
-        exact(number(factor)),
+        exact(dec(factor)),
         `${prefix}: expected ${factor}, got ${inspect(actual)}`,
       );
     }
@@ -311,18 +315,36 @@ test("the logarithmic units are functions: the decibel, the bel and the neper", 
   assert.ok(!isExact(neper.value.value));
   assert.ok(
     compare(
-      absolute(subtract(neper.value.value.mid, rational(2n))),
+      absolute(subtract(fraction(neper.value.value.mid), rational(2n))),
       number("1e-40"),
     ) < 0,
   );
-  // A large decibel shares the exponential's magnitude limit (3.6), and
-  // `e` is still the elementary charge.
+  // A large decibel is a power of ten, which the exponent takes: a value
+  // (`10^100000.1`), and a large neper has the exponential's range, the
+  // exponent bound (4.9): `neper(1000001)` is `e^100000.1`, and
+  // `neper(1e30)` is too large; and `e` is still the elementary charge.
   const huge = convertText(table, "decibel(1000001)", "1", CONTEXT);
-  assert.ok(!huge.ok && huge.error.kind === "inputError");
-  assert.equal(huge.error.error.kind, "callFailed");
+  assert.ok(huge.ok && huge.value.kind === "unit", inspect(huge));
+  assert.deepEqual(show(huge.value.value, 8, DEFAULT_ROUNDING), {
+    kind: "certified",
+    text: "1.2589254e+100000",
+  });
+  assertConverts("decibel(1e6)", "1", "1e100000");
+  const largeNeper = convertText(table, "neper(1000001)", "1", CONTEXT);
   assert.ok(
-    huge.error.error.kind === "callFailed" &&
-      huge.error.error.error.kind === "tooLarge",
+    largeNeper.ok && largeNeper.value.kind === "unit",
+    inspect(largeNeper),
+  );
+  assert.deepEqual(show(largeNeper.value.value, 8, DEFAULT_ROUNDING), {
+    kind: "certified",
+    text: "8.2451343e+434294",
+  });
+  const hugeNeper = convertText(table, "neper(1e30)", "1", CONTEXT);
+  assert.ok(!hugeNeper.ok && hugeNeper.error.kind === "inputError");
+  assert.equal(hugeNeper.error.error.kind, "callFailed");
+  assert.ok(
+    hugeNeper.error.error.kind === "callFailed" &&
+      hugeNeper.error.error.error.kind === "tooLarge",
   );
   assertConverts("e", "C", "1.602176634e-19");
   assertConverts("e", "A s", "1.602176634e-19");
@@ -335,9 +357,10 @@ function assertCall(have: string, want: string, expected: string): void {
   assert.ok(result.value.kind === "function", `${have} in ${want}: not a call`);
   assert.equal(result.value.name, want);
   assert.equal(result.value.unit.text, "1");
+  const actual = fraction(result.value.value.mid);
   assert.ok(
-    equals(result.value.value.mid, number(expected)),
-    `${have} in ${want}: expected ${expected}, got ${toFraction(result.value.value.mid)}`,
+    equals(actual, number(expected)),
+    `${have} in ${want}: expected ${expected}, got ${toFraction(actual)}`,
   );
 }
 
@@ -644,10 +667,11 @@ function assertList(
     quantity(have),
     list.map((unit) => unit.quantity),
     table.primitives,
+    CONTEXT,
   );
   assert.ok(result.ok, `${have} in ${name}: ${inspect(result)}`);
   assert.deepEqual(
-    result.value.map((term) => toFraction(term.mid)),
+    result.value.map((term) => toFraction(fraction(term.mid))),
     expected.map((text) => toFraction(number(text))),
     `${have} in ${name}`,
   );
@@ -692,25 +716,24 @@ test("the unit lists convert", () => {
     quantity("1.5 deg"),
     dms.map((unit) => unit.quantity),
     table.primitives,
+    CONTEXT,
   );
   assert.ok(raw.ok);
-  assert.deepEqual(raw.value.slice(0, 2), [
-    exact(rational(1n)),
-    exact(rational(30n)),
-  ]);
+  assert.deepEqual(raw.value.slice(0, 2), [exact(fr(1n)), exact(fr(30n))]);
   assert.ok(containsZero(raw.value[2]!) && !isExact(raw.value[2]!));
   const terms = roundTerms(
     dms.map((unit) => unit.quantity),
     raw.value,
     8,
     DEFAULT_ROUNDING,
+    CONTEXT,
   );
   assert.deepEqual(terms.slice(0, 2), raw.value.slice(0, 2));
   // `turn / deg` straddles 360 the same way.
   const dm = [quantity("deg"), quantity("arcmin")];
-  const turn = convertToList(quantity("1 turn"), dm, table.primitives);
+  const turn = convertToList(quantity("1 turn"), dm, table.primitives, CONTEXT);
   assert.ok(turn.ok);
-  assert.deepEqual(turn.value[0], exact(rational(360n)));
+  assert.deepEqual(turn.value[0], exact(fr(360n)));
   assert.ok(containsZero(turn.value[1]!));
   assertList("1 m", "ftin", ["3", "428/127"]);
   assertList("100 in", "ydftin", ["2", "2", "4"]);
@@ -723,4 +746,34 @@ test("the unit lists convert", () => {
   assertList("1 hr / 6 mi", "mipace", ["0", "10", "0"]);
   assertList("2 hr / 26.2 mi", "mipace", ["0", "4", "4560/131"]);
   assertList("1 hr / 12 km", "kmpace", ["0", "5", "0"]);
+});
+
+// ---------------------------------------------------------------------------
+// Values of any exponent
+
+test("a value of any exponent converts through the system table", () => {
+  // Exact through the prefix: the exponents add.
+  const mm = convertText(table, "1e999999999 m", "mm", CONTEXT);
+  assert.ok(mm.ok && mm.value.kind === "unit", inspect(mm));
+  assert.deepEqual(mm.value.value, exact(dec("1e1000000002")));
+  assert.deepEqual(show(mm.value.value, 8, DEFAULT_ROUNDING), {
+    kind: "exact",
+    text: "1e+1000000002",
+  });
+  // `atan` saturates at `pi/2`, and `deg` carries `pi()`'s radius: ≈ 90.
+  const right = convertText(table, "atan(1e999999999)", "deg", CONTEXT);
+  assert.ok(right.ok && right.value.kind === "unit", inspect(right));
+  assert.ok(!isExact(right.value.value));
+  assert.deepEqual(show(right.value.value, 8, DEFAULT_ROUNDING), {
+    kind: "certified",
+    text: "90",
+  });
+  // A count whose integer part cannot be formed is the midpoint itself,
+  // an integer at that exponent, and the remainder is exactly nothing.
+  const list = convertText(table, "1e999999999 m", "km;m", CONTEXT);
+  assert.ok(list.ok && list.value.kind === "list", inspect(list));
+  assert.deepEqual(list.value.terms, [
+    exact(dec("1e999999996")),
+    exact(dec("0")),
+  ]);
 });

@@ -175,7 +175,9 @@ rationals, round to the same `d`-digit value in that mode. That is the
 definition; the implementation forms the two ends only where it can, and
 once the midpoint carries an exponent (stage 4) it compares a decimal
 midpoint with a binary radius by their exponents and leading digits where
-forming either is infeasible (4.4). Rounding is
+forming either is infeasible (4.4: the distance from the midpoint to the
+nearest rounding boundary, exact on the midpoint's side, against the
+radius by its bounds). Rounding is
 monotone, so every value between them rounds to it too, and the shown
 digits are what rounding the true value would give: correctly rounded,
 not merely close. The ball is symmetric about its midpoint but the
@@ -228,7 +230,7 @@ settled toward zero at the working precision, an inexact value with an
 exponent, and the remainder is then a ball around zero whose radius says
 what the count left, which the display leaves out with its note; a count
 that is an integer of any size stays exact, and a count is still never
-`unresolved` (4.9).
+`unresolved` (landed in 4.4, where `countOf` first read the exponent).
 
 **D9. The kernel is fixed point with an integer error count.** A kernel
 value is `{ value, error, bits }`: the integer `value` stands for
@@ -1962,7 +1964,7 @@ binary exponent, the log-space digits of one whose exponent cannot be
 formed are a module of their own, `digits.ts`, written in 4.9 since
 nothing in 4.4 needs them, and `powBall`'s magnitude guard becomes the
 exponent bound too, so `sqrt(2)^(10^7)` is a value (4.9); a unit list
-whose count cannot be formed shows it settled toward zero (4.9, D8
+whose count cannot be formed shows it settled toward zero (4.4, D8
 amended); the decimal mode's radius is the exact rounding error, not the
 half-unit bound, so that a rounded value certifies its last digit, and
 `1 / 3 * 3` is `0.99999999` under every mode at eight digits, shown as
@@ -2143,7 +2145,7 @@ within `2^-bits`, and `asinh` and `acosh` beyond it are `ln(2|x|)` within
 `1/(4x^2)`, the saturations the note lists, put in here so that no
 argument reaches a routine it cannot enter); `lnScaled` takes the
 exponent as a decimal scale, `ln(m × 10^e) = ln m + e ln 10` from the
-memo, so `ln(1e999999999)` is `≈ 2302585092.994` on the first pass, and
+memo, so `ln(1e999999999)` is `≈ 2302585090.691` on the first pass, and
 the logarithms' exact cases read exponents (`log10(1e999999999)` is
 exactly `999999999`); `positiveRoot` and `rootAroundZero` scale by
 `10^(q k)` in the exponent and root `m × 10^r` on the kernel when the
@@ -2213,10 +2215,75 @@ benchmark reports a settle and a product on the decimal grid at the
 ceiling beside the routines; and the containment tests of every routine
 still hold.
 
+As it landed. `fixedToBall(f, digits)` takes the digit count rather than
+the context, every built-in passing `workingDigits(context)`, so that
+fixed.ts stays below the context. The kernel is handed no argument it
+cannot hold at either end of the exponent: beside the saturations above
+for a large argument (`isBeyond`, `isHuge` in builtin.ts), an argument
+throughout below `2^-maxBits` is answered by its expansion at zero, the
+odd functions (`sin`, `tan`, `atan`, `asin`, `sinh`, `tanh`, `asinh`,
+`atanh`) giving the argument itself within its cube and `cos` and `cosh`
+one within its square (`isTiny`, `tinyOdd`, `tinyEven`), and `extraBits`
+is held to the range limit; a tiny ratio formed inside `asin`, `acos` or
+`atan2` converts to zero within an ulp at the limit's bits and gives a
+ball around zero that certifies nothing, correct and the one case the
+expansion does not reach, since those combine the kernel's arctangent
+with `pi` before the ball is formed. `acos(1e-999999999)` is `tooLarge`,
+its `1 - x^2` being a sum of two exact values that cannot be aligned, as
+`1 + 1e-999999999` is. `convert` takes no context, a quotient aligning
+nothing; `convertToList` and `roundTerms` do, and `ConvertError` gains
+`tooLarge` for a ratio at the exponent bound, worded "`have` into `want`
+is too large to compute". D8's amended count landed here rather than in
+4.9, since `countOf` reads `trunc(s, limit)` and its `undefined` had to
+be answered: the count is the midpoint settled toward zero at the working
+digits, an integer, and the remainder is what it leaves. A power of ten
+costs nothing in the exponent, so `10^100000` is exactly `1e100000` where
+it was `tooLarge`, `10^(100000/3)` is a value, the cube root of ten times
+`10^33333`, and `7^(100000/3)` is `tooLarge` as `10^(100000/3)` was; the
+exact ball tests use the base seven where they used ten. The quotient
+rule's radius is within `2^-25` of the exact bound over the seeded balls,
+not `2^-27`: five coarse roundings, each `2^-29` to `2^-30`, and the
+divisor's distance from zero rounded down; the test asserts `2^-25`.
+`log2Of` reads the coarse bounds, since the bit-length estimate it
+replaced was off by one for a base near one and refused
+`1.0000001^10000000` under the magnitude guard. `roundTo` builds the
+canonical form from the rounded integer directly instead of through
+`rational`, whose gcd against the power of ten cost a settle at the
+ceiling 2 ms; with the digit count of an integer taken from its bit
+length and a comparison (`decimalDigits`) and the powers of ten memoized
+(`powerOfTen`), a settle at the ceiling costs about 0.4 ms, a product
+of two settled balls 0.1 ms and the kernel's exit 0.2 ms on the machine
+of 4.4, which the kernel benchmark reports. The literal's range check is
+on the mantissa, so `1e999999999 m` evaluates where 4.3 refused it.
+`Edge` is a `Scaled`, worded through `format` at one digit. A prefix
+times a unit at the exponent bound is `tooLarge` at the name's span in
+the build and a thrown error in the table's lookup, unreachable with
+definitions short of the bound. `position(b, point)` in ball.ts is the
+one comparison of a ball with a point, on which `checkPositive`,
+`sideOfZero`, the logarithm's base, `acosh`'s and `atanh`'s ends and the
+list's counts are written. Certification where the ends cannot be
+formed measures the distance from the midpoint to the nearest rounding
+boundary against the radius, rather than widening a two-digit interval
+by a unit or two: the interval refused any count whose two digits beyond
+lay within two of a boundary, which `sqrt(2) * 1e999999999` at fifty
+digits does (its 51st and 52nd digits are 48), and the distance is exact
+and has no margin
+(docs/decimal.md restated). `fixedToBall` adds the half unit only when
+the rounding moved the value, so a kernel value of no error on the grid
+is exact, as it was. A quotient at the exponent bound is located at the
+whole quotient, where a division by zero points at the divisor. The
+tests of the ball and above take a literal, a fraction and a ball through
+`src/testing/scaled.ts` (`dec`, `fr`, `fraction`, `ball`, `digitsOf`),
+beside `src/testing/fraction.ts` for the fraction side.
+
 Behavior: `1e999999999` parses and multiplies where it fails today, and
 the values above are values; `1e999999999 + 1` still fails, as `tooLarge`;
 every other result is what it is today to within a settle at the working
-precision; `exp(1e6)` and its family are still `tooLarge` until 4.9.
+precision, except that a power of ten of any size, and a rational power
+whose base is a power of ten, are values where they were `tooLarge`, and
+an argument of a built-in below `2^-maxBits` or beyond `2^maxBits`, which
+did not parse today, is answered as above; `exp(1e6)` and its family are
+still `tooLarge` until 4.9.
 
 ### 4.5 `mode` in the context, and settling in decimal mode
 
@@ -2375,13 +2442,10 @@ large argument form nothing (`tanh`'s saturation stands and comes first);
 `powBall`'s magnitude guard becomes the exponent bound, a power of an
 inexact base by squaring with settling having the range of its
 exponent. The kernel benchmark gains `exp 1e6` and `cosh 1e6` at the
-ceiling and asserts the first within a small factor of `exp 1`. A unit
-list whose count would be an integer that cannot be formed (`trunc`
-returns `undefined`) shows the count as the ratio settled toward zero at
-the working precision, an inexact value with an exponent, and the
-remainder is then a ball around zero whose radius says what the count
-left, which the display leaves out with its note (D8 amended); a count
-that is an integer of any size stays exact.
+ceiling and asserts the first within a small factor of `exp 1`. (A unit
+list whose count would be an integer that cannot be formed, D8 amended,
+was to land here; 4.4 carried it, since `countOf` reads the exponent
+there, and the tests of it are 4.4's.)
 
 Tests: `exp(1e6)` against Python's decimal module at 30 digits
 (`3.0332153968...e434294`), `exp(-1e6)`, `pow(10, 1e6 / 3)`, `cosh(1e6)`,
@@ -2399,6 +2463,39 @@ drawn by key; `sqrt(2)^(10^7)` is a value where 2.5's test had it
 `1e999999999 m` into `ft;in` shows `≈ 3.2808399e+999999999 ft` with its
 note and into `mm;m` is exact; the kernel benchmark's `exp 1e6` at the
 ceiling costs within a small factor of `exp 1`.
+
+As it landed. `Floating` and its helpers (`floatingOf`,
+`normalizeFloating`, which brings a mantissa to `[1, 2)` at the working
+bits and moves the rest into the exponent, and `floatingToFixed`, the
+exact way back within a limit) are in fixed.ts, and `expFixed` returns
+one, normalizing after each squaring; its precondition is an argument
+below `2^62`, the exponent bound's own, and the halvings are taken over
+the argument's whole interval, so that a wide argument (`exp(0 ± 1e6)`)
+is a ball that covers its range rather than a refusal. `sinhCoshFixed`
+returns a pair of `Floating`s and folds the reciprocal beyond half the
+working bits in the exponent; `tanhFixed` is one within two ulps there,
+which the built-in's saturation never lets it reach. `digits.ts`'s
+`floatingToBall(fl, context)` is the one way out, a `Result` that fails
+`tooLarge` only where the decimal exponent passes the bound by the
+guard's double slack: exactly through `floatingToFixed` at the range
+limit, and otherwise `t = (e ln 2 + ln m) / ln 10` at the working bits
+plus the exponent's bit length plus 24, the decimal exponent `floor(t)`
+and the leading digits `exp((t - floor(t)) ln 10)` as a ball on the
+grid times the power of ten; the first landing scaled `ln 2` by the
+exponent less the mantissa's bits, which the mantissa's own fraction
+bits already say, and gave `exp(1e6)` eighteen digits short. `expFits`
+takes the bound alone and compares `bound log10 e` with `MAX_EXPONENT`,
+`powBall`'s guard is `log10` of the base's magnitude times the exponent
+against the same, and the squaring loop returns a product's `tooLarge`
+where it threw. `exp`, `sinh` and `cosh` map the exponent bound failure
+of the way out to the argument's. The kernel benchmark reports `exp 1e6`
+at 14 ms against `exp 1` at 13 ms at the ceiling, and the log-space
+digits of the result at 47 ms, the logarithm and the two memos computed
+for the call at the ceiling's bits plus the exponent's, on the machine
+of 4.9. `7^(100000/3)`, `pow(7, 100000/3)` and `pow(2, 1e6/3)` are
+values through log space, and `pow(10, 100000 ± 1)` is a ball that
+covers `10^100000`, where the range limit refused all four; `1e999999999
+m` into `ft;in` is the settled count of 4.4.
 
 Behavior: the inexact functions have the range of their exponent, not of
 the bits of their value; a power of an inexact base likewise.

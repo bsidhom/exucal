@@ -13,13 +13,19 @@
 // whose whole interval lies within an ulp: the terms shrink by better than
 // `2^-8` each, so the tail after that term is below a 255th of an ulp, and
 // one ulp covers it. Each squaring doubles the relative error and adds an
-// ulp, so the work is done at `bits + k` plus a guard, and for a negative
-// argument at as many more fraction bits as the result is below one, so
-// that `exp(-1000)`, about `2^-1443`, keeps its digits; the result is then
-// cut to the bits its magnitude calls for (`keepSignificant`, D9). The
-// argument must be moderate: its magnitude is bounded by the range limit
-// before this is called (the built-in refuses `exp(1e6)` as `tooLarge`),
-// and an argument beyond `2^40` is a precondition failure here.
+// ulp, so the work is done at `bits + k` plus a guard. The result is a
+// `Floating` (fixed.ts; 4.9 of the plan): after each squaring the
+// mantissa is brought back to `[1, 2)` at the working bits and the rest
+// moved into the exponent (`normalizeFloating`), so that `exp(1e6)` costs
+// what `exp(1)` costs plus sixty squarings at the working bits rather
+// than a value of 1.4 million bits, and a negative argument is the same
+// loop with the exponent going negative, so that `exp(-1e6)` costs the
+// same and `exp(-1000)`, about `2^-1443`, keeps its digits. The
+// argument's magnitude is bounded by the exponent bound before this is
+// called (`expFits` of ball.ts refuses `exp(1e30)` as `tooLarge`), and an
+// argument beyond `2^62`, whose exponential would pass the bound, is a
+// precondition failure here; the magnitude is taken over the argument's
+// whole interval, so a wide argument is halved as far as its error needs.
 //
 // `sinhCoshFixed` computes the hyperbolic sine and cosine together. An
 // argument below one throughout its interval takes the two series in `x^2`
@@ -39,7 +45,13 @@
 // from the exponential of its largest magnitude, since the exponential of
 // the whole interval would not stay positive under the error rules. The
 // argument's magnitude is bounded as `expFixed`'s is, by the caller:
-// `sinh` and `cosh` share the exponential's limit (3.6).
+// `sinh` and `cosh` share the exponential's range (3.6, then 4.9). The
+// pair is a pair of `Floating`s: where the exponential's exponent is
+// beyond half the working bits, the reciprocal `1/E` is below an ulp of
+// `E` and is folded into the error, so that `sinh(1e6)` and `cosh(1e6)`
+// are `E/2` within an ulp and nothing of the result's size is formed; and
+// `tanhFixed` is then one within two ulps, though `tanh`'s saturation in
+// the built-in comes first and never lets such an argument in.
 
 import { factorialSeries } from "./fixed-trig.ts";
 import {
@@ -48,39 +60,44 @@ import {
   divideFixed,
   divideFixedByInteger,
   exponentOf,
+  floatingOf,
+  floatingToFixed,
   keepSignificant,
   multiplyFixed,
+  normalizeFloating,
   rebaseFixed,
   scaleFixed,
   shiftFixed,
   subtractFixed,
   truncateFixed,
   type Fixed,
+  type Floating,
 } from "./fixed.ts";
 
-/** The most halvings ever needed: an argument below `2^40`, which the range limit forbids anyway. */
-const MOST_MAGNITUDE = 40;
+/** The most halvings' worth of magnitude ever needed: an argument below `2^62`, beyond which the exponential passes the exponent bound. */
+const MOST_MAGNITUDE = 62;
 
 /** The bits the hyperbolic functions work beyond the result, for their ulps. */
 const HYPERBOLIC_GUARD = 16;
 
-/** The hyperbolic sine and cosine of one argument, computed together. */
-export type SinhCosh = { readonly sinh: Fixed; readonly cosh: Fixed };
+/** The hyperbolic sine and cosine of one argument, computed together, each with its exponent. */
+export type SinhCosh = { readonly sinh: Floating; readonly cosh: Floating };
 
 /**
- * `exp(f)` with `bits` significant bits kept for its magnitude, and an
- * interval containing `exp` of every value in `f`'s.
+ * `exp(f)` with `bits` significant bits kept for its mantissa, and an
+ * interval containing `exp` of every value in `f`'s, as a `Floating`.
  */
-export function expFixed(f: Fixed, bits: number): Fixed {
-  // |x| < 2^magnitude.
-  const magnitude = f.value === 0n ? 0 : exponentOf(f) + 1;
+export function expFixed(f: Fixed, bits: number): Floating {
+  // |x| < 2^magnitude over the whole interval.
+  const extent = abs(f.value) + f.error;
+  const magnitude = extent === 0n ? 0 : exponentOf({ ...f, value: extent }) + 1;
   if (magnitude > MOST_MAGNITUDE) {
-    throw new RangeError("The exponential takes a moderate argument");
+    throw new RangeError(
+      "The exponential takes an argument within the exponent bound",
+    );
   }
   const halvings = Math.max(0, magnitude + 8);
-  // A negative argument gives a result below one by up to |x| log2 e bits.
-  const depth = f.value < 0n ? Math.ceil(2 ** magnitude * Math.LOG2E) + 1 : 0;
-  const working = bits + halvings + depth + 16;
+  const working = bits + halvings + 16;
   const shifted = shiftFixed(f, -halvings);
   const r =
     shifted.bits > working
@@ -99,33 +116,44 @@ export function expFixed(f: Fixed, bits: number): Fixed {
       break;
     }
   }
-  let result = sum;
-  for (let i = 0; i < halvings; i++) result = multiplyFixed(result, result);
-  return keepSignificant(result, bits);
+  let result = normalizeFloating(sum, 0n, working);
+  for (let i = 0; i < halvings; i++) {
+    result = normalizeFloating(
+      multiplyFixed(result.mant, result.mant),
+      2n * result.exp,
+      working,
+    );
+  }
+  return { mant: truncateFixed(result.mant, bits), exp: result.exp };
 }
 
 /**
  * `sinh(f)` and `cosh(f)` with `bits` significant bits kept for each one's
- * magnitude, and intervals containing the functions of every value in
- * `f`'s, as the header says; `f`'s magnitude must be moderate, as
- * `expFixed`'s must.
+ * mantissa, and intervals containing the functions of every value in
+ * `f`'s, as the header says; `f`'s magnitude must be within the exponent
+ * bound, as `expFixed`'s must.
  */
 export function sinhCoshFixed(f: Fixed, bits: number): SinhCosh {
   const { sinh, cosh } = pair(f, bits);
-  return {
-    sinh: keepSignificant(sinh, bits),
-    cosh: keepSignificant(cosh, bits),
-  };
+  return { sinh: cut(sinh, bits), cosh: cut(cosh, bits) };
 }
 
 /**
  * `tanh(f)` with `bits` significant bits kept for its magnitude: the
  * quotient of the pair at the working bits, before either is cut, so that
- * a quotient of two large values keeps the working bits.
+ * a quotient of two large values keeps the working bits; one within two
+ * ulps where the pair was folded.
  */
 export function tanhFixed(f: Fixed, bits: number): Fixed {
   const { sinh, cosh } = pair(f, bits);
-  return keepSignificant(divideFixed(sinh, cosh), bits);
+  const working = Math.max(bits, f.bits) + HYPERBOLIC_GUARD;
+  const s = floatingToFixed(sinh, working);
+  const c = floatingToFixed(cosh, working);
+  if (s === undefined || c === undefined) {
+    const one = { value: 1n << BigInt(working), error: 2n, bits: working };
+    return keepSignificant(f.value < 0n ? scaleFixed(one, -1n) : one, bits);
+  }
+  return keepSignificant(divideFixed(s, c), bits);
 }
 
 /**
@@ -142,7 +170,7 @@ function pair(f: Fixed, bits: number): SinhCosh {
   const one: Fixed = { value: 1n << BigInt(working), error: 0n, bits: working };
   if (abs(x.value) + x.error < one.value) {
     const { even, odd } = factorialSeries(multiplyFixed(x, x));
-    return { sinh: multiplyFixed(x, odd), cosh: even };
+    return { sinh: floatingOf(multiplyFixed(x, odd)), cosh: floatingOf(even) };
   }
   if (x.error << 1n >= one.value) {
     const largest: Fixed = {
@@ -151,28 +179,76 @@ function pair(f: Fixed, bits: number): SinhCosh {
       bits: working,
     };
     const { sinh: sinhM, cosh: coshM } = pair(largest, bits);
-    const [sinhBound, coshBound] = [sinhM, coshM].map((g) =>
+    const sinhBound = floatingToFixed(sinhM, working);
+    const coshBound = floatingToFixed(coshM, working);
+    if (sinhBound === undefined || coshBound === undefined) {
+      // Beyond the working bits: zero within the bound, and `M / 2` within
+      // itself, which covers `[1, M]`.
+      return { sinh: around(sinhM), cosh: around(coshM) };
+    }
+    const [sinhAt, coshAt] = [sinhBound, coshBound].map((g) =>
       g.bits > working ? truncateFixed(g, working) : rebaseFixed(g, working),
     ) as [Fixed, Fixed];
     return {
-      sinh: {
+      sinh: floatingOf({
         value: 0n,
-        error: sinhBound.value + sinhBound.error,
+        error: sinhAt.value + sinhAt.error,
         bits: working,
-      },
-      cosh: {
-        value: (one.value + coshBound.value) >> 1n,
-        error: ((coshBound.value - one.value) >> 1n) + coshBound.error + 1n,
+      }),
+      cosh: floatingOf({
+        value: (one.value + coshAt.value) >> 1n,
+        error: ((coshAt.value - one.value) >> 1n) + coshAt.error + 1n,
         bits: working,
-      },
+      }),
     };
   }
   const e = expFixed(absFixed(x), working);
-  const inverse = divideFixed(one, e);
-  const sinh = shiftFixed(subtractFixed(e, inverse), -1);
+  // Beyond half the working bits in the exponent, 1/E is below an ulp of
+  // E: the pair is E/2 within that ulp, and nothing larger is formed.
+  if (e.exp > BigInt(working) / 2n + 2n) {
+    const half: Floating = {
+      mant: { ...e.mant, error: e.mant.error + 1n },
+      exp: e.exp - 1n,
+    };
+    return {
+      sinh: x.value < 0n ? { ...half, mant: scaleFixed(half.mant, -1n) } : half,
+      cosh: half,
+    };
+  }
+  const E = floatingToFixed(e, working);
+  if (E === undefined) throw new Error("An exponent within half the bits fits");
+  const inverse = divideFixed(one, E);
+  const sinh = shiftFixed(subtractFixed(E, inverse), -1);
   return {
-    sinh: x.value < 0n ? scaleFixed(sinh, -1n) : sinh,
-    cosh: shiftFixed(addFixed(e, inverse), -1),
+    sinh: floatingOf(x.value < 0n ? scaleFixed(sinh, -1n) : sinh),
+    cosh: floatingOf(shiftFixed(addFixed(E, inverse), -1)),
+  };
+}
+
+/** A ball around zero whose error covers the whole of the `Floating` `fl`, at its exponent. */
+function around(fl: Floating): Floating {
+  return {
+    mant: {
+      value: 0n,
+      error: abs(fl.mant.value) + fl.mant.error,
+      bits: fl.mant.bits,
+    },
+    exp: fl.exp,
+  };
+}
+
+/** `fl` with `bits` significant bits kept for its mantissa (D9): normalized, then truncated to the bits. */
+function cut(fl: Floating, bits: number): Floating {
+  if (fl.mant.value === 0n) {
+    return { mant: keepSignificant(fl.mant, bits), exp: fl.exp };
+  }
+  const normalized = normalizeFloating(fl.mant, fl.exp, fl.mant.bits);
+  return {
+    mant:
+      normalized.mant.bits > bits
+        ? truncateFixed(normalized.mant, bits)
+        : normalized.mant,
+    exp: normalized.exp,
   };
 }
 

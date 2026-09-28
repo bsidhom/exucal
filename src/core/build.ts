@@ -79,8 +79,8 @@ import { containsZero, exact, type Ball } from "./ball.ts";
 import type { Builtins } from "./builtin.ts";
 import { BUILTINS } from "./builtins.ts";
 import { checkContext, type NumberContext } from "./context.ts";
-import { ONE } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
+import { ONE } from "./scaled.ts";
 import type { Span } from "./span.ts";
 import {
   functionArity,
@@ -534,6 +534,7 @@ function evaluateUnitList(
     units[0]!.quantity,
     units.map((unit) => unit.quantity),
     primitives,
+    context,
   );
   if (!checked.ok) {
     return err({ kind: "invalidUnitList", definition, error: checked.error });
@@ -570,9 +571,14 @@ function lookupIn(
       if (found.kind === "unit") return ok(asQuantity(unit.value));
       const prefix = locate(visit(found.prefix), span);
       if (!prefix.ok) return prefix;
-      return ok(
-        multiplyQuantities(asQuantity(prefix.value), asQuantity(unit.value)),
+      const product = multiplyQuantities(
+        asQuantity(prefix.value),
+        asQuantity(unit.value),
       );
+      // A prefix and a unit each within the exponent bound multiply to
+      // within it unless both are at its edge, which the definitions the
+      // app ships are nowhere near.
+      return product.ok ? product : err({ kind: "tooLarge", span });
     },
     function: (name, span, call) => {
       const found = index.functions.get(name);

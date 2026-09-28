@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { isExact } from "../core/ball.ts";
 import { radiusUpper } from "../core/radius.ts";
 import { absolute, compare, multiply, rational } from "../core/rational.ts";
+import { fromRational } from "../core/scaled.ts";
 import {
   between,
   foldIn,
@@ -15,6 +16,7 @@ import {
   uniform,
   words,
 } from "./random.ts";
+import { fraction } from "./scaled.ts";
 
 test("threefry2x32 matches the published vectors", () => {
   // Random123's known-answer vectors for threefry2x32 with twenty rounds,
@@ -174,15 +176,16 @@ test("randomBall is exact a quarter of the time, and otherwise within a relative
       continue;
     }
     const rad = radiusUpper(b.rad);
-    const scale = b.mid.num === 0n ? rational(1n) : absolute(b.mid);
+    const mid = fraction(b.mid);
+    const scale = mid.num === 0n ? rational(1n) : absolute(mid);
     // Between 10^-15 and 10^-1 of the magnitude, rounded up by 2^-29 at most.
     assert.ok(compare(rad, multiply(scale, rational(1n, 10n ** 15n))) >= 0);
     assert.ok(compare(rad, multiply(scale, rational(11n, 100n))) < 0);
   }
   assert.ok(exactCount > 60 && exactCount < 140, `${exactCount} exact`);
-  // The midpoint is the rational of the first field folded in.
+  // The midpoint is the rational of the first field folded in, as a `Scaled`.
   assert.deepEqual(
     randomBall(root, 24, 12).mid,
-    randomRational(foldIn(root, 0), 24, 12),
+    fromRational(randomRational(foldIn(root, 0), 24, 12)),
   );
 });

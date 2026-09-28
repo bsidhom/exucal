@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact, isExact, type Ball } from "../ball.ts";
+import { certifies, exact, isExact, position, type Ball } from "../ball.ts";
 import { buildTable } from "../build.ts";
 import type { BuiltinError } from "../builtin.ts";
 import { BUILTINS } from "../builtins.ts";
@@ -15,19 +15,21 @@ import { parseDefinitions } from "../definitions.ts";
 import { DIMENSIONLESS } from "../dimension.ts";
 import { show } from "../display.ts";
 import { evaluateText } from "../pipeline.ts";
-import { UNBOUNDED, radiusAbove, radiusUpper } from "../radius.ts";
+import { UNBOUNDED, radiusUpper } from "../radius.ts";
+import { LIMIT_BITS } from "../rational.ts";
+import type { Result } from "../result.ts";
 import {
   ONE,
   ZERO,
   absolute,
   compare,
+  decimalExponent,
+  fromRational,
   multiply,
-  rational,
   subtract,
-  type Rational,
-} from "../rational.ts";
-import { parseFraction } from "../../testing/fraction.ts";
-import type { Result } from "../result.ts";
+  type Scaled,
+} from "../scaled.ts";
+import { ball as ballOf, dec, fr } from "../../testing/scaled.ts";
 import { describeTextError } from "../../messages.ts";
 import { pow, powBallOf } from "./pow.ts";
 
@@ -37,12 +39,6 @@ const CONTEXT: NumberContext = {
   maxBits: DEFAULT_MAX_BITS,
   ceiling: DEFAULT_CEILING,
 };
-
-function dec(text: string): Rational {
-  const result = parseFraction(text);
-  assert.ok(result.ok);
-  return result.value;
-}
 
 function value(result: Result<Ball, BuiltinError>): Ball {
   assert.ok(result.ok, inspect(result));
@@ -54,30 +50,37 @@ function failure(result: Result<Ball, BuiltinError>): BuiltinError {
   return result.error;
 }
 
+/** `|a - b|` on `Scaled`s of moderate exponent. */
+function distance(a: Scaled, b: Scaled): Scaled {
+  const d = subtract(a, b, LIMIT_BITS);
+  assert.ok(d.ok, `${inspect(a)} - ${inspect(b)} aligns`);
+  return absolute(d.value);
+}
+
+/** The radius of the bounded `b` as a `Scaled`. */
+function radiusOf(b: Ball): Scaled {
+  return fromRational(radiusUpper(b.rad));
+}
+
 /** Asserts that `ball` contains `reference` and its radius is below `|reference| × 10^-digits`. */
 function assertNear(
   ball: Ball,
-  reference: Rational,
+  reference: Scaled,
   digits: number,
   label: string,
 ) {
   assert.ok(
-    compare(absolute(subtract(ball.mid, reference)), radiusUpper(ball.rad)) <=
-      0,
+    compare(distance(ball.mid, reference), radiusOf(ball)) <= 0,
     `${label}: midpoint`,
   );
-  assert.ok(
-    compare(
-      radiusUpper(ball.rad),
-      multiply(absolute(reference), rational(1n, 10n ** BigInt(digits))),
-    ) < 0,
-    `${label}: radius`,
-  );
+  const bound = multiply(absolute(reference), dec(`1e-${digits}`));
+  assert.ok(bound.ok);
+  assert.ok(compare(radiusOf(ball), bound.value) < 0, `${label}: radius`);
 }
 
 /** A ball of `mid` with the radius `rad`, as decimals. */
 function ball(mid: string, rad: string): Ball {
-  return { mid: dec(mid), rad: radiusAbove(dec(rad)) };
+  return ballOf(dec(mid), dec(rad));
 }
 
 // References from Python's decimal module at a precision of 140.
@@ -93,6 +96,10 @@ const TEN_TO_2_3456789 = dec(
 const TWO_TO_0_1234567 = dec(
   "1.0893418031470773148891376479448623493688955711270801735985376572257842801640",
 );
+/** `10^(100000/3)`, from Python's decimal module at a precision of 60. */
+const TEN_TO_100000_THIRDS = dec(
+  "2.15443469003188372175929356651935049525934494219210858232388e33333",
+);
 
 test("pow is two plain numbers to a plain number", () => {
   assert.equal(pow.name, "pow");
@@ -106,42 +113,43 @@ test("pow is two plain numbers to a plain number", () => {
 
 test("an exact exponent follows the rule of ^: integer powers, perfect roots, the root route and log space", () => {
   assert.deepEqual(
-    value(powBallOf(exact(rational(10n)), exact(rational(2n)), CONTEXT)),
-    exact(rational(100n)),
+    value(powBallOf(exact(fr(10n)), exact(fr(2n)), CONTEXT)),
+    exact(fr(100n)),
   );
   assert.deepEqual(
-    value(powBallOf(exact(rational(8n)), exact(rational(1n, 3n)), CONTEXT)),
-    exact(rational(2n)),
+    value(powBallOf(exact(fr(8n)), exact(fr(1n, 3n)), CONTEXT)),
+    exact(fr(2n)),
   );
   assert.deepEqual(
-    value(powBallOf(exact(rational(1n, 4n)), exact(rational(3n, 2n)), CONTEXT)),
-    exact(rational(1n, 8n)),
+    value(powBallOf(exact(fr(1n, 4n)), exact(fr(3n, 2n)), CONTEXT)),
+    exact(fr(1n, 8n)),
   );
   assert.deepEqual(
-    value(powBallOf(exact(rational(-8n)), exact(rational(1n, 3n)), CONTEXT)),
-    exact(rational(-2n)),
+    value(powBallOf(exact(fr(-8n)), exact(fr(1n, 3n)), CONTEXT)),
+    exact(fr(-2n)),
   );
   assert.deepEqual(
     value(powBallOf(exact(ZERO), exact(ZERO), CONTEXT)),
     exact(ONE),
   );
   assert.deepEqual(
-    value(powBallOf(exact(rational(7n)), exact(ZERO), CONTEXT)),
+    value(powBallOf(exact(fr(7n)), exact(ZERO), CONTEXT)),
     exact(ONE),
   );
   assert.deepEqual(
     value(powBallOf(ball("7", "1"), exact(ZERO), CONTEXT)),
     exact(ONE),
   );
-  // Neighbors of the exact cases are inexact, through the root route.
-  const half = value(
-    powBallOf(exact(rational(2n)), exact(rational(1n, 2n)), CONTEXT),
+  // A power of ten costs nothing: 10^100000 is exactly 1e100000.
+  assert.deepEqual(
+    value(powBallOf(exact(fr(10n)), exact(fr(100000n)), CONTEXT)),
+    exact(dec("1e100000")),
   );
+  // Neighbors of the exact cases are inexact, through the root route.
+  const half = value(powBallOf(exact(fr(2n)), exact(fr(1n, 2n)), CONTEXT));
   assert.ok(!isExact(half));
   assertNear(half, SQRT2, 45, "pow(2, 1/2)");
-  const negative = value(
-    powBallOf(exact(rational(-2n)), exact(rational(1n, 3n)), CONTEXT),
-  );
+  const negative = value(powBallOf(exact(fr(-2n)), exact(fr(1n, 3n)), CONTEXT));
   assertNear(
     negative,
     dec(
@@ -152,41 +160,75 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
   );
   // Log space, where the power of the base does not fit the range limit.
   assertNear(
-    value(powBallOf(exact(rational(10n)), exact(dec("2.3456789")), CONTEXT)),
+    value(powBallOf(exact(fr(10n)), exact(dec("2.3456789")), CONTEXT)),
     TEN_TO_2_3456789,
     45,
     "pow(10, 2.3456789)",
   );
   assertNear(
-    value(powBallOf(exact(rational(2n)), exact(dec("0.1234567")), CONTEXT)),
+    value(powBallOf(exact(fr(2n)), exact(dec("0.1234567")), CONTEXT)),
     TWO_TO_0_1234567,
     45,
     "pow(2, 0.1234567)",
   );
-  // And the result is still held to the range limit.
+  // A base of ten under a large rational exponent is a value, its
+  // exponent carried as the exponent it is; a base of seven is not, its
+  // power's mantissa beyond the range limit.
+  const tenThirds = value(
+    powBallOf(exact(fr(10n)), exact(fr(100000n, 3n)), CONTEXT),
+  );
+  assert.ok(!isExact(tenThirds));
+  assert.equal(decimalExponent(tenThirds.mid), 33333n);
+  assert.ok(certifies(tenThirds, 40, "halfEven"));
+  assert.ok(
+    compare(distance(tenThirds.mid, TEN_TO_100000_THIRDS), dec("1e33290")) < 0,
+  );
+  // A base that is not a power of ten goes through log space, and the
+  // result has the range of its exponent (4.9): 7^(100000/3) from
+  // Python's decimal module at a precision of 70.
+  const sevenThirds = value(
+    powBallOf(exact(fr(7n)), exact(fr(100000n, 3n)), CONTEXT),
+  );
+  assert.equal(decimalExponent(sevenThirds.mid), 28169n);
+  assert.ok(certifies(sevenThirds, 30, "halfEven"));
+  assert.ok(
+    compare(
+      distance(
+        sevenThirds.mid,
+        dec("8.603341100210093535833101714461038568682e28169"),
+      ),
+      dec("1e28135"),
+    ) < 0,
+  );
+  // Beyond the exponent bound.
   assert.deepEqual(
-    failure(
-      powBallOf(exact(rational(10n)), exact(rational(100000n, 3n)), CONTEXT),
-    ),
+    failure(powBallOf(exact(fr(7n)), exact(dec("1e19")), CONTEXT)),
+    {
+      kind: "tooLarge",
+    },
+  );
+  // An exact exponent whose fraction cannot be formed within the range limit.
+  assert.deepEqual(
+    failure(powBallOf(exact(fr(2n)), exact(dec("1e999999999")), CONTEXT)),
     {
       kind: "tooLarge",
     },
   );
   assert.deepEqual(
-    failure(powBallOf(exact(rational(-2n)), exact(rational(1n, 2n)), CONTEXT)),
+    failure(powBallOf(exact(fr(-2n)), exact(fr(1n, 2n)), CONTEXT)),
     {
       kind: "negativeRadicand",
       degree: 2n,
     },
   );
   assert.deepEqual(
-    failure(powBallOf(exact(ZERO), exact(rational(-1n, 2n)), CONTEXT)),
+    failure(powBallOf(exact(ZERO), exact(fr(-1n, 2n)), CONTEXT)),
     {
       kind: "divisionByZero",
     },
   );
   assert.deepEqual(
-    failure(powBallOf(ball("0", "1"), exact(rational(1n, 2n)), CONTEXT)),
+    failure(powBallOf(ball("0", "1"), exact(fr(1n, 2n)), CONTEXT)),
     {
       kind: "unresolved",
       argument: 0,
@@ -200,31 +242,29 @@ test("an inexact exponent is log space for a positive base, and the base's sign 
     "1.4142135623730950488016887242096980785696718753769480731766797379907324784621",
     "1e-76",
   );
-  const result = value(powBallOf(exact(rational(2n)), sqrt2, CONTEXT));
+  const result = value(powBallOf(exact(fr(2n)), sqrt2, CONTEXT));
   assert.ok(!isExact(result));
   assertNear(result, TWO_TO_SQRT2, 45, "pow(2, sqrt(2))");
   // The exponent's radius reaches the result: 2^(sqrt 2 ± 1e-20) spans about 2 × 1.85 × 1e-20.
   const wide = value(
     powBallOf(
-      exact(rational(2n)),
+      exact(fr(2n)),
       ball("1.41421356237309504880168872420969807857", "1e-20"),
       CONTEXT,
     ),
   );
   assertNear(wide, TWO_TO_SQRT2, 19, "pow(2, sqrt(2) ± 1e-20)");
-  assert.ok(compare(radiusUpper(wide.rad), dec("1.8e-20")) > 0);
-  assert.ok(compare(radiusUpper(wide.rad), dec("2e-20")) < 0);
+  assert.ok(compare(radiusOf(wide), dec("1.8e-20")) > 0);
+  assert.ok(compare(radiusOf(wide), dec("2e-20")) < 0);
   // A base below one, and a negative exponent.
   assertNear(
     value(
       powBallOf(
         exact(dec("0.5")),
-        {
-          mid: dec(
-            "-1.4142135623730950488016887242096980785696718753769480731766797379907324784621",
-          ),
-          rad: radiusAbove(dec("1e-76")),
-        },
+        ball(
+          "-1.4142135623730950488016887242096980785696718753769480731766797379907324784621",
+          "1e-76",
+        ),
         CONTEXT,
       ),
     ),
@@ -233,7 +273,7 @@ test("an inexact exponent is log space for a positive base, and the base's sign 
     "pow(0.5, -sqrt(2))",
   );
   // A non-positive base is a domain error, a straddling one unresolved.
-  for (const x of [exact(rational(-2n)), ball("-2", "1"), ball("-1", "1")]) {
+  for (const x of [exact(fr(-2n)), ball("-2", "1"), ball("-1", "1")]) {
     assert.deepEqual(failure(powBallOf(x, sqrt2, CONTEXT)), {
       kind: "domain",
       argument: 0,
@@ -245,13 +285,19 @@ test("an inexact exponent is log space for a positive base, and the base's sign 
     argument: 0,
     edge: ZERO,
   });
-  // A result beyond the range limit.
+  // A result beyond the exponent bound; within it, a value however large.
   assert.deepEqual(
-    failure(powBallOf(exact(rational(10n)), ball("100000", "1"), CONTEXT)),
+    failure(powBallOf(exact(fr(10n)), ball("1e19", "1"), CONTEXT)),
     {
       kind: "tooLarge",
     },
   );
+  // A wide exponent gives a wide result: a ball that covers 10^100000.
+  const wideExponent = value(
+    powBallOf(exact(fr(10n)), ball("100000", "1"), CONTEXT),
+  );
+  assert.notEqual(position(wideExponent, dec("1e100000")), "above");
+  assert.notEqual(position(wideExponent, dec("1e100000")), "below");
 });
 
 test("an exact zero base under an inexact exponent: zero, division by zero, or unresolved at the exponent", () => {
@@ -275,18 +321,18 @@ test("an exact zero base under an inexact exponent: zero, division by zero, or u
 });
 
 test("unbounded arguments give the power of the midpoints with an unbounded radius", () => {
-  const unbounded = { mid: rational(2n), rad: UNBOUNDED };
-  assert.deepEqual(value(powBallOf(unbounded, exact(rational(3n)), CONTEXT)), {
-    mid: rational(8n),
+  const unbounded = { mid: fr(2n), rad: UNBOUNDED };
+  assert.deepEqual(value(powBallOf(unbounded, exact(fr(3n)), CONTEXT)), {
+    mid: fr(8n),
     rad: UNBOUNDED,
   });
-  const exponent = value(powBallOf(exact(rational(2n)), unbounded, CONTEXT));
-  assert.deepEqual(exponent, { mid: rational(4n), rad: UNBOUNDED });
+  const exponent = value(powBallOf(exact(fr(2n)), unbounded, CONTEXT));
+  assert.deepEqual(exponent, { mid: fr(4n), rad: UNBOUNDED });
   const both = value(
     powBallOf(unbounded, { mid: dec("0.5"), rad: UNBOUNDED }, CONTEXT),
   );
   assert.deepEqual(both.rad, UNBOUNDED);
-  assert.ok(compare(absolute(subtract(both.mid, SQRT2)), dec("1e-40")) < 0);
+  assert.ok(compare(distance(both.mid, SQRT2), dec("1e-40")) < 0);
 });
 
 test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m, 2) says to write (2 m)^2, and the other errors are worded", () => {
@@ -300,6 +346,9 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
     ["pow(10, 2.3456789)", "221.655698007536909572943038829"],
     ["pow(2, sqrt(2))", "2.66514414269022518865029724987"],
     ["pow(2, 1/2)", "1.41421356237309504880168872421"],
+    ["pow(10, 100000/3)", "2.15443469003188372175929356652e+33333"],
+    ["pow(7, 100000/3)", "8.60334110021009353583310171446e+28169"],
+    ["pow(2, 1e6 / 3)", "2.14727661156281285594787335594e+100343"],
   ]) {
     const result = evaluateText(table.value, text!, {
       ...context,
@@ -316,6 +365,12 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
   });
   assert.ok(zero.ok && isExact(zero.value.magnitude));
   assert.deepEqual(zero.value.magnitude.mid, ONE);
+  const tenPower = evaluateText(table.value, "pow(10, 100000) m", {
+    ...context,
+    precision: 8,
+  });
+  assert.ok(tenPower.ok && isExact(tenPower.value.magnitude));
+  assert.deepEqual(tenPower.value.magnitude.mid, dec("1e100000"));
   const primitives = table.value.primitives;
   for (const [text, message] of [
     [
@@ -332,8 +387,12 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
       "pow(0, (2^(1/2))^2 - 2)",
       '"(2^(1/2))^2 - 2" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
     ],
-    ["pow(10, 100000/3)", '"pow(10, 100000/3)" is too large to compute.'],
-    ["10^(100000/3)", '"10^(100000/3)" is too large to compute.'],
+    ["pow(7, 1e19)", '"pow(7, 1e19)" is too large to compute.'],
+    [
+      "7^10000000000000000000",
+      '"7^10000000000000000000" is too large to compute.',
+    ],
+    ["pow(2, 1e999999999)", '"pow(2, 1e999999999)" is too large to compute.'],
   ]) {
     const result = evaluateText(table.value, text!, {
       ...context,

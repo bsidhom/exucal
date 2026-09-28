@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { inspect } from "node:util";
 import {
+  addBalls,
   exact,
   powRationalBall,
   rootBall,
@@ -11,36 +13,34 @@ import {
   DEFAULT_CEILING,
   DEFAULT_MAX_BITS,
   DEFAULT_ROUNDING,
+  type NumberContext,
 } from "./context.ts";
 import { show, type Shown } from "./display.ts";
-import { UNBOUNDED, radiusAbove } from "./radius.ts";
+import { UNBOUNDED } from "./radius.ts";
+import { rational } from "./rational.ts";
 import { ROUNDING_MODES } from "./rounding.ts";
-import { ZERO, rational, type Rational } from "./rational.ts";
-import { formatFraction, parseFraction } from "../testing/fraction.ts";
+import { ZERO, compare, format, type Scaled } from "./scaled.ts";
+import { ball, dec, fr } from "../testing/scaled.ts";
 
-function dec(text: string): Rational {
-  const result = parseFraction(text);
-  assert.ok(result.ok);
-  return result.value;
-}
-
-/** A ball with the given midpoint and a radius at or above `rad`. */
-function ball(mid: Rational | string, rad: string): Ball {
+/** A context at `precision` digits, in the default mode. */
+function at(precision: number): NumberContext {
   return {
-    mid: typeof mid === "string" ? dec(mid) : mid,
-    rad: radiusAbove(dec(rad)),
-  };
-}
-
-/** `rootBall` of an exact value, which is expected to succeed. */
-function root(value: Rational, degree: bigint, precision: number): Ball {
-  const result = rootBall(exact(value), degree, {
     precision,
     rounding: DEFAULT_ROUNDING,
     maxBits: DEFAULT_MAX_BITS,
     ceiling: DEFAULT_CEILING,
-  });
-  assert.ok(result.ok);
+  };
+}
+
+/** A ball with the midpoint `mid` and a radius at or above `rad`, both decimals. */
+function about(mid: Scaled | string, rad: string): Ball {
+  return ball(typeof mid === "string" ? dec(mid) : mid, dec(rad));
+}
+
+/** `rootBall` of an exact value, which is expected to succeed. */
+function root(value: Scaled, degree: bigint, precision: number): Ball {
+  const result = rootBall(exact(value), degree, at(precision));
+  assert.ok(result.ok, inspect(result));
   return result.value;
 }
 
@@ -54,11 +54,11 @@ test("an exact value whose digits all fit is shown exactly", () => {
     kind: "exact",
     text: "2.54",
   });
-  assert.deepEqual(show(exact(rational(127n, 50n)), 8, nearest), {
+  assert.deepEqual(show(exact(fr(127n, 50n)), 8, nearest), {
     kind: "exact",
     text: "2.54",
   });
-  assert.deepEqual(show(exact(rational(36n)), 8, nearest), {
+  assert.deepEqual(show(exact(fr(36n)), 8, nearest), {
     kind: "exact",
     text: "36",
   });
@@ -70,14 +70,27 @@ test("an exact value whose digits all fit is shown exactly", () => {
       text: "-1.5e-7",
     });
   }
+  // Whatever the exponent: the digits are the mantissa's.
+  assert.deepEqual(show(exact(dec("1e999999999")), 8, nearest), {
+    kind: "exact",
+    text: "1e+999999999",
+  });
+  assert.deepEqual(show(exact(dec("1e1999999998")), 1, nearest), {
+    kind: "exact",
+    text: "1e+1999999998",
+  });
+  assert.deepEqual(show(exact(dec("-1.3e-999999999")), 8, nearest), {
+    kind: "exact",
+    text: "-1.3e-999999999",
+  });
 });
 
 test("an exact value with more digits than shown is certified, not exact", () => {
-  assert.deepEqual(show(exact(rational(1n, 3n)), 8, nearest), {
+  assert.deepEqual(show(exact(fr(1n, 3n)), 8, nearest), {
     kind: "certified",
     text: "0.33333333",
   });
-  assert.deepEqual(show(exact(rational(5000n, 127n)), 8, nearest), {
+  assert.deepEqual(show(exact(fr(5000n, 127n)), 8, nearest), {
     kind: "certified",
     text: "39.370079",
   });
@@ -91,6 +104,10 @@ test("an exact value with more digits than shown is certified, not exact", () =>
     text: "2.6",
   });
   assert.equal(show(exact(dec("2.54")), 3, "ceiling").kind, "exact");
+  assert.deepEqual(show(exact(dec("1.3e999999999")), 1, nearest), {
+    kind: "certified",
+    text: "1e+999999999",
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -98,32 +115,62 @@ test("an exact value with more digits than shown is certified, not exact", () =>
 
 test("an inexact value that certifies every digit asked is certified, never exact", () => {
   for (const digits of [1, 8, 40]) {
-    const shown = show(root(rational(2n), 2n, 40), digits, nearest);
+    const shown = show(root(fr(2n), 2n, 40), digits, nearest);
     assert.equal(shown.kind, "certified", `${digits} digits`);
   }
-  assert.deepEqual(show(root(rational(2n), 2n, 40), 8, nearest), {
+  assert.deepEqual(show(root(fr(2n), 2n, 40), 8, nearest), {
     kind: "certified",
     text: "1.4142136",
   });
   // The mode is applied to the digits shown.
-  assert.deepEqual(show(root(rational(2n), 2n, 40), 8, "floor"), {
+  assert.deepEqual(show(root(fr(2n), 2n, 40), 8, "floor"), {
     kind: "certified",
     text: "1.4142135",
   });
   // A midpoint with few digits, or a whole number, is still only certified.
-  assert.deepEqual(show(ball("1", "1e-30"), 8, nearest), {
+  assert.deepEqual(show(about("1", "1e-30"), 8, nearest), {
     kind: "certified",
     text: "1",
   });
-  assert.deepEqual(show(root(rational(4n), 2n, 40), 8, nearest), {
+  assert.deepEqual(show(root(fr(4n), 2n, 40), 8, nearest), {
     kind: "exact",
     text: "2",
   });
 });
 
+test("a radius that cannot be aligned with the midpoint certifies by digits", () => {
+  // `sqrt(2) + 1e999999999`: the root is absorbed into the radius, and the
+  // sum is `1e999999999` within about 1.42, which certifies every digit a
+  // display asks for, the radius being a billion digits below.
+  const huge = exact(dec("1e999999999"));
+  const sum = addBalls(root(fr(2n), 2n, 8), huge, at(8));
+  assert.ok(sum.ok, inspect(sum));
+  assert.deepEqual(sum.value.mid, huge.mid);
+  for (const digits of [1, 8, 50, 1000]) {
+    assert.deepEqual(show(sum.value, digits, nearest), {
+      kind: "certified",
+      text: "1e+999999999",
+    });
+  }
+  // A ball written with such a radius directly, and one that reaches into
+  // the digits shown, which is partial at the digits before it.
+  assert.deepEqual(show(about("1e999999999", "1.5"), 8, nearest), {
+    kind: "certified",
+    text: "1e+999999999",
+  });
+  const wide = show(about("1.2345e999999999", "4e999999996"), 8, nearest);
+  assert.equal(wide.kind, "partial");
+  assert.ok(wide.kind === "partial");
+  assert.ok(wide.certified >= 1 && wide.certified <= 2, `${wide.certified}`);
+  assert.equal(
+    wide.text,
+    format(dec("1.2345e999999999"), wide.certified, nearest),
+  );
+});
+
 test("an inexact value that certifies fewer digits than asked is partial, at those digits", () => {
   // A root at forty digits certifies about forty-nine: at 60 asked, fewer.
-  const shown = show(root(rational(2n), 2n, 40), 60, nearest);
+  const shown = show(root(fr(2n), 2n, 40), 60, nearest);
   assert.equal(shown.kind, "partial");
   assert.ok(shown.kind === "partial");
   assert.ok(
@@ -131,23 +178,24 @@ test("an inexact value that certifies fewer digits than asked is partial, at tho
     `${shown.certified}`,
   );
   assert.equal(shown.text.length, shown.certified + 1);
+  // sqrt 2 to sixty digits, from Python's decimal module.
   const reference = dec(
     "1.41421356237309504880168872420969807856967187537694807317667974",
   );
-  assert.equal(shown.text, formatFraction(reference, shown.certified, nearest));
+  assert.equal(shown.text, format(reference, shown.certified, nearest));
   // 1.2345 ± 1e-30 at four digits, to nearest: the fourth digit is a tie the
   // ball straddles, so three digits are certain and shown.
-  assert.deepEqual(show(ball("1.2345", "1e-30"), 4, nearest), {
+  assert.deepEqual(show(about("1.2345", "1e-30"), 4, nearest), {
     kind: "partial",
     text: "1.23",
     certified: 3,
   });
   // The same ball under a directed mode certifies all four.
-  assert.deepEqual(show(ball("1.2345", "1e-30"), 4, "floor"), {
+  assert.deepEqual(show(about("1.2345", "1e-30"), 4, "floor"), {
     kind: "certified",
     text: "1.234",
   });
-  assert.deepEqual(show(ball("1.2345", "1e-30"), 4, "ceiling"), {
+  assert.deepEqual(show(about("1.2345", "1e-30"), 4, "ceiling"), {
     kind: "certified",
     text: "1.235",
   });
@@ -159,27 +207,27 @@ test("an inexact value that certifies fewer digits than asked is partial, at tho
     "halfAwayFromZero",
     "halfTowardZero",
   ] as const) {
-    assert.equal(show(ball("1.2345", "1e-30"), 5, mode).kind, "certified");
+    assert.equal(show(about("1.2345", "1e-30"), 5, mode).kind, "certified");
   }
-  assert.deepEqual(show(ball("1.2345", "1e-30"), 5, "floor"), {
+  assert.deepEqual(show(about("1.2345", "1e-30"), 5, "floor"), {
     kind: "partial",
     text: "1.234",
     certified: 4,
   });
   // A value on a tie at the first digit asked certifies none; the text is
   // then the midpoint at the digits asked.
-  assert.deepEqual(show(ball("1.5", "1e-30"), 1, nearest), {
+  assert.deepEqual(show(about("1.5", "1e-30"), 1, nearest), {
     kind: "partial",
     text: "2",
     certified: 0,
   });
   // A wide ball certifies few, and the text is formatted at that many.
-  assert.deepEqual(show(ball("1234.5678", "0.04"), 8, nearest), {
+  assert.deepEqual(show(about("1234.5678", "0.04"), 8, nearest), {
     kind: "partial",
     text: "1235",
     certified: 4,
   });
-  assert.deepEqual(show(ball("1234.5678", "0.4"), 8, nearest), {
+  assert.deepEqual(show(about("1234.5678", "0.4"), 8, nearest), {
     kind: "partial",
     text: "1.23e+3",
     certified: 3,
@@ -193,32 +241,28 @@ test("a ball containing zero without being zero is the zero kind, with a bound",
   // The bound is the farthest the value may lie from zero, rounded up to
   // one digit; a radius is itself rounded up to thirty bits on the way in,
   // so a round number's bound is the next digit up.
-  assert.deepEqual(show(ball(ZERO, "1e-30"), 8, nearest), {
+  assert.deepEqual(show(about(ZERO, "1e-30"), 8, nearest), {
     kind: "zero",
     text: "0",
     bound: "2e-30",
   });
-  assert.deepEqual(show(ball("1e-31", "1.2e-30"), 8, nearest), {
+  assert.deepEqual(show(about("1e-31", "1.2e-30"), 8, nearest), {
     kind: "zero",
     text: "0",
     bound: "2e-30",
   });
-  assert.deepEqual(show(ball("-0.001", "0.002"), 8, "floor"), {
+  assert.deepEqual(show(about("-0.001", "0.002"), 8, "floor"), {
     kind: "zero",
     text: "0",
     bound: "0.004",
   });
   // sqrt(2)^2 - 2 is such a ball.
-  const two = root(rational(2n), 2n, 40);
-  const squared = powRationalBall(two, rational(2n), {
-    precision: 40,
-    rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
-    ceiling: DEFAULT_CEILING,
-  });
+  const two = root(fr(2n), 2n, 40);
+  const squared = powRationalBall(two, rational(2n), at(40));
   assert.ok(squared.ok);
-  const almostZero = subtractBalls(squared.value, exact(rational(2n)));
-  const shown = show(almostZero, 8, nearest);
+  const almostZero = subtractBalls(squared.value, exact(fr(2n)), at(40));
+  assert.ok(almostZero.ok);
+  const shown = show(almostZero.value, 8, nearest);
   assert.equal(shown.kind, "zero");
   assert.ok(
     shown.kind === "zero" && /e-(4|5)\d$/.test(shown.bound),
@@ -231,19 +275,40 @@ test("a ball containing zero without being zero is the zero kind, with a bound",
   });
 });
 
+test("a bound whose radius cannot be formed is one digit above the coarse magnitude", () => {
+  // `1e-999999999 ± 1e-999999990` contains zero, and neither its radius
+  // nor the sum of the two can be formed: the bound is a one-digit value
+  // at or above `|mid| + rad`, within an order of magnitude of it.
+  const shown = show(about("1e-999999999", "1e-999999990"), 8, nearest);
+  assert.equal(shown.kind, "zero");
+  assert.ok(shown.kind === "zero");
+  assert.equal(shown.text, "0");
+  assert.match(shown.bound, /^[1-9]e-9999999(90|89)$/);
+  const bound = dec(shown.bound);
+  assert.ok(compare(bound, dec("1.000000001e-999999990")) >= 0, shown.bound);
+  assert.ok(compare(bound, dec("1e-999999989")) <= 0, shown.bound);
+  // A zero midpoint with such a radius, the same.
+  const zero = show(about(ZERO, "1e-999999990"), 8, nearest);
+  assert.ok(zero.kind === "zero");
+  assert.ok(compare(dec(zero.bound), dec("1e-999999990")) >= 0, zero.bound);
+  assert.ok(compare(dec(zero.bound), dec("1e-999999989")) <= 0, zero.bound);
+  // A midpoint clear of such a radius is not the zero kind.
+  assert.equal(
+    show(about("1e-999999999", "1e-1000000009"), 8, nearest).kind,
+    "certified",
+  );
+});
+
 test("an unbounded radius shows the midpoint's digits, certifying none", () => {
-  const unbounded: Ball = { mid: rational(2n), rad: UNBOUNDED };
+  const unbounded: Ball = { mid: fr(2n), rad: UNBOUNDED };
   assert.deepEqual(show(unbounded, 8, nearest), {
     kind: "unbounded",
     text: "2",
   });
-  assert.deepEqual(
-    show({ mid: rational(1n, 3n), rad: UNBOUNDED }, 4, nearest),
-    {
-      kind: "unbounded",
-      text: "0.3333",
-    },
-  );
+  assert.deepEqual(show({ mid: fr(1n, 3n), rad: UNBOUNDED }, 4, nearest), {
+    kind: "unbounded",
+    text: "0.3333",
+  });
   assert.deepEqual(show({ mid: ZERO, rad: UNBOUNDED }, 4, nearest), {
     kind: "unbounded",
     text: "0",
@@ -253,12 +318,12 @@ test("an unbounded radius shows the midpoint's digits, certifying none", () => {
 test("the kinds are exclusive and cover every ball", () => {
   const kinds = new Set<Shown["kind"]>();
   const balls: Ball[] = [
-    exact(rational(3n)),
-    exact(rational(1n, 3n)),
-    root(rational(2n), 2n, 40),
-    ball("1.2345", "1e-30"),
-    ball(ZERO, "1e-30"),
-    { mid: rational(2n), rad: UNBOUNDED },
+    exact(fr(3n)),
+    exact(fr(1n, 3n)),
+    root(fr(2n), 2n, 40),
+    about("1.2345", "1e-30"),
+    about(ZERO, "1e-30"),
+    { mid: fr(2n), rad: UNBOUNDED },
   ];
   for (const b of balls) kinds.add(show(b, 4, nearest).kind);
   assert.deepEqual([...kinds].sort(), [

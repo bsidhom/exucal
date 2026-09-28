@@ -71,8 +71,12 @@
 // points at the base for the same reason; any other power that fails
 // (`0^-1`, an even root of a negative magnitude, a result beyond the range
 // limit) points at the whole power, since it is the combination of base
-// and exponent that fails; a literal beyond the range limit, which the
-// parser let through under its hard bound, points at the literal.
+// and exponent that fails; a sum, a product or a quotient that is too
+// large (two exact operands that cannot be aligned within the range limit,
+// or an exponent beyond the bound; 4.4) points at the whole operation, as
+// the power does; a literal whose mantissa is beyond the range limit,
+// which the parser let through under its hard bound, points at the
+// literal, the exponent costing nothing.
 //
 // Every result is settled (D15 of the plan): an inexact magnitude is
 // rounded to the working precision after each operation, so that it never
@@ -102,8 +106,8 @@ import {
   subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
-import { ZERO, bitLength } from "./rational.ts";
-import { toRational } from "./scaled.ts";
+import { bitLength } from "./rational.ts";
+import { ZERO } from "./scaled.ts";
 import type { BallError } from "./ball.ts";
 import type {
   Builtin,
@@ -278,15 +282,12 @@ function evaluateNode<E>(
     case "number": {
       // The parser checked the literal's mantissa against the hard bound
       // and its exponent against the exponent bound; the range limit of
-      // the context is the setting, applied to the fraction the literal
-      // denotes, which is formed here until 4.4 makes the midpoint a
-      // `Scaled`.
-      const value = toRational(node.value, context.maxBits);
-      if (!value.ok) return err({ kind: "tooLarge", span });
-      const { num, den } = value.value;
+      // the context is the setting, applied to the mantissa, the exponent
+      // costing nothing (D16).
+      const { num, den } = node.value.mant;
       const size = Math.max(bitLength(num < 0n ? -num : num), bitLength(den));
       if (size > context.maxBits) return err({ kind: "tooLarge", span });
-      return ok(scalar(value.value));
+      return ok(scalar(node.value));
     }
     case "unit":
       return lookup.unit(node.name, span);
@@ -300,24 +301,36 @@ function evaluateNode<E>(
         case "sub": {
           const combine =
             node.op === "add" ? addQuantities : subtractQuantities;
-          const sum = combine(left.value, right.value, primitives);
+          const sum = combine(left.value, right.value, primitives, context);
           if (sum.ok) return sum;
+          const { error } = sum;
+          if (
+            error.kind !== "dimensionMismatch" &&
+            error.kind !== "kindMismatch"
+          ) {
+            return locate(err(error), span);
+          }
           return err({
             kind: "nonconformingOperands",
             op: node.op,
             span,
             left: node.left.span,
             right: node.right.span,
-            mismatch: sum.error,
+            mismatch: error,
           });
         }
         case "mul":
-          return ok(multiplyQuantities(left.value, right.value));
-        case "div":
-          return locate(
-            divideQuantities(left.value, right.value),
-            node.right.span,
-          );
+          return locate(multiplyQuantities(left.value, right.value), span);
+        case "div": {
+          const quotient = divideQuantities(left.value, right.value);
+          // A divisor at fault (zero, or straddling it) is pointed at; a
+          // quotient beyond the bound is the whole quotient's.
+          const at =
+            !quotient.ok && quotient.error.kind === "tooLarge"
+              ? span
+              : node.right.span;
+          return locate(quotient, at);
+        }
       }
     }
     case "pow": {

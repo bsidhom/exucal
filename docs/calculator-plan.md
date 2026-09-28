@@ -1474,6 +1474,21 @@ those modules changed.
 
 Behavior: `exp` exists.
 
+Known limit, to be lifted in stage 4. `exp(1e6)` is `tooLarge`, and so is
+every argument beyond about 45,000 at the default range limit and
+727,000 at the hard bound, because a midpoint is a `Rational` and an
+inexact one is a dyadic `num × 2^-k` whose size is its exponent: `exp(1e6)`
+is about `2^1442695`, a numerator of 1.4 million bits, beyond
+`LIMIT_BITS`. The value asked for is an ordinary one, `≈ 3.0332e434294`,
+a mantissa at the working precision times an exponent, and `exp` is
+inexact whatever its argument, so nothing is lost by giving it as such.
+That is the `Scaled` midpoint of D13 and stage 4, which this limit adds a
+requirement to: the kernel's results must reach the midpoint as a
+mantissa and an exponent without the exponent ever being formed as bits
+(4.4 amended, and 4.9 added). Until then the guard stands, and `sinh`,
+`cosh` (3.10), a power in log space (3.8) and a large decibel (3.12) share
+it, since each ends in `exp`.
+
 ### 3.7 `ln`, `log10`, `log2`, `log(b, x)`
 
 New `src/core/fixed-log.ts`, beside fixed-exp.ts: `lnFixed(f, bits,
@@ -1733,6 +1748,24 @@ Provisional. The study's features 4 and 5 as one: the midpoint becomes a
 after every operation. The shape below is firm; the first task refines the
 details against the kernel as it landed.
 
+Amended during stage 3 (3.6): the stage also lifts the magnitude limit on
+the inexact functions. Today an inexact midpoint is a dyadic whose size is
+its exponent, so `exp(1e6)`, about `2^1442695`, is refused as `tooLarge`
+at any range limit, though it is an ordinary value, `≈ 3.0332e434294`, a
+mantissa at the working precision times an exponent. With a `Scaled`
+midpoint the exponent is a number, not bits, so the stage must carry a
+large result from the kernel to the midpoint without ever forming its
+bits, and display it. That reaches the kernel (a routine that squares up
+to a large magnitude renormalizes its mantissa as it goes), the
+conversion `fixedToScaled`, the display (the decimal digits of `m × 2^e`
+for a large `e` are found in log space, through the memoized `ln 2` and
+`ln 10`, not by forming `10^E`), and D16, whose range limit then bounds
+the size of exact values and the alignment of sums, not the magnitude of
+an inexact result, which the exponent bound `MAX_EXPONENT` bounds. 4.4 and
+4.9 below say how; 4.0's design note settles the binary-or-decimal
+exponent question with this requirement in view, since a kernel result
+arrives with a binary exponent.
+
 ### 4.0 Design note
 
 docs/decimal.md: the `Scaled` type and its canonical form (D13), the
@@ -1797,12 +1830,16 @@ Tests: the moved tests, with the exponent cases added.
 (the literal's exponent, lazily), while the `^` exponent stays a
 `Rational`, the exponent grammar converting with `toRational` so that
 `m^1e999999999` is refused there; `fixedFromRational` becomes
-`fixedFromScaled`, with a bound on the exponent it will form (an argument
-beyond the range limit is `tooLarge`, per D10); `certifies` compares the
-midpoint with the radius by exponents and leading digits where forming
-either is infeasible (D7); the readers of `.mid` (the converter, the
-pipeline, the display, the messages) change type. The evaluator, the
-table and the build see only balls and do not change.
+`fixedFromScaled`, which converts the mantissa at the working bits and
+hands the exponent to the kernel as a scale (as `lnFixed`'s `scale` and
+`lnScaled` already take it in stage 3), so that no argument's exponent is
+formed as bits, and `fixedToScaled` takes a kernel result with its scale
+and builds the midpoint the same way; `certifies` compares the midpoint
+with the radius by exponents and leading digits where forming either is
+infeasible (D7), and the decimal digits of a midpoint with a large
+exponent are found in log space (4.9); the readers of `.mid` (the
+converter, the pipeline, the display, the messages) change type. The
+evaluator, the table and the build see only balls and do not change.
 
 Tests: the type change is covered by the existing tests; new ones for
 `1e999999999 * 1e999999999` (exact, with an exponent), `1e999999999 + 1`
@@ -1855,6 +1892,43 @@ validation; README.
 ARCHITECTURE.md "Numbers" for the type ladder of D13 (`Rational`,
 `Scaled`, `Radius`, `Ball`, `Quantity`), the exponent and the two modes;
 "Layout" for scaled.ts.
+
+### 4.9 Large results of the inexact functions
+
+Added during stage 3 (3.6), and possibly earlier in the stage's order
+than its number, since 4.4 depends on parts of it. The kernel routines
+whose results can be large return a mantissa with a scale, never a value
+of the result's bits: `expFixed` renormalizes after each squaring, keeping
+the working bits and moving the rest into a binary exponent it returns
+beside the `Fixed` (so `exp(1e6)` costs what `exp(1)` costs plus the
+squarings), and `sinh`, `cosh` (3.10), `powLogSpace` (3.8) and `decibel`
+(3.12) inherit it through `exp`; `lnFixed` and `lnScaled` already take an
+argument's exponent as a scale, and `rootFixed` and the powers combine
+exponents exactly. `fixedToScaled` carries the scale into the midpoint's
+exponent. The display finds the decimal digits of `m × 2^e` for a large
+`e` in log space: the decimal exponent is `floor(e log10 2 + log10 m)`
+and the leading digits are `10^(fraction)`, computed through `lnFixed`,
+`expFixed` and the memoized `ln 2` and `ln 10` at the working bits plus
+the bit length of `e`, with the radius carried, so that certification
+(D7) still compares both ends and marks what it cannot certify. `exp`'s
+guard becomes the exponent bound `MAX_EXPONENT` of 4.2 (`exp(1e30)` is
+`tooLarge`, since its exponent could not be formatted; `exp(1e6)` and
+`exp(-1e6)` are values), and D16 is restated as the stage 4 intro says:
+the range limit bounds exact sizes and alignments. The conversion of a
+large quantity between units keeps working, since a unit's factor is an
+exact rational and a product only adds to the exponent; a unit list
+(`convert.ts`) whose count would be a large integer shows the count as a
+value with an exponent rather than forming it.
+
+Tests: `exp(1e6)` against Python's decimal module at 30 digits
+(`3.0332153968...e434294`), `exp(-1e6)`, `pow(10, 1e6 / 3)`, `cosh(1e6)`
+and `1e6 decibel`, each certified and displayed with its exponent; the
+containment test of `exp` extended to large arguments; `exp(1e30)` is
+`tooLarge` at the exponent bound; the kernel benchmark's `exp 1e6` at
+the ceiling costs within a small factor of `exp 1`.
+
+Behavior: the inexact functions have the range of their exponent, not of
+the bits of their value.
 
 ## Stage 5: the rational display
 

@@ -73,6 +73,12 @@ evaluator then settles the result as it settles every inexact result
 `approx(1/3)` is the working-precision decimal of a third with a radius
 of a unit or two in its last digit.
 
+`approx` is the one way, in exact mode, to make an exact value inexact
+on purpose: nothing else in the arithmetic ever rounds a value of radius
+zero (docs/decimal.md, "What stays exact"), and a value that is not
+passed through `approx` is as exact as it was before the built-in
+existed.
+
 What follows from that, with nothing else changed:
 
 - **Whole-expression precision is kept.** The radius is the working

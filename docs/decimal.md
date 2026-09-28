@@ -56,6 +56,28 @@ value crosses its boundary through a conversion already
 dyadic), so the one base change goes where the representation changes
 anyway, and the binary base does not leak into the ball layer.
 
+## What stays exact
+
+Nothing above changes what exactness means. An exact value has radius
+zero, and in exact mode it keeps it through everything exact: a literal
+of any length up to the range limit, a unit, an exact operation on exact
+operands (`0.1 + 0.2` is exactly `0.3`; `1e999999999 * 1e999999999` is
+exactly `1e1999999998`, with the exponents added; `1 ft` in `in` is
+`= 12 in`), an exact case of a built-in (`sqrt(9/4)`, `log(2, 8)`,
+`exp(0)`), and a comparison. The display's `=` still means radius zero
+with every digit shown. What is rounded onto the decimal grid is only
+what was already inexact: a kernel result, which is inexact by
+construction, and any value downstream of one; `settle` is the identity
+on an exact ball, and the sum rule below refuses a sum of two exact
+operands it cannot align rather than round either of them. Exactly three
+things ever produce a nonzero radius: an inexact function (a root, a
+kernel routine, `pi()`), the built-in `approx` (docs/approximate.md),
+which makes a value inexact at the user's request, and the decimal
+mode's rounding, which is the mode's definition and leaves a value with
+`p` digits or fewer exact. Zero-radius arithmetic is available wherever
+it was before, and the stage adds to it (the exponent's products and
+powers) without taking any away.
+
 ## The `Scaled` type
 
 `Scaled = { mant: Rational; exp: bigint }` in `src/core/scaled.ts` stands

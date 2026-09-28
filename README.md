@@ -340,8 +340,9 @@ the digits asked for and shown with `≈`, however round they look
 (`ln(8) / ln(2) ≈ 3`). An argument outside a function's domain is an
 error that says what the domain is (`ln(-1)`, `asin(2)`, `acosh(0.5)`),
 one that cannot be told from an edge of it at any precision up to the
-ceiling says so (`tan(90 deg)` at a pole), and a result too large for the
-"most bits" setting is refused as too large (`exp(1e6)`, `sinh(1e6)`).
+ceiling says so (`tan(90 deg)` at a pole), and a result whose exponent
+would pass `10^18` is refused as too large (`exp(1e30)`, `sinh(1e30)`),
+where `exp(1e6)` is `≈ 3.0332154e+434294`.
 No prefix applies to a function: `kpi()` is a call of nothing.
 
 ### Adding a unit

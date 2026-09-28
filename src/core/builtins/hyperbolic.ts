@@ -13,9 +13,11 @@
 // and `acosh(1)` is zero.
 //
 // `sinh` and `cosh` are guarded by magnitude as `exp` is, and share its
-// limit (3.6): an argument whose magnitude over its whole ball would put
-// the result beyond the range limit is `tooLarge` at the call, through
-// `expFits`, before anything is computed. `tanh` is not: for an argument
+// range (3.6, then 4.9): an argument whose magnitude over its whole ball
+// would put the result beyond the exponent bound is `tooLarge` at the
+// call, through `expFits`, before anything is computed, and otherwise the
+// kernel's pair of `Floating`s comes out through digits.ts
+// (`floatingToBall`), so that `sinh(1e6)` and `cosh(1e6)` are values. `tanh` is not: for an argument
 // whose magnitude throughout its ball is beyond what the working bits can
 // tell from one (`e^-2|x|` under an ulp of the bits plus a margin), it is
 // `±1` within `2 e^-2|x|`, a radius the coarse type holds at any
@@ -60,7 +62,7 @@
 // (`farLogarithm`, on `lnScaled`, which takes any exponent), with the
 // argument's radius over its distance from zero added, the slope of the
 // logarithm; `tanh`'s saturation stands and comes first, and `sinh` and
-// `cosh` are bounded by `expFits` as before.
+// `cosh` are bounded by `expFits`, the exponent bound.
 
 import {
   addBalls,
@@ -77,6 +79,7 @@ import {
   rootBall,
   subtractBalls,
   type Ball,
+  type BallError,
 } from "../ball.ts";
 import {
   extraBits,
@@ -91,6 +94,7 @@ import {
   type BuiltinError,
 } from "../builtin.ts";
 import { workingDigits, type NumberContext } from "../context.ts";
+import { floatingToBall } from "../digits.ts";
 import { sinhCoshFixed, tanhFixed, type SinhCosh } from "../fixed-exp.ts";
 import { lnFixed } from "../fixed-log.ts";
 import {
@@ -141,7 +145,7 @@ export function sinhBall(
   if (isTiny(x, context)) return ok(tinyOdd(x));
   const pair = sinhCosh(x, context);
   if (!pair.ok) return pair;
-  return ok(fixedToBall(pair.value.sinh, workingDigits(context)));
+  return out(floatingToBall(pair.value.sinh, context));
 }
 
 /** `cosh(x)` at the context, as the header says. */
@@ -155,7 +159,7 @@ export function coshBall(
   if (isTiny(x, context)) return ok(tinyEven(x));
   const pair = sinhCosh(x, context);
   if (!pair.ok) return pair;
-  return ok(fixedToBall(pair.value.cosh, workingDigits(context)));
+  return out(floatingToBall(pair.value.cosh, context));
 }
 
 /** `tanh(x)` at the context, as the header says: `±1` within `2 e^-2|x|` far out. */
@@ -170,7 +174,7 @@ export function tanhBall(
   const bits = bitsFor(context.precision);
   const saturated = saturation(x, bits);
   if (saturated !== undefined) return ok(saturated);
-  if (!expFits(radiusBound(magnitudeAbove(x)), context.maxBits)) {
+  if (!expFits(radiusBound(magnitudeAbove(x)))) {
     return err({ kind: "tooLarge" });
   }
   return ok(
@@ -306,17 +310,22 @@ export function atanhBall(
   );
 }
 
+/** A kernel result's ball as the built-in's, its exponent bound failure the argument's. */
+function out(result: Result<Ball, BallError>): Result<Ball, BuiltinError> {
+  return result.ok ? result : err(fromBallError(result.error, 0));
+}
+
 /**
  * The kernel's hyperbolic sine and cosine of the bounded `x` at the
- * context, or `tooLarge` when the result would exceed the range limit: a
- * small `x` is converted at as many more fraction bits as its magnitude
+ * context, or `tooLarge` when the result would exceed the exponent bound:
+ * a small `x` is converted at as many more fraction bits as its magnitude
  * is below one, so that the kernel keeps its digits.
  */
 function sinhCosh(
   x: Ball,
   context: NumberContext,
 ): Result<SinhCosh, BuiltinError> {
-  if (!expFits(radiusBound(magnitudeAbove(x)), context.maxBits)) {
+  if (!expFits(radiusBound(magnitudeAbove(x)))) {
     return err({ kind: "tooLarge" });
   }
   const bits = bitsFor(context.precision);

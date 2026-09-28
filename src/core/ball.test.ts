@@ -768,8 +768,22 @@ test("powRationalBall composes the power and the root, root last", () => {
     powRationalBall(exact(ZERO), rational(-1n, 2n), at(5)),
     "divisionByZero",
   );
+  // A base that is not a power of ten goes through log space and has the
+  // range of its exponent (4.9): 7^(100000/3) is about 8.6e28169, from
+  // Python's decimal module, and 7^(10^19) passes the exponent bound.
+  const sevenThirds = unwrap(
+    powRationalBall(exact(fr(7n)), rational(100_000n, 3n), at(8)),
+  );
+  assert.ok(
+    within(
+      sevenThirds.mid,
+      dec("8.603341100210093535833101714461038568682e28169"),
+      dec("1e28152"),
+    ),
+  );
+  assert.ok(certifies(sevenThirds, 8, "halfEven"));
   assertError(
-    powRationalBall(exact(fr(7n)), rational(100_000n, 3n), at(5)),
+    powRationalBall(exact(fr(7n)), rational(10n ** 19n, 3n), at(5)),
     "tooLarge",
   );
   // A power of ten fits at any exponent, and its root is taken of the
@@ -816,10 +830,26 @@ test("powRationalBall composes the power and the root, root last", () => {
       multiplyFractions(absoluteFraction(fraction(reference)), tenTo(30)),
     ) < 0,
   );
-  // A base straddling zero whose power does not fit is still too large.
+  // A base straddling zero whose power passes the exponent bound is too
+  // large; one whose power fits is a ball around zero under an odd root.
   assertError(
-    powRationalBall(ball(dec("0.5"), dec("1")), rational(100_001n, 3n), at(5)),
+    powRationalBall(
+      ball(dec("0.5"), dec("1")),
+      rational(10n ** 19n, 3n),
+      at(5),
+    ),
     "tooLarge",
+  );
+  assert.ok(
+    containsZero(
+      unwrap(
+        powRationalBall(
+          ball(dec("0.5"), dec("1")),
+          rational(100_001n, 3n),
+          at(5),
+        ),
+      ),
+    ),
   );
   // An inexact base under a root stays bounded, as under an integer power.
   const inexact = unwrap(
@@ -1117,8 +1147,19 @@ test("powBall on an inexact base squares with settling, and is guarded by magnit
   // A negative power inverts, and stays settled.
   const inverse = unwrap(powBall(root, -1000n, at(20)));
   assertContains(inverse, rational(1n, 2n ** 500n), "sqrt(2)^-1000");
-  // The magnitude guard: 2^5000000 would have five million bits.
-  assertError(powBall(root, 10_000_000n, at(20)), "tooLarge");
+  // The guard is the exponent bound (4.9): sqrt(2)^(10^7), about
+  // 9.5e1505149 (Python's decimal module), is a value, settled at each
+  // squaring, and sqrt(2)^(10^19) is not.
+  const tenMillionth = unwrap(powBall(root, 10_000_000n, at(20)));
+  assert.ok(
+    within(
+      tenMillionth.mid,
+      dec("9.513052773090665611035594663155066669455118047702e1505149"),
+      dec("1e1505130"),
+    ),
+  );
+  assert.ok(certifies(tenMillionth, 15, "halfEven"));
+  assertError(powBall(root, 10n ** 19n, at(20)), "tooLarge");
   // A base near one is guarded by its true magnitude, not by its degree.
   const nearOne = ball(dec("1.0000001"), dec("1e-30"));
   assert.ok(powBall(nearOne, 10_000_000n, at(20)).ok);

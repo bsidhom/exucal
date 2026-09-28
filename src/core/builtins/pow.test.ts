@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { certifies, exact, isExact, type Ball } from "../ball.ts";
+import { certifies, exact, isExact, position, type Ball } from "../ball.ts";
 import { buildTable } from "../build.ts";
 import type { BuiltinError } from "../builtin.ts";
 import { BUILTINS } from "../builtins.ts";
@@ -183,8 +183,26 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
   assert.ok(
     compare(distance(tenThirds.mid, TEN_TO_100000_THIRDS), dec("1e33290")) < 0,
   );
+  // A base that is not a power of ten goes through log space, and the
+  // result has the range of its exponent (4.9): 7^(100000/3) from
+  // Python's decimal module at a precision of 70.
+  const sevenThirds = value(
+    powBallOf(exact(fr(7n)), exact(fr(100000n, 3n)), CONTEXT),
+  );
+  assert.equal(decimalExponent(sevenThirds.mid), 28169n);
+  assert.ok(certifies(sevenThirds, 30, "halfEven"));
+  assert.ok(
+    compare(
+      distance(
+        sevenThirds.mid,
+        dec("8.603341100210093535833101714461038568682e28169"),
+      ),
+      dec("1e28135"),
+    ) < 0,
+  );
+  // Beyond the exponent bound.
   assert.deepEqual(
-    failure(powBallOf(exact(fr(7n)), exact(fr(100000n, 3n)), CONTEXT)),
+    failure(powBallOf(exact(fr(7n)), exact(dec("1e19")), CONTEXT)),
     {
       kind: "tooLarge",
     },
@@ -267,13 +285,19 @@ test("an inexact exponent is log space for a positive base, and the base's sign 
     argument: 0,
     edge: ZERO,
   });
-  // A result beyond the range limit.
+  // A result beyond the exponent bound; within it, a value however large.
   assert.deepEqual(
-    failure(powBallOf(exact(fr(10n)), ball("100000", "1"), CONTEXT)),
+    failure(powBallOf(exact(fr(10n)), ball("1e19", "1"), CONTEXT)),
     {
       kind: "tooLarge",
     },
   );
+  // A wide exponent gives a wide result: a ball that covers 10^100000.
+  const wideExponent = value(
+    powBallOf(exact(fr(10n)), ball("100000", "1"), CONTEXT),
+  );
+  assert.notEqual(position(wideExponent, dec("1e100000")), "above");
+  assert.notEqual(position(wideExponent, dec("1e100000")), "below");
 });
 
 test("an exact zero base under an inexact exponent: zero, division by zero, or unresolved at the exponent", () => {
@@ -323,6 +347,8 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
     ["pow(2, sqrt(2))", "2.66514414269022518865029724987"],
     ["pow(2, 1/2)", "1.41421356237309504880168872421"],
     ["pow(10, 100000/3)", "2.15443469003188372175929356652e+33333"],
+    ["pow(7, 100000/3)", "8.60334110021009353583310171446e+28169"],
+    ["pow(2, 1e6 / 3)", "2.14727661156281285594787335594e+100343"],
   ]) {
     const result = evaluateText(table.value, text!, {
       ...context,
@@ -361,8 +387,11 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
       "pow(0, (2^(1/2))^2 - 2)",
       '"(2^(1/2))^2 - 2" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
     ],
-    ["pow(7, 100000/3)", '"pow(7, 100000/3)" is too large to compute.'],
-    ["7^(100000/3)", '"7^(100000/3)" is too large to compute.'],
+    ["pow(7, 1e19)", '"pow(7, 1e19)" is too large to compute.'],
+    [
+      "7^10000000000000000000",
+      '"7^10000000000000000000" is too large to compute.',
+    ],
     ["pow(2, 1e999999999)", '"pow(2, 1e999999999)" is too large to compute.'],
   ]) {
     const result = evaluateText(table.value, text!, {

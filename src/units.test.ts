@@ -320,9 +320,9 @@ test("the logarithmic units are functions: the decibel, the bel and the neper", 
     ) < 0,
   );
   // A large decibel is a power of ten, which the exponent takes: a value
-  // (`10^100000.1`), where a large neper shares the exponential's
-  // magnitude limit (3.6, until the plan's 4.9); and `e` is still the
-  // elementary charge.
+  // (`10^100000.1`), and a large neper has the exponential's range, the
+  // exponent bound (4.9): `neper(1000001)` is `e^100000.1`, and
+  // `neper(1e30)` is too large; and `e` is still the elementary charge.
   const huge = convertText(table, "decibel(1000001)", "1", CONTEXT);
   assert.ok(huge.ok && huge.value.kind === "unit", inspect(huge));
   assert.deepEqual(show(huge.value.value, 8, DEFAULT_ROUNDING), {
@@ -330,7 +330,16 @@ test("the logarithmic units are functions: the decibel, the bel and the neper", 
     text: "1.2589254e+100000",
   });
   assertConverts("decibel(1e6)", "1", "1e100000");
-  const hugeNeper = convertText(table, "neper(1000001)", "1", CONTEXT);
+  const largeNeper = convertText(table, "neper(1000001)", "1", CONTEXT);
+  assert.ok(
+    largeNeper.ok && largeNeper.value.kind === "unit",
+    inspect(largeNeper),
+  );
+  assert.deepEqual(show(largeNeper.value.value, 8, DEFAULT_ROUNDING), {
+    kind: "certified",
+    text: "8.2451343e+434294",
+  });
+  const hugeNeper = convertText(table, "neper(1e30)", "1", CONTEXT);
   assert.ok(!hugeNeper.ok && hugeNeper.error.kind === "inputError");
   assert.equal(hugeNeper.error.error.kind, "callFailed");
   assert.ok(

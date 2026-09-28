@@ -31,6 +31,7 @@ import {
   add,
   compare,
   equals,
+  format,
   fromRational,
   multiply,
   negate,
@@ -534,8 +535,8 @@ test("an inexact argument's functions contain those of its ends, and a wide asin
   );
 });
 
-test("sinh and cosh share the exponential's magnitude limit, and tanh does not", () => {
-  for (const x of ["50000", "-50000", "1e6"]) {
+test("sinh and cosh share the exponential's range, the exponent bound, and tanh saturates", () => {
+  for (const x of ["1e30", "-1e30", "2.4e18"]) {
     assert.deepEqual(failure(sinhBall(exact(dec(x)), CONTEXT)), {
       kind: "tooLarge",
     });
@@ -545,9 +546,29 @@ test("sinh and cosh share the exponential's magnitude limit, and tanh does not",
     const t = value(tanhBall(exact(dec(x)), CONTEXT));
     assert.deepEqual(t.mid, x.startsWith("-") ? negate(ONE) : ONE);
   }
+  // Within it, the values (4.9): cosh(1e6) and sinh(1e6) are exp(1e6) / 2
+  // to every digit, 1.5166076984010437725432010707090571635e434294 from
+  // Python's decimal module, and sinh(-1e6) the negation.
+  for (const [x, digits] of [
+    ["1e6", "1.5166077e+434294"],
+    ["50000", "2.6488976e+21714"],
+  ] as const) {
+    for (const f of [sinhBall, coshBall]) {
+      const result = value(f(exact(dec(x)), CONTEXT));
+      assert.ok(certifies(result, 8, "halfEven"), `${f.name}(${x})`);
+      assert.equal(
+        format(result.mid, 8, "halfEven"),
+        digits,
+        `${f.name}(${x})`,
+      );
+    }
+  }
+  const negative = value(sinhBall(exact(dec("-1e6")), CONTEXT));
+  assert.equal(format(negative.mid, 8, "halfEven"), "-1.5166077e+434294");
   assert.ok(sinhBall(exact(fr(40000n)), CONTEXT).ok);
   assert.ok(coshBall(exact(fr(-40000n)), CONTEXT).ok);
-  assert.ok(!coshBall(ballOf(ZERO, dec("1e6")), CONTEXT).ok);
+  assert.ok(!coshBall(ballOf(ZERO, dec("1e30")), CONTEXT).ok);
+  assert.ok(coshBall(ballOf(ZERO, dec("1e6")), CONTEXT).ok);
 });
 
 test("acosh below one and atanh at or beyond an end are domain errors, and a ball reaching an end is unresolved at it", () => {
@@ -651,6 +672,8 @@ test("through the pipeline: the values certify, the identities hold, and the err
     ["atanh(0.5)", "0.54930614"],
     ["sinh(1e-10)", "1e-10"],
     ["cosh(1000)", "9.8503556e+433"],
+    ["cosh(1e6)", "1.5166077e+434294"],
+    ["sinh(-1e6)", "-1.5166077e+434294"],
     ["tanh(1e6)", "1"],
     ["acosh(1 + 1e-30)", "1.4142136e-15"],
     ["asinh(1e-50)", "1e-50"],
@@ -695,8 +718,8 @@ test("through the pipeline: the values certify, the identities hold, and the err
       "sinh(1 m)",
       'Cannot apply "sinh" to "1 m": "1 m" has dimension m, but the argument of "sinh" must be a plain number.',
     ],
-    ["sinh(1e6)", '"sinh(1e6)" is too large to compute.'],
-    ["cosh(-1e6)", '"cosh(-1e6)" is too large to compute.'],
+    ["sinh(1e30)", '"sinh(1e30)" is too large to compute.'],
+    ["cosh(-1e30)", '"cosh(-1e30)" is too large to compute.'],
     [
       "acosh(1 + ((2^(1/2))^2 - 2))",
       '"1 + ((2^(1/2))^2 - 2)" cannot be told from 1 at this precision, and the result depends on which side of 1 it lies.',

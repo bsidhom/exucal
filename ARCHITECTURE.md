@@ -162,8 +162,15 @@ Three rules say where, and only where, a value can lose precision:
    function's domain throughout its ball is a `domain` error, and one
    that straddles an edge of the domain (`ln` at zero, `asin` at one,
    `tan` at a pole) is `unresolved` at that edge, which the retry loop
-   retries; a result whose magnitude would exceed the range limit
-   (`exp(1e6)`) is refused before it is computed.
+   retries; a result whose decimal exponent would pass the exponent bound
+   (`exp(1e30)`) is refused before it is computed, while `exp(1e6)`,
+   `cosh(1e6)` and `2^(1e6/3)` are values: the exponential returns a
+   `Floating`, a mantissa of the working bits with a binary exponent,
+   renormalized after each squaring so that the argument's size costs
+   sixty squarings and not a value of a million bits, and it leaves the
+   kernel through digits.ts, exactly where the exponent is within the
+   range limit and in log space, `10^(t - floor(t))` for `t` the decimal
+   logarithm found on the kernel, where it is not.
 
 3. **Display rounds once, in a rounding mode, shows only the digits the
    radius certifies, and `=` is the radius's to decide.** `show(ball,
@@ -231,7 +238,12 @@ stated over-approximation (the plan's D9), entered from a `Scaled` or a
 ball whose power of ten can be formed (`fixedFromScaled`; the callers
 bound their arguments first) and left through `fixedToBall`, which rounds
 the value onto the decimal grid of the working digits and hands back the
-count and the rounding as a radius. Its first routines are the roots: the square
+count and the rounding as a radius. `Floating` (`fixed.ts` too) is a
+`Fixed` mantissa with a binary exponent, `mant × 2^exp`, the form of the
+results that can be large, the exponential's and the hyperbolic pair's;
+`digits.ts`, above the kernel since it calls it, takes one out as a ball,
+exactly where the exponent is within the range limit and in log space
+otherwise, the one place the program needs log space. Its first routines are the roots: the square
 root by Newton on the reciprocal square root, multiplications only with
 the precision doubling, and the root of any degree by Newton in fixed
 point, either one's error verified by raising the result back to the
@@ -1084,7 +1096,8 @@ src/core/context.ts       NumberContext: the precision, the rounding mode, the r
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root and the rational power on the kernel, unresolved
 src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations, the roots
-src/core/fixed-exp.ts     expFixed and sinhCoshFixed: the exponential on the kernel, by halving, Taylor and squaring, and the hyperbolic pair through it
+src/core/fixed-exp.ts     expFixed and sinhCoshFixed: the exponential on the kernel, by halving, Taylor and squaring into a Floating, and the hyperbolic pair through it
+src/core/digits.ts        floatingToBall: a Floating as a ball, exactly within the range limit and by its decimal logarithm in log space beyond it
 src/core/fixed-log.ts     lnFixed: the logarithm on the kernel, by square roots and the atanh series; ln(2) and ln(10) memoized
 src/core/fixed-trig.ts    sinCosFixed and atanFixed: the sine, cosine and arctangent on the kernel, by reduction and the Taylor series
 src/core/constants.ts     pi by Chudnovsky's series and e by its series, both with binary splitting, memoized at the ceiling
@@ -1213,9 +1226,9 @@ Planned extensions, listed to show that they fit without reshaping the core:
   settling, certification, the retry loop, the two limits and `pi`) and
   stage 3 (the built-in kind of function, calls with any number of
   arguments, the elementary set, the table at the ceiling and the
-  logarithmic units) have landed, and stage 4 (the `Scaled` midpoint and
-  the decimal mode, which also lifts the magnitude limit of the inexact
-  functions, so that `exp(1e6)` is a value) is next.
+  logarithmic units) have landed, as have the `Scaled` midpoint and the
+  range of the inexact functions of stage 4 (`1e999999999` and `exp(1e6)`
+  are values); the decimal mode, the rest of stage 4, is next.
 - **Domain and range** on a function definition (`tempC(-300)` is a
   negative temperature today) are two optional bounds, checked at the call
   and at the inverse; docs/functions.md lists them with the other

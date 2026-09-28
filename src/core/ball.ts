@@ -107,14 +107,19 @@
 // the memo), so that a tiny or a huge base loses nothing to the
 // conversion; the product `y ln x` is formed at the bits plus the
 // exponent's and the logarithm's magnitudes, and its magnitude is held to
-// the range limit before the exponential (`expFits`, which 4.9 turns into
-// the exponent bound), so that `7^(100000/3)` is `tooLarge` as it was,
-// while `2^0.1234567` and `10^2.3456789`, once refused as `tooLarge`, are
-// values with a radius; and a power of ten costs nothing in the exponent,
-// so `10^(100000/3)` is the cube root of ten times `10^33333`, a value.
+// the exponent bound before the exponential (`expFits`, 4.9), so that
+// `7^(100000/3)` is a value of about `10^28144` where the range limit
+// refused it, `2^0.1234567` and `10^2.3456789`, once refused as
+// `tooLarge`, are values with a radius, and `7^(10^19)` is `tooLarge` at
+// the bound; a power of ten costs nothing in the exponent, so
+// `10^(100000/3)` is the cube root of ten times `10^33333`, a value; the
+// kernel's `Floating` comes out through digits.ts (`floatingToBall`),
+// exactly where its exponent is within the range limit and in log space
+// otherwise.
 
 import type { NumberContext } from "./context.ts";
 import { workingDigits } from "./context.ts";
+import { floatingToBall } from "./digits.ts";
 import { expFixed } from "./fixed-exp.ts";
 import { ln10Fixed, lnFixed } from "./fixed-log.ts";
 import {
@@ -159,6 +164,7 @@ import {
 import { err, ok, type Result } from "./result.ts";
 import type { Precision, RoundingMode } from "./rounding.ts";
 import {
+  MAX_EXPONENT,
   ONE,
   ZERO,
   absolute,
@@ -408,11 +414,12 @@ export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
  * within the context's range limit. An inexact ball is raised by squaring
  * with `multiplyBalls`, settled after each product (D15), so that the
  * midpoint stays at the working precision and only the magnitude of the
- * result is guarded: a result whose binary exponent would exceed the range
- * limit is `tooLarge` before anything is computed (4.9 makes that the
- * exponent bound). A negative `n` inverts by the division rule, so a ball
- * containing zero to a negative power is `unresolved`. `b^0` is exactly
- * one, as `pow` has it, for any ball.
+ * result is guarded: a result whose decimal exponent would exceed the
+ * exponent bound is `tooLarge` before anything is computed (4.9), and a
+ * product that passes it in the loop, by the guard's double, is
+ * `tooLarge` there. A negative `n` inverts by the division rule, so a
+ * ball containing zero to a negative power is `unresolved`. `b^0` is
+ * exactly one, as `pow` has it, for any ball.
  */
 export function powBall(
   b: Ball,
@@ -429,23 +436,27 @@ export function powBall(
     if (!positive.ok) return positive;
     return divideBalls(exact(ONE), positive.value);
   }
-  if (!isZero(b.mid) && log2Scale(b) * Number(n) > context.maxBits) {
+  if (
+    !isZero(b.mid) &&
+    log2Scale(b) * Number(n) * Math.log10(2) > Number(MAX_EXPONENT)
+  ) {
     return err({ kind: "tooLarge" });
   }
   let result = exact(ONE);
   let base = b;
   for (let rest = n; rest > 0n; rest >>= 1n) {
-    if (rest & 1n) result = settle(productOf(result, base), context);
-    if (rest > 1n) base = settle(productOf(base, base), context);
+    if (rest & 1n) {
+      const product = multiplyBalls(result, base);
+      if (!product.ok) return product;
+      result = settle(product.value, context);
+    }
+    if (rest > 1n) {
+      const square = multiplyBalls(base, base);
+      if (!square.ok) return square;
+      base = settle(square.value, context);
+    }
   }
   return ok(result);
-}
-
-/** `a × b` for balls the magnitude guard has bounded, so the exponent bound cannot fail. */
-function productOf(a: Ball, b: Ball): Ball {
-  const product = multiplyBalls(a, b);
-  if (!product.ok) throw new Error("A guarded product passed the bound");
-  return product.value;
 }
 
 /**
@@ -666,9 +677,9 @@ export function powRationalBall(
  * the magnitudes of `y` and of the logarithm, so that their product keeps
  * the working bits, `unresolved` when `x` reaches within an ulp of zero at
  * those bits, `tooLarge` when the product's magnitude, over its whole
- * interval, puts the result beyond the range limit, or when `y` is beyond
- * what a double holds, and otherwise the kernel's ball, rounded in no
- * mode.
+ * interval, puts the result beyond the exponent bound, or when `y` is
+ * beyond what a double holds, and otherwise the kernel's `Floating` as a
+ * ball through digits.ts, rounded in no mode.
  */
 export function powLogSpace(
   x: Ball,
@@ -688,8 +699,8 @@ export function powLogSpace(
   const magnitude =
     Number(bound >> BigInt(Math.max(0, bitLength(bound) - 53))) *
     2 ** (Math.max(0, bitLength(bound) - 53) - product.bits);
-  if (!expFits(magnitude, context.maxBits)) return err({ kind: "tooLarge" });
-  return ok(fixedToBall(expFixed(product, bits), workingDigits(context)));
+  if (!expFits(magnitude)) return err({ kind: "tooLarge" });
+  return floatingToBall(expFixed(product, bits), context);
 }
 
 /**
@@ -740,9 +751,13 @@ export function radiusBound(rad: Radius): number {
   return Number(rad.mant) * 2 ** Number(rad.exp);
 }
 
-/** Whether `exp` of a value of magnitude up to `bound` fits the range limit `maxBits`, either way from one. */
-export function expFits(bound: number, maxBits: number): boolean {
-  return bound * Math.LOG2E <= maxBits;
+/**
+ * Whether `exp` of a value of magnitude up to `bound` fits the exponent
+ * bound, either way from one: its decimal exponent, `bound log10 e`, is
+ * at most `MAX_EXPONENT` (4.9; `exp(1e18)` is a value, `exp(1e30)` is not).
+ */
+export function expFits(bound: number): boolean {
+  return bound * Math.LOG10E <= Number(MAX_EXPONENT);
 }
 
 /**

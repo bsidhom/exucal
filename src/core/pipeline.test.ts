@@ -381,9 +381,16 @@ test("the range limit of the context reaches a literal's mantissa and a power", 
   const power = evaluateText(table, "2^100 m", small);
   assert.ok(!power.ok);
   assert.equal(power.error.kind, "tooLarge");
-  // An inexact base is bounded by its magnitude, not by an exact power.
+  // An inexact base is bounded by the exponent bound, not by an exact
+  // power (4.9): sqrt(2)^(10^7) is a value, sqrt(2)^(10^19) is not.
   assert.ok(evaluateText(table, "(2^(1/2))^1000", CONTEXT).ok);
-  const huge = evaluateText(table, "(2^(1/2))^10000000", CONTEXT);
+  const large = evaluateText(table, "(2^(1/2))^10000000", CONTEXT);
+  assert.ok(large.ok, inspect(large));
+  assert.equal(
+    show(large.value.magnitude, 8, DEFAULT_ROUNDING).text,
+    "9.5130528e+1505149",
+  );
+  const huge = evaluateText(table, "(2^(1/2))^10000000000000000000", CONTEXT);
   assert.ok(!huge.ok);
   assert.equal(huge.error.kind, "tooLarge");
 });

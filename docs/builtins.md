@@ -80,15 +80,14 @@ once the name has resolved and before any argument is evaluated.
   the logarithms take any exponent, `ln(m × 10^e)` being `ln m + e ln 10`
   from the memo, so `ln(1e999999999)` is a value and `log10(1e999999999)`
   exactly `999999999`.
-- **A result whose magnitude would exceed the range limit** is `tooLarge`
-  before anything is computed: `exp`, `sinh`, `cosh` and `pow` predict it
-  from the argument. This is a limit of the kernel's representation, not
-  of the functions: the kernel's fixed point holds a result as an integer
-  whose size is the result's binary exponent, so `exp(1e6)`, about
-  `2^1442695`, cannot be held there, though it is an ordinary value,
-  `≈ 3.0332e434294`, which the `Scaled` midpoint of 4.4 could carry. Stage
-  4's 4.9 lifts it, after which these functions have the range of an
-  exponent and only the exponent bound refuses.
+- **A result whose decimal exponent would pass the exponent bound**,
+  `10^18`, is `tooLarge` before anything is computed: `exp`, `sinh`,
+  `cosh` and `pow` predict it from the argument (`exp(1e30)`,
+  `sinh(-1e30)`). Within it these functions have the range of an
+  exponent (4.9): `exp(1e6)` is `≈ 3.0332154e434294` and `exp(1e18)`
+  a value with the exponent `434294481903251827`, since the kernel returns
+  a `Floating`, a mantissa with a binary exponent, and the digits of one
+  whose exponent cannot be formed are found in log space (digits.ts).
 - **Propagation** is by running the series on the argument with its error
   included (D9), so no derivative bound is written separately; the
   truncation bound of a series is taken at the upper end of the argument's
@@ -276,9 +275,13 @@ x)`, `atan2` an arctangent by quadrant, and `asinh`, `acosh` and
   are `tooLarge` beyond about 45,000 at the default range limit; `tanh` is
   not, since for an argument beyond what the working bits can tell from
   one it is `±1` within `2 e^-2|x|`, a radius the coarse type holds at any
-  magnitude. Stage 4's 4.9 lifts the limit at the guard and the squaring
-  loop of `expFixed`; the kernel-to-ball conversion rounds onto the
-  decimal grid of the working digits since 4.4 and takes any exponent.
+  magnitude. Since 4.9 the guard is the exponent bound, the squaring loop
+  of `expFixed` renormalizes into a binary exponent, so a large argument
+  costs sixty squarings at the working bits, and `sinh` and `cosh` fold
+  the reciprocal into the error beyond half the working bits; the
+  kernel-to-ball conversion rounds onto the decimal grid of the working
+  digits since 4.4 and takes any exponent, through digits.ts for one the
+  range limit cannot hold.
 - **The memos.** Four constants at the ceiling plus 64 bits; the margin
   serves the reduction of `sin` and `cos` for every argument below `2^64`
   at the ceiling pass exactly, the reduction taking pi at the bits asked

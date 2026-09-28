@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { multiplyBalls, settle, type Ball } from "../src/core/ball.ts";
 import { chudnovsky, eSeries } from "../src/core/constants.ts";
+import { floatingToBall } from "../src/core/digits.ts";
 import {
   DEFAULT_CEILING,
   DEFAULT_MAX_BITS,
@@ -104,7 +105,44 @@ const ROUTINES: readonly [string, (bits: number) => void][] = [
     "cosh 2",
     (bits) => void sinhCoshFixed(fixedFromRational(rational(2n), bits), bits),
   ],
+  // The large arguments of 4.9: `exp 1e6` is `exp 1` plus about sixty
+  // squarings at the working bits, and `cosh 1e6` the same with the
+  // reciprocal folded into the error.
+  [
+    "exp 1e6",
+    (bits) => void expFixed(fixedFromRational(rational(1000000n), bits), bits),
+  ],
+  [
+    "cosh 1e6",
+    (bits) =>
+      void sinhCoshFixed(fixedFromRational(rational(1000000n), bits), bits),
+  ],
 ];
+
+test("exp of 1e6 at the ceiling costs within a small factor of exp of 1", (t) => {
+  // The squaring loop renormalizes, so the large argument costs the
+  // series plus sixty squarings at the working bits, not a value of 1.4
+  // million bits; the log-space digits of the result are timed beside it.
+  const bits = bitsFor(DEFAULT_CEILING);
+  const one = bestOf(
+    5,
+    () => void expFixed(fixedFromRational(rational(1n), bits), bits),
+  );
+  const large = bestOf(
+    5,
+    () => void expFixed(fixedFromRational(rational(1000000n), bits), bits),
+  );
+  const context = contextAt(DEFAULT_CEILING);
+  const floating = expFixed(fixedFromRational(rational(1000000n), bits), bits);
+  const digits = bestOf(5, () => void floatingToBall(floating, context));
+  t.diagnostic(
+    `exp 1e6: ${millis(large)} against exp 1 at ${millis(one)}, and its digits in log space ${millis(digits)}, at the ceiling of ${DEFAULT_CEILING} digits`,
+  );
+  assert.ok(
+    large <= 4 * Math.max(one, 0.5),
+    `expected exp 1e6 (${millis(large)}) to cost at most four times exp 1 (${millis(one)})`,
+  );
+});
 
 test("every kernel routine at the default ceiling costs at most 64 times what it costs at a quarter of it", (t) => {
   // The ceiling pass is the costliest an expression that never certifies

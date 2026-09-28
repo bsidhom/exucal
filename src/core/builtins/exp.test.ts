@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact, expFits, isExact, radiusBound, type Ball } from "../ball.ts";
+import {
+  certifies,
+  exact,
+  expFits,
+  isExact,
+  radiusBound,
+  type Ball,
+} from "../ball.ts";
 import { buildTable } from "../build.ts";
 import { BUILTINS } from "../builtins.ts";
 import {
@@ -17,12 +24,13 @@ import { evaluateText } from "../pipeline.ts";
 import { UNBOUNDED, radiusAbove, radiusUpper } from "../radius.ts";
 import { LIMIT_BITS, rational } from "../rational.ts";
 import {
-  ONE,
-  ZERO,
   absolute,
   compare,
+  format,
   fromRational,
+  ONE,
   subtract,
+  ZERO,
   type Scaled,
 } from "../scaled.ts";
 import { ball, dec, fr } from "../../testing/scaled.ts";
@@ -102,26 +110,46 @@ test("an unbounded argument gives an unbounded exponential of its midpoint", () 
   assert.ok(compare(distance(result.mid, E), dec("1e-45")) < 0);
 });
 
-test("an argument whose exponential would exceed the range limit is tooLarge, either way from one", () => {
-  for (const x of ["1e6", "-1e6", "50000", "-50000"]) {
+test("an argument whose exponential would exceed the exponent bound is tooLarge, either way from one", () => {
+  for (const x of ["1e30", "-1e30", "2.4e18", "-2.4e18"]) {
     assert.deepEqual(expBall(exact(dec(x)), CONTEXT), {
       ok: false,
       error: { kind: "tooLarge" },
     });
   }
-  // Within it, on either side.
-  assert.ok(expBall(exact(fr(40000n)), CONTEXT).ok);
-  assert.ok(expBall(exact(fr(-40000n)), CONTEXT).ok);
-  // A wide ball is judged over its whole extent.
-  assert.ok(!expBall(ball(ZERO, dec("1e6")), CONTEXT).ok);
-  assert.ok(expFits(45000, DEFAULT_MAX_BITS));
-  assert.ok(!expFits(46000, DEFAULT_MAX_BITS));
+  // Within it, on either side: the range of an exponent (4.9), with the
+  // digits from Python's decimal module at a precision of 70.
+  for (const [x, digits] of [
+    ["1e6", "3.0332154e+434294"],
+    ["-1e6", "3.2968315e-434295"],
+    ["50000", "5.2977952e+21714"],
+    ["-50000", "1.8875777e-21715"],
+    ["1e18", "4.4784623e+434294481903251827"],
+  ] as const) {
+    const result = value(expBall(exact(dec(x)), CONTEXT));
+    assert.ok(certifies(result, 8, "halfEven"), x);
+    assert.equal(format(result.mid, 8, "halfEven"), digits, x);
+  }
+  const thirty = value(
+    expBall(exact(dec("1e6")), { ...CONTEXT, precision: 30 }),
+  );
+  assert.ok(certifies(thirty, 30, "halfEven"));
+  assert.equal(
+    format(thirty.mid, 30, "halfEven"),
+    "3.03321539680208754508640214142e+434294",
+  );
+  // A wide ball is judged over its whole extent, and computed over it.
+  assert.ok(!expBall(ball(ZERO, dec("1e30")), CONTEXT).ok);
+  const wide = value(expBall(ball(ZERO, dec("1e6")), CONTEXT));
+  assert.ok(compare(wide.mid, ZERO) > 0);
+  assert.ok(expFits(2.3e18));
+  assert.ok(!expFits(2.31e18));
   assert.equal(radiusBound(UNBOUNDED), Infinity);
   assert.equal(radiusBound(radiusAbove(rational(0n))), 0);
   assert.ok(Math.abs(radiusBound(radiusAbove(rational(3n))) - 3) < 1e-6);
 });
 
-test("through the pipeline, exp(1) certifies fifty digits on the first pass and exp(1e6) is too large", () => {
+test("through the pipeline, exp(1) certifies fifty digits on the first pass, exp(1e6) is a value and exp(1e30) is too large", () => {
   const parsed = parseDefinitions("m  !");
   assert.ok(parsed.ok);
   const table = buildTable(parsed.value, {
@@ -140,14 +168,23 @@ test("through the pipeline, exp(1) certifies fifty digits on the first pass and 
   // The first pass carries the guard beyond the digits asked, so the
   // certification needs no second pass: the radius is below 10^-60.
   assert.ok(compare(radiusOf(fifty.value.magnitude), dec("1e-60")) < 0);
-  const huge = evaluateText(table.value, "exp(1e6)", {
+  const large = evaluateText(table.value, "exp(1e6)", {
+    ...CONTEXT,
+    precision: 8,
+  });
+  assert.ok(large.ok, inspect(large));
+  assert.deepEqual(show(large.value.magnitude, 8, DEFAULT_ROUNDING), {
+    kind: "certified",
+    text: "3.0332154e+434294",
+  });
+  const huge = evaluateText(table.value, "exp(1e30)", {
     ...CONTEXT,
     precision: 8,
   });
   assert.ok(!huge.ok);
   assert.deepEqual(huge.error, {
     kind: "tooLarge",
-    span: { start: 0, end: 8 },
+    span: { start: 0, end: 9 },
   });
   const zero = evaluateText(table.value, "exp(0) m", {
     ...CONTEXT,

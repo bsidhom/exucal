@@ -50,10 +50,12 @@
 // and checked on the digits produced) and hands that back as the midpoint
 // with `error × 2^-bits` rounded up plus half a unit in the last digit as
 // the radius. Nothing here rounds in a rounding mode (D15): the mode is
-// the display's, applied once to a certified value. A violated precondition (an unbounded
-// ball, a divisor whose interval contains zero, a negative `bits`) is a
-// programming error and throws `RangeError`, as `rational` does; the ball
-// layer decides what such values mean before calling in.
+// the display's, applied once to a certified value. A routine whose result
+// can be large returns a `Floating`, a mantissa with a binary exponent
+// (4.9), which leaves through digits.ts. A violated precondition (an
+// unbounded ball, a divisor whose interval contains zero, a negative
+// `bits`) is a programming error and throws `RangeError`, as `rational`
+// does; the ball layer decides what such values mean before calling in.
 
 import type { Ball } from "./ball.ts";
 import {
@@ -218,6 +220,77 @@ export function fixedToBall(f: Fixed, digits: Precision): Ball {
   );
   if (!half.ok) throw new RangeError("A kernel value is within the bound");
   return { mid, rad: addRadius(error, radiusAboveScaled(half.value)) };
+}
+
+// ---------------------------------------------------------------------------
+// The floating form
+
+/**
+ * A kernel result with a binary exponent, `mant × 2^exp`, for the routines
+ * whose result can be large (4.9 of the plan; docs/decimal.md, "The
+ * kernel's boundary"): the exponential and, through it, the hyperbolic
+ * functions. The mantissa is a `Fixed` of the working bits, normalized to
+ * `[1, 2)` by `normalizeFloating`, and the exponent is a bigint the
+ * exponent bound holds, never a value of the result's bits. It leaves the
+ * kernel through `floatingToFixed` where the exponent is moderate and
+ * through digits.ts, in log space, where it is not.
+ */
+export type Floating = { readonly mant: Fixed; readonly exp: bigint };
+
+/** `f` as a `Floating` with exponent zero. */
+export function floatingOf(f: Fixed): Floating {
+  return { mant: f, exp: 0n };
+}
+
+/**
+ * `mant × 2^exp` with the mantissa brought to `[1, 2)` at `bits` fraction
+ * bits, the excess or the shortfall moved into the exponent: a value at
+ * or above two is shifted down, its error rounded up with one added for
+ * the truncation, and a value below one is shifted up, exactly; a zero
+ * value keeps its error and its exponent as given.
+ */
+export function normalizeFloating(
+  mant: Fixed,
+  exp: bigint,
+  bits: number,
+): Floating {
+  if (mant.value === 0n)
+    return { mant: rebaseFixed(mant, Math.max(mant.bits, bits)), exp };
+  const magnitude = abs(mant.value);
+  // The value's exponent: the mantissa must end with `bits` fraction bits
+  // and a leading one at bit `bits`.
+  const shift = BigInt(bitLength(magnitude) - 1 - bits);
+  if (shift === 0n) return { mant, exp: exp + BigInt(mant.bits - bits) };
+  if (shift > 0n) {
+    return {
+      mant: {
+        value: mant.value >> shift,
+        error: ceilShift(mant.error, shift) + 1n,
+        bits,
+      },
+      exp: exp + shift + BigInt(mant.bits - bits),
+    };
+  }
+  return {
+    mant: { value: mant.value << -shift, error: mant.error << -shift, bits },
+    exp: exp + shift + BigInt(mant.bits - bits),
+  };
+}
+
+/**
+ * `fl` as a `Fixed`, exactly, by moving the binary point, when its
+ * exponent is within `limit` bits either way (a value of at most `limit`
+ * integer bits, or `limit` fraction bits beyond the mantissa's, which
+ * the range limit bounds); `undefined` otherwise, for the caller to take
+ * the log-space route.
+ */
+export function floatingToFixed(
+  fl: Floating,
+  limit: number,
+): Fixed | undefined {
+  const exp = fl.exp < 0n ? -fl.exp : fl.exp;
+  if (exp > BigInt(limit)) return undefined;
+  return shiftFixed(fl.mant, Number(fl.exp));
 }
 
 /** The exact value of `f`, `value × 2^-bits`, as a rational. */

@@ -2464,6 +2464,39 @@ drawn by key; `sqrt(2)^(10^7)` is a value where 2.5's test had it
 note and into `mm;m` is exact; the kernel benchmark's `exp 1e6` at the
 ceiling costs within a small factor of `exp 1`.
 
+As it landed. `Floating` and its helpers (`floatingOf`,
+`normalizeFloating`, which brings a mantissa to `[1, 2)` at the working
+bits and moves the rest into the exponent, and `floatingToFixed`, the
+exact way back within a limit) are in fixed.ts, and `expFixed` returns
+one, normalizing after each squaring; its precondition is an argument
+below `2^62`, the exponent bound's own, and the halvings are taken over
+the argument's whole interval, so that a wide argument (`exp(0 ± 1e6)`)
+is a ball that covers its range rather than a refusal. `sinhCoshFixed`
+returns a pair of `Floating`s and folds the reciprocal beyond half the
+working bits in the exponent; `tanhFixed` is one within two ulps there,
+which the built-in's saturation never lets it reach. `digits.ts`'s
+`floatingToBall(fl, context)` is the one way out, a `Result` that fails
+`tooLarge` only where the decimal exponent passes the bound by the
+guard's double slack: exactly through `floatingToFixed` at the range
+limit, and otherwise `t = (e ln 2 + ln m) / ln 10` at the working bits
+plus the exponent's bit length plus 24, the decimal exponent `floor(t)`
+and the leading digits `exp((t - floor(t)) ln 10)` as a ball on the
+grid times the power of ten; the first landing scaled `ln 2` by the
+exponent less the mantissa's bits, which the mantissa's own fraction
+bits already say, and gave `exp(1e6)` eighteen digits short. `expFits`
+takes the bound alone and compares `bound log10 e` with `MAX_EXPONENT`,
+`powBall`'s guard is `log10` of the base's magnitude times the exponent
+against the same, and the squaring loop returns a product's `tooLarge`
+where it threw. `exp`, `sinh` and `cosh` map the exponent bound failure
+of the way out to the argument's. The kernel benchmark reports `exp 1e6`
+at 14 ms against `exp 1` at 13 ms at the ceiling, and the log-space
+digits of the result at 47 ms, the logarithm and the two memos computed
+for the call at the ceiling's bits plus the exponent's, on the machine
+of 4.9. `7^(100000/3)`, `pow(7, 100000/3)` and `pow(2, 1e6/3)` are
+values through log space, and `pow(10, 100000 ± 1)` is a ball that
+covers `10^100000`, where the range limit refused all four; `1e999999999
+m` into `ft;in` is the settled count of 4.4.
+
 Behavior: the inexact functions have the range of their exponent, not of
 the bits of their value; a power of an inexact base likewise.
 

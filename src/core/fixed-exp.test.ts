@@ -1,14 +1,22 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { inspect } from "node:util";
 import type { Ball } from "./ball.ts";
-import { expFixed, sinhCoshFixed } from "./fixed-exp.ts";
+import {
+  expFixed,
+  sinhCoshFixed,
+  tanhFixed,
+  type SinhCosh,
+} from "./fixed-exp.ts";
 import {
   bitsFor,
   fixedFromBall,
   fixedFromRational,
   fixedToBall,
+  floatingToFixed,
   toRational,
   type Fixed,
+  type Floating,
 } from "./fixed.ts";
 import { radiusUpper } from "./radius.ts";
 import {
@@ -25,11 +33,13 @@ import {
 import { digitsFor } from "./rounding.ts";
 import { parseFraction } from "../testing/fraction.ts";
 import {
+  between,
   foldIn,
   key,
   randomBall,
   randomRational,
   split,
+  uniform,
 } from "../testing/random.ts";
 import { fraction } from "../testing/scaled.ts";
 
@@ -64,6 +74,24 @@ function contains(f: Fixed, value: Rational): boolean {
   const distance = absolute(subtract(value, toRational(f)));
   const bound = multiply(rational(f.error), rational(1n, 1n << BigInt(f.bits)));
   return compare(distance, bound) <= 0;
+}
+
+/** A `Floating` of moderate exponent as the `Fixed` it stands for, exactly. */
+function fixed(fl: Floating): Fixed {
+  const f = floatingToFixed(fl, 1 << 20);
+  assert.ok(f !== undefined, `exponent ${fl.exp} within the hard bound`);
+  return f;
+}
+
+/** `exp(f)` at `bits` as a `Fixed`, for the tests of moderate arguments. */
+function expAt(f: Fixed, bits: number): Fixed {
+  return fixed(expFixed(f, bits));
+}
+
+/** The pair at `bits` as `Fixed`s, for the tests of moderate arguments. */
+function pairAt(f: Fixed, bits: number): { sinh: Fixed; cosh: Fixed } {
+  const { sinh, cosh } = sinhCoshFixed(f, bits);
+  return { sinh: fixed(sinh), cosh: fixed(cosh) };
 }
 
 /**
@@ -119,12 +147,12 @@ const REFERENCES: [string, string, number][] = [
 
 test("reference digits: e to 100 digits, and exp at several arguments", () => {
   const e = toBall(
-    expFixed(fixedFromRational(rational(1n), bitsFor(100)), bitsFor(100)),
+    expAt(fixedFromRational(rational(1n), bitsFor(100)), bitsFor(100)),
   );
   assertReference(e, E, tenTo(100), "exp(1) at 100 digits");
   for (const [x, digits, toleranceDigits] of REFERENCES) {
     const at = toBall(
-      expFixed(fixedFromRational(dec(x), bitsFor(60)), bitsFor(60)),
+      expAt(fixedFromRational(dec(x), bitsFor(60)), bitsFor(60)),
     );
     assertReference(at, dec(digits), tenTo(toleranceDigits), `exp(${x})`);
   }
@@ -133,7 +161,7 @@ test("reference digits: e to 100 digits, and exp at several arguments", () => {
 test("exp(-1000) keeps its digits, far below one", () => {
   // 5.07595889754945676529180947957433691930559928289283736183239384541054e-435, from Python's decimal module.
   const at = toBall(
-    expFixed(fixedFromRational(rational(-1000n), bitsFor(50)), bitsFor(50)),
+    expAt(fixedFromRational(rational(-1000n), bitsFor(50)), bitsFor(50)),
   );
   const reference = dec(
     "5.0759588975494567652918094795743369193055992828928e-435",
@@ -162,10 +190,10 @@ test("containment: exp at a precision contains the value computed at four times 
     }
   }
   for (const f of arguments_) {
-    const at = expFixed(f, bitsFor(20));
+    const at = expAt(f, bitsFor(20));
     // The midpoint's exponential at four times the precision, of the
     // argument's own value: a value in the argument's interval.
-    const fine = expFixed(
+    const fine = expAt(
       fixedFromRational(toRational(f), bitsFor(80)),
       bitsFor(80),
     );
@@ -176,7 +204,7 @@ test("containment: exp at a precision contains the value computed at four times 
     // And of the ends of the argument's interval.
     const rad = multiply(rational(f.error), rational(1n, 1n << BigInt(f.bits)));
     for (const end of [subtract(toRational(f), rad), add(toRational(f), rad)]) {
-      const atEnd = expFixed(fixedFromRational(end, bitsFor(80)), bitsFor(80));
+      const atEnd = expAt(fixedFromRational(end, bitsFor(80)), bitsFor(80));
       assert.ok(
         contains(at, toRational(atEnd)),
         `exp at an end of ${toFraction(toRational(f))}`,
@@ -189,24 +217,188 @@ test("containment: exp at a precision contains the value computed at four times 
 
 test("the result keeps the argument's significant bits for a result of any magnitude", () => {
   const bits = bitsFor(20);
-  const big = expFixed(fixedFromRational(rational(100n), bits), bits);
+  const big = expAt(fixedFromRational(rational(100n), bits), bits);
   // exp(100) is about 2^144.3, beyond 2^bits: an integer with at least
   // `bits` significant bits (D9: none of the fraction bits are needed).
   assert.equal(big.bits, 0);
   assert.ok(bitLength(big.value) >= bits);
-  const middling = expFixed(fixedFromRational(rational(20n), bits), bits);
+  const middling = expAt(fixedFromRational(rational(20n), bits), bits);
   // exp(20) is about 2^28.9: 28 fewer fraction bits than asked.
   assert.equal(middling.bits, bits - 28);
-  const small = expFixed(fixedFromRational(rational(-100n), bits), bits);
+  const small = expAt(fixedFromRational(rational(-100n), bits), bits);
   assert.equal(small.bits, bits + 145);
   assert.ok(small.value > 0n);
-  // A zero argument is exactly one, and an argument beyond 2^40 is refused.
-  const one = expFixed({ value: 0n, error: 0n, bits: 32 }, 32);
+  // A zero argument is exactly one, and an argument beyond 2^62, whose
+  // exponential would pass the exponent bound, is refused.
+  const one = expAt({ value: 0n, error: 0n, bits: 32 }, 32);
   assert.deepEqual(toRational(one), rational(1n));
   assert.throws(
-    () => expFixed(fixedFromRational(rational(1n << 41n), 8), 8),
+    () => expFixed(fixedFromRational(rational(1n << 63n), 8), 8),
     RangeError,
   );
+});
+
+// Reference digits from Python's decimal module at a precision of 70:
+// exp(1e6), exp(-1e6) and exp(1e18), whose exponents no `Fixed` could
+// hold, and cosh(1e6), which is half of exp(1e6) to every digit.
+const EXP_1E6 =
+  "3.033215396802087545086402141418114327083973794813477409606194999786226";
+const EXP_MINUS_1E6 =
+  "3.296831478088558578968907969107724208561401506658370159647088489895349";
+const EXP_1E18 =
+  "4.478462261548457493131813872087885906143911135991518352069114937569770";
+
+/**
+ * The leading digits of the `Floating` `fl`, as a fraction in `[1, 10)`,
+ * and its decimal exponent, through a double for the exponent's fraction:
+ * `mant × 2^exp = 10^(exp log10 2 + log10 mant)`, with `bits` fraction
+ * bits of the mantissa read by the kernel's own dyadic value.
+ */
+function leadingDigits(fl: Floating, digits: number): [string, bigint] {
+  const mant = toRational(fl.mant);
+  const log10 =
+    Number(fl.exp) * Math.log10(2) +
+    Math.log10(Number(mant.num) / Number(mant.den));
+  const exponent = BigInt(Math.floor(log10));
+  // The digits from the exact value over the power of ten, formed as a
+  // fraction of moderate size: mant × 2^exp × 10^-e is mant × 2^(exp - e)
+  // × 5^-e, the twos cancelling.
+  const twos = fl.exp - exponent;
+  const num =
+    mant.num *
+    (twos >= 0n ? 1n << twos : 1n) *
+    (exponent < 0n ? 5n ** -exponent : 1n);
+  const den =
+    mant.den *
+    (twos < 0n ? 1n << -twos : 1n) *
+    (exponent >= 0n ? 5n ** exponent : 1n);
+  const scaled = (num * 10n ** BigInt(digits - 1)) / den;
+  return [scaled.toString(), exponent];
+}
+
+test("exp of a large argument is a Floating with the exponent, and costs the squarings alone", () => {
+  const bits = bitsFor(30);
+  for (const [x, reference, exponent] of [
+    ["1000000", EXP_1E6, 434294n],
+    ["-1000000", EXP_MINUS_1E6, -434295n],
+  ] as const) {
+    const fl = expFixed(fixedFromRational(dec(x), bits), bits);
+    // The mantissa is in [1, 2) at the bits asked, and the exponent is the
+    // binary one of the reference, floor(x log2 e).
+    assert.equal(fl.mant.bits, bits);
+    assert.ok(
+      fl.mant.value >= 1n << BigInt(bits) && fl.mant.value < 2n << BigInt(bits),
+      x,
+    );
+    assert.equal(fl.exp, BigInt(Math.floor(Number(x) * Math.LOG2E)), x);
+    assert.ok(fl.mant.error < 4096n, `${x}: ${fl.mant.error} ulps`);
+    // The exponent cannot be formed as a Fixed within the range limit.
+    assert.equal(floatingToFixed(fl, 65536), undefined);
+    // Its leading digits agree with the reference to the bits asked.
+    const [digits, e] = leadingDigits(fl, 25);
+    assert.equal(e, exponent, x);
+    assert.equal(
+      digits.slice(0, 24),
+      reference.replace(".", "").slice(0, 24),
+      x,
+    );
+  }
+  // exp(1e18): the exponent bound's edge, sixty halvings; its digits are
+  // digits.ts's to find (the reference `EXP_1E18` is checked there
+  // through the built-in), and here the binary exponent is
+  // floor(1e18 log2 e).
+  const huge = expFixed(fixedFromRational(dec("1e18"), bits), bits);
+  assert.equal(huge.exp, 1442695040888963407n);
+  assert.ok(
+    huge.mant.value >= 1n << BigInt(bits) &&
+      huge.mant.value < 2n << BigInt(bits),
+  );
+  assert.equal(EXP_1E18.length, 71);
+});
+
+test("containment: exp of an argument up to 1e6 either way contains the value computed at four times the precision", () => {
+  const root = key(3602);
+  for (let i = 0; i < 40; i++) {
+    // The magnitude's scale and its mantissa, the sign, and whether it is
+    // a ball, each from its own fold.
+    const k = foldIn(root, i);
+    const scale = between(foldIn(k, 0), 0, 6);
+    const mantissa = randomRational(foldIn(k, 1), 20, 0);
+    const negative = uniform(foldIn(k, 2)) < 0.5;
+    const magnitude = multiply(
+      absolute(mantissa),
+      rational(10n ** BigInt(scale)),
+    );
+    const x = negative ? subtract(rational(0n), magnitude) : magnitude;
+    const rounded = fixedFromRational(x, bitsFor(20));
+    const error = uniform(foldIn(k, 3)) < 0.5 ? rounded.error : 3n;
+    const f: Fixed = { ...rounded, error };
+    const at = expFixed(f, bitsFor(20));
+    const dyadic = toRational(f);
+    const label = `exp of ${toFraction(dyadic)} ± ${error} ulps`;
+    // The value at four times the precision, of the argument's own
+    // dyadic value and of both ends of its interval, each within the
+    // coarse interval.
+    const rad = multiply(rational(f.error), rational(1n, 1n << BigInt(f.bits)));
+    for (const v of [dyadic, subtract(dyadic, rad), add(dyadic, rad)]) {
+      const fine = expFixed(fixedFromRational(v, bitsFor(80)), bitsFor(80));
+      assert.ok(
+        containsFloating(at, fine),
+        `${label} contains exp of ${toFraction(v)}`,
+      );
+    }
+    if (error === 0n)
+      assert.ok(at.mant.error <= 512n, `${label}: ${at.mant.error} ulps`);
+  }
+});
+
+/**
+ * Whether the interval of `coarse` contains the value of `fine`, both
+ * `Floating`s: compared at the coarse exponent, the fine mantissa shifted
+ * to it exactly (the exponents differ by a few bits at most).
+ */
+function containsFloating(coarse: Floating, fine: Floating): boolean {
+  const shift = fine.exp - coarse.exp;
+  const fineValue = toRational(fine.mant);
+  const value =
+    shift >= 0n
+      ? multiply(fineValue, rational(1n << shift))
+      : multiply(fineValue, rational(1n, 1n << -shift));
+  return contains(coarse.mant, value);
+}
+
+test("sinh and cosh of a large argument fold the reciprocal into the error, and tanh is one there", () => {
+  const bits = bitsFor(30);
+  const { sinh, cosh } = sinhCoshFixed(
+    fixedFromRational(dec("1e6"), bits),
+    bits,
+  );
+  // Both are exp(1e6) / 2: the exponent one less, the same leading digits.
+  assert.equal(cosh.exp, 1442694n, inspect(cosh));
+  assert.deepEqual(sinh, cosh);
+  const [digits, e] = leadingDigits(cosh, 25);
+  assert.equal(e, 434294n);
+  assert.equal(digits.slice(0, 22), "1516607698401043772543".slice(0, 22));
+  // A negative argument negates the sine, its truncation toward minus
+  // infinity leaving it within an ulp of the negation.
+  const negative = sinhCoshFixed(fixedFromRational(dec("-1e6"), bits), bits);
+  assert.equal(negative.sinh.exp, cosh.exp);
+  assert.ok(negative.sinh.mant.value <= -cosh.mant.value);
+  assert.ok(negative.sinh.mant.value >= -cosh.mant.value - 1n);
+  assert.deepEqual(negative.cosh, cosh);
+  // tanh of it is one within two ulps.
+  const t = tanhFixed(fixedFromRational(dec("1e6"), bits), bits);
+  assert.equal(t.value, 1n << BigInt(t.bits));
+  assert.ok(t.error <= 2n);
+  // A wide argument beyond the fold: a ball around zero and one around
+  // M / 2 that covers [1, M].
+  const wide: SinhCosh = sinhCoshFixed(
+    { value: 0n, error: 1000000n << 8n, bits: 8 },
+    bits,
+  );
+  assert.equal(wide.sinh.mant.value, 0n);
+  assert.ok(wide.sinh.mant.error > 0n);
+  assert.equal(wide.cosh.exp, wide.sinh.exp);
 });
 
 // ---------------------------------------------------------------------------
@@ -250,7 +442,7 @@ const HYPERBOLIC: [string, string, string][] = [
 
 test("reference digits: sinh and cosh on both routes, and the tiny argument keeps its bits", () => {
   for (const [x, sinhX, coshX] of HYPERBOLIC) {
-    const { sinh, cosh } = sinhCoshFixed(
+    const { sinh, cosh } = pairAt(
       fixedFromRational(dec(x), bitsFor(60)),
       bitsFor(60),
     );
@@ -259,7 +451,7 @@ test("reference digits: sinh and cosh on both routes, and the tiny argument keep
   }
   const bits = bitsFor(20);
   // sinh(1e-50) is about 2^-166.1, converted at the bits the built-in uses.
-  const tiny = sinhCoshFixed(fixedFromRational(dec("1e-50"), bits + 167), bits);
+  const tiny = pairAt(fixedFromRational(dec("1e-50"), bits + 167), bits);
   assert.equal(tiny.sinh.bits, bits + 167);
   assert.equal(tiny.cosh.bits, bits);
   assertReference(
@@ -271,12 +463,12 @@ test("reference digits: sinh and cosh on both routes, and the tiny argument keep
     "sinh(1e-50)",
   );
   // A large argument's results have few fraction bits and the bits asked for.
-  const large = sinhCoshFixed(fixedFromRational(rational(100n), bits), bits);
+  const large = pairAt(fixedFromRational(rational(100n), bits), bits);
   assert.equal(large.cosh.bits, 0);
   assert.ok(bitLength(large.cosh.value) >= bits);
   assert.equal(large.sinh.bits, 0);
   // A zero argument with an error is a ball around zero and one around one.
-  const zero = sinhCoshFixed({ value: 0n, error: 5n, bits: 8 }, bits);
+  const zero = pairAt({ value: 0n, error: 5n, bits: 8 }, bits);
   assert.equal(zero.sinh.value, 0n);
   assert.ok(contains(zero.cosh, rational(1n)));
 });
@@ -299,8 +491,8 @@ test("containment: sinh and cosh at a precision contain the values computed at f
   }
   arguments_.push(fixedFromRational(dec("1e-50"), bitsFor(20) + 167));
   for (const f of arguments_) {
-    const at = sinhCoshFixed(f, bitsFor(20));
-    const fine = sinhCoshFixed(
+    const at = pairAt(f, bitsFor(20));
+    const fine = pairAt(
       fixedFromRational(
         toRational(f),
         bitsFor(80) + Math.max(0, f.bits - bitsFor(20)),
@@ -312,7 +504,7 @@ test("containment: sinh and cosh at a precision contain the values computed at f
     assert.ok(contains(at.cosh, toRational(fine.cosh)), `cosh of ${label}`);
     const rad = multiply(rational(f.error), rational(1n, 1n << BigInt(f.bits)));
     for (const end of [subtract(toRational(f), rad), add(toRational(f), rad)]) {
-      const atEnd = sinhCoshFixed(
+      const atEnd = pairAt(
         fixedFromRational(end, bitsFor(80) + Math.max(0, f.bits - bitsFor(20))),
         bitsFor(80),
       );

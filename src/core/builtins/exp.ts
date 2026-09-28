@@ -6,14 +6,17 @@
 // back as the kernel's ball, rounded in no mode, for the evaluator to
 // settle (D15). An argument of unbounded radius gives the exponential of
 // its midpoint with an unbounded radius. The result's magnitude is guarded
-// before anything is computed: `exp(x)` is about `2^(x log2 e)` bits long
-// for a positive `x` and that far below one for a negative one, so an
-// argument whose magnitude, taken over its whole ball, exceeds the range
-// limit divided by `log2 e` is `tooLarge` (`expFits` of ball.ts, which the
-// log-space power shares), which is what refuses `exp(1e6)` and `exp(-1e6)`
-// alike. A tiny argument needs no scaling: the
-// result is `1 + x + ...`, whose digits certify at the first pass, and the
-// digits of the difference from one are the retry loop's to find.
+// before anything is computed: `exp(x)` has the decimal exponent
+// `x log10 e`, so an argument whose magnitude, taken over its whole ball,
+// exceeds the exponent bound divided by `log10 e` is `tooLarge` (`expFits`
+// of ball.ts, which the log-space power shares), which refuses `exp(1e30)`
+// and `exp(-1e30)` alike, while `exp(1e6)` and `exp(1e18)` are values
+// (4.9): the kernel returns a `Floating`, a mantissa with a binary
+// exponent, which comes out through digits.ts (`floatingToBall`), exactly
+// where the exponent is within the range limit and in log space
+// otherwise. A tiny argument needs no scaling: the result is `1 + x +
+// ...`, whose digits certify at the first pass, and the digits of the
+// difference from one are the retry loop's to find.
 
 import {
   exact,
@@ -24,15 +27,17 @@ import {
   type Ball,
 } from "../ball.ts";
 import {
+  fromBallError,
   plainNumbers,
   unboundedOf,
   type Builtin,
   type BuiltinError,
 } from "../builtin.ts";
 import { eBall } from "../constants.ts";
-import { workingDigits, type NumberContext } from "../context.ts";
+import type { NumberContext } from "../context.ts";
+import { floatingToBall } from "../digits.ts";
 import { expFixed } from "../fixed-exp.ts";
-import { bitsFor, fixedFromBall, fixedToBall } from "../fixed.ts";
+import { bitsFor, fixedFromBall } from "../fixed.ts";
 import { err, ok, type Result } from "../result.ts";
 import { ONE, equals, isZero } from "../scaled.ts";
 
@@ -47,13 +52,15 @@ export function expBall(
     if (isZero(x.mid)) return ok(exact(ONE));
     if (equals(x.mid, ONE)) return ok(eBall(context));
   }
-  if (!expFits(radiusBound(magnitudeAbove(x)), context.maxBits)) {
+  if (!expFits(radiusBound(magnitudeAbove(x)))) {
     return err({ kind: "tooLarge" });
   }
   const bits = bitsFor(context.precision);
-  return ok(
-    fixedToBall(expFixed(fixedFromBall(x, bits), bits), workingDigits(context)),
+  const result = floatingToBall(
+    expFixed(fixedFromBall(x, bits), bits),
+    context,
   );
+  return result.ok ? result : err(fromBallError(result.error, 0));
 }
 
 export const exp: Builtin = {

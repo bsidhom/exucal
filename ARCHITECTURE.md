@@ -175,7 +175,11 @@ power rather than read off the iteration. The elementary functions of
 stage 3 are the routines beside it, one module per family: `fixed-exp.ts`
 (the exponential, by halving, a Taylor series and squaring) and
 `fixed-log.ts` (the logarithm, by square roots and the `atanh` series
-summed by rectangular splitting, with `ln(2)` and `ln(10)` memoized). `constants.ts` computes `pi`
+summed by rectangular splitting, with `ln(2)` and `ln(10)` memoized); a
+rational power that is neither exact nor small enough for the root of the
+power goes through them as `exp(y ln x)` (`powRationalBall`, which `^`
+and the built-in `pow` share), so that `2^0.1234567` is a value with a
+radius where it was too large. `constants.ts` computes `pi`
 on it by Chudnovsky's series with binary splitting, its tail bounded in
 the comment, and memoizes one value, the digits at the ceiling of the
 retry schedule in force plus a margin of 64 bits, from which every request
@@ -990,7 +994,7 @@ src/core/rational.ts      Rational, arithmetic, the exact root, parsing and form
 src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted
 src/core/context.ts       NumberContext: the precision, the rounding mode, the range limit and the ceiling arithmetic is done under
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
-src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root on the kernel, unresolved
+src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root and the rational power on the kernel, unresolved
 src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations, the roots
 src/core/fixed-exp.ts     expFixed: the exponential on the kernel, by halving, Taylor and squaring
 src/core/fixed-log.ts     lnFixed: the logarithm on the kernel, by square roots and the atanh series; ln(2) and ln(10) memoized
@@ -1011,6 +1015,8 @@ src/core/builtins.ts      BUILTINS: the app's built-ins gathered by name from bu
 src/core/builtins/pi.ts   pi(): the circle constant from constants.ts, one module per built-in
 src/core/builtins/exp.ts  exp(x): the exponential, on fixed-exp.ts, with e from constants.ts
 src/core/builtins/log.ts  ln, log10, log2 and log(b, x): the logarithms, on fixed-log.ts, sharing the domain rule
+src/core/builtins/roots.ts sqrt and cbrt: rootBall under a name, with its exact cases and errors
+src/core/builtins/pow.ts  pow(x, y): the rational power's rule for an exact exponent, log space for an inexact one
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction

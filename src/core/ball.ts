@@ -60,15 +60,41 @@
 // its midpoint with an unbounded radius, as the other operations propagate
 // unbounded. The context's precision is the working precision the kernel
 // computes at; nothing here reads its rounding mode.
+//
+// A rational power (`powRationalBall`, which `^` and the built-in `pow`
+// share; task 3.8) has three routes. An exact base that is a perfect
+// `q`-th power gives the exact root raised to `p`, without ever forming
+// `x^p`, since `x^(p/q)` is rational exactly when `x` is a perfect `q`-th
+// power. Otherwise, when `x^p` fits the range limit, the root of the power
+// as above, root last so that the one inexact step comes last, which also
+// serves a negative base under an odd root and reports a base straddling
+// zero `unresolved`. Otherwise log space: `exp(y ln x)` on the kernel
+// routines beside fixed.ts (`lnFixed` of fixed-log.ts, `expFixed` of
+// fixed-exp.ts; the routines are below the ball so that this module can
+// reach them), for a base positive throughout, and for a negative base
+// under an odd root by symmetry; `powLogSpace` is that route on any
+// bounded exponent, which `pow` takes for an inexact one. The base is
+// scaled to order one by a power of two before it is converted, and the
+// power goes to the logarithm (`lnScaled`, which the logarithms share), so
+// that a tiny base loses nothing to the conversion; the product `y ln x`
+// is formed at the bits plus the exponent's and the logarithm's magnitudes,
+// and its magnitude is held to the range limit before the exponential
+// (`expFits`) so that `10^(100000/3)` is `tooLarge` as it was, while
+// `2^0.1234567` and `10^2.3456789`, once `2^1234567` and `10^23456789`
+// refused as `tooLarge`, are values with a radius.
 
 import type { NumberContext } from "./context.ts";
+import { expFixed } from "./fixed-exp.ts";
+import { lnFixed } from "./fixed-log.ts";
 import {
   bitsFor,
   fixedFromBall,
   fixedToBall,
+  multiplyFixed,
   rootFixed,
   shiftFixed,
   toRational,
+  type Fixed,
 } from "./fixed.ts";
 import {
   ONE,
@@ -371,13 +397,17 @@ function rootAroundZero(b: Ball, degree: bigint, context: NumberContext): Ball {
 }
 
 /**
- * `b` raised to the rational power `exponent`: `powBall` when the exponent
- * is an integer, and otherwise `rootBall` of `powBall` to the numerator,
- * root last, so that the one inexact step comes last. A ball that is
- * negative throughout under an even root fails with `negativeRadicand`
- * before anything is computed, so that `(-8)^(2/4)` is refused rather
- * than computed as the fourth root of 64; a ball straddling zero goes on
- * to the root, which reports it `unresolved`.
+ * `b` raised to the rational power `exponent`, by the three routes the
+ * header lays out: `powBall` for an integer exponent; for `p/q` in lowest
+ * terms the exact root raised to `p` when `b` is exact and a perfect
+ * `q`-th power; else `rootBall` of `powBall` when `b^p` fits the range
+ * limit, root last; else log space. A ball negative throughout under an
+ * even root fails with `negativeRadicand` before anything is computed, so
+ * that `(-8)^(2/4)` is refused rather than computed as the fourth root of
+ * 64; one straddling zero goes to the root, which reports it `unresolved`
+ * under an even degree, or `tooLarge` when its power does not fit; one of
+ * unbounded radius gives the power of its midpoint with an unbounded
+ * radius.
  */
 export function powRationalBall(
   b: Ball,
@@ -385,12 +415,110 @@ export function powRationalBall(
   context: NumberContext,
 ): Result<Ball, BallError> {
   if (exponent.den === 1n) return powBall(b, exponent.num, context);
-  if (b.mid.num < 0n && exponent.den % 2n === 0n && !containsZero(b)) {
-    return err({ kind: "negativeRadicand", degree: exponent.den });
+  const { num: p, den: q } = exponent;
+  const even = q % 2n === 0n;
+  if (isExact(b)) {
+    const root = exactRoot(b.mid, q);
+    if (!root.ok) return root;
+    if (root.value !== undefined) {
+      const power = pow(root.value, p, context.maxBits);
+      return power.ok ? ok(exact(power.value)) : power;
+    }
   }
-  const power = powBall(b, exponent.num, context);
-  if (!power.ok) return power;
-  return rootBall(power.value, exponent.den, context);
+  if (b.rad.kind === "unbounded") {
+    const at = powRationalBall(exact(b.mid), exponent, context);
+    return at.ok ? ok({ mid: at.value.mid, rad: UNBOUNDED }) : at;
+  }
+  const negative = sign(b.mid) < 0 && !containsZero(b);
+  if (negative && even) return err({ kind: "negativeRadicand", degree: q });
+  const power = powBall(b, p, context);
+  if (power.ok) return rootBall(power.value, q, context);
+  if (power.error.kind !== "tooLarge" || containsZero(b)) return power;
+  const result = powLogSpace(
+    negative ? negateBall(b) : b,
+    exact(exponent),
+    context,
+  );
+  if (!result.ok || !negative || p % 2n === 0n) return result;
+  return ok(negateBall(result.value));
+}
+
+/**
+ * `exp(y ln x)` on the kernel, for a bounded `x` positive as rationals (a
+ * precondition) and a bounded `y`: the logarithm at the working bits plus
+ * the magnitudes of `y` and of the logarithm, so that their product keeps
+ * the working bits, `unresolved` when `x` reaches within an ulp of zero at
+ * those bits, `tooLarge` when the product's magnitude, over its whole
+ * interval, puts the result beyond the range limit, and otherwise the
+ * kernel's ball, rounded in no mode.
+ */
+export function powLogSpace(
+  x: Ball,
+  y: Ball,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  const bits = bitsFor(context.precision);
+  const yBound = radiusBound(magnitudeAbove(y));
+  const yBits =
+    yBound === Infinity ? 0 : Math.max(0, Math.ceil(Math.log2(yBound + 1)));
+  const lnBits = bitLength(BigInt(Math.abs(scaleOf(x))) + 2n);
+  const working = bits + yBits + lnBits + 8;
+  const lnX = lnScaled(x, working, bitsFor(context.ceiling));
+  if (lnX === undefined) return err({ kind: "unresolved" });
+  const product = multiplyFixed(fixedFromBall(y, working), lnX);
+  const bound = abs(product.value) + product.error;
+  const magnitude =
+    Number(bound >> BigInt(Math.max(0, bitLength(bound) - 53))) *
+    2 ** (Math.max(0, bitLength(bound) - 53) - product.bits);
+  if (!expFits(magnitude, context.maxBits)) return err({ kind: "tooLarge" });
+  return ok(fixedToBall(expFixed(product, bits)));
+}
+
+/**
+ * The kernel's logarithm of a bounded `x` positive as rationals (a
+ * precondition) at `bits` fraction bits, `ln(2)` from its memo at
+ * `ceilingBits`: `x` is scaled to order one by an exact power of two,
+ * converted at `bits`, and the power goes to `lnFixed` as its `scale`, so
+ * that a tiny `x` loses nothing to the conversion. `undefined` when the
+ * scaled ball reaches within an ulp of zero at those bits, which only a
+ * ball wider than its value can produce.
+ */
+export function lnScaled(
+  x: Ball,
+  bits: number,
+  ceilingBits: number,
+): Fixed | undefined {
+  const scale = scaleOf(x);
+  const scaled: Ball = {
+    mid: scaleByPowerOfTwo(x.mid, -BigInt(scale)),
+    rad: shiftRadius(x.rad, -BigInt(scale)),
+  };
+  const f = fixedFromBall(scaled, bits);
+  if (f.value <= f.error) return undefined;
+  return lnFixed(f, bits, ceilingBits, scale);
+}
+
+/** The power of two that scales the positive midpoint of `x` to order one: the bit lengths' difference. */
+function scaleOf(x: Ball): number {
+  return bitLength(x.mid.num) - bitLength(x.mid.den);
+}
+
+/**
+ * A number at or above the radius `rad`, `Infinity` for an unbounded one
+ * or one beyond a double: enough to compare a magnitude with the range
+ * limit.
+ */
+export function radiusBound(rad: Radius): number {
+  if (rad.kind === "unbounded") return Infinity;
+  if (rad.mant === 0n) return 0;
+  if (rad.exp > 1000n) return Infinity;
+  if (rad.exp < -1100n) return 0;
+  return Number(rad.mant) * 2 ** Number(rad.exp);
+}
+
+/** Whether `exp` of a value of magnitude up to `bound` fits the range limit `maxBits`, either way from one. */
+export function expFits(bound: number, maxBits: number): boolean {
+  return bound * Math.LOG2E <= maxBits;
 }
 
 /**
@@ -488,4 +616,8 @@ function exactQuotient(a: Rational, b: Rational): Rational {
   const quotient = divide(a, b);
   if (!quotient.ok) throw new Error("Division by a divisor checked nonzero");
   return quotient.value;
+}
+
+function abs(n: bigint): bigint {
+  return n < 0n ? -n : n;
 }

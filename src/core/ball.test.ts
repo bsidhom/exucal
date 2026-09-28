@@ -523,6 +523,38 @@ test("powRationalBall composes the power and the root, root last", () => {
     powRationalBall(exact(rational(10n)), rational(100_000n, 3n), at(5)),
     "tooLarge",
   );
+  // Log space where the power of the base does not fit but the result
+  // does: 10^2.3456789 was 10^23456789, refused; the reference is Python's
+  // decimal module's.
+  const logSpace = unwrap(
+    powRationalBall(exact(rational(10n)), dec("2.3456789"), at(30)),
+  );
+  assertContains(
+    logSpace,
+    dec(
+      "221.65569800753690957294303882914688855431729064360237868185447239495302889375",
+    ),
+    "10^2.3456789",
+  );
+  assert.ok(compare(radiusUpper(logSpace.rad), tenTo(30)) < 0);
+  // A negative base under an odd root goes the same way, by symmetry:
+  // (-1.5)^(100001/3) is -(1.5^(100001/3)), about -5.85e5869.
+  const odd = unwrap(
+    powRationalBall(exact(dec("-1.5")), rational(100_001n, 3n), at(30)),
+  );
+  assert.ok(compare(odd.mid, ZERO) < 0);
+  const reference = dec(
+    "-5.8523767422543352458002555607345319012304088017943258408245655414718118265907283291040595268234950967370653725809544362078355634997244573020e5869",
+  );
+  assertContains(odd, reference, "(-1.5)^(100001/3)");
+  assert.ok(
+    compare(radiusUpper(odd.rad), multiply(absolute(reference), tenTo(30))) < 0,
+  );
+  // A base straddling zero whose power does not fit is still too large.
+  assertError(
+    powRationalBall(ball(dec("0.5"), dec("1")), rational(100_001n, 3n), at(5)),
+    "tooLarge",
+  );
   // An inexact base under a root stays bounded, as under an integer power.
   const inexact = unwrap(
     powRationalBall(ball(rational(2n), dec("1e-30")), rational(1n, 2n), at(5)),

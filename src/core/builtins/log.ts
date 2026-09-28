@@ -22,34 +22,37 @@
 // Every other value is the kernel's `ln`, or the quotient of two, handed
 // back as the kernel's ball for the evaluator to settle (D15). The
 // argument is scaled to order one by a power of two before it is
-// converted, and the power goes to the kernel, so that `ln(1e-300)` loses
-// nothing to the conversion.
+// converted, and the power goes to the kernel (`lnScaled` of ball.ts,
+// which the log-space power shares), so that `ln(1e-300)` loses nothing
+// to the conversion. The domain check, `checkPositive`, and the unbounded
+// rule, `unboundedOf`, are builtin.ts's, shared with `pow`.
 
-import { containsZero, exact, isExact, type Ball } from "../ball.ts";
-import { plainNumbers, type Builtin, type BuiltinError } from "../builtin.ts";
+import { exact, isExact, lnScaled, type Ball } from "../ball.ts";
+import {
+  checkPositive,
+  plainNumbers,
+  unboundedOf,
+  type Builtin,
+  type BuiltinError,
+} from "../builtin.ts";
 import type { NumberContext } from "../context.ts";
-import { ln10Fixed, ln2Fixed, lnFixed } from "../fixed-log.ts";
+import { ln10Fixed, ln2Fixed } from "../fixed-log.ts";
 import {
   bitsFor,
   divideFixed,
-  fixedFromBall,
   fixedToBall,
   keepSignificant,
   type Fixed,
 } from "../fixed.ts";
-import { UNBOUNDED, radiusUpper, shiftRadius } from "../radius.ts";
+import { radiusUpper } from "../radius.ts";
 import {
   ONE,
   ZERO,
   absolute,
-  add,
-  bitLength,
   compare,
   equals,
   invert,
   rational,
-  scaleByPowerOfTwo,
-  sign,
   subtract,
   type Rational,
 } from "../rational.ts";
@@ -64,7 +67,7 @@ export function lnBall(
   context: NumberContext,
 ): Result<Ball, BuiltinError> {
   if (x.rad.kind === "unbounded")
-    return unbounded(lnBall(exact(x.mid), context));
+    return unboundedOf(lnBall(exact(x.mid), context));
   if (isExact(x) && equals(x.mid, ONE)) return ok(exact(ZERO));
   const f = lnKernel(x, context, 0);
   return f.ok ? ok(fixedToBall(f.value)) : f;
@@ -93,7 +96,7 @@ export function logBall(
   context: NumberContext,
 ): Result<Ball, BuiltinError> {
   if (b.rad.kind === "unbounded" || x.rad.kind === "unbounded") {
-    return unbounded(
+    return unboundedOf(
       logBall(
         b.rad.kind === "unbounded" ? exact(b.mid) : b,
         x.rad.kind === "unbounded" ? exact(x.mid) : x,
@@ -141,7 +144,9 @@ function logOfConstantBase(
   constant: (bits: number, ceilingBits: number) => Fixed,
 ): Result<Ball, BuiltinError> {
   if (x.rad.kind === "unbounded") {
-    return unbounded(logOfConstantBase(exact(x.mid), context, base, constant));
+    return unboundedOf(
+      logOfConstantBase(exact(x.mid), context, base, constant),
+    );
   }
   if (isExact(x)) {
     const positive = checkPositive(x, 0);
@@ -168,10 +173,8 @@ function quotient(a: Fixed, b: Fixed, context: NumberContext): Ball {
 /**
  * `ln` of a bounded `x`, the argument at index `argument`, through the
  * kernel: the domain rule, the memos for `ln(2)` and `ln(10)`, and
- * otherwise the value scaled to order one by an exact power of two,
- * converted at the working bits, and passed with the power; a scaled
- * value that reaches within an ulp of zero at those bits is `unresolved`
- * at edge zero.
+ * otherwise `lnScaled` at the working bits; a value that reaches within
+ * an ulp of zero at those bits is `unresolved` at edge zero.
  */
 function lnKernel(
   x: Ball,
@@ -186,44 +189,9 @@ function lnKernel(
     if (equals(x.mid, TWO)) return ok(ln2Fixed(bits, ceilingBits));
     if (equals(x.mid, TEN)) return ok(ln10Fixed(bits, ceilingBits));
   }
-  const scale = BigInt(bitLength(x.mid.num) - bitLength(x.mid.den));
-  const scaled: Ball = {
-    mid: scaleByPowerOfTwo(x.mid, -scale),
-    rad: shiftRadius(x.rad, -scale),
-  };
-  const f = fixedFromBall(scaled, bits);
-  if (f.value <= f.error) {
-    return err({ kind: "unresolved", argument, edge: ZERO });
-  }
-  return ok(lnFixed(f, bits, ceilingBits, Number(scale)));
-}
-
-/**
- * Whether the bounded `x`, the argument at index `argument`, is positive
- * throughout: a `domain` error when it is not positive anywhere, and
- * `unresolved` at edge zero when it straddles zero.
- */
-function checkPositive(
-  x: Ball,
-  argument: number,
-): Result<undefined, BuiltinError> {
-  if (isExact(x)) {
-    return sign(x.mid) > 0
-      ? ok(undefined)
-      : err({ kind: "domain", argument, reason: "notPositive" });
-  }
-  if (compare(add(x.mid, radiusUpper(x.rad)), ZERO) <= 0) {
-    return err({ kind: "domain", argument, reason: "notPositive" });
-  }
-  if (containsZero(x)) return err({ kind: "unresolved", argument, edge: ZERO });
-  return ok(undefined);
-}
-
-/** The result of a call on the midpoint, with an unbounded radius. */
-function unbounded(
-  result: Result<Ball, BuiltinError>,
-): Result<Ball, BuiltinError> {
-  return result.ok ? ok({ mid: result.value.mid, rad: UNBOUNDED }) : result;
+  const f = lnScaled(x, bits, ceilingBits);
+  if (f === undefined) return err({ kind: "unresolved", argument, edge: ZERO });
+  return ok(f);
 }
 
 /**

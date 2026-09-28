@@ -1582,6 +1582,32 @@ precision well above the digits taken; `pow(-2, 1/3)` is the negated
 root, `pow(-2, 1/2)` a `negativeRadicand`, `pow(-2, sqrt(2))` a domain
 error; the zero base's three cases.
 
+As it landed. `sqrt` and `cbrt` share `builtins/roots.ts` (one rule under
+two names) and `pow` has `builtins/pow.ts`; the helpers the three share
+with the logarithms, `checkPositive` (the domain rule for a positive
+argument), `sideOfZero`, `unboundedOf` and `fromBallError` (a ball
+operation's error as a built-in's, an `unresolved` naming the argument
+and edge zero), moved into builtin.ts, and `radiusBound` and `expFits`
+from builtins/exp.ts into ball.ts, since `powLogSpace` there holds the
+result to the range limit as `exp` does. The log-space route is ball.ts's
+`powLogSpace(x, y, context)`, for a bounded base positive as rationals and
+any bounded exponent, on `lnScaled` (the scaling of the base to order one
+before conversion, which builtins/log.ts's `ln` shares) and `expFixed`:
+the logarithm is taken at the working bits plus the magnitudes of the
+exponent and of the logarithm, so that the product keeps the working
+bits, and `^` reaches it whenever `powBall` reports `x^p` too large for a
+base that excludes zero, negating by symmetry for a negative base under
+an odd root with an odd numerator; a base straddling zero whose power
+does not fit stays `tooLarge`, since its interval's result does not fit
+either. `exactRoot` on the base now comes first in `powRationalBall`, so
+that `8^(2/3)` is exact without forming `64`, as the task asks; the
+results are the ones the root route gave. A ball touching zero from below
+(`[-2, 0]`) is not positive anywhere, so it is a `domain` error for a
+logarithm or a base, while for the exponent of a zero base it is
+`unresolved`, since `0^0` differs from `0^-ε`; `sideOfZero` counts such
+a ball as straddling. Division by zero is worded as the evaluator words
+it everywhere (`Division by zero in "pow(0, -sqrt(2))"`).
+
 Behavior: `sqrt`, `cbrt` and `pow` exist, and `2^0.1234567` is a value
 where it was `tooLarge`.
 

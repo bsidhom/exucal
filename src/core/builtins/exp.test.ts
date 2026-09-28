@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact, isExact, type Ball } from "../ball.ts";
+import { exact, expFits, isExact, radiusBound, type Ball } from "../ball.ts";
 import { buildTable } from "../build.ts";
 import { BUILTINS } from "../builtins.ts";
 import {
@@ -24,7 +24,7 @@ import {
   subtract,
   type Rational,
 } from "../rational.ts";
-import { exp, expBall, expFits, radiusBound } from "./exp.ts";
+import { exp, expBall } from "./exp.ts";
 
 const CONTEXT: NumberContext = {
   precision: 40,

@@ -7,7 +7,7 @@ import { pi } from "./builtins/pi.ts";
 test("the app's built-ins are gathered by name, each from its module", () => {
   assert.deepEqual(
     [...BUILTINS.keys()],
-    ["pi", "exp", "ln", "log10", "log2", "log"],
+    ["pi", "exp", "ln", "log10", "log2", "log", "sqrt", "cbrt", "pow"],
   );
   assert.equal(BUILTINS.get("exp"), exp);
   assert.equal(BUILTINS.get("pi"), pi);

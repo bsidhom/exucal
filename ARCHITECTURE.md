@@ -1019,6 +1019,7 @@ changes to the core.
 
 ```
 src/core/rational.ts      Rational, arithmetic, the exact root, parsing and formatting
+src/core/scaled.ts        Scaled, a fraction times a power of ten in canonical form, its comparison and binary magnitude (unused until stage 4's 4.4)
 src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted
 src/core/context.ts       NumberContext: the precision, the rounding mode, the range limit and the ceiling arithmetic is done under
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up

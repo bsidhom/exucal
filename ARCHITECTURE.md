@@ -1056,7 +1056,7 @@ src/core/convert.ts       convert
 src/core/pipeline.ts      convertText, evaluateText: the pipeline over text
 src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions; src/units.test.ts checks them
-src/testing/random.ts     the seeded random source the tests and benchmarks share
+src/testing/random.ts     the seeded random source the tests and benchmarks share: keys, split and folded in, every draw a pure function of one
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
@@ -1083,11 +1083,15 @@ default discovery never matches it, so the two are separate without a second
 runner. `tsconfig.node.json` includes `bench/`, so they type-check with the
 tests. The rest of the directory is what they share:
 
-- `src/testing/random.ts` is the one seeded random source (mulberry32)
-  that the tests and the benchmarks share, with `randomBigInt` and
-  `randomRational` for the numeric tests, so that every run measures the
-  same data, every property test draws its inputs the same way, and no
-  test carries a generator of its own. `bench/harness.ts` holds what only
+- `src/testing/random.ts` is the one seeded random source that the tests
+  and the benchmarks share, purely applicative in the manner of JAX: a
+  key is two 32-bit words, `split` and `foldIn` derive keys from a key,
+  and every draw (`uniform`, `between`, `randomBigInt`, `randomRational`,
+  `randomBall`) is a function of its key alone, the bits behind them
+  threefry2x32 blocks under the key. So every run measures the same data,
+  every property test draws its inputs the same way, the `i`-th input of a
+  loop is the same whether drawn alone or in order, and no test carries a
+  generator of its own. `bench/harness.ts` holds what only
   the benchmarks need: `word`, which draws a name from it, and `bestOf`,
   which times a function several times after one untimed run and takes
   the shortest, the estimate least disturbed by whatever else the machine

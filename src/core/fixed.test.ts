@@ -42,9 +42,11 @@ import {
 } from "./rational.ts";
 import {
   between,
-  random,
+  foldIn,
+  key,
   randomBall,
   randomRational,
+  split,
 } from "../testing/random.ts";
 
 function dec(text: string): Rational {
@@ -77,13 +79,11 @@ function assertContains(f: Fixed, value: Rational, label: string) {
 
 /** The seeded rationals the property tests are over: a few digits to 10^±12. */
 function seededRationals(): Rational[] {
-  const rand = random(2101);
-  return Array.from({ length: 80 }, () => randomRational(rand, 24, 12));
+  return split(key(2101), 80).map((k) => randomRational(k, 24, 12));
 }
 
 function seededBalls(): Ball[] {
-  const rand = random(2102);
-  return Array.from({ length: 80 }, () => randomBall(rand, 24, 12));
+  return split(key(2102), 80).map((k) => randomBall(k, 24, 12));
 }
 
 // ---------------------------------------------------------------------------
@@ -331,10 +331,11 @@ test("truncateFixed contains the interval it truncates, at any error", () => {
     error: 1n,
     bits: 0,
   });
-  const rand = random(3113);
+  const root = key(3113);
   for (let i = 0; i < 400; i++) {
-    const f = fixedFromBall(randomBall(rand, 40, 3), between(rand, 40, 70));
-    const bits = between(rand, 0, f.bits);
+    const [a, b, c] = split(foldIn(root, i), 3);
+    const f = fixedFromBall(randomBall(a!, 40, 3), between(b!, 40, 70));
+    const bits = between(c!, 0, f.bits);
     const t = truncateFixed(f, bits);
     for (const end of [
       subtract(toRational(f), multiply(rational(f.error), ulp(f.bits))),
@@ -393,10 +394,11 @@ test("compareFixed decides only where the intervals allow it", () => {
     undefined,
   );
   // The comparison agrees with the rational order where it decides.
-  const rand = random(2103);
+  const root = key(2103);
   for (let i = 0; i < 60; i++) {
-    const a = fixedFromBall(randomBall(rand, 16, 3), 40);
-    const b = fixedFromBall(randomBall(rand, 16, 3), 40);
+    const [left, right] = split(foldIn(root, i));
+    const a = fixedFromBall(randomBall(left!, 16, 3), 40);
+    const b = fixedFromBall(randomBall(right!, 16, 3), 40);
     const decided = compareFixed(a, b);
     if (decided === undefined) continue;
     const [aLow, , aHigh] = ends(a);
@@ -475,14 +477,14 @@ function rootWithin(
 
 /** Positive seeded arguments: rationals as exact values and balls with a positive interval. */
 function positiveArguments(): Fixed[] {
-  const rand = random(2201);
+  const root = key(2201);
   const args: Fixed[] = [];
-  while (args.length < 60) {
+  for (let i = 0; args.length < 60; i++) {
     const bits = 60 + (args.length % 4) * 10;
     const f =
       args.length % 2 === 0
-        ? fixedFromRational(randomRational(rand, 24, 12), bits)
-        : fixedFromBall(randomBall(rand, 24, 12), bits);
+        ? fixedFromRational(randomRational(foldIn(root, i), 24, 12), bits)
+        : fixedFromBall(randomBall(foldIn(root, i), 24, 12), bits);
     if (f.value - f.error > 0n) args.push(f);
   }
   return args;

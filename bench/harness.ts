@@ -1,6 +1,7 @@
 // What the benchmarks share: a way to draw names from the seeded random
 // source of src/testing/random.ts, which the tests share, so that every run
-// measures the same synthetic data, and a timer that takes the best of
+// measures the same synthetic data (a name is a pure function of its key,
+// as every draw is), and a timer that takes the best of
 // several runs, the estimate least disturbed by whatever else the machine is
 // doing. ARCHITECTURE.md ("Benchmarks") describes the benchmarks and what
 // they are for; README.md says how and when to run them.
@@ -10,15 +11,13 @@
 // input: a ratio between two sizes measured in the same run holds on any
 // machine, where a timing in milliseconds does not.
 
-import type { Random } from "../src/testing/random.ts";
+import { words, type Key } from "../src/testing/random.ts";
 
-/** A word of `length` letters drawn from `alphabet`. */
-export function word(rand: Random, alphabet: string, length: number): string {
-  let s = "";
-  for (let i = 0; i < length; i++) {
-    s += alphabet[Math.floor(rand() * alphabet.length)];
-  }
-  return s;
+/** A word of `length` letters drawn from `alphabet`, one per word of `key`'s stream. */
+export function word(key: Key, alphabet: string, length: number): string {
+  return words(key, length)
+    .map((w) => alphabet[Math.floor((w / 2 ** 32) * alphabet.length)])
+    .join("");
 }
 
 /**

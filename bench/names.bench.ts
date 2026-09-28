@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { findAmbiguity } from "../src/core/names.ts";
-import { random } from "../src/testing/random.ts";
+import { key } from "../src/testing/random.ts";
 import { bestOf, millis } from "./harness.ts";
 import { syntheticPrefixes, syntheticUnits } from "./synthetic.ts";
 
@@ -11,8 +11,8 @@ function timeCheck(
   prefixCount: number,
   unitCount: number,
 ): number {
-  const prefixes = syntheticPrefixes(random(1), prefixCount);
-  const units = syntheticUnits(random(2), unitCount);
+  const prefixes = syntheticPrefixes(key(1), prefixCount);
+  const units = syntheticUnits(key(2), unitCount);
   const ms = bestOf(20, () => {
     assert.equal(findAmbiguity(prefixes, units), undefined);
   });

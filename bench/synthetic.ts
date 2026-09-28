@@ -14,9 +14,12 @@
 // would make one of the app's built-ins read as a prefix followed by it
 // (`i` beside the prefix `p`, for `pi`) is renamed, since the build
 // rejects such a table as it would a real one; the draws are untouched.
+// Every name is a pure function of the key and its index, so the units,
+// the prefixes and the references are drawn from keys of their own and
+// none depends on how many of the others were drawn.
 
 import { BUILTINS } from "../src/core/builtins.ts";
-import { between, type Random } from "../src/testing/random.ts";
+import { between, foldIn, split, type Key } from "../src/testing/random.ts";
 import { word } from "./harness.ts";
 
 const PREFIX_LETTERS = "nopqrstuvwxyz";
@@ -24,46 +27,52 @@ const UNIT_LETTERS = "abcdefghijklm";
 
 /** `count` distinct names of `minLength` to `maxLength` letters, each mapped to itself. */
 function names(
-  rand: Random,
+  key: Key,
   count: number,
   alphabet: string,
   minLength: number,
   maxLength: number,
 ): ReadonlyMap<string, string> {
   const result = new Map<string, string>();
-  while (result.size < count) {
-    const name = word(rand, alphabet, between(rand, minLength, maxLength));
+  for (let i = 0; result.size < count; i++) {
+    const [letters, length] = split(foldIn(key, i));
+    const name = word(
+      letters!,
+      alphabet,
+      between(length!, minLength, maxLength),
+    );
     result.set(name, name);
   }
   return result;
 }
 
 export function syntheticPrefixes(
-  rand: Random,
+  key: Key,
   count: number,
 ): ReadonlyMap<string, string> {
-  return names(rand, count, PREFIX_LETTERS, 1, 5);
+  return names(key, count, PREFIX_LETTERS, 1, 5);
 }
 
 export function syntheticUnits(
-  rand: Random,
+  key: Key,
   count: number,
 ): ReadonlyMap<string, string> {
-  return names(rand, count, UNIT_LETTERS, 1, 10);
+  return names(key, count, UNIT_LETTERS, 1, 10);
 }
 
 /** A definitions file of `prefixCount` prefixes and `unitCount` units. */
 export function syntheticDefinitions(
-  rand: Random,
+  key: Key,
   prefixCount: number,
   unitCount: number,
 ): string {
-  // The units are drawn before the prefixes, as they always were, and a
-  // unit that would make a built-in read as a prefix followed by it is
-  // renamed with a trailing underscore, which no drawn name has, so that
-  // the table is the same data seed for seed but for that one name.
-  const drawn = [...syntheticUnits(rand, unitCount).keys()];
-  const prefixes = [...syntheticPrefixes(rand, prefixCount).keys()];
+  // The units, the prefixes and the references each have a key of their
+  // own, and a unit that would make a built-in read as a prefix followed
+  // by it is renamed with a trailing underscore, which no drawn name has,
+  // so that the table is the same data key for key but for that one name.
+  const [unitKey, prefixKey, referenceKey] = split(key, 3);
+  const drawn = [...syntheticUnits(unitKey!, unitCount).keys()];
+  const prefixes = [...syntheticPrefixes(prefixKey!, prefixCount).keys()];
   const forbidden = new Set(
     prefixes.flatMap((prefix) =>
       [...BUILTINS.keys()]
@@ -77,7 +86,8 @@ export function syntheticDefinitions(
     lines.push(`${prefix}- 1000`);
   }
   units.forEach((unit, i) => {
-    const earlier = i === 0 ? "LENGTH" : units[between(rand, 0, i - 1)];
+    const earlier =
+      i === 0 ? "LENGTH" : units[between(foldIn(referenceKey!, i), 0, i - 1)];
     lines.push(`${unit} 1.5 ${earlier} / TIME`);
   });
   return lines.join("\n");

@@ -26,14 +26,9 @@ import { evaluate } from "./evaluate.ts";
 import { parseExpr } from "./expr.ts";
 import type { Quantity } from "./quantity.ts";
 import { certifies } from "./ball.ts";
-import {
-  DEFAULT_PRECISION,
-  equals,
-  parseDecimal,
-  rational,
-  toFraction,
-  type Rational,
-} from "./rational.ts";
+import { equals, rational, toFraction, type Rational } from "./rational.ts";
+import { parseFraction } from "../testing/fraction.ts";
+import { DEFAULT_PRECISION } from "./rounding.ts";
 import type { Result } from "./result.ts";
 import { unitLookup, type UnitTable } from "./table.ts";
 
@@ -134,7 +129,7 @@ function failure(have: string, want: string): ConversionError {
 
 /** The rational the decimal `text` denotes, exactly. */
 function decimal(text: string): Rational {
-  const result = parseDecimal(text);
+  const result = parseFraction(text);
   assert.ok(result.ok, `${JSON.stringify(text)} is not a number`);
   return result.value;
 }

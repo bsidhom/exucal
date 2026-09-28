@@ -34,7 +34,7 @@ import { ONE, sign } from "./core/rational.ts";
 import { err, ok } from "./core/result.ts";
 import type { EvaluateError } from "./core/evaluate.ts";
 import { convertText, evaluateText } from "./core/pipeline.ts";
-import { DEFAULT_PRECISION } from "./core/rational.ts";
+import { DEFAULT_PRECISION } from "./core/rounding.ts";
 import type { UnitTable } from "./core/table.ts";
 import { describeConversionError, describeTextError } from "./messages.ts";
 
@@ -103,8 +103,12 @@ test("a parse error names what was expected and what was found", () => {
     'Unexpected end of input: expected a number, a unit name, "(" or "-".',
   );
   assert.equal(
+    textMessage(`${"9".repeat(320000)} m`),
+    `"${"9".repeat(320000)}": this number is too large to represent.`,
+  );
+  assert.equal(
     textMessage("1e999999999 m"),
-    '"1e999999999": this number is too large to represent.',
+    '"1e999999999" is too large to compute.',
   );
 });
 

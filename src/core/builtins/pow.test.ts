@@ -22,11 +22,11 @@ import {
   absolute,
   compare,
   multiply,
-  parseDecimal,
   rational,
   subtract,
   type Rational,
 } from "../rational.ts";
+import { parseFraction } from "../../testing/fraction.ts";
 import type { Result } from "../result.ts";
 import { describeTextError } from "../../messages.ts";
 import { pow, powBallOf } from "./pow.ts";
@@ -39,7 +39,7 @@ const CONTEXT: NumberContext = {
 };
 
 function dec(text: string): Rational {
-  const result = parseDecimal(text);
+  const result = parseFraction(text);
   assert.ok(result.ok);
   return result.value;
 }

@@ -8,7 +8,7 @@ import {
   DEFAULT_MAX_BITS,
   DEFAULT_ROUNDING,
 } from "../src/core/context.ts";
-import { DEFAULT_PRECISION } from "../src/core/rational.ts";
+import { DEFAULT_PRECISION } from "../src/core/rounding.ts";
 import { key } from "../src/testing/random.ts";
 import { bestOf, millis } from "./harness.ts";
 import { syntheticDefinitions } from "./synthetic.ts";

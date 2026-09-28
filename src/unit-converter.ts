@@ -19,15 +19,9 @@ import {
   type Side,
 } from "./core/pipeline.ts";
 import { divideBalls, exact, type Ball } from "./core/ball.ts";
-import {
-  ONE,
-  absolute,
-  equals,
-  format,
-  isZero,
-  sign,
-  type Precision,
-} from "./core/rational.ts";
+import { ONE, absolute, equals, isZero, sign } from "./core/rational.ts";
+import type { Precision } from "./core/rounding.ts";
+import { format, fromRational } from "./core/scaled.ts";
 import type { UnitTable } from "./core/table.ts";
 import { describeConversionError, describeTextError } from "./messages.ts";
 
@@ -465,10 +459,10 @@ function listResult(
     const magnitude = negative ? absolute(value.mid) : value.mid;
     const text =
       i < last
-        ? format(magnitude, precision, rounding)
+        ? format(fromRational(magnitude), precision, rounding)
         : remainder.kind === "zero"
           ? "0"
-          : format(magnitude, certified, rounding);
+          : format(fromRational(magnitude), certified, rounding);
     return { value, term: { text, negative, unit: wantText(units[i]!.text) } };
   });
   // A term of zero is left out, and so is a last term that cannot be told

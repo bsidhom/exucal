@@ -103,6 +103,7 @@ import {
   type Quantity,
 } from "./quantity.ts";
 import { ZERO, bitLength } from "./rational.ts";
+import { toRational } from "./scaled.ts";
 import type { BallError } from "./ball.ts";
 import type {
   Builtin,
@@ -275,12 +276,17 @@ function evaluateNode<E>(
   const { node, span } = expr;
   switch (node.kind) {
     case "number": {
-      // The parser checked the literal against the hard bound; the range
-      // limit of the context is the setting.
-      const { num, den } = node.value;
+      // The parser checked the literal's mantissa against the hard bound
+      // and its exponent against the exponent bound; the range limit of
+      // the context is the setting, applied to the fraction the literal
+      // denotes, which is formed here until 4.4 makes the midpoint a
+      // `Scaled`.
+      const value = toRational(node.value, context.maxBits);
+      if (!value.ok) return err({ kind: "tooLarge", span });
+      const { num, den } = value.value;
       const size = Math.max(bitLength(num < 0n ? -num : num), bitLength(den));
       if (size > context.maxBits) return err({ kind: "tooLarge", span });
-      return ok(scalar(node.value));
+      return ok(scalar(value.value));
     }
     case "unit":
       return lookup.unit(node.name, span);

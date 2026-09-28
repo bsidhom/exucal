@@ -48,28 +48,52 @@
 // `Result`s where the fraction's are total, and `negate` and `absolute`
 // stay total.
 //
+// The decimal representation (4.3) lives here, moved from rational.ts:
+// `parseDecimal` reads a literal exactly with its exponent kept lazily,
+// the mantissa checked against `LIMIT_BITS` and the exponent against the
+// bound, so that `1e999999999` parses; rounding to significant digits
+// commutes with the power of ten, so `roundTo` and `format` act on the
+// mantissa alone, as the fraction's did, and add `exp` to the exponent,
+// and a value of any exponent is rounded and written with nothing formed;
+// every rounding is a scaling to an integer division and back, the
+// division being `divideRounded` of rounding.ts, the one place a mode is
+// interpreted. `trunc` and `exactRoot` take the bits they may form a power
+// of ten within: an integer part or a root's remainder that cannot be
+// formed is `undefined`, no truncation and no exact root, for the caller
+// to take another route.
+//
 // Failures on values are `Result`s with the fraction's error kinds; a
-// violated precondition (the decimal exponent of zero) throws
-// `RangeError`, as `rational` does.
+// violated precondition (the decimal exponent of zero, a precision that is
+// not a positive integer, a root of degree below one) throws `RangeError`,
+// as `rational` does.
 
 import {
+  LIMIT_BITS,
   ONE as ONE_FRACTION,
   ZERO as ZERO_FRACTION,
   add as addFractions,
   bitLength,
   compare as compareFractions,
-  decimalExponent as decimalExponentOf,
   divide as divideFractions,
+  exactRoot as exactRootOfFraction,
   invert as invertFraction,
   multiply as multiplyFractions,
   negate as negateFraction,
   pow as powFraction,
+  rational,
   sign as signOf,
   subtract as subtractFractions,
+  trunc as truncFraction,
   type Rational,
   type RationalError,
 } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
+import {
+  checkPrecision,
+  divideRounded,
+  type Precision,
+  type RoundingMode,
+} from "./rounding.ts";
 
 /** A number `mant × 10^exp`, in the canonical form the header states. */
 export type Scaled = { readonly mant: Rational; readonly exp: bigint };
@@ -164,7 +188,23 @@ export function equals(a: Scaled, b: Scaled): boolean {
  * exponent and formed without any power of ten.
  */
 export function decimalExponent(s: Scaled): bigint {
-  return BigInt(decimalExponentOf(s.mant)) + s.exp;
+  return BigInt(decimalExponentOfFraction(s.mant)) + s.exp;
+}
+
+/**
+ * The decimal exponent of the non-zero fraction `r`: the integer `e` with
+ * `10^e <= |r| < 10^(e+1)`, the position of its leading digit.
+ */
+function decimalExponentOfFraction(r: Rational): number {
+  if (r.num === 0n) throw new RangeError("Zero has no decimal exponent");
+  const num = abs(r.num);
+  const den = r.den;
+  // With d = digits(num) - digits(den), |r| lies in (10^(d-1), 10^(d+1)), so
+  // the exponent is d or d - 1, depending on whether |r| >= 10^d.
+  const d = decimalDigits(num) - decimalDigits(den);
+  const atLeast =
+    d >= 0 ? num >= den * 10n ** BigInt(d) : num * 10n ** BigInt(-d) >= den;
+  return atLeast ? d : d - 1;
 }
 
 /**
@@ -281,6 +321,192 @@ export function pow(
   if (abs(s.exp) * abs(n) > MAX_EXPONENT) return err({ kind: "tooLarge" });
   const mant = powFraction(s.mant, n, limit);
   return mant.ok ? scaled(mant.value, s.exp * n) : mant;
+}
+
+// ---------------------------------------------------------------------------
+// Rounding, truncation and the exact root
+
+/**
+ * `s` rounded to `digits` significant digits in `mode`: the mantissa
+ * rounded as the fraction's `roundTo` rounded it, since rounding to
+ * significant digits commutes with the power of ten, and the exponent
+ * kept, so nothing is formed. `equals(roundTo(s, d, mode), s)` says
+ * whether `s` is displayed exactly at `d` digits, in any mode. A rounding
+ * that carries past the bound (`9.99 × 10^MAX` at one digit) keeps its
+ * exponent, the bound being the arithmetic's to hold.
+ */
+export function roundTo(
+  s: Scaled,
+  digits: Precision,
+  mode: RoundingMode,
+): Scaled {
+  checkPrecision(digits);
+  if (isZero(s)) return ZERO;
+  return normalize(roundFraction(s.mant, digits, mode), s.exp);
+}
+
+/** The non-zero fraction `r` rounded to `digits` significant digits in `mode`. */
+function roundFraction(
+  r: Rational,
+  digits: Precision,
+  mode: RoundingMode,
+): Rational {
+  const shift = digits - 1 - decimalExponentOfFraction(r);
+  if (shift >= 0) {
+    const scale = 10n ** BigInt(shift);
+    return rational(divideRounded(r.num * scale, r.den, mode), scale);
+  }
+  const scale = 10n ** BigInt(-shift);
+  return rational(divideRounded(r.num, r.den * scale, mode) * scale);
+}
+
+/**
+ * `s` truncated toward zero to an integer: itself for an integer of any
+ * size, zero for a value below one in magnitude, the exact truncation
+ * where the value can be formed within `limit` bits, and `undefined` for a
+ * fractional value whose integer part cannot be formed (a unit list's
+ * count, 4.9).
+ */
+export function trunc(s: Scaled, limit: number): Scaled | undefined {
+  if (isInteger(s)) return s;
+  if (decimalExponent(s) < 0n) return ZERO;
+  const r = toRational(s, limit);
+  return r.ok ? fromRational(truncFraction(r.value)) : undefined;
+}
+
+/**
+ * The exact `degree`-th root of `s`, where `degree >= 1`: the exponent
+ * divided by the degree, its remainder's power of ten folded into the
+ * mantissa when it can be formed within `limit` bits, and the fraction's
+ * `exactRoot` of that, so that `sqrt(1e999999998)` is exactly
+ * `1e499999999` and `sqrt(1e999999999)` is irrational; `undefined` when
+ * the root is irrational or the remainder cannot be formed, in which case
+ * there is no exact root to find. An even root of a negative value fails
+ * with `negativeRadicand`; a root of degree one is `s` itself.
+ */
+export function exactRoot(
+  s: Scaled,
+  degree: bigint,
+  limit: number,
+): Result<Scaled | undefined, ScaledError> {
+  if (degree < 1n) throw new RangeError("Root degree must be positive");
+  if (degree === 1n || isZero(s)) return ok(s);
+  if (s.mant.num < 0n && degree % 2n === 0n) {
+    return err({ kind: "negativeRadicand", degree });
+  }
+  let k = s.exp / degree;
+  let r = s.exp - k * degree;
+  if (r < 0n) {
+    r += degree;
+    k -= 1n;
+  }
+  let mant = s.mant;
+  if (r > 0n) {
+    if (
+      r > BigInt(limit) ||
+      (Number(r) + decimalDigits(abs(mant.num))) * BITS_PER_DIGIT > limit
+    ) {
+      return ok(undefined);
+    }
+    // Still in lowest terms: the denominator is coprime to ten.
+    mant = { num: mant.num * 10n ** r, den: mant.den };
+  }
+  const root = exactRootOfFraction(mant, degree);
+  if (!root.ok) return root;
+  if (root.value === undefined) return ok(undefined);
+  return ok(normalize(root.value, k));
+}
+
+// ---------------------------------------------------------------------------
+// Decimal text
+
+const DECIMAL = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/;
+
+/**
+ * Parses a decimal literal exactly: an optional sign, digits with an
+ * optional fraction (`12`, `1.5`, `.5`, `5.`) and an optional exponent
+ * (`1.5e-3` is `15 × 10^-4`), the exponent kept as the exponent it is.
+ * Anything else, including surrounding whitespace, is `invalidNumber`; a
+ * mantissa of more digits than `LIMIT_BITS` holds, or an exponent beyond
+ * `MAX_EXPONENT`, is `tooLarge`.
+ */
+export function parseDecimal(text: string): Result<Scaled, ScaledError> {
+  const match = DECIMAL.exec(text);
+  if (match === null) return err({ kind: "invalidNumber" });
+  const [, signText, integerPart = "", fractionPart = "", bareFraction = ""] =
+    match;
+  const fraction = fractionPart || bareFraction;
+  const digits = integerPart + fraction;
+  if (digits.length * BITS_PER_DIGIT > LIMIT_BITS) {
+    return err({ kind: "tooLarge" });
+  }
+  // The value is (integer digits ++ fraction digits) × 10^(exponent - #fraction).
+  const exponent = match[5] === undefined ? 0n : BigInt(match[5]);
+  const shift = exponent - BigInt(fraction.length);
+  if (shift > MAX_EXPONENT || shift < -MAX_EXPONENT) {
+    return err({ kind: "tooLarge" });
+  }
+  const mantissa = BigInt(digits);
+  return scaled(
+    { num: signText === "-" ? -mantissa : mantissa, den: 1n },
+    shift,
+  );
+}
+
+/**
+ * Renders `s` rounded (as `roundTo` rounds, in `mode`) to `digits`
+ * significant digits, in the style of C's `%g`: trailing zeros are
+ * dropped, and exponent notation is used when the decimal exponent is
+ * below -4 or at least `digits`, with the exponent written as JavaScript
+ * writes it (`1.5e+21`, `1e-7`, `1e+999999999`). Nothing goes through a
+ * `number` on the way, so a value of any magnitude renders exactly.
+ */
+export function format(
+  s: Scaled,
+  digits: Precision,
+  mode: RoundingMode,
+): string {
+  checkPrecision(digits);
+  if (isZero(s)) return "0";
+  const { num, den } = s.mant;
+  let exponent = decimalExponentOfFraction(s.mant);
+  const shift = digits - 1 - exponent;
+  // The signed numerator is rounded, since the directed modes tell the sign
+  // apart (`-9.99` at two digits is `-9.9` under `ceiling` and `-10` under
+  // `floor`), and the sign is taken from the result. Its magnitude has
+  // exactly `digits` digits: the scaled value is at least `10^(digits-1)`
+  // in magnitude, and every mode keeps it at or above that.
+  const signed = divideRounded(
+    shift >= 0 ? num * 10n ** BigInt(shift) : num,
+    shift >= 0 ? den : den * 10n ** BigInt(-shift),
+    mode,
+  );
+  let mantissa = abs(signed);
+  // Rounding can carry into a new leading digit (9.99 → 10.0), in any mode
+  // that rounds the magnitude up.
+  if (mantissa === 10n ** BigInt(digits)) {
+    mantissa /= 10n;
+    exponent += 1;
+  }
+  const text = mantissa.toString(); // exactly `digits` characters
+  const sign = signed < 0n ? "-" : "";
+  const total = BigInt(exponent) + s.exp;
+  if (total < -4n || total >= BigInt(digits)) {
+    const rest = trimZeros(text.slice(1));
+    const exponentText = total < 0n ? `e-${-total}` : `e+${total}`;
+    return `${sign}${text[0]}${rest ? `.${rest}` : ""}${exponentText}`;
+  }
+  const small = Number(total);
+  if (small >= 0) {
+    const integerPart = text.slice(0, small + 1);
+    const fractionPart = trimZeros(text.slice(small + 1));
+    return `${sign}${integerPart}${fractionPart ? `.${fractionPart}` : ""}`;
+  }
+  return `${sign}0.${"0".repeat(-small - 1)}${trimZeros(text)}`;
+}
+
+function trimZeros(digits: string): string {
+  return digits.replace(/0+$/, "");
 }
 
 // ---------------------------------------------------------------------------

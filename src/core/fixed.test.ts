@@ -32,7 +32,6 @@ import {
   isZero,
   multiply,
   negate,
-  parseDecimal,
   pow,
   rational,
   subtract,
@@ -40,6 +39,7 @@ import {
   type Rational,
   LIMIT_BITS,
 } from "./rational.ts";
+import { parseFraction } from "../testing/fraction.ts";
 import {
   between,
   foldIn,
@@ -50,7 +50,7 @@ import {
 } from "../testing/random.ts";
 
 function dec(text: string): Rational {
-  const result = parseDecimal(text);
+  const result = parseFraction(text);
   assert.ok(result.ok);
   return result.value;
 }

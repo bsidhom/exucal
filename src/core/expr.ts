@@ -57,12 +57,18 @@
 // anything and cannot appear inside parentheses. `parseUnitList` reads one,
 // and an expression alone is a list of one item.
 //
-// Numbers are unsigned decimal literals as `parseDecimal` reads them (`2`,
-// `2.54`, `.5`, `1e-3`), parsed exactly. A sign is never part of a number
-// outside an exponent: `-2` is the negation of `2`, `2-3` is a difference
-// and `2e-3` a literal, since the literal is read as far as it goes. Whether
-// the operands of a sum conform is the evaluator's business, not the
-// parser's.
+// Numbers are unsigned decimal literals as `parseDecimal` of scaled.ts
+// reads them (`2`, `2.54`, `.5`, `1e-3`), parsed exactly into a `Scaled`,
+// the exponent kept as the number it is, so that `1e999999999` parses; a
+// mantissa beyond the hard bound `LIMIT_BITS`, or an exponent beyond the
+// exponent bound, is rejected where it is written. The `^` exponent is a
+// `Rational`, known at parse time, and its literal is converted with
+// `toRational` at the hard bound, so `m^1e999999999` is rejected there
+// while `m^1e300000` is what it always was. A sign is never part of a
+// number outside an exponent: `-2` is the negation of `2`, `2-3` is a
+// difference and `2e-3` a literal, since the literal is read as far as it
+// goes. Whether the operands of a sum conform is the evaluator's business,
+// not the parser's.
 // A name is a letter or underscore followed by letters, digits and
 // underscores, in any script: `m`, `mu0`, `µ`, `degF`. Names are maximal, so
 // `m2` is the name `m2`, never `m` squared; whether such a name means
@@ -92,8 +98,9 @@ import {
   type Parser,
   type Spanned,
 } from "./parser.ts";
-import { divide, parseDecimal, type Rational } from "./rational.ts";
+import { LIMIT_BITS, divide, type Rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
+import { parseDecimal, toRational, type Scaled } from "./scaled.ts";
 import type { Span } from "./span.ts";
 
 // ---------------------------------------------------------------------------
@@ -105,7 +112,7 @@ export type Expr = { readonly span: Span; readonly node: ExprNode };
 export type BinaryOp = "add" | "sub" | "mul" | "div";
 
 export type ExprNode =
-  | { readonly kind: "number"; readonly value: Rational }
+  | { readonly kind: "number"; readonly value: Scaled }
   | { readonly kind: "unit"; readonly name: string }
   | {
       readonly kind: "binary";
@@ -175,16 +182,28 @@ const SIGNED = new RegExp(`[+-]?${UNSIGNED.source}`);
 /** The shape of a unit name; the definitions parser builds on it. */
 export const NAME = /[\p{L}_][\p{L}0-9_]*/u;
 
+const TOO_LARGE = "this number is too large to represent";
+
 /** A decimal literal, parsed exactly; one too large to represent is rejected. */
-function decimal(pattern: RegExp, expected: string): Parser<Rational> {
+function decimal(pattern: RegExp, expected: string): Parser<Scaled> {
   return check(regex(pattern, expected), (text) => {
     const result = parseDecimal(text);
     if (result.ok) return result;
     return err(
-      result.error.kind === "tooLarge"
-        ? "this number is too large to represent"
-        : "this is not a number",
+      result.error.kind === "tooLarge" ? TOO_LARGE : "this is not a number",
     );
+  });
+}
+
+/**
+ * A decimal literal as the fraction it denotes, for the `^` exponent,
+ * which stays a `Rational`; one whose power of ten cannot be formed within
+ * the hard bound is rejected as too large.
+ */
+function fraction(pattern: RegExp, expected: string): Parser<Rational> {
+  return check(decimal(pattern, expected), (value) => {
+    const result = toRational(value, LIMIT_BITS);
+    return result.ok ? result : err(TOO_LARGE);
   });
 }
 
@@ -193,7 +212,7 @@ export const name: Parser<Spanned<string>> = token(
   spanned(regex(NAME, "a unit name")),
 );
 
-const number: Parser<Spanned<Rational>> = token(
+const number: Parser<Spanned<Scaled>> = token(
   spanned(decimal(UNSIGNED, "a number")),
 );
 
@@ -209,7 +228,7 @@ const callName: Parser<Spanned<string>> = spanned(
 // ---------------------------------------------------------------------------
 // Grammar
 
-function leaf({ value, span }: Spanned<Rational | string>): Expr {
+function leaf({ value, span }: Spanned<Scaled | string>): Expr {
   return typeof value === "string"
     ? { span, node: { kind: "unit", name: value } }
     : { span, node: { kind: "number", value } };
@@ -264,14 +283,14 @@ const atom: Parser<Expr> = alt(map(number, leaf), unitAtom);
 const exponent: Parser<Spanned<Rational>> = token(
   spanned(
     alt(
-      decimal(SIGNED, "a number"),
+      fraction(SIGNED, "a number"),
       map(
         seq(
           symbol("("),
           check(
             seq(
-              token(decimal(SIGNED, "a number")),
-              optional(seq(symbol("/"), token(decimal(UNSIGNED, "a number")))),
+              token(fraction(SIGNED, "a number")),
+              optional(seq(symbol("/"), token(fraction(UNSIGNED, "a number")))),
             ),
             ([numerator, denominator]) =>
               denominator === undefined

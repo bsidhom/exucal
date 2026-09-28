@@ -2106,9 +2106,22 @@ whose exponent divides and of one whose does not; the literal
 `1e999999999` parses and `1e1000000000000000001` is rejected, as is
 `m^1e999999999` with its message.
 
-Behavior: none; a literal beyond the range limit is still refused, now
-by the evaluator's check of the mantissa alone, and nothing reads the
-exponent yet.
+As it landed. The tests of the modules that still hold fractions read a
+literal, and round and format a fraction, through `src/testing/fraction.ts`
+(`parseFraction`, `roundFraction`, `formatFraction`), test support beside
+the random source that converts at the boundary as the app does; the
+evaluator forms a literal's fraction with `toRational` at the context's
+range limit and then applies the same size check as before, so a literal
+beyond the setting is still `tooLarge` at its span; and since the
+parser no longer refuses a large exponent, `1e999999999 m` is refused by
+the evaluator, worded as a value too large to compute rather than a
+number too large to represent, which the parser still says of a mantissa
+beyond the hard bound and of a `^` exponent that cannot be formed.
+
+Behavior: a literal with a large exponent parses where the parser
+refused it, and is refused by the evaluator instead, at its span, with
+the evaluator's wording; nothing reads the exponent yet, so no value
+changes.
 
 ### 4.4 The midpoint becomes a `Scaled`
 

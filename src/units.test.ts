@@ -36,17 +36,17 @@ import { convertText } from "./core/pipeline.ts";
 import type { Quantity } from "./core/quantity.ts";
 import { radiusUpper } from "./core/radius.ts";
 import {
-  DEFAULT_PRECISION,
   absolute,
   compare,
   divide,
   equals,
-  parseDecimal,
   rational,
   subtract,
   toFraction,
   type Rational,
 } from "./core/rational.ts";
+import { parseFraction } from "./testing/fraction.ts";
+import { DEFAULT_PRECISION } from "./core/rounding.ts";
 import type { Result } from "./core/result.ts";
 import { unitLookup, type UnitTable } from "./core/table.ts";
 
@@ -93,7 +93,7 @@ function converted(have: string, want: string): Result<Ball, ConvertError> {
 /** The rational `text` denotes: a decimal, or a quotient `a/b` of two. */
 function number(text: string): Rational {
   const [numerator, denominator] = text.split("/").map((part) => {
-    const result = parseDecimal(part);
+    const result = parseFraction(part);
     assert.ok(result.ok, `${JSON.stringify(part)} is not a number`);
     return result.value;
   });

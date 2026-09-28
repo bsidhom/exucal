@@ -29,15 +29,9 @@
 
 import { certifiedDigits, containsZero, isExact, type Ball } from "./ball.ts";
 import { isUnbounded, radiusUpper } from "./radius.ts";
-import {
-  absolute,
-  add,
-  equals,
-  format,
-  roundTo,
-  type Precision,
-} from "./rational.ts";
-import type { RoundingMode } from "./rounding.ts";
+import { absolute, add, type Rational } from "./rational.ts";
+import type { Precision, RoundingMode } from "./rounding.ts";
+import { equals, format, fromRational, roundTo } from "./scaled.ts";
 
 /** A ball as shown: its `text`, and the `kind` that says what the text is worth. */
 export type Shown =
@@ -67,25 +61,31 @@ export type Shown =
  * gives, with `text` the midpoint rounded in `mode` to the digits certified.
  */
 export function show(ball: Ball, digits: Precision, mode: RoundingMode): Shown {
+  // Formatted as a `Scaled` (4.3), through the boundary that goes in 4.4.
+  const mid = fromRational(ball.mid);
   if (isUnbounded(ball.rad)) {
-    return { kind: "unbounded", text: format(ball.mid, digits, mode) };
+    return { kind: "unbounded", text: format(mid, digits, mode) };
   }
-  if (isExact(ball) && equals(roundTo(ball.mid, digits, mode), ball.mid)) {
-    return { kind: "exact", text: format(ball.mid, digits, mode) };
+  if (isExact(ball) && equals(roundTo(mid, digits, mode), mid)) {
+    return { kind: "exact", text: format(mid, digits, mode) };
   }
   if (containsZero(ball)) {
     // Not exactly zero: that is `exact` above. The bound is the farthest
     // the value may lie from zero, rounded up to one digit.
-    const bound = add(absolute(ball.mid), radiusUpper(ball.rad));
-    return { kind: "zero", text: "0", bound: format(bound, 1, "ceiling") };
+    const bound: Rational = add(absolute(ball.mid), radiusUpper(ball.rad));
+    return {
+      kind: "zero",
+      text: "0",
+      bound: format(fromRational(bound), 1, "ceiling"),
+    };
   }
   const certified = certifiedDigits(ball, digits, mode);
   if (certified === digits) {
-    return { kind: "certified", text: format(ball.mid, digits, mode) };
+    return { kind: "certified", text: format(mid, digits, mode) };
   }
   return {
     kind: "partial",
-    text: format(ball.mid, certified > 0 ? certified : digits, mode),
+    text: format(mid, certified > 0 ? certified : digits, mode),
     certified,
   };
 }

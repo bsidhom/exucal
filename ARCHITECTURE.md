@@ -58,11 +58,16 @@ is built in and of the pass an expression is evaluated at, where GNU
 units defines `pi` as a decimal literal.
 
 `src/core/rational.ts` provides the arithmetic and comparison, integer powers
-and rational powers (through the n-th root), rounding to significant digits
-in a rounding mode, and conversion to and from decimal text.
-`src/core/rounding.ts` names the seven rounding modes and is the one place a
-mode is interpreted: `divideRounded`, an integer division rounded in a mode,
-which every rounding in the core scales its value down to.
+and the exact case of the n-th root. `src/core/scaled.ts` (stage 4 of the
+plan, from 4.3) holds the decimal representation over it: `Scaled`, a
+fraction times a power of ten in canonical form, with the parsing of a
+literal, whose exponent it keeps as the number it is, rounding to
+significant digits in a rounding mode, and formatting; until 4.4 makes it
+the midpoint, the callers convert to and from the fraction at the
+boundary. `src/core/rounding.ts` names the seven rounding modes and is the
+one place a mode is interpreted: `divideRounded`, an integer division
+rounded in a mode, which every rounding in the core scales its value down
+to; `Precision`, a count of significant digits, lives there too.
 
 ### Precision and rounding
 
@@ -305,12 +310,13 @@ interval under a root) are checked by the ball before it calls in.
 
 ### Formatting
 
-`format(r, digits)` renders a rational as a decimal string in the style of
-C's `%g`: rounded to `digits` significant digits as above, trailing zeros
-dropped, and exponent notation when the decimal exponent is below -4 or at
-least `digits`, with the exponent written as JavaScript writes it (`1.5e+21`,
-`1e-7`). Nothing goes through a `number` on the way, so a value of any
-magnitude renders exactly.
+`format(s, digits, mode)` in scaled.ts renders a `Scaled` as a decimal
+string in the style of C's `%g`: rounded to `digits` significant digits as
+above, trailing zeros dropped, and exponent notation when the decimal
+exponent is below -4 or at least `digits`, with the exponent written as
+JavaScript writes it (`1.5e+21`, `1e-7`, `1e+999999999`). Nothing goes
+through a `number` on the way, and the power of ten is never formed, so a
+value of any magnitude renders exactly.
 
 ## Quantities, dimensions and kinds
 
@@ -1018,9 +1024,9 @@ changes to the core.
 ## Layout
 
 ```
-src/core/rational.ts      Rational, arithmetic, the exact root, parsing and formatting
-src/core/scaled.ts        Scaled, a fraction times a power of ten in canonical form, its comparison and binary magnitude (unused until stage 4's 4.4)
-src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted
+src/core/rational.ts      Rational, the exact fraction: arithmetic, comparison, integer powers, the exact root
+src/core/scaled.ts        Scaled, a fraction times a power of ten in canonical form: arithmetic, comparison, parsing, rounding, formatting, the binary magnitude
+src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted; Precision
 src/core/context.ts       NumberContext: the precision, the rounding mode, the range limit and the ceiling arithmetic is done under
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
 src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root and the rational power on the kernel, unresolved
@@ -1058,6 +1064,7 @@ src/core/pipeline.ts      convertText, evaluateText: the pipeline over text
 src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions; src/units.test.ts checks them
 src/testing/random.ts     the seeded random source the tests and benchmarks share: keys, split and folded in, every draw a pure function of one
+src/testing/fraction.ts   parseFraction, roundFraction, formatFraction: the decimal representation over the fraction, for the tests of the modules that still hold fractions
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling

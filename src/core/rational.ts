@@ -1,31 +1,27 @@
-// The number type of the converter: an exact rational over `bigint`, with the
-// arithmetic the evaluator needs, the exact case of the n-th root, rounding
-// to significant digits, and conversion to and from decimal text.
+// The exact fraction: a rational over `bigint`, with the arithmetic the
+// evaluator needs and the exact case of the n-th root. It is the total
+// fraction of the type ladder (docs/calculator-plan.md, D13): the exponents
+// of dimensions and of `^` and the exact value of a radius are fractions,
+// and from stage 4 the midpoint is a `Scaled` (scaled.ts), a fraction times
+// a power of ten, which holds the decimal representation, the parsing of a
+// literal, rounding to significant digits and formatting, all of which
+// lived here until 4.3.
 //
 // Everything here is exact, and the rules for when a value may lose
 // precision are spelled out in ARCHITECTURE.md ("Precision and rounding").
 // In short: arithmetic never rounds; the digits of an irrational root are
 // the kernel's business (fixed.ts, through `rootBall` of ball.ts), and
-// `exactRoot` here answers only whether a root is rational; and `roundTo`
-// and `format` round once, to the digits and in the `RoundingMode` they are
-// given, for display. Every rounding here is a scaling to an integer
-// division and back, and the division is `divideRounded` of rounding.ts,
-// the one place a mode is interpreted.
+// `exactRoot` here answers only whether a root is rational.
 //
 // Failures on values (dividing by zero, an even root of a negative number, a
-// result too large to compute, text that is not a number) are returned as
-// `Result`s. Violated preconditions (a zero denominator passed to `rational`,
-// a precision that is not a positive integer) are programming errors and
-// throw `RangeError`, as `1n / 0n` does.
+// result too large to compute) are returned as `Result`s. Violated
+// preconditions (a zero denominator passed to `rational`) are programming
+// errors and throw `RangeError`, as `1n / 0n` does.
 
 import { err, ok, type Result } from "./result.ts";
-import { divideRounded, type RoundingMode } from "./rounding.ts";
 
 /** An exact rational number. Invariant: `den > 0` and `gcd(num, den) = 1`. */
 export type Rational = { readonly num: bigint; readonly den: bigint };
-
-/** A count of significant decimal digits: a positive integer. */
-export type Precision = number;
 
 export type RationalError =
   /** Division by zero, including `0` raised to a negative power. */
@@ -41,25 +37,17 @@ export type RationalError =
  * The hard bound on the size of a numerator or denominator, in bits (2^20,
  * about 315,000 decimal digits): the most the range limit of the context
  * (`maxBits`, D16 of the plan) may be set to, and the bound the parser
- * applies to a decimal literal through `parseDecimal`, since it has no
- * context; the evaluator then checks the literal against the setting.
- * Operations whose result can be exponentially larger than their inputs
- * (`pow` and the exponent of a literal) predict the size of their result
- * and return `tooLarge` instead of computing one beyond the limit they are
- * given. Operations that grow their inputs by at most a constant factor do
- * not check, since an expression of bounded length can only apply a
- * bounded number of them, and inexact midpoints are settled to the working
- * precision (D15), so only exact values grow.
+ * applies to a decimal literal's mantissa through scaled.ts's
+ * `parseDecimal`, since it has no context; the evaluator then checks the
+ * literal against the setting. Operations whose result can be
+ * exponentially larger than their inputs (`pow`) predict the size of their
+ * result and return `tooLarge` instead of computing one beyond the limit
+ * they are given. Operations that grow their inputs by at most a constant
+ * factor do not check, since an expression of bounded length can only
+ * apply a bounded number of them, and inexact midpoints are settled to the
+ * working precision (D15), so only exact values grow.
  */
 export const LIMIT_BITS = 1 << 20;
-
-/**
- * The fixed working precision the app computed at before the number
- * context existed, in significant decimal digits; the tests use it as a
- * working precision. See ARCHITECTURE.md ("Working precision and the
- * context").
- */
-export const DEFAULT_PRECISION: Precision = 40;
 
 export const ZERO: Rational = { num: 0n, den: 1n };
 export const ONE: Rational = { num: 1n, den: 1n };
@@ -223,147 +211,15 @@ export function exactRoot(
 }
 
 // ---------------------------------------------------------------------------
-// Rounding to significant digits
-
-/**
- * The decimal exponent of `r`, which must be non-zero: the integer `e` with
- * `10^e <= |r| < 10^(e+1)`, i.e. the position of its leading digit.
- */
-export function decimalExponent(r: Rational): number {
-  if (r.num === 0n) throw new RangeError("Zero has no decimal exponent");
-  const num = abs(r.num);
-  const den = r.den;
-  // With d = digits(num) - digits(den), |r| lies in (10^(d-1), 10^(d+1)), so
-  // the exponent is d or d - 1, depending on whether |r| >= 10^d.
-  const d = decimalDigits(num) - decimalDigits(den);
-  const atLeast =
-    d >= 0 ? num >= den * 10n ** BigInt(d) : num * 10n ** BigInt(-d) >= den;
-  return atLeast ? d : d - 1;
-}
+// Truncation
 
 /** `r` truncated toward zero to an integer: `7/2` is `3` and `-7/2` is `-3`. */
 export function trunc(r: Rational): Rational {
   return isInteger(r) ? r : rational(r.num / r.den);
 }
 
-/**
- * `r` rounded to `digits` significant digits in `mode`: `roundTo(r, 3,
- * "halfAwayFromZero")` is the rounding people expect from `3.14159 → 3.14`
- * and `0.125 → 0.13`, and `roundTo(r, 3, "towardZero")` the truncation
- * `root` applies. `equals(roundTo(r, d, mode), r)` says whether `r` is
- * displayed exactly at `d` digits, in any mode: a value with `d` or fewer
- * significant digits is its own rounding, and no other value is.
- */
-export function roundTo(
-  r: Rational,
-  digits: Precision,
-  mode: RoundingMode,
-): Rational {
-  checkPrecision(digits);
-  if (r.num === 0n) return ZERO;
-  const shift = digits - 1 - decimalExponent(r);
-  if (shift >= 0) {
-    const scale = 10n ** BigInt(shift);
-    return rational(divideRounded(r.num * scale, r.den, mode), scale);
-  }
-  const scale = 10n ** BigInt(-shift);
-  return rational(divideRounded(r.num, r.den * scale, mode) * scale);
-}
-
-// ---------------------------------------------------------------------------
-// Decimal text
-
-const DECIMAL = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/;
-
-/**
- * Parses a decimal literal exactly: an optional sign, digits with an
- * optional fraction (`12`, `1.5`, `.5`, `5.`) and an optional exponent
- * (`1.5e-3` is `3/2000`). Anything else, including surrounding whitespace,
- * is `invalidNumber`; an exponent that would make the number larger than
- * `LIMIT_BITS` is `tooLarge`.
- */
-export function parseDecimal(text: string): Result<Rational, RationalError> {
-  const match = DECIMAL.exec(text);
-  if (match === null) return err({ kind: "invalidNumber" });
-  const [, signText, integerPart = "", fractionPart = "", bareFraction = ""] =
-    match;
-  const fraction = fractionPart || bareFraction;
-  const exponent = match[5] === undefined ? 0n : BigInt(match[5]);
-  // The value is (integer digits ++ fraction digits) * 10^(exponent - #fraction).
-  const mantissa = BigInt(integerPart + fraction);
-  const shift = exponent - BigInt(fraction.length);
-  const magnitude = abs(shift);
-  if (
-    magnitude > BigInt(LIMIT_BITS) ||
-    (Number(magnitude) + decimalDigits(mantissa)) * BITS_PER_DIGIT > LIMIT_BITS
-  ) {
-    return err({ kind: "tooLarge" });
-  }
-  const signed = signText === "-" ? -mantissa : mantissa;
-  return ok(
-    shift >= 0n
-      ? rational(signed * 10n ** shift)
-      : rational(signed, 10n ** -shift),
-  );
-}
-
-/**
- * Renders `r` rounded (as `roundTo` rounds, in `mode`) to `digits`
- * significant digits, in the style of C's `%g`: trailing zeros are dropped,
- * and exponent notation is used when the decimal exponent is below -4 or at
- * least `digits`, with the exponent written as JavaScript writes it
- * (`1.5e+21`, `1e-7`).
- */
-export function format(
-  r: Rational,
-  digits: Precision,
-  mode: RoundingMode,
-): string {
-  checkPrecision(digits);
-  if (r.num === 0n) return "0";
-  let exponent = decimalExponent(r);
-  const shift = digits - 1 - exponent;
-  // The signed numerator is rounded, since the directed modes tell the sign
-  // apart (`-9.99` at two digits is `-9.9` under `ceiling` and `-10` under
-  // `floor`), and the sign is taken from the result. Its magnitude has
-  // exactly `digits` digits: the scaled value is at least `10^(digits-1)`
-  // in magnitude, and every mode keeps it at or above that.
-  const signed = divideRounded(
-    shift >= 0 ? r.num * 10n ** BigInt(shift) : r.num,
-    shift >= 0 ? r.den : r.den * 10n ** BigInt(-shift),
-    mode,
-  );
-  let mantissa = abs(signed);
-  // Rounding can carry into a new leading digit (9.99 → 10.0), in any mode
-  // that rounds the magnitude up.
-  if (mantissa === 10n ** BigInt(digits)) {
-    mantissa /= 10n;
-    exponent += 1;
-  }
-  const text = mantissa.toString(); // exactly `digits` characters
-  const sign = signed < 0n ? "-" : "";
-  if (exponent < -4 || exponent >= digits) {
-    const rest = trimZeros(text.slice(1));
-    const exponentText = exponent < 0 ? `e-${-exponent}` : `e+${exponent}`;
-    return `${sign}${text[0]}${rest ? `.${rest}` : ""}${exponentText}`;
-  }
-  if (exponent >= 0) {
-    const integerPart = text.slice(0, exponent + 1);
-    const fractionPart = trimZeros(text.slice(exponent + 1));
-    return `${sign}${integerPart}${fractionPart ? `.${fractionPart}` : ""}`;
-  }
-  return `${sign}0.${"0".repeat(-exponent - 1)}${trimZeros(text)}`;
-}
-
-function trimZeros(digits: string): string {
-  return digits.replace(/0+$/, "");
-}
-
 // ---------------------------------------------------------------------------
 // bigint helpers
-
-/** log2(10), rounded up: the bits a decimal digit can need. */
-const BITS_PER_DIGIT = 3.33;
 
 function abs(n: bigint): bigint {
   return n < 0n ? -n : n;
@@ -407,11 +263,6 @@ export function bitLength(n: bigint): number {
   return n === 0n ? 0 : n.toString(2).length;
 }
 
-/** The number of decimal digits in the non-negative `n` (1 for zero). */
-function decimalDigits(n: bigint): number {
-  return n.toString().length;
-}
-
 /**
  * floor(n^(1/degree)) for a non-negative `n`, by Newton's method from an
  * overestimate: the iterates decrease monotonically to the floor. Exported
@@ -439,10 +290,4 @@ function perfectRoot(n: bigint, degree: bigint): bigint | undefined {
   // 1 to a huge degree.
   const isExact = r <= 1n ? r === n : r ** degree === n;
   return isExact ? r : undefined;
-}
-
-function checkPrecision(precision: Precision): void {
-  if (!Number.isInteger(precision) || precision < 1) {
-    throw new RangeError(`Precision must be a positive integer: ${precision}`);
-  }
 }

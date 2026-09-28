@@ -14,12 +14,9 @@ import type { Dimension, Primitives } from "./dimension.ts";
 import { evaluate } from "./evaluate.ts";
 import { parseExpr, type Expr } from "./expr.ts";
 import type { Quantity } from "./quantity.ts";
-import {
-  DEFAULT_PRECISION,
-  parseDecimal,
-  rational,
-  type Rational,
-} from "./rational.ts";
+import { rational, type Rational } from "./rational.ts";
+import { parseFraction } from "../testing/fraction.ts";
+import { DEFAULT_PRECISION } from "./rounding.ts";
 import { ok, type Result } from "./result.ts";
 import {
   unitLookup,
@@ -45,7 +42,7 @@ function dim(exponents: Record<string, number>): Dimension {
 
 /** The rational the decimal `text` denotes, exactly. */
 function decimal(text: string): Rational {
-  const result = parseDecimal(text);
+  const result = parseFraction(text);
   assert.ok(result.ok, `${JSON.stringify(text)} is not a number`);
   return result.value;
 }

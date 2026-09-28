@@ -52,8 +52,8 @@
 
 import type { Ball } from "./ball.ts";
 import { isUnbounded, radiusAbove, type Radius } from "./radius.ts";
-import { ZERO, bitLength, type Precision, type Rational } from "./rational.ts";
-import { divideRounded } from "./rounding.ts";
+import { ZERO, bitLength, type Rational } from "./rational.ts";
+import { divideRounded, type Precision } from "./rounding.ts";
 
 /**
  * A fixed-point value: `value × 2^-bits`, within `error × 2^-bits` of the

@@ -17,14 +17,14 @@ import { radiusUpper } from "./radius.ts";
 import {
   absolute,
   compare,
-  parseDecimal,
   rational,
   subtract,
   type Rational,
 } from "./rational.ts";
+import { parseFraction } from "../testing/fraction.ts";
 
 function dec(text: string): Rational {
-  const result = parseDecimal(text);
+  const result = parseFraction(text);
   assert.ok(result.ok);
   return result.value;
 }

@@ -24,11 +24,14 @@
 // terms spends ten of them.
 //
 // The roots are the first routines on the kernel (task 2.2): the square
-// root by the integer square root of the argument's ends, which is exact
-// because the root is monotone, and the root of any degree by Newton in
-// fixed point, its error verified by raising the result back to the power
-// with the error rule rather than read off the iteration, so that the
-// argument's error and the iteration's rounding enter one bound. The
+// root by Newton on the reciprocal square root, multiplications only with
+// the precision doubling (3.7 replaced the integer square root of the
+// argument's ends, which cost twice the cube root at the ceiling because
+// V8 divides big integers quadratically), and the root of any degree by
+// Newton in fixed point; either root's error is verified by raising the
+// result back to the power with the error rule rather than read off the
+// iteration, so that the argument's error and the iteration's rounding
+// enter one bound. The
 // elementary functions of stage 3 follow the same pattern, reduce the
 // argument, run a series on values of order one with the argument's error
 // included from the start, and bound the result from what was computed,
@@ -49,13 +52,7 @@
 
 import type { Ball } from "./ball.ts";
 import { isUnbounded, radiusAbove, type Radius } from "./radius.ts";
-import {
-  ZERO,
-  bitLength,
-  integerRoot,
-  type Precision,
-  type Rational,
-} from "./rational.ts";
+import { ZERO, bitLength, type Precision, type Rational } from "./rational.ts";
 import { divideRounded } from "./rounding.ts";
 
 /**
@@ -267,32 +264,84 @@ export function compareFixed(a: Fixed, b: Fixed): -1 | 0 | 1 | undefined {
 // ---------------------------------------------------------------------------
 // The roots
 
+/** The bits the square root works beyond what it hands back, so that the verified error truncates to an ulp or two. */
+const SQRT_GUARD = 16;
+
 /**
  * The square root of `f`, whose interval must be positive (a precondition;
- * the caller decides what a ball around zero means). The root is monotone,
- * so the result's interval is exact: its ends are the integer square roots
- * of the argument's ends scaled to an integer, floor below and floor plus
- * one above, and its value is the truncated root of the argument's value.
- * The result's `bits` keep the argument's significant bits for a root of
- * magnitude `2^k` (D9): `bits - k` fraction bits, and the value is
- * computed at `ceil(bits / 2)` at least, since the scaling to an integer
- * needs twice the result's bits to cover the argument's.
+ * the caller decides what a ball around zero means). The argument is
+ * reduced by an exact power of four to `m` in `[1, 4)`, whose root is in
+ * `[1, 2)`, and the reciprocal root `y = 1 / sqrt(m)` is found by Newton,
+ * `y ← y (3 - m y^2) / 2`, multiplications only, from a double and with
+ * the precision doubling each step and one step more at the working bits;
+ * the root is `m y`. Its error is verified by squaring: with `D` the
+ * distance of the truncated square from the argument's value plus the
+ * truncation's ulp plus the argument's error, `|s^2 - a| <= D` for every
+ * `a` in the argument's interval, and `|s - sqrt(a)| = |s^2 - a| / (s +
+ * sqrt(a))` with `sqrt(a) >= s sqrt(1 - D / s^2) >= s - D / s`, so the
+ * error is `D s / (2 s^2 - D)`, about `D / 2s`, rounded up in ulps (the
+ * bound `D / s` would double the argument's error at every root, which
+ * the logarithm takes eight of). The argument's own error enters the same
+ * bound, and no derivative bound is needed. The work is done `SQRT_GUARD`
+ * bits beyond the result, which keeps the argument's significant bits for
+ * a root of magnitude `2^k` (D9): `bits - k` fraction bits.
  */
 export function sqrtFixed(f: Fixed): Fixed {
   checkPositive(f);
-  const k = Math.trunc(exponentOf(f) / 2);
+  const k = Math.floor(exponentOf(f) / 2);
   const bits = Math.max(0, f.bits - k);
-  const computedAt = Math.max(bits, Math.ceil(f.bits / 2));
-  const scale = BigInt(2 * computedAt - f.bits);
-  const low = integerRoot((f.value - f.error) << scale, 2n);
-  const high = integerRoot((f.value + f.error) << scale, 2n) + 1n;
-  const value = integerRoot(f.value << scale, 2n);
-  const root = {
-    value,
-    error: value - low > high - value ? value - low : high - value,
-    bits: computedAt,
+  const working = Math.max(f.bits, k) + SQRT_GUARD;
+  const scaled = shiftFixed(f, -2 * k);
+  const m =
+    scaled.bits > working
+      ? truncateFixed(scaled, working)
+      : rebase(scaled, working);
+  const shift = BigInt(working);
+  const y = reciprocalSqrt(m.value, working);
+  const value = (m.value * y) >> shift;
+  if (value <= 0n) throw new Error("Newton's reciprocal root diverged");
+  const squared = (value * value) >> shift;
+  const distance = abs(squared - m.value) + 1n + m.error;
+  // In ulps: D s / (2 s^2 - D) with s = value × 2^-working and D = distance × 2^-working.
+  const denominator = 2n * value * value - (distance << shift);
+  if (denominator <= 0n) throw new Error("Newton's reciprocal root diverged");
+  const root = shiftFixed(
+    {
+      value,
+      error: ceilDiv((distance * value) << shift, denominator),
+      bits: working,
+    },
+    k,
+  );
+  return root.bits > bits ? truncateFixed(root, bits) : root;
+}
+
+/**
+ * `1 / sqrt(m)` at `bits` fraction bits for `m` in `[1, 4)` at those bits,
+ * by Newton with the precision doubling from a double's fifty bits, the
+ * argument truncated to each step's bits, and one step more at the full
+ * bits for the last ulps the doubling left; the value alone, to be
+ * verified.
+ */
+function reciprocalSqrt(m: bigint, bits: number): bigint {
+  const top = Math.max(0, bitLength(m) - 53);
+  const asDouble = Number(m >> BigInt(top)) * 2 ** (top - bits);
+  let precision = Math.min(50, bits);
+  let y = BigInt(Math.floor(2 ** precision / Math.sqrt(asDouble)));
+  const step = (): void => {
+    const shift = BigInt(precision);
+    const at = m >> BigInt(bits - precision);
+    const y2 = (y * y) >> shift;
+    y = (y * ((3n << shift) - ((at * y2) >> shift))) >> (shift + 1n);
   };
-  return computedAt === bits ? root : truncateFixed(root, bits);
+  while (precision < bits) {
+    const next = Math.min(2 * precision, bits);
+    y <<= BigInt(next - precision);
+    precision = next;
+    step();
+  }
+  step();
+  return y;
 }
 
 /**

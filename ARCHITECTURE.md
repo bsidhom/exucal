@@ -168,11 +168,14 @@ error count in ulps, every operation updating the count by a stated
 over-approximation (the plan's D9), entered from a rational or a ball and
 left through `fixedToBall`, which hands back the dyadic midpoint itself
 and the count as a radius. Its first routines are the roots: the square
-root by the integer square root of the argument's ends, exact because the
-root is monotone, and the root of any degree by Newton in fixed point,
-its error verified by raising the result back to the power rather than
-read off the iteration. `rootBall` is its one caller so far; the
-elementary functions of stage 3 are the rest. `constants.ts` computes `pi`
+root by Newton on the reciprocal square root, multiplications only with
+the precision doubling, and the root of any degree by Newton in fixed
+point, either one's error verified by raising the result back to the
+power rather than read off the iteration. The elementary functions of
+stage 3 are the routines beside it, one module per family: `fixed-exp.ts`
+(the exponential, by halving, a Taylor series and squaring) and
+`fixed-log.ts` (the logarithm, by square roots and the `atanh` series
+summed by rectangular splitting, with `ln(2)` and `ln(10)` memoized). `constants.ts` computes `pi`
 on it by Chudnovsky's series with binary splitting, its tail bounded in
 the comment, and memoizes one value, the digits at the ceiling of the
 retry schedule in force plus a margin of 64 bits, from which every request
@@ -990,6 +993,7 @@ src/core/radius.ts        Radius, the coarse bound a ball carries, and its opera
 src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root on the kernel, unresolved
 src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations, the roots
 src/core/fixed-exp.ts     expFixed: the exponential on the kernel, by halving, Taylor and squaring
+src/core/fixed-log.ts     lnFixed: the logarithm on the kernel, by square roots and the atanh series; ln(2) and ln(10) memoized
 src/core/constants.ts     pi by Chudnovsky's series and e by its series, both with binary splitting, memoized at the ceiling
 src/core/display.ts       show: a ball's text at the digits it certifies, and its kind (exact, certified, partial, zero, unbounded)
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
@@ -1006,6 +1010,7 @@ src/core/builtin.ts       Builtin, its errors and the shared rule helpers: what 
 src/core/builtins.ts      BUILTINS: the app's built-ins gathered by name from builtins/
 src/core/builtins/pi.ts   pi(): the circle constant from constants.ts, one module per built-in
 src/core/builtins/exp.ts  exp(x): the exponential, on fixed-exp.ts, with e from constants.ts
+src/core/builtins/log.ts  ln, log10, log2 and log(b, x): the logarithms, on fixed-log.ts, sharing the domain rule
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction

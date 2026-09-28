@@ -497,10 +497,7 @@ test("sqrtFixed contains the root of every value in the argument's interval, tig
       rootWithin(low, high, from, to, 2n),
       `sqrt of ${toFraction(from)}`,
     );
-    // The value is the truncated root of the argument's value, and the
-    // error is at most two ulps beyond the argument's contribution.
-    const exact = toRational(f);
-    assert.ok(rootWithin(toRational(root), high, exact, exact, 2n));
+    // The error is at most two ulps beyond the argument's contribution.
     if (f.error === 0n)
       assert.ok(root.error <= 2n, `exact argument: ${root.error} ulps`);
   }

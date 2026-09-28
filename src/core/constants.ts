@@ -23,13 +23,12 @@
 // first omitted term; and with `N = ceil((bits + 40) / 46)` terms that
 // term is below `2^-(bits + 3)` of the sum, whose magnitude is above
 // `2^23`, so the tail costs under an ulp of pi. The square root of 10005
-// is taken by Newton on the reciprocal square root, `y ← y (3 - 10005
-// y^2) / 2`, with multiplications only and the precision doubling, since
-// V8 divides big integers quadratically and the integer square root of
-// `fixed.ts` would cost more than the series at a hundred thousand digits;
-// its error is verified by squaring the result back, within an ulp, and
-// the final division truncates by less than one: the error count is three
-// ulps in all, stated as such.
+// is `sqrtFixed`, Newton on the reciprocal square root with
+// multiplications only (since 3.7; before it fixed.ts took integer square
+// roots, which V8's quadratic division made cost more than the series at
+// a hundred thousand digits, and this module had a Newton of its own),
+// within two ulps, and the final division truncates by less than one: the
+// error count is three ulps in all, stated as such.
 //
 // `eSeries(bits)` is `Σ 1/n!` by binary splitting, the same recursion on
 // `Q(a, b) = Π n` and `T(a, b) = Σ Π m`, with the tail `Σ_{n > N} 1/n!`
@@ -58,7 +57,15 @@
 
 import type { Ball } from "./ball.ts";
 import type { NumberContext } from "./context.ts";
-import { bitsFor, fixedToBall, truncateFixed, type Fixed } from "./fixed.ts";
+import {
+  bitsFor,
+  fixedFromRational,
+  fixedToBall,
+  sqrtFixed,
+  truncateFixed,
+  type Fixed,
+} from "./fixed.ts";
+import { rational } from "./rational.ts";
 
 /** The bits each term of the series is worth, at least: a safe floor of `2^-46` per term. */
 const BITS_PER_TERM = 46;
@@ -108,44 +115,15 @@ function split(a: bigint, b: bigint): { p: bigint; q: bigint; t: bigint } {
 }
 
 /**
- * `sqrt(10005)` at `bits` fraction bits, within two ulps, by Newton on the
- * reciprocal square root with multiplications only, from a double and
- * doubling the precision each step, forty bits beyond `bits`, since the
- * root is the reciprocal times 10005, which scales the reciprocal's ulp
- * error by 10005 and the guard absorbs. The result is verified by
- * squaring: `|s - sqrt(a)| = |s^2 - a| / (s + sqrt(a))`, and both are above
- * 99, so the error in ulps is the squared difference's, in ulps, over 198,
- * plus the squaring's own truncation; truncated to `bits` it is within two
- * ulps, or the iteration did not converge, which is a bug.
+ * `sqrt(10005)` at `bits` fraction bits, within two ulps: `sqrtFixed` on
+ * the integer at six more bits, since a root of magnitude `2^6` keeps six
+ * fewer fraction bits than its argument (D9); more than two ulps means
+ * the iteration did not converge, which is a bug.
  */
 function sqrt10005(bits: number): Fixed {
-  const a = 10005n;
-  const target = bits + 40;
-  let precision = 48;
-  let y = BigInt(Math.floor(2 ** precision / Math.sqrt(10005)));
-  for (;;) {
-    const next = Math.min(2 * precision, target);
-    y <<= BigInt(next - precision);
-    precision = next;
-    const shift = BigInt(precision);
-    const y2 = (y * y) >> shift;
-    y = (y * ((3n << shift) - a * y2)) >> (shift + 1n);
-    if (precision === target) break;
-  }
-  // Twice more at the full precision, for the last bits the doubling left.
-  const shift = BigInt(precision);
-  for (let i = 0; i < 2; i++) {
-    const y2 = (y * y) >> shift;
-    y = (y * ((3n << shift) - a * y2)) >> (shift + 1n);
-  }
-  const s = a * y;
-  const squared = (s * s) >> shift;
-  const off = squared - (a << shift);
-  const difference = (off < 0n ? -off : off) + 1n;
-  const error = difference / 198n + 1n;
-  const root = truncateFixed({ value: s, error, bits: precision }, bits);
-  if (root.error > 2n) {
-    throw new Error("The reciprocal square root did not converge");
+  const root = sqrtFixed(fixedFromRational(rational(10005n), bits + 6));
+  if (root.bits !== bits || root.error > 2n) {
+    throw new Error("The square root of 10005 did not converge");
   }
   return root;
 }

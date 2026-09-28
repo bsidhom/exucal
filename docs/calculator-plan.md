@@ -1474,39 +1474,77 @@ those modules changed.
 
 Behavior: `exp` exists.
 
-### 3.7 `ln`, `log10`, `log2`, `log(x, b)`
+### 3.7 `ln`, `log10`, `log2`, `log(b, x)`
 
-`lnFixed`: the argument as `m × 2^k` with `m` in `[1, 2)`, `ln(2)` from the
-`atanh` series at `1/3` (memoized as `pi()` is, D10, with `ln(10)` beside
-it for `log10`), `m` brought near one by a few square roots, then `2
-atanh((m - 1) / (m + 1))`. The square roots are the first heavy use of
-`sqrtFixed`, whose integer square root costs twice the Newton cube root
-at the ceiling (the stage 2 re-read): this task replaces it with Newton
-on the reciprocal square root, multiplications only and verified by
-squaring as `sqrt10005` in constants.ts already is, keeps the integer
-root only if the kernel benchmark shows no gain, and records the two
-timings. The built-ins: domain `x > 0`, with a ball containing zero
-`unresolved` at edge zero and one entirely non-positive a `domain` error
-(`notPositive`); `ln(1)` exact; `log10` and `log2` as quotients by the
-memoized constants, with the exact cases where `x` is an exact integer
-power of the base (`log10(1000)`, `log2(1/8)`), found by repeated
-division of the numerator or the denominator; `log(b, x)`, of exactly two
-arguments with the base first (3.1), as the quotient of two `ln`, exact
-when `x` is an integer power of `b` (`log(2, 8)`, `log(3, 1/9)`) or `b`
-of `x` (`log(8, 2)` is `1/3`); `log(4, 8)` is `≈ 1.5`, since a rational
-exponent in general is not looked for. `b` must be positive and not one:
-`b` exactly one is a `domain` error (`baseOne`), a `b` straddling one is
-`unresolved` at edge `1`, and a `b` straddling zero at edge zero.
+New `src/core/fixed-log.ts`, beside fixed-exp.ts: `lnFixed(f, bits,
+ceilingBits, scale)` writes the argument as `m × 2^k` with `m` in `[1,
+2)`, takes `ln(2)` from a memo at the ceiling (D10, `memoAtCeiling` from
+constants.ts, with `ln(10)` beside it for `log10`; `ln(2)` is `2
+atanh(1/3)` and `ln(10)` is `3 ln(2) + 2 atanh(1/9)`, each `atanh(1/q)` by
+binary splitting, two ulps), brings `m` within `2^-8` of one by eight
+square roots, and takes `2 atanh((m - 1) / (m + 1))` as the series in
+`z^2`, summed by rectangular splitting (the powers within a block of
+about `sqrt(N)` terms computed once and divided by their odd numbers,
+the blocks combined by Horner), so that the full multiplications number
+about `2 sqrt(N)`; the result keeps the bits its magnitude calls for
+(D9). The `scale` is the power of two a caller took off its value to
+convert it at order one, so that `ln(1e-300)` loses nothing to the
+conversion: builtins/log.ts scales every argument so. The square roots
+are the first heavy use of `sqrtFixed`, whose integer square root cost
+twice the Newton cube root at the ceiling (the stage 2 re-read): this
+task replaced it with Newton on the reciprocal square root,
+multiplications only with the precision doubling, verified by squaring
+with the bound `D s / (2 s^2 - D)`, about `D / 2s`, since the looser `D /
+s` would double the argument's error at every one of the logarithm's
+eight roots; `sqrt10005` in constants.ts, which had a Newton of its own,
+now calls it. The kernel benchmark's two square roots at the default
+ceiling of 4,040 digits: 5.09 ms before, 0.57 ms after (0.57 ms and 0.10
+ms at a quarter of it); `ln 3` there costs 19 ms, from 46 ms with the
+series summed term by term, since V8 multiplies at these sizes by the
+schoolbook rule, sixty microseconds a product, and the sum took 655 of
+them. `exp`'s series is a candidate for the same splitting, left for the
+report of 3.11.
+
+New `src/core/builtins/log.ts`, one module for the four since they share
+the domain rule and the kernel call: domain `x > 0`, an argument
+non-positive throughout its ball a `domain` error (`notPositive`), one
+straddling zero `unresolved` at edge zero, and one positive as rationals
+but reaching within an ulp of zero at the working bits `unresolved` the
+same way (a ball wider than its value at order one); `ln(1)` exact;
+`ln(2)` and `ln(10)` their memos; `log10` and `log2` as quotients by the
+memoized constants, exact where `x` is an exact integer power of the
+base either way (`log10(1000)`, `log2(1/8)`), found by repeated division
+of the numerator or the denominator with the other checked; `log(b, x)`,
+of exactly two arguments with the base first (3.1), as the quotient of
+two `ln`, exact when `x` is an integer power of `b` (`log(2, 8)`, `log(3,
+1/9)`, `log(2/3, 8/27)`) or `b` of `x` (`log(8, 2)` is `1/3`), and
+`log(b, 1)` zero for any valid base; `log(4, 8)` is `≈ 1.5`, since a
+rational exponent in general is not looked for. `b` must be positive and
+not one, checked before `x`: `b` exactly one is a `domain` error
+(`baseOne`), a `b` straddling one, or whose logarithm is a ball around
+zero at the working bits, is `unresolved` at edge `1`, and a `b`
+straddling zero at edge zero. An unbounded argument gives the function
+of its midpoint with an unbounded radius, the midpoint held to the
+domain. The quotient of two kernel logarithms is `divideFixed`, cut to
+the bits its magnitude calls for.
 
 Tests: reference digits of `ln(2)` and `ln(10)` to 100 from Python's
-decimal module; containment across magnitudes; every exact case and its
-neighbor; `ln(0)`, `ln(-1)`, `log(1, 8)` and `log(-2, 8)` are domain
-errors with their messages; `ln` of `sqrt(2)^2 - 2` is `unresolved` at
-the argument, and `log(1 + (sqrt(2)^2 - 2), 8)` at edge one; the pipeline
-certifies `exp(ln(3))` and `ln(exp(3))` at 30 digits; the kernel
-benchmark's two square roots.
+decimal module, and `ln` at six arguments including two through the
+scale; the memos hold the ceiling's value plus the margin; containment
+across magnitudes at a precision against four times it, at the value and
+both ends; the result's bits at three magnitudes and the preconditions;
+every exact case and its neighbor, with `integerPower` on its own; the
+domain and `unresolved` cases of each function with the argument index
+and the edge; `ln(0)`, `ln(-1)`, `log(1, 8)` and `log(-2, 8)` are domain
+errors with their messages, `ln(1 m)` a dimension-rule error; `ln` of
+`(2^(1/2))^2 - 2` is `unresolved` at the argument, and `log(1 +
+((2^(1/2))^2 - 2), 8)` at edge one, worded as such after the ceiling; the
+pipeline certifies `exp(ln(3))` and `ln(exp(3))` at 30 digits; the kernel
+benchmark gains `ln 3` and the two constants' series.
 
-Behavior: the logarithms exist.
+Behavior: the logarithms exist, and the square root's radius is what the
+new bound gives, an ulp or two, where the integer root's was exact to
+the ulp.
 
 ### 3.8 `sqrt`, `cbrt`, `pow(x, y)`
 

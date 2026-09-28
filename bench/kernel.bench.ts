@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { chudnovsky, eSeries } from "../src/core/constants.ts";
 import { DEFAULT_CEILING } from "../src/core/context.ts";
 import { expFixed } from "../src/core/fixed-exp.ts";
+import { ln2Series, ln10Series, lnFixed } from "../src/core/fixed-log.ts";
 import {
   bitsFor,
   fixedFromRational,
@@ -56,6 +57,12 @@ const ROUTINES: readonly [string, (bits: number) => void][] = [
     (bits) => void expFixed(fixedFromRational(rational(1n), bits), bits),
   ],
   ["e series", (bits) => void eSeries(bits)],
+  [
+    "ln 3",
+    (bits) => void lnFixed(fixedFromRational(rational(3n), bits), bits, bits),
+  ],
+  ["ln 2 series", (bits) => void ln2Series(bits)],
+  ["ln 10 series", (bits) => void ln10Series(bits)],
 ];
 
 test("every kernel routine at the default ceiling costs at most 64 times what it costs at a quarter of it", (t) => {

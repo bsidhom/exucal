@@ -45,12 +45,12 @@
 // is itself within its cube (`tinyOdd` of builtin.ts); one of `atan` at
 // or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, the
 // saturation docs/decimal.md lists; and a ratio that reaches `2^maxBits`
-// is `tooLarge` at the kernel's door (`atanKernel`). A ratio below
-// `2^-maxBits` inside `asin`, `acos` or `atan2` is converted at the range
-// limit's bits and is zero within an ulp there, so its arctangent is a
-// ball around zero that certifies nothing: correct, and the one case the
-// expansion at zero does not reach, since the kernel's sum with `pi` is
-// formed before the ball is.
+// is `tooLarge` at the range limit, at the kernel's door (`atanKernel`).
+// A ratio below `2^-maxBits` inside `asin`, `acos` or `atan2` is
+// converted at the range limit's bits and is zero within an ulp there, so
+// its arctangent is a ball around zero that certifies nothing: correct,
+// and the one case the expansion at zero does not reach, since the
+// kernel's sum with `pi` is formed before the ball is.
 
 import {
   addBalls,
@@ -296,7 +296,7 @@ function atanKernel(
   z: Ball,
   context: NumberContext,
 ): Result<Fixed, BuiltinError> {
-  if (isHuge(z, context)) return err({ kind: "tooLarge" });
+  if (isHuge(z, context)) return err({ kind: "tooLarge", limit: "range" });
   const bits = bitsFor(context.precision);
   return ok(
     atanFixed(

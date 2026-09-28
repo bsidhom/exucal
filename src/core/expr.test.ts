@@ -308,8 +308,9 @@ test("an e that does not start an exponent is a unit name", () => {
 test("a number too large to represent is rejected with its span", () => {
   // A literal's exponent is kept as the number it is (stage 4's 4.3), so
   // `1e999999` parses; what is rejected is a mantissa beyond the hard
-  // bound, an exponent beyond the exponent bound, and a `^` exponent whose
-  // power of ten cannot be formed within the hard bound.
+  // bound, an exponent beyond the exponent bound, worded by the side it
+  // passes, and a `^` exponent whose power of ten cannot be formed within
+  // the hard bound.
   assertParses("m / 1e999999 s", "(m / (1e999999 * s))");
   const long = "9".repeat(320000);
   assert.deepEqual(
@@ -321,7 +322,11 @@ test("a number too large to represent is rejected with its span", () => {
   );
   assert.deepEqual(
     failed("m / 1e1000000000000000001 s"),
-    rejected({ start: 4, end: 25 }, "this number is too large to represent"),
+    rejected({ start: 4, end: 25 }, "this number's exponent passes 10^18"),
+  );
+  assert.deepEqual(
+    failed("m / 0.01e-999999999999999999 s"),
+    rejected({ start: 4, end: 28 }, "this number's exponent is below -10^18"),
   );
   assert.deepEqual(
     failed("m^1e999999"),

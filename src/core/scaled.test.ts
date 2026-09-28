@@ -20,6 +20,7 @@ import {
   sign as signFraction,
   subtract as subtractFractions,
   toFraction,
+  type Limit,
   type Rational,
 } from "./rational.ts";
 import {
@@ -49,6 +50,7 @@ import {
   negate,
   parseDecimal,
   pow,
+  powerLimit,
   roundTo,
   scaled,
   sign,
@@ -70,6 +72,11 @@ function unwrap<T>(result: Result<T, ScaledError>): T {
 function assertError(result: Result<unknown, ScaledError>, kind: string) {
   assert.ok(!result.ok, `expected ${kind}, got ${inspect(result)}`);
   assert.equal(result.error.kind, kind);
+}
+
+/** Asserts that `result` failed `tooLarge` at `limit`. */
+function assertTooLarge(result: Result<unknown, ScaledError>, limit: Limit) {
+  assert.deepEqual(result, { ok: false, error: { kind: "tooLarge", limit } });
 }
 
 /** A decimal literal that is expected to be valid. */
@@ -526,6 +533,96 @@ test("pow raises the mantissa against the limit and the exponent against the bou
   assertError(pow(dec("2"), 100n, 64), "tooLarge");
   assert.ok(pow(dec("2"), 30n, 64).ok);
   assertError(pow(dec("3e9"), 100_000n, 1 << 16), "tooLarge");
+});
+
+test("a tooLarge names the limit it passes: the range limit, or the bound above or below", () => {
+  // The constructor and the arithmetic, by the sign of the exponent that
+  // passes the bound.
+  assertTooLarge(scaled(rational(1n), MAX_EXPONENT + 1n), "exponentAbove");
+  assertTooLarge(scaled(rational(1n), -MAX_EXPONENT - 1n), "exponentBelow");
+  const half = MAX_EXPONENT / 2n;
+  assertTooLarge(
+    multiply(at(1n, 1n, half), at(1n, 1n, half + 1n)),
+    "exponentAbove",
+  );
+  assertTooLarge(
+    multiply(at(1n, 1n, -half), at(1n, 1n, -half - 1n)),
+    "exponentBelow",
+  );
+  assertTooLarge(
+    divide(at(1n, 1n, half), at(1n, 1n, -half - 1n)),
+    "exponentAbove",
+  );
+  assertTooLarge(
+    divide(at(1n, 1n, -half), at(1n, 1n, half + 1n)),
+    "exponentBelow",
+  );
+  assertTooLarge(invert(at(5n, 1n, MAX_EXPONENT)), "exponentBelow");
+  // A sum's alignment and a fraction's power of ten are the range
+  // limit's; a sum whose value passes the bound is the bound's.
+  assertTooLarge(add(big("1", 999999999n), ONE, LIMIT_BITS), "range");
+  assertTooLarge(subtract(ONE, big("1", -999999999n), LIMIT_BITS), "range");
+  assertTooLarge(toRational(big("1", -400000n), LIMIT_BITS), "range");
+  assertTooLarge(
+    add(at(5n, 1n, MAX_EXPONENT), at(5n, 1n, MAX_EXPONENT), LIMIT_BITS),
+    "exponentAbove",
+  );
+  // A literal: its mantissa is the hard bound's, its exponent the bound's.
+  assertTooLarge(parseDecimal("9".repeat(320000)), "range");
+  assertTooLarge(parseDecimal("1e1000000000000000001"), "exponentAbove");
+  assertTooLarge(parseDecimal("10e1000000000000000000"), "exponentAbove");
+  assertTooLarge(parseDecimal("0.01e-999999999999999999"), "exponentBelow");
+});
+
+test("a power refused is told by its decimal exponent, not by the check that fails first", () => {
+  // Past the bound by the exponent alone, on the side the signs give.
+  assertTooLarge(pow(dec("1e9"), 10n ** 18n, LIMIT_BITS), "exponentAbove");
+  assertTooLarge(pow(dec("1e-9"), 10n ** 18n, LIMIT_BITS), "exponentBelow");
+  assertTooLarge(pow(dec("1e9"), -(10n ** 18n), LIMIT_BITS), "exponentBelow");
+  assertTooLarge(pow(dec("1e-9"), -(10n ** 18n), LIMIT_BITS), "exponentAbove");
+  // Refused by the mantissa, which no range limit could hold, and past
+  // the bound too: 7^(10^19) is about 10^(8.45 × 10^18).
+  assertTooLarge(pow(dec("7"), 10n ** 19n, LIMIT_BITS), "exponentAbove");
+  assertTooLarge(pow(dec("7"), -(10n ** 19n), LIMIT_BITS), "exponentBelow");
+  assertTooLarge(pow(dec("0.7"), 10n ** 19n, LIMIT_BITS), "exponentBelow");
+  // Refused by the mantissa and within the bound: the range limit.
+  assertTooLarge(pow(dec("2"), 1442695n, LIMIT_BITS), "range");
+  assertTooLarge(pow(dec("2"), 100n, 64), "range");
+  assertTooLarge(pow(dec("3e9"), 100_000n, 1 << 16), "range");
+  // The canonical form, 254 × 10^-2, puts the exponent of 2.54^(10^18)
+  // past the bound below, but the power is 10^(0.40 × 10^18), within it:
+  // refused at the range limit, not as a value too small.
+  assertTooLarge(pow(dec("2.54"), 10n ** 18n, LIMIT_BITS), "range");
+  assertTooLarge(pow(dec("2.54"), -(10n ** 18n), LIMIT_BITS), "range");
+  // At the bound's edge, where the logarithms cannot tell, the exponent
+  // that passes it decides: 10^(10^18) is a value, 10^(10^18 + 1) is not.
+  assert.ok(pow(dec("10"), 10n ** 18n, LIMIT_BITS).ok);
+  assertTooLarge(pow(dec("10"), 10n ** 18n + 1n, LIMIT_BITS), "exponentAbove");
+  assertTooLarge(pow(dec("0.1"), 10n ** 18n + 1n, LIMIT_BITS), "exponentBelow");
+});
+
+test("powerLimit tells a power past the bound from one within it, and says nothing within a hair of it", () => {
+  assert.equal(powerLimit(dec("7"), dec("1e19")), "exponentAbove");
+  assert.equal(powerLimit(dec("7"), dec("1e17")), "range");
+  assert.equal(powerLimit(dec("0.5"), dec("1e19")), "exponentBelow");
+  assert.equal(powerLimit(dec("0.5"), dec("-1e19")), "exponentAbove");
+  assert.equal(powerLimit(dec("-7"), dec("1e19")), "exponentAbove");
+  assert.equal(powerLimit(dec("7"), dec("1e-999999999")), "range");
+  // Near one, the magnitude of the logarithm decides: 1.0000001^(10^30)
+  // is about 10^(4.3 × 10^22), and 1.0000001^(10^20) 10^(4.3 × 10^12).
+  assert.equal(powerLimit(dec("1.0000001"), dec("1e30")), "exponentAbove");
+  assert.equal(powerLimit(dec("1.0000001"), dec("1e20")), "range");
+  // A zero base or exponent is never past it; a base within 2^-30 of one
+  // under an exponent this large has a logarithm the bounds cannot size.
+  assert.equal(powerLimit(ZERO, dec("1e19")), "range");
+  assert.equal(powerLimit(dec("7"), ZERO), "range");
+  assert.equal(powerLimit(ONE, dec("1e6")), "range");
+  assert.equal(powerLimit(ONE, dec("1e999999999")), undefined);
+  // Within a relative 2^-20 of the bound it cannot tell: 10^(10^18) is
+  // at it.
+  assert.equal(powerLimit(dec("10"), dec("1e18")), undefined);
+  assert.equal(powerLimit(dec("10"), dec("1.000001e18")), "exponentAbove");
+  assert.equal(powerLimit(dec("10"), dec("0.999999e18")), "range");
 });
 
 test("every operation agrees with the fraction's through toRational where the values fit", () => {

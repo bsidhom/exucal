@@ -474,12 +474,14 @@ test("the two ends of the exponent: the odd functions of a tiny argument are its
     value(tanhBall(exact(negate(huge)), DEFAULT)).mid,
     negate(ONE),
   );
-  // sinh and cosh of it are still beyond the range limit.
+  // sinh and cosh of it are still past the exponent bound.
   assert.deepEqual(failure(sinhBall(exact(huge), DEFAULT)), {
     kind: "tooLarge",
+    limit: "exponentAbove",
   });
   assert.deepEqual(failure(coshBall(exact(huge), DEFAULT)), {
     kind: "tooLarge",
+    limit: "exponentAbove",
   });
 });
 
@@ -536,12 +538,16 @@ test("an inexact argument's functions contain those of its ends, and a wide asin
 });
 
 test("sinh and cosh share the exponential's range, the exponent bound, and tanh saturates", () => {
-  for (const x of ["1e30", "-1e30", "2.4e18"]) {
+  // Past the bound above whatever the sign, sinh and cosh being large in
+  // magnitude on both sides of zero, where exp is past it below.
+  for (const x of ["1e30", "-1e30", "2.4e18", "-2.4e18"]) {
     assert.deepEqual(failure(sinhBall(exact(dec(x)), CONTEXT)), {
       kind: "tooLarge",
+      limit: "exponentAbove",
     });
     assert.deepEqual(failure(coshBall(exact(dec(x)), CONTEXT)), {
       kind: "tooLarge",
+      limit: "exponentAbove",
     });
     const t = value(tanhBall(exact(dec(x)), CONTEXT));
     assert.deepEqual(t.mid, x.startsWith("-") ? negate(ONE) : ONE);
@@ -718,8 +724,18 @@ test("through the pipeline: the values certify, the identities hold, and the err
       "sinh(1 m)",
       'Cannot apply "sinh" to "1 m": "1 m" has dimension m, but the argument of "sinh" must be a plain number.',
     ],
-    ["sinh(1e30)", '"sinh(1e30)" is too large to compute.'],
-    ["cosh(-1e30)", '"cosh(-1e30)" is too large to compute.'],
+    [
+      "sinh(1e30)",
+      '"sinh(1e30)" is too large to compute: its exponent would pass 10^18.',
+    ],
+    [
+      "cosh(-1e30)",
+      '"cosh(-1e30)" is too large to compute: its exponent would pass 10^18.',
+    ],
+    [
+      "sinh(-1e30)",
+      '"sinh(-1e30)" is too large to compute: its exponent would pass 10^18.',
+    ],
     [
       "acosh(1 + ((2^(1/2))^2 - 2))",
       '"1 + ((2^(1/2))^2 - 2)" cannot be told from 1 at this precision, and the result depends on which side of 1 it lies.',

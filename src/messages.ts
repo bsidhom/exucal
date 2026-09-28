@@ -23,6 +23,7 @@ import {
 } from "./core/builtin.ts";
 import type { UnitListError } from "./core/convert.ts";
 import type { Arity, EvaluateError } from "./core/evaluate.ts";
+import type { Limit } from "./core/rational.ts";
 import { ZERO, equals, format } from "./core/scaled.ts";
 import type {
   ConversionError,
@@ -47,7 +48,9 @@ import type { Span } from "./core/span.ts";
  * (`sin(1 radian)` for a plain number where an angle is wanted, `(2 m)^2`
  * for a quantity as the base of `pow`); one outside its domain quotes the
  * argument and says the domain; a value that straddles an edge names the
- * edge (zero, `1`, `-1`, or a pole of the tangent).
+ * edge (zero, `1`, `-1`, or a pole of the tangent); and a value too large
+ * or too small to compute names the limit it passes, Most bits or the
+ * exponent bound.
  */
 export function describeTextError(
   error: TextError,
@@ -83,7 +86,7 @@ export function describeTextError(
     case "negativeRadicand":
       return `${quote(slice(text, error.span))} takes an even root of a negative value.`;
     case "tooLarge":
-      return `${quote(slice(text, error.span))} is too large to compute.`;
+      return `${quote(slice(text, error.span))} ${describeTooLarge(error.limit)}.`;
     case "nonconformingOperands": {
       const left = quote(slice(text, error.left));
       const right = quote(slice(text, error.right));
@@ -216,6 +219,36 @@ function domainValue(reason: DomainReason): string {
   }
 }
 
+/**
+ * What a result past `limit` is, as a predicate without the final period:
+ * too large to compute within Most bits, the setting that is the range
+ * limit, or too large or too small for the exponent bound, which is fixed,
+ * with the bound named, so that the one the user can change reads apart
+ * from the one they cannot (issue #41).
+ */
+function describeTooLarge(limit: Limit): string {
+  switch (limit) {
+    case "range":
+      return "is too large to compute within Most bits";
+    case "exponentAbove":
+      return "is too large to compute: its exponent would pass 10^18";
+    case "exponentBelow":
+      return "is too small to compute: its exponent would fall below -10^18";
+  }
+}
+
+/** A value past `limit`, as the qualifier of a body's description: `too large to form within Most bits`. */
+function describeValuePast(limit: Limit): string {
+  switch (limit) {
+    case "range":
+      return "too large to form within Most bits";
+    case "exponentAbove":
+      return "whose exponent would pass 10^18";
+    case "exponentBelow":
+      return "whose exponent would fall below -10^18";
+  }
+}
+
 /** The edge a value cannot be told from, in words: `zero`, `1`, `-1`, `a pole of the tangent`. */
 function describeEdge(edge: Edge): string {
   if (edge === "pole") return "a pole of the tangent";
@@ -276,7 +309,7 @@ export function describeConversionError(
     case "unresolvedWant":
       return `${quote(want.trim())} cannot be told from zero at this precision, so nothing can be converted into it.`;
     case "tooLarge":
-      return `${quote(have.trim())} into ${quote(want.trim())} is too large to compute.`;
+      return `${quote(have.trim())} into ${quote(want.trim())} ${describeTooLarge(error.limit)}.`;
     case "unitListError":
       return describeUnitListError(error.error, have, error.units, primitives);
   }
@@ -328,7 +361,7 @@ function describeBody(error: EvaluateError, primitives: Primitives): string {
     case "negativeRadicand":
       return "takes an even root of a negative value";
     case "tooLarge":
-      return "computes a value too large to represent";
+      return `computes a value ${describeValuePast(error.limit)}`;
     case "nonconformingOperands":
       return error.op === "add"
         ? "adds quantities that do not conform"

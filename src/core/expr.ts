@@ -61,7 +61,8 @@
 // reads them (`2`, `2.54`, `.5`, `1e-3`), parsed exactly into a `Scaled`,
 // the exponent kept as the number it is, so that `1e999999999` parses; a
 // mantissa beyond the hard bound `LIMIT_BITS`, or an exponent beyond the
-// exponent bound, is rejected where it is written. The `^` exponent is a
+// exponent bound, is rejected where it is written, the message saying
+// which, and for the exponent on which side. The `^` exponent is a
 // `Rational`, known at parse time, and its literal is converted with
 // `toRational` at the hard bound, so `m^1e999999999` is rejected there
 // while `m^1e300000` is what it always was. A sign is never part of a
@@ -98,7 +99,7 @@ import {
   type Parser,
   type Spanned,
 } from "./parser.ts";
-import { LIMIT_BITS, divide, type Rational } from "./rational.ts";
+import { LIMIT_BITS, divide, type Limit, type Rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import { parseDecimal, toRational, type Scaled } from "./scaled.ts";
 import type { Span } from "./span.ts";
@@ -184,15 +185,29 @@ export const NAME = /[\p{L}_][\p{L}0-9_]*/u;
 
 const TOO_LARGE = "this number is too large to represent";
 
-/** A decimal literal, parsed exactly; one too large to represent is rejected. */
+/** A decimal literal, parsed exactly; one too large to represent is rejected, as `tooLargeReason` words it. */
 function decimal(pattern: RegExp, expected: string): Parser<Scaled> {
   return check(regex(pattern, expected), (text) => {
     const result = parseDecimal(text);
     if (result.ok) return result;
     return err(
-      result.error.kind === "tooLarge" ? TOO_LARGE : "this is not a number",
+      result.error.kind === "tooLarge"
+        ? tooLargeReason(result.error.limit)
+        : "this is not a number",
     );
   });
+}
+
+/** Why a literal passes `limit`: its mantissa the hard bound, or its exponent the exponent bound, above or below. */
+function tooLargeReason(limit: Limit): string {
+  switch (limit) {
+    case "range":
+      return TOO_LARGE;
+    case "exponentAbove":
+      return "this number's exponent passes 10^18";
+    case "exponentBelow":
+      return "this number's exponent is below -10^18";
+  }
 }
 
 /**

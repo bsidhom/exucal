@@ -188,7 +188,8 @@ test("the exponent carries through the ratio, whatever its size", () => {
     ),
     dec("1e-1999999998"),
   );
-  // A ratio whose exponent passes the bound is too large.
+  // A ratio whose exponent passes the bound is too large, or too small,
+  // and says which.
   assert.deepEqual(
     failure(
       convert(
@@ -197,7 +198,17 @@ test("the exponent carries through the ratio, whatever its size", () => {
         SI,
       ),
     ),
-    { kind: "tooLarge" },
+    { kind: "tooLarge", limit: "exponentBelow" },
+  );
+  assert.deepEqual(
+    failure(
+      convert(
+        quantity("1e999999999999999999", { m: 1 }),
+        quantity("1e-10", { m: 1 }),
+        SI,
+      ),
+    ),
+    { kind: "tooLarge", limit: "exponentAbove" },
   );
 });
 

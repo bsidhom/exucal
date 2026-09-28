@@ -10,6 +10,7 @@ import { inspect } from "node:util";
 import { exact, isExact, multiplyBalls, type Ball } from "./ball.ts";
 import { buildTable, type BuildError } from "./build.ts";
 import {
+  fromBallError,
   plainNumbers,
   type Builtin,
   type BuiltinError,
@@ -498,6 +499,7 @@ test("a failed power is reported at the power", () => {
   assert.deepEqual(failed(...lines), {
     kind: "tooLarge",
     span: spanOf(lines, "2^99999"),
+    limit: "range",
   });
   // A power of ten costs nothing: the exponent takes it.
   assertQuantity(built("m !", "big 10^99999 m").units.get("big"), "1e99999", {
@@ -1061,7 +1063,7 @@ test("a cycle through a function is reported like any other", () => {
 /** `x` doubled, exactly; the product of balls fails only at the exponent bound. */
 function doubled(x: Ball): Result<Ball, BuiltinError> {
   const product = multiplyBalls(exact(fr(2n)), x);
-  return product.ok ? product : err({ kind: "tooLarge" });
+  return product.ok ? product : err(fromBallError(product.error, 0));
 }
 
 /** A built-in as a test injects one: a plain number doubled, exactly. */

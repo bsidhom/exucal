@@ -10,7 +10,9 @@
 // `x log10 e`, so an argument whose magnitude, taken over its whole ball,
 // exceeds the exponent bound divided by `log10 e` is `tooLarge` (`expFits`
 // of ball.ts, which the log-space power shares), which refuses `exp(1e30)`
-// and `exp(-1e30)` alike, while `exp(1e6)` and `exp(1e18)` are values
+// and `exp(-1e30)` alike, past the bound above and below as the
+// argument's midpoint is positive or negative, while `exp(1e6)` and
+// `exp(1e18)` are values
 // (4.9): the kernel returns a `Floating`, a mantissa with a binary
 // exponent, which comes out through digits.ts (`floatingToBall`), exactly
 // where the exponent is within the range limit and in log space
@@ -39,7 +41,7 @@ import { floatingToBall } from "../digits.ts";
 import { expFixed } from "../fixed-exp.ts";
 import { bitsFor, fixedFromBall } from "../fixed.ts";
 import { err, ok, type Result } from "../result.ts";
-import { ONE, equals, isZero } from "../scaled.ts";
+import { ONE, equals, isZero, sign } from "../scaled.ts";
 
 /** `exp(x)` at the context, as the header says. */
 export function expBall(
@@ -53,7 +55,10 @@ export function expBall(
     if (equals(x.mid, ONE)) return ok(eBall(context));
   }
   if (!expFits(radiusBound(magnitudeAbove(x)))) {
-    return err({ kind: "tooLarge" });
+    return err({
+      kind: "tooLarge",
+      limit: sign(x.mid) < 0 ? "exponentBelow" : "exponentAbove",
+    });
   }
   const bits = bitsFor(context.precision);
   const result = floatingToBall(

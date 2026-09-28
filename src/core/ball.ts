@@ -140,6 +140,7 @@ import {
   bitLength,
   rational,
   scaleByPowerOfTwo,
+  type Limit,
   type Rational,
   type RationalError,
 } from "./rational.ts";
@@ -419,11 +420,13 @@ export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
  * with `multiplyBalls`, settled after each product (D15), so that the
  * midpoint stays at the working precision and only the magnitude of the
  * result is guarded: a result whose decimal exponent would exceed the
- * exponent bound is `tooLarge` before anything is computed (4.9), and a
- * product that passes it in the loop, by the guard's double, is
+ * exponent bound is `tooLarge` before anything is computed (4.9), above
+ * the bound or below it as the base's magnitude is above or below one,
+ * and a product that passes it in the loop, by the guard's double, is
  * `tooLarge` there. A negative `n` inverts by the division rule, so a
- * ball containing zero to a negative power is `unresolved`. `b^0` is
- * exactly one, as `pow` has it, for any ball.
+ * ball containing zero to a negative power is `unresolved`, and a power
+ * past the bound on one side is past it on the other. `b^0` is exactly
+ * one, as `pow` has it, for any ball.
  */
 export function powBall(
   b: Ball,
@@ -437,14 +440,19 @@ export function powBall(
   if (n === 0n) return ok(exact(ONE));
   if (n < 0n) {
     const positive = powBall(b, -n, context);
-    if (!positive.ok) return positive;
-    return divideBalls(exact(ONE), positive.value);
+    if (positive.ok) return divideBalls(exact(ONE), positive.value);
+    // The reciprocal of a power past the bound is past it on the other side.
+    const { error } = positive;
+    return error.kind === "tooLarge"
+      ? err({ kind: "tooLarge", limit: reciprocalLimit(error.limit) })
+      : positive;
   }
-  if (
-    !isZero(b.mid) &&
-    log2Scale(b) * Number(n) * Math.log10(2) > Number(MAX_EXPONENT)
-  ) {
-    return err({ kind: "tooLarge" });
+  const scale = isZero(b.mid) ? 0 : log2Scale(b);
+  if (Math.abs(scale) * Number(n) * Math.log10(2) > Number(MAX_EXPONENT)) {
+    return err({
+      kind: "tooLarge",
+      limit: scale < 0 ? "exponentBelow" : "exponentAbove",
+    });
   }
   let result = exact(ONE);
   let base = b;
@@ -701,9 +709,12 @@ export function powRationalBall(
  * the magnitudes of `y` and of the logarithm, so that their product keeps
  * the working bits, `unresolved` when `x` reaches within an ulp of zero at
  * those bits, `tooLarge` when the product's magnitude, over its whole
- * interval, puts the result beyond the exponent bound, or when `y` is
- * beyond what a double holds, and otherwise the kernel's `Floating` as a
- * ball through digits.ts, rounded in no mode.
+ * interval, puts the result beyond the exponent bound, above it or below
+ * as the product is positive or negative, or when `y` is beyond what a
+ * double holds, which puts the result past the bound on the side the
+ * signs of `y` and `ln x` give unless `x` is within about `10^-282` of
+ * one, and otherwise the kernel's `Floating` as a ball through digits.ts,
+ * rounded in no mode.
  */
 export function powLogSpace(
   x: Ball,
@@ -712,7 +723,14 @@ export function powLogSpace(
 ): Result<Ball, BallError> {
   const bits = bitsFor(context.precision);
   const yBound = radiusBound(magnitudeAbove(y));
-  if (yBound === Infinity) return err({ kind: "tooLarge" });
+  if (yBound === Infinity) {
+    const belowOne = compare(x.mid, ONE) < 0;
+    const negative = sign(y.mid) < 0;
+    return err({
+      kind: "tooLarge",
+      limit: negative === belowOne ? "exponentAbove" : "exponentBelow",
+    });
+  }
   const yBits = Math.max(0, Math.ceil(Math.log2(yBound + 1)));
   const lnBits = bitLength(BigInt(Math.ceil(Math.abs(log2Of(x)))) + 2n);
   const working = bits + yBits + lnBits + 8;
@@ -723,7 +741,12 @@ export function powLogSpace(
   const magnitude =
     Number(bound >> BigInt(Math.max(0, bitLength(bound) - 53))) *
     2 ** (Math.max(0, bitLength(bound) - 53) - product.bits);
-  if (!expFits(magnitude)) return err({ kind: "tooLarge" });
+  if (!expFits(magnitude)) {
+    return err({
+      kind: "tooLarge",
+      limit: product.value < 0n ? "exponentBelow" : "exponentAbove",
+    });
+  }
   return floatingToBall(expFixed(product, bits), context);
 }
 
@@ -785,22 +808,37 @@ export function expFits(bound: number): boolean {
 }
 
 /**
- * A bound on `|log2|` of the values in the inexact `b`, as a double: the
- * larger of the binary exponent of its magnitude bound and of its
- * midpoint's, each to a double's accuracy plus a little slack, so that
- * `powBall` can bound the bits of a power's integer part or denominator
- * before computing it. An unbounded radius bounds nothing, and the
- * midpoint's exponent stands alone, as the midpoint is all that is
- * computed for such a ball.
+ * A bound on `|log2|` of the values in the inexact `b`, as a double with
+ * the sign of the side of one it is on: the larger in magnitude of the
+ * binary exponent of its magnitude bound and of its midpoint's, each to a
+ * double's accuracy plus a little slack, so that `powBall` can bound the
+ * bits of a power's integer part or denominator before computing it, and
+ * tell a power past the bound above from one past it below. An unbounded
+ * radius bounds nothing, and the midpoint's exponent stands alone, as the
+ * midpoint is all that is computed for such a ball.
  */
 function log2Scale(b: Ball): number {
   const above = magnitudeAbove(b);
-  const mid = Math.abs(log2Of(b));
+  const mid = log2Of(b);
   const upper =
     above.kind === "unbounded"
       ? mid
-      : Math.abs(Math.log2(Number(above.mant)) + Number(above.exp));
-  return Math.max(upper, mid) * (1 + 1e-9) + 1e-9;
+      : Math.log2(Number(above.mant)) + Number(above.exp);
+  const larger = Math.abs(upper) >= Math.abs(mid) ? upper : mid;
+  const magnitude = Math.abs(larger) * (1 + 1e-9) + 1e-9;
+  return larger < 0 ? -magnitude : magnitude;
+}
+
+/** The limit the reciprocal of a value past `limit` passes: the bound on its other side, or the range limit again. */
+function reciprocalLimit(limit: Limit): Limit {
+  switch (limit) {
+    case "exponentAbove":
+      return "exponentBelow";
+    case "exponentBelow":
+      return "exponentAbove";
+    case "range":
+      return "range";
+  }
 }
 
 /**

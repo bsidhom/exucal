@@ -52,7 +52,11 @@
 // mantissa sized against the limit as the fraction's `pow` sizes it. So
 // `add`, `subtract`, `multiply`, `divide`, `invert` and `pow` are
 // `Result`s where the fraction's are total, and `negate` and `absolute`
-// stay total.
+// stay total. Every `tooLarge` says which limit it passed (`Limit` of
+// rational.ts): the range limit, or the bound above or below, by the sign
+// of the exponent that passes it; a power is told by its decimal exponent
+// (`powerLimit`), so that one the range limit refuses is reported at the
+// bound when the bound would refuse it too.
 //
 // The decimal representation (4.3) lives here, moved from rational.ts:
 // `parseDecimal` reads a literal exactly with its exponent kept lazily,
@@ -89,6 +93,7 @@ import {
   sign as signOf,
   subtract as subtractFractions,
   trunc as truncFraction,
+  type Limit,
   type Rational,
   type RationalError,
 } from "./rational.ts";
@@ -128,9 +133,14 @@ export function scaled(
 ): Result<Scaled, ScaledError> {
   const s = normalize(mant, exp);
   if (s.exp > MAX_EXPONENT || s.exp < -MAX_EXPONENT) {
-    return err({ kind: "tooLarge" });
+    return err({ kind: "tooLarge", limit: boundPassed(s.exp) });
   }
   return ok(s);
+}
+
+/** The side of the bound an exponent past it is on: below for a negative one, above otherwise. */
+export function boundPassed(exp: bigint): Limit {
+  return exp < 0n ? "exponentBelow" : "exponentAbove";
 }
 
 /** The fraction `r` as a `Scaled`: its powers of ten moved into the exponent, which the fraction's size bounds far below the limit. */
@@ -153,7 +163,7 @@ export function toRational(
     magnitude > BigInt(limit) ||
     (Number(magnitude) + decimalDigits(abs(num))) * BITS_PER_DIGIT > limit
   ) {
-    return err({ kind: "tooLarge" });
+    return err({ kind: "tooLarge", limit: "range" });
   }
   const power = 10n ** magnitude;
   // Multiplying the numerator keeps lowest terms, the denominator being
@@ -278,7 +288,7 @@ function combine(
   if (isZero(b)) return scaled(op(a.mant, ZERO_FRACTION), a.exp);
   const shift = abs(a.exp - b.exp);
   if (shift > BigInt(limit) || Number(shift) * BITS_PER_DIGIT > limit) {
-    return err({ kind: "tooLarge" });
+    return err({ kind: "tooLarge", limit: "range" });
   }
   const exp = a.exp < b.exp ? a.exp : b.exp;
   const left = a.exp > exp ? timesPowerOfTen(a.mant, shift) : a.mant;
@@ -312,7 +322,11 @@ export function invert(s: Scaled): Result<Scaled, ScaledError> {
  * fraction's `pow` sizes it against `limit` bits, so that `10^1442695` is
  * `1 × 10^1442695` where `2^1442695` is `tooLarge` by its mantissa. A
  * negative `n` inverts, so zero to a negative power is a division by
- * zero; `s^0` is one for any `s`.
+ * zero; `s^0` is one for any `s`. A refusal names the limit by the
+ * power's decimal exponent (`powerLimit`), not by the check that fails
+ * first: `7^(10^19)`, refused by its mantissa, is past the bound, and
+ * `2.54^(10^18)`, whose exponent the canonical form puts past the bound
+ * below, is `10^(0.40 × 10^18)`, within it, and refused by its mantissa.
  */
 export function pow(
   s: Scaled,
@@ -323,9 +337,23 @@ export function pow(
   if (isZero(s)) {
     return n < 0n ? err({ kind: "divisionByZero" }) : ok(ZERO);
   }
-  if (abs(s.exp) * abs(n) > MAX_EXPONENT) return err({ kind: "tooLarge" });
+  if (abs(s.exp) * abs(n) > MAX_EXPONENT) {
+    return powerTooLarge(s, n, boundPassed(s.exp * n));
+  }
   const mant = powFraction(s.mant, n, limit);
-  return mant.ok ? scaled(mant.value, s.exp * n) : mant;
+  if (mant.ok) return scaled(mant.value, s.exp * n);
+  if (mant.error.kind !== "tooLarge") return mant;
+  return powerTooLarge(s, n, "range");
+}
+
+/** `s^n` refused as `tooLarge`, at the limit `powerLimit` names, or at `otherwise` where it cannot tell. */
+function powerTooLarge(
+  s: Scaled,
+  n: bigint,
+  otherwise: Limit,
+): Result<never, ScaledError> {
+  const limit = powerLimit(s, fromRational({ num: n, den: 1n }));
+  return err({ kind: "tooLarge", limit: limit ?? otherwise });
 }
 
 // ---------------------------------------------------------------------------
@@ -438,13 +466,13 @@ export function parseDecimal(text: string): Result<Scaled, ScaledError> {
   const fraction = fractionPart || bareFraction;
   const digits = integerPart + fraction;
   if (digits.length * BITS_PER_DIGIT > LIMIT_BITS) {
-    return err({ kind: "tooLarge" });
+    return err({ kind: "tooLarge", limit: "range" });
   }
   // The value is (integer digits ++ fraction digits) × 10^(exponent - #fraction).
   const exponent = match[5] === undefined ? 0n : BigInt(match[5]);
   const shift = exponent - BigInt(fraction.length);
   if (shift > MAX_EXPONENT || shift < -MAX_EXPONENT) {
-    return err({ kind: "tooLarge" });
+    return err({ kind: "tooLarge", limit: boundPassed(shift) });
   }
   const mantissa = BigInt(digits);
   return scaled(
@@ -582,6 +610,50 @@ export function oneDigitAbove(log2: Log2): Scaled {
   return digit >= 10n
     ? normalize({ num: 1n, den: 1n }, exp + 1n)
     : normalize({ num: digit, den: 1n }, exp);
+}
+
+/** `log2 MAX_EXPONENT`, for `powerLimit`. */
+const LOG2_MAX_EXPONENT = Math.log2(Number(MAX_EXPONENT));
+
+/** The margin `powerLimit` leaves on the binary logarithm of an exponent, far above the error of the doubles it works through. */
+const POWER_MARGIN = 2 ** -20;
+
+/**
+ * The limit that refuses `s^y`, told by where its decimal exponent,
+ * `y log10 |s|`, lies: `exponentAbove` or `exponentBelow` when that is
+ * past the bound, `range` when it is within it, so that the bound is not
+ * what refuses the power, and `undefined` when it is within a relative
+ * `2^-20` of the bound, where the bounds cannot tell. The exponent is
+ * never formed: its binary logarithm, `log2 |y|` plus `log2` of `log10
+ * |s|`, is bounded from the binary bounds of both, `log2 |s|` taken
+ * toward zero for the lower bound (zero when its bounds straddle zero,
+ * `s` being within `2^-30` of one in magnitude) and away from it for the
+ * upper; the sign is that of `y` times that of `log |s|`. For a power the
+ * arithmetic refuses, so that the error names the bound, which no setting
+ * moves, when no setting could compute the power (`7^(10^19)`), and the
+ * range limit when an inexact base would give it a value.
+ */
+export function powerLimit(s: Scaled, y: Scaled): Limit | undefined {
+  if (isZero(s) || isZero(y)) return "range";
+  const base = log2Bounds(s);
+  const lower = valueOfLog2(base.lower);
+  const upper = valueOfLog2(base.upper);
+  const least = lower > 0 ? lower : upper < 0 ? -upper : 0;
+  const most = Math.max(Math.abs(lower), Math.abs(upper));
+  const power = log2Bounds(y);
+  const leastLog2 = valueOfLog2(power.lower) + Math.log2(least * LOG10_2);
+  const mostLog2 = valueOfLog2(power.upper) + Math.log2(most * LOG10_2);
+  if (mostLog2 < LOG2_MAX_EXPONENT - POWER_MARGIN) return "range";
+  if (leastLog2 <= LOG2_MAX_EXPONENT + POWER_MARGIN) return undefined;
+  // Past the bound, the bounds on `log2 |s|` lie on one side of zero.
+  const belowOne = lower < 0;
+  const negative = sign(y) < 0;
+  return negative === belowOne ? "exponentAbove" : "exponentBelow";
+}
+
+/** A binary logarithm as a double. */
+function valueOfLog2(log2: Log2): number {
+  return Number(log2.int) + log2.frac;
 }
 
 /** `int + frac` with `frac` brought into `[0, 1)`. */

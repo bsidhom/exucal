@@ -51,7 +51,7 @@ import {
   shiftRadius,
 } from "./radius.ts";
 import { bitLength, rational } from "./rational.ts";
-import { err, ok, type Result } from "./result.ts";
+import { ok, type Result } from "./result.ts";
 import { ZERO, multiply, negate, scaled } from "./scaled.ts";
 
 /** The bits the logarithm and the exponential work beyond the result, for their ulps. */
@@ -116,7 +116,7 @@ export function floatingToBall(
   }
   const ball = fixedToBall(leadingFixed, digits);
   const power = scaled({ num: 1n, den: 1n }, decimalExponent);
-  if (!power.ok) return err({ kind: "tooLarge" });
+  if (!power.ok) return power;
   const mid = multiply(ball.mid, power.value);
   if (!mid.ok) return mid;
   return ok({

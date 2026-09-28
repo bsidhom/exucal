@@ -106,7 +106,7 @@ import {
   subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
-import { bitLength } from "./rational.ts";
+import { bitLength, type Limit } from "./rational.ts";
 import { ZERO } from "./scaled.ts";
 import type { BallError } from "./ball.ts";
 import type {
@@ -165,10 +165,11 @@ export type EvaluateError =
       readonly span: Span;
     }
   /**
-   * The power at `span` would exceed the range limit and was not computed,
-   * or the literal at `span` already does.
+   * The operation or call at `span` would pass `limit`, the range limit or
+   * the exponent bound on either side, and was not computed, or the
+   * literal at `span` already passes the range limit.
    */
-  | { readonly kind: "tooLarge"; readonly span: Span }
+  | { readonly kind: "tooLarge"; readonly span: Span; readonly limit: Limit }
   /**
    * The sum (`add`) or difference (`sub`) at `span` has operands, at `left`
    * and `right`, that do not conform, as `mismatch` says with the left
@@ -286,7 +287,9 @@ function evaluateNode<E>(
       // costing nothing (D16).
       const { num, den } = node.value.mant;
       const size = Math.max(bitLength(num < 0n ? -num : num), bitLength(den));
-      if (size > context.maxBits) return err({ kind: "tooLarge", span });
+      if (size > context.maxBits) {
+        return err({ kind: "tooLarge", span, limit: "range" });
+      }
       return ok(scalar(node.value));
     }
     case "unit":
@@ -462,8 +465,9 @@ function applyBuiltin<E>(
         edge: error.edge,
       });
     case "divisionByZero":
+      return err({ kind: "divisionByZero", span });
     case "tooLarge":
-      return err({ kind: error.kind, span });
+      return err({ kind: "tooLarge", span, limit: error.limit });
     case "negativeRadicand":
       return err({ kind: "negativeRadicand", degree: error.degree, span });
   }
@@ -549,8 +553,9 @@ function locate(
   const { error } = result;
   switch (error.kind) {
     case "divisionByZero":
+      return err({ kind: "divisionByZero", span });
     case "tooLarge":
-      return err({ kind: error.kind, span });
+      return err({ kind: "tooLarge", span, limit: error.limit });
     case "unresolved":
       return err({ kind: "unresolved", span, edge: ZERO });
     case "negativeRadicand":

@@ -8,7 +8,12 @@ import {
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { exact, multiplyBalls, type Ball } from "./ball.ts";
-import { plainNumbers, type Builtin, type BuiltinError } from "./builtin.ts";
+import {
+  fromBallError,
+  plainNumbers,
+  type Builtin,
+  type BuiltinError,
+} from "./builtin.ts";
 import { convert } from "./convert.ts";
 import type { Dimension, Primitives } from "./dimension.ts";
 import { evaluate } from "./evaluate.ts";
@@ -216,7 +221,7 @@ test("a function resolves by its name, for a call", () => {
 /** `x` doubled, exactly; the product of balls fails only at the exponent bound. */
 function twice(x: Ball): Result<Ball, BuiltinError> {
   const product = multiplyBalls(exact(fr(2n)), x);
-  return product.ok ? product : err({ kind: "tooLarge" });
+  return product.ok ? product : err(fromBallError(product.error, 0));
 }
 
 /** A built-in as a test injects one: a plain number doubled, exactly. */

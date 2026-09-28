@@ -171,6 +171,30 @@ the same bound: an argument whose magnitude over its whole ball, times
 `log10 e`, exceeds `MAX_EXPONENT` is `tooLarge` (`exp(1e30)`; `exp(1e18)`
 is a value with the exponent `434294481903251827`).
 
+### Which limit a refusal names
+
+A `tooLarge` carries the limit it passes (`Limit` of rational.ts), set
+where the check fails, so that the message can say which (issue #41):
+`range` for the range limit, at the alignment of a sum and at the sizes
+predicted for a power's mantissa or a fraction's power of ten, and
+`exponentAbove` or `exponentBelow` for this bound, by the sign of the
+exponent that passes it, or in the guards, of the argument of `exp`, of
+the product `y ln x` of the log-space power, and above for `sinh` and
+`cosh` of either sign. The messages are `"1e999999999 + 1" is too large
+to compute within Most bits.`, `"exp(1e999)" is too large to compute:
+its exponent would pass 10^18.` and `"exp(-1e999)" is too small to
+compute: its exponent would fall below -10^18.` An exact power is told
+by its decimal exponent rather than by the check that fails first
+(`powerLimit` of scaled.ts), its mantissa being sized before its
+exponent is: `7^(10^19)`, refused by the range limit's prediction, is
+past the bound, which no setting moves; and `2.54^(10^18)`, whose
+canonical exponent, `-2 × 10^18`, is past the bound below, is
+`10^(0.40 × 10^18)`, within it, and is refused at the range limit. A
+power of an inexact base is past the bound on the side of one its
+magnitude lies, and a negative power on the other side. A literal past
+the bound is the parser's to word: its exponent passes `10^18`, or is
+below `-10^18`.
+
 ### Decision: the bound stays at `10^18`
 
 The exponent is a bigint; `10^18` is a check on it, not a storage limit,

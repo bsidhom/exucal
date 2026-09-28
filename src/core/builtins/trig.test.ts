@@ -244,21 +244,18 @@ test("an argument below 2^-maxBits throughout is its own sine and tangent within
 });
 
 test("an argument reaching 2^maxBits is too large, since the reduction would need pi to that many bits", () => {
+  // The range limit, which the setting moves, whatever the sign.
+  const tooLarge = { kind: "tooLarge", limit: "range" };
   for (const fn of [sinBall, cosBall, tanBall]) {
-    assert.deepEqual(failure(fn(exact(dec("1e999999999")), DEFAULT)), {
-      kind: "tooLarge",
-    });
-    assert.deepEqual(failure(fn(exact(dec("-1e999999999")), DEFAULT)), {
-      kind: "tooLarge",
-    });
+    assert.deepEqual(failure(fn(exact(dec("1e999999999")), DEFAULT)), tooLarge);
+    assert.deepEqual(
+      failure(fn(exact(dec("-1e999999999")), DEFAULT)),
+      tooLarge,
+    );
     // 2^65536 is about 2.0e19728: just below computes, at and above does not.
     assert.ok(fn(exact(dec("1e19728")), DEFAULT).ok);
-    assert.deepEqual(failure(fn(exact(dec("1e19729")), DEFAULT)), {
-      kind: "tooLarge",
-    });
-    assert.deepEqual(failure(fn(ball("0", "1e19729"), DEFAULT)), {
-      kind: "tooLarge",
-    });
+    assert.deepEqual(failure(fn(exact(dec("1e19729")), DEFAULT)), tooLarge);
+    assert.deepEqual(failure(fn(ball("0", "1e19729"), DEFAULT)), tooLarge);
   }
 });
 
@@ -420,7 +417,7 @@ test("through the pipeline: sin(30 deg) certifies 0.5, sin(pi() radian) is zero 
     ],
     [
       "sin(1e999999999 radian)",
-      '"sin(1e999999999 radian)" is too large to compute.',
+      '"sin(1e999999999 radian)" is too large to compute within Most bits.',
     ],
   ]) {
     const result = at(text!, 8);

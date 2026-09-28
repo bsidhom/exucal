@@ -47,6 +47,7 @@ import {
   rational,
   subtract as subtractFractions,
   toFraction,
+  type Limit,
   type Rational,
 } from "./rational.ts";
 import { addRadius } from "./radius.ts";
@@ -80,6 +81,11 @@ function unwrap<T, E extends { kind: string }>(result: Result<T, E>): T {
 function assertError(result: Result<unknown, BallError>, kind: string) {
   assert.ok(!result.ok, `expected ${kind}, got ${inspect(result)}`);
   assert.equal(result.error.kind, kind);
+}
+
+/** Asserts that `result` failed `tooLarge` at `limit`. */
+function assertTooLarge(result: Result<unknown, BallError>, limit: Limit) {
+  assert.deepEqual(result, { ok: false, error: { kind: "tooLarge", limit } });
 }
 
 /** The ends of a bounded ball's interval, with its midpoint between them, as fractions. */
@@ -247,19 +253,20 @@ test("the exponent carries through the exact operations", () => {
   assert.deepEqual(unwrap(subtractBalls(huge, huge, context)), exact(ZERO));
   // Two exact operands that cannot be aligned within the range limit have
   // an exact sum that cannot be held: `1e999999999 + 1`.
-  assertError(addBalls(huge, exact(ONE), context), "tooLarge");
-  assertError(subtractBalls(exact(ONE), huge, context), "tooLarge");
+  assertTooLarge(addBalls(huge, exact(ONE), context), "range");
+  assertTooLarge(subtractBalls(exact(ONE), huge, context), "range");
   // Within the limit they align, whatever the exponent.
   assert.deepEqual(
     unwrap(addBalls(huge, exact(dec("1e999999000")), context)),
     exact(dec(`1${"0".repeat(998)}1e999999000`)),
   );
-  // The exponent bound: a product beyond `10^(10^18)`.
+  // The exponent bound: a product beyond `10^(10^18)`, and a quotient
+  // below `10^-(10^18)`.
   const edge = exact(dec("1e999999999999999999"));
-  assertError(multiplyBalls(edge, exact(dec("1e10"))), "tooLarge");
-  assertError(
+  assertTooLarge(multiplyBalls(edge, exact(dec("1e10"))), "exponentAbove");
+  assertTooLarge(
     divideBalls(exact(dec("1e-999999999999999999")), exact(dec("1e10"))),
-    "tooLarge",
+    "exponentBelow",
   );
 });
 
@@ -1239,8 +1246,8 @@ test("a sum of two exact operands that cannot be aligned is settled and absorbed
   assert.ok(certifies(sum, 8, "halfEven"));
   const difference = unwrap(subtractBalls(exact(ONE), huge, context));
   assert.deepEqual(difference.mid, negate(huge.mid));
-  // In exact mode the same sum is too large.
-  assertError(addBalls(huge, exact(ONE), at(8)), "tooLarge");
+  // In exact mode the same sum is too large, at the range limit.
+  assertTooLarge(addBalls(huge, exact(ONE), at(8)), "range");
 });
 
 test("powBall on an inexact base squares with settling, and is guarded by magnitude", () => {
@@ -1274,12 +1281,18 @@ test("powBall on an inexact base squares with settling, and is guarded by magnit
     ),
   );
   assert.ok(certifies(tenMillionth, 15, "halfEven"));
-  assertError(powBall(root, 10n ** 19n, at(20)), "tooLarge");
+  assertTooLarge(powBall(root, 10n ** 19n, at(20)), "exponentAbove");
+  // Below one the power is past the bound below, and a negative power is
+  // past it on the other side.
+  assertTooLarge(powBall(root, -(10n ** 19n), at(20)), "exponentBelow");
+  const half = ball(dec("0.5"), dec("1e-30"));
+  assertTooLarge(powBall(half, 10n ** 19n, at(20)), "exponentBelow");
+  assertTooLarge(powBall(half, -(10n ** 19n), at(20)), "exponentAbove");
   // A base near one is guarded by its true magnitude, not by its degree.
   const nearOne = ball(dec("1.0000001"), dec("1e-30"));
   assert.ok(powBall(nearOne, 10_000_000n, at(20)).ok);
   // The exact path is unchanged: an exact base is an exact power, under
   // the range limit.
   assert.deepEqual(unwrap(powBall(exact(fr(3n)), 4n, at(8))), exact(fr(81n)));
-  assertError(powBall(exact(fr(3n)), 100_000n, at(8)), "tooLarge");
+  assertTooLarge(powBall(exact(fr(3n)), 100_000n, at(8)), "range");
 });

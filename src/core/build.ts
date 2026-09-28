@@ -575,10 +575,15 @@ function lookupIn(
         asQuantity(prefix.value),
         asQuantity(unit.value),
       );
+      if (product.ok) return product;
       // A prefix and a unit each within the exponent bound multiply to
       // within it unless both are at its edge, which the definitions the
-      // app ships are nowhere near.
-      return product.ok ? product : err({ kind: "tooLarge", span });
+      // app ships are nowhere near; a product fails only there.
+      const { error } = product;
+      if (error.kind !== "tooLarge") {
+        throw new Error(`A prefix times a unit failed: ${error.kind}`);
+      }
+      return err({ kind: "tooLarge", span, limit: error.limit });
     },
     function: (name, span, call) => {
       const found = index.functions.get(name);

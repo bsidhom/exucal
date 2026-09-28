@@ -15,7 +15,9 @@
 // `sinh` and `cosh` are guarded by magnitude as `exp` is, and share its
 // range (3.6, then 4.9): an argument whose magnitude over its whole ball
 // would put the result beyond the exponent bound is `tooLarge` at the
-// call, through `expFits`, before anything is computed, and otherwise the
+// call, through `expFits`, before anything is computed, and past the bound
+// above for an argument of either sign, both being large in magnitude
+// there (`cosh(-1e30)` is as large as `cosh(1e30)`), and otherwise the
 // kernel's pair of `Floating`s comes out through digits.ts
 // (`floatingToBall`), so that `sinh(1e6)` and `cosh(1e6)` are values. `tanh` is not: for an argument
 // whose magnitude throughout its ball is beyond what the working bits can
@@ -175,7 +177,7 @@ export function tanhBall(
   const saturated = saturation(x, bits);
   if (saturated !== undefined) return ok(saturated);
   if (!expFits(radiusBound(magnitudeAbove(x)))) {
-    return err({ kind: "tooLarge" });
+    return err({ kind: "tooLarge", limit: "exponentAbove" });
   }
   return ok(
     fixedToBall(
@@ -326,7 +328,7 @@ function sinhCosh(
   context: NumberContext,
 ): Result<SinhCosh, BuiltinError> {
   if (!expFits(radiusBound(magnitudeAbove(x)))) {
-    return err({ kind: "tooLarge" });
+    return err({ kind: "tooLarge", limit: "exponentAbove" });
   }
   const bits = bitsFor(context.precision);
   return ok(

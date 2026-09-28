@@ -282,7 +282,11 @@ can turn a pass of the guard into a refusal and never the reverse; and
 `tooLarge` is not an error `resolve` retries, so the refusal is the
 answer at the first pass. The threshold is `|x|` at `10^18 ln 10`, about
 `2.3026e18`, with `approx` or without it, and the same for `-x`,
-`sinh`, `cosh` and the log-space power.
+`sinh`, `cosh` and the log-space power. The message names the axis:
+`"exp(1e999)" is too large to compute: its exponent would pass 10^18.`,
+where the range limit's reads `"1e999999999 + 1" is too large to compute
+within Most bits.`, and `exp(-1e999)` is too small, its exponent falling
+below `-10^18`.
 
 **The condition.** Were the exponent held, `approx` would cost rather
 than help. `exp` turns an absolute radius `r` of its argument into a
@@ -379,4 +383,4 @@ let the loop go on; it is not written, and the README says to keep such
 arguments exact meanwhile. It is tracked as issue #40 (https://github.com/bsidhom/pwa-units/issues/40), with
 the crash of `exp` and `pow` on a wide argument, #39 (https://github.com/bsidhom/pwa-units/issues/39); #38
 (https://github.com/bsidhom/pwa-units/issues/38), `tanh` of a wide ball certified as `±1`, and #41
-(https://github.com/bsidhom/pwa-units/issues/41), the one message for both limits, were found with it.
+(https://github.com/bsidhom/pwa-units/issues/41), the one message for both limits, since fixed, were found with it.

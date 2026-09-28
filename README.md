@@ -358,16 +358,22 @@ error that says what the domain is (`ln(-1)`, `asin(2)`, `acosh(0.5)`),
 one that cannot be told from an edge of it at any precision up to the
 ceiling says so (`tan(90 deg)` at a pole), and a result whose exponent
 would pass `10^18` is refused as too large (`exp(1e30)`, `sinh(1e30)`),
-where `exp(1e6)` is `≈ 3.0332154e+434294`; the next section says why
-`approx` does not change that.
+and one whose exponent would fall below `-10^18` as too small
+(`exp(-1e30)`), where `exp(1e6)` is `≈ 3.0332154e+434294`; the next
+section says why `approx` does not change that.
 No prefix applies to a function: `kpi()` is a call of nothing.
 
 ### Very large results and `approx`
 
 `approx` says how well a value is known, not how large it is, so it
 cannot rescue a result that is too large: `exp(approx(1e999))` is refused
-exactly as `exp(1e999)` is. The message, that it is too large to compute,
-covers two different limits.
+exactly as `exp(1e999)` is. The message says which of two limits a
+result passes:
+
+```
+"exp(1e999)" is too large to compute: its exponent would pass 10^18.
+"1e999999999 + 1" is too large to compute within Most bits.
+```
 
 A value is held as a mantissa times a power of ten. The settings limit
 the mantissa: Digits and Most digits say how many of its digits must be
@@ -390,9 +396,13 @@ The exponential of `x` has the decimal exponent `x log10 e`, so `exp(x)`
 is refused whenever `|x|` passes `10^18 ln 10`, about `2.3026e18`, with or
 without `approx`: `exp(2.3e18)` is `≈ 3.9591004e+998877308377479203` and
 `exp(2.31e18)` is refused. So is `exp(-1e999)`, whose exponent is as far
-below the bound as `exp(1e999)`'s is above it, although the message says
-"too large"; `sinh`, `cosh` and powers (`pow(10, 1e999)`, `10^1e999`)
-share the limit. What `approx` does relax is Most bits, in a sum:
+below the bound as `exp(1e999)`'s is above it, and whose message says so:
+it is too small to compute, its exponent would fall below `-10^18`.
+`sinh`, `cosh` and powers (`pow(10, 1e999)`, `10^1e999`) share the limit,
+`sinh` and `cosh` of a negative argument being too large rather than too
+small, and a power that no setting could hold is reported at the bound
+even where Most bits refuses it first (`7^(10^19)`, an integer of about
+`8.5 × 10^18` digits). What `approx` does relax is Most bits, in a sum:
 `1e999999999 + 1` is refused, since its exact value has a billion digits,
 while `approx(1e999999999) + 1` is `≈ 1e+999999999`, the `1` absorbed into
 the radius. It never changes an exponent.

@@ -23,9 +23,9 @@
 // before the kernel is entered: an argument below `2^-maxBits` throughout
 // is its own sine and tangent within its cube, and its cosine is one
 // within its square (`tinyOdd` and `tinyEven` of builtin.ts), and one
-// reaching `2^maxBits` is `tooLarge`, since the reduction would need `pi`
-// to that many bits. An argument of unbounded radius gives the function
-// of its midpoint with an unbounded radius.
+// reaching `2^maxBits` is `tooLarge` at the range limit, since the
+// reduction would need `pi` to that many bits. An argument of unbounded
+// radius gives the function of its midpoint with an unbounded radius.
 
 import { exact, isExact, type Ball } from "../ball.ts";
 import {
@@ -109,7 +109,7 @@ export function tanBall(
  * the kernel keeps its digits.
  */
 function sinCos(x: Ball, context: NumberContext): Result<SinCos, BuiltinError> {
-  if (isHuge(x, context)) return err({ kind: "tooLarge" });
+  if (isHuge(x, context)) return err({ kind: "tooLarge", limit: "range" });
   const bits = bitsFor(context.precision);
   return ok(
     sinCosFixed(

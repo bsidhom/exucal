@@ -10,7 +10,7 @@
 // `5.28`). Nothing here rounds: the ratio is the ball quotient, exact on
 // the midpoints with the radii propagated, so it is the exact answer for
 // exact quantities and display is where it is rounded, once; a quotient
-// whose exponent passes the bound is `tooLarge`.
+// whose exponent passes the bound is `tooLarge`, above or below it.
 //
 // A failure is one of the two conformance errors (a dimension mismatch or a
 // kind mismatch, carrying both dimensions so that the UI can show them), a
@@ -78,7 +78,7 @@ import {
 } from "./dimension.ts";
 import type { Quantity } from "./quantity.ts";
 import { addRadius, isZeroRadius, radiusAboveScaled } from "./radius.ts";
-import { LIMIT_BITS } from "./rational.ts";
+import { LIMIT_BITS, type Limit } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import type { Precision, RoundingMode } from "./rounding.ts";
 import {
@@ -102,8 +102,8 @@ export type ConvertError =
   | { readonly kind: "zeroWant" }
   /** `want` has a magnitude that cannot be told from zero at this precision. */
   | { readonly kind: "unresolvedWant" }
-  /** The ratio's exponent passes the bound. */
-  | { readonly kind: "tooLarge" };
+  /** The ratio's exponent passes the bound, on the side `limit` says. */
+  | { readonly kind: "tooLarge"; readonly limit: Limit };
 
 /** Why a list of units is not a unit list for a `have`; `index` is the unit at fault. */
 export type UnitListError =
@@ -142,7 +142,7 @@ export function convert(
     case "unresolved":
       return err({ kind: "unresolvedWant" });
     case "tooLarge":
-      return err({ kind: "tooLarge" });
+      return err({ kind: "tooLarge", limit: ratio.error.limit });
     default:
       // A quotient of balls grows neither operand beyond its own size.
       throw new Error(`A ratio of magnitudes failed: ${ratio.error.kind}`);

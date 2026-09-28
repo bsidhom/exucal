@@ -381,14 +381,20 @@ digits at the default range limit.
 operand it lets the radius absorb: it never changes an exponent, so a
 result past the exponent bound is `tooLarge` with it or without it
 (`exp(approx(1e999))`; docs/approximate.md, "`approx` and the exponent
-bound").
+bound"). The error says which limit it passes, and the message words the
+two apart: "too large to compute within Most bits" for the range limit,
+and for the bound that the exponent would pass `10^18`, or fall below
+`-10^18` for a value too small to hold.
 
 ### Failures
 
 A value that cannot be computed is a `Result` error, never an exception:
 division by zero (including `0` to a negative power), an even root of a
-negative number, a result beyond the range limit, or text that is not a
-number.
+negative number, a result beyond the range limit or the exponent bound,
+or text that is not a number. A result beyond a limit is `tooLarge` with
+the limit it passes, the range limit or the bound above or below, so that
+the message names the one the user can change apart from the one they
+cannot (docs/decimal.md, "Which limit a refusal names").
 
 A violated precondition (a zero denominator passed to the `rational`
 constructor, a precision that is not a positive integer, a root degree below

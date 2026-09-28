@@ -57,6 +57,7 @@ import {
   type Primitives,
 } from "./dimension.ts";
 import type { Arity } from "./evaluate.ts";
+import type { Limit } from "./rational.ts";
 import {
   UNBOUNDED,
   addRadius,
@@ -122,7 +123,8 @@ export type BuiltinError =
     }
   | { readonly kind: "divisionByZero" }
   | { readonly kind: "negativeRadicand"; readonly degree: bigint }
-  | { readonly kind: "tooLarge" };
+  /** The result would pass `limit` and was not computed. */
+  | { readonly kind: "tooLarge"; readonly limit: Limit };
 
 /**
  * The dimension rule of a built-in: the dimension of its result for the

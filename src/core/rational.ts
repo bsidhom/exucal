@@ -28,10 +28,25 @@ export type RationalError =
   | { readonly kind: "divisionByZero" }
   /** An even root of a negative number, which has no real value. */
   | { readonly kind: "negativeRadicand"; readonly degree: bigint }
-  /** The result would exceed the range limit and was not computed. */
-  | { readonly kind: "tooLarge" }
+  /** The result would pass `limit` and was not computed. */
+  | { readonly kind: "tooLarge"; readonly limit: Limit }
   /** The text is not a decimal number. */
   | { readonly kind: "invalidNumber" };
+
+/**
+ * Which limit a result too large to compute would pass, recorded where
+ * the check fails so that the message can say which (issue #41). `range`
+ * is the range limit, the bits the context lets an exact value's
+ * numerator or denominator, or a sum's alignment, take: Most bits, the
+ * user's to set, which an inexact operand (`approx`) avoids in a sum or
+ * an integer power, whose inexact result is settled to the working
+ * digits. `exponentAbove` and `exponentBelow` are the exponent bound of
+ * scaled.ts, `10^18`, a constant, passed by a value too large to hold or
+ * by a nonzero value too small to hold; the kind is `tooLarge` for both.
+ * Only scaled.ts and the layers above it pass the bound, since a fraction
+ * has no exponent.
+ */
+export type Limit = "range" | "exponentAbove" | "exponentBelow";
 
 /**
  * The hard bound on the size of a numerator or denominator, in bits (2^20,
@@ -176,7 +191,7 @@ export function pow(
   const magnitude = abs(n);
   const bits = Math.max(bitLength(abs(r.num)), bitLength(r.den));
   if (magnitude > BigInt(limit) || Number(magnitude) * bits > limit) {
-    return err({ kind: "tooLarge" });
+    return err({ kind: "tooLarge", limit: "range" });
   }
   const num = r.num ** magnitude;
   const den = r.den ** magnitude;

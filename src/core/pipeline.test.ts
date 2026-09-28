@@ -485,13 +485,18 @@ test("the range limit of the context reaches a literal's mantissa and a power", 
   assert.deepEqual(literal.error, {
     kind: "tooLarge",
     span: { start: 0, end: 21 },
+    limit: "range",
   });
   assert.ok(evaluateText(table, "1e18 m", small).ok);
   assert.ok(evaluateText(table, "1e30 m", small).ok);
   assert.ok(evaluateText(table, "1e999999999 m", small).ok);
   const power = evaluateText(table, "2^100 m", small);
   assert.ok(!power.ok);
-  assert.equal(power.error.kind, "tooLarge");
+  assert.deepEqual(power.error, {
+    kind: "tooLarge",
+    span: { start: 0, end: 5 },
+    limit: "range",
+  });
   // An inexact base is bounded by the exponent bound, not by an exact
   // power (4.9): sqrt(2)^(10^7) is a value, sqrt(2)^(10^19) is not.
   assert.ok(evaluateText(table, "(2^(1/2))^1000", CONTEXT).ok);
@@ -503,7 +508,19 @@ test("the range limit of the context reaches a literal's mantissa and a power", 
   );
   const huge = evaluateText(table, "(2^(1/2))^10000000000000000000", CONTEXT);
   assert.ok(!huge.ok);
-  assert.equal(huge.error.kind, "tooLarge");
+  assert.deepEqual(huge.error, {
+    kind: "tooLarge",
+    span: { start: 0, end: 30 },
+    limit: "exponentAbove",
+  });
+  // A negative power of it is past the bound on the other side.
+  const tiny = evaluateText(table, "(2^(1/2))^-10000000000000000000", CONTEXT);
+  assert.ok(!tiny.ok);
+  assert.deepEqual(tiny.error, {
+    kind: "tooLarge",
+    span: { start: 0, end: 31 },
+    limit: "exponentBelow",
+  });
 });
 
 test("a value that looks rational after a root is inexact, and the display says so", () => {
@@ -561,11 +578,12 @@ test("a sum of two exact values that cannot be aligned is too large, at the sum"
   assert.deepEqual(sum.error, {
     kind: "tooLarge",
     span: { start: 0, end: 15 },
+    limit: "range",
   });
   assert.deepEqual(failure("1e999999999 m - 1 m", "m"), {
     kind: "inputError",
     side: "have",
-    error: { kind: "tooLarge", span: { start: 0, end: 19 } },
+    error: { kind: "tooLarge", span: { start: 0, end: 19 }, limit: "range" },
   });
   // With an inexact operand the smaller is absorbed into the radius, and
   // the sum certifies on the first pass.
@@ -628,11 +646,12 @@ test("the trigonometric functions saturate or refuse an argument of any exponent
   assert.deepEqual(sine.error, {
     kind: "tooLarge",
     span: { start: 0, end: 23 },
+    limit: "range",
   });
   assert.deepEqual(failure("sin(1e999999999 radian)", "1"), {
     kind: "inputError",
     side: "have",
-    error: { kind: "tooLarge", span: { start: 0, end: 23 } },
+    error: { kind: "tooLarge", span: { start: 0, end: 23 }, limit: "range" },
   });
   // The arc tangent is pi/2 within 2^-bits: 90 degrees, inexact.
   const right = value("atan(1e999999999)", "deg").value;

@@ -54,7 +54,7 @@ import {
 } from "./rational.ts";
 import type { Result } from "./result.ts";
 import { ROUNDING_MODES } from "./rounding.ts";
-import { random, randomBall } from "../testing/random.ts";
+import { foldIn, key, randomBall, split } from "../testing/random.ts";
 
 function dec(text: string): Rational {
   const result = parseDecimal(text);
@@ -104,8 +104,7 @@ function at(precision: number): NumberContext {
 
 /** The seeded balls the property tests are over. */
 function seeded(): Ball[] {
-  const rand = random(1505);
-  return Array.from({ length: 120 }, () => randomBall(rand, 24, 12));
+  return split(key(1505), 120).map((k) => randomBall(k, 24, 12));
 }
 
 // ---------------------------------------------------------------------------
@@ -646,9 +645,9 @@ test("certifiedDigits is the largest count that certifies, which is not monotone
   // The scan's starting bound never cuts a count that certifies: over the
   // shared source, the count found is one that certifies and the next one
   // up does not, wherever the answer is below the cap.
-  const rand = random(2401);
+  const seed = key(2401);
   for (let i = 0; i < 60; i++) {
-    const b = randomBall(rand, 24, 6);
+    const b = randomBall(foldIn(seed, i), 24, 6);
     if (containsZero(b) || isExact(b)) continue;
     const found = certifiedDigits(b, 30, nearest);
     if (found === 0) {
@@ -704,9 +703,9 @@ test("settle rounds an inexact midpoint to the working bits and grows the radius
     ) < 0,
   );
   // Over the shared source: the settled ball contains the original's ends.
-  const rand = random(2501);
+  const seed = key(2501);
   for (let i = 0; i < 60; i++) {
-    const original = randomBall(rand, 40, 12);
+    const original = randomBall(foldIn(seed, i), 40, 12);
     const context = at(1 + (i % 3) * 20);
     const s = settle(original, context);
     if (isExact(original) || isZero(original.mid)) {

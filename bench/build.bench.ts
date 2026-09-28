@@ -9,7 +9,7 @@ import {
   DEFAULT_ROUNDING,
 } from "../src/core/context.ts";
 import { DEFAULT_PRECISION } from "../src/core/rational.ts";
-import { random } from "../src/testing/random.ts";
+import { key } from "../src/testing/random.ts";
 import { bestOf, millis } from "./harness.ts";
 import { syntheticDefinitions } from "./synthetic.ts";
 
@@ -21,7 +21,7 @@ function timePipeline(
   prefixCount: number,
   unitCount: number,
 ): Timings {
-  const text = syntheticDefinitions(random(3), prefixCount, unitCount);
+  const text = syntheticDefinitions(key(3), prefixCount, unitCount);
   let definitions: readonly Definition[] = [];
   const parse = bestOf(5, () => {
     const result = parseDefinitions(text);

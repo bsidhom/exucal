@@ -29,7 +29,7 @@ import {
   toFraction,
   type Rational,
 } from "./rational.ts";
-import { random, randomRational } from "../testing/random.ts";
+import { key, randomRational, split } from "../testing/random.ts";
 
 /** A bounded radius written out, for the expected side of a `deepEqual`. */
 function bounded(mant: bigint, exp: bigint): Radius {
@@ -68,12 +68,13 @@ function assertBounds(rad: Radius, exact: Rational, slack = SLACK) {
 
 /** The seeded set of non-zero rationals every property test is over. */
 function seeded(): Rational[] {
-  const rand = random(1303);
-  const values: Rational[] = [];
+  const [ordinary, wide] = split(key(1303));
   // Ordinary magnitudes, then a few very wide ones, so that the exponent's
   // range is exercised beyond what a double could hold.
-  for (let i = 0; i < 200; i++) values.push(randomRational(rand, 24, 20));
-  for (let i = 0; i < 10; i++) values.push(randomRational(rand, 1500, 400));
+  const values: Rational[] = [
+    ...split(ordinary!, 200).map((k) => randomRational(k, 24, 20)),
+    ...split(wide!, 10).map((k) => randomRational(k, 1500, 400)),
+  ];
   return values.filter((r) => !isZero(r));
 }
 

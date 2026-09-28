@@ -2396,6 +2396,11 @@ far out without forming anything large; the four memos hold the ceiling
 plus 64 bits and the probe leaves them at the largest ceiling it tried;
 the wide-argument bounds of the routines are trivial bounds the retry
 loop narrows; the two gaps of 2.5 still stand; the display's `unbounded`
-kind still has no producer; and a follow-up agreed outside the stages,
-before stage 4, replaces src/testing/random.ts with a purely applicative,
-splittable source in the style of JAX.
+kind still has no producer; and the random source of the tests is, since
+the follow-up after stage 3, purely applicative in the style of JAX
+(src/testing/random.ts: keys of two 32-bit words, `split` and `foldIn`
+deriving keys, every draw a function of its key alone, the bits from
+threefry2x32 blocks under the key, checked against the published
+vectors), so that every seeded input is a function of its key and its
+index rather than of the draws before it; the seeded inputs of every
+containment test changed with it, and every test holds on the new ones.

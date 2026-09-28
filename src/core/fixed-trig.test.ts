@@ -23,7 +23,13 @@ import {
   toFraction,
   type Rational,
 } from "./rational.ts";
-import { random, randomBall, randomRational } from "../testing/random.ts";
+import {
+  foldIn,
+  key,
+  randomBall,
+  randomRational,
+  split,
+} from "../testing/random.ts";
 
 function dec(text: string): Rational {
   const result = parseDecimal(text);
@@ -186,13 +192,14 @@ test("reference digits: sin 1 and cos 1 to 100 digits, and both across the quadr
 });
 
 test("containment: sin and cos at a precision contain the values computed at four times it", () => {
-  const rand = random(3901);
+  const root = key(3901);
   const ceiling = bitsFor(200);
   const arguments_: Fixed[] = [];
-  while (arguments_.length < 60) {
+  for (let i = 0; arguments_.length < 60; i++) {
     // Arguments across [-100, 100], as exact values and balls.
-    const value = randomRational(rand, 24, 2);
-    const ball = randomBall(rand, 24, 2);
+    const [a, b] = split(foldIn(root, i));
+    const value = randomRational(a!, 24, 2);
+    const ball = randomBall(b!, 24, 2);
     for (const candidate of [
       fixedFromRational(value, bitsFor(20)),
       fixedFromBall(ball, bitsFor(20)),
@@ -401,13 +408,14 @@ test("reference digits: atan 1 is a quarter of pi to 100 digits, and atan across
 });
 
 test("containment: atan at a precision contains the value computed at four times it", () => {
-  const rand = random(3902);
+  const root = key(3902);
   const ceiling = bitsFor(200);
   const arguments_: Fixed[] = [];
-  while (arguments_.length < 60) {
+  for (let i = 0; arguments_.length < 60; i++) {
     // Arguments across magnitudes, as exact values and balls.
-    const value = randomRational(rand, 24, 12);
-    const ball = randomBall(rand, 24, 12);
+    const [a, b] = split(foldIn(root, i));
+    const value = randomRational(a!, 24, 12);
+    const ball = randomBall(b!, 24, 12);
     arguments_.push(fixedFromRational(value, bitsFor(20)));
     arguments_.push(fixedFromBall(ball, bitsFor(20)));
   }

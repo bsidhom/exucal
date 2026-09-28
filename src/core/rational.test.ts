@@ -32,7 +32,7 @@ import {
 } from "./rational.ts";
 import type { Result } from "./result.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./rounding.ts";
-import { random, randomRational } from "../testing/random.ts";
+import { key, randomRational, split } from "../testing/random.ts";
 
 /** Unwraps a result that is expected to succeed. */
 function unwrap<T>(result: Result<T, RationalError>): T {
@@ -657,8 +657,7 @@ test("format and parseDecimal round-trip", () => {
 
 /** `count` seeded rationals of about six digits over six, at magnitudes up to `10^±20`. */
 function randomRationals(count: number): Rational[] {
-  const rand = random(12345);
-  return Array.from({ length: count }, () => randomRational(rand, 20, 20));
+  return split(key(12345), count).map((k) => randomRational(k, 20, 20));
 }
 
 /** One unit in the last of `digits` significant digits of `r`. */

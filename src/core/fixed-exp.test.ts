@@ -23,7 +23,13 @@ import {
   toFraction,
   type Rational,
 } from "./rational.ts";
-import { random, randomBall, randomRational } from "../testing/random.ts";
+import {
+  foldIn,
+  key,
+  randomBall,
+  randomRational,
+  split,
+} from "../testing/random.ts";
 
 function dec(text: string): Rational {
   const result = parseDecimal(text);
@@ -122,12 +128,13 @@ test("exp(-1000) keeps its digits, far below one", () => {
 });
 
 test("containment: exp at a precision contains the value computed at four times it", () => {
-  const rand = random(3601);
+  const root = key(3601);
   const arguments_: Fixed[] = [];
-  while (arguments_.length < 60) {
+  for (let i = 0; arguments_.length < 60; i++) {
     // Arguments of moderate size, |x| below about 2^10, as exact values and balls.
-    const value = randomRational(rand, 24, 2);
-    const ball = randomBall(rand, 24, 2);
+    const [a, b] = split(foldIn(root, i));
+    const value = randomRational(a!, 24, 2);
+    const ball = randomBall(b!, 24, 2);
     for (const candidate of [
       fixedFromRational(value, bitsFor(20)),
       fixedFromBall(ball, bitsFor(20)),
@@ -261,12 +268,13 @@ test("reference digits: sinh and cosh on both routes, and the tiny argument keep
 });
 
 test("containment: sinh and cosh at a precision contain the values computed at four times it", () => {
-  const rand = random(3611);
+  const root = key(3611);
   const arguments_: Fixed[] = [];
-  while (arguments_.length < 60) {
+  for (let i = 0; arguments_.length < 60; i++) {
     // Arguments of moderate size, |x| below about 2^10, as exact values and balls.
-    const value = randomRational(rand, 24, 2);
-    const ball = randomBall(rand, 24, 2);
+    const [a, b] = split(foldIn(root, i));
+    const value = randomRational(a!, 24, 2);
+    const ball = randomBall(b!, 24, 2);
     for (const candidate of [
       fixedFromRational(value, bitsFor(20)),
       fixedFromBall(ball, bitsFor(20)),

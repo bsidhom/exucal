@@ -374,6 +374,11 @@ which the retry schedule's ceiling is derived; its own hard bound,
 `maxDigitsFor`, follows from the range limit, since a settled midpoint at
 the ceiling must fit it with room for a product of two: about 2,450
 digits at the default range limit.
+`approx` bears on the range limit alone, and only in a sum, whose smaller
+operand it lets the radius absorb: it never changes an exponent, so a
+result past the exponent bound is `tooLarge` with it or without it
+(`exp(approx(1e999))`; docs/approximate.md, "`approx` and the exponent
+bound").
 
 ### Failures
 

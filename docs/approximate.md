@@ -4,7 +4,8 @@ Status: design note, written during the review of docs/decimal.md
 (stage 4 of docs/calculator-plan.md) and placed as task 4.10 of that
 stage; "Future work" at the end records the uncertain-measurement form
 and how it will be implemented, tentatively. The task has landed, and
-"Implementation notes" says how.
+"Implementation notes" says how; "`approx` and the exponent bound", after
+them, records why `exp(approx(1e999))` is `tooLarge` as `exp(1e999)` is.
 
 ## The problem
 
@@ -257,3 +258,95 @@ midpoint, exact or not, is returned as it is, since a unit of the last
 digit of zero would be a unit of nothing; and `approx` is the last of
 the app's built-ins by name. The two-argument form waits on the retry
 loop's stopping rule above.
+
+## `approx` and the exponent bound
+
+Written after a report that `exp(approx(1e999))` is `tooLarge`, on the
+expectation that `approx` would make the argument a value known to the
+working precision and so the result a value that can be computed. It
+cannot, and the reason is kept here, since "A large exponent is a value"
+above invites the reading. README "Very large results and `approx`" is
+the user's account, with the same numbers.
+
+**Two axes.** ARCHITECTURE.md ("Size limits") bounds a value on two
+axes, and the example above, `approx(1e999999999) + 1`, is the range
+limit's: the exact sum needs a mantissa of a billion digits, and
+`approx` lets the `1` be absorbed into the radius (docs/decimal.md,
+"Sums, comparisons and the radius"). `exp(1e999)` is the other axis. Its
+mantissa is of the working digits, as every kernel result's is, and its
+decimal exponent, `1e999 log10 e`, about `4.34 × 10^998`, passes
+`MAX_EXPONENT`, `10^18`, so `expBall` refuses it before the kernel
+(`expFits(radiusBound(magnitudeAbove(x)))`). The guard takes the
+magnitude over the whole ball, and `approx` never narrows, so `approx`
+can turn a pass of the guard into a refusal and never the reverse; and
+`tooLarge` is not an error `resolve` retries, so the refusal is the
+answer at the first pass. The threshold is `|x|` at `10^18 ln 10`, about
+`2.3026e18`, with `approx` or without it, and the same for `-x`,
+`sinh`, `cosh` and the log-space power.
+
+**The condition.** Were the exponent held, `approx` would cost rather
+than help. `exp` turns an absolute radius `r` of its argument into a
+relative factor `e^±r` of its result, so what `approx(x)` bounds, the
+relative precision of `x`, is the relative precision of the result's
+logarithm and not of the result. At 32 digits, with the cap on the
+digits at 1,000 (a ceiling of 4,040) and the range limit at 32,768 bits,
+the schedule measures:
+
+| Pass | Working digits | Radius of `approx(1e999)` | `exp` of it, known within | Exponent digits known |
+| ---: | -------------: | ------------------------: | ------------------------- | --------------------: |
+|    1 |             52 |                  `1e+948` | a factor of `e^(10^948)`  |             51 of 999 |
+|    2 |             94 |                  `1e+906` | a factor of `e^(10^906)`  |                    93 |
+|    3 |            178 |                  `1e+822` | a factor of `e^(10^822)`  |                   177 |
+|    4 |            346 |                  `1e+654` | a factor of `e^(10^654)`  |                   345 |
+|    5 |            682 |                  `1e+318` | a factor of `e^(10^318)`  |                   681 |
+|    6 |          1,354 |                  `1e-354` | a relative `1e-354`       |                   all |
+
+The exact argument needs none of this: `expFixed` halves an argument
+once per bit of its magnitude, and eight more (3,327 halvings for
+`1e999`), and works that many bits beyond the working bits, so
+`exp(1e999)` would certify at the first pass.
+
+**A test build.** A scratch copy of the tree, not committed, raised
+`MAX_EXPONENT` to `10^1100` and `MOST_MAGNITUDE` in fixed-exp.ts to
+4,000, and replaced `exp`'s guard by one on the midpoint's decimal
+exponent, with a pass whose argument's radius is at least one reported
+`unresolved`. `exp(1e999)` certified at the first pass, in 70 ms:
+`2.0307164965753263882718190599363e+4342944819…4497145`, the exponent's
+999 digits in full, agreeing with a computation at 1,200 digits in
+Python's `decimal`. `exp(approx(1e999))` was `unresolved` at passes one to
+five and certified at the sixth, 391 ms in all. Without the rule on the
+radius, the first pass spent 30 s in the kernel's squarings, the error's
+bit length doubling with each once it passed the value's, and threw
+`RangeError: Maximum BigInt size exceeded`. So the settings suffice, and
+the bound alone refuses.
+
+**What raising the bound would take**, should it be raised; it is a
+change to the number type, and `approx` has no part in it:
+
+- `MAX_EXPONENT`, and a reason for its new value. docs/decimal.md sets a
+  setting for the bound aside because nothing a user computes needs
+  `10^(10^18)`; an expression whose intermediate is `exp(1e999)` and whose
+  result is ordinary is the case that does. One candidate is to tie the
+  bound to the range limit, an exponent of as many bits as a mantissa may
+  have.
+- The guards that measure a magnitude in a double: `radiusBound`
+  (infinite past about `2^1030`), `expFits`, the product and `yBound` of
+  `powLogSpace`, and `MOST_MAGNITUDE` in fixed-exp.ts, a thrown
+  precondition today.
+- A rule for a pass whose argument is too wide for the result to have a
+  digit, before the kernel is entered, with a message for a refusal at
+  the ceiling: `unresolved` served the test build, but its message speaks
+  of an edge.
+- The display: a 32-digit answer carries its exponent in full, 999 digits
+  here, 1,034 characters in all.
+- The cost: the exponential squares once per bit of its argument, so the
+  argument's bits want the range limit's bound, as `sin`'s do.
+
+**A related gap.** The guard's magnitude over the whole ball lets a
+radius alone refuse: `exp(approx(1e999) - approx(1e999 - 5))` is `5`
+within about `2e948` at the first pass and `tooLarge` there, and the
+loop ends, although the sixth pass would give `5` within `2e-354` and
+`exp` of it at once. A guard that refused on the midpoint and reported
+a ball that only its radius takes past the bound as `unresolved` would
+let the loop go on; it is not written, and the README says to keep such
+arguments exact meanwhile.

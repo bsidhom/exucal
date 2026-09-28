@@ -178,7 +178,9 @@ stage 3 are the routines beside it, one module per family: `fixed-exp.ts`
 summed by rectangular splitting, with `ln(2)` and `ln(10)` memoized) and
 `fixed-trig.ts` (the sine and the cosine together, by a reduction modulo
 `pi/2` against the memoized `pi` and the two Taylor series summed by the
-same splitting; the tangent is their quotient); a
+same splitting, the tangent being their quotient; and the arctangent, by
+inversion above one, eight half-angle steps and the logarithm's series in
+`-z^2`, through which `asin`, `acos` and `atan2` go); a
 rational power that is neither exact nor small enough for the root of the
 power goes through them as `exp(y ln x)` (`powRationalBall`, which `^`
 and the built-in `pow` share), so that `2^0.1234567` is a value with a
@@ -1001,7 +1003,7 @@ src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations,
 src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations, the roots
 src/core/fixed-exp.ts     expFixed: the exponential on the kernel, by halving, Taylor and squaring
 src/core/fixed-log.ts     lnFixed: the logarithm on the kernel, by square roots and the atanh series; ln(2) and ln(10) memoized
-src/core/fixed-trig.ts    sinCosFixed: the sine and cosine on the kernel, by reduction modulo pi/2 and the Taylor series
+src/core/fixed-trig.ts    sinCosFixed and atanFixed: the sine, cosine and arctangent on the kernel, by reduction and the Taylor series
 src/core/constants.ts     pi by Chudnovsky's series and e by its series, both with binary splitting, memoized at the ceiling
 src/core/display.ts       show: a ball's text at the digits it certifies, and its kind (exact, certified, partial, zero, unbounded)
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
@@ -1022,6 +1024,7 @@ src/core/builtins/log.ts  ln, log10, log2 and log(b, x): the logarithms, on fixe
 src/core/builtins/roots.ts sqrt and cbrt: rootBall under a name, with its exact cases and errors
 src/core/builtins/pow.ts  pow(x, y): the rational power's rule for an exact exponent, log space for an inexact one
 src/core/builtins/trig.ts sin, cos and tan: the trigonometric functions of an angle, on fixed-trig.ts, sharing the reduction
+src/core/builtins/inverse-trig.ts asin, acos, atan and atan2: the inverses, returning an angle, every one an arctangent
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction

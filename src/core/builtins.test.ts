@@ -20,6 +20,10 @@ test("the app's built-ins are gathered by name, each from its module", () => {
       "sin",
       "cos",
       "tan",
+      "asin",
+      "acos",
+      "atan",
+      "atan2",
     ],
   );
   assert.equal(BUILTINS.get("exp"), exp);

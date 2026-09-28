@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Ball } from "./ball.ts";
 import { MEMO_MARGIN, piMemoBits } from "./constants.ts";
-import { cosFixed, sinCosFixed, sinFixed } from "./fixed-trig.ts";
+import { atanFixed, cosFixed, sinCosFixed, sinFixed } from "./fixed-trig.ts";
 import {
   bitsFor,
   fixedFromBall,
@@ -145,6 +145,9 @@ test("the reduction takes pi from the memo for arguments below 2^64 at the ceili
   assert.equal(piMemoBits(), held);
   assertReference(fixedToBall(sin), dec(sinX), tenTo(120), "sin(2^70)");
   assertReference(fixedToBall(cos), dec(cosX), tenTo(120), "cos(2^70)");
+  // The arctangent's pi/2 is at the working bits, within the margin.
+  atanFixed(fixedFromRational(rational(2n), ceiling), ceiling, ceiling);
+  assert.equal(piMemoBits(), held);
 });
 
 test("reference digits: sin 1 and cos 1 to 100 digits, and both across the quadrants", () => {
@@ -308,4 +311,141 @@ test("the results keep the argument's significant bits for a result of any magni
   // only where it matters, so a zero value is fine.
   assert.throws(() => sinFixed(tiny, -1, ceiling), RangeError);
   assert.throws(() => cosFixed(tiny, 1.5, ceiling), RangeError);
+});
+
+// ---------------------------------------------------------------------------
+// atan
+
+// Reference digits from Python's decimal module, by eight half-angle
+// reductions and the Taylor series at a precision of 320.
+const PI_OVER_4 = dec(
+  "0.7853981633974483096156608458198757210492923498437764552437361480769541015715522496570087063355292669955370216283205766617734611524",
+);
+/** `[x, atan x]`, on either side of one and across magnitudes. */
+const ATAN_REFERENCES: [string, string][] = [
+  [
+    "0.5",
+    "0.4636476090008061162142562314612144020285370542861202638109330887201978641657417053006002839848878925565298522511908375135058181816",
+  ],
+  [
+    "-3",
+    "-1.249045772398254425829917077281090123077829404129896719054669236797151965737293954957608990320417159552066873879511414175279279334",
+  ],
+  [
+    "10",
+    "1.471127674303734591852875571761730851855306377183238262471963519343880455695553844893404788236772162411515656847813754353978995238",
+  ],
+  [
+    "123.456",
+    "1.562696452097992641892851578114457446196426396820430706100989752052468134370333827729852907956853870063311182144636979913181109317",
+  ],
+  [
+    "1e20",
+    "1.570796326794896619221321691639751442098584699687552910487472629487241536476437832647350746004391867304407376589974486656880255638",
+  ],
+  [
+    "2.5",
+    "1.190289949682531732927733774829318337601178986029452072911166673829707745314101396955153966575185598813039185930215474374731346632",
+  ],
+  [
+    "-0.75",
+    "-0.6435011087932843868028092287173226380415105911153123828656061187135124748116210887128168447012827488780143387542594782965352859415",
+  ],
+  [
+    "0.999",
+    "0.7848979133141150013031697743878289438351876122582719422804750355893054110062130002215053111897658766159288449164441380510834878745",
+  ],
+  [
+    "1e-10",
+    "9.999999999999999999966666666666666666666866666666666666666665238095238095238095249206349206349206349115440115440115440116209346209e-11",
+  ],
+];
+
+test("reference digits: atan 1 is a quarter of pi to 100 digits, and atan across magnitudes", () => {
+  const ceiling = bitsFor(200);
+  assertReference(
+    fixedToBall(
+      atanFixed(
+        fixedFromRational(rational(1n), bitsFor(100)),
+        bitsFor(100),
+        ceiling,
+      ),
+    ),
+    PI_OVER_4,
+    tenTo(100),
+    "atan 1",
+  );
+  for (const [x, atanX] of ATAN_REFERENCES) {
+    const at = atanFixed(
+      fixedFromRational(dec(x), bitsFor(60)),
+      bitsFor(60),
+      ceiling,
+    );
+    assertReference(fixedToBall(at), dec(atanX), tenTo(60), `atan(${x})`);
+  }
+  // A tiny argument, converted at more bits as the built-in converts it.
+  const tiny = atanFixed(
+    fixedFromRational(dec("1e-50"), bitsFor(60) + 167),
+    bitsFor(60),
+    ceiling,
+  );
+  assertReference(
+    fixedToBall(tiny),
+    dec(
+      "9.999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999666666666666666666666666666667e-51",
+    ),
+    tenTo(50 + 60),
+    "atan(1e-50)",
+  );
+  assert.equal(tiny.bits, bitsFor(60) + 167);
+});
+
+test("containment: atan at a precision contains the value computed at four times it", () => {
+  const rand = random(3902);
+  const ceiling = bitsFor(200);
+  const arguments_: Fixed[] = [];
+  while (arguments_.length < 60) {
+    // Arguments across magnitudes, as exact values and balls.
+    const value = randomRational(rand, 24, 12);
+    const ball = randomBall(rand, 24, 12);
+    arguments_.push(fixedFromRational(value, bitsFor(20)));
+    arguments_.push(fixedFromBall(ball, bitsFor(20)));
+  }
+  for (const f of arguments_) {
+    const at = atanFixed(f, bitsFor(20), ceiling);
+    const fine = atanFixed(
+      fixedFromRational(toRational(f), bitsFor(80)),
+      bitsFor(80),
+      ceiling,
+    );
+    const label = toFraction(toRational(f));
+    assert.ok(contains(at, toRational(fine)), `atan of ${label}`);
+    const rad = multiply(rational(f.error), rational(1n, 1n << BigInt(f.bits)));
+    for (const end of [subtract(toRational(f), rad), add(toRational(f), rad)]) {
+      const atEnd = atanFixed(
+        fixedFromRational(end, bitsFor(80)),
+        bitsFor(80),
+        ceiling,
+      );
+      assert.ok(contains(at, toRational(atEnd)), `atan at an end of ${label}`);
+    }
+    if (f.error === 0n) assert.ok(at.error <= 16n, `atan: ${at.error} ulps`);
+  }
+  // A wide argument is zero within two, and the preconditions throw.
+  const wide = atanFixed(
+    { value: 0n, error: 1n << 8n, bits: 8 },
+    bitsFor(20),
+    ceiling,
+  );
+  assert.deepEqual(fixedToBall(wide), {
+    mid: rational(0n),
+    rad: radiusAbove(rational(2n)),
+  });
+  const large = atanFixed(
+    fixedFromRational(dec("1e20"), bitsFor(20)),
+    bitsFor(20),
+    ceiling,
+  );
+  assert.equal(large.bits, bitsFor(20));
+  assert.throws(() => atanFixed(large, -1, ceiling), RangeError);
 });

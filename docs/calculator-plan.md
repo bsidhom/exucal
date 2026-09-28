@@ -1708,6 +1708,33 @@ ends of the domain; `asin(2)` and `acosh`'s neighbours' domain messages;
 `atan2(3 m, 4 s)` a dimension mismatch; the pipeline certifies
 `asin(sin(0.5 radian))` at 30 digits.
 
+As it landed. The four share builtins/inverse-trig.ts, every one being an
+arctangent, and `numberToAngle` and `conformingToAngle` in builtin.ts are
+their rules. `atanFixed` in fixed-trig.ts inverts an argument above one
+against `pi/2` from the memo, halves the angle eight times through
+`sqrtFixed` with the argument's error carried through, and takes the
+logarithm's series in `-z^2` (`oddReciprocalSeries`, exported from
+fixed-log.ts for it), 12 ms at the ceiling in the kernel benchmark, which
+gains `atan 1`. `asin(x)` is `2 atan(x / (1 + sqrt(1 - x^2)))` and
+`acos(x)` is `2 atan(sqrt(1 - x^2) / (1 + x))` for `x` at or above zero
+and `pi - 2 atan(sqrt(1 - x^2) / (1 - x))` below it, so that neither
+divides by a value near zero and `acos(1 - 1e-30)` certifies its digits on
+the first pass; `1 - x^2` is formed on the ball, exactly for an exact `x`,
+and rooted by `rootBall`, which scales a tiny value to order one. The
+domain is read off that ball, and two rulings follow: a ball touching an
+end of the domain counts as straddling it, as `sideOfZero` counts a ball
+touching zero, and one the root cannot tell from the end at the working
+bits is the same `unresolved`, at the edge on the side of the midpoint;
+and `asin(±1)` and `acos(-1)` are the memo's `pi` in the same way as
+`exp(1)` is the memo's `e`. `atan2` with `y` exactly zero is the exact
+zero for an `x` positive throughout, `pi` for one negative throughout,
+`unresolved` at `x` with edge zero for one straddling it, and the `origin`
+error for one exactly zero, the case the task's list did not reach. An
+argument of `atan` whose interval is wider than one radian is zero within
+two, the trivial bound, as 3.9's wide arguments are; `atan2(0 ± 1, 2)` is
+that bound and the retry loop narrows it. The inverses cannot produce a
+large magnitude, so the limit of 3.6 does not reach them.
+
 Behavior: the inverse trigonometric functions exist.
 
 ### 3.11 The hyperbolic functions and their inverses

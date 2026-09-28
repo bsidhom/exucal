@@ -1,7 +1,9 @@
 // The trigonometric functions on the kernel: `sinFixed`, `cosFixed` and
 // `sinCosFixed`, the routines behind the built-ins `sin`, `cos` and `tan`
-// (builtins/trig.ts), which share one reduction and one series.
-// docs/calculator-plan.md (D9, D10 and task 3.9) is the design.
+// (builtins/trig.ts), which share one reduction and one series, and
+// `atanFixed`, behind the inverses (builtins/inverse-trig.ts), which reach
+// `asin`, `acos` and `atan2` through it. docs/calculator-plan.md (D9, D10
+// and tasks 3.9 and 3.10) is the design.
 //
 // The argument is reduced by the nearest multiple of `pi/2`: `x = n pi/2 +
 // r` with `|r|` at most `pi/4`, and the quadrant `n mod 4` says which of
@@ -41,10 +43,26 @@
 // would reach one), and both functions are then the trivial bound, zero
 // within one, which contains them wherever the argument lies; the retry
 // loop narrows such an argument.
+//
+// `atanFixed` inverts an argument above one, `atan(x) = ±pi/2 - atan(1/x)`
+// with pi from the memo at the working bits, then halves the angle eight
+// times, `atan(x) = 2 atan(x / (1 + sqrt(1 + x^2)))` (`sqrtFixed`, the
+// argument's error carried through, as the logarithm's eight square roots
+// do), which brings the argument below `2^-7`, and takes the series `z Σ
+// (-z^2)^n / (2n+1)` as fixed-log.ts's `oddReciprocalSeries`, the
+// logarithm's series in `-z^2`, which gains fourteen bits a term; the sum
+// times `2^8` is an exact shift that scales the error with it, so the
+// work is done at the bits plus eight plus a guard, and the result is cut
+// to the bits its magnitude calls for (D9), a tiny argument keeping its
+// digits as the sine does. An argument whose interval is wider than one
+// radian is the trivial bound, zero within two, for the same reason as
+// above: its square would not stay positive under the error rules.
 
 import { piFixed } from "./constants.ts";
+import { oddReciprocalSeries } from "./fixed-log.ts";
 import {
   addFixed,
+  divideFixed,
   divideFixedByInteger,
   exponentOf,
   keepSignificant,
@@ -52,6 +70,7 @@ import {
   rebaseFixed,
   scaleFixed,
   shiftFixed,
+  sqrtFixed,
   subtractFixed,
   truncateFixed,
   type Fixed,
@@ -61,6 +80,9 @@ import { divideRounded } from "./rounding.ts";
 
 /** The bits the series work beyond the result, for their ulps. */
 const TRIG_GUARD = 24;
+
+/** The half-angle reductions of `atanFixed`, which bring the argument below `2^-7`. */
+const ATAN_HALVINGS = 8;
 
 /** The sine and cosine of one argument, computed together. */
 export type SinCos = { readonly sin: Fixed; readonly cos: Fixed };
@@ -219,6 +241,42 @@ function splitSum(
     );
   }
   return { ...sum, error: sum.error + 1n };
+}
+
+/**
+ * `atan(f)` with `bits` significant bits kept for its magnitude, and an
+ * interval containing the arctangent of every value in `f`'s, as the
+ * header says; pi comes from its memo at `ceilingBits` plus the margin.
+ */
+export function atanFixed(f: Fixed, bits: number, ceilingBits: number): Fixed {
+  checkBits(bits);
+  const working = Math.max(bits, f.bits) + ATAN_HALVINGS + TRIG_GUARD;
+  if (f.error << 1n >= 1n << BigInt(f.bits)) {
+    return { value: 0n, error: 2n << BigInt(working), bits: working };
+  }
+  const one: Fixed = { value: 1n << BigInt(working), error: 0n, bits: working };
+  let x = rebaseFixed(f, working);
+  // Above one in magnitude the interval excludes zero, its width being
+  // below one, so the reciprocal is defined.
+  const inverted = abs(x.value) > one.value;
+  if (inverted) x = divideFixed(one, x);
+  for (let i = 0; i < ATAN_HALVINGS; i++) {
+    const root = sqrtFixed(addFixed(one, multiplyFixed(x, x)));
+    x = divideFixed(x, addFixed(one, root));
+  }
+  const w = negate(multiplyFixed(x, x));
+  if (abs(w.value) + w.error >= one.value >> 8n) {
+    return { value: 0n, error: 2n << BigInt(working), bits: working };
+  }
+  let result = shiftFixed(
+    multiplyFixed(x, oddReciprocalSeries(w)),
+    ATAN_HALVINGS,
+  );
+  if (inverted) {
+    const halfPi = shiftFixed(piFixed(working - 1, ceilingBits), -1);
+    result = subtractFixed(f.value < 0n ? negate(halfPi) : halfPi, result);
+  }
+  return keepSignificant(result, bits);
 }
 
 /** `f` at `bits` fraction bits, truncated or rebased. */

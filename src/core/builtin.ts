@@ -175,6 +175,41 @@ export const angleToNumber: DimensionRule = (args, primitives) => {
 };
 
 /**
+ * The rule of a function of one plain number whose result is an angle
+ * (`asin`, `acos`, `atan`; D11): the result has the radian kind, so a
+ * table that declares no `radian` primitive has no such function
+ * (`noAngles`), and the argument must be dimensionless.
+ */
+export const numberToAngle: DimensionRule = (args, primitives) => {
+  const radian = angle(primitives);
+  if (radian === undefined) return err({ kind: "noAngles" });
+  const checked = checkArgument(args, 0, DIMENSIONLESS, primitives);
+  return checked.ok ? ok(radian) : checked;
+};
+
+/**
+ * The rule of `atan2(y, x)` (D11): the two arguments must conform to each
+ * other, kinds included (`nonconformingArguments` otherwise), and the
+ * result has the radian kind, so a table without it has no `atan2`.
+ */
+export const conformingToAngle: DimensionRule = (args, primitives) => {
+  const radian = angle(primitives);
+  if (radian === undefined) return err({ kind: "noAngles" });
+  const conformance = checkConformance(
+    args[0] ?? DIMENSIONLESS,
+    args[1] ?? DIMENSIONLESS,
+    primitives,
+  );
+  if (conformance.ok) return ok(radian);
+  return err({
+    kind: "nonconformingArguments",
+    left: 0,
+    right: 1,
+    mismatch: conformance.error,
+  });
+};
+
+/**
  * Whether the argument at `index` of `args` has the dimension `want`, by
  * the conformance check, so that a dimension mismatch is told from a
  * kind mismatch as it is everywhere else.

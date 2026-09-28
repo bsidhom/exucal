@@ -4,7 +4,7 @@ import { chudnovsky, eSeries } from "../src/core/constants.ts";
 import { DEFAULT_CEILING } from "../src/core/context.ts";
 import { expFixed } from "../src/core/fixed-exp.ts";
 import { ln2Series, ln10Series, lnFixed } from "../src/core/fixed-log.ts";
-import { cosFixed, sinFixed } from "../src/core/fixed-trig.ts";
+import { atanFixed, cosFixed, sinFixed } from "../src/core/fixed-trig.ts";
 import {
   bitsFor,
   fixedFromRational,
@@ -71,6 +71,10 @@ const ROUTINES: readonly [string, (bits: number) => void][] = [
   [
     "cos 1",
     (bits) => void cosFixed(fixedFromRational(rational(1n), bits), bits, bits),
+  ],
+  [
+    "atan 1",
+    (bits) => void atanFixed(fixedFromRational(rational(1n), bits), bits, bits),
   ],
 ];
 

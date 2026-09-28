@@ -1,7 +1,7 @@
 # From unit converter to arbitrary-precision calculator: feasibility
 
 Status: design study; docs/calculator-plan.md is the implementation plan
-that follows from it, and stages 1 and 2 of the plan have landed. This document
+that follows from it, and stages 1 to 3 of the plan have landed. This document
 weighs a list of features
 against the core as it stands and says which fit together, which have to
 be toggled against one another, which are set aside for later, and which
@@ -609,7 +609,13 @@ Three runtime concerns cut across everything:
   compressed, against today's 17 KB compressed script: a third to a half
   more, for the whole numeric program, and to be measured as it lands.
   The definitions file grows by a few lines (`pi()` in six places, the
-  neper and the bel).
+  neper and the bel). Measured at the end of stage 3, after
+  `pnpm build`: the script is 94 KB (30 KB compressed) and the whole
+  precache 115 KB (39 KB compressed), so stages 1 to 3 added 46 KB of
+  script (13 KB compressed), above this estimate before the Gamma family
+  exists; the figure includes the settings panel, the display's kinds and
+  the probe of the limits as well as the kernel and the elementary set,
+  and the definitions file grew by 1 KB (0.4 KB compressed).
 
 What is toggled, and what is concurrent:
 

@@ -312,6 +312,7 @@ const STAND_IN_LIST: Builtin[] = [
   // The real `pi`, since units.txt calls it.
   pi,
   domainStandIn("ln", 1, "notPositive"),
+  domainStandIn("log10", 1, "notPositive"),
   domainStandIn("log", 2, "baseOne"),
   domainStandIn("asin", 1, "outsideClosedUnitInterval"),
   domainStandIn("acosh", 1, "belowOne"),

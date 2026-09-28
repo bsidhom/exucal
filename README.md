@@ -34,6 +34,8 @@ in` at twelve.
   until the digits asked for are certain, up to four times this many plus
   ten, and an expression whose digits can never be certain (`(2^(1/2))^2 -
 2`, which is zero within a bound) runs all the way up on every keystroke.
+  Changing it rebuilds the unit table, since the angle units carry `pi()`
+  to that ceiling; changing the digits never does.
 - **Most bits**: the largest number the app will form, as the bits of a
   numerator or denominator, 65,536 by default (about 19,700 digits). It is
   what makes `10^(10^9)` an error rather than a hang, and it also bounds
@@ -108,9 +110,12 @@ exactly `0.45359237 kg`, and conversions between them are exact.
 The temperature units `degC`, `degF` and `degR` are intervals: they convert
 temperature differences, so `1 degC` is `1 K` and `212 degF - 32 degF` into
 `degC` is `100`. A temperature reading is written as a call of `tempC` or
-`tempF`, which adds the offset for you. Logarithmic units (neper, bel) are
-deliberately absent, since they need functions of a kind the file cannot
-yet define (`ln`).
+`tempF`, which adds the offset for you. The logarithmic units are
+functions the same way, since a level is the logarithm of a ratio rather
+than a multiple of a unit: `decibel(20)` is a power ratio of `100`, `bel(2)`
+the same, `neper(1)` the amplitude ratio `exp(1)`, and `1000` into
+`decibel` is `decibel(30)`. The decibel is spelled out because `dB` would
+read as `d` + `B`, a tenth of a byte.
 
 ### The format
 
@@ -301,6 +306,41 @@ for the reason a list's may not, and no prefix applies to a function:
 `tempC(-300)` is a negative temperature rather than an error. Nor can a
 call be inverted inside an expression; only the unit to convert to may
 name a function.
+
+### Functions in expressions
+
+Beside the functions the file defines, the app has built-in functions,
+which go anywhere a unit goes and are called the same way. They are:
+
+- `pi()`, the circle constant, as a call of no arguments so that it is
+  computed to the precision in force; Euler's number is `exp(1)`, since
+  `e` is the elementary charge.
+- `exp`, `ln`, `log10`, `log2` and `log(b, x)`, the logarithm of `x` in
+  the base `b`, written base first so that it reads as log-base-b of x.
+- `sqrt`, `cbrt` and `pow(x, y)`. A power of a quantity is written with
+  `^`, whose exponent is a literal (`(2 m)^2`, `m^(1/2)`); `pow` is for a
+  number to a number, and its exponent may be anything computed, so
+  `pow(2, sqrt(2))` and `2^0.1234567` are values.
+- `sin`, `cos` and `tan` of an angle: `sin(30 deg)`, `sin(pi() radian /
+4)`, `tan(1 radian)`. A plain number is not an angle, so `sin(1)` is an
+  error that says to write `sin(1 radian)`.
+- `asin`, `acos`, `atan` and `atan2(y, x)`, which return an angle, so
+  `asin(0.5)` into `deg` is `30` and `atan2(3 m, 4 m)` into `deg` is
+  `36.869898`; `asin(0.5)` into `turn`, or `asin(0.5) / radian`, is the
+  number.
+- `sinh`, `cosh`, `tanh`, `asinh`, `acosh` and `atanh`, of plain numbers.
+
+Every built-in takes plain numbers, apart from the angles above, and
+`exp(1 m)` is an error that names the dimension. A value the function
+recognizes as exact is shown with `=` (`sqrt(9/4) = 1.5`, `log(2, 8) =
+3`, `decibel(20) = 100`, `cos(0 radian) = 1`); the rest are computed to
+the digits asked for and shown with `≈`, however round they look
+(`ln(8) / ln(2) ≈ 3`). An argument outside a function's domain is an
+error that says what the domain is (`ln(-1)`, `asin(2)`, `acosh(0.5)`),
+one that cannot be told from an edge of it at any precision up to the
+ceiling says so (`tan(90 deg)` at a pole), and a result too large for the
+"most bits" setting is refused as too large (`exp(1e6)`, `sinh(1e6)`).
+No prefix applies to a function: `kpi()` is a call of nothing.
 
 ### Adding a unit
 

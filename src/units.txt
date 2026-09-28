@@ -203,6 +203,21 @@ rankine     degR
 tempC(x)    [1;K]  x K + 273.15 K       ; tempC / K - 273.15
 tempF(x)    [1;K]  (x + 459.67) degF    ; tempF / degF - 459.67
 
+# Logarithmic units, as functions of a plain number too, since a level is
+# not a multiple of a unit but the logarithm of a ratio: `decibel(20)` is
+# a power ratio of 100, `bel(2)` is the same ratio, and `neper(1)` is the
+# amplitude ratio e. A ratio converts back into the level as into any
+# function: `1000` into `decibel` is `decibel(30)`. The declaration `[1;1]`
+# says the level and the ratio are both plain numbers, and the bodies call
+# the built-in functions `pow`, `log10`, `exp` and `ln` (README.md,
+# "Functions in expressions"). `dB` is deliberately absent: it reads as `d`
+# + `B`, a tenth of a byte, and a function's name may not read as a prefix
+# followed by a unit, the rule that keeps `u` and `at` out of this file.
+
+neper(x)    [1;1]  exp(x)               ; ln(neper)
+bel(x)      [1;1]  pow(10, x)           ; log10(bel)
+decibel(x)  [1;1]  pow(10, x / 10)      ; 10 log10(decibel)
+
 # ---------------------------------------------------------------------------
 # Non-SI units accepted for use with the SI
 

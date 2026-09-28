@@ -1,8 +1,8 @@
 # Implementation plan for the calculator
 
-Status: in progress; stages 1 and 2 have landed, and "Stage 1 as it
-landed" and "Stage 2 as it landed" at the end record where the code
-diverged from the tasks as first written. D13 was revised in review of
+Status: in progress; stages 1 to 3 have landed, and "Stage 1 as it
+landed", "Stage 2 as it landed" and "Stage 3 as it landed" at the end
+record where the code diverged from the tasks as first written. D13 was revised in review of
 the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -1836,6 +1836,16 @@ route), `1000` into `decibel` is `decibel(30)` and into `bel` is `bel(3)`
 (exact, through the logarithm's exact case), `neper(1)` is `exp(1)`, and
 `e` is still the elementary charge.
 
+As it landed. The three follow the temperature readings in units.txt, so
+that the functions of the file stand together, with the comment the task
+asks for; `decibel(x / 10)` reaches the exact power for an integer level
+and the root or log-space route of 3.8 for any other, so a large level
+shares the limit of 3.6 through `pow`'s log-space route and its guard
+(`decibel(1000001)` is `tooLarge` inside the call, as `exp(1e6)` is), and
+nothing else about the units can reach a large magnitude. The message
+tests build units.txt against stand-ins for the built-ins, and gain one
+for `log10`, which the bel's inverse calls.
+
 Behavior: the three logarithmic units.
 
 ### 3.13 Stage 3 docs
@@ -2300,3 +2310,92 @@ built-in names it in limits.ts; the two gaps of 2.5 stand, a list unit
 straddling zero not retried and the reciprocal line not retried on its
 own; and the display's `unbounded` kind has no producer yet, since every
 operation now bounds its radius.
+
+## Stage 3 as it landed
+
+The re-read after 3.13. Each task landed as one commit in the order
+given, in five pull requests, and the tests pass under every task; the
+rulings each task settled on its own were written into the task's text in
+the same commit, and this is the list of them, with what stage 4
+inherits.
+
+- **3.1.** The comma is a symbol of the call rule alone, and the arity
+  check comes before any argument is evaluated, so `tempC(bogus, 1)` is
+  the arity error.
+- **3.2.** The table carries the set of built-ins it was built against,
+  and `buildTable` takes the set with builtins.ts's `BUILTINS` as its
+  default; `resolveFunction` and `functionArity` in table.ts are the one
+  order and the one arity rule the two lookups share; the pole is worded
+  `a pole of the tangent`.
+- **3.3.** `DEFAULT_CEILING` is the default cap's ceiling; the memo of
+  system-build.ts is keyed by the definitions' identity and the ceiling,
+  holds a failed build too, and the shell calls it from `render`.
+- **3.4.** Each built-in lives in a module of its own under builtins/,
+  several sharing one only when they share machinery, gathered by
+  builtins.ts so that no module depends on the map; `MEMO_MARGIN` is 64
+  bits. Two findings: `roundTerms` now widens a remainder's radius by its
+  shift (1.8 amended), and a count whose ratio straddles an integer is
+  that integer (D8 amended), so `1 turn` in `deg;arcmin` reads `≈ 360 deg`.
+- **3.5.** `DimensionLookup` and `DimensionError` are the lookup and the
+  error subset the check over dimensions takes; `applyFunction` and
+  `invertFunction` stay in evaluate.ts for the evaluator and the pipeline.
+- **3.6.** `truncateFixed` rounded its converted error down and now rounds
+  it up; every type-only import is `import type`, which is erased, so the
+  kernel's modules no longer form an initialization cycle; and `exp(1e6)`
+  is `tooLarge` because an inexact midpoint is a dyadic whose size is its
+  exponent, the limit that stage 4's 4.9 lifts.
+- **3.7.** `sqrtFixed` is Newton on the reciprocal square root, verified
+  by squaring with the bound `D s / (2 s^2 - D)`; the logarithm's series
+  is summed by rectangular splitting, `2 sqrt(N)` multiplications for `N`
+  terms; a caller scales its value to order one and passes the power to
+  `lnFixed` as `scale`.
+- **3.8.** `sqrt` and `cbrt` share roots.ts and `pow` has pow.ts; the
+  shared helpers (`checkPositive`, `sideOfZero`, `unboundedOf`,
+  `fromBallError`) live in builtin.ts and `radiusBound`, `expFits`,
+  `powLogSpace` and `lnScaled` in ball.ts; `exactRoot` on the base comes
+  first, so `8^(2/3)` is exact without forming `64`; a ball touching zero
+  from below is not positive anywhere.
+- **3.9.** The sine and the cosine are computed together, the reduction
+  taking pi at the bits asked for plus the bit length of the argument's
+  integer part, so the memo's margin serves exactly the arguments below
+  `2^64` at the ceiling pass; the two series are summed by rectangular
+  splitting with one division per block; an argument wider than about a
+  fifth of a radian is zero within one; the propagation counts the
+  argument's error in `r` and `r^2` both.
+- **3.10.** Every inverse is an arctangent: `asin` and `acos` through
+  `1 - x^2` formed on the ball and rooted by `rootBall`, so `acos(1 -
+1e-30)` certifies on the first pass; a ball touching an end of the
+  domain counts as reaching it; `atan2` with `y` exactly zero has its own
+  four cases; an argument of `atan` wider than one radian is zero within
+  two.
+- **3.11.** `sinh` and `cosh` take the sine's and the cosine's series in
+  `x^2` below one and the exponential above it, `tanh` divides before the
+  cut and saturates to `±1` within `2 e^-2|x|` far out, so only `sinh` and
+  `cosh` share the limit of 3.6; the inverses go through `ln` of a root at
+  the bits that keep the small part. The probe times `sin(atan(exp(1)) +
+ln(3) radian)` at the candidate's ceiling, and timing it found that
+  `rational`'s gcd ran Euclid on dyadics of the ceiling's size, tens of
+  milliseconds a sum, so the gcd now strips the common power of two
+  first. `exp`'s series is the remaining candidate for rectangular
+  splitting.
+- **3.12.** The three logarithmic units follow the temperature readings;
+  a large decibel shares the limit of 3.6 through `pow`'s log-space route.
+- **3.13.** The payload after stage 3 is 94 KB of script (30 KB
+  compressed), 46 KB (13 KB) above the study's baseline and above its
+  estimate for the whole numeric program before the Gamma family exists,
+  recorded in docs/calculator.md with what the figure includes.
+
+What stage 4 inherits: the midpoint is a `Rational`, an inexact one a
+dyadic whose size is its exponent, so `exp`, `sinh`, `cosh`, a power in
+log space and a large decibel are `tooLarge` beyond about 45,000 at the
+default range limit through the one guard `expFits`, which 4.9 lifts
+together with the squaring loop of `expFixed`, the kernel-to-ball
+conversion and the hyperbolic module's branch through the exponential;
+`lnFixed` and `lnScaled` already take a scale, and `tanh` already answers
+far out without forming anything large; the four memos hold the ceiling
+plus 64 bits and the probe leaves them at the largest ceiling it tried;
+the wide-argument bounds of the routines are trivial bounds the retry
+loop narrows; the two gaps of 2.5 still stand; the display's `unbounded`
+kind still has no producer; and a follow-up agreed outside the stages,
+before stage 4, replaces src/testing/random.ts with a purely applicative,
+splittable source in the style of JAX.

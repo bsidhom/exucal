@@ -186,18 +186,18 @@ the call and keeps nothing.
 - `src/core/expr.ts`: calls with any number of arguments (3.1).
 - `src/core/builtin.ts`: the `Builtin` type, the error types and the rule
   helpers every built-in shares (3.2).
-- `src/core/builtins/`: one module per built-in (`pi.ts`, `exp.ts`, ...),
-  several sharing a module only when they share internal machinery (the
-  logarithms, the trigonometric functions and their reduction), each with
-  its test beside it (3.4, 3.6 to 3.11).
+- `src/core/builtins/`: one module per built-in (`pi.ts`, `exp.ts`,
+  `pow.ts`), several sharing a module only when they share internal
+  machinery (`log.ts`, `roots.ts`, `trig.ts`, `inverse-trig.ts`,
+  `hyperbolic.ts`), each with its test beside it (3.4, 3.6 to 3.11).
 - `src/core/builtins.ts`: `BUILTINS`, the app's built-ins gathered by name
   from those modules; the table and the build take it as their default
   set.
 - `src/core/fixed-exp.ts`, `fixed-log.ts`, `fixed-trig.ts`: the kernel
-  routines, `expFixed`, `lnFixed`, `sinFixed`, `cosFixed`, `atanFixed`,
-  beside fixed.ts, which keeps the representation, the exact operations
-  and the roots; the routines are below the ball so that `powRationalBall`
-  can reach `exp` and `ln`.
+  routines, `expFixed` and `sinhCoshFixed`, `lnFixed`, `sinCosFixed` and
+  `atanFixed`, beside fixed.ts, which keeps the representation, the exact
+  operations and the roots; the routines are below the ball so that
+  `powRationalBall` can reach `exp` and `ln`.
 - `src/core/constants.ts`: `pi` and `e`, memoized by one rule; `ln(2)`
   and `ln(10)` are memoized the same way in fixed-log.ts, which computes
   them.
@@ -213,4 +213,69 @@ the call and keeps nothing.
 
 ## Implementation notes
 
-Written as the stage lands (3.13).
+Where the code departed from the note above, or settled what it left
+open; docs/calculator-plan.md ("Stage 3 as it landed") has each task's
+rulings in full.
+
+- **Two more rules every built-in follows.** A built-in that reaches the
+  kernel is one of the modules under `builtins/`, which does the
+  dimensionless checks, the exact cases and the conversion (a tiny
+  argument of an odd function at the working bits plus its negative
+  binary exponent), and hands a routine beside fixed.ts a `Fixed`; the
+  routine reduces, runs its series with the argument's error included,
+  and cuts the result to the bits its magnitude calls for. And an
+  argument whose interval is too wide for a routine's series (about a
+  fifth of a radian for `sin` and `cos`, one radian for `atan`, one half
+  for `asinh`) gets a trivial bound instead, zero within one for the sine
+  and the cosine, zero within two for the arctangent, the exponential of
+  the largest magnitude for the hyperbolic pair, the value at the
+  midpoint plus the radius for `asinh`; the retry loop narrows such an
+  argument.
+- **The series.** `exp` sums its Taylor series term by term after halving
+  the argument below `2^-8`; `ln` takes `2 atanh((m - 1) / (m + 1))` after
+  eight square roots, the series in `z^2` summed by rectangular splitting
+  (about `2 sqrt(N)` multiplications for `N` terms, since V8 multiplies
+  integers of the ceiling's size by the schoolbook rule); `sin` and `cos`
+  share one reduction by `pi/2` and one set of powers of `-r^2`, their two
+  series summed the same way with one division per block; `atan` inverts
+  above one, halves the angle eight times through the square root, and
+  takes the logarithm's series in `-z^2`; `sinh` and `cosh` take the
+  sine's and the cosine's series in `x^2` below one and the exponential
+  above it, `tanh` the quotient before either is cut; `asin` and `acos`
+  are arctangents of `x / (1 + sqrt(1 - x^2))` and `sqrt(1 - x^2) / (1 ±
+x)`, `atan2` an arctangent by quadrant, and `asinh`, `acosh` and
+  `atanh` logarithms of `x + sqrt(x^2 ± 1)` and `(1 + x) / (1 - x)`, the
+  logarithm's argument converted at the bits that keep its small part.
+  Every routine costs 9 to 13 ms at the default ceiling of 4,040 digits
+  on the machine of the plan's 3.11 (bench/kernel.bench.ts reports each).
+- **The edges.** A ball touching an end of a domain counts as straddling
+  it (`asin` of `[0.5, 1]`, `acosh` of `[1, 1.5]`, `atanh` of `[0.5, 1]`
+  are `unresolved` at the edge), as `sideOfZero` counts a ball touching
+  zero, and `asin(±1)`, `acos(-1)`, `atan2(0, x < 0)` and `atan2(±y, 0)`
+  are the memo's `pi` and its halves rather than exact cases. `atan2` with
+  `y` exactly zero is the exact zero for `x` positive throughout, `pi`
+  for `x` negative throughout, `unresolved` at `x` for one straddling
+  zero, and the `origin` error for one exactly zero.
+- **The limit on large results.** `exp`, `sinh`, `cosh`, a power in log
+  space and a large decibel share one guard, `expFits` in ball.ts, and
+  are `tooLarge` beyond about 45,000 at the default range limit; `tanh` is
+  not, since for an argument beyond what the working bits can tell from
+  one it is `±1` within `2 e^-2|x|`, a radius the coarse type holds at any
+  magnitude. Stage 4's 4.9 lifts the limit at the guard, the squaring
+  loop of `expFixed` and the kernel-to-ball conversion.
+- **The memos.** Four constants at the ceiling plus 64 bits; the margin
+  serves the reduction of `sin` and `cos` for every argument below `2^64`
+  at the ceiling pass exactly, the reduction taking pi at the bits asked
+  for plus the bit length of the argument's integer part, and a larger
+  argument computes pi for the call. The probe of limits.ts leaves the
+  memos at the largest ceiling it tried.
+- **What the probe times.** One expression of the four costliest routines,
+  `sin(atan(exp(1)) + ln(3) radian)`, at the candidate's ceiling. Timing
+  it found that the evaluator's exact arithmetic on settled midpoints ran
+  Euclid's gcd on dyadics of the ceiling's size, tens of milliseconds a
+  sum; the gcd in rational.ts now strips the common power of two first.
+- **The propagation** counts an argument's error wherever the argument
+  appears in a series, so a radius exceeds the derivative bound by a
+  small factor where it appears twice (`sin(1 ± 1e-20)` has radius
+  `6e-21` against `cos(1) × 1e-20`), the price of D9's rule over a
+  derivative bound.

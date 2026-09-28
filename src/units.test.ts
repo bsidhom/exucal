@@ -248,7 +248,10 @@ test("a prefix applies to any unit, and an exact name wins over a split", () => 
 });
 
 test("temperature readings convert through tempC and tempF", () => {
-  assert.deepEqual([...table.functions.keys()], ["tempC", "tempF"]);
+  assert.deepEqual(
+    [...table.functions.keys()],
+    ["tempC", "tempF", "neper", "bel", "decibel"],
+  );
   assertAll([
     ["tempC(100)", "K", "373.15"],
     ["tempF(212)", "K", "373.15"],
@@ -268,6 +271,61 @@ test("temperature readings convert through tempC and tempF", () => {
   assert.ok(!result.ok);
   assert.ok(result.error.kind === "inputError");
   assert.equal(result.error.error.kind, "argumentMismatch");
+});
+
+test("the logarithmic units are functions: the decibel, the bel and the neper", () => {
+  // Exact through the exact power, and the logarithm's exact case back.
+  assertAll([
+    ["decibel(20)", "1", "100"],
+    ["bel(2)", "1", "100"],
+    ["decibel(0)", "1", "1"],
+    ["decibel(-10)", "1", "0.1"],
+    ["decibel(3) / decibel(3)", "1", "1"],
+    ["100 decibel(20)", "1", "10000"],
+  ]);
+  assertCall("1000", "decibel", "30");
+  assertCall("1000", "bel", "3");
+  assertCall("100", "decibel", "20");
+  assertCall("0.1", "decibel", "-10");
+  // Inexact through the log-space route of `pow` (the plan's 3.8):
+  // references from Python's decimal module.
+  assertApproximates(
+    "decibel(23.4)",
+    "1",
+    number("218.77616239495525622261149163841873167118056246922939534205"),
+  );
+  assertApproximates(
+    "decibel(-3.5)",
+    "1",
+    number("0.44668359215096311855625052431937661637730017860801456820167"),
+  );
+  assertApproximates(
+    "neper(1)",
+    "1",
+    number("2.71828182845904523536028747135266249775724709369995957496697"),
+  );
+  // `exp(1)` into `neper` is a call at a count near one, inexact.
+  const neper = convertText(table, "exp(2)", "neper", CONTEXT);
+  assert.ok(neper.ok && neper.value.kind === "function");
+  assert.equal(neper.value.name, "neper");
+  assert.ok(!isExact(neper.value.value));
+  assert.ok(
+    compare(
+      absolute(subtract(neper.value.value.mid, rational(2n))),
+      number("1e-40"),
+    ) < 0,
+  );
+  // A large decibel shares the exponential's magnitude limit (3.6), and
+  // `e` is still the elementary charge.
+  const huge = convertText(table, "decibel(1000001)", "1", CONTEXT);
+  assert.ok(!huge.ok && huge.error.kind === "inputError");
+  assert.equal(huge.error.error.kind, "callFailed");
+  assert.ok(
+    huge.error.error.kind === "callFailed" &&
+      huge.error.error.error.kind === "tooLarge",
+  );
+  assertConverts("e", "C", "1.602176634e-19");
+  assertConverts("e", "A s", "1.602176634e-19");
 });
 
 /** Asserts that `have` in the function `want` is the call of it at exactly `expected`. */

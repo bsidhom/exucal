@@ -1,10 +1,11 @@
 // Test support: the decimal representation over the fraction, for the
 // tests written while the midpoint was a `Rational`. Stage 4's 4.3 moved
 // `parseDecimal`, `roundTo` and `format` onto `Scaled` (src/core/scaled.ts),
-// and the tests of the modules that still hold fractions read a literal as
-// the fraction it denotes, and round and format a fraction, through these,
-// which convert at the boundary as the app does until 4.4; nothing in the
-// app imports this directory.
+// and the tests that reason on fractions read a literal as the fraction it
+// denotes, and round and format a fraction, through these, which convert
+// at the boundary as the app did until 4.4 made the midpoint a `Scaled`
+// (src/testing/scaled.ts is the support on that side); nothing in the app
+// imports this directory.
 
 import { LIMIT_BITS, type Rational } from "../core/rational.ts";
 import type { Result } from "../core/result.ts";

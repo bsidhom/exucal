@@ -50,6 +50,17 @@
 // midpoint with the argument's radius added to the result's, `asinh`
 // being within the identity's slope everywhere, since the square under
 // the root would not stay positive under the error rules.
+//
+// The two ends of the exponent (4.4) are answered before the kernel is
+// entered. An argument below `2^-maxBits` throughout is its own `sinh`,
+// `tanh`, `asinh` and `atanh` within its cube, and its `cosh` is one
+// within its square (`tinyOdd` and `tinyEven` of builtin.ts). An argument
+// at or beyond `2^bits` throughout has `asinh(x)` and `acosh(x)` equal to
+// `ln(2|x|)` within `1/(2x^2)`, the saturation docs/decimal.md lists
+// (`farLogarithm`, on `lnScaled`, which takes any exponent), with the
+// argument's radius over its distance from zero added, the slope of the
+// logarithm; `tanh`'s saturation stands and comes first, and `sinh` and
+// `cosh` are bounded by `expFits` as before.
 
 import {
   addBalls,
@@ -59,19 +70,27 @@ import {
   isExact,
   lnScaled,
   magnitudeAbove,
+  magnitudeBelow,
   multiplyBalls,
+  position,
   radiusBound,
   rootBall,
   subtractBalls,
   type Ball,
 } from "../ball.ts";
 import {
+  extraBits,
+  fromBallError,
+  isBeyond,
+  isTiny,
   plainNumbers,
+  tinyEven,
+  tinyOdd,
   unboundedOf,
   type Builtin,
   type BuiltinError,
 } from "../builtin.ts";
-import type { NumberContext } from "../context.ts";
+import { workingDigits, type NumberContext } from "../context.ts";
 import { sinhCoshFixed, tanhFixed, type SinhCosh } from "../fixed-exp.ts";
 import { lnFixed } from "../fixed-log.ts";
 import {
@@ -85,25 +104,31 @@ import {
   sqrtFixed,
   type Fixed,
 } from "../fixed.ts";
-import { addRadius, powerOfTwoRadius, radiusUpper } from "../radius.ts";
+import {
+  addRadius,
+  compareRadius,
+  divideRadius,
+  powerOfTwoRadius,
+  radiusAbove,
+} from "../radius.ts";
+import { rational } from "../rational.ts";
+import { err, ok, type Result } from "../result.ts";
 import {
   ONE,
   ZERO,
   absolute,
-  add,
-  bitLength,
   compare,
   equals,
+  fromRational,
   isZero,
+  multiply,
   negate,
   sign,
-  subtract,
-  type Rational,
-} from "../rational.ts";
-import { err, ok, type Result } from "../result.ts";
+  type Scaled,
+} from "../scaled.ts";
 
 const MINUS_ONE = negate(ONE);
-const HALF: Rational = { num: 1n, den: 2n };
+const TWO = fromRational(rational(2n));
 
 /** `sinh(x)` at the context, as the header says. */
 export function sinhBall(
@@ -113,8 +138,10 @@ export function sinhBall(
   if (x.rad.kind === "unbounded")
     return unboundedOf(sinhBall(exact(x.mid), context));
   if (isExact(x) && isZero(x.mid)) return ok(exact(ZERO));
+  if (isTiny(x, context)) return ok(tinyOdd(x));
   const pair = sinhCosh(x, context);
-  return pair.ok ? ok(fixedToBall(pair.value.sinh)) : pair;
+  if (!pair.ok) return pair;
+  return ok(fixedToBall(pair.value.sinh, workingDigits(context)));
 }
 
 /** `cosh(x)` at the context, as the header says. */
@@ -125,8 +152,10 @@ export function coshBall(
   if (x.rad.kind === "unbounded")
     return unboundedOf(coshBall(exact(x.mid), context));
   if (isExact(x) && isZero(x.mid)) return ok(exact(ONE));
+  if (isTiny(x, context)) return ok(tinyEven(x));
   const pair = sinhCosh(x, context);
-  return pair.ok ? ok(fixedToBall(pair.value.cosh)) : pair;
+  if (!pair.ok) return pair;
+  return ok(fixedToBall(pair.value.cosh, workingDigits(context)));
 }
 
 /** `tanh(x)` at the context, as the header says: `±1` within `2 e^-2|x|` far out. */
@@ -137,6 +166,7 @@ export function tanhBall(
   if (x.rad.kind === "unbounded")
     return unboundedOf(tanhBall(exact(x.mid), context));
   if (isExact(x) && isZero(x.mid)) return ok(exact(ZERO));
+  if (isTiny(x, context)) return ok(tinyOdd(x));
   const bits = bitsFor(context.precision);
   const saturated = saturation(x, bits);
   if (saturated !== undefined) return ok(saturated);
@@ -144,7 +174,10 @@ export function tanhBall(
     return err({ kind: "tooLarge" });
   }
   return ok(
-    fixedToBall(tanhFixed(fixedFromBall(x, bits + extraBits(x.mid)), bits)),
+    fixedToBall(
+      tanhFixed(fixedFromBall(x, bits + extraBits(x.mid, context)), bits),
+      workingDigits(context),
+    ),
   );
 }
 
@@ -162,21 +195,24 @@ export function asinhBall(
       ? ok({ mid: negate(positive.value.mid), rad: positive.value.rad })
       : positive;
   }
-  if (compare(radiusUpper(x.rad), HALF) >= 0) {
+  if (isTiny(x, context)) return ok(tinyOdd(x));
+  const bits = bitsFor(context.precision);
+  if (isBeyond(x, bits)) return ok(farLogarithm(x, context));
+  if (compareRadius(x.rad, powerOfTwoRadius(-1n)) >= 0) {
     // Wider than one half: the value at the midpoint, and the radius added
     // to the result's, the slope of `asinh` being at most one.
     const at = asinhBall(exact(x.mid), context);
     if (!at.ok) return at;
     return ok({ mid: at.value.mid, rad: addRadius(at.value.rad, x.rad) });
   }
-  const bits = bitsFor(context.precision);
-  const at = bits + extraBits(x.mid);
+  const at = bits + extraBits(x.mid, context);
   const f = fixedFromBall(x, at);
   const one: Fixed = { value: 1n << BigInt(at), error: 0n, bits: at };
   const s = addFixed(f, sqrtFixed(addFixed(one, multiplyFixed(f, f))));
   return ok(
     fixedToBall(
       keepSignificant(lnFixed(s, at, bitsFor(context.ceiling)), bits),
+      workingDigits(context),
     ),
   );
 }
@@ -193,26 +229,36 @@ export function acoshBall(
     if (compare(x.mid, ONE) < 0)
       return err({ kind: "domain", argument: 0, reason: "belowOne" });
   } else {
-    const rad = radiusUpper(x.rad);
-    if (compare(add(x.mid, rad), ONE) < 0)
-      return err({ kind: "domain", argument: 0, reason: "belowOne" });
-    if (compare(subtract(x.mid, rad), ONE) <= 0)
-      return err({ kind: "unresolved", argument: 0, edge: ONE });
+    switch (position(x, ONE)) {
+      case "above":
+        break;
+      case "below":
+        return err({ kind: "domain", argument: 0, reason: "belowOne" });
+      default:
+        return err({ kind: "unresolved", argument: 0, edge: ONE });
+    }
   }
-  const root = rootBall(
-    subtractBalls(multiplyBalls(x, x), exact(ONE)),
-    2n,
-    context,
-  );
+  const bits = bitsFor(context.precision);
+  if (isBeyond(x, bits)) return ok(farLogarithm(x, context));
+  const square = multiplyBalls(x, x);
+  if (!square.ok) return err(fromBallError(square.error, 0));
+  const complement = subtractBalls(square.value, exact(ONE), context);
+  if (!complement.ok) return err(fromBallError(complement.error, 0));
+  const root = rootBall(complement.value, 2n, context);
   if (!root.ok) {
-    // Positive as rationals but not at the kernel's bits, or not positive
+    // Positive as numbers but not at the kernel's bits, or not positive
     // under the error rules: the ball reaches within an ulp of one.
     if (root.error.kind === "unresolved")
       return err({ kind: "unresolved", argument: 0, edge: ONE });
     throw new Error("The root of a value above one fails only as unresolved");
   }
+  const sum = addBalls(x, root.value, context);
+  if (!sum.ok) return err(fromBallError(sum.error, 0));
   return ok(
-    fixedToBall(logarithm(addBalls(x, root.value), root.value.mid, context)),
+    fixedToBall(
+      logarithm(sum.value, root.value.mid, context),
+      workingDigits(context),
+    ),
   );
 }
 
@@ -224,34 +270,47 @@ export function atanhBall(
   if (x.rad.kind === "unbounded")
     return unboundedOf(atanhBall(exact(x.mid), context));
   if (isExact(x) && isZero(x.mid)) return ok(exact(ZERO));
-  const rad = radiusUpper(x.rad);
-  const lower = subtract(x.mid, rad);
-  const upper = add(x.mid, rad);
-  if (compare(lower, ONE) >= 0 || compare(upper, MINUS_ONE) <= 0) {
+  const atOne = position(x, ONE);
+  const atMinusOne = position(x, MINUS_ONE);
+  if (
+    atOne === "above" ||
+    atOne === "touchingAbove" ||
+    atOne === "at" ||
+    atMinusOne === "below" ||
+    atMinusOne === "touchingBelow" ||
+    atMinusOne === "at"
+  ) {
     return err({
       kind: "domain",
       argument: 0,
       reason: "outsideOpenUnitInterval",
     });
   }
-  if (compare(upper, ONE) >= 0)
+  if (atOne !== "below")
     return err({ kind: "unresolved", argument: 0, edge: ONE });
-  if (compare(lower, MINUS_ONE) <= 0)
+  if (atMinusOne !== "above")
     return err({ kind: "unresolved", argument: 0, edge: MINUS_ONE });
-  const quotient = divideBalls(
-    addBalls(exact(ONE), x),
-    subtractBalls(exact(ONE), x),
-  );
+  if (isTiny(x, context)) return ok(tinyOdd(x));
+  const numerator = addBalls(exact(ONE), x, context);
+  if (!numerator.ok) return err(fromBallError(numerator.error, 0));
+  const denominator = subtractBalls(exact(ONE), x, context);
+  if (!denominator.ok) return err(fromBallError(denominator.error, 0));
+  const quotient = divideBalls(numerator.value, denominator.value);
   if (!quotient.ok) throw new Error("A divisor above zero was checked");
   const half = shiftFixed(logarithm(quotient.value, x.mid, context), -1);
-  return ok(fixedToBall(keepSignificant(half, bitsFor(context.precision))));
+  return ok(
+    fixedToBall(
+      keepSignificant(half, bitsFor(context.precision)),
+      workingDigits(context),
+    ),
+  );
 }
 
 /**
  * The kernel's hyperbolic sine and cosine of the bounded `x` at the
  * context, or `tooLarge` when the result would exceed the range limit: a
- * tiny `x` is converted at as many more fraction bits as its magnitude is
- * below one, so that the kernel keeps its digits.
+ * small `x` is converted at as many more fraction bits as its magnitude
+ * is below one, so that the kernel keeps its digits.
  */
 function sinhCosh(
   x: Ball,
@@ -261,7 +320,9 @@ function sinhCosh(
     return err({ kind: "tooLarge" });
   }
   const bits = bitsFor(context.precision);
-  return ok(sinhCoshFixed(fixedFromBall(x, bits + extraBits(x.mid)), bits));
+  return ok(
+    sinhCoshFixed(fixedFromBall(x, bits + extraBits(x.mid, context)), bits),
+  );
 }
 
 /**
@@ -270,18 +331,42 @@ function sinhCosh(
  * least magnitude `m`, or `undefined` when `x` is not that far out.
  */
 function saturation(x: Ball, bits: number): Ball | undefined {
-  const rad = radiusUpper(x.rad);
-  const least = subtract(absolute(x.mid), rad);
+  const least = magnitudeBelow(x);
   // e^-2m is under 2^-(bits + 64) when m exceeds (bits + 64) ln 2 / 2.
   const threshold = Math.ceil(((bits + 64) * Math.LN2) / 2);
-  if (compare(least, { num: BigInt(threshold), den: 1n }) < 0) return undefined;
-  // 2 e^-2m <= 2^(1 - floor(2 m log2 e)), with m taken through a double
-  // and capped, since a radius of 2^-(2^50) is small enough for anything.
-  const m = Math.min(2 ** 50, Number(least.num / least.den));
+  if (compareRadius(least, radiusAbove(rational(BigInt(threshold)))) < 0) {
+    return undefined;
+  }
+  // 2 e^-2m <= 2^(1 - floor(2 m log2 e)), with m taken through a double,
+  // exact for a radius of this size, and capped, since a radius of
+  // 2^-(2^50) is small enough for anything.
+  const m = Math.min(2 ** 50, radiusBound(least));
   const exponent = 1n - BigInt(Math.floor(2 * m * Math.LOG2E));
   return {
     mid: sign(x.mid) < 0 ? MINUS_ONE : ONE,
     rad: powerOfTwoRadius(exponent),
+  };
+}
+
+/**
+ * `asinh` and `acosh` of a bounded `x` at or beyond `2^bits` throughout:
+ * `ln(2|x|)` on the kernel through `lnScaled`, within `1/(2x^2)`, which
+ * `2^-(2 bits + 1)` bounds, plus the argument's radius over its distance
+ * from zero, the slope of the logarithm over the interval.
+ */
+function farLogarithm(x: Ball, context: NumberContext): Ball {
+  const bits = bitsFor(context.precision);
+  const twice = multiply(TWO, absolute(x.mid));
+  if (!twice.ok) throw new Error("Twice a value within the bound is within it");
+  const f = lnScaled(exact(twice.value), bits, bitsFor(context.ceiling));
+  if (f === undefined) throw new Error("The logarithm's argument is positive");
+  const ln = fixedToBall(keepSignificant(f, bits), workingDigits(context));
+  return {
+    mid: ln.mid,
+    rad: addRadius(
+      addRadius(ln.rad, powerOfTwoRadius(-2n * BigInt(bits) - 1n)),
+      divideRadius(x.rad, magnitudeBelow(x)),
+    ),
   };
 }
 
@@ -291,17 +376,15 @@ function saturation(x: Ball, bits: number): Ball | undefined {
  * working bits plus the negative binary exponent of `small`, the part of
  * `s` near one it must keep, so that `ln(1 + small)` loses nothing.
  */
-function logarithm(s: Ball, small: Rational, context: NumberContext): Fixed {
+function logarithm(s: Ball, small: Scaled, context: NumberContext): Fixed {
   const bits = bitsFor(context.precision);
-  const f = lnScaled(s, bits + extraBits(small), bitsFor(context.ceiling));
+  const f = lnScaled(
+    s,
+    bits + extraBits(small, context),
+    bitsFor(context.ceiling),
+  );
   if (f === undefined) throw new Error("The logarithm's argument is positive");
   return keepSignificant(f, bits);
-}
-
-/** The fraction bits a value of magnitude below one needs beyond the working bits to keep them: its negative binary exponent. */
-function extraBits(r: Rational): number {
-  if (isZero(r)) return 0;
-  return Math.max(0, bitLength(r.den) - bitLength(absolute(r).num));
 }
 
 export const sinh: Builtin = {

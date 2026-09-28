@@ -27,11 +27,41 @@
 // this module is where that lands. The user's rounding mode is applied
 // here and nowhere else in exact mode (D15).
 
-import { certifiedDigits, containsZero, isExact, type Ball } from "./ball.ts";
-import { isUnbounded, radiusUpper } from "./radius.ts";
-import { absolute, add, type Rational } from "./rational.ts";
+import {
+  certifiedDigits,
+  containsZero,
+  isExact,
+  magnitudeAbove,
+  radiusValue,
+  type Ball,
+} from "./ball.ts";
+import { isUnbounded, log2OfRadius } from "./radius.ts";
+import { LIMIT_BITS } from "./rational.ts";
 import type { Precision, RoundingMode } from "./rounding.ts";
-import { equals, format, fromRational, roundTo } from "./scaled.ts";
+import {
+  absolute,
+  add,
+  equals,
+  format,
+  oneDigitAbove,
+  roundTo,
+  type Scaled,
+} from "./scaled.ts";
+
+/**
+ * A value at or above `|mid| + rad` of the bounded `ball`, to show how far
+ * from zero a value that cannot be told from it may lie: exact where the
+ * radius can be formed and aligned with the midpoint, and otherwise one
+ * digit above the coarse bound on the magnitude.
+ */
+function zeroBound(ball: Ball): Scaled {
+  const rad = radiusValue(ball.rad);
+  if (rad !== undefined) {
+    const bound = add(absolute(ball.mid), rad, LIMIT_BITS);
+    if (bound.ok) return bound.value;
+  }
+  return oneDigitAbove(log2OfRadius(magnitudeAbove(ball)));
+}
 
 /** A ball as shown: its `text`, and the `kind` that says what the text is worth. */
 export type Shown =
@@ -61,8 +91,7 @@ export type Shown =
  * gives, with `text` the midpoint rounded in `mode` to the digits certified.
  */
 export function show(ball: Ball, digits: Precision, mode: RoundingMode): Shown {
-  // Formatted as a `Scaled` (4.3), through the boundary that goes in 4.4.
-  const mid = fromRational(ball.mid);
+  const { mid } = ball;
   if (isUnbounded(ball.rad)) {
     return { kind: "unbounded", text: format(mid, digits, mode) };
   }
@@ -72,11 +101,10 @@ export function show(ball: Ball, digits: Precision, mode: RoundingMode): Shown {
   if (containsZero(ball)) {
     // Not exactly zero: that is `exact` above. The bound is the farthest
     // the value may lie from zero, rounded up to one digit.
-    const bound: Rational = add(absolute(ball.mid), radiusUpper(ball.rad));
     return {
       kind: "zero",
       text: "0",
-      bound: format(fromRational(bound), 1, "ceiling"),
+      bound: format(zeroBound(ball), 1, "ceiling"),
     };
   }
   const certified = certifiedDigits(ball, digits, mode);

@@ -22,6 +22,7 @@ import {
   toFraction,
   type Rational,
 } from "./rational.ts";
+import { digitsFor } from "./rounding.ts";
 import { parseFraction } from "../testing/fraction.ts";
 import {
   foldIn,
@@ -30,6 +31,7 @@ import {
   randomRational,
   split,
 } from "../testing/random.ts";
+import { fraction } from "../testing/scaled.ts";
 
 function dec(text: string): Rational {
   const result = parseFraction(text);
@@ -49,7 +51,7 @@ function assertReference(
   tolerance: Rational,
   label: string,
 ) {
-  const distance = absolute(subtract(ball.mid, reference));
+  const distance = absolute(subtract(fraction(ball.mid), reference));
   assert.ok(
     compare(distance, tolerance) <= 0,
     `${label}: midpoint off by ${toFraction(distance)}`,
@@ -62,6 +64,18 @@ function contains(f: Fixed, value: Rational): boolean {
   const distance = absolute(subtract(value, toRational(f)));
   const bound = multiply(rational(f.error), rational(1n, 1n << BigInt(f.bits)));
   return compare(distance, bound) <= 0;
+}
+
+/**
+ * The ball of `f` at two digits more than its significant bits are worth,
+ * so that the rounding onto the decimal grid, half a unit in the last
+ * digit added to the radius, stays under a tenth of an ulp and the
+ * tolerances below measure the kernel alone; a built-in takes a result
+ * out at `workingDigits` instead.
+ */
+function toBall(f: Fixed): Ball {
+  const magnitude = f.value < 0n ? -f.value : f.value;
+  return fixedToBall(f, digitsFor(Math.max(1, bitLength(magnitude))) + 2);
 }
 
 // Reference digits from Python's decimal module (`Decimal(x).exp()` at a
@@ -104,12 +118,12 @@ const REFERENCES: [string, string, number][] = [
 ];
 
 test("reference digits: e to 100 digits, and exp at several arguments", () => {
-  const e = fixedToBall(
+  const e = toBall(
     expFixed(fixedFromRational(rational(1n), bitsFor(100)), bitsFor(100)),
   );
   assertReference(e, E, tenTo(100), "exp(1) at 100 digits");
   for (const [x, digits, toleranceDigits] of REFERENCES) {
-    const at = fixedToBall(
+    const at = toBall(
       expFixed(fixedFromRational(dec(x), bitsFor(60)), bitsFor(60)),
     );
     assertReference(at, dec(digits), tenTo(toleranceDigits), `exp(${x})`);
@@ -118,7 +132,7 @@ test("reference digits: e to 100 digits, and exp at several arguments", () => {
 
 test("exp(-1000) keeps its digits, far below one", () => {
   // 5.07595889754945676529180947957433691930559928289283736183239384541054e-435, from Python's decimal module.
-  const at = fixedToBall(
+  const at = toBall(
     expFixed(fixedFromRational(rational(-1000n), bitsFor(50)), bitsFor(50)),
   );
   const reference = dec(
@@ -240,8 +254,8 @@ test("reference digits: sinh and cosh on both routes, and the tiny argument keep
       fixedFromRational(dec(x), bitsFor(60)),
       bitsFor(60),
     );
-    assertReference(fixedToBall(sinh), dec(sinhX), tenTo(55), `sinh(${x})`);
-    assertReference(fixedToBall(cosh), dec(coshX), tenTo(55), `cosh(${x})`);
+    assertReference(toBall(sinh), dec(sinhX), tenTo(55), `sinh(${x})`);
+    assertReference(toBall(cosh), dec(coshX), tenTo(55), `cosh(${x})`);
   }
   const bits = bitsFor(20);
   // sinh(1e-50) is about 2^-166.1, converted at the bits the built-in uses.
@@ -249,7 +263,7 @@ test("reference digits: sinh and cosh on both routes, and the tiny argument keep
   assert.equal(tiny.sinh.bits, bits + 167);
   assert.equal(tiny.cosh.bits, bits);
   assertReference(
-    fixedToBall(tiny.sinh),
+    toBall(tiny.sinh),
     dec(
       "1.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000166667e-50",
     ),

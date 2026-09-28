@@ -23,7 +23,7 @@ import {
 } from "./core/builtin.ts";
 import type { UnitListError } from "./core/convert.ts";
 import type { Arity, EvaluateError } from "./core/evaluate.ts";
-import { ZERO, equals, toFraction } from "./core/rational.ts";
+import { ZERO, equals, format } from "./core/scaled.ts";
 import type {
   ConversionError,
   InverseFailed,
@@ -219,7 +219,7 @@ function domainValue(reason: DomainReason): string {
 /** The edge a value cannot be told from, in words: `zero`, `1`, `-1`, `a pole of the tangent`. */
 function describeEdge(edge: Edge): string {
   if (edge === "pole") return "a pole of the tangent";
-  return equals(edge, ZERO) ? "zero" : toFraction(edge);
+  return equals(edge, ZERO) ? "zero" : format(edge, 1, "towardZero");
 }
 
 /** How to call the function `name` of `arity`, as the message for a name used as a unit says it. */
@@ -275,6 +275,8 @@ export function describeConversionError(
       return `${quote(want.trim())} is zero, so nothing is a multiple of it.`;
     case "unresolvedWant":
       return `${quote(want.trim())} cannot be told from zero at this precision, so nothing can be converted into it.`;
+    case "tooLarge":
+      return `${quote(have.trim())} into ${quote(want.trim())} is too large to compute.`;
     case "unitListError":
       return describeUnitListError(error.error, have, error.units, primitives);
   }

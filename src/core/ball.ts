@@ -1,33 +1,51 @@
 // The ball: a midpoint with a radius, the value every magnitude becomes. The
-// midpoint is the number computed, an exact `Rational`; the radius, a
-// `Radius` of radius.ts, bounds its distance from the value it stands for.
-// An exact value has radius zero, and `=` in the display means exactly that.
-// docs/calculator.md ("The precision model") is the design and
-// docs/calculator-plan.md (D3, D4, D7, D15, tasks 1.5, 2.3, 2.4 and 2.5) the
-// decisions;
-// this module is the type, its exact operations and the one inexact one,
-// the root; quantity.ts makes a ball the magnitude of every quantity.
+// midpoint is the number computed, a `Scaled` (scaled.ts: a fraction times a
+// power of ten, from stage 4's 4.4); the radius, a `Radius` of radius.ts,
+// bounds its distance from the value it stands for. An exact value has
+// radius zero, and `=` in the display means exactly that.
+// docs/calculator.md ("The precision model") is the design,
+// docs/decimal.md the exponent and the two modes, and
+// docs/calculator-plan.md (D3, D4, D7, D15, tasks 1.5, 2.3, 2.4, 2.5 and
+// 4.4) the decisions; this module is the type, its exact operations and the
+// one inexact one, the root; quantity.ts makes a ball the magnitude of
+// every quantity.
 //
-// Each operation composes the exact arithmetic of rational.ts on the
-// midpoints with a propagation rule of radius.ts on the radii; neither of
-// those modules knows the other. The exact operations never round a
-// midpoint: an exact value stays the exact rational it is, and only the
-// radius says what has been lost upstream (a root, later a function). An
-// inexact value is another matter (D15): its midpoint is a number
-// computed, not known, and the evaluator settles it after every operation
-// with `settle`, which rounds it to nearest at the working precision's
-// bits, a dyadic, and adds the rounding to the radius, so that an inexact
-// midpoint never grows beyond the working precision however long the
-// expression; `powBall` on an inexact base squares with settling for the
-// same reason. Settling is a bound on size, not a rounding the user chose:
-// the mode is the display's alone. The rules are the
-// elementary ones, each a bound over the two operands' intervals: a sum's
-// radii add; a product's radius is `|a| rb + |b| ra + ra rb`; a quotient's
-// is `(|a| rb + |b| ra) / (|b| (|b| - rb))`, which requires the divisor's
-// interval to exclude zero; a power's is `n (|mid| + rad)^(n-1) rad`, the
-// derivative bound over the interval. Every radius operation rounds up, so
-// a result's interval contains the exact result for every pair of values
-// in the operands' intervals, which is what the tests check.
+// Each operation composes the arithmetic of scaled.ts on the midpoints
+// with a propagation rule of radius.ts on the radii; neither of those
+// modules knows the other. The exact operations never round an exact
+// value: an exact value stays the exact number it is, and only the radius
+// says what has been lost upstream (a root, a function). An inexact value
+// is another matter (D15): its midpoint is a number computed, not known,
+// and the evaluator settles it after every operation with `settle`, which
+// rounds it to nearest at the working digits, the decimal grid the kernel's
+// results are rounded onto as they leave the kernel (`fixedToBall`), and
+// adds the rounding to the radius, so that an inexact midpoint never grows
+// beyond the working precision however long the expression; `powBall` on
+// an inexact base squares with settling for the same reason. Settling is a
+// bound on size, not a rounding the user chose: the mode is the display's
+// (the decimal mode of 4.5 will settle in the user's mode). The rules are
+// the elementary ones, each a bound over the two operands' intervals: a
+// sum's radii add; a product's radius is `|a| rb + |b| ra + ra rb`; a
+// quotient's is `(|a| rb + |b| ra) / (|b| (|b| - rb))`, which requires the
+// divisor's interval to exclude zero; a power's is the product's, applied
+// by squaring. The magnitudes in those rules are radii at or above the
+// midpoints (`radiusAboveScaled`, from the binary bounds of scaled.ts, so
+// that nothing is formed whatever the exponent), and the quotient's
+// denominator a radius at or below, so every radius operation rounds the
+// right way and a result's interval contains the exact result for every
+// pair of values in the operands' intervals, which is what the tests check.
+//
+// A sum is where the exponent costs something (docs/decimal.md, "Sums,
+// comparisons and the radius"). `addBalls` aligns the midpoints exactly
+// where the shift fits the context's range limit. Where it does not, two
+// exact operands are `tooLarge`, the exact sum existing and not being
+// holdable (`1e999999999 + 1`); otherwise the result is inexact and about
+// to be settled, so it is settled a step early: each inexact operand is
+// settled first, the two are added exactly if they then align, and if they
+// still do not, the smaller, which then lies below the working precision
+// of the larger, is absorbed into the radius. So `addBalls`,
+// `subtractBalls`, `multiplyBalls` and `divideBalls` are `Result`s,
+// failing `tooLarge` there and at the exponent bound.
 //
 // Two values are special. An exact zero times anything is exact zero,
 // however wide the other operand, unbounded included: unbounded stands for
@@ -35,31 +53,40 @@
 // contains zero without being exactly zero cannot be divided by, since the
 // true quotient may have either sign or none: that is `unresolved` (D4), a
 // kind of its own beside `divisionByZero`, because the retry loop of the
-// pipeline retries on the first (a narrower ball may exclude zero) and never
-// on the second. A divisor of unbounded radius with a nonzero midpoint divides, and
-// the quotient's radius is unbounded, as the study's per-operation fallback
-// says; one with a zero midpoint is `unresolved`, since nothing is known of
-// its sign.
+// pipeline retries on the first (a narrower ball may exclude zero) and
+// never on the second. A divisor of unbounded radius with a nonzero
+// midpoint divides, and the quotient's radius is unbounded, as the study's
+// per-operation fallback says; one with a zero midpoint is `unresolved`,
+// since nothing is known of its sign.
+//
+// Comparing a midpoint with a radius, which `containsZero`, the
+// certification and the built-ins' edge checks (`position`) do, is exact
+// where the radius's power of two can be formed as a `Scaled`, which is
+// every radius of the working sizes, and otherwise by the coarse bounds on
+// both, which decide everything but a magnitude within `2^-30` of the
+// radius; there the answer is the conservative one (the ball contains the
+// point; the digit is not certified), and the retry loop narrows the ball.
 //
 // The root is the one inexact operation, and it runs on the kernel
 // (fixed.ts; task 2.3 of the plan). An exact argument with a rational root
 // is exact, as `exactRoot` finds it. Otherwise a ball whose interval
-// excludes zero is scaled by an exact power of `2^degree` so that it is of
-// order one (the scaling belongs here, on the ball, since a tiny ball
-// converted at the kernel's bits would lose its digits), converted at
-// `bitsFor(precision)`, rooted, scaled back and handed back through
-// `fixedToBall`, so that the radius covers the argument's radius and the
-// kernel's own error, and the midpoint is the kernel's dyadic, rounded in
-// no mode (D15: the mode is the display's). A negative ball of odd degree
-// is the negated root of its magnitude; one of even degree fails with
-// `negativeRadicand`. A ball containing zero without being exactly zero is
-// `unresolved` under an even degree, since the sign of the true value
-// decides whether there is a root at all, and under an odd degree a ball
-// around zero bounded by the root of the farther end of the interval, the
-// root being monotone. An argument of unbounded radius gives the root of
-// its midpoint with an unbounded radius, as the other operations propagate
-// unbounded. The context's precision is the working precision the kernel
-// computes at; nothing here reads its rounding mode.
+// excludes zero is scaled by an exact power of ten in the exponent and an
+// exact power of `2^degree` on the mantissa so that it is of order one (the
+// scaling belongs here, on the ball, since a tiny ball converted at the
+// kernel's bits would lose its digits), converted at `bitsFor(precision)`,
+// rooted, scaled back and handed back through `fixedToBall`, so that the
+// radius covers the argument's radius and the kernel's own error, and the
+// midpoint is the kernel's, rounded to the working digits in no mode (D15:
+// the mode is the display's). A negative ball of odd degree is the negated
+// root of its magnitude; one of even degree fails with `negativeRadicand`.
+// A ball containing zero without being exactly zero is `unresolved` under
+// an even degree, since the sign of the true value decides whether there
+// is a root at all, and under an odd degree a ball around zero bounded by
+// the root of the farther end of the interval, the root being monotone. An
+// argument of unbounded radius gives the root of its midpoint with an
+// unbounded radius, as the other operations propagate unbounded. The
+// context's precision is the working precision the kernel computes at;
+// nothing here reads its rounding mode.
 //
 // A rational power (`powRationalBall`, which `^` and the built-in `pow`
 // share; task 3.8) has three routes. An exact base that is a perfect
@@ -73,46 +100,41 @@
 // fixed-exp.ts; the routines are below the ball so that this module can
 // reach them), for a base positive throughout, and for a negative base
 // under an odd root by symmetry; `powLogSpace` is that route on any
-// bounded exponent, which `pow` takes for an inexact one. The base is
-// scaled to order one by a power of two before it is converted, and the
-// power goes to the logarithm (`lnScaled`, which the logarithms share), so
-// that a tiny base loses nothing to the conversion; the product `y ln x`
-// is formed at the bits plus the exponent's and the logarithm's magnitudes,
-// and its magnitude is held to the range limit before the exponential
-// (`expFits`) so that `10^(100000/3)` is `tooLarge` as it was, while
-// `2^0.1234567` and `10^2.3456789`, once `2^1234567` and `10^23456789`
-// refused as `tooLarge`, are values with a radius.
+// bounded exponent, which `pow` takes for an inexact one. The base's
+// mantissa is scaled to order one by a power of two before it is
+// converted, and that power goes to the logarithm with the decimal
+// exponent (`lnScaled`, which the logarithms share, adds `exp × ln 10` from
+// the memo), so that a tiny or a huge base loses nothing to the
+// conversion; the product `y ln x` is formed at the bits plus the
+// exponent's and the logarithm's magnitudes, and its magnitude is held to
+// the range limit before the exponential (`expFits`, which 4.9 turns into
+// the exponent bound), so that `7^(100000/3)` is `tooLarge` as it was,
+// while `2^0.1234567` and `10^2.3456789`, once refused as `tooLarge`, are
+// values with a radius; and a power of ten costs nothing in the exponent,
+// so `10^(100000/3)` is the cube root of ten times `10^33333`, a value.
 
 import type { NumberContext } from "./context.ts";
+import { workingDigits } from "./context.ts";
 import { expFixed } from "./fixed-exp.ts";
-import { lnFixed } from "./fixed-log.ts";
+import { ln10Fixed, lnFixed } from "./fixed-log.ts";
 import {
+  addFixed,
   bitsFor,
   fixedFromBall,
+  fixedFromRational,
   fixedToBall,
+  keepSignificant,
   multiplyFixed,
   rootFixed,
+  scaleFixed,
   shiftFixed,
-  toRational,
   type Fixed,
 } from "./fixed.ts";
 import {
-  ONE,
-  ZERO,
-  absolute,
-  add,
+  LIMIT_BITS,
   bitLength,
-  compare,
-  divide,
-  exactRoot,
-  isZero,
-  multiply,
-  negate,
-  pow,
   rational,
   scaleByPowerOfTwo,
-  sign,
-  subtract,
   type Rational,
   type RationalError,
 } from "./rational.ts";
@@ -120,27 +142,51 @@ import {
   UNBOUNDED,
   ZERO_RADIUS,
   addRadius,
+  compareRadius,
+  divideRadius,
   isZeroRadius,
+  log2OfRadius,
   multiplyRadius,
-  powerOfTwoRadius,
-  radiusAbove,
+  multiplyRadiusDown,
+  radiusAboveScaled,
+  radiusBelowScaled,
   radiusUpper,
+  rootRadiusAbove,
   shiftRadius,
+  subtractRadiusDown,
   type Radius,
 } from "./radius.ts";
-import { divideRounded } from "./rounding.ts";
 import { err, ok, type Result } from "./result.ts";
 import type { Precision, RoundingMode } from "./rounding.ts";
 import {
+  ONE,
+  ZERO,
+  absolute,
+  add,
+  compare,
   decimalExponent,
-  equals as equalsScaled,
+  decimalExponentOfLog2,
+  divide,
+  equals,
+  exactRoot,
   fromRational,
+  isZero,
+  log2Bounds,
+  multiply,
+  negate,
+  pow,
   roundTo,
+  scaled,
+  sign,
+  subtract,
+  toRational,
+  trunc,
+  type Scaled,
 } from "./scaled.ts";
 
 /** A midpoint with the radius that bounds its distance from the true value. */
 export type Ball = {
-  readonly mid: Rational;
+  readonly mid: Scaled;
   readonly rad: Radius;
 };
 
@@ -152,8 +198,16 @@ export type BallError =
    */
   | { readonly kind: "unresolved" };
 
+/**
+ * The bits of a radius's exponent up to which its exact value is formed as
+ * a `Scaled` for a comparison, `2^16`: every radius of the working sizes,
+ * and a power of two of that size costs a canonical form of a few tens of
+ * thousands of bits, once per comparison.
+ */
+const FORMABLE_RADIUS_BITS = 1 << 16;
+
 /** The ball of an exact value: radius zero. */
-export function exact(mid: Rational): Ball {
+export function exact(mid: Scaled): Ball {
   return { mid, rad: ZERO_RADIUS };
 }
 
@@ -164,17 +218,89 @@ export function isExact(b: Ball): boolean {
 
 /**
  * Whether the interval of `b` contains zero: `|mid| <= rad`, which for an
- * exact ball is `mid = 0`; an unbounded ball contains everything.
+ * exact ball is `mid = 0`; an unbounded ball contains everything, and a
+ * midpoint within the coarse bounds' `2^-30` of the radius is taken to.
  */
 export function containsZero(b: Ball): boolean {
   if (b.rad.kind === "unbounded") return true;
   if (b.rad.mant === 0n) return isZero(b.mid);
-  return compare(absolute(b.mid), radiusUpper(b.rad)) <= 0;
+  if (isZero(b.mid)) return true;
+  return (compareWithRadius(absolute(b.mid), b.rad) ?? 0) <= 0;
 }
 
 /** A radius at or above `|mid| + rad`: a bound on the magnitude of every value in `b`. */
 export function magnitudeAbove(b: Ball): Radius {
-  return addRadius(radiusAbove(b.mid), b.rad);
+  return addRadius(radiusAboveScaled(b.mid), b.rad);
+}
+
+/**
+ * A radius at or below `|mid| - rad`, the distance of the bounded `b`'s
+ * interval from zero, zero when the interval reaches or the bounds cannot
+ * tell; a precondition failure for an unbounded radius.
+ */
+export function magnitudeBelow(b: Ball): Radius {
+  return subtractRadiusDown(radiusBelowScaled(b.mid), b.rad);
+}
+
+/**
+ * Where `b` lies against `point`: `above` or `below` it throughout,
+ * `touchingAbove` or `touchingBelow` with one end exactly on it, `at` it
+ * exactly, or `straddles`, which is also the answer for an unbounded ball
+ * and for a midpoint within the coarse bounds' `2^-30` of the point, the
+ * conservative one. The built-ins' edge checks are written on it.
+ */
+export function position(
+  b: Ball,
+  point: Scaled,
+): "below" | "above" | "touchingBelow" | "touchingAbove" | "at" | "straddles" {
+  if (b.rad.kind === "unbounded") return "straddles";
+  if (b.rad.mant === 0n) {
+    const c = compare(b.mid, point);
+    return c < 0 ? "below" : c > 0 ? "above" : "at";
+  }
+  const d = subtract(b.mid, point, LIMIT_BITS);
+  if (d.ok) {
+    if (isZero(d.value)) return "straddles";
+    const c = compareWithRadius(absolute(d.value), b.rad);
+    const above = sign(d.value) > 0;
+    if (c === 1) return above ? "above" : "below";
+    if (c === 0) return above ? "touchingAbove" : "touchingBelow";
+    return "straddles";
+  }
+  // The two could not be aligned, so one is far larger than the other and
+  // the difference is at least half the larger.
+  const midLarger = compare(absolute(b.mid), absolute(point)) > 0;
+  const larger = midLarger ? b.mid : point;
+  const halfLower = shiftRadius(radiusBelowScaled(larger), -1n);
+  if (compareRadius(halfLower, b.rad) <= 0) return "straddles";
+  const above = midLarger ? sign(b.mid) > 0 : sign(point) < 0;
+  return above ? "above" : "below";
+}
+
+/**
+ * Compares the non-negative `magnitude` with the bounded, nonzero `rad`:
+ * exactly where the radius can be formed, and otherwise by the coarse
+ * bounds, `undefined` when they cannot tell.
+ */
+function compareWithRadius(
+  magnitude: Scaled,
+  rad: Radius,
+): -1 | 0 | 1 | undefined {
+  const r = radiusScaled(rad);
+  if (r !== undefined) return compare(magnitude, r);
+  if (isZero(magnitude)) return -1;
+  if (compareRadius(radiusBelowScaled(magnitude), rad) > 0) return 1;
+  if (compareRadius(radiusAboveScaled(magnitude), rad) < 0) return -1;
+  return undefined;
+}
+
+/** The exact value of the bounded `rad` as a `Scaled`, when its power of two is worth forming; `undefined` otherwise. */
+function radiusScaled(rad: Radius): Scaled | undefined {
+  if (rad.kind === "unbounded") return undefined;
+  if (rad.mant === 0n) return ZERO;
+  const exp = rad.exp < 0n ? -rad.exp : rad.exp;
+  if (exp > BigInt(FORMABLE_RADIUS_BITS)) return undefined;
+  return fromRational(radiusUpper(rad));
 }
 
 // ---------------------------------------------------------------------------
@@ -185,38 +311,71 @@ export function negateBall(b: Ball): Ball {
   return { mid: negate(b.mid), rad: b.rad };
 }
 
-/** `a + b`: the midpoints added, the radii added. */
-export function addBalls(a: Ball, b: Ball): Ball {
-  return { mid: add(a.mid, b.mid), rad: addRadius(a.rad, b.rad) };
+/**
+ * `a + b`: the midpoints added, the radii added, aligned exactly where the
+ * shift fits the context's range limit, and otherwise as the header says:
+ * `tooLarge` for two exact operands, and a settle-first sum with the
+ * smaller absorbed into the radius when an operand is inexact.
+ */
+export function addBalls(
+  a: Ball,
+  b: Ball,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  const sum = add(a.mid, b.mid, context.maxBits);
+  if (sum.ok) return ok({ mid: sum.value, rad: addRadius(a.rad, b.rad) });
+  if (sum.error.kind !== "tooLarge") return sum;
+  if (isExact(a) && isExact(b)) return sum;
+  const sa = settle(a, context);
+  const sb = settle(b, context);
+  const settled = add(sa.mid, sb.mid, context.maxBits);
+  if (settled.ok) {
+    return ok({ mid: settled.value, rad: addRadius(sa.rad, sb.rad) });
+  }
+  if (settled.error.kind !== "tooLarge") return settled;
+  const [larger, smaller] =
+    compare(absolute(sa.mid), absolute(sb.mid)) >= 0 ? [sa, sb] : [sb, sa];
+  return ok({
+    mid: larger.mid,
+    rad: addRadius(larger.rad, magnitudeAbove(smaller)),
+  });
 }
 
-/** `a - b`: the midpoints subtracted, the radii added. */
-export function subtractBalls(a: Ball, b: Ball): Ball {
-  return { mid: subtract(a.mid, b.mid), rad: addRadius(a.rad, b.rad) };
+/** `a - b`: `a` plus the negation of `b`. */
+export function subtractBalls(
+  a: Ball,
+  b: Ball,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  return addBalls(a, negateBall(b), context);
 }
 
 /**
  * `a × b`: the exact product of the midpoints, with the radius
  * `|a| rb + |b| ra + ra rb`, rounded up. An exact zero times anything is
- * exact zero.
+ * exact zero; a product whose exponent passes the bound is `tooLarge`.
  */
-export function multiplyBalls(a: Ball, b: Ball): Ball {
-  if (isExactZero(a) || isExactZero(b)) return exact(ZERO);
+export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
+  if (isExactZero(a) || isExactZero(b)) return ok(exact(ZERO));
+  const mid = multiply(a.mid, b.mid);
+  if (!mid.ok) return mid;
   const rad = addRadius(
     addRadius(
-      multiplyRadius(radiusAbove(a.mid), b.rad),
-      multiplyRadius(radiusAbove(b.mid), a.rad),
+      multiplyRadius(radiusAboveScaled(a.mid), b.rad),
+      multiplyRadius(radiusAboveScaled(b.mid), a.rad),
     ),
     multiplyRadius(a.rad, b.rad),
   );
-  return { mid: multiply(a.mid, b.mid), rad };
+  return ok({ mid: mid.value, rad });
 }
 
 /**
  * `a / b`: the exact quotient of the midpoints, with the radius
  * `(|a| rb + |b| ra) / (|b| (|b| - rb))`, rounded up, the bound for `a / b`
- * over the two intervals. Fails `divisionByZero` when `b` is exactly zero
- * and `unresolved` when it contains zero without being exactly zero. A
+ * over the two intervals, computed on the coarse type with the divisor's
+ * distance from zero as a lower bound. Fails `divisionByZero` when `b` is
+ * exactly zero and `unresolved` when it contains zero without being
+ * exactly zero, or when the bounds cannot tell its distance from zero. A
  * divisor of unbounded radius with a nonzero midpoint gives a quotient of
  * unbounded radius.
  */
@@ -224,18 +383,24 @@ export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   if (isExactZero(b)) return err({ kind: "divisionByZero" });
   if (b.rad.kind === "unbounded") {
     if (isZero(b.mid)) return err({ kind: "unresolved" });
-    return ok({ mid: exactQuotient(a.mid, b.mid), rad: UNBOUNDED });
+    const mid = divide(a.mid, b.mid);
+    return mid.ok ? ok({ mid: mid.value, rad: UNBOUNDED }) : mid;
   }
   if (containsZero(b)) return err({ kind: "unresolved" });
-  const mid = exactQuotient(a.mid, b.mid);
-  if (a.rad.kind === "unbounded") return ok({ mid, rad: UNBOUNDED });
-  const absA = absolute(a.mid);
-  const absB = absolute(b.mid);
-  const rb = radiusUpper(b.rad);
-  const numerator = add(multiply(absA, rb), multiply(absB, radiusUpper(a.rad)));
-  // Positive: the divisor's interval excludes zero, so |b| > rb.
-  const denominator = multiply(absB, subtract(absB, rb));
-  return ok({ mid, rad: radiusAbove(exactQuotient(numerator, denominator)) });
+  const mid = divide(a.mid, b.mid);
+  if (!mid.ok) return mid;
+  if (a.rad.kind === "unbounded") return ok({ mid: mid.value, rad: UNBOUNDED });
+  if (isZeroRadius(a.rad) && isZeroRadius(b.rad)) return ok(exact(mid.value));
+  const numerator = addRadius(
+    multiplyRadius(radiusAboveScaled(a.mid), b.rad),
+    multiplyRadius(radiusAboveScaled(b.mid), a.rad),
+  );
+  // Positive: the divisor's interval excludes zero, so |b| > rb; the
+  // coarse bounds may still fail to tell, which is then unresolved.
+  const distance = magnitudeBelow(b);
+  if (isZeroRadius(distance)) return err({ kind: "unresolved" });
+  const denominator = multiplyRadiusDown(radiusBelowScaled(b.mid), distance);
+  return ok({ mid: mid.value, rad: divideRadius(numerator, denominator) });
 }
 
 /**
@@ -244,9 +409,10 @@ export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
  * with `multiplyBalls`, settled after each product (D15), so that the
  * midpoint stays at the working precision and only the magnitude of the
  * result is guarded: a result whose binary exponent would exceed the range
- * limit is `tooLarge` before anything is computed. A negative `n` inverts
- * by the division rule, so a ball containing zero to a negative power is
- * `unresolved`. `b^0` is exactly one, as `pow` has it, for any ball.
+ * limit is `tooLarge` before anything is computed (4.9 makes that the
+ * exponent bound). A negative `n` inverts by the division rule, so a ball
+ * containing zero to a negative power is `unresolved`. `b^0` is exactly
+ * one, as `pow` has it, for any ball.
  */
 export function powBall(
   b: Ball,
@@ -269,39 +435,46 @@ export function powBall(
   let result = exact(ONE);
   let base = b;
   for (let rest = n; rest > 0n; rest >>= 1n) {
-    if (rest & 1n) result = settle(multiplyBalls(result, base), context);
-    if (rest > 1n) base = settle(multiplyBalls(base, base), context);
+    if (rest & 1n) result = settle(productOf(result, base), context);
+    if (rest > 1n) base = settle(productOf(base, base), context);
   }
   return ok(result);
 }
 
+/** `a × b` for balls the magnitude guard has bounded, so the exponent bound cannot fail. */
+function productOf(a: Ball, b: Ball): Ball {
+  const product = multiplyBalls(a, b);
+  if (!product.ok) throw new Error("A guarded product passed the bound");
+  return product.value;
+}
+
 /**
  * `b` settled to the working precision of `context` (D15): an inexact
- * midpoint is rounded to nearest at `bitsFor(precision)` significant bits,
- * a dyadic built in lowest terms without a gcd, and half an ulp of that
- * rounding, its bound, is added to the radius; an exact ball, or one with
- * a zero midpoint, is returned as it is. The rounding is to nearest and
- * not in the context's mode: settling bounds the size of a number the user
- * never sees, and the mode is applied once, by the display, to the
- * certified value of the whole expression.
+ * midpoint is rounded to nearest at the working digits, the decimal grid
+ * the kernel's results are rounded onto, and half a unit in the last of
+ * those digits, its bound, is added to the radius when the rounding moved
+ * it; an exact ball, or one with a zero midpoint, is returned as it is.
+ * The rounding is to nearest and not in the context's mode: settling
+ * bounds the size of a number the user never sees, and the mode is
+ * applied once, by the display, to the certified value of the whole
+ * expression (4.5 adds the decimal mode, which settles in the mode).
  */
 export function settle(b: Ball, context: NumberContext): Ball {
   if (isExact(b) || isZero(b.mid)) return b;
-  const bits = bitsFor(context.precision);
-  const { num, den } = b.mid;
-  // The value has bitLength(num) - bitLength(den) + 1 bits of integer part,
-  // give or take one; shifting by `shift` puts `bits` of them above the
-  // point.
-  const shift = bits - (bitLength(absolute(b.mid).num) - bitLength(den));
-  const value =
-    shift >= 0
-      ? divideRounded(num << BigInt(shift), den, "halfEven")
-      : divideRounded(num, den << BigInt(-shift), "halfEven");
-  const mid =
-    shift >= 0
-      ? toRational({ value, error: 0n, bits: shift })
-      : rational(value << BigInt(-shift));
-  return { mid, rad: addRadius(b.rad, powerOfTwoRadius(BigInt(-shift - 1))) };
+  const digits = workingDigits(context);
+  const mid = roundTo(b.mid, digits, "halfEven");
+  if (equals(mid, b.mid)) return b;
+  return { mid, rad: addRadius(b.rad, halfUnitOf(mid, digits)) };
+}
+
+/** A radius at or above half a unit in the last of `digits` significant digits of the nonzero `s`. */
+function halfUnitOf(s: Scaled, digits: Precision): Radius {
+  const half = scaled(
+    { num: 5n, den: 1n },
+    decimalExponent(s) - BigInt(digits),
+  );
+  if (!half.ok) throw new Error("Half a unit of a value is within the bound");
+  return radiusAboveScaled(half.value);
 }
 
 // ---------------------------------------------------------------------------
@@ -324,7 +497,7 @@ export function rootBall(
 ): Result<Ball, BallError> {
   if (degree < 1n) throw new RangeError("Root degree must be positive");
   if (isExact(b)) {
-    const exactValue = exactRoot(b.mid, degree);
+    const exactValue = exactRoot(b.mid, degree, context.maxBits);
     if (!exactValue.ok) return exactValue;
     if (exactValue.value !== undefined) return ok(exact(exactValue.value));
   }
@@ -335,51 +508,100 @@ export function rootBall(
   }
   const even = degree % 2n === 0n;
   if (containsZero(b)) {
-    return even
-      ? err({ kind: "unresolved" })
-      : ok(rootAroundZero(b, degree, context));
+    return even ? err({ kind: "unresolved" }) : ok(rootAroundZero(b, degree));
   }
   if (sign(b.mid) < 0) {
     if (even) return err({ kind: "negativeRadicand", degree });
     const root = positiveRoot(negateBall(b), degree, context);
+    if (!root.ok) return root;
     return ok(
-      root === undefined
-        ? rootAroundZero(b, degree, context)
-        : negateBall(root),
+      root.value === undefined
+        ? rootAroundZero(b, degree)
+        : negateBall(root.value),
     );
   }
   const root = positiveRoot(b, degree, context);
-  if (root !== undefined) return ok(root);
+  if (!root.ok) return root;
+  if (root.value !== undefined) return ok(root.value);
   // The interval is positive as rationals but not at the kernel's bits: the
   // ball reaches within an ulp of zero, and is treated as containing it.
-  return even
-    ? err({ kind: "unresolved" })
-    : ok(rootAroundZero(b, degree, context));
+  return even ? err({ kind: "unresolved" }) : ok(rootAroundZero(b, degree));
 }
 
 /**
  * The root of a bounded `b` whose interval is positive, through the kernel:
- * `b` is scaled by `2^(-k × degree)` with `k` chosen so that its midpoint is
- * of order one, converted at `bitsFor(precision)`, rooted, scaled back by
- * `2^k` and handed back. `undefined` when the scaled ball's interval is not
- * positive at those bits, which only a ball reaching within an ulp of zero
- * can produce.
+ * the exponent is split into a multiple of the degree, taken off exactly,
+ * and a remainder folded into the mantissa when its power fits the range
+ * limit (log space otherwise, as a rational power that does not fit takes
+ * it); the mantissa is then scaled by `2^(-j × degree)` so that it is of
+ * order one, converted at `bitsFor(precision)`, rooted, scaled back by
+ * `2^j` and the power of ten, and handed back. `undefined` when the scaled
+ * ball's interval is not positive at those bits, which only a ball
+ * reaching within an ulp of zero can produce.
  */
 function positiveRoot(
   b: Ball,
   degree: bigint,
   context: NumberContext,
-): Ball | undefined {
-  const exponent = BigInt(bitLength(b.mid.num) - bitLength(b.mid.den));
-  const k = exponent / degree;
-  const shift = k * degree;
-  const scaled: Ball = {
-    mid: scaleByPowerOfTwo(b.mid, -shift),
-    rad: shiftRadius(b.rad, -shift),
+): Result<Ball | undefined, BallError> {
+  let k = b.mid.exp / degree;
+  let r = b.mid.exp - k * degree;
+  if (r < 0n) {
+    r += degree;
+    k -= 1n;
+  }
+  const mantissa = toRational({ mant: b.mid.mant, exp: r }, context.maxBits);
+  if (!mantissa.ok) {
+    return powLogSpace(b, exact(fromRational(rational(1n, degree))), context);
+  }
+  // The radius over the power of ten taken off, then over the mantissa's
+  // binary scaling: both exact powers, rounded up on the radius.
+  const takenOff = scaledPowerOfTen(-(k * degree));
+  const radOverTen = multiplyRadius(b.rad, radiusAboveScaled(takenOff));
+  const m = mantissa.value;
+  const exponent = BigInt(bitLength(m.num) - bitLength(m.den));
+  const j = exponent / degree;
+  const shift = j * degree;
+  const f = fixedFromRational(
+    scaleByPowerOfTwo(m, -shift),
+    bitsFor(context.precision),
+  );
+  const scaledRad = shiftRadius(radOverTen, -shift);
+  const withRad: Fixed = {
+    ...f,
+    error: f.error + ulpsOf(scaledRad, f.bits),
   };
-  const f = fixedFromBall(scaled, bitsFor(context.precision));
-  if (f.value <= f.error) return undefined;
-  return fixedToBall(shiftFixed(rootFixed(f, degree), Number(k)));
+  if (withRad.value <= withRad.error) return ok(undefined);
+  const root = fixedToBall(
+    shiftFixed(rootFixed(withRad, degree), Number(j)),
+    workingDigits(context),
+  );
+  const backTen = scaledPowerOfTen(k);
+  const mid = multiply(root.mid, backTen);
+  if (!mid.ok) return mid;
+  return ok({
+    mid: mid.value,
+    rad: multiplyRadius(root.rad, radiusAboveScaled(backTen)),
+  });
+}
+
+/** `10^k` as a `Scaled`, which is within the bound whenever `k` came from one. */
+function scaledPowerOfTen(k: bigint): Scaled {
+  const power = scaled({ num: 1n, den: 1n }, k);
+  if (!power.ok) throw new Error("A power of ten from a bounded exponent");
+  return power.value;
+}
+
+/** `ceil(rad × 2^bits)` for a bounded `rad`: its ulps at `bits`, rounded up, for the kernel's error. */
+function ulpsOf(rad: Radius, bits: number): bigint {
+  if (rad.kind === "unbounded")
+    throw new RangeError("An unbounded radius has no ulps");
+  if (rad.mant === 0n) return 0n;
+  const exp = rad.exp + BigInt(bits);
+  if (exp >= 0n) return rad.mant << exp;
+  if (-exp >= BigInt(bitLength(rad.mant))) return 1n;
+  const den = 1n << -exp;
+  return (rad.mant + den - 1n) / den;
 }
 
 /**
@@ -387,15 +609,8 @@ function positiveRoot(
  * whose radius is the root of the farther end of `b`'s interval, which
  * bounds the root of every value in it, the root being monotone and odd.
  */
-function rootAroundZero(b: Ball, degree: bigint, context: NumberContext): Ball {
-  const rad = radiusUpper(b.rad);
-  const low = absolute(subtract(b.mid, rad));
-  const high = add(b.mid, rad);
-  const far = compare(low, high) > 0 ? low : high;
-  // `far` is positive: the ball is not exactly zero, so one end is not.
-  const root = positiveRoot(exact(far), degree, context);
-  if (root === undefined) throw new Error("An exact positive value has a root");
-  return { mid: ZERO, rad: radiusAbove(add(root.mid, radiusUpper(root.rad))) };
+function rootAroundZero(b: Ball, degree: bigint): Ball {
+  return { mid: ZERO, rad: rootRadiusAbove(magnitudeAbove(b), degree) };
 }
 
 /**
@@ -420,7 +635,7 @@ export function powRationalBall(
   const { num: p, den: q } = exponent;
   const even = q % 2n === 0n;
   if (isExact(b)) {
-    const root = exactRoot(b.mid, q);
+    const root = exactRoot(b.mid, q, context.maxBits);
     if (!root.ok) return root;
     if (root.value !== undefined) {
       const power = pow(root.value, p, context.maxBits);
@@ -438,7 +653,7 @@ export function powRationalBall(
   if (power.error.kind !== "tooLarge" || containsZero(b)) return power;
   const result = powLogSpace(
     negative ? negateBall(b) : b,
-    exact(exponent),
+    exact(fromRational(exponent)),
     context,
   );
   if (!result.ok || !negative || p % 2n === 0n) return result;
@@ -451,8 +666,9 @@ export function powRationalBall(
  * the magnitudes of `y` and of the logarithm, so that their product keeps
  * the working bits, `unresolved` when `x` reaches within an ulp of zero at
  * those bits, `tooLarge` when the product's magnitude, over its whole
- * interval, puts the result beyond the range limit, and otherwise the
- * kernel's ball, rounded in no mode.
+ * interval, puts the result beyond the range limit, or when `y` is beyond
+ * what a double holds, and otherwise the kernel's ball, rounded in no
+ * mode.
  */
 export function powLogSpace(
   x: Ball,
@@ -461,9 +677,9 @@ export function powLogSpace(
 ): Result<Ball, BallError> {
   const bits = bitsFor(context.precision);
   const yBound = radiusBound(magnitudeAbove(y));
-  const yBits =
-    yBound === Infinity ? 0 : Math.max(0, Math.ceil(Math.log2(yBound + 1)));
-  const lnBits = bitLength(BigInt(Math.abs(scaleOf(x))) + 2n);
+  if (yBound === Infinity) return err({ kind: "tooLarge" });
+  const yBits = Math.max(0, Math.ceil(Math.log2(yBound + 1)));
+  const lnBits = bitLength(BigInt(Math.ceil(Math.abs(log2Of(x)))) + 2n);
   const working = bits + yBits + lnBits + 8;
   const lnX = lnScaled(x, working, bitsFor(context.ceiling));
   if (lnX === undefined) return err({ kind: "unresolved" });
@@ -473,36 +689,42 @@ export function powLogSpace(
     Number(bound >> BigInt(Math.max(0, bitLength(bound) - 53))) *
     2 ** (Math.max(0, bitLength(bound) - 53) - product.bits);
   if (!expFits(magnitude, context.maxBits)) return err({ kind: "tooLarge" });
-  return ok(fixedToBall(expFixed(product, bits)));
+  return ok(fixedToBall(expFixed(product, bits), workingDigits(context)));
 }
 
 /**
  * The kernel's logarithm of a bounded `x` positive as rationals (a
- * precondition) at `bits` fraction bits, `ln(2)` from its memo at
- * `ceilingBits`: `x` is scaled to order one by an exact power of two,
- * converted at `bits`, and the power goes to `lnFixed` as its `scale`, so
- * that a tiny `x` loses nothing to the conversion. `undefined` when the
- * scaled ball reaches within an ulp of zero at those bits, which only a
- * ball wider than its value can produce.
+ * precondition) at `bits` fraction bits, `ln(2)` and `ln(10)` from their
+ * memos at `ceilingBits`: the mantissa is scaled to order one by an exact
+ * power of two and converted at `bits`, that power goes to `lnFixed` as
+ * its `scale`, and the decimal exponent times `ln(10)` is added at the
+ * bits its size calls for, so that a tiny or a huge `x` loses nothing to
+ * the conversion. `undefined` when the scaled ball reaches within an ulp
+ * of zero at those bits, which only a ball wider than its value can
+ * produce.
  */
 export function lnScaled(
   x: Ball,
   bits: number,
   ceilingBits: number,
 ): Fixed | undefined {
-  const scale = scaleOf(x);
-  const scaled: Ball = {
-    mid: scaleByPowerOfTwo(x.mid, -BigInt(scale)),
-    rad: shiftRadius(x.rad, -BigInt(scale)),
+  const { mant, exp } = x.mid;
+  const scale = bitLength(mant.num) - bitLength(mant.den);
+  const radOverTen = multiplyRadius(
+    x.rad,
+    radiusAboveScaled(scaledPowerOfTen(-exp)),
+  );
+  const f = fixedFromRational(scaleByPowerOfTwo(mant, -BigInt(scale)), bits);
+  const withRad: Fixed = {
+    ...f,
+    error: f.error + ulpsOf(shiftRadius(radOverTen, -BigInt(scale)), bits),
   };
-  const f = fixedFromBall(scaled, bits);
-  if (f.value <= f.error) return undefined;
-  return lnFixed(f, bits, ceilingBits, scale);
-}
-
-/** The power of two that scales the positive midpoint of `x` to order one: the bit lengths' difference. */
-function scaleOf(x: Ball): number {
-  return bitLength(x.mid.num) - bitLength(x.mid.den);
+  if (withRad.value <= withRad.error) return undefined;
+  const lnMantissa = lnFixed(withRad, bits, ceilingBits, scale);
+  if (exp === 0n) return lnMantissa;
+  const expBits = bitLength(exp < 0n ? -exp : exp);
+  const lnTen = scaleFixed(ln10Fixed(bits + expBits + 8, ceilingBits), exp);
+  return keepSignificant(addFixed(lnMantissa, lnTen), bits);
 }
 
 /**
@@ -534,7 +756,7 @@ export function expFits(bound: number, maxBits: number): boolean {
  */
 function log2Scale(b: Ball): number {
   const above = magnitudeAbove(b);
-  const mid = Math.abs(log2Of(absolute(b.mid).num) - log2Of(b.mid.den));
+  const mid = Math.abs(log2Of(b));
   const upper =
     above.kind === "unbounded"
       ? mid
@@ -542,11 +764,16 @@ function log2Scale(b: Ball): number {
   return Math.max(upper, mid) * (1 + 1e-9) + 1e-9;
 }
 
-/** `log2` of the positive `n`, through its top bits, to a double's accuracy. */
-function log2Of(n: bigint): number {
-  const length = bitLength(n);
-  const top = Math.max(0, length - 53);
-  return Math.log2(Number(n >> BigInt(top))) + top;
+/**
+ * `log2` of the nonzero midpoint of `b` as a double, from the coarse
+ * bounds, taken on the side away from zero: within `2^-30` of the truth
+ * for a value of order one, so that a base near one is guarded by its
+ * true magnitude.
+ */
+function log2Of(b: Ball): number {
+  const { lower, upper } = log2Bounds(b.mid);
+  const away = upper.int >= 0n ? upper : lower;
+  return Number(away.int) + away.frac;
 }
 
 // ---------------------------------------------------------------------------
@@ -554,12 +781,16 @@ function log2Of(n: bigint): number {
 
 /**
  * Whether `b` certifies `digits` significant digits in `mode` (D7 of the
- * plan): its two ends, `mid - rad` and `mid + rad` as exact rationals,
- * round to the same `digits`-digit value in `mode`. Rounding is monotone,
- * so every value between them rounds to it too, and the shown digits are
- * what rounding the true value would give: correctly rounded, not merely
- * close. An exact ball certifies every count; an unbounded one none; a
- * ball containing zero none, since its ends differ in sign.
+ * plan): its two ends, `mid - rad` and `mid + rad`, round to the same
+ * `digits`-digit value in `mode`. Rounding is monotone, so every value
+ * between them rounds to it too, and the shown digits are what rounding
+ * the true value would give: correctly rounded, not merely close. The
+ * ends are formed exactly where the radius can be formed and aligned with
+ * the midpoint within the hard bound, and otherwise the distance from the
+ * midpoint to the nearest rounding boundary is measured against the
+ * radius (`certifiesByBoundary`), erring only toward certifying less. An
+ * exact ball certifies every count; an unbounded one none; a ball
+ * containing zero none, since its ends differ in sign.
  */
 export function certifies(
   b: Ball,
@@ -568,13 +799,87 @@ export function certifies(
 ): boolean {
   if (b.rad.kind === "unbounded") return false;
   if (b.rad.mant === 0n) return true;
-  const rad = radiusUpper(b.rad);
-  // Rounded as a `Scaled` (4.3), through the boundary that goes in 4.4.
-  return equalsScaled(
-    roundTo(fromRational(subtract(b.mid, rad)), digits, mode),
-    roundTo(fromRational(add(b.mid, rad)), digits, mode),
+  const rad = radiusScaled(b.rad);
+  if (rad !== undefined) {
+    const lower = subtract(b.mid, rad, LIMIT_BITS);
+    const upper = add(b.mid, rad, LIMIT_BITS);
+    if (lower.ok && upper.ok) {
+      return equals(
+        roundTo(lower.value, digits, mode),
+        roundTo(upper.value, digits, mode),
+      );
+    }
+  }
+  return certifiesByBoundary(b, digits, mode);
+}
+
+/**
+ * Certification by the distance to the nearest rounding boundary (D7,
+ * docs/decimal.md), for a radius that cannot be formed or aligned: the
+ * ends round alike exactly when no boundary of the `digits`-digit cells
+ * lies within the radius of the midpoint. In the magnitude's units `u`,
+ * `10^(e - digits + 1)` for the midpoint's decimal exponent `e`, the
+ * boundaries lie at the whole units under a directed mode and at the
+ * half units under a nearest one, and the cells below `10^e` are a tenth
+ * as wide, so the boundary just below that power is taken too; the
+ * distance is exact, an arithmetic within the midpoint's own digits, and
+ * is compared with the radius exactly or by the bounds, a distance the
+ * bounds cannot tell from the radius certifying nothing. A ball
+ * containing zero certifies nothing.
+ */
+function certifiesByBoundary(
+  b: Ball,
+  digits: Precision,
+  mode: RoundingMode,
+): boolean {
+  if (b.rad.kind === "unbounded" || containsZero(b)) return false;
+  const nearest =
+    mode === "halfEven" ||
+    mode === "halfAwayFromZero" ||
+    mode === "halfTowardZero";
+  const mid = absolute(b.mid);
+  const unitExp = decimalExponent(mid) - BigInt(digits) + 1n;
+  // The midpoint in units: its integer part has `digits` digits.
+  const q = atExponent(mid, mid.exp - unitExp);
+  const whole = trunc(q, LIMIT_BITS);
+  if (whole === undefined) return false;
+  const fraction = subtract(q, whole, LIMIT_BITS);
+  if (!fraction.ok) return false;
+  const f = fraction.value;
+  let distance = nearest
+    ? absolute(settledSum(subtract(f, HALF, LIMIT_BITS)))
+    : minimum(f, settledSum(subtract(ONE, f, LIMIT_BITS)));
+  // The boundary just below 10^e, which is 10^(digits - 1) units: at the
+  // power itself under a directed mode, a twentieth of a unit below it
+  // under a nearest one.
+  const power = scaledPowerOfTen(BigInt(digits - 1));
+  let below = settledSum(subtract(q, power, LIMIT_BITS));
+  if (nearest) below = settledSum(add(below, TWENTIETH, LIMIT_BITS));
+  distance = minimum(distance, below);
+  if (isZero(distance)) return false;
+  return (
+    compareWithRadius(atExponent(distance, distance.exp + unitExp), b.rad) === 1
   );
 }
+
+/** `s` with its exponent replaced, the canonical mantissa kept: `s × 10^(exp - s.exp)`; zero stays zero. */
+function atExponent(s: Scaled, exp: bigint): Scaled {
+  return isZero(s) ? ZERO : { mant: s.mant, exp };
+}
+
+/** The lesser of two `Scaled`s. */
+function minimum(a: Scaled, b: Scaled): Scaled {
+  return compare(a, b) <= 0 ? a : b;
+}
+
+/** A sum or difference within the midpoint's own digits, which always aligns. */
+function settledSum(result: Result<Scaled, BallError>): Scaled {
+  if (!result.ok) throw new Error("A sum within a value's digits aligns");
+  return result.value;
+}
+
+const HALF: Scaled = { mant: { num: 5n, den: 1n }, exp: -1n };
+const TWENTIETH: Scaled = { mant: { num: 5n, den: 1n }, exp: -2n };
 
 /**
  * The largest `d <= maxDigits` that `b` certifies in `mode`, or 0 when it
@@ -583,8 +888,8 @@ export function certifies(
  * `1.25` being a two-digit tie; so the counts are tried from the top
  * down, and the first that certifies is the answer. The scan starts where
  * the radius allows: two ends within `2 rad` of each other cannot share a
- * cell narrower than that, which bounds `d` by the exponents of the ends
- * and the radius.
+ * cell narrower than that, which bounds `d` by the exponents of the
+ * midpoint and the radius.
  */
 export function certifiedDigits(
   b: Ball,
@@ -595,17 +900,10 @@ export function certifiedDigits(
     return isExactZero(b) ? maxDigits : 0;
   }
   if (b.rad.mant === 0n) return maxDigits;
-  const rad = radiusUpper(b.rad);
-  const farthest =
-    compare(absolute(subtract(b.mid, rad)), absolute(add(b.mid, rad))) > 0
-      ? subtract(b.mid, rad)
-      : add(b.mid, rad);
-  const atMost =
-    Number(
-      decimalExponent(fromRational(farthest)) -
-        decimalExponent(fromRational(rad)),
-    ) + 2;
-  for (let d = Math.min(maxDigits, atMost); d >= 1; d--) {
+  const radExp = decimalExponentOfLog2(log2OfRadius(b.rad)).exp;
+  const atMost = decimalExponent(b.mid) + 1n - radExp + 2n;
+  const start = atMost < BigInt(maxDigits) ? Number(atMost) : maxDigits;
+  for (let d = start; d >= 1; d--) {
     if (certifies(b, d, mode)) return d;
   }
   return 0;
@@ -618,11 +916,9 @@ function isExactZero(b: Ball): boolean {
   return isZero(b.mid) && isZeroRadius(b.rad);
 }
 
-/** `a / b` for a `b` the caller has checked to be nonzero. */
-function exactQuotient(a: Rational, b: Rational): Rational {
-  const quotient = divide(a, b);
-  if (!quotient.ok) throw new Error("Division by a divisor checked nonzero");
-  return quotient.value;
+/** The exact value of a bounded radius, for the tests and the display. */
+export function radiusValue(rad: Radius): Scaled | undefined {
+  return radiusScaled(rad);
 }
 
 function abs(n: bigint): bigint {

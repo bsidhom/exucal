@@ -5,8 +5,10 @@
 // magnitude follows one rule with `^` (`powRationalBall` of ball.ts): an
 // exact exponent is that rule, integer powers exact, a rational exponent
 // exact when the base is a perfect power, the root of the power when it
-// fits the range limit, and log space otherwise; `pow(x, 0)` is exactly
-// one for any `x`, `pow(0, 0)` included. An inexact exponent is log space
+// fits the range limit, and log space otherwise, the exponent formed as
+// a fraction within the range limit and `tooLarge` when it cannot be
+// (`pow(2, 1e999999999)`); `pow(x, 0)` is exactly one for any `x`,
+// `pow(0, 0)` included. An inexact exponent is log space
 // (`powLogSpace`, `exp(y ln x)`) for a base positive throughout its ball;
 // a base non-positive throughout is a `domain` error (`notPositive`,
 // worded for `pow`), and one straddling zero is `unresolved` at edge zero.
@@ -33,8 +35,8 @@ import {
   type BuiltinError,
 } from "../builtin.ts";
 import type { NumberContext } from "../context.ts";
-import { ONE, ZERO, isZero } from "../rational.ts";
 import { err, ok, type Result } from "../result.ts";
+import { ONE, ZERO, isZero, toRational } from "../scaled.ts";
 
 /** `pow(x, y)` at the context, as the header says. */
 export function powBallOf(
@@ -53,7 +55,9 @@ export function powBallOf(
   }
   if (isExact(y)) {
     if (isZero(y.mid)) return ok(exact(ONE));
-    const power = powRationalBall(x, y.mid, context);
+    const exponent = toRational(y.mid, context.maxBits);
+    if (!exponent.ok) return err({ kind: "tooLarge" });
+    const power = powRationalBall(x, exponent.value, context);
     return power.ok ? power : err(fromBallError(power.error, 0));
   }
   if (isExact(x) && isZero(x.mid)) {

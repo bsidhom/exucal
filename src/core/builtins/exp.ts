@@ -30,11 +30,11 @@ import {
   type BuiltinError,
 } from "../builtin.ts";
 import { eBall } from "../constants.ts";
-import type { NumberContext } from "../context.ts";
+import { workingDigits, type NumberContext } from "../context.ts";
 import { expFixed } from "../fixed-exp.ts";
 import { bitsFor, fixedFromBall, fixedToBall } from "../fixed.ts";
-import { ONE, equals, isZero } from "../rational.ts";
 import { err, ok, type Result } from "../result.ts";
+import { ONE, equals, isZero } from "../scaled.ts";
 
 /** `exp(x)` at the context, as the header says. */
 export function expBall(
@@ -51,7 +51,9 @@ export function expBall(
     return err({ kind: "tooLarge" });
   }
   const bits = bitsFor(context.precision);
-  return ok(fixedToBall(expFixed(fixedFromBall(x, bits), bits)));
+  return ok(
+    fixedToBall(expFixed(fixedFromBall(x, bits), bits), workingDigits(context)),
+  );
 }
 
 export const exp: Builtin = {

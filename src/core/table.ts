@@ -151,17 +151,18 @@ export function unitLookup(
       }
       // Settled once here (D15): a unit built at a higher precision is cut
       // to the working one, and an exact unit is untouched.
-      return ok(
-        settleQuantity(
-          found.kind === "unit"
-            ? found.unit
-            : multiplyQuantities(
-                { magnitude: found.prefix, dimension: DIMENSIONLESS },
-                found.unit,
-              ),
-          context,
-        ),
+      if (found.kind === "unit") return ok(settleQuantity(found.unit, context));
+      const scaled = multiplyQuantities(
+        { magnitude: found.prefix, dimension: DIMENSIONLESS },
+        found.unit,
       );
+      if (!scaled.ok) {
+        // The build multiplies every prefix it resolves before a unit, and
+        // a prefix and a unit within the bound multiply to within it
+        // unless both are at its edge.
+        throw new Error("A prefix and a unit passed the exponent bound");
+      }
+      return ok(settleQuantity(scaled.value, context));
     },
     function: (name, span, call) => {
       const found = resolveFunction(name, table.functions, table.builtins);

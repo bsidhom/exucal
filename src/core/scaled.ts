@@ -1,10 +1,10 @@
 // The midpoint's number type: a fraction times a power of ten, `mant ×
 // 10^exp`, so that a value carries an exponent as a number rather than as
 // digits and `1e999999999` is a value. docs/decimal.md is the design and
-// docs/calculator-plan.md (D13, D16 and tasks 4.1 to 4.3) places it; it
+// docs/calculator-plan.md (D13, D16 and tasks 4.1 to 4.4) places it; it
 // sits between the fraction (rational.ts, which stays the total fraction
-// the dimensions and the `^` exponent need) and the ball (ball.ts, which
-// takes it as the midpoint from 4.4).
+// the dimensions and the `^` exponent need) and the ball (ball.ts, whose
+// midpoint it is).
 //
 // The form is canonical, so that equal values have equal representations
 // and `equals` is structural: the mantissa is in lowest terms with its
@@ -18,8 +18,8 @@
 // factors moved are coprime to what stays. The canonical form of a
 // fraction is at most 2.33 times its size (`5^k` for a denominator `2^k`),
 // a constant factor the range limit's reasoning allows; a kernel result,
-// a dyadic of the working bits, never enters exactly, since 4.4 rounds it
-// onto the decimal grid as it leaves the kernel.
+// a dyadic of the working bits, never enters exactly, since the boundary
+// rounds it onto the decimal grid as it leaves the kernel (fixed.ts).
 //
 // The exponent is bounded, `|exp| <= MAX_EXPONENT`, the study's `10^18`,
 // so that a value can always be written; `scaled` checks it after
@@ -31,10 +31,16 @@
 // signs, by the decimal exponents, and, when those are equal, by an
 // alignment whose shift is then bounded by the mantissas' own digit
 // counts and never by the range limit, so `compare` is total. The binary
-// magnitude a radius needs (`log2Bounds`, for radius.ts in 4.4) is a lower
-// and an upper bound on `log2 |s|` within `2^-30`, from the bit lengths of
-// the mantissa and the exponent times `log2 10` held as a 128-bit
-// fraction, with no call into the kernel.
+// magnitude a radius needs (`log2Bounds`, for radius.ts) is a lower and
+// an upper bound on `log2 |s|` within `2^-30`, from the bit lengths of the
+// mantissa and the exponent times `log2 10` held as a 128-bit fraction,
+// with no call into the kernel; `decimalExponentOfLog2` and
+// `oneDigitAbove` go the other way, from a binary logarithm to a decimal
+// exponent and to a one-digit value above it, for the certification and
+// the display of a radius that cannot be formed. The digit count of an
+// integer (`decimalDigits`) and the powers of ten (`powerOfTen`, memoized)
+// are here for the boundary too, since `toString` is an order slower at
+// the ceiling's sizes.
 //
 // The arithmetic (4.2) is the fraction's on the mantissas with the
 // exponents combined and the result renormalized. A sum aligns the
@@ -80,7 +86,6 @@ import {
   multiply as multiplyFractions,
   negate as negateFraction,
   pow as powFraction,
-  rational,
   sign as signOf,
   subtract as subtractFractions,
   trunc as truncFraction,
@@ -342,22 +347,17 @@ export function roundTo(
 ): Scaled {
   checkPrecision(digits);
   if (isZero(s)) return ZERO;
-  return normalize(roundFraction(s.mant, digits, mode), s.exp);
-}
-
-/** The non-zero fraction `r` rounded to `digits` significant digits in `mode`. */
-function roundFraction(
-  r: Rational,
-  digits: Precision,
-  mode: RoundingMode,
-): Rational {
-  const shift = digits - 1 - decimalExponentOfFraction(r);
-  if (shift >= 0) {
-    const scale = 10n ** BigInt(shift);
-    return rational(divideRounded(r.num * scale, r.den, mode), scale);
-  }
-  const scale = 10n ** BigInt(-shift);
-  return rational(divideRounded(r.num, r.den * scale, mode) * scale);
+  const { num, den } = s.mant;
+  const shift = digits - 1 - decimalExponentOfFraction(s.mant);
+  // The mantissa at `digits` digits is `num × 10^shift / den` rounded, an
+  // integer; it goes to the canonical form with the shift taken off the
+  // exponent, and not through `rational`, whose lowest terms would cost a
+  // gcd against the power of ten that the form moves out anyway.
+  const rounded =
+    shift >= 0
+      ? divideRounded(num * powerOfTen(BigInt(shift)), den, mode)
+      : divideRounded(num, den * powerOfTen(BigInt(-shift)), mode);
+  return normalize({ num: rounded, den: 1n }, s.exp - BigInt(shift));
 }
 
 /**
@@ -546,6 +546,44 @@ export function log2Bounds(s: Scaled): { lower: Log2; upper: Log2 } {
   };
 }
 
+/**
+ * The decimal exponent of a value whose binary logarithm is `log2`: the
+ * integer `e` with `10^e <= v < 10^(e+1)`, and the fraction `log10 v - e`
+ * in `[0, 1)`, through the 128-bit `log2 10`; exact in the integer part to
+ * the accuracy of `log2` itself, so a `log2` from `log2Bounds` gives an
+ * exponent that may be one too high or too low where the fraction is
+ * within `2^-30` of an integer, which a caller that must know rounds up.
+ */
+export function decimalExponentOfLog2(log2: Log2): {
+  exp: bigint;
+  frac: number;
+} {
+  // (int + frac) / log2(10) = (int × 2^128 + frac × 2^128) / LOG2_10_SCALED.
+  const numerator =
+    (log2.int << 128n) + BigInt(Math.floor(log2.frac * 2 ** 128));
+  let exp = numerator / LOG2_10_SCALED;
+  let rest = numerator - exp * LOG2_10_SCALED;
+  if (rest < 0n) {
+    exp -= 1n;
+    rest += LOG2_10_SCALED;
+  }
+  return { exp, frac: Number(rest) / Number(LOG2_10_SCALED) };
+}
+
+/**
+ * A `Scaled` of one significant digit at or above the value whose binary
+ * logarithm is at most `log2`: `d × 10^e` with `d` the ceiling of
+ * `10^frac` plus one for the accuracy of the fraction, carried into the
+ * next power of ten when it reaches ten. What a radius is written as.
+ */
+export function oneDigitAbove(log2: Log2): Scaled {
+  const { exp, frac } = decimalExponentOfLog2(log2);
+  const digit = BigInt(Math.ceil(10 ** frac)) + 1n;
+  return digit >= 10n
+    ? normalize({ num: 1n, den: 1n }, exp + 1n)
+    : normalize({ num: digit, den: 1n }, exp);
+}
+
 /** `int + frac` with `frac` brought into `[0, 1)`. */
 function normalizedLog2(int: bigint, frac: number): Log2 {
   const carry = Math.floor(frac);
@@ -641,9 +679,35 @@ function trailingZeros(n: bigint): bigint {
   return BigInt(bitLength(n & -n) - 1);
 }
 
-/** The number of decimal digits in the non-negative `n` (1 for zero). */
-function decimalDigits(n: bigint): number {
-  return n.toString().length;
+/**
+ * The number of decimal digits in the non-negative `n` (1 for zero), for
+ * the boundary's use too: from
+ * the bit length, which puts it within one, and a comparison with the
+ * power of ten that decides, rather than through `toString`, which is
+ * slower by an order at the ceiling's sizes.
+ */
+export function decimalDigits(n: bigint): number {
+  if (n === 0n) return 1;
+  const bits = bitLength(n);
+  // 2^(bits - 1) <= n < 2^bits: the digits of the lower bound, or one more.
+  const low = Math.floor((bits - 1) * LOG10_2) + 1;
+  return n >= powerOfTen(BigInt(low)) ? low + 1 : low;
+}
+
+/** `log10 2`, for the digit count of a bit length. */
+const LOG10_2 = Math.log10(2);
+
+/** The powers of ten the sizes here call for, memoized: `10^k` for `k >= 0`. */
+const POWERS_OF_TEN = new Map<bigint, bigint>();
+
+/** `10^k` for `k >= 0`, from the memo, which is emptied when it grows past a few hundred entries. */
+export function powerOfTen(k: bigint): bigint {
+  const held = POWERS_OF_TEN.get(k);
+  if (held !== undefined) return held;
+  const power = 10n ** k;
+  if (POWERS_OF_TEN.size >= 256) POWERS_OF_TEN.clear();
+  POWERS_OF_TEN.set(k, power);
+  return power;
 }
 
 function abs(n: bigint): bigint {

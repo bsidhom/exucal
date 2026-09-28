@@ -38,9 +38,11 @@ in` at twelve.
   to that ceiling; changing the digits never does.
 - **Most bits**: the largest number the app will form, as the bits of a
   numerator or denominator, 65,536 by default (about 19,700 digits). It is
-  what makes `10^(10^9)` an error rather than a hang, and it also bounds
-  the most digits: lowering it lowers that setting, and the digits, when
-  they no longer fit.
+  what makes `3^1000000000` an error rather than a hang (a power of ten
+  is free: `10^1000000000` is `1e+1000000000`, and only its exponent,
+  bounded at `10^18`, is counted), and it also bounds the most digits:
+  lowering it lowers that setting, and the digits, when they no longer
+  fit.
 
 Both limits are cost limits, and the right values depend on the device, so
 the panel's "Recommend limits" button measures what this one does within

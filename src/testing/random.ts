@@ -32,6 +32,7 @@
 // nothing against the arithmetic every draw feeds.
 
 import { exact, type Ball } from "../core/ball.ts";
+import { fromRational } from "../core/scaled.ts";
 import { radiusAbove } from "../core/radius.ts";
 import {
   ONE,
@@ -179,8 +180,11 @@ export function randomRational(
  */
 export function randomBall(key: Key, bits: number, exponent: number): Ball {
   const mid = randomRational(foldIn(key, 0), bits, exponent);
-  if (uniform(foldIn(key, 1)) < 0.25) return exact(mid);
+  if (uniform(foldIn(key, 1)) < 0.25) return exact(fromRational(mid));
   const scale = isZero(mid) ? ONE : absolute(mid);
   const k = BigInt(between(foldIn(key, 2), 1, 15));
-  return { mid, rad: radiusAbove(multiply(scale, rational(1n, 10n ** k))) };
+  return {
+    mid: fromRational(mid),
+    rad: radiusAbove(multiply(scale, rational(1n, 10n ** k))),
+  };
 }

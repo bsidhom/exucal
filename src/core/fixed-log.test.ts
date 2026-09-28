@@ -23,6 +23,7 @@ import { radiusUpper } from "./radius.ts";
 import {
   absolute,
   add,
+  bitLength,
   compare,
   multiply,
   rational,
@@ -31,6 +32,7 @@ import {
   toFraction,
   type Rational,
 } from "./rational.ts";
+import { digitsFor } from "./rounding.ts";
 import { parseFraction } from "../testing/fraction.ts";
 import {
   foldIn,
@@ -39,6 +41,7 @@ import {
   randomRational,
   split,
 } from "../testing/random.ts";
+import { fraction } from "../testing/scaled.ts";
 
 function dec(text: string): Rational {
   const result = parseFraction(text);
@@ -58,7 +61,7 @@ function assertReference(
   tolerance: Rational,
   label: string,
 ) {
-  const distance = absolute(subtract(ball.mid, reference));
+  const distance = absolute(subtract(fraction(ball.mid), reference));
   assert.ok(
     compare(distance, tolerance) <= 0,
     `${label}: midpoint off by ${toFraction(distance)}`,
@@ -71,6 +74,18 @@ function contains(f: Fixed, value: Rational): boolean {
   const distance = absolute(subtract(value, toRational(f)));
   const bound = multiply(rational(f.error), rational(1n, 1n << BigInt(f.bits)));
   return compare(distance, bound) <= 0;
+}
+
+/**
+ * The ball of `f` at two digits more than its significant bits are worth,
+ * so that the rounding onto the decimal grid, half a unit in the last
+ * digit added to the radius, stays under a tenth of an ulp and the
+ * tolerances below measure the kernel alone; a built-in takes a result
+ * out at `workingDigits` instead.
+ */
+function toBall(f: Fixed): Ball {
+  const magnitude = f.value < 0n ? -f.value : f.value;
+  return fixedToBall(f, digitsFor(Math.max(1, bitLength(magnitude))) + 2);
 }
 
 // Reference digits from Python's decimal module (`Decimal(x).ln()` at a
@@ -140,10 +155,10 @@ test("the memos of ln(2) and ln(10) hold the ceiling's value plus the margin, an
     [b, LN10],
   ] as const) {
     // Within the radius, plus the reference's own truncation at 100 digits.
-    const ball = fixedToBall(f);
+    const ball = toBall(f);
     assert.ok(
       compare(
-        absolute(subtract(ball.mid, reference)),
+        absolute(subtract(fraction(ball.mid), reference)),
         add(radiusUpper(ball.rad), tenTo(100)),
       ) <= 0,
     );
@@ -158,13 +173,13 @@ test("the memos of ln(2) and ln(10) hold the ceiling's value plus the margin, an
 
 test("reference digits: ln(2) and ln(10) to 100 digits, and ln at several arguments", () => {
   assertReference(
-    fixedToBall(ln2Series(bitsFor(100))),
+    toBall(ln2Series(bitsFor(100))),
     LN2,
     tenTo(100),
     "ln(2) at 100 digits",
   );
   assertReference(
-    fixedToBall(ln10Series(bitsFor(100))),
+    toBall(ln10Series(bitsFor(100))),
     LN10,
     tenTo(100),
     "ln(10) at 100 digits",
@@ -173,7 +188,7 @@ test("reference digits: ln(2) and ln(10) to 100 digits, and ln at several argume
   assert.equal(ln10Series(bitsFor(100)).error, 2n);
   const ceiling = bitsFor(200);
   for (const [x, scale, digits, toleranceDigits] of REFERENCES) {
-    const at = fixedToBall(
+    const at = toBall(
       lnFixed(
         fixedFromRational(dec(x), bitsFor(100)),
         bitsFor(100),
@@ -192,7 +207,7 @@ test("reference digits: ln(2) and ln(10) to 100 digits, and ln at several argume
   // 2^-66 × 1.4757..., and the reference is from Python's decimal module.
   const value = dec("2e-20");
   const scaled = scaleByPowerOfTwo(value, 66n);
-  const small = fixedToBall(
+  const small = toBall(
     lnFixed(fixedFromRational(scaled, bitsFor(60)), bitsFor(60), ceiling, -66),
   );
   assertReference(
@@ -268,13 +283,13 @@ test("the result keeps the argument's significant bits for a result of any magni
   assert.ok(near.bits > bits);
   assert.ok(near.value > 0n);
   assert.ok(contains(near, dec("9.0949470177292824e-13")) || true);
-  const ball = fixedToBall(near);
+  const ball = toBall(near);
   assert.ok(compare(radiusUpper(ball.rad), tenTo(30)) < 0);
   // An exact power of two is k ln(2) from the memo, within a few ulps.
   const eight = lnFixed(fixedFromRational(rational(8n), bits), bits, ceiling);
   assert.ok(eight.error <= 8n);
   assertReference(
-    fixedToBall(eight),
+    toBall(eight),
     dec("2.0794415416798359282516963643745297042265"),
     tenTo(18),
     "ln(8)",

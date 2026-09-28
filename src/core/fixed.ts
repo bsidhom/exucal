@@ -40,20 +40,40 @@
 // `rebaseFixed`, `scaleFixed`, `divideFixedByInteger`, `exponentOf` and
 // `keepSignificant`, the last being D9's rule for a result's `bits`.
 //
-// The kernel is entered from a rational or a ball (`fixedFromRational`,
-// `fixedFromBall`, both rounding to nearest with the rounding counted) and
-// left through `fixedToBall`, which hands back the dyadic `value × 2^-bits`
-// itself as the midpoint and `error × 2^-bits` rounded up as the radius.
-// Nothing here rounds in a rounding mode (D15): the mode is the display's,
-// applied once to a certified value. A violated precondition (an unbounded
+// The kernel is entered from a `Scaled` or a ball (`fixedFromScaled`,
+// `fixedFromBall`, both rounding to nearest with the rounding counted, the
+// power of ten formed within the hard bound, which the callers see to) and
+// left through `fixedToBall` (docs/decimal.md, "The kernel's boundary"),
+// which rounds the dyadic `value × 2^-bits` to nearest at the working
+// digits it is given (`fixedToScaled`: a multiplication by a memoized power
+// of ten and a shift, the decimal exponent estimated from the bit length
+// and checked on the digits produced) and hands that back as the midpoint
+// with `error × 2^-bits` rounded up plus half a unit in the last digit as
+// the radius. Nothing here rounds in a rounding mode (D15): the mode is
+// the display's, applied once to a certified value. A violated precondition (an unbounded
 // ball, a divisor whose interval contains zero, a negative `bits`) is a
 // programming error and throws `RangeError`, as `rational` does; the ball
 // layer decides what such values mean before calling in.
 
 import type { Ball } from "./ball.ts";
-import { isUnbounded, radiusAbove, type Radius } from "./radius.ts";
-import { ZERO, bitLength, type Rational } from "./rational.ts";
-import { divideRounded, type Precision } from "./rounding.ts";
+import {
+  addRadius,
+  isUnbounded,
+  radiusAbove,
+  radiusAboveScaled,
+  type Radius,
+} from "./radius.ts";
+import { LIMIT_BITS, ZERO, bitLength, type Rational } from "./rational.ts";
+import { checkPrecision, divideRounded, type Precision } from "./rounding.ts";
+import {
+  ZERO as ZERO_SCALED,
+  decimalDigits,
+  decimalExponentOfLog2,
+  powerOfTen,
+  scaled,
+  toRational as scaledToRational,
+  type Scaled,
+} from "./scaled.ts";
 
 /**
  * A fixed-point value: `value × 2^-bits`, within `error × 2^-bits` of the
@@ -100,7 +120,22 @@ export function fixedFromRational(r: Rational, bits: number): Fixed {
 }
 
 /**
- * `b` at `bits` fraction bits: the midpoint as `fixedFromRational`, with
+ * `s` at `bits` fraction bits, rounded to nearest, as `fixedFromRational`
+ * converts the fraction it denotes. A value whose power of ten cannot be
+ * formed within the hard bound is a precondition failure: a routine that
+ * takes the value itself bounds its argument first (docs/decimal.md, "The
+ * kernel's boundary").
+ */
+export function fixedFromScaled(s: Scaled, bits: number): Fixed {
+  const r = scaledToRational(s, LIMIT_BITS);
+  if (!r.ok) {
+    throw new RangeError("A fixed-point value must fit the hard bound");
+  }
+  return fixedFromRational(r.value, bits);
+}
+
+/**
+ * `b` at `bits` fraction bits: the midpoint as `fixedFromScaled`, with
  * the radius, in ulps rounded up, added to the error. An unbounded radius
  * is a precondition failure: the caller returns unbounded without
  * computing.
@@ -109,20 +144,80 @@ export function fixedFromBall(b: Ball, bits: number): Fixed {
   if (isUnbounded(b.rad)) {
     throw new RangeError("An unbounded ball has no fixed-point value");
   }
-  const mid = fixedFromRational(b.mid, bits);
+  const mid = fixedFromScaled(b.mid, bits);
   return { ...mid, error: mid.error + ulpsAbove(b.rad, bits) };
 }
 
 /**
- * The ball `f` stands for: the midpoint is the dyadic `value × 2^-bits`
- * itself, in lowest terms, and the radius is `error × 2^-bits` rounded up
- * to a radius. Nothing is rounded in a mode here.
+ * The value of `f`, `value × 2^-bits`, rounded to nearest at `digits`
+ * significant decimal digits: the way out of the kernel onto the decimal
+ * grid of the working precision (docs/decimal.md), a multiplication by a
+ * power of ten and a shift, with nothing rounded in a mode. The decimal
+ * exponent is found from the value's bit length and checked on the digits
+ * produced, since the estimate can be one off next to a power of ten.
  */
-export function fixedToBall(f: Fixed): Ball {
-  return {
-    mid: dyadic(f.value, f.bits),
-    rad: radiusAbove(dyadic(f.error, f.bits)),
-  };
+export function fixedToScaled(f: Fixed, digits: Precision): Scaled {
+  return roundOntoGrid(f, digits).value;
+}
+
+/**
+ * `fixedToScaled` with whether the rounding changed the value: a dyadic
+ * already on the grid (`1.5`, `7/4`) comes back exact.
+ */
+function roundOntoGrid(
+  f: Fixed,
+  digits: Precision,
+): { value: Scaled; exact: boolean } {
+  checkPrecision(digits);
+  if (f.value === 0n) return { value: ZERO_SCALED, exact: true };
+  const magnitude = abs(f.value);
+  const log2 = bitLength(magnitude) - 1 - f.bits;
+  let exp = decimalExponentOfLog2({ int: BigInt(log2), frac: 0 }).exp;
+  for (;;) {
+    // value × 10^(digits - 1 - exp) / 2^bits, rounded to nearest.
+    const shift = BigInt(digits - 1) - exp;
+    const scaled10 = shift >= 0n ? magnitude * powerOfTen(shift) : magnitude;
+    const den =
+      shift >= 0n
+        ? 1n << BigInt(f.bits)
+        : (1n << BigInt(f.bits)) * powerOfTen(-shift);
+    const mantissa = divideRounded(scaled10, den, "halfEven");
+    const length = decimalDigits(mantissa);
+    if (length > digits) {
+      exp += 1n;
+      continue;
+    }
+    if (length < digits) {
+      exp -= 1n;
+      continue;
+    }
+    const result = scaled(
+      { num: f.value < 0n ? -mantissa : mantissa, den: 1n },
+      exp - BigInt(digits - 1),
+    );
+    if (!result.ok) throw new RangeError("A kernel value is within the bound");
+    return { value: result.value, exact: scaled10 % den === 0n };
+  }
+}
+
+/**
+ * The ball `f` stands for, its midpoint rounded to `digits` significant
+ * decimal digits as `fixedToScaled` rounds it, and its radius the kernel's
+ * `error × 2^-bits` rounded up to a radius plus, when the rounding moved
+ * the value, half a unit in the last of those digits, the rounding's
+ * bound; so a kernel value of no error that lies on the grid is an exact
+ * ball. Nothing is rounded in a mode here.
+ */
+export function fixedToBall(f: Fixed, digits: Precision): Ball {
+  const { value: mid, exact } = roundOntoGrid(f, digits);
+  const error = radiusAbove(dyadic(f.error, f.bits));
+  if (exact) return { mid, rad: error };
+  const half = scaled(
+    { num: 5n, den: 1n },
+    mid.exp + BigInt(decimalDigits(abs(mid.mant.num)) - 1) - BigInt(digits),
+  );
+  if (!half.ok) throw new RangeError("A kernel value is within the bound");
+  return { mid, rad: addRadius(error, radiusAboveScaled(half.value)) };
 }
 
 /** The exact value of `f`, `value × 2^-bits`, as a rational. */

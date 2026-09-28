@@ -346,7 +346,7 @@ function convertParsed(
     const name = first.node.kind === "unit" ? first.node.name : undefined;
     const named = name === undefined ? undefined : table.unitLists.get(name);
     if (named !== undefined) {
-      return convertToNamedList(table, haveQuantity.value, named);
+      return convertToNamedList(table, haveQuantity.value, named, working);
     }
     const fn = name === undefined ? undefined : table.functions.get(name);
     if (fn !== undefined) {
@@ -380,6 +380,7 @@ function convertParsed(
     haveQuantity.value,
     units.map((unit) => unit.quantity),
     table.primitives,
+    working,
   );
   if (!terms.ok) {
     return err({
@@ -405,11 +406,13 @@ function convertToNamedList(
   table: UnitTable,
   have: Quantity,
   units: readonly ListedUnit[],
+  working: NumberContext,
 ): Result<Conversion, ConversionError> {
   const terms = convertToList(
     have,
     units.map((unit) => unit.quantity),
     table.primitives,
+    working,
   );
   if (!terms.ok) {
     if (terms.error.kind === "nonconformingUnit")

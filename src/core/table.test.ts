@@ -7,17 +7,17 @@ import {
 } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact, multiplyBalls } from "./ball.ts";
-import { plainNumbers, type Builtin } from "./builtin.ts";
+import { exact, multiplyBalls, type Ball } from "./ball.ts";
+import { plainNumbers, type Builtin, type BuiltinError } from "./builtin.ts";
 import { convert } from "./convert.ts";
 import type { Dimension, Primitives } from "./dimension.ts";
 import { evaluate } from "./evaluate.ts";
 import { parseExpr, type Expr } from "./expr.ts";
 import type { Quantity } from "./quantity.ts";
-import { rational, type Rational } from "./rational.ts";
-import { parseFraction } from "../testing/fraction.ts";
+import { rational } from "./rational.ts";
 import { DEFAULT_PRECISION } from "./rounding.ts";
-import { ok, type Result } from "./result.ts";
+import { err, type Result } from "./result.ts";
+import { dec, fr } from "../testing/scaled.ts";
 import {
   unitLookup,
   type LookupError,
@@ -40,15 +40,8 @@ function dim(exponents: Record<string, number>): Dimension {
   );
 }
 
-/** The rational the decimal `text` denotes, exactly. */
-function decimal(text: string): Rational {
-  const result = parseFraction(text);
-  assert.ok(result.ok, `${JSON.stringify(text)} is not a number`);
-  return result.value;
-}
-
 function quantity(text: string, exponents: Record<string, number>): Quantity {
-  return { magnitude: exact(decimal(text)), dimension: dim(exponents) };
+  return { magnitude: exact(dec(text)), dimension: dim(exponents) };
 }
 
 function parsed(text: string): Expr {
@@ -76,9 +69,9 @@ const TABLE: UnitTable = {
     ["radian", "kind"],
   ]) satisfies Primitives,
   prefixes: new Map([
-    ["k", exact(decimal("1000"))],
-    ["m", exact(decimal("0.001"))],
-    ["c", exact(decimal("0.01"))],
+    ["k", exact(dec("1000"))],
+    ["m", exact(dec("0.001"))],
+    ["c", exact(dec("0.01"))],
   ]),
   units: new Map([
     ["m", quantity("1", { m: 1 })],
@@ -88,6 +81,8 @@ const TABLE: UnitTable = {
     ["min", quantity("60", { s: 1 })],
     ["in", quantity("0.0254", { m: 1 })],
     ["h", quantity("3600", { s: 1 })],
+    // A unit whose value is an exponent: the midpoint carries it as one.
+    ["huge", quantity("1e999999999", { m: 1 })],
   ]),
   unitLists: new Map(),
   functions: new Map([["tempC", TEMP_C]]),
@@ -134,6 +129,25 @@ test("an exact unit name wins over a split", () => {
   assertQuantity(found(lookup.unit("min", SPAN)), quantity("60", { s: 1 }));
 });
 
+test("a unit of any exponent looks up, and a prefix scales it by adding to the exponent", () => {
+  // The prefix times the unit is a product of balls, exact on exact
+  // operands, whose exponents add; the value is a value, not a failure.
+  const huge = found(lookup.unit("huge", SPAN));
+  assertQuantity(huge, quantity("1e999999999", { m: 1 }));
+  assert.deepEqual(huge.magnitude.mid, {
+    mant: { num: 1n, den: 1n },
+    exp: 999999999n,
+  });
+  assertQuantity(
+    found(lookup.unit("khuge", SPAN)),
+    quantity("1e1000000002", { m: 1 }),
+  );
+  assertQuantity(
+    found(lookup.unit("mhuge", SPAN)),
+    quantity("1e999999996", { m: 1 }),
+  );
+});
+
 test("an unknown name fails with its span", () => {
   for (const name of ["x", "kx", "xm", "kkm", "k", ""]) {
     assert.deepEqual(lookup.unit(name, SPAN), {
@@ -152,7 +166,7 @@ test("the lookup serves the evaluator", () => {
   );
   assert.ok(result.ok, inspect(result));
   assertQuantity(result.value, {
-    magnitude: exact(rational(5n, 6n)),
+    magnitude: exact(fr(5n, 6n)),
     dimension: dim({ m: 1, s: -1 }),
   });
 });
@@ -177,7 +191,7 @@ test("the table's primitives serve the converter", () => {
   assert.ok(have.ok && want.ok);
   const result = convert(have.value, want.value, TABLE.primitives);
   assert.ok(result.ok, inspect(result));
-  assert.deepEqual(result.value, exact(rational(60000n)));
+  assert.deepEqual(result.value, exact(fr(60000n)));
 
   const angle = evaluate(
     parsed("radian / s"),
@@ -199,12 +213,18 @@ test("a function resolves by its name, for a call", () => {
   });
 });
 
+/** `x` doubled, exactly; the product of balls fails only at the exponent bound. */
+function twice(x: Ball): Result<Ball, BuiltinError> {
+  const product = multiplyBalls(exact(fr(2n)), x);
+  return product.ok ? product : err({ kind: "tooLarge" });
+}
+
 /** A built-in as a test injects one: a plain number doubled, exactly. */
 const TWICE: Builtin = {
   name: "twice",
   arity: { min: 1, max: 1 },
   dimensions: plainNumbers(1),
-  apply: ([x]) => ok(multiplyBalls(exact(rational(2n)), x!)),
+  apply: ([x]) => twice(x!),
 };
 
 /** The table with `twice` as a built-in, and a defined function of the same name. */

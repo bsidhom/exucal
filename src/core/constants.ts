@@ -56,7 +56,7 @@
 // `piMemoBits` and `eMemoBits` expose their precision for the tests alone.
 
 import type { Ball } from "./ball.ts";
-import type { NumberContext } from "./context.ts";
+import { workingDigits, type NumberContext } from "./context.ts";
 import {
   bitsFor,
   fixedFromRational,
@@ -211,6 +211,7 @@ export function eFixed(bits: number, ceilingBits: number): Fixed {
 export function piBall(context: NumberContext): Ball {
   return fixedToBall(
     piFixed(bitsFor(context.precision), bitsFor(context.ceiling)),
+    workingDigits(context),
   );
 }
 
@@ -218,6 +219,7 @@ export function piBall(context: NumberContext): Ball {
 export function eBall(context: NumberContext): Ball {
   return fixedToBall(
     eFixed(bitsFor(context.precision), bitsFor(context.ceiling)),
+    workingDigits(context),
   );
 }
 

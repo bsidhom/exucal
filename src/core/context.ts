@@ -26,11 +26,12 @@
 // routine that needs more headroom than the working precision takes it
 // inside the kernel and never moves the ceiling.
 //
-// The two limits are on two axes (D16). The range limit, `maxBits`, bounds
-// the size of an exact value and so the magnitude of anything; it is what
-// turns `10^(10^9)` into a clean `tooLarge` rather than a hang, and it is
-// the user's to set, between one bit and the hard bound `LIMIT_BITS` that
-// the parser applies. The precision limit is the cap on the digits
+// The two limits are on two axes (D16, restated by stage 4). The range
+// limit, `maxBits`, bounds the size of an exact value's mantissa and the
+// alignment of a sum, the magnitude being the exponent's (scaled.ts, whose
+// bound is `10^18`); it is what turns `3^1000000000` and `1e999999999 + 1`
+// into a clean `tooLarge` rather than a hang, and it is the user's to set,
+// between one bit and the hard bound `LIMIT_BITS` that the parser applies. The precision limit is the cap on the digits
 // setting, from which `ceilingFor` derives the top of the retry schedule:
 // four times the cap plus the guard, so that the largest request has two
 // doublings of room for cancellation above it. The cap's own hard bound,
@@ -50,6 +51,7 @@ import { bitsFor } from "./fixed.ts";
 import { LIMIT_BITS } from "./rational.ts";
 import {
   ROUNDING_MODES,
+  digitsFor,
   type Precision,
   type RoundingMode,
 } from "./rounding.ts";
@@ -63,6 +65,16 @@ export type NumberContext = {
   /** The top of the retry schedule: the most digits any pass computes at, at or above `precision`. */
   readonly ceiling: Precision;
 };
+
+/**
+ * The decimal digits of the working grid at `context`'s precision: the
+ * digits its kernel bits are worth, `digitsFor(bitsFor(precision))`, to
+ * which a kernel result is rounded as it leaves the kernel and an inexact
+ * midpoint is settled in exact mode (D15 as restated in 4.0).
+ */
+export function workingDigits(context: NumberContext): Precision {
+  return digitsFor(bitsFor(context.precision));
+}
 
 /** The digits shown by default: GNU units' eight. */
 export const DEFAULT_DIGITS: Precision = 8;

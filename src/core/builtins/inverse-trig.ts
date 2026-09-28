@@ -39,6 +39,18 @@
 // kernel before the ball is formed. A tiny argument of `atan`, or a tiny
 // ratio, is converted at the working bits plus its negative binary
 // exponent, as `sin` converts one, so `atan(1e-50)` keeps its digits.
+//
+// The two ends of the exponent (4.4) are answered before the kernel is
+// entered. An argument of `atan` or `asin` below `2^-maxBits` throughout
+// is itself within its cube (`tinyOdd` of builtin.ts); one of `atan` at
+// or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, the
+// saturation docs/decimal.md lists; and a ratio that reaches `2^maxBits`
+// is `tooLarge` at the kernel's door (`atanKernel`). A ratio below
+// `2^-maxBits` inside `asin`, `acos` or `atan2` is converted at the range
+// limit's bits and is zero within an ulp there, so its arctangent is a
+// ball around zero that certifies nothing: correct, and the one case the
+// expansion at zero does not reach, since the kernel's sum with `pi` is
+// formed before the ball is.
 
 import {
   addBalls,
@@ -52,14 +64,20 @@ import {
 } from "../ball.ts";
 import {
   conformingToAngle,
+  extraBits,
+  fromBallError,
+  isBeyond,
+  isHuge,
+  isTiny,
   numberToAngle,
   sideOfZero,
+  tinyOdd,
   unboundedOf,
   type Builtin,
   type BuiltinError,
 } from "../builtin.ts";
 import { piFixed } from "../constants.ts";
-import type { NumberContext } from "../context.ts";
+import { workingDigits, type NumberContext } from "../context.ts";
 import { atanFixed } from "../fixed-trig.ts";
 import {
   addFixed,
@@ -72,17 +90,9 @@ import {
   subtractFixed,
   type Fixed,
 } from "../fixed.ts";
-import {
-  ONE,
-  ZERO,
-  absolute,
-  bitLength,
-  equals,
-  isZero,
-  negate,
-  sign,
-} from "../rational.ts";
+import { addRadius, powerOfTwoRadius } from "../radius.ts";
 import { err, ok, type Result } from "../result.ts";
+import { ONE, ZERO, equals, isZero, negate, sign } from "../scaled.ts";
 
 const MINUS_ONE = negate(ONE);
 
@@ -94,7 +104,19 @@ export function atanBall(
   if (x.rad.kind === "unbounded")
     return unboundedOf(atanBall(exact(x.mid), context));
   if (isExact(x) && isZero(x.mid)) return ok(exact(ZERO));
-  return ok(fixedToBall(atanKernel(x, context)));
+  if (isTiny(x, context)) return ok(tinyOdd(x));
+  const bits = bitsFor(context.precision);
+  if (isBeyond(x, bits)) {
+    // atan(x) = ±pi/2 - atan(1/x), and |atan(1/x)| <= 1/|x| <= 2^-bits.
+    const half = fixedToBall(halfPi(context), workingDigits(context));
+    return ok({
+      mid: sign(x.mid) < 0 ? negate(half.mid) : half.mid,
+      rad: addRadius(half.rad, powerOfTwoRadius(-BigInt(bits))),
+    });
+  }
+  const t = atanKernel(x, context);
+  if (!t.ok) return t;
+  return ok(fixedToBall(t.value, workingDigits(context)));
 }
 
 /** `asin(x)` at the context, as the header says. */
@@ -104,16 +126,23 @@ export function asinBall(
 ): Result<Ball, BuiltinError> {
   if (x.rad.kind === "unbounded")
     return unboundedOf(asinBall(exact(x.mid), context));
+  const digits = workingDigits(context);
   if (isExact(x)) {
     if (isZero(x.mid)) return ok(exact(ZERO));
-    if (equals(x.mid, ONE)) return ok(fixedToBall(halfPi(context)));
+    if (equals(x.mid, ONE)) return ok(fixedToBall(halfPi(context), digits));
     if (equals(x.mid, MINUS_ONE))
-      return ok(fixedToBall(negateFixed(halfPi(context))));
+      return ok(fixedToBall(negateFixed(halfPi(context)), digits));
   }
+  if (isTiny(x, context)) return ok(tinyOdd(x));
   const root = complementRoot(x, context);
   if (!root.ok) return root;
-  const z = quotient(x, addBalls(exact(ONE), root.value));
-  return ok(fixedToBall(scaleFixed(atanKernel(z, context), 2n)));
+  const denominator = addBalls(exact(ONE), root.value, context);
+  if (!denominator.ok) return err(fromBallError(denominator.error, 0));
+  const z = quotient(x, denominator.value, 0);
+  if (!z.ok) return z;
+  const t = atanKernel(z.value, context);
+  if (!t.ok) return t;
+  return ok(fixedToBall(scaleFixed(t.value, 2n), digits));
 }
 
 /** `acos(x)` at the context, as the header says. */
@@ -123,21 +152,35 @@ export function acosBall(
 ): Result<Ball, BuiltinError> {
   if (x.rad.kind === "unbounded")
     return unboundedOf(acosBall(exact(x.mid), context));
+  const digits = workingDigits(context);
   if (isExact(x)) {
     if (equals(x.mid, ONE)) return ok(exact(ZERO));
-    if (equals(x.mid, MINUS_ONE)) return ok(fixedToBall(pi(context)));
+    if (equals(x.mid, MINUS_ONE)) return ok(fixedToBall(pi(context), digits));
   }
   const root = complementRoot(x, context);
   if (!root.ok) return root;
   const bits = bitsFor(context.precision);
   if (sign(x.mid) >= 0) {
-    const z = quotient(root.value, addBalls(exact(ONE), x));
-    return ok(fixedToBall(scaleFixed(atanKernel(z, context), 2n)));
+    const denominator = addBalls(exact(ONE), x, context);
+    if (!denominator.ok) return err(fromBallError(denominator.error, 0));
+    const z = quotient(root.value, denominator.value, 0);
+    if (!z.ok) return z;
+    const t = atanKernel(z.value, context);
+    if (!t.ok) return t;
+    return ok(fixedToBall(scaleFixed(t.value, 2n), digits));
   }
-  const z = quotient(root.value, subtractBalls(exact(ONE), x));
-  const twice = scaleFixed(atanKernel(z, context), 2n);
+  const denominator = subtractBalls(exact(ONE), x, context);
+  if (!denominator.ok) return err(fromBallError(denominator.error, 0));
+  const z = quotient(root.value, denominator.value, 0);
+  if (!z.ok) return z;
+  const t = atanKernel(z.value, context);
+  if (!t.ok) return t;
+  const twice = scaleFixed(t.value, 2n);
   return ok(
-    fixedToBall(keepSignificant(subtractFixed(pi(context), twice), bits)),
+    fixedToBall(
+      keepSignificant(subtractFixed(pi(context), twice), bits),
+      digits,
+    ),
   );
 }
 
@@ -157,6 +200,7 @@ export function atan2Ball(
     );
   }
   const bits = bitsFor(context.precision);
+  const digits = workingDigits(context);
   const ySide = sideOfZero(y);
   const xSide = sideOfZero(x);
   if (ySide === "zero") {
@@ -164,7 +208,7 @@ export function atan2Ball(
       case "positive":
         return ok(exact(ZERO));
       case "negative":
-        return ok(fixedToBall(pi(context)));
+        return ok(fixedToBall(pi(context), digits));
       case "zero":
         return err({ kind: "domain", argument: 0, reason: "origin" });
       case "straddles":
@@ -172,24 +216,35 @@ export function atan2Ball(
     }
   }
   if (xSide === "positive") {
-    return ok(fixedToBall(atanKernel(quotient(y, x), context)));
+    const z = quotient(y, x, 1);
+    if (!z.ok) return z;
+    const t = atanKernel(z.value, context);
+    return t.ok ? ok(fixedToBall(t.value, digits)) : t;
   }
   if (ySide === "straddles") {
     return err({ kind: "unresolved", argument: 0, edge: ZERO });
   }
   if (xSide === "negative") {
-    const t = atanKernel(quotient(y, x), context);
+    const z = quotient(y, x, 1);
+    if (!z.ok) return z;
+    const t = atanKernel(z.value, context);
+    if (!t.ok) return t;
     const result =
       ySide === "positive"
-        ? addFixed(t, pi(context))
-        : subtractFixed(t, pi(context));
-    return ok(fixedToBall(keepSignificant(result, bits)));
+        ? addFixed(t.value, pi(context))
+        : subtractFixed(t.value, pi(context));
+    return ok(fixedToBall(keepSignificant(result, bits), digits));
   }
   // `x` reaches zero and `y` has a sign: ±pi/2 - atan(x / y).
-  const t = atanKernel(quotient(x, y), context);
+  const z = quotient(x, y, 0);
+  if (!z.ok) return z;
+  const t = atanKernel(z.value, context);
+  if (!t.ok) return t;
   const half =
     ySide === "positive" ? halfPi(context) : negateFixed(halfPi(context));
-  return ok(fixedToBall(keepSignificant(subtractFixed(half, t), bits)));
+  return ok(
+    fixedToBall(keepSignificant(subtractFixed(half, t.value), bits), digits),
+  );
 }
 
 /**
@@ -203,8 +258,11 @@ function complementRoot(
   context: NumberContext,
 ): Result<Ball, BuiltinError> {
   const edge = sign(x.mid) < 0 ? MINUS_ONE : ONE;
-  const complement = subtractBalls(exact(ONE), multiplyBalls(x, x));
-  switch (sideOfZero(complement)) {
+  const square = multiplyBalls(x, x);
+  if (!square.ok) return err(fromBallError(square.error, 0));
+  const complement = subtractBalls(exact(ONE), square.value, context);
+  if (!complement.ok) return err(fromBallError(complement.error, 0));
+  switch (sideOfZero(complement.value)) {
     case "negative":
       return err({
         kind: "domain",
@@ -218,9 +276,9 @@ function complementRoot(
     case "positive":
       break;
   }
-  const root = rootBall(complement, 2n, context);
+  const root = rootBall(complement.value, 2n, context);
   if (root.ok) return root;
-  // Positive as rationals but not at the kernel's bits: the ball reaches
+  // Positive as numbers but not at the kernel's bits: the ball reaches
   // within an ulp of the end.
   if (root.error.kind === "unresolved") {
     return err({ kind: "unresolved", argument: 0, edge });
@@ -229,27 +287,38 @@ function complementRoot(
 }
 
 /**
- * The kernel's arctangent of the bounded `z` at the context: a tiny `z`
- * is converted at as many more fraction bits as its magnitude is below
- * one, so that the kernel keeps its digits.
+ * The kernel's arctangent of the bounded `z` at the context, or `tooLarge`
+ * when `z` reaches the range limit: a small `z` is converted at as many
+ * more fraction bits as its magnitude is below one, so that the kernel
+ * keeps its digits.
  */
-function atanKernel(z: Ball, context: NumberContext): Fixed {
+function atanKernel(
+  z: Ball,
+  context: NumberContext,
+): Result<Fixed, BuiltinError> {
+  if (isHuge(z, context)) return err({ kind: "tooLarge" });
   const bits = bitsFor(context.precision);
-  const extra = isZero(z.mid)
-    ? 0
-    : Math.max(0, bitLength(z.mid.den) - bitLength(absolute(z.mid).num));
-  return atanFixed(
-    fixedFromBall(z, bits + extra),
-    bits,
-    bitsFor(context.ceiling),
+  return ok(
+    atanFixed(
+      fixedFromBall(z, bits + extraBits(z.mid, context)),
+      bits,
+      bitsFor(context.ceiling),
+    ),
   );
 }
 
-/** `a / b` for a `b` whose interval the caller has checked to exclude zero. */
-function quotient(a: Ball, b: Ball): Ball {
+/** `a / b` for a `b` whose interval the caller has checked to exclude zero, `tooLarge` at the bound; `argument` is `b`'s index. */
+function quotient(
+  a: Ball,
+  b: Ball,
+  argument: number,
+): Result<Ball, BuiltinError> {
   const result = divideBalls(a, b);
-  if (!result.ok) throw new Error("Division by a divisor checked nonzero");
-  return result.value;
+  if (result.ok) return result;
+  if (result.error.kind !== "tooLarge") {
+    throw new Error("Division by a divisor checked nonzero");
+  }
+  return err(fromBallError(result.error, argument));
 }
 
 /** pi at the context's bits, from the memo. */

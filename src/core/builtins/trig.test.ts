@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact, isExact, type Ball } from "../ball.ts";
+import { certifies, exact, isExact, type Ball } from "../ball.ts";
 import { buildTable } from "../build.ts";
 import { RADIAN, type BuiltinError } from "../builtin.ts";
 import { BUILTINS } from "../builtins.ts";
@@ -16,19 +16,27 @@ import { parseDefinitions } from "../definitions.ts";
 import { DIMENSIONLESS, primitive, type Primitives } from "../dimension.ts";
 import { show } from "../display.ts";
 import { evaluateText } from "../pipeline.ts";
-import { UNBOUNDED, radiusAbove, radiusUpper } from "../radius.ts";
+import {
+  UNBOUNDED,
+  compareRadius,
+  radiusAbove,
+  radiusAboveScaled,
+  radiusUpper,
+} from "../radius.ts";
+import { LIMIT_BITS, rational } from "../rational.ts";
+import type { Result } from "../result.ts";
 import {
   ONE,
   ZERO,
   absolute,
   compare,
+  equals,
+  fromRational,
   multiply,
-  rational,
   subtract,
-  type Rational,
-} from "../rational.ts";
-import { parseFraction } from "../../testing/fraction.ts";
-import type { Result } from "../result.ts";
+  type Scaled,
+} from "../scaled.ts";
+import { ball as ballOf, dec, fr } from "../../testing/scaled.ts";
 import { describeTextError } from "../../messages.ts";
 import { cos, cosBall, sin, sinBall, tan, tanBall } from "./trig.ts";
 
@@ -39,17 +47,14 @@ const CONTEXT: NumberContext = {
   ceiling: DEFAULT_CEILING,
 };
 
+/** The default context: eight digits, the default range limit. */
+const DEFAULT: NumberContext = { ...CONTEXT, precision: 8 };
+
 /** A metre and the radian kind, as units.txt declares them. */
 const PRIMITIVES: Primitives = new Map([
   ["m", "dimension"],
   [RADIAN, "kind"],
 ]);
-
-function dec(text: string): Rational {
-  const result = parseFraction(text);
-  assert.ok(result.ok);
-  return result.value;
-}
 
 function value(result: Result<Ball, BuiltinError>): Ball {
   assert.ok(result.ok, inspect(result));
@@ -61,30 +66,42 @@ function failure(result: Result<Ball, BuiltinError>): BuiltinError {
   return result.error;
 }
 
+/** `|a - b|` on `Scaled`s of moderate exponent. */
+function distance(a: Scaled, b: Scaled): Scaled {
+  const d = subtract(a, b, LIMIT_BITS);
+  assert.ok(d.ok, `${inspect(a)} - ${inspect(b)} aligns`);
+  return absolute(d.value);
+}
+
+/** The radius of the bounded `b` as a `Scaled`. */
+function radiusOf(b: Ball): Scaled {
+  return fromRational(radiusUpper(b.rad));
+}
+
 /** Asserts that `ball` contains `reference` and its radius is below `|reference| × 10^-digits`. */
 function assertNear(
   ball: Ball,
-  reference: Rational,
+  reference: Scaled,
   digits: number,
   label: string,
 ) {
   assert.ok(
-    compare(absolute(subtract(ball.mid, reference)), radiusUpper(ball.rad)) <=
-      0,
+    compare(distance(ball.mid, reference), radiusOf(ball)) <= 0,
     `${label}: midpoint`,
   );
-  assert.ok(
-    compare(
-      radiusUpper(ball.rad),
-      multiply(absolute(reference), rational(1n, 10n ** BigInt(digits))),
-    ) < 0,
-    `${label}: radius`,
-  );
+  const bound = multiply(absolute(reference), dec(`1e-${digits}`));
+  assert.ok(bound.ok);
+  assert.ok(compare(radiusOf(ball), bound.value) < 0, `${label}: radius`);
 }
 
 /** A ball of `mid` with the radius `rad`, as decimals. */
 function ball(mid: string, rad: string): Ball {
-  return { mid: dec(mid), rad: radiusAbove(dec(rad)) };
+  return ballOf(dec(mid), dec(rad));
+}
+
+/** Whether the bounded radius of `b` is below the decimal `bound`, at any exponent. */
+function radiusBelow(b: Ball, bound: string): boolean {
+  return compareRadius(b.rad, radiusAboveScaled(dec(bound))) < 0;
 }
 
 // References from Python's decimal module, by its own series at a
@@ -162,26 +179,20 @@ test("the values are the kernel's, within the radius, and a tiny argument keeps 
   assertNear(value(sinBall(one, CONTEXT)), SIN1, 45, "sin(1)");
   assertNear(value(cosBall(one, CONTEXT)), COS1, 45, "cos(1)");
   assertNear(value(tanBall(one, CONTEXT)), TAN1, 45, "tan(1)");
-  assertNear(
-    value(tanBall(exact(rational(100n)), CONTEXT)),
-    TAN100,
-    45,
-    "tan(100)",
-  );
+  assertNear(value(tanBall(exact(fr(100n)), CONTEXT)), TAN100, 45, "tan(100)");
   assertNear(
     value(cosBall(exact(dec("1e20")), CONTEXT)),
     COS1E20,
     45,
     "cos(1e20)",
   );
-  // sin(1e-50 radian) and tan(1e-50 radian) certify on the first pass: the
-  // radius is relative to the value, not to one.
-  assertNear(
-    value(sinBall(exact(dec("1e-50")), CONTEXT)),
-    SIN1E50,
-    45,
-    "sin(1e-50)",
-  );
+  // sin(1e-50 radian) and tan(1e-50 radian) go through the kernel and
+  // certify on the first pass: the radius is relative to the value, not
+  // to one, and the midpoint carries the series' second term.
+  const tiny = value(sinBall(exact(dec("1e-50")), CONTEXT));
+  assertNear(tiny, SIN1E50, 45, "sin(1e-50)");
+  assert.ok(!equals(tiny.mid, dec("1e-50")));
+  assert.ok(certifies(tiny, 40, "halfEven"));
   assertNear(
     value(tanBall(exact(dec("1e-50")), CONTEXT)),
     dec(
@@ -190,12 +201,65 @@ test("the values are the kernel's, within the radius, and a tiny argument keeps 
     45,
     "tan(1e-50)",
   );
+  assert.ok(compare(radiusOf(tiny), dec("1e-96")) < 0);
+});
+
+test("an argument below 2^-maxBits throughout is its own sine and tangent within its cube, and its cosine is one within its square", () => {
+  const tiny = dec("1e-999999999");
+  for (const fn of [sinBall, tanBall]) {
+    const result = value(fn(exact(tiny), DEFAULT));
+    assert.ok(!isExact(result));
+    assert.ok(equals(result.mid, tiny));
+    assert.ok(radiusBelow(result, "1e-2999999990"));
+    assert.ok(
+      compareRadius(result.rad, radiusAboveScaled(dec("1e-2999999998"))) > 0,
+    );
+    assert.ok(certifies(result, 8, "halfEven"));
+    // A negative one, and one with a radius of its own, which is kept.
+    const negative = value(fn(exact(dec("-1e-999999999")), DEFAULT));
+    assert.ok(equals(negative.mid, dec("-1e-999999999")));
+    assert.ok(certifies(negative, 8, "halfEven"));
+    const wide = value(fn(ballOf(tiny, dec("1e-1000000009")), DEFAULT));
+    assert.ok(equals(wide.mid, tiny));
+    assert.ok(
+      compareRadius(wide.rad, radiusAboveScaled(dec("1e-1000000009"))) >= 0,
+    );
+    assert.ok(certifies(wide, 8, "halfEven"));
+  }
+  const one = value(cosBall(exact(tiny), DEFAULT));
+  assert.ok(!isExact(one));
+  assert.ok(equals(one.mid, ONE));
+  assert.ok(radiusBelow(one, "1e-1999999990"));
   assert.ok(
-    compare(
-      radiusUpper(value(sinBall(exact(dec("1e-50")), CONTEXT)).rad),
-      dec("1e-96"),
-    ) < 0,
+    compareRadius(one.rad, radiusAboveScaled(dec("1e-1999999999"))) > 0,
   );
+  assert.ok(certifies(one, 8, "halfEven"));
+  // sin(1e-50) is not that tiny: it goes through the kernel, whose radius
+  // at eighteen working digits is far above the cube, and certifies on the
+  // first pass.
+  const kernel = value(sinBall(exact(dec("1e-50")), DEFAULT));
+  assert.ok(compareRadius(kernel.rad, radiusAboveScaled(dec("1e-100"))) > 0);
+  assert.ok(radiusBelow(kernel, "1e-60"));
+  assert.ok(certifies(kernel, 8, "halfEven"));
+});
+
+test("an argument reaching 2^maxBits is too large, since the reduction would need pi to that many bits", () => {
+  for (const fn of [sinBall, cosBall, tanBall]) {
+    assert.deepEqual(failure(fn(exact(dec("1e999999999")), DEFAULT)), {
+      kind: "tooLarge",
+    });
+    assert.deepEqual(failure(fn(exact(dec("-1e999999999")), DEFAULT)), {
+      kind: "tooLarge",
+    });
+    // 2^65536 is about 2.0e19728: just below computes, at and above does not.
+    assert.ok(fn(exact(dec("1e19728")), DEFAULT).ok);
+    assert.deepEqual(failure(fn(exact(dec("1e19729")), DEFAULT)), {
+      kind: "tooLarge",
+    });
+    assert.deepEqual(failure(fn(ball("0", "1e19729"), DEFAULT)), {
+      kind: "tooLarge",
+    });
+  }
 });
 
 test("an inexact argument's functions contain those of its ends", () => {
@@ -205,13 +269,13 @@ test("an inexact argument's functions contain those of its ends", () => {
   // The radius covers the argument's over the derivative cos 1, 5.4e-21,
   // by a little: the series counts the argument's error in `r` and in
   // `r^2` both, without the cancellation the derivative sees.
-  assert.ok(compare(radiusUpper(s.rad), dec("5.4e-21")) > 0);
-  assert.ok(compare(radiusUpper(s.rad), dec("7e-21")) < 0);
+  assert.ok(compare(radiusOf(s), dec("5.4e-21")) > 0);
+  assert.ok(compare(radiusOf(s), dec("7e-21")) < 0);
   const c = value(cosBall(x, CONTEXT));
   assertNear(c, COS1, 19, "cos(1 ± 1e-20)");
   // Over the derivative sin 1, 8.4e-21, the same way.
-  assert.ok(compare(radiusUpper(c.rad), dec("8.4e-21")) > 0);
-  assert.ok(compare(radiusUpper(c.rad), dec("1.2e-20")) < 0);
+  assert.ok(compare(radiusOf(c), dec("8.4e-21")) > 0);
+  assert.ok(compare(radiusOf(c), dec("1.2e-20")) < 0);
   const t = value(tanBall(x, CONTEXT));
   assertNear(t, TAN1, 19, "tan(1 ± 1e-20)");
   // An argument wider than a fifth of a radian is zero within one, and its
@@ -220,7 +284,7 @@ test("an inexact argument's functions contain those of its ends", () => {
   for (const fn of [sinBall, cosBall]) {
     const result = value(fn(wide, CONTEXT));
     assert.deepEqual(result.mid, ZERO);
-    assert.deepEqual(result.rad, radiusAbove(ONE));
+    assert.deepEqual(result.rad, radiusAbove(rational(1n)));
   }
   assert.deepEqual(failure(tanBall(wide, CONTEXT)), {
     kind: "unresolved",
@@ -250,7 +314,7 @@ test("tan at a ball straddling a pole is unresolved at the argument, and near on
   );
   assert.ok(compare(near.mid, dec("1.8e64")) > 0);
   assert.ok(compare(near.mid, dec("1.9e64")) < 0);
-  assert.ok(compare(radiusUpper(near.rad), dec("1e40")) < 0);
+  assert.ok(compare(radiusOf(near), dec("1e40")) < 0);
 });
 
 test("an unbounded argument gives the function of its midpoint with an unbounded radius", () => {
@@ -262,9 +326,7 @@ test("an unbounded argument gives the function of its midpoint with an unbounded
   ] as const) {
     const result = value(fn(one, CONTEXT));
     assert.deepEqual(result.rad, UNBOUNDED);
-    assert.ok(
-      compare(absolute(subtract(result.mid, reference)), dec("1e-40")) < 0,
-    );
+    assert.ok(compare(distance(result.mid, reference), dec("1e-40")) < 0);
   }
   assert.deepEqual(value(sinBall({ mid: ZERO, rad: UNBOUNDED }, CONTEXT)), {
     mid: ZERO,
@@ -292,6 +354,8 @@ test("through the pipeline: sin(30 deg) certifies 0.5, sin(pi() radian) is zero 
     ["sin(pi() radian / 6)", "0.5"],
     ["cos(1e20 radian)", "0.7639704"],
     ["sin(1e-50 radian)", "1e-50"],
+    ["sin(1e-999999999 radian)", "1e-999999999"],
+    ["cos(1e-999999999 radian)", "1"],
   ]) {
     const result = at(text!, 8);
     assert.ok(result.ok, `${text}: ${inspect(result)}`);
@@ -353,6 +417,10 @@ test("through the pipeline: sin(30 deg) certifies 0.5, sin(pi() radian) is zero 
     [
       "sin(1 radian, 2)",
       '"sin" takes 1 argument, but "sin(1 radian, 2)" gives 2 arguments.',
+    ],
+    [
+      "sin(1e999999999 radian)",
+      '"sin(1e999999999 radian)" is too large to compute.',
     ],
   ]) {
     const result = at(text!, 8);

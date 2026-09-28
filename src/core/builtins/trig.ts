@@ -19,17 +19,27 @@
 // binary exponent, as `rootBall` scales its argument, so that the kernel
 // keeps its digits and `sin(1e-50 radian)` certifies on the first pass
 // rather than at the ceiling; the kernel chooses the result's bits from
-// its magnitude (D9). An argument of unbounded radius gives the function
+// its magnitude (D9). The two ends of the exponent (4.4) are answered
+// before the kernel is entered: an argument below `2^-maxBits` throughout
+// is its own sine and tangent within its cube, and its cosine is one
+// within its square (`tinyOdd` and `tinyEven` of builtin.ts), and one
+// reaching `2^maxBits` is `tooLarge`, since the reduction would need `pi`
+// to that many bits. An argument of unbounded radius gives the function
 // of its midpoint with an unbounded radius.
 
 import { exact, isExact, type Ball } from "../ball.ts";
 import {
   angleToNumber,
+  extraBits,
+  isHuge,
+  isTiny,
+  tinyEven,
+  tinyOdd,
   unboundedOf,
   type Builtin,
   type BuiltinError,
 } from "../builtin.ts";
-import type { NumberContext } from "../context.ts";
+import { workingDigits, type NumberContext } from "../context.ts";
 import { sinCosFixed, type SinCos } from "../fixed-trig.ts";
 import {
   bitsFor,
@@ -38,8 +48,8 @@ import {
   fixedToBall,
   keepSignificant,
 } from "../fixed.ts";
-import { ONE, ZERO, absolute, bitLength, isZero } from "../rational.ts";
 import { err, ok, type Result } from "../result.ts";
+import { ONE, ZERO, isZero } from "../scaled.ts";
 
 /** `sin(x)` at the context, as the header says. */
 export function sinBall(
@@ -49,7 +59,10 @@ export function sinBall(
   if (x.rad.kind === "unbounded")
     return unboundedOf(sinBall(exact(x.mid), context));
   if (isExact(x) && isZero(x.mid)) return ok(exact(ZERO));
-  return ok(fixedToBall(sinCos(x, context).sin));
+  if (isTiny(x, context)) return ok(tinyOdd(x));
+  const pair = sinCos(x, context);
+  if (!pair.ok) return pair;
+  return ok(fixedToBall(pair.value.sin, workingDigits(context)));
 }
 
 /** `cos(x)` at the context, as the header says. */
@@ -60,7 +73,10 @@ export function cosBall(
   if (x.rad.kind === "unbounded")
     return unboundedOf(cosBall(exact(x.mid), context));
   if (isExact(x) && isZero(x.mid)) return ok(exact(ONE));
-  return ok(fixedToBall(sinCos(x, context).cos));
+  if (isTiny(x, context)) return ok(tinyEven(x));
+  const pair = sinCos(x, context);
+  if (!pair.ok) return pair;
+  return ok(fixedToBall(pair.value.cos, workingDigits(context)));
 }
 
 /** `tan(x)` at the context, as the header says: `unresolved` at a pole. */
@@ -71,31 +87,36 @@ export function tanBall(
   if (x.rad.kind === "unbounded")
     return unboundedOf(tanBall(exact(x.mid), context));
   if (isExact(x) && isZero(x.mid)) return ok(exact(ZERO));
-  const { sin, cos } = sinCos(x, context);
+  if (isTiny(x, context)) return ok(tinyOdd(x));
+  const pair = sinCos(x, context);
+  if (!pair.ok) return pair;
+  const { sin, cos } = pair.value;
   if (abs(cos.value) <= cos.error) {
     return err({ kind: "unresolved", argument: 0, edge: "pole" });
   }
   return ok(
     fixedToBall(
       keepSignificant(divideFixed(sin, cos), bitsFor(context.precision)),
+      workingDigits(context),
     ),
   );
 }
 
 /**
- * The kernel's sine and cosine of the bounded `x` at the context: a tiny
- * `x` is converted at as many more fraction bits as its magnitude is
- * below one, so that the kernel keeps its digits.
+ * The kernel's sine and cosine of the bounded `x` at the context, or
+ * `tooLarge` when `x` reaches the range limit: a small `x` is converted
+ * at as many more fraction bits as its magnitude is below one, so that
+ * the kernel keeps its digits.
  */
-function sinCos(x: Ball, context: NumberContext): SinCos {
+function sinCos(x: Ball, context: NumberContext): Result<SinCos, BuiltinError> {
+  if (isHuge(x, context)) return err({ kind: "tooLarge" });
   const bits = bitsFor(context.precision);
-  const extra = isZero(x.mid)
-    ? 0
-    : Math.max(0, bitLength(x.mid.den) - bitLength(absolute(x.mid).num));
-  return sinCosFixed(
-    fixedFromBall(x, bits + extra),
-    bits,
-    bitsFor(context.ceiling),
+  return ok(
+    sinCosFixed(
+      fixedFromBall(x, bits + extraBits(x.mid, context)),
+      bits,
+      bitsFor(context.ceiling),
+    ),
   );
 }
 

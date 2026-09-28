@@ -26,11 +26,11 @@ import { evaluate } from "./evaluate.ts";
 import { parseExpr } from "./expr.ts";
 import type { Quantity } from "./quantity.ts";
 import { certifies } from "./ball.ts";
-import { equals, rational, toFraction, type Rational } from "./rational.ts";
-import { parseFraction } from "../testing/fraction.ts";
 import { DEFAULT_PRECISION } from "./rounding.ts";
 import type { Result } from "./result.ts";
+import { ONE, divide, equals, format, type Scaled } from "./scaled.ts";
 import { unitLookup, type UnitTable } from "./table.ts";
+import { dec, fr } from "../testing/scaled.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */
 const CONTEXT: NumberContext = {
@@ -54,12 +54,14 @@ const table: UnitTable = (() => {
       "s        !",
       "radian   !kind",
       "k-       1000",
+      "m-       0.001",
       "in       0.0254 m",
       "ft       12 in",
       "mi       5280 ft",
       "min      60 s",
       "Hz       1/s",
       "rpm      2 radian / min",
+      "deg      pi() radian / 180",
       "zero     0 m",
       "hr       60 min",
       "time     hr;min;s",
@@ -127,11 +129,19 @@ function failure(have: string, want: string): ConversionError {
   return result.error;
 }
 
-/** The rational the decimal `text` denotes, exactly. */
-function decimal(text: string): Rational {
-  const result = parseFraction(text);
-  assert.ok(result.ok, `${JSON.stringify(text)} is not a number`);
-  return result.value;
+/** The value the decimal `text`, or the quotient `a/b` of two, denotes, exactly. */
+function number(text: string): Scaled {
+  const [numerator, denominator] = text.split("/");
+  const num = dec(numerator!);
+  if (denominator === undefined) return num;
+  const quotient = divide(num, dec(denominator));
+  assert.ok(quotient.ok, `${JSON.stringify(text)} divides by zero`);
+  return quotient.value;
+}
+
+/** `s` written out at forty digits, for a message. */
+function written(s: Scaled): string {
+  return format(s, 40, DEFAULT_ROUNDING);
 }
 
 /** Asserts that `have` converts to exactly the decimal `expected` `want`s. */
@@ -139,8 +149,8 @@ function assertConverts(have: string, want: string, expected: string): void {
   const actual = value(have, want).value;
   assert.ok(isExact(actual), `${have} in ${want}: ${inspect(actual)}`);
   assert.ok(
-    equals(actual.mid, decimal(expected)),
-    `${have} in ${want}: expected ${expected}, got ${toFraction(actual.mid)}`,
+    equals(actual.mid, dec(expected)),
+    `${have} in ${want}: expected ${expected}, got ${written(actual.mid)}`,
   );
 }
 
@@ -177,8 +187,8 @@ test("either text may be negated", () => {
 
 test("the conversion carries both quantities", () => {
   const { have, want } = value("3 ft", "in");
-  assert.ok(equals(have.magnitude.mid, decimal("0.9144")));
-  assert.ok(equals(want.magnitude.mid, decimal("0.0254")));
+  assert.ok(equals(have.magnitude.mid, dec("0.9144")));
+  assert.ok(equals(want.magnitude.mid, dec("0.0254")));
   assert.deepEqual([...have.dimension.keys()], ["m"]);
   assert.deepEqual([...want.dimension.keys()], ["m"]);
 });
@@ -356,15 +366,18 @@ test("resolve keeps the best result so far and returns it when a later pass is u
   assert.deepEqual(never, { ok: false, error: { kind: "unresolved" } });
 });
 
-test("the range limit of the context reaches a literal and a power", () => {
+test("the range limit of the context reaches a literal's mantissa and a power", () => {
   const small = { ...CONTEXT, maxBits: 64 };
-  const literal = evaluateText(table, "1e30 m", small);
+  // Twenty-one digits are about seventy bits; the exponent costs nothing.
+  const literal = evaluateText(table, "123456789012345678901 m", small);
   assert.ok(!literal.ok);
   assert.deepEqual(literal.error, {
     kind: "tooLarge",
-    span: { start: 0, end: 4 },
+    span: { start: 0, end: 21 },
   });
   assert.ok(evaluateText(table, "1e18 m", small).ok);
+  assert.ok(evaluateText(table, "1e30 m", small).ok);
+  assert.ok(evaluateText(table, "1e999999999 m", small).ok);
   const power = evaluateText(table, "2^100 m", small);
   assert.ok(!power.ok);
   assert.equal(power.error.kind, "tooLarge");
@@ -379,7 +392,7 @@ test("a value that looks rational after a root is inexact, and the display says 
   // The same truncated root divided by itself: the midpoint is exactly 1,
   // the radius is not zero, so the display shows ≈ 1 rather than = 1.
   const ratio = value("2^(1/2) m", "2^(1/2) m").value;
-  assert.ok(equals(ratio.mid, rational(1n)));
+  assert.ok(equals(ratio.mid, ONE));
   assert.ok(!isExact(ratio));
   assert.deepEqual(show(ratio, 8, DEFAULT_ROUNDING), {
     kind: "certified",
@@ -396,8 +409,132 @@ test("a value that looks rational after a root is inexact, and the display says 
 test("evaluateText is the pipeline up to the quantity", () => {
   const result = evaluateText(table, "2 ft", CONTEXT);
   assert.ok(result.ok, `expected a quantity, got ${inspect(result)}`);
-  assert.ok(equals(result.value.magnitude.mid, decimal("0.6096")));
+  assert.ok(equals(result.value.magnitude.mid, dec("0.6096")));
   assert.deepEqual([...result.value.dimension.keys()], ["m"]);
+});
+
+// ---------------------------------------------------------------------------
+// Values of any exponent
+
+/** `text` as a plain number at `digits`, through the pipeline, shown at `digits`. */
+function shown(text: string, digits: number): ReturnType<typeof show> {
+  const result = evaluateText(table, text, { ...CONTEXT, precision: digits });
+  assert.ok(result.ok, `${text}: ${inspect(result)}`);
+  return show(result.value.magnitude, digits, DEFAULT_ROUNDING);
+}
+
+test("a literal of any exponent is a value, exact through the exact operations", () => {
+  assertConverts("1e999999999 m", "mm", "1e1000000002");
+  assert.deepEqual(shown("1e999999999 m / mm", 8), {
+    kind: "exact",
+    text: "1e+1000000002",
+  });
+  assert.deepEqual(shown("1e999999999 * 1e999999999", 8), {
+    kind: "exact",
+    text: "1e+1999999998",
+  });
+  assertConverts("1e999999999 + 3e999999998", "1", "1.3e999999999");
+  assertConverts("1e999999999 m", "1e999999990 km", "1e6");
+});
+
+test("a sum of two exact values that cannot be aligned is too large, at the sum", () => {
+  const sum = evaluateText(table, "1e999999999 + 1", CONTEXT);
+  assert.ok(!sum.ok);
+  assert.deepEqual(sum.error, {
+    kind: "tooLarge",
+    span: { start: 0, end: 15 },
+  });
+  assert.deepEqual(failure("1e999999999 m - 1 m", "m"), {
+    kind: "inputError",
+    side: "have",
+    error: { kind: "tooLarge", span: { start: 0, end: 19 } },
+  });
+  // With an inexact operand the smaller is absorbed into the radius, and
+  // the sum certifies on the first pass.
+  for (const text of ["sqrt(2) + 1e999999999", "1e999999999 + sqrt(2)"]) {
+    assert.deepEqual(passes(text, 8).at, [18]);
+    assert.deepEqual(shown(text, 8), {
+      kind: "certified",
+      text: "1e+999999999",
+    });
+  }
+});
+
+test("the roots and the logarithms take any exponent, and certify on the first pass", () => {
+  // References from Python's decimal module at sixty digits.
+  const root = "sqrt(1e999999999)";
+  assert.deepEqual(passes(root, 8).at, [18]);
+  assert.deepEqual(shown(root, 8), {
+    kind: "certified",
+    text: "3.1622777e+499999999",
+  });
+  assert.deepEqual(shown(root, 40), {
+    kind: "certified",
+    text: "3.16227766016837933199889354443271853372e+499999999",
+  });
+  // ln(1e999999999) = 999999999 ln 10.
+  const ln = "ln(1e999999999)";
+  assert.deepEqual(passes(ln, 8).at, [18]);
+  assert.deepEqual(shown(ln, 8), { kind: "certified", text: "2.3025851e+9" });
+  assert.deepEqual(shown(ln, 40), {
+    kind: "certified",
+    text: "2302585090.691460591023945770666372752917",
+  });
+  // The exact case reads the exponent.
+  const log = evaluateText(table, "log10(1e999999999)", CONTEXT);
+  assert.ok(log.ok, inspect(log));
+  assert.deepEqual(log.value.magnitude, exact(fr(999999999n)));
+  assert.deepEqual(shown("log10(1e999999999)", 9), {
+    kind: "exact",
+    text: "999999999",
+  });
+});
+
+test("a root times a power of ten certifies the root's digits on the first pass", () => {
+  // sqrt 2 to fifty digits, from Python's decimal module: the product's
+  // radius is the root's scaled by the power, far below the fiftieth
+  // digit, so the first pass at sixty certifies all fifty.
+  const product = "sqrt(2) * 1e999999999";
+  assert.deepEqual(passes(product, 50).at, [60]);
+  assert.deepEqual(shown(product, 50), {
+    kind: "certified",
+    text: "1.4142135623730950488016887242096980785696718753769e+999999999",
+  });
+});
+
+test("the trigonometric functions saturate or refuse an argument of any exponent", () => {
+  // The sine needs the argument reduced by pi to its bits, which cannot
+  // be: too large, at the call.
+  const sine = evaluateText(table, "sin(1e999999999 radian)", CONTEXT);
+  assert.ok(!sine.ok);
+  assert.deepEqual(sine.error, {
+    kind: "tooLarge",
+    span: { start: 0, end: 23 },
+  });
+  assert.deepEqual(failure("sin(1e999999999 radian)", "1"), {
+    kind: "inputError",
+    side: "have",
+    error: { kind: "tooLarge", span: { start: 0, end: 23 } },
+  });
+  // The arc tangent is pi/2 within 2^-bits: 90 degrees, inexact.
+  const right = value("atan(1e999999999)", "deg").value;
+  assert.ok(!isExact(right));
+  assert.deepEqual(show(right, 8, DEFAULT_ROUNDING), {
+    kind: "certified",
+    text: "90",
+  });
+  // asinh(x) is ln(2x) within 1/(4x^2): ln 2 + 999999999 ln 10, from
+  // Python's decimal module at sixty digits.
+  const asinh = "asinh(1e999999999)";
+  assert.deepEqual(passes(asinh, 8).at, [18]);
+  assert.deepEqual(shown(asinh, 8), {
+    kind: "certified",
+    text: "2.3025851e+9",
+  });
+  assert.deepEqual(shown(asinh, 40), {
+    kind: "certified",
+    text: "2302585091.384607771583891080083604874375",
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -488,14 +625,8 @@ function assertTerms(
 ): void {
   const { terms } = list(have, want);
   assert.deepEqual(
-    terms.map((term) => toFraction(term.mid)),
-    expected.map((text) => {
-      const [numerator, denominator] = text.split("/");
-      const num = decimal(numerator!);
-      if (denominator === undefined) return toFraction(num);
-      const den = decimal(denominator);
-      return toFraction(rational(num.num * den.den, num.den * den.num));
-    }),
+    terms.map((term) => term.mid),
+    expected.map(number),
     `${have} in ${want}`,
   );
 }
@@ -508,12 +639,12 @@ test("a want of several units is a list conversion", () => {
 
 test("a list conversion carries the units with the text each was typed as", () => {
   const { have, units } = list("1 m", " ft ; 2 in ;in/8");
-  assert.ok(equals(have.magnitude.mid, decimal("1")));
+  assert.ok(equals(have.magnitude.mid, dec("1")));
   assert.deepEqual(
     units.map((unit) => unit.text),
     ["ft", "2 in", "in/8"],
   );
-  assert.ok(equals(units[1]!.quantity.magnitude.mid, decimal("0.0508")));
+  assert.ok(equals(units[1]!.quantity.magnitude.mid, dec("0.0508")));
 });
 
 test("a want that names a unit list in the table is that list", () => {
@@ -598,8 +729,8 @@ function assertCall(have: string, want: string, expected: string): void {
   const conversion = call(have, want);
   assert.equal(conversion.name, want.trim());
   assert.ok(
-    equals(conversion.value.mid, decimal(expected)),
-    `${have} in ${want}: expected ${expected}, got ${toFraction(conversion.value.mid)}`,
+    equals(conversion.value.mid, dec(expected)),
+    `${have} in ${want}: expected ${expected}, got ${written(conversion.value.mid)}`,
   );
 }
 
@@ -611,18 +742,18 @@ test("a want that names a function is the call of it that would produce the have
   assertCall("0 K", "tempC", "-273.15");
   assertCall("tempF(212)", " tempC ", "100");
   const { have, argument, unit } = call("tempF(212)", "tempC");
-  assert.ok(equals(have.magnitude.mid, decimal("373.15")));
-  assert.ok(equals(argument.magnitude.mid, decimal("100")));
+  assert.ok(equals(have.magnitude.mid, dec("373.15")));
+  assert.ok(equals(argument.magnitude.mid, dec("100")));
   assert.deepEqual([...argument.dimension.keys()], []);
   assert.equal(unit.text, "1");
 });
 
 test("the recovered argument is counted in the declared argument unit", () => {
   const conversion = call("2 ft", "dozen");
-  assert.deepEqual(conversion.value, exact(decimal("2")));
+  assert.deepEqual(conversion.value, exact(dec("2")));
   assert.equal(conversion.unit.text, "in");
-  assert.ok(equals(conversion.unit.quantity.magnitude.mid, decimal("0.0254")));
-  assert.ok(equals(conversion.argument.magnitude.mid, decimal("0.0508")));
+  assert.ok(equals(conversion.unit.quantity.magnitude.mid, dec("0.0254")));
+  assert.ok(equals(conversion.argument.magnitude.mid, dec("0.0508")));
 });
 
 test("a call as the have or the want is an expression like any other", () => {
@@ -630,7 +761,7 @@ test("a call as the have or the want is an expression like any other", () => {
   assertConverts("tempC(100) - tempC(0)", "degF", "180");
   assertConverts("tempC(100)", "tempC(100)", "1");
   assertConverts("2 tempC(100)", "K", "746.3");
-  assert.ok(equals(value("K", "tempC(100)").value.mid, rational(100n, 37315n)));
+  assert.ok(equals(value("K", "tempC(100)").value.mid, fr(100n, 37315n)));
 });
 
 test("a function's name means the function only on its own", () => {

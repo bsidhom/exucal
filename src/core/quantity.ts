@@ -12,20 +12,23 @@
 //
 // The arithmetic the evaluator needs lives here too: each operation is a
 // ball operation beside the matching dimension operation, and nothing else.
-// Multiplication is exact on the midpoints and propagates the radii;
-// division fails on a divisor that is exactly zero, or that cannot be told
-// from zero (`unresolved`); and a power takes the `NumberContext` whose
-// precision its one inexact step, the root of a non-integer exponent, is
-// computed at. For those, the failures are the `ball.ts` ones, since only
-// the magnitude can fail: a dimension can be multiplied, divided and raised
-// to any rational power. Negation touches the magnitude alone and cannot
-// fail. Addition and
-// subtraction are the other way about: the magnitudes always add, but only
+// Multiplication is exact on the midpoints and propagates the radii, and
+// fails only at the exponent bound (`tooLarge`); division fails on a
+// divisor that is exactly zero, or that cannot be told from zero
+// (`unresolved`), and at the bound; and a power takes the `NumberContext`
+// whose precision its one inexact step, the root of a non-integer
+// exponent, is computed at. For those, the failures are the `ball.ts`
+// ones, since only the magnitude can fail: a dimension can be multiplied,
+// divided and raised to any rational power. Negation touches the magnitude
+// alone and cannot fail. Addition and subtraction have both sides: only
 // quantities of one dimension have a sum, so the dimension side is the
 // conformance check of `dimension.ts`, the same one `convert` applies to a
-// `have` and a `want`, and the failure is its `ConformanceError`. The check
-// tells dimensions from kinds by the roles of the table's primitives, so
-// these two operations take them, as `convert` does.
+// `have` and a `want`, and the failure is its `ConformanceError`; and the
+// magnitudes add as `addBalls` rules, aligned within the range limit of
+// the `NumberContext` they take (4.4), two exact magnitudes that cannot be
+// aligned failing `tooLarge`. The check tells dimensions from kinds by the
+// roles of the table's primitives, so these two operations take them, as
+// `convert` does.
 
 import {
   DIMENSIONLESS,
@@ -52,6 +55,7 @@ import {
 import type { NumberContext } from "./context.ts";
 import type { Rational } from "./rational.ts";
 import { ok, type Result } from "./result.ts";
+import type { Scaled } from "./scaled.ts";
 
 /** A magnitude, a ball, and the dimension it is a multiple of. */
 export type Quantity = {
@@ -60,7 +64,7 @@ export type Quantity = {
 };
 
 /** A plain number, exactly: `value` of no dimension. */
-export function scalar(value: Rational): Quantity {
+export function scalar(value: Scaled): Quantity {
   return { magnitude: exact(value), dimension: DIMENSIONLESS };
 }
 
@@ -77,26 +81,33 @@ export function settleQuantity(q: Quantity, context: NumberContext): Quantity {
 }
 
 /**
- * `a + b`, exactly, provided the two conform: `1 ft` plus `1 in` is
- * `0.3302 m`. The sum has the dimension its terms share; `1 m + 1 s`,
- * `1 radian + 1` and `1 m + 0` (a plain number, not a length) have none,
- * and fail with the mismatch, `a` as its `have` and `b` as its `want`.
+ * `a + b`, exactly where the magnitudes align within the range limit of
+ * `context` and as `addBalls` rules otherwise, provided the two conform:
+ * `1 ft` plus `1 in` is `0.3302 m`. The sum has the dimension its terms
+ * share; `1 m + 1 s`, `1 radian + 1` and `1 m + 0` (a plain number, not a
+ * length) have none, and fail with the mismatch, `a` as its `have` and `b`
+ * as its `want`; two exact magnitudes that cannot be aligned fail
+ * `tooLarge`.
  */
 export function addQuantities(
   a: Quantity,
   b: Quantity,
   primitives: Primitives,
-): Result<Quantity, ConformanceError> {
-  return combineConforming(a, b, primitives, addBalls);
+  context: NumberContext,
+): Result<Quantity, ConformanceError | BallError> {
+  return combineConforming(a, b, primitives, (x, y) => addBalls(x, y, context));
 }
 
-/** `a - b`, exactly, provided the two conform, as `addQuantities` requires. */
+/** `a - b`, provided the two conform, as `addQuantities` requires. */
 export function subtractQuantities(
   a: Quantity,
   b: Quantity,
   primitives: Primitives,
-): Result<Quantity, ConformanceError> {
-  return combineConforming(a, b, primitives, subtractBalls);
+  context: NumberContext,
+): Result<Quantity, ConformanceError | BallError> {
+  return combineConforming(a, b, primitives, (x, y) =>
+    subtractBalls(x, y, context),
+  );
 }
 
 /** `op` over the magnitudes of `a` and `b`, in the dimension they share. */
@@ -104,14 +115,13 @@ function combineConforming(
   a: Quantity,
   b: Quantity,
   primitives: Primitives,
-  op: (x: Ball, y: Ball) => Ball,
-): Result<Quantity, ConformanceError> {
+  op: (x: Ball, y: Ball) => Result<Ball, BallError>,
+): Result<Quantity, ConformanceError | BallError> {
   const conformance = checkConformance(a.dimension, b.dimension, primitives);
   if (!conformance.ok) return conformance;
-  return ok({
-    magnitude: op(a.magnitude, b.magnitude),
-    dimension: a.dimension,
-  });
+  const magnitude = op(a.magnitude, b.magnitude);
+  if (!magnitude.ok) return magnitude;
+  return ok({ magnitude: magnitude.value, dimension: a.dimension });
 }
 
 /** `-q`: the magnitude negated, in the same dimension. Cannot fail. */
@@ -119,17 +129,22 @@ export function negateQuantity(q: Quantity): Quantity {
   return { magnitude: negateBall(q.magnitude), dimension: q.dimension };
 }
 
-/** `a b`: `2 m` times `3 s` is `6 m s`, exactly on exact magnitudes. */
-export function multiplyQuantities(a: Quantity, b: Quantity): Quantity {
-  return {
-    magnitude: multiplyBalls(a.magnitude, b.magnitude),
+/** `a b`: `2 m` times `3 s` is `6 m s`, exactly on exact magnitudes; fails `tooLarge` at the exponent bound. */
+export function multiplyQuantities(
+  a: Quantity,
+  b: Quantity,
+): Result<Quantity, BallError> {
+  const magnitude = multiplyBalls(a.magnitude, b.magnitude);
+  if (!magnitude.ok) return magnitude;
+  return ok({
+    magnitude: magnitude.value,
     dimension: multiplyDimensions(a.dimension, b.dimension),
-  };
+  });
 }
 
 /**
  * `a / b`; fails if the magnitude of `b` is exactly zero, or contains zero
- * without being exactly zero (`unresolved`).
+ * without being exactly zero (`unresolved`), or at the exponent bound.
  */
 export function divideQuantities(
   a: Quantity,

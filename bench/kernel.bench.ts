@@ -1,17 +1,28 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { multiplyBalls, settle, type Ball } from "../src/core/ball.ts";
 import { chudnovsky, eSeries } from "../src/core/constants.ts";
-import { DEFAULT_CEILING } from "../src/core/context.ts";
+import {
+  DEFAULT_CEILING,
+  DEFAULT_MAX_BITS,
+  DEFAULT_ROUNDING,
+  workingDigits,
+  type NumberContext,
+} from "../src/core/context.ts";
 import { expFixed, sinhCoshFixed } from "../src/core/fixed-exp.ts";
 import { ln2Series, ln10Series, lnFixed } from "../src/core/fixed-log.ts";
 import { atanFixed, cosFixed, sinFixed } from "../src/core/fixed-trig.ts";
 import {
   bitsFor,
   fixedFromRational,
+  fixedToBall,
   rootFixed,
   sqrtFixed,
+  type Fixed,
 } from "../src/core/fixed.ts";
+import { radiusAbove } from "../src/core/radius.ts";
 import { rational } from "../src/core/rational.ts";
+import { fromRational } from "../src/core/scaled.ts";
 import { bestOf, millis } from "./harness.ts";
 
 /** Times `chudnovsky` at `digits` and reports it. */
@@ -105,6 +116,87 @@ test("every kernel routine at the default ceiling costs at most 64 times what it
   for (const [name, run] of ROUTINES) {
     const low = bestOf(5, () => run(bitsFor(quarter)));
     const high = bestOf(5, () => run(bitsFor(DEFAULT_CEILING)));
+    t.diagnostic(
+      `${name}: ${millis(high)} at the ceiling of ${DEFAULT_CEILING} digits, ${millis(low)} at ${quarter}`,
+    );
+    assert.ok(
+      high <= 64 * Math.max(low, 0.01),
+      `expected ${name} at the ceiling (${millis(high)}) to cost at most 64 times a quarter of it (${millis(low)})`,
+    );
+  }
+});
+
+/** The context at `precision` digits with the default limits. */
+function contextAt(precision: number): NumberContext {
+  return {
+    precision,
+    rounding: DEFAULT_ROUNDING,
+    maxBits: DEFAULT_MAX_BITS,
+    ceiling: DEFAULT_CEILING,
+  };
+}
+
+/** An inexact ball whose midpoint has about twice the working digits of `context`: what a product of two settled balls is before it is settled. */
+function unsettledAt(context: NumberContext): Ball {
+  const digits = workingDigits(context);
+  const mant = 3n ** BigInt(Math.ceil((2 * digits) / Math.log10(3)));
+  return {
+    mid: fromRational(rational(mant, 7n ** 20n)),
+    rad: radiusAbove(rational(1n, 10n ** BigInt(digits + 5))),
+  };
+}
+
+/**
+ * The decimal grid's own costs (4.4 of docs/calculator-plan.md): the
+ * settle of a midpoint to the working digits, the product of two settled
+ * balls, and the kernel's exit onto the grid, each at the ceiling and at a
+ * quarter of it, beside the routines above. The settle is a division by a
+ * power of ten and a rounding, the product an integer multiplication and a
+ * canonical form; both are far below any routine, and grow as the
+ * multiplication does.
+ */
+test("a settle and a product on the decimal grid at the ceiling cost at most 64 times what they cost at a quarter of it", (t) => {
+  const quarter = DEFAULT_CEILING / 4;
+  // Each entry prepares its operands at the context and hands back the
+  // operation to time, so that the preparation is outside the timing.
+  const grid: readonly [string, (context: NumberContext) => () => void][] = [
+    [
+      "settle",
+      (context) => {
+        const b = unsettledAt(context);
+        return () => void settle(b, context);
+      },
+    ],
+    [
+      "product of settled balls",
+      (context) => {
+        const a = settle(unsettledAt(context), context);
+        const b = settle(
+          {
+            ...unsettledAt(context),
+            mid: fromRational(rational(11n ** 3000n, 13n ** 2900n)),
+          },
+          context,
+        );
+        return () => void multiplyBalls(a, b);
+      },
+    ],
+    [
+      "kernel exit (fixedToBall)",
+      (context) => {
+        const bits = bitsFor(context.precision);
+        const f: Fixed = {
+          value: (1n << BigInt(bits)) * 3n + 12345n,
+          error: 3n,
+          bits,
+        };
+        return () => void fixedToBall(f, workingDigits(context));
+      },
+    ],
+  ];
+  for (const [name, prepare] of grid) {
+    const low = bestOf(5, prepare(contextAt(quarter)));
+    const high = bestOf(5, prepare(contextAt(DEFAULT_CEILING)));
     t.diagnostic(
       `${name}: ${millis(high)} at the ceiling of ${DEFAULT_CEILING} digits, ${millis(low)} at ${quarter}`,
     );

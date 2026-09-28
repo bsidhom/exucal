@@ -15,6 +15,7 @@ import { radiusAbove, radiusUpper } from "./radius.ts";
 import {
   absolute,
   add,
+  bitLength,
   compare,
   multiply,
   rational,
@@ -22,6 +23,8 @@ import {
   toFraction,
   type Rational,
 } from "./rational.ts";
+import { digitsFor } from "./rounding.ts";
+import { ZERO, fromRational } from "./scaled.ts";
 import { parseFraction } from "../testing/fraction.ts";
 import {
   foldIn,
@@ -30,6 +33,7 @@ import {
   randomRational,
   split,
 } from "../testing/random.ts";
+import { fraction } from "../testing/scaled.ts";
 
 function dec(text: string): Rational {
   const result = parseFraction(text);
@@ -49,7 +53,7 @@ function assertReference(
   tolerance: Rational,
   label: string,
 ) {
-  const distance = absolute(subtract(ball.mid, reference));
+  const distance = absolute(subtract(fraction(ball.mid), reference));
   assert.ok(
     compare(distance, tolerance) <= 0,
     `${label}: midpoint off by ${toFraction(distance)}`,
@@ -62,6 +66,18 @@ function contains(f: Fixed, value: Rational): boolean {
   const distance = absolute(subtract(value, toRational(f)));
   const bound = multiply(rational(f.error), rational(1n, 1n << BigInt(f.bits)));
   return compare(distance, bound) <= 0;
+}
+
+/**
+ * The ball of `f` at two digits more than its significant bits are worth,
+ * so that the rounding onto the decimal grid, half a unit in the last
+ * digit added to the radius, stays under a tenth of an ulp and the
+ * tolerances below measure the kernel alone; a built-in takes a result
+ * out at `workingDigits` instead.
+ */
+function toBall(f: Fixed): Ball {
+  const magnitude = f.value < 0n ? -f.value : f.value;
+  return fixedToBall(f, digitsFor(Math.max(1, bitLength(magnitude))) + 2);
 }
 
 // Reference digits from Python's decimal module: pi by Machin's formula and
@@ -149,8 +165,8 @@ test("the reduction takes pi from the memo for arguments below 2^64 at the ceili
     ceiling,
   );
   assert.equal(piMemoBits(), held);
-  assertReference(fixedToBall(sin), dec(sinX), tenTo(120), "sin(2^70)");
-  assertReference(fixedToBall(cos), dec(cosX), tenTo(120), "cos(2^70)");
+  assertReference(toBall(sin), dec(sinX), tenTo(120), "sin(2^70)");
+  assertReference(toBall(cos), dec(cosX), tenTo(120), "cos(2^70)");
   // The arctangent's pi/2 is at the working bits, within the margin.
   atanFixed(fixedFromRational(rational(2n), ceiling), ceiling, ceiling);
   assert.equal(piMemoBits(), held);
@@ -161,13 +177,13 @@ test("reference digits: sin 1 and cos 1 to 100 digits, and both across the quadr
   const ceiling = bitsFor(200);
   const one = fixedFromRational(rational(1n), bits);
   assertReference(
-    fixedToBall(sinFixed(one, bits, ceiling)),
+    toBall(sinFixed(one, bits, ceiling)),
     SIN1,
     tenTo(100),
     "sin 1",
   );
   assertReference(
-    fixedToBall(cosFixed(one, bits, ceiling)),
+    toBall(cosFixed(one, bits, ceiling)),
     COS1,
     tenTo(100),
     "cos 1",
@@ -178,8 +194,8 @@ test("reference digits: sin 1 and cos 1 to 100 digits, and both across the quadr
       bitsFor(60),
       ceiling,
     );
-    assertReference(fixedToBall(sin), dec(sinX), tenTo(60), `sin(${x})`);
-    assertReference(fixedToBall(cos), dec(cosX), tenTo(60), `cos(${x})`);
+    assertReference(toBall(sin), dec(sinX), tenTo(60), `sin(${x})`);
+    assertReference(toBall(cos), dec(cosX), tenTo(60), `cos(${x})`);
     assert.deepEqual(
       sinFixed(fixedFromRational(dec(x), bitsFor(60)), bitsFor(60), ceiling),
       sin,
@@ -213,14 +229,14 @@ test("containment: sin and cos at a precision contain the values computed at fou
   arguments_.push(fixedFromRational(dec("1e20"), bitsFor(20)));
   arguments_.push(
     fixedFromBall(
-      { mid: dec("1e20"), rad: radiusAbove(dec("1e-15")) },
+      { mid: fromRational(dec("1e20")), rad: radiusAbove(dec("1e-15")) },
       bitsFor(20),
     ),
   );
   arguments_.push(fixedFromRational(dec("1e-50"), bitsFor(20) + 167));
   arguments_.push(
     fixedFromBall(
-      { mid: dec("1e-50"), rad: radiusAbove(dec("1e-60")) },
+      { mid: fromRational(dec("1e-50")), rad: radiusAbove(dec("1e-60")) },
       bitsFor(20) + 167,
     ),
   );
@@ -271,7 +287,7 @@ test("the results keep the argument's significant bits for a result of any magni
   assert.equal(cos.bits, bits);
   assert.ok(sin.error <= 8n);
   assertReference(
-    fixedToBall(sin),
+    toBall(sin),
     dec(
       "9.99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999833333333333333333333333333333e-51",
     ),
@@ -285,7 +301,7 @@ test("the results keep the argument's significant bits for a result of any magni
   );
   const { sin: aroundZero } = sinCosFixed(nearPi, bits, ceiling);
   assert.ok(contains(aroundZero, dec("5.92e-61")));
-  assert.ok(compare(radiusUpper(fixedToBall(aroundZero).rad), tenTo(20)) < 0);
+  assert.ok(compare(radiusUpper(toBall(aroundZero).rad), tenTo(20)) < 0);
   // A zero argument with an error is a ball around zero.
   const zero = sinCosFixed({ value: 0n, error: 5n, bits: 8 }, bits, ceiling);
   assert.equal(zero.sin.value, 0n);
@@ -296,12 +312,12 @@ test("the results keep the argument's significant bits for a result of any magni
     bits,
     ceiling,
   );
-  assert.deepEqual(fixedToBall(wide.sin), {
-    mid: rational(0n),
+  assert.deepEqual(toBall(wide.sin), {
+    mid: ZERO,
     rad: radiusAbove(rational(1n)),
   });
-  assert.deepEqual(fixedToBall(wide.cos), {
-    mid: rational(0n),
+  assert.deepEqual(toBall(wide.cos), {
+    mid: ZERO,
     rad: radiusAbove(rational(1n)),
   });
   // And a large argument's error survives the reduction: 100 ± 0.5.
@@ -310,8 +326,8 @@ test("the results keep the argument's significant bits for a result of any magni
     bits,
     ceiling,
   );
-  assert.deepEqual(fixedToBall(wideLarge.cos), {
-    mid: rational(0n),
+  assert.deepEqual(toBall(wideLarge.cos), {
+    mid: ZERO,
     rad: radiusAbove(rational(1n)),
   });
   // The preconditions throw: bad bits, and a zero value has no exponent
@@ -371,7 +387,7 @@ const ATAN_REFERENCES: [string, string][] = [
 test("reference digits: atan 1 is a quarter of pi to 100 digits, and atan across magnitudes", () => {
   const ceiling = bitsFor(200);
   assertReference(
-    fixedToBall(
+    toBall(
       atanFixed(
         fixedFromRational(rational(1n), bitsFor(100)),
         bitsFor(100),
@@ -388,7 +404,7 @@ test("reference digits: atan 1 is a quarter of pi to 100 digits, and atan across
       bitsFor(60),
       ceiling,
     );
-    assertReference(fixedToBall(at), dec(atanX), tenTo(60), `atan(${x})`);
+    assertReference(toBall(at), dec(atanX), tenTo(60), `atan(${x})`);
   }
   // A tiny argument, converted at more bits as the built-in converts it.
   const tiny = atanFixed(
@@ -397,7 +413,7 @@ test("reference digits: atan 1 is a quarter of pi to 100 digits, and atan across
     ceiling,
   );
   assertReference(
-    fixedToBall(tiny),
+    toBall(tiny),
     dec(
       "9.999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999666666666666666666666666666667e-51",
     ),
@@ -445,8 +461,8 @@ test("containment: atan at a precision contains the value computed at four times
     bitsFor(20),
     ceiling,
   );
-  assert.deepEqual(fixedToBall(wide), {
-    mid: rational(0n),
+  assert.deepEqual(toBall(wide), {
+    mid: ZERO,
     rad: radiusAbove(rational(2n)),
   });
   const large = atanFixed(

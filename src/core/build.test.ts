@@ -9,7 +9,12 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import { exact, isExact, multiplyBalls, type Ball } from "./ball.ts";
 import { buildTable, type BuildError } from "./build.ts";
-import { plainNumbers, type Builtin, type Builtins } from "./builtin.ts";
+import {
+  plainNumbers,
+  type Builtin,
+  type BuiltinError,
+  type Builtins,
+} from "./builtin.ts";
 import { convert, convertToList } from "./convert.ts";
 import { parseDefinitions, type Definition } from "./definitions.ts";
 import { DIMENSIONLESS, type Dimension } from "./dimension.ts";
@@ -20,17 +25,17 @@ import {
   absolute,
   add,
   compare,
-  equals,
   rational,
   subtract,
   toFraction,
   type Rational,
 } from "./rational.ts";
-import { parseFraction } from "../testing/fraction.ts";
 import { DEFAULT_PRECISION } from "./rounding.ts";
 import { radiusUpper } from "./radius.ts";
-import { ok, type Result } from "./result.ts";
+import { err, type Result } from "./result.ts";
+import { equals, type Scaled } from "./scaled.ts";
 import type { Span } from "./span.ts";
+import { dec, fr, fraction } from "../testing/scaled.ts";
 import { unitLookup, type UnitTable } from "./table.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */
@@ -88,25 +93,17 @@ function dim(exponents: Record<string, number | Rational>): Dimension {
   );
 }
 
-/** The rational the decimal `text` denotes, exactly. */
-function decimal(text: string): Rational {
-  const result = parseFraction(text);
-  assert.ok(result.ok, `${JSON.stringify(text)} is not a number`);
-  return result.value;
-}
-
 function assertQuantity(
   actual: Quantity | undefined,
-  magnitude: string | Rational,
+  magnitude: string | Scaled,
   exponents: Record<string, number | Rational>,
 ): void {
   assert.ok(actual !== undefined, "expected a quantity");
-  const expected =
-    typeof magnitude === "string" ? decimal(magnitude) : magnitude;
+  const expected = typeof magnitude === "string" ? dec(magnitude) : magnitude;
   assert.deepEqual(
     actual.magnitude,
     exact(expected),
-    `expected magnitude ${toFraction(expected)}, got ${inspect(actual.magnitude)}`,
+    `expected magnitude ${inspect(expected)}, got ${inspect(actual.magnitude)}`,
   );
   assert.deepEqual(actual.dimension, dim(exponents));
 }
@@ -115,7 +112,7 @@ function assertFactor(actual: Ball | undefined, expected: string): void {
   assert.ok(actual !== undefined, "expected a factor");
   assert.deepEqual(
     actual,
-    exact(decimal(expected)),
+    exact(dec(expected)),
     `expected ${expected}, got ${inspect(actual)}`,
   );
 }
@@ -222,7 +219,7 @@ test("a shared dependency is evaluated once and is not a cycle", () => {
 
 test("bodies are evaluated at the working precision", () => {
   // sqrt 2 to forty digits, from Python's decimal module.
-  const sqrt2 = decimal("1.4142135623730950488016887242096980785697");
+  const sqrt2 = fraction(dec("1.4142135623730950488016887242096980785697"));
   for (const precision of [5, DEFAULT_PRECISION]) {
     const result = buildTable(definitions("m !", "r 2^(1/2) m"), {
       ...CONTEXT,
@@ -233,10 +230,11 @@ test("bodies are evaluated at the working precision", () => {
     assert.ok(r !== undefined);
     // The root is inexact, the table says so, its midpoint is within its
     // radius of the reference (to the reference's forty digits), and the
-    // radius is the kernel's at the precision given: below 10^-(p + 8).
+    // radius is the kernel's at the precision given, with the half unit of
+    // the settling at the working digits: below 10^-(p + 8).
     assert.ok(!isExact(r.magnitude));
     const rad = radiusUpper(r.magnitude.rad);
-    const distance = absolute(subtract(r.magnitude.mid, sqrt2));
+    const distance = absolute(subtract(fraction(r.magnitude.mid), sqrt2));
     assert.ok(compare(distance, add(rad, rational(1n, 10n ** 40n))) <= 0);
     assert.ok(compare(rad, rational(1n, 10n ** BigInt(precision + 8))) < 0);
     assert.deepEqual(r.dimension, dim({ m: 1 }));
@@ -496,11 +494,32 @@ test("a nonconforming sum in a body is reported at the sum", () => {
 });
 
 test("a failed power is reported at the power", () => {
-  const lines = ["m !", "big 10^99999 m"];
+  const lines = ["m !", "big 2^99999 m"];
   assert.deepEqual(failed(...lines), {
     kind: "tooLarge",
-    span: spanOf(lines, "10^99999"),
+    span: spanOf(lines, "2^99999"),
   });
+  // A power of ten costs nothing: the exponent takes it.
+  assertQuantity(built("m !", "big 10^99999 m").units.get("big"), "1e99999", {
+    m: 1,
+  });
+});
+
+test("a unit of any exponent builds, and a prefix or a body scales it in the exponent", () => {
+  const table = built(
+    "m !",
+    "k- 1000",
+    "huge 1e999999999 m",
+    "bigger 1e999999999 khuge",
+    "tiny m / huge",
+  );
+  assertQuantity(table.units.get("huge"), "1e999999999", { m: 1 });
+  assertQuantity(table.units.get("bigger"), "1e2000000001", { m: 1 });
+  assertQuantity(table.units.get("tiny"), "1e-999999999", {});
+  const lookup = unitLookup(table, CONTEXT);
+  const khuge = lookup.unit("khuge", { start: 0, end: 5 });
+  assert.ok(khuge.ok, inspect(khuge));
+  assertQuantity(khuge.value, "1e1000000002", { m: 1 });
 });
 
 test("the first failing definition, in order, is reported", () => {
@@ -554,7 +573,7 @@ test("a built table converts", () => {
   };
   const miles = convert(quantity("1 mile"), quantity("km"), table.primitives);
   assert.ok(miles.ok, inspect(miles));
-  assert.ok(equals(miles.value.mid, decimal("1.609344")));
+  assert.ok(equals(miles.value.mid, dec("1.609344")));
 
   const speed = convert(
     quantity("60 mile / hour"),
@@ -562,7 +581,7 @@ test("a built table converts", () => {
     table.primitives,
   );
   assert.ok(speed.ok, inspect(speed));
-  assert.ok(equals(speed.value.mid, decimal("26.8224")));
+  assert.ok(equals(speed.value.mid, dec("26.8224")));
 
   const rate = convert(
     quantity("radian / s"),
@@ -711,15 +730,16 @@ test("a list's failing dependency is the list's failure, and the build stops in 
 test("a built list converts", () => {
   const table = built(...TIME, "time  hr;min;s");
   const time = table.unitLists.get("time")!;
-  const have = { magnitude: exact(decimal("3661")), dimension: dim({ s: 1 }) };
+  const have = { magnitude: exact(dec("3661")), dimension: dim({ s: 1 }) };
   const result = convertToList(
     have,
     time.map((unit) => unit.quantity),
     table.primitives,
+    CONTEXT,
   );
   assert.ok(result.ok);
   assert.deepEqual(
-    result.value.map((term) => toFraction(term.mid)),
+    result.value.map((term) => toFraction(fraction(term.mid))),
     ["1", "1", "1"],
   );
 });
@@ -1038,12 +1058,18 @@ test("a cycle through a function is reported like any other", () => {
 // ---------------------------------------------------------------------------
 // Built-ins
 
+/** `x` doubled, exactly; the product of balls fails only at the exponent bound. */
+function doubled(x: Ball): Result<Ball, BuiltinError> {
+  const product = multiplyBalls(exact(fr(2n)), x);
+  return product.ok ? product : err({ kind: "tooLarge" });
+}
+
 /** A built-in as a test injects one: a plain number doubled, exactly. */
 const DBL: Builtin = {
   name: "dbl",
   arity: { min: 1, max: 1 },
   dimensions: plainNumbers(1),
-  apply: ([x]) => ok(multiplyBalls(exact(rational(2n)), x!)),
+  apply: ([x]) => doubled(x!),
 };
 
 const BUILTINS: Builtins = new Map([

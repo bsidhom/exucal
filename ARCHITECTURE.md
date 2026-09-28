@@ -45,27 +45,33 @@ one expression is a list of one: one unit goes through `convert`, several
 "Unit lists" below describes, and the name of a function the table defines
 through `invertFunction`, which "Functions" below describes.
 
-## Numbers: `Rational`
+## Numbers: `Scaled` over `Rational`
 
-The number type is an exact rational over `bigint`: a numerator and a
-positive denominator, kept in lowest terms. Rationals rather than
-arbitrary-precision floats because almost every unit definition is a rational
-(`2.54 cm`, `0.45359237 kg`), so conversions are exact and rounding happens
-only once, at display time. Decimal literals parse exactly (`1.5e-3` is
-`3/2000`). The definitions file holds no irrational literal: the circle
-constant is the built-in `pi()`, computed to the precision of the table it
-is built in and of the pass an expression is evaluated at, where GNU
-units defines `pi` as a decimal literal.
+The number type is an exact fraction times a power of ten: a `Rational`
+over `bigint`, a numerator and a positive denominator kept in lowest terms,
+as the mantissa, and a `bigint` decimal exponent, in a canonical form (the
+denominator coprime to ten, the numerator not divisible by ten), so that
+`1e999999999` is a mantissa of one and an exponent, and `2.54` is
+`254 × 10^-2`. Exact fractions rather than arbitrary-precision floats
+because almost every unit definition is a rational (`2.54 cm`,
+`0.45359237 kg`), so conversions are exact and rounding happens only once,
+at display time; the exponent beside them because a value's magnitude
+should cost nothing (docs/decimal.md). Decimal literals parse exactly
+(`1.5e-3` is `15 × 10^-4`). The definitions file holds no irrational
+literal: the circle constant is the built-in `pi()`, computed to the
+precision of the table it is built in and of the pass an expression is
+evaluated at, where GNU units defines `pi` as a decimal literal.
 
-`src/core/rational.ts` provides the arithmetic and comparison, integer powers
-and the exact case of the n-th root. `src/core/scaled.ts` (stage 4 of the
-plan, from 4.3) holds the decimal representation over it: `Scaled`, a
-fraction times a power of ten in canonical form, with the parsing of a
-literal, whose exponent it keeps as the number it is, rounding to
-significant digits in a rounding mode, and formatting; until 4.4 makes it
-the midpoint, the callers convert to and from the fraction at the
-boundary. `src/core/rounding.ts` names the seven rounding modes and is the
-one place a mode is interpreted: `divideRounded`, an integer division
+`src/core/rational.ts` provides the fraction's arithmetic and comparison,
+integer powers and the exact case of the n-th root, total and unbounded.
+`src/core/scaled.ts` (stage 4 of the plan) holds `Scaled` over it: the
+arithmetic, which aligns a sum's mantissas within a stated limit on the
+shift and bounds the exponent by `10^18` (`MAX_EXPONENT`), comparison, the
+parsing of a literal, whose exponent it keeps as the number it is, rounding
+to significant digits in a rounding mode, formatting, and the binary
+magnitude (`log2Bounds`) from which a radius is taken without forming the
+power of ten. `src/core/rounding.ts` names the seven rounding modes and is
+the one place a mode is interpreted: `divideRounded`, an integer division
 rounded in a mode, which every rounding in the core scales its value down
 to; `Precision`, a count of significant digits, lives there too.
 
@@ -81,32 +87,52 @@ kernel with the root and the elementary functions on it, and the retry
 loop with certification; the exponent of stage 4 is said where it touches.
 Three rules say where, and only where, a value can lose precision:
 
-1. **Exact operations never round a midpoint.** Addition, subtraction,
-   multiplication, division, integer powers and comparisons are exact on the
-   midpoints, and their results are as long as they need to be; nothing in
-   the pipeline rounds an intermediate to keep it small. What they do to the
-   radii is the elementary propagation (a sum's radii add, a product's
-   radius is `|a| rb + |b| ra + ra rb`, a quotient's `(|a| rb + |b| ra) /
-(|b| (|b| - rb))`, a power's the derivative bound), every step rounding
-   up, so that a result's interval contains the exact result over the
+1. **Exact operations never round an exact midpoint.** Addition,
+   subtraction, multiplication, division, integer powers and comparisons
+   are exact on the midpoints, and an exact result is as long as it needs
+   to be; nothing in the pipeline rounds an exact intermediate to keep it
+   small. A product or a quotient combines the exponents, and fails
+   `tooLarge` only at the exponent bound; a sum aligns the mantissas by
+   the difference of the exponents, which the range limit bounds
+   (docs/decimal.md, "Sums, comparisons and the radius"): two exact
+   operands that cannot be aligned within it have an exact sum that cannot
+   be held and fail `tooLarge` (`1e999999999 + 1`), while a sum with an
+   inexact operand, which is about to be settled, settles its operands
+   first and, when they still do not align, absorbs the smaller into the
+   radius (`sqrt(2) + 1e999999999` is `1e999999999` within `1.5`). What
+   the operations do to the radii is the elementary propagation (a sum's
+   radii add, a product's radius is `|a| rb + |b| ra + ra rb`, a quotient's
+   `(|a| rb + |b| ra) / (|b| (|b| - rb))`, a power's the derivative
+   bound), the magnitudes taken as coarse radii from the binary bounds so
+   that nothing is formed whatever the exponent, every step rounding up,
+   so that a result's interval contains the exact result over the
    operands' intervals, and an exact value stays exact through them. A
    divisor whose ball contains zero without being exactly zero cannot be
    divided by, since the true quotient may have either sign: that is
    `unresolved`, an error kind of its own beside `divisionByZero` (the
    plan's D4), because the retry loop of the pipeline retries on the first
    and never on the second. `1 / (sqrt(2)^2 - 2)` reports it where it once
-   showed a huge number.
+   showed a huge number. Comparing a midpoint with a radius, which the
+   built-ins' edge checks do through `position`, is exact where the
+   radius's power of two can be formed, every radius of the working
+   sizes, and by the coarse bounds otherwise, with the conservative answer
+   where they cannot tell.
 
 2. **The inexact operations, the root and the built-in functions, run on
    the kernel and say what they lost.** A root that is rational
    (`sqrt(9/4)`, `sqrt(2.25)`, `cbrt(-8)`) is detected and returned
    exactly, so `(4 m^2)^(1/2)` is exactly `2 m`. Otherwise `rootBall`
-   scales the ball by an exact power of `2^n` so that it is of order one,
-   converts it to the kernel's fixed point at the bits of the working
-   precision plus a guard, takes the root there (`sqrtFixed`, `rootFixed`)
-   and hands back the kernel's dyadic midpoint with the kernel's error as
-   the radius, which covers the argument's own radius: an inexact argument
-   gives an inexact root with a bound, not an unbounded one. Nothing
+   takes an exact power of ten off the exponent and scales the mantissa
+   by an exact power of `2^n` so that it is of order one, converts that
+   to the kernel's fixed point at the bits of the working precision plus
+   a guard, takes the root there (`sqrtFixed`, `rootFixed`), scales back,
+   and hands back the kernel's value through `fixedToBall`: the midpoint
+   rounded to nearest onto the decimal grid of the working digits
+   (`workingDigits`, the digits of those bits), with the kernel's error
+   and half a unit of the last digit as the radius, which covers the
+   argument's own radius: an inexact argument gives an inexact root with
+   a bound, not an unbounded one, and `sqrt(1e999999999)` is
+   `≈ 3.1622777e+499999999` on the first pass. Nothing
    rounds in a rounding mode on the way (the plan's D15): the mode is the
    display's. A ball containing zero without being exactly zero is
    `unresolved` under an even root, since whether there is a real root at
@@ -117,16 +143,27 @@ Three rules say where, and only where, a value can lose precision:
    kernel when `x^p` would not fit the range limit. Every built-in
    function does the same (docs/builtins.md): an exact case is returned
    exactly (`exp(0)`, `log(2, 8)`, `cos(0 radian)`), and otherwise the
-   argument is converted at the working bits (a tiny argument of an odd
+   argument is converted at the working bits (a small argument of an odd
    function at as many more as its magnitude is below one, so that it
    keeps its digits), the routine runs its reduction and its series with
    the argument's error carried through, and the kernel's ball comes back
-   with the error as its radius. An argument outside the function's
-   domain throughout its ball is a `domain` error, and one that straddles
-   an edge of the domain (`ln` at zero, `asin` at one, `tan` at a pole)
-   is `unresolved` at that edge, which the retry loop retries; a result
-   whose magnitude would exceed the range limit (`exp(1e6)`) is refused
-   before it is computed.
+   rounded onto the working digits with the error as its radius. The two
+   ends of the exponent are answered before the kernel is entered, since
+   it holds a value only up to the range limit: an argument throughout
+   below `2^-maxBits` is answered by its expansion at zero (`sin`, `tan`,
+   `atan`, `asinh` and the rest of the odd functions give the argument
+   within its cube, `cos` and `cosh` one within its square), `sin`, `cos`
+   and `tan` of one reaching `2^maxBits` are `tooLarge`, since the
+   reduction would need `pi` to that many bits, `atan` beyond `2^bits` is
+   `±pi/2` within `2^-bits`, and `asinh` and `acosh` beyond it are
+   `ln(2|x|)`; the logarithms take any exponent, `ln(m × 10^e)` being
+   `ln m + e ln 10` from the memo, so `ln(1e999999999)` is a value and
+   `log10(1e999999999)` exactly `999999999`. An argument outside the
+   function's domain throughout its ball is a `domain` error, and one
+   that straddles an edge of the domain (`ln` at zero, `asin` at one,
+   `tan` at a pole) is `unresolved` at that edge, which the retry loop
+   retries; a result whose magnitude would exceed the range limit
+   (`exp(1e6)`) is refused before it is computed.
 
 3. **Display rounds once, in a rounding mode, shows only the digits the
    radius certifies, and `=` is the radius's to decide.** `show(ball,
@@ -138,10 +175,16 @@ digits, mode)` in `src/core/display.ts` formats the midpoint at the
    division and calls it), with the carry across a power of ten (`9.99` at
    two digits is `10`) in every mode that rounds the magnitude up. A digit
    is shown only when it is certified (the plan's D7): the two ends of the
-   ball, `mid - rad` and `mid + rad` as exact rationals, round to the same
-   value at that many digits, so that, rounding being monotone, the digits
-   shown are what rounding the true value would give, correctly rounded
-   and not merely close. `certifies` and `certifiedDigits` in `ball.ts`
+   ball, `mid - rad` and `mid + rad`, round to the same value at that many
+   digits, so that, rounding being monotone, the digits shown are what
+   rounding the true value would give, correctly rounded and not merely
+   close. The ends are formed exactly where the radius can be formed and
+   aligned with the midpoint, which is every radius of the working sizes;
+   where it cannot (`1e999999999 ± 1.5`, a radius of `2^-70000`), the
+   distance from the midpoint to the nearest rounding boundary of those
+   digits, exact within the midpoint's own digits, is measured against
+   the radius by its coarse bounds, erring only toward certifying less.
+   `certifies` and `certifiedDigits` in `ball.ts`
    decide it; certification is not monotone in the digit count (`[1.246,
 1.254]` certifies three digits and not two), so the count is found from
    the top down. `show` returns a kind with the text: `exact` (radius zero
@@ -165,26 +208,30 @@ sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while `sqrt(4)` is
 
 **The types**, each layer adding one concept (the plan's D13 has the
 argument): `Rational` (`rational.ts`) is the exact fraction in lowest terms
-with total arithmetic, used for the midpoints, the exponents of dimensions
-and of `^`, and the exact value of a radius. `Radius` (`radius.ts`) is the
+with total arithmetic, used for the mantissas, the exponents of dimensions
+and of `^`, and the exact value of a radius. `Scaled` (`scaled.ts`) is the
+fraction times a power of ten, the midpoint's type, in a module of its
+own between the fraction and the ball so that `rational.ts` stays the
+total fraction it is (the plan's D13). `Radius` (`radius.ts`) is the
 coarse bound, `mant × 2^exp` with a 30-bit mantissa and a bigint exponent,
 or the distinguished value unbounded, with the operations a propagation
-rule needs (`radiusAbove`, the sum, the product, the power, the maximum,
-and the exact rational a bounded radius stands for), every one rounding up
-so that a radius is always a true bound; the plan's D3 says why it is
-binary, coarse, and neither a `Rational` nor a `number`. `Ball` (`ball.ts`)
-is a midpoint beside a radius, and its operations compose the arithmetic of
+rule needs (`radiusAbove` of a fraction and `radiusAboveScaled` of a
+midpoint from its binary bounds, the sum, the product, the quotient
+against a lower bound, the power, the maximum, and the exact fraction a
+bounded radius stands for), every one rounding the right way so that a
+radius is always a true bound; the plan's D3 says why it is binary,
+coarse, and neither a `Rational` nor a `number`. `Ball` (`ball.ts`) is a
+midpoint beside a radius, and its operations compose the arithmetic of
 the midpoint's type with the propagation rules of the radius's; neither
-module knows the other, and nothing stores a radius inside a number. Stage
-4 puts a `Scaled`, a fraction times a power of ten in a module of its own,
-between the fraction and the ball as the midpoint's type, so that
-`rational.ts` stays the total fraction it is. Beside these, `Fixed`
-(`fixed.ts`) is the kernel's own representation, on which the inexact
-functions run: an integer standing for `value × 2^-bits` with an
-error count in ulps, every operation updating the count by a stated
-over-approximation (the plan's D9), entered from a rational or a ball and
-left through `fixedToBall`, which hands back the dyadic midpoint itself
-and the count as a radius. Its first routines are the roots: the square
+module knows the other, and nothing stores a radius inside a number.
+Beside these, `Fixed` (`fixed.ts`) is the kernel's own representation, on
+which the inexact functions run: an integer standing for `value × 2^-bits`
+with an error count in ulps, every operation updating the count by a
+stated over-approximation (the plan's D9), entered from a `Scaled` or a
+ball whose power of ten can be formed (`fixedFromScaled`; the callers
+bound their arguments first) and left through `fixedToBall`, which rounds
+the value onto the decimal grid of the working digits and hands back the
+count and the rounding as a radius. Its first routines are the roots: the square
 root by Newton on the reciprocal square root, multiplications only with
 the precision doubling, and the root of any degree by Newton in fixed
 point, either one's error verified by raising the result back to the
@@ -255,11 +302,12 @@ ceiling is derived.
 
 **Settling.** Every result the evaluator produces, and every unit the
 lookup hands out, is settled to the working context (the plan's D15):
-an inexact midpoint is rounded to nearest at the working precision's bits
-(`bitsFor`, the digits plus 32 guard bits), a dyadic, with half an ulp
-added to the radius; an exact value is never touched. So an inexact
-midpoint never grows beyond the working precision however long the
-expression, while exact values stay the exact rationals they are; the
+an inexact midpoint is rounded to nearest at the working digits
+(`workingDigits`, the decimal digits of `bitsFor`, the digits plus 32
+guard bits), the grid the kernel's results leave on, with half a unit in
+the last digit added to the radius; an exact value is never touched. So
+an inexact midpoint never grows beyond the working precision however long
+the expression, while exact values stay the exact numbers they are; the
 first version of this design let inexact midpoints grow as exact
 rationals, and a thirteen-thousand-bit dyadic to the fifth power was then
 a size the range limit refused. `powBall` on an inexact base squares with
@@ -272,18 +320,23 @@ certification guarantees is the true value's rounding in that mode.
 ### Size limits
 
 Exact arithmetic cannot overflow, but it can grow without bound:
-`10^(10^9)` and `1e999999999` are valid input. Two limits on two axes
-bound it (the plan's D16). The range limit, `maxBits` in the context,
-bounds the size of a numerator or denominator and so the magnitude of
-anything: the operations whose result can be exponentially larger than
-their inputs (`pow`, and a power of an inexact base by its magnitude)
-predict the size of their result and return `tooLarge` instead of
-computing anything beyond it, and the evaluator checks every literal
-against it. Its default is 2^16 bits (about 19,700 decimal digits, at
-which every exact operation still takes milliseconds) and it is the
-user's to set up to the hard bound `LIMIT_BITS` in rational.ts (2^20,
-about 315,000 digits), which the parser, having no context, applies to a
-literal. The operations that grow their inputs by at most a constant
+`3^(10^6)` and `1e999999999 + 1` are valid input. Two limits on two axes
+bound it (the plan's D16 as stage 4 restated it). The magnitude is the
+exponent's, bounded by `MAX_EXPONENT`, `10^18`, in scaled.ts, beyond
+which an operation is `tooLarge`; within it a magnitude costs nothing.
+The range limit, `maxBits` in the context, bounds the size of a mantissa's
+numerator or denominator and the alignment of a sum: the operations whose
+mantissa can be exponentially larger than their inputs (`pow`, and a
+power of an inexact base by its magnitude) predict the size of their
+result and return `tooLarge` instead of computing anything beyond it, a
+sum of two exact operands whose exponents differ by more than the limit
+is `tooLarge`, the kernel is handed no argument beyond `2^maxBits` (the
+built-ins answer such an argument or refuse it first), and the evaluator
+checks every literal's mantissa against it. Its default is 2^16 bits
+(about 19,700 decimal digits, at which every exact operation still takes
+milliseconds) and it is the user's to set up to the hard bound
+`LIMIT_BITS` in rational.ts (2^20, about 315,000 digits), which the
+parser, having no context, applies to a literal's mantissa. The operations that grow their inputs by at most a constant
 factor do not check: an expression of bounded length applies a bounded
 number of them, and settling keeps inexact midpoints at the working
 precision. The precision limit is the cap on the digits setting, from
@@ -321,7 +374,7 @@ value of any magnitude renders exactly.
 ## Quantities, dimensions and kinds
 
 Every unit resolves to a quantity: a magnitude, which is a `Ball` (a
-`Rational` midpoint with a `Radius`; "Precision and rounding" above), and a
+`Scaled` midpoint with a `Radius`; "Precision and rounding" above), and a
 dimension, which is an exponent vector over the primitive units, keyed by
 primitive name with zero exponents left out. Exponents are rational so that
 roots are exact on the dimension side (`sqrt(m)` is `m^(1/2)`).
@@ -367,16 +420,16 @@ The arithmetic the evaluator needs lives here as well: multiplication,
 division and raising to a rational power, each a ball operation beside the
 matching dimension operation. Only the magnitude can fail (a zero divisor,
 or one that cannot be told from zero, `0` to a negative power, an even root
-of a negative number, a result beyond the range limit), so the failures are those
-of `ball.ts`, and the power is the one operation that takes a
-`NumberContext`, for the root, or the log-space route, of a non-integer
-exponent. Negation touches
-the magnitude alone
-and cannot fail. Addition and subtraction are the
-other way about: the magnitudes always combine, but only quantities of one
-dimension have a sum, so the dimension side is the conformance check above,
-the sum has the dimension its terms share, and the failure is a
-`ConformanceError`. Since that check tells dimensions from kinds by the
+of a negative number, a result beyond the range limit or the exponent
+bound), so the failures are those of `ball.ts`, and the power is the one
+operation that takes a `NumberContext` for its computation, for the root,
+or the log-space route, of a non-integer exponent. Negation touches the
+magnitude alone and cannot fail. Addition and subtraction have both
+sides: only quantities of one dimension have a sum, so the dimension side
+is the conformance check above, the sum has the dimension its terms
+share, and the failure is a `ConformanceError`; and the magnitudes align
+within the range limit of the `NumberContext` the two take, failing
+`tooLarge` as `addBalls` does. Since that check tells dimensions from kinds by the
 roles of the primitives, these two operations take the primitives as
 `convert` does; `1 rad + 1` is a kind mismatch and `1 m + 1 s` a dimension
 mismatch, exactly as the same pair would be as `have` and `want`. There is
@@ -1025,7 +1078,7 @@ changes to the core.
 
 ```
 src/core/rational.ts      Rational, the exact fraction: arithmetic, comparison, integer powers, the exact root
-src/core/scaled.ts        Scaled, a fraction times a power of ten in canonical form: arithmetic, comparison, parsing, rounding, formatting, the binary magnitude
+src/core/scaled.ts        Scaled, the midpoint's type, a fraction times a power of ten in canonical form: arithmetic within the alignment limit and the exponent bound, comparison, parsing, rounding, formatting, the binary magnitude
 src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted; Precision
 src/core/context.ts       NumberContext: the precision, the rounding mode, the range limit and the ceiling arithmetic is done under
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, all rounding up
@@ -1064,7 +1117,8 @@ src/core/pipeline.ts      convertText, evaluateText: the pipeline over text
 src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions; src/units.test.ts checks them
 src/testing/random.ts     the seeded random source the tests and benchmarks share: keys, split and folded in, every draw a pure function of one
-src/testing/fraction.ts   parseFraction, roundFraction, formatFraction: the decimal representation over the fraction, for the tests of the modules that still hold fractions
+src/testing/fraction.ts   parseFraction, roundFraction, formatFraction: the decimal representation over the fraction, for the tests that reason on fractions
+src/testing/scaled.ts     dec, fr, fraction, ball, digitsOf: a literal as a Scaled, a midpoint back to its fraction, a ball from decimals, for the tests of the ball and above
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling

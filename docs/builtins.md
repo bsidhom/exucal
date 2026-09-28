@@ -62,18 +62,33 @@ once the name has resolved and before any argument is evaluated.
   with an unbounded radius, as `rootBall` rules.
 - **A tiny argument keeps its digits.** The odd functions (`sin`, `tan`,
   `asin`, `atan`, `sinh`, `tanh`, `asinh`, `atanh`) are close to the
-  identity near zero, so the built-in converts a tiny argument to the
+  identity near zero, so the built-in converts a small argument to the
   kernel at the working bits plus its negative binary exponent, as
   `rootBall` scales its argument, and `sin(1e-50 radian)` certifies on the
-  first pass rather than at the ceiling.
+  first pass rather than at the ceiling. An argument throughout below
+  `2^-maxBits`, which the kernel cannot be handed at any bits within the
+  range limit, is answered by its expansion at zero (stage 4's 4.4): the
+  odd functions give the argument itself within its cube, and `cos` and
+  `cosh` give one within its square, so `sin(1e-999999999 radian)` is
+  `≈ 1e-999999999` on the first pass.
+- **A large argument is answered before the kernel is entered** (4.4),
+  which holds a value only up to the range limit: `sin`, `cos` and `tan`
+  of an argument reaching `2^maxBits` are `tooLarge`, since the reduction
+  would need `pi` to that many bits; `atan` of one at or beyond `2^bits`
+  throughout is `±pi/2` within `2^-bits`; `asinh` and `acosh` of one are
+  `ln(2|x|)` within `1/(2x^2)`; `tanh`'s saturation to `±1` stands; and
+  the logarithms take any exponent, `ln(m × 10^e)` being `ln m + e ln 10`
+  from the memo, so `ln(1e999999999)` is a value and `log10(1e999999999)`
+  exactly `999999999`.
 - **A result whose magnitude would exceed the range limit** is `tooLarge`
   before anything is computed: `exp`, `sinh`, `cosh` and `pow` predict it
-  from the argument. This is a limit of the midpoint's representation, not
-  of the functions: an inexact midpoint is a dyadic whose size is its
-  exponent, so `exp(1e6)`, about `2^1442695`, cannot be held, though it is
-  an ordinary value, `≈ 3.0332e434294`. Stage 4 of the plan (the `Scaled`
-  midpoint, its 4.9) lifts it, after which these functions have the range
-  of an exponent and only the exponent bound refuses.
+  from the argument. This is a limit of the kernel's representation, not
+  of the functions: the kernel's fixed point holds a result as an integer
+  whose size is the result's binary exponent, so `exp(1e6)`, about
+  `2^1442695`, cannot be held there, though it is an ordinary value,
+  `≈ 3.0332e434294`, which the `Scaled` midpoint of 4.4 could carry. Stage
+  4's 4.9 lifts it, after which these functions have the range of an
+  exponent and only the exponent bound refuses.
 - **Propagation** is by running the series on the argument with its error
   included (D9), so no derivative bound is written separately; the
   truncation bound of a series is taken at the upper end of the argument's
@@ -261,8 +276,9 @@ x)`, `atan2` an arctangent by quadrant, and `asinh`, `acosh` and
   are `tooLarge` beyond about 45,000 at the default range limit; `tanh` is
   not, since for an argument beyond what the working bits can tell from
   one it is `±1` within `2 e^-2|x|`, a radius the coarse type holds at any
-  magnitude. Stage 4's 4.9 lifts the limit at the guard, the squaring
-  loop of `expFixed` and the kernel-to-ball conversion.
+  magnitude. Stage 4's 4.9 lifts the limit at the guard and the squaring
+  loop of `expFixed`; the kernel-to-ball conversion rounds onto the
+  decimal grid of the working digits since 4.4 and takes any exponent.
 - **The memos.** Four constants at the ceiling plus 64 bits; the margin
   serves the reduction of `sin` and `cos` for every argument below `2^64`
   at the ceiling pass exactly, the reduction taking pi at the bits asked

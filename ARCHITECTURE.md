@@ -55,8 +55,12 @@ denominator coprime to ten, the numerator not divisible by ten), so that
 `254 × 10^-2`. Exact fractions rather than arbitrary-precision floats
 because almost every unit definition is a rational (`2.54 cm`,
 `0.45359237 kg`), so conversions are exact and rounding happens only once,
-at display time; the exponent beside them because a value's magnitude
-should cost nothing (docs/decimal.md). Decimal literals parse exactly
+at display time, in the exact mode that is the default; the exponent
+beside them because a value's magnitude should cost nothing
+(docs/decimal.md). The decimal mode, the other of the two modes of the
+plan's D15, rounds every result to the digits asked for in the rounding
+mode instead, as a hand calculator or a decimal library does, and the
+two differ in nothing else ("Precision and rounding" below). Decimal literals parse exactly
 (`1.5e-3` is `15 × 10^-4`). The definitions file holds no irrational
 literal: the circle constant is the built-in `pi()`, computed to the
 precision of the table it is built in and of the pass an expression is
@@ -203,10 +207,12 @@ digits, mode)` in `src/core/display.ts` formats the midpoint at the
    Exactness is a property of the value, not of the display: a value that
    passes through a root and comes out looking rational (`sqrt(2) /
 sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while `sqrt(4)` is
-   `= 2` because the exact case was detected and nothing was rounded. The
-   mode is applied here and nowhere else in exact mode (the plan's D15):
-   the digits shown are the true value's rounding in it, and no
-   intermediate step rounds in a mode. The default mode is half away from
+   `= 2` because the exact case was detected and nothing was rounded. The mode is applied here and nowhere else in exact mode (the plan's D15):
+   the digits shown are the true value's rounding in it, and no intermediate
+   step rounds in a mode; in decimal mode every step rounds in it, through
+   the settle, and the display certifies the digits of the exact expression
+   as before, so a value the roundings have moved off its cell certifies
+   fewer than asked and the note says so. The default mode is half away from
    zero, the rounding people expect from `0.125 → 0.13` (the `halfExpand`
    of `Intl.NumberFormat`; C's `%g` differs only on exact ties, which are
    rare with doubles but ordinary with rationals). The retry loop below
@@ -272,10 +278,9 @@ the angle units of units.txt call it, so their quantities carry its radius
 and a conversion between them is `≈`.
 
 **Working precision and the context.** Every core function that does
-arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a
-`NumberContext` (`src/core/context.ts`: a precision in significant digits,
-a rounding mode, and the range limit `maxBits`) and computes at its
-precision; below the pipeline that precision is a working precision, not
+arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`: a precision in
+significant digits, a rounding mode, the exact or decimal mode, and the
+range limit `maxBits`) and computes at its precision; below the pipeline that precision is a working precision, not
 the digits shown. The pipeline (`evaluateText`, `convertText`) is the one
 place that knows the difference (the plan's D1): the context it takes is
 the user's, whose precision is the digits asked for, and it derives the
@@ -308,9 +313,13 @@ the ceiling context (`ceilingContext`), once per ceiling, by
 `system-build.ts` (the plan's D6): since the angle units call `pi()`, a
 unit's precision is fixed when the table is built and must lie above every pass, and one
 ceiling serves every digits setting under one cap, so the table is rebuilt
-only when the cap changes. The user's context comes from the settings
-("UI" below): the digits, the mode, and the two limits, from which the
-ceiling is derived.
+only when the cap changes. The user's context comes from the settings ("UI" below): the digits, the
+rounding mode, the exact or decimal mode, and the two limits, from which
+the ceiling is derived. In decimal mode the schedule is the user's
+context alone: one pass at the digits asked for, every operation rounding
+in the mode, and the display marking what the radius does not certify
+without escalating, since a higher internal precision would compute
+something other than what the mode asks for.
 
 **Settling.** Every result the evaluator produces, and every unit the
 lookup hands out, is settled to the working context (the plan's D15):
@@ -322,7 +331,16 @@ an inexact midpoint never grows beyond the working precision however long
 the expression, while exact values stay the exact numbers they are; the
 first version of this design let inexact midpoints grow as exact
 rationals, and a thirteen-thousand-bit dyadic to the fifth power was then
-a size the range limit refused. `powBall` on an inexact base squares with
+a size the range limit refused. In decimal mode the same settle rounds
+every midpoint, an exact one included, to the digits asked for in the
+rounding mode, and the exact difference between the rounded value and
+the midpoint goes into the radius, so that the rounding mode governs
+every operation there: a literal with more digits than asked is rounded
+and the radius records it, a unit is rounded once when it is looked up,
+a power at every squaring, and a call once on its result; a value with
+the digits asked for or fewer is its own rounding and stays exact, so
+`1 ft` in `in` is `= 12 in` in either mode. The two modes are one
+`roundTo` with two parameters (`settle` in `ball.ts`). `powBall` on an inexact base squares with
 settling for the same reason, and only the magnitude of its result is
 guarded. Settling rounds to nearest, not in the user's mode: it bounds the
 size of a number the user never sees, and the mode is applied once, by
@@ -1002,8 +1020,9 @@ from zero is left out as a term of zero is, with its note, unless it is
 the only term; the reciprocal line shows its own kind. The settings are the shell's
 (`src/settings.ts`, kept in `localStorage`, validated on the way in with
 the dependent ones clamped, so that a stale entry never leaves the app
-without a consistent context): the digits, the mode, the cap on the digits
-and the range limit in bits (the plan's D16), reaching the component as
+without a consistent context): the digits, the rounding mode, the exact
+or decimal mode, the cap on the digits and the range limit in bits (the
+plan's D16), reaching the component as
 its `context` property, the same `NumberContext` the pipeline takes, whose
 ceiling, the top of the retry schedule, is derived from the cap. A
 button in the panel runs the probe of `src/limits.ts`, which times the
@@ -1122,6 +1141,7 @@ src/core/builtins/pow.ts  pow(x, y): the rational power's rule for an exact expo
 src/core/builtins/trig.ts sin, cos and tan: the trigonometric functions of an angle, on fixed-trig.ts, sharing the reduction
 src/core/builtins/inverse-trig.ts asin, acos, atan and atan2: the inverses, returning an angle, every one an arctangent
 src/core/builtins/hyperbolic.ts sinh, cosh, tanh, asinh, acosh and atanh: through exp, and through ln of a root
+src/core/builtins/approx.ts approx(x): the value known to the working precision and no better, of any dimension, never narrowing
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction
@@ -1135,7 +1155,7 @@ src/testing/scaled.ts     dec, fr, fraction, ball, digitsOf: a literal as a Scal
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
-src/settings.ts           Settings: the digits, the mode and the two limits, in localStorage; contextOf
+src/settings.ts           Settings: the digits, the rounding mode, the exact or decimal mode and the two limits, in localStorage; contextOf
 src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
 src/unit-converter.ts     the component
 src/app-shell.ts          the host: loads the table, renders the component
@@ -1226,9 +1246,9 @@ Planned extensions, listed to show that they fit without reshaping the core:
   settling, certification, the retry loop, the two limits and `pi`) and
   stage 3 (the built-in kind of function, calls with any number of
   arguments, the elementary set, the table at the ceiling and the
-  logarithmic units) have landed, as have the `Scaled` midpoint and the
-  range of the inexact functions of stage 4 (`1e999999999` and `exp(1e6)`
-  are values); the decimal mode, the rest of stage 4, is next.
+  logarithmic units) and stage 4 (the `Scaled` midpoint, the range of the
+  inexact functions, the decimal mode and `approx`) have landed; stage 5,
+  the rational display, is next.
 - **Domain and range** on a function definition (`tempC(-300)` is a
   negative temperature today) are two optional bounds, checked at the call
   and at the inverse; docs/functions.md lists them with the other

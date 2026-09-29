@@ -264,9 +264,10 @@ rulings in full.
   and cuts the result to the bits its magnitude calls for. And an
   argument whose interval is too wide for a routine's series (about a
   fifth of a radian for `sin` and `cos`, one radian for `atan`, one half
-  for `asinh`, one for `tanh`) gets a trivial bound instead, zero within
-  one for the sine, the cosine and the hyperbolic tangent, zero within
-  two for the arctangent, the exponential of
+  for `asinh`, one for `tanh` and for `exp`) gets a trivial bound
+  instead, zero within one for the sine, the cosine and the hyperbolic
+  tangent, zero within two for the arctangent, zero within the
+  exponential of the signed upper end for `exp`, the exponential of
   the largest magnitude for the hyperbolic pair, the value at the
   midpoint plus the radius for `asinh`; the retry loop narrows such an
   argument.

@@ -380,5 +380,4 @@ loop ends, although the sixth pass would give `5` within `2e-354` and
 `exp` of it at once. A guard that refused on the midpoint and reported
 a ball that only its radius takes past the bound as `unresolved` would
 let the loop go on; it is not written, and the README says to keep such
-arguments exact meanwhile. It is tracked as issue #40 (https://github.com/bsidhom/pwa-units/issues/40), with
-the crash of `exp` and `pow` on a wide argument, #39 (https://github.com/bsidhom/pwa-units/issues/39).
+arguments exact meanwhile. It is tracked as issue #40 (https://github.com/bsidhom/pwa-units/issues/40).

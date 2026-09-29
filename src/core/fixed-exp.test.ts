@@ -352,6 +352,43 @@ test("containment: exp of an argument up to 1e6 either way contains the value co
   }
 });
 
+test("exp of a wide interval is zero within the exponential of its signed upper end, containing the exponential of every value in it", () => {
+  const bits = bitsFor(20);
+  // Around zero, around a positive center, around a negative one, and at
+  // an error of exactly one half; each at 8 fraction bits.
+  for (const [value, error] of [
+    [0n, 3n << 8n],
+    [5n << 8n, 2n << 8n],
+    [-20n << 8n, 30n << 8n],
+    [-1000n << 8n, 1n << 7n],
+    [0n, 1000000n << 8n],
+  ] as const) {
+    const f: Fixed = { value, error, bits: 8 };
+    const at = expFixed(f, bits);
+    assert.equal(at.mant.value, 0n, inspect(at));
+    assert.ok(at.mant.error > 0n);
+    const dyadic = toRational(f);
+    const rad = multiply(rational(error), rational(1n, 256n));
+    const label = `exp of ${toFraction(dyadic)} ± ${toFraction(rad)}`;
+    for (const v of [dyadic, subtract(dyadic, rad), add(dyadic, rad)]) {
+      const fine = expFixed(fixedFromRational(v, bitsFor(80)), bitsFor(80));
+      assert.ok(
+        containsFloating(at, fine),
+        `${label} contains exp of ${toFraction(v)}`,
+      );
+    }
+    // The bound is the exponential of the upper end, not far beyond it: the
+    // upper end's exponential at the coarse bits lies within a few ulps of
+    // the bound's edge.
+    const upper = expFixed(fixedFromRational(add(dyadic, rad), 8), bits);
+    assert.equal(upper.exp, at.exp);
+    assert.ok(at.mant.error - upper.mant.value - upper.mant.error <= 0n);
+  }
+  // Just below one half, the interval is halved and squared as before.
+  const narrow = expFixed({ value: 0n, error: 127n, bits: 8 }, bits);
+  assert.ok(narrow.mant.value > 0n);
+});
+
 /**
  * Whether the interval of `coarse` contains the value of `fine`, both
  * `Floating`s: compared at the coarse exponent, the fine mantissa shifted

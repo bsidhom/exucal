@@ -80,7 +80,7 @@ import type { Builtins } from "./builtin.ts";
 import { BUILTINS } from "./builtins.ts";
 import { checkContext, type NumberContext } from "./context.ts";
 import { err, ok, type Result } from "./result.ts";
-import { ONE } from "./scaled.ts";
+import { ONE, isRefusal } from "./scaled.ts";
 import type { Span } from "./span.ts";
 import {
   functionArity,
@@ -578,9 +578,10 @@ function lookupIn(
       if (product.ok) return product;
       // A prefix and a unit each within the exponent bound multiply to
       // within it unless both are at its edge, which the definitions the
-      // app ships are nowhere near; a product fails only there.
+      // app ships are nowhere near; a product is refused only there, since
+      // it is not held to the range limit (issue #52).
       const { error } = product;
-      if (error.kind !== "overflow" && error.kind !== "underflow") {
+      if (!isRefusal(error)) {
         throw new Error(`A prefix times a unit failed: ${error.kind}`);
       }
       return err({ kind: error.kind, span });

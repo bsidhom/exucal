@@ -93,6 +93,7 @@ import {
   sign,
   subtract,
   trunc,
+  type Refusal,
   type Scaled,
 } from "./scaled.ts";
 
@@ -102,8 +103,12 @@ export type ConvertError =
   | { readonly kind: "zeroWant" }
   /** `want` has a magnitude that cannot be told from zero at this precision. */
   | { readonly kind: "unresolvedWant" }
-  /** The ratio's exponent passes the bound, above it or below it. */
-  | { readonly kind: "overflow" | "underflow" };
+  /**
+   * The ratio was refused: its exponent passes the bound, above it or
+   * below it. A quotient is not held to the range limit (issue #52), so it
+   * is never `tooLarge` today; one would be passed on all the same.
+   */
+  | Refusal;
 
 /** Why a list of units is not a unit list for a `have`; `index` is the unit at fault. */
 export type UnitListError =
@@ -141,11 +146,12 @@ export function convert(
       return err({ kind: "zeroWant" });
     case "unresolved":
       return err({ kind: "unresolvedWant" });
+    case "tooLarge":
     case "overflow":
     case "underflow":
       return err({ kind: ratio.error.kind });
     default:
-      // A quotient of balls grows neither operand beyond its own size.
+      // A quotient takes no root and reads no text.
       throw new Error(`A ratio of magnitudes failed: ${ratio.error.kind}`);
   }
 }

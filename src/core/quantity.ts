@@ -12,24 +12,25 @@
 //
 // The arithmetic the evaluator needs lives here too: each operation is a
 // ball operation beside the matching dimension operation, and nothing else.
-// Multiplication is exact on the midpoints and propagates the radii, and
-// fails only at the exponent bound (`overflow`, `underflow`); division
-// fails on a divisor that is exactly zero, or that cannot be told from
-// zero (`unresolved`), and at the bound; and a power takes the
-// `NumberContext` whose precision its one inexact step, the root of a
-// non-integer exponent, is computed at. For those, the failures are the `ball.ts`
-// ones, since only the magnitude can fail: a dimension can be multiplied,
-// divided and raised to any rational power. Negation touches the magnitude
-// alone and cannot fail. Addition and subtraction have both sides: only
-// quantities of one dimension have a sum, so the dimension side is the
-// conformance check of `dimension.ts`, the same one `convert` applies to a
-// `have` and a `want`, and the failure is its `ConformanceError`; and the
-// magnitudes add as `addBalls` rules, aligned within the range limit of
-// the `NumberContext` they take (4.4), two exact magnitudes that cannot be
-// aligned failing `tooLarge` at the range limit, and a sum past the
-// exponent bound at the bound. The check tells dimensions from kinds by the
-// roles of the table's primitives, so these two operations take them, as
-// `convert` does.
+// Multiplication and division are exact on the midpoints and propagate the
+// radii, and their mantissas are not held to the range limit, which they
+// can pass (issue #52): multiplication fails only at the exponent bound
+// (`overflow`, `underflow`), and division on a divisor that is exactly
+// zero, or that cannot be told from zero (`unresolved`), and at the bound;
+// and a power takes the `NumberContext` whose precision its one inexact
+// step, the root of a non-integer exponent, is computed at. For those, the
+// failures are the `ball.ts` ones, since only the magnitude can fail: a
+// dimension can be multiplied, divided and raised to any rational power.
+// Negation touches the magnitude alone and cannot fail. Addition and
+// subtraction have both sides: only quantities of one dimension have a sum,
+// so the dimension side is the conformance check of `dimension.ts`, the
+// same one `convert` applies to a `have` and a `want`, and the failure is
+// its `ConformanceError`; and the magnitudes add as `addBalls` rules,
+// aligned within the range limit of the `NumberContext` they take (4.4),
+// two exact magnitudes that cannot be aligned failing `tooLarge` at the
+// range limit, and a sum past the exponent bound at the bound. The check
+// tells dimensions from kinds by the roles of the table's primitives, so
+// these two operations take them, as `convert` does.
 
 import {
   DIMENSIONLESS,

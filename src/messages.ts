@@ -331,6 +331,7 @@ export function describeConversionError(
       return `${quote(want.trim())} is zero, so nothing is a multiple of it.`;
     case "unresolvedWant":
       return `${quote(want.trim())} cannot be told from zero at this precision, so nothing can be converted into it.`;
+    case "tooLarge":
     case "overflow":
     case "underflow":
       return `${quote(have.trim())} into ${quote(want.trim())} ${describeRefusal(error.kind)}.`;

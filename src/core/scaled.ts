@@ -455,8 +455,9 @@ const DECIMAL = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/;
  * optional fraction (`12`, `1.5`, `.5`, `5.`) and an optional exponent
  * (`1.5e-3` is `15 × 10^-4`), the exponent kept as the exponent it is.
  * Anything else, including surrounding whitespace, is `invalidNumber`; a
- * mantissa of more digits than `LIMIT_BITS` holds, or an exponent beyond
- * `MAX_EXPONENT`, is `tooLarge`.
+ * mantissa of more digits than `LIMIT_BITS` holds is `tooLarge` at the
+ * range limit, and an exponent beyond `MAX_EXPONENT` at the bound, on its
+ * side.
  */
 export function parseDecimal(text: string): Result<Scaled, ScaledError> {
   const match = DECIMAL.exec(text);

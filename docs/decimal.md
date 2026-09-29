@@ -190,10 +190,15 @@ exponent is: `7^(10^19)`, refused by the range limit's prediction, is
 past the bound, which no setting moves; and `2.54^(10^18)`, whose
 canonical exponent, `-2 × 10^18`, is past the bound below, is
 `10^(0.40 × 10^18)`, within it, and is refused at the range limit. A
-power of an inexact base is past the bound on the side of one its
-magnitude lies, and a negative power on the other side. A literal past
-the bound is the parser's to word: its exponent passes `10^18`, or is
-below `-10^18`.
+power of an inexact base that the guard refuses is past the bound on the
+side of one its magnitude lies, and a negative power on the other side.
+A literal past the bound is the parser's to word: its exponent passes
+`10^18`, or is below `-10^18`, as written, less its fraction digits, and
+then as the canonical form puts it. The exponent the messages speak of is
+the canonical one, which differs from the decimal exponent by the
+mantissa's digits: a value within as many digits of the bound as its
+mantissa has may be refused (`1e-999999999999999950 * sqrt(2)`, whose
+mantissa has the working digits), and a whole mantissa past it held.
 
 ### Decision: the bound stays at `10^18`
 

@@ -26,7 +26,8 @@
 // `have` and a `want`, and the failure is its `ConformanceError`; and the
 // magnitudes add as `addBalls` rules, aligned within the range limit of
 // the `NumberContext` they take (4.4), two exact magnitudes that cannot be
-// aligned failing `tooLarge`. The check tells dimensions from kinds by the
+// aligned failing `tooLarge` at the range limit, and a sum past the
+// exponent bound at the bound. The check tells dimensions from kinds by the
 // roles of the table's primitives, so these two operations take them, as
 // `convert` does.
 
@@ -87,7 +88,8 @@ export function settleQuantity(q: Quantity, context: NumberContext): Quantity {
  * share; `1 m + 1 s`, `1 radian + 1` and `1 m + 0` (a plain number, not a
  * length) have none, and fail with the mismatch, `a` as its `have` and `b`
  * as its `want`; two exact magnitudes that cannot be aligned fail
- * `tooLarge`.
+ * `tooLarge` at the range limit, and a sum past the exponent bound at the
+ * bound.
  */
 export function addQuantities(
   a: Quantity,
@@ -167,7 +169,8 @@ export function divideQuantities(
  * its exponents are rational. Fails as the magnitude does: `0` to a
  * negative power, a ball around zero to a negative power or under an even
  * root (`unresolved`), an even root of a negative magnitude, or a result
- * beyond the range limit.
+ * beyond the range limit or the exponent bound (`tooLarge`, which says
+ * which).
  */
 export function powQuantity(
   q: Quantity,

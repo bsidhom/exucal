@@ -10,6 +10,7 @@ import { inspect } from "node:util";
 import { exact, isExact, multiplyBalls, type Ball } from "./ball.ts";
 import { buildTable, type BuildError } from "./build.ts";
 import {
+  fromBallError,
   plainNumbers,
   type Builtin,
   type BuiltinError,
@@ -502,6 +503,24 @@ test("a failed power is reported at the power", () => {
   // A power of ten costs nothing: the exponent takes it.
   assertQuantity(built("m !", "big 10^99999 m").units.get("big"), "1e99999", {
     m: 1,
+  });
+});
+
+test("a prefix times a unit past the exponent bound is too large at the name, on its side", () => {
+  const above = ["m !", "e18- 1e999999999999999999", "big 1e10 m", "x e18big"];
+  assert.deepEqual(failed(...above), {
+    kind: "overflow",
+    span: spanOf(above, "e18big"),
+  });
+  const below = [
+    "m !",
+    "tiny- 1e-999999999999999999",
+    "small 1e-10 m",
+    "x tinysmall",
+  ];
+  assert.deepEqual(failed(...below), {
+    kind: "underflow",
+    span: spanOf(below, "tinysmall"),
   });
 });
 
@@ -1061,7 +1080,7 @@ test("a cycle through a function is reported like any other", () => {
 /** `x` doubled, exactly; the product of balls fails only at the exponent bound. */
 function doubled(x: Ball): Result<Ball, BuiltinError> {
   const product = multiplyBalls(exact(fr(2n)), x);
-  return product.ok ? product : err({ kind: "tooLarge" });
+  return product.ok ? product : err(fromBallError(product.error, 0));
 }
 
 /** A built-in as a test injects one: a plain number doubled, exactly. */

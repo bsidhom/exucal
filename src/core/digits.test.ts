@@ -207,7 +207,15 @@ test("the log-space ball contains the value and carries the mantissa's error, ov
 
 test("a decimal exponent beyond the bound is tooLarge, and the exact path rounds a value of the range limit's size", () => {
   const huge = floatingToBall(floating(1n, 4n * 10n ** 18n), at(8));
-  assert.deepEqual(huge, { ok: false, error: { kind: "tooLarge" } });
+  assert.deepEqual(huge, {
+    ok: false,
+    error: { kind: "overflow" },
+  });
+  const tiny = floatingToBall(floating(1n, -4n * 10n ** 18n), at(8));
+  assert.deepEqual(tiny, {
+    ok: false,
+    error: { kind: "underflow" },
+  });
   // Within the range limit the exact path rounds onto the grid.
   const b = unwrap(floatingToBall(floating(3n, 60000n), at(8)));
   assert.ok(

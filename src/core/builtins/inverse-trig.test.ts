@@ -367,6 +367,11 @@ test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^
   const asinSmall = value(asinBall(exact(tiny), DEFAULT));
   assert.ok(equals(asinSmall.mid, tiny));
   assert.ok(certifies(asinSmall, 8, "halfEven"));
+  // A ball reaching both sides of zero and past 2^maxBits does not
+  // saturate, and the kernel's door refuses it at the range limit.
+  assert.deepEqual(failure(atanBall(ballOf(ZERO, dec("1e19729")), DEFAULT)), {
+    kind: "tooLarge",
+  });
 });
 
 test("an inexact argument's inverse contains those of its ends, and a wide one is the trivial bound", () => {

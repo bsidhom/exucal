@@ -21,6 +21,10 @@
 // - `check` lets a parser reject text it recognized (a numeric literal too
 //   large to represent). A rejection ends the parse: no alternative is tried,
 //   because the text was understood and found unacceptable, not misread.
+//   Its reason is data of the grammar's choosing, the `R` of `Parser<A, R>`,
+//   and not words: the grammar says why, and the UI says it (messages.ts),
+//   as for every other error. A parser that cannot reject has `R` never,
+//   the default, and fits wherever a parser of any `R` is wanted.
 //
 // Parsers are pure functions of their input. The only mutable state is
 // internal and unobservable: `regex` reuses one sticky `RegExp` whose
@@ -48,15 +52,15 @@ export type Expectation = {
   readonly expected: readonly string[];
 };
 
-export type ParseError =
+export type ParseError<R = never> =
   /** Nothing acceptable at `pos`; `expected` names what would have been. */
   | {
       readonly kind: "unexpected";
       readonly pos: number;
       readonly expected: readonly string[];
     }
-  /** The text at `span` was recognized but rejected by a `check`. */
-  | { readonly kind: "rejected"; readonly span: Span; readonly reason: string };
+  /** The text at `span` was recognized but rejected by a `check`, for `reason`. */
+  | { readonly kind: "rejected"; readonly span: Span; readonly reason: R };
 
 /**
  * A match: `value` was parsed from the input between the start position and
@@ -71,21 +75,33 @@ export type Success<A> = {
   readonly furthest: Expectation;
 };
 
-export type Failure = { readonly ok: false; readonly error: ParseError };
+export type Failure<R = never> = {
+  readonly ok: false;
+  readonly error: ParseError<R>;
+};
 
-export type Reply<A> = Success<A> | Failure;
+export type Reply<A, R = never> = Success<A> | Failure<R>;
 
-/** A parser of `A`: runs on `text` at `pos` and replies without side effects. */
-export type Parser<A> = (text: string, pos: number) => Reply<A>;
+/**
+ * A parser of `A`: runs on `text` at `pos` and replies without side
+ * effects, rejecting what it recognized, if it can, for a reason `R`.
+ */
+export type Parser<A, R = never> = (text: string, pos: number) => Reply<A, R>;
+
+/** The value a parser produces. */
+type ValueOf<P> = P extends Parser<infer A, unknown> ? A : never;
+
+/** The reason a parser may reject for. */
+type ReasonOf<P> = P extends Parser<unknown, infer R> ? R : never;
 
 // ---------------------------------------------------------------------------
 // Running a parser
 
 /** Parses the whole of `text` with `parser`; trailing input is an error. */
-export function parse<A>(
-  parser: Parser<A>,
+export function parse<A, R>(
+  parser: Parser<A, R>,
   text: string,
-): Result<A, ParseError> {
+): Result<A, ParseError<R>> {
   const reply = seq(parser, eof)(text, 0);
   return reply.ok ? ok(reply.value[0]) : err(reply.error);
 }
@@ -141,8 +157,8 @@ export const eof: Parser<undefined> = (text, pos) =>
  * Defers building a parser until it is first used, so that a grammar can
  * refer to itself: `const expr = lazy(() => alt(number, parenthesized))`.
  */
-export function lazy<A>(build: () => Parser<A>): Parser<A> {
-  let parser: Parser<A> | undefined;
+export function lazy<A, R>(build: () => Parser<A, R>): Parser<A, R> {
+  let parser: Parser<A, R> | undefined;
   return (text, pos) => (parser ??= build())(text, pos);
 }
 
@@ -150,7 +166,10 @@ export function lazy<A>(build: () => Parser<A>): Parser<A> {
 // Combinators
 
 /** Applies `f` to the parsed value. */
-export function map<A, B>(parser: Parser<A>, f: (value: A) => B): Parser<B> {
+export function map<A, B, R>(
+  parser: Parser<A, R>,
+  f: (value: A) => B,
+): Parser<B, R> {
   return (text, pos) => {
     const reply = parser(text, pos);
     return reply.ok ? { ...reply, value: f(reply.value) } : reply;
@@ -158,10 +177,10 @@ export function map<A, B>(parser: Parser<A>, f: (value: A) => B): Parser<B> {
 }
 
 /** Chooses the parser to continue with from the value parsed so far. */
-export function flatMap<A, B>(
-  parser: Parser<A>,
-  f: (value: A) => Parser<B>,
-): Parser<B> {
+export function flatMap<A, B, R>(
+  parser: Parser<A, R>,
+  f: (value: A) => Parser<B, R>,
+): Parser<B, R> {
   return (text, pos) => {
     const first = parser(text, pos);
     if (!first.ok) return first;
@@ -178,10 +197,10 @@ export function flatMap<A, B>(
  * failure to match, it is not undone by backtracking. This is the only source
  * of `rejected` errors.
  */
-export function check<A, B>(
-  parser: Parser<A>,
-  validate: (value: A) => Result<B, string>,
-): Parser<B> {
+export function check<A, B, R>(
+  parser: Parser<A, R>,
+  validate: (value: A) => Result<B, R>,
+): Parser<B, R> {
   return (text, pos) => {
     const reply = parser(text, pos);
     if (!reply.ok) return reply;
@@ -196,7 +215,7 @@ export function check<A, B>(
 }
 
 /** Pairs the parsed value with the span of input it was parsed from. */
-export function spanned<A>(parser: Parser<A>): Parser<Spanned<A>> {
+export function spanned<A, R>(parser: Parser<A, R>): Parser<Spanned<A>, R> {
   return (text, pos) => {
     const reply = parser(text, pos);
     if (!reply.ok) return reply;
@@ -207,27 +226,32 @@ export function spanned<A>(parser: Parser<A>): Parser<Spanned<A>> {
 
 /**
  * Runs the parsers one after another and produces their values as a tuple:
- * `seq(a, b, c)` is a `Parser<[A, B, C]>`.
+ * `seq(a, b, c)` is a `Parser<[A, B, C]>`, rejecting for any of their
+ * reasons.
  */
-export function seq<T extends readonly unknown[]>(
-  ...parsers: { readonly [K in keyof T]: Parser<T[K]> }
-): Parser<T> {
+export function seq<P extends readonly Parser<unknown, unknown>[]>(
+  ...parsers: P
+): Parser<{ -readonly [K in keyof P]: ValueOf<P[K]> }, ReasonOf<P[number]>> {
+  type Values = { -readonly [K in keyof P]: ValueOf<P[K]> };
+  type Reason = ReasonOf<P[number]>;
   return (text, pos) => {
     const values: unknown[] = [];
     let end = pos;
     let furthest = nothingExpected(pos);
     for (const parser of parsers) {
       const reply = parser(text, end);
-      if (!reply.ok) return merged(reply, furthest);
+      // A failure's reason is one of the parsers', which `Reason` is the
+      // union of; the checker cannot see that through the loop.
+      if (!reply.ok) return merged(reply as Failure<Reason>, furthest);
       values.push(reply.value);
       end = reply.end;
       furthest = further(furthest, reply.furthest);
     }
     // The loop pushes one value per parser, in order, which is exactly what
-    // the mapped parameter type promises `T` is, but the type checker cannot
-    // follow a tuple built element by element, so this is the one place a
-    // grammar's shape is asserted rather than inferred.
-    return success(values as unknown as T, end, furthest);
+    // the mapped return type promises `Values` is, but the type checker
+    // cannot follow a tuple built element by element, so this is the one
+    // place a grammar's shape is asserted rather than inferred.
+    return success(values as unknown as Values, end, furthest);
   };
 }
 
@@ -237,13 +261,18 @@ export function seq<T extends readonly unknown[]>(
  * alternative that fails after consuming input is undone entirely before the
  * next is tried, and a rejection by any of them ends the search.
  */
-export function alt<T extends readonly unknown[]>(
-  ...parsers: { readonly [K in keyof T]: Parser<T[K]> }
-): Parser<T[number]> {
+export function alt<P extends readonly Parser<unknown, unknown>[]>(
+  ...parsers: P
+): Parser<ValueOf<P[number]>, ReasonOf<P[number]>> {
+  type Value = ValueOf<P[number]>;
+  type Reason = ReasonOf<P[number]>;
   return (text, pos) => {
     let furthest = nothingExpected(pos);
     for (const parser of parsers) {
-      const reply = parser(text, pos);
+      // One of the parsers' replies, whose value and reason are among the
+      // unions `Value` and `Reason`; the checker cannot see that through
+      // the loop.
+      const reply = parser(text, pos) as Reply<Value, Reason>;
       if (reply.ok) {
         return { ...reply, furthest: further(furthest, reply.furthest) };
       }
@@ -255,7 +284,7 @@ export function alt<T extends readonly unknown[]>(
 }
 
 /** Matches `parser` if it matches, and nothing (producing `undefined`) otherwise. */
-export function optional<A>(parser: Parser<A>): Parser<A | undefined> {
+export function optional<A, R>(parser: Parser<A, R>): Parser<A | undefined, R> {
   return alt(parser, succeed(undefined));
 }
 
@@ -264,7 +293,7 @@ export function optional<A>(parser: Parser<A>): Parser<A | undefined> {
  * must consume input whenever it matches; one that matched nothing would be
  * matched forever, so that is reported by throwing.
  */
-export function many<A>(parser: Parser<A>): Parser<readonly A[]> {
+export function many<A, R>(parser: Parser<A, R>): Parser<readonly A[], R> {
   return (text, pos) => {
     const values: A[] = [];
     let end = pos;
@@ -292,7 +321,9 @@ export function many<A>(parser: Parser<A>): Parser<readonly A[]> {
 }
 
 /** Matches `parser` one or more times. */
-export function many1<A>(parser: Parser<A>): Parser<readonly [A, ...A[]]> {
+export function many1<A, R>(
+  parser: Parser<A, R>,
+): Parser<readonly [A, ...A[]], R> {
   return map(seq(parser, many(parser)), ([first, rest]) => [first, ...rest]);
 }
 
@@ -302,10 +333,10 @@ export function many1<A>(parser: Parser<A>): Parser<readonly [A, ...A[]]> {
  * precedence level. The operator parser produces the function to combine
  * with, so different operators at one level need only one `chainl1`.
  */
-export function chainl1<A>(
-  operand: Parser<A>,
-  operator: Parser<(left: A, right: A) => A>,
-): Parser<A> {
+export function chainl1<A, R>(
+  operand: Parser<A, R>,
+  operator: Parser<(left: A, right: A) => A, R>,
+): Parser<A, R> {
   return map(seq(operand, many(seq(operator, operand))), ([first, rest]) =>
     rest.reduce((left, [combine, right]) => combine(left, right), first),
   );
@@ -333,13 +364,13 @@ function nothingExpected(pos: number): Expectation {
 }
 
 function expectationOf(
-  error: ParseError & { kind: "unexpected" },
+  error: ParseError<unknown> & { kind: "unexpected" },
 ): Expectation {
   return { pos: error.pos, expected: error.expected };
 }
 
 /** `failure` with what an earlier part of the same parser expected folded in. */
-function merged(failure: Failure, furthest: Expectation): Failure {
+function merged<R>(failure: Failure<R>, furthest: Expectation): Failure<R> {
   return failure.error.kind === "unexpected"
     ? unexpected(further(furthest, expectationOf(failure.error)))
     : failure;

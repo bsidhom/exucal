@@ -14,8 +14,10 @@
 //
 // `sinh` and `cosh` are guarded by magnitude as `exp` is, and share its
 // range (3.6, then 4.9): an argument whose magnitude over its whole ball
-// would put the result beyond the exponent bound is `tooLarge` at the
-// call, through `expFits`, before anything is computed, and otherwise the
+// would put the result beyond the exponent bound is an `overflow` at the
+// call, through `expFits`, before anything is computed, for an argument
+// of either sign, both being large in magnitude there (`cosh(-1e30)` is
+// as large as `cosh(1e30)`), and otherwise the
 // kernel's pair of `Floating`s comes out through digits.ts
 // (`floatingToBall`), so that `sinh(1e6)` and `cosh(1e6)` are values. `tanh` is not: for an argument
 // whose magnitude throughout its ball is beyond what the working bits can
@@ -124,6 +126,7 @@ import {
   compare,
   equals,
   fromRational,
+  isRefusal,
   isZero,
   multiply,
   negate,
@@ -175,7 +178,7 @@ export function tanhBall(
   const saturated = saturation(x, bits);
   if (saturated !== undefined) return ok(saturated);
   if (!expFits(radiusBound(magnitudeAbove(x)))) {
-    return err({ kind: "tooLarge" });
+    return err({ kind: "overflow" });
   }
   return ok(
     fixedToBall(
@@ -300,7 +303,16 @@ export function atanhBall(
   const denominator = subtractBalls(exact(ONE), x, context);
   if (!denominator.ok) return err(fromBallError(denominator.error, 0));
   const quotient = divideBalls(numerator.value, denominator.value);
-  if (!quotient.ok) throw new Error("A divisor above zero was checked");
+  if (!quotient.ok) {
+    // The divisor was checked to be above zero, so only a refusal of the
+    // quotient is left: none today, since `1 - x` could only be formed
+    // within the range limit, but past that limit once quotients are held
+    // to it (issue #52).
+    if (!isRefusal(quotient.error)) {
+      throw new Error("A divisor above zero was checked");
+    }
+    return err(fromBallError(quotient.error, 0));
+  }
   const half = shiftFixed(logarithm(quotient.value, x.mid, context), -1);
   return ok(
     fixedToBall(
@@ -317,7 +329,7 @@ function out(result: Result<Ball, BallError>): Result<Ball, BuiltinError> {
 
 /**
  * The kernel's hyperbolic sine and cosine of the bounded `x` at the
- * context, or `tooLarge` when the result would exceed the exponent bound:
+ * context, or `overflow` when the result would exceed the exponent bound:
  * a small `x` is converted at as many more fraction bits as its magnitude
  * is below one, so that the kernel keeps its digits.
  */
@@ -326,7 +338,7 @@ function sinhCosh(
   context: NumberContext,
 ): Result<SinhCosh, BuiltinError> {
   if (!expFits(radiusBound(magnitudeAbove(x)))) {
-    return err({ kind: "tooLarge" });
+    return err({ kind: "overflow" });
   }
   const bits = bitsFor(context.precision);
   return ok(
@@ -366,6 +378,8 @@ function saturation(x: Ball, bits: number): Ball | undefined {
 function farLogarithm(x: Ball, context: NumberContext): Ball {
   const bits = bitsFor(context.precision);
   const twice = multiply(TWO, absolute(x.mid));
+  // This assumes twice `x` is never refused, which fails for an `x` whose
+  // double reaches the next power of ten past the bound (issue #44).
   if (!twice.ok) throw new Error("Twice a value within the bound is within it");
   const f = lnScaled(exact(twice.value), bits, bitsFor(context.ceiling));
   if (f === undefined) throw new Error("The logarithm's argument is positive");

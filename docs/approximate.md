@@ -5,7 +5,7 @@ Status: design note, written during the review of docs/decimal.md
 stage; "Future work" at the end records the uncertain-measurement form
 and how it will be implemented, tentatively. The task has landed, and
 "Implementation notes" says how; "`approx` and the exponent bound", after
-them, records why `exp(approx(1e999))` is `tooLarge` as `exp(1e999)` is.
+them, records why `exp(approx(1e999))` is refused as `exp(1e999)` is.
 
 ## The problem
 
@@ -261,7 +261,7 @@ loop's stopping rule above.
 
 ## `approx` and the exponent bound
 
-Written after a report that `exp(approx(1e999))` is `tooLarge`, on the
+Written after a report that `exp(approx(1e999))` is refused, on the
 expectation that `approx` would make the argument a value known to the
 working precision and so the result a value that can be computed. It
 cannot, and the reason is kept here, since "A large exponent is a value"
@@ -279,10 +279,14 @@ decimal exponent, `1e999 log10 e`, about `4.34 × 10^998`, passes
 (`expFits(radiusBound(magnitudeAbove(x)))`). The guard takes the
 magnitude over the whole ball, and `approx` never narrows, so `approx`
 can turn a pass of the guard into a refusal and never the reverse; and
-`tooLarge` is not an error `resolve` retries, so the refusal is the
+a refusal is not an error `resolve` retries, so the refusal is the
 answer at the first pass. The threshold is `|x|` at `10^18 ln 10`, about
 `2.3026e18`, with `approx` or without it, and the same for `-x`,
-`sinh`, `cosh` and the log-space power.
+`sinh`, `cosh` and the log-space power. The message names the axis:
+`"exp(1e999)" is too large to compute: its exponent would pass 10^18.`,
+where the range limit's reads `"1e999999999 + 1" is too large to compute
+within Most bits.`, and `exp(-1e999)` is too small, its exponent falling
+below `-10^18`.
 
 **The condition.** Were the exponent held, `approx` would cost rather
 than help. `exp` turns an absolute radius `r` of its argument into a
@@ -371,12 +375,11 @@ in it:
 
 **A related gap.** The guard's magnitude over the whole ball lets a
 radius alone refuse: `exp(approx(1e999) - approx(1e999 - 5))` is `5`
-within about `2e948` at the first pass and `tooLarge` there, and the
+within about `2e948` at the first pass and refused there, and the
 loop ends, although the sixth pass would give `5` within `2e-354` and
 `exp` of it at once. A guard that refused on the midpoint and reported
 a ball that only its radius takes past the bound as `unresolved` would
 let the loop go on; it is not written, and the README says to keep such
 arguments exact meanwhile. It is tracked as issue #40 (https://github.com/bsidhom/pwa-units/issues/40), with
 the crash of `exp` and `pow` on a wide argument, #39 (https://github.com/bsidhom/pwa-units/issues/39); #38
-(https://github.com/bsidhom/pwa-units/issues/38), `tanh` of a wide ball certified as `±1`, and #41
-(https://github.com/bsidhom/pwa-units/issues/41), the one message for both limits, were found with it.
+(https://github.com/bsidhom/pwa-units/issues/38), `tanh` of a wide ball certified as `±1`, was found with it.

@@ -23,24 +23,27 @@
 //
 // The exponent is bounded, `|exp| <= MAX_EXPONENT`, the study's `10^18`,
 // so that a value can always be written; `scaled` checks it after
-// normalizing and fails `tooLarge`, and the arithmetic (4.2) fails the
-// same way wherever exponents combine. Nothing here forms a power of ten
-// the exponent stands for except `toRational`, which takes the bits it
-// may form and fails `tooLarge` beyond them: the decimal exponent of a
-// value is the mantissa's plus `exp`, and a comparison is decided by the
-// signs, by the decimal exponents, and, when those are equal, by an
-// alignment whose shift is then bounded by the mantissas' own digit
-// counts and never by the range limit, so `compare` is total. The binary
-// magnitude a radius needs (`log2Bounds`, for radius.ts) is a lower and
-// an upper bound on `log2 |s|` within `2^-30`, from the bit lengths of the
-// mantissa and the exponent times `log2 10` held as a 128-bit fraction,
-// with no call into the kernel; `decimalExponentOfLog2` and
-// `oneDigitAbove` go the other way, from a binary logarithm to a decimal
-// exponent and to a one-digit value above it, for the certification and
-// the display of a radius that cannot be formed. The digit count of an
-// integer (`decimalDigits`) and the powers of ten (`powerOfTen`, memoized)
-// are here for the boundary too, since `toString` is an order slower at
-// the ceiling's sizes.
+// normalizing and fails `overflow` above it or `underflow` below it, and
+// the arithmetic (4.2) fails the same way wherever exponents combine.
+// These are this module's own failures, since only a value with an
+// exponent can pass the bound; the fraction's `tooLarge` is the range
+// limit's, and a `Scaled` operation reports it unchanged. Nothing here
+// forms a power of ten the exponent stands for except `toRational`, which
+// takes the bits it may form and fails `tooLarge` beyond them: the
+// decimal exponent of a value is the mantissa's plus `exp`, and a
+// comparison is decided by the signs, by the decimal exponents, and, when
+// those are equal, by an alignment whose shift is then bounded by the
+// mantissas' own digit counts and never by the range limit, so `compare`
+// is total. The binary magnitude a radius needs (`log2Bounds`, for
+// radius.ts) is a lower and an upper bound on `log2 |s|` within `2^-30`,
+// from the bit lengths of the mantissa and the exponent times `log2 10`
+// held as a 128-bit fraction, with no call into the kernel;
+// `decimalExponentOfLog2` and `oneDigitAbove` go the other way, from a
+// binary logarithm to a decimal exponent and to a one-digit value above
+// it, for the certification and the display of a radius that cannot be
+// formed. The digit count of an integer (`decimalDigits`) and the powers
+// of ten (`powerOfTen`, memoized) are here for the boundary too, since
+// `toString` is an order slower at the ceiling's sizes.
 //
 // The arithmetic (4.2) is the fraction's on the mantissas with the
 // exponents combined and the result renormalized. A sum aligns the
@@ -48,11 +51,13 @@
 // and fails `tooLarge` when that exceeds the limit given, the range limit:
 // the exact sum exists and cannot be held (`1e999999999 + 1`), which is
 // what the limit means; a product, a quotient and a power add, subtract
-// and multiply exponents and fail `tooLarge` at the bound, a power's
-// mantissa sized against the limit as the fraction's `pow` sizes it. So
-// `add`, `subtract`, `multiply`, `divide`, `invert` and `pow` are
-// `Result`s where the fraction's are total, and `negate` and `absolute`
-// stay total.
+// and multiply exponents and fail at the bound, a power's mantissa sized
+// against the limit as the fraction's `pow` sizes it. So `add`,
+// `subtract`, `multiply`, `divide`, `invert` and `pow` are `Result`s
+// where the fraction's are total, and `negate` and `absolute` stay total.
+// A power refused is reported by its decimal exponent (`powerRefusal`),
+// so that one the range limit refuses is reported at the bound when the
+// bound would refuse it too.
 //
 // The decimal representation (4.3) lives here, moved from rational.ts:
 // `parseDecimal` reads a literal exactly with its exponent kept lazily,
@@ -68,10 +73,10 @@
 // formed is `undefined`, no truncation and no exact root, for the caller
 // to take another route.
 //
-// Failures on values are `Result`s with the fraction's error kinds; a
-// violated precondition (the decimal exponent of zero, a precision that is
-// not a positive integer, a root of degree below one) throws `RangeError`,
-// as `rational` does.
+// Failures on values are `Result`s with the fraction's error kinds and
+// the bound's two; a violated precondition (the decimal exponent of zero,
+// a precision that is not a positive integer, a root of degree below one)
+// throws `RangeError`, as `rational` does.
 
 import {
   LIMIT_BITS,
@@ -103,8 +108,37 @@ import {
 /** A number `mant × 10^exp`, in the canonical form the header states. */
 export type Scaled = { readonly mant: Rational; readonly exp: bigint };
 
-/** The failures a `Scaled` operation can report: the fraction's. */
-export type ScaledError = RationalError;
+/**
+ * The failures a `Scaled` operation can report: the fraction's, whose
+ * `tooLarge` is a result past the range limit (rational.ts), and the
+ * exponent bound's, which only a value with an exponent can pass.
+ */
+export type ScaledError =
+  | RationalError
+  /** The result's exponent would pass `MAX_EXPONENT`: it is too large to hold. */
+  | { readonly kind: "overflow" }
+  /** The result's exponent would fall below `-MAX_EXPONENT`: it is nonzero and too small to hold. */
+  | { readonly kind: "underflow" };
+
+/**
+ * A refusal: a result the limits keep from being computed, past the range
+ * limit (`tooLarge`) or the exponent bound (`overflow`, `underflow`).
+ */
+export type Refusal = Extract<
+  ScaledError,
+  { readonly kind: "tooLarge" | "overflow" | "underflow" }
+>;
+
+/** Whether `error` is a refusal, of whichever limit. */
+export function isRefusal<E extends { readonly kind: string }>(
+  error: E,
+): error is Extract<E, { readonly kind: Refusal["kind"] }> {
+  return (
+    error.kind === "tooLarge" ||
+    error.kind === "overflow" ||
+    error.kind === "underflow"
+  );
+}
 
 /**
  * The bound on `|exp|`, `10^18`: generous and finite, so that a value's
@@ -119,8 +153,8 @@ export const ONE: Scaled = { mant: ONE_FRACTION, exp: 0n };
 // Construction and inspection
 
 /**
- * `mant × 10^exp` in canonical form, or `tooLarge` when the normalized
- * exponent exceeds `MAX_EXPONENT` in magnitude.
+ * `mant × 10^exp` in canonical form, or `overflow` or `underflow` when the
+ * normalized exponent passes `MAX_EXPONENT` above or below.
  */
 export function scaled(
   mant: Rational,
@@ -128,9 +162,14 @@ export function scaled(
 ): Result<Scaled, ScaledError> {
   const s = normalize(mant, exp);
   if (s.exp > MAX_EXPONENT || s.exp < -MAX_EXPONENT) {
-    return err({ kind: "tooLarge" });
+    return err(pastBound(s.exp));
   }
   return ok(s);
+}
+
+/** The failure of a value whose exponent `exp` is past the bound: `underflow` below it, `overflow` above. */
+function pastBound(exp: bigint): Refusal {
+  return { kind: exp < 0n ? "underflow" : "overflow" };
 }
 
 /** The fraction `r` as a `Scaled`: its powers of ten moved into the exponent, which the fraction's size bounds far below the limit. */
@@ -248,7 +287,8 @@ export function absolute(s: Scaled): Scaled {
 
 /**
  * `a + b`, exactly, the mantissas aligned by `10^|Δexp|`; `tooLarge` when
- * the alignment would exceed `limit` bits, or the sum's exponent the bound.
+ * the alignment would exceed `limit` bits, and `overflow` or `underflow`
+ * when the sum's exponent would pass the bound.
  */
 export function add(
   a: Scaled,
@@ -286,13 +326,21 @@ function combine(
   return scaled(op(left, right), exp);
 }
 
-/** `a × b`, exactly: the mantissas multiplied, the exponents added; `tooLarge` at the bound. */
+/**
+ * `a × b`, exactly: the mantissas multiplied, the exponents added; fails
+ * at the bound. The product is not held to the range limit (issue #52),
+ * which would refuse it `tooLarge` as well, so a caller takes any refusal.
+ */
 export function multiply(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
   if (isZero(a) || isZero(b)) return ok(ZERO);
   return scaled(multiplyFractions(a.mant, b.mant), a.exp + b.exp);
 }
 
-/** `a / b`, exactly: the mantissas divided, the exponents subtracted; fails on a zero `b` and at the bound. */
+/**
+ * `a / b`, exactly: the mantissas divided, the exponents subtracted;
+ * fails on a zero `b` and at the bound. Like a product, the quotient is
+ * not held to the range limit (issue #52), and a caller takes any refusal.
+ */
 export function divide(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
   const mant = divideFractions(a.mant, b.mant);
   if (!mant.ok) return mant;
@@ -312,7 +360,14 @@ export function invert(s: Scaled): Result<Scaled, ScaledError> {
  * fraction's `pow` sizes it against `limit` bits, so that `10^1442695` is
  * `1 × 10^1442695` where `2^1442695` is `tooLarge` by its mantissa. A
  * negative `n` inverts, so zero to a negative power is a division by
- * zero; `s^0` is one for any `s`.
+ * zero; `s^0` is one for any `s`. A refusal is reported by the power's
+ * decimal exponent (`powerRefusal`), not by the check that fails first:
+ * `7^(10^19)`, refused by its mantissa, is an `overflow`, and
+ * `2.54^(10^18)`, whose exponent the canonical form puts past the bound
+ * below, is `10^(0.40 × 10^18)`, within it, and is `tooLarge`, the range
+ * limit's. Within a hair of the bound, where `powerRefusal` cannot tell,
+ * a power refused by its exponent is past the bound on the side its signs
+ * give (`powerSide`), and one refused by its mantissa is `tooLarge`.
  */
 export function pow(
   s: Scaled,
@@ -323,9 +378,23 @@ export function pow(
   if (isZero(s)) {
     return n < 0n ? err({ kind: "divisionByZero" }) : ok(ZERO);
   }
-  if (abs(s.exp) * abs(n) > MAX_EXPONENT) return err({ kind: "tooLarge" });
+  if (abs(s.exp) * abs(n) > MAX_EXPONENT) {
+    const y = integerExponent(n);
+    return err(powerRefusal(s, y) ?? powerSide(s, y));
+  }
   const mant = powFraction(s.mant, n, limit);
-  return mant.ok ? scaled(mant.value, s.exp * n) : mant;
+  if (mant.ok) return scaled(mant.value, s.exp * n);
+  if (mant.error.kind !== "tooLarge") return mant;
+  return err(powerRefusal(s, integerExponent(n)) ?? mant.error);
+}
+
+/**
+ * The integer `n` as a `Scaled` for `powerRefusal`, which reads only its
+ * magnitude and sign: not in canonical form, since moving the tens of an
+ * `n` of `2^20` bits out would cost a tenth of a second on every refusal.
+ */
+function integerExponent(n: bigint): Scaled {
+  return { mant: { num: n, den: 1n }, exp: 0n };
 }
 
 // ---------------------------------------------------------------------------
@@ -427,8 +496,8 @@ const DECIMAL = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/;
  * optional fraction (`12`, `1.5`, `.5`, `5.`) and an optional exponent
  * (`1.5e-3` is `15 × 10^-4`), the exponent kept as the exponent it is.
  * Anything else, including surrounding whitespace, is `invalidNumber`; a
- * mantissa of more digits than `LIMIT_BITS` holds, or an exponent beyond
- * `MAX_EXPONENT`, is `tooLarge`.
+ * mantissa of more digits than `LIMIT_BITS` holds is `tooLarge`, and an
+ * exponent past `MAX_EXPONENT` is `overflow` or `underflow`, by its side.
  */
 export function parseDecimal(text: string): Result<Scaled, ScaledError> {
   const match = DECIMAL.exec(text);
@@ -444,7 +513,7 @@ export function parseDecimal(text: string): Result<Scaled, ScaledError> {
   const exponent = match[5] === undefined ? 0n : BigInt(match[5]);
   const shift = exponent - BigInt(fraction.length);
   if (shift > MAX_EXPONENT || shift < -MAX_EXPONENT) {
-    return err({ kind: "tooLarge" });
+    return err(pastBound(shift));
   }
   const mantissa = BigInt(digits);
   return scaled(
@@ -582,6 +651,97 @@ export function oneDigitAbove(log2: Log2): Scaled {
   return digit >= 10n
     ? normalize({ num: 1n, den: 1n }, exp + 1n)
     : normalize({ num: digit, den: 1n }, exp);
+}
+
+/** `log2 MAX_EXPONENT`, for `powerRefusal`. */
+const LOG2_MAX_EXPONENT = Math.log2(Number(MAX_EXPONENT));
+
+/** The margin `powerRefusal` leaves on the binary logarithm of an exponent, far above the error of the doubles it works through. */
+const POWER_MARGIN = 2 ** -20;
+
+/** `log2 ln 10`, which takes the binary logarithm of a natural logarithm to that of a decimal one. */
+const LOG2_LN10 = Math.log2(Math.LN10);
+
+/**
+ * The slack on `log2 |ln |s||` when it is taken from `d = |s| - 1`, for an
+ * `s` within `2^-29` of one in magnitude: `|ln(1 + d)|` is `|d|` within a
+ * factor `1 ± 2|d|` there, whose binary logarithm is well inside this.
+ */
+const NEAR_ONE_SLACK = 2 ** -25;
+
+/**
+ * The failure that reports a refused `s^y`, told by where its decimal
+ * exponent, `y log10 |s|`, lies: `overflow` or `underflow` when that is
+ * past the bound, on the side `powerSide` gives; `tooLarge`, the range
+ * limit's, when it is within it, so that the bound is not what refuses
+ * the power; and `undefined` when it is within a relative `2^-20` of the
+ * bound, where the bounds cannot tell. The exponent is never formed: its
+ * binary logarithm, `log2 |y|` plus `log2 |log10 |s||` (`log2OfLog10`),
+ * is bounded from both sides. For a power the arithmetic refuses, so that
+ * the error names the bound, which no setting moves, when no setting
+ * could compute the power (`7^(10^19)`), and the range limit when an
+ * inexact base would give it a value. A zero `s` or `y`, and an `s` of
+ * magnitude one, give a power of magnitude zero or one: `tooLarge`.
+ */
+export function powerRefusal(s: Scaled, y: Scaled): Refusal | undefined {
+  if (isZero(s) || isZero(y) || equals(absolute(s), ONE)) {
+    return { kind: "tooLarge" };
+  }
+  const base = log2OfLog10(s);
+  if (base === undefined) return undefined;
+  const power = log2Bounds(y);
+  const leastLog2 = valueOfLog2(power.lower) + base.lower;
+  const mostLog2 = valueOfLog2(power.upper) + base.upper;
+  if (mostLog2 < LOG2_MAX_EXPONENT - POWER_MARGIN) return { kind: "tooLarge" };
+  if (leastLog2 <= LOG2_MAX_EXPONENT + POWER_MARGIN) return undefined;
+  return powerSide(s, y);
+}
+
+/**
+ * The side of the bound `s^y` lies past when it passes it, for a nonzero
+ * `y` and an `s` whose magnitude is not one: `overflow` when `y` is
+ * positive and `|s|` above one or both are the other way, `underflow`
+ * otherwise, told exactly, by comparing `|s|` with one.
+ */
+export function powerSide(s: Scaled, y: Scaled): Refusal {
+  const belowOne = compare(absolute(s), ONE) < 0;
+  const negative = sign(y) < 0;
+  return { kind: negative === belowOne ? "overflow" : "underflow" };
+}
+
+/**
+ * A lower and an upper bound on `log2 |log10 |s||`, for a nonzero `s`
+ * whose magnitude is not one: from the binary bounds on `log2 |s|`, taken
+ * toward zero for the lower and away from it for the upper, where those
+ * lie on one side of zero; and otherwise, `|s|` being within `2^-30` or so
+ * of one, from `d = |s| - 1` formed exactly, `|ln |s||` being `|d|` within
+ * `NEAR_ONE_SLACK`. `undefined` when `d` cannot be aligned within the hard
+ * bound, which only a mantissa of the hard bound's size makes possible.
+ */
+function log2OfLog10(s: Scaled): { lower: number; upper: number } | undefined {
+  const bounds = log2Bounds(s);
+  const lower = valueOfLog2(bounds.lower);
+  const upper = valueOfLog2(bounds.upper);
+  if (lower > 0 || upper < 0) {
+    const least = lower > 0 ? lower : -upper;
+    const most = Math.max(Math.abs(lower), Math.abs(upper));
+    return {
+      lower: Math.log2(least * LOG10_2),
+      upper: Math.log2(most * LOG10_2),
+    };
+  }
+  const d = subtract(absolute(s), ONE, LIMIT_BITS);
+  if (!d.ok) return undefined;
+  const near = log2Bounds(d.value);
+  return {
+    lower: valueOfLog2(near.lower) - LOG2_LN10 - NEAR_ONE_SLACK,
+    upper: valueOfLog2(near.upper) - LOG2_LN10 + NEAR_ONE_SLACK,
+  };
+}
+
+/** A binary logarithm as a double. */
+function valueOfLog2(log2: Log2): number {
+  return Number(log2.int) + log2.frac;
 }
 
 /** `int + frac` with `frac` brought into `[0, 1)`. */

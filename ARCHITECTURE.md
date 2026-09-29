@@ -96,7 +96,8 @@ Three rules say where, and only where, a value can lose precision:
    are exact on the midpoints, and an exact result is as long as it needs
    to be; nothing in the pipeline rounds an exact intermediate to keep it
    small. A product or a quotient combines the exponents, and fails
-   `tooLarge` only at the exponent bound; a sum aligns the mantissas by
+   only at the exponent bound, `overflow` or `underflow`; a sum aligns
+   the mantissas by
    the difference of the exponents, which the range limit bounds
    (docs/decimal.md, "Sums, comparisons and the radius"): two exact
    operands that cannot be aligned within it have an exact sum that cannot
@@ -379,16 +380,25 @@ the ceiling must fit it with room for a product of two: about 2,450
 digits at the default range limit.
 `approx` bears on the range limit alone, and only in a sum, whose smaller
 operand it lets the radius absorb: it never changes an exponent, so a
-result past the exponent bound is `tooLarge` with it or without it
+result past the exponent bound is refused with it or without it
 (`exp(approx(1e999))`; docs/approximate.md, "`approx` and the exponent
-bound").
+bound"). The two limits refuse with errors of their own, and the message
+words them apart: "too large to compute within Most bits" for the range
+limit's `tooLarge`, and for the bound that the exponent would pass
+`10^18` (`overflow`), or fall below `-10^18` for a value too small to
+hold (`underflow`).
 
 ### Failures
 
 A value that cannot be computed is a `Result` error, never an exception:
 division by zero (including `0` to a negative power), an even root of a
-negative number, a result beyond the range limit, or text that is not a
-number.
+negative number, a result beyond the range limit or the exponent bound,
+or text that is not a number. A result beyond the range limit is
+`tooLarge`, the fraction's error (rational.ts), and one beyond the
+exponent bound is `overflow` or `underflow`, errors of `Scaled`
+(scaled.ts), since only a value with an exponent can pass it; so the
+message names the limit the user can change apart from the one they
+cannot (docs/decimal.md, "Which limit a refusal names").
 
 A violated precondition (a zero denominator passed to the `rational`
 constructor, a precision that is not a positive integer, a root degree below
@@ -757,8 +767,14 @@ Three properties make the combinators simple to reason about:
   so, and no combinator retries past a rejection: the text was understood and
   found unacceptable, not misread, so trying another reading would only
   produce a worse error. This is how a numeric literal that `parseDecimal`
-  reports as `tooLarge` becomes a parse error pointing at the literal.
-  `check` is the only source of `rejected` errors.
+  refuses (a mantissa past the hard bound, or an exponent past the
+  exponent bound) becomes a parse error pointing at the literal.
+  `check` is the only source of `rejected` errors. The reason is data, the
+  `R` of `Parser<A, R>`: the expression grammar's is its `Rejection` (a
+  literal past the hard bound or past the exponent bound on either side;
+  a `^` exponent that cannot be formed; one that divides by zero), and
+  `src/messages.ts` words it, as it words every other error, so that no
+  sentence is written in the core.
 
 A parse error is therefore one of two things: nothing acceptable at a
 position, with the labels of what would have been, or text at a span that was

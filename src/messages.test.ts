@@ -63,6 +63,7 @@ const failing: UnitTable = (() => {
     [
       "recip(x)  [1;1]  1 / x ; 1 / recip",
       "bad(x)  [1;1]  recip(x) ; recip(bad)",
+      "square(x)  [1;1]  x^2 ; square^(1/2)",
     ].join("\n"),
   );
   assert.ok(parsed.ok, `expected the text to parse, got ${inspect(parsed)}`);
@@ -108,15 +109,32 @@ test("a parse error names what was expected and what was found", () => {
     textMessage(`${"9".repeat(320000)} m`),
     `"${"9".repeat(320000)}": this number is too large to represent.`,
   );
+  // A `^` exponent is a fraction, which must be formed, and must not
+  // divide by zero.
+  assert.equal(
+    textMessage("m^1e999999"),
+    '"1e999999": this number is too large to represent.',
+  );
+  assert.equal(textMessage("m^(1/0)"), '"1/0": the exponent divides by zero.');
   // A literal of any exponent is a value; the sum that cannot align it
-  // is what is too large, at the sum.
+  // is what is too large, at the sum, within the range limit.
   assert.equal(
     textMessage("1e999999999 + 1"),
-    '"1e999999999 + 1" is too large to compute.',
+    '"1e999999999 + 1" is too large to compute within Most bits.',
   );
   assert.equal(
     textMessage("1e999999999 m - 1 m"),
-    '"1e999999999 m - 1 m" is too large to compute.',
+    '"1e999999999 m - 1 m" is too large to compute within Most bits.',
+  );
+  // A literal past the exponent bound is rejected where it is written,
+  // with the side it is past.
+  assert.equal(
+    textMessage("1e1000000000000000001 m"),
+    '"1e1000000000000000001": this number\'s exponent passes 10^18.',
+  );
+  assert.equal(
+    textMessage("2 * 0.01e-999999999999999999"),
+    '"0.01e-999999999999999999": this number\'s exponent falls below -10^18.',
   );
 });
 
@@ -133,11 +151,14 @@ test("an evaluation error quotes the text at fault", () => {
     textMessage("((2^(1/2))^2 - 2)^0.5 m"),
     '"((2^(1/2))^2 - 2)" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
   );
-  assert.equal(textMessage("2^99999 m"), '"2^99999" is too large to compute.');
+  assert.equal(
+    textMessage("2^99999 m"),
+    '"2^99999" is too large to compute within Most bits.',
+  );
   // A built-in that refuses an argument it cannot reduce fails at the call.
   assert.equal(
     textMessage("sin(1e999999999 radian)"),
-    '"sin(1e999999999 radian)" is too large to compute.',
+    '"sin(1e999999999 radian)" is too large to compute within Most bits.',
   );
   assert.equal(
     textMessage("(-4)^0.5 m"),
@@ -195,10 +216,45 @@ test("a zero want is reported as such, and one that cannot be told from zero too
   );
 });
 
+test("a value too large to compute names the limit it passes, and one too small says so", () => {
+  // The range limit is the setting, Most bits; the exponent bound is not,
+  // and a value past it below is too small rather than too large.
+  assert.equal(
+    textMessage("3^1000000000"),
+    '"3^1000000000" is too large to compute within Most bits.',
+  );
+  assert.equal(
+    textMessage("exp(1e999)"),
+    '"exp(1e999)" is too large to compute: its exponent would pass 10^18.',
+  );
+  assert.equal(
+    textMessage("exp(-1e999)"),
+    '"exp(-1e999)" is too small to compute: its exponent would fall below -10^18.',
+  );
+  assert.equal(
+    textMessage("10^1e999"),
+    '"10^1e999" is too large to compute: its exponent would pass 10^18.',
+  );
+  // A power the range limit refuses is reported at the bound when the
+  // bound would refuse it too, since no setting could compute it.
+  assert.equal(
+    textMessage("7^10000000000000000000"),
+    '"7^10000000000000000000" is too large to compute: its exponent would pass 10^18.',
+  );
+  assert.equal(
+    textMessage("m / 1e999999999999999999 / 1e999999999999999999"),
+    '"m / 1e999999999999999999 / 1e999999999999999999" is too small to compute: its exponent would fall below -10^18.',
+  );
+});
+
 test("a ratio beyond the exponent bound quotes both texts", () => {
   assert.equal(
     conversionMessage("1e999999999999999999 m", " 1e-999999999999999999 m "),
-    '"1e999999999999999999 m" into "1e-999999999999999999 m" is too large to compute.',
+    '"1e999999999999999999 m" into "1e-999999999999999999 m" is too large to compute: its exponent would pass 10^18.',
+  );
+  assert.equal(
+    conversionMessage("1e-999999999999999999 m", "1e999999999999999999 m"),
+    '"1e-999999999999999999 m" into "1e999999999999999999 m" is too small to compute: its exponent would fall below -10^18.',
   );
 });
 
@@ -299,6 +355,20 @@ test("a body that fails is described by what the definition does", () => {
   assert.equal(
     conversionMessage("0", "bad", failing),
     'Cannot invert "bad" for "0": the inverse of "bad" calls "recip", whose definition divides by zero.',
+  );
+  // A value too large or too small names the limit, as a sentence of its
+  // own does.
+  assert.equal(
+    textMessage("square(3^30000)", failing),
+    'Cannot compute "square(3^30000)": the definition of "square" computes a value too large to form within Most bits.',
+  );
+  assert.equal(
+    textMessage("square(1e999999999999999999)", failing),
+    'Cannot compute "square(1e999999999999999999)": the definition of "square" computes a value whose exponent would pass 10^18.',
+  );
+  assert.equal(
+    textMessage("recip(5e1000000000000000000)", failing),
+    'Cannot compute "recip(5e1000000000000000000)": the definition of "recip" computes a value whose exponent would fall below -10^18.',
   );
 });
 

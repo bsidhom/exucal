@@ -491,7 +491,10 @@ test("the range limit of the context reaches a literal's mantissa and a power", 
   assert.ok(evaluateText(table, "1e999999999 m", small).ok);
   const power = evaluateText(table, "2^100 m", small);
   assert.ok(!power.ok);
-  assert.equal(power.error.kind, "tooLarge");
+  assert.deepEqual(power.error, {
+    kind: "tooLarge",
+    span: { start: 0, end: 5 },
+  });
   // An inexact base is bounded by the exponent bound, not by an exact
   // power (4.9): sqrt(2)^(10^7) is a value, sqrt(2)^(10^19) is not.
   assert.ok(evaluateText(table, "(2^(1/2))^1000", CONTEXT).ok);
@@ -503,7 +506,17 @@ test("the range limit of the context reaches a literal's mantissa and a power", 
   );
   const huge = evaluateText(table, "(2^(1/2))^10000000000000000000", CONTEXT);
   assert.ok(!huge.ok);
-  assert.equal(huge.error.kind, "tooLarge");
+  assert.deepEqual(huge.error, {
+    kind: "overflow",
+    span: { start: 0, end: 30 },
+  });
+  // A negative power of it is past the bound on the other side.
+  const tiny = evaluateText(table, "(2^(1/2))^-10000000000000000000", CONTEXT);
+  assert.ok(!tiny.ok);
+  assert.deepEqual(tiny.error, {
+    kind: "underflow",
+    span: { start: 0, end: 31 },
+  });
 });
 
 test("a value that looks rational after a root is inexact, and the display says so", () => {
@@ -960,4 +973,27 @@ test("an inverse that fails for the have's value is an inverseFailed on the want
     },
   });
   assertCall("4", "recip", "0.25");
+});
+
+test("a call's argument too large to count in its unit is refused, not thrown", () => {
+  // The inverse gives the argument, and its count of an argument unit of
+  // 10^-3 passes the exponent bound although the argument does not.
+  const definitions = parseDefinitions("thou(x) [0.001;1]  x ; thou");
+  assert.ok(definitions.ok, inspect(definitions));
+  const built = buildTable(definitions.value, CONTEXT);
+  assert.ok(built.ok, inspect(built));
+  const result = convertText(
+    built.value,
+    "1e999999999999999999",
+    "thou",
+    CONTEXT,
+  );
+  assert.deepEqual(result, { ok: false, error: { kind: "overflow" } });
+  const within = convertText(
+    built.value,
+    "1e999999999999999990",
+    "thou",
+    CONTEXT,
+  );
+  assert.ok(within.ok && within.value.kind === "function", inspect(within));
 });

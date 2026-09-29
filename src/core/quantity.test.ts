@@ -151,7 +151,8 @@ test("a product is a Result: the exponent carries, and passes the bound", () => 
     value(multiplyQuantities(huge, quantity("1e-999999999", { s: 1 }))),
     quantity("1", { m: 1, s: 1 }),
   );
-  // Beyond `10^(10^18)` the product is too large, whatever the dimension.
+  // Beyond `10^(10^18)` the product is too large, whatever the dimension,
+  // and below `10^-(10^18)` the quotient too small.
   assert.deepEqual(
     failure(
       multiplyQuantities(
@@ -159,7 +160,7 @@ test("a product is a Result: the exponent carries, and passes the bound", () => 
         quantity("1e10"),
       ),
     ),
-    { kind: "tooLarge" },
+    { kind: "overflow" },
   );
   assert.deepEqual(
     failure(
@@ -168,7 +169,7 @@ test("a product is a Result: the exponent carries, and passes the bound", () => 
         quantity("1e10"),
       ),
     ),
-    { kind: "tooLarge" },
+    { kind: "underflow" },
   );
 });
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { parseExpr, parseUnitList, type Expr } from "./expr.ts";
+import { parseExpr, parseUnitList, type Expr, type Rejection } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
 import { LIMIT_BITS, rational, toFraction } from "./rational.ts";
 import { fromRational, toRational } from "./scaled.ts";
@@ -40,7 +40,7 @@ function parsed(text: string): Expr {
   return result.value;
 }
 
-function failed(text: string): ParseError {
+function failed(text: string): ParseError<Rejection> {
   const result = parseExpr(text);
   assert.ok(!result.ok, `expected failure, got ${inspect(result)}`);
   return result.error;
@@ -52,12 +52,12 @@ function assertParses(text: string, expected: string): void {
 }
 
 /** The error for nothing acceptable at `pos`. */
-function unexpected(pos: number, ...expected: string[]): ParseError {
+function unexpected(pos: number, ...expected: string[]): ParseError<Rejection> {
   return { kind: "unexpected", pos, expected };
 }
 
-/** The error for the text at `span` being recognized and refused. */
-function rejected(span: Span, reason: string): ParseError {
+/** The error for the text at `span` being recognized and refused, for `reason`. */
+function rejected(span: Span, reason: Rejection): ParseError<Rejection> {
   return { kind: "rejected", span, reason };
 }
 
@@ -258,11 +258,11 @@ test("a parenthesized exponent is a literal, not an expression", () => {
 test("an exponent that divides by zero is rejected with its span", () => {
   assert.deepEqual(
     failed("m^(1/0)"),
-    rejected({ start: 3, end: 6 }, "the exponent divides by zero"),
+    rejected({ start: 3, end: 6 }, { kind: "exponentDividesByZero" }),
   );
   assert.deepEqual(
     failed("m^( 3 / 0.0 )"),
-    rejected({ start: 4, end: 12 }, "the exponent divides by zero"),
+    rejected({ start: 4, end: 12 }, { kind: "exponentDividesByZero" }),
   );
 });
 
@@ -308,28 +308,30 @@ test("an e that does not start an exponent is a unit name", () => {
 test("a number too large to represent is rejected with its span", () => {
   // A literal's exponent is kept as the number it is (stage 4's 4.3), so
   // `1e999999` parses; what is rejected is a mantissa beyond the hard
-  // bound, an exponent beyond the exponent bound, and a `^` exponent whose
-  // power of ten cannot be formed within the hard bound.
+  // bound, an exponent beyond the exponent bound, with the side it passes,
+  // and a `^` exponent whose power of ten cannot be formed within the hard
+  // bound. The reasons are data; messages.ts words them.
   assertParses("m / 1e999999 s", "(m / (1e999999 * s))");
   const long = "9".repeat(320000);
   assert.deepEqual(
     failed(`m / ${long} s`),
-    rejected(
-      { start: 4, end: 4 + long.length },
-      "this number is too large to represent",
-    ),
+    rejected({ start: 4, end: 4 + long.length }, { kind: "numberTooLarge" }),
   );
   assert.deepEqual(
     failed("m / 1e1000000000000000001 s"),
-    rejected({ start: 4, end: 25 }, "this number is too large to represent"),
+    rejected({ start: 4, end: 25 }, { kind: "numberOverflow" }),
+  );
+  assert.deepEqual(
+    failed("m / 0.01e-999999999999999999 s"),
+    rejected({ start: 4, end: 28 }, { kind: "numberUnderflow" }),
   );
   assert.deepEqual(
     failed("m^1e999999"),
-    rejected({ start: 2, end: 10 }, "this number is too large to represent"),
+    rejected({ start: 2, end: 10 }, { kind: "exponentTooLarge" }),
   );
   assert.deepEqual(
     failed("m^(1/1e999999)"),
-    rejected({ start: 5, end: 13 }, "this number is too large to represent"),
+    rejected({ start: 5, end: 13 }, { kind: "exponentTooLarge" }),
   );
   assertParses("m^1e5", "m^100000");
 });
@@ -547,7 +549,7 @@ function items(text: string): string[] {
   return result.value.map(show);
 }
 
-function listFailed(text: string): ParseError {
+function listFailed(text: string): ParseError<Rejection> {
   const result = parseUnitList(text);
   assert.ok(!result.ok, `expected failure, got ${inspect(result)}`);
   return result.error;

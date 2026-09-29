@@ -200,19 +200,45 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
       dec("1e28135"),
     ) < 0,
   );
-  // Beyond the exponent bound.
+  // Beyond the exponent bound, above it or below: 7^(±10^19) is refused by
+  // its mantissa first and 0.7^(10^19) by its exponent, 0.7 being 7 ×
+  // 10^-1, and each is reported at the bound, which would refuse it
+  // whatever the range limit.
   assert.deepEqual(
     failure(powBallOf(exact(fr(7n)), exact(dec("1e19")), CONTEXT)),
-    {
-      kind: "tooLarge",
-    },
+    { kind: "overflow" },
   );
-  // An exact exponent whose fraction cannot be formed within the range limit.
+  assert.deepEqual(
+    failure(powBallOf(exact(fr(7n)), exact(dec("-1e19")), CONTEXT)),
+    { kind: "underflow" },
+  );
+  assert.deepEqual(
+    failure(powBallOf(exact(dec("0.7")), exact(dec("1e19")), CONTEXT)),
+    { kind: "underflow" },
+  );
+  // An exact exponent whose fraction cannot be formed within the range
+  // limit: at the bound when the power would pass it, and at the range
+  // limit when it would not (2^(1e-999999999) is within a hair of one).
   assert.deepEqual(
     failure(powBallOf(exact(fr(2n)), exact(dec("1e999999999")), CONTEXT)),
-    {
-      kind: "tooLarge",
-    },
+    { kind: "overflow" },
+  );
+  assert.deepEqual(
+    failure(powBallOf(exact(fr(2n)), exact(dec("1e-999999999")), CONTEXT)),
+    { kind: "tooLarge" },
+  );
+  // A base within 2^-30 of one is past the bound by its exact difference
+  // from one; a base of magnitude one never is, so its refusal is the
+  // exponent's, which cannot be formed.
+  assert.deepEqual(
+    failure(
+      powBallOf(exact(dec("1.0000000001")), exact(dec("1e999999999")), CONTEXT),
+    ),
+    { kind: "overflow" },
+  );
+  assert.deepEqual(
+    failure(powBallOf(exact(ONE), exact(dec("1e999999999")), CONTEXT)),
+    { kind: "tooLarge" },
   );
   assert.deepEqual(
     failure(powBallOf(exact(fr(-2n)), exact(fr(1n, 2n)), CONTEXT)),
@@ -288,10 +314,25 @@ test("an inexact exponent is log space for a positive base, and the base's sign 
   // A result beyond the exponent bound; within it, a value however large.
   assert.deepEqual(
     failure(powBallOf(exact(fr(10n)), ball("1e19", "1"), CONTEXT)),
-    {
-      kind: "tooLarge",
-    },
+    { kind: "overflow" },
   );
+  assert.deepEqual(
+    failure(powBallOf(exact(fr(10n)), ball("-1e19", "1"), CONTEXT)),
+    { kind: "underflow" },
+  );
+  // An exponent beyond a double is past the bound on the side the signs
+  // give, both of them.
+  for (const [base, exponent, kind] of [
+    ["0.5", "1e400", "underflow"],
+    ["0.5", "-1e400", "overflow"],
+    ["2", "1e400", "overflow"],
+    ["2", "-1e400", "underflow"],
+  ] as const) {
+    assert.deepEqual(
+      failure(powBallOf(exact(dec(base)), ball(exponent, "1"), CONTEXT)),
+      { kind },
+    );
+  }
   // A wide exponent gives a wide result: a ball that covers 10^100000.
   const wideExponent = value(
     powBallOf(exact(fr(10n)), ball("100000", "1"), CONTEXT),
@@ -387,12 +428,23 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
       "pow(0, (2^(1/2))^2 - 2)",
       '"(2^(1/2))^2 - 2" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
     ],
-    ["pow(7, 1e19)", '"pow(7, 1e19)" is too large to compute.'],
+    [
+      "pow(7, 1e19)",
+      '"pow(7, 1e19)" is too large to compute: its exponent would pass 10^18.',
+    ],
     [
       "7^10000000000000000000",
-      '"7^10000000000000000000" is too large to compute.',
+      '"7^10000000000000000000" is too large to compute: its exponent would pass 10^18.',
     ],
-    ["pow(2, 1e999999999)", '"pow(2, 1e999999999)" is too large to compute.'],
+    [
+      "pow(2, 1e999999999)",
+      '"pow(2, 1e999999999)" is too large to compute: its exponent would pass 10^18.',
+    ],
+    [
+      "pow(2, 1e-999999999)",
+      '"pow(2, 1e-999999999)" is too large to compute within Most bits.',
+    ],
+    ["2^1442695", '"2^1442695" is too large to compute within Most bits.'],
   ]) {
     const result = evaluateText(table.value, text!, {
       ...context,

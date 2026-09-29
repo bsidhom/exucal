@@ -92,7 +92,15 @@ import {
 } from "../fixed.ts";
 import { addRadius, powerOfTwoRadius } from "../radius.ts";
 import { err, ok, type Result } from "../result.ts";
-import { ONE, ZERO, equals, isZero, negate, sign } from "../scaled.ts";
+import {
+  ONE,
+  ZERO,
+  equals,
+  isRefusal,
+  isZero,
+  negate,
+  sign,
+} from "../scaled.ts";
 
 const MINUS_ONE = negate(ONE);
 
@@ -307,7 +315,7 @@ function atanKernel(
   );
 }
 
-/** `a / b` for a `b` whose interval the caller has checked to exclude zero, `tooLarge` at the bound; `argument` is `b`'s index. */
+/** `a / b` for a `b` whose interval the caller has checked to exclude zero, failing only if the quotient is refused; `argument` is `b`'s index. */
 function quotient(
   a: Ball,
   b: Ball,
@@ -315,7 +323,7 @@ function quotient(
 ): Result<Ball, BuiltinError> {
   const result = divideBalls(a, b);
   if (result.ok) return result;
-  if (result.error.kind !== "tooLarge") {
+  if (!isRefusal(result.error)) {
     throw new Error("Division by a divisor checked nonzero");
   }
   return err(fromBallError(result.error, argument));

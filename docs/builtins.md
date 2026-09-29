@@ -79,21 +79,27 @@ once the name has resolved and before any argument is evaluated.
   `≈ 1e-999999999` on the first pass.
 - **A large argument is answered before the kernel is entered** (4.4),
   which holds a value only up to the range limit: `sin`, `cos` and `tan`
-  of an argument reaching `2^maxBits` are `tooLarge`, since the reduction
-  would need `pi` to that many bits; `atan` of one at or beyond `2^bits`
-  throughout is `±pi/2` within `2^-bits`; `asinh` and `acosh` of one are
+  of an argument reaching `2^maxBits` are `tooLarge` at the range limit,
+  since the reduction would need `pi` to that many bits; `atan` of one at
+  or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, and the
+  arctangent's kernel refuses a ratio reaching `2^maxBits` at the range
+  limit; `asinh` and `acosh` of one are
   `ln(2|x|)` within `1/(2x^2)`; `tanh`'s saturation to `±1` stands; and
   the logarithms take any exponent, `ln(m × 10^e)` being `ln m + e ln 10`
   from the memo, so `ln(1e999999999)` is a value and `log10(1e999999999)`
   exactly `999999999`.
 - **A result whose decimal exponent would pass the exponent bound**,
-  `10^18`, is `tooLarge` before anything is computed: `exp`, `sinh`,
-  `cosh` and `pow` predict it from the argument (`exp(1e30)`,
-  `sinh(-1e30)`). Within it these functions have the range of an
-  exponent (4.9): `exp(1e6)` is `≈ 3.0332154e434294` and `exp(1e18)`
-  a value with the exponent `434294481903251827`, since the kernel returns
-  a `Floating`, a mantissa with a binary exponent, and the digits of one
-  whose exponent cannot be formed are found in log space (digits.ts).
+  `10^18`, is refused before anything is computed: `exp`, `sinh`, `cosh`
+  and `pow` predict it from the argument (`exp(1e30)`, `sinh(-1e30)`),
+  and the error names the side, an `underflow` for `exp` of a negative
+  argument and a power toward zero (`exp(-1e30)`), an `overflow`
+  otherwise, `sinh` and `cosh` of either sign included. Within it these
+  functions have the
+  range of an exponent (4.9): `exp(1e6)` is `≈ 3.0332154e434294` and
+  `exp(1e18)` a value with the exponent `434294481903251827`, since the
+  kernel returns a `Floating`, a mantissa with a binary exponent, and the
+  digits of one whose exponent cannot be formed are found in log space
+  (digits.ts).
 - **Propagation** is by running the series on the argument with its error
   included (D9), so no derivative bound is written separately; the
   truncation bound of a series is taken at the upper end of the argument's

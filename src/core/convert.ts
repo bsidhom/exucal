@@ -10,7 +10,7 @@
 // `5.28`). Nothing here rounds: the ratio is the ball quotient, exact on
 // the midpoints with the radii propagated, so it is the exact answer for
 // exact quantities and display is where it is rounded, once; a quotient
-// whose exponent passes the bound is `tooLarge`.
+// whose exponent passes the bound is an `overflow` or an `underflow`.
 //
 // A failure is one of the two conformance errors (a dimension mismatch or a
 // kind mismatch, carrying both dimensions so that the UI can show them), a
@@ -93,6 +93,7 @@ import {
   sign,
   subtract,
   trunc,
+  type Refusal,
   type Scaled,
 } from "./scaled.ts";
 
@@ -102,8 +103,12 @@ export type ConvertError =
   | { readonly kind: "zeroWant" }
   /** `want` has a magnitude that cannot be told from zero at this precision. */
   | { readonly kind: "unresolvedWant" }
-  /** The ratio's exponent passes the bound. */
-  | { readonly kind: "tooLarge" };
+  /**
+   * The ratio was refused: its exponent passes the bound, above it or
+   * below it. A quotient is not held to the range limit (issue #52), so it
+   * is never `tooLarge` today; one would be passed on all the same.
+   */
+  | Refusal;
 
 /** Why a list of units is not a unit list for a `have`; `index` is the unit at fault. */
 export type UnitListError =
@@ -142,9 +147,11 @@ export function convert(
     case "unresolved":
       return err({ kind: "unresolvedWant" });
     case "tooLarge":
-      return err({ kind: "tooLarge" });
+    case "overflow":
+    case "underflow":
+      return err({ kind: ratio.error.kind });
     default:
-      // A quotient of balls grows neither operand beyond its own size.
+      // A quotient takes no root and reads no text.
       throw new Error(`A ratio of magnitudes failed: ${ratio.error.kind}`);
   }
 }
@@ -259,8 +266,11 @@ function decompose(
   for (const [i, size] of sizes.entries()) {
     const ratio = divideBalls(rest, size);
     if (!ratio.ok) {
-      // The sizes were checked to exclude zero before they got here, and a
-      // quotient of values within the bound is within it.
+      // The sizes were checked to exclude zero before they got here, so
+      // only a refusal of the quotient is left, which this assumes away:
+      // a count can pass the exponent bound, which throws here (issue
+      // #44), and the range limit once quotients are held to it (issue
+      // #52). Both need this to return the refusal instead.
       throw new Error("A unit list has a unit that cannot be divided by");
     }
     if (i === sizes.length - 1) {
@@ -325,9 +335,12 @@ const HALF: Scaled = ((): Scaled => {
 })();
 
 /**
- * The value of an operation the checks above rule out failing: a sum of
+ * The value of an operation this module assumes cannot fail: a sum of
  * terms that came from one decomposition aligns as it did, and a product
- * of a count and a size is within the bound the ratio was.
+ * of a count and a size is within the bound the ratio was. The assumption
+ * fails at the edge of the bound (issues #44 and #48), and would for a
+ * product past the range limit once products are held to it (issue #52);
+ * a failure throws.
  */
 function settled<T>(result: Result<T, BallError>): T {
   if (!result.ok)

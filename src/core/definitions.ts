@@ -55,7 +55,15 @@
 // its own spans for errors within it.
 
 import type { Role } from "./dimension.ts";
-import { NAME, expr, token, unitListOf, ws, type Expr } from "./expr.ts";
+import {
+  NAME,
+  expr,
+  token,
+  unitListOf,
+  ws,
+  type Expr,
+  type Rejection,
+} from "./expr.ts";
 import {
   alt,
   flatMap,
@@ -142,7 +150,7 @@ export type UnitListItem = WrittenExpr;
  */
 export function parseDefinitions(
   text: string,
-): Result<readonly Definition[], ParseError> {
+): Result<readonly Definition[], ParseError<Rejection>> {
   return parse(file, text);
 }
 
@@ -197,7 +205,10 @@ const primitive: Parser<{ role: Role; end: number }> = token(
 );
 
 /** An expression with the text it was parsed from; a parser needs the text. */
-const item: Parser<WrittenExpr> = (text, pos): Reply<WrittenExpr> => {
+const item: Parser<WrittenExpr, Rejection> = (
+  text,
+  pos,
+): Reply<WrittenExpr, Rejection> => {
   const reply = expr(text, pos);
   if (!reply.ok) return reply;
   const { span } = reply.value;
@@ -221,7 +232,7 @@ type UnitBody =
       readonly end: number;
     };
 
-const unitBody: Parser<UnitBody> = alt(
+const unitBody: Parser<UnitBody, Rejection> = alt(
   map(primitive, ({ role, end }): UnitBody => ({
     kind: "primitive",
     role,
@@ -244,7 +255,7 @@ type FunctionBody = {
   readonly inverse: Expr;
 };
 
-const functionBody: Parser<FunctionBody> = map(
+const functionBody: Parser<FunctionBody, Rejection> = map(
   seq(
     symbol("["),
     item,
@@ -263,7 +274,7 @@ const functionBody: Parser<FunctionBody> = map(
   }),
 );
 
-const definition: Parser<Definition> = flatMap(
+const definition: Parser<Definition, Rejection> = flatMap(
   spanned(head),
   ({ value: head, span: { start } }) => {
     switch (head.kind) {
@@ -311,12 +322,12 @@ const definition: Parser<Definition> = flatMap(
 const comment: Parser<string> = regex(/#[^\n]*/, "a comment");
 const newline: Parser<string> = regex(/\r?\n/, "a newline");
 
-const line: Parser<Definition | undefined> = map(
+const line: Parser<Definition | undefined, Rejection> = map(
   seq(ws, optional(definition), optional(comment)),
   ([, def]) => def,
 );
 
-const file: Parser<readonly Definition[]> = map(
+const file: Parser<readonly Definition[], Rejection> = map(
   seq(line, many(seq(newline, line))),
   ([first, rest]) =>
     [first, ...rest.map(([, def]) => def)].filter(

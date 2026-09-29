@@ -45,7 +45,8 @@
 // still do not, the smaller, which then lies below the working precision
 // of the larger, is absorbed into the radius. So `addBalls`,
 // `subtractBalls`, `multiplyBalls` and `divideBalls` are `Result`s,
-// failing `tooLarge` there and at the exponent bound.
+// failing `tooLarge` there and `overflow` or `underflow` at the exponent
+// bound.
 //
 // Two values are special. An exact zero times anything is exact zero,
 // however wide the other operand, unbounded included: unbounded stands for
@@ -110,8 +111,8 @@
 // the exponent bound before the exponential (`expFits`, 4.9), so that
 // `7^(100000/3)` is a value of about `10^28144` where the range limit
 // refused it, `2^0.1234567` and `10^2.3456789`, once refused as
-// `tooLarge`, are values with a radius, and `7^(10^19)` is `tooLarge` at
-// the bound; a power of ten costs nothing in the exponent, so
+// `tooLarge`, are values with a radius, and `7^(10^19)` is an `overflow`,
+// past the bound; a power of ten costs nothing in the exponent, so
 // `10^(100000/3)` is the cube root of ten times `10^33333`, a value; the
 // kernel's `Floating` comes out through digits.ts (`floatingToBall`),
 // exactly where its exponent is within the range limit and in log space
@@ -141,7 +142,6 @@ import {
   rational,
   scaleByPowerOfTwo,
   type Rational,
-  type RationalError,
 } from "./rational.ts";
 import {
   UNBOUNDED,
@@ -177,6 +177,7 @@ import {
   equals,
   exactRoot,
   fromRational,
+  isRefusal,
   isZero,
   log2Bounds,
   multiply,
@@ -189,6 +190,7 @@ import {
   toRational,
   trunc,
   type Scaled,
+  type ScaledError,
 } from "./scaled.ts";
 
 /** A midpoint with the radius that bounds its distance from the true value. */
@@ -198,7 +200,7 @@ export type Ball = {
 };
 
 export type BallError =
-  | RationalError
+  | ScaledError
   /**
    * The answer depends on which side of zero the true value lies, and the
    * ball straddles it: a divisor that cannot be told from zero.
@@ -331,7 +333,7 @@ export function addBalls(
 ): Result<Ball, BallError> {
   const sum = add(a.mid, b.mid, context.maxBits);
   if (sum.ok) return ok({ mid: sum.value, rad: addRadius(a.rad, b.rad) });
-  if (sum.error.kind !== "tooLarge") return sum;
+  if (!isRefusal(sum.error)) return sum;
   // Two exact operands have an exact sum that cannot be held, except in
   // decimal mode, where every operation rounds and the sum is settled as
   // an inexact one is: `1e999999999 + 1` is `1e999999999` within one.
@@ -342,7 +344,7 @@ export function addBalls(
   if (settled.ok) {
     return ok({ mid: settled.value, rad: addRadius(sa.rad, sb.rad) });
   }
-  if (settled.error.kind !== "tooLarge") return settled;
+  if (!isRefusal(settled.error)) return settled;
   const [larger, smaller] =
     compare(absolute(sa.mid), absolute(sb.mid)) >= 0 ? [sa, sb] : [sb, sa];
   return ok({
@@ -363,7 +365,9 @@ export function subtractBalls(
 /**
  * `a × b`: the exact product of the midpoints, with the radius
  * `|a| rb + |b| ra + ra rb`, rounded up. An exact zero times anything is
- * exact zero; a product whose exponent passes the bound is `tooLarge`.
+ * exact zero; a product whose exponent passes the bound is `overflow` or
+ * `underflow`, and one past the range limit would be `tooLarge` once
+ * products are held to it (issue #52), so a caller takes any refusal.
  */
 export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   if (isExactZero(a) || isExactZero(b)) return ok(exact(ZERO));
@@ -385,9 +389,9 @@ export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
  * over the two intervals, computed on the coarse type with the divisor's
  * distance from zero as a lower bound. Fails `divisionByZero` when `b` is
  * exactly zero and `unresolved` when it contains zero without being
- * exactly zero, or when the bounds cannot tell its distance from zero. A
- * divisor of unbounded radius with a nonzero midpoint gives a quotient of
- * unbounded radius.
+ * exactly zero, or when the bounds cannot tell its distance from zero, and
+ * is refused as a product is. A divisor of unbounded radius with a nonzero
+ * midpoint gives a quotient of unbounded radius.
  */
 export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   if (isExactZero(b)) return err({ kind: "divisionByZero" });
@@ -418,12 +422,14 @@ export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
  * within the context's range limit. An inexact ball is raised by squaring
  * with `multiplyBalls`, settled after each product (D15), so that the
  * midpoint stays at the working precision and only the magnitude of the
- * result is guarded: a result whose decimal exponent would exceed the
- * exponent bound is `tooLarge` before anything is computed (4.9), and a
- * product that passes it in the loop, by the guard's double, is
- * `tooLarge` there. A negative `n` inverts by the division rule, so a
- * ball containing zero to a negative power is `unresolved`. `b^0` is
- * exactly one, as `pow` has it, for any ball.
+ * result is guarded: a result whose decimal exponent would pass the
+ * exponent bound is `overflow` or `underflow` before anything is computed
+ * (4.9), as the midpoint's magnitude is above or below one, told exactly,
+ * and a product that passes it in the loop, by the guard's double, fails
+ * so there. A negative `n` inverts by the division rule, so a
+ * ball containing zero to a negative power is `unresolved`, and a power
+ * past the bound on one side is past it on the other. `b^0` is exactly
+ * one, as `pow` has it, for any ball.
  */
 export function powBall(
   b: Ball,
@@ -437,14 +443,16 @@ export function powBall(
   if (n === 0n) return ok(exact(ONE));
   if (n < 0n) {
     const positive = powBall(b, -n, context);
-    if (!positive.ok) return positive;
-    return divideBalls(exact(ONE), positive.value);
+    if (positive.ok) return divideBalls(exact(ONE), positive.value);
+    // The reciprocal of a power past the bound is past it on the other side.
+    return err(reciprocalError(positive.error));
   }
   if (
     !isZero(b.mid) &&
     log2Scale(b) * Number(n) * Math.log10(2) > Number(MAX_EXPONENT)
   ) {
-    return err({ kind: "tooLarge" });
+    const belowOne = compare(absolute(b.mid), ONE) < 0;
+    return err({ kind: belowOne ? "underflow" : "overflow" });
   }
   let result = exact(ONE);
   let base = b;
@@ -657,7 +665,7 @@ function rootAroundZero(b: Ball, degree: bigint): Ball {
  * even root fails with `negativeRadicand` before anything is computed, so
  * that `(-8)^(2/4)` is refused rather than computed as the fourth root of
  * 64; one straddling zero goes to the root, which reports it `unresolved`
- * under an even degree, or `tooLarge` when its power does not fit; one of
+ * under an even degree, or the power's refusal when it does not fit; one of
  * unbounded radius gives the power of its midpoint with an unbounded
  * radius.
  */
@@ -685,7 +693,7 @@ export function powRationalBall(
   if (negative && even) return err({ kind: "negativeRadicand", degree: q });
   const power = powBall(b, p, context);
   if (power.ok) return rootBall(power.value, q, context);
-  if (power.error.kind !== "tooLarge" || containsZero(b)) return power;
+  if (!isRefusal(power.error) || containsZero(b)) return power;
   const result = powLogSpace(
     negative ? negateBall(b) : b,
     exact(fromRational(exponent)),
@@ -700,10 +708,13 @@ export function powRationalBall(
  * precondition) and a bounded `y`: the logarithm at the working bits plus
  * the magnitudes of `y` and of the logarithm, so that their product keeps
  * the working bits, `unresolved` when `x` reaches within an ulp of zero at
- * those bits, `tooLarge` when the product's magnitude, over its whole
- * interval, puts the result beyond the exponent bound, or when `y` is
- * beyond what a double holds, and otherwise the kernel's `Floating` as a
- * ball through digits.ts, rounded in no mode.
+ * those bits, `overflow` or `underflow` when the product's magnitude, over
+ * its whole interval, puts the result beyond the exponent bound, as the
+ * product is positive or negative, or when `y` is beyond what a
+ * double holds, which puts the result past the bound on the side the
+ * signs of `y` and `ln x` give unless `x` is within about `10^-282` of
+ * one, and otherwise the kernel's `Floating` as a ball through digits.ts,
+ * rounded in no mode.
  */
 export function powLogSpace(
   x: Ball,
@@ -712,7 +723,11 @@ export function powLogSpace(
 ): Result<Ball, BallError> {
   const bits = bitsFor(context.precision);
   const yBound = radiusBound(magnitudeAbove(y));
-  if (yBound === Infinity) return err({ kind: "tooLarge" });
+  if (yBound === Infinity) {
+    const belowOne = compare(x.mid, ONE) < 0;
+    const negative = sign(y.mid) < 0;
+    return err({ kind: negative === belowOne ? "overflow" : "underflow" });
+  }
   const yBits = Math.max(0, Math.ceil(Math.log2(yBound + 1)));
   const lnBits = bitLength(BigInt(Math.ceil(Math.abs(log2Of(x)))) + 2n);
   const working = bits + yBits + lnBits + 8;
@@ -723,7 +738,9 @@ export function powLogSpace(
   const magnitude =
     Number(bound >> BigInt(Math.max(0, bitLength(bound) - 53))) *
     2 ** (Math.max(0, bitLength(bound) - 53) - product.bits);
-  if (!expFits(magnitude)) return err({ kind: "tooLarge" });
+  if (!expFits(magnitude)) {
+    return err({ kind: product.value < 0n ? "underflow" : "overflow" });
+  }
   return floatingToBall(expFixed(product, bits), context);
 }
 
@@ -801,6 +818,18 @@ function log2Scale(b: Ball): number {
       ? mid
       : Math.abs(Math.log2(Number(above.mant)) + Number(above.exp));
   return Math.max(upper, mid) * (1 + 1e-9) + 1e-9;
+}
+
+/** The failure of the reciprocal of a value that failed with `error`: past the bound on its other side, and otherwise the same. */
+function reciprocalError(error: BallError): BallError {
+  switch (error.kind) {
+    case "overflow":
+      return { kind: "underflow" };
+    case "underflow":
+      return { kind: "overflow" };
+    default:
+      return error;
+  }
 }
 
 /**

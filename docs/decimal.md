@@ -162,14 +162,57 @@ written.
 
 `|exp| <= MAX_EXPONENT`, `10^18`, the study's bound, checked wherever
 exponents combine, in `multiply`, `divide`, `pow` and the constructor,
-and failing it is `tooLarge`, so that `10^(10^30)` and `exp(1e30)` fail
+and failing it is an `overflow` above it or an `underflow` below it, so
+that `10^(10^30)` and `exp(1e30)` fail
 cleanly before anything is computed rather than loop or form an exponent
 that could not be formatted. The parser bounds a literal's exponent by
 the same constant, and the hard bound on a literal's mantissa stays
 `LIMIT_BITS`, as today. The kernel's guard on the exponential becomes
 the same bound: an argument whose magnitude over its whole ball, times
-`log10 e`, exceeds `MAX_EXPONENT` is `tooLarge` (`exp(1e30)`; `exp(1e18)`
+`log10 e`, exceeds `MAX_EXPONENT` is refused (`exp(1e30)`; `exp(1e18)`
 is a value with the exponent `434294481903251827`).
+
+### Which limit a refusal names
+
+Each limit refuses with an error of its own, defined where its check
+lives, so that the message can say which: the fraction's `tooLarge`
+(rational.ts) for the range limit, at the alignment of a sum and at the
+sizes predicted for a power's mantissa or a fraction's power of ten; and
+`overflow` or `underflow` of `Scaled` (scaled.ts) for this bound, by
+the sign of the exponent that passes it, or in the guards, of the
+argument of `exp`, of the product `y ln x` of the log-space power, and
+`overflow` for `sinh` and `cosh` of either sign. Only a value with an
+exponent can pass the bound, so the fraction has no such error, and a
+`Scaled` operation reports the fraction's `tooLarge` unchanged. The
+messages are `"1e999999999 + 1" is too large
+to compute within Most bits.`, `"exp(1e999)" is too large to compute:
+its exponent would pass 10^18.` and `"exp(-1e999)" is too small to
+compute: its exponent would fall below -10^18.` An exact power is told
+by its decimal exponent rather than by the check that fails first
+(`powerRefusal` of scaled.ts), its mantissa being sized before its
+exponent is: `7^1e19`, refused by the range limit's prediction, is an
+`overflow`, past the bound, which no setting moves; and `2.54^1e18`,
+whose canonical exponent, `-2 × 10^18`, is past the bound below, is
+`10^(0.40 × 10^18)`, within it, and is `tooLarge`, the range limit's.
+The side is told exactly,
+by comparing the base's magnitude with one, and the size by bounds on
+the exponent's logarithm, taken for a base within `2^-30` of one from
+its exact difference from one, so that `1.0000000001^1e30`, about
+`10^(4.3 × 10^19)`, is too large; within a relative `2^-20` of the
+bound, where the bounds cannot tell, a power refused by its exponent is
+past the bound on the side its signs give, and one refused by its
+mantissa is `tooLarge`. A power of an inexact base that the guard
+refuses is past the bound on the side of one its midpoint lies, and a
+negative power on the other side. A literal past the bound is the
+parser's to word: its exponent passes `10^18`, or falls below `-10^18`,
+as written, less its fraction digits, and then as the canonical form
+puts it. Where the constructor's check refuses, for a product, a
+quotient or a sum, the exponent a message speaks of is the canonical
+one, which differs from the decimal exponent by the mantissa's digits:
+`1e1000000000000000000 / 3 * 10`, whose value is `3.3 × 10^(10^18)`, is
+refused, its canonical form being `1/3 × 10^(10^18 + 1)`, and
+`1e-1000000000000000000 / 7`, `1.4 × 10^-(10^18 + 1)`, is held, as
+`1/7 × 10^-(10^18)`.
 
 ### Decision: the bound stays at `10^18`
 
@@ -564,7 +607,7 @@ departed from this note:
   context written before it existed is an exact one; `ceilingContext`
   sets exact mode only for a decimal context.
 - **Log space** is `src/core/digits.ts`, entered through `floatingToBall`,
-  a `Result` that fails `tooLarge` only where the guard's double let an
+  a `Result` that fails at the bound only where the guard's double let an
   exponent at the bound through; the first landing scaled `ln 2` by the
   exponent less the mantissa's bits and gave `exp(1e6)` eighteen digits
   short, which the tests against Python's digits caught. The log-space

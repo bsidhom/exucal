@@ -111,10 +111,11 @@ test("an unbounded argument gives an unbounded exponential of its midpoint", () 
 });
 
 test("an argument whose exponential would exceed the exponent bound is tooLarge, either way from one", () => {
+  // Above the bound for a positive argument, below it for a negative one.
   for (const x of ["1e30", "-1e30", "2.4e18", "-2.4e18"]) {
     assert.deepEqual(expBall(exact(dec(x)), CONTEXT), {
       ok: false,
-      error: { kind: "tooLarge" },
+      error: { kind: x.startsWith("-") ? "underflow" : "overflow" },
     });
   }
   // Within it, on either side: the range of an exponent (4.9), with the
@@ -183,7 +184,7 @@ test("through the pipeline, exp(1) certifies fifty digits on the first pass, exp
   });
   assert.ok(!huge.ok);
   assert.deepEqual(huge.error, {
-    kind: "tooLarge",
+    kind: "overflow",
     span: { start: 0, end: 9 },
   });
   const zero = evaluateText(table.value, "exp(0) m", {

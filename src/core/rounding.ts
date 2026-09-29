@@ -1,7 +1,7 @@
 // The rounding modes, named once, and the one place a mode is interpreted:
 // `divideRounded` is the integer division of a signed numerator by a
 // positive denominator, rounded in a mode. Everything else that rounds
-// (`roundTo` and `format` in rational.ts, and through them the display and
+// (`roundTo` and `format` in scaled.ts, and through them the display and
 // the rounding of a unit list's remainder) scales its value so that the
 // digits to keep form an integer, divides here, and scales back, so a mode
 // means the same thing wherever it is applied. docs/calculator-plan.md

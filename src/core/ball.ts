@@ -11,8 +11,9 @@
 // every quantity.
 //
 // Each operation composes the arithmetic of scaled.ts on the midpoints
-// with a propagation rule of radius.ts on the radii; neither of those
-// modules knows the other. The exact operations never round an exact
+// with a propagation rule of radius.ts on the radii; scaled.ts knows
+// nothing of radii, and radius.ts reads a midpoint only for its binary
+// bounds (`radiusAboveScaled`). The exact operations never round an exact
 // value: an exact value stays the exact number it is, and only the radius
 // says what has been lost upstream (a root, a function). An inexact value
 // is another matter (D15): its midpoint is a number computed, not known,
@@ -23,7 +24,7 @@
 // beyond the working precision however long the expression; `powBall` on
 // an inexact base squares with settling for the same reason. Settling is a
 // bound on size, not a rounding the user chose: the mode is the display's
-// (the decimal mode of 4.5 will settle in the user's mode). The rules are
+// (the decimal mode of 4.5 settles in the user's mode). The rules are
 // the elementary ones, each a bound over the two operands' intervals: a
 // sum's radii add; a product's radius is `|a| rb + |b| ra + ra rb`; a
 // quotient's is `(|a| rb + |b| ra) / (|b| (|b| - rb))`, which requires the
@@ -109,7 +110,7 @@
 // conversion; the product `y ln x` is formed at the bits plus the
 // exponent's and the logarithm's magnitudes, and its magnitude is held to
 // the exponent bound before the exponential (`expFits`, 4.9), so that
-// `7^(100000/3)` is a value of about `10^28144` where the range limit
+// `7^(100000/3)` is a value of about `10^28170` where the range limit
 // refused it, `2^0.1234567` and `10^2.3456789`, once refused as
 // `tooLarge`, are values with a radius, and `7^(10^19)` is an `overflow`,
 // past the bound; a power of ten costs nothing in the exponent, so

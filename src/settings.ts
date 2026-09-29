@@ -1,15 +1,16 @@
 // The user's settings: the digits a result is shown with, the rounding
-// mode it is rounded in, and the two limits of D16, the cap on the digits
-// and the range limit in bits, kept in `localStorage` so that they survive
-// a reload, and turned into the `NumberContext` the pipeline takes, whose
-// ceiling is derived from the cap. This is app code, not core: the core
-// takes a context and knows nothing of where it comes from.
+// mode it is rounded in, the exact or decimal mode, and the two limits of
+// D16, the cap on the digits and the range limit in bits, kept in
+// `localStorage` so that they survive a reload, and turned into the
+// `NumberContext` the pipeline takes, whose ceiling is derived from the
+// cap. This is app code, not core: the core takes a context and knows
+// nothing of where it comes from.
 // docs/calculator-plan.md (tasks 1.10 and 2.6, D12 and D16) places it;
 // README.md ("Settings") describes the settings from the user's side.
 //
 // Storage is an argument rather than the global, so that this module has no
 // DOM dependency and its parsing and validation are tested under Node with
-// a fake storage object. What is stored is a JSON object of the four
+// a fake storage object. What is stored is a JSON object of the five
 // fields; anything that does not parse, or a field that is missing or of
 // the wrong shape, falls back to that field's default, and the fields are
 // then made consistent in the order of their dependence: the range limit

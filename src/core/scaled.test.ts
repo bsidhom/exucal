@@ -20,8 +20,8 @@ import {
   sign as signFraction,
   subtract as subtractFractions,
   toFraction,
-  type Limit,
   type Rational,
+  type RationalError,
 } from "./rational.ts";
 import {
   formatFraction,
@@ -57,6 +57,7 @@ import {
   subtract,
   toRational,
   trunc,
+  type Limit,
   type Log2,
   type Scaled,
   type ScaledError,
@@ -64,7 +65,7 @@ import {
 import { ROUNDING_MODES, type RoundingMode } from "./rounding.ts";
 import { key, randomRational, split } from "../testing/random.ts";
 
-function unwrap<T>(result: Result<T, ScaledError>): T {
+function unwrap<T>(result: Result<T, ScaledError | RationalError>): T {
   assert.ok(result.ok, `expected success, got ${inspect(result)}`);
   return result.value;
 }

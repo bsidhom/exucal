@@ -47,7 +47,6 @@ import {
   rational,
   subtract as subtractFractions,
   toFraction,
-  type Limit,
   type Rational,
 } from "./rational.ts";
 import { addRadius } from "./radius.ts";
@@ -68,6 +67,7 @@ import {
   pow,
   roundTo,
   subtract,
+  type Limit,
   type Scaled,
 } from "./scaled.ts";
 import { foldIn, key, randomBall, split } from "../testing/random.ts";

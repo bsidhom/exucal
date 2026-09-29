@@ -145,12 +145,8 @@ test("pow refuses results beyond the size limit, but not trivial ones", () => {
     pow(rational(2n), BigInt(LIMIT_BITS + 1), LIMIT_BITS),
     "tooLarge",
   );
-  // The limit is the caller's: the context's range limit, which the
-  // error names.
-  assert.deepEqual(pow(rational(2n), 100n, 64), {
-    ok: false,
-    error: { kind: "tooLarge", limit: "range" },
-  });
+  // The limit is the caller's: the context's range limit.
+  assertError(pow(rational(2n), 100n, 64), "tooLarge");
   assert.ok(pow(rational(2n), 30n, 64).ok);
   const sixteen = 1 << 16;
   assertError(pow(rational(10n), 100_000n, sixteen), "tooLarge");

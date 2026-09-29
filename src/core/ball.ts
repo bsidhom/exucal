@@ -140,9 +140,7 @@ import {
   bitLength,
   rational,
   scaleByPowerOfTwo,
-  type Limit,
   type Rational,
-  type RationalError,
 } from "./rational.ts";
 import {
   UNBOUNDED,
@@ -189,7 +187,9 @@ import {
   subtract,
   toRational,
   trunc,
+  type Limit,
   type Scaled,
+  type ScaledError,
 } from "./scaled.ts";
 
 /** A midpoint with the radius that bounds its distance from the true value. */
@@ -199,7 +199,7 @@ export type Ball = {
 };
 
 export type BallError =
-  | RationalError
+  | ScaledError
   /**
    * The answer depends on which side of zero the true value lies, and the
    * ball straddles it: a divisor that cannot be told from zero.

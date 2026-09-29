@@ -52,8 +52,8 @@
 // mantissa sized against the limit as the fraction's `pow` sizes it. So
 // `add`, `subtract`, `multiply`, `divide`, `invert` and `pow` are
 // `Result`s where the fraction's are total, and `negate` and `absolute`
-// stay total. Every `tooLarge` says which limit it passed (`Limit` of
-// rational.ts): the range limit, or the bound above or below, by the sign
+// stay total. Every `tooLarge` says which limit it passed (`Limit`): the
+// range limit, or the bound above or below, by the sign
 // of the exponent that passes it; a power is told by its decimal exponent
 // (`powerLimit`), so that one the range limit refuses is reported at the
 // bound when the bound would refuse it too.
@@ -93,7 +93,6 @@ import {
   sign as signOf,
   subtract as subtractFractions,
   trunc as truncFraction,
-  type Limit,
   type Rational,
   type RationalError,
 } from "./rational.ts";
@@ -108,8 +107,30 @@ import {
 /** A number `mant × 10^exp`, in the canonical form the header states. */
 export type Scaled = { readonly mant: Rational; readonly exp: bigint };
 
-/** The failures a `Scaled` operation can report: the fraction's. */
-export type ScaledError = RationalError;
+/**
+ * The failures a `Scaled` operation can report: the fraction's, with a
+ * `tooLarge` that says which limit it passes.
+ */
+export type ScaledError =
+  | Exclude<RationalError, { readonly kind: "tooLarge" }>
+  | { readonly kind: "tooLarge"; readonly limit: Limit };
+
+/**
+ * Which limit a result too large to compute would pass, recorded where the
+ * check fails so that a message can say which. `range` is the range limit,
+ * the bits the context lets an exact value's numerator or denominator, or
+ * a sum's alignment, take: Most bits, the user's to set, which an inexact
+ * operand (`approx`) avoids in a sum, whose inexact result is settled
+ * to the working digits. `exponentAbove` and
+ * `exponentBelow` are the exponent bound, `MAX_EXPONENT`, a constant,
+ * passed by a value too large to hold or by a nonzero value too small to
+ * hold; the kind is `tooLarge` for both. It is this module's, and not the
+ * fraction's, since only a value with an exponent can pass the bound: the
+ * fraction's `tooLarge` (rational.ts) is always the range limit's, and
+ * `fromFractionError` names it so where a fraction's failure becomes a
+ * `Scaled` one.
+ */
+export type Limit = "range" | "exponentAbove" | "exponentBelow";
 
 /**
  * The bound on `|exp|`, `10^18`: generous and finite, so that a value's
@@ -136,6 +157,13 @@ export function scaled(
     return err({ kind: "tooLarge", limit: boundPassed(s.exp) });
   }
   return ok(s);
+}
+
+/** A fraction's failure as a `Scaled` one: its `tooLarge`, the only limit a fraction has, is the range limit's. */
+function fromFractionError(error: RationalError): ScaledError {
+  return error.kind === "tooLarge"
+    ? { kind: "tooLarge", limit: "range" }
+    : error;
 }
 
 /** The side of the bound an exponent past it is on: below for a negative one, above otherwise. */
@@ -305,7 +333,7 @@ export function multiply(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
 /** `a / b`, exactly: the mantissas divided, the exponents subtracted; fails on a zero `b` and at the bound. */
 export function divide(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
   const mant = divideFractions(a.mant, b.mant);
-  if (!mant.ok) return mant;
+  if (!mant.ok) return err(fromFractionError(mant.error));
   if (isZero(a)) return ok(ZERO);
   return scaled(mant.value, a.exp - b.exp);
 }
@@ -313,7 +341,9 @@ export function divide(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
 /** The reciprocal of `s`; fails on zero and at the bound. */
 export function invert(s: Scaled): Result<Scaled, ScaledError> {
   const mant = invertFraction(s.mant);
-  return mant.ok ? scaled(mant.value, -s.exp) : mant;
+  return mant.ok
+    ? scaled(mant.value, -s.exp)
+    : err(fromFractionError(mant.error));
 }
 
 /**
@@ -342,8 +372,9 @@ export function pow(
   }
   const mant = powFraction(s.mant, n, limit);
   if (mant.ok) return scaled(mant.value, s.exp * n);
-  if (mant.error.kind !== "tooLarge") return mant;
-  return powerTooLarge(s, n, "range");
+  return mant.error.kind === "tooLarge"
+    ? powerTooLarge(s, n, "range")
+    : err(fromFractionError(mant.error));
 }
 
 /** `s^n` refused as `tooLarge`, at the limit `powerLimit` names, or at `otherwise` where it cannot tell. */
@@ -440,7 +471,7 @@ export function exactRoot(
     mant = { num: mant.num * 10n ** r, den: mant.den };
   }
   const root = exactRootOfFraction(mant, degree);
-  if (!root.ok) return root;
+  if (!root.ok) return err(fromFractionError(root.error));
   if (root.value === undefined) return ok(undefined);
   return ok(normalize(root.value, k));
 }

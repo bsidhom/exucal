@@ -57,7 +57,6 @@ import {
   type Primitives,
 } from "./dimension.ts";
 import type { Arity } from "./evaluate.ts";
-import type { Limit } from "./rational.ts";
 import {
   UNBOUNDED,
   addRadius,
@@ -67,7 +66,14 @@ import {
   type Radius,
 } from "./radius.ts";
 import { err, ok, type Result } from "./result.ts";
-import { ONE, ZERO, isZero, log2Bounds, type Scaled } from "./scaled.ts";
+import {
+  ONE,
+  ZERO,
+  isZero,
+  log2Bounds,
+  type Limit,
+  type Scaled,
+} from "./scaled.ts";
 
 /** Why a built-in's arguments do not have the dimensions it wants. */
 export type DimensionRuleError =

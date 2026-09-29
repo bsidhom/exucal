@@ -23,8 +23,7 @@ import {
 } from "./core/builtin.ts";
 import type { UnitListError } from "./core/convert.ts";
 import type { Arity, EvaluateError } from "./core/evaluate.ts";
-import type { Limit } from "./core/rational.ts";
-import { ZERO, equals, format } from "./core/scaled.ts";
+import { ZERO, equals, format, type Limit } from "./core/scaled.ts";
 import type {
   ConversionError,
   InverseFailed,

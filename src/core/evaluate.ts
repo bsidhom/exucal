@@ -106,8 +106,8 @@ import {
   subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
-import { bitLength, type Limit } from "./rational.ts";
-import { ZERO } from "./scaled.ts";
+import { bitLength } from "./rational.ts";
+import { ZERO, type Limit } from "./scaled.ts";
 import type { BallError } from "./ball.ts";
 import type {
   Builtin,

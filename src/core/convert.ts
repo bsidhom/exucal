@@ -78,7 +78,7 @@ import {
 } from "./dimension.ts";
 import type { Quantity } from "./quantity.ts";
 import { addRadius, isZeroRadius, radiusAboveScaled } from "./radius.ts";
-import { LIMIT_BITS, type Limit } from "./rational.ts";
+import { LIMIT_BITS } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import type { Precision, RoundingMode } from "./rounding.ts";
 import {
@@ -93,6 +93,7 @@ import {
   sign,
   subtract,
   trunc,
+  type Limit,
   type Scaled,
 } from "./scaled.ts";
 

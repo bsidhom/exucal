@@ -173,7 +173,7 @@ is a value with the exponent `434294481903251827`).
 
 ### Which limit a refusal names
 
-A `tooLarge` carries the limit it passes (`Limit` of rational.ts), set
+A `tooLarge` carries the limit it passes (`Limit` of scaled.ts), set
 where the check fails, so that the message can say which (issue #41):
 `range` for the range limit, at the alignment of a sum and at the sizes
 predicted for a power's mantissa or a fraction's power of ten, and

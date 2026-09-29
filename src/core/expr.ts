@@ -99,9 +99,9 @@ import {
   type Parser,
   type Spanned,
 } from "./parser.ts";
-import { LIMIT_BITS, divide, type Limit, type Rational } from "./rational.ts";
+import { LIMIT_BITS, divide, type Rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
-import { parseDecimal, toRational, type Scaled } from "./scaled.ts";
+import { parseDecimal, toRational, type Limit, type Scaled } from "./scaled.ts";
 import type { Span } from "./span.ts";
 
 // ---------------------------------------------------------------------------

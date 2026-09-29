@@ -12,8 +12,8 @@
 // a radius is propagated through every operation of an expression and must
 // cost nothing and never grow, where a rational grows with each step; not a
 // float64 because a radius is absolute and scales with the values (the
-// product rule is `|a| rb + |b| ra`), so it spans their range, `10^±19700`
-// today and `10^±(10^18)` once stage 4 adds the exponent, far beyond a
+// product rule is `|a| rb + |b| ra`), so it spans their range, up to
+// `10^±(10^18)` with the exponent of stage 4, far beyond a
 // double's `10^±308`, and because JavaScript has no directed rounding, so a
 // double would need a manual nudge up after every operation anyway. The
 // exponent is a bigint for the same reason: the binary exponent of a value

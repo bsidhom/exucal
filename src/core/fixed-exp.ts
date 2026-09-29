@@ -17,12 +17,12 @@
 // `Floating` (fixed.ts; 4.9 of the plan): after each squaring the
 // mantissa is brought back to `[1, 2)` at the working bits and the rest
 // moved into the exponent (`normalizeFloating`), so that `exp(1e6)` costs
-// what `exp(1)` costs plus sixty squarings at the working bits rather
-// than a value of 1.4 million bits, and a negative argument is the same
+// what `exp(1)` costs plus a squaring per bit of its magnitude, about
+// twenty at the working bits, rather than a value of 1.4 million bits, and a negative argument is the same
 // loop with the exponent going negative, so that `exp(-1e6)` costs the
 // same and `exp(-1000)`, about `2^-1443`, keeps its digits. The
 // argument's magnitude is bounded by the exponent bound before this is
-// called (`expFits` of ball.ts refuses `exp(1e30)` as `tooLarge`), and an
+// called (`expFits` of ball.ts refuses `exp(1e30)` as an `overflow`), and an
 // argument beyond `2^62`, whose exponential would pass the bound, is a
 // precondition failure here; the magnitude is taken over the argument's
 // whole interval, so a wide argument is halved as far as its error needs.

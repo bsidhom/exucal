@@ -167,7 +167,7 @@ message says the value cannot be told from that edge.
 | `sqrt`                 | `x >= 0`                                               | a perfect square                                             | zero                                        |
 | `cbrt`                 | all                                                    | a perfect cube                                               |                                             |
 | `pow(x, y)`            | `x > 0`, or `x <= 0` with a rational `y` as `^` allows | `x` a perfect `q`-th power for `y = p/q`; `pow(0, 0)` is `1` | zero for `x`; zero for `y` when `x` is zero |
-| `sin`, `cos`, `tan`    | all                                                    | zero: `sin(0)`, `cos(0)`, `tan(0)`                           | a pole of `tan`                             |
+| `sin`, `cos`, `tan`    | all                                                    | zero: `sin(0 radian)`, `cos(0 radian)`, `tan(0 radian)`      | a pole of `tan`                             |
 | `asin`, `acos`         | `[-1, 1]`                                              | `asin(0)`, `acos(1)`                                         | `1`, `-1`                                   |
 | `atan`                 | all                                                    | `atan(0)`                                                    |                                             |
 | `atan2(y, x)`          | not both zero                                          | `atan2(0, x)` for `x > 0`                                    | zero for `y`, when `x` is not positive      |
@@ -185,10 +185,13 @@ is `2`, `pow(1/4, 3/2)` is `1/8`), which `exactRoot(x, q)` finds without
 forming `x^p`; otherwise the root of the power when `x^p` fits the range
 limit, which also serves a negative base under an odd root; otherwise,
 and for an inexact exponent, `exp(y ln x)` for a positive base. Log space
-is where `pow(10, 2.3456789)` and `2^0.1234567` compute, since `10^23456789`
-does not fit any range limit; what it gives up is exactness where none
-was reachable. A non-positive base with an inexact exponent is a domain
-error, a negative base under an even root the `negativeRadicand` that
+is where `2^0.1234567` computes, since `2^1234567` does not fit any range
+limit, and `pow(10, 2.3456789)` too, since 4.4 by the root: `10^23456789`
+is exact in the exponent, but its root leaves `10^3456789` to the kernel,
+which the range limit does not hold; what log space gives up is
+exactness where none was reachable. A non-positive base with an inexact
+exponent is a domain error, a negative base under an even root the
+`negativeRadicand` that
 `(-1)^(1/2)` is, and a base straddling zero `unresolved`.
 
 **`log`'s exact cases** are integer exponents either way: `log(2, 8)` is
@@ -295,7 +298,14 @@ x)`, `atan2` an arctangent by quadrant, and `asinh`, `acosh` and
   the reciprocal into the error beyond half the working bits; the
   kernel-to-ball conversion rounds onto the decimal grid of the working
   digits since 4.4 and takes any exponent, through digits.ts for one the
-  range limit cannot hold.
+  range limit cannot hold. Since the follow-up of the plan's "After stage
+  4" the guard refuses with the bound's own errors, an `overflow`, or an
+  `underflow` for `exp` of a negative argument and a power toward zero,
+  and a large decibel no longer reaches it: its body's power of ten is
+  exact, and the exponent takes it (`decibel(1e30)` is refused at the
+  bound by the exact power). `tanh` of a ball reaching both sides of zero
+  is not saturated and does reach the guard, which refuses it past about
+  `2.3e18` (issue #49).
 - **The memos.** Four constants at the ceiling plus 64 bits; the margin
   serves the reduction of `sin` and `cos` for every argument below `2^64`
   at the ceiling pass exactly, the reduction taking pi at the bits asked

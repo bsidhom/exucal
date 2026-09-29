@@ -205,7 +205,7 @@ test("the log-space ball contains the value and carries the mantissa's error, ov
   assert.ok(compare(radiusUpper(zero.rad), rational(5n * 2n ** 100000n)) >= 0);
 });
 
-test("a decimal exponent beyond the bound is tooLarge, and the exact path rounds a value of the range limit's size", () => {
+test("a decimal exponent beyond the bound is an overflow or an underflow, and the exact path rounds a value of the range limit's size", () => {
   const huge = floatingToBall(floating(1n, 4n * 10n ** 18n), at(8));
   assert.deepEqual(huge, {
     ok: false,

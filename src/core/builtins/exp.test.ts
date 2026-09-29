@@ -110,7 +110,7 @@ test("an unbounded argument gives an unbounded exponential of its midpoint", () 
   assert.ok(compare(distance(result.mid, E), dec("1e-45")) < 0);
 });
 
-test("an argument whose exponential would exceed the exponent bound is tooLarge, either way from one", () => {
+test("an argument whose exponential would pass the exponent bound is an overflow for a positive argument and an underflow for a negative one", () => {
   // Above the bound for a positive argument, below it for a negative one.
   for (const x of ["1e30", "-1e30", "2.4e18", "-2.4e18"]) {
     assert.deepEqual(expBall(exact(dec(x)), CONTEXT), {

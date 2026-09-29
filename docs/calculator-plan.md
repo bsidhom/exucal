@@ -254,9 +254,12 @@ written had the count inexact and the remainder a ball around zero).
 Clarified before stage 5 (H.12): a count other than the last whose ratio
 falls below the exponent bound is exact zero, the unit being too large to
 count by (`1e-999999999999999999 s` in `hr;min;s` is `0 hr + 0 min +
-1e-999999999999999999 s`), and the rest is left as it was. A ratio past
-the bound above, a last ratio that falls below it, and a remainder whose
-subtraction falls below it stay refusals of the conversion.
+1e-999999999999999999 s`), and the rest is left as it was; so is one whose
+ratio is `unresolved` at the bottom of the bound (D18), since every value
+it may have truncates to zero. A ratio past the bound above, a last ratio
+that falls below it, and a remainder whose subtraction falls below it
+stay refusals of the conversion, and any other `unresolved` is the
+conversion's, retried.
 
 **D9. The kernel is fixed point with an integer error count.** A kernel
 value is `{ value, error, bits }`: the integer `value` stands for
@@ -641,7 +644,11 @@ the same side of the edge, except at the top. There a rounding can carry
 The check is cheap. `scaled()` computes the decimal exponent only when
 `|exp|` lies within `4 × 10^8` of the bound, which is more than the digits
 of any bigint, so the common case costs one comparison. A ball is within
-the bound when its whole interval is (D18).
+the bound when its midpoint is within it and `|mid| + rad` lies below
+`10^(10^18+1)` (D18), save that exact mode's `settle` at the top may carry
+`|mid| + rad` to that edge by the unit it adds. A ball may reach below
+`10^-(10^18)`, around zero or not: zero is within at any exponent, and a
+radius is not held to the bottom edge.
 
 The alternative was to make the canonical check consistent everywhere. It
 was weighed and rejected:
@@ -661,6 +668,10 @@ The sites that read the bound, and the tasks that bring them to this rule:
   `floatingToBall` (H.15).
 - The sites that form `10^±exp` only to take its radius: `positiveRoot`,
   `lnScaled`, `halfUnitOf` and `approxBall` (H.4, H.11).
+- `farLogarithm`, which formed `2|x|` (H.4).
+- convert.ts's `decompose` and `roundTerms`, which assumed that a
+  quotient, a product and a difference of values within the bound stay
+  within it (H.12).
 
 **D18. The exponent bound is an edge of D4, and a refusal needs the whole
 ball past it (added before stage 5).** A result that passes the exponent
@@ -669,10 +680,19 @@ edge `bound`, as a divisor straddling zero is `unresolved` at the edge
 zero. The answer, a value or a refusal, depends on which side the true
 value lies. The retry loop, which retries every `unresolved`
 (`isUnresolved` in pipeline.ts), narrows the ball until that is decided.
-`overflow` and `underflow` are returned only when every value of the ball
-passes the bound on the same side, since a refusal is final (`resolve`
-does not retry it) and must never be wrong. A result is computed only when
-every value lies within the bound, with a margin for the kernel's error.
+Apart from decimal mode's rounding, whose rounded value is the result and
+is refused past the bound even when the value before it was within (D15,
+as amended), `overflow` and `underflow` are returned only when every value
+of the ball passes the bound on the same side, since a refusal is final
+(`resolve` does not retry it) and must never be wrong. A guarded built-in
+computes a result only when every value lies within the bound, with a
+margin for the kernel's error; `sinh`, `cosh` and a power of a base whose
+ball contains zero are tested against the top edge alone (H.15). The
+arithmetic computes a result when its midpoint is within the bound and
+`|mid| + rad` lies below the top (H.13). Either may return a ball that
+reaches below `10^-(10^18)`, since zero is within at any exponent (D17). A
+ball of unbounded radius keeps its convention: its midpoint alone is held
+to the bound.
 
 This holds for the guarded built-ins and for the ball arithmetic:
 
@@ -705,10 +725,12 @@ the bound is final there, as every `unresolved` is.
 
 **D19. Every exact result is held to the range limit where the evaluator
 produces it (added before stage 5).** Stage 4 held a sum's alignment and a
-power's predicted mantissa to `maxBits`, and nothing else. The argument
-was that an operation which grows its inputs by a constant factor needs no
-check, since an expression of bounded length applies a bounded number of
-them. But nothing bounds the length (#52):
+power's predicted mantissa to `maxBits`, and no other result an expression
+forms; the literal check holds what is typed, and the kernel is handed no
+argument past `2^maxBits`. The argument was that an operation which grows
+its inputs by a constant factor needs no check, since an expression of
+bounded length applies a bounded number of them. But nothing bounds the
+length (#52):
 
 - an exact product of coprime powers, each within Most bits, reached
   1,096,425 bits;
@@ -2883,39 +2905,42 @@ before the kernel covers the eight above. The exponent bound's definition
 covers #44, #48 and #50. Size and cost is #52, and the parser is #54. The
 tasks come in two tiers:
 
-- **Tier 1** needs no decision and can land in any order, in parallel. It
-  is H.1 to H.9: the fixes of the argument handling, the roots, the bases
-  of `pow`, the inverse trigonometric functions, the parser and the gcd.
-- **Tier 2** needs the decisions below (D17 to D19, and the amendments to
-  D4, D8, D15 and D16), which land with this section. It is H.10 to H.16,
-  in their order: the sweep, `settle` as a `Result`, the unit lists, the
-  bound on the value, the size check, the guard, and an optional change to
-  `pow`.
+- **Tier 1** needs no decision and can land in parallel, except for the
+  order the table marks (H.1 before H.3, H.2 before H.7, H.4 before H.5,
+  H.5 before H.6). It is H.1 to H.9: the fixes of the argument handling,
+  the roots, the bases of `pow`, the inverse trigonometric functions, the
+  parser and the gcd.
+- **Tier 2** needs the decisions above, under "Decisions" (D17 to D19, and
+  the amendments to D4, D8, D15 and D16), which land with this section. It
+  is H.10 to H.16, in their order: the sweep, `settle` as a `Result`, the
+  unit lists, the bound on the value, the size check, the guard, and an
+  optional change to `pow`.
 
 H.17 records the phase as it landed. Each task is one commit unless it
 says otherwise, and each says what closes which issue. The table gives the
 order and the edges; "text" marks an edge that exists only because two
-tasks edit the same lines.
+tasks edit the same lines, and "preferred" an order the task asks for but
+does not need.
 
-| Task                                            | Closes        | Depends on               |
-| ----------------------------------------------- | ------------- | ------------------------ |
-| H.1 `tanh` of a wide argument                   | #38, #49      |                          |
-| H.2 Tiny arguments at the kernel's door         | #53           |                          |
-| H.3 `exp` of a wide argument                    | #39           |                          |
-| H.4 The radius of a power of ten                | part of #44   |                          |
-| H.5 Roots of a large degree or a tiny mantissa  | #45           | H.4 (text)               |
-| H.6 `pow` of the exact bases 0, 1 and −1        | part of #46   |                          |
-| H.7 The inverse trigonometric functions         | #47           | H.2 (text)               |
-| H.8 A name followed by `(` is only a call       | #54           |                          |
-| H.9 Smaller reductions, then Lehmer's gcd       | part of #52   |                          |
-| H.10 The edge sweep                             |               | the decisions; tier 1    |
-| H.11 `settle` returns a `Result`                | part of #44   | H.4                      |
-| H.12 Unit lists report refusals                 | part of #44   | H.11                     |
-| H.13 The exponent bound is on the value         | #50, #48, #44 | H.4, H.11, H.12          |
-| H.14 Exact results are held to Most bits        | #52           | H.9, H.11 (text)         |
-| H.15 One guard for the exponential and powers   | #40, #46      | H.1, H.2, H.3, H.6, H.13 |
-| H.16 `pow`'s exponent past Most bits (optional) |               | H.2, H.6, H.15           |
-| H.17 The phase as it landed                     |               | all                      |
+| Task                                            | Closes        | Depends on                        |
+| ----------------------------------------------- | ------------- | --------------------------------- |
+| H.1 `tanh` of a wide argument                   | #38, #49      |                                   |
+| H.2 Tiny arguments at the kernel's door         | #53           |                                   |
+| H.3 `exp` of a wide argument                    | #39           | H.1 (text)                        |
+| H.4 The radius of a power of ten                | part of #44   |                                   |
+| H.5 Roots of a large degree or a tiny mantissa  | #45           | H.4 (text)                        |
+| H.6 `pow` of the exact bases 0, 1 and −1        | part of #46   | H.5 (text)                        |
+| H.7 The inverse trigonometric functions         | #47           | H.2 (text)                        |
+| H.8 A name followed by `(` is only a call       | #54           |                                   |
+| H.9 Smaller reductions, then Lehmer's gcd       | part of #52   |                                   |
+| H.10 The edge sweep                             |               | the decisions; tier 1 (preferred) |
+| H.11 `settle` returns a `Result`                | part of #44   | H.4                               |
+| H.12 Unit lists report refusals                 | part of #44   | H.11                              |
+| H.13 The exponent bound is on the value         | #50, #48, #44 | H.4, H.11, H.12; H.2 (preferred)  |
+| H.14 Exact results are held to Most bits        | #52           | H.9, H.13 (text)                  |
+| H.15 One guard for the exponential and powers   | #40, #46      | H.1, H.2, H.3, H.6, H.13          |
+| H.16 `pow`'s exponent past Most bits (optional) |               | H.2, H.6, H.15                    |
+| H.17 The phase as it landed                     |               | all                               |
 
 The pull requests: H.1; H.2 with H.3; H.4 with H.5; H.6; H.7; H.8; H.9;
 then, in tier 2, H.10; H.11 with H.12; H.13; H.14; H.15; H.16 if adopted;
@@ -2928,8 +2953,16 @@ its error three times in review:
   `Edge = BallEdge | "pole"` in builtin.ts (H.13).
 - `settle` returns `Result<Ball, BallError>`, and `settleQuantity` returns
   `Result<Quantity, BallError>` (H.11).
-- `decompose` returns `Result<Ball[], Refusal>`, and `convertToList` fails
-  with `UnitListError | Refusal` (H.12).
+- `decompose` returns a `Result` whose error is a `Refusal` or
+  `BallError`'s `unresolved`, and `convertToList` fails with a
+  `UnitListError`, a `Refusal` or that `unresolved` (H.12). H.13's
+  arithmetic produces the `unresolved`, at the edge `bound`, inside a list
+  whose `have` or unit is inexact (`approx(1e1000000000000000000) m` into
+  `dm;cm`). The pipeline reports it as `ConvertError`'s new variant, which
+  the retry loop retries, and `roundTerms` returns the terms uncarried on
+  it as on a refusal (H.13). A count other than the last whose ratio is
+  `unresolved` at the bottom of the bound is zero, as one below it is
+  (D8).
 - `ConvertError` gains a variant for a ratio `unresolved` at the bound,
   which the retry loop retries and messages.ts words (H.13).
 - No new error kind, and no refusal on `LookupError`.
@@ -2947,6 +2980,12 @@ request quotes the ruling:
   as clarified: `approx(1e-999999999999999999)`, and the rows into
   `hr;min;s` and into `time`.
 - #45's scope is wider than exponents below `1e-308` (H.5).
+- #53 asks `powLogSpace` to answer a tiny `y` as one within about
+  `2|y ln x|`, or to form `y ln x` without converting `y` alone. H.2
+  converts `y` to zero within an ulp, which already makes
+  `pow(2, approx(1e-999999999))` a value; the branch itself needs a
+  certified bound on `|ln x|`, which can reach about `2.3 × 10^18`, so it
+  lands with H.15.
 - #48's first constraint uses an input past the bound by value, which is
   refused where it is typed. The constraint is kept with an input within
   the bound (H.12).
@@ -2961,6 +3000,11 @@ them on:
 - Crashes on ordinary inputs:
   - `pow(3, 1e-30)`, `3^1e-30`, `pow(2, 5e-28)`, `pow(10, 1e-100)` and
     `pow(1/3, 1e-30)` throw (H.5).
+  - `pow(2e200, 1e-20)` runs half a minute and then throws, and
+    `pow(1e-5 - approx(1e-5), 3^-700)` throws in the radius (H.5).
+  - At a range limit from about 350,000 bits up, which the settings allow,
+    `exp`, `sinh`, `tanh`, `atan` and `sin` of values near the edges of
+    what the kernel is handed throw (H.2).
   - `cbrt(1e-1000000000000000000)` and `cbrt(2e-1000000000000000000)`
     throw, as does `pow(2e-1000000000000000000, 1/7)` (H.4).
   - `1e-999999999999999999 m` into `ft;in` throws in the display's
@@ -2968,6 +3012,9 @@ them on:
   - `3^32767 m` into `ft/7^21845; in/7^21845` throws (H.12).
   - `pow(5e1000000000000000000, 1/3)` throws after twenty seconds in
     decimal mode (H.3).
+- Roots of a tiny mantissa that no pass resolves: `pow(3^-10000, 2^-30)`
+  is reported as not told from zero, and `(7^-8000)^(1/99999)` is shown as
+  zero within `0.9` (H.5).
 - A wrong answer: a unit list near the bound is certified at a tenth below
   its value (H.12, H.13).
 - Values refused by the ball arithmetic's midpoint, and a radius past the
@@ -2997,8 +3044,10 @@ Every sentence in the docs and comments that names an open issue is
 corrected by the task that closes it:
 
 - The `#52` comments in scaled.ts, ball.ts, quantity.ts, table.ts,
-  build.ts and hyperbolic.ts, ARCHITECTURE.md's two, and docs/decimal.md's
-  go with H.14. convert.ts's go with H.12.
+  build.ts and hyperbolic.ts, ARCHITECTURE.md's three (rule 1, and two in
+  "Size limits"), and docs/decimal.md's go with H.14. convert.ts's, in
+  `decompose` and `settled`, go with H.12, and the one in `ConvertError`'s
+  doc goes with H.14.
 - ARCHITECTURE.md's `#48` goes with H.13, its `#53` with H.2, and its
   `#54` with H.8.
 - docs/builtins.md's `#49` goes with H.1.
@@ -3014,12 +3063,18 @@ stage 4") stay as they were written.
 ### H.1 `tanh` of a wide argument
 
 Two commits, each green alone. The kernel's commit changes `tanhFixed`
-(fixed-exp.ts). It answers an interval wider than one, by the test `pair`
-makes (an error of at least one half), with zero within one before it
-forms the pair. Stage 4's shortcut read a pair beyond the working bits as
-saturation, so it returned `±1` within two ulps for a wide interval around
-zero (#38). The shortcut stays only for the fold, where the interval is
-far out on one side.
+(fixed-exp.ts). It answers an interval of width one or more (an error of
+at least one half, the built-in's rule stated on the `Fixed`) with zero
+within one, before it forms the pair. This is not `pair`'s wide test,
+which `pair` makes only after its series test: an error from one half to
+one whose interval stays within `(-1, 1)` now gets zero within one too
+(`0 ± 0.5` was `0 ± 0.597`), and a wide interval far out on one side loses
+the kernel's saturation (`5000 ± 0.6` was one within two ulps), which
+`tanhBall`'s saturation takes first. Stage 4's shortcut read a pair beyond
+the working bits as saturation, so it returned `±1` within two ulps for a
+wide interval, around zero (#38) or on one side (`100 ± 99.9`, whose
+`tanh` ranges over `[0.0997, 1]`). The shortcut stays only for the fold,
+where the interval is far out on one side.
 
 The built-in's commit changes `tanhBall` (builtins/hyperbolic.ts). After
 the saturation, it answers an argument of radius at least one half with
@@ -3041,6 +3096,9 @@ Tests:
 - `tanhBall` of `0 ± 1e9`, `-1 ± 1e13`, `50 ± 49.5`, `0 ± 1e30`,
   `0 ± 1e999999999` and `1e40 ± 1e41` gives zero within one.
   `1e999999999 ± 1e999999998` is still saturated.
+- `sinhBall` and `coshBall` of `0 ± 1e9`, `100 ± 99.9` and `1 ± 2`, which
+  this task leaves alone, contain the functions at both ends and at the
+  midpoint (#38's check of the pair).
 - Through `evaluateText`, #38's texts at 32 digits end as kind `zero`, and
   #49's texts show `0` within `1`. `tanh(approx(1e40) - approx(1e40) - 1)`
   at eight digits certifies `-0.76159416`, where it certified `-1`.
@@ -3064,14 +3122,33 @@ bound cannot hold: the argument of `exp` and of the log-space power (#53),
 and `atan2`'s tiny ratio (#47). The threshold is half an ulp, not an ulp,
 so that the result equals the rounding it replaces.
 
+The hard bound it forms the fraction within is also too small for the
+range limits the settings allow. `isTiny` hands the kernel an argument
+down to `2^-maxBits`, about `1.5e-315653` at Most bits 1,048,576, and a
+caller of `extraBits` converts it at more bits than its magnitude, so it
+is never below half an ulp there. `toRational` at `LIMIT_BITS`, at 3.33
+bits a digit, forms nothing below about `1e-314887`, nor a literal of
+170,000 digits of order one, which Most bits 600,000 admits; and `sin`'s
+`2^maxBits` lets `1e315000` through. So from a range limit of about
+350,000 bits up, `exp`, `sinh`, `tanh`, `atan` and `sin` of such values
+throw today. `fixedFromScaled` therefore forms the fraction within
+`4 × LIMIT_BITS`, which holds any mantissa within the range limit at a
+magnitude between `2^-maxBits` and `2^maxBits` (about `3 × LIMIT_BITS`),
+and it still throws past that.
+
 `expBall` answers an argument throughout below `2^-maxBits` with one
 within twice its magnitude bound, which is sound since `e^|x| - 1 <= 2|x|`
 there. That is how the other built-ins answer a tiny argument, by their
-expansion at zero (4.4).
+expansion at zero (4.4). #53 also asks `powLogSpace` to answer a tiny `y`
+as one within about `2|y ln x|`; here `y` converts to zero within an ulp,
+which already makes `pow(2, approx(1e-999999999))` a value, and the branch
+itself, which needs a certified bound on `|ln x|`, lands with H.15. The
+pull request that closes #53 quotes this.
 
-The total conversion is the root fix: it closes the crash for every
-caller, stage 6's included. The expansion keeps the digits where a
-function has one, and the sweep (H.10) keeps a missing expansion visible.
+The total conversion, with the larger bound, is the root fix: it closes
+the crash for every caller at every range limit, stage 6's included. The
+expansion keeps the digits where a function has one, and the sweep (H.10)
+keeps a missing expansion visible.
 
 Tests:
 
@@ -3082,26 +3159,32 @@ Tests:
 - `powLogSpace` of a tiny exponent, and `pow(2, approx(1e-999999999))`.
 - `atan2(1e-999999999999999999, -1)` is `≈ pi`, as the crash's regression
   test; H.7 gives the ratio its value.
+- At Most bits 1,048,576: `sinh`, `cosh`, `tanh`, `atan` and `sin` of
+  `1e-315000`, `sinh` of `0.` followed by 200,000 ones, and
+  `sin(1e315000 radian)` are values.
 
 Under a directed rounding mode these show `≈ 1` with no digit certain,
 since the ball straddles one, as `cosh(1e-999999999)` and `approx(1)`
 already do. The docs say so.
 
 Docs: ARCHITECTURE.md's rule 2, whose exception for `exp` goes; fixed.ts's
-header; exp.ts's header ("A tiny argument needs no scaling");
-docs/builtins.md; docs/decimal.md, "The kernel's boundary".
+header and `fixedFromScaled`'s precondition; exp.ts's header ("A tiny
+argument needs no scaling"); docs/builtins.md; docs/decimal.md, "The
+kernel's boundary".
 
 Behavior: `exp` and the log-space power of a tiny argument are values
-where they threw.
+where they threw, and so are the built-ins near the edges of what the
+kernel is handed at a raised range limit.
 
 ### H.3 `exp` of a wide argument
 
-`expFixed` (fixed-exp.ts) answers an interval wider than one with zero
-within the exponential of its signed upper end, `value + error`, computed
-exactly: every value of the interval has its exponential between zero and
-that. `floatingToBall` (digits.ts) takes such a result, whose mantissa's
-interval contains zero and so has no logarithm, as zero within the bound
-of its extent.
+`expFixed` (fixed-exp.ts) answers an interval of width one or more (an
+error of at least one half) with zero within the exponential of its signed
+upper end. That end, `value + error`, is formed exactly, with no error,
+and the bound is the exponential's value plus its error: every value of
+the interval has its exponential between zero and that. `floatingToBall`
+(digits.ts) takes such a result, whose mantissa's interval contains zero
+and so has no logarithm, as zero within the bound of its extent.
 
 Stage 4 halved and squared the whole interval. A relative error of
 `e^(2 × 10^9)` doubled its bit length at every squaring, until V8 refused
@@ -3119,7 +3202,9 @@ Tests:
   carries the settled third's radius, which crashed after twenty seconds.
 - exp.test.ts's wide-argument test becomes a containment test.
 
-Docs: fixed-exp.ts's header; the #39 clause of docs/approximate.md.
+Docs: fixed-exp.ts's header; the #39 clause of docs/approximate.md;
+docs/builtins.md's list of trivial bounds (an error of one half for `exp`,
+which gets zero within the exponential of the upper end).
 
 Behavior: `exp` and `pow` of a wide argument are a ball around zero that
 certifies nothing, in milliseconds, where they crashed.
@@ -3127,9 +3212,11 @@ certifies nothing, in milliseconds, where they crashed.
 ### H.4 The radius of a power of ten
 
 `powerOfTenRadius(k)` in radius.ts is a radius at or above `10^k` for any
-bigint `k`, from the coarse bounds (`radiusAboveScaled` of `{1, k}`, which
-forms nothing). It replaces a checked `Scaled` power of ten wherever one
-was formed only to take its radius: `positiveRoot`'s power taken off,
+bigint `k` below `2^90` in magnitude, its documented domain (the 128-bit
+`log2 10` keeps `log2Bounds`'s margin of `2^-31` only to about `2^97`),
+from the coarse bounds (`radiusAboveScaled` of `{1, k}`, which forms
+nothing). It replaces a checked `Scaled` power of ten wherever one was
+formed only to take its radius: `positiveRoot`'s power taken off,
 `lnScaled`'s (both in ball.ts), and `approxBall`'s unit
 (builtins/approx.ts). Each threw past the bound.
 `approx(1e-999999999999999999)` threw (#44). So did
@@ -3162,8 +3249,11 @@ the verification needs `n · 2^-working` below one half. Past the limit the
 reduction took `Number(degree)`, which is `Infinity` beyond a double
 (#45's `NaN`), and well below it the iteration failed its own check.
 
-`positiveRoot` (ball.ts) sends three cases to one log-space route,
-`x^(1/n)` as `exp(ln x / n)`:
+`positiveRoot` (ball.ts) sends three cases to one helper,
+`rootInLogSpace`, which computes the root in log space, `x^(1/n)` as
+`exp(ln x / n)`, and maps `powLogSpace`'s `unresolved` at zero (and only
+that) to `undefined`, so that `rootBall` keeps its odd and even handling
+(`pow(-2, 3^-700)` is `≈ -1` through its negative branch):
 
 - a degree past the limit;
 - a mantissa whose remainder's power of ten does not fit the range limit
@@ -3188,17 +3278,19 @@ These crashes are more reachable than #45 says:
 
 Tests:
 
-- These inputs and #45's (`pow(2, 1e-400)`, `2^1e-400`, `2^1e-310000`),
-  against references: `2^(1/10^20)` is
-  `1.0000000000000000000069314718056`, `(7^-8000)^(1/99999)` is
+- These inputs, #45's (`pow(2, 1e-400)` and `2^1e-400`), `2^1e-310000` and
+  `pow(-2, 3^-700)`, against references: `2^1e-20` and `pow(2, 1e-20)` are
+  `1.0000000000000000000069314718056` (written `2^(1/10^20)` it does not
+  parse, since `^`'s exponent takes no `^`), `(7^-8000)^(1/99999)` is
   `0.85583783261454849435`, and `pow(3^-10000, 2^-30)` is
   `0.99998976842809102303`.
 - `rootFixed` at degree `2^32`, over arguments across its range at 36, 69
   and 200 bits, and the precondition at `2^32 + 1`.
 - `rootRadiusAbove` at degrees `10^400` and `3^700`.
 
-Docs: pow.ts's header; ARCHITECTURE.md's rule 2 and its paragraph on the
-kernel; docs/builtins.md, `pow`.
+Docs: pow.ts's header; ball.ts's header on the root, and `positiveRoot`'s
+doc; `rootRadiusAbove`'s comment; ARCHITECTURE.md's rule 2 and its
+paragraph on the kernel; docs/builtins.md, `pow`.
 
 Behavior: the inputs above are values where they threw or were refused.
 H.4 edits other lines of `positiveRoot`, so the two go in one pull
@@ -3215,9 +3307,16 @@ forms the exponent's fraction within the range limit:
 3. An exact base of zero is decided by the side of zero the exponent lies
    on, the switch it has, moved up.
 4. An exact base of minus one, with an exact exponent whose fraction
-   cannot be formed, is decided by the parity the canonical form gives: an
-   exponent with `exp > 0` is a multiple of ten, and so even. A formable
-   exponent keeps the rational route.
+   cannot be formed, is decided by the parity the canonical form gives,
+   where `toRational` fails and without forming the fraction. An exponent
+   with `exp > 0` has a numerator that is a multiple of ten over an odd
+   denominator (the mantissa's denominator is coprime to ten), so the
+   power is `1`, `1e999999999/3` included. With `exp < 0` the fraction's
+   denominator is even unless the mantissa's numerator holds at least
+   `-exp` twos: with fewer the power is the even root of a negative number
+   (`1e-30000`), with exactly `-exp` it is `-1` (`5^-16000`), and with
+   more it is `1` (`2 * 5^-16000`). A formable exponent keeps the rational
+   route.
 
 Stage 4 formed the fraction first. So it refused `pow(1, 1e999999999)`,
 `pow(-1, 1e999999999)` and `pow(0, 1e999999999)` as `tooLarge`, and it
@@ -3230,6 +3329,9 @@ Tests:
 - `pow(0, -1e999999999)` is a division by zero, and `pow(-1, 1e-30000)` is
   the even root of a negative number.
 - `pow(-1, 1/3)` is `-1`, and `pow(-1, 2/3)` is `1`.
+- At the default range limit, `pow(-1, 5^-16000)` is `-1`, and
+  `pow(-1, 2 * 5^-16000)` and `pow(-1, 1e999999999/3)` are `1`; `5^-15000`
+  still forms, and `pow(-1, 5^-15000)` stays `-1` by the rational route.
 - The test that pins `pow(1, 1e999999999)` as refused changes, and so does
   its comment.
 - `approx(1.0000001)^1e30` and `pow(2, approx(1e400))` stay refused.
@@ -3269,8 +3371,10 @@ Tests:
 - `atan2(1e-999999999999999999, 1)` is `≈ 1e-999999999999999999 radian`.
 - `acos` of `1e-9860`, `8e-9865` and `-1e-15000`, and `asin(1e-50)`
   unchanged.
-- A ball around zero of radius `1e600000000000000000` is `unresolved` at
-  `1`.
+- A ball of midpoint `1e600000000000000000` and radius
+  `2e600000000000000000` is `unresolved` at `1`, and its negation at `-1`,
+  where its square was refused as `overflow`. A ball around zero of radius
+  `1e600000000000000000` stays `unresolved` at `1`.
 
 Docs: inverse-trig.ts's header; docs/builtins.md; ARCHITECTURE.md's rule
 2; docs/decimal.md, "The kernel's boundary", whose sentences H.2 edits
@@ -3297,12 +3401,16 @@ lookahead has no such failure mode. In the review, the lookahead parsed
 203,000 fuzzed strings exactly as the current grammar does.
 
 Tests: nestings of 20 levels (with an error inside, unclosed, and
-`sin(asin(` repeated) each parse within 100 ms, with today's error,
-position and expectations; a balanced nesting parses; a definition body
-with a broken call of 20 levels does the same.
+`sin(asin(` repeated) each parse within 50 ms, as #54 asks, with today's
+error, position and expectations; a balanced nesting parses; a definition
+body with a broken call of 20 levels does the same.
 
 Docs: ARCHITECTURE.md, "Parsing". Its sentence on the call rule goes, and
-"first character" becomes "first primitive".
+"first character" becomes "first primitive". The sentence that an operator
+with nothing after it is "the one way an alternative fails after consuming
+input" gains the call: one whose argument list fails has consumed its
+text, and the alternatives after it fail at their first primitive, so
+nothing is read twice.
 
 Behavior: parsing is linear in the nesting of calls.
 
@@ -3316,8 +3424,10 @@ textbook rule:
 
 - a sum and a difference by Henrici's rule: the gcd of the denominators,
   then of that with the new numerator;
-- a product and a quotient by cross-cancellation: the gcd of each
-  numerator with the other denominator;
+- a product by cross-cancellation, the gcd of each numerator with the
+  other denominator, and a quotient as the product by the divisor's
+  reciprocal (so the gcd of the two numerators and of the two
+  denominators);
 - an inverse or a negative power by swapping, with no gcd.
 
 Stage 4 reduced every result with a full gcd on its unreduced parts. The
@@ -3332,7 +3442,8 @@ through `toString(2)` at each step, and still strips the common power of
 two first. It is still quadratic, but about forty times cheaper in V8 at
 65,536 bits: one gcd there took 686 ms and takes 19 ms, and the probe's
 range operation took about 4.4 s and takes 0.11 s. A half-gcd, which is
-subquadratic, gains only past `2^17` bits, and is left for a larger limit.
+subquadratic, gains only above `2^16` bits (about 1.6 times at `2^17`),
+and is left for a larger limit.
 
 Tests: agreement with the reduce-after formula, and reducedness, on seeded
 rationals (zero, integers, negatives, integral results, large over small);
@@ -3342,8 +3453,10 @@ construction. A benchmark, bench/rational.bench.ts, reports the probe's
 operation, one gcd and #52's quotients, and asserts only ratios within the
 run; ARCHITECTURE.md ("Benchmarks") names it.
 
-Docs: rational.ts's header says what each operation reduces with, and that
-the gcd is quadratic.
+Docs: rational.ts's header says what each operation reduces with, that the
+gcd is quadratic, and that the rules hold only for operands in lowest
+terms, the invariant of `Rational`, with `rational` the one constructor
+that reduces.
 
 Behavior: none but speed. The range limit that "Recommend limits" proposes
 rises, from 8,192 to 32,768 bits on this project's cloud container. H.14
@@ -3353,7 +3466,9 @@ redefines the probe.
 
 Tests only, in two commits: src/testing/edges.ts with
 src/core/edges.test.ts at the ball level, and src/edges.test.ts at the
-text level. This is the fourth test pattern of "How to read a task".
+text level, which joins src/units.test.ts in tsconfig.node.json's list so
+that `pnpm typecheck` checks it. This is the fourth test pattern of "How
+to read a task".
 
 The ball level runs these operations:
 
@@ -3366,23 +3481,31 @@ The ball level runs these operations:
 It runs them over these classes of arguments, each exact and with a
 relative radius of `1e-30`:
 
-- zero, `±1`, a half and two;
+- zero, `±1`, a half and two, and the negatives of the classes below that
+  are not symmetric;
 - `1e-400`, `1e±20000`, `1e-400000`, `1e-999999999`, `1e-10^18` and
   `1e-(10^18 - 1)`;
 - `1e19`, `1e400`, `5e10^18`, `9.99e10^18`, and a long all-nines mantissa
   at the top;
-- a fraction mantissa at either edge (`1e±10^18 / 3`), and a mantissa of
-  25 digits near one;
+- a fraction mantissa at either edge, `1e10^18 / 3` and
+  `1e-(10^18 - 1) / 3`; the second reaches both of #44's settle crashes,
+  as `1e-10^18 / 3` does, and stays within the bound under D17, where
+  `scaled()` refuses `1e-10^18 / 3` from H.13; and a mantissa of 25 digits
+  near one;
 - wide balls: `0 ± 1e9`, `0 ± 1e30`, `0 ± 1e948`, `5 ± 2e948`,
-  `1 ± 1e-400` and `3e18 ± 2e18`.
+  `1 ± 1e-400` and `3e18 ± 2e18`, and the exact `1 + 1e-400`.
+
+The radii at the bottom edge are built with `powerOfTwoRadius`, or H.4's
+`powerOfTenRadius`, since `ball()` in src/testing/scaled.ts takes its
+radius as a `Scaled` and `scaled()` refuses `10^-(10^18+30)`.
 
 The binary operations take a subset of these as their second argument. The
 operations that read the mode also run in decimal mode.
 
 The text level runs `parseExpr`, `evaluateText` and `convertText` (into
 `hr;min;s`, `time` and `ft;in` at both edges) in both modes, on every
-issue's reproductions, with `show` and `roundTerms` called as
-unit-converter.ts calls them.
+issue's reproductions except #52's conversions, which H.14 tests, with
+`show` and `roundTerms` called as unit-converter.ts calls them.
 
 The oracle, per case:
 
@@ -3390,13 +3513,20 @@ The oracle, per case:
 - The case's time, measured after it returns, is within a second.
 - A refusal only where the decisions allow one:
   - `overflow` and `underflow` only when every value of the ball passes
-    the bound, decided by exact bigint exponents near `±10^18`, never by
-    doubles;
+    the bound, or, in decimal mode, when the rounded value does (D17:
+    `99999999999e999999999999999990` and the all-nines class are
+    `overflow` there), decided by exact bigint exponents near `±10^18`,
+    never by doubles;
   - `tooLarge` only at the documented sites;
   - a domain error only for a ball outside the domain throughout, as
     docs/builtins.md has it.
 - On a value:
-  - the midpoint and the ball lie within the bound;
+  - the midpoint is zero or has a decimal exponent within `±10^18`, and
+    `|mid| + rad` is below `10^(10^18+1)`, both compared exactly, save a
+    ball that `settle` truncated at the top in exact mode, whose added
+    whole unit takes it to that edge (D17); a radius below `10^-(10^18)`,
+    and a ball that reaches below the bottom edge or surrounds zero, are
+    allowed, as H.13 computes them;
   - the ball contains the known value at known points: `sin(0)`, `exp(0)`,
     `ln(1)`, `pow(1, y)`, `pow(x, 0)`; `approx(x)` contains `x`; a sum or
     a product contains its exact result where that can be formed;
@@ -3411,7 +3541,8 @@ and a failing one prints its stack on every run.
 
 node:test's `timeout` neither interrupts nor fails a synchronous test, so
 it cannot stop a computation that hangs. Instead the cases run in a
-`Worker`, with an overall deadline that fails the run and names the case,
+`Worker`, with an overall deadline of tens of seconds, since `node --test`
+runs the files in parallel; the deadline fails the run and names the case,
 and a hang already known when the sweep lands is matched by a predicate
 and not run. The whole sweep stays within a few seconds: a prototype ran
 6,437 cases in 3.2 s.
@@ -3427,12 +3558,20 @@ fixes and the parallel pull requests of tier 1 do not all edit it.
 `settle` (ball.ts) returns `Result<Ball, BallError>`, and `settleQuantity`
 (quantity.ts) returns `Result<Quantity, BallError>`, with the bound's
 check exported from scaled.ts. Its body is the canonical check until H.13
-changes it.
+changes it, so until then it also says `underflow` where a rounding moves
+the canonical exponent below `-10^18`, even for a value within the bound.
+In decimal mode that is a refusal: `1e-999999999999999999 / 3` is
+`underflow` from H.11 to H.13, where it threw. In exact mode, where
+`settle` acts only on a carry past the top, it is not:
+`1e-1000000000000000000 / approx(3)` (#44's first row) is shown as
+`≈ 3.3333333e-1000000000000000001` from H.11 until H.13 refuses the
+quotient.
 
 In decimal mode:
 
-- A rounded midpoint past the bound is `overflow`. Stage 4 let it through
-  silently: `99999999999e999999999999999990` was shown as
+- A rounded midpoint past the bound is `overflow` (at the bottom,
+  `underflow`, until H.13). Stage 4 let it through silently:
+  `99999999999e999999999999999990` was shown as
   `≈ 1e+1000000000000000001`.
 - The radius grows by the exact difference, formed by
   `radiusOfMove(to, from)` as a subtraction at an offset exponent. Stage
@@ -3462,34 +3601,45 @@ Tests:
 - `1e-1000000000000000000 / 3` in decimal mode is `underflow`.
 - `approx(9.99…9e1000000000000000000) / 7`, with forty-five nines, is a
   value in exact mode.
-- `1.234567891e-1000000000000000000 * 1` in decimal mode certifies eight
-  digits.
+- `1e-999999999999999999 / approx(3)` in exact mode is
+  `≈ 3.3333333e-1000000000000000000`, where `halfUnitOf` threw.
+- `radiusOfMove(12345679e-1000000000000000007, 1234567891e-1000000000000000009)`,
+  both built without `scaled()`, is at or above their difference,
+  `9e-1000000000000000009`, and below `1e-1000000000000000008`.
 - ball.test.ts's eighteen calls of `settle` unwrap.
 
 Docs: `settle`'s doc and ball.ts's header; docs/decimal.md, "The decimal
 mode".
 
-Behavior: a settled midpoint past the bound is refused in decimal mode and
-truncated in exact mode, where it threw or was shown.
+Behavior: a settled midpoint past the top of the bound is refused in
+decimal mode and truncated in exact mode, where it threw or was shown.
 
 ### H.12 Unit lists report refusals
 
-`decompose` (convert.ts) returns `Result<Ball[], Refusal>` over its
-quotient, product and difference, and `convertToList` fails with
-`UnitListError | Refusal`. The pipeline's two list conversions pass the
-refusal on as the conversion's, and the build's list check asserts against
-it. A count other than the last whose ratio falls below the bound is exact
-zero (D8, as clarified), so `1e-999999999999999999 s` into `hr;min;s` is
-`0 hr + 0 min + 1e-999999999999999999 s`.
+`decompose` (convert.ts) returns a `Result` over its quotient, product and
+difference whose error is a `Refusal` or `BallError`'s `unresolved`, and
+`convertToList` fails with a `UnitListError`, a `Refusal` or that
+`unresolved`, so that neither changes shape when H.13 applies D18. The
+pipeline's two list conversions pass the refusal on as the conversion's,
+and the build's list check asserts against it. A count other than the last
+whose ratio falls below the bound, or from H.13 is `unresolved` at its
+bottom, is exact zero (D8, as clarified), so `1e-999999999999999999 s`
+into `hr;min;s` is `0 hr + 0 min + 1e-999999999999999999 s`. Any other
+`unresolved` is passed on, and from H.13 the pipeline reports it as the
+converter's retried variant (`approx(1e1000000000000000000) m` into
+`dm;cm`).
 
 `roundTerms` stays total, since the display calls it:
 
 - Its rounding's shift comes from `radiusOfMove`. A subtraction below the
   bound threw there in the display: `1e-999999999999999999 m` into
   `ft;in`, in both modes.
-- When any step of rebuilding the total from the rounded terms is refused
-  (the product, the sum or the second decomposition), it returns the terms
-  uncarried, which still contain `have`.
+- When any step of rebuilding the total from the rounded terms fails (the
+  product, the sum or the second decomposition), it returns the terms
+  uncarried, which still contain `have`. A step fails with a refusal, or,
+  once H.13 applies D18, with an `unresolved` at the bound: for the inputs
+  below, the rebuilt total or its count of the first unit straddles the
+  top.
 - `settled` stays, for `nearestInteger` alone.
 
 Stage 4 threw on every such refusal; #43 marked the sites.
@@ -3507,18 +3657,24 @@ This also covers three defects no issue lists:
   `≈ 9 × 1e1000000000000000000 m`, certified, dropping a tenth of the
   value. The carry's rebuilt total passes the bound and `addBalls` absorbs
   it (#48's class). It shows the uncarried terms once H.13's commit for
-  #48 makes that sum refuse.
+  #48 makes that sum `unresolved` at the bound: its ball,
+  `10 × 1e1000000000000000000 m` within the rounding's shift, straddles
+  the top.
 
 Tests:
 
 - #44's list rows: into `hr;min;s`, into `time`, and into the two units
   `1e-999999999999999998 m; 1e-999999999999999999 m`, which is `overflow`.
 - The three inputs above.
-- A list at the lower edge: `1.234567891e-999999999999999999 m` into
-  `m;mm`.
+- A list at the lower edge: `1e-999999999999999999 m` into `ft;in` is
+  `≈ 3.9370079e-999999999999999998 in` in both modes, where the display's
+  rounding threw. `1.234567891e-999999999999999999 m` into `m;mm` is
+  refused where it is typed until H.13, and moves to H.13's tests.
 - messages.test.ts for a list's refusal.
 
-Docs: convert.ts's header and the comments that name #44, #48 and #52;
+Docs: convert.ts's header, the comments that name #44 and #48, and the
+`#52` clauses in `decompose`'s and `settled`'s comments (`ConvertError`'s
+sentence that a quotient is not held to the range limit stays until H.14);
 ARCHITECTURE.md, "Unit lists".
 
 Behavior: a unit list's refusal is an error, and the display's rounding
@@ -3542,13 +3698,21 @@ since either alone regresses.
   The check that `settle` imports takes the new body.
 - `multiplyBalls` and `divideBalls` apply D18 when an operand is inexact:
   - a midpoint past the bound is `overflow` or `underflow` only when the
-    whole ball is past: `|mid| - rad` against `10^(10^18+1)` through
-    `powerOfTenRadius`, or `|mid| + rad` below `10^-(10^18)` with the ball
-    excluding zero;
+    whole ball is past: `|mid| - rad` at or above `10^(10^18+1)`, or
+    `|mid| + rad` below `10^-(10^18)` with the ball excluding zero.
+    `powerOfTenRadius` decides first. Within its slack, which no pass
+    narrows, the exact distance of `|mid|` from the power of ten decides
+    against the radius; that distance is formed from the midpoint's
+    digits, which align with the power. The last bullet's `|mid| + rad`
+    against the top is decided the same way, so that
+    `approx(9.99999999e1000000000000000000) m` stays a value and
+    `approx(1.000000001e1000000000000000000) * 10` is `overflow`;
   - a ball containing zero whose midpoint passes below is zero within
     `|mid| + rad`;
   - anything else is `unresolved` at `bound`, and so is a result whose
-    `|mid| + rad` passes the top.
+    `|mid| + rad` passes the top. A ball of unbounded radius keeps its
+    convention: its midpoint alone is held to the bound, and the result's
+    radius stays unbounded.
 - `Edge` gains `"bound"`, worded "the point where the result passes the
   exponent bound". messages.ts stops quoting an edge as a number when it
   is a name.
@@ -3556,12 +3720,19 @@ since either alone regresses.
   whole quotient.
 - The converter reports a ratio `unresolved` at the bound as its own
   variant, which is retried and worded, where it mapped every `unresolved`
-  to `unresolvedWant`.
+  to `unresolvedWant`. The unit lists do the same: `decompose` passes on
+  an `unresolved` at the bound from its quotient, product or difference as
+  it passes on a refusal, the pipeline's list conversions report it as
+  that retried variant, and `roundTerms` falls back to the uncarried terms
+  on it as it does on a refusal. `atan2`'s `quotient` (inverse-trig.ts)
+  threw on anything but a refusal, and now passes it on through
+  `fromBallError`.
 - `powRationalBall` falls through to log space on a bound `unresolved`
   from `powBall`, as it does on a refusal.
 
 The third commit is #48. `addBalls` takes its settle-first path only on
-`tooLarge`, an alignment, and applies D18 to a sum past the bound.
+`tooLarge`, an alignment, and applies D18 to a sum past the bound, and to
+one whose `|mid| + rad` passes the top, as a product does.
 
 Tests:
 
@@ -3574,10 +3745,14 @@ Tests:
 - `1e1000000000000000000 / 3 * 10` is `≈ 3.3333333e+1000000000000000000`,
   and `1e-1000000000000000000 / 7` is `underflow`.
 - #44's first two rows are `underflow` at the quotient.
-- `ln`, `log10`, `sqrt`, `asinh` and `pow(x, 0.5)` are values of
-  `1e1000000000000000000 / 3 * 10` and of `12345678e-1000000000000000007`,
-  where the stage 4 sites that form a power of ten would have thrown on
-  the newly admitted values.
+- `ln`, `log10`, `asinh`, `acosh` and `pow(x, 0.3)` of
+  `1e1000000000000000000 / 3 * 10`, and `ln`, `sqrt`, `cbrt` and
+  `pow(x, 0.5)` of `12345678e-1000000000000000007`, are values, where
+  `lnScaled` and `positiveRoot` would have thrown on the newly admitted
+  values without H.4.
+- `1.234567891e-1000000000000000000 * 1` in decimal mode certifies eight
+  digits, and `1.234567891e-999999999999999999 m` into `m;mm` is a value
+  (H.12's list at the lower edge).
 - The arithmetic keeps its values:
   - `(approx(9999999999999999999999999999510000000000000000) - 9999999999999999999999999997310000000000000000) * 4e999999999999999982`
     stays `≈ 8.8e+1000000000000000000`, and the same times
@@ -3613,11 +3788,13 @@ The check of D19 runs in `evaluate()`'s wrapper, on the settled result,
 and after the pipeline's ratio and a function want's count. The exponent
 bound is checked first, and no signature changes.
 
-The range probe (limits.ts) times what the limits now admit: one reduction
-of the size of `bits`, with its operands built outside the timed call. It
-timed a product of twice that size, with three gcds, which the check now
-refuses. `DEFAULT_MAX_BITS` stays 65,536, at which the costliest exact
-operation now takes about 20 ms.
+The range probe (limits.ts) times the costliest exact operation the limits
+still run: a product of two fractions of `bits` bits in each part, whose
+two cross-cancelling gcds (H.9) run before its result is measured and
+refused, with its operands built outside the timed call. It timed a
+product of that size with three gcds, the last on the full product.
+`DEFAULT_MAX_BITS` stays 65,536, at which that operation takes about two
+of H.9's 19 ms gcds.
 
 Tests:
 
@@ -3634,6 +3811,11 @@ Tests:
 - Every repro is a value in decimal mode.
 - A product past both limits is `overflow`.
 - The shipped definitions build at `MIN_MAX_BITS`.
+- `3^25000/7^14000 m` into `11^15000/13^14000 ft`, whose two sides are
+  within the limit, is `tooLarge` at the conversion's ratio, where it was
+  a value after 3.7 s.
+- `2^-30000` and `1/2^30000`, whose canonical numerators have 69,658 bits,
+  are `tooLarge`, and `2^-28000` stays a value (D19).
 
 Docs:
 
@@ -3644,9 +3826,12 @@ Docs:
 - docs/decimal.md, "The range limit, restated".
 - README, "Most bits": "the largest number the app will form" becomes the
   largest it keeps, since a result is formed and then measured. README's
-  `approx` paragraph: products, quotients and sums join sums and powers.
+  `approx` paragraph: products and quotients join sums and powers, and a
+  sum's growth joins its alignment.
 - The comments on the default in context.ts and limits.ts, and
   system-build.ts's header.
+- scaled.ts's header sentence that the range limit's reasoning allows the
+  canonical form's growth.
 - The comments that name #52 (see the list above).
 
 Behavior: an exact result past Most bits is refused at the node that forms
@@ -3672,17 +3857,23 @@ error and half a unit of the working digits. The classifier returns:
 
 The coarse bounds decide first: `log2` of radii and, near one, the exact
 difference from one. Only within their slack is the interval formed on the
-kernel, so an exact argument is never left `unresolved` for good.
+kernel, so an exact argument is left `unresolved` only when it lies within
+the ceiling's precision of an edge, never for the coarse bounds' slack.
 
 Each site has its own `L`:
 
 - `expBall`: `x`.
-- `sinhCosh`: `|x| - ln 2`, against the top edge alone.
+- `sinhCosh`: `|x| - ln 2`, widened by the working ulp on each side
+  (`ln |sinh x|` lies below `|x| - ln 2` by about `e^(-2|x|)`, and
+  `ln cosh x` above it by as much), against the top edge alone.
 - `powLogSpace`: `y ln x`, classified before `lnScaled` is asked for the
-  bits that `y`'s size needs. When `|t|max` is below `2^-bits`, the result
-  is one within `2|t|max`, without the kernel. When the bits it would need
-  pass the range limit, the answer comes from its bound, or is `tooLarge`.
-- `powBall`: `n ln |b|`, with three special cases:
+  bits that `y`'s size needs, taken from `log2OfRadius` of `y`'s magnitude
+  (`radiusBound`, which it used, is infinite past about `2^1030`). When
+  `|L|max`, the bound on `|y ln x|`, is below `2^-bits`, the result is one
+  within `2|L|max`, without the kernel. When the bits it would need pass
+  the range limit, the answer comes from its bound, or is `tooLarge`.
+- `powBall`: `n ln |b|`, taken at the midpoint alone for a ball of
+  unbounded radius, as `log2Scale` took it, with three special cases:
   - a base whose ball contains zero is tested against the top edge alone;
   - a negative power of such a base is `unresolved` at zero;
   - a band case is decided on the interval, not by the squaring loop's
@@ -3692,9 +3883,13 @@ Each site has its own `L`:
 `floatingToBall` (digits.ts) classifies its `t`'s interval too, and
 handles its own rounding's carry at the top. `expFits` and `log2Scale` go.
 `pow` locates a bound `unresolved` at the argument whose radius
-contributes more to `y ln x`. `pow(approx(1), 1e999999999)`, which
-`powBallOf` refused as `tooLarge` by its midpoint, is decided by the same
-rule.
+contributes more to `y ln x`. `powBallOf`'s refusal of an exact exponent
+it cannot form went by an inexact base's midpoint:
+`pow(approx(1), 1e999999999)` was `tooLarge`, and
+`pow(1 + (approx(1/3) - 1/3) * 1e20, 1e999999999)`, whose value is one,
+was `underflow`. For an inexact base the classifier decides it, and both
+are `unresolved` at the bound (a test each). Where the classifier would
+compute, the refusal stays `tooLarge`, which H.16 would lift.
 
 What stage 4's guards got wrong:
 
@@ -3716,8 +3911,9 @@ puts the midpoint past the edge though the argument is `1.5e18`.
 
 Tests:
 
-- #40's text at 32 digits is `≈ 148.41316`, as are its `sinh`, `cosh` and
-  `pow` forms. #46's rows 1 and 3 give their values.
+- #40's text at 32 digits is `≈ 148.41316`, and its `sinh`, `cosh` and
+  `pow(2, …)` forms are `≈ 74.203211`, `≈ 74.209949` and `≈ 32`. #46's
+  rows 1 and 3 give their values.
 - `exp(approx(1e999))`, `approx(1.0000001)^1e30` and
   `pow(2, approx(1e400))` stay refused.
 - `exp(2302587288910310144)` is `overflow`.
@@ -3738,8 +3934,17 @@ Docs:
 - README, "Very large results and `approx`": the refusal needs the whole
   argument past the edge, and #40's workaround goes.
 - docs/approximate.md: "Two axes" changes, and "A related gap" goes.
-- docs/builtins.md, "The limit on large results", and docs/decimal.md,
-  "Which limit a refusal names".
+- docs/builtins.md: "The rules every built-in follows", whose result past
+  the bound "is refused before anything is computed", and "The limit on
+  large results", which names `expFits`.
+- docs/decimal.md: "The exponent bound", whose kernel guard refuses on the
+  whole ball's magnitude; "Which limit a refusal names"; and "Decision:
+  the bound stays" and "The kernel's boundary", which name `expFits`.
+- docs/approximate.md, "What raising the bound would take", which names
+  `expFits` and says `unresolved` speaks of an edge.
+- fixed-exp.ts's header, which names `expFits`.
+- README's edge for `exp`, `10^18 ln 10`, which becomes
+  `(10^18 + 1) ln 10` at the top.
 - ARCHITECTURE.md's rule 2.
 - The headers of exp.ts, hyperbolic.ts, ball.ts, pow.ts and digits.ts.
 
@@ -3751,12 +3956,15 @@ every value of the argument passes the bound, and retried when some do.
 `pow` forms an exact exponent as a fraction within the range limit, and
 refuses one it cannot form, as documented: `pow(2, 1e-999999999)` is
 `tooLarge`, though its value is about one. If adopted, this task sends
-such an exponent to log space unless `powerRefusal` says the result passes
-the bound:
+such an exponent to log space where H.15 leaves it `tooLarge`: for an
+exact base, where `powerRefusal` does not put the power past the bound,
+and for an inexact base, where H.15's classifier would compute it.
+`powerRefusal` reads the base's midpoint alone, so for an inexact base the
+classifier's refusals and its `unresolved` stand:
 
 - a base positive throughout goes through `powLogSpace`;
 - a base negative throughout follows H.6's parity rule;
-- a base reaching zero is refused, as today.
+- a base reaching zero keeps what H.15 gives it.
 
 It fixes nothing an issue lists, so it is the owner's call. If it is not
 adopted, pow.ts's header and docs/builtins.md say plainly that `pow` forms

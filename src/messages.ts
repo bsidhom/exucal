@@ -254,7 +254,7 @@ function describeLiteralPast(limit: Limit): string {
  * too large to compute within Most bits, the setting that is the range
  * limit, or too large or too small for the exponent bound, which is fixed,
  * with the bound named, so that the one the user can change reads apart
- * from the one they cannot (issue #41).
+ * from the one they cannot.
  */
 function describeTooLarge(limit: Limit): string {
   switch (limit) {

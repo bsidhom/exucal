@@ -3,7 +3,8 @@
 Status: in progress; stages 1 to 4 have landed, and "Stage 1 as it
 landed", "Stage 2 as it landed", "Stage 3 as it landed" and "Stage 4 as
 it landed" at the end record where the code diverged from the tasks as
-first written. D13 was revised in review of
+first written; "After stage 4" records the two follow-ups that landed
+since, and the issues they filed. D13 was revised in review of
 the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -226,12 +227,14 @@ negative that way, or slightly above a whole of the unit before it, is the
 display's carry case, which `roundTerms` handles.
 
 Amended in 4.0 for the exponent of stage 4: a count that would be an
-integer too large to form (`1e999999999 m` into `ft;in`) is the ratio
-settled toward zero at the working precision, an inexact value with an
-exponent, and the remainder is then a ball around zero whose radius says
-what the count left, which the display leaves out with its note; a count
-that is an integer of any size stays exact, and a count is still never
-`unresolved` (landed in 4.4, where `countOf` first read the exponent).
+integer too large to form (`1e999999999 m` into `ft;in`) is the ratio's
+midpoint settled toward zero at the working digits, which is an integer
+of that many digits times a power of ten and is kept exact, and the
+remainder is what that count leaves, exactly for exact operands
+(`5.2598425e+999999972 in` there); a count that is an integer of any size
+stays exact, and a count is still never `unresolved` (landed in 4.4,
+where `countOf` first read the exponent; this amendment as first
+written had the count inexact and the remainder a ball around zero).
 
 **D9. The kernel is fixed point with an integer error count.** A kernel
 value is `{ value, error, bits }`: the integer `value` stands for
@@ -552,8 +555,10 @@ decision is revisited if a portable measure appears.
 
 Restated in 4.0, as the stage 4 introduction says: once the midpoint
 carries exponents (D13), the range limit bounds the size of an exact
-value, a mantissa's numerator and denominator, and the alignment of a sum
-or a comparison, which is the size the exact result would have; it no
+value, a mantissa's numerator and denominator, and the alignment of a
+sum, which is the size the exact result would have (a comparison aligns
+only values of one decimal exponent and needs no limit; a product and a
+quotient are not held to it yet, issue #52); it no
 longer bounds the magnitude of a value, which the exponent bound
 `MAX_EXPONENT` (`10^18`, 4.2) bounds for exact and inexact values alike. The literal
 check is the mantissa's digits against `LIMIT_BITS` in the parser and
@@ -1968,17 +1973,33 @@ exponent bound too, so `sqrt(2)^(10^7)` is a value (4.9); a unit list
 whose count cannot be formed shows it settled toward zero (4.4, D8
 amended); the decimal mode's radius is the exact rounding error, not the
 half-unit bound, so that a rounded value certifies its last digit, and
-`1 / 3 * 3` is `0.99999999` under every mode at eight digits, shown as
-`≈ 1` with seven digits certain, the first text's `1` under `halfEven`
-being wrong (4.5); the retry loop runs one pass in decimal mode and the
-table is built in exact mode at the ceiling whatever the user's mode
-(4.6); `Precision` and `DEFAULT_PRECISION` move to rounding.ts (4.3); and
+`1 / 3 * 3` is `0.99999999` under `halfEven` at eight digits as under
+`towardZero`, the first text's `1` under `halfEven` being wrong (4.5,
+whose landing says what each mode certifies); the retry loop runs one
+pass in decimal mode and the table is built in exact mode at the ceiling
+whatever the user's mode (4.6); `Precision` and `DEFAULT_PRECISION` move
+to rounding.ts (4.3); and
 4.10, added in review, is the built-in `approx(x)`, which marks a value
 as known only to the working precision and never narrows a radius its
 argument carries (docs/approximate.md), placed
 after 4.9 since it is a use of the exponent and needs nothing after it,
 with its two-argument form, an absolute uncertainty, left as future work
 with the retry loop's stopping rule it will need.
+
+Amended after stage 4 (the second follow-up of "After stage 4", at the
+end): the exponent bound refuses with errors of its own, `overflow` above
+it and `underflow` below it, where the tasks below, written and landed
+before that, say `tooLarge`: the constructor's check and the arithmetic's
+(4.1, 4.2), a product's and a quotient's (4.4, and so the converter's
+ratio and a prefix times a unit), and the guards of the exponential, the
+log-space power and a power of an inexact base, with the log-space
+conversion's failure (4.9). `tooLarge` is the range limit's alone: a
+sum's alignment, an exact power's predicted mantissa, a literal's
+mantissa, a fraction's power of ten, and the reach of the kernel
+(`sin(1e999999999 radian)`). The messages name the limit; where the
+tasks quote "too large to compute", it now reads "too large to compute
+within Most bits", "too large to compute: its exponent would pass
+10^18" or "too small to compute: its exponent would fall below -10^18".
 
 ### 4.0 Design note
 
@@ -2023,7 +2044,9 @@ and never by the range limit. `rational.ts` is untouched. As it landed
 dividing by `5^(2^k)` from the largest power worth trying down to five,
 each once, a logarithmic number of divisions, where one division per
 factor made normalizing `10^300000` take a minute; a test holds the cost
-on `10^20000`, `5^-20000` and `2^-20000`.
+on `10^20000`, `5^-20000` and `2^-20000`. `decimalExponent` is exact,
+the digit counts' estimate settled by one comparison, so `compare`
+aligns only values whose decimal exponents are equal.
 
 Tests: the canonical form (`2.54`, `254/100` and `127/50` are one value
 with one representation, and so are `1e3`, `1000` and `8 × 125`; `1/6`
@@ -2143,7 +2166,7 @@ value itself bounds first (`sin`, `cos` and `tan` refuse an argument
 whose integer part exceeds the range limit as `tooLarge`, since the
 reduction needs `pi` to its bits; `atan` beyond `2^bits` is `±pi/2`
 within `2^-bits`, and `asinh` and `acosh` beyond it are `ln(2|x|)` within
-`1/(4x^2)`, the saturations the note lists, put in here so that no
+`1/(2x^2)`, the saturations the note lists, put in here so that no
 argument reaches a routine it cannot enter); `lnScaled` takes the
 exponent as a decimal scale, `ln(m × 10^e) = ln m + e ln 10` from the
 memo, so `ln(1e999999999)` is `≈ 2302585090.691` on the first pass, and
@@ -2275,7 +2298,15 @@ is exact, as it was. A quotient at the exponent bound is located at the
 whole quotient, where a division by zero points at the divisor. The
 tests of the ball and above take a literal, a fraction and a ball through
 `src/testing/scaled.ts` (`dec`, `fr`, `fraction`, `ball`, `digitsOf`),
-beside `src/testing/fraction.ts` for the fraction side.
+beside `src/testing/fraction.ts` for the fraction side. Of the names
+above, the radius of a `Scaled` is `radiusAboveScaled`, `radiusAbove`
+keeping the fraction; `fixedFromRational` stays beside `fixedFromScaled`;
+`scaleOf` went, `lnScaled` scaling the mantissa alone and `powLogSpace`
+reading `log2Of`, the coarse bounds, in its place; and
+`fixedFromScaled`'s precondition is the hard bound `LIMIT_BITS`, not the
+range limit, so that a value below about `10^-315000` cannot be entered at
+all, which the tiny ratio of `atan2` (issue #47) and the argument of `exp`
+(issue #53) can reach.
 
 Behavior: `1e999999999` parses and multiplies where it fails today, and
 the values above are values; `1e999999999 + 1` still fails, as `tooLarge`;
@@ -2371,7 +2402,10 @@ boundary of wider cells too, certifies fewer (`1 surveyfoot` in `m` is
 the mode's rounding of the computed value,
 as a decimal library would show it, and the note says what the radius
 can vouch for; under the nearest modes the rounded value is inside its
-cell and the `p`-th digit certifies, as the text above says.
+cell and the `p`-th digit certifies, as the text above says. Under
+`awayFromZero` and `ceiling`, `1 / 3 * 3` is `1.0000001`, the third
+rounded up to `0.33333334` and the product up again, and certifies no
+digit either.
 
 Behavior: none until 4.6 gives the mode a way in; `mode` defaults to
 exact and every existing caller builds an exact context.
@@ -2527,8 +2561,9 @@ containment test of `exp` extended to arguments up to `1e6` of either
 sign, at a precision against four times it, at the value and both ends,
 drawn by key; `sqrt(2)^(10^7)` is a value where 2.5's test had it
 `tooLarge`, and `sqrt(2)^(10^19)` is `tooLarge` at the bound;
-`1e999999999 m` into `ft;in` shows `≈ 3.2808399e+999999999 ft` with its
-note and into `mm;m` is exact; the kernel benchmark's `exp 1e6` at the
+`1e999999999 m` into `ft;in` shows `≈ 3.2808399e+999999999 ft`, the count
+settled at the working digits (D8 amended), and into `km;m` is exact;
+the kernel benchmark's `exp 1e6` at the
 ceiling costs within a small factor of `exp 1`.
 
 As it landed. `Floating` and its helpers (`floatingOf`,
@@ -2562,7 +2597,12 @@ for the call at the ceiling's bits plus the exponent's, on the machine
 of 4.9. `7^(100000/3)`, `pow(7, 100000/3)` and `pow(2, 1e6/3)` are
 values through log space, and `pow(10, 100000 ± 1)` is a ball that
 covers `10^100000`, where the range limit refused all four; `1e999999999
-m` into `ft;in` is the settled count of 4.4.
+m` into `ft;in` is the settled count of 4.4. The tests take
+`neper(1000001)` for the large logarithmic unit, `decibel` being a
+function whose large argument is an exact power of ten that the exponent
+takes (`decibel(1e6)` is exactly `1e100000`), and `pow(2, 1e6 / 3)` for
+the power in log space, `pow(10, 1e6 / 3)` being the kernel's cube root
+of a power of ten.
 
 Behavior: the inexact functions have the range of their exponent, not of
 the bits of their value; a power of an inexact base likewise.
@@ -3039,12 +3079,109 @@ results leave on the decimal grid of the working digits and a
 the two modes are one settle with two parameters, and the display
 certifies the exact expression's digits in both, marking a decimal-mode
 value that the roundings moved off its cell; `approx` is the one way to
-make an exact value inexact, and its two-argument form waits on the retry
-loop's stopping rule docs/approximate.md lays out; the log-space
+make an exact value inexact in exact mode, and its two-argument form
+waits on the retry loop's stopping rule docs/approximate.md lays out;
+the log-space
 conversion at the ceiling costs 47 ms, the logarithm and the two memos
 computed for the call, which a stage that runs it often may memoize at
 the ceiling plus the exponent's bits; the two gaps of 2.5 still stand;
-the display's `unbounded` kind still has no producer; and the probe of
-limits.ts still times the root, `pi` and the four costliest built-ins at
-their moderate arguments, the large arguments of 4.9 costing the same
-squarings.
+the display's `unbounded` kind still has no producer; the probe of
+limits.ts still times an exact product for the range limit and, for the
+cap, the one expression of the four costliest built-ins of 3.11 at their
+moderate arguments, the large arguments of 4.9 costing a few more
+squarings; and what "After stage 4" adds.
+
+## After stage 4
+
+Two follow-ups landed after the re-read above and before stage 5, each a
+pull request of its own outside the task numbering. The stage's tasks
+are left as they landed, and its introduction says which of their
+statements the second changed.
+
+- **The exponent bound stays at `10^18`**
+  ([#42](https://github.com/bsidhom/pwa-units/pull/42)), documentation
+  alone. A report that `exp(approx(1e999))` is refused led to a scratch
+  build with the bound raised to `10^1100`. It computed, but the
+  exponential's cost grows at least as the square of its argument's
+  length (13 s for `exp(1e9000)`), the parts of the number type that are
+  exact only within the bound (`log2Bounds`, and the guards in doubles)
+  would be unsound beyond it, and a bound is needed anyway, so the bound
+  is kept by decision (docs/decimal.md, "Decision: the bound stays at
+  `10^18`"; docs/approximate.md, "`approx` and the exponent bound", with
+  the measurements; README, "Very large results and `approx`").
+- **Each limit refuses with an error of its own**
+  ([#43](https://github.com/bsidhom/pwa-units/pull/43), fixing
+  [#41](https://github.com/bsidhom/pwa-units/issues/41)). Every refusal
+  was `tooLarge`, worded "too large to compute" whichever limit it
+  passed, so `exp(1e999)` read as a precision limit that `approx` might
+  lift. The fraction's `tooLarge` (rational.ts) is now the range limit's
+  alone, and the exponent bound refuses with `overflow` above it or
+  `underflow` below it, errors of `Scaled` (`ScaledError`, with `Refusal`
+  and `isRefusal` for the three together), since only a value with an
+  exponent can pass it. `BallError`, `BuiltinError`, `EvaluateError` (with
+  its span), `ConvertError` and the grammar's rejections forward the
+  kind, and messages.ts words them "too large to compute within Most
+  bits", "too large to compute: its exponent would pass 10^18" and "too
+  small to compute: its exponent would fall below -10^18"
+  (docs/decimal.md, "Which limit a refusal names"). The side is the sign
+  of the exponent that passes the bound in `scaled()`, and in the guards
+  the sign of `exp`'s argument, of `y ln x` in `powLogSpace`, and of the
+  midpoint's side of one in `powBall`, flipped for a negative power;
+  `sinh` and `cosh` are `overflow` for either sign. An exact power is
+  told by its decimal exponent rather than by the check that fails first
+  (`powerRefusal`, `powerSide`): `7^1e19` is an `overflow` where the
+  range limit's prediction refuses it first, and `2.54^1e18` is
+  `tooLarge`, since `approx(2.54)^1e18` computes. Products and quotients
+  are held to the exponent bound alone, not to the range limit (issue
+  #52), and their callers take any refusal, so that a check added there
+  changes none of them; the three that have no error to return (the
+  prefix lookup of table.ts, a unit list's decomposition in convert.ts,
+  and `farLogarithm` of hyperbolic.ts) throw on one and name the issue
+  that must change them. A conversion into a function whose argument's
+  count passes the bound is refused where it threw. The parser's
+  combinators are generic in the reason a `check` rejects for
+  (`Parser<A, R>`, `R` never by default), and the expression grammar
+  rejects with `Rejection` data that messages.ts words, as it words
+  every other error.
+
+What stage 5 inherits from them, besides what "Stage 4 as it landed"
+lists: the three refusals, so that a stage adding a check reports it as
+the limit the check belongs to; and the issues filed with the two
+follow-ups and in checking these documents against the code after them,
+open against the stage 4 code, none of which stage 5 depends on:
+
+- a wrong answer: `tanh` of a wide ball around zero certified as `±1`
+  ([#38](https://github.com/bsidhom/pwa-units/issues/38));
+- crashes where "Failures" in ARCHITECTURE.md requires a `Result`: `exp`
+  and `pow` of a wide argument
+  ([#39](https://github.com/bsidhom/pwa-units/issues/39)), values at the
+  edge of the exponent bound
+  ([#44](https://github.com/bsidhom/pwa-units/issues/44)), `pow` with an
+  exact exponent below about `1e-308`
+  ([#45](https://github.com/bsidhom/pwa-units/issues/45)), and `exp` and
+  the log-space power of an argument below about `1e-315000`
+  ([#53](https://github.com/bsidhom/pwa-units/issues/53));
+- values refused that could be computed: by a radius alone in `exp`
+  ([#40](https://github.com/bsidhom/pwa-units/issues/40)), powers near one
+  and of `0` and `±1`
+  ([#46](https://github.com/bsidhom/pwa-units/issues/46)), the inverse
+  trigonometric functions of a tiny or huge argument, `acos(1e-999999999)`
+  among them ([#47](https://github.com/bsidhom/pwa-units/issues/47), which
+  crash as well), `tanh` of a ball reaching both sides of zero
+  ([#49](https://github.com/bsidhom/pwa-units/issues/49)), and a literal
+  by its written exponent
+  ([#50](https://github.com/bsidhom/pwa-units/issues/50));
+- a sum past the exponent bound with an inexact operand shown as zero
+  ([#48](https://github.com/bsidhom/pwa-units/issues/48));
+- costs past their budget: products and quotients not held to the range
+  limit, and a large quotient's reduction taking seconds
+  ([#52](https://github.com/bsidhom/pwa-units/issues/52), which asks for
+  a decision between a check and an input length limit, recorded in
+  ARCHITECTURE.md, "Size limits"), and a nested call
+  with a syntax error parsed in time exponential in its depth
+  ([#54](https://github.com/bsidhom/pwa-units/issues/54)).
+
+[#51](https://github.com/bsidhom/pwa-units/issues/51), that the docs had
+`approx` relax the range limit only in a sum where it does in an integer
+power too, is corrected in ARCHITECTURE.md and the README with this
+record.

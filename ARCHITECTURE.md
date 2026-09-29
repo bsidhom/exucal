@@ -392,13 +392,28 @@ squaring. Its default is 2^16 bits
 milliseconds, a large quotient's reduction aside, issue #52) and it is
 the user's to set up to the hard bound
 `LIMIT_BITS` in rational.ts (2^20, about 315,000 digits), which the
-parser, having no context, applies to a literal's mantissa. The operations that grow their inputs by at most a constant
-factor do not check: an expression of bounded length applies a bounded
-number of them, and settling keeps inexact midpoints at the working
-precision. Products and quotients are among them, and issue #52 records
-that nothing bounds an expression's length, so that an exact product of
-many powers each within the limit passes it; their callers take any
-refusal, so that a check added there changes none of them. The
+parser, having no context, applies to a literal's mantissa. What the
+limit means is cost: it is a hard limit on the bits the app forms, holds
+and multiplies for one number, in time and in memory, which is why its
+right value is the device's and the probe recommends it; and so its
+measure is the size of what is stored, the canonical mantissa of a
+`Scaled`, and not the bits of the value it denotes. The two differ for a
+dyadic, whose twos in the denominator the canonical form trades for
+fives in the numerator: `2^-30000`, a value of 30,000 bits, is stored as
+`5^30000 × 10^-30000`, 69,658 bits, and that is what a product of it
+costs (the plan's D16, as restated before stage 5). A result that would
+pass the limit is refused at the node that forms it, `tooLarge`, and the
+message names the node and the remedy, `approx` around it to compute it
+to the digits asked, or a higher Most bits; exact mode never rounds an
+exact value on its own to stay within the limit (the plan's D20). Today
+the operations that grow their inputs by at most a constant factor do
+not check: an expression of bounded length applies a bounded number of
+them, and settling keeps inexact midpoints at the working precision.
+Products and quotients are among them, and issue #52 records that
+nothing bounds an expression's length, so that an exact product of many
+powers each within the limit passes it; their callers take any refusal,
+so that the check the plan's D19 adds at the evaluator's every node
+changes none of them. The
 precision limit is the cap on the digits setting, from
 which the retry schedule's ceiling is derived; its own hard bound,
 `maxDigitsFor`, follows from the range limit, since a settled midpoint at

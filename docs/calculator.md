@@ -599,11 +599,15 @@ Three runtime concerns cut across everything:
   pure and takes plain data, so a worker is a thin wrapper, not a
   redesign; a cap is needed anyway, as `MAX_BITS` is today, and the
   retry's ceiling is a second cap of the same kind.
-- **Memory.** Exact mode's growth is already bounded by `MAX_BITS`; the
-  decimal mode bounds values by construction; the kernel's intermediates
-  are at most a few times the internal precision; a radius is a few
-  digits. Nothing here changes the memory picture on a phone as long as
-  the precision has a ceiling.
+- **Memory.** Exact mode's growth is bounded by the range limit, Most
+  bits, a hard limit on the bits held for one number, measured on what is
+  stored (the plan's D16 and D19; literals, a sum's alignment and a
+  power's prediction are held to it today, and the plan's H.14 holds
+  every exact result to it at the node, products and quotients included,
+  issue #52); the decimal mode bounds values by construction; the
+  kernel's intermediates are at most a few times the internal precision;
+  a radius is a few digits. Nothing here changes the memory picture on a
+  phone as long as the precision has a ceiling.
 - **Payload.** No digit tables are shipped, so the growth is code alone.
   A rough expectation for the kernel, the elementary functions and the
   Gamma and Beta families together is 15 to 25 KB of script, 6 to 9 KB

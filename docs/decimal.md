@@ -498,6 +498,22 @@ exponent bound in the parser. `maxDigitsFor` is unchanged: a settled
 midpoint at the ceiling must still fit the range limit with room for a
 product of two.
 
+What the range limit measures, restated before stage 5 (the plan's D16,
+D19 and D20): it is a hard limit on cost, on the bits the app forms,
+holds and multiplies for one number, so its measure is the canonical
+mantissa's size, what is stored, and not the bits of the value the
+mantissa denotes; a dyadic is stored with fives for its twos and costs
+up to 2.33 times its bits, and that is what the next product of it
+costs. That is the one place the two limits read differently, and on
+purpose: the exponent bound is on the value, since a refusal at it must
+never be false about the value; the range limit is on the
+representation, since nothing else could be measured without forming
+what the limit forbids. A result past it is refused at the node that
+forms it, with the node and the remedy named, `approx` there or a
+higher setting, and exact mode does not round an exact value on its own
+to stay within it; the study's alternative, rounding at the limit, is
+recorded with the decision.
+
 ## Where it goes
 
 - `src/core/scaled.ts` (4.1 to 4.3): the type, the canonical form, the

@@ -539,6 +539,43 @@ test("a call needs a closing parenthesis, and a comma needs an argument after it
   );
 });
 
+test("a nested call with an error in it parses in time linear in its depth, with the same error", () => {
+  // A call whose argument list fails was read again as a name before a
+  // parenthesized factor, so each level doubled the cost (issue #54);
+  // twenty levels took minutes. The error, its position and its
+  // expectations are what they were.
+  const inner = [...AFTER_FACTOR, '","', '")"'];
+  const start = performance.now();
+  assert.deepEqual(
+    failed("f(".repeat(20) + "1"),
+    unexpected(41, ...inner),
+    "unclosed",
+  );
+  assert.deepEqual(
+    failed("f(".repeat(20) + "1 +" + ")".repeat(20)),
+    unexpected(43, ...OPERAND),
+    "an error inside",
+  );
+  assert.deepEqual(
+    failed("sin(asin(".repeat(10) + "0.5"),
+    unexpected(93, ...inner),
+    "sin(asin(",
+  );
+  assert.equal(
+    show(parsed("f(".repeat(20) + "1" + ")".repeat(20))),
+    "f(".repeat(20) + "1" + ")".repeat(20),
+  );
+  assert.ok(performance.now() - start < 50, "within 50 ms");
+  // A name followed by `(` is only a call: the smaller errors keep their
+  // expectations too, and a name in front of a space and a `(` is a
+  // product as before.
+  assert.deepEqual(failed("f(1, 2"), unexpected(6, ...inner));
+  assert.deepEqual(failed("f((1)"), unexpected(5, ...inner));
+  assert.deepEqual(failed("m2("), unexpected(3, ...OPERAND, '")"'));
+  assert.equal(show(parsed("kg (m/s)")), "(kg * (m / s))");
+  assert.equal(show(parsed("kg(m/s)")), "kg((m / s))");
+});
+
 // ---------------------------------------------------------------------------
 // Unit lists
 

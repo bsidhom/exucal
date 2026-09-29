@@ -49,6 +49,10 @@
 // space makes a product, so `kg (m/s)` is a product and `kg(m/s)` is a
 // call of `kg`, which the evaluator will reject. That is the one
 // whitespace-sensitive rule in the grammar (docs/functions.md says why).
+// A name directly followed by `(` is only a call: a plain name is read
+// only where no `(` follows it, so that a call whose argument list fails
+// is not read again as a name before a parenthesized factor, which cost
+// `2^k` for `k` levels of nesting (issue #54).
 //
 // A unit list, `ft;in`, is what the user may type as `want` to have the
 // value shown as a sum of units (ARCHITECTURE.md, "Unit lists"), and what
@@ -294,10 +298,30 @@ const call: Parser<Expr, Rejection> = map(
   }),
 );
 
-/** An atom that can follow another factor by juxtaposition: not a number. */
+/**
+ * A plain name: a unit name not directly followed by `(`, which would make
+ * it a call. The lookahead includes the name's own continuation
+ * characters, so that the match cannot back off to a shorter name in
+ * front of the `(`; a call whose argument list fails is then not read
+ * again as a name before a parenthesized factor, and a nested call with an
+ * error in it costs a constant per level, where each level doubled the
+ * cost (issue #54). It is labelled as a name is, for the same reason
+ * `callName` is.
+ */
+const plainName: Parser<Spanned<string>> = token(
+  spanned(
+    regex(new RegExp(`${NAME.source}(?![\\p{L}0-9_(])`, "u"), "a unit name"),
+  ),
+);
+
+/**
+ * An atom that can follow another factor by juxtaposition: not a number.
+ * The alternatives begin with different tokens (ARCHITECTURE.md,
+ * "Parsing"): a name followed by `(`, a name not followed by it, and `(`.
+ */
 const unitAtom: Parser<Expr, Rejection> = alt(
   call,
-  map(name, leaf),
+  map(plainName, leaf),
   parenthesized,
 );
 

@@ -808,24 +808,29 @@ Three properties make the combinators simple to reason about:
   unmemoized ordered choice: `alt(seq(p, a), seq(p, b))` parses `p` twice,
   and nesting that pattern `k` deep parses the innermost `p` `2^k` times. Our
   grammars never share a prefix between alternatives. At every `alt`, the
-  alternatives are told apart by their first character (a digit, a letter,
-  `(`, or an operator symbol), so all but at most one of them fail on their
-  first primitive, at constant cost. The one way an alternative fails after
-  consuming input is an operator with nothing valid after it (`3 m ^`), which
-  rewinds by one token and is followed at once by a failure at that token. So
-  each character is consumed by exactly one primitive, each failed alternative
-  costs one primitive attempt, and a parse costs a constant number of
-  primitive attempts per token, times the depth of the grammar for passing
-  each reply up through the enclosing combinators. A hundred-character line
-  is a few hundred primitive attempts. The discipline that keeps this true,
-  and that any new grammar built on these combinators must follow, is that
-  the alternatives of one `alt` begin with different tokens, and repetition
-  is expressed with `many`, `many1` or `chainl1` rather than with a
-  recursive alternative. The call rule breaks it today: a call and a name
-  begin alike, told apart only by a lookahead for `(`, so a call whose
-  arguments fail is read again as a name before a parenthesized factor,
-  and a nested call with an error in it costs `2^k` for `k` levels
-  (issue #54).
+  alternatives are told apart by their first primitive (a digit, a name
+  followed by `(`, a name not followed by it, `(`, or an operator symbol),
+  so all but at most one of them fail on their first primitive, at
+  constant cost. An alternative fails after consuming input in two ways
+  only: an operator with nothing valid after it (`3 m ^`), which rewinds
+  by one token and is followed at once by a failure at that token; and a
+  call whose argument list fails, which has consumed its text, and the
+  alternatives after it, a plain name (one not directly followed by `(`,
+  decided by a lookahead that includes the name's own characters, so that
+  the match cannot back off to a shorter name in front of the `(`) and a
+  parenthesized expression, fail at their first primitive, so nothing is
+  read twice. So each character is consumed by exactly one primitive, each
+  failed alternative costs one primitive attempt, and a parse costs a
+  constant number of primitive attempts per token, times the depth of the
+  grammar for passing each reply up through the enclosing combinators. A
+  hundred-character line is a few hundred primitive attempts. The
+  discipline that keeps this true, and that any new grammar built on these
+  combinators must follow, is that the alternatives of one `alt` begin with
+  different tokens, and repetition is expressed with `many`, `many1` or
+  `chainl1` rather than with a recursive alternative. (The call rule broke
+  it once: a call and a name began alike, told apart only by a lookahead
+  for `(`, so a nested call with an error in it cost `2^k` for `k` levels,
+  issue #54.)
 
 - **Every reply carries the furthest expectation.** An `Expectation` is a
   position and the labels of the primitives tried there. Not only failures but

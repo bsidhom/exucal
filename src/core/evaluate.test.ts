@@ -347,12 +347,10 @@ test("a literal of any exponent is a value, and one whose mantissa exceeds the r
   assert.deepEqual(failure(run(long)), {
     kind: "tooLarge",
     span: { start: 0, end: long.length },
-    limit: "range",
   });
   assert.deepEqual(failure(run(`2 * ${long} m`)), {
     kind: "tooLarge",
     span: { start: 4, end: 4 + long.length },
-    limit: "range",
   });
   // Whereas the `^` exponent is read as a fraction, and one whose power
   // of ten cannot be formed within the hard bound is rejected by the parser.
@@ -572,30 +570,25 @@ test("the exponent carries through the exact operations, and a sum that cannot b
   assert.deepEqual(failure(run("1e999999999 + 1")), {
     kind: "tooLarge",
     span: { start: 0, end: 15 },
-    limit: "range",
   });
   assert.deepEqual(failure(run("2 m * (1 - 1e999999999)")), {
     kind: "tooLarge",
     span: { start: 6, end: 23 },
-    limit: "range",
   });
   // A product or a quotient that passes the exponent bound is too large
   // at the whole operation, where a division by zero points at the
   // divisor, and on the side of the bound it passes.
   assert.deepEqual(failure(run("1e999999999999999999 * 1e10")), {
-    kind: "tooLarge",
+    kind: "overflow",
     span: { start: 0, end: 27 },
-    limit: "exponentAbove",
   });
   assert.deepEqual(failure(run("m (1e999999999999999999 * 1e10)")), {
-    kind: "tooLarge",
+    kind: "overflow",
     span: { start: 2, end: 31 },
-    limit: "exponentAbove",
   });
   assert.deepEqual(failure(run("1e-999999999999999999 / 1e10")), {
-    kind: "tooLarge",
+    kind: "underflow",
     span: { start: 0, end: 28 },
-    limit: "exponentBelow",
   });
   assert.deepEqual(failure(run("1 / 0")), {
     kind: "divisionByZero",
@@ -769,12 +762,10 @@ test("a power that fails points at the whole power", () => {
   assert.deepEqual(failure(run("7^100000")), {
     kind: "tooLarge",
     span: { start: 0, end: 8 },
-    limit: "range",
   });
   assert.deepEqual(failure(run("m (7^100000)")), {
     kind: "tooLarge",
     span: { start: 2, end: 12 },
-    limit: "range",
   });
   // Whereas a power of ten costs nothing: the exponent takes it.
   assertEvaluates("10^100000", quantity("1e100000"));
@@ -1111,13 +1102,9 @@ const BUILTINS: Record<string, Builtin> = {
   pole: builtin("pole", 1, () =>
     err({ kind: "unresolved", argument: 0, edge: "pole" }),
   ),
-  huge: builtin("huge", 1, () =>
-    err({ kind: "tooLarge", limit: "exponentAbove" }),
-  ),
-  tiny: builtin("tiny", 1, () =>
-    err({ kind: "tooLarge", limit: "exponentBelow" }),
-  ),
-  long: builtin("long", 1, () => err({ kind: "tooLarge", limit: "range" })),
+  huge: builtin("huge", 1, () => err({ kind: "overflow" })),
+  tiny: builtin("tiny", 1, () => err({ kind: "underflow" })),
+  long: builtin("long", 1, () => err({ kind: "tooLarge" })),
   even: builtin("even", 1, () => err({ kind: "negativeRadicand", degree: 2n })),
   byzero: builtin("byzero", 1, () => err({ kind: "divisionByZero" })),
   // An unbounded argument, propagated as the rules say.
@@ -1240,21 +1227,18 @@ test("a built-in's failures are located: domain and the rest at the call, unreso
     span: { start: 5, end: 6 },
     edge: "pole",
   });
-  // A value too large keeps the limit it passes.
+  // A refused value keeps the kind of its refusal.
   assert.deepEqual(failure(runBuiltin("huge(1)")), {
-    kind: "tooLarge",
+    kind: "overflow",
     span: { start: 0, end: 7 },
-    limit: "exponentAbove",
   });
   assert.deepEqual(failure(runBuiltin("2 tiny(1)")), {
-    kind: "tooLarge",
+    kind: "underflow",
     span: { start: 2, end: 9 },
-    limit: "exponentBelow",
   });
   assert.deepEqual(failure(runBuiltin("long(1)")), {
     kind: "tooLarge",
     span: { start: 0, end: 7 },
-    limit: "range",
   });
   assert.deepEqual(failure(runBuiltin("even(1)")), {
     kind: "negativeRadicand",

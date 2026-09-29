@@ -245,7 +245,7 @@ test("an argument below 2^-maxBits throughout is its own sine and tangent within
 
 test("an argument reaching 2^maxBits is too large, since the reduction would need pi to that many bits", () => {
   // The range limit, which the setting moves, whatever the sign.
-  const tooLarge = { kind: "tooLarge", limit: "range" };
+  const tooLarge = { kind: "tooLarge" };
   for (const fn of [sinBall, cosBall, tanBall]) {
     assert.deepEqual(failure(fn(exact(dec("1e999999999")), DEFAULT)), tooLarge);
     assert.deepEqual(

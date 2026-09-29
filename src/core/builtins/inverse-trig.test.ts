@@ -371,7 +371,6 @@ test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^
   // saturate, and the kernel's door refuses it at the range limit.
   assert.deepEqual(failure(atanBall(ballOf(ZERO, dec("1e19729")), DEFAULT)), {
     kind: "tooLarge",
-    limit: "range",
   });
 });
 

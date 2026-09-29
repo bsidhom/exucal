@@ -10,7 +10,7 @@
 // `5.28`). Nothing here rounds: the ratio is the ball quotient, exact on
 // the midpoints with the radii propagated, so it is the exact answer for
 // exact quantities and display is where it is rounded, once; a quotient
-// whose exponent passes the bound is `tooLarge`, above or below it.
+// whose exponent passes the bound is an `overflow` or an `underflow`.
 //
 // A failure is one of the two conformance errors (a dimension mismatch or a
 // kind mismatch, carrying both dimensions so that the UI can show them), a
@@ -93,7 +93,6 @@ import {
   sign,
   subtract,
   trunc,
-  type Limit,
   type Scaled,
 } from "./scaled.ts";
 
@@ -103,8 +102,8 @@ export type ConvertError =
   | { readonly kind: "zeroWant" }
   /** `want` has a magnitude that cannot be told from zero at this precision. */
   | { readonly kind: "unresolvedWant" }
-  /** The ratio's exponent passes the bound, on the side `limit` says. */
-  | { readonly kind: "tooLarge"; readonly limit: Limit };
+  /** The ratio's exponent passes the bound, above it or below it. */
+  | { readonly kind: "overflow" | "underflow" };
 
 /** Why a list of units is not a unit list for a `have`; `index` is the unit at fault. */
 export type UnitListError =
@@ -142,8 +141,9 @@ export function convert(
       return err({ kind: "zeroWant" });
     case "unresolved":
       return err({ kind: "unresolvedWant" });
-    case "tooLarge":
-      return err({ kind: "tooLarge", limit: ratio.error.limit });
+    case "overflow":
+    case "underflow":
+      return err({ kind: ratio.error.kind });
     default:
       // A quotient of balls grows neither operand beyond its own size.
       throw new Error(`A ratio of magnitudes failed: ${ratio.error.kind}`);

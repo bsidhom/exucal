@@ -206,26 +206,26 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
   // whatever the range limit.
   assert.deepEqual(
     failure(powBallOf(exact(fr(7n)), exact(dec("1e19")), CONTEXT)),
-    { kind: "tooLarge", limit: "exponentAbove" },
+    { kind: "overflow" },
   );
   assert.deepEqual(
     failure(powBallOf(exact(fr(7n)), exact(dec("-1e19")), CONTEXT)),
-    { kind: "tooLarge", limit: "exponentBelow" },
+    { kind: "underflow" },
   );
   assert.deepEqual(
     failure(powBallOf(exact(dec("0.7")), exact(dec("1e19")), CONTEXT)),
-    { kind: "tooLarge", limit: "exponentBelow" },
+    { kind: "underflow" },
   );
   // An exact exponent whose fraction cannot be formed within the range
   // limit: at the bound when the power would pass it, and at the range
   // limit when it would not (2^(1e-999999999) is within a hair of one).
   assert.deepEqual(
     failure(powBallOf(exact(fr(2n)), exact(dec("1e999999999")), CONTEXT)),
-    { kind: "tooLarge", limit: "exponentAbove" },
+    { kind: "overflow" },
   );
   assert.deepEqual(
     failure(powBallOf(exact(fr(2n)), exact(dec("1e-999999999")), CONTEXT)),
-    { kind: "tooLarge", limit: "range" },
+    { kind: "tooLarge" },
   );
   // A base within 2^-30 of one is past the bound by its exact difference
   // from one; a base of magnitude one never is, so its refusal is the
@@ -234,11 +234,11 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
     failure(
       powBallOf(exact(dec("1.0000000001")), exact(dec("1e999999999")), CONTEXT),
     ),
-    { kind: "tooLarge", limit: "exponentAbove" },
+    { kind: "overflow" },
   );
   assert.deepEqual(
     failure(powBallOf(exact(ONE), exact(dec("1e999999999")), CONTEXT)),
-    { kind: "tooLarge", limit: "range" },
+    { kind: "tooLarge" },
   );
   assert.deepEqual(
     failure(powBallOf(exact(fr(-2n)), exact(fr(1n, 2n)), CONTEXT)),
@@ -314,23 +314,23 @@ test("an inexact exponent is log space for a positive base, and the base's sign 
   // A result beyond the exponent bound; within it, a value however large.
   assert.deepEqual(
     failure(powBallOf(exact(fr(10n)), ball("1e19", "1"), CONTEXT)),
-    { kind: "tooLarge", limit: "exponentAbove" },
+    { kind: "overflow" },
   );
   assert.deepEqual(
     failure(powBallOf(exact(fr(10n)), ball("-1e19", "1"), CONTEXT)),
-    { kind: "tooLarge", limit: "exponentBelow" },
+    { kind: "underflow" },
   );
   // An exponent beyond a double is past the bound on the side the signs
   // give, both of them.
-  for (const [base, exponent, limit] of [
-    ["0.5", "1e400", "exponentBelow"],
-    ["0.5", "-1e400", "exponentAbove"],
-    ["2", "1e400", "exponentAbove"],
-    ["2", "-1e400", "exponentBelow"],
+  for (const [base, exponent, kind] of [
+    ["0.5", "1e400", "underflow"],
+    ["0.5", "-1e400", "overflow"],
+    ["2", "1e400", "overflow"],
+    ["2", "-1e400", "underflow"],
   ] as const) {
     assert.deepEqual(
       failure(powBallOf(exact(dec(base)), ball(exponent, "1"), CONTEXT)),
-      { kind: "tooLarge", limit },
+      { kind },
     );
   }
   // A wide exponent gives a wide result: a ball that covers 10^100000.

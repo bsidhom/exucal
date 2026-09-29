@@ -315,24 +315,15 @@ test("a number too large to represent is rejected with its span", () => {
   const long = "9".repeat(320000);
   assert.deepEqual(
     failed(`m / ${long} s`),
-    rejected(
-      { start: 4, end: 4 + long.length },
-      { kind: "numberTooLarge", limit: "range" },
-    ),
+    rejected({ start: 4, end: 4 + long.length }, { kind: "numberTooLarge" }),
   );
   assert.deepEqual(
     failed("m / 1e1000000000000000001 s"),
-    rejected(
-      { start: 4, end: 25 },
-      { kind: "numberTooLarge", limit: "exponentAbove" },
-    ),
+    rejected({ start: 4, end: 25 }, { kind: "numberOverflow" }),
   );
   assert.deepEqual(
     failed("m / 0.01e-999999999999999999 s"),
-    rejected(
-      { start: 4, end: 28 },
-      { kind: "numberTooLarge", limit: "exponentBelow" },
-    ),
+    rejected({ start: 4, end: 28 }, { kind: "numberUnderflow" }),
   );
   assert.deepEqual(
     failed("m^1e999999"),

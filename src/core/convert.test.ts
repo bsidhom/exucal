@@ -198,7 +198,7 @@ test("the exponent carries through the ratio, whatever its size", () => {
         SI,
       ),
     ),
-    { kind: "tooLarge", limit: "exponentBelow" },
+    { kind: "underflow" },
   );
   assert.deepEqual(
     failure(
@@ -208,7 +208,7 @@ test("the exponent carries through the ratio, whatever its size", () => {
         SI,
       ),
     ),
-    { kind: "tooLarge", limit: "exponentAbove" },
+    { kind: "overflow" },
   );
 });
 

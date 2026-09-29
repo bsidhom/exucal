@@ -71,7 +71,7 @@ import {
   ZERO,
   isZero,
   log2Bounds,
-  type Limit,
+  type Refusal,
   type Scaled,
 } from "./scaled.ts";
 
@@ -129,8 +129,8 @@ export type BuiltinError =
     }
   | { readonly kind: "divisionByZero" }
   | { readonly kind: "negativeRadicand"; readonly degree: bigint }
-  /** The result would pass `limit` and was not computed. */
-  | { readonly kind: "tooLarge"; readonly limit: Limit };
+  /** The result would pass a limit and was not computed (scaled.ts). */
+  | Refusal;
 
 /**
  * The dimension rule of a built-in: the dimension of its result for the
@@ -409,6 +409,8 @@ export function fromBallError(
     case "divisionByZero":
     case "negativeRadicand":
     case "tooLarge":
+    case "overflow":
+    case "underflow":
       return error;
     case "invalidNumber":
       throw new Error("A computation does not parse a number");

@@ -318,7 +318,7 @@ test("a rejected literal in a body carries its span in the whole text", () => {
   assert.deepEqual(failed(text), {
     kind: "rejected",
     span: spanOf(text, literal),
-    reason: { kind: "numberTooLarge", limit: "range" },
+    reason: { kind: "numberTooLarge" },
   });
 });
 

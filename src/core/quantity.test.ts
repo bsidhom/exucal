@@ -160,7 +160,7 @@ test("a product is a Result: the exponent carries, and passes the bound", () => 
         quantity("1e10"),
       ),
     ),
-    { kind: "tooLarge", limit: "exponentAbove" },
+    { kind: "overflow" },
   );
   assert.deepEqual(
     failure(
@@ -169,7 +169,7 @@ test("a product is a Result: the exponent carries, and passes the bound", () => 
         quantity("1e10"),
       ),
     ),
-    { kind: "tooLarge", limit: "exponentBelow" },
+    { kind: "underflow" },
   );
 });
 
@@ -230,11 +230,10 @@ test("a sum takes the context, and two exact magnitudes that cannot be aligned w
   // `1e999999999 m + 1 m` has an exact sum that cannot be held.
   assert.deepEqual(failure(addQuantities(huge, METRE, PRIMITIVES, CONTEXT)), {
     kind: "tooLarge",
-    limit: "range",
   });
   assert.deepEqual(
     failure(subtractQuantities(METRE, huge, PRIMITIVES, CONTEXT)),
-    { kind: "tooLarge", limit: "range" },
+    { kind: "tooLarge" },
   );
   // The conformance check comes first: a mismatch is reported as one.
   assert.equal(
@@ -497,7 +496,7 @@ test("a power fails as its magnitude does", () => {
   });
   assert.deepEqual(
     failure(powQuantity(scalar(fr(7n)), rational(100000n), CONTEXT)),
-    { kind: "tooLarge", limit: "range" },
+    { kind: "tooLarge" },
   );
   // A power of ten costs nothing: the exponent takes it.
   assertQuantity(

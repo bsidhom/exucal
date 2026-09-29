@@ -8,9 +8,9 @@
 // its midpoint with an unbounded radius. The result's magnitude is guarded
 // before anything is computed: `exp(x)` has the decimal exponent
 // `x log10 e`, so an argument whose magnitude, taken over its whole ball,
-// exceeds the exponent bound divided by `log10 e` is `tooLarge` (`expFits`
+// exceeds the exponent bound divided by `log10 e` is refused (`expFits`
 // of ball.ts, which the log-space power shares), which refuses `exp(1e30)`
-// and `exp(-1e30)` alike, past the bound above and below as the
+// and `exp(-1e30)` alike, an `overflow` and an `underflow` as the
 // argument's midpoint is positive or negative, while `exp(1e6)` and
 // `exp(1e18)` are values (4.9): the kernel returns a `Floating`, a
 // mantissa with a binary exponent, which comes out through digits.ts
@@ -54,10 +54,7 @@ export function expBall(
     if (equals(x.mid, ONE)) return ok(eBall(context));
   }
   if (!expFits(radiusBound(magnitudeAbove(x)))) {
-    return err({
-      kind: "tooLarge",
-      limit: sign(x.mid) < 0 ? "exponentBelow" : "exponentAbove",
-    });
+    return err({ kind: sign(x.mid) < 0 ? "underflow" : "overflow" });
   }
   const bits = bitsFor(context.precision);
   const result = floatingToBall(

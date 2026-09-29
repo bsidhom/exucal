@@ -580,10 +580,10 @@ function lookupIn(
       // within it unless both are at its edge, which the definitions the
       // app ships are nowhere near; a product fails only there.
       const { error } = product;
-      if (error.kind !== "tooLarge") {
+      if (error.kind !== "overflow" && error.kind !== "underflow") {
         throw new Error(`A prefix times a unit failed: ${error.kind}`);
       }
-      return err({ kind: "tooLarge", span, limit: error.limit });
+      return err({ kind: error.kind, span });
     },
     function: (name, span, call) => {
       const found = index.functions.get(name);

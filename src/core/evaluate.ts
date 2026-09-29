@@ -107,7 +107,7 @@ import {
   type Quantity,
 } from "./quantity.ts";
 import { bitLength } from "./rational.ts";
-import { ZERO, type Limit } from "./scaled.ts";
+import { ZERO, isRefusal } from "./scaled.ts";
 import type { BallError } from "./ball.ts";
 import type {
   Builtin,
@@ -165,11 +165,16 @@ export type EvaluateError =
       readonly span: Span;
     }
   /**
-   * The operation or call at `span` would pass `limit`, the range limit or
-   * the exponent bound on either side, and was not computed, or the
-   * literal at `span` already passes the range limit.
+   * The operation or call at `span` would exceed the range limit and was
+   * not computed, or the literal at `span` already does.
    */
-  | { readonly kind: "tooLarge"; readonly span: Span; readonly limit: Limit }
+  | { readonly kind: "tooLarge"; readonly span: Span }
+  /**
+   * The operation or call at `span` would give a value whose exponent
+   * passes the exponent bound, above it (`overflow`) or below it
+   * (`underflow`), and was not computed.
+   */
+  | { readonly kind: "overflow" | "underflow"; readonly span: Span }
   /**
    * The sum (`add`) or difference (`sub`) at `span` has operands, at `left`
    * and `right`, that do not conform, as `mismatch` says with the left
@@ -288,7 +293,7 @@ function evaluateNode<E>(
       const { num, den } = node.value.mant;
       const size = Math.max(bitLength(num < 0n ? -num : num), bitLength(den));
       if (size > context.maxBits) {
-        return err({ kind: "tooLarge", span, limit: "range" });
+        return err({ kind: "tooLarge", span });
       }
       return ok(scalar(node.value));
     }
@@ -329,9 +334,7 @@ function evaluateNode<E>(
           // A divisor at fault (zero, or straddling it) is pointed at; a
           // quotient beyond the bound is the whole quotient's.
           const at =
-            !quotient.ok && quotient.error.kind === "tooLarge"
-              ? span
-              : node.right.span;
+            !quotient.ok && isRefusal(quotient.error) ? span : node.right.span;
           return locate(quotient, at);
         }
       }
@@ -467,7 +470,9 @@ function applyBuiltin<E>(
     case "divisionByZero":
       return err({ kind: "divisionByZero", span });
     case "tooLarge":
-      return err({ kind: "tooLarge", span, limit: error.limit });
+    case "overflow":
+    case "underflow":
+      return err({ kind: error.kind, span });
     case "negativeRadicand":
       return err({ kind: "negativeRadicand", degree: error.degree, span });
   }
@@ -555,7 +560,9 @@ function locate(
     case "divisionByZero":
       return err({ kind: "divisionByZero", span });
     case "tooLarge":
-      return err({ kind: "tooLarge", span, limit: error.limit });
+    case "overflow":
+    case "underflow":
+      return err({ kind: error.kind, span });
     case "unresolved":
       return err({ kind: "unresolved", span, edge: ZERO });
     case "negativeRadicand":

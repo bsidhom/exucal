@@ -344,7 +344,7 @@ test("the logarithmic units are functions: the decibel, the bel and the neper", 
   assert.equal(hugeNeper.error.error.kind, "callFailed");
   assert.ok(
     hugeNeper.error.error.kind === "callFailed" &&
-      hugeNeper.error.error.error.kind === "tooLarge",
+      hugeNeper.error.error.error.kind === "overflow",
   );
   assertConverts("e", "C", "1.602176634e-19");
   assertConverts("e", "A s", "1.602176634e-19");

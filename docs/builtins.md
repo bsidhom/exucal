@@ -89,11 +89,12 @@ once the name has resolved and before any argument is evaluated.
   from the memo, so `ln(1e999999999)` is a value and `log10(1e999999999)`
   exactly `999999999`.
 - **A result whose decimal exponent would pass the exponent bound**,
-  `10^18`, is `tooLarge` before anything is computed: `exp`, `sinh`,
-  `cosh` and `pow` predict it from the argument (`exp(1e30)`,
-  `sinh(-1e30)`), and the error names the side, below for `exp` of a
-  negative argument and a power toward zero (`exp(-1e30)`), above for
-  `sinh` and `cosh` of either sign. Within it these functions have the
+  `10^18`, is refused before anything is computed: `exp`, `sinh`, `cosh`
+  and `pow` predict it from the argument (`exp(1e30)`, `sinh(-1e30)`),
+  and the error names the side, an `underflow` for `exp` of a negative
+  argument and a power toward zero (`exp(-1e30)`), an `overflow`
+  otherwise, `sinh` and `cosh` of either sign included. Within it these
+  functions have the
   range of an exponent (4.9): `exp(1e6)` is `≈ 3.0332154e434294` and
   `exp(1e18)` a value with the exponent `434294481903251827`, since the
   kernel returns a `Floating`, a mantissa with a binary exponent, and the

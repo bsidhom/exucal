@@ -476,12 +476,10 @@ test("the two ends of the exponent: the odd functions of a tiny argument are its
   );
   // sinh and cosh of it are still past the exponent bound.
   assert.deepEqual(failure(sinhBall(exact(huge), DEFAULT)), {
-    kind: "tooLarge",
-    limit: "exponentAbove",
+    kind: "overflow",
   });
   assert.deepEqual(failure(coshBall(exact(huge), DEFAULT)), {
-    kind: "tooLarge",
-    limit: "exponentAbove",
+    kind: "overflow",
   });
 });
 
@@ -542,12 +540,10 @@ test("sinh and cosh share the exponential's range, the exponent bound, and tanh 
   // magnitude on both sides of zero, where exp is past it below.
   for (const x of ["1e30", "-1e30", "2.4e18", "-2.4e18"]) {
     assert.deepEqual(failure(sinhBall(exact(dec(x)), CONTEXT)), {
-      kind: "tooLarge",
-      limit: "exponentAbove",
+      kind: "overflow",
     });
     assert.deepEqual(failure(coshBall(exact(dec(x)), CONTEXT)), {
-      kind: "tooLarge",
-      limit: "exponentAbove",
+      kind: "overflow",
     });
     const t = value(tanhBall(exact(dec(x)), CONTEXT));
     assert.deepEqual(t.mid, x.startsWith("-") ? negate(ONE) : ONE);

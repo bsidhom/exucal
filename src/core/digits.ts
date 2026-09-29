@@ -26,8 +26,8 @@
 // in the program needs log space: the display writes the decimal it is
 // given, and the exponent bound of scaled.ts holds the decimal exponent,
 // which the caller's guard (`expFits`) has already bounded, so the power
-// of ten can be formed, and its failure is a `tooLarge` the caller
-// returns.
+// of ten can be formed, and its failure is an `overflow` or `underflow`
+// the caller returns.
 
 import type { Ball, BallError } from "./ball.ts";
 import { workingDigits, type NumberContext } from "./context.ts";
@@ -60,7 +60,8 @@ const GUARD = 24;
 /**
  * The ball of `fl` at the working digits of `context`: exactly where the
  * exponent is within the range limit, and in log space otherwise, as the
- * header says; `tooLarge` when the decimal exponent passes the bound.
+ * header says; `overflow` or `underflow` when the decimal exponent passes
+ * the bound.
  */
 export function floatingToBall(
   fl: Floating,

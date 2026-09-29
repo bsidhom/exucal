@@ -31,7 +31,7 @@ import { parseFraction } from "../testing/fraction.ts";
 import { key, randomRational, split } from "../testing/random.ts";
 
 /** Unwraps a result that is expected to succeed. */
-function unwrap<T>(result: Result<T, RationalError>): T {
+function unwrap<T>(result: Result<T, unknown>): T {
   assert.ok(result.ok, `expected success, got ${inspect(result)}`);
   return result.value;
 }

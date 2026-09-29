@@ -24,7 +24,7 @@ import {
 import type { UnitListError } from "./core/convert.ts";
 import type { Arity, EvaluateError } from "./core/evaluate.ts";
 import type { Rejection } from "./core/expr.ts";
-import { ZERO, equals, format, type Limit } from "./core/scaled.ts";
+import { ZERO, equals, format, type Refusal } from "./core/scaled.ts";
 import type {
   ConversionError,
   InverseFailed,
@@ -86,7 +86,9 @@ export function describeTextError(
     case "negativeRadicand":
       return `${quote(slice(text, error.span))} takes an even root of a negative value.`;
     case "tooLarge":
-      return `${quote(slice(text, error.span))} ${describeTooLarge(error.limit)}.`;
+    case "overflow":
+    case "underflow":
+      return `${quote(slice(text, error.span))} ${describeRefusal(error.kind)}.`;
     case "nonconformingOperands": {
       const left = quote(slice(text, error.left));
       const right = quote(slice(text, error.right));
@@ -229,52 +231,43 @@ function domainValue(reason: DomainReason): string {
 function describeRejection(reason: Rejection): string {
   switch (reason.kind) {
     case "numberTooLarge":
-      return describeLiteralPast(reason.limit);
     case "exponentTooLarge":
       return "this number is too large to represent";
+    case "numberOverflow":
+      return "this number's exponent passes 10^18";
+    case "numberUnderflow":
+      return "this number's exponent falls below -10^18";
     case "exponentDividesByZero":
       return "the exponent divides by zero";
   }
 }
 
-/** Why a literal past `limit` is rejected, as `describeRejection` words it. */
-function describeLiteralPast(limit: Limit): string {
-  switch (limit) {
-    case "range":
-      return "this number is too large to represent";
-    case "exponentAbove":
-      return "this number's exponent passes 10^18";
-    case "exponentBelow":
-      return "this number's exponent falls below -10^18";
-  }
-}
-
 /**
- * What a result past `limit` is, as a predicate without the final period:
- * too large to compute within Most bits, the setting that is the range
- * limit, or too large or too small for the exponent bound, which is fixed,
- * with the bound named, so that the one the user can change reads apart
- * from the one they cannot.
+ * What a refused result is, as a predicate without the final period: too
+ * large to compute within Most bits, the setting that is the range limit,
+ * or too large or too small for the exponent bound, which is fixed, with
+ * the bound named, so that the one the user can change reads apart from
+ * the one they cannot.
  */
-function describeTooLarge(limit: Limit): string {
-  switch (limit) {
-    case "range":
+function describeRefusal(kind: Refusal["kind"]): string {
+  switch (kind) {
+    case "tooLarge":
       return "is too large to compute within Most bits";
-    case "exponentAbove":
+    case "overflow":
       return "is too large to compute: its exponent would pass 10^18";
-    case "exponentBelow":
+    case "underflow":
       return "is too small to compute: its exponent would fall below -10^18";
   }
 }
 
-/** A value past `limit`, as the qualifier of a body's description: `too large to form within Most bits`. */
-function describeValuePast(limit: Limit): string {
-  switch (limit) {
-    case "range":
+/** A refused value, as the qualifier of a body's description: `too large to form within Most bits`. */
+function describeValuePast(kind: Refusal["kind"]): string {
+  switch (kind) {
+    case "tooLarge":
       return "too large to form within Most bits";
-    case "exponentAbove":
+    case "overflow":
       return "whose exponent would pass 10^18";
-    case "exponentBelow":
+    case "underflow":
       return "whose exponent would fall below -10^18";
   }
 }
@@ -338,8 +331,9 @@ export function describeConversionError(
       return `${quote(want.trim())} is zero, so nothing is a multiple of it.`;
     case "unresolvedWant":
       return `${quote(want.trim())} cannot be told from zero at this precision, so nothing can be converted into it.`;
-    case "tooLarge":
-      return `${quote(have.trim())} into ${quote(want.trim())} ${describeTooLarge(error.limit)}.`;
+    case "overflow":
+    case "underflow":
+      return `${quote(have.trim())} into ${quote(want.trim())} ${describeRefusal(error.kind)}.`;
     case "unitListError":
       return describeUnitListError(error.error, have, error.units, primitives);
   }
@@ -391,7 +385,9 @@ function describeBody(error: EvaluateError, primitives: Primitives): string {
     case "negativeRadicand":
       return "takes an even root of a negative value";
     case "tooLarge":
-      return `computes a value ${describeValuePast(error.limit)}`;
+    case "overflow":
+    case "underflow":
+      return `computes a value ${describeValuePast(error.kind)}`;
     case "nonconformingOperands":
       return error.op === "add"
         ? "adds quantities that do not conform"

@@ -101,7 +101,7 @@ import {
 } from "./parser.ts";
 import { LIMIT_BITS, divide, type Rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
-import { parseDecimal, toRational, type Limit, type Scaled } from "./scaled.ts";
+import { parseDecimal, toRational, type Scaled } from "./scaled.ts";
 import type { Span } from "./span.ts";
 
 // ---------------------------------------------------------------------------
@@ -132,17 +132,15 @@ export type ExprNode =
       readonly arguments: readonly Expr[];
     };
 
-/**
- * Why the grammar rejects text it recognized, as data for messages.ts to
- * word: a literal that cannot be represented, past `limit` (its
- * mantissa's digits beyond the hard bound, the range limit's, or its
- * canonical exponent past the exponent bound on either side); a `^`
- * exponent whose power of ten cannot be formed as a fraction within the
- * hard bound; and a `^` exponent written as a quotient by zero.
- */
+/** Why the grammar rejects text it recognized, as data for messages.ts to word. */
 export type Rejection =
-  | { readonly kind: "numberTooLarge"; readonly limit: Limit }
+  /** A literal whose mantissa has more digits than the hard bound holds. */
+  | { readonly kind: "numberTooLarge" }
+  /** A literal whose exponent passes the exponent bound, above or below it. */
+  | { readonly kind: "numberOverflow" | "numberUnderflow" }
+  /** A `^` exponent whose power of ten cannot be formed as a fraction within the hard bound. */
   | { readonly kind: "exponentTooLarge" }
+  /** A `^` exponent written as a quotient by zero. */
   | { readonly kind: "exponentDividesByZero" };
 
 // ---------------------------------------------------------------------------
@@ -198,17 +196,23 @@ export const NAME = /[\p{L}_][\p{L}0-9_]*/u;
 
 /**
  * A decimal literal, parsed exactly; one too large to represent is
- * rejected with the limit it passes. The pattern is the shape
- * `parseDecimal` reads, so it fails for no other reason.
+ * rejected for why. The pattern is the shape `parseDecimal` reads, so it
+ * fails for no other reason.
  */
 function decimal(pattern: RegExp, expected: string): Parser<Scaled, Rejection> {
-  return check(regex(pattern, expected), (text) => {
+  return check(regex(pattern, expected), (text): Result<Scaled, Rejection> => {
     const result = parseDecimal(text);
     if (result.ok) return result;
-    if (result.error.kind !== "tooLarge") {
-      throw new Error(`A literal of the grammar's shape failed to parse`);
+    switch (result.error.kind) {
+      case "tooLarge":
+        return err({ kind: "numberTooLarge" });
+      case "overflow":
+        return err({ kind: "numberOverflow" });
+      case "underflow":
+        return err({ kind: "numberUnderflow" });
+      default:
+        throw new Error(`A literal of the grammar's shape failed to parse`);
     }
-    return err({ kind: "numberTooLarge", limit: result.error.limit });
   });
 }
 

@@ -499,7 +499,6 @@ test("a failed power is reported at the power", () => {
   assert.deepEqual(failed(...lines), {
     kind: "tooLarge",
     span: spanOf(lines, "2^99999"),
-    limit: "range",
   });
   // A power of ten costs nothing: the exponent takes it.
   assertQuantity(built("m !", "big 10^99999 m").units.get("big"), "1e99999", {
@@ -510,9 +509,8 @@ test("a failed power is reported at the power", () => {
 test("a prefix times a unit past the exponent bound is too large at the name, on its side", () => {
   const above = ["m !", "e18- 1e999999999999999999", "big 1e10 m", "x e18big"];
   assert.deepEqual(failed(...above), {
-    kind: "tooLarge",
+    kind: "overflow",
     span: spanOf(above, "e18big"),
-    limit: "exponentAbove",
   });
   const below = [
     "m !",
@@ -521,9 +519,8 @@ test("a prefix times a unit past the exponent bound is too large at the name, on
     "x tinysmall",
   ];
   assert.deepEqual(failed(...below), {
-    kind: "tooLarge",
+    kind: "underflow",
     span: spanOf(below, "tinysmall"),
-    limit: "exponentBelow",
   });
 });
 

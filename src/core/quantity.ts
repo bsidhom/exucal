@@ -13,11 +13,11 @@
 // The arithmetic the evaluator needs lives here too: each operation is a
 // ball operation beside the matching dimension operation, and nothing else.
 // Multiplication is exact on the midpoints and propagates the radii, and
-// fails only at the exponent bound (`tooLarge`); division fails on a
-// divisor that is exactly zero, or that cannot be told from zero
-// (`unresolved`), and at the bound; and a power takes the `NumberContext`
-// whose precision its one inexact step, the root of a non-integer
-// exponent, is computed at. For those, the failures are the `ball.ts`
+// fails only at the exponent bound (`overflow`, `underflow`); division
+// fails on a divisor that is exactly zero, or that cannot be told from
+// zero (`unresolved`), and at the bound; and a power takes the
+// `NumberContext` whose precision its one inexact step, the root of a
+// non-integer exponent, is computed at. For those, the failures are the `ball.ts`
 // ones, since only the magnitude can fail: a dimension can be multiplied,
 // divided and raised to any rational power. Negation touches the magnitude
 // alone and cannot fail. Addition and subtraction have both sides: only
@@ -131,7 +131,7 @@ export function negateQuantity(q: Quantity): Quantity {
   return { magnitude: negateBall(q.magnitude), dimension: q.dimension };
 }
 
-/** `a b`: `2 m` times `3 s` is `6 m s`, exactly on exact magnitudes; fails `tooLarge` at the exponent bound. */
+/** `a b`: `2 m` times `3 s` is `6 m s`, exactly on exact magnitudes; fails at the exponent bound. */
 export function multiplyQuantities(
   a: Quantity,
   b: Quantity,
@@ -169,8 +169,8 @@ export function divideQuantities(
  * its exponents are rational. Fails as the magnitude does: `0` to a
  * negative power, a ball around zero to a negative power or under an even
  * root (`unresolved`), an even root of a negative magnitude, or a result
- * beyond the range limit or the exponent bound (`tooLarge`, which says
- * which).
+ * beyond the range limit (`tooLarge`) or the exponent bound (`overflow`,
+ * `underflow`).
  */
 export function powQuantity(
   q: Quantity,

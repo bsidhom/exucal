@@ -699,10 +699,10 @@ This holds for the guarded built-ins and for the ball arithmetic:
 - Stage 4's guards refused on the whole ball's magnitude, so
   `exp(approx(1e999) - approx(1e999 - 5))`, an argument of 5 within
   `2e948`, was refused (#40).
-- Stage 4's arithmetic refused on the midpoint. Under D18, a product, a
-  quotient or a sum whose midpoint passes the bound while its ball reaches
-  back within it is `unresolved`. One whose ball contains zero while its
-  midpoint passes below is zero within its bound.
+- Stage 4's arithmetic refused on the midpoint (#60). Under D18, a
+  product, a quotient or a sum whose midpoint passes the bound while its
+  ball reaches back within it is `unresolved`. One whose ball contains
+  zero while its midpoint passes below is zero within its bound.
 
 Under D17, the arithmetic's midpoint rule would have turned values stage 4
 certifies into final refusals, so D17 and this rule land together (H.13).
@@ -2887,8 +2887,8 @@ whole ball past the bound); what follows is the corrected order.
 Why this phase goes before stage 5 is severity, not dependency. There are
 two wrong answers: `tanh` of a wide ball around zero certified as `±1`
 (#38), and a unit list near the bound certified at a tenth below its value
-(H.12). And there are crashes on ordinary inputs, `pow(3, 1e-30)` among
-them (H.5). Stage 5 depends on none of the fixes. It depends on D17 alone,
+(#59). And there are crashes on ordinary inputs, `pow(3, 1e-30)` among
+them (#57). Stage 5 depends on none of the fixes. It depends on D17 alone,
 since its exponent notation must write literals that parse back under it.
 Its design note can be written at any time, and its code is best written
 after H.13, so that its tests meet the final bound. Stage 6 does wait for
@@ -2922,25 +2922,25 @@ order and the edges; "text" marks an edge that exists only because two
 tasks edit the same lines, and "preferred" an order the task asks for but
 does not need.
 
-| Task                                            | Closes        | Depends on                        |
-| ----------------------------------------------- | ------------- | --------------------------------- |
-| H.1 `tanh` of a wide argument                   | #38, #49      |                                   |
-| H.2 Tiny arguments at the kernel's door         | #53           |                                   |
-| H.3 `exp` of a wide argument                    | #39           | H.1 (text)                        |
-| H.4 The radius of a power of ten                | part of #44   |                                   |
-| H.5 Roots of a large degree or a tiny mantissa  | #45           | H.4 (text)                        |
-| H.6 `pow` of the exact bases 0, 1 and −1        | part of #46   | H.5 (text)                        |
-| H.7 The inverse trigonometric functions         | #47           | H.2 (text)                        |
-| H.8 A name followed by `(` is only a call       | #54           |                                   |
-| H.9 Smaller reductions, then Lehmer's gcd       | part of #52   |                                   |
-| H.10 The edge sweep                             |               | the decisions; tier 1 (preferred) |
-| H.11 `settle` returns a `Result`                | part of #44   | H.4                               |
-| H.12 Unit lists report refusals                 | part of #44   | H.11                              |
-| H.13 The exponent bound is on the value         | #50, #48, #44 | H.4, H.11, H.12; H.2 (preferred)  |
-| H.14 Exact results are held to Most bits        | #52           | H.9, H.13 (text)                  |
-| H.15 One guard for the exponential and powers   | #40, #46      | H.1, H.2, H.3, H.6, H.13          |
-| H.16 `pow`'s exponent past Most bits (optional) |               | H.2, H.6, H.15                    |
-| H.17 The phase as it landed                     |               | all                               |
+| Task                                            | Closes                  | Depends on                        |
+| ----------------------------------------------- | ----------------------- | --------------------------------- |
+| H.1 `tanh` of a wide argument                   | #38, #49                |                                   |
+| H.2 Tiny arguments at the kernel's door         | #53, #56                |                                   |
+| H.3 `exp` of a wide argument                    | #39                     | H.1 (text)                        |
+| H.4 The radius of a power of ten                | part of #44             |                                   |
+| H.5 Roots of a large degree or a tiny mantissa  | #45, #57                | H.4 (text)                        |
+| H.6 `pow` of the exact bases 0, 1 and −1        | part of #46             | H.5 (text)                        |
+| H.7 The inverse trigonometric functions         | #47                     | H.2 (text)                        |
+| H.8 A name followed by `(` is only a call       | #54                     |                                   |
+| H.9 Smaller reductions, then Lehmer's gcd       | part of #52             |                                   |
+| H.10 The edge sweep                             |                         | the decisions; tier 1 (preferred) |
+| H.11 `settle` returns a `Result`                | part of #44             | H.4                               |
+| H.12 Unit lists report refusals                 | #58, part of #44        | H.11                              |
+| H.13 The exponent bound is on the value         | #50, #48, #44, #59, #60 | H.4, H.11, H.12; H.2 (preferred)  |
+| H.14 Exact results are held to Most bits        | #52                     | H.9, H.13 (text)                  |
+| H.15 One guard for the exponential and powers   | #40, #46, #61, #62      | H.1, H.2, H.3, H.6, H.13          |
+| H.16 `pow`'s exponent past Most bits (optional) |                         | H.2, H.6, H.15                    |
+| H.17 The phase as it landed                     |                         | all                               |
 
 The pull requests: H.1; H.2 with H.3; H.4 with H.5; H.6; H.7; H.8; H.9;
 then, in tier 2, H.10; H.11 with H.12; H.13; H.14; H.15; H.16 if adopted;
@@ -2979,7 +2979,7 @@ request quotes the ruling:
 - Three of #44's rows become values rather than refusals, under D17 and D8
   as clarified: `approx(1e-999999999999999999)`, and the rows into
   `hr;min;s` and into `time`.
-- #45's scope is wider than exponents below `1e-308` (H.5).
+- #45's scope is wider than exponents below `1e-308` (H.5, #57).
 - #53 asks `powLogSpace` to answer a tiny `y` as one within about
   `2|y ln x|`, or to form `y ln x` without converting `y` alone. H.2
   converts `y` to zero within an ulp, which already makes
@@ -2994,51 +2994,56 @@ request quotes the ruling:
 - #52's size is measured on the reduced result where the evaluator forms
   it, not predicted from the operands, and sums are included (D19).
 
-The review found defects that no issue lists. The tasks named here take
+The review found defects that no issue listed. Each is now filed as an
+issue, or added to the issue of its kind, and the tasks named here take
 them on:
 
 - Crashes on ordinary inputs:
   - `pow(3, 1e-30)`, `3^1e-30`, `pow(2, 5e-28)`, `pow(10, 1e-100)` and
-    `pow(1/3, 1e-30)` throw (H.5).
+    `pow(1/3, 1e-30)` throw (H.5, #57).
   - `pow(2e200, 1e-20)` runs half a minute and then throws, and
-    `pow(1e-5 - approx(1e-5), 3^-700)` throws in the radius (H.5).
+    `pow(1e-5 - approx(1e-5), 3^-700)` throws in the radius (H.5, #57).
   - At a range limit from about 350,000 bits up, which the settings allow,
     `exp`, `sinh`, `tanh`, `atan` and `sin` of values near the edges of
-    what the kernel is handed throw (H.2).
+    what the kernel is handed throw (H.2, #56).
   - `cbrt(1e-1000000000000000000)` and `cbrt(2e-1000000000000000000)`
-    throw, as does `pow(2e-1000000000000000000, 1/7)` (H.4).
+    throw, as does `pow(2e-1000000000000000000, 1/7)` (H.4, added to #44).
   - `1e-999999999999999999 m` into `ft;in` throws in the display's
-    rounding (H.12).
-  - `3^32767 m` into `ft/7^21845; in/7^21845` throws (H.12).
+    rounding (H.12, added to #44).
+  - `3^32767 m` into `ft/7^21845; in/7^21845` throws (H.12, #58).
   - `pow(5e1000000000000000000, 1/3)` throws after twenty seconds in
-    decimal mode (H.3).
+    decimal mode (H.3, added to #39).
 - Roots of a tiny mantissa that no pass resolves: `pow(3^-10000, 2^-30)`
   is reported as not told from zero, and `(7^-8000)^(1/99999)` is shown as
-  zero within `0.9` (H.5).
+  zero within `0.9` (H.5, #57).
 - A wrong answer: a unit list near the bound is certified at a tenth below
-  its value (H.12, H.13).
+  its value (H.12, H.13, #59).
 - Values refused by the ball arithmetic's midpoint, and a radius past the
-  bound around a zero midpoint (H.13).
-- Guards that refuse values within `10^9` decades of the bound, with
-  related cases (H.15):
-  - `powBall` at `n = ±1`;
-  - `pow(approx(1), 1e999999999)`;
-  - `floatingToBall`'s decision on its midpoint;
-  - the cost of a zero midpoint's power.
-- Sums of fractions not held to Most bits (H.14).
+  bound around a zero midpoint (H.13, #60).
+- Guards that refuse values within `10^9` decades of the bound (H.15,
+  #61), with related cases:
+  - `powBall` at `n = ±1` (#61);
+  - `pow(approx(1), 1e999999999)` (added to #46);
+  - `floatingToBall`'s decision on its midpoint (#61);
+  - the cost of a zero midpoint's power (#62).
+- Sums of fractions not held to Most bits (H.14, added to #52).
 
-Four more go to follow-up issues rather than this phase:
+Five more go to follow-up issues rather than this phase:
 
 - `asin`, `acos` and `acosh` of an exact argument with a long mantissa
   (`asin(0.1 + 1e-15000)`) are refused, since their exact `1 - x^2` does
-  not align.
+  not align (#63).
 - `atan` and `atan2` refuse a wide ball that reaches `2^maxBits`, as #49
-  had `tanh` do.
-- `tanhFixed`'s fold band costs an extra pass (`tanh(75)`).
+  had `tanh` do (#64).
+- `tanhFixed`'s fold band costs an extra pass (`tanh(75)`, #65).
 - The parser reduces a `^` exponent's fraction on literals up to the hard
-  bound, which takes minutes with Euclid's gcd.
+  bound, which takes minutes with Euclid's gcd (#66).
+- A zero's bound far below the exponent bound is written with every digit
+  of its exponent. `(approx(1e20) - approx(1e20))^1e100000`, which H.15
+  makes fast, is still shown within a bound whose exponent has 100,004
+  digits (#67).
 
-All of these are to be filed, so that the sweep's table can name them.
+The sweep's table (H.10) names each of these by its issue.
 
 Every sentence in the docs and comments that names an open issue is
 corrected by the task that closes it:
@@ -3131,7 +3136,7 @@ bits a digit, forms nothing below about `1e-314887`, nor a literal of
 170,000 digits of order one, which Most bits 600,000 admits; and `sin`'s
 `2^maxBits` lets `1e315000` through. So from a range limit of about
 350,000 bits up, `exp`, `sinh`, `tanh`, `atan` and `sin` of such values
-throw today. `fixedFromScaled` therefore forms the fraction within
+throw today (#56). `fixedFromScaled` therefore forms the fraction within
 `4 × LIMIT_BITS`, which holds any mantissa within the range limit at a
 magnitude between `2^-maxBits` and `2^maxBits` (about `3 × LIMIT_BITS`),
 and it still throws past that.
@@ -3223,7 +3228,7 @@ formed only to take its radius: `positiveRoot`'s power taken off,
 `cbrt(1e-1000000000000000000)`, `cbrt(2e-1000000000000000000)` and
 `pow(2e-1000000000000000000, 1/7)`, where the root's multiple of the
 degree overshoots the exponent by up to the degree less one; no issue
-lists these.
+listed these, and they are added to #44.
 
 `farLogarithm` (builtins/hyperbolic.ts) takes `ln 2 + ln |x|` from
 `lnScaled` and the memo of `ln 2`. It formed `2|x|`, which passes the
@@ -3265,7 +3270,7 @@ that) to `undefined`, so that `rootBall` keeps its odd and even handling
 `rootRadiusAbove` (radius.ts) divides by a large degree in bigints, where
 `Number(degree)` gave `NaN`.
 
-These crashes are more reachable than #45 says:
+These crashes are more reachable than #45 says (#57):
 
 - `pow(3, 1e-30)`, `3^1e-30`, `pow(2, 5e-28)`, `pow(10, 1e-100)` and
   `pow(1/3, 1e-30)` throw "Newton's root is not within half of its
@@ -3644,11 +3649,11 @@ converter's retried variant (`approx(1e1000000000000000000) m` into
 
 Stage 4 threw on every such refusal; #43 marked the sites.
 
-This also covers three defects no issue lists:
+This also covers three defects no issue listed:
 
 - `3^32767 m` into `ft/7^21845; in/7^21845` threw at an ordinary size,
   since the settled count's exponent left a remainder that could not
-  align.
+  align (#58).
 - `3047999999999999999999999999999999996953e999999999999999961 m` into
   `ft;in`, within the bound, throws in `roundTerms`. This is #48's first
   constraint, in a form D17 does not refuse where it is typed.
@@ -3659,7 +3664,7 @@ This also covers three defects no issue lists:
   it (#48's class). It shows the uncarried terms once H.13's commit for
   #48 makes that sum `unresolved` at the bound: its ball,
   `10 × 1e1000000000000000000 m` within the rounding's shift, straddles
-  the top.
+  the top (#59).
 
 Tests:
 
@@ -3696,7 +3701,8 @@ since either alone regresses.
   path for an integer mantissa's digit count. `parseDecimal`'s check of
   the exponent as written goes, and so does `pow`'s canonical pre-check.
   The check that `settle` imports takes the new body.
-- `multiplyBalls` and `divideBalls` apply D18 when an operand is inexact:
+- `multiplyBalls` and `divideBalls` apply D18 when an operand is inexact
+  (#60):
   - a midpoint past the bound is `overflow` or `underflow` only when the
     whole ball is past: `|mid| - rad` at or above `10^(10^18+1)`, or
     `|mid| + rad` below `10^-(10^18)` with the ball excluding zero.
@@ -3881,15 +3887,16 @@ Each site has its own `L`:
     the radius times `n`, not by squaring.
 
 `floatingToBall` (digits.ts) classifies its `t`'s interval too, and
-handles its own rounding's carry at the top. `expFits` and `log2Scale` go.
-`pow` locates a bound `unresolved` at the argument whose radius
-contributes more to `y ln x`. `powBallOf`'s refusal of an exact exponent
-it cannot form went by an inexact base's midpoint:
+handles its own rounding's carry at the top (#61). `expFits` and
+`log2Scale` go. `pow` locates a bound `unresolved` at the argument whose
+radius contributes more to `y ln x`. `powBallOf`'s refusal of an exact
+exponent it cannot form went by an inexact base's midpoint:
 `pow(approx(1), 1e999999999)` was `tooLarge`, and
 `pow(1 + (approx(1/3) - 1/3) * 1e20, 1e999999999)`, whose value is one,
-was `underflow`. For an inexact base the classifier decides it, and both
-are `unresolved` at the bound (a test each). Where the classifier would
-compute, the refusal stays `tooLarge`, which H.16 would lift.
+was `underflow` (both added to #46). For an inexact base the classifier
+decides it, and both are `unresolved` at the bound (a test each). Where
+the classifier would compute, the refusal stays `tooLarge`, which H.16
+would lift.
 
 What stage 4's guards got wrong:
 
@@ -3900,7 +3907,7 @@ What stage 4's guards got wrong:
 - `powLogSpace` refused an exponent a double cannot hold before it looked
   at `ln x` (#46's third row).
 - The slack of the doubles and of the 30-bit radius refused values within
-  `10^9` decades of the bound: `exp(-2302585092994045000)`,
+  `10^9` decades of the bound (#61): `exp(-2302585092994045000)`,
   `approx(1e499999999900000000)^2`, and
   `(1e-999999999999999999 * (1 + approx(1e-30)))^-1`, where `1 / (…)` is a
   value.
@@ -3924,7 +3931,7 @@ Tests:
   cap on the bits it would.
 - `(sqrt(2)^2 - 2)^2` stays a zero, and
   `(approx(1e20) - approx(1e20))^1e100000` is quick where it took fifty
-  seconds.
+  seconds (#62).
 - The refusals within `10^9` decades of the bound are values.
 - ball.test.ts's test of the midpoint rule expects `unresolved`.
 - In decimal mode an `unresolved` at the bound is final.

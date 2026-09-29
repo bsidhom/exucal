@@ -98,6 +98,7 @@ import {
 } from "./context.ts";
 import { isUnbounded } from "./radius.ts";
 import { err, ok, type Result } from "./result.ts";
+import { isRefusal } from "./scaled.ts";
 import {
   unitLookup,
   type ListedUnit,
@@ -442,7 +443,8 @@ function convertToNamedList(
  * the declared result, which is the mismatch of the pair when it does not,
  * and the inverse body recovers the argument, whose count of the declared
  * argument unit is what the UI writes in the call. The unit's ball excludes
- * zero, as `buildTable` checked, so the count always exists.
+ * zero, as `buildTable` checked, so the count exists unless it is refused
+ * as too large or too small, as a ratio of magnitudes may be.
  */
 function convertToFunction(
   table: UnitTable,
@@ -477,6 +479,8 @@ function convertToFunction(
     fn.argument.quantity.magnitude,
   );
   if (!value.ok) {
+    // The count is refused as any quotient may be, as a ratio would be.
+    if (isRefusal(value.error)) return err({ kind: value.error.kind });
     throw new Error("A function in the table declares a zero argument unit");
   }
   return ok({

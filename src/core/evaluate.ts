@@ -332,7 +332,8 @@ function evaluateNode<E>(
         case "div": {
           const quotient = divideQuantities(left.value, right.value);
           // A divisor at fault (zero, or straddling it) is pointed at; a
-          // quotient beyond the bound is the whole quotient's.
+          // quotient refused as too large or too small is the whole
+          // quotient's.
           const at =
             !quotient.ok && isRefusal(quotient.error) ? span : node.right.span;
           return locate(quotient, at);

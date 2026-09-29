@@ -266,8 +266,11 @@ function decompose(
   for (const [i, size] of sizes.entries()) {
     const ratio = divideBalls(rest, size);
     if (!ratio.ok) {
-      // The sizes were checked to exclude zero before they got here, and a
-      // quotient of values within the bound is within it.
+      // The sizes were checked to exclude zero before they got here, so
+      // only a refusal of the quotient is left, which this assumes away:
+      // a count can pass the exponent bound, which throws here (issue
+      // #44), and the range limit once quotients are held to it (issue
+      // #52). Both need this to return the refusal instead.
       throw new Error("A unit list has a unit that cannot be divided by");
     }
     if (i === sizes.length - 1) {
@@ -332,9 +335,12 @@ const HALF: Scaled = ((): Scaled => {
 })();
 
 /**
- * The value of an operation the checks above rule out failing: a sum of
+ * The value of an operation this module assumes cannot fail: a sum of
  * terms that came from one decomposition aligns as it did, and a product
- * of a count and a size is within the bound the ratio was.
+ * of a count and a size is within the bound the ratio was. The assumption
+ * fails at the edge of the bound (issues #44 and #48), and would for a
+ * product past the range limit once products are held to it (issue #52);
+ * a failure throws.
  */
 function settled<T>(result: Result<T, BallError>): T {
   if (!result.ok)

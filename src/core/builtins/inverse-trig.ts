@@ -315,7 +315,7 @@ function atanKernel(
   );
 }
 
-/** `a / b` for a `b` whose interval the caller has checked to exclude zero, `overflow` or `underflow` at the bound; `argument` is `b`'s index. */
+/** `a / b` for a `b` whose interval the caller has checked to exclude zero, failing only if the quotient is refused; `argument` is `b`'s index. */
 function quotient(
   a: Ball,
   b: Ball,

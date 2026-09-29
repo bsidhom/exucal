@@ -13,24 +13,26 @@
 // The arithmetic the evaluator needs lives here too: each operation is a
 // ball operation beside the matching dimension operation, and nothing else.
 // Multiplication and division are exact on the midpoints and propagate the
-// radii, and their mantissas are not held to the range limit, which they
-// can pass (issue #52): multiplication fails only at the exponent bound
-// (`overflow`, `underflow`), and division on a divisor that is exactly
-// zero, or that cannot be told from zero (`unresolved`), and at the bound;
-// and a power takes the `NumberContext` whose precision its one inexact
-// step, the root of a non-integer exponent, is computed at. For those, the
-// failures are the `ball.ts` ones, since only the magnitude can fail: a
-// dimension can be multiplied, divided and raised to any rational power.
-// Negation touches the magnitude alone and cannot fail. Addition and
-// subtraction have both sides: only quantities of one dimension have a sum,
-// so the dimension side is the conformance check of `dimension.ts`, the
-// same one `convert` applies to a `have` and a `want`, and the failure is
-// its `ConformanceError`; and the magnitudes add as `addBalls` rules,
-// aligned within the range limit of the `NumberContext` they take (4.4),
-// two exact magnitudes that cannot be aligned failing `tooLarge` at the
-// range limit, and a sum past the exponent bound at the bound. The check
-// tells dimensions from kinds by the roles of the table's primitives, so
-// these two operations take them, as `convert` does.
+// radii, and are refused when the result is too large or too small to
+// compute: today at the exponent bound (`overflow`, `underflow`) alone,
+// since their mantissas are not held to the range limit, which they can
+// pass, and past it too (`tooLarge`) once they are (issue #52), so the
+// callers take any refusal; division also fails on a divisor that is
+// exactly zero, or that cannot be told from zero (`unresolved`); and a
+// power takes the `NumberContext` whose precision its one inexact step, the
+// root of a non-integer exponent, is computed at. For those, the failures
+// are the `ball.ts` ones, since only the magnitude can fail: a dimension
+// can be multiplied, divided and raised to any rational power. Negation
+// touches the magnitude alone and cannot fail. Addition and subtraction
+// have both sides: only quantities of one dimension have a sum, so the
+// dimension side is the conformance check of `dimension.ts`, the same one
+// `convert` applies to a `have` and a `want`, and the failure is its
+// `ConformanceError`; and the magnitudes add as `addBalls` rules, aligned
+// within the range limit of the `NumberContext` they take (4.4), two exact
+// magnitudes that cannot be aligned failing `tooLarge` at the range limit,
+// and a sum past the exponent bound at the bound. The check tells
+// dimensions from kinds by the roles of the table's primitives, so these
+// two operations take them, as `convert` does.
 
 import {
   DIMENSIONLESS,
@@ -132,7 +134,11 @@ export function negateQuantity(q: Quantity): Quantity {
   return { magnitude: negateBall(q.magnitude), dimension: q.dimension };
 }
 
-/** `a b`: `2 m` times `3 s` is `6 m s`, exactly on exact magnitudes; fails at the exponent bound. */
+/**
+ * `a b`: `2 m` times `3 s` is `6 m s`, exactly on exact magnitudes; fails
+ * when the product is refused, as the header says: at the exponent bound,
+ * and past the range limit once products are held to it (issue #52).
+ */
 export function multiplyQuantities(
   a: Quantity,
   b: Quantity,
@@ -147,7 +153,8 @@ export function multiplyQuantities(
 
 /**
  * `a / b`; fails if the magnitude of `b` is exactly zero, or contains zero
- * without being exactly zero (`unresolved`), or at the exponent bound.
+ * without being exactly zero (`unresolved`), or when the quotient is
+ * refused, as a product is.
  */
 export function divideQuantities(
   a: Quantity,

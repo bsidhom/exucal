@@ -578,8 +578,9 @@ function lookupIn(
       if (product.ok) return product;
       // A prefix and a unit each within the exponent bound multiply to
       // within it unless both are at its edge, which the definitions the
-      // app ships are nowhere near; a product is refused only there, since
-      // it is not held to the range limit (issue #52).
+      // app ships are nowhere near, but a product may be refused all the
+      // same, and past the range limit too once products are held to it
+      // (issue #52), so any refusal is the name's.
       const { error } = product;
       if (!isRefusal(error)) {
         throw new Error(`A prefix times a unit failed: ${error.kind}`);

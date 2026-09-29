@@ -126,6 +126,7 @@ import {
   compare,
   equals,
   fromRational,
+  isRefusal,
   isZero,
   multiply,
   negate,
@@ -302,7 +303,16 @@ export function atanhBall(
   const denominator = subtractBalls(exact(ONE), x, context);
   if (!denominator.ok) return err(fromBallError(denominator.error, 0));
   const quotient = divideBalls(numerator.value, denominator.value);
-  if (!quotient.ok) throw new Error("A divisor above zero was checked");
+  if (!quotient.ok) {
+    // The divisor was checked to be above zero, so only a refusal of the
+    // quotient is left: none today, since `1 - x` could only be formed
+    // within the range limit, but past that limit once quotients are held
+    // to it (issue #52).
+    if (!isRefusal(quotient.error)) {
+      throw new Error("A divisor above zero was checked");
+    }
+    return err(fromBallError(quotient.error, 0));
+  }
   const half = shiftFixed(logarithm(quotient.value, x.mid, context), -1);
   return ok(
     fixedToBall(
@@ -368,6 +378,8 @@ function saturation(x: Ball, bits: number): Ball | undefined {
 function farLogarithm(x: Ball, context: NumberContext): Ball {
   const bits = bitsFor(context.precision);
   const twice = multiply(TWO, absolute(x.mid));
+  // This assumes twice `x` is never refused, which fails for an `x` whose
+  // double reaches the next power of ten past the bound (issue #44).
   if (!twice.ok) throw new Error("Twice a value within the bound is within it");
   const f = lnScaled(exact(twice.value), bits, bitsFor(context.ceiling));
   if (f === undefined) throw new Error("The logarithm's argument is positive");

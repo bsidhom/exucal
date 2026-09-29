@@ -974,3 +974,26 @@ test("an inverse that fails for the have's value is an inverseFailed on the want
   });
   assertCall("4", "recip", "0.25");
 });
+
+test("a call's argument too large to count in its unit is refused, not thrown", () => {
+  // The inverse gives the argument, and its count of an argument unit of
+  // 10^-3 passes the exponent bound although the argument does not.
+  const definitions = parseDefinitions("thou(x) [0.001;1]  x ; thou");
+  assert.ok(definitions.ok, inspect(definitions));
+  const built = buildTable(definitions.value, CONTEXT);
+  assert.ok(built.ok, inspect(built));
+  const result = convertText(
+    built.value,
+    "1e999999999999999999",
+    "thou",
+    CONTEXT,
+  );
+  assert.deepEqual(result, { ok: false, error: { kind: "overflow" } });
+  const within = convertText(
+    built.value,
+    "1e999999999999999990",
+    "thou",
+    CONTEXT,
+  );
+  assert.ok(within.ok && within.value.kind === "function", inspect(within));
+});

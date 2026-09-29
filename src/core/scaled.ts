@@ -326,13 +326,21 @@ function combine(
   return scaled(op(left, right), exp);
 }
 
-/** `a × b`, exactly: the mantissas multiplied, the exponents added; fails at the bound. */
+/**
+ * `a × b`, exactly: the mantissas multiplied, the exponents added; fails
+ * at the bound. The product is not held to the range limit (issue #52),
+ * which would refuse it `tooLarge` as well, so a caller takes any refusal.
+ */
 export function multiply(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
   if (isZero(a) || isZero(b)) return ok(ZERO);
   return scaled(multiplyFractions(a.mant, b.mant), a.exp + b.exp);
 }
 
-/** `a / b`, exactly: the mantissas divided, the exponents subtracted; fails on a zero `b` and at the bound. */
+/**
+ * `a / b`, exactly: the mantissas divided, the exponents subtracted;
+ * fails on a zero `b` and at the bound. Like a product, the quotient is
+ * not held to the range limit (issue #52), and a caller takes any refusal.
+ */
 export function divide(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
   const mant = divideFractions(a.mant, b.mant);
   if (!mant.ok) return mant;

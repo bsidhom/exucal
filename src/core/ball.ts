@@ -366,7 +366,8 @@ export function subtractBalls(
  * `a × b`: the exact product of the midpoints, with the radius
  * `|a| rb + |b| ra + ra rb`, rounded up. An exact zero times anything is
  * exact zero; a product whose exponent passes the bound is `overflow` or
- * `underflow`.
+ * `underflow`, and one past the range limit would be `tooLarge` once
+ * products are held to it (issue #52), so a caller takes any refusal.
  */
 export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   if (isExactZero(a) || isExactZero(b)) return ok(exact(ZERO));
@@ -388,9 +389,9 @@ export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
  * over the two intervals, computed on the coarse type with the divisor's
  * distance from zero as a lower bound. Fails `divisionByZero` when `b` is
  * exactly zero and `unresolved` when it contains zero without being
- * exactly zero, or when the bounds cannot tell its distance from zero. A
- * divisor of unbounded radius with a nonzero midpoint gives a quotient of
- * unbounded radius.
+ * exactly zero, or when the bounds cannot tell its distance from zero, and
+ * is refused as a product is. A divisor of unbounded radius with a nonzero
+ * midpoint gives a quotient of unbounded radius.
  */
 export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   if (isExactZero(b)) return err({ kind: "divisionByZero" });

@@ -157,10 +157,12 @@ export function unitLookup(
         found.unit,
       );
       if (!scaled.ok) {
-        // The build multiplies every prefix it resolves before a unit, and
-        // a prefix and a unit within the bound multiply to within it
-        // unless both are at its edge.
-        throw new Error("A prefix and a unit passed the exponent bound");
+        // This assumes a prefix times a unit is never refused: the table's
+        // prefixes and units are nowhere near the exponent bound, and a
+        // product is not held to the range limit. A lookup has no error
+        // for a refusal to return, so a table with a unit near the bound,
+        // or a range limit on products (issue #52), must add one here.
+        throw new Error("A prefix times a unit was refused");
       }
       return ok(settleQuantity(scaled.value, context));
     },

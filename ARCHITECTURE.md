@@ -1339,8 +1339,9 @@ Planned extensions, listed to show that they fit without reshaping the core:
   stage 3 (the built-in kind of function, calls with any number of
   arguments, the elementary set, the table at the ceiling and the
   logarithmic units) and stage 4 (the `Scaled` midpoint, the range of the
-  inexact functions, the decimal mode and `approx`) have landed; stage 5,
-  the rational display, is next.
+  inexact functions, the decimal mode and `approx`) have landed; the
+  phase before stage 5, which fixes the issues open against stage 4's
+  code, is next, and stage 5, the rational display, follows it.
 - **Domain and range** on a function definition (`tempC(-300)` is a
   negative temperature today) are two optional bounds, checked at the call
   and at the inverse; docs/functions.md lists them with the other

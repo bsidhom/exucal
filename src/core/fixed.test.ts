@@ -232,9 +232,39 @@ test("fixedFromScaled converts the fraction the value denotes, and refuses one w
       fixedFromRational(fraction(s.value), 100),
     );
   }
-  // A power of ten beyond the hard bound is a precondition failure.
+  // A nonzero value below half an ulp is zero within one ulp, what the
+  // rounding gives it, whatever its exponent; one at or above half an ulp
+  // is rounded as the fraction is. At 8 bits half an ulp is 1/512.
+  for (const text of ["1e-999999999", "-1e-999999999", "1e-400000", "0.0019"]) {
+    assert.deepEqual(
+      fixedFromScaled(decimal(text), 8),
+      { value: 0n, error: 1n, bits: 8 },
+      text,
+    );
+  }
+  assert.deepEqual(fixedFromScaled(decimal("0.002"), 8), {
+    value: 1n,
+    error: 1n,
+    bits: 8,
+  });
+  assert.deepEqual(
+    fixedFromScaled(decimal("0.001953125"), 8),
+    fixedFromRational(rational(1n, 512n), 8),
+  );
+  assert.deepEqual(fixedFromScaled(decimal("-0.0021"), 8), {
+    value: -1n,
+    error: 1n,
+    bits: 8,
+  });
+  // A power of ten the hard bound cannot hold, but four times it can, is
+  // formed: 1e-400000 at 1,400,000 bits is 2^(1400000 - 1328771.24...),
+  // an integer of 71,229 bits, rounded.
+  const deep = fixedFromScaled(decimal("1e-400000"), 1400000);
+  assert.equal(deep.bits, 1400000);
+  assert.equal(bitLength(deep.value), 71229);
+  assert.equal(deep.error, 1n);
+  // A power of ten beyond four times the hard bound is a precondition failure.
   assert.throws(() => fixedFromScaled(decimal("1e999999999"), 8), RangeError);
-  assert.throws(() => fixedFromScaled(decimal("1e-999999999"), 8), RangeError);
   assert.throws(() => fixedFromScaled(ONE_SCALED, -1), RangeError);
 });
 

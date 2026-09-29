@@ -587,6 +587,9 @@ test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angl
     ["atan(1e999999999)", "deg", "90"],
     ["atan(-1e999999999)", "radian", "-1.5707963"],
     ["atan(1e-999999999)", "radian", "1e-999999999"],
+    // A tiny ratio reaches the kernel as zero within an ulp, where its
+    // conversion threw (#47's crash; H.7 gives the ratio its value).
+    ["atan2(1e-999999999999999999, -1)", "radian", "3.1415927"],
   ]) {
     const result = convertText(table.value, have!, want!, {
       ...context,

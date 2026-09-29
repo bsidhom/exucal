@@ -14,6 +14,7 @@ import {
   negateBall,
   position,
   powBall,
+  powLogSpace,
   powRationalBall,
   radiusValue,
   rootBall,
@@ -875,6 +876,20 @@ test("powRationalBall composes the power and the root, root last", () => {
   );
   assert.ok(!isUnbounded(squared.rad));
   assert.deepEqual(squared.mid, fr(4n));
+});
+
+test("powLogSpace of an exponent below half an ulp converts it to zero within an ulp, and the power is one within a few ulps", () => {
+  // The exponent is far below 2^-maxBits: its fraction could not be
+  // formed, and the kernel's door answers it (H.2, issue #53).
+  for (const y of ["1e-999999999", "-1e-999999999", "1e-400000"]) {
+    const power = unwrap(powLogSpace(exact(fr(2n)), exact(dec(y)), at(8)));
+    assertContains(power, ONE, `2^${y}`);
+    assert.ok(compareFractions(radiusUpper(power.rad), tenTo(15)) < 0, y);
+    const wide = unwrap(
+      powLogSpace(exact(fr(10n)), ball(dec(y), dec("1e-999999999")), at(8)),
+    );
+    assertContains(wide, ONE, `10^(${y} ± 1e-999999999)`);
+  }
 });
 
 // ---------------------------------------------------------------------------

@@ -164,9 +164,14 @@ Three rules say where, and only where, a value can lose precision:
    it holds a value only up to the range limit: an argument throughout
    below `2^-maxBits` is answered by its expansion at zero (`sin`, `tan`,
    `atan`, `asinh` and the rest of the odd functions give the argument
-   within its cube, `cos` and `cosh` one within its square; `exp` and the
-   log-space power have no such answer yet, and throw below about
-   `10^-315000`, issue #53), `sin`, `cos`
+   within its cube, `cos` and `cosh` one within its square, and `exp` one
+   within twice the argument's magnitude; any other argument goes in
+   through `fixedFromScaled`, whose power of ten is formed within four
+   times the hard bound, enough for whatever a built-in hands it at any
+   range limit the settings allow, and a value below half an ulp of the
+   bits asked is zero within an ulp there, decided from the coarse bounds
+   with nothing formed, which is how the log-space power of a tiny
+   exponent and `atan2`'s tiny ratio reach the kernel), `sin`, `cos`
    and `tan` of one reaching `2^maxBits` are `tooLarge`, since the
    reduction would need `pi` to that many bits, `atan` beyond `2^bits` is
    `±pi/2` within `2^-bits`, and `asinh` and `acosh` beyond it are

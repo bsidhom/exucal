@@ -51,6 +51,7 @@ import {
   parseDecimal,
   pow,
   powerLimit,
+  powerSide,
   roundTo,
   scaled,
   sign,
@@ -581,11 +582,16 @@ test("a power refused is told by its decimal exponent, not by the check that fai
   assertTooLarge(pow(dec("1e-9"), 10n ** 18n, LIMIT_BITS), "exponentBelow");
   assertTooLarge(pow(dec("1e9"), -(10n ** 18n), LIMIT_BITS), "exponentBelow");
   assertTooLarge(pow(dec("1e-9"), -(10n ** 18n), LIMIT_BITS), "exponentAbove");
+  // 0.7 is 7 × 10^-1, so its power too is refused by the exponent first.
+  assertTooLarge(pow(dec("0.7"), 10n ** 19n, LIMIT_BITS), "exponentBelow");
   // Refused by the mantissa, which no range limit could hold, and past
-  // the bound too: 7^(10^19) is about 10^(8.45 × 10^18).
+  // the bound too: 7^(10^19) is about 10^(8.45 × 10^18), and 1/7 to the
+  // same power, whose canonical exponent is zero, as far below it.
   assertTooLarge(pow(dec("7"), 10n ** 19n, LIMIT_BITS), "exponentAbove");
   assertTooLarge(pow(dec("7"), -(10n ** 19n), LIMIT_BITS), "exponentBelow");
-  assertTooLarge(pow(dec("0.7"), 10n ** 19n, LIMIT_BITS), "exponentBelow");
+  const seventh = fromRational(rational(1n, 7n));
+  assertTooLarge(pow(seventh, 10n ** 19n, LIMIT_BITS), "exponentBelow");
+  assertTooLarge(pow(seventh, -(10n ** 19n), LIMIT_BITS), "exponentAbove");
   // Refused by the mantissa and within the bound: the range limit.
   assertTooLarge(pow(dec("2"), 1442695n, LIMIT_BITS), "range");
   assertTooLarge(pow(dec("2"), 100n, 64), "range");
@@ -595,11 +601,34 @@ test("a power refused is told by its decimal exponent, not by the check that fai
   // refused at the range limit, not as a value too small.
   assertTooLarge(pow(dec("2.54"), 10n ** 18n, LIMIT_BITS), "range");
   assertTooLarge(pow(dec("2.54"), -(10n ** 18n), LIMIT_BITS), "range");
-  // At the bound's edge, where the logarithms cannot tell, the exponent
-  // that passes it decides: 10^(10^18) is a value, 10^(10^18 + 1) is not.
+  // A base within 2^-30 of one: the side is the base's against one, and
+  // the size its exact difference from one's. 1.0000000001 is
+  // 10000000001 × 10^-10, whose canonical exponent is negative, but its
+  // power 10^30 is about 10^(4.3 × 10^19), and 10^28 about
+  // 10^(4.3 × 10^17), within the bound.
+  const nearOne = dec("1.0000000001");
+  assertTooLarge(pow(nearOne, 10n ** 30n, LIMIT_BITS), "exponentAbove");
+  assertTooLarge(pow(nearOne, -(10n ** 30n), LIMIT_BITS), "exponentBelow");
+  assertTooLarge(pow(nearOne, 10n ** 28n, LIMIT_BITS), "range");
+  const belowOne = dec("0.9999999999");
+  assertTooLarge(pow(belowOne, 10n ** 30n, LIMIT_BITS), "exponentBelow");
+  assertTooLarge(pow(belowOne, -(10n ** 30n), LIMIT_BITS), "exponentAbove");
+  // Within a relative 2^-20 of the bound, where the logarithms cannot
+  // tell, a power refused by its exponent is past the bound on the side
+  // its signs give: 10^(10^18) is a value, 10^(10^18 + 1) is not, and
+  // 1.5, 15 × 10^-1, to 5678870000000000000 is about 10^(0.9999994 ×
+  // 10^18), past it above, not below as its canonical exponent is.
   assert.ok(pow(dec("10"), 10n ** 18n, LIMIT_BITS).ok);
   assertTooLarge(pow(dec("10"), 10n ** 18n + 1n, LIMIT_BITS), "exponentAbove");
   assertTooLarge(pow(dec("0.1"), 10n ** 18n + 1n, LIMIT_BITS), "exponentBelow");
+  assertTooLarge(
+    pow(dec("1.5"), 5678870000000000000n, LIMIT_BITS),
+    "exponentAbove",
+  );
+  // One refused by its mantissa there is the range limit's.
+  const edge = 1183294662454938368n;
+  assert.equal(powerLimit(dec("7"), fromRational(rational(edge))), undefined);
+  assertTooLarge(pow(dec("7"), edge, LIMIT_BITS), "range");
 });
 
 test("powerLimit tells a power past the bound from one within it, and says nothing within a hair of it", () => {
@@ -613,17 +642,36 @@ test("powerLimit tells a power past the bound from one within it, and says nothi
   // is about 10^(4.3 × 10^22), and 1.0000001^(10^20) 10^(4.3 × 10^12).
   assert.equal(powerLimit(dec("1.0000001"), dec("1e30")), "exponentAbove");
   assert.equal(powerLimit(dec("1.0000001"), dec("1e20")), "range");
-  // A zero base or exponent is never past it; a base within 2^-30 of one
-  // under an exponent this large has a logarithm the bounds cannot size.
+  // Within 2^-30 of one, by the exact difference from one, on the side
+  // the comparison with one gives.
+  assert.equal(powerLimit(dec("1.0000000001"), dec("1e30")), "exponentAbove");
+  assert.equal(powerLimit(dec("1.0000000001"), dec("1e28")), "range");
+  assert.equal(powerLimit(dec("-1.0000000001"), dec("1e30")), "exponentAbove");
+  assert.equal(powerLimit(dec("0.9999999999"), dec("1e30")), "exponentBelow");
+  assert.equal(
+    powerLimit(dec("1.0000000001"), dec("1e999999999")),
+    "exponentAbove",
+  );
+  // A zero base or exponent, or a base of magnitude one, is never past it.
   assert.equal(powerLimit(ZERO, dec("1e19")), "range");
   assert.equal(powerLimit(dec("7"), ZERO), "range");
   assert.equal(powerLimit(ONE, dec("1e6")), "range");
-  assert.equal(powerLimit(ONE, dec("1e999999999")), undefined);
+  assert.equal(powerLimit(ONE, dec("1e999999999")), "range");
+  assert.equal(powerLimit(negate(ONE), dec("1e999999999")), "range");
   // Within a relative 2^-20 of the bound it cannot tell: 10^(10^18) is
   // at it.
   assert.equal(powerLimit(dec("10"), dec("1e18")), undefined);
   assert.equal(powerLimit(dec("10"), dec("1.000001e18")), "exponentAbove");
   assert.equal(powerLimit(dec("10"), dec("0.999999e18")), "range");
+});
+
+test("powerSide gives the side of the bound by the signs of the exponent and of log |s|", () => {
+  assert.equal(powerSide(dec("7"), dec("1e19")), "exponentAbove");
+  assert.equal(powerSide(dec("7"), dec("-1e19")), "exponentBelow");
+  assert.equal(powerSide(dec("0.7"), dec("1e19")), "exponentBelow");
+  assert.equal(powerSide(dec("0.7"), dec("-1e19")), "exponentAbove");
+  assert.equal(powerSide(dec("-1.5"), dec("1e19")), "exponentAbove");
+  assert.equal(powerSide(dec("1.0000000001"), dec("1e30")), "exponentAbove");
 });
 
 test("every operation agrees with the fraction's through toRational where the values fit", () => {

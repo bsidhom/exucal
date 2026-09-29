@@ -12,13 +12,12 @@
 // of ball.ts, which the log-space power shares), which refuses `exp(1e30)`
 // and `exp(-1e30)` alike, past the bound above and below as the
 // argument's midpoint is positive or negative, while `exp(1e6)` and
-// `exp(1e18)` are values
-// (4.9): the kernel returns a `Floating`, a mantissa with a binary
-// exponent, which comes out through digits.ts (`floatingToBall`), exactly
-// where the exponent is within the range limit and in log space
-// otherwise. A tiny argument needs no scaling: the result is `1 + x +
-// ...`, whose digits certify at the first pass, and the digits of the
-// difference from one are the retry loop's to find.
+// `exp(1e18)` are values (4.9): the kernel returns a `Floating`, a
+// mantissa with a binary exponent, which comes out through digits.ts
+// (`floatingToBall`), exactly where the exponent is within the range
+// limit and in log space otherwise. A tiny argument needs no scaling: the
+// result is `1 + x + ...`, whose digits certify at the first pass, and
+// the digits of the difference from one are the retry loop's to find.
 
 import {
   exact,

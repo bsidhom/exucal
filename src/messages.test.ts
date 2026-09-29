@@ -134,7 +134,7 @@ test("a parse error names what was expected and what was found", () => {
   );
   assert.equal(
     textMessage("2 * 0.01e-999999999999999999"),
-    '"0.01e-999999999999999999": this number\'s exponent is below -10^18.',
+    '"0.01e-999999999999999999": this number\'s exponent falls below -10^18.',
   );
 });
 

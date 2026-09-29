@@ -121,7 +121,10 @@ export type ScaledError =
  * the bits the context lets an exact value's numerator or denominator, or
  * a sum's alignment, take: Most bits, the user's to set, which an inexact
  * operand (`approx`) avoids in a sum, whose inexact result is settled
- * to the working digits. `exponentAbove` and
+ * to the working digits; and its hard bound, `LIMIT_BITS`, which no
+ * setting moves, where a literal's mantissa, or a `^` exponent's
+ * fraction, is checked against it, the parser wording those apart
+ * (messages.ts). `exponentAbove` and
  * `exponentBelow` are the exponent bound, `MAX_EXPONENT`, a constant,
  * passed by a value too large to hold or by a nonzero value too small to
  * hold; the kind is `tooLarge` for both. It is this module's, and not the
@@ -356,7 +359,11 @@ export function invert(s: Scaled): Result<Scaled, ScaledError> {
  * power's decimal exponent (`powerLimit`), not by the check that fails
  * first: `7^(10^19)`, refused by its mantissa, is past the bound, and
  * `2.54^(10^18)`, whose exponent the canonical form puts past the bound
- * below, is `10^(0.40 × 10^18)`, within it, and refused by its mantissa.
+ * below, is `10^(0.40 × 10^18)`, within it, and is reported at the range
+ * limit. Within a hair of the bound, where `powerLimit` cannot tell, a
+ * power refused by its exponent is past the bound on the side its signs
+ * give (`powerSide`), and one refused by its mantissa is the range
+ * limit's.
  */
 export function pow(
   s: Scaled,
@@ -368,23 +375,26 @@ export function pow(
     return n < 0n ? err({ kind: "divisionByZero" }) : ok(ZERO);
   }
   if (abs(s.exp) * abs(n) > MAX_EXPONENT) {
-    return powerTooLarge(s, n, boundPassed(s.exp * n));
+    const y = integerExponent(n);
+    const limit = powerLimit(s, y) ?? powerSide(s, y);
+    return err({ kind: "tooLarge", limit });
   }
   const mant = powFraction(s.mant, n, limit);
   if (mant.ok) return scaled(mant.value, s.exp * n);
-  return mant.error.kind === "tooLarge"
-    ? powerTooLarge(s, n, "range")
-    : err(fromFractionError(mant.error));
+  if (mant.error.kind !== "tooLarge") {
+    return err(fromFractionError(mant.error));
+  }
+  const refused = powerLimit(s, integerExponent(n)) ?? "range";
+  return err({ kind: "tooLarge", limit: refused });
 }
 
-/** `s^n` refused as `tooLarge`, at the limit `powerLimit` names, or at `otherwise` where it cannot tell. */
-function powerTooLarge(
-  s: Scaled,
-  n: bigint,
-  otherwise: Limit,
-): Result<never, ScaledError> {
-  const limit = powerLimit(s, fromRational({ num: n, den: 1n }));
-  return err({ kind: "tooLarge", limit: limit ?? otherwise });
+/**
+ * The integer `n` as a `Scaled` for `powerLimit`, which reads only its
+ * magnitude and sign: not in canonical form, since moving the tens of an
+ * `n` of `2^20` bits out would cost a tenth of a second on every refusal.
+ */
+function integerExponent(n: bigint): Scaled {
+  return { mant: { num: n, den: 1n }, exp: 0n };
 }
 
 // ---------------------------------------------------------------------------
@@ -650,37 +660,82 @@ const LOG2_MAX_EXPONENT = Math.log2(Number(MAX_EXPONENT));
 /** The margin `powerLimit` leaves on the binary logarithm of an exponent, far above the error of the doubles it works through. */
 const POWER_MARGIN = 2 ** -20;
 
+/** `log2 ln 10`, which takes the binary logarithm of a natural logarithm to that of a decimal one. */
+const LOG2_LN10 = Math.log2(Math.LN10);
+
+/**
+ * The slack on `log2 |ln |s||` when it is taken from `d = |s| - 1`, for an
+ * `s` within `2^-29` of one in magnitude: `|ln(1 + d)|` is `|d|` within a
+ * factor `1 ± 2|d|` there, whose binary logarithm is well inside this.
+ */
+const NEAR_ONE_SLACK = 2 ** -25;
+
 /**
  * The limit that refuses `s^y`, told by where its decimal exponent,
  * `y log10 |s|`, lies: `exponentAbove` or `exponentBelow` when that is
- * past the bound, `range` when it is within it, so that the bound is not
- * what refuses the power, and `undefined` when it is within a relative
- * `2^-20` of the bound, where the bounds cannot tell. The exponent is
- * never formed: its binary logarithm, `log2 |y|` plus `log2` of `log10
- * |s|`, is bounded from the binary bounds of both, `log2 |s|` taken
- * toward zero for the lower bound (zero when its bounds straddle zero,
- * `s` being within `2^-30` of one in magnitude) and away from it for the
- * upper; the sign is that of `y` times that of `log |s|`. For a power the
- * arithmetic refuses, so that the error names the bound, which no setting
- * moves, when no setting could compute the power (`7^(10^19)`), and the
- * range limit when an inexact base would give it a value.
+ * past the bound, on the side `powerSide` gives, `range` when it is
+ * within it, so that the bound is not what refuses the power, and
+ * `undefined` when it is within a relative `2^-20` of the bound, where
+ * the bounds cannot tell. The exponent is never formed: its binary
+ * logarithm, `log2 |y|` plus `log2 |log10 |s||` (`log2OfLog10`), is
+ * bounded from both sides. For a power the arithmetic refuses, so that
+ * the error names the bound, which no setting moves, when no setting
+ * could compute the power (`7^(10^19)`), and the range limit when an
+ * inexact base would give it a value. A zero `s` or `y`, and an `s` of
+ * magnitude one, give a power of magnitude zero or one: `range`.
  */
 export function powerLimit(s: Scaled, y: Scaled): Limit | undefined {
-  if (isZero(s) || isZero(y)) return "range";
-  const base = log2Bounds(s);
-  const lower = valueOfLog2(base.lower);
-  const upper = valueOfLog2(base.upper);
-  const least = lower > 0 ? lower : upper < 0 ? -upper : 0;
-  const most = Math.max(Math.abs(lower), Math.abs(upper));
+  if (isZero(s) || isZero(y) || equals(absolute(s), ONE)) return "range";
+  const base = log2OfLog10(s);
+  if (base === undefined) return undefined;
   const power = log2Bounds(y);
-  const leastLog2 = valueOfLog2(power.lower) + Math.log2(least * LOG10_2);
-  const mostLog2 = valueOfLog2(power.upper) + Math.log2(most * LOG10_2);
+  const leastLog2 = valueOfLog2(power.lower) + base.lower;
+  const mostLog2 = valueOfLog2(power.upper) + base.upper;
   if (mostLog2 < LOG2_MAX_EXPONENT - POWER_MARGIN) return "range";
   if (leastLog2 <= LOG2_MAX_EXPONENT + POWER_MARGIN) return undefined;
-  // Past the bound, the bounds on `log2 |s|` lie on one side of zero.
-  const belowOne = lower < 0;
+  return powerSide(s, y);
+}
+
+/**
+ * The side of the bound `s^y` lies past when it passes it, for a nonzero
+ * `y` and an `s` whose magnitude is not one: above when `y` is positive
+ * and `|s|` above one or both are the other way, below otherwise, told
+ * exactly, by comparing `|s|` with one.
+ */
+export function powerSide(s: Scaled, y: Scaled): Limit {
+  const belowOne = compare(absolute(s), ONE) < 0;
   const negative = sign(y) < 0;
   return negative === belowOne ? "exponentAbove" : "exponentBelow";
+}
+
+/**
+ * A lower and an upper bound on `log2 |log10 |s||`, for a nonzero `s`
+ * whose magnitude is not one: from the binary bounds on `log2 |s|`, taken
+ * toward zero for the lower and away from it for the upper, where those
+ * lie on one side of zero; and otherwise, `|s|` being within `2^-30` or so
+ * of one, from `d = |s| - 1` formed exactly, `|ln |s||` being `|d|` within
+ * `NEAR_ONE_SLACK`. `undefined` when `d` cannot be aligned within the hard
+ * bound, which only a mantissa of the hard bound's size makes possible.
+ */
+function log2OfLog10(s: Scaled): { lower: number; upper: number } | undefined {
+  const bounds = log2Bounds(s);
+  const lower = valueOfLog2(bounds.lower);
+  const upper = valueOfLog2(bounds.upper);
+  if (lower > 0 || upper < 0) {
+    const least = lower > 0 ? lower : -upper;
+    const most = Math.max(Math.abs(lower), Math.abs(upper));
+    return {
+      lower: Math.log2(least * LOG10_2),
+      upper: Math.log2(most * LOG10_2),
+    };
+  }
+  const d = subtract(absolute(s), ONE, LIMIT_BITS);
+  if (!d.ok) return undefined;
+  const near = log2Bounds(d.value);
+  return {
+    lower: valueOfLog2(near.lower) - LOG2_LN10 - NEAR_ONE_SLACK,
+    upper: valueOfLog2(near.upper) - LOG2_LN10 + NEAR_ONE_SLACK,
+  };
 }
 
 /** A binary logarithm as a double. */

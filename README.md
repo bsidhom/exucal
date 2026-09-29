@@ -401,7 +401,7 @@ it is too small to compute, its exponent would fall below `-10^18`.
 `sinh`, `cosh` and powers (`pow(10, 1e999)`, `10^1e999`) share the limit,
 `sinh` and `cosh` of a negative argument being too large rather than too
 small, and a power that no setting could hold is reported at the bound
-even where Most bits refuses it first (`7^(10^19)`, an integer of about
+even where Most bits refuses it first (`7^1e19`, an integer of about
 `8.5 × 10^18` digits). What `approx` does relax is Most bits, in a sum:
 `1e999999999 + 1` is refused, since its exact value has a billion digits,
 while `approx(1e999999999) + 1` is `≈ 1e+999999999`, the `1` absorbed into

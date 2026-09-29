@@ -186,19 +186,28 @@ its exponent would pass 10^18.` and `"exp(-1e999)" is too small to
 compute: its exponent would fall below -10^18.` An exact power is told
 by its decimal exponent rather than by the check that fails first
 (`powerLimit` of scaled.ts), its mantissa being sized before its
-exponent is: `7^(10^19)`, refused by the range limit's prediction, is
-past the bound, which no setting moves; and `2.54^(10^18)`, whose
-canonical exponent, `-2 × 10^18`, is past the bound below, is
-`10^(0.40 × 10^18)`, within it, and is refused at the range limit. A
-power of an inexact base that the guard refuses is past the bound on the
-side of one its magnitude lies, and a negative power on the other side.
-A literal past the bound is the parser's to word: its exponent passes
-`10^18`, or is below `-10^18`, as written, less its fraction digits, and
-then as the canonical form puts it. The exponent the messages speak of is
-the canonical one, which differs from the decimal exponent by the
-mantissa's digits: a value within as many digits of the bound as its
-mantissa has may be refused (`1e-999999999999999950 * sqrt(2)`, whose
-mantissa has the working digits), and a whole mantissa past it held.
+exponent is: `7^1e19`, refused by the range limit's prediction, is past
+the bound, which no setting moves; and `2.54^1e18`, whose canonical
+exponent, `-2 × 10^18`, is past the bound below, is `10^(0.40 × 10^18)`,
+within it, and is refused at the range limit. The side is told exactly,
+by comparing the base's magnitude with one, and the size by bounds on
+the exponent's logarithm, taken for a base within `2^-30` of one from
+its exact difference from one, so that `1.0000000001^1e30`, about
+`10^(4.3 × 10^19)`, is too large; within a relative `2^-20` of the
+bound, where the bounds cannot tell, a power refused by its exponent is
+past the bound on the side its signs give, and one refused by its
+mantissa is the range limit's. A power of an inexact base that the guard
+refuses is past the bound on the side of one its midpoint lies, and a
+negative power on the other side. A literal past the bound is the
+parser's to word: its exponent passes `10^18`, or falls below `-10^18`,
+as written, less its fraction digits, and then as the canonical form
+puts it. Where the constructor's check refuses, for a product, a
+quotient or a sum, the exponent a message speaks of is the canonical
+one, which differs from the decimal exponent by the mantissa's digits:
+`1e1000000000000000000 / 3 * 10`, whose value is `3.3 × 10^(10^18)`, is
+refused, its canonical form being `1/3 × 10^(10^18 + 1)`, and
+`1e-1000000000000000000 / 7`, `1.4 × 10^-(10^18 + 1)`, is held, as
+`1/7 × 10^-(10^18)`.
 
 ### Decision: the bound stays at `10^18`
 

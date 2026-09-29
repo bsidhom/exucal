@@ -245,7 +245,7 @@ function describeLiteralPast(limit: Limit): string {
     case "exponentAbove":
       return "this number's exponent passes 10^18";
     case "exponentBelow":
-      return "this number's exponent is below -10^18";
+      return "this number's exponent falls below -10^18";
   }
 }
 

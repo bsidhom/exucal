@@ -200,9 +200,10 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
       dec("1e28135"),
     ) < 0,
   );
-  // Beyond the exponent bound, above it or below: the exact power is
-  // refused by its mantissa first, and reported at the bound, which would
-  // refuse it whatever the range limit.
+  // Beyond the exponent bound, above it or below: 7^(±10^19) is refused by
+  // its mantissa first and 0.7^(10^19) by its exponent, 0.7 being 7 ×
+  // 10^-1, and each is reported at the bound, which would refuse it
+  // whatever the range limit.
   assert.deepEqual(
     failure(powBallOf(exact(fr(7n)), exact(dec("1e19")), CONTEXT)),
     { kind: "tooLarge", limit: "exponentAbove" },
@@ -224,6 +225,19 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
   );
   assert.deepEqual(
     failure(powBallOf(exact(fr(2n)), exact(dec("1e-999999999")), CONTEXT)),
+    { kind: "tooLarge", limit: "range" },
+  );
+  // A base within 2^-30 of one is past the bound by its exact difference
+  // from one; a base of magnitude one never is, so its refusal is the
+  // exponent's, which cannot be formed.
+  assert.deepEqual(
+    failure(
+      powBallOf(exact(dec("1.0000000001")), exact(dec("1e999999999")), CONTEXT),
+    ),
+    { kind: "tooLarge", limit: "exponentAbove" },
+  );
+  assert.deepEqual(
+    failure(powBallOf(exact(ONE), exact(dec("1e999999999")), CONTEXT)),
     { kind: "tooLarge", limit: "range" },
   );
   assert.deepEqual(
@@ -307,11 +321,18 @@ test("an inexact exponent is log space for a positive base, and the base's sign 
     { kind: "tooLarge", limit: "exponentBelow" },
   );
   // An exponent beyond a double is past the bound on the side the signs
-  // give.
-  assert.deepEqual(
-    failure(powBallOf(exact(dec("0.5")), ball("1e400", "1"), CONTEXT)),
-    { kind: "tooLarge", limit: "exponentBelow" },
-  );
+  // give, both of them.
+  for (const [base, exponent, limit] of [
+    ["0.5", "1e400", "exponentBelow"],
+    ["0.5", "-1e400", "exponentAbove"],
+    ["2", "1e400", "exponentAbove"],
+    ["2", "-1e400", "exponentBelow"],
+  ] as const) {
+    assert.deepEqual(
+      failure(powBallOf(exact(dec(base)), ball(exponent, "1"), CONTEXT)),
+      { kind: "tooLarge", limit },
+    );
+  }
   // A wide exponent gives a wide result: a ball that covers 10^100000.
   const wideExponent = value(
     powBallOf(exact(fr(10n)), ball("100000", "1"), CONTEXT),

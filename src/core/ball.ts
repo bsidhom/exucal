@@ -421,7 +421,8 @@ export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
  * midpoint stays at the working precision and only the magnitude of the
  * result is guarded: a result whose decimal exponent would exceed the
  * exponent bound is `tooLarge` before anything is computed (4.9), above
- * the bound or below it as the base's magnitude is above or below one,
+ * the bound or below it as the midpoint's magnitude is above or below
+ * one, told exactly,
  * and a product that passes it in the loop, by the guard's double, is
  * `tooLarge` there. A negative `n` inverts by the division rule, so a
  * ball containing zero to a negative power is `unresolved`, and a power
@@ -447,11 +448,14 @@ export function powBall(
       ? err({ kind: "tooLarge", limit: reciprocalLimit(error.limit) })
       : positive;
   }
-  const scale = isZero(b.mid) ? 0 : log2Scale(b);
-  if (Math.abs(scale) * Number(n) * Math.log10(2) > Number(MAX_EXPONENT)) {
+  if (
+    !isZero(b.mid) &&
+    log2Scale(b) * Number(n) * Math.log10(2) > Number(MAX_EXPONENT)
+  ) {
+    const belowOne = compare(absolute(b.mid), ONE) < 0;
     return err({
       kind: "tooLarge",
-      limit: scale < 0 ? "exponentBelow" : "exponentAbove",
+      limit: belowOne ? "exponentBelow" : "exponentAbove",
     });
   }
   let result = exact(ONE);
@@ -808,25 +812,22 @@ export function expFits(bound: number): boolean {
 }
 
 /**
- * A bound on `|log2|` of the values in the inexact `b`, as a double with
- * the sign of the side of one it is on: the larger in magnitude of the
- * binary exponent of its magnitude bound and of its midpoint's, each to a
- * double's accuracy plus a little slack, so that `powBall` can bound the
- * bits of a power's integer part or denominator before computing it, and
- * tell a power past the bound above from one past it below. An unbounded
- * radius bounds nothing, and the midpoint's exponent stands alone, as the
- * midpoint is all that is computed for such a ball.
+ * A bound on `|log2|` of the values in the inexact `b`, as a double: the
+ * larger of the binary exponent of its magnitude bound and of its
+ * midpoint's, each to a double's accuracy plus a little slack, so that
+ * `powBall` can bound the bits of a power's integer part or denominator
+ * before computing it. An unbounded radius bounds nothing, and the
+ * midpoint's exponent stands alone, as the midpoint is all that is
+ * computed for such a ball.
  */
 function log2Scale(b: Ball): number {
   const above = magnitudeAbove(b);
-  const mid = log2Of(b);
+  const mid = Math.abs(log2Of(b));
   const upper =
     above.kind === "unbounded"
       ? mid
-      : Math.log2(Number(above.mant)) + Number(above.exp);
-  const larger = Math.abs(upper) >= Math.abs(mid) ? upper : mid;
-  const magnitude = Math.abs(larger) * (1 + 1e-9) + 1e-9;
-  return larger < 0 ? -magnitude : magnitude;
+      : Math.abs(Math.log2(Number(above.mant)) + Number(above.exp));
+  return Math.max(upper, mid) * (1 + 1e-9) + 1e-9;
 }
 
 /** The limit the reciprocal of a value past `limit` passes: the bound on its other side, or the range limit again. */

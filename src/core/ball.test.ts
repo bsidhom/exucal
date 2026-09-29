@@ -1288,6 +1288,13 @@ test("powBall on an inexact base squares with settling, and is guarded by magnit
   const half = ball(dec("0.5"), dec("1e-30"));
   assertTooLarge(powBall(half, 10n ** 19n, at(20)), "exponentBelow");
   assertTooLarge(powBall(half, -(10n ** 19n), at(20)), "exponentAbove");
+  // The side is the midpoint's against one, told exactly, however near
+  // one: 0.9999999999^(10^30) is about 10^-(4.3 × 10^19).
+  const justBelow = ball(dec("0.9999999999"), dec("1e-27"));
+  assertTooLarge(powBall(justBelow, 10n ** 30n, at(20)), "exponentBelow");
+  assertTooLarge(powBall(justBelow, -(10n ** 30n), at(20)), "exponentAbove");
+  const justAbove = ball(dec("1.0000000001"), dec("1e-27"));
+  assertTooLarge(powBall(justAbove, 10n ** 30n, at(20)), "exponentAbove");
   // A base near one is guarded by its true magnitude, not by its degree.
   const nearOne = ball(dec("1.0000001"), dec("1e-30"));
   assert.ok(powBall(nearOne, 10_000_000n, at(20)).ok);

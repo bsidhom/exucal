@@ -507,6 +507,26 @@ test("a failed power is reported at the power", () => {
   });
 });
 
+test("a prefix times a unit past the exponent bound is too large at the name, on its side", () => {
+  const above = ["m !", "e18- 1e999999999999999999", "big 1e10 m", "x e18big"];
+  assert.deepEqual(failed(...above), {
+    kind: "tooLarge",
+    span: spanOf(above, "e18big"),
+    limit: "exponentAbove",
+  });
+  const below = [
+    "m !",
+    "tiny- 1e-999999999999999999",
+    "small 1e-10 m",
+    "x tinysmall",
+  ];
+  assert.deepEqual(failed(...below), {
+    kind: "tooLarge",
+    span: spanOf(below, "tinysmall"),
+    limit: "exponentBelow",
+  });
+});
+
 test("a unit of any exponent builds, and a prefix or a body scales it in the exponent", () => {
   const table = built(
     "m !",

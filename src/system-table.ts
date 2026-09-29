@@ -17,13 +17,15 @@
 // rather than something to retry.
 
 import { parseDefinitions, type Definition } from "./core/definitions.ts";
+import type { Rejection } from "./core/expr.ts";
 import type { ParseError } from "./core/parser.ts";
 import { err, type Result } from "./core/result.ts";
 import definitionsUrl from "./units.txt?url";
 
 export type SystemDefinitionsError =
   /** The definitions file could not be fetched; `reason` says why. */
-  { readonly kind: "fetchFailed"; readonly reason: string } | ParseError;
+  | { readonly kind: "fetchFailed"; readonly reason: string }
+  | ParseError<Rejection>;
 
 let loading:
   Promise<Result<readonly Definition[], SystemDefinitionsError>> | undefined;

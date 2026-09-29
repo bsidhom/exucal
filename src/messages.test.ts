@@ -109,6 +109,13 @@ test("a parse error names what was expected and what was found", () => {
     textMessage(`${"9".repeat(320000)} m`),
     `"${"9".repeat(320000)}": this number is too large to represent.`,
   );
+  // A `^` exponent is a fraction, which must be formed, and must not
+  // divide by zero.
+  assert.equal(
+    textMessage("m^1e999999"),
+    '"1e999999": this number is too large to represent.',
+  );
+  assert.equal(textMessage("m^(1/0)"), '"1/0": the exponent divides by zero.');
   // A literal of any exponent is a value; the sum that cannot align it
   // is what is too large, at the sum, within the range limit.
   assert.equal(

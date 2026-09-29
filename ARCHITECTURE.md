@@ -764,7 +764,11 @@ Three properties make the combinators simple to reason about:
   found unacceptable, not misread, so trying another reading would only
   produce a worse error. This is how a numeric literal that `parseDecimal`
   reports as `tooLarge` becomes a parse error pointing at the literal.
-  `check` is the only source of `rejected` errors.
+  `check` is the only source of `rejected` errors. The reason is data, the
+  `R` of `Parser<A, R>`: the expression grammar's is its `Rejection` (a
+  literal past a limit, with the limit; a `^` exponent that cannot be
+  formed; one that divides by zero), and `src/messages.ts` words it, as it
+  words every other error, so that no sentence is written in the core.
 
 A parse error is therefore one of two things: nothing acceptable at a
 position, with the labels of what would have been, or text at a span that was

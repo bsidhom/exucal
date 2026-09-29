@@ -132,11 +132,24 @@ export type ExprNode =
       readonly arguments: readonly Expr[];
     };
 
+/**
+ * Why the grammar rejects text it recognized, as data for messages.ts to
+ * word: a literal that cannot be represented, past `limit` (its
+ * mantissa's digits beyond the hard bound, the range limit's, or its
+ * canonical exponent past the exponent bound on either side); a `^`
+ * exponent whose power of ten cannot be formed as a fraction within the
+ * hard bound; and a `^` exponent written as a quotient by zero.
+ */
+export type Rejection =
+  | { readonly kind: "numberTooLarge"; readonly limit: Limit }
+  | { readonly kind: "exponentTooLarge" }
+  | { readonly kind: "exponentDividesByZero" };
+
 // ---------------------------------------------------------------------------
 // Parsing
 
 /** Parses the whole of `text` as an expression. Surrounding spaces are allowed. */
-export function parseExpr(text: string): Result<Expr, ParseError> {
+export function parseExpr(text: string): Result<Expr, ParseError<Rejection>> {
   return parse(
     map(seq(ws, expr), ([, e]) => e),
     text,
@@ -150,7 +163,7 @@ export function parseExpr(text: string): Result<Expr, ParseError> {
  */
 export function parseUnitList(
   text: string,
-): Result<readonly [Expr, ...Expr[]], ParseError> {
+): Result<readonly [Expr, ...Expr[]], ParseError<Rejection>> {
   return parse(
     map(seq(ws, unitList), ([, list]) => list),
     text,
@@ -169,7 +182,7 @@ export function parseUnitList(
 export const ws: Parser<string> = regex(/[ \t]*/, "whitespace");
 
 /** `parser` followed by any whitespace. */
-export function token<A>(parser: Parser<A>): Parser<A> {
+export function token<A, R>(parser: Parser<A, R>): Parser<A, R> {
   return map(seq(parser, ws), ([value]) => value);
 }
 
@@ -183,31 +196,20 @@ const SIGNED = new RegExp(`[+-]?${UNSIGNED.source}`);
 /** The shape of a unit name; the definitions parser builds on it. */
 export const NAME = /[\p{L}_][\p{L}0-9_]*/u;
 
-const TOO_LARGE = "this number is too large to represent";
-
-/** A decimal literal, parsed exactly; one too large to represent is rejected, as `tooLargeReason` words it. */
-function decimal(pattern: RegExp, expected: string): Parser<Scaled> {
+/**
+ * A decimal literal, parsed exactly; one too large to represent is
+ * rejected with the limit it passes. The pattern is the shape
+ * `parseDecimal` reads, so it fails for no other reason.
+ */
+function decimal(pattern: RegExp, expected: string): Parser<Scaled, Rejection> {
   return check(regex(pattern, expected), (text) => {
     const result = parseDecimal(text);
     if (result.ok) return result;
-    return err(
-      result.error.kind === "tooLarge"
-        ? tooLargeReason(result.error.limit)
-        : "this is not a number",
-    );
+    if (result.error.kind !== "tooLarge") {
+      throw new Error(`A literal of the grammar's shape failed to parse`);
+    }
+    return err({ kind: "numberTooLarge", limit: result.error.limit });
   });
-}
-
-/** Why a literal passes `limit`: its mantissa the hard bound, or its exponent the exponent bound, above or below. */
-function tooLargeReason(limit: Limit): string {
-  switch (limit) {
-    case "range":
-      return TOO_LARGE;
-    case "exponentAbove":
-      return "this number's exponent passes 10^18";
-    case "exponentBelow":
-      return "this number's exponent is below -10^18";
-  }
 }
 
 /**
@@ -215,10 +217,13 @@ function tooLargeReason(limit: Limit): string {
  * which stays a `Rational`; one whose power of ten cannot be formed within
  * the hard bound is rejected as too large.
  */
-function fraction(pattern: RegExp, expected: string): Parser<Rational> {
+function fraction(
+  pattern: RegExp,
+  expected: string,
+): Parser<Rational, Rejection> {
   return check(decimal(pattern, expected), (value) => {
     const result = toRational(value, LIMIT_BITS);
-    return result.ok ? result : err(TOO_LARGE);
+    return result.ok ? result : err({ kind: "exponentTooLarge" });
   });
 }
 
@@ -227,7 +232,7 @@ export const name: Parser<Spanned<string>> = token(
   spanned(regex(NAME, "a unit name")),
 );
 
-const number: Parser<Spanned<Scaled>> = token(
+const number: Parser<Spanned<Scaled>, Rejection> = token(
   spanned(decimal(UNSIGNED, "a number")),
 );
 
@@ -257,22 +262,22 @@ function binary(op: BinaryOp): (left: Expr, right: Expr) => Expr {
 }
 
 /** The expression grammar itself, for embedding in another grammar. */
-export const expr: Parser<Expr> = lazy(() => sum);
+export const expr: Parser<Expr, Rejection> = lazy(() => sum);
 
-const parenthesized: Parser<Expr> = map(
+const parenthesized: Parser<Expr, Rejection> = map(
   token(spanned(seq(symbol("("), expr, string(")")))),
   ({ value: [, inner], span }) => ({ span, node: inner.node }),
 );
 
 /** The arguments of a call: zero or more expressions separated by commas. */
-const argumentList: Parser<readonly Expr[]> = map(
+const argumentList: Parser<readonly Expr[], Rejection> = map(
   optional(seq(expr, many(seq(symbol(","), expr)))),
   (found) =>
     found === undefined ? [] : [found[0], ...found[1].map(([, e]) => e)],
 );
 
 /** `name(arguments...)`, with the name's own span kept for the evaluator's errors. */
-const call: Parser<Expr> = map(
+const call: Parser<Expr, Rejection> = map(
   token(spanned(seq(callName, symbol("("), argumentList, string(")")))),
   ({ value: [callee, , args], span }): Expr => ({
     span,
@@ -286,16 +291,20 @@ const call: Parser<Expr> = map(
 );
 
 /** An atom that can follow another factor by juxtaposition: not a number. */
-const unitAtom: Parser<Expr> = alt(call, map(name, leaf), parenthesized);
+const unitAtom: Parser<Expr, Rejection> = alt(
+  call,
+  map(name, leaf),
+  parenthesized,
+);
 
-const atom: Parser<Expr> = alt(map(number, leaf), unitAtom);
+const atom: Parser<Expr, Rejection> = alt(map(number, leaf), unitAtom);
 
 /**
  * The exponent of `^`: a signed decimal, or a parenthesized rational written
  * as a signed decimal optionally divided by an unsigned one. A zero divisor
  * is rejected, as any other unrepresentable literal is.
  */
-const exponent: Parser<Spanned<Rational>> = token(
+const exponent: Parser<Spanned<Rational>, Rejection> = token(
   spanned(
     alt(
       fraction(SIGNED, "a number"),
@@ -323,13 +332,13 @@ const exponent: Parser<Spanned<Rational>> = token(
 function divideExponent(
   numerator: Rational,
   denominator: Rational,
-): Result<Rational, string> {
+): Result<Rational, Rejection> {
   const result = divide(numerator, denominator);
-  return result.ok ? result : err("the exponent divides by zero");
+  return result.ok ? result : err({ kind: "exponentDividesByZero" });
 }
 
 /** `atom`, optionally raised to an exponent. */
-function raised(atom: Parser<Expr>): Parser<Expr> {
+function raised(atom: Parser<Expr, Rejection>): Parser<Expr, Rejection> {
   return map(
     seq(atom, optional(seq(symbol("^"), exponent))),
     ([base, power]) =>
@@ -342,16 +351,16 @@ function raised(atom: Parser<Expr>): Parser<Expr> {
   );
 }
 
-const power: Parser<Expr> = raised(atom);
-const unitPower: Parser<Expr> = raised(unitAtom);
+const power: Parser<Expr, Rejection> = raised(atom);
+const unitPower: Parser<Expr, Rejection> = raised(unitAtom);
 
-const product: Parser<Expr> = map(
+const product: Parser<Expr, Rejection> = map(
   seq(power, many(unitPower)),
   ([first, rest]) => rest.reduce(binary("mul"), first),
 );
 
 /** A product, or a product negated by one leading `-`. */
-const signed: Parser<Expr> = alt(
+const signed: Parser<Expr, Rejection> = alt(
   product,
   map(seq(spanned(symbol("-")), product), ([minus, operand]): Expr => ({
     span: { start: minus.span.start, end: operand.span.end },
@@ -359,7 +368,7 @@ const signed: Parser<Expr> = alt(
   })),
 );
 
-const quotient: Parser<Expr> = chainl1(
+const quotient: Parser<Expr, Rejection> = chainl1(
   signed,
   alt(
     map(symbol("*"), () => binary("mul")),
@@ -367,7 +376,7 @@ const quotient: Parser<Expr> = chainl1(
   ),
 );
 
-const sum: Parser<Expr> = chainl1(
+const sum: Parser<Expr, Rejection> = chainl1(
   quotient,
   alt(
     map(symbol("+"), () => binary("add")),
@@ -383,7 +392,9 @@ const sum: Parser<Expr> = chainl1(
  * something other than a bare expression as an item (the definitions parser
  * keeps each item's text beside it).
  */
-export function unitListOf<A>(item: Parser<A>): Parser<readonly [A, ...A[]]> {
+export function unitListOf<A, R>(
+  item: Parser<A, R>,
+): Parser<readonly [A, ...A[]], R> {
   return map(seq(item, many(seq(symbol(";"), item))), ([first, rest]) => [
     first,
     ...rest.map(([, e]) => e),
@@ -391,4 +402,5 @@ export function unitListOf<A>(item: Parser<A>): Parser<readonly [A, ...A[]]> {
 }
 
 /** The unit list grammar itself: expressions separated by `;`. */
-export const unitList: Parser<readonly [Expr, ...Expr[]]> = unitListOf(expr);
+export const unitList: Parser<readonly [Expr, ...Expr[]], Rejection> =
+  unitListOf(expr);

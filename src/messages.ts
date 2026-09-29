@@ -23,6 +23,7 @@ import {
 } from "./core/builtin.ts";
 import type { UnitListError } from "./core/convert.ts";
 import type { Arity, EvaluateError } from "./core/evaluate.ts";
+import type { Rejection } from "./core/expr.ts";
 import { ZERO, equals, format, type Limit } from "./core/scaled.ts";
 import type {
   ConversionError,
@@ -64,7 +65,7 @@ export function describeTextError(
         : `Unexpected ${quote(characterAt(text, error.pos))}: expected ${expected}.`;
     }
     case "rejected":
-      return `${quote(slice(text, error.span))}: ${error.reason}.`;
+      return `${quote(slice(text, error.span))}: ${describeRejection(error.reason)}.`;
     case "unknownUnit":
       return `Unknown unit ${quote(error.name)}.`;
     case "functionAsUnit":
@@ -215,6 +216,36 @@ function domainValue(reason: DomainReason): string {
       return "a value not strictly between -1 and 1";
     case "origin":
       return "the origin";
+  }
+}
+
+/**
+ * Why the parser rejected a literal it recognized, as a clause about "this
+ * number" without the final period: a mantissa of too many digits for the
+ * hard bound, or a canonical exponent past the exponent bound on either
+ * side, said as a literal's exponent is written; a `^` exponent that cannot
+ * be formed as a fraction; a `^` exponent that divides by zero.
+ */
+function describeRejection(reason: Rejection): string {
+  switch (reason.kind) {
+    case "numberTooLarge":
+      return describeLiteralPast(reason.limit);
+    case "exponentTooLarge":
+      return "this number is too large to represent";
+    case "exponentDividesByZero":
+      return "the exponent divides by zero";
+  }
+}
+
+/** Why a literal past `limit` is rejected, as `describeRejection` words it. */
+function describeLiteralPast(limit: Limit): string {
+  switch (limit) {
+    case "range":
+      return "this number is too large to represent";
+    case "exponentAbove":
+      return "this number's exponent passes 10^18";
+    case "exponentBelow":
+      return "this number's exponent is below -10^18";
   }
 }
 

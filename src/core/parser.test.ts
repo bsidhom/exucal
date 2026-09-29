@@ -27,14 +27,14 @@ import { err, ok } from "./result.ts";
 import type { Span } from "./span.ts";
 
 /** Runs `parser` on the whole of `text`, which is expected to parse. */
-function unwrap<A>(parser: Parser<A>, text: string): A {
+function unwrap<A, R>(parser: Parser<A, R>, text: string): A {
   const result = parse(parser, text);
   assert.ok(result.ok, `expected success, got ${inspect(result)}`);
   return result.value;
 }
 
 /** Runs `parser` on the whole of `text`, which is expected not to parse. */
-function failure(parser: Parser<unknown>, text: string): ParseError {
+function failure<R>(parser: Parser<unknown, R>, text: string): ParseError<R> {
   const result = parse(parser, text);
   assert.ok(!result.ok, `expected failure, got ${inspect(result)}`);
   return result.error;
@@ -273,7 +273,7 @@ test("a success keeps the expectations of what it tried and did not take", () =>
 test("a rejection surfaces through nested combinators with its span", () => {
   const small = check(integer, (n) => (n < 100 ? ok(n) : err("too large")));
   const plus = map(string("+"), () => (a: number, b: number) => a + b);
-  const sum: Parser<number> = lazy(() =>
+  const sum: Parser<number, string> = lazy(() =>
     alt(
       map(seq(string("("), sum, string(")")), ([, n]) => n),
       chainl1(small, plus),

@@ -86,7 +86,7 @@ import {
 } from "./convert.ts";
 import { checkConformance } from "./dimension.ts";
 import { evaluate, invertFunction, type EvaluateError } from "./evaluate.ts";
-import { parseExpr, parseUnitList, type Expr } from "./expr.ts";
+import { parseExpr, parseUnitList, type Expr, type Rejection } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
 import type { Quantity } from "./quantity.ts";
 import { certifies, divideBalls, isExact, type Ball } from "./ball.ts";
@@ -114,7 +114,7 @@ import {
 export type Side = "have" | "want";
 
 /** Why a text denotes no quantity: it does not parse, or does not evaluate. */
-export type TextError = ParseError | EvaluateError | LookupError;
+export type TextError = ParseError<Rejection> | EvaluateError | LookupError;
 
 /**
  * The inverse of the function `name`, the `want`, failed for the `have`'s

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { parseDefinitions, type Definition } from "./definitions.ts";
-import { parseExpr, type Expr } from "./expr.ts";
+import { parseExpr, type Expr, type Rejection } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
 import type { Span } from "./span.ts";
 
@@ -12,14 +12,14 @@ function parsed(text: string): readonly Definition[] {
   return result.value;
 }
 
-function failed(text: string): ParseError {
+function failed(text: string): ParseError<Rejection> {
   const result = parseDefinitions(text);
   assert.ok(!result.ok, `expected failure, got ${inspect(result)}`);
   return result.error;
 }
 
 /** The error for nothing acceptable at `pos`. */
-function unexpected(pos: number, ...expected: string[]): ParseError {
+function unexpected(pos: number, ...expected: string[]): ParseError<Rejection> {
   return { kind: "unexpected", pos, expected };
 }
 
@@ -318,7 +318,7 @@ test("a rejected literal in a body carries its span in the whole text", () => {
   assert.deepEqual(failed(text), {
     kind: "rejected",
     span: spanOf(text, literal),
-    reason: "this number is too large to represent",
+    reason: { kind: "numberTooLarge", limit: "range" },
   });
 });
 

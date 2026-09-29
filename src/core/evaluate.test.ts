@@ -361,7 +361,7 @@ test("a literal of any exponent is a value, and one whose mantissa exceeds the r
   assert.deepEqual(rejected.error, {
     kind: "rejected",
     span: { start: 2, end: 13 },
-    reason: "this number is too large to represent",
+    reason: { kind: "exponentTooLarge" },
   });
   assertEvaluates("m^1e3", quantity("1", { m: 1000 }));
 });

@@ -1017,7 +1017,15 @@ everything is exact and contain it otherwise. A ratio whose integer part
 cannot be formed within the range limit (`1e999999999 m` into `ft;in`) is
 counted as its midpoint settled toward zero at the working digits, still
 an exact integer, and the remainder is what that count leaves (the plan's
-D8 as stage 4 amended it). A ratio whose ball straddles
+D8 as stage 4 amended it), and a count whose ratio falls below the exponent
+bound is zero, nothing of that unit fitting in what is left
+(`1e-999999999999999999 s` into `hr;min;s`; D8 as the plan's H.12 clarified
+it). Any other refusal of a count, of a count times its unit, or of the
+difference it leaves, and an `unresolved` of them, is the list's failure,
+which the pipeline reports as the conversion's, as it reports a refused
+ratio (`3^32767 m` into `ft/7^21845; in/7^21845` is `tooLarge`, its
+remainder not aligning within the range limit, where stage 4 threw). A
+ratio whose ball straddles
 an integer, as `turn / deg` does once both carry `pi()`'s radius, counts
 as that integer rather than its truncation, so that the remainder is a
 ball around zero, which the display leaves out, rather than a whole of the
@@ -1046,7 +1054,11 @@ one rounding of the whole sum, by less than a unit in the last digit of the
 remainder, and the second decomposition is exact. The counts are integers
 and are left alone; one too long for the display is the display's to round,
 as any value is. When the remainder is already exact at the display
-precision, the terms come back as they are.
+precision, the terms come back as they are, and so do they, uncarried,
+when rebuilding the total from the rounded terms fails, since the display
+calls `roundTerms` and the uncarried terms still contain `have`: the
+carry's rebuilt total can pass the exponent bound where the terms did not
+(the plan's H.12).
 
 The pipeline reads the `want` as a unit list. One item that is a bare name
 of a list in the table means that list, with the texts of its units from

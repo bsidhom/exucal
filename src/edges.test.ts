@@ -49,13 +49,13 @@ import {
   equals,
   format,
   negate,
-  parseDecimal,
   sign,
 } from "./core/scaled.ts";
 import {
   addLoose,
   checkValue,
   contains,
+  looseFromText,
   multiplyLoose,
   runCases,
   scaleLoose,
@@ -89,24 +89,6 @@ const KNOWN: readonly Known[] = [
     violation: /got the error overflow$/,
     reason:
       "The guard of the exponential family and of the log-space power measures the whole argument's ball, so a radius alone refuses `exp`, and `resolve` does not retry a refusal; H.15's classifier refuses only when every value passes the bound and leaves the rest `unresolved`.",
-  },
-  {
-    issue: "#48",
-    task: "H.12",
-    cases:
-      /^3047999999999999999999999999999999996953e999999999999999961 m into ft;in/,
-    violation: /^threw Error: A unit list/,
-    reason:
-      "`roundTerms` rebuilds the list's total from its rounded terms, and the carry's total passes the bound, which it has no way to report; H.12 returns the terms uncarried when the rebuilding fails.",
-  },
-  {
-    issue: "#44",
-    task: "H.12",
-    cases:
-      /into (hr;min;s|time|ft;in|1e-999999999999999998 m; 1e-999999999999999999 m)( \[decimal\])?$/,
-    violation: /^threw Error: A unit list/,
-    reason:
-      "`decompose` assumes that a count, a product and a difference of values within the bound stay within it, and throws on the refusal it has no error to return; H.12 makes it a `Result` and the pipeline passes the refusal on.",
   },
   {
     issue: "#44",
@@ -154,14 +136,6 @@ const KNOWN: readonly Known[] = [
     violation: /passes maxBits \(D19\)$/,
     reason:
       "Nothing holds a product, a quotient, a sum of fractions or the conversion's ratio to the range limit, so an exact result passes it; H.14 checks every exact node result and the ratio against it (D19) and refuses at the node (D20).",
-  },
-  {
-    issue: "#58",
-    task: "H.12",
-    cases: /^3\^32767 m into ft\/7\^21845; in\/7\^21845$/,
-    violation: /^threw Error: A unit list's arithmetic failed: tooLarge/,
-    reason:
-      "The settled count leaves a remainder that cannot align within the range limit, and `decompose` throws on the refusal; H.12 passes it on.",
   },
   {
     issue: "#59",
@@ -413,10 +387,12 @@ const CASES: readonly TextCase[] = [
     want: "ft;in",
     expect: refused("overflow"),
   },
+  // In decimal mode the `have` rounds to `3.048e+(10^18)` at eight digits,
+  // whose count of feet, `1e+(10^18 + 1)`, passes the bound.
   {
     text: "3047999999999999999999999999999999996953e999999999999999961 m",
     want: "ft;in",
-    expect: LIST,
+    expect: { exact: LIST, decimal: refused("overflow") },
   },
   {
     text: "1e999999999999999980/3 + approx(333333333333333333333e999999999999999980)",
@@ -907,9 +883,10 @@ function checkList(
           ? "0"
           : format(magnitude, certified, rounding);
     texts.push(`${negative ? "-" : ""}${text} ${units[i]!.text}`);
-    const parsed = parseDecimal(text);
-    if (!parsed.ok) throw new Error(`A shown term parses: ${text}`);
-    const term = negative ? negate(parsed.value) : parsed.value;
+    // Read back loosely: the display's own rounding of a count can carry
+    // it past the bound, which the parser refuses.
+    const parsed = looseFromText(text);
+    const term = negative ? negate(parsed) : parsed;
     total = addLoose(
       total,
       multiplyLoose(term, units[i]!.quantity.magnitude.mid),

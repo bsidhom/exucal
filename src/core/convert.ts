@@ -35,7 +35,16 @@
 // range limit (`1e999999999 m` into `km;m`) is counted as its midpoint
 // settled toward zero at the working digits, an integer of that many
 // digits, and the remainder is what that count leaves (D8 as 4.4 amended
-// it). One case is decided the other way: when the
+// it); and a count whose ratio falls below the exponent bound is zero,
+// nothing of that unit fitting in what is left (D8 as the plan's H.12
+// clarified it: `1e-999999999999999999 s` into `hr;min;s` is `0 hr + 0
+// min + 1e-999999999999999999 s`). Any other refusal of a count, of the
+// product of a count and its unit, or of the difference it leaves, and an
+// `unresolved` of them, is the list's failure, passed on as the
+// conversion's (`ListRefusal`): stage 4 assumed that a quotient, a product
+// and a difference of values within the bound stay within it, and threw
+// where a count passed the bound (issue #44) or a remainder could not
+// align within the range limit (#58). One case is decided the other way: when the
 // ratio's ball straddles an integer, as `turn / deg` does once both carry
 // `pi()`'s radius (`359.999... ± ε`), the count is that integer, since a
 // count that cannot be told from a boundary is best taken as the boundary,
@@ -44,7 +53,11 @@
 // arcmin`; exact units are untouched, a ball of radius zero straddling an
 // integer only when it is one). A remainder that comes out slightly
 // negative that way, or slightly above a whole of the unit before it, is
-// the display's carry case, which `roundTerms` handles. That is only a
+// the display's carry case, which `roundTerms` handles; and when
+// rebuilding the total from the rounded terms fails, the terms come back
+// uncarried, which still contain `have` (the carry's rebuilt total can
+// pass the bound where the terms did not, issue #48's first constraint),
+// so that `roundTerms` stays total for the display. That is only a
 // meaningful sum when the
 // units run from the largest to the smallest, so a unit that is not smaller
 // than the one before it (by midpoint) is an error, as is one that is zero
@@ -66,9 +79,11 @@ import {
   exact,
   multiplyBalls,
   position,
+  radiusOfMove,
   subtractBalls,
   type Ball,
   type BallError,
+  type Edge,
 } from "./ball.ts";
 import { workingDigits, type NumberContext } from "./context.ts";
 import {
@@ -77,12 +92,13 @@ import {
   type Primitives,
 } from "./dimension.ts";
 import type { Quantity } from "./quantity.ts";
-import { addRadius, isZeroRadius, radiusAboveScaled } from "./radius.ts";
+import { addRadius, isZeroRadius } from "./radius.ts";
 import { LIMIT_BITS } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import type { Precision, RoundingMode } from "./rounding.ts";
 import {
   ONE,
+  ZERO,
   absolute,
   add,
   compare,
@@ -109,6 +125,15 @@ export type ConvertError =
    * is never `tooLarge` today; one would be passed on all the same.
    */
   | Refusal;
+
+/**
+ * Why a list's terms could not be formed: a count, a product of a count
+ * and its unit, or the difference it leaves was refused at a limit, or
+ * cannot be told from the edge the result depends on (`unresolved`; from
+ * H.13 the exponent bound is such an edge).
+ */
+export type ListRefusal =
+  Refusal | { readonly kind: "unresolved"; readonly edge: Edge };
 
 /** Why a list of units is not a unit list for a `have`; `index` is the unit at fault. */
 export type UnitListError =
@@ -164,7 +189,8 @@ export function convert(
  * (contain it, when `have` or a unit is inexact). The units are checked
  * in order, each for conformance with `have`, for a positive magnitude
  * whose ball excludes zero, and for being smaller than the one before it,
- * and the first failure is reported with the unit's index. `units` must
+ * and the first failure is reported with the unit's index; a list that
+ * passes fails only as its arithmetic does (`ListRefusal`). `units` must
  * not be empty.
  */
 export function convertToList(
@@ -172,7 +198,7 @@ export function convertToList(
   units: readonly Quantity[],
   primitives: Primitives,
   context: NumberContext,
-): Result<readonly Ball[], UnitListError> {
+): Result<readonly Ball[], UnitListError | ListRefusal> {
   if (units.length === 0) {
     throw new RangeError("A unit list must have at least one unit");
   }
@@ -202,7 +228,7 @@ export function convertToList(
     }
     sizes.push(size);
   }
-  return ok(decompose(have.magnitude, sizes, context));
+  return decompose(have.magnitude, sizes, context);
 }
 
 /**
@@ -216,10 +242,13 @@ export function convertToList(
  * shown beside it (`2 ft + 11.9999999988 in` becomes `3 ft`, not `2 ft +
  * 12 in`; under `floor` it stays `2 ft + 11.999999 in`, since nothing
  * rounds up). When the remainder's midpoint is already exact at `digits`,
- * the terms come back as they are. The rounding is one rounding of the
- * whole sum, by less than a unit in the last digit of the remainder; the
- * counts are integers and are left alone, and one too long to show in
- * `digits` digits is the display's to round.
+ * the terms come back as they are, and so do they when rebuilding the
+ * total from the rounded terms fails, at the product, the sum or the
+ * second decomposition, since the display calls this and the uncarried
+ * terms still contain `have`. The rounding is one rounding of the whole
+ * sum, by less than a unit in the last digit of the remainder; the counts
+ * are integers and are left alone, and one too long to show in `digits`
+ * digits is the display's to round.
  */
 export function roundTerms(
   units: readonly Quantity[],
@@ -232,21 +261,36 @@ export function roundTerms(
   const remainder = terms[last]!;
   const rounded = roundTo(remainder.mid, digits, mode);
   if (equals(rounded, remainder.mid)) return terms;
-  const shift = radiusAboveScaled(
-    settled(subtract(rounded, remainder.mid, LIMIT_BITS)),
-  );
+  // The shift is formed without the bound: at the bottom edge it lies
+  // past it (`1e-999999999999999999 m` into `ft;in`, issue #44).
+  const shift = radiusOfMove(rounded, remainder.mid);
   const widened: Ball = { mid: rounded, rad: addRadius(remainder.rad, shift) };
   const sizes = units.map((unit) => unit.magnitude);
-  const total = terms
-    .slice(0, last)
-    .reduce(
-      (sum, count, i) =>
-        settled(
-          addBalls(sum, settled(multiplyBalls(count, sizes[i]!)), context),
-        ),
-      settled(multiplyBalls(widened, sizes[last]!)),
-    );
-  return decompose(total, sizes, context);
+  const carried = rebuild(terms.slice(0, last), widened, sizes, context);
+  return carried.ok ? carried.value : terms;
+}
+
+/**
+ * The terms of the sum of the `counts` of their units and the `remainder`
+ * of the last, decomposed again over `sizes`: what a rounded remainder
+ * carries into the units before it. Fails as the arithmetic does.
+ */
+function rebuild(
+  counts: readonly Ball[],
+  remainder: Ball,
+  sizes: readonly Ball[],
+  context: NumberContext,
+): Result<Ball[], ListRefusal> {
+  const last = sizes.length - 1;
+  let total = multiplyBalls(remainder, sizes[last]!);
+  if (!total.ok) return passOn(total.error);
+  for (const [i, count] of counts.entries()) {
+    const product = multiplyBalls(count, sizes[i]!);
+    if (!product.ok) return passOn(product.error);
+    total = addBalls(total.value, product.value, context);
+    if (!total.ok) return passOn(total.error);
+  }
+  return decompose(total.value, sizes, context);
 }
 
 /**
@@ -254,36 +298,56 @@ export function roundTerms(
  * exclude zero: the exact integer count of each but the last that fits in
  * what is left, from the ratio of midpoints (`countOf`), and the remainder
  * in the last, the ball of what is left over the last size, the sums
- * aligned at `context`.
+ * aligned at `context`. A count whose ratio falls below the exponent
+ * bound is zero (D8, as the plan's H.12 clarified it); any other refusal
+ * of a count, a product or a difference, and an `unresolved` of them, is
+ * the list's failure.
  */
 function decompose(
   magnitude: Ball,
   sizes: readonly Ball[],
   context: NumberContext,
-): Ball[] {
+): Result<Ball[], ListRefusal> {
   const terms: Ball[] = [];
   let rest = magnitude;
   for (const [i, size] of sizes.entries()) {
     const ratio = divideBalls(rest, size);
-    if (!ratio.ok) {
-      // The sizes were checked to exclude zero before they got here, so
-      // only a refusal of the quotient is left, which this assumes away:
-      // a count can pass the exponent bound, which throws here (issue
-      // #44), and the range limit once quotients are held to it (issue
-      // #52). Both need this to return the refusal instead.
-      throw new Error("A unit list has a unit that cannot be divided by");
-    }
     if (i === sizes.length - 1) {
+      if (!ratio.ok) return passOn(ratio.error);
       terms.push(ratio.value);
-    } else {
-      const count = exact(countOf(ratio.value, context));
-      terms.push(count);
-      rest = settled(
-        subtractBalls(rest, settled(multiplyBalls(count, size)), context),
-      );
+      break;
     }
+    if (!ratio.ok) {
+      if (ratio.error.kind !== "underflow") return passOn(ratio.error);
+      terms.push(exact(ZERO));
+      continue;
+    }
+    const count = exact(countOf(ratio.value, context));
+    terms.push(count);
+    const product = multiplyBalls(count, size);
+    if (!product.ok) return passOn(product.error);
+    const difference = subtractBalls(rest, product.value, context);
+    if (!difference.ok) return passOn(difference.error);
+    rest = difference.value;
   }
-  return terms;
+  return ok(terms);
+}
+
+/**
+ * A ball operation's failure as the list's: a refusal or an `unresolved`
+ * is passed on, and nothing else can arise, the sizes having been checked
+ * to exclude zero and the operations taking no root and reading no text.
+ */
+function passOn(error: BallError): Result<never, ListRefusal> {
+  switch (error.kind) {
+    case "tooLarge":
+    case "overflow":
+    case "underflow":
+    case "unresolved":
+      return err(error);
+    default:
+      throw new Error(`A unit list's arithmetic failed: ${error.kind}`);
+  }
 }
 
 /**
@@ -335,15 +399,13 @@ const HALF: Scaled = ((): Scaled => {
 })();
 
 /**
- * The value of an operation this module assumes cannot fail: a sum of
- * terms that came from one decomposition aligns as it did, and a product
- * of a count and a size is within the bound the ratio was. The assumption
- * fails at the edge of the bound (issues #44 and #48), and would for a
- * product past the range limit once products are held to it (issue #52);
- * a failure throws.
+ * The value of a sum or difference within a ratio's own digits, which
+ * always aligns and stays within the bound: `nearestInteger`'s alone.
  */
 function settled<T>(result: Result<T, BallError>): T {
   if (!result.ok)
-    throw new Error(`A unit list's arithmetic failed: ${result.error.kind}`);
+    throw new Error(
+      `A sum within a value's digits aligns: ${result.error.kind}`,
+    );
   return result.value;
 }

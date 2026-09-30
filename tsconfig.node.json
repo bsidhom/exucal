@@ -21,6 +21,7 @@
     "src/core/**/*.ts",
     "src/testing/**/*.ts",
     "src/units.test.ts",
+    "src/edges.test.ts",
     "src/messages.ts",
     "src/messages.test.ts",
     "src/settings.ts",

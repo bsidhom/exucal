@@ -1179,7 +1179,7 @@ milliseconds), once, and `src/system-build.ts` builds the table from them
 at the ceiling of the retry schedule in force, memoizing one table by its
 ceiling, so that the shell, which starts the load when it is connected and
 shows a loading message until the promise settles, builds in `render` and
-rebuilds only when the "most digits" setting moves the ceiling. Loading
+rebuilds only when the precision limit setting moves the ceiling. Loading
 the components never waits on the table. Should the fetch fail, or the
 file fail to parse or build (which `units.test.ts` guards against), the
 shell says so instead of rendering a converter.

@@ -94,6 +94,51 @@ were each computed to a finite number of digits, however exactly they
 cancel. A value that cannot be told from zero at any precision up to the
 ceiling (`(2^(1/2))^2 - 2`) cannot be divided by, and the app says so.
 
+### How a number is held, and what the settings touch
+
+A value is a fraction times a power of ten: `2.54` is `254/100`, kept as
+`127/50`, and `1e999999999` is `1` times `10^999999999`. The fraction is
+exact, so `1/3` is one over three and not a string of threes, and the
+power of ten is a separate exponent, so a value's magnitude costs
+nothing. Every value also carries a radius, a bound on how far the
+number held may lie from the number meant. An exact value has radius
+zero, and `=` means that. A value with a nonzero radius is inexact, and
+it arises in exactly three ways: an inexact function (a root, `exp`,
+`sin`, `pi()`), `approx`, and the decimal mode's rounding.
+
+The two kinds of value are limited by two different things, and that is
+why the settings come in two units.
+
+- **An exact value is limited by its size, in bits.** `1/3` is small,
+  `3^100000` is not, and what it costs to store and multiply is the bits
+  of its numerator and denominator. Most bits bounds that, and nothing
+  else touches an exact value in exact mode: it is never rounded, and
+  no digits setting applies to it. The display writes as many of its
+  digits as Digits asks for and marks the rest rounded away with `≈`.
+- **An inexact value is limited by its precision, in decimal digits.**
+  What is known of it is its midpoint within its radius, and the app
+  keeps the midpoint to a working number of significant digits, rounding
+  it after every step and adding the rounding to the radius, so that an
+  inexact number never grows past what its radius makes meaningful. The
+  digits are decimal because the exponent is decimal: a midpoint rounded
+  to `w` digits is an integer of `w` digits times a power of ten, the
+  smallest form the type has, and it is what the display writes, so the
+  digits shown and the digits computed are the same kind of thing. The
+  functions themselves work in binary, at the bits those digits are
+  worth plus a guard, and round their results onto the decimal grid on
+  the way out.
+
+In exact mode, Digits is how many digits of the answer must be certain
+before it is shown, and the app raises the working digits of the
+inexact values, pass by pass, until the two ends of the ball round to
+the same digits. The precision limit is how far it may raise them, four
+times the limit plus ten, which is also the most digits an answer may
+be asked for. In decimal mode there is one pass, every value is rounded
+to Digits, exact values included, and the precision limit only caps
+Digits. In both modes, Most bits is the one limit on exact values, and
+it also bounds the precision limit, since a midpoint at the ceiling must
+fit within it with room for a product.
+
 ## Unit definitions
 
 Every unit the app knows comes from a definitions file, `src/units.txt`,

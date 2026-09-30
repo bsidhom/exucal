@@ -400,7 +400,18 @@ certification guarantees is the true value's rounding in that mode.
 
 Exact arithmetic cannot overflow, but it can grow without bound:
 `3^1000000` and `1e999999999 + 1` are valid input. Two limits on two axes
-bound it (the plan's D16 as stage 4 restated it). The magnitude is the
+bound it (the plan's D16 as stage 4 restated it), in two units, because
+they bound two kinds of value: the range limit is in bits, the size of
+an exact rational's numerator and denominator, which is what an exact
+value costs to hold and to multiply; the precision and its ceiling are
+in decimal digits, the count an inexact midpoint is settled to, which is
+decimal because the exponent is (a midpoint of `w` digits is an integer
+of `w` digits times a power of ten, the type's smallest form, and the
+form the display writes), and which the kernel converts to bits plus a
+guard for its own work (`bitsFor`, `digitsFor`). The two meet once:
+`maxDigitsFor` caps the digits so that a settled midpoint at the ceiling
+fits the range limit with room for a product. README ("How a number is
+held, and what the settings touch") is the user's account. The magnitude is the
 value's decimal exponent, bounded by `MAX_EXPONENT`, `10^18`, in
 scaled.ts (the plan's D17), beyond which an operation is refused, an
 `overflow` above it or an `underflow` below it; within it a magnitude

@@ -20,7 +20,8 @@ The Settings panel under the converter has five settings, kept in the
 browser so that they survive a reload:
 
 - **Digits**: how many significant digits an answer is shown with, from 1
-  up to the "most digits" setting; eight by default, as GNU units shows.
+  up to the precision limit; eight by default, as GNU units shows. In
+  decimal mode it is also the precision of every step.
   `1 m` in `in` is `≈ 39.370079 in` at eight digits and `≈ 39.3700787402
 in` at twelve.
 - **Rounding**: how the last digit shown is rounded, one of the seven
@@ -40,13 +41,16 @@ in` at twelve.
   for or fewer is exact in either mode (`1 ft` in `in` is `= 12 in`), and
   under a directed rounding mode a rounded value's last digit is marked
   uncertain, the exact value lying at the edge of the shown cell.
-- **Most digits**: the most digits an answer may be asked for, 1,000 by
-  default. It is a cost setting: the app computes at rising precisions
-  until the digits asked for are certain, up to four times this many plus
-  ten, and an expression whose digits can never be certain (`(2^(1/2))^2 -
-2`, which is zero within a bound) runs all the way up on every keystroke.
-  Changing it rebuilds the unit table, since the angle units carry `pi()`
-  to that ceiling; changing the digits never does.
+- **Precision limit** (`maxDigits` in the code and the stored settings):
+  the most digits an answer may be asked for, 1,000 by default, and
+  through that a limit on effort: to certify an answer, exact mode
+  computes at rising precisions, up to four times this plus ten digits
+  (4,040 by default), and an expression whose digits can never be certain
+  (`(2^(1/2))^2 - 2`, which is zero within a bound) runs all the way up on
+  every keystroke. In decimal mode, which computes in one pass at the
+  digits shown, it only caps Digits. Changing it rebuilds the unit table,
+  since the angle units carry `pi()` to that ceiling; changing the digits
+  never does.
 - **Most bits** (`maxBits` in the code and the stored settings): the most
   bits the app will form and hold for one number, as the bits of a
   numerator or denominator of what it stores, 65,536 by default (about
@@ -89,6 +93,73 @@ rounded away or when a step of the computation was inexact: `1 m ≈
 were each computed to a finite number of digits, however exactly they
 cancel. A value that cannot be told from zero at any precision up to the
 ceiling (`(2^(1/2))^2 - 2`) cannot be divided by, and the app says so.
+
+### How a number is held, and what the settings touch
+
+A value is a fraction times a power of ten: `2.54` is `254/100`, kept as
+`127/50`, and `1e999999999` is `1` times `10^999999999`. The fraction is
+exact, so `1/3` is one over three and not a string of threes, and the
+power of ten is a separate exponent, so a value's magnitude costs
+nothing. Every value also carries a radius, a bound on how far the
+number held may lie from the number meant. An exact value has radius
+zero, and `=` means that. A value with a nonzero radius is inexact, and
+it arises in exactly three ways: an inexact function (a root, `exp`,
+`sin`, `pi()`), `approx`, and the decimal mode's rounding.
+
+The two kinds of value are limited by two different things, and that is
+why the settings come in two units.
+
+- **An exact value is limited by its size, in bits.** `1/3` is small,
+  `3^100000` is not, and what it costs to store and multiply is the bits
+  of its numerator and denominator. Most bits bounds that, and nothing
+  else touches an exact value in exact mode: it is never rounded, and
+  no digits setting applies to it. The display writes as many of its
+  digits as Digits asks for and marks the rest rounded away with `≈`.
+- **An inexact value is limited by its precision, in decimal digits.**
+  What is known of it is its midpoint within its radius, and the app
+  keeps the midpoint to a working number of significant digits, rounding
+  it after every step and adding the rounding to the radius, so that an
+  inexact number never grows past what its radius makes meaningful. The
+  digits are decimal because the exponent is decimal: a midpoint rounded
+  to `w` digits is an integer of `w` digits times a power of ten, the
+  smallest form the type has, and it is what the display writes, so the
+  digits shown and the digits computed are the same kind of thing. The
+  functions themselves work in binary, at the bits those digits are
+  worth plus a guard, and round their results onto the decimal grid on
+  the way out.
+
+In exact mode, Digits is how many digits of the answer must be certain
+before it is shown, and the app raises the working digits of the
+inexact values, pass by pass, until the two ends of the ball round to
+the same digits. The precision limit is how far it may raise them, four
+times the limit plus ten, which is also the most digits an answer may
+be asked for. In decimal mode there is one pass, every value is rounded
+to Digits, exact values included, and the precision limit only caps
+Digits. In both modes, Most bits is the one limit on exact values, and
+it also bounds the precision limit, since a midpoint at the ceiling must
+fit within it with room for a product.
+
+**Why four times the limit plus ten.** The passes of exact mode are a
+geometric schedule: the first computes at Digits plus ten, and each
+later one at twice the one before, so the passes together cost at most
+about twice the pass that succeeds, whatever it is. Cancellation costs
+digits, `k` of them when two values agree to `k` digits before they are
+subtracted, and each doubling pays for as many again. The ten is the
+guard of the first pass: a short expression loses a few digits to the
+rounding of each step and a little more to an ordinary cancellation,
+and ten covers that, so that the common case certifies on its first
+pass. The ceiling is the top of the schedule, and it has to be one
+number for every Digits, since the unit table and the constants are
+built once at it. It is set from the largest request the limit allows:
+at Digits equal to the limit, the first pass is the limit plus ten, and
+four times that gives that request two doublings above its first pass,
+two chances to pay for a cancellation, where a smaller request has
+correspondingly more (nine passes at eight digits). Four was chosen as
+the least factor that gives the largest request more than one such
+chance without doubling what the table and the constants cost for
+every setting; the guard of ten and the factor are judgments, not
+measurements, and they moved once, from a fixed ceiling of a thousand
+digits with Digits capped at two hundred, when the cap became a setting.
 
 ## Unit definitions
 
@@ -393,8 +464,9 @@ result passes:
 ```
 
 A value is held as a mantissa times a power of ten. The settings limit
-the mantissa: Digits and Most digits say how many of its digits must be
-certain, and Most bits how large its numerator and denominator may grow.
+the mantissa: Digits and the precision limit say how many of its digits
+must be certain, and Most bits how large its numerator and denominator
+may grow.
 The exponent has a fixed bound of its own, `10^18` either way, which is
 not a setting. `1e999` is `1 × 10^999`, well within both. `exp(1e999)` has
 a mantissa that 32 digits hold with ease and an exponent that is itself a
@@ -404,7 +476,7 @@ number of 999 digits:
 exp(1e999) = 2.0307164965753263882718190599363 × 10^434294481903251827…4497145
              └────────── mantissa ───────────┘      └─────── exponent ───────┘
              the settings' part: Digits,            fixed, not a setting:
-             Most digits and Most bits;             at most 10^18 either
+             Precision limit and Most bits;         at most 10^18 either
              32 digits fit with ease                way; this one has 999
                                                     digits, 4.3 × 10^998
 ```
@@ -447,8 +519,8 @@ that argument to many more digits than the result shows. `exp(1e999)` to
 and 33 after. `approx(1e999)` is `1e999` within one unit in its last
 working digit, and the app computes at rising precisions until the digits
 asked for are certain, so the radius shrinks with each pass; but at 32
-digits, with Most digits 1,000 and Most bits 32,768, it stays above one,
-where `exp` would have no digit to show, until the sixth pass:
+digits, with a precision limit of 1,000 and Most bits 32,768, it stays
+above one, where `exp` would have no digit to show, until the sixth pass:
 
 ```
                    log10 r, where r is the radius of approx(1e999)
@@ -485,7 +557,7 @@ argument works to as many extra digits as the argument has: `approx`
 would cost it five passes.
 
 So the settings are not what stands in the way. The sixth pass is within
-the ceiling of 4,040 digits that Most digits of 1,000 gives, and its
+the ceiling of 4,040 digits that a precision limit of 1,000 gives, and its
 1,354-digit midpoint fits Most bits of 32,768. A test build with the
 exponent bound raised to `10^1100` found the right digits of `exp(1e999)`
 at the first pass and of `exp(approx(1e999))` at the sixth, each in under

@@ -3,6 +3,7 @@ import { customElement, state } from "lit/decorators.js";
 import {
   MIN_MAX_BITS,
   MODES,
+  ceilingFor,
   maxDigitsFor,
   type Mode,
 } from "./core/context.ts";
@@ -156,6 +157,13 @@ export class AppShell extends LitElement {
       width: 6rem;
     }
 
+    .settings .hint {
+      max-width: 16rem;
+      font-size: 0.75rem;
+      font-weight: 400;
+      opacity: 0.8;
+    }
+
     .settings button {
       align-self: flex-end;
     }
@@ -207,20 +215,34 @@ export class AppShell extends LitElement {
     `;
   }
 
-  /** The settings panel: the digits, the rounding mode, the mode and the two limits, saved on change. */
+  /**
+   * The settings panel: the digits, the rounding mode, the mode and the
+   * two limits, saved on change, each number with a line on what it does.
+   * The cap on the digits is labeled "Precision limit": what it bounds is
+   * the effort exact mode spends, through the ceiling of the retry
+   * schedule (`ceilingFor`), and the line shows that ceiling.
+   */
   private renderSettings() {
     const { digits, rounding, mode, maxDigits, maxBits } = this.settings;
     return html`
       <details>
         <summary>Settings</summary>
         <div class="settings">
-          ${this.renderNumber("Digits", digits, 1, maxDigits, this.onDigitsChange)}
           ${this.renderNumber(
-            "Most digits",
+            "Digits",
+            digits,
+            1,
+            maxDigits,
+            this.onDigitsChange,
+            "Significant digits shown. In decimal mode, the precision of every step as well.",
+          )}
+          ${this.renderNumber(
+            "Precision limit",
             maxDigits,
             1,
             maxDigitsFor(maxBits),
             this.onMaxDigitsChange,
+            `The most digits an answer may be asked for. To certify one, exact mode works at up to 4 × (this + 10) = ${ceilingFor(maxDigits).toLocaleString("en-US")} digits, so this bounds the effort spent.`,
           )}
           ${this.renderNumber(
             "Most bits",
@@ -228,6 +250,7 @@ export class AppShell extends LitElement {
             MIN_MAX_BITS,
             LIMIT_BITS,
             this.onMaxBitsChange,
+            "The most bits in an exact value's numerator or denominator. A hard limit on time and memory.",
           )}
           <label>
             Rounding
@@ -263,13 +286,14 @@ export class AppShell extends LitElement {
     `;
   }
 
-  /** A number input for a setting, accepting an integer in `[min, max]`. */
+  /** A number input for a setting, accepting an integer in `[min, max]`, with a line saying what the setting does. */
   private renderNumber(
     label: string,
     value: number,
     min: number,
     max: number,
     onChange: (event: Event) => void,
+    hint: string,
   ) {
     return html`
       <label>
@@ -283,6 +307,7 @@ export class AppShell extends LitElement {
           .value=${String(value)}
           @change=${onChange}
         />
+        <small class="hint">${hint}</small>
       </label>
     `;
   }

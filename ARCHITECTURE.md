@@ -339,6 +339,16 @@ context.ts, four times the cap plus the guard, so that the largest request
 has two doublings of room above its first pass (4,040 digits for the
 default cap of 1,000; nine passes at eight digits, three at a thousand),
 and it is the same in every working context, as the range limit is. The
+guard of ten digits is the first pass's headroom for the rounding of each
+step and an ordinary cancellation, so that the common case certifies at
+once; it is separate from the kernel's `GUARD_BITS`, which is one
+routine's headroom for its own error count. The ceiling is one number
+for every request because the table (D6) and the memos (D10) are built
+at it once; it is set from the largest request the cap allows, and four
+is the least factor that leaves that request more than one doubling
+without doubling the table's and the memos' cost for every setting.
+Both numbers are judgments, not measurements, and README ("Why four
+times the limit plus ten") gives the user's account. The
 ceiling is in the context so that it reaches the built-ins, whose memoized
 constants hold their value at it (the plan's D10); it is static, the
 user's, and a routine that needs more headroom than the working precision
@@ -400,7 +410,18 @@ certification guarantees is the true value's rounding in that mode.
 
 Exact arithmetic cannot overflow, but it can grow without bound:
 `3^1000000` and `1e999999999 + 1` are valid input. Two limits on two axes
-bound it (the plan's D16 as stage 4 restated it). The magnitude is the
+bound it (the plan's D16 as stage 4 restated it), in two units, because
+they bound two kinds of value: the range limit is in bits, the size of
+an exact rational's numerator and denominator, which is what an exact
+value costs to hold and to multiply; the precision and its ceiling are
+in decimal digits, the count an inexact midpoint is settled to, which is
+decimal because the exponent is (a midpoint of `w` digits is an integer
+of `w` digits times a power of ten, the type's smallest form, and the
+form the display writes), and which the kernel converts to bits plus a
+guard for its own work (`bitsFor`, `digitsFor`). The two meet once:
+`maxDigitsFor` caps the digits so that a settled midpoint at the ceiling
+fits the range limit with room for a product. README ("How a number is
+held, and what the settings touch") is the user's account. The magnitude is the
 value's decimal exponent, bounded by `MAX_EXPONENT`, `10^18`, in
 scaled.ts (the plan's D17), beyond which an operation is refused, an
 `overflow` above it or an `underflow` below it; within it a magnitude
@@ -1179,7 +1200,7 @@ milliseconds), once, and `src/system-build.ts` builds the table from them
 at the ceiling of the retry schedule in force, memoizing one table by its
 ceiling, so that the shell, which starts the load when it is connected and
 shows a loading message until the promise settles, builds in `render` and
-rebuilds only when the "most digits" setting moves the ceiling. Loading
+rebuilds only when the precision limit setting moves the ceiling. Loading
 the components never waits on the table. Should the fetch fail, or the
 file fail to parse or build (which `units.test.ts` guards against), the
 shell says so instead of rendering a converter.

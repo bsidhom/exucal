@@ -390,6 +390,11 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
     ["pow(10, 100000/3)", "2.15443469003188372175929356652e+33333"],
     ["pow(7, 100000/3)", "8.60334110021009353583310171446e+28169"],
     ["pow(2, 1e6 / 3)", "2.14727661156281285594787335594e+100343"],
+    // A tiny inexact exponent converts to zero within an ulp at the
+    // kernel's door, and the power is one (#53).
+    ["pow(2, approx(1e-999999999))", "1"],
+    ["pow(2, approx(1e-400000))", "1"],
+    ["pow(approx(2), approx(1e-999999999))", "1"],
   ]) {
     const result = evaluateText(table.value, text!, {
       ...context,

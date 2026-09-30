@@ -25,7 +25,19 @@
 // called (`expFits` of ball.ts refuses `exp(1e30)` as an `overflow`), and an
 // argument beyond `2^62`, whose exponential would pass the bound, is a
 // precondition failure here; the magnitude is taken over the argument's
-// whole interval, so a wide argument is halved as far as its error needs.
+// whole interval. An argument whose interval is wider than one (an error
+// of one half or more) never reaches the halvings: it is zero within the
+// exponential of its signed upper end, `value + error` formed exactly,
+// whose value plus its error bounds the exponential of every value in
+// the interval, so that `exp(approx(1e60) - approx(1e60))` at the first
+// pass, `0` within about `2e9`, costs milliseconds where squaring the
+// whole interval doubled the bit length of a relative error of
+// `e^(2 × 10^9)` at every step until V8 refused (issue #39); the end is
+// the signed one, not the largest magnitude, which for a wide negative
+// interval near `-2.3 × 10^18` would report an overflow, and the guard
+// before this bounds it. digits.ts takes such a result, whose mantissa's
+// interval contains zero and so has no logarithm, as zero within the
+// bound of its extent.
 //
 // `sinhCoshFixed` computes the hyperbolic sine and cosine together. An
 // argument below one throughout its interval takes the two series in `x^2`
@@ -100,6 +112,25 @@ export function expFixed(f: Fixed, bits: number): Floating {
     throw new RangeError(
       "The exponential takes an argument within the exponent bound",
     );
+  }
+  // An interval of width one or more (an error of one half or more): zero
+  // within the exponential of its signed upper end, formed exactly, whose
+  // value plus its error bounds the exponential of every value in the
+  // interval; the squarings below would double the bit length of a
+  // relative error of `e^(2 × 10^9)` at every step (issue #39).
+  if (f.error << 1n >= 1n << BigInt(f.bits)) {
+    const upper = expFixed(
+      { value: f.value + f.error, error: 0n, bits: f.bits },
+      bits,
+    );
+    return {
+      mant: {
+        value: 0n,
+        error: abs(upper.mant.value) + upper.mant.error,
+        bits: upper.mant.bits,
+      },
+      exp: upper.exp,
+    };
   }
   const halvings = Math.max(0, magnitude + 8);
   const working = bits + halvings + 16;

@@ -41,8 +41,11 @@
 // `keepSignificant`, the last being D9's rule for a result's `bits`.
 //
 // The kernel is entered from a `Scaled` or a ball (`fixedFromScaled`,
-// `fixedFromBall`, both rounding to nearest with the rounding counted, the
-// power of ten formed within the hard bound, which the callers see to) and
+// `fixedFromBall`, both rounding to nearest with the rounding counted: a
+// value below half an ulp is zero within one ulp, decided from the coarse
+// bounds with nothing formed, and any other has its power of ten formed
+// within four times the hard bound, which holds whatever a built-in hands
+// the kernel at any range limit the settings allow) and
 // left through `fixedToBall` (docs/decimal.md, "The kernel's boundary"),
 // which rounds the dyadic `value × 2^-bits` to nearest at the working
 // digits it is given (`fixedToScaled`: a multiplication by a memoized power
@@ -71,6 +74,7 @@ import {
   ZERO as ZERO_SCALED,
   decimalDigits,
   decimalExponentOfLog2,
+  log2Bounds,
   powerOfTen,
   scaled,
   toRational as scaledToRational,
@@ -122,16 +126,38 @@ export function fixedFromRational(r: Rational, bits: number): Fixed {
 }
 
 /**
+ * The bits within which `fixedFromScaled` forms a value's power of ten:
+ * four times the hard bound, which holds any mantissa within the range
+ * limit at a magnitude between `2^-maxBits` and `2^maxBits` (about three
+ * times the hard bound in all), the most a built-in hands the kernel at
+ * any range limit the settings allow (H.2 of the plan, issue #56).
+ */
+const FORMABLE_BITS = 4 * LIMIT_BITS;
+
+/**
  * `s` at `bits` fraction bits, rounded to nearest, as `fixedFromRational`
- * converts the fraction it denotes. A value whose power of ten cannot be
- * formed within the hard bound is a precondition failure: a routine that
- * takes the value itself bounds its argument first (docs/decimal.md, "The
- * kernel's boundary").
+ * converts the fraction it denotes. A nonzero value below half an ulp at
+ * `bits` is zero within one ulp, which is what that rounding gives it,
+ * decided from the coarse bounds without forming its power of ten, so
+ * that `exp(1e-999999999)` and `atan2`'s tiny ratio reach the kernel
+ * (issues #53 and #47); any other value has its power of ten formed
+ * within `FORMABLE_BITS`, and one past that is a precondition failure: a
+ * routine that takes the value itself bounds its argument first
+ * (docs/decimal.md, "The kernel's boundary").
  */
 export function fixedFromScaled(s: Scaled, bits: number): Fixed {
-  const r = scaledToRational(s, LIMIT_BITS);
+  checkBits(bits);
+  if (s.mant.num === 0n) return { value: 0n, error: 0n, bits };
+  // Below 2^-(bits + 1) throughout the bounds' slack: the upper bound's
+  // integer part is at most -(bits + 2), so the value is below half an ulp.
+  if (log2Bounds(s).upper.int < -BigInt(bits + 1)) {
+    return { value: 0n, error: 1n, bits };
+  }
+  const r = scaledToRational(s, FORMABLE_BITS);
   if (!r.ok) {
-    throw new RangeError("A fixed-point value must fit the hard bound");
+    throw new RangeError(
+      "A fixed-point value must fit four times the hard bound",
+    );
   }
   return fixedFromRational(r.value, bits);
 }

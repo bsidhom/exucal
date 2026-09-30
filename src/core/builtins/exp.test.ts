@@ -6,6 +6,7 @@ import {
   exact,
   expFits,
   isExact,
+  position,
   radiusBound,
   type Ball,
 } from "../ball.ts";
@@ -21,7 +22,13 @@ import { parseDefinitions } from "../definitions.ts";
 import { DIMENSIONLESS } from "../dimension.ts";
 import { show } from "../display.ts";
 import { evaluateText } from "../pipeline.ts";
-import { UNBOUNDED, radiusAbove, radiusUpper } from "../radius.ts";
+import {
+  UNBOUNDED,
+  compareRadius,
+  radiusAbove,
+  radiusAboveScaled,
+  radiusUpper,
+} from "../radius.ts";
 import { LIMIT_BITS, rational } from "../rational.ts";
 import {
   absolute,
@@ -139,15 +146,113 @@ test("an argument whose exponential would pass the exponent bound is an overflow
     format(thirty.mid, 30, "halfEven"),
     "3.03321539680208754508640214142e+434294",
   );
-  // A wide ball is judged over its whole extent, and computed over it.
+  // A wide ball is judged over its whole extent, and is zero within the
+  // exponential of its upper end, containing the exponentials of both
+  // ends and of the midpoint (H.3).
   assert.ok(!expBall(ball(ZERO, dec("1e30")), CONTEXT).ok);
   const wide = value(expBall(ball(ZERO, dec("1e6")), CONTEXT));
-  assert.ok(compare(wide.mid, ZERO) > 0);
+  assert.deepEqual(wide.mid, ZERO);
+  for (const v of [ONE, dec("3.0332154e434294"), dec("3.2968315e-434295")]) {
+    const where = position(wide, v);
+    assert.ok(where !== "above" && where !== "below", format(v, 8, "floor"));
+  }
+  assert.equal(position(wide, dec("3.04e434294")), "below");
   assert.ok(expFits(2.3e18));
   assert.ok(!expFits(2.31e18));
   assert.equal(radiusBound(UNBOUNDED), Infinity);
   assert.equal(radiusBound(radiusAbove(rational(0n))), 0);
   assert.ok(Math.abs(radiusBound(radiusAbove(rational(3n))) - 3) < 1e-6);
+});
+
+test("an argument below 2^-maxBits throughout is one within twice its magnitude, and one below half an ulp reaches the kernel as zero within an ulp", () => {
+  const context = { ...CONTEXT, precision: 8 };
+  for (const text of ["1e-999999999", "-1e-999999999", "1e-316000"]) {
+    const tiny = value(expBall(exact(dec(text)), context));
+    assert.deepEqual(tiny.mid, ONE, text);
+    assert.ok(
+      compareRadius(tiny.rad, radiusAboveScaled(dec("2e-999999999"))) >= 0 ||
+        text === "1e-316000",
+      text,
+    );
+    assert.ok(
+      compareRadius(tiny.rad, radiusAboveScaled(dec("2.1e-316000"))) < 0,
+      text,
+    );
+    assert.ok(certifies(tiny, 8, "halfEven"), text);
+  }
+  // Below half an ulp of the working bits but not below 2^-maxBits: the
+  // kernel's door converts it to zero within an ulp, and the result is
+  // one within a few ulps.
+  const near = value(expBall(exact(dec("1e-10000")), context));
+  assert.ok(compare(distance(near.mid, ONE), radiusOf(near)) <= 0);
+  assert.ok(compare(radiusOf(near), dec("1e-15")) < 0);
+  assert.ok(certifies(near, 8, "halfEven"));
+  // Through the pipeline (#53's rows): each is `≈ 1`, where it threw.
+  const parsed = parseDefinitions("m  !");
+  assert.ok(parsed.ok);
+  const table = buildTable(parsed.value, {
+    ...CONTEXT,
+    precision: DEFAULT_CEILING,
+  });
+  assert.ok(table.ok, inspect(table));
+  for (const text of [
+    "exp(1e-999999999)",
+    "exp(-1e-999999999)",
+    "exp(1e-316000)",
+    "exp(approx(1e-999999999))",
+    "exp(sqrt(2) * 1e-999999999)",
+    "exp(1e-10000)",
+  ]) {
+    const result = evaluateText(table.value, text, context);
+    assert.ok(result.ok, `${text}: ${inspect(result)}`);
+    assert.deepEqual(
+      show(result.value.magnitude, 8, DEFAULT_ROUNDING),
+      { kind: "certified", text: "1" },
+      text,
+    );
+  }
+});
+
+test("through the pipeline, exp and pow of a wide argument are a ball around zero that certifies nothing, and narrow to their value in milliseconds", () => {
+  const parsed = parseDefinitions("m  !");
+  assert.ok(parsed.ok);
+  const table = buildTable(parsed.value, {
+    ...CONTEXT,
+    precision: DEFAULT_CEILING,
+  });
+  assert.ok(table.ok, inspect(table));
+  // #39's texts at 32 digits: the first pass's argument is `0` within
+  // about `2e9`, which crashed after seconds in the squarings; the second
+  // pass narrows it and the answer is `≈ 1`.
+  const start = performance.now();
+  for (const text of [
+    "exp(1e60 * sqrt(2) - 1e60 * sqrt(2))",
+    "exp(approx(1e60) - approx(1e60))",
+    "pow(2, approx(1e60) - approx(1e60))",
+  ]) {
+    const result = evaluateText(table.value, text, {
+      ...CONTEXT,
+      precision: 32,
+    });
+    assert.ok(result.ok, `${text}: ${inspect(result)}`);
+    assert.deepEqual(
+      show(result.value.magnitude, 32, DEFAULT_ROUNDING),
+      { kind: "certified", text: "1" },
+      text,
+    );
+  }
+  assert.ok(performance.now() - start < 2000, "milliseconds, not seconds");
+  // In decimal mode the one pass is final: `y ln x` carries the settled
+  // third's radius, about `7.7e9`, and the answer is a zero with a bound.
+  const decimal = evaluateText(table.value, "pow(5e1000000000000000000, 1/3)", {
+    ...CONTEXT,
+    precision: 8,
+    mode: "decimal",
+  });
+  assert.ok(decimal.ok, inspect(decimal));
+  const shown = show(decimal.value.magnitude, 8, DEFAULT_ROUNDING);
+  assert.equal(shown.kind, "zero");
+  assert.ok(shown.kind === "zero" && /^\de\+3333333\d{11}$/.test(shown.bound));
 });
 
 test("through the pipeline, exp(1) certifies fifty digits on the first pass, exp(1e6) is a value and exp(1e30) is too large", () => {

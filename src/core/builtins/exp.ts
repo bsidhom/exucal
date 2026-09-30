@@ -17,7 +17,13 @@
 // (`floatingToBall`), exactly where the exponent is within the range
 // limit and in log space otherwise. A tiny argument needs no scaling: the
 // result is `1 + x + ...`, whose digits certify at the first pass, and
-// the digits of the difference from one are the retry loop's to find.
+// the digits of the difference from one are the retry loop's to find;
+// one throughout below `2^-maxBits`, which the kernel cannot be handed
+// at any bits within the range limit, is one within twice its magnitude
+// bound, its expansion at zero, since `e^|x| - 1 <= 2|x|` there (4.4,
+// H.2 of the plan), and one between that and half an ulp of the working
+// bits converts to zero within an ulp at the kernel's door
+// (`fixedFromScaled`), which the exponential of gives `≈ 1` as well.
 
 import {
   exact,
@@ -29,6 +35,7 @@ import {
 } from "../ball.ts";
 import {
   fromBallError,
+  isTiny,
   plainNumbers,
   unboundedOf,
   type Builtin,
@@ -39,6 +46,7 @@ import type { NumberContext } from "../context.ts";
 import { floatingToBall } from "../digits.ts";
 import { expFixed } from "../fixed-exp.ts";
 import { bitsFor, fixedFromBall } from "../fixed.ts";
+import { shiftRadius } from "../radius.ts";
 import { err, ok, type Result } from "../result.ts";
 import { ONE, equals, isZero, sign } from "../scaled.ts";
 
@@ -52,6 +60,11 @@ export function expBall(
   if (isExact(x)) {
     if (isZero(x.mid)) return ok(exact(ONE));
     if (equals(x.mid, ONE)) return ok(eBall(context));
+  }
+  // Below 2^-maxBits throughout: one within twice the magnitude bound,
+  // since e^|x| - 1 <= 2|x| there, the expansion at zero (4.4, H.2).
+  if (isTiny(x, context)) {
+    return ok({ mid: ONE, rad: shiftRadius(magnitudeAbove(x), 1n) });
   }
   if (!expFits(radiusBound(magnitudeAbove(x)))) {
     return err({ kind: sign(x.mid) < 0 ? "underflow" : "overflow" });

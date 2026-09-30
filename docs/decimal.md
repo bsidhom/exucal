@@ -375,20 +375,31 @@ the range of its exponent too, so `sqrt(2)^1e7`, refused by magnitude
 in stage 2, is a value, and `powBall`'s magnitude guard becomes the
 exponent bound.
 
-The way in is always exact: `fixedFromScaled(s, bits)` is `(num ×
-2^bits) / (den × 10^-exp)`, or with `10^exp` in the numerator, a division
-as `fixedFromRational` is today, and a value whose power of ten cannot
-be formed within the hard bound is a precondition failure, which every
-routine that takes the value itself bounds first: `sin`, `cos` and `tan`
-need `pi` to the argument's bits for their reduction, so an argument
-whose integer part exceeds the range limit is `tooLarge`, as the literal
-was; `atan` of an argument beyond `2^bits` is `±pi/2` within `2^-bits`,
-as `tanh` saturates; `asinh` and `acosh` of such an argument are
-`ln(2|x|)` within `1/(2x^2)`, through the logarithm's scale. The plan's
-4.4 lists them, with the tiny end the code added (an argument below
-`2^-maxBits` answered by its expansion at zero); `exp`, the log-space
-power and the ratio of `atan2` have no such answer yet, and throw below
-about `10^-315000` (issues #53 and #47).
+The way in is exact but for one rounding: `fixedFromScaled(s, bits)` is
+`(num × 2^bits) / (den × 10^-exp)`, or with `10^exp` in the numerator, a
+division as `fixedFromRational` is today, for a value whose power of ten
+can be formed within four times the hard bound, which holds any
+mantissa within the range limit at a magnitude between `2^-maxBits` and
+`2^maxBits`, the most a built-in hands the kernel at any range limit the
+settings allow (the hard bound alone was too small from a range limit of
+about 350,000 bits up, issue #56); a nonzero value below half an ulp at
+the bits asked is zero within one ulp, which is what the division's
+rounding gives it, decided from the coarse bounds with nothing formed,
+so that the door takes an argument of any exponent (the plan's H.2); and
+a value past four times the hard bound is a precondition failure, which
+every routine that takes the value itself bounds first: `sin`, `cos`
+and `tan` need `pi` to the argument's bits for their reduction, so an
+argument whose integer part exceeds the range limit is `tooLarge`, as
+the literal was; `atan` of an argument beyond `2^bits` is `±pi/2` within
+`2^-bits`, as `tanh` saturates; `asinh` and `acosh` of such an argument
+are `ln(2|x|)` within `1/(2x^2)`, through the logarithm's scale. The
+plan's 4.4 lists them, with the tiny end the code added (an argument
+below `2^-maxBits` answered by its expansion at zero, `exp` giving one
+within twice its magnitude, since `e^|x| - 1 <= 2|x|` there); the
+log-space power of a tiny exponent and the ratio of `atan2` reach the
+door, where the exponent and the ratio are zero within an ulp, which
+makes `pow(2, approx(1e-999999999))` a value, and the ratio's own value
+is the plan's H.7 to give (issues #53 and #47).
 
 A unit list whose count would be an integer that cannot be formed (D8:
 `1e999999999 m` into `ft;in`) shows the count as the ratio's midpoint

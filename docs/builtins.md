@@ -74,9 +74,16 @@ once the name has resolved and before any argument is evaluated.
   first pass rather than at the ceiling. An argument throughout below
   `2^-maxBits`, which the kernel cannot be handed at any bits within the
   range limit, is answered by its expansion at zero (stage 4's 4.4): the
-  odd functions give the argument itself within its cube, and `cos` and
-  `cosh` give one within its square, so `sin(1e-999999999 radian)` is
-  `≈ 1e-999999999` on the first pass.
+  odd functions give the argument itself within its cube, `cos` and
+  `cosh` give one within its square, and `exp` gives one within twice
+  the argument's magnitude, so `sin(1e-999999999 radian)` is
+  `≈ 1e-999999999` on the first pass and `exp(1e-999999999)` is `≈ 1`.
+  Between that and half an ulp of the working bits, the kernel's door
+  (`fixedFromScaled`) converts the argument to zero within an ulp, which
+  is what the log-space power of a tiny exponent and `atan2`'s tiny ratio
+  go in as. Under a directed rounding mode these show `≈ 1` with no digit
+  certain, since the ball straddles one, as `cosh(1e-999999999)` and
+  `approx(1)` already do.
 - **A large argument is answered before the kernel is entered** (4.4),
   which holds a value only up to the range limit: `sin`, `cos` and `tan`
   of an argument reaching `2^maxBits` are `tooLarge` at the range limit,
@@ -257,9 +264,10 @@ rulings in full.
   and cuts the result to the bits its magnitude calls for. And an
   argument whose interval is too wide for a routine's series (about a
   fifth of a radian for `sin` and `cos`, one radian for `atan`, one half
-  for `asinh`, one for `tanh`) gets a trivial bound instead, zero within
-  one for the sine, the cosine and the hyperbolic tangent, zero within
-  two for the arctangent, the exponential of
+  for `asinh`, one for `tanh` and for `exp`) gets a trivial bound
+  instead, zero within one for the sine, the cosine and the hyperbolic
+  tangent, zero within two for the arctangent, zero within the
+  exponential of the signed upper end for `exp`, the exponential of
   the largest magnitude for the hyperbolic pair, the value at the
   midpoint plus the radius for `asinh`; the retry loop narrows such an
   argument.

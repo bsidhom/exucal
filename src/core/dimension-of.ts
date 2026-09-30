@@ -126,8 +126,8 @@ export function dimensionOf<E>(
       const base = dimensionOf(node.base, lookup, primitives, maxBits);
       if (!base.ok) return base;
       const exponent = reduceExponent(node.exponent, maxBits);
-      if (exponent === undefined) return err({ kind: "tooLarge", span });
-      return ok(powDimension(base.value, exponent));
+      if (!exponent.ok) return err({ kind: "tooLarge", span });
+      return ok(powDimension(base.value, exponent.value));
     }
     case "neg":
       return dimensionOf(node.operand, lookup, primitives, maxBits);

@@ -187,13 +187,8 @@ export function toRational(
 ): Result<Rational, ScaledError> {
   const { num, den } = s.mant;
   if (s.exp === 0n) return ok(s.mant);
+  if (!formable(s, limit)) return err({ kind: "tooLarge" });
   const magnitude = abs(s.exp);
-  if (
-    magnitude > BigInt(limit) ||
-    (Number(magnitude) + decimalDigits(abs(num))) * BITS_PER_DIGIT > limit
-  ) {
-    return err({ kind: "tooLarge" });
-  }
   const power = 10n ** magnitude;
   // Multiplying the numerator keeps lowest terms, the denominator being
   // coprime to ten; multiplying the denominator cancels against the twos
@@ -203,6 +198,22 @@ export function toRational(
   const fives = min(fivesIn(num, magnitude), magnitude);
   const g = (1n << twos) * 5n ** fives;
   return ok({ num: num / g, den: (den * power) / g });
+}
+
+/**
+ * Whether `toRational(s, limit)` would form the fraction: its power of
+ * ten, times the numerator's digits, sized against `limit` bits with
+ * nothing formed, so that the parser can test a `^` exponent's literal
+ * against the hard bound without paying for the fraction (H.9).
+ */
+export function formable(s: Scaled, limit: number): boolean {
+  if (s.exp === 0n) return true;
+  const magnitude = abs(s.exp);
+  return (
+    magnitude <= BigInt(limit) &&
+    (Number(magnitude) + decimalDigits(abs(s.mant.num))) * BITS_PER_DIGIT <=
+      limit
+  );
 }
 
 export function isZero(s: Scaled): boolean {

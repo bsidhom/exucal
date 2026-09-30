@@ -222,13 +222,18 @@ test("a lookup's failure comes back unchanged, from wherever it is in the tree",
 });
 
 test("a ^ exponent is reduced within the range limit, and one past it fails at the power", () => {
-  // The exponent travels unreduced (the plan's H.9, issue #66) and is
-  // reduced here as the evaluator reduces it: `m^(6/4)` is `m^(3/2)`,
-  // and a numerator or a denominator past the limit as the parser read
-  // it is `tooLarge` at the power before any gcd runs, so a body with
-  // such a power fails the build where the call would fail.
+  // The exponent travels as its two literals (the plan's H.9, issue #66)
+  // and is reduced here as the evaluator reduces it: `m^(6/4)` is
+  // `m^(3/2)`, the powers of ten cancel, and a literal past the limit or
+  // a fraction that cannot be formed within it is `tooLarge` at the
+  // power, so a body with such a power fails the build where the call
+  // would fail.
   assert.deepEqual(value("m^(6/4)"), new Map([["m", rational(3n, 2n)]]));
   assert.deepEqual(value("m^(6/3)"), new Map([["m", rational(2n)]]));
+  assert.deepEqual(
+    value("m^(1e30/1e30)", undefined, 64),
+    new Map([["m", rational(1n)]]),
+  );
   assert.deepEqual(failing("m^(1e30/3)", undefined, 64), {
     kind: "tooLarge",
     span: { start: 0, end: 10 },

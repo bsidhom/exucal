@@ -764,14 +764,13 @@ differences. Elsewhere a `-` where an operand can start is a negation and a
 
 An exponent is a signed decimal (`m^2`, `s^-1`, `m^0.5`) or a parenthesized
 rational (`m^(1/2)`), never an expression, so it is known at parse time and
-travels in the tree as the pair of integers the parser read, unreduced
-(`Exponent`): each literal is formed within the hard bound and a zero
-divisor is rejected there, and the evaluator reduces the pair where the
-range limit applies, refusing a numerator or a denominator past it as
-`tooLarge` at the power before any gcd runs, since a reduction in the
-parser, which has no context, took seconds on long literals and minutes
-at the hard bound, on every keystroke (the plan's H.9, issue #66). A unit
-name is a letter or underscore
+travels in the tree as the two literals the parser read, undivided
+(`Exponent`): each must be formable within the hard bound and a zero
+divisor is rejected, both read off the literals with nothing formed, and
+the evaluator takes the quotient where the range limit applies, since a
+reduction in the parser, which has no context, took seconds on long
+literals and minutes at the hard bound, on every keystroke (the plan's
+H.9, issue #66). A unit name is a letter or underscore
 followed by letters, digits and underscores, in any script, taken as long as
 it goes: `m2` is one name rather than `m` beside `2`, and whether a name
 means anything is decided by the table, not the parser. Whitespace is spaces
@@ -903,9 +902,15 @@ the expression denotes. A number is a dimensionless quantity, a unit name
 is whatever the lookup says it is, and the operators are the quantity
 arithmetic above: juxtaposition and `*` multiply, `/` divides, `+` and `-`
 add and subtract, a leading `-` negates, and `^` raises to the exponent the
-parser read, reduced here within the range limit (`reduceExponent`, which
-`dimensionOf` applies under the build's context too). A call resolves its
-name among the functions, through
+parser read, made a fraction here within the range limit
+(`reduceExponent`, which `dimensionOf` applies under the build's context
+too): each literal's mantissa is held to the limit as every literal's is,
+the quotient of the two is taken as `Scaled` values, whose powers of ten
+cancel for nothing, and the fraction is formed from it within the limit
+as `pow` forms an exact exponent, so that `2^(1e30/1e30)` is `2` at any
+limit and `2^1e-30000` is refused at the default as `pow(2, 1e-30000)`
+is, at the bound when the power would pass it and otherwise at the limit.
+A call resolves its name among the functions, through
 the lookup, to a function the table defines or a built-in (`ResolvedFunction`),
 checks that it gives as many arguments as the function takes
 (`arityMismatch` otherwise, before any argument is evaluated, since the

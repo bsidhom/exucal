@@ -4,8 +4,9 @@ import { inspect } from "node:util";
 import { parseExpr, parseUnitList, type Expr, type Rejection } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
 import { LIMIT_BITS, bitLength, rational, toFraction } from "./rational.ts";
-import { fromRational, toRational } from "./scaled.ts";
+import { ONE, divide, fromRational, toRational } from "./scaled.ts";
 import type { Span } from "./span.ts";
+import { parseFraction } from "../testing/fraction.ts";
 import { key, randomBigInt } from "../testing/random.ts";
 
 const OPERATOR = { add: "+", sub: "-", mul: "*", div: "/" } as const;
@@ -26,14 +27,26 @@ function show(e: Expr): string {
       return node.name;
     case "binary":
       return `(${show(node.left)} ${OPERATOR[node.op]} ${show(node.right)})`;
-    case "pow":
-      // The exponent travels unreduced; it renders reduced, as its value.
-      return `${show(node.base)}^${toFraction(rational(node.exponent.num, node.exponent.den))}`;
+    case "pow": {
+      // The exponent travels as its two literals; it renders as its value.
+      const quotient = divide(node.exponent.num, node.exponent.den);
+      assert.ok(quotient.ok);
+      const fraction = toRational(quotient.value, LIMIT_BITS);
+      assert.ok(fraction.ok);
+      return `${show(node.base)}^${toFraction(fraction.value)}`;
+    }
     case "neg":
       return `-${show(node.operand)}`;
     case "call":
       return `${node.name}(${node.arguments.map(show).join(", ")})`;
   }
+}
+
+/** The fraction a decimal literal denotes, through `parseFraction`. */
+function dec(text: string) {
+  const result = parseFraction(text);
+  assert.ok(result.ok, text);
+  return result.value;
 }
 
 function parsed(text: string): Expr {
@@ -250,28 +263,34 @@ test("an exponent may be a parenthesized rational", () => {
   assertParses("m^(2) s", "(m^2 * s)");
 });
 
-test("an exponent travels in the tree as the pair the parser read, unreduced", () => {
+test("an exponent travels in the tree as the two literals the parser read, undivided", () => {
   // The parser has no context to reduce within, and a reduction at the
   // hard bound took seconds to minutes on long literals (issue #66); the
-  // evaluator reduces the pair within the range limit.
+  // evaluator takes the quotient within the range limit, so nothing is
+  // formed here, not even a literal's power of ten.
   for (const [text, num, den] of [
-    ["m^2", 2n, 1n],
-    ["m^-1.5", -3n, 2n],
-    ["m^(2/4)", 2n, 4n],
-    ["m^(-1/2)", -1n, 2n],
-    ["m^(0.5/2)", 1n, 4n],
-    ["m^(3/1.5)", 6n, 3n],
-    ["m^(0/5)", 0n, 5n],
-    // 1e3 / 1e-3 is 1000 × 1000 over 1 × 1: each literal's power of ten
-    // is formed within the hard bound, and the pair is their product.
-    ["m^(1e3/1e-3)", 1000000n, 1n],
+    ["m^2", "2", "1"],
+    ["m^-1.5", "-1.5", "1"],
+    ["m^(2/4)", "2", "4"],
+    ["m^(-1/2)", "-1", "2"],
+    ["m^(0.5/2)", "0.5", "2"],
+    ["m^(3/1.5)", "3", "1.5"],
+    ["m^(0/5)", "0", "5"],
+    ["m^(1e3/1e-3)", "1e3", "1e-3"],
+    ["m^(1e300000/1e-300000)", "1e300000", "1e-300000"],
   ] as const) {
     const e = parsed(text);
     assert.equal(e.node.kind, "pow", text);
     if (e.node.kind === "pow") {
-      assert.deepEqual(e.node.exponent, { num, den }, text);
+      assert.deepEqual(
+        e.node.exponent,
+        { num: fromRational(dec(num)), den: fromRational(dec(den)) },
+        text,
+      );
     }
   }
+  const one = parsed("m^2");
+  assert.ok(one.node.kind === "pow" && one.node.exponent.den === ONE);
 });
 
 test("a ^ exponent of two literals at the hard bound parses in milliseconds (#66)", () => {
@@ -295,8 +314,8 @@ test("a ^ exponent of two literals at the hard bound parses in milliseconds (#66
   assert.ok(ms < 2000, `parsed in ${ms.toFixed(0)} ms`);
   assert.ok(e.node.kind === "pow");
   if (e.node.kind === "pow") {
-    assert.ok(bitLength(e.node.exponent.num) > 1_000_000);
-    assert.ok(bitLength(e.node.exponent.den) > 1_000_000);
+    assert.ok(bitLength(e.node.exponent.num.mant.num) > 1_000_000);
+    assert.ok(bitLength(e.node.exponent.den.mant.num) > 1_000_000);
   }
 });
 

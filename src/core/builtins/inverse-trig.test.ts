@@ -429,6 +429,41 @@ test("asin and acos outside [-1, 1] are domain errors, and a ball reaching an en
       });
     }
   }
+  // A huge argument is the domain error, read off the argument's position
+  // against the ends before its square is formed, where the square passed
+  // the range limit or the exponent bound first (#47).
+  for (const x of [
+    exact(dec("1e30000")),
+    exact(dec("-1e30000")),
+    exact(dec("1e600000000000000000")),
+    exact(dec("-1e600000000000000000")),
+    ball("1e600000000000000000", "1e599999999999999999"),
+  ]) {
+    for (const fn of [asinBall, acosBall]) {
+      assert.deepEqual(failure(fn(x, CONTEXT)), {
+        kind: "domain",
+        argument: 0,
+        reason: "outsideClosedUnitInterval",
+      });
+    }
+  }
+  // A huge ball that reaches an end is unresolved at it, where its square
+  // was refused as overflow: at 1 for a positive midpoint, at -1 for a
+  // negative one, and at 1 for a ball around zero.
+  const vast = ball("1e600000000000000000", "2e600000000000000000");
+  for (const [x, edge] of [
+    [vast, ONE],
+    [{ mid: negate(vast.mid), rad: vast.rad }, negate(ONE)],
+    [ballOf(ZERO, dec("1e600000000000000000")), ONE],
+  ] as const) {
+    for (const fn of [asinBall, acosBall]) {
+      assert.deepEqual(failure(fn(x, CONTEXT)), {
+        kind: "unresolved",
+        argument: 0,
+        edge,
+      });
+    }
+  }
   // A ball close to one whose complement is positive resolves, since the
   // complement is formed on the ball and its root is scaled to order one:
   // 1 - x^2 is about 2e-60 ± 2e-70, and so does an exact value there.
@@ -622,6 +657,14 @@ test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angl
     [
       "asin(2)",
       'Cannot compute "asin(2)": "2" lies outside [-1, 1], where "asin" is defined.',
+    ],
+    [
+      "asin(1e30000)",
+      'Cannot compute "asin(1e30000)": "1e30000" lies outside [-1, 1], where "asin" is defined.',
+    ],
+    [
+      "acos(1e600000000000000000)",
+      'Cannot compute "acos(1e600000000000000000)": "1e600000000000000000" lies outside [-1, 1], where "acos" is defined.',
     ],
     [
       "acos(-1.5)",

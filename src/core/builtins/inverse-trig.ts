@@ -16,15 +16,17 @@
 // value near zero and `acos(1 - 1e-30)` keeps its digits: `1 - x^2` is
 // formed on the ball, exactly for an exact `x`, and its root goes through
 // `rootBall`, which scales a tiny value to order one. The domain is read
-// off that ball: negative throughout, `x` lies outside `[-1, 1]` and the
-// error is `domain` (`outsideClosedUnitInterval`); containing zero
-// without being it, `x` straddles an end (or reaches it: a ball touching
-// `1` cannot be told from crossing it, and a positive value the root
-// cannot tell from zero at the working bits is the same case), and the
-// error is `unresolved` at the edge `1` or `-1` on the side of the
-// midpoint (D4); exactly zero, `x` is `±1`, which are the cases `asin(1)`
-// is `pi/2`, `asin(-1)` is `-pi/2`, `acos(-1)` is `pi`, and `acos(1)` is
-// the exact zero. The other exact cases are zero for `asin` and `atan`.
+// off `x`'s position against `±1` before the square is formed, so that a
+// huge argument is the domain error and not a square past a limit (the
+// plan's H.7, issue #47): above `1` or below `-1` throughout, the error is
+// `domain` (`outsideClosedUnitInterval`); reaching either end (a ball
+// touching `1` cannot be told from crossing it), the error is
+// `unresolved` at the edge `1` or `-1` on the side of the midpoint (D4),
+// and a complement positive as numbers that the root cannot tell from
+// zero at the working bits is the same case; exactly `±1` are the cases
+// `asin(1)` is `pi/2`, `asin(-1)` is `-pi/2`, `acos(-1)` is `pi`, and
+// `acos(1)` is the exact zero. The other exact cases are zero for `asin`
+// and `atan`.
 //
 // `atan2(y, x)` by quadrant: `atan(y / x)` for an `x` positive throughout;
 // that plus pi or minus pi by the sign of `y` for an `x` negative
@@ -58,6 +60,7 @@ import {
   exact,
   isExact,
   multiplyBalls,
+  position,
   rootBall,
   subtractBalls,
   type Ball,
@@ -259,13 +262,30 @@ export function atan2Ball(
  * `sqrt(1 - x^2)` for the bounded `x`, the argument at index zero, or why
  * `x` is not inside `[-1, 1]`: the `domain` error for a ball outside it
  * throughout, and `unresolved` at the nearer end for one that reaches an
- * end, as the header says.
+ * end, as the header says. Both are read off `x`'s position against the
+ * ends before the square is formed, which for a huge `x` would pass the
+ * range limit or the exponent bound first (issue #47); the square is then
+ * of a value strictly inside the interval, and its complement is read
+ * once more, since the coarse rounding of the product's radius can still
+ * carry it onto zero.
  */
 function complementRoot(
   x: Ball,
   context: NumberContext,
 ): Result<Ball, BuiltinError> {
   const edge = sign(x.mid) < 0 ? MINUS_ONE : ONE;
+  const top = position(x, ONE);
+  const bottom = position(x, MINUS_ONE);
+  if (top === "above" || bottom === "below") {
+    return err({
+      kind: "domain",
+      argument: 0,
+      reason: "outsideClosedUnitInterval",
+    });
+  }
+  if (top !== "below" || bottom !== "above") {
+    return err({ kind: "unresolved", argument: 0, edge });
+  }
   const square = multiplyBalls(x, x);
   if (!square.ok) return err(fromBallError(square.error, 0));
   const complement = subtractBalls(exact(ONE), square.value, context);
@@ -278,7 +298,9 @@ function complementRoot(
         reason: "outsideClosedUnitInterval",
       });
     case "zero":
-      throw new Error("An exact end of the domain is handled before the root");
+      throw new Error(
+        "A value strictly inside the domain has a positive complement",
+      );
     case "straddles":
       return err({ kind: "unresolved", argument: 0, edge });
     case "positive":

@@ -38,8 +38,9 @@
 // bounds on `log10` of a mantissa come from an exact power of the mantissa
 // or, near one, from the exact difference from one, and a radius that
 // cannot be formed as a fraction is bounded from above within a relative
-// `10^-9`, its decimal exponent exact and only the mantissa through a
-// double rounded up. A result is checked on its own by `checkValue`: its
+// `5.4 × 10^-10`, in bigint arithmetic throughout (`radiusAtMost`, which
+// says why no bound of it can be exact). A result is checked on its own
+// by `checkValue`: its
 // midpoint's decimal exponent within the bound and `|mid| + rad` below
 // its top, the two conditions of D17 for a value.
 
@@ -54,6 +55,7 @@ import {
   ONE as ONE_FRACTION,
   add as addFractions,
   divide as divideFractions,
+  integerRoot,
   multiply as multiplyFractions,
   pow as powFraction,
   rational,
@@ -376,14 +378,76 @@ const LOG10_2_ABOVE = rational(
   10n ** 40n,
 );
 
+/** The digits the roots of ten are held to, `40`, and their scale. */
+const ROOT_DIGITS = 40n;
+const ROOT_SCALE = 10n ** ROOT_DIGITS;
+
+/** The bits of the fraction of a decade `tenToAbove` resolves, `32`: its granularity is `10^(2^-32)`, a relative `5.4 × 10^-10`. */
+const ROOT_BITS = 32;
+
+/**
+ * `ROOTS[i - 1] / ROOT_SCALE` is at or above `10^(2^-i)`, for `i` from
+ * one to `ROOT_BITS`: each the ceiling of the square root of the one
+ * before, starting from ten, so that every entry is an upper bound.
+ */
+const ROOTS: readonly bigint[] = (() => {
+  const roots: bigint[] = [];
+  let root = 10n * ROOT_SCALE;
+  for (let i = 0; i < ROOT_BITS; i++) {
+    root = ceilSqrt(root * ROOT_SCALE);
+    roots.push(root);
+  }
+  return roots;
+})();
+
+/** The least integer whose square is at or above `n`. */
+function ceilSqrt(n: bigint): bigint {
+  const root = integerRoot(n, 2n);
+  return root * root >= n ? root : root + 1n;
+}
+
+/**
+ * A fraction at or above `10^f`, for a fraction `f` in `[0, 1)`, in bigint
+ * arithmetic throughout: `f` is rounded up to a multiple of `2^-32`, and
+ * `10^(j / 2^32)` is the product of the roots of ten at the set bits of
+ * `j`, each an upper bound, the product rounded up to `ROOT_DIGITS`
+ * digits. Within a relative `5.4 × 10^-10` of `10^f`, the granularity's
+ * `10^(2^-32) - 1`; the roots' own rounding adds `10^-38`.
+ */
+function tenToAbove(f: Rational): Rational {
+  const j = ceilDiv(f.num << BigInt(ROOT_BITS), f.den);
+  if (j >= 1n << BigInt(ROOT_BITS)) return rational(10n);
+  let num = ROOT_SCALE;
+  let den = ROOT_SCALE;
+  for (let i = 1; i <= ROOT_BITS; i++) {
+    if ((j >> BigInt(ROOT_BITS - i)) & 1n) {
+      num *= ROOTS[i - 1]!;
+      den *= ROOT_SCALE;
+    }
+  }
+  return rational(ceilDiv(num * ROOT_SCALE, den), ROOT_SCALE);
+}
+
+/** `ceil(n / d)` for `d > 0`. */
+function ceilDiv(n: bigint, d: bigint): bigint {
+  const q = n / d;
+  return n - q * d > 0n ? q + 1n : q;
+}
+
 /**
  * A `Loose` at or above the bounded `rad`, `mant × 2^exp`: its exact value
  * where the fraction is worth forming, and otherwise a value within a
- * relative `10^-9` above it: `exp log10 2` is taken exactly, from above,
- * and split into its integer part, the decimal exponent, and its fraction,
- * and only `mant × 10^fraction`, a number below `2^30 × 10`, goes through
- * a double, rounded up to the next integer and one more. `undefined` for
- * an unbounded radius.
+ * relative `5.4 × 10^-10` above it, in bigint arithmetic throughout:
+ * `exp log10 2` is taken exactly, from above, through the forty-digit
+ * `LOG10_2_ABOVE`, and split into its integer part, which is the decimal
+ * exponent of the bound and exact, and its fraction of a decade, whose
+ * power of ten `tenToAbove` bounds from the roots of ten. No double is
+ * involved. An exact decision is not to be had here: the radius has a
+ * binary exponent near `3.3 × 10^18`, and comparing it with a power of
+ * ten exactly would mean forming a number of `10^18` digits, so a bound
+ * with a stated slack, rounded outward, is what any check of it rests on,
+ * in the app (`log2Bounds`, within `2^-30`) as in this oracle.
+ * `undefined` for an unbounded radius.
  */
 export function radiusAtMost(rad: Radius): Loose | undefined {
   if (rad.kind === "unbounded") return undefined;
@@ -393,10 +457,10 @@ export function radiusAtMost(rad: Radius): Loose | undefined {
   const log = multiplyFractions(rational(rad.exp), LOG10_2_ABOVE);
   const k = floorDiv(log.num, log.den);
   const fraction = subtractFractions(log, rational(k));
-  const scale =
-    Number(rad.mant) * 10 ** (Number(fraction.num) / Number(fraction.den));
-  const digits = BigInt(Math.ceil(scale * (1 + 2 ** -40))) + 1n;
-  return { mant: rational(digits), exp: k };
+  return {
+    mant: multiplyFractions(rational(rad.mant), tenToAbove(fraction)),
+    exp: k,
+  };
 }
 
 /** `floor(n / d)` for `d > 0`. */

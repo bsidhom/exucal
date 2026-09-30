@@ -729,6 +729,24 @@ export function intersects(b: Ball, range: Range): boolean {
   return true;
 }
 
+/**
+ * The decimal `text` as a `Loose`, as the display writes a value: an
+ * optional sign, digits with an optional point, and an optional exponent;
+ * past the bound included, which `parseDecimal` refuses, so that a shown
+ * term at the edge can be read back. A text of another shape is a
+ * precondition failure.
+ */
+export function looseFromText(text: string): Loose {
+  const match = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/.exec(text);
+  if (match === null) throw new RangeError(`Not a decimal: ${text}`);
+  const [, minus, whole, fraction = "", exponent = "0"] = match;
+  const digits = BigInt(`${whole}${fraction}`);
+  return {
+    mant: rational(minus === "-" ? -digits : digits),
+    exp: BigInt(exponent) - BigInt(fraction.length),
+  };
+}
+
 /** The `Loose` `v` as a `Scaled`, when it is within the bound. */
 export function scaledOf(v: Loose): Scaled | undefined {
   const s = scaled(v.mant, v.exp);

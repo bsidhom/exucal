@@ -258,6 +258,20 @@ test("a ratio beyond the exponent bound quotes both texts", () => {
   );
 });
 
+test("a list refused by its arithmetic names the pair and the limit", () => {
+  assert.equal(
+    conversionMessage("3^32767 m", "ft/7^21845; in/7^21845"),
+    '"3^32767 m" into "ft/7^21845; in/7^21845" is too large to compute within Most bits.',
+  );
+  assert.equal(
+    conversionMessage(
+      "1e999999999999999999 m",
+      "1e-999999999999999998 m; 1e-999999999999999999 m",
+    ),
+    '"1e999999999999999999 m" into "1e-999999999999999998 m; 1e-999999999999999999 m" is too large to compute: its exponent would pass 10^18.',
+  );
+});
+
 test("a unit in a typed list at fault is quoted from the list", () => {
   assert.equal(
     conversionMessage("3 ft", "ft; min"),

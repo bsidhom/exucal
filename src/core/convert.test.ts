@@ -24,6 +24,7 @@ import {
   convertToList,
   roundTerms,
   type ConvertError,
+  type ListRefusal,
   type UnitListError,
 } from "./convert.ts";
 import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
@@ -364,15 +365,15 @@ test("conversion leaves its operands alone", () => {
 const MINUTE = quantity("60", { s: 1 });
 
 function terms(
-  result: Result<readonly Ball[], UnitListError>,
+  result: Result<readonly Ball[], UnitListError | ListRefusal>,
 ): readonly Ball[] {
   assert.ok(result.ok, `expected terms, got ${inspect(result)}`);
   return result.value;
 }
 
 function listFailure(
-  result: Result<readonly Ball[], UnitListError>,
-): UnitListError {
+  result: Result<readonly Ball[], UnitListError | ListRefusal>,
+): UnitListError | ListRefusal {
   assert.ok(!result.ok, `expected a failure, got ${inspect(result)}`);
   return result.error;
 }
@@ -381,7 +382,7 @@ function listFailure(
 function list(
   have: Quantity,
   units: readonly Quantity[],
-): Result<readonly Ball[], UnitListError> {
+): Result<readonly Ball[], UnitListError | ListRefusal> {
   return convertToList(have, units, SI, CONTEXT);
 }
 

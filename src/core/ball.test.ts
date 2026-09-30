@@ -16,6 +16,7 @@ import {
   powBall,
   powLogSpace,
   powRationalBall,
+  radiusOfMove,
   radiusValue,
   rootBall,
   settle,
@@ -33,8 +34,11 @@ import {
 import {
   UNBOUNDED,
   ZERO_RADIUS,
+  compareRadius,
   isUnbounded,
+  powerOfTenRadius,
   radiusAbove,
+  radiusAboveScaled,
   radiusUpper,
 } from "./radius.ts";
 import {
@@ -54,8 +58,6 @@ import { addRadius } from "./radius.ts";
 import type { Result } from "./result.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./rounding.ts";
 import {
-  ONE,
-  ZERO,
   absolute,
   add,
   compare,
@@ -63,11 +65,14 @@ import {
   equals,
   fromRational,
   isZero,
+  MAX_EXPONENT,
   multiply,
   negate,
+  ONE,
   pow,
   roundTo,
   subtract,
+  ZERO,
   type Refusal,
   type Scaled,
 } from "./scaled.ts";
@@ -78,6 +83,34 @@ function unwrap<T, E extends { kind: string }>(result: Result<T, E>): T {
   assert.ok(result.ok, `expected success, got ${inspect(result)}`);
   return result.value;
 }
+
+/** `settle` for a ball it cannot refuse: every test's, but the ones of the bound. */
+function settled(b: Ball, context: NumberContext): Ball {
+  return unwrap(settle(b, context));
+}
+
+/** The context `at(precision)` in decimal mode, in `rounding`. */
+function decimalAt(precision: number, rounding: RoundingMode): NumberContext {
+  return { ...at(precision), rounding, mode: "decimal" };
+}
+
+/**
+ * `num / den × 10^exp` as a `Scaled`, built without the constructor's
+ * check, for a value whose canonical exponent lies past the bound while
+ * its value does not (until H.13 puts the check on the value); `num` must
+ * not be divisible by ten and `den` must be coprime to it.
+ */
+function scaledAt(num: bigint, den: bigint, exp: bigint): Scaled {
+  return { mant: rational(num, den), exp };
+}
+
+/** Whether the ball `b` reaches `point`: on it, straddling it or touching it. */
+function covers(b: Ball, point: Scaled): boolean {
+  const p = position(b, point);
+  return p !== "above" && p !== "below";
+}
+
+const E18 = MAX_EXPONENT.toString();
 
 function assertError(result: Result<unknown, BallError>, kind: string) {
   assert.ok(!result.ok, `expected ${kind}, got ${inspect(result)}`);
@@ -293,7 +326,7 @@ test("a sum with an inexact operand that cannot be aligned settles first and abs
   const difference = unwrap(subtractBalls(root, huge, context));
   assert.deepEqual(difference.mid, negate(huge.mid));
   // Two inexact operands that align once settled are added exactly.
-  const third = settle(ball(fr(1n, 3n), dec("1e-30")), context);
+  const third = settled(ball(fr(1n, 3n), dec("1e-30")), context);
   const sum = unwrap(addBalls(root, third, context));
   assert.ok(
     compare(
@@ -470,6 +503,31 @@ test("division by a ball around zero is unresolved, by exact zero a division by 
   assertError(divideBalls(ball(ZERO, ONE), exact(ZERO)), "divisionByZero");
   // A divisor just clear of zero divides.
   assert.ok(divideBalls(one, ball(dec("0.003"), dec("0.002"))).ok);
+});
+
+test("every unresolved of the ball names its edge, zero", () => {
+  // Every producer here: the three ways a divisor cannot be told from
+  // zero, the even root of a ball straddling zero, and the log-space power
+  // of a ball that reaches within an ulp of zero at the kernel's bits.
+  const one = exact(ONE);
+  const unresolved = { ok: false, error: { kind: "unresolved", edge: ZERO } };
+  assert.deepEqual(divideBalls(one, ball(ZERO, dec("1e-30"))), unresolved);
+  assert.deepEqual(divideBalls(one, { mid: ZERO, rad: UNBOUNDED }), unresolved);
+  assert.deepEqual(
+    divideBalls(one, {
+      mid: dec("1e-20"),
+      rad: radiusAbove(rational(1n, 10n ** 20n)),
+    }),
+    unresolved,
+  );
+  assert.deepEqual(
+    rootBall(ball(dec("0.1"), dec("0.2")), 2n, at(8)),
+    unresolved,
+  );
+  assert.deepEqual(
+    powLogSpace(ball(ONE, dec("0.999999999999")), exact(dec("0.5")), at(8)),
+    unresolved,
+  );
 });
 
 test("a ball around zero to a negative power is unresolved", () => {
@@ -1151,12 +1209,12 @@ test("radiusValue forms a radius of the working sizes and not one beyond them", 
 
 test("settle leaves an exact ball, or a zero midpoint, as it is", () => {
   const third = exact(fr(1n, 3n));
-  assert.equal(settle(third, at(8)), third);
+  assert.equal(settled(third, at(8)), third);
   const zero = ball(ZERO, dec("1e-30"));
-  assert.equal(settle(zero, at(8)), zero);
+  assert.equal(settled(zero, at(8)), zero);
   // And an inexact midpoint already on the grid.
   const short = ball(dec("1.5"), dec("1e-30"));
-  assert.equal(settle(short, at(8)), short);
+  assert.equal(settled(short, at(8)), short);
 });
 
 test("settle rounds an inexact midpoint to the working digits and grows the radius by half a unit", () => {
@@ -1167,19 +1225,19 @@ test("settle rounds an inexact midpoint to the working digits and grows the radi
   const digits = workingDigits(context);
   assert.equal(digits, 18);
   const b = ball(fr(1n, 3n), dec("1e-30"));
-  const settled = settle(b, context);
-  assert.ok(!equals(settled.mid, b.mid));
-  assert.deepEqual(settled.mid, dec("0.333333333333333333"));
-  const grown = radiusUpper(settled.rad);
+  const after = settled(b, context);
+  assert.ok(!equals(after.mid, b.mid));
+  assert.deepEqual(after.mid, dec("0.333333333333333333"));
+  const grown = radiusUpper(after.rad);
   assert.ok(compareFractions(grown, radiusUpper(b.rad)) > 0);
   assert.ok(compareFractions(grown, fraction(dec("5.00001e-19"))) <= 0);
   // The midpoint's size is the working precision's, whatever the value's
   // was: a 2,000-digit fraction settles to 18 digits at eight digits, and
   // a huge value keeps its magnitude.
   const long = ball(fr(3n ** 2000n, 2n ** 3100n), dec("1e-40"));
-  assert.ok(digitsOf(settle(long, context).mid) <= digits);
+  assert.ok(digitsOf(settled(long, context).mid) <= digits);
   const huge = ball(fr(3n ** 2000n), dec("1"));
-  const settledHuge = settle(huge, context);
+  const settledHuge = settled(huge, context);
   assert.ok(digitsOf(settledHuge.mid) <= digits);
   assert.ok(
     compareFractions(
@@ -1190,7 +1248,7 @@ test("settle rounds an inexact midpoint to the working digits and grows the radi
     ) < 0,
   );
   // And a value with a large exponent stays on its magnitude's grid.
-  const far = settle(
+  const far = settled(
     ball(dec("1.23456789012345678901234e999999999"), dec("1e999999970")),
     context,
   );
@@ -1200,7 +1258,7 @@ test("settle rounds an inexact midpoint to the working digits and grows the radi
   for (let i = 0; i < 60; i++) {
     const original = randomBall(foldIn(seed, i), 40, 12);
     const at3 = at(1 + (i % 3) * 20);
-    const s = settle(original, at3);
+    const s = settled(original, at3);
     if (isExact(original) || isZero(original.mid)) {
       assert.equal(s, original);
       continue;
@@ -1225,7 +1283,7 @@ test("settle in decimal mode rounds every midpoint to the precision in the round
   // An exact value with more than p digits is rounded, exactly the
   // difference going into the radius: 1200/3937 at eight digits.
   const foot = exact(fr(1200n, 3937n));
-  const settledFoot = settle(foot, decimal(8, "halfAwayFromZero"));
+  const settledFoot = settled(foot, decimal(8, "halfAwayFromZero"));
   assert.deepEqual(settledFoot.mid, dec("0.30480061"));
   const difference = absoluteFraction(
     subtractFractions(fraction(settledFoot.mid), rational(1200n, 3937n)),
@@ -1250,32 +1308,32 @@ test("settle in decimal mode rounds every midpoint to the precision in the round
       ball(ZERO, dec("1e-30")),
       ball(dec("1.5"), dec("1e-30")),
     ]) {
-      assert.equal(settle(b, context), b, `${mode}: ${inspect(b.mid)}`);
+      assert.equal(settled(b, context), b, `${mode}: ${inspect(b.mid)}`);
     }
   }
   // The mode governs: 0.125 at two digits, and 2/3 at eight.
   assert.deepEqual(
-    settle(exact(dec("0.125")), decimal(2, "halfAwayFromZero")).mid,
+    settled(exact(dec("0.125")), decimal(2, "halfAwayFromZero")).mid,
     dec("0.13"),
   );
   assert.deepEqual(
-    settle(exact(dec("0.125")), decimal(2, "halfEven")).mid,
+    settled(exact(dec("0.125")), decimal(2, "halfEven")).mid,
     dec("0.12"),
   );
   assert.deepEqual(
-    settle(exact(fr(2n, 3n)), decimal(8, "halfEven")).mid,
+    settled(exact(fr(2n, 3n)), decimal(8, "halfEven")).mid,
     dec("0.66666667"),
   );
   assert.deepEqual(
-    settle(exact(fr(2n, 3n)), decimal(8, "towardZero")).mid,
+    settled(exact(fr(2n, 3n)), decimal(8, "towardZero")).mid,
     dec("0.66666666"),
   );
   assert.deepEqual(
-    settle(exact(fr(2n, 3n)), decimal(8, "floor")).mid,
+    settled(exact(fr(2n, 3n)), decimal(8, "floor")).mid,
     dec("0.66666666"),
   );
   assert.deepEqual(
-    settle(exact(fr(-2n, 3n)), decimal(8, "floor")).mid,
+    settled(exact(fr(-2n, 3n)), decimal(8, "floor")).mid,
     dec("-0.66666667"),
   );
   // Over the shared source, in each of the seven modes: the midpoint is
@@ -1287,7 +1345,7 @@ test("settle in decimal mode rounds every midpoint to the precision in the round
     const mode = ROUNDING_MODES[i % ROUNDING_MODES.length]!;
     const precision = 1 + (i % 4) * 6;
     const context = decimal(precision, mode);
-    const s = settle(original, context);
+    const s = settled(original, context);
     const label = `${mode} at ${precision}: ${inspect(original.mid)}`;
     if (isZero(original.mid)) {
       assert.equal(s, original, label);
@@ -1308,6 +1366,97 @@ test("settle in decimal mode rounds every midpoint to the precision in the round
       for (const x of ends(original)) assertContains(s, x, label);
     }
   }
+});
+
+test("settle refuses a rounded midpoint past the bound in decimal mode, and never in exact mode (D17)", () => {
+  // At the top: eleven nines at 10^18 round to 1e+(10^18 + 1) at eight
+  // digits, which is overflow in decimal mode, where stage 4 let it
+  // through; in exact mode the settle rounds toward zero instead and adds
+  // a whole unit in the last working digit to the radius.
+  const nines = "9".repeat(45);
+  const top = ball(dec(`${nines[0]}.${nines.slice(1)}e${E18}`), dec("1e-30"));
+  assertRefused(settle(top, decimalAt(8, "halfAwayFromZero")), "overflow");
+  const digits = workingDigits(at(8));
+  const truncated = settled(top, at(8));
+  assert.deepEqual(
+    truncated.mid,
+    dec(`${nines[0]}.${nines.slice(1, digits)}e${E18}`),
+  );
+  assert.ok(
+    compareRadius(
+      truncated.rad,
+      powerOfTenRadius(MAX_EXPONENT - BigInt(digits) + 1n),
+    ) >= 0,
+  );
+  assert.ok(covers(truncated, top.mid));
+  // A directed rounding that does not carry is a value in decimal mode.
+  assert.deepEqual(
+    settled(top, decimalAt(8, "towardZero")).mid,
+    dec(`9.9999999e${E18}`),
+  );
+  // At the bottom: a third of 10^-(10^18 - 1) is 3.3e-(10^18), within the
+  // bound, whose rounding at eight digits stays within it and whose half
+  // unit lies past it, where the settle threw (issue #44); a value past
+  // the bound is underflow in decimal mode.
+  const third = ball(scaledAt(1n, 3n, -(MAX_EXPONENT - 1n)), dec("1e-30"));
+  const bottom = settled(third, at(8));
+  assert.deepEqual(bottom.mid, roundTo(third.mid, digits, "halfEven"));
+  assert.ok(covers(bottom, third.mid));
+  const inDecimal = settled(third, decimalAt(8, "halfAwayFromZero"));
+  // The parser refuses the literal by its canonical exponent until H.13.
+  assert.deepEqual(
+    inDecimal.mid,
+    scaledAt(33333333n, 1n, -(MAX_EXPONENT + 7n)),
+  );
+  assert.ok(covers(inDecimal, third.mid));
+  const past = ball(scaledAt(1n, 3n, -MAX_EXPONENT), dec("1e-30"));
+  assertRefused(settle(past, decimalAt(8, "halfAwayFromZero")), "underflow");
+});
+
+test("radiusOfMove bounds the distance a rounding moved a midpoint, past the bound included", () => {
+  const to = { mant: rational(12345679n), exp: -(MAX_EXPONENT + 7n) };
+  const from = { mant: rational(1234567891n), exp: -(MAX_EXPONENT + 9n) };
+  const moved = radiusOfMove(to, from);
+  // The difference is 9e-(10^18 + 9).
+  assert.ok(
+    compareRadius(
+      moved,
+      radiusAboveScaled({ mant: rational(9n), exp: -(MAX_EXPONENT + 9n) }),
+    ) >= 0,
+  );
+  assert.ok(compareRadius(moved, powerOfTenRadius(-(MAX_EXPONENT + 8n))) < 0);
+  // Within the bound the radius is the exact difference, rounded up.
+  assert.deepEqual(
+    radiusOfMove(dec("0.30480061"), fr(1200n, 3937n)),
+    radiusAbove(
+      absoluteFraction(
+        subtractFractions(fraction(dec("0.30480061")), rational(1200n, 3937n)),
+      ),
+    ),
+  );
+  assert.deepEqual(radiusOfMove(dec("1.5"), dec("1.5")), ZERO_RADIUS);
+});
+
+test("position reads a difference past the bottom of the bound against the radius", () => {
+  // A ball at the bottom edge, 3.33…e-(10^18) to 29 digits within ten
+  // units of its last digit: a point four units away is inside, one
+  // fourteen units away on either side is outside, and `subtract` refuses
+  // every one of the differences, which lie below 10^-(10^18).
+  const exp = -(MAX_EXPONENT + 28n);
+  const mid = scaledAt(33333333333333333333333333333n, 1n, exp);
+  const b: Ball = { mid, rad: powerOfTenRadius(exp + 1n) };
+  assert.equal(
+    position(b, scaledAt(33333333333333333333333333329n, 1n, exp)),
+    "straddles",
+  );
+  assert.equal(
+    position(b, scaledAt(33333333333333333333333333347n, 1n, exp)),
+    "below",
+  );
+  assert.equal(
+    position(b, scaledAt(33333333333333333333333333319n, 1n, exp)),
+    "above",
+  );
 });
 
 test("a sum of two exact operands that cannot be aligned is settled and absorbed in decimal mode", () => {

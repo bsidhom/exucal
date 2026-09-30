@@ -49,13 +49,13 @@ import {
   equals,
   format,
   negate,
-  parseDecimal,
   sign,
 } from "./core/scaled.ts";
 import {
   addLoose,
   checkValue,
   contains,
+  looseFromText,
   multiplyLoose,
   runCases,
   scaleLoose,
@@ -92,51 +92,13 @@ const KNOWN: readonly Known[] = [
   },
   {
     issue: "#44",
-    task: "H.11",
-    cases:
-      /^(1e-1000000000000000000 \/ (approx\(3\)|3|7)|1e-999999999999999999 \/ approx\(3\))( \[decimal\])?$/,
-    violation:
-      /^threw Error: (Half a unit of a value is within the bound|A rounding moves a value within its digits)/,
-    reason:
-      "`settle` forms half a unit in the last working digit, and in decimal mode the rounded value's difference from the midpoint, with `scaled()`, which refuses them past the bound; H.11 takes the radius from `powerOfTenRadius` and returns a `Result`.",
-  },
-  {
-    issue: "#44",
-    task: "H.11",
-    cases:
-      /^(99999999999e999999999999999990 \[decimal\]|approx\(9\.9{44}e1000000000000000000\) \/ 7)$/,
-    violation:
-      /(midpoint's decimal exponent 1000000000000000001 is past the bound|got the error overflow)$/,
-    reason:
-      "A settled midpoint carried past the top of the bound is let through in decimal mode, where H.11 refuses it, and in exact mode the carry of the all-nines value to `10^(10^18 + 1)` makes its quotient `overflow`, where H.11 truncates toward zero instead and adds a unit to the radius (D17).",
-  },
-  {
-    issue: "#48",
-    task: "H.12",
-    cases:
-      /^3047999999999999999999999999999999996953e999999999999999961 m into ft;in/,
-    violation: /^threw Error: A unit list/,
-    reason:
-      "`roundTerms` rebuilds the list's total from its rounded terms, and the carry's total passes the bound, which it has no way to report; H.12 returns the terms uncarried when the rebuilding fails.",
-  },
-  {
-    issue: "#44",
-    task: "H.12",
-    cases:
-      /into (hr;min;s|time|ft;in|1e-999999999999999998 m; 1e-999999999999999999 m)( \[decimal\])?$/,
-    violation: /^threw Error: A unit list/,
-    reason:
-      "`decompose` assumes that a count, a product and a difference of values within the bound stay within it, and throws on the refusal it has no error to return; H.12 makes it a `Result` and the pipeline passes the refusal on.",
-  },
-  {
-    issue: "#44",
     task: "H.13",
     cases:
-      /^(1e-1000000000000000000 \/ (3|7)|1e1000000000000000000 \/ 3 \* 10|3047999999999999999999999999999999996953e999999999999999978 m into ft;in)$/,
+      /^(1e-1000000000000000000 \/ (approx\(3\)|3|7)|1e1000000000000000000 \/ 3 \* 10|3047999999999999999999999999999999996953e999999999999999978 m into ft;in)$/,
     violation:
       /(midpoint's decimal exponent -?1000000000000000(001|017) is past the bound|got the error overflow)$/,
     reason:
-      "The constructor checks the canonical exponent, which lies within the bound by the mantissa's digits where the value passes it (`1e-10^18 / 7` is `1/7 × 10^-(10^18)`, held) and past it where the value is within (`1e10^18 / 3 * 10` is `1/3 × 10^(10^18 + 1)`, refused); D17 puts the bound on the value, and H.13 lands it.",
+      "The constructor checks the canonical exponent, which lies within the bound by the mantissa's digits where the value passes it (`1e-10^18 / 7` is `1/7 × 10^-(10^18)`, held, and `1e-10^18 / approx(3)` is a value in exact mode from H.11, whose settle refuses nothing there) and past it where the value is within (`1e10^18 / 3 * 10` is `1/3 × 10^(10^18 + 1)`, refused); D17 puts the bound on the value, and H.13 lands it.",
   },
   {
     issue: "#50",
@@ -174,14 +136,6 @@ const KNOWN: readonly Known[] = [
     violation: /passes maxBits \(D19\)$/,
     reason:
       "Nothing holds a product, a quotient, a sum of fractions or the conversion's ratio to the range limit, so an exact result passes it; H.14 checks every exact node result and the ratio against it (D19) and refuses at the node (D20).",
-  },
-  {
-    issue: "#58",
-    task: "H.12",
-    cases: /^3\^32767 m into ft\/7\^21845; in\/7\^21845$/,
-    violation: /^threw Error: A unit list's arithmetic failed: tooLarge/,
-    reason:
-      "The settled count leaves a remainder that cannot align within the range limit, and `decompose` throws on the refusal; H.12 passes it on.",
   },
   {
     issue: "#59",
@@ -433,10 +387,12 @@ const CASES: readonly TextCase[] = [
     want: "ft;in",
     expect: refused("overflow"),
   },
+  // In decimal mode the `have` rounds to `3.048e+(10^18)` at eight digits,
+  // whose count of feet, `1e+(10^18 + 1)`, passes the bound.
   {
     text: "3047999999999999999999999999999999996953e999999999999999961 m",
     want: "ft;in",
-    expect: LIST,
+    expect: { exact: LIST, decimal: refused("overflow") },
   },
   {
     text: "1e999999999999999980/3 + approx(333333333333333333333e999999999999999980)",
@@ -927,9 +883,10 @@ function checkList(
           ? "0"
           : format(magnitude, certified, rounding);
     texts.push(`${negative ? "-" : ""}${text} ${units[i]!.text}`);
-    const parsed = parseDecimal(text);
-    if (!parsed.ok) throw new Error(`A shown term parses: ${text}`);
-    const term = negative ? negate(parsed.value) : parsed.value;
+    // Read back loosely: the display's own rounding of a count can carry
+    // it past the bound, which the parser refuses.
+    const parsed = looseFromText(text);
+    const term = negative ? negate(parsed) : parsed;
     total = addLoose(
       total,
       multiplyLoose(term, units[i]!.quantity.magnitude.mid),

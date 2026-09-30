@@ -82,6 +82,7 @@ import {
   convert,
   convertToList,
   type ConvertError,
+  type ListRefusal,
   type UnitListError,
 } from "./convert.ts";
 import { checkConformance } from "./dimension.ts";
@@ -398,10 +399,12 @@ function convertParsed(
     working,
   );
   if (!terms.ok) {
+    const { error } = terms;
+    if (isListRefusal(error)) return refusedList(error);
     return err({
       kind: "unitListError",
       units: units.map((unit) => unit.text),
-      error: terms.error,
+      error,
     });
   }
   return ok({
@@ -410,6 +413,29 @@ function convertParsed(
     units,
     terms: terms.value,
   });
+}
+
+/** Whether a list's failure is its arithmetic's rather than a unit's. */
+function isListRefusal(
+  error: UnitListError | ListRefusal,
+): error is ListRefusal {
+  return (
+    error.kind !== "nonconformingUnit" &&
+    error.kind !== "nonpositiveUnit" &&
+    error.kind !== "unitOutOfOrder"
+  );
+}
+
+/**
+ * A list's arithmetic failure as the conversion's: a refusal is the
+ * conversion's refusal, and an `unresolved`, which no list reaches
+ * before H.13 puts the exponent bound among the edges, is reported as an
+ * unresolved want, which the retry loop retries, until H.13 gives the
+ * converter its own retried variant.
+ */
+function refusedList(error: ListRefusal): Result<never, ConversionError> {
+  if (error.kind === "unresolved") return err({ kind: "unresolvedWant" });
+  return err({ kind: error.kind });
 }
 
 /**
@@ -430,8 +456,9 @@ function convertToNamedList(
     working,
   );
   if (!terms.ok) {
-    if (terms.error.kind === "nonconformingUnit")
-      return err(terms.error.mismatch);
+    const { error } = terms;
+    if (isListRefusal(error)) return refusedList(error);
+    if (error.kind === "nonconformingUnit") return err(error.mismatch);
     // `buildTable` checked the list's units against one another.
     throw new Error("A unit list in the table is not a valid list");
   }

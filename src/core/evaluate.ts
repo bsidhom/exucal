@@ -118,7 +118,6 @@ import {
 } from "./quantity.ts";
 import { bitLength, type Rational } from "./rational.ts";
 import {
-  ZERO,
   divide,
   isRefusal,
   powerRefusal,
@@ -290,7 +289,10 @@ export function evaluate<E>(
   context: NumberContext,
 ): Result<Quantity, EvaluateError | E> {
   const result = evaluateNode(expr, lookup, primitives, context);
-  return result.ok ? ok(settleQuantity(result.value, context)) : result;
+  if (!result.ok) return result;
+  // A settle refuses only in decimal mode, a rounded midpoint past the
+  // exponent bound, which is the node's result and is located at it.
+  return locate(settleQuantity(result.value, context), expr.span);
 }
 
 /** One node of `evaluate`, its operands evaluated (and settled) recursively. */
@@ -373,7 +375,11 @@ function evaluateNode<E>(
       // A base that cannot be told from zero is what is wrong, whether it
       // is raised to a negative power or put under an even root.
       if (!power.ok && power.error.kind === "unresolved") {
-        return err({ kind: "unresolved", span: node.base.span, edge: ZERO });
+        return err({
+          kind: "unresolved",
+          span: node.base.span,
+          edge: power.error.edge,
+        });
       }
       return locate(power, span);
     }
@@ -632,7 +638,7 @@ function locate(
     case "underflow":
       return err({ kind: error.kind, span });
     case "unresolved":
-      return err({ kind: "unresolved", span, edge: ZERO });
+      return err({ kind: "unresolved", span, edge: error.edge });
     case "negativeRadicand":
       return err({ kind: "negativeRadicand", degree: error.degree, span });
     case "invalidNumber":

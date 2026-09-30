@@ -18,6 +18,7 @@ import {
   type Ball,
 } from "./ball.ts";
 import { angle, checkArgument, plainNumbers, type Builtin } from "./builtin.ts";
+import { approx } from "./builtins/approx.ts";
 import {
   DIMENSIONLESS,
   checkConformance,
@@ -1117,6 +1118,43 @@ const withBuiltins = lookupIn(UNITS, FUNCTIONS, BUILTINS);
 function runBuiltin(text: string): Result<Quantity, Failure> {
   return evaluate(parsed(text), withBuiltins, PRIMITIVES, CONTEXT);
 }
+
+test("a settled midpoint past the bound is refused in decimal mode and truncated in exact mode (H.11)", () => {
+  const lookupWithApprox = lookupIn(UNITS, FUNCTIONS, { approx });
+  const withApprox = (text: string, context: NumberContext) =>
+    evaluate(parsed(text), lookupWithApprox, PRIMITIVES, context);
+  const at8 = decimal(8, "halfAwayFromZero");
+  // Eleven nines at 10^18 round to 1e+(10^18 + 1) at eight digits: overflow
+  // at the literal, where stage 4 showed it as a value past the bound.
+  const nines = "99999999999e999999999999999990";
+  assert.deepEqual(failure(run(nines, at8)), {
+    kind: "overflow",
+    span: { start: 0, end: nines.length },
+  });
+  // A third of 10^-(10^18) is past the bound, and was a throw at the
+  // quotient's settle; it is underflow at the quotient.
+  const third = "1e-1000000000000000000 / 3";
+  assert.deepEqual(failure(run(third, at8)), {
+    kind: "underflow",
+    span: { start: 0, end: third.length },
+  });
+  // In exact mode the settle refuses nothing: forty-five nines, made
+  // inexact, round toward zero at the working digits instead of carrying
+  // past the top, and the quotient by seven is a value.
+  const long = `approx(9.${"9".repeat(44)}e1000000000000000000) / 7`;
+  const seventh = value(withApprox(long, at(8)));
+  assert.equal(
+    format(seventh.magnitude.mid, 8, "halfAwayFromZero"),
+    "1.4285714e+1000000000000000000",
+  );
+  // And a third of 10^-(10^18 - 1) by an inexact three settles at the
+  // bottom edge, where its half unit lies past the bound and threw.
+  const bottom = value(withApprox("1e-999999999999999999 / approx(3)", at(8)));
+  assert.equal(
+    format(bottom.magnitude.mid, 8, "halfAwayFromZero"),
+    "3.3333333e-1000000000000000000",
+  );
+});
 
 test("a call of a built-in evaluates its arguments, applies its rule and its function", () => {
   assert.deepEqual(value(runBuiltin("dbl(3)")), quantity("6"));

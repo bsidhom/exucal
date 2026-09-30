@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { RADIAN, angle, checkArgument, plainNumbers } from "./builtin.ts";
+import {
+  RADIAN,
+  angle,
+  checkArgument,
+  fromBallError,
+  plainNumbers,
+} from "./builtin.ts";
+import { ONE } from "./scaled.ts";
 import {
   DIMENSIONLESS,
   primitive,
@@ -56,6 +63,19 @@ test("checkArgument tells a dimension mismatch from a kind mismatch, and a missi
   assert.ok(!length.ok && length.error.kind === "argumentDimension");
   assert.equal(length.error.mismatch.kind, "dimensionMismatch");
   assert.ok(checkArgument([], 0, DIMENSIONLESS, PRIMITIVES).ok);
+});
+
+test("fromBallError passes the edge of an unresolved on, whatever it is", () => {
+  // The ball's operations name zero today; the edge is carried as data so
+  // that one at another point (the bound, from H.13) reaches the message.
+  assert.deepEqual(fromBallError({ kind: "unresolved", edge: ONE }, 1), {
+    kind: "unresolved",
+    argument: 1,
+    edge: ONE,
+  });
+  assert.deepEqual(fromBallError({ kind: "tooLarge" }, 0), {
+    kind: "tooLarge",
+  });
 });
 
 test("angle is the radian kind where the table declares it, and nothing otherwise", () => {

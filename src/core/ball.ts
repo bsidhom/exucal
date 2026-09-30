@@ -24,7 +24,11 @@
 // beyond the working precision however long the expression; `powBall` on
 // an inexact base squares with settling for the same reason. Settling is a
 // bound on size, not a rounding the user chose: the mode is the display's
-// (the decimal mode of 4.5 settles in the user's mode). The rules are
+// (the decimal mode of 4.5 settles in the user's mode), and in exact mode
+// it never refuses a value, a rounding that would carry the midpoint past
+// the top of the exponent bound rounding toward zero instead; in decimal
+// mode the rounded value is the result, so one past the bound is refused
+// there (D17, the plan's H.11). The rules are
 // the elementary ones, each a bound over the two operands' intervals: a
 // sum's radii add; a product's radius is `|a| rb + |b| ra + ra rb`; a
 // quotient's is `(|a| rb + |b| ra) / (|b| (|b| - rb))`, which requires the
@@ -149,8 +153,10 @@ import {
 import {
   LIMIT_BITS,
   bitLength,
+  multiply as multiplyFractions,
   rational,
   scaleByPowerOfTwo,
+  subtract as subtractFractions,
   type Rational,
 } from "./rational.ts";
 import {
@@ -210,13 +216,22 @@ export type Ball = {
   readonly rad: Radius;
 };
 
+/**
+ * What a value that cannot be told from it straddles (D4): a point, zero
+ * for a divisor or a base, `1` or `-1` at the end of a domain, or a pole
+ * of the tangent. The built-ins' errors carry the same edges (builtin.ts).
+ */
+export type Edge = Scaled | "pole";
+
 export type BallError =
   | ScaledError
   /**
-   * The answer depends on which side of zero the true value lies, and the
-   * ball straddles it: a divisor that cannot be told from zero.
+   * The answer depends on which side of `edge` the true value lies, and
+   * the ball straddles it: a divisor that cannot be told from zero. Every
+   * operation here names zero; the built-ins name their own edges, and
+   * the consumers pass the edge on rather than assume it (D18).
    */
-  | { readonly kind: "unresolved" };
+  | { readonly kind: "unresolved"; readonly edge: Edge };
 
 /**
  * The bits of a radius's exponent up to which its exact value is formed as
@@ -287,6 +302,20 @@ export function position(
     if (c === 0) return above ? "touchingAbove" : "touchingBelow";
     return "straddles";
   }
+  if (d.error.kind !== "tooLarge") {
+    // The two aligned, and their difference lies past the exponent bound:
+    // below it, for a midpoint at the bottom edge within its radius of
+    // the point (the plan's H.11 found `settle` there), or above it, for
+    // two values near the top on either side of zero. Formed without the
+    // bound, its magnitude is compared with the radius by the bounds,
+    // which cannot tell a touch from a straddle.
+    const difference = differenceOf(b.mid, point);
+    const above = sign(difference) > 0;
+    if (compareRadius(radiusBelowScaled(difference), b.rad) > 0) {
+      return above ? "above" : "below";
+    }
+    return "straddles";
+  }
   // The two could not be aligned, so one is far larger than the other and
   // the difference is at least half the larger.
   const midLarger = compare(absolute(b.mid), absolute(point)) > 0;
@@ -349,8 +378,12 @@ export function addBalls(
   // decimal mode, where every operation rounds and the sum is settled as
   // an inexact one is: `1e999999999 + 1` is `1e999999999` within one.
   if (isExact(a) && isExact(b) && modeOf(context) === "exact") return sum;
-  const sa = settle(a, context);
-  const sb = settle(b, context);
+  const settledA = settle(a, context);
+  if (!settledA.ok) return settledA;
+  const settledB = settle(b, context);
+  if (!settledB.ok) return settledB;
+  const sa = settledA.value;
+  const sb = settledB.value;
   const settled = add(sa.mid, sb.mid, context.maxBits);
   if (settled.ok) {
     return ok({ mid: settled.value, rad: addRadius(sa.rad, sb.rad) });
@@ -407,11 +440,11 @@ export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
 export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   if (isExactZero(b)) return err({ kind: "divisionByZero" });
   if (b.rad.kind === "unbounded") {
-    if (isZero(b.mid)) return err({ kind: "unresolved" });
+    if (isZero(b.mid)) return err({ kind: "unresolved", edge: ZERO });
     const mid = divide(a.mid, b.mid);
     return mid.ok ? ok({ mid: mid.value, rad: UNBOUNDED }) : mid;
   }
-  if (containsZero(b)) return err({ kind: "unresolved" });
+  if (containsZero(b)) return err({ kind: "unresolved", edge: ZERO });
   const mid = divide(a.mid, b.mid);
   if (!mid.ok) return mid;
   if (a.rad.kind === "unbounded") return ok({ mid: mid.value, rad: UNBOUNDED });
@@ -423,7 +456,7 @@ export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   // Positive: the divisor's interval excludes zero, so |b| > rb; the
   // coarse bounds may still fail to tell, which is then unresolved.
   const distance = magnitudeBelow(b);
-  if (isZeroRadius(distance)) return err({ kind: "unresolved" });
+  if (isZeroRadius(distance)) return err({ kind: "unresolved", edge: ZERO });
   const denominator = multiplyRadiusDown(radiusBelowScaled(b.mid), distance);
   return ok({ mid: mid.value, rad: divideRadius(numerator, denominator) });
 }
@@ -471,12 +504,16 @@ export function powBall(
     if (rest & 1n) {
       const product = multiplyBalls(result, base);
       if (!product.ok) return product;
-      result = settle(product.value, context);
+      const settled = settle(product.value, context);
+      if (!settled.ok) return settled;
+      result = settled.value;
     }
     if (rest > 1n) {
       const square = multiplyBalls(base, base);
       if (!square.ok) return square;
-      base = settle(square.value, context);
+      const settled = settle(square.value, context);
+      if (!settled.ok) return settled;
+      base = settled.value;
     }
   }
   return ok(result);
@@ -497,38 +534,93 @@ export function powBall(
  * half a unit of radius has its ends on the rounding boundaries and
  * certifies `p - 1`); a value with `p` digits or fewer is its own
  * rounding and stays as it is. A zero midpoint is left alone in both.
+ *
+ * The exponent bound (D17, the plan's H.11). In decimal mode the rounded
+ * value is the result, so a rounded midpoint whose decimal exponent
+ * passes the bound is refused, `overflow` above it and `underflow` below,
+ * where stage 4 let `99999999999e999999999999999990` through as
+ * `1e+1000000000000000001` (issue #44); the radius grows by the exact
+ * difference, formed by `radiusOfMove` without the bound, since at the
+ * bottom edge the difference itself lies past it. In exact mode a settle
+ * is a bound on size and never refuses a value: a rounding to nearest
+ * that would carry the midpoint past the top of the bound rounds toward
+ * zero instead and adds a whole unit in the last working digit to the
+ * radius, and the half unit is a radius from `powerOfTenRadius`, which a
+ * value at the bottom edge, whose half unit lies past the bound, can take
+ * (the same issue's first row threw here).
  */
-export function settle(b: Ball, context: NumberContext): Ball {
-  if (isZero(b.mid)) return b;
+export function settle(
+  b: Ball,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  if (isZero(b.mid)) return ok(b);
   if (modeOf(context) === "decimal") {
     const mid = roundTo(b.mid, context.precision, context.rounding);
-    if (equals(mid, b.mid)) return b;
-    const moved = subtract(mid, b.mid, LIMIT_BITS);
-    if (!moved.ok)
-      throw new Error("A rounding moves a value within its digits");
-    return { mid, rad: addRadius(b.rad, radiusOfDifference(moved.value)) };
+    if (equals(mid, b.mid)) return ok(b);
+    const exponent = decimalExponent(mid);
+    if (exponent > MAX_EXPONENT) return err({ kind: "overflow" });
+    if (exponent < -MAX_EXPONENT) return err({ kind: "underflow" });
+    return ok({ mid, rad: addRadius(b.rad, radiusOfMove(mid, b.mid)) });
   }
-  if (isExact(b)) return b;
+  if (isExact(b)) return ok(b);
   const digits = workingDigits(context);
   const mid = roundTo(b.mid, digits, "halfEven");
-  if (equals(mid, b.mid)) return b;
-  return { mid, rad: addRadius(b.rad, halfUnitOf(mid, digits)) };
+  if (equals(mid, b.mid)) return ok(b);
+  if (decimalExponent(mid) > MAX_EXPONENT) {
+    // The rounding carried past the top: truncated instead, the midpoint
+    // stays within the bound, and a whole unit covers what was cut.
+    const truncated = roundTo(b.mid, digits, "towardZero");
+    return ok({
+      mid: truncated,
+      rad: addRadius(b.rad, unitOf(truncated, digits)),
+    });
+  }
+  return ok({
+    mid,
+    rad: addRadius(b.rad, shiftRadius(unitOf(mid, digits), -1n)),
+  });
 }
 
-/** A radius at or above the difference `d` a rounding made: exact where the fraction can be formed, the coarse bound otherwise. */
-function radiusOfDifference(d: Scaled): Radius {
-  const r = toRational(d, FORMABLE_RADIUS_BITS);
-  return r.ok ? radiusAbove(r.value) : radiusAboveScaled(d);
+/** A radius at or above one unit in the last of `digits` significant digits of the nonzero `s`, whatever its exponent. */
+function unitOf(s: Scaled, digits: Precision): Radius {
+  return powerOfTenRadius(decimalExponent(s) - BigInt(digits) + 1n);
 }
 
-/** A radius at or above half a unit in the last of `digits` significant digits of the nonzero `s`. */
-function halfUnitOf(s: Scaled, digits: Precision): Radius {
-  const half = scaled(
-    { num: 5n, den: 1n },
-    decimalExponent(s) - BigInt(digits),
+/**
+ * A radius at or above `|to - from|`, the distance a rounding moved a
+ * midpoint: the difference is formed as a subtraction of the mantissas
+ * at the lesser of the two exponents, with no bound checked, since at the
+ * bottom edge the difference itself lies past the bound
+ * (`1e-1000000000000000000 / 3` rounded to eight digits, issue #44), and
+ * is taken exactly where its power of ten is worth forming and by its
+ * binary bounds otherwise. The alignment is bounded by the two values'
+ * digits, a rounding moving a value within them.
+ */
+export function radiusOfMove(to: Scaled, from: Scaled): Radius {
+  const difference = differenceOf(to, from);
+  if (isZero(difference)) return ZERO_RADIUS;
+  const r = toRational(difference, FORMABLE_RADIUS_BITS);
+  return r.ok ? radiusAbove(r.value) : radiusAboveScaled(difference);
+}
+
+/**
+ * `a - b` as a `Scaled` with no bound checked and no canonical form, for
+ * two values whose exponents lie within their digits of each other: the
+ * mantissas aligned at the lesser exponent. What `radiusOfMove` and
+ * `position` read a difference from where `subtract` refuses it.
+ */
+function differenceOf(a: Scaled, b: Scaled): Scaled {
+  const exp = a.exp < b.exp ? a.exp : b.exp;
+  const mant = subtractFractions(
+    timesPowerOfTen(a.mant, a.exp - exp),
+    timesPowerOfTen(b.mant, b.exp - exp),
   );
-  if (!half.ok) throw new Error("Half a unit of a value is within the bound");
-  return radiusAboveScaled(half.value);
+  return { mant, exp };
+}
+
+/** `r × 10^k` for `k >= 0`. */
+function timesPowerOfTen(r: Rational, k: bigint): Rational {
+  return k === 0n ? r : multiplyFractions(r, rational(10n ** k));
 }
 
 // ---------------------------------------------------------------------------
@@ -562,7 +654,9 @@ export function rootBall(
   }
   const even = degree % 2n === 0n;
   if (containsZero(b)) {
-    return even ? err({ kind: "unresolved" }) : ok(rootAroundZero(b, degree));
+    return even
+      ? err({ kind: "unresolved", edge: ZERO })
+      : ok(rootAroundZero(b, degree));
   }
   if (sign(b.mid) < 0) {
     if (even) return err({ kind: "negativeRadicand", degree });
@@ -579,7 +673,9 @@ export function rootBall(
   if (root.value !== undefined) return ok(root.value);
   // The interval is positive as rationals but not at the kernel's bits: the
   // ball reaches within an ulp of zero, and is treated as containing it.
-  return even ? err({ kind: "unresolved" }) : ok(rootAroundZero(b, degree));
+  return even
+    ? err({ kind: "unresolved", edge: ZERO })
+    : ok(rootAroundZero(b, degree));
 }
 
 /**
@@ -782,7 +878,7 @@ export function powLogSpace(
   const lnBits = bitLength(BigInt(Math.ceil(Math.abs(log2Of(x)))) + 2n);
   const working = bits + yBits + lnBits + 8;
   const lnX = lnScaled(x, working, bitsFor(context.ceiling));
-  if (lnX === undefined) return err({ kind: "unresolved" });
+  if (lnX === undefined) return err({ kind: "unresolved", edge: ZERO });
   const product = multiplyFixed(fixedFromBall(y, working), lnX);
   const bound = abs(product.value) + product.error;
   const magnitude =

@@ -539,7 +539,17 @@ function evaluateUnitList(
     context,
   );
   if (!checked.ok) {
-    return err({ kind: "invalidUnitList", definition, error: checked.error });
+    const { error } = checked;
+    if (
+      error.kind !== "nonconformingUnit" &&
+      error.kind !== "nonpositiveUnit" &&
+      error.kind !== "unitOutOfOrder"
+    ) {
+      // A list's arithmetic fails only at the edges of the bound, where
+      // no definition's units lie.
+      throw new Error("A defined list's units are within the bound");
+    }
+    return err({ kind: "invalidUnitList", definition, error });
   }
   return ok(units);
 }

@@ -128,6 +128,17 @@ export type NotAFunction = {
 export type LookupError = UnknownUnit | FunctionAsUnit | NotAFunction;
 
 /**
+ * `q` settled at `context`, which cannot fail for a unit: a settle refuses
+ * only a rounded midpoint past the exponent bound, and the table's units
+ * are nowhere near it.
+ */
+function settledUnit(q: Quantity, context: NumberContext): Quantity {
+  const settled = settleQuantity(q, context);
+  if (!settled.ok) throw new Error("A unit is within the exponent bound");
+  return settled.value;
+}
+
+/**
  * The lookup the evaluator resolves user input against, at the working
  * `context`: an exact unit name if the table has one, otherwise one prefix
  * followed by a unit name, whose quantity is the unit's scaled by the
@@ -151,7 +162,7 @@ export function unitLookup(
       }
       // Settled once here (D15): a unit built at a higher precision is cut
       // to the working one, and an exact unit is untouched.
-      if (found.kind === "unit") return ok(settleQuantity(found.unit, context));
+      if (found.kind === "unit") return ok(settledUnit(found.unit, context));
       const scaled = multiplyQuantities(
         { magnitude: found.prefix, dimension: DIMENSIONLESS },
         found.unit,
@@ -164,7 +175,7 @@ export function unitLookup(
         // or a range limit on products (issue #52), must add one here.
         throw new Error("A prefix times a unit was refused");
       }
-      return ok(settleQuantity(scaled.value, context));
+      return ok(settledUnit(scaled.value, context));
     },
     function: (name, span, call) => {
       const found = resolveFunction(name, table.functions, table.builtins);

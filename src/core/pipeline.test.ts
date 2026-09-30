@@ -10,6 +10,7 @@ import {
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { exact, isExact } from "./ball.ts";
+import { roundTerms } from "./convert.ts";
 import { show } from "./display.ts";
 import { buildTable } from "./build.ts";
 import { parseDefinitions } from "./definitions.ts";
@@ -761,6 +762,92 @@ function assertTerms(
     `${have} in ${want}`,
   );
 }
+
+test("a list at the edges of the bound gives its terms or the refusal, and never throws (H.12)", () => {
+  // A count whose ratio falls below the bound is zero (D8): the value is
+  // all remainder. In both modes, through the display's rounding too.
+  const tiny = "1e-999999999999999999";
+  for (const want of ["hr;min;s", "time"]) {
+    for (const context of [CONTEXT, decimal(8)]) {
+      const result = convertText(table, `${tiny} s`, want, context);
+      assert.ok(result.ok && result.value.kind === "list", inspect(result));
+      const { terms, units } = result.value;
+      assert.equal(terms.length, 3);
+      assert.deepEqual(
+        terms.map((term) => term.mid),
+        [ZERO, ZERO, dec(tiny)],
+      );
+      const rounded = roundTerms(
+        units.map((unit) => unit.quantity),
+        terms,
+        8,
+        DEFAULT_ROUNDING,
+        context,
+      );
+      assert.deepEqual(rounded, terms);
+    }
+  }
+  // At the top, a count that passes the bound is the conversion's overflow.
+  assert.deepEqual(
+    failure(
+      "1e999999999999999999 m",
+      "1e-999999999999999998 m; 1e-999999999999999999 m",
+    ),
+    { kind: "overflow" },
+  );
+  // A count at an ordinary size can leave a remainder that cannot align
+  // within the range limit (#58): the conversion's tooLarge.
+  assert.deepEqual(failure("3^32767 m", "ft/7^21845; in/7^21845"), {
+    kind: "tooLarge",
+  });
+  // A list whose display rounding carries into a total past the bound
+  // (#48's first constraint, in a form the literal check admits) comes
+  // back uncarried from roundTerms, which used to throw. At the display's
+  // eight digits: the count of feet is then twenty-eight nines, and the
+  // carry takes it to 1e+(10^18 + 1).
+  const at8: NumberContext = { ...CONTEXT, precision: 8 };
+  const carry = convertText(
+    table,
+    "3047999999999999999999999999999999996953e999999999999999961 m",
+    "ft;in",
+    at8,
+  );
+  assert.ok(carry.ok && carry.value.kind === "list", inspect(carry));
+  assert.deepEqual(
+    roundTerms(
+      carry.value.units.map((unit) => unit.quantity),
+      carry.value.terms,
+      8,
+      DEFAULT_ROUNDING,
+      at8,
+    ),
+    carry.value.terms,
+  );
+  // At the bottom edge the display's rounding of the remainder is a shift
+  // past the bound, which threw: `1e-999999999999999999 m` into `ft;in` is
+  // `≈ 3.9370079e-999999999999999998 in` in both modes.
+  for (const context of [CONTEXT, decimal(8)]) {
+    const result = convertText(table, `${tiny} m`, "ft;in", context);
+    assert.ok(result.ok && result.value.kind === "list", inspect(result));
+    const { terms, units } = result.value;
+    const rounded = roundTerms(
+      units.map((unit) => unit.quantity),
+      terms,
+      8,
+      DEFAULT_ROUNDING,
+      context,
+    );
+    assert.deepEqual(rounded[0]!.mid, ZERO);
+    // The display formats the remainder at the digits certified, which is
+    // the line shown whether or not the rounding carried; until H.13 the
+    // carry's product is refused by its canonical exponent, and the terms
+    // come back uncarried.
+    assert.equal(
+      format(rounded[1]!.mid, 8, DEFAULT_ROUNDING),
+      "3.9370079e-999999999999999998",
+    );
+  }
+});
 
 test("a want of several units is a list conversion", () => {
   assertTerms("1 m", "ft;in", ["3", "428/127"]);

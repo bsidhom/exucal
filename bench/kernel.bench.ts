@@ -174,6 +174,13 @@ function contextAt(precision: number): NumberContext {
   };
 }
 
+/** `b` settled at `context`, which a ball of ordinary magnitude never refuses. */
+function settledAt(b: Ball, context: NumberContext): Ball {
+  const settled = settle(b, context);
+  if (!settled.ok) throw new Error("A benchmark's ball is within the bound");
+  return settled.value;
+}
+
 /** An inexact ball whose midpoint has about twice the working digits of `context`: what a product of two settled balls is before it is settled. */
 function unsettledAt(context: NumberContext): Ball {
   const digits = workingDigits(context);
@@ -208,8 +215,8 @@ test("a settle and a product on the decimal grid at the ceiling cost at most 64 
     [
       "product of settled balls",
       (context) => {
-        const a = settle(unsettledAt(context), context);
-        const b = settle(
+        const a = settledAt(unsettledAt(context), context);
+        const b = settledAt(
           {
             ...unsettledAt(context),
             mid: fromRational(rational(11n ** 3000n, 13n ** 2900n)),

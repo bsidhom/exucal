@@ -46,6 +46,7 @@ import {
   position,
   type Ball,
   type BallError,
+  type Edge,
 } from "./ball.ts";
 import type { NumberContext } from "./context.ts";
 import {
@@ -107,12 +108,8 @@ export type DomainReason =
   | "outsideOpenUnitInterval"
   | "origin";
 
-/**
- * What a value that cannot be told from it straddles (D4): a point, zero
- * for a divisor or a base, `1` or `-1` at the end of a domain, or a pole
- * of the tangent.
- */
-export type Edge = Scaled | "pole";
+/** The edge a value straddles (D4), the ball's own type, re-exported for the built-ins. */
+export type { Edge } from "./ball.ts";
 
 export type BuiltinError =
   /** The argument at index `argument` is outside the domain throughout its ball, for `reason`. */
@@ -396,8 +393,9 @@ export function unboundedOf(
 
 /**
  * A ball operation's error as a built-in's: an `unresolved` is the
- * argument at index `argument` straddling zero, the errors the two share
- * are themselves, and a parse error cannot arise from a computation.
+ * argument at index `argument` straddling the edge the operation named,
+ * the errors the two share are themselves, and a parse error cannot arise
+ * from a computation.
  */
 export function fromBallError(
   error: BallError,
@@ -405,7 +403,7 @@ export function fromBallError(
 ): BuiltinError {
   switch (error.kind) {
     case "unresolved":
-      return { kind: "unresolved", argument, edge: ZERO };
+      return { kind: "unresolved", argument, edge: error.edge };
     case "divisionByZero":
     case "negativeRadicand":
     case "tooLarge":

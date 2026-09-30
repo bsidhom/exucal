@@ -47,9 +47,10 @@ in` at twelve.
 2`, which is zero within a bound) runs all the way up on every keystroke.
   Changing it rebuilds the unit table, since the angle units carry `pi()`
   to that ceiling; changing the digits never does.
-- **Most bits**: the most bits the app will form and hold for one number,
-  as the bits of a numerator or denominator of what it stores, 65,536 by
-  default (about 19,700 digits). It is a hard limit on cost, in time and
+- **Most bits** (`maxBits` in the code and the stored settings): the most
+  bits the app will form and hold for one number, as the bits of a
+  numerator or denominator of what it stores, 65,536 by default (about
+  19,700 digits). It is a hard limit on cost, in time and
   in memory, not on how large a value may be: a value is stored as a
   fraction times a power of ten, so a power of ten is free
   (`10^1000000000` is `1e+1000000000`, and only its exponent, bounded at
@@ -59,8 +60,8 @@ in` at twelve.
   error rather than a hang. When an exact result would need more than
   the limit, the app refuses that part of the expression and names it,
   and there are two ways on: write `approx(…)` around it, which computes
-  it to the digits asked and shows `≈` instead of `=`, or raise Most
-  bits; in exact mode the app never rounds an exact value on its own
+  it to the digits asked and shows `≈` instead of `=`, or raise
+  `maxBits`; in exact mode the app never rounds an exact value on its own
   (products, quotients and sums of fractions are not yet held to the
   limit, issue #52). It also bounds the most digits: lowering it lowers
   that setting, and the digits, when they no longer fit.

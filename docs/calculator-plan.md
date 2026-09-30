@@ -623,7 +623,7 @@ representation and not about the value, and nothing else could be
 measured without forming what the limit forbids. So a refusal at the
 range limit says that a result was too large to hold, names the node
 that formed it, and names the remedy, `approx` at that node or a higher
-setting; and README's "Most bits" says what is counted. Whether exact
+`maxBits`; and README's "Most bits" says what is counted. Whether exact
 mode rounds instead of refusing there is D20.
 
 **D17. The exponent bound is on the value, not on its representation
@@ -770,9 +770,9 @@ The rule:
   forming the power of ten the form moved out, and would understate a
   dyadic's cost by a factor of up to 2.33.
 - The refusal names the node and the remedy (D20): the message quotes the
-  subexpression, says it is too large to hold exactly within Most bits,
+  subexpression, says it is too large to hold exactly within `maxBits`,
   and says to write `approx` around it to compute it to the digits asked,
-  or to raise Most bits.
+  or to raise `maxBits`.
 - The exponent bound is checked first, so that a result past both is
   reported at the bound.
 - The check runs in `evaluate()`'s wrapper on the settled result, which
@@ -837,14 +837,14 @@ This decision recommends refusing, for these reasons:
   silently replaced by one that is not it. A rounding at the range limit
   would be a fourth source, and the only one the user cannot see in the
   expression.
-- **The limit is the device's.** The probe recommends Most bits per
+- **The limit is the device's.** The probe recommends `maxBits` per
   device, so under rounding the same expression would be `= 0` on one
   machine and `≈ 0` within a bound on another, with nothing in the
   expression to say why. A refusal is loud, local, and the same
   everywhere but for where it fires.
 - **The remedy is one token, and it is the user's choice.** The message
   names the node and the two ways out: `approx` there, which accepts `≈`
-  for that part and nothing else, or a higher Most bits, which pays. The
+  for that part and nothing else, or a higher `maxBits`, which pays. The
   app cannot know which the user wants; a user checking an exact
   identity wants the second, a user converting a measurement the first.
 - **Cost.** Refusing ends the work at the node. Rounding would carry on,
@@ -3028,9 +3028,9 @@ does not need.
 | H.11 `settle` returns a `Result`               | part of #44             | H.4                               |
 | H.12 Unit lists report refusals                | #58, part of #44        | H.11                              |
 | H.13 The exponent bound is on the value        | #50, #48, #44, #59, #60 | H.4, H.11, H.12; H.2 (preferred)  |
-| H.14 Exact results are held to Most bits       | #52                     | H.9, H.13 (text)                  |
+| H.14 Exact results are held to `maxBits`       | #52                     | H.9, H.13 (text)                  |
 | H.15 One guard for the exponential and powers  | #40, #46, #61, #62      | H.1, H.2, H.3, H.6, H.13          |
-| H.16 `pow`'s exponent past Most bits           | part of #46             | H.2, H.6, H.15                    |
+| H.16 `pow`'s exponent past `maxBits`           | part of #46             | H.2, H.6, H.15                    |
 | H.17 The phase as it landed                    |                         | all                               |
 
 The pull requests: H.1; H.2 with H.3; H.4 with H.5; H.6; H.7; H.8; H.9;
@@ -3966,7 +3966,7 @@ for its representation, and a ball that straddles it is retried. It is
 best landed after H.2, so that `exp` of a newly admitted tiny literal does
 not throw.
 
-### H.14 Exact results are held to Most bits
+### H.14 Exact results are held to `maxBits`
 
 The check of D19 runs in `evaluate()`'s wrapper, on the settled result,
 and after the pipeline's ratio and a function want's count. The exponent
@@ -3974,7 +3974,9 @@ bound is checked first, and no signature changes. Its action is D20's:
 the node is refused, `tooLarge` at its span, and messages.ts words it
 with the remedy, `"3^32767 * 7^21845" is too large to hold exactly within
 Most bits: write "approx(3^32767 * 7^21845)" to compute it to the digits
-asked, or raise Most bits.`, where the range limit's other refusals (a
+asked, or raise Most bits.` (the message keeps the panel's label, "Most
+bits", which is what the user sees; the setting is `maxBits` in the
+code), where the range limit's other refusals (a
 literal, a sum's alignment, a power's prediction, the kernel's reach)
 keep their wording, since `approx` is not their remedy in the same way
 (a literal is exact by being typed, and the kernel's reach is not a
@@ -4152,7 +4154,7 @@ Docs:
 Behavior: the exponential family and the powers are refused only when
 every value of the argument passes the bound, and retried when some do.
 
-### H.16 `pow`'s exponent past Most bits
+### H.16 `pow`'s exponent past `maxBits`
 
 `pow` forms an exact exponent as a fraction within the range limit, and
 refuses one it cannot form, as documented: `pow(2, 1e-999999999)` is

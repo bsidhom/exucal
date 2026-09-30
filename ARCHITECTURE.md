@@ -404,7 +404,7 @@ fives in the numerator: `2^-30000`, a value of 30,000 bits, is stored as
 costs (the plan's D16, as restated before stage 5). A result that would
 pass the limit is refused at the node that forms it, `tooLarge`, and the
 message names the node and the remedy, `approx` around it to compute it
-to the digits asked, or a higher Most bits; exact mode never rounds an
+to the digits asked, or a higher `maxBits`; exact mode never rounds an
 exact value on its own to stay within the limit (the plan's D20). Today
 the operations that grow their inputs by at most a constant factor do
 not check: an expression of bounded length applies a bounded number of

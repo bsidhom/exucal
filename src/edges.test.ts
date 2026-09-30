@@ -100,15 +100,6 @@ const KNOWN: readonly Known[] = [
       "`powBall`'s guard adds an absolute slack of `10^-9` to the base's `|log2|`, `powLogSpace` refuses an exponent a double cannot hold before it looks at `ln x`, and `pow` refuses an exact exponent it cannot form by the base's midpoint alone; H.15's classifier bounds `y ln x` on the interval and leaves a base of magnitude one `unresolved` at the bound.",
   },
   {
-    issue: "#48",
-    task: "H.13",
-    cases:
-      /^(approx\(5e1000000000000000000\) \+ 5e1000000000000000000|5e1000000000000000000 \+ 5e1000000000000000000 \[decimal\])/,
-    violation: /^\|mid\| \+ rad reaches/,
-    reason:
-      "A sum past the bound with an inexact operand, or any operand in decimal mode, is absorbed into the radius as if it had failed to align, and comes back as zero within a bound past the bound; H.13's second commit refuses a sum that aligns and passes the bound.",
-  },
-  {
     issue: "#52",
     task: "H.14",
     cases:
@@ -116,25 +107,6 @@ const KNOWN: readonly Known[] = [
     violation: /passes maxBits \(D19\)$/,
     reason:
       "Nothing holds a product, a quotient, a sum of fractions or the conversion's ratio to the range limit, so an exact result passes it; H.14 checks every exact node result and the ratio against it (D19) and refuses at the node (D20).",
-  },
-  {
-    issue: "#59",
-    task: "H.13",
-    cases:
-      /^9\.99999999999e1000000000000000000 m into 1e1000000000000000000 m; 1e999999999999999990 m$/,
-    violation: /do not add up to the have$/,
-    reason:
-      "The display's rounding carries the remainder into a whole of the first unit, the rebuilt total passes the bound and `addBalls` absorbs it (#48), so the list is shown a tenth short; H.12 shows the terms uncarried when the rebuilding fails, once H.13's sum is `unresolved` at the bound.",
-  },
-  {
-    issue: "#60",
-    task: "H.13",
-    cases:
-      /^(\(1e46 - approx\(1\/3\) \* 3e46\) \* 1e999999999999999983|\(approx\(1\/3\) - 1\/3\) \* 1e-999999999999999990|5e1000000000000000000 \* \(approx\(1e5000\) - approx\(1e5000\)\)|\(approx\(1e30\) - approx\(1e30\)\) \* 3e999999999999999977 \+ )/,
-    violation:
-      /(got the error (overflow|underflow)|\|mid\| \+ rad reaches 10\^\(10\^18 \+ 1\).*)$/,
-    reason:
-      "A product is decided by its midpoint alone: one whose ball straddles the bound is refused for good, one containing zero whose midpoint passes below is refused, and one whose midpoint is within may carry a radius past the top; H.13 applies D18.",
   },
   {
     issue: "#61",
@@ -359,8 +331,11 @@ const CASES: readonly TextCase[] = [
     text: "atan2(1e600000000000000000, 1e-600000000000000000)",
     expect: digits("1.5707963"),
   },
-  // #48: a sum past the bound with an inexact operand shown as zero; H.13.
-  { text: `approx(5e${E18}) + 5e${E18}`, expect: refused("overflow") },
+  // #48: a sum past the bound with an inexact operand was shown as zero.
+  // The exact sum is past the bound throughout; the sum with `approx`'s
+  // radius reaches back within it, `unresolved` at the bound (D18) at
+  // every precision, since the midpoint sits on the bound.
+  { text: `approx(5e${E18}) + 5e${E18}`, expect: UNRESOLVED },
   { text: `5e${E18} + 5e${E18}`, expect: refused("overflow") },
   {
     text: "3047999999999999999999999999999999996953e999999999999999978 m",

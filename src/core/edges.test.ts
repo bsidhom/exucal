@@ -109,25 +109,6 @@ import { ball, dec } from "../testing/scaled.ts";
  */
 const KNOWN: readonly Known[] = [
   {
-    issue: "#44",
-    task: "H.13",
-    cases:
-      /^(addBalls|subtractBalls|multiplyBalls|divideBalls|powBall\[-1\]|pow|atan2)\(/,
-    violation:
-      /^(a value where every value of the result is (overflow|underflow)|refused underflow where the result does not pass the bound throughout)/,
-    reason:
-      "The constructor checks the canonical exponent, which lies within the bound by the mantissa's digits where the value passes it (`9.99e10^18 × 2` is `1998 × 10^(10^18 - 2)`, held) and past it where the value is within (`0.5 / (10^(10^18) / 3)` is `15 × 10^-(10^18 + 1)`, refused); D17 puts the bound on the value, and H.13 lands it. `atan2` reaches it through its ratio.",
-  },
-  {
-    issue: "#48",
-    task: "H.13",
-    cases:
-      /^(addBalls|subtractBalls)\(~-?5e1000000000000000000, 5e1000000000000000000\)/,
-    violation: /^\|mid\| \+ rad reaches/,
-    reason:
-      "A sum past the bound with an inexact operand is absorbed into the radius as if it had failed to align, and comes back as zero within a bound past the bound; H.13's second commit refuses a sum that aligns and passes the bound.",
-  },
-  {
     issue: "#61",
     task: "H.15",
     cases: /^powBall\[-?1\]\(~/,

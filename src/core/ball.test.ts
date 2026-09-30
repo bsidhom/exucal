@@ -39,6 +39,7 @@ import {
   powerOfTenRadius,
   radiusAbove,
   radiusAboveScaled,
+  radiusBelowScaled,
   radiusUpper,
 } from "./radius.ts";
 import {
@@ -96,9 +97,9 @@ function decimalAt(precision: number, rounding: RoundingMode): NumberContext {
 
 /**
  * `num / den × 10^exp` as a `Scaled`, built without the constructor's
- * check, for a value whose canonical exponent lies past the bound while
- * its value does not (until H.13 puts the check on the value); `num` must
- * not be divisible by ten and `den` must be coprime to it.
+ * normalization, for a value whose canonical exponent lies past the bound
+ * while its value does not, which the constructor admits since H.13;
+ * `num` must not be divisible by ten and `den` must be coprime to it.
  */
 function scaledAt(num: bigint, den: bigint, exp: bigint): Scaled {
   return { mant: rational(num, den), exp };
@@ -341,6 +342,70 @@ test("a sum with an inexact operand that cannot be aligned settles first and abs
       ),
       dec("1e-17"),
     ) < 0,
+  );
+});
+
+test("a sum is held to the bound by its whole ball (D18, issue #48)", () => {
+  const context = at(8);
+  const bottom = `1e-${E18}`;
+  const half = exact(dec(`5e${E18}`));
+  // Two exact operands whose sum passes the bound are refused in either
+  // mode, where the settle-first path absorbed one into the radius.
+  assertRefused(addBalls(half, half, context), "overflow");
+  assertRefused(addBalls(half, half, decimalAt(8, "halfEven")), "overflow");
+  assertRefused(
+    subtractBalls(exact(dec(`1.5e-${E18}`)), exact(dec(bottom)), context),
+    "underflow",
+  );
+  // An inexact sum is refused only when the whole ball is past.
+  const wide = dec(`1e${E18.replace(/0{10}$/, "")}`);
+  assertRefused(
+    addBalls(ball(dec(`6e${E18}`), wide), half, context),
+    "overflow",
+  );
+  assertRefused(
+    subtractBalls(
+      { mid: dec(`1.5e-${E18}`), rad: powerOfTenRadius(-MAX_EXPONENT - 30n) },
+      exact(dec(bottom)),
+      context,
+    ),
+    "underflow",
+  );
+  // One straddling the top is unresolved at the bound; the sum of #48's
+  // first row, whose radius reaches back within.
+  assert.deepEqual(addBalls(ball(dec(`5e${E18}`), wide), half, context), {
+    ok: false,
+    error: { kind: "unresolved", edge: "bound" },
+  });
+  // One containing zero whose midpoint passes below is zero within
+  // `|mid| + rad`.
+  const around = unwrap(
+    subtractBalls(
+      ball(dec(`1.5e-${E18}`), dec(bottom)),
+      exact(dec(bottom)),
+      context,
+    ),
+  );
+  assert.deepEqual(around.mid, ZERO);
+  assert.ok(
+    compareRadius(around.rad, radiusBelowScaled(dec(`1.5e-${E18}`))) >= 0,
+  );
+  // A sum within the bound whose `|mid| + rad` reaches the top is
+  // unresolved at the bound, as a product's is; below the top it is the
+  // sum, radii added.
+  const near = exact(dec("1e999999999999999999"));
+  assert.deepEqual(
+    addBalls(
+      ball(dec(`9.5e${E18}`), dec("6e999999999999999999")),
+      near,
+      context,
+    ),
+    { ok: false, error: { kind: "unresolved", edge: "bound" } },
+  );
+  const rad = dec("3e999999999999999999");
+  assert.deepEqual(
+    unwrap(addBalls(ball(dec(`9.5e${E18}`), rad), near, context)),
+    ball(dec(`9.6e${E18}`), rad),
   );
 });
 
@@ -1403,7 +1468,7 @@ test("settle refuses a rounded midpoint past the bound in decimal mode, and neve
   assert.deepEqual(bottom.mid, roundTo(third.mid, digits, "halfEven"));
   assert.ok(covers(bottom, third.mid));
   const inDecimal = settled(third, decimalAt(8, "halfAwayFromZero"));
-  // The parser refuses the literal by its canonical exponent until H.13.
+  // Its canonical exponent lies past the bound, which the value does not.
   assert.deepEqual(
     inDecimal.mid,
     scaledAt(33333333n, 1n, -(MAX_EXPONENT + 7n)),

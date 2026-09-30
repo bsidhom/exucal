@@ -863,6 +863,27 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
     ),
     carry.value.terms,
   );
+  // #59: the display's rounding carries the second unit into a whole of
+  // the first, and the rebuilt total, `1e+(10^18 + 1)`, is unresolved at
+  // the bound, where the sum absorbed it and the list came back a tenth
+  // short; the terms come back uncarried.
+  const short = convertText(
+    table,
+    "9.99999999999e1000000000000000000 m",
+    "1e1000000000000000000 m; 1e999999999999999990 m",
+    at8,
+  );
+  assert.ok(short.ok && short.value.kind === "list", inspect(short));
+  assert.deepEqual(
+    roundTerms(
+      short.value.units.map((unit) => unit.quantity),
+      short.value.terms,
+      8,
+      DEFAULT_ROUNDING,
+      at8,
+    ),
+    short.value.terms,
+  );
   // At the bottom edge the display's rounding of the remainder is a shift
   // past the bound, which threw: `1e-999999999999999999 m` into `ft;in` is
   // `≈ 3.9370079e-999999999999999998 in` in both modes.
@@ -879,9 +900,9 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
     );
     assert.deepEqual(rounded[0]!.mid, ZERO);
     // The display formats the remainder at the digits certified, which is
-    // the line shown whether or not the rounding carried; until H.13 the
-    // carry's product is refused by its canonical exponent, and the terms
-    // come back uncarried.
+    // the line shown whether or not the rounding carried (before H.13 the
+    // carry's product was refused by its canonical exponent, and the
+    // terms came back uncarried).
     assert.equal(
       format(rounded[1]!.mid, 8, DEFAULT_ROUNDING),
       "3.9370079e-999999999999999998",

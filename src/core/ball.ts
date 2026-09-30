@@ -48,10 +48,23 @@
 // to be settled, so it is settled a step early: each inexact operand is
 // settled first, the two are added exactly if they then align, and if they
 // still do not, the smaller, which then lies below the working precision
-// of the larger, is absorbed into the radius. So `addBalls`,
+// of the larger, is absorbed into the radius. That path is taken on
+// `tooLarge` alone: a sum that aligns and passes the exponent bound is
+// held to the bound like a product (issue #48 took it for an alignment
+// failure and showed zero).
+//
+// The exponent bound is on the value (D17), and an inexact result is held
+// to it by its whole ball (D18, `held`): a product, a quotient or a sum
+// is `overflow` or `underflow` only when every value of its ball is past
+// the bound, zero within `|mid| + rad` when the ball contains zero and
+// the midpoint passes below, a value when the midpoint is within and
+// `|mid| + rad` lies below the top, and otherwise `unresolved` at the
+// edge `bound`, which the retry loop narrows as it narrows a divisor
+// around zero. An exact result is its value or a refusal, and a ball of
+// unbounded radius is held by its midpoint alone. So `addBalls`,
 // `subtractBalls`, `multiplyBalls` and `divideBalls` are `Result`s,
-// failing `tooLarge` there and `overflow` or `underflow` at the exponent
-// bound.
+// failing `tooLarge` at the range limit, `overflow` or `underflow` at the
+// exponent bound, and `unresolved` on it.
 //
 // Two values are special. An exact zero times anything is exact zero,
 // however wide the other operand, unbounded included: unbounded stands for
@@ -153,6 +166,7 @@ import {
 import {
   LIMIT_BITS,
   ONE as ONE_FRACTION,
+  add as addFractions,
   bitLength,
   divide as divideFractions,
   multiply as multiplyFractions,
@@ -375,9 +389,16 @@ export function addBalls(
   b: Ball,
   context: NumberContext,
 ): Result<Ball, BallError> {
+  const rad = addRadius(a.rad, b.rad);
   const sum = add(a.mid, b.mid, context.maxBits);
-  if (sum.ok) return ok({ mid: sum.value, rad: addRadius(a.rad, b.rad) });
-  if (!isRefusal(sum.error)) return sum;
+  if (sum.ok) return heldSum(sum.value, rad);
+  if (sum.error.kind !== "tooLarge") {
+    // The sum aligns and its value passes the bound. Two exact operands
+    // have an exact sum, which is past it in both modes (issue #48);
+    // otherwise the whole ball decides (D18), as a product's does.
+    if (isZeroRadius(rad) || rad.kind === "unbounded") return sum;
+    return held(sumOf(a.mid, b.mid), rad);
+  }
   // Two exact operands have an exact sum that cannot be held, except in
   // decimal mode, where every operation rounds and the sum is settled as
   // an inexact one is: `1e999999999 + 1` is `1e999999999` within one.
@@ -388,17 +409,30 @@ export function addBalls(
   if (!settledB.ok) return settledB;
   const sa = settledA.value;
   const sb = settledB.value;
+  const settledRad = addRadius(sa.rad, sb.rad);
   const settled = add(sa.mid, sb.mid, context.maxBits);
-  if (settled.ok) {
-    return ok({ mid: settled.value, rad: addRadius(sa.rad, sb.rad) });
+  if (settled.ok) return heldSum(settled.value, settledRad);
+  if (settled.error.kind !== "tooLarge") {
+    if (isZeroRadius(settledRad) || settledRad.kind === "unbounded") {
+      return settled;
+    }
+    return held(sumOf(sa.mid, sb.mid), settledRad);
   }
-  if (!isRefusal(settled.error)) return settled;
   const [larger, smaller] =
     compare(absolute(sa.mid), absolute(sb.mid)) >= 0 ? [sa, sb] : [sb, sa];
-  return ok({
-    mid: larger.mid,
-    rad: addRadius(larger.rad, magnitudeAbove(smaller)),
-  });
+  return heldSum(larger.mid, addRadius(larger.rad, magnitudeAbove(smaller)));
+}
+
+/**
+ * The ball of the canonical `mid`, within the bound, and the radius
+ * `rad`, held to the bound's top as D18 has a sum (issue #48): the ball
+ * itself when `rad` is zero or unbounded, and otherwise `held`'s answer
+ * for a midpoint within the bound, the ball when `|mid| + rad` lies
+ * below the top and `unresolved` at the edge `bound` when it reaches it.
+ */
+function heldSum(mid: Scaled, rad: Radius): Result<Ball, BallError> {
+  if (isZeroRadius(rad) || rad.kind === "unbounded") return ok({ mid, rad });
+  return isZero(mid) ? zeroWithin(rad) : belowTop(mid, rad);
 }
 
 /** `a - b`: `a` plus the negation of `b`. */
@@ -462,19 +496,12 @@ export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
  * good and one around zero carried a radius past it (issue #60).
  */
 function held(loose: Scaled, rad: Radius): Result<Ball, BallError> {
-  const atBound: BallError = { kind: "unresolved", edge: "bound" };
-  if (isZero(loose)) {
-    // Zero within the radius, unless the radius itself reaches the top.
-    const top: Scaled = { mant: ONE_FRACTION, exp: MAX_EXPONENT + 1n };
-    return compareRadius(rad, radiusBelowScaled(top)) < 0
-      ? ok({ mid: ZERO, rad })
-      : err(atBound);
-  }
+  if (isZero(loose)) return zeroWithin(rad);
   const exponent = decimalExponent(loose);
   if (exponent > MAX_EXPONENT) {
     return againstPowerOfTen(loose, rad, MAX_EXPONENT + 1n) === "above"
       ? err({ kind: "overflow" })
-      : err(atBound);
+      : err(AT_BOUND);
   }
   if (exponent < -MAX_EXPONENT) {
     const zero = compareWithRadius(absolute(loose), rad);
@@ -483,14 +510,34 @@ function held(loose: Scaled, rad: Radius): Result<Ball, BallError> {
     }
     return againstPowerOfTen(loose, rad, -MAX_EXPONENT) === "below"
       ? err({ kind: "underflow" })
-      : err(atBound);
-  }
-  if (againstPowerOfTen(loose, rad, MAX_EXPONENT + 1n) !== "below") {
-    return err(atBound);
+      : err(AT_BOUND);
   }
   const mid = scaled(loose.mant, loose.exp);
   if (!mid.ok) throw new Error("A midpoint within the bound is held");
-  return ok({ mid: mid.value, rad });
+  return belowTop(mid.value, rad);
+}
+
+/** A result that passes the bound for some values of its ball and not for others (D18). */
+const AT_BOUND: BallError = { kind: "unresolved", edge: "bound" };
+
+/** Zero within the bounded `rad`, unless the radius itself reaches the top of the bound. */
+function zeroWithin(rad: Radius): Result<Ball, BallError> {
+  const top: Scaled = { mant: ONE_FRACTION, exp: MAX_EXPONENT + 1n };
+  return compareRadius(rad, radiusBelowScaled(top)) < 0
+    ? ok({ mid: ZERO, rad })
+    : err(AT_BOUND);
+}
+
+/**
+ * The ball of the nonzero `mid`, within the bound, and the bounded,
+ * nonzero `rad` when `|mid| + rad` lies below the top of the bound, and
+ * `unresolved` at the edge `bound` when it reaches it.
+ */
+function belowTop(mid: Scaled, rad: Radius): Result<Ball, BallError> {
+  if (againstPowerOfTen(mid, rad, MAX_EXPONENT + 1n) !== "below") {
+    return err(AT_BOUND);
+  }
+  return ok({ mid, rad });
 }
 
 /**
@@ -717,8 +764,27 @@ export function radiusOfMove(to: Scaled, from: Scaled): Radius {
  * `position` read a difference from where `subtract` refuses it.
  */
 function differenceOf(a: Scaled, b: Scaled): Scaled {
+  return alignedOf(a, b, subtractFractions);
+}
+
+/**
+ * `a + b` as a `Scaled` with no bound checked and no canonical form, for
+ * two values whose alignment `add` found to fit the range limit and whose
+ * sum it refused at the bound: what `addBalls` holds to the bound by the
+ * whole ball.
+ */
+function sumOf(a: Scaled, b: Scaled): Scaled {
+  return alignedOf(a, b, addFractions);
+}
+
+/** `op` over the mantissas of `a` and `b` aligned at the lesser exponent, in no canonical form. */
+function alignedOf(
+  a: Scaled,
+  b: Scaled,
+  op: (x: Rational, y: Rational) => Rational,
+): Scaled {
   const exp = a.exp < b.exp ? a.exp : b.exp;
-  const mant = subtractFractions(
+  const mant = op(
     timesPowerOfTen(a.mant, a.exp - exp),
     timesPowerOfTen(b.mant, b.exp - exp),
   );

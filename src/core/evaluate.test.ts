@@ -1209,6 +1209,33 @@ test("the exponent bound is on the value, and a result straddling it is unresolv
   // A log-space power at the bottom edge is a value, where the canonical
   // check refused its midpoint's digits.
   value(run8("pow(10, approx(-999999999999999990.5))"));
+  // A sum that aligns and passes the bound (#48): two exact operands are
+  // past it throughout, in either mode, where the settle-first path
+  // absorbed one into the radius and showed zero; with `approx`'s radius
+  // the sum reaches back within the bound, unresolved at the bound at the
+  // whole sum.
+  const past = "5e1000000000000000000 + 5e1000000000000000000";
+  for (const context of [at(8), decimal(8, "halfAwayFromZero")]) {
+    assert.deepEqual(failure(run8(past, context)), {
+      kind: "overflow",
+      span: { start: 0, end: past.length },
+    });
+  }
+  const approxPast = "approx(5e1000000000000000000) + 5e1000000000000000000";
+  assert.deepEqual(failure(run8(approxPast)), {
+    kind: "unresolved",
+    edge: "bound",
+    span: { start: 0, end: approxPast.length },
+  });
+  // #48's second constraint: a sum within the bound whose canonical
+  // exponent is past it, reached through the settle path before.
+  assert.equal(
+    shown(
+      "1e999999999999999980/3 + approx(333333333333333333333e999999999999999980)",
+      8,
+    ),
+    "3.3333333e+1000000000000000000",
+  );
 });
 
 test("a settled midpoint past the bound is refused in decimal mode and truncated in exact mode (H.11)", () => {

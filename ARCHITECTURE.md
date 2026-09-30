@@ -111,9 +111,10 @@ Three rules say where, and only where, a value can lose precision:
    in decimal mode, settles its operands
    first and, when they still do not align, absorbs the smaller into the
    radius (`sqrt(2) + 1e999999999` is `1e999999999` within `1.5`); a sum
-   that aligns and whose exponent passes the bound is `overflow` or
-   `underflow`, as a product is (issue #48 has an inexact operand's case,
-   which the settle-first rule absorbs instead). What
+   that aligns and whose value passes the bound is held to the bound as a
+   product is, `overflow` or `underflow` when every value of its ball is
+   past it and `unresolved` at the edge `bound` when some are (issue #48
+   absorbed it as an alignment failure). What
    the operations do to the radii is the elementary propagation (a sum's
    radii add, a product's radius is `|a| rb + |b| ra + ra rb`, a quotient's
    `(|a| rb + |b| ra) / (|b| (|b| - rb))`, a power's the derivative
@@ -566,8 +567,9 @@ sides: only quantities of one dimension have a sum, so the dimension side
 is the conformance check above, the sum has the dimension its terms
 share, and the failure is a `ConformanceError`; and the magnitudes align
 within the range limit of the `NumberContext` the two take, failing
-`tooLarge` as `addBalls` does, or `overflow` or `underflow` for a sum that
-aligns and passes the exponent bound. Since that check tells dimensions
+`tooLarge` as `addBalls` does, or `overflow`, `underflow` or `unresolved`
+at the bound for a sum that aligns and passes the exponent bound. Since
+that check tells dimensions
 from kinds by the roles of the primitives, these two operations take the
 primitives as
 `convert` does; `1 rad + 1` is a kind mismatch and `1 m + 1 s` a dimension

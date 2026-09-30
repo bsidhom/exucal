@@ -301,11 +301,19 @@ sum, `addBalls(a, b, context)`, applies the rule for what the result is:
   the exact intermediate cannot exist, and in decimal mode it applies to
   exact operands too, since there every operation rounds to the working
   precision: `1e999999999 + 1` is `1e999999999` within one, the reading a
-  decimal library gives. (The code takes this path on any refusal of the
-  exact sum, so a sum that aligns and passes the exponent bound is
-  absorbed as well, and shown as zero within a bound, issue #48; two
-  exact operands in exact mode are refused at the bound, `overflow` or
-  `underflow`.)
+  decimal library gives.
+- The settle-first path is taken on `tooLarge` alone. A sum that aligns
+  and whose value passes the exponent bound is held to the bound as a
+  product is (D18): two exact operands are refused, `overflow` or
+  `underflow`, in either mode (`5e1000000000000000000 +
+5e1000000000000000000`); an inexact sum is refused only when every
+  value of its ball is past the bound, and is `unresolved` at the bound
+  when the ball reaches back within it (`approx(5e1000000000000000000) +
+5e1000000000000000000`, whose midpoint sits on the bound at every
+  precision). Issue #48 took the bound's refusal for an alignment
+  failure, absorbed one operand into the radius and showed zero. A sum
+  within the bound whose `|mid| + rad` reaches the top is `unresolved` at
+  the bound as well.
 
 So `addBalls` and `subtractBalls` take the context, for its precision,
 its mode and its range limit, and return a `Result`; `multiplyBalls` and

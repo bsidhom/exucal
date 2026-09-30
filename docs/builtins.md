@@ -96,9 +96,12 @@ once the name has resolved and before any argument is evaluated.
   which holds a value only up to the range limit: `sin`, `cos` and `tan`
   of an argument reaching `2^maxBits` are `tooLarge` at the range limit,
   since the reduction would need `pi` to that many bits; `atan` of one at
-  or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, and the
-  arctangent's kernel refuses a ratio reaching `2^maxBits` at the range
-  limit; `asinh` and `acosh` of one are
+  or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, and neither
+  `atan` nor `atan2` is refused for an argument's radius: a ball that
+  reaches `2^maxBits` without lying beyond `2^bits` throughout is the
+  function's whole range, zero within two for `atan` and within four for
+  `atan2`, which certifies nothing and lets the retry loop narrow it (the
+  plan's H.7, issue #64); `asinh` and `acosh` of one are
   `ln(2|x|)` within `1/(2x^2)`; `tanh`'s saturation to `±1` stands; and
   the logarithms take any exponent, `ln(m × 10^e)` being `ln m + e ln 10`
   from the memo, so `ln(1e999999999)` is a value and `log10(1e999999999)`
@@ -290,7 +293,8 @@ rulings in full.
   fifth of a radian for `sin` and `cos`, one radian for `atan`, one half
   for `asinh`, one for `tanh` and for `exp`) gets a trivial bound
   instead, zero within one for the sine, the cosine and the hyperbolic
-  tangent, zero within two for the arctangent, zero within the
+  tangent, zero within two for the arctangent (and for `atan` of a ball
+  reaching `2^maxBits`, zero within four for `atan2`'s ratio), zero within the
   exponential of the signed upper end for `exp`, the exponential of
   the largest magnitude for the hyperbolic pair, the value at the
   midpoint plus the radius for `asinh`; the retry loop narrows such an

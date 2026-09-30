@@ -184,8 +184,12 @@ Three rules say where, and only where, a value can lose precision:
    `±pi/2` within `2^-bits`, `atan2` of a `y` of definite sign is `±pi/2`
    within `2^-bits` when `|y|` is at least `|x| 2^bits` throughout and
    `±pi` within it when `x` is negative and `|y| / |x|` lies below
-   `2^-bits`, the ratio not formed, and a tiny ratio over a positive `x`
-   is its own arctangent within its cube, and `asinh` and `acosh` beyond it are
+   `2^-bits`, the ratio not formed, a tiny ratio over a positive `x`
+   is its own arctangent within its cube, neither is refused for an
+   argument's radius (a ball reaching `2^maxBits` without lying beyond
+   `2^bits` throughout is the function's whole range, zero within two
+   for `atan` and within four for `atan2`, which certifies nothing and
+   lets the retry loop narrow it), and `asinh` and `acosh` beyond it are
    `ln(2|x|)`; the logarithms take any exponent, `ln(m × 10^e)` being
    `ln m + e ln 10` from the memo, so `ln(1e999999999)` is a value and
    `log10(1e999999999)` exactly `999999999`. An argument outside the

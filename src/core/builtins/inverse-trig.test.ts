@@ -407,11 +407,81 @@ test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^
   const asinSmall = value(asinBall(exact(tiny), DEFAULT));
   assert.ok(equals(asinSmall.mid, tiny));
   assert.ok(certifies(asinSmall, 8, "halfEven"));
-  // A ball reaching both sides of zero and past 2^maxBits does not
-  // saturate, and the kernel's door refuses it at the range limit.
-  assert.deepEqual(failure(atanBall(ballOf(ZERO, dec("1e19729")), DEFAULT)), {
-    kind: "tooLarge",
+  // A ball reaching 2^maxBits without lying beyond 2^bits throughout is
+  // the whole range, zero within two, where the kernel's door refused it
+  // at the range limit (#64).
+  const wholeRange = { mid: ZERO, rad: radiusAbove(rational(2n)) };
+  assert.deepEqual(
+    value(atanBall(ballOf(ZERO, dec("1e19729")), DEFAULT)),
+    wholeRange,
+  );
+  assert.deepEqual(
+    value(atanBall(ball("1e19729", "2e19729"), DEFAULT)),
+    wholeRange,
+  );
+  assert.deepEqual(value(atanBall(ball("1", "1e30000"), DEFAULT)), wholeRange);
+  // atan2's ratio reaching it: the whole range, zero within four, for a
+  // y straddling zero over a positive x, and unresolved at x for an x
+  // straddling zero, whose width keeps the ratio from the kernel.
+  const wholeRange2 = { mid: ZERO, rad: radiusAbove(rational(4n)) };
+  assert.deepEqual(
+    value(atan2Ball(ball("1", "1e30000"), exact(ONE), DEFAULT)),
+    wholeRange2,
+  );
+  assert.deepEqual(
+    value(atan2Ball(ball("1", "1e30000"), ball("2", "1"), DEFAULT)),
+    wholeRange2,
+  );
+  for (const [y, x] of [
+    [exact(dec("1e-30000")), ball("0", "1e-52")],
+    [exact(ONE), ball("-1", "1e30000")],
+    [exact(negate(ONE)), ball("1", "1e30000")],
+  ] as const) {
+    assert.deepEqual(failure(atan2Ball(y, x, DEFAULT)), {
+      kind: "unresolved",
+      argument: 1,
+      edge: ZERO,
+    });
+  }
+});
+
+test("through the pipeline, atan and atan2 are never refused for a radius (#64)", () => {
+  const parsed = parseDefinitions("m  !\nradian  !kind");
+  assert.ok(parsed.ok);
+  const context = { ...DEFAULT, ceiling: DEFAULT_CEILING };
+  const table = buildTable(parsed.value, {
+    ...context,
+    precision: DEFAULT_CEILING,
   });
+  assert.ok(table.ok, inspect(table));
+  const at = (text: string) => evaluateText(table.value, text, context);
+  // The argument's radius reaches past 2^maxBits at every pass up to the
+  // ceiling, so the loop ends as a zero with a bound, the whole range.
+  const wide = at("atan(approx(1e30000) - approx(1e30000))");
+  assert.ok(wide.ok, inspect(wide));
+  assert.equal(show(wide.value.magnitude, 8, DEFAULT_ROUNDING).kind, "zero");
+  const ratio = at("atan2(approx(1e30000) - approx(1e30000) + 1, 1)");
+  assert.ok(ratio.ok, inspect(ratio));
+  assert.equal(show(ratio.value.magnitude, 8, DEFAULT_ROUNDING).kind, "zero");
+  // With a radius the ceiling does narrow below the kernel's reach, the
+  // same shape certifies: 1e3000's radius is 1e-1049 at the ceiling.
+  const narrowed = at("atan2(approx(1e3000) - approx(1e3000) + 1, 1)");
+  assert.ok(narrowed.ok, inspect(narrowed));
+  assert.deepEqual(show(narrowed.value.magnitude, 8, DEFAULT_ROUNDING), {
+    kind: "certified",
+    text: "0.78539816",
+  });
+  // An x straddling zero at every pass is unresolved at zero at the ceiling.
+  const straddling = at("atan2(1e-30000, 1 - approx(1))");
+  assert.ok(!straddling.ok);
+  assert.equal(
+    describeTextError(
+      straddling.error,
+      "atan2(1e-30000, 1 - approx(1))",
+      table.value.primitives,
+    ),
+    '"1 - approx(1)" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
+  );
 });
 
 test("an inexact argument's inverse contains those of its ends, and a wide one is the trivial bound", () => {

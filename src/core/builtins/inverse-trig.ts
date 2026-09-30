@@ -67,8 +67,17 @@
 // `1 - x^2` stops aligning within the range limit long before that
 // (`acos(1e-9860)` was refused at the default, issue #47); one of `atan` at
 // or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, the
-// saturation docs/decimal.md lists; and a ratio that reaches `2^maxBits`
-// is `tooLarge` at the kernel's door (`atanKernel`).
+// saturation docs/decimal.md lists. Neither `atan` nor `atan2` is
+// refused for an argument's radius (issue #64, by H.1's rule for
+// `tanh`): a ball that reaches `2^maxBits` without lying beyond `2^bits`
+// throughout, which the kernel's door refused as `tooLarge`, is the
+// function's whole range, zero within two for `atan`, the kernel's own
+// trivial bound for a wide interval, and zero within four for `atan2`,
+// which certifies nothing and lets the retry loop narrow the argument;
+// a ratio `x / y` that reaches it with `x` straddling zero is
+// `unresolved` at `x`, since it is `x`'s width that keeps the ratio from
+// the kernel and narrowing `x` is the remedy. A refusal is final, and no
+// value of either function reaches any limit.
 
 import {
   addBalls,
@@ -148,9 +157,8 @@ export function atanBall(
       rad: addRadius(half.rad, powerOfTwoRadius(-BigInt(bits))),
     });
   }
-  const t = atanKernel(x, context);
-  if (!t.ok) return t;
-  return ok(fixedToBall(t.value, workingDigits(context)));
+  if (isHuge(x, context)) return ok(WHOLE_RANGE_ATAN);
+  return ok(fixedToBall(atanKernel(x, context), workingDigits(context)));
 }
 
 /** `asin(x)` at the context, as the header says. */
@@ -174,9 +182,7 @@ export function asinBall(
   if (!denominator.ok) return err(fromBallError(denominator.error, 0));
   const z = quotient(x, denominator.value, 0);
   if (!z.ok) return z;
-  const t = atanKernel(z.value, context);
-  if (!t.ok) return t;
-  return ok(fixedToBall(scaleFixed(t.value, 2n), digits));
+  return ok(fixedToBall(scaleFixed(atanKernel(z.value, context), 2n), digits));
 }
 
 /** `acos(x)` at the context, as the header says. */
@@ -210,17 +216,15 @@ export function acosBall(
     if (!denominator.ok) return err(fromBallError(denominator.error, 0));
     const z = quotient(root.value, denominator.value, 0);
     if (!z.ok) return z;
-    const t = atanKernel(z.value, context);
-    if (!t.ok) return t;
-    return ok(fixedToBall(scaleFixed(t.value, 2n), digits));
+    return ok(
+      fixedToBall(scaleFixed(atanKernel(z.value, context), 2n), digits),
+    );
   }
   const denominator = subtractBalls(exact(ONE), x, context);
   if (!denominator.ok) return err(fromBallError(denominator.error, 0));
   const z = quotient(root.value, denominator.value, 0);
   if (!z.ok) return z;
-  const t = atanKernel(z.value, context);
-  if (!t.ok) return t;
-  const twice = scaleFixed(t.value, 2n);
+  const twice = scaleFixed(atanKernel(z.value, context), 2n);
   return ok(
     fixedToBall(
       keepSignificant(subtractFixed(pi(context), twice), bits),
@@ -287,10 +291,12 @@ export function atan2Ball(
   if (xSide === "positive") {
     const z = quotient(y, x, 1);
     if (!z.ok) return z;
-    // A tiny ratio is its own arctangent within its cube, as atan's is.
+    // A tiny ratio is its own arctangent within its cube, as atan's is,
+    // and one reaching 2^maxBits, a y straddling zero far wider than x,
+    // is the whole range.
     if (isTiny(z.value, context)) return ok(tinyOdd(z.value));
-    const t = atanKernel(z.value, context);
-    return t.ok ? ok(fixedToBall(t.value, digits)) : t;
+    if (isHuge(z.value, context)) return ok(WHOLE_RANGE_ATAN2);
+    return ok(fixedToBall(atanKernel(z.value, context), digits));
   }
   if (ySide === "straddles") {
     return err({ kind: "unresolved", argument: 0, edge: ZERO });
@@ -298,24 +304,26 @@ export function atan2Ball(
   if (xSide === "negative") {
     const z = quotient(y, x, 1);
     if (!z.ok) return z;
+    if (isHuge(z.value, context)) return ok(WHOLE_RANGE_ATAN2);
     const t = atanKernel(z.value, context);
-    if (!t.ok) return t;
     const result =
       ySide === "positive"
-        ? addFixed(t.value, pi(context))
-        : subtractFixed(t.value, pi(context));
+        ? addFixed(t, pi(context))
+        : subtractFixed(t, pi(context));
     return ok(fixedToBall(keepSignificant(result, bits), digits));
   }
-  // `x` reaches zero and `y` has a sign: ±pi/2 - atan(x / y).
+  // `x` reaches zero and `y` has a sign: ±pi/2 - atan(x / y). A ratio
+  // reaching 2^maxBits is x's width, and narrowing x is the remedy, so it
+  // is `unresolved` at x rather than the whole range.
   const z = quotient(x, y, 0);
   if (!z.ok) return z;
+  if (isHuge(z.value, context)) {
+    return err({ kind: "unresolved", argument: 1, edge: ZERO });
+  }
   const t = atanKernel(z.value, context);
-  if (!t.ok) return t;
   const half =
     ySide === "positive" ? halfPi(context) : negateFixed(halfPi(context));
-  return ok(
-    fixedToBall(keepSignificant(subtractFixed(half, t.value), bits), digits),
-  );
+  return ok(fixedToBall(keepSignificant(subtractFixed(half, t), bits), digits));
 }
 
 /**
@@ -407,25 +415,30 @@ function squareBelow(x: Ball, bits: number): boolean {
 }
 
 /**
- * The kernel's arctangent of the bounded `z` at the context, or `tooLarge`
- * when `z` reaches the range limit: a small `z` is converted at as many
- * more fraction bits as its magnitude is below one, so that the kernel
- * keeps its digits.
+ * The kernel's arctangent of the bounded `z` at the context, for a `z`
+ * below `2^maxBits`, which the caller sees to: `atan` and `atan2` answer
+ * a ball reaching it first, and the ratios of `asin` and `acos` lie
+ * within one. A small `z` is converted at as many more fraction bits as
+ * its magnitude is below one, so that the kernel keeps its digits.
  */
-function atanKernel(
-  z: Ball,
-  context: NumberContext,
-): Result<Fixed, BuiltinError> {
-  if (isHuge(z, context)) return err({ kind: "tooLarge" });
+function atanKernel(z: Ball, context: NumberContext): Fixed {
   const bits = bitsFor(context.precision);
-  return ok(
-    atanFixed(
-      fixedFromBall(z, bits + extraBits(z.mid, context)),
-      bits,
-      bitsFor(context.ceiling),
-    ),
+  return atanFixed(
+    fixedFromBall(z, bits + extraBits(z.mid, context)),
+    bits,
+    bitsFor(context.ceiling),
   );
 }
+
+/**
+ * The whole range of `atan`, zero within two, the kernel's own trivial
+ * bound for a wide interval, for a ball that reaches `2^maxBits` without
+ * lying beyond `2^bits` throughout (issue #64).
+ */
+const WHOLE_RANGE_ATAN: Ball = { mid: ZERO, rad: powerOfTwoRadius(1n) };
+
+/** The whole range of `atan2`, zero within four, for a ratio that reaches `2^maxBits` (issue #64). */
+const WHOLE_RANGE_ATAN2: Ball = { mid: ZERO, rad: powerOfTwoRadius(2n) };
 
 /** `a / b` for a `b` whose interval the caller has checked to exclude zero, failing only if the quotient is refused; `argument` is `b`'s index. */
 function quotient(

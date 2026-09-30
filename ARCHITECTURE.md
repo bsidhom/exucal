@@ -136,8 +136,15 @@ Three rules say where, and only where, a value can lose precision:
    takes an exact power of ten off the exponent and scales the mantissa
    by an exact power of `2^n` so that it is of order one, converts that
    to the kernel's fixed point at the bits of the working precision plus
-   a guard, takes the root there (`sqrtFixed`, `rootFixed`), scales back,
-   and hands back the kernel's value through `fixedToBall`: the midpoint
+   a guard (plus as many more bits as the scaled mantissa still lies
+   below one, so that it keeps its digits), takes the root there
+   (`sqrtFixed`, `rootFixed`), scales back,
+   and hands back the kernel's value through `fixedToBall`; a root the
+   kernel cannot take, of a degree past `2^32`, of a mantissa too far
+   below one for the working bits, or with a remainder of the exponent
+   the range limit does not hold, is taken in log space instead,
+   `x^(1/n)` as `exp(ln x / n)`, so `pow(3, 1e-30)` and
+   `(7^-8000)^(1/99999)` are values (the plan's H.5): the midpoint
    rounded to nearest onto the decimal grid of the working digits
    (`workingDigits`, the digits of those bits), with the kernel's error
    and half a unit of the last digit as the radius, which covers the
@@ -271,9 +278,11 @@ results that can be large, the exponential's and the hyperbolic pair's;
 exactly where the exponent is within the range limit and in log space
 otherwise, the one place the program needs log space. Its first routines are the roots: the square
 root by Newton on the reciprocal square root, multiplications only with
-the precision doubling, and the root of any degree by Newton in fixed
-point, either one's error verified by raising the result back to the
-power rather than read off the iteration. The elementary functions
+the precision doubling, and the root of any degree up to `2^32` by
+Newton in fixed point, either one's error verified by raising the result
+back to the power rather than read off the iteration; a larger degree
+would overshoot from the double's first guess and fail the verification,
+and the ball takes it in log space. The elementary functions
 are the routines beside it, one module per family: `fixed-exp.ts`
 (the exponential, by halving, a Taylor series and squaring, and the
 hyperbolic sine and cosine through it, or through the sine's series in

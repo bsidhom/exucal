@@ -878,6 +878,63 @@ test("powRationalBall composes the power and the root, root last", () => {
   assert.deepEqual(squared.mid, fr(4n));
 });
 
+test("a root the kernel cannot take goes to log space, and a mantissa below one keeps its digits", () => {
+  // A degree past 2^32 (issues #45 and #57): 2^(1/10^20), from Python's
+  // decimal module, certified to 32 digits on the first pass.
+  const tiny = unwrap(rootBall(exact(fr(2n)), 10n ** 20n, at(32)));
+  assertContains(
+    tiny,
+    dec("1.00000000000000000000693147180559945309419634386527767575199"),
+    "2^(1/10^20)",
+  );
+  assert.ok(certifies(tiny, 32, "halfEven"));
+  // The same through a rational power: 3^(1e-30) is one within 2e-30.
+  const cube = unwrap(
+    powRationalBall(exact(fr(3n)), rational(1n, 10n ** 30n), at(8)),
+  );
+  assertContains(cube, dec("1.0000000000000000000000000000011"), "3^1e-30");
+  assert.ok(compareFractions(radiusUpper(cube.rad), tenTo(15)) < 0);
+  // A negative base of odd degree past 2^32 keeps its sign through the
+  // negative branch.
+  const negative = unwrap(
+    powRationalBall(exact(fr(-2n)), rational(1n, 3n ** 700n), at(8)),
+  );
+  assert.ok(compare(negative.mid, ZERO) < 0);
+  assertContains(negative, dec("-1"), "(-2)^(1/3^700)");
+  assert.ok(compareFractions(radiusUpper(negative.rad), tenTo(15)) < 0);
+  // A ball around zero under such a degree is a ball around zero, its
+  // radius the root of the farther end, one within a hair.
+  const aroundZero = unwrap(
+    powRationalBall(ball(ZERO, dec("1e-23")), rational(1n, 3n ** 700n), at(8)),
+  );
+  assert.ok(containsZero(aroundZero));
+  // A mantissa below one by more than the working bits: 7^-8000 under the
+  // 99999th root converted to zero and was shown as zero within 0.9; in
+  // log space it is 0.85583783261454849435… (Python's decimal module).
+  const deep = unwrap(
+    powRationalBall(exact(fr(1n, 7n ** 8000n)), rational(1n, 99999n), at(20)),
+  );
+  assertContains(
+    deep,
+    dec("0.85583783261454849434685915305639491567780083343275"),
+    "(7^-8000)^(1/99999)",
+  );
+  assert.ok(certifies(deep, 20, "halfEven"));
+  // A mantissa below one by less than the working bits is converted at
+  // that many more bits, and keeps its digits: 3^-20 under the 1000th
+  // root certifies eight digits on the first pass.
+  const shallow = unwrap(
+    powRationalBall(exact(fr(1n, 3n ** 20n)), rational(1n, 1000n), at(8)),
+  );
+  assertContains(
+    shallow,
+    dec("0.978267385729171169176703195292398395448347826364178327482926"),
+    "(3^-20)^(1/1000)",
+  );
+  assert.ok(certifies(shallow, 8, "halfEven"));
+  assert.ok(compareFractions(radiusUpper(shallow.rad), tenTo(15)) < 0);
+});
+
 test("powLogSpace of an exponent below half an ulp converts it to zero within an ulp, and the power is one within a few ulps", () => {
   // The exponent is far below 2^-maxBits: its fraction could not be
   // formed, and the kernel's door answers it (H.2, issue #53).

@@ -219,22 +219,33 @@ export function multiplyRadiusDown(a: Radius, b: Radius): Radius {
 
 /**
  * A radius at or above the `degree`-th root of the bounded `rad`: its
- * logarithm divided by the degree, rounded up; unbounded absorbs.
+ * logarithm divided by the degree, rounded up; unbounded absorbs. The
+ * degree may be any bigint: the division is done on bigints, so a degree
+ * past a double's range (`3^700`) is no longer `NaN` (issue #57).
  */
 export function rootRadiusAbove(rad: Radius, degree: bigint): Radius {
   if (degree < 1n) throw new RangeError("Root degree must be positive");
   if (rad.kind === "unbounded" || rad.mant === 0n) return rad;
   const log2 = log2OfRadius(rad);
   // (int + frac) / degree: the integer quotient rounded toward minus
-  // infinity, and the rest as a fraction, both to a double's accuracy.
+  // infinity, and the rest as a fraction in [0, 1).
   let int = log2.int / degree;
   let rest = log2.int - int * degree;
   if (rest < 0n) {
     int -= 1n;
     rest += degree;
   }
-  const frac = (Number(rest) + log2.frac) / Number(degree);
-  return fromLog2({ int, frac: Math.min(frac, 1 - 2 ** -40) }, "up");
+  // rest / degree through an integer division at 60 bits, and the
+  // fraction's own share as a double where it is above the scale's unit
+  // (below 2^-60 for a degree past 2^60, which the margin covers). The
+  // margin keeps the sum an upper bound over both roundings; a sum that
+  // reaches one carries into the next power of two, which is above the
+  // root too.
+  const scaled = (rest << 60n) / degree;
+  const share = degree < 1n << 60n ? log2.frac / Number(degree) : 0;
+  const frac = Number(scaled) / 2 ** 60 + share + 2 ** -50;
+  if (frac >= 1) return fromLog2({ int: int + 1n, frac: 0 }, "up");
+  return fromLog2({ int, frac }, "up");
 }
 
 /**

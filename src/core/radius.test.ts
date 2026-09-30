@@ -13,8 +13,10 @@ import {
   multiplyRadius,
   powRadius,
   powerOfTenRadius,
+  powerOfTwoRadius,
   radiusAbove,
   radiusUpper,
+  rootRadiusAbove,
   type Radius,
 } from "./radius.ts";
 import {
@@ -320,4 +322,48 @@ test("powerOfTenRadius is at or above 10^k, within 2^-29, at any exponent the bo
   assert.throws(() => powerOfTenRadius(1n << 90n), RangeError);
   assert.throws(() => powerOfTenRadius(-(1n << 90n)), RangeError);
   assertNormalized(powerOfTenRadius((1n << 90n) - 1n));
+});
+
+test("rootRadiusAbove is at or above the root, within 2^-27, at any degree, a degree past a double's range included", () => {
+  // Ordinary degrees, checked by raising the result back: at or above
+  // the radius, and at most (1 + 2^-27)^degree of it.
+  const seed = key(2203);
+  for (const [i, k] of split(seed, 24).entries()) {
+    const rad = radiusAbove(absolute(randomRational(k, 24, 12)));
+    if (isZeroRadius(rad)) continue;
+    for (const degree of [2n, 3n, 7n, 1000n]) {
+      const root = rootRadiusAbove(rad, degree);
+      assertNormalized(root);
+      const power = pow(radiusUpper(root), degree, LIMIT_BITS);
+      assert.ok(power.ok);
+      const exact = radiusUpper(rad);
+      assert.ok(compare(power.value, exact) >= 0, `${i}: degree ${degree}`);
+      const slack = pow(add(ONE, rational(1n, 1n << 27n)), degree, LIMIT_BITS);
+      assert.ok(slack.ok);
+      assert.ok(
+        compare(power.value, multiply(exact, slack.value)) <= 0,
+        `${i}: degree ${degree}, tight`,
+      );
+    }
+  }
+  // A degree past a double's range (issue #57's `pow(1e-5 - approx(1e-5),
+  // 3^-700)`): the root of any radius is one within a hair, from below
+  // for a radius below one and from above for one above it, and the
+  // result is at or above it and within 2^-27 of one.
+  for (const degree of [10n ** 400n, 3n ** 700n]) {
+    for (const rad of [
+      powerOfTwoRadius(-76n),
+      powerOfTwoRadius(1000n),
+      radiusAbove(rational(3n, 7n)),
+    ]) {
+      const root = rootRadiusAbove(rad, degree);
+      assertNormalized(root);
+      const value = radiusUpper(root);
+      assert.ok(compare(value, ONE) >= 0, `${degree}`);
+      assert.ok(
+        compare(value, add(ONE, rational(1n, 1n << 27n))) <= 0,
+        `${degree}`,
+      );
+    }
+  }
 });

@@ -5,7 +5,10 @@
 // magnitude follows one rule with `^` (`powRationalBall` of ball.ts): an
 // exact exponent is that rule, integer powers exact, a rational exponent
 // exact when the base is a perfect power, the root of the power when it
-// fits the range limit, and log space otherwise, the exponent formed as
+// fits the range limit, and log space otherwise (a root of a degree past
+// `2^32`, `pow(3, 1e-30)`, or of a mantissa too far below one for the
+// kernel's root goes to log space too, ball.ts's `positiveRoot`; issues
+// #45 and #57), the exponent formed as
 // a fraction within the range limit and refused when it cannot be, an
 // `overflow` or `underflow` when the power would pass the bound
 // (`pow(2, 1e999999999)`) and `tooLarge` otherwise (`pow(2,

@@ -14,6 +14,7 @@ import {
   fixedToBall,
   fixedToScaled,
   multiplyFixed,
+  ROOT_DEGREE_LIMIT,
   rootFixed,
   shiftFixed,
   sqrtFixed,
@@ -914,11 +915,82 @@ test("reference digits: sqrt 2 and cbrt 2 at 100 digits, and other roots", () =>
   );
 });
 
+/**
+ * The interval of `x^n` computed by squaring in fixed point at `bits`
+ * fraction bits, with the error rules, as two fractions: a sound bracket
+ * of the true power, for a degree too large to raise a fraction to.
+ */
+function powerInterval(
+  x: Rational,
+  n: bigint,
+  bits: number,
+): [Rational, Rational] {
+  let result: Fixed = { value: 1n << BigInt(bits), error: 0n, bits };
+  let base = fixedFromRational(x, bits);
+  for (let rest = n; rest > 0n; rest >>= 1n) {
+    if (rest & 1n) result = multiplyFixed(result, base);
+    if (rest > 1n) base = multiplyFixed(base, base);
+  }
+  const [low, , high] = ends(result);
+  return [low, high];
+}
+
+test("rootFixed at the largest degree, 2^32, contains the root of every value in the argument's interval", () => {
+  // The root of a value of magnitude up to 2^20 at degree 2^32 is about
+  // 1 + ln(a) / 2^32, within 2^-27 of one. The check is the one the kernel's
+  // own verification makes, raised back to the power by squaring at many more
+  // bits: the lower end's power must lie at or below the argument's, the
+  // upper end's at or above it.
+  const n = ROOT_DEGREE_LIMIT;
+  const root = key(2202);
+  for (const bits of [36, 69, 200]) {
+    for (let i = 0; i < 12; i++) {
+      // Magnitudes from 2^-20 to 2^20, as exact values and as balls.
+      const k = foldIn(foldIn(root, bits), i);
+      const scale = between(foldIn(k, 0), -20, 20);
+      const mantissa = absolute(randomRational(foldIn(k, 1), 24, 0));
+      if (mantissa.num === 0n) continue;
+      const value = multiply(
+        mantissa,
+        scale >= 0
+          ? rational(1n << BigInt(scale))
+          : rational(1n, 1n << BigInt(-scale)),
+      );
+      const exact = fixedFromRational(value, bits);
+      const f: Fixed =
+        i % 2 === 0 ? exact : { ...exact, error: exact.error + 3n };
+      if (f.value - f.error <= 0n) continue;
+      const r = rootFixed(f, n);
+      const [from, , to] = ends(f);
+      const [low, , high] = ends(r);
+      const label = `root 2^32 of ${toFraction(from)} to ${toFraction(to)} at ${bits} bits`;
+      assert.ok(
+        compare(absolute(subtract(low, ONE)), rational(1n, 1n << 27n)) < 0,
+        label,
+      );
+      const [, lowHigh] = powerInterval(low, n, 400);
+      const [highLow] = powerInterval(high, n, 400);
+      assert.ok(compare(lowHigh, from) <= 0, `${label}: lower end`);
+      assert.ok(compare(highLow, to) >= 0, `${label}: upper end`);
+    }
+  }
+});
+
 test("a root of degree one is the argument, and the preconditions throw", () => {
   const f: Fixed = { value: 5n, error: 1n, bits: 2 };
   assert.deepEqual(rootFixed(f, 1n), f);
   assert.throws(() => rootFixed(f, 0n), RangeError);
   assert.throws(() => rootFixed(f, -3n), RangeError);
+  // A degree past 2^32 is the ball's to take in log space.
+  assert.throws(
+    () =>
+      rootFixed(fixedFromRational(rational(2n), 64), ROOT_DEGREE_LIMIT + 1n),
+    RangeError,
+  );
+  assert.ok(
+    rootFixed(fixedFromRational(rational(2n), 64), ROOT_DEGREE_LIMIT).value >
+      0n,
+  );
   // An interval that reaches zero, or is negative, has no root here.
   assert.throws(() => sqrtFixed({ value: 1n, error: 1n, bits: 2 }), RangeError);
   assert.throws(() => sqrtFixed({ value: 0n, error: 0n, bits: 2 }), RangeError);

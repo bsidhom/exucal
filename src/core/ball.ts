@@ -76,10 +76,18 @@
 // exact power of `2^degree` on the mantissa so that it is of order one (the
 // scaling belongs here, on the ball, since a tiny ball converted at the
 // kernel's bits would lose its digits), converted at `bitsFor(precision)`,
+// plus as many more bits as the scaled mantissa still lies below one,
 // rooted, scaled back and handed back through `fixedToBall`, so that the
 // radius covers the argument's radius and the kernel's own error, and the
 // midpoint is the kernel's, rounded to the working digits in no mode (D15:
-// the mode is the display's). A negative ball of odd degree is the negated
+// the mode is the display's). Three cases the kernel's root cannot take go
+// to log space instead, `x^(1/n)` as `exp(ln x / n)` (H.5 of the plan): a
+// degree past `2^32`, which Newton's iteration from a double's guess
+// cannot verify (`pow(3, 1e-30)` threw, issue #57); a remainder of the
+// exponent whose power of ten does not fit the range limit; and a mantissa
+// that lies below one by more than the working bits, which the conversion
+// would turn to zero (`(7^-8000)^(1/99999)` was shown as zero within
+// `0.9`). A negative ball of odd degree is the negated
 // root of its magnitude; one of even degree fails with `negativeRadicand`.
 // A ball containing zero without being exactly zero is `unresolved` under
 // an even degree, since the sign of the true value decides whether there
@@ -132,6 +140,7 @@ import {
   fixedToBall,
   keepSignificant,
   multiplyFixed,
+  ROOT_DEGREE_LIMIT,
   rootFixed,
   scaleFixed,
   shiftFixed,
@@ -576,19 +585,26 @@ export function rootBall(
 /**
  * The root of a bounded `b` whose interval is positive, through the kernel:
  * the exponent is split into a multiple of the degree, taken off exactly,
- * and a remainder folded into the mantissa when its power fits the range
- * limit (log space otherwise, as a rational power that does not fit takes
- * it); the mantissa is then scaled by `2^(-j × degree)` so that it is of
- * order one, converted at `bitsFor(precision)`, rooted, scaled back by
- * `2^j` and the power of ten, and handed back. `undefined` when the scaled
- * ball's interval is not positive at those bits, which only a ball
- * reaching within an ulp of zero can produce.
+ * and a remainder folded into the mantissa; the mantissa is then scaled by
+ * `2^(-j × degree)` so that it is of order one, converted at
+ * `bitsFor(precision)` plus as many more bits as the scaled mantissa lies
+ * below one, so that it keeps its digits through the root, rooted, scaled
+ * back by `2^j` and the power of ten, and handed back. Three cases go to
+ * log space instead (`rootInLogSpace`), as a rational power that does not
+ * fit the range limit does: a degree past `ROOT_DEGREE_LIMIT`, which the
+ * kernel's root cannot verify; a remainder whose power of ten does not
+ * fit the range limit; and a mantissa that lies below one by more than
+ * the working bits, which the conversion would turn to zero within an ulp
+ * and report as a false `unresolved` (`pow(3^-10000, 2^-30)`, issue #57).
+ * `undefined` when the scaled ball's interval is not positive at those
+ * bits, which only a ball reaching within an ulp of zero can produce.
  */
 function positiveRoot(
   b: Ball,
   degree: bigint,
   context: NumberContext,
 ): Result<Ball | undefined, BallError> {
+  if (degree > ROOT_DEGREE_LIMIT) return rootInLogSpace(b, degree, context);
   let k = b.mid.exp / degree;
   let r = b.mid.exp - k * degree;
   if (r < 0n) {
@@ -596,9 +612,7 @@ function positiveRoot(
     k -= 1n;
   }
   const mantissa = toRational({ mant: b.mid.mant, exp: r }, context.maxBits);
-  if (!mantissa.ok) {
-    return powLogSpace(b, exact(fromRational(rational(1n, degree))), context);
-  }
+  if (!mantissa.ok) return rootInLogSpace(b, degree, context);
   // The radius over the power of ten taken off, then over the mantissa's
   // binary scaling: both exact powers, rounded up on the radius. The
   // power taken off is not formed: its multiple of the degree can overshoot
@@ -610,9 +624,17 @@ function positiveRoot(
   const exponent = BigInt(bitLength(m.num) - bitLength(m.den));
   const j = exponent / degree;
   const shift = j * degree;
+  // The scaled mantissa, `m × 2^-shift`, lies between `2^-degree` and
+  // `2^degree`. Where it lies below one, `deficit` is about how many bits
+  // below: past the working bits the conversion would lose it entirely,
+  // and within them it is converted at that many more bits, as a small
+  // argument of an odd function is (`extraBits` of builtin.ts).
+  const bits = bitsFor(context.precision);
+  const deficit = shift - exponent;
+  if (deficit > BigInt(bits)) return rootInLogSpace(b, degree, context);
   const f = fixedFromRational(
     scaleByPowerOfTwo(m, -shift),
-    bitsFor(context.precision),
+    bits + (deficit > 0n ? Number(deficit) : 0),
   );
   const scaledRad = shiftRadius(radOverTen, -shift);
   const withRad: Fixed = {
@@ -631,6 +653,29 @@ function positiveRoot(
     mid: mid.value,
     rad: multiplyRadius(root.rad, radiusAboveScaled(backTen)),
   });
+}
+
+/**
+ * The root of the bounded, positive `b` in log space, `x^(1/n)` as
+ * `exp(ln x / n)`, for the cases `positiveRoot` cannot take to the
+ * kernel's root. `powLogSpace`'s `unresolved`, which for a positive ball
+ * means only that it reaches within an ulp of zero at the logarithm's
+ * bits, becomes `undefined`, so that `rootBall` keeps its handling of a
+ * ball around zero under an odd or an even degree (`pow(-2, 3^-700)` is
+ * `≈ -1` through its negative branch); a refusal is passed on.
+ */
+function rootInLogSpace(
+  b: Ball,
+  degree: bigint,
+  context: NumberContext,
+): Result<Ball | undefined, BallError> {
+  const root = powLogSpace(
+    b,
+    exact(fromRational(rational(1n, degree))),
+    context,
+  );
+  if (root.ok) return root;
+  return root.error.kind === "unresolved" ? ok(undefined) : root;
 }
 
 /** `10^k` as a `Scaled`, which is within the bound whenever `k` came from one. */

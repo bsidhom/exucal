@@ -191,7 +191,11 @@ exponent `p/q` is exact when `x` is a perfect `q`-th power (`pow(8, 1/3)`
 is `2`, `pow(1/4, 3/2)` is `1/8`), which `exactRoot(x, q)` finds without
 forming `x^p`; otherwise the root of the power when `x^p` fits the range
 limit, which also serves a negative base under an odd root; otherwise,
-and for an inexact exponent, `exp(y ln x)` for a positive base. Log space
+and for an inexact exponent, `exp(y ln x)` for a positive base. The root
+itself goes to log space when the kernel cannot take it: a degree past
+`2^32` (`pow(3, 1e-30)`, whose root is the `10^30`-th), or a mantissa too
+far below one for the working bits (`(7^-8000)^(1/99999)`), each of
+which crashed or was shown as zero before the plan's H.5. Log space
 is where `2^0.1234567` computes, since `2^1234567` does not fit any range
 limit, and `pow(10, 2.3456789)` too, since 4.4 by the root: `10^23456789`
 is exact in the exponent, but its root leaves `10^3456789` to the kernel,

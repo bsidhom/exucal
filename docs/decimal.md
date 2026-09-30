@@ -12,7 +12,11 @@ The stage has landed; "Implementation notes" at the end says where the
 code departed from this note, and the plan's "Stage 4 as it landed"
 records it task by task. Two follow-ups since (the plan's "After stage
 4") added "Which limit a refusal names" and "Decision: the bound stays
-at `10^18`" under "The exponent bound".
+at `10^18`" under "The exponent bound", and the hardening phase before
+stage 5 (the plan's "Before stage 5: hardening", and "The hardening
+phase as it landed") put the bound on the value (D17) and held every
+ball to it by its whole interval (D18), which "The exponent bound" and
+"Sums, comparisons and the radius" now say.
 
 ## The problem
 

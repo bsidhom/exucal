@@ -1,14 +1,17 @@
 # Implementation plan for the calculator
 
-Status: in progress; stages 1 to 4 have landed, and "Stage 1 as it
-landed", "Stage 2 as it landed", "Stage 3 as it landed" and "Stage 4 as
-it landed" at the end record where the code diverged from the tasks as
-first written; "After stage 4" records the two follow-ups that landed
-since, and the issues they filed. "Before stage 5: hardening", between
-stage 4's tasks and stage 5's, is the phase that fixes those issues
-before stage 5, with the decisions it added (D17 to D20) and amended
-(D4, D8, D15 and D16); D20, on what exact mode does past the range
-limit, was ruled on in review of its pull request. D13 was
+Status: in progress; stages 1 to 4 and the hardening phase before stage
+5 have landed, and "Stage 1 as it landed", "Stage 2 as it landed",
+"Stage 3 as it landed", "Stage 4 as it landed" and "The hardening phase
+as it landed" at the end record where the code diverged from the tasks
+as first written; "After stage 4" records the two follow-ups that
+landed between stage 4 and the phase, and the issues they filed.
+"Before stage 5: hardening", between stage 4's tasks and stage 5's, is
+the phase that fixed those issues before stage 5, with the decisions it
+added (D17 to D20) and amended (D4, D8, D15 and D16); D20, on what exact
+mode does past the range limit, was ruled on in review of its pull
+request, and D18's answer for a sum whose ball reaches back within the
+bound in review of H.13's. D13 was
 revised in review of the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -4802,5 +4805,199 @@ power too, is corrected in ARCHITECTURE.md and the README with this
 record.
 
 "Before stage 5: hardening", between stage 4's tasks and stage 5's, is
-the phase that fixes these issues, and the defects its review found
-beside them, before stage 5.
+the phase that fixed these issues, and the defects its review found
+beside them, before stage 5; "The hardening phase as it landed" below
+records it.
+
+## The hardening phase as it landed
+
+The re-read after H.16. The phase landed as fourteen pull requests in
+the order its introduction gives, tier 1 as H.1, H.2 with H.3, H.8, H.4
+with H.5, H.6, H.7 and H.9
+([#69](https://github.com/bsidhom/pwa-units/pull/69),
+[#70](https://github.com/bsidhom/pwa-units/pull/70),
+[#71](https://github.com/bsidhom/pwa-units/pull/71),
+[#74](https://github.com/bsidhom/pwa-units/pull/74),
+[#75](https://github.com/bsidhom/pwa-units/pull/75),
+[#76](https://github.com/bsidhom/pwa-units/pull/76),
+[#77](https://github.com/bsidhom/pwa-units/pull/77)), and tier 2 as
+H.10, H.11 with H.12, H.13, H.14, H.15 and H.16
+([#80](https://github.com/bsidhom/pwa-units/pull/80),
+[#81](https://github.com/bsidhom/pwa-units/pull/81),
+[#82](https://github.com/bsidhom/pwa-units/pull/82),
+[#83](https://github.com/bsidhom/pwa-units/pull/83),
+[#84](https://github.com/bsidhom/pwa-units/pull/84),
+[#87](https://github.com/bsidhom/pwa-units/pull/87)), each reviewed and
+merged on its own with the tests passing under it, and the tasks above
+left as they were written except where a ruling in review changed a
+row, which the task's text now says. A change outside the phase landed
+between H.15 and H.16
+([#85](https://github.com/bsidhom/pwa-units/pull/85)): the cap on the
+digits setting is labeled "Precision limit", the panel says what each
+setting does, and README ("How a number is held, and what the settings
+touch") says why one limit is in bits and the others in digits, and
+where the ceiling's four times plus ten comes from. The list, with the
+issues each closed:
+
+- **H.1** (#38, #49). `tanhFixed` answers an interval wider than one
+  as zero within one before computing anything, and `tanhBall` a ball of
+  radius one half or more that is not saturated the same way; the guard
+  borrowed from `exp` is gone, since with no saturation and a radius
+  below one half nothing the kernel is handed reaches 181,727.
+- **H.2** (#53, #56). `fixedFromScaled` answers a value below half an
+  ulp as zero within one ulp from its size, with nothing formed, and
+  forms any other within four times the hard bound; `exp` gained the
+  series-at-zero rule. The tighter bound for a log-space power of a tiny
+  exponent, which #53 also asked, came with H.15's classifier.
+- **H.3** (#39). `expFixed` answers an interval wider than one as zero
+  within the exponential of its signed upper end, formed exactly; the
+  signed end, not the largest magnitude, since a wide negative interval
+  near the bottom edge would otherwise read as an overflow.
+- **H.8** (#54). `unitAtom` takes a plain name only when no `(` follows
+  it, by a lookahead over the name's own continuation characters; a cut
+  combinator was weighed and set aside, since a committed failure skips
+  every enclosing `alt`, `optional` and `many`.
+- **H.4** (part of #44). `powerOfTenRadius(k)` for any `k` below `2^90`
+  in magnitude; the three sites read it, and `farLogarithm` takes
+  `ln(2|x|)` as `ln 2 + ln |x|`.
+- **H.5** (#45, #57). `rootFixed` takes a degree up to `2^32` as a
+  precondition, and `positiveRoot` sends three cases to
+  `rootInLogSpace`: a degree past that, a remainder of the exponent
+  whose power of ten does not fit the range limit, and a mantissa below
+  one by more than the working bits; one below by less converts at that
+  many more bits. `rootRadiusAbove` divides by the degree in bigints.
+- **H.6** (part of #46). The bases 0, 1 and -1 are answered before the
+  exponent's fraction, in that order, an exact exponent of zero first;
+  `minusOneTo` reads the parity off the canonical form.
+- **H.7** (#47, #64). Four commits: `complementRoot` reads the argument's
+  position against `±1` before forming its square; `asin` and `acos`
+  take their expansion at zero as soon as the square lies below `2^-bits`
+  of the working precision, not `isTiny`'s `2^-maxBits`; `atan2`
+  compares its magnitudes as radii before forming a ratio, `±pi/2` or
+  `±pi` within `2^-bits` where one dominates, a tiny ratio over a
+  positive `x` its own arctangent within its cube, and a ratio past the
+  bound the quotient's refusal; and neither `atan` nor `atan2` is
+  refused for an argument's radius, a ball reaching `2^maxBits` without
+  lying beyond `2^bits` being the whole range, zero within two and
+  within four, the powers of two above `pi/2` and `pi`, with a ratio
+  whose `x` straddles zero `unresolved` at `x`. #64 was closed with this
+  record, its pull request not having closed it.
+- **H.9** (part of #52, #66). Four commits: the smaller reductions
+  (Henrici's rule for a sum, cross-cancellation for a product, the
+  reciprocal's swap with no gcd), correct only for operands in lowest
+  terms, so the invariant is asserted over every constructor that
+  bypasses `rational()`; Lehmer's gcd, about forty times cheaper than
+  Euclid's at the default limit and still quadratic, a half-gcd left for
+  a larger limit; the `^` exponent reduced in the evaluator within the
+  range limit, `Exponent` carrying the two literals unreduced; and, from
+  review, the quotient taken as `Scaled` values so that a literal's
+  power of ten is not counted (`2^(1e30000/1e30000)` is a value at any
+  limit). Where a quotient's reduction should run is
+  [#78](https://github.com/bsidhom/pwa-units/issues/78).
+- **H.10.** Two levels, 14,241 ball cases and 274 text cases, each
+  judged against the decisions rather than the code, with a table of
+  known violations keyed by issue that fails on a violation it does not
+  list and on a listed one no case shows any more; from review, the
+  oracle's bound on an unformable radius rests on bigint roots of ten
+  (`tenToAbove`, a relative `5.4 × 10^-10`) rather than a double, since
+  no bound of such a radius can be exact and a stated slack rounded
+  outward is what any check of it rests on. The sweep found what the
+  tasks then fixed: `settle`'s zero-midpoint shortcut, `position` on a
+  refused difference, and the `cbrt` of #79.
+- **H.11** (part of #44). Three commits, the first carrying the edge on
+  `BallError`'s `unresolved`; `settle` returns a `Result`, refusing a
+  rounded midpoint past the bound in decimal mode and truncating toward
+  zero with a whole unit in exact mode; `radiusOfMove` and
+  `differenceOf` form a difference without the bound. The owner's
+  question at review, whether exact mode's semantics were preserved at
+  radius zero: they are, `settle` being the identity on an exact ball
+  before any rounding.
+- **H.12** (#58, part of #44). `decompose` returns a `Result` with
+  `ListRefusal`, the pipeline reports a list's refusal as the
+  conversion's, and `roundTerms` falls back to the uncarried terms where
+  rebuilding the total fails, so that it stays total.
+- **H.13** (#50, #48, #44, #59, #60). Two commits as planned, and a
+  third amending the plan: `scaled()` checks the value's decimal
+  exponent inside a band of the canonical exponent (`BOUND_BAND`, four
+  hundred million) where the two can differ; `held` and
+  `againstPowerOfTen` hold an inexact product or quotient by the whole
+  ball, the coarse bounds first and the exact distance from the power
+  of ten within their slack; `addBalls` takes the settle-first path on
+  `tooLarge` alone. The ruling at review: #48's `approx` row is
+  `unresolved` at the bound, not the `overflow` the issue asked, since
+  the ball reaches back within the bound and a refusal must never be
+  wrong; the exact row is `overflow` in both modes.
+- **H.14** (#52). The check in `evaluate()`'s wrapper and after the
+  pipeline's two quotients, with `mantissaWithin` moved to scaled.ts;
+  the error carries `exact` and the span of the node's first operand,
+  since `approx` around the node itself comes too late, the node being
+  refused before `approx` sees it, which the plan's message had assumed
+  would work; the message reads "write approx(3^32767) in place of
+  3^32767". The probe times the product's two cross-cancelling gcds with
+  the operands built outside the timed call. The optional commit
+  aligning `pow`'s prediction with the check is
+  [#89](https://github.com/bsidhom/pwa-units/issues/89).
+- **H.15** (#40, #61, #62; #46's rows 1 and 3). One classifier on an
+  interval bounding the natural logarithm of the result's magnitude,
+  the coarse radii first, a base near one by its exact difference from
+  one, and the kernel within their slack, with a margin of forty bits
+  below the working bits on `compute`; `powLogSpace` takes the bits from
+  `log2OfRadius` of `y`'s magnitude and answers from the bound where
+  those pass the range limit; `powRadiusAbove` takes a zero midpoint's
+  power from the radius's logarithm; `floatingToBall` holds its decimal
+  exponent to the bound by the interval of `t`. Two kinds of
+  expectations changed beyond the issues' rows: in decimal mode the
+  argument is settled to the Digits setting first, so
+  `exp(2302585092994045000)` and `approx(1.0000001)^1e30` at eight digits
+  straddle an edge and are `unresolved`; and a ball around zero whose
+  power's radius reaches the top is `unresolved` there, as a product's
+  is. An exact exponent putting `y ln x` exactly on the bottom edge is
+  `unresolved` at every precision, which only log space reaches.
+- **H.16** (#46). An unformable exact exponent goes to log space; an
+  exact base is told past the bound by `powerRefusal` first, a negative
+  base takes the parity rule times the magnitude's power, and a base
+  reaching zero keeps the classifier's answer. The `^` operator keeps
+  its refusal, which is
+  [#88](https://github.com/bsidhom/pwa-units/issues/88).
+
+What stage 5 inherits: D17 to D20 as the tasks landed them, the bound
+on the value and a refusal needing the whole ball past it, so that its
+exponent notation writes literals that parse back and its display of a
+ball at an edge has one rule to follow; the edge sweep at two levels,
+which a built-in joins by the map of built-ins and a display rule by a
+row; the three refusals and the edge `bound`, worded in messages.ts;
+and the classifier, which stage 6's functions take their guard from.
+The work set aside, each with its issue:
+
+- `asin`, `acos` and `acosh` of an exact argument with a long mantissa
+  are refused, since their exact `1 - x^2` does not align
+  ([#63](https://github.com/bsidhom/pwa-units/issues/63)); the text
+  sweep's one remaining known entry.
+- A root of degree three or more of a wide positive ball throws in the
+  kernel's verification
+  ([#79](https://github.com/bsidhom/pwa-units/issues/79)); the ball
+  sweep's one remaining known entry.
+- `tanhFixed`'s fold band costs an extra pass
+  ([#65](https://github.com/bsidhom/pwa-units/issues/65)).
+- A zero's bound far below the exponent bound is written with every
+  digit of its exponent
+  ([#67](https://github.com/bsidhom/pwa-units/issues/67)); stage 5's
+  design note rules on it and 5.1 lands it.
+- The message for an exact result past Most bits should say how many
+  bits it needed ([#73](https://github.com/bsidhom/pwa-units/issues/73)).
+- Where a quotient's reduction should run
+  ([#78](https://github.com/bsidhom/pwa-units/issues/78)).
+- The precision limit does nothing for results in decimal mode, and the
+  panel does not say so; whether to hide it there, and whether decimal
+  mode should carry a ceiling at all
+  ([#86](https://github.com/bsidhom/pwa-units/issues/86)).
+- `^` and `pow` disagree on a dimensionless base with an exact exponent;
+  one shared rule for an exact exponent, and the parser handing an
+  exponent literal through as a number
+  ([#88](https://github.com/bsidhom/pwa-units/issues/88)).
+- `pow`'s size prediction refuses powers the node check would admit
+  ([#89](https://github.com/bsidhom/pwa-units/issues/89)).
+- The table's prefix lookup still throws on a prefix times a unit that
+  the arithmetic refuses or leaves `unresolved`; only a user definition
+  within a prefix's factor of the bound reaches it, so it is filed with
+  the editor that user definitions still lack.

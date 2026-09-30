@@ -25,14 +25,16 @@
 // degree past `2^32`, `pow(3, 1e-30)`, or of a mantissa too far below one
 // for the kernel's root goes to log space too, ball.ts's `positiveRoot`;
 // issues #45 and #57). The exponent is formed as a fraction within the
-// range limit, and one that cannot be formed is refused, an `overflow` or
-// `underflow` when the power would pass the bound (`pow(2, 1e999999999)`)
-// and `tooLarge` otherwise (`pow(2, 1e-999999999)`, a value near one
-// whose exponent's denominator is too large to form), with one exception:
-// an exact base of minus one needs only the exponent's parity, which the
-// canonical form of `Scaled` gives without the fraction (`minusOneTo`
-// below), so `pow(-1, 1e999999999)` is `1` and `pow(-1, 5^-16000)` is
-// `-1` where both were `tooLarge` (#46). An inexact exponent is log space
+// range limit; one that cannot be formed goes to log space as an inexact
+// exponent does (`unformable` below; the plan's H.16), an exact base told
+// past the bound by its value first (`pow(2, 1e999999999)` is `overflow`),
+// so that `pow(2, 1e-999999999)`, a value near one whose exponent's
+// denominator is too large to form, is `≈ 1` where it was `tooLarge`,
+// and a negative base takes the exponent's parity, which the canonical
+// form of `Scaled` gives without the fraction (`minusOneTo` below):
+// `pow(-1, 1e999999999)` is `1`, `pow(-1, 5^-16000)` is `-1` and
+// `pow(-2, 1e-30000)` is the even root of a negative number (#46). An
+// inexact exponent is log space
 // (`powLogSpace`, `exp(y ln x)`) for a base positive throughout its ball;
 // a base non-positive throughout is a `domain` error (`notPositive`,
 // worded for `pow`), and one straddling zero is `unresolved` at edge
@@ -44,6 +46,7 @@ import {
   exact,
   isExact,
   logPowerBlame,
+  negateBall,
   powLogSpace,
   powRationalBall,
   type Ball,
@@ -104,13 +107,7 @@ export function powBallOf(
   }
   if (isExact(y)) {
     const exponent = toRational(y.mid, context.maxBits);
-    if (!exponent.ok) {
-      if (isExact(x) && equals(x.mid, MINUS_ONE)) return minusOneTo(y.mid);
-      if (isExact(x)) {
-        return err(powerRefusal(x.mid, y.mid) ?? { kind: "tooLarge" });
-      }
-      return unformable(x, y, context);
-    }
+    if (!exponent.ok) return unformable(x, y, context);
     const power = powRationalBall(x, exponent.value, context);
     return power.ok ? power : err(fromBallError(power.error, 0));
   }
@@ -121,37 +118,62 @@ export function powBallOf(
 }
 
 /**
- * `x^y` for an inexact `x` and an exact `y` whose fraction cannot be
- * formed within the range limit: the classifier decides on the interval
- * of `y ln |x|` (H.15), where stage 4 refused by the midpoint alone
- * (`pow(approx(1), 1e999999999)` was `tooLarge`, and a base of one
- * within `1e12` to that exponent `underflow`, issue #46). A refusal or an
- * `unresolved` is the power's; one within a bound is the answer where the
- * classifier gives it; a power it would compute is taken in log space for
- * a base positive throughout, and is `tooLarge` for a base of either
- * other sign, whose parity the exponent's form does not settle.
+ * `x^y` for an exact `y` whose fraction cannot be formed within the range
+ * limit (the plan's H.16, issue #46): log space, as for an inexact
+ * exponent, rather than a refusal, so that `pow(2, 1e-999999999)` is one
+ * within a hair as `pow(2, approx(1e-999999999))` is (D17: whether a
+ * value is held does not depend on whether it is exact). An exact base
+ * is first told past the bound by `powerRefusal`, which reads the value
+ * alone (`pow(2, 1e999999999)` stays `overflow`), and otherwise goes on
+ * as an inexact one does, the classifier of `powLogSpace` deciding on
+ * the interval of `y ln |x|` (H.15): a base positive throughout goes
+ * through `powLogSpace`; a base negative throughout follows the parity
+ * rule of `minusOneTo`, `(-1)^y` times the power of its magnitude
+ * (`pow(-2, 1e-30000)` is the even root of a negative number); and a base
+ * reaching zero keeps what the classifier gives it, `unresolved` at the
+ * bound or at zero where the interval says so and `tooLarge` where it
+ * would compute, since the logarithm of such a base cannot be taken.
  */
 function unformable(
   x: Ball,
   y: Ball,
   context: NumberContext,
 ): Result<Ball, BuiltinError> {
-  const held = classifyPower(x, y, context);
-  switch (held.kind) {
-    case "overflow":
-    case "underflow":
-    case "tooLarge":
-      return err({ kind: held.kind });
-    case "unresolved":
-      return err({ kind: "unresolved", argument: 0, edge: held.edge });
-    case "one":
-      return sideOfZero(x) === "positive"
-        ? ok({ mid: ONE, rad: held.rad })
-        : err({ kind: "tooLarge" });
-    case "compute": {
-      if (sideOfZero(x) !== "positive") return err({ kind: "tooLarge" });
+  if (isExact(x)) {
+    const refusal = powerRefusal(x.mid, y.mid);
+    if (refusal !== undefined && refusal.kind !== "tooLarge") {
+      return err(refusal);
+    }
+  }
+  switch (sideOfZero(x)) {
+    case "positive": {
       const power = powLogSpace(x, y, context);
       return power.ok ? power : err(located(power.error, x, y));
+    }
+    case "negative": {
+      const parity = minusOneTo(y.mid);
+      if (!parity.ok) return parity;
+      const power = powLogSpace(negateBall(x), y, context);
+      if (!power.ok) return err(located(power.error, x, y));
+      return equals(parity.value.mid, MINUS_ONE)
+        ? ok(negateBall(power.value))
+        : power;
+    }
+    case "zero":
+      throw new Error("An exact zero base is answered before the exponent");
+    case "straddles": {
+      const held = classifyPower(x, y, context);
+      switch (held.kind) {
+        case "overflow":
+        case "underflow":
+        case "tooLarge":
+          return err({ kind: held.kind });
+        case "unresolved":
+          return err({ kind: "unresolved", argument: 0, edge: held.edge });
+        case "one":
+        case "compute":
+          return err({ kind: "tooLarge" });
+      }
     }
   }
 }

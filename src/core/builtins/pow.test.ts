@@ -220,16 +220,36 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
     { kind: "underflow" },
   );
   // An exact exponent whose fraction cannot be formed within the range
-  // limit: at the bound when the power would pass it, and at the range
-  // limit when it would not (2^(1e-999999999) is within a hair of one).
+  // limit: at the bound when the power would pass it, and otherwise log
+  // space (H.16), where it was refused at the range limit: 2^(1e-999999999)
+  // is one within a hair, as its `approx` form is.
   assert.deepEqual(
     failure(powBallOf(exact(fr(2n)), exact(dec("1e999999999")), CONTEXT)),
     { kind: "overflow" },
   );
+  for (const [base, exponent] of [
+    ["2", "1e-999999999"],
+    ["2", "1e-30000"],
+    ["0.5", "-1e-30000"],
+  ] as const) {
+    const power = value(
+      powBallOf(exact(dec(base)), exact(dec(exponent)), CONTEXT),
+    );
+    assert.deepEqual(power.mid, ONE, `pow(${base}, ${exponent})`);
+    assert.ok(certifies(power, 40, "halfEven"), `pow(${base}, ${exponent})`);
+  }
+  // A negative base takes the exponent's parity: 1e-30000 has an even
+  // denominator, so the power is an even root of a negative number, and
+  // 5^-16000 an odd one, so the power is minus that of the magnitude.
   assert.deepEqual(
-    failure(powBallOf(exact(fr(2n)), exact(dec("1e-999999999")), CONTEXT)),
-    { kind: "tooLarge" },
+    failure(powBallOf(exact(fr(-2n)), exact(dec("1e-30000")), CONTEXT)),
+    { kind: "negativeRadicand", degree: 2n },
   );
+  const odd = value(
+    powBallOf(exact(fr(-2n)), exact(fr(1n, 5n ** 16000n)), CONTEXT),
+  );
+  assert.deepEqual(odd.mid, negate(ONE));
+  assert.ok(certifies(odd, 40, "halfEven"));
   // A base within 2^-30 of one is past the bound by its exact difference
   // from one; a base of one is answered before the exponent's fraction is
   // formed (H.6, the test below), so its power is exactly one where it was
@@ -634,6 +654,11 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
     // A tiny inexact exponent converts to zero within an ulp at the
     // kernel's door, and the power is one (#53).
     ["pow(2, approx(1e-999999999))", "1"],
+    // An exact exponent past the range limit as a fraction, in log space
+    // (H.16), gives what its approx form gives.
+    ["pow(2, 1e-999999999)", "1"],
+    ["pow(2, 1e-30000)", "1"],
+    ["pow(0.5, -1e-30000)", "1"],
     ["pow(2, approx(1e-400000))", "1"],
     ["pow(approx(2), approx(1e-999999999))", "1"],
   ]) {
@@ -687,8 +712,8 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
       '"pow(2, 1e999999999)" is too large to compute: its exponent would pass 10^18.',
     ],
     [
-      "pow(2, 1e-999999999)",
-      '"pow(2, 1e-999999999)" is too large to compute within Most bits.',
+      "pow(-2, 1e-30000)",
+      '"pow(-2, 1e-30000)" takes an even root of a negative value.',
     ],
     ["2^1442695", '"2^1442695" is too large to compute within Most bits.'],
     // A ^ exponent is reduced by the evaluator within the range limit

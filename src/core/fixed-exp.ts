@@ -43,15 +43,20 @@
 // the cut, so that the quotient of two large values keeps the working
 // bits. An argument whose interval is wider than one is the trivial bound
 // from the exponential of its largest magnitude, since the exponential of
-// the whole interval would not stay positive under the error rules. The
+// the whole interval would not stay positive under the error rules; for
+// `tanhFixed` such an argument is zero within one, the function's whole
+// range, decided before the pair is formed, since the pair's bound beyond
+// the working bits would read as saturation on whichever side the
+// midpoint lies (issue #38). The
 // argument's magnitude is bounded as `expFixed`'s is, by the caller:
 // `sinh` and `cosh` share the exponential's range (3.6, then 4.9). The
 // pair is a pair of `Floating`s: where the exponential's exponent is
 // beyond half the working bits, the reciprocal `1/E` is below an ulp of
 // `E` and is folded into the error, so that `sinh(1e6)` and `cosh(1e6)`
 // are `E/2` within an ulp and nothing of the result's size is formed; and
-// `tanhFixed` is then one within two ulps, though `tanh`'s saturation in
-// the built-in comes first and never lets such an argument in.
+// `tanhFixed` is then `±1` within two ulps, which only an interval far
+// out on one side reaches, though `tanh`'s saturation in the built-in
+// comes first and never lets such an argument in.
 
 import { factorialSeries } from "./fixed-trig.ts";
 import {
@@ -141,12 +146,20 @@ export function sinhCoshFixed(f: Fixed, bits: number): SinhCosh {
 /**
  * `tanh(f)` with `bits` significant bits kept for its magnitude: the
  * quotient of the pair at the working bits, before either is cut, so that
- * a quotient of two large values keeps the working bits; one within two
- * ulps where the pair was folded.
+ * a quotient of two large values keeps the working bits. An interval of
+ * width one or more (an error of one half or more) is zero within one,
+ * `tanh`'s whole range, decided before the pair is formed: the pair's own
+ * wide bound reads as saturation beyond the working bits, which is sound
+ * only far out on one side (issue #38). Where the pair was folded, which
+ * an interval narrower than one reaches only far out on one side, the
+ * result is `±1` within two ulps.
  */
 export function tanhFixed(f: Fixed, bits: number): Fixed {
-  const { sinh, cosh } = pair(f, bits);
   const working = Math.max(bits, f.bits) + HYPERBOLIC_GUARD;
+  if (f.error << 1n >= 1n << BigInt(f.bits)) {
+    return { value: 0n, error: 1n << BigInt(working), bits: working };
+  }
+  const { sinh, cosh } = pair(f, bits);
   const s = floatingToFixed(sinh, working);
   const c = floatingToFixed(cosh, working);
   if (s === undefined || c === undefined) {

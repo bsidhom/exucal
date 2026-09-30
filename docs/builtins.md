@@ -257,8 +257,9 @@ rulings in full.
   and cuts the result to the bits its magnitude calls for. And an
   argument whose interval is too wide for a routine's series (about a
   fifth of a radian for `sin` and `cos`, one radian for `atan`, one half
-  for `asinh`) gets a trivial bound instead, zero within one for the sine
-  and the cosine, zero within two for the arctangent, the exponential of
+  for `asinh`, one for `tanh`) gets a trivial bound instead, zero within
+  one for the sine, the cosine and the hyperbolic tangent, zero within
+  two for the arctangent, the exponential of
   the largest magnitude for the hyperbolic pair, the value at the
   midpoint plus the radius for `asinh`; the retry loop narrows such an
   argument.
@@ -303,9 +304,15 @@ x)`, `atan2` an arctangent by quadrant, and `asinh`, `acosh` and
   `underflow` for `exp` of a negative argument and a power toward zero,
   and a large decibel no longer reaches it: its body's power of ten is
   exact, and the exponent takes it (`decibel(1e30)` is refused at the
-  bound by the exact power). `tanh` of a ball reaching both sides of zero
-  is not saturated and does reach the guard, which refuses it past about
-  `2.3e18` (issue #49).
+  bound by the exact power). `tanh` has no guard, and is never refused
+  for its argument's size: a ball of radius one half or more that is not
+  saturated, reaching both sides of zero or not, is zero within one, the
+  function's whole range, which certifies nothing and lets the retry loop
+  narrow it (before that it reached the exponential's guard, issue #49,
+  and on the kernel a wide interval read as saturation, issue #38), and
+  with no saturation and a radius below one half the argument the kernel
+  is handed stays below about 181,727 at the largest ceiling the
+  settings allow.
 - **The memos.** Four constants at the ceiling plus 64 bits; the margin
   serves the reduction of `sin` and `cos` for every argument below `2^64`
   at the ceiling pass exactly, the reduction taking pi at the bits asked

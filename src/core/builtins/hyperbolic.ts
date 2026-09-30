@@ -23,11 +23,16 @@
 // whose magnitude throughout its ball is beyond what the working bits can
 // tell from one (`e^-2|x|` under an ulp of the bits plus a margin), it is
 // `±1` within `2 e^-2|x|`, a radius the coarse type holds at any
-// magnitude, and every other argument is the quotient of the pair on the
-// kernel (`tanhFixed`), before either is cut to its bits, so that the
-// quotient of two large values keeps the working bits; the saturated
-// branch comes first and takes every argument beyond a few thousand, so
-// the guard never refuses `tanh`.
+// magnitude; an argument of radius one half or more that is not saturated
+// is zero within one, `tanh`'s whole range, which certifies nothing and
+// lets the retry loop narrow it (a ball reaching both sides of zero was
+// refused by the exponential's guard, issue #49, and the kernel's bound
+// certified `±1`, issue #38); and every other argument is the quotient of
+// the pair on the kernel (`tanhFixed`), before either is cut to its bits,
+// so that the quotient of two large values keeps the working bits. So
+// `tanh` has no guard and is never refused for its argument's size: with
+// no saturation and a radius below one half, `|mid| + rad` stays below
+// about 181,727 at the largest ceiling the settings allow.
 //
 // `asinh(x)` is `ln(x + sqrt(x^2 + 1))` for `x` at or above zero and the
 // negated `asinh(-x)` below it, so that the sum never cancels, computed on
@@ -177,8 +182,11 @@ export function tanhBall(
   const bits = bitsFor(context.precision);
   const saturated = saturation(x, bits);
   if (saturated !== undefined) return ok(saturated);
-  if (!expFits(radiusBound(magnitudeAbove(x)))) {
-    return err({ kind: "overflow" });
+  // Wider than one: zero within one, tanh's whole range, which certifies
+  // nothing and lets the retry loop narrow the argument; the kernel is
+  // never handed a midpoint it may not hold (issues #38 and #49).
+  if (compareRadius(x.rad, powerOfTwoRadius(-1n)) >= 0) {
+    return ok({ mid: ZERO, rad: powerOfTwoRadius(0n) });
   }
   return ok(
     fixedToBall(

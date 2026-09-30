@@ -390,6 +390,30 @@ test("sinh and cosh of a large argument fold the reciprocal into the error, and 
   const t = tanhFixed(fixedFromRational(dec("1e6"), bits), bits);
   assert.equal(t.value, 1n << BigInt(t.bits));
   assert.ok(t.error <= 2n);
+  // A wide interval is zero within one, tanh's whole range, before the
+  // pair is formed: around zero, far out on one side, and at an error of
+  // exactly one half; an error just below one half stays on the kernel.
+  for (const [value, error] of [
+    [0n, 1000000n << 8n],
+    [100n << 8n, (999n << 8n) / 10n],
+    [0n, 1n << 7n],
+    [5000n << 8n, (6n << 8n) / 10n],
+  ] as const) {
+    const wide = tanhFixed({ value, error, bits: 8 }, bits);
+    assert.equal(wide.value, 0n, inspect(wide));
+    assert.equal(wide.error, 1n << BigInt(wide.bits), inspect(wide));
+  }
+  const narrow = tanhFixed({ value: 0n, error: 127n, bits: 8 }, bits);
+  assert.ok(narrow.error < 1n << BigInt(narrow.bits), inspect(narrow));
+  assert.ok(contains(narrow, rational(0n)));
+  // A one-sided interval of error 99.9 around 100: tanh ranges over
+  // [0.0997, 1], and zero within one contains it.
+  const oneSided = tanhFixed(
+    { value: 100n << 8n, error: 999n * 25n, bits: 8 },
+    bits,
+  );
+  assert.equal(oneSided.value, 0n);
+  assert.equal(oneSided.error, 1n << BigInt(oneSided.bits));
   // A wide argument beyond the fold: a ball around zero and one around
   // M / 2 that covers [1, M].
   const wide: SinhCosh = sinhCoshFixed(

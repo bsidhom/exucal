@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { certifies, exact, isExact, type Ball } from "../ball.ts";
+import { certifies, exact, isExact, position, type Ball } from "../ball.ts";
 import { buildTable } from "../build.ts";
 import type { BuiltinError } from "../builtin.ts";
 import { BUILTINS } from "../builtins.ts";
@@ -18,6 +18,7 @@ import { evaluateText } from "../pipeline.ts";
 import {
   UNBOUNDED,
   compareRadius,
+  powerOfTwoRadius,
   radiusAbove,
   radiusAboveScaled,
   radiusUpper,
@@ -523,7 +524,7 @@ test("an inexact argument's functions contain those of its ends, and a wide asin
   const top = plus(wideCosh.mid, radiusOf(wideCosh));
   assert.ok(compare(top, dec("10.06")) > 0 && compare(top, dec("10.07")) < 0);
   const wideTanh = value(tanhBall(ball("0", "5"), CONTEXT));
-  assert.ok(compare(radiusOf(wideTanh), ONE) >= 0);
+  assert.deepEqual(wideTanh, { mid: ZERO, rad: powerOfTwoRadius(0n) });
   // tanh far out with an error: one within 2 e^-2m for the least magnitude.
   const saturated = value(tanhBall(ball("1000", "1"), CONTEXT));
   assert.deepEqual(saturated.mid, ONE);
@@ -571,6 +572,72 @@ test("sinh and cosh share the exponential's range, the exponent bound, and tanh 
   assert.ok(coshBall(exact(fr(-40000n)), CONTEXT).ok);
   assert.ok(!coshBall(ballOf(ZERO, dec("1e30")), CONTEXT).ok);
   assert.ok(coshBall(ballOf(ZERO, dec("1e6")), CONTEXT).ok);
+});
+
+test("tanh of a wide argument is zero within one, never refused for its size, and sinh and cosh of one contain the functions", () => {
+  // Around zero, one-sided, and far past the exponential's guard: the
+  // whole range, which certifies nothing (issues #38 and #49).
+  for (const [mid, rad] of [
+    ["0", "1e9"],
+    ["-1", "1e13"],
+    ["50", "49.5"],
+    ["0", "1e30"],
+    ["0", "1e999999999"],
+    ["1e40", "1e41"],
+    ["0", "0.5"],
+  ]) {
+    const wide = value(tanhBall(ball(mid!, rad!), CONTEXT));
+    assert.deepEqual(
+      wide,
+      { mid: ZERO, rad: powerOfTwoRadius(0n) },
+      `tanh(${mid} ± ${rad})`,
+    );
+  }
+  // Far out on one side throughout, the saturation still comes first.
+  const saturated = value(
+    tanhBall(ball("1e999999999", "1e999999998"), CONTEXT),
+  );
+  assert.deepEqual(saturated.mid, ONE);
+  assert.ok(radiusBelow(saturated, "1e-1000"));
+  // An argument narrower than one half stays on the kernel.
+  const narrow = value(tanhBall(ball("0", "0.49"), CONTEXT));
+  assert.deepEqual(narrow.mid, ZERO);
+  assert.ok(compare(radiusOf(narrow), ONE) < 0);
+  assert.ok(compare(radiusOf(narrow), dec("0.45")) > 0);
+  // sinh and cosh of the same wide arguments, which this leaves alone,
+  // contain the functions at the midpoint and at both ends (the values
+  // from Python's decimal module, or points just inside them).
+  const contains = (b: Ball, v: Scaled, label: string) => {
+    const where = position(b, v);
+    assert.ok(where !== "above" && where !== "below", label);
+  };
+  const wideZero = ball("0", "1e9");
+  const s0 = value(sinhBall(wideZero, CONTEXT));
+  const c0 = value(coshBall(wideZero, CONTEXT));
+  for (const v of [ZERO, dec("4e434294481"), dec("-4e434294481")]) {
+    contains(s0, v, `sinh(0 ± 1e9) contains ${format(v, 3, "halfEven")}`);
+  }
+  for (const v of [ONE, dec("4e434294481")]) {
+    contains(c0, v, `cosh(0 ± 1e9) contains ${format(v, 3, "halfEven")}`);
+  }
+  const oneSided = ball("100", "99.9");
+  const s100 = value(sinhBall(oneSided, CONTEXT));
+  const c100 = value(coshBall(oneSided, CONTEXT));
+  for (const v of ["0.10016675", "1.3440585709e43", "3.269e86"]) {
+    contains(s100, dec(v), `sinh(100 ± 99.9) contains ${v}`);
+  }
+  for (const v of ["1.0050041681", "1.3440585709e43", "3.269e86"]) {
+    contains(c100, dec(v), `cosh(100 ± 99.9) contains ${v}`);
+  }
+  const acrossZero = ball("1", "2");
+  const s1 = value(sinhBall(acrossZero, CONTEXT));
+  const c1 = value(coshBall(acrossZero, CONTEXT));
+  for (const v of [negate(SINH1), SINH1, dec("10.017874927")]) {
+    contains(s1, v, `sinh(1 ± 2) contains ${format(v, 5, "halfEven")}`);
+  }
+  for (const v of [COSH1, dec("10.067661996")]) {
+    contains(c1, v, `cosh(1 ± 2) contains ${format(v, 5, "halfEven")}`);
+  }
 });
 
 test("acosh below one and atanh at or beyond an end are domain errors, and a ball reaching an end is unresolved at it", () => {
@@ -750,4 +817,48 @@ test("through the pipeline: the values certify, the identities hold, and the err
       text,
     );
   }
+});
+
+test("through the pipeline, tanh of a wide argument ends as a zero with a bound or narrows to its value, and is never refused", () => {
+  const parsed = parseDefinitions("m  !\nradian  !kind");
+  assert.ok(parsed.ok);
+  const context = { ...CONTEXT, ceiling: 200 };
+  const table = buildTable(parsed.value, { ...context, precision: 200 });
+  assert.ok(table.ok, inspect(table));
+  const at = (text: string, precision: number) =>
+    evaluateText(table.value, text, { ...context, precision });
+  // #38's texts: at every pass the argument is a ball around zero, and at
+  // the last it is narrow enough for the kernel, whose tanh is a ball
+  // around zero too; a ball containing zero never certifies, so the
+  // result is a zero with a bound, not `≈ 0` certified, and never `±1`.
+  for (const text of [
+    "tanh(1e60 * sqrt(2) - 1e60 * sqrt(2))",
+    "tanh(approx(1e60) - approx(1e60))",
+  ]) {
+    const result = at(text, 32);
+    assert.ok(result.ok, `${text}: ${inspect(result)}`);
+    const shown = show(result.value.magnitude, 32, DEFAULT_ROUNDING);
+    assert.equal(shown.kind, "zero", text);
+  }
+  // #49's texts: the argument stays wide to the ceiling, and the answer
+  // is the whole range, `0` within `1`, where it was refused.
+  for (const text of [
+    "tanh(1e5000 * (sin(1 radian)^2 + cos(1 radian)^2 - 1))",
+    "tanh(1e20000 - approx(1e20000))",
+  ]) {
+    const result = at(text, 8);
+    assert.ok(result.ok, `${text}: ${inspect(result)}`);
+    assert.deepEqual(
+      show(result.value.magnitude, 8, DEFAULT_ROUNDING),
+      { kind: "zero", text: "0", bound: "1" },
+      text,
+    );
+  }
+  // An argument that narrows: wide at the first passes, then on the kernel.
+  const narrowed = at("tanh(approx(1e40) - approx(1e40) - 1)", 8);
+  assert.ok(narrowed.ok, inspect(narrowed));
+  assert.deepEqual(show(narrowed.value.magnitude, 8, DEFAULT_ROUNDING), {
+    kind: "certified",
+    text: "-0.76159416",
+  });
 });

@@ -381,5 +381,4 @@ loop ends, although the sixth pass would give `5` within `2e-354` and
 a ball that only its radius takes past the bound as `unresolved` would
 let the loop go on; it is not written, and the README says to keep such
 arguments exact meanwhile. It is tracked as issue #40 (https://github.com/bsidhom/pwa-units/issues/40), with
-the crash of `exp` and `pow` on a wide argument, #39 (https://github.com/bsidhom/pwa-units/issues/39); #38
-(https://github.com/bsidhom/pwa-units/issues/38), `tanh` of a wide ball certified as `±1`, was found with it.
+the crash of `exp` and `pow` on a wide argument, #39 (https://github.com/bsidhom/pwa-units/issues/39).

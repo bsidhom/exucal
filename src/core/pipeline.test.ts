@@ -9,7 +9,7 @@ import {
 } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact, isExact } from "./ball.ts";
+import { containsZero, exact, isExact } from "./ball.ts";
 import { roundTerms } from "./convert.ts";
 import { show } from "./display.ts";
 import { buildTable } from "./build.ts";
@@ -763,6 +763,46 @@ function assertTerms(
   );
 }
 
+test("a result straddling the exponent bound is retried, and reported at the bound when no pass decides it (D18)", () => {
+  // The first pass leaves the product straddling the top; the later ones
+  // narrow it to zero within a bound (#60).
+  const narrowing = evaluateText(
+    table,
+    "(1e46 - approx(1/3) * 3e46) * 1e999999999999999983",
+    CONTEXT,
+  );
+  assert.ok(
+    narrowing.ok && containsZero(narrowing.value.magnitude),
+    inspect(narrowing),
+  );
+  // No pass narrows this one below the top: unresolved at the bound at the
+  // ceiling, and at once in decimal mode, where it is final.
+  const straddling =
+    "5e1000000000000000000 * (approx(1e5000) - approx(1e5000))";
+  for (const context of [CONTEXT, decimal(8)]) {
+    const result = evaluateText(table, straddling, context);
+    assert.ok(
+      !result.ok && result.error.kind === "unresolved",
+      inspect(result),
+    );
+    assert.equal(result.error.edge, "bound");
+  }
+  // The converter's ratio and a list's count straddling the top are the
+  // converter's own retried variant.
+  assert.deepEqual(failure("approx(1e1000000000000000000) m", "0.1 m"), {
+    kind: "unresolvedBound",
+  });
+  assert.deepEqual(failure("approx(1e1000000000000000000) m", "0.1 m;0.01 m"), {
+    kind: "unresolvedBound",
+  });
+  // A literal at the bottom edge with a fraction mantissa is a value, and
+  // its list too (H.12's row that waited for H.13).
+  assert.equal(
+    list("1.234567891e-999999999999999999 m", "m;mm").terms.length,
+    2,
+  );
+});
+
 test("a list at the edges of the bound gives its terms or the refusal, and never throws (H.12)", () => {
   // A count whose ratio falls below the bound is zero (D8): the value is
   // all remainder. In both modes, through the display's rounding too.
@@ -823,6 +863,27 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
     ),
     carry.value.terms,
   );
+  // #59: the display's rounding carries the second unit into a whole of
+  // the first, and the rebuilt total, `1e+(10^18 + 1)`, is unresolved at
+  // the bound, where the sum absorbed it and the list came back a tenth
+  // short; the terms come back uncarried.
+  const short = convertText(
+    table,
+    "9.99999999999e1000000000000000000 m",
+    "1e1000000000000000000 m; 1e999999999999999990 m",
+    at8,
+  );
+  assert.ok(short.ok && short.value.kind === "list", inspect(short));
+  assert.deepEqual(
+    roundTerms(
+      short.value.units.map((unit) => unit.quantity),
+      short.value.terms,
+      8,
+      DEFAULT_ROUNDING,
+      at8,
+    ),
+    short.value.terms,
+  );
   // At the bottom edge the display's rounding of the remainder is a shift
   // past the bound, which threw: `1e-999999999999999999 m` into `ft;in` is
   // `≈ 3.9370079e-999999999999999998 in` in both modes.
@@ -839,9 +900,9 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
     );
     assert.deepEqual(rounded[0]!.mid, ZERO);
     // The display formats the remainder at the digits certified, which is
-    // the line shown whether or not the rounding carried; until H.13 the
-    // carry's product is refused by its canonical exponent, and the terms
-    // come back uncarried.
+    // the line shown whether or not the rounding carried (before H.13 the
+    // carry's product was refused by its canonical exponent, and the
+    // terms came back uncarried).
     assert.equal(
       format(rounded[1]!.mid, 8, DEFAULT_ROUNDING),
       "3.9370079e-999999999999999998",

@@ -266,12 +266,13 @@ function isUnresolved(error: TextError | InverseFailed): boolean {
   }
 }
 
-/** Whether another pass may resolve `error`: an `unresolved` at any depth, or an unresolved want. */
+/** Whether another pass may resolve `error`: an `unresolved` at any depth, an unresolved want, or a result straddling the bound. */
 function retriesConversion(error: ConversionError): boolean {
   switch (error.kind) {
     case "inputError":
       return isUnresolved(error.error);
     case "unresolvedWant":
+    case "unresolvedBound":
       return true;
     default:
       return false;
@@ -428,13 +429,17 @@ function isListRefusal(
 
 /**
  * A list's arithmetic failure as the conversion's: a refusal is the
- * conversion's refusal, and an `unresolved`, which no list reaches
- * before H.13 puts the exponent bound among the edges, is reported as an
- * unresolved want, which the retry loop retries, until H.13 gives the
- * converter its own retried variant.
+ * conversion's refusal, and an `unresolved` at the bound the converter's
+ * retried variant, as a ratio's is; a list's arithmetic straddles no
+ * other edge, its sizes excluding zero, but one at zero would be an
+ * unresolved want.
  */
 function refusedList(error: ListRefusal): Result<never, ConversionError> {
-  if (error.kind === "unresolved") return err({ kind: "unresolvedWant" });
+  if (error.kind === "unresolved") {
+    return err({
+      kind: error.edge === "bound" ? "unresolvedBound" : "unresolvedWant",
+    });
+  }
   return err({ kind: error.kind });
 }
 

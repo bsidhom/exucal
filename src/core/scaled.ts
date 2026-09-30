@@ -21,13 +21,24 @@
 // a dyadic of the working bits, never enters exactly, since the boundary
 // rounds it onto the decimal grid as it leaves the kernel (fixed.ts).
 //
-// The exponent is bounded, `|exp| <= MAX_EXPONENT`, the study's `10^18`,
-// so that a value can always be written; `scaled` checks it after
-// normalizing and fails `overflow` above it or `underflow` below it, and
-// the arithmetic (4.2) fails the same way wherever exponents combine.
-// These are this module's own failures, since only a value with an
-// exponent can pass the bound; the fraction's `tooLarge` is the range
-// limit's, and a `Scaled` operation reports it unchanged. Nothing here
+// The exponent is bounded, the study's `10^18`, so that a value can
+// always be written: a value is within the bound when its decimal
+// exponent, `floor(log10 |v|)`, the exponent the display writes, lies
+// within `±MAX_EXPONENT` (D17), and zero is within at any exponent.
+// `scaled` checks it after normalizing and fails `overflow` above it or
+// `underflow` below it, and the arithmetic (4.2) fails the same way
+// wherever exponents combine. The canonical `exp` itself may then pass
+// `±10^18` by up to the mantissa's digits, the denominator's digits above
+// the bound and the numerator's below, which nothing needs it not to;
+// before the plan's H.13 the check was on `exp`, so that `1e-10^18 / 7`,
+// past the bound, was held as `1/7 × 10^-(10^18)` and `1e10^18 / 3 * 10`,
+// within it, was refused as `1/3 × 10^(10^18 + 1)`. The check is cheap:
+// the decimal exponent is computed only when `exp` lies within
+// `BOUND_BAND` of the bound, which is more than the digits of any
+// mantissa, so the common case is one comparison. These are this
+// module's own failures, since only a value with an exponent can pass
+// the bound; the fraction's `tooLarge` is the range limit's, and a
+// `Scaled` operation reports it unchanged. Nothing here
 // forms a power of ten the exponent stands for except `toRational`, which
 // takes the bits it may form and fails `tooLarge` beyond them: the
 // decimal exponent of a value is the mantissa's plus `exp`, and a
@@ -61,8 +72,10 @@
 //
 // The decimal representation (4.3) lives here, moved from rational.ts:
 // `parseDecimal` reads a literal exactly with its exponent kept lazily,
-// the mantissa checked against `LIMIT_BITS` and the exponent against the
-// bound, so that `1e999999999` parses; rounding to significant digits
+// the mantissa checked against `LIMIT_BITS` and the value against the
+// bound by the constructor, so that `1e999999999` parses and so does
+// `0.001e1000000000000000003`, whose value is `1e1000000000000000000`
+// (issue #50); rounding to significant digits
 // commutes with the power of ten, so `roundTo` and `format` act on the
 // mantissa alone, as the fraction's did, and add `exp` to the exponent,
 // and a value of any exponent is rounded and written with nothing formed;
@@ -115,9 +128,9 @@ export type Scaled = { readonly mant: Rational; readonly exp: bigint };
  */
 export type ScaledError =
   | RationalError
-  /** The result's exponent would pass `MAX_EXPONENT`: it is too large to hold. */
+  /** The result's decimal exponent would pass `MAX_EXPONENT`: it is too large to hold. */
   | { readonly kind: "overflow" }
-  /** The result's exponent would fall below `-MAX_EXPONENT`: it is nonzero and too small to hold. */
+  /** The result's decimal exponent would fall below `-MAX_EXPONENT`: it is nonzero and too small to hold. */
   | { readonly kind: "underflow" };
 
 /**
@@ -141,10 +154,19 @@ export function isRefusal<E extends { readonly kind: string }>(
 }
 
 /**
- * The bound on `|exp|`, `10^18`: generous and finite, so that a value's
- * decimal exponent can always be written (docs/calculator.md, feature 4).
+ * The bound on a value's decimal exponent, `10^18`: generous and finite,
+ * so that a value's decimal exponent can always be written
+ * (docs/calculator.md, feature 4).
  */
 export const MAX_EXPONENT = 10n ** 18n;
+
+/**
+ * How far from the bound the canonical exponent must lie for the decimal
+ * exponent to be computed in `scaled`, `4 × 10^8`: more than the digits
+ * of any mantissa within the hard bound, so that an exponent farther in
+ * cannot put the value past the bound.
+ */
+const BOUND_BAND = 400_000_000n;
 
 export const ZERO: Scaled = { mant: ZERO_FRACTION, exp: 0n };
 export const ONE: Scaled = { mant: ONE_FRACTION, exp: 0n };
@@ -154,20 +176,22 @@ export const ONE: Scaled = { mant: ONE_FRACTION, exp: 0n };
 
 /**
  * `mant × 10^exp` in canonical form, or `overflow` or `underflow` when the
- * normalized exponent passes `MAX_EXPONENT` above or below.
+ * value's decimal exponent passes `MAX_EXPONENT` above or below (D17);
+ * zero is within the bound at any exponent.
  */
 export function scaled(
   mant: Rational,
   exp: bigint,
 ): Result<Scaled, ScaledError> {
   const s = normalize(mant, exp);
-  if (s.exp > MAX_EXPONENT || s.exp < -MAX_EXPONENT) {
-    return err(pastBound(s.exp));
+  if (s.exp > MAX_EXPONENT - BOUND_BAND || s.exp < BOUND_BAND - MAX_EXPONENT) {
+    const e = decimalExponent(s);
+    if (e > MAX_EXPONENT || e < -MAX_EXPONENT) return err(pastBound(e));
   }
   return ok(s);
 }
 
-/** The failure of a value whose exponent `exp` is past the bound: `underflow` below it, `overflow` above. */
+/** The failure of a value whose decimal exponent `exp` is past the bound: `underflow` below it, `overflow` above. */
 function pastBound(exp: bigint): Refusal {
   return { kind: exp < 0n ? "underflow" : "overflow" };
 }
@@ -366,19 +390,20 @@ export function invert(s: Scaled): Result<Scaled, ScaledError> {
 }
 
 /**
- * `s` raised to the integer power `n`, exactly: the exponent times `n`,
- * checked against the bound first, and the mantissa's power as the
- * fraction's `pow` sizes it against `limit` bits, so that `10^1442695` is
- * `1 × 10^1442695` where `2^1442695` is `tooLarge` by its mantissa. A
- * negative `n` inverts, so zero to a negative power is a division by
- * zero; `s^0` is one for any `s`. A refusal is reported by the power's
- * decimal exponent (`powerRefusal`), not by the check that fails first:
- * `7^(10^19)`, refused by its mantissa, is an `overflow`, and
- * `2.54^(10^18)`, whose exponent the canonical form puts past the bound
- * below, is `10^(0.40 × 10^18)`, within it, and is `tooLarge`, the range
- * limit's. Within a hair of the bound, where `powerRefusal` cannot tell,
- * a power refused by its exponent is past the bound on the side its signs
- * give (`powerSide`), and one refused by its mantissa is `tooLarge`.
+ * `s` raised to the integer power `n`, exactly: the mantissa's power as
+ * the fraction's `pow` sizes it against `limit` bits, so that `10^1442695`
+ * is `1 × 10^1442695` where `2^1442695` is `tooLarge` by its mantissa,
+ * and the exponent times `n`, the value checked against the bound by the
+ * constructor. A negative `n` inverts, so zero to a negative power is a
+ * division by zero; `s^0` is one for any `s`. A refusal by the mantissa
+ * is reported by the power's decimal exponent (`powerRefusal`), not by
+ * the check that fails first: `7^(10^19)`, refused by its mantissa, is an
+ * `overflow`, and `2.54^(10^18)` is `10^(0.40 × 10^18)`, within the
+ * bound, and is `tooLarge`, the range limit's; within a hair of the
+ * bound, where `powerRefusal` cannot tell, it is `tooLarge`. A check of
+ * the canonical exponent times `n` came first until the plan's H.13,
+ * which refused `12345678e-1000000000000000007` to the first power, a
+ * value (D17).
  */
 export function pow(
   s: Scaled,
@@ -388,10 +413,6 @@ export function pow(
   if (n === 0n) return ok(ONE);
   if (isZero(s)) {
     return n < 0n ? err({ kind: "divisionByZero" }) : ok(ZERO);
-  }
-  if (abs(s.exp) * abs(n) > MAX_EXPONENT) {
-    const y = integerExponent(n);
-    return err(powerRefusal(s, y) ?? powerSide(s, y));
   }
   const mant = powFraction(s.mant, n, limit);
   if (mant.ok) return scaled(mant.value, s.exp * n);
@@ -507,8 +528,11 @@ const DECIMAL = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/;
  * optional fraction (`12`, `1.5`, `.5`, `5.`) and an optional exponent
  * (`1.5e-3` is `15 × 10^-4`), the exponent kept as the exponent it is.
  * Anything else, including surrounding whitespace, is `invalidNumber`; a
- * mantissa of more digits than `LIMIT_BITS` holds is `tooLarge`, and an
- * exponent past `MAX_EXPONENT` is `overflow` or `underflow`, by its side.
+ * mantissa of more digits than `LIMIT_BITS` holds is `tooLarge`, and a
+ * value past `MAX_EXPONENT` is `overflow` or `underflow`, by its side, as
+ * the constructor decides it: `0e2000000000000000000` is zero, and
+ * `10e-1000000000000000001` is `1e-1000000000000000000`, at the bound
+ * (issue #50).
  */
 export function parseDecimal(text: string): Result<Scaled, ScaledError> {
   const match = DECIMAL.exec(text);
@@ -523,9 +547,6 @@ export function parseDecimal(text: string): Result<Scaled, ScaledError> {
   // The value is (integer digits ++ fraction digits) × 10^(exponent - #fraction).
   const exponent = match[5] === undefined ? 0n : BigInt(match[5]);
   const shift = exponent - BigInt(fraction.length);
-  if (shift > MAX_EXPONENT || shift < -MAX_EXPONENT) {
-    return err(pastBound(shift));
-  }
   const mantissa = BigInt(digits);
   return scaled(
     { num: signText === "-" ? -mantissa : mantissa, den: 1n },

@@ -162,17 +162,39 @@ written.
 
 ## The exponent bound
 
-`|exp| <= MAX_EXPONENT`, `10^18`, the study's bound, checked wherever
-exponents combine, in `multiply`, `divide`, `pow` and the constructor,
-and failing it is an `overflow` above it or an `underflow` below it, so
-that `10^1e30` and `exp(1e30)` fail
-cleanly before anything is computed rather than loop or form an exponent
-that could not be formatted. The parser bounds a literal's exponent by
-the same constant, and the hard bound on a literal's mantissa stays
-`LIMIT_BITS`, as today. The kernel's guard on the exponential becomes
-the same bound: an argument whose magnitude over its whole ball, times
-`log10 e`, exceeds `MAX_EXPONENT` is refused (`exp(1e30)`; `exp(1e18)`
-is a value with the exponent `434294481903251827`).
+A value is within the bound when its decimal exponent, `floor(log10
+|v|)`, the exponent the display writes, lies within `±MAX_EXPONENT`,
+`10^18`, the study's bound, and zero is within at any exponent (D17, the
+plan's H.13; stage 4 checked the canonical `exp`, which passes the bound
+by the mantissa's digits where the value does not, and the other way).
+The constructor checks it after normalizing, so it is checked wherever
+exponents combine, in `multiply`, `divide` and `pow`, and failing it is
+an `overflow` above it or an `underflow` below it, so that `10^1e30` and
+`exp(1e30)` fail cleanly before anything is computed rather than loop or
+form an exponent that could not be formatted. The parser leaves a
+literal to the constructor, so `0.001e1000000000000000003` parses and
+`0e2000000000000000000` is zero, and the hard bound on a literal's
+mantissa stays `LIMIT_BITS`, as today. The kernel's guard on the
+exponential becomes the same bound: an argument whose magnitude over its
+whole ball, times `log10 e`, exceeds `MAX_EXPONENT` is refused
+(`exp(1e30)`; `exp(1e18)` is a value with the exponent
+`434294481903251827`).
+
+A ball is held to the bound by every value in it (D18). A product or a
+quotient with an inexact operand is refused only when its whole ball
+lies past the bound, `overflow` above `10^(10^18 + 1)` and `underflow`
+below `10^-(10^18)` with the ball excluding zero; a ball containing zero
+whose midpoint passes below is zero within `|mid| + rad`, zero being
+within the bound at any exponent; and one that straddles an edge, or
+whose `|mid| + rad` reaches the top, is `unresolved` at the edge
+`bound`, which the retry loop narrows as it narrows a divisor straddling
+zero, and which decimal mode's one pass reports at once. Stage 4 decided
+by the midpoint, refusing `(1e46 - approx(1/3) * 3e46) * 1e999999999999999983`
+for good at eight digits and showing
+`5e1000000000000000000 * (approx(1e5000) - approx(1e5000))` as zero
+within a bound past the bound (issue #60). The converter reports a ratio,
+a count or a remainder at the edge as its own retried variant, worded
+apart from an unresolved want.
 
 ### Which limit a refusal names
 
@@ -213,16 +235,17 @@ mantissa is `tooLarge`. A power of an inexact base that the guard
 refuses is past the bound on the side of one its midpoint lies, and a
 negative power on the other side. A literal past the bound is the
 parser's to word: its exponent passes `10^18`, or falls below `-10^18`,
-as written, less its fraction digits, and then as the canonical form
-puts it (the first check refuses some literals whose canonical exponent
-is within the bound, `0e2000000000000000000` among them, issue #50).
-Where the constructor's check refuses, for a product, a
-quotient or a sum, the exponent a message speaks of is the canonical
-one, which differs from the decimal exponent by the mantissa's digits:
+the exponent of its value, as the constructor decides it (stage 4
+checked the exponent as written, less the fraction digits, and then the
+canonical form's, and refused `0e2000000000000000000` and
+`10e-1000000000000000001`, whose values are within the bound, issue
+#50). Where the constructor's check refuses, for a product, a quotient or
+a sum, the exponent a message speaks of is the value's:
 `1e1000000000000000000 / 3 * 10`, whose value is `3.3 × 10^(10^18)`, is
-refused, its canonical form being `1/3 × 10^(10^18 + 1)`, and
-`1e-1000000000000000000 / 7`, `1.4 × 10^-(10^18 + 1)`, is held, as
-`1/7 × 10^-(10^18)`.
+a value, though its canonical form is `1/3 × 10^(10^18 + 1)`, and
+`1e-1000000000000000000 / 7`, `1.4 × 10^-(10^18 + 1)`, is `underflow`,
+though its canonical form is `1/7 × 10^-(10^18)`; stage 4 had the two
+the other way (D17).
 
 ### Decision: the bound stays at `10^18`
 
@@ -278,11 +301,19 @@ sum, `addBalls(a, b, context)`, applies the rule for what the result is:
   the exact intermediate cannot exist, and in decimal mode it applies to
   exact operands too, since there every operation rounds to the working
   precision: `1e999999999 + 1` is `1e999999999` within one, the reading a
-  decimal library gives. (The code takes this path on any refusal of the
-  exact sum, so a sum that aligns and passes the exponent bound is
-  absorbed as well, and shown as zero within a bound, issue #48; two
-  exact operands in exact mode are refused at the bound, `overflow` or
-  `underflow`.)
+  decimal library gives.
+- The settle-first path is taken on `tooLarge` alone. A sum that aligns
+  and whose value passes the exponent bound is held to the bound as a
+  product is (D18): two exact operands are refused, `overflow` or
+  `underflow`, in either mode (`5e1000000000000000000 +
+5e1000000000000000000`); an inexact sum is refused only when every
+  value of its ball is past the bound, and is `unresolved` at the bound
+  when the ball reaches back within it (`approx(5e1000000000000000000) +
+5e1000000000000000000`, whose midpoint sits on the bound at every
+  precision). Issue #48 took the bound's refusal for an alignment
+  failure, absorbed one operand into the radius and showed zero. A sum
+  within the bound whose `|mid| + rad` reaches the top is `unresolved` at
+  the bound as well.
 
 So `addBalls` and `subtractBalls` take the context, for its precision,
 its mode and its range limit, and return a `Result`; `multiplyBalls` and

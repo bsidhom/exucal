@@ -258,6 +258,17 @@ test("a ratio beyond the exponent bound quotes both texts", () => {
   );
 });
 
+test("a result that straddles the exponent bound names the edge, in an expression and in a conversion", () => {
+  assert.equal(
+    textMessage("5e1000000000000000000 * (approx(1e5000) - approx(1e5000))"),
+    '"5e1000000000000000000 * (approx(1e5000) - approx(1e5000))" cannot be told from the point where the result passes the exponent bound at this precision, and the result depends on which side of it it lies.',
+  );
+  assert.equal(
+    conversionMessage("approx(1e1000000000000000000) m", "dm"),
+    '"approx(1e1000000000000000000) m" into "dm" cannot be told from the point where the result passes the exponent bound at this precision.',
+  );
+});
+
 test("a list refused by its arithmetic names the pair and the limit", () => {
   assert.equal(
     conversionMessage("3^32767 m", "ft/7^21845; in/7^21845"),

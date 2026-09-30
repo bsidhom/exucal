@@ -186,7 +186,7 @@ test("zero is zero with exponent zero, whatever exponent it was given", () => {
   assert.deepEqual(ONE, { mant: rational(1n), exp: 0n });
 });
 
-test("the exponent bound is checked after normalizing", () => {
+test("the exponent bound is on the value's decimal exponent, checked after normalizing (D17)", () => {
   assert.ok(scaled(rational(1n), MAX_EXPONENT).ok);
   assert.ok(scaled(rational(1n), -MAX_EXPONENT).ok);
   assertError(scaled(rational(1n), MAX_EXPONENT + 1n), "overflow");
@@ -195,6 +195,23 @@ test("the exponent bound is checked after normalizing", () => {
   assertError(scaled(rational(10n), MAX_EXPONENT), "overflow");
   assert.ok(scaled(rational(1n, 10n), MAX_EXPONENT).ok);
   assertError(scaled(rational(1n, 10n), -MAX_EXPONENT), "underflow");
+  // A fraction mantissa: the canonical exponent may pass the bound by the
+  // mantissa's digits while the value is within it, and the other way.
+  // `1/3 × 10^(MAX + 1)` is `3.3 × 10^MAX`, within; `1/7 × 10^-MAX` is
+  // `1.4 × 10^-(MAX + 1)`, past; `12345678 × 10^-(MAX + 7)` is
+  // `1.2 × 10^-MAX`, within.
+  assert.ok(scaled(rational(1n, 3n), MAX_EXPONENT + 1n).ok);
+  assertError(scaled(rational(1n, 3n), MAX_EXPONENT + 2n), "overflow");
+  assertError(scaled(rational(1n, 7n), -MAX_EXPONENT), "underflow");
+  assert.ok(scaled(rational(1n, 7n), -MAX_EXPONENT + 1n).ok);
+  assert.ok(scaled(rational(12345678n), -MAX_EXPONENT - 7n).ok);
+  assertError(scaled(rational(12345678n), -MAX_EXPONENT - 8n), "underflow");
+  assertError(scaled(rational(3048n), MAX_EXPONENT + 14n), "overflow");
+  // Zero is within the bound at any exponent.
+  assert.deepEqual(scaled(rational(0n), MAX_EXPONENT * 2n), {
+    ok: true,
+    value: ZERO,
+  });
 });
 
 test("the canonical mantissa, the fraction it denotes and an aligned operand are in lowest terms", () => {
@@ -403,12 +420,16 @@ test("log2Bounds at exponents up to the bound, against Python's decimal module",
     [big("1", 999999999n), 3321928091n, 0.5654342529829570816],
     [big("7", -999999999n), -3321928089n, 0.2419206690746470258],
     [
-      at(123456789n, 1n, 10n ** 18n),
-      3321928094887362374n,
-      0.749750362349863997,
+      at(123456789n, 1n, 10n ** 18n - 8n),
+      3321928094887362348n,
+      0.174325603250965214,
     ],
     [at(1n, 3n, 10n ** 18n), 3321928094887362346n, 0.285356928768233994],
-    [at(-5n, 7n, -(10n ** 18n)), -3321928094887362349n, 0.644253743340368065],
+    [
+      at(-5n, 7n, -(10n ** 18n) + 1n),
+      -3321928094887362346n,
+      0.966181838227730412,
+    ],
     [dec("2.54"), 1n, 0.3448284969974411575],
     [dec("0.3"), -2n, 0.2630344058337938336],
     [ONE, 0n, 0],
@@ -636,15 +657,23 @@ test("a power refused is told by its decimal exponent, not by the check that fai
   const belowOne = dec("0.9999999999");
   assertRefused(pow(belowOne, 10n ** 30n, LIMIT_BITS), "underflow");
   assertRefused(pow(belowOne, -(10n ** 30n), LIMIT_BITS), "overflow");
-  // Within a relative 2^-20 of the bound, where the logarithms cannot
-  // tell, a power refused by its exponent is past the bound on the side
-  // its signs give: 10^(10^18) is a value, 10^(10^18 + 1) is not, and
-  // 1.5, 15 × 10^-1, to 5678870000000000000 is about 10^(0.9999994 ×
-  // 10^18), past it above, not below as its canonical exponent is.
+  // At the bound: 10^(10^18) is a value, 10^(10^18 + 1) is not. Within a
+  // relative 2^-20 of it, where the logarithms cannot tell, a power
+  // refused by its mantissa is the range limit's: 1.5 to
+  // 5678870000000000000 is about 10^(0.9999994 × 10^18), within the
+  // bound (the check of the canonical exponent times the power, which
+  // read it as past the bound below, went with the plan's H.13).
   assert.ok(pow(dec("10"), 10n ** 18n, LIMIT_BITS).ok);
   assertRefused(pow(dec("10"), 10n ** 18n + 1n, LIMIT_BITS), "overflow");
   assertRefused(pow(dec("0.1"), 10n ** 18n + 1n, LIMIT_BITS), "underflow");
-  assertRefused(pow(dec("1.5"), 5678870000000000000n, LIMIT_BITS), "overflow");
+  assertRefused(pow(dec("1.5"), 5678870000000000000n, LIMIT_BITS), "tooLarge");
+  // A value whose canonical exponent is past the bound, to the first
+  // power, is itself (D17).
+  const edgeValue = at(12345678n, 1n, -MAX_EXPONENT - 7n);
+  assert.deepEqual(pow(edgeValue, 1n, LIMIT_BITS), {
+    ok: true,
+    value: edgeValue,
+  });
   // One refused by its mantissa there is the range limit's.
   const edge = 1183294662454938368n;
   assert.equal(
@@ -1028,13 +1057,28 @@ test("parseDecimal keeps the exponent lazily and bounds the mantissa and the exp
   assert.deepEqual(dec("-2.50e-999999999"), at(-25n, 1n, -1000000000n));
   assert.deepEqual(dec("1e1000000000000000000"), at(1n, 1n, MAX_EXPONENT));
   assert.deepEqual(dec("0.1e-999999999999999999"), at(1n, 1n, -MAX_EXPONENT));
-  // The exponent bound, on the exponent as written and after the fraction
-  // digits and the trailing zeros move.
+  // The exponent bound, on the value (D17): after the fraction digits and
+  // the trailing zeros move, and zero at any exponent (issue #50).
   assertError(parseDecimal("1e1000000000000000001"), "overflow");
   assertError(parseDecimal("10e1000000000000000000"), "overflow");
   assertError(parseDecimal("0.01e-999999999999999999"), "underflow");
   assertError(parseDecimal("1e99999999999999999999999"), "overflow");
-  assertError(parseDecimal("0e99999999999999999999999"), "overflow");
+  assert.deepEqual(dec("0e99999999999999999999999"), ZERO);
+  assert.deepEqual(dec("0e2000000000000000000"), ZERO);
+  assert.deepEqual(dec("10e-1000000000000000001"), at(1n, 1n, -MAX_EXPONENT));
+  assert.deepEqual(
+    dec("1000e-1000000000000000002"),
+    at(1n, 1n, -MAX_EXPONENT + 1n),
+  );
+  assert.deepEqual(dec("0.001e1000000000000000003"), at(1n, 1n, MAX_EXPONENT));
+  assert.deepEqual(
+    dec("12345678e-1000000000000000007"),
+    at(12345678n, 1n, -MAX_EXPONENT - 7n),
+  );
+  assertError(
+    parseDecimal("3047999999999999999999999999999999996953e999999999999999978"),
+    "overflow",
+  );
   // The hard bound, on the mantissa's digits alone.
   assert.ok(parseDecimal("9".repeat(300000)).ok);
   assertError(parseDecimal("9".repeat(320000)), "tooLarge");

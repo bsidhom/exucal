@@ -3977,7 +3977,16 @@ Tests:
   - `5e1000000000000000000 * (approx(1e5000) - approx(1e5000))` is
     `unresolved` at the bound, where it was zero within
     `3e+1000000000000000952`.
-- #48's rows are `overflow`. Its second constraint,
+- #48's exact row, `5e1000000000000000000 + 5e1000000000000000000`, is
+  `overflow` in either mode. Its `approx` row is `unresolved` at the
+  bound, not the `overflow` the issue asks for: the ball of
+  `approx(5e1000000000000000000)` reaches back within the bound, and D18
+  refuses only when the whole ball is past. The midpoint sits on the
+  bound at every precision, so the retry loop ends with the `unresolved`
+  message, as `1 / (approx(1) - 1)` does (decided with the owner at the
+  review of H.13; a refusal on the midpoint is the one rule that can be
+  wrong, and the two words for one idea were weighed under D18). Its
+  second constraint,
   `1e999999999999999980/3 + approx(333333333333333333333e999999999999999980)`,
   is `≈ 3.3333333e+1000000000000000000`, and H.12's list inputs show their
   uncarried terms.

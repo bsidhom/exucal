@@ -225,6 +225,13 @@ function report(
   for (const r of slowest) {
     t.diagnostic(`${r.ms.toFixed(1)} ms: ${r.name}`);
   }
+  // With SWEEP_VIOLATIONS set, every violation, listed or not, for the
+  // task that empties the table's entries to see what is left.
+  if (process.env["SWEEP_VIOLATIONS"] !== undefined) {
+    for (const r of results) {
+      if (r.violation !== undefined) t.diagnostic(`${r.name}: ${r.violation}`);
+    }
+  }
 }
 
 /** The one assertion of a sweep, whose message lists every problem. */

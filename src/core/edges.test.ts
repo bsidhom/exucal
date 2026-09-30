@@ -27,6 +27,7 @@ import { test } from "node:test";
 import { isMainThread } from "node:worker_threads";
 import {
   addBalls,
+  containsZero,
   divideBalls,
   exact,
   isExact,
@@ -108,34 +109,6 @@ import { ball, dec } from "../testing/scaled.ts";
  */
 const KNOWN: readonly Known[] = [
   {
-    issue: "#44",
-    task: "H.13",
-    cases:
-      /^(addBalls|subtractBalls|multiplyBalls|divideBalls|powBall\[-1\]|pow|atan2)\(/,
-    violation:
-      /^(a value where every value of the result is (overflow|underflow)|refused underflow where the result does not pass the bound throughout)/,
-    reason:
-      "The constructor checks the canonical exponent, which lies within the bound by the mantissa's digits where the value passes it (`9.99e10^18 × 2` is `1998 × 10^(10^18 - 2)`, held) and past it where the value is within (`0.5 / (10^(10^18) / 3)` is `15 × 10^-(10^18 + 1)`, refused); D17 puts the bound on the value, and H.13 lands it. `atan2` reaches it through its ratio.",
-  },
-  {
-    issue: "#48",
-    task: "H.13",
-    cases:
-      /^(addBalls|subtractBalls)\(~-?5e1000000000000000000, 5e1000000000000000000\)/,
-    violation: /^\|mid\| \+ rad reaches/,
-    reason:
-      "A sum past the bound with an inexact operand is absorbed into the radius as if it had failed to align, and comes back as zero within a bound past the bound; H.13's second commit refuses a sum that aligns and passes the bound.",
-  },
-  {
-    issue: "#60",
-    task: "H.13",
-    cases: /^(multiplyBalls|divideBalls)\(/,
-    violation:
-      /^(refused overflow where the result does not pass|\|mid\| \+ rad reaches|the midpoint's decimal exponent)/,
-    reason:
-      "A product or a quotient is decided by its midpoint alone: one whose ball straddles the top is refused for good where D18 has it `unresolved` at the bound, and one whose midpoint is within, or that contains zero, may carry a radius past the top; H.13 applies D18.",
-  },
-  {
     issue: "#61",
     task: "H.15",
     cases: /^powBall\[-?1\]\(~/,
@@ -159,14 +132,6 @@ const KNOWN: readonly Known[] = [
     violation: /^refused (overflow|underflow) where the result does not pass/,
     reason:
       "The guards of the exponential family and of the powers refuse on the whole ball's magnitude, so a wide argument, or an exponent straddling zero over a base at the bottom edge, is refused for good where D18 has it `unresolved` at the bound; H.15's classifier refuses only when every value passes.",
-  },
-  {
-    issue: "#61",
-    task: "H.15",
-    cases: /^(pow|powBall\[1000000000000000000000000000000\])\(0±/,
-    violation: /^\|mid\| \+ rad reaches/,
-    reason:
-      "A power of a ball around zero takes its radius from the squaring loop, which passes the top of the bound unchecked, so the result is zero within a bound past the bound, as #61's last row shows for `pow` in decimal mode; H.15 tests such a base against the top edge and leaves it `unresolved` there.",
   },
   {
     issue: "#79",
@@ -829,7 +794,11 @@ function judge(
     }
   }
   const value = result.value;
-  if (sure !== undefined)
+  // A ball around zero may reach below the bottom edge (D17), so a result
+  // that is surely past it may still come back as zero within a bound,
+  // when the operation's own radius rule cannot exclude zero; past the
+  // top no value is sound.
+  if (sure === "overflow" || (sure === "underflow" && !containsZero(value)))
     return `a value where every value of the result is ${sure}`;
   const bad = checkValue(value, mode);
   if (bad !== undefined) return bad;
@@ -841,8 +810,12 @@ function judge(
     const reference = op.reference(args.map((a) => a.mid));
     if (reference !== undefined) {
       const s = scaledOf(reference);
-      if (s === undefined)
+      if (s === undefined) {
+        // Past the bottom, a ball around zero is a sound answer (D17).
+        if (decimalExponent(reference) < -MAX_EXPONENT && containsZero(value))
+          return undefined;
         return "a value where the exact result of the midpoints passes the bound";
+      }
       if (!contains(value, s))
         return "the result misses the exact result of the midpoints";
     }

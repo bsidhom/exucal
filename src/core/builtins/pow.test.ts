@@ -376,6 +376,54 @@ test("unbounded arguments give the power of the midpoints with an unbounded radi
   assert.ok(compare(distance(both.mid, SQRT2), dec("1e-40")) < 0);
 });
 
+test("through the pipeline, roots of a large degree or of a tiny mantissa are values where they crashed or were refused", () => {
+  const parsed = parseDefinitions("m  !");
+  assert.ok(parsed.ok);
+  const context = { ...CONTEXT, ceiling: 200 };
+  const table = buildTable(parsed.value, { ...context, precision: 200 });
+  assert.ok(table.ok, inspect(table));
+  const at = (text: string, precision: number) =>
+    evaluateText(table.value, text, { ...context, precision });
+  // Issues #45 and #57: the kernel's root of a degree past 2^32 threw, or
+  // overshot for half a minute, or reported a mantissa far below one as
+  // not told from zero. Each is a value, against the references of #57
+  // (Python's decimal module).
+  for (const [text, precision, digits] of [
+    ["pow(3, 1e-30)", 8, "1"],
+    ["3^1e-30", 8, "1"],
+    ["pow(2, 5e-28)", 8, "1"],
+    ["pow(10, 1e-100)", 8, "1"],
+    ["pow(1/3, 1e-30)", 8, "1"],
+    ["pow(2e200, 1e-20)", 8, "1"],
+    ["pow(2, 1e-400)", 8, "1"],
+    ["2^1e-400", 8, "1"],
+    ["2^1e-310000", 8, "1"],
+    ["pow(-2, 3^-700)", 8, "-1"],
+    ["2^1e-20", 32, "1.0000000000000000000069314718056"],
+    ["pow(2, 1e-20)", 32, "1.0000000000000000000069314718056"],
+    ["pow(3, 1e-30)", 32, "1.0000000000000000000000000000011"],
+    ["(7^-8000)^(1/99999)", 20, "0.85583783261454849435"],
+    ["pow(3^-10000, 2^-30)", 20, "0.99998976842809102303"],
+    ["pow(3^-20, 1/1000)", 8, "0.97826739"],
+  ] as const) {
+    const result = at(text, precision);
+    assert.ok(result.ok, `${text}: ${inspect(result)}`);
+    assert.deepEqual(
+      show(result.value.magnitude, precision, DEFAULT_ROUNDING),
+      { kind: "certified", text: digits },
+      text,
+    );
+  }
+  // A ball around zero under a degree past a double's range is a zero
+  // with a bound, where the radius's root threw.
+  const aroundZero = at("pow(1e-5 - approx(1e-5), 3^-700)", 8);
+  assert.ok(aroundZero.ok, inspect(aroundZero));
+  assert.equal(
+    show(aroundZero.value.magnitude, 8, DEFAULT_ROUNDING).kind,
+    "zero",
+  );
+});
+
 test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m, 2) says to write (2 m)^2, and the other errors are worded", () => {
   const parsed = parseDefinitions("m  !");
   assert.ok(parsed.ok);

@@ -462,6 +462,21 @@ export function compareFixed(a: Fixed, b: Fixed): -1 | 0 | 1 | undefined {
 const SQRT_GUARD = 16;
 
 /**
+ * The largest degree `rootFixed` takes, `2^32`. Two things in it need the
+ * degree small. The first guess comes through a double, good to about
+ * `2^-52`, and Newton's step raises the guess to the degree, so
+ * `n × 2^-52` must stay well below one for the step to converge rather
+ * than overshoot (past that, the iterate's powers grew until V8 refused
+ * a bigint). And the verification multiplies the result's error by about
+ * `n`, so `n × 2^-working` must stay below one half for its check to
+ * pass (past that, `pow(3, 1e-30)` threw "Newton's root is not within
+ * half of its argument"). Both hold to `2^32` with room; a larger degree
+ * is taken in log space by the ball, as `x^(1/n) = exp(ln x / n)`
+ * (issues #45 and #57).
+ */
+export const ROOT_DEGREE_LIMIT = 1n << 32n;
+
+/**
  * The square root of `f`, whose interval must be positive (a precondition;
  * the caller decides what a ball around zero means). The argument is
  * reduced by an exact power of four to `m` in `[1, 4)`, whose root is in
@@ -539,8 +554,9 @@ function reciprocalSqrt(m: bigint, bits: number): bigint {
 }
 
 /**
- * The `degree`-th root of `f`, for any degree from one, whose interval
- * must be positive (a precondition, as for `sqrtFixed`). Newton in fixed
+ * The `degree`-th root of `f`, for any degree from one to
+ * `ROOT_DEGREE_LIMIT`, whose interval must be positive (a precondition, as
+ * for `sqrtFixed`; a larger degree is one too). Newton in fixed
  * point, `x ← ((n - 1) x + a / x^(n-1)) / n` with the power by squaring, so
  * that no integer of `degree × bits` bits is ever formed and the cost is
  * logarithmic in the degree; the argument is first reduced by an exact
@@ -563,6 +579,9 @@ function reciprocalSqrt(m: bigint, bits: number): bigint {
  */
 export function rootFixed(f: Fixed, degree: bigint): Fixed {
   if (degree < 1n) throw new RangeError("Root degree must be positive");
+  if (degree > ROOT_DEGREE_LIMIT) {
+    throw new RangeError(`A root's degree is at most 2^32: ${degree}`);
+  }
   checkPositive(f);
   if (degree === 1n) return f;
   if (degree === 2n) return sqrtFixed(f);

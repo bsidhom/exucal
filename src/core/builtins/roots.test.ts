@@ -216,4 +216,23 @@ test("through the pipeline: sqrt(2) certifies, sqrt(9/4) m is exact, and the err
     precision: 8,
   });
   assert.ok(cube.ok, inspect(cube));
+  // A root at the bottom of the exponent bound: the power of ten the root
+  // takes off overshoots the exponent by up to the degree less one, and
+  // was refused past the bound where only its radius was needed (#44).
+  for (const [text, digits] of [
+    ["cbrt(1e-1000000000000000000)", "4.6415888e-333333333333333334"],
+    ["cbrt(2e-1000000000000000000)", "5.8480355e-333333333333333334"],
+    ["pow(2e-1000000000000000000, 1/7)", "7.945974e-142857142857142858"],
+  ]) {
+    const result = evaluateText(table.value, text!, {
+      ...context,
+      precision: 8,
+    });
+    assert.ok(result.ok, `${text}: ${inspect(result)}`);
+    assert.deepEqual(
+      show(result.value.magnitude, 8, DEFAULT_ROUNDING),
+      { kind: "certified", text: digits },
+      text,
+    );
+  }
 });

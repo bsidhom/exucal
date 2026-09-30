@@ -9,10 +9,14 @@ import {
   isUnbounded,
   isZeroRadius,
   maxRadius,
+  log2OfRadius,
   multiplyRadius,
   powRadius,
+  powerOfTenRadius,
+  powerOfTwoRadius,
   radiusAbove,
   radiusUpper,
+  rootRadiusAbove,
   type Radius,
 } from "./radius.ts";
 import {
@@ -292,4 +296,74 @@ test("a product whose ceiling carries into a new bit is renormalized", () => {
     addRadius(top, bounded(MANT_MIN, -1n)),
     bounded(MANT_MIN + (1n << 27n), 1n),
   );
+});
+
+test("powerOfTenRadius is at or above 10^k, within 2^-29, at any exponent the bounds hold", () => {
+  // Where the power can be formed, compared exactly.
+  for (const k of [0n, 1n, -1n, 20n, -20n, 300n, -300n]) {
+    const exact = k >= 0n ? rational(10n ** k) : rational(1n, 10n ** -k);
+    assertBounds(powerOfTenRadius(k), exact);
+  }
+  // Past the exponent bound, where no power of ten can be formed: the
+  // radius's binary logarithm has the integer part of `k log2 10`, so it
+  // lies within the mantissa's width of `10^k` (the fraction is in [0, 1)
+  // and the radius is at or above the value). The expected integers are
+  // floor(k × 3.32192809488736234787…), computed with 60 digits.
+  for (const [k, int] of [
+    [10n ** 18n, 3321928094887362347n],
+    [-(10n ** 18n), -3321928094887362348n],
+    [-(10n ** 18n + 315000n), -3321928094888408756n],
+  ] as const) {
+    const rad = powerOfTenRadius(k);
+    assertNormalized(rad);
+    assert.equal(log2OfRadius(rad).int, int, `${k}`);
+  }
+  // Beyond the documented domain the call is a precondition failure.
+  assert.throws(() => powerOfTenRadius(1n << 90n), RangeError);
+  assert.throws(() => powerOfTenRadius(-(1n << 90n)), RangeError);
+  assertNormalized(powerOfTenRadius((1n << 90n) - 1n));
+});
+
+test("rootRadiusAbove is at or above the root, within 2^-27, at any degree, a degree past a double's range included", () => {
+  // Ordinary degrees, checked by raising the result back: at or above
+  // the radius, and at most (1 + 2^-27)^degree of it.
+  const seed = key(2203);
+  for (const [i, k] of split(seed, 24).entries()) {
+    const rad = radiusAbove(absolute(randomRational(k, 24, 12)));
+    if (isZeroRadius(rad)) continue;
+    for (const degree of [2n, 3n, 7n, 1000n]) {
+      const root = rootRadiusAbove(rad, degree);
+      assertNormalized(root);
+      const power = pow(radiusUpper(root), degree, LIMIT_BITS);
+      assert.ok(power.ok);
+      const exact = radiusUpper(rad);
+      assert.ok(compare(power.value, exact) >= 0, `${i}: degree ${degree}`);
+      const slack = pow(add(ONE, rational(1n, 1n << 27n)), degree, LIMIT_BITS);
+      assert.ok(slack.ok);
+      assert.ok(
+        compare(power.value, multiply(exact, slack.value)) <= 0,
+        `${i}: degree ${degree}, tight`,
+      );
+    }
+  }
+  // A degree past a double's range (issue #57's `pow(1e-5 - approx(1e-5),
+  // 3^-700)`): the root of any radius is one within a hair, from below
+  // for a radius below one and from above for one above it, and the
+  // result is at or above it and within 2^-27 of one.
+  for (const degree of [10n ** 400n, 3n ** 700n]) {
+    for (const rad of [
+      powerOfTwoRadius(-76n),
+      powerOfTwoRadius(1000n),
+      radiusAbove(rational(3n, 7n)),
+    ]) {
+      const root = rootRadiusAbove(rad, degree);
+      assertNormalized(root);
+      const value = radiusUpper(root);
+      assert.ok(compare(value, ONE) >= 0, `${degree}`);
+      assert.ok(
+        compare(value, add(ONE, rational(1n, 1n << 27n))) <= 0,
+        `${degree}`,
+      );
+    }
+  }
 });

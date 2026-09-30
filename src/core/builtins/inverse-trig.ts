@@ -43,8 +43,15 @@
 // exponent, as `sin` converts one, so `atan(1e-50)` keeps its digits.
 //
 // The two ends of the exponent (4.4) are answered before the kernel is
-// entered. An argument of `atan` or `asin` below `2^-maxBits` throughout
-// is itself within its cube (`tinyOdd` of builtin.ts); one of `atan` at
+// entered. An argument of `atan` below `2^-maxBits` throughout is itself
+// within its cube (`tinyOdd` of builtin.ts), and an argument of `asin` or
+// `acos` whose square lies below `2^-bitsFor(precision)` throughout is
+// its expansion at zero already, `asin` the argument within its cube and
+// `acos` `pi/2` less that, which keeps the working bits since the
+// expansion's relative error is the square: the threshold is on the
+// square at the working bits rather than `isTiny`'s `2^-maxBits`, since
+// `1 - x^2` stops aligning within the range limit long before that
+// (`acos(1e-9860)` was refused at the default, issue #47); one of `atan` at
 // or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, the
 // saturation docs/decimal.md lists; and a ratio that reaches `2^maxBits`
 // is `tooLarge` at the kernel's door (`atanKernel`). A ratio below
@@ -59,6 +66,7 @@ import {
   divideBalls,
   exact,
   isExact,
+  magnitudeAbove,
   multiplyBalls,
   position,
   rootBall,
@@ -93,7 +101,12 @@ import {
   subtractFixed,
   type Fixed,
 } from "../fixed.ts";
-import { addRadius, powerOfTwoRadius } from "../radius.ts";
+import {
+  addRadius,
+  compareRadius,
+  multiplyRadius,
+  powerOfTwoRadius,
+} from "../radius.ts";
 import { err, ok, type Result } from "../result.ts";
 import {
   ONE,
@@ -144,7 +157,7 @@ export function asinBall(
     if (equals(x.mid, MINUS_ONE))
       return ok(fixedToBall(negateFixed(halfPi(context)), digits));
   }
-  if (isTiny(x, context)) return ok(tinyOdd(x));
+  if (squareBelow(x, bitsFor(context.precision))) return ok(tinyOdd(x));
   const root = complementRoot(x, context);
   if (!root.ok) return root;
   const denominator = addBalls(exact(ONE), root.value, context);
@@ -168,9 +181,20 @@ export function acosBall(
     if (equals(x.mid, ONE)) return ok(exact(ZERO));
     if (equals(x.mid, MINUS_ONE)) return ok(fixedToBall(pi(context), digits));
   }
+  const bits = bitsFor(context.precision);
+  if (squareBelow(x, bits)) {
+    // acos(x) = pi/2 - asin(x), and asin(x) is x within its cube; a
+    // difference that cannot be aligned absorbs the argument into the
+    // radius, both operands being inexact.
+    const result = subtractBalls(
+      fixedToBall(halfPi(context), digits),
+      tinyOdd(x),
+      context,
+    );
+    return result.ok ? result : err(fromBallError(result.error, 0));
+  }
   const root = complementRoot(x, context);
   if (!root.ok) return root;
-  const bits = bitsFor(context.precision);
   if (sign(x.mid) >= 0) {
     const denominator = addBalls(exact(ONE), x, context);
     if (!denominator.ok) return err(fromBallError(denominator.error, 0));
@@ -314,6 +338,18 @@ function complementRoot(
     return err({ kind: "unresolved", argument: 0, edge });
   }
   throw new Error("The root of a positive ball fails only as unresolved");
+}
+
+/**
+ * Whether the square of the bounded `x` lies below `2^-bits` throughout:
+ * where `asin` and `acos` are their expansion at zero to the working
+ * bits, as the header says.
+ */
+function squareBelow(x: Ball, bits: number): boolean {
+  const m = magnitudeAbove(x);
+  return (
+    compareRadius(multiplyRadius(m, m), powerOfTwoRadius(-BigInt(bits))) < 0
+  );
 }
 
 /**

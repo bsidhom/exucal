@@ -338,6 +338,46 @@ test("the values are the kernel's, within the radius: fractions of pi and the re
   );
 });
 
+test("asin and acos of an argument whose square lies below the working bits are their expansion at zero", () => {
+  // At the default range limit 1 - x^2 stops aligning below about 1e-9840,
+  // and isTiny's 2^-maxBits is about 1e-19728, so these were refused (#47).
+  for (const text of ["1e-9860", "8e-9865", "-1e-15000", "1e-20000"]) {
+    const x = dec(text);
+    const s = value(asinBall(exact(x), CONTEXT));
+    assert.ok(equals(s.mid, x), `asin(${text})`);
+    assert.ok(certifies(s, 40, "halfEven"), `asin(${text})`);
+    const c = value(acosBall(exact(x), CONTEXT));
+    const reference = subtract(PI_OVER_2, x, LIMIT_BITS);
+    assert.ok(reference.ok);
+    assertNear(c, reference.value, 45, `acos(${text})`);
+  }
+  // The expansion holds the working bits: the reference for asin(1e-30)
+  // is 1e-30 + 1.67e-91, within the cube.
+  assertNear(
+    value(asinBall(exact(dec("1e-30")), CONTEXT)),
+    dec(
+      "1.0000000000000000000000000000000000000000000000000000000000001666667e-30",
+    ),
+    45,
+    "asin(1e-30)",
+  );
+  // An argument beyond the exponent bound's reach for the square is a
+  // value too: acos(1e-600000000000000000) is pi/2 less that.
+  const far = value(acosBall(exact(dec("1e-600000000000000000")), CONTEXT));
+  assertNear(far, PI_OVER_2, 45, "acos(1e-600000000000000000)");
+  const nearer = value(asinBall(exact(dec("1e-600000000000000000")), CONTEXT));
+  assert.ok(equals(nearer.mid, dec("1e-600000000000000000")));
+  assert.ok(certifies(nearer, 40, "halfEven"));
+  // Above the threshold the kernel answers: asin(1e-20) at forty digits
+  // has a square of 1e-40, above 2^-165.
+  assertNear(
+    value(asinBall(exact(dec("1e-20")), CONTEXT)),
+    dec("1.00000000000000000000000000000000000000001666666666666667e-20"),
+    45,
+    "asin(1e-20)",
+  );
+});
+
 test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^-maxBits is the argument within its cube", () => {
   /** pi/2 to forty digits, from Python's decimal module. */
   const halfPi = dec("1.5707963267948966192313216916397514420986");
@@ -619,6 +659,11 @@ test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angl
     ["asin(0.5)", "turn", "0.083333333"],
     ["asin(3 m / 5 m)", "deg", "36.869898"],
     ["acos(1 - 1e-30)", "radian", "1.4142136e-15"],
+    // #47's tiny rows of acos: pi/2 less the argument.
+    ["acos(1e-20000)", "radian", "1.5707963"],
+    ["acos(1e-999999999)", "radian", "1.5707963"],
+    ["acos(1e-600000000000000000)", "radian", "1.5707963"],
+    ["asin(1e-9860)", "radian", "1e-9860"],
     ["atan(1e999999999)", "deg", "90"],
     ["atan(-1e999999999)", "radian", "-1.5707963"],
     ["atan(1e-999999999)", "radian", "1e-999999999"],

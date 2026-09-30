@@ -78,6 +78,11 @@ once the name has resolved and before any argument is evaluated.
   `cosh` give one within its square, and `exp` gives one within twice
   the argument's magnitude, so `sin(1e-999999999 radian)` is
   `≈ 1e-999999999` on the first pass and `exp(1e-999999999)` is `≈ 1`.
+  `asin` and `acos` take their expansion already where the argument's
+  square lies below `2^-bits` of the working precision, `acos` as `pi/2`
+  less the argument, since `1 - x^2` stops aligning within the range
+  limit long before `2^-maxBits` (the plan's H.7: `acos(1e-9860)` was
+  refused at the default range limit, issue #47).
   Between that and half an ulp of the working bits, the kernel's door
   (`fixedFromScaled`) converts the argument to zero within an ulp, which
   is what the log-space power of a tiny exponent and `atan2`'s tiny ratio

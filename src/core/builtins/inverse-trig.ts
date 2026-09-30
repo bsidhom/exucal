@@ -32,7 +32,18 @@
 // that plus pi or minus pi by the sign of `y` for an `x` negative
 // throughout; `±pi/2 - atan(x / y)` by the sign of `y` for a `y` of
 // definite sign when `x` reaches zero, which is where `y / x` could not
-// be formed; `unresolved` at `y` with edge zero when `y` straddles zero
+// be formed; before any of these, for a `y` of definite sign, the
+// magnitudes compared as radii where no ratio needs forming (the plan's
+// H.7, issue #47): `±pi/2` within `2^-bits` when `|y|` is at least
+// `|x| 2^bits` throughout, since `|atan(x / y)|` is then within that,
+// and `±pi` within `2^-bits` when `x` is negative and `|y| / |x|` lies
+// below `2^-bits`, so that `atan2(1e600000000000000000,
+// 1e-600000000000000000)` and `atan2(1e-999999999999999999, -1)` are
+// values where their ratio was refused at a limit or, once formed, the
+// kernel's door threw on it; a tiny ratio over a positive `x` is its
+// own arctangent within its cube, as `atan`'s argument is, so that
+// `atan2(1e-999999999999999999, 1)` keeps its value rather than going
+// in as zero within an ulp; `unresolved` at `y` with edge zero when `y` straddles zero
 // and `x` is not positive throughout, since the result jumps by `2 pi`
 // there; and for a `y` exactly zero, the exact zero for an `x` positive
 // throughout, `pi` for one negative throughout, `unresolved` at `x` with
@@ -40,7 +51,10 @@
 // one exactly zero. pi is the memo's (constants.ts), combined on the
 // kernel before the ball is formed. A tiny argument of `atan`, or a tiny
 // ratio, is converted at the working bits plus its negative binary
-// exponent, as `sin` converts one, so `atan(1e-50)` keeps its digits.
+// exponent, as `sin` converts one, so `atan(1e-50)` keeps its digits. A
+// ratio past the exponent bound on either side is the quotient's
+// refusal, `atan2(-1e-600000000000000000, 1e600000000000000000)` an
+// `underflow`, since its value cannot be written.
 //
 // The two ends of the exponent (4.4) are answered before the kernel is
 // entered. An argument of `atan` below `2^-maxBits` throughout is itself
@@ -54,12 +68,7 @@
 // (`acos(1e-9860)` was refused at the default, issue #47); one of `atan` at
 // or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, the
 // saturation docs/decimal.md lists; and a ratio that reaches `2^maxBits`
-// is `tooLarge` at the kernel's door (`atanKernel`). A ratio below
-// `2^-maxBits` inside `asin`, `acos` or `atan2` is converted at the range
-// limit's bits and is zero within an ulp there, so its arctangent is a
-// ball around zero that certifies nothing: correct, and the one case the
-// expansion at zero does not reach, since the kernel's sum with `pi` is
-// formed before the ball is.
+// is `tooLarge` at the kernel's door (`atanKernel`).
 
 import {
   addBalls,
@@ -67,6 +76,7 @@ import {
   exact,
   isExact,
   magnitudeAbove,
+  magnitudeBelow,
   multiplyBalls,
   position,
   rootBall,
@@ -250,9 +260,35 @@ export function atan2Ball(
         return err({ kind: "unresolved", argument: 1, edge: ZERO });
     }
   }
+  const scale = powerOfTwoRadius(BigInt(bits));
+  if (ySide !== "straddles") {
+    // |y| at least |x| 2^bits throughout: ±pi/2 - atan(x / y), with
+    // |atan(x / y)| <= |x / y| <= 2^-bits, so the ratio is not formed.
+    if (
+      compareRadius(
+        magnitudeBelow(y),
+        multiplyRadius(magnitudeAbove(x), scale),
+      ) >= 0
+    ) {
+      return ok(nearMultipleOfPi(halfPi(context), ySide, bits, context));
+    }
+    // A negative x with |y| / |x| below 2^-bits throughout: atan(y / x) ± pi
+    // with |atan(y / x)| <= 2^-bits, and again no ratio.
+    if (
+      xSide === "negative" &&
+      compareRadius(
+        multiplyRadius(magnitudeAbove(y), scale),
+        magnitudeBelow(x),
+      ) < 0
+    ) {
+      return ok(nearMultipleOfPi(pi(context), ySide, bits, context));
+    }
+  }
   if (xSide === "positive") {
     const z = quotient(y, x, 1);
     if (!z.ok) return z;
+    // A tiny ratio is its own arctangent within its cube, as atan's is.
+    if (isTiny(z.value, context)) return ok(tinyOdd(z.value));
     const t = atanKernel(z.value, context);
     return t.ok ? ok(fixedToBall(t.value, digits)) : t;
   }
@@ -338,6 +374,24 @@ function complementRoot(
     return err({ kind: "unresolved", argument: 0, edge });
   }
   throw new Error("The root of a positive ball fails only as unresolved");
+}
+
+/**
+ * `±multiple` by the sign `side` of `y`, within `2^-bits` beside the
+ * memo's radius: `atan2`'s answer where the arctangent of the ratio it
+ * does not form lies within `2^-bits` of a multiple of `pi`.
+ */
+function nearMultipleOfPi(
+  multiple: Fixed,
+  side: "positive" | "negative",
+  bits: number,
+  context: NumberContext,
+): Ball {
+  const at = fixedToBall(multiple, workingDigits(context));
+  return {
+    mid: side === "negative" ? negate(at.mid) : at.mid,
+    rad: addRadius(at.rad, powerOfTwoRadius(-BigInt(bits))),
+  };
 }
 
 /**

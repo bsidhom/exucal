@@ -85,8 +85,11 @@ once the name has resolved and before any argument is evaluated.
   refused at the default range limit, issue #47).
   Between that and half an ulp of the working bits, the kernel's door
   (`fixedFromScaled`) converts the argument to zero within an ulp, which
-  is what the log-space power of a tiny exponent and `atan2`'s tiny ratio
-  go in as. Under a directed rounding mode these show `≈ 1` with no digit
+  is what the log-space power of a tiny exponent goes in as; `atan2`'s
+  tiny ratio over a positive `x` is its own arctangent within its cube,
+  as `atan`'s argument is, and against a negative `x` or a `y` far larger
+  than `x` the ratio is not formed at all (the plan's H.7, below). Under
+  a directed rounding mode these show `≈ 1` with no digit
   certain, since the ball straddles one, as `cosh(1e-999999999)` and
   `approx(1)` already do.
 - **A large argument is answered before the kernel is entered** (4.4),

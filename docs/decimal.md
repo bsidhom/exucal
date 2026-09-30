@@ -396,10 +396,14 @@ are `ln(2|x|)` within `1/(2x^2)`, through the logarithm's scale. The
 plan's 4.4 lists them, with the tiny end the code added (an argument
 below `2^-maxBits` answered by its expansion at zero, `exp` giving one
 within twice its magnitude, since `e^|x| - 1 <= 2|x|` there); the
-log-space power of a tiny exponent and the ratio of `atan2` reach the
-door, where the exponent and the ratio are zero within an ulp, which
-makes `pow(2, approx(1e-999999999))` a value, and the ratio's own value
-is the plan's H.7 to give (issues #53 and #47).
+log-space power of a tiny exponent reaches the door, where the exponent
+is zero within an ulp, which makes `pow(2, approx(1e-999999999))` a
+value (issue #53); `atan2` compares the magnitudes of its arguments as
+radii before it forms their ratio, and answers `±pi/2` or `±pi` within
+`2^-bits` where the ratio lies within that of a multiple of `pi`, and a
+tiny ratio over a positive `x` by the arctangent's expansion, so that
+`atan2(1e-999999999999999999, 1)` is its argument and
+`atan2(1e-999999999999999999, -1)` is `pi` (the plan's H.7, issue #47).
 
 A unit list whose count would be an integer that cannot be formed (D8:
 `1e999999999 m` into `ft;in`) shows the count as the ratio's midpoint

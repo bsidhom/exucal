@@ -607,6 +607,73 @@ test("atan2 by quadrant, its exact and unresolved cases, and the origin", () => 
   });
 });
 
+test("atan2 compares magnitudes before forming a ratio: the quadrants at both extremes, and a tiny ratio keeps its value (#47)", () => {
+  /** pi and pi/2 to forty digits, from Python's decimal module. */
+  const piDigits = dec("3.141592653589793238462643383279502884197");
+  const halfPi = dec("1.570796326794896619231321691639751442099");
+  const huge = "1e600000000000000000";
+  const tinyText = "1e-600000000000000000";
+  for (const [y, x, reference] of [
+    ["1e30000", "1", halfPi],
+    ["-1e30000", "1", negate(halfPi)],
+    ["1e30000", "-1", halfPi],
+    ["-1e30000", "-1", negate(halfPi)],
+    ["1", "1e-30000", halfPi],
+    [huge, tinyText, halfPi],
+    [`-${huge}`, `-${tinyText}`, negate(halfPi)],
+    ["1", "0", halfPi],
+    ["-1", "0", negate(halfPi)],
+    ["1", "-1e30000", piDigits],
+    ["-1", "-1e30000", negate(piDigits)],
+    ["1", "-1e999999999999999999", piDigits],
+    ["1e-999999999999999999", "-1", piDigits],
+    [tinyText, `-${huge}`, piDigits],
+    [`-${tinyText}`, `-${huge}`, negate(piDigits)],
+  ] as const) {
+    const at = value(atan2Ball(exact(dec(y)), exact(dec(x)), DEFAULT));
+    assert.ok(
+      compare(distance(at.mid, reference), dec("2e-17")) < 0,
+      `atan2(${y}, ${x})`,
+    );
+    assert.ok(radiusBelow(at, "2e-17"), `atan2(${y}, ${x})`);
+    assert.ok(certifies(at, 8, "halfEven"), `atan2(${y}, ${x})`);
+  }
+  // The saturation's radius: 2^-bits beside pi's, at forty digits.
+  const far = value(atan2Ball(exact(dec("1e30000")), exact(ONE), CONTEXT));
+  assert.ok(radiusBelow(far, "1e-48"));
+  // Just inside the comparison the ratio is formed and the kernel
+  // answers: |y| = |x| 2^160 at 165 bits is not 2^165.
+  const inside = value(atan2Ball(exact(fr(1n << 160n)), exact(ONE), CONTEXT));
+  assert.ok(compare(distance(inside.mid, PI_OVER_2), dec("1e-47")) < 0);
+  assert.ok(compare(distance(inside.mid, PI_OVER_2), dec("6e-49")) > 0);
+  // A tiny ratio over a positive x is itself within its cube, in both
+  // signs, where it went into the kernel as zero within an ulp.
+  for (const [y, x] of [
+    ["1e-999999999999999999", "1"],
+    ["-1e-999999999999999999", "1"],
+    ["1", "1e30000"],
+    ["-1", "1e30000"],
+    ["1e-30000", "2"],
+  ] as const) {
+    const at = value(atan2Ball(exact(dec(y)), exact(dec(x)), DEFAULT));
+    const ratio = value(atanBall(exact(dec(y)), DEFAULT));
+    if (x === "1") assert.deepEqual(at, ratio, `atan2(${y}, ${x})`);
+    assert.ok(certifies(at, 8, "halfEven"), `atan2(${y}, ${x})`);
+  }
+  // A ratio past the exponent bound is the quotient's refusal, since its
+  // value cannot be written.
+  assert.deepEqual(
+    failure(atan2Ball(exact(dec(`-${tinyText}`)), exact(dec(huge)), DEFAULT)),
+    { kind: "underflow" },
+  );
+  // A wide x with a y of definite sign is still pi/2 less atan(x / y)
+  // where |y| is not |x| 2^bits: 2 against 0 ± 1e-30 at forty digits.
+  const straddling = value(
+    atan2Ball(exact(fr(2n)), ball("0", "1e-30"), CONTEXT),
+  );
+  assert.ok(compare(radiusOf(straddling), dec("4.9e-31")) > 0);
+});
+
 test("an unbounded argument gives the function of its midpoint with an unbounded radius", () => {
   const half = { mid: fr(1n, 2n), rad: UNBOUNDED };
   for (const [result, reference] of [
@@ -667,9 +734,16 @@ test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angl
     ["atan(1e999999999)", "deg", "90"],
     ["atan(-1e999999999)", "radian", "-1.5707963"],
     ["atan(1e-999999999)", "radian", "1e-999999999"],
-    // A tiny ratio reaches the kernel as zero within an ulp, where its
-    // conversion threw (#47's crash; H.7 gives the ratio its value).
+    // #47's atan2 rows: the ratio's magnitude decides, and no ratio is
+    // formed where it cannot be (the crash rows threw in the kernel's
+    // door before H.2, and went in as zero within an ulp after it).
     ["atan2(1e-999999999999999999, -1)", "radian", "3.1415927"],
+    ["atan2(1, -1e999999999999999999)", "radian", "3.1415927"],
+    ["atan2(1e30000, 1)", "radian", "1.5707963"],
+    ["atan2(1, 1e-30000)", "radian", "1.5707963"],
+    ["atan2(1e600000000000000000, 1e-600000000000000000)", "deg", "90"],
+    ["atan2(1e-999999999999999999, 1)", "radian", "1e-999999999999999999"],
+    ["atan2(-1, -1e30000)", "deg", "-180"],
   ]) {
     const result = convertText(table.value, have!, want!, {
       ...context,

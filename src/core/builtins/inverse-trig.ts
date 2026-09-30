@@ -72,12 +72,16 @@
 // `tanh`): a ball that reaches `2^maxBits` without lying beyond `2^bits`
 // throughout, which the kernel's door refused as `tooLarge`, is the
 // function's whole range, zero within two for `atan`, the kernel's own
-// trivial bound for a wide interval, and zero within four for `atan2`,
-// which certifies nothing and lets the retry loop narrow the argument;
-// a ratio `x / y` that reaches it with `x` straddling zero is
-// `unresolved` at `x`, since it is `x`'s width that keeps the ratio from
-// the kernel and narrowing `x` is the remedy. A refusal is final, and no
-// value of either function reaches any limit.
+// trivial bound for a wide interval, and zero within four for `atan2`
+// (the powers of two above `pi/2` and `pi`; `WHOLE_RANGE_ATAN` says why
+// not the fractions of pi themselves), which certifies nothing and lets
+// the retry loop narrow the argument. One such ratio is `unresolved`
+// instead: `x / y` with `x` straddling zero and `y` of definite sign,
+// since the value then ranges over nearly all of `(0, pi)` or `(-pi, 0)`
+// and which end it lies near depends on `x`'s side of zero, which is
+// what D4's error says, where a ball around zero would read as a value
+// near zero (the comment at that branch has the case). A refusal is
+// final, and no value of either function reaches any limit.
 
 import {
   addBalls,
@@ -313,8 +317,21 @@ export function atan2Ball(
     return ok(fixedToBall(keepSignificant(result, bits), digits));
   }
   // `x` reaches zero and `y` has a sign: ±pi/2 - atan(x / y). A ratio
-  // reaching 2^maxBits is x's width, and narrowing x is the remedy, so it
-  // is `unresolved` at x rather than the whole range.
+  // reaching 2^maxBits is `unresolved` at x rather than the whole range,
+  // for what the value does over such an x. Take y = 1e-30000 and x = 0
+  // within 1e-52, the first pass of atan2(1e-30000, 1 - approx(1)): the
+  // value is within 1e-30000 / |x| of zero for x well above 1e-30000 and
+  // within that of pi for x well below -1e-30000, and the whole change
+  // between them happens inside |x| < 1e-30000, far within the ball. So
+  // the answer ranges over nearly all of (0, pi), and which end it lies
+  // near is decided by x's side of zero, the case D4 names: the retry
+  // loop retries it as it retries the whole range, and at the ceiling the
+  // message says that x cannot be told from zero and the result depends
+  // on which side it lies, which is the truth, where zero within four
+  // would read as a value near zero. The other whole-range case, a y
+  // straddling zero over a positive x, is not like this: its range is
+  // (-pi/2, pi/2), symmetric about zero, and y's side of zero gives only
+  // the sign of the result, so a ball around zero describes it.
   const z = quotient(x, y, 0);
   if (!z.ok) return z;
   if (isHuge(z.value, context)) {
@@ -431,13 +448,25 @@ function atanKernel(z: Ball, context: NumberContext): Fixed {
 }
 
 /**
- * The whole range of `atan`, zero within two, the kernel's own trivial
- * bound for a wide interval, for a ball that reaches `2^maxBits` without
- * lying beyond `2^bits` throughout (issue #64).
+ * The whole range of `atan`, zero within two, for a ball that reaches
+ * `2^maxBits` without lying beyond `2^bits` throughout (issue #64). Two
+ * rather than `pi/2`, the range's own bound, because it is the kernel's
+ * trivial bound for a wide interval (`atanFixed`), whose error is an
+ * integer count of ulps written as a shift by a power of two with no
+ * call on pi's memo, and the built-in's answer is kept the kernel's; the
+ * coarse radius could hold `pi/2` rounded up, and nothing certified
+ * would change, since a ball around zero of either radius certifies no
+ * digit and the retry loop treats the two alike. What would differ is
+ * the bound the display shows at the ceiling, `0` within `2` against
+ * within `1.6`.
  */
 const WHOLE_RANGE_ATAN: Ball = { mid: ZERO, rad: powerOfTwoRadius(1n) };
 
-/** The whole range of `atan2`, zero within four, for a ratio that reaches `2^maxBits` (issue #64). */
+/**
+ * The whole range of `atan2`, zero within four, the power of two above
+ * `pi`, for a ratio that reaches `2^maxBits` (issue #64), by the same
+ * reasoning as `WHOLE_RANGE_ATAN`.
+ */
 const WHOLE_RANGE_ATAN2: Ball = { mid: ZERO, rad: powerOfTwoRadius(2n) };
 
 /** `a / b` for a `b` whose interval the caller has checked to exclude zero, failing only if the quotient is refused; `argument` is `b`'s index. */

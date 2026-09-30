@@ -460,6 +460,18 @@ test("through the pipeline, atan and atan2 are never refused for a radius (#64)"
   const wide = at("atan(approx(1e30000) - approx(1e30000))");
   assert.ok(wide.ok, inspect(wide));
   assert.equal(show(wide.value.magnitude, 8, DEFAULT_ROUNDING).kind, "zero");
+  // #64's second row is about 0.785 and cannot certify as written, and
+  // not for anything in atan2. approx(1e30000) - approx(1e30000) is the
+  // difference of two independent balls in the ball model, zero within
+  // twice 1e30000 less the working digits, and the + 1 is one within
+  // that: every function of this argument, exp or sqrt as much as
+  // atan2, certifies nothing until the working digits pass 30,000, which
+  // no ceiling the settings allow reaches (the default is 4,040). Only a
+  // rewrite, approx(1e30000 - 1e30000 + 1), which is approx(1), or a
+  // symbolic cancellation, which docs/future.md rules out, would give
+  // it its digits. What this task fixes is that the row was refused at
+  // the first pass; it now runs to the ceiling and ends as a zero with a
+  // bound, the whole range, as the plan's rule gives.
   const ratio = at("atan2(approx(1e30000) - approx(1e30000) + 1, 1)");
   assert.ok(ratio.ok, inspect(ratio));
   assert.equal(show(ratio.value.magnitude, 8, DEFAULT_ROUNDING).kind, "zero");
@@ -471,7 +483,10 @@ test("through the pipeline, atan and atan2 are never refused for a radius (#64)"
     kind: "certified",
     text: "0.78539816",
   });
-  // An x straddling zero at every pass is unresolved at zero at the ceiling.
+  // An x straddling zero at every pass is unresolved at zero at the
+  // ceiling: the value ranges over nearly all of (0, pi) for such an x,
+  // and which end it lies near is x's side of zero (the comment at the
+  // branch in inverse-trig.ts has the reasoning).
   const straddling = at("atan2(1e-30000, 1 - approx(1))");
   assert.ok(!straddling.ok);
   assert.equal(

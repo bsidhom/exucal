@@ -100,8 +100,13 @@ once the name has resolved and before any argument is evaluated.
   `atan` nor `atan2` is refused for an argument's radius: a ball that
   reaches `2^maxBits` without lying beyond `2^bits` throughout is the
   function's whole range, zero within two for `atan` and within four for
-  `atan2`, which certifies nothing and lets the retry loop narrow it (the
-  plan's H.7, issue #64); `asinh` and `acosh` of one are
+  `atan2` (the powers of two above `pi/2` and `pi`, the kernel's own
+  trivial bound; nothing certified would differ with the fractions of
+  pi themselves), which certifies nothing and lets the retry loop narrow
+  it, apart from a ratio `x / y` with `x` straddling zero and `y` of
+  definite sign, which is `unresolved` at `x`, since the value then
+  ranges over nearly all of `(0, pi)` and which end it lies near is
+  `x`'s side of zero (the plan's H.7, issue #64); `asinh` and `acosh` of one are
   `ln(2|x|)` within `1/(2x^2)`; `tanh`'s saturation to `±1` stands; and
   the logarithms take any exponent, `ln(m × 10^e)` being `ln m + e ln 10`
   from the memo, so `ln(1e999999999)` is a value and `log10(1e999999999)`

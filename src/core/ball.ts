@@ -152,7 +152,9 @@ import {
 } from "./fixed.ts";
 import {
   LIMIT_BITS,
+  ONE as ONE_FRACTION,
   bitLength,
+  divide as divideFractions,
   multiply as multiplyFractions,
   rational,
   scaleByPowerOfTwo,
@@ -218,10 +220,12 @@ export type Ball = {
 
 /**
  * What a value that cannot be told from it straddles (D4): a point, zero
- * for a divisor or a base, `1` or `-1` at the end of a domain, or a pole
- * of the tangent. The built-ins' errors carry the same edges (builtin.ts).
+ * for a divisor or a base, `1` or `-1` at the end of a domain, a pole of
+ * the tangent, or the exponent bound (D18), a name rather than a number
+ * since for a power it lies on `y ln x` rather than on an argument. The
+ * built-ins' errors carry the same edges (builtin.ts).
  */
-export type Edge = Scaled | "pole";
+export type Edge = Scaled | "pole" | "bound";
 
 export type BallError =
   | ScaledError
@@ -409,14 +413,21 @@ export function subtractBalls(
 /**
  * `a × b`: the exact product of the midpoints, with the radius
  * `|a| rb + |b| ra + ra rb`, rounded up. An exact zero times anything is
- * exact zero; a product whose exponent passes the bound is `overflow` or
- * `underflow`, and one past the range limit would be `tooLarge` once
- * products are held to it (issue #52), so a caller takes any refusal.
+ * exact zero; an exact product whose value passes the bound is `overflow`
+ * or `underflow`, and an inexact one is held to the bound as `held` says
+ * (D18); one past the range limit would be `tooLarge` once products are
+ * held to it (issue #52), so a caller takes any refusal.
  */
 export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   if (isExactZero(a) || isExactZero(b)) return ok(exact(ZERO));
-  const mid = multiply(a.mid, b.mid);
-  if (!mid.ok) return mid;
+  if (isExact(a) && isExact(b)) {
+    const mid = multiply(a.mid, b.mid);
+    return mid.ok ? ok(exact(mid.value)) : mid;
+  }
+  if (a.rad.kind === "unbounded" || b.rad.kind === "unbounded") {
+    const mid = multiply(a.mid, b.mid);
+    return mid.ok ? ok({ mid: mid.value, rad: UNBOUNDED }) : mid;
+  }
   const rad = addRadius(
     addRadius(
       multiplyRadius(radiusAboveScaled(a.mid), b.rad),
@@ -424,7 +435,94 @@ export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
     ),
     multiplyRadius(a.rad, b.rad),
   );
+  return held(
+    {
+      mant: multiplyFractions(a.mid.mant, b.mid.mant),
+      exp: a.mid.exp + b.mid.exp,
+    },
+    rad,
+  );
+}
+
+/**
+ * The bounded, inexact ball of the midpoint `loose`, formed with no bound
+ * checked and in no canonical form, and the radius `rad`, held to the
+ * exponent bound as D18 has it: a value when the midpoint is within the
+ * bound and `|mid| + rad` lies below its top; `overflow` when
+ * `|mid| - rad` is at or above `10^(10^18 + 1)`, the whole ball past the
+ * top; `underflow` when `|mid| + rad` lies below `10^-(10^18)` with the
+ * ball excluding zero, the whole ball past the bottom; zero within
+ * `|mid| + rad` when the ball contains zero and the midpoint passes below,
+ * zero being within the bound at any exponent (D17); and `unresolved` at
+ * the edge `bound` otherwise, a result that passes the bound for some
+ * values of the ball and not for others, which the retry loop narrows. The
+ * decisions are `againstPowerOfTen`'s: the coarse bounds first, the exact
+ * distance from the power of ten within their slack. Stage 4 decided by
+ * the midpoint alone, so a product straddling the top was refused for
+ * good and one around zero carried a radius past it (issue #60).
+ */
+function held(loose: Scaled, rad: Radius): Result<Ball, BallError> {
+  const atBound: BallError = { kind: "unresolved", edge: "bound" };
+  if (isZero(loose)) {
+    // Zero within the radius, unless the radius itself reaches the top.
+    const top: Scaled = { mant: ONE_FRACTION, exp: MAX_EXPONENT + 1n };
+    return compareRadius(rad, radiusBelowScaled(top)) < 0
+      ? ok({ mid: ZERO, rad })
+      : err(atBound);
+  }
+  const exponent = decimalExponent(loose);
+  if (exponent > MAX_EXPONENT) {
+    return againstPowerOfTen(loose, rad, MAX_EXPONENT + 1n) === "above"
+      ? err({ kind: "overflow" })
+      : err(atBound);
+  }
+  if (exponent < -MAX_EXPONENT) {
+    const zero = compareWithRadius(absolute(loose), rad);
+    if (zero !== undefined && zero <= 0) {
+      return ok({ mid: ZERO, rad: addRadius(radiusAboveScaled(loose), rad) });
+    }
+    return againstPowerOfTen(loose, rad, -MAX_EXPONENT) === "below"
+      ? err({ kind: "underflow" })
+      : err(atBound);
+  }
+  if (againstPowerOfTen(loose, rad, MAX_EXPONENT + 1n) !== "below") {
+    return err(atBound);
+  }
+  const mid = scaled(loose.mant, loose.exp);
+  if (!mid.ok) throw new Error("A midpoint within the bound is held");
   return ok({ mid: mid.value, rad });
+}
+
+/**
+ * Where the ball of the nonzero `mid`, in any form, and the bounded,
+ * nonzero `rad` lies in magnitude against `10^k`: `above` when
+ * `|mid| - rad` is at or above it, `below` when `|mid| + rad` is below
+ * it, and `straddles` otherwise. The coarse bounds decide first, a radius
+ * at or above the power (`powerOfTenRadius`) against a lower bound on the
+ * ball's magnitude and one at or below it against an upper bound; within
+ * their slack, which no pass narrows, the exact distance of `|mid|` from
+ * the power decides against the radius, formed from the midpoint's digits,
+ * which align with the power, and compared exactly where the radius can
+ * be formed and by the bounds otherwise, which cannot tell a touch from a
+ * straddle.
+ */
+function againstPowerOfTen(
+  mid: Scaled,
+  rad: Radius,
+  k: bigint,
+): "above" | "below" | "straddles" {
+  const magnitude = absolute(mid);
+  const power: Scaled = { mant: ONE_FRACTION, exp: k };
+  const least = subtractRadiusDown(radiusBelowScaled(magnitude), rad);
+  if (compareRadius(least, powerOfTenRadius(k)) >= 0) return "above";
+  const most = addRadius(radiusAboveScaled(magnitude), rad);
+  if (compareRadius(most, radiusBelowScaled(power)) < 0) return "below";
+  const d = differenceOf(magnitude, power);
+  if (isZero(d)) return "straddles";
+  const c = compareWithRadius(absolute(d), rad);
+  if (c === undefined) return "straddles";
+  if (sign(d) > 0) return c >= 0 ? "above" : "straddles";
+  return c === 1 ? "below" : "straddles";
 }
 
 /**
@@ -434,8 +532,9 @@ export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
  * distance from zero as a lower bound. Fails `divisionByZero` when `b` is
  * exactly zero and `unresolved` when it contains zero without being
  * exactly zero, or when the bounds cannot tell its distance from zero, and
- * is refused as a product is. A divisor of unbounded radius with a nonzero
- * midpoint gives a quotient of unbounded radius.
+ * is held to the exponent bound as a product is (`held`). A divisor of
+ * unbounded radius with a nonzero midpoint gives a quotient of unbounded
+ * radius.
  */
 export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   if (isExactZero(b)) return err({ kind: "divisionByZero" });
@@ -445,10 +544,13 @@ export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
     return mid.ok ? ok({ mid: mid.value, rad: UNBOUNDED }) : mid;
   }
   if (containsZero(b)) return err({ kind: "unresolved", edge: ZERO });
-  const mid = divide(a.mid, b.mid);
-  if (!mid.ok) return mid;
-  if (a.rad.kind === "unbounded") return ok({ mid: mid.value, rad: UNBOUNDED });
-  if (isZeroRadius(a.rad) && isZeroRadius(b.rad)) return ok(exact(mid.value));
+  if (a.rad.kind === "unbounded" || (isExact(a) && isExact(b))) {
+    const mid = divide(a.mid, b.mid);
+    if (!mid.ok) return mid;
+    return ok(
+      isExact(a) ? exact(mid.value) : { mid: mid.value, rad: UNBOUNDED },
+    );
+  }
   const numerator = addRadius(
     multiplyRadius(radiusAboveScaled(a.mid), b.rad),
     multiplyRadius(radiusAboveScaled(b.mid), a.rad),
@@ -458,7 +560,12 @@ export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   const distance = magnitudeBelow(b);
   if (isZeroRadius(distance)) return err({ kind: "unresolved", edge: ZERO });
   const denominator = multiplyRadiusDown(radiusBelowScaled(b.mid), distance);
-  return ok({ mid: mid.value, rad: divideRadius(numerator, denominator) });
+  const mant = divideFractions(a.mid.mant, b.mid.mant);
+  if (!mant.ok) throw new Error("A divisor excluding zero is nonzero");
+  return held(
+    { mant: mant.value, exp: a.mid.exp - b.mid.exp },
+    divideRadius(numerator, denominator),
+  );
 }
 
 /**
@@ -839,7 +946,11 @@ export function powRationalBall(
   if (negative && even) return err({ kind: "negativeRadicand", degree: q });
   const power = powBall(b, p, context);
   if (power.ok) return rootBall(power.value, q, context);
-  if (!isRefusal(power.error) || containsZero(b)) return power;
+  // A power that does not fit, or straddles the bound, goes to log space.
+  const retried =
+    isRefusal(power.error) ||
+    (power.error.kind === "unresolved" && power.error.edge === "bound");
+  if (!retried || containsZero(b)) return power;
   const result = powLogSpace(
     negative ? negateBall(b) : b,
     exact(fromRational(exponent)),

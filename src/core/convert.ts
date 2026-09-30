@@ -120,6 +120,13 @@ export type ConvertError =
   /** `want` has a magnitude that cannot be told from zero at this precision. */
   | { readonly kind: "unresolvedWant" }
   /**
+   * The ratio, or a list's count, product or remainder, straddles the
+   * exponent bound at this precision, so that whether it is a value or a
+   * refusal depends on which side the true value lies (D18); retried, as
+   * an unresolved want is.
+   */
+  | { readonly kind: "unresolvedBound" }
+  /**
    * The ratio was refused: its exponent passes the bound, above it or
    * below it. A quotient is not held to the range limit (issue #52), so it
    * is never `tooLarge` today; one would be passed on all the same.
@@ -170,7 +177,10 @@ export function convert(
     case "divisionByZero":
       return err({ kind: "zeroWant" });
     case "unresolved":
-      return err({ kind: "unresolvedWant" });
+      return err({
+        kind:
+          ratio.error.edge === "bound" ? "unresolvedBound" : "unresolvedWant",
+      });
     case "tooLarge":
     case "overflow":
     case "underflow":

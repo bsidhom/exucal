@@ -9,7 +9,7 @@ import {
 } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { exact, isExact } from "./ball.ts";
+import { containsZero, exact, isExact } from "./ball.ts";
 import { roundTerms } from "./convert.ts";
 import { show } from "./display.ts";
 import { buildTable } from "./build.ts";
@@ -762,6 +762,46 @@ function assertTerms(
     `${have} in ${want}`,
   );
 }
+
+test("a result straddling the exponent bound is retried, and reported at the bound when no pass decides it (D18)", () => {
+  // The first pass leaves the product straddling the top; the later ones
+  // narrow it to zero within a bound (#60).
+  const narrowing = evaluateText(
+    table,
+    "(1e46 - approx(1/3) * 3e46) * 1e999999999999999983",
+    CONTEXT,
+  );
+  assert.ok(
+    narrowing.ok && containsZero(narrowing.value.magnitude),
+    inspect(narrowing),
+  );
+  // No pass narrows this one below the top: unresolved at the bound at the
+  // ceiling, and at once in decimal mode, where it is final.
+  const straddling =
+    "5e1000000000000000000 * (approx(1e5000) - approx(1e5000))";
+  for (const context of [CONTEXT, decimal(8)]) {
+    const result = evaluateText(table, straddling, context);
+    assert.ok(
+      !result.ok && result.error.kind === "unresolved",
+      inspect(result),
+    );
+    assert.equal(result.error.edge, "bound");
+  }
+  // The converter's ratio and a list's count straddling the top are the
+  // converter's own retried variant.
+  assert.deepEqual(failure("approx(1e1000000000000000000) m", "0.1 m"), {
+    kind: "unresolvedBound",
+  });
+  assert.deepEqual(failure("approx(1e1000000000000000000) m", "0.1 m;0.01 m"), {
+    kind: "unresolvedBound",
+  });
+  // A literal at the bottom edge with a fraction mantissa is a value, and
+  // its list too (H.12's row that waited for H.13).
+  assert.equal(
+    list("1.234567891e-999999999999999999 m", "m;mm").terms.length,
+    2,
+  );
+});
 
 test("a list at the edges of the bound gives its terms or the refusal, and never throws (H.12)", () => {
   // A count whose ratio falls below the bound is zero (D8): the value is

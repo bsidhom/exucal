@@ -91,26 +91,6 @@ const KNOWN: readonly Known[] = [
       "The guard of the exponential family and of the log-space power measures the whole argument's ball, so a radius alone refuses `exp`, and `resolve` does not retry a refusal; H.15's classifier refuses only when every value passes the bound and leaves the rest `unresolved`.",
   },
   {
-    issue: "#44",
-    task: "H.13",
-    cases:
-      /^(1e-1000000000000000000 \/ (approx\(3\)|3|7)|1e1000000000000000000 \/ 3 \* 10|3047999999999999999999999999999999996953e999999999999999978 m into ft;in)$/,
-    violation:
-      /(midpoint's decimal exponent -?1000000000000000(001|017) is past the bound|got the error overflow)$/,
-    reason:
-      "The constructor checks the canonical exponent, which lies within the bound by the mantissa's digits where the value passes it (`1e-10^18 / 7` is `1/7 × 10^-(10^18)`, held, and `1e-10^18 / approx(3)` is a value in exact mode from H.11, whose settle refuses nothing there) and past it where the value is within (`1e10^18 / 3 * 10` is `1/3 × 10^(10^18 + 1)`, refused); D17 puts the bound on the value, and H.13 lands it.",
-  },
-  {
-    issue: "#50",
-    task: "H.13",
-    cases:
-      /^(0e2000000000000000000|10e-1000000000000000001|1000e-1000000000000000002|12345678e-1000000000000000007|1\.234567891e-999999999999999999 m into m;mm)/,
-    violation:
-      /^expected a (value|unit list), got the error (overflow|underflow)$/,
-    reason:
-      "`parseDecimal` checks the exponent as written, less the fraction digits, and `scaled()` the canonical exponent, so a literal whose value is within the bound is refused; H.13 leaves the bound to the value.",
-  },
-  {
     issue: "#46",
     task: "H.15",
     cases:
@@ -388,11 +368,12 @@ const CASES: readonly TextCase[] = [
     expect: refused("overflow"),
   },
   // In decimal mode the `have` rounds to `3.048e+(10^18)` at eight digits,
-  // whose count of feet, `1e+(10^18 + 1)`, passes the bound.
+  // within the rounding's radius, and its count of feet straddles
+  // `1e+(10^18 + 1)`: `unresolved` at the bound, final in decimal mode.
   {
     text: "3047999999999999999999999999999999996953e999999999999999961 m",
     want: "ft;in",
-    expect: { exact: LIST, decimal: refused("overflow") },
+    expect: { exact: LIST, decimal: error("unresolvedBound") },
   },
   {
     text: "1e999999999999999980/3 + approx(333333333333333333333e999999999999999980)",

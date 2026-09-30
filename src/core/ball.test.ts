@@ -1413,6 +1413,90 @@ test("settle refuses a rounded midpoint past the bound in decimal mode, and neve
   assertRefused(settle(past, decimalAt(8, "halfAwayFromZero")), "underflow");
 });
 
+test("a product or a quotient with an inexact operand is held to the bound by its whole ball (D18)", () => {
+  const two = exact(fr(2n));
+  const tenth = exact(dec("0.1"));
+  // Every value past the top: overflow. Straddling it: unresolved at the
+  // bound. Within it throughout: a value.
+  const edge = ball(
+    dec(`5e${E18}`),
+    dec(`5e${(MAX_EXPONENT - 30n).toString()}`),
+  );
+  assert.deepEqual(multiplyBalls(edge, two), {
+    ok: false,
+    error: { kind: "unresolved", edge: "bound" },
+  });
+  assert.deepEqual(divideBalls(edge, exact(dec("0.5"))), {
+    ok: false,
+    error: { kind: "unresolved", edge: "bound" },
+  });
+  const above = ball(
+    dec(`1.000000001e${E18}`),
+    dec(`1e${(MAX_EXPONENT - 27n).toString()}`),
+  );
+  assertRefused(multiplyBalls(above, exact(fr(10n))), "overflow");
+  const within = ball(
+    dec(`9.99999999e${E18}`),
+    dec(`1e${(MAX_EXPONENT - 27n).toString()}`),
+  );
+  assert.ok(multiplyBalls(within, exact(ONE)).ok);
+  assert.ok(
+    multiplyBalls(ball(dec("4.9"), dec("0.05")), exact(dec(`1e${E18}`))).ok,
+  );
+  // A midpoint within the bound whose radius reaches the top, and a zero
+  // midpoint whose radius does: unresolved at the bound.
+  const wide = ball(dec(`5e${E18}`), dec(`6e${E18}`));
+  assert.deepEqual(multiplyBalls(wide, exact(ONE)), {
+    ok: false,
+    error: { kind: "unresolved", edge: "bound" },
+  });
+  const aroundZero = ball(ZERO, dec("1e9"));
+  assert.deepEqual(multiplyBalls(aroundZero, exact(dec(`5e${E18}`))), {
+    ok: false,
+    error: { kind: "unresolved", edge: "bound" },
+  });
+  assert.ok(
+    multiplyBalls(
+      aroundZero,
+      exact(dec(`1e${(MAX_EXPONENT - 10n).toString()}`)),
+    ).ok,
+  );
+  // At the bottom: every value past it is underflow; a ball containing
+  // zero whose midpoint passes below is zero within |mid| + rad; one
+  // straddling the edge is unresolved.
+  const tiny: Ball = {
+    mid: dec(`1e-${E18}`),
+    rad: powerOfTenRadius(-(MAX_EXPONENT + 30n)),
+  };
+  assertRefused(multiplyBalls(tiny, tenth), "underflow");
+  const spanning = ball(dec(`1e-${E18}`), dec(`2e-${E18}`));
+  const zero = unwrap(multiplyBalls(spanning, tenth));
+  assert.deepEqual(zero.mid, ZERO);
+  assert.ok(containsZero(zero));
+  // 8e-(10^18) within 5e-(10^18), a tenth of which reaches from
+  // 3e-(10^18 + 1) to 1.3e-(10^18): the midpoint past the bound, the ball
+  // not throughout.
+  const straddling = ball(dec(`8e-${E18}`), dec(`5e-${E18}`));
+  assert.deepEqual(multiplyBalls(straddling, tenth), {
+    ok: false,
+    error: { kind: "unresolved", edge: "bound" },
+  });
+  // Two exact operands are refused by the value, as the constructor
+  // decides it, and a ball of unbounded radius by its midpoint alone.
+  assertRefused(multiplyBalls(exact(dec(`9.99e${E18}`)), two), "overflow");
+  assertRefused(
+    divideBalls(exact(dec(`1e-${E18}`)), exact(fr(7n))),
+    "underflow",
+  );
+  assert.ok(
+    multiplyBalls({ mid: dec(`5e${E18}`), rad: UNBOUNDED }, exact(ONE)).ok,
+  );
+  assertRefused(
+    multiplyBalls({ mid: dec(`5e${E18}`), rad: UNBOUNDED }, two),
+    "overflow",
+  );
+});
+
 test("radiusOfMove bounds the distance a rounding moved a midpoint, past the bound included", () => {
   const to = { mant: rational(12345679n), exp: -(MAX_EXPONENT + 7n) };
   const from = { mant: rational(1234567891n), exp: -(MAX_EXPONENT + 9n) };

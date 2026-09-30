@@ -19,6 +19,7 @@ import {
 } from "./ball.ts";
 import { angle, checkArgument, plainNumbers, type Builtin } from "./builtin.ts";
 import { approx } from "./builtins/approx.ts";
+import { BUILTINS as APP_BUILTINS } from "./builtins.ts";
 import {
   DIMENSIONLESS,
   checkConformance,
@@ -1118,6 +1119,97 @@ const withBuiltins = lookupIn(UNITS, FUNCTIONS, BUILTINS);
 function runBuiltin(text: string): Result<Quantity, Failure> {
   return evaluate(parsed(text), withBuiltins, PRIMITIVES, CONTEXT);
 }
+
+test("the exponent bound is on the value, and a result straddling it is unresolved at the bound (D17, D18)", () => {
+  const app = lookupIn(UNITS, FUNCTIONS, Object.fromEntries(APP_BUILTINS));
+  const run8 = (text: string, context: NumberContext = at(8)) =>
+    evaluate(parsed(text), app, PRIMITIVES, context);
+  const shown = (text: string, digits: number, context?: NumberContext) =>
+    format(
+      value(run8(text, context)).magnitude.mid,
+      digits,
+      "halfAwayFromZero",
+    );
+  // The canonical exponent passes the bound by the mantissa's digits where
+  // the value does not, and the other way (issue #50's family).
+  assert.equal(
+    shown("1e1000000000000000000 / 3 * 10", 8),
+    "3.3333333e+1000000000000000000",
+  );
+  const seventh = "1e-1000000000000000000 / 7";
+  assert.deepEqual(failure(run8(seventh)), {
+    kind: "underflow",
+    span: { start: 0, end: seventh.length },
+  });
+  // #44's first two rows are refused at the quotient in either mode.
+  for (const text of [
+    "1e-1000000000000000000 / 3",
+    "1e-1000000000000000000 / approx(3)",
+  ]) {
+    for (const context of [at(8), decimal(8, "halfAwayFromZero")]) {
+      assert.equal(failure(run8(text, context)).kind, "underflow", text);
+    }
+  }
+  assert.deepEqual(value(run8("12345678e-1000000000000000007")).magnitude.mid, {
+    mant: rational(12345678n),
+    exp: -1000000000000000007n,
+  });
+  // The built-ins take the newly admitted values.
+  const top = "(1e1000000000000000000 / 3 * 10)";
+  for (const fn of ["ln", "log10", "asinh", "acosh"])
+    value(run8(`${fn}${top}`));
+  value(run8(`pow(${top}, 0.3)`));
+  const bottom = "(12345678e-1000000000000000007)";
+  for (const fn of ["ln", "sqrt", "cbrt"]) value(run8(`${fn}${bottom}`));
+  value(run8(`pow(${bottom}, 0.5)`));
+  // In decimal mode a value at the bottom edge certifies its digits.
+  const settled = value(
+    run8(
+      "1.234567891e-1000000000000000000 * 1",
+      decimal(8, "halfAwayFromZero"),
+    ),
+  );
+  assert.ok(certifies(settled.magnitude, 8, "halfAwayFromZero"));
+  // The arithmetic keeps the values stage 4 certified: at eight digits
+  // the first pass leaves the product straddling the top, and the retry
+  // loop's later passes, at forty digits here, decide it.
+  const wide =
+    "(approx(9999999999999999999999999999510000000000000000) - 9999999999999999999999999997310000000000000000)";
+  assert.equal(
+    failure(run8(`${wide} * 4e999999999999999982`)).kind,
+    "unresolved",
+  );
+  assert.equal(
+    shown(`${wide} * 4e999999999999999982`, 2, at(40)),
+    "8.8e+1000000000000000000",
+  );
+  value(run8(`${wide} * 3e999999999999999982 + 3e1000000000000000000`, at(40)));
+  assert.ok(
+    containsZero(
+      value(
+        run8("approx(1/3) * 3 * 1e-999999999999999990 - 1e-999999999999999990"),
+      ).magnitude,
+    ),
+  );
+  // A product whose ball straddles the top is unresolved at the bound, at
+  // the whole product; a quotient's, at the whole quotient.
+  const straddling =
+    "5e1000000000000000000 * (approx(1e5000) - approx(1e5000))";
+  assert.deepEqual(failure(run8(straddling)), {
+    kind: "unresolved",
+    edge: "bound",
+    span: { start: 0, end: straddling.length },
+  });
+  const quotient = "approx(1e1000000000000000000) / 0.1";
+  assert.deepEqual(failure(run8(quotient)), {
+    kind: "unresolved",
+    edge: "bound",
+    span: { start: 0, end: quotient.length },
+  });
+  // A log-space power at the bottom edge is a value, where the canonical
+  // check refused its midpoint's digits.
+  value(run8("pow(10, approx(-999999999999999990.5))"));
+});
 
 test("a settled midpoint past the bound is refused in decimal mode and truncated in exact mode (H.11)", () => {
   const lookupWithApprox = lookupIn(UNITS, FUNCTIONS, { approx });

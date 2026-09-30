@@ -70,7 +70,8 @@ evaluated at, where GNU units defines `pi` as a decimal literal.
 integer powers and the exact case of the n-th root, total and unbounded.
 `src/core/scaled.ts` (stage 4 of the plan) holds `Scaled` over it: the
 arithmetic, which aligns a sum's mantissas within a stated limit on the
-shift and bounds the exponent by `10^18` (`MAX_EXPONENT`), comparison, the
+shift and bounds a value's decimal exponent by `10^18` (`MAX_EXPONENT`),
+comparison, the
 parsing of a literal, whose exponent it keeps as the number it is, rounding
 to significant digits in a rounding mode, formatting, and the binary
 magnitude (`log2Bounds`) from which a radius is taken without forming the
@@ -97,9 +98,11 @@ Three rules say where, and only where, a value can lose precision:
    to be; nothing in exact mode rounds an exact intermediate to keep it
    small (the decimal mode rounds every result, which is what the mode
    is; "Settling" below). A product or a quotient combines the exponents,
-   and fails only at the exponent bound, `overflow` or `underflow`: it is
-   not held to the range limit (issue #52), and its callers take any
-   refusal. A sum aligns the mantissas by
+   and fails only at the exponent bound, `overflow` or `underflow` when
+   every value of its ball is past it, and `unresolved` at the edge
+   `bound`, which the retry loop narrows, when some are (the plan's D18);
+   it is not held to the range limit (issue #52), and its callers take
+   any refusal. A sum aligns the mantissas by
    the difference of the exponents, which the range limit bounds
    (docs/decimal.md, "Sums, comparisons and the radius"): two exact
    operands that cannot be aligned within it have an exact sum that cannot
@@ -391,9 +394,10 @@ certification guarantees is the true value's rounding in that mode.
 Exact arithmetic cannot overflow, but it can grow without bound:
 `3^1000000` and `1e999999999 + 1` are valid input. Two limits on two axes
 bound it (the plan's D16 as stage 4 restated it). The magnitude is the
-exponent's, bounded by `MAX_EXPONENT`, `10^18`, in scaled.ts, beyond
-which an operation is refused, an `overflow` above it or an `underflow`
-below it; within it a magnitude costs nothing.
+value's decimal exponent, bounded by `MAX_EXPONENT`, `10^18`, in
+scaled.ts (the plan's D17), beyond which an operation is refused, an
+`overflow` above it or an `underflow` below it; within it a magnitude
+costs nothing.
 The bound is kept by decision, for the exponential's cost beyond it and
 the parts of the number type that are exact only within it
 (docs/decimal.md, "Decision: the bound stays at `10^18`").

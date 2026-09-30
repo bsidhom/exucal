@@ -349,10 +349,10 @@ function evaluateNode<E>(
         case "div": {
           const quotient = divideQuantities(left.value, right.value);
           // A divisor at fault (zero, or straddling it) is pointed at; a
-          // quotient refused as too large or too small is the whole
-          // quotient's.
+          // quotient refused as too large or too small, or straddling the
+          // bound, is the whole quotient's.
           const at =
-            !quotient.ok && isRefusal(quotient.error) ? span : node.right.span;
+            !quotient.ok && atTheBound(quotient.error) ? span : node.right.span;
           return locate(quotient, at);
         }
       }
@@ -373,8 +373,13 @@ function evaluateNode<E>(
       }
       const power = powQuantity(base.value, exponent.value, context);
       // A base that cannot be told from zero is what is wrong, whether it
-      // is raised to a negative power or put under an even root.
-      if (!power.ok && power.error.kind === "unresolved") {
+      // is raised to a negative power or put under an even root; a power
+      // straddling the bound is the whole power's.
+      if (
+        !power.ok &&
+        power.error.kind === "unresolved" &&
+        !atTheBound(power.error)
+      ) {
         return err({
           kind: "unresolved",
           span: node.base.span,
@@ -622,6 +627,13 @@ export function reduceExponent(e: Exponent, maxBits: number): ReducedExponent {
   return fraction.ok
     ? { ok: true, value: fraction.value }
     : { ok: false, quotient: quotient.value };
+}
+
+/** Whether `error` is the result's, at a limit: a refusal, or an `unresolved` at the exponent bound. */
+function atTheBound(error: BallError): boolean {
+  return (
+    isRefusal(error) || (error.kind === "unresolved" && error.edge === "bound")
+  );
 }
 
 function locate(

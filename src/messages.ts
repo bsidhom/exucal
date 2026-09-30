@@ -81,7 +81,7 @@ export function describeTextError(
       return `Division by zero in ${quote(slice(text, error.span))}.`;
     case "unresolved": {
       const edge = describeEdge(error.edge);
-      return `${quote(slice(text, error.span))} cannot be told from ${edge} at this precision, and the result depends on which side of ${error.edge === "pole" ? "it" : edge} it lies.`;
+      return `${quote(slice(text, error.span))} cannot be told from ${edge} at this precision, and the result depends on which side of ${typeof error.edge === "string" ? "it" : edge} it lies.`;
     }
     case "negativeRadicand":
       return `${quote(slice(text, error.span))} takes an even root of a negative value.`;
@@ -224,9 +224,10 @@ function domainValue(reason: DomainReason): string {
 /**
  * Why the parser rejected a literal it recognized, as a clause about "this
  * number" without the final period: a mantissa of too many digits for the
- * hard bound, or a canonical exponent past the exponent bound on either
- * side, said as a literal's exponent is written; a `^` exponent that cannot
- * be formed as a fraction; a `^` exponent that divides by zero.
+ * hard bound, or a value whose decimal exponent passes the exponent bound
+ * on either side (D17: `0.001e1000000000000000003` is within it, and
+ * `1e1000000000000000001` is not); a `^` exponent that cannot be formed
+ * as a fraction; a `^` exponent that divides by zero.
  */
 function describeRejection(reason: Rejection): string {
   switch (reason.kind) {
@@ -272,9 +273,11 @@ function describeValuePast(kind: Refusal["kind"]): string {
   }
 }
 
-/** The edge a value cannot be told from, in words: `zero`, `1`, `-1`, `a pole of the tangent`. */
+/** The edge a value cannot be told from, in words: `zero`, `1`, `-1`, `a pole of the tangent`, `the point where the result passes the exponent bound`. */
 function describeEdge(edge: Edge): string {
   if (edge === "pole") return "a pole of the tangent";
+  if (edge === "bound")
+    return "the point where the result passes the exponent bound";
   return equals(edge, ZERO) ? "zero" : format(edge, 1, "towardZero");
 }
 
@@ -331,6 +334,8 @@ export function describeConversionError(
       return `${quote(want.trim())} is zero, so nothing is a multiple of it.`;
     case "unresolvedWant":
       return `${quote(want.trim())} cannot be told from zero at this precision, so nothing can be converted into it.`;
+    case "unresolvedBound":
+      return `${quote(have.trim())} into ${quote(want.trim())} cannot be told from the point where the result passes the exponent bound at this precision.`;
     case "tooLarge":
     case "overflow":
     case "underflow":

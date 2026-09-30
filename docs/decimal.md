@@ -553,8 +553,9 @@ D16's two limits stay, on their two axes, and the range limit's meaning
 narrows to what it always guarded: the size of an exact value, that is
 of a mantissa's numerator and denominator, and the alignment of a sum,
 which is the size the exact result would have (a comparison aligns only
-values of one decimal exponent, above, and needs no limit; a product and
-a quotient are not held to it yet, issue #52). The
+values of one decimal exponent, above, and needs no limit; a product, a
+quotient and a sum are held to it by the evaluator's check on every
+exact node result, D19). The
 magnitude of a value is no longer its size, so the range limit does not
 bound it; the exponent bound does, for exact and inexact values alike,
 and a result's magnitude is refused only there (`exp(1e30)`) or where a
@@ -576,10 +577,10 @@ purpose: the exponent bound is on the value, since a refusal at it must
 never be false about the value; the range limit is on the
 representation, since nothing else could be measured without forming
 what the limit forbids. A result past it is refused at the node that
-forms it, with the node and the remedy named, `approx` there or a
-higher setting, and exact mode does not round an exact value on its own
-to stay within it; the study's alternative, rounding at the limit, is
-recorded with the decision.
+forms it, with the node and the remedy named, `approx` around the
+node's first operand or a higher setting, and exact mode does not round
+an exact value on its own to stay within it; the study's alternative,
+rounding at the limit, is recorded with the decision.
 
 ## Where it goes
 

@@ -449,8 +449,8 @@ export function subtractBalls(
  * `|a| rb + |b| ra + ra rb`, rounded up. An exact zero times anything is
  * exact zero; an exact product whose value passes the bound is `overflow`
  * or `underflow`, and an inexact one is held to the bound as `held` says
- * (D18); one past the range limit would be `tooLarge` once products are
- * held to it (issue #52), so a caller takes any refusal.
+ * (D18); the evaluator holds an exact product to the range limit at the
+ * node (D19), so a caller takes any refusal.
  */
 export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   if (isExactZero(a) || isExactZero(b)) return ok(exact(ZERO));

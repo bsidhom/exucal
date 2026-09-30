@@ -101,8 +101,9 @@ Three rules say where, and only where, a value can lose precision:
    and fails only at the exponent bound, `overflow` or `underflow` when
    every value of its ball is past it, and `unresolved` at the edge
    `bound`, which the retry loop narrows, when some are (the plan's D18);
-   it is not held to the range limit (issue #52), and its callers take
-   any refusal. A sum aligns the mantissas by
+   an exact result past the range limit is refused by the evaluator at
+   the node that forms it (D19, "Size limits" below), and the callers of
+   the operations take any refusal. A sum aligns the mantissas by
    the difference of the exponents, which the range limit bounds
    (docs/decimal.md, "Sums, comparisons and the radius"): two exact
    operands that cannot be aligned within it have an exact sum that cannot
@@ -416,7 +417,8 @@ checks every literal's mantissa against it. A power of an inexact base is
 guarded by the exponent bound alone, its midpoint settled at every
 squaring. Its default is 2^16 bits
 (about 19,700 decimal digits, at which every exact operation still takes
-milliseconds, a large quotient's reduction aside, issue #52) and it is
+milliseconds, the reduction of a quotient of two mantissas at the limit
+included) and it is
 the user's to set up to the hard bound
 `LIMIT_BITS` in rational.ts (2^20, about 315,000 digits), which the
 parser, having no context, applies to a literal's mantissa. What the
@@ -444,28 +446,42 @@ big number by the measure that matters; `approx` is the remedy, as for
 any other. A binary exponent beside the decimal one, which
 docs/decimal.md weighed and withdrew, would have spared `2^-30000` and
 done nothing for `3^-100000`: the cost is in storing exact rationals as
-digits, not in the power of ten. A result that would
-pass the limit is refused at the node that forms it, `tooLarge`, and the
-message names the node and the remedy, `approx` around it to compute it
-to the digits asked, or a higher `maxBits`; exact mode never rounds an
-exact value on its own to stay within the limit (the plan's D20). Today
-the operations that grow their inputs by at most a constant factor do
-not check: an expression of bounded length applies a bounded number of
-them, and settling keeps inexact midpoints at the working precision.
-Products and quotients are among them, and issue #52 records that
-nothing bounds an expression's length, so that an exact product of many
-powers each within the limit passes it; their callers take any refusal,
-so that the check the plan's D19 adds at the evaluator's every node
-changes none of them. The
+digits, not in the power of ten. Every exact result is held to the
+limit where the evaluator produces it (the plan's D19): `evaluate()`
+measures the settled result of every node, a unit looked up and a
+call's result included, and refuses one whose canonical mantissa passes
+the limit, `tooLarge` at the node, as the pipeline does again after the
+two quotients it forms outside the evaluator, the conversion's ratio and
+a function want's count. The measure is after the fact, on the reduced
+result, so `x / x` is one and a quotient costs its reduction, not its
+unreduced parts; what is formed before the check refuses is at most a
+product of two mantissas within the limit, a sum aligned within it or a
+quotient's two parts, each at most twice the limit and reduced once,
+which is the operation the probe times when it recommends the limit. A
+power still predicts its size before forming anything, with the node
+check as the backstop. The message names the node and the remedy:
+`approx` around the node's first operand, which makes the result inexact
+and settled rather than refused (around the node itself it would come
+too late, the node being refused before `approx` sees it), or a higher
+`maxBits`; exact mode never rounds an exact value on its own to stay
+within the limit (the plan's D20). An inexact result, and every result
+in decimal mode, is settled to the working digits and never refused for
+size; the built-ins' internal intermediates, a unit list's
+decomposition, `powBall`'s settled loop and the display's reciprocal
+work on node results already held to the limit, within a constant
+factor of them, and are not checked. The
 precision limit is the cap on the digits setting, from
 which the retry schedule's ceiling is derived; its own hard bound,
 `maxDigitsFor`, follows from the range limit, since a settled midpoint at
 the ceiling must fit it with room for a product of two: about 2,450
 digits at the default range limit.
 `approx` bears on the range limit alone: in a sum, whose smaller operand
-it lets the radius absorb, and in an integer power, whose inexact base is
+it lets the radius absorb, in an integer power, whose inexact base is
 settled at every squaring (`approx(3)^1000000000` is a value where
-`3^1000000000` is `tooLarge`). It never changes an exponent, so a
+`3^1000000000` is `tooLarge`), and in any product, quotient or sum
+whose exact result would pass the limit, which an inexact operand makes
+inexact and settled (`approx(3^32767) * 7^21845` is a value where
+`3^32767 * 7^21845` is `tooLarge`). It never changes an exponent, so a
 result past the exponent bound is refused with it or without it
 (`exp(approx(1e999))`; docs/approximate.md, "`approx` and the exponent
 bound"). The two limits refuse with errors of their own, and the message

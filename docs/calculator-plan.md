@@ -643,8 +643,9 @@ never forms more than the device can afford, which is a fact about the
 representation and not about the value, and nothing else could be
 measured without forming what the limit forbids. So a refusal at the
 range limit says that a result was too large to hold, names the node
-that formed it, and names the remedy, `approx` at that node or a higher
-`maxBits`; and README's "Most bits" says what is counted. Whether exact
+that formed it, and names the remedy, `approx` around an operand of that
+node or a higher `maxBits`; and README's "Most bits" says what is
+counted. Whether exact
 mode rounds instead of refusing there is D20.
 
 **D17. The exponent bound is on the value, not on its representation
@@ -795,8 +796,11 @@ The rule:
   (D16 as restated once more has the limiting cases).
 - The refusal names the node and the remedy (D20): the message quotes the
   subexpression, says it is too large to hold exactly within `maxBits`,
-  and says to write `approx` around it to compute it to the digits asked,
-  or to raise `maxBits`.
+  and says to write `approx` around its first operand (a binary's left,
+  a power's base, a call's first argument) to compute it to the digits
+  asked, or to raise `maxBits`. `approx` around the node itself would
+  come too late, the node being refused before `approx` sees it, which
+  H.14 found; an inexact operand is what makes the result inexact.
 - The exponent bound is checked first, so that a result past both is
   reported at the bound.
 - The check runs in `evaluate()`'s wrapper on the settled result, which
@@ -4013,10 +4017,13 @@ and after the pipeline's ratio and a function want's count. The exponent
 bound is checked first, and no signature changes. Its action is D20's:
 the node is refused, `tooLarge` at its span, and messages.ts words it
 with the remedy, `"3^32767 * 7^21845" is too large to hold exactly within
-Most bits: write "approx(3^32767 * 7^21845)" to compute it to the digits
-asked, or raise Most bits.` (the message keeps the panel's label, "Most
-bits", which is what the user sees; the setting is `maxBits` in the
-code), where the range limit's other refusals (a
+Most bits: write "approx(3^32767)" in place of "3^32767" to compute it to
+the digits asked, or raise Most bits.` (the message keeps the panel's
+label, "Most bits", which is what the user sees; the setting is `maxBits`
+in the code; the remedy is `approx` around the node's first operand,
+whose span the error carries, since `approx(3^32767 * 7^21845)` is
+refused at the product before `approx` sees it, as H.14 found), where
+the range limit's other refusals (a
 literal, a sum's alignment, a power's prediction, the kernel's reach)
 keep their wording, since `approx` is not their remedy in the same way
 (a literal is exact by being typed, and the kernel's reach is not a
@@ -4054,7 +4061,8 @@ Tests:
   are `tooLarge`, and `2^-28000` stays a value (D19, by the measure of
   D16 as restated once more).
 - messages.test.ts: the refusal names the node and the remedy, and the
-  remedy works: `approx(3^32767 * 7^21845)` is a value.
+  remedy works: `approx(3^32767) * 7^21845` is a value, where
+  `approx(3^32767 * 7^21845)` is refused at the product.
 
 Docs:
 

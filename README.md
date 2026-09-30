@@ -65,12 +65,12 @@ in` at twelve.
   below. The limit is what makes `3^1000000000` an
   error rather than a hang. When an exact result would need more than
   the limit, the app refuses that part of the expression and names it,
-  and there are two ways on: write `approx(…)` around it, which computes
-  it to the digits asked and shows `≈` instead of `=`, or raise
-  `maxBits`; in exact mode the app never rounds an exact value on its own
-  (products, quotients and sums of fractions are not yet held to the
-  limit, issue #52). It also bounds the most digits: lowering it lowers
-  that setting, and the digits, when they no longer fit.
+  and there are two ways on: write `approx(…)` around one of its
+  operands, which the message shows, so that the part is computed to the
+  digits asked and shown with `≈` instead of `=`, or raise `maxBits`; in
+  exact mode the app never rounds an exact value on its own. It also
+  bounds the most digits: lowering it lowers that setting, and the
+  digits, when they no longer fit.
 
 Both limits are cost limits, and the right values depend on the device, so
 the panel's "Recommend limits" button measures what this one does within
@@ -419,13 +419,17 @@ it is too small to compute, its exponent would fall below `-10^18`.
 `sinh` and `cosh` of a negative argument being too large rather than too
 small, and a power that no setting could hold is reported at the bound
 even where Most bits refuses it first (`7^1e19`, an integer of about
-`8.5 × 10^18` digits). What `approx` does relax is Most bits, in a sum
-and in an integer power: `1e999999999 + 1` is refused, since its exact
-value has a billion digits, while `approx(1e999999999) + 1` is
-`≈ 1e+999999999`, the `1` absorbed into the radius; and `3^1000000000` is
+`8.5 × 10^18` digits). What `approx` does relax is Most bits, in a sum,
+in an integer power, and in any product, quotient or sum whose exact
+result would grow past the limit: `1e999999999 + 1` is refused, since
+its exact value has a billion digits, while `approx(1e999999999) + 1` is
+`≈ 1e+999999999`, the `1` absorbed into the radius; `3^1000000000` is
 refused, its exact value needing more bits than Most bits allows, while
 `approx(3)^1000000000` is `≈ 5.243997e+477121254`, its digits kept to the
-working precision at every step. It never changes an exponent.
+working precision at every step; and `3^32767 * 7^21845` is refused,
+each power within the limit and their product past it, while
+`approx(3^32767) * 7^21845` is `≈ 9.9732685e+34094`. It never changes an
+exponent.
 
 Nor would `approx` help if the exponent were allowed, because of what the
 exponential does to a radius: `exp(x ± r)` is `exp(x)` times a factor

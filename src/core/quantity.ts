@@ -14,10 +14,10 @@
 // ball operation beside the matching dimension operation, and nothing else.
 // Multiplication and division are exact on the midpoints and propagate the
 // radii, and are refused when the result is too large or too small to
-// compute: today at the exponent bound (`overflow`, `underflow`) alone,
-// since their mantissas are not held to the range limit, which they can
-// pass, and past it too (`tooLarge`) once they are (issue #52), so the
-// callers take any refusal; division also fails on a divisor that is
+// compute, at the exponent bound (`overflow`, `underflow`); an exact
+// result past the range limit is refused by the evaluator at the node
+// that forms it (D19), not here, and the callers take any refusal all
+// the same; division also fails on a divisor that is
 // exactly zero, or that cannot be told from zero (`unresolved`); and a
 // power takes the `NumberContext` whose precision its one inexact step, the
 // root of a non-integer exponent, is computed at. For those, the failures
@@ -145,8 +145,7 @@ export function negateQuantity(q: Quantity): Quantity {
 
 /**
  * `a b`: `2 m` times `3 s` is `6 m s`, exactly on exact magnitudes; fails
- * when the product is refused, as the header says: at the exponent bound,
- * and past the range limit once products are held to it (issue #52).
+ * when the product is refused, as the header says, at the exponent bound.
  */
 export function multiplyQuantities(
   a: Quantity,

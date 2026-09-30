@@ -310,9 +310,8 @@ export function atanhBall(
   const quotient = divideBalls(numerator.value, denominator.value);
   if (!quotient.ok) {
     // The divisor was checked to be above zero, so only a refusal of the
-    // quotient is left: none today, since `1 - x` could only be formed
-    // within the range limit, but past that limit once quotients are held
-    // to it (issue #52).
+    // quotient is left, at the exponent bound; the range limit is the
+    // evaluator's check on the call's result (D19), not the quotient's.
     if (!isRefusal(quotient.error)) {
       throw new Error("A divisor above zero was checked");
     }

@@ -28,7 +28,7 @@ function odd(seed: number, bits: number): bigint {
   return randomBigInt(key(seed), bits) | (1n << BigInt(bits - 1)) | 1n;
 }
 
-test("the probe's range operation, a product and its reduction, grows quadratically at most", (t) => {
+test("the probe's range operation, a product with its cross-cancelling gcds, grows quadratically at most", (t) => {
   // Two gcds of numbers of the candidate size: quadratic, so doubling the
   // size costs four times; eight is asserted, twice that.
   const probe = realProbe();

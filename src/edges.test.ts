@@ -100,15 +100,6 @@ const KNOWN: readonly Known[] = [
       "`powBall`'s guard adds an absolute slack of `10^-9` to the base's `|log2|`, `powLogSpace` refuses an exponent a double cannot hold before it looks at `ln x`, and `pow` refuses an exact exponent it cannot form by the base's midpoint alone; H.15's classifier bounds `y ln x` on the interval and leaves a base of magnitude one `unresolved` at the bound.",
   },
   {
-    issue: "#52",
-    task: "H.14",
-    cases:
-      /^(3\^32767 \* 7\^21845|3\^32767 \/ 7\^21845 \/ 11\^16383|a product of (ten|twenty) coprime powers, each within maxBits|1\/3\^32767 \+ 1\/7\^21845|2\^-30000|1\/2\^30000|3\^32767 m into ft\/7\^21845)$/,
-    violation: /passes maxBits \(D19\)$/,
-    reason:
-      "Nothing holds a product, a quotient, a sum of fractions or the conversion's ratio to the range limit, so an exact result passes it; H.14 checks every exact node result and the ratio against it (D19) and refuses at the node (D20).",
-  },
-  {
     issue: "#61",
     task: "H.15",
     cases:
@@ -371,7 +362,8 @@ const CASES: readonly TextCase[] = [
   },
   { text: `1e${E18} / 3 * 10`, expect: digits(`3.3333333e+${E18}`) },
   { text: `1e-${E18} / 7`, expect: refused("underflow") },
-  // #52: exact results held to the range limit; H.14 (its conversions are H.14's tests).
+  // #52: exact results held to the range limit at the node (D19; its
+  // conversions are pipeline.test.ts's).
   {
     text: "3^32767 * 7^21845",
     expect: { exact: refused("tooLarge"), decimal: VALUE },

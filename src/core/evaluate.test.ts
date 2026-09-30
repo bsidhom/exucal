@@ -1238,6 +1238,124 @@ test("the exponent bound is on the value, and a result straddling it is unresolv
   );
 });
 
+test("an exact result past the range limit is refused at the node that forms it, and approx lifts the refusal (D19, D20)", () => {
+  const app = lookupIn(UNITS, FUNCTIONS, Object.fromEntries(APP_BUILTINS));
+  const run8 = (text: string, context: NumberContext = at(8)) =>
+    evaluate(parsed(text), app, PRIMITIVES, context);
+  const tooLarge = (text: string, operandEnd: number) =>
+    assert.deepEqual(failure(run8(text)), {
+      kind: "tooLarge",
+      span: { start: 0, end: text.length },
+      exact: true,
+      operand: { start: 0, end: operandEnd },
+    });
+  const within = (ms: number, label: string, f: () => void) => {
+    const start = performance.now();
+    f();
+    const took = performance.now() - start;
+    assert.ok(took <= ms, `${label} took ${took.toFixed(1)} ms, over ${ms}`);
+  };
+  // A product of two powers each within the limit passes it (issue #52's
+  // first family), measured on the canonical mantissa once formed.
+  tooLarge("3^32767 * 7^21845", "3^32767".length);
+  // A quotient's reduction is what is measured: within the limit, the
+  // plan's 50 ms with a margin for a slow runner, where its unreduced
+  // parts would have been past it; a second quotient passes it.
+  within(200, "3^32767 / 7^21845", () => {
+    assert.equal(
+      format(value(run8("3^32767 / 7^21845")).magnitude.mid, 8, "halfEven"),
+      "4.6288093e-2828",
+    );
+  });
+  tooLarge("3^32767 / 7^21845 / 11^16383", "3^32767 / 7^21845".length);
+  // A long product is refused at the first node past the limit, which
+  // the span names, before anything larger is formed; the operand named
+  // is that node's left one.
+  const powers = COPRIME_POWERS.slice(0, 10).join(" * ");
+  within(200, "ten coprime powers", () => {
+    assert.deepEqual(failure(run8(powers)), {
+      kind: "tooLarge",
+      span: { start: 0, end: COPRIME_POWERS.slice(0, 2).join(" * ").length },
+      exact: true,
+      operand: { start: 0, end: COPRIME_POWERS[0]!.length },
+    });
+  });
+  within(200, "twenty coprime powers", () => {
+    failure(run8(COPRIME_POWERS.join(" * ")));
+  });
+  // An inexact operand makes the result inexact, settled and never
+  // refused for size: `approx` around an operand is the remedy the
+  // message names. Around the node itself it comes too late, the node
+  // being refused before `approx` sees it.
+  value(
+    run8(
+      `approx(${COPRIME_POWERS[0]}) * ${COPRIME_POWERS.slice(1, 4).join(" * ")}`,
+    ),
+  );
+  value(run8("approx(3^32767) * 7^21845"));
+  assert.deepEqual(failure(run8("approx(3^32767 * 7^21845)")), {
+    kind: "tooLarge",
+    span: { start: 7, end: 24 },
+    exact: true,
+    operand: { start: 7, end: 14 },
+  });
+  // A sum of fractions grows as a product does; the check is after the
+  // fact, so `x / x` is one where a prediction from the operands' sizes
+  // would refuse it.
+  tooLarge("1/3^32767 + 1/7^21845", "1/3^32767".length);
+  assertEvaluatesWith(app, "(3^32767/7^21845) / (3^32767/7^21845)", of(ONE));
+  // A tiny exact term within the limit keeps the digits of an inexact sum.
+  assert.equal(
+    format(
+      value(run8("(1 + 1/(3^30000 * 3^11300)) + sqrt(2)", at(32))).magnitude
+        .mid,
+      32,
+      "halfEven",
+    ),
+    "2.4142135623730950488016887242097",
+  );
+  // The measure is the canonical form's size (D16 as restated): a dyadic
+  // is stored with fives for its twos, so `2^-30000` costs 69,658 bits.
+  tooLarge("2^-30000", 1);
+  tooLarge("1/2^30000", 1);
+  value(run8("approx(2)^-30000"));
+  value(run8("2^-28000"));
+  // The exponent bound is checked first: a product past both is overflow.
+  const both = "3^32767 * (7^21845 * 1e999999999999980000)";
+  assert.deepEqual(failure(run8(both)), {
+    kind: "overflow",
+    span: { start: 0, end: both.length },
+  });
+  // In decimal mode every result is settled, and none is refused for size.
+  for (const text of [
+    "3^32767 * 7^21845",
+    "3^32767 / 7^21845 / 11^16383",
+    powers,
+    "1/3^32767 + 1/7^21845",
+    "2^-30000",
+    "1/2^30000",
+    both.replace(" * 1e999999999999980000", ""),
+  ]) {
+    value(run8(text, decimal(8, "halfAwayFromZero")));
+  }
+});
+
+/** The coprime powers of issue #52, each within the default range limit. */
+const COPRIME_POWERS = [
+  3, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79,
+].map((p) => `${p}^${Math.floor(60000 / BigInt(p).toString(2).length)}`);
+
+/** Asserts that `text` evaluates under `lookup` to exactly `expected`. */
+function assertEvaluatesWith(
+  lookup: typeof withBuiltins,
+  text: string,
+  expected: Quantity,
+): void {
+  const actual = value(evaluate(parsed(text), lookup, PRIMITIVES, CONTEXT));
+  assert.deepEqual(actual.magnitude, expected.magnitude, text);
+  assert.deepEqual(actual.dimension, expected.dimension, text);
+}
+
 test("a settled midpoint past the bound is refused in decimal mode and truncated in exact mode (H.11)", () => {
   const lookupWithApprox = lookupIn(UNITS, FUNCTIONS, { approx });
   const withApprox = (text: string, context: NumberContext) =>

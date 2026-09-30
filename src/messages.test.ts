@@ -19,6 +19,7 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import { exact, type Ball } from "./core/ball.ts";
 import { buildTable } from "./core/build.ts";
+import { BUILTINS } from "./core/builtins.ts";
 import {
   angle,
   checkArgument,
@@ -71,6 +72,20 @@ const failing: UnitTable = (() => {
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
   return built.value;
 })();
+
+/** The system table with the app's own built-ins, for `approx`. */
+const withApp: UnitTable = (() => {
+  const parsed = parseDefinitions(
+    readFileSync(new URL("./units.txt", import.meta.url), "utf8"),
+  );
+  assert.ok(parsed.ok, `expected the file to parse, got ${inspect(parsed)}`);
+  const built = buildTable(parsed.value, ceilingContext(CONTEXT), BUILTINS);
+  assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
+  return built.value;
+})();
+
+/** A product of two coprime powers, each within the default range limit, past it together. */
+const COPRIME_PRODUCT = "3^30000 * 7^20000";
 
 /** The message for the error `text` fails with, in `against`. */
 function textMessage(text: string, against: UnitTable = table): string {
@@ -222,6 +237,36 @@ test("a value too large to compute names the limit it passes, and one too small 
   assert.equal(
     textMessage("3^1000000000"),
     '"3^1000000000" is too large to compute within Most bits.',
+  );
+  // An exact result formed and measured past Most bits names the node
+  // and the remedy (the plan's D20), and the remedy works; a power's
+  // prediction, above, keeps the plain wording.
+  assert.equal(
+    textMessage("3^32767 * 7^21845", withApp),
+    '"3^32767 * 7^21845" is too large to hold exactly within Most bits: write "approx(3^32767)" in place of "3^32767" to compute it to the digits asked, or raise Most bits.',
+  );
+  assert.equal(
+    textMessage(`${COPRIME_PRODUCT} * 11^16000`, withApp),
+    `"${COPRIME_PRODUCT}" is too large to hold exactly within Most bits: write "approx(3^30000)" in place of "3^30000" to compute it to the digits asked, or raise Most bits.`,
+  );
+  assert.equal(
+    textMessage("2^-30000", withApp),
+    '"2^-30000" is too large to hold exactly within Most bits: write "approx(2)" in place of "2" to compute it to the digits asked, or raise Most bits.',
+  );
+  assert.ok(evaluateText(withApp, "approx(3^32767) * 7^21845", CONTEXT).ok);
+  assert.ok(evaluateText(withApp, "approx(2)^-30000", CONTEXT).ok);
+  // The conversion's ratio, about the pair, with `approx` on the have.
+  assert.equal(
+    conversionMessage("3^25000/7^14000 m", "11^15000/13^14000 ft"),
+    '"3^25000/7^14000 m" into "11^15000/13^14000 ft" is too large to hold exactly within Most bits: write "approx(3^25000/7^14000 m)" to compute it to the digits asked, or raise Most bits.',
+  );
+  assert.ok(
+    convertText(
+      withApp,
+      "approx(3^25000/7^14000 m)",
+      "11^15000/13^14000 ft",
+      CONTEXT,
+    ).ok,
   );
   assert.equal(
     textMessage("exp(1e999)"),

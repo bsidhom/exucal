@@ -17,7 +17,8 @@
 // one rule, and the result is in lowest terms without a gcd, since the
 // factors moved are coprime to what stays. The canonical form of a
 // fraction is at most 2.33 times its size (`5^k` for a denominator `2^k`),
-// a constant factor the range limit's reasoning allows; a kernel result,
+// and the canonical form is what the range limit measures (D16, D19:
+// `mantissaWithin`), since it is what is stored and multiplied; a kernel result,
 // a dyadic of the working bits, never enters exactly, since the boundary
 // rounds it onto the decimal grid as it leaves the kernel (fixed.ts).
 //
@@ -362,9 +363,23 @@ function combine(
 }
 
 /**
+ * Whether the mantissa of `s` has at most `maxBits` bits in its numerator
+ * and its denominator: the range limit's measure, the canonical form's
+ * size (D16, D19), which the evaluator checks a literal and every exact
+ * result against, and the pipeline its two quotients.
+ */
+export function mantissaWithin(s: Scaled, maxBits: number): boolean {
+  const { num, den } = s.mant;
+  return (
+    bitLength(num < 0n ? -num : num) <= maxBits && bitLength(den) <= maxBits
+  );
+}
+
+/**
  * `a × b`, exactly: the mantissas multiplied, the exponents added; fails
- * at the bound. The product is not held to the range limit (issue #52),
- * which would refuse it `tooLarge` as well, so a caller takes any refusal.
+ * at the bound. The product is not held to the range limit, which the
+ * evaluator's node check refuses it at once formed (D19), so a caller
+ * takes any refusal.
  */
 export function multiply(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
   if (isZero(a) || isZero(b)) return ok(ZERO);
@@ -374,7 +389,8 @@ export function multiply(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
 /**
  * `a / b`, exactly: the mantissas divided, the exponents subtracted;
  * fails on a zero `b` and at the bound. Like a product, the quotient is
- * not held to the range limit (issue #52), and a caller takes any refusal.
+ * held to the range limit at the node, not here, and a caller takes any
+ * refusal.
  */
 export function divide(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
   const mant = divideFractions(a.mant, b.mant);

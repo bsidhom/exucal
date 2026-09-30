@@ -128,8 +128,9 @@ export type ConvertError =
   | { readonly kind: "unresolvedBound" }
   /**
    * The ratio was refused: its exponent passes the bound, above it or
-   * below it. A quotient is not held to the range limit (issue #52), so it
-   * is never `tooLarge` today; one would be passed on all the same.
+   * below it. The range limit is the pipeline's check on the ratio once
+   * formed (D19), so the ratio is never `tooLarge` here; one would be
+   * passed on all the same.
    */
   | Refusal;
 

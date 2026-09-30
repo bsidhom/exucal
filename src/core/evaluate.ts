@@ -116,15 +116,16 @@ import {
   subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
-import { bitLength, type Rational } from "./rational.ts";
+import type { Rational } from "./rational.ts";
 import {
   divide,
   isRefusal,
+  mantissaWithin,
   powerRefusal,
   toRational,
   type Scaled,
 } from "./scaled.ts";
-import type { BallError } from "./ball.ts";
+import { isExact, type BallError } from "./ball.ts";
 import type {
   Builtin,
   DimensionRuleError,
@@ -181,10 +182,22 @@ export type EvaluateError =
       readonly span: Span;
     }
   /**
-   * The operation or call at `span` would exceed the range limit and was
-   * not computed, or the literal at `span` already does.
+   * The result at `span` passes the range limit. With `exact`, an exact
+   * result was formed and its canonical mantissa measured past the limit
+   * (D19), and the message names the remedy (D20): `approx` around the
+   * `operand`, the node's first operand (a binary's left, a power's base,
+   * a call's first argument), which makes the node's result inexact,
+   * settled rather than refused; a unit has no operand, and the remedy is
+   * the setting. Without `exact`, the operation or call was not computed
+   * at all (a sum's alignment, a power's prediction, the kernel's reach),
+   * or the literal at `span` already passes.
    */
-  | { readonly kind: "tooLarge"; readonly span: Span }
+  | {
+      readonly kind: "tooLarge";
+      readonly span: Span;
+      readonly exact?: true;
+      readonly operand?: Span;
+    }
   /**
    * The operation or call at `span` would give a value whose exponent
    * passes the exponent bound, above it (`overflow`) or below it
@@ -279,8 +292,8 @@ export type BodyError<E> =
  * The quantity `expr` denotes, with unit names resolved by `lookup`, the
  * operands of every sum checked for conformance by the roles in
  * `primitives`, every inexact operation computed at the precision of
- * `context`, every result settled to it (D15), and every literal checked
- * against its range limit.
+ * `context`, every result settled to it (D15), every literal checked
+ * against its range limit, and every exact result held to it (D19).
  */
 export function evaluate<E>(
   expr: Expr,
@@ -292,7 +305,45 @@ export function evaluate<E>(
   if (!result.ok) return result;
   // A settle refuses only in decimal mode, a rounded midpoint past the
   // exponent bound, which is the node's result and is located at it.
-  return locate(settleQuantity(result.value, context), expr.span);
+  const settled = locate(settleQuantity(result.value, context), expr.span);
+  if (!settled.ok) return settled;
+  // Every exact result is held to the range limit where it is formed
+  // (D19): its canonical mantissa, what is stored and what the next
+  // operation multiplies, measured after the fact, so that `x / x` is one
+  // and a quotient's reduction is what is measured. The exponent bound
+  // was checked by the operation, so a result past both is at the bound.
+  // An inexact result is settled to the working digits and never refused
+  // for size, which is what `approx` at the node buys (D20).
+  const { magnitude } = settled.value;
+  if (isExact(magnitude) && !mantissaWithin(magnitude.mid, context.maxBits)) {
+    const operand = firstOperand(expr);
+    return operand === undefined
+      ? err({ kind: "tooLarge", span: expr.span, exact: true })
+      : err({ kind: "tooLarge", span: expr.span, exact: true, operand });
+  }
+  return settled;
+}
+
+/**
+ * The span of the first operand of `expr`, which `approx` around makes
+ * the node's result inexact: a binary's left operand, a power's base, a
+ * call's first argument; nothing for a literal, a unit, or a call with no
+ * arguments. A negation's operand was checked as a node of its own.
+ */
+function firstOperand(expr: Expr): Span | undefined {
+  const { node } = expr;
+  switch (node.kind) {
+    case "binary":
+      return node.left.span;
+    case "pow":
+      return node.base.span;
+    case "call":
+      return node.arguments[0]?.span;
+    case "number":
+    case "unit":
+    case "neg":
+      return undefined;
+  }
 }
 
 /** One node of `evaluate`, its operands evaluated (and settled) recursively. */
@@ -588,14 +639,6 @@ function evaluateBound<E>(
 type Boxed<E> = Extract<BodyError<E>, { kind: "lookup" }>;
 
 /** Attaches `span` to the failure of `result`, if it failed. */
-/** Whether the mantissa of `s` has at most `maxBits` bits in its numerator and its denominator: the range limit on a literal. */
-function mantissaWithin(s: Scaled, maxBits: number): boolean {
-  const { num, den } = s.mant;
-  return (
-    bitLength(num < 0n ? -num : num) <= maxBits && bitLength(den) <= maxBits
-  );
-}
-
 /** What `reduceExponent` gives: the fraction, or why not (the doc there). */
 export type ReducedExponent =
   | { readonly ok: true; readonly value: Rational }

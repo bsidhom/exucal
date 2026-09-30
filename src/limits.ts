@@ -9,10 +9,14 @@
 // What it times is the costliest operation the app has on each axis, at
 // sizes doubling until one exceeds the budget, and it recommends the
 // largest size that stayed within it, rounded down to a round number. For
-// the range limit the operation is an exact multiplication of two rationals
-// of the candidate size followed by the reduction to lowest terms, whose
-// gcd is the quadratic step of exact arithmetic; the candidates are powers
-// of two from 2^9 to the hard bound. For the cap it is `COMPOSITE`, one
+// the range limit the operation is the costliest exact operation the
+// limits still run: an exact multiplication of two rationals of the
+// candidate size in each part, whose two cross-cancelling gcds (the
+// plan's H.9) are the quadratic step of exact arithmetic and run before
+// the result is measured against the limit and refused (D19); the
+// operands are built outside the timed call, memoized by size, since a
+// build is not what the limit bounds. The candidates are powers of two
+// from 2^9 to the hard bound. For the cap it is `COMPOSITE`, one
 // expression of the costliest built-ins, evaluated once at the ceiling the
 // candidate cap would give (D12: four times the cap plus the guard), since
 // the ceiling pass is the costliest an expression that never certifies
@@ -61,7 +65,12 @@ import {
 import { parseDefinitions } from "./core/definitions.ts";
 import { evaluate } from "./core/evaluate.ts";
 import { parseExpr } from "./core/expr.ts";
-import { LIMIT_BITS, multiply, rational } from "./core/rational.ts";
+import {
+  LIMIT_BITS,
+  multiply,
+  rational,
+  type Rational,
+} from "./core/rational.ts";
 import { unitLookup } from "./core/table.ts";
 
 /**
@@ -86,7 +95,7 @@ export type Limits = {
  */
 export type Probe = {
   readonly now: () => number;
-  /** The costliest exact operation at `bits`: a product and its reduction. */
+  /** The costliest exact operation at `bits`: a product of two fractions of `bits` bits in each part, with its cross-cancelling gcds. */
   readonly range: (bits: number) => void;
   /** The costliest inexact operation at the ceiling for a cap of `digits`. */
   readonly precision: (digits: number) => void;
@@ -97,12 +106,21 @@ export const BUDGET_MS = 50;
 
 /** The probe over the real clock and operations. */
 export function realProbe(): Probe {
+  const operands = new Map<number, [Rational, Rational]>();
   return {
     now: () => performance.now(),
     range: (bits) => {
-      const a = rational(fixedBits(bits, 1n), fixedBits(bits, 2n));
-      const b = rational(fixedBits(bits, 3n), fixedBits(bits, 4n));
-      multiply(a, b);
+      // The untimed first run of `timed` builds the operands; the timed
+      // runs multiply them.
+      let pair = operands.get(bits);
+      if (pair === undefined) {
+        pair = [
+          rational(fixedBits(bits, 1n), fixedBits(bits, 2n)),
+          rational(fixedBits(bits, 3n), fixedBits(bits, 4n)),
+        ];
+        operands.set(bits, pair);
+      }
+      multiply(pair[0], pair[1]);
     },
     precision: (digits) => {
       const ceiling = ceilingFor(digits);

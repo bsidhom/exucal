@@ -7,10 +7,13 @@
 // memo holds one table, keyed by the definitions it was built from and the
 // ceiling it was built at: a request at the same ceiling is the table held,
 // and one at another ceiling rebuilds and replaces it, so that the
-// footprint is one table however many caps a session has seen. Nothing in
-// a build depends on the range limit beyond the clamp the settings apply,
-// which already makes the ceiling fit it, so the range limit is not part
-// of the key. A build takes milliseconds (the definitions, plus `pi` from
+// footprint is one table however many caps a session has seen. A build
+// evaluates every definition under the range limit too (every exact
+// result is held to it at the node, D19), but the shipped definitions
+// build at the least limit the settings allow (`MIN_MAX_BITS`, which
+// units.test.ts checks), and the clamp the settings apply already makes
+// the ceiling fit the limit, so the range limit is not part of the key.
+// A build takes milliseconds (the definitions, plus `pi` from
 // its memo and a few products of it), so the shell builds synchronously
 // when its settings move the ceiling. A failed build is memoized too: the
 // system file is checked by `units.test.ts`, so a failure is a bug in the

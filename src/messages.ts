@@ -48,9 +48,11 @@ import type { Span } from "./core/span.ts";
  * (`sin(1 radian)` for a plain number where an angle is wanted, `(2 m)^2`
  * for a quantity as the base of `pow`); one outside its domain quotes the
  * argument and says the domain; a value that straddles an edge names the
- * edge (zero, `1`, `-1`, or a pole of the tangent); and a value too large
+ * edge (zero, `1`, `-1`, or a pole of the tangent); a value too large
  * or too small to compute names the limit it passes, Most bits or the
- * exponent bound.
+ * exponent bound; and an exact result past Most bits names the remedy,
+ * `approx` around an operand of the node or a higher setting (the plan's
+ * D20).
  */
 export function describeTextError(
   error: TextError,
@@ -86,6 +88,13 @@ export function describeTextError(
     case "negativeRadicand":
       return `${quote(slice(text, error.span))} takes an even root of a negative value.`;
     case "tooLarge":
+      if (error.exact) {
+        return exactPastLimit(
+          slice(text, error.span),
+          error.operand === undefined ? undefined : slice(text, error.operand),
+        );
+      }
+      return `${quote(slice(text, error.span))} ${describeRefusal(error.kind)}.`;
     case "overflow":
     case "underflow":
       return `${quote(slice(text, error.span))} ${describeRefusal(error.kind)}.`;
@@ -244,6 +253,25 @@ function describeRejection(reason: Rejection): string {
 }
 
 /**
+ * An exact result past Most bits, the range limit, worded with the remedy
+ * (the plan's D20): `approx` around the node's first `operand`, which
+ * makes the result inexact and computes it to the digits asked (around
+ * the node itself it would come too late, the node being refused before
+ * `approx` sees it), or a higher setting. The message keeps the panel's
+ * label, "Most bits", which is what the user sees. The range limit's
+ * other refusals (a literal, a sum's alignment, a power's prediction, the
+ * kernel's reach) keep `describeRefusal`'s wording, since `approx` is not
+ * their remedy in the same way.
+ */
+function exactPastLimit(node: string, operand: string | undefined): string {
+  const remedy =
+    operand === undefined
+      ? "raise Most bits, or write approx around a part of it to compute it to the digits asked"
+      : `write ${quote(`approx(${operand})`)} in place of ${quote(operand)} to compute it to the digits asked, or raise Most bits`;
+  return `${quote(node)} is too large to hold exactly within Most bits: ${remedy}.`;
+}
+
+/**
  * What a refused result is, as a predicate without the final period: too
  * large to compute within Most bits, the setting that is the range limit,
  * or too large or too small for the exponent bound, which is fixed, with
@@ -337,6 +365,13 @@ export function describeConversionError(
     case "unresolvedBound":
       return `${quote(have.trim())} into ${quote(want.trim())} cannot be told from the point where the result passes the exponent bound at this precision.`;
     case "tooLarge":
+      // The pipeline's ratio or count, exact and past the range limit, is
+      // worded as a node is, about the pair, with `approx` around the
+      // `have`, which is within the limit and makes the ratio inexact.
+      if ("exact" in error) {
+        return `${quote(have.trim())} into ${quote(want.trim())} is too large to hold exactly within Most bits: write ${quote(`approx(${have.trim()})`)} to compute it to the digits asked, or raise Most bits.`;
+      }
+      return `${quote(have.trim())} into ${quote(want.trim())} ${describeRefusal(error.kind)}.`;
     case "overflow":
     case "underflow":
       return `${quote(have.trim())} into ${quote(want.trim())} ${describeRefusal(error.kind)}.`;

@@ -99,7 +99,7 @@ import {
 } from "./context.ts";
 import { isUnbounded } from "./radius.ts";
 import { err, ok, type Result } from "./result.ts";
-import { isRefusal } from "./scaled.ts";
+import { isRefusal, mantissaWithin, type Refusal } from "./scaled.ts";
 import {
   unitLookup,
   type ListedUnit,
@@ -171,6 +171,14 @@ export type ConversionError =
       readonly error: TextError | InverseFailed;
     }
   | ConvertError
+  /**
+   * The conversion's ratio, or a function want's count, is exact and its
+   * canonical mantissa passes the range limit (D19), the two quotients
+   * the pipeline forms outside the evaluator; `exact` tells it from a
+   * refusal the converter passes on, and the message names the remedy
+   * (D20), `approx` around the `have`.
+   */
+  | { readonly kind: "tooLarge"; readonly exact: true }
   /**
    * The `want` is a list typed out whose unit at `error.index` fails as
    * `error` says; `units` are the texts of its units, in order.
@@ -377,6 +385,7 @@ function convertParsed(
       table.primitives,
     );
     if (!value.ok) return value;
+    if (pastLimit(value.value, working)) return err(EXACT_TOO_LARGE);
     return ok({
       kind: "unit",
       have: haveQuantity.value,
@@ -440,7 +449,19 @@ function refusedList(error: ListRefusal): Result<never, ConversionError> {
       kind: error.edge === "bound" ? "unresolvedBound" : "unresolvedWant",
     });
   }
-  return err({ kind: error.kind });
+  return err(refusal(error));
+}
+
+/** `error`'s kind as a refusal of its own, typed apart from the pipeline's exact `tooLarge`. */
+function refusal(error: Refusal): Refusal {
+  switch (error.kind) {
+    case "tooLarge":
+      return { kind: "tooLarge" };
+    case "overflow":
+      return { kind: "overflow" };
+    case "underflow":
+      return { kind: "underflow" };
+  }
 }
 
 /**
@@ -512,9 +533,10 @@ function convertToFunction(
   );
   if (!value.ok) {
     // The count is refused as any quotient may be, as a ratio would be.
-    if (isRefusal(value.error)) return err({ kind: value.error.kind });
+    if (isRefusal(value.error)) return err(refusal(value.error));
     throw new Error("A function in the table declares a zero argument unit");
   }
+  if (pastLimit(value.value, context)) return err(EXACT_TOO_LARGE);
   return ok({
     kind: "function",
     have,
@@ -523,6 +545,18 @@ function convertToFunction(
     unit: fn.argument,
     value: value.value,
   });
+}
+
+/** An exact ratio or count past the range limit (D19). */
+const EXACT_TOO_LARGE: ConversionError = { kind: "tooLarge", exact: true };
+
+/**
+ * Whether `quotient`, exact, has a canonical mantissa past the range limit
+ * of `context`: the check the evaluator makes at every node (D19), made
+ * again after the two quotients formed outside it.
+ */
+function pastLimit(quotient: Ball, context: NumberContext): boolean {
+  return isExact(quotient) && !mantissaWithin(quotient.mid, context.maxBits);
 }
 
 /** `expr` evaluated against `table` at the working `context`. */

@@ -105,8 +105,10 @@ export const DEFAULT_ROUNDING: RoundingMode = "halfAwayFromZero";
 
 /**
  * The range limit by default, 2^16 bits (about 19,700 decimal digits), at
- * which every exact operation still takes milliseconds. `LIMIT_BITS` in
- * rational.ts is the most the setting may take.
+ * which every exact operation still takes milliseconds: the costliest,
+ * a product of two fractions of that size in each part, reduced and then
+ * measured and refused at the node (D19), takes about two of H.9's 19 ms
+ * gcds. `LIMIT_BITS` in rational.ts is the most the setting may take.
  */
 export const DEFAULT_MAX_BITS = 1 << 16;
 

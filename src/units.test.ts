@@ -8,8 +8,11 @@ import assert from "node:assert/strict";
 import {
   DEFAULT_CEILING,
   DEFAULT_MAX_BITS,
+  MIN_MAX_BITS,
   ceilingContext,
+  ceilingFor,
   DEFAULT_ROUNDING,
+  maxDigitsFor,
   type NumberContext,
 } from "./core/context.ts";
 import { readFileSync } from "node:fs";
@@ -162,6 +165,22 @@ function assertApproximates(
 
 // ---------------------------------------------------------------------------
 // The file as a whole
+
+test("the file builds at the least range limit the settings allow", () => {
+  // Every exact result is held to the range limit at the node (D19), so a
+  // definition past it would fail the build; the shipped file is nowhere
+  // near, at `MIN_MAX_BITS` and the ceiling that limit allows.
+  const parsed = parseDefinitions(text);
+  assert.ok(parsed.ok);
+  const ceiling = ceilingFor(maxDigitsFor(MIN_MAX_BITS));
+  const built = buildTable(parsed.value, {
+    precision: ceiling,
+    rounding: DEFAULT_ROUNDING,
+    maxBits: MIN_MAX_BITS,
+    ceiling,
+  });
+  assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
+});
 
 test("the SI base units are the dimension primitives, and the radian a kind", () => {
   assert.deepEqual(

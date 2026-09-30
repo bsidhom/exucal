@@ -601,10 +601,10 @@ Three runtime concerns cut across everything:
   retry's ceiling is a second cap of the same kind.
 - **Memory.** Exact mode's growth is bounded by the range limit, Most
   bits, a hard limit on the bits held for one number, measured on what is
-  stored (the plan's D16 and D19; literals, a sum's alignment and a
-  power's prediction are held to it today, and the plan's H.14 holds
-  every exact result to it at the node, products and quotients included,
-  issue #52); the decimal mode bounds values by construction; the
+  stored (the plan's D16 and D19: literals, a sum's alignment and a
+  power's prediction are held to it before anything is formed, and every
+  exact result at the node that forms it, products, quotients and sums
+  included); the decimal mode bounds values by construction; the
   kernel's intermediates are at most a few times the internal precision;
   a radius is a few digits. Nothing here changes the memory picture on a
   phone as long as the precision has a ceiling.

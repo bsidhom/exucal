@@ -840,6 +840,19 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
   assert.deepEqual(failure("3^32767 m", "ft/7^21845; in/7^21845"), {
     kind: "tooLarge",
   });
+  // The conversion's ratio is held to the range limit once formed (D19),
+  // as a node's result is: two sides each within the limit whose ratio
+  // passes it (#52's conversion, a value after 3.7 s before), refused as
+  // the pipeline's own `tooLarge`, which the message words with the
+  // remedy; in decimal mode the ratio is settled and is a value.
+  assert.deepEqual(failure("3^25000/7^14000 m", "11^15000/13^14000 ft"), {
+    kind: "tooLarge",
+    exact: true,
+  });
+  assert.ok(
+    convertText(table, "3^25000/7^14000 m", "11^15000/13^14000 ft", decimal(8))
+      .ok,
+  );
   // A list whose display rounding carries into a total past the bound
   // (#48's first constraint, in a form the literal check admits) comes
   // back uncarried from roundTerms, which used to throw. At the display's

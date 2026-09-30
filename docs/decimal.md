@@ -185,7 +185,9 @@ a literal's mantissa, and at the reach of the kernel
 `overflow` or `underflow` of `Scaled` (scaled.ts) for this bound, by
 the sign of the exponent that passes it, or in the guards, of the
 argument of `exp`, of the product `y ln x` of the log-space power, and
-`overflow` for `sinh` and `cosh` of either sign. Only a value with an
+`overflow` for `sinh` and `cosh` of either sign, and in `settle`, of a
+rounded midpoint past the bound in decimal mode ("The decimal mode").
+Only a value with an
 exponent can pass the bound, so the fraction has no such error, and a
 `Scaled` operation reports the fraction's `tooLarge` unchanged, a power
 aside, as below. The
@@ -433,6 +435,25 @@ exact mode the working digits are far below the digits asked, so the
 bound costs nothing there. A value with `p` digits or fewer is its own
 rounding and stays exact, so `1 ft` in `in` is `= 12 in` in either mode,
 as the study requires, and a zero midpoint is left alone in both.
+
+The settle meets the exponent bound at its two edges, and the two modes
+differ there (D17; the plan's H.11). In decimal mode the rounded value is
+the result, so a rounded midpoint whose decimal exponent passes the bound
+is refused, `overflow` at the top (`99999999999e999999999999999990` at
+eight digits rounds to `1e+1000000000000000001`, which stage 4 showed as
+a value) and `underflow` at the bottom (`1e-1000000000000000000 / 3`, a
+value past the bound that stage 4 threw on); `settle` returns a `Result`,
+and the evaluator locates the refusal at the node. In exact mode a settle
+is a bound on size and never refuses: a rounding to nearest that would
+carry the midpoint past the top rounds toward zero instead and adds a
+whole unit in the last working digit to the radius, and the half unit
+added by an ordinary rounding is a radius taken from the exponent
+(`powerOfTenRadius`) rather than a value formed and checked, so that a
+midpoint at the bottom edge, whose half unit lies past the bound, settles
+(`1e-999999999999999999 / approx(3)` is `≈ 3.3333333e-1000000000000000000`,
+where it threw). The difference a decimal-mode rounding adds to the radius
+is formed the same way, at an offset exponent with no bound checked, since
+at the bottom edge the difference itself lies past it.
 
 What "after every operation" means, since the mode is the settle and the
 settle is applied in one place: every result `evaluate` produces is

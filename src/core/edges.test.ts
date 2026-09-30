@@ -109,24 +109,6 @@ import { ball, dec } from "../testing/scaled.ts";
 const KNOWN: readonly Known[] = [
   {
     issue: "#44",
-    task: "H.11",
-    cases: /^(settle|addBalls|subtractBalls|acos|approx)\(/,
-    violation:
-      /^threw Error: (Half a unit of a value is within the bound|A rounding moves a value within its digits)/,
-    reason:
-      "`settle` forms half a unit in the last working digit with `scaled()`, and in decimal mode the rounded value's difference from the midpoint, both past the bound for a fraction mantissa at the bottom edge; H.11 takes the radius from `powerOfTenRadius` and returns a `Result`. `acos` reaches it through the sum of its expansion, and `approx` through the settle the sweep applies as the evaluator does.",
-  },
-  {
-    issue: "#44",
-    task: "H.11",
-    cases: /^(settle|addBalls|subtractBalls|approx)\(.*\) \[decimal\]$/,
-    violation:
-      /^the midpoint's decimal exponent 1000000000000000001 is past the bound/,
-    reason:
-      "In decimal mode a settled midpoint past the top of the bound is let through: the rounding of the all-nines class to eight digits carries it to `10^(10^18 + 1)`, and nothing checks it; H.11 refuses it as `overflow` (D17). The sums reach it by settling their exact operands first.",
-  },
-  {
-    issue: "#44",
     task: "H.13",
     cases:
       /^(addBalls|subtractBalls|multiplyBalls|divideBalls|powBall\[-1\]|pow|atan2)\(/,
@@ -657,6 +639,9 @@ function ballOperations(): (Operation & { arity: number })[] {
     modes: ["exact", "decimal"],
     magnitude: ([a, b]) =>
       valueMagnitude(addIntervals(a!, op === "add" ? b! : negateInterval(b!))),
+    // In decimal mode the operands are settled first, so an operand whose
+    // rounding passes the top refuses the sum (D17).
+    settles: true,
     // Two exact operands whose alignment exceeds the range limit are
     // `tooLarge` in exact mode, as documented.
     tooLarge: ([a, b], context) =>
@@ -740,10 +725,7 @@ function ballOperations(): (Operation & { arity: number })[] {
     {
       name: "settle",
       arity: 1,
-      apply: (args, context) => ({
-        ok: true,
-        value: settle(args[0]!, context),
-      }),
+      apply: (args, context) => settle(args[0]!, context),
       modes: ["exact", "decimal"],
       magnitude: ([b]) => valueMagnitude(b!),
       known: (args) => args[0]!.mid,
@@ -794,7 +776,13 @@ function judge(
   context: NumberContext,
 ): string | undefined {
   const mode = modeOf(context);
-  const result = op.apply(args, context);
+  const applied = op.apply(args, context);
+  // An operation that returns its result unsettled is settled here, as
+  // the evaluator settles it, which in decimal mode may refuse it.
+  const result =
+    op.unsettled === true && applied.ok
+      ? settle(applied.value, context)
+      : applied;
   const intervals = args.map(intervalOf);
   const bounded = intervals.every((i) => i !== undefined);
   const magnitude =
@@ -840,8 +828,7 @@ function judge(
         return `an unexpected error ${error.kind}`;
     }
   }
-  const value =
-    op.unsettled === true ? settle(result.value, context) : result.value;
+  const value = result.value;
   if (sure !== undefined)
     return `a value where every value of the result is ${sure}`;
   const bad = checkValue(value, mode);

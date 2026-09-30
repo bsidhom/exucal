@@ -75,13 +75,22 @@ export function scalar(value: Scaled): Quantity {
 /**
  * `q` with its magnitude settled to the working precision of `context`
  * (D15): an inexact midpoint rounded to that precision's bits with the
- * rounding added to the radius, an exact one left as it is. The evaluator
- * applies it to every result it produces, and the lookup to every unit it
- * hands out.
+ * rounding added to the radius, an exact one left as it is; refused as
+ * `settle` refuses, in decimal mode, a rounded midpoint past the exponent
+ * bound. The evaluator applies it to every result it produces, and the
+ * lookup to every unit it hands out.
  */
-export function settleQuantity(q: Quantity, context: NumberContext): Quantity {
+export function settleQuantity(
+  q: Quantity,
+  context: NumberContext,
+): Result<Quantity, BallError> {
   const magnitude = settle(q.magnitude, context);
-  return magnitude === q.magnitude ? q : { magnitude, dimension: q.dimension };
+  if (!magnitude.ok) return magnitude;
+  return ok(
+    magnitude.value === q.magnitude
+      ? q
+      : { magnitude: magnitude.value, dimension: q.dimension },
+  );
 }
 
 /**

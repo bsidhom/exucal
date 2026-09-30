@@ -91,26 +91,6 @@ const KNOWN: readonly Known[] = [
       "The guard of the exponential family and of the log-space power measures the whole argument's ball, so a radius alone refuses `exp`, and `resolve` does not retry a refusal; H.15's classifier refuses only when every value passes the bound and leaves the rest `unresolved`.",
   },
   {
-    issue: "#44",
-    task: "H.11",
-    cases:
-      /^(1e-1000000000000000000 \/ (approx\(3\)|3|7)|1e-999999999999999999 \/ approx\(3\))( \[decimal\])?$/,
-    violation:
-      /^threw Error: (Half a unit of a value is within the bound|A rounding moves a value within its digits)/,
-    reason:
-      "`settle` forms half a unit in the last working digit, and in decimal mode the rounded value's difference from the midpoint, with `scaled()`, which refuses them past the bound; H.11 takes the radius from `powerOfTenRadius` and returns a `Result`.",
-  },
-  {
-    issue: "#44",
-    task: "H.11",
-    cases:
-      /^(99999999999e999999999999999990 \[decimal\]|approx\(9\.9{44}e1000000000000000000\) \/ 7)$/,
-    violation:
-      /(midpoint's decimal exponent 1000000000000000001 is past the bound|got the error overflow)$/,
-    reason:
-      "A settled midpoint carried past the top of the bound is let through in decimal mode, where H.11 refuses it, and in exact mode the carry of the all-nines value to `10^(10^18 + 1)` makes its quotient `overflow`, where H.11 truncates toward zero instead and adds a unit to the radius (D17).",
-  },
-  {
     issue: "#48",
     task: "H.12",
     cases:
@@ -132,11 +112,11 @@ const KNOWN: readonly Known[] = [
     issue: "#44",
     task: "H.13",
     cases:
-      /^(1e-1000000000000000000 \/ (3|7)|1e1000000000000000000 \/ 3 \* 10|3047999999999999999999999999999999996953e999999999999999978 m into ft;in)$/,
+      /^(1e-1000000000000000000 \/ (approx\(3\)|3|7)|1e1000000000000000000 \/ 3 \* 10|3047999999999999999999999999999999996953e999999999999999978 m into ft;in)$/,
     violation:
       /(midpoint's decimal exponent -?1000000000000000(001|017) is past the bound|got the error overflow)$/,
     reason:
-      "The constructor checks the canonical exponent, which lies within the bound by the mantissa's digits where the value passes it (`1e-10^18 / 7` is `1/7 × 10^-(10^18)`, held) and past it where the value is within (`1e10^18 / 3 * 10` is `1/3 × 10^(10^18 + 1)`, refused); D17 puts the bound on the value, and H.13 lands it.",
+      "The constructor checks the canonical exponent, which lies within the bound by the mantissa's digits where the value passes it (`1e-10^18 / 7` is `1/7 × 10^-(10^18)`, held, and `1e-10^18 / approx(3)` is a value in exact mode from H.11, whose settle refuses nothing there) and past it where the value is within (`1e10^18 / 3 * 10` is `1/3 × 10^(10^18 + 1)`, refused); D17 puts the bound on the value, and H.13 lands it.",
   },
   {
     issue: "#50",

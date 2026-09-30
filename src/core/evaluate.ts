@@ -289,7 +289,10 @@ export function evaluate<E>(
   context: NumberContext,
 ): Result<Quantity, EvaluateError | E> {
   const result = evaluateNode(expr, lookup, primitives, context);
-  return result.ok ? ok(settleQuantity(result.value, context)) : result;
+  if (!result.ok) return result;
+  // A settle refuses only in decimal mode, a rounded midpoint past the
+  // exponent bound, which is the node's result and is located at it.
+  return locate(settleQuantity(result.value, context), expr.span);
 }
 
 /** One node of `evaluate`, its operands evaluated (and settled) recursively. */

@@ -103,7 +103,7 @@ import {
 import { workingDigits, type NumberContext } from "../context.ts";
 import { floatingToBall } from "../digits.ts";
 import { sinhCoshFixed, tanhFixed, type SinhCosh } from "../fixed-exp.ts";
-import { lnFixed } from "../fixed-log.ts";
+import { ln2Fixed, lnFixed } from "../fixed-log.ts";
 import {
   addFixed,
   bitsFor,
@@ -130,17 +130,14 @@ import {
   absolute,
   compare,
   equals,
-  fromRational,
   isRefusal,
   isZero,
-  multiply,
   negate,
   sign,
   type Scaled,
 } from "../scaled.ts";
 
 const MINUS_ONE = negate(ONE);
-const TWO = fromRational(rational(2n));
 
 /** `sinh(x)` at the context, as the header says. */
 export function sinhBall(
@@ -385,13 +382,14 @@ function saturation(x: Ball, bits: number): Ball | undefined {
  */
 function farLogarithm(x: Ball, context: NumberContext): Ball {
   const bits = bitsFor(context.precision);
-  const twice = multiply(TWO, absolute(x.mid));
-  // This assumes twice `x` is never refused, which fails for an `x` whose
-  // double reaches the next power of ten past the bound (issue #44).
-  if (!twice.ok) throw new Error("Twice a value within the bound is within it");
-  const f = lnScaled(exact(twice.value), bits, bitsFor(context.ceiling));
+  const ceilingBits = bitsFor(context.ceiling);
+  // `ln(2|x|)` as `ln 2 + ln |x|`, the logarithm of `|x|` from the kernel
+  // and `ln 2` from its memo: `2|x|` itself is never formed, since it
+  // passes the exponent bound for `5e1000000000000000000` (issue #44).
+  const f = lnScaled(exact(absolute(x.mid)), bits, ceilingBits);
   if (f === undefined) throw new Error("The logarithm's argument is positive");
-  const ln = fixedToBall(keepSignificant(f, bits), workingDigits(context));
+  const sum = addFixed(f, ln2Fixed(bits, ceilingBits));
+  const ln = fixedToBall(keepSignificant(sum, bits), workingDigits(context));
   return {
     mid: ln.mid,
     rad: addRadius(

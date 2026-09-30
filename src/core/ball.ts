@@ -154,6 +154,7 @@ import {
   log2OfRadius,
   multiplyRadius,
   multiplyRadiusDown,
+  powerOfTenRadius,
   radiusAbove,
   radiusAboveScaled,
   radiusBelowScaled,
@@ -599,9 +600,12 @@ function positiveRoot(
     return powLogSpace(b, exact(fromRational(rational(1n, degree))), context);
   }
   // The radius over the power of ten taken off, then over the mantissa's
-  // binary scaling: both exact powers, rounded up on the radius.
-  const takenOff = scaledPowerOfTen(-(k * degree));
-  const radOverTen = multiplyRadius(b.rad, radiusAboveScaled(takenOff));
+  // binary scaling: both exact powers, rounded up on the radius. The
+  // power taken off is not formed: its multiple of the degree can overshoot
+  // the exponent by up to the degree less one, past the bound for
+  // `cbrt(1e-1000000000000000000)` (issue #44), and only its radius is
+  // needed.
+  const radOverTen = multiplyRadius(b.rad, powerOfTenRadius(-(k * degree)));
   const m = mantissa.value;
   const exponent = BigInt(bitLength(m.num) - bitLength(m.den));
   const j = exponent / degree;
@@ -763,10 +767,9 @@ export function lnScaled(
 ): Fixed | undefined {
   const { mant, exp } = x.mid;
   const scale = bitLength(mant.num) - bitLength(mant.den);
-  const radOverTen = multiplyRadius(
-    x.rad,
-    radiusAboveScaled(scaledPowerOfTen(-exp)),
-  );
+  // Only the radius of the power of ten is needed, so it is not formed;
+  // `10^-exp` can lie past the bound when `x` lies near it.
+  const radOverTen = multiplyRadius(x.rad, powerOfTenRadius(-exp));
   const f = fixedFromRational(scaleByPowerOfTwo(mant, -BigInt(scale)), bits);
   const withRad: Fixed = {
     ...f,

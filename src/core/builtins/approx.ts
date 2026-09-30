@@ -20,9 +20,9 @@
 import type { Ball } from "../ball.ts";
 import { sameAsArgument, type Builtin, type BuiltinError } from "../builtin.ts";
 import { modeOf, workingDigits, type NumberContext } from "../context.ts";
-import { maxRadius, radiusAboveScaled } from "../radius.ts";
+import { maxRadius, powerOfTenRadius } from "../radius.ts";
 import { ok, type Result } from "../result.ts";
-import { decimalExponent, isZero, scaled } from "../scaled.ts";
+import { decimalExponent, isZero } from "../scaled.ts";
 
 /** `approx(x)` at the context, as the header says. */
 export function approxBall(
@@ -32,16 +32,12 @@ export function approxBall(
   if (x.rad.kind === "unbounded" || isZero(x.mid)) return ok(x);
   const digits =
     modeOf(context) === "decimal" ? context.precision : workingDigits(context);
-  const unit = scaled(
-    { num: 1n, den: 1n },
-    decimalExponent(x.mid) - BigInt(digits) + 1n,
-  );
-  if (!unit.ok)
-    throw new Error("A unit of a value within the bound is within it");
-  return ok({
-    mid: x.mid,
-    rad: maxRadius(x.rad, radiusAboveScaled(unit.value)),
-  });
+  // One unit in the last of the working digits, as a radius: taken from
+  // its exponent without forming the unit, which lies past the exponent
+  // bound for a value near the bottom of it (`approx(1e-999999999999999999)`,
+  // issue #44).
+  const unit = powerOfTenRadius(decimalExponent(x.mid) - BigInt(digits) + 1n);
+  return ok({ mid: x.mid, rad: maxRadius(x.rad, unit) });
 }
 
 export const approx: Builtin = {

@@ -14,7 +14,14 @@ import { parseDefinitions } from "../definitions.ts";
 import { DIMENSIONLESS, primitive } from "../dimension.ts";
 import { show } from "../display.ts";
 import { convertText, evaluateText } from "../pipeline.ts";
-import { UNBOUNDED, ZERO_RADIUS, radiusAbove, radiusUpper } from "../radius.ts";
+import {
+  UNBOUNDED,
+  ZERO_RADIUS,
+  compareRadius,
+  radiusAbove,
+  radiusAboveScaled,
+  radiusUpper,
+} from "../radius.ts";
 import { rational } from "../rational.ts";
 import type { Result } from "../result.ts";
 import { ZERO, compare, fromRational, type Scaled } from "../scaled.ts";
@@ -72,6 +79,17 @@ test("approx gives an exact value the working radius and never narrows an inexac
   assert.ok(!isExact(exactValue));
   assert.ok(compare(radiusOf(exactValue), dec("1e-17")) >= 0);
   assert.ok(compare(radiusOf(exactValue), dec("1.00000001e-17")) < 0);
+  // At the bottom of the exponent bound the unit of the last working digit
+  // lies past the bound; it is taken as a radius without being formed (#44).
+  const bottom = value(
+    approxBall(exact(dec("1e-999999999999999999")), CONTEXT),
+  );
+  assert.deepEqual(bottom.mid, dec("1e-999999999999999999"));
+  assert.ok(!isExact(bottom));
+  assert.ok(
+    compareRadius(bottom.rad, radiusAboveScaled(dec("1e-999999999999999999"))) <
+      0,
+  );
   const huge = value(approxBall(exact(dec("1e999999999")), CONTEXT));
   assert.deepEqual(huge.mid, dec("1e999999999"));
   assert.deepEqual(

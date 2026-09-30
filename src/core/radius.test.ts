@@ -9,8 +9,10 @@ import {
   isUnbounded,
   isZeroRadius,
   maxRadius,
+  log2OfRadius,
   multiplyRadius,
   powRadius,
+  powerOfTenRadius,
   radiusAbove,
   radiusUpper,
   type Radius,
@@ -292,4 +294,30 @@ test("a product whose ceiling carries into a new bit is renormalized", () => {
     addRadius(top, bounded(MANT_MIN, -1n)),
     bounded(MANT_MIN + (1n << 27n), 1n),
   );
+});
+
+test("powerOfTenRadius is at or above 10^k, within 2^-29, at any exponent the bounds hold", () => {
+  // Where the power can be formed, compared exactly.
+  for (const k of [0n, 1n, -1n, 20n, -20n, 300n, -300n]) {
+    const exact = k >= 0n ? rational(10n ** k) : rational(1n, 10n ** -k);
+    assertBounds(powerOfTenRadius(k), exact);
+  }
+  // Past the exponent bound, where no power of ten can be formed: the
+  // radius's binary logarithm has the integer part of `k log2 10`, so it
+  // lies within the mantissa's width of `10^k` (the fraction is in [0, 1)
+  // and the radius is at or above the value). The expected integers are
+  // floor(k × 3.32192809488736234787…), computed with 60 digits.
+  for (const [k, int] of [
+    [10n ** 18n, 3321928094887362347n],
+    [-(10n ** 18n), -3321928094887362348n],
+    [-(10n ** 18n + 315000n), -3321928094888408756n],
+  ] as const) {
+    const rad = powerOfTenRadius(k);
+    assertNormalized(rad);
+    assert.equal(log2OfRadius(rad).int, int, `${k}`);
+  }
+  // Beyond the documented domain the call is a precondition failure.
+  assert.throws(() => powerOfTenRadius(1n << 90n), RangeError);
+  assert.throws(() => powerOfTenRadius(-(1n << 90n)), RangeError);
+  assertNormalized(powerOfTenRadius((1n << 90n) - 1n));
 });

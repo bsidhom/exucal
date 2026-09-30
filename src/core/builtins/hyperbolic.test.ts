@@ -466,6 +466,14 @@ test("the two ends of the exponent: the odd functions of a tiny argument are its
   assert.ok(
     compare(distance(negative.mid, negate(LN_TWICE_HUGE)), dec("1e-7")) < 0,
   );
+  // At the top of the exponent bound, where twice the argument would pass
+  // it: ln(2x) is taken as ln 2 + ln x, and 2x is never formed (#44).
+  // ln(1e1000000000000000001) = (10^18 + 1) ln 10.
+  for (const fn of [asinhBall, acoshBall]) {
+    const top = value(fn(exact(dec("5e1000000000000000000")), DEFAULT));
+    assert.ok(certifies(top, 8, "halfEven"));
+    assert.equal(format(top.mid, 8, "halfEven"), "2.3025851e+18");
+  }
   // The saturation of tanh stands: ±1 within a radius far below anything.
   const saturated = value(tanhBall(exact(huge), DEFAULT));
   assert.deepEqual(saturated.mid, ONE);

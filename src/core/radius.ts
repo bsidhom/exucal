@@ -34,7 +34,11 @@
 // being formed (4.4): `radiusAboveScaled` and `radiusBelowScaled` take the
 // upper and the lower bound of scaled.ts's `log2Bounds`, within `2^-30` of
 // the truth, and round the mantissa the same way, so the two bracket the
-// magnitude. A lower bound is what a quotient's rule divides by, and the
+// magnitude. `powerOfTenRadius` is the same bound for a bare power of
+// ten, `10^k`, for any `k` the bounds hold, past the exponent bound
+// included: a caller that needs only the radius of a power of ten takes
+// it here rather than forming the power as a `Scaled`, which is refused
+// past the bound (the plan's H.4). A lower bound is what a quotient's rule divides by, and the
 // operations that produce one round down: `subtractRadiusDown` (a
 // divisor's distance from zero, `|b| - rb`, zero when the difference is
 // not positive), `multiplyRadiusDown`, and `divideRadius`, a quotient
@@ -48,7 +52,7 @@
 // `isUnbounded`. Results are normalized, so equal radii are structurally
 // equal and `deepEqual` compares them, as it does rationals.
 
-import { rational, type Rational } from "./rational.ts";
+import { ONE as ONE_FRACTION, rational, type Rational } from "./rational.ts";
 import {
   isZero as isZeroScaled,
   log2Bounds,
@@ -84,6 +88,28 @@ const ONE_RADIUS: Radius = { kind: "bounded", mant: MANT_MIN, exp: -29n };
 /** Exactly `2^k`, for a bigint `k`: the bound of a rounding to `-k` bits. */
 export function powerOfTwoRadius(k: bigint): Radius {
   return { kind: "bounded", mant: MANT_MIN, exp: k - BigInt(MANT_BITS - 1) };
+}
+
+/**
+ * The largest `|k|` that `powerOfTenRadius` takes, `2^90`. The bounds it
+ * reads take `k × log2 10` through a 128-bit fraction, whose error stays
+ * under the bounds' own margin of `2^-31` only to about `2^97`; a margin
+ * of a hundred times that is kept.
+ */
+const POWER_OF_TEN_LIMIT = 1n << 90n;
+
+/**
+ * A radius at or above `10^k`, for a bigint `k` below `2^90` in magnitude:
+ * the coarse bound of `1 × 10^k` read off `log2Bounds`, so that no power of
+ * ten is formed and `k` may lie past the exponent bound, which a checked
+ * `Scaled` power of ten cannot. Tight to `2^-29` of the value, as
+ * `radiusAboveScaled` is. A `k` past the limit is a precondition failure.
+ */
+export function powerOfTenRadius(k: bigint): Radius {
+  if (k >= POWER_OF_TEN_LIMIT || k <= -POWER_OF_TEN_LIMIT) {
+    throw new RangeError(`A power of ten's radius is bounded to 2^90: ${k}`);
+  }
+  return radiusAboveScaled({ mant: ONE_FRACTION, exp: k });
 }
 
 export function isZeroRadius(rad: Radius): boolean {

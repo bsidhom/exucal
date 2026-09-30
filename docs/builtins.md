@@ -78,19 +78,35 @@ once the name has resolved and before any argument is evaluated.
   `cosh` give one within its square, and `exp` gives one within twice
   the argument's magnitude, so `sin(1e-999999999 radian)` is
   `≈ 1e-999999999` on the first pass and `exp(1e-999999999)` is `≈ 1`.
+  `asin` and `acos` take their expansion already where the argument's
+  square lies below `2^-bits` of the working precision, `acos` as `pi/2`
+  less the argument, since `1 - x^2` stops aligning within the range
+  limit long before `2^-maxBits` (the plan's H.7: `acos(1e-9860)` was
+  refused at the default range limit, issue #47).
   Between that and half an ulp of the working bits, the kernel's door
   (`fixedFromScaled`) converts the argument to zero within an ulp, which
-  is what the log-space power of a tiny exponent and `atan2`'s tiny ratio
-  go in as. Under a directed rounding mode these show `≈ 1` with no digit
+  is what the log-space power of a tiny exponent goes in as; `atan2`'s
+  tiny ratio over a positive `x` is its own arctangent within its cube,
+  as `atan`'s argument is, and against a negative `x` or a `y` far larger
+  than `x` the ratio is not formed at all (the plan's H.7, below). Under
+  a directed rounding mode these show `≈ 1` with no digit
   certain, since the ball straddles one, as `cosh(1e-999999999)` and
   `approx(1)` already do.
 - **A large argument is answered before the kernel is entered** (4.4),
   which holds a value only up to the range limit: `sin`, `cos` and `tan`
   of an argument reaching `2^maxBits` are `tooLarge` at the range limit,
   since the reduction would need `pi` to that many bits; `atan` of one at
-  or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, and the
-  arctangent's kernel refuses a ratio reaching `2^maxBits` at the range
-  limit; `asinh` and `acosh` of one are
+  or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, and neither
+  `atan` nor `atan2` is refused for an argument's radius: a ball that
+  reaches `2^maxBits` without lying beyond `2^bits` throughout is the
+  function's whole range, zero within two for `atan` and within four for
+  `atan2` (the powers of two above `pi/2` and `pi`, the kernel's own
+  trivial bound; nothing certified would differ with the fractions of
+  pi themselves), which certifies nothing and lets the retry loop narrow
+  it, apart from a ratio `x / y` with `x` straddling zero and `y` of
+  definite sign, which is `unresolved` at `x`, since the value then
+  ranges over nearly all of `(0, pi)` and which end it lies near is
+  `x`'s side of zero (the plan's H.7, issue #64); `asinh` and `acosh` of one are
   `ln(2|x|)` within `1/(2x^2)`; `tanh`'s saturation to `±1` stands; and
   the logarithms take any exponent, `ln(m × 10^e)` being `ln m + e ln 10`
   from the memo, so `ln(1e999999999)` is a value and `log10(1e999999999)`
@@ -282,7 +298,8 @@ rulings in full.
   fifth of a radian for `sin` and `cos`, one radian for `atan`, one half
   for `asinh`, one for `tanh` and for `exp`) gets a trivial bound
   instead, zero within one for the sine, the cosine and the hyperbolic
-  tangent, zero within two for the arctangent, zero within the
+  tangent, zero within two for the arctangent (and for `atan` of a ball
+  reaching `2^maxBits`, zero within four for `atan2`'s ratio), zero within the
   exponential of the signed upper end for `exp`, the exponential of
   the largest magnitude for the hyperbolic pair, the value at the
   midpoint plus the radius for `asinh`; the retry loop narrows such an

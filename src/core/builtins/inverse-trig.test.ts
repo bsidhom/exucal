@@ -338,6 +338,46 @@ test("the values are the kernel's, within the radius: fractions of pi and the re
   );
 });
 
+test("asin and acos of an argument whose square lies below the working bits are their expansion at zero", () => {
+  // At the default range limit 1 - x^2 stops aligning below about 1e-9840,
+  // and isTiny's 2^-maxBits is about 1e-19728, so these were refused (#47).
+  for (const text of ["1e-9860", "8e-9865", "-1e-15000", "1e-20000"]) {
+    const x = dec(text);
+    const s = value(asinBall(exact(x), CONTEXT));
+    assert.ok(equals(s.mid, x), `asin(${text})`);
+    assert.ok(certifies(s, 40, "halfEven"), `asin(${text})`);
+    const c = value(acosBall(exact(x), CONTEXT));
+    const reference = subtract(PI_OVER_2, x, LIMIT_BITS);
+    assert.ok(reference.ok);
+    assertNear(c, reference.value, 45, `acos(${text})`);
+  }
+  // The expansion holds the working bits: the reference for asin(1e-30)
+  // is 1e-30 + 1.67e-91, within the cube.
+  assertNear(
+    value(asinBall(exact(dec("1e-30")), CONTEXT)),
+    dec(
+      "1.0000000000000000000000000000000000000000000000000000000000001666667e-30",
+    ),
+    45,
+    "asin(1e-30)",
+  );
+  // An argument beyond the exponent bound's reach for the square is a
+  // value too: acos(1e-600000000000000000) is pi/2 less that.
+  const far = value(acosBall(exact(dec("1e-600000000000000000")), CONTEXT));
+  assertNear(far, PI_OVER_2, 45, "acos(1e-600000000000000000)");
+  const nearer = value(asinBall(exact(dec("1e-600000000000000000")), CONTEXT));
+  assert.ok(equals(nearer.mid, dec("1e-600000000000000000")));
+  assert.ok(certifies(nearer, 40, "halfEven"));
+  // Above the threshold the kernel answers: asin(1e-20) at forty digits
+  // has a square of 1e-40, above 2^-165.
+  assertNear(
+    value(asinBall(exact(dec("1e-20")), CONTEXT)),
+    dec("1.00000000000000000000000000000000000000001666666666666667e-20"),
+    45,
+    "asin(1e-20)",
+  );
+});
+
 test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^-maxBits is the argument within its cube", () => {
   /** pi/2 to forty digits, from Python's decimal module. */
   const halfPi = dec("1.5707963267948966192313216916397514420986");
@@ -367,11 +407,96 @@ test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^
   const asinSmall = value(asinBall(exact(tiny), DEFAULT));
   assert.ok(equals(asinSmall.mid, tiny));
   assert.ok(certifies(asinSmall, 8, "halfEven"));
-  // A ball reaching both sides of zero and past 2^maxBits does not
-  // saturate, and the kernel's door refuses it at the range limit.
-  assert.deepEqual(failure(atanBall(ballOf(ZERO, dec("1e19729")), DEFAULT)), {
-    kind: "tooLarge",
+  // A ball reaching 2^maxBits without lying beyond 2^bits throughout is
+  // the whole range, zero within two, where the kernel's door refused it
+  // at the range limit (#64).
+  const wholeRange = { mid: ZERO, rad: radiusAbove(rational(2n)) };
+  assert.deepEqual(
+    value(atanBall(ballOf(ZERO, dec("1e19729")), DEFAULT)),
+    wholeRange,
+  );
+  assert.deepEqual(
+    value(atanBall(ball("1e19729", "2e19729"), DEFAULT)),
+    wholeRange,
+  );
+  assert.deepEqual(value(atanBall(ball("1", "1e30000"), DEFAULT)), wholeRange);
+  // atan2's ratio reaching it: the whole range, zero within four, for a
+  // y straddling zero over a positive x, and unresolved at x for an x
+  // straddling zero, whose width keeps the ratio from the kernel.
+  const wholeRange2 = { mid: ZERO, rad: radiusAbove(rational(4n)) };
+  assert.deepEqual(
+    value(atan2Ball(ball("1", "1e30000"), exact(ONE), DEFAULT)),
+    wholeRange2,
+  );
+  assert.deepEqual(
+    value(atan2Ball(ball("1", "1e30000"), ball("2", "1"), DEFAULT)),
+    wholeRange2,
+  );
+  for (const [y, x] of [
+    [exact(dec("1e-30000")), ball("0", "1e-52")],
+    [exact(ONE), ball("-1", "1e30000")],
+    [exact(negate(ONE)), ball("1", "1e30000")],
+  ] as const) {
+    assert.deepEqual(failure(atan2Ball(y, x, DEFAULT)), {
+      kind: "unresolved",
+      argument: 1,
+      edge: ZERO,
+    });
+  }
+});
+
+test("through the pipeline, atan and atan2 are never refused for a radius (#64)", () => {
+  const parsed = parseDefinitions("m  !\nradian  !kind");
+  assert.ok(parsed.ok);
+  const context = { ...DEFAULT, ceiling: DEFAULT_CEILING };
+  const table = buildTable(parsed.value, {
+    ...context,
+    precision: DEFAULT_CEILING,
   });
+  assert.ok(table.ok, inspect(table));
+  const at = (text: string) => evaluateText(table.value, text, context);
+  // The argument's radius reaches past 2^maxBits at every pass up to the
+  // ceiling, so the loop ends as a zero with a bound, the whole range.
+  const wide = at("atan(approx(1e30000) - approx(1e30000))");
+  assert.ok(wide.ok, inspect(wide));
+  assert.equal(show(wide.value.magnitude, 8, DEFAULT_ROUNDING).kind, "zero");
+  // #64's second row is about 0.785 and cannot certify as written, and
+  // not for anything in atan2. approx(1e30000) - approx(1e30000) is the
+  // difference of two independent balls in the ball model, zero within
+  // twice 1e30000 less the working digits, and the + 1 is one within
+  // that: every function of this argument, exp or sqrt as much as
+  // atan2, certifies nothing until the working digits pass 30,000, which
+  // no ceiling the settings allow reaches (the default is 4,040). Only a
+  // rewrite, approx(1e30000 - 1e30000 + 1), which is approx(1), or a
+  // symbolic cancellation, which docs/future.md rules out, would give
+  // it its digits. What this task fixes is that the row was refused at
+  // the first pass; it now runs to the ceiling and ends as a zero with a
+  // bound, the whole range, as the plan's rule gives.
+  const ratio = at("atan2(approx(1e30000) - approx(1e30000) + 1, 1)");
+  assert.ok(ratio.ok, inspect(ratio));
+  assert.equal(show(ratio.value.magnitude, 8, DEFAULT_ROUNDING).kind, "zero");
+  // With a radius the ceiling does narrow below the kernel's reach, the
+  // same shape certifies: 1e3000's radius is 1e-1049 at the ceiling.
+  const narrowed = at("atan2(approx(1e3000) - approx(1e3000) + 1, 1)");
+  assert.ok(narrowed.ok, inspect(narrowed));
+  assert.deepEqual(show(narrowed.value.magnitude, 8, DEFAULT_ROUNDING), {
+    kind: "certified",
+    text: "0.78539816",
+  });
+  // An x straddling zero at every pass is unresolved at zero at the
+  // ceiling: the value ranges over nearly all of (0, pi) for such an x,
+  // and which end it lies near is x's side of zero (the comment at the
+  // branch in inverse-trig.ts has the reasoning).
+  const straddling = at("atan2(1e-30000, 1 - approx(1))");
+  assert.ok(!straddling.ok);
+  assert.equal(
+    describeTextError(
+      straddling.error,
+      "atan2(1e-30000, 1 - approx(1))",
+      table.value.primitives,
+    ),
+    '"1 - approx(1)" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
+  );
 });
 
 test("an inexact argument's inverse contains those of its ends, and a wide one is the trivial bound", () => {
@@ -420,6 +545,41 @@ test("asin and acos outside [-1, 1] are domain errors, and a ball reaching an en
     [ball("-1", "1e-10"), negate(ONE)],
     [ball("-0.5", "0.5"), negate(ONE)],
     [ball("-1.5", "0.6"), negate(ONE)],
+  ] as const) {
+    for (const fn of [asinBall, acosBall]) {
+      assert.deepEqual(failure(fn(x, CONTEXT)), {
+        kind: "unresolved",
+        argument: 0,
+        edge,
+      });
+    }
+  }
+  // A huge argument is the domain error, read off the argument's position
+  // against the ends before its square is formed, where the square passed
+  // the range limit or the exponent bound first (#47).
+  for (const x of [
+    exact(dec("1e30000")),
+    exact(dec("-1e30000")),
+    exact(dec("1e600000000000000000")),
+    exact(dec("-1e600000000000000000")),
+    ball("1e600000000000000000", "1e599999999999999999"),
+  ]) {
+    for (const fn of [asinBall, acosBall]) {
+      assert.deepEqual(failure(fn(x, CONTEXT)), {
+        kind: "domain",
+        argument: 0,
+        reason: "outsideClosedUnitInterval",
+      });
+    }
+  }
+  // A huge ball that reaches an end is unresolved at it, where its square
+  // was refused as overflow: at 1 for a positive midpoint, at -1 for a
+  // negative one, and at 1 for a ball around zero.
+  const vast = ball("1e600000000000000000", "2e600000000000000000");
+  for (const [x, edge] of [
+    [vast, ONE],
+    [{ mid: negate(vast.mid), rad: vast.rad }, negate(ONE)],
+    [ballOf(ZERO, dec("1e600000000000000000")), ONE],
   ] as const) {
     for (const fn of [asinBall, acosBall]) {
       assert.deepEqual(failure(fn(x, CONTEXT)), {
@@ -532,6 +692,73 @@ test("atan2 by quadrant, its exact and unresolved cases, and the origin", () => 
   });
 });
 
+test("atan2 compares magnitudes before forming a ratio: the quadrants at both extremes, and a tiny ratio keeps its value (#47)", () => {
+  /** pi and pi/2 to forty digits, from Python's decimal module. */
+  const piDigits = dec("3.141592653589793238462643383279502884197");
+  const halfPi = dec("1.570796326794896619231321691639751442099");
+  const huge = "1e600000000000000000";
+  const tinyText = "1e-600000000000000000";
+  for (const [y, x, reference] of [
+    ["1e30000", "1", halfPi],
+    ["-1e30000", "1", negate(halfPi)],
+    ["1e30000", "-1", halfPi],
+    ["-1e30000", "-1", negate(halfPi)],
+    ["1", "1e-30000", halfPi],
+    [huge, tinyText, halfPi],
+    [`-${huge}`, `-${tinyText}`, negate(halfPi)],
+    ["1", "0", halfPi],
+    ["-1", "0", negate(halfPi)],
+    ["1", "-1e30000", piDigits],
+    ["-1", "-1e30000", negate(piDigits)],
+    ["1", "-1e999999999999999999", piDigits],
+    ["1e-999999999999999999", "-1", piDigits],
+    [tinyText, `-${huge}`, piDigits],
+    [`-${tinyText}`, `-${huge}`, negate(piDigits)],
+  ] as const) {
+    const at = value(atan2Ball(exact(dec(y)), exact(dec(x)), DEFAULT));
+    assert.ok(
+      compare(distance(at.mid, reference), dec("2e-17")) < 0,
+      `atan2(${y}, ${x})`,
+    );
+    assert.ok(radiusBelow(at, "2e-17"), `atan2(${y}, ${x})`);
+    assert.ok(certifies(at, 8, "halfEven"), `atan2(${y}, ${x})`);
+  }
+  // The saturation's radius: 2^-bits beside pi's, at forty digits.
+  const far = value(atan2Ball(exact(dec("1e30000")), exact(ONE), CONTEXT));
+  assert.ok(radiusBelow(far, "1e-48"));
+  // Just inside the comparison the ratio is formed and the kernel
+  // answers: |y| = |x| 2^160 at 165 bits is not 2^165.
+  const inside = value(atan2Ball(exact(fr(1n << 160n)), exact(ONE), CONTEXT));
+  assert.ok(compare(distance(inside.mid, PI_OVER_2), dec("1e-47")) < 0);
+  assert.ok(compare(distance(inside.mid, PI_OVER_2), dec("6e-49")) > 0);
+  // A tiny ratio over a positive x is itself within its cube, in both
+  // signs, where it went into the kernel as zero within an ulp.
+  for (const [y, x] of [
+    ["1e-999999999999999999", "1"],
+    ["-1e-999999999999999999", "1"],
+    ["1", "1e30000"],
+    ["-1", "1e30000"],
+    ["1e-30000", "2"],
+  ] as const) {
+    const at = value(atan2Ball(exact(dec(y)), exact(dec(x)), DEFAULT));
+    const ratio = value(atanBall(exact(dec(y)), DEFAULT));
+    if (x === "1") assert.deepEqual(at, ratio, `atan2(${y}, ${x})`);
+    assert.ok(certifies(at, 8, "halfEven"), `atan2(${y}, ${x})`);
+  }
+  // A ratio past the exponent bound is the quotient's refusal, since its
+  // value cannot be written.
+  assert.deepEqual(
+    failure(atan2Ball(exact(dec(`-${tinyText}`)), exact(dec(huge)), DEFAULT)),
+    { kind: "underflow" },
+  );
+  // A wide x with a y of definite sign is still pi/2 less atan(x / y)
+  // where |y| is not |x| 2^bits: 2 against 0 ± 1e-30 at forty digits.
+  const straddling = value(
+    atan2Ball(exact(fr(2n)), ball("0", "1e-30"), CONTEXT),
+  );
+  assert.ok(compare(radiusOf(straddling), dec("4.9e-31")) > 0);
+});
+
 test("an unbounded argument gives the function of its midpoint with an unbounded radius", () => {
   const half = { mid: fr(1n, 2n), rad: UNBOUNDED };
   for (const [result, reference] of [
@@ -584,12 +811,24 @@ test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angl
     ["asin(0.5)", "turn", "0.083333333"],
     ["asin(3 m / 5 m)", "deg", "36.869898"],
     ["acos(1 - 1e-30)", "radian", "1.4142136e-15"],
+    // #47's tiny rows of acos: pi/2 less the argument.
+    ["acos(1e-20000)", "radian", "1.5707963"],
+    ["acos(1e-999999999)", "radian", "1.5707963"],
+    ["acos(1e-600000000000000000)", "radian", "1.5707963"],
+    ["asin(1e-9860)", "radian", "1e-9860"],
     ["atan(1e999999999)", "deg", "90"],
     ["atan(-1e999999999)", "radian", "-1.5707963"],
     ["atan(1e-999999999)", "radian", "1e-999999999"],
-    // A tiny ratio reaches the kernel as zero within an ulp, where its
-    // conversion threw (#47's crash; H.7 gives the ratio its value).
+    // #47's atan2 rows: the ratio's magnitude decides, and no ratio is
+    // formed where it cannot be (the crash rows threw in the kernel's
+    // door before H.2, and went in as zero within an ulp after it).
     ["atan2(1e-999999999999999999, -1)", "radian", "3.1415927"],
+    ["atan2(1, -1e999999999999999999)", "radian", "3.1415927"],
+    ["atan2(1e30000, 1)", "radian", "1.5707963"],
+    ["atan2(1, 1e-30000)", "radian", "1.5707963"],
+    ["atan2(1e600000000000000000, 1e-600000000000000000)", "deg", "90"],
+    ["atan2(1e-999999999999999999, 1)", "radian", "1e-999999999999999999"],
+    ["atan2(-1, -1e30000)", "deg", "-180"],
   ]) {
     const result = convertText(table.value, have!, want!, {
       ...context,
@@ -622,6 +861,14 @@ test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angl
     [
       "asin(2)",
       'Cannot compute "asin(2)": "2" lies outside [-1, 1], where "asin" is defined.',
+    ],
+    [
+      "asin(1e30000)",
+      'Cannot compute "asin(1e30000)": "1e30000" lies outside [-1, 1], where "asin" is defined.',
+    ],
+    [
+      "acos(1e600000000000000000)",
+      'Cannot compute "acos(1e600000000000000000)": "1e600000000000000000" lies outside [-1, 1], where "acos" is defined.',
     ],
     [
       "acos(-1.5)",

@@ -13,6 +13,26 @@
 // the kernel's business (fixed.ts, through `rootBall` of ball.ts), and
 // `exactRoot` here answers only whether a root is rational.
 //
+// A `Rational` is in lowest terms with a positive denominator, and
+// `rational` is the one constructor that reduces. Every operation below
+// assumes its operands are in lowest terms and reduces its result with the
+// smaller gcds the operands allow, rather than a full gcd on the unreduced
+// parts (the plan's H.9; issue #52): a sum and a difference by Henrici's
+// rule, the gcd of the two denominators and then of that with the new
+// numerator; a product by cross-cancellation, the gcd of each numerator
+// with the other denominator; a quotient as the product by the divisor's
+// reciprocal, the gcd of the two numerators and of the two denominators;
+// and an inverse, a negative power and a truncation by swapping or
+// dividing, with no gcd at all, where the reciprocal of a reduced pair
+// once paid a full gcd for nothing (the display's reciprocal line doubled
+// #52's conversion). The rules are correct only for operands in lowest
+// terms, which is the type's invariant, so anything that builds a fraction
+// without `rational` (`scaleByPowerOfTwo` here, fixed.ts's dyadics,
+// scaled.ts's canonical mantissas) keeps it, and the tests assert so: a
+// full reduction of the result no longer forgives a broken invariant
+// upstream. The gcd is Euclid's on the odd parts, quadratic in the
+// operands' size.
+//
 // Failures on values (dividing by zero, an even root of a negative number, a
 // result too large to compute) are returned as `Result`s. Violated
 // preconditions (a zero denominator passed to `rational`) are programming
@@ -112,16 +132,60 @@ export function absolute(r: Rational): Rational {
   return r.num < 0n ? negate(r) : r;
 }
 
+/** `a + b`, by Henrici's rule (the header says what each operation reduces with). */
 export function add(a: Rational, b: Rational): Rational {
-  return rational(a.num * b.den + b.num * a.den, a.den * b.den);
+  return henrici(a.num, a.den, b.num, b.den);
 }
 
+/** `a - b`, by Henrici's rule. */
 export function subtract(a: Rational, b: Rational): Rational {
-  return rational(a.num * b.den - b.num * a.den, a.den * b.den);
+  return henrici(a.num, a.den, -b.num, b.den);
 }
 
+/**
+ * `a/b + c/d` in lowest terms for two fractions in lowest terms, by
+ * Henrici's rule (Knuth 4.5.1): with `g = gcd(b, d)`, `b' = b/g` and
+ * `d' = d/g`, the sum is `t / (b' d' g)` for `t = a d' + c b'`, and the
+ * only factor `t` can share with the denominator divides `g`, since `b'`
+ * and `d'` are coprime to each other and to the numerators they multiply.
+ * So one more gcd, of `t` with `g`, reduces it. Two integers add with no
+ * gcd, and one denominator, the common case of two aligned mantissas,
+ * takes the gcd of the sum with it.
+ */
+function henrici(a: bigint, b: bigint, c: bigint, d: bigint): Rational {
+  if (b === d) {
+    const t = a + c;
+    if (t === 0n) return ZERO;
+    if (b === 1n) return { num: t, den: 1n };
+    const g = gcd(abs(t), b);
+    return g === 1n ? { num: t, den: b } : { num: t / g, den: b / g };
+  }
+  const g = gcd(b, d);
+  if (g === 1n) {
+    const t = a * d + c * b;
+    return t === 0n ? ZERO : { num: t, den: b * d };
+  }
+  const bb = b / g;
+  const dd = d / g;
+  const t = a * dd + c * bb;
+  if (t === 0n) return ZERO;
+  const g2 = gcd(abs(t), g);
+  return { num: t / g2, den: bb * dd * (g / g2) };
+}
+
+/**
+ * `a × b`, by cross-cancellation: each numerator against the other
+ * denominator, which is all a product of two fractions in lowest terms
+ * can share.
+ */
 export function multiply(a: Rational, b: Rational): Rational {
-  return rational(a.num * b.num, a.den * b.den);
+  if (a.num === 0n || b.num === 0n) return ZERO;
+  const g1 = gcd(abs(a.num), b.den);
+  const g2 = gcd(abs(b.num), a.den);
+  return {
+    num: (a.num / g1) * (b.num / g2),
+    den: (a.den / g2) * (b.den / g1),
+  };
 }
 
 /**
@@ -140,19 +204,33 @@ export function scaleByPowerOfTwo(r: Rational, k: bigint): Rational {
   return { num: r.num >> cancel, den: r.den << (-k - cancel) };
 }
 
-/** The reciprocal of `r`; fails if `r` is zero. */
+/** The reciprocal of `r`, by swapping, with no gcd; fails if `r` is zero. */
 export function invert(r: Rational): Result<Rational, RationalError> {
   if (r.num === 0n) return err({ kind: "divisionByZero" });
-  return ok(rational(r.den, r.num));
+  return ok(swapped(r.num, r.den));
 }
 
-/** `a / b`; fails if `b` is zero. */
+/** `den / num` for a nonzero `num`, the sign moved to the numerator. */
+function swapped(num: bigint, den: bigint): Rational {
+  return num < 0n ? { num: -den, den: -num } : { num: den, den: num };
+}
+
+/**
+ * `a / b`, as the product of `a` by the reciprocal of `b`: the two
+ * numerators cancel against each other and so do the two denominators;
+ * fails if `b` is zero.
+ */
 export function divide(
   a: Rational,
   b: Rational,
 ): Result<Rational, RationalError> {
   if (b.num === 0n) return err({ kind: "divisionByZero" });
-  return ok(rational(a.num * b.den, a.den * b.num));
+  if (a.num === 0n) return ok(ZERO);
+  const g1 = gcd(abs(a.num), abs(b.num));
+  const g2 = gcd(b.den, a.den);
+  const num = (a.num / g1) * (b.den / g2);
+  const den = (a.den / g2) * (b.num / g1);
+  return ok(den < 0n ? { num: -num, den: -den } : { num, den });
 }
 
 /**
@@ -180,8 +258,9 @@ export function pow(
   }
   const num = r.num ** magnitude;
   const den = r.den ** magnitude;
-  // Powers of a reduced fraction are reduced, so no gcd is needed.
-  return ok(n > 0n ? { num, den } : rational(den, num));
+  // Powers of a reduced fraction are reduced, and a negative power swaps
+  // the two, so no gcd is needed.
+  return ok(n > 0n ? { num, den } : swapped(num, den));
 }
 
 // ---------------------------------------------------------------------------
@@ -213,9 +292,9 @@ export function exactRoot(
 // ---------------------------------------------------------------------------
 // Truncation
 
-/** `r` truncated toward zero to an integer: `7/2` is `3` and `-7/2` is `-3`. */
+/** `r` truncated toward zero to an integer, as bigint division truncates: `7/2` is `3` and `-7/2` is `-3`. */
 export function trunc(r: Rational): Rational {
-  return isInteger(r) ? r : rational(r.num / r.den);
+  return isInteger(r) ? r : { num: r.num / r.den, den: 1n };
 }
 
 // ---------------------------------------------------------------------------
@@ -245,6 +324,7 @@ function trailingZeros(n: bigint): bigint {
  */
 function gcd(a: bigint, b: bigint): bigint {
   if (a === 0n) return b;
+  if (a === 1n || b === 1n) return 1n;
   const twosA = trailingZeros(a);
   const twosB = trailingZeros(b);
   a >>= twosA;

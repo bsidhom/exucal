@@ -27,8 +27,8 @@ import {
   type RationalError,
 } from "./rational.ts";
 import type { Result } from "./result.ts";
-import { parseFraction } from "../testing/fraction.ts";
-import { key, randomRational, split } from "../testing/random.ts";
+import { inLowestTerms, parseFraction } from "../testing/fraction.ts";
+import { key, randomBigInt, randomRational, split } from "../testing/random.ts";
 
 /** Unwraps a result that is expected to succeed. */
 function unwrap<T>(result: Result<T, unknown>): T {
@@ -249,6 +249,90 @@ test("trunc drops the fraction, toward zero", () => {
 function randomRationals(count: number): Rational[] {
   return split(key(12345), count).map((k) => randomRational(k, 20, 20));
 }
+
+/**
+ * Fractions at the edges of the reductions: zero, integers, negatives,
+ * pairs whose results are integers, a large numerator over a small
+ * denominator and the reverse, beside seeded ones.
+ */
+function edgeRationals(): Rational[] {
+  const large = randomBigInt(key(777), 200);
+  return [
+    ZERO,
+    ONE,
+    rational(-1n),
+    rational(7n),
+    rational(-12n, 5n),
+    rational(1n, 2n),
+    rational(-1n, 2n),
+    rational(3n, 2n),
+    rational(2n, 3n),
+    rational(6n, 35n),
+    rational(10n, 21n),
+    rational(large, 3n),
+    rational(5n, large + 1n),
+    rational(-large * 6n, 35n),
+    ...randomRationals(24),
+  ];
+}
+
+test("the smaller reductions agree with reducing after, and every result is in lowest terms", () => {
+  // Each operation reduces with the gcds its operands allow, which is
+  // correct only for operands in lowest terms; the textbook formula
+  // reduced after through `rational` is what they must agree with.
+  const values = edgeRationals();
+  for (const a of values) {
+    assert.ok(inLowestTerms(a), toFraction(a));
+    for (const b of values) {
+      const sum = add(a, b);
+      assert.deepEqual(
+        sum,
+        rational(a.num * b.den + b.num * a.den, a.den * b.den),
+      );
+      assert.ok(inLowestTerms(sum));
+      const difference = subtract(a, b);
+      assert.deepEqual(
+        difference,
+        rational(a.num * b.den - b.num * a.den, a.den * b.den),
+      );
+      assert.ok(inLowestTerms(difference));
+      const product = multiply(a, b);
+      assert.deepEqual(product, rational(a.num * b.num, a.den * b.den));
+      assert.ok(inLowestTerms(product));
+      if (!isZero(b)) {
+        const quotient = unwrap(divide(a, b));
+        assert.deepEqual(quotient, rational(a.num * b.den, a.den * b.num));
+        assert.ok(inLowestTerms(quotient));
+      }
+    }
+    if (!isZero(a)) {
+      const reciprocal = unwrap(invert(a));
+      assert.deepEqual(reciprocal, rational(a.den, a.num));
+      assert.ok(inLowestTerms(reciprocal));
+      for (const n of [-3n, -1n, 2n, 3n]) {
+        const power = unwrap(pow(a, n, LIMIT_BITS));
+        assert.deepEqual(
+          power,
+          n > 0n
+            ? rational(a.num ** n, a.den ** n)
+            : rational(a.den ** -n, a.num ** -n),
+        );
+        assert.ok(inLowestTerms(power));
+      }
+    }
+    assert.ok(inLowestTerms(trunc(a)));
+    for (const k of [-70n, -3n, 1n, 64n]) {
+      assert.ok(inLowestTerms(scaleByPowerOfTwo(a, k)));
+    }
+  }
+  // The generators the tests draw from keep the invariant too.
+  for (const r of randomRationals(40)) assert.ok(inLowestTerms(r));
+  assert.ok(inLowestTerms(dec("2.54")));
+  assert.ok(inLowestTerms(dec("1e-30")));
+  assert.ok(!inLowestTerms({ num: 2n, den: 4n }));
+  assert.ok(!inLowestTerms({ num: 0n, den: 3n }));
+  assert.ok(!inLowestTerms({ num: 1n, den: -3n }));
+});
 
 test("arithmetic identities hold exactly", () => {
   const values = randomRationals(50);

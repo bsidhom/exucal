@@ -63,6 +63,7 @@ import {
   split,
   uniform,
 } from "../testing/random.ts";
+import { inLowestTerms } from "../testing/fraction.ts";
 import {
   ball,
   dec as decimal,
@@ -1016,4 +1017,26 @@ test("a wide argument gives a wide root, and a root of a root composes", () => {
     compare(absolute(subtract(toRational(viaRoot), rational(2n))), ulp(60)) <=
       0,
   );
+});
+
+test("the exact value of a fixed-point number is a fraction in lowest terms", () => {
+  // `dyadic` cancels the numerator's trailing zeros against the power of
+  // two without a gcd, and what it builds feeds the fraction's arithmetic,
+  // whose reductions assume lowest terms (the plan's H.9).
+  for (const [value, bits] of [
+    [0n, 10],
+    [1n, 0],
+    [12n, 2],
+    [-12n, 3],
+    [96n, 5],
+    [96n, 0],
+    [-1n << 70n, 20],
+    [(1n << 70n) + 8n, 70],
+    [randomBigInt(key(4501), 200) | 1n, 128],
+    [randomBigInt(key(4502), 200) << 100n, 128],
+  ] as const) {
+    const r = toRational({ value, error: 0n, bits });
+    assert.ok(inLowestTerms(r), `${value} × 2^-${bits}`);
+    assert.deepEqual(r, rational(value, 1n << BigInt(bits)));
+  }
 });

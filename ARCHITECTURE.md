@@ -1317,6 +1317,7 @@ src/testing/fraction.ts   parseFraction, roundFraction, formatFraction: the deci
 src/testing/scaled.ts     dec, fr, exactDec, fraction, ball, digitsOf: a literal as a Scaled, a midpoint back to its fraction, a ball from decimals, for the tests of the ball and above
 src/testing/edges.ts      the edge sweep's support: the worker under a deadline, the table of known violations, the loose arithmetic and the oracle's checks
 src/core/edges.test.ts    the edge sweep at the ball level: every built-in and ball operation over the classes of arguments at the edges
+src/edges.test.ts         the edge sweep at the text level: the pipeline and the display's steps on every issue's reproductions, in both modes
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
@@ -1329,7 +1330,7 @@ src/app-shell.ts          the host: loads the table, renders the component
 Each core module but the two smallest, span.ts and result.ts, has a
 `*.test.ts` beside it, run by `pnpm test`.
 
-One of the tests is the edge sweep, the fourth of the plan's test patterns
+Two of the tests are the edge sweep, the fourth of the plan's test patterns
 (docs/calculator-plan.md, "How to read a task"; the plan's H.10). At the
 ball level, src/core/edges.test.ts runs every built-in of `BUILTINS`,
 enumerated by arity so that a function added later joins it, and the
@@ -1338,14 +1339,18 @@ number type: zero and the units, values at both ends of the exponent
 bound and past the range limit's reach, a fraction mantissa at either
 edge, a mantissa near one, and wide balls, each exact and with a relative
 radius of about `1e-30`, in decimal mode too where an operation reads the
-mode. Each case is checked for what this document
+mode. At the text level, src/edges.test.ts runs `parseExpr`, `evaluateText`
+and `convertText` on the reproductions of every issue filed against stage
+4's code, in both modes, with `show` and `roundTerms` called as
+unit-converter.ts calls them. Each case is checked for what this document
 rules out: a throw; a refusal where the decisions allow none (`overflow`
 or `underflow` only when every value of the true result passes the bound,
 `tooLarge` only at a documented site, a domain error only for an argument
 outside the domain throughout); a value whose midpoint's exponent or whose
 `|mid| + rad` passes the bound; a value that misses a known point (`exp(0)`,
 `approx(x)`, the exact result of a sum or a product) or a known range
-(`|tanh| <= 1`). The
+(`|tanh| <= 1`); and, at the text level, an exact result past `maxBits`,
+and a unit list whose shown terms do not add up to the `have`. The
 magnitude of the true result is bounded in src/testing/edges.ts from the
 arguments' intervals, exactly for the arithmetic and in log space for the
 exponential and the powers, on bigint exponents near `±10^18` and never on
@@ -1355,7 +1360,8 @@ does a listed one that no case shows any more, so that a fix is never
 silent. The cases run in a worker under a deadline, since node:test's
 `timeout` cannot interrupt a synchronous test, and a case known to hang is
 matched by name and not run; each case's time is reported, not asserted.
-The sweep runs about 14,000 cases in under two seconds.
+The ball level runs about 14,000 cases in under two seconds and the text
+level about 270 in three.
 
 ## Benchmarks
 

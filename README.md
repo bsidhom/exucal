@@ -47,13 +47,30 @@ in` at twelve.
 2`, which is zero within a bound) runs all the way up on every keystroke.
   Changing it rebuilds the unit table, since the angle units carry `pi()`
   to that ceiling; changing the digits never does.
-- **Most bits**: the largest number the app will form, as the bits of a
-  numerator or denominator, 65,536 by default (about 19,700 digits). It is
-  what makes `3^1000000000` an error rather than a hang (a power of ten
-  is free: `10^1000000000` is `1e+1000000000`, and only its exponent,
-  bounded at `10^18`, is counted), and it also bounds the most digits:
-  lowering it lowers that setting, and the digits, when they no longer
-  fit.
+- **Most bits** (`maxBits` in the code and the stored settings): the most
+  bits the app will form and hold for one number, as the bits of a
+  numerator or denominator of what it stores, 65,536 by default (about
+  19,700 digits). It is a hard limit on cost, in time and
+  in memory, not on how large a value may be: a value is stored as a
+  fraction times a power of ten, so a power of ten is free
+  (`10^1000000000` is `1e+1000000000`, and only its exponent, bounded at
+  `10^18` either way, is counted), while a fraction with a power of two
+  in its denominator is stored with fives instead, so `2^-30000`, a
+  30,000-bit value, costs 69,658 bits. That is the one case where the
+  cost is more than the value's own bits, by a factor of about 2.3 at
+  most, and it only matters for a value already within that factor of
+  the limit: a number that simple by its factors is still a big number
+  by its digits (`3^-100000` costs its 158,497 bits under any way of
+  storing it as digits), and `approx` is the way to compute with one, as
+  below. The limit is what makes `3^1000000000` an
+  error rather than a hang. When an exact result would need more than
+  the limit, the app refuses that part of the expression and names it,
+  and there are two ways on: write `approx(…)` around it, which computes
+  it to the digits asked and shows `≈` instead of `=`, or raise
+  `maxBits`; in exact mode the app never rounds an exact value on its own
+  (products, quotients and sums of fractions are not yet held to the
+  limit, issue #52). It also bounds the most digits: lowering it lowers
+  that setting, and the digits, when they no longer fit.
 
 Both limits are cost limits, and the right values depend on the device, so
 the panel's "Recommend limits" button measures what this one does within

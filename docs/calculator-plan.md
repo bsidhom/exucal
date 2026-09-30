@@ -6,9 +6,10 @@ it landed" at the end record where the code diverged from the tasks as
 first written; "After stage 4" records the two follow-ups that landed
 since, and the issues they filed. "Before stage 5: hardening", between
 stage 4's tasks and stage 5's, is the phase that fixes those issues
-before stage 5, with the decisions it added (D17 to D19) and amended
-(D4, D8, D15 and D16). D13 was revised in review of
-the first follow-up. Stage 2 was reviewed against the code before its
+before stage 5, with the decisions it added (D17 to D20) and amended
+(D4, D8, D15 and D16); D20, on what exact mode does past the range
+limit, was ruled on in review of its pull request. D13 was
+revised in review of the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
 Stage 3 was reviewed the same way against the stage 2 code and revised
@@ -604,6 +605,48 @@ limit holds every exact result where the evaluator produces it, sums,
 products and quotients alike, not only a sum's alignment and a power
 (D19).
 
+Restated once more, with D19 and D20, on what the range limit is. It is
+a hard limit on cost: on the bits the app forms, holds and multiplies
+for one number, in time and in memory, which is why its right value is
+the device's and the probe recommends it. Its measure is therefore the
+size of what is stored, the canonical mantissa of a `Scaled` (D13), a
+numerator and a denominator each in bits, and not the bits of the value
+the mantissa denotes. The two differ for a dyadic: `2^-30000`, a value
+of 30,000 bits, is stored as `5^30000 × 10^-30000`, whose numerator has
+69,658 bits, and that is what a product of it costs. The case deserves
+its context, since it looks worse than it is. What makes a value
+expensive is the bits of the two integers that store it, not how simple
+its factorization is: `3^-100000` is as simple as `2^-30000` in that
+sense, and is stored as itself, `1/3^100000`, 158,497 bits under this
+representation and under any other short of a factored one, which the
+app does not use and does not plan to. The canonical form adds cost in
+one case only, a denominator with twos, which it trades for fives in the
+numerator: a factor of `log2 5`, about 2.32, for a pure power of two,
+less for a mixed denominator, and nothing at all for a denominator with
+no twos, which is every other fraction. So the factor is bounded, it
+bites only in a band of a factor of 2.32 below the limit, and only for
+dyadics, and a value it moves past the limit was already, by its own
+bits, within that factor of it: a big number by the measure that
+matters, for which `approx` is the remedy as for any other. A
+representation with a binary exponent beside the decimal one, the
+draft docs/decimal.md withdrew, would have kept `2^-30000` at 30,000
+bits and done nothing for `3^-100000`; the cost is in storing exact
+rationals as digits, not in the power of ten. The owner's ruling, on
+review of this restatement, is to keep the representation and the
+decision and to document the rough edge plainly, which README ("Most
+bits") and ARCHITECTURE.md ("Size limits") do. That is where the
+range limit differs from the exponent bound, and deliberately so. The
+bound is on the value (D17), since it exists so that a value can always
+be written, and a refusal at it must never be false about the value; the
+range limit is on the representation, since it exists so that the app
+never forms more than the device can afford, which is a fact about the
+representation and not about the value, and nothing else could be
+measured without forming what the limit forbids. So a refusal at the
+range limit says that a result was too large to hold, names the node
+that formed it, and names the remedy, `approx` at that node or a higher
+`maxBits`; and README's "Most bits" says what is counted. Whether exact
+mode rounds instead of refusing there is D20.
+
 **D17. The exponent bound is on the value, not on its representation
 (added before stage 5).** A value is within the bound when its decimal
 exponent, `floor(log10 |v|)`, lies within `±MAX_EXPONENT`. That is the
@@ -741,7 +784,19 @@ The rule:
 
 - Every exact node result in exact mode is `tooLarge` at the node's span
   when its reduced canonical mantissa has a numerator or a denominator
-  past `maxBits`. That is the measure the literal check already uses.
+  past `maxBits`. The measure is the canonical form's size, the cost the
+  limit bounds (D16 as restated once more): it is what is stored and what
+  the next operation multiplies, it is the measure the literal check
+  already uses, and the value's own bits could not be read without
+  forming the power of ten the form moved out. For a dyadic the two
+  differ by a factor of up to 2.32, which matters less than it seems: a
+  value the factor moves past the limit was already, by its own bits,
+  within that factor of it, a big number by the measure that matters
+  (D16 as restated once more has the limiting cases).
+- The refusal names the node and the remedy (D20): the message quotes the
+  subexpression, says it is too large to hold exactly within `maxBits`,
+  and says to write `approx` around it to compute it to the digits asked,
+  or to raise `maxBits`.
 - The exponent bound is checked first, so that a result past both is
   reported at the bound.
 - The check runs in `evaluate()`'s wrapper on the settled result, which
@@ -762,23 +817,89 @@ Measuring after the fact, rather than predicting from the operands' sizes
 as a power does, is deliberate. A prediction from unreduced sizes refuses
 `x / x`, and for a quotient it is no bound at all: `1/2^30000` has a
 69,658-bit canonical numerator. The cost is one reduction per node on
-operands within the limit, which H.9's reductions make milliseconds. What
-can be predicted cheaply before forming still should be, as a power is
-today and `factorial` and `binomial` will be in stage 6, with the node
+operands within the limit, which H.9's reductions make milliseconds. The
+hard limit on cost still holds: the most that is formed before the check
+refuses is a product of two mantissas within the limit, a sum aligned
+within it, or a quotient's two unreduced parts, each at most twice the
+limit and reduced once, which is the operation the probe times when it
+recommends the limit, so the budget already includes that factor of two.
+What can be predicted cheaply before forming still should be, as a power
+is today and `factorial` and `binomial` will be in stage 6, with the node
 check as the backstop.
 
 Sums are included, since a sum of fractions grows as a product does, and
 README ("Most bits") already promises a bound on how large a numerator and
-a denominator may grow. One visible consequence: `1 / 2^n` is refused past
-`n ≈ 28,225` at the default, as `0.5^30000` already is.
+a denominator may grow. One visible consequence, of the measure as much
+as of the rule: `1 / 2^n` is refused past `n ≈ 28,225` at the default, as
+`0.5^30000` already is, since each is stored with `5^n`.
 
 `approx` is the escape hatch: an inexact operand makes the result inexact,
-so it is settled rather than refused. #52 records the owner's preference
-for rounding over refusing. That can come later as one amendment of D15
-and D16, which settles an exact result past the limit instead of refusing
-it, for sums, products, quotients and powers together. The rounding is
-`settle`'s, onto the decimal grid of the working digits with the error in
-the radius, and it needs no search for a best approximation.
+so it is settled rather than refused. Whether the app should apply that
+rounding on its own, rather than refuse and name the node, is the question
+D20 answers.
+
+**D20. Past the range limit, exact mode refuses at the node and names the
+remedy; it does not round on its own (added before stage 5; ruled by the
+owner in review, #72).** The range limit is a hard
+limit on cost (D16), and there are two things an exact computation can
+do when an exact result would pass it: refuse, at the node, with a
+message that says where in the expression the precision the user asked
+for, or the exactness they implied by writing exact values, was more
+than the limit holds; or round the result there to the working digits,
+as `approx` at that node would, and carry on, the retry loop then
+certifying the digits asked as it does for any inexact value, and the
+display saying `≈`. #52 records the owner's leaning toward rounding.
+The decision is to refuse, for these reasons:
+
+- **The mode's contract.** Exact mode's one promise (D15; docs/decimal.md,
+  "What stays exact") is that exactly three things ever make a value
+  inexact: an inexact function, `approx`, and the decimal mode. The
+  design has twice declined to add a rounding the user did not ask for
+  (docs/decimal.md's "Alternatives considered", on a sum that cannot be
+  aligned; docs/approximate.md, on a mode that rounds every literal),
+  each time on the same ground: a value the user wrote exactly is not
+  silently replaced by one that is not it. A rounding at the range limit
+  would be a fourth source, and the only one the user cannot see in the
+  expression.
+- **The limit is the device's.** The probe recommends `maxBits` per
+  device, so under rounding the same expression would be `= 0` on one
+  machine and `≈ 0` within a bound on another, with nothing in the
+  expression to say why. A refusal is loud, local, and the same
+  everywhere but for where it fires.
+- **The remedy is one token, and it is the user's choice.** The message
+  names the node and the two ways out: `approx` there, which accepts `≈`
+  for that part and nothing else, or a higher `maxBits`, which pays. The
+  app cannot know which the user wants; a user checking an exact
+  identity wants the second, a user converting a measurement the first.
+- **Cost.** Refusing ends the work at the node. Rounding would carry on,
+  and every downstream operation would run on a value that the user may
+  not have wanted computed that way.
+- **The calculator's behavior exists already.** Decimal mode is the mode
+  where every step rounds, and `approx` is the per-value form of the
+  same thing. A user who wants the app never to refuse has both.
+
+Two things follow from the ruling. Knowing the node lets the user
+either round there with `approx` or raise `maxBits`; to make the second
+realistic without trial and error, the refusal should also say how many
+bits the result needed, or a bound, which is known where the check
+measures after forming and predictable where it refuses before. That is
+a feature of its own, #73, to be studied there and landed after H.14,
+whose message it extends. And what rounding would be, should the ruling
+ever be reversed, so that the reversal is one amendment of D15 and D19
+rather than a redesign: the
+node's exact result past the limit is settled to the working digits by
+D15's settle, half a unit in the last digit into the radius, and the
+quantity is marked as rounded with the node's span, which the pipeline
+carries to the display as a note beside the value ("rounded within Most
+bits at `…`", quoting the subexpression), `=` being denied as for any
+inexact value; the retry loop certifies the digits asked as it does for
+`approx`, and nothing downstream changes. What would still refuse under
+either rule: a literal past the limit where it is typed, the kernel's
+reach (`sin(1e999999999 radian)`, which no rounding of the argument
+helps), and the exponent bound. The tasks the reversal would touch are
+H.14 (the check's action and its message), the display's note and the
+README; the check's place, its measure and its tests are the same under
+both.
 
 ## Stage 1: the context and the ball
 
@@ -2910,11 +3031,12 @@ tasks come in two tiers:
   H.5 before H.6). It is H.1 to H.9: the fixes of the argument handling,
   the roots, the bases of `pow`, the inverse trigonometric functions, the
   parser and the gcd.
-- **Tier 2** needs the decisions above, under "Decisions" (D17 to D19, and
+- **Tier 2** needs the decisions above, under "Decisions" (D17 to D20, and
   the amendments to D4, D8, D15 and D16), which land with this section. It
-  is H.10 to H.16, in their order: the sweep, `settle` as a `Result`, the
-  unit lists, the bound on the value, the size check, the guard, and an
-  optional change to `pow`.
+  is H.10 to H.16, in their order: the sweep, `settle` as a `Result` (with
+  the edge on `BallError`'s `unresolved`), the unit lists, the bound on
+  the value, the size check, the guard, and `pow`'s exponent past Most
+  bits.
 
 H.17 records the phase as it landed. Each task is one commit unless it
 says otherwise, and each says what closes which issue. The table gives the
@@ -2922,35 +3044,41 @@ order and the edges; "text" marks an edge that exists only because two
 tasks edit the same lines, and "preferred" an order the task asks for but
 does not need.
 
-| Task                                            | Closes                  | Depends on                        |
-| ----------------------------------------------- | ----------------------- | --------------------------------- |
-| H.1 `tanh` of a wide argument                   | #38, #49                |                                   |
-| H.2 Tiny arguments at the kernel's door         | #53, #56                |                                   |
-| H.3 `exp` of a wide argument                    | #39                     | H.1 (text)                        |
-| H.4 The radius of a power of ten                | part of #44             |                                   |
-| H.5 Roots of a large degree or a tiny mantissa  | #45, #57                | H.4 (text)                        |
-| H.6 `pow` of the exact bases 0, 1 and −1        | part of #46             | H.5 (text)                        |
-| H.7 The inverse trigonometric functions         | #47                     | H.2 (text)                        |
-| H.8 A name followed by `(` is only a call       | #54                     |                                   |
-| H.9 Smaller reductions, then Lehmer's gcd       | part of #52             |                                   |
-| H.10 The edge sweep                             |                         | the decisions; tier 1 (preferred) |
-| H.11 `settle` returns a `Result`                | part of #44             | H.4                               |
-| H.12 Unit lists report refusals                 | #58, part of #44        | H.11                              |
-| H.13 The exponent bound is on the value         | #50, #48, #44, #59, #60 | H.4, H.11, H.12; H.2 (preferred)  |
-| H.14 Exact results are held to Most bits        | #52                     | H.9, H.13 (text)                  |
-| H.15 One guard for the exponential and powers   | #40, #46, #61, #62      | H.1, H.2, H.3, H.6, H.13          |
-| H.16 `pow`'s exponent past Most bits (optional) |                         | H.2, H.6, H.15                    |
-| H.17 The phase as it landed                     |                         | all                               |
+| Task                                           | Closes                  | Depends on                        |
+| ---------------------------------------------- | ----------------------- | --------------------------------- |
+| H.1 `tanh` of a wide argument                  | #38, #49                |                                   |
+| H.2 Tiny arguments at the kernel's door        | #53, #56                |                                   |
+| H.3 `exp` of a wide argument                   | #39                     | H.1 (text)                        |
+| H.4 The radius of a power of ten               | part of #44             |                                   |
+| H.5 Roots of a large degree or a tiny mantissa | #45, #57                | H.4 (text)                        |
+| H.6 `pow` of the exact bases 0, 1 and −1       | part of #46             | H.5 (text)                        |
+| H.7 The inverse trigonometric functions        | #47, #64                | H.2 (text)                        |
+| H.8 A name followed by `(` is only a call      | #54                     |                                   |
+| H.9 Smaller reductions, then Lehmer's gcd      | part of #52, #66        |                                   |
+| H.10 The edge sweep                            |                         | the decisions; tier 1 (preferred) |
+| H.11 `settle` returns a `Result`               | part of #44             | H.4                               |
+| H.12 Unit lists report refusals                | #58, part of #44        | H.11                              |
+| H.13 The exponent bound is on the value        | #50, #48, #44, #59, #60 | H.4, H.11, H.12; H.2 (preferred)  |
+| H.14 Exact results are held to `maxBits`       | #52                     | H.9, H.13 (text)                  |
+| H.15 One guard for the exponential and powers  | #40, #46, #61, #62      | H.1, H.2, H.3, H.6, H.13          |
+| H.16 `pow`'s exponent past `maxBits`           | part of #46             | H.2, H.6, H.15                    |
+| H.17 The phase as it landed                    |                         | all                               |
 
 The pull requests: H.1; H.2 with H.3; H.4 with H.5; H.6; H.7; H.8; H.9;
-then, in tier 2, H.10; H.11 with H.12; H.13; H.14; H.15; H.16 if adopted;
-H.17. No function changes shape twice. The error types this phase changes
-are fixed here, so that each task implements them once, where #43 reshaped
-its error three times in review:
+then, in tier 2, H.10; H.11 with H.12; H.13; H.14; H.15; H.16; H.17.
+Each pull request leaves `main` without a known regression, since each
+is reviewed and merged on its own and may sit on `main` for a while: a
+task whose first version would have refused a value within a bound until
+a later task (H.11's settle check, as first written) is written against
+the final rule instead. No function changes shape twice. The error types
+this phase changes are fixed here, so that each task implements them
+once, where #43 reshaped its error three times in review:
 
 - `BallError`'s `unresolved` carries a required edge.
   `BallEdge = Scaled | "bound"` lives in ball.ts, and
-  `Edge = BallEdge | "pole"` in builtin.ts (H.13).
+  `Edge = BallEdge | "pole"` in builtin.ts (H.11's first commit, a
+  refactor with no change in behavior, so that H.12 and H.13 build on
+  the final shape).
 - `settle` returns `Result<Ball, BallError>`, and `settleQuantity` returns
   `Result<Quantity, BallError>` (H.11).
 - `decompose` returns a `Result` whose error is a `Refusal` or
@@ -2992,7 +3120,12 @@ request quotes the ruling:
 - #50's fourth row already parses. And the value's decimal exponent
   decides, not the canonical exponent (D17).
 - #52's size is measured on the reduced result where the evaluator forms
-  it, not predicted from the operands, and sums are included (D19).
+  it, not predicted from the operands, and sums are included (D19); its
+  measure is the canonical form's, the cost the limit bounds (D16 as
+  restated once more); and of the two resolutions it asks a decision
+  between, a check and an input length limit, D19 chooses the check, and
+  D20 chooses refusing at the node over rounding there, with the message
+  naming the node and the remedy.
 
 The review found defects that no issue listed. Each is now filed as an
 issue, or added to the issue of its kind, and the tasks named here take
@@ -3028,20 +3161,35 @@ them on:
   - the cost of a zero midpoint's power (#62).
 - Sums of fractions not held to Most bits (H.14, added to #52).
 
-Five more go to follow-up issues rather than this phase:
+Three more the review found are taken on by this phase or by stage 5,
+since each is the twin of a fix here, and stage 6's functions would copy
+whichever handling is in place:
+
+- `atan` and `atan2` refuse a wide ball that reaches `2^maxBits`, as #49
+  had `tanh` do (#64): H.7, by H.1's rule.
+- The parser reduces a `^` exponent's fraction on literals up to the hard
+  bound, which takes minutes with Euclid's gcd and seconds with Lehmer's
+  (#66): H.9, by moving the reduction to the evaluator, where the range
+  limit applies, as D19 asks of what can be bounded before forming.
+- A zero's bound far below the exponent bound is written with every digit
+  of its exponent. `(approx(1e20) - approx(1e20))^1e100000`, which H.15
+  makes fast, is still shown within a bound whose exponent has 100,004
+  digits (#67): 5.0 settles it with the top edge's carry, the display's
+  other edge, and 5.1 lands it.
+
+Three go to follow-up issues rather than this phase:
 
 - `asin`, `acos` and `acosh` of an exact argument with a long mantissa
   (`asin(0.1 + 1e-15000)`) are refused, since their exact `1 - x^2` does
   not align (#63).
-- `atan` and `atan2` refuse a wide ball that reaches `2^maxBits`, as #49
-  had `tanh` do (#64).
 - `tanhFixed`'s fold band costs an extra pass (`tanh(75)`, #65).
-- The parser reduces a `^` exponent's fraction on literals up to the hard
-  bound, which takes minutes with Euclid's gcd (#66).
-- A zero's bound far below the exponent bound is written with every digit
-  of its exponent. `(approx(1e20) - approx(1e20))^1e100000`, which H.15
-  makes fast, is still shown within a bound whose exponent has 100,004
-  digits (#67).
+- The table's prefix lookup still throws on a prefix times a unit that
+  the arithmetic refuses or, from H.13, leaves `unresolved` at the bound.
+  The shipped file is nowhere near the bound and its units are exact, so
+  only a user definition that puts a unit within a prefix's factor of
+  the bound reaches it, which needs the editor that user definitions
+  still lack; to be filed with that feature, since the lookup has no
+  error to return and the plan adds no error kind here.
 
 The sweep's table (H.10) names each of these by its issue.
 
@@ -3265,7 +3413,12 @@ that) to `undefined`, so that `rootBall` keeps its odd and even handling
   (stage 4's fallback);
 - a mantissa scaled so far below one that its exponent, less `j` times the
   degree, passes `-bitsFor(precision)`. That mantissa converted to zero
-  and reported a false `unresolved`.
+  and reported a false `unresolved`. A mantissa below one by less than
+  that is converted at the working bits plus the deficit, as `extraBits`
+  converts a small argument of an odd function, so that it keeps its
+  digits through the root rather than certifying fewer per pass; the
+  deficit is at most the working bits, so the kernel is handed at most
+  twice them.
 
 `rootRadiusAbove` (radius.ts) divides by a large degree in bigints, where
 `Number(degree)` gave `NaN`.
@@ -3291,6 +3444,8 @@ Tests:
   `0.99998976842809102303`.
 - `rootFixed` at degree `2^32`, over arguments across its range at 36, 69
   and 200 bits, and the precondition at `2^32 + 1`.
+- A mantissa below one by less than the working bits keeps its digits:
+  `pow(3^-20, 1/1000)` certifies the digits asked at the first pass.
 - `rootRadiusAbove` at degrees `10^400` and `3^700`.
 
 Docs: pow.ts's header; ball.ts's header on the root, and `positiveRoot`'s
@@ -3347,7 +3502,7 @@ Behavior: the four powers are exact values where they were refused.
 
 ### H.7 The inverse trigonometric functions at extreme arguments
 
-Three commits in builtins/inverse-trig.ts, which close #47.
+Four commits in builtins/inverse-trig.ts, which close #47 and #64.
 
 - `complementRoot` reads the domain from the argument's position against
   `±1` before it forms `1 - x^2`. So a huge argument of `asin` or `acos`
@@ -3370,9 +3525,23 @@ Three commits in builtins/inverse-trig.ts, which close #47.
   `atan2`'s tiny ratio stopped crashing with H.2. Here it is given its
   value, rather than a ball around zero that certifies nothing.
 
+- `atan` and `atan2` are never refused for an argument's radius (#64),
+  by H.1's rule for `tanh`: a ball that reaches `2^maxBits` without lying
+  beyond `2^bits` throughout, which `atanKernel` refused as `tooLarge`,
+  is the function's whole range, zero within two for `atan` (the
+  kernel's own trivial bound for a wide interval) and zero within four
+  for `atan2`, which certifies nothing and lets the retry loop narrow
+  the argument. A refusal is final, and no value of either function
+  reaches any limit.
+
 Tests:
 
 - Every row of #47, and the four quadrants at both extremes.
+- #64's rows: `atan(approx(1e30000) - approx(1e30000))` ends as a zero
+  with a bound, `atan2(approx(1e30000) - approx(1e30000) + 1, 1)`
+  certifies `≈ 0.78539816`, and `atan2(1e-30000, 1 - approx(1))` runs to
+  the ceiling and is `unresolved` at zero there, its `x` straddling zero
+  at every pass.
 - `atan2(1e-999999999999999999, 1)` is `≈ 1e-999999999999999999 radian`.
 - `acos` of `1e-9860`, `8e-9865` and `-1e-15000`, and `asin(1e-50)`
   unchanged.
@@ -3385,7 +3554,8 @@ Docs: inverse-trig.ts's header; docs/builtins.md; ARCHITECTURE.md's rule
 2; docs/decimal.md, "The kernel's boundary", whose sentences H.2 edits
 first.
 
-Behavior: the arguments of #47 give their angles or the domain error.
+Behavior: the arguments of #47 give their angles or the domain error, and
+`atan` and `atan2` are never refused for a radius.
 
 ### H.8 A name followed by `(` is only a call
 
@@ -3421,8 +3591,9 @@ Behavior: parsing is linear in the nesting of calls.
 
 ### H.9 Smaller reductions, then Lehmer's gcd
 
-Two commits in rational.ts, which make #52's quotients fast; H.14 bounds
-their size.
+Three commits: two in rational.ts, which make #52's quotients fast (H.14
+bounds their size), and one that moves the `^` exponent's reduction out
+of the parser (#66).
 
 The first commit reduces with the smaller gcds the operands allow, each a
 textbook rule:
@@ -3450,22 +3621,50 @@ range operation took about 4.4 s and takes 0.11 s. A half-gcd, which is
 subquadratic, gains only above `2^16` bits (about 1.6 times at `2^17`),
 and is left for a larger limit.
 
+The third commit takes the reduction of a `^` exponent out of the parser
+(#66). The parser has no context, so it reduced the fraction of two
+literals through Euclid's gcd at the hard bound, quadratic in their
+length, on every keystroke: 80,000-digit literals took 14 s, and the
+second commit's gcd makes that seconds, not milliseconds. The tree now
+carries the exponent as the parser read it, `Exponent = { num: bigint;
+den: bigint }` with `den` positive and the pair unreduced (a `Rational`
+promises lowest terms, which the parser can no longer promise), and the
+evaluator reduces it where the range limit applies, `reduceExponent(e,
+maxBits)`: a numerator or a denominator past `maxBits` is `tooLarge` at
+the power's span before any gcd runs, as D19 asks of what can be bounded
+before forming, and the rest is `rational(num, den)` with the gcd of the
+second commit, milliseconds at any setting. `dimensionOf` reduces the
+same way under the build's context, since a dimension's exponent must be
+in lowest terms. The parser's own rejections stay: a literal whose power
+of ten cannot be formed within the hard bound, and a quotient by zero,
+are read off the literals without a gcd.
+
 Tests: agreement with the reduce-after formula, and reducedness, on seeded
 rationals (zero, integers, negatives, integral results, large over small);
 the gcd against a reference Euclid written in the test, at 1 to 4,000 bits
 and across the switch to doubles, and on large pairs whose gcd is known by
-construction. A benchmark, bench/rational.bench.ts, reports the probe's
-operation, one gcd and #52's quotients, and asserts only ratios within the
-run; ARCHITECTURE.md ("Benchmarks") names it.
+construction; reducedness asserted over every constructor that bypasses
+`rational()` and feeds the arithmetic (`scaleByPowerOfTwo`, fixed.ts's
+`dyadic`, scaled.ts's `normalize` and `toRational`, the test generators),
+since the smaller reductions are correct only for operands in lowest
+terms, and a full reduction of the result no longer forgives a broken
+invariant upstream; `2^(a/b)` with pseudo-random literals of 315,000
+digits parses in milliseconds and is `tooLarge` at the default range
+limit, and with 10,000-digit literals evaluates to its value. A
+benchmark, bench/rational.bench.ts, reports the probe's operation, one gcd
+and #52's quotients, and asserts only ratios within the run;
+ARCHITECTURE.md ("Benchmarks") names it.
 
 Docs: rational.ts's header says what each operation reduces with, that the
 gcd is quadratic, and that the rules hold only for operands in lowest
 terms, the invariant of `Rational`, with `rational` the one constructor
-that reduces.
+that reduces; expr.ts's header and ARCHITECTURE.md ("Expressions"), whose
+exponent "travels in the tree as a `Rational`" no longer.
 
-Behavior: none but speed. The range limit that "Recommend limits" proposes
-rises, from 8,192 to 32,768 bits on this project's cloud container. H.14
-redefines the probe.
+Behavior: none but speed, and a `^` exponent past the range limit refused
+at the power rather than reduced for minutes. The range limit that
+"Recommend limits" proposes rises, from 8,192 to 32,768 bits on this
+project's cloud container. H.14 redefines the probe.
 
 ### H.10 The edge sweep
 
@@ -3515,7 +3714,9 @@ issue's reproductions except #52's conversions, which H.14 tests, with
 The oracle, per case:
 
 - No throw.
-- The case's time, measured after it returns, is within a second.
+- The case's time is reported, not asserted, since a per-case budget on
+  a loaded runner is a flaky assertion; the deadline on the whole sweep
+  below is what catches a hang.
 - A refusal only where the decisions allow one:
   - `overflow` and `underflow` only when every value of the ball passes
     the bound, or, in decimal mode, when the rounded value does (D17:
@@ -3560,17 +3761,25 @@ fixes and the parallel pull requests of tier 1 do not all edit it.
 
 ### H.11 `settle` returns a `Result`
 
-`settle` (ball.ts) returns `Result<Ball, BallError>`, and `settleQuantity`
-(quantity.ts) returns `Result<Quantity, BallError>`, with the bound's
-check exported from scaled.ts. Its body is the canonical check until H.13
-changes it, so until then it also says `underflow` where a rounding moves
-the canonical exponent below `-10^18`, even for a value within the bound.
-In decimal mode that is a refusal: `1e-999999999999999999 / 3` is
-`underflow` from H.11 to H.13, where it threw. In exact mode, where
-`settle` acts only on a carry past the top, it is not:
+Two commits. The first is a refactor with no change in behavior, moved
+here from H.13 so that H.12 and H.13 build on the final shape:
+`BallError`'s `unresolved` carries its edge, set at every producer, and
+the three consumers that assumed zero pass it on: `fromBallError`, and
+the evaluator's power case and its `locate`. The compiler would not have
+flagged those three.
+
+The second: `settle` (ball.ts) returns `Result<Ball, BallError>`, and
+`settleQuantity` (quantity.ts) returns `Result<Quantity, BallError>`. Its
+check is D17's from the start, on the rounded midpoint's decimal
+exponent against `±10^18`, one comparison, so that no pull request leaves
+`main` refusing a value within the bound; H.13 then brings `scaled()` to
+the same rule, and the check `settle` makes stays as it is. In decimal
+mode `1e-1000000000000000000 / 3` is `underflow`, rightly, its value
+`3.3 × 10^-(10^18+1)` being past the bound, where it threw. In exact
+mode, where `settle` acts only on a carry past the top,
 `1e-1000000000000000000 / approx(3)` (#44's first row) is shown as
 `≈ 3.3333333e-1000000000000000001` from H.11 until H.13 refuses the
-quotient.
+quotient, whose own check is `scaled()`'s.
 
 In decimal mode:
 
@@ -3612,6 +3821,8 @@ Tests:
   both built without `scaled()`, is at or above their difference,
   `9e-1000000000000000009`, and below `1e-1000000000000000008`.
 - ball.test.ts's eighteen calls of `settle` unwrap.
+- The edge on `unresolved`: every producer's edge, and the three
+  consumers pass it on (a test each, on the first commit).
 
 Docs: `settle`'s doc and ball.ts's header; docs/decimal.md, "The decimal
 mode".
@@ -3687,14 +3898,10 @@ never throws.
 
 ### H.13 The exponent bound is on the value
 
-Three commits, each green alone.
+Two commits, each green alone; the refactor that put the edge on
+`BallError`'s `unresolved` is H.11's first commit.
 
-The first commit is a refactor with no change in behavior. `BallError`'s
-`unresolved` carries its edge, set at every producer. The three consumers
-that assumed zero pass it on: `fromBallError`, and the evaluator's power
-case and its `locate`. The compiler would not have flagged those three.
-
-The second commit lands D17 and D18's rule for the arithmetic together,
+The first commit lands D17 and D18's rule for the arithmetic together,
 since either alone regresses.
 
 - `scaled()` checks the decimal exponent inside D17's band, with a fast
@@ -3719,6 +3926,8 @@ since either alone regresses.
     `|mid| + rad` passes the top. A ball of unbounded radius keeps its
     convention: its midpoint alone is held to the bound, and the result's
     radius stays unbounded.
+- The check `settle` makes (H.11) is unchanged, being D17's already; the
+  constructor now agrees with it.
 - `Edge` gains `"bound"`, worded "the point where the result passes the
   exponent bound". messages.ts stops quoting an edge as a number when it
   is a name.
@@ -3736,7 +3945,7 @@ since either alone regresses.
 - `powRationalBall` falls through to log space on a bound `unresolved`
   from `powBall`, as it does on a refusal.
 
-The third commit is #48. `addBalls` takes its settle-first path only on
+The second commit is #48. `addBalls` takes its settle-first path only on
 `tooLarge`, an alignment, and applies D18 to a sum past the bound, and to
 one whose `|mid| + rad` passes the top, as a product does.
 
@@ -3788,11 +3997,23 @@ for its representation, and a ball that straddles it is retried. It is
 best landed after H.2, so that `exp` of a newly admitted tiny literal does
 not throw.
 
-### H.14 Exact results are held to Most bits
+### H.14 Exact results are held to `maxBits`
 
 The check of D19 runs in `evaluate()`'s wrapper, on the settled result,
 and after the pipeline's ratio and a function want's count. The exponent
-bound is checked first, and no signature changes.
+bound is checked first, and no signature changes. Its action is D20's:
+the node is refused, `tooLarge` at its span, and messages.ts words it
+with the remedy, `"3^32767 * 7^21845" is too large to hold exactly within
+Most bits: write "approx(3^32767 * 7^21845)" to compute it to the digits
+asked, or raise Most bits.` (the message keeps the panel's label, "Most
+bits", which is what the user sees; the setting is `maxBits` in the
+code), where the range limit's other refusals (a
+literal, a sum's alignment, a power's prediction, the kernel's reach)
+keep their wording, since `approx` is not their remedy in the same way
+(a literal is exact by being typed, and the kernel's reach is not a
+matter of exactness). The conversion's ratio and a function want's count
+are worded the same way about the pair. Saying how many bits the result
+needed is #73, which extends this message after it lands.
 
 The range probe (limits.ts) times the costliest exact operation the limits
 still run: a product of two fractions of `bits` bits in each part, whose
@@ -3821,7 +4042,10 @@ Tests:
   within the limit, is `tooLarge` at the conversion's ratio, where it was
   a value after 3.7 s.
 - `2^-30000` and `1/2^30000`, whose canonical numerators have 69,658 bits,
-  are `tooLarge`, and `2^-28000` stays a value (D19).
+  are `tooLarge`, and `2^-28000` stays a value (D19, by the measure of
+  D16 as restated once more).
+- messages.test.ts: the refusal names the node and the remedy, and the
+  remedy works: `approx(3^32767 * 7^21845)` is a value.
 
 Docs:
 
@@ -3830,10 +4054,11 @@ Docs:
 - docs/calculator.md's "Memory", which says exact growth is already
   bounded.
 - docs/decimal.md, "The range limit, restated".
-- README, "Most bits": "the largest number the app will form" becomes the
-  largest it keeps, since a result is formed and then measured. README's
-  `approx` paragraph: products and quotients join sums and powers, and a
-  sum's growth joins its alignment.
+- README, "Most bits": already says what is counted (the bits of what is
+  stored, fives for a dyadic's twos) and what the app does at the limit,
+  as D16 and D20 have it; this task removes its "not yet" on products and
+  quotients. README's `approx` paragraph: products and quotients join
+  sums and powers, and a sum's growth joins its alignment.
 - The comments on the default in context.ts and limits.ts, and
   system-build.ts's header.
 - scaled.ts's header sentence that the range limit's reasoning allows the
@@ -3896,7 +4121,7 @@ exponent it cannot form went by an inexact base's midpoint:
 was `underflow` (both added to #46). For an inexact base the classifier
 decides it, and both are `unresolved` at the bound (a test each). Where
 the classifier would compute, the refusal stays `tooLarge`, which H.16
-would lift.
+lifts.
 
 What stage 4's guards got wrong:
 
@@ -3958,26 +4183,30 @@ Docs:
 Behavior: the exponential family and the powers are refused only when
 every value of the argument passes the bound, and retried when some do.
 
-### H.16 `pow`'s exponent past Most bits (optional)
+### H.16 `pow`'s exponent past `maxBits`
 
 `pow` forms an exact exponent as a fraction within the range limit, and
 refuses one it cannot form, as documented: `pow(2, 1e-999999999)` is
-`tooLarge`, though its value is about one. If adopted, this task sends
-such an exponent to log space where H.15 leaves it `tooLarge`: for an
-exact base, where `powerRefusal` does not put the power past the bound,
-and for an inexact base, where H.15's classifier would compute it.
-`powerRefusal` reads the base's midpoint alone, so for an inexact base the
-classifier's refusals and its `unresolved` stand:
+`tooLarge`, though its value is about one, while H.2 makes
+`pow(2, approx(1e-999999999))` a value. That is the asymmetry D17 exists
+to remove, whether a value is held depending on whether it is exact, so
+this task is adopted rather than optional, and lands after H.15, whose
+classifier it needs. It sends such an exponent to log space where H.15
+leaves it `tooLarge`: for an exact base, where `powerRefusal` does not
+put the power past the bound, and for an inexact base, where H.15's
+classifier would compute it. `powerRefusal` reads the base's midpoint
+alone, so for an inexact base the classifier's refusals and its
+`unresolved` stand:
 
 - a base positive throughout goes through `powLogSpace`;
 - a base negative throughout follows H.6's parity rule;
 - a base reaching zero keeps what H.15 gives it.
 
-It fixes nothing an issue lists, so it is the owner's call. If it is not
-adopted, pow.ts's header and docs/builtins.md say plainly that `pow` forms
-its exponent within Most bits, where `^` forms it within the hard bound.
-Adopted before H.2, H.6 and H.15, it would turn `pow(2, 1e-999999999)`
-into a crash and `pow(approx(1), 1e999999999)` into a wrong `overflow`.
+It closes the rows of #46 that H.6 and H.15 leave: a power whose
+exponent cannot be formed but whose value the classifier can bound.
+Landed before H.2, H.6 and H.15, it would turn `pow(2, 1e-999999999)`
+into a crash and `pow(approx(1), 1e999999999)` into a wrong `overflow`,
+which is why it is last.
 
 Tests: `pow(2, 1e-30000)`, `pow(2, 1e-999999999)` and
 `pow(0.5, -1e-30000)` are `≈ 1`; `pow(-2, 1e-30000)` is the even root of a
@@ -4017,7 +4246,18 @@ phase's fixes:
   decimal exponent with a normalized mantissa, never the canonical
   `exp`.
 - What the display writes when its rounding carries a value within the
-  bound to `1e+(10^18+1)`.
+  bound to `1e+(10^18+1)`, and, at the other edge, what it writes for a
+  zero's bound below `10^-(10^18)`, which today is written with every
+  digit of its exponent, 100,004 of them for
+  `(approx(1e20) - approx(1e20))^1e100000` (#67): a bound written in a
+  bounded length, `1e-1000000000000000000` being larger than any such
+  bound and so still sound, is the likely rule, and 5.1 lands it in
+  `zeroBound`.
+- What a fraction is in decimal mode, where every result is rounded to
+  the digits asked and a rounded value with those digits or fewer is
+  exact: `1/4` at eight digits is `= 1/4`, and `1/3` is `≈ 0.33333333`,
+  the rounding having made it inexact; the flag changes nothing else
+  there.
 
 ### 5.1 `show` with fractions
 
@@ -4027,7 +4267,8 @@ or a fraction in lowest terms (recovering the ordinary fraction from the
 5.0 where that would not fit), with `needsParentheses` set for the UI
 when a fraction will
 precede a unit; an inexact ball falls back to the decimal display and
-says so in its kind.
+says so in its kind; and a zero's bound below `10^-(10^18)` is written as
+5.0 rules (#67).
 
 ### 5.2 The UI
 

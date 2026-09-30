@@ -545,7 +545,7 @@ of rounding, and that is the radius of the precision model.
 - **An exact value (radius zero) is written as its fraction, with `=`.**
   In exact mode most conversions are such values, and this is where the
   mode shines: `1 in = (127/50) cm`, `1 mi = (25146/15625) km`, a unit
-  list as `1 m = 3 ft + (437/127) in`. An integer is written as an
+  list as `1 m = 3 ft + (428/127) in`. An integer is written as an
   integer.
 - **An inexact value is not written as a fraction.** After `sqrt(2)` at
   20 digits the midpoint held is `141421356237309504880 / 10^20`, a true

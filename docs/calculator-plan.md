@@ -11,7 +11,10 @@ the phase that fixed those issues before stage 5, with the decisions it
 added (D17 to D20) and amended (D4, D8, D15 and D16); D20, on what exact
 mode does past the range limit, was ruled on in review of its pull
 request, and D18's answer for a sum whose ball reaches back within the
-bound in review of H.13's. D13 was
+bound in review of H.13's. Stage 5's design note (5.0,
+docs/fractions.md) was written after the phase landed and the stage
+revised against it (D21 added, and 5.1 and 5.2); its introduction lists
+the changes. D13 was
 revised in review of the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -28,8 +31,8 @@ the code is left in. Where the study leaves a choice open, this plan makes
 it and says so under "Decisions", so that a reviewer can object to a
 decision before any code depends on it.
 
-The plan is firm for stages 1 to 4 and the phase before stage 5, whose
-shape follows from the code as it stands, and provisional for stages 5
+The plan is firm for stages 1 to 5 and the phase before stage 5, whose
+shape follows from the code as it stands, and provisional for stages 6
 to 8, whose first task is a short
 design note in the manner of docs/functions.md, written once the stages
 before it have landed and refined against what they turned out to need.
@@ -907,6 +910,27 @@ helps), and the exponent bound. The tasks the reversal would touch are
 H.14 (the check's action and its message), the display's note and the
 README; the check's place, its measure and its tests are the same under
 both.
+
+**D21. The fractions display writes every exact value that is not an
+integer as a reduced fraction, when it fits, and writes every inexact
+value as a decimal (added before stage 5; ruled by the owner in the
+review of 5.0).** docs/fractions.md is the design. The study's feature 7
+writes an exact value as its fraction in lowest terms and an inexact one
+as a decimal with `≈`; the choice it left open was whether a value the
+decimal display already writes exactly (`2.54`, `1.609344`, `1e-7`)
+should still become a fraction (`127/50`, `25146/15625`, `1/10000000`)
+under the setting. The alternative weighed, a fraction only where the
+decimal is inexact, has one property to recommend it, that the setting
+only ever turns a `≈` line into a `=` line, and was set aside: the
+setting shows fractions, for understanding as much as for exactness, and
+a user who asks for them asks to see them. So an exact integer is
+written as the decimal display writes it, every other exact value as its
+fraction when the numerator and the denominator each fit within Digits
+digits, and everything else by the decimal display, which says `=` where
+its own rule allows. The fit rule is provisional, firm for stage 5 and
+studied after it (#91). An approximating fraction for an inexact value,
+the study's later refinement, is ruled out for now: a decimal says what
+is known and no more.
 
 ## Stage 1: the context and the ball
 
@@ -4242,58 +4266,102 @@ with the issues each closed. The tasks above stay as they were written.
 
 ## Stage 5: the rational display
 
-Provisional; small.
+Firm from its design note. 5.0 was written after the hardening phase
+landed (docs/fractions.md) and the stage revised against it: D21 added,
+the rule of "The rule" there in place of the four open questions below,
+`fraction: true` on the `exact` kind in place of `needsParentheses`, the
+setting named "Show reduced fractions", the fit rule marked provisional
+(#91), and the reciprocal line's holes filed apart (#92) rather than
+fixed here.
 
 ### 5.0 Design note
 
-A section in docs/decimal.md or its own page: the rules of feature 7, and
-the size at which an exact value's fraction is written in exponent
-notation instead (`1e+999999999` is exact and short; its digits are not).
+docs/fractions.md: the rules of feature 7, and the size at which an exact
+value's fraction gives way to the decimal display (`1e+999999999` is
+exact and short; its digits are not).
 
-Amended before stage 5, from the review of the phase before it. The
-note also settles four questions, and depends on D17 but on none of the
-phase's fixes:
+Written after the hardening phase, from D17. The note settles the four
+questions this task carried, and one more:
 
 - A display length that does not depend on Most bits. Values legal under
   the range limit already run to 15,634 digits (`3^32767`), and far more
-  at a raised limit, so the range limit is not a display rule. For
-  example, a fraction could be written when its numerator and
-  denominator fit the digits setting.
+  at a raised limit, so the range limit is not a display rule. The rule:
+  a fraction is written when its numerator and its denominator each fit
+  within the Digits setting; provisional, studied after the stage (#91).
 - A third outcome, beside the fraction and the exponent notation for a
   short mantissa with a large exponent: an exact value too long to write
-  as a fraction, shown in the decimal display with `≈`, as it is today.
+  as a fraction falls back to the decimal display, which says `=` where
+  its own rule allows (`= 1.5e-999999999`) and `≈` otherwise
+  (`≈ 3.4867844e+9` for `3^20` at eight digits). The two outcomes are one
+  rule, the fallback.
 - Every literal it writes parses back under D17. It writes the value's
   decimal exponent with a normalized mantissa, never the canonical
-  `exp`.
-- What the display writes when its rounding carries a value within the
-  bound to `1e+(10^18+1)`, and, at the other edge, what it writes for a
-  zero's bound below `10^-(10^18)`, which today is written with every
+  `exp`; a fraction is a quotient of two literals within Digits. The one
+  exception, a value at the exponent `10^18` whose rounding carries it to
+  `1e+1000000000000000001`, is written as the rounding mode gives it and
+  refused when typed back, which the note argues is right.
+- A zero's bound below `10^-(10^18)`, which today is written with every
   digit of its exponent, 100,004 of them for
-  `(approx(1e20) - approx(1e20))^1e100000` (#67): a bound written in a
-  bounded length, `1e-1000000000000000000` being larger than any such
-  bound and so still sound, is the likely rule, and 5.1 lands it in
-  `zeroBound`.
+  `(approx(1e20) - approx(1e20))^1e100000` (#67), is written as
+  `1e-1000000000000000000`, larger than any such bound and so still
+  sound, the shortest the display can write, and it parses; 5.1 lands it
+  in `zeroBound`. At the top edge such a ball is `unresolved` before the
+  display sees it (D18).
 - What a fraction is in decimal mode, where every result is rounded to
   the digits asked and a rounded value with those digits or fewer is
-  exact: `1/4` at eight digits is `= 1/4`, and `1/3` is `≈ 0.33333333`,
-  the rounding having made it inexact; the flag changes nothing else
-  there.
+  exact: `1/4` at eight digits is `= 1/4`, `2.54 cm` is `= (127/50) cm`,
+  and `1/3` is `≈ 0.33333333`, the rounding having made it inexact; the
+  flag changes nothing else there.
+- Which exact values become fractions (D21): every one that is not an
+  integer, `2.54` included, when it fits; an integer as the decimal
+  display writes it; an inexact value as a decimal, always.
 
 ### 5.1 `show` with fractions
 
-`display.ts`: a `fractions` flag; an exact ball is written as an integer
-or a fraction in lowest terms (recovering the ordinary fraction from the
-`Scaled` form of D13 through `toRational`, or the exponent notation of
-5.0 where that would not fit), with `needsParentheses` set for the UI
-when a fraction will
-precede a unit; an inexact ball falls back to the decimal display and
-says so in its kind; and a zero's bound below `10^-(10^18)` is written as
-5.0 rules (#67).
+`display.ts`: a `fractions` argument; an exact ball is written as the
+decimal display writes it when it is an integer, as its fraction in
+lowest terms when it is not and the numerator and denominator each fit
+within `digits` (recovering the ordinary fraction from the `Scaled` form
+of D13 through `toRational`), and by the decimal display otherwise; the
+`exact` kind carries `fraction: true` when its text is a fraction, so
+that the component can parenthesize it where a unit or the reciprocal's
+`×` follows; an inexact ball is written by the decimal display as
+today, whatever the flag; and `zeroBound` writes a bound whose decimal
+exponent lies below `-10^18` as `1e-1000000000000000000` (#67), which
+closes it.
+
+Tests: 1.9's restated under the flag (`127/50` at eight digits is
+`= 127/50`, `1/3` is `= 1/3`, `sqrt 2` is `≈` with its decimal at any
+digit count, `2 ± 0` from `sqrt(4)` is `= 2`); the fit at the edge
+(`1/10000000` at eight digits, `= 1e-8` at eight for `1e-8`, `5000/127`
+at three digits is `≈ 39.4`, `3^20` at eight is `≈ 3.4867844e+9` and at
+ten `= 3486784401`); the fallback exact (`1.5e-999999999` is
+`= 1.5e-999999999`) and inexact (`(1/3) * 1e30` at eight is
+`≈ 3.3333333e+29`); a negative fraction (`-5000/127`); the flag off
+leaves every kind and text as today; #67's three rows, the bound written
+in a bounded length and the reproduction's line short; and the decimal
+mode rows above through the pipeline.
+
+Behavior: none until 5.2 passes the flag; with it, an exact non-integer
+that fits is a fraction with `=`.
 
 ### 5.2 The UI
 
-The setting; the parentheses before a unit and none for a dimensionless
-value; README's example lines.
+The setting, "Show reduced fractions", a checkbox, `false` by default,
+the sixth field of settings.ts, stored and validated as the others are
+and not part of the `NumberContext`; the component's property beside the
+context, passed to `show` for every term; the parentheses before a unit
+(`= (5000/127) in`, `(-5000/127) in`) and before the reciprocal's
+`× 3 ft`, none for a dimensionless value or a function line's argument
+(`tempF(493/5)`); a unit list's remainder as a fraction, as in
+`1 m = 3 ft + (428/127) in`; README's
+"Settings" bullet with the example lines, and ARCHITECTURE.md ("The
+display rule") the rule and the kind.
+
+Tests: the settings field (parsed, defaulted, saved); the component's
+lines through the pipeline, in both modes, with the flag on and off,
+including the parenthesized, bare and list cases and the reciprocal
+(`in = (1/36) × 3 ft`).
 
 ## Stage 6: the exact functions, then the Gamma and Beta families
 

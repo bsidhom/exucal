@@ -112,11 +112,18 @@ once the name has resolved and before any argument is evaluated.
   from the memo, so `ln(1e999999999)` is a value and `log10(1e999999999)`
   exactly `999999999`.
 - **A result whose decimal exponent would pass the exponent bound**,
-  `10^18`, is refused before anything is computed: `exp`, `sinh`, `cosh`
-  and `pow` predict it from the argument (`exp(1e30)`, `sinh(-1e30)`),
-  and the error names the side, an `underflow` for `exp` of a negative
-  argument and a power toward zero (`exp(-1e30)`), an `overflow`
-  otherwise, `sinh` and `cosh` of either sign included. Within it these
+  `10^18`, is refused before anything is computed when every value of
+  the argument's ball puts it past the bound: `exp`, `sinh`, `cosh` and
+  `pow` hold an interval bounding the result's logarithm to the bound's
+  edges (the classifier of ball.ts; the plan's D18 and H.15), and the
+  error names the side, an `underflow` for `exp` of a negative argument
+  and a power toward zero (`exp(-1e30)`), an `overflow` otherwise, `sinh`
+  and `cosh` of either sign included. An argument whose ball reaches
+  across an edge, so that the result is a value for some of its values
+  and past the bound for others, is `unresolved` at the edge `bound`,
+  which the pipeline retries at more digits
+  (`exp(approx(1e999) - approx(1e999 - 5))` is `5` within `2e948` at its
+  first pass and `≈ 148.41316` at its sixth, issue #40). Within it these
   functions have the
   range of an exponent (4.9): `exp(1e6)` is `≈ 3.0332154e434294` and
   `exp(1e18)` a value with the exponent `434294481903251827`, since the
@@ -330,11 +337,11 @@ x)`, `atan2` an arctangent by quadrant, and `asinh`, `acosh` and
   for `x` negative throughout, `unresolved` at `x` for one straddling
   zero, and the `origin` error for one exactly zero.
 - **The limit on large results.** `exp`, `sinh`, `cosh`, a power in log
-  space and a large decibel share one guard, `expFits` in ball.ts, and
-  are `tooLarge` beyond about 45,000 at the default range limit; `tanh` is
-  not, since for an argument beyond what the working bits can tell from
-  one it is `±1` within `2 e^-2|x|`, a radius the coarse type holds at any
-  magnitude. Since 4.9 the guard is the exponent bound, the squaring loop
+  space and a large decibel shared one guard, `expFits` in ball.ts, and
+  were `tooLarge` beyond about 45,000 at the default range limit; `tanh`
+  was not, since for an argument beyond what the working bits can tell
+  from one it is `±1` within `2 e^-2|x|`, a radius the coarse type holds
+  at any magnitude. Since 4.9 the guard is the exponent bound, the squaring loop
   of `expFixed` renormalizes into a binary exponent, so a large argument
   costs sixty squarings at the working bits, and `sinh` and `cosh` fold
   the reciprocal into the error beyond half the working bits; the
@@ -345,7 +352,11 @@ x)`, `atan2` an arctangent by quadrant, and `asinh`, `acosh` and
   `underflow` for `exp` of a negative argument and a power toward zero,
   and a large decibel no longer reaches it: its body's power of ten is
   exact, and the exponent takes it (`decibel(1e30)` is refused at the
-  bound by the exact power). `tanh` has no guard, and is never refused
+  bound by the exact power). Since H.15 the guard is the classifier
+  (`classifyExp`, `classifyHyperbolic`, `classifyPower` in ball.ts),
+  which refuses only when the whole ball is past an edge and leaves a
+  ball across one `unresolved` at the bound, as the rule above says.
+  `tanh` has no guard, and is never refused
   for its argument's size: a ball of radius one half or more that is not
   saturated, reaching both sides of zero or not, is zero within one, the
   function's whole range, which certifies nothing and lets the retry loop

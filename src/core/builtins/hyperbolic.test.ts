@@ -578,8 +578,21 @@ test("sinh and cosh share the exponential's range, the exponent bound, and tanh 
   assert.equal(format(negative.mid, 8, "halfEven"), "-1.5166077e+434294");
   assert.ok(sinhBall(exact(fr(40000n)), CONTEXT).ok);
   assert.ok(coshBall(exact(fr(-40000n)), CONTEXT).ok);
-  assert.ok(!coshBall(ballOf(ZERO, dec("1e30")), CONTEXT).ok);
+  // A wide ball reaching past the bound is unresolved at the bound, not
+  // refused (D18, H.15), and one within it is a value.
+  assert.deepEqual(coshBall(ballOf(ZERO, dec("1e30")), CONTEXT), {
+    ok: false,
+    error: { kind: "unresolved", argument: 0, edge: "bound" },
+  });
   assert.ok(coshBall(ballOf(ZERO, dec("1e6")), CONTEXT).ok);
+  // The top edge for sinh and cosh is U + ln 2, either sign alike.
+  assert.ok(sinhBall(exact(dec("-2302585092994045687")), CONTEXT).ok);
+  assert.deepEqual(
+    failure(coshBall(exact(dec("2302585092994045688")), CONTEXT)),
+    {
+      kind: "overflow",
+    },
+  );
 });
 
 test("tanh of a wide argument is zero within one, never refused for its size, and sinh and cosh of one contain the functions", () => {

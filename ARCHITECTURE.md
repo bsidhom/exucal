@@ -202,8 +202,13 @@ Three rules say where, and only where, a value can lose precision:
    that straddles an edge of the domain (`ln` at zero, `asin` at one,
    `tan` at a pole) is `unresolved` at that edge, which the retry loop
    retries; a result whose decimal exponent would pass the exponent bound
-   (`exp(1e30)`) is refused before it is computed, an `overflow`, or an
-   `underflow` for one that would fall below it (`exp(-1e30)`), while
+   for every value of the argument's ball (`exp(1e30)`) is refused before
+   it is computed, an `overflow`, or an `underflow` for one that would
+   fall below it (`exp(-1e30)`), and one that passes it for some values
+   and not for others is `unresolved` at the edge `bound`, retried, the
+   classifier of ball.ts holding an interval bounding the result's
+   logarithm to the edges for `exp`, `sinh`, `cosh` and the powers alike
+   (the plan's D18 and H.15), while
    `exp(1e6)`,
    `cosh(1e6)` and `2^(1e6/3)` are values: the exponential returns a
    `Floating`, a mantissa of the working bits with a binary exponent,

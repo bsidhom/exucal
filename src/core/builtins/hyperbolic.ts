@@ -12,12 +12,15 @@
 // cases: zero for `sinh`, `tanh`, `asinh` and `atanh`, `cosh(0)` is one,
 // and `acosh(1)` is zero.
 //
-// `sinh` and `cosh` are guarded by magnitude as `exp` is, and share its
-// range (3.6, then 4.9): an argument whose magnitude over its whole ball
-// would put the result beyond the exponent bound is an `overflow` at the
-// call, through `expFits`, before anything is computed, for an argument
-// of either sign, both being large in magnitude there (`cosh(-1e30)` is
-// as large as `cosh(1e30)`), and otherwise the
+// `sinh` and `cosh` are held to the exponent bound as `exp` is, and share
+// its range (3.6, then 4.9, then H.15): the classifier of ball.ts
+// (`classifyHyperbolic`) holds `|x| - ln 2`, the logarithm of either's
+// magnitude within an ulp, to the top edge over the whole ball, an
+// `overflow` at the call before anything is computed only when every
+// value of the argument puts the result past the top, for an argument of
+// either sign, both being large in magnitude there (`cosh(-1e30)` is as
+// large as `cosh(1e30)`), `unresolved` at the edge `bound` when some do,
+// and otherwise the
 // kernel's pair of `Floating`s comes out through digits.ts
 // (`floatingToBall`), so that `sinh(1e6)` and `cosh(1e6)` are values. `tanh` is not: for an argument
 // whose magnitude throughout its ball is beyond what the working bits can
@@ -69,16 +72,15 @@
 // (`farLogarithm`, on `lnScaled`, which takes any exponent), with the
 // argument's radius over its distance from zero added, the slope of the
 // logarithm; `tanh`'s saturation stands and comes first, and `sinh` and
-// `cosh` are bounded by `expFits`, the exponent bound.
+// `cosh` are held to the exponent bound by the classifier.
 
 import {
   addBalls,
+  classifyHyperbolic,
   divideBalls,
   exact,
-  expFits,
   isExact,
   lnScaled,
-  magnitudeAbove,
   magnitudeBelow,
   multiplyBalls,
   position,
@@ -333,16 +335,23 @@ function out(result: Result<Ball, BallError>): Result<Ball, BuiltinError> {
 
 /**
  * The kernel's hyperbolic sine and cosine of the bounded `x` at the
- * context, or `overflow` when the result would exceed the exponent bound:
- * a small `x` is converted at as many more fraction bits as its magnitude
- * is below one, so that the kernel keeps its digits.
+ * context, held to the exponent bound by the classifier as the header
+ * says: a small `x` is converted at as many more fraction bits as its
+ * magnitude is below one, so that the kernel keeps its digits.
  */
 function sinhCosh(
   x: Ball,
   context: NumberContext,
 ): Result<SinhCosh, BuiltinError> {
-  if (!expFits(radiusBound(magnitudeAbove(x)))) {
-    return err({ kind: "overflow" });
+  switch (classifyHyperbolic(x, context)) {
+    case "overflow":
+      return err({ kind: "overflow" });
+    case "underflow":
+      throw new Error("The hyperbolic functions are held to the top alone");
+    case "unresolved":
+      return err({ kind: "unresolved", argument: 0, edge: "bound" });
+    case "compute":
+      break;
   }
   const bits = bitsFor(context.precision);
   return ok(

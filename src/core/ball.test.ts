@@ -5,6 +5,9 @@ import {
   addBalls,
   certifiedDigits,
   certifies,
+  classifyExp,
+  classifyHyperbolic,
+  classifyPower,
   containsZero,
   divideBalls,
   exact,
@@ -966,16 +969,17 @@ test("powRationalBall composes the power and the root, root last", () => {
       multiplyFractions(absoluteFraction(fraction(reference)), tenTo(30)),
     ) < 0,
   );
-  // A base straddling zero whose power passes the exponent bound is
-  // refused, past it on the side of its midpoint; one whose power fits is
-  // a ball around zero under an odd root.
-  assertError(
+  // A base straddling zero whose power reaches past the top of the
+  // exponent bound, while its values near zero stay within, is
+  // unresolved at the bound (D18; stage 4 refused it by its midpoint);
+  // one whose power fits is a ball around zero under an odd root.
+  assert.deepEqual(
     powRationalBall(
       ball(dec("0.5"), dec("1")),
       rational(10n ** 19n, 3n),
       at(5),
     ),
-    "underflow",
+    { ok: false, error: { kind: "unresolved", edge: "bound" } },
   );
   assert.ok(
     containsZero(
@@ -1061,15 +1065,162 @@ test("a root the kernel cannot take goes to log space, and a mantissa below one 
 test("powLogSpace of an exponent below half an ulp converts it to zero within an ulp, and the power is one within a few ulps", () => {
   // The exponent is far below 2^-maxBits: its fraction could not be
   // formed, and the kernel's door answers it (H.2, issue #53).
+  // Since H.15 the classifier answers first: one within twice the bound
+  // on `|y ln x|`, a radius far below the working sizes, which the
+  // bounds compare and no fraction forms.
   for (const y of ["1e-999999999", "-1e-999999999", "1e-400000"]) {
     const power = unwrap(powLogSpace(exact(fr(2n)), exact(dec(y)), at(8)));
-    assertContains(power, ONE, `2^${y}`);
-    assert.ok(compareFractions(radiusUpper(power.rad), tenTo(15)) < 0, y);
+    assert.deepEqual(power.mid, ONE, `2^${y}`);
+    assert.ok(compareRadius(power.rad, powerOfTenRadius(-15n)) < 0, y);
     const wide = unwrap(
       powLogSpace(exact(fr(10n)), ball(dec(y), dec("1e-999999999")), at(8)),
     );
-    assertContains(wide, ONE, `10^(${y} ± 1e-999999999)`);
+    assert.deepEqual(wide.mid, ONE, `10^(${y} ± 1e-999999999)`);
+    assert.ok(compareRadius(wide.rad, powerOfTenRadius(-15n)) < 0, y);
   }
+});
+
+// ---------------------------------------------------------------------------
+// The exponent bound on a logarithm
+
+test("the classifier holds exp, sinh and cosh to the bound by the whole argument, exactly at the edges (D18, H.15)", () => {
+  const context = at(8);
+  // U = (10^18 + 1) ln 10 = 2302585092994045686.32…, and D = -10^18 ln 10
+  // = -2302585092994045684.02…: an exact argument on either side of an
+  // edge is decided, by the kernel where the coarse bounds cannot tell.
+  const near = (text: string) => classifyExp(exact(dec(text)), context);
+  assert.equal(near("2302585092994045686"), "compute");
+  assert.equal(near("2302585092994045687"), "overflow");
+  assert.equal(near("2302585092994045686.3"), "compute");
+  assert.equal(near("2302585092994045686.4"), "overflow");
+  assert.equal(near("-2302585092994045684"), "compute");
+  assert.equal(near("-2302585092994045685"), "underflow");
+  assert.equal(near("-2302585092994045684.01"), "compute");
+  assert.equal(near("-2302585092994045684.02"), "underflow");
+  assert.equal(near("1e18"), "compute");
+  assert.equal(near("1e30"), "overflow");
+  assert.equal(near("-1e30"), "underflow");
+  // A ball straddling an edge, or wider than the whole band within the
+  // bound, is unresolved, however its midpoint lies.
+  assert.equal(
+    classifyExp(ball(dec("2302585092994045686"), dec("1")), context),
+    "unresolved",
+  );
+  assert.equal(classifyExp(ball(ZERO, dec("1e30")), context), "unresolved");
+  assert.equal(
+    classifyExp(ball(dec("5"), dec("2e948")), context),
+    "unresolved",
+  );
+  assert.equal(
+    classifyExp(ball(dec("1e46"), dec("1e46")), context),
+    "unresolved",
+  );
+  // sinh and cosh: |x| - ln 2 against the top alone, either sign alike.
+  const hyper = (text: string) => classifyHyperbolic(exact(dec(text)), context);
+  assert.equal(hyper("2302585092994045687"), "compute");
+  assert.equal(hyper("-2302585092994045687"), "compute");
+  assert.equal(hyper("2302585092994045688"), "overflow");
+  assert.equal(hyper("-2302585092994045688"), "overflow");
+  assert.equal(hyper("-1e30"), "overflow");
+  assert.equal(
+    classifyHyperbolic(ball(ZERO, dec("1e30")), context),
+    "unresolved",
+  );
+});
+
+test("the classifier holds a power to the bound by the interval of y ln x (D18, H.15)", () => {
+  const context = at(8);
+  const kind = (x: Ball, y: Ball) => classifyPower(x, y, context).kind;
+  // Coarse: far within, and far past on the side the signs give.
+  assert.equal(kind(exact(fr(2n)), exact(dec("1e18"))), "compute");
+  assert.equal(kind(exact(fr(2n)), exact(dec("1e19"))), "overflow");
+  assert.equal(kind(exact(fr(2n)), exact(dec("-1e19"))), "underflow");
+  assert.equal(kind(exact(dec("0.5")), exact(dec("1e19"))), "underflow");
+  assert.equal(kind(exact(dec("0.5")), exact(dec("-1e19"))), "overflow");
+  // On the kernel, within the coarse slack of the edge: 10^(10^18 + 1)
+  // is the top exactly, so an exponent on it is unresolved at any
+  // precision, and one a hundredth away is decided.
+  assert.equal(
+    kind(exact(fr(10n)), exact(dec("1000000000000000000.99"))),
+    "compute",
+  );
+  assert.equal(
+    kind(exact(fr(10n)), exact(dec("1000000000000000001"))),
+    "unresolved",
+  );
+  assert.equal(
+    kind(exact(fr(10n)), exact(dec("1000000000000000001.01"))),
+    "overflow",
+  );
+  // The bottom edge exactly, `10^-(10^18)`, which the kernel cannot tell
+  // from a hair past it (an exact integer exponent never comes here: the
+  // exact route forms the power and holds it to the bound itself).
+  assert.equal(
+    kind(exact(fr(10n)), exact(dec("-1000000000000000000"))),
+    "unresolved",
+  );
+  assert.equal(
+    kind(exact(fr(10n)), exact(dec("-1000000000000000000.01"))),
+    "underflow",
+  );
+  // A base near one is bounded by its exact difference from one: the
+  // interval of an inexact base of one straddles both edges for sure,
+  // whatever the bits the kernel would need (#46's `pow(approx(1),
+  // 1e999999999)`), and a tiny difference times a huge exponent is one
+  // within twice their product, without the kernel.
+  const nearOne = ball(ONE, dec("1e-7"));
+  assert.deepEqual(classifyPower(nearOne, exact(dec("1e999999999")), context), {
+    kind: "unresolved",
+    edge: "bound",
+  });
+  const tiny = classifyPower(
+    ball(ONE, dec("1e-30")),
+    exact(dec("1e5")),
+    context,
+  );
+  assert.equal(tiny.kind, "one");
+  assert.ok(
+    tiny.kind === "one" &&
+      compareRadius(tiny.rad, powerOfTenRadius(-24n)) < 0 &&
+      compareRadius(tiny.rad, powerOfTenRadius(-25n)) > 0,
+  );
+  // Where the kernel's decision would need more bits than the range limit
+  // holds: the bound answers where it is at most a half, and the rest is
+  // too large.
+  const wholeUp = exact(dec("1.000000001e0"));
+  assert.equal(kind(wholeUp, exact(dec("1e30"))), "overflow");
+  const hair = ball(ONE, dec("1e-999999999"));
+  assert.equal(kind(hair, exact(dec("2e999999998"))), "one");
+  assert.equal(kind(hair, exact(dec("1e999999999"))), "tooLarge");
+  // A base reaching zero is held to the top alone: the values near zero
+  // are within, and the top is reached through the upper end; one with a
+  // zero midpoint is zero within its radius to the power, from the
+  // radius's logarithm, quick for a huge exponent (#62), and unresolved
+  // at the bound where that radius reaches the top.
+  const zero = ball(ZERO, dec("1e12"));
+  const start = performance.now();
+  const small = unwrap(powBall(zero, 100000n, context));
+  assert.deepEqual(small.mid, ZERO);
+  assert.ok(compareRadius(small.rad, powerOfTenRadius(1200000n)) >= 0);
+  assert.ok(compareRadius(small.rad, powerOfTenRadius(1200001n)) < 0);
+  assert.deepEqual(powBall(zero, 10n ** 10000n, context), {
+    ok: false,
+    error: { kind: "unresolved", edge: "bound" },
+  });
+  assert.ok(performance.now() - start < 200, "milliseconds, not a minute");
+  const around = ball(dec("0.5"), dec("1"));
+  assert.equal(kind(around, exact(dec("1e19"))), "unresolved");
+  assert.equal(kind(around, exact(dec("100"))), "compute");
+  assert.deepEqual(classifyPower(around, exact(dec("-3")), context), {
+    kind: "unresolved",
+    edge: ZERO,
+  });
+  // An exponent straddling zero over a base at the bottom edge reaches
+  // past the top and within (the ball sweep's `pow(1e-10^18, 0±1e9)`).
+  assert.equal(
+    kind(exact(dec(`1e-${E18}`)), ball(ZERO, dec("1e9"))),
+    "unresolved",
+  );
 });
 
 // ---------------------------------------------------------------------------

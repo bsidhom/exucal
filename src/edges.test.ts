@@ -82,34 +82,6 @@ import { rational } from "./core/rational.ts";
  */
 const KNOWN: readonly Known[] = [
   {
-    issue: "#40",
-    task: "H.15",
-    cases:
-      /^(exp|sinh|cosh|pow\(2, )\(?(approx\(1e999\) - approx\(1e999 - 5\)|approx\(1e60\) - approx\(1e60\)|1e60 \* sqrt\(2\) - 1e60 \* sqrt\(2\))\)/,
-    violation: /got the error overflow$/,
-    reason:
-      "The guard of the exponential family and of the log-space power measures the whole argument's ball, so a radius alone refuses `exp`, and `resolve` does not retry a refusal; H.15's classifier refuses only when every value passes the bound and leaves the rest `unresolved`.",
-  },
-  {
-    issue: "#46",
-    task: "H.15",
-    cases:
-      /^(approx\(1\)\^1000000000000000000000000000000|pow\(1 \+ 1e-400, approx\(1e400\)\)|pow\(approx\(1\), 1e999999999\)|pow\(1 \+ \(approx\(1\/3\) - 1\/3\) \* 1e20, 1e999999999\))/,
-    violation: /got the error (overflow|underflow|tooLarge)$/,
-    reason:
-      "`powBall`'s guard adds an absolute slack of `10^-9` to the base's `|log2|`, `powLogSpace` refuses an exponent a double cannot hold before it looks at `ln x`, and `pow` refuses an exact exponent it cannot form by the base's midpoint alone; H.15's classifier bounds `y ln x` on the interval and leaves a base of magnitude one `unresolved` at the bound.",
-  },
-  {
-    issue: "#61",
-    task: "H.15",
-    cases:
-      /^(exp\(-?2302585092994045(000|685)\)|approx\(1e499999999900000000\)\^2|approx\(9e999999999999999999\)\^1|\(1e-999999999999999999 \* \(1 \+ approx\(1e-30\)\)\)\^-1|pow\(10, 1000000000000000000\.5 \+ \(approx\(1e8\) - approx\(1e8\)\)\) \[decimal\])/,
-    violation:
-      /(got the error (overflow|underflow)|\|mid\| \+ rad reaches 10\^\(10\^18 \+ 1\).*)$/,
-    reason:
-      "The guards bound the result's decimal exponent in doubles and through a 30-bit radius, with slack of up to `10^9` decades, and `floatingToBall` checks nothing; H.15 classifies on an interval bounding the logarithm, exactly where the coarse bounds cannot tell.",
-  },
-  {
     issue: "#63",
     task: "a follow-up",
     cases: /^(asin|acos|acosh)\((0\.1|1\.5) \+ 1e-15000\)$/,
@@ -120,14 +92,7 @@ const KNOWN: readonly Known[] = [
 ];
 
 /** The cases known to hang, not run. */
-const SKIPS: readonly Skip[] = [
-  {
-    issue: "#62",
-    cases: /^\(approx\(1e20\) - approx\(1e20\)\)\^1e1(0000|00000)/,
-    reason:
-      "A power of a ball around zero squares the radius once per bit of the exponent, whose binary exponent gains a bit each step; `^1e10000` takes a second a pass and `^1e100000` a minute. H.15 takes the radius from `log2` of the radius times `n`.",
-  },
-];
+const SKIPS: readonly Skip[] = [];
 
 /** The deadline on the whole sweep. */
 const DEADLINE_MS = 90_000;
@@ -289,8 +254,13 @@ const CASES: readonly TextCase[] = [
   { text: "pow(2, 1e-400)", expect: digits("1") },
   { text: "2^1e-400", expect: digits("1") },
   { text: "pow(2, 1e-300)", expect: digits("1") },
-  // #46: powers near one, and of 0 and ±1; H.6, H.15 and H.16.
-  { text: "approx(1)^1000000000000000000000000000000", expect: digits("1") },
+  // #46: powers near one, and of 0 and ±1; H.6, H.15 and H.16. In decimal
+  // mode `approx(1)` is one within `1e-7`, whose power reaches past both
+  // edges of the bound and within it: `unresolved` at the bound, final.
+  {
+    text: "approx(1)^1000000000000000000000000000000",
+    expect: { exact: digits("1"), decimal: UNRESOLVED },
+  },
   { text: "pow(1, approx(1e400))", expect: digits("1") },
   // In decimal mode the base rounds to one within `1e-400`, and the power
   // is a ball around one that certifies nothing.
@@ -301,7 +271,12 @@ const CASES: readonly TextCase[] = [
   { text: "pow(1, 1e999999999)", expect: digits("1") },
   { text: "pow(-1, 1e999999999)", expect: digits("1") },
   { text: "pow(0, 1e999999999)", expect: ZERO_VALUE },
-  { text: "approx(1.0000001)^1e30", expect: refused("overflow") },
+  // In decimal mode the base's ball touches one, so the power reaches
+  // one as well as past the top.
+  {
+    text: "approx(1.0000001)^1e30",
+    expect: { exact: refused("overflow"), decimal: UNRESOLVED },
+  },
   { text: "pow(2, approx(1e400))", expect: refused("overflow") },
   { text: "pow(approx(1), 1e999999999)", expect: UNRESOLVED },
   {
@@ -519,24 +494,26 @@ const CASES: readonly TextCase[] = [
     text: "(approx(1e30) - approx(1e30)) * 3e999999999999999977 + (approx(1e30) - approx(1e30)) * 3e999999999999999977",
     expect: { exact: ZERO_VALUE, decimal: UNRESOLVED },
   },
-  // #61: the guards refuse within 10^9 decades of the bound; H.15.
+  // #61: the guards refused within 10^9 decades of the bound. In decimal
+  // mode the argument is settled to eight digits first, a ball of radius
+  // `5e10` straddling the edge: `unresolved` at the bound, final.
   {
     text: "exp(2302585092994045000)",
     expect: {
       exact: digits("8.6e+999999999999999702"),
-      decimal: refused("overflow"),
+      decimal: UNRESOLVED,
     },
   },
   {
     text: "exp(-2302585092994045000)",
     expect: {
       exact: digits("1.2e-999999999999999703"),
-      decimal: refused("underflow"),
+      decimal: UNRESOLVED,
     },
   },
   {
     text: "exp(2302585092994045685)",
-    expect: { exact: digits(`2.7e+${E18}`), decimal: refused("overflow") },
+    expect: { exact: digits(`2.7e+${E18}`), decimal: UNRESOLVED },
   },
   {
     text: "approx(1e499999999900000000)^2",
@@ -561,10 +538,22 @@ const CASES: readonly TextCase[] = [
     expect: digits(`1e+${E18_LESS_ONE}`),
   },
   { text: "exp(2302587288910310144)", expect: refused("overflow") },
-  // #62: a power of a ball around zero takes a minute; H.15 (two rows skipped).
+  // #62: a power of a ball around zero took a minute. The radius comes
+  // from its logarithm times the exponent; where it reaches the top of
+  // the bound the ball is `unresolved` there, as a product's is (D18).
+  // The retry loop narrows the ball below one, whose power is then tiny;
+  // in decimal mode the one pass is final. The last exponent is past the
+  // range limit as a fraction, so the power is `tooLarge` (H.16 leaves a
+  // base reaching zero as it is).
   { text: "(approx(1e20) - approx(1e20))^100000", expect: ZERO_VALUE },
-  { text: "(approx(1e20) - approx(1e20))^1e10000", expect: ZERO_VALUE },
-  { text: "(approx(1e20) - approx(1e20))^1e100000", expect: ZERO_VALUE },
+  {
+    text: "(approx(1e20) - approx(1e20))^1e10000",
+    expect: { exact: ZERO_VALUE, decimal: UNRESOLVED },
+  },
+  {
+    text: "(approx(1e20) - approx(1e20))^1e100000",
+    expect: refused("tooLarge"),
+  },
   // #63: asin, acos and acosh of an exact argument with a long mantissa; a follow-up.
   { text: "asin(0.1 + 1e-15000)", expect: digits("0.10016742") },
   { text: "acos(0.1 + 1e-15000)", expect: digits("1.4706289") },

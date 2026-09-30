@@ -337,6 +337,25 @@ test("an inexact exponent is log space for a positive base, and the base's sign 
       { kind },
     );
   }
+  // An exponent straddling the edge of the bound is unresolved at the
+  // bound, located at the argument whose radius widens `y ln x` more
+  // (H.15): the exponent's here, the base's where the base is wide.
+  assert.deepEqual(
+    failure(powBallOf(exact(fr(2n)), ball("3e18", "2e18"), CONTEXT)),
+    {
+      kind: "unresolved",
+      argument: 1,
+      edge: "bound",
+    },
+  );
+  assert.deepEqual(
+    failure(powBallOf(ball("2", "1"), ball("3e18", "1"), CONTEXT)),
+    {
+      kind: "unresolved",
+      argument: 0,
+      edge: "bound",
+    },
+  );
   // A wide exponent gives a wide result: a ball that covers 10^100000.
   const wideExponent = value(
     powBallOf(exact(fr(10n)), ball("100000", "1"), CONTEXT),
@@ -536,6 +555,47 @@ test("through the pipeline, the exact bases 0, 1 and -1 are exact values where t
     );
   }
   const primitives = table.value.primitives;
+  // #46's rows 1 and 3, and an exact exponent whose fraction cannot be
+  // formed over an inexact base, decided by the classifier on the
+  // interval (H.15): a base of one within `1e-17` to `1e999999999` reaches
+  // past both edges of the bound and within it at every precision.
+  for (const [text, digits] of [
+    ["approx(1)^1000000000000000000000000000000", "1"],
+    ["pow(1 + 1e-400, approx(1e400))", "2.7182818"],
+    [
+      "(10 + (1e40 - approx(1/3) * 3e40) * 1e-20)^1e18",
+      "1e+1000000000000000000",
+    ],
+  ] as const) {
+    const result = evaluateText(table.value, text, context);
+    assert.ok(result.ok, `${text}: ${inspect(result)}`);
+    assert.equal(
+      show(result.value.magnitude, 8, DEFAULT_ROUNDING).text,
+      digits,
+      text,
+    );
+  }
+  for (const text of [
+    "pow(approx(1), 1e999999999)",
+    "pow(1 + (approx(1/3) - 1/3) * 1e20, 1e999999999)",
+  ]) {
+    const result = evaluateText(table.value, text, context);
+    assert.ok(!result.ok, text);
+    assert.equal(result.error.kind, "unresolved", text);
+    assert.ok("edge" in result.error && result.error.edge === "bound", text);
+  }
+  // Neither throws nor hangs: the near-one bound admits it, one within
+  // twice `y ln x`'s bound, where the kernel would need three billion
+  // bits.
+  const start = performance.now();
+  const admitted = evaluateText(
+    table.value,
+    "pow(1 + (approx(1e-999999999) - 1e-999999999), approx(1e999999999))",
+    context,
+  );
+  assert.ok(admitted.ok, inspect(admitted));
+  assert.equal(show(admitted.value.magnitude, 8, DEFAULT_ROUNDING).text, "1");
+  assert.ok(performance.now() - start < 1000, "milliseconds, not seconds");
   for (const [text, message] of [
     ["pow(0, -1e999999999)", 'Division by zero in "pow(0, -1e999999999)".'],
     [

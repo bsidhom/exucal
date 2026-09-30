@@ -40,11 +40,14 @@
 // with an unbounded radius.
 
 import {
+  classifyPower,
   exact,
   isExact,
+  logPowerBlame,
   powLogSpace,
   powRationalBall,
   type Ball,
+  type BallError,
 } from "../ball.ts";
 import {
   checkPositive,
@@ -103,7 +106,10 @@ export function powBallOf(
     const exponent = toRational(y.mid, context.maxBits);
     if (!exponent.ok) {
       if (isExact(x) && equals(x.mid, MINUS_ONE)) return minusOneTo(y.mid);
-      return err(powerRefusal(x.mid, y.mid) ?? { kind: "tooLarge" });
+      if (isExact(x)) {
+        return err(powerRefusal(x.mid, y.mid) ?? { kind: "tooLarge" });
+      }
+      return unformable(x, y, context);
     }
     const power = powRationalBall(x, exponent.value, context);
     return power.ok ? power : err(fromBallError(power.error, 0));
@@ -111,7 +117,53 @@ export function powBallOf(
   const positive = checkPositive(x, 0);
   if (!positive.ok) return positive;
   const power = powLogSpace(x, y, context);
-  return power.ok ? power : err(fromBallError(power.error, 0));
+  return power.ok ? power : err(located(power.error, x, y));
+}
+
+/**
+ * `x^y` for an inexact `x` and an exact `y` whose fraction cannot be
+ * formed within the range limit: the classifier decides on the interval
+ * of `y ln |x|` (H.15), where stage 4 refused by the midpoint alone
+ * (`pow(approx(1), 1e999999999)` was `tooLarge`, and a base of one
+ * within `1e12` to that exponent `underflow`, issue #46). A refusal or an
+ * `unresolved` is the power's; one within a bound is the answer where the
+ * classifier gives it; a power it would compute is taken in log space for
+ * a base positive throughout, and is `tooLarge` for a base of either
+ * other sign, whose parity the exponent's form does not settle.
+ */
+function unformable(
+  x: Ball,
+  y: Ball,
+  context: NumberContext,
+): Result<Ball, BuiltinError> {
+  const held = classifyPower(x, y, context);
+  switch (held.kind) {
+    case "overflow":
+    case "underflow":
+    case "tooLarge":
+      return err({ kind: held.kind });
+    case "unresolved":
+      return err({ kind: "unresolved", argument: 0, edge: held.edge });
+    case "one":
+      return sideOfZero(x) === "positive"
+        ? ok({ mid: ONE, rad: held.rad })
+        : err({ kind: "tooLarge" });
+    case "compute": {
+      if (sideOfZero(x) !== "positive") return err({ kind: "tooLarge" });
+      const power = powLogSpace(x, y, context);
+      return power.ok ? power : err(located(power.error, x, y));
+    }
+  }
+}
+
+/** A log-space power's failure as the built-in's: an `unresolved` at the bound at the argument whose radius contributes more to `y ln x`, and any other at the base. */
+function located(error: BallError, x: Ball, y: Ball): BuiltinError {
+  return fromBallError(
+    error,
+    error.kind === "unresolved" && error.edge === "bound"
+      ? logPowerBlame(x, y)
+      : 0,
+  );
 }
 
 /**

@@ -5,13 +5,16 @@
 // converted at the working bits, passed through the kernel, and handed
 // back as the kernel's ball, rounded in no mode, for the evaluator to
 // settle (D15). An argument of unbounded radius gives the exponential of
-// its midpoint with an unbounded radius. The result's magnitude is guarded
-// before anything is computed: `exp(x)` has the decimal exponent
-// `x log10 e`, so an argument whose magnitude, taken over its whole ball,
-// exceeds the exponent bound divided by `log10 e` is refused (`expFits`
-// of ball.ts, which the log-space power shares), which refuses `exp(1e30)`
-// and `exp(-1e30)` alike, an `overflow` and an `underflow` as the
-// argument's midpoint is positive or negative, while `exp(1e6)` and
+// its midpoint with an unbounded radius. The result's magnitude is held
+// to the exponent bound before anything is computed, by the classifier
+// of ball.ts (`classifyExp`; D18, the plan's H.15), on the whole ball of
+// the argument: `exp(x)` has the natural logarithm `x`, so the argument
+// is refused only when every value of its ball lies past an edge of the
+// bound, `exp(1e30)` an `overflow` and `exp(-1e30)` an `underflow`, and
+// is `unresolved` at the edge `bound`, retried by the pipeline, when some
+// values lie past and some within, as a wide ball's do
+// (`exp(approx(1e999) - approx(1e999 - 5))` at its first pass, issue #40,
+// which stage 4 refused for good), while `exp(1e6)` and
 // `exp(1e18)` are values (4.9): the kernel returns a `Floating`, a
 // mantissa with a binary exponent, which comes out through digits.ts
 // (`floatingToBall`), exactly where the exponent is within the range
@@ -26,11 +29,10 @@
 // (`fixedFromScaled`), which the exponential of gives `≈ 1` as well.
 
 import {
+  classifyExp,
   exact,
-  expFits,
   isExact,
   magnitudeAbove,
-  radiusBound,
   type Ball,
 } from "../ball.ts";
 import {
@@ -48,7 +50,7 @@ import { expFixed } from "../fixed-exp.ts";
 import { bitsFor, fixedFromBall } from "../fixed.ts";
 import { shiftRadius } from "../radius.ts";
 import { err, ok, type Result } from "../result.ts";
-import { ONE, equals, isZero, sign } from "../scaled.ts";
+import { ONE, equals, isZero } from "../scaled.ts";
 
 /** `exp(x)` at the context, as the header says. */
 export function expBall(
@@ -66,8 +68,15 @@ export function expBall(
   if (isTiny(x, context)) {
     return ok({ mid: ONE, rad: shiftRadius(magnitudeAbove(x), 1n) });
   }
-  if (!expFits(radiusBound(magnitudeAbove(x)))) {
-    return err({ kind: sign(x.mid) < 0 ? "underflow" : "overflow" });
+  switch (classifyExp(x, context)) {
+    case "overflow":
+      return err({ kind: "overflow" });
+    case "underflow":
+      return err({ kind: "underflow" });
+    case "unresolved":
+      return err({ kind: "unresolved", argument: 0, edge: "bound" });
+    case "compute":
+      break;
   }
   const bits = bitsFor(context.precision);
   const result = floatingToBall(

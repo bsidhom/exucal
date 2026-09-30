@@ -12,6 +12,7 @@ import {
   log2OfRadius,
   multiplyRadius,
   powRadius,
+  powRadiusAbove,
   powerOfTenRadius,
   powerOfTwoRadius,
   radiusAbove,
@@ -214,6 +215,32 @@ test("the operations are exact where the mantissas allow, so equal radii are equ
   assert.deepEqual(maxRadius(two, three), three);
   assert.deepEqual(maxRadius(three, two), three);
   assert.deepEqual(maxRadius(two, two), two);
+});
+
+test("powRadiusAbove is at or above the power, within a little of powRadius, and quick for a huge exponent (#62)", () => {
+  const values = seeded();
+  for (const r of values) {
+    const rad = radiusAbove(r);
+    for (const n of [1n, 2n, 3n, 7n, 10n]) {
+      const p = pow(radiusUpper(rad), n, LIMIT_BITS);
+      assert.ok(p.ok);
+      // The 40-bit fraction's margin is a relative 2^-40 times n, which
+      // the slack of one product covers for these n, on top of the
+      // mantissa's own 2^-29.
+      assertBounds(powRadiusAbove(rad, n), p.value, multiply(SLACK, SLACK));
+    }
+  }
+  const start = performance.now();
+  const huge = powRadiusAbove(
+    radiusAbove(rational(10n ** 12n)),
+    10n ** 100000n,
+  );
+  assert.ok(huge.kind === "bounded" && huge.exp > 10n ** 100000n);
+  assert.ok(performance.now() - start < 100, "one multiplication");
+  assert.throws(
+    () => powRadiusAbove(radiusAbove(rational(2n)), 0n),
+    RangeError,
+  );
 });
 
 test("zero is the identity of add and max, annihilates multiply, and powers as pow does", () => {

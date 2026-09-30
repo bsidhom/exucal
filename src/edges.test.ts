@@ -1,7 +1,7 @@
 // The edge sweep at the text level (docs/calculator-plan.md, H.10):
 // `parseExpr`, `evaluateText` and `convertText` on the reproductions of
 // every issue filed against stage 4's code, in both modes, with `show` and
-// `roundTerms` called as unit-converter.ts calls them, so that the
+// `roundTerms` called as outcome.ts calls them, so that the
 // display's own steps run too. Each case carries what the decisions say
 // it should give (a value with these digits, or containing this point; a
 // refusal of this kind; an error of this kind; a unit list), and the
@@ -773,7 +773,7 @@ function judgeConversion(
 }
 
 /**
- * The display's steps on a unit list, as `listResult` in unit-converter.ts
+ * The display's steps on a unit list, as `listResult` in outcome.ts
  * takes them, and the check that the terms shown add up to the `have`: each
  * term's text times its unit's midpoint, summed, within the rounding of the
  * remainder's certified digits of the `have`.

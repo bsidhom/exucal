@@ -740,6 +740,9 @@ hook's output at session start says which part is out of date.
 - `src/limits.ts` is the probe behind the "Recommend limits" button: it
   times the app's costliest operations on this device and proposes the two
   limits. `src/limits.test.ts` checks it against a fake clock.
+- `src/outcome.ts` turns the pipeline's result for a pair of texts into the
+  lines the output area shows, with `=` or `≈` and the notes; it has no DOM
+  dependency, so `src/outcome.test.ts` checks the lines under Node.js.
 - `src/unit-converter.ts` defines `<unit-converter>`, the two inputs and the
   output area that make up the app; `ARCHITECTURE.md` ("UI") describes it.
 - `src/messages.ts` turns the errors the core returns into the sentences the

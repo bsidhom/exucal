@@ -1210,11 +1210,13 @@ Result`, and `src/core/pipeline.ts` is that function: `convertText` parses
 and evaluates each text and converts the pair, and returns each step's own
 error, a text's tagged with the side (`have` or `want`) it came from, so
 that the component can mark the input at fault, and the conversion's
-about the pair. The component also calls the display's `show` and
-`roundTerms`, and parses the `want` again to write it (below), which are
-views of the result rather than steps of it. `evaluateText` is the first half
-alone; with the `want` field blank, the component uses it to show what
-`have` is in the primitives (`1 in = 0.0254 m`), as GNU units does.
+about the pair. `src/outcome.ts` turns that result into the lines the
+output area shows: it calls the display's `show` and `roundTerms`, and
+parses the `want` again to write it (below), which are views of the
+result rather than steps of it, and it has no DOM dependency, so
+`outcome.test.ts` checks the lines under Node. `evaluateText` is the first
+half alone; with the `want` field blank, the outcome is what `have` is in
+the primitives (`1 in = 0.0254 m`), as GNU units does.
 
 A conversion into a function is one line, the `have` and then the call at
 the recovered argument, `tempF(212) = tempC(100)`, the argument written as
@@ -1383,7 +1385,8 @@ src/system-table.ts       loadSystemDefinitions: fetches and parses the system d
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
 src/settings.ts           Settings: the digits, the rounding mode, the exact or decimal mode and the two limits, in localStorage; contextOf
 src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
-src/unit-converter.ts     the component
+src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result; src/outcome.test.ts checks them
+src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome
 src/app-shell.ts          the host: loads the table, renders the component
 ```
 
@@ -1402,7 +1405,7 @@ radius of about `1e-30`, in decimal mode too where an operation reads the
 mode. At the text level, src/edges.test.ts runs `parseExpr`, `evaluateText`
 and `convertText` on the reproductions of every issue filed against stage
 4's code, in both modes, with `show` and `roundTerms` called as
-unit-converter.ts calls them. Each case is checked for what this document
+outcome.ts calls them. Each case is checked for what this document
 rules out: a throw; a refusal where the decisions allow none (`overflow`
 or `underflow` only when every value of the true result passes the bound,
 `tooLarge` only at a documented site, a domain error only for an argument

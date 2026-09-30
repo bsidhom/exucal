@@ -438,6 +438,7 @@ function checkFunction(
       lookup,
     ),
     primitives,
+    context.maxBits,
   );
   if (!forward.ok) return err(forward.error);
   const forwardConforms = checkConformance(
@@ -457,6 +458,7 @@ function checkFunction(
     definition.inverse,
     boundDimensions(definition.name, result.value.quantity.dimension, lookup),
     primitives,
+    context.maxBits,
   );
   if (!inverse.ok) return err(inverse.error);
   const inverseConforms = checkConformance(

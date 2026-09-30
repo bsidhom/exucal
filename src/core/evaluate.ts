@@ -13,8 +13,18 @@
 // A number is a dimensionless quantity, a unit name is whatever the `Lookup`
 // says it is, and the operators are the quantity arithmetic of `quantity.ts`:
 // juxtaposition and `*` multiply, `/` divides, `+` and `-` add and subtract,
-// a leading `-` negates, and `^` raises to the rational exponent the parser
-// already read. The `NumberContext` given is the working one (D1 of
+// a leading `-` negates, and `^` raises to the exponent the parser read,
+// the quotient of its two literals taken here within the range limit
+// (`reduceExponent`): each literal's mantissa is held to `maxBits` as
+// every literal's is, before any gcd runs, as D19 asks of what can be
+// bounded before forming; the quotient is taken as `Scaled` values, whose
+// powers of ten cancel for nothing; and the fraction is formed within
+// `maxBits`, as `pow` forms an exact exponent, so that `2^(1e30/1e30)` is
+// `2` at any limit and `2^1e-30000` is refused at the default as
+// `pow(2, 1e-30000)` is (H.16 sends such an exponent to log space). The
+// parser, which has no context, once reduced the pair at the hard bound
+// for seconds to minutes (issue #66). The
+// `NumberContext` given is the working one (D1 of
 // docs/calculator-plan.md): its precision is passed to every power, where
 // the root of a non-integer exponent is the only operation that can lose
 // digits. The `Primitives` given are the table's, with their roles: a sum
@@ -94,7 +104,7 @@ import {
   type ConformanceError,
   type Primitives,
 } from "./dimension.ts";
-import type { Expr } from "./expr.ts";
+import type { Exponent, Expr } from "./expr.ts";
 import {
   addQuantities,
   divideQuantities,
@@ -106,8 +116,15 @@ import {
   subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
-import { bitLength } from "./rational.ts";
-import { ZERO, isRefusal } from "./scaled.ts";
+import { bitLength, type Rational } from "./rational.ts";
+import {
+  ZERO,
+  divide,
+  isRefusal,
+  powerRefusal,
+  toRational,
+  type Scaled,
+} from "./scaled.ts";
 import type { BallError } from "./ball.ts";
 import type {
   Builtin,
@@ -290,9 +307,7 @@ function evaluateNode<E>(
       // and its exponent against the exponent bound; the range limit of
       // the context is the setting, applied to the mantissa, the exponent
       // costing nothing (D16).
-      const { num, den } = node.value.mant;
-      const size = Math.max(bitLength(num < 0n ? -num : num), bitLength(den));
-      if (size > context.maxBits) {
+      if (!mantissaWithin(node.value, context.maxBits)) {
         return err({ kind: "tooLarge", span });
       }
       return ok(scalar(node.value));
@@ -343,7 +358,18 @@ function evaluateNode<E>(
     case "pow": {
       const base = evaluate(node.base, lookup, primitives, context);
       if (!base.ok) return base;
-      const power = powQuantity(base.value, node.exponent, context);
+      const exponent = reduceExponent(node.exponent, context.maxBits);
+      if (!exponent.ok) {
+        // An exponent that cannot be formed is refused as pow refuses one:
+        // at the bound when the power would pass it, and otherwise at the
+        // range limit.
+        const refusal =
+          exponent.quotient === undefined
+            ? undefined
+            : powerRefusal(base.value.magnitude.mid, exponent.quotient);
+        return err({ ...(refusal ?? { kind: "tooLarge" }), span });
+      }
+      const power = powQuantity(base.value, exponent.value, context);
       // A base that cannot be told from zero is what is wrong, whether it
       // is raised to a negative power or put under an even root.
       if (!power.ok && power.error.kind === "unresolved") {
@@ -551,6 +577,47 @@ function evaluateBound<E>(
 type Boxed<E> = Extract<BodyError<E>, { kind: "lookup" }>;
 
 /** Attaches `span` to the failure of `result`, if it failed. */
+/** Whether the mantissa of `s` has at most `maxBits` bits in its numerator and its denominator: the range limit on a literal. */
+function mantissaWithin(s: Scaled, maxBits: number): boolean {
+  const { num, den } = s.mant;
+  return (
+    bitLength(num < 0n ? -num : num) <= maxBits && bitLength(den) <= maxBits
+  );
+}
+
+/** What `reduceExponent` gives: the fraction, or why not (the doc there). */
+export type ReducedExponent =
+  | { readonly ok: true; readonly value: Rational }
+  | { readonly ok: false; readonly quotient: Scaled | undefined };
+
+/**
+ * The `^` exponent `e` as the fraction it denotes, in lowest terms, within
+ * `maxBits`, the range limit (the plan's H.9, issue #66): each literal's
+ * mantissa is held to the limit first, as every literal's is, so that no
+ * gcd runs on more than the limit allows (`quotient` undefined when one
+ * is past it); the quotient of the two is taken as `Scaled` values, the
+ * powers of ten cancelling and the mantissas reduced by one gcd within
+ * the limit; and the fraction is formed from the quotient within the
+ * limit, as `pow` forms an exact exponent, or the quotient is handed back
+ * for the caller to refuse the power by, at the bound or at the limit.
+ * `dimensionOf` reduces the same way under the build's context.
+ */
+export function reduceExponent(e: Exponent, maxBits: number): ReducedExponent {
+  if (!mantissaWithin(e.num, maxBits) || !mantissaWithin(e.den, maxBits)) {
+    return { ok: false, quotient: undefined };
+  }
+  // The literals are formable within the hard bound, so their exponents
+  // are far within the exponent bound and the quotient cannot fail there;
+  // the divisor is nonzero by the parser's check.
+  const quotient = divide(e.num, e.den);
+  if (!quotient.ok)
+    throw new Error("An exponent's quotient is within the bound");
+  const fraction = toRational(quotient.value, maxBits);
+  return fraction.ok
+    ? { ok: true, value: fraction.value }
+    : { ok: false, quotient: quotient.value };
+}
+
 function locate(
   result: Result<Quantity, BallError>,
   span: Span,

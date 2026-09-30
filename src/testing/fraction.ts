@@ -19,6 +19,23 @@ import {
   type ScaledError,
 } from "../core/scaled.ts";
 
+/**
+ * Whether `r` keeps the invariant of `Rational`: a positive denominator,
+ * no common factor, and zero as `0/1`. The gcd is a plain Euclid written
+ * here, independent of rational.ts's, so that a broken gcd cannot vouch
+ * for itself: the arithmetic there reduces with the smaller gcds its
+ * operands allow, which is correct only for operands in lowest terms, so
+ * every constructor that feeds it is held to this (the plan's H.9).
+ */
+export function inLowestTerms(r: Rational): boolean {
+  if (r.den <= 0n) return false;
+  if (r.num === 0n) return r.den === 1n;
+  let a = r.num < 0n ? -r.num : r.num;
+  let b = r.den;
+  while (b !== 0n) [a, b] = [b, a % b];
+  return a === 1n;
+}
+
 /** The exact fraction the literal `text` denotes, through `parseDecimal` and `toRational` at the hard bound. */
 export function parseFraction(text: string): Result<Rational, ScaledError> {
   const parsed = parseDecimal(text);

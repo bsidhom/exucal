@@ -32,6 +32,7 @@ import {
   type Lookup,
 } from "./evaluate.ts";
 import { parseExpr, type Expr } from "./expr.ts";
+import { key, randomBigInt } from "../testing/random.ts";
 import type { Quantity } from "./quantity.ts";
 import {
   absolute as absoluteFraction,
@@ -40,7 +41,7 @@ import {
   subtract as subtractFractions,
   type Rational,
 } from "./rational.ts";
-import { ONE, ZERO, format, type Scaled } from "./scaled.ts";
+import { ONE, ZERO, format, fromRational, type Scaled } from "./scaled.ts";
 import { dec, fr, fraction } from "../testing/scaled.ts";
 import { DEFAULT_PRECISION, type RoundingMode } from "./rounding.ts";
 import type { Result } from "./result.ts";
@@ -1264,4 +1265,95 @@ test("a built-in's result is settled like any other, and an unbounded one propag
   );
   const wide = value(runBuiltin("wide(3) m"));
   assert.deepEqual(wide.magnitude, { mid: fr(3n), rad: UNBOUNDED });
+});
+
+test("a ^ exponent is reduced by the evaluator within the range limit, and one past it is too large at the power (#66)", () => {
+  // The parser hands the pair over unreduced; the reduction here is one
+  // gcd of numbers within the limit, so a fraction of long literals that
+  // reduces to a small one gets its value: 3c / 2c for a c of ten
+  // thousand digits is 3/2, and 2^(3/2) is sqrt(8).
+  const c = randomBigInt(key(6601), 33_000) | 1n;
+  // sqrt(8) as twice sqrt(2)'s first 76 decimals, exact within 2e-76,
+  // well inside the radius at forty digits.
+  const sqrt8 = fromRational(
+    rational(
+      2n *
+        14142135623730950488016887242096980785696718753769480731766797379907324784621n,
+      10n ** 76n,
+    ),
+  );
+  const power = value(run(`2^(${3n * c}/${2n * c})`));
+  assert.ok(!isExact(power.magnitude));
+  assertContains(power.magnitude, sqrt8);
+  assert.ok(certifies(power.magnitude, DEFAULT_PRECISION, DEFAULT_ROUNDING));
+  assert.deepEqual(
+    value(run(`m^(${3n * c}/${2n * c})`)).dimension,
+    dim({ m: rational(3n, 2n) }),
+  );
+  assertEvaluates("2^(6/3)", quantity("4"));
+  assert.deepEqual(value(run("2^(12/8)")), value(run("2^(3/2)")));
+  // The quotient is taken as Scaled values, whose powers of ten cancel
+  // for nothing, so a pair of long powers of ten is its value at any
+  // limit; and the fraction is formed within the limit, as pow forms an
+  // exact exponent, so a tiny exponent is refused at the default as
+  // pow(2, 1e-30000) is, until H.16 sends both to log space.
+  const small = { ...CONTEXT, maxBits: 64 };
+  assert.deepEqual(value(run("2^(1e30/1e30)", small)), quantity("2"));
+  assertEvaluates("2^(1e30000/1e30000)", quantity("2"));
+  assertEvaluates("2^(1e20000/1e19999)", quantity("1024"));
+  assertEvaluates("m^(1e30000/2e30000)", quantity("1", { m: half }));
+  assert.deepEqual(failure(run("2^1e-30000")), {
+    kind: "tooLarge",
+    span: { start: 0, end: 10 },
+  });
+  assert.deepEqual(failure(run("m^(1e30/7)", small)), {
+    kind: "tooLarge",
+    span: { start: 0, end: 10 },
+  });
+  assert.deepEqual(
+    value(run("m^(1e30/7)", { ...CONTEXT, maxBits: 128 })).dimension,
+    dim({ m: rational(10n ** 30n, 7n) }),
+  );
+  // 2^(1e30/7) is past the bound at any limit, and says so.
+  assert.deepEqual(failure(run("2^(1e30/7)", small)), {
+    kind: "overflow",
+    span: { start: 0, end: 10 },
+  });
+  // One whose power would pass the bound is refused at the bound, as
+  // pow's is, when the fraction cannot be formed.
+  assert.deepEqual(failure(run("2^(1e300000/1e-300000)")), {
+    kind: "overflow",
+    span: { start: 0, end: 22 },
+  });
+  assert.deepEqual(failure(run("0.5^(1e300000/1e-300000)")), {
+    kind: "underflow",
+    span: { start: 0, end: 24 },
+  });
+  // A literal's mantissa past the limit is too large at the power before
+  // any gcd runs, as D19 asks of what can be bounded before forming: two
+  // literals of 314,000 digits at the default limit, in milliseconds,
+  // and at a small limit a literal of 23 digits.
+  const literal = (seed: number) => {
+    let text = "";
+    while (text.length < 314_000) {
+      text += randomBigInt(key(seed + text.length), 3000).toString();
+    }
+    return text.slice(0, 314_000).replace(/^0+/, "1");
+  };
+  const long = `2^(${literal(3)}/${literal(4)})`;
+  const start = performance.now();
+  assert.deepEqual(failure(run(long)), {
+    kind: "tooLarge",
+    span: { start: 0, end: long.length },
+  });
+  const ms = performance.now() - start;
+  assert.ok(ms < 2000, `refused in ${ms.toFixed(0)} ms`);
+  assert.deepEqual(failure(run("2^(12345678901234567890123/3)", small)), {
+    kind: "tooLarge",
+    span: { start: 0, end: 29 },
+  });
+  assert.deepEqual(failure(run("3 m^(2/12345678901234567890123)", small)), {
+    kind: "tooLarge",
+    span: { start: 2, end: 31 },
+  });
 });

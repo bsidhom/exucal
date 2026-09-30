@@ -16,7 +16,7 @@ import {
 } from "./dimension-of.ts";
 import { parseExpr, type Expr } from "./expr.ts";
 import type { Quantity } from "./quantity.ts";
-import { rational, type Rational } from "./rational.ts";
+import { LIMIT_BITS, rational, type Rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import { ONE } from "./scaled.ts";
 import type { Span } from "./span.ts";
@@ -115,18 +115,22 @@ function lookupWith(bound?: Dimension): DimensionLookup<UnknownName> {
 
 type Failure = UnknownName | DimensionError;
 
-function of(text: string, bound?: Dimension): Result<Dimension, Failure> {
-  return dimensionOf(parsed(text), lookupWith(bound), PRIMITIVES);
+function of(
+  text: string,
+  bound?: Dimension,
+  maxBits = LIMIT_BITS,
+): Result<Dimension, Failure> {
+  return dimensionOf(parsed(text), lookupWith(bound), PRIMITIVES, maxBits);
 }
 
-function value(text: string, bound?: Dimension): Dimension {
-  const result = of(text, bound);
+function value(text: string, bound?: Dimension, maxBits?: number): Dimension {
+  const result = of(text, bound, maxBits);
   assert.ok(result.ok, `${text}: ${inspect(result)}`);
   return result.value;
 }
 
-function failing(text: string, bound?: Dimension): Failure {
-  const result = of(text, bound);
+function failing(text: string, bound?: Dimension, maxBits?: number): Failure {
+  const result = of(text, bound, maxBits);
   assert.ok(!result.ok, `${text}: expected a failure`);
   return result.error;
 }
@@ -215,4 +219,28 @@ test("a lookup's failure comes back unchanged, from wherever it is in the tree",
   });
   // The first failure, left to right, ends it.
   assert.equal(failing("bogus + 1 / 0").kind, "unknownUnit");
+});
+
+test("a ^ exponent is reduced within the range limit, and one past it fails at the power", () => {
+  // The exponent travels as its two literals (the plan's H.9, issue #66)
+  // and is reduced here as the evaluator reduces it: `m^(6/4)` is
+  // `m^(3/2)`, the powers of ten cancel, and a literal past the limit or
+  // a fraction that cannot be formed within it is `tooLarge` at the
+  // power, so a body with such a power fails the build where the call
+  // would fail.
+  assert.deepEqual(value("m^(6/4)"), new Map([["m", rational(3n, 2n)]]));
+  assert.deepEqual(value("m^(6/3)"), new Map([["m", rational(2n)]]));
+  assert.deepEqual(
+    value("m^(1e30/1e30)", undefined, 64),
+    new Map([["m", rational(1n)]]),
+  );
+  assert.deepEqual(failing("m^(1e30/3)", undefined, 64), {
+    kind: "tooLarge",
+    span: { start: 0, end: 10 },
+  });
+  assert.deepEqual(failing("s m^(2/1e30)", undefined, 64), {
+    kind: "tooLarge",
+    span: { start: 2, end: 12 },
+  });
+  assert.ok(of("m^(1e30/3)", undefined, 128).ok);
 });

@@ -3,9 +3,11 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import { parseExpr, parseUnitList, type Expr, type Rejection } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
-import { LIMIT_BITS, rational, toFraction } from "./rational.ts";
-import { fromRational, toRational } from "./scaled.ts";
+import { LIMIT_BITS, bitLength, rational, toFraction } from "./rational.ts";
+import { ONE, divide, fromRational, toRational } from "./scaled.ts";
 import type { Span } from "./span.ts";
+import { parseFraction } from "../testing/fraction.ts";
+import { key, randomBigInt } from "../testing/random.ts";
 
 const OPERATOR = { add: "+", sub: "-", mul: "*", div: "/" } as const;
 
@@ -25,13 +27,26 @@ function show(e: Expr): string {
       return node.name;
     case "binary":
       return `(${show(node.left)} ${OPERATOR[node.op]} ${show(node.right)})`;
-    case "pow":
-      return `${show(node.base)}^${toFraction(node.exponent)}`;
+    case "pow": {
+      // The exponent travels as its two literals; it renders as its value.
+      const quotient = divide(node.exponent.num, node.exponent.den);
+      assert.ok(quotient.ok);
+      const fraction = toRational(quotient.value, LIMIT_BITS);
+      assert.ok(fraction.ok);
+      return `${show(node.base)}^${toFraction(fraction.value)}`;
+    }
     case "neg":
       return `-${show(node.operand)}`;
     case "call":
       return `${node.name}(${node.arguments.map(show).join(", ")})`;
   }
+}
+
+/** The fraction a decimal literal denotes, through `parseFraction`. */
+function dec(text: string) {
+  const result = parseFraction(text);
+  assert.ok(result.ok, text);
+  return result.value;
 }
 
 function parsed(text: string): Expr {
@@ -246,6 +261,62 @@ test("an exponent may be a parenthesized rational", () => {
   assertParses("m^(0.5/2)", "m^1/4");
   assertParses("m^(0/5)", "m^0");
   assertParses("m^(2) s", "(m^2 * s)");
+});
+
+test("an exponent travels in the tree as the two literals the parser read, undivided", () => {
+  // The parser has no context to reduce within, and a reduction at the
+  // hard bound took seconds to minutes on long literals (issue #66); the
+  // evaluator takes the quotient within the range limit, so nothing is
+  // formed here, not even a literal's power of ten.
+  for (const [text, num, den] of [
+    ["m^2", "2", "1"],
+    ["m^-1.5", "-1.5", "1"],
+    ["m^(2/4)", "2", "4"],
+    ["m^(-1/2)", "-1", "2"],
+    ["m^(0.5/2)", "0.5", "2"],
+    ["m^(3/1.5)", "3", "1.5"],
+    ["m^(0/5)", "0", "5"],
+    ["m^(1e3/1e-3)", "1e3", "1e-3"],
+    ["m^(1e300000/1e-300000)", "1e300000", "1e-300000"],
+  ] as const) {
+    const e = parsed(text);
+    assert.equal(e.node.kind, "pow", text);
+    if (e.node.kind === "pow") {
+      assert.deepEqual(
+        e.node.exponent,
+        { num: fromRational(dec(num)), den: fromRational(dec(den)) },
+        text,
+      );
+    }
+  }
+  const one = parsed("m^2");
+  assert.ok(one.node.kind === "pow" && one.node.exponent.den === ONE);
+});
+
+test("a ^ exponent of two literals at the hard bound parses in milliseconds (#66)", () => {
+  // Two pseudo-random literals of 314,000 digits, the most the hard bound
+  // takes: the parse forms each within the bound and pairs them with no
+  // gcd, where a reduction here took about three and a half minutes,
+  // extrapolated. The budget is generous for a slow machine; a gcd would
+  // miss it by two orders.
+  const literal = (seed: number) => {
+    let text = "";
+    while (text.length < 314_000) {
+      text += randomBigInt(key(seed + text.length), 3000).toString();
+    }
+    return text.slice(0, 314_000).replace(/^0+/, "1");
+  };
+  const a = literal(1);
+  const b = literal(2);
+  const start = performance.now();
+  const e = parsed(`2^(${a}/${b})`);
+  const ms = performance.now() - start;
+  assert.ok(ms < 2000, `parsed in ${ms.toFixed(0)} ms`);
+  assert.ok(e.node.kind === "pow");
+  if (e.node.kind === "pow") {
+    assert.ok(bitLength(e.node.exponent.num.mant.num) > 1_000_000);
+    assert.ok(bitLength(e.node.exponent.den.mant.num) > 1_000_000);
+  }
 });
 
 test("a parenthesized exponent is a literal, not an expression", () => {

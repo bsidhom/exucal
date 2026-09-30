@@ -64,6 +64,7 @@ import {
   type ScaledError,
 } from "./scaled.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./rounding.ts";
+import { inLowestTerms } from "../testing/fraction.ts";
 import { key, randomRational, split } from "../testing/random.ts";
 
 function unwrap<T>(result: Result<T, ScaledError | RationalError>): T {
@@ -194,6 +195,34 @@ test("the exponent bound is checked after normalizing", () => {
   assertError(scaled(rational(10n), MAX_EXPONENT), "overflow");
   assert.ok(scaled(rational(1n, 10n), MAX_EXPONENT).ok);
   assertError(scaled(rational(1n, 10n), -MAX_EXPONENT), "underflow");
+});
+
+test("the canonical mantissa, the fraction it denotes and an aligned operand are in lowest terms", () => {
+  // The fraction's arithmetic reduces with the smaller gcds its operands
+  // allow, which is correct only for operands in lowest terms (the plan's
+  // H.9), and the canonical form is built without `rational`: the
+  // denominator's twos and fives move out as fives and twos on the
+  // numerator, and a sum's operand is a mantissa times a power of ten.
+  for (const r of randomRationals(100, 4104)) {
+    for (const [num, den, exp] of [
+      [r.num, r.den, 0n],
+      [r.num * 1024n, r.den * 125n, -7n],
+      [r.num, r.den * 2n ** 40n * 5n ** 3n, 12n],
+      [r.num * 10n ** 9n, r.den * 3n * 7n, -20n],
+    ] as const) {
+      const s = at(num, den, exp);
+      assert.ok(inLowestTerms(s.mant), inspect(s));
+      assert.ok(inLowestTerms(unwrap(toRational(s, LIMIT_BITS))));
+      const sum = unwrap(add(s, at(7n, 3n, exp + 5n), LIMIT_BITS));
+      assert.ok(inLowestTerms(sum.mant), inspect(sum));
+      const shifted = unwrap(subtract(at(1n, 7n, exp - 3n), s, LIMIT_BITS));
+      assert.ok(inLowestTerms(shifted.mant), inspect(shifted));
+    }
+  }
+  for (const text of ["1e-30", "2.54e300", "0.000625", "1e5000", "6e-5000"]) {
+    assert.ok(inLowestTerms(dec(text).mant), text);
+    assert.ok(inLowestTerms(unwrap(toRational(dec(text), LIMIT_BITS))), text);
+  }
 });
 
 test("seeded fractions round-trip and equal structurally whichever form they were built from", () => {

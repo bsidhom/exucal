@@ -764,7 +764,13 @@ differences. Elsewhere a `-` where an operand can start is a negation and a
 
 An exponent is a signed decimal (`m^2`, `s^-1`, `m^0.5`) or a parenthesized
 rational (`m^(1/2)`), never an expression, so it is known at parse time and
-travels in the tree as a `Rational`. A unit name is a letter or underscore
+travels in the tree as the two literals the parser read, undivided
+(`Exponent`): each must be formable within the hard bound and a zero
+divisor is rejected, both read off the literals with nothing formed, and
+the evaluator takes the quotient where the range limit applies, since a
+reduction in the parser, which has no context, took seconds on long
+literals and minutes at the hard bound, on every keystroke (the plan's
+H.9, issue #66). A unit name is a letter or underscore
 followed by letters, digits and underscores, in any script, taken as long as
 it goes: `m2` is one name rather than `m` beside `2`, and whether a name
 means anything is decided by the table, not the parser. Whitespace is spaces
@@ -896,7 +902,15 @@ the expression denotes. A number is a dimensionless quantity, a unit name
 is whatever the lookup says it is, and the operators are the quantity
 arithmetic above: juxtaposition and `*` multiply, `/` divides, `+` and `-`
 add and subtract, a leading `-` negates, and `^` raises to the exponent the
-parser already read. A call resolves its name among the functions, through
+parser read, made a fraction here within the range limit
+(`reduceExponent`, which `dimensionOf` applies under the build's context
+too): each literal's mantissa is held to the limit as every literal's is,
+the quotient of the two is taken as `Scaled` values, whose powers of ten
+cancel for nothing, and the fraction is formed from it within the limit
+as `pow` forms an exact exponent, so that `2^(1e30/1e30)` is `2` at any
+limit and `2^1e-30000` is refused at the default as `pow(2, 1e-30000)`
+is, at the bound when the power would pass it and otherwise at the limit.
+A call resolves its name among the functions, through
 the lookup, to a function the table defines or a built-in (`ResolvedFunction`),
 checks that it gives as many arguments as the function takes
 (`arityMismatch` otherwise, before any argument is evaluated, since the
@@ -1381,6 +1395,13 @@ length over Karatsuba multiplication gives; the report is what the probe
 of `limits.ts` chose its composite from, and it notes that the series of
 `exp`, summed term by term, is the remaining candidate for the
 rectangular splitting the logarithm, the sine and the arctangent use.
+`rational.bench.ts` times the probe's range operation, a product of two
+fractions and its reduction, at 8,192 to 65,536 bits, one gcd on its own
+at 16,384 to 65,536 bits, and the quotients of issue #52, and asserts
+that doubling the size costs at most eight times, twice what the
+quadratic gcd gives; Lehmer's gcd is about forty times cheaper than
+Euclid's at the default range limit and still quadratic, and the
+benchmark is what would show a half-gcd's gain should the limit grow.
 
 ## Later
 

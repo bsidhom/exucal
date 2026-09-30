@@ -472,6 +472,31 @@ test("division by a ball around zero is unresolved, by exact zero a division by 
   assert.ok(divideBalls(one, ball(dec("0.003"), dec("0.002"))).ok);
 });
 
+test("every unresolved of the ball names its edge, zero", () => {
+  // Every producer here: the three ways a divisor cannot be told from
+  // zero, the even root of a ball straddling zero, and the log-space power
+  // of a ball that reaches within an ulp of zero at the kernel's bits.
+  const one = exact(ONE);
+  const unresolved = { ok: false, error: { kind: "unresolved", edge: ZERO } };
+  assert.deepEqual(divideBalls(one, ball(ZERO, dec("1e-30"))), unresolved);
+  assert.deepEqual(divideBalls(one, { mid: ZERO, rad: UNBOUNDED }), unresolved);
+  assert.deepEqual(
+    divideBalls(one, {
+      mid: dec("1e-20"),
+      rad: radiusAbove(rational(1n, 10n ** 20n)),
+    }),
+    unresolved,
+  );
+  assert.deepEqual(
+    rootBall(ball(dec("0.1"), dec("0.2")), 2n, at(8)),
+    unresolved,
+  );
+  assert.deepEqual(
+    powLogSpace(ball(ONE, dec("0.999999999999")), exact(dec("0.5")), at(8)),
+    unresolved,
+  );
+});
+
 test("a ball around zero to a negative power is unresolved", () => {
   const around = ball(dec("0.1"), dec("0.2"));
   assertError(powBall(around, -1n, at(8)), "unresolved");

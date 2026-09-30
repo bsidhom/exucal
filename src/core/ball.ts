@@ -210,13 +210,22 @@ export type Ball = {
   readonly rad: Radius;
 };
 
+/**
+ * What a value that cannot be told from it straddles (D4): a point, zero
+ * for a divisor or a base, `1` or `-1` at the end of a domain, or a pole
+ * of the tangent. The built-ins' errors carry the same edges (builtin.ts).
+ */
+export type Edge = Scaled | "pole";
+
 export type BallError =
   | ScaledError
   /**
-   * The answer depends on which side of zero the true value lies, and the
-   * ball straddles it: a divisor that cannot be told from zero.
+   * The answer depends on which side of `edge` the true value lies, and
+   * the ball straddles it: a divisor that cannot be told from zero. Every
+   * operation here names zero; the built-ins name their own edges, and
+   * the consumers pass the edge on rather than assume it (D18).
    */
-  | { readonly kind: "unresolved" };
+  | { readonly kind: "unresolved"; readonly edge: Edge };
 
 /**
  * The bits of a radius's exponent up to which its exact value is formed as
@@ -407,11 +416,11 @@ export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
 export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   if (isExactZero(b)) return err({ kind: "divisionByZero" });
   if (b.rad.kind === "unbounded") {
-    if (isZero(b.mid)) return err({ kind: "unresolved" });
+    if (isZero(b.mid)) return err({ kind: "unresolved", edge: ZERO });
     const mid = divide(a.mid, b.mid);
     return mid.ok ? ok({ mid: mid.value, rad: UNBOUNDED }) : mid;
   }
-  if (containsZero(b)) return err({ kind: "unresolved" });
+  if (containsZero(b)) return err({ kind: "unresolved", edge: ZERO });
   const mid = divide(a.mid, b.mid);
   if (!mid.ok) return mid;
   if (a.rad.kind === "unbounded") return ok({ mid: mid.value, rad: UNBOUNDED });
@@ -423,7 +432,7 @@ export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
   // Positive: the divisor's interval excludes zero, so |b| > rb; the
   // coarse bounds may still fail to tell, which is then unresolved.
   const distance = magnitudeBelow(b);
-  if (isZeroRadius(distance)) return err({ kind: "unresolved" });
+  if (isZeroRadius(distance)) return err({ kind: "unresolved", edge: ZERO });
   const denominator = multiplyRadiusDown(radiusBelowScaled(b.mid), distance);
   return ok({ mid: mid.value, rad: divideRadius(numerator, denominator) });
 }
@@ -562,7 +571,9 @@ export function rootBall(
   }
   const even = degree % 2n === 0n;
   if (containsZero(b)) {
-    return even ? err({ kind: "unresolved" }) : ok(rootAroundZero(b, degree));
+    return even
+      ? err({ kind: "unresolved", edge: ZERO })
+      : ok(rootAroundZero(b, degree));
   }
   if (sign(b.mid) < 0) {
     if (even) return err({ kind: "negativeRadicand", degree });
@@ -579,7 +590,9 @@ export function rootBall(
   if (root.value !== undefined) return ok(root.value);
   // The interval is positive as rationals but not at the kernel's bits: the
   // ball reaches within an ulp of zero, and is treated as containing it.
-  return even ? err({ kind: "unresolved" }) : ok(rootAroundZero(b, degree));
+  return even
+    ? err({ kind: "unresolved", edge: ZERO })
+    : ok(rootAroundZero(b, degree));
 }
 
 /**
@@ -782,7 +795,7 @@ export function powLogSpace(
   const lnBits = bitLength(BigInt(Math.ceil(Math.abs(log2Of(x)))) + 2n);
   const working = bits + yBits + lnBits + 8;
   const lnX = lnScaled(x, working, bitsFor(context.ceiling));
-  if (lnX === undefined) return err({ kind: "unresolved" });
+  if (lnX === undefined) return err({ kind: "unresolved", edge: ZERO });
   const product = multiplyFixed(fixedFromBall(y, working), lnX);
   const bound = abs(product.value) + product.error;
   const magnitude =

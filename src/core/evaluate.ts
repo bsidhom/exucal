@@ -118,7 +118,6 @@ import {
 } from "./quantity.ts";
 import { bitLength, type Rational } from "./rational.ts";
 import {
-  ZERO,
   divide,
   isRefusal,
   powerRefusal,
@@ -373,7 +372,11 @@ function evaluateNode<E>(
       // A base that cannot be told from zero is what is wrong, whether it
       // is raised to a negative power or put under an even root.
       if (!power.ok && power.error.kind === "unresolved") {
-        return err({ kind: "unresolved", span: node.base.span, edge: ZERO });
+        return err({
+          kind: "unresolved",
+          span: node.base.span,
+          edge: power.error.edge,
+        });
       }
       return locate(power, span);
     }
@@ -632,7 +635,7 @@ function locate(
     case "underflow":
       return err({ kind: error.kind, span });
     case "unresolved":
-      return err({ kind: "unresolved", span, edge: ZERO });
+      return err({ kind: "unresolved", span, edge: error.edge });
     case "negativeRadicand":
       return err({ kind: "negativeRadicand", degree: error.degree, span });
     case "invalidNumber":

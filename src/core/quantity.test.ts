@@ -475,9 +475,11 @@ test("dividing by a magnitude that cannot be told from zero is unresolved", () =
   assert.ok(!isExact(almostZero.magnitude));
   assert.deepEqual(failure(divideQuantities(METRE, almostZero)), {
     kind: "unresolved",
+    edge: ZERO,
   });
   assert.deepEqual(failure(powQuantity(almostZero, rational(-1n), CONTEXT)), {
     kind: "unresolved",
+    edge: ZERO,
   });
 });
 

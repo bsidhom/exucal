@@ -410,16 +410,23 @@ exp(1e999) = 2.0307164965753263882718190599363 × 10^434294481903251827…449714
 ```
 
 The exponential of `x` has the decimal exponent `x log10 e`, so `exp(x)`
-is refused whenever `|x|` passes `10^18 ln 10`, about `2.3026e18`, with or
-without `approx`: `exp(2.3e18)` is `≈ 3.9591004e+998877308377479203` and
-`exp(2.31e18)` is refused. So is `exp(-1e999)`, whose exponent is as far
-below the bound as `exp(1e999)`'s is above it, and whose message says so:
-it is too small to compute, its exponent would fall below `-10^18`.
-`sinh`, `cosh` and powers (`pow(10, 1e999)`, `10^1e999`) share the limit,
-`sinh` and `cosh` of a negative argument being too large rather than too
-small, and a power that no setting could hold is reported at the bound
-even where Most bits refuses it first (`7^1e19`, an integer of about
-`8.5 × 10^18` digits). What `approx` does relax is Most bits, in a sum,
+is refused whenever `x` passes `(10^18 + 1) ln 10`, about `2.3026e18`,
+throughout its value's ball, with or without `approx`: `exp(2.3e18)` is
+`≈ 3.9591004e+998877308377479203` and `exp(2.31e18)` is refused. So is
+`exp(-1e999)`, whose exponent is as far below the bound as
+`exp(1e999)`'s is above it, and whose message says so: it is too small
+to compute, its exponent would fall below `-10^18`. `sinh`, `cosh` and
+powers (`pow(10, 1e999)`, `10^1e999`) share the limit, `sinh` and `cosh`
+of a negative argument being too large rather than too small, and a
+power that no setting could hold is reported at the bound even where
+Most bits refuses it first (`7^1e19`, an integer of about `8.5 × 10^18`
+digits). A refusal needs the whole ball past the edge: an argument whose
+value may lie on either side of it, because its radius reaches across
+(`exp(approx(1e999) - approx(1e999 - 5))` at its first pass, `5` within
+about `2e948`), is not refused but retried at more digits, until the
+ball is within the bound (`≈ 148.41316`) or past it, or the retries run
+out, when the message says the value cannot be told from the point
+where the result passes the bound. What `approx` does relax is Most bits, in a sum,
 in an integer power, and in any product, quotient or sum whose exact
 result would grow past the limit: `1e999999999 + 1` is refused, since
 its exact value has a billion digits, while `approx(1e999999999) + 1` is
@@ -469,13 +476,13 @@ pass  digits  ┊       ┊       ┊       ┊       ┊       ┊       ┊   
 What the relative precision of `approx(1e999)` bounds is the precision
 of the result's logarithm, not of the result: at the first pass the
 exponent would be known to 51 of its 999 digits, and the mantissa not at
-all. The app never gets that far today. At the first pass `exp` measures
-its argument over the whole ball, finds that the result's exponent would
-pass the bound, and refuses before computing anything; no later pass can
-change that, so the refusal is the answer. Without `approx`, `exp(1e999)`
-would be certain at the first pass, were its exponent allowed, since the
-exponential of an exact argument works to as many extra digits as the
-argument has: `approx` would cost it five passes.
+all. The app never gets that far. At every pass `exp` measures its
+argument over the whole ball and finds that the result's exponent passes
+the bound for every value in it, so it refuses, and the refusal is the
+answer. Without `approx`, `exp(1e999)` would be certain at the first
+pass, were its exponent allowed, since the exponential of an exact
+argument works to as many extra digits as the argument has: `approx`
+would cost it five passes.
 
 So the settings are not what stands in the way. The sixth pass is within
 the ceiling of 4,040 digits that Most digits of 1,000 gives, and its

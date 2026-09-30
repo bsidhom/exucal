@@ -21,8 +21,9 @@
 // twenty at the working bits, rather than a value of 1.4 million bits, and a negative argument is the same
 // loop with the exponent going negative, so that `exp(-1e6)` costs the
 // same and `exp(-1000)`, about `2^-1443`, keeps its digits. The
-// argument's magnitude is bounded by the exponent bound before this is
-// called (`expFits` of ball.ts refuses `exp(1e30)` as an `overflow`), and an
+// argument's magnitude is held to the exponent bound before this is
+// called (the classifier of ball.ts refuses `exp(1e30)` as an `overflow`
+// and computes only an argument within the bound throughout), and an
 // argument beyond `2^62`, whose exponential would pass the bound, is a
 // precondition failure here; the magnitude is taken over the argument's
 // whole interval. An argument whose interval is wider than one (an error

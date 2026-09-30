@@ -311,6 +311,30 @@ export function maxRadius(a: Radius, b: Radius): Radius {
 }
 
 /**
+ * A radius at or above `rad^n` for a bounded `rad` and `n >= 1`, from the
+ * logarithm: `n log2 rad`, the logarithm taken as an integer part and a
+ * fraction at 40 bits with a margin over the double's error, times `n`
+ * exactly, then a radius at or above `2^` of that. One multiplication,
+ * where `powRadius` squares once per bit of `n` on an exponent that gains
+ * a bit each step, which took a minute for a ball around zero to the
+ * power `1e100000` (issue #62); unbounded absorbs, and zero stays zero.
+ */
+export function powRadiusAbove(rad: Radius, n: bigint): Radius {
+  if (n < 1n) throw new RangeError(`A positive power is needed: ${n}`);
+  if (rad.kind === "unbounded" || rad.mant === 0n) return rad;
+  const { int, frac } = log2OfRadius(rad);
+  const scale = 40;
+  // The logarithm scaled by 2^40 and rounded up, plus one for the
+  // fraction's double, is at or above the truth.
+  const log2 =
+    (int << BigInt(scale)) + BigInt(Math.ceil(frac * 2 ** scale)) + 1n;
+  const product = log2 * n;
+  const whole = product >> BigInt(scale);
+  const rest = Number(product - (whole << BigInt(scale))) / 2 ** scale;
+  return fromLog2({ int: whole, frac: rest + 2 ** -scale }, "up");
+}
+
+/**
  * `rad` to the non-negative integer power `n`, by squaring, each product
  * rounded up, so the result is at or above the exact power. `n = 0` gives
  * one, for zero too, as `pow` does; unbounded absorbs, for `n = 0` as well.

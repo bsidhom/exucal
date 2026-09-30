@@ -66,6 +66,25 @@
 // failing `tooLarge` at the range limit, `overflow` or `underflow` at the
 // exponent bound, and `unresolved` on it.
 //
+// The exponential family and the powers are held to the bound by one
+// classifier (D18, the plan's H.15): `classifyExp`, `classifyHyperbolic`
+// and `classifyPower` work on an interval bounding the natural logarithm
+// of the result's magnitude, `x` for `exp`, `|x| - ln 2` within an ulp
+// for `sinh` and `cosh`, and `y ln |x|` for a power, against the edges
+// `U = (10^18 + 1) ln 10` and `D = -10^18 ln 10`. A refusal, `overflow`
+// or `underflow`, needs the whole interval past an edge; a computation
+// needs the whole interval within, with a margin for the kernel's error
+// and the working digits' rounding, so that the result's ball never
+// reaches an edge; and anything else is `unresolved` at the edge `bound`,
+// retried. The coarse bounds decide first, from radii bracketing the
+// magnitudes, and a base near one from its exact difference from one;
+// only within their slack is the interval formed on the kernel, so an
+// exact argument is left `unresolved` only when it lies within the
+// ceiling's precision of an edge. Stage 4's guards refused on the whole
+// ball's magnitude in doubles, so a radius alone refused `exp` (#40), a
+// base of magnitude one was refused past `n ≈ 3.3 × 10^27` (#46), and
+// values within `10^9` decades of the bound were refused (#61).
+//
 // Two values are special. An exact zero times anything is exact zero,
 // however wide the other operand, unbounded included: unbounded stands for
 // a bound that is not known, not for an infinite value. And a divisor that
@@ -133,8 +152,8 @@
 // exponent (`lnScaled`, which the logarithms share, adds `exp × ln 10` from
 // the memo), so that a tiny or a huge base loses nothing to the
 // conversion; the product `y ln x` is formed at the bits plus the
-// exponent's and the logarithm's magnitudes, and its magnitude is held to
-// the exponent bound before the exponential (`expFits`, 4.9), so that
+// exponent's and the logarithm's magnitudes, and is held to the exponent
+// bound by the classifier below before the exponential, so that
 // `7^(100000/3)` is a value of about `10^28170` where the range limit
 // refused it, `2^0.1234567` and `10^2.3456789`, once refused as
 // `tooLarge`, are values with a radius, and `7^(10^19)` is an `overflow`,
@@ -148,8 +167,9 @@ import type { NumberContext } from "./context.ts";
 import { modeOf, workingDigits } from "./context.ts";
 import { floatingToBall } from "./digits.ts";
 import { expFixed } from "./fixed-exp.ts";
-import { ln10Fixed, lnFixed } from "./fixed-log.ts";
+import { ln2Fixed, ln10Fixed, lnFixed } from "./fixed-log.ts";
 import {
+  absFixed,
   addFixed,
   bitsFor,
   fixedFromBall,
@@ -157,10 +177,12 @@ import {
   fixedToBall,
   keepSignificant,
   multiplyFixed,
+  rebaseFixed,
   ROOT_DEGREE_LIMIT,
   rootFixed,
   scaleFixed,
   shiftFixed,
+  subtractFixed,
   type Fixed,
 } from "./fixed.ts";
 import {
@@ -183,9 +205,12 @@ import {
   divideRadius,
   isZeroRadius,
   log2OfRadius,
+  maxRadius,
   multiplyRadius,
   multiplyRadiusDown,
+  powRadiusAbove,
   powerOfTenRadius,
+  powerOfTwoRadius,
   radiusAbove,
   radiusAboveScaled,
   radiusBelowScaled,
@@ -212,7 +237,6 @@ import {
   fromRational,
   isRefusal,
   isZero,
-  log2Bounds,
   multiply,
   negate,
   pow,
@@ -619,15 +643,24 @@ export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
  * `b^n` for an integer `n`. An exact ball goes through `pow`, exactly,
  * within the context's range limit. An inexact ball is raised by squaring
  * with `multiplyBalls`, settled after each product (D15), so that the
- * midpoint stays at the working precision and only the magnitude of the
- * result is guarded: a result whose decimal exponent would pass the
- * exponent bound is `overflow` or `underflow` before anything is computed
- * (4.9), as the midpoint's magnitude is above or below one, told exactly,
- * and a product that passes it in the loop, by the guard's double, fails
- * so there. A negative `n` inverts by the division rule, so a
- * ball containing zero to a negative power is `unresolved`, and a power
- * past the bound on one side is past it on the other. `b^0` is exactly
- * one, as `pow` has it, for any ball.
+ * midpoint stays at the working precision, once the classifier has held
+ * `n ln |b|` to the exponent bound over the whole ball (D18, the plan's
+ * H.15): `overflow` or `underflow` only when every value of the power
+ * passes the bound, `unresolved` at the edge `bound` when some do, the
+ * squaring loop when none does, and one within twice `n ln |b|`'s bound
+ * where that bound is below an ulp of the working bits, or where the
+ * kernel's decision would need more bits than the range limit holds and
+ * the bound is at most a half (`(-1)^n` for a negative base). A base
+ * whose ball contains zero is held to the top edge alone, since zero is
+ * within the bound at any exponent; one with a zero midpoint is zero
+ * within its radius to the power, taken from the radius's logarithm
+ * (`powRadiusAbove`), where squaring the ball took a minute for
+ * `n = 1e100000` (issue #62). A negative `n` inverts by the division
+ * rule, so a ball containing zero to a negative power is `unresolved` at
+ * zero, and a power past the bound on one side is past it on the other.
+ * `b^0` is exactly one, as `pow` has it, for any ball. A ball of unbounded
+ * radius is held by its midpoint alone, as its power is computed on the
+ * midpoint alone.
  */
 export function powBall(
   b: Ball,
@@ -640,17 +673,32 @@ export function powBall(
   }
   if (n === 0n) return ok(exact(ONE));
   if (n < 0n) {
+    if (b.rad.kind === "bounded" && containsZero(b)) {
+      return err({ kind: "unresolved", edge: ZERO });
+    }
     const positive = powBall(b, -n, context);
     if (positive.ok) return divideBalls(exact(ONE), positive.value);
     // The reciprocal of a power past the bound is past it on the other side.
     return err(reciprocalError(positive.error));
   }
-  if (
-    !isZero(b.mid) &&
-    log2Scale(b) * Number(n) * Math.log10(2) > Number(MAX_EXPONENT)
-  ) {
-    const belowOne = compare(absolute(b.mid), ONE) < 0;
-    return err({ kind: belowOne ? "underflow" : "overflow" });
+  if (isZero(b.mid) && b.rad.kind === "bounded") {
+    return zeroWithin(powRadiusAbove(b.rad, n));
+  }
+  const held = classifyPower(b, exact(fromRational(rational(n))), context);
+  switch (held.kind) {
+    case "overflow":
+    case "underflow":
+    case "tooLarge":
+      return err({ kind: held.kind });
+    case "unresolved":
+      return err({ kind: "unresolved", edge: held.edge });
+    case "one":
+      return ok({
+        mid: sign(b.mid) < 0 && n % 2n === 1n ? negate(ONE) : ONE,
+        rad: held.rad,
+      });
+    case "compute":
+      break;
   }
   let result = exact(ONE);
   let base = b;
@@ -1028,15 +1076,18 @@ export function powRationalBall(
 
 /**
  * `exp(y ln x)` on the kernel, for a bounded `x` positive as rationals (a
- * precondition) and a bounded `y`: the logarithm at the working bits plus
- * the magnitudes of `y` and of the logarithm, so that their product keeps
- * the working bits, `unresolved` when `x` reaches within an ulp of zero at
- * those bits, `overflow` or `underflow` when the product's magnitude, over
- * its whole interval, puts the result beyond the exponent bound, as the
- * product is positive or negative, or when `y` is beyond what a
- * double holds, which puts the result past the bound on the side the
- * signs of `y` and `ln x` give unless `x` is within about `10^-282` of
- * one, and otherwise the kernel's `Floating` as a ball through digits.ts,
+ * precondition) and a bounded `y`: `y ln x` held to the exponent bound
+ * over the whole ball by the classifier (D18, the plan's H.15), which
+ * refuses only when every value of the power passes the bound, leaves a
+ * ball that straddles an edge `unresolved` at the edge `bound`, answers
+ * one within twice the bound on `|y ln x|` where that bound is below an
+ * ulp of the working bits (or where the kernel's decision would need more
+ * bits than the range limit holds and the bound is at most a half), and
+ * is `tooLarge` where the decision needs more bits than the limit holds;
+ * `unresolved` at zero when `x` reaches within an ulp of zero at the bits
+ * the logarithm is taken at, the working bits plus the magnitudes of `y`
+ * and of the logarithm, so that their product keeps the working bits;
+ * and otherwise the kernel's `Floating` as a ball through digits.ts,
  * rounded in no mode.
  */
 export function powLogSpace(
@@ -1044,27 +1095,37 @@ export function powLogSpace(
   y: Ball,
   context: NumberContext,
 ): Result<Ball, BallError> {
-  const bits = bitsFor(context.precision);
-  const yBound = radiusBound(magnitudeAbove(y));
-  if (yBound === Infinity) {
-    const belowOne = compare(x.mid, ONE) < 0;
-    const negative = sign(y.mid) < 0;
-    return err({ kind: negative === belowOne ? "overflow" : "underflow" });
+  const held = classifyPower(x, y, context);
+  switch (held.kind) {
+    case "overflow":
+    case "underflow":
+    case "tooLarge":
+      return err({ kind: held.kind });
+    case "unresolved":
+      return err({ kind: "unresolved", edge: held.edge });
+    case "one":
+      return ok({ mid: ONE, rad: held.rad });
+    case "compute": {
+      const product = held.product ?? logProduct(x, y, held.working, context);
+      if (product === undefined) return err({ kind: "unresolved", edge: ZERO });
+      return floatingToBall(
+        expFixed(product, bitsFor(context.precision)),
+        context,
+      );
+    }
   }
-  const yBits = Math.max(0, Math.ceil(Math.log2(yBound + 1)));
-  const lnBits = bitLength(BigInt(Math.ceil(Math.abs(log2Of(x)))) + 2n);
-  const working = bits + yBits + lnBits + 8;
+}
+
+/** `y ln x` on the kernel at `working` fraction bits, or `undefined` where `x` reaches within an ulp of zero there. */
+function logProduct(
+  x: Ball,
+  y: Ball,
+  working: number,
+  context: NumberContext,
+): Fixed | undefined {
   const lnX = lnScaled(x, working, bitsFor(context.ceiling));
-  if (lnX === undefined) return err({ kind: "unresolved", edge: ZERO });
-  const product = multiplyFixed(fixedFromBall(y, working), lnX);
-  const bound = abs(product.value) + product.error;
-  const magnitude =
-    Number(bound >> BigInt(Math.max(0, bitLength(bound) - 53))) *
-    2 ** (Math.max(0, bitLength(bound) - 53) - product.bits);
-  if (!expFits(magnitude)) {
-    return err({ kind: product.value < 0n ? "underflow" : "overflow" });
-  }
-  return floatingToBall(expFixed(product, bits), context);
+  if (lnX === undefined) return undefined;
+  return multiplyFixed(fixedFromBall(y, working), lnX);
 }
 
 /**
@@ -1114,34 +1175,6 @@ export function radiusBound(rad: Radius): number {
   return Number(rad.mant) * 2 ** Number(rad.exp);
 }
 
-/**
- * Whether `exp` of a value of magnitude up to `bound` fits the exponent
- * bound, either way from one: its decimal exponent, `bound log10 e`, is
- * at most `MAX_EXPONENT` (4.9; `exp(1e18)` is a value, `exp(1e30)` is not).
- */
-export function expFits(bound: number): boolean {
-  return bound * Math.LOG10E <= Number(MAX_EXPONENT);
-}
-
-/**
- * A bound on `|log2|` of the values in the inexact `b`, as a double: the
- * larger of the binary exponent of its magnitude bound and of its
- * midpoint's, each to a double's accuracy plus a little slack, so that
- * `powBall` can bound the bits of a power's integer part or denominator
- * before computing it. An unbounded radius bounds nothing, and the
- * midpoint's exponent stands alone, as the midpoint is all that is
- * computed for such a ball.
- */
-function log2Scale(b: Ball): number {
-  const above = magnitudeAbove(b);
-  const mid = Math.abs(log2Of(b));
-  const upper =
-    above.kind === "unbounded"
-      ? mid
-      : Math.abs(Math.log2(Number(above.mant)) + Number(above.exp));
-  return Math.max(upper, mid) * (1 + 1e-9) + 1e-9;
-}
-
 /** The failure of the reciprocal of a value that failed with `error`: past the bound on its other side, and otherwise the same. */
 function reciprocalError(error: BallError): BallError {
   switch (error.kind) {
@@ -1154,16 +1187,459 @@ function reciprocalError(error: BallError): BallError {
   }
 }
 
+// ---------------------------------------------------------------------------
+// The exponent bound on a logarithm
+
 /**
- * `log2` of the nonzero midpoint of `b` as a double, from the coarse
- * bounds, taken on the side away from zero: within `2^-30` of the truth
- * for a value of order one, so that a base near one is guarded by its
- * true magnitude.
+ * The verdict of the classifier (D18, the plan's H.15) on a result whose
+ * magnitude is `e^L` for an interval `L`: `overflow` when every value
+ * passes the top of the exponent bound, `underflow` when every value
+ * passes the bottom, `compute` when every value lies within it with a
+ * margin for the kernel's error and the working digits' rounding, and
+ * `unresolved` otherwise, an edge that the retry loop narrows.
  */
-function log2Of(b: Ball): number {
-  const { lower, upper } = log2Bounds(b.mid);
-  const away = upper.int >= 0n ? upper : lower;
-  return Number(away.int) + away.frac;
+export type Verdict = "overflow" | "underflow" | "compute" | "unresolved";
+
+/**
+ * The edges on the natural logarithm of a magnitude, as coarse radii on
+ * the safe side of each: a magnitude `e^L` passes the top of the bound at
+ * `U = (10^18 + 1) ln 10 = 2302585092994045686.32…` and the bottom at
+ * `D = -10^18 ln 10 = -2302585092994045684.02…`. `LN_EDGE_BELOW` is below
+ * both `U` and `|D|`, and each `_ABOVE` at or above its edge, so that a
+ * comparison against them decides only where the coarse type's slack, a
+ * relative `2^-29`, about `4 × 10^9` here, cannot mislead; within it the
+ * kernel decides. `LN_HYPERBOLIC_ABOVE` is at or above `U + ln 2`, the
+ * top for `|x| - ln 2`, and `LN_WIDE` at or above `U + |D|`, the width of
+ * the whole band within the bound: a ball wider than that lies within it
+ * nowhere.
+ */
+const LN_EDGE_BELOW = radiusBelowScaled(
+  fromRational(rational(2302585092994045684n)),
+);
+const LN_TOP_ABOVE = radiusAbove(rational(2302585092994045687n));
+const LN_BOTTOM_ABOVE = radiusAbove(rational(2302585092994045685n));
+const LN_HYPERBOLIC_ABOVE = radiusAbove(rational(2302585092994045688n));
+const LN_WIDE = radiusAbove(rational(4605170185988091372n));
+
+/** `ln 2` from above and from below, as radii, `0.69314718055994530941…`. */
+const LN2_ABOVE = radiusAbove(rational(6931471805599453095n, 10n ** 19n));
+const LN2_BELOW = radiusBelowScaled(
+  fromRational(rational(6931471805599453094n, 10n ** 19n)),
+);
+
+/**
+ * The bits the kernel's edges are taken at beyond the logarithm's: the
+ * edges are near `2^61`, and their error from `ln 10`'s memo must stay
+ * below the logarithm's own.
+ */
+const EDGE_BITS = 70;
+
+/**
+ * The margin on the kernel's `compute`, in bits below the working bits:
+ * a result within `2^-(bits - MARGIN_BITS)`, relative, of an edge is not
+ * computed, so that the result's ball, the kernel's error and the
+ * rounding onto the working digits included, never reaches the edge, and
+ * the carry of a rounding at the top (issue #61) cannot occur. A power of
+ * two above every ulp the exponential's squarings and the log-space
+ * digits spend.
+ */
+const MARGIN_BITS = 40;
+
+/**
+ * The kernel's verdict on `L`, an interval containing the natural
+ * logarithm of the result's magnitude, against the edges at `EDGE_BITS`
+ * beyond `L`'s from the memo of `ln 10`; `topOnly` for a result that can
+ * reach zero, which is within the bound at any exponent, so that only the
+ * top edge counts.
+ */
+function classifyLog(
+  L: Fixed,
+  bits: number,
+  ceilingBits: number,
+  topOnly: boolean,
+): Verdict {
+  const at = L.bits + EDGE_BITS;
+  const l = rebaseFixed(L, at);
+  const ln10 = ln10Fixed(at, ceilingBits);
+  const top = scaleFixed(ln10, MAX_EXPONENT + 1n);
+  const bottom = scaleFixed(ln10, -MAX_EXPONENT);
+  const lo = l.value - l.error;
+  const hi = l.value + l.error;
+  if (lo >= top.value + top.error) return "overflow";
+  if (!topOnly && hi < bottom.value - bottom.error) return "underflow";
+  const margin = 1n << BigInt(at - bits + MARGIN_BITS);
+  if (
+    hi + margin < top.value - top.error &&
+    (topOnly || lo - margin >= bottom.value + bottom.error)
+  ) {
+    return "compute";
+  }
+  return "unresolved";
+}
+
+/**
+ * The classifier's verdict on `exp(x)` for the bounded `x`: `L` is `x`
+ * itself. The coarse bounds decide first, a magnitude below the edges
+ * throughout to compute, one at or above the top throughout to refuse on
+ * the side of `x`'s sign, a ball wider than the band within the bound to
+ * leave `unresolved`; within their slack the kernel decides on `x` at the
+ * working bits.
+ */
+export function classifyExp(x: Ball, context: NumberContext): Verdict {
+  if (compareRadius(magnitudeAbove(x), LN_EDGE_BELOW) < 0) return "compute";
+  if (compareRadius(magnitudeBelow(x), LN_TOP_ABOVE) >= 0) {
+    return sign(x.mid) > 0 ? "overflow" : "underflow";
+  }
+  if (compareRadius(x.rad, LN_WIDE) >= 0) return "unresolved";
+  const bits = bitsFor(context.precision);
+  return classifyLog(
+    fixedFromBall(x, bits),
+    bits,
+    bitsFor(context.ceiling),
+    false,
+  );
+}
+
+/**
+ * The classifier's verdict on `sinh(x)` and `cosh(x)` for the bounded
+ * `x`: `L` is `|x| - ln 2`, widened by an ulp on each side, since
+ * `ln |sinh x|` lies below it by about `e^(-2|x|)` and `ln cosh x` above
+ * it by as much, against the top edge alone, both being large in
+ * magnitude on either side of zero and never small far out.
+ */
+export function classifyHyperbolic(x: Ball, context: NumberContext): Verdict {
+  if (compareRadius(magnitudeAbove(x), LN_EDGE_BELOW) < 0) return "compute";
+  if (compareRadius(magnitudeBelow(x), LN_HYPERBOLIC_ABOVE) >= 0) {
+    return "overflow";
+  }
+  if (compareRadius(x.rad, LN_WIDE) >= 0) return "unresolved";
+  const bits = bitsFor(context.precision);
+  const ceilingBits = bitsFor(context.ceiling);
+  const magnitude = absFixed(fixedFromBall(x, bits));
+  const L = subtractFixed(magnitude, ln2Fixed(bits, ceilingBits));
+  return classifyLog({ ...L, error: L.error + 1n }, bits, ceilingBits, true);
+}
+
+/**
+ * What the classifier says of a power `x^y`: a verdict, or one of three
+ * answers of its own: `one`, the result one within `rad`, twice the bound
+ * on `|y ln x|`, where that bound is below an ulp of the working bits or
+ * the kernel's decision is out of reach and the bound at most a half
+ * (`e^L - 1 <= 2|L|` there); `tooLarge`, where the decision needs the
+ * logarithm at more bits than the range limit holds; and `unresolved` at
+ * the edge zero where `x` reaches within an ulp of zero at those bits.
+ * `compute` carries the bits the logarithm is to be taken at, and the
+ * product `y ln x` when the kernel formed it to decide.
+ */
+export type PowerVerdict =
+  | {
+      readonly kind: "compute";
+      readonly working: number;
+      readonly product?: Fixed;
+    }
+  | { readonly kind: "overflow" | "underflow" | "tooLarge" }
+  | { readonly kind: "unresolved"; readonly edge: Edge }
+  | { readonly kind: "one"; readonly rad: Radius };
+
+/**
+ * The classifier's verdict on `x^y` for a bounded `x` and `y`, `x` taken
+ * by its magnitude: `L` is `y ln |x|` over the two intervals. The coarse
+ * bounds decide first, on radii bracketing `|y|` and `|ln |x||` from
+ * above and below over each ball (`magnitudeBounds`, `lnBounds`) and the
+ * sign of the product where `y` excludes zero and `|x|` excludes one: a
+ * bound on `|L|` below the edges to compute, a lower bound on `|L|` at or
+ * above the edge on the product's side to refuse, and an interval that
+ * surely reaches past an edge while surely reaching within to leave
+ * `unresolved`; within their slack the kernel decides on `y ln |x|`,
+ * where the bits `y`'s size asks for fit the range limit. A base whose
+ * ball contains zero is held to the top edge alone by `|x|`'s upper end,
+ * for a `y` positive throughout, since values near zero are within the
+ * bound at any exponent; a `y` that reaches zero or below over such a
+ * base is `unresolved` at zero. A ball of unbounded radius is taken at
+ * its midpoint.
+ */
+export function classifyPower(
+  x: Ball,
+  y: Ball,
+  context: NumberContext,
+): PowerVerdict {
+  if (x.rad.kind === "unbounded") x = exact(x.mid);
+  if (y.rad.kind === "unbounded") y = exact(y.mid);
+  const bits = bitsFor(context.precision);
+  const xb = magnitudeBounds(x);
+  const yb = magnitudeBounds(y);
+  if (containsZero(x)) {
+    if (sideOfZero(y) !== "positive") {
+      return { kind: "unresolved", edge: ZERO };
+    }
+    // ln |x| over (0, |x|max]: at most ln of the upper end, positive only
+    // above one, so the top is reached only through values above one.
+    if (compareRadius(xb.maxUp, ONE_RADIUS) <= 0) {
+      return { kind: "compute", working: bits };
+    }
+    const hiUp = multiplyRadius(yb.maxUp, lnOfRadius(xb.maxUp, "up"));
+    if (compareRadius(hiUp, LN_EDGE_BELOW) < 0) {
+      return { kind: "compute", working: bits };
+    }
+    // Reaching the top surely, or undecided within the slack: either way
+    // `unresolved`, since the logarithm of a ball reaching zero cannot be
+    // taken on the kernel, and `unresolved` is retried.
+    return { kind: "unresolved", edge: "bound" };
+  }
+  const magnitude: Ball = { mid: absolute(x.mid), rad: x.rad };
+  const lb = lnBounds(magnitude, xb);
+  if (lb === undefined) return { kind: "unresolved", edge: ZERO };
+  const L: MagnitudeBounds = {
+    maxUp: multiplyRadius(yb.maxUp, lb.maxUp),
+    maxDown: multiplyRadiusDown(yb.maxDown, lb.maxDown),
+    minDown: multiplyRadiusDown(yb.minDown, lb.minDown),
+    minUp: multiplyRadius(yb.minUp, lb.minUp),
+  };
+  if (compareRadius(L.maxUp, powerOfTwoRadius(-BigInt(bits))) < 0) {
+    return { kind: "one", rad: shiftRadius(L.maxUp, 1n) };
+  }
+  const ySide = sideOfZeroOf(y);
+  const lnSide = sideOfOne(magnitude);
+  const side = (ySide * lnSide) as 1 | -1 | 0;
+  const coarse = coarseVerdict(L, side);
+  // The bits the product needs: the working bits plus the magnitudes of
+  // `y` and of the logarithm, so that their product keeps the working bits.
+  const yBits = bitsOfRadius(yb.maxUp);
+  const lnBits = bitsOfRadius(lb.maxUp);
+  const working = BigInt(bits + 8) + yBits + lnBits;
+  const affordable = working <= BigInt(context.maxBits);
+  if (coarse === "compute") {
+    if (affordable) return { kind: "compute", working: Number(working) };
+    if (compareRadius(L.maxUp, HALF_RADIUS) <= 0) {
+      return { kind: "one", rad: shiftRadius(L.maxUp, 1n) };
+    }
+    return { kind: "tooLarge" };
+  }
+  if (coarse === "unresolved") return { kind: "unresolved", edge: "bound" };
+  if (coarse !== "undecided") return { kind: coarse };
+  if (!affordable) return { kind: "tooLarge" };
+  const product = logProduct(magnitude, y, Number(working), context);
+  if (product === undefined) return { kind: "unresolved", edge: ZERO };
+  const verdict = classifyLog(product, bits, bitsFor(context.ceiling), false);
+  if (verdict === "compute") {
+    return { kind: "compute", working: Number(working), product };
+  }
+  if (verdict === "unresolved") return { kind: "unresolved", edge: "bound" };
+  return { kind: verdict };
+}
+
+/**
+ * Which argument of `pow(x, y)` an `unresolved` at the bound is located
+ * at: the one whose radius contributes more to the width of `y ln x`,
+ * `x`'s as `|y| rx / |x|`, the slope of the logarithm, and `y`'s as
+ * `|ln x| ry`; `x` when it reaches zero or the bounds cannot tell.
+ */
+export function logPowerBlame(x: Ball, y: Ball): 0 | 1 {
+  if (x.rad.kind === "unbounded" || y.rad.kind === "unbounded") return 0;
+  const xb = magnitudeBounds(x);
+  if (xb.minDown.kind === "unbounded" || xb.minDown.mant === 0n) return 0;
+  const lb = lnBounds({ mid: absolute(x.mid), rad: x.rad }, xb);
+  if (lb === undefined) return 0;
+  const fromX = multiplyRadius(
+    magnitudeAbove(y),
+    divideRadius(x.rad, xb.minDown),
+  );
+  const fromY = multiplyRadius(lb.maxUp, y.rad);
+  return compareRadius(fromX, fromY) >= 0 ? 0 : 1;
+}
+
+/** Exactly one and one half, as radii. */
+const ONE_RADIUS = radiusAbove(ONE_FRACTION);
+const HALF_RADIUS = radiusAbove(rational(1n, 2n));
+
+/**
+ * Radii bracketing the magnitude of a bounded ball over its interval:
+ * `max`, which is `|mid| + rad`, and `min`, which is `|mid| - rad` or zero
+ * where the ball reaches zero, each from above (`Up`) and from below
+ * (`Down`), from the coarse bounds of the midpoint; `minUp` is the
+ * midpoint's own bound, loose by the radius.
+ */
+type MagnitudeBounds = {
+  readonly maxUp: Radius;
+  readonly maxDown: Radius;
+  readonly minDown: Radius;
+  readonly minUp: Radius;
+};
+
+function magnitudeBounds(b: Ball): MagnitudeBounds {
+  if (isZero(b.mid)) {
+    return {
+      maxUp: b.rad,
+      maxDown: b.rad,
+      minDown: ZERO_RADIUS,
+      minUp: ZERO_RADIUS,
+    };
+  }
+  const above = radiusAboveScaled(b.mid);
+  const below = radiusBelowScaled(b.mid);
+  return {
+    maxUp: addRadius(above, b.rad),
+    maxDown: maxRadius(below, b.rad),
+    minDown: subtractRadiusDown(below, b.rad),
+    minUp: above,
+  };
+}
+
+/**
+ * Radii bracketing `|ln x|` over the bounded `x`, positive as rationals,
+ * from the bounds `xb` on its magnitude: near one, within `[0.6, 1.4]`
+ * throughout, from the exact difference `d = |x - 1|` over the ball,
+ * since `ln(1 + d)` and `|ln(1 - d)|` lie between `d / 2` and `2d` there,
+ * which bounds a base near one sharply where the coarse type's `2^-29`
+ * would not; elsewhere from the logarithms of the magnitude's bounds,
+ * the sign of the logarithm known where the ball excludes one and
+ * otherwise the bound taken over both ends with a minimum of zero;
+ * `undefined` where the lower end reaches zero, which has no logarithm.
+ */
+function lnBounds(x: Ball, xb: MagnitudeBounds): MagnitudeBounds | undefined {
+  if (
+    compareRadius(xb.maxUp, NEAR_ONE_ABOVE) <= 0 &&
+    compareRadius(xb.minDown, NEAR_ONE_BELOW) >= 0
+  ) {
+    const difference = differenceOf(x.mid, ONE);
+    const above = isZero(difference)
+      ? ZERO_RADIUS
+      : radiusAboveScaled(difference);
+    const below = isZero(difference)
+      ? ZERO_RADIUS
+      : radiusBelowScaled(difference);
+    return {
+      maxUp: shiftRadius(addRadius(above, x.rad), 1n),
+      maxDown: shiftRadius(maxRadius(below, x.rad), -1n),
+      minDown: shiftRadius(subtractRadiusDown(below, x.rad), -1n),
+      minUp: shiftRadius(above, 1n),
+    };
+  }
+  if (xb.minDown.kind === "unbounded" || xb.minDown.mant === 0n) {
+    return undefined;
+  }
+  switch (sideOfOne(x)) {
+    case 1:
+      return {
+        maxUp: lnOfRadius(xb.maxUp, "up"),
+        maxDown: lnOfRadius(xb.maxDown, "down"),
+        minDown: lnOfRadius(xb.minDown, "down"),
+        minUp: lnOfRadius(xb.minUp, "up"),
+      };
+    case -1:
+      return {
+        maxUp: lnOfRadius(xb.minDown, "up"),
+        maxDown: lnOfRadius(xb.minUp, "down"),
+        minDown: lnOfRadius(xb.maxUp, "down"),
+        minUp: lnOfRadius(xb.maxDown, "up"),
+      };
+    case 0:
+      return {
+        maxUp: maxRadius(
+          lnOfRadius(xb.maxUp, "up"),
+          lnOfRadius(xb.minDown, "up"),
+        ),
+        maxDown: maxRadius(
+          lnOfRadius(xb.maxDown, "down"),
+          lnOfRadius(xb.minUp, "down"),
+        ),
+        minDown: ZERO_RADIUS,
+        minUp: ZERO_RADIUS,
+      };
+  }
+}
+
+/** The band around one within which `lnBounds` uses the difference from one: `[0.6, 1.4]`. */
+const NEAR_ONE_ABOVE = radiusAbove(rational(7n, 5n));
+const NEAR_ONE_BELOW = radiusBelowScaled(fromRational(rational(3n, 5n)));
+
+/**
+ * `|ln r|` for a bounded, nonzero radius `r`, as a radius at or above it
+ * (`up`) or at or below (`down`): `|log2 r|` from the radius's exact
+ * logarithm, its fraction through a double at 40 bits with a margin of
+ * two units over the double's error, times `ln 2` from the safe side.
+ */
+function lnOfRadius(r: Radius, direction: "up" | "down"): Radius {
+  if (r.kind === "unbounded") return UNBOUNDED;
+  if (r.mant === 0n) return direction === "up" ? UNBOUNDED : ZERO_RADIUS;
+  const { int, frac } = log2OfRadius(r);
+  const scale = 40n;
+  const log2 = (int << scale) + BigInt(Math.floor(frac * 2 ** 40));
+  const magnitude = log2 < 0n ? -log2 : log2;
+  if (direction === "up") {
+    return multiplyRadius(
+      radiusAbove(rational(magnitude + 2n, 1n << scale)),
+      LN2_ABOVE,
+    );
+  }
+  if (magnitude <= 2n) return ZERO_RADIUS;
+  return multiplyRadiusDown(
+    radiusBelowScaled(fromRational(rational(magnitude - 2n, 1n << scale))),
+    LN2_BELOW,
+  );
+}
+
+/** The bits a value bounded by the radius `r` takes before the binary point, at least zero; a bigint, since `r`'s exponent is one. */
+function bitsOfRadius(r: Radius): bigint {
+  if (r.kind === "unbounded") return BigInt(LIMIT_BITS) * 8n;
+  if (r.mant === 0n) return 0n;
+  const int = log2OfRadius(r).int + 1n;
+  return int < 0n ? 0n : int;
+}
+
+/** The side of zero the bounded `b` lies on throughout: 1, -1, or 0 where it reaches zero. */
+function sideOfZeroOf(b: Ball): 1 | -1 | 0 {
+  switch (position(b, ZERO)) {
+    case "above":
+      return 1;
+    case "below":
+      return -1;
+    default:
+      return 0;
+  }
+}
+
+/** The side of one the bounded, positive `b` lies on throughout: 1 above, -1 below, or 0 where it reaches one. */
+function sideOfOne(b: Ball): 1 | -1 | 0 {
+  switch (position(b, ONE)) {
+    case "above":
+      return 1;
+    case "below":
+      return -1;
+    default:
+      return 0;
+  }
+}
+
+/** `sideOfZero` of builtin.ts, for the classifier: positive throughout or not. */
+function sideOfZero(b: Ball): "positive" | "other" {
+  return sideOfZeroOf(b) === 1 ? "positive" : "other";
+}
+
+/**
+ * The coarse verdict on `L` bracketed by `bounds` on its magnitude, with
+ * `side` its sign (1, -1, or 0 where the sign is not known, the interval
+ * then symmetric about zero): `compute` when the magnitude is below the
+ * edges throughout; a refusal when it is at or above the edge on its
+ * side throughout; `unresolved` when the interval surely reaches past an
+ * edge (its largest magnitude is at or above the edge even from below)
+ * while surely reaching within (its least magnitude is below the edges
+ * even from above, or zero is in it); and `undecided` within the slack.
+ */
+function coarseVerdict(
+  bounds: MagnitudeBounds,
+  side: 1 | -1 | 0,
+): Verdict | "undecided" {
+  if (compareRadius(bounds.maxUp, LN_EDGE_BELOW) < 0) return "compute";
+  const edge = side > 0 ? LN_TOP_ABOVE : LN_BOTTOM_ABOVE;
+  if (side !== 0 && compareRadius(bounds.minDown, edge) >= 0) {
+    return side > 0 ? "overflow" : "underflow";
+  }
+  const reachesPast = compareRadius(bounds.maxDown, edge) >= 0;
+  const reachesWithin =
+    side === 0 || compareRadius(bounds.minUp, LN_EDGE_BELOW) < 0;
+  if (reachesPast && reachesWithin) return "unresolved";
+  return "undecided";
 }
 
 // ---------------------------------------------------------------------------
@@ -1309,8 +1785,4 @@ function isExactZero(b: Ball): boolean {
 /** The exact value of a bounded radius, for the tests and the display. */
 export function radiusValue(rad: Radius): Scaled | undefined {
   return radiusScaled(rad);
-}
-
-function abs(n: bigint): bigint {
-  return n < 0n ? -n : n;
 }

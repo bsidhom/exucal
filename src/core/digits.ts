@@ -24,10 +24,13 @@
 // the whole interval of the `Floating`; a `Floating` whose interval
 // reaches zero is a ball around zero bounded by its extent. Nothing else
 // in the program needs log space: the display writes the decimal it is
-// given, and the exponent bound of scaled.ts holds the decimal exponent,
-// which the caller's guard (`expFits`) has already bounded, so the power
-// of ten can be formed, and its failure is an `overflow` or `underflow`
-// the caller returns.
+// given. The decimal exponent is held to the exponent bound by the
+// interval of `t` (D18): `overflow` or `underflow` when the whole interval
+// passes an edge, and `unresolved` at the edge `bound` when it reaches
+// one, or when the rounding onto the working digits carries the leading
+// digits to ten at the top (issue #61), where a power of ten past the
+// bound would have been formed and refused; the callers' classifier
+// (ball.ts) decides with a margin, so that neither is reached from them.
 
 import type { Ball, BallError } from "./ball.ts";
 import { workingDigits, type NumberContext } from "./context.ts";
@@ -51,8 +54,8 @@ import {
   shiftRadius,
 } from "./radius.ts";
 import { bitLength, rational } from "./rational.ts";
-import { ok, type Result } from "./result.ts";
-import { ZERO, multiply, negate, scaled } from "./scaled.ts";
+import { err, ok, type Result } from "./result.ts";
+import { MAX_EXPONENT, ZERO, multiply, negate, scaled } from "./scaled.ts";
 
 /** The bits the logarithm and the exponential work beyond the result, for their ulps. */
 const GUARD = 24;
@@ -98,6 +101,16 @@ export function floatingToBall(
     addFixed(lnPower, lnMantissa),
     ln10Fixed(working, ceilingBits),
   );
+  // The interval of t against the edges of the bound (D18): past the top
+  // throughout when its floor is above 10^18 at the lower end, past the
+  // bottom throughout when it lies below -10^18 at the upper end, and
+  // straddling an edge when only one end passes it.
+  const atBound: BallError = { kind: "unresolved", edge: "bound" };
+  const lower = (t.value - t.error) >> BigInt(t.bits);
+  const upper = (t.value + t.error) >> BigInt(t.bits);
+  if (lower > MAX_EXPONENT) return err({ kind: "overflow" });
+  if (upper < -MAX_EXPONENT) return err({ kind: "underflow" });
+  if (upper > MAX_EXPONENT || lower < -MAX_EXPONENT) return err(atBound);
   // The decimal exponent is the floor of t's value, and the fraction is
   // what is left, within t's error either way.
   const decimalExponent = t.value >> BigInt(t.bits);
@@ -117,9 +130,11 @@ export function floatingToBall(
   }
   const ball = fixedToBall(leadingFixed, digits);
   const power = scaled({ num: 1n, den: 1n }, decimalExponent);
-  if (!power.ok) return power;
+  if (!power.ok) throw new Error("A decimal exponent within the bound");
+  // The leading digits rounded onto the grid can carry to ten at the top,
+  // a power of ten past the bound: the value reaches the edge (#61).
   const mid = multiply(ball.mid, power.value);
-  if (!mid.ok) return mid;
+  if (!mid.ok) return err(atBound);
   return ok({
     mid: mant.value < 0n ? negate(mid.value) : mid.value,
     rad: multiplyRadius(ball.rad, radiusAboveScaled(power.value)),

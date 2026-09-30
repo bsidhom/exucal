@@ -23,8 +23,9 @@ million bits, beyond the hard bound on the range limit, though it is an
 ordinary value, a mantissa at the working precision times an exponent.
 So `exp`, `sinh`, `cosh`, a power in log space and a large decibel are
 refused beyond about 45,000 at the default range limit, through the one
-guard `expFits` in ball.ts, and a literal `1e999999999` is refused by the
-parser, because the only way to hold either is to form its digits.
+guard on the exponential in ball.ts, and a literal `1e999999999` is
+refused by the parser, because the only way to hold either is to form
+its digits.
 
 D13 chose the shape of the remedy: a type of its own, `Scaled`, between
 the fraction and the ball, a mantissa times a power of ten in a canonical
@@ -175,10 +176,15 @@ form an exponent that could not be formatted. The parser leaves a
 literal to the constructor, so `0.001e1000000000000000003` parses and
 `0e2000000000000000000` is zero, and the hard bound on a literal's
 mantissa stays `LIMIT_BITS`, as today. The kernel's guard on the
-exponential becomes the same bound: an argument whose magnitude over its
-whole ball, times `log10 e`, exceeds `MAX_EXPONENT` is refused
-(`exp(1e30)`; `exp(1e18)` is a value with the exponent
-`434294481903251827`).
+exponential becomes the same bound, on the whole ball of the argument
+(D18, the plan's H.15): the classifier of ball.ts holds an interval
+bounding the result's natural logarithm to the edges
+`(10^18 + 1) ln 10` and `-10^18 ln 10`, refusing only an argument whose
+every value puts the result past an edge (`exp(1e30)`; `exp(1e18)` is a
+value with the exponent `434294481903251827`), computing only one whose
+every value keeps it within, with a margin for the kernel's error, and
+leaving the rest `unresolved` at the bound, retried; `sinh`, `cosh` and
+the powers share it, on `|x| - ln 2` and on `y ln x`.
 
 A ball is held to the bound by every value in it (D18). A product or a
 quotient with an inexact operand is refused only when its whole ball
@@ -205,10 +211,11 @@ sizes predicted for a power's mantissa or a fraction's power of ten, at
 a literal's mantissa, and at the reach of the kernel
 (`sin(1e999999999 radian)`); and
 `overflow` or `underflow` of `Scaled` (scaled.ts) for this bound, by
-the sign of the exponent that passes it, or in the guards, of the
-argument of `exp`, of the product `y ln x` of the log-space power, and
-`overflow` for `sinh` and `cosh` of either sign, and in `settle`, of a
-rounded midpoint past the bound in decimal mode ("The decimal mode").
+the sign of the exponent that passes it, or from the classifier, of the
+argument of `exp`, of the product `y ln x` of a power, and `overflow`
+for `sinh` and `cosh` of either sign, each only where the whole ball is
+past the edge, and in `settle`, of a rounded midpoint past the bound in
+decimal mode ("The decimal mode").
 Only a value with an
 exponent can pass the bound, so the fraction has no such error, and a
 `Scaled` operation reports the fraction's `tooLarge` unchanged, a power
@@ -264,8 +271,8 @@ is the exponential of a difference.
 - **Soundness.** Parts of the number type are exact only within the
   bound. `log2Bounds` and `decimalExponentOfLog2` take the exponent
   through a 128-bit `log2 10`, and every radius taken from a midpoint
-  rests on them, certification included. The magnitude guards
-  (`radiusBound`, `expFits`, `powLogSpace`) work in doubles, and
+  rests on them, certification included. The classifier's edges are the
+  bound's, as coarse radii and from the memo of `ln 10`, and
   `MOST_MAGNITUDE` in fixed-exp.ts is a thrown precondition. All of them
   would need rework.
 - **A bound is needed anyway.** `exp(exp(1000))` has a 434-digit
@@ -390,7 +397,8 @@ argument is the same loop
 with the exponent going negative rather than a value with a million
 fraction bits (the `depth` of today's routine goes). Its precondition on
 the argument's magnitude (below `2^40` today) becomes the exponent bound
-above, and `expFits` becomes that check. `sinh` and `cosh` inherit it
+above, and the guard on the exponential becomes that check (since H.15
+the classifier, on the whole ball). `sinh` and `cosh` inherit it
 through the exponential: for an exponent beyond half the working bits
 plus a margin the reciprocal `1/E` is below an ulp of `E` and is folded
 into the error, so that neither is formed; `tanh` already saturates

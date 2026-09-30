@@ -4,7 +4,6 @@ import { inspect } from "node:util";
 import {
   certifies,
   exact,
-  expFits,
   isExact,
   position,
   radiusBound,
@@ -146,10 +145,22 @@ test("an argument whose exponential would pass the exponent bound is an overflow
     format(thirty.mid, 30, "halfEven"),
     "3.03321539680208754508640214142e+434294",
   );
-  // A wide ball is judged over its whole extent, and is zero within the
-  // exponential of its upper end, containing the exponentials of both
-  // ends and of the midpoint (H.3).
-  assert.ok(!expBall(ball(ZERO, dec("1e30")), CONTEXT).ok);
+  // A wide ball is judged over its whole extent: one reaching past the
+  // bound is unresolved at the bound (D18, H.15; stage 4 refused it for
+  // good), and one within it is zero within the exponential of its upper
+  // end, containing the exponentials of both ends and of the midpoint
+  // (H.3).
+  assert.deepEqual(expBall(ball(ZERO, dec("1e30")), CONTEXT), {
+    ok: false,
+    error: { kind: "unresolved", argument: 0, edge: "bound" },
+  });
+  assert.deepEqual(
+    expBall(ball(dec("2302585092994045686"), dec("1")), CONTEXT),
+    {
+      ok: false,
+      error: { kind: "unresolved", argument: 0, edge: "bound" },
+    },
+  );
   const wide = value(expBall(ball(ZERO, dec("1e6")), CONTEXT));
   assert.deepEqual(wide.mid, ZERO);
   for (const v of [ONE, dec("3.0332154e434294"), dec("3.2968315e-434295")]) {
@@ -157,8 +168,6 @@ test("an argument whose exponential would pass the exponent bound is an overflow
     assert.ok(where !== "above" && where !== "below", format(v, 8, "floor"));
   }
   assert.equal(position(wide, dec("3.04e434294")), "below");
-  assert.ok(expFits(2.3e18));
-  assert.ok(!expFits(2.31e18));
   assert.equal(radiusBound(UNBOUNDED), Infinity);
   assert.equal(radiusBound(radiusAbove(rational(0n))), 0);
   assert.ok(Math.abs(radiusBound(radiusAbove(rational(3n))) - 3) < 1e-6);
@@ -297,4 +306,78 @@ test("through the pipeline, exp(1) certifies fifty digits on the first pass, exp
     precision: 8,
   });
   assert.ok(zero.ok && isExact(zero.value.magnitude));
+});
+
+test("through the pipeline, a wide argument is retried until its exponential is within the bound, and a refusal needs the whole ball past (#40, #61)", () => {
+  const parsed = parseDefinitions("m  !");
+  assert.ok(parsed.ok);
+  const table = buildTable(parsed.value, {
+    ...CONTEXT,
+    precision: DEFAULT_CEILING,
+  });
+  assert.ok(table.ok, inspect(table));
+  const at = (text: string, precision: number) =>
+    evaluateText(table.value, text, { ...CONTEXT, precision });
+  // #40: `5` within about `2e948` at the first pass, unresolved at the
+  // bound there and computed once the loop narrows it (the sixth pass);
+  // the hyperbolic forms and a power alike (references from Python's
+  // decimal module at 40). An argument whose midpoint alone passes the
+  // edge at the first pass is a value too.
+  for (const [text, precision, digits] of [
+    [
+      "exp(approx(1e999) - approx(1e999 - 5))",
+      32,
+      "148.41315910257660342111558004055",
+    ],
+    [
+      "sinh(approx(1e999) - approx(1e999 - 5))",
+      32,
+      "74.203210577788758977009471996065",
+    ],
+    [
+      "cosh(approx(1e999) - approx(1e999 - 5))",
+      32,
+      "74.209948524787844444106108044488",
+    ],
+    ["pow(2, approx(1e999) - approx(1e999 - 5))", 8, "32"],
+    [
+      "exp(1e46 - approx(1/3) * 3e46 + 1.5e18)",
+      8,
+      "2.9970458e+651441722854877741",
+    ],
+  ] as const) {
+    const result = at(text, precision);
+    assert.ok(result.ok, `${text}: ${inspect(result)}`);
+    assert.deepEqual(
+      show(result.value.magnitude, precision, DEFAULT_ROUNDING),
+      { kind: "certified", text: digits },
+      text,
+    );
+  }
+  // A refusal needs every value past the bound: with `approx` the
+  // argument's ball lies wholly past it at every pass.
+  for (const [text, kind] of [
+    ["exp(approx(1e999))", "overflow"],
+    ["exp(2302587288910310144)", "overflow"],
+    ["exp(-1e999)", "underflow"],
+  ] as const) {
+    const result = at(text, 8);
+    assert.ok(!result.ok, text);
+    assert.equal(result.error.kind, kind, text);
+  }
+  // Within `10^9` decades of the bound the guards refused values (#61);
+  // the classifier decides them on the kernel.
+  for (const [text, digits] of [
+    ["exp(2302585092994045000)", "8.6e+999999999999999702"],
+    ["exp(-2302585092994045000)", "1.2e-999999999999999703"],
+    ["exp(2302585092994045685)", "2.7e+1000000000000000000"],
+  ] as const) {
+    const result = at(text, 2);
+    assert.ok(result.ok, `${text}: ${inspect(result)}`);
+    assert.equal(
+      format(result.value.magnitude.mid, 2, DEFAULT_ROUNDING),
+      digits,
+      text,
+    );
+  }
 });

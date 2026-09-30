@@ -275,14 +275,16 @@ limit's: the exact sum needs a mantissa of a billion digits, and
 "Sums, comparisons and the radius"). `exp(1e999)` is the other axis. Its
 mantissa is of the working digits, as every kernel result's is, and its
 decimal exponent, `1e999 log10 e`, about `4.34 × 10^998`, passes
-`MAX_EXPONENT`, `10^18`, so `expBall` refuses it before the kernel
-(`expFits(radiusBound(magnitudeAbove(x)))`). The guard takes the
-magnitude over the whole ball, and `approx` never narrows, so `approx`
-can turn a pass of the guard into a refusal and never the reverse; and
-a refusal is not an error `resolve` retries, so the refusal is the
-answer at the first pass. The threshold is `|x|` at `10^18 ln 10`, about
-`2.3026e18`, with `approx` or without it, and the same for `-x`,
-`sinh`, `cosh` and the log-space power. The message names the axis:
+`MAX_EXPONENT`, `10^18`, so `expBall` refuses it before the kernel: the
+classifier of ball.ts (`classifyExp`; the plan's D18 and H.15) finds
+every value of the argument's ball past the edge. `approx` never
+narrows, so `approx` can turn a value into a refusal and never the
+reverse; a refusal is not an error `resolve` retries, so the refusal is
+the answer at the first pass; and a ball that reaches across an edge is
+`unresolved` at the bound instead, which is retried. The threshold is
+`x` at `(10^18 + 1) ln 10`, about `2.3026e18`, with `approx` or without
+it, and the same for `-x`, `sinh`, `cosh` and the log-space power. The
+message names the axis:
 `"exp(1e999)" is too large to compute: its exponent would pass 10^18.`,
 where the range limit's reads `"1e999999999 + 1" is too large to compute
 within Most bits.`, and `exp(-1e999)` is too small, its exponent falling
@@ -349,14 +351,14 @@ in it:
   result is ordinary is the case that does. One candidate is to tie the
   bound to the range limit, an exponent of as many bits as a mantissa may
   have.
-- The guards that measure a magnitude in a double: `radiusBound`
-  (infinite past about `2^1030`), `expFits`, the product and `yBound` of
-  `powLogSpace`, and `MOST_MAGNITUDE` in fixed-exp.ts, a thrown
-  precondition today.
-- A rule for a pass whose argument is too wide for the result to have a
-  digit, before the kernel is entered, with a message for a refusal at
-  the ceiling: `unresolved` served the test build, but its message speaks
-  of an edge.
+- The classifier's edges (`classifyExp`, `classifyHyperbolic` and
+  `classifyPower` in ball.ts, on `(10^18 + 1) ln 10` and `-10^18 ln 10`
+  as coarse radii and from the memo of `ln 10`), and `MOST_MAGNITUDE` in
+  fixed-exp.ts, a thrown precondition today.
+- The rule for a pass whose argument is too wide for the result to have
+  a digit is `unresolved` at the edge `bound`, retried, with the message
+  at the ceiling saying the value cannot be told from the point where the
+  result passes the bound (the plan's D18), which would stay.
 - The binary magnitude of a midpoint: `log2Bounds` in scaled.ts takes
   `exp × log2 10` through a 128-bit `LOG2_10_SCALED`, which its comment
   sizes for an exponent at the bound (`2^-68`); an exponent of 3,300 bits
@@ -372,12 +374,3 @@ in it:
   here, 1,034 characters in all.
 - The cost: the exponential squares once per bit of its argument, so the
   argument's bits want the range limit's bound, as `sin`'s do.
-
-**A related gap.** The guard's magnitude over the whole ball lets a
-radius alone refuse: `exp(approx(1e999) - approx(1e999 - 5))` is `5`
-within about `2e948` at the first pass and refused there, and the
-loop ends, although the sixth pass would give `5` within `2e-354` and
-`exp` of it at once. A guard that refused on the midpoint and reported
-a ball that only its radius takes past the bound as `unresolved` would
-let the loop go on; it is not written, and the README says to keep such
-arguments exact meanwhile. It is tracked as issue #40 (https://github.com/bsidhom/pwa-units/issues/40).

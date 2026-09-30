@@ -109,31 +109,6 @@ import { ball, dec } from "../testing/scaled.ts";
  */
 const KNOWN: readonly Known[] = [
   {
-    issue: "#61",
-    task: "H.15",
-    cases: /^powBall\[-?1\]\(~/,
-    violation: /^refused (overflow|underflow) where the result does not pass/,
-    reason:
-      "`powBall`'s guard multiplies `log2Scale`, the base's `|log2|` with a relative slack of `10^-9`, by `n`, and guards `n = 1` and `n = -1` too, so an inexact base at either edge of the bound is refused where its power is the base itself or its reciprocal, both within; H.15 replaces the guard with the classifier.",
-  },
-  {
-    issue: "#46",
-    task: "H.15",
-    cases:
-      /^powBall\[1000000000000000000000000000000\]\(~-?1(\.000000000000000000000001)?\)|^pow\(~1, ~1e1000000000000000000\/3\)/,
-    violation: /^refused overflow/,
-    reason:
-      "`log2Scale` adds an absolute slack of `10^-9` to `|log2|` of the base, so a base of magnitude one is refused past `n ≈ 3.3 × 10^27`, and `powLogSpace` refuses an exponent a double cannot hold before it looks at `ln x`; H.15 bounds `n ln |b|` and `y ln x` on their intervals.",
-  },
-  {
-    issue: "#40",
-    task: "H.15",
-    cases: /^(exp|sinh|cosh|pow|powBall\[1000000000000000000000000000000\])\(/,
-    violation: /^refused (overflow|underflow) where the result does not pass/,
-    reason:
-      "The guards of the exponential family and of the powers refuse on the whole ball's magnitude, so a wide argument, or an exponent straddling zero over a base at the bottom edge, is refused for good where D18 has it `unresolved` at the bound; H.15's classifier refuses only when every value passes.",
-  },
-  {
     issue: "#79",
     task: "follow-up",
     cases: /^(cbrt|rootBall\[3\])\(3e18±2e18\)/,

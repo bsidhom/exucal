@@ -205,6 +205,36 @@ test("the log-space ball contains the value and carries the mantissa's error, ov
   assert.ok(compare(radiusUpper(zero.rad), rational(5n * 2n ** 100000n)) >= 0);
 });
 
+test("the log-space digits hold the decimal exponent to the bound by the interval of t (D18, #61)", () => {
+  // 2^3321928094887362351 is 10^(10^18 + 0.94…): a mantissa of one is
+  // within the top, of two is past it (10^(10^18 + 1.24…)), and one of
+  // one within a half reaches both sides of the edge.
+  const top = 3321928094887362351n;
+  const within = unwrap(floatingToBall(floating(1n, top), at(8)));
+  assert.equal(format(within.mid, 2, "halfEven"), "8.8e+1000000000000000000");
+  assert.deepEqual(floatingToBall(floating(2n, top), at(8)), {
+    ok: false,
+    error: { kind: "overflow" },
+  });
+  assert.deepEqual(floatingToBall(floating(1n, top, 1n << 63n), at(8)), {
+    ok: false,
+    error: { kind: "unresolved", edge: "bound" },
+  });
+  // At the bottom: 2^-3321928094887362347 is 10^-(10^18 - 0.26…), within,
+  // and half of it past; a wide mantissa reaches both.
+  const bottom = -3321928094887362347n;
+  const above = unwrap(floatingToBall(floating(1n, bottom), at(8)));
+  assert.equal(format(above.mid, 2, "halfEven"), "1.8e-1000000000000000000");
+  assert.deepEqual(floatingToBall(floating(1n, bottom - 1n), at(8)), {
+    ok: false,
+    error: { kind: "underflow" },
+  });
+  assert.deepEqual(floatingToBall(floating(1n, bottom, 1n << 63n), at(8)), {
+    ok: false,
+    error: { kind: "unresolved", edge: "bound" },
+  });
+});
+
 test("a decimal exponent beyond the bound is an overflow or an underflow, and the exact path rounds a value of the range limit's size", () => {
   const huge = floatingToBall(floating(1n, 4n * 10n ** 18n), at(8));
   assert.deepEqual(huge, {

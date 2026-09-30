@@ -24,9 +24,12 @@ import {
   absolute,
   compare,
   decimalExponent,
+  divide,
   fromRational,
   multiply,
+  negate,
   subtract,
+  toRational,
   type Scaled,
 } from "../scaled.ts";
 import { ball as ballOf, dec, fr } from "../../testing/scaled.ts";
@@ -228,8 +231,9 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
     { kind: "tooLarge" },
   );
   // A base within 2^-30 of one is past the bound by its exact difference
-  // from one; a base of magnitude one never is, so its refusal is the
-  // exponent's, which cannot be formed.
+  // from one; a base of one is answered before the exponent's fraction is
+  // formed (H.6, the test below), so its power is exactly one where it was
+  // refused as the exponent's fraction.
   assert.deepEqual(
     failure(
       powBallOf(exact(dec("1.0000000001")), exact(dec("1e999999999")), CONTEXT),
@@ -237,8 +241,8 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
     { kind: "overflow" },
   );
   assert.deepEqual(
-    failure(powBallOf(exact(ONE), exact(dec("1e999999999")), CONTEXT)),
-    { kind: "tooLarge" },
+    value(powBallOf(exact(ONE), exact(dec("1e999999999")), CONTEXT)),
+    exact(ONE),
   );
   assert.deepEqual(
     failure(powBallOf(exact(fr(-2n)), exact(fr(1n, 2n)), CONTEXT)),
@@ -341,6 +345,87 @@ test("an inexact exponent is log space for a positive base, and the base's sign 
   assert.notEqual(position(wideExponent, dec("1e100000")), "below");
 });
 
+test("the exact bases 0, 1 and -1 are answered before the exponent's fraction is formed (H.6, #46)", () => {
+  const minusOne = exact(negate(ONE));
+  const huge = exact(dec("1e999999999"));
+  // #46's rows 4 to 6, refused as tooLarge when the fraction was formed
+  // first, and its row 2, taken to log space, which refused it.
+  assert.deepEqual(value(powBallOf(exact(ONE), huge, CONTEXT)), exact(ONE));
+  assert.deepEqual(value(powBallOf(minusOne, huge, CONTEXT)), exact(ONE));
+  assert.deepEqual(value(powBallOf(exact(ZERO), huge, CONTEXT)), exact(ZERO));
+  assert.deepEqual(
+    value(powBallOf(exact(ONE), ball("1e400", "1e360"), CONTEXT)),
+    exact(ONE),
+  );
+  // One to any exponent: an unbounded one, and one too small to form.
+  assert.deepEqual(
+    value(
+      powBallOf(exact(ONE), { mid: dec("1e400"), rad: UNBOUNDED }, CONTEXT),
+    ),
+    exact(ONE),
+  );
+  assert.deepEqual(
+    value(powBallOf(exact(ONE), exact(dec("1e-999999999")), CONTEXT)),
+    exact(ONE),
+  );
+  // Zero to a huge negative exponent divides by zero, and minus one to a
+  // tiny one is an even root of a negative number: 1e-30000 is
+  // 1 / (2^30000 × 5^30000), and no two cancels.
+  assert.deepEqual(
+    failure(powBallOf(exact(ZERO), exact(dec("-1e999999999")), CONTEXT)),
+    { kind: "divisionByZero" },
+  );
+  assert.deepEqual(
+    failure(powBallOf(minusOne, exact(dec("1e-30000")), CONTEXT)),
+    { kind: "negativeRadicand", degree: 2n },
+  );
+  // A formable exponent keeps the rational route.
+  assert.deepEqual(
+    value(powBallOf(minusOne, exact(fr(1n, 3n)), CONTEXT)),
+    minusOne,
+  );
+  assert.deepEqual(
+    value(powBallOf(minusOne, exact(fr(2n, 3n)), CONTEXT)),
+    exact(ONE),
+  );
+  // Past the default range limit the parity is read off the canonical
+  // form: 5^-16000 is 2^16000 × 10^-16000, whose twos exactly cancel the
+  // denominator's, so both parts are odd and the power is -1; twice it
+  // keeps an even numerator, and 1e999999999/3 has a numerator that is a
+  // multiple of ten, so each is 1. 5^-15000 still forms, and its power is
+  // -1 by the rational route.
+  const fiveTo = (n: bigint) => fr(1n, 5n ** n);
+  assert.ok(!toRational(fiveTo(16000n), DEFAULT_MAX_BITS).ok);
+  assert.deepEqual(
+    value(powBallOf(minusOne, exact(fiveTo(16000n)), CONTEXT)),
+    minusOne,
+  );
+  assert.deepEqual(
+    value(powBallOf(minusOne, exact(fr(2n, 5n ** 16000n)), CONTEXT)),
+    exact(ONE),
+  );
+  const third = divide(dec("1e999999999"), fr(3n));
+  assert.ok(third.ok);
+  assert.deepEqual(
+    value(powBallOf(minusOne, exact(third.value), CONTEXT)),
+    exact(ONE),
+  );
+  assert.ok(toRational(fiveTo(15000n), DEFAULT_MAX_BITS).ok);
+  assert.deepEqual(
+    value(powBallOf(minusOne, exact(fiveTo(15000n)), CONTEXT)),
+    minusOne,
+  );
+  // A negative exponent has the parity of its magnitude.
+  assert.deepEqual(
+    value(powBallOf(minusOne, exact(negate(fiveTo(16000n))), CONTEXT)),
+    minusOne,
+  );
+  assert.deepEqual(
+    value(powBallOf(minusOne, exact(dec("-1e999999999")), CONTEXT)),
+    exact(ONE),
+  );
+});
+
 test("an exact zero base under an inexact exponent: zero, division by zero, or unresolved at the exponent", () => {
   assert.deepEqual(
     value(powBallOf(exact(ZERO), ball("1.5", "0.5"), CONTEXT)),
@@ -422,6 +507,52 @@ test("through the pipeline, roots of a large degree or of a tiny mantissa are va
     show(aroundZero.value.magnitude, 8, DEFAULT_ROUNDING).kind,
     "zero",
   );
+});
+
+test("through the pipeline, the exact bases 0, 1 and -1 are exact values where they were refused (#46), and a power past the bound stays refused", () => {
+  const parsed = parseDefinitions("m  !");
+  assert.ok(parsed.ok);
+  const context = { ...CONTEXT, precision: 8, ceiling: 200 };
+  const table = buildTable(parsed.value, { ...context, precision: 200 });
+  assert.ok(table.ok, inspect(table));
+  for (const [text, digits] of [
+    ["pow(1, 1e999999999)", "1"],
+    ["pow(-1, 1e999999999)", "1"],
+    ["pow(0, 1e999999999)", "0"],
+    ["pow(1, approx(1e400))", "1"],
+    ["pow(-1, 5^-16000)", "-1"],
+    ["pow(-1, 2 * 5^-16000)", "1"],
+    ["pow(-1, 1e999999999/3)", "1"],
+    ["pow(-1, 5^-15000)", "-1"],
+  ] as const) {
+    const result = evaluateText(table.value, text, context);
+    assert.ok(result.ok, `${text}: ${inspect(result)}`);
+    assert.deepEqual(
+      show(result.value.magnitude, 8, DEFAULT_ROUNDING),
+      { kind: "exact", text: digits },
+      text,
+    );
+  }
+  const primitives = table.value.primitives;
+  for (const [text, message] of [
+    ["pow(0, -1e999999999)", 'Division by zero in "pow(0, -1e999999999)".'],
+    [
+      "pow(-1, 1e-30000)",
+      '"pow(-1, 1e-30000)" takes an even root of a negative value.',
+    ],
+    [
+      "approx(1.0000001)^1e30",
+      '"approx(1.0000001)^1e30" is too large to compute: its exponent would pass 10^18.',
+    ],
+    [
+      "pow(2, approx(1e400))",
+      '"pow(2, approx(1e400))" is too large to compute: its exponent would pass 10^18.',
+    ],
+  ] as const) {
+    const result = evaluateText(table.value, text, context);
+    assert.ok(!result.ok, text);
+    assert.equal(describeTextError(result.error, text, primitives), message);
+  }
 });
 
 test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m, 2) says to write (2 m)^2, and the other errors are worded", () => {

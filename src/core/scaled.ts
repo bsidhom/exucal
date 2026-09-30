@@ -834,8 +834,8 @@ function fivesIn(n: bigint, most: bigint): bigint {
   return min(count, most);
 }
 
-/** The number of trailing zero bits of the positive `n`. */
-function trailingZeros(n: bigint): bigint {
+/** The number of trailing zero bits of the positive `n`; exported for the parity of `pow`'s exponent (builtins/pow.ts). */
+export function trailingZeros(n: bigint): bigint {
   return BigInt(bitLength(n & -n) - 1);
 }
 

@@ -165,23 +165,23 @@ result depends on which side the true value lies (D4): the error names
 the edge, the retry loop raises the precision, and at the ceiling the
 message says the value cannot be told from that edge.
 
-| Function               | Domain                                                 | Exact cases                                                  | Edges an `unresolved` names                 |
-| ---------------------- | ------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------- |
-| `pi()`                 |                                                        | none                                                         |                                             |
-| `exp`                  | all                                                    | `exp(0)`                                                     |                                             |
-| `ln`, `log10`, `log2`  | `x > 0`                                                | `ln(1)`; an integer power of the base                        | zero                                        |
-| `log(b, x)`            | `b > 0`, `b ≠ 1`, `x > 0`                              | `x` an integer power of `b`, or `b` of `x`                   | zero for `b` and `x`; `1` for `b`           |
-| `sqrt`                 | `x >= 0`                                               | a perfect square                                             | zero                                        |
-| `cbrt`                 | all                                                    | a perfect cube                                               |                                             |
-| `pow(x, y)`            | `x > 0`, or `x <= 0` with a rational `y` as `^` allows | `x` a perfect `q`-th power for `y = p/q`; `pow(0, 0)` is `1` | zero for `x`; zero for `y` when `x` is zero |
-| `sin`, `cos`, `tan`    | all                                                    | zero: `sin(0 radian)`, `cos(0 radian)`, `tan(0 radian)`      | a pole of `tan`                             |
-| `asin`, `acos`         | `[-1, 1]`                                              | `asin(0)`, `acos(1)`                                         | `1`, `-1`                                   |
-| `atan`                 | all                                                    | `atan(0)`                                                    |                                             |
-| `atan2(y, x)`          | not both zero                                          | `atan2(0, x)` for `x > 0`                                    | zero for `y`, when `x` is not positive      |
-| `sinh`, `cosh`, `tanh` | all                                                    | zero: `sinh(0)`, `cosh(0)`, `tanh(0)`                        |                                             |
-| `asinh`                | all                                                    | `asinh(0)`                                                   |                                             |
-| `acosh`                | `x >= 1`                                               | `acosh(1)`                                                   | `1`                                         |
-| `atanh`                | `-1 < x < 1`                                           | `atanh(0)`                                                   | `1`, `-1`                                   |
+| Function               | Domain                                                 | Exact cases                                                                                                   | Edges an `unresolved` names                 |
+| ---------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `pi()`                 |                                                        | none                                                                                                          |                                             |
+| `exp`                  | all                                                    | `exp(0)`                                                                                                      |                                             |
+| `ln`, `log10`, `log2`  | `x > 0`                                                | `ln(1)`; an integer power of the base                                                                         | zero                                        |
+| `log(b, x)`            | `b > 0`, `b ≠ 1`, `x > 0`                              | `x` an integer power of `b`, or `b` of `x`                                                                    | zero for `b` and `x`; `1` for `b`           |
+| `sqrt`                 | `x >= 0`                                               | a perfect square                                                                                              | zero                                        |
+| `cbrt`                 | all                                                    | a perfect cube                                                                                                |                                             |
+| `pow(x, y)`            | `x > 0`, or `x <= 0` with a rational `y` as `^` allows | `x` a perfect `q`-th power for `y = p/q`; `pow(x, 0)` is `1`; the bases `0`, `1` and `-1` for any `y` (below) | zero for `x`; zero for `y` when `x` is zero |
+| `sin`, `cos`, `tan`    | all                                                    | zero: `sin(0 radian)`, `cos(0 radian)`, `tan(0 radian)`                                                       | a pole of `tan`                             |
+| `asin`, `acos`         | `[-1, 1]`                                              | `asin(0)`, `acos(1)`                                                                                          | `1`, `-1`                                   |
+| `atan`                 | all                                                    | `atan(0)`                                                                                                     |                                             |
+| `atan2(y, x)`          | not both zero                                          | `atan2(0, x)` for `x > 0`                                                                                     | zero for `y`, when `x` is not positive      |
+| `sinh`, `cosh`, `tanh` | all                                                    | zero: `sinh(0)`, `cosh(0)`, `tanh(0)`                                                                         |                                             |
+| `asinh`                | all                                                    | `asinh(0)`                                                                                                    |                                             |
+| `acosh`                | `x >= 1`                                               | `acosh(1)`                                                                                                    | `1`                                         |
+| `atanh`                | `-1 < x < 1`                                           | `atanh(0)`                                                                                                    | `1`, `-1`                                   |
 
 **`pow`, and `^` with it.** `pow(x, y)` is for a plain base and a plain
 exponent; a power of a quantity is written with `^`, whose exponent is a
@@ -203,7 +203,19 @@ which the range limit does not hold; what log space gives up is
 exactness where none was reachable. A non-positive base with an inexact
 exponent is a domain error, a negative base under an even root the
 `negativeRadicand` that
-`(-1)^(1/2)` is, and a base straddling zero `unresolved`.
+`(-1)^(1/2)` is, and a base straddling zero `unresolved`. Three bases
+need no arithmetic and are answered before the exponent's fraction is
+formed (the plan's H.6): `pow(1, y)` is exactly `1` for any `y`, an
+inexact or a huge one included (`pow(1, approx(1e400))`,
+`pow(1, 1e999999999)`); `pow(0, y)` is `0`, a division by zero or
+`unresolved` at zero by the side of zero `y` lies on (`pow(0,
+1e999999999)` is `0`); and `pow(-1, y)` for an exact `y` whose fraction
+does not fit the range limit is decided by the parity the canonical form
+of the exponent gives, `1` for `1e999999999` and `1e999999999/3`, `-1`
+for `5^-16000`, and the even root of a negative number for `1e-30000`;
+an exponent that fits keeps the rational route, so `pow(-1, 1/3)` is
+`-1` and `pow(-1, 2/3)` is `1`. Before that, stage 4 formed the fraction
+first and refused each of them (issue #46).
 
 **`log`'s exact cases** are integer exponents either way: `log(2, 8)` is
 `3`, `log(3, 1/9)` is `-2`, `log(8, 2)` is `1/3`. A rational exponent in

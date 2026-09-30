@@ -34,7 +34,11 @@
 // takes a literal exponent, not an expression: an optionally signed decimal
 // (`m^2`, `s^-1`, `m^0.5`) or a parenthesized rational (`m^(1/2)`,
 // `m^(-3/2)`), so the exponent is known at parse time and travels in the
-// tree as a `Rational`.
+// tree as the pair of integers the parser read, an `Exponent`, unreduced:
+// the evaluator reduces it where the range limit applies
+// (`reduceExponent` of evaluate.ts), since a reduction here, with no
+// context, ran Euclid's gcd at the hard bound on every keystroke, seconds
+// on long literals and minutes at the bound (issue #66).
 //
 // A call, `tempC(100)`, is a name directly followed by `(`, zero or more
 // expressions separated by commas, and `)`: `pi()`, `tempC(100)`,
@@ -66,10 +70,11 @@
 // the exponent kept as the number it is, so that `1e999999999` parses; a
 // mantissa beyond the hard bound `LIMIT_BITS`, or an exponent beyond the
 // exponent bound, is rejected where it is written, the message saying
-// which, and for the exponent on which side. The `^` exponent is a
-// `Rational`, known at parse time, and its literal is converted with
-// `toRational` at the hard bound, so `m^1e999999999` is rejected there
-// while `m^1e300000` is what it always was. A sign is never part of a
+// which, and for the exponent on which side. Each literal of the `^`
+// exponent is converted with `toRational` at the hard bound, so
+// `m^1e999999999` is rejected there while `m^1e300000` is what it always
+// was, and a quotient by zero is rejected off the divisor's literal; the
+// two are then paired as they are, with no gcd. A sign is never part of a
 // number outside an exponent: `-2` is the negation of `2`, `2-3` is a
 // difference and `2e-3` a literal, since the literal is read as far as it
 // goes. Whether the operands of a sum conform is the evaluator's business,
@@ -103,7 +108,7 @@ import {
   type Parser,
   type Spanned,
 } from "./parser.ts";
-import { LIMIT_BITS, divide, type Rational } from "./rational.ts";
+import { LIMIT_BITS, type Rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import { parseDecimal, toRational, type Scaled } from "./scaled.ts";
 import type { Span } from "./span.ts";
@@ -116,6 +121,16 @@ export type Expr = { readonly span: Span; readonly node: ExprNode };
 /** The binary operators: `+`, `-`, `*` (or juxtaposition) and `/`. */
 export type BinaryOp = "add" | "sub" | "mul" | "div";
 
+/**
+ * The exponent of `^` as the parser read it: `num / den` with `den`
+ * positive and the pair unreduced, since a `Rational` promises lowest
+ * terms, which the parser no longer pays for (the header says why). Each
+ * of the two is at most the product of two literals' parts within the
+ * hard bound; `reduceExponent` of evaluate.ts makes the fraction within
+ * the range limit.
+ */
+export type Exponent = { readonly num: bigint; readonly den: bigint };
+
 export type ExprNode =
   | { readonly kind: "number"; readonly value: Scaled }
   | { readonly kind: "unit"; readonly name: string }
@@ -125,7 +140,7 @@ export type ExprNode =
       readonly left: Expr;
       readonly right: Expr;
     }
-  | { readonly kind: "pow"; readonly base: Expr; readonly exponent: Rational }
+  | { readonly kind: "pow"; readonly base: Expr; readonly exponent: Exponent }
   /** `-operand`. */
   | { readonly kind: "neg"; readonly operand: Expr }
   /** `name(arguments...)`: a call of the function `name`, which is at `nameSpan`, with zero or more arguments. */
@@ -221,9 +236,9 @@ function decimal(pattern: RegExp, expected: string): Parser<Scaled, Rejection> {
 }
 
 /**
- * A decimal literal as the fraction it denotes, for the `^` exponent,
- * which stays a `Rational`; one whose power of ten cannot be formed within
- * the hard bound is rejected as too large.
+ * A decimal literal as the fraction it denotes, for the `^` exponent; one
+ * whose power of ten cannot be formed within the hard bound is rejected
+ * as too large. `toRational` forms it with no gcd.
  */
 function fraction(
   pattern: RegExp,
@@ -330,9 +345,10 @@ const atom: Parser<Expr, Rejection> = alt(map(number, leaf), unitAtom);
 /**
  * The exponent of `^`: a signed decimal, or a parenthesized rational written
  * as a signed decimal optionally divided by an unsigned one. A zero divisor
- * is rejected, as any other unrepresentable literal is.
+ * is rejected, as any other unrepresentable literal is; the pair is not
+ * reduced (`Exponent`).
  */
-const exponent: Parser<Spanned<Rational>, Rejection> = token(
+const exponent: Parser<Spanned<Exponent>, Rejection> = token(
   spanned(
     alt(
       fraction(SIGNED, "a number"),
@@ -357,12 +373,20 @@ const exponent: Parser<Spanned<Rational>, Rejection> = token(
   ),
 );
 
+/**
+ * `numerator / denominator` as the unreduced pair, for a denominator read
+ * as an unsigned literal, so that the pair's denominator is positive; a
+ * zero divisor is rejected.
+ */
 function divideExponent(
   numerator: Rational,
   denominator: Rational,
-): Result<Rational, Rejection> {
-  const result = divide(numerator, denominator);
-  return result.ok ? result : err({ kind: "exponentDividesByZero" });
+): Result<Exponent, Rejection> {
+  if (denominator.num === 0n) return err({ kind: "exponentDividesByZero" });
+  return ok({
+    num: numerator.num * denominator.den,
+    den: numerator.den * denominator.num,
+  });
 }
 
 /** `atom`, optionally raised to an exponent. */

@@ -3,9 +3,10 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import { parseExpr, parseUnitList, type Expr, type Rejection } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
-import { LIMIT_BITS, rational, toFraction } from "./rational.ts";
+import { LIMIT_BITS, bitLength, rational, toFraction } from "./rational.ts";
 import { fromRational, toRational } from "./scaled.ts";
 import type { Span } from "./span.ts";
+import { key, randomBigInt } from "../testing/random.ts";
 
 const OPERATOR = { add: "+", sub: "-", mul: "*", div: "/" } as const;
 
@@ -26,7 +27,8 @@ function show(e: Expr): string {
     case "binary":
       return `(${show(node.left)} ${OPERATOR[node.op]} ${show(node.right)})`;
     case "pow":
-      return `${show(node.base)}^${toFraction(node.exponent)}`;
+      // The exponent travels unreduced; it renders reduced, as its value.
+      return `${show(node.base)}^${toFraction(rational(node.exponent.num, node.exponent.den))}`;
     case "neg":
       return `-${show(node.operand)}`;
     case "call":
@@ -246,6 +248,56 @@ test("an exponent may be a parenthesized rational", () => {
   assertParses("m^(0.5/2)", "m^1/4");
   assertParses("m^(0/5)", "m^0");
   assertParses("m^(2) s", "(m^2 * s)");
+});
+
+test("an exponent travels in the tree as the pair the parser read, unreduced", () => {
+  // The parser has no context to reduce within, and a reduction at the
+  // hard bound took seconds to minutes on long literals (issue #66); the
+  // evaluator reduces the pair within the range limit.
+  for (const [text, num, den] of [
+    ["m^2", 2n, 1n],
+    ["m^-1.5", -3n, 2n],
+    ["m^(2/4)", 2n, 4n],
+    ["m^(-1/2)", -1n, 2n],
+    ["m^(0.5/2)", 1n, 4n],
+    ["m^(3/1.5)", 6n, 3n],
+    ["m^(0/5)", 0n, 5n],
+    // 1e3 / 1e-3 is 1000 × 1000 over 1 × 1: each literal's power of ten
+    // is formed within the hard bound, and the pair is their product.
+    ["m^(1e3/1e-3)", 1000000n, 1n],
+  ] as const) {
+    const e = parsed(text);
+    assert.equal(e.node.kind, "pow", text);
+    if (e.node.kind === "pow") {
+      assert.deepEqual(e.node.exponent, { num, den }, text);
+    }
+  }
+});
+
+test("a ^ exponent of two literals at the hard bound parses in milliseconds (#66)", () => {
+  // Two pseudo-random literals of 314,000 digits, the most the hard bound
+  // takes: the parse forms each within the bound and pairs them with no
+  // gcd, where a reduction here took about three and a half minutes,
+  // extrapolated. The budget is generous for a slow machine; a gcd would
+  // miss it by two orders.
+  const literal = (seed: number) => {
+    let text = "";
+    while (text.length < 314_000) {
+      text += randomBigInt(key(seed + text.length), 3000).toString();
+    }
+    return text.slice(0, 314_000).replace(/^0+/, "1");
+  };
+  const a = literal(1);
+  const b = literal(2);
+  const start = performance.now();
+  const e = parsed(`2^(${a}/${b})`);
+  const ms = performance.now() - start;
+  assert.ok(ms < 2000, `parsed in ${ms.toFixed(0)} ms`);
+  assert.ok(e.node.kind === "pow");
+  if (e.node.kind === "pow") {
+    assert.ok(bitLength(e.node.exponent.num) > 1_000_000);
+    assert.ok(bitLength(e.node.exponent.den) > 1_000_000);
+  }
 });
 
 test("a parenthesized exponent is a literal, not an expression", () => {

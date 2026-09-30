@@ -482,7 +482,9 @@ test("through the pipeline, roots of a large degree or of a tiny mantissa are va
     ["pow(2e200, 1e-20)", 8, "1"],
     ["pow(2, 1e-400)", 8, "1"],
     ["2^1e-400", 8, "1"],
-    ["2^1e-310000", 8, "1"],
+    // A ^ exponent is held to the range limit since H.9 (below), so the
+    // largest degree the default takes is about 10^19000.
+    ["2^1e-19000", 8, "1"],
     ["pow(-2, 3^-700)", 8, "-1"],
     ["2^1e-20", 32, "1.0000000000000000000069314718056"],
     ["pow(2, 1e-20)", 32, "1.0000000000000000000069314718056"],
@@ -629,6 +631,12 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
       '"pow(2, 1e-999999999)" is too large to compute within Most bits.',
     ],
     ["2^1442695", '"2^1442695" is too large to compute within Most bits.'],
+    // A ^ exponent is reduced by the evaluator within the range limit
+    // (H.9): its denominator here, 10^310000, has a million bits, so the
+    // power is refused as pow's is, where the parser once formed it at the
+    // hard bound and the root went to log space (H.5); H.16 sends pow's
+    // exponent past the limit to log space.
+    ["2^1e-310000", '"2^1e-310000" is too large to compute within Most bits.'],
   ]) {
     const result = evaluateText(table.value, text!, {
       ...context,

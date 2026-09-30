@@ -13,8 +13,13 @@
 // A number is a dimensionless quantity, a unit name is whatever the `Lookup`
 // says it is, and the operators are the quantity arithmetic of `quantity.ts`:
 // juxtaposition and `*` multiply, `/` divides, `+` and `-` add and subtract,
-// a leading `-` negates, and `^` raises to the rational exponent the parser
-// already read. The `NumberContext` given is the working one (D1 of
+// a leading `-` negates, and `^` raises to the exponent the parser read,
+// reduced here within the range limit (`reduceExponent`): a numerator or
+// a denominator past `maxBits` as the parser read them is `tooLarge` at
+// the power before any gcd runs, as D19 asks of what can be bounded
+// before forming, since the parser, which has no context, once reduced
+// the pair at the hard bound for seconds to minutes (issue #66). The
+// `NumberContext` given is the working one (D1 of
 // docs/calculator-plan.md): its precision is passed to every power, where
 // the root of a non-integer exponent is the only operation that can lose
 // digits. The `Primitives` given are the table's, with their roles: a sum
@@ -94,7 +99,7 @@ import {
   type ConformanceError,
   type Primitives,
 } from "./dimension.ts";
-import type { Expr } from "./expr.ts";
+import type { Exponent, Expr } from "./expr.ts";
 import {
   addQuantities,
   divideQuantities,
@@ -106,7 +111,7 @@ import {
   subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
-import { bitLength } from "./rational.ts";
+import { bitLength, rational, type Rational } from "./rational.ts";
 import { ZERO, isRefusal } from "./scaled.ts";
 import type { BallError } from "./ball.ts";
 import type {
@@ -343,7 +348,9 @@ function evaluateNode<E>(
     case "pow": {
       const base = evaluate(node.base, lookup, primitives, context);
       if (!base.ok) return base;
-      const power = powQuantity(base.value, node.exponent, context);
+      const exponent = reduceExponent(node.exponent, context.maxBits);
+      if (exponent === undefined) return err({ kind: "tooLarge", span });
+      const power = powQuantity(base.value, exponent, context);
       // A base that cannot be told from zero is what is wrong, whether it
       // is raised to a negative power or put under an even root.
       if (!power.ok && power.error.kind === "unresolved") {
@@ -551,6 +558,23 @@ function evaluateBound<E>(
 type Boxed<E> = Extract<BodyError<E>, { kind: "lookup" }>;
 
 /** Attaches `span` to the failure of `result`, if it failed. */
+/**
+ * The `^` exponent `e` as the fraction it denotes, in lowest terms, or
+ * `undefined` when its numerator or its denominator, as the parser read
+ * them, has more than `maxBits` bits, the range limit: decided before any
+ * gcd runs, so that the reduction, one gcd of numbers within the limit,
+ * costs what any exact operation within it costs (the plan's H.9, issue
+ * #66). `dimensionOf` reduces the same way under the build's context.
+ */
+export function reduceExponent(
+  e: Exponent,
+  maxBits: number,
+): Rational | undefined {
+  const num = e.num < 0n ? -e.num : e.num;
+  if (bitLength(num) > maxBits || bitLength(e.den) > maxBits) return undefined;
+  return rational(e.num, e.den);
+}
+
 function locate(
   result: Result<Quantity, BallError>,
   span: Span,

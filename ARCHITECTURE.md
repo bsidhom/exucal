@@ -401,7 +401,23 @@ measure is the size of what is stored, the canonical mantissa of a
 dyadic, whose twos in the denominator the canonical form trades for
 fives in the numerator: `2^-30000`, a value of 30,000 bits, is stored as
 `5^30000 × 10^-30000`, 69,658 bits, and that is what a product of it
-costs (the plan's D16, as restated before stage 5). A result that would
+costs (the plan's D16, as restated before stage 5). The rough edge is
+narrower than it looks. What makes an exact value expensive is the bits
+of the two integers that store it, not how simple its factorization is:
+`3^-100000` is as simple as `2^-30000` and is stored as itself,
+`1/3^100000`, 158,497 bits under this representation and under any
+other short of a factored one, which the app does not use. The canonical
+form adds cost in one case only, a denominator with twos: a factor of
+`log2 5`, about 2.32, for a pure power of two, less for a mixed
+denominator, and nothing for a denominator with no twos, which is every
+other fraction. So the factor is bounded, it bites only in a band of a
+factor of 2.32 below the limit and only for dyadics, and a value it moves
+past the limit was already, by its own bits, within that factor of it, a
+big number by the measure that matters; `approx` is the remedy, as for
+any other. A binary exponent beside the decimal one, which
+docs/decimal.md weighed and withdrew, would have spared `2^-30000` and
+done nothing for `3^-100000`: the cost is in storing exact rationals as
+digits, not in the power of ten. A result that would
 pass the limit is refused at the node that forms it, `tooLarge`, and the
 message names the node and the remedy, `approx` around it to compute it
 to the digits asked, or a higher `maxBits`; exact mode never rounds an

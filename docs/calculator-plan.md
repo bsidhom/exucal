@@ -8,7 +8,7 @@ since, and the issues they filed. "Before stage 5: hardening", between
 stage 4's tasks and stage 5's, is the phase that fixes those issues
 before stage 5, with the decisions it added (D17 to D20) and amended
 (D4, D8, D15 and D16); D20, on what exact mode does past the range
-limit, is a recommendation that awaits the owner's ruling. D13 was
+limit, was ruled on in review of its pull request. D13 was
 revised in review of the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -613,7 +613,28 @@ size of what is stored, the canonical mantissa of a `Scaled` (D13), a
 numerator and a denominator each in bits, and not the bits of the value
 the mantissa denotes. The two differ for a dyadic: `2^-30000`, a value
 of 30,000 bits, is stored as `5^30000 × 10^-30000`, whose numerator has
-69,658 bits, and that is what a product of it costs. That is where the
+69,658 bits, and that is what a product of it costs. The case deserves
+its context, since it looks worse than it is. What makes a value
+expensive is the bits of the two integers that store it, not how simple
+its factorization is: `3^-100000` is as simple as `2^-30000` in that
+sense, and is stored as itself, `1/3^100000`, 158,497 bits under this
+representation and under any other short of a factored one, which the
+app does not use and does not plan to. The canonical form adds cost in
+one case only, a denominator with twos, which it trades for fives in the
+numerator: a factor of `log2 5`, about 2.32, for a pure power of two,
+less for a mixed denominator, and nothing at all for a denominator with
+no twos, which is every other fraction. So the factor is bounded, it
+bites only in a band of a factor of 2.32 below the limit, and only for
+dyadics, and a value it moves past the limit was already, by its own
+bits, within that factor of it: a big number by the measure that
+matters, for which `approx` is the remedy as for any other. A
+representation with a binary exponent beside the decimal one, the
+draft docs/decimal.md withdrew, would have kept `2^-30000` at 30,000
+bits and done nothing for `3^-100000`; the cost is in storing exact
+rationals as digits, not in the power of ten. The owner's ruling, on
+review of this restatement, is to keep the representation and the
+decision and to document the rough edge plainly, which README ("Most
+bits") and ARCHITECTURE.md ("Size limits") do. That is where the
 range limit differs from the exponent bound, and deliberately so. The
 bound is on the value (D17), since it exists so that a value can always
 be written, and a refusal at it must never be false about the value; the
@@ -767,8 +788,11 @@ The rule:
   limit bounds (D16 as restated once more): it is what is stored and what
   the next operation multiplies, it is the measure the literal check
   already uses, and the value's own bits could not be read without
-  forming the power of ten the form moved out, and would understate a
-  dyadic's cost by a factor of up to 2.33.
+  forming the power of ten the form moved out. For a dyadic the two
+  differ by a factor of up to 2.32, which matters less than it seems: a
+  value the factor moves past the limit was already, by its own bits,
+  within that factor of it, a big number by the measure that matters
+  (D16 as restated once more has the limiting cases).
 - The refusal names the node and the remedy (D20): the message quotes the
   subexpression, says it is too large to hold exactly within `maxBits`,
   and says to write `approx` around it to compute it to the digits asked,
@@ -815,8 +839,8 @@ rounding on its own, rather than refuse and name the node, is the question
 D20 answers.
 
 **D20. Past the range limit, exact mode refuses at the node and names the
-remedy; it does not round on its own (added before stage 5; the
-recommendation awaits the owner's ruling).** The range limit is a hard
+remedy; it does not round on its own (added before stage 5; ruled by the
+owner in review, #72).** The range limit is a hard
 limit on cost (D16), and there are two things an exact computation can
 do when an exact result would pass it: refuse, at the node, with a
 message that says where in the expression the precision the user asked
@@ -825,7 +849,7 @@ than the limit holds; or round the result there to the working digits,
 as `approx` at that node would, and carry on, the retry loop then
 certifying the digits asked as it does for any inexact value, and the
 display saying `≈`. #52 records the owner's leaning toward rounding.
-This decision recommends refusing, for these reasons:
+The decision is to refuse, for these reasons:
 
 - **The mode's contract.** Exact mode's one promise (D15; docs/decimal.md,
   "What stays exact") is that exactly three things ever make a value
@@ -854,8 +878,15 @@ This decision recommends refusing, for these reasons:
   where every step rounds, and `approx` is the per-value form of the
   same thing. A user who wants the app never to refuse has both.
 
-What rounding would be, if the owner rules otherwise, so that the
-reversal is one amendment of D15 and D19 rather than a redesign: the
+Two things follow from the ruling. Knowing the node lets the user
+either round there with `approx` or raise `maxBits`; to make the second
+realistic without trial and error, the refusal should also say how many
+bits the result needed, or a bound, which is known where the check
+measures after forming and predictable where it refuses before. That is
+a feature of its own, #73, to be studied there and landed after H.14,
+whose message it extends. And what rounding would be, should the ruling
+ever be reversed, so that the reversal is one amendment of D15 and D19
+rather than a redesign: the
 node's exact result past the limit is settled to the working digits by
 D15's settle, half a unit in the last digit into the radius, and the
 quantity is marked as rounded with the node's span, which the pipeline
@@ -3981,10 +4012,8 @@ literal, a sum's alignment, a power's prediction, the kernel's reach)
 keep their wording, since `approx` is not their remedy in the same way
 (a literal is exact by being typed, and the kernel's reach is not a
 matter of exactness). The conversion's ratio and a function want's count
-are worded the same way about the pair. Should the owner rule for
-rounding (D20), this task's check settles the result and marks it
-instead, and the message becomes the display's note; nothing else in it
-changes.
+are worded the same way about the pair. Saying how many bits the result
+needed is #73, which extends this message after it lands.
 
 The range probe (limits.ts) times the costliest exact operation the limits
 still run: a product of two fractions of `bits` bits in each part, whose

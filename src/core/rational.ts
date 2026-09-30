@@ -30,8 +30,13 @@
 // without `rational` (`scaleByPowerOfTwo` here, fixed.ts's dyadics,
 // scaled.ts's canonical mantissas) keeps it, and the tests assert so: a
 // full reduction of the result no longer forgives a broken invariant
-// upstream. The gcd is Euclid's on the odd parts, quadratic in the
-// operands' size.
+// upstream. The gcd is Lehmer's (Knuth's Algorithm L) on the odd parts:
+// still quadratic in the operands' size, but it takes its steps on the
+// leading bits in doubles and applies their cofactors to the bigints
+// some twenty-six bits at a time, about forty times cheaper in V8 than
+// Euclid's step per bit or two at 65,536 bits; a half-gcd, which is
+// subquadratic, gains only above `2^16` bits and is left for a larger
+// limit (the plan's H.9).
 //
 // Failures on values (dividing by zero, an even root of a negative number, a
 // result too large to compute) are returned as `Result`s. Violated
@@ -315,24 +320,119 @@ function trailingZeros(n: bigint): bigint {
 
 /**
  * The greatest common divisor of the non-negative `a` and the positive
- * `b`: the common power of two, read off the trailing zeros, times Euclid
- * on the odd parts. Euclid alone on a settled midpoint, a dyadic of
- * thousands of bits over a power of two, takes a step per few bits with a
- * division of the whole number at each, tens of milliseconds at the
- * ceiling of the retry schedule for one sum; on the odd parts it takes a
- * step or two when one of them is small, and none when both are one.
+ * `b`, exported for its tests and its benchmark: the common power of two,
+ * read off the trailing zeros, times Lehmer's gcd on the odd parts. On a
+ * settled midpoint, a dyadic of thousands of bits over a power of two,
+ * the odd parts take a step or two when one of them is small, and none
+ * when both are one.
  */
-function gcd(a: bigint, b: bigint): bigint {
+export function gcd(a: bigint, b: bigint): bigint {
   if (a === 0n) return b;
   if (a === 1n || b === 1n) return 1n;
   const twosA = trailingZeros(a);
   const twosB = trailingZeros(b);
-  a >>= twosA;
-  b >>= twosB;
-  while (b !== 0n) {
-    [a, b] = [b, a % b];
+  return lehmer(a >> twosA, b >> twosB) << (twosA < twosB ? twosA : twosB);
+}
+
+/** The bits of the leading part Lehmer's steps run on: `2^51 <= x < 2^52`, so that every product below stays exact in a double. */
+const LEAD_BITS = 52;
+
+/**
+ * The gcd of the positive `u` and `v` by Lehmer's algorithm (Knuth
+ * 4.5.2, Algorithm L), with the steps decided as Collins and Jebelean
+ * decide them. Each round takes the leading `LEAD_BITS` of the larger
+ * number, `x`, and the bits of the smaller at the same shift, `y`, and
+ * runs Euclid on the pair in doubles while tracking the cofactors
+ * `(s, t)` with `r = s u + t v` for the remainders `r` it stands for,
+ * exactly as the extended Euclid does on `(x, y)`. A simulated remainder
+ * `r` stands for the full one within its cofactors' worth of the bits
+ * below the shift: the full value lies above `(r + min(s, t)) 2^shift`,
+ * the negative cofactor times the shifted-out bits being the most it
+ * can lose, so a step is taken only while the next remainder stays at
+ * or above the magnitude of its negative cofactor, which keeps every
+ * full value positive. The cofactors of the steps taken are then applied
+ * to the bigints, four multiplications by small numbers, which is a
+ * round of about `LEAD_BITS / 2` bits of Euclid for a linear cost, where
+ * Euclid's own step costs a division of the whole numbers per bit or
+ * two. The doubles stay exact: for the Euclidean sequence of `(x, y)`
+ * the cofactors and their products with the next quotient are bounded
+ * by `x / r` for the current remainder `r`, so by `x < 2^52`. A round
+ * that takes no step (a `y` of zero, the smaller number lying more than
+ * `LEAD_BITS` below the larger, or a first quotient too large) is one
+ * full step of Euclid, and so is one that makes no progress, which the
+ * check guards against rather than relies on the analysis to exclude.
+ * The bit length of the larger number is tracked from the leading bits
+ * of each round's result, rather than read off `toString(2)` at each
+ * round, and the pair is finished on doubles once it fits them.
+ */
+function lehmer(u: bigint, v: bigint): bigint {
+  if (u < v) [u, v] = [v, u];
+  let uBits = bitLength(u);
+  for (;;) {
+    if (v === 0n) return u;
+    if (uBits <= 53) {
+      let x = Number(u);
+      let y = Number(v);
+      while (y !== 0) [x, y] = [y, x % y];
+      return BigInt(x);
+    }
+    const shift = BigInt(uBits - LEAD_BITS);
+    let x = Number(u >> shift);
+    let y = Number(v >> shift);
+    // `(s0, t0)` are the cofactors of the remainder `x` stands for, and
+    // `(s1, t1)` those of `y`; the signs alternate, so `min` is the
+    // negative one.
+    let s0 = 1;
+    let t0 = 0;
+    let s1 = 0;
+    let t1 = 1;
+    let steps = 0;
+    while (y !== 0) {
+      const q = Math.floor(x / y);
+      const r = x - q * y;
+      const s = s0 - q * s1;
+      const t = t0 - q * t1;
+      if (r + Math.min(s, t) < 0) break;
+      x = y;
+      y = r;
+      s0 = s1;
+      t0 = t1;
+      s1 = s;
+      t1 = t;
+      steps++;
+    }
+    let next = 0n;
+    let rest = 0n;
+    if (steps > 0) {
+      next = BigInt(s0) * u + BigInt(t0) * v;
+      rest = BigInt(s1) * u + BigInt(t1) * v;
+      if (next < rest) [next, rest] = [rest, next];
+    }
+    if (steps === 0 || next >= u) {
+      next = v;
+      rest = u % v;
+      uBits = bitLength(next);
+    } else {
+      // The larger result is below `(x + 2^52) 2^shift`, so its leading
+      // part fits a double; a result below the shift, which a round that
+      // used most of its bits can give, is measured in full.
+      const top = Number(next >> shift);
+      uBits =
+        top === 0 ? bitLength(next) : uBits - LEAD_BITS + bitLengthOf(top);
+    }
+    u = next;
+    v = rest;
   }
-  return a << (twosA < twosB ? twosA : twosB);
+}
+
+/** The bits of the non-negative integer `n` below `2^53`. */
+function bitLengthOf(n: number): number {
+  let bits = 0;
+  while (n >= 2 ** 32) {
+    n = Math.floor(n / 2 ** 32);
+    bits += 32;
+  }
+  return bits + 32 - Math.clz32(n);
 }
 
 /**

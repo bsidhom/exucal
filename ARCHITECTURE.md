@@ -1381,6 +1381,13 @@ length over Karatsuba multiplication gives; the report is what the probe
 of `limits.ts` chose its composite from, and it notes that the series of
 `exp`, summed term by term, is the remaining candidate for the
 rectangular splitting the logarithm, the sine and the arctangent use.
+`rational.bench.ts` times the probe's range operation, a product of two
+fractions and its reduction, at 8,192 to 65,536 bits, one gcd on its own
+at 16,384 to 65,536 bits, and the quotients of issue #52, and asserts
+that doubling the size costs at most eight times, twice what the
+quadratic gcd gives; Lehmer's gcd is about forty times cheaper than
+Euclid's at the default range limit and still quadratic, and the
+benchmark is what would show a half-gcd's gain should the limit grow.
 
 ## Later
 

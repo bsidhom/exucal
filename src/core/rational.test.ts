@@ -17,6 +17,7 @@ import {
   negate,
   pow,
   exactRoot,
+  gcd,
   rational,
   scaleByPowerOfTwo,
   sign,
@@ -332,6 +333,64 @@ test("the smaller reductions agree with reducing after, and every result is in l
   assert.ok(!inLowestTerms({ num: 2n, den: 4n }));
   assert.ok(!inLowestTerms({ num: 0n, den: 3n }));
   assert.ok(!inLowestTerms({ num: 1n, den: -3n }));
+});
+
+/** Euclid's gcd on the whole numbers, the reference the gcd is checked against. */
+function euclid(a: bigint, b: bigint): bigint {
+  while (b !== 0n) [a, b] = [b, a % b];
+  return a;
+}
+
+test("the gcd agrees with Euclid's from one bit to thousands, across the switch to doubles, and on pairs whose gcd is known by construction", () => {
+  assert.equal(gcd(0n, 5n), 5n);
+  assert.equal(gcd(1n, 5n), 1n);
+  assert.equal(gcd(5n, 1n), 1n);
+  assert.equal(gcd(12n, 18n), 6n);
+  assert.equal(gcd(18n, 12n), 6n);
+  assert.equal(gcd(7n, 7n), 7n);
+  assert.equal(gcd(1n << 100n, 1n << 70n), 1n << 70n);
+  assert.equal(gcd(3n << 100n, 5n << 70n), 1n << 70n);
+  // Seeded pairs with a common factor, at sizes from a bit to thousands,
+  // through the switch from the leading bits in doubles to the whole
+  // numbers in doubles at 53 bits.
+  for (const bits of [1, 2, 3, 7, 30, 51, 52, 53, 54, 55, 60, 100, 500, 4000]) {
+    for (const k of split(key(9000 + bits), 12)) {
+      const [k1, k2, k3] = split(k, 3);
+      const g = randomBigInt(k3!, Math.max(1, bits >> 1)) + 1n;
+      const a = randomBigInt(k1!, bits) * g;
+      const b = (randomBigInt(k2!, bits) + 1n) * g;
+      const expected = euclid(a, b);
+      assert.equal(gcd(a, b), expected, `${bits} bits`);
+      if (a !== 0n) assert.equal(gcd(b, a), expected, `${bits} bits, swapped`);
+    }
+  }
+  for (const [a, b] of [
+    [2n ** 53n + 1n, 2n ** 53n - 1n],
+    [2n ** 53n, 2n ** 52n],
+    [2n ** 60n, 2n ** 53n + 3n],
+    [2n ** 100n - 1n, 2n ** 70n - 1n],
+    [3n ** 100n, 3n ** 40n * 5n],
+  ] as const) {
+    assert.equal(gcd(a, b), euclid(a, b));
+  }
+  // Consecutive Fibonacci numbers, Euclid's worst case: every quotient is
+  // one, and a round of Lehmer's takes many steps.
+  let f0 = 0n;
+  let f1 = 1n;
+  for (let i = 0; i < 6000; i++) [f0, f1] = [f1, f0 + f1];
+  assert.equal(gcd(f1, f0), 1n);
+  assert.equal(gcd(f1 * 12345n, f0 * 12345n), 12345n);
+  // Large pairs whose gcd is known by construction: g p and g (p + 2) for
+  // an odd p are coprime apart from g, as are g (2^n - 1) and g (2^m - 1)
+  // for coprime n and m; and one random pair at thirty thousand bits
+  // against the reference itself.
+  const g = randomBigInt(key(9101), 20000) | 1n;
+  const p = randomBigInt(key(9102), 30000) | 1n;
+  assert.equal(gcd(g * p, g * (p + 2n)), g);
+  assert.equal(gcd(g * (2n ** 6765n - 1n), g * (2n ** 4181n - 1n)), g);
+  const a = randomBigInt(key(9103), 30000) | 1n;
+  const b = randomBigInt(key(9104), 30000) | 1n;
+  assert.equal(gcd(a, b), euclid(a, b));
 });
 
 test("arithmetic identities hold exactly", () => {

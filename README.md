@@ -139,6 +139,28 @@ Digits. In both modes, Most bits is the one limit on exact values, and
 it also bounds the precision limit, since a midpoint at the ceiling must
 fit within it with room for a product.
 
+**Why four times the limit plus ten.** The passes of exact mode are a
+geometric schedule: the first computes at Digits plus ten, and each
+later one at twice the one before, so the passes together cost at most
+about twice the pass that succeeds, whatever it is. Cancellation costs
+digits, `k` of them when two values agree to `k` digits before they are
+subtracted, and each doubling pays for as many again. The ten is the
+guard of the first pass: a short expression loses a few digits to the
+rounding of each step and a little more to an ordinary cancellation,
+and ten covers that, so that the common case certifies on its first
+pass. The ceiling is the top of the schedule, and it has to be one
+number for every Digits, since the unit table and the constants are
+built once at it. It is set from the largest request the limit allows:
+at Digits equal to the limit, the first pass is the limit plus ten, and
+four times that gives that request two doublings above its first pass,
+two chances to pay for a cancellation, where a smaller request has
+correspondingly more (nine passes at eight digits). Four was chosen as
+the least factor that gives the largest request more than one such
+chance without doubling what the table and the constants cost for
+every setting; the guard of ten and the factor are judgments, not
+measurements, and they moved once, from a fixed ceiling of a thousand
+digits with Digits capped at two hundred, when the cap became a setting.
+
 ## Unit definitions
 
 Every unit the app knows comes from a definitions file, `src/units.txt`,

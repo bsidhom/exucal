@@ -339,6 +339,16 @@ context.ts, four times the cap plus the guard, so that the largest request
 has two doublings of room above its first pass (4,040 digits for the
 default cap of 1,000; nine passes at eight digits, three at a thousand),
 and it is the same in every working context, as the range limit is. The
+guard of ten digits is the first pass's headroom for the rounding of each
+step and an ordinary cancellation, so that the common case certifies at
+once; it is separate from the kernel's `GUARD_BITS`, which is one
+routine's headroom for its own error count. The ceiling is one number
+for every request because the table (D6) and the memos (D10) are built
+at it once; it is set from the largest request the cap allows, and four
+is the least factor that leaves that request more than one doubling
+without doubling the table's and the memos' cost for every setting.
+Both numbers are judgments, not measurements, and README ("Why four
+times the limit plus ten") gives the user's account. The
 ceiling is in the context so that it reaches the built-ins, whose memoized
 constants hold their value at it (the plan's D10); it is static, the
 user's, and a routine that needs more headroom than the working precision

@@ -1158,3 +1158,28 @@ test("a call's argument too large to count in its unit is refused, not thrown", 
   );
   assert.ok(within.ok && within.value.kind === "function", inspect(within));
 });
+
+test("a zero's bound far below the exponent bound is written in a bounded length (#67)", () => {
+  // A power of a ball around zero carries the radius's exponent far
+  // below the bound; the display writes `1e-1000000000000000000`, larger
+  // than the bound and so still sound, in place of an exponent of ten
+  // thousand digits (docs/fractions.md, "A zero's bound at the edges").
+  assert.deepEqual(shown("(approx(1e20) - approx(1e20))^100000", 8), {
+    kind: "zero",
+    text: "0",
+    bound: "1e-402869897",
+  });
+  assert.deepEqual(shown("(approx(1e20) - approx(1e20))^1e10000", 8), {
+    kind: "zero",
+    text: "0",
+    bound: "1e-1000000000000000000",
+  });
+  // The issue's third row, `^1e100000`, is refused since the hardening
+  // phase (H.15): the exponent is past the range limit as a fraction.
+  const refused = evaluateText(
+    table,
+    "(approx(1e20) - approx(1e20))^1e100000",
+    CONTEXT,
+  );
+  assert.ok(!refused.ok && refused.error.kind === "tooLarge", inspect(refused));
+});

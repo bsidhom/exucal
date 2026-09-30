@@ -4,6 +4,7 @@ import { inspect } from "node:util";
 import {
   addBalls,
   exact,
+  isExact,
   powRationalBall,
   rootBall,
   subtractBalls,
@@ -16,7 +17,7 @@ import {
   type NumberContext,
 } from "./context.ts";
 import { show, type Shown } from "./display.ts";
-import { UNBOUNDED } from "./radius.ts";
+import { UNBOUNDED, powerOfTenRadius, powerOfTwoRadius } from "./radius.ts";
 import { rational } from "./rational.ts";
 import { ROUNDING_MODES } from "./rounding.ts";
 import { ZERO, compare, format, type Scaled } from "./scaled.ts";
@@ -333,4 +334,220 @@ test("the kinds are exclusive and cover every ball", () => {
     "unbounded",
     "zero",
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// Fractions (docs/fractions.md, "The rule")
+
+test("with fractions, an exact value that is not an integer is its fraction when it fits", () => {
+  // 1.9's rows, restated under the setting.
+  assert.deepEqual(show(exact(fr(127n, 50n)), 8, nearest, true), {
+    kind: "exact",
+    text: "127/50",
+    fraction: true,
+  });
+  assert.deepEqual(show(exact(dec("2.54")), 8, nearest, true), {
+    kind: "exact",
+    text: "127/50",
+    fraction: true,
+  });
+  assert.deepEqual(show(exact(fr(1n, 3n)), 8, nearest, true), {
+    kind: "exact",
+    text: "1/3",
+    fraction: true,
+  });
+  assert.deepEqual(show(exact(fr(5000n, 127n)), 8, nearest, true), {
+    kind: "exact",
+    text: "5000/127",
+    fraction: true,
+  });
+  for (const digits of [1, 8, 40]) {
+    const shown = show(root(fr(2n), 2n, 40), digits, nearest, true);
+    assert.equal(shown.kind, "certified", `${digits} digits`);
+  }
+  assert.deepEqual(show(root(fr(4n), 2n, 40), 8, nearest, true), {
+    kind: "exact",
+    text: "2",
+  });
+  // The fraction is the ordinary one, the power of ten multiplied back in.
+  assert.deepEqual(show(exact(dec("1.609344")), 8, nearest, true), {
+    kind: "exact",
+    text: "25146/15625",
+    fraction: true,
+  });
+  assert.deepEqual(show(exact(dec("1e-7")), 8, nearest, true), {
+    kind: "exact",
+    text: "1/10000000",
+    fraction: true,
+  });
+  assert.deepEqual(show(exact(dec("0.5")), 1, nearest, true), {
+    kind: "exact",
+    text: "1/2",
+    fraction: true,
+  });
+  // The sign is on the numerator, and the rounding mode plays no part.
+  for (const mode of ROUNDING_MODES) {
+    assert.deepEqual(show(exact(fr(-5000n, 127n)), 8, mode, true), {
+      kind: "exact",
+      text: "-5000/127",
+      fraction: true,
+    });
+    assert.deepEqual(show(exact(dec("-2.54")), 8, mode, true), {
+      kind: "exact",
+      text: "-127/50",
+      fraction: true,
+    });
+  }
+});
+
+test("with fractions, an exact integer is shown as the decimal display shows it", () => {
+  assert.deepEqual(show(exact(fr(36n)), 8, nearest, true), {
+    kind: "exact",
+    text: "36",
+  });
+  assert.deepEqual(show(exact(ZERO), 8, nearest, true), {
+    kind: "exact",
+    text: "0",
+  });
+  assert.deepEqual(show(exact(dec("1e20")), 8, nearest, true), {
+    kind: "exact",
+    text: "1e+20",
+  });
+  assert.deepEqual(show(exact(dec("1e999999999")), 8, nearest, true), {
+    kind: "exact",
+    text: "1e+999999999",
+  });
+  // 3^20 is exact and has ten digits: certified at eight, exact at ten.
+  assert.deepEqual(show(exact(fr(3486784401n)), 8, nearest, true), {
+    kind: "certified",
+    text: "3.4867844e+9",
+  });
+  assert.deepEqual(show(exact(fr(3486784401n)), 10, nearest, true), {
+    kind: "exact",
+    text: "3486784401",
+  });
+});
+
+test("with fractions, a fraction that does not fit falls back to the decimal display", () => {
+  // The numerator and the denominator each fit within the digits asked.
+  assert.deepEqual(show(exact(fr(5000n, 127n)), 3, nearest, true), {
+    kind: "certified",
+    text: "39.4",
+  });
+  assert.deepEqual(show(exact(fr(5000n, 127n)), 4, nearest, true), {
+    kind: "exact",
+    text: "5000/127",
+    fraction: true,
+  });
+  assert.deepEqual(show(exact(dec("1.609344")), 4, nearest, true), {
+    kind: "certified",
+    text: "1.609",
+  });
+  assert.deepEqual(show(exact(dec("1e-8")), 8, nearest, true), {
+    kind: "exact",
+    text: "1e-8",
+  });
+  assert.deepEqual(show(exact(dec("1e-8")), 9, nearest, true), {
+    kind: "exact",
+    text: "1/100000000",
+    fraction: true,
+  });
+  // The decimal display says `=` where its own rule allows.
+  assert.deepEqual(show(exact(dec("1.5e-999999999")), 8, nearest, true), {
+    kind: "exact",
+    text: "1.5e-999999999",
+  });
+  assert.deepEqual(show(exact(dec("-1.3e-999999999")), 8, nearest, true), {
+    kind: "exact",
+    text: "-1.3e-999999999",
+  });
+  // (1/3) × 1e30: a numerator of thirty-one digits.
+  const third = { mant: rational(1n, 3n), exp: 30n };
+  assert.deepEqual(show(exact(third), 8, nearest, true), {
+    kind: "certified",
+    text: "3.3333333e+29",
+  });
+  assert.deepEqual(show(exact(third), 31, nearest, true), {
+    kind: "exact",
+    text: "1000000000000000000000000000000/3",
+    fraction: true,
+  });
+  // A power of two with a negative exponent cancels against the power of
+  // ten: 2^20 × 10^-20 is 1/5^20, which fits at fourteen digits.
+  const dyadic = dec("1048576e-20");
+  assert.deepEqual(show(exact(dyadic), 14, nearest, true), {
+    kind: "exact",
+    text: "1/95367431640625",
+    fraction: true,
+  });
+  // At thirteen the fraction does not fit, and the decimal is exact.
+  assert.deepEqual(show(exact(dyadic), 13, nearest, true), {
+    kind: "exact",
+    text: "1.048576e-14",
+  });
+});
+
+test("with fractions off, or an inexact value, nothing changes", () => {
+  const balls: Ball[] = [
+    exact(fr(3n)),
+    exact(fr(1n, 3n)),
+    exact(dec("2.54")),
+    exact(dec("1e999999999")),
+    root(fr(2n), 2n, 40),
+    about("1.2345", "1e-30"),
+    about(ZERO, "1e-30"),
+    { mid: fr(2n), rad: UNBOUNDED },
+    { mid: fr(1n, 3n), rad: UNBOUNDED },
+  ];
+  for (const b of balls) {
+    for (const digits of [1, 4, 8]) {
+      assert.deepEqual(
+        show(b, digits, nearest, false),
+        show(b, digits, nearest),
+      );
+      if (!isExact(b)) {
+        assert.deepEqual(
+          show(b, digits, nearest, true),
+          show(b, digits, nearest),
+        );
+      }
+    }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// A zero's bound at the edges (docs/fractions.md; #67)
+
+test("a zero's bound below the exponent bound is written as 1e-1000000000000000000", () => {
+  // A radius of 2^-(10^19), far below the bound: the bound written is the
+  // smallest positive value within the exponent bound, larger and so
+  // still sound, and short.
+  const far: Ball = { mid: ZERO, rad: powerOfTwoRadius(-(10n ** 19n)) };
+  assert.deepEqual(show(far, 8, nearest), {
+    kind: "zero",
+    text: "0",
+    bound: "1e-1000000000000000000",
+  });
+  // A nonzero midpoint is within the exponent bound, so its bound is too,
+  // and is written as it is.
+  const off: Ball = {
+    mid: dec("1e-1000000000000000000"),
+    rad: powerOfTenRadius(-(10n ** 18n) + 1n),
+  };
+  const shownOff = show(off, 8, nearest);
+  assert.ok(shownOff.kind === "zero", inspect(shownOff));
+  assert.match(shownOff.bound, /^[1-9]e-999999999999999999$/);
+  assert.ok(
+    compare(dec(shownOff.bound), dec("1.1e-999999999999999999")) >= 0,
+    shownOff.bound,
+  );
+  // A bound within the exponent bound is written as it is.
+  const near: Ball = { mid: ZERO, rad: powerOfTenRadius(-(10n ** 18n) + 5n) };
+  const shownNear = show(near, 8, nearest);
+  assert.ok(shownNear.kind === "zero");
+  assert.match(shownNear.bound, /^[1-9]e-99999999999999999[45]$/);
+  assert.ok(compare(dec(shownNear.bound), dec("1e-999999999999999995")) >= 0);
+  assert.ok(compare(dec(shownNear.bound), dec("1e-999999999999999993")) <= 0);
+  // The bound parses back, at the bound.
+  assert.ok(compare(dec("1e-1000000000000000000"), ZERO) > 0);
 });

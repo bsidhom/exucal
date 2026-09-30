@@ -152,6 +152,17 @@ test("a body may be any expression", () => {
   ]);
 });
 
+test("a body with a broken call of twenty levels fails in milliseconds, at the same place", () => {
+  // The body is the expression grammar, and shares its fix for a nested
+  // call with an error in it (issue #54).
+  const start = performance.now();
+  assert.deepEqual(
+    failed("foo  " + "f(".repeat(20) + "1"),
+    unexpected(46, ...AFTER_EXPR, '","', '")"'),
+  );
+  assert.ok(performance.now() - start < 50, "within 50 ms");
+});
+
 test("a dash after a space starts the body, not a prefix", () => {
   // `m- 1000` is the prefix `m`; `m -1000` is the unit `m` with a negated
   // body, since the dash of a prefix follows its name with no space.

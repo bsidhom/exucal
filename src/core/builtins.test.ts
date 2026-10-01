@@ -54,6 +54,7 @@ test("the app's built-ins are gathered by name, each from its module", () => {
       "digamma",
       "lgamma",
       "gamma",
+      "beta",
     ],
   );
   assert.equal(BUILTINS.get("exp"), exp);

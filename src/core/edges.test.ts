@@ -81,15 +81,18 @@ import {
   gcdOfIntegers,
   lcmOfIntegers,
 } from "./builtins/integers.ts";
+import { magnitudeBits } from "./builtins/gamma.ts";
 import {
   ceilScaled,
   floorScaled,
   roundScaled,
   truncScaled,
 } from "./builtins/round.ts";
+import { bitsFor } from "./fixed.ts";
 import {
   NO_MAGNITUDE,
   addIntervals,
+  betaMagnitude,
   checkValue,
   contains,
   containsZeroInterval,
@@ -405,6 +408,18 @@ function modReference(a: Scaled, b: Scaled): Scaled | undefined {
   return valueOr(subtract(a, product.value, LIMIT_BITS));
 }
 
+/** Whether the interval is exactly a non-positive integer, a pole of the Gamma family. */
+function isExactPole(i: Interval): boolean {
+  return isExactInterval(i) && isInteger(i.lo) && sign(i.lo) <= 0;
+}
+
+/** The sum of two balls as `beta` forms it for its third logarithm, or `undefined` where the sum fails. */
+function sumBall(a: Ball, b: Ball): Ball | undefined {
+  const sum = addBalls(a, b, EXACT);
+  if (sum.ok) return sum.value;
+  return compare(absolute(a.mid), absolute(b.mid)) >= 0 ? a : b;
+}
+
 /** Whether the floor of `x`'s midpoint, or its fractional part, cannot be formed within the context's range limit, as `digamma`'s reflection forms them. */
 function reflectionPastLimit(x: Ball, context: NumberContext): boolean {
   const floored = floorScaled(x.mid, context.maxBits);
@@ -667,6 +682,36 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
         return n === undefined || n < 1n || n > 300n
           ? undefined
           : integer(valueOrOne(factorialOf(n - 1n, EXACT)));
+      },
+    },
+  ],
+  [
+    "beta",
+    {
+      // A pole of Γ at either argument; the refusals are the bits an
+      // argument's magnitude would need past the range limit and the
+      // reflection's floor of a negative argument or sum.
+      domain: ([a, b]) => isExactPole(a!) || isExactPole(b!),
+      tooLarge: ([a, b], context) =>
+        [a!, b!, sumBall(a!, b!)].some(
+          (x) =>
+            x !== undefined &&
+            (bitsFor(context.precision) + magnitudeBits(x, context.maxBits) >
+              context.maxBits ||
+              (sign(x.mid) <= 0 && reflectionPastLimit(x, context))),
+        ),
+      magnitude: ([a, b]) => betaMagnitude(a!, b!),
+      // 1 / ((a + b - 1) binomial(a + b - 2, a - 1)) at exact positive
+      // integers of moderate size.
+      reference: ([a, b]) => {
+        const m = integerValue(a!);
+        const n = integerValue(b!);
+        if (m === undefined || n === undefined || m < 1n || n < 1n) {
+          return undefined;
+        }
+        if (m + n > 300n) return undefined;
+        const c = valueOrOne(binomialOf(m + n - 2n, m - 1n, EXACT));
+        return { mant: rational(1n, (m + n - 1n) * c), exp: 0n };
       },
     },
   ],

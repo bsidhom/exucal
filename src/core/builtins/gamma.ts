@@ -154,7 +154,7 @@ function failed(error: BallError): Result<never, BuiltinError> {
 }
 
 /** Whether `x` is exactly a non-positive integer, a pole of the family. */
-function isPole(x: Ball): boolean {
+export function isPole(x: Ball): boolean {
   return isExact(x) && isInteger(x.mid) && sign(x.mid) <= 0;
 }
 
@@ -264,7 +264,7 @@ function piCotPi(t: Ball, context: NumberContext): Result<Ball, BuiltinError> {
 // lgamma and gamma
 
 /** `ln |Γ(x)|` as a ball, and whether `Γ(x)` is negative. */
-type LogGamma = { readonly value: Ball; readonly negative: boolean };
+export type LogGamma = { readonly value: Ball; readonly negative: boolean };
 
 /** `lgamma(x)` at the context, as the header says. */
 export function lgammaBall(
@@ -305,7 +305,7 @@ export function gammaBall(
     }
   }
   const bits = bitsFor(context.precision);
-  const extra = magnitudeBits(x);
+  const extra = magnitudeBits(x, GAMMA_CAP);
   const log = logGamma(
     x,
     context,
@@ -332,20 +332,47 @@ export function gammaBall(
   return ok(negative ? negateBall(result.value) : result.value);
 }
 
+/** The bits of magnitude `gamma` asks for at most: past `2^64` its result passes the exponent bound whatever the bits. */
+const GAMMA_CAP = 64;
+
 /**
- * The bits `ln |Γ(x)|` has above the binary point, bounded, for the
- * working bits `gamma` asks it at: for `|x| < 2^(e + 1)` with `e >= 0`
- * it is below `2^(e + 1) (e + 1)`, and for `|x| < 2^-e` near a pole or
- * zero it is of the order of `e`; past `2^64` the result passes the
- * exponent bound whatever the bits, so the count is capped there.
+ * The bits `ln |Γ(x)|` has above the binary point, with a margin, for
+ * the working bits a caller asks it at beyond its own: for `|x| < 2^(e +
+ * 1)` with `e >= 0` it is below `2^(e + 1) (e + 1)`, and for `|x| <
+ * 2^-e` near a pole or zero it is of the order of `e`; `cap` bounds the
+ * count, at `GAMMA_CAP` for `gamma` and at the range limit for `beta`,
+ * whose logarithms cancel and which refuses what it cannot afford.
  */
-function magnitudeBits(x: Ball): number {
+export function magnitudeBits(x: Ball, cap: number): number {
   // A zero midpoint's ball reaches a pole, which logGamma reports.
   if (isZero(x.mid)) return GAMMA_MARGIN;
   const { int } = log2Bounds(x.mid).upper;
-  const e = int >= 0n ? Number(int > 64n ? 64n : int) + 1 : 0;
+  const limit = BigInt(cap);
+  const e = int >= 0n ? Number(int > limit ? limit : int) + 1 : 0;
   const size = int >= 0n ? e : bitLength(-int);
   return e + bitLength(BigInt(size)) + GAMMA_MARGIN;
+}
+
+/**
+ * Whether `x` reaches a pole: `unresolved` at the edge `pole` when the
+ * bounded `x` touches or reaches across a non-positive integer, the
+ * floor's own refusal when it cannot be formed, and nothing otherwise;
+ * what `logGamma` decides first, for a caller with several arguments to
+ * ask before any logarithm is computed.
+ */
+export function reachesPole(
+  x: Ball,
+  context: NumberContext,
+): Result<undefined, BuiltinError> {
+  const side = position(x, ZERO);
+  if (side === "above" || (side === "below" && isTiny(x, context))) {
+    return ok(undefined);
+  }
+  const floored = floorBall(x, context);
+  if (!floored.ok) {
+    return floored.error.kind === "unresolved" ? POLE : floored;
+  }
+  return ok(undefined);
 }
 
 /**
@@ -354,7 +381,7 @@ function magnitudeBits(x: Ball): number {
  * `x`, the expansion at zero for a tiny one of either sign, and the
  * reflection for a negative one inside an integer's cell.
  */
-function logGamma(
+export function logGamma(
   x: Ball,
   context: NumberContext,
   bits: number,

@@ -389,7 +389,7 @@ their series for small arguments. Each sub-note is a paragraph in the
 - Truncated or Euclidean `div` and `mod`; both are one call away.
 - A non-integer `factorial` or `binomial`, which `gamma` and `beta`
   give; a message pointing at them once they land (`factorial`'s points
-  at `gamma` since 6.3; `binomial`'s at `beta` with 6.4).
+  at `gamma` since 6.3, `binomial`'s at `beta` since 6.4).
 - The polygamma functions beyond `digamma`, and `gamma` of a complex
   argument, which the core has no number for.
 
@@ -507,3 +507,35 @@ task's rulings when the stage is done.
   `overflow` and `underflow` are checked as `exp`'s are. The factorial's
   refusals of a value it does not take (`notInteger`, `notExact`) now
   point at `gamma(x + 1)`.
+- **6.4, `beta`** (`src/core/builtins/beta.ts`). The three logarithms
+  come from `logGamma` of gamma.ts, exported with `magnitudeBits` and
+  `isPole`, each at the working bits plus the bits of the largest
+  argument's magnitude, uncapped: the logarithms cancel when an argument
+  is large (`beta(1e15, 1)` is `1e-15` from logarithms near `2^55`),
+  where `gamma`'s cap at 64 bits rests on its result passing the bound
+  past `2^64`, which no difference does. An argument whose magnitude
+  would need more bits than Most bits allows is `tooLarge`
+  (`beta(1e20000, 2)`), since no value of the difference can be
+  certified within the limit; the sweep's rule names that site. The sum
+  `a + b` is formed exactly where it aligns within Most bits and
+  otherwise as the larger within the magnitude of the smaller, as an
+  inexact sum that does not align is formed, so that `beta(2.5,
+1e-20000)` is a value and not the `tooLarge` of an exact sum; a sum
+  at or past the top of the bound has both arguments positive and
+  within a few digits of it, so the result lies past the bottom
+  throughout and the call is `underflow`, which the sweep found where a
+  first version passed the sum's `overflow` on (D18). The poles of all
+  three are decided before any logarithm (`reachesPole`), since the
+  retry loop would otherwise pay a logarithm at every pass up to the
+  ceiling for `beta(1, approx(-2))`, seven seconds in a first version;
+  a pole the sum reaches is blamed on the argument of the wider radius,
+  as the classifier's `unresolved` at the bound is. The exact case
+  calls `binomialOf`, so that `beta` and `binomial` agree on what fits,
+  with the denominator's own bits checked against the limit once more
+  for the factor `a + b - 1`; `beta(5000, 5000)` is exact, a fraction
+  of ten thousand bits, and `beta(40000, 40000)` the kernel's value.
+  The sweep's magnitude rule bounds `beta` for both arguments at or
+  above two, where it decreases in each, by the integrand's maximum
+  from above and `2^-(2 (a + b))` from below. The binomial's refusals of
+  a value it does not take now point at `1 / ((n + 1) beta(n - k + 1, k
+  - 1))`.

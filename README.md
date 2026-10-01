@@ -493,6 +493,17 @@ which go anywhere a unit goes and are called the same way. They are:
   that needs the retry schedule's ceiling pays about three seconds the
   first time and under a second a call after that, as `tan(90 deg)`
   does.
+- `beta(a, b)`, the Beta function `gamma(a) gamma(b) / gamma(a + b)`,
+  of two plain numbers: `beta(0.5, 0.5)` is `≈ 3.1415927`, and
+  `beta(2, 3)` is the exact `1/12`, as it is for any whole numbers
+  whose value fits Most bits. A whole number at or below zero in either
+  argument is a pole, an error; a sum at one with neither argument
+  there makes the value exactly `0` (`beta(-0.5, -0.5)`). Large
+  arguments go through `lgamma`, so `beta(1e6, 1e6)` is
+  `≈ 3.6164047e-602063` where no `gamma` of them would fit, and
+  `1 / ((n + 1) beta(n - k + 1, k + 1))` is `binomial(n, k)` for any
+  `n` and `k`, which is where a binomial of values that are not whole
+  numbers known exactly is pointed.
 
 Every built-in takes plain numbers, apart from the angles above, and
 `exp(1 m)` is an error that names the dimension. A value the function

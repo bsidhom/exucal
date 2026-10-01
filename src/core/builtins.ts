@@ -17,6 +17,7 @@ import { abs, signFn } from "./builtins/abs.ts";
 import { approx } from "./builtins/approx.ts";
 import { div, mod } from "./builtins/division.ts";
 import { exp } from "./builtins/exp.ts";
+import { beta } from "./builtins/beta.ts";
 import { digamma, gamma, lgamma } from "./builtins/gamma.ts";
 import {
   binomial,
@@ -83,5 +84,6 @@ export const BUILTINS: Builtins = new Map<string, Builtin>(
     digamma,
     lgamma,
     gamma,
+    beta,
   ].map((fn) => [fn.name, fn]),
 );

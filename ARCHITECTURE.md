@@ -1410,6 +1410,7 @@ src/core/builtins/round.ts floor, ceil, trunc and round(x, places): a plain numb
 src/core/builtins/division.ts div and mod: floored division and its remainder, one quotient serving both
 src/core/builtins/integers.ts gcd, lcm, factorial, binomial, doublefactorial: the functions of exact integers, with their size predictions
 src/core/builtins/gamma.ts digamma(x), lgamma(x) and gamma(x): the Gamma family, on fixed-gamma.ts, with the poles, the reflection, the routes for any exponent and the classifier on gamma
+src/core/builtins/beta.ts beta(a, b): the Beta function through lgamma under the classifier, exact for whole numbers within Most bits, zero at a pole of the sum alone
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction

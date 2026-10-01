@@ -377,7 +377,7 @@ their series for small arguments. Each sub-note is a paragraph in the
   for `digamma`, `lgamma` and `gamma`; `beta.ts`; `incomplete.ts` for
   the incomplete functions and `erf.ts`; `src/core/bernoulli.ts` for the
   memoized Bernoulli numbers.
-- `src/core/edges.test.ts`: the rules for each, and the builder's
+- `src/core/edges.sweep.ts`: the rules for each, and the builder's
   enumeration of a range of arities.
 - `src/messages.ts`: the domain reasons and the factorial's refusal.
 - README ("Functions in expressions"), docs/builtins.md ("Names"), and

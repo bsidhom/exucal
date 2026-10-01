@@ -2,8 +2,11 @@
 // docs/calculator-plan.md ("How to read a task"; task H.10): every built-in
 // and every ball operation runs over the classes of arguments at the edges
 // of the number type, and each case is checked for what ARCHITECTURE.md
-// rules out. src/core/edges.test.ts is the sweep at the ball level and
-// src/edges.test.ts at the text level; this module is what the two share.
+// rules out. src/core/edges.sweep.ts is the sweep at the ball level and
+// src/edges.sweep.ts at the text level; this module is what the two share.
+// The suffix keeps the sweeps out of `pnpm test`, the run for every edit:
+// they are conformance tests, run by `pnpm test:sweep` before a commit and
+// in CI, and `pnpm test:all` runs both (issue #108).
 //
 // The runner. node:test's `timeout` neither interrupts nor fails a
 // synchronous test, so a computation that hangs would hang the run. The

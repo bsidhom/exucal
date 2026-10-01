@@ -52,8 +52,9 @@ ball, the kernel) come before anything that uses them. A task that only
 adds a module leaves the app's behavior untouched, and says so; a task
 that changes behavior says exactly which behavior.
 
-Every task ends in the same state: `pnpm typecheck`, `pnpm test` and
-`pnpm format:check` pass, and the module headers and ARCHITECTURE.md say
+Every task ends in the same state: `pnpm typecheck`, `pnpm test:all`
+(the tests and the edge sweeps, which `pnpm test` alone leaves out since
+issue #108) and `pnpm format:check` pass, and the module headers and ARCHITECTURE.md say
 what the code now does (the last task of each stage sweeps the docs, but
 a task must not leave a header that lies). The tests are the `*.test.ts`
 beside each module, under Node's test runner, with no new dependency.
@@ -3723,7 +3724,7 @@ project's cloud container. H.14 redefines the probe.
 
 Tests only, in two commits: src/testing/edges.ts with
 src/core/edges.test.ts at the ball level, and src/edges.test.ts at the
-text level, which joins src/units.test.ts in tsconfig.node.json's list so
+text level (both `*.sweep.ts` since issue #108, run by `pnpm test:sweep`), which joins src/units.test.ts in tsconfig.node.json's list so
 that `pnpm typecheck` checks it. This is the fourth test pattern of "How
 to read a task".
 

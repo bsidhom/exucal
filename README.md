@@ -718,6 +718,8 @@ Cloud environment below), so nothing above has to be done there by hand.
 | `pnpm preview`      | Serve the production bundle locally.                |
 | `pnpm typecheck`    | Type-check without building.                        |
 | `pnpm test`         | Run the tests with Node's built-in test runner.     |
+| `pnpm test:sweep`   | Run the edge sweeps, the conformance tests.         |
+| `pnpm test:all`     | Run the tests and the sweeps, as before a commit.   |
 | `pnpm bench`        | Run the performance benchmarks (see Benchmarks).    |
 | `pnpm format`       | Format all source files with Prettier.              |
 | `pnpm format:check` | Verify that all source files are formatted.         |
@@ -736,6 +738,15 @@ cloud session hook, so that the hook reads as what it does.)
 Run `pnpm format` before every commit: the repository is expected to be
 formatted with Prettier at all times, and `pnpm format:check` is how that is
 verified.
+
+`pnpm test` is the run for every edit: the `*.test.ts` beside each module,
+a few seconds. The two edge sweeps (`*.sweep.ts`, see ARCHITECTURE.md
+"Tests") are conformance tests that evaluate every built-in over the
+classes of arguments at the edges of the number type, tens of thousands
+of cases that grow with every built-in, so they are left out of
+`pnpm test` and run by `pnpm test:sweep`. Run `pnpm test:all` before every
+commit: a commit leaves `pnpm typecheck`, `pnpm test:all` and
+`pnpm format:check` green.
 
 The service worker is only registered in production builds, so `pnpm dev`
 never caches anything. To try the offline behavior, run `pnpm build` and then

@@ -451,6 +451,27 @@ which go anywhere a unit goes and are called the same way. They are:
   units, and it is the one way to make an exact value inexact on purpose,
   so `approx(2.54) cm` in `in` is `≈ 1` where `2.54 cm` in `in` is `= 1`.
   It never narrows a value that is already inexact.
+- `abs`, `sign`, `floor`, `ceil`, `trunc` and `round`. `abs` keeps its
+  argument's units and `sign` takes any quantity, giving `-1`, `0` or
+  `1`. The other four take a plain number, since a quantity is stored in
+  the base units and `floor(3.7 ft)` would floor the metres; write
+  `floor(3.7 ft / ft) ft`. `round(x)` rounds to a whole number and
+  `round(x, places)` to that many decimal places, in the Rounding
+  setting's mode, a negative count rounding to the left of the point:
+  `round(3.14159, 2)` is `3.14` and `round(1234, -2)` is `1200`. A value
+  that cannot be told from a boundary (`floor(sqrt(2)^2)`, a hair from
+  `2` at any precision) is reported as such rather than guessed.
+- `div(a, b)` and `mod(a, b)`, floored division and its remainder, on
+  two quantities of one dimension: `div(-7, 2)` is `-4` and `mod(-7, 2)`
+  is `1`, the remainder zero or of the divisor's sign, so that
+  `a = b × div(a, b) + mod(a, b)` exactly; `mod(-30 deg, 360 deg)` is
+  `330 deg`, and `div(7 ft, 2 ft)` is the count `3`.
+- `gcd(a, b)` and `lcm(a, b)` of whole numbers, never negative; and
+  `factorial(n)`, `binomial(n, k)` and `doublefactorial(n)` of whole
+  numbers known exactly (`factorial(approx(5))` is refused, since a
+  value known to a precision is not known to be `5`), refused past Most
+  bits before anything is computed: `factorial(5000)` is a value of
+  16,326 digits and `factorial(20000)`, with 77,338, is not.
 
 Every built-in takes plain numbers, apart from the angles above, and
 `exp(1 m)` is an error that names the dimension. A value the function

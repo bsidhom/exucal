@@ -209,6 +209,14 @@ function describeDomain(
       return `${argument} is not strictly between -1 and 1, where ${fn} is defined`;
     case "origin":
       return `both arguments are zero, and the origin has no direction`;
+    case "notInteger":
+      return `${argument} is not a whole number, and ${fn} is defined only for whole numbers`;
+    case "notExact":
+      return `${argument} is not known exactly, and ${fn} needs a whole number known exactly`;
+    case "negative":
+      return name === "doublefactorial"
+        ? `${argument} is below -1, and ${fn} is defined only from -1 up`
+        : `${argument} is negative, and ${fn} is defined only from 0 up`;
   }
 }
 
@@ -227,6 +235,12 @@ function domainValue(reason: DomainReason): string {
       return "a value not strictly between -1 and 1";
     case "origin":
       return "the origin";
+    case "notInteger":
+      return "a value that is not a whole number";
+    case "notExact":
+      return "a value not known exactly";
+    case "negative":
+      return "a value below where it is defined";
   }
 }
 
@@ -301,12 +315,12 @@ function describeValuePast(kind: Refusal["kind"]): string {
   }
 }
 
-/** The edge a value cannot be told from, in words: `zero`, `1`, `-1`, `a pole of the tangent`, `the point where the result passes the exponent bound`. */
+/** The edge a value cannot be told from, in words: `zero`, `1`, `-1`, `2.5` (a rounding boundary, to twelve digits), `a pole of the tangent`, `the point where the result passes the exponent bound`. */
 function describeEdge(edge: Edge): string {
   if (edge === "pole") return "a pole of the tangent";
   if (edge === "bound")
     return "the point where the result passes the exponent bound";
-  return equals(edge, ZERO) ? "zero" : format(edge, 1, "towardZero");
+  return equals(edge, ZERO) ? "zero" : format(edge, 12, "towardZero");
 }
 
 /** How to call the function `name` of `arity`, as the message for a name used as a unit says it. */

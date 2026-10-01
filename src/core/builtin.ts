@@ -106,7 +106,13 @@ export type DomainReason =
   | "outsideClosedUnitInterval"
   | "belowOne"
   | "outsideOpenUnitInterval"
-  | "origin";
+  | "origin"
+  /** An exact value that is not a whole number, where the function takes integers (the exact functions, 6.1). */
+  | "notInteger"
+  /** An inexact value, where the function takes integers known exactly, which no ball is. */
+  | "notExact"
+  /** A value below where the function is defined: below zero for `factorial`, below `-1` for `doublefactorial`. */
+  | "negative";
 
 /** The edge a value straddles (D4), the ball's own type, re-exported for the built-ins. */
 export type { Edge } from "./ball.ts";

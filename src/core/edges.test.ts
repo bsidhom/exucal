@@ -50,29 +50,47 @@ import {
   type NumberContext,
 } from "./context.ts";
 import { powerOfTenRadius } from "./radius.ts";
-import { bitLength, rational } from "./rational.ts";
+import { LIMIT_BITS, bitLength, rational } from "./rational.ts";
 import type { Result } from "./result.ts";
 import {
   MAX_EXPONENT,
   ONE,
   ZERO,
+  absolute,
+  add,
   compare,
   decimalExponent,
+  divide,
   equals,
   formable,
   isInteger,
   isZero,
+  multiply,
   negate,
   roundTo,
   scaled,
   sign,
+  subtract,
+  toRational,
   type Scaled,
 } from "./scaled.ts";
+import {
+  binomialOf,
+  ceilScaled,
+  doubleFactorialOf,
+  factorialOf,
+  floorScaled,
+  gcdOfIntegers,
+  lcmOfIntegers,
+  roundScaled,
+  truncScaled,
+} from "./builtins/exact.ts";
 import {
   NO_MAGNITUDE,
   addIntervals,
   checkValue,
   contains,
+  containsZeroInterval,
   divideIntervals,
   expMagnitude,
   hyperbolicMagnitude,
@@ -316,6 +334,146 @@ function isExactly(b: Ball, v: Scaled): boolean {
   return isExact(b) && equals(b.mid, v);
 }
 
+/** Whether the interval is a point, an exact argument. */
+function isExactInterval(i: Interval): boolean {
+  return compare(i.lo, i.hi) === 0;
+}
+
+/** Whether the argument is not an exact integer, where the integer functions refuse it. */
+function notExactInteger(i: Interval): boolean {
+  return !isExactInterval(i) || !isInteger(i.lo);
+}
+
+/** Whether the exact argument is below `-1`. */
+function belowMinusOne(i: Interval): boolean {
+  return isExactInterval(i) && compare(i.lo, MINUS_ONE) < 0;
+}
+
+/** The integer `s` is, where it is one of the sweep's moderate size; `undefined` otherwise. */
+function integerValue(s: Scaled): bigint | undefined {
+  if (!isInteger(s)) return undefined;
+  const formed = toRational(s, LIMIT_BITS);
+  return formed.ok ? formed.value.num : undefined;
+}
+
+/** Whether `x` is an exact integer whose power of ten cannot be formed within the context's range limit. */
+function unformable(x: Ball, context: NumberContext): boolean {
+  return (
+    isExact(x) && isInteger(x.mid) && !toRational(x.mid, context.maxBits).ok
+  );
+}
+
+/** The value of a result, or `undefined` for a failure. */
+function valueOr<T>(result: Result<T, unknown>): T | undefined {
+  return result.ok ? result.value : undefined;
+}
+
+/** The value of a result that is expected to succeed on the sweep's small arguments. */
+function valueOrOne(result: Result<bigint, unknown>): bigint {
+  return result.ok ? result.value : 1n;
+}
+
+/** `f` on two exact integers, where both are, as a `Scaled`. */
+function onIntegers(
+  a: Scaled,
+  b: Scaled,
+  f: (a: bigint, b: bigint) => bigint,
+): Scaled | undefined {
+  const x = integerValue(a);
+  const y = integerValue(b);
+  return x === undefined || y === undefined ? undefined : integer(f(x, y));
+}
+
+/** The exact `div` of two midpoints, where it can be formed within the hard bound. */
+function divReference(a: Scaled, b: Scaled): Scaled | undefined {
+  if (isZero(b)) return undefined;
+  const q = divide(a, b);
+  if (!q.ok) return undefined;
+  return valueOr(floorScaled(q.value, LIMIT_BITS));
+}
+
+/** The exact `mod` of two midpoints, where `div` can be formed. */
+function modReference(a: Scaled, b: Scaled): Scaled | undefined {
+  const n = divReference(a, b);
+  if (n === undefined) return undefined;
+  const product = multiply(b, n);
+  if (!product.ok) return undefined;
+  return valueOr(subtract(a, product.value, LIMIT_BITS));
+}
+
+/** Whether the quotient of the midpoints has a floor that cannot be formed within the context's range limit. */
+function quotientPastLimit(a: Ball, b: Ball, context: NumberContext): boolean {
+  if (isZero(b.mid)) return false;
+  const q = divide(a.mid, b.mid);
+  if (!q.ok) return false;
+  const floored = floorScaled(q.value, context.maxBits);
+  return !floored.ok && floored.error.kind === "tooLarge";
+}
+
+/** Whether every value of the quotient passes the top of the exponent bound, where `mod` is `tooLarge`. */
+function quotientPastTop(a: Ball, b: Ball): boolean {
+  const ia = intervalOf(a);
+  const ib = intervalOf(b);
+  if (ia === undefined || ib === undefined) return false;
+  const q = divideIntervals(ia, ib);
+  return q !== undefined && surePast(valueMagnitude(q)) === "overflow";
+}
+
+/**
+ * Whether the exact remainder of the midpoints cannot be aligned within
+ * the context's range limit, as `mod` forms it: the quotient less its
+ * floor, or, for a quotient below the bound and a dividend of the other
+ * sign, the sum `a + b`.
+ */
+function remainderPastLimit(a: Ball, b: Ball, context: NumberContext): boolean {
+  if (isZero(b.mid)) return false;
+  const q = divide(a.mid, b.mid);
+  if (!q.ok) {
+    if (q.error.kind !== "underflow" || sign(a.mid) * sign(b.mid) >= 0) {
+      return false;
+    }
+    const sum = add(a.mid, b.mid, context.maxBits);
+    return !sum.ok && sum.error.kind === "tooLarge";
+  }
+  const n = floorScaled(q.value, LIMIT_BITS);
+  if (!n.ok) return false;
+  const fraction = subtract(q.value, n.value, context.maxBits);
+  return !fraction.ok && fraction.error.kind === "tooLarge";
+}
+
+/**
+ * The magnitude of `a - b × floor(a / b)` over the arguments' intervals,
+ * where the floor is one integer over the quotient's interval: the
+ * quotient less that integer, times `b`; no magnitude otherwise.
+ */
+function modMagnitude(a: Interval, b: Interval): Magnitude {
+  const q = divideIntervals(a, b);
+  // A quotient reaching zero has a remainder reaching `a`, within the
+  // bound as every argument is.
+  if (q === undefined || containsZeroInterval(q)) return NO_MAGNITUDE;
+  const lo = floorScaled(q.lo, LIMIT_BITS);
+  const hi = floorScaled(q.hi, LIMIT_BITS);
+  if (!lo.ok || !hi.ok || !equals(lo.value, hi.value)) return NO_MAGNITUDE;
+  const fraction = addIntervals(q, negateInterval(pointInterval(lo.value)));
+  const remainder = multiplyIntervals(fraction, b);
+  return containsZeroInterval(remainder)
+    ? NO_MAGNITUDE
+    : valueMagnitude(remainder);
+}
+
+/**
+ * The magnitude of `floor(a / b)` over the arguments' intervals: the
+ * quotient's, except that a quotient within one of zero floors to zero
+ * or minus one, which no bound refuses.
+ */
+function flooredMagnitude(a: Interval, b: Interval): Magnitude {
+  const q = divideIntervals(a, b);
+  if (q === undefined) return NO_MAGNITUDE;
+  const within = (v: Loose) => compare(absolute(v), ONE) < 0;
+  if (within(q.lo) && within(q.hi)) return NO_MAGNITUDE;
+  return valueMagnitude(q);
+}
+
 /** The value at an argument of exactly `at`, for a known point. */
 function at(
   argument: Scaled,
@@ -339,6 +497,140 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
     },
   ],
   ["ln", { domain: ([x]) => nonpositive(x!), known: at(ONE, ZERO) }],
+  // The exact functions (6.1): exact references over the midpoints, the
+  // domain of the integer functions, and the refusals their size
+  // predictions and the quotient's floor document.
+  ["abs", { reference: ([x]) => absolute(x!) }],
+  ["sign", { reference: ([x]) => integer(BigInt(sign(x!))) }],
+  [
+    "floor",
+    {
+      reference: ([x]) => valueOr(floorScaled(x!, LIMIT_BITS)),
+      tooLarge: ([x], context) => !truncScaled(x!.mid, context.maxBits).ok,
+    },
+  ],
+  [
+    "ceil",
+    {
+      reference: ([x]) => valueOr(ceilScaled(x!, LIMIT_BITS)),
+      tooLarge: ([x], context) => !truncScaled(x!.mid, context.maxBits).ok,
+    },
+  ],
+  [
+    "trunc",
+    {
+      reference: ([x]) => valueOr(truncScaled(x!, LIMIT_BITS)),
+      tooLarge: ([x], context) => !truncScaled(x!.mid, context.maxBits).ok,
+    },
+  ],
+  [
+    "round",
+    {
+      modes: ["exact", "decimal"],
+      domain: ([, places]) => places !== undefined && notExactInteger(places),
+      reference: ([x, places]) => {
+        const count = places === undefined ? 0n : integerValue(places);
+        return count === undefined
+          ? undefined
+          : valueOr(roundScaled(x!, count, DEFAULT_ROUNDING, LIMIT_BITS));
+      },
+      tooLarge: ([x, places], context) => {
+        if (places !== undefined && unformable(places, context)) return true;
+        const count = places === undefined ? 0n : integerValue(places.mid);
+        if (count === undefined) return false;
+        const rounded = roundScaled(
+          x!.mid,
+          count,
+          DEFAULT_ROUNDING,
+          context.maxBits,
+        );
+        return !rounded.ok && rounded.error.kind === "tooLarge";
+      },
+    },
+  ],
+  [
+    "div",
+    {
+      magnitude: ([a, b]) => flooredMagnitude(a!, b!),
+      divisionByZero: ([, b]) => isExactly(b!, ZERO),
+      reference: ([a, b]) => divReference(a!, b!),
+      tooLarge: ([a, b], context) => quotientPastLimit(a!, b!, context),
+    },
+  ],
+  [
+    "mod",
+    {
+      magnitude: ([a, b]) => modMagnitude(a!, b!),
+      divisionByZero: ([, b]) => isExactly(b!, ZERO),
+      reference: ([a, b]) => modReference(a!, b!),
+      tooLarge: ([a, b], context) =>
+        quotientPastLimit(a!, b!, context) ||
+        quotientPastTop(a!, b!) ||
+        remainderPastLimit(a!, b!, context),
+    },
+  ],
+  [
+    "gcd",
+    {
+      domain: (args) => args.some(notExactInteger),
+      reference: ([a, b]) => onIntegers(a!, b!, gcdOfIntegers),
+      tooLarge: (args, context) => args.some((x) => unformable(x, context)),
+    },
+  ],
+  [
+    "lcm",
+    {
+      domain: (args) => args.some(notExactInteger),
+      reference: ([a, b]) => onIntegers(a!, b!, lcmOfIntegers),
+      tooLarge: (args, context) => args.some((x) => unformable(x, context)),
+    },
+  ],
+  [
+    "factorial",
+    {
+      domain: ([n]) => notExactInteger(n!) || negative(n!),
+      reference: ([n]) => {
+        const value = integerValue(n!);
+        return value === undefined || value > 300n
+          ? undefined
+          : integer(valueOrOne(factorialOf(value, EXACT)));
+      },
+      // Past about 5,900 every factorial passes the default range limit.
+      tooLarge: ([n], context) =>
+        unformable(n!, context) || (integerValue(n!.mid) ?? 0n) > 5_900n,
+    },
+  ],
+  [
+    "binomial",
+    {
+      domain: ([n, k]) =>
+        notExactInteger(n!) || notExactInteger(k!) || negative(n!),
+      reference: ([n, k]) =>
+        onIntegers(n!, k!, (a, b) => valueOrOne(binomialOf(a, b, EXACT))),
+      tooLarge: ([n, k], context) =>
+        unformable(n!, context) ||
+        unformable(k!, context) ||
+        !binomialOf(
+          integerValue(n!.mid) ?? 0n,
+          integerValue(k!.mid) ?? 0n,
+          context,
+        ).ok,
+    },
+  ],
+  [
+    "doublefactorial",
+    {
+      domain: ([n]) => notExactInteger(n!) || belowMinusOne(n!),
+      reference: ([n]) => {
+        const value = integerValue(n!);
+        return value === undefined || value > 300n
+          ? undefined
+          : integer(valueOrOne(doubleFactorialOf(value, EXACT)));
+      },
+      tooLarge: ([n], context) =>
+        unformable(n!, context) || (integerValue(n!.mid) ?? 0n) > 11_000n,
+    },
+  ],
   ["log10", { domain: ([x]) => nonpositive(x!), known: at(ONE, ZERO) }],
   ["log2", { domain: ([x]) => nonpositive(x!), known: at(ONE, ZERO) }],
   [
@@ -532,19 +824,23 @@ function compareBeyondOne(x: Interval): boolean {
 
 /** The built-ins as operations, by arity, with their rules. */
 function builtinOperations(): (Operation & { arity: number })[] {
-  return [...BUILTINS.values()].map((fn) => {
-    if (fn.arity.min !== fn.arity.max) {
-      throw new Error(
-        `${fn.name} takes a range of arguments, which the sweep does not enumerate`,
-      );
+  return [...BUILTINS.values()].flatMap((fn) => {
+    // A built-in with a range of arities (`round`, one or two) is run at
+    // each count, under the same rules.
+    const arities: number[] = [];
+    for (let arity = fn.arity.min; arity <= fn.arity.max; arity++) {
+      arities.push(arity);
     }
-    return {
-      name: fn.name,
-      modes: ["exact"],
-      ...BUILTIN_RULES.get(fn.name),
-      apply: (args, context) => fn.apply(args, context),
-      arity: fn.arity.min,
-    } satisfies Operation & { arity: number };
+    return arities.map(
+      (arity) =>
+        ({
+          name: fn.name,
+          modes: ["exact"],
+          ...BUILTIN_RULES.get(fn.name),
+          apply: (args, context) => fn.apply(args, context),
+          arity,
+        }) satisfies Operation & { arity: number },
+    );
   });
 }
 

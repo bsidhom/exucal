@@ -8,10 +8,12 @@
 // the second (3.6), the logarithms follow (3.7), then the roots and `pow`
 // (3.8), then the trigonometric functions (3.9), their inverses (3.10) and
 // the hyperbolic functions with theirs (3.11), which complete the
-// elementary set.
+// elementary set; `approx` (4.10) and the exact functions of stage 6
+// (6.1, exact.ts) follow.
 
 import type { Builtin, Builtins } from "./builtin.ts";
 import { approx } from "./builtins/approx.ts";
+import { EXACT_FUNCTIONS } from "./builtins/exact.ts";
 import { exp } from "./builtins/exp.ts";
 import { ln, log, log10, log2 } from "./builtins/log.ts";
 import { pi } from "./builtins/pi.ts";
@@ -54,5 +56,6 @@ export const BUILTINS: Builtins = new Map<string, Builtin>(
     acosh,
     atanh,
     approx,
+    ...EXACT_FUNCTIONS,
   ].map((fn) => [fn.name, fn]),
 );

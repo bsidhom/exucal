@@ -721,6 +721,219 @@ export function betaMagnitude(a: Interval, b: Interval): Magnitude {
   return { kind: "log", lo, hi };
 }
 
+/** `log10 e` from below and above, `0.43429448190325182765…`. */
+const LOG10_E_BELOW = INV_LN10_BELOW;
+const LOG10_E_ABOVE = INV_LN10_ABOVE;
+
+/** Bounds on `log10 x` over the interval of `x`, for `x` positive throughout. */
+function log10Interval(x: Interval): Interval {
+  return {
+    lo: { mant: log10Bounds(x.lo).lo, exp: 0n },
+    hi: { mant: log10Bounds(x.hi).hi, exp: 0n },
+  };
+}
+
+/**
+ * Bounds on `log10 Γ(s)` over the interval of `s`, for `s` positive
+ * throughout: from Stirling at or above ten, and otherwise from `Γ` at
+ * least `0.88` everywhere, between `0.88 / s` and `1 / s` below one,
+ * near one from its tangent there, and at most `Γ(10)` on `[1, 10]`.
+ */
+function log10GammaInterval(s: Interval): Interval {
+  const whole = lgammaInterval(s);
+  if (whole !== undefined) {
+    return {
+      lo: scaleLoose(whole.lo, INV_LN10_BELOW),
+      hi: scaleLoose(whole.hi, INV_LN10_ABOVE),
+    };
+  }
+  let hi: Loose = loose(56n, 10n);
+  if (compare(s.lo, ONE) < 0) {
+    hi = maxLoose(hi, negate({ mant: log10Bounds(s.lo).lo, exp: 0n }));
+  }
+  if (compare(s.hi, TEN) >= 0) {
+    const above = lgammaInterval({ lo: TEN, hi: s.hi });
+    if (above !== undefined) {
+      hi = maxLoose(hi, scaleLoose(above.hi, INV_LN10_ABOVE));
+    }
+  }
+  // From below: 0.88 everywhere; 0.88 / s below one; and on [1, 2], by
+  // convexity from Γ(1) = 1 and Γ'(1) = -γ, 1 - 0.58 (s - 1), whose
+  // logarithm is at least -0.26 (s - 1) there.
+  let lo: Loose = loose(-6n, 100n);
+  if (compare(s.hi, ONE) < 0) {
+    // Γ(s) = Γ(s + 1) / s >= (1 - γ s) / s, and log10(1 - γ s) >= -0.62 s.
+    lo = maxLoose(
+      lo,
+      addLoose(
+        negate({ mant: log10Bounds(s.hi).hi, exp: 0n }),
+        scaleLoose(s.hi, rational(-62n, 100n)),
+        "down",
+      ),
+    );
+  }
+  if (compare(s.lo, ONE) >= 0 && compare(s.hi, TWO) <= 0) {
+    lo = maxLoose(
+      lo,
+      scaleLoose(addLoose(s.hi, negate(ONE), "up"), rational(-26n, 100n)),
+    );
+  }
+  return { lo, hi };
+}
+
+/**
+ * The magnitude of the incomplete gamma functions over the intervals
+ * of the order `s` and the argument `x`, in log space, for `s` positive
+ * throughout and `x` at or above zero (none otherwise, and none for the
+ * lower forms where `x` reaches zero). The lower from its first term,
+ * `x^s e^-x / s`, which it exceeds, and `x^s / s`, which it stays
+ * below. The upper from below by `x^(s-1) e^-x` for `s` at or above
+ * one and `(x + 1)^(s-1) e^-x (1 - 1/e)` for `s` at or below one, both
+ * at the top of `x`, or by `Γ(s) / 2` where `x^s / s` is at most that,
+ * the lower form being at most `x^s / s`; and from above by `Γ(s)`, for
+ * the part of `s` at or below one by the fraction's third convergent,
+ * `x^(s-1) e^-x (x + 1) / (x + 2 - s)`, and for the part above one, with
+ * `x` at or above one, where `Γ(s, x)` rises with `s`, by `2 x^(s - 1)
+ * e^-x` at the top of `s` and the bottom of `x` where `x >= 2 (s - 1)`,
+ * or else `Γ` at the top of `s`. The regularized forms subtract `log10
+ * Γ(s)`.
+ */
+export function incompleteGammaMagnitude(
+  form: "lower" | "upper",
+  regularized: boolean,
+  s: Interval,
+  x: Interval,
+): Magnitude {
+  if (sign(s.lo) <= 0 || sign(x.lo) < 0) return NO_MAGNITUDE;
+  if (form === "lower" && sign(x.lo) <= 0) return NO_MAGNITUDE;
+  const gamma = log10GammaInterval(s);
+  if (sign(x.hi) === 0) {
+    // Γ(s, 0) is Γ(s), and the regularized form one.
+    return regularized
+      ? { kind: "log", lo: ZERO, hi: ZERO }
+      : { kind: "log", lo: gamma.lo, hi: gamma.hi };
+  }
+  const logXHi: Loose = { mant: log10Bounds(x.hi).hi, exp: 0n };
+  const logXLoBelow: Loose | undefined =
+    sign(x.lo) > 0 ? { mant: log10Bounds(x.lo).lo, exp: 0n } : undefined;
+  const xHiLog10e = scaleLoose(x.hi, LOG10_E_ABOVE);
+  let bounds: Interval;
+  if (form === "lower") {
+    const logX: Interval = { lo: logXLoBelow!, hi: logXHi };
+    const sLogX = multiplyIntervals(s, logX);
+    const logS = log10Interval(s);
+    bounds = {
+      lo: addLoose(
+        addLoose(sLogX.lo, negate(xHiLog10e), "down"),
+        negate(logS.hi),
+        "down",
+      ),
+      hi: addLoose(sLogX.hi, negate(logS.lo), "up"),
+    };
+  } else {
+    // From below, at x's top: the lesser of the two bounds over s.
+    const less: Interval = {
+      lo: addLoose(s.lo, negate(ONE), "down"),
+      hi: addLoose(s.hi, negate(ONE), "up"),
+    };
+    const candidates: Loose[] = [];
+    if (compare(s.hi, ONE) >= 0) {
+      const part: Interval = { lo: maxLoose(less.lo, ZERO), hi: less.hi };
+      candidates.push(
+        addLoose(
+          multiplyIntervals(part, pointInterval(logXHi)).lo,
+          negate(xHiLog10e),
+          "down",
+        ),
+      );
+    }
+    if (compare(s.lo, ONE) <= 0) {
+      const part: Interval = { lo: less.lo, hi: minLoose(less.hi, ZERO) };
+      const xPlus = addLoose(x.hi, ONE, "up");
+      const logXPlus: Loose = { mant: log10Bounds(xPlus).hi, exp: 0n };
+      candidates.push(
+        addLoose(
+          addLoose(
+            multiplyIntervals(part, pointInterval(logXPlus)).lo,
+            negate(xHiLog10e),
+            "down",
+          ),
+          loose(-2n, 10n),
+          "down",
+        ),
+      );
+    }
+    let lo = candidates.reduce((a, b) => minLoose(a, b));
+    // Γ(s) / 2 where the lower form, at most x^s / s, is at most that.
+    const sLogXHi = multiplyIntervals(s, pointInterval(logXHi)).hi;
+    const lowerAtMost = addLoose(sLogXHi, negate(log10Interval(s).lo), "up");
+    const halfGamma = addLoose(gamma.lo, loose(-31n, 100n), "down");
+    if (compare(lowerAtMost, halfGamma) <= 0) lo = maxLoose(lo, halfGamma);
+    // From above: Γ(s) always; x^(s-1) e^-x for the part of s at or
+    // below one; and for the part above one, with x at or above one,
+    // where Γ(s, x) rises with s, 2 x^(s-1) e^-x at the top of s and the
+    // bottom of x where x >= 2 (s - 1), or else Γ at the top of s.
+    let hi = gamma.hi;
+    if (logXLoBelow !== undefined) {
+      const logX: Interval = { lo: logXLoBelow, hi: logXHi };
+      const xLoLog10e = scaleLoose(x.lo, LOG10_E_BELOW);
+      const parts: Loose[] = [];
+      if (compare(s.lo, ONE) <= 0) {
+        // The fraction's third convergent, x^(s-1) e^-x (x + 1) / (x + 2 - s).
+        const part: Interval = { lo: less.lo, hi: minLoose(less.hi, ZERO) };
+        const numerator = log10Bounds(addLoose(x.hi, ONE, "up")).hi;
+        const denominator = log10Bounds(
+          addLoose(
+            addLoose(x.lo, TWO, "down"),
+            negate(minLoose(s.hi, ONE)),
+            "down",
+          ),
+        ).lo;
+        parts.push(
+          addLoose(
+            addLoose(multiplyIntervals(part, logX).hi, negate(xLoLog10e), "up"),
+            { mant: subtractFractions(numerator, denominator), exp: 0n },
+            "up",
+          ),
+        );
+      }
+      if (compare(s.hi, ONE) >= 0) {
+        const top = addLoose(s.hi, negate(ONE), "up");
+        const twice = addLoose(top, top, "up");
+        if (compare(x.lo, ONE) >= 0 && compare(x.lo, twice) >= 0) {
+          parts.push(
+            addLoose(
+              addLoose(
+                multiplyLoose(top, { mant: log10Bounds(x.lo).hi, exp: 0n }),
+                negate(xLoLog10e),
+                "up",
+              ),
+              loose(31n, 100n),
+              "up",
+            ),
+          );
+        } else {
+          parts.push(
+            log10GammaInterval({ lo: maxLoose(s.lo, ONE), hi: s.hi }).hi,
+          );
+        }
+      }
+      hi = minLoose(
+        hi,
+        parts.reduce((a, b) => maxLoose(a, b)),
+      );
+    }
+    bounds = { lo, hi };
+  }
+  if (regularized) {
+    bounds = {
+      lo: addLoose(bounds.lo, negate(gamma.hi), "down"),
+      hi: addLoose(bounds.hi, negate(gamma.lo), "up"),
+    };
+  }
+  return { kind: "log", lo: bounds.lo, hi: bounds.hi };
+}
+
 /** The magnitude of `lgamma(x)` over the interval of `x`, as `lgammaInterval` bounds it; none below ten. */
 export function lgammaMagnitude(x: Interval): Magnitude {
   const i = lgammaInterval(x);

@@ -33,6 +33,7 @@ import {
   isExact,
   multiplyBalls,
   powBall,
+  radiusValue,
   rootBall,
   settle,
   subtractBalls,
@@ -49,7 +50,12 @@ import {
   type Mode,
   type NumberContext,
 } from "./context.ts";
-import { powerOfTenRadius } from "./radius.ts";
+import {
+  compareRadius,
+  powerOfTenRadius,
+  radiusAboveScaled,
+  shiftRadius,
+} from "./radius.ts";
 import { LIMIT_BITS, bitLength, rational } from "./rational.ts";
 import type { Result } from "./result.ts";
 import {
@@ -82,6 +88,7 @@ import {
   lcmOfIntegers,
 } from "./builtins/integers.ts";
 import { magnitudeBits } from "./builtins/gamma.ts";
+import { withinLimits } from "./builtins/incomplete.ts";
 import {
   ceilScaled,
   floorScaled,
@@ -100,6 +107,7 @@ import {
   expMagnitude,
   gammaMagnitude,
   hyperbolicMagnitude,
+  incompleteGammaMagnitude,
   lgammaMagnitude,
   intersects,
   intervalOf,
@@ -406,6 +414,64 @@ function modReference(a: Scaled, b: Scaled): Scaled | undefined {
   const product = multiply(b, n);
   if (!product.ok) return undefined;
   return valueOr(subtract(a, product.value, LIMIT_BITS));
+}
+
+/**
+ * The rules of the four incomplete gamma functions: the order positive
+ * and the argument at or above zero, the refusals the bits the logarithm
+ * would need past the range limit, the magnitude from the bounds of the
+ * testing module, the exact value at `x = 0`, and the regularized forms
+ * within `[0, 1]`.
+ */
+function incompleteGammaRules(): [string, Partial<Operation>][] {
+  const forms: readonly [string, "lower" | "upper", boolean][] = [
+    ["lowergamma", "lower", false],
+    ["uppergamma", "upper", false],
+    ["lowergammareg", "lower", true],
+    ["uppergammareg", "upper", true],
+  ];
+  return forms.map(([name, form, regularized]) => [
+    name,
+    {
+      domain: ([s, x]) =>
+        (isExactInterval(s!) && sign(s!.lo) <= 0) ||
+        (isExactInterval(x!) && sign(x!.lo) < 0),
+      // The refusals: the bits the logarithm would need past the range
+      // limit, or neither route within its limit, at the argument or at
+      // either end of a wide one.
+      tooLarge: ([s, x], context) =>
+        !endsOf(x!).every((end) => withinLimits(s!, end, context)),
+      magnitude: ([s, x]) =>
+        incompleteGammaMagnitude(form, regularized, s!, x!),
+      known: ([s, x]) => {
+        if (!isExactly(x!, ZERO)) return undefined;
+        if (form === "lower") return ZERO;
+        if (regularized) return ONE;
+        const n = integerValue(s!.mid);
+        return n === undefined || n < 1n || n > 300n
+          ? undefined
+          : integer(valueOrOne(factorialOf(n - 1n, EXACT)));
+      },
+      range: regularized
+        ? { lo: { value: ZERO }, hi: { value: ONE } }
+        : NONNEGATIVE,
+    },
+  ]);
+}
+
+/** The ends of a ball whose radius is above `2^-16` of its magnitude, as the incomplete gamma functions take it, or the ball itself. */
+function endsOf(x: Ball): Ball[] {
+  if (isExact(x)) return [x];
+  const r = radiusValue(x.rad);
+  if (r === undefined) return [x];
+  const lo = subtract(x.mid, r, LIMIT_BITS);
+  const hi = add(x.mid, r, LIMIT_BITS);
+  if (!lo.ok || !hi.ok) return [x];
+  const bound = compareRadius(
+    x.rad,
+    shiftRadius(radiusAboveScaled(absolute(x.mid)), -16n),
+  );
+  return bound > 0 || isZero(x.mid) ? [exact(lo.value), exact(hi.value)] : [x];
 }
 
 /** Whether the interval is exactly a non-positive integer, a pole of the Gamma family. */
@@ -715,6 +781,7 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
       },
     },
   ],
+  ...incompleteGammaRules(),
   [
     "doublefactorial",
     {

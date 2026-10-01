@@ -398,12 +398,15 @@ Where the code departed from the note above, or settled what it left
 open; docs/calculator-plan.md ("Stage 6 as it landed") will have each
 task's rulings when the stage is done.
 
-- **6.1, the exact functions** (`src/core/builtins/exact.ts`). `mod` is
-  computed as `(a / b - div(a, b)) × b`, the same value and exact on
-  exact arguments: the form `a - b × div(a, b)` forms the product, which
-  passes the exponent bound where `a` and `b` lie at its opposite ends
-  though the remainder, within `|b|`, does not (`mod(-9.99e+10^18,
-5e+10^18)`, which the sweep found). A quotient past the top of the
+- **6.1, the exact functions** (`src/core/builtins/abs.ts`, `round.ts`,
+  `division.ts`, `integers.ts`). `div` and `mod` take one division
+  between them: the quotient `q = a / b` is formed once, as a ball, `div`
+  is its floor, and `mod` is `(q - floor(q)) × b` from the same quotient,
+  the same value as `a - b × floor(q)` and exact on exact arguments. The
+  textbook form builds the product `b × floor(q)`, which passes the
+  exponent bound where `a` and `b` lie at its opposite ends though the
+  remainder, within `|b|`, does not (`mod(-9.99e+10^18, 5e+10^18)`,
+  which the sweep found); this form never builds it. A quotient past the top of the
   bound, whose floor cannot be formed, makes `div` `overflow` and `mod`
   `tooLarge`, no value of the remainder passing the bound; one below the
   bottom, which the division refuses, has a floor all the same, zero or

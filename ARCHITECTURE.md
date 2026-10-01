@@ -1383,6 +1383,10 @@ src/core/builtins/trig.ts sin, cos and tan: the trigonometric functions of an an
 src/core/builtins/inverse-trig.ts asin, acos, atan and atan2: the inverses, returning an angle, every one an arctangent
 src/core/builtins/hyperbolic.ts sinh, cosh, tanh, asinh, acosh and atanh: through exp, and through ln of a root
 src/core/builtins/approx.ts approx(x): the value known to the working precision and no better, of any dimension, never narrowing
+src/core/builtins/abs.ts  abs and sign: the magnitude and the side of any quantity (stage 6, docs/special.md)
+src/core/builtins/round.ts floor, ceil, trunc and round(x, places): a plain number to the cell its midpoint's result stands for
+src/core/builtins/division.ts div and mod: floored division and its remainder, one quotient serving both
+src/core/builtins/integers.ts gcd, lcm, factorial, binomial, doublefactorial: the functions of exact integers, with their size predictions
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction

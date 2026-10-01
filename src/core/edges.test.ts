@@ -76,15 +76,17 @@ import {
 } from "./scaled.ts";
 import {
   binomialOf,
-  ceilScaled,
   doubleFactorialOf,
   factorialOf,
-  floorScaled,
   gcdOfIntegers,
   lcmOfIntegers,
+} from "./builtins/integers.ts";
+import {
+  ceilScaled,
+  floorScaled,
   roundScaled,
   truncScaled,
-} from "./builtins/exact.ts";
+} from "./builtins/round.ts";
 import {
   NO_MAGNITUDE,
   addIntervals,

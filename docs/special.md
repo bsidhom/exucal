@@ -3,7 +3,10 @@
 Status: design note for stage 6 of docs/calculator-plan.md (task 6.0),
 written after stage 5 landed and before any of the stage's code; the
 plan's 6.1 to 6.9 were revised against it in the same change, and D22
-records the owner's rulings on it. The goal is the study's feature
+records the owner's rulings on it. The stage has landed but for 6.8,
+the rest of feature 3, which the owner deferred after 6.7 (issue #115);
+"Implementation notes" below and the plan's "Stage 6 as it landed"
+record the stage. The goal is the study's feature
 3 for the exact functions and feature 2 for the Gamma and Beta families
 (docs/calculator.md, "3. Other special functions" and "2. Gamma and Beta
 families"), as built-ins in the manner of docs/builtins.md, whose rules
@@ -355,7 +358,10 @@ rational `x` within Most bits.
 
 ### The rest of feature 3 (6.8)
 
-Each its own task and commit, in the plan's order, each with the four
+Deferred after 6.7 landed, and no longer part of the plan: issue #115
+holds these functions with the context to take them up later, and what
+follows is the design as it was written, for that time. Each its own
+task and commit, in the plan's order, each with the four
 test patterns and a row in the sweep: `zeta(s)` for real `s > 1` by the
 Borwein algorithm, whose error bound is explicit; `lambertw(x)` on the
 principal branch, for `x` at or above `-1/e`, by Halley's iteration on
@@ -396,8 +402,8 @@ their series for small arguments. Each sub-note is a paragraph in the
 ## Implementation notes
 
 Where the code departed from the note above, or settled what it left
-open; docs/calculator-plan.md ("Stage 6 as it landed") will have each
-task's rulings when the stage is done.
+open; docs/calculator-plan.md ("Stage 6 as it landed") has each task's
+rulings and what it left behind.
 
 - **6.1, the exact functions** (`src/core/builtins/abs.ts`, `round.ts`,
   `division.ts`, `integers.ts`). `div` and `mod` take one division
@@ -666,3 +672,11 @@ a)` is the choice of orientation by estimated terms, which the region
   bounds from the series' prefactor and the ratio `ρ = max(1, (a + b) /
 (a + 1)) x`. Measured at forty digits: a few milliseconds a call for
   moderate parameters, fifty for `(1e4, 1e4, 0.5)`.
+- **6.9, the stage's docs.** The payload after the stage, measured by
+  `pnpm build` and recorded in docs/calculator.md ("Payload"): the script
+  grew by 30 KB (9 KB compressed) over stage 5's, at the top of the
+  study's estimate. The sweeps at the stage's end run 36,353 cases at
+  the ball level in about 35 s and 274 at the text level, apart from
+  the suite's 880 tests (#108). 6.8 is deferred to #115 and the plan
+  says so; the sweep's split into modules is #114 and the audit of
+  every bound #112.

@@ -29,8 +29,8 @@ It has no inverse, so its name is not a `want`.
   not `dB`: `d-` is a prefix and `B` a unit, and a function's name may not
   read as a prefix followed by a unit, the rule that keeps `u` and `at`
   out of the file. The neper is `neper` and the bel `bel`.
-- **Lambert's function is `lambertw`** when stage 6 adds it, since `W` is
-  taken.
+- **Lambert's function is `lambertw`** when it is added (deferred from
+  stage 6 to issue #115), since `W` is taken.
 - **`approx(x)` is the value known to the working precision and no
   better** (docs/approximate.md; stage 4's 4.10): the one way to make an
   exact value inexact on purpose, of any dimension, never narrowing.

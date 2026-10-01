@@ -1,10 +1,13 @@
 # Implementation plan for the calculator
 
-Status: in progress; stages 1 to 5 and the hardening phase before stage
+Status: in progress; stages 1 to 6 and the hardening phase before stage
 5 have landed, and "Stage 1 as it landed", "Stage 2 as it landed",
 "Stage 3 as it landed", "Stage 4 as it landed", "The hardening phase
-as it landed" and "Stage 5 as it landed" at the end record where the
-code diverged from the tasks as first written; "After stage 4" records the two follow-ups that
+as it landed", "Stage 5 as it landed" and "Stage 6 as it landed" at the
+end record where the code diverged from the tasks as first written;
+stage 6's task 6.8, the rest of feature 3, was deferred by the owner
+after 6.7 landed and is no longer part of this plan (issue #115 holds
+it); "After stage 4" records the two follow-ups that
 landed between stage 4 and the phase, and the issues they filed.
 "Before stage 5: hardening", between stage 4's tasks and stage 5's, is
 the phase that fixed those issues before stage 5, with the decisions it
@@ -16,7 +19,8 @@ docs/fractions.md) was written after the phase landed and the stage
 revised against it (D21 added, and 5.1 and 5.2); its introduction lists
 the changes. Stage 6's design note (6.0, docs/special.md) was written
 after stage 5 landed and the stage revised against it (D22 added, and
-6.1 to 6.9); its introduction lists the changes. D13 was
+6.1 to 6.9); its introduction lists the changes, and 6.8 was deferred
+after 6.7 landed. D13 was
 revised in review of the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -4397,7 +4401,12 @@ through `digamma`, and the classifier on `lgamma` as its guard (6.2,
 6.3); the names and exact cases of the incomplete functions (6.5 to
 6.7); README's list per task rather than at the end (6.9). Each
 function is a task with the four test patterns, the edge sweep taking
-it from the map of built-ins. The exact functions come first (D14). The
+it from the map of built-ins. After 6.7 landed the owner deferred 6.8,
+the rest of feature 3, so as not to hold the rest of the calculator on
+eight functions wanted less than stage 7; it is no longer part of this
+plan, and issue [#115](https://github.com/bsidhom/pwa-units/issues/115)
+holds its functions with the context to take them up later, one
+sub-issue each. The exact functions come first (D14). The
 stage follows the whole of the phase before stage 5: its functions
 enter the kernel through that phase's door (H.2), are guarded by its
 classifier where their results can pass the bound (H.15), and the
@@ -4491,18 +4500,27 @@ The continued fraction with the symmetry, its bound, `incbeta(a, b, x)`
 and `incbetareg(a, b, x)` (the latter `I_x(a, b)`), and the polynomial
 exact case for integer `a` and `b`.
 
-### 6.8 The rest of feature 3, as wanted
+### 6.8 The rest of feature 3, deferred
 
-`zeta` (Borwein), `lambertw` (Halley on `exp`), the complete elliptic
-integrals `K` and `E` (the arithmetic-geometric mean), `legendre` and
-`chebyshev` (exact for integer order at a rational argument), Bessel `J`
-and `I` last. Each its own task and commit.
+Deferred, and no longer part of this plan: after 6.7 landed the owner
+chose not to block the rest of the calculator on these, and issue
+[#115](https://github.com/bsidhom/pwa-units/issues/115) holds them with
+the context to resume, each to be broken out into a sub-issue with its
+algorithm, bound and edges researched before it is implemented. As
+first written, the task was `zeta` (Borwein), `lambertw` (Halley on
+`exp`), the complete elliptic integrals `K` and `E` (the
+arithmetic-geometric mean), `legendre` and `chebyshev` (exact for
+integer order at a rational argument), Bessel `J` and `I` last, each
+its own task and commit; docs/special.md ("The rest of feature 3
+(6.8)") has the algorithm each was to take. 6.9 and stage 7 do not
+depend on any of them.
 
 ### 6.9 Stage 6 docs
 
 docs/special.md's implementation notes gathered; the payload measured
-and recorded in docs/calculator.md against its estimate. README's list
-of built-ins grows with each task, not here.
+and recorded in docs/calculator.md against its estimate; this plan's
+record of the stage, with 6.8's deferral noted wherever the plan speaks
+of it. README's list of built-ins grows with each task, not here.
 
 ## Stage 7: the user-function extensions
 
@@ -5179,3 +5197,117 @@ that says `=` for a fraction, which an exact function's result (`abs`,
 `floor`, `gcd`, a `binomial`) takes without a rule of its own. Set
 aside: #91 and #95, the one study of what a fraction may look like; #92,
 the reciprocal's retry and a word on its refusal.
+
+## Stage 6 as it landed
+
+The re-read after 6.9. The stage landed as ten pull requests, 6.0 to
+6.7 and 6.9 and one between 6.5 and 6.6 that moved the sweeps to their
+own run ([#99](https://github.com/bsidhom/pwa-units/pull/99),
+[#101](https://github.com/bsidhom/pwa-units/pull/101),
+[#102](https://github.com/bsidhom/pwa-units/pull/102),
+[#104](https://github.com/bsidhom/pwa-units/pull/104),
+[#105](https://github.com/bsidhom/pwa-units/pull/105),
+[#106](https://github.com/bsidhom/pwa-units/pull/106),
+[#109](https://github.com/bsidhom/pwa-units/pull/109),
+[#111](https://github.com/bsidhom/pwa-units/pull/111),
+[#113](https://github.com/bsidhom/pwa-units/pull/113) and 6.9's), each
+reviewed and merged on its own; 6.8 did not land and is deferred (below).
+docs/special.md's "Implementation notes" has each task's departures
+from the design in full; this is the record of the rulings and of what
+each task left behind:
+
+- **6.0** (#99). docs/special.md, and D22 from the owner's rulings in
+  its review: `floor` and its kin on plain numbers, `div` and `mod` the
+  floored pair, `gcd` and `lcm` non-negative, `round` to decimal places
+  with no mode argument
+  ([#98](https://github.com/bsidhom/pwa-units/issues/98) for
+  significant digits). The plan's 6.1 to 6.9 were revised against it in
+  the same change.
+- **6.1** (#101). The one module `exact.ts` became four by subject
+  (`abs.ts`, `round.ts`, `division.ts`, `integers.ts`); `div` and `mod`
+  share one quotient so that neither builds the product that passes the
+  bound where the remainder does not; the rounding functions decide a
+  ball by `position` against the open cell; `binomial` predicts its size
+  from `n^k / k!`; the sweep's builder enumerates `round` at both
+  arities, the first built-in with a range of them.
+- **6.2** (#102). The series as a recurrence on its terms, the working
+  bits the result's plus a guard whatever bits the argument comes at,
+  and the square of `1 / y` for `1 / y^2`, each from a first version that
+  never terminated or never reached the floor. From review: the
+  Bernoulli numbers are computed on first use and memoized, and their cost, 2.9 s once at
+  the default ceiling, and footprint, about 3 MB there, are documented
+  in ARCHITECTURE.md and README at the owner's asking, and
+  [#103](https://github.com/bsidhom/pwa-units/issues/103) is to
+  reconsider the footprint (eviction, no memo, or a cheaper
+  representation).
+- **6.3** (#104). `lgamma` and `gamma` sharing the series loop with
+  `digamma`; the shift's product normalized at the working bits; the
+  classifier on the `lgamma` ball as `gamma`'s guard; the exact integer
+  case through `factorialOf`. Two rulings: the probe's composite
+  (`src/limits.ts`) was not changed to time the new routines, and pull
+  request titles say what the change does from here on. The costs
+  measured and recorded in docs/calculator.md: at a thousand digits 31
+  and 34 ms a call, where the study's estimate said a second.
+- **6.4** (#105). `beta` through `logGamma`, exported from gamma.ts with
+  the bits uncapped since the logarithms cancel; the poles decided
+  before any logarithm; a sum at or past the top of the bound is
+  `underflow`, not the sum's `overflow` passed on (D18, the sweep's
+  finding); the exact case through `binomialOf`; a sum that does not
+  align within Most bits taken as the larger within the smaller's
+  magnitude.
+- **6.5** (#106). The continued fraction's bound was written, by the
+  bracketing of consecutive convergents for an order at or below one and
+  the recurrence up from there, so the interim unbounded radius the task
+  allowed was never shipped; the route chosen by measured cost; the
+  exponential classified with its factor, not apart. Past the limits a
+  large order with the argument at or past it is `tooLarge`, which
+  [#107](https://github.com/bsidhom/pwa-units/issues/107) maps with the
+  ways out. From review: three threads answered on the PR, and the
+  sweep's 14 s on every edit led to
+  [#108](https://github.com/bsidhom/pwa-units/issues/108), fixed at once
+  as #109 (the sweeps named `*.sweep.ts`, run by `pnpm test:sweep` and
+  `pnpm test:all`, before a commit and in CI, not by `pnpm test`), and
+  [#110](https://github.com/bsidhom/pwa-units/issues/110) for the
+  suite's speed, to be taken up later.
+- **6.6** (#111). `erf` and `erfc` through `incompleteGammaBall`, which
+  takes the complement where the other form is computed, so no rule of
+  their own near one; `hullOfEnds` and `moveBetween` moved into
+  builtin.ts for every function taken at the ends of a wide ball.
+- **6.7** (#113). The positive-term series in place of the continued
+  fraction, by the owner's ruling on the proposal ("Proceed with the
+  certified series as you propose"): the beta fraction's elements have
+  both signs and nothing brackets it, where the series certifies every
+  value. The orientation by estimated cost with a cancellation guard;
+  the exact polynomial over one common denominator; a sweep over a cube
+  for three-argument functions, whose oracle took tighter Gamma bounds
+  and forty-digit constants to certify the refusals it met. At the
+  owner's asking,
+  [#112](https://github.com/bsidhom/pwa-units/issues/112): document,
+  cite and audit every numeric routine and rigorous bound, since the
+  values are certified through balls and the logic must be auditable;
+  from review, [#114](https://github.com/bsidhom/pwa-units/issues/114),
+  the sweep split into modules by subject without a change to its cases.
+- **6.8.** Deferred, and no longer part of this plan: after 6.7 the
+  owner chose not to block the rest of the calculator on the eight
+  functions, and [#115](https://github.com/bsidhom/pwa-units/issues/115)
+  holds them with the context to resume, one sub-issue each when they
+  are taken up. The task's text stays above, marked deferred, as the
+  record of what was intended.
+- **6.9.** This record and the payload. After `pnpm build` the script is
+  160 KB (50 KB compressed) and the whole precache 178 KB (56 KB
+  compressed), against 129 KB (41 KB) of script at the end of stage 5
+  measured by the same build: stage 6 added 30 KB of script (9 KB
+  compressed), at the top of the study's estimate of 6 to 9 KB
+  compressed, which was for the kernel and the elementary functions too.
+  The suite is 880 tests in ten seconds; the sweeps 36,353 cases at the
+  ball level in about 35 s and 274 at the text level in 5 s.
+
+What stage 7 inherits: the built-in mechanism unchanged, with forty-eight
+functions on it, twenty-five from this stage; the kernel's door, the classifier and the size rule
+exercised by every function of the stage, so a user-defined function
+composing them meets nothing new; `hullOfEnds` for a function taken at
+the ends of a wide ball; and `logGamma`, `incompleteGammaBall` and
+`incbetaBall` exported for a composition in code. Set aside: #103 (the
+Bernoulli memo's footprint), #107 (the incomplete gamma's large-order
+regime), #110 (the suite's speed), #112 (the audit of every bound), #114
+(the sweep's modules) and #115 (the rest of feature 3).

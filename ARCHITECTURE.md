@@ -247,6 +247,19 @@ digits, mode)` in `src/core/display.ts` formats the midpoint at the
    is those), `zero` (a ball containing zero without being it, shown as
    `0` with a bound on how far from zero the value may lie), and
    `unbounded` (a radius not known, the midpoint's digits certifying none).
+   With the fractions setting (`show`'s fourth argument; docs/fractions.md,
+   the plan's D21), an exact value that is not an integer is `exact` with
+   its fraction in lowest terms as the text, `fraction: true` saying so,
+   when the numerator and the denominator each fit within the digits
+   asked (`127/50` for `2.54`, `5000/127`), and `src/outcome.ts`
+   parenthesizes it where a unit follows, since the grammar reads
+   `5000/127 in` as `5000 / (127 in)`; an integer, a fraction that does
+   not fit, and every inexact value are shown as above, the decimal
+   display being the fallback. In decimal mode the pipeline settles the
+   quotients it forms outside the evaluator (the ratio, a list's terms, a
+   function's count), as every step is settled there, now that the
+   display no longer rounds every exact value; the outcome settles the
+   reciprocal the same way.
    Exactness is a property of the value, not of the display: a value that
    passes through a root and comes out looking rational (`sqrt(2) /
 sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while `sqrt(4)` is
@@ -1210,11 +1223,13 @@ Result`, and `src/core/pipeline.ts` is that function: `convertText` parses
 and evaluates each text and converts the pair, and returns each step's own
 error, a text's tagged with the side (`have` or `want`) it came from, so
 that the component can mark the input at fault, and the conversion's
-about the pair. The component also calls the display's `show` and
-`roundTerms`, and parses the `want` again to write it (below), which are
-views of the result rather than steps of it. `evaluateText` is the first half
-alone; with the `want` field blank, the component uses it to show what
-`have` is in the primitives (`1 in = 0.0254 m`), as GNU units does.
+about the pair. `src/outcome.ts` turns that result into the lines the
+output area shows: it calls the display's `show` and `roundTerms`, and
+parses the `want` again to write it (below), which are views of the
+result rather than steps of it, and it has no DOM dependency, so
+`outcome.test.ts` checks the lines under Node. `evaluateText` is the first
+half alone; with the `want` field blank, the outcome is what `have` is in
+the primitives (`1 in = 0.0254 m`), as GNU units does.
 
 A conversion into a function is one line, the `have` and then the call at
 the recovered argument, `tempF(212) = tempC(100)`, the argument written as
@@ -1245,7 +1260,10 @@ without a consistent context): the digits, the rounding mode, the exact
 or decimal mode, the cap on the digits and the range limit in bits (the
 plan's D16), reaching the component as
 its `context` property, the same `NumberContext` the pipeline takes, whose
-ceiling, the top of the retry schedule, is derived from the cap. A
+ceiling, the top of the retry schedule, is derived from the cap, and
+whether exact values are shown as reduced fractions, a display setting
+that reaches the component as its `fractions` property and the core
+never sees. A
 button in the panel runs the probe of `src/limits.ts`, which times the
 costliest operation the app has on each axis at doubling sizes (an exact
 product with its reduction for the range limit, and for the cap one
@@ -1383,7 +1401,8 @@ src/system-table.ts       loadSystemDefinitions: fetches and parses the system d
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
 src/settings.ts           Settings: the digits, the rounding mode, the exact or decimal mode and the two limits, in localStorage; contextOf
 src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
-src/unit-converter.ts     the component
+src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result; src/outcome.test.ts checks them
+src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome
 src/app-shell.ts          the host: loads the table, renders the component
 ```
 
@@ -1402,7 +1421,7 @@ radius of about `1e-30`, in decimal mode too where an operation reads the
 mode. At the text level, src/edges.test.ts runs `parseExpr`, `evaluateText`
 and `convertText` on the reproductions of every issue filed against stage
 4's code, in both modes, with `show` and `roundTerms` called as
-unit-converter.ts calls them. Each case is checked for what this document
+outcome.ts calls them. Each case is checked for what this document
 rules out: a throw; a refusal where the decisions allow none (`overflow`
 or `underflow` only when every value of the true result passes the bound,
 `tooLarge` only at a documented site, a domain error only for an argument

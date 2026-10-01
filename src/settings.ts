@@ -1,6 +1,7 @@
 // The user's settings: the digits a result is shown with, the rounding
-// mode it is rounded in, the exact or decimal mode, and the two limits of
-// D16, the cap on the digits and the range limit in bits, kept in
+// mode it is rounded in, the exact or decimal mode, the two limits of
+// D16, the cap on the digits and the range limit in bits, and whether an
+// exact value is shown as a reduced fraction (docs/fractions.md), kept in
 // `localStorage` so that they survive a reload, and turned into the
 // `NumberContext` the pipeline takes, whose ceiling is derived from the
 // cap. This is app code, not core: the core takes a context and knows
@@ -10,7 +11,7 @@
 //
 // Storage is an argument rather than the global, so that this module has no
 // DOM dependency and its parsing and validation are tested under Node with
-// a fake storage object. What is stored is a JSON object of the five
+// a fake storage object. What is stored is a JSON object of the six
 // fields; anything that does not parse, or a field that is missing or of
 // the wrong shape, falls back to that field's default, and the fields are
 // then made consistent in the order of their dependence: the range limit
@@ -37,7 +38,7 @@ import {
 import { LIMIT_BITS } from "./core/rational.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 
-/** The settings: the digits shown, the rounding mode, the exact or decimal mode, and the two limits. */
+/** The settings: the digits shown, the rounding mode, the exact or decimal mode, the two limits, and the fractions display. */
 export type Settings = {
   readonly digits: number;
   readonly rounding: RoundingMode;
@@ -47,6 +48,12 @@ export type Settings = {
   readonly maxDigits: number;
   /** The range limit: the most bits a numerator or denominator may have. */
   readonly maxBits: number;
+  /**
+   * Whether an exact value that is not an integer is shown as its fraction
+   * in lowest terms (the plan's 5.2; docs/fractions.md). A display setting:
+   * it is not part of the context, and the core never sees it.
+   */
+  readonly fractions: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -55,6 +62,7 @@ export const DEFAULT_SETTINGS: Settings = {
   mode: "exact",
   maxDigits: DEFAULT_MAX_DIGITS,
   maxBits: DEFAULT_MAX_BITS,
+  fractions: false,
 };
 
 /** The part of `Storage` the settings use, so that a test can fake it. */
@@ -82,10 +90,8 @@ export function loadSettings(storage: SettingsStorage): Settings {
     return DEFAULT_SETTINGS;
   }
   if (typeof parsed !== "object" || parsed === null) return DEFAULT_SETTINGS;
-  const { digits, rounding, mode, maxDigits, maxBits } = parsed as Record<
-    string,
-    unknown
-  >;
+  const { digits, rounding, mode, maxDigits, maxBits, fractions } =
+    parsed as Record<string, unknown>;
   // Each field's own range first; the dependent upper bounds are the clamp's.
   return clampSettings({
     digits: isPositiveInteger(digits) ? digits : DEFAULT_SETTINGS.digits,
@@ -95,6 +101,8 @@ export function loadSettings(storage: SettingsStorage): Settings {
       ? maxDigits
       : DEFAULT_SETTINGS.maxDigits,
     maxBits: isMaxBits(maxBits) ? maxBits : DEFAULT_SETTINGS.maxBits,
+    fractions:
+      typeof fractions === "boolean" ? fractions : DEFAULT_SETTINGS.fractions,
   });
 }
 
@@ -128,6 +136,7 @@ export function saveSettings(
         mode: settings.mode,
         maxDigits: settings.maxDigits,
         maxBits: settings.maxBits,
+        fractions: settings.fractions,
       }),
     );
   } catch {

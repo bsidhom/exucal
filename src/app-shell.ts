@@ -164,6 +164,18 @@ export class AppShell extends LitElement {
       opacity: 0.8;
     }
 
+    .settings .toggle > span {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .settings input[type="checkbox"] {
+      width: auto;
+      padding: 0;
+      margin: 0;
+    }
+
     .settings button {
       align-self: flex-end;
     }
@@ -216,14 +228,16 @@ export class AppShell extends LitElement {
   }
 
   /**
-   * The settings panel: the digits, the rounding mode, the mode and the
-   * two limits, saved on change, each number with a line on what it does.
+   * The settings panel: the digits, the rounding mode, the mode, the two
+   * limits and the fractions display, saved on change, each with a line on
+   * what it does.
    * The cap on the digits is labeled "Precision limit": what it bounds is
    * the effort exact mode spends, through the ceiling of the retry
    * schedule (`ceilingFor`), and the line shows that ceiling.
    */
   private renderSettings() {
-    const { digits, rounding, mode, maxDigits, maxBits } = this.settings;
+    const { digits, rounding, mode, maxDigits, maxBits, fractions } =
+      this.settings;
     return html`
       <details>
         <summary>Settings</summary>
@@ -273,6 +287,21 @@ export class AppShell extends LitElement {
                   </option>`,
               )}
             </select>
+          </label>
+          <label class="toggle">
+            <span>
+              <input
+                type="checkbox"
+                .checked=${fractions}
+                @change=${this.onFractionsChange}
+              />
+              Show reduced fractions
+            </span>
+            <small class="hint">
+              An exact value that is not a whole number is written as a fraction
+              in lowest terms when both parts fit within Digits; inexact values
+              stay decimal.
+            </small>
           </label>
           <button
             type="button"
@@ -372,6 +401,11 @@ export class AppShell extends LitElement {
     if (isMode(value)) this.applySettings({ mode: value });
   }
 
+  private onFractionsChange(event: Event) {
+    const { checked } = event.target as HTMLInputElement;
+    this.applySettings({ fractions: checked });
+  }
+
   /** Applies a change to the settings, clamps what depends on it, and saves them. */
   private applySettings(change: Partial<Settings>) {
     this.settings = clampSettings({ ...this.settings, ...change });
@@ -408,6 +442,7 @@ export class AppShell extends LitElement {
     return html`<unit-converter
       .table=${table.value}
       .context=${context}
+      .fractions=${this.settings.fractions}
     ></unit-converter>`;
   }
 }

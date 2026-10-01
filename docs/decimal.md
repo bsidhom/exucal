@@ -524,11 +524,16 @@ settled, so in decimal mode
   agnostic to the mode, as the study asks, because the mode is in the
   context it is evaluated under.
 
-The pipeline's conversion needs no settle of its own: the ratio of the
-two magnitudes is exact, and the display's rounding of it to `p` digits
-in the mode is the division's per-operation rounding; a list's counts
-and remainder are exact operations and `roundTerms` rounds in the mode;
-the reciprocal line is the display's rounding of the reciprocal.
+The pipeline's conversion settles its own quotients in decimal mode
+(stage 5's 5.2; stage 4 left them to the display, whose rounding of an
+exact ratio to `p` digits in the mode was the division's per-operation
+rounding, until the fractions display of docs/fractions.md stopped
+rounding every exact value): the ratio of the two magnitudes, a list's
+counts and remainder, and a function's count are each settled once at
+the context, and the outcome settles the reciprocal the same way, so
+that `1 m` in `in` at eight digits is `39.370079` within a bound and
+`1 in` in `cm` is `2.54`, exact; `roundTerms` still rounds a list's
+display in the mode.
 
 The rounding mode therefore governs every operation in decimal mode and
 only the display in exact mode, which is D15's statement of where the

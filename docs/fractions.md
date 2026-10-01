@@ -171,13 +171,19 @@ answers in decimal mode are what they were, and a fraction in decimal
 mode always fits, its numerator and denominator being within a rounded
 mantissa's digits or a power of ten of Digits digits or fewer.
 
-The reciprocal line is computed outside the pipeline today
-([#92](https://github.com/bsidhom/pwa-units/issues/92)), so in decimal
-mode its value is the exact quotient, unrounded: `3 m` in `m` would show
-`= 1/3 × 3 m` under the setting where the mode's rounding should make
-`1/3` inexact. That is #92's to fix, by computing the line as the
-conversion the other way round; the display's rule is right on the ball
-it is handed.
+One thing had to move for this. Stage 4 left the pipeline's own
+quotients, the conversion's ratio, a list's counts and remainder and a
+function's count, and the outcome's reciprocal, unsettled in decimal
+mode, since the display rounded them to Digits in the mode and that
+rounding was the division's (docs/decimal.md, "The decimal mode"). The
+fractions display does not round an exact value, so `1 m` in `in` would
+have been `= (5000/127) in` in decimal mode, an exact result the mode
+never produces. 5.2 settles those quotients in decimal mode where they
+are formed, and the rule above then holds: `1 m` in `in` is
+`≈ 39.370079 in`, `1 in` in `cm` is `= (127/50) cm`, and `3 m` in `m`
+has the reciprocal `m ≈ 0.33333333 × 3 m`. The rest of what the
+reciprocal lacks from the pipeline, its retry in exact mode and a word
+on a refusal, is [#92](https://github.com/bsidhom/pwa-units/issues/92).
 
 ## Where it goes
 
@@ -216,3 +222,20 @@ it is handed.
   construction, or for a `have` echoed back, which is the user's text.
 - **Anything in the core's arithmetic.** The setting reaches `show` and
   the component and nothing below them.
+
+## Implementation notes
+
+As it landed (5.1 in #94, 5.2 after it):
+
+- The line logic moved out of the component into `src/outcome.ts`, so
+  that the lines are tested under Node (`outcome.test.ts`) with the
+  setting on and off, through the pipeline, in both modes; the component
+  renders what the module returns. "Where it goes" names the component
+  for what is now the module's.
+- A unit list's exact remainder whose fraction fits is written entire,
+  unrounded, so nothing is rounded and nothing carries; a remainder whose
+  fraction does not fit takes `roundTerms` as before.
+- The pipeline settles its quotients in decimal mode, and the outcome
+  the reciprocal, as "The decimal mode" above says.
+- The setting is the sixth field of settings.ts, `fractions`, off by
+  default, a boolean validated as one; it is not part of the context.

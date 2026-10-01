@@ -90,7 +90,7 @@ import { evaluate, invertFunction, type EvaluateError } from "./evaluate.ts";
 import { parseExpr, parseUnitList, type Expr, type Rejection } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
 import type { Quantity } from "./quantity.ts";
-import { certifies, divideBalls, isExact, type Ball } from "./ball.ts";
+import { certifies, divideBalls, isExact, settle, type Ball } from "./ball.ts";
 import {
   GUARD_DIGITS,
   checkContext,
@@ -386,11 +386,13 @@ function convertParsed(
     );
     if (!value.ok) return value;
     if (pastLimit(value.value, working)) return err(EXACT_TOO_LARGE);
+    const settled = settledInMode(value.value, working);
+    if (!settled.ok) return settled;
     return ok({
       kind: "unit",
       have: haveQuantity.value,
       want: wantQuantity.value,
-      value: value.value,
+      value: settled.value,
     });
   }
   const units: ListedUnit[] = [];
@@ -417,12 +419,50 @@ function convertParsed(
       error,
     });
   }
+  const settled = settledTermsInMode(terms.value, working);
+  if (!settled.ok) return settled;
   return ok({
     kind: "list",
     have: haveQuantity.value,
     units,
-    terms: terms.value,
+    terms: settled.value,
   });
+}
+
+/**
+ * `quotient`, formed by the pipeline outside the evaluator (a ratio, a
+ * count, a list's term), settled in decimal mode as every step is (D15):
+ * stage 4 left these to the display's rounding, which the fractions
+ * display no longer applies to an exact value (docs/fractions.md, "The
+ * decimal mode"), so `1 m` in `in` at eight digits is `39.370079` within
+ * a bound there, inexact, and `1 in` in `cm` is `2.54`, exact. A refusal
+ * is the quotient's. In exact mode the quotient of settled operands is
+ * left as it is.
+ */
+function settledInMode(
+  quotient: Ball,
+  context: NumberContext,
+): Result<Ball, ConversionError> {
+  if (modeOf(context) !== "decimal") return ok(quotient);
+  const settled = settle(quotient, context);
+  if (settled.ok) return settled;
+  if (isRefusal(settled.error)) return err(refusal(settled.error));
+  throw new Error(`A settle failed otherwise: ${settled.error.kind}`);
+}
+
+/** Each of `terms` as `settledInMode` settles it; the first refusal is the list's. */
+function settledTermsInMode(
+  terms: readonly Ball[],
+  context: NumberContext,
+): Result<readonly Ball[], ConversionError> {
+  if (modeOf(context) !== "decimal") return ok(terms);
+  const settled: Ball[] = [];
+  for (const term of terms) {
+    const result = settledInMode(term, context);
+    if (!result.ok) return result;
+    settled.push(result.value);
+  }
+  return ok(settled);
 }
 
 /** Whether a list's failure is its arithmetic's rather than a unit's. */
@@ -488,7 +528,9 @@ function convertToNamedList(
     // `buildTable` checked the list's units against one another.
     throw new Error("A unit list in the table is not a valid list");
   }
-  return ok({ kind: "list", have, units, terms: terms.value });
+  const settled = settledTermsInMode(terms.value, working);
+  if (!settled.ok) return settled;
+  return ok({ kind: "list", have, units, terms: settled.value });
 }
 
 /**
@@ -537,13 +579,15 @@ function convertToFunction(
     throw new Error("A function in the table declares a zero argument unit");
   }
   if (pastLimit(value.value, context)) return err(EXACT_TOO_LARGE);
+  const settled = settledInMode(value.value, context);
+  if (!settled.ok) return settled;
   return ok({
     kind: "function",
     have,
     name: fn.name,
     argument: argument.value,
     unit: fn.argument,
-    value: value.value,
+    value: settled.value,
   });
 }
 

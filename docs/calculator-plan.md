@@ -1,10 +1,10 @@
 # Implementation plan for the calculator
 
-Status: in progress; stages 1 to 4 and the hardening phase before stage
+Status: in progress; stages 1 to 5 and the hardening phase before stage
 5 have landed, and "Stage 1 as it landed", "Stage 2 as it landed",
-"Stage 3 as it landed", "Stage 4 as it landed" and "The hardening phase
-as it landed" at the end record where the code diverged from the tasks
-as first written; "After stage 4" records the two follow-ups that
+"Stage 3 as it landed", "Stage 4 as it landed", "The hardening phase
+as it landed" and "Stage 5 as it landed" at the end record where the
+code diverged from the tasks as first written; "After stage 4" records the two follow-ups that
 landed between stage 4 and the phase, and the issues they filed.
 "Before stage 5: hardening", between stage 4's tasks and stage 5's, is
 the phase that fixed those issues before stage 5, with the decisions it
@@ -5069,3 +5069,48 @@ The work set aside, each with its issue:
   the arithmetic refuses or leaves `unresolved`; only a user definition
   within a prefix's factor of the bound reaches it, so it is filed with
   the editor that user definitions still lack.
+
+## Stage 5 as it landed
+
+The re-read after 5.2. The stage landed as three pull requests, 5.0, 5.1
+and 5.2 ([#93](https://github.com/bsidhom/pwa-units/pull/93),
+[#94](https://github.com/bsidhom/pwa-units/pull/94),
+[#96](https://github.com/bsidhom/pwa-units/pull/96)), each reviewed and
+merged on its own, the tasks as revised against the design note:
+
+- **5.0.** docs/fractions.md, and D21 from the owner's ruling in its
+  review: every exact value that is not an integer is a reduced fraction
+  when it fits, an integer is written as the decimal display writes it,
+  and an inexact value is a decimal, always; the alternative, a fraction
+  only where the decimal is inexact, was set aside. The fit rule, each
+  part within Digits, is provisional
+  ([#91](https://github.com/bsidhom/pwa-units/issues/91)). The study's
+  unit-list example was corrected (`428/127`, not `437/127`). The
+  reciprocal line's holes were filed apart
+  ([#92](https://github.com/bsidhom/pwa-units/issues/92)).
+- **5.1** (#67). `show` takes `fractions` as a fourth argument, off by
+  default; the `exact` kind carries `fraction: true`; `fractionText`
+  forms the ordinary fraction only when it can fit, by the guards its
+  comment argues; `zeroBound` writes a bound below `10^-(10^18)` as
+  `1e-1000000000000000000`. From review: writing a fraction with its
+  power of ten where that shortens the line is
+  [#95](https://github.com/bsidhom/pwa-units/issues/95), to be settled
+  with #91.
+- **5.2.** The sixth setting, "Show reduced fractions"; the line logic
+  moved from the component into outcome.ts so that the lines are tested
+  under Node, through the pipeline, in both modes; a fraction
+  parenthesized where a unit or the reciprocal's `×` follows, bare alone
+  or in a call; a list's exact remainder whose fraction fits written
+  entire, unrounded, so nothing carries. One change beyond the task: the
+  pipeline's quotients (the ratio, a list's terms, a function's count)
+  and the outcome's reciprocal are settled in decimal mode, which stage
+  4 had left to the display's rounding; with an exact value no longer
+  rounded by the display, `1 m` in `in` would have been `= (5000/127)
+in` in decimal mode. docs/decimal.md ("The decimal mode") says so in
+  place of "needs no settle of its own". Exact mode is unchanged.
+
+What stage 6 inherits: nothing new in the core's arithmetic; a display
+that says `=` for a fraction, which an exact function's result (`abs`,
+`floor`, `gcd`, a `binomial`) takes without a rule of its own. Set
+aside: #91 and #95, the one study of what a fraction may look like; #92,
+the reciprocal's retry and a word on its refusal.

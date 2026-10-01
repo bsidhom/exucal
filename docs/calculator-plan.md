@@ -14,7 +14,9 @@ request, and D18's answer for a sum whose ball reaches back within the
 bound in review of H.13's. Stage 5's design note (5.0,
 docs/fractions.md) was written after the phase landed and the stage
 revised against it (D21 added, and 5.1 and 5.2); its introduction lists
-the changes. D13 was
+the changes. Stage 6's design note (6.0, docs/special.md) was written
+after stage 5 landed and the stage revised against it (D22 added, and
+6.1 to 6.9); its introduction lists the changes. D13 was
 revised in review of the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -31,9 +33,9 @@ the code is left in. Where the study leaves a choice open, this plan makes
 it and says so under "Decisions", so that a reviewer can object to a
 decision before any code depends on it.
 
-The plan is firm for stages 1 to 5 and the phase before stage 5, whose
-shape follows from the code as it stands, and provisional for stages 6
-to 8, whose first task is a short
+The plan is firm for stages 1 to 6 and the phase before stage 5, whose
+shape follows from the code as it stands, and provisional for stages 7
+and 8, whose first task is a short
 design note in the manner of docs/functions.md, written once the stages
 before it have landed and refined against what they turned out to need.
 The provisional stages are still listed task by task, so that the whole
@@ -931,6 +933,26 @@ its own rule allows. The fit rule is provisional, firm for stage 5 and
 studied after it (#91). An approximating fraction for an inexact value,
 the study's later refinement, is ruled out for now: a decimal says what
 is known and no more.
+
+**D22. The exact functions: `floor` and its kin take a plain number;
+`div` and `mod` are floored division; `gcd` and `lcm` are non-negative
+(added before stage 6; ruled by the owner on the design note 6.0).**
+docs/special.md is the design. The plan had `floor`, `ceil`, `trunc` and
+`round` keep their argument's dimension; a quantity's magnitude is
+stored in the primitives, so `floor(3.7 ft)` would answer `1 m`, and a
+function whose answer depends on the unit the value is written in is
+defined only on plain numbers (`abs`, `sign`, `div` and `mod` are
+invariant under the unit's scale and take quantities). `round(x,
+places)` rounds to decimal places, in the context's rounding mode, with
+no mode argument, since the grammar has no way to pass one (#98 tracks
+significant digits and uncertain readings). `div` and `mod` come as a
+pair, concordant as Boute requires (Raymond T. Boute, "The Euclidean definition of the functions div and mod", ACM Transactions on Programming Languages and Systems 14(2), 1992, pages 127 to 144), and the pair is the floored one:
+`div(a, b) = floor(a / b)` makes `div` concordant with `floor` too, the
+remainder carries the divisor's sign, and it is what Python, Excel and
+Mathematica do; the Euclidean pair, which Boute prefers, is one call
+away. `gcd` and `lcm` are non-negative on absolute values, a
+normalization independent of the division, since Euclid's identity
+holds for any quotient.
 
 ## Stage 1: the context and the ball
 
@@ -4365,67 +4387,108 @@ including the parenthesized, bare and list cases and the reciprocal
 
 ## Stage 6: the exact functions, then the Gamma and Beta families
 
-Provisional; each function is a task with the four test patterns, the
-edge sweep taking it from the map of built-ins. The exact functions come
-first (D14). The stage follows the whole of the phase before stage 5:
-its functions enter the kernel through that phase's door (H.2), are
-guarded by its classifier where their results can pass the bound (H.15),
-and `factorial` and `binomial` predict their size under D19.
+Firm from its design note. 6.0 was written after stage 5 landed
+(docs/special.md) and the stage revised against it: D22 added; `div`
+added beside `mod`, `floor` and its kin on plain numbers, `round` to
+decimal places with no mode argument, and the factorials' refusal
+worded as their own (6.1); `gamma`'s propagation on balls rather than
+through `digamma`, and the classifier on `lgamma` as its guard (6.2,
+6.3); the names and exact cases of the incomplete functions (6.5 to
+6.7); README's list per task rather than at the end (6.9). Each
+function is a task with the four test patterns, the edge sweep taking
+it from the map of built-ins. The exact functions come first (D14). The
+stage follows the whole of the phase before stage 5: its functions
+enter the kernel through that phase's door (H.2), are guarded by its
+classifier where their results can pass the bound (H.15), and the
+factorials predict their size under D19.
 
 ### 6.0 Design note
 
 docs/special.md: the dimension rules of the exact functions (`abs`,
-`floor`, `ceil`, `trunc`, `round` keep their argument's dimension; `sign`
-is dimensionless; `mod` requires conformance and keeps the dimension;
-`gcd`, `lcm`, `factorial`, `binomial`, `doublefactorial` take
-dimensionless integers), `round(x, digits)` with the context's mode as
-the default and an optional mode argument named as in `ROUNDING_MODES`,
-`floor` and its kin on a ball straddling an integer (`unresolved`), and
-for the Gamma family the algorithm per function and the bound it owes.
+`sign`, `div` and `mod` take quantities, `abs` and `mod` keeping the
+dimension; `floor`, `ceil`, `trunc`, `round`, `gcd`, `lcm`, `factorial`,
+`binomial` and `doublefactorial` take plain numbers), `round(x, places)`
+to decimal places in the context's mode, floored `div` and `mod` as one
+definition, non-negative `gcd` and `lcm`, `floor` and its kin on a ball
+straddling a cell's boundary (`unresolved` at it), the integer
+functions' refusal of an inexact argument and their size prediction
+from Stirling's formula, and for the Gamma family the algorithm per
+function and the bound it owes. Written; D22 records the rulings.
 
 ### 6.1 The exact functions
 
-`abs`, `sign`, `floor`, `ceil`, `trunc`, `round`, `mod`, `gcd`, `lcm`,
-`factorial`, `binomial`, `doublefactorial`, each exact on exact balls,
-and on an inexact ball either exact where the interval decides (`floor`
-of a ball inside one integer's cell) or `unresolved`. `factorial` and
-`binomial` check the range limit.
+`abs`, `sign`, `floor`, `ceil`, `trunc`, `round`, `div`, `mod`, `gcd`,
+`lcm`, `factorial`, `binomial`, `doublefactorial`, in one module
+(`builtins/exact.ts`) since they share the integer checks and `floor`
+on a ball, each exact on exact balls, and on an inexact ball either exact
+where the interval decides (`floor` of a ball inside one integer's
+cell) or `unresolved` at the boundary it straddles; `sign` `unresolved`
+at zero; the integer functions refusing an inexact argument as a
+`domain` error (`notExact`) and a non-integer as another (`notInteger`);
+`factorial`, `binomial` and `doublefactorial` predicting their bits
+from Stirling's formula and refusing past `maxBits` with a `tooLarge`
+worded as their own, the remedy being Most bits. `round` is the first
+built-in with a range of arities, one or two; the sweep's builder
+enumerates each. Three domain reasons in builtin.ts, worded in
+messages.ts.
+
+Tests: the four patterns per function; the identities `a = b × div(a,
+b) + mod(a, b)` over signs and over quantities, `mod(-7, 2)` is `1` and
+`mod(7, -2)` is `-1`; `round(2.5)` under each mode, `round(1234, -2)`,
+`round(3.14159, 2)`; `floor` of `(2^(1/2))^2 - 2` `unresolved` at zero
+to the ceiling, of `sqrt(2)` exactly `1`; `gcd(-6, 4)` is `2`,
+`lcm(a, 0)` is `0`; `factorial(20000)` refused at the default with its
+message, `factorial(5000)` a value; `binomial(5, 7)` is `0`; a
+dimensioned `floor` the dimension-rule error; the sweep's rows. README
+("Functions in expressions") and docs/builtins.md ("Names") gain them.
 
 ### 6.2 `digamma`
 
-The recurrence up and the asymptotic series with Bernoulli numbers
-(exact rationals, computed once per precision and memoized), with the
-truncation bound of the asymptotic series stated; needed by `gamma`'s
-propagation rule.
+The Bernoulli numbers (`bernoulli.ts`, exact rationals from the tangent
+numbers, memoized by count), the recurrence up to the shifted argument
+and the asymptotic series with its remainder bounded by the first
+omitted term, the reflection for negative arguments, the poles as
+`domain` errors and a ball across one `unresolved` at the pole; on
+balls throughout (D9). No exact case.
 
 ### 6.3 `gamma` and `lgamma`
 
-The shift up, the Stirling series, reflection for negative arguments,
-poles as domain errors, positive integers as exact factorials;
-propagation by `gamma × digamma`; `lgamma` alongside, since `gamma(20000)`
-exceeds the range limit in exact mode.
+`lgamma` by the shift and Stirling's series with the same bound, the
+reflection, the poles; `gamma` as its exponential with the sign, an
+exact integer whose factorial fits Most bits exact, one that does not
+the kernel's value (the factorial refusal's remedy), and the classifier
+on the `lgamma` ball as the guard at the exponent bound; propagation by
+running on balls, so `gamma` does not depend on `digamma`. The cost at
+the default ceiling measured and recorded in docs/calculator.md against
+the study's estimate.
 
 ### 6.4 `beta`
 
-Three `gamma`s, or through `lgamma` for large arguments; exact for
-integer arguments.
+Through `lgamma` under the classifier; exact for positive integers
+within Most bits; a pole of `Γ(a + b)` alone exactly zero.
 
 ### 6.5 The incomplete gamma functions
 
-Lower by the power series on balls, upper by the continued fraction with
-its truncation bound, the region rule as mpmath documents it, and the
-regularized `P` and `Q`. Until the continued fraction's bound is written,
-the upper form returns an unbounded radius, which the display shows as the
-study describes.
+Lower by the series on balls with the tail bound, upper by the continued
+fraction with the region rule as mpmath documents it, the regularized
+forms through `gamma`; the names `lowergamma`, `uppergamma`,
+`lowergammareg` and `uppergammareg`, lower case, saying which function
+and whether regularized, as the note rules. Until
+the continued fraction's bound is written, the upper form returns an
+unbounded radius, which the display shows as the study describes.
 
 ### 6.6 `erf` and `erfc`
 
-As `P(1/2, x^2)` and its complement, with the sign handling, and the
-exact case at zero.
+As `lowergammareg(1/2, x^2)` and `uppergammareg(1/2, x^2)` with the sign
+handling, `erfc` from the upper form where `erf` is near one, the exact
+cases at zero, and the
+classifier on `-x^2` at the exponent bound.
 
 ### 6.7 The incomplete beta function
 
-The continued fraction with the symmetry, its bound, and `I_x(a, b)`.
+The continued fraction with the symmetry, its bound, `incbeta(a, b, x)`
+and `incbetareg(a, b, x)` (the latter `I_x(a, b)`), and the polynomial
+exact case for integer `a` and `b`.
 
 ### 6.8 The rest of feature 3, as wanted
 
@@ -4436,8 +4499,9 @@ and `I` last. Each its own task and commit.
 
 ### 6.9 Stage 6 docs
 
-README's list of built-ins; docs/special.md's implementation notes; the
-payload measured and recorded in docs/calculator.md against its estimate.
+docs/special.md's implementation notes gathered; the payload measured
+and recorded in docs/calculator.md against its estimate. README's list
+of built-ins grows with each task, not here.
 
 ## Stage 7: the user-function extensions
 

@@ -3,10 +3,9 @@
 Status: design note for stage 6 of docs/calculator-plan.md (task 6.0),
 written after stage 5 landed and before any of the stage's code; the
 plan's 6.1 to 6.9 were revised against it in the same change, and D22
-records the owner's rulings on it. The stage has landed but for 6.8,
-the rest of feature 3, which the owner deferred after 6.7 (issue #115);
-"Implementation notes" below and the plan's "Stage 6 as it landed"
-record the stage. The goal is the study's feature
+records the owner's rulings on it. The stage has landed, 6.8 deferred
+(the plan's 6.8); "Implementation notes" below and the plan's "Stage 6
+as it landed" record the stage. The goal is the study's feature
 3 for the exact functions and feature 2 for the Gamma and Beta families
 (docs/calculator.md, "3. Other special functions" and "2. Gamma and Beta
 families"), as built-ins in the manner of docs/builtins.md, whose rules
@@ -358,10 +357,9 @@ rational `x` within Most bits.
 
 ### The rest of feature 3 (6.8)
 
-Deferred after 6.7 landed, and no longer part of the plan: issue #115
-holds these functions with the context to take them up later, and what
-follows is the design as it was written, for that time. Each its own
-task and commit, in the plan's order, each with the four
+Deferred after 6.7 landed and no longer part of the plan (its 6.8 says
+where the work is tracked); the design as it was written stays for that
+time. Each its own task and commit, in the plan's order, each with the four
 test patterns and a row in the sweep: `zeta(s)` for real `s > 1` by the
 Borwein algorithm, whose error bound is explicit; `lambertw(x)` on the
 principal branch, for `x` at or above `-1/e`, by Halley's iteration on
@@ -677,6 +675,4 @@ a)` is the choice of orientation by estimated terms, which the region
   grew by 30 KB (9 KB compressed) over stage 5's, at the top of the
   study's estimate. The sweeps at the stage's end run 36,353 cases at
   the ball level in about 35 s and 274 at the text level, apart from
-  the suite's 880 tests (#108). 6.8 is deferred to #115 and the plan
-  says so; the sweep's split into modules is #114 and the audit of
-  every bound #112.
+  the suite's 880 tests (#108).

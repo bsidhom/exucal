@@ -388,12 +388,6 @@ in order of value:
 - **Orthogonal polynomials** (`legendre(n, x)`, `chebyshev(n, x)`) for
   integer `n`: exact rationals at a rational `x`, and cheap.
 
-Of this list, the exact functions, `erf` and `erfc` and `digamma` landed
-in stage 6; the rest (`zeta`, `lambertw`, the elliptic integrals, the
-orthogonal polynomials and Bessel `J` and `I`) was deferred after the
-incomplete beta function landed and is not part of the implementation
-plan; issue #115 holds it with the context to resume.
-
 Ruled out, at least as built-ins:
 
 - **The general hypergeometric functions** (`2F1` and beyond): every
@@ -741,8 +735,7 @@ on the one before it.
 6. The Gamma and Beta families with `erf` and `erfc`, each with its
    propagation rule, or with an unbounded radius until the rule is
    written; then the exact functions and the rest of the feasible list of
-   feature 3 as wanted (the rest was deferred after the families landed,
-   issue #115).
+   feature 3 as wanted.
 7. The user-function extensions: several parameters, optional inverse
    and declaration, domain and range. Storage and an editor for user
    definitions are the "Later" item ARCHITECTURE.md already lists.

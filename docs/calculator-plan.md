@@ -4502,18 +4502,11 @@ exact case for integer `a` and `b`.
 
 ### 6.8 The rest of feature 3, deferred
 
-Deferred, and no longer part of this plan: after 6.7 landed the owner
-chose not to block the rest of the calculator on these, and issue
-[#115](https://github.com/bsidhom/pwa-units/issues/115) holds them with
-the context to resume, each to be broken out into a sub-issue with its
-algorithm, bound and edges researched before it is implemented. As
-first written, the task was `zeta` (Borwein), `lambertw` (Halley on
-`exp`), the complete elliptic integrals `K` and `E` (the
-arithmetic-geometric mean), `legendre` and `chebyshev` (exact for
-integer order at a rational argument), Bessel `J` and `I` last, each
-its own task and commit; docs/special.md ("The rest of feature 3
-(6.8)") has the algorithm each was to take. 6.9 and stage 7 do not
-depend on any of them.
+Deferred after 6.7 landed, by the owner's decision not to block the rest
+of the calculator on it, and no longer part of this plan; issue
+[#115](https://github.com/bsidhom/pwa-units/issues/115) holds the
+functions and the context to take them up later. 6.9 and stage 7 do not
+depend on it.
 
 ### 6.9 Stage 6 docs
 

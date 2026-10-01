@@ -76,6 +76,7 @@ import {
   negate,
   scaled,
   sign,
+  toRational,
   type Scaled,
 } from "../core/scaled.ts";
 
@@ -596,9 +597,20 @@ export function surePast(m: Magnitude): "overflow" | "underflow" | undefined {
   }
 }
 
-/** `1 / ln 10` from below and above, `0.43429448190325182765…`, as fractions. */
-const INV_LN10_BELOW = rational(43429448190325182765n, 10n ** 20n);
-const INV_LN10_ABOVE = rational(43429448190325182766n, 10n ** 20n);
+/**
+ * `1 / ln 10` from below and above, `0.43429448190325182765…`, as
+ * fractions at forty digits: a bound that scales a value near the
+ * exponent limit, `10^18` and beyond, keeps that many digits of margin
+ * in the scaled value, where eighteen would leave none.
+ */
+const INV_LN10_BELOW = rational(
+  4342944819032518276511289189166050822943n,
+  10n ** 40n,
+);
+const INV_LN10_ABOVE = rational(
+  4342944819032518276511289189166050822944n,
+  10n ** 40n,
+);
 
 /** The power the bounds on `log10` of a mantissa are read from: `64` gives them within `1/64`. */
 const LOG_POWER = 64n;
@@ -663,9 +675,15 @@ export function expMagnitude(x: Interval): Magnitude {
   };
 }
 
-/** `ln 10` from below and above, `2.302585092994045684…`, as fractions. */
-const LN10_BELOW = rational(2302585092994045684n, 10n ** 18n);
-const LN10_ABOVE = rational(2302585092994045685n, 10n ** 18n);
+/** `ln 10` from below and above, `2.302585092994045684…`, as fractions at forty digits (as `INV_LN10_BELOW`). */
+const LN10_BELOW = rational(
+  23025850929940456840179914546843642076011n,
+  10n ** 40n,
+);
+const LN10_ABOVE = rational(
+  23025850929940456840179914546843642076012n,
+  10n ** 40n,
+);
 
 /** Ten, where the bounds on `ln Γ` below begin. */
 const TEN: Loose = loose(10n);
@@ -680,17 +698,31 @@ const TEN: Loose = loose(10n);
  */
 function lgammaInterval(x: Interval): Interval | undefined {
   if (compare(x.lo, TEN) < 0) return undefined;
-  const lower = log10Bounds(x.lo);
-  const upper = log10Bounds(x.hi);
-  const lnLoBelow = multiplyFractions(lower.lo, LN10_BELOW);
-  const lnLoAbove = multiplyFractions(lower.hi, LN10_ABOVE);
-  const lnHiAbove = multiplyFractions(upper.hi, LN10_ABOVE);
+  // Stirling's bounds, (x - 1/2) ln x - x + ln(2π)/2 <= ln Γ(x) <= the
+  // same + 1/(12x), with ln Γ rising there, so the ends of x give the
+  // ends of the value; ln(2π)/2 is 0.9189385….
+  const lnLoBelow = multiplyFractions(log10Bounds(x.lo).lo, LN10_BELOW);
+  const lnHiAbove = multiplyFractions(log10Bounds(x.hi).hi, LN10_ABOVE);
+  const half = loose(1n, 2n);
   const lo = addLoose(
-    scaleLoose(x.lo, subtractFractions(lnLoBelow, ONE_FRACTION)),
-    negate({ mant: multiplyFractions(lnLoAbove, rational(1n, 2n)), exp: 0n }),
+    addLoose(
+      scaleLoose(addLoose(x.lo, negate(half), "down"), lnLoBelow),
+      negate(x.lo),
+      "down",
+    ),
+    loose(9189n, 10000n),
     "down",
   );
-  return { lo, hi: scaleLoose(x.hi, lnHiAbove) };
+  const hi = addLoose(
+    addLoose(
+      scaleLoose(addLoose(x.hi, negate(half), "up"), lnHiAbove),
+      negate(x.hi),
+      "up",
+    ),
+    loose(9274n, 10000n), // ln(2π)/2 + 1/120 from above
+    "up",
+  );
+  return { lo, hi };
 }
 
 /** Two, where the bounds on `beta` below begin. */
@@ -750,9 +782,15 @@ function log10GammaInterval(s: Interval): Interval {
       hi: scaleLoose(whole.hi, INV_LN10_ABOVE),
     };
   }
-  let hi: Loose = loose(56n, 10n);
+  // From above: 1 / s below one, one on [1, 2], and (⌈s⌉ - 1)! beyond,
+  // Γ rising past 1.46; the pieces an interval covers, at most.
+  let hi: Loose = ZERO;
   if (compare(s.lo, ONE) < 0) {
     hi = maxLoose(hi, negate({ mant: log10Bounds(s.lo).lo, exp: 0n }));
+  }
+  if (compare(s.hi, TWO) > 0) {
+    const top = compare(s.hi, TEN) >= 0 ? 10n : ceilingOf(s.hi);
+    hi = maxLoose(hi, log10FactorialAbove(top - 1n));
   }
   if (compare(s.hi, TEN) >= 0) {
     const above = lgammaInterval({ lo: TEN, hi: s.hi });
@@ -760,17 +798,20 @@ function log10GammaInterval(s: Interval): Interval {
       hi = maxLoose(hi, scaleLoose(above.hi, INV_LN10_ABOVE));
     }
   }
-  // From below: 0.88 everywhere; 0.88 / s below one; and on [1, 2], by
-  // convexity from Γ(1) = 1 and Γ'(1) = -γ, 1 - 0.58 (s - 1), whose
-  // logarithm is at least -0.26 (s - 1) there.
-  let lo: Loose = loose(-6n, 100n);
+  // From below: Γ is at least 0.8856 everywhere (its minimum, at
+  // 1.4616), whose logarithm is above -0.0528; and ln Γ is convex with
+  // slope -γ at one, so it lies above the tangent -γ (s - 1) there, and
+  // log10 Γ(s) >= -0.26 (s - 1) for s >= 1, γ / ln 10 being 0.2507. On
+  // [1, 2] that is the piece; below one, Γ(s) = Γ(s + 1) / s with Γ(s +
+  // 1) at least the larger of the minimum and the tangent at s + 1.
+  const minimum: Loose = loose(-528n, 10000n);
+  let lo: Loose = minimum;
   if (compare(s.hi, ONE) < 0) {
-    // Γ(s) = Γ(s + 1) / s >= (1 - γ s) / s, and log10(1 - γ s) >= -0.62 s.
     lo = maxLoose(
       lo,
       addLoose(
         negate({ mant: log10Bounds(s.hi).hi, exp: 0n }),
-        scaleLoose(s.hi, rational(-62n, 100n)),
+        maxLoose(minimum, scaleLoose(s.hi, rational(-26n, 100n))),
         "down",
       ),
     );
@@ -781,7 +822,39 @@ function log10GammaInterval(s: Interval): Interval {
       scaleLoose(addLoose(s.hi, negate(ONE), "up"), rational(-26n, 100n)),
     );
   }
+  if (compare(s.lo, TWO) >= 0) {
+    // Γ(s) >= Γ(⌊s⌋) = (⌊s⌋ - 1)! for s >= 2.
+    lo = maxLoose(lo, log10FactorialBelow(floorOf(s.lo) - 1n));
+  }
   return { lo, hi };
+}
+
+/** The least integer at or above a positive `v` below `2^53`. */
+function ceilingOf(v: Loose): bigint {
+  const f = floorOf(v);
+  return compare(v, loose(f)) > 0 ? f + 1n : f;
+}
+
+/** The greatest integer at or below a positive `v` below `2^53`. */
+function floorOf(v: Loose): bigint {
+  const r = scaledOf(v);
+  if (r === undefined) throw new RangeError("A small value is formable");
+  const fraction = toRational(r, 1 << 20);
+  if (!fraction.ok) throw new RangeError("A small value is formable");
+  return fraction.value.num / fraction.value.den;
+}
+
+/** `log10(n!)` from above and from below, for a small `n`. */
+function log10FactorialAbove(n: bigint): Loose {
+  return { mant: log10Bounds(loose(factorialOfSmall(n))).hi, exp: 0n };
+}
+function log10FactorialBelow(n: bigint): Loose {
+  return { mant: log10Bounds(loose(factorialOfSmall(n))).lo, exp: 0n };
+}
+function factorialOfSmall(n: bigint): bigint {
+  let f = 1n;
+  for (let i = 2n; i <= n; i++) f *= i;
+  return f;
 }
 
 /**

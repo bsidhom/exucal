@@ -16,7 +16,7 @@ modeled.
 
 ## Settings
 
-The Settings panel under the converter has five settings, kept in the
+The Settings panel under the converter has six settings, kept in the
 browser so that they survive a reload:
 
 - **Digits**: how many significant digits an answer is shown with, from 1
@@ -75,6 +75,22 @@ in` at twelve.
   exact mode the app never rounds an exact value on its own. It also
   bounds the most digits: lowering it lowers that setting, and the
   digits, when they no longer fit.
+- **Show reduced fractions** (`fractions` in the code and the stored
+  settings): off by default. When on, an exact value that is not a whole
+  number is written as a fraction in lowest terms instead of its digits,
+  when its numerator and its denominator each fit within Digits:
+  `1 m = (5000/127) in`, `1 in = (127/50) cm`, `m / (3 m) = 1/3`, a unit
+  list as `1 m = 3 ft + (428/127) in`, and `in = (1/36) × 3 ft` on the
+  second line of `3 ft = 36 in`. The fraction is in parentheses before a
+  unit, since `5000/127 in` would read as `5000 / (127 in)`, and bare
+  when nothing follows it. A fraction that does not fit falls back to
+  the digits (`1 m ≈ 3 ft + 3.4 in` at two digits), and an inexact value
+  is always written as digits with `≈` (`sqrt(2) m ≈ 1.4142136 m`): the
+  setting changes how an exact value is written, never what is exact. In
+  decimal mode, where every step is rounded to Digits, a fraction appears
+  only for a value the rounding left exact (`m / (4 m) = 1/4` and
+  `1 in = (127/50) cm`, where `1 m ≈ 39.370079 in`). `docs/fractions.md`
+  is the design; the fit rule is provisional (issue #91).
 
 Both limits are cost limits, and the right values depend on the device, so
 the panel's "Recommend limits" button measures what this one does within

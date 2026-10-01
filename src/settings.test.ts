@@ -48,6 +48,7 @@ test("an empty storage gives the defaults", () => {
     mode: "exact",
     maxDigits: 1000,
     maxBits: 65536,
+    fractions: false,
   });
 });
 
@@ -58,8 +59,31 @@ test("stored settings are parsed", () => {
     mode: "decimal",
     maxDigits: 100,
     maxBits: 4096,
+    fractions: true,
   };
   assert.deepEqual(load(stored), stored);
+});
+
+test("the fractions setting loads, defaults to off when missing or not a boolean, and saves", () => {
+  assert.equal(load({ fractions: true }).fractions, true);
+  assert.equal(load({ fractions: false }).fractions, false);
+  for (const fractions of [undefined, "true", 1, null, "yes", []]) {
+    assert.equal(load({ fractions }).fractions, false, String(fractions));
+  }
+  // Settings stored before the setting existed load with it off.
+  assert.deepEqual(load({ digits: 12, rounding: "floor", mode: "decimal" }), {
+    ...DEFAULT_SETTINGS,
+    digits: 12,
+    rounding: "floor",
+    mode: "decimal",
+  });
+  const store = storage();
+  saveSettings(store, { ...DEFAULT_SETTINGS, fractions: true });
+  assert.equal(loadSettings(store).fractions, true);
+  // A display setting: the context the pipeline takes does not carry it.
+  assert.ok(
+    !("fractions" in contextOf({ ...DEFAULT_SETTINGS, fractions: true })),
+  );
 });
 
 test("the mode loads, defaults to exact when missing or neither, saves and reaches the context", () => {
@@ -77,6 +101,7 @@ test("the mode loads, defaults to exact when missing or neither, saves and reach
       mode: "exact",
       maxDigits: 100,
       maxBits: 4096,
+      fractions: false,
     },
   );
   const store = storage();
@@ -213,6 +238,7 @@ test("settings round-trip through storage, under one key", () => {
     mode: "decimal",
     maxDigits: 2000,
     maxBits: 1 << 17,
+    fractions: true,
   };
   saveSettings(stored, settings);
   assert.deepEqual([...stored.map.keys()], [SETTINGS_KEY]);
@@ -228,6 +254,7 @@ test("contextOf is the settings as the pipeline takes them, with the cap's ceili
     mode: "decimal",
     maxDigits: 300,
     maxBits: 4096,
+    fractions: false,
   };
   assert.deepEqual(contextOf(settings), {
     precision: 12,

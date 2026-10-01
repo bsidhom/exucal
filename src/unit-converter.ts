@@ -27,7 +27,10 @@ import { outcomeOf, type Line, type Outcome, type Term } from "./outcome.ts";
  * ceiling of the retry schedule, which the shell derives from the cap on
  * the digits; `<app-shell>` owns the settings and passes it down). It
  * defaults to the display's rules before the settings existed, eight
- * digits half away from zero, under the default cap's ceiling.
+ * digits half away from zero, under the default cap's ceiling. The
+ * `fractions` property is the display setting of docs/fractions.md,
+ * whether an exact value is written as a reduced fraction; off by
+ * default.
  */
 @customElement("unit-converter")
 export class UnitConverter extends LitElement {
@@ -113,6 +116,9 @@ export class UnitConverter extends LitElement {
     ceiling: DEFAULT_CEILING,
   };
 
+  /** Whether an exact value is shown as its fraction in lowest terms (docs/fractions.md). */
+  @property({ attribute: false }) fractions = false;
+
   @state() private have = "";
   @state() private want = "";
 
@@ -140,7 +146,7 @@ export class UnitConverter extends LitElement {
     if (table === undefined) {
       return { kind: "error", message: "No units are loaded." };
     }
-    return outcomeOf(table, this.have, this.want, context);
+    return outcomeOf(table, this.have, this.want, context, this.fractions);
   }
 }
 

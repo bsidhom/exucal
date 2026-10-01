@@ -247,6 +247,19 @@ digits, mode)` in `src/core/display.ts` formats the midpoint at the
    is those), `zero` (a ball containing zero without being it, shown as
    `0` with a bound on how far from zero the value may lie), and
    `unbounded` (a radius not known, the midpoint's digits certifying none).
+   With the fractions setting (`show`'s fourth argument; docs/fractions.md,
+   the plan's D21), an exact value that is not an integer is `exact` with
+   its fraction in lowest terms as the text, `fraction: true` saying so,
+   when the numerator and the denominator each fit within the digits
+   asked (`127/50` for `2.54`, `5000/127`), and `src/outcome.ts`
+   parenthesizes it where a unit follows, since the grammar reads
+   `5000/127 in` as `5000 / (127 in)`; an integer, a fraction that does
+   not fit, and every inexact value are shown as above, the decimal
+   display being the fallback. In decimal mode the pipeline settles the
+   quotients it forms outside the evaluator (the ratio, a list's terms, a
+   function's count), as every step is settled there, now that the
+   display no longer rounds every exact value; the outcome settles the
+   reciprocal the same way.
    Exactness is a property of the value, not of the display: a value that
    passes through a root and comes out looking rational (`sqrt(2) /
 sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while `sqrt(4)` is
@@ -1247,7 +1260,10 @@ without a consistent context): the digits, the rounding mode, the exact
 or decimal mode, the cap on the digits and the range limit in bits (the
 plan's D16), reaching the component as
 its `context` property, the same `NumberContext` the pipeline takes, whose
-ceiling, the top of the retry schedule, is derived from the cap. A
+ceiling, the top of the retry schedule, is derived from the cap, and
+whether exact values are shown as reduced fractions, a display setting
+that reaches the component as its `fractions` property and the core
+never sees. A
 button in the panel runs the probe of `src/limits.ts`, which times the
 costliest operation the app has on each axis at doubling sizes (an exact
 product with its reduction for the range limit, and for the cap one

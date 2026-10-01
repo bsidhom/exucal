@@ -50,7 +50,7 @@
 // line is added; nor for a blank `want`, which shows a definition; nor for
 // a value of zero, which has no reciprocal.
 
-import { divideBalls, exact, type Ball } from "./core/ball.ts";
+import { divideBalls, exact, settle, type Ball } from "./core/ball.ts";
 import type { NumberContext } from "./core/context.ts";
 import { roundTerms } from "./core/convert.ts";
 import { formatDimension, isDimensionless } from "./core/dimension.ts";
@@ -122,6 +122,7 @@ export function outcomeOf(
   haveText: string,
   wantString: string,
   context: NumberContext,
+  fractions = false,
 ): Outcome {
   const have = haveText.trim();
   const want = wantString.trim();
@@ -140,7 +141,10 @@ export function outcomeOf(
     const unit = isDimensionless(dimension)
       ? ""
       : formatDimension(dimension, table.primitives);
-    return { kind: "result", lines: [line(have, magnitude, unit, context)] };
+    return {
+      kind: "result",
+      lines: [line(have, magnitude, unit, context, fractions)],
+    };
   }
   const conversion = convertText(table, haveText, wantString, context);
   if (!conversion.ok) {
@@ -158,11 +162,11 @@ export function outcomeOf(
   }
   switch (conversion.value.kind) {
     case "unit":
-      return unitResult(have, want, conversion.value.value, context);
+      return unitResult(have, want, conversion.value.value, context, fractions);
     case "list":
-      return listResult(have, conversion.value, context);
+      return listResult(have, conversion.value, context, fractions);
     case "function":
-      return functionResult(have, conversion.value, context);
+      return functionResult(have, conversion.value, context, fractions);
   }
 }
 
@@ -197,18 +201,27 @@ function wantText(want: string): string {
  * written as a unit is. A `value` of zero has no reciprocal (`0 ft = 0 in`,
  * and nothing is a multiple of `0 ft`), and nor does one that cannot be
  * told from zero, so the second line is left out rather than shown as
- * anything.
+ * anything. In decimal mode the reciprocal is settled at the context, the
+ * mode's one rounding of every step (D15), so that `1/3` is inexact there
+ * as it is in the first line; the rest of what the reciprocal lacks from
+ * the pipeline (its retry in exact mode, and a word on a refusal) is
+ * issue #92's.
  */
 function unitResult(
   have: string,
   want: string,
   value: Ball,
   context: NumberContext,
+  fractions: boolean,
 ): Outcome {
-  const lines = [line(have, value, wantText(want), context)];
-  const inverse = divideBalls(exact(ONE), value);
+  const lines = [line(have, value, wantText(want), context, fractions)];
+  const quotient = divideBalls(exact(ONE), value);
+  const inverse =
+    quotient.ok && context.mode === "decimal"
+      ? settle(quotient.value, context)
+      : quotient;
   if (inverse.ok) {
-    lines.push(line(want, inverse.value, wantText(have), context));
+    lines.push(line(want, inverse.value, wantText(have), context, fractions));
   }
   return { kind: "result", lines };
 }
@@ -216,21 +229,39 @@ function unitResult(
 /**
  * The line `have` is `value` `unit`, as `show` certifies it at `context`:
  * `=` for an exact value, `≈` otherwise, and a note for the kinds that do
- * not show every digit asked for.
+ * not show every digit asked for. With `fractions`, an exact value that
+ * is not an integer is its fraction where it fits, parenthesized when
+ * `unit` follows it.
  */
 function line(
   have: string,
   value: Ball,
   unit: string,
   context: NumberContext,
+  fractions: boolean,
 ): Line {
-  const shown = show(value, context.precision, context.rounding);
+  const shown = show(value, context.precision, context.rounding, fractions);
   return {
     have,
     relation: shown.kind === "exact" ? "=" : "≈",
-    terms: [{ text: shown.text, negative: sign(value.mid) < 0, unit }],
+    terms: [
+      { text: fractionText(shown, unit), negative: sign(value.mid) < 0, unit },
+    ],
     note: noteOf(shown, context.precision),
   };
+}
+
+/**
+ * The text of `shown`, parenthesized when it is a fraction and `unit`
+ * follows it on the line: the grammar reads a juxtaposition before a
+ * quotient, so `5000/127 in` would be `5000 / (127 in)`, and every line
+ * must be typeable back as a `have` (docs/fractions.md, "Where a fraction
+ * is written"). A fraction alone, or inside a call, is bare.
+ */
+function fractionText(shown: Shown, unit: string): string {
+  return shown.kind === "exact" && shown.fraction === true && unit !== ""
+    ? `(${shown.text})`
+    : shown.text;
 }
 
 /** The note for a `shown` value at `digits` asked for, or none when every digit shown is certain. */
@@ -264,41 +295,57 @@ function listResult(
   have: string,
   conversion: Extract<Conversion, { kind: "list" }>,
   context: NumberContext,
+  fractions: boolean,
 ): Outcome {
   const { units, terms } = conversion;
   const { precision, rounding } = context;
   const last = terms.length - 1;
-  const shown = terms.map((t) => show(t, precision, rounding));
+  const shown = terms.map((t) => show(t, precision, rounding, fractions));
   const unrounded = shown[last]!;
+  // With fractions, an exact remainder whose fraction fits is written as
+  // it is, entire, so there is nothing to round and nothing carries.
+  const asFraction = unrounded.kind === "exact" && unrounded.fraction === true;
   const certified =
     unrounded.kind === "partial" && unrounded.certified > 0
       ? unrounded.certified
       : precision;
-  const rounded = roundTerms(
-    units.map((unit) => unit.quantity),
-    terms,
-    certified,
-    rounding,
-    context,
-  );
+  const rounded = asFraction
+    ? terms
+    : roundTerms(
+        units.map((unit) => unit.quantity),
+        terms,
+        certified,
+        rounding,
+        context,
+      );
   // A carry leaves a new remainder, what is left after the carried units,
   // judged on its own; without one the unrounded remainder's kind stands.
-  const carried = rounded
-    .slice(0, last)
-    .some((count, i) => !equals(count.mid, terms[i]!.mid));
+  const carried =
+    !asFraction &&
+    rounded
+      .slice(0, last)
+      .some((count, i) => !equals(count.mid, terms[i]!.mid));
   const remainder = carried
-    ? show(rounded[last]!, precision, rounding)
+    ? show(rounded[last]!, precision, rounding, fractions)
     : unrounded;
   const all = rounded.map((value, i) => {
     const negative = sign(value.mid) < 0;
     const magnitude = negative ? absolute(value.mid) : value.mid;
+    const unit = wantText(units[i]!.text);
+    // The remainder's fraction is written unsigned, as every term's text
+    // is, from the magnitude's own ball, which is exact as the term is.
     const text =
       i < last
         ? format(magnitude, precision, rounding)
         : remainder.kind === "zero"
           ? "0"
-          : format(magnitude, certified, rounding);
-    return { value, term: { text, negative, unit: wantText(units[i]!.text) } };
+          : remainder.kind === "exact" && remainder.fraction === true
+            ? fractionText(
+                show(exact(magnitude), precision, rounding, true),
+                unit,
+              )
+            : format(magnitude, certified, rounding);
+    return { value, term: { text, negative, unit } };
   });
   // A term of zero is left out, and so is a last term that cannot be told
   // from zero, with its note; a sum of nothing but zeros keeps its last
@@ -341,6 +388,7 @@ function functionResult(
   have: string,
   conversion: Extract<Conversion, { kind: "function" }>,
   context: NumberContext,
+  fractions: boolean,
 ): Outcome {
   const { name, value, unit } = conversion;
   const { relation, terms } = line(
@@ -348,6 +396,7 @@ function functionResult(
     value,
     unit.text === "1" ? "" : wantText(unit.text),
     context,
+    fractions,
   );
   return { kind: "result", lines: [{ have, relation, terms, call: name }] };
 }

@@ -630,7 +630,18 @@ Three runtime concerns cut across everything:
   of stage 4 the script is 111 KB (35 KB compressed) and the whole
   precache 129 KB (42 KB compressed): 17 KB of script (5 KB compressed)
   for the `Scaled` midpoint, the `Floating` and its log-space digits, the
-  decimal mode and `approx`.
+  decimal mode and `approx`. At the end of stage 6 the script is 160 KB
+  (50 KB compressed) and the whole precache 178 KB (56 KB compressed),
+  the definitions file unchanged; stage 5's rational display had taken
+  the script to 129 KB (41 KB compressed), so the stage's twenty-five
+  functions, the exact ones and the Gamma and Beta families with the
+  incomplete functions, `erf` and `erfc`, cost 30 KB of script (9 KB
+  compressed), at the top of the estimate above, which was for the
+  kernel and the elementary functions as well. The whole numeric
+  program, stages 1 to 6, added 112 KB of script (33 KB compressed) to
+  the 48 KB (17 KB) before it, above the estimate by the settings, the
+  display's kinds, the decimal mode and the rational display that the
+  estimate did not count.
 
 What is toggled, and what is concurrent:
 

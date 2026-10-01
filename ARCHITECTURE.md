@@ -1446,8 +1446,8 @@ Two more files are the edge sweeps, the fourth of the plan's test
 patterns (docs/calculator-plan.md, "How to read a task"; the plan's
 H.10), named `*.sweep.ts` and run by `pnpm test:sweep` rather than with
 every edit, since they are conformance tests that grow with every
-built-in (30,000 cases and 14 s after stage 6's 6.5, against a few
-seconds for the rest of the suite): they run before a commit and in CI,
+built-in (36,000 cases and about 35 s at the ball level after stage 6,
+against ten seconds for the rest of the suite): they run before a commit and in CI,
 and `pnpm test:all` runs the suite and the sweeps together (issue #108).
 At the ball level, src/core/edges.sweep.ts runs every built-in of `BUILTINS`,
 enumerated by arity so that a function added later joins it, and the

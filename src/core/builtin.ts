@@ -44,6 +44,7 @@ import {
   magnitudeAbove,
   magnitudeBelow,
   position,
+  radiusOfMove,
   type Ball,
   type BallError,
   type Edge,
@@ -64,14 +65,18 @@ import {
   compareRadius,
   multiplyRadius,
   powerOfTwoRadius,
+  radiusAboveScaled,
   type Radius,
 } from "./radius.ts";
 import { err, ok, type Result } from "./result.ts";
 import {
   ONE,
   ZERO,
+  absolute,
+  decimalExponent,
   isZero,
   log2Bounds,
+  sign,
   type Refusal,
   type Scaled,
 } from "./scaled.ts";
@@ -459,4 +464,70 @@ export function fromBallError(
     case "invalidNumber":
       throw new Error("A computation does not parse a number");
   }
+}
+
+/** The exponents' distance within which two midpoints are aligned exactly for their difference. */
+const ALIGNED_EXPONENTS = 4096n;
+
+/**
+ * A radius at or above `|a - b|`: the exact difference where the two
+ * align within a few thousand decades, and the sum of the magnitudes
+ * otherwise, since the alignment would form a number of that many
+ * digits.
+ */
+export function moveBetween(a: Scaled, b: Scaled): Radius {
+  const gap =
+    sign(a) === 0 || sign(b) === 0
+      ? 0n
+      : decimalExponent(a) - decimalExponent(b);
+  if ((gap < 0n ? -gap : gap) <= ALIGNED_EXPONENTS) return radiusOfMove(a, b);
+  return addRadius(
+    radiusAboveScaled(absolute(a)),
+    radiusAboveScaled(absolute(b)),
+  );
+}
+
+/**
+ * The hull of a function's results at the two ends of a wide argument,
+ * for a function monotone over it, so that the two ends are its
+ * extremes: both values, the ball covering both; both refused alike
+ * past the top or past the bottom, that refusal; one refused past the
+ * bottom beside a value, the value's hull with zero; one refused past
+ * the top beside a value or the other refusal, `unresolved` at the
+ * bound, blamed on `argument`; and any other failure, itself.
+ */
+export function hullOfEnds(
+  atLo: Result<Ball, BuiltinError>,
+  atHi: Result<Ball, BuiltinError>,
+  argument: number,
+): Result<Ball, BuiltinError> {
+  for (const end of [atLo, atHi]) {
+    if (
+      !end.ok &&
+      end.error.kind !== "underflow" &&
+      end.error.kind !== "overflow"
+    ) {
+      return end;
+    }
+  }
+  const atBound = unresolvedAt(argument, "bound");
+  if (!atLo.ok && !atHi.ok) {
+    return atLo.error.kind === atHi.error.kind ? atLo : atBound;
+  }
+  if (!atLo.ok || !atHi.ok) {
+    const value = atLo.ok ? atLo.value : (atHi as { value: Ball }).value;
+    const refused = atLo.ok ? atHi : atLo;
+    if (refused.ok || refused.error.kind === "overflow") return atBound;
+    return ok({
+      mid: value.mid,
+      rad: addRadius(value.rad, radiusAboveScaled(absolute(value.mid))),
+    });
+  }
+  return ok({
+    mid: atLo.value.mid,
+    rad: addRadius(
+      addRadius(atLo.value.rad, moveBetween(atLo.value.mid, atHi.value.mid)),
+      atHi.value.rad,
+    ),
+  });
 }

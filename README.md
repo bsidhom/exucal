@@ -516,6 +516,14 @@ which go anywhere a unit goes and are called the same way. They are:
   series and the continued fraction both carry their truncation bounds.
   A large order within a few percent of a large argument, past some
   millions, is not computed and says so.
+- `erf(x)` and `erfc(x)`, the error function and its complement, on
+  the incomplete Gamma functions of order one half: `erf(1)` is
+  `≈ 0.84270079`, `(1 + erf(1.96 / sqrt(2))) / 2` is `≈ 0.9750021`, the
+  normal distribution at `1.96`, and `erfc(10)` is `≈ 2.0884876e-45`,
+  its digits kept where `1 - erf(10)` would be `0`. `erf(0)` is the
+  exact `0` and `erfc(0)` the exact `1`; `erfc` of an argument past about
+  `1.5e9`, whose value passes below `10^-(10^18)`, is refused as `exp`
+  would refuse it.
 
 Every built-in takes plain numbers, apart from the angles above, and
 `exp(1 m)` is an error that names the dimension. A value the function

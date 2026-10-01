@@ -18,6 +18,7 @@ import { approx } from "./builtins/approx.ts";
 import { div, mod } from "./builtins/division.ts";
 import { exp } from "./builtins/exp.ts";
 import { beta } from "./builtins/beta.ts";
+import { erf, erfc } from "./builtins/erf.ts";
 import { digamma, gamma, lgamma } from "./builtins/gamma.ts";
 import {
   lowergamma,
@@ -95,5 +96,7 @@ export const BUILTINS: Builtins = new Map<string, Builtin>(
     uppergamma,
     lowergammareg,
     uppergammareg,
+    erf,
+    erfc,
   ].map((fn) => [fn.name, fn]),
 );

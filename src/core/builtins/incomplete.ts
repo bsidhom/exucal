@@ -62,7 +62,6 @@ import {
   lnScaled,
   multiplyBalls,
   position,
-  radiusOfMove,
   radiusValue,
   subtractBalls,
   type Ball,
@@ -71,6 +70,7 @@ import {
 import {
   TOO_LARGE,
   fromBallError,
+  hullOfEnds,
   plainNumbers,
   unboundedOf,
   type Builtin,
@@ -90,7 +90,6 @@ import {
   powerOfTenRadius,
   radiusAboveScaled,
   shiftRadius,
-  type Radius,
 } from "../radius.ts";
 import { err, ok, type Result } from "../result.ts";
 import {
@@ -100,13 +99,11 @@ import {
   ZERO,
   absolute,
   add,
-  decimalExponent,
   equals,
   log2Bounds,
   negate,
   sign,
   subtract,
-  type Scaled,
 } from "../scaled.ts";
 import { expBall } from "./exp.ts";
 import { gammaBall, logGamma, magnitudeBits } from "./gamma.ts";
@@ -287,60 +284,7 @@ function atEnds(
   if (!lo.ok || !hi.ok) return TOO_LARGE;
   const atLo = incompleteGamma(s, exact(lo.value), form, regularized, context);
   const atHi = incompleteGamma(s, exact(hi.value), form, regularized, context);
-  const atBound: Result<never, BuiltinError> = err({
-    kind: "unresolved",
-    argument: 1,
-    edge: "bound",
-  });
-  for (const end of [atLo, atHi]) {
-    if (
-      !end.ok &&
-      end.error.kind !== "underflow" &&
-      end.error.kind !== "overflow"
-    ) {
-      return end;
-    }
-  }
-  if (!atLo.ok && !atHi.ok) {
-    return atLo.error.kind === atHi.error.kind ? atLo : atBound;
-  }
-  if (!atLo.ok || !atHi.ok) {
-    const value = atLo.ok ? atLo.value : (atHi as { value: Ball }).value;
-    const refused = atLo.ok ? atHi : atLo;
-    if (refused.ok || refused.error.kind === "overflow") return atBound;
-    return ok({
-      mid: value.mid,
-      rad: addRadius(value.rad, radiusAboveScaled(absolute(value.mid))),
-    });
-  }
-  return ok({
-    mid: atLo.value.mid,
-    rad: addRadius(
-      addRadius(atLo.value.rad, moveBetween(atLo.value.mid, atHi.value.mid)),
-      atHi.value.rad,
-    ),
-  });
-}
-
-/** The exponents' distance within which two midpoints are aligned exactly for their difference. */
-const ALIGNED_EXPONENTS = 4096n;
-
-/**
- * A radius at or above `|a - b|`: the exact difference where the two
- * align within a few thousand decades, and the sum of the magnitudes
- * otherwise, since the alignment would form a number of that many
- * digits.
- */
-function moveBetween(a: Scaled, b: Scaled): Radius {
-  const gap =
-    sign(a) === 0 || sign(b) === 0
-      ? 0n
-      : decimalExponent(a) - decimalExponent(b);
-  if ((gap < 0n ? -gap : gap) <= ALIGNED_EXPONENTS) return radiusOfMove(a, b);
-  return addRadius(
-    radiusAboveScaled(absolute(a)),
-    radiusAboveScaled(absolute(b)),
-  );
+  return hullOfEnds(atLo, atHi, 1);
 }
 
 /** The operations a series term and a fraction convergent cost, and a reduction step, relative to each other, for the choice of a route. */

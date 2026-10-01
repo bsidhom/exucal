@@ -504,6 +504,18 @@ which go anywhere a unit goes and are called the same way. They are:
   `1 / ((n + 1) beta(n - k + 1, k + 1))` is `binomial(n, k)` for any
   `n` and `k`, which is where a binomial of values that are not whole
   numbers known exactly is pointed.
+- `lowergamma(s, x)` and `uppergamma(s, x)`, the incomplete Gamma
+  functions `γ(s, x)` and `Γ(s, x)`, which split `gamma(s)` at `x`, and
+  `lowergammareg(s, x)` and `uppergammareg(s, x)`, the same divided by
+  `gamma(s)`, the `P` and `Q` of statistics: `lowergammareg(0.5, 0.5)`
+  is `≈ 0.68268949`, the probability a normal value lies within one
+  standard deviation, and `uppergammareg(1/2, 1.96^2 / 2) / 2` the tail
+  `≈ 0.024997895`. The order `s` must be positive and `x` at or above
+  zero; `x = 0` gives the exact `0`, `gamma(s)` and `1`, and `s = 1`
+  gives `1 - exp(-x)` and `exp(-x)`. Every result is certified: the
+  series and the continued fraction both carry their truncation bounds.
+  A large order within a few percent of a large argument, past some
+  millions, is not computed and says so.
 
 Every built-in takes plain numbers, apart from the angles above, and
 `exp(1 m)` is an error that names the dimension. A value the function

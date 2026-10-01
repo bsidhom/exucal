@@ -539,3 +539,48 @@ task's rulings when the stage is done.
   from above and `2^-(2 (a + b))` from below. The binomial's refusals of
   a value it does not take now point at `1 / ((n + 1) beta(n - k + 1, k
   - 1))`.
+- **6.5, the incomplete gamma functions** (`src/core/builtins/incomplete.ts`,
+  `src/core/fixed-incomplete.ts`). The continued fraction's bound is
+  written, so the unbounded radius the note allowed until then is not
+  used: for an order at or below one every element of Legendre's
+  fraction is positive, so its convergents of even and odd index
+  approach the value from the two sides and bracket it, and the
+  difference of the last two is the truncation bound; an order above
+  one is reduced into `(0, 1]` and stepped back up by `Γ(a + 1, x) = a
+Γ(a, x) + x^a e^-x`, scaled by `e^x x^-a` so that every quantity is
+  of order one, each step a multiplication and a division with every
+  term positive. The series' tail bound is as the note has it, with the
+  ratio taken from `|x|`, since a tiny argument converts to zero within
+  an ulp. The kernel gives the factor of order one, `Σ` or `h`, and the
+  built-in forms the rest as one exponential in log space, `e^(s ln x -
+x - ln s + ln Σ)` and its kin, with `expBall`'s classifier on the
+  whole, so that a value past the bound is refused as `exp`'s is; a
+  first version classified the exponential apart from the factor, which
+  the sweep caught where the factor was large. The region rule is
+  mpmath's refined by cost: the fraction's convergents number about
+  `(bits ln 2)^2 / (7 x)`, measured (768 at forty digits for `x = 1.5`,
+  443,000 at a thousand), so it runs where that and the reduction's
+  steps are within their limits (20,000 each), and the series otherwise,
+  whose terms number about `x - s` to the largest plus what the bits
+  need, or `sqrt(2 s bits ln 2)` where `x` is near a large `s`, within
+  its limit of 50,000; the complement, `Γ(s) - γ` or `1 - P`, loses only
+  bits in the regimes each route is chosen for. Past both limits, a
+  large order within a few percent of a large argument
+  (`lowergammareg(1e8, 1e8)`), the call is `tooLarge`, a refusal that is
+  never wrong about the value, rather than digits nothing certifies;
+  the uniform asymptotic expansions that regime wants are not in this
+  design, and the refusal's message speaks of Most bits where the limit
+  is one of cost. The logarithm is formed at the working bits plus the
+  bits of the magnitudes of `s` and `x`, as `beta`'s is, since `s ln x
+  - x - ln Γ(s + 1)`cancels; past Most bits that is`tooLarge`too.
+Where the form computed passes the bottom of the bound, its complement
+is`Γ(s)`or one within`10^-(10^18)`. An argument whose radius is
+above `2^-16`of its magnitude is taken at its two ends and the
+results hulled, each form being monotone in`x`, since the fraction's
+denominators reach zero over such a width (the sweep's `3e18 ± 2e18`).
+Measured at forty digits: a series call under a millisecond, a
+fraction call at `x`near three about fifty milliseconds, both routes
+a few milliseconds at a thousand digits where the series takes over.
+The sweep's rules bound the four functions from the series' first term
+and`x^s / s`, and the upper form from `x^(s - 1) e^-x`and its double
+where`x >= 2 (s - 1)`, or `Γ(s)`.

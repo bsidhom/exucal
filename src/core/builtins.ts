@@ -20,6 +20,12 @@ import { exp } from "./builtins/exp.ts";
 import { beta } from "./builtins/beta.ts";
 import { digamma, gamma, lgamma } from "./builtins/gamma.ts";
 import {
+  lowergamma,
+  lowergammareg,
+  uppergamma,
+  uppergammareg,
+} from "./builtins/incomplete.ts";
+import {
   binomial,
   doublefactorial,
   factorial,
@@ -85,5 +91,9 @@ export const BUILTINS: Builtins = new Map<string, Builtin>(
     lgamma,
     gamma,
     beta,
+    lowergamma,
+    uppergamma,
+    lowergammareg,
+    uppergammareg,
   ].map((fn) => [fn.name, fn]),
 );

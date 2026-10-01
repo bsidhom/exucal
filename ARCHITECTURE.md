@@ -1424,8 +1424,8 @@ src/testing/random.ts     the seeded random source the tests and benchmarks shar
 src/testing/fraction.ts   parseFraction, roundFraction, formatFraction: the decimal representation over the fraction, for the tests that reason on fractions
 src/testing/scaled.ts     dec, fr, exactDec, fraction, ball, digitsOf: a literal as a Scaled, a midpoint back to its fraction, a ball from decimals, for the tests of the ball and above
 src/testing/edges.ts      the edge sweep's support: the worker under a deadline, the table of known violations, the loose arithmetic and the oracle's checks
-src/core/edges.test.ts    the edge sweep at the ball level: every built-in and ball operation over the classes of arguments at the edges
-src/edges.test.ts         the edge sweep at the text level: the pipeline and the display's steps on every issue's reproductions, in both modes
+src/core/edges.sweep.ts   the edge sweep at the ball level: every built-in and ball operation over the classes of arguments at the edges
+src/edges.sweep.ts        the edge sweep at the text level: the pipeline and the display's steps on every issue's reproductions, in both modes
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
@@ -1439,16 +1439,21 @@ src/app-shell.ts          the host: loads the table, renders the component
 Each core module but the two smallest, span.ts and result.ts, has a
 `*.test.ts` beside it, run by `pnpm test`.
 
-Two of the tests are the edge sweep, the fourth of the plan's test patterns
-(docs/calculator-plan.md, "How to read a task"; the plan's H.10). At the
-ball level, src/core/edges.test.ts runs every built-in of `BUILTINS`,
+Two more files are the edge sweeps, the fourth of the plan's test
+patterns (docs/calculator-plan.md, "How to read a task"; the plan's
+H.10), named `*.sweep.ts` and run by `pnpm test:sweep` rather than with
+every edit, since they are conformance tests that grow with every
+built-in (30,000 cases and 14 s after stage 6's 6.5, against a few
+seconds for the rest of the suite): they run before a commit and in CI,
+and `pnpm test:all` runs the suite and the sweeps together (issue #108).
+At the ball level, src/core/edges.sweep.ts runs every built-in of `BUILTINS`,
 enumerated by arity so that a function added later joins it, and the
 ball's own operations over the classes of arguments at the edges of the
 number type: zero and the units, values at both ends of the exponent
 bound and past the range limit's reach, a fraction mantissa at either
 edge, a mantissa near one, and wide balls, each exact and with a relative
 radius of about `1e-30`, in decimal mode too where an operation reads the
-mode. At the text level, src/edges.test.ts runs `parseExpr`, `evaluateText`
+mode. At the text level, src/edges.sweep.ts runs `parseExpr`, `evaluateText`
 and `convertText` on the reproductions of every issue filed against stage
 4's code, in both modes, with `show` and `roundTerms` called as
 outcome.ts calls them. Each case is checked for what this document

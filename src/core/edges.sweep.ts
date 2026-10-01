@@ -56,7 +56,15 @@ import {
   radiusAboveScaled,
   shiftRadius,
 } from "./radius.ts";
-import { LIMIT_BITS, bitLength, rational } from "./rational.ts";
+import {
+  LIMIT_BITS,
+  ONE as ONE_FRACTION,
+  bitLength,
+  multiply as multiplyFractions,
+  pow as powFraction,
+  rational,
+  subtract as subtractFractions,
+} from "./rational.ts";
 import type { Result } from "./result.ts";
 import {
   MAX_EXPONENT,
@@ -69,6 +77,7 @@ import {
   divide,
   equals,
   formable,
+  fromRational,
   isInteger,
   isZero,
   multiply,
@@ -88,6 +97,7 @@ import {
   lcmOfIntegers,
 } from "./builtins/integers.ts";
 import { magnitudeBits } from "./builtins/gamma.ts";
+import { withinLimits as incbetaWithinLimits } from "./builtins/incbeta.ts";
 import { withinLimits } from "./builtins/incomplete.ts";
 import {
   ceilScaled,
@@ -105,6 +115,7 @@ import {
   containsZeroInterval,
   divideIntervals,
   erfcMagnitude,
+  incbetaMagnitude,
   expMagnitude,
   gammaMagnitude,
   hyperbolicMagnitude,
@@ -286,6 +297,27 @@ const SECOND = new Set([
   "3e18±2e18",
 ]);
 
+/**
+ * The names of the arguments a three-argument operation takes as its
+ * third operand, the incomplete beta function's `x`: the ends of `[0, 1]`
+ * and past them, the middle, tiny values, and balls at the ends; a
+ * three-argument operation takes the second operands as its first two,
+ * since the full set cubed would be most of the sweep.
+ */
+const THIRD = new Set([
+  "0",
+  "1",
+  "0.5",
+  "~0.5",
+  "-1",
+  "2",
+  "1e-400",
+  "1e-20000",
+  `1e-${E18}`,
+  "1±1e-400",
+  "0±1e9",
+]);
+
 // ---------------------------------------------------------------------------
 // The operations and their rules
 
@@ -452,6 +484,93 @@ function incompleteGammaRules(): [string, Partial<Operation>][] {
         return n === undefined || n < 1n || n > 300n
           ? undefined
           : integer(valueOrOne(factorialOf(n - 1n, EXACT)));
+      },
+      range: regularized
+        ? { lo: { value: ZERO }, hi: { value: ONE } }
+        : NONNEGATIVE,
+    },
+  ]);
+}
+
+/**
+ * The rules of the incomplete beta function and its regularized form:
+ * positive parameters and an argument within `[0, 1]`, the refusals the
+ * bits the logarithm would need past the range limit or neither
+ * orientation of the series within its limit, the magnitude from the
+ * bounds of the testing module, the exact value at the ends of the
+ * argument, the closed forms at a parameter of one as the reference, and
+ * the regularized form within `[0, 1]`.
+ */
+function incompleteBetaRules(): [string, Partial<Operation>][] {
+  const forms: readonly [string, boolean][] = [
+    ["incbeta", false],
+    ["incbetareg", true],
+  ];
+  return forms.map(([name, regularized]) => [
+    name,
+    {
+      domain: ([a, b, x]) =>
+        (isExactInterval(a!) && sign(a!.lo) <= 0) ||
+        (isExactInterval(b!) && sign(b!.lo) <= 0) ||
+        (isExactInterval(x!) && (sign(x!.lo) < 0 || compare(x!.lo, ONE) > 0)) ||
+        sign(x!.hi) < 0 ||
+        compare(x!.lo, ONE) > 0,
+      tooLarge: ([a, b, x], context) =>
+        !endsOf(x!).every((end) => incbetaWithinLimits(a!, b!, end, context)),
+      magnitude: ([a, b, x]) => incbetaMagnitude(regularized, a!, b!, x!),
+      known: ([a, b, x]) => {
+        if (isExactly(x!, ZERO)) return ZERO;
+        if (!isExactly(x!, ONE)) return undefined;
+        if (regularized) return ONE;
+        const m = integerValue(a!.mid);
+        const n = integerValue(b!.mid);
+        if (
+          m === undefined ||
+          n === undefined ||
+          m < 1n ||
+          n < 1n ||
+          m + n > 300n
+        ) {
+          return undefined;
+        }
+        const c = valueOrOne(binomialOf(m + n - 2n, m - 1n, EXACT));
+        return fromRational(rational(1n, (m + n - 1n) * c));
+      },
+      // I_x(1, b) = 1 - (1 - x)^b and I_x(a, 1) = x^a, exact at a rational x.
+      reference: ([a, b, x]) => {
+        const m = integerValue(a!);
+        const n = integerValue(b!);
+        if (m === undefined || n === undefined || m < 1n || n < 1n) {
+          return undefined;
+        }
+        if (m > 300n || n > 300n || (m !== 1n && n !== 1n)) return undefined;
+        const r = toRational(x!, LIMIT_BITS);
+        if (!r.ok || sign(x!) < 0 || compare(x!, ONE) > 0) {
+          return undefined;
+        }
+        const value =
+          n === 1n
+            ? powFraction(r.value, m, LIMIT_BITS)
+            : (() => {
+                const complement = powFraction(
+                  subtractFractions(ONE_FRACTION, r.value),
+                  n,
+                  LIMIT_BITS,
+                );
+                return complement.ok
+                  ? {
+                      ok: true as const,
+                      value: subtractFractions(ONE_FRACTION, complement.value),
+                    }
+                  : complement;
+              })();
+        if (!value.ok) return undefined;
+        if (regularized) return fromRational(value.value);
+        const whole = rational(
+          1n,
+          (m + n - 1n) * valueOrOne(binomialOf(m + n - 2n, m - 1n, EXACT)),
+        );
+        return fromRational(multiplyFractions(value.value, whole));
       },
       range: regularized
         ? { lo: { value: ZERO }, hi: { value: ONE } }
@@ -783,6 +902,7 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
     },
   ],
   ...incompleteGammaRules(),
+  ...incompleteBetaRules(),
   ["erf", { known: at(ZERO, ZERO), range: UNIT_RANGE }],
   [
     "erfc",
@@ -1308,6 +1428,10 @@ function* cases(): Generator<Case> {
   if (second.length !== SECOND.size) {
     throw new Error("Every second operand names an argument of the sweep");
   }
+  const third = args.filter((a) => THIRD.has(a.name));
+  if (third.length !== THIRD.size) {
+    throw new Error("Every third operand names an argument of the sweep");
+  }
   const operations = [...builtinOperations(), ...ballOperations()];
   for (const op of operations) {
     const tuples: Argument[][] =
@@ -1315,7 +1439,11 @@ function* cases(): Generator<Case> {
         ? [[]]
         : op.arity === 1
           ? args.map((a) => [a])
-          : args.flatMap((a) => second.map((b) => [a, b]));
+          : op.arity === 2
+            ? args.flatMap((a) => second.map((b) => [a, b]))
+            : second.flatMap((a) =>
+                second.flatMap((b) => third.map((c) => [a, b, c])),
+              );
     for (const mode of op.modes) {
       const context = mode === "exact" ? EXACT : DECIMAL;
       const suffix = mode === "decimal" ? " [decimal]" : "";

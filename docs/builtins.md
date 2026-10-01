@@ -42,7 +42,8 @@ It has no inverse, so its name is not a `want`.
   `ceil`, `trunc`, `round`, `div`, `mod`, `gcd`, `lcm`, `factorial`,
   `binomial`, `doublefactorial`, and its Gamma family: `digamma`,
   `lgamma`, `gamma`, `beta`, `lowergamma`, `uppergamma`,
-  `lowergammareg`, `uppergammareg`, `erf` and `erfc`. The
+  `lowergammareg`, `uppergammareg`, `erf`, `erfc`, `incbeta` and
+  `incbetareg`. The
   build
   checks both for any table it builds. Prefixes apply to units alone: a
   call's name is looked up exactly, so `kpi()` and `mexp(1)` are calls of

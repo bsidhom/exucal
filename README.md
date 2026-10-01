@@ -524,6 +524,17 @@ which go anywhere a unit goes and are called the same way. They are:
   exact `0` and `erfc(0)` the exact `1`; `erfc` of an argument past about
   `1.5e9`, whose value passes below `10^-(10^18)`, is refused as `exp`
   would refuse it.
+- `incbeta(a, b, x)` and `incbetareg(a, b, x)`, the incomplete Beta
+  function `B(x; a, b)` and the regularized `I_x(a, b)`, for positive
+  `a` and `b` and `x` within `[0, 1]`, the parameters first as the
+  incomplete Gamma functions take them: `incbetareg(2, 3, 0.5)` is the
+  exact `0.6875`, as it is for any whole numbers at a fraction whose
+  powers fit Most bits, and `incbetareg(3/2, 1/2, 3/(3 + 2^2)) / 2` is
+  `≈ 0.069662984`, the one-sided tail of Student's t with three degrees
+  of freedom at `2`. Every result is certified: the series carries its
+  truncation bound, and the symmetry `I_x(a, b) = 1 - I_(1-x)(b, a)`
+  chooses the cheaper side. Large parameters within a few percent of the
+  median, past some millions, are not computed and say so.
 
 Every built-in takes plain numbers, apart from the angles above, and
 `exp(1 m)` is an error that names the dimension. A value the function

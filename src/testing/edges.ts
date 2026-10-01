@@ -74,6 +74,7 @@ import {
   decimalExponent,
   isZero,
   negate,
+  roundTo,
   scaled,
   sign,
   toRational,
@@ -1034,6 +1035,125 @@ export function erfcMagnitude(x: Interval): Magnitude {
     "down",
   );
   return { kind: "log", lo, hi };
+}
+
+/** Bounds on `log10 B(a, b)` over the intervals, for both positive throughout. */
+function log10BetaInterval(a: Interval, b: Interval): Interval {
+  const ga = log10GammaInterval(a);
+  const gb = log10GammaInterval(b);
+  const gab = log10GammaInterval(addIntervals(a, b));
+  return {
+    lo: addLoose(addLoose(ga.lo, gb.lo, "down"), negate(gab.hi), "down"),
+    hi: addLoose(addLoose(ga.hi, gb.hi, "up"), negate(gab.lo), "up"),
+  };
+}
+
+/** The ratios of the incomplete beta series taken exactly before the geometric tail. */
+const INCBETA_EXACT_RATIOS = 16;
+
+/**
+ * `log10` of the prefactor `x^a (1 - x)^b / a` of the incomplete beta
+ * series at the point `x` within `(0, 1)`, over the intervals of the
+ * parameters.
+ */
+function incbetaPrefactor(a: Interval, b: Interval, x: Loose): Interval {
+  // 1 - x rounded each way to a short mantissa, which keeps the
+  // logarithm's bounds cheap where x is tiny; the ceiling may reach one,
+  // whose logarithm, zero, still bounds the term from above.
+  const yBelow = roundTo(addLoose(ONE, negate(x), "down"), 15, "floor");
+  const yAbove = roundTo(addLoose(ONE, negate(x), "up"), 15, "ceiling");
+  const aLogX = multiplyIntervals(a, log10Interval(pointInterval(x)));
+  const bLogY = multiplyIntervals(b, {
+    lo: log10Interval(pointInterval(yBelow)).lo,
+    hi: log10Interval(pointInterval(yAbove)).hi,
+  });
+  const logA = log10Interval(a);
+  return {
+    lo: addLoose(addLoose(aLogX.lo, bLogY.lo, "down"), negate(logA.hi), "down"),
+    hi: addLoose(addLoose(aLogX.hi, bLogY.hi, "up"), negate(logA.lo), "up"),
+  };
+}
+
+/**
+ * `log10` of a bound from above on the series' sum `Σ ((a + b)_n / (a +
+ * 1)_n) x^n` at the point `x`: the first ratios `(a + b + k) x / (a + 1
+ * + k)` taken at the tops of the parameters' intervals, and a geometric
+ * tail with the larger of the next ratio and `x`, which bounds every
+ * later one; `undefined` where that is not below one.
+ */
+function incbetaSumAbove(
+  a: Interval,
+  b: Interval,
+  x: Loose,
+): Loose | undefined {
+  // Every ratio and partial sum is rounded up to a short mantissa: the
+  // exact arithmetic on the gapped intervals would grow the mantissas
+  // past what the logarithm's bounds take, and the roundings only raise
+  // the bound.
+  const ratio = (k: number): Loose =>
+    roundTo(
+      multiplyLoose(
+        divideLoose(
+          addLoose(addLoose(a.hi, b.hi, "up"), loose(BigInt(k)), "up"),
+          addLoose(addLoose(a.lo, ONE, "down"), loose(BigInt(k)), "down"),
+        ),
+        x,
+      ),
+      15,
+      "ceiling",
+    );
+  const rho = maxLoose(ratio(INCBETA_EXACT_RATIOS), x);
+  if (compare(rho, ONE) >= 0) return undefined;
+  let sum = roundTo(
+    divideLoose(ONE, addLoose(ONE, negate(rho), "down")),
+    15,
+    "ceiling",
+  );
+  for (let k = INCBETA_EXACT_RATIOS - 1; k >= 0; k--) {
+    sum = roundTo(
+      addLoose(ONE, multiplyLoose(ratio(k), sum), "up"),
+      15,
+      "ceiling",
+    );
+  }
+  return { mant: log10Bounds(sum).hi, exp: 0n };
+}
+
+/**
+ * The magnitude of the incomplete beta function over the intervals of
+ * `a`, `b` and `x`, in log space, for the parameters positive and `x`
+ * positive throughout (none otherwise): the function rises with `x`, so
+ * its bottom is at the bottom of `x`, where the series' prefactor bounds
+ * it from below, the sum being at least one, and its top at the top of
+ * `x`, where the prefactor times a bound on the sum bounds it from above
+ * where that bound exists, and `B(a, b)` otherwise or at `x` at or past
+ * one. The regularized form divides by `B(a, b)` and is at most one.
+ */
+export function incbetaMagnitude(
+  regularized: boolean,
+  a: Interval,
+  b: Interval,
+  x: Interval,
+): Magnitude {
+  if (sign(a.lo) <= 0 || sign(b.lo) <= 0 || sign(x.lo) <= 0) {
+    return NO_MAGNITUDE;
+  }
+  const beta = log10BetaInterval(a, b);
+  const lo =
+    compare(x.lo, ONE) >= 0 ? beta.lo : incbetaPrefactor(a, b, x.lo).lo;
+  let hi = beta.hi;
+  if (compare(x.hi, ONE) < 0) {
+    const sum = incbetaSumAbove(a, b, x.hi);
+    if (sum !== undefined) {
+      hi = minLoose(hi, addLoose(incbetaPrefactor(a, b, x.hi).hi, sum, "up"));
+    }
+  }
+  if (!regularized) return { kind: "log", lo, hi };
+  return {
+    kind: "log",
+    lo: addLoose(lo, negate(beta.hi), "down"),
+    hi: minLoose(addLoose(hi, negate(beta.lo), "up"), ZERO),
+  };
 }
 
 /** The magnitude of `lgamma(x)` over the interval of `x`, as `lgammaInterval` bounds it; none below ten. */

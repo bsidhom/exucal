@@ -660,6 +660,54 @@ export function expMagnitude(x: Interval): Magnitude {
   };
 }
 
+/** `ln 10` from below and above, `2.302585092994045684…`, as fractions. */
+const LN10_BELOW = rational(2302585092994045684n, 10n ** 18n);
+const LN10_ABOVE = rational(2302585092994045685n, 10n ** 18n);
+
+/** Ten, where the bounds on `ln Γ` below begin. */
+const TEN: Loose = loose(10n);
+
+/**
+ * Bounds on `ln Γ(x)` over the interval of `x`, for `x` at or above ten
+ * throughout: `ln Γ(x)` lies between `x (ln x - 1) - ln(x) / 2` and
+ * `x ln x` there, from Stirling's series, whose first correction is
+ * positive and below `1 / (12 x)`, and from `(x - 1/2) ln x - x + ln(2π)
+ * / 2 < x ln x`; `undefined` below ten, where neither function passes
+ * the bound. The logarithms come from `log10Bounds` and `ln 10`.
+ */
+function lgammaInterval(x: Interval): Interval | undefined {
+  if (compare(x.lo, TEN) < 0) return undefined;
+  const lower = log10Bounds(x.lo);
+  const upper = log10Bounds(x.hi);
+  const lnLoBelow = multiplyFractions(lower.lo, LN10_BELOW);
+  const lnLoAbove = multiplyFractions(lower.hi, LN10_ABOVE);
+  const lnHiAbove = multiplyFractions(upper.hi, LN10_ABOVE);
+  const lo = addLoose(
+    scaleLoose(x.lo, subtractFractions(lnLoBelow, ONE_FRACTION)),
+    negate({ mant: multiplyFractions(lnLoAbove, rational(1n, 2n)), exp: 0n }),
+    "down",
+  );
+  return { lo, hi: scaleLoose(x.hi, lnHiAbove) };
+}
+
+/** The magnitude of `lgamma(x)` over the interval of `x`, as `lgammaInterval` bounds it; none below ten. */
+export function lgammaMagnitude(x: Interval): Magnitude {
+  const i = lgammaInterval(x);
+  return i === undefined ? NO_MAGNITUDE : { kind: "value", lo: i.lo, hi: i.hi };
+}
+
+/** The magnitude of `gamma(x)` over the interval of `x`, in log space: `lgammaInterval` over `ln 10`; none below ten. */
+export function gammaMagnitude(x: Interval): Magnitude {
+  const i = lgammaInterval(x);
+  return i === undefined
+    ? NO_MAGNITUDE
+    : {
+        kind: "log",
+        lo: scaleLoose(i.lo, INV_LN10_BELOW),
+        hi: scaleLoose(i.hi, INV_LN10_ABOVE),
+      };
+}
+
 /**
  * The magnitude of `sinh(x)` and `cosh(x)` over the interval of `x`, in
  * log space, for a magnitude at or above one throughout: between

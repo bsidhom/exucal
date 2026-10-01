@@ -594,6 +594,12 @@ Three runtime concerns cut across everything:
 - **The main thread.** The pipeline runs on every keystroke and today
   takes microseconds. A `gamma` at 1000 digits takes on the order of a
   second, and the retry loop can run the expression several times.
+  (Measured when 6.3 landed: `lgamma` 31 ms and `gamma` 34 ms a call at
+  1,000 digits, `digamma` 33 ms, each about 0.7 s, `digamma` 1.3 s, at
+  the default ceiling of 4,040 digits, plus the Bernoulli numbers' run
+  of about 3 s once; the estimate was thirty times too high at 1,000
+  digits, and the four routines the probe times cost 9 ms together
+  there.)
   Either the precision is capped where every function stays under some
   tens of milliseconds, or evaluation moves to a Web Worker. The core is
   pure and takes plain data, so a worker is a thin wrapper, not a

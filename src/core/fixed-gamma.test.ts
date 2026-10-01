@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { digammaFixed, shiftTarget } from "./fixed-gamma.ts";
+import {
+  digammaFixed,
+  lgammaFixed,
+  lnPiFixed,
+  lnPiMemoBits,
+  shiftTarget,
+} from "./fixed-gamma.ts";
 import {
   bitsFor,
   fixedFromScaled,
@@ -10,6 +16,7 @@ import {
   type Fixed,
 } from "./fixed.ts";
 import { LIMIT_BITS, add, compare, rational, subtract } from "./rational.ts";
+import { MEMO_MARGIN } from "./constants.ts";
 import { format, toRational as scaledToRational } from "./scaled.ts";
 import { dec } from "../testing/scaled.ts";
 
@@ -133,4 +140,124 @@ test("digammaFixed takes a positive interval", () => {
       ),
     RangeError,
   );
+});
+
+// ---------------------------------------------------------------------------
+// lgamma
+
+/** The reference values of `ln Γ(x)` to forty digits, from mpmath (`loggamma` at 60 digits, rounded by `nstr`). */
+const LGAMMA_REFERENCES: readonly [string, string][] = [
+  ["3", "0.6931471805599453094172321214581765680755"],
+  ["7", "6.579251212010100995060178292903945321123"],
+  ["10", "12.80182748008146961120771787456670616428"],
+  ["0.5", "0.5723649429247000870717136756765293558236"],
+  ["100.5", "361.4355404677776215552519127025207628588"],
+  ["3.7", "1.428072326665387921872381125047550334507"],
+  ["0.25", "1.288022524698077457370610440219717295925"],
+  ["2.5", "0.2846828704729191596324946696827019243201"],
+  ["1.5", "-0.1207822376352452223455184457816472122519"],
+  ["0.1", "2.252712651734205959869701646368495118616"],
+  ["1e-6", "13.81550998074943166920782687100640098472"],
+  ["1e19", "427491167668868679942.4627565397904381878"],
+  ["1e30", "68077552789821370520539743640497.30639017"],
+  ["1e15", "33538776394910668.90982020756959565809274"],
+  ["123456789", "2176716239.223269991667882156745419998727"],
+];
+
+/** `ln Γ(3.7)` to a thousand digits and more, from mpmath at 1010 digits. */
+const LGAMMA_3_7 =
+  "1.42807232666538792187238112504755033450691711187523830219538845475675017769217069533815286907655034836632947898122635870759459288943226045601899656864396713977612147899764640815956956720136251110539821266222895793507775057003504918406803210085503244175989591571833128351304958820478153996429360836812801160809804488812912221603939531824442012744297882170625783488889051775518879560799912421418537945977745619786721959993069172933662379991837772703499531058276721451043771475457638743175659535941476298199623452854772479708643665473717169031991549107572833584574408072838056607259191225346033990567719003539332857472025842304967566868828115732015239820235926400214315545612172637168131858551573021537567496892821840651234114653384674505419303063228714455277070808772751623060355364252475608988916913846535554080466343979061879575740911144331984739283404013453614167379483083108099168444228278862454226386653499855470755137118597677967597971104260068384473104374562164785394047236232401851647939121371270173";
+
+test("lgammaFixed matches mpmath to forty digits, with an error of a few ulps", () => {
+  const bits = bitsFor(40);
+  for (const [x, reference] of LGAMMA_REFERENCES) {
+    const extra = x === "1e-6" ? 20 : 0;
+    const g = lgammaFixed(at(x, bits + extra), bits, bits);
+    assert.equal(
+      format(fixedToScaled(g, 40), 40, "halfAwayFromZero"),
+      reference,
+      `ln Γ(${x})`,
+    );
+    assert.ok(g.error < 1n << 12n, `ln Γ(${x}) error ${g.error} ulps`);
+    const places = BigInt(reference.length - reference.indexOf(".") - 1);
+    const half = rational(1n, 2n * 10n ** places);
+    const distance = subtract(toRational(g), fraction(reference));
+    const magnitude =
+      distance.num < 0n ? rational(-distance.num, distance.den) : distance;
+    const bound = add(rational(g.error, 1n << BigInt(g.bits)), half);
+    assert.ok(
+      compare(magnitude, bound) <= 0,
+      `ln Γ(${x}) is within its error of the reference`,
+    );
+  }
+});
+
+test("lgammaFixed at one and two is zero within its error, by cancellation", () => {
+  const bits = bitsFor(40);
+  for (const x of ["1", "2"]) {
+    const g = lgammaFixed(at(x, bits), bits, bits);
+    assert.ok(
+      (g.value < 0n ? -g.value : g.value) <= g.error,
+      `ln Γ(${x}) contains zero`,
+    );
+    assert.ok(g.error < 1n << 12n, `ln Γ(${x}) error ${g.error} ulps`);
+  }
+});
+
+test("the error contains the log-gamma of every value in the argument's interval", () => {
+  // 2.5 ± 2^-50: the ends, from mpmath at 60 digits.
+  const bits = bitsFor(40);
+  const f: Fixed = { ...at("2.5", bits), error: 1n << BigInt(bits - 50) };
+  const g = lgammaFixed(f, bits, bits);
+  const lower = fraction(
+    "0.2846828704729185351039407797419550333221280051879802137",
+  );
+  const upper = fraction(
+    "0.2846828704729197841610485596238356393815067613310775984",
+  );
+  const value = toRational(g);
+  const error = rational(g.error, 1n << BigInt(g.bits));
+  const lo = subtract(value, error);
+  const hi = add(value, error);
+  assert.ok(compare(lo, lower) <= 0, "the lower end is contained");
+  assert.ok(compare(hi, upper) >= 0, "the upper end is contained");
+  // The width is a few times the argument's: the shift's product and
+  // Stirling's part each carry the argument's error at their own slope,
+  // about ln(N / x) and ln N, where the true slope is ψ(2.5), below one.
+  const width = rational(2n * g.error, 1n << BigInt(g.bits));
+  assert.ok(
+    compare(width, rational(1n, 1n << 44n)) < 0,
+    "the width is of the argument's order",
+  );
+});
+
+test("lgammaFixed at a thousand digits", () => {
+  const bits = bitsFor(1000);
+  const g = lgammaFixed(at("3.7", bits), bits, bits);
+  const shown = format(fixedToScaled(g, 1000), 1000, "halfAwayFromZero");
+  assert.equal(shown.slice(0, 999), LGAMMA_3_7.slice(0, 999));
+  assert.ok(g.error < 1n << 20n, `error ${g.error} ulps`);
+});
+
+test("lgammaFixed takes a positive interval", () => {
+  const bits = bitsFor(20);
+  assert.throws(() => lgammaFixed(at("0", bits), bits, bits), RangeError);
+  assert.throws(() => lgammaFixed(at("-1.5", bits), bits, bits), RangeError);
+});
+
+test("ln pi is memoized at the ceiling plus the margin, as the constants are (D10)", () => {
+  const ceilingBits = bitsFor(60);
+  const f = lnPiFixed(bitsFor(20), ceilingBits);
+  assert.equal(f.bits, bitsFor(20));
+  // The tests above have filled the memo at a thousand digits already.
+  const held = lnPiMemoBits();
+  assert.ok(held !== undefined && held >= ceilingBits + MEMO_MARGIN);
+  // ln pi = 1.1447298858494001741434273513530587116472948129153…
+  assert.equal(
+    format(fixedToScaled(f, 20), 20, "halfAwayFromZero"),
+    "1.1447298858494001741",
+  );
+  const higher = bitsFor(2000);
+  lnPiFixed(higher, higher);
+  assert.equal(lnPiMemoBits(), higher + MEMO_MARGIN);
 });

@@ -210,9 +210,9 @@ function describeDomain(
     case "origin":
       return `both arguments are zero, and the origin has no direction`;
     case "notInteger":
-      return `${argument} is not a whole number, and ${fn} is defined only for whole numbers`;
+      return `${argument} is not a whole number, and ${fn} is defined only for whole numbers${factorialRemedy(name)}`;
     case "notExact":
-      return `${argument} is not known exactly, and ${fn} needs a whole number known exactly`;
+      return `${argument} is not known exactly, and ${fn} needs a whole number known exactly${factorialRemedy(name)}`;
     case "negative":
       return name === "doublefactorial"
         ? `${argument} is below -1, and ${fn} is defined only from -1 up`
@@ -220,6 +220,13 @@ function describeDomain(
     case "pole":
       return `${argument} is a pole of ${fn}, which has one at zero and at every negative whole number`;
   }
+}
+
+/** The pointer at `gamma` the factorial's refusals of a value it does not take carry, since `gamma(x + 1)` is `factorial(x)` for any `x`. */
+function factorialRemedy(name: string): string {
+  return name === "factorial"
+    ? `; ${quote("gamma")} takes any value, with gamma(x + 1) for factorial(x)`
+    : "";
 }
 
 /** What a reason says the value is, as a noun phrase, for a body's description. */

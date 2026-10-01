@@ -471,16 +471,28 @@ which go anywhere a unit goes and are called the same way. They are:
   numbers known exactly (`factorial(approx(5))` is refused, since a
   value known to a precision is not known to be `5`), refused past Most
   bits before anything is computed: `factorial(5000)` is a value of
-  16,326 digits and `factorial(20000)`, with 77,338, is not.
+  16,326 digits and `factorial(20000)`, with 77,338, is not
+  (`gamma(20001)` gives it to the digits asked).
 - `digamma(x)`, the logarithmic derivative of the Gamma function, of a
   plain number: `digamma(1)` is `≈ -0.57721566`, minus Euler's constant.
   Its poles are zero and the negative whole numbers, where it is an
   error, and a value that cannot be told from one (`digamma(approx(-2))`)
-  is reported as such. Its series takes the Bernoulli numbers, computed
-  once per page load for the largest precision asked for and kept: at
-  the default digits that is nothing to notice, and a result that needs
-  the retry schedule's ceiling pays two or three seconds the first time
-  and about a second a call after that, as `tan(90 deg)` does.
+  is reported as such.
+- `gamma(x)` and `lgamma(x)`, the Gamma function and the logarithm of
+  its magnitude, with the same poles: `gamma(5)` is the exact `24`,
+  `gamma(0.5)^2` is `≈ 3.1415927`, and `gamma(-1.5)` is `≈ 2.3632718`.
+  `gamma(x + 1)` is `factorial(x)` for any `x`, which is where a
+  factorial of a value that is not a whole number known exactly, or one
+  past Most bits, is pointed: `gamma(20001)` is `≈ 1.8192063e+77337`,
+  the value `factorial(20000)` cannot hold. `lgamma` is the way to a
+  Gamma value whose exponent passes `10^18` (`lgamma(1e19)` is a value
+  where `gamma(1e19)` is refused), and `lgamma(1)` and `lgamma(2)` are
+  the exact `0`. The family's series take the Bernoulli numbers,
+  computed once per page load for the largest precision asked for and
+  kept: at the default digits that is nothing to notice, and a result
+  that needs the retry schedule's ceiling pays about three seconds the
+  first time and under a second a call after that, as `tan(90 deg)`
+  does.
 
 Every built-in takes plain numbers, apart from the angles above, and
 `exp(1 m)` is an error that names the dimension. A value the function

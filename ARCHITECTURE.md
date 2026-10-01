@@ -352,7 +352,8 @@ memo's size is bounded by the ceiling: at the default one it holds
 digits in all, with as much again in the tangent numbers while the run
 is computed and released after; at a thousand digits it is 85 KB and at
 forty under a kilobyte. A larger run replaces a smaller one, so the
-memo never holds more than one.
+memo never holds more than one; whether to hold it at all, evict it, or
+store the ratios the series takes instead is issue #103.
 
 **Working precision and the context.** Every core function that does
 arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`: a precision in

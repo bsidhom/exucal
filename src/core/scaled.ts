@@ -197,6 +197,11 @@ function pastBound(exp: bigint): Refusal {
   return { kind: exp < 0n ? "underflow" : "overflow" };
 }
 
+/** The integer `n` as a `Scaled`: its tens moved into the exponent. */
+export function fromInteger(n: bigint): Scaled {
+  return normalize({ num: n, den: 1n }, 0n);
+}
+
 /** The fraction `r` as a `Scaled`: its powers of ten moved into the exponent, which the fraction's size bounds far below the limit. */
 export function fromRational(r: Rational): Scaled {
   return normalize(r, 0n);
@@ -808,7 +813,8 @@ function log2Of(n: bigint): number {
 // Helpers
 
 /** log2(10), rounded up: the bits a decimal digit can need. */
-const BITS_PER_DIGIT = 3.33;
+/** About the bits of a decimal digit, the measure `formable` sizes a mantissa by. */
+export const BITS_PER_DIGIT = 3.33;
 
 /**
  * `mant × 10^exp` in canonical form, unchecked against the bound: the

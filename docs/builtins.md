@@ -37,7 +37,10 @@ It has no inverse, so its name is not a `want`.
 - No built-in collides with a unit of units.txt or reads as a prefix
   followed by one: `pi`, `exp`, `ln`, `log`, `log10`, `log2`, `sqrt`,
   `cbrt`, `pow`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`,
-  `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`, `approx`. The build
+  `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`, `approx`, and the
+  exact functions of stage 6 (docs/special.md): `abs`, `sign`, `floor`,
+  `ceil`, `trunc`, `round`, `div`, `mod`, `gcd`, `lcm`, `factorial`,
+  `binomial`, `doublefactorial`. The build
   checks both for any table it builds. Prefixes apply to units alone: a
   call's name is looked up exactly, so `kpi()` and `mexp(1)` are calls of
   nothing, and no built-in is a prefix of another's name either.

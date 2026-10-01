@@ -106,7 +106,13 @@ export type DomainReason =
   | "outsideClosedUnitInterval"
   | "belowOne"
   | "outsideOpenUnitInterval"
-  | "origin";
+  | "origin"
+  /** An exact value that is not a whole number, where the function takes integers (the exact functions, 6.1). */
+  | "notInteger"
+  /** An inexact value, where the function takes integers known exactly, which no ball is. */
+  | "notExact"
+  /** A value below where the function is defined: below zero for `factorial`, below `-1` for `doublefactorial`. */
+  | "negative";
 
 /** The edge a value straddles (D4), the ball's own type, re-exported for the built-ins. */
 export type { Edge } from "./ball.ts";
@@ -244,11 +250,38 @@ export function checkArgument(
 
 /**
  * The rule of a function of one argument of any dimension, kinds
- * included, whose result has the argument's dimension: `approx` (4.10),
- * ahead of the exact functions D14 describes.
+ * included, whose result has the argument's dimension: `approx` (4.10)
+ * and `abs` (6.1).
  */
 export const sameAsArgument: DimensionRule = (args) =>
   ok(args[0] ?? DIMENSIONLESS);
+
+/** The rule of a function of one quantity of any dimension, kinds included, whose result is a plain number: `sign` (6.1). */
+export const anyToNumber: DimensionRule = () => ok(DIMENSIONLESS);
+
+/**
+ * The rule of a function of two quantities of one dimension, kinds
+ * included, whose result is a plain number (`div`, 6.1) or has the
+ * arguments' dimension (`mod`): the two must conform to each other, as
+ * `atan2`'s must.
+ */
+export function conformingArguments(result: "number" | "first"): DimensionRule {
+  return (args, primitives) => {
+    const left = args[0] ?? DIMENSIONLESS;
+    const conformance = checkConformance(
+      left,
+      args[1] ?? DIMENSIONLESS,
+      primitives,
+    );
+    if (conformance.ok) return ok(result === "number" ? DIMENSIONLESS : left);
+    return err({
+      kind: "nonconformingArguments",
+      left: 0,
+      right: 1,
+      mismatch: conformance.error,
+    });
+  };
+}
 
 /**
  * The dimension of an angle, the radian kind, in a table whose
@@ -383,6 +416,17 @@ export function tinyEven(x: Ball): Ball {
 function cubeOf(rad: Radius): Radius {
   return multiplyRadius(rad, multiplyRadius(rad, rad));
 }
+
+/** The argument at `index` straddles `edge`, and the result depends on the side. */
+export function unresolvedAt(
+  index: number,
+  edge: Edge,
+): Result<never, BuiltinError> {
+  return err({ kind: "unresolved", argument: index, edge });
+}
+
+/** A result that would pass the range limit and was not computed. */
+export const TOO_LARGE: Result<never, BuiltinError> = err({ kind: "tooLarge" });
 
 /** The result of a call on the midpoints of unbounded arguments, with an unbounded radius. */
 export function unboundedOf(

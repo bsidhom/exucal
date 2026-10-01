@@ -305,7 +305,8 @@ export function trunc(r: Rational): Rational {
 // ---------------------------------------------------------------------------
 // bigint helpers
 
-function abs(n: bigint): bigint {
+/** The magnitude of a bigint. */
+export function abs(n: bigint): bigint {
   return n < 0n ? -n : n;
 }
 

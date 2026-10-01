@@ -391,3 +391,39 @@ their series for small arguments. Each sub-note is a paragraph in the
   give; a message pointing at them once they land.
 - The polygamma functions beyond `digamma`, and `gamma` of a complex
   argument, which the core has no number for.
+
+## Implementation notes
+
+Where the code departed from the note above, or settled what it left
+open; docs/calculator-plan.md ("Stage 6 as it landed") will have each
+task's rulings when the stage is done.
+
+- **6.1, the exact functions** (`src/core/builtins/abs.ts`, `round.ts`,
+  `division.ts`, `integers.ts`). `div` and `mod` take one division
+  between them: the quotient `q = a / b` is formed once, as a ball, `div`
+  is its floor, and `mod` is `(q - floor(q)) × b` from the same quotient,
+  the same value as `a - b × floor(q)` and exact on exact arguments. The
+  textbook form builds the product `b × floor(q)`, which passes the
+  exponent bound where `a` and `b` lie at its opposite ends though the
+  remainder, within `|b|`, does not (`mod(-9.99e+10^18, 5e+10^18)`,
+  which the sweep found); this form never builds it. A quotient past the top of the
+  bound, whose floor cannot be formed, makes `div` `overflow` and `mod`
+  `tooLarge`, no value of the remainder passing the bound; one below the
+  bottom, which the division refuses, has a floor all the same, zero or
+  minus one by the signs. A remainder whose alignment passes the range
+  limit (`mod(-1, 1e20000)` has twenty thousand digits) is `tooLarge`,
+  as any exact sum's is. The rounding functions decide a ball by
+  `position` against the open cell of the midpoint's result, a ball
+  touching a boundary counting as straddling it; a cell whose boundary
+  cannot be formed (an integer midpoint near the top of the bound, or a
+  unit below the bottom of it) leaves the ball `unresolved` at the
+  result itself, which is never wrong about the value. A `places` count
+  that cannot be formed within Most bits (`round(x, 1e20000)`) is
+  `tooLarge`. `binomial` predicts its size from `n^k / k!` where `n` is
+  past a double's exactness, so that `binomial(1e400, 2)` is the value it
+  is. The sweep enumerates `round` at both arities, which its builder
+  learned here, and checks each function against its exact reference
+  over the midpoints and the identity of `div` and `mod`; it runs 23,921
+  cases. The message for a value that cannot be told from a rounding
+  boundary writes the boundary to twelve digits (`2.5`), where the
+  edges before were integers and one digit served.

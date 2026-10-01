@@ -59,6 +59,8 @@ test("the app's built-ins are gathered by name, each from its module", () => {
       "uppergamma",
       "lowergammareg",
       "uppergammareg",
+      "erf",
+      "erfc",
     ],
   );
   assert.equal(BUILTINS.get("exp"), exp);

@@ -937,6 +937,32 @@ export function incompleteGammaMagnitude(
   return { kind: "log", lo: bounds.lo, hi: bounds.hi };
 }
 
+/**
+ * The magnitude of `erfc(x)` over the interval of `x`, in log space: for
+ * `x` at or above one throughout, between `e^-x^2 / (√π (x + 1))` and
+ * `e^-x^2`, and for `x` at or below zero throughout between one and two;
+ * none across zero.
+ */
+export function erfcMagnitude(x: Interval): Magnitude {
+  if (sign(x.hi) <= 0) return { kind: "log", lo: ZERO, hi: loose(31n, 100n) };
+  if (compare(x.lo, ONE) < 0) return NO_MAGNITUDE;
+  const squareLo = multiplyLoose(x.lo, x.lo);
+  const squareHi = multiplyLoose(x.hi, x.hi);
+  const hi = negate(scaleLoose(squareLo, INV_LN10_BELOW));
+  const lo = addLoose(
+    negate(scaleLoose(squareHi, INV_LN10_ABOVE)),
+    negate(
+      addLoose(
+        { mant: log10Bounds(addLoose(x.hi, ONE, "up")).hi, exp: 0n },
+        loose(25n, 100n),
+        "up",
+      ),
+    ),
+    "down",
+  );
+  return { kind: "log", lo, hi };
+}
+
 /** The magnitude of `lgamma(x)` over the interval of `x`, as `lgammaInterval` bounds it; none below ten. */
 export function lgammaMagnitude(x: Interval): Magnitude {
   const i = lgammaInterval(x);

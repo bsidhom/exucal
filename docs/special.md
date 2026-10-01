@@ -595,3 +595,29 @@ task's rulings when the stage is done.
   rules bound the four functions from the series' first term and
   `x^s / s`, and the upper form from `x^(s - 1) e^-x`, the fraction's
   third convergent, and `Γ(s)`.
+- **6.6, `erf` and `erfc`** (`src/core/builtins/erf.ts`). Both are
+  the incomplete gamma functions of order one half at `x^2`, through
+  `incompleteGammaBall`, which chooses its route by cost and takes the
+  complement where the other form is the one computed, so nothing here
+  decides where `erf` is near one: `erfc(10)` keeps its digits because
+  the routine computes `Q` by the fraction there and `P` as `1 - Q`.
+  The classifier on `-x^2` is the routine's `expBall` on its exponent
+  `s ln x^2 - x^2 + …`, so `erfc(1.6e9)` is `underflow` and
+  `erfc(1.5e9)` a value of exponent `-9.8e17`. An argument at or beyond
+  `2^bits`, whose square the routine is not handed, is the limit within
+  the bound's edge, `erfc(|x|)` being below `e^-x^2 < 10^-(10^18)` there,
+  and `erfc` of such a positive argument is `underflow`; a tiny argument,
+  whose square passes below the bound or below `2^-maxBits`, is `2x /
+√π` within `|x|^3`, the series' next term being `-2x^3 / (3 √π)`. A
+  ball touching or straddling zero, whose square the routine refuses, is
+  taken at its ends and the results hulled, both functions being
+  monotone, by `hullOfEnds` of builtin.ts, which the incomplete gamma
+  functions' wide argument now shares: a value beside a refusal past the
+  bottom is the value's hull with zero (`erfc(0 ± 1e30)` covers two
+  and zero), one beside a refusal past the top is `unresolved` at the
+  bound, and two midpoints too far apart to align take the sum of their
+  magnitudes, which a first version's exact difference overflowed on
+  (`erfc(0 ± 1e9)`, the sweep). The sweep's rule bounds `erfc` between `e^-x^2 / (√π (x +
+1))` and `e^-x^2` for `x` at or above one, and between one and two
+  below zero. A call is one to three milliseconds at forty digits, the
+  routine's cost.

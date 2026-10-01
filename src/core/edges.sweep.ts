@@ -104,6 +104,7 @@ import {
   contains,
   containsZeroInterval,
   divideIntervals,
+  erfcMagnitude,
   expMagnitude,
   gammaMagnitude,
   hyperbolicMagnitude,
@@ -782,6 +783,18 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
     },
   ],
   ...incompleteGammaRules(),
+  ["erf", { known: at(ZERO, ZERO), range: UNIT_RANGE }],
+  [
+    "erfc",
+    {
+      magnitude: ([x]) => erfcMagnitude(x!),
+      known: at(ZERO, ONE),
+      range: {
+        lo: { value: ZERO, open: true },
+        hi: { value: dec("2"), open: true },
+      },
+    },
+  ],
   [
     "doublefactorial",
     {

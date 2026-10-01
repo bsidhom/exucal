@@ -476,7 +476,11 @@ which go anywhere a unit goes and are called the same way. They are:
   plain number: `digamma(1)` is `≈ -0.57721566`, minus Euler's constant.
   Its poles are zero and the negative whole numbers, where it is an
   error, and a value that cannot be told from one (`digamma(approx(-2))`)
-  is reported as such.
+  is reported as such. Its series takes the Bernoulli numbers, computed
+  once per page load for the largest precision asked for and kept: at
+  the default digits that is nothing to notice, and a result that needs
+  the retry schedule's ceiling pays two or three seconds the first time
+  and about a second a call after that, as `tan(90 deg)` does.
 
 Every built-in takes plain numbers, apart from the angles above, and
 `exp(1 m)` is an error that names the dimension. A value the function

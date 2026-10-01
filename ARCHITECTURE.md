@@ -335,7 +335,18 @@ retry schedule in force plus a margin of 64 bits, from which every request
 at or below that is truncated (the plan's D10); the built-in `pi()`
 (`builtins/pi.ts`) hands it back as a ball at the context's precision, and
 the angle units of units.txt call it, so their quantities carry its radius
-and a conversion between them is `≈`.
+and a conversion between them is `≈`. `bernoulli.ts` memoizes the
+Bernoulli numbers the Gamma family's asymptotic series takes
+(`fixed-gamma.ts`), exact rationals from the tangent numbers, by count
+rather than by precision, since only the count depends on the pass: about
+twenty at forty digits, three hundred at a thousand and fifteen hundred at
+the default ceiling. Every memo of the core is filled on first use, none
+at module load or at the table's build: a page that never evaluates
+`digamma` never computes a Bernoulli number, and the one at the ceiling,
+which costs two or three seconds once, is paid by the first `digamma`
+evaluation whose retry loop reaches the ceiling, after which a call there
+is about 1.3 s; at forty digits the series is microseconds and at a
+thousand a call is tens of milliseconds (docs/special.md, "6.2").
 
 **Working precision and the context.** Every core function that does
 arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`: a precision in

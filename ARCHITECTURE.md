@@ -346,7 +346,13 @@ at module load or at the table's build: a page that never evaluates
 which costs two or three seconds once, is paid by the first `digamma`
 evaluation whose retry loop reaches the ceiling, after which a call there
 is about 1.3 s; at forty digits the series is microseconds and at a
-thousand a call is tens of milliseconds (docs/special.md, "6.2").
+thousand a call is tens of milliseconds (docs/special.md, "6.2"). The
+memo's size is bounded by the ceiling: at the default one it holds
+1,875 fractions whose numerators grow to 29,000 bits, about 3 MB of
+digits in all, with as much again in the tangent numbers while the run
+is computed and released after; at a thousand digits it is 85 KB and at
+forty under a kilobyte. A larger run replaces a smaller one, so the
+memo never holds more than one.
 
 **Working precision and the context.** Every core function that does
 arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`: a precision in

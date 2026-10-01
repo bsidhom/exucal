@@ -118,6 +118,8 @@ export type DomainReason =
   | "notExact"
   /** A value below where the function is defined: below zero for `factorial`, below `-1` for `doublefactorial`. */
   | "negative"
+  /** A value outside `[0, 1]`, where the incomplete beta function takes its argument. */
+  | "outsideZeroOne"
   /** An exact non-positive integer, a pole of the Gamma family (6.2). */
   | "pole";
 
@@ -476,10 +478,11 @@ const ALIGNED_EXPONENTS = 4096n;
  * digits.
  */
 export function moveBetween(a: Scaled, b: Scaled): Radius {
-  const gap =
-    sign(a) === 0 || sign(b) === 0
-      ? 0n
-      : decimalExponent(a) - decimalExponent(b);
+  // A zero's distance from the other is the other's magnitude, at any
+  // exponent; an exact difference would align the two.
+  if (sign(a) === 0) return radiusAboveScaled(absolute(b));
+  if (sign(b) === 0) return radiusAboveScaled(absolute(a));
+  const gap = decimalExponent(a) - decimalExponent(b);
   if ((gap < 0n ? -gap : gap) <= ALIGNED_EXPONENTS) return radiusOfMove(a, b);
   return addRadius(
     radiusAboveScaled(absolute(a)),

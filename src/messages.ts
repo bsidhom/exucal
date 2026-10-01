@@ -200,7 +200,9 @@ function describeDomain(
         ? `${argument} is not positive, and a power with an inexact exponent is defined only for a positive base`
         : INCOMPLETE_GAMMA.has(name)
           ? `${argument} is not positive, and the incomplete gamma functions take a positive order`
-          : `${argument} is not positive, and a logarithm is defined only for positive values`;
+          : INCOMPLETE_BETA.has(name)
+            ? `${argument} is not positive, and the incomplete beta function takes positive parameters`
+            : `${argument} is not positive, and a logarithm is defined only for positive values`;
     case "baseOne":
       return `the base ${argument} is one, and no logarithm has base one`;
     case "outsideClosedUnitInterval":
@@ -221,6 +223,8 @@ function describeDomain(
         : `${argument} is negative, and ${fn} is defined only from 0 up`;
     case "pole":
       return `${argument} is a pole of ${fn}, which has one at zero and at every negative whole number`;
+    case "outsideZeroOne":
+      return `${argument} lies outside [0, 1], where ${fn} is defined`;
   }
 }
 
@@ -231,6 +235,9 @@ const INCOMPLETE_GAMMA = new Set([
   "lowergammareg",
   "uppergammareg",
 ]);
+
+/** The incomplete beta functions, whose first two arguments are the parameters. */
+const INCOMPLETE_BETA = new Set(["incbeta", "incbetareg"]);
 
 /** The pointer at the Gamma family the factorial's and the binomial's refusals of a value they do not take carry, since `gamma(x + 1)` is `factorial(x)` and `1 / ((n + 1) beta(n - k + 1, k + 1))` is `binomial(n, k)` for any arguments. */
 function factorialRemedy(name: string): string {
@@ -267,6 +274,8 @@ function domainValue(reason: DomainReason): string {
       return "a value below where it is defined";
     case "pole":
       return "a pole";
+    case "outsideZeroOne":
+      return "a value outside [0, 1]";
   }
 }
 

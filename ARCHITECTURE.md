@@ -1381,6 +1381,7 @@ src/core/digits.ts        floatingToBall: a Floating as a ball, exactly within t
 src/core/fixed-log.ts     lnFixed: the logarithm on the kernel, by square roots and the atanh series; ln(2) and ln(10) memoized
 src/core/fixed-gamma.ts   digammaFixed and lgammaFixed: the shift up and the asymptotic series with the Bernoulli numbers, ln pi memoized (stage 6, docs/special.md)
 src/core/fixed-incomplete.ts the incomplete gamma series with its tail bound, and Legendre's continued fraction with the bracket of its convergents (stage 6, docs/special.md)
+src/core/fixed-incbeta.ts the incomplete beta series with positive terms and its geometric tail bound, and the estimate of its terms (stage 6, docs/special.md)
 src/core/fixed-trig.ts    sinCosFixed and atanFixed: the sine, cosine and arctangent on the kernel, by reduction and the Taylor series
 src/core/constants.ts     pi by Chudnovsky's series and e by its series, both with binary splitting, memoized at the ceiling
 src/core/bernoulli.ts     the Bernoulli numbers, exact, from the tangent numbers, memoized by count
@@ -1414,6 +1415,7 @@ src/core/builtins/gamma.ts digamma(x), lgamma(x) and gamma(x): the Gamma family,
 src/core/builtins/beta.ts beta(a, b): the Beta function through lgamma under the classifier, exact for whole numbers within Most bits, zero at a pole of the sum alone
 src/core/builtins/incomplete.ts lowergamma, uppergamma and the regularized pair: the series or the fraction by cost, the rest in log space through the classifier
 src/core/builtins/erf.ts  erf(x) and erfc(x) on the incomplete gamma functions of order one half, odd and complementary, the ends of the exponent apart
+src/core/builtins/incbeta.ts incbeta and incbetareg: the series in the cheaper orientation of the symmetry, the rest in log space through the classifier, the polynomial exact case
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction

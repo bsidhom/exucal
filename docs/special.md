@@ -621,3 +621,48 @@ task's rulings when the stage is done.
 1))` and `e^-x^2` for `x` at or above one, and between one and two
   below zero. A call is one to three milliseconds at forty digits, the
   routine's cost.
+- **6.7, the incomplete beta function** (`src/core/builtins/incbeta.ts`,
+  `src/core/fixed-incbeta.ts`). The series with positive terms stands in
+  for the note's continued fraction, by the ruling on the PR of 6.7: the
+  fraction's elements have both signs for every `a` and `b`, so unlike
+  the gamma fraction nothing brackets it, and no truncation bound is
+  known; the series `I_x(a, b) = x^a (1 - x)^b / (a B(a, b)) Σ ((a +
+b)_n / (a + 1)_n) x^n` (DLMF 8.17.22) has every term positive and a
+  ratio of consecutive terms `(a + b + n) x / (a + 1 + n)` tending to
+  `x`, falling with `n` for `b >= 1` and rising toward `x` below, so the
+  larger of the next ratio and `x` bounds every later one and the tail
+  after a term is at most that term times `r / (1 - r)`, the bound
+  owed. Every result is therefore certified, and the interim rule of an
+  unbounded radius is not used. The symmetry `I_x(a, b) = 1 - I_(1-x)(b,
+a)` is the choice of orientation by estimated terms, which the region
+  rule `x < (a + 1) / (a + b + 2)` approximates: in that region the
+  terms fall from the first, and the cheaper orientation is often the
+  other one (`(1000, 1, 0.99)` takes 89 terms swapped against 11,837
+  direct at forty digits), with the complement taken from it, except
+  where the complement would lose half the working bits to
+  cancellation, the value wanted being tiny, which the prefactor
+  estimates. The kernel gives the sum and the built-in forms the rest as
+  one exponential in log space, `e^(a ln x + b ln(1 - x) - ln a + ln
+Σ)` less the three `ln Γ` regularized, at the working bits plus the
+  bits of the parameters' magnitudes, under `expBall`'s classifier
+  (D18); the exponential is taken at the working digits so that a
+  complement keeps the digits below one, and a tiny `x` whose complement
+  does not align within Most bits has it as one within `|x|`. Past the
+  term limit of 50,000 in both orientations, large parameters near the
+  median (`incbetareg(1e6, 1e6, 0.5)` at a thousand digits), the call is
+  `tooLarge`, the regime of issue #107; a term whose error reaches its
+  value ends the sum, wide parameters' intervals growing through the
+  ratios, and where no tail bound holds there the call is `unresolved`,
+  retried narrower. The exact polynomial for whole
+  numbers at a rational `x = p / q` is one integer over `q^(a + b - 1)`,
+  the binomial stepped exactly, formed where that power fits Most bits
+  and `a + b - 1` is at most ten thousand; a first version took a power
+  and a reduction per term, 600 ms for `(1, 1000, 0.01)`, now 60 ms,
+  and the whole numbers' `B(a, b)` comes from `beta`. A wide or
+  edge-touching ball of `x` is taken at its ends (`hullOfEnds`), the
+  function rising with `x`. The sweep gained a third-operand set and the
+  cube of the second operands for three-argument functions, closed-form
+  references at a parameter of one (`x^a` and `1 - (1 - x)^b`), and
+  bounds from the series' prefactor and the ratio `ρ = max(1, (a + b) /
+(a + 1)) x`. Measured at forty digits: a few milliseconds a call for
+  moderate parameters, fifty for `(1e4, 1e4, 0.5)`.

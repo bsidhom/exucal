@@ -690,6 +690,37 @@ function lgammaInterval(x: Interval): Interval | undefined {
   return { lo, hi: scaleLoose(x.hi, lnHiAbove) };
 }
 
+/** Two, where the bounds on `beta` below begin. */
+const TWO: Loose = loose(2n);
+
+/** `2 log10 2` from above, `0.60206…`. */
+const TWICE_LOG10_2_ABOVE = rational(61n, 100n);
+
+/**
+ * The magnitude of `beta(a, b)` over the intervals of `a` and `b`, in
+ * log space, for both at or above two throughout: `B` decreases in each
+ * argument there, so its largest value over the box is at the lower
+ * ends, where the integrand's maximum, `((a - 1) / (a + b - 2))^(a - 1)
+ * ((b - 1) / (a + b - 2))^(b - 1)`, bounds it from above; from below,
+ * `B(a, b) >= 2^-(2 (a + b))`, since the integrand is at least
+ * `min(t, 1 - t)^(a + b - 2)`. None when either reaches below two.
+ */
+export function betaMagnitude(a: Interval, b: Interval): Magnitude {
+  if (compare(a.lo, TWO) < 0 || compare(b.lo, TWO) < 0) return NO_MAGNITUDE;
+  const aLess = addLoose(a.lo, negate(ONE), "down");
+  const bLess = addLoose(b.lo, negate(ONE), "down");
+  const total = addLoose(aLess, bLess, "up");
+  const hi = addLoose(
+    scaleLoose(aLess, log10Bounds(divideLoose(aLess, total)).hi),
+    scaleLoose(bLess, log10Bounds(divideLoose(bLess, total)).hi),
+    "up",
+  );
+  const lo = negate(
+    scaleLoose(addLoose(a.hi, b.hi, "up"), TWICE_LOG10_2_ABOVE),
+  );
+  return { kind: "log", lo, hi };
+}
+
 /** The magnitude of `lgamma(x)` over the interval of `x`, as `lgammaInterval` bounds it; none below ten. */
 export function lgammaMagnitude(x: Interval): Magnitude {
   const i = lgammaInterval(x);

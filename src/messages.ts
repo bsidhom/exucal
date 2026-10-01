@@ -222,11 +222,16 @@ function describeDomain(
   }
 }
 
-/** The pointer at `gamma` the factorial's refusals of a value it does not take carry, since `gamma(x + 1)` is `factorial(x)` for any `x`. */
+/** The pointer at the Gamma family the factorial's and the binomial's refusals of a value they do not take carry, since `gamma(x + 1)` is `factorial(x)` and `1 / ((n + 1) beta(n - k + 1, k + 1))` is `binomial(n, k)` for any arguments. */
 function factorialRemedy(name: string): string {
-  return name === "factorial"
-    ? `; ${quote("gamma")} takes any value, with gamma(x + 1) for factorial(x)`
-    : "";
+  switch (name) {
+    case "factorial":
+      return `; ${quote("gamma")} takes any value, with gamma(x + 1) for factorial(x)`;
+    case "binomial":
+      return `; ${quote("beta")} takes any values, with 1 / ((n + 1) beta(n - k + 1, k + 1)) for binomial(n, k)`;
+    default:
+      return "";
+  }
 }
 
 /** What a reason says the value is, as a noun phrase, for a body's description. */

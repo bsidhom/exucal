@@ -51,6 +51,7 @@ test("the app's built-ins are gathered by name, each from its module", () => {
       "factorial",
       "binomial",
       "doublefactorial",
+      "digamma",
     ],
   );
   assert.equal(BUILTINS.get("exp"), exp);

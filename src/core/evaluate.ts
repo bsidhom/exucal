@@ -172,7 +172,7 @@ export type EvaluateError =
    * ball straddles it), and the result depends on which side of the edge
    * it lies: a divisor or the base of a power at zero (a quotient by it, a
    * negative power of it, or an even root of it), or the argument of a
-   * built-in at an edge of its domain, or at a pole of the tangent.
+   * built-in at an edge of its domain, or at a pole of the function.
    */
   | { readonly kind: "unresolved"; readonly span: Span; readonly edge: Edge }
   /** The power at `span` is an even (`degree`-th) root of a negative value. */

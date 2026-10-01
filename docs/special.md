@@ -427,3 +427,43 @@ task's rulings when the stage is done.
   cases. The message for a value that cannot be told from a rounding
   boundary writes the boundary to twelve digits (`2.5`), where the
   edges before were integers and one digit served.
+- **6.2, `digamma`** (`src/core/builtins/gamma.ts`, `src/core/fixed-gamma.ts`,
+  `src/core/bernoulli.ts`). The series is summed as a recurrence on its
+  terms, each the last times `1 / y^2` and the ratio of consecutive
+  Bernoulli numbers with its index factors, the exact scaling first and
+  the two truncating steps last: a power of `1 / y^2` held on its own in
+  fixed point loses its relative precision as it shrinks, and the
+  Bernoulli numerator it is multiplied by turns an ulp of error into a
+  bound that grows where the term vanishes, which the first version
+  found by never terminating; the same happens when a truncation's ulp is
+  multiplied by the ratio, which grows like `k^2`. The loop ends at the
+  first term within eight ulps, a term's error being a few ulps however
+  small the term. The Bernoulli numbers are exact rationals from the
+  tangent numbers, memoized to a quarter past the count asked for, so a
+  pass needing a few more does not recompute them while the ceiling pass,
+  needing about twice the pass before, pays for little it does not use.
+  The working bits are the result's plus a guard, whatever bits the
+  argument comes at: a small argument comes at extra bits so that its
+  reciprocal, the shift's first term, keeps its digits, and that term
+  alone is taken from it at those bits; the first version worked at the
+  argument's bits throughout, so that `digamma(4e-400)` at forty digits
+  summed a series sized for 165 bits at 1,514, whose terms bottom out
+  near `2^-500` and never reach the floor. The square `1 / y^2` is the
+  square of `1 / y`, since a wide interval's square can reach zero where
+  the interval does not. The shift target is a third of the working
+  bits: at the default ceiling
+  the shift costs some 4,500 divisions and the series some 1,500 terms,
+  each a multiplication by a numerator of thirty thousand bits and a
+  division, which measured as 1.3 s a call, the Bernoulli run to
+  `B_3800` another two or three seconds once; at a thousand digits a
+  call is 37 ms and the run 0.1 s. A floating memo of the ratios at the
+  memo's bits would cut a term's cost to two multiplications at the
+  working bits, if the ceiling pass needs to be faster. The built-in
+  routes an argument at or beyond `2^bits` to `ln x` within `1 / x`
+  through `lnScaled`, and one below `2^-maxBits` to `ψ(1) - 1 / x` with
+  `ψ(1)` within `2 |x|`, so that any exponent is a value; a negative
+  argument takes the reflection at its fractional part, folded to the
+  half nearer zero, with `floorBall` deciding whether the ball lies inside
+  one integer's cell or reaches a pole, and the sine's ball reaching zero
+  reported as the pole. The message for the edge `pole` now reads "a pole
+  of the function", `tan` and `digamma` sharing it.

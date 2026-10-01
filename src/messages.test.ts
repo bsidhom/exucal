@@ -738,7 +738,7 @@ test("a value that straddles an edge names the edge", () => {
   );
   assert.equal(
     textMessage("tan(2)", withBuiltins),
-    '"2" cannot be told from a pole of the tangent at this precision, and the result depends on which side of it it lies.',
+    '"2" cannot be told from a pole of the function at this precision, and the result depends on which side of it it lies.',
   );
   assert.equal(
     textMessage("edgex(2)", withBuiltins),

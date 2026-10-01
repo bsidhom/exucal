@@ -48,7 +48,7 @@ import type { Span } from "./core/span.ts";
  * (`sin(1 radian)` for a plain number where an angle is wanted, `(2 m)^2`
  * for a quantity as the base of `pow`); one outside its domain quotes the
  * argument and says the domain; a value that straddles an edge names the
- * edge (zero, `1`, `-1`, or a pole of the tangent); a value too large
+ * edge (zero, `1`, `-1`, or a pole of the function); a value too large
  * or too small to compute names the limit it passes, Most bits or the
  * exponent bound; and an exact result past Most bits names the remedy,
  * `approx` around an operand of the node or a higher setting (the plan's
@@ -217,6 +217,8 @@ function describeDomain(
       return name === "doublefactorial"
         ? `${argument} is below -1, and ${fn} is defined only from -1 up`
         : `${argument} is negative, and ${fn} is defined only from 0 up`;
+    case "pole":
+      return `${argument} is a pole of ${fn}, which has one at zero and at every negative whole number`;
   }
 }
 
@@ -241,6 +243,8 @@ function domainValue(reason: DomainReason): string {
       return "a value not known exactly";
     case "negative":
       return "a value below where it is defined";
+    case "pole":
+      return "a pole";
   }
 }
 
@@ -315,9 +319,9 @@ function describeValuePast(kind: Refusal["kind"]): string {
   }
 }
 
-/** The edge a value cannot be told from, in words: `zero`, `1`, `-1`, `2.5` (a rounding boundary, to twelve digits), `a pole of the tangent`, `the point where the result passes the exponent bound`. */
+/** The edge a value cannot be told from, in words: `zero`, `1`, `-1`, `2.5` (a rounding boundary, to twelve digits), `a pole of the function`, `the point where the result passes the exponent bound`. */
 function describeEdge(edge: Edge): string {
-  if (edge === "pole") return "a pole of the tangent";
+  if (edge === "pole") return "a pole of the function";
   if (edge === "bound")
     return "the point where the result passes the exponent bound";
   return equals(edge, ZERO) ? "zero" : format(edge, 12, "towardZero");

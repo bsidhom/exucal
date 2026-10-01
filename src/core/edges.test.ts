@@ -403,6 +403,14 @@ function modReference(a: Scaled, b: Scaled): Scaled | undefined {
   return valueOr(subtract(a, product.value, LIMIT_BITS));
 }
 
+/** Whether the floor of `x`'s midpoint, or its fractional part, cannot be formed within the context's range limit, as `digamma`'s reflection forms them. */
+function reflectionPastLimit(x: Ball, context: NumberContext): boolean {
+  const floored = floorScaled(x.mid, context.maxBits);
+  if (!floored.ok) return floored.error.kind === "tooLarge";
+  const fraction = subtract(x.mid, floored.value, context.maxBits);
+  return !fraction.ok && fraction.error.kind === "tooLarge";
+}
+
 /** Whether the quotient of the midpoints has a floor that cannot be formed within the context's range limit. */
 function quotientPastLimit(a: Ball, b: Ball, context: NumberContext): boolean {
   if (isZero(b.mid)) return false;
@@ -617,6 +625,18 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
           integerValue(k!.mid) ?? 0n,
           context,
         ).ok,
+    },
+  ],
+  [
+    "digamma",
+    {
+      // The poles are the non-positive integers; the reflection of a
+      // negative argument forms its floor and fractional part, which a
+      // magnitude past the range limit's digits cannot.
+      domain: ([x]) =>
+        isExactInterval(x!) && isInteger(x!.lo) && sign(x!.lo) <= 0,
+      tooLarge: ([x], context) =>
+        sign(x!.mid) <= 0 && reflectionPastLimit(x!, context),
     },
   ],
   [

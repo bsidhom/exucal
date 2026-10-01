@@ -1359,8 +1359,10 @@ src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error c
 src/core/fixed-exp.ts     expFixed, sinhCoshFixed and tanhFixed: the exponential on the kernel, by halving, Taylor and squaring into a Floating, and the hyperbolic functions through it
 src/core/digits.ts        floatingToBall: a Floating as a ball, exactly within the range limit and by its decimal logarithm in log space beyond it
 src/core/fixed-log.ts     lnFixed: the logarithm on the kernel, by square roots and the atanh series; ln(2) and ln(10) memoized
+src/core/fixed-gamma.ts   digammaFixed: the shift up and the asymptotic series with the Bernoulli numbers (stage 6, docs/special.md)
 src/core/fixed-trig.ts    sinCosFixed and atanFixed: the sine, cosine and arctangent on the kernel, by reduction and the Taylor series
 src/core/constants.ts     pi by Chudnovsky's series and e by its series, both with binary splitting, memoized at the ceiling
+src/core/bernoulli.ts     the Bernoulli numbers, exact, from the tangent numbers, memoized by count
 src/core/display.ts       show: a ball's text at the digits it certifies, and its kind (exact, certified, partial, zero, unbounded)
 src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
 src/core/dimension-of.ts  dimensionOf: a body's dimension without its value, the build's function check
@@ -1387,6 +1389,7 @@ src/core/builtins/abs.ts  abs and sign: the magnitude and the side of any quanti
 src/core/builtins/round.ts floor, ceil, trunc and round(x, places): a plain number to the cell its midpoint's result stands for
 src/core/builtins/division.ts div and mod: floored division and its remainder, one quotient serving both
 src/core/builtins/integers.ts gcd, lcm, factorial, binomial, doublefactorial: the functions of exact integers, with their size predictions
+src/core/builtins/gamma.ts digamma(x): the Gamma family, on fixed-gamma.ts, with the poles, the reflection and the routes for any exponent
 src/core/table.ts         UnitTable, UnitFunction, ResolvedFunction, the lookup over it
 src/core/build.ts         buildTable
 src/core/evaluate.ts      evaluate, Lookup, applyFunction, invertFunction

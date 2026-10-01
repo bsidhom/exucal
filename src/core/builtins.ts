@@ -9,13 +9,15 @@
 // (3.8), then the trigonometric functions (3.9), their inverses (3.10) and
 // the hyperbolic functions with theirs (3.11), which complete the
 // elementary set; `approx` (4.10) and the exact functions of stage 6
-// (6.1: abs.ts, round.ts, division.ts, integers.ts) follow.
+// (6.1: abs.ts, round.ts, division.ts, integers.ts) follow, then the
+// Gamma family (6.2, gamma.ts).
 
 import type { Builtin, Builtins } from "./builtin.ts";
 import { abs, signFn } from "./builtins/abs.ts";
 import { approx } from "./builtins/approx.ts";
 import { div, mod } from "./builtins/division.ts";
 import { exp } from "./builtins/exp.ts";
+import { digamma } from "./builtins/gamma.ts";
 import {
   binomial,
   doublefactorial,
@@ -78,5 +80,6 @@ export const BUILTINS: Builtins = new Map<string, Builtin>(
     factorial,
     binomial,
     doublefactorial,
+    digamma,
   ].map((fn) => [fn.name, fn]),
 );

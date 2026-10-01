@@ -472,6 +472,11 @@ which go anywhere a unit goes and are called the same way. They are:
   value known to a precision is not known to be `5`), refused past Most
   bits before anything is computed: `factorial(5000)` is a value of
   16,326 digits and `factorial(20000)`, with 77,338, is not.
+- `digamma(x)`, the logarithmic derivative of the Gamma function, of a
+  plain number: `digamma(1)` is `≈ -0.57721566`, minus Euler's constant.
+  Its poles are zero and the negative whole numbers, where it is an
+  error, and a value that cannot be told from one (`digamma(approx(-2))`)
+  is reported as such.
 
 Every built-in takes plain numbers, apart from the angles above, and
 `exp(1 m)` is an error that names the dimension. A value the function

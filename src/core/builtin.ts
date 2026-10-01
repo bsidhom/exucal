@@ -112,7 +112,9 @@ export type DomainReason =
   /** An inexact value, where the function takes integers known exactly, which no ball is. */
   | "notExact"
   /** A value below where the function is defined: below zero for `factorial`, below `-1` for `doublefactorial`. */
-  | "negative";
+  | "negative"
+  /** An exact non-positive integer, a pole of the Gamma family (6.2). */
+  | "pole";
 
 /** The edge a value straddles (D4), the ball's own type, re-exported for the built-ins. */
 export type { Edge } from "./ball.ts";

@@ -405,11 +405,11 @@ test("through the pipeline: sin(30 deg) certifies 0.5, sin(pi() radian) is zero 
     ],
     [
       "tan(pi() radian / 2)",
-      '"pi() radian / 2" cannot be told from a pole of the tangent at this precision, and the result depends on which side of it it lies.',
+      '"pi() radian / 2" cannot be told from a pole of the function at this precision, and the result depends on which side of it it lies.',
     ],
     [
       "tan(90 deg)",
-      '"90 deg" cannot be told from a pole of the tangent at this precision, and the result depends on which side of it it lies.',
+      '"90 deg" cannot be told from a pole of the function at this precision, and the result depends on which side of it it lies.',
     ],
     [
       "sin(1 radian, 2)",

@@ -78,7 +78,7 @@ test("the exact functions through the pipeline, with their messages", () => {
   );
   assert.equal(
     run("factorial(approx(5))"),
-    'Cannot compute "factorial(approx(5))": "approx(5)" is not known exactly, and "factorial" needs a whole number known exactly.',
+    'Cannot compute "factorial(approx(5))": "approx(5)" is not known exactly, and "factorial" needs a whole number known exactly; "gamma" takes any value, with gamma(x + 1) for factorial(x).',
   );
   assert.equal(
     run("factorial(-1)"),

@@ -95,7 +95,9 @@ import {
   containsZeroInterval,
   divideIntervals,
   expMagnitude,
+  gammaMagnitude,
   hyperbolicMagnitude,
+  lgammaMagnitude,
   intersects,
   intervalOf,
   magnitudeInterval,
@@ -637,6 +639,35 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
         isExactInterval(x!) && isInteger(x!.lo) && sign(x!.lo) <= 0,
       tooLarge: ([x], context) =>
         sign(x!.mid) <= 0 && reflectionPastLimit(x!, context),
+    },
+  ],
+  [
+    "lgamma",
+    {
+      domain: ([x]) =>
+        isExactInterval(x!) && isInteger(x!.lo) && sign(x!.lo) <= 0,
+      tooLarge: ([x], context) =>
+        sign(x!.mid) <= 0 && reflectionPastLimit(x!, context),
+      magnitude: ([x]) => lgammaMagnitude(x!),
+      known: at(ONE, ZERO),
+    },
+  ],
+  [
+    "gamma",
+    {
+      domain: ([x]) =>
+        isExactInterval(x!) && isInteger(x!.lo) && sign(x!.lo) <= 0,
+      tooLarge: ([x], context) =>
+        sign(x!.mid) <= 0 && reflectionPastLimit(x!, context),
+      magnitude: ([x]) => gammaMagnitude(x!),
+      known: at(ONE, ONE),
+      // (n - 1)! at an exact positive integer of moderate size.
+      reference: ([x]) => {
+        const n = integerValue(x!);
+        return n === undefined || n < 1n || n > 300n
+          ? undefined
+          : integer(valueOrOne(factorialOf(n - 1n, EXACT)));
+      },
     },
   ],
   [

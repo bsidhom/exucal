@@ -388,7 +388,8 @@ their series for small arguments. Each sub-note is a paragraph in the
 - A mode argument to `round`, and rounding to significant digits (#98).
 - Truncated or Euclidean `div` and `mod`; both are one call away.
 - A non-integer `factorial` or `binomial`, which `gamma` and `beta`
-  give; a message pointing at them once they land.
+  give; a message pointing at them once they land (`factorial`'s points
+  at `gamma` since 6.3; `binomial`'s at `beta` with 6.4).
 - The polygamma functions beyond `digamma`, and `gamma` of a complex
   argument, which the core has no number for.
 
@@ -467,3 +468,42 @@ task's rulings when the stage is done.
   one integer's cell or reaches a pole, and the sine's ball reaching zero
   reported as the pole. The message for the edge `pole` now reads "a pole
   of the function", `tan` and `digamma` sharing it.
+- **6.3, `lgamma` and `gamma`** (the same modules). `lgammaFixed` shares
+  the shift and the series loop with `digammaFixed`: the loop is one
+  routine over the term ratio's index factors, `2k / (2k + 2)` for
+  `digamma` and `2k (2k - 1) / ((2k + 2) (2k + 1))` for `lgamma`. The
+  shift's product `x (x + 1) … (x + n - 1)` is kept as a mantissa at the
+  working bits with a binary exponent, normalized after each factor, so
+  that the `n` multiplications stay at the working bits (the product has
+  some fifty thousand bits at the ceiling) and its logarithm is taken
+  once, with the exponent as `lnFixed`'s scale; the first factor, `x`,
+  which may come at extra bits when it is small, has its logarithm
+  taken apart at those bits. `ln π` is memoized at the ceiling as the
+  constants of D10 are, and `ln(2π) / 2` formed from it and `ln 2` per
+  call. `gamma` takes the `lgamma` ball at the working bits plus the
+  bits of its own magnitude, capped at 64 since past `2^64` the result
+  passes the bound whatever the bits, so that the logarithm's absolute
+  error, the result's relative one, stays below the working ulp:
+  `gamma(1e15)` has a logarithm near `2^55`. The exact integer case
+  calls `factorialOf`, so that `gamma` and `factorial` agree on what
+  fits Most bits, and the kernel's value in log space is the remedy
+  past it (`gamma(20001)`). Both functions take the expansion at zero
+  for a tiny argument of either sign, `-ln |x|` within `|x|` for
+  `lgamma`, and `digamma` now takes its own for a negative one too, so
+  that `digamma(-1e-999999999)` is a value where the reflection could
+  not form the fractional part. The sign of `Γ` on the negative side is
+  the parity of the floor. A wide ball's `gamma` is sound but loose:
+  the shift's product and Stirling's part carry the radius at their own
+  slopes, `ψ(y) - ψ(x)` and `ψ(y)`, which cancel in the truth to `ψ(x)`
+  and not in the interval, about six times the true width at `-2.5 ±
+0.1`, and the exponential widens that into a ball reaching zero; a
+  narrower ball shows its digits, and the retry loop narrows an
+  `approx` one. Measured at the default ceiling: `lgamma`
+  0.7 s a call and `gamma` 0.7 to 0.9 s, against `digamma`'s 1.3 s, the
+  shift being a multiplication a step rather than a division; at a
+  thousand digits 31 and 34 ms, where docs/calculator.md's estimate said
+  a second (recorded there). The sweep's rules bound `ln Γ` from
+  Stirling's series for an argument at or above ten, so that `gamma`'s
+  `overflow` and `underflow` are checked as `exp`'s are. The factorial's
+  refusals of a value it does not take (`notInteger`, `notExact`) now
+  point at `gamma(x + 1)`.

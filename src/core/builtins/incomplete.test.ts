@@ -401,6 +401,16 @@ test("a large order near a large argument: the series where it is affordable, an
     error(call("lowerreg", exact(dec("1e8")), exact(dec("1e8")), eight)),
     { kind: "tooLarge" },
   );
+  // Past the order, where only the series is affordable, the complement
+  // keeps the digits below one: Q(1e6, 1.01e6) from P at the working bits.
+  assert.equal(
+    shown("upperreg", exact(dec("1e6")), exact(dec("1.01e6")), eight),
+    "≈ 1.0606997e-23",
+  );
+  assert.deepEqual(
+    error(call("upperreg", exact(dec("1e6")), exact(dec("1.5e6")), eight)),
+    { kind: "tooLarge" },
+  );
 });
 
 test("balls inside the domain contain the truth, an unbounded radius passes, and the rounding modes", () => {

@@ -514,7 +514,11 @@ function scaled(
   }
   const whole = addBalls(L, fixedToBall(lnFactor, a.digits), context);
   if (!whole.ok) return failed(whole.error, blame);
-  return blamed(expBall(whole.value, context), blame);
+  // The exponential at the working digits, not the context's, so that
+  // the complement of a value near one keeps the digits below it:
+  // uppergammareg(1e6, 1.01e6) is 1e-23, from P at the working bits.
+  const raised: NumberContext = { ...context, precision: a.digits };
+  return blamed(expBall(whole.value, raised), blame);
 }
 
 /**

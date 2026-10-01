@@ -566,12 +566,16 @@ task's rulings when the stage is done.
   terms, 20,000 convergents, 20,000 reduction steps), except that the
   upper form takes the fraction where the series' complement would lose
   half the working bits to cancellation and the pass would not certify.
-  Past both limits, a large order within a few percent of a large
-  argument (`lowergammareg(1e8, 1e8)`), the call is `tooLarge`, a
-  refusal that is never wrong about the value, rather than digits
-  nothing certifies; the uniform asymptotic expansions that regime
-  wants are not in this design, and the refusal's message speaks of
-  Most bits where the limit is one of cost. The logarithm is formed at
+  Past both limits, a large order with the argument at or past it
+  (`uppergammareg(1e6, 1.5e6)`, `lowergammareg(1e8, 1e8)`), the call is
+  `tooLarge`, a refusal that is never wrong about the value, rather than
+  digits nothing certifies; the uniform asymptotic expansions that
+  regime wants are not in this design, and the refusal's message speaks
+  of Most bits where the limit is one of cost (issue #107 has the
+  regime's map and the ways out). Within the limits the complement
+  keeps the digits below one, since the exponential is taken at the
+  working digits rather than the context's:
+  `uppergammareg(1e6, 1.01e6)` is `1.06e-23`. The logarithm is formed at
   the working bits plus the bits of the magnitudes of `s` and `x`, as
   `beta`'s is, since the exponent `s ln x - x - ln Γ(s + 1)` cancels;
   past Most bits that is `tooLarge` too. Where the form computed passes

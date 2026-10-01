@@ -946,7 +946,7 @@ invariant under the unit's scale and take quantities). `round(x,
 places)` rounds to decimal places, in the context's rounding mode, with
 no mode argument, since the grammar has no way to pass one (#98 tracks
 significant digits and uncertain readings). `div` and `mod` come as a
-pair, concordant as Boute requires, and the pair is the floored one:
+pair, concordant as Boute requires (Raymond T. Boute, "The Euclidean definition of the functions div and mod", ACM Transactions on Programming Languages and Systems 14(2), 1992, pages 127 to 144), and the pair is the floored one:
 `div(a, b) = floor(a / b)` makes `div` concordant with `floor` too, the
 remainder carries the divisor's sign, and it is what Python, Excel and
 Mathematica do; the Euclidean pair, which Boute prefers, is one call
@@ -4471,20 +4471,24 @@ within Most bits; a pole of `Γ(a + b)` alone exactly zero.
 
 Lower by the series on balls with the tail bound, upper by the continued
 fraction with the region rule as mpmath documents it, the regularized
-`P` and `Q` through `gamma`, the names settled against units.txt. Until
+forms through `gamma`; the names `lowergamma`, `uppergamma`,
+`lowergammareg` and `uppergammareg`, lower case, saying which function
+and whether regularized, as the note rules. Until
 the continued fraction's bound is written, the upper form returns an
 unbounded radius, which the display shows as the study describes.
 
 ### 6.6 `erf` and `erfc`
 
-As `P(1/2, x^2)` and `Q(1/2, x^2)` with the sign handling, `erfc` from
-`Q` where `erf` is near one, the exact cases at zero, and the
+As `lowergammareg(1/2, x^2)` and `uppergammareg(1/2, x^2)` with the sign
+handling, `erfc` from the upper form where `erf` is near one, the exact
+cases at zero, and the
 classifier on `-x^2` at the exponent bound.
 
 ### 6.7 The incomplete beta function
 
-The continued fraction with the symmetry, its bound, `I_x(a, b)`, and
-the polynomial exact case for integer `a` and `b`.
+The continued fraction with the symmetry, its bound, `incbeta(a, b, x)`
+and `incbetareg(a, b, x)` (the latter `I_x(a, b)`), and the polynomial
+exact case for integer `a` and `b`.
 
 ### 6.8 The rest of feature 3, as wanted
 

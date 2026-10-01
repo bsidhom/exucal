@@ -65,7 +65,7 @@ integers, and an integer is a plain number.
   digits, and entering a reading with its uncertainty, are
   [#98](https://github.com/bsidhom/pwa-units/issues/98).
 - **`div(a, b)`** and **`mod(a, b)`** are floored division and its
-  remainder, F-division in Boute's terms (D22): `div(a, b)` is
+  remainder, F-division in Boute's terms (Raymond T. Boute, "The Euclidean definition of the functions div and mod", ACM Transactions on Programming Languages and Systems 14(2), 1992, pages 127 to 144; D22): `div(a, b)` is
   `floor(a / b)`, and `mod(a, b)` is `a - b × div(a, b)`, so that
   `a = b × div(a, b) + mod(a, b)` exactly, `|mod(a, b)| < |b|`, and the
   remainder is zero or has the divisor's sign: `mod(7, 2)` is `1`,
@@ -303,9 +303,13 @@ the value exactly zero.
 
 ### The incomplete gamma functions (6.5)
 
-`lower_gamma(s, x)` and `upper_gamma(s, x)` for `s > 0` and `x >= 0`
-(the names are settled in 6.5 against units.txt; `gamma_p` and `gamma_q`
-are the regularized forms `P` and `Q`). The lower by its series, `x^s
+`lowergamma(s, x)` and `uppergamma(s, x)`, the unregularized `γ(s, x)`
+and `Γ(s, x)`, for `s > 0` and `x >= 0`, and `lowergammareg(s, x)` and
+`uppergammareg(s, x)`, the regularized forms `P` and `Q`. The names are
+lower case as every built-in's, say which function they are, and say
+whether it is regularized by the suffix `reg`, a convention the
+incomplete beta function follows; a one-letter name such as `P` is one
+a user's own definitions would want, and says nothing. The lower by its series, `x^s
 e^-x Σ x^n / (s (s + 1) … (s + n))`, whose terms are positive, so there
 is no cancellation and the tail after a term is bounded by that term
 times `r / (1 - r)` once the ratio `r = x / (s + n + 1)` is below one: the
@@ -315,15 +319,18 @@ would cancel, which is the region rule mpmath documents (`x > s + 1`);
 the fraction's truncation bound is 6.5's to write, and until it is, the
 upper form returns an unbounded radius, which the display shows as the
 study describes ("the digits are not certified"). The regularized forms
-divide by `gamma(s)`, and `Q` is `1 - P` where `P` is the one computed.
+divide by `gamma(s)`, and `uppergammareg` is one less `lowergammareg`
+where the lower is the one computed, and the other way round.
 Exact cases: `x = 0` gives `0` for the lower and `Γ(s)` for the upper,
-so `gamma_p(s, 0)` is `0` and `gamma_q(s, 0)` is `1`; `s = 1` gives `1 -
+so `lowergammareg(s, 0)` is `0` and `uppergammareg(s, 0)` is `1`; `s = 1` gives `1 -
 e^-x` and `e^-x`.
 
 ### `erf` and `erfc` (6.6)
 
-`erf(x)` is `P(1/2, x^2)` for `x >= 0` and odd, `erfc(x)` is `1 - erf(x)`
-for small `x` and `Q(1/2, x^2)` where `erf` is near one, so that `erfc`
+`erf(x)` is `lowergammareg(1/2, x^2)` for `x >= 0` and odd, `erfc(x)` is
+`1 - erf(x)`
+for small `x` and `uppergammareg(1/2, x^2)` where `erf` is near one, so
+that `erfc`
 of a large argument keeps its digits (`erfc(10)` is `≈ 2.0884876e-45`,
 not `1 - 1`). Exact cases: `erf(0)` is `0`, `erfc(0)` is `1`. For `x`
 beyond the working bits' reach `erf` is `±1` within `erfc(|x|)`'s bound,
@@ -334,8 +341,10 @@ classifier on `-x^2` gives `underflow` or `unresolved` at the bound as
 
 ### The incomplete beta function (6.7)
 
-`beta_i(x, a, b)`, the regularized `I_x(a, b)`, for `0 <= x <= 1` and
-`a, b > 0`: the continued fraction with the symmetry `I_x(a, b) = 1 -
+`incbeta(a, b, x)`, the incomplete beta function `B(x; a, b)`, and
+`incbetareg(a, b, x)`, the regularized `I_x(a, b)`, for `0 <= x <= 1`
+and `a, b > 0`, the parameters first as the incomplete gamma functions
+take them: the continued fraction with the symmetry `I_x(a, b) = 1 -
 I_(1-x)(b, a)`, taken where `x > (a + 1) / (a + b + 2)` so that the
 fraction converges, as the study says; its truncation bound is 6.7's to
 write, with the same interim rule as the upper incomplete gamma. Exact

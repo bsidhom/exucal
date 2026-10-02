@@ -32,6 +32,21 @@
 // `B_(2 bits / 9)`, cost a few seconds once at the default ceiling, where
 // a shorter shift would need many more of them.
 //
+// An exact argument `p / q` whose denominator is short takes the shift
+// exactly (`lgammaRational`, `digammaRational`, #117): the product `Π (p +
+// i q)` and the sum `Σ 1 / (p + i q)` over the shift's `n` factors by
+// binary splitting, one integer and one fraction, then one logarithm of
+// the product less `n ln q` taken at bits enough for the scaling, or one
+// division of the fraction, at the working bits; that costs milliseconds
+// for tens of thousands of factors where the loop above costs a full
+// multiplication or division each, so the exact shift goes to four times
+// the working bits (`exactShiftTarget`), where the series takes about half
+// the terms and the Bernoulli run a quarter of its cost, the product held
+// to a couple of megabits by a shorter shift for a wider denominator. A
+// denominator beyond `EXACT_DENOMINATOR_BITS`, or an inexact argument,
+// takes the loop at a third of the bits, where the shift's cost is the
+// same whatever the argument.
+//
 // The argument's error rides through every operation (D9): the shift's
 // reciprocals or factors, the logarithms, and the powers of `1 / y^2`.
 // Each result is cut to the bits its magnitude calls for
@@ -55,6 +70,7 @@ import {
   divideFixed,
   divideFixedByInteger,
   exponentOf,
+  fixedFromRational,
   keepSignificant,
   multiplyFixed,
   rebaseFixed,
@@ -83,9 +99,107 @@ export function shiftTarget(bits: number): number {
   return Math.max(2, Math.ceil(bits * SHIFT_FRACTION));
 }
 
+/** How far the exact shift goes at most, as a multiple of the working bits: four, where the series at the default ceiling takes 725 terms against 1,419 at a third, and the product is tens of milliseconds. */
+const EXACT_SHIFT_MULTIPLE = 4;
+
+/** The bits the exact shift's product may reach, which shortens the shift for a wide denominator: two megabits is tens of milliseconds to form and to take the logarithm of. */
+const EXACT_PRODUCT_BITS = 1 << 21;
+
+/** The most bits a denominator may have for the exact shift: past it the product's factors are wide and the loop is no slower. */
+export const EXACT_DENOMINATOR_BITS = 64;
+
+/**
+ * The exact shift's target for `bits` working bits and a denominator
+ * `q`: the multiple of the bits, shortened so that the product of the
+ * shift's factors, each of about the denominator's bits plus the
+ * count's, stays within `EXACT_PRODUCT_BITS`, and never below the loop's
+ * target.
+ */
+export function exactShiftTarget(bits: number, q: bigint): number {
+  const most = EXACT_SHIFT_MULTIPLE * bits;
+  const factorBits = bitLength(q) + bitLength(BigInt(most));
+  return Math.max(
+    shiftTarget(bits),
+    Math.min(most, Math.floor(EXACT_PRODUCT_BITS / factorBits)),
+  );
+}
+
 /** `f` at exactly `bits` fraction bits, truncated or rebased. */
 function at(f: Fixed, bits: number): Fixed {
   return f.bits > bits ? truncateFixed(f, bits) : rebaseFixed(f, bits);
+}
+
+/**
+ * The exact shift's parameters for `p / q` at `bits`: the working bits,
+ * the count of steps `n` to the target, and `y = p / q + n` at the
+ * working bits, rounded to nearest; an argument that is not positive is
+ * a precondition failure.
+ */
+function exactShiftOf(
+  p: bigint,
+  q: bigint,
+  bits: number,
+): { working: number; n: number; y: Fixed } {
+  if (p <= 0n || q <= 0n) {
+    throw new RangeError("The Gamma family takes a positive argument");
+  }
+  const target = exactShiftTarget(bits, q);
+  const working = bits + bitLength(BigInt(target)) + GAMMA_GUARD;
+  // An argument past the target shifts nothing, however large.
+  const below = Number(p / q);
+  const n = below >= target ? 0 : target - below;
+  const y = fixedFromRational({ num: p + BigInt(n) * q, den: q }, working);
+  return { working, n, y };
+}
+
+/** `Π_{i=a}^{b-1} (p + i q)`, by binary splitting. */
+function risingProduct(p: bigint, q: bigint, a: bigint, b: bigint): bigint {
+  if (b - a <= 16n) {
+    let product = 1n;
+    for (let i = a; i < b; i++) product *= p + i * q;
+    return product;
+  }
+  const m = (a + b) >> 1n;
+  return risingProduct(p, q, a, m) * risingProduct(p, q, m, b);
+}
+
+/** `Σ_{i=a}^{b-1} 1 / (p + i q)` as `num / den`, by binary splitting. */
+function reciprocalSum(
+  p: bigint,
+  q: bigint,
+  a: bigint,
+  b: bigint,
+): { num: bigint; den: bigint } {
+  if (b - a <= 16n) {
+    let num = 0n;
+    let den = 1n;
+    for (let i = a; i < b; i++) {
+      const factor = p + i * q;
+      num = num * factor + den;
+      den *= factor;
+    }
+    return { num, den };
+  }
+  const m = (a + b) >> 1n;
+  const left = reciprocalSum(p, q, a, m);
+  const right = reciprocalSum(p, q, m, b);
+  return {
+    num: left.num * right.den + right.num * left.den,
+    den: left.den * right.den,
+  };
+}
+
+/**
+ * `ln m` for a positive integer `m` with `bits` significant bits kept: the
+ * top `bits` of `m` as a mantissa in `[1, 2)`, within an ulp when it
+ * drops any, and the rest as the logarithm's scale.
+ */
+function lnOfInteger(m: bigint, bits: number, ceilingBits: number): Fixed {
+  const e = bitLength(m) - 1 - bits;
+  const value = e >= 0 ? m >> BigInt(e) : m << BigInt(-e);
+  const dropped = e > 0 && (m & ((1n << BigInt(e)) - 1n)) !== 0n;
+  const mantissa: Fixed = { value, error: dropped ? 1n : 0n, bits };
+  return lnFixed(mantissa, bits, ceilingBits, bitLength(m) - 1);
 }
 
 /** The shift's parameters for `f` at `bits`: the working bits, the argument at them, and the count of steps to the target. */
@@ -223,6 +337,47 @@ export function digammaFixed(
     sum = addFixed(sum, reciprocal);
     y = addFixed(y, one);
   }
+  const result = subtractFixed(asymptoticDigamma(y, working, ceilingBits), sum);
+  return keepSignificant(result, bits);
+}
+
+/**
+ * `ψ(p / q)` for an exact positive argument, with `bits` significant bits
+ * kept for its magnitude, within its error: the shift's sum `Σ 1 / (p / q
+ * + i)` taken exactly as `q Σ 1 / (p + i q)` by binary splitting and
+ * divided once, within an ulp, and the series at the exact shift's
+ * target, as the header says.
+ */
+export function digammaRational(
+  p: bigint,
+  q: bigint,
+  bits: number,
+  ceilingBits: number,
+): Fixed {
+  const { working, n, y } = exactShiftOf(p, q, bits);
+  let sum: Fixed = { value: 0n, error: 0n, bits: working };
+  if (n > 0) {
+    const { num, den } = reciprocalSum(p, q, 0n, BigInt(n));
+    sum = {
+      value: ((q * num) << BigInt(working)) / den,
+      error: 1n,
+      bits: working,
+    };
+  }
+  const result = subtractFixed(asymptoticDigamma(y, working, ceilingBits), sum);
+  return keepSignificant(result, bits);
+}
+
+/**
+ * `ψ(y)` by the asymptotic series at `y`, at or above a shift target, at
+ * the `working` bits: `ln y - 1 / (2y) - Σ B_2k / (2k y^2k)`.
+ */
+function asymptoticDigamma(
+  y: Fixed,
+  working: number,
+  ceilingBits: number,
+): Fixed {
+  const one: Fixed = { value: 1n << BigInt(working), error: 0n, bits: working };
   // 1 / y^2 as the square of 1 / y: a wide interval's square can reach
   // zero where the interval itself does not, and the reciprocal is shared.
   const ln = lnFixed(y, working, ceilingBits);
@@ -236,11 +391,7 @@ export function digammaFixed(
     (k) => [BigInt(2 * k), BigInt(2 * k + 2)],
     working,
   );
-  const result = subtractFixed(
-    subtractFixed(subtractFixed(ln, half), series),
-    sum,
-  );
-  return keepSignificant(result, bits);
+  return subtractFixed(subtractFixed(ln, half), series);
 }
 
 /** The memo of `ln π`, as the constants of D10 are held: one value at the ceiling plus the margin. */
@@ -312,7 +463,56 @@ export function lgammaFixed(
       );
     }
   }
-  // Stirling's series at y: (y - 1/2) ln y - y + ln(2π)/2 + Σ.
+  const result = subtractFixed(
+    stirlingLogGamma(y, working, ceilingBits),
+    lnProduct,
+  );
+  return keepSignificant(result, bits);
+}
+
+/**
+ * `ln Γ(p / q)` for an exact positive argument, with `bits` significant
+ * bits kept for its magnitude, within its error: the shift's product
+ * `Π (p / q + i)` taken exactly as `Π (p + i q)` by binary splitting,
+ * with one logarithm of it less `n ln q`, the latter taken at bits enough
+ * that scaling its error by `n` leaves it under an ulp, and Stirling's
+ * series at the exact shift's target, as the header says.
+ */
+export function lgammaRational(
+  p: bigint,
+  q: bigint,
+  bits: number,
+  ceilingBits: number,
+): Fixed {
+  const { working, n, y } = exactShiftOf(p, q, bits);
+  let lnProduct: Fixed = { value: 0n, error: 0n, bits: working };
+  if (n > 0) {
+    const product = risingProduct(p, q, 0n, BigInt(n));
+    lnProduct = at(lnOfInteger(product, working, ceilingBits), working);
+    if (q !== 1n) {
+      const extra = working + bitLength(BigInt(n)) + GAMMA_GUARD;
+      const lnQ = scaleFixed(lnOfInteger(q, extra, ceilingBits), BigInt(n));
+      lnProduct = subtractFixed(lnProduct, at(lnQ, working));
+    }
+  }
+  const result = subtractFixed(
+    stirlingLogGamma(y, working, ceilingBits),
+    lnProduct,
+  );
+  return keepSignificant(result, bits);
+}
+
+/**
+ * `ln Γ(y)` by Stirling's series at `y`, at or above a shift target, at
+ * the `working` bits: `(y - 1/2) ln y - y + ln(2π) / 2 + Σ B_2k / (2k (2k
+ * - 1) y^(2k - 1))`.
+ */
+function stirlingLogGamma(
+  y: Fixed,
+  working: number,
+  ceilingBits: number,
+): Fixed {
+  const one: Fixed = { value: 1n << BigInt(working), error: 0n, bits: working };
   const ln = lnFixed(y, working, ceilingBits);
   const half: Fixed = { ...one, value: one.value >> 1n };
   const stirling = addFixed(
@@ -328,6 +528,5 @@ export function lgammaFixed(
     STIRLING_FACTOR,
     working,
   );
-  const result = subtractFixed(addFixed(stirling, series), lnProduct);
-  return keepSignificant(result, bits);
+  return addFixed(stirling, series);
 }

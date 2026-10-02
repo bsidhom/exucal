@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  EXACT_DENOMINATOR_BITS,
   digammaFixed,
+  digammaRational,
+  exactShiftTarget,
   lgammaFixed,
+  lgammaRational,
   lnPiFixed,
   lnPiMemoBits,
   shiftTarget,
@@ -292,4 +296,86 @@ test("ln pi is memoized at the ceiling plus the margin, as the constants are (D1
   const higher = bitsFor(2000);
   lnPiFixed(higher, higher);
   assert.equal(lnPiMemoBits(), higher + MEMO_MARGIN);
+});
+
+test("the exact shift's target is four times the bits for a short denominator, shorter for a wide one, and never below the loop's", () => {
+  const bits = bitsFor(1000);
+  assert.equal(exactShiftTarget(bits, 2n), 4 * bits);
+  assert.equal(exactShiftTarget(bits, 10n ** 18n), 4 * bits);
+  // At the default ceiling a denominator of sixty bits makes factors of
+  // seventy-six, and two megabits of product hold 27,594 of them.
+  const ceiling = 13471;
+  assert.equal(exactShiftTarget(ceiling, 2n), 4 * ceiling);
+  assert.equal(
+    exactShiftTarget(ceiling, 10n ** 18n),
+    Math.floor(2 ** 21 / (60 + 16)),
+  );
+  assert.ok(exactShiftTarget(100, (1n << 63n) + 1n) >= shiftTarget(100));
+  assert.equal(EXACT_DENOMINATOR_BITS, 64);
+});
+
+test("lgammaRational matches the references and lies within the loop's interval", () => {
+  const bits = bitsFor(40);
+  for (const [x, reference] of LGAMMA_REFERENCES) {
+    const r = fraction(x);
+    const g = lgammaRational(r.num, r.den, bits, bits);
+    assert.equal(
+      format(fixedToScaled(g, 40), 40, "halfAwayFromZero"),
+      reference,
+      `ln Γ(${x})`,
+    );
+    assert.ok(g.error <= 16n, `ln Γ(${x}) error ${g.error} ulps`);
+    const extra = x === "1e-6" ? 20 : 0;
+    const loop = lgammaFixed(at(x, bits + extra), bits, bits);
+    const apart = subtract(toRational(g), toRational(loop));
+    const distance = apart.num < 0n ? rational(-apart.num, apart.den) : apart;
+    const bound = add(
+      rational(g.error, 1n << BigInt(g.bits)),
+      rational(loop.error, 1n << BigInt(loop.bits)),
+    );
+    assert.ok(compare(distance, bound) <= 0, `ln Γ(${x}) agrees with the loop`);
+  }
+  assert.throws(() => lgammaRational(0n, 1n, bits, bits), RangeError);
+  assert.throws(() => lgammaRational(1n, 0n, bits, bits), RangeError);
+  assert.throws(() => lgammaRational(-1n, 2n, bits, bits), RangeError);
+});
+
+test("digammaRational matches the references and lies within the loop's interval", () => {
+  const bits = bitsFor(40);
+  for (const [x, reference] of REFERENCES) {
+    const r = fraction(x);
+    const g = digammaRational(r.num, r.den, bits, bits);
+    assert.equal(
+      format(fixedToScaled(g, 40), 40, "halfAwayFromZero"),
+      reference,
+      `ψ(${x})`,
+    );
+    assert.ok(g.error <= 16n, `ψ(${x}) error ${g.error} ulps`);
+    const extra = x === "1e-6" ? 20 : 0;
+    const loop = digammaFixed(at(x, bits + extra), bits, bits);
+    const apart = subtract(toRational(g), toRational(loop));
+    const distance = apart.num < 0n ? rational(-apart.num, apart.den) : apart;
+    const bound = add(
+      rational(g.error, 1n << BigInt(g.bits)),
+      rational(loop.error, 1n << BigInt(loop.bits)),
+    );
+    assert.ok(compare(distance, bound) <= 0, `ψ(${x}) agrees with the loop`);
+  }
+  assert.throws(() => digammaRational(1n, -2n, bits, bits), RangeError);
+});
+
+test("the exact entries at a thousand digits, within a few ulps", () => {
+  const bits = bitsFor(1000);
+  const lg = lgammaRational(37n, 10n, bits, bits);
+  assert.equal(
+    format(fixedToScaled(lg, 1000), 1000, "halfAwayFromZero").slice(0, 999),
+    LGAMMA_3_7.slice(0, 999),
+  );
+  assert.ok(lg.error <= 8n, `error ${lg.error} ulps`);
+  const psi = digammaRational(37n, 10n, bits, bits);
+  assert.equal(
+    format(fixedToScaled(psi, 1000), 1000, "halfAwayFromZero").slice(0, 999),
+    PSI_3_7.slice(0, 999),
+  );
+  assert.ok(psi.error <= 8n, `error ${psi.error} ulps`);
 });

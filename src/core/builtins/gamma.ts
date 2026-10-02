@@ -8,7 +8,11 @@
 // A positive argument of moderate size goes to the kernel at the working
 // bits, plus the bits a small argument needs to keep its digits
 // (`extraBits`, as the odd functions scale theirs), and comes back as the
-// kernel's ball, rounded in no mode, for the evaluator to settle (D15).
+// kernel's ball, rounded in no mode, for the evaluator to settle (D15);
+// an exact one whose denominator is short, which is what a typed decimal
+// or fraction is, goes to the kernel's exact entries instead
+// (`shortRational`, `lgammaRational` and `digammaRational`), which shift
+// it by binary splitting and four times as far (#117).
 // One at or beyond `2^bits` throughout takes the series' leading terms
 // on balls, since `ln` takes any exponent: `digamma` is `ln x` within
 // `1 / x`, as `|ψ(x) - ln x| <= 1 / (2x) + 1 / (12 x^2)` there, and
@@ -87,8 +91,11 @@ import { workingDigits, type NumberContext } from "../context.ts";
 import { floatingToBall } from "../digits.ts";
 import { expFixed } from "../fixed-exp.ts";
 import {
+  EXACT_DENOMINATOR_BITS,
   digammaFixed,
+  digammaRational,
   lgammaFixed,
+  lgammaRational,
   lnPiFixed,
   lnTwoPiHalfFixed,
 } from "../fixed-gamma.ts";
@@ -102,7 +109,6 @@ import {
   keepSignificant,
   multiplyFixed,
   subtractFixed,
-  type Fixed,
 } from "../fixed.ts";
 import {
   addRadius,
@@ -158,6 +164,24 @@ export function isPole(x: Ball): boolean {
   return isExact(x) && isInteger(x.mid) && sign(x.mid) <= 0;
 }
 
+/**
+ * The positive exact `x` as a fraction for the kernel's exact entries,
+ * when it has one within the range limit whose denominator is short
+ * enough for the exact shift; `undefined` for an inexact `x` or a wide
+ * one, which take the kernel at the working bits.
+ */
+function shortRational(
+  x: Ball,
+  context: NumberContext,
+): { readonly num: bigint; readonly den: bigint } | undefined {
+  if (!isExact(x) || sign(x.mid) <= 0) return undefined;
+  const fraction = toRational(x.mid, context.maxBits);
+  if (!fraction.ok || bitLength(fraction.value.den) > EXACT_DENOMINATOR_BITS) {
+    return undefined;
+  }
+  return fraction.value;
+}
+
 // ---------------------------------------------------------------------------
 // digamma
 
@@ -207,6 +231,11 @@ function positiveDigamma(
     return ok({ mid: ball.mid, rad: addRadius(ball.rad, slack) });
   }
   if (isTiny(x, context)) return tinyDigamma(x, context);
+  const fraction = shortRational(x, context);
+  if (fraction !== undefined) {
+    const psi = digammaRational(fraction.num, fraction.den, bits, ceilingBits);
+    return ok(fixedToBall(psi, digits));
+  }
   const f = fixedFromBall(x, bits + extraBits(x.mid, context));
   // Only a ball wider than its value reaches zero at these bits.
   if (f.value - f.error <= 0n) return POLE;
@@ -220,7 +249,7 @@ function tinyDigamma(
 ): Result<Ball, BuiltinError> {
   const bits = bitsFor(context.precision);
   const one = fixedToBall(
-    digammaFixed(fixedOne(bits), bits, bitsFor(context.ceiling)),
+    digammaRational(1n, 1n, bits, bitsFor(context.ceiling)),
     workingDigits(context),
   );
   const psiOne: Ball = {
@@ -231,11 +260,6 @@ function tinyDigamma(
   if (!reciprocal.ok) return failed(reciprocal.error);
   const result = subtractBalls(psiOne, reciprocal.value, context);
   return result.ok ? result : failed(result.error);
-}
-
-/** One at `bits` fraction bits, exactly. */
-function fixedOne(bits: number): Fixed {
-  return { value: 1n << BigInt(bits), error: 0n, bits };
 }
 
 /**
@@ -446,6 +470,11 @@ function positiveLogGamma(
     return ok({ mid: sum.value.mid, rad: addRadius(sum.value.rad, slack) });
   }
   if (isTiny(x, context)) return ok(tinyLogGamma(x, context, bits, digits));
+  const fraction = shortRational(x, context);
+  if (fraction !== undefined) {
+    const log = lgammaRational(fraction.num, fraction.den, bits, ceilingBits);
+    return ok(fixedToBall(log, digits));
+  }
   const f = fixedFromBall(x, bits + extraBits(x.mid, context));
   // Only a ball wider than its value reaches zero at these bits.
   if (f.value - f.error <= 0n) return POLE;

@@ -1040,3 +1040,34 @@ test("the exact value of a fixed-point number is a fraction in lowest terms", ()
     assert.deepEqual(r, rational(value, 1n << BigInt(bits)));
   }
 });
+
+test("multiplyFixed takes an operand of fewer bits without aligning it, to the aligned product's ulp", () => {
+  // 1000/2^10 × 7/2^2 is 7000/2^12, 1750/2^10 exactly, and the error
+  // (1000 × 1 + 7 × 3 + 3 × 1) / 2^2 is 256 ulps; aligned, 7/2^2 is
+  // 1792/2^10 within 256, and the product comes out the same.
+  const a = { value: 1000n, error: 3n, bits: 10 };
+  const b = { value: 7n, error: 1n, bits: 2 };
+  assert.deepEqual(multiplyFixed(a, b), {
+    value: 1750n,
+    error: 256n,
+    bits: 10,
+  });
+  assert.deepEqual(multiplyFixed(b, a), {
+    value: 1750n,
+    error: 256n,
+    bits: 10,
+  });
+  assert.deepEqual(multiplyFixed(a, { value: 1792n, error: 256n, bits: 10 }), {
+    value: 1750n,
+    error: 256n,
+    bits: 10,
+  });
+  // An inexact shift adds an ulp: 1001 × 7 over 4 is 1751 and three
+  // quarters, and the error 1001 / 4 rounds up to 251, plus one.
+  const c = { value: 1001n, error: 0n, bits: 10 };
+  assert.deepEqual(multiplyFixed(c, b), {
+    value: 1751n,
+    error: 252n,
+    bits: 10,
+  });
+});

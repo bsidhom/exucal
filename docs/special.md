@@ -228,7 +228,12 @@ ceiling asked for needs (the count grows with the working bits, about
 numbers, integers found by one recurrence, from which `B_2k` is a
 division; and memoized, the memo growing when a larger count is asked,
 as the constants of D10 are memoized by the ceiling. Nothing about them
-depends on the precision but the count.
+depends on the precision but the count. A series predicts its count
+from its first term and a bound on the ratio of consecutive terms before
+it sums, and reserves that many, so that a pass needing more than the
+last computes one run for what it will take; growing the memo term by
+term, a quarter past each index asked for, had a cold ceiling pass
+recompute the run five times over (#117).
 
 ### `digamma` (6.2)
 
@@ -444,9 +449,12 @@ rulings and what it left behind.
   multiplied by the ratio, which grows like `k^2`. The loop ends at the
   first term within eight ulps, a term's error being a few ulps however
   small the term. The Bernoulli numbers are exact rationals from the
-  tangent numbers, memoized to a quarter past the count asked for, so a
-  pass needing a few more does not recompute them while the ceiling pass,
-  needing about twice the pass before, pays for little it does not use.
+  tangent numbers, memoized; since #117 the series predicts its count of
+  terms and reserves that many before it sums, so that a pass needing
+  more than the last computes one run for what it will take, where the
+  memo's growth by a quarter past each index asked for had a cold
+  ceiling pass recompute the run five times over, 7.8 s against 2.1 s for
+  the one run on the machine measured there.
   The working bits are the result's plus a guard, whatever bits the
   argument comes at: a small argument comes at extra bits so that its
   reciprocal, the shift's first term, keeps its digits, and that term
@@ -459,8 +467,9 @@ rulings and what it left behind.
   bits: at the default ceiling
   the shift costs some 4,500 divisions and the series some 1,500 terms,
   each a multiplication by a numerator of thirty thousand bits and a
-  division, which measured as 1.3 s a call, the Bernoulli run to
-  `B_3800` another two or three seconds once; at a thousand digits a
+  division, which measured as 1.3 s a call, the Bernoulli run to about
+  `B_2850` (the 1,423 numbers the series takes plus four of slack) another
+  two or three seconds once; at a thousand digits a
   call is 37 ms and the run 0.1 s. A floating memo of the ratios at the
   memo's bits would cut a term's cost to two multiplications at the
   working bits, if the ceiling pass needs to be faster. The built-in

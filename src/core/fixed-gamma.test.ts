@@ -16,6 +16,7 @@ import {
   type Fixed,
 } from "./fixed.ts";
 import { LIMIT_BITS, add, compare, rational, subtract } from "./rational.ts";
+import { bernoulliGrowths, bernoulliMemoCount } from "./bernoulli.ts";
 import { MEMO_MARGIN } from "./constants.ts";
 import { format, toRational as scaledToRational } from "./scaled.ts";
 import { dec } from "../testing/scaled.ts";
@@ -58,6 +59,26 @@ test("the shift target is about a third of the working bits, and at least two", 
   assert.equal(shiftTarget(100), 34);
   assert.equal(shiftTarget(3), 2);
   assert.equal(shiftTarget(bitsFor(1000)), Math.ceil(bitsFor(1000) / 3));
+});
+
+test("a series reserves the Bernoulli numbers it will take, so that a pass computes its run once", () => {
+  // The first call of the kernel in this file: the memo is empty, and the
+  // series must never fall back to growing it a quarter at a time.
+  assert.equal(bernoulliMemoCount(), 0);
+  const growths = bernoulliGrowths();
+  // At 336 digits (1,149 bits, the schedule's fourth pass) the shift
+  // target is 383 and the series takes 124 terms: the prediction is 125,
+  // and the reservation four more.
+  lgammaFixed(at("0.5", bitsFor(336)), bitsFor(336), bitsFor(1000));
+  assert.equal(bernoulliMemoCount(), 129);
+  assert.equal(bernoulliGrowths(), growths);
+  // A pass at fewer bits is served from the run.
+  digammaFixed(at("2.5", bitsFor(40)), bitsFor(40), bitsFor(1000));
+  assert.equal(bernoulliMemoCount(), 129);
+  // The next pass, at 672 digits, takes 242 terms: one run, to its count.
+  digammaFixed(at("0.5", bitsFor(672)), bitsFor(672), bitsFor(1000));
+  assert.equal(bernoulliMemoCount(), 246);
+  assert.equal(bernoulliGrowths(), growths);
 });
 
 test("digammaFixed matches mpmath to forty digits, with an error of a few ulps", () => {

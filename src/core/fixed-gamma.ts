@@ -19,13 +19,15 @@
 // happens while the terms still shrink. For a positive real argument the
 // remainder of either series is bounded in magnitude by the first
 // omitted term (DLMF 5.11(ii)), which is the bound added to the error.
-// The Bernoulli numbers come from bernoulli.ts, exact; the logarithms
-// from fixed-log.ts. The shift costs `n` divisions (`digamma`) or
-// multiplications (`lgamma`) at the working bits and the series about
-// `bits / 9` multiplications, each term being the last times `1 / y^2`
-// and a rational; a third of the bits balances the two, since the
-// Bernoulli numbers the series then needs, about `B_(2 bits / 9)`, cost
-// a second or two once at the default ceiling, where a shorter shift
+// The Bernoulli numbers come from bernoulli.ts, exact, reserved for the
+// count the series predicts it will take before it sums (`termsNeeded`),
+// so that a pass that needs more of them than the last computes its run
+// once; the logarithms from fixed-log.ts. The shift costs `n` divisions
+// (`digamma`) or multiplications (`lgamma`) at the working bits and the
+// series about `bits / 9` multiplications, each term being the last times
+// `1 / y^2` and a rational; a third of the bits balances the two, since
+// the Bernoulli numbers the series then needs, about `B_(2 bits / 9)`,
+// cost a second or two once at the default ceiling, where a shorter shift
 // would need many more of them.
 //
 // The argument's error rides through every operation (D9): the shift's
@@ -36,7 +38,7 @@
 // before calling in; an argument whose interval is not positive is a
 // precondition failure.
 
-import { bernoulli } from "./bernoulli.ts";
+import { bernoulli, reserveBernoulli } from "./bernoulli.ts";
 import { MEMO_MARGIN, piFixed } from "./constants.ts";
 import { ln2Fixed, lnFixed } from "./fixed-log.ts";
 import {
@@ -63,6 +65,9 @@ const TERM_FLOOR = 8n;
 
 /** How far the argument is shifted up, as a fraction of the working bits. */
 const SHIFT_FRACTION = 1 / 3;
+
+/** The terms a series reserves beyond its predicted count, for the prediction's slack of a term or two. */
+const RESERVE_SLACK = 4;
 
 /** The shift target for `bits` working bits: about a third of them, and at least two. */
 export function shiftTarget(bits: number): number {
@@ -97,6 +102,8 @@ function shiftOf(
  * is `first` and whose terms satisfy `t_(k+1) = t_k × w × |B_(2k+2) /
  * B_2k| × num(k) / den(k)` for the index factors `factor` gives, with
  * the first omitted term added to the error as the remainder's bound.
+ * The Bernoulli numbers the sum will take are reserved before it starts
+ * (`termsNeeded`), so that the memo is computed once for the pass.
  * Each term comes from the last, so that a term's error stays a few ulps
  * however small the term is; a power of `w` held on its own in fixed
  * point loses its relative precision as it shrinks, and the Bernoulli
@@ -113,6 +120,7 @@ function bernoulliSeries(
   factor: (k: number) => readonly [bigint, bigint],
   working: number,
 ): Fixed {
+  reserveBernoulli(termsNeeded(first, w, factor, working) + RESERVE_SLACK);
   let term = first;
   let series: Fixed = { value: 0n, error: 0n, bits: working };
   let previous = bernoulli(1);
@@ -134,6 +142,53 @@ function bernoulliSeries(
     );
     previous = next;
   }
+}
+
+/**
+ * A count at or above the terms `bernoulliSeries` takes for `first`, `w`
+ * and `factor` at `working` bits, so that the Bernoulli numbers it needs
+ * can be reserved before the sum and the memo computed once for the
+ * pass rather than grown term by term, which recomputed the run at every
+ * quarter and had a cold ceiling pass compute it five times over (#117).
+ * The loop ends at the first term within `TERM_FLOOR` ulps, and this
+ * follows the terms' magnitudes in floating point from bounds above
+ * them: `|B_(2k+2) / B_2k|` is `(2k+1)(2k+2) ζ(2k+2) / (ζ(2k) (2π)^2)`,
+ * below `(2k+1)(2k+2) / (2π)^2` since `ζ` decreases, and the product of
+ * these bounds over the series overstates a term by at most `ζ(2) /
+ * ζ(2k)`, under one bit; the count is the index where the bound falls
+ * to two ulps, where the computed term, within its few ulps of error of
+ * the true one, is at the floor. Measured against the loop from 40 to
+ * 16,000 bits and arguments from the shift target to a thousand times
+ * it, the count is the loop's or one more. A count that fell short
+ * would cost the memo's own growth, never correctness.
+ */
+function termsNeeded(
+  first: Fixed,
+  w: Fixed,
+  factor: (k: number) => readonly [bigint, bigint],
+  working: number,
+): number {
+  // The first term in ulps at the working bits, and w as a fraction.
+  let term = log2Above(abs(first.value) + first.error) + working - first.bits;
+  const ratio = log2Above(abs(w.value) + w.error) - w.bits;
+  const twoPiSquared = Math.log2(4 * Math.PI * Math.PI);
+  for (let k = 1; ; k++) {
+    if (term <= 1 || k > 4 * working) return k;
+    const [num, den] = factor(k);
+    term +=
+      Math.log2((2 * k + 1) * (2 * k + 2)) -
+      twoPiSquared +
+      Math.log2(Number(num) / Number(den)) +
+      ratio;
+  }
+}
+
+/** `log2` of a bound above the positive `n`: its top 53 bits plus one, scaled back. */
+function log2Above(n: bigint): number {
+  const length = bitLength(n);
+  if (length <= 53) return Math.log2(Number(n));
+  const shift = length - 53;
+  return Math.log2(Number((n >> BigInt(shift)) + 1n)) + shift;
 }
 
 /**

@@ -331,7 +331,7 @@ and the built-in `pow` share), so that `2^0.1234567` is a value with a
 radius where it was too large. `constants.ts` computes `pi`
 on it by Chudnovsky's series with binary splitting, its tail bounded in
 the comment, and memoizes one value, the digits at the ceiling of the
-retry schedule in force plus a margin of 64 bits, from which every request
+retry schedule in force plus a margin of 256 bits, from which every request
 at or below that is truncated (the plan's D10); the built-in `pi()`
 (`builtins/pi.ts`) hands it back as a ball at the context's precision, and
 the angle units of units.txt call it, so their quantities carry its radius
@@ -344,16 +344,19 @@ the default ceiling. Every memo of the core is filled on first use, none
 at module load or at the table's build: a page that never evaluates
 the Gamma family never computes a Bernoulli number, and the run at the
 ceiling, which costs about three seconds once, is paid by the first
-evaluation of the family whose retry loop reaches the ceiling, after
+evaluation of the family whose retry loop reaches the ceiling (each pass
+that needs more numbers than the last computes one run, for the count
+its series predicts and reserves before it sums; #117), after
 which a `digamma` call there is about 1.3 s and a `gamma` or `lgamma`
 call 0.7 s; at forty digits the series is microseconds and at a
 thousand a call is tens of milliseconds (docs/special.md, "6.2" and
 "6.3"). The
 memo's size is bounded by the ceiling: at the default one it holds
-1,875 fractions whose numerators grow to 29,000 bits, about 3 MB of
-digits in all, with as much again in the tangent numbers while the run
-is computed and released after; at a thousand digits it is 85 KB and at
-forty under a kilobyte. A larger run replaces a smaller one, so the
+about 1,430 fractions whose numerators grow to 21,500 bits, about 1.8 MB
+of digits in all, with somewhat more again in the tangent numbers while
+the run is computed and released after; at a thousand digits it is
+under 70 KB and at forty under a kilobyte. A larger run replaces a
+smaller one, so the
 memo never holds more than one; whether to hold it at all, evict it, or
 store the ratios the series takes instead is issue #103.
 

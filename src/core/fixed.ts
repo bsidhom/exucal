@@ -17,8 +17,10 @@
 // significant bits as an argument of order one, which is how a routine
 // whose result is small or large states its scale, and `shiftFixed` is the
 // exact rebase that moves the binary point. Two operands of different
-// `bits` are aligned to the larger, which is exact for the value and the
-// error alike. `bitsFor(precision)` is the bits a decimal precision needs
+// `bits` are aligned to the larger for a sum, a difference or a quotient,
+// which is exact for the value and the error alike; a product shifts by
+// the smaller instead, the same result for a multiplication of the
+// smaller operand's own size. `bitsFor(precision)` is the bits a decimal precision needs
 // plus `GUARD_BITS`; the guard is bits rather than digits because the error
 // count grows by at least one per operation and a series of a thousand
 // terms spends ten of them.
@@ -341,14 +343,17 @@ export function subtractFixed(a: Fixed, b: Fixed): Fixed {
 
 /**
  * `a × b` at the larger `bits`: the value is the product of the values
- * shifted down by `bits` (toward minus infinity, by less than an ulp); the
- * error is `|a| eb + |b| ea + ea eb` shifted down and rounded up, the
- * bound for the product over the two intervals, plus one for the shift
- * when it discarded anything.
+ * shifted down by the smaller `bits` (toward minus infinity, by less than
+ * an ulp of the larger), which is the product of the aligned values
+ * shifted down by the larger, so that an operand of fewer bits costs a
+ * multiplication of its own size and not the other's (the series of
+ * fixed-gamma.ts cut their multipliers to the bits a term still needs,
+ * #117); the error is `|a| eb + |b| ea + ea eb` shifted down by the same
+ * and rounded up, the bound for the product over the two intervals, plus
+ * one for the shift when it discarded anything.
  */
 export function multiplyFixed(a: Fixed, b: Fixed): Fixed {
-  [a, b] = aligned(a, b);
-  const shift = BigInt(a.bits);
+  const shift = BigInt(Math.min(a.bits, b.bits));
   const product = a.value * b.value;
   const value = product >> shift;
   const inexact = product - (value << shift) !== 0n ? 1n : 0n;
@@ -357,7 +362,7 @@ export function multiplyFixed(a: Fixed, b: Fixed): Fixed {
   return {
     value,
     error: ceilShift(propagated, shift) + inexact,
-    bits: a.bits,
+    bits: Math.max(a.bits, b.bits),
   };
 }
 

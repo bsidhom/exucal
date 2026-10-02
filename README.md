@@ -487,9 +487,9 @@ which go anywhere a unit goes and are called the same way. They are:
   the value `factorial(20000)` cannot hold. `lgamma` is the way to a
   Gamma value whose exponent passes `10^18` (`lgamma(1e19)` is a value
   where `gamma(1e19)` is refused), and `lgamma(1)` and `lgamma(2)` are
-  the exact `0`. The family's series take the Bernoulli numbers,
-  computed once per page load for each precision asked for beyond the
-  last and kept: at the default digits that is nothing to notice, and a result
+  the exact `0`. The family's series take the ratios of consecutive
+  Bernoulli numbers, computed once per page load for each precision asked
+  for beyond the last and kept: at the default digits that is nothing to notice, and a result
   that needs the retry schedule's ceiling pays about three seconds the
   first time and under a second a call after that, as `tan(90 deg)`
   does.

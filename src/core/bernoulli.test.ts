@@ -1,12 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  bernoulli,
-  bernoulliGrowths,
-  bernoulliMemoCount,
-  reserveBernoulli,
-  tangentNumbers,
-} from "./bernoulli.ts";
+import { bernoulli, bernoulliRun, tangentNumbers } from "./bernoulli.ts";
 import { rational } from "./rational.ts";
 
 test("the tangent numbers are the coefficients of the tangent", () => {
@@ -39,40 +33,23 @@ test("the Bernoulli numbers are the known fractions (mpmath's bernfrac)", () => 
   assert.equal(bernoulli(20).den, 2n * 3n * 5n * 11n * 41n);
 });
 
-test("the memo grows to the count asked for and keeps it", () => {
-  const before = bernoulliMemoCount();
-  bernoulli(5);
-  assert.ok(bernoulliMemoCount() >= 5);
-  bernoulli(100);
-  const grown = bernoulliMemoCount();
-  assert.ok(grown >= 100 && grown >= before);
-  bernoulli(3);
-  assert.equal(bernoulliMemoCount(), grown);
-  assert.throws(() => bernoulli(0), RangeError);
-  assert.throws(() => bernoulli(1.5), RangeError);
-});
-
-test("a reservation computes the run to its count exactly, and a request beyond the memo is the fallback that grows it by a quarter", () => {
-  const held = bernoulliMemoCount();
-  const growths = bernoulliGrowths();
-  // A count the memo holds leaves it.
-  reserveBernoulli(held - 1);
-  reserveBernoulli(held);
-  assert.equal(bernoulliMemoCount(), held);
-  reserveBernoulli(200);
-  assert.equal(bernoulliMemoCount(), 200);
-  assert.equal(bernoulliGrowths(), growths);
-  // The run is the right one: B_400's denominator is the product of the
-  // primes p with p - 1 dividing 400, by von Staudt and Clausen.
+test("a run is the first numbers asked for, exact, and one number is the last of its run", () => {
+  assert.deepEqual(bernoulliRun(0), []);
+  const run = bernoulliRun(3);
+  assert.deepEqual(run, [
+    rational(1n, 6n),
+    rational(-1n, 30n),
+    rational(1n, 42n),
+  ]);
+  assert.deepEqual(bernoulli(3), run[2]);
+  // B_400's denominator is the product of the primes p with p - 1
+  // dividing 400, by von Staudt and Clausen.
   assert.equal(
-    bernoulli(200).den,
+    bernoulliRun(200)[199]!.den,
     2n * 3n * 5n * 11n * 17n * 41n * 101n * 401n,
   );
-  assert.equal(bernoulliMemoCount(), 200);
-  // Beyond the memo and the reservation, bernoulli grows it on its own.
-  bernoulli(201);
-  assert.equal(bernoulliMemoCount(), Math.ceil(201 * 1.25));
-  assert.equal(bernoulliGrowths(), growths + 1);
-  assert.throws(() => reserveBernoulli(-1), RangeError);
-  assert.throws(() => reserveBernoulli(1.5), RangeError);
+  assert.throws(() => bernoulliRun(-1), RangeError);
+  assert.throws(() => bernoulliRun(1.5), RangeError);
+  assert.throws(() => bernoulli(0), RangeError);
+  assert.throws(() => bernoulli(1.5), RangeError);
 });

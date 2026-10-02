@@ -873,6 +873,10 @@ hook's output at session start says which part is out of date.
   some platforms need from the SVG ones, at build time and on request during
   development. `rasterize-svg.ts` does the rendering without any dependencies,
   and `rasterize-svg.test.ts` checks it.
+- `vite-plugin-build-id.ts` is the Vite plugin that bakes the commit the app
+  was built from into it, which `src/build-id.ts` exposes and the shell shows
+  in its footer (see Build ID below). `vite-plugin-build-id.test.ts` checks
+  how the commit is found.
 - `vite-plugin-precache.ts` is the Vite plugin that builds the service worker
   and injects the list of files to cache into it. `vite.config.ts` enables it.
   `vite-plugin-precache.test.ts` checks the injection (see Offline behavior
@@ -959,6 +963,32 @@ up automatically after a deploy. The pieces involved:
   browsers accept for installation. Safari ignores manifest icons and needs a
   PNG `apple-touch-icon`, which the build renders from the SVG (see Icons
   below).
+
+### Build ID
+
+The footer of the app names the build it is running, as the first twelve
+digits of the commit hash it was built from (the full hash is in the
+tooltip), so a copy on a phone or served from the service worker's cache
+can be matched to a commit. `vite-plugin-build-id.ts` asks git once per
+`vite build` or `vite dev` and bakes the answer in as the constant
+`__BUILD_ID__`:
+
+- It is git's `HEAD`, with `-dirty` after it when `git status` lists
+  uncommitted changes, so a local build is never mistaken for the commit it
+  started from.
+- Without git or a history to read, it is `unknown`, and the build warns
+  rather than fails.
+
+It comes from git alone, wherever the build runs: nothing is read from the
+environment, Cloudflare Workers Builds' own commit variables included, so a
+deploy and a local build name their commit the same way.
+
+Since the hash is part of the bundle, every commit changes the build and so
+the precache version: every deploy ships a service worker update and shows
+its own commit, even when it changes only the build or the documentation,
+or leaves the rest of the app byte for byte the same. That is deliberate:
+the footer says whether a given commit has reached the deployment, not
+only whether the app's behavior changed. There is no other versioning yet.
 
 ### Icons
 

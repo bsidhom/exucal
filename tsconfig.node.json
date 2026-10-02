@@ -13,6 +13,8 @@
   },
   "include": [
     "vite.config.ts",
+    "vite-plugin-build-id.ts",
+    "vite-plugin-build-id.test.ts",
     "vite-plugin-icons.ts",
     "vite-plugin-precache.ts",
     "vite-plugin-precache.test.ts",

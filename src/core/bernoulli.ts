@@ -11,12 +11,19 @@
 // which `rational` reduces. Nothing about them depends on the precision
 // but the count: a series at `bits` working bits with the argument
 // shifted to about `bits / 3` takes about `bits / 9` terms, some three
-// hundred at a thousand digits and fifteen hundred at the default ceiling
-// of 4,040, where the recurrence costs a second or two once. The memo
-// holds the largest count asked for, as the constants of D10 hold the
-// ceiling's digits: a larger request recomputes the whole run, since the
-// recurrence is in place, and a smaller one is served from it; the run
-// is a few megabytes at the ceiling and bounded by it.
+// hundred at a thousand digits and fourteen hundred at the default
+// ceiling of 4,040, where the recurrence costs a few seconds once. The
+// memo holds the largest count asked for, as the constants of D10 hold
+// the ceiling's digits: a larger request recomputes the whole run, since
+// the recurrence is in place, and a smaller one is served from it; the
+// run is under two megabytes at the ceiling and bounded by it. A caller
+// that knows its count reserves it first (`reserveBernoulli`), which the
+// series does from a prediction of its terms (fixed-gamma.ts), so that
+// each pass that needs more numbers than the last computes one run, for
+// the count it will take; `bernoulli` beyond the memo is the fallback,
+// growing it by a quarter past the index asked for, which is what every
+// request did before the reservation and had a cold ceiling pass
+// recompute the run five times over (#117).
 
 import { rational, type Rational } from "./rational.ts";
 
@@ -41,28 +48,48 @@ function fromTangent(k: number, t: bigint): Rational {
   return rational(num, power * (power - 1n));
 }
 
-/** How far past the count asked for the memo is computed: a quarter, since the recurrence's cost is in its largest numbers. */
+/** How far past the index asked for the fallback grows the memo: a quarter, since the recurrence's cost is in its largest numbers. */
 const MEMO_SLACK = 1.25;
 
 let held: readonly Rational[] = [];
 
+/** How many runs `bernoulli` computed on its own, beyond the memo and any reservation; for the tests. */
+let growths = 0;
+
+/** Replaces the memo with the run of the first `count` numbers. */
+function compute(count: number): void {
+  const t = tangentNumbers(count);
+  const run: Rational[] = [];
+  for (let i = 1; i <= count; i++) run.push(fromTangent(i, t[i]!));
+  held = run;
+}
+
 /**
- * `B_2k` for `k >= 1`, exact, from the memo, which grows to hold it: the
- * run is recomputed to a quarter past the count asked for when it falls
- * short, so that a series taking a few more terms does not recompute it
- * each time, while the ceiling pass, whose count is about twice the
- * pass before it, pays for little it does not use.
+ * Computes the run to hold `count` numbers when the memo holds fewer,
+ * exactly that many: for a caller that knows the count it will take, so
+ * that the memo is computed once for a pass rather than grown as the
+ * terms ask for it. A count the memo already holds leaves it.
+ */
+export function reserveBernoulli(count: number): void {
+  if (!Number.isInteger(count) || count < 0) {
+    throw new RangeError(`A count must be a non-negative integer: ${count}`);
+  }
+  if (count > held.length) compute(count);
+}
+
+/**
+ * `B_2k` for `k >= 1`, exact, from the memo, which grows to hold it: a
+ * request beyond the memo recomputes the run to a quarter past the index
+ * asked for, the fallback for a caller that did not reserve its count,
+ * so that a few more requests do not recompute it each time.
  */
 export function bernoulli(k: number): Rational {
   if (!Number.isInteger(k) || k < 1) {
     throw new RangeError(`The Bernoulli numbers are indexed from 1: ${k}`);
   }
   if (k > held.length) {
-    const count = Math.max(Math.ceil(k * MEMO_SLACK), 32);
-    const t = tangentNumbers(count);
-    const run: Rational[] = [];
-    for (let i = 1; i <= count; i++) run.push(fromTangent(i, t[i]!));
-    held = run;
+    growths++;
+    compute(Math.max(Math.ceil(k * MEMO_SLACK), 32));
   }
   return held[k - 1]!;
 }
@@ -70,4 +97,9 @@ export function bernoulli(k: number): Rational {
 /** The count the memo holds, for the tests. */
 export function bernoulliMemoCount(): number {
   return held.length;
+}
+
+/** How many times `bernoulli` grew the memo on its own, a request beyond it and any reservation; for the tests. */
+export function bernoulliGrowths(): number {
+  return growths;
 }

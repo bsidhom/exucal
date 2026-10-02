@@ -318,7 +318,9 @@ precision is unobservable through the core's results, as `lazy` in
 parser.ts is, and the study asks for exactly that memo. Through memory it
 is observable, so its footprint is fixed by construction rather than
 bounded by an eviction policy: each constant holds exactly one value, the
-digits at the ceiling of D12 plus a margin of 64 bits, computed on first
+digits at the ceiling of D12 plus a margin of 256 bits (64 until the
+Gamma family's guards were found to exceed it at the ceiling pass, #117),
+computed on first
 use however low the first request, and every request at or below that,
 which is every request the retry loop can make, is truncated from it. A
 request at a higher ceiling, after the cap setting is raised, replaces
@@ -330,7 +332,7 @@ cap (D16). The margin is for the argument reduction of `sin` and `cos`,
 which needs `pi` to the working bits plus the argument's bit length: at
 the ceiling pass that exceeds the ceiling by the argument's bit length,
 so without the margin every `sin(1 radian)` would recompute `pi` there;
-with it, every argument below `2^64` is served from the memo at every
+with it, every argument below `2^256` is served from the memo at every
 pass. The one request above the memo is that reduction at a larger
 argument (under the range limit; an argument beyond that is refused as
 `tooLarge`): it is computed for that call and not kept, so a `sin(1e5000
@@ -2086,7 +2088,7 @@ where it was `tooLarge`.
 `sinFixed` and `cosFixed`: reduce the argument by the nearest multiple of
 `pi / 2`, with `pi` taken at `bits` plus the argument's bit length so the
 reduction keeps its digits for large arguments (from the memo up to
-`2^64`, computed and not kept above it, D10), then Taylor; the quadrant
+`2^256`, computed and not kept above it, D10), then Taylor; the quadrant
 from the multiple. `tan` is the quotient, `unresolved` at the argument
 with edge `"pole"` when `cos`'s ball contains zero. The rule requires the
 `radian` kind (D11) and hands the kernel the magnitude, which is in
@@ -2116,8 +2118,10 @@ for; `angleToNumber` in builtin.ts is the rule the three share. The
 reduction takes `n = round(2x / pi)` on the integers and pi at the bits
 asked for plus the bit length of the argument's integer part, so that
 pi's three ulps times `n / 2` are under one ulp of the result, which is
-what makes the memo's margin serve exactly the arguments below `2^64` at
-the ceiling pass (a test pins `2^63` served and `2^70` computed uncached).
+what makes the memo's margin serve exactly the arguments below `2^256`
+at the ceiling pass (a test pins `2^255` served and `2^300` computed
+uncached; the margin was 64 bits, and the pins `2^63` and `2^70`, until
+#117).
 The two series, in `v = -r^2` with the powers shared, are summed by the
 rectangular splitting of 3.7, each block scaled through its largest
 product of consecutive integers so that it costs one division rather
@@ -4697,9 +4701,10 @@ inherits.
 - **3.4.** Each built-in lives in a module of its own under builtins/,
   several sharing one only when they share machinery, gathered by
   builtins.ts so that no module depends on the map; `MEMO_MARGIN` is 64
-  bits. Two findings: `roundTerms` now widens a remainder's radius by its
-  shift (1.8 amended), and a count whose ratio straddles an integer is
-  that integer (D8 amended), so `1 turn` in `deg;arcmin` reads `≈ 360 deg`.
+  bits (256 since #117). Two findings: `roundTerms` now widens a
+  remainder's radius by its shift (1.8 amended), and a count whose ratio
+  straddles an integer is that integer (D8 amended), so `1 turn` in
+  `deg;arcmin` reads `≈ 360 deg`.
 - **3.5.** `DimensionLookup` and `DimensionError` are the lookup and the
   error subset the check over dimensions takes; `applyFunction` and
   `invertFunction` stay in evaluate.ts for the evaluator and the pipeline.
@@ -4722,7 +4727,8 @@ inherits.
 - **3.9.** The sine and the cosine are computed together, the reduction
   taking pi at the bits asked for plus the bit length of the argument's
   integer part, so the memo's margin serves exactly the arguments below
-  `2^64` at the ceiling pass; the two series are summed by rectangular
+  two to the margin at the ceiling pass (`2^64` then, `2^256` since
+  #117); the two series are summed by rectangular
   splitting with one division per block; an argument wider than about a
   fifth of a radian is zero within one; the propagation counts the
   argument's error in `r` and `r^2` both.
@@ -4757,7 +4763,7 @@ together with the squaring loop of `expFixed`, the kernel-to-ball
 conversion and the hyperbolic module's branch through the exponential;
 `lnFixed` and `lnScaled` already take a scale, and `tanh` already answers
 far out without forming anything large; the four memos hold the ceiling
-plus 64 bits and the probe leaves them at the largest ceiling it tried;
+plus the margin and the probe leaves them at the largest ceiling it tried;
 the wide-argument bounds of the routines are trivial bounds the retry
 loop narrows; the two gaps of 2.5 still stand; the display's `unbounded`
 kind still has no producer; and the random source of the tests is, since

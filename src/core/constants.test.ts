@@ -140,7 +140,7 @@ test("the 36-digit literal of GNU units is a second reference", () => {
 
 test("the memo holds the ceiling's value plus the margin, and every request under it is that value truncated", () => {
   assert.equal(piMemoBits(), undefined);
-  assert.equal(MEMO_MARGIN, 64);
+  assert.equal(MEMO_MARGIN, 256);
   const ceiling = bitsFor(500);
   const held = ceiling + MEMO_MARGIN;
   const a = piFixed(bitsFor(8), ceiling);
@@ -160,7 +160,7 @@ test("the memo holds the ceiling's value plus the margin, and every request unde
   }
   assert.equal(a.bits, bitsFor(8));
   // At the ceiling itself the memo is truncated by the margin; at the
-  // margin it is handed out as it is, and an argument of up to 64 bits
+  // margin it is handed out as it is, and an argument of up to 256 bits
   // reduced at the ceiling pass is served from it.
   assert.equal(piFixed(ceiling, ceiling).error, 2n);
   assert.equal(piFixed(held, ceiling).error, 3n);

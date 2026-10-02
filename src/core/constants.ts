@@ -45,15 +45,25 @@
 // truncation). A request at a higher ceiling replaces the value, a lower
 // one leaves it, so the footprint is fixed by the ceiling, about 1.7 KB
 // per constant at the default of 4,040 digits, and bounded by the hard
-// bound on the cap. The margin is for the argument reduction of `sin` and
-// `cos` (3.9), which needs pi to the working bits plus the argument's bit
-// length: at the ceiling pass that exceeds the ceiling by the argument's
-// bit length, so without the margin every `sin(1 radian)` would recompute
-// pi there; with it, every argument below `2^64` is served from the memo
-// at every pass. A request above the memo (the reduction at a larger
-// argument) is computed for the call and not kept. The memos are
-// unobservable through the core's results, as `lazy` in parser.ts is;
-// `piMemoBits` and `eMemoBits` expose their precision for the tests alone.
+// bound on the cap. The margin covers the two ways a constant is asked
+// for above a pass's bits at the ceiling pass. One is the argument
+// reduction of `sin` and `cos` (3.9), which needs pi to the working bits
+// plus the argument's bit length: at the ceiling pass that exceeds the
+// ceiling by the argument's bit length, so without the margin every
+// `sin(1 radian)` would recompute pi there; with it, every argument below
+// `2^256` is served from the memo at every pass. The other is the guard
+// bits the kernels stack above the pass: the Gamma family takes its
+// logarithms at the pass's bits plus the bits of its argument's magnitude
+// (up to 88 for `gamma`, and `beta`'s for arguments below about `2^150`)
+// plus its own 29, and `lnFixed` works 33 bits above what it is asked for
+// plus the bit length of its scale, so `ln 2` and `ln π` are asked for
+// up to about 180 bits above the ceiling inside an `lgamma` there; a
+// margin of 64 had them recomputed for every such call (#117). A request
+// above the memo (the reduction at a larger argument, or a logarithm of
+// `beta` at a larger one) is computed for the call and not kept. The
+// memos are unobservable through the core's results, as `lazy` in
+// parser.ts is; `piMemoBits` and `eMemoBits` expose their precision for
+// the tests alone.
 
 import type { Ball } from "./ball.ts";
 import { workingDigits, type NumberContext } from "./context.ts";
@@ -164,9 +174,11 @@ function splitFactorials(a: bigint, b: bigint): { q: bigint; t: bigint } {
 /**
  * The bits a memo holds beyond the ceiling, so that the argument reduction
  * of the trigonometric functions at the ceiling pass is served from it for
- * arguments below `2^64` (D10).
+ * arguments below `2^256`, and the guard bits the Gamma family and the
+ * logarithm stack above the pass, about 180 at most for arguments of
+ * moderate size, stay within it (D10; the header says how they add up).
  */
-export const MEMO_MARGIN = 64;
+export const MEMO_MARGIN = 256;
 
 /** A constant memoized at the ceiling: its value at `bits` under `ceilingBits`, and the bits it holds. */
 type Memo = {

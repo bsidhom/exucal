@@ -331,7 +331,7 @@ and the built-in `pow` share), so that `2^0.1234567` is a value with a
 radius where it was too large. `constants.ts` computes `pi`
 on it by Chudnovsky's series with binary splitting, its tail bounded in
 the comment, and memoizes one value, the digits at the ceiling of the
-retry schedule in force plus a margin of 64 bits, from which every request
+retry schedule in force plus a margin of 256 bits, from which every request
 at or below that is truncated (the plan's D10); the built-in `pi()`
 (`builtins/pi.ts`) hands it back as a ball at the context's precision, and
 the angle units of units.txt call it, so their quantities carry its radius

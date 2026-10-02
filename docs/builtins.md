@@ -258,15 +258,17 @@ general is not looked for, so `log(4, 8)` is `≈ 1.5`.
 ## Memoized constants (D10)
 
 The values of `pi()`, `exp(1)`, `ln(2)` and `ln(10)` are each computed
-once, at the ceiling of the retry schedule plus 64 bits, and every request
-the schedule can make is truncated from that value; a higher ceiling
-replaces it. The four calls are the exact cases the memos serve, and any
-other call of `exp` or `ln` computes its own value; `log10` and `log2`
-divide by the memoized `ln(10)` and `ln(2)`. The margin serves
-the argument reduction of `sin` and `cos`, which needs `pi` to the working
-bits plus the argument's bit length, so that arguments below `2^64` are
-served from the memo at every pass; a larger argument computes `pi` for
-the call and keeps nothing.
+once, at the ceiling of the retry schedule plus 256 bits, and every
+request the schedule can make is truncated from that value; a higher
+ceiling replaces it. The four calls are the exact cases the memos serve,
+and any other call of `exp` or `ln` computes its own value; `log10` and
+`log2` divide by the memoized `ln(10)` and `ln(2)`. The margin serves the
+argument reduction of `sin` and `cos`, which needs `pi` to the working
+bits plus the argument's bit length, so that arguments below `2^256` are
+served from the memo at every pass, and holds the guard bits the Gamma
+family and the logarithm stack above a pass, so that `ln(2)` and `ln π`
+are served from their memos inside an `lgamma` at the ceiling pass
+(#117); a larger argument computes `pi` for the call and keeps nothing.
 
 ## Where it goes
 
@@ -376,8 +378,8 @@ x)`, `atan2` an arctangent by quadrant, and `asinh`, `acosh` and
   with no saturation and a radius below one half the argument the kernel
   is handed stays below about 181,727 at the largest ceiling the
   settings allow.
-- **The memos.** Four constants at the ceiling plus 64 bits; the margin
-  serves the reduction of `sin` and `cos` for every argument below `2^64`
+- **The memos.** Four constants at the ceiling plus 256 bits; the margin
+  serves the reduction of `sin` and `cos` for every argument below `2^256`
   at the ceiling pass exactly, the reduction taking pi at the bits asked
   for plus the bit length of the argument's integer part, and a larger
   argument computes pi for the call. The probe of limits.ts leaves the

@@ -12,7 +12,7 @@
 // asked for plus the bit length of the argument's integer part, so that
 // `n pi/2` is exact to those bits however large the argument: pi's three
 // ulps times `n/2` are under one ulp of the result, and the memo's margin
-// of 64 bits serves every argument below `2^64` at the ceiling pass; a
+// of 256 bits serves every argument below `2^256` at the ceiling pass; a
 // larger argument computes pi for the call and keeps nothing. The
 // argument's own error rides through the subtraction, so `r` carries it
 // and the series runs on `r` with that error included (D9): no derivative

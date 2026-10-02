@@ -91,7 +91,7 @@ const SIN1 = dec(
 const COS1 = dec(
   "0.5403023058681397174009366074429766037323104206179222276700972553811003947744717645179518560871830893435717311600300890978606337600",
 );
-/** `[x, sin x, cos x]`, across every quadrant, and beyond 2^64 in the last. */
+/** `[x, sin x, cos x]`, across every quadrant, and beyond 2^64 and 2^256 in the last two. */
 const REFERENCES: [string, string, string][] = [
   [
     "0.5",
@@ -143,30 +143,47 @@ const REFERENCES: [string, string, string][] = [
     "-0.9981794021933067599641604936283969880501016576089450634162465188768898831957672456462149466533876899658756992542212283290314968583",
     "0.06031484922481978513219882919075331252085090319652492315522693778693677081662772947529325896131884239266897509372087315704817640491",
   ],
+  [
+    "2037035976334486086268445688409378161051468393665936250636140449354381299763336706183397376",
+    "0.9772625210693567771740451338724902417299420024928174371370826298656557715855365086496634654326310701170613894442463140377646797307",
+    "0.2120329335578909571204726740048635740271676403117848472901293041880303370654344944465598338782951554826773199572415817750290998474",
+  ],
 ];
 
-test("the reduction takes pi from the memo for arguments below 2^64 at the ceiling pass, and computes it uncached above", () => {
+test("the reduction takes pi from the memo for arguments below 2^256 at the ceiling pass, and computes it uncached above", () => {
   // The memo grows to this ceiling plus the margin on the first request
   // under it, and no test in this file asks for a higher one.
   const ceiling = bitsFor(600);
   const held = ceiling + MEMO_MARGIN;
   sinFixed(fixedFromRational(rational(10n ** 15n), ceiling), ceiling, ceiling);
   assert.equal(piMemoBits(), held);
-  // 2^63 has an integer part of 64 bits: the last argument served.
-  sinFixed(fixedFromRational(rational(1n << 63n), ceiling), ceiling, ceiling);
+  // 2^255 has an integer part of 256 bits: the last argument served.
+  sinFixed(fixedFromRational(rational(1n << 255n), ceiling), ceiling, ceiling);
   assert.equal(piMemoBits(), held);
-  // 2^70 needs pi at the ceiling plus 71 bits, above the memo: computed for
-  // the call, and the memo is left as it was.
+  // 2^70 was computed uncached while the margin was 64 bits (#117); it is
+  // served now, to the reference's digits still.
+  const [x70, sin70, cos70] = REFERENCES[REFERENCES.length - 2]!;
+  assert.equal(x70, String(1n << 70n));
+  const served = sinCosFixed(
+    fixedFromRational(dec(x70), ceiling),
+    ceiling,
+    ceiling,
+  );
+  assert.equal(piMemoBits(), held);
+  assertReference(toBall(served.sin), dec(sin70), tenTo(120), "sin(2^70)");
+  assertReference(toBall(served.cos), dec(cos70), tenTo(120), "cos(2^70)");
+  // 2^300 needs pi at the ceiling plus 301 bits, above the memo: computed
+  // for the call, and the memo is left as it was.
   const [x, sinX, cosX] = REFERENCES[REFERENCES.length - 1]!;
-  assert.equal(x, String(1n << 70n));
+  assert.equal(x, String(1n << 300n));
   const { sin, cos } = sinCosFixed(
     fixedFromRational(dec(x), ceiling),
     ceiling,
     ceiling,
   );
   assert.equal(piMemoBits(), held);
-  assertReference(toBall(sin), dec(sinX), tenTo(120), "sin(2^70)");
-  assertReference(toBall(cos), dec(cosX), tenTo(120), "cos(2^70)");
+  assertReference(toBall(sin), dec(sinX), tenTo(120), "sin(2^300)");
+  assertReference(toBall(cos), dec(cosX), tenTo(120), "cos(2^300)");
   // The arctangent's pi/2 is at the working bits, within the margin.
   atanFixed(fixedFromRational(rational(2n), ceiling), ceiling, ceiling);
   assert.equal(piMemoBits(), held);

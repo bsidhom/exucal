@@ -12,8 +12,10 @@
 // which `rational` reduces. Nothing about them depends on the precision
 // but the count: a series at `bits` working bits with the argument
 // shifted to about `bits / 3` takes about `bits / 9` terms, some three
-// hundred at a thousand digits and fourteen hundred at the default
-// ceiling of 4,040, where the recurrence costs a few seconds once. A run
+// hundred at a thousand digits and, at the default ceiling of 4,040,
+// fourteen hundred for the loop's shift to a third of the bits or 730
+// for the exact shift to four times them, where the recurrence costs two
+// seconds or half a second once. A run
 // is computed on request (`bernoulliRun`) and not kept here: the ratio
 // memo forms its fixed-point ratios from one and releases it, which holds
 // about 1 MB at the default ceiling where the exact numbers held 1.8

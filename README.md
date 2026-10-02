@@ -490,9 +490,11 @@ which go anywhere a unit goes and are called the same way. They are:
   the exact `0`. The family's series take the ratios of consecutive
   Bernoulli numbers, computed once per page load for each precision asked
   for beyond the last and kept: at the default digits that is nothing to notice, and a result
-  that needs the retry schedule's ceiling pays about three seconds the
-  first time and under a second a call after that, as `tan(90 deg)`
-  does.
+  that needs the retry schedule's ceiling, as `tan(90 deg)` does, pays
+  about half a second the first time and a tenth of a second a call
+  after that for an argument typed as a decimal or a fraction, which the
+  kernel shifts exactly, and a few seconds then half a second for one
+  that is not exact, such as `gamma(pi())`.
 - `beta(a, b)`, the Beta function `gamma(a) gamma(b) / gamma(a + b)`,
   of two plain numbers: `beta(0.5, 0.5)` is `≈ 3.1415927`, and
   `beta(2, 3)` is the exact `1/12`, as it is for any whole numbers

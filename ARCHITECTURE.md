@@ -342,27 +342,31 @@ Bernoulli numbers the Gamma family's asymptotic series takes
 point, by count and by the bits they serve, each ratio at the bits the
 term it makes still needs, since only the count and the bits depend on
 the pass: about twenty ratios at forty digits, three hundred and sixty
-at a thousand and fourteen hundred at the default ceiling. Every memo of
-the core is filled on first use, none at module load or at the table's
-build: a page that never evaluates the Gamma family never computes a
-Bernoulli number, and the run at the ceiling, which costs a few seconds
-once, is paid by the first evaluation of the family whose retry loop
-reaches the ceiling (each pass that needs more ratios than the last
-computes one exact run, for the count its series predicts and reserves
-before it sums, and forms the ratios from it; #117), after which a
-`gamma` or `lgamma` call there is about 0.45 s and a `digamma` call 1.5
-s, the shift's divisions being most of the latter (measured in #117's
-session; before the ratios the series alone was 0.37 s of each); at
-forty digits the series is microseconds and at a thousand a call is
-tens of milliseconds (docs/special.md, "6.2" and "6.3"). The memo's
-size is bounded by the bits it serves: at the default ceiling it holds
-about 1,430 ratios, the first at the ceiling's bits plus the margin and
-the last at about two hundred, about 1 MB in all, with the exact run,
-about 1.8 MB, and the tangent numbers, about 2.2 MB, held while the run
-is computed and released after; at a thousand digits it is about 80 KB
-and at forty under a kilobyte. A larger run replaces a smaller one, so
-the memo never holds more than one (the representation issue #103 asked
-for).
+at a thousand, and at the default ceiling 730 for an argument typed as
+a short decimal or fraction, which the kernel shifts exactly and four
+times as far, or 1,423 for an inexact one, which it shifts by a loop to
+a third of the bits. Every memo of the core is filled on first use,
+none at module load or at the table's build: a page that never
+evaluates the Gamma family never computes a Bernoulli number, and the
+run at the ceiling, half a second once for the exact shift and about
+two for the loop's, is paid by the first evaluation of the family whose
+retry loop reaches the ceiling (each pass that needs more ratios than
+the last computes one exact run, for the count its series predicts and
+reserves before it sums, and forms the ratios from it; #117), after
+which a `gamma` or `lgamma` call there is about 0.12 s and a `digamma`
+call 0.14 s for an exact argument, and 0.45 s and 1.2 s for an inexact
+one, the loop's shift being most of those (measured in #117's session;
+before the ratios the series alone was 0.37 s of each); at forty digits
+the series is microseconds and at a thousand a call is tens of
+milliseconds (docs/special.md, "6.2" and "6.3"). The memo's size is
+bounded by the bits it serves: at the default ceiling it holds 730 to
+1,430 ratios, the first at the ceiling's bits plus the margin and the
+last at about two hundred, about 0.8 to 1 MB in all, with the exact
+run, up to about 1.8 MB, and the tangent numbers, up to about 2.2 MB,
+held while the run is computed and released after; at a thousand
+digits it is about 80 KB and at forty under a kilobyte. A larger run
+replaces a smaller one, so the memo never holds more than one (the
+representation issue #103 asked for).
 
 **Working precision and the context.** Every core function that does
 arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`: a precision in
@@ -1386,7 +1390,7 @@ src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error c
 src/core/fixed-exp.ts     expFixed, sinhCoshFixed and tanhFixed: the exponential on the kernel, by halving, Taylor and squaring into a Floating, and the hyperbolic functions through it
 src/core/digits.ts        floatingToBall: a Floating as a ball, exactly within the range limit and by its decimal logarithm in log space beyond it
 src/core/fixed-log.ts     lnFixed: the logarithm on the kernel, by square roots and the atanh series; ln(2) and ln(10) memoized
-src/core/fixed-gamma.ts   digammaFixed and lgammaFixed: the shift up and the asymptotic series on the Bernoulli ratios, ln pi memoized (stage 6, docs/special.md)
+src/core/fixed-gamma.ts   digammaFixed and lgammaFixed, and digammaRational and lgammaRational for an exact argument of short denominator: the shift up, by a loop or exactly by binary splitting, and the asymptotic series on the Bernoulli ratios, ln pi memoized (stage 6, docs/special.md)
 src/core/fixed-incomplete.ts the incomplete gamma series with its tail bound, and Legendre's continued fraction with the bracket of its convergents (stage 6, docs/special.md)
 src/core/fixed-incbeta.ts the incomplete beta series with positive terms and its geometric tail bound, and the estimate of its terms (stage 6, docs/special.md)
 src/core/fixed-trig.ts    sinCosFixed and atanFixed: the sine, cosine and arctangent on the kernel, by reduction and the Taylor series

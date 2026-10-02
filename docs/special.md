@@ -253,7 +253,10 @@ argument up to `x >= N`, with `N` of the order of the working bits over
 `B_2k / (2k x^2k)`, converges fast enough; the series is truncated where the next term
 falls below the target, and for a positive argument the remainder of
 this series is bounded in magnitude by the first omitted term, which is
-the truncation bound owed. For `x < 0` not an integer: the reflection
+the truncation bound owed. An exact argument whose denominator is short,
+which a typed decimal or fraction is, shifts exactly, the sum of
+reciprocals as one fraction by binary splitting, and four times as far,
+where the series is half as long (#117). For `x < 0` not an integer: the reflection
 `ψ(1 - x) - ψ(x) = π cot(π x)`, with `cot` from the kernel's `sin` and
 `cos`. The poles at the non-positive integers are `domain` errors; a
 ball touching or reaching across one is `unresolved` at the pole (the
@@ -269,7 +272,9 @@ reaches both ways.
 
 `lgamma(x)` is `ln |Γ(x)|`. For `x > 0`: the shift up by the recurrence
 `Γ(x + n) = x (x + 1) … (x + n - 1) Γ(x)`, the product kept as a ball,
-to `x >= N` as for `digamma`, then Stirling's series, the sum of
+to `x >= N` as for `digamma` (an exact argument of short denominator
+takes the product exactly by binary splitting, with one logarithm, and
+shifts four times as far, #117), then Stirling's series, the sum of
 `(x - 1/2) ln x`, `-x`, `ln(2π) / 2` and the terms
 `B_2k / (2k (2k - 1) x^(2k - 1))`, whose remainder for a positive
 argument is again bounded by the first omitted term. For a negative `x`
@@ -536,7 +541,17 @@ rulings and what it left behind.
   0.7 s a call and `gamma` 0.7 to 0.9 s, against `digamma`'s 1.3 s, the
   shift being a multiplication a step rather than a division; at a
   thousand digits 31 and 34 ms, where docs/calculator.md's estimate said
-  a second (recorded there). The sweep's rules bound `ln Γ` from
+  a second (recorded there). Since #117 an argument typed as a short
+  decimal or fraction takes the kernel's exact shift (`lgammaRational`,
+  `digammaRational`): the product or the sum of reciprocals by binary
+  splitting, then one logarithm or one division, so it shifts to four
+  times the working bits, where the series takes 725 terms against
+  1,419 and the Bernoulli run 730 numbers in half a second against
+  1,423 in two; measured there, `lgamma(1/2)` at the ceiling is 121 ms
+  and `digamma(1/2)` 141 ms against 449 and 1,213 ms for the loop, which
+  an inexact argument such as `gamma(pi())` keeps, and
+  `beta(0.5, 0.5) - pi()` at 32 digits resolves in a second cold and
+  0.7 s warm where it took 11.7 and 3.2. The sweep's rules bound `ln Γ` from
   Stirling's series for an argument at or above ten, so that `gamma`'s
   `overflow` and `underflow` are checked as `exp`'s are. The factorial's
   refusals of a value it does not take (`notInteger`, `notExact`) now

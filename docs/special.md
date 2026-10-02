@@ -222,18 +222,28 @@ gamma.
 ### Bernoulli numbers
 
 The asymptotic series of `lgamma` and `digamma` take the even Bernoulli
-numbers, exact rationals. They are computed once, as many as the largest
-ceiling asked for needs (the count grows with the working bits, about
-`bits / (2 log2 x)` for the shifted argument `x` below), by the tangent
-numbers, integers found by one recurrence, from which `B_2k` is a
-division; and memoized, the memo growing when a larger count is asked,
-as the constants of D10 are memoized by the ceiling. Nothing about them
-depends on the precision but the count. A series predicts its count
-from its first term and a bound on the ratio of consecutive terms before
-it sums, and reserves that many, so that a pass needing more than the
-last computes one run for what it will take; growing the memo term by
-term, a quarter past each index asked for, had a cold ceiling pass
-recompute the run five times over (#117).
+numbers through the ratios of consecutive ones, `|B_(2k+2) / B_2k|`,
+each term being the last times the ratio, an index factor and `1 / y^2`
+for the shifted argument `y` below. The numbers are exact rationals,
+computed by the tangent numbers, integers found by one recurrence, from
+which `B_2k` is a division, as many as the count asked for (the count
+grows with the working bits, about `bits / (2 log2 y)`); the ratios are
+formed from one such run in fixed point and memoized, the run released
+once they are formed (#117; before it the memo held the exact numbers,
+and a term was scaled by a numerator of twenty thousand bits and divided
+by the denominator, more work than the precision warranted). A ratio
+holds the bits the term it makes still needs: the terms shrink down the
+series, so the first ratios are held in full and the last in a few
+hundred bits, and the memo is about 1 MB at the default ceiling where
+the exact numbers were 1.8 MB. The memo grows by the count and by the
+bits it serves, the bits asked for plus the memo margin of D10, so that
+the run the first ceiling pass builds serves the ceiling pass of every
+`gamma` and of `beta` at arguments of moderate size. A series predicts
+its count from its first term and a bound on the ratio of consecutive
+terms before it sums, and reserves that many, so that a pass needing
+more than the last computes one run for what it will take; growing the
+memo term by term, a quarter past each index asked for, had a cold
+ceiling pass recompute the run five times over.
 
 ### `digamma` (6.2)
 
@@ -385,7 +395,8 @@ their series for small arguments. Each sub-note is a paragraph in the
 - `src/core/builtins/gamma.ts` with `fixed-gamma.ts` beside fixed.ts
   for `digamma`, `lgamma` and `gamma`; `beta.ts`; `incomplete.ts` for
   the incomplete functions and `erf.ts`; `src/core/bernoulli.ts` for the
-  memoized Bernoulli numbers.
+  Bernoulli numbers and `src/core/bernoulli-ratios.ts` for their ratios,
+  memoized.
 - `src/core/edges.sweep.ts`: the rules for each, and the builder's
   enumeration of a range of arities.
 - `src/messages.ts`: the domain reasons and the factorial's refusal.
@@ -438,23 +449,32 @@ rulings and what it left behind.
   boundary writes the boundary to twelve digits (`2.5`), where the
   edges before were integers and one digit served.
 - **6.2, `digamma`** (`src/core/builtins/gamma.ts`, `src/core/fixed-gamma.ts`,
-  `src/core/bernoulli.ts`). The series is summed as a recurrence on its
-  terms, each the last times `1 / y^2` and the ratio of consecutive
-  Bernoulli numbers with its index factors, the exact scaling first and
-  the two truncating steps last: a power of `1 / y^2` held on its own in
-  fixed point loses its relative precision as it shrinks, and the
-  Bernoulli numerator it is multiplied by turns an ulp of error into a
-  bound that grows where the term vanishes, which the first version
-  found by never terminating; the same happens when a truncation's ulp is
-  multiplied by the ratio, which grows like `k^2`. The loop ends at the
-  first term within eight ulps, a term's error being a few ulps however
-  small the term. The Bernoulli numbers are exact rationals from the
-  tangent numbers, memoized; since #117 the series predicts its count of
-  terms and reserves that many before it sums, so that a pass needing
-  more than the last computes one run for what it will take, where the
-  memo's growth by a quarter past each index asked for had a cold
-  ceiling pass recompute the run five times over, 7.8 s against 2.1 s for
-  the one run on the machine measured there.
+  `src/core/bernoulli.ts`, `src/core/bernoulli-ratios.ts`). The series is
+  summed as a recurrence on its terms, each the last times `1 / y^2` and
+  the ratio of consecutive Bernoulli numbers with its index factors, the
+  exact scaling first and the truncating steps last: a power of `1 / y^2`
+  held on its own in fixed point loses its relative precision as it
+  shrinks, and the Bernoulli numerator it is multiplied by turns an ulp
+  of error into a bound that grows where the term vanishes, which the
+  first version found by never terminating; the same happens when a
+  truncation's ulp is multiplied by the ratio, which grows like `k^2`.
+  The loop ends at the first term within eight ulps, a term's error
+  being a few ulps however small the term. The Bernoulli numbers enter as
+  the ratios of consecutive ones in fixed point, formed from one exact
+  run of the tangent numbers and memoized at the bits each term needs
+  (since #117; the memo held the exact numbers before, and a term was
+  scaled by a numerator of twenty thousand bits and divided by the
+  denominator): the term is scaled by the factor's numerator exactly,
+  then by the ratio, the factor's denominator and `1 / y^2`, the ratio
+  and `1 / y^2` cut to the bits the shrinking term still needs, so that a
+  term costs two multiplications of its own size; the series at the
+  ceiling went from 374 ms to 90 ms with the same values and error
+  bounds to the ulp at every size measured. The series predicts its
+  count of terms and reserves that many before it sums, so that a pass
+  needing more than the last computes one run for what it will take,
+  where the memo's growth by a quarter past each index asked for had a
+  cold ceiling pass recompute the run five times over, 7.8 s against
+  2.1 s for the one run on the machine measured there.
   The working bits are the result's plus a guard, whatever bits the
   argument comes at: a small argument comes at extra bits so that its
   reciprocal, the shift's first term, keeps its digits, and that term
@@ -470,9 +490,10 @@ rulings and what it left behind.
   division, which measured as 1.3 s a call, the Bernoulli run to about
   `B_2850` (the 1,423 numbers the series takes plus four of slack) another
   two or three seconds once; at a thousand digits a
-  call is 37 ms and the run 0.1 s. A floating memo of the ratios at the
-  memo's bits would cut a term's cost to two multiplications at the
-  working bits, if the ceiling pass needs to be faster. The built-in
+  call is 37 ms and the run 0.1 s. The memo of the ratios cut a term's
+  cost to two multiplications of the term's own size (#117: `lgamma` at
+  the ceiling from 760 to 440 ms where measured, and `digamma` to 1.5 s
+  there, the shift's divisions being most of it). The built-in
   routes an argument at or beyond `2^bits` to `ln x` within `1 / x`
   through `lnScaled`, and one below `2^-maxBits` to `ψ(1) - 1 / x` with
   `ψ(1)` within `2 |x|`, so that any exponent is a value; a negative

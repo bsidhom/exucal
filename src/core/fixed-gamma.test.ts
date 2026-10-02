@@ -16,7 +16,11 @@ import {
   type Fixed,
 } from "./fixed.ts";
 import { LIMIT_BITS, add, compare, rational, subtract } from "./rational.ts";
-import { bernoulliGrowths, bernoulliMemoCount } from "./bernoulli.ts";
+import {
+  ratioGrowths,
+  ratioMemoBits,
+  ratioMemoCount,
+} from "./bernoulli-ratios.ts";
 import { MEMO_MARGIN } from "./constants.ts";
 import { format, toRational as scaledToRational } from "./scaled.ts";
 import { dec } from "../testing/scaled.ts";
@@ -61,24 +65,29 @@ test("the shift target is about a third of the working bits, and at least two", 
   assert.equal(shiftTarget(bitsFor(1000)), Math.ceil(bitsFor(1000) / 3));
 });
 
-test("a series reserves the Bernoulli numbers it will take, so that a pass computes its run once", () => {
+test("a series reserves the Bernoulli ratios it will take, so that a pass computes its run once", () => {
   // The first call of the kernel in this file: the memo is empty, and the
   // series must never fall back to growing it a quarter at a time.
-  assert.equal(bernoulliMemoCount(), 0);
-  const growths = bernoulliGrowths();
+  assert.equal(ratioMemoCount(), 0);
+  const growths = ratioGrowths();
   // At 336 digits (1,149 bits, the schedule's fourth pass) the shift
-  // target is 383 and the series takes 124 terms: the prediction is 125,
-  // and the reservation four more.
+  // target is 383, the working bits 1,174 and the series takes 124 terms:
+  // the prediction is 125, and the reservation four more, at the working
+  // bits plus the margin.
   lgammaFixed(at("0.5", bitsFor(336)), bitsFor(336), bitsFor(1000));
-  assert.equal(bernoulliMemoCount(), 129);
-  assert.equal(bernoulliGrowths(), growths);
+  assert.equal(ratioMemoCount(), 129);
+  assert.equal(ratioMemoBits(), 1174 + MEMO_MARGIN);
+  assert.equal(ratioGrowths(), growths);
   // A pass at fewer bits is served from the run.
   digammaFixed(at("2.5", bitsFor(40)), bitsFor(40), bitsFor(1000));
-  assert.equal(bernoulliMemoCount(), 129);
-  // The next pass, at 672 digits, takes 242 terms: one run, to its count.
+  assert.equal(ratioMemoCount(), 129);
+  assert.equal(ratioMemoBits(), 1174 + MEMO_MARGIN);
+  // The next pass, at 672 digits and 2,291 working bits, takes 242 terms:
+  // one run, to its count and bits.
   digammaFixed(at("0.5", bitsFor(672)), bitsFor(672), bitsFor(1000));
-  assert.equal(bernoulliMemoCount(), 246);
-  assert.equal(bernoulliGrowths(), growths);
+  assert.equal(ratioMemoCount(), 246);
+  assert.equal(ratioMemoBits(), 2291 + MEMO_MARGIN);
+  assert.equal(ratioGrowths(), growths);
 });
 
 test("digammaFixed matches mpmath to forty digits, with an error of a few ulps", () => {
@@ -143,7 +152,8 @@ test("digammaFixed at a thousand digits", () => {
   const g = digammaFixed(at("3.7", bits), bits, bits);
   const shown = format(fixedToScaled(g, 1000), 1000, "halfAwayFromZero");
   assert.equal(shown.slice(0, 999), PSI_3_7.slice(0, 999));
-  assert.ok(g.error < 1n << 20n, `error ${g.error} ulps`);
+  // The argument's own ulp through the shift and the series, which adds two.
+  assert.ok(g.error <= 32n, `error ${g.error} ulps`);
   const ball = fixedToBall(g, 1000);
   assert.ok(ball.rad.kind === "bounded" && ball.rad.exp < -3300n);
 });
@@ -257,7 +267,8 @@ test("lgammaFixed at a thousand digits", () => {
   const g = lgammaFixed(at("3.7", bits), bits, bits);
   const shown = format(fixedToScaled(g, 1000), 1000, "halfAwayFromZero");
   assert.equal(shown.slice(0, 999), LGAMMA_3_7.slice(0, 999));
-  assert.ok(g.error < 1n << 20n, `error ${g.error} ulps`);
+  // The argument's own ulp through the shift and the series, which adds two.
+  assert.ok(g.error <= 32n, `error ${g.error} ulps`);
 });
 
 test("lgammaFixed takes a positive interval", () => {

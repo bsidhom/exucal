@@ -4459,7 +4459,8 @@ dimensioned `floor` the dimension-rule error; the sweep's rows. README
 ### 6.2 `digamma`
 
 The Bernoulli numbers (`bernoulli.ts`, exact rationals from the tangent
-numbers, memoized by count), the recurrence up to the shifted argument
+numbers, memoized by count; their ratios in fixed point since #117,
+`bernoulli-ratios.ts`), the recurrence up to the shifted argument
 and the asymptotic series with its remainder bounded by the first
 omitted term, the reflection for negative arguments, the poles as
 `domain` errors and a ball across one `unresolved` at the pole; on

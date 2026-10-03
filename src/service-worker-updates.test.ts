@@ -3,17 +3,27 @@ import { test } from "node:test";
 import {
   SKIP_WAITING,
   throttledCheck,
-  watchForUpdates,
+  watchWorkers,
   type ContainerHandle,
   type RegistrationHandle,
-  type UpdateCallbacks,
   type WorkerHandle,
+  type WorkerStatus,
 } from "./service-worker-updates.ts";
 
-/** A service worker that records what it is sent and moves on command. */
+/**
+ * A service worker of a given build (none if it would not say), which
+ * records what it is sent and moves on command.
+ */
 class FakeWorker extends EventTarget implements WorkerHandle {
-  state = "installing";
+  readonly build: string | undefined;
+  state: string;
   readonly messages: unknown[] = [];
+
+  constructor(build?: string, state = "installing") {
+    super();
+    this.build = build;
+    this.state = state;
+  }
 
   postMessage(message: unknown) {
     this.messages.push(message);
@@ -26,115 +36,192 @@ class FakeWorker extends EventTarget implements WorkerHandle {
   }
 }
 
-class FakeRegistration extends EventTarget implements RegistrationHandle {
+/** A registration whose workers move through their lifecycle on command. */
+class FakeRegistration
+  extends EventTarget
+  implements RegistrationHandle<FakeWorker>
+{
   installing: FakeWorker | null = null;
   waiting: FakeWorker | null = null;
+  active: FakeWorker | null = null;
 
   /** Starts installing `worker`, as the browser does when it finds an update. */
   find(worker: FakeWorker) {
     this.installing = worker;
     this.dispatchEvent(new Event("updatefound"));
   }
+
+  /** Moves the installing worker to waiting. */
+  install() {
+    const worker = this.installing!;
+    this.installing = null;
+    this.waiting = worker;
+    worker.moveTo("installed");
+  }
+
+  /** Moves the waiting worker to active. */
+  activate() {
+    const worker = this.waiting!;
+    this.waiting = null;
+    this.active = worker;
+    worker.moveTo("activating");
+  }
 }
 
-class FakeContainer extends EventTarget implements ContainerHandle {
-  controller: object | null;
+class FakeContainer extends EventTarget implements ContainerHandle<FakeWorker> {
+  controller: FakeWorker | null;
 
-  constructor(controller: object | null) {
+  constructor(controller: FakeWorker | null) {
     super();
     this.controller = controller;
   }
 
   /** Hands the page to `controller`, as the browser does when a worker takes over. */
-  changeTo(controller: object) {
+  changeTo(controller: FakeWorker) {
     this.controller = controller;
     this.dispatchEvent(new Event("controllerchange"));
   }
 }
 
-/** Callbacks that count their calls. */
-function callbacks() {
-  const counts = { ready: 0, reloads: 0 };
-  const calls: UpdateCallbacks = {
-    ready: () => void counts.ready++,
-    reload: () => void counts.reloads++,
-  };
-  return { counts, calls };
+/** A page controlled by an active worker of build `build`. */
+function controlled(build?: string) {
+  const worker = new FakeWorker(build, "activated");
+  const registration = new FakeRegistration();
+  registration.active = worker;
+  return { container: new FakeContainer(worker), registration };
 }
 
-test("a worker already waiting is offered to a controlled page", () => {
-  const registration = new FakeRegistration();
-  registration.waiting = new FakeWorker();
-  const { counts, calls } = callbacks();
-  watchForUpdates(new FakeContainer({}), registration, calls);
-  assert.equal(counts.ready, 1);
+/**
+ * Watches `registration`, recording the statuses reported, the reloads and
+ * the workers asked for their builds.
+ */
+function watching(container: FakeContainer, registration: FakeRegistration) {
+  const statuses: WorkerStatus[] = [];
+  const asked: FakeWorker[] = [];
+  const counts = { reloads: 0 };
+  const watch = watchWorkers(container, registration, {
+    buildOf: (worker) => {
+      asked.push(worker);
+      return Promise.resolve(worker.build);
+    },
+    status: (status) => void statuses.push(status),
+    reload: () => void counts.reloads++,
+  });
+  return { watch, statuses, asked, counts, last: () => statuses.at(-1) };
+}
+
+/** Lets the workers' answers about their builds arrive. */
+const answers = () => new Promise((resolve) => setImmediate(resolve));
+
+test("a controlled page is ready, with its worker's build once it answers", async () => {
+  const { container, registration } = controlled("aaa");
+  const { last } = watching(container, registration);
+  assert.deepEqual(last(), { kind: "ready" });
+  await answers();
+  assert.deepEqual(last(), { kind: "ready", build: "aaa" });
 });
 
-test("nothing is offered when no worker is waiting", () => {
-  const { counts, calls } = callbacks();
-  watchForUpdates(new FakeContainer({}), new FakeRegistration(), calls);
-  assert.equal(counts.ready, 0);
+test("a worker that does not name its build is shown without one", async () => {
+  const { container, registration } = controlled();
+  const { statuses } = watching(container, registration);
+  await answers();
+  assert.deepEqual(statuses, [{ kind: "ready" }]);
 });
 
-test("a worker is offered once it has installed, not before", () => {
+test("the first install is installing until the worker claims the page", () => {
+  const container = new FakeContainer(null);
   const registration = new FakeRegistration();
-  const { counts, calls } = callbacks();
-  watchForUpdates(new FakeContainer({}), registration, calls);
-  const worker = new FakeWorker();
+  const { last, counts } = watching(container, registration);
+  const worker = new FakeWorker("aaa");
   registration.find(worker);
-  assert.equal(counts.ready, 0);
-  worker.moveTo("installed");
-  assert.equal(counts.ready, 1);
+  assert.deepEqual(last(), { kind: "installing" });
+  registration.install();
+  assert.deepEqual(last(), { kind: "installing" });
+  registration.activate();
+  assert.deepEqual(last(), { kind: "installing" });
+  container.changeTo(worker);
+  assert.deepEqual(last(), { kind: "ready" });
+  assert.equal(counts.reloads, 0);
 });
 
-test("a worker that fails to install is not offered", () => {
+test("a page loaded past an active worker is bypassed", () => {
   const registration = new FakeRegistration();
-  const { counts, calls } = callbacks();
-  watchForUpdates(new FakeContainer({}), registration, calls);
-  const worker = new FakeWorker();
-  registration.find(worker);
-  worker.moveTo("redundant");
-  assert.equal(counts.ready, 0);
+  registration.active = new FakeWorker("aaa", "activated");
+  const { last } = watching(new FakeContainer(null), registration);
+  assert.deepEqual(last(), { kind: "bypassed" });
 });
 
-test("a newer worker replacing the waiting one is offered again", () => {
-  const registration = new FakeRegistration();
-  registration.waiting = new FakeWorker();
-  const { counts, calls } = callbacks();
-  watchForUpdates(new FakeContainer({}), registration, calls);
-  const newer = new FakeWorker();
-  registration.find(newer);
-  newer.moveTo("installed");
-  assert.equal(counts.ready, 2);
+test("an update downloads, then waits, named by its build", async () => {
+  const { container, registration } = controlled("aaa");
+  const { last } = watching(container, registration);
+  registration.find(new FakeWorker("bbb"));
+  assert.deepEqual(last(), { kind: "downloading" });
+  registration.install();
+  assert.deepEqual(last(), { kind: "waiting" });
+  await answers();
+  assert.deepEqual(last(), { kind: "waiting", build: "bbb" });
 });
 
-test("the first install is not an update, waiting or installing", () => {
-  const registration = new FakeRegistration();
-  registration.waiting = new FakeWorker();
-  const { counts, calls } = callbacks();
-  watchForUpdates(new FakeContainer(null), registration, calls);
-  const worker = new FakeWorker();
-  registration.find(worker);
-  worker.moveTo("installed");
-  assert.equal(counts.ready, 0);
+test("an update that finished installing before the page loaded is offered", async () => {
+  const { container, registration } = controlled("aaa");
+  registration.waiting = new FakeWorker("bbb", "installed");
+  const { last } = watching(container, registration);
+  await answers();
+  assert.deepEqual(last(), { kind: "waiting", build: "bbb" });
 });
 
-test("applying sends the waiting worker the message to take over", () => {
-  const registration = new FakeRegistration();
-  const waiting = new FakeWorker();
+test("a waiting update is offered over a newer one still downloading", async () => {
+  const { container, registration } = controlled("aaa");
+  registration.waiting = new FakeWorker("bbb", "installed");
+  const { last } = watching(container, registration);
+  registration.find(new FakeWorker("ccc"));
+  await answers();
+  assert.deepEqual(last(), { kind: "waiting", build: "bbb" });
+});
+
+test("a newer update replacing the waiting one is offered with its build", async () => {
+  const { container, registration } = controlled("aaa");
+  const older = new FakeWorker("bbb", "installed");
+  registration.waiting = older;
+  const { last } = watching(container, registration);
+  registration.find(new FakeWorker("ccc"));
+  registration.install();
+  older.moveTo("redundant");
+  await answers();
+  assert.deepEqual(last(), { kind: "waiting", build: "ccc" });
+});
+
+test("each worker is asked for its build once", async () => {
+  const { container, registration } = controlled("aaa");
+  const { asked } = watching(container, registration);
+  const update = new FakeWorker("bbb");
+  registration.find(update);
+  registration.install();
+  await answers();
+  update.dispatchEvent(new Event("statechange"));
+  await answers();
+  assert.deepEqual(
+    asked.map((worker) => worker.build),
+    ["aaa", "bbb"],
+  );
+});
+
+test("applying asks the waiting worker to take over and says so", () => {
+  const { container, registration } = controlled("aaa");
+  const waiting = new FakeWorker("bbb", "installed");
   registration.waiting = waiting;
-  const { calls } = callbacks();
-  watchForUpdates(new FakeContainer({}), registration, calls).apply();
+  const { watch, last } = watching(container, registration);
+  watch.apply();
   assert.deepEqual(waiting.messages, [SKIP_WAITING]);
+  assert.deepEqual(last(), { kind: "applying" });
 });
 
-test("applying goes to the worker waiting at the time, not the one offered", () => {
-  const registration = new FakeRegistration();
-  const offered = new FakeWorker();
+test("applying goes to the worker waiting at the time", () => {
+  const { container, registration } = controlled("aaa");
+  const offered = new FakeWorker("bbb", "installed");
   registration.waiting = offered;
-  const { calls } = callbacks();
-  const watch = watchForUpdates(new FakeContainer({}), registration, calls);
-  const newer = new FakeWorker();
+  const { watch } = watching(container, registration);
+  const newer = new FakeWorker("ccc", "installed");
   registration.waiting = newer;
   watch.apply();
   assert.deepEqual(offered.messages, []);
@@ -142,32 +229,27 @@ test("applying goes to the worker waiting at the time, not the one offered", () 
 });
 
 test("applying with no worker waiting does nothing", () => {
-  const { calls } = callbacks();
-  const watch = watchForUpdates(
-    new FakeContainer({}),
-    new FakeRegistration(),
-    calls,
-  );
-  assert.doesNotThrow(() => watch.apply());
+  const { container, registration } = controlled("aaa");
+  const { watch, statuses } = watching(container, registration);
+  watch.apply();
+  assert.deepEqual(statuses, [{ kind: "ready" }]);
 });
 
 test("a controlled page reloads once when a new worker takes over", () => {
-  const container = new FakeContainer({});
-  const { counts, calls } = callbacks();
-  watchForUpdates(container, new FakeRegistration(), calls);
-  container.changeTo({});
+  const { container, registration } = controlled("aaa");
+  const { counts } = watching(container, registration);
+  container.changeTo(new FakeWorker("bbb", "activating"));
   assert.equal(counts.reloads, 1);
-  container.changeTo({});
+  container.changeTo(new FakeWorker("ccc", "activating"));
   assert.equal(counts.reloads, 1);
 });
 
 test("the first worker claiming a page does not reload it, a later one does", () => {
   const container = new FakeContainer(null);
-  const { counts, calls } = callbacks();
-  watchForUpdates(container, new FakeRegistration(), calls);
-  container.changeTo({});
+  const { counts } = watching(container, new FakeRegistration());
+  container.changeTo(new FakeWorker("aaa", "activating"));
   assert.equal(counts.reloads, 0);
-  container.changeTo({});
+  container.changeTo(new FakeWorker("bbb", "activating"));
   assert.equal(counts.reloads, 1);
 });
 

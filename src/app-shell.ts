@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing } from "lit";
+import { LitElement, css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import {
   MIN_MAX_BITS,
@@ -22,9 +22,10 @@ import {
   saveSettings,
   type Settings,
 } from "./settings.ts";
-import { BUILD_ID, SHORT_BUILD_ID } from "./build-id.ts";
+import { BUILD_ID, SHORT_BUILD_ID, shortBuildId } from "./build-id.ts";
 import { recommendLimits } from "./limits.ts";
-import { applyUpdate, onUpdateReady } from "./register-service-worker.ts";
+import { applyUpdate, onWorkerStatus } from "./register-service-worker.ts";
+import type { WorkerStatus } from "./service-worker-updates.ts";
 import { buildSystemTable } from "./system-build.ts";
 import {
   loadSystemDefinitions,
@@ -67,13 +68,14 @@ import "./unit-converter.ts";
  *
  * A footer under everything names the build the page is running (build-id.ts),
  * so a copy served from the service worker's cache can be told from the one
- * last deployed.
- *
- * A banner over everything appears once a new version of the app has been
- * installed in the background (register-service-worker.ts), with a button
- * that switches to it. The new version is already cached by then, so the
- * switch is a reload that costs no download; until the user asks for it, the
- * running version stays, so an update never interrupts them.
+ * last deployed, and beside it the service worker's status
+ * (register-service-worker.ts). Once a new version of the app has been
+ * installed in the background, the status names its build, with a link that
+ * switches to it for as long as it waits. The new version is already cached
+ * by then, so the switch is a reload that costs no download; until the user
+ * asks for it, the running version stays, so an update never interrupts
+ * them. Should the worker serving the page ever be of another build than the
+ * page, the status says so, with a link to reload.
  */
 @customElement("app-shell")
 export class AppShell extends LitElement {
@@ -192,26 +194,22 @@ export class AppShell extends LitElement {
       align-self: flex-end;
     }
 
-    .update {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem 1rem;
-      padding: 0.5rem 1rem;
-      background: #3b5bdb;
-      color: #fff;
-    }
-
-    .update button {
-      padding: 0.25rem 0.75rem;
-    }
-
     footer {
       padding: 0 1rem 1rem;
       text-align: center;
       font-size: 0.75rem;
+    }
+
+    /* The routine parts of the footer recede; an update does not. */
+    footer .quiet {
       opacity: 0.6;
+    }
+
+    footer .link {
+      padding: 0;
+      border: none;
+      color: LinkText;
+      text-decoration: underline;
     }
 
     footer code {
@@ -231,24 +229,24 @@ export class AppShell extends LitElement {
   /** Whether the probe for the recommended limits is running. */
   @state() private recommending = false;
 
-  /** Whether a new version of the app is installed and ready to switch to. */
-  @state() private updateReady = false;
+  /** The service worker's status, shown in the footer. */
+  @state() private workerStatus: WorkerStatus = { kind: "registering" };
 
-  /** Stops the reports of a new version; set while connected. */
-  private stopUpdateReports?: () => void;
+  /** Stops the reports of the worker's status; set while connected. */
+  private stopStatusReports?: () => void;
 
   connectedCallback() {
     super.connectedCallback();
     // The load is memoized, so being connected again costs nothing.
     this.load();
-    this.stopUpdateReports = onUpdateReady(() => {
-      this.updateReady = true;
+    this.stopStatusReports = onWorkerStatus((status) => {
+      this.workerStatus = status;
     });
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    this.stopUpdateReports?.();
+    this.stopStatusReports?.();
   }
 
   /**
@@ -272,24 +270,72 @@ export class AppShell extends LitElement {
 
   render() {
     return html`
-      ${this.renderUpdate()}
       <main>
         <h1>Units</h1>
         ${this.renderContent()} ${this.renderSettings()}
       </main>
-      <footer>Build <code title=${BUILD_ID}>${SHORT_BUILD_ID}</code></footer>
+      <footer>
+        <span class="quiet">
+          Build <code title=${BUILD_ID}>${SHORT_BUILD_ID}</code> ·
+        </span>
+        <span role="status">${this.renderWorkerStatus()}</span>
+      </footer>
     `;
   }
 
-  /** The banner offering the new version, if one is ready. */
-  private renderUpdate() {
-    if (!this.updateReady) {
-      return nothing;
+  /**
+   * The service worker's status, for the footer: a few quiet words, or the
+   * waiting update with the link that applies it.
+   */
+  private renderWorkerStatus() {
+    const status = this.workerStatus;
+    const quiet = (text: string) => html`<span class="quiet">${text}</span>`;
+    const reload = html`<button
+      type="button"
+      class="link"
+      @click=${() => location.reload()}
+    >
+      Reload
+    </button>`;
+    switch (status.kind) {
+      case "development":
+        return quiet("No service worker in development");
+      case "unsupported":
+        return quiet("Offline use not supported by this browser");
+      case "registering":
+        return quiet("Starting the service worker…");
+      case "failed":
+        return quiet("The service worker failed to register");
+      case "installing":
+        return quiet("Saving for offline use…");
+      case "bypassed":
+        return html`${quiet("Service worker bypassed ·")} ${reload}`;
+      case "ready":
+        if (status.build !== undefined && status.build !== BUILD_ID) {
+          return html`Served by build
+            <code title=${status.build}>${shortBuildId(status.build)}</code>
+            · ${reload}`;
+        }
+        return quiet("Ready offline");
+      case "downloading":
+        return quiet("Downloading an update…");
+      case "waiting":
+        return html`Update
+          ${
+            status.build === undefined
+              ? ""
+              : html`to
+                  <code title=${status.build}
+                    >${shortBuildId(status.build)}</code
+                  >`
+          }
+          ready ·
+          <button type="button" class="link" @click=${applyUpdate}>
+            Update now
+          </button>`;
+      case "applying":
+        return "Updating…";
     }
-    return html`<div class="update" role="status">
-      <span>A new version of the app is ready.</span>
-      <button type="button" @click=${applyUpdate}>Reload</button>
-    </div>`;
   }
 
   /**

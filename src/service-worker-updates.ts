@@ -1,17 +1,19 @@
 /**
- * The page's side of updating the app: noticing that a new version has been
- * installed, offering it, and reloading onto it once it takes over.
+ * The page's side of the service worker: what state it is in, which build
+ * each worker serves, and switching to a new version once one is waiting.
  *
  * A new service worker installs in the background (downloading the new build
  * into its own cache) and then waits: the browser keeps the old one active
  * for as long as any page it controls is open, which for an installed app on
- * a phone can be days. `watchForUpdates` reports when such a worker is
- * waiting, and its `apply` asks the worker to take over at once (sw.ts skips
- * waiting when sent `SKIP_WAITING`). Once it has, every open page of the
- * app reloads, since a page keeps running the code it was loaded with and
- * the files of the old version are gone from the cache. The new version is
- * already cached in full by the time it is offered, so applying it costs no
- * download.
+ * a phone can be days. `watchWorkers` reports the registration's state as a
+ * `WorkerStatus` whenever it changes, including the build of a worker
+ * waiting to take over, and its `apply` asks that worker to take over at
+ * once (sw.ts skips waiting when sent `SKIP_WAITING`). Once it has, every
+ * open page of the app reloads, since a page keeps running the code it was
+ * loaded with and the files of the old version are gone from the cache: a
+ * page never runs one build while a worker of another serves it. The new
+ * version is already cached in full by the time it is offered, so applying
+ * it costs no download.
  *
  * Nothing here touches the browser's globals, so the logic is checked under
  * Node.js against fakes; `register-service-worker.ts` connects it to
@@ -26,6 +28,13 @@
  */
 export const SKIP_WAITING = "skip-waiting";
 
+/**
+ * The message that asks a worker for the build it serves. It carries a
+ * port, and sw.ts answers on it with its `__BUILD_ID__`, the same commit ID
+ * the page shows for itself (build-id.ts).
+ */
+export const BUILD_ID_REQUEST = "build-id";
+
 /** A service worker as this module uses it: `ServiceWorker` in a browser. */
 export interface WorkerHandle extends EventTarget {
   readonly state: string;
@@ -33,23 +42,67 @@ export interface WorkerHandle extends EventTarget {
 }
 
 /** A registration as this module uses it: `ServiceWorkerRegistration`. */
-export interface RegistrationHandle extends EventTarget {
-  readonly installing: WorkerHandle | null;
-  readonly waiting: WorkerHandle | null;
+export interface RegistrationHandle<
+  W extends WorkerHandle = WorkerHandle,
+> extends EventTarget {
+  readonly installing: W | null;
+  readonly waiting: W | null;
+  readonly active: W | null;
 }
 
 /** The page's view of its workers: `navigator.serviceWorker`. */
-export interface ContainerHandle extends EventTarget {
-  readonly controller: object | null;
+export interface ContainerHandle<
+  W extends WorkerHandle = WorkerHandle,
+> extends EventTarget {
+  readonly controller: W | null;
 }
 
-/** What `watchForUpdates` calls on the page. */
-export interface UpdateCallbacks {
+/**
+ * The state of the service worker as far as this page is concerned. The
+ * first four kinds come before or instead of a registration
+ * (register-service-worker.ts); the rest are read from one by
+ * `watchWorkers`.
+ */
+export type WorkerStatus =
+  /** A development build, which registers no worker. */
+  | { readonly kind: "development" }
+  /** The browser has no service workers. */
+  | { readonly kind: "unsupported" }
+  /** The worker is being registered. */
+  | { readonly kind: "registering" }
+  /** The registration failed. */
+  | { readonly kind: "failed" }
+  /** The first worker is installing; nothing controls the page yet. */
+  | { readonly kind: "installing" }
   /**
-   * A new version is installed and waits for the user's go-ahead. Called
-   * again if an even newer one replaces it before then.
+   * A worker is active but does not control this page, which was loaded
+   * past it, as a hard reload does.
    */
-  ready(): void;
+  | { readonly kind: "bypassed" }
+  /**
+   * The page is controlled and no update is pending. `build` is the
+   * controlling worker's build once it has answered.
+   */
+  | { readonly kind: "ready"; readonly build?: string }
+  /** A new version is downloading. */
+  | { readonly kind: "downloading" }
+  /**
+   * A new version is installed and waits to take over. `build` is its build
+   * once it has answered.
+   */
+  | { readonly kind: "waiting"; readonly build?: string }
+  /** The waiting worker has been asked to take over; the page will reload. */
+  | { readonly kind: "applying" };
+
+/** What `watchWorkers` needs from the page. */
+export interface WatchCallbacks<W extends WorkerHandle = WorkerHandle> {
+  /**
+   * Asks `worker` for the build it serves, resolving to `undefined` if it
+   * does not answer, as a worker built before it could would not.
+   */
+  buildOf(worker: W): Promise<string | undefined>;
+  /** Called with the status whenever it may have changed. */
+  status(status: WorkerStatus): void;
   /**
    * A new worker has taken over this page, which still runs the old
    * version's code: the page must reload. Called at most once.
@@ -57,8 +110,8 @@ export interface UpdateCallbacks {
   reload(): void;
 }
 
-/** What the page can do about an update that `watchForUpdates` reported. */
-export interface UpdateWatch {
+/** What the page can do about the worker that `watchWorkers` follows. */
+export interface WorkerWatch {
   /**
    * Asks the waiting worker to take over now; every open page of the app
    * then reloads. Does nothing if no worker is waiting, as when another
@@ -68,37 +121,66 @@ export interface UpdateWatch {
 }
 
 /**
- * Watches `registration` for a new version and reports it through
- * `callbacks`.
+ * Follows `registration` and reports its status through `callbacks`, at
+ * once and on every change: a worker found, installed or activated, or a
+ * change of controller.
  *
- * A worker counts as an update only if this page already has a controller.
- * On the first visit nothing controls the page, and the first worker takes
- * over without waiting (sw.ts claims the page when it activates); there is
- * nothing to offer and nothing to reload onto. For the same reason, a change
- * of controller reloads the page only if it had one before the change.
+ * Each worker is asked for its build once, the controlling one and the
+ * waiting one, and the status is reported again when it answers.
+ *
+ * A change of controller reloads the page only if it had one before: on the
+ * first visit nothing controls the page, and the first worker takes over
+ * without waiting (sw.ts claims the page when it activates), serving the
+ * very build the page was loaded from the network with.
  */
-export function watchForUpdates(
-  container: ContainerHandle,
-  registration: RegistrationHandle,
-  callbacks: UpdateCallbacks,
-): UpdateWatch {
-  const offer = (worker: WorkerHandle | null) => {
-    if (worker !== null && container.controller !== null) {
-      callbacks.ready();
-    }
+export function watchWorkers<W extends WorkerHandle>(
+  container: ContainerHandle<W>,
+  registration: RegistrationHandle<W>,
+  callbacks: WatchCallbacks<W>,
+): WorkerWatch {
+  const builds = new WeakMap<W, string>();
+  const asked = new WeakSet<W>();
+  const followed = new WeakSet<W>();
+  let applying = false;
+
+  const report = () => {
+    callbacks.status(
+      applying
+        ? { kind: "applying" }
+        : statusOf(container.controller, registration, builds),
+    );
   };
 
-  // A worker may have finished installing before this page loaded, while an
-  // earlier page of the app was open.
-  offer(registration.waiting);
-  registration.addEventListener("updatefound", () => {
-    const worker = registration.installing;
-    worker?.addEventListener("statechange", () => {
-      if (worker.state === "installed") {
-        offer(worker);
+  const learn = (worker: W | null) => {
+    if (worker === null || asked.has(worker)) {
+      return;
+    }
+    asked.add(worker);
+    void callbacks.buildOf(worker).then((build) => {
+      if (build !== undefined) {
+        builds.set(worker, build);
+        report();
       }
     });
-  });
+  };
+
+  const update = () => {
+    for (const worker of [
+      registration.installing,
+      registration.waiting,
+      registration.active,
+    ]) {
+      if (worker !== null && !followed.has(worker)) {
+        followed.add(worker);
+        worker.addEventListener("statechange", update);
+      }
+    }
+    learn(container.controller);
+    learn(registration.waiting);
+    report();
+  };
+
+  registration.addEventListener("updatefound", update);
 
   let controller = container.controller;
   let reloading = false;
@@ -109,13 +191,55 @@ export function watchForUpdates(
       reloading = true;
       callbacks.reload();
     }
+    update();
   });
+
+  update();
 
   return {
     apply() {
-      registration.waiting?.postMessage(SKIP_WAITING);
+      const { waiting } = registration;
+      if (waiting !== null) {
+        applying = true;
+        waiting.postMessage(SKIP_WAITING);
+        report();
+      }
     },
   };
+}
+
+/**
+ * The status that `controller` and `registration` add up to, with the
+ * builds learned so far. A waiting worker takes precedence over a newer one
+ * still downloading, since it is the one the page can switch to.
+ */
+function statusOf<W extends WorkerHandle>(
+  controller: W | null,
+  registration: RegistrationHandle<W>,
+  builds: WeakMap<W, string>,
+): WorkerStatus {
+  const { installing, waiting, active } = registration;
+  if (controller === null) {
+    // An activating worker is the first one, about to claim the page.
+    return active === null || active.state === "activating"
+      ? { kind: "installing" }
+      : { kind: "bypassed" };
+  }
+  if (waiting !== null) {
+    return withBuild("waiting", builds.get(waiting));
+  }
+  if (installing !== null) {
+    return { kind: "downloading" };
+  }
+  return withBuild("ready", builds.get(controller));
+}
+
+/** A status of `kind` with `build` if it is known. */
+function withBuild(
+  kind: "ready" | "waiting",
+  build: string | undefined,
+): WorkerStatus {
+  return build === undefined ? { kind } : { kind, build };
 }
 
 /**

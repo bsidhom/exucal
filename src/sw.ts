@@ -19,6 +19,10 @@
  * page asks it to by sending it `SKIP_WAITING` (service-worker-updates.ts),
  * which the page does when the user accepts the update it offers. The old
  * cache is deleted when it takes over.
+ *
+ * Sent `BUILD_ID_REQUEST` with a port, it answers on the port with the
+ * commit it was built from, so that the page can name a waiting update in
+ * its footer and tell which build is serving it.
  */
 
 declare const self: ServiceWorkerGlobalScope;
@@ -34,6 +38,13 @@ declare const __PRECACHE__: {
   urls: string[];
 };
 
+/**
+ * The commit this worker was built from, the same one the page shows
+ * (build-id.ts): `vite-plugin-build-id.ts` defines it for every entry of
+ * the build.
+ */
+declare const __BUILD_ID__: string;
+
 const cacheName = `precache-${__PRECACHE__.version}`;
 
 /**
@@ -42,6 +53,12 @@ const cacheName = `precache-${__PRECACHE__.version}`;
  * imported (see there).
  */
 const SKIP_WAITING = "skip-waiting";
+
+/**
+ * The message that asks this worker for its build, `BUILD_ID_REQUEST` in
+ * service-worker-updates.ts.
+ */
+const BUILD_ID_REQUEST = "build-id";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(precache());
@@ -55,6 +72,8 @@ self.addEventListener("message", (event) => {
   // Skipping waiting does nothing once this worker is active.
   if (event.data === SKIP_WAITING) {
     event.waitUntil(self.skipWaiting());
+  } else if (event.data === BUILD_ID_REQUEST) {
+    event.ports[0]?.postMessage(__BUILD_ID__);
   }
 });
 

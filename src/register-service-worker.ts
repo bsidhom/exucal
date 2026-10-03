@@ -1,18 +1,21 @@
 import {
+  BUILD_ID_REQUEST,
   throttledCheck,
-  watchForUpdates,
-  type UpdateWatch,
+  watchWorkers,
+  type WorkerStatus,
+  type WorkerWatch,
 } from "./service-worker-updates.ts";
 
 /**
- * Registers the service worker that makes the app work offline, and tells
- * the page when a new version of the app is ready (service-worker-updates.ts).
+ * Registers the service worker that makes the app work offline, and keeps
+ * the page told of its status (service-worker-updates.ts), which the shell
+ * shows in its footer along with the update it offers.
  *
  * The worker is only registered in production builds: `pnpm build` is what
  * produces `sw.js` with the list of files to cache (see
  * `vite-plugin-precache.ts`), and a worker that cached files during `pnpm dev`
  * would fight the dev server's hot reloading. Use `pnpm preview` to exercise
- * it locally. In development no update is ever reported.
+ * it locally.
  *
  * Besides the check the browser makes on every navigation, the page checks
  * for an update whenever it comes back into view or back online, and every
@@ -21,7 +24,31 @@ import {
  * would otherwise not hear of a new version until it was closed and opened
  * again.
  */
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
+
+/** The least time between two checks for an update, in milliseconds. */
+const CHECK_INTERVAL = 5 * 60 * 1000;
+
+/** How often to check for an update while the page stays in view. */
+const PERIODIC_CHECK = 60 * 60 * 1000;
+
+/** How long to wait for a worker to name its build, in milliseconds. */
+const BUILD_ID_TIMEOUT = 5000;
+
+/** The watch over the registration, once the worker is registered. */
+let watch: WorkerWatch | undefined;
+
+/** The latest status. */
+let status: WorkerStatus;
+
+/** Who to tell when the status changes. */
+const listeners = new Set<(status: WorkerStatus) => void>();
+
+if (!import.meta.env.PROD) {
+  setStatus({ kind: "development" });
+} else if (!("serviceWorker" in navigator)) {
+  setStatus({ kind: "unsupported" });
+} else {
+  setStatus({ kind: "registering" });
   // Wait for the page to finish loading so that installing the worker (which
   // downloads every file it caches) does not compete with the first render.
   window.addEventListener("load", () => {
@@ -29,13 +56,9 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
     container
       .register(`${import.meta.env.BASE_URL}sw.js`, { type: "module" })
       .then((registration) => {
-        watch = watchForUpdates(container, registration, {
-          ready() {
-            updateReady = true;
-            for (const listener of listeners) {
-              listener();
-            }
-          },
+        watch = watchWorkers(container, registration, {
+          buildOf,
+          status: setStatus,
           reload() {
             location.reload();
           },
@@ -56,40 +79,53 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
       })
       .catch((error: unknown) => {
         console.error("Service worker registration failed:", error);
+        setStatus({ kind: "failed" });
       });
   });
 }
 
-/** The least time between two checks for an update, in milliseconds. */
-const CHECK_INTERVAL = 5 * 60 * 1000;
-
-/** How often to check for an update while the page stays in view. */
-const PERIODIC_CHECK = 60 * 60 * 1000;
-
-/** The watch over the registration, once the worker is registered. */
-let watch: UpdateWatch | undefined;
-
-/** Whether a new version is waiting to be applied. */
-let updateReady = false;
-
-/** Who to tell when a new version is ready. */
-const listeners = new Set<() => void>();
+function setStatus(next: WorkerStatus) {
+  status = next;
+  for (const listener of listeners) {
+    listener(status);
+  }
+}
 
 /**
- * Calls `listener` when a new version of the app is installed and ready to
- * take over, at once if one already is, and possibly again for a newer one.
- * Returns a function that stops the calls.
+ * Asks `worker` for the build it serves over a port of its own, resolving
+ * to `undefined` if no answer comes within `BUILD_ID_TIMEOUT`: a worker
+ * built before it could answer never will.
  */
-export function onUpdateReady(listener: () => void): () => void {
+function buildOf(worker: ServiceWorker): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    const { port1, port2 } = new MessageChannel();
+    const settle = (build: string | undefined) => {
+      clearTimeout(timer);
+      port1.close();
+      resolve(build);
+    };
+    const timer = setTimeout(() => settle(undefined), BUILD_ID_TIMEOUT);
+    port1.onmessage = (event: MessageEvent<unknown>) => {
+      settle(typeof event.data === "string" ? event.data : undefined);
+    };
+    worker.postMessage(BUILD_ID_REQUEST, [port2]);
+  });
+}
+
+/**
+ * Calls `listener` with the service worker's status at once and on every
+ * change. Returns a function that stops the calls.
+ */
+export function onWorkerStatus(
+  listener: (status: WorkerStatus) => void,
+): () => void {
   listeners.add(listener);
-  if (updateReady) {
-    listener();
-  }
+  listener(status);
   return () => listeners.delete(listener);
 }
 
 /**
- * Switches to the new version that `onUpdateReady` reported: its worker
+ * Switches to the new version that a `waiting` status reported: its worker
  * takes over, and every open page of the app reloads onto it.
  */
 export function applyUpdate(): void {

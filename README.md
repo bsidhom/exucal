@@ -862,10 +862,12 @@ hook's output at session start says which part is out of date.
   converter shows. It has no DOM dependency, so `src/messages.test.ts` checks
   the wording under Node.js.
 - `src/register-service-worker.ts` registers `sw.js` once the page has loaded,
-  in production builds only, and tells the shell when an update is ready.
-- `src/service-worker-updates.ts` is the page's side of updates: it notices
-  a waiting worker, asks it to take over, and reloads the page when it has
-  (see Offline behavior below). It works on interfaces rather than the
+  in production builds only, checks for updates, and tells the shell the
+  worker's status.
+- `src/service-worker-updates.ts` is the page's side of the service worker:
+  it reads the status and the workers' builds from the registration, asks a
+  waiting worker to take over, and reloads the page when it has (see Offline
+  behavior below). It works on interfaces rather than the
   browser's globals, so `src/service-worker-updates.test.ts` checks it under
   Node.js.
 - `src/sw.ts` is the service worker (see Offline behavior below).
@@ -972,17 +974,23 @@ when to switch. The pieces involved:
   (`src/register-service-worker.ts`). A check fetches `sw.js` alone and
   installs nothing unless it changed; a failed one, for want of a network,
   does not hold off the next.
-- **The update banner.** As soon as a new worker is waiting,
-  `src/service-worker-updates.ts` notices (on load, or when it finishes
-  installing) and the shell shows a banner saying a new version is ready,
-  with a Reload button. The button sends the waiting worker a message that
-  makes it skip waiting; it takes over, deletes the old cache, and every open
-  page of the app reloads onto the new version when its controller changes,
-  so no page keeps running old code against the new cache. The new build is
-  already cached by then, so the reload costs no download. Until the user
-  presses the button, the running version stays. On the first visit there is
-  no old version, so the first worker takes over without a banner or a
-  reload.
+- **The worker's status.** The footer shows the service worker's status
+  beside the page's build (see Build ID below), as
+  `src/service-worker-updates.ts` reads it from the registration: saving
+  for offline use on the first visit, ready offline, downloading an update,
+  or bypassed when a hard reload loaded the page past it. Each worker
+  answers a message with the commit it was built from, so as soon as a new
+  one is waiting (on load, or when it finishes installing) the footer names
+  its build, "Update to … ready", with an "Update now" link for as long as
+  it waits. The link sends the waiting worker a message that makes it skip
+  waiting; it takes over, deletes the old cache, and every open page of the
+  app reloads onto the new version when its controller changes, so no page
+  keeps running one build while a worker of another serves it. The new
+  build is already cached by then, so the reload costs no download. Until
+  the user follows the link, the running version stays. On the first visit
+  there is no old version, so the first worker takes over without an offer
+  or a reload. Should the worker serving the page ever name another build
+  than the page's own, the footer says so, with a link to reload.
 - **Installation.** `public/manifest.webmanifest` gives the app its name,
   icons, and standalone display mode. The icons are SVG, which Chromium-based
   browsers accept for installation. Safari ignores manifest icons and needs a
@@ -994,7 +1002,9 @@ when to switch. The pieces involved:
 The footer of the app names the build it is running, as the first twelve
 digits of the commit hash it was built from (the full hash is in the
 tooltip), so a copy on a phone or served from the service worker's cache
-can be matched to a commit. `vite-plugin-build-id.ts` asks git once per
+can be matched to a commit. The service worker is built with the same
+constant and names its build when asked, which is how the footer names a
+waiting update (see Offline behavior above). `vite-plugin-build-id.ts` asks git once per
 `vite build` or `vite dev` and bakes the answer in as the constant
 `__BUILD_ID__`:
 

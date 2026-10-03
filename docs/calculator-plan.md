@@ -1043,9 +1043,11 @@ D23 leaves room for these evolutions:
   `rate[Q](amount: Q, time: s): Q / s = amount / time`. Type
   bounds on the variables, in the manner of the constraints of ad-hoc
   polymorphism, would go in the same brackets.
-- **Conditions on the arguments** (task 7.3), after a `|`. The range of
-  a function is the conditions of its inverse, so it needs no syntax of
-  its own.
+- **Conditions on the arguments** (task 7.3), after a `|`. There is no
+  assertion on a result's value: nothing downstream narrows a value by
+  its range, so one could only check a body against itself. A
+  conversion into a function checks the have against the inverse's
+  conditions and the recovered argument against the function's own.
 - **Definitions typed into the converter.** `f(x) = …` in the have field
   could define a function for the session, unambiguously, since `=` is
   in no expression. Issue
@@ -4815,8 +4817,10 @@ The tasks changed as follows:
 - The bracketed form gives way to signatures and `~` lines.
 - The optional declaration and the optional inverse come with the new
   form in 7.1, rather than after several parameters.
-- Conditions after a `|` take the place of domain and range bounds in
-  7.3, the range being the conditions of the inverse.
+- Conditions after a `|` take the place of domain bounds in 7.3. Range
+  bounds are dropped: a result's value is not asserted, and a
+  conversion into a function checks the recovered argument against the
+  function's conditions.
 - Dimension-generic functions are deferred to an issue of their own.
 
 Each task changes README.md and ARCHITECTURE.md where it makes them
@@ -4948,8 +4952,9 @@ line of its own, and the converter styles it apart from the notes on
 digits. A body that fails under an assumption is `unresolved`, naming
 the condition. A condition undecided when the table is built fails the
 build. The want checks the have against the inverse's conditions, which
-are the function's range, and checks the recovered argument against the
-function's own conditions. units.txt gives `tempC` and `tempF` their
+are the inverse's own domain, and checks the recovered argument against
+the function's own conditions; no condition is ever checked against a
+result's value (docs/functions.md, "No assertion on a result"). units.txt gives `tempC` and `tempF` their
 conditions.
 
 How an assumption travels is this task's to choose: a list beside the
@@ -5004,7 +5009,8 @@ the expression written out would; and the caveats of compositions
 against built-ins. The README also says what the warning of an assumed
 condition means, and how it differs from a refusal at a built-in's
 edge. ARCHITECTURE.md's "Later" loses its item on domain and range,
-which conditions replace, and points to the deferred issues (#130 to
+conditions replacing the domain and the range being dropped
+(docs/functions.md, "No assertion on a result"), and points to the deferred issues (#130 to
 #133). docs/functions.md gains its implementation notes, and this plan
 its record of the stage.
 

@@ -103,7 +103,8 @@ dims       := "[" name ("," name)* "]"       reserved ("Dimension-generic functi
   `name`, which must be defined, with exactly one parameter. The
   inverse's parameter has `name`'s result dimension and takes no
   annotation, since that dimension is known, but may take conditions,
-  which are the function's range; its body must conform to `name`'s
+  which restrict the haves a conversion into the function accepts
+  ("No assertion on a result"); its body must conform to `name`'s
   parameter. A function without an inverse cannot
   be the want ("A function as the want"). The two lines may stand
   anywhere in the file, as every definition may, and are conventionally
@@ -473,13 +474,35 @@ expression's:
   fails the build too, since a unit's value has nowhere to carry a
   warning and a definitions file should not depend on noise.
 
-The range of a function needs no syntax of its own: it is the conditions
-of its inverse, checked at the want as a function's are at a call. At
-the want, the recovered argument is checked against the function's own
-conditions too, an undecided one being assumed and warned of as at a
-call, so that `-5 K` into `tempC` is refused, the reading it would
-need, `-278.15`, lying below `-273.15`, with or without a condition on
-`~tempC`.
+**No assertion on a result.** Conditions restrict arguments only. A
+function's result is checked for its dimension, once, at build time,
+and its value is never checked against a range, at the call or
+anywhere downstream. A range assertion would have nothing to feed: no
+part of the evaluator narrows a value by what is known of its range,
+and a value's ball is all that the rest of an expression ever learns
+of it. Only a built-in can use what it knows of its own range, in its
+own code, as `asin` knows that its angle lies within `±pi() / 2`
+radians; a defined function is a composition, and has no such code. So
+a range condition could only check the body against itself, an
+assertion for the author that nothing else would act on, and GNU's
+`range=` has no counterpart.
+
+What a conversion into a function checks is two things, neither of them
+a range on forward calls:
+
+- **The inverse's conditions** are its own domain: they restrict the
+  haves a conversion into the function accepts, checked on the have as
+  a function's are on its arguments. They are worth writing where the
+  inverse's body would otherwise fail less clearly: the inverse
+  `~neper(y) | y > 0 = ln(y)` refuses `-1` into `neper` by naming
+  `y > 0`, where without the condition `ln` would refuse it by its own
+  domain.
+- **The function's own conditions** are checked on the recovered
+  argument, an undecided one being assumed and warned of as at a call.
+  So `-5 K` into `tempC` is refused, the reading it would need,
+  `-278.15`, lying below `-273.15`, with or without a condition on
+  `~tempC`; for a function whose inverse inverts, that check alone
+  keeps a conversion within the function's range.
 
 ## Dimension-generic functions
 
@@ -781,6 +804,8 @@ reads small can be large, and README ("Functions") and ARCHITECTURE.md
   makes this the call of a name that already exists, a change to the
   call's grammar and its lookup.
 - **Disjunctions and `!=` in conditions** ("Conditions" says why).
+- **An assertion on a result's value,** GNU's `range=`: nothing would
+  consume it ("No assertion on a result").
 - **Optional parameters** and defaults.
 - **Built-ins defined in the file**: a built-in is code, and its name is
   a duplicate of any definition.

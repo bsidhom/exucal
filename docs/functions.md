@@ -485,7 +485,10 @@ own code, as `asin` knows that its angle lies within `±pi() / 2`
 radians; a defined function is a composition, and has no such code. So
 a range condition could only check the body against itself, an
 assertion for the author that nothing else would act on, and GNU's
-`range=` has no counterpart.
+`range=` has no counterpart. Whether ranges, on defined functions and
+more systematically on the built-ins, could instead narrow a result's
+ball and so carry their knowledge through the pipeline is a study of
+its own, issue [#134](https://github.com/bsidhom/pwa-units/issues/134).
 
 What a conversion into a function checks is two things, neither of them
 a range on forward calls:
@@ -805,7 +808,8 @@ reads small can be large, and README ("Functions") and ARCHITECTURE.md
   call's grammar and its lookup.
 - **Disjunctions and `!=` in conditions** ("Conditions" says why).
 - **An assertion on a result's value,** GNU's `range=`: nothing would
-  consume it ("No assertion on a result").
+  consume it ("No assertion on a result"). Ranges that narrow balls are
+  studied in [#134](https://github.com/bsidhom/pwa-units/issues/134).
 - **Optional parameters** and defaults.
 - **Built-ins defined in the file**: a built-in is code, and its name is
   a duplicate of any definition.

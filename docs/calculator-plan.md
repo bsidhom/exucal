@@ -1045,7 +1045,8 @@ D23 leaves room for these evolutions:
   polymorphism, would go in the same brackets.
 - **Conditions on the arguments** (task 7.3), after a `|`. There is no
   assertion on a result's value: nothing downstream narrows a value by
-  its range, so one could only check a body against itself. A
+  its range, so one could only check a body against itself. Issue
+  [#134](https://github.com/bsidhom/pwa-units/issues/134) studies ranges that would narrow balls instead. A
   conversion into a function checks the have against the inverse's
   conditions and the recovered argument against the function's own.
 - **Definitions typed into the converter.** `f(x) = …` in the have field

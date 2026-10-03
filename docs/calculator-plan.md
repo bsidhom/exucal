@@ -20,7 +20,9 @@ revised against it (D21 added, and 5.1 and 5.2); its introduction lists
 the changes. Stage 6's design note (6.0, docs/special.md) was written
 after stage 5 landed and the stage revised against it (D22 added, and
 6.1 to 6.9); its introduction lists the changes, and 6.8 was deferred
-after 6.7 landed. D13 was
+after 6.7 landed. D23 and D24 were added before stage 7, from the
+owner's review of the syntax options for user functions, and stage 7
+was revised against them. D13 was
 revised in review of the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -960,6 +962,165 @@ Mathematica do; the Euclidean pair, which Boute prefers, is one call
 away. `gcd` and `lcm` are non-negative on absolute values, a
 normalization independent of the division, since Euclid's identity
 holds for any quotient.
+
+**D23. A function is a signature, `=` and a body, and its inverse is a
+definition of its own (added before stage 7; ruled by the owner on the
+syntax options for 7.0).** The bracketed form of docs/functions.md,
+`tempC(x) [1;K] x K + 273.15 K ; tempC / K - 273.15`, is replaced
+outright, and the five functions of units.txt are rewritten in it. No
+user definitions are stored anywhere yet (storage and an editor are a
+"Later" item of ARCHITECTURE.md), so a change of syntax costs nothing
+now and would cost a migration later. A function and an inverse read:
+
+```
+normcdf(x) = (1 + erf(x / sqrt(2))) / 2
+kinetic(mass: kg, v: m/s) = mass v^2 / 2
+bmi(weight: kg, height: m): kg/m^2 = weight / height^2
+tempC(x) = x K + 273.15 K
+~tempC(y) = y / K - 273.15
+```
+
+- **The head** is the name, then its parameters in parentheses separated
+  by commas, each optionally annotated with `: unit`; then, optionally,
+  `: unit` for the result; then `=` and the body. Spaces are allowed
+  inside the head, so it is read by a parser rather than by today's
+  single-token regex. The head still decides the grammar: a name
+  followed directly by `(` makes the line a function, and a line that
+  starts with `~` makes it an inverse.
+- **A parameter without an annotation is a plain number.** An annotation
+  is checked against the argument by conformance, the test a sum
+  applies, at the call and in the build's dimension check of the body.
+- **The result's annotation is optional.** If it is absent, the result's
+  dimension is inferred by `dimensionOf` from the parameters'
+  dimensions. That inference is exact, since a body's dimension never
+  depends on its argument's value. If it is present, it is checked
+  against the inferred dimension. A plain result is asserted with `1`,
+  or with any nonzero plain number, since conformance does not look at
+  magnitude.
+- **`~name(p) = body` defines the inverse of `name`, and is optional.**
+  It requires `name` to be defined with exactly one parameter. Its
+  parameter has the dimension of `name`'s result, and its body must
+  conform to `name`'s parameter. A function without an inverse cannot be
+  the want, and the error says so and names the `~` form. The two lines
+  may appear anywhere in the file, as every definition may, and are
+  conventionally adjacent. A `~` line without its function is a build
+  error.
+- **`=` ends the head because an annotation is an expression** and
+  juxtaposition multiplies: after `: J  mass v^2 / 2`, whitespace alone
+  would read `J mass v^2 / 2` as one product. `=`, `:` and `~` appear
+  nowhere in the expression grammar, so every decision is still made
+  from the text alone.
+- **Annotations are evaluated among the units alone.** A parameter's
+  name means the parameter in the body and nowhere else, so an
+  annotation can name neither a parameter nor itself.
+
+The alternatives weighed were:
+
+- **The bracketed form extended in place,** `kinetic(mass, v) [kg, m/s;
+J] …`. It matches annotations to parameters by position, it is all or
+  nothing, and it has no natural home for bounds.
+- **Annotated signatures with the inverse after a `;` on the same
+  line.** This keeps the old form's use of the function's own name for
+  its value, and crowds the line.
+- **GNU-style keyword clauses** (`units=[…] domain=[…]`).
+- **A multi-line block,** which would make the file sensitive to
+  indentation for one kind of definition.
+
+The inverse on its own line makes "optional" literal. A function has no
+inverse slot to leave empty, and adding an inverse adds a line. The line
+reads as what it is, it gives the inverse a parameter of its own, and it
+leads to `~tempC(373.15 K)` in an expression, a call of a name that
+already exists (docs/functions.md, "Not in this design").
+
+D23 leaves room for these evolutions:
+
+- **Dimension-generic parameters** (task 7.3). A parameter that takes
+  any dimension, `hypot(a: *, b: *) = sqrt(a^2 + b^2)`, has its body's
+  dimension taken at the call from the actual arguments' dimensions.
+  The spelling is for 7.0 to settle, but it must not be a name, since an
+  annotation is evaluated among the units, which may grow.
+- **Domain bounds on a parameter** (task 7.4). The range of a function
+  becomes the domain of its inverse, so it needs no syntax of its own.
+- **Definitions typed into the converter.** `f(x) = …` in the have field
+  could define a function for the session, unambiguously, since `=` is
+  in no expression. An issue is to be opened for it. It is not part of
+  this plan.
+
+What D23 leaves open, for 7.0 to rule on:
+
+- What an annotation's unit means beyond its dimension: whether an
+  argument in another conformable unit is accepted as it stands (a
+  quantity has no unit of its own, D22), and in which unit a call's
+  value is shown.
+- Whether a parameter may share a name with a unit.
+
+**D24. A user function's value is its body's value as an expression,
+and the machinery that certifies an expression certifies it (added
+before stage 7).** A call is by value. The arguments are evaluated once,
+to balls (the `call` case of evaluate.ts). The body is then evaluated
+with the parameters bound to those balls (`evaluateBound`), and every
+operation in it is an operation that already exists on balls, settled
+at each node as anywhere else. Each pass of the retry loop evaluates
+the whole expression again, bodies included, so a cancellation inside a
+body is paid for by the next pass's digits, as one typed inline is: the
+study's `(exp(x) - 1) / x` is correct at `x = 1e-30` and its author
+wrote nothing about precision. An `unresolved` at any depth of a call is
+retried. Cycles are rejected at build time, so evaluation terminates.
+The build's check takes dimensions without evaluating anything. A user
+can write no primitive, series or loop, only compositions of operations
+that already carry honest radii, so nothing new is needed of the radius.
+
+The caveats, each of which the stage's docs state:
+
+- **A parameter used twice is two occurrences of one ball,** and they
+  are treated as independent: this is the dependency problem of interval
+  arithmetic. `x - x` and `sin(x)^2 + cos(x)^2` of an inexact argument
+  never certify an exact `0` or `1`. They are shown as zero within a
+  bound, or as one to the digits certified, exactly as the same text
+  typed inline would be.
+- **A hand-written equivalent of a built-in is slower, and can fail where
+  the built-in does not.** A built-in is one kernel routine:
+  - it computes at the bits its result needs plus a guard;
+  - its radius comes from one derivative or truncation bound over the
+    whole ball;
+  - it recognizes its exact cases (`log(2, 8) = 3`, where `ln(8) / ln(2)
+≈ 3`);
+  - and it handles its own edges (H.1's `tanh` of a wide argument,
+    H.15's classifier at the exponent bound).
+
+  A composition pays at every operation instead. Each step rounds to
+  the working precision and adds its rounding to the radius. The radii
+  compound, and the dependency above widens them further. A cancellation
+  inside the body costs digits that only a later pass buys back, as in
+  `(exp(x) - exp(-x)) / 2` for `sinh` near zero. An intermediate value
+  can pass a bound that the result does not, as in `(exp(x) - exp(-x)) /
+(exp(x) + exp(-x))`, which is refused at `x = 3e18` where `tanh(3e18)`
+  is `≈ 1`. The retry loop still makes a composition's digits right, but
+  at more passes, up to the ceiling, past which the display shows what
+  certified.
+
+- **Decimal mode rounds each step of the body to Digits,** as it does an
+  expression typed inline. `f(x)` there is the hand calculator's
+  sequence of keystrokes, not a correctly rounded `f`.
+- **A written inverse is trusted.** The build checks its dimensions, not
+  that it inverts. One possible check at the want is that `f(~f(y))`
+  overlaps `y`, refusing only when the two are disjoint, since overlap
+  is what balls can decide and equality is not. 7.0 rules on it.
+- **A domain bound on a ball is three-valued** (task 7.4). A ball that
+  straddles the bound is `unresolved` and retried. An inexact argument
+  exactly at a bound, such as `tempC(approx(-273.15))`, stays unresolved
+  to the ceiling, as `floor` does at a cell's edge.
+- **There is no inversion without a written inverse.** Certifying a root
+  of a composition needs monotonicity, or an enclosure of the derivative
+  over the bracket, and the evaluator has neither. That is the one place
+  user functions would make the radius hard, and the optional inverse
+  stays clear of it: a function without one is not a want.
+- **Calls are not memoized.** A body that calls a function twice
+  evaluates it twice, so nesting such calls `k` levels deep costs `2^k`
+  evaluations of the innermost, at every pass of the retry loop. That
+  is what the same expression written out in full costs, so it is not a
+  new limit, but README ("Functions") and ARCHITECTURE.md ("Functions")
+  say so in 7.5.
 
 ## Stage 1: the context and the ball
 
@@ -4522,35 +4683,120 @@ of it. README's list of built-ins grows with each task, not here.
 
 ## Stage 7: the user-function extensions
 
-Provisional.
+Provisional, and revised before 7.0 against D23 and D24, which came out
+of the owner's review of the syntax options. The tasks change as
+follows:
+
+- The bracketed form gives way to signatures and `~` lines.
+- The optional declaration and the optional inverse come with the new
+  form in 7.1, rather than after several parameters.
+- Dimension-generic parameters join as 7.3.
+- Range bounds fold into the domain of the inverse in 7.4.
 
 ### 7.0 Design note
 
-An update to docs/functions.md: several parameters, the optional
-declaration (a missing one means plain numbers), the optional inverse (a
-function without one is not usable as a want, with an error that says so),
-and domain and range bounds, their syntax and where they are checked.
+docs/functions.md rewritten for D23. It covers:
 
-### 7.1 Several parameters
+- the grammar of a head and of a `~` line;
+- the scope of annotations;
+- the conformance of an argument to its annotation;
+- the inferred result and the check of an annotated one;
+- the want through `~f`, and the error when there is none;
+- the radius and its caveats, after D24;
+- the spelling of a dimension-generic parameter;
+- the syntax of domain bounds.
 
-`definitions.ts`: the head reads `name(a, b)`; `Definition` and
-`UnitFunction` hold a list of parameters; `evaluate` binds them by position
-and `arityMismatch` covers definitions; the inverse and the want stay
-single-parameter, as the study says.
+Two questions are to be settled before it is written:
 
-### 7.2 Optional declaration and inverse
+- What an annotated unit means beyond its dimension: whether a
+  conformable argument in another unit (`bmi(100 lb, 4 ft)`) is
+  accepted as it stands, and in which unit a call's value is shown.
+- Whether a parameter may share a name with a unit (`t`, `s`, `m`, `c`
+  and `g` are units).
 
-The grammar and the build check for each; the pipeline's function want
-rejects a function without an inverse.
+The note also rules on D24's check of a written inverse at the want.
 
-### 7.3 Domain and range
+### 7.1 The new form, one parameter
 
-Two optional bounds on a definition, checked at the call and at the
-inverse, with an error that names the bound.
+`definitions.ts` replaces the head's regex with a parser that reads:
 
-### 7.4 Stage 7 docs
+- `name(p[: unit])[: unit] = body`, one parameter for now;
+- `~name(p) = body`, with no annotations;
+- the bracketed grammar, which is removed.
 
-README "Functions", docs/functions.md, ARCHITECTURE.md.
+`Definition` gains the function's parameter and its optional
+annotation, the optional result annotation, the body, and an `inverse`
+kind.
+
+The build:
+
+- checks an annotation as a declared unit is checked today (nonzero,
+  evaluated among the units);
+- infers the result's dimension by `dimensionOf`, and checks an
+  annotated result against it;
+- pairs each `~f` with `f`, and reports a dangling `~f`;
+- checks both directions: `~f`'s parameter has `f`'s result dimension,
+  and `~f`'s body conforms to `f`'s parameter.
+
+`UnitFunction` holds the inverse as optional. The pipeline's function
+want rejects a function without one, with an error that names the `~`
+form, worded in messages.ts. A recovered argument is written in the
+parameter's annotation, or as a plain number without one.
+
+units.txt rewrites `tempC`, `tempF`, `neper`, `bel` and `decibel` in
+the same commit, since the old form stops parsing. Their conversions are
+unchanged, and `src/units.test.ts` holds them.
+
+Tests:
+
+- each form parses, and each error lands at its span: a missing `=`, an
+  annotation run into the body, a `~` line with annotations;
+- the build's new errors;
+- the want of a function without an inverse;
+- the inferred result of `tempC(x) = x K + 273.15 K`.
+
+### 7.2 Several parameters
+
+The head reads `name(a, b: unit, …)`. `Definition` and `UnitFunction`
+hold a list of parameters. `evaluate` and `dimensionOf` bind them by
+position, and `arityMismatch` covers definitions, the arity being the
+function's own in place of `ONE_ARGUMENT`. The inverse and the want stay
+single-parameter, as the study says, so a `~f` whose `f` takes several
+parameters is a build error.
+
+### 7.3 Dimension-generic parameters
+
+A parameter annotated to take any dimension (`hypot(a: *, b: *) =
+sqrt(a^2 + b^2)`, `mean(a: *, b: *) = (a + b) / 2`; the spelling is
+7.0's) has its body's dimension taken at the call, by `dimensionOf`
+with the actual arguments' dimensions, before anything is evaluated.
+
+- **At the call,** a failure is reported as an error on the arguments,
+  saying which operation of the body they fail (`hypot`'s sum needs `a`
+  and `b` of one dimension). So a call can still fail only on its
+  arguments or on a value.
+- **At build time,** the body of a generic function is checked for what
+  does not depend on dimensions: names that resolve, and the arity of
+  the calls inside it. An annotated result is checked at the call.
+- **No inverse:** a `~` line for a function with a generic parameter is
+  a build error, since a recovered argument with no unit has nothing to
+  be written in.
+
+### 7.4 Domain bounds
+
+Bounds on a parameter, in the syntax 7.0 settles (for example
+`tempC(x >= -273.15)`), are checked at the call on the argument's ball.
+The check is three-valued: a ball that straddles a bound is
+`unresolved` and retried (D24). The range of `f` is written as the
+domain of `~f`, and is checked at the want. The error names the bound.
+
+### 7.5 Stage 7 docs
+
+README "Functions", docs/functions.md's implementation notes, and
+ARCHITECTURE.md "Functions". The README and ARCHITECTURE.md each gain
+two notes from D24: that calls are not memoized, so nesting costs what
+the expression written out would; and the caveats of compositions
+against built-ins.
 
 ## Stage 8: runtime
 

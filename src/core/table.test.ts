@@ -60,9 +60,9 @@ const TEMP_C: UnitFunction = {
   name: "tempC",
   parameter: "x",
   argument: { text: "1", quantity: quantity("1", {}) },
-  result: { text: "K", quantity: quantity("1", { K: 1 }) },
-  forward: parsed("x K + 273.15 K"),
-  inverse: parsed("tempC / K - 273.15"),
+  result: quantity("1", { K: 1 }).dimension,
+  body: parsed("x K + 273.15 K"),
+  inverse: { parameter: "y", body: parsed("y / K - 273.15") },
 };
 
 /** A table as `buildTable` would produce it from a few SI definitions. */

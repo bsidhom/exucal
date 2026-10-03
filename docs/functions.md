@@ -2,9 +2,12 @@
 
 Status: the design note of stage 7 (task 7.0 of docs/calculator-plan.md),
 revised from the first design for D23 and D24 and the owner's rulings on
-them; not yet implemented. Until task 7.1 lands, the code reads the
-bracketed form this note replaces, which "The first form" at the end
-records with its implementation notes. The owner ruled on the three
+them. Task 7.1 has landed: the signature and `=`, annotations and the
+inferred result, the `~` line and the check of an inverse at the want,
+with one parameter, `|` and `name[` reserved; several parameters (7.2)
+and conditions (7.3) have not. The bracketed form this note replaced is
+recorded in "The first form" at the end, with its implementation
+notes. The owner ruled on the three
 choices the first draft of this note made: dimension-generic functions
 are deferred to an issue of their own, with the design this note
 intends; conditions on arguments follow a `|`; and a written inverse is
@@ -893,7 +896,7 @@ Each of these has an issue of its own (docs/calculator-plan.md,
 
 ## The first form
 
-Until 7.1, the code reads the bracketed form of the first design:
+Before 7.1, the code read the bracketed form of the first design:
 
 ```
 tempC(x)  [1;K]  x K + 273.15 K       ; tempC / K - 273.15

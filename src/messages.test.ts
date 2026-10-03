@@ -62,9 +62,18 @@ const table: UnitTable = (() => {
 const failing: UnitTable = (() => {
   const parsed = parseDefinitions(
     [
-      "recip(x)  [1;1]  1 / x ; 1 / recip",
-      "bad(x)  [1;1]  recip(x) ; recip(bad)",
-      "square(x)  [1;1]  x^2 ; square^(1/2)",
+      "recip(x) = 1 / x",
+      "~recip(y) = 1 / y",
+      "bad(x) = recip(x)",
+      "~bad(y) = recip(y)",
+      "square(x) = x^2",
+      "~square(y) = y^(1/2)",
+      "half(x) = x / 2",
+      "K  !",
+      "kelvin(x) = x K",
+      "~kelvin(y) = y / K + 1",
+      "lnx(x) = ln(x)",
+      "~lnx(y) = -1",
     ].join("\n"),
   );
   assert.ok(parsed.ok, `expected the text to parse, got ${inspect(parsed)}`);
@@ -442,6 +451,21 @@ test("a body that fails is described by what the definition does", () => {
   );
 });
 
+test("a function without an inverse, or with a wrong one, is worded on the want side", () => {
+  assert.equal(
+    conversionMessage("3", "half", failing),
+    '"half" has no inverse, so it cannot be the unit to convert to. Define "~half(y) = …" to give it one.',
+  );
+  assert.equal(
+    conversionMessage("4 K", "kelvin", failing),
+    'The inverse of "kelvin" is wrong for "4 K": "kelvin" of the argument it gives is not "4 K".',
+  );
+  assert.equal(
+    conversionMessage("2", "lnx", failing),
+    'Cannot check the inverse of "lnx" for "2": at the argument it gives, the definition of "lnx" applies "ln" to a value that is not positive.',
+  );
+});
+
 test("a have that does not conform to a function is the mismatch of the pair", () => {
   assert.equal(
     conversionMessage("3 ft", "tempC"),
@@ -560,8 +584,8 @@ const withBuiltins: UnitTable = (() => {
   const parsed = parseDefinitions(
     [
       readFileSync(new URL("./units.txt", import.meta.url), "utf8"),
-      "lnx(x)  [1;1]  ln(x) ; lnx",
-      "edgex(x)  [1;1]  edge(1, x) ; edgex",
+      "lnx(x) = ln(x)",
+      "edgex(x) = edge(1, x)",
     ].join("\n"),
   );
   assert.ok(parsed.ok, `expected the text to parse, got ${inspect(parsed)}`);

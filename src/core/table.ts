@@ -16,11 +16,14 @@
 // a function's name means something only in a call, `tempC(100)`, or as a
 // `want` on its own, and typed as a unit it is a `functionAsUnit` error,
 // which says so and carries the count of arguments the function takes, so
-// that the message can show the call form. A function is held as its two
-// bodies, as expressions, with the units it declares for its argument and
-// its result, each with its text as written, since the converter writes a
-// recovered argument in it; the builder has checked the bodies against
-// the declaration, so a call can fail only on its argument or on a value.
+// that the message can show the call form. A function is held as its body,
+// an expression, with the unit its parameter takes, with its text as
+// written, since the converter writes a recovered argument in it (`1`, a
+// plain number, for a parameter without an annotation), and its result's
+// dimension, inferred from the body and checked against the result's
+// annotation if it has one; and its inverse, when one is defined, as the
+// inverse's parameter and body. The builder has checked every body's
+// dimension, so a call can fail only on its argument or on a value.
 // The built-ins (builtins.ts, docs/builtins.md) share the namespace: the
 // table carries the set it was built against, the builder having kept the
 // two disjoint, and the name of a call resolves among the defined
@@ -32,7 +35,7 @@
 import type { NumberContext } from "./context.ts";
 import type { Ball } from "./ball.ts";
 import type { Builtin, Builtins } from "./builtin.ts";
-import { DIMENSIONLESS, type Primitives } from "./dimension.ts";
+import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
 import { ONE_ARGUMENT, type Arity, type Lookup } from "./evaluate.ts";
 import type { Expr } from "./expr.ts";
 import { resolveName, type Resolution } from "./names.ts";
@@ -72,19 +75,27 @@ export type WrittenUnit = {
 export type ListedUnit = WrittenUnit;
 
 /**
- * A function: `forward` is its body, in which `parameter` stands for the
- * argument, and `inverse` the body of its inverse, in which `name` stands
- * for the value. `argument` and `result` are the units it declares for the
- * two: the builder has checked that `forward` conforms to `result` and
- * `inverse` to `argument`, and that each is nonzero.
+ * A function: `body` is its value, in which `parameter` stands for the
+ * argument. `argument` is the unit the parameter takes, its annotation
+ * evaluated (nonzero, as the builder checked), or `1` without one, and
+ * `result` the dimension of the body, which the builder inferred and
+ * checked against the result's annotation. `inverse` is the function's
+ * inverse, when one is defined: the builder has checked that its body
+ * conforms to `argument` with its parameter of the dimension `result`.
  */
 export type UnitFunction = {
   readonly name: string;
   readonly parameter: string;
   readonly argument: WrittenUnit;
-  readonly result: WrittenUnit;
-  readonly forward: Expr;
-  readonly inverse: Expr;
+  readonly result: Dimension;
+  readonly body: Expr;
+  readonly inverse: UnitInverse | undefined;
+};
+
+/** A function's inverse: `body` is the argument that gives the value `parameter` stands for. */
+export type UnitInverse = {
+  readonly parameter: string;
+  readonly body: Expr;
 };
 
 /** The name at `span` is neither a unit nor a prefix followed by one. */

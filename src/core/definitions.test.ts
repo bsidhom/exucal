@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { parseDefinitions, type Definition } from "./definitions.ts";
-import { parseExpr, type Expr, type Rejection } from "./expr.ts";
+import {
+  parseDefinitions,
+  type Definition,
+  type DefinitionRejection,
+} from "./definitions.ts";
+import { parseExpr, type Expr } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
 import type { Span } from "./span.ts";
 
@@ -12,14 +16,17 @@ function parsed(text: string): readonly Definition[] {
   return result.value;
 }
 
-function failed(text: string): ParseError<Rejection> {
+function failed(text: string): ParseError<DefinitionRejection> {
   const result = parseDefinitions(text);
   assert.ok(!result.ok, `expected failure, got ${inspect(result)}`);
   return result.error;
 }
 
 /** The error for nothing acceptable at `pos`. */
-function unexpected(pos: number, ...expected: string[]): ParseError<Rejection> {
+function unexpected(
+  pos: number,
+  ...expected: string[]
+): ParseError<DefinitionRejection> {
   return { kind: "unexpected", pos, expected };
 }
 
@@ -398,36 +405,106 @@ test("a list may not end in a semicolon or have an empty item", () => {
 // ---------------------------------------------------------------------------
 // Functions
 
-test("a name with a parameter defines a function: its declared units, then its two bodies", () => {
-  const text =
-    "tempC(x)  [1;K]  x K + 273.15 K ; tempC / K - 273.15   # a reading";
+test("a name with a parameter defines a function: a signature, `=` and a body", () => {
+  const text = "tempC(x) = x K + 273.15 K   # a reading";
   assert.deepEqual(parsed(text), [
     {
       kind: "function",
       name: "tempC",
-      parameter: "x",
-      argument: { expr: exprAt("1", text.indexOf("1;")), text: "1" },
-      result: { expr: exprAt("K", text.indexOf("K]")), text: "K" },
-      forward: exprAt("x K + 273.15 K", text.indexOf("x K")),
-      inverse: exprAt("tempC / K - 273.15", text.indexOf("tempC /")),
-      span: spanOf(
-        text,
-        "tempC(x)  [1;K]  x K + 273.15 K ; tempC / K - 273.15",
-      ),
+      parameter: { name: "x", annotation: undefined },
+      result: undefined,
+      body: exprAt("x K + 273.15 K", text.indexOf("x K")),
+      span: spanOf(text, "tempC(x) = x K + 273.15 K"),
     },
   ]);
 });
 
-test("the declared units are any expressions, kept with their text as written", () => {
-  const text = "f(v)  [ m / s ; 2 K ]v K;f";
+test("a line that starts with ~ is the inverse of the function of its name", () => {
+  const text = "~tempC(y) = y / K - 273.15";
+  assert.deepEqual(parsed(text), [
+    {
+      kind: "inverse",
+      name: "tempC",
+      parameter: "y",
+      body: exprAt("y / K - 273.15", text.indexOf("y /")),
+      span: { start: 0, end: text.length },
+    },
+  ]);
+});
+
+test("the annotations are unit expressions, kept with their text as written", () => {
+  const text = "f( v : m / s ) : m^2 kg / s=v K";
   const [definition] = parsed(text);
   assert.ok(definition?.kind === "function");
-  assert.equal(definition.argument.text, "m / s");
-  assert.deepEqual(definition.argument.expr, exprAt("m / s", 8));
-  assert.equal(definition.result.text, "2 K");
-  assert.deepEqual(definition.forward, exprAt("v K", 21));
-  assert.deepEqual(definition.inverse, exprAt("f", 25));
+  assert.equal(definition.parameter.name, "v");
+  assert.equal(definition.parameter.annotation?.text, "m / s");
+  assert.deepEqual(definition.parameter.annotation?.expr, exprAt("m / s", 7));
+  assert.equal(definition.result?.text, "m^2 kg / s");
+  assert.deepEqual(definition.body, exprAt("v K", 28));
   assert.deepEqual(definition.span, { start: 0, end: text.length });
+  // `1` alone, and as the numerator of a quotient.
+  assert.ok(parsed("f(x: 1 / s): 1 = x").length === 1);
+});
+
+test("an annotation with a number but 1, a sum, a negation or a call is rejected where it is written", () => {
+  const rejected = (text: string, at: string, kind: string) => {
+    const start = text.indexOf(at);
+    assert.deepEqual(failed(text), {
+      kind: "rejected",
+      span: { start, end: start + at.length },
+      reason: { kind },
+    });
+  };
+  rejected("f(x: 2) = x", "2", "annotationScale");
+  rejected("f(x: 1000 m) = x", "1000", "annotationScale");
+  rejected("f(x): kg / 2 = x", "2", "annotationScale");
+  rejected("f(x: 1.0) = x", "1.0", "annotationScale");
+  rejected("f(x: m + s) = x", "m + s", "annotationNotUnits");
+  rejected("f(x: -m) = x", "-m", "annotationNotUnits");
+  rejected("f(x): sqrt(m) = x", "sqrt(m)", "annotationNotUnits");
+});
+
+test("a parameter named like a unit its own head uses is rejected; shadowing is otherwise silent", () => {
+  // The result's `m` is the metre, where the body's is the parameter.
+  assert.deepEqual(failed("f(m: kg): m = m"), {
+    kind: "rejected",
+    span: { start: 10, end: 11 },
+    reason: { kind: "parameterNamesUnit", parameter: "m" },
+  });
+  assert.deepEqual(failed("f(m: m / s) = m"), {
+    kind: "rejected",
+    span: { start: 5, end: 6 },
+    reason: { kind: "parameterNamesUnit", parameter: "m" },
+  });
+  // A unit the head does not use, and a prefixed name, are fine.
+  assert.equal(parsed("f(t) = t s").length, 1);
+  assert.equal(parsed("f(m: km) = m").length, 1);
+});
+
+test("an inverse takes no annotation", () => {
+  assert.deepEqual(failed("~f(y: K) = y"), {
+    kind: "rejected",
+    span: { start: 4, end: 7 },
+    reason: { kind: "inverseAnnotation" },
+  });
+});
+
+test("conditions and dimension variables are reserved, and rejected as not supported yet", () => {
+  assert.deepEqual(failed("f(x) | x > 0 = x"), {
+    kind: "rejected",
+    span: { start: 5, end: 7 },
+    reason: { kind: "unsupported", feature: "conditions" },
+  });
+  assert.deepEqual(failed("~f(y) | y > 0 = y"), {
+    kind: "rejected",
+    span: { start: 6, end: 8 },
+    reason: { kind: "unsupported", feature: "conditions" },
+  });
+  assert.deepEqual(failed("hypot[D](a: D) = a"), {
+    kind: "rejected",
+    span: { start: 0, end: 6 },
+    reason: { kind: "unsupported", feature: "dimensionVariables" },
+  });
 });
 
 test("a body may contain a call, with its spans in the whole text", () => {
@@ -455,25 +532,24 @@ test("the parameter follows the name with no space, as a prefix's dash does", ()
   ]);
 });
 
-test("a function needs its declaration and both bodies", () => {
-  assert.deepEqual(failed("tempC(x)"), unexpected(8, "a space"));
-  assert.deepEqual(failed("tempC(x)  x K"), unexpected(10, '"["'));
+test("a function needs its parameter, `=` and a body, and the head ends at `=`", () => {
+  assert.deepEqual(failed("tempC(x)"), unexpected(8, '":"', '"|"', '"="'));
+  assert.deepEqual(failed("tempC(x) ="), unexpected(10, ...ITEM));
   assert.deepEqual(
-    failed("tempC(x)  [1]  x K ; tempC"),
-    unexpected(12, ...AFTER_EXPR, '";"'),
+    failed("tempC(x) = x K = 2"),
+    unexpected(15, ...AFTER_EXPR, ...END_OF_LINE),
   );
+  // Without `=`, a result annotation runs into the body as a product.
   assert.deepEqual(
-    failed("tempC(x)  [1;K]  x K"),
-    unexpected(20, ...AFTER_EXPR, '";"'),
+    failed("f(x): J x"),
+    unexpected(9, ...AFTER_EXPR, '"|"', '"="'),
   );
-  assert.deepEqual(
-    failed("tempC(x)  [1;K]  x K ; tempC ; 2"),
-    unexpected(29, ...AFTER_EXPR, ...END_OF_LINE),
-  );
+  // Spaces are free inside the head.
+  assert.equal(parsed("f( x )=x").length, 1);
 });
 
 test("a parameter is a name", () => {
-  assert.deepEqual(failed("f(2)  [1;1]  2 ; f"), unexpected(1, "a space"));
-  assert.deepEqual(failed("f()  [1;1]  2 ; f"), unexpected(1, "a space"));
-  assert.deepEqual(failed("f( x )  [1;1]  2 ; f"), unexpected(1, "a space"));
+  assert.deepEqual(failed("f(2) = 2"), unexpected(2, "a parameter name"));
+  assert.deepEqual(failed("f() = 2"), unexpected(2, "a parameter name"));
+  assert.deepEqual(failed("~f() = 2"), unexpected(3, "a parameter name"));
 });

@@ -27,6 +27,7 @@ import type { Rejection } from "./core/expr.ts";
 import { ZERO, equals, format, type Refusal } from "./core/scaled.ts";
 import type {
   ConversionError,
+  FunctionWantError,
   InverseFailed,
   TextError,
 } from "./core/pipeline.ts";
@@ -397,13 +398,20 @@ export function describeConversionError(
 ): string {
   switch (error.kind) {
     case "inputError":
-      return error.error.kind === "inverseFailed"
-        ? describeInverseFailed(error.error, have, primitives)
-        : describeTextError(
+      switch (error.error.kind) {
+        case "inverseFailed":
+          return describeInverseFailed(error.error, have, primitives);
+        case "noInverse":
+          return `${quote(error.error.name)} has no inverse, so it cannot be the unit to convert to. Define ${quote(`~${error.error.name}(y) = …`)} to give it one.`;
+        case "inverseMismatch":
+          return describeInverseMismatch(error.error, have, primitives);
+        default:
+          return describeTextError(
             error.error,
             error.side === "have" ? have : want,
             primitives,
           );
+      }
     case "dimensionMismatch":
     case "kindMismatch":
       return `${describeMismatch(error, quote(have.trim()), quote(want.trim()), primitives)}.`;
@@ -459,6 +467,23 @@ function describeInverseFailed(
   primitives: Primitives,
 ): string {
   return `Cannot invert ${quote(error.name)} for ${quote(have.trim())}: the inverse of ${quote(error.name)} ${describeBody(error.error, primitives)}.`;
+}
+
+/**
+ * Why the want's function is not given back the `have` by the argument
+ * its inverse recovers, as one sentence: the inverse is wrong there, or
+ * the function's body fails at that argument.
+ */
+function describeInverseMismatch(
+  error: Extract<FunctionWantError, { kind: "inverseMismatch" }>,
+  have: string,
+  primitives: Primitives,
+): string {
+  const name = quote(error.name);
+  if (error.error === undefined) {
+    return `The inverse of ${name} is wrong for ${quote(have.trim())}: ${name} of the argument it gives is not ${quote(have.trim())}.`;
+  }
+  return `Cannot check the inverse of ${name} for ${quote(have.trim())}: at the argument it gives, the definition of ${name} ${describeBody(error.error, primitives)}.`;
 }
 
 /**

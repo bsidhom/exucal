@@ -136,7 +136,7 @@ test("through the pipeline: approx makes a value inexact on purpose, keeps its u
       "in    2.54 cm",
       "ft    12 in",
       "G     approx(6.674e-11) m^3",
-      "gauge(x) [1;1]  approx(x) ; gauge",
+      "gauge(x) = approx(x)",
     ].join("\n"),
   );
   assert.ok(parsed.ok, inspect(parsed));

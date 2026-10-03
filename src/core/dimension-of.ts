@@ -19,7 +19,7 @@
 // build at the power as it would fail the call; a negation keeps; and a
 // call checks the count of
 // arguments and applies the callee's rule, a defined function's argument
-// conforming to its declared argument unit and giving the declared result's
+// conforming to the unit its parameter takes and giving its result's
 // dimension, a built-in's `dimensions` on its arguments' dimensions. The
 // errors are the evaluator's own of those kinds (`nonconformingOperands`,
 // `arityMismatch`, `argumentMismatch`, `builtinArgument`), so their spans
@@ -31,8 +31,8 @@
 //
 // The lookup is over dimensions, `DimensionLookup`, with the same two
 // resolvers as the evaluator's `Lookup`; the build wraps its own lookup,
-// with the bound name (the parameter in the forward body, the function's
-// name in the inverse) resolved before any unit as `evaluateBound` does.
+// with the bound name (the parameter of a function or of an inverse)
+// resolved before any unit as `evaluateBound` does.
 
 import {
   DIMENSIONLESS,
@@ -163,10 +163,10 @@ export function dimensionOf<E>(
           error: result.error,
         });
       }
-      const declared = fn.value.fn;
+      const defined = fn.value.fn;
       const conformance = checkConformance(
         dimensions[0]!,
-        declared.argument.quantity.dimension,
+        defined.argument.quantity.dimension,
         primitives,
       );
       if (!conformance.ok) {
@@ -178,7 +178,7 @@ export function dimensionOf<E>(
           mismatch: conformance.error,
         });
       }
-      return ok(declared.result.quantity.dimension);
+      return ok(defined.result);
     }
   }
 }

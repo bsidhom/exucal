@@ -995,8 +995,6 @@ tempC(x) = x K + 273.15 K
   dimensions. That inference is exact, since a body's dimension never
   depends on its argument's value. If it is present, it is checked
   against the inferred dimension. A plain result is asserted with `1`.
-  Whether another number may stand there (`: 2`) is the one question
-  still open, below.
 - **`~name(p) = body` defines the inverse of `name`, and is optional.**
   It requires `name` to be defined with exactly one parameter. Its
   parameter has the dimension of `name`'s result, and its body must
@@ -1048,7 +1046,7 @@ D23 leaves room for these evolutions:
 - **The result annotation as the default want of a bare call.** This
   is deferred from stage 7 (see "Deferred from stage 7").
 
-Two further rulings, from the owner's review of the questions D23 first
+Three further rulings, from the owner's review of the questions D23 first
 left open:
 
 - **An annotation checks a dimension and changes no value.** A quantity
@@ -1104,9 +1102,19 @@ m/s) = m v^2 / 2`, where the head's `m` is the metre and the body's
   error later breaks no file where tightening a silence would. An issue
   is to be opened to track it; "Deferred from stage 7" lists it.
 
-Still open, for 7.0: whether an annotation may hold a number other than
-`1` (`: 2`, `: 1000 m`), which conformance would ignore and a reader
-could take for a scale.
+- **An annotation is a unit expression, with no number but `1`.** It
+  may hold unit names, juxtaposition, `*`, `/`, `^` with its literal
+  exponent, parentheses, and `1`, which a plain result and `1 / s`
+  need. Any other number (`: 2`, `: 1000 m`, `: kg / 2`) is rejected in
+  either position, a parameter's or the result's, with a message that
+  sends a scale to the body. Conformance ignores magnitude, so a number
+  there would be either a lie, read as `1`, or a scale, which breaks the
+  rule that an annotation changes no value. A unit name is accepted
+  whatever its magnitude, `percent` included: `: percent` asserts a
+  plain number and multiplies by nothing, as `: lb` converts nothing.
+  Scaled results, and lists, in the result's annotation are use cases
+  for the deferred default want, and the restriction is to be relaxed
+  for them when that design takes them up, if it does.
 
 **D24. A user function's value is its body's value as an expression,
 and the machinery that certifies an expression certifies it (added
@@ -4760,20 +4768,27 @@ docs/functions.md rewritten for D23. It covers:
 - the spelling of a dimension-generic parameter;
 - the syntax of domain bounds.
 
-It also covers the two rulings D23 records: annotations as checks of
-dimension that change no value, with the BMI example of dividing a unit
-out; and shadowing, with its two errors. One question is to be settled
-before the note is written: whether an annotation may hold a number
-other than `1` (D23, "Still open"). The note also rules on D24's check
-of a written inverse at the want.
+It also covers D23's rulings: annotations as checks of dimension that
+change no value, with the BMI example of dividing a unit out; the
+annotation as a unit expression with no number but `1`; and shadowing,
+with its two errors. Written. It makes three choices of its own, for
+review before 7.1 ("Choices for review"): `*` for a generic parameter,
+bounds as comparisons around the parameter (`-1 <= x <= 1`), and a
+check of a written inverse at the want, which it recommends adopting
+in 7.1: the function applied to the recovered argument, and the
+conversion refused when that value is disjoint from the have.
 
 ### 7.1 The new form, one parameter
 
 `definitions.ts` replaces the head's regex with a parser that reads:
 
-- `name(p[: unit])[: unit] = body`, one parameter for now;
+- `name(p[: unit])[: unit] = body`, one parameter for now, an
+  annotation being a unit expression with no number but `1` (D23);
 - `~name(p) = body`, with no annotations;
 - the bracketed grammar, which is removed.
+
+It reports a parameter named like a unit that its own head uses, as a
+parse error (D23).
 
 `Definition` gains the function's parameter and its optional
 annotation, the optional result annotation, the body, and an `inverse`
@@ -4792,7 +4807,10 @@ The build:
 `UnitFunction` holds the inverse as optional. The pipeline's function
 want rejects a function without one, with an error that names the `~`
 form, worded in messages.ts. A recovered argument is written in the
-parameter's annotation, or as a plain number without one.
+parameter's annotation, or as a plain number without one. If the review
+of 7.0 adopts it, the want also applies the function to the recovered
+argument and refuses a value disjoint from the have
+(`inverseMismatch`).
 
 units.txt rewrites `tempC`, `tempF`, `neper`, `bel` and `decibel` in
 the same commit, since the old form stops parsing. Their conversions are
@@ -4841,7 +4859,9 @@ Bounds on a parameter, in the syntax 7.0 settles (for example
 `tempC(x >= -273.15)`), are checked at the call on the argument's ball.
 The check is three-valued: a ball that straddles a bound is
 `unresolved` and retried (D24). The range of `f` is written as the
-domain of `~f`, and is checked at the want. The error names the bound.
+domain of `~f`, and is checked at the want, where the recovered
+argument is checked against `f`'s own bounds too. The error names the
+bound.
 
 ### 7.5 Stage 7 docs
 
@@ -4863,7 +4883,10 @@ opened for it, to study the options later:
   only the display, never how a quantity or a dimension is held. The
   precedent is a recovered argument, which is already written in its
   parameter's annotation. The open point is that the default applies to
-  a lone call only, and `2 bmi(…)` would show the primitives again.
+  a lone call only, and `2 bmi(…)` would show the primitives again. Scaled results
+  and lists in the result's annotation are its use cases, so the
+  restriction to unit expressions with no number but `1` is to be
+  revisited with it.
 - **Shadowing in the head as a warning.** D23's error for a parameter
   whose name is also a unit in its definition's annotations is relaxed
   to a warning once user definitions have an editor and the build has a

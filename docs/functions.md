@@ -78,7 +78,8 @@ dims       := "[" name ("," name)* "]"       reserved ("Dimension-generic functi
 
 - **The head decides the grammar,** as a trailing dash decides a
   prefix: a name directly followed by `(` makes the line a function,
-  and a line whose first character is `~` an inverse. Inside the head,
+  a line whose first character is `~` an inverse, and a name directly
+  followed by `[` is reserved. Inside the head,
   spaces are free around every token, so the head is read by a parser
   rather than the single-token regex of the first form; between the
   name and `(` there is no space, as in a call.
@@ -102,8 +103,8 @@ dims       := "[" name ("," name)* "]"       reserved ("Dimension-generic functi
   `name`, which must be defined, with exactly one parameter. The
   inverse's parameter has `name`'s result dimension and takes no
   annotation, since that dimension is known, but may take conditions,
-  which are the function's range; its body must
-  conform to `name`'s parameter. A function without an inverse cannot
+  which are the function's range; its body must conform to `name`'s
+  parameter. A function without an inverse cannot
   be the want ("A function as the want"). The two lines may stand
   anywhere in the file, as every definition may, and are conventionally
   adjacent; a `~` line whose function is not defined is a build error,
@@ -203,7 +204,7 @@ zero; `~tempF(T)` will say the same once an inverse can be called in an
 expression ("Not in this design").
 
 **An annotation is a unit expression.** It is the expression grammar
-restricted to unit names, juxtaposition, `*`, `/`, `^` with its literal
+restricted to unit names (prefixed or not), juxtaposition, `*`, `/`, `^` with its literal
 exponent, parentheses, and the number `1`, written `1`: `kg`, `m/s`,
 `kg m^2 / s^2`, `1 / s`, `1`. Any other number, a sum or difference, a
 negation and a call are rejected where they are written, with a message
@@ -362,9 +363,9 @@ conjunction in three-valued logic:
   outside one condition is not retried for another.
 - **A term that cannot be computed ends it too,** as `callFailed`, as a
   body's failure does, but only when every comparison before it
-  certainly holds. So a condition may guard the next: in `| x > 0,
-ln(x) > 1`, a negative argument fails the first condition and never
-  reaches `ln`. After an undecided comparison, a term that cannot be
+  certainly holds. So a condition may guard the next: in
+  `| x > 0, ln(x) > 1`, a negative argument fails the first condition
+  and never reaches `ln`. After an undecided comparison, a term that cannot be
   computed is undecided as well, since the guard may yet exclude it.
 - **Otherwise, an undecided comparison is assumed to hold,** and the
   assumption is recorded ("An undecided condition", below). An exact
@@ -402,9 +403,9 @@ held in the primitives, so their magnitudes compare directly: `1 ft >
   bound never decides a strict comparison, and decides a non-strict one
   only if its ball happens to end exactly on the bound:
   `tempC(approx(-273.15))` stays undecided to the ceiling, and is shown
-  with the warning of an assumed condition. `position`
-  answers "across" when its coarse radius bounds cannot tell, which can
-  only turn a verdict into undecided, never into a wrong one.
+  with the warning of an assumed condition. `position` answers "across"
+  when its coarse radius bounds cannot tell, which can only turn a
+  verdict into undecided, never into a wrong one.
 
 - **In decimal mode** the same rules apply: every value is a ball whose
   radius carries its roundings, so a verdict is still certain, and only
@@ -460,8 +461,8 @@ expression's:
   every argument, but on an inexact one the dependency problem
   ("Precision and the radius") keeps the ball across the boundary at
   every precision. So every such call runs to the ceiling, and its value
-  is shown with the warning of an assumed condition, as `floor(sqrt(2)^2)`
-  runs to the ceiling before it is refused. This cannot be detected at
+  is shown with the warning of an assumed condition, much as
+  `floor(sqrt(2)^2)` runs to the ceiling before it is refused. This cannot be detected at
   build time in general, and the docs say that a condition should bound
   the arguments, not restate what the body guarantees.
 - **Decimal mode** computes in one pass, so an undecided condition is
@@ -476,15 +477,15 @@ The range of a function needs no syntax of its own: it is the conditions
 of its inverse, checked at the want as a function's are at a call. At
 the want, the recovered argument is checked against the function's own
 conditions too, an undecided one being assumed and warned of as at a
-call, so that `-5 K` into `tempC` is refused, the reading it
-would need, `-278.15`, lying below `-273.15`, with or without a
-condition on `~tempC`.
+call, so that `-5 K` into `tempC` is refused, the reading it would
+need, `-278.15`, lying below `-273.15`, with or without a condition on
+`~tempC`.
 
 ## Dimension-generic functions
 
-Deferred from stage 7 to issue [#133](https://github.com/bsidhom/pwa-units/issues/133); this
-section records the design intended, so that stage 7 closes no door on
-it. A function may declare dimension variables, in brackets after its
+Deferred from stage 7 to issue
+[#133](https://github.com/bsidhom/pwa-units/issues/133); this section
+records the design intended, so that stage 7 closes no door on it. A function may declare dimension variables, in brackets after its
 name, and use them in its annotations to take arguments of any
 dimension and to tie the dimensions of its parameters and its result
 together:
@@ -574,12 +575,14 @@ failure ends it:
    plain number without one; a failure is `argumentMismatch`, naming
    the argument.
 5. The conditions are checked ("Conditions"): a certain failure is
-   `conditionFailed`, and otherwise a condition not decided is
-   `unresolved`.
+   `conditionFailed`, and a condition not decided is assumed to hold,
+   the assumption travelling with the result.
 6. The body is evaluated with each parameter bound to its argument. Its
    failures carry spans into the definitions text, so they come back as
    `callFailed`, naming the function and carrying the body's error; an
-   `unresolved` inside the body, at any depth, is still retried.
+   `unresolved` inside the body, at any depth, is still retried. Under
+   an assumption, a failure of the body is reported as an `unresolved`
+   naming the assumed condition instead ("An undecided condition").
 
 The result is a quantity like any other. Its dimension is not checked
 at the call, the build having checked or inferred it once.
@@ -604,11 +607,12 @@ read as a unit:
 2. The have must conform to the function's result dimension; a failure
    is the ordinary mismatch of the pair, so the existing wording holds.
 3. The have is checked against the inverse's conditions, as an
-   argument is at a call.
+   argument is at a call, an undecided one being assumed and warned of.
 4. The inverse's body is evaluated with its parameter bound to the
    have, giving the recovered argument; a failure is `inverseFailed`,
    carrying the body's error.
-5. The recovered argument is checked against the function's conditions.
+5. The recovered argument is checked against the function's conditions,
+   in the same way.
 6. The function is applied to the recovered argument, at the same
    working context, and a value disjoint from the have is
    `inverseMismatch`, on the want side, naming the function.
@@ -653,7 +657,9 @@ The relation is `=` when the count shows exactly at the display
 precision, as for any value. There is no reciprocal line, since a
 function conversion is not a ratio. A call as the have with a blank
 want shows its value in the primitives, `tempC(100) = 373.15 K`, and
-with a unit want is a ratio and gets its reciprocal.
+with a unit want is a ratio and gets its reciprocal. Whatever the
+output mode, an assumed condition adds its warning beside the value
+("An undecided condition").
 
 ## Build-time checks
 
@@ -726,7 +732,8 @@ radius needs nothing new. The caveats:
   its dimensions, and each conversion into the function checks its
   answer by applying the function back ("A function as the want"),
   which refutes a wrong answer and proves nothing about other values.
-- **A condition on a ball is three-valued,** as "Conditions" says.
+- **A condition on a ball is three-valued,** and one left undecided is
+  assumed and warned of, as "Conditions" says.
 - **There is no inversion without a written inverse.** Certifying a
   root of a composition needs monotonicity, or an enclosure of the
   derivative over the bracket, which the evaluator has neither of;
@@ -757,9 +764,13 @@ reads small can be large, and README ("Functions") and ARCHITECTURE.md
 - `src/core/evaluate.ts`: binding several names; the call's steps
   above; `invertFunction` through the inverse's own parameter.
 - `src/core/build.ts`: the checks above.
-- `src/core/pipeline.ts`: the want's steps above.
-- `src/messages.ts`: `noInverse`, `inverseMismatch`, `conditionFailed`
-  and the parse errors.
+- `src/core/pipeline.ts`: the want's steps above, and assumptions
+  carried to the result and treated as uncertified by the retry loop
+  (7.3).
+- `src/messages.ts`: `noInverse`, `inverseMismatch`, `conditionFailed`,
+  the warning of an assumed condition, and the parse errors.
+- `src/outcome.ts` and `src/unit-converter.ts`: the warning's line and
+  its style (7.3).
 - `src/units.txt`: the five functions rewritten (7.1), with conditions
   on `tempC` and `tempF` (7.3).
 - Tests: each module's own; `units.test.ts` keeps its conversions.
@@ -786,13 +797,16 @@ Each of these has an issue of its own (docs/calculator-plan.md,
   `percent`). Scaled results and lists in that position are its use
   cases, and the restriction on annotations can be relaxed for them
   then.
-- **The shadowing error as a warning** ([#131](https://github.com/bsidhom/pwa-units/issues/131)), once there is
-  somewhere to show one.
-- **Definitions typed into the converter** ([#132](https://github.com/bsidhom/pwa-units/issues/132)): `f(x) = …` in the have field
-  is unambiguous, since `=` is in no expression.
-- **Dimension-generic functions** ([#133](https://github.com/bsidhom/pwa-units/issues/133)), with dimension variables in brackets
-  and, later, type bounds on them, as "Dimension-generic functions"
-  intends.
+- **The shadowing error as a warning**
+  ([#131](https://github.com/bsidhom/pwa-units/issues/131)), once there
+  is somewhere to show one.
+- **Definitions typed into the converter**
+  ([#132](https://github.com/bsidhom/pwa-units/issues/132)): `f(x) = …`
+  in the have field is unambiguous, since `=` is in no expression.
+- **Dimension-generic functions**
+  ([#133](https://github.com/bsidhom/pwa-units/issues/133)), with
+  dimension variables in brackets and, later, type bounds on them, as
+  "Dimension-generic functions" intends.
 
 ## Alternatives considered
 
@@ -811,8 +825,8 @@ Each of these has an issue of its own (docs/calculator-plan.md,
   notation after the parameter (`f(x: K [0 K, 100 K))`) puts a half-open
   `)` inside the head's own parentheses and makes an open side easy to
   miss (`[0 K,)`). A lower bound always on the left (`f(0 < x)`,
-  `f(x < 1)`) gives one spelling per bound, but refuses the `x > 0` everyone
-  writes, and still wedges the annotation. The `|` clause keeps the
+  `f(x < 1)`) gives one spelling per bound, but refuses the `x > 0`
+  everyone writes, and still wedges the annotation. The `|` clause keeps the
   parameter list clean, reads the same in every case, and takes
   relations between parameters with no new syntax.
 - **Other checks of a written inverse:** trusting it, which gives a

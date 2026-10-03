@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   SKIP_WAITING,
+  throttledCheck,
   watchForUpdates,
   type ContainerHandle,
   type RegistrationHandle,
@@ -168,4 +169,56 @@ test("the first worker claiming a page does not reload it, a later one does", ()
   assert.equal(counts.reloads, 0);
   container.changeTo({});
   assert.equal(counts.reloads, 1);
+});
+
+/** A clock to set by hand and a check that counts its calls and can fail. */
+function checking(fail = false) {
+  const clock = { now: 1000 };
+  const counts = { checks: 0 };
+  const check = throttledCheck(
+    () => {
+      counts.checks++;
+      return fail ? Promise.reject(new Error("offline")) : Promise.resolve();
+    },
+    () => clock.now,
+    100,
+  );
+  return { clock, counts, check };
+}
+
+test("no check is made within the interval of the registration's", () => {
+  const { clock, counts, check } = checking();
+  check();
+  clock.now += 99;
+  check();
+  assert.equal(counts.checks, 0);
+});
+
+test("a check is made once the interval has passed, then not again within it", () => {
+  const { clock, counts, check } = checking();
+  clock.now += 100;
+  check();
+  check();
+  clock.now += 99;
+  check();
+  assert.equal(counts.checks, 1);
+  clock.now += 1;
+  check();
+  assert.equal(counts.checks, 2);
+});
+
+test("a failed check does not hold off the next", async () => {
+  const { clock, counts, check } = checking(true);
+  clock.now += 100;
+  check();
+  await new Promise((resolve) => setImmediate(resolve));
+  check();
+  assert.equal(counts.checks, 2);
+});
+
+test("a clock set back does not hold off checks", () => {
+  const { clock, counts, check } = checking();
+  clock.now -= 500;
+  check();
+  assert.equal(counts.checks, 1);
 });

@@ -965,6 +965,13 @@ when to switch. The pieces involved:
   installed app (often resumed rather than relaunched) can take days and
   several force-closes. A plain reload is not enough, since the old page is
   still open while the new one loads.
+- **Update checks.** An installed app is usually resumed rather than
+  navigated to, so the browser's own checks rarely run. The page asks for
+  one whenever it comes back into view or back online, and every hour while
+  it stays in view, but never within five minutes of the last
+  (`src/register-service-worker.ts`). A check fetches `sw.js` alone and
+  installs nothing unless it changed; a failed one, for want of a network,
+  does not hold off the next.
 - **The update banner.** As soon as a new worker is waiting,
   `src/service-worker-updates.ts` notices (on load, or when it finishes
   installing) and the shell shows a banner saying a new version is ready,

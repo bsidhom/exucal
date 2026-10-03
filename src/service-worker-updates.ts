@@ -117,3 +117,36 @@ export function watchForUpdates(
     },
   };
 }
+
+/**
+ * Returns a function that checks for an update by calling `check`, unless
+ * the last check started less than `interval` milliseconds ago by `now`.
+ *
+ * Browsers check for a new worker on every navigation, but an installed
+ * app is mostly resumed rather than navigated to, so the page asks for
+ * checks of its own when it comes back into view; a check fetches `sw.js`
+ * alone, and installs nothing unless it changed. The registration starts
+ * with a check, so the interval runs from the creation of the function. A
+ * failed check, most likely for want of a network, does not count, so the
+ * next occasion tries again. A clock set back is taken as time elapsed
+ * rather than waited out.
+ */
+export function throttledCheck(
+  check: () => Promise<unknown>,
+  now: () => number,
+  interval: number,
+): () => void {
+  let last = now();
+  return () => {
+    const time = now();
+    if (time >= last && time - last < interval) {
+      return;
+    }
+    last = time;
+    check().catch(() => {
+      if (last === time) {
+        last = -Infinity;
+      }
+    });
+  };
+}

@@ -983,19 +983,6 @@ when to switch. The pieces involved:
   presses the button, the running version stays. On the first visit there is
   no old version, so the first worker takes over without a banner or a
   reload.
-- **Hand-over at navigation.** A reload, or a launch from cold, also
-  switches to a waiting worker, when it would leave no other page on the old
-  version: the old worker asks the waiting one to take over and answers the
-  navigation with a blank page that reloads once the new worker controls it,
-  so the reload is answered by the new worker (`navigate` in `src/sw.ts`).
-  Reloading any sooner, as a `Refresh` header would, sends the reload to the
-  old worker while it is being replaced, which stalls the takeover in
-  Chromium. If one other window of the app is open, it reloads onto the new
-  version as it would after the button, so that both run the same version;
-  with two or more, the navigation is answered as usual and the banner
-  stays. The blank page reloads regardless after five seconds, and the old
-  worker asks once per run, so a waiting worker that does not take over
-  cannot keep the page reloading in a loop.
 - **Installation.** `public/manifest.webmanifest` gives the app its name,
   icons, and standalone display mode. The icons are SVG, which Chromium-based
   browsers accept for installation. Safari ignores manifest icons and needs a

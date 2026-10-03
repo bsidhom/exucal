@@ -19,10 +19,6 @@
  * page asks it to by sending it `SKIP_WAITING` (service-worker-updates.ts),
  * which the page does when the user accepts the update it offers. The old
  * cache is deleted when it takes over.
- *
- * A navigation that would leave no other page on the old version hands over
- * too (see `navigate`), so that reloading the app, or launching it from cold,
- * opens the newest version that has installed rather than the one running.
  */
 
 declare const self: ServiceWorkerGlobalScope;
@@ -70,90 +66,8 @@ self.addEventListener("fetch", (event) => {
   if (new URL(request.url).origin !== self.location.origin) {
     return;
   }
-  event.respondWith(
-    request.mode === "navigate"
-      ? navigate(request)
-      : fromCacheOrNetwork(request),
-  );
+  event.respondWith(fromCacheOrNetwork(request));
 });
-
-/**
- * Whether this worker has asked the waiting one to take over at a
- * navigation since it last started.
- */
-let handedOver = false;
-
-/**
- * Answers a navigation, first handing over to a waiting worker if no page
- * would be left on this version by it.
- *
- * A waiting worker takes over by itself only once no page of this version is
- * open, and a navigation never gets it there: a reload is answered while the
- * old page is still open, and a page launched cold is answered by this
- * worker and becomes one of its own. So when a worker is waiting and at
- * most one window of this version is open, which is the one being reloaded
- * or none at all, this worker asks it to take over and answers with
- * `HAND_OVER_PAGE`, which reloads once the new worker controls it, so that
- * the reload is answered by the new worker. The one window may instead be
- * another page of the app, as when a second window opens beside it; that
- * page then reloads onto the new version as it would after the banner's
- * button (service-worker-updates.ts), so that both windows run the same
- * version. With two or more other windows open, the navigation is answered
- * as usual and the update stays offered.
- *
- * The hand-over is asked for once each time this worker starts, so that a
- * waiting worker that does not take over (one built without the message
- * handler, say) cannot keep the page reloading in a loop: the page's
- * fallback reload is then answered from this worker's cache, as if nothing
- * had been waiting.
- */
-async function navigate(request: Request): Promise<Response> {
-  const { waiting } = self.registration;
-  if (waiting !== null && !handedOver) {
-    const windows = await self.clients.matchAll({ type: "window" });
-    if (windows.length <= 1) {
-      handedOver = true;
-      waiting.postMessage(SKIP_WAITING);
-      return new Response(HAND_OVER_PAGE, {
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
-    }
-  }
-  return fromCacheOrNetwork(request);
-}
-
-/**
- * How long the hand-over page waits for the new worker before reloading
- * regardless, in milliseconds.
- */
-const HAND_OVER_TIMEOUT = 5000;
-
-/**
- * The blank page shown while a waiting worker takes over at a navigation.
- *
- * It reloads once the new worker controls it, which it learns from the
- * change of controller, or at once if the new worker had already taken
- * over (no worker is waiting any more) by the time its script ran. Reloading
- * any sooner, as a `Refresh` header would, sends the reload to this worker
- * while it is being replaced: the browser starts it again to answer, and
- * the takeover stalls. If nothing has happened after `HAND_OVER_TIMEOUT`,
- * it reloads anyway. The empty `data:` icon keeps the browser from asking
- * this worker for `/favicon.ico` in the meantime.
- */
-const HAND_OVER_PAGE = `<!doctype html>
-<meta charset="utf-8" />
-<meta name="color-scheme" content="light dark" />
-<link rel="icon" href="data:," />
-<script>
-  const container = navigator.serviceWorker;
-  const reload = () => location.reload();
-  container.addEventListener("controllerchange", reload);
-  container.getRegistration().then((registration) => {
-    if (!registration?.waiting) reload();
-  });
-  setTimeout(reload, ${HAND_OVER_TIMEOUT});
-</script>
-`;
 
 /** Downloads every file of this build into this version's cache. */
 async function precache(): Promise<void> {

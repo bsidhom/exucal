@@ -372,6 +372,44 @@ ln(x) > 1`, a negative argument fails the first condition and never
   a bound, `tempC(approx(-273.15))`, stays unresolved to the ceiling,
   as `floor` does at a cell's edge.
 
+**A comparison is decided by the ball model, with no tolerance.** Its
+two sides have conformed at build time, and a quantity's magnitude is
+held in the primitives, so their magnitudes compare directly: `1 ft >
+30 cm` holds, `1 ft` being `30.48 cm`.
+
+- **Two exact values** (radius zero) are compared exactly, as the
+  numbers they are, and always decide, the boundary included:
+  `tempC(-273.15)` meets `x >= -273.15` and `ln1p(-1)` fails `x > -1`,
+  and `0.1 + 0.2 <= 0.3` holds, since the sum is exactly `0.3`. They
+  are compared without forming their difference, so a comparison of
+  exact values is never refused for size.
+- **Otherwise,** the right side is subtracted from the left as balls,
+  and the difference's position against zero decides, by `position` of
+  ball.ts, which the built-ins' edge checks already use. The table
+  gives every verdict, its third row being the exact case of the bullet
+  above, which a difference with a radius never reaches:
+
+  | Difference against zero                     | `<`       | `<=`      | `>`       | `>=`      |
+  | ------------------------------------------- | --------- | --------- | --------- | --------- |
+  | below it throughout                         | holds     | holds     | fails     | fails     |
+  | below, its upper end exactly on it          | undecided | holds     | fails     | undecided |
+  | exactly zero (as two exact equal sides are) | fails     | holds     | fails     | holds     |
+  | above, its lower end exactly on it          | fails     | undecided | undecided | holds     |
+  | above it throughout                         | fails     | fails     | holds     | holds     |
+  | across it, or unbounded                     | undecided | undecided | undecided | undecided |
+
+  A ball is closed, so an end exactly on zero leaves equality possible,
+  and a strict comparison undecided. So an inexact value equal to its
+  bound never decides a strict comparison, and decides a non-strict one
+  only if its ball happens to end exactly on the bound:
+  `tempC(approx(-273.15))` stays undecided to the ceiling. `position`
+  answers "across" when its coarse radius bounds cannot tell, which can
+  only turn a verdict into undecided, never into a wrong one.
+
+- **In decimal mode** the same rules apply: every value is a ball whose
+  radius carries its roundings, so a verdict is still certain, and only
+  fewer comparisons decide.
+
 Conditions have no effect beyond their verdict, and their costs are an
 expression's:
 

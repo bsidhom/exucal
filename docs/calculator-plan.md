@@ -1134,8 +1134,13 @@ m/s) = m v^2 / 2`, where the head's `m` is the metre and the body's
   calls in conditions are dependencies of the walk, so a cycle through
   one is a build error. Conditions are checked left to right as a
   three-valued conjunction, so an earlier condition can guard a later
-  term (`| x > 0, ln(x) > 1`). There is no equality, which a ball
-  cannot decide, and no disjunction. The alternatives weighed were comparisons in the
+  term (`| x > 0, ln(x) > 1`). A comparison is decided by the ball
+  model, with no tolerance: two exact values compare exactly, the
+  boundary included, and always decide; otherwise the difference's ball
+  against zero decides (`position` of ball.ts), a closed ball touching
+  zero leaving a strict comparison undecided, and a ball across zero
+  leaving every comparison undecided. There is no equality, which a ball
+  cannot decide for an inexact value, and no disjunction. The alternatives weighed were comparisons in the
   parameter list, which wedge an annotation between two bounds; interval
   notation, whose half-open `)` sits inside the head's parentheses; and
   lower bounds always on the left, which refuses `x > 0`. None of them
@@ -4917,7 +4922,11 @@ Tests:
 - a condition that restates an identity (`| x - x >= 0`) is unresolved
   to the ceiling for an inexact argument;
 - the build's errors, including `| x > 0` for `x: K`;
-- the exact boundary under `<` and `<=`;
+- the exact boundary under `<` and `<=`, and `0.1 + 0.2 <= 0.3`
+  holding exactly;
+- each row of docs/functions.md's table of comparisons on balls,
+  including a ball with an end exactly on the bound;
+- an exact comparison of values past Most bits, never refused;
 - `tempC(approx(-273.15))` unresolved to the ceiling;
 - `-5 K` into `tempC` refused.
 

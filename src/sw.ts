@@ -14,8 +14,15 @@
  * Each build produces a different `sw.js` (the version and file list below are
  * injected by `vite-plugin-precache.ts`), so after a deploy the browser
  * detects the new worker on its next visit, installs it in the background
- * (downloading the new files into a new cache) and switches to it once every
- * tab of the old version has closed. The old cache is deleted at that point.
+ * (downloading the new files into a new cache) and leaves it waiting. It
+ * takes over once every page of the old version has closed, or as soon as a
+ * page asks it to by sending it `SKIP_WAITING` (service-worker-updates.ts),
+ * which the page does when the user accepts the update it offers. The old
+ * cache is deleted when it takes over.
+ *
+ * Sent `BUILD_ID_REQUEST` with a port, it answers on the port with the
+ * commit it was built from, so that the page can name a waiting update in
+ * its footer and tell which build is serving it.
  */
 
 declare const self: ServiceWorkerGlobalScope;
@@ -31,7 +38,27 @@ declare const __PRECACHE__: {
   urls: string[];
 };
 
+/**
+ * The commit this worker was built from, the same one the page shows
+ * (build-id.ts): `vite-plugin-build-id.ts` defines it for every entry of
+ * the build.
+ */
+declare const __BUILD_ID__: string;
+
 const cacheName = `precache-${__PRECACHE__.version}`;
+
+/**
+ * The message that makes this worker take over while it is waiting. It is
+ * `SKIP_WAITING` in service-worker-updates.ts, written out again rather than
+ * imported (see there).
+ */
+const SKIP_WAITING = "skip-waiting";
+
+/**
+ * The message that asks this worker for its build, `BUILD_ID_REQUEST` in
+ * service-worker-updates.ts.
+ */
+const BUILD_ID_REQUEST = "build-id";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(precache());
@@ -39,6 +66,15 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(activate());
+});
+
+self.addEventListener("message", (event) => {
+  // Skipping waiting does nothing once this worker is active.
+  if (event.data === SKIP_WAITING) {
+    event.waitUntil(self.skipWaiting());
+  } else if (event.data === BUILD_ID_REQUEST) {
+    event.ports[0]?.postMessage(__BUILD_ID__);
+  }
 });
 
 self.addEventListener("fetch", (event) => {

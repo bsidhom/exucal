@@ -32,6 +32,8 @@
     "src/system-build.test.ts",
     "src/limits.ts",
     "src/limits.test.ts",
+    "src/service-worker-updates.ts",
+    "src/service-worker-updates.test.ts",
     "bench/**/*.ts",
     "scripts/cloud-setup.test.ts"
   ]

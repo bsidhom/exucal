@@ -1,4 +1,4 @@
-import { LitElement, css, html } from "lit";
+import { LitElement, css, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import {
   MIN_MAX_BITS,
@@ -24,6 +24,7 @@ import {
 } from "./settings.ts";
 import { BUILD_ID, SHORT_BUILD_ID } from "./build-id.ts";
 import { recommendLimits } from "./limits.ts";
+import { applyUpdate, onUpdateReady } from "./register-service-worker.ts";
 import { buildSystemTable } from "./system-build.ts";
 import {
   loadSystemDefinitions,
@@ -67,6 +68,12 @@ import "./unit-converter.ts";
  * A footer under everything names the build the page is running (build-id.ts),
  * so a copy served from the service worker's cache can be told from the one
  * last deployed.
+ *
+ * A banner over everything appears once a new version of the app has been
+ * installed in the background (register-service-worker.ts), with a button
+ * that switches to it. The new version is already cached by then, so the
+ * switch is a reload that costs no download; until the user asks for it, the
+ * running version stays, so an update never interrupts them.
  */
 @customElement("app-shell")
 export class AppShell extends LitElement {
@@ -185,6 +192,21 @@ export class AppShell extends LitElement {
       align-self: flex-end;
     }
 
+    .update {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem 1rem;
+      padding: 0.5rem 1rem;
+      background: #3b5bdb;
+      color: #fff;
+    }
+
+    .update button {
+      padding: 0.25rem 0.75rem;
+    }
+
     footer {
       padding: 0 1rem 1rem;
       text-align: center;
@@ -209,10 +231,24 @@ export class AppShell extends LitElement {
   /** Whether the probe for the recommended limits is running. */
   @state() private recommending = false;
 
+  /** Whether a new version of the app is installed and ready to switch to. */
+  @state() private updateReady = false;
+
+  /** Stops the reports of a new version; set while connected. */
+  private stopUpdateReports?: () => void;
+
   connectedCallback() {
     super.connectedCallback();
     // The load is memoized, so being connected again costs nothing.
     this.load();
+    this.stopUpdateReports = onUpdateReady(() => {
+      this.updateReady = true;
+    });
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.stopUpdateReports?.();
   }
 
   /**
@@ -236,12 +272,24 @@ export class AppShell extends LitElement {
 
   render() {
     return html`
+      ${this.renderUpdate()}
       <main>
         <h1>Units</h1>
         ${this.renderContent()} ${this.renderSettings()}
       </main>
       <footer>Build <code title=${BUILD_ID}>${SHORT_BUILD_ID}</code></footer>
     `;
+  }
+
+  /** The banner offering the new version, if one is ready. */
+  private renderUpdate() {
+    if (!this.updateReady) {
+      return nothing;
+    }
+    return html`<div class="update" role="status">
+      <span>A new version of the app is ready.</span>
+      <button type="button" @click=${applyUpdate}>Reload</button>
+    </div>`;
   }
 
   /**

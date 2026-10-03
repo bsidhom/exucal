@@ -14,8 +14,11 @@
  * Each build produces a different `sw.js` (the version and file list below are
  * injected by `vite-plugin-precache.ts`), so after a deploy the browser
  * detects the new worker on its next visit, installs it in the background
- * (downloading the new files into a new cache) and switches to it once every
- * tab of the old version has closed. The old cache is deleted at that point.
+ * (downloading the new files into a new cache) and leaves it waiting. It
+ * takes over once every page of the old version has closed, or as soon as a
+ * page asks it to by sending it `SKIP_WAITING` (service-worker-updates.ts),
+ * which the page does when the user accepts the update it offers. The old
+ * cache is deleted when it takes over.
  */
 
 declare const self: ServiceWorkerGlobalScope;
@@ -33,12 +36,26 @@ declare const __PRECACHE__: {
 
 const cacheName = `precache-${__PRECACHE__.version}`;
 
+/**
+ * The message that makes this worker take over while it is waiting. It is
+ * `SKIP_WAITING` in service-worker-updates.ts, written out again rather than
+ * imported (see there).
+ */
+const SKIP_WAITING = "skip-waiting";
+
 self.addEventListener("install", (event) => {
   event.waitUntil(precache());
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(activate());
+});
+
+self.addEventListener("message", (event) => {
+  // Skipping waiting does nothing once this worker is active.
+  if (event.data === SKIP_WAITING) {
+    event.waitUntil(self.skipWaiting());
+  }
 });
 
 self.addEventListener("fetch", (event) => {

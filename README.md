@@ -862,7 +862,12 @@ hook's output at session start says which part is out of date.
   converter shows. It has no DOM dependency, so `src/messages.test.ts` checks
   the wording under Node.js.
 - `src/register-service-worker.ts` registers `sw.js` once the page has loaded,
-  in production builds only.
+  in production builds only, and tells the shell when an update is ready.
+- `src/service-worker-updates.ts` is the page's side of updates: it notices
+  a waiting worker, asks it to take over, and reloads the page when it has
+  (see Offline behavior below). It works on interfaces rather than the
+  browser's globals, so `src/service-worker-updates.test.ts` checks it under
+  Node.js.
 - `src/sw.ts` is the service worker (see Offline behavior below).
 - `src/index.css` holds the few global styles for the document. Component
   styles live in each component.
@@ -926,8 +931,9 @@ introduces a cost that a later change could quietly undo. `ARCHITECTURE.md`
 ### Offline behavior
 
 The app is cached in full the first time it is loaded and served from that
-cache from then on, so it works offline and loads instantly. Updates are picked
-up automatically after a deploy. The pieces involved:
+cache from then on, so it works offline and loads instantly. Updates are
+downloaded automatically after a deploy and offered to the user, who decides
+when to switch. The pieces involved:
 
 - **Precaching.** When `src/sw.ts` is installed, it downloads every file of the
   build into a cache named after the build's version: the page, the hashed
@@ -952,12 +958,24 @@ up automatically after a deploy. The pieces involved:
   strings. `pnpm test` covers these checks.
 - **Updates.** Because the version is derived from the contents of the build,
   any change to the app changes `sw.js`, and browsers check for a changed
-  worker on every navigation (at most once a day, bypassing the HTTP cache).
-  A new worker installs in the background, downloading the new build into a
-  new cache while the current one keeps serving, and takes over once every tab
-  running the old version has closed. At that point it deletes the old cache.
-  Nothing tells the user that an update is waiting; that is a good first
-  feature to add on top of this skeleton.
+  worker on every navigation (bypassing the HTTP cache). A new worker
+  installs in the background, downloading the new build into a new cache
+  while the current one keeps serving, and then waits: left alone, it takes
+  over only once every page running the old version has closed, which for an
+  installed app (often resumed rather than relaunched) can take days and
+  several force-closes. A plain reload is not enough, since the old page is
+  still open while the new one loads.
+- **The update banner.** As soon as a new worker is waiting,
+  `src/service-worker-updates.ts` notices (on load, or when it finishes
+  installing) and the shell shows a banner saying a new version is ready,
+  with a Reload button. The button sends the waiting worker a message that
+  makes it skip waiting; it takes over, deletes the old cache, and every open
+  page of the app reloads onto the new version when its controller changes,
+  so no page keeps running old code against the new cache. The new build is
+  already cached by then, so the reload costs no download. Until the user
+  presses the button, the running version stays. On the first visit there is
+  no old version, so the first worker takes over without a banner or a
+  reload.
 - **Installation.** `public/manifest.webmanifest` gives the app its name,
   icons, and standalone display mode. The icons are SVG, which Chromium-based
   browsers accept for installation. Safari ignores manifest icons and needs a

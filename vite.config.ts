@@ -1,9 +1,11 @@
 import { defineConfig } from "vite";
+import { buildId } from "./vite-plugin-build-id.ts";
 import { icons } from "./vite-plugin-icons.ts";
 import { precache } from "./vite-plugin-precache.ts";
 
 export default defineConfig({
   plugins: [
+    buildId(),
     icons([
       // Safari ignores the SVG icons in the manifest and needs a PNG for the
       // iOS home screen. iOS rounds the corners itself and shows transparent

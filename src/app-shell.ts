@@ -22,6 +22,7 @@ import {
   saveSettings,
   type Settings,
 } from "./settings.ts";
+import { BUILD_ID, SHORT_BUILD_ID } from "./build-id.ts";
 import { recommendLimits } from "./limits.ts";
 import { buildSystemTable } from "./system-build.ts";
 import {
@@ -62,6 +63,10 @@ import "./unit-converter.ts";
  * limits it recommends; it is disabled while the probe runs, which blocks
  * the main thread for a fraction of a second, and the probe runs only when
  * asked (the plan's D16).
+ *
+ * A footer under everything names the build the page is running (build-id.ts),
+ * so a copy served from the service worker's cache can be told from the one
+ * last deployed.
  */
 @customElement("app-shell")
 export class AppShell extends LitElement {
@@ -179,6 +184,17 @@ export class AppShell extends LitElement {
     .settings button {
       align-self: flex-end;
     }
+
+    footer {
+      padding: 0 1rem 1rem;
+      text-align: center;
+      font-size: 0.75rem;
+      opacity: 0.6;
+    }
+
+    footer code {
+      user-select: all;
+    }
   `;
 
   /** The system definitions once loaded, or why they could not be; unset until then. */
@@ -224,6 +240,7 @@ export class AppShell extends LitElement {
         <h1>Units</h1>
         ${this.renderContent()} ${this.renderSettings()}
       </main>
+      <footer>Build <code title=${BUILD_ID}>${SHORT_BUILD_ID}</code></footer>
     `;
   }
 

@@ -1032,13 +1032,15 @@ already exists (docs/functions.md, "Not in this design").
 
 D23 leaves room for these evolutions:
 
-- **Dimension-generic parameters** (task 7.3). A parameter that takes
-  any dimension, `hypot(a: *, b: *) = sqrt(a^2 + b^2)`, has its body's
-  dimension taken at the call from the actual arguments' dimensions.
-  The spelling is for 7.0 to settle, but it must not be a name, since an
-  annotation is evaluated among the units, which may grow.
-- **Domain bounds on a parameter** (task 7.4). The range of a function
-  becomes the domain of its inverse, so it needs no syntax of its own.
+- **Dimension-generic functions,** deferred from stage 7. Dimension
+  variables declared in brackets after the name tie the dimensions of
+  parameters and result together: `hypot[D](a: D, b: D) = sqrt(a^2 +
+b^2)`, `rate[Q](amount: Q, time: s): Q / s = amount / time`. Type
+  bounds on the variables, in the manner of the constraints of ad-hoc
+  polymorphism, would go in the same brackets.
+- **Conditions on the arguments** (task 7.3), after a `|`. The range of
+  a function is the conditions of its inverse, so it needs no syntax of
+  its own.
 - **Definitions typed into the converter.** `f(x) = …` in the have field
   could define a function for the session, unambiguously, since `=` is
   in no expression. An issue is to be opened for it. It is not part of
@@ -1046,7 +1048,7 @@ D23 leaves room for these evolutions:
 - **The result annotation as the default want of a bare call.** This
   is deferred from stage 7 (see "Deferred from stage 7").
 
-Three further rulings, from the owner's review of the questions D23 first
+Further rulings, from the owner's review of the questions D23 first
 left open:
 
 - **An annotation checks a dimension and changes no value.** A quantity
@@ -1115,6 +1117,40 @@ m/s) = m v^2 / 2`, where the head's `m` is the metre and the body's
   Scaled results, and lists, in the result's annotation are use cases
   for the deferred default want, and the restriction is to be relaxed
   for them when that design takes them up, if it does.
+- **Conditions follow a `|`,** after the parameters and the result
+  annotation:
+
+  ```
+  logit(p) | 0 < p < 1 = ln(p / (1 - p))
+  uniformcdf(x, a, b) | a < b, a <= x <= b = (x - a) / (b - a)
+  ```
+
+  A condition is a chain of two or more expressions joined by `<`,
+  `<=`, `>` or `>=`, all pointing one way, so a bound on either side or
+  on both reads in either direction. Conditions are separated by
+  commas, as a conjunction. They see the parameters before the units, as
+  the body does, so a condition may relate parameters or any
+  expressions of them. There is no equality, which a ball cannot decide,
+  and no disjunction. The alternatives weighed were comparisons in the
+  parameter list, which wedge an annotation between two bounds; interval
+  notation, whose half-open `)` sits inside the head's parentheses; and
+  lower bounds always on the left, which refuses `x > 0`. None of them
+  had room for a relation between parameters.
+
+- **Dimension-generic functions are deferred** from stage 7 to an issue
+  of their own. docs/functions.md ("Dimension-generic functions")
+  records the intended design: variables in brackets, a stand-in
+  primitive per variable so that the build checks a generic body in
+  full, and room in the brackets for type bounds. The `*` of the first
+  draft is dropped, since it can neither tie parameters together nor
+  carry a type bound. 7.1 reserves `name[`.
+- **A written inverse is checked at every conversion into its
+  function.** The function is applied to the recovered argument, and a
+  value disjoint from the have is refused (`inverseMismatch`). This
+  refutes a wrong answer, and proves nothing about other values. The
+  want is the only use an inverse has, so the check covers every use, at
+  about twice the cost of the conversion. It is to be reconsidered if an
+  inverse ever becomes callable in an expression.
 
 **D24. A user function's value is its body's value as an expression,
 and the machinery that certifies an expression certifies it (added
@@ -1164,12 +1200,13 @@ The caveats, each of which the stage's docs state:
 - **Decimal mode rounds each step of the body to Digits,** as it does an
   expression typed inline. `f(x)` there is the hand calculator's
   sequence of keystrokes, not a correctly rounded `f`.
-- **A written inverse is trusted.** The build checks its dimensions, not
-  that it inverts. One possible check at the want is that `f(~f(y))`
-  overlaps `y`, refusing only when the two are disjoint, since overlap
-  is what balls can decide and equality is not. 7.0 rules on it.
-- **A domain bound on a ball is three-valued** (task 7.4). A ball that
-  straddles the bound is `unresolved` and retried. An inexact argument
+- **A written inverse is checked where it is used** (D23). The build
+  checks its dimensions, not that it inverts, and each conversion into
+  the function applies the function to the answer and refuses one
+  certainly wrong. Overlap is what balls can decide, so the check
+  refutes and does not prove.
+- **A condition on a ball is three-valued** (task 7.3). A ball that
+  straddles a bound is `unresolved` and retried. An inexact argument
   exactly at a bound, such as `tempC(approx(-273.15))`, stays unresolved
   to the ceiling, as `floor` does at a cell's edge.
 - **There is no inversion without a written inverse.** Certifying a root
@@ -1182,7 +1219,7 @@ The caveats, each of which the stage's docs state:
   evaluations of the innermost, at every pass of the retry loop. That
   is what the same expression written out in full costs, so it is not a
   new limit, but README ("Functions") and ARCHITECTURE.md ("Functions")
-  say so in 7.5.
+  say so in 7.4.
 
 ## Stage 1: the context and the ball
 
@@ -4752,31 +4789,32 @@ follows:
 - The bracketed form gives way to signatures and `~` lines.
 - The optional declaration and the optional inverse come with the new
   form in 7.1, rather than after several parameters.
-- Dimension-generic parameters join as 7.3.
-- Range bounds fold into the domain of the inverse in 7.4.
+- Conditions after a `|` take the place of domain and range bounds in
+  7.3, the range being the conditions of the inverse.
+- Dimension-generic functions are deferred to an issue of their own.
 
 ### 7.0 Design note
 
-docs/functions.md rewritten for D23. It covers:
+docs/functions.md rewritten for D23. Written. It covers:
 
 - the grammar of a head and of a `~` line;
-- the scope of annotations;
+- the scope of annotations and of conditions;
 - the conformance of an argument to its annotation;
 - the inferred result and the check of an annotated one;
-- the want through `~f`, and the error when there is none;
+- the want through `~f`, the error when there is none, and the check of
+  the answer;
+- conditions, their grammar and why it is unambiguous, and their
+  three-valued check;
 - the radius and its caveats, after D24;
-- the spelling of a dimension-generic parameter;
-- the syntax of domain bounds.
+- the intended design of the deferred dimension-generic functions.
 
 It also covers D23's rulings: annotations as checks of dimension that
 change no value, with the BMI example of dividing a unit out; the
 annotation as a unit expression with no number but `1`; and shadowing,
-with its two errors. Written. It makes three choices of its own, for
-review before 7.1 ("Choices for review"): `*` for a generic parameter,
-bounds as comparisons around the parameter (`-1 <= x <= 1`), and a
-check of a written inverse at the want, which it recommends adopting
-in 7.1: the function applied to the recovered argument, and the
-conversion refused when that value is disjoint from the have.
+with its two errors. The three choices its first draft made were ruled
+on (D23): `*` was dropped with the generic functions, bounds became
+conditions after a `|`, and the check of an inverse at the want was
+adopted.
 
 ### 7.1 The new form, one parameter
 
@@ -4786,6 +4824,10 @@ conversion refused when that value is disjoint from the have.
   annotation being a unit expression with no number but `1` (D23);
 - `~name(p) = body`, with no annotations;
 - the bracketed grammar, which is removed.
+
+It rejects a `|` after the parameters (conditions come in 7.3), and
+`name[` (the deferred dimension variables), each with a message saying
+it is not supported yet.
 
 It reports a parameter named like a unit that its own head uses, as a
 parse error (D23).
@@ -4807,10 +4849,9 @@ The build:
 `UnitFunction` holds the inverse as optional. The pipeline's function
 want rejects a function without one, with an error that names the `~`
 form, worded in messages.ts. A recovered argument is written in the
-parameter's annotation, or as a plain number without one. If the review
-of 7.0 adopts it, the want also applies the function to the recovered
-argument and refuses a value disjoint from the have
-(`inverseMismatch`).
+parameter's annotation, or as a plain number without one. The want also
+applies the function to the recovered argument, and refuses a value
+disjoint from the have (`inverseMismatch`, D23).
 
 units.txt rewrites `tempC`, `tempF`, `neper`, `bel` and `decibel` in
 the same commit, since the old form stops parsing. Their conversions are
@@ -4823,6 +4864,8 @@ Tests:
   named like a unit in its own head;
 - the build's new errors;
 - the want of a function without an inverse;
+- `inverseMismatch` for a definition whose inverse is wrong (`~f(y) =
+y / K + 273.15` for `tempC`), and none for the five of units.txt;
 - the inferred result of `tempC(x) = x K + 273.15 K`.
 
 ### 7.2 Several parameters
@@ -4835,35 +4878,37 @@ a parse error at its second occurrence. The inverse and the want stay
 single-parameter, as the study says, so a `~f` whose `f` takes several
 parameters is a build error.
 
-### 7.3 Dimension-generic parameters
+### 7.3 Conditions
 
-A parameter annotated to take any dimension (`hypot(a: *, b: *) =
-sqrt(a^2 + b^2)`, `mean(a: *, b: *) = (a + b) / 2`; the spelling is
-7.0's) has its body's dimension taken at the call, by `dimensionOf`
-with the actual arguments' dimensions, before anything is evaluated.
+The head reads `| condition, …` before the `=`, on a function and on an
+inverse, in the grammar of docs/functions.md ("Conditions"). A condition
+is a chain of comparisons in one direction, and conditions are
+separated by commas. The build takes each term's dimension with the
+parameters bound, holds adjacent terms to conformance, and requires
+each condition to mention a parameter.
 
-- **At the call,** a failure is reported as an error on the arguments,
-  saying which operation of the body they fail (`hypot`'s sum needs `a`
-  and `b` of one dimension). So a call can still fail only on its
-  arguments or on a value.
-- **At build time,** the body of a generic function is checked for what
-  does not depend on dimensions: names that resolve, and the arity of
-  the calls inside it. An annotated result is checked at the call.
-- **No inverse:** a `~` line for a function with a generic parameter is
-  a build error, since a recovered argument with no unit has nothing to
-  be written in.
+A call checks the conditions after the arguments conform and before the
+body, on balls and three-valued. A certain failure is
+`conditionFailed`, which names the condition as written and is
+reported before anything undecided; otherwise an undecided condition
+is `unresolved` and retried (D24). The want checks the have against the
+inverse's conditions, which are the function's range, and checks the
+recovered argument against the function's own conditions. units.txt
+gives `tempC` and `tempF` their conditions.
 
-### 7.4 Domain bounds
+Tests:
 
-Bounds on a parameter, in the syntax 7.0 settles (for example
-`tempC(x >= -273.15)`), are checked at the call on the argument's ball.
-The check is three-valued: a ball that straddles a bound is
-`unresolved` and retried (D24). The range of `f` is written as the
-domain of `~f`, and is checked at the want, where the recovered
-argument is checked against `f`'s own bounds too. The error names the
-bound.
+- each shape parses: one-sided either way round, two-sided in either
+  direction, several conditions, and a relation between parameters;
+- a mixed chain, `0 < x > 1`, is a parse error;
+- `<=` is never read as `<` before `=`;
+- a comma inside a call in a condition belongs to the call;
+- the build's errors, including `| x > 0` for `x: K`;
+- the exact boundary under `<` and `<=`;
+- `tempC(approx(-273.15))` unresolved to the ceiling;
+- `-5 K` into `tempC` refused.
 
-### 7.5 Stage 7 docs
+### 7.4 Stage 7 docs
 
 README "Functions", docs/functions.md's implementation notes, and
 ARCHITECTURE.md "Functions". The README and ARCHITECTURE.md each gain
@@ -4883,16 +4928,22 @@ opened for it, to study the options later:
   only the display, never how a quantity or a dimension is held. The
   precedent is a recovered argument, which is already written in its
   parameter's annotation. The open point is that the default applies to
-  a lone call only, and `2 bmi(…)` would show the primitives again. Scaled results
-  and lists in the result's annotation are its use cases, so the
-  restriction to unit expressions with no number but `1` is to be
-  revisited with it.
+  a lone call only, and `2 bmi(…)` would show the primitives again.
+  Scaled results and lists in the result's annotation are its use
+  cases, so the restriction to unit expressions with no number but `1`
+  is to be revisited with it.
 - **Shadowing in the head as a warning.** D23's error for a parameter
   whose name is also a unit in its definition's annotations is relaxed
   to a warning once user definitions have an editor and the build has a
   way to report warnings. The same change could warn about a body that
   seems to need the unit its parameter hides.
 - **Definitions typed into the converter** (D23).
+- **Dimension-generic functions** (D23; docs/functions.md,
+  "Dimension-generic functions"). The issue covers the bracketed
+  variables and the stand-in check, whether a literal `0` in a
+  condition stands for zero in any dimension, and type bounds on the
+  variables in the sense of ad-hoc polymorphism: which dimensions a
+  variable may bind, and perhaps a body chosen by the dimension bound.
 
 ## Stage 8: runtime
 

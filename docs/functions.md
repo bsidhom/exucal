@@ -4,10 +4,11 @@ Status: the design note of stage 7 (task 7.0 of docs/calculator-plan.md),
 revised from the first design for D23 and D24 and the owner's rulings on
 them; not yet implemented. Until task 7.1 lands, the code reads the
 bracketed form this note replaces, which "The first form" at the end
-records with its implementation notes. Three choices are this note's
-own, for review before 7.1: the spelling of a dimension-generic
-parameter, the syntax of domain bounds, and the check of a written
-inverse at the want ("Choices for review").
+records with its implementation notes. The owner ruled on the three
+choices the first draft of this note made: dimension-generic functions
+are deferred to an issue of their own, with the design this note
+intends; conditions on arguments follow a `|`; and a written inverse is
+checked at every conversion into its function.
 
 The goal of the first design was `tempC` and `tempF` for temperature
 readings, without adding anything to the core that only temperature
@@ -52,9 +53,9 @@ the inverse.
 normcdf(x) = (1 + erf(x / sqrt(2))) / 2
 kinetic(mass: kg, v: m/s) = mass v^2 / 2
 bmi(weight: kg, height: m): 1 = (weight / kg) / (height / m)^2
-hypot(a: *, b: *) = sqrt(a^2 + b^2)
+logit(p) | 0 < p < 1 = ln(p / (1 - p))
 
-tempC(x >= -273.15) = x K + 273.15 K
+tempC(x) | x >= -273.15 = x K + 273.15 K
 ~tempC(y) = y / K - 273.15
 
 dozen(n: in) = 12 n
@@ -64,12 +65,15 @@ dozen(n: in) = 12 n
 The grammar of a function line:
 
 ```
-function   := name "(" params? ")" (":" annotation)? "=" expr
-inverse    := "~" name "(" (expr cmp)? name (cmp expr)? ")" "=" expr
+function   := name dims? "(" params? ")" (":" annotation)? ("|" conditions)? "=" expr
+inverse    := "~" name "(" name ")" ("|" conditions)? "=" expr
 params     := param ("," param)*
-param      := (expr cmp)? name (":" (annotation | "*"))? (cmp expr)?
-cmp        := "<" | "<=" | ">" | ">="          a bound, at most one per side
-annotation := a unit expression (below)
+param      := name (":" annotation)?
+conditions := condition ("," condition)*
+condition  := expr cmp expr (cmp expr)*      every cmp of one condition points one way
+cmp        := "<" | "<=" | ">" | ">=" | "≤" | "≥"
+annotation := a unit expression ("Annotations")
+dims       := "[" name ("," name)* "]"       reserved ("Dimension-generic functions")
 ```
 
 - **The head decides the grammar,** as a trailing dash decides a
@@ -79,15 +83,15 @@ annotation := a unit expression (below)
   rather than the single-token regex of the first form; between the
   name and `(` there is no space, as in a call.
 - **`=` ends the head.** An annotation is an expression and
-  juxtaposition multiplies, so whitespace cannot end it: after `: J
-mass v^2 / 2` the parser would read `J mass v^2 / 2` as one product.
-  `=`, `:`, `~` and the comparisons appear nowhere in the expression
-  grammar, and `*` cannot start an expression, so every decision is
-  still made from the text alone, and the parser still never consults
-  the table.
+  juxtaposition multiplies, so whitespace cannot end it: were a result
+  annotation `J` followed by the body `mass v^2 / 2` with only a space
+  between them, the parser would read one product. `=`, `:`, `~`, `|`
+  and the comparisons appear nowhere in the expression grammar, so every
+  decision is still made from the text alone, and the parser still
+  never consults the table ("Conditions" shows the grammar is
+  unambiguous).
 - **A parameter without an annotation is a plain number.** `x: kg`
-  admits a mass, `x: *` any dimension ("Dimension-generic parameters"),
-  and `x: 1` says explicitly what no annotation says.
+  admits a mass, and `x: 1` says explicitly what no annotation says.
 - **The result's annotation is optional.** Without one, the result's
   dimension is inferred from the body by `dimensionOf`, with each
   parameter bound to its annotation's dimension; the inference is exact,
@@ -95,18 +99,23 @@ mass v^2 / 2` the parser would read `J mass v^2 / 2` as one product.
   one, the inferred dimension is checked against it, so that `: 1`
   asserts a plain result and catches a body that is not.
 - **An inverse is optional.** `~name(p) = body` defines the inverse of
-  `name`, which must be defined, with exactly one parameter, which is
-  not generic. The inverse's parameter has `name`'s result dimension
-  and takes no annotation, since that dimension is known; its body must
+  `name`, which must be defined, with exactly one parameter. The
+  inverse's parameter has `name`'s result dimension and takes no
+  annotation, since that dimension is known, but may take conditions,
+  which are the function's range; its body must
   conform to `name`'s parameter. A function without an inverse cannot
   be the want ("A function as the want"). The two lines may stand
   anywhere in the file, as every definition may, and are conventionally
   adjacent; a `~` line whose function is not defined is a build error,
   and a second `~` line for one function is a duplicate.
-- **Bounds are written around the parameter,** as in mathematics:
-  `x >= -273.15`, `x > 0`, `-1 <= x <= 1`, `x: K >= 0 K`. "Domain
-  bounds" describes them; they are task 7.4's, and the grammar reserves
-  their place now so that nothing else takes it.
+- **Conditions follow a `|`,** read "such that", after the parameters
+  and the result annotation: `| x >= -273.15`, `| 0 < p < 1`, or two
+  conditions, `| a < b, a <= x <= b`. "Conditions" describes them;
+  they are task 7.3's, and 7.1's parser reserves the `|` so that
+  nothing else takes it.
+- **`name[` is reserved** for the dimension variables of the deferred
+  generic functions ("Dimension-generic functions"); 7.1's parser
+  rejects it with a message saying they are not supported yet.
 
 The five functions of units.txt are rewritten in the same commit as the
 parser (task 7.1), since the bracketed form stops parsing, and convert
@@ -125,7 +134,8 @@ decibel(x)  = pow(10, x / 10)
 ~decibel(y) = 10 log10(y)
 ```
 
-`tempC` and `tempF` gain their domain bounds with task 7.4.
+`tempC` and `tempF` gain their conditions with task 7.3:
+`tempC(x) | x >= -273.15` and `tempF(x) | x >= -459.67`.
 
 A function's name lives in the unit namespace, with units and lists: a
 function and a unit of one name are a duplicate, and so are a function
@@ -135,9 +145,10 @@ function, and typed as the have, milliseconds. An inverse's name is
 its function's, behind the `~`, which no other name can start with.
 
 `Definition` gains a `function` kind (the name, the parameters each
-with an optional annotation and optional bounds, the optional result
-annotation, the body, the span) and an `inverse` kind (the function's
-name, the parameter with its optional bounds, the body, the span).
+with an optional annotation, the optional result annotation, the
+conditions each with its text, the body, the span) and an `inverse`
+kind (the function's name, the parameter, the conditions, the body, the
+span).
 
 ## Annotations
 
@@ -224,15 +235,15 @@ the restriction above, that can fail only for a unit defined as zero.
 
 ## Names and shadowing
 
-Annotations and bounds are evaluated among the units alone; the body
-resolves a parameter before any unit, by its exact name. So a name
+Annotations are evaluated among the units alone; conditions and the
+body resolve a parameter before any unit, by its exact name. So a name
 resolves one way wherever it stands: in `kinetic(mass: kg, v: m/s)`, `m`
 in the annotation is the metre whatever the parameters are called, and
 in a body whose parameter is `m`, `m` is the parameter and `km` is
 still the kilometre, since a prefixed name is looked up among the
 units. An annotation cannot name a parameter, so it cannot say that one
-parameter has the unit of another; that needs a notation for shared
-dimensions, which is not in this design.
+parameter has the unit of another; that is what the dimension
+variables of "Dimension-generic functions" are for.
 
 Shadowing a unit is allowed and silent. `t`, `s`, `m`, `c`, `g`, `h` and
 `T` are units, and the list grows; forbidding them as parameters would
@@ -257,76 +268,155 @@ have an editor and the build has a way to report warnings; there is
 nowhere to show one today, and relaxing an error later breaks no file,
 where tightening a silence would. "Deferred" lists it.
 
-## Dimension-generic parameters
+## Conditions
 
-A parameter annotated `*` takes an argument of any dimension:
-
-```
-hypot(a: *, b: *) = sqrt(a^2 + b^2)
-mean(a: *, b: *) = (a + b) / 2
-```
-
-`*` cannot start an expression, so after a `:` it is unambiguous, and it
-is not a name, which matters since an annotation is evaluated among the
-units, which may grow (`any` could become a unit). A generic function's
-body has no dimension until it is called, so it is checked in two parts:
-
-- **At build time**, what does not depend on dimensions: the names in
-  the body resolve, and the calls in it have the right counts of
-  arguments. A result annotation is evaluated, as any annotation is.
-- **At the call**, before anything is evaluated, `dimensionOf` runs on
-  the body with each generic parameter bound to its argument's
-  dimension and each annotated one to its annotation's. A failure is
-  an error on the arguments, `genericMismatch`, carrying the failure
-  inside the body (`hypot(1 m, 1 s)`: the sum in `hypot`'s body needs
-  `a^2` and `b^2` of one dimension, and they are `m^2` and `s^2`); a
-  result annotation is checked against the dimension found. So a call
-  can still fail only on its arguments or on a value.
-
-A generic function has no inverse: a recovered argument with no unit
-has nothing to be written in, so a `~` line for one is a build error.
-Nor does a generic parameter take bounds in this design, since a bound
-must conform to the parameter. Mixing generic and annotated parameters
-is allowed: `scale(x: *, k) = k x`.
-
-## Domain bounds
-
-A parameter may carry a bound on each side, written as a comparison
-with the parameter, as in mathematics; each comparison bounds it from
-one side, whichever way round it is written, and a second bound on the
-same side is a parse error:
+A function may restrict its arguments by conditions, written behind a
+`|` after its parameters and its result annotation and separated by
+commas. Every condition must hold:
 
 ```
-tempC(x >= -273.15) = x K + 273.15 K
-ln1p(x > -1) = ln(1 + x)
-asinish(-1 <= x <= 1) = asin(x) / radian
-absolute(x: K >= 0 K) = x
+tempC(x) | x >= -273.15 = x K + 273.15 K
+ln1p(x) | x > -1 = ln(1 + x)
+below(x) | x < 1 = …
+logit(p) | 0 < p < 1 = ln(p / (1 - p))
+frac(x) | 0 <= x < 1 = …
+band(temp: K) | 0 K <= temp <= 373.15 K = …
+npdf(x, mu, sigma) | sigma > 0 = exp(-((x - mu) / sigma)^2 / 2) / (sigma sqrt(2 pi()))
+uniformcdf(x, a, b) | a < b, a <= x <= b = (x - a) / (b - a)
+indisc(x, y) | x^2 + y^2 <= 1 = …
+outside(x) | abs(x) >= 1 = …
+~tempC(y) | y >= 0 K = y / K - 273.15
 ```
 
-A bound is an expression evaluated among the units, as an annotation
-is, so it cannot name a parameter, and it must conform to the
-parameter's annotation (to a plain number without one), which the
-build checks; two exact bounds that admit nothing are a build error.
-A bound may be inexact (`x < pi() / 2`). `<` and `>` exclude the
-bound and `<=` and `>=` include it, which decides the exact boundary
-case: `ln1p(-1)` is outside, `tempC(-273.15)` inside.
+- **A condition is a chain of comparisons:** two or more terms, each an
+  expression, joined by `<`, `<=`, `>` or `>=` (or `≤` and `≥`). `<`
+  and `>` exclude their bound and `<=` and `>=` include it, which
+  decides the exact boundary: `ln1p(-1)` fails, `tempC(-273.15)`
+  holds. A bound on one side is a chain of two terms, written either
+  way round (`x > 0`, `0 < x`, `x < 1`, `1 > x`); a bound on both sides
+  is a chain of three, in either direction (`0 <= x < 1`, or
+  `1 > x >= 0`). The comparisons of one chain point one way, so
+  `0 < x > 1`, which bounds nothing as an interval does, is a parse
+  error.
+- **Several conditions are a conjunction,** separated by commas. A
+  parameter may appear in any number of them (`| x > 0, x < 1`
+  means `| 0 < x < 1`), a condition may relate parameters (`a < b`),
+  and its terms may be any expressions of them (`x^2 + y^2 <= 1`).
+  There is no disjunction: a domain in two pieces is usually one
+  condition on an expression (`abs(x) >= 1`).
+- **There is no equality and no `!=`.** `=` always ends the head, and
+  equality of an inexact argument can never be decided on a ball, so an
+  equality condition would be undecided for every inexact argument. A
+  body that cannot be computed at a point already fails there.
+- **Conditions see the parameters before the units,** as the body does,
+  so a condition is written as the body would write the same
+  expression. Each condition must mention a parameter; one that does
+  not could only always hold or never, and is a build error.
+- **Dimensions are checked at build time.** `dimensionOf` takes each
+  term's dimension with the parameters bound as in the body, and
+  adjacent terms must conform, as a sum's operands must: with `x: K`,
+  `| x > 0` is an error, whose message suggests `0 K`.
 
-A bound is checked at the call, after the argument's conformance and
-before the body, on the argument's ball, and the check is
-three-valued: inside, outside, or not decided, when the ball straddles
-the bound. Outside is an error at the call, `outOfDomain`, naming the
-function, the parameter and the bound (`tempC(-300)`: the argument must
-be at least -273.15). Not decided is `unresolved`, which the retry loop
-retries at more digits; an inexact argument exactly at a bound,
-`tempC(approx(-273.15))`, stays unresolved to the ceiling, as `floor`
-does at a cell's edge.
+The grammar is unambiguous, and still decided by the text alone:
 
-The range of a function needs no syntax: it is the domain of its
-inverse, written on the `~` line's parameter (`~tempC(y >= 0 K)`), and
-checked at the want as a domain is at a call. At the want, the
-recovered argument is checked against the function's own bounds too, so
-that `-5 K` into `tempC` is refused, the reading it would need,
-`-278.15`, lying below `-273.15`, with or without a bound on `~tempC`.
+- **An annotation ends at `,`, `)`, `|` or `=`,** none of which a unit
+  expression contains.
+- **A term ends at a comparison, at a comma outside parentheses, or at
+  `=`,** none of which can continue an expression. A comma inside a
+  call's parentheses (`| hypot(x, y) < 1`) belongs to the call, by
+  nesting, as it does in any expression.
+- **`<=` and `>=` are each one token,** read before `<` and `>`, so
+  `x <= 1` is never `x <` followed by `= 1`.
+- **`|` appears once, and only in a head,** after the parameters and the
+  optional result annotation; `=` follows the last condition.
+- **The deferred dimension variables fit before the parameters,**
+  `hypot[D](a: D, b: D) | …`, without touching any of this.
+
+A call checks its conditions after the arguments conform and before the
+body. Each condition's terms are evaluated on balls, with the parameters
+bound to the arguments, at the working context, and each adjacent pair
+is compared three-valued: certainly holds, certainly fails, or not
+decided, when the two balls overlap at the boundary.
+
+- **A certain failure** is `conditionFailed` at the call, naming the
+  function, the condition as written, and the arguments: `logit(1.5)`:
+  logit requires `0 < p < 1`, and p is 1.5.
+- **A failure is reported before anything undecided,** so that an
+  argument certainly outside one condition is not retried for another.
+- **Otherwise, a condition not decided** is `unresolved`, and the retry
+  loop retries it at more digits. An exact argument against an exact
+  bound always decides; an inexact argument exactly at a bound,
+  `tempC(approx(-273.15))`, stays unresolved to the ceiling, as `floor`
+  does at a cell's edge.
+- **A term that cannot be computed** (`| ln(x) > 0` at a negative `x`)
+  is a `callFailed`, as a body's failure is.
+
+The range of a function needs no syntax of its own: it is the conditions
+of its inverse, checked at the want as a function's are at a call. At
+the want, the recovered argument is checked against the function's own
+conditions too, so that `-5 K` into `tempC` is refused, the reading it
+would need, `-278.15`, lying below `-273.15`, with or without a
+condition on `~tempC`.
+
+## Dimension-generic functions
+
+Deferred from stage 7, with an issue of its own to be opened; this
+section records the design intended, so that stage 7 closes no door on
+it. A function may declare dimension variables, in brackets after its
+name, and use them in its annotations to take arguments of any
+dimension and to tie the dimensions of its parameters and its result
+together:
+
+```
+hypot[D](a: D, b: D) = sqrt(a^2 + b^2)
+lerp[D](a: D, b: D, t) | 0 <= t <= 1 = a + t (b - a)
+rate[Q](amount: Q, time: s): Q / s = amount / time
+rms[D](x: D^2) = sqrt(x)
+```
+
+- **Declaration.** `name[V, …]` declares the variables. `[` is free
+  once the bracketed form is gone, and `name[` with no space chooses the
+  function grammar as `name(` does; 7.1 reserves it.
+- **Use.** A variable appears only in its head's annotations, as a
+  factor of a unit expression (`D`, `D^2`, `Q / s`, `kg D`). Within the
+  head, a variable comes before a unit of its name: it is declared there
+  and deliberate, so a unit added later cannot break the function. A
+  variable named like a parameter is an error.
+- **Binding.** A parameter's annotation may mention one variable at
+  most. Left to right, the first parameter that mentions a variable
+  binds it, by solving its annotation for it; a dimension's exponents
+  are rationals, so `x: D^2` always solves. Every later mention is a
+  check. A variable that no parameter mentions is an error, and the
+  result's annotation can only check one.
+- **Checking.** At build time each variable is a fresh stand-in
+  primitive, which no unit can equal, and `dimensionOf` checks the body
+  in full: `D + D` holds, and `D + D^2`, `exp(x)` and `sin(x)` fail, as
+  they should for some `D`. The result's dimension comes out in the
+  variables and is filled in at the call. This is sound: a body that
+  checks with `D` as an independent primitive checks for every dimension
+  `D` may stand for, since substituting a dimension for a primitive
+  keeps every conformance. So a call can fail only on its arguments,
+  against the annotations (`hypot(1 m, 1 s)`: `b` must have `a`'s
+  dimension, `m`, but has `s`), or on a value, as for any function.
+- **Conditions** relate generic parameters to one another as they are
+  (`| a < b`, both of `D`). A comparison with a constant needs one of
+  dimension `D`, which only zero could be; whether a literal `0` in a
+  condition stands for zero in any dimension, since a comparison with
+  zero does not depend on the unit, is for the issue.
+- **No inverse:** a recovered argument with no unit has nothing to be
+  written in.
+- **Type bounds.** A variable may need to range over some dimensions
+  only, in the manner of the constraints of ad-hoc polymorphism: a
+  length or a time, dimensionless or an angle, or a dimension of a
+  given kind; and a body might be chosen by the dimension a variable
+  binds, as an overloaded function chooses by type. The bracket is
+  where such a bound would be written (`[D: …]`), and what bounds mean
+  and how they read is for the issue to study.
+
+The alternatives were a mark on each parameter, `x: *` or `x: ?`, which
+can neither tie two parameters together nor carry a type bound, and
+undeclared variables marked by a sigil, `x: 'D`, which needs no
+declaration but which a phone's smart punctuation turns into `’D`.
 
 ## Calls in expressions
 
@@ -360,19 +450,17 @@ failure ends it:
    value).
 4. Each argument must conform to its parameter's annotation, or be a
    plain number without one; a failure is `argumentMismatch`, naming
-   the argument. If any parameter is generic, the body's dimension is
-   then taken with the arguments' dimensions, and a failure is
-   `genericMismatch`.
-5. Each argument is checked against its parameter's bounds; outside is
-   `outOfDomain`, not decided is `unresolved`.
+   the argument.
+5. The conditions are checked ("Conditions"): a certain failure is
+   `conditionFailed`, and otherwise a condition not decided is
+   `unresolved`.
 6. The body is evaluated with each parameter bound to its argument. Its
    failures carry spans into the definitions text, so they come back as
    `callFailed`, naming the function and carrying the body's error; an
    `unresolved` inside the body, at any depth, is still retried.
 
 The result is a quantity like any other. Its dimension is not checked
-at the call, the build having checked or inferred it once, except for a
-generic function's annotated result, checked at step 4.
+at the call, the build having checked or inferred it once.
 
 A bare function name in an expression is not a unit: `tempC` alone, or
 `2 tempC`, is `functionAsUnit`, whose message shows the call form.
@@ -385,19 +473,39 @@ read as a unit:
 
 1. The function must have an inverse; one without is `noInverse` on the
    want side, whose message says so and names the form that would give
-   it one: `"normcdf" has no inverse, so it cannot be the unit to
-convert to. Define ~normcdf(y) = … to give it one.`
+   it one:
+
+   ```
+   "normcdf" has no inverse, so it cannot be the unit to convert to. Define ~normcdf(y) = … to give it one.
+   ```
+
 2. The have must conform to the function's result dimension; a failure
    is the ordinary mismatch of the pair, so the existing wording holds.
-3. The have is checked against the inverse's bounds, as an argument is
-   at a call.
+3. The have is checked against the inverse's conditions, as an
+   argument is at a call.
 4. The inverse's body is evaluated with its parameter bound to the
    have, giving the recovered argument; a failure is `inverseFailed`,
    carrying the body's error.
-5. The recovered argument is checked against the function's bounds.
-6. If the check of "Choices for review" is adopted, the function is
-   applied to the recovered argument, and a value disjoint from the
-   have is `inverseMismatch`.
+5. The recovered argument is checked against the function's conditions.
+6. The function is applied to the recovered argument, at the same
+   working context, and a value disjoint from the have is
+   `inverseMismatch`, on the want side, naming the function.
+
+Step 6 checks the one part of a definition the build cannot: that an
+inverse inverts. It refutes and does not prove. If the function's value
+over the recovered argument's ball is disjoint from the have, no point
+of that ball gives the have, and the answer is certainly wrong; an
+overlap proves nothing, but overlap is what balls can decide, and
+equality is not. So every answer shown has passed the check at the
+precision it is shown at, an inverse wrong elsewhere is caught when a
+conversion reaches the values where it is wrong, and an inverse wrong
+by less than the answer's own uncertainty passes, its error below the
+digits shown. The cost is one evaluation of the function per pass of a
+conversion into it. The want is the only use an inverse has, a single
+evaluation at the top of a conversion and never inside a larger
+expression, so checking every use costs at most about twice the
+conversion. Should an inverse ever be callable in an expression ("Not
+in this design"), the question returns with that use's costs.
 
 `Conversion` keeps its `function` kind: the have, the want's text, the
 recovered argument, the parameter's annotation with its text, and the
@@ -432,26 +540,23 @@ defined by a call (`boiling  tempC(100)`), a body may call another
 function, an inverse may call its own function, and a cycle through a
 function is reported like any other. Checking a function means:
 
-1. Evaluating its annotations and bounds among the units; each
-   annotation must be nonzero, each bound must conform to its
-   parameter, and two exact bounds must admit something.
-2. For a function with no generic parameter, taking the body's
-   dimension by `dimensionOf`, with each parameter bound to its
-   annotation's dimension (plain without one), through the walk's own
-   lookup, so that a name that means nothing, a sum whose operands do
-   not conform, or a call of the wrong count or dimension is an
-   ordinary build error with its span in the definitions text; that
-   dimension is the function's result. For a generic function, checking
-   the names and the counts of the calls only.
+1. Evaluating its annotations among the units; each must be nonzero.
+2. Taking the body's dimension by `dimensionOf`, with each parameter
+   bound to its annotation's dimension (plain without one), through the
+   walk's own lookup, so that a name that means nothing, a sum whose
+   operands do not conform, or a call of the wrong count or dimension is
+   an ordinary build error with its span in the definitions text; that
+   dimension is the function's result. Each condition's terms are taken
+   the same way, adjacent terms must conform, and each condition must
+   mention a parameter.
 3. Checking the result against its annotation, when there is one; a
    failure is `functionMismatch`, naming the result.
 
 Checking an inverse means finding its function (a build error when
-there is none, or when the function has several parameters or a generic
-one), evaluating its bounds against the function's result dimension,
-taking its body's dimension with its parameter bound to that dimension,
-and checking the body against the function's parameter
-(`functionMismatch`, naming the inverse).
+there is none, or when the function has several parameters), taking
+its conditions' and its body's dimensions with its parameter bound to
+the function's result dimension, and checking the body against the
+function's parameter (`functionMismatch`, naming the inverse).
 
 The bodies are not evaluated at build time at all: a body that fails at
 some value, or at every value, builds and fails at the call that
@@ -495,9 +600,11 @@ radius needs nothing new. The caveats:
 - **Decimal mode rounds each step of the body to Digits,** as it rounds
   an expression typed inline: `f(x)` is the hand calculator's sequence
   of keystrokes, not a correctly rounded `f`.
-- **A written inverse is trusted.** The build checks its dimensions, not
-  that it inverts; "Choices for review" proposes a check at the want.
-- **A bound on a ball is three-valued,** as "Domain bounds" says.
+- **A written inverse is checked where it is used.** The build checks
+  its dimensions, and each conversion into the function checks its
+  answer by applying the function back ("A function as the want"),
+  which refutes a wrong answer and proves nothing about other values.
+- **A condition on a ball is three-valued,** as "Conditions" says.
 - **There is no inversion without a written inverse.** Certifying a
   root of a composition needs monotonicity, or an enclosure of the
   derivative over the bracket, which the evaluator has neither of;
@@ -512,59 +619,35 @@ twice, so nesting such calls `k` levels deep evaluates the innermost
 expression written out in full costs, so it is no new limit, and the
 ceiling bounds it as it bounds any expression; but a definition that
 reads small can be large, and README ("Functions") and ARCHITECTURE.md
-("Functions") say so (task 7.5).
+("Functions") say so (task 7.4).
 
 ## Where it goes
 
 - `src/core/definitions.ts`: the head's parser in place of its regex,
-  the annotation's grammar, the bounds, the `~` line, the two parse
-  errors of "Names and shadowing", the `function` and `inverse`
-  definitions; the bracketed grammar removed (7.1, with bounds in 7.4).
+  the annotation's grammar, the `~` line, the two parse errors of
+  "Names and shadowing", `|` and `name[` reserved, the `function` and
+  `inverse` definitions, the bracketed grammar removed (7.1); the
+  conditions (7.3).
 - `src/core/table.ts`: `UnitFunction` with its parameters, its result
   dimension, its body and an optional inverse.
 - `src/core/dimension-of.ts`: the call case binds parameters by
-  position and takes a defined function's arity from it; generic
-  functions at the call (7.3).
+  position and takes a defined function's arity from it.
 - `src/core/evaluate.ts`: binding several names; the call's steps
   above; `invertFunction` through the inverse's own parameter.
 - `src/core/build.ts`: the checks above.
 - `src/core/pipeline.ts`: the want's steps above.
-- `src/messages.ts`: `noInverse`, `genericMismatch`, `outOfDomain`, the
-  parse errors, and `inverseMismatch` if adopted.
-- `src/units.txt`: the five functions rewritten (7.1), with bounds on
-  `tempC` and `tempF` (7.4).
+- `src/messages.ts`: `noInverse`, `inverseMismatch`, `conditionFailed`
+  and the parse errors.
+- `src/units.txt`: the five functions rewritten (7.1), with conditions
+  on `tempC` and `tempF` (7.3).
 - Tests: each module's own; `units.test.ts` keeps its conversions.
-
-## Choices for review
-
-This note makes three choices that the owner's rulings did not, for
-review before 7.1:
-
-- **`*` for a dimension-generic parameter,** since it cannot start an
-  expression and is not a name; `?` would do as well.
-- **Bounds as comparisons around the parameter,** chosen over GNU's
-  interval notation (`domain=[-273.15,)`), whose half-open `)` inside
-  the head's parentheses reads badly, and over a keyword such as `in`,
-  which is the inch.
-- **A check of a written inverse at the want:** apply the function to
-  the recovered argument and refuse the conversion when the value is
-  disjoint from the have. Overlap is what balls can decide, so the
-  check refuses only an inverse that is certainly wrong at that value,
-  at the cost of one forward evaluation per conversion into a function.
-  The recommendation is to adopt it in 7.1: an inverse is the one part
-  of a definition the build cannot check, and a wrong one otherwise
-  gives a confident `=`.
 
 ## Not in this design
 
 - **Inverse calls in expressions,** `~tempC(373.15 K)`. The `~` line
   makes this the call of a name that already exists, a change to the
   call's grammar and its lookup.
-- **Bounds on generic parameters,** and comparisons with zero in any
-  dimension (`x: * > 0`).
-- **Shared dimensions** between parameters (`a` and `b` of one
-  dimension, whatever it is), which an annotation cannot say, since it
-  cannot name a parameter.
+- **Disjunctions and `!=` in conditions** ("Conditions" says why).
 - **Optional parameters** and defaults.
 - **Built-ins defined in the file**: a built-in is code, and its name is
   a duplicate of any definition.
@@ -584,6 +667,9 @@ Each of these has, or is to have, an issue of its own
   one.
 - **Definitions typed into the converter:** `f(x) = …` in the have field
   is unambiguous, since `=` is in no expression.
+- **Dimension-generic functions,** with dimension variables in brackets
+  and, later, type bounds on them, as "Dimension-generic functions"
+  intends.
 
 ## Alternatives considered
 
@@ -595,6 +681,22 @@ Each of these has, or is to have, an issue of its own
   keyword clauses lengthen every line and grow the ways to get one
   wrong; a multi-line block makes the file indentation-sensitive for
   one kind of definition.
+- **Bounds written in the parameter list,** in three forms. Comparisons
+  around the parameter (`f(0 K <= x: K <= 100 K)`) wedge the annotation
+  between the bounds, so that `K <= 100 K` reads as a comparison of its
+  own, and leave no place for a condition relating parameters. Interval
+  notation after the parameter (`f(x: K [0 K, 100 K))`) puts a half-open
+  `)` inside the head's own parentheses and makes an open side easy to
+  miss (`[0 K,)`). A lower bound always on the left (`f(0 < x)`,
+  `f(x < 1)`) gives one spelling per bound, but refuses the `x > 0` everyone
+  writes, and still wedges the annotation. The `|` clause keeps the
+  parameter list clean, reads the same in every case, and takes
+  relations between parameters with no new syntax.
+- **Other checks of a written inverse:** trusting it, which gives a
+  confident `=` for a wrong inverse; checking it once, lazily, which
+  says little about the next value; and sampling it at build time, which
+  is heuristic, meets domain errors at its samples, and costs load time
+  at the ceiling.
 - **A parameter bound to its number in the annotated unit,** as GNU's
   `units=` reads (`w: kg` making `w` the number `w / kg`). It matches
   how empirical formulas are printed, but changing `kg` to `lb` would

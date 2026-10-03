@@ -1,4 +1,5 @@
-import { LitElement, css, html } from "lit";
+import { LitElement, css, html, nothing } from "lit";
+import { ifDefined } from "lit/directives/if-defined.js";
 import { customElement, state } from "lit/decorators.js";
 import {
   MIN_MAX_BITS,
@@ -69,9 +70,10 @@ import "./unit-converter.ts";
  * A footer under everything names the build the page is running (build-id.ts),
  * so a copy served from the service worker's cache can be told from the one
  * last deployed, and beside it the service worker's status
- * (register-service-worker.ts). Once a new version of the app has been
- * installed in the background, the status names its build, with a link that
- * switches to it for as long as it waits. The new version is already cached
+ * (register-service-worker.ts), which is empty while the worker is ready.
+ * Once a new version of the app has been installed in the background, the
+ * status is a link naming its build, "update to …", that switches to it,
+ * for as long as it waits. The new version is already cached
  * by then, so the switch is a reload that costs no download; until the user
  * asks for it, the running version stays, so an update never interrupts
  * them. Should the worker serving the page ever be of another build than the
@@ -269,6 +271,7 @@ export class AppShell extends LitElement {
   }
 
   render() {
+    const workerStatus = this.renderWorkerStatus();
     return html`
       <main>
         <h1>Units</h1>
@@ -276,16 +279,23 @@ export class AppShell extends LitElement {
       </main>
       <footer>
         <span class="quiet">
-          Build <code title=${BUILD_ID}>${SHORT_BUILD_ID}</code> ·
+          Build <code title=${BUILD_ID}>${SHORT_BUILD_ID}</code>
         </span>
-        <span role="status">${this.renderWorkerStatus()}</span>
+        <span role="status">
+          ${
+            workerStatus === nothing
+              ? nothing
+              : html`<span class="quiet">·</span> ${workerStatus}`
+          }
+        </span>
       </footer>
     `;
   }
 
   /**
-   * The service worker's status, for the footer: a few quiet words, or the
-   * waiting update with the link that applies it.
+   * The service worker's status, for the footer: nothing while it is ready
+   * or starting, a quiet word or two while it works, or a link when the user
+   * has something to do, above all the waiting update.
    */
   private renderWorkerStatus() {
     const status = this.workerStatus;
@@ -295,46 +305,44 @@ export class AppShell extends LitElement {
       class="link"
       @click=${() => location.reload()}
     >
-      Reload
+      reload
     </button>`;
     switch (status.kind) {
       case "development":
-        return quiet("No service worker in development");
-      case "unsupported":
-        return quiet("Offline use not supported by this browser");
       case "registering":
-        return quiet("Starting the service worker…");
+        return nothing;
+      case "unsupported":
+        return quiet("no offline");
       case "failed":
-        return quiet("The service worker failed to register");
+        return quiet("worker failed");
       case "installing":
-        return quiet("Saving for offline use…");
+        return quiet("caching…");
       case "bypassed":
-        return html`${quiet("Service worker bypassed ·")} ${reload}`;
+        return html`${quiet("bypassed ·")} ${reload}`;
       case "ready":
         if (status.build !== undefined && status.build !== BUILD_ID) {
-          return html`Served by build
+          return html`worker
             <code title=${status.build}>${shortBuildId(status.build)}</code>
             · ${reload}`;
         }
-        return quiet("Ready offline");
+        return nothing;
       case "downloading":
-        return quiet("Downloading an update…");
+        return quiet("downloading…");
       case "waiting":
-        return html`Update
+        return html`<button
+          type="button"
+          class="link"
+          title=${ifDefined(status.build)}
+          @click=${applyUpdate}
+        >
           ${
             status.build === undefined
-              ? ""
-              : html`to
-                  <code title=${status.build}
-                    >${shortBuildId(status.build)}</code
-                  >`
+              ? "update"
+              : `update to ${shortBuildId(status.build)}`
           }
-          ready ·
-          <button type="button" class="link" @click=${applyUpdate}>
-            Update now
-          </button>`;
+        </button>`;
       case "applying":
-        return "Updating…";
+        return quiet("updating…");
     }
   }
 

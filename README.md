@@ -976,13 +976,14 @@ when to switch. The pieces involved:
   does not hold off the next.
 - **The worker's status.** The footer shows the service worker's status
   beside the page's build (see Build ID below), as
-  `src/service-worker-updates.ts` reads it from the registration: saving
-  for offline use on the first visit, ready offline, downloading an update,
-  or bypassed when a hard reload loaded the page past it. Each worker
-  answers a message with the commit it was built from, so as soon as a new
-  one is waiting (on load, or when it finishes installing) the footer names
-  its build, "Update to … ready", with an "Update now" link for as long as
-  it waits. The link sends the waiting worker a message that makes it skip
+  `src/service-worker-updates.ts` reads it from the registration, in a word
+  or two: "caching…" on the first visit, "downloading…" while an update
+  downloads, or "bypassed" with a reload link when a hard reload loaded the
+  page past the worker, and nothing at all while the worker is ready. Each
+  worker answers a message with the commit it was built from, so as soon as
+  a new one is waiting (on load, or when it finishes installing) the status
+  is a link naming its build, "update to …", for as long as it waits. The
+  link sends the waiting worker a message that makes it skip
   waiting; it takes over, deletes the old cache, and every open page of the
   app reloads onto the new version when its controller changes, so no page
   keeps running one build while a worker of another serves it. The new
@@ -990,7 +991,8 @@ when to switch. The pieces involved:
   the user follows the link, the running version stays. On the first visit
   there is no old version, so the first worker takes over without an offer
   or a reload. Should the worker serving the page ever name another build
-  than the page's own, the footer says so, with a link to reload.
+  than the page's own, the footer names it, "worker …", with a link to
+  reload.
 - **Installation.** `public/manifest.webmanifest` gives the app its name,
   icons, and standalone display mode. The icons are SVG, which Chromium-based
   browsers accept for installation. Safari ignores manifest icons and needs a

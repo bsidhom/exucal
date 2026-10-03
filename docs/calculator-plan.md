@@ -1139,8 +1139,13 @@ m/s) = m v^2 / 2`, where the head's `m` is the metre and the body's
   boundary included, and always decide; otherwise the difference's ball
   against zero decides (`position` of ball.ts), a closed ball touching
   zero leaving a strict comparison undecided, and a ball across zero
-  leaving every comparison undecided. There is no equality, which a ball
-  cannot decide for an inexact value, and no disjunction. The alternatives weighed were comparisons in the
+  leaving every comparison undecided. An undecided condition is assumed
+  to hold, best-effort: the body is evaluated, the result is retried at
+  more digits like one that certifies too few, and if the assumption
+  survives to the ceiling the value is shown with `≈` and a warning that
+  names the condition, where a definite failure is still an error. There
+  is no equality, which a ball cannot decide for an inexact value, and
+  no disjunction. The alternatives weighed were comparisons in the
   parameter list, which wedge an annotation between two bounds; interval
   notation, whose half-open `)` sits inside the head's parentheses; and
   lower bounds always on the left, which refuses `x > 0`. None of them
@@ -1215,9 +1220,12 @@ The caveats, each of which the stage's docs state:
   certainly wrong. Overlap is what balls can decide, so the check
   refutes and does not prove.
 - **A condition on a ball is three-valued** (task 7.3). A ball that
-  straddles a bound is `unresolved` and retried. An inexact argument
-  exactly at a bound, such as `tempC(approx(-273.15))`, stays unresolved
-  to the ceiling, as `floor` does at a cell's edge.
+  straddles a bound leaves the condition undecided; it is assumed to
+  hold, the result is retried at more digits, and an assumption that
+  survives to the ceiling is shown as a warning beside a `≈` value, as
+  for `tempC(approx(-273.15))`. This differs from a built-in's edge,
+  which is refused: there the value jumps or does not exist, while a
+  condition restricts a body that computes on both sides of it.
 - **There is no inversion without a written inverse.** Certifying a root
   of a composition needs monotonicity, or an enclosure of the derivative
   over the bracket, and the evaluator has neither. That is the one place
@@ -4899,8 +4907,16 @@ each condition to mention a parameter.
 A call checks the conditions after the arguments conform and before the
 body, on balls and three-valued. A certain failure is
 `conditionFailed`, which names the condition as written and is
-reported before anything undecided; otherwise an undecided condition
-is `unresolved` and retried (D24). The want checks the have against the
+reported before anything undecided. Otherwise an undecided condition is
+assumed to hold: the body is evaluated, and the assumption travels with
+the value to the pipeline, whose retry loop treats such a result as one
+that certifies too few digits. An assumption left at the ceiling, or
+after decimal mode's pass, is shown as a warning beside the value,
+whose relation is then `≈`: messages.ts words it, outcome.ts gives it a
+line of its own, and the converter styles it apart from the notes on
+digits. A body that fails under an assumption is `unresolved`, naming
+the condition. A condition undecided when the table is built fails the
+build. The want checks the have against the
 inverse's conditions, which are the function's range, and checks the
 recovered argument against the function's own conditions. units.txt
 gives `tempC` and `tempF` their conditions.
@@ -4919,15 +4935,20 @@ Tests:
   `conditionFailed`, not a `callFailed`;
 - a certain failure after an undecided comparison is reported, not
   retried;
-- a condition that restates an identity (`| x - x >= 0`) is unresolved
-  to the ceiling for an inexact argument;
+- `tempC(approx(-273.15))` shows `≈ 0 K` with the warning, after
+  running to the ceiling, and at once in decimal mode;
+- a condition that restates an identity (`| x - x >= 0`) is shown with
+  the warning for an inexact argument;
+- a body that fails under an assumption is `unresolved`, naming the
+  condition;
+- a unit defined by a call whose condition is undecided fails the
+  build;
 - the build's errors, including `| x > 0` for `x: K`;
 - the exact boundary under `<` and `<=`, and `0.1 + 0.2 <= 0.3`
   holding exactly;
 - each row of docs/functions.md's table of comparisons on balls,
   including a ball with an end exactly on the bound;
 - an exact comparison of values past Most bits, never refused;
-- `tempC(approx(-273.15))` unresolved to the ceiling;
 - `-5 K` into `tempC` refused.
 
 ### 7.4 Stage 7 docs
@@ -4936,7 +4957,9 @@ README "Functions", docs/functions.md's implementation notes, and
 ARCHITECTURE.md "Functions". The README and ARCHITECTURE.md each gain
 two notes from D24: that calls are not memoized, so nesting costs what
 the expression written out would; and the caveats of compositions
-against built-ins.
+against built-ins. The README also says what the warning of an assumed
+condition means, and how it differs from a refusal at a built-in's
+edge.
 
 ### Deferred from stage 7
 

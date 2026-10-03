@@ -366,11 +366,10 @@ conjunction in three-valued logic:
 ln(x) > 1`, a negative argument fails the first condition and never
   reaches `ln`. After an undecided comparison, a term that cannot be
   computed is undecided as well, since the guard may yet exclude it.
-- **Otherwise, an undecided comparison** makes the call `unresolved`,
-  and the retry loop retries it at more digits. An exact argument
-  against an exact bound always decides; an inexact argument exactly at
-  a bound, `tempC(approx(-273.15))`, stays unresolved to the ceiling,
-  as `floor` does at a cell's edge.
+- **Otherwise, an undecided comparison is assumed to hold,** and the
+  assumption is recorded ("An undecided condition", below). An exact
+  argument against an exact bound always decides; only an inexact one
+  can leave a condition undecided.
 
 **A comparison is decided by the ball model, with no tolerance.** Its
 two sides have conformed at build time, and a quantity's magnitude is
@@ -402,13 +401,50 @@ held in the primitives, so their magnitudes compare directly: `1 ft >
   and a strict comparison undecided. So an inexact value equal to its
   bound never decides a strict comparison, and decides a non-strict one
   only if its ball happens to end exactly on the bound:
-  `tempC(approx(-273.15))` stays undecided to the ceiling. `position`
+  `tempC(approx(-273.15))` stays undecided to the ceiling, and is shown
+  with the warning of an assumed condition. `position`
   answers "across" when its coarse radius bounds cannot tell, which can
   only turn a verdict into undecided, never into a wrong one.
 
 - **In decimal mode** the same rules apply: every value is a ball whose
   radius carries its roundings, so a verdict is still certain, and only
   fewer comparisons decide.
+
+**An undecided condition.** When a condition cannot be decided, the
+call goes on: the condition is assumed to hold, the body is evaluated,
+and the assumption travels with the value to the pipeline, naming the
+function, the condition as written, and the call. The result is shown
+best-effort, with the uncertainty called out, rather than refused:
+
+- **Retried first.** A result that carries an assumption is not final:
+  the retry loop treats it as a result that certifies too few digits,
+  keeping it as the best so far and computing again at more digits, at
+  which a condition across its bound by noise alone usually decides.
+- **Shown at the end, with a warning.** If an assumption remains at the
+  ceiling (or after decimal mode's single pass), the value is shown, its
+  relation is `≈` whatever its digits, and a warning beside it names
+  each assumed condition, styled apart from the notes on digits so that
+  it is not read as one: `tempC(approx(-273.15))` is `≈ 0 K`, with
+  "Could not tell whether tempC's argument meets `x >= -273.15`; the
+  value assumes it does." The wording is messages.ts's, the line
+  outcome.ts's, and its style the converter's, in task 7.3.
+- **A definite failure still fails.** A condition that certainly fails
+  is `conditionFailed`, whatever else is undecided, and so is a term or
+  a body that certainly fails under no assumption. A body that fails
+  under an assumption reports the assumption instead, since the failure
+  may be the assumption's: the call is then `unresolved`, naming the
+  condition, as today.
+- **Why conditions differ from the built-ins' edges.** `floor(sqrt(2)^2)`
+  is refused, not guessed, because at an edge of a built-in the value
+  jumps or does not exist, and a guess would be a wrong value. A
+  condition is a restriction the author declared on a body that usually
+  computes on both sides of it (`tempC` of a reading below absolute zero
+  is a number, merely a meaningless one), and where the body cannot
+  compute, it fails or is unresolved itself. So the value shown is the
+  body's honest ball, and the only thing in doubt is whether the
+  definition admits the argument, which the warning says. A traditional
+  calculator would return a `NaN`, or a value from the wrong side,
+  without saying why.
 
 Conditions have no effect beyond their verdict, and their costs are an
 expression's:
@@ -419,24 +455,28 @@ expression's:
 - **Cost.** A call evaluates its conditions on every pass, as it does
   its body, and a condition costs what the same expression typed inline
   would. Calls inside conditions nest as calls in a body do ("Cost").
-- **A condition that restates an identity never decides.** `| sin(x)^2
-  - cos(x)^2 <= 1`and`| x - x >= 0`hold for every argument, but on an
-inexact one the dependency problem ("Precision and the radius") keeps
-the ball across the boundary at every precision, so every such call
-runs to the ceiling and fails as unresolved, as`floor(sqrt(2)^2)`
-    does. This cannot be detected at build time in general; the docs say
-    that a condition should bound the arguments, not restate what the
-    body guarantees.
+- **A condition that restates an identity never decides.** The
+  conditions `| sin(x)^2 + cos(x)^2 <= 1` and `| x - x >= 0` hold for
+  every argument, but on an inexact one the dependency problem
+  ("Precision and the radius") keeps the ball across the boundary at
+  every precision. So every such call runs to the ceiling, and its value
+  is shown with the warning of an assumed condition, as `floor(sqrt(2)^2)`
+  runs to the ceiling before it is refused. This cannot be detected at
+  build time in general, and the docs say that a condition should bound
+  the arguments, not restate what the body guarantees.
 - **Decimal mode** computes in one pass, so an undecided condition is
-  reported at once rather than retried, as any `unresolved` is there.
+  assumed and warned of at once rather than retried.
 - **The table.** A unit defined by a call checks the call's conditions
   when the table is built, at the ceiling, so `cold  tempC(-300)` fails
-  the build with the condition it breaks.
+  the build with the condition it breaks. A condition undecided there
+  fails the build too, since a unit's value has nowhere to carry a
+  warning and a definitions file should not depend on noise.
 
 The range of a function needs no syntax of its own: it is the conditions
 of its inverse, checked at the want as a function's are at a call. At
 the want, the recovered argument is checked against the function's own
-conditions too, so that `-5 K` into `tempC` is refused, the reading it
+conditions too, an undecided one being assumed and warned of as at a
+call, so that `-5 K` into `tempC` is refused, the reading it
 would need, `-278.15`, lying below `-273.15`, with or without a
 condition on `~tempC`.
 

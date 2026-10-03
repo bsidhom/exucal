@@ -994,9 +994,9 @@ tempC(x) = x K + 273.15 K
   dimension is inferred by `dimensionOf` from the parameters'
   dimensions. That inference is exact, since a body's dimension never
   depends on its argument's value. If it is present, it is checked
-  against the inferred dimension. A plain result is asserted with `1`,
-  or with any nonzero plain number, since conformance does not look at
-  magnitude.
+  against the inferred dimension. A plain result is asserted with `1`.
+  Whether another number may stand there (`: 2`) is the one question
+  still open, below.
 - **`~name(p) = body` defines the inverse of `name`, and is optional.**
   It requires `name` to be defined with exactly one parameter. Its
   parameter has the dimension of `name`'s result, and its body must
@@ -1045,14 +1045,68 @@ D23 leaves room for these evolutions:
   could define a function for the session, unambiguously, since `=` is
   in no expression. An issue is to be opened for it. It is not part of
   this plan.
+- **The result annotation as the default want of a bare call.** This
+  is deferred from stage 7 (see "Deferred from stage 7").
 
-What D23 leaves open, for 7.0 to rule on:
+Two further rulings, from the owner's review of the questions D23 first
+left open:
 
-- What an annotation's unit means beyond its dimension: whether an
-  argument in another conformable unit is accepted as it stands (a
-  quantity has no unit of its own, D22), and in which unit a call's
-  value is shown.
-- Whether a parameter may share a name with a unit.
+- **An annotation checks a dimension and changes no value.** A quantity
+  carries no unit of its own; its magnitude is held in the primitives
+  (D22). So `weight: kg` means "a mass", exactly as `weight: lb` does.
+  An argument in any conformable unit is accepted as it stands, with no
+  conversion step: `bmi(100 lb, 4 ft)` is exactly `bmi(45.359237 kg,
+1.2192 m)`. The result has a dimension, not a unit. The want chooses
+  its unit, as for any value, and a blank want writes the primitives:
+  `bmi(weight: lb, height: ft): lb/ft^2 = weight / height^2` shows
+  `bmi(100 lb, 4 ft)` as `≈ 30.515173 kg / m^2`, and as `= 6.25 lb/ft^2`
+  into `lb/ft^2`. That surprises a reader of the head, but it is the
+  rule every blank want follows (`tempC(100) = 373.15 K`). An
+  annotation's unit matters beyond its dimension in one place only: a
+  recovered argument is written in it (`dozen(2 in)`).
+
+  A body that needs a number in a particular unit divides that unit out,
+  and the division, not the annotation, is what makes it right. A result
+  that is an index on a defined scale is such a number, and is
+  annotated `: 1` so that a division left out fails the build rather
+  than quietly giving a dimension:
+
+  ```
+  bmi(weight: kg, height: m): 1 = (weight / kg) / (height / m)^2
+  ```
+
+  A physical result keeps its dimension: `kinetic(mass: kg, v: m/s) =
+mass v^2 / 2`. Temperature is the one case where dividing out a unit
+  is not enough. A formula fitted to Fahrenheit readings recovers the
+  reading as `T / degF - 459.67`, or as `~tempF(T)` once an inverse can
+  be called in an expression, since `T / degF` alone is measured from
+  absolute zero.
+
+- **A parameter shadows a unit of its name, except where the definition
+  also uses that unit in its head.** Annotations are evaluated among the
+  units alone, and the body resolves a parameter before any unit, by the
+  exact name only (with a parameter `m`, `km` in the body is still the
+  kilometre). So a name resolves the same way wherever it appears; the
+  only ambiguity is a reader's. Shadowing as such is allowed and silent:
+  `tcdf(t, nu)` hides the tonne, and forbidding it would take the short
+  names the unit list grows into, and let a unit added to the system
+  file break a user's function. Two cases are errors:
+  - **A duplicate parameter name** is a parse error at its second
+    occurrence.
+  - **A parameter whose name also appears as a unit in the same
+    definition's annotations** is an error, as in `kinetic(m: kg, v:
+m/s) = m v^2 / 2`, where the head's `m` is the metre and the body's
+    is the mass. The check needs only the definition's own text.
+
+  The second error is meant to be relaxed to a warning once user
+  definitions have an editor and the build has a way to report
+  warnings. There is nowhere to show a warning today, and relaxing an
+  error later breaks no file where tightening a silence would. An issue
+  is to be opened to track it; "Deferred from stage 7" lists it.
+
+Still open, for 7.0: whether an annotation may hold a number other than
+`1` (`: 2`, `: 1000 m`), which conformance would ignore and a reader
+could take for a scale.
 
 **D24. A user function's value is its body's value as an expression,
 and the machinery that certifies an expression certifies it (added
@@ -4706,15 +4760,12 @@ docs/functions.md rewritten for D23. It covers:
 - the spelling of a dimension-generic parameter;
 - the syntax of domain bounds.
 
-Two questions are to be settled before it is written:
-
-- What an annotated unit means beyond its dimension: whether a
-  conformable argument in another unit (`bmi(100 lb, 4 ft)`) is
-  accepted as it stands, and in which unit a call's value is shown.
-- Whether a parameter may share a name with a unit (`t`, `s`, `m`, `c`
-  and `g` are units).
-
-The note also rules on D24's check of a written inverse at the want.
+It also covers the two rulings D23 records: annotations as checks of
+dimension that change no value, with the BMI example of dividing a unit
+out; and shadowing, with its two errors. One question is to be settled
+before the note is written: whether an annotation may hold a number
+other than `1` (D23, "Still open"). The note also rules on D24's check
+of a written inverse at the want.
 
 ### 7.1 The new form, one parameter
 
@@ -4750,7 +4801,8 @@ unchanged, and `src/units.test.ts` holds them.
 Tests:
 
 - each form parses, and each error lands at its span: a missing `=`, an
-  annotation run into the body, a `~` line with annotations;
+  annotation run into the body, a `~` line with annotations, a parameter
+  named like a unit in its own head;
 - the build's new errors;
 - the want of a function without an inverse;
 - the inferred result of `tempC(x) = x K + 273.15 K`.
@@ -4760,7 +4812,8 @@ Tests:
 The head reads `name(a, b: unit, …)`. `Definition` and `UnitFunction`
 hold a list of parameters. `evaluate` and `dimensionOf` bind them by
 position, and `arityMismatch` covers definitions, the arity being the
-function's own in place of `ONE_ARGUMENT`. The inverse and the want stay
+function's own in place of `ONE_ARGUMENT`. A duplicate parameter name is
+a parse error at its second occurrence. The inverse and the want stay
 single-parameter, as the study says, so a `~f` whose `f` takes several
 parameters is a build error.
 
@@ -4797,6 +4850,26 @@ ARCHITECTURE.md "Functions". The README and ARCHITECTURE.md each gain
 two notes from D24: that calls are not memoized, so nesting costs what
 the expression written out would; and the caveats of compositions
 against built-ins.
+
+### Deferred from stage 7
+
+The following are not tasks of this plan. Each is to have an issue
+opened for it, to study the options later:
+
+- **The result annotation as the default want of a bare call.** When
+  the have is exactly one call of a function with an annotated result,
+  and the want is blank, the value could be shown in the annotated unit
+  (`lb/ft^2`, `percent`) rather than in the primitives. This changes
+  only the display, never how a quantity or a dimension is held. The
+  precedent is a recovered argument, which is already written in its
+  parameter's annotation. The open point is that the default applies to
+  a lone call only, and `2 bmi(…)` would show the primitives again.
+- **Shadowing in the head as a warning.** D23's error for a parameter
+  whose name is also a unit in its definition's annotations is relaxed
+  to a warning once user definitions have an editor and the build has a
+  way to report warnings. The same change could warn about a body that
+  seems to need the unit its parameter hides.
+- **Definitions typed into the converter** (D23).
 
 ## Stage 8: runtime
 

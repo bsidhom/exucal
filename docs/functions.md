@@ -316,6 +316,17 @@ outside(x) | abs(x) >= 1 = …
   term's dimension with the parameters bound as in the body, and
   adjacent terms must conform, as a sum's operands must: with `x: K`,
   `| x > 0` is an error, whose message suggests `0 K`.
+- **A term is any expression** of the language, the `expr` a have is
+  made of: numbers, units, sums, products, juxtaposition, negation,
+  `^`, parentheses, and calls of the built-ins and of other defined
+  functions, which check their own conditions in turn. A unit list is
+  not an expression, and neither is a comparison: there are no truth
+  values, so a comparison cannot stand inside a term (`(x < 1) + 1` is a
+  parse error), and a condition is only ever a chain at the top level.
+- **Calls in conditions are dependencies,** as calls in a body are. The
+  build's walk follows them, on functions and on inverses alike, so
+  `f(x) | f(x) > 0 = …` is a cycle reported at build time, and
+  evaluation still terminates.
 
 The grammar is unambiguous, and still decided by the text alone:
 
@@ -325,6 +336,9 @@ The grammar is unambiguous, and still decided by the text alone:
   `=`,** none of which can continue an expression. A comma inside a
   call's parentheses (`| hypot(x, y) < 1`) belongs to the call, by
   nesting, as it does in any expression.
+- **Comparisons bind looser than anything in a term,** since they are
+  not part of the expression grammar: `| a + b < c d` compares `a + b`
+  with `c d`, and `| x > -1` compares `x` with the negation of `1`.
 - **`<=` and `>=` are each one token,** read before `<` and `>`, so
   `x <= 1` is never `x <` followed by `= 1`.
 - **`|` appears once, and only in a head,** after the parameters and the
@@ -336,20 +350,50 @@ A call checks its conditions after the arguments conform and before the
 body. Each condition's terms are evaluated on balls, with the parameters
 bound to the arguments, at the working context, and each adjacent pair
 is compared three-valued: certainly holds, certainly fails, or not
-decided, when the two balls overlap at the boundary.
+decided, when the two balls overlap at the boundary. The conditions are
+taken left to right, and the pairs of a chain left to right, as one
+conjunction in three-valued logic:
 
-- **A certain failure** is `conditionFailed` at the call, naming the
-  function, the condition as written, and the arguments: `logit(1.5)`:
-  logit requires `0 < p < 1`, and p is 1.5.
-- **A failure is reported before anything undecided,** so that an
-  argument certainly outside one condition is not retried for another.
-- **Otherwise, a condition not decided** is `unresolved`, and the retry
-  loop retries it at more digits. An exact argument against an exact
-  bound always decides; an inexact argument exactly at a bound,
-  `tempC(approx(-273.15))`, stays unresolved to the ceiling, as `floor`
-  does at a cell's edge.
-- **A term that cannot be computed** (`| ln(x) > 0` at a negative `x`)
-  is a `callFailed`, as a body's failure is.
+- **The first certain failure ends the check,** as `conditionFailed` at
+  the call, naming the function, the condition as written, and the
+  arguments: `logit(1.5)`: logit requires `0 < p < 1`, and p is 1.5. A
+  certain failure ends it even after an undecided comparison, since one
+  false conjunct makes the whole false, so that an argument certainly
+  outside one condition is not retried for another.
+- **A term that cannot be computed ends it too,** as `callFailed`, as a
+  body's failure does, but only when every comparison before it
+  certainly holds. So a condition may guard the next: in `| x > 0,
+ln(x) > 1`, a negative argument fails the first condition and never
+  reaches `ln`. After an undecided comparison, a term that cannot be
+  computed is undecided as well, since the guard may yet exclude it.
+- **Otherwise, an undecided comparison** makes the call `unresolved`,
+  and the retry loop retries it at more digits. An exact argument
+  against an exact bound always decides; an inexact argument exactly at
+  a bound, `tempC(approx(-273.15))`, stays unresolved to the ceiling,
+  as `floor` does at a cell's edge.
+
+Conditions have no effect beyond their verdict, and their costs are an
+expression's:
+
+- **No side effects.** The language is pure: evaluating a condition
+  changes nothing but the memos of constants that any expression fills
+  (`pi()`, the Bernoulli numbers), which are caches.
+- **Cost.** A call evaluates its conditions on every pass, as it does
+  its body, and a condition costs what the same expression typed inline
+  would. Calls inside conditions nest as calls in a body do ("Cost").
+- **A condition that restates an identity never decides.** `| sin(x)^2
+  - cos(x)^2 <= 1`and`| x - x >= 0`hold for every argument, but on an
+inexact one the dependency problem ("Precision and the radius") keeps
+the ball across the boundary at every precision, so every such call
+runs to the ceiling and fails as unresolved, as`floor(sqrt(2)^2)`
+    does. This cannot be detected at build time in general; the docs say
+    that a condition should bound the arguments, not restate what the
+    body guarantees.
+- **Decimal mode** computes in one pass, so an undecided condition is
+  reported at once rather than retried, as any `unresolved` is there.
+- **The table.** A unit defined by a call checks the call's conditions
+  when the table is built, at the ceiling, so `cold  tempC(-300)` fails
+  the build with the condition it breaks.
 
 The range of a function needs no syntax of its own: it is the conditions
 of its inverse, checked at the want as a function's are at a call. At
@@ -360,7 +404,7 @@ condition on `~tempC`.
 
 ## Dimension-generic functions
 
-Deferred from stage 7, with an issue of its own to be opened; this
+Deferred from stage 7 to issue [#133](https://github.com/bsidhom/pwa-units/issues/133); this
 section records the design intended, so that stage 7 closes no door on
 it. A function may declare dimension variables, in brackets after its
 name, and use them in its annotations to take arguments of any
@@ -654,20 +698,21 @@ reads small can be large, and README ("Functions") and ARCHITECTURE.md
 
 ## Deferred
 
-Each of these has, or is to have, an issue of its own
-(docs/calculator-plan.md, "Deferred from stage 7"):
+Each of these has an issue of its own (docs/calculator-plan.md,
+"Deferred from stage 7"):
 
-- **The result annotation as the default want of a bare call.** When the
+- **The result annotation as the default want of a bare call**
+  ([#130](https://github.com/bsidhom/pwa-units/issues/130)). When the
   have is one call of a function with an annotated result and the want
   is blank, the value could be shown in the annotated unit (`lb/ft^2`,
   `percent`). Scaled results and lists in that position are its use
   cases, and the restriction on annotations can be relaxed for them
   then.
-- **The shadowing error as a warning,** once there is somewhere to show
-  one.
-- **Definitions typed into the converter:** `f(x) = …` in the have field
+- **The shadowing error as a warning** ([#131](https://github.com/bsidhom/pwa-units/issues/131)), once there is
+  somewhere to show one.
+- **Definitions typed into the converter** ([#132](https://github.com/bsidhom/pwa-units/issues/132)): `f(x) = …` in the have field
   is unambiguous, since `=` is in no expression.
-- **Dimension-generic functions,** with dimension variables in brackets
+- **Dimension-generic functions** ([#133](https://github.com/bsidhom/pwa-units/issues/133)), with dimension variables in brackets
   and, later, type bounds on them, as "Dimension-generic functions"
   intends.
 

@@ -1043,7 +1043,7 @@ b^2)`, `rate[Q](amount: Q, time: s): Q / s = amount / time`. Type
   its own.
 - **Definitions typed into the converter.** `f(x) = …` in the have field
   could define a function for the session, unambiguously, since `=` is
-  in no expression. An issue is to be opened for it. It is not part of
+  in no expression. Issue [#132](https://github.com/bsidhom/pwa-units/issues/132) holds it. It is not part of
   this plan.
 - **The result annotation as the default want of a bare call.** This
   is deferred from stage 7 (see "Deferred from stage 7").
@@ -1101,8 +1101,8 @@ m/s) = m v^2 / 2`, where the head's `m` is the metre and the body's
   The second error is meant to be relaxed to a warning once user
   definitions have an editor and the build has a way to report
   warnings. There is nowhere to show a warning today, and relaxing an
-  error later breaks no file where tightening a silence would. An issue
-  is to be opened to track it; "Deferred from stage 7" lists it.
+  error later breaks no file where tightening a silence would. Issue
+  [#131](https://github.com/bsidhom/pwa-units/issues/131) tracks it; "Deferred from stage 7" lists it.
 
 - **An annotation is a unit expression, with no number but `1`.** It
   may hold unit names, juxtaposition, `*`, `/`, `^` with its literal
@@ -1130,8 +1130,12 @@ m/s) = m v^2 / 2`, where the head's `m` is the metre and the body's
   on both reads in either direction. Conditions are separated by
   commas, as a conjunction. They see the parameters before the units, as
   the body does, so a condition may relate parameters or any
-  expressions of them. There is no equality, which a ball cannot decide,
-  and no disjunction. The alternatives weighed were comparisons in the
+  expressions of them: a term is any expression, calls included, and
+  calls in conditions are dependencies of the walk, so a cycle through
+  one is a build error. Conditions are checked left to right as a
+  three-valued conjunction, so an earlier condition can guard a later
+  term (`| x > 0, ln(x) > 1`). There is no equality, which a ball
+  cannot decide, and no disjunction. The alternatives weighed were comparisons in the
   parameter list, which wedge an annotation between two bounds; interval
   notation, whose half-open `)` sits inside the head's parentheses; and
   lower bounds always on the left, which refuses `x > 0`. None of them
@@ -4903,6 +4907,15 @@ Tests:
 - a mixed chain, `0 < x > 1`, is a parse error;
 - `<=` is never read as `<` before `=`;
 - a comma inside a call in a condition belongs to the call;
+- `| a + b < c d` compares the two sums, and a comparison inside
+  parentheses is a parse error;
+- a cycle through a condition is a build error;
+- `| x > 0, ln(x) > 1` guards `ln`: a negative argument is a
+  `conditionFailed`, not a `callFailed`;
+- a certain failure after an undecided comparison is reported, not
+  retried;
+- a condition that restates an identity (`| x - x >= 0`) is unresolved
+  to the ceiling for an inexact argument;
 - the build's errors, including `| x > 0` for `x: K`;
 - the exact boundary under `<` and `<=`;
 - `tempC(approx(-273.15))` unresolved to the ceiling;
@@ -4918,11 +4931,11 @@ against built-ins.
 
 ### Deferred from stage 7
 
-The following are not tasks of this plan. Each is to have an issue
-opened for it, to study the options later:
+The following are not tasks of this plan. Each has an issue of its
+own, to study the options later:
 
-- **The result annotation as the default want of a bare call.** When
-  the have is exactly one call of a function with an annotated result,
+- **The result annotation as the default want of a bare call**
+  ([#130](https://github.com/bsidhom/pwa-units/issues/130)). When the have is exactly one call of a function with an annotated result,
   and the want is blank, the value could be shown in the annotated unit
   (`lb/ft^2`, `percent`) rather than in the primitives. This changes
   only the display, never how a quantity or a dimension is held. The
@@ -4932,13 +4945,13 @@ opened for it, to study the options later:
   Scaled results and lists in the result's annotation are its use
   cases, so the restriction to unit expressions with no number but `1`
   is to be revisited with it.
-- **Shadowing in the head as a warning.** D23's error for a parameter
+- **Shadowing in the head as a warning** ([#131](https://github.com/bsidhom/pwa-units/issues/131)). D23's error for a parameter
   whose name is also a unit in its definition's annotations is relaxed
   to a warning once user definitions have an editor and the build has a
   way to report warnings. The same change could warn about a body that
   seems to need the unit its parameter hides.
-- **Definitions typed into the converter** (D23).
-- **Dimension-generic functions** (D23; docs/functions.md,
+- **Definitions typed into the converter** (D23, [#132](https://github.com/bsidhom/pwa-units/issues/132)).
+- **Dimension-generic functions** ([#133](https://github.com/bsidhom/pwa-units/issues/133); D23; docs/functions.md,
   "Dimension-generic functions"). The issue covers the bracketed
   variables and the stand-in check, whether a literal `0` in a
   condition stands for zero in any dimension, and type bounds on the

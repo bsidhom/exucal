@@ -1557,7 +1557,11 @@ Node runs it either way, stripping its types without checking them. So
 `tsconfig.node.json` matches every TypeScript file at the root and under
 `src/`, `bench/` and `scripts/` and excludes only the browser-only
 modules, and `tsconfig-coverage.test.ts` asks tsc for the files each
-project checks and fails on any tracked or new file in none of them.
+project checks and fails on any tracked or new `.ts` file in none of
+them, and on any code file of another extension (`.js`, `.mjs`, `.tsx`
+and the like), which no project's patterns match. It reads git's list
+NUL-separated and refuses any path with a control character, since tsc
+lists its files one per line (README, "Security").
 `pnpm test:all` runs `pnpm typecheck` before the tests.
 
 No test, sweep or benchmark depends on the limits a device has chosen.

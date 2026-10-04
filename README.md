@@ -865,8 +865,11 @@ Node runs a test by stripping its types without checking them, so a test
 file no project checks would run, pass, and hide its type errors; one did,
 `src/outcome.test.ts`, until the projects were made to match by pattern.
 `tsconfig-coverage.test.ts`, part of `pnpm test` and so of every commit's
-`pnpm test:all`, fails on any tracked or new file that no project of
-`tsconfig.json` checks, and says where it belongs.
+`pnpm test:all`, fails on any tracked or new `.ts` file that no project of
+`tsconfig.json` checks, and says where it belongs. It also fails on a
+code file of another extension (`.js`, `.mjs`, `.tsx` and the like),
+which no project's patterns match, so that a new kind of file is noticed
+rather than left unchecked.
 
 The service worker is only registered in production builds, so `pnpm dev`
 never caches anything. To try the offline behavior, run `pnpm build` and then
@@ -1243,6 +1246,29 @@ and `workerd`, ship install scripts. Those scripts are explicitly denied under
 `allowBuilds` in `pnpm-workspace.yaml` (see the comment there for why they are
 not needed), which satisfies the strict policy without running any third-party
 code at install time.
+
+### Security
+
+The code that runs commands, the tests and plugins that call git or tsc
+and the shell scripts in `scripts/` and `.claude/hooks/`, follows these
+rules, and new code does too:
+
+- **No shell between Node.js and a command.** A command runs through
+  `execFileSync` or `execFile` with its arguments as an array, never a
+  command string, so nothing in a path or an argument is read by a
+  shell.
+- **Lists of paths are NUL-separated where the tool allows it.** Read
+  git's lists with `-z`, which separates paths with NUL, the one byte no
+  path can hold, and writes them unquoted (without it, git quotes and
+  escapes any path outside ASCII). Where a tool can only write a path per
+  line, as `tsc --listFilesOnly` does, the paths compared against its
+  output are first checked for control characters, and one that has any
+  is refused rather than split.
+- **Shell scripts run strict.** Each sets `-u` and `-o pipefail`, and `-e`
+  unless it handles every failure itself, as `scripts/cloud-setup.sh`
+  does and says; every expansion is quoted; and a list of paths passed
+  between commands is NUL-separated (`-z`, `-print0`, `xargs -0`), never
+  split on spaces or newlines.
 
 ### Style guide
 

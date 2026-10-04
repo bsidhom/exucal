@@ -1667,6 +1667,27 @@ tests. The rest of the directory is what they share:
   case that runs too long, recorded with the pass that was running,
   since no timer can interrupt a synchronous evaluation. Its tests are
   ordinary ones, run by `pnpm test`.
+- `bench/stress/search.ts` is the cost search (8.2), run by hand with
+  `pnpm stress:search`. Its cases come from `cases.ts`, a pure function
+  of a seed: the `i`-th is drawn from `foldIn(seed, i)` alone, with fixed
+  weights over the patterns that never certify (a call less itself, an
+  identity between different functions from a table, a zero at a
+  built-in's edge, a zero below a condition's bound), the functions and
+  their argument classes, a costly call composed into an argument, the
+  settings profile and the want. A run without `--seed` draws a fresh
+  seed from the cryptographic source and prints it; `--cases` runs a
+  prefix of the sequence and `--budget` stops after one, whose length is
+  logged, so any run replays; `--list` prints the cases without
+  evaluating them, and `--enumerate` runs a fixed enumeration instead.
+  No timing decides what is searched: the cases are measured in
+  parallel, the costliest of each family measured again one at a time
+  with the catalogue's entry for its family, and `catalogue.ts` merges
+  them into `bench/stress/catalogue.json`, adding a new family's case
+  that reaches the floor (a second warm) and replacing an entry only by a
+  case that costs more per call than the entry measured again. Cases past
+  their deadline, or whose worker failed, are kept apart as hangs, and
+  each run is logged with its seed and count. The tests of `cases.ts` and
+  `catalogue.ts` are ordinary ones, since they evaluate nothing.
 - `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
   drawn from the letters `n` to `z` and unit names from `a` to `m`, so
   that no name is ambiguous and the ambiguity check scans everything: its

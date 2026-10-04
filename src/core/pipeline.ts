@@ -97,7 +97,10 @@
 // an `undecidedCondition`, a body failing under one, is retried like an
 // `unresolved`. The returned pass's assumptions are added to the
 // collector `evaluateText` or `convertText` is given, for the outcome's
-// warnings.
+// warnings. Both, and `resolve`, also take an optional `PassObserver`,
+// called as each pass starts and ends: the stress harness of stage 8
+// (bench/stress/harness.ts) times the passes the interface runs by it, and
+// it changes nothing the loop does.
 
 import {
   convert,
@@ -291,6 +294,21 @@ export function schedule(context: NumberContext): NumberContext[] {
 }
 
 /**
+ * A pass of the retry loop as an observer sees it: the `index` of its
+ * working context in the schedule and the context itself, as the pass
+ * starts or once it has ended. The stress harness (bench/stress) times
+ * the passes by it; nothing in the app observes them.
+ */
+export type PassEvent = {
+  readonly phase: "start" | "end";
+  readonly index: number;
+  readonly working: NumberContext;
+};
+
+/** What `resolve` and the text entry points call around each pass, when given. */
+export type PassObserver = (event: PassEvent) => void;
+
+/**
  * `run` at each working context of `schedule(context)` in turn, each pass
  * given a collector of its own for the conditions it assumes:
  * the first result `done` accepts, under no assumption, is returned; a
@@ -301,7 +319,8 @@ export function schedule(context: NumberContext): NumberContext[] {
  * error may be the assumption refuted (a condition that more digits
  * decide against, `conditionFailed`); at the ceiling the best result so
  * far, or the last error, is returned. The assumptions of the pass whose
- * result is returned are added to `assumptions`.
+ * result is returned are added to `assumptions`. `observe`, when given, is
+ * called as each pass starts and ends, and changes nothing.
  */
 export function resolve<T, E>(
   context: NumberContext,
@@ -309,12 +328,15 @@ export function resolve<T, E>(
   done: (value: T) => boolean,
   retries: (error: E) => boolean,
   assumptions: Assumption[] = [],
+  observe?: PassObserver,
 ): Result<T, E> {
   let best: { result: Result<T, E>; assumed: Assumption[] } | undefined;
   let last: Result<T, E> | undefined;
-  for (const working of schedule(context)) {
+  for (const [index, working] of schedule(context).entries()) {
     const assumed: Assumption[] = [];
+    observe?.({ phase: "start", index, working });
     const result = run(working, assumed);
+    observe?.({ phase: "end", index, working });
     last = result;
     if (result.ok) {
       if (assumed.length === 0 && done(result.value)) return result;
@@ -389,13 +411,14 @@ function conversionDone(
 /**
  * The quantity `text` denotes in `table`, evaluated through the retry
  * schedule of the user's `context`, with the conditions the result
- * assumes added to `assumptions`.
+ * assumes added to `assumptions`, and each pass reported to `observe`.
  */
 export function evaluateText(
   table: UnitTable,
   text: string,
   context: NumberContext,
   assumptions?: Assumption[],
+  observe?: PassObserver,
 ): Result<Quantity, TextError> {
   const expr = parseExpr(text);
   if (!expr.ok) return expr;
@@ -405,6 +428,7 @@ export function evaluateText(
     (quantity) => settled(quantity.magnitude, context),
     isUnresolved,
     assumptions,
+    observe,
   );
 }
 
@@ -416,7 +440,8 @@ export function evaluateText(
  * gives the sum, and the name of a function gives the call that would
  * produce `have`. Both texts are parsed once, and the evaluation and the
  * conversion run through the retry schedule of the user's `context`. The
- * conditions the result assumes are added to `assumptions`.
+ * conditions the result assumes are added to `assumptions`, and each pass
+ * is reported to `observe`.
  */
 export function convertText(
   table: UnitTable,
@@ -424,6 +449,7 @@ export function convertText(
   want: string,
   context: NumberContext,
   assumptions?: Assumption[],
+  observe?: PassObserver,
 ): Result<Conversion, ConversionError> {
   const haveExpr = parseExpr(have);
   if (!haveExpr.ok) return inputError("have", haveExpr.error);
@@ -444,6 +470,7 @@ export function convertText(
     (conversion) => conversionDone(conversion, context),
     retriesConversion,
     assumptions,
+    observe,
   );
 }
 

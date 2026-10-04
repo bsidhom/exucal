@@ -926,6 +926,9 @@ hook's output at session start says which part is out of date.
   source that the core's property tests and the benchmarks draw from.
 - `bench/` holds the performance benchmarks of the core, run by
   `pnpm bench` (see Benchmarks below); `ARCHITECTURE.md` describes them.
+  `bench/stress/` holds the cost harness of the plan's stage 8, which
+  measures what one input costs the converter, cold and warm, pass by
+  pass; the search and the stress suite built on it are to come.
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every
   part of the app renders inside. It loads the unit table when it is
   connected, shows a loading message until it arrives, and hands it to the

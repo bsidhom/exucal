@@ -22,7 +22,9 @@ after stage 5 landed and the stage revised against it (D22 added, and
 6.1 to 6.9); its introduction lists the changes, and 6.8 was deferred
 after 6.7 landed. D23 and D24 were added before stage 7, from the
 owner's review of the syntax options for user functions, and stage 7
-was revised against them before it landed. D13 was
+was revised against them before it landed. D25 was added after stage 7
+from the owner's ruling on what stage 8 should be, and stage 8 was
+rewritten against it. D13 was
 revised in review of the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -40,14 +42,13 @@ it and says so under "Decisions", so that a reviewer can object to a
 decision before any code depends on it.
 
 The plan is firm for stages 1 to 6 and the phase before stage 5, whose
-shape follows from the code as it stands, and for stage 7, whose design
-note (docs/functions.md) is written and ruled on; it is provisional for
-stage 8, whose first task is a short design note in the manner of
-docs/functions.md, written once the stages before it have landed and
-refined against what they turned out to need.
-The provisional stages are still listed task by task, so that the whole
-program is visible and nothing in an early stage closes a door on a late
-one.
+shape follows from the code as it stands, for stage 7, whose design note
+(docs/functions.md) is written and ruled on, and for stage 8, which the
+owner redefined after stage 7 (D25): it was provisional, a study of the
+runtime, and is now a search for the costliest expressions, whose design
+is the stage's own text. Every stage was listed task by task from the
+start, provisional or not, so that the whole program was visible and
+nothing in an early stage closed a door on a late one.
 
 ## How to read a task
 
@@ -406,8 +407,8 @@ of the schedule costs nothing in the common case; the expressions that
 never resolve (`sin(pi() radian)`, `sqrt(2)^2 - 2`) run to the ceiling
 however it is set, which is what bounds their latency, and the cap is
 therefore a cost setting: every elementary function at four thousand
-digits is milliseconds, and the special functions of stage 6 are where
-the cost is measured (stage 8). The ceiling is a field of the context (D1), set by
+digits is milliseconds, and the special functions of stage 6 take
+seconds there, which stage 8 measures without moving the cap (D25). The ceiling is a field of the context (D1), set by
 the shell from the cap it owns and the same in every working context the
 schedule derives; a context whose precision exceeds the cap is a
 precondition failure of the schedule. The ceiling is static, the user's:
@@ -589,8 +590,9 @@ costliest built-ins, chosen from the kernel benchmark's report of every
 routine, 3.11), and takes the
 largest values whose cost stays under a latency budget per pass. The
 probe runs only when asked, since a benchmark at every launch would be
-noise on the main thread for a number the user can also type; stage 8's
-measurements of the special functions revise its budget and the defaults.
+noise on the main thread for a number the user can also type. Its
+composite and budget stand, and so do the defaults: stage 8 measures the
+special functions without revising either (D25).
 The probe measures time alone, and memory is an explicit omission. A
 browser exposes no portable measure of the memory a page may use:
 `performance.memory` is one vendor's and deprecated,
@@ -1249,6 +1251,42 @@ The caveats, each of which the stage's docs state:
   is what the same expression written out in full costs, so it is not a
   new limit, but README ("Functions") and ARCHITECTURE.md ("Functions")
   say so in 7.4.
+
+**D25. The limits keep their defaults; stage 8 finds and records the
+costliest expressions, and keeping the interface responsive is apart
+(added after stage 7).** The owner's ruling on the first plan's stage 8,
+which would have measured the slowest function on a phone and then
+lowered the defaults or moved the pipeline to a Web Worker:
+
+- **The defaults stay, and so does the probe.** The precision limit
+  keeps its default of 1,000 digits and the range limit its 2^16 bits.
+  The probe of limits.ts keeps its composite of the elementary
+  functions and its budget of 50 ms a pass, and D16's sentence that
+  stage 8 revises them is withdrawn. A cap low enough to keep the
+  special functions' ceiling pass within that budget would put out of
+  reach values that are in reach now: a value that certifies is cheap
+  even at thousands of digits (1,000 digits of `gamma(0.3)` take 73 ms,
+  and 2,450 a third of a second, when measured before stage 8), and only
+  an expression that never certifies pays for the ceiling pass. The
+  trouble is the interface's, which evaluates at every keystroke and
+  freezes while such a pass runs, not the values'.
+- **Responsiveness is #118's,** with its sub-issues: interactive
+  evaluation at reduced precision with a debounced finalization (#119),
+  a worker above a threshold (#120), and the separable slow computations
+  in a worker (#121). It is not a task of this plan, and stage 8 does
+  not fold it in. Nor does it fix a cost: hiding a cost from the
+  interface does not remove it (#117).
+- **Stage 8 finds the costliest expressions and records them,** as a
+  catalogue and as a stress benchmark: the target that the interface
+  work and the kernel work (#125 and #126 among the open issues)
+  measure themselves against. #117's `beta(0.5, 0.5) - pi()` was found
+  by a user, and a few minutes of measurement before the stage found
+  expressions several times costlier (stage 8's table); a search finds
+  what nobody happened to type.
+- **The stress benchmark is a suite of its own,** run by hand when
+  stress testing and never by `pnpm test:all`, since it is expected to
+  run for minutes and a commit should not wait on it. Like the
+  benchmarks, it asserts only what holds on any machine.
 
 ## Stage 1: the context and the ball
 
@@ -2608,7 +2646,8 @@ settings note that the table is rebuilt when the "most digits" setting
 changes (not the digits, which never rebuild it: D6). docs/builtins.md
 gains its implementation notes; docs/calculator.md's status line names
 stage 3 as landed and records the payload after `pnpm build` against the
-study's estimate, as stage 8 asks at the end of this stage; and the plan
+study's estimate, as the first stage 8 asked at the end of stages 3 and
+6; and the plan
 gains "Stage 3 as it landed", as stages 1 and 2 have.
 
 Behavior: none; documentation.
@@ -5067,18 +5106,237 @@ own, to study the options later:
   variables in the sense of ad-hoc polymorphism: which dimensions a
   variable may bind, and perhaps a body chosen by the dimension bound.
 
-## Stage 8: runtime
+## Stage 8: the costliest expressions
 
-Provisional, and possibly unnecessary. After stage 6 the cost of the
-slowest function at the default ceiling is measured on a phone, and the
-probe of 2.7 is revised to time it. If the default cap keeps every pass
-under the probe's budget, the defaults stay and nothing else happens; if
-not, the defaults are lowered or the pipeline moves to a Web Worker: the
-core is pure and takes plain data, so the worker is a thin wrapper around
-`convertText`, the component debounces and shows the last result until
-the next arrives, and the table is built in the worker. The payload is
-measured against the study's estimate at the end of stages 3 and 6 in
-any case, and recorded in docs/calculator.md.
+Firm, from the owner's ruling after stage 7 (D25). The stage this
+replaces was provisional: it would have measured the slowest function on
+a phone, then revised the probe's budget and the defaults by it, or
+moved the pipeline to a Web Worker. The ruling keeps the defaults and
+leaves the interface's responsiveness to #118, outside this plan. This
+stage instead searches for the expressions that cost the most and
+captures them as a catalogue and as a stress benchmark, so that the
+interface work and the kernel work have a target to measure against. It
+changes nothing a user sees.
+
+**Why a search.** The cost of an expression is the product of two
+things the code knows apart and nothing measures together:
+
+- **How many passes the retry loop runs** (D12). Most expressions take
+  one. A value that never certifies takes the whole schedule, up to the
+  ceiling: an exact cancellation (`beta(0.5, 0.5) - pi()`), an
+  identity, an argument that straddles an edge, or a condition left
+  undecided.
+- **What the costliest call costs at the last pass.** That is
+  microseconds for the arithmetic, milliseconds for the elementary
+  functions, and seconds for the Gamma and Beta families and the
+  incomplete functions at the default ceiling.
+
+The kernel benchmark times each routine at one argument, and #117 timed
+one expression. The worst cases lie where the two meet, at arguments no
+test chose. Measured before the stage at the default settings, under
+Node 24 in the project's cloud container as #117 was, each case in a
+fresh process with the table built (cold) and then again in that process
+(warm):
+
+| Expression                                              | Cold  | Warm   |
+| ------------------------------------------------------- | ----- | ------ |
+| `beta(0.5, 0.5) - pi()` (#117)                          | 1.3 s | 0.69 s |
+| `lgamma(approx(3.7)) - lgamma(approx(3.7))`             | 5.1 s | 1.6 s  |
+| `incbetareg(2.5, 1.5, 0.3) - incbetareg(2.5, 1.5, 0.3)` | 5.7 s | 5.4 s  |
+| `gamma(approx(0.5))^2 - beta(approx(0.5), approx(0.5))` | 6.3 s | 2.8 s  |
+| `digamma(approx(0.3)) - digamma(approx(0.3))`           | 7.4 s | 4.3 s  |
+| `exp(1) - exp(1)`, for scale                            | 17 ms | 8 ms   |
+
+At a cap of 2,450 digits, just under the highest the default range limit
+allows (2,453, a ceiling of 9,852), `beta(0.5, 0.5) - pi()` is 16 s cold
+and 6.3 s warm. The expression a user happened to find is far from the
+worst, and the worst are found only by looking.
+
+**What is measured.** What the interface pays for a pair of texts:
+
+- **The time of `outcomeOf`** on the two texts at given settings, in
+  wall time, cold and warm. Cold is the first evaluation in a worker of
+  its own, whose memos are empty but whose table is built at the
+  ceiling, as the app builds it at startup. Warm is the same case
+  evaluated again in that worker.
+- **The passes** the retry loop ran, with the precision and the time of
+  each, and the outcome's kind and first line.
+- **The settings,** which are part of a case: the digits, the cap, the
+  range limit, the mode, the rounding, the fractions display, and the
+  want (blank, a unit, a list or a function).
+
+Time depends on the machine, so a catalogue names the machine it was
+measured on, and only ratios between cases measured in one run compare
+across machines.
+
+**Where it searches.** Everything a user can type against the system
+definitions, under any settings the panel allows. User-defined
+functions need no path of their own, now or once #132 lets a user type
+them: a defined function only composes the built-ins and the
+arithmetic (D24), and the search builds those compositions directly.
+The search covers the factors that set the cost:
+
+- **What forces the ceiling:** an exact cancellation or an identity
+  between calls (`f(a) - f(a)`, `gamma(1/2)^2 - pi()`, two different
+  functions of one value); an argument straddling a built-in's edge, a
+  pole or a rounding cell (`floor(sqrt(2)^2)`); a condition left
+  undecided (`tempC(approx(-273.15))`); and a divisor that cannot be
+  told from zero.
+- **What a call costs in a pass:** each built-in over its classes of
+  arguments, alone and composed, with a call's argument itself a costly
+  call. The classes are exact arguments with a short or a long
+  denominator, inexact and wide ones, small and large magnitudes, values
+  near the function's poles and edges, and large orders for the
+  incomplete functions.
+- **How many calls a pass makes.** `n` costly calls cost about `n`
+  times one, so the cases are bounded in size, at most three calls of
+  the costly kind. The catalogue reports the cost per call beside the
+  cost per case, so that long expressions do not fill it.
+- **What is paid once:** the Bernoulli run, the constants' memos at a
+  new ceiling, and the table rebuilt when the cap moves. The cold and
+  warm timings tell these apart from the cost of every pass.
+- **The settings:** the cap, which sets the ceiling, and the kernels'
+  costs grow faster than linearly with it; the digits, which set the
+  schedule's length; the range limit, which sizes the exact operations;
+  decimal mode, which runs one pass; and the want, which adds a list's
+  terms, a function's inverse with the check of its answer, or the
+  reciprocal line. The search runs at the default settings and at the
+  highest cap the default range limit allows, and samples the extreme
+  settings (the range limit's hard bound of 2^20 bits, which allows a
+  cap of 39,444 digits) to find where cases pass their deadline.
+- **Typing.** The interface evaluates at every keystroke, and a prefix
+  of a text can cost more than the whole:
+  `digamma(approx(0.3)) - digamma(approx(0.3))` never certifies, and
+  the same text followed by ` + 1` certifies at the first pass. So
+  each catalogued case is also measured at every prefix of its text,
+  the profile that #119's interactive evaluation is designed against.
+
+### 8.1 The cost harness
+
+`bench/stress/harness.ts` measures one case: the two texts and the
+settings, in a worker of its own under a deadline, cold and warm. It
+records the passes and their times, the outcome's kind and first line,
+and the machine (the Node version and the processor). A case past its
+deadline is recorded as such, with the pass it was running.
+
+The passes are observed without changing the pipeline: either `resolve`
+gains an optional observer called after each pass, or the harness runs
+the schedule's contexts itself, as pipeline.test.ts's `passes` does. The
+task chooses, and the pipeline's behavior and results are the same
+either way. The worker and the deadline are the sweeps' runner
+(src/testing/edges.ts) where it fits.
+
+Behavior: none. Tests, ordinary ones since each case takes
+milliseconds: the harness on a case that certifies at once, on one that
+runs to the ceiling (its passes are the schedule's), and on one that
+passes a short deadline.
+
+### 8.2 The search
+
+`bench/stress/search.ts`, run by hand (`pnpm stress:search`), draws its
+cases from a seed and from nothing else, so that the seed alone
+reproduces what a run searched.
+
+- **The seed.** A seed is a key of the shared random source
+  (src/testing/random.ts), two 32-bit words, written as sixteen
+  hexadecimal digits. A run given `--seed` uses it; a run without one
+  draws a fresh one from the cryptographic source
+  (`crypto.getRandomValues`) before anything else, prints it, and
+  records it with every result. So each run explores new cases by
+  default, and any run can be replayed.
+- **The cases are a function of the seed.** The `i`-th case is drawn
+  from `foldIn(seed, i)` alone, as every draw of the shared source is a
+  function of its key, so the sequence is the same in any order, on any
+  machine, and whatever the cases cost. No measured time decides what is
+  searched next: there is no local search from the costliest cases and
+  no branch on a timing. A case is drawn from the families above with
+  fixed weights written in the code: a pattern that forces the ceiling,
+  its functions, its arguments from their classes, an optional
+  composition of a costly call into an argument, the settings and the
+  want. The exact cancellations between different functions, the class
+  #117 found, almost never arise from free composition, so the patterns
+  include a table of identities to instantiate (`beta(a, b)` against
+  `gamma(a) gamma(b) / gamma(a + b)`, `gamma(x + 1)` against
+  `x gamma(x)`, `erf(x) + erfc(x) - 1`,
+  `lowergammareg(a, x) + uppergammareg(a, x) - 1`,
+  `incbetareg(a, b, x) + incbetareg(b, a, 1 - x) - 1`,
+  `exp(ln(x)) - x`, and the like), which grows with the built-ins.
+- **The extent.** `--cases n` runs the first `n` cases of the sequence,
+  and `--budget` stops at a time instead, after a prefix of the same
+  sequence; a result records the seed and the count run, so a replay
+  with `--cases` runs exactly the same cases. `--list` prints the cases
+  of a seed without evaluating them, the cheap way to see what a run
+  searched and in what order. `--enumerate` runs instead the fixed
+  enumeration of every built-in over its argument classes in each
+  pattern, which needs no seed: for a first run, after a change to a
+  kernel, and when #115 adds functions.
+- **The measurement.** Cases run in parallel workers, one per core, each
+  under a deadline; a case past it is reported as a hang, not ranked.
+  Which cases a run keeps depends on their measured cost, the one thing
+  wall-clock time decides: the costliest are measured again one at a
+  time, since timings under load are not the catalogue's, and ranked by
+  their warm cost per costly call, with the cold cost recorded beside
+  it. The timings themselves cannot be reproduced exactly, so only cases
+  above a floor (a second warm, at first) enter the catalogue: a case
+  that costs seconds stays among the costliest when it is measured
+  again, where the noise of one machine is milliseconds.
+
+A run adds to the catalogue rather than replacing it. A case belongs to
+a family, keyed by its pattern, its functions and its classes of
+arguments. A case joins the catalogue when its family is new to it, and
+replaces the family's entry when it costs more than that entry measured
+again in the same run, since only timings from one run compare. Each
+entry records the seed and the index that drew it, or the enumeration,
+with the commit, the date and the machine, so that it can be drawn again
+and its text read back. A run leaves its changes as a diff to
+`bench/stress/catalogue.json`, with the table of docs/cost.md
+regenerated, for review like any other change.
+
+Behavior: none; no test run includes the search. Tests, ordinary ones
+since they evaluate nothing: one seed lists the same cases on two runs;
+the `i`-th case drawn alone is the `i`-th of the sequence; two seeds
+list different cases; a run without a seed records the one it drew; and
+the merge keeps a new family, replaces an entry only by a costlier case
+of its family, and leaves the other entries as they were.
+
+### 8.3 The catalogue and the stress suite
+
+docs/cost.md gathers the catalogue, which runs of the search build up
+over time (8.2). It lists the costliest expressions found, by cause, with their timings on the machine the search ran on,
+what each pays for (the passes, the routine, the memo), and its profile
+as typed. Each entry names the issue that would make it cheaper: an open
+one where there is one (#125 for the Gamma family's inexact and wide
+arguments, #126, #103, #107), and a new one for each cause no issue
+covers. A hang the search found is filed as an issue of its own. #118 is
+linked to the catalogue as the interface's target.
+
+The stress suite is the `*.stress.ts` files under `bench/stress/`, run by
+`pnpm stress`. Neither `pnpm test` nor `pnpm bench` discovers them, so
+`pnpm test:all` never runs them: they run for minutes, and a commit does
+not wait on them. The suite measures each catalogued case under a
+deadline, cold and warm. It reports the timings beside the catalogue's,
+and as ratios to a reference case measured in the same run. It asserts
+only what holds on any machine:
+
+- **Each case gives the outcome it was catalogued with,** the same kind
+  and the same digits, so that an optimization that changes a value
+  fails.
+- **No case passes its deadline.** A known hang is skipped by name, as
+  the sweeps skip one, until its issue is fixed.
+
+A case that has become much cheaper is reported, so that the catalogue
+is measured again. README ("Benchmarks") says what the suite is, how
+long it runs, and when to run it: before and after a change aimed at one
+of its cases, after a change to a kernel, and when #118's work wants a
+fresh target. ARCHITECTURE.md ("Benchmarks") says how it is built.
+
+Behavior: none.
+
+### 8.4 Stage 8 docs
+
+This plan's record of the stage, "Stage 8 as it landed"; docs/cost.md's
+notes on what the search did not reach; README and ARCHITECTURE.md where
+the stage changed them.
 
 ## The first follow-up
 
@@ -5899,7 +6157,9 @@ record of the rulings and of what each task left behind:
 
 What stage 8 inherits: user functions that cost what their bodies typed
 out cost, since calls are not memoized and a call evaluates its
-conditions and its body at every pass, so the slowest expression is
-still one of built-ins, and nothing of this stage moves the measurement
-stage 8 begins with. Set aside: #130 to #134, the deferred extensions
-and the study of ranges.
+conditions and its body at every pass. So the costliest expressions are
+still compositions of the built-ins, which is where stage 8 searches,
+and a defined function reaches the search only through the system file
+until definitions can be typed (#132). Stage 8 itself was rewritten
+after this stage, from the owner's ruling (D25). Set aside: #130 to
+#134, the deferred extensions and the study of ranges.

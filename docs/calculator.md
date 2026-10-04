@@ -607,7 +607,11 @@ Three runtime concerns cut across everything:
   tens of milliseconds, or evaluation moves to a Web Worker. The core is
   pure and takes plain data, so a worker is a thin wrapper, not a
   redesign; a cap is needed anyway, as `MAX_BITS` is today, and the
-  retry's ceiling is a second cap of the same kind.
+  retry's ceiling is a second cap of the same kind. (After stage 7 the
+  owner ruled for neither, as the plan's D25 records. The cap keeps its
+  default, so that the special functions' high-precision values stay in
+  reach; keeping the interface responsive is issue #118's; and the
+  plan's stage 8 measures the costliest expressions instead.)
 - **Memory.** Exact mode's growth is bounded by the range limit, Most
   bits, a hard limit on the bits held for one number, measured on what is
   stored (the plan's D16 and D19: literals, a sum's alignment and a

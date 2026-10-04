@@ -833,6 +833,7 @@ Cloud environment below), so nothing above has to be done there by hand.
 | `pnpm test:sweep`    | Run the edge sweeps, the conformance tests.         |
 | `pnpm test:all`      | Type-check, then run tests, sweeps and benchmarks.  |
 | `pnpm bench`         | Run the performance benchmarks (see Benchmarks).    |
+| `pnpm stress`        | Measure the catalogued costliest inputs (slow).     |
 | `pnpm stress:search` | Search for the costliest inputs (by hand; slow).    |
 | `pnpm format`        | Format all source files with Prettier.              |
 | `pnpm format:check`  | Verify that all source files are formatted.         |
@@ -950,8 +951,9 @@ hook's output at session start says which part is out of date.
   measures what one input costs the converter, cold and warm, pass by
   pass, and the search for the costliest inputs, `pnpm stress:search`,
   which is run by hand and never by `pnpm test:all` (`--help` lists its
-  options; ARCHITECTURE.md, "Benchmarks", describes it). The stress suite
-  built on its catalogue is to come.
+  options; ARCHITECTURE.md, "Benchmarks", describes it), and the stress
+  suite, `pnpm stress`, which measures the catalogue the search builds
+  (see Stress tests below; `docs/cost.md` presents the catalogue).
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every
   part of the app renders inside. It loads the unit table when it is
   connected, shows a loading message until it arrives, and hands it to the
@@ -1054,6 +1056,26 @@ assertion (its input no longer builds, its expression is now refused) is
 a failure like any other, to be fixed in the commit that causes it, not
 noise: such a benchmark guards nothing until it is fixed. `ARCHITECTURE.md`
 ("Benchmarks") describes how they are built and what each one asserts.
+
+### Stress tests
+
+`pnpm stress` measures every input in `bench/stress/catalogue.json`, the
+costliest inputs the cost search has found (`docs/cost.md` presents them,
+by cause). It runs for minutes, each input cold and warm on its own, so
+`pnpm test:all` does not run it and a commit does not wait on it. Run it
+by hand: before and after a change aimed at one of its inputs, after a
+change to a kernel, and when the work on keeping the interface responsive
+(#118) wants a fresh target. It fails only when an input gives a
+different value than it was catalogued with, or passes its deadline; the
+timings, each input's cost as a multiple of a reference measured in the
+same run, and inputs that have become much cheaper are reported.
+
+`pnpm stress:search` adds to the catalogue. Without `--seed` it draws a
+fresh seed, prints it and explores new inputs; with `--seed` and
+`--cases` it replays an earlier run exactly; `--enumerate` runs a fixed
+sweep of every function instead. A run leaves its findings as a diff to
+the catalogue and to the table in `docs/cost.md`, for review like any
+other change.
 
 ### Offline behavior
 

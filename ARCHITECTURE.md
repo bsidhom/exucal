@@ -1687,7 +1687,22 @@ tests. The rest of the directory is what they share:
   case that costs more per call than the entry measured again. Cases past
   their deadline, or whose worker failed, are kept apart as hangs, and
   each run is logged with its seed and count. The tests of `cases.ts` and
-  `catalogue.ts` are ordinary ones, since they evaluate nothing.
+  `catalogue.ts` are ordinary ones, since they evaluate nothing. Each
+  entry that joins the catalogue is also typed out (`typeOut` of the
+  harness): `outcomeOf` on every prefix of its text in order, in one
+  worker so that the memos carry over as in a session, the profile the
+  interface's evaluation on every keystroke meets.
+- `bench/stress/catalogue.stress.ts` is the stress suite (8.3), run by
+  `pnpm stress` and discovered by neither `pnpm test` nor `pnpm bench`.
+  It measures each catalogued case on its own, cold and warm, under a
+  deadline of four times its catalogued time and two minutes at least,
+  and asserts what holds on any machine: the outcome's kind, value and
+  warnings as catalogued (the note after the value, which states a bound
+  a sharper kernel may tighten, is left out), and no case past its
+  deadline. It reports the timings beside the catalogue's, each case's
+  cost as a multiple of a reference case (`exp(1) - exp(1)`) measured in
+  the same run, and cases much cheaper than catalogued; the hangs are
+  listed, with their issues, and not run.
 - `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
   drawn from the letters `n` to `z` and unit names from `a` to `m`, so
   that no name is ambiguous and the ambiguity check scans everything: its

@@ -4,7 +4,7 @@ import { inspect } from "node:util";
 import { ceilingFor } from "../../src/core/context.ts";
 import { schedule } from "../../src/core/pipeline.ts";
 import { contextOf } from "../../src/settings.ts";
-import { caseOf, checkSettings, measure } from "./harness.ts";
+import { caseOf, checkSettings, measure, typeOut } from "./harness.ts";
 
 test("a case that certifies at once takes one pass, cold and warm", async () => {
   const c = caseOf("3 ft", "in");
@@ -71,4 +71,28 @@ test("the settings must be ones the panel could hold", () => {
     RangeError,
   );
   checkSettings(caseOf("1").settings);
+});
+
+test("typing out a case evaluates every prefix of the have, in order", async () => {
+  const typing = await typeOut(caseOf("3 ft", "in"), 30_000);
+  assert.equal(typing.complete, true);
+  assert.deepEqual(
+    typing.keystrokes.map((k) => [k.length, k.kind]),
+    // `3` and `3 ` are plain numbers, not lengths, and `3 f` is no unit.
+    [
+      [1, "error"],
+      [2, "error"],
+      [3, "error"],
+      [4, "result"],
+    ],
+  );
+  for (const k of typing.keystrokes) assert.ok(k.ms >= 0);
+});
+
+test("typing that passes its deadline returns the keystrokes typed so far", async () => {
+  // The whole text costs seconds at the default ceiling; its prefixes
+  // until the last do not parse, or certify at once.
+  const typing = await typeOut(caseOf("beta(0.5, 0.5) - pi()"), 200);
+  assert.equal(typing.complete, false);
+  assert.ok(typing.keystrokes.length < "beta(0.5, 0.5) - pi()".length);
 });

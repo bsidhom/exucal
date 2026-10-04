@@ -117,9 +117,30 @@ export type Measurement =
       readonly running: Running | undefined;
     };
 
+/**
+ * One keystroke of a case typed out: how much of the `have` was typed,
+ * the time `outcomeOf` took on it, and the outcome's kind.
+ */
+export type Keystroke = {
+  readonly length: number;
+  readonly ms: number;
+  readonly kind: Outcome["kind"];
+};
+
+/**
+ * A case typed out, a keystroke at a time: every keystroke's cost, and
+ * whether the typing finished within the deadline.
+ */
+export type Typing = {
+  readonly keystrokes: readonly Keystroke[];
+  readonly complete: boolean;
+};
+
 /** What the worker posts: the table is built, a pass starts, or a run is over. */
 type Message =
   | { readonly kind: "ready" }
+  | { readonly kind: "keystroke"; readonly keystroke: Keystroke }
+  | { readonly kind: "typed" }
   | {
       readonly kind: "pass";
       readonly run: "cold" | "warm";
@@ -132,8 +153,11 @@ type Message =
       readonly result: Run;
     };
 
-/** The data a worker is started with, tagged so that no other worker mistakes it. */
-type Job = { readonly stressCase: Case };
+/**
+ * The data a worker is started with, tagged so that no other worker
+ * mistakes it: a case to measure, or one to type out.
+ */
+type Job = { readonly stressCase: Case } | { readonly stressTyping: Case };
 
 // ---------------------------------------------------------------------------
 // Measuring
@@ -241,6 +265,57 @@ export async function measure(
   }
 }
 
+/**
+ * `c` typed out in a worker of its own, as the converter sees it: the
+ * table built once, untimed, then `outcomeOf` on every prefix of the
+ * `have` in order, with the `want` as it is, so that the memos carry over
+ * from keystroke to keystroke as they do in a session. A prefix can cost
+ * more than the whole: `x - x + 1` certifies where `x - x` never does.
+ * Past `deadlineMs` after the table is built, the keystrokes typed so far
+ * are returned, marked incomplete.
+ */
+export async function typeOut(c: Case, deadlineMs: number): Promise<Typing> {
+  checkSettings(c.settings);
+  const worker = new Worker(new URL(import.meta.url), {
+    workerData: { stressTyping: c } satisfies Job,
+  });
+  const keystrokes: Keystroke[] = [];
+  try {
+    return await new Promise<Typing>((resolve, reject) => {
+      let timer: NodeJS.Timeout | undefined;
+      worker.on("message", (message: Message) => {
+        switch (message.kind) {
+          case "ready":
+            timer = setTimeout(() => {
+              void worker.terminate();
+              resolve({ keystrokes, complete: false });
+            }, deadlineMs);
+            break;
+          case "keystroke":
+            keystrokes.push(message.keystroke);
+            break;
+          case "typed":
+            clearTimeout(timer);
+            resolve({ keystrokes, complete: true });
+            break;
+          default:
+            break;
+        }
+      });
+      worker.on("error", (e) => {
+        clearTimeout(timer);
+        reject(e);
+      });
+      worker.on("exit", (code) => {
+        clearTimeout(timer);
+        reject(new Error(`the worker exited with ${code} before it was done`));
+      });
+    });
+  } finally {
+    await worker.terminate();
+  }
+}
+
 // ---------------------------------------------------------------------------
 // The worker
 
@@ -255,13 +330,42 @@ function systemDefinitions() {
   return parsed.value;
 }
 
-/** Builds the table, then evaluates the case cold and warm, posting as it goes. */
-function runJob(job: Job): void {
-  const port = parentPort!;
-  const { have, want, settings } = job.stressCase;
+/** The system table built at the ceiling of `settings`, as the app builds it. */
+function systemTable(settings: Settings) {
   const context = contextOf(settings);
   const table = buildTable(systemDefinitions(), ceilingContext(context));
   if (!table.ok) throw new Error("The system definitions do not build");
+  return { context, table: table.value };
+}
+
+/** Builds the table, then evaluates every prefix of the `have`, posting each. */
+function typeJob(c: Case): void {
+  const port = parentPort!;
+  const { context, table } = systemTable(c.settings);
+  port.postMessage({ kind: "ready" } satisfies Message);
+  for (let length = 1; length <= c.have.length; length++) {
+    const start = performance.now();
+    const outcome = outcomeOf(
+      table,
+      c.have.slice(0, length),
+      c.want,
+      context,
+      c.settings.fractions,
+    );
+    const ms = performance.now() - start;
+    port.postMessage({
+      kind: "keystroke",
+      keystroke: { length, ms: Math.round(ms * 10) / 10, kind: outcome.kind },
+    } satisfies Message);
+  }
+  port.postMessage({ kind: "typed" } satisfies Message);
+}
+
+/** Builds the table, then evaluates the case cold and warm, posting as it goes. */
+function runJob(job: { readonly stressCase: Case }): void {
+  const port = parentPort!;
+  const { have, want, settings } = job.stressCase;
+  const { context, table } = systemTable(settings);
   port.postMessage({ kind: "ready" } satisfies Message);
   for (const run of ["cold", "warm"] as const) {
     const passes: Pass[] = [];
@@ -285,7 +389,7 @@ function runJob(job: Job): void {
     };
     const start = performance.now();
     const outcome = outcomeOf(
-      table.value,
+      table,
       have,
       want,
       context,
@@ -331,6 +435,11 @@ function written(line: Line): string {
   return `${line.have} ${line.relation} ${sum}${note}`;
 }
 
-if (!isMainThread && (workerData as Partial<Job> | null)?.stressCase) {
-  runJob(workerData as Job);
+if (!isMainThread) {
+  const job = workerData as Partial<{
+    stressCase: Case;
+    stressTyping: Case;
+  }> | null;
+  if (job?.stressCase !== undefined) runJob({ stressCase: job.stressCase });
+  else if (job?.stressTyping !== undefined) typeJob(job.stressTyping);
 }

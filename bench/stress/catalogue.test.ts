@@ -12,6 +12,7 @@ import {
   merge,
   mergeHangs,
   withTable,
+  withTyping,
   type Catalogue,
   type Entry,
   type Hang,
@@ -153,8 +154,25 @@ test("the table replaces the text between its markers, and only there", () => {
   assert.match(table, /^\| Expression \| Settings \| Pattern \|/);
   assert.match(
     table,
-    /`gamma\(a\) - gamma\(a\)` \| default \| cancel \| 8\.0 s \| 4\.0 s \| 2\.0 s \| 1 \|/,
+    /`gamma\(a\) - gamma\(a\)` \| default \| cancel \| 8\.0 s \| 4\.0 s \| 2\.0 s \| 1 \| — \| — \|$/m,
   );
+  // An entry typed out shows its slowest keystroke and how many were slow,
+  // a `+` when the typing did not finish.
+  const typed = withTyping(CATALOGUE, CATALOGUE.entries[0]!, {
+    keystrokes: [
+      { length: 1, ms: 50, kind: "error" },
+      { length: 2, ms: 150, kind: "result" },
+      { length: 3, ms: 2000, kind: "result" },
+    ],
+    complete: true,
+  });
+  assert.match(catalogueTable(typed), /\| 1 \| 2\.0 s \| 2 of 3 \|$/m);
+  const cut = withTyping(CATALOGUE, CATALOGUE.entries[0]!, {
+    keystrokes: [{ length: 1, ms: 50, kind: "error" }],
+    complete: false,
+  });
+  assert.match(catalogueTable(cut), /\| 50 ms \| 0 of 1\+ \|$/m);
+  assert.equal(typed.entries[1], CATALOGUE.entries[1]);
   const updated = withTable(doc, table)!;
   assert.ok(updated.startsWith("# Costs\n\nBefore.\n\n"));
   assert.ok(updated.endsWith(`${TABLE_END}\n\nAfter.\n`));

@@ -13,6 +13,7 @@
     "test:sweep": "node --test \"src/**/*.sweep.ts\"",
     "test:all": "pnpm typecheck && pnpm test && pnpm test:sweep && pnpm bench",
     "bench": "node --test \"bench/**/*.bench.ts\"",
+    "stress": "node --test --test-concurrency=1 \"bench/**/*.stress.ts\"",
     "stress:search": "node bench/stress/search.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

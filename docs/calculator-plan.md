@@ -5375,6 +5375,18 @@ fresh target. ARCHITECTURE.md ("Benchmarks") says how it is built.
 
 Behavior: none.
 
+As it landed, the profile as typed is the harness's `typeOut`:
+`outcomeOf` on every prefix of the `have` in order, in one worker so that
+the memos carry over as in a session, run by the search on each entry
+that joins the catalogue and recorded with it. The catalogue's table
+gives each entry's slowest keystroke and how many keystrokes reach a
+tenth of a second. The suite compares an outcome's kind, value and
+warnings but not the note after the value, since a sharper kernel
+tightens the bound the note states without changing the value; each
+case's deadline is four times its catalogued time and two minutes at
+least, and the reference is `exp(1) - exp(1)`, which runs to the
+ceiling in milliseconds. A hang records the issue filed for it.
+
 ### 8.4 Stage 8 docs
 
 This plan's record of the stage, "Stage 8 as it landed"; docs/cost.md's

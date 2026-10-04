@@ -61,8 +61,9 @@ import {
   type Entry,
   type Hang,
   type Source,
+  withTyping,
 } from "./catalogue.ts";
-import { machine, measure, type Measurement } from "./harness.ts";
+import { machine, measure, typeOut, type Measurement } from "./harness.ts";
 
 const root = new URL("../../", import.meta.url);
 const CATALOGUE = new URL("bench/stress/catalogue.json", root);
@@ -271,7 +272,13 @@ async function main(): Promise<void> {
     Math.floor(
       positive(
         options.cases,
-        budgetMs === undefined ? (options.list ? 20 : 100) : MAX_CASES,
+        // The enumeration runs whole, and so does a budget; a seed's
+        // sequence has no end, so it runs 100 cases (20 to list).
+        options.enumerate || budgetMs !== undefined
+          ? MAX_CASES
+          : options.list
+            ? 20
+            : 100,
         "--cases",
       ),
     ),
@@ -384,6 +391,27 @@ async function main(): Promise<void> {
 
   const report = merge(catalogue, measured, remeasured, floorMs);
   let updated = mergeHangs(report.catalogue, hangs);
+  // Each entry that joined is typed out a keystroke at a time, the profile
+  // the interface's evaluation on every keystroke is designed against.
+  const joined = [
+    ...report.added,
+    ...report.replaced.map(([, entry]) => entry),
+  ];
+  if (joined.length > 0) {
+    console.log(`typing out ${joined.length} entries, a keystroke at a time`);
+  }
+  for (const entry of joined) {
+    const typing = await typeOut(
+      { have: entry.have, want: entry.want, settings: entry.settings },
+      2 * deadlineMs,
+    ).catch(() => undefined);
+    if (typing === undefined) continue;
+    updated = withTyping(updated, entry, typing);
+    const slowest = Math.max(0, ...typing.keystrokes.map((k) => k.ms));
+    console.log(
+      `  slowest keystroke ${Math.round(slowest)} ms of ${typing.keystrokes.length}${typing.complete ? "" : " (incomplete)"}  ${entry.have}`,
+    );
+  }
   updated = logRun(updated, {
     source: seedText === undefined ? { enumeration: true } : { seed: seedText },
     cases: count,

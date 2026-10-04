@@ -18,7 +18,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import type { Settings } from "../../src/settings.ts";
 import type { Family } from "./cases.ts";
-import type { Machine, Run, Running } from "./harness.ts";
+import type { Machine, Run, Running, Typing } from "./harness.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,6 +44,12 @@ export type Entry = {
   readonly machine: Machine;
   readonly cold: Run;
   readonly warm: Run;
+  /**
+   * The case typed out a keystroke at a time (harness.ts, `typeOut`),
+   * measured when it joined the catalogue; absent for an entry not yet
+   * typed out.
+   */
+  readonly typing?: Typing;
 };
 
 /** A case that did not finish: past its deadline, or its worker failed. */
@@ -63,6 +69,8 @@ export type Hang = {
         readonly running: Running | null;
       }
     | { readonly kind: "failed"; readonly message: string };
+  /** The issue filed for it, added by hand once it is filed. */
+  readonly issue?: number;
 };
 
 /** A run of the search, as logged. */
@@ -163,6 +171,21 @@ export function mergeHangs(
   return { ...catalogue, hangs: kept };
 }
 
+/** `catalogue` with `typing` recorded on the entry that is `entry`. */
+export function withTyping(
+  catalogue: Catalogue,
+  entry: Entry,
+  typing: Typing,
+): Catalogue {
+  return {
+    ...catalogue,
+    entries: catalogue.entries.map((e) => (e === entry ? { ...e, typing } : e)),
+  };
+}
+
+/** A keystroke that costs at least this is one the interface visibly waits on. */
+export const SLOW_KEYSTROKE_MS = 100;
+
 /** `catalogue` with `run` logged. */
 export function logRun(catalogue: Catalogue, run: RunRecord): Catalogue {
   return { ...catalogue, runs: [...catalogue.runs, run] };
@@ -215,6 +238,7 @@ export function catalogueTable(catalogue: Catalogue): string {
       duration(entry.warm.ms),
       duration(perCall(entry)),
       String(entry.warm.passes.length),
+      ...typingCells(entry.typing),
     ];
   });
   const header = [
@@ -225,12 +249,30 @@ export function catalogueTable(catalogue: Catalogue): string {
     "Warm",
     "Warm per call",
     "Passes",
+    "Slowest keystroke",
+    "Slow keystrokes",
   ];
   return [
     `| ${header.join(" | ")} |`,
     `| ${header.map(() => "---").join(" | ")} |`,
     ...rows.map((row) => `| ${row.join(" | ")} |`),
   ].join("\n");
+}
+
+/**
+ * The typing columns of an entry: its slowest keystroke, and how many of
+ * its keystrokes reach `SLOW_KEYSTROKE_MS` out of how many it typed
+ * (marked when the typing passed its deadline); dashes when it was not
+ * typed out.
+ */
+function typingCells(typing: Typing | undefined): [string, string] {
+  if (typing === undefined || typing.keystrokes.length === 0) return ["—", "—"];
+  const slowest = Math.max(...typing.keystrokes.map((k) => k.ms));
+  const slow = typing.keystrokes.filter(
+    (k) => k.ms >= SLOW_KEYSTROKE_MS,
+  ).length;
+  const of = `${slow} of ${typing.keystrokes.length}${typing.complete ? "" : "+"}`;
+  return [duration(slowest), of];
 }
 
 /**

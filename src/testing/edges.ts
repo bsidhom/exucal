@@ -6,7 +6,8 @@
 // src/edges.sweep.ts at the text level; this module is what the two share.
 // The suffix keeps the sweeps out of `pnpm test`, the run for every edit:
 // they are conformance tests, run by `pnpm test:sweep` before a commit and
-// in CI, and `pnpm test:all` runs both (issue #108).
+// in CI, and `pnpm test:all` runs both (issue #108), with the benchmarks
+// (issue #135).
 //
 // The runner. node:test's `timeout` neither interrupts nor fails a
 // synchronous test, so a computation that hangs would hang the run. The

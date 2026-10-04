@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { inspect } from "node:util";
 import { buildTable } from "../src/core/build.ts";
 import {
   DEFAULT_CEILING,
@@ -66,15 +67,20 @@ test("one gcd at the default range limit grows quadratically at most", (t) => {
 });
 
 test("the quotients of issue #52 are reported", (t) => {
-  // Each is a quotient of coprime powers within the default range limit,
-  // whose reduction is one gcd of their size; the first took 469 ms with
-  // Euclid's gcd, the second 949 ms.
+  // Each is a quotient of coprime powers whose reduction is one gcd of
+  // their size; the first took 469 ms with Euclid's gcd, the second 949 ms.
+  // Both were within the default range limit when #52 was measured, but
+  // the second's denominator, 7^21845 11^16383, is about 116,800 bits, and
+  // since H.14 (D19) an exact result past the limit is refused at the node
+  // that forms it, so the two run at twice the default limit, which holds
+  // both: the inputs stay those of #52, and so stay comparable with its
+  // timings (issue #135).
   const parsed = parseDefinitions("m  !");
   assert.ok(parsed.ok);
   const context: NumberContext = {
     precision: 8,
     rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
+    maxBits: 2 * DEFAULT_MAX_BITS,
     ceiling: DEFAULT_CEILING,
   };
   const table = buildTable(parsed.value, {
@@ -85,7 +91,7 @@ test("the quotients of issue #52 are reported", (t) => {
   for (const text of ["3^32767 / 7^21845", "3^32767 / 7^21845 / 11^16383"]) {
     const ms = bestOf(3, () => {
       const result = evaluateText(table.value, text, context);
-      assert.ok(result.ok);
+      assert.ok(result.ok, `${text}: ${inspect(result)}`);
     });
     t.diagnostic(`${text}: ${millis(ms)}`);
   }

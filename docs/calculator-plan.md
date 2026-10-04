@@ -60,8 +60,9 @@ adds a module leaves the app's behavior untouched, and says so; a task
 that changes behavior says exactly which behavior.
 
 Every task ends in the same state: `pnpm typecheck`, `pnpm test:all`
-(the tests and the edge sweeps, which `pnpm test` alone leaves out since
-issue #108) and `pnpm format:check` pass, and the module headers and ARCHITECTURE.md say
+(the tests, the edge sweeps, which `pnpm test` alone leaves out since
+issue #108, and the benchmarks, since issue #135) and
+`pnpm format:check` pass, every benchmark reaching its assertion, and the module headers and ARCHITECTURE.md say
 what the code now does (the last task of each stage sweeps the docs, but
 a task must not leave a header that lies). The tests are the `*.test.ts`
 beside each module, under Node's test runner, with no new dependency.

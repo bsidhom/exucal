@@ -5307,6 +5307,41 @@ list different cases; a run without a seed records the one it drew; and
 the merge keeps a new family, replaces an entry only by a costlier case
 of its family, and leaves the other entries as they were.
 
+As it landed, the search is three modules: `cases.ts`, the pure drawing
+from a seed; `catalogue.ts`, the catalogue's shape, its merge and its
+table; and `search.ts`, the command. The choices the task left open:
+
+- **The patterns** are four: `cancel`, a call less itself; `identity`,
+  from a table of nineteen identities between different functions;
+  `edge`, a zero of either kind inside `floor(z + 3)`, `round(z + 2.5)`,
+  `sign(z)` or `1 / (z)`; and `condition`, `tempC(z - 273.15)`. The
+  argument classes are exact, long, inexact (`approx`), large and small,
+  each a pool of values per domain, and an argument is a costly call
+  whose value lies in its domain one time in five.
+- **A family is keyed by the settings profile too,** besides the
+  pattern, the functions and the argument classes: the profiles (the
+  defaults; 32 digits; the highest cap the default range limit allows;
+  the decimal mode; the fractions display; the extreme settings) differ
+  in cost by more than any argument does, so without the profile the
+  costliest cap would take every family's entry and the defaults would
+  go unrecorded.
+- **The defaults:** 100 cases (20 for `--list`), a deadline of 120 s a
+  case, a floor of a second warm, one job per core; `--dry-run` writes
+  nothing. A case is a candidate when its warm cost under load reaches
+  half the floor, since load inflates timings unevenly.
+- **What is kept apart:** a case past its deadline and a case whose
+  worker failed (a throw, which is a bug) are both hangs, one per
+  family. The catalogue logs every run, with its seed or the
+  enumeration, the count of cases, the commit, the date and the machine.
+- **The table** is written into docs/cost.md between two markers once
+  8.3 creates the file; the profile of each catalogued case as typed is
+  8.3's too.
+
+A first run of sixteen cases at the defaults (2 min 50 s on four cores)
+found, among others, `erfc(0.5) - uppergammareg(1/2, 0.5^2)` at 10 s warm
+at the highest default cap, `digamma(-2.718281828459045)` less itself at
+29 s cold there, and two cases past a 40 s deadline at high caps.
+
 ### 8.3 The catalogue and the stress suite
 
 docs/cost.md gathers the catalogue, which runs of the search build up

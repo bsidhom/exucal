@@ -814,19 +814,20 @@ Cloud environment below), so nothing above has to be done there by hand.
 
 ### Commands
 
-| Command             | What it does                                        |
-| ------------------- | --------------------------------------------------- |
-| `pnpm install`      | Install the dependencies the lockfile records.      |
-| `pnpm dev`          | Start the development server with hot reloading.    |
-| `pnpm build`        | Type-check and build a production bundle in `dist`. |
-| `pnpm preview`      | Serve the production bundle locally.                |
-| `pnpm typecheck`    | Type-check without building.                        |
-| `pnpm test`         | Run the tests with Node's built-in test runner.     |
-| `pnpm test:sweep`   | Run the edge sweeps, the conformance tests.         |
-| `pnpm test:all`     | Type-check, then run tests, sweeps and benchmarks.  |
-| `pnpm bench`        | Run the performance benchmarks (see Benchmarks).    |
-| `pnpm format`       | Format all source files with Prettier.              |
-| `pnpm format:check` | Verify that all source files are formatted.         |
+| Command              | What it does                                        |
+| -------------------- | --------------------------------------------------- |
+| `pnpm install`       | Install the dependencies the lockfile records.      |
+| `pnpm dev`           | Start the development server with hot reloading.    |
+| `pnpm build`         | Type-check and build a production bundle in `dist`. |
+| `pnpm preview`       | Serve the production bundle locally.                |
+| `pnpm typecheck`     | Type-check without building.                        |
+| `pnpm test`          | Run the tests with Node's built-in test runner.     |
+| `pnpm test:sweep`    | Run the edge sweeps, the conformance tests.         |
+| `pnpm test:all`      | Type-check, then run tests, sweeps and benchmarks.  |
+| `pnpm bench`         | Run the performance benchmarks (see Benchmarks).    |
+| `pnpm stress:search` | Search for the costliest inputs (by hand; slow).    |
+| `pnpm format`        | Format all source files with Prettier.              |
+| `pnpm format:check`  | Verify that all source files are formatted.         |
 
 The lockfile is frozen for every install, everywhere, not only in CI:
 `frozenLockfile: true` in `pnpm-workspace.yaml` makes `pnpm install` fail
@@ -937,9 +938,12 @@ hook's output at session start says which part is out of date.
   source that the core's property tests and the benchmarks draw from.
 - `bench/` holds the performance benchmarks of the core, run by
   `pnpm bench` (see Benchmarks below); `ARCHITECTURE.md` describes them.
-  `bench/stress/` holds the cost harness of the plan's stage 8, which
+  `bench/stress/` holds the plan's stage 8: the cost harness, which
   measures what one input costs the converter, cold and warm, pass by
-  pass; the search and the stress suite built on it are to come.
+  pass, and the search for the costliest inputs, `pnpm stress:search`,
+  which is run by hand and never by `pnpm test:all` (`--help` lists its
+  options; ARCHITECTURE.md, "Benchmarks", describes it). The stress suite
+  built on its catalogue is to come.
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every
   part of the app renders inside. It loads the unit table when it is
   connected, shows a loading message until it arrives, and hands it to the

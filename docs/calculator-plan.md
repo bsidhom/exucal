@@ -4922,15 +4922,18 @@ position, and `arityMismatch` covers definitions, the arity being the
 function's own in place of `ONE_ARGUMENT`. A duplicate parameter name is
 a parse error at its second occurrence. The inverse and the want stay
 single-parameter, as the study says, so a `~f` whose `f` takes several
-parameters is a build error.
+parameters is a build error. An empty parameter list, `c() = 3 m`, is
+allowed, as the note's grammar writes the list (`params?`) and as
+`pi()` takes none: a function of none is called `c()`, and has no
+inverse either (docs/functions.md, "Definitions").
 
 Behavior: none visible with the system file, whose functions take one
 parameter; README's "Functions" says a defined function may take
 several.
 
 Tests: binding by position, the arity of a defined function in
-`arityMismatch`, a duplicate parameter, and a `~f` of a function of two
-parameters.
+`arityMismatch`, a duplicate parameter, a function of no parameters, and
+a `~f` of a function of two parameters or of none.
 
 ### 7.3 Conditions
 

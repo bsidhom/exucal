@@ -46,7 +46,8 @@
 // the head, spaces are free around every token, and `=` ends it: an
 // annotation is an expression, and juxtaposition would run a result
 // annotation into the body. A function has any number of parameters,
-// separated by commas, none of them named twice, since nothing could say
+// none included (`c() = 3 m`, called `c()`), separated by commas, none of
+// them named twice, since nothing could say
 // which one the body means; each may be annotated with the unit it takes
 // (`x: kg`, a plain number without one), and the result too (`): K`);
 // each annotation keeps its text, since the converter writes a recovered

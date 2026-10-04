@@ -94,6 +94,15 @@ dims       := "[" name ("," name)* "]"       reserved ("Dimension-generic functi
   decision is still made from the text alone, and the parser still
   never consults the table ("Conditions" shows the grammar is
   unambiguous).
+- **A function has any number of parameters, none included,** bound by
+  position at a call; a parameter may not be named twice. A function of
+  none, `twopi() = 2 pi()`, is called with empty parentheses, `twopi()`,
+  as `pi()` is. It differs from a unit of the same body, `twopi  2 pi()`,
+  in when it is evaluated: a unit is evaluated once, when the table is
+  built at the ceiling, and a call afresh at the working precision of
+  every pass, so a function of none is the way to name a computed
+  constant without fixing it in the table. It has no inverse, since it
+  has no argument to recover (`inverseArity`).
 - **A parameter without an annotation is a plain number.** `x: kg`
   admits a mass, and `x: 1` says explicitly what no annotation says.
 - **The result's annotation is optional.** Without one, the result's

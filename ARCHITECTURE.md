@@ -1182,11 +1182,12 @@ for a single `want`, so that the message quotes the name the user typed.
 ### Functions
 
 A function (docs/functions.md is the design, with the reasoning) is a body
-with any number of parameters, bound by position, `tempC(x) = x K +
-273.15 K` or `kinetic(mass: kg, v: m/s) = mass v^2 / 2`, and, for a
-function of one parameter, an optional inverse on a line of its own,
-`~tempC(y) = y / K - 273.15`. It exists for
-readings such as a temperature, which are not multiples of a unit,
+with any number of parameters, bound by position, as in
+`tempC(x) = x K + 273.15 K` or `kinetic(mass: kg, v: m/s) = mass v^2 / 2`,
+or none, as in `twopi() = 2 pi()`, called `twopi()`; and, for a function
+of one parameter, an optional inverse on a line of its own,
+`~tempC(y) = y / K - 273.15`. It exists for readings such as a
+temperature, which are not multiples of a unit,
 without giving `Quantity` an offset that every operation would then need
 a rule for, and for compositions of the built-ins that a user would
 otherwise type out. Nothing about functions touches quantities: a call

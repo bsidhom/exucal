@@ -47,13 +47,13 @@ NODE_VERSION="24.21.0"
 # package.json "packageManager" and "devEngines.packageManager", and
 # pnpm-lock.yaml "packageManagerDependencies". Must match exactly: pnpm
 # refuses to run, or re-downloads itself, under any other version.
-PNPM_VERSION="12.3.4"
+PNPM_VERSION="12.9.1"
 # pnpm 12 is a native binary published as @pnpm/exe.<platform>; the "pnpm"
 # npm package is only a wrapper around it. The integrity strings are copied
-# from pnpm-lock.yaml, `packages: '@pnpm/exe.linux-x64@12.3.4'` and
-# `'@pnpm/exe.linux-arm64@12.3.4'`. Update both when PNPM_VERSION changes.
-PNPM_INTEGRITY_X64="sha512-2ZqOlSPkfwX1h5cR+FPiWf8+F+2hZT/3TvhUK5sigHqwaQCIiq8R7CGxhndKs63JtcLi2a1Qpo+wX/EoyfjyJQ=="
-PNPM_INTEGRITY_ARM64="sha512-t71AVA7LRqiKTyZ5xMYaZc2n5DfdpMbfokZuiIOXHBOM03ECnF0t4iYwaBDqJgVjlKYUOwaF/bRQajGNA4cJ4w=="
+# from pnpm-lock.yaml, `packages: '@pnpm/exe.linux-x64@12.9.1'` and
+# `'@pnpm/exe.linux-arm64@12.9.1'`. Update both when PNPM_VERSION changes.
+PNPM_INTEGRITY_X64="sha512-+M5N74hM4fc87AAckxx/UIW+dUnWf2eko+HchJs/NZUxehLhekNyMI/GNaNXlvd+kWR+97XXBD51XRkkNiUtrA=="
+PNPM_INTEGRITY_ARM64="sha512-cx+uF6xqwEtm7B8NV+1ve0xBg9gcuzQZ5R+0WgOWvKG/h978UljS6BgWs1ipIGuGgUdeVhm3PKmBltXIcczLXA=="
 
 # Where the toolchain lives. Follows the base image's /opt/nodeNN layout; the
 # pnpm binary goes into the same bin directory so one PATH entry covers both.

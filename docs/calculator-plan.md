@@ -5170,10 +5170,11 @@ measured on, and only ratios between cases measured in one run compare
 across machines.
 
 **Where it searches.** Everything a user can type against the system
-definitions, under any settings the panel allows. Definitions a user
-writes are not reachable until #132 or an editor lands, so the nesting
-of defined functions (D24's `2^k`) is noted on a synthetic file, not
-searched. The search covers the factors that set the cost:
+definitions, under any settings the panel allows. User-defined
+functions need no path of their own, now or once #132 lets a user type
+them: a defined function only composes the built-ins and the
+arithmetic (D24), and the search builds those compositions directly.
+The search covers the factors that set the cost:
 
 - **What forces the ceiling:** an exact cancellation or an identity
   between calls (`f(a) - f(a)`, `gamma(1/2)^2 - pi()`, two different
@@ -5232,40 +5233,76 @@ passes a short deadline.
 
 ### 8.2 The search
 
-`bench/stress/search.ts`, run by hand with a time budget
-(`pnpm stress:search`), draws its cases from the shared random source,
-so a run with the same seed and budget searches the same cases. It runs
-in two phases:
+`bench/stress/search.ts`, run by hand (`pnpm stress:search`), draws its
+cases from a seed and from nothing else, so that the seed alone
+reproduces what a run searched.
 
-1. **An enumeration of the families above:** each built-in over its
-   classes of arguments, in each pattern that forces the ceiling, at
-   the settings the stage names.
-2. **A local search from the costliest cases found.** Each is mutated:
-   an argument's value or exactness changed, a function swapped for
-   another of the same arity, a call composed into an argument, or a
-   setting raised. A mutation that costs more per call is kept, until
-   the budget is spent.
+- **The seed.** A seed is a key of the shared random source
+  (src/testing/random.ts), two 32-bit words, written as sixteen
+  hexadecimal digits. A run given `--seed` uses it; a run without one
+  draws a fresh one from the cryptographic source
+  (`crypto.getRandomValues`) before anything else, prints it, and
+  records it with every result. So each run explores new cases by
+  default, and any run can be replayed.
+- **The cases are a function of the seed.** The `i`-th case is drawn
+  from `foldIn(seed, i)` alone, as every draw of the shared source is a
+  function of its key, so the sequence is the same in any order, on any
+  machine, and whatever the cases cost. No measured time decides what is
+  searched next: there is no local search from the costliest cases and
+  no branch on a timing. A case is drawn from the families above with
+  fixed weights written in the code: a pattern that forces the ceiling,
+  its functions, its arguments from their classes, an optional
+  composition of a costly call into an argument, the settings and the
+  want. The exact cancellations between different functions, the class
+  #117 found, almost never arise from free composition, so the patterns
+  include a table of identities to instantiate (`beta(a, b)` against
+  `gamma(a) gamma(b) / gamma(a + b)`, `gamma(x + 1)` against
+  `x gamma(x)`, `erf(x) + erfc(x) - 1`,
+  `lowergammareg(a, x) + uppergammareg(a, x) - 1`,
+  `incbetareg(a, b, x) + incbetareg(b, a, 1 - x) - 1`,
+  `exp(ln(x)) - x`, and the like), which grows with the built-ins.
+- **The extent.** `--cases n` runs the first `n` cases of the sequence,
+  and `--budget` stops at a time instead, after a prefix of the same
+  sequence; a result records the seed and the count run, so a replay
+  with `--cases` runs exactly the same cases. `--list` prints the cases
+  of a seed without evaluating them, the cheap way to see what a run
+  searched and in what order. `--enumerate` runs instead the fixed
+  enumeration of every built-in over its argument classes in each
+  pattern, which needs no seed: for a first run, after a change to a
+  kernel, and when #115 adds functions.
+- **The measurement.** Cases run in parallel workers, one per core, each
+  under a deadline; a case past it is reported as a hang, not ranked.
+  Which cases a run keeps depends on their measured cost, the one thing
+  wall-clock time decides: the costliest are measured again one at a
+  time, since timings under load are not the catalogue's, and ranked by
+  their warm cost per costly call, with the cold cost recorded beside
+  it. The timings themselves cannot be reproduced exactly, so only cases
+  above a floor (a second warm, at first) enter the catalogue: a case
+  that costs seconds stays among the costliest when it is measured
+  again, where the noise of one machine is milliseconds.
 
-Cases run in parallel workers, one per core, to rank them. The costliest
-are then measured again one at a time, since timings taken under load
-are not the catalogue's.
+A run adds to the catalogue rather than replacing it. A case belongs to
+a family, keyed by its pattern, its functions and its classes of
+arguments. A case joins the catalogue when its family is new to it, and
+replaces the family's entry when it costs more than that entry measured
+again in the same run, since only timings from one run compare. Each
+entry records the seed and the index that drew it, or the enumeration,
+with the commit, the date and the machine, so that it can be drawn again
+and its text read back. A run leaves its changes as a diff to
+`bench/stress/catalogue.json`, with the table of docs/cost.md
+regenerated, for review like any other change.
 
-The output is the catalogue: the costliest cases, one entry per family
-and cause with the worst instance found, each with its timings, its
-passes, its outcome and its cause. It is written as JSON for the stress
-suite (`bench/stress/catalogue.json`) and as a table for the docs. A
-case that passed its deadline in the search is kept apart, as a hang to
-report.
-
-Behavior: none; no test run includes the search. Tests, run with the
-stress suite: a search over a budget of seconds finds a case of the
-Gamma family run to the ceiling among its costliest, and two runs with
-one seed draw the same cases.
+Behavior: none; no test run includes the search. Tests, ordinary ones
+since they evaluate nothing: one seed lists the same cases on two runs;
+the `i`-th case drawn alone is the `i`-th of the sequence; two seeds
+list different cases; a run without a seed records the one it drew; and
+the merge keeps a new family, replaces an entry only by a costlier case
+of its family, and leaves the other entries as they were.
 
 ### 8.3 The catalogue and the stress suite
 
-docs/cost.md gathers the catalogue. It lists the costliest expressions
-found, by cause, with their timings on the machine the search ran on,
+docs/cost.md gathers the catalogue, which runs of the search build up
+over time (8.2). It lists the costliest expressions found, by cause, with their timings on the machine the search ran on,
 what each pays for (the passes, the routine, the memo), and its profile
 as typed. Each entry names the issue that would make it cheaper: an open
 one where there is one (#125 for the Gamma family's inexact and wide

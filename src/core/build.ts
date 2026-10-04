@@ -35,23 +35,33 @@
 //
 // Functions share the unit namespace too, and a function's name is subject
 // to the same rule as a list's, for the same reason: typed as the want it
-// would mean the inverse, and typed as the have a prefixed unit. A function
-// is a node of the walk, so that a unit may be defined by a call, a body
-// may call another function, and a cycle through a function is reported
-// like any other. Checking a function (docs/functions.md) means evaluating
-// its declared units and taking each body's dimension without evaluating
-// it (dimension-of.ts), the forward body with the parameter bound to the
-// declared argument's dimension and the inverse body with the name bound
-// to the declared result's, through the walk's own lookup, and checking
-// that each conforms to what it should give. That catches a body of the
-// wrong dimension, or one that refers to nothing, at load time, so that a
-// call at run time can fail only on its argument or on a value; a body
-// that fails at some value, or at every value (`1 / (x - 1)`, `1 / 0`),
-// builds and fails at the call, where the first version of the check,
-// which evaluated the body at one of the declared unit, refused it. A
-// declared unit whose ball contains zero (an exact zero, or an inexact
-// value around it) is rejected as well, since a recovered argument is
-// written as a count of it and nothing is a count of either.
+// would mean the function, and typed as the have a prefixed unit. A
+// function is a node of the walk, so that a unit may be defined by a call,
+// a body may call another function, and a cycle through a function is
+// reported like any other. Checking a function (docs/functions.md) means
+// evaluating its annotations and taking its body's dimension without
+// evaluating it (dimension-of.ts), with the parameter bound to its
+// annotation's dimension (a plain number without one), through the walk's
+// own lookup; that dimension is the function's result, checked against the
+// result's annotation when there is one. That catches a body of the wrong
+// dimension, or one that refers to nothing, at load time, so that a call
+// at run time can fail only on its argument or on a value; a body that
+// fails at some value, or at every value (`1 / (x - 1)`, `1 / 0`), builds
+// and fails at the call, where the first version of the check, which
+// evaluated the body at one of the declared unit, refused it. An
+// annotation whose ball contains zero (an exact zero, or an inexact value
+// around it) is rejected as well, since a recovered argument is written
+// as a count of the parameter's and nothing is a count of either.
+//
+// An inverse, `~name(p) = body`, is optional, and keyed by its function's
+// name apart from every namespace, so a second one for a function is a
+// duplicate and one whose function is not defined is an `orphanInverse`.
+// Nothing can refer to an inverse, so, like a list, it stays out of the
+// walk and is checked in its place in the order, requesting its function
+// from the top (which can never close a cycle, so an inverse may call its
+// own function): its body's dimension, with its parameter bound to the
+// function's result, must conform to what the function's parameter takes.
+// The finished functions carry their inverses.
 //
 // The first failure ends the build. Errors within a body (an unknown name,
 // a division by zero, a reference that closes a cycle) carry the span of
@@ -59,8 +69,9 @@
 // errors about a definition as a whole (a duplicate, a prefix whose body is
 // not a plain number) carry the definition, whose span covers its text.
 
-import type { Definition } from "./definitions.ts";
+import type { Definition, WrittenExpr } from "./definitions.ts";
 import {
+  DIMENSIONLESS,
   checkConformance,
   isDimensionless,
   primitive,
@@ -89,6 +100,7 @@ import {
   type ListedUnit,
   type LookupError,
   type UnitFunction,
+  type UnitInverse,
   type UnitList,
   type UnitTable,
   type WrittenUnit,
@@ -105,6 +117,7 @@ export type UnitDefinition = Extract<
 >;
 export type UnitListDefinition = Extract<Definition, { kind: "unitList" }>;
 export type FunctionDefinition = Extract<Definition, { kind: "function" }>;
+export type InverseDefinition = Extract<Definition, { kind: "inverse" }>;
 /** A definition that denotes a quantity. */
 type QuantityDefinition = PrefixDefinition | UnitDefinition;
 /** A definition the walker evaluates: one that denotes a quantity, or a function. */
@@ -161,14 +174,19 @@ export type BuildError =
       readonly definition: UnitListDefinition;
       readonly error: UnitListError;
     }
-  /** The `body` of the function `definition` does not conform to the unit it should give, as `mismatch` says. */
+  /**
+   * The body of the function or inverse `definition` does not conform to
+   * what it should give, as `mismatch` says: a function's to its result's
+   * annotation, an inverse's to its function's parameter.
+   */
   | {
       readonly kind: "functionMismatch";
-      readonly definition: FunctionDefinition;
-      readonly body: "forward" | "inverse";
+      readonly definition: FunctionDefinition | InverseDefinition;
       readonly mismatch: ConformanceError;
     }
-  /** The declared `unit` of the function `definition` is zero, or cannot be told from it; nothing is a count of either. */
+  /** The inverse `definition` names no function that is defined. */
+  | { readonly kind: "orphanInverse"; readonly definition: InverseDefinition }
+  /** The annotation of the function `definition`'s parameter (`argument`) or result is zero, or cannot be told from it; nothing is a count of either. */
   | {
       readonly kind: "zeroDeclaredUnit";
       readonly definition: FunctionDefinition;
@@ -187,6 +205,8 @@ type Index = {
   readonly units: ReadonlyMap<string, UnitDefinition>;
   readonly unitLists: ReadonlyMap<string, UnitListDefinition>;
   readonly functions: ReadonlyMap<string, FunctionDefinition>;
+  /** The inverses, by the name of their function, apart from every namespace. */
+  readonly inverses: ReadonlyMap<string, InverseDefinition>;
   /** The built-ins the table is built against. */
   readonly builtins: Builtins;
 };
@@ -210,6 +230,11 @@ export function buildTable(
   const indexed = indexDefinitions(definitions, builtins);
   if (!indexed.ok) return indexed;
   const index = indexed.value;
+  for (const inverse of index.inverses.values()) {
+    if (!index.functions.has(inverse.name)) {
+      return err({ kind: "orphanInverse", definition: inverse });
+    }
+  }
   const ambiguity = findAmbiguity(index.prefixes, index.units);
   if (ambiguity !== undefined) {
     return err({ kind: "ambiguousName", ...ambiguity });
@@ -247,7 +272,21 @@ export function buildTable(
   const units = new Map<string, Quantity>();
   const unitLists = new Map<string, UnitList>();
   const functions = new Map<string, UnitFunction>();
+  const inverses = new Map<string, UnitInverse>();
   for (const definition of definitions) {
+    if (definition.kind === "inverse") {
+      // Nothing refers to an inverse either, and its function is requested
+      // from the top, so the inverse may call it.
+      const inverse = checkInverse(
+        definition,
+        lookupIn(index, walk),
+        primitives,
+        context,
+      );
+      if (!inverse.ok) return inverse;
+      inverses.set(definition.name, inverse.value);
+      continue;
+    }
     if (definition.kind === "unitList") {
       // Nothing refers to a list, so its items are evaluated outside the
       // walk, requesting what they refer to from the top.
@@ -277,6 +316,9 @@ export function buildTable(
         break;
     }
   }
+  for (const [name, inverse] of inverses) {
+    functions.set(name, { ...functions.get(name)!, inverse });
+  }
   return ok({ primitives, prefixes, units, unitLists, functions, builtins });
 }
 
@@ -299,16 +341,19 @@ function indexDefinitions(
   const units = new Map<string, UnitDefinition>();
   const unitLists = new Map<string, UnitListDefinition>();
   const functions = new Map<string, FunctionDefinition>();
+  const inverses = new Map<string, InverseDefinition>();
   for (const definition of definitions) {
     const first: Definition | BuiltinName | undefined =
       definition.kind === "prefix"
         ? prefixes.get(definition.name)
-        : (units.get(definition.name) ??
-          unitLists.get(definition.name) ??
-          functions.get(definition.name) ??
-          (builtins.has(definition.name)
-            ? { kind: "builtin", name: definition.name }
-            : undefined));
+        : definition.kind === "inverse"
+          ? inverses.get(definition.name)
+          : (units.get(definition.name) ??
+            unitLists.get(definition.name) ??
+            functions.get(definition.name) ??
+            (builtins.has(definition.name)
+              ? { kind: "builtin", name: definition.name }
+              : undefined));
     if (first !== undefined) {
       return err({ kind: "duplicate", first, second: definition });
     }
@@ -326,9 +371,12 @@ function indexDefinitions(
       case "function":
         functions.set(definition.name, definition);
         break;
+      case "inverse":
+        inverses.set(definition.name, definition);
+        break;
     }
   }
-  return ok({ prefixes, units, unitLists, functions, builtins });
+  return ok({ prefixes, units, unitLists, functions, inverses, builtins });
 }
 
 // ---------------------------------------------------------------------------
@@ -392,13 +440,12 @@ function asFunction(built: Built): UnitFunction {
 }
 
 /**
- * The function `definition` defines, once checked: its declared units
- * evaluated, its forward body's dimension taken with the parameter bound
- * to the declared argument's dimension and found to conform to the
- * declared result, and its inverse body's with the name bound to the
- * declared result's dimension and found to conform to the declared
- * argument. A body's failure is reported as it is, with its span in the
- * definitions text, where it belongs.
+ * The function `definition` defines, once checked: its annotations
+ * evaluated, its body's dimension taken with the parameter bound to the
+ * annotation's dimension (plain without one), and that dimension, the
+ * result's, found to conform to the result's annotation when there is
+ * one. A body's failure is reported as it is, with its span in the
+ * definitions text, where it belongs. The inverse is attached later.
  */
 function checkFunction(
   definition: FunctionDefinition,
@@ -406,81 +453,116 @@ function checkFunction(
   primitives: Primitives,
   context: NumberContext,
 ): Result<UnitFunction, BuildError> {
-  const argument = evaluateDeclared(
-    definition,
-    "argument",
-    lookup,
-    primitives,
-    context,
-  );
-  if (!argument.ok) return argument;
-  const result = evaluateDeclared(
-    definition,
-    "result",
-    lookup,
-    primitives,
-    context,
-  );
-  if (!result.ok) return result;
-  const fn: UnitFunction = {
-    name: definition.name,
-    parameter: definition.parameter,
-    argument: argument.value,
-    result: result.value,
-    forward: definition.forward,
-    inverse: definition.inverse,
-  };
-  const forward = dimensionOf(
-    definition.forward,
-    boundDimensions(
-      definition.parameter,
-      argument.value.quantity.dimension,
+  const { parameter } = definition;
+  let argument: WrittenUnit = PLAIN;
+  if (parameter.annotation !== undefined) {
+    const evaluated = evaluateAnnotation(
+      definition,
+      "argument",
+      parameter.annotation,
       lookup,
-    ),
+      primitives,
+      context,
+    );
+    if (!evaluated.ok) return evaluated;
+    argument = evaluated.value;
+  }
+  const result = dimensionOf(
+    definition.body,
+    boundDimensions(parameter.name, argument.quantity.dimension, lookup),
     primitives,
     context.maxBits,
   );
-  if (!forward.ok) return err(forward.error);
-  const forwardConforms = checkConformance(
-    forward.value,
-    result.value.quantity.dimension,
-    primitives,
-  );
-  if (!forwardConforms.ok) {
-    return err({
-      kind: "functionMismatch",
+  if (!result.ok) return err(result.error);
+  if (definition.result !== undefined) {
+    const annotated = evaluateAnnotation(
       definition,
-      body: "forward",
-      mismatch: forwardConforms.error,
-    });
+      "result",
+      definition.result,
+      lookup,
+      primitives,
+      context,
+    );
+    if (!annotated.ok) return annotated;
+    const conforms = checkConformance(
+      result.value,
+      annotated.value.quantity.dimension,
+      primitives,
+    );
+    if (!conforms.ok) {
+      return err({
+        kind: "functionMismatch",
+        definition,
+        mismatch: conforms.error,
+      });
+    }
   }
-  const inverse = dimensionOf(
-    definition.inverse,
-    boundDimensions(definition.name, result.value.quantity.dimension, lookup),
+  return ok({
+    name: definition.name,
+    parameter: parameter.name,
+    argument,
+    result: result.value,
+    body: definition.body,
+    inverse: undefined,
+  });
+}
+
+/** What a parameter without an annotation takes: a plain number, written `1`. */
+const PLAIN: WrittenUnit = {
+  text: "1",
+  quantity: { magnitude: exact(ONE), dimension: DIMENSIONLESS },
+};
+
+/**
+ * The inverse `definition` defines, once checked: its function requested
+ * through `lookup`, which the caller gives over the walk itself, so that
+ * the request comes from the top and cannot close a cycle, and its body's
+ * dimension, taken with its parameter bound to the function's result,
+ * found to conform to what the function's parameter takes.
+ */
+function checkInverse(
+  definition: InverseDefinition,
+  lookup: Lookup<BuildError>,
+  primitives: Primitives,
+  context: NumberContext,
+): Result<UnitInverse, BuildError> {
+  const fnDefinition = lookup.function(
+    definition.name,
+    definition.span,
+    definition.span,
+  );
+  if (!fnDefinition.ok) return fnDefinition;
+  if (fnDefinition.value.kind !== "defined") {
+    // The orphan check has found a defined function of the name.
+    throw new Error("An inverse's function is a defined one");
+  }
+  const fn = fnDefinition.value.fn;
+  const body = dimensionOf(
+    definition.body,
+    boundDimensions(definition.parameter, fn.result, lookup),
     primitives,
     context.maxBits,
   );
-  if (!inverse.ok) return err(inverse.error);
-  const inverseConforms = checkConformance(
-    inverse.value,
-    argument.value.quantity.dimension,
+  if (!body.ok) return err(body.error);
+  const conforms = checkConformance(
+    body.value,
+    fn.argument.quantity.dimension,
     primitives,
   );
-  if (!inverseConforms.ok) {
+  if (!conforms.ok) {
     return err({
       kind: "functionMismatch",
       definition,
-      body: "inverse",
-      mismatch: inverseConforms.error,
+      mismatch: conforms.error,
     });
   }
-  return ok(fn);
+  return ok({ parameter: definition.parameter, body: definition.body });
 }
 
 /**
  * The lookup over dimensions a body is checked with: `name`, the bound
- * parameter or function name, is `dimension` before any unit, and every
- * other name is the walk's lookup's quantity, reduced to its dimension.
+ * parameter, is `dimension` before any unit, and every other name is the
+ * walk's lookup's quantity, reduced to its dimension.
  */
 function boundDimensions(
   name: string,
@@ -497,21 +579,21 @@ function boundDimensions(
   };
 }
 
-/** The declared `unit` of the function `definition`, evaluated, with its text; a ball containing zero is rejected. */
-function evaluateDeclared(
+/** The `annotation` of the function `definition`'s parameter or result, evaluated, with its text; a ball containing zero is rejected. */
+function evaluateAnnotation(
   definition: FunctionDefinition,
   unit: "argument" | "result",
+  annotation: WrittenExpr,
   lookup: Lookup<BuildError>,
   primitives: Primitives,
   context: NumberContext,
 ): Result<WrittenUnit, BuildError> {
-  const declared = definition[unit];
-  const value = evaluate(declared.expr, lookup, primitives, context);
+  const value = evaluate(annotation.expr, lookup, primitives, context);
   if (!value.ok) return value;
   if (containsZero(value.value.magnitude)) {
     return err({ kind: "zeroDeclaredUnit", definition, unit });
   }
-  return ok({ text: declared.text, quantity: value.value });
+  return ok({ text: annotation.text, quantity: value.value });
 }
 
 /**

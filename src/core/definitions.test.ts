@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { parseDefinitions, type Definition } from "./definitions.ts";
-import { parseExpr, type Expr, type Rejection } from "./expr.ts";
+import {
+  parseDefinitions,
+  type Definition,
+  type DefinitionRejection,
+} from "./definitions.ts";
+import { parseExpr, type Expr } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
 import type { Span } from "./span.ts";
+import { between, foldIn, key, split, type Key } from "../testing/random.ts";
 
 function parsed(text: string): readonly Definition[] {
   const result = parseDefinitions(text);
@@ -12,14 +17,17 @@ function parsed(text: string): readonly Definition[] {
   return result.value;
 }
 
-function failed(text: string): ParseError<Rejection> {
+function failed(text: string): ParseError<DefinitionRejection> {
   const result = parseDefinitions(text);
   assert.ok(!result.ok, `expected failure, got ${inspect(result)}`);
   return result.error;
 }
 
 /** The error for nothing acceptable at `pos`. */
-function unexpected(pos: number, ...expected: string[]): ParseError<Rejection> {
+function unexpected(
+  pos: number,
+  ...expected: string[]
+): ParseError<DefinitionRejection> {
   return { kind: "unexpected", pos, expected };
 }
 
@@ -398,36 +406,106 @@ test("a list may not end in a semicolon or have an empty item", () => {
 // ---------------------------------------------------------------------------
 // Functions
 
-test("a name with a parameter defines a function: its declared units, then its two bodies", () => {
-  const text =
-    "tempC(x)  [1;K]  x K + 273.15 K ; tempC / K - 273.15   # a reading";
+test("a name with a parameter defines a function: a signature, `=` and a body", () => {
+  const text = "tempC(x) = x K + 273.15 K   # a reading";
   assert.deepEqual(parsed(text), [
     {
       kind: "function",
       name: "tempC",
-      parameter: "x",
-      argument: { expr: exprAt("1", text.indexOf("1;")), text: "1" },
-      result: { expr: exprAt("K", text.indexOf("K]")), text: "K" },
-      forward: exprAt("x K + 273.15 K", text.indexOf("x K")),
-      inverse: exprAt("tempC / K - 273.15", text.indexOf("tempC /")),
-      span: spanOf(
-        text,
-        "tempC(x)  [1;K]  x K + 273.15 K ; tempC / K - 273.15",
-      ),
+      parameter: { name: "x", annotation: undefined },
+      result: undefined,
+      body: exprAt("x K + 273.15 K", text.indexOf("x K")),
+      span: spanOf(text, "tempC(x) = x K + 273.15 K"),
     },
   ]);
 });
 
-test("the declared units are any expressions, kept with their text as written", () => {
-  const text = "f(v)  [ m / s ; 2 K ]v K;f";
+test("a line that starts with ~ is the inverse of the function of its name", () => {
+  const text = "~tempC(y) = y / K - 273.15";
+  assert.deepEqual(parsed(text), [
+    {
+      kind: "inverse",
+      name: "tempC",
+      parameter: "y",
+      body: exprAt("y / K - 273.15", text.indexOf("y /")),
+      span: { start: 0, end: text.length },
+    },
+  ]);
+});
+
+test("the annotations are unit expressions, kept with their text as written", () => {
+  const text = "f( v : m / s ) : m^2 kg / s=v K";
   const [definition] = parsed(text);
   assert.ok(definition?.kind === "function");
-  assert.equal(definition.argument.text, "m / s");
-  assert.deepEqual(definition.argument.expr, exprAt("m / s", 8));
-  assert.equal(definition.result.text, "2 K");
-  assert.deepEqual(definition.forward, exprAt("v K", 21));
-  assert.deepEqual(definition.inverse, exprAt("f", 25));
+  assert.equal(definition.parameter.name, "v");
+  assert.equal(definition.parameter.annotation?.text, "m / s");
+  assert.deepEqual(definition.parameter.annotation?.expr, exprAt("m / s", 7));
+  assert.equal(definition.result?.text, "m^2 kg / s");
+  assert.deepEqual(definition.body, exprAt("v K", 28));
   assert.deepEqual(definition.span, { start: 0, end: text.length });
+  // `1` alone, and as the numerator of a quotient.
+  assert.ok(parsed("f(x: 1 / s): 1 = x").length === 1);
+});
+
+test("an annotation with a number but 1, a sum, a negation or a call is rejected where it is written", () => {
+  const rejected = (text: string, at: string, kind: string) => {
+    const start = text.indexOf(at);
+    assert.deepEqual(failed(text), {
+      kind: "rejected",
+      span: { start, end: start + at.length },
+      reason: { kind },
+    });
+  };
+  rejected("f(x: 2) = x", "2", "annotationScale");
+  rejected("f(x: 1000 m) = x", "1000", "annotationScale");
+  rejected("f(x): kg / 2 = x", "2", "annotationScale");
+  rejected("f(x: 1.0) = x", "1.0", "annotationScale");
+  rejected("f(x: m + s) = x", "m + s", "annotationNotUnits");
+  rejected("f(x: -m) = x", "-m", "annotationNotUnits");
+  rejected("f(x): sqrt(m) = x", "sqrt(m)", "annotationNotUnits");
+});
+
+test("a parameter named like a unit its own head uses is rejected; shadowing is otherwise silent", () => {
+  // The result's `m` is the metre, where the body's is the parameter.
+  assert.deepEqual(failed("f(m: kg): m = m"), {
+    kind: "rejected",
+    span: { start: 10, end: 11 },
+    reason: { kind: "parameterNamesUnit", parameter: "m" },
+  });
+  assert.deepEqual(failed("f(m: m / s) = m"), {
+    kind: "rejected",
+    span: { start: 5, end: 6 },
+    reason: { kind: "parameterNamesUnit", parameter: "m" },
+  });
+  // A unit the head does not use, and a prefixed name, are fine.
+  assert.equal(parsed("f(t) = t s").length, 1);
+  assert.equal(parsed("f(m: km) = m").length, 1);
+});
+
+test("an inverse takes no annotation", () => {
+  assert.deepEqual(failed("~f(y: K) = y"), {
+    kind: "rejected",
+    span: { start: 4, end: 7 },
+    reason: { kind: "inverseAnnotation" },
+  });
+});
+
+test("conditions and dimension variables are reserved, and rejected as not supported yet", () => {
+  assert.deepEqual(failed("f(x) | x > 0 = x"), {
+    kind: "rejected",
+    span: { start: 5, end: 7 },
+    reason: { kind: "unsupported", feature: "conditions" },
+  });
+  assert.deepEqual(failed("~f(y) | y > 0 = y"), {
+    kind: "rejected",
+    span: { start: 6, end: 8 },
+    reason: { kind: "unsupported", feature: "conditions" },
+  });
+  assert.deepEqual(failed("hypot[D](a: D) = a"), {
+    kind: "rejected",
+    span: { start: 0, end: 6 },
+    reason: { kind: "unsupported", feature: "dimensionVariables" },
+  });
 });
 
 test("a body may contain a call, with its spans in the whole text", () => {
@@ -455,25 +533,196 @@ test("the parameter follows the name with no space, as a prefix's dash does", ()
   ]);
 });
 
-test("a function needs its declaration and both bodies", () => {
-  assert.deepEqual(failed("tempC(x)"), unexpected(8, "a space"));
-  assert.deepEqual(failed("tempC(x)  x K"), unexpected(10, '"["'));
+test("a function needs its parameter, `=` and a body, and the head ends at `=`", () => {
+  assert.deepEqual(failed("tempC(x)"), unexpected(8, '":"', '"|"', '"="'));
+  assert.deepEqual(failed("tempC(x) ="), unexpected(10, ...ITEM));
   assert.deepEqual(
-    failed("tempC(x)  [1]  x K ; tempC"),
-    unexpected(12, ...AFTER_EXPR, '";"'),
+    failed("tempC(x) = x K = 2"),
+    unexpected(15, ...AFTER_EXPR, ...END_OF_LINE),
   );
+  // Without `=`, a result annotation runs into the body as a product.
   assert.deepEqual(
-    failed("tempC(x)  [1;K]  x K"),
-    unexpected(20, ...AFTER_EXPR, '";"'),
+    failed("f(x): J x"),
+    unexpected(9, ...AFTER_EXPR, '"|"', '"="'),
   );
-  assert.deepEqual(
-    failed("tempC(x)  [1;K]  x K ; tempC ; 2"),
-    unexpected(29, ...AFTER_EXPR, ...END_OF_LINE),
-  );
+  // Spaces are free inside the head.
+  assert.equal(parsed("f( x )=x").length, 1);
 });
 
 test("a parameter is a name", () => {
-  assert.deepEqual(failed("f(2)  [1;1]  2 ; f"), unexpected(1, "a space"));
-  assert.deepEqual(failed("f()  [1;1]  2 ; f"), unexpected(1, "a space"));
-  assert.deepEqual(failed("f( x )  [1;1]  2 ; f"), unexpected(1, "a space"));
+  assert.deepEqual(failed("f(2) = 2"), unexpected(2, "a parameter name"));
+  assert.deepEqual(failed("f() = 2"), unexpected(2, "a parameter name"));
+  assert.deepEqual(failed("~f() = 2"), unexpected(3, "a parameter name"));
+});
+
+// ---------------------------------------------------------------------------
+// Function heads, drawn
+
+// The heads above are written by hand; these are drawn from the seeded
+// source, so that the parser meets the shapes a hand-written list would
+// miss: every combination of an annotated or bare parameter, an annotated
+// or bare result, a comment or none, names in any script, and blanks (none,
+// spaces, tabs) wherever the grammar allows them. Each drawn line is built
+// with what it should parse to, and each fault is injected where it should
+// be rejected.
+
+const HEAD_NAMES = ["f", "tempC", "x_1", "µfn2", "Ωmega", "_g", "decibel"];
+/** Parameters that none of the annotations names as a unit. */
+const PARAMETERS = ["x", "y", "t", "mass", "ν", "_p", "len2"];
+const ANNOTATIONS = [
+  "kg",
+  "m / s",
+  "m^2 kg",
+  "1",
+  "1 / s",
+  "(m/s)^2",
+  "kg m^-1",
+  "m^(1/2)",
+];
+const BODIES = ["x", "2 x + 1", "exp(x)", "(x + 1) K", "sqrt(x^2) / 3", "-x"];
+const BLANKS = ["", " ", "  ", "\t", " \t "];
+
+function pick<T>(k: Key, from: readonly T[]): T {
+  return from[between(k, 0, from.length - 1)]!;
+}
+
+/** A drawn function or inverse line, and what it should parse to. */
+type DrawnHead = {
+  readonly text: string;
+  readonly inverse: boolean;
+  readonly name: string;
+  readonly parameter: string;
+  readonly annotation: string | undefined;
+  readonly result: string | undefined;
+  readonly body: string;
+  /** Where the annotation and the `=` start in `text`, for the faults. */
+  readonly annotationAt: number | undefined;
+  readonly equalsAt: number;
+};
+
+function drawHead(k: Key): DrawnHead {
+  const [kind, name, parameter, annotation, result, body, comment, blank] =
+    split(k, 8);
+  const inverse = between(kind!, 0, 3) === 0;
+  const ws = (i: number) => pick(foldIn(blank!, i), BLANKS);
+  const chosen = {
+    name: pick(name!, HEAD_NAMES),
+    parameter: pick(parameter!, PARAMETERS),
+    annotation:
+      inverse || between(annotation!, 0, 1) === 0
+        ? undefined
+        : pick(foldIn(annotation!, 1), ANNOTATIONS),
+    result:
+      inverse || between(result!, 0, 1) === 0
+        ? undefined
+        : pick(foldIn(result!, 1), ANNOTATIONS),
+    body: pick(body!, BODIES),
+  };
+  let text = ws(0) + (inverse ? "~" : "") + chosen.name + "(" + ws(1);
+  text += chosen.parameter + ws(2);
+  let annotationAt: number | undefined;
+  if (chosen.annotation !== undefined) {
+    text += ":" + ws(3);
+    annotationAt = text.length;
+    text += chosen.annotation + ws(4);
+  }
+  text += ")" + ws(5);
+  if (chosen.result !== undefined) {
+    text += ":" + ws(6) + chosen.result + ws(7);
+  }
+  const equalsAt = text.length;
+  text += "=" + ws(8) + chosen.body;
+  if (between(comment!, 0, 1) === 0) text += ws(9) + "# a comment";
+  return { text, inverse, ...chosen, annotationAt, equalsAt };
+}
+
+const DRAWN = Array.from({ length: 400 }, (_, i) =>
+  drawHead(foldIn(key(71), i)),
+);
+
+test("drawn function and inverse lines parse to what they were built from", () => {
+  for (const drawn of DRAWN) {
+    const [definition] = parsed(drawn.text);
+    const where = `in ${JSON.stringify(drawn.text)}`;
+    assert.ok(definition !== undefined, where);
+    assert.equal(definition.kind, drawn.inverse ? "inverse" : "function");
+    assert.equal(definition.name, drawn.name, where);
+    const start = drawn.text.indexOf(drawn.inverse ? "~" : drawn.name);
+    const end = drawn.text.indexOf(drawn.body, drawn.equalsAt);
+    assert.deepEqual(
+      definition.span,
+      { start, end: end + drawn.body.length },
+      where,
+    );
+    if (definition.kind === "inverse") {
+      assert.equal(definition.parameter, drawn.parameter, where);
+    } else if (definition.kind === "function") {
+      assert.equal(definition.parameter.name, drawn.parameter, where);
+      assert.equal(
+        definition.parameter.annotation?.text,
+        drawn.annotation,
+        where,
+      );
+      assert.equal(definition.result?.text, drawn.result, where);
+    } else {
+      assert.fail(where);
+    }
+    const { body } = definition;
+    assert.equal(
+      drawn.text.slice(body.span.start, body.span.end),
+      drawn.body,
+      where,
+    );
+  }
+});
+
+test("faults injected into drawn lines are rejected where they are written", () => {
+  for (const drawn of DRAWN) {
+    const where = `in ${JSON.stringify(drawn.text)}`;
+    const { text, equalsAt } = drawn;
+    // Conditions, before the `=`: rejected at the `|`.
+    const conditions = `${text.slice(0, equalsAt)}| x > 0 ${text.slice(equalsAt)}`;
+    const reserved = failed(conditions);
+    assert.ok(reserved.kind === "rejected", where);
+    assert.deepEqual(reserved.reason, {
+      kind: "unsupported",
+      feature: "conditions",
+    });
+    assert.equal(reserved.span.start, equalsAt, where);
+    // A scale in the parameter's annotation: rejected at the number, or,
+    // on an inverse, the annotation itself.
+    if (drawn.annotationAt !== undefined) {
+      const at = drawn.annotationAt;
+      const scaled = `${text.slice(0, at)}2 ${text.slice(at)}`;
+      assert.deepEqual(
+        failed(scaled),
+        {
+          kind: "rejected",
+          span: { start: at, end: at + 1 },
+          reason: { kind: "annotationScale" },
+        },
+        where,
+      );
+    }
+    if (drawn.inverse) {
+      const open = text.indexOf("(");
+      const close = text.indexOf(")");
+      const annotated = `${text.slice(0, close)}: kg${text.slice(close)}`;
+      const error = failed(annotated);
+      assert.ok(error.kind === "rejected", where);
+      assert.deepEqual(error.reason, { kind: "inverseAnnotation" }, where);
+      assert.ok(error.span.start > open, where);
+    } else {
+      // Dimension variables, after the name: rejected at the name and `[`.
+      const open = text.indexOf("(");
+      const generic = `${text.slice(0, open)}[D]${text.slice(open)}`;
+      const error = failed(generic);
+      assert.ok(error.kind === "rejected", where);
+      assert.deepEqual(error.reason, {
+        kind: "unsupported",
+        feature: "dimensionVariables",
+      });
+      assert.equal(error.span.end, open + 1, where);
+    }
+  }
 });

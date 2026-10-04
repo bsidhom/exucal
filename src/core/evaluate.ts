@@ -49,9 +49,10 @@
 // is evaluated, since the count is about the call's shape as
 // `notAFunction` is). A defined function (docs/functions.md) takes exactly
 // one: the argument is evaluated, checked to conform to the unit the
-// function declares for it, and bound to the parameter while the forward
-// body is evaluated through the same lookup, so that the body's units
-// resolve as the user's would. A built-in (docs/builtins.md) has its
+// function's parameter takes (a plain number when it has no annotation),
+// and bound to the parameter while the body is evaluated through the same
+// lookup, so that the body's units resolve as the user's would, and the
+// parameter before any unit of its name. A built-in (docs/builtins.md) has its
 // arguments evaluated, its dimension rule applied to their dimensions
 // (`builtinArgument` at the call when the rule fails, carrying the rule's
 // error and the spans of all the arguments, so that a message can write
@@ -68,7 +69,8 @@
 // be told apart without knowing the lookup's error type. A table built by
 // `buildTable` has checked every body, so a call against it can fail only
 // on its argument or on a value. `invertFunction` is the same evaluation
-// under a binding for the inverse body, for the pipeline's function want.
+// under a binding for the body of a function's inverse, for the
+// pipeline's function want.
 //
 // Operands are evaluated left to right and the first failure ends the
 // evaluation, so `bogus / 0` reports the unknown unit, not the division.
@@ -96,8 +98,8 @@
 // operands do not conform (`1 m + 1 s`) points at the whole sum for the
 // same reason, and carries the span of each operand besides, so that a
 // message can say what each one is; a call whose argument does not conform
-// to the declared unit points at the whole call and carries the argument's
-// span the same way.
+// to the unit its parameter takes points at the whole call and carries the
+// argument's span the same way.
 
 import {
   checkConformance,
@@ -135,7 +137,7 @@ import type {
 import type { NumberContext } from "./context.ts";
 import { err, ok, type Result } from "./result.ts";
 import type { Span } from "./span.ts";
-import type { ResolvedFunction, UnitFunction } from "./table.ts";
+import type { ResolvedFunction, UnitFunction, UnitInverse } from "./table.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -230,8 +232,8 @@ export type EvaluateError =
     }
   /**
    * The call of `name` at `span` has an argument, at `argument`, that does
-   * not conform to the unit the function declares for it, as `mismatch`
-   * says with the argument's dimension as its `have` and the declared one
+   * not conform to the unit the function's parameter takes, as `mismatch`
+   * says with the argument's dimension as its `have` and the parameter's
    * as its `want`.
    */
   | {
@@ -568,9 +570,9 @@ function applyBuiltin<E>(
 }
 
 /**
- * The value of `fn` at `argument`: its forward body evaluated with the
- * parameter bound to `argument`, which must conform to the declared
- * argument unit, as the call case checks before calling this.
+ * The value of `fn` at `argument`: its body evaluated with the parameter
+ * bound to `argument`, which must conform to the unit the parameter
+ * takes, as the call case checks before calling this.
  */
 export function applyFunction<E>(
   fn: UnitFunction,
@@ -580,7 +582,7 @@ export function applyFunction<E>(
   context: NumberContext,
 ): Result<Quantity, BodyError<E>> {
   return evaluateBound(
-    fn.forward,
+    fn.body,
     fn.parameter,
     argument,
     lookup,
@@ -590,18 +592,26 @@ export function applyFunction<E>(
 }
 
 /**
- * The argument `fn` gives `value` for: its inverse body evaluated with the
- * function's own name bound to `value`, which must conform to the declared
- * result unit, as the pipeline checks before calling this.
+ * The argument a function gives `value` for, by its `inverse`: the
+ * inverse's body evaluated with its parameter bound to `value`, which must
+ * conform to the function's result, as the pipeline checks before calling
+ * this.
  */
 export function invertFunction<E>(
-  fn: UnitFunction,
+  inverse: UnitInverse,
   value: Quantity,
   lookup: Lookup<E>,
   primitives: Primitives,
   context: NumberContext,
 ): Result<Quantity, BodyError<E>> {
-  return evaluateBound(fn.inverse, fn.name, value, lookup, primitives, context);
+  return evaluateBound(
+    inverse.body,
+    inverse.parameter,
+    value,
+    lookup,
+    primitives,
+    context,
+  );
 }
 
 /**

@@ -70,10 +70,21 @@ const table: UnitTable = (() => {
       "ftin     ft;in",
       "K        !",
       "degF     5 K / 9",
-      "tempC(x) [1;K]  x K + 273.15 K ; tempC / K - 273.15",
-      "tempF(x) [1;K]  (x + 459.67) degF ; tempF / degF - 459.67",
-      "recip(x) [1;1]  1 / x ; 1 / recip",
-      "dozen(x) [in;ft]  12 x ; dozen / 12",
+      "tempC(x) = x K + 273.15 K",
+      "~tempC(y) = y / K - 273.15",
+      "tempF(x) = (x + 459.67) degF",
+      "~tempF(y) = y / degF - 459.67",
+      "recip(x) = 1 / x",
+      "~recip(y) = 1 / y",
+      "dozen(x: in) = 12 x",
+      "~dozen(y) = y / 12",
+      // No inverse; an inverse that is wrong; one whose argument the
+      // function cannot take.
+      "half(x) = x / 2",
+      "kelvin(x) = x K",
+      "~kelvin(y) = y / K + 1",
+      "lnx(x) = ln(x)",
+      "~lnx(y) = -1",
     ].join("\n"),
   );
   assert.ok(
@@ -1121,8 +1132,8 @@ test("a call that fails is its side's error", () => {
 
 test("an inverse that fails for the have's value is an inverseFailed on the want side", () => {
   // The body's error is located in the definitions: at the divisor of
-  // `1 / recip`, the inverse body.
-  const inverse = table.functions.get("recip")!.inverse;
+  // `1 / y`, the inverse's body.
+  const inverse = table.functions.get("recip")!.inverse!.body;
   assert.ok(inverse.node.kind === "binary");
   assert.deepEqual(failure("0", "recip"), {
     kind: "inputError",
@@ -1136,10 +1147,38 @@ test("an inverse that fails for the have's value is an inverseFailed on the want
   assertCall("4", "recip", "0.25");
 });
 
+test("a function without an inverse is not a want, and says so on the want side", () => {
+  assert.deepEqual(failure("3", "half"), {
+    kind: "inputError",
+    side: "want",
+    error: { kind: "noInverse", name: "half" },
+  });
+  // It is a function all the same, in a call.
+  assertConverts("half(3)", "1", "1.5");
+});
+
+test("an answer its function does not give back is an inverseMismatch", () => {
+  // `kelvin(4 + 1)` is `5 K`, certainly not `4 K`.
+  assert.deepEqual(failure("4 K", "kelvin"), {
+    kind: "inputError",
+    side: "want",
+    error: { kind: "inverseMismatch", name: "kelvin" },
+  });
+  // `lnx(-1)` fails: the inverse gives an argument the function cannot take.
+  const error = failure("2", "lnx");
+  assert.ok(error.kind === "inputError" && error.side === "want");
+  assert.ok(error.error.kind === "inverseMismatch", inspect(error));
+  assert.equal(error.error.error?.kind, "domainError");
+  // Inexact answers pass when they overlap: `tempC` of an inexact reading.
+  assertCall("approx(373.15) K", "tempC", "100");
+});
+
 test("a call's argument too large to count in its unit is refused, not thrown", () => {
   // The inverse gives the argument, and its count of an argument unit of
   // 10^-3 passes the exponent bound although the argument does not.
-  const definitions = parseDefinitions("thou(x) [0.001;1]  x ; thou");
+  const definitions = parseDefinitions(
+    "milli  0.001\nthou(x: milli) = x\n~thou(y) = y",
+  );
   assert.ok(definitions.ok, inspect(definitions));
   const built = buildTable(definitions.value, CONTEXT);
   assert.ok(built.ok, inspect(built));

@@ -677,22 +677,29 @@ README.md ("Unit definitions") describes them, along with what the system
 file contains and how to add to it. This section covers what the core does
 with a definitions file. In short, the format is in the spirit of a GNU
 units file, pared down: one definition per line, name then whitespace then
-body, `#` comments, where a name with a trailing dash is a prefix and a body
-of `!` or `!kind` declares a primitive. The whitespace after the name is
-required, so that `inch2.54 cm` is an error rather than a definition of
-`inch2`. `src/units.test.ts` builds the system file and checks a sample of
+body, `#` comments, where a name with a trailing dash is a prefix, a body
+of `!` or `!kind` declares a primitive, a name directly followed by `(`
+is a function, `name(parameter) = body`, and a line that starts with `~`
+is a function's inverse. The whitespace after a unit's or a prefix's name
+is required, so that `inch2.54 cm` is an error rather than a definition
+of `inch2`. `src/units.test.ts` builds the system file and checks a sample of
 conversions from each of its sections.
 
-A definition is one of five things: a primitive with its role, a prefix
+A definition is one of six things: a primitive with its role, a prefix
 (named without its dash) with a body, a unit with a body, where a body is
 an expression, a unit list, whose body is two or more expressions
 separated by `;` (a body of one is a unit), each kept with the text it was
 written as, since that text is what the UI shows beside its term and the
-table has no other way to get at it, or a function, named with its
-parameter in parentheses, whose body declares the units of its argument
-and its result in brackets (each kept with its text, as a list's items
-are) and then gives the forward body and, after a `;`, the inverse body
-("Functions" below). `parseDefinitions` returns them in the order written,
+table has no other way to get at it, a function, named with its parameter
+in parentheses, each of the parameter and the result optionally annotated
+with a unit expression (kept with its text, as a list's items are), and
+its body after `=`, or the inverse of a function, `~name(parameter) =
+body` ("Functions" below). The parser rejects an annotation with a number
+other than `1`, a sum, a negation or a call, and a parameter named like a
+unit its own head's annotations use, each where it is written; it
+reserves a `|` after a head and a `[` after a function's name, for the
+conditions and dimension variables to come, and rejects them as not
+supported yet. `parseDefinitions` returns them in the order written,
 duplicates included, and knows nothing about what they mean. Every span is an
 offset into the whole text, not the line: a definition carries the span of
 its text from name to body, for the errors `buildTable` reports against a
@@ -740,17 +747,22 @@ Functions share the unit namespace as lists do, and their names are held
 to the same rule against reading as a prefixed unit, for the same reason.
 Unlike a list, a function can be referred to, by a call in any body, so a
 function is a node of the walk, and evaluating it means checking it
-("Functions" below): its declared units are evaluated, and each body's
-dimension is taken without evaluating it (`dimension-of.ts`), the forward
-body with the parameter bound to the declared argument's dimension and the
-inverse body with the name bound to the declared result's, through the
-walk's own lookup, and checked to conform to what it should give. A unit
-may then be defined by a call
-(`boiling  tempC(100)`), a function's body may call another, and a cycle
-through a function is reported like any other. The table holds each
-function as its two bodies, still as expressions, with the declared units
-and their texts: a call evaluates the forward body afresh, through the
-table's lookup.
+("Functions" below): its annotations are evaluated, and its body's
+dimension is taken without evaluating it (`dimension-of.ts`), with the
+parameter bound to its annotation's dimension (plain without one),
+through the walk's own lookup; that dimension is the function's result,
+checked against the result's annotation when there is one. A unit may
+then be defined by a call (`boiling  tempC(100)`), a function's body may
+call another, and a cycle through a function is reported like any other.
+An inverse is keyed by its function's name apart from every namespace,
+and nothing can refer to it, so, like a list, it stays out of the walk
+and is checked in its place in the order, requesting its function from
+the top, which lets it call its own function: its body's dimension, with
+its parameter bound to the function's result, must conform to what the
+function's parameter takes. The table holds each function as its body,
+still an expression, with the unit its parameter takes and its text, its
+result's dimension, and its inverse when one is defined: a call evaluates
+the body afresh, through the table's lookup.
 
 Every name is known once the table is built, so ambiguity is a property of the
 table rather than of the input, and `buildTable` checks for it. A name with
@@ -796,10 +808,12 @@ definitions on it in order and the span of the reference that closed it; a
 prefix whose body is not a plain number, carrying the definition and the
 dimension it has; a unit list whose units do not make a list, carrying the
 definition and the list error with the index of the unit at fault; a
-function whose body does not conform to its declaration, carrying the
-definition, which body, and the mismatch; a function whose declared unit is
-zero, or cannot be told from zero, since a recovered argument is written
-as a count of it; or an arithmetic failure from the evaluator, located as the evaluator
+function whose body does not conform to its result's annotation, or an
+inverse whose body does not conform to what its function's parameter
+takes, carrying the definition and the mismatch; an inverse of no defined
+function; a function whose parameter's or result's annotation is zero, or
+cannot be told from zero, since a recovered argument is written as a
+count of the parameter's; or an arithmetic failure from the evaluator, located as the evaluator
 locates it. Every span is an offset into the whole definitions text, and a
 definition's span covers its text from name to body, so each error points
 at something the user can see.
@@ -1008,8 +1022,8 @@ checks that it gives as many arguments as the function takes
 (`arityMismatch` otherwise, before any argument is evaluated, since the
 count is about the call's shape; a defined function takes exactly one),
 and then, for a defined function, evaluates its argument, checks that the
-argument conforms to the unit the function declares for it, and evaluates
-the forward body with the parameter bound to the argument ("Functions"
+argument conforms to the unit the function's parameter takes, and
+evaluates the body with the parameter bound to the argument ("Functions"
 below); for a built-in it evaluates every argument, applies the built-in's
 dimension rule to their dimensions (`builtinArgument` at the call when it
 fails, carrying the rule's error and every argument's span) and its
@@ -1165,29 +1179,41 @@ for a single `want`, so that the message quotes the name the user typed.
 
 ### Functions
 
-A function (docs/functions.md is the design, with the reasoning) is a pair
-of bodies with a declaration of the units of its argument and its result.
-It exists for readings such as a temperature, which are not multiples of a
-unit, without giving `Quantity` an offset that every operation would then
-need a rule for; GNU units defines them the same way. Nothing about
-functions touches quantities: a call is a quantity like any other once the
-forward body has run, and the rest of the expression goes on as before.
+A function (docs/functions.md is the design, with the reasoning) is a body
+with one parameter, `tempC(x) = x K + 273.15 K`, and an optional inverse
+on a line of its own, `~tempC(y) = y / K - 273.15`. It exists for
+readings such as a temperature, which are not multiples of a unit,
+without giving `Quantity` an offset that every operation would then need
+a rule for, and for compositions of the built-ins that a user would
+otherwise type out. Nothing about functions touches quantities: a call
+is a quantity like any other once the body has run, and the rest of the
+expression goes on as before. A parameter's annotation checks a
+dimension and changes no value, since a quantity carries no unit of its
+own: `x: kg` admits any mass, as `x: lb` does, and a body that needs a
+number in a given unit divides it out.
 
 The pipeline reads a `want` that is the bare name of a function, after a
 list's name and before a unit's, as the third output mode: the answer is
 the call that would produce the `have`, `tempF(212)` into `tempC` being
-`tempC(100)`. The `have` must conform to the declared result, which is the
-ordinary mismatch of the pair when it does not, and `invertFunction`
-evaluates the inverse body with the function's name bound to the `have`,
-through the table's lookup; the conversion carries the recovered argument,
-the declared argument unit with its text, and the argument as a count of
-that unit, so that the UI writes it as it writes any value beside a unit;
-a count refused as a ratio may be (a quotient past the exponent bound) is
-the conversion's refusal. An inverse body that fails for the value is an
-`inverseFailed` on the want side, carrying the body's error as a call
-carries its body's. A `want`
-that is a call is not special: it is an expression, and the conversion is
-the ratio, with a reciprocal.
+`tempC(100)`. It needs the function's inverse, and a function without one
+is a `noInverse` on the want side. The `have` must conform to the
+function's result, which is the ordinary mismatch of the pair when it
+does not, and `invertFunction` evaluates the inverse's body with its
+parameter bound to the `have`, through the table's lookup. Since an
+inverse is the one part of a definition the build cannot check, the
+answer is then checked: the function is applied to the recovered
+argument, and a value certainly other than the `have` (two exact values
+compared exactly, otherwise a difference wholly on one side of zero) is
+an `inverseMismatch`, as is a failure of the function's body there; the
+check refutes a wrong answer and proves nothing, overlap being what
+balls can decide. The conversion carries the recovered argument, the
+unit the parameter takes with its text, and the argument as a count of
+that unit, so that the UI writes it as it writes any value beside a
+unit; a count refused as a ratio may be (a quotient past the exponent
+bound) is the conversion's refusal. An inverse's body that fails for the
+value is an `inverseFailed` on the want side, carrying the body's error
+as a call carries its body's. A `want` that is a call is not special: it
+is an expression, and the conversion is the ratio, with a reciprocal.
 
 A built-in (docs/builtins.md; `src/core/builtin.ts`, and the set in
 `builtins.ts`) is a function the
@@ -1210,25 +1236,27 @@ The neper, the bel and the decibel are defined functions in units.txt
 whose bodies call the built-ins.
 
 The build checks each function once so that a call at run time can fail
-only on its argument or on a value: the declared units are evaluated and
-must be nonzero, since an argument is written as a count of the declared
-one; each body's dimension is taken without evaluating it, by
+only on its argument or on a value: the annotations are evaluated and
+must be nonzero, since an argument is written as a count of the
+parameter's; the body's dimension is taken without evaluating it, by
 `dimensionOf` in `dimension-of.ts`, the evaluator's rules over dimensions
 alone (a number is dimensionless, a unit is its dimension through the
 walk's lookup, a sum checks conformance, a product combines, a power
 raises, a call applies the callee's rule), with the parameter bound to
-the declared argument's dimension in the forward body and the name to the
-declared result's in the inverse, so that a body which refers to nothing,
-or is put together wrongly, fails the build with its span in the
-definitions text; and each body's dimension is checked against what it
-should give, which a body's dimension cannot vary with the value of its
-argument. A body that fails at some value, or at every value, builds and
+its annotation's dimension, so that a body which refers to nothing, or
+is put together wrongly, fails the build with its span in the
+definitions text; that dimension is the result's, exact because a body's
+dimension cannot vary with the value of its argument, and is checked
+against the result's annotation when there is one; and an inverse's body
+is taken the same way, with its parameter bound to the result, and
+checked against what the parameter takes. A body that fails at some value, or at every value, builds and
 fails at the call that reaches the value; the first version of the check
-evaluated each body at one of the declared unit, which the elementary
+evaluated each body at one of the declared unit of the first form of
+definitions, which the elementary
 functions made untenable (`ln(x - 1)` fails at one). Applying and
 inverting are one operation, a body
 evaluated under a binding, and `applyFunction` and `invertFunction` share
-it: the bound name is resolved before any unit or prefix, and the lookup's
+it: the bound parameter is resolved before any unit or prefix, and the lookup's
 failures are boxed on the way in and unboxed on the way out, so that the
 body's own failures can be told from the lookup's without the evaluator
 knowing the lookup's error type.
@@ -1264,8 +1292,9 @@ the primitives (`1 in = 0.0254 m`), as GNU units does.
 
 A conversion into a function is one line, the `have` and then the call at
 the recovered argument, `tempF(212) = tempC(100)`, the argument written as
-a count of the declared argument unit followed by that unit's text as a
-`want`'s is written, and by nothing when the declared unit is `1`. There is
+a count of the unit the function's parameter takes followed by that
+unit's text as a `want`'s is written, and by nothing when the unit is
+`1`, as for a parameter without an annotation. There is
 no reciprocal line: a call is not a ratio, so there is no other way round,
 as there is none for a list.
 
@@ -1529,7 +1558,11 @@ tests. The rest of the directory is what they share:
   synthetic definitions file has two primitives, the prefixes, and units
   that are each a small expression over one earlier unit, so that building
   it walks reference chains of the depth random references make and every
-  body goes through the evaluator.
+  body goes through the evaluator. A synthetic file of functions has
+  functions of a length, each calling one earlier function, each with an
+  inverse line and every other one with a result annotation, so that
+  parsing goes through function heads and building walks the calls and
+  checks every inverse.
 
 A timing in milliseconds depends on the machine, so a benchmark reports its
 timings as diagnostics, for a person to compare between runs, and asserts
@@ -1544,7 +1577,8 @@ definition is parsed once and evaluated once; a walk that re-evaluated its
 dependencies would cost more. The thresholds are twice the expected ratios,
 so that noise never fails a benchmark that a regression would not fail by a
 wide margin. It also reports, without asserting, the cost of a file the size
-of the GNU units database, as a reference for the startup cost.
+of the GNU units database, as a reference for the startup cost, and asserts
+the same bound for 2000 functions with their inverses against 500.
 `kernel.bench.ts` times `pi` by Chudnovsky's series at 1,000, 10,000 and
 100,000 digits and asserts that the last costs at most fifty times the
 middle: binary splitting grows as V8's bigint multiplication does,

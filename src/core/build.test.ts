@@ -769,8 +769,10 @@ test("a built list converts", () => {
 const TEMP = [
   "K  !",
   "degF  5 K / 9",
-  "tempC(x)  [1;K]  x K + 273.15 K ; tempC / K - 273.15",
-  "tempF(x)  [1;K]  (x + 459.67) degF ; tempF / degF - 459.67",
+  "tempC(x) = x K + 273.15 K",
+  "~tempC(y) = y / K - 273.15",
+  "tempF(x) = (x + 459.67) degF",
+  "~tempF(y) = y / degF - 459.67",
 ];
 
 /** What `text` evaluates to in `table`, or its failure. */
@@ -799,21 +801,31 @@ function quantityIn(table: UnitTable, text: string): Quantity {
   return result.value;
 }
 
-test("a function is built as its bodies, with its declared units and their texts", () => {
+test("a function is built as its body, with its parameter's unit, its inferred result and its inverse", () => {
   const table = built(...TEMP);
   assert.deepEqual([...table.functions.keys()], ["tempC", "tempF"]);
   const tempC = table.functions.get("tempC")!;
-  const [, , definition] = definitions(...TEMP);
+  const [, , definition, inverse] = definitions(...TEMP);
   assert.ok(definition?.kind === "function");
+  assert.ok(inverse?.kind === "inverse");
   assert.equal(tempC.name, "tempC");
   assert.equal(tempC.parameter, "x");
+  // A parameter without an annotation takes a plain number, written `1`.
   assert.equal(tempC.argument.text, "1");
   assertQuantity(tempC.argument.quantity, "1", {});
-  assert.equal(tempC.result.text, "K");
-  assertQuantity(tempC.result.quantity, "1", { K: 1 });
-  assert.deepEqual(tempC.forward, definition.forward);
-  assert.deepEqual(tempC.inverse, definition.inverse);
+  // The result is inferred from the body.
+  assert.deepEqual(tempC.result, dim({ K: 1 }));
+  assert.deepEqual(tempC.body, definition.body);
+  assert.deepEqual(tempC.inverse, { parameter: "y", body: inverse.body });
   assert.equal(table.units.has("tempC"), false);
+});
+
+test("an inverse is optional, and a function without one builds", () => {
+  const table = built("m  !", "half(x: m) = x / 2");
+  const half = table.functions.get("half")!;
+  assert.equal(half.inverse, undefined);
+  assert.deepEqual(half.result, dim({ m: 1 }));
+  assertQuantity(quantityIn(table, "half(3 m)"), "1.5", { m: 1 });
 });
 
 test("a built function applies and inverts", () => {
@@ -821,7 +833,7 @@ test("a built function applies and inverts", () => {
   const boiling = quantityIn(table, "tempF(212)");
   assertQuantity(boiling, "373.15", { K: 1 });
   const argument = invertFunction(
-    table.functions.get("tempC")!,
+    table.functions.get("tempC")!.inverse!,
     boiling,
     unitLookup(table, CONTEXT),
     table.primitives,
@@ -831,25 +843,51 @@ test("a built function applies and inverts", () => {
   assertQuantity(argument.value, "100", {});
 });
 
-test("a unit may be defined by a call, in any order", () => {
+test("a unit may be defined by a call, in any order, and an inverse may come before its function", () => {
   const table = built("boiling  tempC(100)", ...TEMP);
   assertQuantity(table.units.get("boiling"), "373.15", { K: 1 });
+  const reversed = built("K  !", "~f(y) = y / K", "f(x) = x K");
+  assert.notEqual(reversed.functions.get("f")!.inverse, undefined);
 });
 
-test("a body may call another function, and a declared unit may be any unit", () => {
+test("a body may call another function, an inverse its own, and an annotation may be any unit", () => {
   const table = built(
     ...TEMP,
-    "twice(x)  [1;K]  tempC(2 x) ; (twice / K - 273.15) / 2",
+    "twice(x) = tempC(2 x)",
+    "~twice(y) = (y / K - 273.15) / 2",
     "m  !",
     "in  0.0254 m",
     "ft  12 in",
-    "dozen(x)  [in;ft]  12 x ; dozen / 12",
+    "dozen(x: in) = 12 x",
+    "~dozen(y) = y / 12",
+    "back(x) = x K",
+    "~back(y) = y / back(1)",
   );
   assertQuantity(quantityIn(table, "twice(50)"), "373.15", { K: 1 });
   assertQuantity(quantityIn(table, "dozen(2 in)"), "0.6096", { m: 1 });
   const dozen = table.functions.get("dozen")!;
   assert.equal(dozen.argument.text, "in");
   assertQuantity(dozen.argument.quantity, "0.0254", { m: 1 });
+  assert.deepEqual(dozen.result, dim({ m: 1 }));
+  assert.notEqual(table.functions.get("back")!.inverse, undefined);
+});
+
+test("a result's annotation is checked against the body, and is any unit of its dimension", () => {
+  const table = built("m  !", "ft  0.3048 m", "g(x: m): ft = 2 x");
+  assert.deepEqual(table.functions.get("g")!.result, dim({ m: 1 }));
+  const wrong = ["K  !", "f(x): K = x"];
+  const [definition] = definitions(...wrong).slice(-1);
+  assert.deepEqual(failed(...wrong), {
+    kind: "functionMismatch",
+    definition,
+    mismatch: {
+      kind: "dimensionMismatch",
+      have: DIMENSIONLESS,
+      want: dim({ K: 1 }),
+    },
+  });
+  // A plain result is asserted with `1`.
+  assert.ok(build("f(x): 1 = 2 x").ok);
 });
 
 test("a function is not a unit", () => {
@@ -895,7 +933,7 @@ test("a call of a unit, or of nothing, in a body is not a function", () => {
 
 test("a function and a unit share a namespace", () => {
   const lines = [...TEMP, "tempC  K"];
-  const [first, second] = [definitions(...lines)[2], definitions(...lines)[4]];
+  const [first, second] = [definitions(...lines)[2], definitions(...lines)[6]];
   assert.deepEqual(failed(...lines), { kind: "duplicate", first, second });
   const reversed = ["tempC  K", ...TEMP];
   const [unit, fn] = [definitions(...reversed)[0], definitions(...reversed)[3]];
@@ -906,8 +944,29 @@ test("a function and a unit share a namespace", () => {
   });
 });
 
+test("an inverse needs its function, and a function has one inverse at most", () => {
+  const orphan = ["K  !", "~f(y) = y / K"];
+  const [definition] = definitions(...orphan).slice(-1);
+  assert.deepEqual(failed(...orphan), {
+    kind: "orphanInverse",
+    definition,
+  });
+  // A built-in has no definition to be the inverse of.
+  assert.equal(build("~exp(y) = ln(y)").ok, false);
+  const twice = [...TEMP, "~tempC(z) = z / K"];
+  const lines = definitions(...twice);
+  assert.deepEqual(failed(...twice), {
+    kind: "duplicate",
+    first: lines[3],
+    second: lines[6],
+  });
+  // An inverse's name is apart from the units: a unit `y` and `~tempC`
+  // coexist, and `~tempC` is no name a body could use.
+  assert.ok(build(...TEMP, "y  K").ok);
+});
+
 test("a function's name may not read as a prefix followed by a unit", () => {
-  const lines = ["m-  0.001", "s  !", "ms(x)  [1;s]  x s ; ms / s"];
+  const lines = ["m-  0.001", "s  !", "ms(x) = x s"];
   const [definition] = definitions(...lines).slice(-1);
   assert.deepEqual(failed(...lines), {
     kind: "prefixedName",
@@ -916,29 +975,29 @@ test("a function's name may not read as a prefix followed by a unit", () => {
   });
 });
 
-test("the declared units are evaluated, and neither may be zero", () => {
-  const unknown = [...TEMP, "f(x)  [bogus;K]  x K ; f / K"];
+test("the annotations are evaluated, and neither may be zero", () => {
+  const unknown = [...TEMP, "f(x: bogus) = x"];
   assert.deepEqual(failed(...unknown), {
     kind: "unknownUnit",
     name: "bogus",
     span: spanOf(unknown, "bogus"),
   });
-  const zeroArgument = [...TEMP, "f(x)  [0;K]  x K ; f / K"];
+  const zeroArgument = [...TEMP, "nil  0 K", "f(x: nil) = x"];
   const [argumentDefinition] = definitions(...zeroArgument).slice(-1);
   assert.deepEqual(failed(...zeroArgument), {
     kind: "zeroDeclaredUnit",
     definition: argumentDefinition,
     unit: "argument",
   });
-  const zeroResult = [...TEMP, "f(x)  [1;0 K]  x K ; f / K"];
+  const zeroResult = [...TEMP, "nil  0 K", "f(x): nil = x K"];
   const [resultDefinition] = definitions(...zeroResult).slice(-1);
   assert.deepEqual(failed(...zeroResult), {
     kind: "zeroDeclaredUnit",
     definition: resultDefinition,
     unit: "result",
   });
-  // A declared unit that cannot be told from zero is no count either.
-  const aroundZero = [...TEMP, "f(x)  [(2^(1/2))^2 - 2;K]  x K ; f / K"];
+  // An annotation that cannot be told from zero is no count either.
+  const aroundZero = [...TEMP, "fuzz  (2^(1/2))^2 - 2", "f(x: fuzz) = x"];
   const [aroundDefinition] = definitions(...aroundZero).slice(-1);
   assert.deepEqual(failed(...aroundZero), {
     kind: "zeroDeclaredUnit",
@@ -952,8 +1011,9 @@ test("a body is checked over dimensions, not evaluated: one that fails at a valu
   // `1 / 0` at every value; both build and fail at the call that reaches
   // the value, with the body's error wrapped as a call's.
   const table = built(
-    "recip(x)  [1;1]  1 / (x - 1) ; 1 / recip + 1",
-    "never(x)  [1;1]  x / 0 ; never",
+    "recip(x) = 1 / (x - 1)",
+    "~recip(y) = 1 / y + 1",
+    "never(x) = x / 0",
   );
   assertQuantity(quantityIn(table, "recip(3)"), "0.5", {});
   const atOne = resultIn(table, "recip(1)");
@@ -962,12 +1022,12 @@ test("a body is checked over dimensions, not evaluated: one that fails at a valu
   const never = resultIn(table, "never(2)");
   assert.ok(!never.ok && never.error.kind === "callFailed");
   // A literal is not checked against the range limit either.
-  assert.ok(build("huge(x)  [1;1]  1e30000 x ; huge").ok);
+  assert.ok(build("huge(x) = 1e30000 x").ok);
 });
 
 test("a body of the wrong shape fails the build, at the fault, without being evaluated", () => {
   // A sum of a length and a time, in a body over lengths.
-  const sum = ["m  !", "s  !", "bad(x)  [m;m]  x + 1 s ; bad"];
+  const sum = ["m  !", "s  !", "bad(x: m) = x + 1 s"];
   assert.deepEqual(failed(...sum), {
     kind: "nonconformingOperands",
     op: "add",
@@ -981,7 +1041,7 @@ test("a body of the wrong shape fails the build, at the fault, without being eva
     },
   });
   // A call with the wrong count of arguments.
-  const arity = [...TEMP, "bad(x)  [1;K]  tempC(x, 1) ; bad / K"];
+  const arity = [...TEMP, "bad(x) = tempC(x, 1)"];
   assert.deepEqual(failed(...arity), {
     kind: "arityMismatch",
     name: "tempC",
@@ -989,29 +1049,29 @@ test("a body of the wrong shape fails the build, at the fault, without being eva
     expected: { min: 1, max: 1 },
     given: 2,
   });
-  // A call whose argument does not conform to the callee's declaration.
-  const mismatch = [...TEMP, "bad(x)  [K;K]  tempC(x) ; bad"];
+  // A call whose argument does not conform to what the callee takes.
+  const mismatch = [...TEMP, "bad(x: K) = tempC(x)"];
   const error = failed(...mismatch);
   assert.equal(error.kind, "argumentMismatch");
   assert.ok(error.kind === "argumentMismatch");
   assert.deepEqual(error.span, spanOf(mismatch, "tempC(x)", 2));
   // A name the body refers to that means nothing.
-  const unknown = ["bad(x)  [1;1]  x ; bad bogus"];
+  const unknown = ["bad(x) = x bogus"];
   assert.deepEqual(failed(...unknown), {
     kind: "unknownUnit",
     name: "bogus",
     span: spanOf(unknown, "bogus"),
   });
-  // The parameter is bound only in the forward body, and the name only in
-  // the inverse: elsewhere the name is the function, which is not a unit.
-  const nameInForward = ["bad(x)  [1;1]  bad ; bad"];
-  assert.deepEqual(failed(...nameInForward), {
+  // The function's name in its body is the function, which is not a unit.
+  const nameInBody = ["bad(x) = bad"];
+  assert.deepEqual(failed(...nameInBody), {
     kind: "functionAsUnit",
     name: "bad",
-    span: spanOf(nameInForward, "bad", 2),
+    span: spanOf(nameInBody, "bad", 2),
     arity: { min: 1, max: 1 },
   });
-  const parameterInInverse = ["bad(x)  [1;1]  x ; x"];
+  // The function's parameter is bound in its body alone, not its inverse's.
+  const parameterInInverse = ["bad(x) = x", "~bad(y) = x"];
   assert.deepEqual(failed(...parameterInInverse), {
     kind: "unknownUnit",
     name: "x",
@@ -1019,39 +1079,26 @@ test("a body of the wrong shape fails the build, at the fault, without being eva
   });
 });
 
-test("each body must conform to the unit it should give", () => {
-  const forward = [...TEMP.slice(0, 2), "f(x)  [1;K]  x ; f"];
-  const [forwardDefinition] = definitions(...forward).slice(-1);
-  assert.deepEqual(failed(...forward), {
-    kind: "functionMismatch",
-    definition: forwardDefinition,
-    body: "forward",
-    mismatch: {
-      kind: "dimensionMismatch",
-      have: DIMENSIONLESS,
-      want: dim({ K: 1 }),
-    },
-  });
-  // An inverse that gives a temperature where a plain number is declared.
-  const inverse = [
-    ...TEMP.slice(0, 2),
-    "tempC(x)  [1;K]  x K + 273.15 K ; tempC - 273.15 K",
-  ];
+test("an inverse's body must conform to what its function's parameter takes", () => {
+  // An inverse that gives a temperature where a plain number is taken.
+  const inverse = [...TEMP.slice(0, 3), "~tempC(y) = y - 273.15 K"];
   const [inverseDefinition] = definitions(...inverse).slice(-1);
   assert.deepEqual(failed(...inverse), {
     kind: "functionMismatch",
     definition: inverseDefinition,
-    body: "inverse",
     mismatch: {
       kind: "dimensionMismatch",
       have: dim({ K: 1 }),
       want: DIMENSIONLESS,
     },
   });
+  // Its parameter has the function's result's dimension: here a length.
+  const length = ["m  !", "f(x) = x m", "~f(y) = y"];
+  assert.equal(failed(...length).kind, "functionMismatch");
 });
 
 test("a cycle through a function is reported like any other", () => {
-  const calls = ["f(x)  [1;1]  g(x) ; f", "g(x)  [1;1]  f(x) ; g"];
+  const calls = ["f(x) = g(x)", "g(x) = f(x)"];
   const [f, g] = definitions(...calls);
   const reference = spanOf(calls, "f(x)", 2);
   assert.deepEqual(failed(...calls), {
@@ -1059,11 +1106,11 @@ test("a cycle through a function is reported like any other", () => {
     definitions: [f, g],
     span: { start: reference.start, end: reference.start + 1 },
   });
-  // Through a declared unit: the unit is defined by the function, whose
-  // declaration names the unit.
+  // Through an annotation: the unit is defined by the function, whose
+  // annotation names the unit.
   const declared = [
     "boil  tempC(100)",
-    "tempC(x)  [1;boil]  x K + 273.15 K ; tempC / K - 273.15",
+    "tempC(x): boil = x K + 273.15 K",
     "K  !",
   ];
   const [boil, tempC] = definitions(...declared);
@@ -1108,7 +1155,7 @@ test("a body may call a built-in, and the table carries the built-ins it was bui
     new Map([["dbl", DBL]]),
     "m  !",
     "six  dbl(3) m",
-    "f(x)  [1;m]  dbl(x) m ; f / m / 2",
+    "f(x) = dbl(x) m",
   );
   assert.ok(result.ok, inspect(result));
   const table = result.value;
@@ -1132,12 +1179,7 @@ test("a built-in's name is not a unit in a body, and the failure carries its ari
 });
 
 test("a definition named like a built-in is a duplicate whose first is the built-in", () => {
-  for (const line of [
-    "dbl  2",
-    "dbl  !",
-    "dbl  m;cm",
-    "dbl(x)  [1;1]  x ; dbl",
-  ]) {
+  for (const line of ["dbl  2", "dbl  !", "dbl  m;cm", "dbl(x) = x"]) {
     const lines = ["m  !", "cm  m / 100", line];
     const [second] = definitions(...lines).slice(-1);
     assert.deepEqual(buildWith(BUILTINS, ...lines), {

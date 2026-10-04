@@ -275,6 +275,11 @@ test("temperature readings convert through tempC and tempF", () => {
     [...table.functions.keys()],
     ["tempC", "tempF", "neper", "bel", "decibel"],
   );
+  // Each has an inverse, so each can be the unit to convert to, and the
+  // conversions below pass the check of the answer against the function.
+  for (const fn of table.functions.values()) {
+    assert.notEqual(fn.inverse, undefined, fn.name);
+  }
   assertAll([
     ["tempC(100)", "K", "373.15"],
     ["tempF(212)", "K", "373.15"],

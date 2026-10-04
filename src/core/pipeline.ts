@@ -17,12 +17,19 @@
 // `2 tempC` are unknown units.
 //
 // A function as the `want` (docs/functions.md) is answered by the call that
-// would produce the `have`: `tempF(212)` into `tempC` is `tempC(100)`. The
-// `have` must conform to the unit the function declares for its result,
-// which is the ordinary conformance error of the pair when it does not, and
-// the inverse body then recovers the argument, `invertFunction` evaluating
-// it with the function's name bound to the `have`. The conversion carries
-// the recovered argument and the declared argument unit with its text, and
+// would produce the `have`: `tempF(212)` into `tempC` is `tempC(100)`. It
+// needs the function's inverse, `~tempC`, and a function without one is a
+// `noInverse` on the want side. The `have` must conform to the function's
+// result, which is the ordinary conformance error of the pair when it does
+// not, and the inverse's body then recovers the argument, `invertFunction`
+// evaluating it with the inverse's parameter bound to the `have`. The
+// recovered argument is then checked, since an inverse is the one part of
+// a definition the build cannot check: the function is applied to it, and
+// a value disjoint from the `have` is an `inverseMismatch`, an answer
+// certainly wrong. Overlap is what balls can decide, so the check refutes
+// and never proves; two exact values are compared exactly, and a
+// difference too large to form refutes nothing. The conversion carries the
+// recovered argument and the unit the parameter takes with its text, and
 // the argument as a count of that unit, which is what the UI writes inside
 // the call. A `want` that is itself a call, `tempC(100)`, is not special:
 // it is an expression, and the conversion is the ratio.
@@ -35,9 +42,10 @@
 // texts of the list's units, so that a message can quote the one at fault;
 // a list from the table has passed those checks when it was built, and can
 // fail only for not conforming to the `have`, which is reported as the
-// same mismatch a single `want` would be. An inverse body that fails for
+// same mismatch a single `want` would be. An inverse's body that fails for
 // the `have`'s value is an `inverseFailed` on the want side, carrying the
-// body's error as a call carries its body's. `evaluateText` is the first
+// body's error as a call carries its body's, and the function's body
+// failing at the recovered argument is an `inverseMismatch` carrying it. `evaluateText` is the first
 // half on its own, for a caller that wants to know what one text denotes
 // without converting it.
 //
@@ -86,11 +94,24 @@ import {
   type UnitListError,
 } from "./convert.ts";
 import { checkConformance } from "./dimension.ts";
-import { evaluate, invertFunction, type EvaluateError } from "./evaluate.ts";
+import {
+  applyFunction,
+  evaluate,
+  invertFunction,
+  type EvaluateError,
+} from "./evaluate.ts";
 import { parseExpr, parseUnitList, type Expr, type Rejection } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
 import type { Quantity } from "./quantity.ts";
-import { certifies, divideBalls, isExact, settle, type Ball } from "./ball.ts";
+import {
+  certifies,
+  divideBalls,
+  isExact,
+  position,
+  settle,
+  subtractBalls,
+  type Ball,
+} from "./ball.ts";
 import {
   GUARD_DIGITS,
   checkContext,
@@ -99,7 +120,13 @@ import {
 } from "./context.ts";
 import { isUnbounded } from "./radius.ts";
 import { err, ok, type Result } from "./result.ts";
-import { isRefusal, mantissaWithin, type Refusal } from "./scaled.ts";
+import {
+  ZERO,
+  equals,
+  isRefusal,
+  mantissaWithin,
+  type Refusal,
+} from "./scaled.ts";
 import {
   unitLookup,
   type ListedUnit,
@@ -128,6 +155,22 @@ export type InverseFailed = {
   readonly error: EvaluateError;
 };
 
+/** Why the function `name`, the `want`, gives no call for the `have`. */
+export type FunctionWantError =
+  | InverseFailed
+  /** The function has no inverse, so nothing recovers an argument. */
+  | { readonly kind: "noInverse"; readonly name: string }
+  /**
+   * The function applied to the argument its inverse recovered is
+   * certainly not the `have`: disjoint from it, or, with `error`, failing
+   * there as `error` says (spans into the definitions text).
+   */
+  | {
+      readonly kind: "inverseMismatch";
+      readonly name: string;
+      readonly error?: EvaluateError;
+    };
+
 export type Conversion =
   /** `have` is `value` `want`s. */
   | {
@@ -154,7 +197,7 @@ export type Conversion =
       readonly name: string;
       /** The argument the inverse recovered. */
       readonly argument: Quantity;
-      /** The unit the function declares for its argument, with its text. */
+      /** The unit the function's parameter takes, with its text. */
       readonly unit: WrittenUnit;
       /** How many `unit`s make up `argument`: a ball. */
       readonly value: Ball;
@@ -168,7 +211,7 @@ export type ConversionError =
   | {
       readonly kind: "inputError";
       readonly side: Side;
-      readonly error: TextError | InverseFailed;
+      readonly error: TextError | FunctionWantError;
     }
   | ConvertError
   /**
@@ -262,13 +305,15 @@ function settled(ball: Ball, context: NumberContext): boolean {
 }
 
 /** Whether `error` is an `unresolved` at any depth of a call or an inverse. */
-function isUnresolved(error: TextError | InverseFailed): boolean {
+function isUnresolved(error: TextError | FunctionWantError): boolean {
   switch (error.kind) {
     case "unresolved":
       return true;
     case "callFailed":
     case "inverseFailed":
       return isUnresolved(error.error);
+    case "inverseMismatch":
+      return error.error !== undefined && isUnresolved(error.error);
     default:
       return false;
   }
@@ -534,12 +579,14 @@ function convertToNamedList(
 }
 
 /**
- * `have` as the call of `fn` that would produce it: `have` must conform to
- * the declared result, which is the mismatch of the pair when it does not,
- * and the inverse body recovers the argument, whose count of the declared
- * argument unit is what the UI writes in the call. The unit's ball excludes
- * zero, as `buildTable` checked, so the count exists unless it is refused
- * as too large or too small, as a ratio of magnitudes may be.
+ * `have` as the call of `fn` that would produce it: `fn` must have an
+ * inverse, `have` must conform to its result, which is the mismatch of the
+ * pair when it does not, the inverse's body recovers the argument, and
+ * `fn` applied to the argument must not be certainly other than `have`.
+ * The argument's count of the unit the parameter takes is what the UI
+ * writes in the call. The unit's ball excludes zero, as `buildTable`
+ * checked, so the count exists unless it is refused as too large or too
+ * small, as a ratio of magnitudes may be.
  */
 function convertToFunction(
   table: UnitTable,
@@ -547,16 +594,20 @@ function convertToFunction(
   fn: UnitFunction,
   context: NumberContext,
 ): Result<Conversion, ConversionError> {
+  if (fn.inverse === undefined) {
+    return inputError("want", { kind: "noInverse", name: fn.name });
+  }
   const conformance = checkConformance(
     have.dimension,
-    fn.result.quantity.dimension,
+    fn.result,
     table.primitives,
   );
   if (!conformance.ok) return conformance;
+  const lookup = unitLookup(table, context);
   const argument = invertFunction(
-    fn,
+    fn.inverse,
     have,
-    unitLookup(table, context),
+    lookup,
     table.primitives,
     context,
   );
@@ -568,6 +619,25 @@ function convertToFunction(
         ? error.error
         : { kind: "inverseFailed", name: fn.name, error: error.error },
     );
+  }
+  const back = applyFunction(
+    fn,
+    argument.value,
+    lookup,
+    table.primitives,
+    context,
+  );
+  if (!back.ok) {
+    const { error } = back;
+    return inputError(
+      "want",
+      error.kind === "lookup"
+        ? error.error
+        : { kind: "inverseMismatch", name: fn.name, error: error.error },
+    );
+  }
+  if (disjoint(back.value.magnitude, have.magnitude, context)) {
+    return inputError("want", { kind: "inverseMismatch", name: fn.name });
   }
   const value = divideBalls(
     argument.value.magnitude,
@@ -589,6 +659,20 @@ function convertToFunction(
     unit: fn.argument,
     value: settled.value,
   });
+}
+
+/**
+ * Whether `a` and `b` certainly differ: two exact values compared exactly,
+ * and otherwise their difference lying wholly on one side of zero. A
+ * difference refused as too large to form, or one whose radius the
+ * coarse bounds cannot place, is not certain, and refutes nothing.
+ */
+function disjoint(a: Ball, b: Ball, context: NumberContext): boolean {
+  if (isExact(a) && isExact(b)) return !equals(a.mid, b.mid);
+  const difference = subtractBalls(a, b, context);
+  if (!difference.ok) return false;
+  const where = position(difference.value, ZERO);
+  return where === "above" || where === "below";
 }
 
 /** An exact ratio or count past the range limit (D19). */
@@ -614,7 +698,7 @@ function evaluateExpr(
 
 function inputError(
   side: Side,
-  error: TextError | InverseFailed,
+  error: TextError | FunctionWantError,
 ): Result<never, ConversionError> {
   return err({ kind: "inputError", side, error });
 }

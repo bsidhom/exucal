@@ -174,9 +174,10 @@ const UNITS: Record<string, Quantity> = {
 };
 
 /**
- * A function as the table would hold it, with its bodies parsed from
- * `forward` and `inverse`, so that the spans of a body's errors are into
- * those texts.
+ * A function as the table would hold it, with its body parsed from
+ * `forward` and its inverse's from `inverse`, so that the spans of a
+ * body's errors are into those texts. The inverse's parameter is named
+ * after the function, as the first form of the definitions wrote it.
  */
 function fn(
   name: string,
@@ -190,9 +191,9 @@ function fn(
     name,
     parameter,
     argument: { text: "argument", quantity: argument },
-    result: { text: "result", quantity: result },
-    forward: parsed(forward),
-    inverse: parsed(inverse),
+    result: result.dimension,
+    body: parsed(forward),
+    inverse: { parameter: name, body: parsed(inverse) },
   };
 }
 
@@ -1009,7 +1010,7 @@ test("applyFunction and invertFunction evaluate a body under a binding, telling 
   assert.ok(applied.ok, inspect(applied));
   assert.deepEqual(applied.value, quantity("6", { m: 1 }));
   const inverted = invertFunction(
-    FUNCTIONS.tempC,
+    FUNCTIONS.tempC!.inverse!,
     quantity("373.15", { K: 1 }),
     lookup,
     PRIMITIVES,
@@ -1018,7 +1019,13 @@ test("applyFunction and invertFunction evaluate a body under a binding, telling 
   assert.ok(inverted.ok, inspect(inverted));
   assert.deepEqual(inverted.value, quantity("100"));
   assert.deepEqual(
-    invertFunction(FUNCTIONS.recip, quantity("0"), lookup, PRIMITIVES, CONTEXT),
+    invertFunction(
+      FUNCTIONS.recip!.inverse!,
+      quantity("0"),
+      lookup,
+      PRIMITIVES,
+      CONTEXT,
+    ),
     {
       ok: false,
       error: {

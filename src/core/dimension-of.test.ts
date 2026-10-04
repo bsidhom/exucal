@@ -54,9 +54,9 @@ const TEMP_C: UnitFunction = {
   name: "tempC",
   parameter: "x",
   argument: { text: "1", quantity: one(DIMENSIONLESS) },
-  result: { text: "K", quantity: one(dim({ K: 1 })) },
-  forward: parsed("x K + 273.15 K"),
-  inverse: parsed("tempC / K - 273.15"),
+  result: dim({ K: 1 }),
+  body: parsed("x K + 273.15 K"),
+  inverse: { parameter: "y", body: parsed("y / K - 273.15") },
 };
 
 /** Two built-ins: a plain number to a plain number, and an angle to a plain number. */

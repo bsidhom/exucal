@@ -10,7 +10,7 @@
 // (`time`), gives the sum the pipeline computes, one term per unit. A
 // `want` that names a function gives the call that would produce the
 // `have`, `tempF(212) = tempC(100)`, the recovered argument written as a
-// count of the unit the function declares for it.
+// count of the unit the function's parameter takes.
 //
 // The `context` is the user's settings as the pipeline takes them (the
 // digits asked for, the rounding mode, the range limit and the ceiling of
@@ -379,9 +379,9 @@ function listResult(
  * The result outcome for a conversion into a function: one line, the
  * `have` being the call of the function at the recovered argument,
  * `tempF(212) = tempC(100)`. The argument is written as a count of the
- * unit the function declares for it, followed by that unit's text as a
- * want's is written, and by nothing when the declared unit is `1`, a
- * plain number. The relation is `=` when the count shows exactly, as for
+ * unit the function's parameter takes, followed by that unit's text as a
+ * want's is written, and by nothing when it is `1`, a plain number (as
+ * for a parameter without an annotation). The relation is `=` when the count shows exactly, as for
  * any value. There is no reciprocal: a call is not a ratio.
  */
 function functionResult(

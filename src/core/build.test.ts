@@ -809,10 +809,12 @@ test("a function is built as its body, with its parameter's unit, its inferred r
   assert.ok(definition?.kind === "function");
   assert.ok(inverse?.kind === "inverse");
   assert.equal(tempC.name, "tempC");
-  assert.equal(tempC.parameter, "x");
+  assert.equal(tempC.parameters.length, 1);
+  const [x] = tempC.parameters;
+  assert.equal(x!.name, "x");
   // A parameter without an annotation takes a plain number, written `1`.
-  assert.equal(tempC.argument.text, "1");
-  assertQuantity(tempC.argument.quantity, "1", {});
+  assert.equal(x!.unit.text, "1");
+  assertQuantity(x!.unit.quantity, "1", {});
   // The result is inferred from the body.
   assert.deepEqual(tempC.result, dim({ K: 1 }));
   assert.deepEqual(tempC.body, definition.body);
@@ -866,8 +868,8 @@ test("a body may call another function, an inverse its own, and an annotation ma
   assertQuantity(quantityIn(table, "twice(50)"), "373.15", { K: 1 });
   assertQuantity(quantityIn(table, "dozen(2 in)"), "0.6096", { m: 1 });
   const dozen = table.functions.get("dozen")!;
-  assert.equal(dozen.argument.text, "in");
-  assertQuantity(dozen.argument.quantity, "0.0254", { m: 1 });
+  assert.equal(dozen.parameters[0]!.unit.text, "in");
+  assertQuantity(dozen.parameters[0]!.unit.quantity, "0.0254", { m: 1 });
   assert.deepEqual(dozen.result, dim({ m: 1 }));
   assert.notEqual(table.functions.get("back")!.inverse, undefined);
 });
@@ -888,6 +890,94 @@ test("a result's annotation is checked against the body, and is any unit of its 
   });
   // A plain result is asserted with `1`.
   assert.ok(build("f(x): 1 = 2 x").ok);
+});
+
+test("a function may have several parameters, bound by position, or none", () => {
+  const table = built(
+    "m  !",
+    "kg  !",
+    "s  !",
+    "J  kg m^2 / s^2",
+    "kinetic(mass: kg, v: m / s): J = mass v^2 / 2",
+    "diff(a, b) = a - b",
+    "twice(x) = diff(3 x, x)",
+    "c() = 3 m",
+  );
+  const kinetic = table.functions.get("kinetic")!;
+  assert.deepEqual(
+    kinetic.parameters.map((p) => [p.name, p.unit.text]),
+    [
+      ["mass", "kg"],
+      ["v", "m / s"],
+    ],
+  );
+  assert.deepEqual(kinetic.result, dim({ kg: 1, m: 2, s: -2 }));
+  assertQuantity(quantityIn(table, "kinetic(2 kg, 3 m / s)"), "9", {
+    kg: 1,
+    m: 2,
+    s: -2,
+  });
+  // The order is the parameters': `diff(5, 2)` is 3, `diff(2, 5)` is -3.
+  assertQuantity(quantityIn(table, "diff(5, 2)"), "3", {});
+  assertQuantity(quantityIn(table, "diff(2, 5)"), "-3", {});
+  assertQuantity(quantityIn(table, "twice(4)"), "8", {});
+  // A function of no parameters is called with none.
+  assert.deepEqual(table.functions.get("c")!.parameters, []);
+  assertQuantity(quantityIn(table, "c() / 3"), "1", { m: 1 });
+  // Each argument conforms to its own parameter, and says which.
+  const swapped = resultIn(table, "kinetic(3 m / s, 2 kg)");
+  assert.ok(!swapped.ok && swapped.error.kind === "argumentMismatch");
+  assert.equal(swapped.error.parameter, "mass");
+  assert.equal(swapped.error.parameters, 2);
+  // The count is the function's own.
+  const arity = resultIn(table, "diff(1)");
+  assert.ok(!arity.ok && arity.error.kind === "arityMismatch");
+  assert.deepEqual(arity.error.expected, { min: 2, max: 2 });
+  const none = resultIn(table, "c(1)");
+  assert.ok(!none.ok && none.error.kind === "arityMismatch");
+  assert.deepEqual(none.error.expected, { min: 0, max: 0 });
+});
+
+test("a body's call of a function of several parameters is checked at build time, argument by argument", () => {
+  const lines = ["m  !", "s  !", "f(a: m, b: s) = a / b", "g(x: m) = f(x, x)"];
+  const error = failed(...lines);
+  assert.ok(error.kind === "argumentMismatch", inspect(error));
+  assert.equal(error.parameter, "b");
+  assert.deepEqual(error.argument, spanOf(lines, "x", 3));
+  // A function used as a unit carries its own arity.
+  const asUnit = ["m  !", "f(a: m, b: m) = a + b", "bad  2 f"];
+  assert.deepEqual(failed(...asUnit), {
+    kind: "functionAsUnit",
+    name: "f",
+    span: spanOf(asUnit, "f", 2),
+    arity: { min: 2, max: 2 },
+  });
+});
+
+test("only a function of one parameter has an inverse", () => {
+  for (const [fn, count] of [
+    ["f(a, b) = a + b", 2],
+    ["f() = 2", 0],
+  ] as const) {
+    const lines = [fn, "~f(y) = y"];
+    const [, definition] = definitions(...lines);
+    assert.deepEqual(failed(...lines), {
+      kind: "inverseArity",
+      definition,
+      parameters: count,
+    });
+  }
+});
+
+test("each parameter's annotation is evaluated, and a zero one is named", () => {
+  const lines = ["m  !", "nil  0 m", "f(a: m, b: nil) = a"];
+  const [definition] = definitions(...lines).slice(-1);
+  assert.deepEqual(failed(...lines), {
+    kind: "zeroDeclaredUnit",
+    definition,
+    unit: "argument",
+    parameter: "b",
+  });
 });
 
 test("a function is not a unit", () => {
@@ -988,6 +1078,7 @@ test("the annotations are evaluated, and neither may be zero", () => {
     kind: "zeroDeclaredUnit",
     definition: argumentDefinition,
     unit: "argument",
+    parameter: "x",
   });
   const zeroResult = [...TEMP, "nil  0 K", "f(x): nil = x K"];
   const [resultDefinition] = definitions(...zeroResult).slice(-1);
@@ -1003,6 +1094,7 @@ test("the annotations are evaluated, and neither may be zero", () => {
     kind: "zeroDeclaredUnit",
     definition: aroundDefinition,
     unit: "argument",
+    parameter: "x",
   });
 });
 

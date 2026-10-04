@@ -189,8 +189,9 @@ function fn(
 ): UnitFunction {
   return {
     name,
-    parameter,
-    argument: { text: "argument", quantity: argument },
+    parameters: [
+      { name: parameter, unit: { text: "argument", quantity: argument } },
+    ],
     result: result.dimension,
     body: parsed(forward),
     inverse: { parameter: name, body: parsed(inverse) },
@@ -934,6 +935,8 @@ test("the argument must conform to the declared argument unit", () => {
     name: "tempC",
     span: { start: 0, end: 10 },
     argument: { start: 6, end: 9 },
+    parameter: "x",
+    parameters: 1,
     mismatch: {
       kind: "dimensionMismatch",
       have: dim({ m: 1 }),
@@ -945,6 +948,8 @@ test("the argument must conform to the declared argument unit", () => {
     name: "double",
     span: { start: 2, end: 11 },
     argument: { start: 9, end: 10 },
+    parameter: "x",
+    parameters: 1,
     mismatch: {
       kind: "dimensionMismatch",
       have: DIMENSIONLESS,
@@ -1002,7 +1007,7 @@ test("a lookup failure inside a body is passed up unchanged", () => {
 test("applyFunction and invertFunction evaluate a body under a binding, telling its failure from the lookup's", () => {
   const applied = applyFunction(
     FUNCTIONS.double,
-    quantity("3", { m: 1 }),
+    [quantity("3", { m: 1 })],
     lookup,
     PRIMITIVES,
     CONTEXT,
@@ -1035,7 +1040,13 @@ test("applyFunction and invertFunction evaluate a body under a binding, telling 
     },
   );
   assert.deepEqual(
-    applyFunction(FUNCTIONS.broken, quantity("1"), lookup, PRIMITIVES, CONTEXT),
+    applyFunction(
+      FUNCTIONS.broken,
+      [quantity("1")],
+      lookup,
+      PRIMITIVES,
+      CONTEXT,
+    ),
     {
       ok: false,
       error: {

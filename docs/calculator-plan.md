@@ -22,7 +22,7 @@ after stage 5 landed and the stage revised against it (D22 added, and
 6.1 to 6.9); its introduction lists the changes, and 6.8 was deferred
 after 6.7 landed. D23 and D24 were added before stage 7, from the
 owner's review of the syntax options for user functions, and stage 7
-was revised against them; its tasks 7.0 and 7.1 have landed. D13 was
+was revised against them; its tasks 7.0, 7.1 and 7.2 have landed. D13 was
 revised in review of the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.

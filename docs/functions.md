@@ -2,10 +2,10 @@
 
 Status: the design note of stage 7 (task 7.0 of docs/calculator-plan.md),
 revised from the first design for D23 and D24 and the owner's rulings on
-them. Task 7.1 has landed: the signature and `=`, annotations and the
-inferred result, the `~` line and the check of an inverse at the want,
-with one parameter, `|` and `name[` reserved; several parameters (7.2)
-and conditions (7.3) have not. The bracketed form this note replaced is
+them. Tasks 7.1 and 7.2 have landed: the signature and `=`, annotations
+and the inferred result, the `~` line and the check of an inverse at the
+want, and any number of parameters, bound by position, with `|` and
+`name[` reserved; conditions (7.3) have not. The bracketed form this note replaced is
 recorded in "The first form" at the end, with its implementation
 notes. The owner ruled on the three
 choices the first draft of this note made: dimension-generic functions

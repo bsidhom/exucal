@@ -412,7 +412,7 @@ test("a name with a parameter defines a function: a signature, `=` and a body", 
     {
       kind: "function",
       name: "tempC",
-      parameter: { name: "x", annotation: undefined },
+      parameters: [{ name: "x", annotation: undefined }],
       result: undefined,
       body: exprAt("x K + 273.15 K", text.indexOf("x K")),
       span: spanOf(text, "tempC(x) = x K + 273.15 K"),
@@ -437,9 +437,10 @@ test("the annotations are unit expressions, kept with their text as written", ()
   const text = "f( v : m / s ) : m^2 kg / s=v K";
   const [definition] = parsed(text);
   assert.ok(definition?.kind === "function");
-  assert.equal(definition.parameter.name, "v");
-  assert.equal(definition.parameter.annotation?.text, "m / s");
-  assert.deepEqual(definition.parameter.annotation?.expr, exprAt("m / s", 7));
+  const [v] = definition.parameters;
+  assert.equal(v?.name, "v");
+  assert.equal(v?.annotation?.text, "m / s");
+  assert.deepEqual(v?.annotation?.expr, exprAt("m / s", 7));
   assert.equal(definition.result?.text, "m^2 kg / s");
   assert.deepEqual(definition.body, exprAt("v K", 28));
   assert.deepEqual(definition.span, { start: 0, end: text.length });
@@ -549,10 +550,60 @@ test("a function needs its parameter, `=` and a body, and the head ends at `=`",
   assert.equal(parsed("f( x )=x").length, 1);
 });
 
-test("a parameter is a name", () => {
-  assert.deepEqual(failed("f(2) = 2"), unexpected(2, "a parameter name"));
-  assert.deepEqual(failed("f() = 2"), unexpected(2, "a parameter name"));
+test("a parameter is a name, and an inverse has exactly one", () => {
+  assert.deepEqual(
+    failed("f(2) = 2"),
+    unexpected(2, "a parameter name", '")"'),
+  );
+  assert.deepEqual(failed("f(x, 2) = 2"), unexpected(5, "a parameter name"));
+  assert.deepEqual(failed("f(x,) = 2"), unexpected(4, "a parameter name"));
   assert.deepEqual(failed("~f() = 2"), unexpected(3, "a parameter name"));
+  assert.deepEqual(failed("~f(x, y) = 2"), unexpected(4, '":"', '")"'));
+});
+
+test("a function has any number of parameters, in order, each with its own annotation", () => {
+  const [none] = parsed("c() = 3 m");
+  assert.ok(none?.kind === "function");
+  assert.deepEqual(none.parameters, []);
+  const text = "kinetic(mass: kg, v: m/s): J = mass v^2 / 2";
+  const [definition] = parsed(text);
+  assert.ok(definition?.kind === "function");
+  assert.deepEqual(
+    definition.parameters.map((p) => [p.name, p.annotation?.text]),
+    [
+      ["mass", "kg"],
+      ["v", "m/s"],
+    ],
+  );
+  assert.deepEqual(
+    definition.parameters[1]?.annotation?.expr,
+    exprAt("m/s", text.indexOf("m/s")),
+  );
+  const [three] = parsed("f( a ,b:s,\tc ) = a");
+  assert.ok(three?.kind === "function");
+  assert.deepEqual(
+    three.parameters.map((p) => p.name),
+    ["a", "b", "c"],
+  );
+});
+
+test("a parameter named twice is rejected at its second occurrence", () => {
+  assert.deepEqual(failed("f(x, y: m, x) = x"), {
+    kind: "rejected",
+    span: { start: 11, end: 12 },
+    reason: { kind: "duplicateParameter", parameter: "x" },
+  });
+});
+
+test("a parameter named like a unit in any annotation of its head is rejected", () => {
+  // `kinetic(m: kg, v: m/s)`: the second annotation's `m` is the metre.
+  const text = "kinetic(m: kg, v: m/s) = m v^2 / 2";
+  assert.deepEqual(failed(text), {
+    kind: "rejected",
+    span: { start: 18, end: 19 },
+    reason: { kind: "parameterNamesUnit", parameter: "m" },
+  });
+  assert.equal(parsed("kinetic(mass: kg, v: m/s) = mass v^2 / 2").length, 1);
 });
 
 // ---------------------------------------------------------------------------
@@ -586,32 +637,47 @@ function pick<T>(k: Key, from: readonly T[]): T {
   return from[between(k, 0, from.length - 1)]!;
 }
 
+/** A drawn parameter: its name and its annotation, if any. */
+type DrawnParameter = {
+  readonly name: string;
+  readonly annotation: string | undefined;
+};
+
 /** A drawn function or inverse line, and what it should parse to. */
 type DrawnHead = {
   readonly text: string;
   readonly inverse: boolean;
   readonly name: string;
-  readonly parameter: string;
-  readonly annotation: string | undefined;
+  /** None to three for a function, one for an inverse, all distinct. */
+  readonly parameters: readonly DrawnParameter[];
   readonly result: string | undefined;
   readonly body: string;
-  /** Where the annotation and the `=` start in `text`, for the faults. */
+  /** Where the first annotation, the `)` of the parameters and the `=` start in `text`, for the faults. */
   readonly annotationAt: number | undefined;
+  readonly closeAt: number;
   readonly equalsAt: number;
 };
 
 function drawHead(k: Key): DrawnHead {
-  const [kind, name, parameter, annotation, result, body, comment, blank] =
+  const [kind, name, count, parameter, annotation, result, body, comment] =
     split(k, 8);
+  const blank = foldIn(k, 9);
   const inverse = between(kind!, 0, 3) === 0;
-  const ws = (i: number) => pick(foldIn(blank!, i), BLANKS);
+  const ws = (i: number) => pick(foldIn(blank, i), BLANKS);
+  // Distinct names: a rotation of the list from a drawn start.
+  const start = between(parameter!, 0, PARAMETERS.length - 1);
+  const parameters = Array.from(
+    { length: inverse ? 1 : between(count!, 0, 3) },
+    (_, i): DrawnParameter => ({
+      name: PARAMETERS[(start + i) % PARAMETERS.length]!,
+      annotation:
+        inverse || between(foldIn(annotation!, 2 * i), 0, 1) === 0
+          ? undefined
+          : pick(foldIn(annotation!, 2 * i + 1), ANNOTATIONS),
+    }),
+  );
   const chosen = {
     name: pick(name!, HEAD_NAMES),
-    parameter: pick(parameter!, PARAMETERS),
-    annotation:
-      inverse || between(annotation!, 0, 1) === 0
-        ? undefined
-        : pick(foldIn(annotation!, 1), ANNOTATIONS),
     result:
       inverse || between(result!, 0, 1) === 0
         ? undefined
@@ -619,13 +685,17 @@ function drawHead(k: Key): DrawnHead {
     body: pick(body!, BODIES),
   };
   let text = ws(0) + (inverse ? "~" : "") + chosen.name + "(" + ws(1);
-  text += chosen.parameter + ws(2);
   let annotationAt: number | undefined;
-  if (chosen.annotation !== undefined) {
-    text += ":" + ws(3);
-    annotationAt = text.length;
-    text += chosen.annotation + ws(4);
+  for (const [i, drawn] of parameters.entries()) {
+    if (i > 0) text += "," + ws(10 + 4 * i);
+    text += drawn.name + ws(11 + 4 * i);
+    if (drawn.annotation !== undefined) {
+      text += ":" + ws(12 + 4 * i);
+      annotationAt ??= text.length;
+      text += drawn.annotation + ws(13 + 4 * i);
+    }
   }
+  const closeAt = text.length;
   text += ")" + ws(5);
   if (chosen.result !== undefined) {
     text += ":" + ws(6) + chosen.result + ws(7);
@@ -633,7 +703,15 @@ function drawHead(k: Key): DrawnHead {
   const equalsAt = text.length;
   text += "=" + ws(8) + chosen.body;
   if (between(comment!, 0, 1) === 0) text += ws(9) + "# a comment";
-  return { text, inverse, ...chosen, annotationAt, equalsAt };
+  return {
+    text,
+    inverse,
+    parameters,
+    ...chosen,
+    annotationAt,
+    closeAt,
+    equalsAt,
+  };
 }
 
 const DRAWN = Array.from({ length: 400 }, (_, i) =>
@@ -655,12 +733,14 @@ test("drawn function and inverse lines parse to what they were built from", () =
       where,
     );
     if (definition.kind === "inverse") {
-      assert.equal(definition.parameter, drawn.parameter, where);
+      assert.equal(definition.parameter, drawn.parameters[0]!.name, where);
     } else if (definition.kind === "function") {
-      assert.equal(definition.parameter.name, drawn.parameter, where);
-      assert.equal(
-        definition.parameter.annotation?.text,
-        drawn.annotation,
+      assert.deepEqual(
+        definition.parameters.map((p) => ({
+          name: p.name,
+          annotation: p.annotation?.text,
+        })),
+        drawn.parameters,
         where,
       );
       assert.equal(definition.result?.text, drawn.result, where);
@@ -704,9 +784,24 @@ test("faults injected into drawn lines are rejected where they are written", () 
         where,
       );
     }
+    // A parameter named again, before the `)`: rejected at the second.
+    const first = drawn.parameters[0];
+    if (!drawn.inverse && first !== undefined) {
+      const at = drawn.closeAt;
+      const again = `${text.slice(0, at)}, ${first.name}${text.slice(at)}`;
+      assert.deepEqual(
+        failed(again),
+        {
+          kind: "rejected",
+          span: { start: at + 2, end: at + 2 + first.name.length },
+          reason: { kind: "duplicateParameter", parameter: first.name },
+        },
+        where,
+      );
+    }
     if (drawn.inverse) {
       const open = text.indexOf("(");
-      const close = text.indexOf(")");
+      const close = drawn.closeAt;
       const annotated = `${text.slice(0, close)}: kg${text.slice(close)}`;
       const error = failed(annotated);
       assert.ok(error.kind === "rejected", where);

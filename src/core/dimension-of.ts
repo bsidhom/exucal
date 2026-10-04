@@ -18,8 +18,8 @@
 // reduces it (`reduceExponent`), so that one past the limit fails the
 // build at the power as it would fail the call; a negation keeps; and a
 // call checks the count of
-// arguments and applies the callee's rule, a defined function's argument
-// conforming to the unit its parameter takes and giving its result's
+// arguments and applies the callee's rule, a defined function's arguments
+// each conforming to the unit its parameter takes and giving its result's
 // dimension, a built-in's `dimensions` on its arguments' dimensions. The
 // errors are the evaluator's own of those kinds (`nonconformingOperands`,
 // `arityMismatch`, `argumentMismatch`, `builtinArgument`), so their spans
@@ -43,15 +43,11 @@ import {
   type Dimension,
   type Primitives,
 } from "./dimension.ts";
-import {
-  ONE_ARGUMENT,
-  reduceExponent,
-  type EvaluateError,
-} from "./evaluate.ts";
+import { reduceExponent, type EvaluateError } from "./evaluate.ts";
 import type { Expr } from "./expr.ts";
 import { err, ok, type Result } from "./result.ts";
 import type { Span } from "./span.ts";
-import type { ResolvedFunction } from "./table.ts";
+import { arityOf, type ResolvedFunction } from "./table.ts";
 
 /** Resolves the names in an expression to dimensions, or fails with the caller's own error. */
 export type DimensionLookup<E> = {
@@ -135,7 +131,7 @@ export function dimensionOf<E>(
       const fn = lookup.function(node.name, node.nameSpan, span);
       if (!fn.ok) return fn;
       const arity =
-        fn.value.kind === "defined" ? ONE_ARGUMENT : fn.value.fn.arity;
+        fn.value.kind === "defined" ? arityOf(fn.value.fn) : fn.value.fn.arity;
       const given = node.arguments.length;
       if (given < arity.min || given > arity.max) {
         return err({
@@ -164,19 +160,23 @@ export function dimensionOf<E>(
         });
       }
       const defined = fn.value.fn;
-      const conformance = checkConformance(
-        dimensions[0]!,
-        defined.argument.quantity.dimension,
-        primitives,
-      );
-      if (!conformance.ok) {
-        return err({
-          kind: "argumentMismatch",
-          name: node.name,
-          span,
-          argument: node.arguments[0]!.span,
-          mismatch: conformance.error,
-        });
+      for (const [i, parameter] of defined.parameters.entries()) {
+        const conformance = checkConformance(
+          dimensions[i]!,
+          parameter.unit.quantity.dimension,
+          primitives,
+        );
+        if (!conformance.ok) {
+          return err({
+            kind: "argumentMismatch",
+            name: node.name,
+            span,
+            argument: node.arguments[i]!.span,
+            parameter: parameter.name,
+            parameters: defined.parameters.length,
+            mismatch: conformance.error,
+          });
+        }
       }
       return ok(defined.result);
     }

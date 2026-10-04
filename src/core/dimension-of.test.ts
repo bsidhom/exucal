@@ -52,8 +52,9 @@ function one(dimension: Dimension): Quantity {
 /** `tempC` as the table would hold it: a plain number to a temperature. */
 const TEMP_C: UnitFunction = {
   name: "tempC",
-  parameter: "x",
-  argument: { text: "1", quantity: one(DIMENSIONLESS) },
+  parameters: [
+    { name: "x", unit: { text: "1", quantity: one(DIMENSIONLESS) } },
+  ],
   result: dim({ K: 1 }),
   body: parsed("x K + 273.15 K"),
   inverse: { parameter: "y", body: parsed("y / K - 273.15") },
@@ -180,6 +181,8 @@ test("a call applies the callee's rule: a defined function's declaration, a buil
     name: "tempC",
     span: { start: 0, end: 10 },
     argument: { start: 6, end: 9 },
+    parameter: "x",
+    parameters: 1,
     mismatch: {
       kind: "dimensionMismatch",
       have: dim({ m: 1 }),

@@ -690,9 +690,9 @@ A definition is one of six things: a primitive with its role, a prefix
 an expression, a unit list, whose body is two or more expressions
 separated by `;` (a body of one is a unit), each kept with the text it was
 written as, since that text is what the UI shows beside its term and the
-table has no other way to get at it, a function, named with its parameter
-in parentheses, each of the parameter and the result optionally annotated
-with a unit expression (kept with its text, as a list's items are), and
+table has no other way to get at it, a function, named with its parameters
+in parentheses, separated by commas and none named twice, each of them
+and the result optionally annotated with a unit expression (kept with its text, as a list's items are), and
 its body after `=`, or the inverse of a function, `~name(parameter) =
 body` ("Functions" below). The parser rejects an annotation with a number
 other than `1`, a sum, a negation or a call, and a parameter named like a
@@ -757,10 +757,11 @@ call another, and a cycle through a function is reported like any other.
 An inverse is keyed by its function's name apart from every namespace,
 and nothing can refer to it, so, like a list, it stays out of the walk
 and is checked in its place in the order, requesting its function from
-the top, which lets it call its own function: its body's dimension, with
-its parameter bound to the function's result, must conform to what the
-function's parameter takes. The table holds each function as its body,
-still an expression, with the unit its parameter takes and its text, its
+the top, which lets it call its own function: its function must have one
+parameter, and its body's dimension, with its own parameter bound to the
+function's result, must conform to what that parameter takes. The table
+holds each function as its body, still an expression, with its
+parameters in order, each with the unit it takes and its text, its
 result's dimension, and its inverse when one is defined: a call evaluates
 the body afresh, through the table's lookup.
 
@@ -1020,10 +1021,11 @@ A call resolves its name among the functions, through
 the lookup, to a function the table defines or a built-in (`ResolvedFunction`),
 checks that it gives as many arguments as the function takes
 (`arityMismatch` otherwise, before any argument is evaluated, since the
-count is about the call's shape; a defined function takes exactly one),
-and then, for a defined function, evaluates its argument, checks that the
-argument conforms to the unit the function's parameter takes, and
-evaluates the body with the parameter bound to the argument ("Functions"
+count is about the call's shape; a defined function takes exactly as many
+as it has parameters), and then, for a defined function, evaluates its
+arguments, checks that each conforms to the unit its parameter takes, and
+evaluates the body with the parameters bound to the arguments by
+position ("Functions"
 below); for a built-in it evaluates every argument, applies the built-in's
 dimension rule to their dimensions (`builtinArgument` at the call when it
 fails, carrying the rule's error and every argument's span) and its
@@ -1180,8 +1182,10 @@ for a single `want`, so that the message quotes the name the user typed.
 ### Functions
 
 A function (docs/functions.md is the design, with the reasoning) is a body
-with one parameter, `tempC(x) = x K + 273.15 K`, and an optional inverse
-on a line of its own, `~tempC(y) = y / K - 273.15`. It exists for
+with any number of parameters, bound by position, `tempC(x) = x K +
+273.15 K` or `kinetic(mass: kg, v: m/s) = mass v^2 / 2`, and, for a
+function of one parameter, an optional inverse on a line of its own,
+`~tempC(y) = y / K - 273.15`. It exists for
 readings such as a temperature, which are not multiples of a unit,
 without giving `Quantity` an offset that every operation would then need
 a rule for, and for compositions of the built-ins that a user would
@@ -1242,7 +1246,7 @@ parameter's; the body's dimension is taken without evaluating it, by
 `dimensionOf` in `dimension-of.ts`, the evaluator's rules over dimensions
 alone (a number is dimensionless, a unit is its dimension through the
 walk's lookup, a sum checks conformance, a product combines, a power
-raises, a call applies the callee's rule), with the parameter bound to
+raises, a call applies the callee's rule), with each parameter bound to
 its annotation's dimension, so that a body which refers to nothing, or
 is put together wrongly, fails the build with its span in the
 definitions text; that dimension is the result's, exact because a body's

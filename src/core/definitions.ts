@@ -21,10 +21,11 @@
 //   file       := line ("\n" line)*
 //   line       := ws definition? comment?
 //   definition := name " "+ body
-//               | name "(" param ")" (":" annotation)? "=" expr
+//               | name "(" params? ")" (":" annotation)? "=" expr
 //               | "~" name "(" name ")" "=" expr
 //   body       := "!" "kind"?              only for a unit name
 //               | unitList                 (expr.ts)
+//   params     := param ("," param)*
 //   param      := name (":" annotation)?
 //
 // A name is a unit name as expr.ts defines it, with a trailing `-` making it
@@ -44,24 +45,26 @@
 // A function (docs/functions.md) is a signature, `=` and a body. Inside
 // the head, spaces are free around every token, and `=` ends it: an
 // annotation is an expression, and juxtaposition would run a result
-// annotation into the body. The parameter may be annotated with the unit
-// it takes (`x: kg`, a plain number without one), and the result too
-// (`): K`); each annotation keeps its text, since the converter writes a
-// recovered argument in the parameter's. An annotation is a unit
+// annotation into the body. A function has any number of parameters,
+// separated by commas, none of them named twice, since nothing could say
+// which one the body means; each may be annotated with the unit it takes
+// (`x: kg`, a plain number without one), and the result too (`): K`);
+// each annotation keeps its text, since the converter writes a recovered
+// argument in the parameter's. An annotation is a unit
 // expression: unit names, juxtaposition, `*`, `/`, `^` and parentheses,
 // and the number `1`, written `1`; another number would read as a scale
 // that conformance ignores, and a sum, a negation or a call names no
 // unit, so each is rejected where it is written. A parameter named like
-// a unit that the same head's annotations use is rejected too, since the
-// line would read both ways (the parameter means the parameter in the
-// body, and the annotation the unit). An inverse, `~name(p) = body`, has
-// one parameter, unannotated, since its dimension is its function's
-// result's; whether there is such a function is the builder's to say.
+// a unit that the same head's annotations use, any of them, is rejected
+// too, since the line would read both ways (the parameter means the
+// parameter in the body, and the annotation the unit). An inverse,
+// `~name(p) = body`, has one parameter, unannotated, since its dimension
+// is its function's result's; whether there is such a function, of one
+// parameter, is the builder's to say.
 // Two pieces of later syntax are reserved and rejected as not supported
 // yet: a `|` after the head, where conditions will go (task 7.3 of
 // docs/calculator-plan.md), and a `[` directly after a function's name,
-// where dimension variables would (issue #133). A function takes one
-// parameter for now (task 7.2 adds several).
+// where dimension variables would (issue #133).
 //
 // Spans are offsets into the whole text, not the line, so an error anywhere
 // in the pipeline can be shown against the file as the user sees it. Each
@@ -132,13 +135,14 @@ export type Definition =
       readonly span: Span;
     }
   /**
-   * A function: `body` is its value, in which `parameter` stands for the
-   * argument; `result` is the result's annotation, when it has one.
+   * A function: `body` is its value, in which each of `parameters` stands
+   * for the argument in its position; `result` is the result's
+   * annotation, when it has one.
    */
   | {
       readonly kind: "function";
       readonly name: string;
-      readonly parameter: Parameter;
+      readonly parameters: readonly Parameter[];
       readonly result: WrittenExpr | undefined;
       readonly body: Expr;
       readonly span: Span;
@@ -181,6 +185,8 @@ export type DefinitionRejection =
   | { readonly kind: "inverseAnnotation" }
   /** The `parameter` is named like a unit that its own head's annotations use, at the span. */
   | { readonly kind: "parameterNamesUnit"; readonly parameter: string }
+  /** The `parameter` is named a second time, at the span. */
+  | { readonly kind: "duplicateParameter"; readonly parameter: string }
   /** Syntax reserved for later: conditions after `|`, or dimension variables after `name[`. */
   | {
       readonly kind: "unsupported";
@@ -356,9 +362,31 @@ const conditionsReserved: Parser<undefined, DefinitionRejection> = map(
   () => undefined,
 );
 
-/** What follows a function's name: the parameter, the result's annotation, `=` and the body. */
-type FunctionRest = {
+/** A parameter, with the span of its name, for the errors about it. */
+type SpannedParameter = {
   readonly parameter: Parameter;
+  readonly span: Span;
+};
+
+const parameter: Parser<SpannedParameter, DefinitionRejection> = map(
+  seq(spanned(regex(NAME, "a parameter name")), ws, optional(annotated)),
+  ([{ value: name, span }, , annotation]) => ({
+    parameter: { name, annotation },
+    span,
+  }),
+);
+
+/** Zero or more parameters, separated by commas. */
+const parameters: Parser<readonly SpannedParameter[], DefinitionRejection> =
+  map(optional(seq(parameter, many(seq(symbol(","), parameter)))), (parsed) =>
+    parsed === undefined
+      ? []
+      : [parsed[0], ...parsed[1].map(([, rest]) => rest)],
+  );
+
+/** What follows a function's name: the parameters, the result's annotation, `=` and the body. */
+type FunctionRest = {
+  readonly parameters: readonly SpannedParameter[];
   readonly result: WrittenExpr | undefined;
   readonly body: Expr;
 };
@@ -366,45 +394,66 @@ type FunctionRest = {
 const functionRest: Parser<FunctionRest, DefinitionRejection> = map(
   seq(
     symbol("("),
-    token(regex(NAME, "a parameter name")),
-    optional(annotated),
+    parameters,
     symbol(")"),
     optional(annotated),
     conditionsReserved,
     symbol("="),
     expr,
   ),
-  ([, name, parameterAnnotation, , result, , , body]) => ({
-    parameter: { name, annotation: parameterAnnotation },
-    result,
-    body,
-  }),
+  ([, parameters, , result, , , body]) => ({ parameters, result, body }),
 );
 
 /**
- * `functionRest`, with the head's annotations checked against the
- * parameter's name: a unit of that name in them is rejected at its span.
+ * `functionRest` with its parameters checked: a name given twice is
+ * rejected at its second occurrence, and a unit named like a parameter
+ * in any of the head's annotations at the unit.
  */
-const checkedFunctionRest: Parser<FunctionRest, DefinitionRejection> = (
-  text,
-  pos,
-) => {
+const checkedFunctionRest: Parser<
+  {
+    readonly parameters: readonly Parameter[];
+    readonly result: WrittenExpr | undefined;
+    readonly body: Expr;
+  },
+  DefinitionRejection
+> = (text, pos) => {
   const reply = functionRest(text, pos);
   if (!reply.ok) return reply;
-  const { parameter, result } = reply.value;
-  for (const written of [parameter.annotation, result]) {
+  const { parameters, result, body } = reply.value;
+  const seen = new Set<string>();
+  for (const { parameter, span } of parameters) {
+    if (seen.has(parameter.name)) {
+      return rejected(span, {
+        kind: "duplicateParameter",
+        parameter: parameter.name,
+      });
+    }
+    seen.add(parameter.name);
+  }
+  const annotations = [
+    ...parameters.map(({ parameter }) => parameter.annotation),
+    result,
+  ];
+  for (const written of annotations) {
     if (written === undefined) continue;
-    const shadowed = unitNames(written.expr).find(
-      (unit) => unit.name === parameter.name,
+    const shadowed = unitNames(written.expr).find((unit) =>
+      seen.has(unit.name),
     );
     if (shadowed !== undefined) {
       return rejected(shadowed.span, {
         kind: "parameterNamesUnit",
-        parameter: parameter.name,
+        parameter: shadowed.name,
       });
     }
   }
-  return reply;
+  return {
+    ...reply,
+    value: {
+      parameters: parameters.map(({ parameter }) => parameter),
+      result,
+      body,
+    },
+  };
 };
 
 /** What follows an inverse's name: its parameter, `=` and the body. */

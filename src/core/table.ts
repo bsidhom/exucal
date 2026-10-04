@@ -17,10 +17,10 @@
 // `want` on its own, and typed as a unit it is a `functionAsUnit` error,
 // which says so and carries the count of arguments the function takes, so
 // that the message can show the call form. A function is held as its body,
-// an expression, with the unit its parameter takes, with its text as
-// written, since the converter writes a recovered argument in it (`1`, a
-// plain number, for a parameter without an annotation), and its result's
-// dimension, inferred from the body and checked against the result's
+// an expression, with its parameters in order, each with the unit it takes
+// and that unit's text as written, since the converter writes a recovered
+// argument in it (`1`, a plain number, for a parameter without an
+// annotation), and its result's dimension, inferred from the body and checked against the result's
 // annotation if it has one; and its inverse, when one is defined, as the
 // inverse's parameter and body. The builder has checked every body's
 // dimension, so a call can fail only on its argument or on a value.
@@ -36,7 +36,7 @@ import type { NumberContext } from "./context.ts";
 import type { Ball } from "./ball.ts";
 import type { Builtin, Builtins } from "./builtin.ts";
 import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
-import { ONE_ARGUMENT, type Arity, type Lookup } from "./evaluate.ts";
+import type { Arity, Lookup } from "./evaluate.ts";
 import type { Expr } from "./expr.ts";
 import { resolveName, type Resolution } from "./names.ts";
 import {
@@ -75,21 +75,30 @@ export type WrittenUnit = {
 export type ListedUnit = WrittenUnit;
 
 /**
- * A function: `body` is its value, in which `parameter` stands for the
- * argument. `argument` is the unit the parameter takes, its annotation
- * evaluated (nonzero, as the builder checked), or `1` without one, and
- * `result` the dimension of the body, which the builder inferred and
- * checked against the result's annotation. `inverse` is the function's
- * inverse, when one is defined: the builder has checked that its body
- * conforms to `argument` with its parameter of the dimension `result`.
+ * A function: `body` is its value, in which each of `parameters` stands
+ * for the argument in its position. `result` is the dimension of the body,
+ * which the builder inferred and checked against the result's annotation.
+ * `inverse` is the function's inverse, when one is defined, which only a
+ * function of one parameter may have: the builder has checked that its
+ * body conforms to what that parameter takes, with its own parameter of
+ * the dimension `result`.
  */
 export type UnitFunction = {
   readonly name: string;
-  readonly parameter: string;
-  readonly argument: WrittenUnit;
+  readonly parameters: readonly FunctionParameter[];
   readonly result: Dimension;
   readonly body: Expr;
   readonly inverse: UnitInverse | undefined;
+};
+
+/**
+ * A function's parameter: its `name`, and the `unit` it takes, its
+ * annotation evaluated (nonzero, as the builder checked), or `1` without
+ * one.
+ */
+export type FunctionParameter = {
+  readonly name: string;
+  readonly unit: WrittenUnit;
 };
 
 /** A function's inverse: `body` is the argument that gives the value `parameter` stands for. */
@@ -219,17 +228,26 @@ export function resolveFunction(
 }
 
 /**
- * How many arguments the function `name` takes, among `functions` (one)
- * and `builtins`, or `undefined` when there is no such function: what a
- * `functionAsUnit` error carries.
+ * How many arguments the function `name` takes, among `functions` (as
+ * many as its parameters) and `builtins`, or `undefined` when there is no
+ * such function: what a `functionAsUnit` error carries.
  */
-export function functionArity<F>(
+export function functionArity(
   name: string,
-  functions: ReadonlyMap<string, F>,
+  functions: ReadonlyMap<string, { readonly parameters: readonly unknown[] }>,
   builtins: Builtins,
 ): Arity | undefined {
-  if (functions.has(name)) return ONE_ARGUMENT;
+  const defined = functions.get(name);
+  if (defined !== undefined) return arityOf(defined);
   return builtins.get(name)?.arity;
+}
+
+/** The arity of a defined function: exactly its parameters. */
+export function arityOf(fn: {
+  readonly parameters: readonly unknown[];
+}): Arity {
+  const count = fn.parameters.length;
+  return { min: count, max: count };
 }
 
 /** What a name that is not a function is, from its resolution as a unit. */

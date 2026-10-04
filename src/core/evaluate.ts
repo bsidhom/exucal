@@ -48,11 +48,12 @@
 // what the function takes (`arityMismatch` otherwise, before any argument
 // is evaluated, since the count is about the call's shape as
 // `notAFunction` is). A defined function (docs/functions.md) takes exactly
-// one: the argument is evaluated, checked to conform to the unit the
-// function's parameter takes (a plain number when it has no annotation),
-// and bound to the parameter while the body is evaluated through the same
-// lookup, so that the body's units resolve as the user's would, and the
-// parameter before any unit of its name. A built-in (docs/builtins.md) has its
+// as many as it has parameters: the arguments are evaluated, left to
+// right, each checked to conform to the unit its parameter takes (a plain
+// number when it has no annotation), and bound to the parameters by
+// position while the body is evaluated through the same lookup, so that
+// the body's units resolve as the user's would, and the parameters before
+// any unit of their names. A built-in (docs/builtins.md) has its
 // arguments evaluated, its dimension rule applied to their dimensions
 // (`builtinArgument` at the call when the rule fails, carrying the rule's
 // error and the spans of all the arguments, so that a message can write
@@ -137,7 +138,12 @@ import type {
 import type { NumberContext } from "./context.ts";
 import { err, ok, type Result } from "./result.ts";
 import type { Span } from "./span.ts";
-import type { ResolvedFunction, UnitFunction, UnitInverse } from "./table.ts";
+import {
+  arityOf,
+  type ResolvedFunction,
+  type UnitFunction,
+  type UnitInverse,
+} from "./table.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -159,9 +165,6 @@ export type Lookup<E> = {
 
 /** How many arguments a function takes: from `min` to `max` of them. */
 export type Arity = { readonly min: number; readonly max: number };
-
-/** The arity of a defined function: exactly its one parameter. */
-export const ONE_ARGUMENT: Arity = { min: 1, max: 1 };
 
 export type EvaluateError =
   /**
@@ -232,15 +235,18 @@ export type EvaluateError =
     }
   /**
    * The call of `name` at `span` has an argument, at `argument`, that does
-   * not conform to the unit the function's parameter takes, as `mismatch`
-   * says with the argument's dimension as its `have` and the parameter's
-   * as its `want`.
+   * not conform to the unit its `parameter` takes, as `mismatch` says with
+   * the argument's dimension as its `have` and the parameter's as its
+   * `want`; `parameters` is how many the function has, so that a message
+   * can name the parameter only where there is more than one.
    */
   | {
       readonly kind: "argumentMismatch";
       readonly name: string;
       readonly span: Span;
       readonly argument: Span;
+      readonly parameter: string;
+      readonly parameters: number;
       readonly mismatch: ConformanceError;
     }
   /**
@@ -450,7 +456,7 @@ function evaluateNode<E>(
       const fn = lookup.function(node.name, node.nameSpan, span);
       if (!fn.ok) return fn;
       const arity =
-        fn.value.kind === "defined" ? ONE_ARGUMENT : fn.value.fn.arity;
+        fn.value.kind === "defined" ? arityOf(fn.value.fn) : fn.value.fn.arity;
       const given = node.arguments.length;
       if (given < arity.min || given > arity.max) {
         return err({
@@ -464,30 +470,31 @@ function evaluateNode<E>(
       if (fn.value.kind === "builtin") {
         return applyBuiltin(fn.value.fn, expr, lookup, primitives, context);
       }
-      const argumentExpr = node.arguments[0]!;
-      const argument = evaluate(argumentExpr, lookup, primitives, context);
-      if (!argument.ok) return argument;
-      const conformance = checkConformance(
-        argument.value.dimension,
-        fn.value.fn.argument.quantity.dimension,
-        primitives,
-      );
-      if (!conformance.ok) {
-        return err({
-          kind: "argumentMismatch",
-          name: node.name,
-          span,
-          argument: argumentExpr.span,
-          mismatch: conformance.error,
-        });
+      const defined = fn.value.fn;
+      const values: Quantity[] = [];
+      for (const [i, argumentExpr] of node.arguments.entries()) {
+        const argument = evaluate(argumentExpr, lookup, primitives, context);
+        if (!argument.ok) return argument;
+        const parameter = defined.parameters[i]!;
+        const conformance = checkConformance(
+          argument.value.dimension,
+          parameter.unit.quantity.dimension,
+          primitives,
+        );
+        if (!conformance.ok) {
+          return err({
+            kind: "argumentMismatch",
+            name: node.name,
+            span,
+            argument: argumentExpr.span,
+            parameter: parameter.name,
+            parameters: defined.parameters.length,
+            mismatch: conformance.error,
+          });
+        }
+        values.push(argument.value);
       }
-      const value = applyFunction(
-        fn.value.fn,
-        argument.value,
-        lookup,
-        primitives,
-        context,
-      );
+      const value = applyFunction(defined, values, lookup, primitives, context);
       if (value.ok) return value;
       const { error } = value;
       return err(
@@ -570,25 +577,24 @@ function applyBuiltin<E>(
 }
 
 /**
- * The value of `fn` at `argument`: its body evaluated with the parameter
- * bound to `argument`, which must conform to the unit the parameter
- * takes, as the call case checks before calling this.
+ * The value of `fn` at `args`: its body evaluated with each parameter
+ * bound to the argument in its position, which must conform to the unit
+ * the parameter takes, as the call case checks before calling this.
  */
 export function applyFunction<E>(
   fn: UnitFunction,
-  argument: Quantity,
+  args: readonly Quantity[],
   lookup: Lookup<E>,
   primitives: Primitives,
   context: NumberContext,
 ): Result<Quantity, BodyError<E>> {
-  return evaluateBound(
-    fn.body,
-    fn.parameter,
-    argument,
-    lookup,
-    primitives,
-    context,
+  const bindings = new Map(
+    fn.parameters.map((parameter, i): [string, Quantity] => [
+      parameter.name,
+      args[i]!,
+    ]),
   );
+  return evaluateBound(fn.body, bindings, lookup, primitives, context);
 }
 
 /**
@@ -606,8 +612,7 @@ export function invertFunction<E>(
 ): Result<Quantity, BodyError<E>> {
   return evaluateBound(
     inverse.body,
-    inverse.parameter,
-    value,
+    new Map([[inverse.parameter, value]]),
     lookup,
     primitives,
     context,
@@ -615,22 +620,22 @@ export function invertFunction<E>(
 }
 
 /**
- * `body` evaluated with `name` bound to `value`. The bound name is resolved
- * before any unit or prefix, and every other name through `lookup`, whose
- * failures are boxed on the way in and unboxed on the way out, so that
- * they come back apart from the body's own.
+ * `body` evaluated with each name of `bindings` bound to its value. A
+ * bound name is resolved before any unit or prefix, and every other name
+ * through `lookup`, whose failures are boxed on the way in and unboxed on
+ * the way out, so that they come back apart from the body's own.
  */
 function evaluateBound<E>(
   body: Expr,
-  name: string,
-  value: Quantity,
+  bindings: ReadonlyMap<string, Quantity>,
   lookup: Lookup<E>,
   primitives: Primitives,
   context: NumberContext,
 ): Result<Quantity, BodyError<E>> {
   const bound: Lookup<Boxed<E>> = {
     unit: (unit, span) => {
-      if (unit === name) return ok(value);
+      const value = bindings.get(unit);
+      if (value !== undefined) return ok(value);
       const found = lookup.unit(unit, span);
       return found.ok ? found : err({ kind: "lookup", error: found.error });
     },

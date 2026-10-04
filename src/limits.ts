@@ -35,9 +35,12 @@
 // stage 2's probe timed a cube root, the costliest operation it had.
 // The expression is evaluated through the evaluator at that one precision,
 // not the pipeline's retry schedule, against a table of the one primitive
-// the angle needs, built at the same context. Stage 8 revises the budget
-// from measurements of the special functions; the operations and the
-// budget are named in one place here so that nothing else changes.
+// the angle needs, built at the same context. The special functions are
+// not in the composite, and the budget stands (D25 of the plan): a cap low
+// enough for their ceiling pass would put out of reach values that are in
+// reach, and keeping the interface responsive while such a pass runs is
+// issue #118's. The operations and the budget are named in one place here,
+// so that a change to either touches nothing else.
 //
 // The budget is per pass: the retry schedule doubles, so an expression that
 // runs to the ceiling costs about twice its last pass, and 50 ms a pass

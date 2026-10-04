@@ -1708,9 +1708,13 @@ Planned extensions, listed to show that they fit without reshaping the core:
   the `Scaled` midpoint and the decimal mode, the rational display, the
   exact functions and the Gamma and Beta families, and the user-function
   extensions. Stage 6's eight remaining special functions are deferred
-  ([#115](https://github.com/bsidhom/pwa-units/issues/115)), and stage
-  8, a runtime study of whether the slowest functions need a worker, is
-  provisional.
+  ([#115](https://github.com/bsidhom/pwa-units/issues/115)). Stage 8
+  searches for the costliest expressions and records them as a
+  catalogue and as a stress benchmark, run apart from the commit
+  checks: the target for keeping the interface responsive
+  ([#118](https://github.com/bsidhom/pwa-units/issues/118), outside the
+  plan) and for making the kernels cheaper. The limits keep their
+  defaults (D25).
 - **More of the user functions.** Stage 7 deferred four extensions, each
   to an issue of its own: a bare call's value shown in its function's
   result annotation

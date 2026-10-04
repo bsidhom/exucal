@@ -221,7 +221,7 @@ export class AppShell extends LitElement {
       opacity: 0.6;
     }
 
-    .link {
+    footer .link {
       padding: 0;
       border: none;
       color: LinkText;
@@ -349,25 +349,21 @@ export class AppShell extends LitElement {
       case "downloading":
         return quiet("downloading…");
       case "waiting":
-        return this.renderUpdateLink(status.build);
+        return html`<button
+          type="button"
+          class="link"
+          title=${ifDefined(status.build)}
+          @click=${applyUpdate}
+        >
+          ${
+            status.build === undefined
+              ? "update"
+              : `update to ${shortBuildId(status.build)}`
+          }
+        </button>`;
       case "applying":
         return quiet("updating…");
     }
-  }
-
-  /**
-   * The link that switches to the waiting update, naming its build if it
-   * said which, as the footer and the update check both show it.
-   */
-  private renderUpdateLink(build: string | undefined) {
-    return html`<button
-      type="button"
-      class="link"
-      title=${ifDefined(build)}
-      @click=${applyUpdate}
-    >
-      ${build === undefined ? "update" : `update to ${shortBuildId(build)}`}
-    </button>`;
   }
 
   /**
@@ -487,9 +483,10 @@ export class AppShell extends LitElement {
    * What the user's check found, once it has gone through. It follows the
    * worker's status rather than the check's own result, so it agrees with
    * the footer however late a browser reports the new worker a check found,
-   * and keeps up with any check made since: an update downloading, waiting
-   * (the link that applies it) or being applied, or else up to date. A
-   * failed check says so unless an update has turned up all the same.
+   * and keeps up with any check made since: an update downloading, ready
+   * (the footer has the link that applies it) or being applied, or else up
+   * to date. A failed check says so unless an update has turned up all the
+   * same.
    */
   private renderCheckResult() {
     const check = this.updateCheck;
@@ -501,7 +498,7 @@ export class AppShell extends LitElement {
       case "downloading":
         return "Downloading…";
       case "waiting":
-        return this.renderUpdateLink(status.build);
+        return "Update ready";
       case "applying":
         return "Updating…";
       default:

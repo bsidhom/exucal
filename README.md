@@ -99,9 +99,9 @@ a fraction of a second and sets them; it runs only when pressed.
 The panel's "Check for updates" button asks at once whether a new version
 of the app has been deployed, rather than waiting for the app's own checks
 (see Offline behavior below), and says under it what it found: "Up to
-date", "Downloading…" while a new version downloads, then the "update to
-…" link that switches to it, as the footer shows it, or "Couldn't check
-(offline?)". It is not there in development or in a browser without
+date", "Downloading…" while a new version downloads, then "Update ready"
+once the footer's "update to …" link can switch to it, or "Couldn't
+check (offline?)". It is not there in development or in a browser without
 service workers, which have no service worker to ask.
 
 An answer shows every digit asked for when the computation can vouch for

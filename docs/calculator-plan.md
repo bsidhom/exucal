@@ -5226,6 +5226,14 @@ task chooses, and the pipeline's behavior and results are the same
 either way. The worker and the deadline are the sweeps' runner
 (src/testing/edges.ts) where it fits.
 
+As it landed, `resolve` takes an optional `PassObserver`, called as each
+pass starts and ends, and `evaluateText`, `convertText` and `outcomeOf`
+pass one through, so the harness times `outcomeOf` itself rather than a
+copy of the schedule. A case's settings are the panel's `Settings`,
+checked as a stored entry is. The worker posts each pass as it starts,
+and the deadline starts once the table is built, so that it bounds the
+evaluations and not the build.
+
 Behavior: none. Tests, ordinary ones since each case takes
 milliseconds: the harness on a case that certifies at once, on one that
 runs to the ceiling (its passes are the schedule's), and on one that

@@ -68,6 +68,7 @@ import {
   convertText,
   evaluateText,
   type Conversion,
+  type PassObserver,
   type Side,
 } from "./core/pipeline.ts";
 import type { Precision } from "./core/rounding.ts";
@@ -133,7 +134,8 @@ export type Outcome =
  * The outcome for `haveText` converted into `wantString` against `table`
  * at `context`: the lines to show, the error to show, or nothing for a
  * blank `have`. The texts are trimmed here; the errors are located in the
- * texts as typed.
+ * texts as typed. `observe`, when given, sees each pass of the retry loop
+ * (pipeline.ts), for the stress harness.
  */
 export function outcomeOf(
   table: UnitTable,
@@ -141,6 +143,7 @@ export function outcomeOf(
   wantString: string,
   context: NumberContext,
   fractions = false,
+  observe?: PassObserver,
 ): Outcome {
   if (haveText.trim() === "") return { kind: "empty" };
   const assumptions: Assumption[] = [];
@@ -151,6 +154,7 @@ export function outcomeOf(
     context,
     fractions,
     assumptions,
+    observe,
   );
   return outcome.kind === "result" ? warned(outcome, assumptions) : outcome;
 }
@@ -180,12 +184,19 @@ function outcomeAssuming(
   context: NumberContext,
   fractions: boolean,
   assumptions: Assumption[],
+  observe: PassObserver | undefined,
 ): Outcome {
   const have = haveText.trim();
   const want = wantString.trim();
   if (want === "") {
     // What `have` is in the primitives: the unit's definition, in effect.
-    const quantity = evaluateText(table, haveText, context, assumptions);
+    const quantity = evaluateText(
+      table,
+      haveText,
+      context,
+      assumptions,
+      observe,
+    );
     if (!quantity.ok) {
       return {
         kind: "error",
@@ -208,6 +219,7 @@ function outcomeAssuming(
     wantString,
     context,
     assumptions,
+    observe,
   );
   if (!conversion.ok) {
     const { error } = conversion;

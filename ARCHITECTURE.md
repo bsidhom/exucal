@@ -1637,6 +1637,17 @@ tests. The rest of the directory is what they share:
   which times a function several times after one untimed run and takes
   the shortest, the estimate least disturbed by whatever else the machine
   is doing.
+- `bench/stress/harness.ts` is stage 8's cost harness
+  (docs/calculator-plan.md, 8.1): it measures one case, the two texts and
+  the panel's settings, as the converter runs it, `outcomeOf` in wall
+  time. Each case runs in a worker of its own, so that it starts with
+  empty memos; the worker builds the system table at the case's ceiling,
+  untimed, then evaluates the case cold and again warm, timing each pass
+  through the pipeline's optional `PassObserver`, which changes nothing
+  it observes. A deadline that starts once the table is built ends a
+  case that runs too long, recorded with the pass that was running,
+  since no timer can interrupt a synchronous evaluation. Its tests are
+  ordinary ones, run by `pnpm test`.
 - `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
   drawn from the letters `n` to `z` and unit names from `a` to `m`, so
   that no name is ambiguous and the ambiguity check scans everything: its

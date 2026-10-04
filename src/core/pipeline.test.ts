@@ -1497,3 +1497,22 @@ test("a function want checks the inverse's conditions on the have, and the funct
     assumption("lin", "y > 0 m", 1, "inverse"),
   ]);
 });
+
+test("an observer sees each pass start and end, and changes nothing", () => {
+  const events: string[] = [];
+  const observed = evaluateText(table, "sin(pi() radian)", CONTEXT, [], (e) =>
+    events.push(`${e.phase} ${e.index} ${e.working.precision}`),
+  );
+  assert.deepEqual(observed, evaluateText(table, "sin(pi() radian)", CONTEXT));
+  assert.deepEqual(
+    events,
+    schedule(CONTEXT).flatMap((working, i) => [
+      `start ${i} ${working.precision}`,
+      `end ${i} ${working.precision}`,
+    ]),
+  );
+  // A conversion that certifies at once is one pass.
+  const once: string[] = [];
+  convertText(table, "3 ft", "in", CONTEXT, [], (e) => once.push(e.phase));
+  assert.deepEqual(once, ["start", "end"]);
+});

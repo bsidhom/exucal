@@ -22,7 +22,7 @@ import {
   type Edge,
 } from "./core/builtin.ts";
 import type { UnitListError } from "./core/convert.ts";
-import type { Arity, EvaluateError } from "./core/evaluate.ts";
+import type { Arity, Assumption, EvaluateError } from "./core/evaluate.ts";
 import type { Rejection } from "./core/expr.ts";
 import { ZERO, equals, format, type Refusal } from "./core/scaled.ts";
 import type {
@@ -121,6 +121,19 @@ export function describeTextError(
     }
     case "callFailed":
       return `Cannot compute ${quote(slice(text, error.span))}: the definition of ${quote(error.name)} ${describeBody(error.error, primitives)}.`;
+    case "conditionFailed": {
+      const values = error.arguments.map(
+        ({ parameter, span }) => `${parameter} is ${quote(slice(text, span))}`,
+      );
+      return `Cannot compute ${quote(slice(text, error.span))}: ${quote(error.name)} requires ${quote(error.condition)}, and ${conjunction(values)}.`;
+    }
+    case "undecidedCondition": {
+      const call = quote(slice(text, error.span));
+      const undecided = `could not tell whether ${describeAssumed(error.assumption)}`;
+      if (error.error === undefined)
+        return `Cannot compute ${call}: ${undecided}.`;
+      return `Cannot compute ${call} at this precision: ${undecided}, and assuming so, the definition of ${quote(error.name)} ${describeBody(error.error, primitives)}.`;
+    }
     case "builtinArgument":
       return describeBuiltinArgument(error, text, primitives);
     case "domainError": {
@@ -407,6 +420,13 @@ export function describeConversionError(
           return describeInverseFailed(error.error, have, primitives);
         case "noInverse":
           return `${quote(error.error.name)} has no inverse, so it cannot be the unit to convert to. Define ${quote(`~${error.error.name}(y) = …`)} to give it one.`;
+        case "wantConditionFailed": {
+          const name = quote(error.error.name);
+          const condition = quote(error.error.condition);
+          return error.error.of === "inverse"
+            ? `Cannot convert ${quote(have.trim())} into ${name}: the inverse of ${name} requires ${condition}, which ${quote(have.trim())} does not meet.`
+            : `Cannot convert ${quote(have.trim())} into ${name}: the argument it would take does not meet ${condition}, which ${name} requires.`;
+        }
         case "inverseMismatch":
           return describeInverseMismatch(error.error, have, primitives);
         default:
@@ -517,11 +537,40 @@ function describeBody(error: EvaluateError, primitives: Primitives): string {
       return `passes ${quote(error.name)} an argument that does not conform`;
     case "callFailed":
       return `calls ${quote(error.name)}, whose definition ${describeBody(error.error, primitives)}`;
+    case "conditionFailed":
+      return `calls ${quote(error.name)} outside its condition ${quote(error.condition)}`;
+    case "undecidedCondition":
+      return error.error === undefined
+        ? `calls ${quote(error.name)} where it could not tell whether ${describeAssumed(error.assumption)}`
+        : `calls ${quote(error.name)}, which could not tell whether ${describeAssumed(error.assumption)}, and whose definition, assuming so, ${describeBody(error.error, primitives)}`;
     case "builtinArgument":
       return `passes ${quote(error.name)} ${ruleWants(error.error, primitives)}`;
     case "domainError":
       return `applies ${quote(error.name)} to ${domainValue(error.reason)}`;
   }
+}
+
+/**
+ * The warning beside a value computed under an `assumption`, a condition
+ * that could not be decided at the ceiling (or in decimal mode's one
+ * pass), as one sentence: the value is shown, and the warning says what
+ * it takes for granted.
+ */
+export function describeAssumption(assumption: Assumption): string {
+  const plural = assumption.of === "function" && assumption.parameters !== 1;
+  return `Could not tell whether ${describeAssumed(assumption)}; the value assumes ${plural ? "they do" : "it does"}.`;
+}
+
+/** What an assumed condition is about, and the condition: `the argument of "tempC" meets "x >= -273.15"`. */
+function describeAssumed(assumption: Assumption): string {
+  const name = quote(assumption.name);
+  const condition = quote(assumption.condition);
+  if (assumption.of === "inverse") {
+    return `the value given to the inverse of ${name} meets ${condition}`;
+  }
+  return assumption.parameters === 1
+    ? `the argument of ${name} meets ${condition}`
+    : `the arguments of ${name} meet ${condition}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -571,6 +620,12 @@ function slice(text: string, span: Span): string {
 /** The character (one code point) of `text` at `pos`. */
 function characterAt(text: string, pos: number): string {
   return String.fromCodePoint(text.codePointAt(pos)!);
+}
+
+/** `a`, `a and b`, `a, b and c`. */
+function conjunction(items: readonly string[]): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
 /** `a`, `a or b`, `a, b or c`: the alternatives, as the parser labels them. */

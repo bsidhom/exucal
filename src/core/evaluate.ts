@@ -53,7 +53,20 @@
 // number when it has no annotation), and bound to the parameters by
 // position while the body is evaluated through the same lookup, so that
 // the body's units resolve as the user's would, and the parameters before
-// any unit of their names. A built-in (docs/builtins.md) has its
+// any unit of their names. Between the two, the function's conditions are
+// checked on the bound arguments (`checkConditions`, docs/functions.md,
+// "Conditions"), each comparison decided on balls by `decide`, as one
+// conjunction in three-valued logic: a certain failure is a
+// `conditionFailed` at the call, naming the condition and the arguments
+// it mentions; a term that fails is the call's `callFailed` when nothing
+// before it was undecided, and undecided otherwise; and an undecided
+// condition is assumed to hold. An assumption is added to the collector
+// `evaluate` may be given only once the body has computed, a call
+// gathering its own and its body's apart, so that a body failing under
+// one is an `undecidedCondition` naming it, which may be the
+// assumption's doing, where a body failing under none is a `callFailed`.
+// Without a collector, assumptions are dropped, which no caller that can
+// meet a condition does: the build and the pipeline each pass one. A built-in (docs/builtins.md) has its
 // arguments evaluated, its dimension rule applied to their dimensions
 // (`builtinArgument` at the call when the rule fails, carrying the rule's
 // error and the spans of all the arguments, so that a message can write
@@ -128,7 +141,13 @@ import {
   toRational,
   type Scaled,
 } from "./scaled.ts";
-import { isExact, type BallError } from "./ball.ts";
+import {
+  isExact,
+  orderOf,
+  type Ball,
+  type BallError,
+  type Order,
+} from "./ball.ts";
 import type {
   Builtin,
   DimensionRuleError,
@@ -136,10 +155,12 @@ import type {
   Edge,
 } from "./builtin.ts";
 import type { NumberContext } from "./context.ts";
+import type { Comparator } from "./definitions.ts";
 import { err, ok, type Result } from "./result.ts";
 import type { Span } from "./span.ts";
 import {
   arityOf,
+  type FunctionCondition,
   type ResolvedFunction,
   type UnitFunction,
   type UnitInverse,
@@ -260,6 +281,36 @@ export type EvaluateError =
       readonly error: EvaluateError;
     }
   /**
+   * The call of `name` at `span` has arguments that certainly fail its
+   * `condition`, as written; `arguments` are the parameters the condition
+   * mentions, each with the span of its argument.
+   */
+  | {
+      readonly kind: "conditionFailed";
+      readonly name: string;
+      readonly span: Span;
+      readonly condition: string;
+      readonly arguments: readonly {
+        readonly parameter: string;
+        readonly span: Span;
+      }[];
+    }
+  /**
+   * The call of `name` at `span` went on under the `assumption` of a
+   * condition it could not decide, its own or one of a call within it,
+   * and then failed as `error` says (spans into the definitions text), a
+   * failure that may be the assumption's; without `error`, the condition
+   * was left undecided where nothing could carry it, in a unit's
+   * definition.
+   */
+  | {
+      readonly kind: "undecidedCondition";
+      readonly name: string;
+      readonly span: Span;
+      readonly assumption: Assumption;
+      readonly error?: EvaluateError;
+    }
+  /**
    * The built-in `name`, called at `span` with the arguments at
    * `arguments`, does not accept their dimensions, as `error` says.
    */
@@ -285,6 +336,19 @@ export type EvaluateError =
     };
 
 /**
+ * A condition a call assumed to hold, since it could not be decided at
+ * the working precision: the `condition` as written, of the function
+ * `name` or (`of`) its inverse, which has `parameters` parameters, so that
+ * a message can say "its argument" for one.
+ */
+export type Assumption = {
+  readonly name: string;
+  readonly of: "function" | "inverse";
+  readonly condition: string;
+  readonly parameters: number;
+};
+
+/**
  * Why a function's body failed to evaluate for a value: its own failure,
  * whose spans are into the definitions text, or a failure of the lookup,
  * which is the caller's and comes back unchanged.
@@ -308,8 +372,9 @@ export function evaluate<E>(
   lookup: Lookup<E>,
   primitives: Primitives,
   context: NumberContext,
+  assumptions?: Assumption[],
 ): Result<Quantity, EvaluateError | E> {
-  const result = evaluateNode(expr, lookup, primitives, context);
+  const result = evaluateNode(expr, lookup, primitives, context, assumptions);
   if (!result.ok) return result;
   // A settle refuses only in decimal mode, a rounded midpoint past the
   // exponent bound, which is the node's result and is located at it.
@@ -360,6 +425,7 @@ function evaluateNode<E>(
   lookup: Lookup<E>,
   primitives: Primitives,
   context: NumberContext,
+  assumptions: Assumption[] | undefined,
 ): Result<Quantity, EvaluateError | E> {
   const { node, span } = expr;
   switch (node.kind) {
@@ -376,9 +442,21 @@ function evaluateNode<E>(
     case "unit":
       return lookup.unit(node.name, span);
     case "binary": {
-      const left = evaluate(node.left, lookup, primitives, context);
+      const left = evaluate(
+        node.left,
+        lookup,
+        primitives,
+        context,
+        assumptions,
+      );
       if (!left.ok) return left;
-      const right = evaluate(node.right, lookup, primitives, context);
+      const right = evaluate(
+        node.right,
+        lookup,
+        primitives,
+        context,
+        assumptions,
+      );
       if (!right.ok) return right;
       switch (node.op) {
         case "add":
@@ -417,7 +495,13 @@ function evaluateNode<E>(
       }
     }
     case "pow": {
-      const base = evaluate(node.base, lookup, primitives, context);
+      const base = evaluate(
+        node.base,
+        lookup,
+        primitives,
+        context,
+        assumptions,
+      );
       if (!base.ok) return base;
       const exponent = reduceExponent(node.exponent, context.maxBits);
       if (!exponent.ok) {
@@ -448,7 +532,13 @@ function evaluateNode<E>(
       return locate(power, span);
     }
     case "neg": {
-      const operand = evaluate(node.operand, lookup, primitives, context);
+      const operand = evaluate(
+        node.operand,
+        lookup,
+        primitives,
+        context,
+        assumptions,
+      );
       if (!operand.ok) return operand;
       return ok(negateQuantity(operand.value));
     }
@@ -468,12 +558,25 @@ function evaluateNode<E>(
         });
       }
       if (fn.value.kind === "builtin") {
-        return applyBuiltin(fn.value.fn, expr, lookup, primitives, context);
+        return applyBuiltin(
+          fn.value.fn,
+          expr,
+          lookup,
+          primitives,
+          context,
+          assumptions,
+        );
       }
       const defined = fn.value.fn;
       const values: Quantity[] = [];
       for (const [i, argumentExpr] of node.arguments.entries()) {
-        const argument = evaluate(argumentExpr, lookup, primitives, context);
+        const argument = evaluate(
+          argumentExpr,
+          lookup,
+          primitives,
+          context,
+          assumptions,
+        );
         if (!argument.ok) return argument;
         const parameter = defined.parameters[i]!;
         const conformance = checkConformance(
@@ -494,13 +597,74 @@ function evaluateNode<E>(
         }
         values.push(argument.value);
       }
-      const value = applyFunction(defined, values, lookup, primitives, context);
-      if (value.ok) return value;
+      // The call's own assumptions, and its body's, are gathered apart, so
+      // that a body failing under one is told from a body failing outright.
+      const assumed: Assumption[] = [];
+      const bindings = bindParameters(defined, values);
+      const checked = checkConditions(
+        defined,
+        "function",
+        defined.conditions,
+        bindings,
+        lookup,
+        primitives,
+        context,
+        assumed,
+      );
+      if (!checked.ok) {
+        const { error } = checked;
+        switch (error.kind) {
+          case "lookup":
+            return err(error.error);
+          case "body":
+            return err({
+              kind: "callFailed",
+              name: node.name,
+              span,
+              error: error.error,
+            });
+          case "failed":
+            return err({
+              kind: "conditionFailed",
+              name: node.name,
+              span,
+              condition: error.condition.text,
+              arguments: error.condition.mentions.map((mentioned) => ({
+                parameter: mentioned,
+                span: node.arguments[
+                  defined.parameters.findIndex(
+                    (parameter) => parameter.name === mentioned,
+                  )
+                ]!.span,
+              })),
+            });
+        }
+      }
+      const value = evaluateBound(
+        defined.body,
+        bindings,
+        lookup,
+        primitives,
+        context,
+        assumed,
+      );
+      if (value.ok) {
+        assumptions?.push(...assumed);
+        return value;
+      }
       const { error } = value;
+      if (error.kind === "lookup") return err(error.error);
+      const [assumption] = assumed;
       return err(
-        error.kind === "lookup"
-          ? error.error
-          : { kind: "callFailed", name: node.name, span, error: error.error },
+        assumption === undefined
+          ? { kind: "callFailed", name: node.name, span, error: error.error }
+          : {
+              kind: "undecidedCondition",
+              name: node.name,
+              span,
+              assumption,
+              error: error.error,
+            },
       );
     }
   }
@@ -518,12 +682,13 @@ function applyBuiltin<E>(
   lookup: Lookup<E>,
   primitives: Primitives,
   context: NumberContext,
+  assumptions: Assumption[] | undefined,
 ): Result<Quantity, EvaluateError | E> {
   const { node, span } = expr;
   if (node.kind !== "call") throw new Error("A built-in is applied by a call");
   const values: Quantity[] = [];
   for (const argument of node.arguments) {
-    const value = evaluate(argument, lookup, primitives, context);
+    const value = evaluate(argument, lookup, primitives, context, assumptions);
     if (!value.ok) return value;
     values.push(value.value);
   }
@@ -579,7 +744,9 @@ function applyBuiltin<E>(
 /**
  * The value of `fn` at `args`: its body evaluated with each parameter
  * bound to the argument in its position, which must conform to the unit
- * the parameter takes, as the call case checks before calling this.
+ * the parameter takes, as the call case checks before calling this. The
+ * function's conditions are the caller's to check (`checkConditions`),
+ * and the assumptions of calls in the body go to `assumptions`.
  */
 export function applyFunction<E>(
   fn: UnitFunction,
@@ -587,21 +754,36 @@ export function applyFunction<E>(
   lookup: Lookup<E>,
   primitives: Primitives,
   context: NumberContext,
+  assumptions?: Assumption[],
 ): Result<Quantity, BodyError<E>> {
-  const bindings = new Map(
+  return evaluateBound(
+    fn.body,
+    bindParameters(fn, args),
+    lookup,
+    primitives,
+    context,
+    assumptions,
+  );
+}
+
+/** Each parameter of `fn` bound to the argument of `args` in its position. */
+export function bindParameters(
+  fn: UnitFunction,
+  args: readonly Quantity[],
+): ReadonlyMap<string, Quantity> {
+  return new Map(
     fn.parameters.map((parameter, i): [string, Quantity] => [
       parameter.name,
       args[i]!,
     ]),
   );
-  return evaluateBound(fn.body, bindings, lookup, primitives, context);
 }
 
 /**
  * The argument a function gives `value` for, by its `inverse`: the
  * inverse's body evaluated with its parameter bound to `value`, which must
  * conform to the function's result, as the pipeline checks before calling
- * this.
+ * this. The inverse's conditions are the caller's to check.
  */
 export function invertFunction<E>(
   inverse: UnitInverse,
@@ -609,6 +791,7 @@ export function invertFunction<E>(
   lookup: Lookup<E>,
   primitives: Primitives,
   context: NumberContext,
+  assumptions?: Assumption[],
 ): Result<Quantity, BodyError<E>> {
   return evaluateBound(
     inverse.body,
@@ -616,8 +799,152 @@ export function invertFunction<E>(
     lookup,
     primitives,
     context,
+    assumptions,
   );
 }
+
+/**
+ * Why a function's or an inverse's conditions are not met: the
+ * `condition` certainly fails, or one of its terms failed to evaluate, as
+ * a body does, while every comparison before it certainly held.
+ */
+export type ConditionFailure<E> =
+  | { readonly kind: "failed"; readonly condition: FunctionCondition }
+  | BodyError<E>;
+
+/**
+ * Whether the arguments of `bindings` meet the `conditions` of `owner`, a
+ * function or (`of`) its inverse, in three-valued logic
+ * (docs/functions.md, "Conditions"): the conditions left to right, and
+ * the comparisons of each left to right, each decided on balls by
+ * `decide`. The first certain failure ends the check, even after an
+ * undecided comparison; a term that fails to evaluate ends it too when
+ * every comparison before it certainly held, and otherwise leaves its
+ * condition undecided. A condition left undecided is assumed to hold and
+ * recorded in `assumptions`, after any assumptions of calls in its terms,
+ * only once the whole check has passed.
+ */
+export function checkConditions<E>(
+  owner: { readonly name: string; readonly parameters: readonly unknown[] },
+  of: Assumption["of"],
+  conditions: readonly FunctionCondition[],
+  bindings: ReadonlyMap<string, Quantity>,
+  lookup: Lookup<E>,
+  primitives: Primitives,
+  context: NumberContext,
+  assumptions: Assumption[],
+): Result<undefined, ConditionFailure<E>> {
+  const terms: Assumption[] = [];
+  const assumed: Assumption[] = [];
+  for (const condition of conditions) {
+    let undecided = assumed.length > 0;
+    let left = evaluateBound(
+      condition.terms[0]!,
+      bindings,
+      lookup,
+      primitives,
+      context,
+      terms,
+    );
+    let decided = true;
+    for (const [i, comparator] of condition.comparators.entries()) {
+      if (!left.ok) break;
+      const right = evaluateBound(
+        condition.terms[i + 1]!,
+        bindings,
+        lookup,
+        primitives,
+        context,
+        terms,
+      );
+      if (!right.ok) {
+        left = right;
+        break;
+      }
+      const verdict = decide(
+        left.value.magnitude,
+        comparator,
+        right.value.magnitude,
+        context,
+      );
+      if (verdict === "fails") return err({ kind: "failed", condition });
+      if (verdict === "undecided") {
+        undecided = true;
+        decided = false;
+      }
+      left = right;
+    }
+    if (!left.ok) {
+      // A guard before the term may yet exclude what it fails on.
+      if (!undecided) return left;
+      decided = false;
+    }
+    if (!decided) {
+      assumed.push({
+        name: owner.name,
+        of,
+        condition: condition.text,
+        parameters: owner.parameters.length,
+      });
+    }
+  }
+  assumptions.push(...terms, ...assumed);
+  return ok(undefined);
+}
+
+/** What a comparison of two balls says: certainly true, certainly false, or not decided. */
+export type Verdict = "holds" | "fails" | "undecided";
+
+/**
+ * Whether `a comparator b` holds, from where `a` lies against `b`
+ * (`orderOf`): the table of docs/functions.md ("Conditions"), in which an
+ * end exactly on the other side leaves a strict comparison undecided,
+ * since a ball is closed, and two exact values always decide.
+ */
+export function decide(
+  a: Ball,
+  comparator: Comparator,
+  b: Ball,
+  context: NumberContext,
+): Verdict {
+  return VERDICTS[comparator][orderOf(a, b, context)];
+}
+
+const VERDICTS: Readonly<Record<Comparator, Readonly<Record<Order, Verdict>>>> =
+  {
+    "<": {
+      below: "holds",
+      touchingBelow: "undecided",
+      at: "fails",
+      touchingAbove: "fails",
+      above: "fails",
+      straddles: "undecided",
+    },
+    "<=": {
+      below: "holds",
+      touchingBelow: "holds",
+      at: "holds",
+      touchingAbove: "undecided",
+      above: "fails",
+      straddles: "undecided",
+    },
+    ">": {
+      below: "fails",
+      touchingBelow: "fails",
+      at: "fails",
+      touchingAbove: "undecided",
+      above: "holds",
+      straddles: "undecided",
+    },
+    ">=": {
+      below: "fails",
+      touchingBelow: "undecided",
+      at: "holds",
+      touchingAbove: "holds",
+      above: "holds",
+      straddles: "undecided",
+    },
+  };
 
 /**
  * `body` evaluated with each name of `bindings` bound to its value. A
@@ -631,6 +958,7 @@ function evaluateBound<E>(
   lookup: Lookup<E>,
   primitives: Primitives,
   context: NumberContext,
+  assumptions: Assumption[] | undefined,
 ): Result<Quantity, BodyError<E>> {
   const bound: Lookup<Boxed<E>> = {
     unit: (unit, span) => {
@@ -644,7 +972,7 @@ function evaluateBound<E>(
       return found.ok ? found : err({ kind: "lookup", error: found.error });
     },
   };
-  const result = evaluate(body, bound, primitives, context);
+  const result = evaluate(body, bound, primitives, context, assumptions);
   if (result.ok) return result;
   const { error } = result;
   return err(error.kind === "lookup" ? error : { kind: "body", error });

@@ -418,11 +418,44 @@ with `~` and the function's name, whose parameter stands for the
 function's value and whose expression gives back the argument:
 
 ```
-tempC(x) = x K + 273.15 K
+tempC(x) | x >= -273.15 = x K + 273.15 K
 ~tempC(y) = y / K - 273.15
-tempF(x) = (x + 459.67) degF
+tempF(x) | x >= -459.67 = (x + 459.67) degF
 ~tempF(y) = y / degF - 459.67
 ```
+
+The part after `|`, before the `=`, is a condition the arguments must
+meet: `tempC(-300)` is an error that names `x >= -273.15`, and so is
+`-5 K` converted to `tempC`, whose reading would lie below absolute zero.
+A condition is two or more expressions joined by `<`, `<=`, `>` or `>=`
+(or `≤` and `≥`), all pointing one way: `x > 0`, `0 < p < 1`,
+`0 K <= t <= 373.15 K`. Several are separated by commas and must all
+hold, and they may relate parameters, `| a < b, a <= x <= b`, or bound any
+expression of them, `| x^2 + y^2 <= 1`. A condition is checked left to
+right before the body, so one may guard the next: in `| x > 0, ln(x) > 1`
+a negative argument fails the first and never reaches `ln`. Its sides
+must be of one dimension (`| t > 0` for `t: K` is an error; write `0 K`),
+and it must mention a parameter. An inverse may have conditions too,
+`~neper(y) | y > 0 = ln(y)`, which restrict what can be converted into
+its function. Nothing checks a function's result against a range.
+
+A condition is decided on the value's bounds, with no tolerance: exact
+values are compared exactly, so `tempC(-273.15)` meets `x >= -273.15`
+and `0.1 + 0.2 <= 0.3` holds. An inexact value can straddle the bound,
+and then the condition cannot be decided: the calculator computes again
+at more digits, and if the doubt remains at the last pass, it shows the
+value anyway, marked `≈`, with a warning that names the condition it
+assumed: `tempC(approx(-273.15))` is `≈ 0 K`, with "Could not tell
+whether the argument of "tempC" meets "x >= -273.15"; the value assumes
+it does." Unlike a built-in's edge, where `floor(sqrt(2)^2)` is refused
+since a guess would be a wrong value, a condition restricts a body that
+computes on either side of it, so the value shown is the body's own, and
+only whether the definition admits the argument is in doubt. A condition
+that restates an identity, `| x - x >= 0`, can never be decided for an
+inexact argument, so a condition should bound the arguments rather than
+restate what the body guarantees. A unit defined by a call whose
+condition cannot be decided fails to load, having nowhere to show the
+warning.
 
 A parameter without an annotation is a plain number. One may be
 annotated with the unit it takes, `dozen(n: in) = 12 n`, and a converted
@@ -449,10 +482,8 @@ argument found, and an answer it does not give back is refused, as
 coming from an inverse that is wrong. A function's name may not read as
 a prefix followed by a unit, for the reason a list's may not, and no
 prefix applies to a function: `ktempC(1)` is a call of nothing, not a
-thousand Celsius readings. There is no domain checking yet: `tempC(-300)`
-is a negative temperature rather than an error. Nor can a call be
-inverted inside an expression; only the unit to convert to may name a
-function.
+thousand Celsius readings. A call cannot be inverted inside an
+expression; only the unit to convert to may name a function.
 
 ### Functions in expressions
 

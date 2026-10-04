@@ -3,6 +3,8 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import {
   parseDefinitions,
+  type Comparator,
+  type Condition,
   type Definition,
   type DefinitionRejection,
 } from "./definitions.ts";
@@ -414,6 +416,7 @@ test("a name with a parameter defines a function: a signature, `=` and a body", 
       name: "tempC",
       parameters: [{ name: "x", annotation: undefined }],
       result: undefined,
+      conditions: [],
       body: exprAt("x K + 273.15 K", text.indexOf("x K")),
       span: spanOf(text, "tempC(x) = x K + 273.15 K"),
     },
@@ -427,6 +430,7 @@ test("a line that starts with ~ is the inverse of the function of its name", () 
       kind: "inverse",
       name: "tempC",
       parameter: "y",
+      conditions: [],
       body: exprAt("y / K - 273.15", text.indexOf("y /")),
       span: { start: 0, end: text.length },
     },
@@ -491,17 +495,139 @@ test("an inverse takes no annotation", () => {
   });
 });
 
-test("conditions and dimension variables are reserved, and rejected as not supported yet", () => {
-  assert.deepEqual(failed("f(x) | x > 0 = x"), {
-    kind: "rejected",
-    span: { start: 5, end: 7 },
-    reason: { kind: "unsupported", feature: "conditions" },
+/** The conditions of the one function or inverse `text` defines. */
+function conditionsOf(text: string): readonly Condition[] {
+  const [definition] = parsed(text);
+  assert.ok(
+    definition?.kind === "function" || definition?.kind === "inverse",
+    inspect(definition),
+  );
+  return definition.conditions;
+}
+
+/**
+ * The condition written as `written` in `text`, its terms the texts of
+ * `terms` in order, each found after the one before, joined by
+ * `comparators`.
+ */
+function conditionIn(
+  text: string,
+  written: string,
+  terms: readonly string[],
+  comparators: readonly Comparator[],
+): Condition {
+  const start = text.indexOf(written);
+  assert.ok(start >= 0, written);
+  let from = start;
+  const exprs = terms.map((term) => {
+    const at = text.indexOf(term, from);
+    from = at + term.length;
+    return exprAt(term, at);
   });
-  assert.deepEqual(failed("~f(y) | y > 0 = y"), {
+  return {
+    terms: exprs,
+    comparators,
+    text: written,
+    span: { start, end: start + written.length },
+  };
+}
+
+test("a condition bounds one side, either way round, or both, in either direction", () => {
+  const shapes: [string, string[], Comparator[]][] = [
+    ["x > 0", ["x", "0"], [">"]],
+    ["0 < x", ["0", "x"], ["<"]],
+    ["x < 1", ["x", "1"], ["<"]],
+    ["1 > x", ["1", "x"], [">"]],
+    ["x >= -273.15", ["x", "-273.15"], [">="]],
+    ["0 <= x < 1", ["0", "x", "1"], ["<=", "<"]],
+    ["1 > x >= 0", ["1", "x", "0"], [">", ">="]],
+    ["0 K <= x <= 373.15 K", ["0 K", "x", "373.15 K"], ["<=", "<="]],
+  ];
+  for (const [written, terms, comparators] of shapes) {
+    const text = `f(x) | ${written} = x`;
+    assert.deepEqual(conditionsOf(text), [
+      conditionIn(text, written, terms, comparators),
+    ]);
+  }
+  // `≤` and `≥` are `<=` and `>=`, and the text keeps them as written.
+  const text = "f(x) | 0 ≤ x, x ≥ -1 = x";
+  assert.deepEqual(conditionsOf(text), [
+    conditionIn(text, "0 ≤ x", ["0", "x"], ["<="]),
+    conditionIn(text, "x ≥ -1", ["x", "-1"], [">="]),
+  ]);
+});
+
+test("several conditions are separated by commas, and may relate parameters", () => {
+  const text = "uniformcdf(x, a, b) | a < b, a <= x <= b = (x - a) / (b - a)";
+  assert.deepEqual(conditionsOf(text), [
+    conditionIn(text, "a < b", ["a", "b"], ["<"]),
+    conditionIn(text, "a <= x <= b", ["a", "x", "b"], ["<=", "<="]),
+  ]);
+  const [definition] = parsed(text);
+  assert.ok(definition?.kind === "function");
+  assert.deepEqual(definition.body, exprAt("(x - a) / (b - a)", 43));
+  // After a result's annotation, and on an inverse.
+  const annotated = "band(t: K): K | 0 K <= t = t";
+  assert.deepEqual(conditionsOf(annotated), [
+    conditionIn(annotated, "0 K <= t", ["0 K", "t"], ["<="]),
+  ]);
+  const inverse = "~neper(y) | y > 0 = ln(y)";
+  assert.deepEqual(conditionsOf(inverse), [
+    conditionIn(inverse, "y > 0", ["y", "0"], [">"]),
+  ]);
+});
+
+test("the comparisons of a chain point one way", () => {
+  assert.deepEqual(failed("f(x) | 0 < x > 1 = x"), {
     kind: "rejected",
-    span: { start: 6, end: 8 },
-    reason: { kind: "unsupported", feature: "conditions" },
+    span: { start: 7, end: 16 },
+    reason: { kind: "mixedComparison" },
   });
+  assert.deepEqual(failed("f(x) | x > 0, 1 >= x <= 2 = x"), {
+    kind: "rejected",
+    span: { start: 14, end: 25 },
+    reason: { kind: "mixedComparison" },
+  });
+});
+
+test("`<=` and `>=` are one token, never `<` or `>` before the `=`", () => {
+  const text = "f(x) | x <= 1 = x";
+  assert.deepEqual(conditionsOf(text), [
+    conditionIn(text, "x <= 1", ["x", "1"], ["<="]),
+  ]);
+  const [definition] = parsed(text);
+  assert.ok(definition?.kind === "function");
+  assert.deepEqual(definition.body, exprAt("x", 16));
+});
+
+test("a term ends at a comparison, at a comma outside parentheses, or at the `=`", () => {
+  // The comma inside a call belongs to the call.
+  const call = "f(x, y) | hypot(x, y) < 1 = x";
+  assert.deepEqual(conditionsOf(call), [
+    conditionIn(call, "hypot(x, y) < 1", ["hypot(x, y)", "1"], ["<"]),
+  ]);
+  // Comparisons bind looser than anything in a term.
+  const sums = "f(a, b, c, d) | a + b < c d = a";
+  assert.deepEqual(conditionsOf(sums), [
+    conditionIn(sums, "a + b < c d", ["a + b", "c d"], ["<"]),
+  ]);
+  const negated = "f(x) | x > -1 = x";
+  assert.deepEqual(conditionsOf(negated), [
+    conditionIn(negated, "x > -1", ["x", "-1"], [">"]),
+  ]);
+  // A comparison is no part of an expression, inside parentheses or not.
+  const inside = "f(x) | (x < 1) + 1 > 0 = x";
+  const error = failed(inside);
+  assert.equal(error.kind, "unexpected");
+  assert.ok(error.kind === "unexpected" && error.pos === inside.indexOf("<"));
+  // A condition is a chain of two terms at least, and `|` comes once.
+  const alone = failed("f(x) | x = x");
+  assert.ok(alone.kind === "unexpected" && alone.pos === 9, inspect(alone));
+  const twice = failed("f(x) | x > 0 | x < 1 = x");
+  assert.ok(twice.kind === "unexpected" && twice.pos === 13, inspect(twice));
+});
+
+test("dimension variables are reserved, and rejected as not supported yet", () => {
   assert.deepEqual(failed("hypot[D](a: D) = a"), {
     kind: "rejected",
     span: { start: 0, end: 6 },
@@ -631,6 +757,17 @@ const ANNOTATIONS = [
   "m^(1/2)",
 ];
 const BODIES = ["x", "2 x + 1", "exp(x)", "(x + 1) K", "sqrt(x^2) / 3", "-x"];
+/** Conditions as the parser reads them, whatever the parameters are named. */
+const CONDITIONS = [
+  "x > 0",
+  "0 <= y < 1",
+  "a + b < c d",
+  "hypot(x, y) <= 1",
+  "1 ≥ t",
+  "x^2 + y^2 <= 1",
+  "-273.15 <= mass",
+  "1 kg > ν >= -2 kg",
+];
 const BLANKS = ["", " ", "  ", "\t", " \t "];
 
 function pick<T>(k: Key, from: readonly T[]): T {
@@ -651,6 +788,8 @@ type DrawnHead = {
   /** None to three for a function, one for an inverse, all distinct. */
   readonly parameters: readonly DrawnParameter[];
   readonly result: string | undefined;
+  /** None to two conditions, as written. */
+  readonly conditions: readonly string[];
   readonly body: string;
   /** Where the first annotation, the `)` of the parameters and the `=` start in `text`, for the faults. */
   readonly annotationAt: number | undefined;
@@ -662,6 +801,7 @@ function drawHead(k: Key): DrawnHead {
   const [kind, name, count, parameter, annotation, result, body, comment] =
     split(k, 8);
   const blank = foldIn(k, 9);
+  const condition = foldIn(k, 10);
   const inverse = between(kind!, 0, 3) === 0;
   const ws = (i: number) => pick(foldIn(blank, i), BLANKS);
   // Distinct names: a rotation of the list from a drawn start.
@@ -700,6 +840,12 @@ function drawHead(k: Key): DrawnHead {
   if (chosen.result !== undefined) {
     text += ":" + ws(6) + chosen.result + ws(7);
   }
+  const conditions = Array.from({ length: between(condition, 0, 2) }, (_, i) =>
+    pick(foldIn(condition, i + 1), CONDITIONS),
+  );
+  if (conditions.length > 0) {
+    text += "|" + ws(14) + conditions.join("," + ws(15)) + ws(16);
+  }
   const equalsAt = text.length;
   text += "=" + ws(8) + chosen.body;
   if (between(comment!, 0, 1) === 0) text += ws(9) + "# a comment";
@@ -708,6 +854,7 @@ function drawHead(k: Key): DrawnHead {
     inverse,
     parameters,
     ...chosen,
+    conditions,
     annotationAt,
     closeAt,
     equalsAt,
@@ -747,6 +894,18 @@ test("drawn function and inverse lines parse to what they were built from", () =
     } else {
       assert.fail(where);
     }
+    assert.deepEqual(
+      definition.conditions.map((condition) => condition.text),
+      drawn.conditions,
+      where,
+    );
+    for (const condition of definition.conditions) {
+      assert.equal(
+        drawn.text.slice(condition.span.start, condition.span.end),
+        condition.text,
+        where,
+      );
+    }
     const { body } = definition;
     assert.equal(
       drawn.text.slice(body.span.start, body.span.end),
@@ -760,15 +919,19 @@ test("faults injected into drawn lines are rejected where they are written", () 
   for (const drawn of DRAWN) {
     const where = `in ${JSON.stringify(drawn.text)}`;
     const { text, equalsAt } = drawn;
-    // Conditions, before the `=`: rejected at the `|`.
-    const conditions = `${text.slice(0, equalsAt)}| x > 0 ${text.slice(equalsAt)}`;
-    const reserved = failed(conditions);
-    assert.ok(reserved.kind === "rejected", where);
-    assert.deepEqual(reserved.reason, {
-      kind: "unsupported",
-      feature: "conditions",
-    });
-    assert.equal(reserved.span.start, equalsAt, where);
+    // A mixed chain, as a condition of its own before the `=`: rejected
+    // at the whole chain.
+    const separator = drawn.conditions.length === 0 ? "| " : ", ";
+    const mixed = `${text.slice(0, equalsAt)}${separator}0 < x > 1 ${text.slice(equalsAt)}`;
+    assert.deepEqual(
+      failed(mixed),
+      {
+        kind: "rejected",
+        span: { start: equalsAt + 2, end: equalsAt + 11 },
+        reason: { kind: "mixedComparison" },
+      },
+      where,
+    );
     // A scale in the parameter's annotation: rejected at the number, or,
     // on an inverse, the annotation itself.
     if (drawn.annotationAt !== undefined) {

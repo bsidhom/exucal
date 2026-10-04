@@ -204,3 +204,85 @@ test("with the setting off, every line is as it was", () => {
     );
   }
 });
+
+// ---------------------------------------------------------------------------
+// Conditions
+
+const ASSUMED_TEMP_C =
+  'Could not tell whether the argument of "tempC" meets "x >= -273.15"; the value assumes it does.';
+
+/** The outcome for `have` into `want` at `context`, without fractions. */
+function outcome(
+  have: string,
+  want: string,
+  context: NumberContext = CONTEXT,
+): Outcome {
+  return outcomeOf(table, have, want, context, false);
+}
+
+/** The warnings of a result. */
+function warnings(result: Outcome): readonly string[] | undefined {
+  assert.equal(result.kind, "result", inspect(result));
+  return (result as Extract<Outcome, { kind: "result" }>).warnings;
+}
+
+test("a value that assumes a condition is shown, `≈`, with a warning apart from its note", () => {
+  // At the ceiling, the reading is still within noise of absolute zero.
+  const zero = outcome("tempC(approx(-273.15))", "");
+  assert.deepEqual(lines("tempC(approx(-273.15))", "", false), [
+    "tempC(approx(-273.15)) ≈ 0 K (within 2e-4047 of zero)",
+  ]);
+  assert.deepEqual(warnings(zero), [ASSUMED_TEMP_C]);
+  // At once in decimal mode, which runs one pass.
+  const decimal: NumberContext = { ...CONTEXT, mode: "decimal" };
+  assert.deepEqual(warnings(outcome("tempC(approx(-273.15))", "", decimal)), [
+    ASSUMED_TEMP_C,
+  ]);
+  // A value whose digits are all certain is `≈` all the same, on the
+  // reciprocal line too, and the same assumption is warned of once.
+  assert.deepEqual(lines("tempC(approx(-273.15)) + 1 K", "K", false), [
+    "tempC(approx(-273.15)) + 1 K ≈ 1 K",
+    "K ≈ 1 (tempC(approx(-273.15)) + 1 K)",
+  ]);
+  assert.deepEqual(
+    warnings(
+      outcome("tempC(approx(-273.15)) + tempC(approx(-273.15)) + 1 K", "K"),
+    ),
+    [ASSUMED_TEMP_C],
+  );
+  // A unit list's line, and a function want's.
+  const list = "(tempC(approx(-273.15)) + 1 K) / K * 3700 s";
+  assert.deepEqual(lines(list, "hr;min;s", false), [
+    `${list} ≈ 1 hr + 1 min + 40 s`,
+  ]);
+  assert.deepEqual(warnings(outcome(list, "hr;min;s")), [ASSUMED_TEMP_C]);
+  assert.deepEqual(lines("approx(1 K) - 1 K", "tempC", false), [
+    "approx(1 K) - 1 K ≈ tempC(-273.15)",
+  ]);
+  assert.deepEqual(warnings(outcome("approx(1 K) - 1 K", "tempC")), [
+    ASSUMED_TEMP_C,
+  ]);
+  // A value that assumes nothing has no warnings.
+  assert.equal(warnings(outcome("tempC(-273.15)", "")), undefined);
+});
+
+test("a reading below absolute zero is refused, naming the condition", () => {
+  assert.deepEqual(outcome("tempC(-300)", ""), {
+    kind: "error",
+    side: "have",
+    message:
+      'Cannot compute "tempC(-300)": "tempC" requires "x >= -273.15", and x is "-300".',
+  });
+  assert.deepEqual(outcome("tempF(-500)", "K"), {
+    kind: "error",
+    side: "have",
+    message:
+      'Cannot compute "tempF(-500)": "tempF" requires "x >= -459.67", and x is "-500".',
+  });
+  assert.deepEqual(outcome("-5 K", "tempC"), {
+    kind: "error",
+    side: "want",
+    message:
+      'Cannot convert "-5 K" into "tempC": the argument it would take does not meet "x >= -273.15", which "tempC" requires.',
+  });
+});

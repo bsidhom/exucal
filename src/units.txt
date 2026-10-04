@@ -198,13 +198,16 @@ rankine     degR
 # boiling point of water as a temperature in kelvin, and `tempF(212)` into
 # `tempC` is `tempC(100)`. The parameter has no annotation, so it is a plain
 # number, and the result is a temperature, inferred from the body. The
-# line with a `~` is the inverse, which recovers the number from a reading
-# and is what lets a function be the unit to convert to.
+# condition after the `|` holds the reading at or above absolute zero, so
+# `tempC(-300)` is refused, and so is `-5 K` into `tempC`, whose reading
+# would lie below it. The line with a `~` is the inverse, which recovers
+# the number from a reading and is what lets a function be the unit to
+# convert to.
 
-tempC(x)    = x K + 273.15 K
-~tempC(y)   = y / K - 273.15
-tempF(x)    = (x + 459.67) degF
-~tempF(y)   = y / degF - 459.67
+tempC(x) | x >= -273.15 = x K + 273.15 K
+~tempC(y)               = y / K - 273.15
+tempF(x) | x >= -459.67 = (x + 459.67) degF
+~tempF(y)               = y / degF - 459.67
 
 # Logarithmic units, as functions of a plain number too, since a level is
 # not a multiple of a unit but the logarithm of a ratio: `decibel(20)` is

@@ -53,6 +53,17 @@
 // annotation whose ball contains zero (an exact zero, or an inexact value
 // around it) is rejected as well, since a recovered argument is written
 // as a count of the parameter's and nothing is a count of either.
+// A function's conditions are checked as its body is, over dimensions:
+// each term's dimension taken with the parameters bound, each conforming
+// to the next (`nonconformingComparison`), and each condition mentioning a
+// parameter (`conditionWithoutParameter`), the names it mentions kept
+// for the messages; a call in a condition is a dependency of the walk, so
+// a cycle through one is reported like any other. What the build does
+// evaluate (a unit's body, a list's units, an annotation) may call a
+// function whose condition cannot be decided, and since a unit has
+// nowhere to carry the warning and the table is built at the ceiling,
+// where no later pass could decide it, that is an `undecidedCondition`
+// that fails the build (`evaluateDecided`).
 //
 // An inverse, `~name(p) = body`, is optional, and keyed by its function's
 // name apart from every namespace, so a second one for a function is a
@@ -64,7 +75,7 @@
 // argument of such a function can be recovered from its value
 // (`inverseArity` otherwise), and its body's dimension, with its own
 // parameter bound to the function's result, must conform to what that
-// parameter takes.
+// parameter takes, and its conditions are checked as a function's are.
 // The finished functions carry their inverses.
 //
 // The first failure ends the build. Errors within a body (an unknown name,
@@ -73,7 +84,7 @@
 // errors about a definition as a whole (a duplicate, a prefix whose body is
 // not a plain number) carry the definition, whose span covers its text.
 
-import type { Definition, WrittenExpr } from "./definitions.ts";
+import type { Condition, Definition, WrittenExpr } from "./definitions.ts";
 import {
   DIMENSIONLESS,
   checkConformance,
@@ -86,7 +97,13 @@ import {
 } from "./dimension.ts";
 import { convertToList, type UnitListError } from "./convert.ts";
 import { dimensionOf, type DimensionLookup } from "./dimension-of.ts";
-import { evaluate, type EvaluateError, type Lookup } from "./evaluate.ts";
+import {
+  evaluate,
+  type Assumption,
+  type EvaluateError,
+  type Lookup,
+} from "./evaluate.ts";
+import type { Expr } from "./expr.ts";
 import { walker, type Cycle, type Visit } from "./graph.ts";
 import { findAmbiguity, resolveName, type Split } from "./names.ts";
 import { multiplyQuantities, type Quantity } from "./quantity.ts";
@@ -103,6 +120,7 @@ import {
   resolveFunction,
   type ListedUnit,
   type LookupError,
+  type FunctionCondition,
   type FunctionParameter,
   type UnitFunction,
   type UnitInverse,
@@ -216,6 +234,29 @@ export type BuildError =
       readonly definition: FunctionDefinition;
       readonly unit: "argument";
       readonly parameter: string;
+    }
+  /**
+   * The condition at `span` of the function or inverse `definition`
+   * compares terms, at `left` and `right`, that do not conform, as
+   * `mismatch` says with the left term's dimension as its `have`.
+   */
+  | {
+      readonly kind: "nonconformingComparison";
+      readonly definition: FunctionDefinition | InverseDefinition;
+      readonly span: Span;
+      readonly left: Span;
+      readonly right: Span;
+      readonly mismatch: ConformanceError;
+    }
+  /**
+   * The condition at `span` of the function or inverse `definition`
+   * mentions none of its parameters, so it could only always hold or
+   * never.
+   */
+  | {
+      readonly kind: "conditionWithoutParameter";
+      readonly definition: FunctionDefinition | InverseDefinition;
+      readonly span: Span;
     }
   | EvaluateError;
 
@@ -427,11 +468,21 @@ function evaluateNode(
         }),
       );
     case "unit": {
-      const body = evaluate(definition.body, lookup, primitives, context);
+      const body = evaluateDecided(
+        definition.body,
+        lookup,
+        primitives,
+        context,
+      );
       return body.ok ? ok(quantity(body.value)) : body;
     }
     case "prefix": {
-      const body = evaluate(definition.body, lookup, primitives, context);
+      const body = evaluateDecided(
+        definition.body,
+        lookup,
+        primitives,
+        context,
+      );
       if (!body.ok) return body;
       const { dimension } = body.value;
       return isDimensionless(dimension)
@@ -495,18 +546,27 @@ function checkFunction(
     }
     parameters.push({ name: parameter.name, unit });
   }
+  const dimensions = boundDimensions(
+    new Map(
+      parameters.map(({ name, unit }) => [name, unit.quantity.dimension]),
+    ),
+    lookup,
+  );
   const result = dimensionOf(
     definition.body,
-    boundDimensions(
-      new Map(
-        parameters.map(({ name, unit }) => [name, unit.quantity.dimension]),
-      ),
-      lookup,
-    ),
+    dimensions,
     primitives,
     context.maxBits,
   );
   if (!result.ok) return err(result.error);
+  const conditions = checkConditions(
+    definition,
+    definition.conditions,
+    dimensions,
+    primitives,
+    context,
+  );
+  if (!conditions.ok) return conditions;
   if (definition.result !== undefined) {
     const annotated = evaluateAnnotation(
       definition,
@@ -534,6 +594,7 @@ function checkFunction(
     name: definition.name,
     parameters,
     result: result.value,
+    conditions: conditions.value,
     body: definition.body,
     inverse: undefined,
   });
@@ -577,9 +638,21 @@ function checkInverse(
       parameters: fn.parameters.length,
     });
   }
+  const dimensions = boundDimensions(
+    new Map([[definition.parameter, fn.result]]),
+    lookup,
+  );
+  const conditions = checkConditions(
+    definition,
+    definition.conditions,
+    dimensions,
+    primitives,
+    context,
+  );
+  if (!conditions.ok) return conditions;
   const body = dimensionOf(
     definition.body,
-    boundDimensions(new Map([[definition.parameter, fn.result]]), lookup),
+    dimensions,
     primitives,
     context.maxBits,
   );
@@ -596,7 +669,11 @@ function checkInverse(
       mismatch: conforms.error,
     });
   }
-  return ok({ parameter: definition.parameter, body: definition.body });
+  return ok({
+    parameter: definition.parameter,
+    conditions: conditions.value,
+    body: definition.body,
+  });
 }
 
 /**
@@ -620,6 +697,110 @@ function boundDimensions(
 }
 
 /**
+ * The conditions of the function or inverse `definition`, once checked:
+ * each term's dimension taken with the parameters bound, as the body's is,
+ * through `dimensions`, so that a call in a term is a dependency of the
+ * walk as a call in the body is; each term conforming to the next, as a
+ * sum's operands must; and each condition mentioning a parameter, which
+ * it keeps the names of.
+ */
+function checkConditions(
+  definition: FunctionDefinition | InverseDefinition,
+  conditions: readonly Condition[],
+  dimensions: DimensionLookup<BuildError>,
+  primitives: Primitives,
+  context: NumberContext,
+): Result<readonly FunctionCondition[], BuildError> {
+  const parameters =
+    definition.kind === "function"
+      ? definition.parameters.map((parameter) => parameter.name)
+      : [definition.parameter];
+  const checked: FunctionCondition[] = [];
+  for (const condition of conditions) {
+    let left: Dimension | undefined;
+    for (const [i, term] of condition.terms.entries()) {
+      const right = dimensionOf(term, dimensions, primitives, context.maxBits);
+      if (!right.ok) return err(right.error);
+      if (left !== undefined) {
+        const conforms = checkConformance(left, right.value, primitives);
+        if (!conforms.ok) {
+          return err({
+            kind: "nonconformingComparison",
+            definition,
+            span: condition.span,
+            left: condition.terms[i - 1]!.span,
+            right: term.span,
+            mismatch: conforms.error,
+          });
+        }
+      }
+      left = right.value;
+    }
+    const named = new Set<string>();
+    for (const term of condition.terms) unitNames(term, named);
+    const mentions = parameters.filter((parameter) => named.has(parameter));
+    if (mentions.length === 0) {
+      return err({
+        kind: "conditionWithoutParameter",
+        definition,
+        span: condition.span,
+      });
+    }
+    checked.push({ ...condition, mentions });
+  }
+  return ok(checked);
+}
+
+/** Adds to `names` every name `expr` uses as a unit, which a parameter is. */
+function unitNames(expr: Expr, names: Set<string>): void {
+  const { node } = expr;
+  switch (node.kind) {
+    case "number":
+      return;
+    case "unit":
+      names.add(node.name);
+      return;
+    case "binary":
+      unitNames(node.left, names);
+      unitNames(node.right, names);
+      return;
+    case "pow":
+      unitNames(node.base, names);
+      return;
+    case "neg":
+      unitNames(node.operand, names);
+      return;
+    case "call":
+      for (const argument of node.arguments) unitNames(argument, names);
+      return;
+  }
+}
+
+/**
+ * `expr` evaluated as a definition's is: with no condition of a call left
+ * undecided, since a unit, a list's unit or an annotation has nowhere to
+ * carry the warning, and a definitions file should not depend on noise.
+ * The table is built at the ceiling, so no later pass could decide it.
+ */
+function evaluateDecided(
+  expr: Expr,
+  lookup: Lookup<BuildError>,
+  primitives: Primitives,
+  context: NumberContext,
+): Result<Quantity, BuildError> {
+  const assumptions: Assumption[] = [];
+  const value = evaluate(expr, lookup, primitives, context, assumptions);
+  const [assumption] = assumptions;
+  if (!value.ok || assumption === undefined) return value;
+  return err({
+    kind: "undecidedCondition",
+    name: assumption.name,
+    span: expr.span,
+    assumption,
+  });
+}
+
+/**
  * The `annotation` of the function `definition`'s `parameter`, or of its
  * result when `parameter` is `undefined`, evaluated, with its text; a
  * ball containing zero is rejected.
@@ -632,7 +813,7 @@ function evaluateAnnotation(
   primitives: Primitives,
   context: NumberContext,
 ): Result<WrittenUnit, BuildError> {
-  const value = evaluate(annotation.expr, lookup, primitives, context);
+  const value = evaluateDecided(annotation.expr, lookup, primitives, context);
   if (!value.ok) return value;
   if (containsZero(value.value.magnitude)) {
     return err(
@@ -658,7 +839,7 @@ function evaluateUnitList(
 ): Result<UnitList, BuildError> {
   const units: ListedUnit[] = [];
   for (const item of definition.items) {
-    const quantity = evaluate(item.expr, lookup, primitives, context);
+    const quantity = evaluateDecided(item.expr, lookup, primitives, context);
     if (!quantity.ok) return quantity;
     units.push({ text: item.text, quantity: quantity.value });
   }

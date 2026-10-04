@@ -39,7 +39,11 @@ import type { EvaluateError } from "./core/evaluate.ts";
 import { convertText, evaluateText } from "./core/pipeline.ts";
 import { DEFAULT_PRECISION } from "./core/rounding.ts";
 import type { UnitTable } from "./core/table.ts";
-import { describeConversionError, describeTextError } from "./messages.ts";
+import {
+  describeAssumption,
+  describeConversionError,
+  describeTextError,
+} from "./messages.ts";
 
 /** The context every test computes at: the working precision, in the default mode. */
 const CONTEXT: NumberContext = {
@@ -801,5 +805,105 @@ test("a value that straddles an edge names the edge", () => {
   assert.equal(
     textMessage("edgex(2)", withBuiltins),
     'Cannot compute "edgex(2)": the definition of "edgex" depends on a value that cannot be told from 1 at this precision.',
+  );
+});
+
+/** A table of functions with conditions, for the messages about them. */
+const conditional: UnitTable = (() => {
+  const parsed = parseDefinitions(
+    [
+      "K  !",
+      "m  !",
+      "logit(p) | 0 < p < 1 = ln(p / (1 - p))",
+      "span(a, b, x) | a < b, a <= x <= b = (x - a) / (b - a)",
+      "outer(x) = logit(x)",
+      "pole(x) | x >= 1 = 1 / (x - 1)",
+      "via(x) = pole(x)",
+      "lin(x) = x m",
+      "~lin(y) | y > 0 m = y / m",
+    ].join("\n"),
+  );
+  assert.ok(parsed.ok, `expected the text to parse, got ${inspect(parsed)}`);
+  const built = buildTable(parsed.value, ceilingContext(CONTEXT));
+  assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
+  return built.value;
+})();
+
+test("a condition that fails names it and the arguments it mentions, quoted from the call", () => {
+  assert.equal(
+    textMessage("logit(1.5)", conditional),
+    'Cannot compute "logit(1.5)": "logit" requires "0 < p < 1", and p is "1.5".',
+  );
+  assert.equal(
+    textMessage("span(0, 1, 2 + 1)", conditional),
+    'Cannot compute "span(0, 1, 2 + 1)": "span" requires "a <= x <= b", and a is "0", b is "1" and x is "2 + 1".',
+  );
+  // Within a definition, by what the definition does.
+  assert.equal(
+    textMessage("outer(2)", conditional),
+    'Cannot compute "outer(2)": the definition of "outer" calls "logit" outside its condition "0 < p < 1".',
+  );
+});
+
+test("a body that fails under an assumed condition names the assumption", () => {
+  assert.equal(
+    textMessage("via(approx(1))", conditional),
+    'Cannot compute "via(approx(1))": the definition of "via" calls "pole", which could not tell whether the argument of "pole" meets "x >= 1", and whose definition, assuming so, depends on a value that cannot be told from zero at this precision.',
+  );
+  const error: EvaluateError = {
+    kind: "undecidedCondition",
+    name: "tempC",
+    span: { start: 0, end: 22 },
+    assumption: {
+      name: "tempC",
+      of: "function",
+      condition: "x >= -273.15",
+      parameters: 1,
+    },
+  };
+  assert.equal(
+    describeTextError(error, "tempC(approx(-273.15))", table.primitives),
+    'Cannot compute "tempC(approx(-273.15))": could not tell whether the argument of "tempC" meets "x >= -273.15".',
+  );
+});
+
+test("a want's conditions are worded for the have or for the argument it would need", () => {
+  assert.equal(
+    conversionMessage("-1 m", "lin", conditional),
+    'Cannot convert "-1 m" into "lin": the inverse of "lin" requires "y > 0 m", which "-1 m" does not meet.',
+  );
+  assert.equal(
+    conversionMessage("-5 K", "tempC"),
+    'Cannot convert "-5 K" into "tempC": the argument it would take does not meet "x >= -273.15", which "tempC" requires.',
+  );
+});
+
+test("an assumed condition's warning says what is assumed, of an argument, of arguments, or of an inverse's value", () => {
+  assert.equal(
+    describeAssumption({
+      name: "tempC",
+      of: "function",
+      condition: "x >= -273.15",
+      parameters: 1,
+    }),
+    'Could not tell whether the argument of "tempC" meets "x >= -273.15"; the value assumes it does.',
+  );
+  assert.equal(
+    describeAssumption({
+      name: "span",
+      of: "function",
+      condition: "a < b",
+      parameters: 3,
+    }),
+    'Could not tell whether the arguments of "span" meet "a < b"; the value assumes they do.',
+  );
+  assert.equal(
+    describeAssumption({
+      name: "lin",
+      of: "inverse",
+      condition: "y > 0 m",
+      parameters: 1,
+    }),
+    'Could not tell whether the value given to the inverse of "lin" meets "y > 0 m"; the value assumes it does.',
   );
 });

@@ -21,9 +21,12 @@
 // and that unit's text as written, since the converter writes a recovered
 // argument in it (`1`, a plain number, for a parameter without an
 // annotation), and its result's dimension, inferred from the body and checked against the result's
-// annotation if it has one; and its inverse, when one is defined, as the
-// inverse's parameter and body. The builder has checked every body's
-// dimension, so a call can fail only on its argument or on a value.
+// annotation if it has one; its conditions as written, each with the
+// parameters it mentions, for the message that says what they were; and
+// its inverse, when one is defined, as the inverse's parameter,
+// conditions and body. The builder has checked every body's and every
+// condition's dimensions, so a call can fail only on its argument (its
+// conformance or its conditions) or on a value.
 // The built-ins (builtins.ts, docs/builtins.md) share the namespace: the
 // table carries the set it was built against, the builder having kept the
 // two disjoint, and the name of a call resolves among the defined
@@ -35,6 +38,7 @@
 import type { NumberContext } from "./context.ts";
 import type { Ball } from "./ball.ts";
 import type { Builtin, Builtins } from "./builtin.ts";
+import type { Condition } from "./definitions.ts";
 import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
 import type { Arity, Lookup } from "./evaluate.ts";
 import type { Expr } from "./expr.ts";
@@ -78,6 +82,10 @@ export type ListedUnit = WrittenUnit;
  * A function: `body` is its value, in which each of `parameters` stands
  * for the argument in its position. `result` is the dimension of the body,
  * which the builder inferred and checked against the result's annotation.
+ * `conditions` are what its arguments must meet, checked by a call before
+ * the body (docs/functions.md, "Conditions"), the builder having checked
+ * that the terms of each conform to one another and that each mentions a
+ * parameter.
  * `inverse` is the function's inverse, when one is defined, which only a
  * function of one parameter may have: the builder has checked that its
  * body conforms to what that parameter takes, with its own parameter of
@@ -87,6 +95,7 @@ export type UnitFunction = {
   readonly name: string;
   readonly parameters: readonly FunctionParameter[];
   readonly result: Dimension;
+  readonly conditions: readonly FunctionCondition[];
   readonly body: Expr;
   readonly inverse: UnitInverse | undefined;
 };
@@ -101,10 +110,23 @@ export type FunctionParameter = {
   readonly unit: WrittenUnit;
 };
 
-/** A function's inverse: `body` is the argument that gives the value `parameter` stands for. */
+/**
+ * A function's inverse: `body` is the argument that gives the value
+ * `parameter` stands for, which must meet the `conditions`.
+ */
 export type UnitInverse = {
   readonly parameter: string;
+  readonly conditions: readonly FunctionCondition[];
   readonly body: Expr;
+};
+
+/**
+ * A condition of a function or an inverse, as written, with the names of
+ * the parameters it `mentions`, in the order of the parameters, for the
+ * messages that say what the arguments were.
+ */
+export type FunctionCondition = Condition & {
+  readonly mentions: readonly string[];
 };
 
 /** The name at `span` is neither a unit nor a prefix followed by one. */

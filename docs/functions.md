@@ -2,10 +2,11 @@
 
 Status: the design note of stage 7 (task 7.0 of docs/calculator-plan.md),
 revised from the first design for D23 and D24 and the owner's rulings on
-them. Tasks 7.1, 7.2 and 7.3 have landed: the signature and `=`,
+them. Stage 7 has landed (tasks 7.1 to 7.4): the signature and `=`,
 annotations and the inferred result, the `~` line and the check of an
 inverse at the want, any number of parameters, bound by position, and
-conditions after a `|`, with `name[` reserved. The bracketed form this note replaced is
+conditions after a `|`, with `name[` reserved. "Implementation notes"
+records where the code departed from this note. The bracketed form this note replaced is
 recorded in "The first form" at the end, with its implementation
 notes. The owner ruled on the three
 choices the first draft of this note made: dimension-generic functions
@@ -479,8 +480,8 @@ expression's:
   its body, and a condition costs what the same expression typed inline
   would. Calls inside conditions nest as calls in a body do ("Cost").
 - **A condition that restates an identity never decides.** The
-  conditions `| sin(x)^2 + cos(x)^2 <= 1` and `| x - x >= 0` hold for
-  every argument, but on an inexact one the dependency problem
+  conditions `| sin(x)^2 + cos(x)^2 <= 1`, for an angle `x: radian`, and
+  `| x - x >= 0` hold for every argument, but on an inexact one the dependency problem
   ("Precision and the radius") keeps the ball across the boundary at
   every precision. So every such call runs to the ceiling, and its value
   is shown with the warning of an assumed condition, much as
@@ -797,7 +798,7 @@ twice, so nesting such calls `k` levels deep evaluates the innermost
 expression written out in full costs, so it is no new limit, and the
 ceiling bounds it as it bounds any expression; but a definition that
 reads small can be large, and README ("Functions") and ARCHITECTURE.md
-("Functions") say so (task 7.4).
+("Functions") say so.
 
 ## Where it goes
 
@@ -866,6 +867,86 @@ Each of these has an issue of its own (docs/calculator-plan.md,
   ([#133](https://github.com/bsidhom/pwa-units/issues/133)), with
   dimension variables in brackets and, later, type bounds on them, as
   "Dimension-generic functions" intends.
+
+## Implementation notes
+
+Stage 7 landed as four pull requests, 7.1 to 7.3 and 7.4's, after the
+note itself (#129): [#136](https://github.com/bsidhom/pwa-units/pull/136),
+[#138](https://github.com/bsidhom/pwa-units/pull/138),
+[#139](https://github.com/bsidhom/pwa-units/pull/139) and this record's.
+The code follows the note, with these departures and choices it left
+open:
+
+- **The head is read by parser combinators** (7.1), not a regex over
+  one token, so blanks are free anywhere in a head and `=` ends it. The
+  parse errors are `annotationScale`, `annotationNotUnits`,
+  `inverseAnnotation`, `parameterNamesUnit` at the annotation's use of
+  the name, `duplicateParameter` at the second occurrence (7.2),
+  `mixedComparison` at the whole chain (7.3), and `unsupported` for
+  `name[`, the one piece still reserved.
+- **An inverse is checked outside the walk** (7.1), in its place in the
+  definitions' order, as a list is, requesting its function from the
+  top, which can never close a cycle, so an inverse may call its own
+  function, in its body or in a condition. The checked inverses are
+  attached to their functions at the end of the build. A dangling one
+  is `orphanInverse`, one of a function of other than one parameter is
+  `inverseArity` (7.2), and `functionMismatch` names a function or an
+  inverse.
+- **A parameter without an annotation takes `1`, written `1`** (7.1),
+  so that the want writes its recovered argument as a bare number by
+  the same path as an annotated one's count.
+- **The want's errors are three:** `inverseFailed` for the inverse's body
+  failing at the have; `inverseMismatch` for an answer disjoint from the
+  have, or, carrying the error, for the function's body failing at the
+  recovered argument; and `wantConditionFailed`, of the inverse or of
+  the function (7.3).
+- **A function's arity is its own** (7.2), `arityOf` in table.ts, and a
+  function of no parameters is allowed, as the grammar writes the list.
+  `argumentMismatch` carries the parameter and the count, so a message
+  names the parameter only where there is more than one, and
+  `zeroDeclaredUnit` names the parameter whose annotation is zero.
+- **An assumption travels in a collector** (7.3), the choice the plan
+  left open: `evaluate` takes an optional array, a call gathers its own
+  assumptions and its body's apart and adds them only once the body has
+  computed, and the assumptions of calls in a condition's terms are
+  kept with the condition's own. A pass that fails drops its
+  assumptions with it.
+- **A body failing under an assumption is `undecidedCondition`** (7.3),
+  not an `unresolved` naming the condition as the note first said: it
+  carries the assumption and the body's error, and the retry predicate
+  accepts it as it accepts an `unresolved`. Without an error it is the
+  build's, for a unit, a list's unit or an annotation whose call left a
+  condition undecided.
+- **A comparison places an inexact value against an exact one
+  directly** (7.3), by `position`, rather than through a difference
+  whose rounding could only widen it; two inexact values go through
+  their difference, and one refused as too large counts as across zero.
+  `orderOf` in ball.ts gives the position and `decide` in evaluate.ts
+  the verdict, by the table above.
+- **A later failure beats an earlier assumption** (7.3): the retry loop
+  keeps a result that assumes a condition as the best so far, but a
+  later pass that fails outright ends with its error, not with that
+  result, since more digits may have decided the condition against the
+  argument (`nonneg(1 + 1e-40 - exp(1e-40))`, undecided at the first
+  pass and certainly negative at the third, is refused).
+- **A condition keeps the parameters it mentions** (7.3), in the
+  parameters' order, so that `conditionFailed` quotes each one's
+  argument from the call: `"logit" requires "0 < p < 1", and p is
+"1.5"`. The build's errors for conditions are
+  `nonconformingComparison`, naming both terms, and
+  `conditionWithoutParameter`.
+- **The warnings are the outcome's** (7.3), one per distinct wording, and
+  every line's relation becomes `≈`, so the reciprocal line, a list's
+  line and a function want's line carry them with no word of their own;
+  the converter shows each beneath the lines with a sign and a colour
+  of its own, apart from the notes on digits.
+- **Tests and cost.** A seeded property test draws four hundred function
+  and inverse lines, with zero to three parameters and up to two
+  conditions, and injects each rejected piece where it should be
+  rejected; build.bench.ts builds 500 and 2,000 functions, each calling
+  an earlier one and each with an inverse, and the cost grows about
+  fourfold. The stage added about 11 KB of script, 3.3 KB compressed,
+  measured by `pnpm build` against the commit before it.
 
 ## Alternatives considered
 

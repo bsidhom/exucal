@@ -1,10 +1,10 @@
 # Implementation plan for the calculator
 
-Status: in progress; stages 1 to 6 and the hardening phase before stage
+Status: in progress; stages 1 to 7 and the hardening phase before stage
 5 have landed, and "Stage 1 as it landed", "Stage 2 as it landed",
 "Stage 3 as it landed", "Stage 4 as it landed", "The hardening phase
-as it landed", "Stage 5 as it landed" and "Stage 6 as it landed" at the
-end record where the code diverged from the tasks as first written;
+as it landed", "Stage 5 as it landed", "Stage 6 as it landed" and
+"Stage 7 as it landed" at the end record where the code diverged from the tasks as first written;
 stage 6's task 6.8, the rest of feature 3, was deferred by the owner
 after 6.7 landed and is no longer part of this plan (issue #115 holds
 it); "After stage 4" records the two follow-ups that
@@ -22,7 +22,7 @@ after stage 5 landed and the stage revised against it (D22 added, and
 6.1 to 6.9); its introduction lists the changes, and 6.8 was deferred
 after 6.7 landed. D23 and D24 were added before stage 7, from the
 owner's review of the syntax options for user functions, and stage 7
-was revised against them; its tasks 7.0 to 7.3 have landed. D13 was
+was revised against them before it landed. D13 was
 revised in review of the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -5826,3 +5826,80 @@ the ends of a wide ball; and `logGamma`, `incompleteGammaBall` and
 Bernoulli memo's footprint), #107 (the incomplete gamma's large-order
 regime), #110 (the suite's speed), #112 (the audit of every bound), #114
 (the sweep's modules) and #115 (the rest of feature 3).
+
+## Stage 7 as it landed
+
+The re-read after 7.4. The stage landed as six pull requests: 7.0 to
+7.3, one between 7.1 and 7.2 that fixed the benchmarks, and 7.4's
+([#129](https://github.com/bsidhom/pwa-units/pull/129),
+[#136](https://github.com/bsidhom/pwa-units/pull/136),
+[#137](https://github.com/bsidhom/pwa-units/pull/137),
+[#138](https://github.com/bsidhom/pwa-units/pull/138),
+[#139](https://github.com/bsidhom/pwa-units/pull/139) and 7.4's), each
+reviewed and merged on its own. docs/functions.md's "Implementation
+notes" has each task's departures from the design in full; this is the
+record of the rulings and of what each task left behind:
+
+- **7.0** (#129). docs/functions.md rewritten, and D23 and D24 from the
+  owner's review of the syntax options and of the note: signatures and
+  `~` lines in place of the brackets, the inverse optional; an
+  annotation a check of dimension that changes no value, a unit
+  expression with no number but `1`; a parameter named like a unit its
+  own head's annotations use a hard error for now
+  ([#131](https://github.com/bsidhom/pwa-units/issues/131) to relax it);
+  conditions after a `|`, in either direction, several and relating
+  parameters, of any expressions, decided by the ball model and, when
+  undecided, assumed and shown best-effort with a warning; no assertion
+  on a result's value
+  ([#134](https://github.com/bsidhom/pwa-units/issues/134) to study
+  ranges that narrow balls); the inverse checked at every conversion;
+  and dimension-generic functions deferred
+  ([#133](https://github.com/bsidhom/pwa-units/issues/133)), with type
+  bounds in the sense of ad-hoc polymorphism. The default want of a bare
+  call ([#130](https://github.com/bsidhom/pwa-units/issues/130)) and
+  definitions typed into the converter
+  ([#132](https://github.com/bsidhom/pwa-units/issues/132)) were filed
+  too. The plan's 7.0 to 7.4 were revised against the note in the same
+  change.
+- **7.1** (#136). The new form with one parameter, units.txt's five
+  functions rewritten with their conversions unchanged; at the owner's
+  asking, a seeded property test of drawn heads and a benchmark of
+  functions. The benchmarks, run for the latter, were found failing
+  since stage 6; the owner asked for the cause rather than a commit past
+  it, and [#135](https://github.com/bsidhom/pwa-units/issues/135) was
+  filed and fixed as #137: the benchmarks repaired, `pnpm test:all` now
+  running them after the tests and the sweeps, so that a commit leaves
+  all three green, and ARCHITECTURE.md saying that no test depends on
+  the limits a device has chosen, which the owner asked to have either
+  fixed or recorded. From then on each task was opened on a fresh
+  branch, at the owner's asking.
+- **7.2** (#138). Several parameters bound by position, and, at the
+  owner's asking, functions of no parameters documented: allowed, as
+  the grammar writes the list, without an inverse, and unlike a unit of
+  the same body evaluated afresh at every pass.
+- **7.3** (#139). Conditions, with an assumption carried in a collector
+  the evaluation is given, the choice the task left open; a body
+  failing under one is an `undecidedCondition` of its own rather than an
+  `unresolved`; and a later pass that fails outright beats an earlier
+  result that assumed a condition, a rule found by re-reading the change
+  before it was committed. units.txt gives `tempC` and `tempF` their
+  conditions, and only those, as the task says.
+- **7.4.** This record; README's and ARCHITECTURE.md's notes from D24 on
+  the cost of nested calls and the caveats of a composition against a
+  built-in (README already said, from 7.3, what the warning of an
+  assumed condition means and how it differs from a refusal at a
+  built-in's edge); ARCHITECTURE.md's "Later" without its item on
+  domain and range, pointing to #130 to #134; and docs/functions.md's
+  implementation notes. After `pnpm build` the script is 177 KB (55 KB
+  compressed), against 167 KB (52 KB) at the commit before 7.0 measured
+  by the same build: the stage added about 11 KB of script (3.3 KB
+  compressed). The suite is 960 tests in twelve seconds; the sweeps
+  36,353 cases at the ball level in about 39 s and 274 at the text level
+  in 6 s; and the benchmarks pass.
+
+What stage 8 inherits: user functions that cost what their bodies typed
+out cost, since calls are not memoized and a call evaluates its
+conditions and its body at every pass, so the slowest expression is
+still one of built-ins, and nothing of this stage moves the measurement
+stage 8 begins with. Set aside: #130 to #134, the deferred extensions
+and the study of ranges.

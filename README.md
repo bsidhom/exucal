@@ -485,6 +485,28 @@ prefix applies to a function: `ktempC(1)` is a call of nothing, not a
 thousand Celsius readings. A call cannot be inverted inside an
 expression; only the unit to convert to may name a function.
 
+A defined function is a shorthand for its body, and a call is computed
+as the body typed out in its place would be: its digits are certified
+the same way, and a cancellation inside the body is paid for by the next
+pass's digits, so `em(x) = (exp(x) - 1) / x` gives `≈ 1` at `1e-30`
+without its author writing anything about precision. Three things follow
+that a built-in does not share. A call is not remembered: a body that
+calls a function twice computes it twice, so calls nested `k` deep
+compute the innermost `2^k` times, at every pass, which is what the
+expression written out in full would cost, but a definition that reads
+small can be large. A parameter used twice is two independent copies of
+its argument's bounds, so `x - x` of an inexact argument is a value
+within a bound of zero, never exactly `0`, as the same text typed inline
+would be. And a function written by hand in place of a built-in is
+slower, and can fail where the built-in does not: each step rounds and
+the uncertainties add up, the built-in's exact cases are lost
+(`log(2, 8)` is `= 3`, `ln(8) / ln(2)` is `≈ 3`), and a step can pass a
+limit the result does not (`(exp(x) - exp(-x)) / (exp(x) + exp(-x))` is
+refused at `x = 3e18`, where `tanh(3e18)` is `≈ 1`). In decimal mode
+each step of a body is rounded to the digits, as a hand calculator
+rounds each keystroke, rather than the function's value being rounded
+once.
+
 ### Functions in expressions
 
 Beside the functions the file defines, the app has built-in functions,

@@ -1701,8 +1701,11 @@ tests. The rest of the directory is what they share:
   interface's evaluation on every keystroke meets.
 - `bench/stress/catalogue.stress.ts` is the stress suite (8.3), run by
   `pnpm stress` and discovered by neither `pnpm test` nor `pnpm bench`.
-  It measures each catalogued case on its own, cold and warm, under a
-  deadline of four times its catalogued time and two minutes at least,
+  It measures each catalogued case in a worker of its own, cold and
+  warm, one per core at a time as the search measured them
+  (`STRESS_JOBS` changes it, and `STRESS_SHARD=k/n` runs one shard of
+  the entries), under a deadline of four times its catalogued time and
+  two minutes at least,
   and asserts what holds on any machine: the outcome's kind, value and
   warnings as catalogued (the note after the value, which states a bound
   a sharper kernel may tighten, is left out), and no case past its

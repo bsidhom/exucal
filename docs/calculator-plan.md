@@ -5385,23 +5385,28 @@ warnings but not the note after the value, since a sharper kernel
 tightens the bound the note states without changing the value; each
 case's deadline is four times its catalogued time and two minutes at
 least, and the reference is `exp(1) - exp(1)`, which runs to the
-ceiling in milliseconds. A hang records the issue filed for it.
+ceiling in milliseconds. A hang records the issue filed for it. The
+cases run in parallel, one per core, since the catalogue's timings are
+taken that way too (below), and `STRESS_SHARD=k/n` and node's
+`--test-name-pattern` run part of the suite: the whole takes about
+twenty minutes on four cores, against eighty one at a time.
 
-The first catalogue is the fixed enumeration plus one budgeted run from
-a fresh seed, `15bb91548182473c`, which drew about six hundred cases.
+The first catalogue is the fixed enumeration plus one run of 596 cases from
+a fresh seed, `15bb91548182473c`.
 docs/cost.md gives the findings by cause:
 
-- The incomplete beta function, at 0.7 to 6 s a call at the defaults,
-  is #150. `erf`, `erfc` and the incomplete gamma functions, at 0.5 to
-  3.5 s, are #149, which links #107 for the large arguments. Both come
+- The incomplete beta function, at 0.7 to 7 s a call at the defaults,
+  is #150. `erf`, `erfc` and the incomplete gamma functions, at 0.3 to
+  6 s, are #149, which links #107 for the large arguments. Both come
   down to a full-precision division on every term of a series whose
   term count grows with the bits.
 - The Gamma family at an inexact argument is #125, and its cold run's
   Bernoulli numbers are #103 and #121.
 - The elementary functions stay under the catalogue's floor at the
   defaults.
-- Typing out the enumeration's cases puts every keystroke of 100 ms or
-  more on the last one, the keystroke that completes the expression.
+- At the default digits cap, typing out the entries puts every
+  keystroke of 100 ms or more on the last one, the keystroke that
+  completes the expression.
 
 The search's second step changed. It measured each family's costliest
 case again alone, and the case's family entry with it, which on four

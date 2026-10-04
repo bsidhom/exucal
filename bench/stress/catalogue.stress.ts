@@ -5,10 +5,15 @@
 // target. Neither `pnpm test` nor `pnpm bench` discovers a `*.stress.ts`
 // file, so `pnpm test:all` never runs it: it runs for minutes.
 //
-// Each case is measured with the harness, one at a time so that the
-// timings are the catalogue's kind, cold and warm, under a deadline of
-// four times the time the catalogue recorded for it, and at least two
-// minutes. The suite asserts only what holds on any machine:
+// Each case is measured with the harness, cold and warm, under a deadline
+// of four times the time the catalogue recorded for it, and at least two
+// minutes. The cases run in parallel, one per core (`STRESS_JOBS` to
+// change it), as the search measured them, so that the timings are the
+// catalogue's kind. `STRESS_SHARD=k/n` runs only the entries `i` with
+// `i % n === k`, to share the suite among processes or machines, and
+// node's `--test-name-pattern` selects by name, which starts with the
+// settings profile: `pnpm stress --test-name-pattern='^default'`. The
+// suite asserts only what holds on any machine:
 //
 // - Each case gives the outcome it was catalogued with: the same kind, the
 //   same value and the same warnings, so that an optimization that changes
@@ -26,7 +31,8 @@
 // with the issue that tracks it.
 
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { availableParallelism } from "node:os";
+import { describe, test } from "node:test";
 import { inspect } from "node:util";
 import { perCall, readCatalogue, type Entry } from "./catalogue.ts";
 import {
@@ -36,6 +42,7 @@ import {
   type OutcomeSummary,
   type Run,
 } from "./harness.ts";
+import { inShard, parseShard } from "./journal.ts";
 
 const catalogue = readCatalogue(new URL("catalogue.json", import.meta.url));
 
@@ -68,6 +75,28 @@ function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(2)} s`;
 }
 
+/** The shard of the entries to run, from `STRESS_SHARD`, or all of them. */
+const shard = (() => {
+  const text = process.env["STRESS_SHARD"];
+  if (text === undefined || text === "") return undefined;
+  const parsed = parseShard(text);
+  if (parsed === undefined) {
+    throw new Error(`STRESS_SHARD takes k/n with k below n: ${text}`);
+  }
+  return parsed;
+})();
+
+/** How many cases run at once, from `STRESS_JOBS`, one per core by default. */
+const jobs = (() => {
+  const text = process.env["STRESS_JOBS"];
+  if (text === undefined || text === "") return availableParallelism();
+  const n = Number(text);
+  if (!(Number.isInteger(n) && n >= 1)) {
+    throw new Error(`STRESS_JOBS takes a positive whole number: ${text}`);
+  }
+  return n;
+})();
+
 let referenceMs: number | undefined;
 
 test("the reference case", async (t) => {
@@ -75,44 +104,49 @@ test("the reference case", async (t) => {
   assert.ok(measured.status === "done", inspect(measured));
   referenceMs = measured.warm.ms;
   const m = machine();
-  t.diagnostic(`${m.cpu}, ${m.cores} cores, Node ${m.node}`);
   t.diagnostic(
-    `${REFERENCE.have}: warm ${seconds(measured.warm.ms)}, the unit of the ratios below`,
+    `${m.cpu}, ${m.cores} cores, Node ${m.node}; ${jobs} cases at a time${shard === undefined ? "" : `, shard ${shard.index}/${shard.count}`}`,
+  );
+  t.diagnostic(
+    `${REFERENCE.have}: warm ${seconds(measured.warm.ms)}, alone, the unit of the ratios below`,
   );
 });
 
-for (const entry of catalogue.entries) {
-  const name = `${entry.family.profile}: ${entry.have}${entry.want === "" ? "" : ` into ${entry.want}`}`;
-  test(name, async (t) => {
-    const deadline = deadlineOf(entry);
-    const measured = await measure(
-      { have: entry.have, want: entry.want, settings: entry.settings },
-      deadline,
-    );
-    assert.ok(
-      measured.status === "done",
-      `past its deadline of ${seconds(deadline)}: ${inspect(measured)}`,
-    );
-    for (const [run, then] of [
-      [measured.cold, entry.cold],
-      [measured.warm, entry.warm],
-    ] as const satisfies readonly (readonly [Run, Run])[]) {
-      assert.deepEqual(comparable(run.outcome), comparable(then.outcome));
-    }
-    const ratio =
-      referenceMs === undefined
-        ? ""
-        : `, ${(measured.warm.ms / referenceMs).toFixed(0)} references`;
-    t.diagnostic(
-      `cold ${seconds(measured.cold.ms)} (catalogued ${seconds(entry.cold.ms)}), warm ${seconds(measured.warm.ms)} (catalogued ${seconds(entry.warm.ms)})${ratio}; ${perCall({ warm: measured.warm, calls: entry.calls }).toFixed(0)} ms a call`,
-    );
-    if (measured.warm.ms < MUCH_CHEAPER * entry.warm.ms) {
-      t.diagnostic(
-        `much cheaper than catalogued (on ${entry.machine.cpu}): measure the catalogue again, or let the search replace the entry`,
+describe("the catalogue", { concurrency: jobs }, () => {
+  for (const [i, entry] of catalogue.entries.entries()) {
+    if (!inShard(i, shard)) continue;
+    const name = `${entry.family.profile}: ${entry.have}${entry.want === "" ? "" : ` into ${entry.want}`}`;
+    test(name, async (t) => {
+      const deadline = deadlineOf(entry);
+      const measured = await measure(
+        { have: entry.have, want: entry.want, settings: entry.settings },
+        deadline,
       );
-    }
-  });
-}
+      assert.ok(
+        measured.status === "done",
+        `past its deadline of ${seconds(deadline)}: ${inspect(measured)}`,
+      );
+      for (const [run, then] of [
+        [measured.cold, entry.cold],
+        [measured.warm, entry.warm],
+      ] as const satisfies readonly (readonly [Run, Run])[]) {
+        assert.deepEqual(comparable(run.outcome), comparable(then.outcome));
+      }
+      const ratio =
+        referenceMs === undefined
+          ? ""
+          : `, ${(measured.warm.ms / referenceMs).toFixed(0)} references`;
+      t.diagnostic(
+        `cold ${seconds(measured.cold.ms)} (catalogued ${seconds(entry.cold.ms)}), warm ${seconds(measured.warm.ms)} (catalogued ${seconds(entry.warm.ms)})${ratio}; ${perCall({ warm: measured.warm, calls: entry.calls }).toFixed(0)} ms a call`,
+      );
+      if (measured.warm.ms < MUCH_CHEAPER * entry.warm.ms) {
+        t.diagnostic(
+          `much cheaper than catalogued (on ${entry.machine.cpu}): measure the catalogue again, or let the search replace the entry`,
+        );
+      }
+    });
+  }
+});
 
 test("the hangs are skipped", (t) => {
   for (const hang of catalogue.hangs) {

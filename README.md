@@ -1061,8 +1061,12 @@ noise: such a benchmark guards nothing until it is fixed. `ARCHITECTURE.md`
 
 `pnpm stress` measures every input in `bench/stress/catalogue.json`, the
 costliest inputs the cost search has found (`docs/cost.md` presents them,
-by cause). It runs for minutes, each input cold and warm on its own, so
-`pnpm test:all` does not run it and a commit does not wait on it. Run it
+by cause). It measures each input cold and warm, one per core at a
+time, and takes about twenty minutes on four cores, so `pnpm test:all`
+does not run it and a commit does not wait on it. To run part of it,
+select by settings profile with `pnpm stress
+--test-name-pattern='^default'`, or split it with `STRESS_SHARD=0/2
+pnpm stress` and `STRESS_SHARD=1/2 pnpm stress` on two machines. Run it
 by hand: before and after a change aimed at one of its inputs, after a
 change to a kernel, and when the work on keeping the interface responsive
 (#118) wants a fresh target. It fails only when an input gives a

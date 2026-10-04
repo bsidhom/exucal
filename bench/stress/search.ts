@@ -61,6 +61,7 @@ import {
   type Entry,
   type Hang,
   type Source,
+  roundRun,
   withTyping,
 } from "./catalogue.ts";
 import { machine, measure, typeOut, type Measurement } from "./harness.ts";
@@ -195,8 +196,8 @@ function entryOf(
     commit,
     date,
     machine: measured.machine,
-    cold: measured.cold,
-    warm: measured.warm,
+    cold: roundRun(measured.cold),
+    warm: roundRun(measured.warm),
   };
 }
 
@@ -438,14 +439,35 @@ async function main(): Promise<void> {
     return;
   }
   writeCatalogue(CATALOGUE, updated);
+  const written = [CATALOGUE];
   console.log(`wrote ${fileURLToPath(CATALOGUE)}`);
   if (existsSync(DOC)) {
     const doc = withTable(readFileSync(DOC, "utf8"), catalogueTable(updated));
     if (doc !== undefined) {
       writeFileSync(DOC, doc);
+      written.push(DOC);
       console.log(`regenerated the table in ${fileURLToPath(DOC)}`);
     }
   }
+  formatFiles(written);
+}
+
+/**
+ * Formats `files` with the repository's Prettier, so that a run leaves
+ * `pnpm format:check` green: the JSON and the table are written as they
+ * come and laid out by the same tool as every other file.
+ */
+function formatFiles(files: readonly URL[]): void {
+  execFileSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("node_modules/prettier/bin/prettier.cjs", root)),
+      "--write",
+      "--log-level=warn",
+      ...files.map((file) => fileURLToPath(file)),
+    ],
+    { cwd: fileURLToPath(root), stdio: "inherit" },
+  );
 }
 
 await main();

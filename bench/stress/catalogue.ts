@@ -46,11 +46,52 @@ export type Entry = {
   readonly warm: Run;
   /**
    * The case typed out a keystroke at a time (harness.ts, `typeOut`),
-   * measured when it joined the catalogue; absent for an entry not yet
-   * typed out.
+   * measured when it joined the catalogue, as a summary; absent for an
+   * entry not yet typed out.
    */
-  readonly typing?: Typing;
+  readonly typing?: TypingSummary;
 };
+
+/**
+ * A case typed out, as the catalogue keeps it: how many keystrokes were
+ * typed, whether the typing finished within its deadline, and the
+ * keystrokes that cost at least `COSTLY_KEYSTROKE_MS`, each as the length
+ * typed and its time. The cheaper keystrokes, almost all of them, are left
+ * out: they are noise beside the few that are not.
+ */
+export type TypingSummary = {
+  readonly keystrokes: number;
+  readonly complete: boolean;
+  readonly costly: readonly (readonly [length: number, ms: number])[];
+};
+
+/** A keystroke the catalogue keeps in a typing's summary. */
+export const COSTLY_KEYSTROKE_MS = 10;
+
+/** `typing` as the catalogue keeps it. */
+export function summarizeTyping(typing: Typing): TypingSummary {
+  return {
+    keystrokes: typing.keystrokes.length,
+    complete: typing.complete,
+    costly: typing.keystrokes
+      .filter((k) => k.ms >= COSTLY_KEYSTROKE_MS)
+      .map((k) => [k.length, tenth(k.ms)] as const),
+  };
+}
+
+/** `ms` rounded to a tenth of a millisecond, finer than any timing is worth. */
+function tenth(ms: number): number {
+  return Math.round(ms * 10) / 10;
+}
+
+/** `run` with its timings rounded to a tenth of a millisecond, as the catalogue keeps it. */
+export function roundRun(run: Run): Run {
+  return {
+    ...run,
+    ms: tenth(run.ms),
+    passes: run.passes.map((pass) => ({ ...pass, ms: tenth(pass.ms) })),
+  };
+}
 
 /** A case that did not finish: past its deadline, or its worker failed. */
 export type Hang = {
@@ -179,7 +220,9 @@ export function withTyping(
 ): Catalogue {
   return {
     ...catalogue,
-    entries: catalogue.entries.map((e) => (e === entry ? { ...e, typing } : e)),
+    entries: catalogue.entries.map((e) =>
+      e === entry ? { ...e, typing: summarizeTyping(typing) } : e,
+    ),
   };
 }
 
@@ -265,14 +308,15 @@ export function catalogueTable(catalogue: Catalogue): string {
  * (marked when the typing passed its deadline); dashes when it was not
  * typed out.
  */
-function typingCells(typing: Typing | undefined): [string, string] {
-  if (typing === undefined || typing.keystrokes.length === 0) return ["—", "—"];
-  const slowest = Math.max(...typing.keystrokes.map((k) => k.ms));
-  const slow = typing.keystrokes.filter(
-    (k) => k.ms >= SLOW_KEYSTROKE_MS,
-  ).length;
-  const of = `${slow} of ${typing.keystrokes.length}${typing.complete ? "" : "+"}`;
-  return [duration(slowest), of];
+function typingCells(typing: TypingSummary | undefined): [string, string] {
+  if (typing === undefined || typing.keystrokes === 0) return ["—", "—"];
+  const slowest = Math.max(0, ...typing.costly.map(([, ms]) => ms));
+  const slow = typing.costly.filter(([, ms]) => ms >= SLOW_KEYSTROKE_MS).length;
+  const of = `${slow} of ${typing.keystrokes}${typing.complete ? "" : "+"}`;
+  return [
+    slowest === 0 ? `< ${COSTLY_KEYSTROKE_MS} ms` : duration(slowest),
+    of,
+  ];
 }
 
 /**

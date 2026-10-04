@@ -4773,151 +4773,6 @@
     },
     {
       "family": {
-        "pattern": "identity:incbeta-incbetareg",
-        "functions": ["beta", "incbeta", "incbetareg"],
-        "classes": ["inexact", "large"],
-        "profile": "default"
-      },
-      "have": "incbeta(approx(0.3), 123456.5, approx(0.3)) - incbetareg(approx(0.3), 123456.5, approx(0.3)) beta(approx(0.3), 123456.5)",
-      "want": "",
-      "settings": {
-        "digits": 8,
-        "rounding": "halfAwayFromZero",
-        "mode": "exact",
-        "maxDigits": 1000,
-        "maxBits": 65536,
-        "fractions": false
-      },
-      "calls": 3,
-      "source": {
-        "seed": "15bb91548182473c",
-        "index": 1
-      },
-      "commit": {
-        "hash": "b05c5b616e4c9ec4cb70cad76078cee1b758e193",
-        "dirty": false
-      },
-      "date": "2026-10-04T22:01:17.524Z",
-      "machine": {
-        "node": "v24.21.0",
-        "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
-        "cores": 4,
-        "platform": "linux"
-      },
-      "cold": {
-        "ms": 22920.9,
-        "passes": [
-          {
-            "precision": 18,
-            "ms": 92.3
-          },
-          {
-            "precision": 36,
-            "ms": 40.4
-          },
-          {
-            "precision": 72,
-            "ms": 50.6
-          },
-          {
-            "precision": 144,
-            "ms": 44
-          },
-          {
-            "precision": 288,
-            "ms": 93.2
-          },
-          {
-            "precision": 576,
-            "ms": 281.6
-          },
-          {
-            "precision": 1152,
-            "ms": 951.4
-          },
-          {
-            "precision": 2304,
-            "ms": 4533.3
-          },
-          {
-            "precision": 4040,
-            "ms": 16827.3
-          }
-        ],
-        "outcome": {
-          "kind": "result",
-          "line": "incbeta(approx(0.3), 123456.5, approx(0.3)) - incbetareg(approx(0.3), 123456.5, approx(0.3)) beta(approx(0.3), 123456.5) ≈ 0 (within 7e-4050 of zero)",
-          "warnings": 0
-        }
-      },
-      "warm": {
-        "ms": 16726.2,
-        "passes": [
-          {
-            "precision": 18,
-            "ms": 22.6
-          },
-          {
-            "precision": 36,
-            "ms": 14.7
-          },
-          {
-            "precision": 72,
-            "ms": 19
-          },
-          {
-            "precision": 144,
-            "ms": 46
-          },
-          {
-            "precision": 288,
-            "ms": 67
-          },
-          {
-            "precision": 576,
-            "ms": 275.7
-          },
-          {
-            "precision": 1152,
-            "ms": 791.1
-          },
-          {
-            "precision": 2304,
-            "ms": 3321.4
-          },
-          {
-            "precision": 4040,
-            "ms": 12164.3
-          }
-        ],
-        "outcome": {
-          "kind": "result",
-          "line": "incbeta(approx(0.3), 123456.5, approx(0.3)) - incbetareg(approx(0.3), 123456.5, approx(0.3)) beta(approx(0.3), 123456.5) ≈ 0 (within 7e-4050 of zero)",
-          "warnings": 0
-        }
-      },
-      "typing": {
-        "keystrokes": 120,
-        "complete": true,
-        "costly": [
-          [43, 67.7],
-          [44, 16.2],
-          [47, 10.5],
-          [49, 15.1],
-          [52, 11.4],
-          [55, 14.5],
-          [92, 16.8],
-          [93, 13.1],
-          [94, 22.1],
-          [95, 16.8],
-          [96, 15.2],
-          [97, 13.6],
-          [120, 22049.7]
-        ]
-      }
-    },
-    {
-      "family": {
         "pattern": "cancel",
         "functions": ["incbeta"],
         "classes": ["inexact"],
@@ -6160,6 +6015,132 @@
           [41, 54.9],
           [85, 12497.1]
         ]
+      }
+    },
+    {
+      "family": {
+        "pattern": "identity:incbeta-incbetareg",
+        "functions": ["beta", "incbeta", "incbetareg"],
+        "classes": ["inexact", "large"],
+        "profile": "default"
+      },
+      "have": "incbeta(approx(0.3), 123456.5, approx(0.3)) - incbetareg(approx(0.3), 123456.5, approx(0.3)) beta(approx(0.3), 123456.5)",
+      "want": "",
+      "settings": {
+        "digits": 8,
+        "rounding": "halfAwayFromZero",
+        "mode": "exact",
+        "maxDigits": 1000,
+        "maxBits": 65536,
+        "fractions": false
+      },
+      "calls": 3,
+      "source": {
+        "seed": "15bb91548182473c",
+        "index": 1
+      },
+      "commit": {
+        "hash": "d4b8819c2c372570d579930c9f9bcbe43a0b9c28",
+        "dirty": false
+      },
+      "date": "2026-10-04T23:54:48.154Z",
+      "machine": {
+        "node": "v24.21.0",
+        "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+        "cores": 4,
+        "platform": "linux"
+      },
+      "cold": {
+        "ms": 18125.2,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 68.6
+          },
+          {
+            "precision": 36,
+            "ms": 25.4
+          },
+          {
+            "precision": 72,
+            "ms": 26.8
+          },
+          {
+            "precision": 144,
+            "ms": 45.3
+          },
+          {
+            "precision": 288,
+            "ms": 67.9
+          },
+          {
+            "precision": 576,
+            "ms": 253.7
+          },
+          {
+            "precision": 1152,
+            "ms": 739.2
+          },
+          {
+            "precision": 2304,
+            "ms": 3266.1
+          },
+          {
+            "precision": 4040,
+            "ms": 13625.5
+          }
+        ],
+        "outcome": {
+          "kind": "result",
+          "line": "incbeta(approx(0.3), 123456.5, approx(0.3)) - incbetareg(approx(0.3), 123456.5, approx(0.3)) beta(approx(0.3), 123456.5) ≈ 0 (within 7e-4050 of zero)",
+          "warnings": 0
+        }
+      },
+      "warm": {
+        "ms": 14960.4,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 14.4
+          },
+          {
+            "precision": 36,
+            "ms": 13.6
+          },
+          {
+            "precision": 72,
+            "ms": 19.4
+          },
+          {
+            "precision": 144,
+            "ms": 27.6
+          },
+          {
+            "precision": 288,
+            "ms": 63.7
+          },
+          {
+            "precision": 576,
+            "ms": 344
+          },
+          {
+            "precision": 1152,
+            "ms": 841.1
+          },
+          {
+            "precision": 2304,
+            "ms": 2592.4
+          },
+          {
+            "precision": 4040,
+            "ms": 11036.3
+          }
+        ],
+        "outcome": {
+          "kind": "result",
+          "line": "incbeta(approx(0.3), 123456.5, approx(0.3)) - incbetareg(approx(0.3), 123456.5, approx(0.3)) beta(approx(0.3), 123456.5) ≈ 0 (within 7e-4050 of zero)",
+          "warnings": 0
+        }
       }
     },
     {
@@ -13582,140 +13563,6 @@
     {
       "family": {
         "pattern": "cancel",
-        "functions": ["beta"],
-        "classes": ["inexact", "long"],
-        "profile": "default"
-      },
-      "have": "beta(355/113, approx(7)) - beta(355/113, approx(7))",
-      "want": "",
-      "settings": {
-        "digits": 8,
-        "rounding": "halfAwayFromZero",
-        "mode": "exact",
-        "maxDigits": 1000,
-        "maxBits": 65536,
-        "fractions": false
-      },
-      "calls": 2,
-      "source": {
-        "seed": "15bb91548182473c",
-        "index": 15
-      },
-      "commit": {
-        "hash": "b05c5b616e4c9ec4cb70cad76078cee1b758e193",
-        "dirty": false
-      },
-      "date": "2026-10-04T22:01:09.979Z",
-      "machine": {
-        "node": "v24.21.0",
-        "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
-        "cores": 4,
-        "platform": "linux"
-      },
-      "cold": {
-        "ms": 6929.4,
-        "passes": [
-          {
-            "precision": 18,
-            "ms": 48.2
-          },
-          {
-            "precision": 36,
-            "ms": 7.4
-          },
-          {
-            "precision": 72,
-            "ms": 7.9
-          },
-          {
-            "precision": 144,
-            "ms": 18.9
-          },
-          {
-            "precision": 288,
-            "ms": 39.5
-          },
-          {
-            "precision": 576,
-            "ms": 107.7
-          },
-          {
-            "precision": 1152,
-            "ms": 302.2
-          },
-          {
-            "precision": 2304,
-            "ms": 1230.3
-          },
-          {
-            "precision": 4040,
-            "ms": 5161.5
-          }
-        ],
-        "outcome": {
-          "kind": "result",
-          "line": "beta(355/113, approx(7)) - beta(355/113, approx(7)) ≈ 0 (within 3e-4050 of zero)",
-          "warnings": 0
-        }
-      },
-      "warm": {
-        "ms": 3611.9,
-        "passes": [
-          {
-            "precision": 18,
-            "ms": 5.9
-          },
-          {
-            "precision": 36,
-            "ms": 3.1
-          },
-          {
-            "precision": 72,
-            "ms": 7.5
-          },
-          {
-            "precision": 144,
-            "ms": 8
-          },
-          {
-            "precision": 288,
-            "ms": 18.9
-          },
-          {
-            "precision": 576,
-            "ms": 66.5
-          },
-          {
-            "precision": 1152,
-            "ms": 216.4
-          },
-          {
-            "precision": 2304,
-            "ms": 780.1
-          },
-          {
-            "precision": 4040,
-            "ms": 2494.9
-          }
-        ],
-        "outcome": {
-          "kind": "result",
-          "line": "beta(355/113, approx(7)) - beta(355/113, approx(7)) ≈ 0 (within 3e-4050 of zero)",
-          "warnings": 0
-        }
-      },
-      "typing": {
-        "keystrokes": 51,
-        "complete": true,
-        "costly": [
-          [24, 48.6],
-          [51, 6879.5]
-        ]
-      }
-    },
-    {
-      "family": {
-        "pattern": "cancel",
         "functions": ["incbetareg"],
         "classes": ["small"],
         "profile": "default"
@@ -14659,6 +14506,140 @@
         "costly": [
           [36, 48],
           [75, 3194.8]
+        ]
+      }
+    },
+    {
+      "family": {
+        "pattern": "cancel",
+        "functions": ["beta"],
+        "classes": ["inexact", "long"],
+        "profile": "default"
+      },
+      "have": "beta(355/113, approx(7)) - beta(355/113, approx(7))",
+      "want": "",
+      "settings": {
+        "digits": 8,
+        "rounding": "halfAwayFromZero",
+        "mode": "exact",
+        "maxDigits": 1000,
+        "maxBits": 65536,
+        "fractions": false
+      },
+      "calls": 2,
+      "source": {
+        "seed": "15bb91548182473c",
+        "index": 15
+      },
+      "commit": {
+        "hash": "d4b8819c2c372570d579930c9f9bcbe43a0b9c28",
+        "dirty": false
+      },
+      "date": "2026-10-04T23:54:44.000Z",
+      "machine": {
+        "node": "v24.21.0",
+        "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+        "cores": 4,
+        "platform": "linux"
+      },
+      "cold": {
+        "ms": 5430.6,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 30.5
+          },
+          {
+            "precision": 36,
+            "ms": 5.8
+          },
+          {
+            "precision": 72,
+            "ms": 6.2
+          },
+          {
+            "precision": 144,
+            "ms": 17
+          },
+          {
+            "precision": 288,
+            "ms": 27
+          },
+          {
+            "precision": 576,
+            "ms": 81
+          },
+          {
+            "precision": 1152,
+            "ms": 237.7
+          },
+          {
+            "precision": 2304,
+            "ms": 1001.2
+          },
+          {
+            "precision": 4040,
+            "ms": 4017.9
+          }
+        ],
+        "outcome": {
+          "kind": "result",
+          "line": "beta(355/113, approx(7)) - beta(355/113, approx(7)) ≈ 0 (within 3e-4050 of zero)",
+          "warnings": 0
+        }
+      },
+      "warm": {
+        "ms": 3089.7,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 2.5
+          },
+          {
+            "precision": 36,
+            "ms": 2.6
+          },
+          {
+            "precision": 72,
+            "ms": 4.1
+          },
+          {
+            "precision": 144,
+            "ms": 7.7
+          },
+          {
+            "precision": 288,
+            "ms": 17.5
+          },
+          {
+            "precision": 576,
+            "ms": 52.1
+          },
+          {
+            "precision": 1152,
+            "ms": 173.5
+          },
+          {
+            "precision": 2304,
+            "ms": 663.1
+          },
+          {
+            "precision": 4040,
+            "ms": 2162.4
+          }
+        ],
+        "outcome": {
+          "kind": "result",
+          "line": "beta(355/113, approx(7)) - beta(355/113, approx(7)) ≈ 0 (within 3e-4050 of zero)",
+          "warnings": 0
+        }
+      },
+      "typing": {
+        "keystrokes": 51,
+        "complete": true,
+        "costly": [
+          [24, 31],
+          [51, 7696.7]
         ]
       }
     },
@@ -18395,140 +18376,6 @@
         "costly": [
           [27, 47.9],
           [61, 5084.9]
-        ]
-      }
-    },
-    {
-      "family": {
-        "pattern": "identity:gammareg-sum",
-        "functions": ["lowergammareg", "uppergammareg"],
-        "classes": ["inexact"],
-        "profile": "default"
-      },
-      "have": "lowergammareg(approx(0.5), approx(2.5)) + uppergammareg(approx(0.5), approx(2.5)) - 1",
-      "want": "",
-      "settings": {
-        "digits": 8,
-        "rounding": "halfAwayFromZero",
-        "mode": "exact",
-        "maxDigits": 1000,
-        "maxBits": 65536,
-        "fractions": false
-      },
-      "calls": 2,
-      "source": {
-        "seed": "15bb91548182473c",
-        "index": 416
-      },
-      "commit": {
-        "hash": "b05c5b616e4c9ec4cb70cad76078cee1b758e193",
-        "dirty": false
-      },
-      "date": "2026-10-04T22:46:15.206Z",
-      "machine": {
-        "node": "v24.21.0",
-        "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
-        "cores": 4,
-        "platform": "linux"
-      },
-      "cold": {
-        "ms": 5300.7,
-        "passes": [
-          {
-            "precision": 18,
-            "ms": 49.7
-          },
-          {
-            "precision": 36,
-            "ms": 4.8
-          },
-          {
-            "precision": 72,
-            "ms": 7.9
-          },
-          {
-            "precision": 144,
-            "ms": 16.2
-          },
-          {
-            "precision": 288,
-            "ms": 20.3
-          },
-          {
-            "precision": 576,
-            "ms": 71
-          },
-          {
-            "precision": 1152,
-            "ms": 205.4
-          },
-          {
-            "precision": 2304,
-            "ms": 957.8
-          },
-          {
-            "precision": 4040,
-            "ms": 3962.2
-          }
-        ],
-        "outcome": {
-          "kind": "result",
-          "line": "lowergammareg(approx(0.5), approx(2.5)) + uppergammareg(approx(0.5), approx(2.5)) - 1 ≈ 0 (within 9e-4049 of zero)",
-          "warnings": 0
-        }
-      },
-      "warm": {
-        "ms": 2350.4,
-        "passes": [
-          {
-            "precision": 18,
-            "ms": 2.3
-          },
-          {
-            "precision": 36,
-            "ms": 2.6
-          },
-          {
-            "precision": 72,
-            "ms": 4.6
-          },
-          {
-            "precision": 144,
-            "ms": 6.1
-          },
-          {
-            "precision": 288,
-            "ms": 14.5
-          },
-          {
-            "precision": 576,
-            "ms": 43.8
-          },
-          {
-            "precision": 1152,
-            "ms": 130.2
-          },
-          {
-            "precision": 2304,
-            "ms": 529.9
-          },
-          {
-            "precision": 4040,
-            "ms": 1612.2
-          }
-        ],
-        "outcome": {
-          "kind": "result",
-          "line": "lowergammareg(approx(0.5), approx(2.5)) + uppergammareg(approx(0.5), approx(2.5)) - 1 ≈ 0 (within 9e-4049 of zero)",
-          "warnings": 0
-        }
-      },
-      "typing": {
-        "keystrokes": 85,
-        "complete": true,
-        "costly": [
-          [39, 48.1],
-          [85, 4511.7]
         ]
       }
     },
@@ -24376,6 +24223,132 @@
     },
     {
       "family": {
+        "pattern": "identity:gammareg-sum",
+        "functions": ["lowergammareg", "uppergammareg"],
+        "classes": ["inexact"],
+        "profile": "default"
+      },
+      "have": "lowergammareg(approx(7), approx(1/3)) + uppergammareg(approx(7), approx(1/3)) - 1",
+      "want": "",
+      "settings": {
+        "digits": 8,
+        "rounding": "halfAwayFromZero",
+        "mode": "exact",
+        "maxDigits": 1000,
+        "maxBits": 65536,
+        "fractions": false
+      },
+      "calls": 2,
+      "source": {
+        "seed": "15bb91548182473c",
+        "index": 9
+      },
+      "commit": {
+        "hash": "d4b8819c2c372570d579930c9f9bcbe43a0b9c28",
+        "dirty": false
+      },
+      "date": "2026-10-04T23:54:25.080Z",
+      "machine": {
+        "node": "v24.21.0",
+        "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+        "cores": 4,
+        "platform": "linux"
+      },
+      "cold": {
+        "ms": 4228.8,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 39.6
+          },
+          {
+            "precision": 36,
+            "ms": 4.3
+          },
+          {
+            "precision": 72,
+            "ms": 4.9
+          },
+          {
+            "precision": 144,
+            "ms": 9.4
+          },
+          {
+            "precision": 288,
+            "ms": 13.8
+          },
+          {
+            "precision": 576,
+            "ms": 51.5
+          },
+          {
+            "precision": 1152,
+            "ms": 189.6
+          },
+          {
+            "precision": 2304,
+            "ms": 753
+          },
+          {
+            "precision": 4040,
+            "ms": 3156.8
+          }
+        ],
+        "outcome": {
+          "kind": "result",
+          "line": "lowergammareg(approx(7), approx(1/3)) + uppergammareg(approx(7), approx(1/3)) - 1 ≈ 0 (within 6e-4050 of zero)",
+          "warnings": 0
+        }
+      },
+      "warm": {
+        "ms": 1720.7,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 1.9
+          },
+          {
+            "precision": 36,
+            "ms": 2.1
+          },
+          {
+            "precision": 72,
+            "ms": 2.8
+          },
+          {
+            "precision": 144,
+            "ms": 4.9
+          },
+          {
+            "precision": 288,
+            "ms": 10.2
+          },
+          {
+            "precision": 576,
+            "ms": 32
+          },
+          {
+            "precision": 1152,
+            "ms": 97.7
+          },
+          {
+            "precision": 2304,
+            "ms": 354.9
+          },
+          {
+            "precision": 4040,
+            "ms": 1208.8
+          }
+        ],
+        "outcome": {
+          "kind": "result",
+          "line": "lowergammareg(approx(7), approx(1/3)) + uppergammareg(approx(7), approx(1/3)) - 1 ≈ 0 (within 6e-4050 of zero)",
+          "warnings": 0
+        }
+      }
+    },
+    {
+      "family": {
         "pattern": "cancel",
         "functions": ["gamma"],
         "classes": ["inexact"],
@@ -25192,6 +25165,137 @@
     },
     {
       "family": {
+        "pattern": "condition/cancel",
+        "functions": ["erfc"],
+        "classes": ["long"],
+        "profile": "default"
+      },
+      "have": "tempC(erfc(355/113) - erfc(355/113) - 273.15)",
+      "want": "K",
+      "settings": {
+        "digits": 8,
+        "rounding": "halfAwayFromZero",
+        "mode": "exact",
+        "maxDigits": 1000,
+        "maxBits": 65536,
+        "fractions": false
+      },
+      "calls": 2,
+      "source": {
+        "seed": "15bb91548182473c",
+        "index": 13
+      },
+      "commit": {
+        "hash": "d4b8819c2c372570d579930c9f9bcbe43a0b9c28",
+        "dirty": false
+      },
+      "date": "2026-10-04T23:54:32.641Z",
+      "machine": {
+        "node": "v24.21.0",
+        "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+        "cores": 4,
+        "platform": "linux"
+      },
+      "cold": {
+        "ms": 1839.2,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 54.5
+          },
+          {
+            "precision": 36,
+            "ms": 4.8
+          },
+          {
+            "precision": 72,
+            "ms": 6
+          },
+          {
+            "precision": 144,
+            "ms": 8.9
+          },
+          {
+            "precision": 288,
+            "ms": 15
+          },
+          {
+            "precision": 576,
+            "ms": 36.1
+          },
+          {
+            "precision": 1152,
+            "ms": 102.9
+          },
+          {
+            "precision": 2304,
+            "ms": 337.7
+          },
+          {
+            "precision": 4040,
+            "ms": 1268.6
+          }
+        ],
+        "outcome": {
+          "kind": "result",
+          "line": "tempC(erfc(355/113) - erfc(355/113) - 273.15) ≈ 0 K (within 2e-4055 of zero)",
+          "warnings": 1
+        }
+      },
+      "warm": {
+        "ms": 1667.3,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 2.1
+          },
+          {
+            "precision": 36,
+            "ms": 2.8
+          },
+          {
+            "precision": 72,
+            "ms": 5.8
+          },
+          {
+            "precision": 144,
+            "ms": 4.9
+          },
+          {
+            "precision": 288,
+            "ms": 13.2
+          },
+          {
+            "precision": 576,
+            "ms": 59.5
+          },
+          {
+            "precision": 1152,
+            "ms": 180.9
+          },
+          {
+            "precision": 2304,
+            "ms": 348.3
+          },
+          {
+            "precision": 4040,
+            "ms": 1042.6
+          }
+        ],
+        "outcome": {
+          "kind": "result",
+          "line": "tempC(erfc(355/113) - erfc(355/113) - 273.15) ≈ 0 K (within 2e-4055 of zero)",
+          "warnings": 1
+        }
+      },
+      "typing": {
+        "keystrokes": 45,
+        "complete": true,
+        "costly": [[45, 1856.8]]
+      }
+    },
+    {
+      "family": {
         "pattern": "identity:beta-gamma",
         "functions": ["beta", "gamma"],
         "classes": ["long"],
@@ -25454,137 +25558,6 @@
           [23, 53.4],
           [49, 2100.7]
         ]
-      }
-    },
-    {
-      "family": {
-        "pattern": "condition/cancel",
-        "functions": ["erfc"],
-        "classes": ["long"],
-        "profile": "default"
-      },
-      "have": "tempC(erfc(355/113) - erfc(355/113) - 273.15)",
-      "want": "K",
-      "settings": {
-        "digits": 8,
-        "rounding": "halfAwayFromZero",
-        "mode": "exact",
-        "maxDigits": 1000,
-        "maxBits": 65536,
-        "fractions": false
-      },
-      "calls": 2,
-      "source": {
-        "seed": "15bb91548182473c",
-        "index": 13
-      },
-      "commit": {
-        "hash": "b05c5b616e4c9ec4cb70cad76078cee1b758e193",
-        "dirty": false
-      },
-      "date": "2026-10-04T22:00:58.554Z",
-      "machine": {
-        "node": "v24.21.0",
-        "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
-        "cores": 4,
-        "platform": "linux"
-      },
-      "cold": {
-        "ms": 2176.4,
-        "passes": [
-          {
-            "precision": 18,
-            "ms": 62.7
-          },
-          {
-            "precision": 36,
-            "ms": 5.3
-          },
-          {
-            "precision": 72,
-            "ms": 6
-          },
-          {
-            "precision": 144,
-            "ms": 10.4
-          },
-          {
-            "precision": 288,
-            "ms": 17.7
-          },
-          {
-            "precision": 576,
-            "ms": 40.6
-          },
-          {
-            "precision": 1152,
-            "ms": 123.7
-          },
-          {
-            "precision": 2304,
-            "ms": 424.9
-          },
-          {
-            "precision": 4040,
-            "ms": 1480.5
-          }
-        ],
-        "outcome": {
-          "kind": "result",
-          "line": "tempC(erfc(355/113) - erfc(355/113) - 273.15) ≈ 0 K (within 2e-4055 of zero)",
-          "warnings": 1
-        }
-      },
-      "warm": {
-        "ms": 1642.8,
-        "passes": [
-          {
-            "precision": 18,
-            "ms": 2.5
-          },
-          {
-            "precision": 36,
-            "ms": 2.7
-          },
-          {
-            "precision": 72,
-            "ms": 3.8
-          },
-          {
-            "precision": 144,
-            "ms": 6.8
-          },
-          {
-            "precision": 288,
-            "ms": 13
-          },
-          {
-            "precision": 576,
-            "ms": 34.1
-          },
-          {
-            "precision": 1152,
-            "ms": 101.5
-          },
-          {
-            "precision": 2304,
-            "ms": 344
-          },
-          {
-            "precision": 4040,
-            "ms": 1132.3
-          }
-        ],
-        "outcome": {
-          "kind": "result",
-          "line": "tempC(erfc(355/113) - erfc(355/113) - 273.15) ≈ 0 K (within 2e-4055 of zero)",
-          "warnings": 1
-        }
-      },
-      "typing": {
-        "keystrokes": 45,
-        "complete": true,
-        "costly": [[45, 2204.1]]
       }
     },
     {
@@ -40421,13 +40394,13 @@
       "source": {
         "seed": "15bb91548182473c"
       },
-      "cases": 596,
-      "indices": "0-595",
+      "cases": 19,
+      "indices": "0-2,4-5,7-20",
       "commit": {
-        "hash": "b05c5b616e4c9ec4cb70cad76078cee1b758e193",
+        "hash": "d4b8819c2c372570d579930c9f9bcbe43a0b9c28",
         "dirty": false
       },
-      "date": "2026-10-04T22:59:18.355Z",
+      "date": "2026-10-04T23:54:59.738Z",
       "machine": {
         "node": "v24.21.0",
         "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",

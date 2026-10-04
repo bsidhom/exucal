@@ -5387,6 +5387,30 @@ case's deadline is four times its catalogued time and two minutes at
 least, and the reference is `exp(1) - exp(1)`, which runs to the
 ceiling in milliseconds. A hang records the issue filed for it.
 
+The first catalogue is the fixed enumeration plus one budgeted run from
+a fresh seed, `15bb91548182473c`, which drew about six hundred cases.
+docs/cost.md gives the findings by cause:
+
+- The incomplete beta function, at 0.7 to 6 s a call at the defaults,
+  is #150. `erf`, `erfc` and the incomplete gamma functions, at 0.5 to
+  3.5 s, are #149, which links #107 for the large arguments. Both come
+  down to a full-precision division on every term of a series whose
+  term count grows with the bits.
+- The Gamma family at an inexact argument is #125, and its cold run's
+  Bernoulli numbers are #103 and #121.
+- The elementary functions stay under the catalogue's floor at the
+  defaults.
+- Typing out the enumeration's cases puts every keystroke of 100 ms or
+  more on the last one, the keystroke that completes the expression.
+
+Hangs are filed one issue per setting that produces them, not one per
+case, since each setting's hangs share their causes. #151 covers the
+highest cap under the default range limit, a 9,852-digit ceiling: the
+Gamma family, incbeta and the incomplete gamma functions. #152 covers
+the hard bound, a 157,816-digit ceiling, where `expFixed`'s fixed
+reduction and term-by-term series put even `cosh` past two minutes.
+No case hangs at the defaults. #118 links the catalogue as its target.
+
 ### 8.4 Stage 8 docs
 
 This plan's record of the stage, "Stage 8 as it landed"; docs/cost.md's

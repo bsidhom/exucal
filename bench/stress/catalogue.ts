@@ -8,12 +8,12 @@
 // costliest case found of its family (cases.ts), ranked by its warm cost
 // per costly call. A case joins when its family is new to the catalogue
 // and it costs at least the floor; it replaces its family's entry only
-// when it costs more than that entry measured again in the same run,
-// since only timings from one run, on one machine, compare. Every other
+// when it costs more than that entry measured back to back with it, in
+// one lane of one run, since only timings taken together compare. Every other
 // entry is left as it was. Cases that passed their deadline, or whose
 // worker failed, are kept apart as hangs, one per family, to be reported.
-// Each run is logged with its seed (or the enumeration) and the count of
-// cases it ran, so that `--seed` and `--cases` replay it exactly.
+// Each merge is logged with its seed (or the enumeration) and the indices
+// of the cases it took, so that `--seed` and `--cases` replay it exactly.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import type { Settings } from "../../src/settings.ts";
@@ -118,6 +118,8 @@ export type Hang = {
 export type RunRecord = {
   readonly source: { readonly seed: string } | { readonly enumeration: true };
   readonly cases: number;
+  /** The indices of the cases, as ranges: `0-99`, or `100-199,250` for a later merge. */
+  readonly indices: string;
   readonly commit: Commit;
   readonly date: string;
   readonly machine: Machine;
@@ -158,14 +160,14 @@ export type MergeReport = {
 };
 
 /**
- * `catalogue` with the `candidates`, each measured again on its own in
- * this run: a candidate of a family the catalogue lacks joins when its
- * warm cost is at least `floorMs`; one of a family the catalogue has
- * replaces the entry when it costs more per call than that entry did
- * when `remeasured` in the same run (keyed by family), and costs at least
- * the floor. An entry not measured again is not replaced, since timings
- * from different runs do not compare. Every other entry is kept as it
- * was, and the entries are ranked by their cost per call.
+ * `catalogue` with the `candidates`: a candidate of a family the
+ * catalogue lacks joins when its warm cost is at least `floorMs`; one of
+ * a family the catalogue has replaces the entry when it costs more per
+ * call than that entry did when `remeasured` beside it (keyed by family),
+ * and costs at least the floor. An entry not measured again is not
+ * replaced, since timings from different runs do not compare. Every
+ * other entry is kept as it was, and the entries are ranked by their
+ * cost per call.
  */
 export function merge(
   catalogue: Catalogue,
@@ -216,13 +218,11 @@ export function mergeHangs(
 export function withTyping(
   catalogue: Catalogue,
   entry: Entry,
-  typing: Typing,
+  typing: TypingSummary,
 ): Catalogue {
   return {
     ...catalogue,
-    entries: catalogue.entries.map((e) =>
-      e === entry ? { ...e, typing: summarizeTyping(typing) } : e,
-    ),
+    entries: catalogue.entries.map((e) => (e === entry ? { ...e, typing } : e)),
   };
 }
 

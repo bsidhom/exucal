@@ -1675,20 +1675,26 @@ tests. The rest of the directory is what they share:
   built-in's edge, a zero below a condition's bound), the functions and
   their argument classes, a costly call composed into an argument, the
   settings profile and the want. A run without `--seed` draws a fresh
-  seed from the cryptographic source and prints it; `--cases` runs a
-  prefix of the sequence and `--budget` stops after one, whose length is
-  logged, so any run replays; `--list` prints the cases without
-  evaluating them, and `--enumerate` runs a fixed enumeration instead.
-  No timing decides what is searched: the cases are measured in
-  parallel, the costliest of each family measured again one at a time
-  with the catalogue's entry for its family (outside the budget, which
-  bounds only the parallel step), and `catalogue.ts` merges
-  them into `bench/stress/catalogue.json`, adding a new family's case
-  that reaches the floor (a second warm) and replacing an entry only by a
-  case that costs more per call than the entry measured again. Cases past
-  their deadline, or whose worker failed, are kept apart as hangs, and
-  each run is logged with its seed and count. The tests of `cases.ts` and
-  `catalogue.ts` are ordinary ones, since they evaluate nothing. Each
+  seed from the cryptographic source and prints it; `--cases` takes a
+  prefix of the sequence, and the indices each merge took are logged, so
+  any run replays; `--list` prints the cases without evaluating them,
+  and `--enumerate` runs a fixed enumeration instead. Every measurement
+  is journaled as it finishes (`journal.ts`: JSON Lines under
+  `bench/stress/runs/<seed>/`, one file per shard and one for the merge),
+  and a run measures only what its journal lacks. So a stopped run
+  resumes, a larger `--cases` extends a finished one, `--budget` bounds a
+  run's length, and `--shard k/n` splits a search among processes or
+  machines, merged afterwards by `--merge`. No timing decides what is
+  searched. The cases are measured in parallel, one per core, since
+  timings under that load stay within a few percent of timings alone.
+  The merge step reads every journaled case no merge has taken, and
+  `catalogue.ts` merges them into `bench/stress/catalogue.json`. It adds
+  a new family's case that reaches the floor (a second warm). It replaces
+  an entry only by a case that costs more per call than the entry, the
+  two measured back to back in one lane so that both see the same load.
+  Cases past their deadline, or whose worker failed, are kept apart as
+  hangs. The tests of `cases.ts`, `catalogue.ts` and `journal.ts` are
+  ordinary ones, since they evaluate nothing. Each
   entry that joins the catalogue is also typed out (`typeOut` of the
   harness): `outcomeOf` on every prefix of its text in order, in one
   worker so that the memos carry over as in a session, the profile the

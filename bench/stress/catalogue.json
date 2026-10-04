@@ -12634,7 +12634,8 @@
       "source": {
         "enumeration": true
       },
-      "cases": 4294967295,
+      "cases": 257,
+      "indices": "0-256",
       "commit": {
         "hash": "7c0effcd9cbc7bf6b92a1106b95a940734aa7ec3",
         "dirty": true

@@ -51,7 +51,8 @@ suite reports.
 Each entry in bench/stress/catalogue.json records where it came from:
 the seed and index that drew it, or its place in the fixed enumeration.
 `pnpm stress:search --seed <seed> --cases <n>` replays a run, and
-`--list` prints the cases a seed draws without evaluating them. Typing
+`--list` prints the cases a seed draws without evaluating them. The
+runs log which indices each merge took. Typing
 the `have` into the converter, with the entry's settings, reproduces the
 cost a user meets. `pnpm stress` measures every entry again, and fails
 only if one gives a different value or passes its deadline.

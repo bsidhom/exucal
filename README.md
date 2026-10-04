@@ -1073,12 +1073,17 @@ same run, and inputs that have become much cheaper are reported.
 `pnpm stress:search` adds to the catalogue. Without `--seed` it draws a
 fresh seed, prints it and explores new inputs; with `--seed` and
 `--cases` it replays an earlier run exactly; `--enumerate` runs a fixed
-sweep of every function instead. `--budget <minutes>` bounds how long
-it draws and measures new inputs in parallel. The costliest of them are
-then measured again one at a time, which can take as long again, so a
-45-minute budget makes a run of about two hours. A run leaves its findings as a diff to
-the catalogue and to the table in `docs/cost.md`, for review like any
-other change.
+sweep of every function instead. A run journals each input as it is
+measured, under `bench/stress/runs/` (ignored by git), so a run can be
+stopped at any point and the same command carries on where it left off.
+Start small and grow: `--cases 40` takes a few minutes, and a later
+`--cases 200` measures only the 160 new inputs. `--budget <minutes>`
+stops a run after that long, for the next one to carry on. To share a
+search among processes or machines, run each with `--shard k/n` (`0/2`
+and `1/2`), copy the journals into one `bench/stress/runs/<seed>/` if
+they ran on different machines, then merge with `--seed <seed>
+--merge`. A run leaves its findings as a diff to the catalogue and to
+the table in `docs/cost.md`, for review like any other change.
 
 ### Offline behavior
 

@@ -5281,8 +5281,8 @@ reproduces what a run searched.
 - **The measurement.** Cases run in parallel workers, one per core, each
   under a deadline; a case past it is reported as a hang, not ranked.
   Which cases a run keeps depends on their measured cost, the one thing
-  wall-clock time decides: the costliest are measured again one at a
-  time, since timings under load are not the catalogue's, and ranked by
+  wall-clock time decides: the costliest are measured again (beside
+  their family's entry, as 8.3 landed it), and ranked by
   their warm cost per costly call, with the cold cost recorded beside
   it. The timings themselves cannot be reproduced exactly, so only cases
   above a floor (a second warm, at first) enter the catalogue: a case
@@ -5402,6 +5402,21 @@ docs/cost.md gives the findings by cause:
   defaults.
 - Typing out the enumeration's cases puts every keystroke of 100 ms or
   more on the last one, the keystroke that completes the expression.
+
+The search's second step changed. It measured each family's costliest
+case again alone, and the case's family entry with it, which on four
+cores took about as long as the parallel step, an hour and more, and
+nothing was written until it ended. But the timings under load had
+stayed within a few percent of the solo ones: a median ratio of 1.06,
+and 1.31 at worst, over two hundred cases. So the parallel timings are
+kept. A new family joins on them, and a case that may replace an entry
+is measured back to back with that entry in one lane, the pairs running
+in parallel. Every measurement is journaled as it finishes
+(`journal.ts`, under the ignored `bench/stress/runs/`), so a run stops
+anywhere and the same command resumes it. A larger `--cases` extends a
+finished run, `--budget` bounds a run's length, `--shard k/n` splits a
+search among processes or machines, and `--merge` merges the shards.
+The run log records the indices each merge took.
 
 Hangs are filed one issue per setting that produces them, not one per
 case, since each setting's hangs share their causes. #151 covers the

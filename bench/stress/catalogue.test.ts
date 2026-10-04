@@ -11,6 +11,7 @@ import {
   logRun,
   merge,
   mergeHangs,
+  summarizeTyping,
   withTable,
   withTyping,
   type Catalogue,
@@ -137,6 +138,7 @@ test("a hang joins when its family has none, and runs are logged in order", () =
   const record = {
     source: { seed: "0123456789abcdef" },
     cases: 16,
+    indices: "0-15",
     commit: COMMIT,
     date: "d",
     machine: MACHINE,
@@ -158,19 +160,27 @@ test("the table replaces the text between its markers, and only there", () => {
   );
   // An entry typed out shows its slowest keystroke and how many were slow,
   // a `+` when the typing did not finish.
-  const typed = withTyping(CATALOGUE, CATALOGUE.entries[0]!, {
-    keystrokes: [
-      { length: 1, ms: 50, kind: "error" },
-      { length: 2, ms: 150, kind: "result" },
-      { length: 3, ms: 2000, kind: "result" },
-    ],
-    complete: true,
-  });
+  const typed = withTyping(
+    CATALOGUE,
+    CATALOGUE.entries[0]!,
+    summarizeTyping({
+      keystrokes: [
+        { length: 1, ms: 50, kind: "error" },
+        { length: 2, ms: 150, kind: "result" },
+        { length: 3, ms: 2000, kind: "result" },
+      ],
+      complete: true,
+    }),
+  );
   assert.match(catalogueTable(typed), /\| 1 \| 2\.0 s \| 2 of 3 \|$/m);
-  const cut = withTyping(CATALOGUE, CATALOGUE.entries[0]!, {
-    keystrokes: [{ length: 1, ms: 50, kind: "error" }],
-    complete: false,
-  });
+  const cut = withTyping(
+    CATALOGUE,
+    CATALOGUE.entries[0]!,
+    summarizeTyping({
+      keystrokes: [{ length: 1, ms: 50, kind: "error" }],
+      complete: false,
+    }),
+  );
   assert.match(catalogueTable(cut), /\| 50 ms \| 0 of 1\+ \|$/m);
   assert.equal(typed.entries[1], CATALOGUE.entries[1]);
   const updated = withTable(doc, table)!;

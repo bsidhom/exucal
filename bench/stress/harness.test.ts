@@ -4,7 +4,15 @@ import { inspect } from "node:util";
 import { ceilingFor } from "../../src/core/context.ts";
 import { schedule } from "../../src/core/pipeline.ts";
 import { contextOf } from "../../src/settings.ts";
-import { caseOf, checkSettings, measure, typeOut } from "./harness.ts";
+import {
+  caseOf,
+  checkSettings,
+  estimateMs,
+  machine,
+  measure,
+  typeOut,
+  type Measurement,
+} from "./harness.ts";
 
 test("a case that certifies at once takes one pass, cold and warm", async () => {
   const c = caseOf("3 ft", "in");
@@ -55,6 +63,83 @@ test("a case past its deadline is recorded with the pass that was running", asyn
   assert.equal(measured.running.run, "cold");
   const precisions = schedule(contextOf(c.settings)).map((w) => w.precision);
   assert.equal(measured.running.precision, precisions[measured.running.pass]);
+  // Its progress: the schedule, the passes before the running one, and how
+  // long that one had run.
+  assert.deepEqual(measured.progress.schedule, precisions);
+  assert.deepEqual(
+    measured.progress.passes.map((pass) => pass.precision),
+    precisions.slice(0, measured.running.pass),
+  );
+  assert.ok(measured.progress.runningMs >= 0);
+  assert.ok(estimateMs(measured) >= measured.progress.runningMs);
+});
+
+test("a hang's estimate extends its passes along their growth", () => {
+  const hang = (
+    passes: readonly [number, number][],
+    running: number,
+    runningMs: number,
+    run: "cold" | "warm" = "cold",
+  ): Extract<Measurement, { status: "deadline" }> => ({
+    status: "deadline",
+    case: caseOf("x"),
+    machine: machine(),
+    deadlineMs: 1000,
+    cold: undefined,
+    running: { run, pass: running, precision: [10, 20, 40, 80][running]! },
+    progress: {
+      schedule: [10, 20, 40, 80],
+      passes: passes.map(([precision, ms]) => ({ precision, ms })),
+      runningMs,
+    },
+  });
+  // Passes that quadruple as the precision doubles grow as its square: the
+  // running pass at 40 digits costs 64, then 256 at 80.
+  assert.equal(
+    estimateMs(
+      hang(
+        [
+          [10, 4],
+          [20, 16],
+        ],
+        2,
+        10,
+      ),
+    ),
+    4 + 16 + 64 + 256,
+  );
+  // The running pass costs at least what it had run.
+  assert.equal(
+    estimateMs(
+      hang(
+        [
+          [10, 4],
+          [20, 16],
+        ],
+        2,
+        100,
+      ),
+    ),
+    4 + 16 + 100 + 256,
+  );
+  // The growth is held within one and three.
+  assert.equal(
+    estimateMs(
+      hang(
+        [
+          [10, 1],
+          [20, 100],
+        ],
+        2,
+        0,
+      ),
+    ),
+    1 + 100 + 800 + 6400,
+  );
+  // With no pass finished, the running one is the anchor, at a square.
+  assert.equal(estimateMs(hang([], 1, 50)), 50 + 200 + 800);
+  // With no pass started, the deadline is all that is known.
+  assert.equal(estimateMs({ ...hang([], 0, 0), running: undefined }), 1000);
 });
 
 test("the settings must be ones the panel could hold", () => {

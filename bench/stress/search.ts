@@ -1,15 +1,14 @@
 // The cost search (docs/calculator-plan.md, tasks 8.2 and 8.3), run by
 // hand:
 //
-//   pnpm stress:search [--seed <hex> | --enumerate]
-//                      [--cases <n>] [--budget <minutes>] [--shard <k>/<n>]
-//                      [--merge] [--list] [--deadline <seconds>]
+//   pnpm stress:search [--seed <hex> | --enumerate] [--cases <n>]
+//                      [--budget <minutes>] [--list] [--deadline <seconds>]
 //                      [--floor <ms>] [--jobs <n>] [--dry-run]
 //
 // It draws cases from a seed (cases.ts), or takes the fixed enumeration,
-// measures them with the harness, and merges what it found into
-// bench/stress/catalogue.json (catalogue.ts), regenerating the table in
-// docs/cost.md when that file holds the table's markers.
+// measures them with the harness, and keeps the costliest of each family
+// in bench/stress/catalogue.json (catalogue.ts), with its tables in
+// docs/cost.md.
 //
 // What is searched depends on the seed alone. A run given `--seed` uses
 // it; one without draws a fresh seed from the cryptographic source first
@@ -18,42 +17,32 @@
 // without evaluating any. Wall-clock time decides only what is kept and
 // when a run stops, never what is searched.
 //
-// The work is journaled (journal.ts), a line per measurement as each
-// finishes, under bench/stress/runs/<seed>/, so it can stop anywhere and
-// carry on: a run measures only the cases its journal lacks, so running
-// the same command again resumes a run that was stopped, and a larger
-// `--cases` extends a finished one. `--budget` stops dispatching cases
-// after that many minutes, for a run of bounded length that the next
-// run carries on. `--shard k/n` measures only the indices `i` with
-// `i % n === k`, so that `n` processes, here or on other machines, share
-// a search; each shard journals to a file of its own.
+// The work is split into units, each the least that can be done alone:
 //
-// A run takes two steps:
+// - **measure** a case, cold then warm in a worker of its own (the warm
+//   evaluation needs the cold one's memos, so the two are one unit);
+// - **pair** a family's best case with another run's entry for the
+//   family, back to back in one lane, so that the two see the same load;
+// - **type out** an entry that joins, a keystroke at a time in one worker
+//   (each keystroke needs the memos of the ones before it).
 //
-// 1. **Measure.** Every case the journal lacks is measured, `--jobs` at a
-//    time (one per core by default), each in a worker of its own under
-//    `--deadline`. A case past its deadline, or whose worker failed, is a
-//    hang, kept apart and not ranked. Timings under that load stay within
-//    a few percent of timings taken alone, which is why they are kept.
-// 2. **Merge.** The cases measured since the last merge are merged into
-//    the catalogue. The costliest of each family the catalogue lacks
-//    joins if its warm cost reaches the floor. The costliest of a family
-//    the catalogue has is measured again back to back with that family's
-//    entry, in one lane so that the load is the same for both, and
-//    replaces the entry if it costs more per call. Every entry that joins
-//    is typed out a keystroke at a time. These measurements run `--jobs`
-//    at a time and are journaled too, so a merge that stops resumes.
+// Lanes, one per core (`--jobs`), pull the next ready unit as they come
+// free (pool.ts): a pair or a typing as soon as its family's cases are
+// all measured, else the next case. Each unit is journaled as it finishes
+// (journal.ts), under bench/stress/runs/<seed>/, so a run can stop
+// anywhere and the same command carries on, losing only the units that
+// were running; a larger `--cases` extends a run, and `--budget` stops
+// one after that many minutes for the next to carry on. Every fifteen
+// seconds, and at the end, the run writes what it has found into the
+// catalogue and the tables: each family as its cases come in, a new
+// family's best case at once, a pair's outcome once measured, a hang as
+// soon as it is found. Timings under that load stay within a few percent
+// of timings taken alone, which is why they are kept.
 //
-// A run without `--shard` measures, then merges. A shard only measures,
-// and `--merge`, given the seed, merges what every shard journaled once
-// they are done.
-//
-// Commands run as security rules require (ARCHITECTURE.md, "Security"):
-// git through `execFileSync` with an argument array, its list read
-// NUL-separated.
+// Commands run as tooling.ts runs them, as security rules require
+// (ARCHITECTURE.md, "Security").
 
-import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -65,55 +54,63 @@ import {
   type Drawn,
 } from "./cases.ts";
 import {
+  HANGS_END,
+  HANGS_START,
   catalogueTable,
+  decide,
   familyKey,
-  logRun,
-  merge,
-  mergeHangs,
+  fromRun,
+  hangEstimate,
+  hangsTable,
   perCall,
   readCatalogue,
-  roundRun,
+  slotOf,
   summarizeTyping,
+  withRun,
+  withSlot,
   withTable,
-  withTyping,
+  writeAtomically,
   writeCatalogue,
+  type Catalogue,
   type Commit,
+  type Decision,
   type Entry,
   type Hang,
-  type RunRecord,
+  type Pair,
+  type RunSource,
   type Source,
 } from "./catalogue.ts";
-import {
-  machine,
-  measure,
-  typeOut,
-  type Case,
-  type Measurement,
-} from "./harness.ts";
+import { estimateMs, machine, typeOut, type Measurement } from "./harness.ts";
 import {
   append,
   caseKey,
   formatRanges,
-  inShard,
-  measureFile,
-  parseRanges,
-  parseShard,
+  lock,
   readJournal,
+  readJson,
+  writeJson,
   type CaseRecord,
   type JournalRecord,
+  type Outcome,
   type PairRecord,
-  type Shard,
   type TypingRecord,
 } from "./journal.ts";
-
-const root = new URL("../../", import.meta.url);
-const CATALOGUE = new URL("bench/stress/catalogue.json", root);
-const DOC = new URL("docs/cost.md", root);
-const RUNS = new URL("bench/stress/runs/", root);
-const MERGE_FILE = "merge.jsonl";
+import { runPool } from "./pool.ts";
+import {
+  CATALOGUE,
+  DOC,
+  RUNS,
+  caseOfEntry,
+  currentCommit,
+  formatFiles,
+  measureCase,
+} from "./tooling.ts";
 
 /** The most cases a seed's sequence holds: the indices `foldIn` takes. */
 const MAX_CASES = 2 ** 32 - 1;
+
+/** How often a run writes what it has found, in milliseconds. */
+const WRITE_EVERY_MS = 15_000;
 
 /** A search: a seed's sequence of cases, or the enumeration. */
 type Search = {
@@ -123,25 +120,42 @@ type Search = {
   readonly count: number;
   readonly draw: (index: number) => Drawn;
   readonly source: (index: number) => Source;
-  readonly runSource: RunRecord["source"];
+  readonly run: RunSource;
   /** The flags that name the search, for the commands printed. */
   readonly flags: string;
 };
 
-/** A case record that finished, with the measurement narrowed. */
-type Done = CaseRecord & {
-  readonly measured: Extract<Measurement, { status: "done" }>;
-};
+/** What `run.json` holds: how many of the search's cases the run covers. */
+type RunFile = { readonly target: number };
 
-/** What measuring a case gave: a measurement, or the failure of its worker. */
-type Outcome = { readonly measured: Measurement } | { readonly failed: string };
+/** A unit of work. */
+type Unit =
+  | { readonly kind: "measure"; readonly index: number }
+  | {
+      readonly kind: "pair";
+      readonly family: string;
+      readonly index: number;
+      readonly incumbent: Entry;
+    }
+  | { readonly kind: "typing"; readonly family: string; readonly entry: Entry };
+
+/** What the run knows of one family. */
+type Family = {
+  readonly key: string;
+  /** How many of its cases are in the run's range, and how many are measured. */
+  members: number;
+  measured: number;
+  /** Its costliest finished case that reached the floor, and its index. */
+  best: { readonly index: number; readonly entry: Entry } | undefined;
+  /** Its hang estimated costliest. */
+  worst: Hang | undefined;
+};
 
 /** Prints the usage, and exits with `code`. */
 function usage(code = 2): never {
   console.log(
-    "usage: pnpm stress:search [--seed <hex> | --enumerate]\n" +
-      "                          [--cases <n>] [--budget <minutes>] [--shard <k>/<n>]\n" +
-      "                          [--merge] [--list] [--deadline <seconds>]\n" +
+    "usage: pnpm stress:search [--seed <hex> | --enumerate] [--cases <n>]\n" +
+      "                          [--budget <minutes>] [--list] [--deadline <seconds>]\n" +
       "                          [--floor <ms>] [--jobs <n>] [--dry-run]",
   );
   process.exit(code);
@@ -167,72 +181,13 @@ function positive(
   return value;
 }
 
-/** The commit the tree is at, and whether tracked files have changed. */
-function currentCommit(): Commit {
-  const cwd = fileURLToPath(root);
-  const hash = execFileSync("git", ["rev-parse", "HEAD"], {
-    cwd,
-    encoding: "utf8",
-  }).trim();
-  const status = execFileSync(
-    "git",
-    ["status", "--porcelain=v1", "-z", "--untracked-files=no"],
-    { cwd, encoding: "utf8" },
-  );
-  return { hash, dirty: status.split("\0").some((line) => line !== "") };
-}
-
-/** `m` with its runs' timings rounded, as the journal and catalogue keep them. */
-function rounded(m: Measurement): Measurement {
-  if (m.status === "done") {
-    return { ...m, cold: roundRun(m.cold), warm: roundRun(m.warm) };
-  }
-  return { ...m, cold: m.cold === undefined ? undefined : roundRun(m.cold) };
-}
-
-/** `c` measured under `deadlineMs`, or the failure of its worker. */
-async function measureCase(c: Case, deadlineMs: number): Promise<Outcome> {
-  try {
-    return { measured: rounded(await measure(c, deadlineMs)) };
-  } catch (e) {
-    return { failed: e instanceof Error ? e.message : String(e) };
-  }
-}
-
-/**
- * Runs `work` on each item `next` gives, `jobs` at a time, until it gives
- * none or `stop` holds before a dispatch.
- */
-async function inLanes<T>(
-  next: () => T | undefined,
-  jobs: number,
-  work: (item: T) => Promise<void>,
-  stop: () => boolean = () => false,
-): Promise<void> {
-  const lane = async () => {
-    for (;;) {
-      if (stop()) return;
-      const item = next();
-      if (item === undefined) return;
-      await work(item);
-    }
-  };
-  await Promise.all(Array.from({ length: jobs }, lane));
-}
-
-/** `items` one at a time, for `inLanes`. */
-function each<T>(items: readonly T[]): () => T | undefined {
-  let i = 0;
-  return () => items[i++];
-}
-
-/** The case of `entry`, without the rest of its record. */
-function caseOfEntry(entry: Entry): Case {
-  return { have: entry.have, want: entry.want, settings: entry.settings };
+/** The index of a case in its search, from its source. */
+function indexOf(source: Source): number {
+  return "seed" in source ? source.index : source.enumeration;
 }
 
 /** A case's timings as one line of progress. */
-function progress(record: CaseRecord, drawn: Drawn): string {
+function progressLine(record: CaseRecord, drawn: Drawn): string {
   const what = `${drawn.family.profile}  ${record.case.have}`;
   const index = record.index;
   if ("failed" in record) return `[${index}] FAILED: ${record.failed}  ${what}`;
@@ -241,397 +196,414 @@ function progress(record: CaseRecord, drawn: Drawn): string {
     const at =
       m.running === undefined
         ? "before its first pass"
-        : `in the ${m.running.run} run's pass ${m.running.pass} (${m.running.precision} digits)`;
-    return `[${index}] past the deadline ${at}  ${what}`;
+        : `in the ${m.running.run} run's pass ${m.running.pass + 1} of ${m.progress.schedule.length} (${m.running.precision} digits)`;
+    return `[${index}] past the deadline ${at}, ≈ ${Math.round(estimateMs(m) / 1000)} s warm  ${what}`;
   }
   const per = m.warm.ms / drawn.calls;
   return `[${index}] warm ${Math.round(m.warm.ms)} ms (${Math.round(per)} ms a call, ${m.warm.passes.length} passes), cold ${Math.round(m.cold.ms)} ms  ${what}`;
 }
 
-/**
- * The journal's case records, the first for each index, keeping only those
- * whose case is the one the index draws; the count of the others, which
- * a different generator wrote.
- */
-function journaledCases(
-  search: Search,
-  records: readonly JournalRecord[],
-): { cases: Map<number, CaseRecord>; foreign: number } {
-  const cases = new Map<number, CaseRecord>();
-  let foreign = 0;
-  for (const record of records) {
-    if (record.kind !== "case" || cases.has(record.index)) continue;
-    const ok =
-      Number.isInteger(record.index) &&
-      record.index >= 0 &&
-      record.index < search.count &&
-      caseKey(search.draw(record.index).case) === caseKey(record.case);
-    if (ok) cases.set(record.index, record);
-    else foreign++;
-  }
-  return { cases, foreign };
-}
+/** A run of a search: its state, its units and its writes. */
+class Run {
+  readonly cases = new Map<number, CaseRecord>();
+  readonly pairs = new Map<string, PairRecord>();
+  readonly typings = new Map<string, TypingRecord>();
+  readonly families = new Map<string, Family>();
+  readonly familyOf: string[] = [];
+  /** Families whose cases are all measured and that may still owe a pair or a typing. */
+  readonly open = new Set<string>();
+  readonly running = new Set<string>();
+  catalogue: Catalogue;
+  cursor = 0;
+  changed = false;
+  measuredNow = 0;
 
-/** Reads the journal in `dir`, saying what it skipped. */
-function readAndReport(
-  search: Search,
-  dir: URL,
-): {
-  records: readonly JournalRecord[];
-  cases: Map<number, CaseRecord>;
-} {
-  const journal = readJournal(dir);
-  if (journal.skipped > 0) {
-    console.log(`skipped ${journal.skipped} unreadable lines of the journal`);
-  }
-  const { cases, foreign } = journaledCases(search, journal.records);
-  if (foreign > 0) {
-    console.log(
-      `skipped ${foreign} journaled cases that this generator draws differently; delete ${fileURLToPath(dir)} to measure afresh`,
-    );
-  }
-  return { records: journal.records, cases };
-}
+  readonly search: Search;
+  readonly dir: URL;
+  readonly target: number;
+  readonly base: Catalogue;
+  readonly floorMs: number;
+  readonly deadlineMs: number;
+  readonly commit: Commit;
 
-/**
- * Step 1: measures the cases among the first `limit` of `shard` that the
- * journal lacks, `jobs` at a time, until done or past `budgetMs`, and
- * journals each as it finishes. Gives how many of them are left.
- */
-async function measureStep(
-  search: Search,
-  dir: URL,
-  limit: number,
-  shard: Shard | undefined,
-  budgetMs: number | undefined,
-  jobs: number,
-  deadlineMs: number,
-  commit: Commit,
-): Promise<{ measured: number; left: boolean }> {
-  const { cases } = readAndReport(search, dir);
-  const file = measureFile(shard);
-  const known = [...cases.keys()].filter(
-    (i) => i < limit && inShard(i, shard),
-  ).length;
-  if (known > 0) console.log(`${known} cases already journaled`);
-  console.log(
-    `measuring ${jobs} at a time, each under ${deadlineMs / 1000} s${budgetMs === undefined ? "" : `, for ${budgetMs / 60_000} minutes`}`,
-  );
-  let cursor = 0;
-  const next = (): number | undefined => {
-    while (cursor < limit) {
-      const index = cursor++;
-      if (inShard(index, shard) && !cases.has(index)) return index;
+  constructor(
+    search: Search,
+    dir: URL,
+    target: number,
+    base: Catalogue,
+    floorMs: number,
+    deadlineMs: number,
+    commit: Commit,
+    records: readonly JournalRecord[],
+  ) {
+    this.search = search;
+    this.dir = dir;
+    this.target = target;
+    this.base = base;
+    this.floorMs = floorMs;
+    this.deadlineMs = deadlineMs;
+    this.commit = commit;
+    this.catalogue = readCatalogue(CATALOGUE);
+    for (let index = 0; index < target; index++) {
+      const key = familyKey(search.draw(index).family);
+      this.familyOf[index] = key;
+      let family = this.families.get(key);
+      if (family === undefined) {
+        family = {
+          key,
+          members: 0,
+          measured: 0,
+          best: undefined,
+          worst: undefined,
+        };
+        this.families.set(key, family);
+      }
+      family.members++;
     }
-    return undefined;
-  };
-  const start = performance.now();
-  const stop = () =>
-    budgetMs !== undefined && performance.now() - start >= budgetMs;
-  let measured = 0;
-  await inLanes(
-    next,
-    jobs,
-    async (index) => {
-      const drawn = search.draw(index);
-      const outcome = await measureCase(drawn.case, deadlineMs);
-      const record = {
-        kind: "case",
+    let foreign = 0;
+    for (const record of records) {
+      if (record.kind === "case") {
+        if (!this.accept(record)) foreign++;
+      } else if (record.kind === "pair") {
+        this.pairs.set(pairKey(record.index, record.incumbent), record);
+      } else if (record.kind === "typing") {
+        this.typings.set(record.case, record);
+      }
+    }
+    if (foreign > 0) {
+      console.log(
+        `skipped ${foreign} journaled cases outside the range or drawn differently by this generator`,
+      );
+    }
+  }
+
+  /** Takes a journaled or new case into the run's state, unless it is not the run's. */
+  accept(record: CaseRecord): boolean {
+    const { index } = record;
+    if (!(Number.isInteger(index) && index >= 0 && index < this.target)) {
+      return false;
+    }
+    if (this.cases.has(index)) return true;
+    if (caseKey(this.search.draw(index).case) !== caseKey(record.case)) {
+      return false;
+    }
+    this.cases.set(index, record);
+    const family = this.families.get(this.familyOf[index]!)!;
+    family.measured++;
+    if ("measured" in record && record.measured.status === "done") {
+      const entry = this.entryOf(
         index,
-        case: drawn.case,
-        commit,
-        date: new Date().toISOString(),
-        ...outcome,
-      } as CaseRecord;
-      append(dir, file, record);
-      measured++;
-      console.log(progress(record, drawn));
-    },
-    stop,
-  );
-  return { measured, left: next() !== undefined };
-}
+        record.measured,
+        record.commit,
+        record.date,
+      );
+      if (
+        entry.warm.ms >= this.floorMs &&
+        (family.best === undefined ||
+          perCall(entry) > perCall(family.best.entry))
+      ) {
+        family.best = { index, entry };
+      }
+    } else {
+      const hang = this.hangOf(record);
+      if (
+        family.worst === undefined ||
+        hangEstimate(hang) > hangEstimate(family.worst)
+      ) {
+        family.worst = hang;
+      }
+    }
+    if (family.measured === family.members) this.open.add(family.key);
+    this.changed = true;
+    return true;
+  }
 
-/** An entry from a finished measurement of the case at `index`. */
-function entryOf(
-  search: Search,
-  index: number,
-  measured: Extract<Measurement, { status: "done" }>,
-  commit: Commit,
-  date: string,
-): Entry {
-  const drawn = search.draw(index);
-  return {
-    family: drawn.family,
-    have: drawn.case.have,
-    want: drawn.case.want,
-    settings: drawn.case.settings,
-    calls: drawn.calls,
-    source: search.source(index),
-    commit,
-    date,
-    machine: measured.machine,
-    cold: measured.cold,
-    warm: measured.warm,
-  };
-}
-
-/** A hang from a case that did not finish, or `undefined`. */
-function hangOf(search: Search, record: CaseRecord): Hang | undefined {
-  const drawn = search.draw(record.index);
-  const base = {
-    family: drawn.family,
-    have: drawn.case.have,
-    want: drawn.case.want,
-    settings: drawn.case.settings,
-    source: search.source(record.index),
-    commit: record.commit,
-    date: record.date,
-  };
-  if ("failed" in record) {
+  /** An entry from a finished measurement of the case at `index`. */
+  entryOf(
+    index: number,
+    measured: Extract<Measurement, { status: "done" }>,
+    commit: Commit,
+    date: string,
+  ): Entry {
+    const drawn = this.search.draw(index);
     return {
-      ...base,
-      machine: machine(),
-      reason: { kind: "failed", message: record.failed },
+      family: drawn.family,
+      have: drawn.case.have,
+      want: drawn.case.want,
+      settings: drawn.case.settings,
+      calls: drawn.calls,
+      source: this.search.source(index),
+      commit,
+      date,
+      machine: measured.machine,
+      cold: measured.cold,
+      warm: measured.warm,
     };
   }
-  const m = record.measured;
-  if (m.status !== "deadline") return undefined;
-  return {
-    ...base,
-    machine: m.machine,
-    reason: {
-      kind: "deadline",
-      deadlineMs: m.deadlineMs,
-      running: m.running ?? null,
-    },
-  };
+
+  /** A hang from a case that did not finish. */
+  hangOf(record: CaseRecord): Hang {
+    const drawn = this.search.draw(record.index);
+    const base = {
+      family: drawn.family,
+      have: drawn.case.have,
+      want: drawn.case.want,
+      settings: drawn.case.settings,
+      source: this.search.source(record.index),
+      commit: record.commit,
+      date: record.date,
+    };
+    if ("failed" in record) {
+      return {
+        ...base,
+        machine: machine(),
+        reason: { kind: "failed", message: record.failed },
+      };
+    }
+    const m = record.measured as Extract<Measurement, { status: "deadline" }>;
+    return {
+      ...base,
+      machine: m.machine,
+      reason: {
+        kind: "deadline",
+        deadlineMs: m.deadlineMs,
+        running: m.running ?? null,
+        progress: m.progress,
+        estimateMs: Math.round(estimateMs(m)),
+      },
+    };
+  }
+
+  /** The family `key` decided against `catalogue`, the run's entry carrying its typing. */
+  decision(key: string, catalogue: Catalogue): Decision {
+    const family = this.families.get(key)!;
+    const findings = {
+      best: family.best?.entry,
+      worst: family.worst,
+      complete: family.measured === family.members,
+    };
+    const pair = (best: Entry, incumbent: Entry): Pair | undefined => {
+      const record = this.pairs.get(
+        pairKey(indexOf(best.source), caseKey(caseOfEntry(incumbent))),
+      );
+      if (record === undefined) return undefined;
+      const done = (o: Outcome) =>
+        "measured" in o && o.measured.status === "done"
+          ? o.measured
+          : undefined;
+      const candidate = done(record.candidate);
+      const again = done(record.entry);
+      return {
+        candidate:
+          candidate === undefined
+            ? undefined
+            : this.entryOf(
+                indexOf(best.source),
+                candidate,
+                record.commit,
+                record.date,
+              ),
+        incumbent:
+          again === undefined
+            ? undefined
+            : { ...incumbent, cold: again.cold, warm: again.warm },
+      };
+    };
+    const decided = decide(
+      this.search.run,
+      findings,
+      slotOf(this.base, key),
+      slotOf(catalogue, key),
+      pair,
+    );
+    const { entry } = decided;
+    if (entry === undefined || !fromRun(entry.source, this.search.run)) {
+      return decided;
+    }
+    const typed = this.typings.get(caseKey(caseOfEntry(entry)));
+    return typed !== undefined && "typing" in typed
+      ? { ...decided, entry: { ...entry, typing: typed.typing } }
+      : decided;
+  }
+
+  /** The next ready unit, taking it: a family's pair or typing first, else the next case. */
+  next(): Unit | undefined {
+    for (const key of this.open) {
+      const decided = this.decision(key, this.catalogue);
+      if (decided.pairWith !== undefined) {
+        const index = this.families.get(key)!.best!.index;
+        const id = `pair ${pairKey(index, caseKey(caseOfEntry(decided.pairWith)))}`;
+        if (!this.running.has(id)) {
+          this.running.add(id);
+          return {
+            kind: "pair",
+            family: key,
+            index,
+            incumbent: decided.pairWith,
+          };
+        }
+        continue;
+      }
+      const { entry } = decided;
+      if (
+        entry !== undefined &&
+        fromRun(entry.source, this.search.run) &&
+        !this.typings.has(caseKey(caseOfEntry(entry)))
+      ) {
+        const id = `typing ${caseKey(caseOfEntry(entry))}`;
+        if (!this.running.has(id)) {
+          this.running.add(id);
+          return { kind: "typing", family: key, entry };
+        }
+        continue;
+      }
+      this.open.delete(key);
+    }
+    while (this.cursor < this.target) {
+      const index = this.cursor++;
+      if (!this.cases.has(index)) return { kind: "measure", index };
+    }
+    return undefined;
+  }
+
+  /** Runs `unit`, journals it, and takes it into the run's state. */
+  async run(unit: Unit): Promise<void> {
+    const date = () => new Date().toISOString();
+    switch (unit.kind) {
+      case "measure": {
+        const drawn = this.search.draw(unit.index);
+        const outcome = await measureCase(drawn.case, this.deadlineMs);
+        const record = {
+          kind: "case",
+          index: unit.index,
+          case: drawn.case,
+          commit: this.commit,
+          date: date(),
+          ...outcome,
+        } as CaseRecord;
+        append(this.dir, record);
+        this.accept(record);
+        this.measuredNow++;
+        console.log(progressLine(record, drawn));
+        return;
+      }
+      case "pair": {
+        const drawn = this.search.draw(unit.index);
+        const incumbent = caseOfEntry(unit.incumbent);
+        const candidate = await measureCase(drawn.case, this.deadlineMs);
+        const entry = await measureCase(incumbent, this.deadlineMs);
+        const record: PairRecord = {
+          kind: "pair",
+          index: unit.index,
+          incumbent: caseKey(incumbent),
+          commit: this.commit,
+          date: date(),
+          candidate,
+          entry,
+        };
+        append(this.dir, record);
+        const id = pairKey(record.index, record.incumbent);
+        this.pairs.set(id, record);
+        this.running.delete(`pair ${id}`);
+        this.changed = true;
+        const per = (o: Outcome, calls: number) =>
+          "failed" in o
+            ? "failed"
+            : o.measured.status === "done"
+              ? `${Math.round(o.measured.warm.ms / calls)} ms a call`
+              : "past its deadline";
+        console.log(
+          `  pair: ${per(candidate, drawn.calls)}  ${drawn.case.have}; its family's entry: ${per(entry, unit.incumbent.calls)}  ${unit.incumbent.have}`,
+        );
+        return;
+      }
+      case "typing": {
+        const c = caseOfEntry(unit.entry);
+        let record: TypingRecord;
+        let line: string;
+        try {
+          const typing = await typeOut(c, 2 * this.deadlineMs);
+          const slowest = Math.max(0, ...typing.keystrokes.map((k) => k.ms));
+          line = `slowest keystroke ${Math.round(slowest)} ms of ${typing.keystrokes.length}${typing.complete ? "" : " (incomplete)"}`;
+          record = {
+            kind: "typing",
+            case: caseKey(c),
+            commit: this.commit,
+            date: date(),
+            typing: summarizeTyping(typing),
+          };
+        } catch (e) {
+          line = `FAILED: ${e instanceof Error ? e.message : String(e)}`;
+          record = {
+            kind: "typing",
+            case: caseKey(c),
+            commit: this.commit,
+            date: date(),
+            failed: line,
+          };
+        }
+        append(this.dir, record);
+        this.typings.set(record.case, record);
+        this.running.delete(`typing ${record.case}`);
+        this.changed = true;
+        console.log(`  typed: ${line}  ${c.have}`);
+        return;
+      }
+    }
+  }
+
+  /**
+   * What the run has found, written: the catalogue as it is on disk now,
+   * with each family the run has found something of decided again, its
+   * run logged, and the tables of docs/cost.md regenerated.
+   */
+  async write(dryRun: boolean): Promise<void> {
+    let catalogue = readCatalogue(CATALOGUE);
+    for (const family of this.families.values()) {
+      if (family.best === undefined && family.worst === undefined) continue;
+      const decided = this.decision(family.key, catalogue);
+      catalogue = withSlot(catalogue, family.key, decided);
+    }
+    const indices = [...this.cases.keys()];
+    catalogue = withRun(catalogue, {
+      source: this.search.run,
+      cases: indices.length,
+      indices: formatRanges(indices),
+      commit: this.commit,
+      date: new Date().toISOString(),
+      machine: machine(),
+    });
+    this.catalogue = catalogue;
+    this.changed = false;
+    if (dryRun) return;
+    writeCatalogue(CATALOGUE, catalogue);
+    const written = [CATALOGUE];
+    if (existsSync(DOC)) {
+      let doc: string | undefined = readFileSync(DOC, "utf8");
+      doc = withTable(doc, catalogueTable(catalogue));
+      if (doc !== undefined) {
+        doc =
+          withTable(doc, hangsTable(catalogue), HANGS_START, HANGS_END) ?? doc;
+        writeAtomically(DOC, doc);
+        written.push(DOC);
+      }
+    }
+    await formatFiles(written);
+  }
+
+  /** One line on where the run stands. */
+  summary(): string {
+    const fromThis = (x: { readonly source: Source }) =>
+      fromRun(x.source, this.search.run);
+    const entries = this.catalogue.entries.filter(fromThis).length;
+    const hangs = this.catalogue.hangs.filter(fromThis).length;
+    return `${this.cases.size} of ${this.target} cases measured; the catalogue holds ${entries} entries and ${hangs} hangs of this run (${this.catalogue.entries.length} and ${this.catalogue.hangs.length} in all)`;
+  }
 }
 
 /** The key of a pair: the candidate's index and the entry's case. */
 function pairKey(index: number, incumbent: string): string {
   return `${index} ${incumbent}`;
-}
-
-/**
- * Step 2: merges the journaled cases no merge has taken into the
- * catalogue, measuring each candidate beside its family's entry and
- * typing out each entry that joins, `jobs` at a time and journaled.
- */
-async function mergeStep(
-  search: Search,
-  dir: URL,
-  jobs: number,
-  deadlineMs: number,
-  floorMs: number,
-  commit: Commit,
-  dryRun: boolean,
-): Promise<void> {
-  const { records, cases } = readAndReport(search, dir);
-  const taken = new Set(
-    records.flatMap((r) => (r.kind === "merged" ? parseRanges(r.indices) : [])),
-  );
-  const fresh = [...cases.values()]
-    .filter((r) => !taken.has(r.index))
-    .sort((a, b) => a.index - b.index);
-  if (fresh.length === 0) {
-    console.log("nothing to merge: every journaled case has been merged");
-    return;
-  }
-  const indices = formatRanges(fresh.map((r) => r.index));
-  console.log(`merging ${fresh.length} cases (${indices})`);
-  const commits = new Set(
-    fresh.map((r) => `${r.commit.hash}${r.commit.dirty ? " (dirty)" : ""}`),
-  );
-  if (commits.size > 1 || fresh.some((r) => r.commit.dirty)) {
-    console.log(`note: measured at ${[...commits].join(", ")}`);
-  }
-
-  const hangs = fresh
-    .map((record) => hangOf(search, record))
-    .filter((hang): hang is Hang => hang !== undefined);
-
-  // The costliest finished case of each family that reaches the floor.
-  const best = new Map<string, { record: Done; per: number }>();
-  for (const record of fresh) {
-    if ("failed" in record || record.measured.status !== "done") continue;
-    const done = record as Done;
-    if (done.measured.warm.ms < floorMs) continue;
-    const drawn = search.draw(done.index);
-    const key = familyKey(drawn.family);
-    const per = done.measured.warm.ms / drawn.calls;
-    const known = best.get(key);
-    if (known === undefined || per > known.per)
-      best.set(key, { record: done, per });
-  }
-
-  // Each candidate of a family the catalogue has, beside that entry.
-  const catalogue = readCatalogue(CATALOGUE);
-  const incumbents = new Map(
-    catalogue.entries.map((entry) => [familyKey(entry.family), entry]),
-  );
-  const pairs = new Map<string, PairRecord>();
-  for (const r of records) {
-    if (r.kind === "pair") pairs.set(pairKey(r.index, r.incumbent), r);
-  }
-  const contested = [...best.entries()].flatMap(([key, { record }]) => {
-    const incumbent = incumbents.get(key);
-    return incumbent === undefined ? [] : [{ record, incumbent }];
-  });
-  const needed = contested.filter(
-    ({ record, incumbent }) =>
-      !pairs.has(pairKey(record.index, caseKey(caseOfEntry(incumbent)))),
-  );
-  if (needed.length > 0) {
-    console.log(
-      `measuring ${needed.length} cases beside their families' entries, ${jobs} at a time`,
-    );
-  }
-  await inLanes(each(needed), jobs, async ({ record, incumbent }) => {
-    const candidate = await measureCase(record.case, deadlineMs);
-    const entry = await measureCase(caseOfEntry(incumbent), deadlineMs);
-    if (!("measured" in candidate) || !("measured" in entry)) return;
-    const pair: PairRecord = {
-      kind: "pair",
-      index: record.index,
-      incumbent: caseKey(caseOfEntry(incumbent)),
-      commit,
-      date: new Date().toISOString(),
-      candidate: candidate.measured,
-      entry: entry.measured,
-    };
-    append(dir, MERGE_FILE, pair);
-    pairs.set(pairKey(pair.index, pair.incumbent), pair);
-    const per = (m: Measurement, calls: number) =>
-      m.status === "done"
-        ? `${Math.round(m.warm.ms / calls)} ms a call`
-        : "past its deadline";
-    console.log(
-      `  ${per(pair.candidate, search.draw(record.index).calls)}  ${record.case.have}; its family's entry: ${per(pair.entry, incumbent.calls)}`,
-    );
-  });
-
-  const candidates: Entry[] = [];
-  const remeasured = new Map<string, Entry>();
-  for (const [key, { record }] of best) {
-    const incumbent = incumbents.get(key);
-    if (incumbent === undefined) {
-      candidates.push(
-        entryOf(
-          search,
-          record.index,
-          record.measured,
-          record.commit,
-          record.date,
-        ),
-      );
-      continue;
-    }
-    const pair = pairs.get(
-      pairKey(record.index, caseKey(caseOfEntry(incumbent))),
-    );
-    if (pair === undefined || pair.candidate.status !== "done") continue;
-    candidates.push(
-      entryOf(search, record.index, pair.candidate, pair.commit, pair.date),
-    );
-    if (pair.entry.status === "done") {
-      remeasured.set(key, {
-        ...incumbent,
-        cold: pair.entry.cold,
-        warm: pair.entry.warm,
-      });
-    }
-  }
-
-  const report = merge(catalogue, candidates, remeasured, floorMs);
-  let updated = mergeHangs(report.catalogue, hangs);
-
-  // Each entry that joined, typed out a keystroke at a time: the profile
-  // the interface's evaluation on every keystroke is designed against.
-  const joined = [
-    ...report.added,
-    ...report.replaced.map(([, entry]) => entry),
-  ];
-  const typings = new Map<string, TypingRecord>();
-  for (const r of records) {
-    if (r.kind === "typing" && !typings.has(r.case)) typings.set(r.case, r);
-  }
-  const untyped = joined.filter(
-    (entry) => !typings.has(caseKey(caseOfEntry(entry))),
-  );
-  if (untyped.length > 0) {
-    console.log(
-      `typing out ${untyped.length} entries a keystroke at a time, ${jobs} at a time`,
-    );
-  }
-  await inLanes(each(untyped), jobs, async (entry) => {
-    const typing = await typeOut(caseOfEntry(entry), 2 * deadlineMs).catch(
-      () => undefined,
-    );
-    if (typing === undefined) return;
-    const record: TypingRecord = {
-      kind: "typing",
-      case: caseKey(caseOfEntry(entry)),
-      commit,
-      date: new Date().toISOString(),
-      typing: summarizeTyping(typing),
-    };
-    append(dir, MERGE_FILE, record);
-    typings.set(record.case, record);
-    const slowest = Math.max(0, ...typing.keystrokes.map((k) => k.ms));
-    console.log(
-      `  slowest keystroke ${Math.round(slowest)} ms of ${typing.keystrokes.length}${typing.complete ? "" : " (incomplete)"}  ${entry.have}`,
-    );
-  });
-  for (const entry of joined) {
-    const record = typings.get(caseKey(caseOfEntry(entry)));
-    if (record !== undefined) {
-      updated = withTyping(updated, entry, record.typing);
-    }
-  }
-
-  updated = logRun(updated, {
-    source: search.runSource,
-    cases: fresh.length,
-    indices,
-    commit,
-    date: new Date().toISOString(),
-    machine: machine(),
-  });
-  console.log(
-    `${report.added.length} added, ${report.replaced.length} replaced, ${hangs.length} hangs (${updated.hangs.length - catalogue.hangs.length} new families)`,
-  );
-  for (const entry of report.added) {
-    console.log(
-      `  added: ${perCall(entry).toFixed(0)} ms a call  ${entry.have}`,
-    );
-  }
-  for (const [old, entry] of report.replaced) {
-    console.log(`  replaced: ${old.have}\n        by: ${entry.have}`);
-  }
-  if (dryRun) {
-    console.log(
-      "dry run: the catalogue is not written, nor the merge journaled",
-    );
-    return;
-  }
-  writeCatalogue(CATALOGUE, updated);
-  const written = [CATALOGUE];
-  console.log(`wrote ${fileURLToPath(CATALOGUE)}`);
-  if (existsSync(DOC)) {
-    const doc = withTable(readFileSync(DOC, "utf8"), catalogueTable(updated));
-    if (doc !== undefined) {
-      writeFileSync(DOC, doc);
-      written.push(DOC);
-      console.log(`regenerated the table in ${fileURLToPath(DOC)}`);
-    }
-  }
-  formatFiles(written);
-  append(dir, MERGE_FILE, {
-    kind: "merged",
-    indices,
-    date: new Date().toISOString(),
-  });
 }
 
 async function main(): Promise<void> {
@@ -642,8 +614,6 @@ async function main(): Promise<void> {
         seed: { type: "string" },
         cases: { type: "string" },
         budget: { type: "string" },
-        shard: { type: "string" },
-        merge: { type: "boolean", default: false },
         list: { type: "boolean", default: false },
         enumerate: { type: "boolean", default: false },
         deadline: { type: "string" },
@@ -661,25 +631,6 @@ async function main(): Promise<void> {
   if (options.help) usage(0);
   if (options.enumerate && options.seed !== undefined) {
     refuse("--enumerate takes no seed: the enumeration is fixed");
-  }
-  if (options.merge) {
-    if (!options.enumerate && options.seed === undefined) {
-      refuse("--merge needs the search to merge: its --seed, or --enumerate");
-    }
-    if (
-      options.shard !== undefined ||
-      options.cases !== undefined ||
-      options.budget !== undefined
-    ) {
-      refuse(
-        "--merge merges every journaled case: it takes no --shard, --cases or --budget",
-      );
-    }
-  }
-  const shard =
-    options.shard === undefined ? undefined : parseShard(options.shard);
-  if (options.shard !== undefined && shard === undefined) {
-    refuse(`--shard takes k/n with k below n, from zero: ${options.shard}`);
   }
   const budgetMs =
     options.budget === undefined
@@ -699,7 +650,7 @@ async function main(): Promise<void> {
       count: all.length,
       draw: (index) => all[index]!,
       source: (index) => ({ enumeration: index }),
-      runSource: { enumeration: true },
+      run: { enumeration: true },
       flags: "--enumerate",
     };
     console.log(`the enumeration, ${all.length} cases`);
@@ -710,94 +661,118 @@ async function main(): Promise<void> {
       count: MAX_CASES,
       draw: (index) => drawCase(seed.key, index),
       source: (index) => ({ seed: seed.text, index }),
-      runSource: { seed: seed.text },
+      run: { seed: seed.text },
       flags: `--seed ${seed.text}`,
     };
     console.log(`seed ${seed.text}${seed.fresh ? " (fresh)" : ""}`);
   }
-  const limit = Math.min(
-    search.count,
-    Math.floor(
-      positive(
-        options.cases,
-        // A seed's sequence has no end, so a run takes 100 cases (20 to
-        // list), and with a budget as many as it reaches.
-        options.enumerate || (budgetMs !== undefined && !options.list)
-          ? search.count
-          : options.list
-            ? 20
-            : 100,
-        "--cases",
-      ),
+  const dir = new URL(`${search.name}/`, RUNS);
+  const stored = readJson<RunFile>(dir, "run.json");
+  // The run covers the larger of what it covered and what is asked: a
+  // seed's sequence has no end, so a new run takes 100 cases (20 to list).
+  const asked = Math.floor(
+    positive(
+      options.cases,
+      options.enumerate ? search.count : options.list ? 20 : 100,
+      "--cases",
     ),
+  );
+  const target = Math.min(
+    search.count,
+    options.list ? asked : Math.max(asked, stored?.target ?? 0),
   );
 
   if (options.list) {
-    for (let index = 0; index < limit; index++) {
-      if (inShard(index, shard)) {
-        console.log(describeCase(index, search.draw(index)));
-      }
+    for (let index = 0; index < target; index++) {
+      console.log(describeCase(index, search.draw(index)));
     }
     return;
   }
 
-  const commit = currentCommit();
-  const dir = new URL(`${search.name}/`, RUNS);
-  console.log(`journal: ${fileURLToPath(dir)}`);
-  if (!options.merge) {
-    const { measured, left } = await measureStep(
+  const held = lock(dir);
+  if ("heldBy" in held) {
+    refuse(`another process is working on this run: ${held.heldBy}`);
+  }
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.on(signal, () => {
+      held.release();
+      console.log(
+        `\nstopped; carry on with: pnpm stress:search ${search.flags}`,
+      );
+      process.exit(130);
+    });
+  }
+  try {
+    writeJson(dir, "run.json", { target } satisfies RunFile);
+    let base = readJson<Catalogue>(dir, "base.json");
+    if (base === undefined) {
+      base = readCatalogue(CATALOGUE);
+      writeJson(dir, "base.json", base);
+    }
+    const journal = readJournal(dir);
+    if (journal.skipped > 0) {
+      console.log(`skipped ${journal.skipped} unreadable lines of the journal`);
+    }
+    const run = new Run(
       search,
       dir,
-      limit,
-      shard,
-      budgetMs,
-      jobs,
+      target,
+      base,
+      floorMs,
       deadlineMs,
-      commit,
+      currentCommit(),
+      journal.records,
     );
-    const shardFlag = shard === undefined ? "" : ` --shard ${options.shard}`;
-    const casesFlag =
-      options.cases === undefined ? "" : ` --cases ${options.cases}`;
-    console.log(`measured ${measured} cases`);
+    console.log(`journal: ${fileURLToPath(dir)}`);
+    if (run.cases.size > 0) {
+      console.log(`${run.cases.size} of ${target} cases already measured`);
+    }
+    console.log(
+      `${jobs} lanes, each case under ${deadlineMs / 1000} s${budgetMs === undefined ? "" : `, for ${budgetMs / 60_000} minutes`}`,
+    );
+
+    const dryRun = options["dry-run"];
+    let writing: Promise<void> = Promise.resolve();
+    const writeNow = () => {
+      writing = writing.then(async () => {
+        await run.write(dryRun);
+        console.log(`-- ${run.summary()}`);
+      });
+      return writing;
+    };
+    const timer = setInterval(() => {
+      if (run.changed) void writeNow();
+    }, WRITE_EVERY_MS);
+    const start = performance.now();
+    try {
+      await runPool<Unit>({
+        jobs,
+        next: () => run.next(),
+        run: (unit) => run.run(unit),
+        stop: () =>
+          budgetMs !== undefined && performance.now() - start >= budgetMs,
+      });
+    } finally {
+      clearInterval(timer);
+    }
+    await writeNow();
+    const left = run.next() !== undefined;
+    console.log(
+      `measured ${run.measuredNow} cases in this process${left ? "; stopped by the budget" : ""}`,
+    );
     if (left) {
       console.log(
-        `stopped by the budget; carry on with: pnpm stress:search ${search.flags}${casesFlag}${shardFlag}${options.budget === undefined ? "" : ` --budget ${options.budget}`}`,
+        `carry on with: pnpm stress:search ${search.flags}${options.budget === undefined ? "" : ` --budget ${options.budget}`}`,
       );
-    }
-    if (shard !== undefined) {
+    } else {
       console.log(
-        `once every shard is done, merge with: pnpm stress:search ${search.flags} --merge`,
+        `replay with: pnpm stress:search ${search.flags} --cases ${target}`,
       );
-      return;
     }
+    if (dryRun) console.log("dry run: the catalogue and docs are not written");
+  } finally {
+    held.release();
   }
-  await mergeStep(
-    search,
-    dir,
-    jobs,
-    deadlineMs,
-    floorMs,
-    commit,
-    options["dry-run"],
-  );
-}
-
-/**
- * Formats `files` with the repository's Prettier, so that a run leaves
- * `pnpm format:check` green: the JSON and the table are written as they
- * come and laid out by the same tool as every other file.
- */
-function formatFiles(files: readonly URL[]): void {
-  execFileSync(
-    process.execPath,
-    [
-      fileURLToPath(new URL("node_modules/prettier/bin/prettier.cjs", root)),
-      "--write",
-      "--log-level=warn",
-      ...files.map((file) => fileURLToPath(file)),
-    ],
-    { cwd: fileURLToPath(root), stdio: "inherit" },
-  );
 }
 
 await main();

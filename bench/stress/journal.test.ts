@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
-import { appendFileSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import {
+  appendFileSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
@@ -9,28 +15,23 @@ import {
   append,
   caseKey,
   formatRanges,
-  inShard,
-  measureFile,
+  lock,
   parseRanges,
-  parseShard,
   readJournal,
+  readJson,
+  writeJson,
   type JournalRecord,
 } from "./journal.ts";
 
-test("shards split the indices among them, and name their files", () => {
-  assert.deepEqual(parseShard("1/3"), { index: 1, count: 3 });
-  assert.deepEqual(parseShard("0/1"), { index: 0, count: 1 });
-  for (const bad of ["3/3", "1/0", "-1/2", "1", "a/b", "1/2/3"]) {
-    assert.equal(parseShard(bad), undefined, bad);
+/** A directory of its own for `body`, removed afterwards. */
+function inTemporary(body: (dir: URL, path: string) => void): void {
+  const path = mkdtempSync(join(tmpdir(), "journal-"));
+  try {
+    body(pathToFileURL(`${path}/run/`), join(path, "run"));
+  } finally {
+    rmSync(path, { recursive: true, force: true });
   }
-  const shards = [0, 1, 2].map((index) => ({ index, count: 3 }));
-  for (let i = 0; i < 30; i++) {
-    assert.equal(shards.filter((s) => inShard(i, s)).length, 1);
-    assert.ok(inShard(i, undefined));
-  }
-  assert.equal(measureFile(undefined), "measure-all.jsonl");
-  assert.equal(measureFile(shards[2]), "measure-2-of-3.jsonl");
-});
+}
 
 test("ranges are compact and read back", () => {
   assert.equal(formatRanges([]), "");
@@ -50,29 +51,53 @@ test("a case's key tells cases apart by texts and settings", () => {
   );
 });
 
-test("the journal reads every file's records, skipping a line cut short", () => {
-  const path = mkdtempSync(join(tmpdir(), "journal-"));
-  try {
-    const dir = pathToFileURL(`${path}/runs/`);
+test("the journal reads its records back, skipping a line cut short", () => {
+  inTemporary((dir, path) => {
     assert.deepEqual(readJournal(dir), { records: [], skipped: 0 });
-    const merged = (indices: string): JournalRecord => ({
-      kind: "merged",
-      indices,
+    const check = (n: number): JournalRecord => ({
+      kind: "check",
+      case: `case ${n}`,
       date: "d",
+      failed: "no",
     });
-    append(dir, "measure-1-of-2.jsonl", merged("1"));
-    append(dir, "measure-0-of-2.jsonl", merged("0"));
-    append(dir, "measure-0-of-2.jsonl", merged("2"));
+    append(dir, check(1));
+    append(dir, check(2));
     // A process killed in the middle of a line leaves it unfinished.
-    appendFileSync(join(path, "runs", "measure-1-of-2.jsonl"), '{"kind":"me');
-    appendFileSync(join(path, "runs", "notes.txt"), "not a journal\n");
+    appendFileSync(join(path, "journal.jsonl"), '{"kind":"ch');
     const journal = readJournal(dir);
     assert.deepEqual(
-      journal.records.map((r) => (r.kind === "merged" ? r.indices : "")),
-      ["0", "2", "1"],
+      journal.records.map((r) => (r.kind === "check" ? r.case : "")),
+      ["case 1", "case 2"],
     );
     assert.equal(journal.skipped, 1);
-  } finally {
-    rmSync(path, { recursive: true, force: true });
-  }
+    assert.equal(readJson(dir, "run.json"), undefined);
+    writeJson(dir, "run.json", { target: 40 });
+    assert.deepEqual(readJson(dir, "run.json"), { target: 40 });
+  });
+});
+
+test("a run's lock is held by one live process, and taken over from a dead one", () => {
+  inTemporary((dir, path) => {
+    const first = lock(dir);
+    assert.ok("release" in first);
+    const second = lock(dir);
+    assert.ok("heldBy" in second);
+    assert.match(second.heldBy, new RegExp(`pid ${process.pid}$`));
+    first.release();
+    const third = lock(dir);
+    assert.ok("release" in third);
+    third.release();
+    // A lock whose process is gone, killed before it released it.
+    writeFileSync(
+      join(path, "lock"),
+      JSON.stringify({ host: hostname(), pid: 2 ** 22 + 12345 }),
+    );
+    const taken = lock(dir);
+    assert.ok("release" in taken);
+    assert.match(
+      readFileSync(join(path, "lock"), "utf8"),
+      new RegExp(`"pid":${process.pid}`),
+    );
+    taken.release();
+  });
 });

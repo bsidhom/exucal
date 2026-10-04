@@ -1664,8 +1664,10 @@ tests. The rest of the directory is what they share:
   untimed, then evaluates the case cold and again warm, timing each pass
   through the pipeline's optional `PassObserver`, which changes nothing
   it observes. A deadline that starts once the table is built ends a
-  case that runs too long, recorded with the pass that was running,
-  since no timer can interrupt a synchronous evaluation. Its tests are
+  case that runs too long, recorded with the pass that was running, how
+  long it had run, the passes of that evaluation that finished and the
+  schedule, since no timer can interrupt a synchronous evaluation. Its
+  tests are
   ordinary ones, run by `pnpm test`.
 - `bench/stress/search.ts` is the cost search (8.2), run by hand with
   `pnpm stress:search`. Its cases come from `cases.ts`, a pure function
@@ -1676,43 +1678,57 @@ tests. The rest of the directory is what they share:
   their argument classes, a costly call composed into an argument, the
   settings profile and the want. A run without `--seed` draws a fresh
   seed from the cryptographic source and prints it; `--cases` takes a
-  prefix of the sequence, and the indices each merge took are logged, so
+  prefix of the sequence, and the indices each run took are logged, so
   any run replays; `--list` prints the cases without evaluating them,
-  and `--enumerate` runs a fixed enumeration instead. Every measurement
-  is journaled as it finishes (`journal.ts`: JSON Lines under
-  `bench/stress/runs/<seed>/`, one file per shard and one for the merge),
-  and a run measures only what its journal lacks. So a stopped run
-  resumes, a larger `--cases` extends a finished one, `--budget` bounds a
-  run's length, and `--shard k/n` splits a search among processes or
-  machines, merged afterwards by `--merge`. No timing decides what is
-  searched. The cases are measured in parallel, one per core, since
-  timings under that load stay within a few percent of timings alone.
-  The merge step reads every journaled case no merge has taken, and
-  `catalogue.ts` merges them into `bench/stress/catalogue.json`. It adds
-  a new family's case that reaches the floor (a second warm). It replaces
-  an entry only by a case that costs more per call than the entry, the
-  two measured back to back in one lane so that both see the same load.
-  Cases past their deadline, or whose worker failed, are kept apart as
-  hangs. The tests of `cases.ts`, `catalogue.ts` and `journal.ts` are
-  ordinary ones, since they evaluate nothing. Each
-  entry that joins the catalogue is also typed out (`typeOut` of the
-  harness): `outcomeOf` on every prefix of its text in order, in one
-  worker so that the memos carry over as in a session, the profile the
-  interface's evaluation on every keystroke meets.
-- `bench/stress/catalogue.stress.ts` is the stress suite (8.3), run by
+  and `--enumerate` runs a fixed enumeration instead. No timing decides
+  what is searched. The work is units, each the least that can be done
+  alone: a case measured (cold and warm together, since the warm
+  evaluation needs the cold one's memos), a family's best case measured
+  back to back with another run's entry for the family (a pair), and an
+  entry typed out (`typeOut` of the harness: `outcomeOf` on every prefix
+  of its text in order, in one worker so that the memos carry over as in
+  a session). Lanes, one per core, pull the next ready unit as they come
+  free (`pool.ts`): a pair or a typing as soon as its family's cases are
+  all measured, else the next case, so a long unit holds one lane and
+  the rest carry on. Timings under that load stay within a few percent
+  of timings alone, which is why they are kept. Each unit is journaled
+  as it finishes (`journal.ts`: JSON Lines under
+  `bench/stress/runs/<seed>/`, with the run's target, a snapshot of the
+  catalogue as it began, and a lock naming the one process working on
+  it), and a run does only what its journal lacks. So a stopped run
+  resumes losing only the units that were running, a larger `--cases`
+  extends a finished one, and `--budget` bounds a run's length. Every
+  fifteen seconds, and at the end, the run writes what it has found:
+  `catalogue.ts` decides each family it has measured anything of
+  (`decide`), and the catalogue and the tables of `docs/cost.md` are
+  rewritten. A new family's best case reaching the floor (a second warm)
+  takes its slot at once; another run's entry is replaced only by a case
+  that costs more per call measured beside it; the run's own entries are
+  replaced by its best, since they were measured under the same load. A
+  case past its deadline, or whose worker failed, is a hang, kept one per
+  family and ranked by `estimateMs` of the harness, which extends the
+  passes it finished along their growth in precision to the end of its
+  schedule; another run's hang is replaced by one estimated half again
+  as costly. A decision depends only on the journal, the snapshot and
+  the other runs' entries, so making it again makes the same. The tests
+  of `cases.ts`, `catalogue.ts`, `journal.ts` and `pool.ts` are ordinary
+  ones, since they evaluate nothing.
+- `bench/stress/verify.ts` is the stress suite (8.3), run by
   `pnpm stress` and discovered by neither `pnpm test` nor `pnpm bench`.
-  It measures each catalogued case in a worker of its own, cold and
-  warm, one per core at a time as the search measured them
-  (`STRESS_JOBS` changes it, and `STRESS_SHARD=k/n` runs one shard of
-  the entries), under a deadline of four times its catalogued time and
-  two minutes at least,
-  and asserts what holds on any machine: the outcome's kind, value and
-  warnings as catalogued (the note after the value, which states a bound
-  a sharper kernel may tighten, is left out), and no case past its
-  deadline. It reports the timings beside the catalogue's, each case's
-  cost as a multiple of a reference case (`exp(1) - exp(1)`) measured in
-  the same run, and cases much cheaper than catalogued; the hangs are
-  listed, with their issues, and not run.
+  Each catalogued case is a unit, measured in a worker of its own, cold
+  and warm, in the search's lanes, cheapest first by its catalogued time,
+  then the hangs (`--skip-hangs` leaves them out); each result is printed
+  and journaled as it comes, under a directory keyed by the commit, the
+  changes beside it and the catalogue (`treeKey` of `tooling.ts`), so the
+  suite resumes on the same tree and starts afresh after a change. An
+  entry's deadline is four times its catalogued time and two minutes at
+  least. It fails on what holds on any machine: an entry's outcome's
+  kind, value and warnings as catalogued (the note after the value,
+  which states a bound a sharper kernel may tighten, is left out), and
+  no entry past its deadline. It reports the timings beside the
+  catalogue's, each entry's cost as a multiple of a reference case
+  (`exp(1) - exp(1)`), entries much cheaper than catalogued, and for each
+  hang how far it got and its estimate, or that it now finishes.
 - `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
   drawn from the letters `n` to `z` and unit names from `a` to `m`, so
   that no name is ambiguous and the ambiguity check scans everything: its

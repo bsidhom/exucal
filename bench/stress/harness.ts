@@ -19,9 +19,12 @@
 // node:test's `timeout`, like any timer, cannot interrupt the synchronous
 // evaluation running in a worker (the sweeps' runner, src/testing/edges.ts,
 // does the same for the same reason). The worker posts each pass as it
-// starts, so when the deadline passes the main thread knows which pass was
-// running, terminates the worker, and records the case as past its
-// deadline with that pass.
+// starts and as it ends, so when the deadline passes the main thread knows
+// which pass was running and for how long, and which passes of that
+// evaluation had finished; it terminates the worker and records the case
+// as past its deadline with that progress and the schedule of passes, from
+// which `estimateMs` extrapolates what the case would cost to finish, so
+// that hangs rank among themselves as finished cases do.
 //
 // Time depends on the machine, so every measurement names the machine it
 // was taken on, and only measurements taken in one run compare.
@@ -37,7 +40,7 @@ import {
 import { buildTable } from "../../src/core/build.ts";
 import { ceilingContext } from "../../src/core/context.ts";
 import { parseDefinitions } from "../../src/core/definitions.ts";
-import type { PassEvent } from "../../src/core/pipeline.ts";
+import { schedule, type PassEvent } from "../../src/core/pipeline.ts";
 import { outcomeOf, type Line, type Outcome } from "../../src/outcome.ts";
 import {
   DEFAULT_SETTINGS,
@@ -96,9 +99,21 @@ export type Running = {
 };
 
 /**
+ * How far an evaluation that passed its deadline got: the precision of
+ * every pass of its schedule, the passes of the running evaluation that
+ * finished, and how long the running pass had run.
+ */
+export type Progress = {
+  readonly schedule: readonly number[];
+  readonly passes: readonly Pass[];
+  readonly runningMs: number;
+};
+
+/**
  * What measuring a case gave: both evaluations, or, past the deadline, the
- * cold evaluation if it finished and what was running when the deadline
- * passed (nothing yet, if the worker had not started a pass).
+ * cold evaluation if it finished, what was running when the deadline
+ * passed (nothing yet, if the worker had not started a pass) and how far
+ * it had got.
  */
 export type Measurement =
   | {
@@ -115,6 +130,7 @@ export type Measurement =
       readonly deadlineMs: number;
       readonly cold: Run | undefined;
       readonly running: Running | undefined;
+      readonly progress: Progress;
     };
 
 /**
@@ -138,7 +154,7 @@ export type Typing = {
 
 /** What the worker posts: the table is built, a pass starts, or a run is over. */
 type Message =
-  | { readonly kind: "ready" }
+  | { readonly kind: "ready"; readonly schedule?: readonly number[] }
   | { readonly kind: "keystroke"; readonly keystroke: Keystroke }
   | { readonly kind: "typed" }
   | {
@@ -147,6 +163,7 @@ type Message =
       readonly pass: number;
       readonly precision: number;
     }
+  | { readonly kind: "passed"; readonly pass: Pass }
   | {
       readonly kind: "run";
       readonly run: "cold" | "warm";
@@ -188,6 +205,56 @@ export function checkSettings(settings: Settings): void {
   if (!isMode(mode)) throw new RangeError(`Mode: ${String(mode)}`);
 }
 
+/**
+ * The exponent of a pass's cost in its precision, from the last two passes
+ * that finished, held within one and three (from linear to the schoolbook
+ * product's square and a little more); two without them.
+ */
+function growth(passes: readonly Pass[]): number {
+  const [a, b] = passes.slice(-2);
+  if (
+    a === undefined ||
+    b === undefined ||
+    !(a.ms > 0 && b.ms > 0 && b.precision > a.precision)
+  ) {
+    return 2;
+  }
+  const k = Math.log(b.ms / a.ms) / Math.log(b.precision / a.precision);
+  return Math.min(3, Math.max(1, k));
+}
+
+/**
+ * What a case past its deadline would cost warm, estimated: the evaluation
+ * that was running, its finished passes as timed and the rest of its
+ * schedule extrapolated from the last of them by `growth`, the running
+ * pass at least as long as it had run. When the cold evaluation was
+ * running, its estimate stands for the warm one, which costs about the
+ * same but for the memos. A case that had not started a pass costs at
+ * least its deadline. The estimate ranks hangs, which have no time of
+ * their own; it is not a measurement.
+ */
+export function estimateMs(
+  m: Extract<Measurement, { status: "deadline" }>,
+): number {
+  const { running, progress } = m;
+  if (running === undefined || progress.schedule.length === 0) {
+    return m.deadlineMs;
+  }
+  const { schedule, passes, runningMs } = progress;
+  const k = growth(passes);
+  const anchor = passes.at(-1) ?? {
+    precision: schedule[running.pass] ?? 1,
+    ms: runningMs,
+  };
+  let total = passes.reduce((sum, pass) => sum + pass.ms, 0);
+  for (let i = running.pass; i < schedule.length; i++) {
+    const extrapolated = anchor.ms * (schedule[i]! / anchor.precision) ** k;
+    total +=
+      i === running.pass ? Math.max(extrapolated, runningMs) : extrapolated;
+  }
+  return total;
+}
+
 /** The machine this process runs on. */
 export function machine(): Machine {
   return {
@@ -214,6 +281,9 @@ export async function measure(
   });
   const runs: Partial<Record<"cold" | "warm", Run>> = {};
   let running: Running | undefined;
+  let runningSince = 0;
+  let passes: Pass[] = [];
+  let passSchedule: readonly number[] = [];
   try {
     return await new Promise<Measurement>((resolve, reject) => {
       let timer: NodeJS.Timeout | undefined;
@@ -226,18 +296,34 @@ export async function measure(
           deadlineMs,
           cold: runs.cold,
           running,
+          progress: {
+            schedule: passSchedule,
+            passes,
+            runningMs:
+              running === undefined ? 0 : performance.now() - runningSince,
+          },
         });
       };
       worker.on("message", (message: Message) => {
         switch (message.kind) {
           case "ready":
+            passSchedule = message.schedule ?? [];
             timer = setTimeout(pastDeadline, deadlineMs);
             break;
           case "pass":
-            running = message;
+            running = {
+              run: message.run,
+              pass: message.pass,
+              precision: message.precision,
+            };
+            runningSince = performance.now();
+            break;
+          case "passed":
+            passes.push(message.pass);
             break;
           case "run":
             runs[message.run] = message.result;
+            passes = [];
             if (runs.cold !== undefined && runs.warm !== undefined) {
               clearTimeout(timer);
               resolve({
@@ -366,7 +452,10 @@ function runJob(job: { readonly stressCase: Case }): void {
   const port = parentPort!;
   const { have, want, settings } = job.stressCase;
   const { context, table } = systemTable(settings);
-  port.postMessage({ kind: "ready" } satisfies Message);
+  port.postMessage({
+    kind: "ready",
+    schedule: schedule(context).map((c) => c.precision),
+  } satisfies Message);
   for (const run of ["cold", "warm"] as const) {
     const passes: Pass[] = [];
     let passStart = 0;
@@ -381,10 +470,12 @@ function runJob(job: { readonly stressCase: Case }): void {
           precision: event.working.precision,
         } satisfies Message);
       } else {
-        passes.push({
+        const pass = {
           precision: event.working.precision,
           ms: now - passStart,
-        });
+        };
+        passes.push(pass);
+        port.postMessage({ kind: "passed", pass } satisfies Message);
       }
     };
     const start = performance.now();

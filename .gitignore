@@ -21,3 +21,5 @@ dist/
 
 # The cost search's journals (bench/stress/journal.ts)
 bench/stress/runs/
+# Files the stress tools write before renaming them into place
+*.tmp

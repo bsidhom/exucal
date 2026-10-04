@@ -5353,10 +5353,9 @@ arguments, #126, #103, #107), and a new one for each cause no issue
 covers. A hang the search found is filed as an issue of its own. #118 is
 linked to the catalogue as the interface's target.
 
-The stress suite is the `*.stress.ts` files under `bench/stress/`, run by
-`pnpm stress`. Neither `pnpm test` nor `pnpm bench` discovers them, so
-`pnpm test:all` never runs them: they run for minutes, and a commit does
-not wait on them. The suite measures each catalogued case under a
+The stress suite is `bench/stress/verify.ts`, run by `pnpm stress`.
+Neither `pnpm test` nor `pnpm bench` runs it, so `pnpm test:all` never
+does: it runs for minutes, and a commit does not wait on it. The suite measures each catalogued case under a
 deadline, cold and warm. It reports the timings beside the catalogue's,
 and as ratios to a reference case measured in the same run. It asserts
 only what holds on any machine:
@@ -5364,8 +5363,8 @@ only what holds on any machine:
 - **Each case gives the outcome it was catalogued with,** the same kind
   and the same digits, so that an optimization that changes a value
   fails.
-- **No case passes its deadline.** A known hang is skipped by name, as
-  the sweeps skip one, until its issue is fixed.
+- **No case passes its deadline.** A known hang is measured last and
+  reported, with how far it gets, never failed.
 
 A case that has become much cheaper is reported, so that the catalogue
 is measured again. README ("Benchmarks") says what the suite is, how
@@ -5385,11 +5384,7 @@ warnings but not the note after the value, since a sharper kernel
 tightens the bound the note states without changing the value; each
 case's deadline is four times its catalogued time and two minutes at
 least, and the reference is `exp(1) - exp(1)`, which runs to the
-ceiling in milliseconds. A hang records the issue filed for it. The
-cases run in parallel, one per core, since the catalogue's timings are
-taken that way too (below), and `STRESS_SHARD=k/n` and node's
-`--test-name-pattern` run part of the suite: the whole takes about
-twenty minutes on four cores, against eighty one at a time.
+ceiling in milliseconds. A hang records the issue filed for it.
 
 The first catalogue is the fixed enumeration plus one run of 596 cases from
 a fresh seed, `15bb91548182473c`.
@@ -5408,20 +5403,50 @@ docs/cost.md gives the findings by cause:
   keystroke of 100 ms or more on the last one, the keystroke that
   completes the expression.
 
-The search's second step changed. It measured each family's costliest
-case again alone, and the case's family entry with it, which on four
-cores took about as long as the parallel step, an hour and more, and
-nothing was written until it ended. But the timings under load had
-stayed within a few percent of the solo ones: a median ratio of 1.06,
-and 1.31 at worst, over two hundred cases. So the parallel timings are
-kept. A new family joins on them, and a case that may replace an entry
-is measured back to back with that entry in one lane, the pairs running
-in parallel. Every measurement is journaled as it finishes
-(`journal.ts`, under the ignored `bench/stress/runs/`), so a run stops
-anywhere and the same command resumes it. A larger `--cases` extends a
-finished run, `--budget` bounds a run's length, `--shard k/n` splits a
-search among processes or machines, and `--merge` merges the shards.
-The run log records the indices each merge took.
+The tools then changed shape, since a run of the search had taken two
+hours and been lost whole when stopped. Every long run is now units of
+work, each the least that can be done alone, pulled one at a time by
+lanes, one per core (`pool.ts`), and journaled as it finishes
+(`journal.ts`), so a run stopped anywhere resumes losing only the units
+that were running, and results come as they are found:
+
+- **The search's units** are a case measured (cold and warm together,
+  since the warm evaluation needs the cold one's memos), a pair (a
+  family's best case and another run's entry for the family, back to
+  back in one lane) and an entry typed out (in one worker, since each
+  keystroke needs the memos of the ones before it). There is no second
+  step: a pair or a typing is ready as soon as its family's cases are
+  all measured, and the lanes take it before the next case. Each case was
+  measured again alone in the first design, which on four cores took as
+  long as the search itself, but the timings under load had stayed
+  within a few percent of the solo ones (a median ratio of 1.06, and
+  1.31 at worst, over two hundred cases), so they are kept.
+- **The catalogue is written as the run goes,** every fifteen seconds
+  and at the end: `decide` (catalogue.ts) settles each family the run
+  has measured anything of, against the catalogue as it is and a
+  snapshot of it from when the run began, and makes the same choice
+  when made again, so the writes can repeat. A new family's best case
+  takes its slot at once, a hang as soon as it is found, a pair's winner
+  once the pair is measured.
+- **Hangs rank.** A case past its deadline records the passes it
+  finished, how long the running one had run and the schedule, and
+  `estimateMs` (harness.ts) extends the passes along their growth in
+  precision to the end of the schedule: the hangs table of docs/cost.md
+  ranks them by that estimate, the slot of a family keeps its costliest,
+  and another run's hang gives way to one estimated half again as
+  costly.
+- **The stress suite** is `verify.ts`, a script rather than node:test
+  files, since a test runner fixes its tests before it starts: the
+  entries, cheapest first so that results come in seconds, then the
+  hangs, in the same lanes, journaled under a key of the commit, the
+  changes beside it and the catalogue, so it resumes on the same tree
+  and starts afresh after a change.
+- **One machine.** A cloud session here is one container with no
+  filesystem or network shared with any other, so the lanes share the
+  work among one machine's cores. The units and the journal do not
+  depend on that: sharing them across machines needs only a way to hand
+  out units, files in a shared directory or a coordinator, when there is
+  more than one machine to share with.
 
 Hangs are filed one issue per setting that produces them, not one per
 case, since each setting's hangs share their causes. #151 covers the

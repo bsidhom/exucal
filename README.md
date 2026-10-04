@@ -1061,33 +1061,34 @@ noise: such a benchmark guards nothing until it is fixed. `ARCHITECTURE.md`
 
 `pnpm stress` measures every input in `bench/stress/catalogue.json`, the
 costliest inputs the cost search has found (`docs/cost.md` presents them,
-by cause). It measures each input cold and warm, one per core at a
-time, and takes about twenty minutes on four cores, so `pnpm test:all`
-does not run it and a commit does not wait on it. To run part of it,
-select by settings profile with `pnpm stress
---test-name-pattern='^default'`, or split it with `STRESS_SHARD=0/2
-pnpm stress` and `STRESS_SHARD=1/2 pnpm stress` on two machines. Run it
-by hand: before and after a change aimed at one of its inputs, after a
-change to a kernel, and when the work on keeping the interface responsive
-(#118) wants a fresh target. It fails only when an input gives a
-different value than it was catalogued with, or passes its deadline; the
-timings, each input's cost as a multiple of a reference measured in the
-same run, and inputs that have become much cheaper are reported.
+by cause), cold and warm, one per core at a time, cheapest first: results
+start in seconds, and the whole takes about fifteen minutes on four
+cores, plus about twenty for the inputs that hang, which `--skip-hangs`
+leaves out. So `pnpm test:all` does not run it and a commit does not
+wait on it. Run it by hand: before and after a change aimed at one of
+its inputs, after a change to a kernel, and when the work on keeping the
+interface responsive (#118) wants a fresh target. It fails only when an
+input gives a different value than it was catalogued with, or passes its
+deadline; the timings, each input's cost as a multiple of a reference,
+inputs that have become much cheaper and how far each hang gets are
+reported.
 
 `pnpm stress:search` adds to the catalogue. Without `--seed` it draws a
 fresh seed, prints it and explores new inputs; with `--seed` and
 `--cases` it replays an earlier run exactly; `--enumerate` runs a fixed
-sweep of every function instead. A run journals each input as it is
-measured, under `bench/stress/runs/` (ignored by git), so a run can be
-stopped at any point and the same command carries on where it left off.
-Start small and grow: `--cases 40` takes a few minutes, and a later
-`--cases 200` measures only the 160 new inputs. `--budget <minutes>`
-stops a run after that long, for the next one to carry on. To share a
-search among processes or machines, run each with `--shard k/n` (`0/2`
-and `1/2`), copy the journals into one `bench/stress/runs/<seed>/` if
-they ran on different machines, then merge with `--seed <seed>
---merge`. A run leaves its findings as a diff to the catalogue and to
-the table in `docs/cost.md`, for review like any other change.
+sweep of every function instead. It writes what it has found into the
+catalogue and the tables of `docs/cost.md` every fifteen seconds as it
+runs, so the results grow while you watch, and leaves them as a diff for
+review like any other change.
+
+Both journal every result as it comes, under `bench/stress/runs/`
+(ignored by git), so either can be stopped at any point, by Ctrl-C or a
+crash, and the same command carries on where it left off, losing only
+what was running. Start small and grow: `pnpm stress:search --cases 40`
+takes a few minutes, and a later `--cases 200` measures only the 160 new
+inputs. `--budget <minutes>` stops a search after that long, for the
+next run to carry on. The suite's journal is kept for one state of the
+code and the catalogue: after a change, it starts afresh.
 
 ### Offline behavior
 

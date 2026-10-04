@@ -1548,6 +1548,22 @@ src/app-shell.ts          the host: loads the table, renders the component
 Each core module but the two smallest, span.ts and result.ts, has a
 `*.test.ts` beside it, run by `pnpm test`.
 
+Every TypeScript file is type-checked by one of the three projects
+`tsconfig.json` references, whichever has the `lib` it runs under. A
+composite project fails (TS6307) on an imported file its patterns do not
+match, so an import cannot escape the check, but a file nothing imports,
+a test or a sweep, is checked only if a project's patterns match it, and
+Node runs it either way, stripping its types without checking them. So
+`tsconfig.node.json` matches every TypeScript file at the root and under
+`src/`, `bench/` and `scripts/` and excludes only the browser-only
+modules, and `tsconfig-coverage.test.ts` asks tsc for the files each
+project checks and fails on any tracked or new `.ts` file in none of
+them, and on any code file of another extension (`.js`, `.mjs`, `.tsx`
+and the like), which no project's patterns match. It reads git's list
+NUL-separated and refuses any path with a control character, since tsc
+lists its files one per line (README, "Security").
+`pnpm test:all` runs `pnpm typecheck` before the tests.
+
 No test, sweep or benchmark depends on the limits a device has chosen.
 Most bits and the precision limit are settings, kept in the browser and
 proposed per device by the probe of `limits.ts`, and only the shell reads

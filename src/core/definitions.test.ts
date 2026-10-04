@@ -9,6 +9,7 @@ import {
 import { parseExpr, type Expr } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
 import type { Span } from "./span.ts";
+import { between, foldIn, key, split, type Key } from "../testing/random.ts";
 
 function parsed(text: string): readonly Definition[] {
   const result = parseDefinitions(text);
@@ -552,4 +553,176 @@ test("a parameter is a name", () => {
   assert.deepEqual(failed("f(2) = 2"), unexpected(2, "a parameter name"));
   assert.deepEqual(failed("f() = 2"), unexpected(2, "a parameter name"));
   assert.deepEqual(failed("~f() = 2"), unexpected(3, "a parameter name"));
+});
+
+// ---------------------------------------------------------------------------
+// Function heads, drawn
+
+// The heads above are written by hand; these are drawn from the seeded
+// source, so that the parser meets the shapes a hand-written list would
+// miss: every combination of an annotated or bare parameter, an annotated
+// or bare result, a comment or none, names in any script, and blanks (none,
+// spaces, tabs) wherever the grammar allows them. Each drawn line is built
+// with what it should parse to, and each fault is injected where it should
+// be rejected.
+
+const HEAD_NAMES = ["f", "tempC", "x_1", "µfn2", "Ωmega", "_g", "decibel"];
+/** Parameters that none of the annotations names as a unit. */
+const PARAMETERS = ["x", "y", "t", "mass", "ν", "_p", "len2"];
+const ANNOTATIONS = [
+  "kg",
+  "m / s",
+  "m^2 kg",
+  "1",
+  "1 / s",
+  "(m/s)^2",
+  "kg m^-1",
+  "m^(1/2)",
+];
+const BODIES = ["x", "2 x + 1", "exp(x)", "(x + 1) K", "sqrt(x^2) / 3", "-x"];
+const BLANKS = ["", " ", "  ", "\t", " \t "];
+
+function pick<T>(k: Key, from: readonly T[]): T {
+  return from[between(k, 0, from.length - 1)]!;
+}
+
+/** A drawn function or inverse line, and what it should parse to. */
+type DrawnHead = {
+  readonly text: string;
+  readonly inverse: boolean;
+  readonly name: string;
+  readonly parameter: string;
+  readonly annotation: string | undefined;
+  readonly result: string | undefined;
+  readonly body: string;
+  /** Where the annotation and the `=` start in `text`, for the faults. */
+  readonly annotationAt: number | undefined;
+  readonly equalsAt: number;
+};
+
+function drawHead(k: Key): DrawnHead {
+  const [kind, name, parameter, annotation, result, body, comment, blank] =
+    split(k, 8);
+  const inverse = between(kind!, 0, 3) === 0;
+  const ws = (i: number) => pick(foldIn(blank!, i), BLANKS);
+  const chosen = {
+    name: pick(name!, HEAD_NAMES),
+    parameter: pick(parameter!, PARAMETERS),
+    annotation:
+      inverse || between(annotation!, 0, 1) === 0
+        ? undefined
+        : pick(foldIn(annotation!, 1), ANNOTATIONS),
+    result:
+      inverse || between(result!, 0, 1) === 0
+        ? undefined
+        : pick(foldIn(result!, 1), ANNOTATIONS),
+    body: pick(body!, BODIES),
+  };
+  let text = ws(0) + (inverse ? "~" : "") + chosen.name + "(" + ws(1);
+  text += chosen.parameter + ws(2);
+  let annotationAt: number | undefined;
+  if (chosen.annotation !== undefined) {
+    text += ":" + ws(3);
+    annotationAt = text.length;
+    text += chosen.annotation + ws(4);
+  }
+  text += ")" + ws(5);
+  if (chosen.result !== undefined) {
+    text += ":" + ws(6) + chosen.result + ws(7);
+  }
+  const equalsAt = text.length;
+  text += "=" + ws(8) + chosen.body;
+  if (between(comment!, 0, 1) === 0) text += ws(9) + "# a comment";
+  return { text, inverse, ...chosen, annotationAt, equalsAt };
+}
+
+const DRAWN = Array.from({ length: 400 }, (_, i) =>
+  drawHead(foldIn(key(71), i)),
+);
+
+test("drawn function and inverse lines parse to what they were built from", () => {
+  for (const drawn of DRAWN) {
+    const [definition] = parsed(drawn.text);
+    const where = `in ${JSON.stringify(drawn.text)}`;
+    assert.ok(definition !== undefined, where);
+    assert.equal(definition.kind, drawn.inverse ? "inverse" : "function");
+    assert.equal(definition.name, drawn.name, where);
+    const start = drawn.text.indexOf(drawn.inverse ? "~" : drawn.name);
+    const end = drawn.text.indexOf(drawn.body, drawn.equalsAt);
+    assert.deepEqual(
+      definition.span,
+      { start, end: end + drawn.body.length },
+      where,
+    );
+    if (definition.kind === "inverse") {
+      assert.equal(definition.parameter, drawn.parameter, where);
+    } else if (definition.kind === "function") {
+      assert.equal(definition.parameter.name, drawn.parameter, where);
+      assert.equal(
+        definition.parameter.annotation?.text,
+        drawn.annotation,
+        where,
+      );
+      assert.equal(definition.result?.text, drawn.result, where);
+    } else {
+      assert.fail(where);
+    }
+    const { body } = definition;
+    assert.equal(
+      drawn.text.slice(body.span.start, body.span.end),
+      drawn.body,
+      where,
+    );
+  }
+});
+
+test("faults injected into drawn lines are rejected where they are written", () => {
+  for (const drawn of DRAWN) {
+    const where = `in ${JSON.stringify(drawn.text)}`;
+    const { text, equalsAt } = drawn;
+    // Conditions, before the `=`: rejected at the `|`.
+    const conditions = `${text.slice(0, equalsAt)}| x > 0 ${text.slice(equalsAt)}`;
+    const reserved = failed(conditions);
+    assert.ok(reserved.kind === "rejected", where);
+    assert.deepEqual(reserved.reason, {
+      kind: "unsupported",
+      feature: "conditions",
+    });
+    assert.equal(reserved.span.start, equalsAt, where);
+    // A scale in the parameter's annotation: rejected at the number, or,
+    // on an inverse, the annotation itself.
+    if (drawn.annotationAt !== undefined) {
+      const at = drawn.annotationAt;
+      const scaled = `${text.slice(0, at)}2 ${text.slice(at)}`;
+      assert.deepEqual(
+        failed(scaled),
+        {
+          kind: "rejected",
+          span: { start: at, end: at + 1 },
+          reason: { kind: "annotationScale" },
+        },
+        where,
+      );
+    }
+    if (drawn.inverse) {
+      const open = text.indexOf("(");
+      const close = text.indexOf(")");
+      const annotated = `${text.slice(0, close)}: kg${text.slice(close)}`;
+      const error = failed(annotated);
+      assert.ok(error.kind === "rejected", where);
+      assert.deepEqual(error.reason, { kind: "inverseAnnotation" }, where);
+      assert.ok(error.span.start > open, where);
+    } else {
+      // Dimension variables, after the name: rejected at the name and `[`.
+      const open = text.indexOf("(");
+      const generic = `${text.slice(0, open)}[D]${text.slice(open)}`;
+      const error = failed(generic);
+      assert.ok(error.kind === "rejected", where);
+      assert.deepEqual(error.reason, {
+        kind: "unsupported",
+        feature: "dimensionVariables",
+      });
+      assert.equal(error.span.end, open + 1, where);
+    }
+  }
 });

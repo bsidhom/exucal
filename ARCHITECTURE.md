@@ -1558,7 +1558,11 @@ tests. The rest of the directory is what they share:
   synthetic definitions file has two primitives, the prefixes, and units
   that are each a small expression over one earlier unit, so that building
   it walks reference chains of the depth random references make and every
-  body goes through the evaluator.
+  body goes through the evaluator. A synthetic file of functions has
+  functions of a length, each calling one earlier function, each with an
+  inverse line and every other one with a result annotation, so that
+  parsing goes through function heads and building walks the calls and
+  checks every inverse.
 
 A timing in milliseconds depends on the machine, so a benchmark reports its
 timings as diagnostics, for a person to compare between runs, and asserts
@@ -1573,7 +1577,8 @@ definition is parsed once and evaluated once; a walk that re-evaluated its
 dependencies would cost more. The thresholds are twice the expected ratios,
 so that noise never fails a benchmark that a regression would not fail by a
 wide margin. It also reports, without asserting, the cost of a file the size
-of the GNU units database, as a reference for the startup cost.
+of the GNU units database, as a reference for the startup cost, and asserts
+the same bound for 2000 functions with their inverses against 500.
 `kernel.bench.ts` times `pi` by Chudnovsky's series at 1,000, 10,000 and
 100,000 digits and asserts that the last costs at most fifty times the
 middle: binary splitting grows as V8's bigint multiplication does,

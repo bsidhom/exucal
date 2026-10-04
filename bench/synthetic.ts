@@ -17,6 +17,13 @@
 // Every name is a pure function of the key and its index, so the units,
 // the prefixes and the references are drawn from keys of their own and
 // none depends on how many of the others were drawn.
+//
+// A synthetic file of functions (`syntheticFunctions`) has two primitives
+// and functions of a length that each call one earlier function and have
+// an inverse line, some with a result annotation, so that parsing goes
+// through function heads and building walks calls and checks every
+// inverse. Their names, `f0`, `f1`, ..., cannot read as a built-in or as a
+// prefixed unit, since the file has no prefixes.
 
 import { BUILTINS } from "../src/core/builtins.ts";
 import { between, foldIn, split, type Key } from "../src/testing/random.ts";
@@ -90,5 +97,21 @@ export function syntheticDefinitions(
       i === 0 ? "LENGTH" : units[between(foldIn(referenceKey!, i), 0, i - 1)];
     lines.push(`${unit} 1.5 ${earlier} / TIME`);
   });
+  return lines.join("\n");
+}
+
+/**
+ * A definitions file of `count` functions of a length, each calling one
+ * earlier function, each with an inverse, and every other one with a
+ * result annotation.
+ */
+export function syntheticFunctions(key: Key, count: number): string {
+  const lines = ["LENGTH !", "TIME !"];
+  for (let i = 0; i < count; i++) {
+    const earlier = i === 0 ? "x" : `f${between(foldIn(key, i), 0, i - 1)}(x)`;
+    const result = i % 2 === 0 ? ": LENGTH " : "";
+    lines.push(`f${i}(x: LENGTH) ${result}= ${earlier} + 2 x / 3`);
+    lines.push(`~f${i}(y) = 3 y / 5`);
+  }
   return lines.join("\n");
 }

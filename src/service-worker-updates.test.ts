@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   SKIP_WAITING,
-  throttledCheck,
+  updateChecks,
   watchWorkers,
   type ContainerHandle,
   type RegistrationHandle,
@@ -253,54 +253,118 @@ test("the first worker claiming a page does not reload it, a later one does", ()
   assert.equal(counts.reloads, 1);
 });
 
-/** A clock to set by hand and a check that counts its calls and can fail. */
-function checking(fail = false) {
+/**
+ * A clock to set by hand, and checks that count their calls and fail while
+ * the network is down.
+ */
+function checking() {
   const clock = { now: 1000 };
+  const network = { up: true };
   const counts = { checks: 0 };
-  const check = throttledCheck(
+  const checks = updateChecks(
     () => {
       counts.checks++;
-      return fail ? Promise.reject(new Error("offline")) : Promise.resolve();
+      return network.up
+        ? Promise.resolve()
+        : Promise.reject(new Error("offline"));
     },
     () => clock.now,
     100,
   );
-  return { clock, counts, check };
+  return { clock, network, counts, checks };
 }
 
-test("no check is made within the interval of the registration's", () => {
-  const { clock, counts, check } = checking();
-  check();
+/** Lets a check's result arrive. */
+const settled = () => new Promise((resolve) => setImmediate(resolve));
+
+test("no check is due within the interval of the registration's", () => {
+  const { clock, counts, checks } = checking();
+  checks.ifDue();
   clock.now += 99;
-  check();
+  checks.ifDue();
   assert.equal(counts.checks, 0);
 });
 
-test("a check is made once the interval has passed, then not again within it", () => {
-  const { clock, counts, check } = checking();
+test("a check is due once the interval has passed, then not again within it", () => {
+  const { clock, counts, checks } = checking();
   clock.now += 100;
-  check();
-  check();
+  checks.ifDue();
+  checks.ifDue();
   clock.now += 99;
-  check();
+  checks.ifDue();
   assert.equal(counts.checks, 1);
   clock.now += 1;
-  check();
+  checks.ifDue();
   assert.equal(counts.checks, 2);
 });
 
 test("a failed check does not hold off the next", async () => {
-  const { clock, counts, check } = checking(true);
+  const { clock, network, counts, checks } = checking();
+  network.up = false;
   clock.now += 100;
-  check();
-  await new Promise((resolve) => setImmediate(resolve));
-  check();
+  checks.ifDue();
+  await settled();
+  checks.ifDue();
   assert.equal(counts.checks, 2);
 });
 
 test("a clock set back does not hold off checks", () => {
-  const { clock, counts, check } = checking();
+  const { clock, counts, checks } = checking();
   clock.now -= 500;
-  check();
+  checks.ifDue();
   assert.equal(counts.checks, 1);
+});
+
+test("a check at once is made within the interval, and says it went through", async () => {
+  const { counts, checks } = checking();
+  assert.equal(await checks.now(), true);
+  assert.equal(await checks.now(), true);
+  assert.equal(counts.checks, 2);
+});
+
+test("a check at once counts as the last check", async () => {
+  const { clock, counts, checks } = checking();
+  clock.now += 100;
+  await checks.now();
+  clock.now += 99;
+  checks.ifDue();
+  assert.equal(counts.checks, 1);
+  clock.now += 1;
+  checks.ifDue();
+  assert.equal(counts.checks, 2);
+});
+
+test("a failed check at once says so, and does not hold off the next", async () => {
+  const { counts, network, checks } = checking();
+  network.up = false;
+  assert.equal(await checks.now(), false);
+  checks.ifDue();
+  assert.equal(counts.checks, 2);
+});
+
+test("a check that fails after a later one started leaves the later one's time", async () => {
+  const clock = { now: 1000 };
+  const pending: (() => void)[] = [];
+  let calls = 0;
+  const checks = updateChecks(
+    () => {
+      calls++;
+      return new Promise<void>((resolve, reject) => {
+        pending.push(
+          calls === 1 ? () => reject(new Error("timeout")) : resolve,
+        );
+      });
+    },
+    () => clock.now,
+    100,
+  );
+  const first = checks.now();
+  clock.now += 10;
+  const second = checks.now();
+  pending[1]!();
+  pending[0]!();
+  assert.deepEqual(await Promise.all([first, second]), [false, true]);
+  clock.now += 50;
+  checks.ifDue();
+  assert.equal(calls, 2);
 });

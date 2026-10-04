@@ -25,7 +25,11 @@ import {
 } from "./settings.ts";
 import { BUILD_ID, SHORT_BUILD_ID, shortBuildId } from "./build-id.ts";
 import { recommendLimits } from "./limits.ts";
-import { applyUpdate, onWorkerStatus } from "./register-service-worker.ts";
+import {
+  applyUpdate,
+  checkForUpdate,
+  onWorkerStatus,
+} from "./register-service-worker.ts";
 import type { WorkerStatus } from "./service-worker-updates.ts";
 import { buildSystemTable } from "./system-build.ts";
 import {
@@ -65,7 +69,9 @@ import "./unit-converter.ts";
  * what this device does within its latency budget and applies the two
  * limits it recommends; it is disabled while the probe runs, which blocks
  * the main thread for a fraction of a second, and the probe runs only when
- * asked (the plan's D16).
+ * asked (the plan's D16). Another checks for a new version of the app at
+ * once, rather than when the page next comes back into view, and says what
+ * it found.
  *
  * A footer under everything names the build the page is running (build-id.ts),
  * so a copy served from the service worker's cache can be told from the one
@@ -192,7 +198,15 @@ export class AppShell extends LitElement {
       margin: 0;
     }
 
-    .settings button {
+    .settings > button {
+      align-self: flex-end;
+    }
+
+    .settings .check {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
       align-self: flex-end;
     }
 
@@ -233,6 +247,12 @@ export class AppShell extends LitElement {
 
   /** The service worker's status, shown in the footer. */
   @state() private workerStatus: WorkerStatus = { kind: "registering" };
+
+  /**
+   * Where the user's check for an update stands: under way, gone through,
+   * or failed; unset until they ask for one.
+   */
+  @state() private updateCheck?: "checking" | "done" | "failed";
 
   /** Stops the reports of the worker's status; set while connected. */
   private stopStatusReports?: () => void;
@@ -429,9 +449,67 @@ export class AppShell extends LitElement {
           >
             ${this.recommending ? "Measuring…" : "Recommend limits"}
           </button>
+          ${this.renderUpdateCheck()}
         </div>
       </details>
     `;
+  }
+
+  /**
+   * The button that checks for a new version of the app at once, with what
+   * the check found under it. There is none without a service worker to
+   * check, in development, in a browser without service workers, or when
+   * the registration failed.
+   */
+  private renderUpdateCheck() {
+    const { kind } = this.workerStatus;
+    if (kind === "development" || kind === "unsupported" || kind === "failed") {
+      return nothing;
+    }
+    const checking = this.updateCheck === "checking";
+    return html`<div class="check">
+      <button
+        type="button"
+        ?disabled=${checking || kind === "registering" || kind === "applying"}
+        @click=${this.onCheckForUpdate}
+      >
+        ${checking ? "Checking…" : "Check for updates"}
+      </button>
+      <small class="hint" role="status">${this.renderCheckResult()}</small>
+    </div>`;
+  }
+
+  /**
+   * What the user's check found, once it has gone through. It follows the
+   * worker's status rather than the check's own result, so it agrees with
+   * the footer however late a browser reports the new worker a check found,
+   * and keeps up with any check made since: an update downloading, ready
+   * (the footer has the link that applies it) or being applied, or else up
+   * to date. A failed check says so unless an update has turned up all the
+   * same.
+   */
+  private renderCheckResult() {
+    const check = this.updateCheck;
+    if (check === undefined || check === "checking") {
+      return nothing;
+    }
+    const status = this.workerStatus;
+    switch (status.kind) {
+      case "downloading":
+        return "Downloading…";
+      case "waiting":
+        return "Update ready";
+      case "applying":
+        return "Updating…";
+      default:
+        return check === "failed" ? "Couldn't check (offline?)" : "Up to date";
+    }
+  }
+
+  /** Checks for a new version at once, from the button. */
+  private async onCheckForUpdate() {
+    this.updateCheck = "checking";
+    this.updateCheck = (await checkForUpdate()) ? "done" : "failed";
   }
 
   /** A number input for a setting, accepting an integer in `[min, max]`, with a line saying what the setting does. */

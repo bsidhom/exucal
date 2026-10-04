@@ -96,6 +96,14 @@ Both limits are cost limits, and the right values depend on the device, so
 the panel's "Recommend limits" button measures what this one does within
 a fraction of a second and sets them; it runs only when pressed.
 
+The panel's "Check for updates" button asks at once whether a new version
+of the app has been deployed, rather than waiting for the app's own checks
+(see Offline behavior below), and says under it what it found: "Up to
+date", "Downloading…" while a new version downloads, then "Update ready"
+once the footer's "update to …" link can switch to it, or "Couldn't
+check (offline?)". It is not there in development or in a browser without
+service workers, which have no service worker to ask.
+
 An answer shows every digit asked for when the computation can vouch for
 them all. When it cannot, a note in parentheses says what the digits are
 worth: how many of them are certain ("8 of 12 digits are certain"), that
@@ -971,8 +979,8 @@ hook's output at session start says which part is out of date.
   converter shows. It has no DOM dependency, so `src/messages.test.ts` checks
   the wording under Node.js.
 - `src/register-service-worker.ts` registers `sw.js` once the page has loaded,
-  in production builds only, checks for updates, and tells the shell the
-  worker's status.
+  in production builds only, checks for updates on its own and when the
+  user asks, and tells the shell the worker's status.
 - `src/service-worker-updates.ts` is the page's side of the service worker:
   it reads the status and the workers' builds from the registration, asks a
   waiting worker to take over, and reloads the page when it has (see Offline
@@ -1088,9 +1096,14 @@ when to switch. The pieces involved:
   navigated to, so the browser's own checks rarely run. The page asks for
   one whenever it comes back into view or back online, and every hour while
   it stays in view, but never within five minutes of the last
-  (`src/register-service-worker.ts`). A check fetches `sw.js` alone and
+  (`src/register-service-worker.ts`). The Settings panel's "Check for
+  updates" button checks at once, however recent the last check, and
+  counts as the last check itself. A check fetches `sw.js` alone and
   installs nothing unless it changed; a failed one, for want of a network,
-  does not hold off the next.
+  does not hold off the next. What a check found shows up in the
+  registration rather than in its result, as a worker installing and then
+  waiting, so the button's report under it follows the worker's status,
+  like the footer.
 - **The worker's status.** The footer shows the service worker's status
   beside the page's build (see Build ID below), as
   `src/service-worker-updates.ts` reads it from the registration, in a word

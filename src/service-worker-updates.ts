@@ -242,35 +242,62 @@ function withBuild(
   return build === undefined ? { kind } : { kind, build };
 }
 
+/** The two ways `updateChecks` checks for an update. */
+export interface UpdateChecks {
+  /**
+   * Checks unless the last check started less than the interval ago: the
+   * page's own checks, when it comes back into view.
+   */
+  ifDue(): void;
+  /**
+   * Checks at once, however recent the last check, and resolves to whether
+   * the check went through: the user's check, from the settings.
+   */
+  now(): Promise<boolean>;
+}
+
 /**
- * Returns a function that checks for an update by calling `check`, unless
- * the last check started less than `interval` milliseconds ago by `now`.
+ * Checks for an update by calling `check`, either when due, at most once
+ * per `interval` milliseconds by `now`, or at once.
  *
  * Browsers check for a new worker on every navigation, but an installed
  * app is mostly resumed rather than navigated to, so the page asks for
  * checks of its own when it comes back into view; a check fetches `sw.js`
  * alone, and installs nothing unless it changed. The registration starts
- * with a check, so the interval runs from the creation of the function. A
- * failed check, most likely for want of a network, does not count, so the
- * next occasion tries again. A clock set back is taken as time elapsed
- * rather than waited out.
+ * with a check, so the interval runs from the creation of the checks. A
+ * check made at once counts as the last check as much as one made when
+ * due. A failed check, most likely for want of a network, does not count,
+ * so the next occasion tries again. A clock set back is taken as time
+ * elapsed rather than waited out.
+ *
+ * What a check found is not its result: a new version shows up in the
+ * registration, as a worker installing and then waiting (`watchWorkers`).
  */
-export function throttledCheck(
+export function updateChecks(
   check: () => Promise<unknown>,
   now: () => number,
   interval: number,
-): () => void {
+): UpdateChecks {
   let last = now();
-  return () => {
-    const time = now();
-    if (time >= last && time - last < interval) {
-      return;
-    }
+  const run = (time: number) => {
     last = time;
-    check().catch(() => {
-      if (last === time) {
-        last = -Infinity;
+    return check().then(
+      () => true,
+      () => {
+        if (last === time) {
+          last = -Infinity;
+        }
+        return false;
+      },
+    );
+  };
+  return {
+    ifDue() {
+      const time = now();
+      if (time < last || time - last >= interval) {
+        void run(time);
       }
-    });
+    },
+    now: () => run(now()),
   };
 }

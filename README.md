@@ -814,19 +814,19 @@ Cloud environment below), so nothing above has to be done there by hand.
 
 ### Commands
 
-| Command             | What it does                                         |
-| ------------------- | ---------------------------------------------------- |
-| `pnpm install`      | Install the dependencies the lockfile records.       |
-| `pnpm dev`          | Start the development server with hot reloading.     |
-| `pnpm build`        | Type-check and build a production bundle in `dist`.  |
-| `pnpm preview`      | Serve the production bundle locally.                 |
-| `pnpm typecheck`    | Type-check without building.                         |
-| `pnpm test`         | Run the tests with Node's built-in test runner.      |
-| `pnpm test:sweep`   | Run the edge sweeps, the conformance tests.          |
-| `pnpm test:all`     | Run the tests, sweeps and benchmarks, before commit. |
-| `pnpm bench`        | Run the performance benchmarks (see Benchmarks).     |
-| `pnpm format`       | Format all source files with Prettier.               |
-| `pnpm format:check` | Verify that all source files are formatted.          |
+| Command             | What it does                                        |
+| ------------------- | --------------------------------------------------- |
+| `pnpm install`      | Install the dependencies the lockfile records.      |
+| `pnpm dev`          | Start the development server with hot reloading.    |
+| `pnpm build`        | Type-check and build a production bundle in `dist`. |
+| `pnpm preview`      | Serve the production bundle locally.                |
+| `pnpm typecheck`    | Type-check without building.                        |
+| `pnpm test`         | Run the tests with Node's built-in test runner.     |
+| `pnpm test:sweep`   | Run the edge sweeps, the conformance tests.         |
+| `pnpm test:all`     | Type-check, then run tests, sweeps and benchmarks.  |
+| `pnpm bench`        | Run the performance benchmarks (see Benchmarks).    |
+| `pnpm format`       | Format all source files with Prettier.              |
+| `pnpm format:check` | Verify that all source files are formatted.         |
 
 The lockfile is frozen for every install, everywhere, not only in CI:
 `frozenLockfile: true` in `pnpm-workspace.yaml` makes `pnpm install` fail
@@ -853,12 +853,20 @@ classes of arguments at the edges of the number type, tens of thousands
 of cases that grow with every built-in, so they are left out of
 `pnpm test` and run by `pnpm test:sweep`. The benchmarks (see Benchmarks
 below) are left out of `pnpm test` too and run by `pnpm bench`. Run
-`pnpm test:all`, which runs all three, before every commit: a commit
-leaves `pnpm typecheck`, `pnpm test:all` and `pnpm format:check` green.
+`pnpm test:all`, which type-checks and then runs all three, before every
+commit: a commit leaves `pnpm test:all` and `pnpm format:check` green.
 The benchmarks are in it because they guard costs that nothing else
 does, and a check that is run only when someone remembers it is not run:
 three of them failed unnoticed from stage 6 to issue #135, two of them
 before reaching their assertions.
+
+Every TypeScript file is type-checked, not only the ones a test imports.
+Node runs a test by stripping its types without checking them, so a test
+file no project checks would run, pass, and hide its type errors; one did,
+`src/outcome.test.ts`, until the projects were made to match by pattern.
+`tsconfig-coverage.test.ts`, part of `pnpm test` and so of every commit's
+`pnpm test:all`, fails on any tracked or new file that no project of
+`tsconfig.json` checks, and says where it belongs.
 
 The service worker is only registered in production builds, so `pnpm dev`
 never caches anything. To try the offline behavior, run `pnpm build` and then
@@ -986,9 +994,13 @@ hook's output at session start says which part is out of date.
   config, because they need different `lib` settings: `tsconfig.app.json`
   covers the app (`dom`), `tsconfig.sw.json` the service worker
   (`webworker`, which cannot be combined with `dom` in one program), and
-  `tsconfig.node.json` the Vite config and plugin (Node.js), along with the
-  tests and benchmarks, which run under Node.js and need its types, and the
-  core they exercise. The options they share live in `tsconfig.base.json`.
+  `tsconfig.node.json` everything that runs under Node.js and needs its
+  types: the Vite config and plugins, the tests, sweeps and benchmarks,
+  and the modules they exercise. The node project matches files by
+  pattern and excludes only the browser-only modules, so a new file is
+  checked without being listed, and `tsconfig-coverage.test.ts` fails on
+  any file that no project checks. The options they share live in
+  `tsconfig.base.json`.
 - Components use TypeScript's `experimentalDecorators`, as Vite's own Lit
   template does, because Vite does not yet transform standard (TC39)
   decorators.

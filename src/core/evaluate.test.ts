@@ -7,7 +7,7 @@ import {
 } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { UNBOUNDED, radiusUpper } from "./radius.ts";
+import { UNBOUNDED, powerOfTwoRadius, radiusUpper } from "./radius.ts";
 import {
   certifiedDigits,
   certifies,
@@ -28,6 +28,7 @@ import {
 } from "./dimension.ts";
 import {
   applyFunction,
+  decide,
   evaluate,
   invertFunction,
   type EvaluateError,
@@ -193,8 +194,9 @@ function fn(
       { name: parameter, unit: { text: "argument", quantity: argument } },
     ],
     result: result.dimension,
+    conditions: [],
     body: parsed(forward),
-    inverse: { parameter: name, body: parsed(inverse) },
+    inverse: { parameter: name, conditions: [], body: parsed(inverse) },
   };
 }
 
@@ -1649,4 +1651,81 @@ test("a ^ exponent is reduced by the evaluator within the range limit, and one p
     kind: "tooLarge",
     span: { start: 2, end: 31 },
   });
+});
+
+// ---------------------------------------------------------------------------
+// Conditions: comparisons on balls
+
+test("a comparison on balls gives each verdict of docs/functions.md's table", () => {
+  // `[1, 2]`: a radius of a power of two, so that its ends are exact.
+  const ball: Ball = { mid: dec("1.5"), rad: powerOfTwoRadius(-1n) };
+  const verdicts = (a: Ball, b: Ball) =>
+    (["<", "<=", ">", ">="] as const).map((op) => decide(a, op, b, CONTEXT));
+  // Below throughout, and its upper end exactly on the bound.
+  assert.deepEqual(verdicts(ball, exact(dec("3"))), [
+    "holds",
+    "holds",
+    "fails",
+    "fails",
+  ]);
+  assert.deepEqual(verdicts(ball, exact(dec("2"))), [
+    "undecided",
+    "holds",
+    "fails",
+    "undecided",
+  ]);
+  // Exactly equal, as two exact sides are.
+  assert.deepEqual(verdicts(exact(dec("2")), exact(dec("2"))), [
+    "fails",
+    "holds",
+    "fails",
+    "holds",
+  ]);
+  // Above, its lower end exactly on the bound, and throughout.
+  assert.deepEqual(verdicts(ball, exact(dec("1"))), [
+    "fails",
+    "undecided",
+    "undecided",
+    "holds",
+  ]);
+  assert.deepEqual(verdicts(ball, exact(dec("0"))), [
+    "fails",
+    "fails",
+    "holds",
+    "holds",
+  ]);
+  // Across it, and unbounded.
+  const across = ["undecided", "undecided", "undecided", "undecided"];
+  assert.deepEqual(verdicts(ball, exact(dec("1.5"))), across);
+  assert.deepEqual(
+    verdicts({ mid: dec("1.5"), rad: UNBOUNDED }, exact(dec("100"))),
+    across,
+  );
+  // An exact side on the left is placed against the inexact one, the
+  // other way round.
+  assert.deepEqual(verdicts(exact(dec("2")), ball), [
+    "fails",
+    "undecided",
+    "undecided",
+    "holds",
+  ]);
+  // Two inexact sides, by their difference.
+  const far: Ball = { mid: dec("5"), rad: powerOfTwoRadius(-1n) };
+  assert.deepEqual(verdicts(ball, far), ["holds", "holds", "fails", "fails"]);
+  const near: Ball = { mid: dec("1.75"), rad: powerOfTwoRadius(-1n) };
+  assert.deepEqual(verdicts(ball, near), across);
+});
+
+test("two exact values compare exactly, past Most bits and the exponent bound, and are never refused", () => {
+  const digits = "7".repeat(400);
+  const big = exact(dec(digits));
+  const bigger = exact(dec(`${digits}1e-1`));
+  assert.equal(decide(big, "<", bigger, CONTEXT), "holds");
+  assert.equal(decide(bigger, "<=", big, CONTEXT), "fails");
+  assert.equal(decide(big, ">=", big, CONTEXT), "holds");
+  // Their difference could not be formed, nor aligned.
+  const top = exact(dec("1e999999999"));
+  const bottom = exact(dec("-1e-999999999"));
+  assert.equal(decide(top, ">", bottom, CONTEXT), "holds");
+  assert.equal(decide(bottom, ">", top, CONTEXT), "fails");
 });

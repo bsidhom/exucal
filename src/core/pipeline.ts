@@ -21,8 +21,12 @@
 // needs the function's inverse, `~tempC`, and a function without one is a
 // `noInverse` on the want side. The `have` must conform to the function's
 // result, which is the ordinary conformance error of the pair when it does
-// not, and the inverse's body then recovers the argument, `invertFunction`
-// evaluating it with the inverse's parameter bound to the `have`. The
+// not, and must meet the inverse's conditions, its own domain; the
+// inverse's body then recovers the argument, `invertFunction` evaluating
+// it with the inverse's parameter bound to the `have`, and the argument
+// must meet the function's conditions, so that a conversion stays within
+// what the function admits (a condition failing on either side is a
+// `wantConditionFailed`, and an undecided one is assumed as at a call). The
 // recovered argument is then checked, since an inverse is the one part of
 // a definition the build cannot check: the function is applied to it, and
 // a value disjoint from the `have` is an `inverseMismatch`, an answer
@@ -85,6 +89,15 @@
 // value` has, not retried on its own. The texts are parsed once, outside
 // the passes. The table is built at the ceiling context, by its builder
 // (D6), so that no unit holds a pass back.
+//
+// Each pass has a collector of its own for the conditions it assumes
+// (evaluate.ts), and a result that assumes one is never final: it is kept
+// as the best so far, like one that certifies too few digits, since a
+// condition across its bound by noise usually decides at more digits, and
+// an `undecidedCondition`, a body failing under one, is retried like an
+// `unresolved`. The returned pass's assumptions are added to the
+// collector `evaluateText` or `convertText` is given, for the outcome's
+// warnings.
 
 import {
   convert,
@@ -96,8 +109,12 @@ import {
 import { checkConformance } from "./dimension.ts";
 import {
   applyFunction,
+  bindParameters,
+  checkConditions,
   evaluate,
   invertFunction,
+  type Assumption,
+  type ConditionFailure,
   type EvaluateError,
 } from "./evaluate.ts";
 import { parseExpr, parseUnitList, type Expr, type Rejection } from "./expr.ts";
@@ -160,6 +177,17 @@ export type FunctionWantError =
   | InverseFailed
   /** The function has no inverse, so nothing recovers an argument. */
   | { readonly kind: "noInverse"; readonly name: string }
+  /**
+   * The `have` certainly fails the `condition`, as written, of the
+   * function's inverse (`of`), or the argument the inverse recovered
+   * certainly fails the function's own.
+   */
+  | {
+      readonly kind: "wantConditionFailed";
+      readonly name: string;
+      readonly of: "function" | "inverse";
+      readonly condition: string;
+    }
   /**
    * The function applied to the argument its inverse recovered is
    * certainly not the `have`: disjoint from it, or, with `error`, failing
@@ -263,32 +291,42 @@ export function schedule(context: NumberContext): NumberContext[] {
 }
 
 /**
- * `run` at each working context of `schedule(context)` in turn:
- * the first result `done` accepts is returned; a result it rejects is kept
- * as the best so far; an error `retries` accepts continues; any other
- * error ends the loop with the best result so far, or with the error when
- * no pass produced a result; at the ceiling the best result so far, or the
- * last error, is returned.
+ * `run` at each working context of `schedule(context)` in turn, each pass
+ * given a collector of its own for the conditions it assumes:
+ * the first result `done` accepts, under no assumption, is returned; a
+ * result it rejects, or one that carries an assumption, is kept as the
+ * best so far; an error `retries` accepts continues; any other error ends
+ * the loop with the best result so far, or with the error when no pass
+ * produced a result or the best one carries an assumption, since the
+ * error may be the assumption refuted (a condition that more digits
+ * decide against, `conditionFailed`); at the ceiling the best result so
+ * far, or the last error, is returned. The assumptions of the pass whose
+ * result is returned are added to `assumptions`.
  */
 export function resolve<T, E>(
   context: NumberContext,
-  run: (working: NumberContext) => Result<T, E>,
+  run: (working: NumberContext, assumptions: Assumption[]) => Result<T, E>,
   done: (value: T) => boolean,
   retries: (error: E) => boolean,
+  assumptions: Assumption[] = [],
 ): Result<T, E> {
-  let best: Result<T, E> | undefined;
+  let best: { result: Result<T, E>; assumed: Assumption[] } | undefined;
   let last: Result<T, E> | undefined;
   for (const working of schedule(context)) {
-    const result = run(working);
+    const assumed: Assumption[] = [];
+    const result = run(working, assumed);
     last = result;
     if (result.ok) {
-      if (done(result.value)) return result;
-      best = result;
+      if (assumed.length === 0 && done(result.value)) return result;
+      best = { result, assumed };
     } else if (!retries(result.error)) {
-      return best ?? result;
+      if (best !== undefined && best.assumed.length > 0) return result;
+      break;
     }
   }
-  return best ?? last!;
+  if (best === undefined) return last!;
+  assumptions.push(...best.assumed);
+  return best.result;
 }
 
 /**
@@ -308,6 +346,8 @@ function settled(ball: Ball, context: NumberContext): boolean {
 function isUnresolved(error: TextError | FunctionWantError): boolean {
   switch (error.kind) {
     case "unresolved":
+      return true;
+    case "undecidedCondition":
       return true;
     case "callFailed":
     case "inverseFailed":
@@ -348,20 +388,23 @@ function conversionDone(
 
 /**
  * The quantity `text` denotes in `table`, evaluated through the retry
- * schedule of the user's `context`.
+ * schedule of the user's `context`, with the conditions the result
+ * assumes added to `assumptions`.
  */
 export function evaluateText(
   table: UnitTable,
   text: string,
   context: NumberContext,
+  assumptions?: Assumption[],
 ): Result<Quantity, TextError> {
   const expr = parseExpr(text);
   if (!expr.ok) return expr;
   return resolve(
     context,
-    (working) => evaluateExpr(table, expr.value, working),
+    (working, assumed) => evaluateExpr(table, expr.value, working, assumed),
     (quantity) => settled(quantity.magnitude, context),
     isUnresolved,
+    assumptions,
   );
 }
 
@@ -372,13 +415,15 @@ export function evaluateText(
  * `want` of several (`ft;in`), or the name of a unit list in the table,
  * gives the sum, and the name of a function gives the call that would
  * produce `have`. Both texts are parsed once, and the evaluation and the
- * conversion run through the retry schedule of the user's `context`.
+ * conversion run through the retry schedule of the user's `context`. The
+ * conditions the result assumes are added to `assumptions`.
  */
 export function convertText(
   table: UnitTable,
   have: string,
   want: string,
   context: NumberContext,
+  assumptions?: Assumption[],
 ): Result<Conversion, ConversionError> {
   const haveExpr = parseExpr(have);
   if (!haveExpr.ok) return inputError("have", haveExpr.error);
@@ -394,10 +439,11 @@ export function convertText(
   }
   return resolve(
     context,
-    (working) =>
-      convertParsed(table, haveExpr.value, want, items.value, working),
+    (working, assumed) =>
+      convertParsed(table, haveExpr.value, want, items.value, working, assumed),
     (conversion) => conversionDone(conversion, context),
     retriesConversion,
+    assumptions,
   );
 }
 
@@ -408,8 +454,9 @@ function convertParsed(
   want: string,
   items: readonly Expr[],
   working: NumberContext,
+  assumptions: Assumption[],
 ): Result<Conversion, ConversionError> {
-  const haveQuantity = evaluateExpr(table, have, working);
+  const haveQuantity = evaluateExpr(table, have, working, assumptions);
   if (!haveQuantity.ok) return inputError("have", haveQuantity.error);
   const [first, ...rest] = items;
   if (first !== undefined && rest.length === 0) {
@@ -420,9 +467,15 @@ function convertParsed(
     }
     const fn = name === undefined ? undefined : table.functions.get(name);
     if (fn !== undefined) {
-      return convertToFunction(table, haveQuantity.value, fn, working);
+      return convertToFunction(
+        table,
+        haveQuantity.value,
+        fn,
+        working,
+        assumptions,
+      );
     }
-    const wantQuantity = evaluateExpr(table, first, working);
+    const wantQuantity = evaluateExpr(table, first, working, assumptions);
     if (!wantQuantity.ok) return inputError("want", wantQuantity.error);
     const value = convert(
       haveQuantity.value,
@@ -442,7 +495,7 @@ function convertParsed(
   }
   const units: ListedUnit[] = [];
   for (const item of items) {
-    const quantity = evaluateExpr(table, item, working);
+    const quantity = evaluateExpr(table, item, working, assumptions);
     if (!quantity.ok) return inputError("want", quantity.error);
     units.push({
       text: want.slice(item.span.start, item.span.end),
@@ -581,8 +634,11 @@ function convertToNamedList(
 /**
  * `have` as the call of `fn` that would produce it: `fn` must have an
  * inverse, `have` must conform to its result, which is the mismatch of the
- * pair when it does not, the inverse's body recovers the argument, and
- * `fn` applied to the argument must not be certainly other than `have`.
+ * pair when it does not, and must meet the inverse's conditions; the
+ * inverse's body recovers the argument, which must meet the function's
+ * conditions, and `fn` applied to it must not be certainly other than
+ * `have`. A condition left undecided is assumed, as at a call, and added
+ * to `assumptions`, and a body that then fails reports it.
  * The argument's count of the unit the parameter takes is what the UI
  * writes in the call. The unit's ball excludes zero, as `buildTable`
  * checked, so the count exists unless it is refused as too large or too
@@ -593,8 +649,10 @@ function convertToFunction(
   have: Quantity,
   fn: UnitFunction,
   context: NumberContext,
+  assumptions: Assumption[],
 ): Result<Conversion, ConversionError> {
-  if (fn.inverse === undefined) {
+  const { inverse } = fn;
+  if (inverse === undefined) {
     return inputError("want", { kind: "noInverse", name: fn.name });
   }
   // The builder gives an inverse only to a function of one parameter.
@@ -606,12 +664,27 @@ function convertToFunction(
   );
   if (!conformance.ok) return conformance;
   const lookup = unitLookup(table, context);
+  const assumed: Assumption[] = [];
+  const inDomain = checkConditions(
+    { name: fn.name, parameters: [inverse.parameter] },
+    "inverse",
+    inverse.conditions,
+    new Map([[inverse.parameter, have]]),
+    lookup,
+    table.primitives,
+    context,
+    assumed,
+  );
+  if (!inDomain.ok) {
+    return wantConditionFailure(fn.name, "inverse", inDomain.error);
+  }
   const argument = invertFunction(
-    fn.inverse,
+    inverse,
     have,
     lookup,
     table.primitives,
     context,
+    assumed,
   );
   if (!argument.ok) {
     const { error } = argument;
@@ -619,8 +692,25 @@ function convertToFunction(
       "want",
       error.kind === "lookup"
         ? error.error
-        : { kind: "inverseFailed", name: fn.name, error: error.error },
+        : {
+            kind: "inverseFailed",
+            name: fn.name,
+            error: underAssumption(fn.name, assumed, error.error),
+          },
     );
+  }
+  const admitted = checkConditions(
+    fn,
+    "function",
+    fn.conditions,
+    bindParameters(fn, [argument.value]),
+    lookup,
+    table.primitives,
+    context,
+    assumed,
+  );
+  if (!admitted.ok) {
+    return wantConditionFailure(fn.name, "function", admitted.error);
   }
   const back = applyFunction(
     fn,
@@ -628,6 +718,7 @@ function convertToFunction(
     lookup,
     table.primitives,
     context,
+    assumed,
   );
   if (!back.ok) {
     const { error } = back;
@@ -635,7 +726,11 @@ function convertToFunction(
       "want",
       error.kind === "lookup"
         ? error.error
-        : { kind: "inverseMismatch", name: fn.name, error: error.error },
+        : {
+            kind: "inverseMismatch",
+            name: fn.name,
+            error: underAssumption(fn.name, assumed, error.error),
+          },
     );
   }
   if (disjoint(back.value.magnitude, have.magnitude, context)) {
@@ -653,6 +748,7 @@ function convertToFunction(
   if (pastLimit(value.value, context)) return err(EXACT_TOO_LARGE);
   const settled = settledInMode(value.value, context);
   if (!settled.ok) return settled;
+  assumptions.push(...assumed);
   return ok({
     kind: "function",
     have,
@@ -661,6 +757,55 @@ function convertToFunction(
     unit: parameter.unit,
     value: settled.value,
   });
+}
+
+/**
+ * A failure of the conditions of the want's function `name`, or (`of`)
+ * of its inverse: a condition that certainly fails is the want's
+ * `wantConditionFailed`, and a term that fails is the body's failure it
+ * would be in the inverse or in the function, as an `inverseFailed` or an
+ * `inverseMismatch`.
+ */
+function wantConditionFailure(
+  name: string,
+  of: Assumption["of"],
+  failure: ConditionFailure<LookupError>,
+): Result<never, ConversionError> {
+  switch (failure.kind) {
+    case "lookup":
+      return inputError("want", failure.error);
+    case "failed":
+      return inputError("want", {
+        kind: "wantConditionFailed",
+        name,
+        of,
+        condition: failure.condition.text,
+      });
+    case "body":
+      return inputError(
+        "want",
+        of === "inverse"
+          ? { kind: "inverseFailed", name, error: failure.error }
+          : { kind: "inverseMismatch", name, error: failure.error },
+      );
+  }
+}
+
+/**
+ * The body's `error`, or, when the conversion into `name` went on under an
+ * assumption, an `undecidedCondition` that names it and carries the
+ * error, since the failure may be the assumption's. It has no call to
+ * point at, and is located at the error's own span in the definitions.
+ */
+function underAssumption(
+  name: string,
+  assumed: readonly Assumption[],
+  error: EvaluateError,
+): EvaluateError {
+  const [assumption] = assumed;
+  return assumption === undefined
+    ? error
+    : { kind: "undecidedCondition", name, span: error.span, assumption, error };
 }
 
 /**
@@ -689,13 +834,23 @@ function pastLimit(quotient: Ball, context: NumberContext): boolean {
   return isExact(quotient) && !mantissaWithin(quotient.mid, context.maxBits);
 }
 
-/** `expr` evaluated against `table` at the working `context`. */
+/**
+ * `expr` evaluated against `table` at the working `context`, with the
+ * conditions it assumes added to `assumptions`.
+ */
 function evaluateExpr(
   table: UnitTable,
   expr: Expr,
   context: NumberContext,
+  assumptions?: Assumption[],
 ): Result<Quantity, TextError> {
-  return evaluate(expr, unitLookup(table, context), table.primitives, context);
+  return evaluate(
+    expr,
+    unitLookup(table, context),
+    table.primitives,
+    context,
+    assumptions,
+  );
 }
 
 function inputError(

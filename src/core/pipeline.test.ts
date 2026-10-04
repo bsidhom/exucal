@@ -23,8 +23,8 @@ import {
   type ConversionError,
   type TextError,
 } from "./pipeline.ts";
-import { evaluate } from "./evaluate.ts";
-import { parseExpr } from "./expr.ts";
+import { evaluate, type Assumption } from "./evaluate.ts";
+import { parseExpr, type Expr } from "./expr.ts";
 import type { Quantity } from "./quantity.ts";
 import { certifies } from "./ball.ts";
 import { DEFAULT_PRECISION } from "./rounding.ts";
@@ -1221,4 +1221,279 @@ test("a zero's bound far below the exponent bound is written in a bounded length
     CONTEXT,
   );
   assert.ok(!refused.ok && refused.error.kind === "tooLarge", inspect(refused));
+});
+
+// ---------------------------------------------------------------------------
+// Conditions
+
+/** A table of functions with conditions, for docs/functions.md's cases. */
+const conditional: UnitTable = (() => {
+  const definitions = parseDefinitions(
+    [
+      "K        !",
+      "m        !",
+      "tempC(x) | x >= -273.15 = x K + 273.15 K",
+      "~tempC(y) = y / K - 273.15",
+      "ln1p(x) | x > -1 = ln(1 + x)",
+      "open(x) | 0 < x < 1 = x",
+      "third(x) | x <= 0.3 = x",
+      "guarded(x) | x > 0, ln(x) > 1 = x",
+      "logpos(x) | ln(x) > 0 = x",
+      "both(x, y) | x > 1, y > 1 = x + y",
+      "after(x, y) | x > 1, ln(y) > 0 = x",
+      "pole(x) | x >= 1 = 1 / (x - 1)",
+      "same(x) | x - x >= 0 = x",
+      "nonneg(x) | x >= 0 = x",
+      "lin(x) = x m",
+      "~lin(y) | y > 0 m = y / m",
+    ].join("\n"),
+  );
+  assert.ok(definitions.ok, inspect(definitions));
+  const built = buildTable(definitions.value, CONTEXT);
+  assert.ok(built.ok, inspect(built));
+  return built.value;
+})();
+
+/** `text` evaluated against the conditional table, with the conditions it assumed. */
+function assuming(
+  text: string,
+  context: NumberContext = CONTEXT,
+): { result: Result<Quantity, TextError>; assumed: Assumption[] } {
+  const assumed: Assumption[] = [];
+  const result = evaluateText(conditional, text, context, assumed);
+  return { result, assumed };
+}
+
+/** The failure of `text` against the conditional table. */
+function refused(text: string): TextError {
+  const { result, assumed } = assuming(text);
+  assert.ok(!result.ok, `expected a failure, got ${inspect(result)}`);
+  assert.deepEqual(assumed, []);
+  return result.error;
+}
+
+/** The value of `text` against the conditional table, which must assume nothing. */
+function admitted(text: string): Quantity {
+  const { result, assumed } = assuming(text);
+  assert.ok(result.ok, `expected a value, got ${inspect(result)}`);
+  assert.deepEqual(assumed, [], text);
+  return result.value;
+}
+
+/** The assumption of the condition `condition` of the function `name`. */
+function assumption(
+  name: string,
+  condition: string,
+  parameters = 1,
+  of: Assumption["of"] = "function",
+): Assumption {
+  return { name, of, condition, parameters };
+}
+
+test("a condition that certainly fails is a conditionFailed, naming it and the arguments", () => {
+  const text = "tempC(-300)";
+  assert.deepEqual(refused(text), {
+    kind: "conditionFailed",
+    name: "tempC",
+    span: { start: 0, end: text.length },
+    condition: "x >= -273.15",
+    arguments: [{ parameter: "x", span: { start: 6, end: 10 } }],
+  });
+  assert.equal(
+    describeTextError(refused(text), text, conditional.primitives),
+    'Cannot compute "tempC(-300)": "tempC" requires "x >= -273.15", and x is "-300".',
+  );
+  const two = "both(2, 1)";
+  assert.equal(
+    describeTextError(refused(two), two, conditional.primitives),
+    'Cannot compute "both(2, 1)": "both" requires "y > 1", and y is "1".',
+  );
+});
+
+test("an exact boundary decides by the comparison, and exact values compare exactly", () => {
+  // `>=` includes its bound, `>` and `<` exclude theirs.
+  assert.ok(isExact(admitted("tempC(-273.15)").magnitude));
+  assert.equal(refused("ln1p(-1)").kind, "conditionFailed");
+  assert.equal(refused("open(0)").kind, "conditionFailed");
+  assert.equal(refused("open(1)").kind, "conditionFailed");
+  admitted("open(0.5)");
+  admitted("open(1/3)");
+  // The sum is exactly 0.3, so `<=` holds, and a hair above fails.
+  admitted("third(0.1 + 0.2)");
+  assert.equal(
+    refused("third(0.30000000000000000001)").kind,
+    "conditionFailed",
+  );
+});
+
+test("a condition may guard the next: a term is computed only behind conditions that hold", () => {
+  // A negative argument fails `x > 0` and never reaches `ln`.
+  const negative = refused("guarded(-1)");
+  assert.ok(negative.kind === "conditionFailed", inspect(negative));
+  assert.equal(negative.condition, "x > 0");
+  const small = refused("guarded(1)");
+  assert.ok(small.kind === "conditionFailed", inspect(small));
+  assert.equal(small.condition, "ln(x) > 1");
+  admitted("guarded(10)");
+  // A term that fails with nothing before it undecided fails the call, as
+  // a body does.
+  const unguarded = refused("logpos(-1)");
+  assert.ok(unguarded.kind === "callFailed", inspect(unguarded));
+  assert.equal(unguarded.error.kind, "domainError");
+});
+
+test("a certain failure after an undecided comparison is reported, not assumed or retried", () => {
+  const evaluated = evaluate(
+    parsedExpr("both(approx(1), 0)"),
+    unitLookup(conditional, CONTEXT),
+    conditional.primitives,
+    CONTEXT,
+    [],
+  );
+  assert.ok(
+    !evaluated.ok && evaluated.error.kind === "conditionFailed",
+    inspect(evaluated),
+  );
+  assert.equal(evaluated.error.condition, "y > 1");
+  assert.equal(refused("both(approx(1), 0)").kind, "conditionFailed");
+  // With the other condition holding, the undecided one is assumed.
+  const { result, assumed } = assuming("both(approx(1), 2)");
+  assert.ok(result.ok, inspect(result));
+  assert.deepEqual(assumed, [assumption("both", "x > 1", 2)]);
+  // After an undecided comparison, a term that fails is undecided too.
+  const after = assuming("after(approx(1), -1)");
+  assert.ok(after.result.ok, inspect(after.result));
+  assert.deepEqual(after.assumed, [
+    assumption("after", "x > 1", 2),
+    assumption("after", "ln(y) > 0", 2),
+  ]);
+});
+
+/** `text` parsed, a test's precondition. */
+function parsedExpr(text: string): Expr {
+  const expr = parseExpr(text);
+  assert.ok(expr.ok, inspect(expr));
+  return expr.value;
+}
+
+test("an undecided condition is assumed, retried to the ceiling, and carried out", () => {
+  const at: number[] = [];
+  const assumed: Assumption[] = [];
+  const expr = parsedExpr("tempC(approx(-273.15))");
+  const result = resolve(
+    CONTEXT,
+    (working, assumptions) => {
+      at.push(working.precision);
+      return evaluate(
+        expr,
+        unitLookup(conditional, working),
+        conditional.primitives,
+        working,
+        assumptions,
+      );
+    },
+    (quantity) => isExact(quantity.magnitude),
+    () => false,
+    assumed,
+  );
+  assert.ok(result.ok, inspect(result));
+  assert.equal(at.at(-1), CONTEXT.ceiling);
+  assert.equal(at.length, schedule(CONTEXT).length);
+  assert.deepEqual(assumed, [assumption("tempC", "x >= -273.15")]);
+  // The value is the body's honest ball: zero, within the argument's radius.
+  assert.ok(containsZero(result.value.magnitude));
+  // evaluateText does the same; decimal mode assumes at its one pass.
+  assert.deepEqual(assuming("tempC(approx(-273.15))").assumed, [
+    assumption("tempC", "x >= -273.15"),
+  ]);
+  const once = assuming("tempC(approx(-273.15))", decimal(8));
+  assert.ok(once.result.ok, inspect(once.result));
+  assert.deepEqual(once.assumed, [assumption("tempC", "x >= -273.15")]);
+});
+
+test("a condition that more digits decide against fails, though an earlier pass assumed it", () => {
+  // `-5e-81`, which the first pass cannot tell from zero.
+  const text = "nonneg(1 + 1e-40 - exp(1e-40))";
+  const first = schedule(CONTEXT)[0]!;
+  const assumed: Assumption[] = [];
+  const early = evaluate(
+    parsedExpr(text),
+    unitLookup(conditional, first),
+    conditional.primitives,
+    first,
+    assumed,
+  );
+  assert.ok(early.ok, inspect(early));
+  assert.deepEqual(assumed, [assumption("nonneg", "x >= 0")]);
+  const error = refused(text);
+  assert.ok(error.kind === "conditionFailed", inspect(error));
+  // And the positive one is admitted, once decided.
+  admitted("nonneg(exp(1e-40) - 1 - 1e-40)");
+});
+
+test("a condition that restates an identity never decides for an inexact argument", () => {
+  const { result, assumed } = assuming("same(approx(2))");
+  assert.ok(result.ok, inspect(result));
+  assert.deepEqual(assumed, [assumption("same", "x - x >= 0")]);
+  // An exact argument decides it.
+  admitted("same(2)");
+});
+
+test("a body that fails under an assumption reports the assumption", () => {
+  const error = refused("pole(approx(1))");
+  assert.ok(error.kind === "undecidedCondition", inspect(error));
+  assert.deepEqual(error.assumption, assumption("pole", "x >= 1"));
+  assert.equal(error.error?.kind, "unresolved");
+  assert.equal(
+    describeTextError(error, "pole(approx(1))", conditional.primitives),
+    'Cannot compute "pole(approx(1))" at this precision: could not tell whether the argument of "pole" meets "x >= 1", and assuming so, the definition of "pole" depends on a value that cannot be told from zero at this precision.',
+  );
+  // Exactly at the bound, the body divides by zero, which is its own.
+  assert.equal(refused("pole(1)").kind, "callFailed");
+});
+
+test("a function want checks the inverse's conditions on the have, and the function's on the argument", () => {
+  const convertedIn = (have: string, want: string) => {
+    const assumed: Assumption[] = [];
+    const result = convertText(conditional, have, want, CONTEXT, assumed);
+    return { result, assumed };
+  };
+  // `-5 K` would need a reading below absolute zero.
+  const cold = convertedIn("-5 K", "tempC");
+  assert.deepEqual(cold.result, {
+    ok: false,
+    error: {
+      kind: "inputError",
+      side: "want",
+      error: {
+        kind: "wantConditionFailed",
+        name: "tempC",
+        of: "function",
+        condition: "x >= -273.15",
+      },
+    },
+  });
+  // The inverse's own domain refuses the have.
+  const negative = convertedIn("-1 m", "lin");
+  assert.ok(!negative.result.ok, inspect(negative.result));
+  assert.deepEqual(negative.result.error, {
+    kind: "inputError",
+    side: "want",
+    error: {
+      kind: "wantConditionFailed",
+      name: "lin",
+      of: "inverse",
+      condition: "y > 0 m",
+    },
+  });
+  assert.ok(convertedIn("2 m", "lin").result.ok);
+  // A reading at absolute zero, within noise, is assumed and carried out.
+  const noise = convertedIn("approx(1 K) - 1 K", "tempC");
+  assert.ok(noise.result.ok, inspect(noise.result));
+  assert.deepEqual(noise.assumed, [assumption("tempC", "x >= -273.15")]);
+  const inverse = convertedIn("approx(1 m) - 1 m", "lin");
+  assert.ok(inverse.result.ok, inspect(inverse.result));
+  assert.deepEqual(inverse.assumed, [
+    assumption("lin", "y > 0 m", 1, "inverse"),
+  ]);
 });

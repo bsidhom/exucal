@@ -2,10 +2,10 @@
 
 Status: the design note of stage 7 (task 7.0 of docs/calculator-plan.md),
 revised from the first design for D23 and D24 and the owner's rulings on
-them. Tasks 7.1 and 7.2 have landed: the signature and `=`, annotations
-and the inferred result, the `~` line and the check of an inverse at the
-want, and any number of parameters, bound by position, with `|` and
-`name[` reserved; conditions (7.3) have not. The bracketed form this note replaced is
+them. Tasks 7.1, 7.2 and 7.3 have landed: the signature and `=`,
+annotations and the inferred result, the `~` line and the check of an
+inverse at the want, any number of parameters, bound by position, and
+conditions after a `|`, with `name[` reserved. The bracketed form this note replaced is
 recorded in "The first form" at the end, with its implementation
 notes. The owner ruled on the three
 choices the first draft of this note made: dimension-generic functions
@@ -148,7 +148,7 @@ decibel(x)  = pow(10, x / 10)
 ~decibel(y) = 10 log10(y)
 ```
 
-`tempC` and `tempF` gain their conditions with task 7.3:
+`tempC` and `tempF` have their conditions since task 7.3:
 `tempC(x) | x >= -273.15` and `tempF(x) | x >= -459.67`.
 
 A function's name lives in the unit namespace, with units and lists: a
@@ -396,11 +396,16 @@ held in the primitives, so their magnitudes compare directly: `1 ft >
   and `0.1 + 0.2 <= 0.3` holds, since the sum is exactly `0.3`. They
   are compared without forming their difference, so a comparison of
   exact values is never refused for size.
+- **An inexact value against an exact one** is placed against it
+  directly, by `position` of ball.ts, which the built-ins' edge checks
+  already use, without forming a difference whose rounding could only
+  widen it.
 - **Otherwise,** the right side is subtracted from the left as balls,
-  and the difference's position against zero decides, by `position` of
-  ball.ts, which the built-ins' edge checks already use. The table
-  gives every verdict, its third row being the exact case of the bullet
-  above, which a difference with a radius never reaches:
+  and the difference's position against zero decides, by `position`
+  again; a difference refused as too large to form counts as across
+  zero. The table gives every verdict, for the position of the left
+  side against the right, its third row being the exact case of the
+  first bullet, which a value with a radius never reaches:
 
   | Difference against zero                     | `<`       | `<=`      | `>`       | `>=`      |
   | ------------------------------------------- | --------- | --------- | --------- | --------- |
@@ -434,6 +439,9 @@ best-effort, with the uncertainty called out, rather than refused:
   the retry loop treats it as a result that certifies too few digits,
   keeping it as the best so far and computing again at more digits, at
   which a condition across its bound by noise alone usually decides.
+  When it decides against the argument, the call fails then, and the
+  earlier result, which rested on the assumption, is not shown in its
+  place.
 - **Shown at the end, with a warning.** If an assumption remains at the
   ceiling (or after decimal mode's single pass), the value is shown, its
   relation is `≈` whatever its digits, and a warning beside it names
@@ -446,8 +454,9 @@ best-effort, with the uncertainty called out, rather than refused:
   is `conditionFailed`, whatever else is undecided, and so is a term or
   a body that certainly fails under no assumption. A body that fails
   under an assumption reports the assumption instead, since the failure
-  may be the assumption's: the call is then `unresolved`, naming the
-  condition, as today.
+  may be the assumption's: the call is then `undecidedCondition`,
+  naming the condition and carrying the body's error, which the retry
+  loop retries as it does an `unresolved`.
 - **Why conditions differ from the built-ins' edges.** `floor(sqrt(2)^2)`
   is refused, not guessed, because at an edge of a built-in the value
   jumps or does not exist, and a guess would be a wrong value. A
@@ -619,8 +628,9 @@ failure ends it:
    failures carry spans into the definitions text, so they come back as
    `callFailed`, naming the function and carrying the body's error; an
    `unresolved` inside the body, at any depth, is still retried. Under
-   an assumption, a failure of the body is reported as an `unresolved`
-   naming the assumed condition instead ("An undecided condition").
+   an assumption, a failure of the body is reported as an
+   `undecidedCondition` naming the assumed condition instead, and is
+   retried too ("An undecided condition").
 
 The result is a quantity like any other. Its dimension is not checked
 at the call, the build having checked or inferred it once.
@@ -713,8 +723,9 @@ function is reported like any other. Checking a function means:
    operands do not conform, or a call of the wrong count or dimension is
    an ordinary build error with its span in the definitions text; that
    dimension is the function's result. Each condition's terms are taken
-   the same way, adjacent terms must conform, and each condition must
-   mention a parameter.
+   the same way, adjacent terms must conform (`nonconformingComparison`,
+   naming both), and each condition must mention a parameter
+   (`conditionWithoutParameter`).
 3. Checking the result against its annotation, when there is one; a
    failure is `functionMismatch`, naming the result.
 
@@ -796,17 +807,24 @@ reads small can be large, and README ("Functions") and ARCHITECTURE.md
   `inverse` definitions, the bracketed grammar removed (7.1); the
   conditions (7.3).
 - `src/core/table.ts`: `UnitFunction` with its parameters, its result
-  dimension, its body and an optional inverse.
+  dimension, its conditions with the parameters each mentions, its body
+  and an optional inverse, which has conditions of its own.
+- `src/core/ball.ts`: `orderOf`, where one ball lies against another
+  (7.3).
 - `src/core/dimension-of.ts`: the call case binds parameters by
   position and takes a defined function's arity from it.
 - `src/core/evaluate.ts`: binding several names; the call's steps
-  above; `invertFunction` through the inverse's own parameter.
+  above; `invertFunction` through the inverse's own parameter;
+  `checkConditions` and `decide`, the three-valued check and the table
+  of verdicts, and the collector of assumptions an evaluation may be
+  given (7.3).
 - `src/core/build.ts`: the checks above.
 - `src/core/pipeline.ts`: the want's steps above, and assumptions
   carried to the result and treated as uncertified by the retry loop
   (7.3).
 - `src/messages.ts`: `noInverse`, `inverseMismatch`, `conditionFailed`,
-  the warning of an assumed condition, and the parse errors.
+  `undecidedCondition`, `wantConditionFailed`, the warning of an assumed
+  condition, and the parse errors.
 - `src/outcome.ts` and `src/unit-converter.ts`: the warning's line and
   its style (7.3).
 - `src/units.txt`: the five functions rewritten (7.1), with conditions

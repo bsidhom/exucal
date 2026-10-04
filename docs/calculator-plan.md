@@ -22,7 +22,7 @@ after stage 5 landed and the stage revised against it (D22 added, and
 6.1 to 6.9); its introduction lists the changes, and 6.8 was deferred
 after 6.7 landed. D23 and D24 were added before stage 7, from the
 owner's review of the syntax options for user functions, and stage 7
-was revised against them; its tasks 7.0, 7.1 and 7.2 have landed. D13 was
+was revised against them; its tasks 7.0 to 7.3 have landed. D13 was
 revised in review of the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -4954,8 +4954,8 @@ that certifies too few digits. An assumption left at the ceiling, or
 after decimal mode's pass, is shown as a warning beside the value,
 whose relation is then `≈`: messages.ts words it, outcome.ts gives it a
 line of its own, and the converter styles it apart from the notes on
-digits. A body that fails under an assumption is `unresolved`, naming
-the condition. A condition undecided when the table is built fails the
+digits. A body that fails under an assumption is `undecidedCondition`,
+naming the condition. A condition undecided when the table is built fails the
 build. The want checks the have against the inverse's conditions, which
 are the inverse's own domain, and checks the recovered argument against
 the function's own conditions; no condition is ever checked against a
@@ -4968,6 +4968,25 @@ Either way it must reach the pipeline through every output mode, a
 ratio and its reciprocal line, a unit list, a function want and a blank
 want, and the retry predicate must accept the `unresolved` that names a
 condition, as it accepts every `unresolved` today.
+
+As it landed, an assumption travels in a collector: `evaluate` takes an
+optional array that each call it makes, at any depth, adds its
+assumptions to once its body has computed, a call gathering its own and
+its body's apart so that a body failing under one is told from one
+failing outright. The failure that names a condition is an
+`undecidedCondition` of its own, carrying the assumption and the body's
+error, which the retry predicate accepts. `resolve` gives each pass a
+fresh collector, keeps a result that assumes anything as the best so
+far, and hands the returned pass's assumptions to `evaluateText` and
+`convertText`, which take an optional collector of their own; the
+outcome holds the warnings, and every line's relation is `≈`, so the
+reciprocal and a list's line carry it without a word of their own. A
+comparison is decided by `orderOf` of ball.ts, which places an inexact
+value against an exact one directly rather than through a difference,
+and the want's failures of a condition are `wantConditionFailed`, of
+the inverse or of the function. The build evaluates units, lists'
+units and annotations with a collector of its own, and one left
+non-empty is the build's `undecidedCondition`.
 
 Behavior: `tempC(-300)` and `tempF(-500)` are refused, naming the
 condition, where they were negative temperatures; `-5 K` into `tempC`
@@ -4993,7 +5012,7 @@ Tests:
   reaches a unit list's line and a ratio's reciprocal line;
 - a condition that restates an identity (`| x - x >= 0`) is shown with
   the warning for an inexact argument;
-- a body that fails under an assumption is `unresolved`, naming the
+- a body that fails under an assumption is `undecidedCondition`, naming the
   condition;
 - a unit defined by a call whose condition is undecided fails the
   build;

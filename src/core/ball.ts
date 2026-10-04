@@ -368,6 +368,44 @@ export function position(
   return above ? "above" : "below";
 }
 
+/** Where one ball lies against another, as `position` says of a ball against a point. */
+export type Order = ReturnType<typeof position>;
+
+/**
+ * Where `a` lies against `b`, in the terms of `position`: two exact
+ * values compared exactly, as the numbers they are, without forming their
+ * difference, so that the comparison is never refused for size; an
+ * inexact value against an exact one placed against it directly, by
+ * `position`; and two inexact values by their difference, `a - b` at
+ * `context`, against zero, a difference refused as too large to form
+ * (or straddling the bound) answering `straddles`, the conservative
+ * answer. Conditions on a function's arguments are decided on it
+ * (docs/functions.md, "Conditions").
+ */
+export function orderOf(a: Ball, b: Ball, context: NumberContext): Order {
+  if (isExact(b)) return position(a, b.mid);
+  if (isExact(a)) return flipped(position(b, a.mid));
+  const difference = subtractBalls(a, b, context);
+  return difference.ok ? position(difference.value, ZERO) : "straddles";
+}
+
+/** `order` of `b` against `a`, given as `a`'s against `b`. */
+function flipped(order: Order): Order {
+  switch (order) {
+    case "below":
+      return "above";
+    case "above":
+      return "below";
+    case "touchingBelow":
+      return "touchingAbove";
+    case "touchingAbove":
+      return "touchingBelow";
+    case "at":
+    case "straddles":
+      return order;
+  }
+}
+
 /**
  * Compares the non-negative `magnitude` with the bounded, nonzero `rad`:
  * exactly where the radius can be formed, and otherwise by the coarse

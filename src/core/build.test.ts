@@ -818,7 +818,12 @@ test("a function is built as its body, with its parameter's unit, its inferred r
   // The result is inferred from the body.
   assert.deepEqual(tempC.result, dim({ K: 1 }));
   assert.deepEqual(tempC.body, definition.body);
-  assert.deepEqual(tempC.inverse, { parameter: "y", body: inverse.body });
+  assert.deepEqual(tempC.conditions, []);
+  assert.deepEqual(tempC.inverse, {
+    parameter: "y",
+    conditions: [],
+    body: inverse.body,
+  });
   assert.equal(table.units.has("tempC"), false);
 });
 
@@ -1211,6 +1216,150 @@ test("a cycle through a function is reported like any other", () => {
     definitions: [boil, tempC],
     span: spanOf(declared, "boil", 2),
   });
+});
+
+test("a function and an inverse keep their conditions, with the parameters each mentions", () => {
+  const lines = [
+    "K  !",
+    "f(x, y, z) | x < y, 0 < z, z^2 + x <= 1 = x",
+    "tempC(x) | x >= -273.15 = x K + 273.15 K",
+    "~tempC(y) | 0 K <= y = y / K - 273.15",
+  ];
+  const table = built(...lines);
+  const [, f, tempC, inverse] = definitions(...lines);
+  assert.ok(f?.kind === "function" && tempC?.kind === "function");
+  assert.ok(inverse?.kind === "inverse");
+  assert.deepEqual(
+    table.functions.get("f")!.conditions,
+    f.conditions.map((condition, i) => ({
+      ...condition,
+      mentions: [["x", "y"], ["z"], ["x", "z"]][i],
+    })),
+  );
+  const built_ = table.functions.get("tempC")!;
+  assert.deepEqual(built_.conditions, [
+    { ...tempC.conditions[0]!, mentions: ["x"] },
+  ]);
+  assert.deepEqual(built_.inverse!.conditions, [
+    { ...inverse.conditions[0]!, mentions: ["y"] },
+  ]);
+});
+
+test("the terms of a condition must conform, each to the next", () => {
+  const lines = ["K  !", "f(x: K) | x > 0 = x"];
+  const [, f] = definitions(...lines);
+  assert.ok(f?.kind === "function");
+  assert.deepEqual(failed(...lines), {
+    kind: "nonconformingComparison",
+    definition: f,
+    span: spanOf(lines, "x > 0"),
+    left: spanOf(lines, "x", 2),
+    right: spanOf(lines, "0"),
+    mismatch: {
+      kind: "dimensionMismatch",
+      have: dim({ K: 1 }),
+      want: DIMENSIONLESS,
+    },
+  });
+  // In a chain, the pair at fault; and `0 K` is what the message suggests.
+  const chain = ["K  !", "f(x: K) | 0 K <= x <= 373.15 = x"];
+  const error = failed(...chain);
+  assert.ok(error.kind === "nonconformingComparison", inspect(error));
+  assert.deepEqual(error.left, spanOf(chain, "x", 2));
+  assert.deepEqual(error.right, spanOf(chain, "373.15"));
+  assert.ok(built("K  !", "f(x: K) | 0 K <= x <= 373.15 K = x"));
+  // An inverse's parameter has its function's result's dimension.
+  const inverse = [
+    "K  !",
+    "tempC(x) = x K + 273.15 K",
+    "~tempC(y) | y > 0 = y / K - 273.15",
+  ];
+  const [, , definition] = definitions(...inverse);
+  const mismatch = failed(...inverse);
+  assert.ok(mismatch.kind === "nonconformingComparison", inspect(mismatch));
+  assert.deepEqual(mismatch.definition, definition);
+  // A term that refers to nothing fails as a body's would.
+  assert.deepEqual(failed("f(x) | x > bogus = x"), {
+    kind: "unknownUnit",
+    name: "bogus",
+    span: spanOf(["f(x) | x > bogus = x"], "bogus"),
+  });
+});
+
+test("a condition must mention a parameter", () => {
+  const lines = ["m  !", "f(x) | 1 < 2 = x", "g(x: m) | 0 m < 1 m = x"];
+  const [, f] = definitions(...lines);
+  assert.deepEqual(failed(...lines), {
+    kind: "conditionWithoutParameter",
+    definition: f,
+    span: spanOf(lines, "1 < 2"),
+  });
+  const inverse = ["f(x) = x", "~f(y) | 0 < 1 = y"];
+  const error = failed(...inverse);
+  assert.equal(error.kind, "conditionWithoutParameter");
+});
+
+test("a call in a condition is a dependency, so a cycle through one is reported", () => {
+  const own = ["f(x) | f(x) > 0 = x"];
+  const [f] = definitions(...own);
+  assert.deepEqual(failed(...own), {
+    kind: "circularDefinition",
+    definitions: [f],
+    span: { start: 7, end: 8 },
+  });
+  const mutual = ["f(x) | g(x) > 0 = x", "g(x) = f(x)"];
+  const [first, second] = definitions(...mutual);
+  const error = failed(...mutual);
+  assert.ok(error.kind === "circularDefinition", inspect(error));
+  assert.deepEqual(error.definitions, [first, second]);
+  // An inverse is outside the walk, so it may call its function in a condition.
+  assert.ok(built("f(x) = 2 x", "~f(y) | f(y) > 0 = y / 2"));
+});
+
+test("a unit defined by a call checks the call's conditions when the table is built", () => {
+  const lines = [
+    "K  !",
+    "tempC(x) | x >= -273.15 = x K + 273.15 K",
+    "cold  tempC(-300)",
+  ];
+  assert.deepEqual(failed(...lines), {
+    kind: "conditionFailed",
+    name: "tempC",
+    span: spanOf(lines, "tempC(-300)"),
+    condition: "x >= -273.15",
+    arguments: [{ parameter: "x", span: spanOf(lines, "-300") }],
+  });
+  // At the boundary, exactly, it holds.
+  const zero = built(
+    "K  !",
+    "tempC(x) | x >= -273.15 = x K + 273.15 K",
+    "absolute  tempC(-273.15)",
+  );
+  assertQuantity(zero.units.get("absolute"), "0", { K: 1 });
+  // Undecided, it fails the build: a unit has nowhere to carry a warning.
+  const undecided = [
+    "K  !",
+    "tempC(x) | x >= -273.15 = x K + 273.15 K",
+    "cold  tempC(approx(-273.15))",
+  ];
+  assert.deepEqual(failed(...undecided), {
+    kind: "undecidedCondition",
+    name: "tempC",
+    span: spanOf(undecided, "tempC(approx(-273.15))"),
+    assumption: {
+      name: "tempC",
+      of: "function",
+      condition: "x >= -273.15",
+      parameters: 1,
+    },
+  });
+  // So does a list's unit.
+  const list = [
+    "K  !",
+    "tempC(x) | x >= -273.15 = x K + 273.15 K",
+    "temps  tempC(approx(-273.15)) + 2 K; K",
+  ];
+  assert.equal(failed(...list).kind, "undecidedCondition");
 });
 
 // ---------------------------------------------------------------------------

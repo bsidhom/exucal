@@ -692,14 +692,17 @@ separated by `;` (a body of one is a unit), each kept with the text it was
 written as, since that text is what the UI shows beside its term and the
 table has no other way to get at it, a function, named with its parameters
 in parentheses, separated by commas and none named twice, each of them
-and the result optionally annotated with a unit expression (kept with its text, as a list's items are), and
-its body after `=`, or the inverse of a function, `~name(parameter) =
-body` ("Functions" below). The parser rejects an annotation with a number
+and the result optionally annotated with a unit expression (kept with its text, as a list's items are),
+optionally conditions after a `|`, and its body after `=`, or the
+inverse of a function, `~name(parameter) = body`, which may have
+conditions too ("Functions" below). A condition is a chain of
+expressions joined by comparisons that all point one way, kept with its
+text for the messages that quote it; a chain that turns, `0 < x > 1`,
+is rejected. The parser rejects an annotation with a number
 other than `1`, a sum, a negation or a call, and a parameter named like a
 unit its own head's annotations use, each where it is written; it
-reserves a `|` after a head and a `[` after a function's name, for the
-conditions and dimension variables to come, and rejects them as not
-supported yet. `parseDefinitions` returns them in the order written,
+reserves a `[` after a function's name, for the dimension variables to
+come, and rejects it as not supported yet. `parseDefinitions` returns them in the order written,
 duplicates included, and knows nothing about what they mean. Every span is an
 offset into the whole text, not the line: a definition carries the span of
 its text from name to body, for the errors `buildTable` reports against a
@@ -751,7 +754,10 @@ function is a node of the walk, and evaluating it means checking it
 dimension is taken without evaluating it (`dimension-of.ts`), with the
 parameter bound to its annotation's dimension (plain without one),
 through the walk's own lookup; that dimension is the function's result,
-checked against the result's annotation when there is one. A unit may
+checked against the result's annotation when there is one; and each
+condition's terms are taken the same way, each conforming to the next,
+and each condition must mention a parameter. A call in a condition is a
+dependency of the walk as one in a body is. A unit may
 then be defined by a call (`boiling  tempC(100)`), a function's body may
 call another, and a cycle through a function is reported like any other.
 An inverse is keyed by its function's name apart from every namespace,
@@ -759,11 +765,16 @@ and nothing can refer to it, so, like a list, it stays out of the walk
 and is checked in its place in the order, requesting its function from
 the top, which lets it call its own function: its function must have one
 parameter, and its body's dimension, with its own parameter bound to the
-function's result, must conform to what that parameter takes. The table
+function's result, must conform to what that parameter takes, its
+conditions checked as a function's are. The table
 holds each function as its body, still an expression, with its
 parameters in order, each with the unit it takes and its text, its
-result's dimension, and its inverse when one is defined: a call evaluates
-the body afresh, through the table's lookup.
+result's dimension, its conditions with the parameters each mentions,
+and its inverse when one is defined: a call evaluates the body afresh,
+through the table's lookup. A unit, a list's unit or an annotation that
+calls a function evaluates the call's conditions when the table is
+built, at the ceiling, and one left undecided fails the build, since a
+unit has nowhere to carry the warning.
 
 Every name is known once the table is built, so ambiguity is a property of the
 table rather than of the input, and `buildTable` checks for it. A name with
@@ -1197,14 +1208,42 @@ dimension and changes no value, since a quantity carries no unit of its
 own: `x: kg` admits any mass, as `x: lb` does, and a body that needs a
 number in a given unit divides it out.
 
+A function may restrict its arguments by conditions, `tempC(x) | x >=
+-273.15 = …`, which a call checks after the arguments conform and before
+the body, left to right, as one conjunction in three-valued logic
+(`checkConditions` of evaluate.ts): each comparison of two terms is
+decided on balls with no tolerance (`decide`, over `orderOf` of
+ball.ts, which compares two exact values exactly and places an inexact
+value against an exact one directly), and holds, fails, or is
+undecided when the balls meet at the bound. The first certain failure
+is a `conditionFailed` at the call, naming the condition as written and
+the arguments it mentions; a term that cannot be computed is the call's
+failure only when nothing before it was undecided, so that a condition
+may guard the next. An undecided condition is assumed to hold, and the
+call goes on: the assumption is added to a collector the evaluation may
+be given, once the body has computed, and a body that fails under one
+is an `undecidedCondition`, retried as an `unresolved` is. The pipeline
+gives each pass of the retry loop a collector of its own, and a result
+that assumes a condition is never final, so a condition across its
+bound by noise is computed again at more digits; one still undecided at
+the ceiling, or after decimal mode's one pass, reaches the outcome,
+which shows the value with every line's relation `≈` and a warning per
+condition, styled apart from the notes on digits. Conditions restrict
+arguments only: nothing checks a result against a range.
+
 The pipeline reads a `want` that is the bare name of a function, after a
 list's name and before a unit's, as the third output mode: the answer is
 the call that would produce the `have`, `tempF(212)` into `tempC` being
 `tempC(100)`. It needs the function's inverse, and a function without one
 is a `noInverse` on the want side. The `have` must conform to the
 function's result, which is the ordinary mismatch of the pair when it
-does not, and `invertFunction` evaluates the inverse's body with its
-parameter bound to the `have`, through the table's lookup. Since an
+does not; the `have` must meet the inverse's conditions, which are the
+inverse's own domain, and `invertFunction` evaluates the inverse's body
+with its parameter bound to the `have`, through the table's lookup; the
+recovered argument must meet the function's conditions, so that `-5 K`
+into `tempC` is refused as needing a reading below absolute zero (a
+condition failing on either side is a `wantConditionFailed`, and an
+undecided one is assumed as at a call). Since an
 inverse is the one part of a definition the build cannot check, the
 answer is then checked: the function is applied to the recovered
 argument, and a value certainly other than the `have` (two exact values

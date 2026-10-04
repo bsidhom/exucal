@@ -18,7 +18,9 @@ import { outcomeOf, type Line, type Outcome, type Term } from "./outcome.ts";
  * pipeline over them again, which is cheap, and renders the outcome, which
  * outcome.ts computes: the lines of a result (a definition for a blank
  * `want`, a conversion with its reciprocal, a unit list's sum or a
- * function's call), with `=` or `≈` and the notes, or the error, marked on
+ * function's call), with `=` or `≈` and the notes, and the warnings of a
+ * value that assumes a condition it could not decide, styled apart from
+ * the notes so that neither is read as the other; or the error, marked on
  * the input at fault. The `table` to convert against is a property, built
  * by the host.
  *
@@ -98,9 +100,22 @@ export class UnitConverter extends LitElement {
       color: #c92a2a;
     }
 
+    .warning {
+      color: #a35200;
+      font-size: 0.875rem;
+    }
+
+    .warning::before {
+      content: "⚠ ";
+    }
+
     @media (prefers-color-scheme: dark) {
       .error {
         color: #ff8787;
+      }
+
+      .warning {
+        color: #ffc078;
       }
     }
   `;
@@ -205,7 +220,11 @@ function renderOutcome(outcome: Outcome): TemplateResult {
         to, such as <code>in</code> or <code>ft;in</code>.
       </span>`;
     case "result":
-      return html`${outcome.lines.map(renderLine)}`;
+      return html`${outcome.lines.map(renderLine)}${(
+        outcome.warnings ?? []
+      ).map(
+        (warning) => html`<div class="warning" role="note">${warning}</div>`,
+      )}`;
     case "error":
       return html`<span class="error">${outcome.message}</span>`;
   }

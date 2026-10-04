@@ -49,12 +49,20 @@
 // one into a function is a call, so there is no other way round and no
 // line is added; nor for a blank `want`, which shows a definition; nor for
 // a value of zero, which has no reciprocal.
+//
+// A value computed under a condition that could not be decided
+// (docs/functions.md, "An undecided condition") is shown all the same,
+// with a warning for each condition it assumes, worded by messages.ts, and
+// every line's relation `≈` whatever its digits; the reciprocal line, a
+// list's line and a function want's line carry it alike, since the
+// warning is the outcome's, not a line's.
 
 import { divideBalls, exact, settle, type Ball } from "./core/ball.ts";
 import type { NumberContext } from "./core/context.ts";
 import { roundTerms } from "./core/convert.ts";
 import { formatDimension, isDimensionless } from "./core/dimension.ts";
 import { show, type Shown } from "./core/display.ts";
+import type { Assumption } from "./core/evaluate.ts";
 import { parseExpr } from "./core/expr.ts";
 import {
   convertText,
@@ -65,7 +73,11 @@ import {
 import type { Precision } from "./core/rounding.ts";
 import { ONE, absolute, equals, format, isZero, sign } from "./core/scaled.ts";
 import type { UnitTable } from "./core/table.ts";
-import { describeConversionError, describeTextError } from "./messages.ts";
+import {
+  describeAssumption,
+  describeConversionError,
+  describeTextError,
+} from "./messages.ts";
 
 /**
  * One term of a result: `text`, the value as `show` writes it at the
@@ -105,9 +117,15 @@ export type Outcome =
   /**
    * The conversion, as one line, or two when it has a reciprocal: the
    * conversion and then the same conversion the other way round, `3 ft =
-   * 36 in` and `in ≈ 0.027777778 × 3 ft`.
+   * 36 in` and `in ≈ 0.027777778 × 3 ft`. `warnings`, when there are any,
+   * name the conditions the value assumes, which could not be decided;
+   * every line's relation is then `≈`.
    */
-  | { readonly kind: "result"; readonly lines: readonly Line[] }
+  | {
+      readonly kind: "result";
+      readonly lines: readonly Line[];
+      readonly warnings?: readonly string[];
+    }
   /** `message` says what is wrong, with the text on `side` if it is one text's fault. */
   | { readonly kind: "error"; readonly side?: Side; readonly message: string };
 
@@ -124,12 +142,50 @@ export function outcomeOf(
   context: NumberContext,
   fractions = false,
 ): Outcome {
+  if (haveText.trim() === "") return { kind: "empty" };
+  const assumptions: Assumption[] = [];
+  const outcome = outcomeAssuming(
+    table,
+    haveText,
+    wantString,
+    context,
+    fractions,
+    assumptions,
+  );
+  return outcome.kind === "result" ? warned(outcome, assumptions) : outcome;
+}
+
+/**
+ * `result` with a warning for each distinct one of `assumptions`, and
+ * every line's relation `≈`, since a value that rests on an assumption is
+ * not known to be the definition's at all; `result` itself without any.
+ */
+function warned(
+  result: Extract<Outcome, { kind: "result" }>,
+  assumptions: readonly Assumption[],
+): Outcome {
+  if (assumptions.length === 0) return result;
+  return {
+    kind: "result",
+    lines: result.lines.map((line) => ({ ...line, relation: "≈" })),
+    warnings: [...new Set(assumptions.map(describeAssumption))],
+  };
+}
+
+/** `outcomeOf` for a `have` that is not blank, with the conditions the result assumes added to `assumptions`. */
+function outcomeAssuming(
+  table: UnitTable,
+  haveText: string,
+  wantString: string,
+  context: NumberContext,
+  fractions: boolean,
+  assumptions: Assumption[],
+): Outcome {
   const have = haveText.trim();
   const want = wantString.trim();
-  if (have === "") return { kind: "empty" };
   if (want === "") {
     // What `have` is in the primitives: the unit's definition, in effect.
-    const quantity = evaluateText(table, haveText, context);
+    const quantity = evaluateText(table, haveText, context, assumptions);
     if (!quantity.ok) {
       return {
         kind: "error",
@@ -146,7 +202,13 @@ export function outcomeOf(
       lines: [line(have, magnitude, unit, context, fractions)],
     };
   }
-  const conversion = convertText(table, haveText, wantString, context);
+  const conversion = convertText(
+    table,
+    haveText,
+    wantString,
+    context,
+    assumptions,
+  );
   if (!conversion.ok) {
     const { error } = conversion;
     return {

@@ -299,6 +299,22 @@ test("temperature readings convert through tempC and tempF", () => {
   assert.ok(!result.ok);
   assert.ok(result.error.kind === "inputError");
   assert.equal(result.error.error.kind, "argumentMismatch");
+  // A reading is at or above absolute zero, which is itself a reading.
+  assertAll([
+    ["tempC(-273.15)", "K", "0"],
+    ["tempF(-459.67)", "K", "0"],
+  ]);
+  for (const [have, want] of [
+    ["tempC(-300)", "K"],
+    ["tempF(-500)", "K"],
+  ]) {
+    const below = convertText(table, have!, want!, CONTEXT);
+    assert.ok(!below.ok && below.error.kind === "inputError", inspect(below));
+    assert.equal(below.error.error.kind, "conditionFailed");
+  }
+  const cold = convertText(table, "-5 K", "tempC", CONTEXT);
+  assert.ok(!cold.ok && cold.error.kind === "inputError", inspect(cold));
+  assert.equal(cold.error.error.kind, "wantConditionFailed");
 });
 
 test("the logarithmic units are functions: the decibel, the bel and the neper", () => {

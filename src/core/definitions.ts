@@ -21,12 +21,15 @@
 //   file       := line ("\n" line)*
 //   line       := ws definition? comment?
 //   definition := name " "+ body
-//               | name "(" params? ")" (":" annotation)? "=" expr
-//               | "~" name "(" name ")" "=" expr
+//               | name "(" params? ")" (":" annotation)? conditions? "=" expr
+//               | "~" name "(" name ")" conditions? "=" expr
 //   body       := "!" "kind"?              only for a unit name
 //               | unitList                 (expr.ts)
 //   params     := param ("," param)*
 //   param      := name (":" annotation)?
+//   conditions := "|" condition ("," condition)*
+//   condition  := expr cmp expr (cmp expr)*   every cmp pointing one way
+//   cmp        := "<" | "<=" | ">" | ">=" | "≤" | "≥"
 //
 // A name is a unit name as expr.ts defines it, with a trailing `-` making it
 // a prefix, a `(` directly after it making it a function, and a `~` before
@@ -62,10 +65,18 @@
 // `~name(p) = body`, has one parameter, unannotated, since its dimension
 // is its function's result's; whether there is such a function, of one
 // parameter, is the builder's to say.
-// Two pieces of later syntax are reserved and rejected as not supported
-// yet: a `|` after the head, where conditions will go (task 7.3 of
-// docs/calculator-plan.md), and a `[` directly after a function's name,
-// where dimension variables would (issue #133).
+//
+// Conditions follow a `|` after the head, on a function or an inverse,
+// separated by commas: each is a chain of two or more terms joined by
+// comparisons that all point one way (`0 < p < 1`, `x >= -273.15`,
+// `a < b`), so `0 < x > 1`, which bounds nothing as an interval does, is
+// rejected. A term is any expression: comparisons are not part of the
+// expression grammar, so one ends a term, as a comma outside parentheses
+// and the `=` do, and `<=` and `>=` are read before `<` and `>`. Each
+// condition keeps its text, for the messages that name it, and `≤` and
+// `≥` are read as `<=` and `>=`. What the terms mean is the builder's.
+// A `[` directly after a function's name is reserved for dimension
+// variables (issue #133) and rejected as not supported yet.
 //
 // Spans are offsets into the whole text, not the line, so an error anywhere
 // in the pipeline can be shown against the file as the user sees it. Each
@@ -89,6 +100,7 @@ import {
   check,
   flatMap,
   many,
+  many1,
   map,
   optional,
   parse,
@@ -145,6 +157,7 @@ export type Definition =
       readonly name: string;
       readonly parameters: readonly Parameter[];
       readonly result: WrittenExpr | undefined;
+      readonly conditions: readonly Condition[];
       readonly body: Expr;
       readonly span: Span;
     }
@@ -156,9 +169,25 @@ export type Definition =
       readonly kind: "inverse";
       readonly name: string;
       readonly parameter: string;
+      readonly conditions: readonly Condition[];
       readonly body: Expr;
       readonly span: Span;
     };
+
+/** A comparison of a condition, with `≤` and `≥` read as `<=` and `>=`. */
+export type Comparator = "<" | "<=" | ">" | ">=";
+
+/**
+ * A condition: its `terms`, two or more, each compared with the next by
+ * the comparator between them, all of `comparators` pointing one way; the
+ * `text` it was written as, for messages, and its `span`.
+ */
+export type Condition = {
+  readonly terms: readonly Expr[];
+  readonly comparators: readonly Comparator[];
+  readonly text: string;
+  readonly span: Span;
+};
 
 /** A function's parameter: its `name`, and its annotation when it has one. */
 export type Parameter = {
@@ -188,11 +217,10 @@ export type DefinitionRejection =
   | { readonly kind: "parameterNamesUnit"; readonly parameter: string }
   /** The `parameter` is named a second time, at the span. */
   | { readonly kind: "duplicateParameter"; readonly parameter: string }
-  /** Syntax reserved for later: conditions after `|`, or dimension variables after `name[`. */
-  | {
-      readonly kind: "unsupported";
-      readonly feature: "conditions" | "dimensionVariables";
-    };
+  /** A condition whose comparisons do not all point one way. */
+  | { readonly kind: "mixedComparison" }
+  /** Syntax reserved for later: dimension variables after `name[`. */
+  | { readonly kind: "unsupported"; readonly feature: "dimensionVariables" };
 
 // ---------------------------------------------------------------------------
 // Parsing
@@ -353,14 +381,46 @@ const annotated: Parser<WrittenExpr, DefinitionRejection> = map(
   ([, written]) => written,
 );
 
-/** The place of conditions after a head, rejected until they are supported. */
-const conditionsReserved: Parser<undefined, DefinitionRejection> = map(
-  optional(
-    check(symbol("|"), () =>
-      err<DefinitionRejection>({ kind: "unsupported", feature: "conditions" }),
-    ),
+/** A comparison, `<=` and `>=` before `<` and `>`. */
+const comparator: Parser<Comparator> = token(
+  alt(
+    map(alt(string("<="), string("≤")), (): Comparator => "<="),
+    map(alt(string(">="), string("≥")), (): Comparator => ">="),
+    map(string("<"), (): Comparator => "<"),
+    map(string(">"), (): Comparator => ">"),
   ),
-  () => undefined,
+);
+
+/** A chain of comparisons, rejected when they do not all point one way. */
+const condition: Parser<Condition, DefinitionRejection> = (text, pos) => {
+  const reply = seq(expr, many1(seq(comparator, expr)))(text, pos);
+  if (!reply.ok) return reply;
+  const [first, rest] = reply.value;
+  const terms = [first, ...rest.map(([, term]) => term)];
+  const comparators = rest.map(([op]) => op);
+  const span = { start: first.span.start, end: terms.at(-1)!.span.end };
+  const upward = comparators.map((op) => op === "<" || op === "<=");
+  if (upward.some((up) => up !== upward[0])) {
+    return rejected(span, { kind: "mixedComparison" });
+  }
+  return {
+    ...reply,
+    value: {
+      terms,
+      comparators,
+      text: text.slice(span.start, span.end),
+      span,
+    },
+  };
+};
+
+/** The conditions after a head: a `|` and conditions separated by commas, or none. */
+const conditions: Parser<readonly Condition[], DefinitionRejection> = map(
+  optional(seq(symbol("|"), condition, many(seq(symbol(","), condition)))),
+  (parsed) =>
+    parsed === undefined
+      ? []
+      : [parsed[1], ...parsed[2].map(([, rest]) => rest)],
 );
 
 /** A parameter, with the span of its name, for the errors about it. */
@@ -385,10 +445,11 @@ const parameters: Parser<readonly SpannedParameter[], DefinitionRejection> =
       : [parsed[0], ...parsed[1].map(([, rest]) => rest)],
   );
 
-/** What follows a function's name: the parameters, the result's annotation, `=` and the body. */
+/** What follows a function's name: the parameters, the result's annotation, the conditions, `=` and the body. */
 type FunctionRest = {
   readonly parameters: readonly SpannedParameter[];
   readonly result: WrittenExpr | undefined;
+  readonly conditions: readonly Condition[];
   readonly body: Expr;
 };
 
@@ -398,11 +459,16 @@ const functionRest: Parser<FunctionRest, DefinitionRejection> = map(
     parameters,
     symbol(")"),
     optional(annotated),
-    conditionsReserved,
+    conditions,
     symbol("="),
     expr,
   ),
-  ([, parameters, , result, , , body]) => ({ parameters, result, body }),
+  ([, parameters, , result, conditions, , body]) => ({
+    parameters,
+    result,
+    conditions,
+    body,
+  }),
 );
 
 /**
@@ -414,13 +480,14 @@ const checkedFunctionRest: Parser<
   {
     readonly parameters: readonly Parameter[];
     readonly result: WrittenExpr | undefined;
+    readonly conditions: readonly Condition[];
     readonly body: Expr;
   },
   DefinitionRejection
 > = (text, pos) => {
   const reply = functionRest(text, pos);
   if (!reply.ok) return reply;
-  const { parameters, result, body } = reply.value;
+  const { parameters, result, conditions, body } = reply.value;
   const seen = new Set<string>();
   for (const { parameter, span } of parameters) {
     if (seen.has(parameter.name)) {
@@ -452,14 +519,19 @@ const checkedFunctionRest: Parser<
     value: {
       parameters: parameters.map(({ parameter }) => parameter),
       result,
+      conditions,
       body,
     },
   };
 };
 
-/** What follows an inverse's name: its parameter, `=` and the body. */
+/** What follows an inverse's name: its parameter, its conditions, `=` and the body. */
 const inverseRest: Parser<
-  { readonly parameter: string; readonly body: Expr },
+  {
+    readonly parameter: string;
+    readonly conditions: readonly Condition[];
+    readonly body: Expr;
+  },
   DefinitionRejection
 > = map(
   seq(
@@ -471,11 +543,11 @@ const inverseRest: Parser<
       ),
     ),
     symbol(")"),
-    conditionsReserved,
+    conditions,
     symbol("="),
     expr,
   ),
-  ([, parameter, , , , , body]) => ({ parameter, body }),
+  ([, parameter, , , conditions, , body]) => ({ parameter, conditions, body }),
 );
 
 const definition: Parser<Definition, DefinitionRejection> = flatMap(
@@ -485,13 +557,17 @@ const definition: Parser<Definition, DefinitionRejection> = flatMap(
     span: { start },
   }): Parser<Definition, DefinitionRejection> => {
     if (written.startsWith("~")) {
-      return map(inverseRest, ({ parameter, body }): Definition => ({
-        kind: "inverse",
-        name: written.slice(1),
-        parameter,
-        body,
-        span: { start, end: body.span.end },
-      }));
+      return map(
+        inverseRest,
+        ({ parameter, conditions, body }): Definition => ({
+          kind: "inverse",
+          name: written.slice(1),
+          parameter,
+          conditions,
+          body,
+          span: { start, end: body.span.end },
+        }),
+      );
     }
     if (written.endsWith("-")) {
       return map(seq(gap, expr), ([, body]): Definition => ({

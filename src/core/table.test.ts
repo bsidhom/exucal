@@ -58,8 +58,7 @@ function parsed(text: string): Expr {
 /** A function as `buildTable` would produce it: the Celsius reading. */
 const TEMP_C: UnitFunction = {
   name: "tempC",
-  parameter: "x",
-  argument: { text: "1", quantity: quantity("1", {}) },
+  parameters: [{ name: "x", unit: { text: "1", quantity: quantity("1", {}) } }],
   result: quantity("1", { K: 1 }).dimension,
   body: parsed("x K + 273.15 K"),
   inverse: { parameter: "y", body: parsed("y / K - 273.15") },

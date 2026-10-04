@@ -22,7 +22,7 @@ after stage 5 landed and the stage revised against it (D22 added, and
 6.1 to 6.9); its introduction lists the changes, and 6.8 was deferred
 after 6.7 landed. D23 and D24 were added before stage 7, from the
 owner's review of the syntax options for user functions, and stage 7
-was revised against them; its tasks 7.0 and 7.1 have landed. D13 was
+was revised against them; its tasks 7.0, 7.1 and 7.2 have landed. D13 was
 revised in review of the first follow-up. Stage 2 was reviewed against the code before its
 implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
@@ -4922,15 +4922,18 @@ position, and `arityMismatch` covers definitions, the arity being the
 function's own in place of `ONE_ARGUMENT`. A duplicate parameter name is
 a parse error at its second occurrence. The inverse and the want stay
 single-parameter, as the study says, so a `~f` whose `f` takes several
-parameters is a build error.
+parameters is a build error. An empty parameter list, `c() = 3 m`, is
+allowed, as the note's grammar writes the list (`params?`) and as
+`pi()` takes none: a function of none is called `c()`, and has no
+inverse either (docs/functions.md, "Definitions").
 
 Behavior: none visible with the system file, whose functions take one
 parameter; README's "Functions" says a defined function may take
 several.
 
 Tests: binding by position, the arity of a defined function in
-`arityMismatch`, a duplicate parameter, and a `~f` of a function of two
-parameters.
+`arityMismatch`, a duplicate parameter, a function of no parameters, and
+a `~f` of a function of two parameters or of none.
 
 ### 7.3 Conditions
 

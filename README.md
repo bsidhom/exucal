@@ -394,8 +394,8 @@ anywhere a unit goes, so `tempC(100) - tempC(0)` into `degF` is `180`, and
 `tempC(100)` into `K` is `373.15`. A call is a name directly followed by
 `(`; with a space between, `kg (m/s)` is the product it looks like, and
 `kg(m/s)` is an error that shows the product with the space. A function
-defined in the file takes one argument, so `tempC(1, 2)` and `tempC()`
-are errors that say so.
+takes as many arguments as it has parameters, in their order, so
+`tempC(1, 2)` and `tempC()` are errors that say so.
 
 Typed as the unit to convert to, a function's name asks for the reading
 that gives the quantity, and the answer is written as the call that would
@@ -407,11 +407,15 @@ one cannot be the unit to convert to; the message says so and shows how
 to define it. A function's name is not a unit anywhere else: `2 tempC`,
 or `tempC` in a list, is an error that shows the call form.
 
-A function is defined by its name, its parameter in parentheses, `=`, and
-the expression that computes it, in which the parameter stands for the
-argument. Its inverse is optional: a line that starts with `~` and the
-function's name, whose parameter stands for the function's value and
-whose expression gives back the argument:
+A function is defined by its name, its parameters in parentheses
+separated by commas, `=`, and the expression that computes it, in which
+each parameter stands for the argument in its position:
+`kinetic(mass: kg, v: m/s) = mass v^2 / 2` takes a mass and a speed, in
+that order, and `kinetic(2 kg, 3 m/s)` is `9 J`. It may have none, called
+as `name()`, and a parameter may not be named twice. A function of one
+parameter may have an inverse, which is optional: a line that starts
+with `~` and the function's name, whose parameter stands for the
+function's value and whose expression gives back the argument:
 
 ```
 tempC(x) = x K + 273.15 K

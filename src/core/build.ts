@@ -42,8 +42,9 @@
 // evaluating its annotations and taking its body's dimension without
 // evaluating it (dimension-of.ts), with the parameter bound to its
 // annotation's dimension (a plain number without one), through the walk's
-// own lookup; that dimension is the function's result, checked against the
-// result's annotation when there is one. That catches a body of the wrong
+// own lookup, with each parameter bound to its annotation's dimension;
+// that dimension is the function's result, checked against the result's
+// annotation when there is one. That catches a body of the wrong
 // dimension, or one that refers to nothing, at load time, so that a call
 // at run time can fail only on its argument or on a value; a body that
 // fails at some value, or at every value (`1 / (x - 1)`, `1 / 0`), builds
@@ -59,8 +60,11 @@
 // Nothing can refer to an inverse, so, like a list, it stays out of the
 // walk and is checked in its place in the order, requesting its function
 // from the top (which can never close a cycle, so an inverse may call its
-// own function): its body's dimension, with its parameter bound to the
-// function's result, must conform to what the function's parameter takes.
+// own function): its function must have one parameter, since only the
+// argument of such a function can be recovered from its value
+// (`inverseArity` otherwise), and its body's dimension, with its own
+// parameter bound to the function's result, must conform to what that
+// parameter takes.
 // The finished functions carry their inverses.
 //
 // The first failure ends the build. Errors within a body (an unknown name,
@@ -99,6 +103,7 @@ import {
   resolveFunction,
   type ListedUnit,
   type LookupError,
+  type FunctionParameter,
   type UnitFunction,
   type UnitInverse,
   type UnitList,
@@ -186,11 +191,31 @@ export type BuildError =
     }
   /** The inverse `definition` names no function that is defined. */
   | { readonly kind: "orphanInverse"; readonly definition: InverseDefinition }
-  /** The annotation of the function `definition`'s parameter (`argument`) or result is zero, or cannot be told from it; nothing is a count of either. */
+  /**
+   * The inverse `definition` is of a function with `parameters`
+   * parameters, other than one: only the argument of a function of one
+   * can be recovered from its value.
+   */
+  | {
+      readonly kind: "inverseArity";
+      readonly definition: InverseDefinition;
+      readonly parameters: number;
+    }
+  /**
+   * The annotation of the function `definition`'s result, or of its
+   * `parameter` (`argument`), is zero, or cannot be told from it; nothing
+   * is a count of either.
+   */
   | {
       readonly kind: "zeroDeclaredUnit";
       readonly definition: FunctionDefinition;
-      readonly unit: "argument" | "result";
+      readonly unit: "result";
+    }
+  | {
+      readonly kind: "zeroDeclaredUnit";
+      readonly definition: FunctionDefinition;
+      readonly unit: "argument";
+      readonly parameter: string;
     }
   | EvaluateError;
 
@@ -441,7 +466,7 @@ function asFunction(built: Built): UnitFunction {
 
 /**
  * The function `definition` defines, once checked: its annotations
- * evaluated, its body's dimension taken with the parameter bound to the
+ * evaluated, its body's dimension taken with each parameter bound to its
  * annotation's dimension (plain without one), and that dimension, the
  * result's, found to conform to the result's annotation when there is
  * one. A body's failure is reported as it is, with its span in the
@@ -453,23 +478,31 @@ function checkFunction(
   primitives: Primitives,
   context: NumberContext,
 ): Result<UnitFunction, BuildError> {
-  const { parameter } = definition;
-  let argument: WrittenUnit = PLAIN;
-  if (parameter.annotation !== undefined) {
-    const evaluated = evaluateAnnotation(
-      definition,
-      "argument",
-      parameter.annotation,
-      lookup,
-      primitives,
-      context,
-    );
-    if (!evaluated.ok) return evaluated;
-    argument = evaluated.value;
+  const parameters: FunctionParameter[] = [];
+  for (const parameter of definition.parameters) {
+    let unit: WrittenUnit = PLAIN;
+    if (parameter.annotation !== undefined) {
+      const evaluated = evaluateAnnotation(
+        definition,
+        parameter.name,
+        parameter.annotation,
+        lookup,
+        primitives,
+        context,
+      );
+      if (!evaluated.ok) return evaluated;
+      unit = evaluated.value;
+    }
+    parameters.push({ name: parameter.name, unit });
   }
   const result = dimensionOf(
     definition.body,
-    boundDimensions(parameter.name, argument.quantity.dimension, lookup),
+    boundDimensions(
+      new Map(
+        parameters.map(({ name, unit }) => [name, unit.quantity.dimension]),
+      ),
+      lookup,
+    ),
     primitives,
     context.maxBits,
   );
@@ -477,7 +510,7 @@ function checkFunction(
   if (definition.result !== undefined) {
     const annotated = evaluateAnnotation(
       definition,
-      "result",
+      undefined,
       definition.result,
       lookup,
       primitives,
@@ -499,8 +532,7 @@ function checkFunction(
   }
   return ok({
     name: definition.name,
-    parameter: parameter.name,
-    argument,
+    parameters,
     result: result.value,
     body: definition.body,
     inverse: undefined,
@@ -537,16 +569,24 @@ function checkInverse(
     throw new Error("An inverse's function is a defined one");
   }
   const fn = fnDefinition.value.fn;
+  const [parameter, ...others] = fn.parameters;
+  if (parameter === undefined || others.length > 0) {
+    return err({
+      kind: "inverseArity",
+      definition,
+      parameters: fn.parameters.length,
+    });
+  }
   const body = dimensionOf(
     definition.body,
-    boundDimensions(definition.parameter, fn.result, lookup),
+    boundDimensions(new Map([[definition.parameter, fn.result]]), lookup),
     primitives,
     context.maxBits,
   );
   if (!body.ok) return err(body.error);
   const conforms = checkConformance(
     body.value,
-    fn.argument.quantity.dimension,
+    parameter.unit.quantity.dimension,
     primitives,
   );
   if (!conforms.ok) {
@@ -560,18 +600,18 @@ function checkInverse(
 }
 
 /**
- * The lookup over dimensions a body is checked with: `name`, the bound
- * parameter, is `dimension` before any unit, and every other name is the
- * walk's lookup's quantity, reduced to its dimension.
+ * The lookup over dimensions a body is checked with: each bound parameter
+ * of `bindings` is its dimension before any unit, and every other name is
+ * the walk's lookup's quantity, reduced to its dimension.
  */
 function boundDimensions(
-  name: string,
-  dimension: Dimension,
+  bindings: ReadonlyMap<string, Dimension>,
   lookup: Lookup<BuildError>,
 ): DimensionLookup<BuildError> {
   return {
     unit: (unit, span) => {
-      if (unit === name) return ok(dimension);
+      const dimension = bindings.get(unit);
+      if (dimension !== undefined) return ok(dimension);
       const found = lookup.unit(unit, span);
       return found.ok ? ok(found.value.dimension) : found;
     },
@@ -579,10 +619,14 @@ function boundDimensions(
   };
 }
 
-/** The `annotation` of the function `definition`'s parameter or result, evaluated, with its text; a ball containing zero is rejected. */
+/**
+ * The `annotation` of the function `definition`'s `parameter`, or of its
+ * result when `parameter` is `undefined`, evaluated, with its text; a
+ * ball containing zero is rejected.
+ */
 function evaluateAnnotation(
   definition: FunctionDefinition,
-  unit: "argument" | "result",
+  parameter: string | undefined,
   annotation: WrittenExpr,
   lookup: Lookup<BuildError>,
   primitives: Primitives,
@@ -591,7 +635,11 @@ function evaluateAnnotation(
   const value = evaluate(annotation.expr, lookup, primitives, context);
   if (!value.ok) return value;
   if (containsZero(value.value.magnitude)) {
-    return err({ kind: "zeroDeclaredUnit", definition, unit });
+    return err(
+      parameter === undefined
+        ? { kind: "zeroDeclaredUnit", definition, unit: "result" }
+        : { kind: "zeroDeclaredUnit", definition, unit: "argument", parameter },
+    );
   }
   return ok({ text: annotation.text, quantity: value.value });
 }

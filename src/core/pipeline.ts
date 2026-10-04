@@ -597,6 +597,8 @@ function convertToFunction(
   if (fn.inverse === undefined) {
     return inputError("want", { kind: "noInverse", name: fn.name });
   }
+  // The builder gives an inverse only to a function of one parameter.
+  const parameter = fn.parameters[0]!;
   const conformance = checkConformance(
     have.dimension,
     fn.result,
@@ -622,7 +624,7 @@ function convertToFunction(
   }
   const back = applyFunction(
     fn,
-    argument.value,
+    [argument.value],
     lookup,
     table.primitives,
     context,
@@ -641,7 +643,7 @@ function convertToFunction(
   }
   const value = divideBalls(
     argument.value.magnitude,
-    fn.argument.quantity.magnitude,
+    parameter.unit.quantity.magnitude,
   );
   if (!value.ok) {
     // The count is refused as any quotient may be, as a ratio would be.
@@ -656,7 +658,7 @@ function convertToFunction(
     have,
     name: fn.name,
     argument: argument.value,
-    unit: fn.argument,
+    unit: parameter.unit,
     value: settled.value,
   });
 }

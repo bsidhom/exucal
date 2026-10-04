@@ -451,6 +451,40 @@ test("a body that fails is described by what the definition does", () => {
   );
 });
 
+/** The system table with a function of two parameters and one of none. */
+const withSeveral: UnitTable = (() => {
+  const parsed = parseDefinitions(
+    [
+      readFileSync(new URL("./units.txt", import.meta.url), "utf8"),
+      "kinetic(mass: kg, v: m/s) = mass v^2 / 2",
+      "twopi() = 2 pi()",
+    ].join("\n"),
+  );
+  assert.ok(parsed.ok, `expected the text to parse, got ${inspect(parsed)}`);
+  const built = buildTable(parsed.value, ceilingContext(CONTEXT));
+  assert.ok(built.ok, `expected a table, got ${inspect(built)}`);
+  return built.value;
+})();
+
+test("a function of several parameters names the one an argument does not fit, and its count", () => {
+  assert.equal(
+    textMessage("kinetic(2 kg, 3 s)", withSeveral),
+    'Cannot apply "kinetic" to "3 s": "3 s" has dimension s, but the parameter "v" of "kinetic" has dimension m / s.',
+  );
+  assert.equal(
+    textMessage("kinetic(2 kg)", withSeveral),
+    '"kinetic" takes 2 arguments, but "kinetic(2 kg)" gives 1 argument.',
+  );
+  assert.equal(
+    textMessage("2 kinetic", withSeveral),
+    '"kinetic" is a function, not a unit. To apply it to values, write "kinetic(value, value)".',
+  );
+  assert.equal(
+    textMessage("2 twopi", withSeveral),
+    '"twopi" is a function, not a unit. To call it, write "twopi()".',
+  );
+});
+
 test("a function without an inverse, or with a wrong one, is worded on the want side", () => {
   assert.equal(
     conversionMessage("3", "half", failing),

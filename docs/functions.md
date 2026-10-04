@@ -2,10 +2,10 @@
 
 Status: the design note of stage 7 (task 7.0 of docs/calculator-plan.md),
 revised from the first design for D23 and D24 and the owner's rulings on
-them. Task 7.1 has landed: the signature and `=`, annotations and the
-inferred result, the `~` line and the check of an inverse at the want,
-with one parameter, `|` and `name[` reserved; several parameters (7.2)
-and conditions (7.3) have not. The bracketed form this note replaced is
+them. Tasks 7.1 and 7.2 have landed: the signature and `=`, annotations
+and the inferred result, the `~` line and the check of an inverse at the
+want, and any number of parameters, bound by position, with `|` and
+`name[` reserved; conditions (7.3) have not. The bracketed form this note replaced is
 recorded in "The first form" at the end, with its implementation
 notes. The owner ruled on the three
 choices the first draft of this note made: dimension-generic functions
@@ -94,6 +94,15 @@ dims       := "[" name ("," name)* "]"       reserved ("Dimension-generic functi
   decision is still made from the text alone, and the parser still
   never consults the table ("Conditions" shows the grammar is
   unambiguous).
+- **A function has any number of parameters, none included,** bound by
+  position at a call; a parameter may not be named twice. A function of
+  none, `twopi() = 2 pi()`, is called with empty parentheses, `twopi()`,
+  as `pi()` is. It differs from a unit of the same body, `twopi  2 pi()`,
+  in when it is evaluated: a unit is evaluated once, when the table is
+  built at the ceiling, and a call afresh at the working precision of
+  every pass, so a function of none is the way to name a computed
+  constant without fixing it in the table. It has no inverse, since it
+  has no argument to recover (`inverseArity`).
 - **A parameter without an annotation is a plain number.** `x: kg`
   admits a mass, and `x: 1` says explicitly what no annotation says.
 - **The result's annotation is optional.** Without one, the result's

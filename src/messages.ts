@@ -113,7 +113,11 @@ export function describeTextError(
     case "argumentMismatch": {
       const name = quote(error.name);
       const argument = quote(slice(text, error.argument));
-      return `Cannot apply ${name} to ${argument}: ${describeMismatch(error.mismatch, argument, `the argument of ${name}`, primitives)}.`;
+      const parameter =
+        error.parameters === 1
+          ? `the argument of ${name}`
+          : `the parameter ${quote(error.parameter)} of ${name}`;
+      return `Cannot apply ${name} to ${argument}: ${describeMismatch(error.mismatch, argument, parameter, primitives)}.`;
     }
     case "callFailed":
       return `Cannot compute ${quote(slice(text, error.span))}: the definition of ${quote(error.name)} ${describeBody(error.error, primitives)}.`;

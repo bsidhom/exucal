@@ -1249,26 +1249,11 @@ code at install time.
 
 ### Security
 
-The code that runs commands, the tests and plugins that call git or tsc
-and the shell scripts in `scripts/` and `.claude/hooks/`, follows these
-rules, and new code does too:
-
-- **No shell between Node.js and a command.** A command runs through
-  `execFileSync` or `execFile` with its arguments as an array, never a
-  command string, so nothing in a path or an argument is read by a
-  shell.
-- **Lists of paths are NUL-separated where the tool allows it.** Read
-  git's lists with `-z`, which separates paths with NUL, the one byte no
-  path can hold, and writes them unquoted (without it, git quotes and
-  escapes any path outside ASCII). Where a tool can only write a path per
-  line, as `tsc --listFilesOnly` does, the paths compared against its
-  output are first checked for control characters, and one that has any
-  is refused rather than split.
-- **Shell scripts run strict.** Each sets `-u` and `-o pipefail`, and `-e`
-  unless it handles every failure itself, as `scripts/cloud-setup.sh`
-  does and says; every expansion is quoted; and a list of paths passed
-  between commands is NUL-separated (`-z`, `-print0`, `xargs -0`), never
-  split on spaces or newlines.
+ARCHITECTURE.md ("Security") gathers the project's security stance: the
+dependencies and how they are pinned and upgraded, the toolchain, secrets,
+the rules for code that runs commands, and what the page itself loads.
+The sections of this README on pnpm, the lockfile, the cloud environment
+and deployment are what it points to for the day-to-day steps.
 
 ### Style guide
 

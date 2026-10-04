@@ -14,8 +14,10 @@
 // and prints it. `--cases n` runs the first `n` cases of the sequence;
 // `--budget` stops dispatching cases after that many minutes, so a run
 // still covers a prefix of the sequence, whose length it prints and logs,
-// and `--cases` with that count replays it. `--list` prints the cases
-// without evaluating any. Wall-clock time decides only what is kept, never
+// and `--cases` with that count replays it. The budget bounds the first
+// step below, not the run: the second measures its cases one at a time,
+// and can take as long again. `--list` prints the cases without
+// evaluating any. Wall-clock time decides only what is kept, never
 // what is searched next:
 //
 // 1. Every case is measured, `--jobs` at a time (one per core by default),

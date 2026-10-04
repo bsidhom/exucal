@@ -1681,7 +1681,8 @@ tests. The rest of the directory is what they share:
   evaluating them, and `--enumerate` runs a fixed enumeration instead.
   No timing decides what is searched: the cases are measured in
   parallel, the costliest of each family measured again one at a time
-  with the catalogue's entry for its family, and `catalogue.ts` merges
+  with the catalogue's entry for its family (outside the budget, which
+  bounds only the parallel step), and `catalogue.ts` merges
   them into `bench/stress/catalogue.json`, adding a new family's case
   that reaches the floor (a second warm) and replacing an entry only by a
   case that costs more per call than the entry measured again. Cases past

@@ -1073,7 +1073,10 @@ same run, and inputs that have become much cheaper are reported.
 `pnpm stress:search` adds to the catalogue. Without `--seed` it draws a
 fresh seed, prints it and explores new inputs; with `--seed` and
 `--cases` it replays an earlier run exactly; `--enumerate` runs a fixed
-sweep of every function instead. A run leaves its findings as a diff to
+sweep of every function instead. `--budget <minutes>` bounds how long
+it draws and measures new inputs in parallel. The costliest of them are
+then measured again one at a time, which can take as long again, so a
+45-minute budget makes a run of about two hours. A run leaves its findings as a diff to
 the catalogue and to the table in `docs/cost.md`, for review like any
 other change.
 

@@ -10,10 +10,13 @@
 // A synthetic definitions file has two primitives, the prefixes, and units
 // that are each a small expression over one earlier unit, so that building
 // it walks a chain of references of the depth such random references make,
-// a few dozen at most, and every body exercises the evaluator. A unit that
-// would make one of the app's built-ins read as a prefix followed by it
-// (`i` beside the prefix `p`, for `pi`) is renamed, since the build
-// rejects such a table as it would a real one; the draws are untouched.
+// a few dozen at most, and every body exercises the evaluator. A unit named
+// like one of the app's built-ins (`lcm`), or that would make one read as
+// a prefix followed by it (`i` beside the prefix `p`, for `pi`), is
+// renamed, since built-ins share the unit namespace and the build rejects
+// such a table as it would a real one; the draws are untouched. The first
+// case went unnoticed from stage 6.1, when `lcm` became a built-in, to
+// issue #135: the build failed before the benchmark's assertion.
 // Every name is a pure function of the key and its index, so the units,
 // the prefixes and the references are drawn from keys of their own and
 // none depends on how many of the others were drawn.
@@ -74,9 +77,10 @@ export function syntheticDefinitions(
   unitCount: number,
 ): string {
   // The units, the prefixes and the references each have a key of their
-  // own, and a unit that would make a built-in read as a prefix followed
-  // by it is renamed with a trailing underscore, which no drawn name has,
-  // so that the table is the same data key for key but for that one name.
+  // own, and a unit named like a built-in, or that would make one read as
+  // a prefix followed by it, is renamed with a trailing underscore, which
+  // no drawn name has, so that the table is the same data key for key but
+  // for those names.
   const [unitKey, prefixKey, referenceKey] = split(key, 3);
   const drawn = [...syntheticUnits(unitKey!, unitCount).keys()];
   const prefixes = [...syntheticPrefixes(prefixKey!, prefixCount).keys()];
@@ -87,7 +91,9 @@ export function syntheticDefinitions(
         .map((name) => name.slice(prefix.length)),
     ),
   );
-  const units = drawn.map((unit) => (forbidden.has(unit) ? `${unit}_` : unit));
+  const units = drawn.map((unit) =>
+    forbidden.has(unit) || BUILTINS.has(unit) ? `${unit}_` : unit,
+  );
   const lines = ["LENGTH !", "TIME !"];
   for (const prefix of prefixes) {
     lines.push(`${prefix}- 1000`);

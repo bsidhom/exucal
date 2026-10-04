@@ -757,19 +757,19 @@ Cloud environment below), so nothing above has to be done there by hand.
 
 ### Commands
 
-| Command             | What it does                                        |
-| ------------------- | --------------------------------------------------- |
-| `pnpm install`      | Install the dependencies the lockfile records.      |
-| `pnpm dev`          | Start the development server with hot reloading.    |
-| `pnpm build`        | Type-check and build a production bundle in `dist`. |
-| `pnpm preview`      | Serve the production bundle locally.                |
-| `pnpm typecheck`    | Type-check without building.                        |
-| `pnpm test`         | Run the tests with Node's built-in test runner.     |
-| `pnpm test:sweep`   | Run the edge sweeps, the conformance tests.         |
-| `pnpm test:all`     | Run the tests and the sweeps, as before a commit.   |
-| `pnpm bench`        | Run the performance benchmarks (see Benchmarks).    |
-| `pnpm format`       | Format all source files with Prettier.              |
-| `pnpm format:check` | Verify that all source files are formatted.         |
+| Command             | What it does                                         |
+| ------------------- | ---------------------------------------------------- |
+| `pnpm install`      | Install the dependencies the lockfile records.       |
+| `pnpm dev`          | Start the development server with hot reloading.     |
+| `pnpm build`        | Type-check and build a production bundle in `dist`.  |
+| `pnpm preview`      | Serve the production bundle locally.                 |
+| `pnpm typecheck`    | Type-check without building.                         |
+| `pnpm test`         | Run the tests with Node's built-in test runner.      |
+| `pnpm test:sweep`   | Run the edge sweeps, the conformance tests.          |
+| `pnpm test:all`     | Run the tests, sweeps and benchmarks, before commit. |
+| `pnpm bench`        | Run the performance benchmarks (see Benchmarks).     |
+| `pnpm format`       | Format all source files with Prettier.               |
+| `pnpm format:check` | Verify that all source files are formatted.          |
 
 The lockfile is frozen for every install, everywhere, not only in CI:
 `frozenLockfile: true` in `pnpm-workspace.yaml` makes `pnpm install` fail
@@ -787,13 +787,21 @@ formatted with Prettier at all times, and `pnpm format:check` is how that is
 verified.
 
 `pnpm test` is the run for every edit: the `*.test.ts` beside each module,
-a few seconds. The two edge sweeps (`*.sweep.ts`, see ARCHITECTURE.md
-"Tests") are conformance tests that evaluate every built-in over the
+a few seconds. The tests compute at the default limits, or at contexts of
+their own, never at the Settings panel's, so their results are the same on
+every machine whatever its limits are set to (ARCHITECTURE.md, "Layout").
+The two edge sweeps (`*.sweep.ts`, see ARCHITECTURE.md "Tests") are
+conformance tests that evaluate every built-in over the
 classes of arguments at the edges of the number type, tens of thousands
 of cases that grow with every built-in, so they are left out of
-`pnpm test` and run by `pnpm test:sweep`. Run `pnpm test:all` before every
-commit: a commit leaves `pnpm typecheck`, `pnpm test:all` and
-`pnpm format:check` green.
+`pnpm test` and run by `pnpm test:sweep`. The benchmarks (see Benchmarks
+below) are left out of `pnpm test` too and run by `pnpm bench`. Run
+`pnpm test:all`, which runs all three, before every commit: a commit
+leaves `pnpm typecheck`, `pnpm test:all` and `pnpm format:check` green.
+The benchmarks are in it because they guard costs that nothing else
+does, and a check that is run only when someone remembers it is not run:
+three of them failed unnoticed from stage 6 to issue #135, two of them
+before reaching their assertions.
 
 The service worker is only registered in production builds, so `pnpm dev`
 never caches anything. To try the offline behavior, run `pnpm build` and then
@@ -951,9 +959,13 @@ as diagnostics, for comparison with an earlier run on the same machine:
 
 A benchmark fails when a cost no longer scales with the size of its input
 as it should, not when a timing is slow, so a failure is a regression
-whatever the machine. Run them after any change to the core's data
-structures or algorithms, alongside `pnpm test`, and add one when a change
-introduces a cost that a later change could quietly undo. `ARCHITECTURE.md`
+whatever the machine. `pnpm test:all` runs them, so every commit leaves
+them green; run them on their own after any change to the core's data
+structures or algorithms, and add one when a change introduces a cost
+that a later change could quietly undo. A benchmark that fails before its
+assertion (its input no longer builds, its expression is now refused) is
+a failure like any other, to be fixed in the commit that causes it, not
+noise: such a benchmark guards nothing until it is fixed. `ARCHITECTURE.md`
 ("Benchmarks") describes how they are built and what each one asserts.
 
 ### Offline behavior

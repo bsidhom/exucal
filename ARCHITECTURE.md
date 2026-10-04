@@ -1483,13 +1483,34 @@ src/app-shell.ts          the host: loads the table, renders the component
 Each core module but the two smallest, span.ts and result.ts, has a
 `*.test.ts` beside it, run by `pnpm test`.
 
+No test, sweep or benchmark depends on the limits a device has chosen.
+Most bits and the precision limit are settings, kept in the browser and
+proposed per device by the probe of `limits.ts`, and only the shell reads
+them, through `contextOf`. Every test, sweep and benchmark passes an
+explicit `NumberContext`, built from the defaults of context.ts
+(`DEFAULT_MAX_BITS`, `DEFAULT_CEILING`) or from literals; the tests of
+settings.ts read a storage in memory, and the probe's tests run over a
+fake clock, asserting of a real probe only that its proposal lies within
+the bounds every device's must. The hard bound `LIMIT_BITS` and the
+exponent bound `MAX_EXPONENT` are constants. So a device whose limits are
+set low runs the same suite to the same results, and a new test keeps it
+so: it builds its context from the constants, or one of its own when it
+needs more than the defaults (`rational.bench.ts` runs the quotients of
+issue #52 at twice the default range limit), never from the settings or
+the probe. What
+does depend on the machine is time: one test of limits.ts asserts that a
+real probe answers within five seconds, and the benchmarks assert ratios
+of timings taken in one run, which noise can move and a machine's speed
+cannot.
+
 Two more files are the edge sweeps, the fourth of the plan's test
 patterns (docs/calculator-plan.md, "How to read a task"; the plan's
 H.10), named `*.sweep.ts` and run by `pnpm test:sweep` rather than with
 every edit, since they are conformance tests that grow with every
 built-in (36,000 cases and about 35 s at the ball level after stage 6,
 against ten seconds for the rest of the suite): they run before a commit and in CI,
-and `pnpm test:all` runs the suite and the sweeps together (issue #108).
+and `pnpm test:all` runs the suite and the sweeps together (issue #108),
+and the benchmarks with them (issue #135).
 At the ball level, src/core/edges.sweep.ts runs every built-in of `BUILTINS`,
 enumerated by arity so that a function added later joins it, and the
 ball's own operations over the classes of arguments at the edges of the
@@ -1527,7 +1548,9 @@ The core has costs that a later change could quietly undo: the ambiguity
 check is indexed so that it does not grow with the number of prefixes, and
 the walker memoizes so that a definition is evaluated once however many
 others refer to it. The benchmarks in `bench/` exist to catch such
-regressions; README.md ("Benchmarks") says how and when to run them.
+regressions; README.md ("Benchmarks") says how and when to run them:
+`pnpm test:all` runs them before every commit, and a benchmark that
+fails before reaching its assertion counts as failing.
 
 They are `*.bench.ts` files, run by `pnpm bench` through Node's test runner
 and nothing else: no benchmark library, in keeping with the rule against
@@ -1555,6 +1578,8 @@ tests. The rest of the directory is what they share:
   cost when it finds nothing is its cost on a table that builds. The names
   are short, like real ones, so prefixes extend one another more often than
   real prefixes do, which makes the tables the hard case for the check. A
+  drawn unit named like a built-in (`lcm`), or that would make one read as
+  a prefix followed by it, is renamed, since the build would reject it. A
   synthetic definitions file has two primitives, the prefixes, and units
   that are each a small expression over one earlier unit, so that building
   it walks reference chains of the depth random references make and every
@@ -1596,7 +1621,9 @@ of `limits.ts` chose its composite from, and it notes that the series of
 rectangular splitting the logarithm, the sine and the arctangent use.
 `rational.bench.ts` times the probe's range operation, a product of two
 fractions and its reduction, at 8,192 to 65,536 bits, one gcd on its own
-at 16,384 to 65,536 bits, and the quotients of issue #52, and asserts
+at 16,384 to 65,536 bits, and the quotients of issue #52, at twice the
+default range limit since the second passes the default and H.14 refuses
+it there (issue #135), and asserts
 that doubling the size costs at most eight times, twice what the
 quadratic gcd gives; Lehmer's gcd is about forty times cheaper than
 Euclid's at the default range limit and still quadratic, and the

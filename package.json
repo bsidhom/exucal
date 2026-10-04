@@ -11,7 +11,7 @@
     "typecheck": "tsc -b",
     "test": "node --test",
     "test:sweep": "node --test \"src/**/*.sweep.ts\"",
-    "test:all": "pnpm test && pnpm test:sweep",
+    "test:all": "pnpm test && pnpm test:sweep && pnpm bench",
     "bench": "node --test \"bench/**/*.bench.ts\"",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

@@ -1305,6 +1305,27 @@ failures are boxed on the way in and unboxed on the way out, so that the
 body's own failures can be told from the lookup's without the evaluator
 knowing the lookup's error type.
 
+A call costs what its body typed out in its place would, and is
+certified the same way (D24 of docs/calculator-plan.md): the body is an
+expression evaluated on balls, settled at every node, and evaluated
+again at each pass of the retry loop, so a cancellation in a body is
+paid for by the next pass's digits, and the radius needs nothing new,
+since a user can write no primitive, series or loop. Calls are not
+memoized: a body that calls a function twice evaluates it twice, so
+calls nested `k` deep evaluate the innermost `2^k` times at every pass.
+That is the cost of the expression written out, bounded by the ceiling
+as any expression is, but a definition that reads small can be large.
+A composition is not a built-in, and the difference is the caveat to
+keep in mind: a parameter used twice is two occurrences of one ball,
+treated as independent (the dependency problem), so `x - x` of an
+inexact argument never certifies `0`; a hand-written equivalent of a
+built-in rounds at every step where the built-in rounds once, with its
+radius from one bound over the whole ball, loses the built-in's exact
+cases (`ln(8) / ln(2)` is `≈ 3` where `log(2, 8)` is `= 3`), and can be
+refused where an intermediate passes a bound the result does not; and
+decimal mode rounds each step of a body to Digits. docs/functions.md
+("Precision and the radius", "Cost") has the reasoning.
+
 ## UI
 
 `<unit-converter>` is a Lit component with two text inputs, "you have" and
@@ -1679,22 +1700,31 @@ Planned extensions, listed to show that they fit without reshaping the core:
 
 - **The rest of the calculator program.** docs/calculator.md weighs the
   special functions, a decimal mode, a rational display and richer
-  user-defined functions, with the elementary functions that have landed,
-  as one program toward an arbitrary-precision calculator under
-  whole-expression precision in the manner of Arb, and
-  docs/calculator-plan.md is the plan: stage 1 (the ball as the value, the
-  context, the display rule and the settings), stage 2 (the kernel,
-  settling, certification, the retry loop, the two limits and `pi`) and
-  stage 3 (the built-in kind of function, calls with any number of
-  arguments, the elementary set, the table at the ceiling and the
-  logarithmic units) and stage 4 (the `Scaled` midpoint, the range of the
-  inexact functions, the decimal mode and `approx`) have landed; the
-  phase before stage 5, which fixes the issues open against stage 4's
-  code, is next, and stage 5, the rational display, follows it.
-- **Domain and range** on a function definition (`tempC(-300)` is a
-  negative temperature today) are two optional bounds, checked at the call
-  and at the inverse; docs/functions.md lists them with the other
-  extensions of functions.
+  user-defined functions, with the elementary functions, as one program
+  toward an arbitrary-precision calculator under whole-expression
+  precision in the manner of Arb, and docs/calculator-plan.md is the
+  plan. Stages 1 to 7 have landed, with the hardening phase before stage
+  5: the ball, the kernel and the retry loop, the elementary functions,
+  the `Scaled` midpoint and the decimal mode, the rational display, the
+  exact functions and the Gamma and Beta families, and the user-function
+  extensions. Stage 6's eight remaining special functions are deferred
+  ([#115](https://github.com/bsidhom/pwa-units/issues/115)), and stage
+  8, a runtime study of whether the slowest functions need a worker, is
+  provisional.
+- **More of the user functions.** Stage 7 deferred four extensions, each
+  to an issue of its own: a bare call's value shown in its function's
+  result annotation
+  ([#130](https://github.com/bsidhom/pwa-units/issues/130)); the
+  shadowing error in a head relaxed to a warning
+  ([#131](https://github.com/bsidhom/pwa-units/issues/131)); definitions
+  typed into the converter
+  ([#132](https://github.com/bsidhom/pwa-units/issues/132)); and
+  dimension-generic functions, with type bounds on their variables
+  ([#133](https://github.com/bsidhom/pwa-units/issues/133)), for which
+  the parser already reserves `name[`. A function's result is never
+  checked against a range, since nothing would act on it; whether ranges
+  could instead narrow a result's ball is studied in
+  [#134](https://github.com/bsidhom/pwa-units/issues/134).
 - **User definitions** are already supported by `buildTable`; only storage and
   an editor are missing.
 - **Lenient kind conversion** (converting `rad/s` to `Hz` on request) is a flag

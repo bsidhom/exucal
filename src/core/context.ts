@@ -109,6 +109,9 @@ export const DEFAULT_ROUNDING: RoundingMode = "halfAwayFromZero";
  * a product of two fractions of that size in each part, reduced and then
  * measured and refused at the node (D19), takes about two of H.9's 19 ms
  * gcds. `LIMIT_BITS` in rational.ts is the most the setting may take.
+ * The tests, sweeps and benchmarks compute at this value or at contexts
+ * of their own, never at a device's setting, so their results do not
+ * depend on the limits a device has chosen (ARCHITECTURE.md, "Layout").
  */
 export const DEFAULT_MAX_BITS = 1 << 16;
 

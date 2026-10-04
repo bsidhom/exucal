@@ -787,8 +787,11 @@ formatted with Prettier at all times, and `pnpm format:check` is how that is
 verified.
 
 `pnpm test` is the run for every edit: the `*.test.ts` beside each module,
-a few seconds. The two edge sweeps (`*.sweep.ts`, see ARCHITECTURE.md
-"Tests") are conformance tests that evaluate every built-in over the
+a few seconds. The tests compute at the default limits, or at contexts of
+their own, never at the Settings panel's, so their results are the same on
+every machine whatever its limits are set to (ARCHITECTURE.md, "Layout").
+The two edge sweeps (`*.sweep.ts`, see ARCHITECTURE.md "Tests") are
+conformance tests that evaluate every built-in over the
 classes of arguments at the edges of the number type, tens of thousands
 of cases that grow with every built-in, so they are left out of
 `pnpm test` and run by `pnpm test:sweep`. The benchmarks (see Benchmarks

@@ -1483,6 +1483,26 @@ src/app-shell.ts          the host: loads the table, renders the component
 Each core module but the two smallest, span.ts and result.ts, has a
 `*.test.ts` beside it, run by `pnpm test`.
 
+No test, sweep or benchmark depends on the limits a device has chosen.
+Most bits and the precision limit are settings, kept in the browser and
+proposed per device by the probe of `limits.ts`, and only the shell reads
+them, through `contextOf`. Every test, sweep and benchmark passes an
+explicit `NumberContext`, built from the defaults of context.ts
+(`DEFAULT_MAX_BITS`, `DEFAULT_CEILING`) or from literals; the tests of
+settings.ts read a storage in memory, and the probe's tests run over a
+fake clock, asserting of a real probe only that its proposal lies within
+the bounds every device's must. The hard bound `LIMIT_BITS` and the
+exponent bound `MAX_EXPONENT` are constants. So a device whose limits are
+set low runs the same suite to the same results, and a new test keeps it
+so: it builds its context from the constants, or one of its own when it
+needs more than the defaults (`rational.bench.ts` runs the quotients of
+issue #52 at twice the default range limit), never from the settings or
+the probe. What
+does depend on the machine is time: one test of limits.ts asserts that a
+real probe answers within five seconds, and the benchmarks assert ratios
+of timings taken in one run, which noise can move and a machine's speed
+cannot.
+
 Two more files are the edge sweeps, the fourth of the plan's test
 patterns (docs/calculator-plan.md, "How to read a task"; the plan's
 H.10), named `*.sweep.ts` and run by `pnpm test:sweep` rather than with

@@ -1,7 +1,8 @@
 import {
   BUILD_ID_REQUEST,
-  throttledCheck,
+  updateChecks,
   watchWorkers,
+  type UpdateChecks,
   type WorkerStatus,
   type WorkerWatch,
 } from "./service-worker-updates.ts";
@@ -22,7 +23,7 @@ import {
  * hour while it stays in view, but never within `CHECK_INTERVAL` of the
  * last check: an installed app is usually resumed rather than reloaded, and
  * would otherwise not hear of a new version until it was closed and opened
- * again.
+ * again. The user can check at once from the settings (`checkForUpdate`).
  */
 
 /** The least time between two checks for an update, in milliseconds. */
@@ -36,6 +37,9 @@ const BUILD_ID_TIMEOUT = 5000;
 
 /** The watch over the registration, once the worker is registered. */
 let watch: WorkerWatch | undefined;
+
+/** The checks for an update, once the worker is registered. */
+let checks: UpdateChecks | undefined;
 
 /** The latest status. */
 let status: WorkerStatus;
@@ -63,14 +67,15 @@ if (!import.meta.env.PROD) {
             location.reload();
           },
         });
-        const check = throttledCheck(
+        const registered = updateChecks(
           () => registration.update(),
           Date.now,
           CHECK_INTERVAL,
         );
+        checks = registered;
         const checkIfVisible = () => {
           if (document.visibilityState === "visible") {
-            check();
+            registered.ifDue();
           }
         };
         document.addEventListener("visibilitychange", checkIfVisible);
@@ -130,4 +135,14 @@ export function onWorkerStatus(
  */
 export function applyUpdate(): void {
   watch?.apply();
+}
+
+/**
+ * Checks for a new version at once, however recent the last check, and
+ * resolves to whether the check went through; false too before the worker
+ * is registered. A new version it finds is reported through
+ * `onWorkerStatus`, as downloading and then waiting.
+ */
+export function checkForUpdate(): Promise<boolean> {
+  return checks?.now() ?? Promise.resolve(false);
 }

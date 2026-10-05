@@ -1899,18 +1899,19 @@ Planned extensions, listed to show that they fit without reshaping the core:
   user-defined functions, with the elementary functions, as one program
   toward an arbitrary-precision calculator under whole-expression
   precision in the manner of Arb, and docs/calculator-plan.md is the
-  plan. Stages 1 to 7 have landed, with the hardening phase before stage
-  5: the ball, the kernel and the retry loop, the elementary functions,
-  the `Scaled` midpoint and the decimal mode, the rational display, the
-  exact functions and the Gamma and Beta families, and the user-function
-  extensions. Stage 6's eight remaining special functions are deferred
-  ([#115](https://github.com/bsidhom/pwa-units/issues/115)). Stage 8
-  searches for the costliest expressions and records them as a
-  catalogue and as a stress benchmark, run apart from the commit
-  checks: the target for keeping the interface responsive
-  ([#118](https://github.com/bsidhom/pwa-units/issues/118), outside the
-  plan) and for making the kernels cheaper. The limits keep their
-  defaults (D25).
+  plan, now complete. Stages 1 to 8 have landed, with the hardening
+  phase before stage 5: the ball, the kernel and the retry loop, the
+  elementary functions, the `Scaled` midpoint and the decimal mode, the
+  rational display, the exact functions and the Gamma and Beta families,
+  the user-function extensions, and the search for the costliest
+  expressions, whose catalogue (docs/cost.md) is the target for keeping
+  the interface responsive
+  ([#118](https://github.com/bsidhom/pwa-units/issues/118)) and for
+  making the kernels cheaper (#149, #150, #125 and others). The limits
+  keep their defaults (D25). Stage 6's eight remaining special functions
+  are deferred ([#115](https://github.com/bsidhom/pwa-units/issues/115)),
+  and the plan's "Stage 8 as it landed" lists the issues that carry the
+  rest.
 - **More of the user functions.** Stage 7 deferred four extensions, each
   to an issue of its own: a bare call's value shown in its function's
   result annotation

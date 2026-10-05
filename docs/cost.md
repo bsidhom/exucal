@@ -129,6 +129,33 @@ keystroke that completes a call also costs 150 to 200 ms, against
 about 50 ms at the defaults: a one-time cost that grows with the
 ceiling, most likely the memoized constants built to it (D10).
 
+## What the search has not reached
+
+The catalogue is what four runs found, 714 cases in all, and runs add
+to it. What they cannot find, as the search stands:
+
+- **The exact functions.** `factorial`, `binomial`, `doublefactorial`,
+  `gcd`, `lcm`, `div`, `mod`, `abs`, `ceil` and `trunc` are never drawn.
+  Their cost is the size of an exact result, held by the range limit's
+  refusals rather than by passes, so a search for them would vary sizes
+  rather than look for values that never certify.
+- **Four functions it draws have no entry yet:** `log10`, `acos`,
+  `asinh` and `acosh`. They are elementary and cheap at the defaults,
+  and no sample has caught them at a raised cap.
+- **The decimal profile has no entries:** its cases have settled in one
+  pass in every sample so far.
+- **Settings outside the six profiles:** other digit counts, and range
+  limits between the default and the hard bound.
+- **Expressions of other shapes.** A costly call is composed into an
+  argument at most one level deep, with exact arguments of its own;
+  there are no long inputs of many terms; the wants are blank, `1`,
+  `deg`, `K` or `tempF`, so no dimensioned quantities and no unit lists;
+  and user-defined functions are reached only through the system file
+  until definitions can be typed (#132).
+- **Other machines.** Every timing so far is from one four-core
+  container. No phone has been measured, which the interface's work
+  (#118) needs.
+
 ## The hangs
 
 Some cases run past the harness's two-minute deadline. They are the

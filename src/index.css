@@ -11,6 +11,16 @@
   line-height: 1.5;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* The colors every component shows an error or a warning in. */
+  --color-error: #c92a2a;
+  --color-warning: #a35200;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-error: #ff8787;
+    --color-warning: #ffc078;
+  }
 }
 
 html,

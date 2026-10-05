@@ -12,6 +12,8 @@ import {
   hangEstimate,
   hangsTable,
   summarizeTyping,
+  withEntryAgain,
+  withHangAgain,
   withHit,
   withRun,
   withTable,
@@ -167,6 +169,36 @@ test("typing is recorded on the entry for its case, if the catalogue still holds
   // Replaced meanwhile: nothing to record it on.
   const other = { have: "gamma(b) - gamma(b)", want: "", settings: e.settings };
   assert.deepEqual(withTyping(catalogue, other, typing), catalogue);
+});
+
+test("a case measured again takes its new cost, cheaper or not, and a hang that finishes leaves", () => {
+  const slow = entry(A, "gamma(a) - gamma(a)", 8000, OURS);
+  const other = entry(B, "beta(a, b) - …", 4000);
+  const catalogue: Catalogue = {
+    entries: [slow, other],
+    hangs: [{ ...hang(A, "h", 600_000), issue: 151 }],
+    runs: [],
+  };
+  // No margin: the case's own new cost, here a quarter of what it was,
+  // and the entries ranked again.
+  const cheaper = { ...slow, warm: run(2000), cold: run(4000) };
+  const again = withEntryAgain(catalogue, cheaper);
+  assert.deepEqual(
+    again.entries.map((e) => [e.have, e.warm.ms]),
+    [
+      ["beta(a, b) - …", 4000],
+      ["gamma(a) - gamma(a)", 2000],
+    ],
+  );
+  // A case the catalogue no longer holds is not added back.
+  const gone = entry(A, "gamma(z) - gamma(z)", 9000, OURS);
+  assert.equal(withEntryAgain(catalogue, gone), catalogue);
+  // A hang measured again keeps its issue; one that finishes leaves.
+  const h = catalogue.hangs[0]!;
+  const refreshed = withHangAgain(catalogue, h, hang(A, "h", 700_000));
+  assert.equal(refreshed.hangs[0]?.issue, 151);
+  assert.equal(hangEstimate(refreshed.hangs[0]!), 700_000);
+  assert.deepEqual(withHangAgain(catalogue, h, undefined).hangs, []);
 });
 
 test("a run's record replaces the earlier record of the same run", () => {

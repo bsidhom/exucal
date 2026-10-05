@@ -16,6 +16,15 @@
 // (`--jobs`), take the next as they come free (pool.ts), as the search
 // measured them, so that the timings are the catalogue's kind, and each
 // result is printed as it comes. Stopped, it has printed what it checked.
+//
+// `--record` writes back what it measured, after a change has made the
+// cases cheaper, say: an entry that passed takes its new timings and is
+// typed out again (no margin applies, as it is the case's own cost), a
+// hang its new progress and estimate, and a hang that now finishes
+// becomes its family's entry. Entries that have become cheap stay: they
+// guard against the cost coming back, their value is still checked, and
+// a costlier case of their family found later replaces them. A changed
+// value or a passed deadline is never recorded.
 
 // It fails only on what holds on any machine:
 //
@@ -35,10 +44,17 @@
 
 import { availableParallelism } from "node:os";
 import { parseArgs } from "node:util";
+import { costlyCalls } from "./cases.ts";
 import {
   hangEstimate,
   perCall,
   readCatalogue,
+  summarizeTyping,
+  withEntryAgain,
+  withHangAgain,
+  withHit,
+  withTyping,
+  type Commit,
   type Entry,
   type Hang,
 } from "./catalogue.ts";
@@ -46,11 +62,19 @@ import {
   caseOf,
   estimateMs,
   machine,
+  typeOut,
   type Case,
+  type Measurement,
   type OutcomeSummary,
 } from "./harness.ts";
 import { runPool } from "./pool.ts";
-import { CATALOGUE, measureCase, type Outcome } from "./tooling.ts";
+import {
+  CATALOGUE,
+  currentCommit,
+  measureCase,
+  update,
+  type Outcome,
+} from "./tooling.ts";
 
 /** The reference: an elementary cancellation that runs to the ceiling in milliseconds. */
 const REFERENCE = caseOf("exp(1) - exp(1)");
@@ -178,6 +202,81 @@ function verdict(
   };
 }
 
+/**
+ * Records in the catalogue what measuring `unit` again found, for
+ * `--record`, through the search's locked, atomic `update`: an entry its
+ * new timings, then its typing again; a hang still past its deadline its
+ * new progress and estimate; a hang that now finishes leaves the hangs,
+ * and becomes its family's entry as a hit of the search would. Called
+ * only for a unit that passed: a changed value is never recorded.
+ */
+async function record(
+  unit: Unit,
+  m: Measurement,
+  commit: Commit,
+  deadlineMs: number,
+): Promise<void> {
+  const date = new Date().toISOString();
+  const c = caseOfUnit(unit);
+  let typed: Entry | undefined;
+  if (unit.kind === "entry") {
+    if (m.status !== "done") return;
+    const { typing: _stale, ...rest } = unit.entry;
+    typed = {
+      ...rest,
+      commit,
+      date,
+      machine: m.machine,
+      cold: m.cold,
+      warm: m.warm,
+    };
+    const fresh = typed;
+    await update((catalogue) => withEntryAgain(catalogue, fresh));
+  } else if (m.status === "deadline") {
+    const hang: Hang = {
+      ...unit.hang,
+      commit,
+      date,
+      machine: m.machine,
+      reason: {
+        kind: "deadline",
+        deadlineMs: m.deadlineMs,
+        running: m.running ?? null,
+        progress: m.progress,
+        estimateMs: Math.round(estimateMs(m)),
+      },
+    };
+    await update((catalogue) => withHangAgain(catalogue, c, hang));
+    return;
+  } else {
+    const { hang } = unit;
+    typed = {
+      family: hang.family,
+      ...c,
+      calls: Math.max(1, costlyCalls(hang.have).count),
+      source: hang.source,
+      commit,
+      date,
+      machine: m.machine,
+      cold: m.cold,
+      warm: m.warm,
+    };
+    const entry = typed;
+    await update(
+      (catalogue) =>
+        withHit(withHangAgain(catalogue, c, undefined), { entry }).catalogue,
+    );
+  }
+  try {
+    const typing = await typeOut(c, 2 * deadlineMs);
+    await update((catalogue) =>
+      withTyping(catalogue, c, summarizeTyping(typing)),
+    );
+  } catch {
+    // The timings are recorded; the typing stays unrecorded.
+  }
+}
+
 /** Whether `functions`, the names asked for, select a family that calls `called`; no names select every family. */
 export function selects(
   functions: readonly string[],
@@ -193,6 +292,7 @@ async function main(): Promise<void> {
       allowPositionals: true,
       options: {
         profile: { type: "string" },
+        record: { type: "boolean", default: false },
         jobs: { type: "string" },
         "skip-hangs": { type: "boolean", default: false },
         help: { type: "boolean", default: false },
@@ -206,7 +306,7 @@ async function main(): Promise<void> {
   const functions = parsed.positionals;
   if (options.help) {
     console.log(
-      "usage: pnpm stress [<function> ...] [--profile <name>] [--skip-hangs] [--jobs <n>]",
+      "usage: pnpm stress [<function> ...] [--profile <name>] [--skip-hangs] [--record] [--jobs <n>]",
     );
     return;
   }
@@ -261,6 +361,7 @@ async function main(): Promise<void> {
       : `${REFERENCE.have}: warm ${referenceMs.toFixed(1)} ms, the unit of the ratios`,
   );
 
+  const commit = options.record ? currentCommit() : undefined;
   const verdicts: Verdict[] = [];
   let i = 0;
   await runPool<Unit>({
@@ -271,6 +372,9 @@ async function main(): Promise<void> {
       const v = verdict(unit, outcome, referenceMs);
       verdicts.push(v);
       console.log(`[${verdicts.length}/${units.length}] ${v.line}`);
+      if (commit !== undefined && !v.failed && "measured" in outcome) {
+        await record(unit, outcome.measured, commit, deadlineOf(unit));
+      }
     },
   });
   const failed = verdicts.filter((v) => v.failed);

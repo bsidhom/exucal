@@ -1084,7 +1084,11 @@ cores. `--profile <name>` keeps one settings profile, and `--skip-hangs`
 leaves out the inputs that hang. It fails only when an input gives a
 different value than it was catalogued with, or passes its deadline;
 the timings, each input's cost as a multiple of a reference, inputs that
-have become much cheaper and how far each hang gets are reported.
+have become much cheaper and how far each hang gets are reported. After
+a change that makes them cheaper, `--record` writes the new timings
+into the catalogue (a hang that now finishes becomes an entry); inputs
+that have become cheap stay, as guards against the cost coming back,
+and a costlier input of their family found later replaces them.
 `pnpm test:all` runs neither.
 
 ### Offline behavior

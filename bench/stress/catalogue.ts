@@ -234,13 +234,75 @@ export function withTyping(
   },
   typing: TypingSummary,
 ): Catalogue {
-  const same = (e: Entry) =>
-    e.have === c.have &&
-    e.want === c.want &&
-    JSON.stringify(e.settings) === JSON.stringify(c.settings);
   return {
     ...catalogue,
-    entries: catalogue.entries.map((e) => (same(e) ? { ...e, typing } : e)),
+    entries: catalogue.entries.map((e) =>
+      sameCase(e, c) ? { ...e, typing } : e,
+    ),
+  };
+}
+
+/** Whether `x` is the case `c`: the same texts and settings. */
+function sameCase(
+  x: {
+    readonly have: string;
+    readonly want: string;
+    readonly settings: Settings;
+  },
+  c: {
+    readonly have: string;
+    readonly want: string;
+    readonly settings: Settings;
+  },
+): boolean {
+  return (
+    x.have === c.have &&
+    x.want === c.want &&
+    JSON.stringify(x.settings) === JSON.stringify(c.settings)
+  );
+}
+
+/**
+ * `catalogue` with the entry for `entry`'s case replaced by `entry`, the
+ * same case measured again (after a change that made it cheaper, say), and
+ * the entries ranked again; as it was if the catalogue no longer holds the
+ * case. No margin applies: it is the case's own new cost.
+ */
+export function withEntryAgain(catalogue: Catalogue, entry: Entry): Catalogue {
+  if (!catalogue.entries.some((e) => sameCase(e, entry))) return catalogue;
+  const entries = catalogue.entries
+    .map((e) => (sameCase(e, entry) ? entry : e))
+    .sort((a, b) => perCall(b) - perCall(a));
+  return { ...catalogue, entries };
+}
+
+/**
+ * `catalogue` with the hang for the case `c` replaced by `hang`, the case
+ * measured again, keeping its issue, or removed when `hang` is undefined
+ * (the case now finishes), and the hangs ranked again.
+ */
+export function withHangAgain(
+  catalogue: Catalogue,
+  c: {
+    readonly have: string;
+    readonly want: string;
+    readonly settings: Settings;
+  },
+  hang: Hang | undefined,
+): Catalogue {
+  const there = catalogue.hangs.find((h) => sameCase(h, c));
+  if (there === undefined) return catalogue;
+  const others = catalogue.hangs.filter((h) => h !== there);
+  const kept =
+    hang === undefined
+      ? others
+      : [
+          ...others,
+          there.issue === undefined ? hang : { ...hang, issue: there.issue },
+        ];
+  return {
+    ...catalogue,
+    hangs: kept.sort((a, b) => hangEstimate(b) - hangEstimate(a)),
   };
 }
 

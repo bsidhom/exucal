@@ -5439,7 +5439,12 @@ machinery than the task needs. As it landed, the search is a sampler:
   functions named, cheapest first, printing each result as it comes,
   since an optimization aims at a family or two: one function's cases
   take one to four minutes on four cores, the whole catalogue about
-  twenty.
+  twenty. `--record` writes the new timings back after a change, and a
+  hang that now finishes becomes an entry. Entries that become cheap are
+  not removed: the file holds one per family, so it cannot grow without
+  bound, a cheap entry sinks to the foot of the table and is replaced by
+  any costlier case of its family, and it guards against the cost
+  coming back.
 
 Hangs are filed one issue per setting that produces them, not one per
 case, since each setting's hangs share their causes. #151 covers the

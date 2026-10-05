@@ -1720,6 +1720,13 @@ tests. The rest of the directory is what they share:
   the catalogue's, each entry's cost as a multiple of a reference case
   (`exp(1) - exp(1)`), entries much cheaper than catalogued, and for
   each hang how far it got and its estimate, or that it now finishes.
+  With `--record` it writes back, through `update`, what it measured of
+  the cases that passed: an entry's new timings and typing
+  (`withEntryAgain`, no margin, the case's own cost), a hang's new
+  progress and estimate (`withHangAgain`), and a hang that now finishes
+  as its family's entry. Entries that become cheap are kept: they guard
+  the cost, their value is still checked, and a costlier case of their
+  family replaces them.
 - `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
   drawn from the letters `n` to `z` and unit names from `a` to `m`, so
   that no name is ambiguous and the ambiguity check scans everything: its

@@ -191,7 +191,14 @@ function fn(
   return {
     name,
     parameters: [
-      { name: parameter, unit: { text: "argument", quantity: argument } },
+      {
+        name: parameter,
+        unit: {
+          text: "argument",
+          expr: parsed("argument"),
+          quantity: argument,
+        },
+      },
     ],
     result: result.dimension,
     conditions: [],

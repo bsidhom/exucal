@@ -19,7 +19,7 @@ import {
 } from "./core/context.ts";
 import { parseDefinitions } from "./core/definitions.ts";
 import type { UnitTable } from "./core/table.ts";
-import { outcomeOf, type Line, type Outcome } from "./outcome.ts";
+import { displayText, outcomeOf, type Outcome } from "./outcome.ts";
 
 const CONTEXT: NumberContext = {
   precision: DEFAULT_DIGITS,
@@ -39,20 +39,6 @@ const table: UnitTable = (() => {
   return built.value;
 })();
 
-/** A line as the component writes it: the terms joined as `renderTerm` joins them, and the note in parentheses. */
-function written(line: Line): string {
-  const terms = line.terms
-    .map((term, i) => {
-      const operator = i === 0 ? "" : term.negative ? " - " : " + ";
-      const unit = term.unit === "" ? "" : ` ${term.unit}`;
-      return `${operator}${term.text}${unit}`;
-    })
-    .join("");
-  const sum = line.call === undefined ? terms : `${line.call}(${terms})`;
-  const note = line.note === undefined ? "" : ` (${line.note})`;
-  return `${line.have} ${line.relation} ${sum}${note}`;
-}
-
 /** The lines for `have` into `want` at `context`, with `fractions`; a test's precondition that it is a result. */
 function lines(
   have: string,
@@ -62,7 +48,9 @@ function lines(
 ): string[] {
   const outcome = outcomeOf(table, have, want, context, fractions);
   assert.equal(outcome.kind, "result", inspect(outcome));
-  return (outcome as Extract<Outcome, { kind: "result" }>).lines.map(written);
+  return (outcome as Extract<Outcome, { kind: "result" }>).lines.map(
+    displayText,
+  );
 }
 
 test("a fraction is parenthesized before a unit, and the reciprocal before the have", () => {
@@ -72,7 +60,7 @@ test("a fraction is parenthesized before a unit, and the reciprocal before the h
   ]);
   assert.deepEqual(lines("1 m", "in", true), [
     "1 m = (5000/127) in",
-    "in = (127/5000) × 1 m",
+    "in = 127/5000 × 1 m",
   ]);
   assert.deepEqual(lines("3 ft", "in", false), [
     "3 ft = 36 in",
@@ -80,7 +68,7 @@ test("a fraction is parenthesized before a unit, and the reciprocal before the h
   ]);
   assert.deepEqual(lines("3 ft", "in", true), [
     "3 ft = 36 in",
-    "in = (1/36) × 3 ft",
+    "in = 1/36 × 3 ft",
   ]);
   // A value the decimal writes exactly still becomes a fraction (D21).
   assert.deepEqual(lines("1 in", "cm", false), [
@@ -89,7 +77,7 @@ test("a fraction is parenthesized before a unit, and the reciprocal before the h
   ]);
   assert.deepEqual(lines("1 in", "cm", true), [
     "1 in = (127/50) cm",
-    "cm = (50/127) × 1 in",
+    "cm = 50/127 × 1 in",
   ]);
   // The sign is inside the parentheses; a negated have is parenthesized
   // as a want is.
@@ -103,9 +91,9 @@ test("a fraction is parenthesized before a unit, and the reciprocal before the h
 });
 
 test("a fraction alone, or inside a call, is bare", () => {
-  assert.deepEqual(lines("m / (3 m)", "", true), ["m / (3 m) = 1/3"]);
-  assert.deepEqual(lines("m / (3 m)", "", false), ["m / (3 m) ≈ 0.33333333"]);
-  assert.deepEqual(lines("-m / (3 m)", "", true), ["-m / (3 m) = -1/3"]);
+  assert.deepEqual(lines("m / (3 m)", "", true), ["m / 3 m = 1/3"]);
+  assert.deepEqual(lines("m / (3 m)", "", false), ["m / 3 m ≈ 0.33333333"]);
+  assert.deepEqual(lines("-m / (3 m)", "", true), ["-m / 3 m = -1/3"]);
   assert.deepEqual(lines("tempC(37)", "tempF", true), [
     "tempC(37) = tempF(493/5)",
   ]);
@@ -151,7 +139,7 @@ test("an inexact value is written as digits with ≈, whatever the setting", () 
 
 test("in decimal mode a fraction appears only for a value the rounding left exact", () => {
   const decimal: NumberContext = { ...CONTEXT, mode: "decimal" };
-  assert.deepEqual(lines("m / (4 m)", "", true, decimal), ["m / (4 m) = 1/4"]);
+  assert.deepEqual(lines("m / (4 m)", "", true, decimal), ["m / 4 m = 1/4"]);
   // The reciprocal is settled at the context, as every step is: 50/127
   // rounded to eight digits is inexact, so no fraction.
   assert.deepEqual(lines("1 in", "cm", true, decimal), [
@@ -162,7 +150,7 @@ test("in decimal mode a fraction appears only for a value the rounding left exac
     "3 m = 3 m",
     "m ≈ 0.33333333 × 3 m",
   ]);
-  assert.deepEqual(lines("3 m", "m", true), ["3 m = 3 m", "m = (1/3) × 3 m"]);
+  assert.deepEqual(lines("3 m", "m", true), ["3 m = 3 m", "m = 1/3 × 3 m"]);
   // The pipeline settles its ratio, a list's terms and a function's count
   // in decimal mode, as every step is settled there.
   assert.deepEqual(lines("1 m", "ft;in", true, decimal), [
@@ -177,7 +165,7 @@ test("in decimal mode a fraction appears only for a value the rounding left exac
     "tempC(37) ≈ tempF(98.6)",
   ]);
   assert.deepEqual(lines("m / (3 m)", "", true, decimal), [
-    "m / (3 m) ≈ 0.33333333",
+    "m / 3 m ≈ 0.33333333",
   ]);
   // The ratio is settled, inexact, and so is its reciprocal.
   assert.deepEqual(lines("1 m", "in", true, decimal), [
@@ -252,8 +240,9 @@ test("a value that assumes a condition is shown, `≈`, with a warning apart fro
   );
   // A unit list's line, and a function want's.
   const list = "(tempC(approx(-273.15)) + 1 K) / K * 3700 s";
+  // The have is written back canonically: its `*` as `×`.
   assert.deepEqual(lines(list, "hr;min;s", false), [
-    `${list} ≈ 1 hr + 1 min + 40 s`,
+    "(tempC(approx(-273.15)) + 1 K) / K × 3700 s ≈ 1 hr + 1 min + 40 s",
   ]);
   assert.deepEqual(warnings(outcome(list, "hr;min;s")), [ASSUMED_TEMP_C]);
   assert.deepEqual(lines("approx(1 K) - 1 K", "tempC", false), [

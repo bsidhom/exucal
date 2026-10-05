@@ -9,7 +9,14 @@ import type { Span } from "./span.ts";
 import { parseFraction } from "../testing/fraction.ts";
 import { key, randomBigInt } from "../testing/random.ts";
 
-const OPERATOR = { add: "+", sub: "-", mul: "*", div: "/" } as const;
+/** The operators as the structure shows them: juxtaposition as `*` too, since the tests here are about precedence and not spelling. */
+const OPERATOR = {
+  add: "+",
+  sub: "-",
+  mul: "*",
+  div: "/",
+  juxtapose: "*",
+} as const;
 
 /** Renders an expression with explicit grouping, for comparing structure. */
 function show(e: Expr): string {
@@ -29,7 +36,10 @@ function show(e: Expr): string {
       return `(${show(node.left)} ${OPERATOR[node.op]} ${show(node.right)})`;
     case "pow": {
       // The exponent travels as its two literals; it renders as its value.
-      const quotient = divide(node.exponent.num, node.exponent.den);
+      const quotient = divide(
+        node.exponent.num.value,
+        node.exponent.den?.value ?? ONE,
+      );
       assert.ok(quotient.ok);
       const fraction = toRational(quotient.value, LIMIT_BITS);
       assert.ok(fraction.ok);
@@ -91,7 +101,11 @@ const AFTER_FACTOR = ['"^"', ...AFTER_POWER];
 test("a lone number or unit is a leaf", () => {
   assert.deepEqual(parsed("2.5"), {
     span: { start: 0, end: 3 },
-    node: { kind: "number", value: fromRational(rational(5n, 2n)) },
+    node: {
+      kind: "number",
+      value: fromRational(rational(5n, 2n)),
+      text: "2.5",
+    },
   });
   assert.deepEqual(parsed("m"), {
     span: { start: 0, end: 1 },
@@ -282,15 +296,16 @@ test("an exponent travels in the tree as the two literals the parser read, undiv
     const e = parsed(text);
     assert.equal(e.node.kind, "pow", text);
     if (e.node.kind === "pow") {
+      assert.deepEqual(e.node.exponent.num.value, fromRational(dec(num)), text);
       assert.deepEqual(
-        e.node.exponent,
-        { num: fromRational(dec(num)), den: fromRational(dec(den)) },
+        e.node.exponent.den?.value ?? ONE,
+        fromRational(dec(den)),
         text,
       );
     }
   }
   const one = parsed("m^2");
-  assert.ok(one.node.kind === "pow" && one.node.exponent.den === ONE);
+  assert.ok(one.node.kind === "pow" && one.node.exponent.den === undefined);
 });
 
 test("a ^ exponent of two literals at the hard bound parses in milliseconds (#66)", () => {
@@ -314,8 +329,8 @@ test("a ^ exponent of two literals at the hard bound parses in milliseconds (#66
   assert.ok(ms < 2000, `parsed in ${ms.toFixed(0)} ms`);
   assert.ok(e.node.kind === "pow");
   if (e.node.kind === "pow") {
-    assert.ok(bitLength(e.node.exponent.num.mant.num) > 1_000_000);
-    assert.ok(bitLength(e.node.exponent.den.mant.num) > 1_000_000);
+    assert.ok(bitLength(e.node.exponent.num.value.mant.num) > 1_000_000);
+    assert.ok(bitLength(e.node.exponent.den!.value.mant.num) > 1_000_000);
   }
 });
 
@@ -363,7 +378,7 @@ test("a number has no sign: -2 is the negation of 2", () => {
   assert.equal(e.node.kind, "neg");
   assert.deepEqual(e.node.operand, {
     span: { start: 1, end: 2 },
-    node: { kind: "number", value: fromRational(rational(2n)) },
+    node: { kind: "number", value: fromRational(rational(2n)), text: "2" },
   });
   assertParses("(-2) m", "(-2 * m)");
   // So `2 -3 m` is a difference, not a number beside a negative one.

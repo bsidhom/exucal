@@ -113,6 +113,7 @@ export function dimensionOf<E>(
           });
         }
         case "mul":
+        case "juxtapose":
           return ok(multiplyDimensions(left.value, right.value));
         case "div":
           return ok(divideDimensions(left.value, right.value));

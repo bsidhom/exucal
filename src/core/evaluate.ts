@@ -134,6 +134,7 @@ import {
 } from "./quantity.ts";
 import type { Rational } from "./rational.ts";
 import {
+  ONE,
   divide,
   isRefusal,
   mantissaWithin,
@@ -482,6 +483,7 @@ function evaluateNode<E>(
           });
         }
         case "mul":
+        case "juxtapose":
           return locate(multiplyQuantities(left.value, right.value), span);
         case "div": {
           const quotient = divideQuantities(left.value, right.value);
@@ -1000,13 +1002,15 @@ export type ReducedExponent =
  * `dimensionOf` reduces the same way under the build's context.
  */
 export function reduceExponent(e: Exponent, maxBits: number): ReducedExponent {
-  if (!mantissaWithin(e.num, maxBits) || !mantissaWithin(e.den, maxBits)) {
+  const num = e.num.value;
+  const den = e.den === undefined ? ONE : e.den.value;
+  if (!mantissaWithin(num, maxBits) || !mantissaWithin(den, maxBits)) {
     return { ok: false, quotient: undefined };
   }
   // The literals are formable within the hard bound, so their exponents
   // are far within the exponent bound and the quotient cannot fail there;
   // the divisor is nonzero by the parser's check.
-  const quotient = divide(e.num, e.den);
+  const quotient = divide(num, den);
   if (!quotient.ok)
     throw new Error("An exponent's quotient is within the bound");
   const fraction = toRational(quotient.value, maxBits);

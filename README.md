@@ -944,7 +944,9 @@ hook's output at session start says which part is out of date.
   checks that it builds and that a sample of its units converts as its
   sources say.
 - `src/testing/` is test support, not part of the app: the seeded random
-  source that the core's property tests and the benchmarks draw from.
+  source that the core's property tests and the benchmarks draw from, and
+  the random expression trees the printer's property test writes and reads
+  back.
 - `bench/` holds the performance benchmarks of the core, run by
   `pnpm bench` (see Benchmarks below); `ARCHITECTURE.md` describes them.
   `bench/stress/` holds the plan's stage 8: the cost harness, which
@@ -987,8 +989,10 @@ hook's output at session start says which part is out of date.
   times the app's costliest operations on this device and proposes the two
   limits. `src/limits.test.ts` checks it against a fake clock.
 - `src/outcome.ts` turns the pipeline's result for a pair of texts into the
-  lines the output area shows, with `=` or `≈` and the notes; it has no DOM
-  dependency, so `src/outcome.test.ts` checks the lines under Node.js.
+  lines the output area shows, each two expressions and `=` or `≈` with a
+  note, written by the core's printer so that every line can be typed back
+  as a `have`; it has no DOM dependency, so `src/outcome.test.ts` checks
+  the lines under Node.js.
 - `src/unit-converter.ts` defines `<unit-converter>`, the two inputs and the
   output area that make up the app; `ARCHITECTURE.md` ("UI") describes it.
 - `src/messages.ts` turns the errors the core returns into the sentences the

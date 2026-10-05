@@ -37,7 +37,7 @@
 // argument classes and its settings profile. The catalogue keeps the
 // costliest case of each family (catalogue.ts).
 
-import { isDigits, isMaxDigits, type Settings } from "../../src/settings.ts";
+import { isIntegerIn, rangesOf, type Settings } from "../../src/settings.ts";
 import { DEFAULT_SETTINGS } from "../../src/settings.ts";
 import { DEFAULT_MAX_BITS, maxDigitsFor } from "../../src/core/context.ts";
 import { LIMIT_BITS } from "../../src/core/rational.ts";
@@ -713,9 +713,11 @@ export function describeCase(index: number, drawn: Drawn): string {
 
 /** Whether the settings of every profile are ones the panel could hold. */
 export function profilesValid(): boolean {
-  return PROFILES.every(
-    ([, { settings }]) =>
-      isMaxDigits(settings.maxDigits, settings.maxBits) &&
-      isDigits(settings.digits, settings.maxDigits),
-  );
+  return PROFILES.every(([, { settings }]) => {
+    const ranges = rangesOf(settings);
+    return (
+      isIntegerIn(settings.maxDigits, ranges.maxDigits) &&
+      isIntegerIn(settings.digits, ranges.digits)
+    );
+  });
 }

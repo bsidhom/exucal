@@ -25219,6 +25219,137 @@
     },
     {
       "family": {
+        "pattern": "edge:sign/cancel",
+        "functions": ["gamma"],
+        "classes": ["inexact"],
+        "profile": "default"
+      },
+      "have": "sign(gamma(approx(0.3)) - gamma(approx(0.3)))",
+      "want": "",
+      "settings": {
+        "digits": 8,
+        "rounding": "halfAwayFromZero",
+        "mode": "exact",
+        "maxDigits": 1000,
+        "maxBits": 65536,
+        "fractions": false
+      },
+      "source": {
+        "seed": "3654fbce1f516de8",
+        "index": 1
+      },
+      "commit": {
+        "hash": "323405381336da99a02f806e02506d093ee4cc56",
+        "dirty": false
+      },
+      "date": "2026-10-05T01:01:58.087Z",
+      "calls": 2,
+      "machine": {
+        "node": "v24.21.0",
+        "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+        "cores": 4,
+        "platform": "linux"
+      },
+      "cold": {
+        "ms": 3609.4,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 38.6
+          },
+          {
+            "precision": 36,
+            "ms": 3.3
+          },
+          {
+            "precision": 72,
+            "ms": 5.3
+          },
+          {
+            "precision": 144,
+            "ms": 10.7
+          },
+          {
+            "precision": 288,
+            "ms": 17.5
+          },
+          {
+            "precision": 576,
+            "ms": 60.2
+          },
+          {
+            "precision": 1152,
+            "ms": 161.9
+          },
+          {
+            "precision": 2304,
+            "ms": 672.4
+          },
+          {
+            "precision": 4040,
+            "ms": 2637.2
+          }
+        ],
+        "outcome": {
+          "kind": "error",
+          "line": "\"gamma(approx(0.3)) - gamma(approx(0.3))\" cannot be told from zero at this precision, and the result depends on which side of zero it lies.",
+          "warnings": 0
+        }
+      },
+      "warm": {
+        "ms": 1522,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 1.2
+          },
+          {
+            "precision": 36,
+            "ms": 1.1
+          },
+          {
+            "precision": 72,
+            "ms": 1.7
+          },
+          {
+            "precision": 144,
+            "ms": 2.7
+          },
+          {
+            "precision": 288,
+            "ms": 6.2
+          },
+          {
+            "precision": 576,
+            "ms": 19.6
+          },
+          {
+            "precision": 1152,
+            "ms": 80.4
+          },
+          {
+            "precision": 2304,
+            "ms": 273.3
+          },
+          {
+            "precision": 4040,
+            "ms": 1134.6
+          }
+        ],
+        "outcome": {
+          "kind": "error",
+          "line": "\"gamma(approx(0.3)) - gamma(approx(0.3))\" cannot be told from zero at this precision, and the result depends on which side of zero it lies.",
+          "warnings": 0
+        }
+      },
+      "typing": {
+        "keystrokes": 45,
+        "complete": true,
+        "costly": [[45, 3820.7]]
+      }
+    },
+    {
+      "family": {
         "pattern": "cancel",
         "functions": ["digamma"],
         "classes": ["long"],
@@ -33025,6 +33156,137 @@
     },
     {
       "family": {
+        "pattern": "condition/cancel",
+        "functions": ["erf"],
+        "classes": ["inexact"],
+        "profile": "default"
+      },
+      "have": "tempC(erf(approx(2.5)) - erf(approx(2.5)) - 273.15)",
+      "want": "K",
+      "settings": {
+        "digits": 8,
+        "rounding": "halfAwayFromZero",
+        "mode": "exact",
+        "maxDigits": 1000,
+        "maxBits": 65536,
+        "fractions": false
+      },
+      "source": {
+        "seed": "3654fbce1f516de8",
+        "index": 2
+      },
+      "commit": {
+        "hash": "323405381336da99a02f806e02506d093ee4cc56",
+        "dirty": false
+      },
+      "date": "2026-10-05T01:01:55.632Z",
+      "calls": 2,
+      "machine": {
+        "node": "v24.21.0",
+        "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+        "cores": 4,
+        "platform": "linux"
+      },
+      "cold": {
+        "ms": 1612.8,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 65.1
+          },
+          {
+            "precision": 36,
+            "ms": 7.3
+          },
+          {
+            "precision": 72,
+            "ms": 12.7
+          },
+          {
+            "precision": 144,
+            "ms": 11.4
+          },
+          {
+            "precision": 288,
+            "ms": 28.5
+          },
+          {
+            "precision": 576,
+            "ms": 56.7
+          },
+          {
+            "precision": 1152,
+            "ms": 100.6
+          },
+          {
+            "precision": 2304,
+            "ms": 314.5
+          },
+          {
+            "precision": 4040,
+            "ms": 1011.3
+          }
+        ],
+        "outcome": {
+          "kind": "result",
+          "line": "tempC(erf(approx(2.5)) - erf(approx(2.5)) - 273.15) ≈ 0 K (within 3e-4048 of zero)",
+          "warnings": 1
+        }
+      },
+      "warm": {
+        "ms": 1092.4,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 4.7
+          },
+          {
+            "precision": 36,
+            "ms": 4.3
+          },
+          {
+            "precision": 72,
+            "ms": 3.7
+          },
+          {
+            "precision": 144,
+            "ms": 5.3
+          },
+          {
+            "precision": 288,
+            "ms": 9.9
+          },
+          {
+            "precision": 576,
+            "ms": 26.3
+          },
+          {
+            "precision": 1152,
+            "ms": 76
+          },
+          {
+            "precision": 2304,
+            "ms": 237.6
+          },
+          {
+            "precision": 4040,
+            "ms": 720.8
+          }
+        ],
+        "outcome": {
+          "kind": "result",
+          "line": "tempC(erf(approx(2.5)) - erf(approx(2.5)) - 273.15) ≈ 0 K (within 3e-4048 of zero)",
+          "warnings": 1
+        }
+      },
+      "typing": {
+        "keystrokes": 51,
+        "complete": true,
+        "costly": [[51, 1627.5]]
+      }
+    },
+    {
+      "family": {
         "pattern": "cancel",
         "functions": ["uppergammareg"],
         "classes": ["large", "long"],
@@ -35540,6 +35802,141 @@
         "keystrokes": 64,
         "complete": true,
         "costly": [[64, 1833.8]]
+      }
+    },
+    {
+      "family": {
+        "pattern": "identity:beta-gamma",
+        "functions": ["beta", "gamma"],
+        "classes": ["exact", "small"],
+        "profile": "default"
+      },
+      "have": "beta(1/3, 0.001) - gamma(1/3) gamma(0.001) / gamma((1/3) + 0.001)",
+      "want": "",
+      "settings": {
+        "digits": 8,
+        "rounding": "halfAwayFromZero",
+        "mode": "exact",
+        "maxDigits": 1000,
+        "maxBits": 65536,
+        "fractions": false
+      },
+      "source": {
+        "seed": "3654fbce1f516de8",
+        "index": 0
+      },
+      "commit": {
+        "hash": "323405381336da99a02f806e02506d093ee4cc56",
+        "dirty": false
+      },
+      "date": "2026-10-05T01:01:56.522Z",
+      "calls": 4,
+      "machine": {
+        "node": "v24.21.0",
+        "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+        "cores": 4,
+        "platform": "linux"
+      },
+      "cold": {
+        "ms": 1952.6,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 51.6
+          },
+          {
+            "precision": 36,
+            "ms": 10
+          },
+          {
+            "precision": 72,
+            "ms": 7.4
+          },
+          {
+            "precision": 144,
+            "ms": 15.6
+          },
+          {
+            "precision": 288,
+            "ms": 36.4
+          },
+          {
+            "precision": 576,
+            "ms": 54.2
+          },
+          {
+            "precision": 1152,
+            "ms": 152.3
+          },
+          {
+            "precision": 2304,
+            "ms": 426.8
+          },
+          {
+            "precision": 4040,
+            "ms": 1190.4
+          }
+        ],
+        "outcome": {
+          "kind": "result",
+          "line": "beta(1/3, 0.001) - gamma(1/3) gamma(0.001) / gamma((1/3) + 0.001) ≈ 0 (within 3e-4046 of zero)",
+          "warnings": 0
+        }
+      },
+      "warm": {
+        "ms": 1584.2,
+        "passes": [
+          {
+            "precision": 18,
+            "ms": 2.6
+          },
+          {
+            "precision": 36,
+            "ms": 2.9
+          },
+          {
+            "precision": 72,
+            "ms": 4.3
+          },
+          {
+            "precision": 144,
+            "ms": 9.7
+          },
+          {
+            "precision": 288,
+            "ms": 17.1
+          },
+          {
+            "precision": 576,
+            "ms": 44.2
+          },
+          {
+            "precision": 1152,
+            "ms": 112.9
+          },
+          {
+            "precision": 2304,
+            "ms": 334.4
+          },
+          {
+            "precision": 4040,
+            "ms": 1051.9
+          }
+        ],
+        "outcome": {
+          "kind": "result",
+          "line": "beta(1/3, 0.001) - gamma(1/3) gamma(0.001) / gamma((1/3) + 0.001) ≈ 0 (within 3e-4046 of zero)",
+          "warnings": 0
+        }
+      },
+      "typing": {
+        "keystrokes": 65,
+        "complete": true,
+        "costly": [
+          [16, 36.2],
+          [22, 10.4],
+          [65, 2133.9]
+        ]
       }
     },
     {
@@ -41574,6 +41971,24 @@
         "dirty": false
       },
       "date": "2026-10-05T00:40:00.699Z",
+      "machine": {
+        "node": "v24.21.0",
+        "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+        "cores": 4,
+        "platform": "linux"
+      }
+    },
+    {
+      "source": {
+        "seed": "3654fbce1f516de8"
+      },
+      "cases": 5,
+      "hits": 4,
+      "commit": {
+        "hash": "323405381336da99a02f806e02506d093ee4cc56",
+        "dirty": false
+      },
+      "date": "2026-10-05T01:01:51.035Z",
       "machine": {
         "node": "v24.21.0",
         "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",

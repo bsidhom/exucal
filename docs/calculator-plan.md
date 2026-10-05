@@ -5391,7 +5391,7 @@ docs/cost.md gives the findings by cause:
 
 - The incomplete beta function, at 0.7 to 7 s a call at the defaults,
   is #150. `erf`, `erfc` and the incomplete gamma functions, at 0.3 to
-  6 s, are #149, which links #107 for the large arguments. Both come
+  5 s, are #149, which links #107 for the large arguments. Both come
   down to a full-precision division on every term of a series whose
   term count grows with the bits.
 - The Gamma family at an inexact argument is #125, and its cold run's

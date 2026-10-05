@@ -88,7 +88,7 @@ The causes, costliest first, at the default settings (a ceiling of
   division. Exact parameters cost as much as inexact ones. These cases
   head the catalogue.
 - **`erf`, `erfc` and the incomplete gamma functions**, 0.3 to 1.5 s a
-  call at a moderate argument and 3 to 6 s at a large one (#149):
+  call at a moderate argument and 3 to 5 s at a large one (#149):
   `erfc(-40.5)`, `lowergammareg(500, 2500.25)`, `lowergammareg(0.01,
 2500.25)`. They have the same
   shape, a term count that grows with the bits and a full-precision

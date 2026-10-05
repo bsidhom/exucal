@@ -37,8 +37,7 @@ import {
  * within its latency budget and emits the two limits it recommends; it is
  * disabled while the probe runs, which blocks the main thread for a
  * fraction of a second, and the probe runs only when asked (the plan's
- * D16). Whatever the host slots into the panel, the update check today,
- * is laid out after that button.
+ * D16).
  */
 @customElement("settings-panel")
 export class SettingsPanel extends LitElement {
@@ -99,8 +98,7 @@ export class SettingsPanel extends LitElement {
         margin: 0;
       }
 
-      .settings > button,
-      ::slotted(*) {
+      .settings > button {
         align-self: flex-end;
       }
     `,
@@ -155,7 +153,6 @@ export class SettingsPanel extends LitElement {
           >
             ${this.recommending ? "Measuring…" : "Recommend limits"}
           </button>
-          <slot></slot>
         </div>
       </details>
     `;

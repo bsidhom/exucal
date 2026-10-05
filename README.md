@@ -96,13 +96,13 @@ Both limits are cost limits, and the right values depend on the device, so
 the panel's "Recommend limits" button measures what this one does within
 a fraction of a second and sets them; it runs only when pressed.
 
-The panel's "Check for updates" button asks at once whether a new version
+Tapping the build number in the footer asks at once whether a new version
 of the app has been deployed, rather than waiting for the app's own checks
-(see Offline behavior below), and says under it what it found: "Up to
-date", "Downloading…" while a new version downloads, then "Update ready"
-once the footer's "update to …" link can switch to it, or "Couldn't
-check (offline?)". It is not there in development or in a browser without
-service workers, which have no service worker to ask.
+(see Offline behavior below); the footer says "checking…" and then what
+the check found: "up to date", "downloading…" while a new version
+downloads, then the "update to …" link that switches to it, or "couldn't
+check (offline?)". The build number is plain text in development or in a
+browser without service workers, which have no service worker to ask.
 
 An answer shows every digit asked for when the computation can vouch for
 them all. When it cannot, a note in parentheses says what the digits are
@@ -968,12 +968,9 @@ hook's output at session start says which part is out of date.
   Settings panel (see Settings above) and the "Recommend limits" button.
   It takes the settings as a property and reports each change as an event;
   the shell applies and saves it.
-- `src/update-check.ts` defines `<update-check>`, the "Check for updates"
-  button and the line under it, which the shell slots into the panel;
-  `src/update-report.ts` is what the line says, from the worker's status,
-  checked by `src/update-report.test.ts`.
-- `src/app-footer.ts` defines `<app-footer>`, the build the page is running
-  and the worker's status (see Offline behavior below).
+- `src/app-footer.ts` defines `<app-footer>`, the build the page is running,
+  which checks for updates when tapped, and the worker's status (see
+  Offline behavior below).
 - `src/styles.ts` holds the few styles the components share.
 - `src/system-table.ts` fetches `units.txt`, which the build emits as an
   asset of its own, and parses it, once; `src/system-build.ts` builds the
@@ -1155,14 +1152,14 @@ when to switch. The pieces involved:
   navigated to, so the browser's own checks rarely run. The page asks for
   one whenever it comes back into view or back online, and every hour while
   it stays in view, but never within five minutes of the last
-  (`src/register-service-worker.ts`). The Settings panel's "Check for
-  updates" button checks at once, however recent the last check, and
-  counts as the last check itself. A check fetches `sw.js` alone and
-  installs nothing unless it changed; a failed one, for want of a network,
-  does not hold off the next. What a check found shows up in the
-  registration rather than in its result, as a worker installing and then
-  waiting, so the button's report under it follows the worker's status,
-  like the footer.
+  (`src/register-service-worker.ts`). Tapping the build number in the
+  footer checks at once, however recent the last check, and counts as the
+  last check itself. A check fetches `sw.js` alone and installs nothing
+  unless it changed; a failed one, for want of a network, does not hold
+  off the next. What a check found shows up in the registration rather
+  than in its result, as a worker installing and then waiting, so the
+  footer reports it as the worker's status, and says "up to date" or
+  "couldn't check (offline?)" only while that status has nothing to say.
 - **The worker's status.** The footer shows the service worker's status
   beside the page's build (see Build ID below), as
   `src/service-worker-updates.ts` reads it from the registration, in a word

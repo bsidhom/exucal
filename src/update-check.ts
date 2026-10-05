@@ -2,6 +2,7 @@ import { LitElement, css, html, nothing, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { checkForUpdate } from "./register-service-worker.ts";
 import type { WorkerStatus } from "./service-worker-updates.ts";
+import { buttonStyles, hintStyles } from "./styles.ts";
 import { checkReport, offersCheck, type UpdateCheck } from "./update-report.ts";
 
 /**
@@ -16,35 +17,22 @@ import { checkReport, offersCheck, type UpdateCheck } from "./update-report.ts";
  */
 @customElement("update-check")
 export class UpdateCheckButton extends LitElement {
-  static styles = css`
-    :host {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.25rem;
-    }
+  static styles = [
+    buttonStyles,
+    hintStyles,
+    css`
+      :host {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+      }
 
-    :host([hidden]) {
-      display: none;
-    }
-
-    button {
-      font: inherit;
-      padding: 0.5rem 1rem;
-      border: 1px solid currentColor;
-      border-radius: 0.5rem;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-    }
-
-    .hint {
-      max-width: 16rem;
-      font-size: 0.75rem;
-      font-weight: 400;
-      opacity: 0.8;
-    }
-  `;
+      :host([hidden]) {
+        display: none;
+      }
+    `,
+  ];
 
   /** The service worker's status, as the shell hears it. */
   @property({ attribute: false }) status: WorkerStatus = {

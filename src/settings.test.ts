@@ -16,10 +16,14 @@ import {
   isMaxBits,
   isIntegerIn,
   isRoundingMode,
+  isDefault,
   isMode,
   rangesOf,
   loadSettings,
+  resetSetting,
+  resetSettings,
   saveSettings,
+  STORAGE_VERSION,
   type Settings,
   type SettingsStorage,
 } from "./settings.ts";
@@ -35,6 +39,9 @@ function storage(entries: Record<string, string> = {}): SettingsStorage & {
     setItem: (key, value) => void map.set(key, value),
   };
 }
+
+/** A build string as the shell passes it: the whole commit, never shortened. */
+const BUILD = "6c0d0946da31e92eb7d2737a1aebfdf61c1ebf86-dirty";
 
 /** The settings `value` loads as, through a storage holding its JSON. */
 function load(value: unknown): Settings {
@@ -79,7 +86,7 @@ test("the fractions setting loads, defaults to off when missing or not a boolean
     mode: "decimal",
   });
   const store = storage();
-  saveSettings(store, { ...DEFAULT_SETTINGS, fractions: true });
+  saveSettings(store, { ...DEFAULT_SETTINGS, fractions: true }, BUILD);
   assert.equal(loadSettings(store).fractions, true);
   // A display setting: the context the pipeline takes does not carry it.
   assert.ok(
@@ -106,7 +113,7 @@ test("the mode loads, defaults to exact when missing or neither, saves and reach
     },
   );
   const store = storage();
-  saveSettings(store, { ...DEFAULT_SETTINGS, mode: "decimal" });
+  saveSettings(store, { ...DEFAULT_SETTINGS, mode: "decimal" }, BUILD);
   assert.equal(loadSettings(store).mode, "decimal");
   assert.equal(
     contextOf({ ...DEFAULT_SETTINGS, mode: "decimal" }).mode,
@@ -228,7 +235,7 @@ test("text that is not JSON, and a storage that throws, give the defaults", () =
     },
   };
   assert.deepEqual(loadSettings(throwing), DEFAULT_SETTINGS);
-  assert.doesNotThrow(() => saveSettings(throwing, DEFAULT_SETTINGS));
+  assert.doesNotThrow(() => saveSettings(throwing, DEFAULT_SETTINGS, BUILD));
 });
 
 test("settings round-trip through storage, under one key", () => {
@@ -241,11 +248,155 @@ test("settings round-trip through storage, under one key", () => {
     maxBits: 1 << 17,
     fractions: true,
   };
-  saveSettings(stored, settings);
+  saveSettings(stored, settings, BUILD);
   assert.deepEqual([...stored.map.keys()], [SETTINGS_KEY]);
   assert.deepEqual(loadSettings(stored), settings);
-  saveSettings(stored, DEFAULT_SETTINGS);
+  // The stored object is the envelope: the version, the whole build string, the fields.
+  assert.deepEqual(JSON.parse(stored.map.get(SETTINGS_KEY)!), {
+    version: STORAGE_VERSION,
+    savedBy: BUILD,
+    settings,
+  });
+  saveSettings(stored, DEFAULT_SETTINGS, BUILD);
   assert.deepEqual(loadSettings(stored), DEFAULT_SETTINGS);
+});
+
+/** A stored object at version 2 holding `settings`. */
+function envelope(settings: unknown, version: unknown = 2): unknown {
+  return { version, savedBy: BUILD, settings };
+}
+
+test("a version 1 object, the fields bare, loads as it did and is saved back as version 2", () => {
+  const bare = {
+    digits: 12,
+    rounding: "floor",
+    mode: "decimal",
+    maxDigits: 100,
+    maxBits: 4096,
+    fractions: true,
+  };
+  const store = storage({ [SETTINGS_KEY]: JSON.stringify(bare) });
+  const loaded = loadSettings(store);
+  assert.deepEqual(loaded, bare);
+  saveSettings(store, loaded, BUILD);
+  assert.deepEqual(JSON.parse(store.map.get(SETTINGS_KEY)!), envelope(bare));
+});
+
+test("a version 2 object loads the settings it holds, with the fallbacks and clamps", () => {
+  const settings = { ...DEFAULT_SETTINGS, digits: 12, rounding: "floor" };
+  assert.deepEqual(load(envelope(settings)), settings);
+  // A field missing or malformed inside the envelope falls back on its own.
+  assert.deepEqual(load(envelope({ digits: 12, mode: 7 })), {
+    ...DEFAULT_SETTINGS,
+    digits: 12,
+  });
+  // The dependents are clamped as for a bare object.
+  assert.equal(load(envelope({ digits: 50, maxDigits: 20 })).digits, 20);
+  // An envelope whose settings are not an object gives the defaults.
+  assert.deepEqual(load(envelope(5)), DEFAULT_SETTINGS);
+  assert.deepEqual(load(envelope(null)), DEFAULT_SETTINGS);
+  assert.deepEqual(load({ version: 2 }), DEFAULT_SETTINGS);
+});
+
+test("a version from the future, or one that is not a positive integer, gives the defaults", () => {
+  const settings = { ...DEFAULT_SETTINGS, digits: 12 };
+  for (const version of [STORAGE_VERSION + 1, 99, 0, -1, 1.5, "2", null, {}]) {
+    assert.deepEqual(
+      load(envelope(settings, version)),
+      DEFAULT_SETTINGS,
+      String(version),
+    );
+  }
+  // Then the next save overwrites it at the current version.
+  const store = storage({
+    [SETTINGS_KEY]: JSON.stringify(envelope(settings, STORAGE_VERSION + 1)),
+  });
+  saveSettings(store, loadSettings(store), BUILD);
+  assert.deepEqual(
+    JSON.parse(store.map.get(SETTINGS_KEY)!),
+    envelope(DEFAULT_SETTINGS),
+  );
+});
+
+test("every migration is total: a fixture of its source version, with each field missing or malformed, migrates without throwing", () => {
+  const fixtures: Record<number, unknown> = {
+    1: {
+      digits: 12,
+      rounding: "floor",
+      mode: "decimal",
+      maxDigits: 100,
+      maxBits: 4096,
+      fractions: true,
+    },
+  };
+  assert.deepEqual(Object.keys(fixtures).map(Number), [
+    ...Array.from({ length: STORAGE_VERSION - 1 }, (_, i) => i + 1),
+  ]);
+  for (const [version, fixture] of Object.entries(fixtures)) {
+    const malformed = [fixture, 5, null, "text", [], {}];
+    for (const [key] of Object.entries(fixture as object)) {
+      const { [key]: _dropped, ...rest } = fixture as Record<string, unknown>;
+      malformed.push(
+        rest,
+        { ...rest, [key]: "bogus" },
+        { ...rest, [key]: null },
+      );
+    }
+    for (const stored of malformed) {
+      const text = JSON.stringify(
+        Number(version) === 1
+          ? stored
+          : { version: Number(version), settings: stored },
+      );
+      assert.doesNotThrow(() =>
+        loadSettings(storage({ [SETTINGS_KEY]: text })),
+      );
+    }
+    assert.deepEqual(
+      loadSettings(storage({ [SETTINGS_KEY]: JSON.stringify(fixture) })),
+      fixture,
+    );
+  }
+});
+
+test("reset gives the defaults, for all the settings or for one with the clamp after it", () => {
+  const settings: Settings = {
+    digits: 30,
+    rounding: "halfEven",
+    mode: "decimal",
+    maxDigits: 50,
+    maxBits: DEFAULT_MAX_BITS,
+    fractions: true,
+  };
+  assert.deepEqual(resetSettings(), DEFAULT_SETTINGS);
+  assert.deepEqual(resetSetting(settings, "rounding"), {
+    ...settings,
+    rounding: DEFAULT_SETTINGS.rounding,
+  });
+  assert.deepEqual(resetSetting(settings, "digits"), {
+    ...settings,
+    digits: DEFAULT_SETTINGS.digits,
+  });
+  // Resetting the cap to its default raises what the digits may be; they stay.
+  assert.deepEqual(resetSetting(settings, "maxDigits"), {
+    ...settings,
+    maxDigits: DEFAULT_SETTINGS.maxDigits,
+  });
+  // Resetting the range limit below what the cap needs lowers the cap, and
+  // the digits with it: the clamp after a reset is the clamp after any change.
+  const high: Settings = {
+    ...DEFAULT_SETTINGS,
+    maxBits: 1 << 18,
+    maxDigits: 5000,
+    digits: 4000,
+  };
+  const reset = resetSetting(high, "maxBits");
+  assert.equal(reset.maxBits, DEFAULT_SETTINGS.maxBits);
+  assert.equal(reset.maxDigits, maxDigitsFor(DEFAULT_SETTINGS.maxBits));
+  assert.equal(reset.digits, reset.maxDigits);
+  assert.ok(isDefault(DEFAULT_SETTINGS, "digits"));
+  assert.ok(!isDefault(settings, "digits"));
+  assert.ok(isDefault(resetSetting(settings, "digits"), "digits"));
 });
 
 test("contextOf is the settings as the pipeline takes them, with the cap's ceiling", () => {

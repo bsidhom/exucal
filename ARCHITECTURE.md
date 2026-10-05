@@ -1586,7 +1586,7 @@ src/edges.sweep.ts        the edge sweep at the text level: the pipeline and the
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
-src/settings.ts           Settings: the digits, the rounding mode, the exact or decimal mode and the two limits, in localStorage; contextOf
+src/settings.ts           Settings: the digits, the rounding mode, the exact or decimal mode, the two limits and the fractions display, in localStorage under a format version with migrations; contextOf, reset
 src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
 src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result, each two expressions the printer writes; src/outcome.test.ts checks them
 src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome

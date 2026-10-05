@@ -22,6 +22,17 @@
 // a stored or edited entry can never leave the app with an inconsistent
 // context. A storage that throws (private browsing, a full quota) is
 // treated as empty on read and ignored on write.
+//
+// The stored object carries a format version (docs/settings-storage.md):
+// version 1 was the six fields bare, and from version 2 they sit in an
+// envelope with the version and the build that saved them. A migration
+// takes the whole stored object at one version to the whole object at the
+// next, totally, so that a change in how the settings interact is one
+// function with one test; loading migrates from the stored version up to
+// `STORAGE_VERSION` and then validates and clamps as above. A version
+// above `STORAGE_VERSION`, which a rolled-back build could meet, gives
+// the defaults and is overwritten on the next save. The version is the
+// stored format's alone, never derived from a release.
 
 import {
   DEFAULT_DIGITS,
@@ -75,10 +86,34 @@ export type SettingsStorage = {
 export const SETTINGS_KEY = "settings";
 
 /**
- * The settings `storage` holds, each field validated and defaulted on its
- * own and the dependent ones clamped (`clampSettings`). A storage that has
- * no entry, holds something that is not JSON, or throws, gives the
- * defaults.
+ * The version of the stored format: bumped only in a change that alters
+ * the stored shape or a field's meaning, never renumbered, and never
+ * derived from a release identifier.
+ */
+export const STORAGE_VERSION = 2;
+
+/**
+ * A migration: the whole stored object at one version to the whole stored
+ * object at the next. Total: it never throws, and where it cannot carry a
+ * value over it leaves the field for the validation to default. It reads
+ * `unknown`, since what an older build wrote is not to be trusted.
+ */
+type Migration = (stored: unknown) => unknown;
+
+/** The migrations by source version: `MIGRATIONS[n]` takes version `n` to `n + 1`. */
+const MIGRATIONS: Readonly<Record<number, Migration>> = {
+  // Version 1 was the six fields bare; version 2 wraps them in the envelope.
+  1: (stored) => ({ version: 2, settings: stored }),
+};
+
+/**
+ * The settings `storage` holds: the stored object migrated from its
+ * version up to `STORAGE_VERSION`, then each field validated and defaulted
+ * on its own and the dependent ones clamped (`clampSettings`). A storage
+ * that has no entry, holds something that is not JSON or not an object, or
+ * throws, gives the defaults; so does a version above `STORAGE_VERSION`,
+ * or one that is not a positive integer. An object with no version is
+ * version 1.
  */
 export function loadSettings(storage: SettingsStorage): Settings {
   let parsed: unknown;
@@ -89,9 +124,40 @@ export function loadSettings(storage: SettingsStorage): Settings {
   } catch {
     return DEFAULT_SETTINGS;
   }
-  if (typeof parsed !== "object" || parsed === null) return DEFAULT_SETTINGS;
+  const version = versionOf(parsed);
+  if (version === undefined || version > STORAGE_VERSION) {
+    return DEFAULT_SETTINGS;
+  }
+  let stored = parsed;
+  for (let from = version; from < STORAGE_VERSION; from++) {
+    stored = MIGRATIONS[from]!(stored);
+  }
+  return settingsFrom(fieldsOf(stored));
+}
+
+/** The version of a stored object: 1 when it has none, `undefined` when it is not an object or its version is not a positive integer. */
+function versionOf(stored: unknown): number | undefined {
+  if (typeof stored !== "object" || stored === null) return undefined;
+  const { version } = stored as Record<string, unknown>;
+  if (version === undefined) return 1;
+  return typeof version === "number" &&
+    Number.isInteger(version) &&
+    version >= 1
+    ? version
+    : undefined;
+}
+
+/** The `settings` field of a stored object at the current version, whatever it holds. */
+function fieldsOf(stored: unknown): unknown {
+  if (typeof stored !== "object" || stored === null) return undefined;
+  return (stored as Record<string, unknown>).settings;
+}
+
+/** The settings `fields` hold, each validated and defaulted on its own, and the dependent ones clamped. */
+function settingsFrom(fields: unknown): Settings {
+  if (typeof fields !== "object" || fields === null) return DEFAULT_SETTINGS;
   const { digits, rounding, mode, maxDigits, maxBits, fractions } =
-    parsed as Record<string, unknown>;
+    fields as Record<string, unknown>;
   // Each field's own range first; the dependent upper bounds are the clamp's.
   return clampSettings({
     digits: isPositiveInteger(digits) ? digits : DEFAULT_SETTINGS.digits,
@@ -146,26 +212,59 @@ export function clampSettings(settings: Settings): Settings {
   return { ...settings, maxDigits, digits };
 }
 
-/** Stores `settings` in `storage`; a storage that throws is ignored. */
+/**
+ * Stores `settings` in `storage` at `STORAGE_VERSION`, with `savedBy`, the
+ * whole build string of the build saving them (build-id.ts; the shell
+ * passes it, so that this module needs no build of its own), which says
+ * which build wrote a stored object and nothing more. A storage that
+ * throws is ignored.
+ */
 export function saveSettings(
   storage: SettingsStorage,
   settings: Settings,
+  savedBy: string,
 ): void {
   try {
     storage.setItem(
       SETTINGS_KEY,
       JSON.stringify({
-        digits: settings.digits,
-        rounding: settings.rounding,
-        mode: settings.mode,
-        maxDigits: settings.maxDigits,
-        maxBits: settings.maxBits,
-        fractions: settings.fractions,
+        version: STORAGE_VERSION,
+        savedBy,
+        settings: {
+          digits: settings.digits,
+          rounding: settings.rounding,
+          mode: settings.mode,
+          maxDigits: settings.maxDigits,
+          maxBits: settings.maxBits,
+          fractions: settings.fractions,
+        },
       }),
     );
   } catch {
     // Nothing to do: the settings still apply for this session.
   }
+}
+
+/** A setting's name. */
+export type SettingKey = keyof Settings;
+
+/** The settings reset to their defaults, all of them. */
+export function resetSettings(): Settings {
+  return DEFAULT_SETTINGS;
+}
+
+/**
+ * `settings` with `key` reset to its default and the dependent settings
+ * clamped after it, as after any change: resetting the range limit can
+ * lower the cap, and the cap the digits.
+ */
+export function resetSetting(settings: Settings, key: SettingKey): Settings {
+  return clampSettings({ ...settings, [key]: DEFAULT_SETTINGS[key] });
+}
+
+/** Whether `key` is at its default in `settings`. */
+export function isDefault(settings: Settings, key: SettingKey): boolean {
+  return settings[key] === DEFAULT_SETTINGS[key];
 }
 
 /**

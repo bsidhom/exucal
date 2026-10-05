@@ -10,6 +10,7 @@ import {
   type Settings,
 } from "./settings.ts";
 import { onWorkerStatus } from "./register-service-worker.ts";
+import { buttonStyles } from "./styles.ts";
 import { Subscription } from "./subscription.ts";
 import { buildSystemTable } from "./system-build.ts";
 import {
@@ -62,58 +63,51 @@ import "./unit-converter.ts";
  */
 @customElement("app-shell")
 export class AppShell extends LitElement {
-  static styles = css`
-    :host {
-      display: flex;
-      flex-direction: column;
-      min-height: 100dvh;
-      box-sizing: border-box;
-      padding: env(safe-area-inset-top) env(safe-area-inset-right)
-        env(safe-area-inset-bottom) env(safe-area-inset-left);
-    }
+  static styles = [
+    buttonStyles,
+    css`
+      :host {
+        display: flex;
+        flex-direction: column;
+        min-height: 100dvh;
+        box-sizing: border-box;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right)
+          env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
 
-    main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1.5rem;
-      padding: 1.5rem 1rem;
-    }
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 1.5rem 1rem;
+      }
 
-    h1 {
-      margin: 0;
-      font-size: clamp(1.5rem, 5vw, 2.25rem);
-      font-weight: 600;
-    }
+      h1 {
+        margin: 0;
+        font-size: clamp(1.5rem, 5vw, 2.25rem);
+        font-weight: 600;
+      }
 
-    p {
-      margin: 0;
-      max-width: 32rem;
-    }
+      p {
+        margin: 0;
+        max-width: 32rem;
+      }
 
-    .loading {
-      opacity: 0.7;
-    }
+      .loading {
+        opacity: 0.7;
+      }
 
-    .failure {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.75rem;
-      color: #c92a2a;
-    }
-
-    button {
-      font: inherit;
-      padding: 0.5rem 1rem;
-      border: 1px solid currentColor;
-      border-radius: 0.5rem;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-    }
-  `;
+      .failure {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+        color: #c92a2a;
+      }
+    `,
+  ];
 
   /** The system definitions once loaded, or why they could not be; unset until then. */
   @state() private definitions?: Result<

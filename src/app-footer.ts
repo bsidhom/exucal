@@ -4,6 +4,7 @@ import { customElement, property } from "lit/decorators.js";
 import { BUILD_ID, SHORT_BUILD_ID, shortBuildId } from "./build-id.ts";
 import { applyUpdate } from "./register-service-worker.ts";
 import type { WorkerStatus } from "./service-worker-updates.ts";
+import { buttonStyles } from "./styles.ts";
 
 /**
  * The footer under everything: the build the page is running (build-id.ts),
@@ -20,36 +21,37 @@ import type { WorkerStatus } from "./service-worker-updates.ts";
  */
 @customElement("app-footer")
 export class AppFooter extends LitElement {
-  static styles = css`
-    :host {
-      display: block;
-    }
+  static styles = [
+    buttonStyles,
+    css`
+      :host {
+        display: block;
+      }
 
-    footer {
-      padding: 0 1rem 1rem;
-      text-align: center;
-      font-size: 0.75rem;
-    }
+      footer {
+        padding: 0 1rem 1rem;
+        text-align: center;
+        font-size: 0.75rem;
+      }
 
-    /* The routine parts of the footer recede; an update does not. */
-    .quiet {
-      opacity: 0.6;
-    }
+      /* The routine parts of the footer recede; an update does not. */
+      .quiet {
+        opacity: 0.6;
+      }
 
-    button {
-      font: inherit;
-      padding: 0;
-      border: none;
-      background: transparent;
-      color: LinkText;
-      text-decoration: underline;
-      cursor: pointer;
-    }
+      /* The footer's buttons are links. */
+      button {
+        padding: 0;
+        border: none;
+        color: LinkText;
+        text-decoration: underline;
+      }
 
-    code {
-      user-select: all;
-    }
-  `;
+      code {
+        user-select: all;
+      }
+    `,
+  ];
 
   /** The service worker's status, as the shell hears it. */
   @property({ attribute: false }) status: WorkerStatus = {

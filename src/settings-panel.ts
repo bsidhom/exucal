@@ -4,6 +4,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { MODES, ceilingFor, type Mode } from "./core/context.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 import { recommendLimits } from "./limits.ts";
+import { buttonStyles, hintStyles } from "./styles.ts";
 import {
   DEFAULT_SETTINGS,
   isIntegerIn,
@@ -41,82 +42,69 @@ import {
  */
 @customElement("settings-panel")
 export class SettingsPanel extends LitElement {
-  static styles = css`
-    :host {
-      display: block;
-      width: 100%;
-      max-width: 32rem;
-      text-align: start;
-    }
+  static styles = [
+    buttonStyles,
+    hintStyles,
+    css`
+      :host {
+        display: block;
+        width: 100%;
+        max-width: 32rem;
+        text-align: start;
+      }
 
-    summary {
-      cursor: pointer;
-      font-weight: 600;
-    }
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
 
-    .settings {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      padding-top: 0.75rem;
-    }
+      .settings {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding-top: 0.75rem;
+      }
 
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      font-size: 0.875rem;
-      font-weight: 600;
-    }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+      }
 
-    input,
-    select {
-      font: inherit;
-      padding: 0.375rem 0.5rem;
-      border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
-      border-radius: 0.5rem;
-      background: transparent;
-      color: inherit;
-    }
+      input,
+      select {
+        font: inherit;
+        padding: 0.375rem 0.5rem;
+        border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+        border-radius: 0.5rem;
+        background: transparent;
+        color: inherit;
+      }
 
-    input {
-      width: 6rem;
-    }
+      input {
+        width: 6rem;
+      }
 
-    .hint {
-      max-width: 16rem;
-      font-size: 0.75rem;
-      font-weight: 400;
-      opacity: 0.8;
-    }
+      .toggle > span {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
 
-    .toggle > span {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
+      input[type="checkbox"] {
+        width: auto;
+        padding: 0;
+        margin: 0;
+      }
 
-    input[type="checkbox"] {
-      width: auto;
-      padding: 0;
-      margin: 0;
-    }
-
-    button {
-      font: inherit;
-      padding: 0.5rem 1rem;
-      border: 1px solid currentColor;
-      border-radius: 0.5rem;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-    }
-
-    .settings > button,
-    ::slotted(*) {
-      align-self: flex-end;
-    }
-  `;
+      .settings > button,
+      ::slotted(*) {
+        align-self: flex-end;
+      }
+    `,
+  ];
 
   /** The settings in force, from the shell. */
   @property({ attribute: false }) settings: Settings = DEFAULT_SETTINGS;

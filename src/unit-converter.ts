@@ -142,8 +142,8 @@ export class UnitConverter extends LitElement {
     const invalid = (side: Side) =>
       outcome.kind === "error" && outcome.side === side;
     return html`
-      ${renderInput("You have", "3 ft", "next", invalid("have"), this.have, this.onHaveInput)}
-      ${renderInput("You want", "in", "done", invalid("want"), this.want, this.onWantInput)}
+      ${renderInput("You have", "next", invalid("have"), this.have, this.onHaveInput)}
+      ${renderInput("You want", "done", invalid("want"), this.want, this.onWantInput)}
       <output aria-live="polite">${renderOutcome(outcome)}</output>
     `;
   }
@@ -184,7 +184,6 @@ export class UnitConverter extends LitElement {
  */
 function renderInput(
   label: string,
-  placeholder: string,
   enterKeyHint: "next" | "done",
   invalid: boolean,
   value: string,
@@ -195,7 +194,6 @@ function renderInput(
       ${label}
       <input
         type="text"
-        placeholder=${placeholder}
         autocomplete="off"
         autocorrect="off"
         autocapitalize="off"

@@ -1,10 +1,12 @@
 # Implementation plan for the calculator
 
-Status: in progress; stages 1 to 7 and the hardening phase before stage
-5 have landed, and "Stage 1 as it landed", "Stage 2 as it landed",
+Status: complete; stages 1 to 8 and the hardening phase before stage 5
+have landed, and "Stage 1 as it landed", "Stage 2 as it landed",
 "Stage 3 as it landed", "Stage 4 as it landed", "The hardening phase
-as it landed", "Stage 5 as it landed", "Stage 6 as it landed" and
-"Stage 7 as it landed" at the end record where the code diverged from the tasks as first written;
+as it landed", "Stage 5 as it landed", "Stage 6 as it landed", "Stage 7
+as it landed" and "Stage 8 as it landed" at the end record where the
+code diverged from the tasks as first written; what the plan set aside
+is in issues, which "Stage 8 as it landed" lists;
 stage 6's task 6.8, the rest of feature 3, was deferred by the owner
 after 6.7 landed and is no longer part of this plan (issue #115 holds
 it); "After stage 4" records the two follow-ups that
@@ -6294,3 +6296,84 @@ and a defined function reaches the search only through the system file
 until definitions can be typed (#132). Stage 8 itself was rewritten
 after this stage, from the owner's ruling (D25). Set aside: #130 to
 #134, the deferred extensions and the study of ranges.
+
+## Stage 8 as it landed
+
+The re-read after 8.4. The stage landed as six pull requests of its own
+and 8.4's: the stage's rewrite
+([#141](https://github.com/bsidhom/pwa-units/pull/141)), 8.1
+([#142](https://github.com/bsidhom/pwa-units/pull/142)), two between
+8.1 and 8.2 at the owner's asking
+([#143](https://github.com/bsidhom/pwa-units/pull/143) and
+[#144](https://github.com/bsidhom/pwa-units/pull/144)), 8.2
+([#145](https://github.com/bsidhom/pwa-units/pull/145)), 8.3
+([#153](https://github.com/bsidhom/pwa-units/pull/153)) and 8.4's, each
+reviewed and merged on its own. This is the record of the rulings and of
+what each left behind:
+
+- **The rewrite** (#141). D25 from the owner's ruling after stage 7: the
+  limits keep their defaults, the probe's composite and budget stay, the
+  interface's responsiveness is #118 (with #119 to #121) and outside
+  the plan, and the stage searches for the costliest expressions and
+  records them, in a stress suite apart from the commit checks.
+- **8.1** (#142). The pipeline's `PassObserver`, which changes nothing
+  it observes, and the harness: a worker a case, cold and warm, under a
+  deadline that starts once the table is built.
+- **Between 8.1 and 8.2.** #143, from the owner's question about
+  `tsconfig.node.json` listing its files by hand: globs, and a test that
+  every TypeScript file is type-checked by a project, its paths read
+  NUL-separated; `pnpm test:all` now starts with `pnpm typecheck`. #144,
+  from the owner's review: the security stance gathered into
+  ARCHITECTURE.md's "Security", since the README is to be for users
+  alone.
+- **8.2** (#145). Cases drawn from a seed alone, `foldIn(seed, i)`, with
+  fixed weights and no timing deciding what is drawn, at the owner's
+  ruling; a fresh seed from the cryptographic source when none is given,
+  recorded with the run, so that any case can be drawn again.
+- **8.3** (#153). The catalogue, docs/cost.md and the stress suite, and
+  the issues for the costs found: #149 and #150 for the series that
+  divide at full precision on every term, #151 and #152 for the hangs at
+  raised ceilings. Typing each entry out a keystroke at a time was added
+  to the harness, and the owner ruled it in. The search took three
+  shapes in review. The first measured a fixed range of cases and wrote
+  nothing until a second step had measured the best of each family again
+  alone: a run of six hundred cases took two hours and was lost whole
+  when stopped. The second journaled every unit of work so that runs
+  resumed and sharded, and the owner judged it far more machinery than
+  the task needs. The one that landed is the owner's design: a sampler
+  that runs for a time, ten minutes by default, writes each hit the
+  moment it is found, under a lock and whole, so that any run stopped at
+  any moment leaves files to commit, and is safe to repeat and to run in
+  several processes at once. The floor and the deadline became
+  constants, so that every run, however short and for whatever purpose,
+  records by the same measure; the fixed enumeration of every built-in
+  over its argument classes went, as the kind of exhaustive sweep the
+  owner asked the search not to be; hangs are ranked by an estimate
+  extrapolated from the passes they finished, since the owner wanted
+  them recorded rather than skipped; and the stress suite measures the
+  cases of the functions named, since an optimization aims at one or
+  two, with `--record` to write their new costs back. Entries that
+  become cheap stay, at the owner's question: there is one per family,
+  so the file cannot grow without bound, and they guard the cost.
+- **8.4.** This record; the status lines of this plan, ARCHITECTURE.md
+  and docs/calculator.md; and docs/cost.md's notes on what the search
+  has not reached. The stage's own pull requests added 112 bytes of
+  script (46 compressed), the pass observer: after `pnpm build` the
+  script is 177,515 bytes (54,680 compressed) at #145 against 177,403
+  (54,634) at the commit before #141, and 178,733 (54,974) now, with
+  #146's update checks, which landed during the stage and are not part
+  of it. The suite is 992 tests in eleven seconds; the sweeps 36,353
+  cases at the ball level in about 33 s and 274 at the text level in
+  5 s; and the benchmarks pass. The stress tools are run by hand and
+  never by `pnpm test:all`.
+
+The catalogue holds 342 entries and 45 hangs, from four runs. What
+follows the plan is in issues: the interface's responsiveness (#118,
+with #119 to #121); the kernel costs the catalogue measures (#149,
+#150, #125, #107 and #103, with #151 and #152 for the raised ceilings
+and #126 for the switch points); the deferred features (#115, the rest
+of feature 3; #130 to #134, stage 7's; #98 and #100, significant figures
+and stated uncertainty); the studies of the fractions display (#91,
+#95, #97); and the smaller fixes and the maintenance of the code and its
+tests (#63, #65, #73, #78, #79, #86, #88, #89, #92, #110, #112, #114,
+#147).

@@ -1,7 +1,8 @@
 # From unit converter to arbitrary-precision calculator: feasibility
 
 Status: design study; docs/calculator-plan.md is the implementation plan
-that follows from it, and stages 1 to 7 of the plan have landed, with
+that follows from it, and the plan is complete, its stages 1 to 8
+landed, with
 the plan's records of how each departed from this study (feature 7's
 domain and range, for one, became conditions on the arguments, with no
 range on the result: docs/functions.md). This document

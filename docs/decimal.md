@@ -624,8 +624,8 @@ rounding at the limit, is recorded with the decision.
 - `src/core/quantity.ts`, `evaluate.ts`, `convert.ts`, `pipeline.ts`,
   `display.ts`, the built-ins, `src/messages.ts` (4.4, 4.6): the readers
   of `.mid` and the context reaching every sum; one pass in decimal mode.
-- `src/settings.ts`, `src/app-shell.ts`, `src/unit-converter.ts` (4.7):
-  the mode setting.
+- `src/settings.ts`, `src/settings-panel.ts` (then part of
+  `src/app-shell.ts`), `src/unit-converter.ts` (4.7): the mode setting.
 - README.md, ARCHITECTURE.md, docs/builtins.md, docs/calculator.md
   (4.8).
 

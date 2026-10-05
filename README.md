@@ -956,9 +956,25 @@ hook's output at session start says which part is out of date.
   the functions named (see Stress tests below; `docs/cost.md` presents
   the catalogue).
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every
-  part of the app renders inside. It loads the unit table when it is
-  connected, shows a loading message until it arrives, and hands it to the
-  converter.
+  part of the app renders inside: the composition root. It holds the three
+  pieces of state the parts share (the unit definitions, which it loads
+  when it is connected, showing a loading message until they arrive; the
+  settings; and the service worker's status) and wires the parts together,
+  passing each what it shows as properties and applying the changes the
+  settings panel reports. `src/subscription.ts` is the reactive controller
+  that mirrors the worker's status into it, checked by
+  `src/subscription.test.ts`.
+- `src/settings-panel.ts` defines `<settings-panel>`, the controls of the
+  Settings panel (see Settings above) and the "Recommend limits" button.
+  It takes the settings as a property and reports each change as an event;
+  the shell applies and saves it.
+- `src/update-check.ts` defines `<update-check>`, the "Check for updates"
+  button and the line under it, which the shell slots into the panel;
+  `src/update-report.ts` is what the line says, from the worker's status,
+  checked by `src/update-report.test.ts`.
+- `src/app-footer.ts` defines `<app-footer>`, the build the page is running
+  and the worker's status (see Offline behavior below).
+- `src/styles.ts` holds the few styles the components share.
 - `src/system-table.ts` fetches `units.txt`, which the build emits as an
   asset of its own, and parses it, once; `src/system-build.ts` builds the
   table from it at the ceiling of the retry schedule the settings give,

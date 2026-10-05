@@ -1,6 +1,13 @@
 # Refactoring the app shell
 
-A proposal. Behavior stays exactly as it is; the aim is that a programmer
+Implemented, in the seven steps at the end, with three departures from
+the text below: `styles.ts` shares the button and hint rules but leaves
+the converter's control look where it is, since the converter was not to
+change; `isMaxBits` stays, for `loadSettings` and the bench; and
+docs/calculator-plan.md is left as it is, since it records the tasks as
+they landed. The questions for the UX step still stand.
+
+The proposal. Behavior stays exactly as it is; the aim is that a programmer
 new to the project can read `src/app-shell.ts` top to bottom and see what
 the app is made of. A later step rethinks the UX (the settings above all),
 and this layout is meant to make that step a change to one or two files.

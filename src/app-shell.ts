@@ -24,7 +24,7 @@ import {
 } from "./settings.ts";
 import { recommendLimits } from "./limits.ts";
 import { checkForUpdate, onWorkerStatus } from "./register-service-worker.ts";
-import type { WorkerStatus } from "./service-worker-updates.ts";
+import { Subscription } from "./subscription.ts";
 import { buildSystemTable } from "./system-build.ts";
 import {
   loadSystemDefinitions,
@@ -210,30 +210,19 @@ export class AppShell extends LitElement {
   /** Whether the probe for the recommended limits is running. */
   @state() private recommending = false;
 
-  /** The service worker's status, for the footer and the update check. */
-  @state() private workerStatus: WorkerStatus = { kind: "registering" };
-
   /**
    * Where the user's check for an update stands: under way, gone through,
    * or failed; unset until they ask for one.
    */
   @state() private updateCheck?: "checking" | "done" | "failed";
 
-  /** Stops the reports of the worker's status; set while connected. */
-  private stopStatusReports?: () => void;
+  /** The service worker's status, for the footer and the update check. */
+  private readonly worker = new Subscription(this, onWorkerStatus);
 
   connectedCallback() {
     super.connectedCallback();
     // The load is memoized, so being connected again costs nothing.
     this.load();
-    this.stopStatusReports = onWorkerStatus((status) => {
-      this.workerStatus = status;
-    });
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this.stopStatusReports?.();
   }
 
   /**
@@ -261,7 +250,7 @@ export class AppShell extends LitElement {
         <h1>Units</h1>
         ${this.renderContent()} ${this.renderSettings()}
       </main>
-      <app-footer .status=${this.workerStatus}></app-footer>
+      <app-footer .status=${this.worker.value}></app-footer>
     `;
   }
 
@@ -361,7 +350,7 @@ export class AppShell extends LitElement {
    * the registration failed.
    */
   private renderUpdateCheck() {
-    const { kind } = this.workerStatus;
+    const { kind } = this.worker.value;
     if (kind === "development" || kind === "unsupported" || kind === "failed") {
       return nothing;
     }
@@ -392,7 +381,7 @@ export class AppShell extends LitElement {
     if (check === undefined || check === "checking") {
       return nothing;
     }
-    const status = this.workerStatus;
+    const status = this.worker.value;
     switch (status.kind) {
       case "downloading":
         return "Downloading…";

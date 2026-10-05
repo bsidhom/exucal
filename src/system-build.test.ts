@@ -10,7 +10,8 @@ import {
   type NumberContext,
 } from "./core/context.ts";
 import { parseDefinitions, type Definition } from "./core/definitions.ts";
-import { buildSystemTable } from "./system-build.ts";
+import { err, ok } from "./core/result.ts";
+import { buildSystemTable, tableOf } from "./system-build.ts";
 
 const text = readFileSync(new URL("./units.txt", import.meta.url), "utf8");
 
@@ -53,4 +54,28 @@ test("the table is built at the ceiling, once per ceiling, and again for another
   // Other definitions are another table.
   assert.notEqual(buildSystemTable(parsed(), context(8, 1000)), again);
   assert.equal(DEFAULT_CEILING, ceilingFor(1000));
+});
+
+test("tableOf is loading without definitions, failed with a failed load or build, else ready", () => {
+  const at = context(8, 1000);
+  assert.deepEqual(tableOf(undefined, at), { kind: "loading" });
+  const failure = { kind: "fetchFailed", reason: "offline" };
+  assert.deepEqual(tableOf(err(failure), at), {
+    kind: "failed",
+    error: failure,
+  });
+  const definitions = parsed();
+  const ready = tableOf(ok(definitions), at);
+  assert.equal(ready.kind, "ready");
+  assert.ok(ready.kind === "ready");
+  // The table is the memo's: the same object buildSystemTable gives.
+  const built = buildSystemTable(definitions, at);
+  assert.ok(built.ok);
+  assert.equal(ready.table, built.value);
+  // A build that fails is a failure too, with the build's error.
+  const circular = parseDefinitions("m !\na 2 a");
+  assert.ok(circular.ok, inspect(circular));
+  const failed = tableOf(ok(circular.value), at);
+  assert.ok(failed.kind === "failed", inspect(failed));
+  assert.equal(failed.error.kind, "circularDefinition");
 });

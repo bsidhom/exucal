@@ -12,7 +12,7 @@ import {
 import { onWorkerStatus } from "./register-service-worker.ts";
 import { buttonStyles } from "./styles.ts";
 import { Subscription } from "./subscription.ts";
-import { buildSystemTable } from "./system-build.ts";
+import { tableOf } from "./system-build.ts";
 import {
   loadSystemDefinitions,
   type SystemDefinitionsError,
@@ -23,43 +23,36 @@ import "./update-check.ts";
 import "./unit-converter.ts";
 
 /**
- * The top-level shell of the app. Every page of the app renders inside it.
+ * The top-level shell of the app: the composition root. Every page of the
+ * app renders inside it, and it holds the three pieces of state the parts
+ * share, each with one source, and wires the parts together; everything
+ * else is derived in `render`.
  *
- * The shell owns the system unit table: it starts loading the definitions
- * when it is connected, shows a loading message until they arrive, builds
- * the table from them at the ceiling of the retry schedule in force
- * (system-build.ts; the plan's D6) and hands it down to the converter as a
- * property. Nothing waits on the definitions before that: the components
- * are defined and the page renders while the fetch is in flight. The load
- * is one promise whose result is set on reactive state when it settles,
- * the plain Lit pattern for a single asynchronous value; `@lit/task` would
- * be the tool if the shell grew more of them. The build is synchronous and
- * memoized by the ceiling, so it runs in `render` and reruns only when a
- * change to the "most digits" setting moves the ceiling, which is the one
- * reason the table is ever rebuilt; the digits setting never rebuilds it.
- *
- * The shell owns the settings too (settings.ts): the digits a result is
- * shown with, the rounding mode, the exact or decimal mode (the plan's
- * 4.7, docs/decimal.md), and the two limits of the plan's D16, the cap on
- * the digits and the range limit in bits, read from `localStorage`
- * when the shell is created, edited in a panel under the converter, saved
- * on every change, and passed down to the converter as its context, whose
- * ceiling is derived from the cap. Each number input accepts an integer in
- * the range the settings above it allow (the digits up to the cap, the cap
- * up to what the range limit holds, the range limit between its floor and
- * the hard bound), and a value outside that is not applied: the input
- * snaps back to the setting in force. Lowering a limit lowers what depends
- * on it (`clampSettings`). A button beside them asks limits.ts to measure
- * what this device does within its latency budget and applies the two
- * limits it recommends; it is disabled while the probe runs, which blocks
- * the main thread for a fraction of a second, and the probe runs only when
- * asked (the plan's D16). Another checks for a new version of the app at
- * once, rather than when the page next comes back into view, and says what
- * it found.
- *
- * A footer under everything (app-footer.ts) names the build the page is
- * running and the service worker's status, which the shell subscribes to
- * (register-service-worker.ts) and passes down.
+ * - The system definitions (system-table.ts): the shell starts loading
+ *   them when it is connected, shows a loading message until they arrive
+ *   and builds the unit table from them at the ceiling of the retry
+ *   schedule in force (system-build.ts; the plan's D6), which it hands to
+ *   the converter as a property. Nothing waits on the definitions before
+ *   that: the components are defined and the page renders while the fetch
+ *   is in flight. The load is one promise whose result is set on reactive
+ *   state when it settles, the plain Lit pattern for a single asynchronous
+ *   value. The build is synchronous and memoized by the ceiling, so it runs
+ *   in `render` and reruns only when a change to the "Precision limit"
+ *   setting moves the ceiling, which is the one reason the table is ever
+ *   rebuilt; the digits setting never rebuilds it.
+ * - The settings (settings.ts): read from `localStorage` when the shell is
+ *   created, passed to the settings panel (settings-panel.ts) as a
+ *   property and to the converter as its context, whose ceiling is derived
+ *   from the cap on the digits. The panel reports each change the user
+ *   makes as a `settings-change` event, and the shell applies it: it
+ *   clamps what depends on the change, so lowering a limit lowers what
+ *   depends on it (`clampSettings`), and saves the settings. That handler
+ *   is the one place a settings change becomes state and an effect.
+ * - The service worker's status (register-service-worker.ts), mirrored
+ *   into the shell by a `Subscription` for as long as it is connected and
+ *   passed to the footer (app-footer.ts), which shows it beside the build
+ *   the page is running, and to the update check (update-check.ts), which
+ *   the shell slots into the settings panel.
  */
 @customElement("app-shell")
 export class AppShell extends LitElement {
@@ -174,36 +167,35 @@ export class AppShell extends LitElement {
 
   /**
    * The converter over the table built from the definitions at the ceiling
-   * in force, or the loading message or the failure. The build is memoized
-   * by the ceiling, so rendering with unchanged limits costs one comparison.
+   * in force, or the loading message or the failure (`tableOf`). The build
+   * is memoized by the ceiling, so rendering with unchanged limits costs
+   * one comparison.
    */
   private renderContent() {
-    const { definitions } = this;
-    if (definitions === undefined) {
-      return html`<p class="loading" aria-live="polite">Loading units…</p>`;
-    }
     const context = contextOf(this.settings);
-    const table = definitions.ok
-      ? buildSystemTable(definitions.value, context)
-      : definitions;
-    if (!table.ok) {
-      return html`<div class="failure" role="alert">
-        <p>
-          The unit definitions could not be loaded (${table.error.kind}).
-          ${
-            table.error.kind === "fetchFailed"
-              ? "Check your connection and try again."
-              : "This is a bug in the app, not in what you typed."
-          }
-        </p>
-        <button type="button" @click=${this.load}>Retry</button>
-      </div>`;
+    const table = tableOf(this.definitions, context);
+    switch (table.kind) {
+      case "loading":
+        return html`<p class="loading" aria-live="polite">Loading units…</p>`;
+      case "failed":
+        return html`<div class="failure" role="alert">
+          <p>
+            The unit definitions could not be loaded (${table.error.kind}).
+            ${
+              table.error.kind === "fetchFailed"
+                ? "Check your connection and try again."
+                : "This is a bug in the app, not in what you typed."
+            }
+          </p>
+          <button type="button" @click=${this.load}>Retry</button>
+        </div>`;
+      case "ready":
+        return html`<unit-converter
+          .table=${table.table}
+          .context=${context}
+          .fractions=${this.settings.fractions}
+        ></unit-converter>`;
     }
-    return html`<unit-converter
-      .table=${table.value}
-      .context=${context}
-      .fractions=${this.settings.fractions}
-    ></unit-converter>`;
   }
 }
 

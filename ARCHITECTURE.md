@@ -1359,7 +1359,10 @@ multiplying it whole with `*` where it leads with a number
 (`5.28 × 1000 ft`), the terms of a list summed, the argument inside the
 call. The printer writes both sides canonically, with `×` for the screen,
 so every line can be typed back as a have, and the component styles the
-numbers among the printer's pieces. `<app-shell>` hosts it and owns the `UnitTable`: `src/system-table.ts`
+numbers among the printer's pieces. A `<copy-button>` beside each line
+(`src/copy-button.ts`) copies the result as the printer writes it with
+`*`, which parses: typed back as a have and converted into the line's own
+unit it gives the line again, which `outcome.test.ts` checks. `<app-shell>` hosts it and owns the `UnitTable`: `src/system-table.ts`
 fetches the bundled definitions and parses them on the main thread (a few
 milliseconds), once, and `src/system-build.ts` builds the table from them
 at the ceiling of the retry schedule in force, memoizing one table by its
@@ -1587,6 +1590,7 @@ src/settings.ts           Settings: the digits, the rounding mode, the exact or 
 src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
 src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result, each two expressions the printer writes; src/outcome.test.ts checks them
 src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome
+src/copy-button.ts        the button beside each result that copies it
 src/settings-panel.ts     the settings panel: the controls and the probe's button; emits settings-change
 src/app-footer.ts         the footer: the build ID, which checks for updates when tapped, and the worker's status
 src/subscription.ts       Subscription: a reactive controller that mirrors a source into its host; src/subscription.test.ts checks it

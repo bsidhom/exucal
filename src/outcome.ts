@@ -66,8 +66,9 @@
 // joins leads with a number (`5.28 * 1000 ft`, since `5.28 1000 ft`
 // cannot be read); the terms of a list summed; the argument inside the
 // call. The printer (print.ts) writes both back canonically, deciding the
-// parentheses, with `×` for the screen; what it writes reads back as the
-// same tree, so every line can be typed as a `have`.
+// parentheses, with `×` for the screen (`resultPieces`) and `*` for the
+// clipboard (`copyText`); what it writes reads back as the same tree, so
+// every line can be typed as a `have`.
 
 import { divideBalls, exact, settle, type Ball } from "./core/ball.ts";
 import type { NumberContext } from "./core/context.ts";
@@ -138,6 +139,16 @@ export type Outcome =
 /** The result of `line` as pieces for the screen, its numbers apart from its units, with `×` for a product. */
 export function resultPieces(line: Line): readonly Piece[] {
   return print(line.result, "×");
+}
+
+/**
+ * The result of `line` as the clipboard gets it: the printer's text with
+ * `*` for a product, which parses, so that typed back as a `have` and
+ * converted into the line's own unit it gives the line again
+ * (outcome.test.ts checks that).
+ */
+export function copyText(line: Line): string {
+  return text(print(line.result, "*"));
 }
 
 /** The line as the screen shows it: the have, the relation, the result, and the note in parentheses. */

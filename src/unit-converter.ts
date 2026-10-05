@@ -10,7 +10,14 @@ import {
 import type { Side } from "./core/pipeline.ts";
 import type { UnitTable } from "./core/table.ts";
 import { print, text, type Piece } from "./core/print.ts";
-import { outcomeOf, resultPieces, type Line, type Outcome } from "./outcome.ts";
+import {
+  copyText,
+  outcomeOf,
+  resultPieces,
+  type Line,
+  type Outcome,
+} from "./outcome.ts";
+import "./copy-button.ts";
 
 /**
  * The converter: two text inputs, "you have" and "you want", and an output
@@ -73,7 +80,7 @@ export class UnitConverter extends LitElement {
     }
 
     input[aria-invalid="true"] {
-      border-color: #c92a2a;
+      border-color: var(--color-error);
     }
 
     output {
@@ -98,11 +105,11 @@ export class UnitConverter extends LitElement {
     }
 
     .error {
-      color: #c92a2a;
+      color: var(--color-error);
     }
 
     .warning {
-      color: #a35200;
+      color: var(--color-warning);
       font-size: 0.875rem;
     }
 
@@ -110,14 +117,25 @@ export class UnitConverter extends LitElement {
       content: "⚠ ";
     }
 
-    @media (prefers-color-scheme: dark) {
-      .error {
-        color: #ff8787;
-      }
+    /*
+     * A result is its expression, wrapping within its own box, and the
+     * button that copies it, in a column of its own at the right so that
+     * it sits in the same place however long the digits run.
+     */
+    .line {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
 
-      .warning {
-        color: #ffc078;
-      }
+    .expression {
+      flex: 1;
+      min-width: 0;
+    }
+
+    copy-button {
+      flex: none;
+      margin-top: 0.5rem;
     }
   `;
 
@@ -232,16 +250,20 @@ function renderOutcome(outcome: Outcome): TemplateResult {
 /**
  * One line of a result, on a line of its own: the have as the printer
  * writes it, the relation, the result as pieces with its numbers styled,
- * and the note, when there is one, after them.
+ * the note, when there is one, after them, and the button that copies
+ * the result as `copyText` writes it.
  */
 function renderLine(line: Line): TemplateResult {
   const note =
     line.note === undefined
       ? nothing
       : html` <span class="note">(${line.note})</span>`;
-  return html`<div>
-    <span>${text(print(line.have, "×"))}</span> ${line.relation}
-    ${resultPieces(line).map(renderPiece)}${note}
+  return html`<div class="line">
+    <span class="expression">
+      <span>${text(print(line.have, "×"))}</span> ${line.relation}
+      ${resultPieces(line).map(renderPiece)}${note}
+    </span>
+    <copy-button .text=${copyText(line)}></copy-button>
   </div>`;
 }
 

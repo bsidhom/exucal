@@ -19,7 +19,16 @@ import {
 } from "./core/context.ts";
 import { parseDefinitions } from "./core/definitions.ts";
 import type { UnitTable } from "./core/table.ts";
-import { displayText, outcomeOf, type Outcome } from "./outcome.ts";
+import { text as joined } from "./core/print.ts";
+import { format, parseDecimal } from "./core/scaled.ts";
+import {
+  copyText,
+  displayText,
+  outcomeOf,
+  resultPieces,
+  type Line,
+  type Outcome,
+} from "./outcome.ts";
 
 const CONTEXT: NumberContext = {
   precision: DEFAULT_DIGITS,
@@ -275,3 +284,126 @@ test("a reading below absolute zero is refused, naming the condition", () => {
       'Cannot convert "-5 K" into "tempC": the argument it would take does not meet "x >= -273.15", which "tempC" requires.',
   });
 });
+
+/** The result lines for `have` into `want`; a test's precondition that it is a result. */
+function resultLines(
+  have: string,
+  want: string,
+  fractions: boolean,
+  context: NumberContext = CONTEXT,
+): readonly Line[] {
+  const result = outcomeOf(table, have, want, context, fractions);
+  assert.equal(result.kind, "result", inspect(result));
+  return (result as Extract<Outcome, { kind: "result" }>).lines;
+}
+
+/** The result of `line` as the screen shows it. */
+function resultText(line: Line): string {
+  return joined(resultPieces(line));
+}
+
+test("the copy text is the result with `*` for the product the screen writes as `×`", () => {
+  const copied = (have: string, want: string, fractions = false) =>
+    resultLines(have, want, fractions).map(copyText);
+  assert.deepEqual(copied("3 ft", "in"), ["36 in", "0.027777778 * 3 ft"]);
+  assert.deepEqual(copied("1 mi", "1000 ft"), [
+    "5.28 * 1000 ft",
+    "0.18939394 * 1 mi",
+  ]);
+  assert.deepEqual(copied("1 m", "in", true), [
+    "(5000/127) in",
+    "127/5000 * 1 m",
+  ]);
+  assert.deepEqual(copied("-1 m", "in", true), [
+    "(-5000/127) in",
+    "(-127/5000) (-1 m)",
+  ]);
+  assert.deepEqual(copied("1 m", "ft;in"), ["3 ft + 3.3700787 in"]);
+  assert.deepEqual(copied("-1 m", "ft;in"), ["-3 ft - 3.3700787 in"]);
+  assert.equal(copied("1 m", "ft + in")[0], "3.0284676 (ft + in)");
+  assert.equal(copied("1 m", "m/s*s")[0], "1 m / s * s");
+  assert.deepEqual(copied("tempF(212)", "tempC"), ["tempC(100)"]);
+  assert.deepEqual(copied("ft", "in"), ["12 in", "0.083333333 ft"]);
+  assert.deepEqual(copied("in", ""), ["0.0254 m"]);
+  assert.deepEqual(copied("2 * 3", ""), ["6"]);
+});
+
+test("what is copied, typed back as a have and converted into the line's own unit, gives the line again", () => {
+  const decimal: NumberContext = { ...CONTEXT, precision: 3, mode: "decimal" };
+  // Each case: the texts, the fractions setting, the want that reads each
+  // line's result back (the want, then the have for the reciprocal), and
+  // the context.
+  const cases: [string, string, boolean, string[], NumberContext?][] = [
+    ["3 ft", "in", false, ["in", "3 ft"]],
+    ["1 mi", "1000 ft", false, ["1000 ft", "1 mi"]],
+    ["1 m", "in", true, ["in", "1 m"]],
+    ["-1 m", "in", true, ["in", "-1 m"]],
+    ["-3 ft", "in", false, ["in", "-3 ft"]],
+    ["1 m", "ft;in", false, ["ft;in"]],
+    ["-1 m", "ft;in", true, ["ft;in"]],
+    ["1 m", "ft + in", false, ["ft + in", "1 m"]],
+    ["1 m", "-ft", false, ["-ft", "1 m"]],
+    ["1 m", "m/s*s", false, ["m/s*s", "1 m"]],
+    ["1 m", "(2 m)", false, ["(2 m)", "1 m"]],
+    ["sqrt(2) m", "m", false, ["m", "sqrt(2) m"]],
+    ["tempF(212)", "tempC", false, ["tempC"]],
+    ["2 * 3", "", false, [""]],
+    ["in", "", false, ["m"]],
+    ["3 ft", "in", false, ["in", "3 ft"], decimal],
+    ["1 m", "in", false, ["in", "1 m"], decimal],
+  ];
+  for (const [have, want, fractions, wantsBack, context = CONTEXT] of cases) {
+    const lines = resultLines(have, want, fractions, context);
+    lines.forEach((line, i) => {
+      const copied = copyText(line);
+      const back = resultLines(copied, wantsBack[i]!, fractions, context)[0]!;
+      const where = `${have} into ${want}: ${displayText(line)} copied as ${copied}, read back as ${displayText(back)}`;
+      if (context.mode !== "decimal" && line.note === undefined) {
+        // Every digit shown is certain: the copy is the value, and reads
+        // back as the same result.
+        assert.equal(resultText(back), resultText(line), where);
+      } else {
+        // The copy is the digits shown: it reads back as those digits, at
+        // as many of them as the reading certifies, which in decimal mode,
+        // with every step rounded, can be fewer.
+        assert.ok(
+          readsBackAs(firstNumber(line), firstNumber(back), context),
+          where,
+        );
+      }
+    });
+  }
+});
+
+/** The first number of a line's result, as written. */
+function firstNumber(line: Line): string {
+  const piece = resultPieces(line).find((p) => p.kind === "number");
+  assert.ok(piece !== undefined, displayText(line));
+  return piece.text;
+}
+
+/**
+ * Whether the decimal `copied`, rounded in `context`'s mode to the digits
+ * `read` shows, is `read`: what a value read back through the pipeline
+ * must be, the reading's own digits being the ones it certifies.
+ */
+function readsBackAs(
+  copied: string,
+  read: string,
+  context: NumberContext,
+): boolean {
+  const value = parseDecimal(copied);
+  return (
+    value.ok &&
+    format(value.value, significantDigits(read), context.rounding) === read
+  );
+}
+
+/** How many significant digits a decimal text shows. */
+function significantDigits(text: string): number {
+  const mantissa = text
+    .replace(/[eE].*$/, "")
+    .replace(/[-.]/g, "")
+    .replace(/^0+/, "");
+  return Math.max(mantissa.length, 1);
+}

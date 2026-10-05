@@ -5,9 +5,9 @@ they no longer cohere: two of them mean different things depending on a
 third, two make opposite promises, two are coupled by a formula the panel
 does not explain, and the panel that holds them has outgrown the
 disclosure it sits in. This is a triage of everything known to be wrong
-with the settings, as a model and as a surface, chunked into cycles that
+with the settings, as a model and as a surface, chunked into steps that
 can each be designed in one review and then implemented. It designs
-nothing: every cycle starts with its own design note. Responsiveness
+nothing: every step starts with its own design note. Responsiveness
 (#118 and its sub-issues, and #163, the probe's own freeze) is apart, as
 D25 of docs/calculator-plan.md rules, and is not in this plan.
 
@@ -145,9 +145,9 @@ constraint on any apply-on-close design that would change several
 settings at once. A constraint rather than a problem, recorded so that S4
 does not forget it.
 
-## The cycles
+## The steps
 
-Each cycle is one design note in docs/, reviewed, then one or more
+Each step is one design note in docs/, reviewed, then one or more
 implementation PRs that also update README's "Settings" and
 ARCHITECTURE.md for what they change. The order is by dependency: the
 model before the surface, the storage before any rename, the user's guide
@@ -162,7 +162,7 @@ last. S2 and S3 are independent of each other and could swap.
 - **Decisions.** Version field or versioned key; whether an unknown
   version resets everything or reads what it can; whether migrations run
   on load only.
-- **Depends on.** Nothing. Every later cycle that renames, regroups or
+- **Depends on.** Nothing. Every later step that renames, regroups or
   reshapes a setting depends on it.
 - **Touches.** settings.ts and its test; P11.
 - **Core impact.** None. **Size.** Small.
@@ -173,7 +173,7 @@ last. S2 and S3 are independent of each other and could swap.
   display (P4, #97); what Digits means in each mode and whether it should
   be one setting or two, digits shown apart from working precision (P6);
   how rounding's two meanings are presented (P8); the fit rule of the
-  fractions display (P5, #91), which can also run as a cycle of its own if
+  fractions display (P5, #91), which can also run as a step of its own if
   it slows this one down; the names of the modes (P12, the mode half).
 - **Decisions.** The shape of the exclusion: a third mode value (`exact`,
   `exact with fractions`, `decimal`) or a checkbox that decimal mode
@@ -198,10 +198,10 @@ last. S2 and S3 are independent of each other and could swap.
   unit the range limit is expressed in, bits or digits, and how its
   relation to the cap is shown (P2). What a coupled edit does and says
   (P9). Guard rails and the defaults (P3), within D25's ruling that the
-  defaults stay unless this cycle argues otherwise. The probe's role and
+  defaults stay unless this step argues otherwise. The probe's role and
   promise (P10): what the button says, whether it may lower a value the
   user set, whether it reports what it found, and what the budget is;
-  its freeze is #163's and not this cycle's. The names (P12, the limits
+  its freeze is #163's and not this step's. The names (P12, the limits
   half).
 - **Decisions.** Those above, and #86's core question in particular,
   since it decides whether `NumberContext` keeps `ceiling` as one field
@@ -253,8 +253,8 @@ last. S2 and S3 are independent of each other and could swap.
   reader who has never seen a rational; where it lives (README, a docs
   page, in-app help reached from the panel); and the rewrite of README's
   "Settings", which is written for a developer today.
-- **Depends on.** All of the above. Each earlier cycle keeps README and
-  ARCHITECTURE.md true for what it changes; this cycle writes the guide.
+- **Depends on.** All of the above. Each earlier step keeps README and
+  ARCHITECTURE.md true for what it changes; this step writes the guide.
 - **Core impact.** None. **Size.** Medium.
 
 ## Not in this plan

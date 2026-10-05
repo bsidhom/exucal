@@ -20,7 +20,9 @@ modeled.
 ## Settings
 
 The Settings panel under the converter has six settings, kept in the
-browser so that they survive a reload:
+browser so that they survive a reload (under a format version of their
+own, so that a later build migrates what an earlier one stored;
+`docs/settings-storage.md`):
 
 - **Digits**: how many significant digits an answer is shown with, from 1
   up to the precision limit; eight by default, as GNU units shows. In
@@ -981,13 +983,14 @@ hook's output at session start says which part is out of date.
   asset of its own, and parses it, once; `src/system-build.ts` builds the
   table from it at the ceiling of the retry schedule the settings give,
   once per ceiling, and `src/system-build.test.ts` checks that memo.
-- `src/settings.ts` holds the settings (see Settings above): reading and
-  validating them from the browser's storage, clamping the ones that
-  depend on others, saving them, and turning them into the context the
-  core computes with, whose ceiling is derived from the "most digits"
-  setting.
-  `src/settings.test.ts` checks the parsing under Node.js with a fake
-  storage.
+- `src/settings.ts` holds the settings (see Settings above): reading them
+  from the browser's storage, migrating a stored object from its format
+  version to the current one, validating them, clamping the ones that
+  depend on others, saving them with the version and the build that
+  saved them, resetting them, and turning them into the context the core
+  computes with, whose ceiling is derived from the precision limit.
+  `src/settings.test.ts` checks the parsing, the migrations and the reset
+  under Node.js with a fake storage.
 - `src/limits.ts` is the probe behind the "Recommend limits" button: it
   times the app's costliest operations on this device and proposes the two
   limits. `src/limits.test.ts` checks it against a fake clock.

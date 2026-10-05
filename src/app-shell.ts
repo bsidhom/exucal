@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import { BUILD_ID } from "./build-id.ts";
 import type { Definition } from "./core/definitions.ts";
 import type { Result } from "./core/result.ts";
 import {
@@ -158,7 +159,7 @@ export class AppShell extends LitElement {
    */
   private onSettingsChange(event: CustomEvent<Partial<Settings>>) {
     this.settings = clampSettings({ ...this.settings, ...event.detail });
-    saveSettings(localStorage, this.settings);
+    saveSettings(localStorage, this.settings, BUILD_ID);
   }
 
   /**

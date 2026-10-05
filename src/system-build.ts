@@ -28,6 +28,34 @@ import type { Definition } from "./core/definitions.ts";
 import type { Result } from "./core/result.ts";
 import type { UnitTable } from "./core/table.ts";
 
+/**
+ * Where the system table stands, for the shell to render: the definitions
+ * still loading, the load or the build failed (with the error of whichever
+ * did), or the table ready.
+ */
+export type TableState<E> =
+  | { readonly kind: "loading" }
+  | { readonly kind: "failed"; readonly error: E | BuildError }
+  | { readonly kind: "ready"; readonly table: UnitTable };
+
+/**
+ * The state of the table for `definitions` as loaded so far (`undefined`
+ * while the load is in flight, else its result) at the ceiling of
+ * `context`: the table is built (`buildSystemTable`) only once the
+ * definitions have loaded, so a failed load is reported as it is.
+ */
+export function tableOf<E>(
+  definitions: Result<readonly Definition[], E> | undefined,
+  context: NumberContext,
+): TableState<E> {
+  if (definitions === undefined) return { kind: "loading" };
+  if (!definitions.ok) return { kind: "failed", error: definitions.error };
+  const table = buildSystemTable(definitions.value, context);
+  return table.ok
+    ? { kind: "ready", table: table.value }
+    : { kind: "failed", error: table.error };
+}
+
 /** The one table held: what it was built from, at which ceiling, and the result. */
 let memo:
   | {

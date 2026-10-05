@@ -106,19 +106,43 @@ export function loadSettings(storage: SettingsStorage): Settings {
   });
 }
 
+/** The three settings that are numbers: the digits, the cap on them, and the range limit. */
+export type NumberSetting = "digits" | "maxDigits" | "maxBits";
+
+/** A closed range of integers, `[min, max]`. */
+export type Range = { readonly min: number; readonly max: number };
+
+/** The range limit's bounds: its floor and the hard bound. */
+const MAX_BITS_RANGE: Range = { min: MIN_MAX_BITS, max: LIMIT_BITS };
+
+/**
+ * The bounds of each number setting under `settings`, the one statement of
+ * them, which the panel's inputs, their validation and `clampSettings` all
+ * read: the range limit between its floor and the hard bound, the cap on
+ * the digits up to what the range limit holds (`maxDigitsFor`), and the
+ * digits up to the cap. The last two depend on the setting above them, so
+ * they are read off the settings in force.
+ */
+export function rangesOf(settings: Settings): Record<NumberSetting, Range> {
+  return {
+    maxBits: MAX_BITS_RANGE,
+    maxDigits: { min: 1, max: maxDigitsFor(settings.maxBits) },
+    digits: { min: 1, max: settings.maxDigits },
+  };
+}
+
 /**
  * `settings` made consistent, in the order of dependence: the cap on the
- * digits is brought within `[1, maxDigitsFor(maxBits)]`, and the digits
- * within `[1, maxDigits]`. The range limit is taken as it is; a caller
- * checks it with `isMaxBits` first.
+ * digits is brought within its range under the range limit, and the digits
+ * within theirs under the clamped cap. The range limit is taken as it is; a
+ * caller checks it with `isMaxBits` first.
  */
 export function clampSettings(settings: Settings): Settings {
-  const maxDigits = clamp(
-    settings.maxDigits,
-    1,
-    maxDigitsFor(settings.maxBits),
+  const maxDigits = clampTo(settings.maxDigits, rangesOf(settings).maxDigits);
+  const digits = clampTo(
+    settings.digits,
+    rangesOf({ ...settings, maxDigits }).digits,
   );
-  const digits = clamp(settings.digits, 1, maxDigits);
   return { ...settings, maxDigits, digits };
 }
 
@@ -164,22 +188,14 @@ export function isMode(value: unknown): value is Mode {
   return typeof value === "string" && (MODES as string[]).includes(value);
 }
 
-/** Whether `value` is a digits setting under the cap `maxDigits`: an integer in `[1, maxDigits]`. */
-export function isDigits(value: unknown, maxDigits: number): value is number {
-  return isInteger(value) && value >= 1 && value <= maxDigits;
-}
-
-/**
- * Whether `value` is a cap on the digits under the range limit `maxBits`:
- * an integer in `[1, maxDigitsFor(maxBits)]`.
- */
-export function isMaxDigits(value: unknown, maxBits: number): value is number {
-  return isInteger(value) && value >= 1 && value <= maxDigitsFor(maxBits);
+/** Whether `value` is an integer in `range`. */
+export function isIntegerIn(value: unknown, range: Range): value is number {
+  return isInteger(value) && value >= range.min && value <= range.max;
 }
 
 /** Whether `value` is a range limit: an integer in `[MIN_MAX_BITS, LIMIT_BITS]`. */
 export function isMaxBits(value: unknown): value is number {
-  return isInteger(value) && value >= MIN_MAX_BITS && value <= LIMIT_BITS;
+  return isIntegerIn(value, MAX_BITS_RANGE);
 }
 
 function isInteger(value: unknown): value is number {
@@ -190,12 +206,13 @@ function isPositiveInteger(value: unknown): value is number {
   return isInteger(value) && value >= 1;
 }
 
-function isRoundingMode(value: unknown): value is RoundingMode {
+/** Whether `value` is one of the rounding modes. */
+export function isRoundingMode(value: unknown): value is RoundingMode {
   return (
     typeof value === "string" && (ROUNDING_MODES as string[]).includes(value)
   );
 }
 
-function clamp(value: number, low: number, high: number): number {
-  return Math.min(Math.max(value, low), high);
+function clampTo(value: number, { min, max }: Range): number {
+  return Math.min(Math.max(value, min), max);
 }

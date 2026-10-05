@@ -45,10 +45,10 @@ import { outcomeOf, type Line, type Outcome } from "../../src/outcome.ts";
 import {
   DEFAULT_SETTINGS,
   contextOf,
-  isDigits,
+  isIntegerIn,
   isMaxBits,
-  isMaxDigits,
   isMode,
+  rangesOf,
   type Settings,
 } from "../../src/settings.ts";
 
@@ -196,10 +196,11 @@ export function caseOf(
 export function checkSettings(settings: Settings): void {
   const { digits, maxDigits, maxBits, mode } = settings;
   if (!isMaxBits(maxBits)) throw new RangeError(`Most bits: ${maxBits}`);
-  if (!isMaxDigits(maxDigits, maxBits)) {
+  const ranges = rangesOf(settings);
+  if (!isIntegerIn(maxDigits, ranges.maxDigits)) {
     throw new RangeError(`Precision limit: ${maxDigits} at ${maxBits} bits`);
   }
-  if (!isDigits(digits, maxDigits)) {
+  if (!isIntegerIn(digits, ranges.digits)) {
     throw new RangeError(`Digits: ${digits} under a cap of ${maxDigits}`);
   }
   if (!isMode(mode)) throw new RangeError(`Mode: ${String(mode)}`);

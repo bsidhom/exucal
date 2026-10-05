@@ -22,6 +22,7 @@
     "src/main.ts",
     "src/app-shell.ts",
     "src/app-footer.ts",
+    "src/settings-panel.ts",
     "src/update-check.ts",
     "src/unit-converter.ts",
     "src/register-service-worker.ts",

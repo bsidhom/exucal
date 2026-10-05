@@ -13,10 +13,11 @@ import {
   SETTINGS_KEY,
   clampSettings,
   contextOf,
-  isDigits,
   isMaxBits,
-  isMaxDigits,
+  isIntegerIn,
+  isRoundingMode,
   isMode,
+  rangesOf,
   loadSettings,
   saveSettings,
   type Settings,
@@ -266,22 +267,43 @@ test("contextOf is the settings as the pipeline takes them, with the cap's ceili
   assert.equal(contextOf(DEFAULT_SETTINGS).ceiling, 4040);
 });
 
-test("the validators accept the integers of their ranges and nothing else", () => {
-  assert.ok(isDigits(1, 8));
-  assert.ok(isDigits(8, 8));
-  assert.ok(!isDigits(9, 8));
-  assert.ok(!isDigits(0, 8));
-  assert.ok(!isDigits(1.5, 8));
-  assert.ok(!isDigits(NaN, 8));
-  assert.ok(!isDigits("8", 8));
-  assert.ok(!isDigits(undefined, 8));
+test("the ranges of the number settings follow the settings above them", () => {
   const cap = maxDigitsFor(DEFAULT_MAX_BITS);
-  assert.ok(isMaxDigits(1, DEFAULT_MAX_BITS));
-  assert.ok(isMaxDigits(DEFAULT_MAX_DIGITS, DEFAULT_MAX_BITS));
-  assert.ok(isMaxDigits(cap, DEFAULT_MAX_BITS));
-  assert.ok(!isMaxDigits(cap + 1, DEFAULT_MAX_BITS));
-  assert.ok(!isMaxDigits(0, DEFAULT_MAX_BITS));
-  assert.ok(!isMaxDigits(1, 100));
+  assert.deepEqual(rangesOf(DEFAULT_SETTINGS), {
+    maxBits: { min: MIN_MAX_BITS, max: LIMIT_BITS },
+    maxDigits: { min: 1, max: cap },
+    digits: { min: 1, max: DEFAULT_MAX_DIGITS },
+  });
+  assert.deepEqual(rangesOf({ ...DEFAULT_SETTINGS, maxBits: 100 }).maxDigits, {
+    min: 1,
+    max: maxDigitsFor(100),
+  });
+  assert.deepEqual(rangesOf({ ...DEFAULT_SETTINGS, maxDigits: 8 }).digits, {
+    min: 1,
+    max: 8,
+  });
+});
+
+test("the validators accept the integers of their ranges and nothing else", () => {
+  const digits = { min: 1, max: 8 };
+  assert.ok(isIntegerIn(1, digits));
+  assert.ok(isIntegerIn(8, digits));
+  assert.ok(!isIntegerIn(9, digits));
+  assert.ok(!isIntegerIn(0, digits));
+  assert.ok(!isIntegerIn(1.5, digits));
+  assert.ok(!isIntegerIn(NaN, digits));
+  assert.ok(!isIntegerIn("8", digits));
+  assert.ok(!isIntegerIn(undefined, digits));
+  const cap = maxDigitsFor(DEFAULT_MAX_BITS);
+  const { maxDigits } = rangesOf(DEFAULT_SETTINGS);
+  assert.ok(isIntegerIn(1, maxDigits));
+  assert.ok(isIntegerIn(DEFAULT_MAX_DIGITS, maxDigits));
+  assert.ok(isIntegerIn(cap, maxDigits));
+  assert.ok(!isIntegerIn(cap + 1, maxDigits));
+  assert.ok(!isIntegerIn(0, maxDigits));
+  assert.ok(
+    !isIntegerIn(1, rangesOf({ ...DEFAULT_SETTINGS, maxBits: 100 }).maxDigits),
+  );
   assert.ok(isMaxBits(MIN_MAX_BITS));
   assert.ok(isMaxBits(DEFAULT_MAX_BITS));
   assert.ok(isMaxBits(LIMIT_BITS));
@@ -289,4 +311,6 @@ test("the validators accept the integers of their ranges and nothing else", () =
   assert.ok(!isMaxBits(LIMIT_BITS + 1));
   assert.ok(!isMaxBits(65536.5));
   assert.ok(!isMaxBits("65536"));
+  assert.ok(isRoundingMode("halfEven") && isRoundingMode("floor"));
+  assert.ok(!isRoundingMode("nearest") && !isRoundingMode(undefined));
 });

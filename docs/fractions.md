@@ -198,7 +198,8 @@ on a refusal, is [#92](https://github.com/bsidhom/pwa-units/issues/92).
 - `src/unit-converter.ts`: a `fractions` property beside the context;
   `line`, `listResult` and the function line pass it to `show`, and
   parenthesize a fraction that a unit or the reciprocal's `×` follows.
-- `src/app-shell.ts`: the checkbox, labeled "Show reduced fractions", with
+- `src/settings-panel.ts` (then part of `src/app-shell.ts`): the checkbox,
+  labeled "Show reduced fractions", with
   the hint "An exact value that is not a whole number is written as a
   fraction in lowest terms when both parts fit within Digits; inexact
   values stay decimal."

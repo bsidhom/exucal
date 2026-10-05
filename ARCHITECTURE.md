@@ -1345,6 +1345,21 @@ the components never waits on the table. Should the fetch fail, or the
 file fail to parse or build (which `units.test.ts` guards against), the
 shell says so instead of rendering a converter.
 
+The shell is the composition root, and the rest of the UI follows one
+rule: properties down, events up. The shell holds the three pieces of
+state the parts share, the definitions, the settings and the service
+worker's status, each with one source, and derives everything else in
+`render`. `<settings-panel>` (`src/settings-panel.ts`) takes the settings
+as a property and reports each change the user makes as a
+`settings-change` event, which the shell applies, clamping what depends
+on it (`settings.ts`) and saving; the panel never reaches for storage.
+`<update-check>` and `<app-footer>` take the worker's status as a
+property, which a reactive controller (`src/subscription.ts`) mirrors
+into the shell for as long as it is connected. What each part shows that
+is not state is a pure function beside it, checked under Node like the
+rest: `rangesOf` for the panel's bounds, `checkReport` for the update
+check's line, `tableOf` for the shell's content.
+
 The core's surface to the UI is `(table, haveText, wantText, context) →
 Result`, and `src/core/pipeline.ts` is that function: `convertText` parses
 and evaluates each text and converts the pair, and returns each step's own
@@ -1545,7 +1560,12 @@ src/settings.ts           Settings: the digits, the rounding mode, the exact or 
 src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
 src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result; src/outcome.test.ts checks them
 src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome
-src/app-shell.ts          the host: loads the table, renders the component
+src/settings-panel.ts     the settings panel: the controls and the probe's button; emits settings-change
+src/update-check.ts       the "Check for updates" button; src/update-report.ts is its line, checked by src/update-report.test.ts
+src/app-footer.ts         the footer: the build ID and the worker's status
+src/subscription.ts       Subscription: a reactive controller that mirrors a source into its host; src/subscription.test.ts checks it
+src/styles.ts             the styles the components share
+src/app-shell.ts          the composition root: loads the table, holds the settings and the worker's status, wires the parts
 ```
 
 Each core module but the two smallest, span.ts and result.ts, has a

@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing } from "lit";
+import { LitElement, css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import {
   MIN_MAX_BITS,
@@ -23,7 +23,7 @@ import {
   type Settings,
 } from "./settings.ts";
 import { recommendLimits } from "./limits.ts";
-import { checkForUpdate, onWorkerStatus } from "./register-service-worker.ts";
+import { onWorkerStatus } from "./register-service-worker.ts";
 import { Subscription } from "./subscription.ts";
 import { buildSystemTable } from "./system-build.ts";
 import {
@@ -31,6 +31,7 @@ import {
   type SystemDefinitionsError,
 } from "./system-table.ts";
 import "./app-footer.ts";
+import "./update-check.ts";
 import "./unit-converter.ts";
 
 /**
@@ -189,11 +190,7 @@ export class AppShell extends LitElement {
       align-self: flex-end;
     }
 
-    .settings .check {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.25rem;
+    .settings > update-check {
       align-self: flex-end;
     }
   `;
@@ -209,12 +206,6 @@ export class AppShell extends LitElement {
 
   /** Whether the probe for the recommended limits is running. */
   @state() private recommending = false;
-
-  /**
-   * Where the user's check for an update stands: under way, gone through,
-   * or failed; unset until they ask for one.
-   */
-  @state() private updateCheck?: "checking" | "done" | "failed";
 
   /** The service worker's status, for the footer and the update check. */
   private readonly worker = new Subscription(this, onWorkerStatus);
@@ -337,67 +328,10 @@ export class AppShell extends LitElement {
           >
             ${this.recommending ? "Measuring…" : "Recommend limits"}
           </button>
-          ${this.renderUpdateCheck()}
+          <update-check .status=${this.worker.value}></update-check>
         </div>
       </details>
     `;
-  }
-
-  /**
-   * The button that checks for a new version of the app at once, with what
-   * the check found under it. There is none without a service worker to
-   * check, in development, in a browser without service workers, or when
-   * the registration failed.
-   */
-  private renderUpdateCheck() {
-    const { kind } = this.worker.value;
-    if (kind === "development" || kind === "unsupported" || kind === "failed") {
-      return nothing;
-    }
-    const checking = this.updateCheck === "checking";
-    return html`<div class="check">
-      <button
-        type="button"
-        ?disabled=${checking || kind === "registering" || kind === "applying"}
-        @click=${this.onCheckForUpdate}
-      >
-        ${checking ? "Checking…" : "Check for updates"}
-      </button>
-      <small class="hint" role="status">${this.renderCheckResult()}</small>
-    </div>`;
-  }
-
-  /**
-   * What the user's check found, once it has gone through. It follows the
-   * worker's status rather than the check's own result, so it agrees with
-   * the footer however late a browser reports the new worker a check found,
-   * and keeps up with any check made since: an update downloading, ready
-   * (the footer has the link that applies it) or being applied, or else up
-   * to date. A failed check says so unless an update has turned up all the
-   * same.
-   */
-  private renderCheckResult() {
-    const check = this.updateCheck;
-    if (check === undefined || check === "checking") {
-      return nothing;
-    }
-    const status = this.worker.value;
-    switch (status.kind) {
-      case "downloading":
-        return "Downloading…";
-      case "waiting":
-        return "Update ready";
-      case "applying":
-        return "Updating…";
-      default:
-        return check === "failed" ? "Couldn't check (offline?)" : "Up to date";
-    }
-  }
-
-  /** Checks for a new version at once, from the button. */
-  private async onCheckForUpdate() {
-    this.updateCheck = "checking";
-    this.updateCheck = (await checkForUpdate()) ? "done" : "failed";
   }
 
   /** A number input for a setting, accepting an integer in `[min, max]`, with a line saying what the setting does. */

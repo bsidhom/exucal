@@ -833,8 +833,8 @@ Cloud environment below), so nothing above has to be done there by hand.
 | `pnpm test:sweep`    | Run the edge sweeps, the conformance tests.         |
 | `pnpm test:all`      | Type-check, then run tests, sweeps and benchmarks.  |
 | `pnpm bench`         | Run the performance benchmarks (see Benchmarks).    |
-| `pnpm stress`        | Measure the catalogued costliest inputs (slow).     |
-| `pnpm stress:search` | Search for the costliest inputs (by hand; slow).    |
+| `pnpm stress`        | Measure the catalogued inputs of named functions.   |
+| `pnpm stress:search` | Sample for the costliest inputs, ten minutes a run. |
 | `pnpm format`        | Format all source files with Prettier.              |
 | `pnpm format:check`  | Verify that all source files are formatted.         |
 
@@ -952,8 +952,9 @@ hook's output at session start says which part is out of date.
   pass, and the search for the costliest inputs, `pnpm stress:search`,
   which is run by hand and never by `pnpm test:all` (`--help` lists its
   options; ARCHITECTURE.md, "Benchmarks", describes it), and the stress
-  suite, `pnpm stress`, which measures the catalogue the search builds
-  (see Stress tests below; `docs/cost.md` presents the catalogue).
+  suite, `pnpm stress`, which measures again the catalogued inputs of
+  the functions named (see Stress tests below; `docs/cost.md` presents
+  the catalogue).
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every
   part of the app renders inside. It loads the unit table when it is
   connected, shows a loading message until it arrives, and hands it to the
@@ -1069,8 +1070,11 @@ the place is empty or holds an input it costs at least 10% more than. A
 run lasts ten minutes (`--minutes <n>` to choose), or until Ctrl-C with
 `--forever`; either way the files are formatted and whole at every
 moment, so whenever it ends, or is stopped, what it found is ready to
-review and commit. Each run adds to the catalogue, so running it now
-and then builds the list up over time. Several runs can share one
+review and commit. It is safe to run repeatedly and incrementally:
+each run only adds to the catalogue or replaces an entry by a costlier
+case of its family, so a short run now and then builds the list up over
+time, and running the same seed again only logs the run and keeps any
+timing that came out at least 10% higher. Several runs can share one
 working tree at once: each change to the files is made under a lock.
 `--list <n>` prints the first inputs a seed draws without evaluating
 them. The command never touches git.

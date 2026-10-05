@@ -29,7 +29,6 @@ import {
   writeAtomically,
   type Catalogue,
   type Commit,
-  type Entry,
 } from "./catalogue.ts";
 import { measure, type Case, type Measurement } from "./harness.ts";
 
@@ -42,7 +41,7 @@ export const root = new URL("../../", import.meta.url);
 
 /** The catalogue, and the doc that holds its tables. */
 export const CATALOGUE = new URL("bench/stress/catalogue.json", root);
-export const DOC = new URL("docs/cost.md", root);
+const DOC = new URL("docs/cost.md", root);
 
 /** The lock taken while the catalogue and its tables are changed (ignored by git). */
 const LOCK = new URL("bench/stress/catalogue.lock", root);
@@ -95,11 +94,6 @@ export async function measureCase(
   }
 }
 
-/** The case of `entry`, without the rest of its record. */
-export function caseOfEntry(entry: Entry): Case {
-  return { have: entry.have, want: entry.want, settings: entry.settings };
-}
-
 /**
  * `text` as the repository's Prettier formats the file `file`: Prettier
  * reads it on stdin, in a process of its own so that the lanes are not
@@ -108,7 +102,7 @@ export function caseOfEntry(entry: Entry): Case {
  * truncate the file and fill it again, and a snapshot taken between the
  * two would hold a file cut short).
  */
-export function formatText(text: string, file: URL): Promise<string> {
+function formatText(text: string, file: URL): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,

@@ -1702,7 +1702,10 @@ tests. The rest of the directory is what they share:
   at any moment holds them formatted and complete. When the time is up,
   or on Ctrl-C, no case starts, the writes under way finish, the run's
   record (seed, cases measured, hits) is written, and the process ends,
-  abandoning the cases it was measuring. The tests of `cases.ts`,
+  abandoning the cases it was measuring. Runs are safe to repeat and to
+  accumulate: a hit can only fill an empty slot or replace a cheaper
+  case of its family, so a repeated case at most refreshes its own
+  timing, and the catalogue grows run by run. The tests of `cases.ts`,
   `catalogue.ts` and `pool.ts` are ordinary ones, since they evaluate
   nothing.
 - `bench/stress/verify.ts` is the stress suite (8.3), run by

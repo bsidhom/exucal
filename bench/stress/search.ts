@@ -11,7 +11,10 @@
 // hit is a case whose warm cost reaches the floor, or a hang: a case past
 // its deadline, or whose worker failed. Each run is a sample: it runs for
 // `--minutes` (ten by default), or until stopped with `--forever`, and
-// adds what it finds; runs build the catalogue up over time.
+// adds what it finds; runs build the catalogue up over time. Running it
+// again, with the same seed or a fresh one, is always safe: a hit only
+// fills an empty slot or replaces a cheaper case of its family, so a
+// repeated case at most refreshes its own timing.
 //
 // What is drawn depends on the seed alone. A run given `--seed` uses it;
 // one without draws a fresh seed from the cryptographic source first and

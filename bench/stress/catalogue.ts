@@ -136,7 +136,7 @@ export type Catalogue = {
 };
 
 /** The catalogue before any run. */
-export const EMPTY: Catalogue = { entries: [], hangs: [], runs: [] };
+const EMPTY: Catalogue = { entries: [], hangs: [], runs: [] };
 
 // ---------------------------------------------------------------------------
 // Merging

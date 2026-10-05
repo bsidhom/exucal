@@ -1,57 +1,33 @@
 // The work pool of the stress tools (docs/calculator-plan.md, task 8.3):
-// lanes, one per core by default, that each pull the next unit of work as
-// they come free, so that the work is shared at the grain of a unit
-// however unequal the units' costs, and a long unit holds one lane while
-// the others carry on. Each unit is the smallest piece of work that can be
-// done alone: a case measured, an entry typed out.
-//
-// What is ready can change as units finish, so a lane that finds nothing
-// ready while units still run waits for one of them to finish and asks
-// again, and the pool ends only when nothing is ready and nothing runs. A `stop`
-// condition, a budget of time, ends it early: no unit starts once it
-// holds, and the units running finish. Nothing here knows what a unit is.
+// lanes, one per core by default, that each take the next case as they
+// come free, so that the work is shared at the grain of a case however
+// unequal the cases' costs, and a long case holds one lane while the
+// others carry on. Nothing here knows what a unit of work is.
 
-/** What `runPool` needs: the lanes, the next ready unit, how to run one, when to stop. */
+/** What `runPool` needs: the lanes, the next unit, and how to run one. */
 export type PoolOptions<T> = {
   readonly jobs: number;
-  /** The next unit ready to run, taking it, or `undefined` while none is ready. */
+  /** The next unit, taking it, or `undefined` when there are no more. */
   readonly next: () => T | undefined;
   readonly run: (unit: T) => Promise<void>;
-  /** Holds once no more units should start. */
-  readonly stop?: () => boolean;
 };
 
 /**
- * Runs the units `next` gives, `jobs` at a time, until none is ready and
- * none runs, or until `stop` holds and the running units have finished.
- * Gives how many units started. A unit that throws stops the pool: the
- * running units finish, and the first error is thrown.
+ * Runs the units `next` gives, `jobs` at a time, until it gives no more
+ * and the running units have finished. Gives how many units started. A
+ * unit that throws stops the pool: no unit starts after it, the running
+ * units finish, and the first error is thrown.
  */
 export async function runPool<T>(options: PoolOptions<T>): Promise<number> {
-  const { jobs, next, run, stop = () => false } = options;
-  let active = 0;
+  const { jobs, next, run } = options;
   let started = 0;
   let failed = false;
   let failure: unknown;
-  let waiting: (() => void)[] = [];
-  const wake = () => {
-    const woken = waiting;
-    waiting = [];
-    for (const resume of woken) resume();
-  };
   const lane = async (): Promise<void> => {
     for (;;) {
-      if (failed || stop()) return;
+      if (failed) return;
       const unit = next();
-      if (unit === undefined) {
-        if (active === 0) {
-          wake();
-          return;
-        }
-        await new Promise<void>((resume) => waiting.push(resume));
-        continue;
-      }
-      active++;
+      if (unit === undefined) return;
       started++;
       try {
         await run(unit);
@@ -60,9 +36,6 @@ export async function runPool<T>(options: PoolOptions<T>): Promise<number> {
           failed = true;
           failure = e;
         }
-      } finally {
-        active--;
-        wake();
       }
     }
   };

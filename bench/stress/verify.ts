@@ -116,7 +116,7 @@ function deadlineOf(unit: Unit): number {
  * first line without the note after the value, which states a bound or
  * the digits certified and may sharpen.
  */
-export function comparable(outcome: OutcomeSummary): OutcomeSummary {
+function comparable(outcome: OutcomeSummary): OutcomeSummary {
   if (outcome.kind !== "result") return outcome;
   const line = outcome.line.replace(
     / \((?:within [^()]*|\d+ of \d+ digits are certain|the digits are not certified)\)$/,
@@ -278,7 +278,7 @@ async function record(
 }
 
 /** Whether `functions`, the names asked for, select a family that calls `called`; no names select every family. */
-export function selects(
+function selects(
   functions: readonly string[],
   called: readonly string[],
 ): boolean {

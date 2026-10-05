@@ -5291,8 +5291,8 @@ reproduces what a run searched.
 A run adds to the catalogue rather than replacing it. A case belongs to
 a family, keyed by its pattern, its functions and its classes of
 arguments. A case joins the catalogue when its family is new to it, and
-replaces the family's entry when it costs more than that entry measured
-again in the same run, since only timings from one run compare. Each
+replaces the family's entry when it costs more than that entry (as 8.3
+landed it, 10% more, written the moment it is found). Each
 entry records the seed and the index that drew it, or the enumeration,
 with the commit, the date and the machine, so that it can be drawn again
 and its text read back. A run leaves its changes as a diff to
@@ -5303,12 +5303,12 @@ Behavior: none; no test run includes the search. Tests, ordinary ones
 since they evaluate nothing: one seed lists the same cases on two runs;
 the `i`-th case drawn alone is the `i`-th of the sequence; two seeds
 list different cases; a run without a seed records the one it drew; and
-the merge keeps a new family, replaces an entry only by a costlier case
-of its family, and leaves the other entries as they were.
+a hit takes a new family's slot, replaces an entry only by a costlier
+case of its family, and leaves the other entries as they were.
 
 As it landed, the search is three modules: `cases.ts`, the pure drawing
-from a seed; `catalogue.ts`, the catalogue's shape, its merge and its
-table; and `search.ts`, the command. The choices the task left open:
+from a seed; `catalogue.ts`, the catalogue's shape, its rule for a hit
+and its tables; and `search.ts`, the command. The choices the task left open:
 
 - **The patterns** are four: `cancel`, a call less itself; `identity`,
   from a table of nineteen identities between different functions;
@@ -5324,10 +5324,11 @@ table; and `search.ts`, the command. The choices the task left open:
   in cost by more than any argument does, so without the profile the
   costliest cap would take every family's entry and the defaults would
   go unrecorded.
-- **The defaults:** 100 cases (20 for `--list`), a deadline of 120 s a
-  case, a floor of a second warm, one job per core; `--dry-run` writes
-  nothing. A case is a candidate when its warm cost under load reaches
-  half the floor, since load inflates timings unevenly.
+- **The defaults:** ten minutes a run (as 8.3 landed it; `--forever`
+  runs until stopped, and `--list` prints 20 cases), a deadline of 120 s
+  a case, a floor of a second warm, one job per core. A case is a hit
+  when its warm cost under load reaches the floor: load moves timings by
+  a few percent.
 - **What is kept apart:** a case past its deadline and a case whose
   worker failed (a throw, which is a bug) are both hangs, one per
   family. The catalogue logs every run, with its seed or the
@@ -5354,8 +5355,9 @@ linked to the catalogue as the interface's target.
 
 The stress suite is `bench/stress/verify.ts`, run by `pnpm stress`.
 Neither `pnpm test` nor `pnpm bench` runs it, so `pnpm test:all` never
-does: it runs for minutes, and a commit does not wait on it. The suite measures each catalogued case under a
-deadline, cold and warm. It reports the timings beside the catalogue's,
+does: it runs for minutes, and a commit does not wait on it. The suite
+measures the catalogued cases of the functions named on its command
+line (all of them when none is named) under a deadline, cold and warm. It reports the timings beside the catalogue's,
 and as ratios to a reference case measured in the same run. It asserts
 only what holds on any machine:
 
@@ -5365,8 +5367,8 @@ only what holds on any machine:
 - **No case passes its deadline.** A known hang is measured last and
   reported, with how far it gets, never failed.
 
-A case that has become much cheaper is reported, so that the catalogue
-is measured again. README ("Benchmarks") says what the suite is, how
+A case that has become much cheaper is reported, and `--record` writes
+its new cost into the catalogue. README ("Benchmarks") says what the suite is, how
 long it runs, and when to run it: before and after a change aimed at one
 of its cases, after a change to a kernel, and when #118's work wants a
 fresh target. ARCHITECTURE.md ("Benchmarks") says how it is built.
@@ -5428,7 +5430,10 @@ machinery than the task needs. As it landed, the search is a sampler:
   written through a file renamed over it. So several runs can share a
   working tree, and whenever a run ends or is stopped, what it found is
   ready to commit, with nothing to resume and nothing to merge. The
-  tools never touch git.
+  tools never touch git. Running the search again, whether the same
+  seed or a fresh one, is always safe: a repeated case can only replace
+  its own entry with a fresh timing of itself, or leave it, and a fresh
+  seed adds new hits, so runs accumulate.
 - **Hangs rank.** A case past its deadline records the passes it
   finished, how long the running one had run and the schedule, and
   `estimateMs` (harness.ts) extends the passes along their growth in

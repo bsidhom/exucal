@@ -27,39 +27,18 @@ test("the pool runs every unit, never more than its lanes at once", async () => 
   );
 });
 
-test("a lane with nothing ready waits for the units that may make more ready", async () => {
-  // Each unit below 8 releases two more when it finishes, as a family's
-  // last case releases its typing; at first only one is ready.
-  const ready = [1];
-  const done: number[] = [];
-  await runPool({
-    jobs: 4,
-    next: () => ready.shift(),
-    run: async (unit) => {
-      await sleep(2);
-      done.push(unit);
-      if (unit < 8) ready.push(2 * unit, 2 * unit + 1);
-    },
-  });
-  assert.deepEqual(
-    done.sort((a, b) => a - b),
-    Array.from({ length: 15 }, (_, i) => i + 1),
-  );
-});
-
-test("once stop holds, no unit starts, and the running ones finish", async () => {
+test("once next gives no more, no unit starts, and the running ones finish", async () => {
   const queue = Array.from({ length: 50 }, (_, i) => i);
   const done: number[] = [];
-  let stopped = false;
+  let stopping = false;
   const started = await runPool({
     jobs: 2,
-    next: () => queue.shift(),
+    next: () => (stopping ? undefined : queue.shift()),
     run: async (unit) => {
       await sleep(1);
       done.push(unit);
-      if (done.length === 5) stopped = true;
+      if (done.length === 5) stopping = true;
     },
-    stop: () => stopped,
   });
   assert.ok(started >= 5 && started <= 6, `${started}`);
   assert.equal(done.length, started);

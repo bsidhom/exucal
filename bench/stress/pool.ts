@@ -3,13 +3,11 @@
 // they come free, so that the work is shared at the grain of a unit
 // however unequal the units' costs, and a long unit holds one lane while
 // the others carry on. Each unit is the smallest piece of work that can be
-// done alone and journaled: a case measured, a pair measured back to back,
-// an entry typed out.
+// done alone: a case measured, an entry typed out.
 //
-// What is ready can change as units finish: a family's last case measured
-// makes its pair or its typing ready. So a lane that finds nothing ready
-// while units still run waits for one of them to finish and asks again,
-// and the pool ends only when nothing is ready and nothing runs. A `stop`
+// What is ready can change as units finish, so a lane that finds nothing
+// ready while units still run waits for one of them to finish and asks
+// again, and the pool ends only when nothing is ready and nothing runs. A `stop`
 // condition, a budget of time, ends it early: no unit starts once it
 // holds, and the units running finish. Nothing here knows what a unit is.
 

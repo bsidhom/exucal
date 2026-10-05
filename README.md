@@ -1059,47 +1059,33 @@ noise: such a benchmark guards nothing until it is fixed. `ARCHITECTURE.md`
 
 ### Stress tests
 
-`pnpm stress` measures every input in `bench/stress/catalogue.json`, the
-costliest inputs the cost search has found (`docs/cost.md` presents them,
-by cause), cold and warm, one per core at a time, cheapest first: results
-start in seconds, and the whole takes about fifteen minutes on four
-cores, plus about twenty for the inputs that hang, which `--skip-hangs`
-leaves out. So `pnpm test:all` does not run it and a commit does not
-wait on it. Run it by hand: before and after a change aimed at one of
-its inputs, after a change to a kernel, and when the work on keeping the
-interface responsive (#118) wants a fresh target. It fails only when an
-input gives a different value than it was catalogued with, or passes its
-deadline; the timings, each input's cost as a multiple of a reference,
-inputs that have become much cheaper and how far each hang gets are
-reported.
+`pnpm stress:search` samples for the costliest inputs. It draws a stream
+of random inputs from a seed (a fresh one unless `--seed`, printed and
+logged with the run), measures them one per core, and writes each hit
+into `bench/stress/catalogue.json` and the tables of `docs/cost.md` as
+soon as it is found: an input whose warm cost reaches a second, or that
+runs past the two-minute deadline. A hit takes its family's place when
+the place is empty or holds an input it costs at least 10% more than. A
+run lasts ten minutes (`--minutes <n>` to choose), or until Ctrl-C with
+`--forever`; either way the files are formatted and whole at every
+moment, so whenever it ends, or is stopped, what it found is ready to
+review and commit. Each run adds to the catalogue, so running it now
+and then builds the list up over time. Several runs can share one
+working tree at once: each change to the files is made under a lock.
+`--list <n>` prints the first inputs a seed draws without evaluating
+them. The command never touches git.
 
-`pnpm stress:search` adds to the catalogue. Without `--seed` it draws a
-fresh seed, prints it and explores new inputs; with `--seed` and
-`--cases` it replays an earlier run exactly; `--enumerate` runs a fixed
-sweep of every function instead. It writes what it has found into the
-catalogue and the tables of `docs/cost.md` every fifteen seconds as it
-runs, so the results grow while you watch, and leaves them as a diff for
-review like any other change.
-
-Both journal every result as it comes, under `bench/stress/runs/`, so
-either can be stopped at any point, by Ctrl-C or a crash, and the same
-command carries on where it left off, losing only what was running;
-`pnpm stress:search --resume` carries on the latest search without
-naming its seed. Start small and grow: `pnpm stress:search --cases 40`
-takes a few minutes, and a later `--cases 200` measures only the 160 new
-inputs. `--budget <minutes>` stops a search after that long, for the
-next run to carry on. The suite's journal is kept for one state of the
-code and the catalogue: after a change to either, it starts afresh.
-
-Neither command touches git. Everything they write can be copied or
-committed at any moment while they run, and a copy carries on from
-where it was taken: the journals are only appended to, and a line cut
-short by a copy is dropped when the run resumes, and the catalogue and
-`docs/cost.md` are written formatted and whole, never part way. To keep
-a long run's progress somewhere a crash cannot reach it, commit its
-directory under `bench/stress/runs/` with the catalogue and the doc as
-it goes; git ignores only the run's lock, which names the process
-working on it.
+`pnpm stress <function> ...` measures again the catalogued inputs that
+call the functions named (`pnpm stress incbeta erf`), cold and warm, one
+per core, cheapest first, printing each result as it comes; with no
+names it measures them all. Run it before and after a change aimed at
+those functions: one function's inputs take one to four minutes on four
+cores. `--profile <name>` keeps one settings profile, and `--skip-hangs`
+leaves out the inputs that hang. It fails only when an input gives a
+different value than it was catalogued with, or passes its deadline;
+the timings, each input's cost as a multiple of a reference, inputs that
+have become much cheaper and how far each hang gets are reported.
+`pnpm test:all` runs neither.
 
 ### Offline behavior
 

@@ -57,13 +57,14 @@ correctly by it.
 ## Reproducing a case
 
 Each entry in bench/stress/catalogue.json records where it came from:
-the seed and index that drew it, or its place in the fixed enumeration.
-`pnpm stress:search --seed <seed> --cases <n>` replays a run, and
-`--list` prints the cases a seed draws without evaluating them; the
-runs log which indices each run took. Typing
-the `have` into the converter, with the entry's settings, reproduces the
-cost a user meets. `pnpm stress` measures every entry again, and fails
-only if one gives a different value or passes its deadline.
+the seed and index that drew it, or its place in the fixed enumeration
+the first catalogue was built from. `pnpm stress:search --seed <seed>
+--list <n>` prints the first cases a seed draws without evaluating
+them, and the catalogue logs each run's seed and how many cases it
+measured. Typing the `have` into the converter, with the entry's
+settings, reproduces the cost a user meets. `pnpm stress <function>`
+measures again the entries that call a function, and fails only if one
+gives a different value or passes its deadline.
 
 ## What the costs come from
 

@@ -3,6 +3,3 @@
 # local overrides) is already skipped; this file only lists generated files
 # that are committed.
 pnpm-lock.yaml
-# The stress runs' journals and snapshots, written by the tools as they run
-# (bench/stress/journal.ts) and committed only as records of a run
-bench/stress/runs/

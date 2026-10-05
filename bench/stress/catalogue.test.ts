@@ -5,24 +5,20 @@ import type { Family } from "./cases.ts";
 import {
   HANGS_END,
   HANGS_START,
+  MARGIN,
   TABLE_END,
   TABLE_START,
   catalogueTable,
-  decide,
-  familyKey,
   hangEstimate,
   hangsTable,
-  slotOf,
   summarizeTyping,
+  withHit,
   withRun,
-  withSlot,
   withTable,
+  withTyping,
   type Catalogue,
   type Entry,
-  type Findings,
   type Hang,
-  type Pair,
-  type RunSource,
   type Source,
 } from "./catalogue.ts";
 import type { Machine, Run } from "./harness.ts";
@@ -34,7 +30,6 @@ const MACHINE: Machine = {
   platform: "linux",
 };
 const COMMIT = { hash: "0".repeat(40), dirty: false };
-const RUN: RunSource = { seed: "0123456789abcdef" };
 const OURS: Source = { seed: "0123456789abcdef", index: 0 };
 const THEIRS: Source = { enumeration: 3 };
 
@@ -105,104 +100,42 @@ function hang(
 
 const A = family("cancel");
 const B = family("identity:beta-gamma", ["beta", "gamma"]);
-const noPair = () => undefined;
-
-function findings(
-  best: Entry | undefined,
-  complete = true,
-  worst?: Hang,
-): Findings {
-  return { best, worst, complete };
-}
-
-test("a family the catalogue lacks takes the run's best case at once", () => {
-  const best = entry(A, "gamma(a) - gamma(a)", 3000, OURS);
-  for (const complete of [false, true]) {
-    const decided = decide(RUN, findings(best, complete), {}, {}, noPair);
-    assert.equal(decided.entry, best);
-    assert.equal(decided.pairWith, undefined);
-  }
-});
-
-test("another run's entry is replaced only by a case measured beside it", () => {
-  const incumbent = entry(A, "gamma(b) - gamma(b)", 4000);
-  const best = entry(A, "gamma(a) - gamma(a)", 5000, OURS);
-  const slot = { entry: incumbent };
-  // While the family's cases are still coming in, the slot waits.
-  assert.deepEqual(decide(RUN, findings(best, false), slot, slot, noPair), {
-    entry: incumbent,
-    pairWith: undefined,
-  });
-  // Once they are all in, the best is owed a pair with the incumbent.
-  const owed = decide(RUN, findings(best), slot, slot, noPair);
-  assert.equal(owed.entry, incumbent);
-  assert.equal(owed.pairWith, incumbent);
-  // Measured beside it: costlier per call takes the slot, cheaper does not.
-  const paired = (candidate: number, again: number) => (): Pair => ({
-    candidate: entry(A, best.have, candidate, OURS),
-    incumbent: entry(A, incumbent.have, again),
-  });
-  const wins = decide(RUN, findings(best), slot, slot, paired(5000, 4500));
-  assert.equal(wins.entry?.have, best.have);
-  assert.equal(wins.entry?.warm.ms, 5000, "the pair's timings are kept");
-  const loses = decide(RUN, findings(best), slot, slot, paired(4400, 4500));
-  assert.equal(loses.entry, incumbent);
-  // An incumbent that no longer finishes cannot hold the slot.
-  const gone = decide(RUN, findings(best), slot, slot, () => ({
-    candidate: entry(A, best.have, 5000, OURS),
-    incumbent: undefined,
-  }));
-  assert.equal(gone.entry?.have, best.have);
-});
-
-test("deciding again decides the same: the run's own entries are replaced, not compared", () => {
-  const incumbent = entry(A, "gamma(b) - gamma(b)", 4000);
-  const best = entry(A, "gamma(a) - gamma(a)", 5000, OURS);
-  const pair = (): Pair => ({
-    candidate: entry(A, best.have, 5100, OURS),
-    incumbent: entry(A, incumbent.have, 4500),
-  });
-  const base = { entry: incumbent };
-  const first = decide(RUN, findings(best), base, base, pair);
-  // The catalogue now holds the run's entry; the base still names the
-  // incumbent it replaced, which stays the one to beat.
-  const again = decide(
-    RUN,
-    findings(best),
-    base,
-    { entry: first.entry! },
-    pair,
-  );
-  assert.deepEqual(again, first);
-  // A run's own earlier entry, with no other run's before it, gives way
-  // to its best, whatever their timings.
-  const earlier = entry(A, "gamma(c) - gamma(c)", 9000, OURS);
-  assert.equal(
-    decide(RUN, findings(best), {}, { entry: earlier }, noPair).entry,
-    best,
-  );
-});
-
-test("a hang takes its family's hang slot unless another run's is close in cost", () => {
-  const ours = hang(A, "ours", 600_000, OURS);
-  // A new family's hang joins.
-  assert.equal(
-    decide(RUN, findings(undefined, true, ours), {}, {}, noPair).hang,
-    ours,
-  );
-  // Another run's hang is replaced only by one estimated HANG_MARGIN times
-  // costlier, and its issue carries over.
-  const theirs = { ...hang(A, "theirs", 500_000), issue: 151 };
-  const slot = { hang: theirs };
-  assert.equal(
-    decide(RUN, findings(undefined, true, ours), slot, slot, noPair).hang,
-    theirs,
-  );
-  const much = hang(A, "much", 900_000, OURS);
+test("a hit takes its family's empty slot, or one it costs MARGIN times", () => {
+  const empty: Catalogue = { entries: [], hangs: [], runs: [] };
+  const first = entry(A, "gamma(a) - gamma(a)", 3000, OURS);
+  const added = withHit(empty, { entry: first });
+  assert.equal(added.change, "added");
+  assert.deepEqual(added.catalogue.entries, [first]);
+  // Near-equal cases do not trade places: a hit must cost MARGIN times.
+  const close = entry(A, "gamma(b) - gamma(b)", 3000 * MARGIN - 1);
+  assert.equal(withHit(added.catalogue, { entry: close }).change, "kept");
+  const costlier = entry(A, "gamma(c) - gamma(c)", 3000 * MARGIN);
+  const replaced = withHit(added.catalogue, { entry: costlier });
+  assert.equal(replaced.change, "replaced");
+  assert.deepEqual(replaced.catalogue.entries, [costlier]);
+  // The cost compared is per call: more calls cost less each.
+  const diluted = entry(A, "gamma(d) - …", 6000, OURS, 4);
+  assert.equal(withHit(added.catalogue, { entry: diluted }).change, "kept");
+  // Other families are left as they were, and the entries ranked.
+  const other = entry(B, "beta(a, b) - …", 5000);
+  const both = withHit(added.catalogue, { entry: other }).catalogue;
   assert.deepEqual(
-    decide(RUN, findings(undefined, true, much), slot, slot, noPair).hang,
-    { ...much, issue: 151 },
+    both.entries.map((e) => e.have),
+    ["beta(a, b) - …", "gamma(a) - gamma(a)"],
   );
+});
+
+test("a hang takes its family's hang slot in the same way, keeping the issue", () => {
+  const theirs = { ...hang(A, "theirs", 500_000), issue: 151 };
+  const catalogue: Catalogue = { entries: [], hangs: [theirs], runs: [] };
+  assert.equal(
+    withHit(catalogue, { hang: hang(A, "close", 500_000 * MARGIN - 1) }).change,
+    "kept",
+  );
+  const worse = hang(A, "worse", 900_000, OURS);
+  const replaced = withHit(catalogue, { hang: worse });
+  assert.equal(replaced.change, "replaced");
+  assert.deepEqual(replaced.catalogue.hangs, [{ ...worse, issue: 151 }]);
   // A hang recorded before estimates is ranked by its deadline.
   assert.equal(hangEstimate(hang(A, "old", undefined)), 120_000);
   // A failed worker outranks any hang and is never replaced by one.
@@ -211,48 +144,48 @@ test("a hang takes its family's hang slot unless another run's is close in cost"
     reason: { kind: "failed", message: "boom" },
   };
   assert.equal(hangEstimate(failed), Infinity);
-  const kept = { hang: failed };
-  assert.equal(
-    decide(RUN, findings(undefined, true, much), kept, kept, noPair).hang,
-    failed,
+  const kept = { ...catalogue, hangs: [failed] };
+  assert.equal(withHit(kept, { hang: worse }).change, "kept");
+  // Hangs are ranked by their estimates.
+  const two = withHit(catalogue, { hang: hang(B, "b", 2_000_000) }).catalogue;
+  assert.deepEqual(
+    two.hangs.map((h) => h.have),
+    ["b", "theirs"],
   );
 });
 
-test("a slot is set in place, entries ranked by cost per call and hangs by estimate", () => {
-  const catalogue: Catalogue = {
-    entries: [entry(A, "a", 4000), entry(B, "b", 2000)],
-    hangs: [hang(A, "slow", 200_000)],
-    runs: [],
-  };
-  const key = familyKey(B);
-  const updated = withSlot(catalogue, key, {
-    entry: entry(B, "b2", 9000, OURS),
-    hang: hang(B, "slower", 900_000, OURS),
+test("typing is recorded on the entry for its case, if the catalogue still holds it", () => {
+  const e = entry(A, "gamma(a) - gamma(a)", 3000, OURS);
+  const catalogue: Catalogue = { entries: [e], hangs: [], runs: [] };
+  const typing = summarizeTyping({
+    keystrokes: [{ length: 1, ms: 50, kind: "error" }],
+    complete: true,
   });
-  assert.deepEqual(
-    updated.entries.map((e) => e.have),
-    ["b2", "a"],
-  );
-  assert.deepEqual(
-    updated.hangs.map((h) => h.have),
-    ["slower", "slow"],
-  );
-  assert.equal(slotOf(updated, key).entry?.have, "b2");
-  assert.equal(slotOf(updated, familyKey(family("edge"))).entry, undefined);
-  // A run's record replaces the earlier record of the same run.
+  assert.deepEqual(withTyping(catalogue, e, typing).entries, [
+    { ...e, typing },
+  ]);
+  // Replaced meanwhile: nothing to record it on.
+  const other = { have: "gamma(b) - gamma(b)", want: "", settings: e.settings };
+  assert.deepEqual(withTyping(catalogue, other, typing), catalogue);
+});
+
+test("a run's record replaces the earlier record of the same run", () => {
   const record = {
-    source: RUN,
+    source: { seed: "0123456789abcdef" },
     cases: 16,
-    indices: "0-15",
+    hits: 2,
     commit: COMMIT,
     date: "d",
     machine: MACHINE,
   };
-  const logged = withRun(withRun(updated, record), { ...record, cases: 20 });
+  const empty: Catalogue = { entries: [], hangs: [], runs: [] };
+  const logged = withRun(withRun(empty, record), { ...record, cases: 20 });
   assert.deepEqual(
     logged.runs.map((r) => r.cases),
     [20],
   );
+  // Another run of the same seed, begun later, is a record of its own.
+  assert.equal(withRun(logged, { ...record, date: "e" }).runs.length, 2);
 });
 
 test("the tables replace the text between their markers, and only there", () => {

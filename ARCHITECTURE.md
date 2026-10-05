@@ -1677,68 +1677,49 @@ tests. The rest of the directory is what they share:
   built-in's edge, a zero below a condition's bound), the functions and
   their argument classes, a costly call composed into an argument, the
   settings profile and the want. A run without `--seed` draws a fresh
-  seed from the cryptographic source and prints it; `--cases` takes a
-  prefix of the sequence, and the indices each run took are logged, so
-  any run replays; `--list` prints the cases without evaluating them,
-  and `--enumerate` runs a fixed enumeration instead. No timing decides
-  what is searched. The work is units, each the least that can be done
-  alone: a case measured (cold and warm together, since the warm
-  evaluation needs the cold one's memos), a family's best case measured
-  back to back with another run's entry for the family (a pair), and an
-  entry typed out (`typeOut` of the harness: `outcomeOf` on every prefix
-  of its text in order, in one worker so that the memos carry over as in
-  a session). Lanes, one per core, pull the next ready unit as they come
-  free (`pool.ts`): a pair or a typing as soon as its family's cases are
-  all measured, else the next case, so a long unit holds one lane and
-  the rest carry on. Timings under that load stay within a few percent
-  of timings alone, which is why they are kept. Each unit is journaled
-  as it finishes (`journal.ts`: JSON Lines under
-  `bench/stress/runs/<seed>/`, with the run's target, a snapshot of the
-  catalogue as it began, and a lock naming the one process working on
-  it), and a run does only what its journal lacks. So a stopped run
-  resumes losing only the units that were running (`--resume` finds the
-  run whose journal changed last), a larger `--cases` extends a finished
-  one, and `--budget` bounds a run's length. Every file a run writes can
-  be copied or committed while it runs, and the copy resumes: the
-  journal is appended a line at a time and cut back to its last whole
-  line before a run appends to it (`repair`), `run.json` and `base.json`
-  are written through a file renamed over them, and the catalogue and
-  `docs/cost.md` are formatted by Prettier on its stdin (`formatText` of
-  `tooling.ts`) before each is written whole the same way. Git ignores
-  only the lock, which names a process on one machine. Every
-  fifteen seconds, and at the end, the run writes what it has found:
-  `catalogue.ts` decides each family it has measured anything of
-  (`decide`), and the catalogue and the tables of `docs/cost.md` are
-  rewritten. A new family's best case reaching the floor (a second warm)
-  takes its slot at once; another run's entry is replaced only by a case
-  that costs more per call measured beside it; the run's own entries are
-  replaced by its best, since they were measured under the same load. A
-  case past its deadline, or whose worker failed, is a hang, kept one per
-  family and ranked by `estimateMs` of the harness, which extends the
-  passes it finished along their growth in precision to the end of its
-  schedule; another run's hang is replaced by one estimated half again
-  as costly. A decision depends only on the journal, the snapshot and
-  the other runs' entries, so making it again makes the same. The tests
-  of `cases.ts`, `catalogue.ts`, `journal.ts` and `pool.ts` are ordinary
-  ones, since they evaluate nothing.
+  seed from the cryptographic source and prints it, and the catalogue
+  logs it with the run; `--list` prints the cases without evaluating
+  them. No timing decides what is drawn. A run samples the stream for
+  `--minutes` (ten by default), or until stopped with `--forever`: lanes,
+  one per core, take the next case as they come free (`pool.ts`), so a
+  long case holds one lane and the rest carry on, and timings under that
+  load stay within a few percent of timings alone. A hit, a case whose
+  warm cost reaches the floor (a second) or a hang (past its deadline,
+  or its worker failed), is written at once: `withHit` of `catalogue.ts`
+  puts it in its family's slot if the slot is empty or holds a case it
+  costs `MARGIN` (1.1) times, entries compared by their warm cost per
+  costly call and hangs by `estimateMs` of the harness, which extends
+  the passes a hang finished along their growth in precision to the end
+  of its schedule. A hit that joins is then typed out (`typeOut` of the
+  harness: `outcomeOf` on every prefix of its text in order, in one
+  worker so that the memos carry over as in a session), and that is
+  written too. Every change goes through `update` of `tooling.ts`, under
+  a lock file (`bench/stress/catalogue.lock`, ignored by git, taken over
+  from a process that is gone): the catalogue is read as it is, changed,
+  formatted with the tables of `docs/cost.md` by Prettier on its stdin,
+  and each file written whole through a file renamed over it. So runs
+  can share a working tree, and a copy of the files, or a commit, taken
+  at any moment holds them formatted and complete. When the time is up,
+  or on Ctrl-C, no case starts, the writes under way finish, the run's
+  record (seed, cases measured, hits) is written, and the process ends,
+  abandoning the cases it was measuring. The tests of `cases.ts`,
+  `catalogue.ts` and `pool.ts` are ordinary ones, since they evaluate
+  nothing.
 - `bench/stress/verify.ts` is the stress suite (8.3), run by
   `pnpm stress` and discovered by neither `pnpm test` nor `pnpm bench`.
-  Each catalogued case is a unit, measured in a worker of its own, cold
-  and warm, in the search's lanes, cheapest first by its catalogued time,
-  then the hangs (`--skip-hangs` leaves them out); each result is printed
-  and journaled as it comes, under a directory keyed by the contents of
-  the code, the tools, the dependencies and the catalogue (`treeKey` of
-  `tooling.ts`), so the suite resumes while they stand and starts afresh
-  after a change; a commit that changes none of them, a snapshot of a
-  run, keeps the key. An
-  entry's deadline is four times its catalogued time and two minutes at
-  least. It fails on what holds on any machine: an entry's outcome's
-  kind, value and warnings as catalogued (the note after the value,
-  which states a bound a sharper kernel may tighten, is left out), and
-  no entry past its deadline. It reports the timings beside the
-  catalogue's, each entry's cost as a multiple of a reference case
-  (`exp(1) - exp(1)`), entries much cheaper than catalogued, and for each
-  hang how far it got and its estimate, or that it now finishes.
+  It measures again the catalogued cases that call the functions named
+  on its command line (all of them when none is named, those of one
+  profile with `--profile`), each in a worker of its own, cold and warm,
+  in the search's lanes, cheapest first by its catalogued time, then the
+  hangs (`--skip-hangs` leaves them out), printing each result as it
+  comes. An entry's deadline is four times its catalogued time and two
+  minutes at least. It fails on what holds on any machine: an entry's
+  outcome's kind, value and warnings as catalogued (the note after the
+  value, which states a bound a sharper kernel may tighten, is left
+  out), and no entry past its deadline. It reports the timings beside
+  the catalogue's, each entry's cost as a multiple of a reference case
+  (`exp(1) - exp(1)`), entries much cheaper than catalogued, and for
+  each hang how far it got and its estimate, or that it now finishes.
 - `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
   drawn from the letters `n` to `z` and unit names from `a` to `m`, so
   that no name is ambiguous and the ambiguity check scans everything: its

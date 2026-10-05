@@ -4,20 +4,16 @@
 // docs/cost.md for people. Nothing here measures; the search hands in what
 // it measured, and this module decides what the catalogue keeps.
 //
-// A run adds to the catalogue rather than replacing it. Each entry is the
-// costliest case found of its family (cases.ts), ranked by its warm cost
-// per costly call. A case takes its family's slot when the catalogue has
-// none for it and it costs at least the floor. Another run's entry is
-// replaced only by a case that costs more per call measured back to back
-// with it, in one lane, since only timings taken together compare; a
-// run's own entries compare directly, measured under the same load.
-// Cases that passed their deadline, or whose worker failed, are hangs,
-// one per family, ranked by their estimated cost. `decide` makes these
-// choices for one family at a time, so that a run writes the catalogue as
-// each family's cases are measured rather than at its end, and making a
-// choice again makes the same. Each run is logged with its seed (or the
-// enumeration) and the indices of its cases, so that `--seed` and
-// `--cases` replay it exactly.
+// A run adds to the catalogue rather than replacing it, a hit at a time.
+// Each entry is the costliest case found of its family (cases.ts), ranked
+// by its warm cost per costly call; each hang, a case that passed its
+// deadline or whose worker failed, is the costliest of its family by its
+// estimated cost. A hit takes its family's entry or hang when there is
+// none, or when it costs `MARGIN` times the one there: timings taken at
+// different times, or on different machines, differ by a few percent,
+// and the margin keeps near-equal cases from trading places. Each run is
+// logged with its seed and how many cases it measured, and each entry
+// with the seed and index that drew it, so that any case replays.
 
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -28,7 +24,7 @@ import type { Machine, Progress, Run, Running, Typing } from "./harness.ts";
 // ---------------------------------------------------------------------------
 // Types
 
-/** Where a case came from: the seed and index that drew it, or the enumeration. */
+/** Where a case came from: the seed and index that drew it, or its place in the fixed enumeration the first catalogue was built from. */
 export type Source =
   | { readonly seed: string; readonly index: number }
   | { readonly enumeration: number };
@@ -123,12 +119,11 @@ export type Hang = {
   readonly issue?: number;
 };
 
-/** A run of the search, as logged. */
+/** A run of the search, as logged: its seed, when it began, how many cases it measured and how many were hits. */
 export type RunRecord = {
   readonly source: { readonly seed: string } | { readonly enumeration: true };
   readonly cases: number;
-  /** The indices of the cases, as ranges: `0-99`, or `100-199,250` for a later merge. */
-  readonly indices: string;
+  readonly hits?: number;
   readonly commit: Commit;
   readonly date: string;
   readonly machine: Machine;
@@ -161,15 +156,11 @@ export function perCall(entry: Pick<Entry, "warm" | "calls">): number {
   return entry.warm.ms / entry.calls;
 }
 
-/** The run a source belongs to: a seed's sequence, or the enumeration. */
-export type RunSource = RunRecord["source"];
-
-/** Whether a case from `source` was found by the run `run`. */
-export function fromRun(source: Source, run: RunSource): boolean {
-  return "seed" in run
-    ? "seed" in source && source.seed === run.seed
-    : "enumeration" in source;
-}
+/**
+ * How many times costlier a hit must be than its family's entry, or hang,
+ * to replace it.
+ */
+export const MARGIN = 1.1;
 
 /**
  * A hang's estimated warm cost, which ranks hangs: as estimated when it
@@ -182,138 +173,84 @@ export function hangEstimate(hang: Hang): number {
   return hang.reason.estimateMs ?? hang.reason.deadlineMs;
 }
 
-/**
- * How many times costlier a hang must be estimated to replace another
- * run's hang of its family: estimates from different runs compare only
- * roughly, and measuring two hangs back to back would cost two deadlines.
- */
-export const HANG_MARGIN = 1.5;
-
-/** What a run found of one family. */
-export type Findings = {
-  /** The costliest finished case that reached the floor, as the run measured it. */
-  readonly best: Entry | undefined;
-  /** The hang estimated costliest. */
-  readonly worst: Hang | undefined;
-  /** Whether every case of the family in the run's range is measured. */
-  readonly complete: boolean;
-};
-
-/** A family's entry and hang, either of which may be absent. */
-export type Slot = { readonly entry?: Entry; readonly hang?: Hang };
-
-/** A case and an entry measured back to back: each as an entry, or `undefined` if it did not finish. */
-export type Pair = {
-  readonly candidate: Entry | undefined;
-  readonly incumbent: Entry | undefined;
-};
-
-/** What the catalogue holds for a family after a run, and what the run still owes it. */
-export type Decision = Slot & {
-  /** An entry of another run that the best case must be measured beside first. */
-  readonly pairWith: Entry | undefined;
-};
+/** What a hit did to the catalogue. */
+export type Change = "added" | "replaced" | "kept";
 
 /**
- * What a run's `findings` make of a family's slot. The incumbent is the
- * entry of another run: the one the catalogue holds now (`current`), or
- * else the one it held when the run began (`base`), which the run may
- * since have replaced. The best case takes the slot when there is no
- * incumbent; when there is one, it must be measured beside it (`pair`),
- * once the family's cases are all measured so that only the best is,
- * and takes the slot if it costs more per call there. Until then the
- * slot stays as it is. A hang takes the hang slot when there is no other
- * run's hang there, or when it is estimated `HANG_MARGIN` times costlier
- * than it, keeping the issue filed for the slot. The decision depends on
- * the findings, the base and the incumbent alone, so making it again
- * makes the same: the run's own entries in `current` are replaced, not
- * compared.
+ * `catalogue` with `hit`, a finished case or a hang, in its family's slot
+ * if the slot is empty or holds a case it costs `MARGIN` times, and what
+ * it did. A hang that replaces another keeps the issue filed for it. The
+ * entries stay ranked by their cost per call, and the hangs by their
+ * estimates.
  */
-export function decide(
-  run: RunSource,
-  findings: Findings,
-  base: Slot,
-  current: Slot,
-  pair: (best: Entry, incumbent: Entry) => Pair | undefined,
-): Decision {
-  const other = <T extends { readonly source: Source }>(x: T | undefined) =>
-    x !== undefined && !fromRun(x.source, run) ? x : undefined;
-  let entry = current.entry;
-  let pairWith: Entry | undefined;
-  const { best, worst } = findings;
-  if (best !== undefined) {
-    const incumbent = other(current.entry) ?? other(base.entry);
-    if (incumbent === undefined) {
-      entry = best;
-    } else if (findings.complete) {
-      const measured = pair(best, incumbent);
-      if (measured === undefined) {
-        pairWith = incumbent;
-      } else {
-        const { candidate, incumbent: again } = measured;
-        const wins =
-          candidate !== undefined &&
-          (again === undefined || perCall(candidate) > perCall(again));
-        entry = wins ? candidate : incumbent;
-      }
-    }
-  }
-  let hang = current.hang;
-  if (worst !== undefined) {
-    const incumbent = other(current.hang) ?? other(base.hang);
-    const issue = current.hang?.issue ?? incumbent?.issue;
-    const replaces =
-      incumbent === undefined ||
-      hangEstimate(worst) > HANG_MARGIN * hangEstimate(incumbent);
-    hang = replaces
-      ? issue === undefined
-        ? worst
-        : { ...worst, issue }
-      : incumbent;
-  }
-  return {
-    ...(entry === undefined ? {} : { entry }),
-    ...(hang === undefined ? {} : { hang }),
-    pairWith,
-  };
-}
-
-/** The slot of the family `key` in `catalogue`. */
-export function slotOf(catalogue: Catalogue, key: string): Slot {
-  const entry = catalogue.entries.find((e) => familyKey(e.family) === key);
-  const hang = catalogue.hangs.find((h) => familyKey(h.family) === key);
-  return {
-    ...(entry === undefined ? {} : { entry }),
-    ...(hang === undefined ? {} : { hang }),
-  };
-}
-
-/**
- * `catalogue` with the family `key`'s slot set to `slot`, the entries
- * ranked by their cost per call and the hangs by their estimates.
- */
-export function withSlot(
+export function withHit(
   catalogue: Catalogue,
-  key: string,
-  slot: Slot,
+  hit: { readonly entry: Entry } | { readonly hang: Hang },
+): { readonly catalogue: Catalogue; readonly change: Change } {
+  if ("entry" in hit) {
+    const key = familyKey(hit.entry.family);
+    const there = catalogue.entries.find((e) => familyKey(e.family) === key);
+    if (there !== undefined && perCall(hit.entry) < MARGIN * perCall(there)) {
+      return { catalogue, change: "kept" };
+    }
+    const entries = [
+      ...catalogue.entries.filter((e) => e !== there),
+      hit.entry,
+    ].sort((a, b) => perCall(b) - perCall(a));
+    return {
+      catalogue: { ...catalogue, entries },
+      change: there === undefined ? "added" : "replaced",
+    };
+  }
+  const key = familyKey(hit.hang.family);
+  const there = catalogue.hangs.find((h) => familyKey(h.family) === key);
+  if (
+    there !== undefined &&
+    !(hangEstimate(hit.hang) >= MARGIN * hangEstimate(there))
+  ) {
+    return { catalogue, change: "kept" };
+  }
+  const issue = there?.issue;
+  const hang = issue === undefined ? hit.hang : { ...hit.hang, issue };
+  const hangs = [...catalogue.hangs.filter((h) => h !== there), hang].sort(
+    (a, b) => hangEstimate(b) - hangEstimate(a),
+  );
+  return {
+    catalogue: { ...catalogue, hangs },
+    change: there === undefined ? "added" : "replaced",
+  };
+}
+
+/**
+ * `catalogue` with `typing` recorded on the entry for the case `c`, if the
+ * catalogue still holds one: a later hit may have replaced it meanwhile.
+ */
+export function withTyping(
+  catalogue: Catalogue,
+  c: {
+    readonly have: string;
+    readonly want: string;
+    readonly settings: Settings;
+  },
+  typing: TypingSummary,
 ): Catalogue {
-  const entries = catalogue.entries.filter((e) => familyKey(e.family) !== key);
-  const hangs = catalogue.hangs.filter((h) => familyKey(h.family) !== key);
-  if (slot.entry !== undefined) entries.push(slot.entry);
-  if (slot.hang !== undefined) hangs.push(slot.hang);
+  const same = (e: Entry) =>
+    e.have === c.have &&
+    e.want === c.want &&
+    JSON.stringify(e.settings) === JSON.stringify(c.settings);
   return {
     ...catalogue,
-    entries: entries.sort((a, b) => perCall(b) - perCall(a)),
-    hangs: hangs.sort((a, b) => hangEstimate(b) - hangEstimate(a)),
+    entries: catalogue.entries.map((e) => (same(e) ? { ...e, typing } : e)),
   };
 }
 
 /** A keystroke that costs at least this is one the interface visibly waits on. */
 export const SLOW_KEYSTROKE_MS = 100;
 
-/** `catalogue` with `run` logged, in place of an earlier record of its run. */
+/** `catalogue` with `run` logged, in place of an earlier record of the same run (its source and start). */
 export function withRun(catalogue: Catalogue, run: RunRecord): Catalogue {
   const same = (r: RunRecord) =>
+    r.date === run.date &&
     JSON.stringify(r.source) === JSON.stringify(run.source);
   return {
     ...catalogue,

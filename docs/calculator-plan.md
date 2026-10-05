@@ -5269,20 +5269,19 @@ reproduces what a run searched.
   `lowergammareg(a, x) + uppergammareg(a, x) - 1`,
   `incbetareg(a, b, x) + incbetareg(b, a, 1 - x) - 1`,
   `exp(ln(x)) - x`, and the like), which grows with the built-ins.
-- **The extent.** `--cases n` runs the first `n` cases of the sequence,
-  and `--budget` stops at a time instead, after a prefix of the same
-  sequence; a result records the seed and the count run, so a replay
-  with `--cases` runs exactly the same cases. `--list` prints the cases
-  of a seed without evaluating them, the cheap way to see what a run
-  searched and in what order. `--enumerate` runs instead the fixed
-  enumeration of every built-in over its argument classes in each
-  pattern, which needs no seed: for a first run, after a change to a
-  kernel, and when #115 adds functions.
+- **The extent.** As 8.3 landed it, a run samples the sequence for a
+  time (`--minutes`, or until stopped with `--forever`) rather than
+  covering a count, and the catalogue logs the seed and how many cases
+  it measured; each entry names the index that drew it. `--list` prints
+  the cases of a seed without evaluating them, the cheap way to see what
+  a run searched and in what order. The fixed enumeration of every
+  built-in over its argument classes that this task first had is gone:
+  sampling builds the list up over time instead.
 - **The measurement.** Cases run in parallel workers, one per core, each
   under a deadline; a case past it is reported as a hang, not ranked.
   Which cases a run keeps depends on their measured cost, the one thing
-  wall-clock time decides: the costliest are measured again (beside
-  their family's entry, as 8.3 landed it), and ranked by
+  wall-clock time decides (as 8.3 landed it, they are not measured
+  again), and ranked by
   their warm cost per costly call, with the cold cost recorded beside
   it. The timings themselves cannot be reproduced exactly, so only cases
   above a floor (a second warm, at first) enter the catalogue: a case
@@ -5403,63 +5402,44 @@ docs/cost.md gives the findings by cause:
   keystroke of 100 ms or more on the last one, the keystroke that
   completes the expression.
 
-The tools then changed shape, since a run of the search had taken two
-hours and been lost whole when stopped. Every long run is now units of
-work, each the least that can be done alone, pulled one at a time by
-lanes, one per core (`pool.ts`), and journaled as it finishes
-(`journal.ts`), so a run stopped anywhere resumes losing only the units
-that were running, and results come as they are found:
+The search then changed shape twice. The first design measured a fixed
+range of cases, then measured each family's costliest again alone, and
+wrote nothing until the end: a run of six hundred cases took two hours
+and was lost whole when stopped. A second design journaled every unit
+of work so that runs resumed and could be sharded, which was far more
+machinery than the task needs. As it landed, the search is a sampler:
 
-- **The search's units** are a case measured (cold and warm together,
-  since the warm evaluation needs the cold one's memos), a pair (a
-  family's best case and another run's entry for the family, back to
-  back in one lane) and an entry typed out (in one worker, since each
-  keystroke needs the memos of the ones before it). There is no second
-  step: a pair or a typing is ready as soon as its family's cases are
-  all measured, and the lanes take it before the next case. Each case was
-  measured again alone in the first design, which on four cores took as
-  long as the search itself, but the timings under load had stayed
-  within a few percent of the solo ones (a median ratio of 1.06, and
-  1.31 at worst, over two hundred cases), so they are kept.
-- **The catalogue is written as the run goes,** every fifteen seconds
-  and at the end: `decide` (catalogue.ts) settles each family the run
-  has measured anything of, against the catalogue as it is and a
-  snapshot of it from when the run began, and makes the same choice
-  when made again, so the writes can repeat. A new family's best case
-  takes its slot at once, a hang as soon as it is found, a pair's winner
-  once the pair is measured.
+- **A run samples for a while** (`--minutes`, ten by default, or until
+  stopped with `--forever`), drawing cases from its seed in order,
+  lanes one per core (`pool.ts`). There is no range to cover and no
+  enumeration: the fixed sweep of every built-in over its argument
+  classes is gone, and runs build the catalogue up over time.
+- **Each hit is written as it is found** (`update` of tooling.ts): a
+  case whose warm cost reaches the floor, or a hang, takes its family's
+  slot when the slot is empty or holds a case it costs 1.1 times
+  (`withHit`), so that timings from different runs or machines, which
+  differ by a few percent, do not swap near-equal cases. Timings under
+  the lanes' load are kept: they stayed within a few percent of solo
+  ones (a median ratio of 1.06, 1.31 at worst, over two hundred cases).
+  A hit that joins is typed out and that is written too.
+- **The files are whole at every moment.** Each change is made under a
+  lock file, from the catalogue as it is, and the catalogue and the
+  tables of docs/cost.md are formatted on Prettier's stdin and each
+  written through a file renamed over it. So several runs can share a
+  working tree, and whenever a run ends or is stopped, what it found is
+  ready to commit, with nothing to resume and nothing to merge. The
+  tools never touch git.
 - **Hangs rank.** A case past its deadline records the passes it
   finished, how long the running one had run and the schedule, and
   `estimateMs` (harness.ts) extends the passes along their growth in
   precision to the end of the schedule: the hangs table of docs/cost.md
-  ranks them by that estimate, the slot of a family keeps its costliest,
-  and another run's hang gives way to one estimated half again as
-  costly.
-- **The stress suite** is `verify.ts`, a script rather than node:test
-  files, since a test runner fixes its tests before it starts: the
-  entries, cheapest first so that results come in seconds, then the
-  hangs, in the same lanes, journaled under a key of the commit, the
-  changes beside it and the catalogue, so it resumes on the same tree
-  and starts afresh after a change.
-- **Snapshots.** Everything a run writes can be copied or committed at
-  any moment while it runs, and the copy resumes, so the progress of a
-  long run can be kept by committing its files as it goes; the tools
-  themselves never touch git. The journal is cut back to its last whole
-  line before a run appends to it, since a copy taken during an append
-  ends in part of a line, which the next record would otherwise join and
-  be lost with. The catalogue and its tables are formatted before they
-  are written and written whole, rather than written and then formatted
-  in place, which left a moment when a copy would hold a file cut short.
-  Git ignores only a run's lock, and the stress suite's key is the
-  contents of the code and the catalogue rather than the commit, so a
-  snapshot commit neither carries a lock to another machine nor restarts
-  the suite. `--resume` carries on the latest search without its seed.
-- **One machine.** A cloud session here is one container with no
-  filesystem or network shared with any other, so the lanes share the
-  work among one machine's cores. The units and the journal do not
-  depend on that: sharing them across machines needs only a way to hand
-  out units, files in a shared directory or a coordinator, when there is
-  more than one machine to share with.
+  ranks them by that estimate.
+- **The stress suite targets functions.** `verify.ts`, `pnpm stress
+<function> ...`, measures again the catalogued cases that call the
+  functions named, cheapest first, printing each result as it comes,
+  since an optimization aims at a family or two: one function's cases
+  take one to four minutes on four cores, the whole catalogue about
+  twenty.
 
 Hangs are filed one issue per setting that produces them, not one per
 case, since each setting's hangs share their causes. #151 covers the

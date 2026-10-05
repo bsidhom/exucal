@@ -1,18 +1,41 @@
 // What the stress tools share (docs/calculator-plan.md, task 8.3): the
 // commit a measurement was taken at, a case measured into the form the
-// journal keeps, and the formatting of the files a run writes.
+// catalogue keeps, and the one way the catalogue and its tables are
+// changed (`update`).
 //
 // Commands run as security rules require (ARCHITECTURE.md, "Security"):
 // git and Prettier through `execFileSync` and `spawn` with an argument
 // array and no shell, git's lists read NUL-separated.
 
 import { execFileSync, spawn } from "node:child_process";
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { hostname } from "node:os";
+import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { roundRun, type Commit, type Entry } from "./catalogue.ts";
+import {
+  HANGS_END,
+  HANGS_START,
+  catalogueTable,
+  hangsTable,
+  readCatalogue,
+  roundRun,
+  withTable,
+  writeAtomically,
+  type Catalogue,
+  type Commit,
+  type Entry,
+} from "./catalogue.ts";
 import { measure, type Case, type Measurement } from "./harness.ts";
-import type { Outcome } from "./journal.ts";
+
+/** What measuring a case gave: a measurement, or the failure of its worker. */
+export type Outcome =
+  { readonly measured: Measurement } | { readonly failed: string };
 
 /** The repository's root. */
 export const root = new URL("../../", import.meta.url);
@@ -21,8 +44,8 @@ export const root = new URL("../../", import.meta.url);
 export const CATALOGUE = new URL("bench/stress/catalogue.json", root);
 export const DOC = new URL("docs/cost.md", root);
 
-/** Where the runs' journals are kept (ignored by git). */
-export const RUNS = new URL("bench/stress/runs/", root);
+/** The lock taken while the catalogue and its tables are changed (ignored by git). */
+const LOCK = new URL("bench/stress/catalogue.lock", root);
 
 /** The commit the tree is at, and whether tracked files have changed. */
 export function currentCommit(): Commit {
@@ -44,7 +67,7 @@ function tenth(ms: number): number {
   return Math.round(ms * 10) / 10;
 }
 
-/** `m` with its timings rounded, as the journal and catalogue keep them. */
+/** `m` with its timings rounded, as the catalogue keeps them. */
 function rounded(m: Measurement): Measurement {
   if (m.status === "done") {
     return { ...m, cold: roundRun(m.cold), warm: roundRun(m.warm) };
@@ -115,43 +138,83 @@ export function formatText(text: string, file: URL): Promise<string> {
   });
 }
 
-/** The files whose contents decide what a measurement gives: the code, the tools, the catalogue and the dependencies. */
-const KEYED = ["src", "bench/stress", "package.json", "pnpm-lock.yaml"];
+/** A lock held longer than this is left by a process that is stuck or gone: no update takes it. */
+const STALE_LOCK_MS = 60_000;
+
+/** Whether the process `pid` on this host is alive. */
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
 
 /**
- * A key for the code and the catalogue as they stand: a hash of the path
- * and contents of every file, tracked or new, under `KEYED`, the runs'
- * journals left out, so that a run keyed by it resumes only while none of
- * them has changed, and a commit that changes none of them (a snapshot
- * of a run) leaves it as it was.
+ * Takes the catalogue's lock, waiting while another process holds it. A
+ * lock whose process on this host is gone, or that has been held past
+ * `STALE_LOCK_MS`, is taken over. Gives its release.
  */
-export function treeKey(): string {
-  const cwd = fileURLToPath(root);
-  const listed = execFileSync(
-    "git",
-    [
-      "ls-files",
-      "-z",
-      "--cached",
-      "--others",
-      "--exclude-standard",
-      "--",
-      ...KEYED,
-      ":(exclude)bench/stress/runs",
-    ],
-    { cwd, encoding: "utf8", maxBuffer: 1 << 28 },
-  );
-  const paths = [...new Set(listed.split("\0").filter((p) => p !== ""))].sort();
-  const hash = createHash("sha256");
-  for (const path of paths) {
-    hash.update(`${path}\0`);
+async function takeLock(): Promise<() => void> {
+  const me = JSON.stringify({ host: hostname(), pid: process.pid });
+  for (;;) {
     try {
-      hash.update(readFileSync(new URL(path, root)));
+      writeFileSync(LOCK, me, { flag: "wx" });
+      return () => rmSync(LOCK, { force: true });
     } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
-      hash.update("deleted");
+      if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
     }
-    hash.update("\0");
+    let stale = false;
+    try {
+      const holder = JSON.parse(readFileSync(LOCK, "utf8")) as {
+        host?: string;
+        pid?: number;
+      };
+      stale =
+        (holder.host === hostname() &&
+          typeof holder.pid === "number" &&
+          !alive(holder.pid)) ||
+        Date.now() - statSync(LOCK).mtimeMs > STALE_LOCK_MS;
+    } catch {
+      // Gone already, or being written: try again.
+    }
+    if (stale) rmSync(LOCK, { force: true });
+    else await sleep(20 + Math.random() * 80);
   }
-  return hash.digest("hex").slice(0, 16);
+}
+
+/**
+ * Changes the catalogue by `change`, under the lock, so that processes
+ * running in one working tree at once take turns: the catalogue read as
+ * it is now, changed, and it and the tables of docs/cost.md formatted and
+ * then each written whole, through a file renamed over it, so that a copy
+ * taken at any moment, or a process stopped at any moment, leaves both
+ * files formatted and complete. Gives the catalogue written.
+ */
+export async function update(
+  change: (catalogue: Catalogue) => Catalogue,
+): Promise<Catalogue> {
+  const release = await takeLock();
+  try {
+    const catalogue = change(readCatalogue(CATALOGUE));
+    const text = await formatText(
+      `${JSON.stringify(catalogue, null, 2)}\n`,
+      CATALOGUE,
+    );
+    let doc: string | undefined;
+    if (existsSync(DOC)) {
+      doc = withTable(readFileSync(DOC, "utf8"), catalogueTable(catalogue));
+      if (doc !== undefined) {
+        doc =
+          withTable(doc, hangsTable(catalogue), HANGS_START, HANGS_END) ?? doc;
+        doc = await formatText(doc, DOC);
+      }
+    }
+    writeAtomically(CATALOGUE, text);
+    if (doc !== undefined) writeAtomically(DOC, doc);
+    return catalogue;
+  } finally {
+    release();
+  }
 }

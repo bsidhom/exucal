@@ -1,25 +1,22 @@
 // The stress suite (docs/calculator-plan.md, task 8.3), run by hand:
 //
-//   pnpm stress [--jobs <n>] [--skip-hangs]
+//   pnpm stress [<function> ...] [--profile <name>] [--skip-hangs]
+//               [--jobs <n>]
 //
-// Every case of the catalogue (bench/stress/catalogue.json), measured
-// again: before and after a change aimed at one of its cases, after a
-// change to a kernel, and when the interface's work (#118) wants a fresh
-// target. Neither `pnpm test` nor `pnpm bench` runs it, so `pnpm test:all`
-// never does: it runs for minutes.
+// The catalogue's cases (bench/stress/catalogue.json) that call the
+// functions named, or every case when none is named, measured again:
+// before and after a change aimed at those functions, after a change to
+// a kernel, and when the interface's work (#118) wants a fresh target.
+// `--profile` keeps the cases of one settings profile. Neither `pnpm test`
+// nor `pnpm bench` runs it, so `pnpm test:all` never does.
 //
-// Each catalogued case is a unit, measured cold and warm in a worker of
-// its own: the entries first, the cheapest first by their catalogued
-// time so that results come early and the longest units end the run, then
-// the hangs, unless `--skip-hangs`. Lanes, one per core (`--jobs`), pull the
-// next as they come free (pool.ts), as the search measured them, so that
-// the timings are the catalogue's kind, and each result is printed and
-// journaled as it comes (journal.ts), under bench/stress/runs/stress-<key>/
-// for a key of the code and the catalogue (`treeKey`): run again on the
-// same code and catalogue, the suite carries on where it stopped, and
-// after a change to either it starts afresh. A commit that changes
-// neither, such as a snapshot of a run, keeps the key.
-//
+// Each case is measured cold and warm in a worker of its own: the entries
+// first, the cheapest first by their catalogued time so that results come
+// early, then the hangs, unless `--skip-hangs`. Lanes, one per core
+// (`--jobs`), take the next as they come free (pool.ts), as the search
+// measured them, so that the timings are the catalogue's kind, and each
+// result is printed as it comes. Stopped, it has printed what it checked.
+
 // It fails only on what holds on any machine:
 //
 // - **An entry gives another outcome than catalogued:** another kind,
@@ -33,12 +30,10 @@
 // The rest is reported: the timings beside the catalogue's, each entry's
 // warm cost as a multiple of a reference case measured first (which
 // compares across machines as a timing does not), an entry much cheaper
-// than catalogued, which the search will replace when it measures its
-// family again, and for each hang how far it got and its estimated cost,
-// or that it now finishes, which a search will catalogue.
+// than catalogued, and for each hang how far it got and its estimated
+// cost, or that it now finishes.
 
 import { availableParallelism } from "node:os";
-import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
   hangEstimate,
@@ -54,17 +49,8 @@ import {
   type Case,
   type OutcomeSummary,
 } from "./harness.ts";
-import {
-  append,
-  caseKey,
-  lock,
-  readJournal,
-  repair,
-  type CheckRecord,
-  type Outcome,
-} from "./journal.ts";
 import { runPool } from "./pool.ts";
-import { CATALOGUE, RUNS, measureCase, treeKey } from "./tooling.ts";
+import { CATALOGUE, measureCase, type Outcome } from "./tooling.ts";
 
 /** The reference: an elementary cancellation that runs to the ceiling in milliseconds. */
 const REFERENCE = caseOf("exp(1) - exp(1)");
@@ -138,7 +124,7 @@ function verdict(
     if (m.status === "done") {
       return {
         failed: false,
-        line: `  ${name}: now finishes, warm ${seconds(m.warm.ms)} (catalogued as ${was}): the next search of its seed catalogues it`,
+        line: `  ${name}: now finishes, warm ${seconds(m.warm.ms)} (catalogued as ${was})`,
       };
     }
     const at =
@@ -192,11 +178,21 @@ function verdict(
   };
 }
 
+/** Whether `functions`, the names asked for, select a family that calls `called`; no names select every family. */
+export function selects(
+  functions: readonly string[],
+  called: readonly string[],
+): boolean {
+  return functions.length === 0 || called.some((f) => functions.includes(f));
+}
+
 async function main(): Promise<void> {
   let parsed;
   try {
     parsed = parseArgs({
+      allowPositionals: true,
       options: {
+        profile: { type: "string" },
         jobs: { type: "string" },
         "skip-hangs": { type: "boolean", default: false },
         help: { type: "boolean", default: false },
@@ -207,8 +203,11 @@ async function main(): Promise<void> {
     process.exit(2);
   }
   const options = parsed.values;
+  const functions = parsed.positionals;
   if (options.help) {
-    console.log("usage: pnpm stress [--jobs <n>] [--skip-hangs]");
+    console.log(
+      "usage: pnpm stress [<function> ...] [--profile <name>] [--skip-hangs] [--jobs <n>]",
+    );
     return;
   }
   const jobs =
@@ -219,102 +218,67 @@ async function main(): Promise<void> {
   }
 
   const catalogue = readCatalogue(CATALOGUE);
-  const dir = new URL(`stress-${treeKey()}/`, RUNS);
-  const held = lock(dir);
-  if ("heldBy" in held) {
+  const chosen = (x: Entry | Hang) =>
+    selects(functions, x.family.functions) &&
+    (options.profile === undefined || x.family.profile === options.profile);
+  const entries = catalogue.entries
+    .filter(chosen)
+    .sort((a, b) => a.cold.ms + a.warm.ms - (b.cold.ms + b.warm.ms));
+  const hangs = options["skip-hangs"] ? [] : catalogue.hangs.filter(chosen);
+  const units: Unit[] = [
+    ...entries.map((entry): Unit => ({ kind: "entry", entry })),
+    ...hangs.map((hang): Unit => ({ kind: "hang", hang })),
+  ];
+  if (units.length === 0) {
     console.error(
-      `another process is running this suite: ${held.heldBy}; if it is gone (on another machine, say), delete ${fileURLToPath(new URL("lock", dir))}`,
+      `no catalogued case calls ${functions.join(", ") || "anything"}${options.profile === undefined ? "" : ` under ${options.profile}`}`,
     );
     process.exit(2);
   }
-  for (const signal of ["SIGINT", "SIGTERM"] as const) {
-    process.on(signal, () => {
-      held.release();
-      console.log("\nstopped; run pnpm stress again to carry on");
-      process.exit(130);
-    });
-  }
-  try {
-    repair(dir);
-    const checks = new Map<string, CheckRecord>();
-    const journal = readJournal(dir);
-    for (const record of journal.records) {
-      if (record.kind === "check") checks.set(record.case, record);
-    }
-    const m = machine();
-    console.log(`journal: ${fileURLToPath(dir)}`);
-    console.log(`${m.cpu}, ${m.cores} cores, Node ${m.node}; ${jobs} lanes`);
+  // What the catalogue's own timings say the run will take, for the
+  // person waiting on it.
+  const expectedMs =
+    (entries.reduce((sum, e) => sum + e.cold.ms + e.warm.ms, 0) +
+      hangs.reduce(
+        (sum, h) => sum + deadlineOf({ kind: "hang", hang: h }),
+        0,
+      )) /
+    jobs;
+  const m = machine();
+  console.log(
+    `${m.cpu}, ${m.cores} cores, Node ${m.node}; ${jobs} lanes; ${entries.length} entries and ${hangs.length} hangs, about ${Math.ceil(expectedMs / 60_000)} minute${Math.ceil(expectedMs / 60_000) === 1 ? "" : "s"}`,
+  );
 
-    // The reference, alone, before the lanes start.
-    let reference = checks.get(caseKey(REFERENCE));
-    if (reference === undefined) {
-      reference = {
-        kind: "check",
-        case: caseKey(REFERENCE),
-        date: new Date().toISOString(),
-        ...(await measureCase(REFERENCE, 120_000)),
-      } as CheckRecord;
-      append(dir, reference);
-    }
-    const referenceMs =
-      "measured" in reference && reference.measured.status === "done"
-        ? reference.measured.warm.ms
-        : undefined;
-    console.log(
-      referenceMs === undefined
-        ? `${REFERENCE.have}: did not finish; no ratios`
-        : `${REFERENCE.have}: warm ${referenceMs.toFixed(1)} ms, the unit of the ratios`,
-    );
+  // The reference, alone, before the lanes start.
+  const reference = await measureCase(REFERENCE, 120_000);
+  const referenceMs =
+    "measured" in reference && reference.measured.status === "done"
+      ? reference.measured.warm.ms
+      : undefined;
+  console.log(
+    referenceMs === undefined
+      ? `${REFERENCE.have}: did not finish; no ratios`
+      : `${REFERENCE.have}: warm ${referenceMs.toFixed(1)} ms, the unit of the ratios`,
+  );
 
-    const units: Unit[] = [
-      ...[...catalogue.entries]
-        .sort((a, b) => a.cold.ms + a.warm.ms - (b.cold.ms + b.warm.ms))
-        .map((entry): Unit => ({ kind: "entry", entry })),
-      ...(options["skip-hangs"]
-        ? []
-        : catalogue.hangs.map((hang): Unit => ({ kind: "hang", hang }))),
-    ];
-    const verdicts: Verdict[] = [];
-    const todo: Unit[] = [];
-    for (const unit of units) {
-      const record = checks.get(caseKey(caseOfUnit(unit)));
-      if (record === undefined) todo.push(unit);
-      else verdicts.push(verdict(unit, record, referenceMs));
-    }
-    if (verdicts.length > 0) {
-      const failed = verdicts.filter((v) => v.failed);
-      console.log(
-        `${verdicts.length} of ${units.length} already checked on this tree, ${failed.length} failed`,
-      );
-      for (const v of failed) console.log(v.line);
-    }
-    let i = 0;
-    await runPool<Unit>({
-      jobs,
-      next: () => todo[i++],
-      run: async (unit) => {
-        const c = caseOfUnit(unit);
-        const outcome = await measureCase(c, deadlineOf(unit));
-        const record = {
-          kind: "check",
-          case: caseKey(c),
-          date: new Date().toISOString(),
-          ...outcome,
-        } as CheckRecord;
-        append(dir, record);
-        const v = verdict(unit, outcome, referenceMs);
-        verdicts.push(v);
-        console.log(`[${verdicts.length}/${units.length}] ${v.line}`);
-      },
-    });
-    const failed = verdicts.filter((v) => v.failed).length;
-    console.log(
-      `\n${units.length} checked: ${failed} failed, ${verdicts.length - failed} passed or reported`,
-    );
-    process.exitCode = failed > 0 ? 1 : 0;
-  } finally {
-    held.release();
-  }
+  const verdicts: Verdict[] = [];
+  let i = 0;
+  await runPool<Unit>({
+    jobs,
+    next: () => units[i++],
+    run: async (unit) => {
+      const outcome = await measureCase(caseOfUnit(unit), deadlineOf(unit));
+      const v = verdict(unit, outcome, referenceMs);
+      verdicts.push(v);
+      console.log(`[${verdicts.length}/${units.length}] ${v.line}`);
+    },
+  });
+  const failed = verdicts.filter((v) => v.failed);
+  console.log(
+    `\n${units.length} checked: ${failed.length} failed, ${units.length - failed.length} passed or reported`,
+  );
+  for (const v of failed) console.log(v.line);
+  process.exitCode = failed.length > 0 ? 1 : 0;
 }
 
 await main();

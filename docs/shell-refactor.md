@@ -5,7 +5,11 @@ the text below: `styles.ts` shares the button and hint rules but leaves
 the converter's control look where it is, since the converter was not to
 change; `isMaxBits` stays, for `loadSettings` and the bench; and
 docs/calculator-plan.md is left as it is, since it records the tasks as
-they landed. The questions for the UX step still stand.
+they landed. The questions for the UX step still stand, but one is answered since:
+the update check moved out of the settings panel into the footer, where
+tapping the build number checks and the footer's one status slot reports
+what the check found (app-footer.ts); `update-check.ts` and
+`update-report.ts` went with it, and the panel has no slot.
 
 The proposal. Behavior stays exactly as it is; the aim is that a programmer
 new to the project can read `src/app-shell.ts` top to bottom and see what

@@ -19,7 +19,6 @@ import {
 } from "./system-table.ts";
 import "./app-footer.ts";
 import "./settings-panel.ts";
-import "./update-check.ts";
 import "./unit-converter.ts";
 
 /**
@@ -51,8 +50,7 @@ import "./unit-converter.ts";
  * - The service worker's status (register-service-worker.ts), mirrored
  *   into the shell by a `Subscription` for as long as it is connected and
  *   passed to the footer (app-footer.ts), which shows it beside the build
- *   the page is running, and to the update check (update-check.ts), which
- *   the shell slots into the settings panel.
+ *   the page is running.
  */
 @customElement("app-shell")
 export class AppShell extends LitElement {
@@ -147,9 +145,7 @@ export class AppShell extends LitElement {
         <settings-panel
           .settings=${this.settings}
           @settings-change=${this.onSettingsChange}
-        >
-          <update-check .status=${this.worker.value}></update-check>
-        </settings-panel>
+        ></settings-panel>
       </main>
       <app-footer .status=${this.worker.value}></app-footer>
     `;

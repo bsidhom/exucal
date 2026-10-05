@@ -9,7 +9,17 @@ import {
 } from "./core/context.ts";
 import type { Side } from "./core/pipeline.ts";
 import type { UnitTable } from "./core/table.ts";
-import { outcomeOf, type Line, type Outcome, type Term } from "./outcome.ts";
+import {
+  copyText,
+  joinBefore,
+  outcomeOf,
+  unitText,
+  valueText,
+  type Line,
+  type Outcome,
+  type Term,
+} from "./outcome.ts";
+import "./copy-button.ts";
 
 /**
  * The converter: two text inputs, "you have" and "you want", and an output
@@ -72,7 +82,7 @@ export class UnitConverter extends LitElement {
     }
 
     input[aria-invalid="true"] {
-      border-color: #c92a2a;
+      border-color: var(--color-error);
     }
 
     output {
@@ -97,11 +107,11 @@ export class UnitConverter extends LitElement {
     }
 
     .error {
-      color: #c92a2a;
+      color: var(--color-error);
     }
 
     .warning {
-      color: #a35200;
+      color: var(--color-warning);
       font-size: 0.875rem;
     }
 
@@ -109,14 +119,25 @@ export class UnitConverter extends LitElement {
       content: "⚠ ";
     }
 
-    @media (prefers-color-scheme: dark) {
-      .error {
-        color: #ff8787;
-      }
+    /*
+     * A result is its expression, wrapping within its own box, and the
+     * button that copies it, in a column of its own at the right so that
+     * it sits in the same place however long the digits run.
+     */
+    .line {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
 
-      .warning {
-        color: #ffc078;
-      }
+    .expression {
+      flex: 1;
+      min-width: 0;
+    }
+
+    copy-button {
+      flex: none;
+      margin-top: 0.5rem;
     }
   `;
 
@@ -229,8 +250,9 @@ function renderOutcome(outcome: Outcome): TemplateResult {
 }
 
 /**
- * One line of a result, on a line of its own; the terms inside a call when
- * the line is one, and the note, when there is one, after them.
+ * One line of a result, on a line of its own: the terms inside a call when
+ * the line is one, the note, when there is one, after them, and the button
+ * that copies the result as `copyText` writes it.
  */
 function renderLine(line: Line): TemplateResult {
   const terms = line.terms.map(renderTerm);
@@ -239,21 +261,23 @@ function renderLine(line: Line): TemplateResult {
     line.note === undefined
       ? nothing
       : html` <span class="note">(${line.note})</span>`;
-  return html`<div>
-    <span>${line.have}</span> ${line.relation} ${sum}${note}
+  return html`<div class="line">
+    <span class="expression">
+      <span>${line.have}</span> ${line.relation} ${sum}${note}
+    </span>
+    <copy-button .text=${copyText(line)}></copy-button>
   </div>`;
 }
 
 /**
- * One term of a result. The first is written with its own sign; each later
- * one is joined to the sum by `+` or `-` and written unsigned (its text is
- * already so), so that the line reads as the expression it is
- * (`-3 ft - 3.3700787 in`), and could be typed back as a `have`.
+ * One term of a result, as the writers of outcome.ts write its parts, with
+ * the value styled: what joins it to the sum, the value, and the unit
+ * after it, with `×` for a product the screen shows.
  */
 function renderTerm(term: Term, index: number): TemplateResult {
-  const operator = index === 0 ? "" : term.negative ? " - " : " + ";
-  const unit = term.unit === "" ? nothing : html` ${term.unit}`;
-  return html`${operator}<span class="value">${term.text}</span>${unit}`;
+  return html`${joinBefore(index, term)}<span class="value"
+      >${valueText(term, index)}</span
+    >${unitText(term, "×")}`;
 }
 
 declare global {

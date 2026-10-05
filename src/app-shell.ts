@@ -95,7 +95,7 @@ export class AppShell extends LitElement {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.75rem;
-        color: #c92a2a;
+        color: var(--color-error);
       }
     `,
   ];

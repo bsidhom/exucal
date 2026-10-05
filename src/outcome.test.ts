@@ -19,7 +19,14 @@ import {
 } from "./core/context.ts";
 import { parseDefinitions } from "./core/definitions.ts";
 import type { UnitTable } from "./core/table.ts";
-import { outcomeOf, type Line, type Outcome } from "./outcome.ts";
+import { format, parseDecimal } from "./core/scaled.ts";
+import {
+  copyText,
+  displayText,
+  outcomeOf,
+  type Line,
+  type Outcome,
+} from "./outcome.ts";
 
 const CONTEXT: NumberContext = {
   precision: DEFAULT_DIGITS,
@@ -39,20 +46,6 @@ const table: UnitTable = (() => {
   return built.value;
 })();
 
-/** A line as the component writes it: the terms joined as `renderTerm` joins them, and the note in parentheses. */
-function written(line: Line): string {
-  const terms = line.terms
-    .map((term, i) => {
-      const operator = i === 0 ? "" : term.negative ? " - " : " + ";
-      const unit = term.unit === "" ? "" : ` ${term.unit}`;
-      return `${operator}${term.text}${unit}`;
-    })
-    .join("");
-  const sum = line.call === undefined ? terms : `${line.call}(${terms})`;
-  const note = line.note === undefined ? "" : ` (${line.note})`;
-  return `${line.have} ${line.relation} ${sum}${note}`;
-}
-
 /** The lines for `have` into `want` at `context`, with `fractions`; a test's precondition that it is a result. */
 function lines(
   have: string,
@@ -62,7 +55,9 @@ function lines(
 ): string[] {
   const outcome = outcomeOf(table, have, want, context, fractions);
   assert.equal(outcome.kind, "result", inspect(outcome));
-  return (outcome as Extract<Outcome, { kind: "result" }>).lines.map(written);
+  return (outcome as Extract<Outcome, { kind: "result" }>).lines.map(
+    displayText,
+  );
 }
 
 test("a fraction is parenthesized before a unit, and the reciprocal before the have", () => {
@@ -286,3 +281,114 @@ test("a reading below absolute zero is refused, naming the condition", () => {
       'Cannot convert "-5 K" into "tempC": the argument it would take does not meet "x >= -273.15", which "tempC" requires.',
   });
 });
+
+/** The result lines for `have` into `want`; a test's precondition that it is a result. */
+function resultLines(
+  have: string,
+  want: string,
+  fractions: boolean,
+  context: NumberContext = CONTEXT,
+): readonly Line[] {
+  const result = outcomeOf(table, have, want, context, fractions);
+  assert.equal(result.kind, "result", inspect(result));
+  return (result as Extract<Outcome, { kind: "result" }>).lines;
+}
+
+/** The want that reads a line's result back: the call it is, or the units of its terms as a list. */
+function wantOf(line: Line): string {
+  if (line.call !== undefined) return line.call;
+  return line.terms
+    .map((t) => (t.unit.kind === "none" ? "" : t.unit.unit.text))
+    .join(";");
+}
+
+test("the copy text is the sum with `*` for the product the screen writes as `×`", () => {
+  const copied = (have: string, want: string, fractions = false) =>
+    resultLines(have, want, fractions).map(copyText);
+  assert.deepEqual(copied("3 ft", "in"), ["36 in", "0.027777778 * 3 ft"]);
+  assert.deepEqual(copied("1 mi", "1000 ft"), [
+    "5.28 * 1000 ft",
+    "0.18939394 * 1 mi",
+  ]);
+  assert.deepEqual(copied("1 m", "in", true), [
+    "(5000/127) in",
+    "(127/5000) * 1 m",
+  ]);
+  assert.deepEqual(copied("-1 m", "in", true), [
+    "(-5000/127) in",
+    "(-127/5000) (-1 m)",
+  ]);
+  assert.deepEqual(copied("1 m", "ft;in"), ["3 ft + 3.3700787 in"]);
+  assert.deepEqual(copied("-1 m", "ft;in"), ["-3 ft - 3.3700787 in"]);
+  assert.equal(copied("1 m", "ft + in")[0], "3.0284676 (ft + in)");
+  assert.deepEqual(copied("tempF(212)", "tempC"), ["tempC(100)"]);
+  assert.deepEqual(copied("ft", "in"), ["12 in", "0.083333333 ft"]);
+  assert.deepEqual(copied("in", ""), ["0.0254 m"]);
+});
+
+test("what is copied, typed back as a have and converted into the line's own unit, gives the line again", () => {
+  const decimal: NumberContext = { ...CONTEXT, precision: 3, mode: "decimal" };
+  const cases: [string, string, boolean, NumberContext?][] = [
+    ["3 ft", "in", false],
+    ["1 mi", "1000 ft", false],
+    ["1 m", "in", true],
+    ["-1 m", "in", true],
+    ["-3 ft", "in", false],
+    ["1 m", "ft;in", false],
+    ["-1 m", "ft;in", true],
+    ["1 m", "ft + in", false],
+    ["1 m", "-ft", false],
+    ["1 m", "m/s*s", false],
+    ["tempF(212)", "tempC", false],
+    ["2", "", false],
+    ["in", "", false],
+    ["3 ft", "in", false, decimal],
+    ["1 m", "in", false, decimal],
+  ];
+  for (const [have, want, fractions, context = CONTEXT] of cases) {
+    for (const line of resultLines(have, want, fractions, context)) {
+      const copied = copyText(line);
+      const back = resultLines(copied, wantOf(line), fractions, context);
+      const where = `${have} into ${want}: ${displayText(line)} copied as ${copied}`;
+      if (context.mode !== "decimal" && line.note === undefined) {
+        // Every digit shown is certain: the copy is the value, and reads back as the same terms.
+        assert.deepEqual(back[0]!.terms, line.terms, where);
+      } else {
+        // The copy is the digits shown: it reads back as those digits, at as
+        // many of them as the reading certifies, which in decimal mode, with
+        // every step rounded, can be fewer.
+        const [original, read] = [line.terms[0]!, back[0]!.terms[0]!];
+        assert.ok(
+          readsBackAs(original.value.text, read.value.text, context),
+          `${where}, read back as ${displayText(back[0]!)}`,
+        );
+      }
+    }
+  }
+});
+
+/**
+ * Whether the decimal `copied`, rounded in `context`'s mode to the digits
+ * `read` shows, is `read`: what a value read back through the pipeline
+ * must be, the reading's own digits being the ones it certifies.
+ */
+function readsBackAs(
+  copied: string,
+  read: string,
+  context: NumberContext,
+): boolean {
+  const value = parseDecimal(copied);
+  return (
+    value.ok &&
+    format(value.value, significantDigits(read), context.rounding) === read
+  );
+}
+
+/** How many significant digits a decimal text shows. */
+function significantDigits(text: string): number {
+  const mantissa = text
+    .replace(/[eE].*$/, "")
+    .replace(/[-.]/g, "")
+    .replace(/^0+/, "");
+  return Math.max(mantissa.length, 1);
+}

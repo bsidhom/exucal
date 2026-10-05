@@ -1334,7 +1334,19 @@ decimal mode rounds each step of a body to Digits. docs/functions.md
 `<unit-converter>` is a Lit component with two text inputs, "you have" and
 "you want", and an output area. Its only state is the two strings; on every
 change it runs the pipeline and renders either the formatted result or the
-error. `<app-shell>` hosts it and owns the `UnitTable`: `src/system-table.ts`
+error. A result line is structure, not text (`src/outcome.ts`): each term
+holds its value as the display wrote it, its sign, and its unit with the
+way the value joins it as the grammar reads a product, by juxtaposition
+(`36 in`) or by a product written out when the unit's text leads with a
+number (`5.28 × 1000 ft`). Two writers turn that into text, one for the
+screen and one for the `<copy-button>` beside each line, which differ in
+the product's glyph alone, `×` against `*`, so that what is copied parses
+back as a `have` worth what the line showed. What the writers need of the
+grammar lives beside it in `src/core/expr.ts` ("Writing"): the level each
+kind of node binds at, and which levels can precede or follow a value
+bare, each a function or table over every kind or level, so that a rule
+added to the grammar must be placed there before the output can write
+around it. `<app-shell>` hosts it and owns the `UnitTable`: `src/system-table.ts`
 fetches the bundled definitions and parses them on the main thread (a few
 milliseconds), once, and `src/system-build.ts` builds the table from them
 at the ceiling of the retry schedule in force, memoizing one table by its
@@ -1515,7 +1527,7 @@ src/core/dimension-of.ts  dimensionOf: a body's dimension without its value, the
 src/core/quantity.ts      Quantity (a Ball with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text
 src/core/parser.ts        Parser combinators, ParseError
-src/core/expr.ts          Expr, parseExpr, parseUnitList, Rejection
+src/core/expr.ts          Expr, parseExpr, parseUnitList, Rejection; the levels of binding the output writes by
 src/core/definitions.ts   Definition, parseDefinitions
 src/core/graph.ts         on-demand evaluation of a dependency graph, cycles
 src/core/names.ts         the prefix-unit resolution rule, the ambiguity check
@@ -1558,8 +1570,9 @@ src/system-table.ts       loadSystemDefinitions: fetches and parses the system d
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
 src/settings.ts           Settings: the digits, the rounding mode, the exact or decimal mode and the two limits, in localStorage; contextOf
 src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
-src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result; src/outcome.test.ts checks them
+src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result, and displayText and copyText, which write one; src/outcome.test.ts checks them
 src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome
+src/copy-button.ts        the button beside each result that copies it
 src/settings-panel.ts     the settings panel: the controls and the probe's button; emits settings-change
 src/app-footer.ts         the footer: the build ID, which checks for updates when tapped, and the worker's status
 src/subscription.ts       Subscription: a reactive controller that mirrors a source into its host; src/subscription.test.ts checks it

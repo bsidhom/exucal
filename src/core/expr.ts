@@ -166,6 +166,107 @@ export type Rejection =
   | { readonly kind: "exponentDividesByZero" };
 
 // ---------------------------------------------------------------------------
+// Writing
+//
+// The output (outcome.ts) composes expressions out of parsed ones and the
+// values it shows, so that every line it writes can be typed back as a
+// `have`: a value before a want, the terms of a sum, the argument of a
+// call. What it must know of the grammar to do that is here, beside the
+// grammar: at which level an expression's root binds, which decides
+// whether an operator around it needs parentheses, and whether an
+// expression's text can follow a factor by juxtaposition.
+
+/**
+ * The grammar's levels of binding, loosest first, one per rule above at
+ * which an expression's root can be read.
+ */
+export const LEVELS = [
+  "sum",
+  "quotient",
+  "signed",
+  "product",
+  "power",
+  "atom",
+] as const;
+
+export type Level = (typeof LEVELS)[number];
+
+/**
+ * Whether a value whose root binds at `level` can be the first factor of a
+ * product bare, before a unit: a number can, and a fraction cannot, since
+ * juxtaposition binds tighter than `/` and `5000/127 in` would read as
+ * `5000 / (127 in)`. Every level is placed, so that a level added to the
+ * grammar is placed here before a value at it is written.
+ */
+export function precedesUnitBare(level: Level): boolean {
+  return PRECEDES_UNIT_BARE[level];
+}
+
+const PRECEDES_UNIT_BARE: Record<Level, boolean> = {
+  sum: false,
+  quotient: false,
+  signed: false,
+  product: true,
+  power: true,
+  atom: true,
+};
+
+/**
+ * Whether a unit whose root binds at `level` can follow a value bare, with
+ * the product joining them read as meant. A sum cannot: `3 ft + in` would
+ * take the value as its first term. A negation cannot: `3 -ft` would read
+ * as a difference. A quotient chain can, and is multiplied as a whole:
+ * `36 m/s` is `(36 m)/s`, which is `36 (m/s)`, since the value joins the
+ * chain's first factor and `*` and `/` are one left-associative level.
+ * Every level is placed, as above.
+ */
+export function followsValueBare(level: Level): boolean {
+  return FOLLOWS_VALUE_BARE[level];
+}
+
+const FOLLOWS_VALUE_BARE: Record<Level, boolean> = {
+  sum: false,
+  quotient: true,
+  signed: false,
+  product: true,
+  power: true,
+  atom: true,
+};
+
+/**
+ * The level `node` binds at: the rule that reads its root. Every kind of
+ * node is placed, so that a kind added to the grammar must be placed here
+ * before anything can be written around it. Juxtaposition parses as `mul`
+ * and is not told from `*` here, so a `mul` is read at the looser of the
+ * two, the quotient.
+ */
+export function levelOf(node: ExprNode): Level {
+  switch (node.kind) {
+    case "number":
+    case "unit":
+    case "call":
+      return "atom";
+    case "pow":
+      return "power";
+    case "neg":
+      return "signed";
+    case "binary":
+      return node.op === "add" || node.op === "sub" ? "sum" : "quotient";
+  }
+}
+
+/**
+ * Whether the expression `text` begins with a number, so that it cannot
+ * follow another factor by juxtaposition (a number may only start a
+ * product) and a product with it must be written with `*`. The rule is
+ * lexical, so this reads the grammar's own number token at the start of
+ * the text, which is taken to be trimmed.
+ */
+export function leadsWithNumber(text: string): boolean {
+  return LEADING_NUMBER.test(text);
+}
+
+// ---------------------------------------------------------------------------
 // Parsing
 
 /** Parses the whole of `text` as an expression. Surrounding spaces are allowed. */
@@ -213,6 +314,7 @@ function symbol(literal: string): Parser<string> {
 /** An unsigned decimal literal, in the shape `parseDecimal` accepts. */
 const UNSIGNED = /(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/;
 const SIGNED = new RegExp(`[+-]?${UNSIGNED.source}`);
+const LEADING_NUMBER = new RegExp(`^${UNSIGNED.source}`);
 /** The shape of a unit name; the definitions parser builds on it. */
 export const NAME = /[\p{L}_][\p{L}0-9_]*/u;
 

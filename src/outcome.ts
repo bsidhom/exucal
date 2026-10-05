@@ -56,6 +56,16 @@
 // every line's relation `≈` whatever its digits; the reciprocal line, a
 // list's line and a function want's line carry it alike, since the
 // warning is the outcome's, not a line's.
+//
+// A line is structure, not text: each term holds its value as `show`
+// wrote it, its sign, and its unit with the way the value joins it, as
+// the grammar (expr.ts, "Writing") reads a product. Two writers turn the
+// structure into text, `displayText` for the screen and `copyText` for
+// the clipboard, which differ in one glyph: the product the screen writes
+// as `×`, the copy writes as `*`, so that what is copied parses back as a
+// `have` worth what the line showed. The component renders the same
+// structure, with the values styled, through the same writers of the
+// parts (`joinBefore`, `valueText`, `unitText`).
 
 import { divideBalls, exact, settle, type Ball } from "./core/ball.ts";
 import type { NumberContext } from "./core/context.ts";
@@ -63,7 +73,14 @@ import { roundTerms } from "./core/convert.ts";
 import { formatDimension, isDimensionless } from "./core/dimension.ts";
 import { show, type Shown } from "./core/display.ts";
 import type { Assumption } from "./core/evaluate.ts";
-import { parseExpr } from "./core/expr.ts";
+import {
+  followsValueBare,
+  leadsWithNumber,
+  levelOf,
+  parseExpr,
+  precedesUnitBare,
+  type Level,
+} from "./core/expr.ts";
 import {
   convertText,
   evaluateText,
@@ -81,16 +98,35 @@ import {
 } from "./messages.ts";
 
 /**
- * One term of a result: `text`, the value as `show` writes it at the
- * context's digits in its mode, of `unit`, text to show after the value.
- * `negative` says the sign of the value, since the text of every term but
- * a line's first is written unsigned and the sign becomes the operator that
- * joins it to the sum.
+ * An expression as text, with the level its root binds at (`levelOf`),
+ * which decides whether an operator written around it needs parentheses.
+ */
+export type Written = { readonly text: string; readonly level: Level };
+
+/**
+ * The unit a term's value is of, with the way the value joins it as the
+ * grammar reads a product: `juxtaposed`, the value and then the unit
+ * (`36 in`), or `multiplied`, with a product written between them
+ * (`5.28 × 1000 ft`), when the unit's text leads with a number and so
+ * cannot follow the value by juxtaposition (`leadsWithNumber`); or
+ * `none`, for a value that is a plain number.
+ */
+export type UnitText =
+  | { readonly kind: "none" }
+  | { readonly kind: "juxtaposed"; readonly unit: Written }
+  | { readonly kind: "multiplied"; readonly unit: Written };
+
+/**
+ * One term of a result: the magnitude of the value as `show` writes it at
+ * the context's digits in its mode (a fraction binds as a quotient, any
+ * other number as an atom), `negative` for its sign, which the writers
+ * put before a line's first term and turn into the operator that joins
+ * each later one to the sum, and the unit the value is of.
  */
 export type Term = {
-  readonly text: string;
+  readonly value: Written;
   readonly negative: boolean;
-  readonly unit: string;
+  readonly unit: UnitText;
 };
 
 /**
@@ -129,6 +165,77 @@ export type Outcome =
     }
   /** `message` says what is wrong, with the text on `side` if it is one text's fault. */
   | { readonly kind: "error"; readonly side?: Side; readonly message: string };
+
+/** The product glyph: `×` on the screen, `*` where the text must parse. */
+export type Times = "×" | "*";
+
+/**
+ * What joins the term at `index` to the sum before it: nothing before the
+ * first term, whose sign `valueText` writes, and `+` or `-` by the sign of
+ * each later one, whose value is written unsigned, so that the sum reads
+ * as the expression it is (`-3 ft - 3.3700787 in`).
+ */
+export function joinBefore(index: number, term: Term): string {
+  if (index === 0) return "";
+  return term.negative ? " - " : " + ";
+}
+
+/**
+ * The term's value as written at `index` in a sum: with its sign when it
+ * is the first term, and in parentheses when a unit follows it that the
+ * value cannot precede bare (`precedesUnitBare`), as a fraction cannot;
+ * the sign goes inside them, `(-5000/127) in`. Alone, or inside a call, a
+ * fraction is bare (docs/fractions.md, "Where a fraction is written").
+ */
+export function valueText(term: Term, index: number): string {
+  const sign = index === 0 && term.negative ? "-" : "";
+  const text = `${sign}${term.value.text}`;
+  const wrap = term.unit.kind !== "none" && !precedesUnitBare(term.value.level);
+  return wrap ? `(${text})` : text;
+}
+
+/**
+ * What follows the term's value: nothing, or a space and the unit, with
+ * `times` and another space before the unit when the value is multiplied
+ * rather than juxtaposed. A unit that cannot follow a value bare
+ * (`followsValueBare`), a sum, a difference or a negation, is
+ * parenthesized, `3.0284676 (ft + in)` and `-3.2808399 (-ft)`, with
+ * either join, so that the two write a unit alike.
+ */
+export function unitText(term: Term, times: Times): string {
+  const { unit } = term;
+  if (unit.kind === "none") return "";
+  const text = followsValueBare(unit.unit.level)
+    ? unit.unit.text
+    : `(${unit.unit.text})`;
+  return unit.kind === "multiplied" ? ` ${times} ${text}` : ` ${text}`;
+}
+
+/** The sum of the line's terms, inside the call when the line is one. */
+export function sumText(line: Line, times: Times): string {
+  const terms = line.terms
+    .map(
+      (term, i) =>
+        joinBefore(i, term) + valueText(term, i) + unitText(term, times),
+    )
+    .join("");
+  return line.call === undefined ? terms : `${line.call}(${terms})`;
+}
+
+/** The line as the screen shows it: the have, the relation, the sum with `×`, and the note in parentheses. */
+export function displayText(line: Line): string {
+  const note = line.note === undefined ? "" : ` (${line.note})`;
+  return `${line.have} ${line.relation} ${sumText(line, "×")}${note}`;
+}
+
+/**
+ * The line's result as the clipboard gets it: the sum alone, with `*`
+ * for the product, so that typed back as a `have` and converted into the
+ * line's own unit it gives the line again (outcome.test.ts checks that).
+ */
+export function copyText(line: Line): string {
+  return sumText(line, "*");
+}
 
 /**
  * The outcome for `haveText` converted into `wantString` against `table`
@@ -206,8 +313,8 @@ function outcomeAssuming(
     }
     const { magnitude, dimension } = quantity.value;
     const unit = isDimensionless(dimension)
-      ? ""
-      : formatDimension(dimension, table.primitives);
+      ? NO_UNIT
+      : unitTextOf(formatDimension(dimension, table.primitives));
     return {
       kind: "result",
       lines: [line(have, magnitude, unit, context, fractions)],
@@ -245,25 +352,36 @@ function outcomeAssuming(
 }
 
 /**
- * The `want` as the output writes it after the value (or the `have`, on
- * the reciprocal line, where it takes the want's place), so that the whole
- * line reads as the expression it means. `1 mi` in `1000 ft` is
- * `5.28 × 1000 ft`; without the sign, the number would read as one product
- * with the want. A want that is a sum, a difference or a negation is
- * parenthesized, `3.0284676 (ft + in)` and `-3.2808399 (-ft)`, since
- * `3.0284676 ft + in` would read as `(3.0284676 ft) + in` and
- * `-3.2808399 -ft` as a difference. A want that starts with a unit name
- * needs neither: `36 in`. The text is trimmed, and it parsed a moment ago.
+ * The `want` as the unit a value is of (or the `have`, on the reciprocal
+ * line, where it takes the want's place): its text, which is trimmed and
+ * parsed a moment ago, at the level its root binds, and joined by a
+ * product written out when it leads with a number, since `1 mi` in
+ * `1000 ft` cannot be written `5.28 1000 ft`. A text that does not parse
+ * (it did) is read as an atom.
  */
-function wantText(want: string): string {
-  const expr = parseExpr(want);
-  const loose =
-    expr.ok &&
-    (expr.value.node.kind === "neg" ||
-      (expr.value.node.kind === "binary" &&
-        (expr.value.node.op === "add" || expr.value.node.op === "sub")));
-  if (loose) return `(${want})`;
-  return /^[\d.]/.test(want) ? `× ${want}` : want;
+function unitTextOf(text: string): UnitText {
+  const expr = parseExpr(text);
+  const unit = { text, level: expr.ok ? levelOf(expr.value.node) : "atom" };
+  return leadsWithNumber(text)
+    ? { kind: "multiplied", unit }
+    : { kind: "juxtaposed", unit };
+}
+
+const NO_UNIT: UnitText = { kind: "none" };
+
+/**
+ * The term for `shown`, the value as `show` wrote it: its magnitude, a
+ * fraction binding as a quotient and any other number as an atom, its
+ * sign, and `unit`.
+ */
+function term(shown: Shown, negative: boolean, unit: UnitText): Term {
+  const text = shown.text.startsWith("-") ? shown.text.slice(1) : shown.text;
+  const fraction = shown.kind === "exact" && shown.fraction === true;
+  return {
+    value: { text, level: fraction ? "quotient" : "atom" },
+    negative,
+    unit,
+  };
 }
 
 /**
@@ -288,14 +406,14 @@ function unitResult(
   context: NumberContext,
   fractions: boolean,
 ): Outcome {
-  const lines = [line(have, value, wantText(want), context, fractions)];
+  const lines = [line(have, value, unitTextOf(want), context, fractions)];
   const quotient = divideBalls(exact(ONE), value);
   const inverse =
     quotient.ok && context.mode === "decimal"
       ? settle(quotient.value, context)
       : quotient;
   if (inverse.ok) {
-    lines.push(line(want, inverse.value, wantText(have), context, fractions));
+    lines.push(line(want, inverse.value, unitTextOf(have), context, fractions));
   }
   return { kind: "result", lines };
 }
@@ -304,13 +422,12 @@ function unitResult(
  * The line `have` is `value` `unit`, as `show` certifies it at `context`:
  * `=` for an exact value, `≈` otherwise, and a note for the kinds that do
  * not show every digit asked for. With `fractions`, an exact value that
- * is not an integer is its fraction where it fits, parenthesized when
- * `unit` follows it.
+ * is not an integer is its fraction where it fits.
  */
 function line(
   have: string,
   value: Ball,
-  unit: string,
+  unit: UnitText,
   context: NumberContext,
   fractions: boolean,
 ): Line {
@@ -318,24 +435,9 @@ function line(
   return {
     have,
     relation: shown.kind === "exact" ? "=" : "≈",
-    terms: [
-      { text: fractionText(shown, unit), negative: sign(value.mid) < 0, unit },
-    ],
+    terms: [term(shown, sign(value.mid) < 0, unit)],
     note: noteOf(shown, context.precision),
   };
-}
-
-/**
- * The text of `shown`, parenthesized when it is a fraction and `unit`
- * follows it on the line: the grammar reads a juxtaposition before a
- * quotient, so `5000/127 in` would be `5000 / (127 in)`, and every line
- * must be typeable back as a `have` (docs/fractions.md, "Where a fraction
- * is written"). A fraction alone, or inside a call, is bare.
- */
-function fractionText(shown: Shown, unit: string): string {
-  return shown.kind === "exact" && shown.fraction === true && unit !== ""
-    ? `(${shown.text})`
-    : shown.text;
 }
 
 /** The note for a `shown` value at `digits` asked for, or none when every digit shown is certain. */
@@ -405,21 +507,19 @@ function listResult(
   const all = rounded.map((value, i) => {
     const negative = sign(value.mid) < 0;
     const magnitude = negative ? absolute(value.mid) : value.mid;
-    const unit = wantText(units[i]!.text);
-    // The remainder's fraction is written unsigned, as every term's text
-    // is, from the magnitude's own ball, which is exact as the term is.
-    const text =
+    const unit = unitTextOf(units[i]!.text);
+    // The remainder's fraction is taken from the magnitude's own ball,
+    // which is exact as the term is; the counts and a rounded remainder
+    // are formatted from the magnitude at their digits.
+    const shown: Shown =
       i < last
-        ? format(magnitude, precision, rounding)
+        ? { kind: "exact", text: format(magnitude, precision, rounding) }
         : remainder.kind === "zero"
-          ? "0"
+          ? remainder
           : remainder.kind === "exact" && remainder.fraction === true
-            ? fractionText(
-                show(exact(magnitude), precision, rounding, true),
-                unit,
-              )
-            : format(magnitude, certified, rounding);
-    return { value, term: { text, negative, unit } };
+            ? show(exact(magnitude), precision, rounding, true)
+            : { kind: "exact", text: format(magnitude, certified, rounding) };
+    return { value, term: term(shown, negative, unit) };
   });
   // A term of zero is left out, and so is a last term that cannot be told
   // from zero, with its note; a sum of nothing but zeros keeps its last
@@ -430,19 +530,13 @@ function listResult(
   );
   const kept = nonzero.length > 0 ? nonzero : all.slice(-1);
   const keepsRemainder = kept.includes(all[last]!);
-  // The first term shown keeps its sign in its text; the rest are unsigned.
-  const written = kept.map((t, i) =>
-    i === 0 && t.term.negative
-      ? { ...t.term, text: `-${t.term.text}` }
-      : t.term,
-  );
   return {
     kind: "result",
     lines: [
       {
         have,
         relation: shown.every((s) => s.kind === "exact") ? "=" : "≈",
-        terms: written,
+        terms: kept.map((t) => t.term),
         note: keepsRemainder ? noteOf(remainder, precision) : undefined,
       },
     ],
@@ -468,7 +562,7 @@ function functionResult(
   const { relation, terms } = line(
     have,
     value,
-    unit.text === "1" ? "" : wantText(unit.text),
+    unit.text === "1" ? NO_UNIT : unitTextOf(unit.text),
     context,
     fractions,
   );

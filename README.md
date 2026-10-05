@@ -6,7 +6,10 @@ spirit of GNU units: type a quantity you have (`3 ft`) and a unit you want
 it answers `1 m ≈ 3 ft + 3.3700787 in`. As GNU units does, it also
 answers the other way round: `3 ft = 36 in` and then `in ≈ 0.027777778 ×
 3 ft`. That goes with a conversion into one unit only, since a sum over a
-list has no other way round. The app can be
+list has no other way round. A button beside each answer copies it, units
+and all, as text the app itself reads back: `36 in`, or `0.027777778 *
+3 ft` for the other way round, so that an answer pasted into "You have"
+is the quantity it showed. The app can be
 installed to the home screen and works without a network connection once it
 has been loaded once.
 
@@ -987,10 +990,14 @@ hook's output at session start says which part is out of date.
   times the app's costliest operations on this device and proposes the two
   limits. `src/limits.test.ts` checks it against a fake clock.
 - `src/outcome.ts` turns the pipeline's result for a pair of texts into the
-  lines the output area shows, with `=` or `≈` and the notes; it has no DOM
-  dependency, so `src/outcome.test.ts` checks the lines under Node.js.
+  lines the output area shows, with `=` or `≈` and the notes, and writes
+  each line as the screen shows it and as the clipboard gets it; it has no
+  DOM dependency, so `src/outcome.test.ts` checks the lines under Node.js,
+  and that what is copied reads back as the line it came from.
 - `src/unit-converter.ts` defines `<unit-converter>`, the two inputs and the
   output area that make up the app; `ARCHITECTURE.md` ("UI") describes it.
+  `src/copy-button.ts` defines `<copy-button>`, the button beside each
+  answer that copies it.
 - `src/messages.ts` turns the errors the core returns into the sentences the
   converter shows. It has no DOM dependency, so `src/messages.test.ts` checks
   the wording under Node.js.

@@ -5269,20 +5269,19 @@ reproduces what a run searched.
   `lowergammareg(a, x) + uppergammareg(a, x) - 1`,
   `incbetareg(a, b, x) + incbetareg(b, a, 1 - x) - 1`,
   `exp(ln(x)) - x`, and the like), which grows with the built-ins.
-- **The extent.** `--cases n` runs the first `n` cases of the sequence,
-  and `--budget` stops at a time instead, after a prefix of the same
-  sequence; a result records the seed and the count run, so a replay
-  with `--cases` runs exactly the same cases. `--list` prints the cases
-  of a seed without evaluating them, the cheap way to see what a run
-  searched and in what order. `--enumerate` runs instead the fixed
-  enumeration of every built-in over its argument classes in each
-  pattern, which needs no seed: for a first run, after a change to a
-  kernel, and when #115 adds functions.
+- **The extent.** As 8.3 landed it, a run samples the sequence for a
+  time (`--minutes`, or until stopped with `--forever`) rather than
+  covering a count, and the catalogue logs the seed and how many cases
+  it measured; each entry names the index that drew it. `--list` prints
+  the cases of a seed without evaluating them, the cheap way to see what
+  a run searched and in what order. The fixed enumeration of every
+  built-in over its argument classes that this task first had is gone:
+  sampling builds the list up over time instead.
 - **The measurement.** Cases run in parallel workers, one per core, each
   under a deadline; a case past it is reported as a hang, not ranked.
   Which cases a run keeps depends on their measured cost, the one thing
-  wall-clock time decides: the costliest are measured again one at a
-  time, since timings under load are not the catalogue's, and ranked by
+  wall-clock time decides (as 8.3 landed it, they are not measured
+  again), and ranked by
   their warm cost per costly call, with the cold cost recorded beside
   it. The timings themselves cannot be reproduced exactly, so only cases
   above a floor (a second warm, at first) enter the catalogue: a case
@@ -5292,8 +5291,8 @@ reproduces what a run searched.
 A run adds to the catalogue rather than replacing it. A case belongs to
 a family, keyed by its pattern, its functions and its classes of
 arguments. A case joins the catalogue when its family is new to it, and
-replaces the family's entry when it costs more than that entry measured
-again in the same run, since only timings from one run compare. Each
+replaces the family's entry when it costs more than that entry (as 8.3
+landed it, 10% more, written the moment it is found). Each
 entry records the seed and the index that drew it, or the enumeration,
 with the commit, the date and the machine, so that it can be drawn again
 and its text read back. A run leaves its changes as a diff to
@@ -5304,12 +5303,12 @@ Behavior: none; no test run includes the search. Tests, ordinary ones
 since they evaluate nothing: one seed lists the same cases on two runs;
 the `i`-th case drawn alone is the `i`-th of the sequence; two seeds
 list different cases; a run without a seed records the one it drew; and
-the merge keeps a new family, replaces an entry only by a costlier case
-of its family, and leaves the other entries as they were.
+a hit takes a new family's slot, replaces an entry only by a costlier
+case of its family, and leaves the other entries as they were.
 
 As it landed, the search is three modules: `cases.ts`, the pure drawing
-from a seed; `catalogue.ts`, the catalogue's shape, its merge and its
-table; and `search.ts`, the command. The choices the task left open:
+from a seed; `catalogue.ts`, the catalogue's shape, its rule for a hit
+and its tables; and `search.ts`, the command. The choices the task left open:
 
 - **The patterns** are four: `cancel`, a call less itself; `identity`,
   from a table of nineteen identities between different functions;
@@ -5325,10 +5324,12 @@ table; and `search.ts`, the command. The choices the task left open:
   in cost by more than any argument does, so without the profile the
   costliest cap would take every family's entry and the defaults would
   go unrecorded.
-- **The defaults:** 100 cases (20 for `--list`), a deadline of 120 s a
-  case, a floor of a second warm, one job per core; `--dry-run` writes
-  nothing. A case is a candidate when its warm cost under load reaches
-  half the floor, since load inflates timings unevenly.
+- **The defaults:** ten minutes a run (as 8.3 landed it; `--forever`
+  runs until stopped, and `--list` prints 20 cases) and one job per
+  core. The deadline, 120 s a case, and the floor, a second warm, are
+  fixed rather than defaults, so that every run records hits by the same
+  measure. A case is a hit when its warm cost under load reaches the
+  floor: load moves timings by a few percent.
 - **What is kept apart:** a case past its deadline and a case whose
   worker failed (a throw, which is a bug) are both hangs, one per
   family. The catalogue logs every run, with its seed or the
@@ -5353,27 +5354,114 @@ arguments, #126, #103, #107), and a new one for each cause no issue
 covers. A hang the search found is filed as an issue of its own. #118 is
 linked to the catalogue as the interface's target.
 
-The stress suite is the `*.stress.ts` files under `bench/stress/`, run by
-`pnpm stress`. Neither `pnpm test` nor `pnpm bench` discovers them, so
-`pnpm test:all` never runs them: they run for minutes, and a commit does
-not wait on them. The suite measures each catalogued case under a
-deadline, cold and warm. It reports the timings beside the catalogue's,
+The stress suite is `bench/stress/verify.ts`, run by `pnpm stress`.
+Neither `pnpm test` nor `pnpm bench` runs it, so `pnpm test:all` never
+does: it runs for minutes, and a commit does not wait on it. The suite
+measures the catalogued cases of the functions named on its command
+line (all of them when none is named) under a deadline, cold and warm. It reports the timings beside the catalogue's,
 and as ratios to a reference case measured in the same run. It asserts
 only what holds on any machine:
 
 - **Each case gives the outcome it was catalogued with,** the same kind
   and the same digits, so that an optimization that changes a value
   fails.
-- **No case passes its deadline.** A known hang is skipped by name, as
-  the sweeps skip one, until its issue is fixed.
+- **No case passes its deadline.** A known hang is measured last and
+  reported, with how far it gets, never failed.
 
-A case that has become much cheaper is reported, so that the catalogue
-is measured again. README ("Benchmarks") says what the suite is, how
+A case that has become much cheaper is reported, and `--record` writes
+its new cost into the catalogue. README ("Benchmarks") says what the suite is, how
 long it runs, and when to run it: before and after a change aimed at one
 of its cases, after a change to a kernel, and when #118's work wants a
 fresh target. ARCHITECTURE.md ("Benchmarks") says how it is built.
 
 Behavior: none.
+
+As it landed, the profile as typed is the harness's `typeOut`:
+`outcomeOf` on every prefix of the `have` in order, in one worker so that
+the memos carry over as in a session, run by the search on each entry
+that joins the catalogue and recorded with it. The catalogue's table
+gives each entry's slowest keystroke and how many keystrokes reach a
+tenth of a second. The suite compares an outcome's kind, value and
+warnings but not the note after the value, since a sharper kernel
+tightens the bound the note states without changing the value; each
+case's deadline is four times its catalogued time and two minutes at
+least, and the reference is `exp(1) - exp(1)`, which runs to the
+ceiling in milliseconds. A hang records the issue filed for it.
+
+The first catalogue is the fixed enumeration plus one run of 596 cases from
+a fresh seed, `15bb91548182473c`.
+docs/cost.md gives the findings by cause:
+
+- The incomplete beta function, at 0.7 to 7 s a call at the defaults,
+  is #150. `erf`, `erfc` and the incomplete gamma functions, at 0.3 to
+  5 s, are #149, which links #107 for the large arguments. Both come
+  down to a full-precision division on every term of a series whose
+  term count grows with the bits.
+- The Gamma family at an inexact argument is #125, and its cold run's
+  Bernoulli numbers are #103 and #121.
+- The elementary functions stay under the catalogue's floor at the
+  defaults.
+- At the default digits cap, typing out the entries puts every
+  keystroke of 100 ms or more on the last one, the keystroke that
+  completes the expression.
+
+The search then changed shape twice. The first design measured a fixed
+range of cases, then measured each family's costliest again alone, and
+wrote nothing until the end: a run of six hundred cases took two hours
+and was lost whole when stopped. A second design journaled every unit
+of work so that runs resumed and could be sharded, which was far more
+machinery than the task needs. As it landed, the search is a sampler:
+
+- **A run samples for a while** (`--minutes`, ten by default, or until
+  stopped with `--forever`), drawing cases from its seed in order,
+  lanes one per core (`pool.ts`). There is no range to cover and no
+  enumeration: the fixed sweep of every built-in over its argument
+  classes is gone, and runs build the catalogue up over time.
+- **Each hit is written as it is found** (`update` of tooling.ts): a
+  case whose warm cost reaches the floor, or a hang, takes its family's
+  slot when the slot is empty or holds a case it costs 1.1 times
+  (`withHit`), so that timings from different runs or machines, which
+  differ by a few percent, do not swap near-equal cases. Timings under
+  the lanes' load are kept: they stayed within a few percent of solo
+  ones (a median ratio of 1.06, 1.31 at worst, over two hundred cases).
+  A hit that joins is typed out and that is written too.
+- **The files are whole at every moment.** Each change is made under a
+  lock file, from the catalogue as it is, and the catalogue and the
+  tables of docs/cost.md are formatted on Prettier's stdin and each
+  written through a file renamed over it. So several runs can share a
+  working tree, and whenever a run ends or is stopped, what it found is
+  ready to commit, with nothing to resume and nothing to merge. The
+  tools never touch git. The floor (a second warm) and the deadline (two
+  minutes) are constants rather than options, so that every run records
+  hits by the same measure and any run, short or long, is one to commit.
+  Running the search again, whether the same
+  seed or a fresh one, is always safe: a repeated case can only replace
+  its own entry with a fresh timing of itself, or leave it, and a fresh
+  seed adds new hits, so runs accumulate.
+- **Hangs rank.** A case past its deadline records the passes it
+  finished, how long the running one had run and the schedule, and
+  `estimateMs` (harness.ts) extends the passes along their growth in
+  precision to the end of the schedule: the hangs table of docs/cost.md
+  ranks them by that estimate.
+- **The stress suite targets functions.** `verify.ts`, `pnpm stress
+<function> ...`, measures again the catalogued cases that call the
+  functions named, cheapest first, printing each result as it comes,
+  since an optimization aims at a family or two: one function's cases
+  take one to four minutes on four cores, the whole catalogue about
+  twenty. `--record` writes the new timings back after a change, and a
+  hang that now finishes becomes an entry. Entries that become cheap are
+  not removed: the file holds one per family, so it cannot grow without
+  bound, a cheap entry sinks to the foot of the table and is replaced by
+  any costlier case of its family, and it guards against the cost
+  coming back.
+
+Hangs are filed one issue per setting that produces them, not one per
+case, since each setting's hangs share their causes. #151 covers the
+highest cap under the default range limit, a 9,852-digit ceiling: the
+Gamma family, incbeta and the incomplete gamma functions. #152 covers
+the hard bound, a 157,816-digit ceiling, where `expFixed`'s fixed
+reduction and term-by-term series put even `cosh` past two minutes.
+No case hangs at the defaults. #118 links the catalogue as its target.
 
 ### 8.4 Stage 8 docs
 

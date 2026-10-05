@@ -833,7 +833,8 @@ Cloud environment below), so nothing above has to be done there by hand.
 | `pnpm test:sweep`    | Run the edge sweeps, the conformance tests.         |
 | `pnpm test:all`      | Type-check, then run tests, sweeps and benchmarks.  |
 | `pnpm bench`         | Run the performance benchmarks (see Benchmarks).    |
-| `pnpm stress:search` | Search for the costliest inputs (by hand; slow).    |
+| `pnpm stress`        | Measure the catalogued inputs of named functions.   |
+| `pnpm stress:search` | Sample for the costliest inputs, ten minutes a run. |
 | `pnpm format`        | Format all source files with Prettier.              |
 | `pnpm format:check`  | Verify that all source files are formatted.         |
 
@@ -950,8 +951,10 @@ hook's output at session start says which part is out of date.
   measures what one input costs the converter, cold and warm, pass by
   pass, and the search for the costliest inputs, `pnpm stress:search`,
   which is run by hand and never by `pnpm test:all` (`--help` lists its
-  options; ARCHITECTURE.md, "Benchmarks", describes it). The stress suite
-  built on its catalogue is to come.
+  options; ARCHITECTURE.md, "Benchmarks", describes it), and the stress
+  suite, `pnpm stress`, which measures again the catalogued inputs of
+  the functions named (see Stress tests below; `docs/cost.md` presents
+  the catalogue).
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every
   part of the app renders inside. It loads the unit table when it is
   connected, shows a loading message until it arrives, and hands it to the
@@ -1054,6 +1057,46 @@ assertion (its input no longer builds, its expression is now refused) is
 a failure like any other, to be fixed in the commit that causes it, not
 noise: such a benchmark guards nothing until it is fixed. `ARCHITECTURE.md`
 ("Benchmarks") describes how they are built and what each one asserts.
+
+### Stress tests
+
+`pnpm stress:search` samples for the costliest inputs. It draws a stream
+of random inputs from a seed (a fresh one unless `--seed`, printed and
+logged with the run), measures them one per core, and writes each hit
+into `bench/stress/catalogue.json` and the tables of `docs/cost.md` as
+soon as it is found: an input whose warm cost reaches a second, or that
+runs past the two-minute deadline. A hit takes its family's place when
+the place is empty or holds an input it costs at least 10% more than. A
+run lasts ten minutes (`--minutes <n>` to choose), or until Ctrl-C with
+`--forever`; either way the files are formatted and whole at every
+moment, so whenever it ends, or is stopped, what it found is ready to
+review and commit. It is safe to run repeatedly and incrementally:
+each run only adds to the catalogue or replaces an entry by a costlier
+case of its family, so a short run now and then builds the list up over
+time, and running the same seed again only logs the run and keeps any
+timing that came out at least 10% higher. Several runs can share one
+working tree at once: each change to the files is made under a lock.
+The second and the deadline are fixed, not options, so every run, a
+long one or a minute's to try the tool, records hits by the same
+measure, and any run is one to commit.
+`--list <n>` prints the first inputs a seed draws without evaluating
+them. The command never touches git.
+
+`pnpm stress <function> ...` measures again the catalogued inputs that
+call the functions named (`pnpm stress incbeta erf`), cold and warm, one
+per core, cheapest first, printing each result as it comes; with no
+names it measures them all. Run it before and after a change aimed at
+those functions: one function's inputs take one to four minutes on four
+cores. `--profile <name>` keeps one settings profile, and `--skip-hangs`
+leaves out the inputs that hang. It fails only when an input gives a
+different value than it was catalogued with, or passes its deadline;
+the timings, each input's cost as a multiple of a reference, inputs that
+have become much cheaper and how far each hang gets are reported. After
+a change that makes them cheaper, `--record` writes the new timings
+into the catalogue (a hang that now finishes becomes an entry); inputs
+that have become cheap stay, as guards against the cost coming back,
+and a costlier input of their family found later replaces them.
+`pnpm test:all` runs neither.
 
 ### Offline behavior
 

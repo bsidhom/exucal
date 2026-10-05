@@ -8,7 +8,6 @@ import {
   chooseSeed,
   costlyCalls,
   drawCase,
-  enumerateCases,
   formatSeed,
   listCases,
   parseSeed,
@@ -59,9 +58,9 @@ test("a seed is sixteen hexadecimal digits, its two words in order", () => {
   }
 });
 
-test("every drawn and enumerated case parses, under settings the panel could hold", () => {
+test("every drawn case parses, under settings the panel could hold", () => {
   assert.ok(profilesValid());
-  for (const drawn of [...listCases(SEED, 500), ...enumerateCases()]) {
+  for (const drawn of listCases(SEED, 500)) {
     const where = inspect(drawn.case);
     assert.ok(parseExpr(drawn.case.have).ok, where);
     if (drawn.case.want !== "") {
@@ -73,18 +72,27 @@ test("every drawn and enumerated case parses, under settings the panel could hol
   }
 });
 
-test("the enumeration is fixed and covers every identity", () => {
-  const cases = enumerateCases();
-  assert.deepEqual(enumerateCases(), cases);
+test("a seed's sequence reaches every identity and every profile", () => {
+  const drawn = listCases(SEED, 3000);
   for (const identity of IDENTITIES) {
     assert.ok(
-      cases.some(
-        (drawn) => drawn.family.pattern === `identity:${identity.name}`,
-      ),
+      drawn.some((d) => d.family.pattern.includes(`identity:${identity.name}`)),
       identity.name,
     );
   }
-  for (const drawn of cases) assert.equal(drawn.family.profile, "default");
+  for (const profile of [
+    "default",
+    "digits32",
+    "maxcap",
+    "decimal",
+    "fractions",
+    "extreme",
+  ]) {
+    assert.ok(
+      drawn.some((d) => d.family.profile === profile),
+      profile,
+    );
+  }
 });
 
 test("the costly calls of a text leave out approx, pi, the edges and the defined functions", () => {

@@ -1664,8 +1664,10 @@ tests. The rest of the directory is what they share:
   untimed, then evaluates the case cold and again warm, timing each pass
   through the pipeline's optional `PassObserver`, which changes nothing
   it observes. A deadline that starts once the table is built ends a
-  case that runs too long, recorded with the pass that was running,
-  since no timer can interrupt a synchronous evaluation. Its tests are
+  case that runs too long, recorded with the pass that was running, how
+  long it had run, the passes of that evaluation that finished and the
+  schedule, since no timer can interrupt a synchronous evaluation. Its
+  tests are
   ordinary ones, run by `pnpm test`.
 - `bench/stress/search.ts` is the cost search (8.2), run by hand with
   `pnpm stress:search`. Its cases come from `cases.ts`, a pure function
@@ -1675,19 +1677,62 @@ tests. The rest of the directory is what they share:
   built-in's edge, a zero below a condition's bound), the functions and
   their argument classes, a costly call composed into an argument, the
   settings profile and the want. A run without `--seed` draws a fresh
-  seed from the cryptographic source and prints it; `--cases` runs a
-  prefix of the sequence and `--budget` stops after one, whose length is
-  logged, so any run replays; `--list` prints the cases without
-  evaluating them, and `--enumerate` runs a fixed enumeration instead.
-  No timing decides what is searched: the cases are measured in
-  parallel, the costliest of each family measured again one at a time
-  with the catalogue's entry for its family, and `catalogue.ts` merges
-  them into `bench/stress/catalogue.json`, adding a new family's case
-  that reaches the floor (a second warm) and replacing an entry only by a
-  case that costs more per call than the entry measured again. Cases past
-  their deadline, or whose worker failed, are kept apart as hangs, and
-  each run is logged with its seed and count. The tests of `cases.ts` and
-  `catalogue.ts` are ordinary ones, since they evaluate nothing.
+  seed from the cryptographic source and prints it, and the catalogue
+  logs it with the run; `--list` prints the cases without evaluating
+  them. No timing decides what is drawn. A run samples the stream for
+  `--minutes` (ten by default), or until stopped with `--forever`: lanes,
+  one per core, take the next case as they come free (`pool.ts`), so a
+  long case holds one lane and the rest carry on, and timings under that
+  load stay within a few percent of timings alone. A hit, a case whose
+  warm cost reaches the floor (a second) or a hang (past its deadline,
+  or its worker failed), is written at once: `withHit` of `catalogue.ts`
+  puts it in its family's slot if the slot is empty or holds a case it
+  costs `MARGIN` (1.1) times, entries compared by their warm cost per
+  costly call and hangs by `estimateMs` of the harness, which extends
+  the passes a hang finished along their growth in precision to the end
+  of its schedule. A hit that joins is then typed out (`typeOut` of the
+  harness: `outcomeOf` on every prefix of its text in order, in one
+  worker so that the memos carry over as in a session), and that is
+  written too. Every change goes through `update` of `tooling.ts`, under
+  a lock file (`bench/stress/catalogue.lock`, ignored by git, taken over
+  from a process that is gone): the catalogue is read as it is, changed,
+  formatted with the tables of `docs/cost.md` by Prettier on its stdin,
+  and each file written whole through a file renamed over it. So runs
+  can share a working tree, and a copy of the files, or a commit, taken
+  at any moment holds them formatted and complete. When the time is up,
+  or on Ctrl-C, no case starts, the writes under way finish, the run's
+  record (seed, cases measured, hits) is written, and the process ends,
+  abandoning the cases it was measuring. Runs are safe to repeat and to
+  accumulate: a hit can only fill an empty slot or replace a cheaper
+  case of its family, so a repeated case at most refreshes its own
+  timing, and the catalogue grows run by run. The floor and the deadline
+  are constants (`FLOOR_MS`, `DEADLINE_MS` in `catalogue.ts`), not
+  options, so that every run records hits by the same measure and any
+  run, however short or for whatever purpose, can be committed. The tests of `cases.ts`,
+  `catalogue.ts` and `pool.ts` are ordinary ones, since they evaluate
+  nothing.
+- `bench/stress/verify.ts` is the stress suite (8.3), run by
+  `pnpm stress` and discovered by neither `pnpm test` nor `pnpm bench`.
+  It measures again the catalogued cases that call the functions named
+  on its command line (all of them when none is named, those of one
+  profile with `--profile`), each in a worker of its own, cold and warm,
+  in the search's lanes, cheapest first by its catalogued time, then the
+  hangs (`--skip-hangs` leaves them out), printing each result as it
+  comes. An entry's deadline is four times its catalogued time and two
+  minutes at least. It fails on what holds on any machine: an entry's
+  outcome's kind, value and warnings as catalogued (the note after the
+  value, which states a bound a sharper kernel may tighten, is left
+  out), and no entry past its deadline. It reports the timings beside
+  the catalogue's, each entry's cost as a multiple of a reference case
+  (`exp(1) - exp(1)`), entries much cheaper than catalogued, and for
+  each hang how far it got and its estimate, or that it now finishes.
+  With `--record` it writes back, through `update`, what it measured of
+  the cases that passed: an entry's new timings and typing
+  (`withEntryAgain`, no margin, the case's own cost), a hang's new
+  progress and estimate (`withHangAgain`), and a hang that now finishes
+  as its family's entry. Entries that become cheap are kept: they guard
+  the cost, their value is still checked, and a costlier case of their
+  family replaces them.
 - `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
   drawn from the letters `n` to `z` and unit names from `a` to `m`, so
   that no name is ambiguous and the ambiguity check scans everything: its

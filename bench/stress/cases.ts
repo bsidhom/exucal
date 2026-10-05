@@ -705,67 +705,6 @@ export function listCases(seed: Key, count: number): Drawn[] {
   return Array.from({ length: count }, (_, i) => drawCase(seed, i));
 }
 
-/**
- * The fixed enumeration, which needs no seed: each built-in less itself
- * with every argument of one class, for each class; then each identity
- * with every variable of one class, for each class; then each edge and the
- * condition around `beta-gamma`'s zero. All at the default settings, with
- * no want.
- */
-export function enumerateCases(): Drawn[] {
-  const profile = PROFILES[0]![1];
-  const classes = CLASSES.map(([, cls]) => cls);
-  const fixed = stream([0, 0]);
-  const cases: Drawn[] = [];
-  for (const fn of FUNCTIONS) {
-    for (const cls of classes) {
-      const call = callOf(fixed, fn, false, cls);
-      cases.push(
-        drawnOf(
-          { ...call, text: `${call.text} - ${call.text}` },
-          "cancel",
-          profile,
-          "",
-        ),
-      );
-    }
-  }
-  for (const identity of IDENTITIES) {
-    for (const cls of Object.keys(identity.vars).length === 0
-      ? (["exact"] as const)
-      : classes) {
-      cases.push(
-        drawnOf(
-          identityOf(fixed, identity, cls),
-          `identity:${identity.name}`,
-          profile,
-          "",
-        ),
-      );
-    }
-  }
-  const zero = identityOf(fixed, IDENTITIES[0]!, "exact");
-  for (const [edge, wrap] of EDGES) {
-    cases.push(
-      drawnOf(
-        { ...zero, text: wrap(zero.text) },
-        `edge:${edge}/identity:beta-gamma`,
-        profile,
-        "",
-      ),
-    );
-  }
-  cases.push(
-    drawnOf(
-      { ...zero, text: `tempC(${zero.text} - 273.15)`, kind: "temperature" },
-      "condition/identity:beta-gamma",
-      profile,
-      "",
-    ),
-  );
-  return cases;
-}
-
 /** A case as one line of `--list`: its index, profile, texts and family's pattern. */
 export function describeCase(index: number, drawn: Drawn): string {
   const want = drawn.case.want === "" ? "" : `  into  ${drawn.case.want}`;

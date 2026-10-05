@@ -2,7 +2,7 @@
 // https://developers.cloudflare.com/workers/wrangler/configuration/
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "pwa-units",
+  "name": "units",
   // The Workers runtime behaves as it did on this date. Keep it as recent as
   // the pinned wrangler supports: it must not be newer than the workerd
   // version that wrangler bundles (see its version in pnpm-lock.yaml), and

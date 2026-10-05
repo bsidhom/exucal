@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import {
   appendFileSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { hostname, tmpdir } from "node:os";
@@ -15,10 +17,12 @@ import {
   append,
   caseKey,
   formatRanges,
+  latestRun,
   lock,
   parseRanges,
   readJournal,
   readJson,
+  repair,
   writeJson,
   type JournalRecord,
 } from "./journal.ts";
@@ -99,5 +103,60 @@ test("a run's lock is held by one live process, and taken over from a dead one",
       new RegExp(`"pid":${process.pid}`),
     );
     taken.release();
+  });
+});
+
+test("a journal copied in the middle of an append resumes without losing the next record", () => {
+  inTemporary((dir, path) => {
+    const check = (n: number): JournalRecord => ({
+      kind: "check",
+      case: `case ${n}`,
+      date: "d",
+      failed: "no",
+    });
+    assert.equal(repair(dir), 0, "no journal: nothing to cut");
+    append(dir, check(1));
+    assert.equal(repair(dir), 0, "whole lines: nothing to cut");
+    // The copy holds the start of the second record and no newline.
+    appendFileSync(join(path, "journal.jsonl"), '{"kind":"check","ca');
+    assert.equal(repair(dir), 19);
+    append(dir, check(3));
+    assert.deepEqual(
+      readJournal(dir).records.map((r) => (r.kind === "check" ? r.case : "")),
+      ["case 1", "case 3"],
+    );
+    assert.equal(readJournal(dir).skipped, 0);
+  });
+});
+
+test("the run to resume is the one whose journal changed last", () => {
+  inTemporary((dir, path) => {
+    const runs = new URL("../runs/", dir);
+    const root = join(path, "..", "runs");
+    assert.equal(
+      latestRun(runs, () => true),
+      undefined,
+    );
+    for (const [name, seconds] of [
+      ["0123456789abcdef", 100],
+      ["fedcba9876543210", 300],
+      ["stress-1234", 400],
+      ["enumeration", 200],
+    ] as const) {
+      mkdirSync(join(root, name), { recursive: true });
+      const file = join(root, name, "journal.jsonl");
+      writeFileSync(file, "");
+      utimesSync(file, seconds, seconds);
+    }
+    const searches = (name: string) => !name.startsWith("stress-");
+    assert.equal(latestRun(runs, searches), "fedcba9876543210");
+    assert.equal(
+      latestRun(runs, () => true),
+      "stress-1234",
+    );
+    // A run with no journal yet is dated by its run.json.
+    mkdirSync(join(root, "aaaaaaaaaaaaaaaa"));
+    writeFileSync(join(root, "aaaaaaaaaaaaaaaa", "run.json"), "{}");
+    assert.equal(latestRun(runs, searches), "aaaaaaaaaaaaaaaa");
   });
 });

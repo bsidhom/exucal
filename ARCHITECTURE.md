@@ -1696,8 +1696,16 @@ tests. The rest of the directory is what they share:
   `bench/stress/runs/<seed>/`, with the run's target, a snapshot of the
   catalogue as it began, and a lock naming the one process working on
   it), and a run does only what its journal lacks. So a stopped run
-  resumes losing only the units that were running, a larger `--cases`
-  extends a finished one, and `--budget` bounds a run's length. Every
+  resumes losing only the units that were running (`--resume` finds the
+  run whose journal changed last), a larger `--cases` extends a finished
+  one, and `--budget` bounds a run's length. Every file a run writes can
+  be copied or committed while it runs, and the copy resumes: the
+  journal is appended a line at a time and cut back to its last whole
+  line before a run appends to it (`repair`), `run.json` and `base.json`
+  are written through a file renamed over them, and the catalogue and
+  `docs/cost.md` are formatted by Prettier on its stdin (`formatText` of
+  `tooling.ts`) before each is written whole the same way. Git ignores
+  only the lock, which names a process on one machine. Every
   fifteen seconds, and at the end, the run writes what it has found:
   `catalogue.ts` decides each family it has measured anything of
   (`decide`), and the catalogue and the tables of `docs/cost.md` are
@@ -1718,9 +1726,11 @@ tests. The rest of the directory is what they share:
   Each catalogued case is a unit, measured in a worker of its own, cold
   and warm, in the search's lanes, cheapest first by its catalogued time,
   then the hangs (`--skip-hangs` leaves them out); each result is printed
-  and journaled as it comes, under a directory keyed by the commit, the
-  changes beside it and the catalogue (`treeKey` of `tooling.ts`), so the
-  suite resumes on the same tree and starts afresh after a change. An
+  and journaled as it comes, under a directory keyed by the contents of
+  the code, the tools, the dependencies and the catalogue (`treeKey` of
+  `tooling.ts`), so the suite resumes while they stand and starts afresh
+  after a change; a commit that changes none of them, a snapshot of a
+  run, keeps the key. An
   entry's deadline is four times its catalogued time and two minutes at
   least. It fails on what holds on any machine: an entry's outcome's
   kind, value and warnings as catalogued (the note after the value,

@@ -15,9 +15,10 @@
 // next as they come free (pool.ts), as the search measured them, so that
 // the timings are the catalogue's kind, and each result is printed and
 // journaled as it comes (journal.ts), under bench/stress/runs/stress-<key>/
-// for a key of the commit, the changes beside it and the catalogue
-// (`treeKey`): run again on the same tree, the suite carries on where it
-// stopped, and after a change it starts afresh.
+// for a key of the code and the catalogue (`treeKey`): run again on the
+// same code and catalogue, the suite carries on where it stopped, and
+// after a change to either it starts afresh. A commit that changes
+// neither, such as a snapshot of a run, keeps the key.
 //
 // It fails only on what holds on any machine:
 //
@@ -58,6 +59,7 @@ import {
   caseKey,
   lock,
   readJournal,
+  repair,
   type CheckRecord,
   type Outcome,
 } from "./journal.ts";
@@ -220,7 +222,9 @@ async function main(): Promise<void> {
   const dir = new URL(`stress-${treeKey()}/`, RUNS);
   const held = lock(dir);
   if ("heldBy" in held) {
-    console.error(`another process is running this suite: ${held.heldBy}`);
+    console.error(
+      `another process is running this suite: ${held.heldBy}; if it is gone (on another machine, say), delete ${fileURLToPath(new URL("lock", dir))}`,
+    );
     process.exit(2);
   }
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
@@ -231,6 +235,7 @@ async function main(): Promise<void> {
     });
   }
   try {
+    repair(dir);
     const checks = new Map<string, CheckRecord>();
     const journal = readJournal(dir);
     for (const record of journal.records) {

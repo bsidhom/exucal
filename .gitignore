@@ -19,7 +19,8 @@ dist/
 # Wrangler local state
 .wrangler/
 
-# The cost search's journals (bench/stress/journal.ts)
-bench/stress/runs/
+# The lock of a stress run (bench/stress/journal.ts): the journals beside it
+# may be committed, the lock never
+bench/stress/runs/*/lock
 # Files the stress tools write before renaming them into place
 *.tmp

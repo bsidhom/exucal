@@ -10,8 +10,16 @@
 // records; `run.json`, what the run is to cover, which only grows; for a
 // search, `base.json`, the catalogue as it was when the run began; and
 // `lock`, which names the process working on the run while it does, so
-// that two processes never journal one run at once. A line cut short by
-// a killed process is skipped when read.
+// that two processes never journal one run at once.
+//
+// Every file here can be copied, or committed, at any moment while a run
+// writes it, and the copy resumes: the journal is only appended to, a
+// line at a time, so a copy holds whole lines and perhaps a last one cut
+// short, which `repair` removes before a run appends again (else the next
+// record would join it and be lost with it); `run.json` and `base.json`
+// are written whole, through a file renamed over them. The lock is not
+// copied: git ignores it, since a lock carried to another machine names a
+// process there is no telling the state of.
 //
 // The records:
 //
@@ -28,12 +36,19 @@
 import {
   appendFileSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
+  statSync,
+  truncateSync,
   writeFileSync,
 } from "node:fs";
 import { hostname } from "node:os";
-import type { Commit, TypingSummary } from "./catalogue.ts";
+import {
+  writeAtomically,
+  type Commit,
+  type TypingSummary,
+} from "./catalogue.ts";
 import type { Case, Measurement } from "./harness.ts";
 
 /** What measuring a case gave: a measurement, or the failure of its worker. */
@@ -167,10 +182,64 @@ export function readJson<T>(dir: URL, name: string): T | undefined {
   }
 }
 
-/** Writes `value` to the JSON file `name` in `dir`, creating `dir` as needed. */
+/** Writes `value` to the JSON file `name` in `dir` whole, creating `dir` as needed. */
 export function writeJson(dir: URL, name: string, value: unknown): void {
   mkdirSync(dir, { recursive: true });
-  writeFileSync(new URL(name, dir), `${JSON.stringify(value, null, 2)}\n`);
+  writeAtomically(new URL(name, dir), `${JSON.stringify(value, null, 2)}\n`);
+}
+
+/**
+ * Cuts the journal in `dir` back to its last whole line, so that the next
+ * record appended starts a line of its own: a process killed in the
+ * middle of an append, or a copy taken during one, leaves a last line
+ * without its newline. Gives how many bytes were cut. Called by the one
+ * process holding the run's lock, before it appends.
+ */
+export function repair(dir: URL): number {
+  const file = new URL(RECORDS, dir);
+  let text: Buffer;
+  try {
+    text = readFileSync(file);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return 0;
+    throw e;
+  }
+  if (text.length === 0 || text[text.length - 1] === 0x0a) return 0;
+  const keep = text.lastIndexOf(0x0a) + 1;
+  truncateSync(file, keep);
+  return text.length - keep;
+}
+
+/**
+ * The name of the run under `runs` that `accept` takes and whose journal
+ * changed last, or `undefined` when there is none: the run to resume.
+ */
+export function latestRun(
+  runs: URL,
+  accept: (name: string) => boolean,
+): string | undefined {
+  let names: string[];
+  try {
+    names = readdirSync(runs).filter(accept);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw e;
+  }
+  let latest: { name: string; ms: number } | undefined;
+  for (const name of names) {
+    let ms: number;
+    try {
+      ms = statSync(new URL(`${name}/${RECORDS}`, runs)).mtimeMs;
+    } catch {
+      try {
+        ms = statSync(new URL(`${name}/run.json`, runs)).mtimeMs;
+      } catch {
+        continue;
+      }
+    }
+    if (latest === undefined || ms > latest.ms) latest = { name, ms };
+  }
+  return latest?.name;
 }
 
 /** Whether the process `pid` on this host is alive. */

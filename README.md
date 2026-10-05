@@ -1081,14 +1081,25 @@ catalogue and the tables of `docs/cost.md` every fifteen seconds as it
 runs, so the results grow while you watch, and leaves them as a diff for
 review like any other change.
 
-Both journal every result as it comes, under `bench/stress/runs/`
-(ignored by git), so either can be stopped at any point, by Ctrl-C or a
-crash, and the same command carries on where it left off, losing only
-what was running. Start small and grow: `pnpm stress:search --cases 40`
+Both journal every result as it comes, under `bench/stress/runs/`, so
+either can be stopped at any point, by Ctrl-C or a crash, and the same
+command carries on where it left off, losing only what was running;
+`pnpm stress:search --resume` carries on the latest search without
+naming its seed. Start small and grow: `pnpm stress:search --cases 40`
 takes a few minutes, and a later `--cases 200` measures only the 160 new
 inputs. `--budget <minutes>` stops a search after that long, for the
 next run to carry on. The suite's journal is kept for one state of the
-code and the catalogue: after a change, it starts afresh.
+code and the catalogue: after a change to either, it starts afresh.
+
+Neither command touches git. Everything they write can be copied or
+committed at any moment while they run, and a copy carries on from
+where it was taken: the journals are only appended to, and a line cut
+short by a copy is dropped when the run resumes, and the catalogue and
+`docs/cost.md` are written formatted and whole, never part way. To keep
+a long run's progress somewhere a crash cannot reach it, commit its
+directory under `bench/stress/runs/` with the catalogue and the doc as
+it goes; git ignores only the run's lock, which names the process
+working on it.
 
 ### Offline behavior
 

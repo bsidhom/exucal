@@ -3,14 +3,13 @@
 // journal keeps, and the formatting of the files a run writes.
 //
 // Commands run as security rules require (ARCHITECTURE.md, "Security"):
-// git and Prettier through `execFile` with an argument array, git's list
-// read NUL-separated.
+// git and Prettier through `execFileSync` and `spawn` with an argument
+// array and no shell, git's lists read NUL-separated.
 
-import { execFile, execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
 import { roundRun, type Commit, type Entry } from "./catalogue.ts";
 import { measure, type Case, type Measurement } from "./harness.ts";
 import type { Outcome } from "./journal.ts";
@@ -78,36 +77,81 @@ export function caseOfEntry(entry: Entry): Case {
   return { have: entry.have, want: entry.want, settings: entry.settings };
 }
 
-/** Formats `files` with the repository's Prettier, without blocking the lanes. */
-export async function formatFiles(files: readonly URL[]): Promise<void> {
-  await promisify(execFile)(
-    process.execPath,
-    [
-      fileURLToPath(new URL("node_modules/prettier/bin/prettier.cjs", root)),
-      "--write",
-      "--log-level=warn",
-      ...files.map((file) => fileURLToPath(file)),
-    ],
-    { cwd: fileURLToPath(root) },
-  );
+/**
+ * `text` as the repository's Prettier formats the file `file`: Prettier
+ * reads it on stdin, in a process of its own so that the lanes are not
+ * held, and the caller writes the result once, atomically, so that the
+ * file on disk is formatted and whole at every moment (a `--write` would
+ * truncate the file and fill it again, and a snapshot taken between the
+ * two would hold a file cut short).
+ */
+export function formatText(text: string, file: URL): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      process.execPath,
+      [
+        fileURLToPath(new URL("node_modules/prettier/bin/prettier.cjs", root)),
+        "--stdin-filepath",
+        fileURLToPath(file),
+      ],
+      { cwd: fileURLToPath(root), stdio: ["pipe", "pipe", "pipe"] },
+    );
+    const out: Buffer[] = [];
+    const err: Buffer[] = [];
+    child.stdout.on("data", (chunk: Buffer) => out.push(chunk));
+    child.stderr.on("data", (chunk: Buffer) => err.push(chunk));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) resolve(Buffer.concat(out).toString("utf8"));
+      else {
+        reject(
+          new Error(
+            `Prettier exited with ${code}: ${Buffer.concat(err).toString("utf8")}`,
+          ),
+        );
+      }
+    });
+    child.stdin.end(text);
+  });
 }
 
+/** The files whose contents decide what a measurement gives: the code, the tools, the catalogue and the dependencies. */
+const KEYED = ["src", "bench/stress", "package.json", "pnpm-lock.yaml"];
+
 /**
- * A key for the code and the catalogue as they stand: a hash of the commit,
- * the changes to tracked files beside it (`git diff HEAD`, read as bytes)
- * and the catalogue's text, so that a run keyed by it resumes only while
- * none of them has changed.
+ * A key for the code and the catalogue as they stand: a hash of the path
+ * and contents of every file, tracked or new, under `KEYED`, the runs'
+ * journals left out, so that a run keyed by it resumes only while none of
+ * them has changed, and a commit that changes none of them (a snapshot
+ * of a run) leaves it as it was.
  */
 export function treeKey(): string {
   const cwd = fileURLToPath(root);
-  const hash = createHash("sha256");
-  hash.update(execFileSync("git", ["rev-parse", "HEAD"], { cwd }));
-  hash.update(
-    execFileSync("git", ["diff", "HEAD", "--binary"], {
-      cwd,
-      maxBuffer: 1 << 30,
-    }),
+  const listed = execFileSync(
+    "git",
+    [
+      "ls-files",
+      "-z",
+      "--cached",
+      "--others",
+      "--exclude-standard",
+      "--",
+      ...KEYED,
+      ":(exclude)bench/stress/runs",
+    ],
+    { cwd, encoding: "utf8", maxBuffer: 1 << 28 },
   );
-  hash.update(readFileSync(CATALOGUE));
+  const paths = [...new Set(listed.split("\0").filter((p) => p !== ""))].sort();
+  const hash = createHash("sha256");
+  for (const path of paths) {
+    hash.update(`${path}\0`);
+    try {
+      hash.update(readFileSync(new URL(path, root)));
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+      hash.update("deleted");
+    }
+    hash.update("\0");
+  }
   return hash.digest("hex").slice(0, 16);
 }

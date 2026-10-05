@@ -336,15 +336,6 @@ export function readCatalogue(path: string | URL): Catalogue {
   return JSON.parse(text) as Catalogue;
 }
 
-/**
- * Writes `catalogue` to `path` as JSON, whole or not at all: to a file
- * beside it, renamed over it, so that a process killed in the middle
- * leaves the catalogue as it was.
- */
-export function writeCatalogue(path: string | URL, catalogue: Catalogue): void {
-  writeAtomically(path, `${JSON.stringify(catalogue, null, 2)}\n`);
-}
-
 /** Writes `text` to `path` through a file beside it, renamed over it. */
 export function writeAtomically(path: string | URL, text: string): void {
   const file = path instanceof URL ? fileURLToPath(path) : path;

@@ -5441,6 +5441,19 @@ that were running, and results come as they are found:
   hangs, in the same lanes, journaled under a key of the commit, the
   changes beside it and the catalogue, so it resumes on the same tree
   and starts afresh after a change.
+- **Snapshots.** Everything a run writes can be copied or committed at
+  any moment while it runs, and the copy resumes, so the progress of a
+  long run can be kept by committing its files as it goes; the tools
+  themselves never touch git. The journal is cut back to its last whole
+  line before a run appends to it, since a copy taken during an append
+  ends in part of a line, which the next record would otherwise join and
+  be lost with. The catalogue and its tables are formatted before they
+  are written and written whole, rather than written and then formatted
+  in place, which left a moment when a copy would hold a file cut short.
+  Git ignores only a run's lock, and the stress suite's key is the
+  contents of the code and the catalogue rather than the commit, so a
+  snapshot commit neither carries a lock to another machine nor restarts
+  the suite. `--resume` carries on the latest search without its seed.
 - **One machine.** A cloud session here is one container with no
   filesystem or network shared with any other, so the lanes share the
   work among one machine's cores. The units and the journal do not

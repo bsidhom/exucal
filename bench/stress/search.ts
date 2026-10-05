@@ -1,7 +1,7 @@
 // The cost search (docs/calculator-plan.md, tasks 8.2 and 8.3), run by
 // hand:
 //
-//   pnpm stress:search [--seed <hex> | --enumerate] [--cases <n>]
+//   pnpm stress:search [--seed <hex> | --enumerate | --resume] [--cases <n>]
 //                      [--budget <minutes>] [--list] [--deadline <seconds>]
 //                      [--floor <ms>] [--jobs <n>] [--dry-run]
 //
@@ -31,8 +31,12 @@
 // all measured, else the next case. Each unit is journaled as it finishes
 // (journal.ts), under bench/stress/runs/<seed>/, so a run can stop
 // anywhere and the same command carries on, losing only the units that
-// were running; a larger `--cases` extends a run, and `--budget` stops
-// one after that many minutes for the next to carry on. Every fifteen
+// were running; `--resume` carries on the run whose journal changed last,
+// without naming its seed; a larger `--cases` extends a run, and
+// `--budget` stops one after that many minutes for the next to carry on.
+// Every file a run writes can be copied or committed at any moment while
+// it runs, and the copy resumes (journal.ts; the catalogue and its tables
+// are formatted before they are written, and written whole). Every fifteen
 // seconds, and at the end, the run writes what it has found into the
 // catalogue and the tables: each family as its cases come in, a new
 // family's best case at once, a pair's outcome once measured, a hang as
@@ -70,7 +74,6 @@ import {
   withSlot,
   withTable,
   writeAtomically,
-  writeCatalogue,
   type Catalogue,
   type Commit,
   type Decision,
@@ -85,8 +88,10 @@ import {
   append,
   caseKey,
   formatRanges,
+  latestRun,
   lock,
   readJournal,
+  repair,
   readJson,
   writeJson,
   type CaseRecord,
@@ -102,7 +107,7 @@ import {
   RUNS,
   caseOfEntry,
   currentCommit,
-  formatFiles,
+  formatText,
   measureCase,
 } from "./tooling.ts";
 
@@ -154,11 +159,16 @@ type Family = {
 /** Prints the usage, and exits with `code`. */
 function usage(code = 2): never {
   console.log(
-    "usage: pnpm stress:search [--seed <hex> | --enumerate] [--cases <n>]\n" +
+    "usage: pnpm stress:search [--seed <hex> | --enumerate | --resume] [--cases <n>]\n" +
       "                          [--budget <minutes>] [--list] [--deadline <seconds>]\n" +
       "                          [--floor <ms>] [--jobs <n>] [--dry-run]",
   );
   process.exit(code);
+}
+
+/** Whether a run directory's name is a seed's: sixteen hexadecimal digits. */
+function isSeed(name: string): boolean {
+  return /^[0-9a-f]{16}$/.test(name);
 }
 
 /** Prints `message` and exits as a usage error does. */
@@ -576,19 +586,23 @@ class Run {
     this.catalogue = catalogue;
     this.changed = false;
     if (dryRun) return;
-    writeCatalogue(CATALOGUE, catalogue);
-    const written = [CATALOGUE];
+    // Both files formatted first, then each written whole and at once, so
+    // that a copy taken at any moment holds formatted, complete files.
+    const text = await formatText(
+      `${JSON.stringify(catalogue, null, 2)}\n`,
+      CATALOGUE,
+    );
+    let doc: string | undefined;
     if (existsSync(DOC)) {
-      let doc: string | undefined = readFileSync(DOC, "utf8");
-      doc = withTable(doc, catalogueTable(catalogue));
+      doc = withTable(readFileSync(DOC, "utf8"), catalogueTable(catalogue));
       if (doc !== undefined) {
         doc =
           withTable(doc, hangsTable(catalogue), HANGS_START, HANGS_END) ?? doc;
-        writeAtomically(DOC, doc);
-        written.push(DOC);
+        doc = await formatText(doc, DOC);
       }
     }
-    await formatFiles(written);
+    writeAtomically(CATALOGUE, text);
+    if (doc !== undefined) writeAtomically(DOC, doc);
   }
 
   /** One line on where the run stands. */
@@ -612,6 +626,7 @@ async function main(): Promise<void> {
     parsed = parseArgs({
       options: {
         seed: { type: "string" },
+        resume: { type: "boolean", default: false },
         cases: { type: "string" },
         budget: { type: "string" },
         list: { type: "boolean", default: false },
@@ -631,6 +646,19 @@ async function main(): Promise<void> {
   if (options.help) usage(0);
   if (options.enumerate && options.seed !== undefined) {
     refuse("--enumerate takes no seed: the enumeration is fixed");
+  }
+  if (options.resume) {
+    if (options.enumerate || options.seed !== undefined) {
+      refuse(
+        "--resume finds the run itself: it takes no --seed or --enumerate",
+      );
+    }
+    const name = latestRun(RUNS, (n) => n === "enumeration" || isSeed(n));
+    if (name === undefined)
+      refuse(`no run to resume in ${fileURLToPath(RUNS)}`);
+    console.log(`resuming the run whose journal changed last: ${name}`);
+    if (name === "enumeration") options.enumerate = true;
+    else options.seed = name;
   }
   const budgetMs =
     options.budget === undefined
@@ -668,15 +696,15 @@ async function main(): Promise<void> {
   }
   const dir = new URL(`${search.name}/`, RUNS);
   const stored = readJson<RunFile>(dir, "run.json");
-  // The run covers the larger of what it covered and what is asked: a
-  // seed's sequence has no end, so a new run takes 100 cases (20 to list).
-  const asked = Math.floor(
-    positive(
-      options.cases,
-      options.enumerate ? search.count : options.list ? 20 : 100,
-      "--cases",
-    ),
-  );
+  // The run covers the larger of what it covered and what is asked; asked
+  // nothing, it covers what it covered, and a new run of a seed's sequence,
+  // which has no end, takes 100 cases (20 to list).
+  const fallback = options.enumerate
+    ? search.count
+    : options.list
+      ? 20
+      : (stored?.target ?? 100);
+  const asked = Math.floor(positive(options.cases, fallback, "--cases"));
   const target = Math.min(
     search.count,
     options.list ? asked : Math.max(asked, stored?.target ?? 0),
@@ -691,7 +719,9 @@ async function main(): Promise<void> {
 
   const held = lock(dir);
   if ("heldBy" in held) {
-    refuse(`another process is working on this run: ${held.heldBy}`);
+    refuse(
+      `another process is working on this run: ${held.heldBy}; if it is gone (on another machine, say), delete ${fileURLToPath(new URL("lock", dir))}`,
+    );
   }
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.on(signal, () => {
@@ -703,6 +733,10 @@ async function main(): Promise<void> {
     });
   }
   try {
+    const cut = repair(dir);
+    if (cut > 0) {
+      console.log(`cut a journal line left unfinished (${cut} bytes)`);
+    }
     writeJson(dir, "run.json", { target } satisfies RunFile);
     let base = readJson<Catalogue>(dir, "base.json");
     if (base === undefined) {

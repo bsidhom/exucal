@@ -907,6 +907,23 @@ text. `ParseError` comes from the parsing toolkit below, which both parsers
 are built from; `Span` has its own small module, because it is not a parsing
 concept but the vocabulary every later stage uses to locate its errors.
 
+The grammar's levels of binding and its binary operators are data in
+`src/core/expr.ts` (`LEVELS`, `BINARY`): the two left-associative levels
+of the parser are built from the table, and the printer,
+`src/core/print.ts`, writes a tree back by it, so the two cannot
+disagree. Juxtaposition is its own operator in the tree, `juxtapose`,
+and a number node keeps the text it was read from, so that a tree can be
+written back as it was read: the printer's text is canonical, one space
+between juxtaposed factors and around the other operators, a quotient of
+two literals tight as a fraction, and the fewest parentheses that read
+the tree back as it is, which `levelOf` and the levels decide position by
+position. The printer never changes a tree. Its output is pieces, each
+saying what it is (a number, a name, an exponent, a symbol), so that the
+converter can style a result's numbers apart; `text` joins them. A
+property test prints random trees (`src/testing/expr.ts`) and parses them
+back, and `formatDimension` is the printer over a dimension built as an
+expression (`dimensionExpr`).
+
 ## Parsing
 
 Both parsers are assembled from a small set of parser combinators in
@@ -1334,7 +1351,15 @@ decimal mode rounds each step of a body to Digits. docs/functions.md
 `<unit-converter>` is a Lit component with two text inputs, "you have" and
 "you want", and an output area. Its only state is the two strings; on every
 change it runs the pipeline and renders either the formatted result or the
-error. `<app-shell>` hosts it and owns the `UnitTable`: `src/system-table.ts`
+error. A result line (`src/outcome.ts`) is two expressions and a relation:
+the have as it was read, and the result composed from the values the
+display wrote and the units as they were read, by the grammar's own
+operators, the value as the first factor of its unit (`36 m / s`), or
+multiplying it whole with `*` where it leads with a number
+(`5.28 × 1000 ft`), the terms of a list summed, the argument inside the
+call. The printer writes both sides canonically, with `×` for the screen,
+so every line can be typed back as a have, and the component styles the
+numbers among the printer's pieces. `<app-shell>` hosts it and owns the `UnitTable`: `src/system-table.ts`
 fetches the bundled definitions and parses them on the main thread (a few
 milliseconds), once, and `src/system-build.ts` builds the table from them
 at the ceiling of the retry schedule in force, memoizing one table by its
@@ -1510,12 +1535,13 @@ src/core/constants.ts     pi by Chudnovsky's series and e by its series, both wi
 src/core/bernoulli.ts     the Bernoulli numbers, exact, from the tangent numbers, a run on request
 src/core/bernoulli-ratios.ts the ratios of consecutive Bernoulli numbers in fixed point, each at the bits its term needs, memoized by count and bits
 src/core/display.ts       show: a ball's text at the digits it certifies, and its kind (exact, certified, partial, zero, unbounded)
-src/core/dimension.ts     Dimension arithmetic, conformance check, formatting
+src/core/dimension.ts     Dimension arithmetic, conformance check, a dimension as an expression and its text
 src/core/dimension-of.ts  dimensionOf: a body's dimension without its value, the build's function check
 src/core/quantity.ts      Quantity (a Ball with a Dimension), its arithmetic
 src/core/span.ts          Span, a location in the input text
 src/core/parser.ts        Parser combinators, ParseError
-src/core/expr.ts          Expr, parseExpr, parseUnitList, Rejection
+src/core/expr.ts          Expr, parseExpr, parseUnitList, Rejection; LEVELS and BINARY, the grammar's levels and operators as data
+src/core/print.ts         print: a tree as canonical text, in pieces; the inverse of parseExpr
 src/core/definitions.ts   Definition, parseDefinitions
 src/core/graph.ts         on-demand evaluation of a dependency graph, cycles
 src/core/names.ts         the prefix-unit resolution rule, the ambiguity check
@@ -1548,6 +1574,7 @@ src/core/pipeline.ts      convertText, evaluateText: the pipeline over text
 src/core/result.ts        Result; each module defines its own error types
 src/units.txt             the system definitions; src/units.test.ts checks them
 src/testing/random.ts     the seeded random source the tests and benchmarks share: keys, split and folded in, every draw a pure function of one
+src/testing/expr.ts       random expression trees, for the printer's property test
 src/testing/fraction.ts   parseFraction, roundFraction, formatFraction: the decimal representation over the fraction, for the tests that reason on fractions
 src/testing/scaled.ts     dec, fr, exactDec, fraction, ball, digitsOf: a literal as a Scaled, a midpoint back to its fraction, a ball from decimals, for the tests of the ball and above
 src/testing/edges.ts      the edge sweep's support: the worker under a deadline, the table of known violations, the loose arithmetic and the oracle's checks
@@ -1558,7 +1585,7 @@ src/system-table.ts       loadSystemDefinitions: fetches and parses the system d
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
 src/settings.ts           Settings: the digits, the rounding mode, the exact or decimal mode and the two limits, in localStorage; contextOf
 src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
-src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result; src/outcome.test.ts checks them
+src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result, each two expressions the printer writes; src/outcome.test.ts checks them
 src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome
 src/settings-panel.ts     the settings panel: the controls and the probe's button; emits settings-change
 src/app-footer.ts         the footer: the build ID, which checks for updates when tapped, and the worker's status

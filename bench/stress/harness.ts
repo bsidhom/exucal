@@ -41,7 +41,7 @@ import { buildTable } from "../../src/core/build.ts";
 import { ceilingContext } from "../../src/core/context.ts";
 import { parseDefinitions } from "../../src/core/definitions.ts";
 import { schedule, type PassEvent } from "../../src/core/pipeline.ts";
-import { outcomeOf, type Line, type Outcome } from "../../src/outcome.ts";
+import { displayText, outcomeOf, type Outcome } from "../../src/outcome.ts";
 import {
   DEFAULT_SETTINGS,
   contextOf,
@@ -507,24 +507,10 @@ export function summarize(outcome: Outcome): OutcomeSummary {
     case "result":
       return {
         kind: "result",
-        line: written(outcome.lines[0]!),
+        line: displayText(outcome.lines[0]!),
         warnings: outcome.warnings?.length ?? 0,
       };
   }
-}
-
-/** A line as the converter writes it (unit-converter.ts), the note in parentheses. */
-function written(line: Line): string {
-  const terms = line.terms
-    .map((term, i) => {
-      const operator = i === 0 ? "" : term.negative ? " - " : " + ";
-      const unit = term.unit === "" ? "" : ` ${term.unit}`;
-      return `${operator}${term.text}${unit}`;
-    })
-    .join("");
-  const sum = line.call === undefined ? terms : `${line.call}(${terms})`;
-  const note = line.note === undefined ? "" : ` (${line.note})`;
-  return `${line.have} ${line.relation} ${sum}${note}`;
 }
 
 if (!isMainThread) {

@@ -30,6 +30,8 @@
 // the default role, and ordered after the declared ones; a table cannot
 // produce one, but nothing here depends on that.
 
+import type { Exponent, Expr, ExprNode, Literal } from "./expr.ts";
+import { print, text } from "./print.ts";
 import {
   ONE,
   ZERO,
@@ -39,12 +41,14 @@ import {
   isZero,
   multiply,
   negate,
+  rational,
   sign,
   subtract,
   toFraction,
   type Rational,
 } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
+import { fromRational } from "./scaled.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -190,8 +194,23 @@ export function checkConformance(
  * parenthesized (`m^(1/2)`). Primitives appear in declaration order.
  */
 export function formatDimension(d: Dimension, primitives: Primitives): string {
-  const numerator: string[] = [];
-  const denominator: string[] = [];
+  const expr = dimensionExpr(d, primitives);
+  return expr === undefined ? "1" : text(print(expr));
+}
+
+/**
+ * `d` as an expression in the primitives, as the grammar reads one: the
+ * primitives with positive exponents juxtaposed, in declaration order,
+ * each raised to its exponent when that is not one, over those with
+ * negative exponents, raised to the exponents' magnitudes; or `undefined`
+ * for a dimensionless `d`. `formatDimension` is its text.
+ */
+export function dimensionExpr(
+  d: Dimension,
+  primitives: Primitives,
+): Expr | undefined {
+  const numerator: Expr[] = [];
+  const denominator: Expr[] = [];
   for (const [name, exponent] of byDeclaration(
     d,
     ([name]) => name,
@@ -203,16 +222,47 @@ export function formatDimension(d: Dimension, primitives: Primitives): string {
       denominator.push(factor(name, negate(exponent)));
     }
   }
-  const top = numerator.length === 0 ? "1" : numerator.join(" ");
-  return denominator.length === 0 ? top : `${top} / ${denominator.join(" ")}`;
+  if (numerator.length === 0 && denominator.length === 0) return undefined;
+  const top = numerator.length === 0 ? literalExpr(ONE) : juxtaposed(numerator);
+  return denominator.length === 0
+    ? top
+    : expr({
+        kind: "binary",
+        op: "div",
+        left: top,
+        right: juxtaposed(denominator),
+      });
 }
 
-/** `name` raised to the positive `exponent`, as the grammar writes it. */
-function factor(name: string, exponent: Rational): string {
-  if (equals(exponent, ONE)) return name;
-  return isInteger(exponent)
-    ? `${name}^${exponent.num}`
-    : `${name}^(${toFraction(exponent)})`;
+/** The product of `factors` by juxtaposition, left-associated as the grammar reads it. */
+function juxtaposed(factors: readonly Expr[]): Expr {
+  return factors.reduce((left, right) =>
+    expr({ kind: "binary", op: "juxtapose", left, right }),
+  );
+}
+
+/** `name` raised to the positive `exponent`, as the grammar reads it: the name alone for one. */
+function factor(name: string, exponent: Rational): Expr {
+  const base = expr({ kind: "unit", name });
+  if (equals(exponent, ONE)) return base;
+  const power: Exponent = isInteger(exponent)
+    ? { num: literal(exponent.num) }
+    : { num: literal(exponent.num), den: literal(exponent.den) };
+  return expr({ kind: "pow", base, exponent: power });
+}
+
+/** The integer `n` as a literal of the grammar. */
+function literal(n: bigint): Literal {
+  return { value: fromRational(rational(n)), text: n.toString() };
+}
+
+function literalExpr(r: Rational): Expr {
+  return expr({ kind: "number", value: fromRational(r), text: toFraction(r) });
+}
+
+/** An expression built here, with no span: it was composed, not read. */
+function expr(node: ExprNode): Expr {
+  return { span: { start: 0, end: 0 }, node };
 }
 
 /**

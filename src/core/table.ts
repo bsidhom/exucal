@@ -72,6 +72,8 @@ export type UnitList = readonly ListedUnit[];
 /** A unit with the `text` it was written as, for the converter to show. */
 export type WrittenUnit = {
   readonly text: string;
+  /** The expression `text` was read as, which the output writes back. */
+  readonly expr: Expr;
   readonly quantity: Quantity;
 };
 

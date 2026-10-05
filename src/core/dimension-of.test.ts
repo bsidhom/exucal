@@ -53,7 +53,10 @@ function one(dimension: Dimension): Quantity {
 const TEMP_C: UnitFunction = {
   name: "tempC",
   parameters: [
-    { name: "x", unit: { text: "1", quantity: one(DIMENSIONLESS) } },
+    {
+      name: "x",
+      unit: { text: "1", expr: parsed("1"), quantity: one(DIMENSIONLESS) },
+    },
   ],
   result: dim({ K: 1 }),
   conditions: [],

@@ -603,6 +603,10 @@ function checkFunction(
 /** What a parameter without an annotation takes: a plain number, written `1`. */
 const PLAIN: WrittenUnit = {
   text: "1",
+  expr: {
+    span: { start: 0, end: 0 },
+    node: { kind: "number", value: ONE, text: "1" },
+  },
   quantity: { magnitude: exact(ONE), dimension: DIMENSIONLESS },
 };
 
@@ -822,7 +826,11 @@ function evaluateAnnotation(
         : { kind: "zeroDeclaredUnit", definition, unit: "argument", parameter },
     );
   }
-  return ok({ text: annotation.text, quantity: value.value });
+  return ok({
+    text: annotation.text,
+    expr: annotation.expr,
+    quantity: value.value,
+  });
 }
 
 /**
@@ -841,7 +849,7 @@ function evaluateUnitList(
   for (const item of definition.items) {
     const quantity = evaluateDecided(item.expr, lookup, primitives, context);
     if (!quantity.ok) return quantity;
-    units.push({ text: item.text, quantity: quantity.value });
+    units.push({ text: item.text, expr: item.expr, quantity: quantity.value });
   }
   const checked = convertToList(
     units[0]!.quantity,

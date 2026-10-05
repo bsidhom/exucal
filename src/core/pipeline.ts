@@ -208,6 +208,9 @@ export type Conversion =
       readonly kind: "unit";
       readonly have: Quantity;
       readonly want: Quantity;
+      /** The two texts as read, which the output writes back. */
+      readonly haveExpr: Expr;
+      readonly wantExpr: Expr;
       /** How many `want`s make up `have`: a ball, exact for exact quantities. */
       readonly value: Ball;
     }
@@ -215,6 +218,7 @@ export type Conversion =
   | {
       readonly kind: "list";
       readonly have: Quantity;
+      readonly haveExpr: Expr;
       /** The units of the list, largest first, each with its text. */
       readonly units: readonly ListedUnit[];
       /** The exact count of each unit but the last, and the remainder in the last, as balls. */
@@ -224,6 +228,7 @@ export type Conversion =
   | {
       readonly kind: "function";
       readonly have: Quantity;
+      readonly haveExpr: Expr;
       /** The function's name, which is the `want`. */
       readonly name: string;
       /** The argument the inverse recovered. */
@@ -490,12 +495,19 @@ function convertParsed(
     const name = first.node.kind === "unit" ? first.node.name : undefined;
     const named = name === undefined ? undefined : table.unitLists.get(name);
     if (named !== undefined) {
-      return convertToNamedList(table, haveQuantity.value, named, working);
+      return convertToNamedList(
+        table,
+        have,
+        haveQuantity.value,
+        named,
+        working,
+      );
     }
     const fn = name === undefined ? undefined : table.functions.get(name);
     if (fn !== undefined) {
       return convertToFunction(
         table,
+        have,
         haveQuantity.value,
         fn,
         working,
@@ -517,6 +529,8 @@ function convertParsed(
       kind: "unit",
       have: haveQuantity.value,
       want: wantQuantity.value,
+      haveExpr: have,
+      wantExpr: first,
       value: settled.value,
     });
   }
@@ -526,6 +540,7 @@ function convertParsed(
     if (!quantity.ok) return inputError("want", quantity.error);
     units.push({
       text: want.slice(item.span.start, item.span.end),
+      expr: item,
       quantity: quantity.value,
     });
   }
@@ -549,6 +564,7 @@ function convertParsed(
   return ok({
     kind: "list",
     have: haveQuantity.value,
+    haveExpr: have,
     units,
     terms: settled.value,
   });
@@ -636,6 +652,7 @@ function refusal(error: Refusal): Refusal {
  */
 function convertToNamedList(
   table: UnitTable,
+  haveExpr: Expr,
   have: Quantity,
   units: readonly ListedUnit[],
   working: NumberContext,
@@ -655,7 +672,7 @@ function convertToNamedList(
   }
   const settled = settledTermsInMode(terms.value, working);
   if (!settled.ok) return settled;
-  return ok({ kind: "list", have, units, terms: settled.value });
+  return ok({ kind: "list", have, haveExpr, units, terms: settled.value });
 }
 
 /**
@@ -673,6 +690,7 @@ function convertToNamedList(
  */
 function convertToFunction(
   table: UnitTable,
+  haveExpr: Expr,
   have: Quantity,
   fn: UnitFunction,
   context: NumberContext,
@@ -779,6 +797,7 @@ function convertToFunction(
   return ok({
     kind: "function",
     have,
+    haveExpr,
     name: fn.name,
     argument: argument.value,
     unit: parameter.unit,

@@ -112,7 +112,7 @@ import {
 } from "./parser.ts";
 import { LIMIT_BITS } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
-import { ONE, formable, isZero, parseDecimal, type Scaled } from "./scaled.ts";
+import { formable, isZero, parseDecimal, type Scaled } from "./scaled.ts";
 import type { Span } from "./span.ts";
 
 // ---------------------------------------------------------------------------
@@ -120,22 +120,34 @@ import type { Span } from "./span.ts";
 
 export type Expr = { readonly span: Span; readonly node: ExprNode };
 
-/** The binary operators: `+`, `-`, `*` (or juxtaposition) and `/`. */
-export type BinaryOp = "add" | "sub" | "mul" | "div";
+/**
+ * A decimal literal as read: its value, and its text as written, which
+ * the printer (print.ts) writes back as it was, since a value alone does
+ * not say how it was spelled (`1e3` against `1000`).
+ */
+export type Literal = { readonly value: Scaled; readonly text: string };
+
+/**
+ * The binary operators: `+`, `-`, `*`, `/`, and juxtaposition, which is a
+ * product too but its own rule of the grammar, binding tighter than `*`
+ * and written with no symbol, so the tree tells `2 m` from `2 * m` and
+ * can be written back as it was read.
+ */
+export type BinaryOp = "add" | "sub" | "mul" | "div" | "juxtapose";
 
 /**
  * The exponent of `^` as the parser read it: the literal `num` over the
- * literal `den`, which is one when none was written and is never zero,
+ * literal `den`, which is absent when none was written and is never zero,
  * each formable within the hard bound and neither formed, since the
  * powers of ten cost nothing as `Scaled` values and cancel in the
  * quotient (the header says why). `reduceExponent` of evaluate.ts holds
  * the two mantissas to the range limit, takes the quotient and forms the
  * fraction within the limit.
  */
-export type Exponent = { readonly num: Scaled; readonly den: Scaled };
+export type Exponent = { readonly num: Literal; readonly den?: Literal };
 
 export type ExprNode =
-  | { readonly kind: "number"; readonly value: Scaled }
+  | { readonly kind: "number"; readonly value: Scaled; readonly text: string }
   | { readonly kind: "unit"; readonly name: string }
   | {
       readonly kind: "binary";
@@ -164,6 +176,67 @@ export type Rejection =
   | { readonly kind: "exponentTooLarge" }
   /** A `^` exponent written as a quotient by zero. */
   | { readonly kind: "exponentDividesByZero" };
+
+// ---------------------------------------------------------------------------
+// Levels and operators
+//
+// The grammar's levels of binding and its binary operators are data here,
+// which the grammar below is built from and the printer (print.ts) writes
+// by, so that the two cannot disagree: an operator is parsed at the level
+// and with the symbol the table gives it, and written back the same way.
+
+/**
+ * The grammar's levels of binding, loosest first, one per rule above at
+ * which an expression's root can be read.
+ */
+export const LEVELS = [
+  "sum",
+  "quotient",
+  "signed",
+  "product",
+  "power",
+  "atom",
+] as const;
+
+export type Level = (typeof LEVELS)[number];
+
+/** Whether `level` binds at least as tightly as `than`. */
+export function bindsAtLeast(level: Level, than: Level): boolean {
+  return LEVELS.indexOf(level) >= LEVELS.indexOf(than);
+}
+
+/**
+ * Each binary operator's level, and the symbol it is written with: none
+ * for juxtaposition, which the grammar reads as a product of factors with
+ * nothing between them. The levels with symbols are left-associative, and
+ * `chainl1` below builds each from the operators the table puts at it.
+ */
+export const BINARY: Record<
+  BinaryOp,
+  { readonly level: Level; readonly symbol?: string }
+> = {
+  add: { level: "sum", symbol: "+" },
+  sub: { level: "sum", symbol: "-" },
+  mul: { level: "quotient", symbol: "*" },
+  div: { level: "quotient", symbol: "/" },
+  juxtapose: { level: "product" },
+};
+
+/** The level `node` binds at: the rule that reads its root. Every kind of node is placed. */
+export function levelOf(node: ExprNode): Level {
+  switch (node.kind) {
+    case "number":
+    case "unit":
+    case "call":
+      return "atom";
+    case "pow":
+      return "power";
+    case "neg":
+      return "signed";
+    case "binary":
+      return BINARY[node.op].level;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Parsing
@@ -221,10 +294,13 @@ export const NAME = /[\p{L}_][\p{L}0-9_]*/u;
  * rejected for why. The pattern is the shape `parseDecimal` reads, so it
  * fails for no other reason.
  */
-function decimal(pattern: RegExp, expected: string): Parser<Scaled, Rejection> {
-  return check(regex(pattern, expected), (text): Result<Scaled, Rejection> => {
+function decimal(
+  pattern: RegExp,
+  expected: string,
+): Parser<Literal, Rejection> {
+  return check(regex(pattern, expected), (text): Result<Literal, Rejection> => {
     const result = parseDecimal(text);
-    if (result.ok) return result;
+    if (result.ok) return ok({ value: result.value, text });
     switch (result.error.kind) {
       case "tooLarge":
         return err({ kind: "numberTooLarge" });
@@ -246,9 +322,11 @@ function decimal(pattern: RegExp, expected: string): Parser<Scaled, Rejection> {
 function exponentLiteral(
   pattern: RegExp,
   expected: string,
-): Parser<Scaled, Rejection> {
-  return check(decimal(pattern, expected), (value) =>
-    formable(value, LIMIT_BITS) ? ok(value) : err({ kind: "exponentTooLarge" }),
+): Parser<Literal, Rejection> {
+  return check(decimal(pattern, expected), (literal) =>
+    formable(literal.value, LIMIT_BITS)
+      ? ok(literal)
+      : err({ kind: "exponentTooLarge" }),
   );
 }
 
@@ -257,7 +335,7 @@ export const name: Parser<Spanned<string>> = token(
   spanned(regex(NAME, "a unit name")),
 );
 
-const number: Parser<Spanned<Scaled>, Rejection> = token(
+const number: Parser<Spanned<Literal>, Rejection> = token(
   spanned(decimal(UNSIGNED, "a number")),
 );
 
@@ -273,10 +351,22 @@ const callName: Parser<Spanned<string>> = spanned(
 // ---------------------------------------------------------------------------
 // Grammar
 
-function leaf({ value, span }: Spanned<Scaled | string>): Expr {
+function leaf({ value, span }: Spanned<Literal | string>): Expr {
   return typeof value === "string"
     ? { span, node: { kind: "unit", name: value } }
-    : { span, node: { kind: "number", value } };
+    : { span, node: { kind: "number", value: value.value, text: value.text } };
+}
+
+/** The operators the table puts at `level`, each parsed as its symbol. */
+function operatorsAt(
+  level: Level,
+): Parser<(left: Expr, right: Expr) => Expr, Rejection> {
+  const ops = (Object.keys(BINARY) as BinaryOp[]).filter(
+    (op) => BINARY[op].level === level && BINARY[op].symbol !== undefined,
+  );
+  return alt(
+    ...ops.map((op) => map(symbol(BINARY[op].symbol!), () => binary(op))),
+  );
 }
 
 function binary(op: BinaryOp): (left: Expr, right: Expr) => Expr {
@@ -353,7 +443,7 @@ const atom: Parser<Expr, Rejection> = alt(map(number, leaf), unitAtom);
 const exponent: Parser<Spanned<Exponent>, Rejection> = token(
   spanned(
     alt(
-      map(exponentLiteral(SIGNED, "a number"), (num) => ({ num, den: ONE })),
+      map(exponentLiteral(SIGNED, "a number"), (num) => ({ num })),
       map(
         seq(
           symbol("("),
@@ -365,10 +455,10 @@ const exponent: Parser<Spanned<Exponent>, Rejection> = token(
               ),
             ),
             ([num, denominator]): Result<Exponent, Rejection> => {
-              const den = denominator === undefined ? ONE : denominator[1];
-              return isZero(den)
+              const den = denominator?.[1];
+              return den !== undefined && isZero(den.value)
                 ? err({ kind: "exponentDividesByZero" })
-                : ok({ num, den });
+                : ok(den === undefined ? { num } : { num, den });
             },
           ),
           string(")"),
@@ -398,7 +488,7 @@ const unitPower: Parser<Expr, Rejection> = raised(unitAtom);
 
 const product: Parser<Expr, Rejection> = map(
   seq(power, many(unitPower)),
-  ([first, rest]) => rest.reduce(binary("mul"), first),
+  ([first, rest]) => rest.reduce(binary("juxtapose"), first),
 );
 
 /** A product, or a product negated by one leading `-`. */
@@ -412,19 +502,10 @@ const signed: Parser<Expr, Rejection> = alt(
 
 const quotient: Parser<Expr, Rejection> = chainl1(
   signed,
-  alt(
-    map(symbol("*"), () => binary("mul")),
-    map(symbol("/"), () => binary("div")),
-  ),
+  operatorsAt("quotient"),
 );
 
-const sum: Parser<Expr, Rejection> = chainl1(
-  quotient,
-  alt(
-    map(symbol("+"), () => binary("add")),
-    map(symbol("-"), () => binary("sub")),
-  ),
-);
+const sum: Parser<Expr, Rejection> = chainl1(quotient, operatorsAt("sum"));
 
 // ---------------------------------------------------------------------------
 // Unit lists

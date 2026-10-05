@@ -9,7 +9,8 @@ import {
 } from "./core/context.ts";
 import type { Side } from "./core/pipeline.ts";
 import type { UnitTable } from "./core/table.ts";
-import { outcomeOf, type Line, type Outcome, type Term } from "./outcome.ts";
+import { print, text, type Piece } from "./core/print.ts";
+import { outcomeOf, resultPieces, type Line, type Outcome } from "./outcome.ts";
 
 /**
  * The converter: two text inputs, "you have" and "you want", and an output
@@ -229,31 +230,26 @@ function renderOutcome(outcome: Outcome): TemplateResult {
 }
 
 /**
- * One line of a result, on a line of its own; the terms inside a call when
- * the line is one, and the note, when there is one, after them.
+ * One line of a result, on a line of its own: the have as the printer
+ * writes it, the relation, the result as pieces with its numbers styled,
+ * and the note, when there is one, after them.
  */
 function renderLine(line: Line): TemplateResult {
-  const terms = line.terms.map(renderTerm);
-  const sum = line.call === undefined ? terms : html`${line.call}(${terms})`;
   const note =
     line.note === undefined
       ? nothing
       : html` <span class="note">(${line.note})</span>`;
   return html`<div>
-    <span>${line.have}</span> ${line.relation} ${sum}${note}
+    <span>${text(print(line.have, "×"))}</span> ${line.relation}
+    ${resultPieces(line).map(renderPiece)}${note}
   </div>`;
 }
 
-/**
- * One term of a result. The first is written with its own sign; each later
- * one is joined to the sum by `+` or `-` and written unsigned (its text is
- * already so), so that the line reads as the expression it is
- * (`-3 ft - 3.3700787 in`), and could be typed back as a `have`.
- */
-function renderTerm(term: Term, index: number): TemplateResult {
-  const operator = index === 0 ? "" : term.negative ? " - " : " + ";
-  const unit = term.unit === "" ? nothing : html` ${term.unit}`;
-  return html`${operator}<span class="value">${term.text}</span>${unit}`;
+/** One piece of a result: a number in the value's style, anything else as it is. */
+function renderPiece(piece: Piece): TemplateResult | string {
+  return piece.kind === "number"
+    ? html`<span class="value">${piece.text}</span>`
+    : piece.text;
 }
 
 declare global {

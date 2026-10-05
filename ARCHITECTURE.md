@@ -1705,7 +1705,10 @@ tests. The rest of the directory is what they share:
   abandoning the cases it was measuring. Runs are safe to repeat and to
   accumulate: a hit can only fill an empty slot or replace a cheaper
   case of its family, so a repeated case at most refreshes its own
-  timing, and the catalogue grows run by run. The tests of `cases.ts`,
+  timing, and the catalogue grows run by run. The floor and the deadline
+  are constants (`FLOOR_MS`, `DEADLINE_MS` in `catalogue.ts`), not
+  options, so that every run records hits by the same measure and any
+  run, however short or for whatever purpose, can be committed. The tests of `cases.ts`,
   `catalogue.ts` and `pool.ts` are ordinary ones, since they evaluate
   nothing.
 - `bench/stress/verify.ts` is the stress suite (8.3), run by

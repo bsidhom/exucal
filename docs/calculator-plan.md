@@ -5325,10 +5325,11 @@ and its tables; and `search.ts`, the command. The choices the task left open:
   costliest cap would take every family's entry and the defaults would
   go unrecorded.
 - **The defaults:** ten minutes a run (as 8.3 landed it; `--forever`
-  runs until stopped, and `--list` prints 20 cases), a deadline of 120 s
-  a case, a floor of a second warm, one job per core. A case is a hit
-  when its warm cost under load reaches the floor: load moves timings by
-  a few percent.
+  runs until stopped, and `--list` prints 20 cases) and one job per
+  core. The deadline, 120 s a case, and the floor, a second warm, are
+  fixed rather than defaults, so that every run records hits by the same
+  measure. A case is a hit when its warm cost under load reaches the
+  floor: load moves timings by a few percent.
 - **What is kept apart:** a case past its deadline and a case whose
   worker failed (a throw, which is a bug) are both hangs, one per
   family. The catalogue logs every run, with its seed or the
@@ -5430,7 +5431,10 @@ machinery than the task needs. As it landed, the search is a sampler:
   written through a file renamed over it. So several runs can share a
   working tree, and whenever a run ends or is stopped, what it found is
   ready to commit, with nothing to resume and nothing to merge. The
-  tools never touch git. Running the search again, whether the same
+  tools never touch git. The floor (a second warm) and the deadline (two
+  minutes) are constants rather than options, so that every run records
+  hits by the same measure and any run, short or long, is one to commit.
+  Running the search again, whether the same
   seed or a fresh one, is always safe: a repeated case can only replace
   its own entry with a fresh timing of itself, or leave it, and a fresh
   seed adds new hits, so runs accumulate.

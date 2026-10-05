@@ -1076,6 +1076,9 @@ case of its family, so a short run now and then builds the list up over
 time, and running the same seed again only logs the run and keeps any
 timing that came out at least 10% higher. Several runs can share one
 working tree at once: each change to the files is made under a lock.
+The second and the deadline are fixed, not options, so every run, a
+long one or a minute's to try the tool, records hits by the same
+measure, and any run is one to commit.
 `--list <n>` prints the first inputs a seed draws without evaluating
 them. The command never touches git.
 

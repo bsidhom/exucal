@@ -157,6 +157,20 @@ export function perCall(entry: Pick<Entry, "warm" | "calls">): number {
 }
 
 /**
+ * The warm cost at which a finished case is a hit: a second, which stays
+ * among the costliest when measured again, where one machine's noise is
+ * milliseconds.
+ */
+export const FLOOR_MS = 1000;
+
+/**
+ * How long a case may run, cold and warm, before it is a hang. Fixed, as
+ * the floor is, so that every run of the search records hits by the same
+ * measure and any run can be committed.
+ */
+export const DEADLINE_MS = 120_000;
+
+/**
  * How many times costlier a hit must be than its family's entry, or hang,
  * to replace it.
  */

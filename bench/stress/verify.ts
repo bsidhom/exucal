@@ -46,6 +46,7 @@ import { availableParallelism } from "node:os";
 import { parseArgs } from "node:util";
 import { costlyCalls } from "./cases.ts";
 import {
+  DEADLINE_MS,
   hangEstimate,
   perCall,
   readCatalogue,
@@ -104,11 +105,11 @@ function caseOfUnit(unit: Unit): Case {
 /** The deadline of a unit: an entry's four times its catalogued time and two minutes at least, a hang's its own. */
 function deadlineOf(unit: Unit): number {
   if (unit.kind === "entry") {
-    return Math.max(120_000, 4 * (unit.entry.cold.ms + unit.entry.warm.ms));
+    return Math.max(DEADLINE_MS, 4 * (unit.entry.cold.ms + unit.entry.warm.ms));
   }
   return unit.hang.reason.kind === "deadline"
     ? unit.hang.reason.deadlineMs
-    : 120_000;
+    : DEADLINE_MS;
 }
 
 /**
@@ -350,7 +351,7 @@ async function main(): Promise<void> {
   );
 
   // The reference, alone, before the lanes start.
-  const reference = await measureCase(REFERENCE, 120_000);
+  const reference = await measureCase(REFERENCE, DEADLINE_MS);
   const referenceMs =
     "measured" in reference && reference.measured.status === "done"
       ? reference.measured.warm.ms

@@ -2,14 +2,15 @@
 // hand:
 //
 //   pnpm stress:search [--seed <hex>] [--minutes <n> | --forever]
-//                      [--list <n>] [--deadline <seconds>] [--floor <ms>]
-//                      [--jobs <n>]
+//                      [--list <n>] [--jobs <n>]
 //
 // It draws a stream of cases from a seed (cases.ts), measures them with
 // the harness, and adds each hit to bench/stress/catalogue.json
 // (catalogue.ts) and its tables in docs/cost.md as soon as it is found. A
-// hit is a case whose warm cost reaches the floor, or a hang: a case past
-// its deadline, or whose worker failed. Each run is a sample: it runs for
+// hit is a case whose warm cost reaches a second (`FLOOR_MS`), or a hang:
+// a case past its two-minute deadline (`DEADLINE_MS`), or whose worker
+// failed. The floor and the deadline are fixed, so that every run records
+// hits by the same measure, and any run, however short, is one to commit. Each run is a sample: it runs for
 // `--minutes` (ten by default), or until stopped with `--forever`, and
 // adds what it finds; runs build the catalogue up over time. Running it
 // again, with the same seed or a fresh one, is always safe: a hit only
@@ -41,6 +42,8 @@ import { availableParallelism } from "node:os";
 import { parseArgs } from "node:util";
 import { chooseSeed, describeCase, drawCase, type Drawn } from "./cases.ts";
 import {
+  DEADLINE_MS,
+  FLOOR_MS,
   summarizeTyping,
   withHit,
   withRun,
@@ -61,8 +64,7 @@ const RECORD_EVERY_MS = 60_000;
 function usage(code = 2): never {
   console.log(
     "usage: pnpm stress:search [--seed <hex>] [--minutes <n> | --forever]\n" +
-      "                          [--list <n>] [--deadline <seconds>] [--floor <ms>]\n" +
-      "                          [--jobs <n>]",
+      "                          [--list <n>] [--jobs <n>]",
   );
   process.exit(code);
 }
@@ -91,7 +93,6 @@ function positive(
 function hitOf(
   drawn: Drawn,
   outcome: Outcome,
-  floorMs: number,
   base: Pick<Entry, "source" | "commit" | "date">,
 ): { readonly entry: Entry } | { readonly hang: Hang } | undefined {
   const c = drawn.case;
@@ -127,7 +128,7 @@ function hitOf(
       },
     };
   }
-  if (m.warm.ms < floorMs) return undefined;
+  if (m.warm.ms < FLOOR_MS) return undefined;
   return {
     entry: {
       ...common,
@@ -166,8 +167,6 @@ async function main(): Promise<void> {
         minutes: { type: "string" },
         forever: { type: "boolean", default: false },
         list: { type: "string" },
-        deadline: { type: "string" },
-        floor: { type: "string" },
         jobs: { type: "string" },
         help: { type: "boolean", default: false },
       },
@@ -193,8 +192,6 @@ async function main(): Promise<void> {
   const minutes = options.forever
     ? undefined
     : positive(options.minutes, 10, "--minutes");
-  const deadlineMs = positive(options.deadline, 120, "--deadline") * 1000;
-  const floorMs = positive(options.floor, 1000, "--floor");
   const jobs = Math.floor(
     positive(options.jobs, availableParallelism(), "--jobs"),
   );
@@ -223,7 +220,7 @@ async function main(): Promise<void> {
   };
   await enqueue(() => update((catalogue) => withRun(catalogue, record())));
   console.log(
-    `${jobs} lanes, each case under ${deadlineMs / 1000} s, ${minutes === undefined ? "until stopped" : `for ${minutes} minutes`}; hits are written to the catalogue as they are found`,
+    `${jobs} lanes, each case under ${DEADLINE_MS / 1000} s, ${minutes === undefined ? "until stopped" : `for ${minutes} minutes`}; hits are written to the catalogue as they are found`,
   );
 
   let stopping = false;
@@ -261,11 +258,11 @@ async function main(): Promise<void> {
     next: () => (stopping ? undefined : next++),
     run: async (index) => {
       const drawn = drawCase(seed.key, index);
-      const outcome = await measureCase(drawn.case, deadlineMs);
+      const outcome = await measureCase(drawn.case, DEADLINE_MS);
       if (stopping) return;
       measured++;
       const date = new Date().toISOString();
-      const hit = hitOf(drawn, outcome, floorMs, {
+      const hit = hitOf(drawn, outcome, {
         source: { seed: seed.text, index },
         commit,
         date,
@@ -287,7 +284,7 @@ async function main(): Promise<void> {
       if (hit === undefined || !("entry" in hit) || change === "kept") return;
       // A hit that joined is typed out, as the interface meets it.
       try {
-        const typing = await typeOut(drawn.case, 2 * deadlineMs);
+        const typing = await typeOut(drawn.case, 2 * DEADLINE_MS);
         if (stopping) return;
         await enqueue(() =>
           update((catalogue) =>

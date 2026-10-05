@@ -21,6 +21,7 @@
   "exclude": [
     "src/main.ts",
     "src/app-shell.ts",
+    "src/app-footer.ts",
     "src/unit-converter.ts",
     "src/register-service-worker.ts",
     "src/system-table.ts",

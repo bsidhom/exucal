@@ -35,7 +35,6 @@
 // error that says what the name is otherwise, so that the message for
 // `kg(m/s)` can show the product the user probably meant.
 
-import type { NumberContext } from "./context.ts";
 import type { Ball } from "./ball.ts";
 import type { Builtin, Builtins } from "./builtin.ts";
 import type { Condition } from "./definitions.ts";
@@ -43,11 +42,7 @@ import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
 import type { Arity, Lookup } from "./evaluate.ts";
 import type { Expr } from "./expr.ts";
 import { resolveName, type Resolution } from "./names.ts";
-import {
-  multiplyQuantities,
-  settleQuantity,
-  type Quantity,
-} from "./quantity.ts";
+import { multiplyQuantities, type Quantity } from "./quantity.ts";
 import { err, ok } from "./result.ts";
 import type { Span } from "./span.ts";
 
@@ -172,27 +167,14 @@ export type NotAFunction = {
 export type LookupError = UnknownUnit | FunctionAsUnit | NotAFunction;
 
 /**
- * `q` settled at `context`, which cannot fail for a unit: a settle refuses
- * only a rounded midpoint past the exponent bound, and the table's units
- * are nowhere near it.
+ * The lookup the evaluator resolves user input against: an exact unit
+ * name if the table has one, otherwise one prefix followed by a unit
+ * name, whose quantity is the unit's scaled by the prefix's factor, each
+ * handed out as built, for the evaluator's unit node to step to the
+ * working precision; and, for a call, a function by its name, defined
+ * first and built-in second.
  */
-function settledUnit(q: Quantity, context: NumberContext): Quantity {
-  const settled = settleQuantity(q, context);
-  if (!settled.ok) throw new Error("A unit is within the exponent bound");
-  return settled.value;
-}
-
-/**
- * The lookup the evaluator resolves user input against, at the working
- * `context`: an exact unit name if the table has one, otherwise one prefix
- * followed by a unit name, whose quantity is the unit's scaled by the
- * prefix's factor, each settled to the context's precision; and, for a
- * call, a function by its name, defined first and built-in second.
- */
-export function unitLookup(
-  table: UnitTable,
-  context: NumberContext,
-): Lookup<LookupError> {
+export function unitLookup(table: UnitTable): Lookup<LookupError> {
   return {
     unit: (name, span) => {
       const found = resolveName(name, table.prefixes, table.units);
@@ -204,9 +186,10 @@ export function unitLookup(
             : { kind: "functionAsUnit", name, span, arity },
         );
       }
-      // Settled once here (D15): a unit built at a higher precision is cut
-      // to the working one, and an exact unit is untouched.
-      if (found.kind === "unit") return ok(settledUnit(found.unit, context));
+      // Handed out as built: the evaluator's unit node steps it (D15, D26),
+      // cutting a unit built at a higher precision to the working one in
+      // exact mode and rounding or certifying it in decimal mode.
+      if (found.kind === "unit") return ok(found.unit);
       const scaled = multiplyQuantities(
         { magnitude: found.prefix, dimension: DIMENSIONLESS },
         found.unit,
@@ -219,7 +202,7 @@ export function unitLookup(
         // return, so a table with a unit near the bound must add one here.
         throw new Error("A prefix times a unit was refused");
       }
-      return ok(settledUnit(scaled.value, context));
+      return ok(scaled.value);
     },
     function: (name, span, call) => {
       const found = resolveFunction(name, table.functions, table.builtins);

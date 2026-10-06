@@ -70,7 +70,7 @@
 // clipboard (`copyText`); what it writes reads back as the same tree, so
 // every line can be typed as a `have`.
 
-import { divideBalls, exact, settle, type Ball } from "./core/ball.ts";
+import { divideBalls, exact, step, type Ball } from "./core/ball.ts";
 import { modeOf, type NumberContext } from "./core/context.ts";
 import { roundTerms } from "./core/convert.ts";
 import { dimensionExpr } from "./core/dimension.ts";
@@ -297,12 +297,12 @@ function outcomeAssuming(
  * (`in ≈ 0.027777778 * 3 ft`), the have taking the place of the unit. A
  * `value` of zero has no reciprocal (`0 ft = 0 in`, and nothing is a
  * multiple of `0 ft`), and nor does one that cannot be told from zero, so
- * the second line is left out rather than shown as anything. In decimal
- * mode the reciprocal is settled at the context, the mode's one rounding
- * of every step (D15, D26), so that `1/3` is `0.33333333` there, exact,
- * as it is in the first line; the rest of what the reciprocal lacks from
- * the pipeline (its retry in exact mode, and a word on a refusal) is
- * issue #92's.
+ * the second line is left out rather than shown as anything. The
+ * reciprocal is a step of the expression (`step`), settled in exact mode
+ * and in decimal mode rounded once, the mode's rounding of every step
+ * (D15, D26), so that `1/3` is `0.33333333` there, exact, as it is in the
+ * first line; the rest of what the reciprocal lacks from the pipeline
+ * (its retry in exact mode, and a word on a refusal) is issue #92's.
  */
 function unitResult(
   conversion: Extract<Conversion, { kind: "unit" }>,
@@ -311,11 +311,9 @@ function unitResult(
 ): Outcome {
   const { haveExpr, wantExpr, value } = conversion;
   const lines = [line(haveExpr, value, wantExpr, context, fractions)];
-  const quotient = divideBalls(exact(ONE), value);
-  const inverse =
-    quotient.ok && context.mode === "decimal"
-      ? settle(quotient.value, context)
-      : quotient;
+  // A step of the expression (`step` of ball.ts): settled in exact mode,
+  // rounded once in decimal mode.
+  const inverse = step(() => divideBalls(exact(ONE), value), context);
   if (inverse.ok) {
     lines.push(line(wantExpr, inverse.value, haveExpr, context, fractions));
   }

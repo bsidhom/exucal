@@ -451,7 +451,9 @@ limit, computed on the base widened to the working precision and
 certified), and a call is one step whose rounding is certified: the
 evaluator computes the built-in at the working precisions of the retry
 schedule, in exact mode, until both ends of its ball round alike at the
-digits asked for (`certifiedStep` in `ball.ts`), and takes that rounding;
+digits asked for (`step` in `ball.ts`, the one entrance through which a
+computed value becomes a value of the expression in either mode), and
+takes that rounding;
 at the ceiling it takes the midpoint's rounding and flags the value
 `uncertified`, a flag every later operation carries (`carrying`), which
 the display shows. `approx` is the identity there. A value with

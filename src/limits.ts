@@ -147,7 +147,7 @@ export function evaluateComposite(context: NumberContext): void {
   if (!table.ok) throw new Error("The probe's definitions do not build");
   const result = evaluate(
     composite(),
-    unitLookup(table.value, context),
+    unitLookup(table.value),
     table.value.primitives,
     context,
   );

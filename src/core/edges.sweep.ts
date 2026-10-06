@@ -1,7 +1,7 @@
 // The edge sweep at the ball level (docs/calculator-plan.md, H.10): every
 // built-in of `BUILTINS`, enumerated by arity so that a function added
 // later joins it, the four exact operations of the ball, `powBall`,
-// `rootBall` and `settle`, run over the classes of arguments at the edges
+// `rootBall` and `step`, run over the classes of arguments at the edges
 // of the number type, each exact and with a relative radius of about
 // `1e-30`, and the wide balls; the operations that read the mode run in
 // decimal mode too. Each case is checked against the oracle
@@ -29,14 +29,13 @@ import {
   addBalls,
   containsZero,
   divideBalls,
-  certifiedStep,
   exact,
   isExact,
   multiplyBalls,
   powBall,
   radiusValue,
   rootBall,
-  settle,
+  step,
   subtractBalls,
   type Ball,
   type BallError,
@@ -66,7 +65,7 @@ import {
   rational,
   subtract as subtractFractions,
 } from "./rational.ts";
-import type { Result } from "./result.ts";
+import { ok, type Result } from "./result.ts";
 import {
   MAX_EXPONENT,
   ONE,
@@ -1258,9 +1257,9 @@ function ballOperations(): (Operation & { arity: number })[] {
       range: degree % 2n === 0n ? NONNEGATIVE : undefined,
     })),
     {
-      name: "settle",
+      name: "step",
       arity: 1,
-      apply: (args, context) => settle(args[0]!, context),
+      apply: (args, context) => step(() => ok(args[0]!), context),
       modes: ["exact", "decimal"],
       magnitude: ([b]) => valueMagnitude(b!),
       known: (args) => args[0]!.mid,
@@ -1313,11 +1312,11 @@ function judge(
   const mode = modeOf(context);
   if (mode === "decimal") return judgeDecimal(op, args, context);
   const applied = op.apply(args, context);
-  // An operation that returns its result unsettled is settled here, as
-  // the evaluator settles it, which in decimal mode may refuse it.
+  // An operation that returns its result unsettled is stepped here, as
+  // the evaluator steps it.
   const result =
     op.unsettled === true && applied.ok
-      ? settle(applied.value, context)
+      ? step(() => ok(applied.value), context)
       : applied;
   const intervals = args.map(intervalOf);
   const bounded = intervals.every((i) => i !== undefined);
@@ -1393,7 +1392,7 @@ function judge(
  * is run as the evaluator runs it, on operands rounded to the context's
  * digits in its mode (an operand the rounding carries past the bound is
  * refused before the operation, and is not the operation's to judge), at
- * rising precision until its rounding is certified (`certifiedStep`), and
+ * rising precision until its rounding is certified (`step`), and
  * its result settled. The result must be exact; where the exact result of
  * the operation on the rounded operands can be formed (`reference`, or
  * `known` at a unit operation's point) the result must be its rounding in
@@ -1401,9 +1400,9 @@ function judge(
  * rounding at the ceiling, which is reported as such and not judged. A
  * refusal must be right of the rounded operands' exact result, or be a
  * rounding that carries past the top; a `tooLarge` from a power is what
- * the evaluator recomputes on the widened base (`poweredMagnitude`), and
- * is not judged here; an `unresolved` at the ceiling is the pipeline's to
- * report.
+ * the evaluator recomputes on the widened base, and a sum that does not
+ * align what it answers by the neighbor rule, neither judged here; an
+ * `unresolved` at the ceiling is the pipeline's to report.
  */
 function judgeDecimal(
   op: Operation,
@@ -1412,14 +1411,11 @@ function judgeDecimal(
 ): string | undefined {
   const rounded: Ball[] = [];
   for (const arg of args) {
-    const settled = settle(arg, context);
+    const settled = step(() => ok(arg), context);
     if (!settled.ok) return undefined;
     rounded.push(settled.value);
   }
-  const applied = PLAIN.has(op.name)
-    ? op.apply(rounded, context)
-    : certifiedStep((working) => op.apply(rounded, working), context);
-  const result = applied.ok ? settle(applied.value, context) : applied;
+  const result = step((working) => op.apply(rounded, working), context);
   const intervals = rounded.map(intervalOf);
   const bounded = intervals.every((i) => i !== undefined);
   const magnitude =
@@ -1443,7 +1439,11 @@ function judgeDecimal(
         return `refused ${error.kind} where ${sure === undefined ? "the result does not pass the bound throughout" : `every value is ${sure}`}`;
       }
       case "tooLarge":
-        if (op.name.startsWith("pow")) return undefined;
+        // The evaluator answers these by its own rules on top of the ball
+        // operation: a sum that does not align by the neighbor rule, a
+        // power that does not fit on the widened base (D26).
+        if (EVALUATOR_RULES.has(op.name) || op.name.startsWith("pow"))
+          return undefined;
         if (op.tooLarge?.(rounded, context) === true) return undefined;
         return "refused tooLarge where no documented site applies";
       case "domain":
@@ -1486,17 +1486,10 @@ function judgeDecimal(
   return undefined;
 }
 
-/**
- * The operations the evaluator runs at the user's context itself in decimal
- * mode, whose one rounding is the settle's; every other, a built-in or a
- * power, it runs through `certifiedStep` in exact mode at rising precision.
- */
-const PLAIN: ReadonlySet<string> = new Set([
+/** The ball operations whose `tooLarge` the evaluator answers in decimal mode by a rule of its own (the sums; the powers are matched by name). */
+const EVALUATOR_RULES: ReadonlySet<string> = new Set([
   "addBalls",
   "subtractBalls",
-  "multiplyBalls",
-  "divideBalls",
-  "settle",
 ]);
 
 /** `s` rounded to the context's digits in its mode; zero as it is. */

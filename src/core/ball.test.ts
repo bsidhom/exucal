@@ -9,6 +9,7 @@ import {
   classifyHyperbolic,
   classifyPower,
   containsZero,
+  decimalSumApart,
   divideBalls,
   exact,
   isExact,
@@ -22,7 +23,7 @@ import {
   radiusOfMove,
   radiusValue,
   rootBall,
-  settle,
+  step,
   subtractBalls,
   type Ball,
   type BallError,
@@ -58,7 +59,7 @@ import {
   toFraction,
   type Rational,
 } from "./rational.ts";
-import type { Result } from "./result.ts";
+import { ok, type Result } from "./result.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./rounding.ts";
 import {
   absolute,
@@ -87,9 +88,9 @@ function unwrap<T, E extends { kind: string }>(result: Result<T, E>): T {
   return result.value;
 }
 
-/** `settle` for a ball it cannot refuse: every test's, but the ones of the bound. */
+/** `b` as a step of the expression at `context` (`step` on a value computed already), for a ball it cannot refuse: every test's, but the ones of the bound. */
 function settled(b: Ball, context: NumberContext): Ball {
-  return unwrap(settle(b, context));
+  return unwrap(step(() => ok(b), context));
 }
 
 /** The context `at(precision)` in decimal mode, in `rounding`. */
@@ -1611,7 +1612,10 @@ test("settle refuses a rounded midpoint past the bound in decimal mode, and neve
   // a whole unit in the last working digit to the radius.
   const nines = "9".repeat(45);
   const top = ball(dec(`${nines[0]}.${nines.slice(1)}e${E18}`), dec("1e-30"));
-  assertRefused(settle(top, decimalAt(8, "halfAwayFromZero")), "overflow");
+  assertRefused(
+    step(() => ok(top), decimalAt(8, "halfAwayFromZero")),
+    "overflow",
+  );
   const digits = workingDigits(at(8));
   const truncated = settled(top, at(8));
   assert.deepEqual(
@@ -1645,7 +1649,10 @@ test("settle refuses a rounded midpoint past the bound in decimal mode, and neve
     exact(scaledAt(33333333n, 1n, -(MAX_EXPONENT + 7n))),
   );
   const past = exact(scaledAt(1n, 3n, -MAX_EXPONENT));
-  assertRefused(settle(past, decimalAt(8, "halfAwayFromZero")), "underflow");
+  assertRefused(
+    step(() => ok(past), decimalAt(8, "halfAwayFromZero")),
+    "underflow",
+  );
 });
 
 test("a product or a quotient with an inexact operand is held to the bound by its whole ball (D18)", () => {
@@ -1778,13 +1785,18 @@ test("position reads a difference past the bottom of the bound against the radiu
   );
 });
 
-test("a sum of two exact operands that cannot be aligned is the larger, or its neighbor by the smaller's sign in a directed mode, in decimal mode (D26)", () => {
+test("a sum of two exact operands that cannot be aligned is too large, and in decimal mode the evaluator's rule gives the larger, or its neighbor by the smaller's sign in a directed mode (D26)", () => {
   const decimal = (rounding: RoundingMode): NumberContext => ({
     ...at(8),
     rounding,
     mode: "decimal",
   });
   const huge = exact(dec("1e999999999"));
+  const minusOne = negateBall(exact(ONE));
+  // The sum itself is too large in either mode, at the range limit; the
+  // evaluator answers it in decimal mode by `decimalSumApart`.
+  assertRefused(addBalls(huge, exact(ONE), at(8)), "tooLarge");
+  assertRefused(addBalls(huge, exact(ONE), decimal("halfEven")), "tooLarge");
   // In a nearest mode the one lies far below half a unit in the last digit.
   for (const rounding of [
     "halfEven",
@@ -1792,12 +1804,12 @@ test("a sum of two exact operands that cannot be aligned is the larger, or its n
     "halfTowardZero",
   ] as const) {
     assert.deepEqual(
-      unwrap(addBalls(huge, exact(ONE), decimal(rounding))),
+      unwrap(decimalSumApart(huge, exact(ONE), decimal(rounding))),
       huge,
       rounding,
     );
     assert.deepEqual(
-      unwrap(subtractBalls(huge, exact(ONE), decimal(rounding))),
+      unwrap(decimalSumApart(huge, minusOne, decimal(rounding))),
       huge,
       rounding,
     );
@@ -1806,58 +1818,68 @@ test("a sum of two exact operands that cannot be aligned is the larger, or its n
   // in the decade the step lands in.
   const up = exact(dec("1.0000001e999999999"));
   const down = exact(dec("9.9999999e999999998"));
-  assert.deepEqual(unwrap(addBalls(huge, exact(ONE), decimal("ceiling"))), up);
   assert.deepEqual(
-    unwrap(subtractBalls(huge, exact(ONE), decimal("ceiling"))),
-    huge,
-  );
-  assert.deepEqual(unwrap(addBalls(huge, exact(ONE), decimal("floor"))), huge);
-  assert.deepEqual(
-    unwrap(subtractBalls(huge, exact(ONE), decimal("floor"))),
-    down,
-  );
-  assert.deepEqual(
-    unwrap(addBalls(huge, exact(ONE), decimal("awayFromZero"))),
+    unwrap(decimalSumApart(huge, exact(ONE), decimal("ceiling"))),
     up,
   );
   assert.deepEqual(
-    unwrap(subtractBalls(huge, exact(ONE), decimal("awayFromZero"))),
+    unwrap(decimalSumApart(huge, minusOne, decimal("ceiling"))),
     huge,
   );
   assert.deepEqual(
-    unwrap(addBalls(huge, exact(ONE), decimal("towardZero"))),
+    unwrap(decimalSumApart(huge, exact(ONE), decimal("floor"))),
     huge,
   );
   assert.deepEqual(
-    unwrap(subtractBalls(huge, exact(ONE), decimal("towardZero"))),
+    unwrap(decimalSumApart(huge, minusOne, decimal("floor"))),
+    down,
+  );
+  assert.deepEqual(
+    unwrap(decimalSumApart(huge, exact(ONE), decimal("awayFromZero"))),
+    up,
+  );
+  assert.deepEqual(
+    unwrap(decimalSumApart(huge, minusOne, decimal("awayFromZero"))),
+    huge,
+  );
+  assert.deepEqual(
+    unwrap(decimalSumApart(huge, exact(ONE), decimal("towardZero"))),
+    huge,
+  );
+  assert.deepEqual(
+    unwrap(decimalSumApart(huge, minusOne, decimal("towardZero"))),
     down,
   );
   // A negative larger operand: the one is toward zero, the neighbor away.
   const negative = negateBall(huge);
   assert.deepEqual(
-    unwrap(addBalls(negative, exact(ONE), decimal("ceiling"))),
+    unwrap(decimalSumApart(negative, exact(ONE), decimal("ceiling"))),
     negateBall(down),
   );
   assert.deepEqual(
-    unwrap(addBalls(negative, exact(ONE), decimal("floor"))),
+    unwrap(decimalSumApart(negative, exact(ONE), decimal("floor"))),
     negative,
   );
   assert.deepEqual(
-    unwrap(subtractBalls(negative, exact(ONE), decimal("awayFromZero"))),
+    unwrap(decimalSumApart(negative, minusOne, decimal("awayFromZero"))),
     negateBall(up),
   );
   assert.deepEqual(
-    unwrap(subtractBalls(negative, exact(ONE), decimal("floor"))),
+    unwrap(decimalSumApart(negative, minusOne, decimal("floor"))),
     negateBall(up),
   );
   // A larger operand of eight digits steps in its own last digit.
   const eight = exact(dec("1.2345678e999999999"));
   assert.deepEqual(
-    unwrap(addBalls(eight, exact(ONE), decimal("ceiling"))),
+    unwrap(decimalSumApart(eight, exact(ONE), decimal("ceiling"))),
     exact(dec("1.2345679e999999999")),
   );
-  // In exact mode the same sum is too large, at the range limit.
-  assertRefused(addBalls(huge, exact(ONE), at(8)), "tooLarge");
+  // A step past the top of the exponent bound is refused.
+  const top = exact(dec("9.9999999e1000000000000000000"));
+  assertRefused(
+    decimalSumApart(top, exact(ONE), decimal("ceiling")),
+    "overflow",
+  );
 });
 
 test("powBall on an inexact base squares with settling, and is guarded by magnitude", () => {

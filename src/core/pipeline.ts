@@ -128,7 +128,7 @@ import {
   divideBalls,
   isExact,
   position,
-  settle,
+  step,
   subtractBalls,
   type Ball,
 } from "./ball.ts";
@@ -563,21 +563,18 @@ function convertParsed(
 
 /**
  * `quotient`, formed by the pipeline outside the evaluator (a ratio, a
- * count, a list's term), settled in decimal mode as every step is (D15,
- * D26): one rounding to the digits asked for, exact, so `1 m` in `in` at
- * eight digits is `39.370079` there and `1 in` in `cm` is `2.54`. A
- * refusal is the quotient's. In exact mode the quotient of settled
- * operands is left as it is.
+ * count, a list's term), as a step of the expression (`step` of ball.ts;
+ * D15, D26): settled to the working precision in exact mode, and in
+ * decimal mode rounded once to the digits asked for, exact, so `1 m` in
+ * `in` at eight digits is `39.370079` there and `1 in` in `cm` is `2.54`.
+ * A refusal is the quotient's.
  */
 function settledInMode(
   quotient: Ball,
   context: NumberContext,
 ): Result<Ball, ConversionError> {
-  if (modeOf(context) !== "decimal") return ok(quotient);
-  const settled = settle(quotient, context);
-  if (settled.ok) return settled;
-  if (isRefusal(settled.error)) return err(refusal(settled.error));
-  throw new Error(`A settle failed otherwise: ${settled.error.kind}`);
+  const settled = step(() => ok(quotient), context);
+  return settled.ok ? settled : err(refusal(settled.error));
 }
 
 /** Each of `terms` as `settledInMode` settles it; the first refusal is the list's. */
@@ -585,7 +582,6 @@ function settledTermsInMode(
   terms: readonly Ball[],
   context: NumberContext,
 ): Result<readonly Ball[], ConversionError> {
-  if (modeOf(context) !== "decimal") return ok(terms);
   const settled: Ball[] = [];
   for (const term of terms) {
     const result = settledInMode(term, context);
@@ -697,7 +693,7 @@ function convertToFunction(
     table.primitives,
   );
   if (!conformance.ok) return conformance;
-  const lookup = unitLookup(table, context);
+  const lookup = unitLookup(table);
   const assumed: Assumption[] = [];
   const inDomain = checkConditions(
     { name: fn.name, parameters: [inverse.parameter] },
@@ -881,7 +877,7 @@ function evaluateExpr(
 ): Result<Quantity, TextError> {
   return evaluate(
     expr,
-    unitLookup(table, context),
+    unitLookup(table),
     table.primitives,
     context,
     assumptions,

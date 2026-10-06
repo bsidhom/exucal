@@ -229,9 +229,10 @@ Implemented with S2 (docs/working-digits.md, "As landed"; D27).
   here by the S2 note, which retained the fit at Digits and gathered the
   candidates (docs/ratio-width.md).
 - **Decisions.** In the note: a width of the notation's own, the most
-  digits a part may have, twenty by default, in `[1, 1000]`, independent
-  of Digits; the measure per part; a whole number written entire when it
-  fits the width; the exponent form `n e k / d` for a ratio that fits
+  digits a ratio's two parts may have between them, twenty by default,
+  in `[1, 1000]`, independent of Digits; the measure the two parts
+  together, as the owner ruled in review; a whole number written entire
+  when it fits the width; the exponent form `n e k / d` for a ratio that fits
   with its power of ten factored onto the numerator and not without,
   the denominator not one; a mixed form and a fractional mantissa ruled
   out; the notation as `{ kind: "digits" } | { kind: "ratio"; width }`

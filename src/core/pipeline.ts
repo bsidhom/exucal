@@ -67,7 +67,11 @@
 // mode, so raising the internal precision would compute something other
 // than what the mode asks for, and the display marks what the radius does
 // not certify without escalating; an `unresolved` is then final and
-// reported at once. The table is built at the ceiling in exact mode
+// reported at once. With working digits set (D27, docs/working-digits.md)
+// the texts, being the operands of the ratio, the terms or the count that
+// is shown, are evaluated at `operandContext`, the context at the working
+// digits, and that last step is rounded to the digits asked for from
+// their exact result. The table is built at the ceiling in exact mode
 // whatever the user's mode (`ceilingContext`), and the lookup settles a
 // unit in the user's mode.
 // `resolve` runs the evaluation at each working context in turn and stops
@@ -135,6 +139,7 @@ import {
 import {
   checkContext,
   modeOf,
+  operandContext,
   workingContexts,
   type NumberContext,
 } from "./context.ts";
@@ -470,7 +475,13 @@ export function convertText(
   );
 }
 
-/** One pass of `convertText`, at the `working` context, over the parsed texts. */
+/**
+ * One pass of `convertText`, at the `working` context, over the parsed
+ * texts. The texts denote the operands of what is shown, the ratio or the
+ * list's terms, so they are evaluated at the operand context
+ * (`operandContext`; D27) and the ratio or the terms are stepped at the
+ * pass's context.
+ */
 function convertParsed(
   table: UnitTable,
   have: Expr,
@@ -479,7 +490,8 @@ function convertParsed(
   working: NumberContext,
   assumptions: Assumption[],
 ): Result<Conversion, ConversionError> {
-  const haveQuantity = evaluateExpr(table, have, working, assumptions);
+  const inner = operandContext(working);
+  const haveQuantity = evaluateExpr(table, have, inner, assumptions);
   if (!haveQuantity.ok) return inputError("have", haveQuantity.error);
   const [first, ...rest] = items;
   if (first !== undefined && rest.length === 0) {
@@ -505,7 +517,7 @@ function convertParsed(
         assumptions,
       );
     }
-    const wantQuantity = evaluateExpr(table, first, working, assumptions);
+    const wantQuantity = evaluateExpr(table, first, inner, assumptions);
     if (!wantQuantity.ok) return inputError("want", wantQuantity.error);
     const value = convert(
       haveQuantity.value,
@@ -527,7 +539,7 @@ function convertParsed(
   }
   const units: ListedUnit[] = [];
   for (const item of items) {
-    const quantity = evaluateExpr(table, item, working, assumptions);
+    const quantity = evaluateExpr(table, item, inner, assumptions);
     if (!quantity.ok) return inputError("want", quantity.error);
     units.push({
       text: want.slice(item.span.start, item.span.end),
@@ -695,6 +707,9 @@ function convertToFunction(
   if (!conformance.ok) return conformance;
   const lookup = unitLookup(table);
   const assumed: Assumption[] = [];
+  // The inverse, the function applied back and their conditions are the
+  // operands of the count, which is the step shown (D27).
+  const inner = operandContext(context);
   const inDomain = checkConditions(
     { name: fn.name, parameters: [inverse.parameter] },
     "inverse",
@@ -702,7 +717,7 @@ function convertToFunction(
     new Map([[inverse.parameter, have]]),
     lookup,
     table.primitives,
-    context,
+    inner,
     assumed,
   );
   if (!inDomain.ok) {
@@ -713,7 +728,7 @@ function convertToFunction(
     have,
     lookup,
     table.primitives,
-    context,
+    inner,
     assumed,
   );
   if (!argument.ok) {
@@ -736,7 +751,7 @@ function convertToFunction(
     bindParameters(fn, [argument.value]),
     lookup,
     table.primitives,
-    context,
+    inner,
     assumed,
   );
   if (!admitted.ok) {
@@ -747,7 +762,7 @@ function convertToFunction(
     [argument.value],
     lookup,
     table.primitives,
-    context,
+    inner,
     assumed,
   );
   if (!back.ok) {
@@ -763,7 +778,7 @@ function convertToFunction(
           },
     );
   }
-  if (disjoint(back.value.magnitude, have.magnitude, context)) {
+  if (disjoint(back.value.magnitude, have.magnitude, inner)) {
     return inputError("want", { kind: "inverseMismatch", name: fn.name });
   }
   const value = divideBalls(

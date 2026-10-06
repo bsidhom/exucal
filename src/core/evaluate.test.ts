@@ -344,6 +344,126 @@ test("in decimal mode every result is rounded to the precision in the rounding m
   assert.ok(isExact(value(run("2 / 3", at(8))).magnitude));
 });
 
+test("in decimal mode with working digits every step but the last is rounded to them, and the last to the precision from its exact result (D27)", () => {
+  const over = (
+    precision: number,
+    working: number,
+    rounding: RoundingMode,
+  ): NumberContext => ({ ...decimal(precision, rounding), working });
+  const withApp = lookupIn(UNITS, FUNCTIONS, APP_BUILTINS_RECORD);
+  const run12 = (text: string, rounding: RoundingMode) =>
+    value(evaluate(parsed(text), withApp, PRIMITIVES, over(8, 12, rounding)))
+      .magnitude;
+  // ln(exp(1/10)) at eight digits over twelve: exp(0.1) is 1.10517091808
+  // at twelve, which drops 4.4e-12, and ln of it is 0.1 within 4e-12,
+  // which the eighth digit does not see under the modes to nearest; a
+  // directed mode sees it, since 0.1 is on the grid and any error crosses
+  // it, and gives the neighbor in its direction. Without working digits
+  // the first rounding's error, 1.8e-8, is visible in the answer.
+  for (const mode of [
+    "halfEven",
+    "halfAwayFromZero",
+    "halfTowardZero",
+  ] as const) {
+    assert.deepEqual(run12("ln(exp(1/10))", mode), exact(dec("0.1")), mode);
+    assert.deepEqual(run12("1 / 3 * 3", mode), exact(dec("1")), mode);
+  }
+  for (const mode of ["towardZero", "floor"] as const) {
+    assert.deepEqual(
+      run12("ln(exp(1/10))", mode),
+      exact(dec("0.099999999")),
+      mode,
+    );
+    assert.deepEqual(run12("1 / 3 * 3", mode), exact(dec("0.99999999")), mode);
+  }
+  for (const mode of ["awayFromZero", "ceiling"] as const) {
+    assert.deepEqual(
+      run12("ln(exp(1/10))", mode),
+      exact(dec("0.10000001")),
+      mode,
+    );
+    assert.deepEqual(run12("1 / 3 * 3", mode), exact(dec("1.0000001")), mode);
+  }
+  assert.deepEqual(
+    value(
+      evaluate(
+        parsed("ln(exp(1/10))"),
+        withApp,
+        PRIMITIVES,
+        decimal(8, "halfEven"),
+      ),
+    ).magnitude,
+    exact(dec("0.099999984")),
+  );
+  // The root alone is rounded to the precision: a literal there has eight
+  // digits, one below the root twelve, so 1/3 * 3 and 3 * 1/3 differ in
+  // what is rounded and agree in the answer, and a product at the root
+  // of twelve-digit operands is rounded once.
+  assert.deepEqual(
+    run12("3.14159265358979", "halfEven"),
+    exact(dec("3.1415927")),
+  );
+  assert.deepEqual(
+    run12("3.14159265358979 * 1", "halfEven"),
+    exact(dec("3.1415927")),
+  );
+  assert.deepEqual(
+    run12("1.00000000004 * 1.00000000004", "halfEven"),
+    exact(dec("1")),
+  );
+  // A user-defined function's body is the call's step: its root is rounded
+  // to the call's digits, and its argument is an operand.
+  const twice = fn(
+    "twice",
+    "x",
+    quantity("1"),
+    quantity("1"),
+    "ln(exp(x))",
+    "twice",
+  );
+  const look = lookupIn(UNITS, { twice }, APP_BUILTINS_RECORD);
+  assert.deepEqual(
+    value(
+      evaluate(
+        parsed("twice(1/10)"),
+        look,
+        PRIMITIVES,
+        over(8, 12, "halfEven"),
+      ),
+    ).magnitude,
+    exact(dec("0.1")),
+  );
+  // Working digits equal to the precision are D26 as landed, and exact
+  // mode ignores them: the results are the same, operand for operand.
+  assert.deepEqual(
+    value(
+      evaluate(
+        parsed("ln(exp(1/10))"),
+        withApp,
+        PRIMITIVES,
+        over(8, 8, "halfEven"),
+      ),
+    ),
+    value(
+      evaluate(
+        parsed("ln(exp(1/10))"),
+        withApp,
+        PRIMITIVES,
+        decimal(8, "halfEven"),
+      ),
+    ),
+  );
+  assert.deepEqual(
+    value(
+      evaluate(parsed("ln(exp(1/10))"), withApp, PRIMITIVES, {
+        ...at(8),
+        working: 12,
+      }),
+    ),
+    value(evaluate(parsed("ln(exp(1/10))"), withApp, PRIMITIVES, at(8))),
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Leaves
 
@@ -1145,6 +1265,10 @@ const BUILTINS: Record<string, Builtin> = {
 };
 
 const withBuiltins = lookupIn(UNITS, FUNCTIONS, BUILTINS);
+
+/** The app's built-ins as `lookupIn` takes them. */
+const APP_BUILTINS_RECORD: Record<string, Builtin> =
+  Object.fromEntries(APP_BUILTINS);
 
 function runBuiltin(text: string): Result<Quantity, Failure> {
   return evaluate(parsed(text), withBuiltins, PRIMITIVES, CONTEXT);

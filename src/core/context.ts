@@ -10,7 +10,15 @@
 // working digits to nearest and the rounding mode is the display's alone;
 // in decimal mode every step is rounded once to `precision` digits in the
 // rounding mode and is exact, so the mode governs every operation, and
-// the pipeline runs one pass.
+// the pipeline runs one pass. In decimal mode `working`, the working
+// digits of D27 (docs/working-digits.md), is the precision every step but
+// the last is rounded to: the evaluator computes a step's operands at
+// `operandContext`, the context at the working digits, and the step
+// itself at the context it was given, so that the root of an expression
+// and the quotients the pipeline forms are rounded to `precision` from
+// exact results of working-digit operands. Absent, the working digits are
+// the precision, which is D26 as landed; exact mode ignores them, the
+// pass setting its precision.
 //
 // One type serves two levels (D1). Below the pipeline, `precision` is the
 // working precision: every core function that does arithmetic (`evaluate`,
@@ -49,9 +57,10 @@
 // A context whose precision is not a positive integer, whose rounding mode
 // is not one of the seven, whose mode is neither exact nor decimal, whose
 // range limit is not an integer in `[1, LIMIT_BITS]`, or whose ceiling is
-// not an integer at or above the precision, is a bug in the caller and
-// `checkContext` throws `RangeError`, as `rational` does for a zero
-// denominator.
+// not an integer at or above the precision, or whose working digits are
+// not an integer at or above the precision within the cap the ceiling was
+// derived from, is a bug in the caller and `checkContext` throws
+// `RangeError`, as `rational` does for a zero denominator.
 
 import { bitsFor } from "./fixed.ts";
 import { LIMIT_BITS } from "./rational.ts";
@@ -81,11 +90,44 @@ export type NumberContext = {
   readonly ceiling: Precision;
   /** Exact or decimal (4.5); absent is exact, so every context written before the mode existed is an exact one. */
   readonly mode?: Mode;
+  /**
+   * The working digits of decimal mode (D27): the digits every step but
+   * the last is rounded to, at or above `precision`, which the last step
+   * is rounded to. Absent means `precision`; exact mode ignores it.
+   */
+  readonly working?: Precision;
 };
 
 /** The mode of `context`: exact where none is given. */
 export function modeOf(context: NumberContext): Mode {
   return context.mode ?? "exact";
+}
+
+/**
+ * The context the operands of a step at `context` are computed at (D27):
+ * in decimal mode with working digits above the precision, `context` at
+ * the working digits, so that every step below the one at `context` is
+ * rounded to them and that step alone to the precision; otherwise
+ * `context` itself. Idempotent, so an operand's own operands are computed
+ * at the same context.
+ */
+export function operandContext(context: NumberContext): NumberContext {
+  const { working, precision } = context;
+  if (
+    working === undefined ||
+    working === precision ||
+    modeOf(context) !== "decimal"
+  ) {
+    return context;
+  }
+  return { ...context, precision: working };
+}
+
+/** `context` without its working digits, which a context derived at another precision does not carry. */
+function withoutWorking(context: NumberContext): NumberContext {
+  if (context.working === undefined) return context;
+  const { working: _working, ...rest } = context;
+  return rest;
 }
 
 /**
@@ -157,11 +199,12 @@ export function workingContexts(context: NumberContext): NumberContext[] {
       `${context.precision} digits exceed the cap for a ceiling of ${ceiling}`,
     );
   }
+  const base = withoutWorking(context);
   const contexts: NumberContext[] = [];
   for (let precision = first; precision < ceiling; precision *= 2) {
-    contexts.push({ ...context, precision });
+    contexts.push({ ...base, precision });
   }
-  contexts.push({ ...context, precision: ceiling });
+  contexts.push({ ...base, precision: ceiling });
   return contexts;
 }
 
@@ -173,8 +216,9 @@ export function workingContexts(context: NumberContext): NumberContext[] {
  */
 export function ceilingContext(context: NumberContext): NumberContext {
   const exact = modeOf(context) === "exact";
-  if (context.precision === context.ceiling && exact) return context;
-  const at = { ...context, precision: context.ceiling };
+  const plain = context.working === undefined;
+  if (context.precision === context.ceiling && exact && plain) return context;
+  const at = { ...withoutWorking(context), precision: context.ceiling };
   return exact ? at : { ...at, mode: "exact" };
 }
 
@@ -202,7 +246,7 @@ export const MIN_MAX_BITS = 2 * bitsFor(ceilingFor(1));
 
 /** Throws `RangeError` unless `context` is one a caller may compute at. */
 export function checkContext(context: NumberContext): void {
-  const { precision, rounding, maxBits, ceiling, mode } = context;
+  const { precision, rounding, maxBits, ceiling, mode, working } = context;
   if (!Number.isInteger(precision) || precision < 1) {
     throw new RangeError(`Precision must be a positive integer: ${precision}`);
   }
@@ -221,5 +265,17 @@ export function checkContext(context: NumberContext): void {
     throw new RangeError(
       `The ceiling must be an integer at or above the precision ${precision}: ${ceiling}`,
     );
+  }
+  if (working !== undefined) {
+    if (!Number.isInteger(working) || working < precision) {
+      throw new RangeError(
+        `The working digits must be an integer at or above the precision ${precision}: ${working}`,
+      );
+    }
+    if (4 * (working + GUARD_DIGITS) > ceiling) {
+      throw new RangeError(
+        `${working} working digits exceed the cap for a ceiling of ${ceiling}`,
+      );
+    }
   }
 }

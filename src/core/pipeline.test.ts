@@ -451,6 +451,46 @@ test("in decimal mode every operation is one rounded step and every value is exa
   });
 });
 
+test("in decimal mode the texts are the operands of what is shown, computed at the working digits, and the ratio, the terms and the count are rounded to the digits asked for (D27)", () => {
+  const over12: NumberContext = { ...decimal(8, "halfEven"), working: 12 };
+  // A bare expression is the value shown: its root is rounded to eight
+  // from twelve-digit operands.
+  const bare = evaluateText(table, "ln(exp(1/10))", over12);
+  assert.ok(bare.ok, inspect(bare));
+  assert.deepEqual(bare.value.magnitude, exact(dec("0.1")));
+  const narrow = evaluateText(table, "ln(exp(1/10))", decimal(8, "halfEven"));
+  assert.ok(narrow.ok, inspect(narrow));
+  assert.deepEqual(narrow.value.magnitude, exact(dec("0.099999984")));
+  // A conversion's ratio is the step shown: have and want are computed at
+  // twelve digits, 0.999999999999 m over 1 m, and the ratio rounded once.
+  const ratio = convertText(table, "1 / 3 * 3 m", "m", over12);
+  assert.ok(ratio.ok && ratio.value.kind === "unit", inspect(ratio));
+  assert.deepEqual(ratio.value.value, exact(dec("1")));
+  assert.deepEqual(ratio.value.have.magnitude, exact(dec("0.999999999999")));
+  const inches = convertText(table, "1 / 3 * 3 m", "in", over12);
+  assert.ok(inches.ok && inches.value.kind === "unit", inspect(inches));
+  assert.deepEqual(inches.value.value, exact(dec("39.370079")));
+  // A list's terms and a function's count likewise: a twelve-digit have
+  // reaches the count entire, and the count is rounded to eight.
+  const listed = convertText(table, "100 in", "ftin", over12);
+  assert.ok(listed.ok && listed.value.kind === "list", inspect(listed));
+  assert.deepEqual(listed.value.terms, [exact(dec("8")), exact(dec("4"))]);
+  const called = convertText(table, "300.123456789 K", "tempC", over12);
+  assert.ok(called.ok && called.value.kind === "function", inspect(called));
+  assert.deepEqual(called.value.value, exact(dec("26.973457")));
+  const narrowCall = convertText(table, "300.123456789 K", "tempC", decimal(8));
+  assert.ok(narrowCall.ok && narrowCall.value.kind === "function");
+  assert.deepEqual(narrowCall.value.value, exact(dec("26.97346")));
+  // The schedule is the context alone, working digits and all; exact mode
+  // ignores them.
+  assert.deepEqual(schedule(over12), [over12]);
+  const exactly = evaluateText(table, "ln(exp(1/10))", {
+    ...CONTEXT,
+    working: CONTEXT.precision + 12,
+  });
+  assert.deepEqual(exactly, evaluateText(table, "ln(exp(1/10))", CONTEXT));
+});
+
 test("resolve keeps the best result so far and returns it when a later pass is unaffordable", () => {
   const seen: number[] = [];
   const result = resolve<string, { kind: "tooLarge" | "unresolved" | "other" }>(

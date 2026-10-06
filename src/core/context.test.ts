@@ -21,9 +21,9 @@ import { bitsFor } from "./fixed.ts";
 import { LIMIT_BITS } from "./rational.ts";
 import { ROUNDING_MODES } from "./rounding.ts";
 
-test("the defaults are the display's rules: eight digits, half away from zero", () => {
+test("the defaults are eight digits and half even (S2 of the settings plan)", () => {
   assert.equal(DEFAULT_DIGITS, 8);
-  assert.equal(DEFAULT_ROUNDING, "halfAwayFromZero");
+  assert.equal(DEFAULT_ROUNDING, "halfEven");
   checkContext({
     precision: DEFAULT_DIGITS,
     rounding: DEFAULT_ROUNDING,

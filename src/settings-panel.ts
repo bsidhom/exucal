@@ -6,6 +6,7 @@ import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 import { recommendLimits } from "./limits.ts";
 import { buttonStyles, hintStyles } from "./styles.ts";
 import {
+  DEFAULT_MODES,
   DEFAULT_SETTINGS,
   isIntegerIn,
   isMode,
@@ -111,7 +112,7 @@ export class SettingsPanel extends LitElement {
   @state() private recommending = false;
 
   render() {
-    const { rounding, mode, fractions } = this.settings;
+    const { rounding, mode } = this.settings;
     return html`
       <details>
         <summary>Settings</summary>
@@ -128,24 +129,28 @@ export class SettingsPanel extends LitElement {
             "Mode",
             MODES,
             MODE_LABELS,
-            mode,
-            this.onSelectChange("mode", isMode),
+            mode.kind,
+            this.onModeChange,
           )}
-          <label class="toggle">
-            <span>
-              <input
-                type="checkbox"
-                .checked=${fractions}
-                @change=${this.onFractionsChange}
-              />
-              Show reduced fractions
-            </span>
-            <small class="hint">
-              An exact value that is not a whole number is written as a fraction
-              in lowest terms when both parts fit within Digits; inexact values
-              stay decimal.
-            </small>
-          </label>
+          ${
+            mode.kind === "exact"
+              ? html`<label class="toggle">
+                  <span>
+                    <input
+                      type="checkbox"
+                      .checked=${mode.notation === "ratio"}
+                      @change=${this.onNotationChange}
+                    />
+                    Show reduced fractions
+                  </span>
+                  <small class="hint">
+                    An exact value that is not a whole number is written as a
+                    fraction in lowest terms when both parts fit within Digits;
+                    inexact values stay decimal.
+                  </small>
+                </label>`
+              : null
+          }
           <button
             type="button"
             ?disabled=${this.recommending}
@@ -218,7 +223,7 @@ export class SettingsPanel extends LitElement {
   }
 
   /** The handler for a select: a value that `is` the setting's type is emitted. */
-  private onSelectChange<K extends "rounding" | "mode">(
+  private onSelectChange<K extends "rounding">(
     key: K,
     is: (value: unknown) => value is Settings[K],
   ) {
@@ -228,9 +233,20 @@ export class SettingsPanel extends LitElement {
     };
   }
 
-  private onFractionsChange(event: Event) {
+  /** A change of the mode's kind: the chosen mode's variant at its defaults, since each variant carries its own settings. */
+  private onModeChange(event: Event) {
+    const { value } = event.target as HTMLSelectElement;
+    if (isMode(value) && value !== this.settings.mode.kind) {
+      this.emit({ mode: DEFAULT_MODES[value] });
+    }
+  }
+
+  /** A change of exact mode's notation: the exact variant with it. */
+  private onNotationChange(event: Event) {
     const { checked } = event.target as HTMLInputElement;
-    this.emit({ fractions: checked });
+    this.emit({
+      mode: { kind: "exact", notation: checked ? "ratio" : "digits" },
+    });
   }
 
   /**

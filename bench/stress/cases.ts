@@ -37,7 +37,12 @@
 // argument classes and its settings profile. The catalogue keeps the
 // costliest case of each family (catalogue.ts).
 
-import { isIntegerIn, rangesOf, type Settings } from "../../src/settings.ts";
+import {
+  DEFAULT_MODES,
+  isIntegerIn,
+  rangesOf,
+  type Settings,
+} from "../../src/settings.ts";
 import { DEFAULT_SETTINGS } from "../../src/settings.ts";
 import { DEFAULT_MAX_BITS, maxDigitsFor } from "../../src/core/context.ts";
 import { LIMIT_BITS } from "../../src/core/rational.ts";
@@ -431,10 +436,22 @@ const PROFILES: readonly (readonly [number, Profile])[] = [
       },
     },
   ],
-  [1, { name: "decimal", settings: { ...DEFAULT_SETTINGS, mode: "decimal" } }],
   [
     1,
-    { name: "fractions", settings: { ...DEFAULT_SETTINGS, fractions: true } },
+    {
+      name: "decimal",
+      settings: { ...DEFAULT_SETTINGS, mode: DEFAULT_MODES.decimal },
+    },
+  ],
+  [
+    1,
+    {
+      name: "fractions",
+      settings: {
+        ...DEFAULT_SETTINGS,
+        mode: { kind: "exact", notation: "ratio" },
+      },
+    },
   ],
   [
     1,

@@ -6,6 +6,7 @@ import type { Result } from "./core/result.ts";
 import {
   clampSettings,
   contextOf,
+  showsRatios,
   loadSettings,
   saveSettings,
   type Settings,
@@ -190,7 +191,7 @@ export class AppShell extends LitElement {
         return html`<unit-converter
           .table=${table.table}
           .context=${context}
-          .fractions=${this.settings.fractions}
+          .fractions=${showsRatios(this.settings)}
         ></unit-converter>`;
     }
   }

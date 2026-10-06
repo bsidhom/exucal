@@ -90,10 +90,12 @@ test("round to an integer and to places, in the context's rounding mode", () => 
         : [exact(dec(x)), exact(dec(places))],
       at(mode),
     );
-  assertExact(r("2.5"), "3");
-  assertExact(r("-2.5"), "-3");
-  assertExact(r("2.5", undefined, "halfEven"), "2");
-  assertExact(r("3.5", undefined, "halfEven"), "4");
+  // The default rounding is half even (S2 of the settings plan).
+  assertExact(r("2.5"), "2");
+  assertExact(r("-2.5"), "-2");
+  assertExact(r("3.5"), "4");
+  assertExact(r("2.5", undefined, "halfAwayFromZero"), "3");
+  assertExact(r("-2.5", undefined, "halfAwayFromZero"), "-3");
   assertExact(r("2.5", undefined, "halfTowardZero"), "2");
   assertExact(r("2.4", undefined, "ceiling"), "3");
   assertExact(r("-2.4", undefined, "ceiling"), "-2");
@@ -105,11 +107,12 @@ test("round to an integer and to places, in the context's rounding mode", () => 
   assertExact(r("3.14159", "4"), "3.1416");
   assertExact(r("3.14159", "0"), "3");
   assertExact(r("1234", "-2"), "1200");
-  assertExact(r("1250", "-2"), "1300");
-  assertExact(r("1250", "-2", "halfEven"), "1200");
-  assertExact(r("-1250", "-2"), "-1300");
-  assertExact(r("0.125", "2"), "0.13");
-  assertExact(r("0.125", "2", "halfEven"), "0.12");
+  assertExact(r("1250", "-2"), "1200");
+  assertExact(r("1250", "-2", "halfAwayFromZero"), "1300");
+  assertExact(r("-1250", "-2"), "-1200");
+  assertExact(r("-1250", "-2", "halfAwayFromZero"), "-1300");
+  assertExact(r("0.125", "2"), "0.12");
+  assertExact(r("0.125", "2", "halfAwayFromZero"), "0.13");
   // A value already a multiple of the unit is itself, whatever its size.
   assertExact(r("1e999999999", "2"), "1e999999999");
   assertExact(r("3.14", "5"), "3.14");

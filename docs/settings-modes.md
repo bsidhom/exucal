@@ -14,9 +14,9 @@ the fit rule to a step of its own with the ideas it has gathered.
 **Status: resumed.** The review of the first draft reopened what decimal
 mode is, and docs/decimal-mode.md restated it (D26): every operation one
 correctly rounded step, every value exact, no radius. That restatement
-has landed, with the outcome keeping the fractions display out of decimal
-mode until this step moves the exclusion into the settings, so every
-place this note leans on D26 now describes the code as it is. The first
+has landed, with a guard in the outcome keeping the fractions display
+out of decimal mode, so every place this note leans on D26 now describes
+the code as it is. The first
 draft's ruling of one mode with three values, and its fit rule by a
 constant, were set aside in the same review and are recorded below as
 weighed; the second review ruled the shape of the mode setting and
@@ -329,10 +329,17 @@ mode is in force:
   variant; the lines under Digits and Rounding as functions of the
   settings, which `NUMBER_FIELDS` already allows for the numbers and the
   selects gain.
-- `src/outcome.ts`: the guard that keeps the fractions display out of
-  decimal mode, which D26's implementation put in `outcomeOf`, goes, the
-  settings now making the two exclusive at the source; `src/core/display.ts`
-  unchanged.
+- `src/outcome.ts`, `src/core/display.ts`: unchanged. The guard D26's
+  implementation put in `outcomeOf`, which passes the fractions display
+  to `show` only in exact mode, stays: the `ModeSetting` type makes the
+  combination unrepresentable in storage and in the panel, but the path
+  from the settings to the display is two values, a `NumberContext` with
+  its mode and a flag, and nothing in the signatures of `outcomeOf` and
+  `show` ties them, so the guard is what enforces the exclusion at that
+  API, with its test. Tying them in the type would mean the outcome
+  taking the mode setting itself and deriving the context's mode from
+  it, a change to the component's inputs that S4 may make when it
+  revisits them.
 - Tests: a version 2 fixture with each combination of mode and
   fractions, and the totality test over the new migration; the tests at
   the default rounding; the panel's notation control under exact mode
@@ -346,7 +353,8 @@ mode is in force:
 ## Done when
 
 - The settings have a `mode` of the nested shape and no `fractions`
-  field beside it; a version 2 object with `mode: "exact"` and
+  field beside it, and the outcome's guard against a fraction in decimal
+  mode stays, with its test; a version 2 object with `mode: "exact"` and
   `fractions: true` loads as the exact variant with the notation
   `ratio`, one with `mode: "decimal"` as the decimal variant whatever
   its `fractions`, and the next save writes version 3.

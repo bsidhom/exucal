@@ -499,10 +499,9 @@ function addBallsCore(
     if (isZeroRadius(rad) || rad.kind === "unbounded") return sum;
     return held(sumOf(a.mid, b.mid), rad);
   }
-  // In decimal mode the operands are exact decimals of the context's
-  // digits (D26), and the rounded sum is determined without forming it.
-  if (modeOf(context) === "decimal") return decimalSumApart(a, b, context);
-  // Two exact operands have an exact sum that cannot be held.
+  // Two exact operands have an exact sum that cannot be held: `tooLarge`
+  // in exact mode, and in decimal mode the evaluator's to answer by the
+  // neighbor rule (`decimalSumApart`, D26).
   if (isExact(a) && isExact(b)) return sum;
   const settledA = settle(a, context);
   if (!settledA.ok) return settledA;
@@ -526,16 +525,18 @@ function addBallsCore(
 
 /**
  * `a + b` in decimal mode where the two cannot be aligned within the
- * range limit (D26; docs/decimal-mode.md, "Sums that do not align"): the
- * smaller operand lies far below half a unit in the last of the context's
- * digits of the larger, so the correctly rounded sum is the larger in a
- * nearest mode, and in a directed mode the larger or its neighbor at
- * those digits, by the side of it the smaller lies on: `1e999999999 + 1`
- * at eight digits is `1e999999999`, and `1.0000001e999999999` under
- * `ceiling`. The operands are exact, as every decimal-mode value is, and
+ * range limit (D26; docs/decimal-mode.md, "Sums that do not align"), which
+ * the evaluator applies when `addBalls` refuses such a sum as `tooLarge`:
+ * the smaller operand lies far below half a unit in the last of the
+ * context's digits of the larger, so the correctly rounded sum is the
+ * larger in a nearest mode, and in a directed mode the larger or its
+ * neighbor at those digits, by the side of it the smaller lies on:
+ * `1e999999999 + 1` at eight digits is `1e999999999`, and
+ * `1.0000001e999999999` under `ceiling`. `context` is the user's decimal
+ * context. The operands are exact, as every decimal-mode value is, and
  * the smaller is not zero, since a zero aligns with anything.
  */
-function decimalSumApart(
+export function decimalSumApart(
   a: Ball,
   b: Ball,
   context: NumberContext,
@@ -883,7 +884,10 @@ function powBallCore(
 }
 
 /**
- * `b` settled to the working precision of `context` (D15). In exact mode
+ * `b` settled to the working precision of `context` (D15): the primitive
+ * of `step`, which is the one way a computed value enters the expression,
+ * and of the operations here that settle inside themselves (a sum with an
+ * inexact operand, a power's squarings). In exact mode
  * an inexact midpoint is rounded to nearest at the working digits, the
  * decimal grid the kernel's results are rounded onto, and half a unit in
  * the last of those digits, its bound, is added to the radius when the
@@ -908,10 +912,7 @@ function powBallCore(
  * bottom edge, whose half unit lies past the bound, can take (the same
  * issue's first row threw here).
  */
-export function settle(
-  b: Ball,
-  context: NumberContext,
-): Result<Ball, BallError> {
+function settle(b: Ball, context: NumberContext): Result<Ball, BallError> {
   if (modeOf(context) === "decimal") return settleDecimal(b, context);
   if (isZero(b.mid)) return ok(b);
   if (isExact(b)) return ok(b);
@@ -975,26 +976,41 @@ function roundedDecimal(
   return ok(carrying(exact(rounded), from));
 }
 
+/** A refusal the rounding of a step can raise: the rounded value's exponent past the bound (D17). */
+export type PastBound = Extract<BallError, { kind: "overflow" | "underflow" }>;
+
 /**
- * A step's result certified for its rounding in decimal mode (D26;
- * docs/decimal-mode.md, "Function calls" and "The ceiling"): `compute`,
- * a built-in's function or a power, is run at the working contexts of the
- * retry schedule in exact mode, the digits asked for plus the guard,
- * doubling, up to the ceiling, until its ball is exact or certifies the
- * context's digits in its rounding mode, and that ball is returned, at a
- * working precision, for `settle` to round. At the ceiling the last ball
- * is returned all the same, and `settle` marks its rounding uncertified.
- * An error `retries` accepts (an `unresolved`, which more digits may
- * decide) continues to the next context and is the result at the
- * ceiling; any other ends the step. In exact mode `compute` runs once, at
- * `context`, the schedule being the pipeline's.
+ * A step of the expression at `context`: the one entrance through which a
+ * value `compute` produces becomes a value of the expression, in either
+ * mode (D15, D26; docs/decimal-mode.md). Every node of the evaluator, the
+ * pipeline's own quotients and the outcome's reciprocal go through it,
+ * and nothing else settles or rounds a value.
+ *
+ * In exact mode `compute` runs once, at `context`, and its value is
+ * settled: an inexact midpoint rounded to the working digits with the
+ * rounding added to the radius, an exact value as it is. In decimal mode
+ * `compute` runs at the working contexts of the retry schedule, in exact
+ * mode, from the digits asked for plus the guard, doubling, up to the
+ * ceiling, until its ball is exact or certifies the context's digits in
+ * its rounding mode (D7), and that ball is rounded once to those digits,
+ * exact; at the ceiling the last ball's midpoint is rounded and the value
+ * marked uncertified ("The ceiling"). An error `retries` accepts (an
+ * `unresolved`, which more digits may decide) continues to the next
+ * context and is the result at the ceiling; any other ends the step. A
+ * `compute` that does not read its context, an exact operation on exact
+ * operands or a unit from the table, is exact or certifies on its first
+ * run in either mode. The rounding can refuse a value whose exponent
+ * passes the bound (`PastBound`), which `compute`'s own errors join.
  */
-export function certifiedStep<E extends { readonly kind: string }>(
+export function step<E extends { readonly kind: string }>(
   compute: (working: NumberContext) => Result<Ball, E>,
   context: NumberContext,
   retries: (error: E) => boolean = (error) => error.kind === "unresolved",
-): Result<Ball, E> {
-  if (modeOf(context) !== "decimal") return compute(context);
+): Result<Ball, E | PastBound> {
+  if (modeOf(context) !== "decimal") {
+    const computed = compute(context);
+    return computed.ok ? settled(computed.value, context) : computed;
+  }
   const { precision, rounding } = context;
   let last: Result<Ball, E> | undefined;
   for (const working of workingContexts({ ...context, mode: "exact" })) {
@@ -1005,11 +1021,21 @@ export function certifiedStep<E extends { readonly kind: string }>(
       isExact(result.value) ||
       certifies(result.value, precision, rounding)
     ) {
-      return result;
+      return settled(result.value, context);
     }
     last = result;
   }
-  return last!;
+  return last!.ok ? settled(last!.value, context) : last!;
+}
+
+/** `settle` with its refusals narrowed to the two the rounding can raise. */
+function settled(b: Ball, context: NumberContext): Result<Ball, PastBound> {
+  const result = settle(b, context);
+  if (result.ok) return result;
+  if (result.error.kind === "overflow" || result.error.kind === "underflow") {
+    return err({ kind: result.error.kind });
+  }
+  throw new Error(`A settle failed otherwise: ${result.error.kind}`);
 }
 
 /**

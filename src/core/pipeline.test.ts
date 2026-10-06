@@ -252,12 +252,7 @@ function passes(
     context,
     (working) => {
       at.push(working.precision);
-      return evaluate(
-        expr.value,
-        unitLookup(table, working),
-        table.primitives,
-        working,
-      );
+      return evaluate(expr.value, unitLookup(table), table.primitives, working);
     },
     (quantity) =>
       isExact(quantity.magnitude) ||
@@ -1352,7 +1347,7 @@ test("a condition may guard the next: a term is computed only behind conditions 
 test("a certain failure after an undecided comparison is reported, not assumed or retried", () => {
   const evaluated = evaluate(
     parsedExpr("both(approx(1), 0)"),
-    unitLookup(conditional, CONTEXT),
+    unitLookup(conditional),
     conditional.primitives,
     CONTEXT,
     [],
@@ -1393,7 +1388,7 @@ test("an undecided condition is assumed, retried to the ceiling, and carried out
       at.push(working.precision);
       return evaluate(
         expr,
-        unitLookup(conditional, working),
+        unitLookup(conditional),
         conditional.primitives,
         working,
         assumptions,
@@ -1428,7 +1423,7 @@ test("a condition that more digits decide against fails, though an earlier pass 
   const assumed: Assumption[] = [];
   const early = evaluate(
     parsedExpr(text),
-    unitLookup(conditional, first),
+    unitLookup(conditional),
     conditional.primitives,
     first,
     assumed,

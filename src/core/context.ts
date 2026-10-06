@@ -143,9 +143,9 @@ export const DEFAULT_CEILING: Precision = ceilingFor(DEFAULT_MAX_DIGITS);
  * digits asked for plus the guard, then that doubled, doubled again, and
  * so on while below the ceiling, and the ceiling last, each with the
  * context's other fields as they are. Exact mode runs the pipeline
- * through them (pipeline.ts, `schedule`); decimal mode runs a built-in
- * through them, in exact mode, until its rounding is certified (ball.ts,
- * `certifiedStep`; D26). A precision above the cap the ceiling was
+ * through them (pipeline.ts, `schedule`); decimal mode runs each step of
+ * the expression through them, in exact mode, until its rounding is
+ * certified (ball.ts, `step`; D26). A precision above the cap the ceiling was
  * derived from (`ceilingFor`, four times the cap plus the guard) is a
  * precondition failure.
  */

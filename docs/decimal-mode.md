@@ -503,12 +503,21 @@ rediscovery:
   from a built-in's arguments to its result. Where the bit lives was the
   first of the provisional rulings above; this is the simplest shape that
   propagates without each operation knowing of it.
-- **The certifying step** is `certifiedStep` in ball.ts, over the
-  working contexts the retry schedule now gets from context.ts
-  (`workingContexts`), and the evaluator runs a built-in's call and a
-  power through it; `settle`'s decimal branch does the rounding and the
-  flagging, so that a unit looked up, which has no step to recompute, is
-  certified or flagged by the same code.
+- **One entrance.** `step` in ball.ts is the one way a computed value
+  becomes a value of the expression, in either mode: it runs a
+  computation at the working contexts the retry schedule now gets from
+  context.ts (`workingContexts`) until its rounding is certified, and
+  rounds it once; `settle`, its primitive, is no longer exported. Every
+  node of the evaluator goes through it (`stepQuantity` in quantity.ts),
+  plain arithmetic included, and so do the pipeline's own quotients and
+  the outcome's reciprocal, which exact mode now settles as it settles
+  every node. The review of the first implementation found the previous
+  shape, a `settle` any inexact ball could reach beside a retry only two
+  call sites used, to be a contract that lived in documentation; this
+  shape puts it in the API. The two rules decimal mode adds on top of the
+  ball operations, the neighbor rule for a sum that does not align and
+  the widened base for a power that does not fit, are the evaluator's,
+  applied inside the step's computation.
 - **`approx`** declares itself the identity in decimal mode through a
   field of `Builtin` (`decimal: "identity"`), since the built-ins never
   see a decimal-mode context: the certifying step runs them in exact

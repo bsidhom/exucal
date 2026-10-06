@@ -107,14 +107,13 @@
 // Every result is settled (D15 of the plan): an inexact magnitude is
 // rounded to the working precision after each operation, so that it never
 // grows beyond it, and its radius says so; exact values are never touched.
-// The settling is done once, in `evaluate`, around the switch over the
-// node kinds, so no case need remember it. In decimal mode (D26;
-// docs/decimal-mode.md) the settle is the mode's one rounding of each
-// step, and every value is exact after it; a built-in's call and a power
-// are each one step, computed at rising precision through
-// `certifiedStep` until their rounding is certified, with `approx` the
-// identity, and the flag of a rounding the ceiling left uncertified is
-// carried by every operation after it. A sum whose
+// Each node is a step of the
+// expression (`step` of ball.ts, through `stepQuantity`): the one entrance
+// through which a computed value becomes a value, which settles it in
+// exact mode and in decimal mode (D26; docs/decimal-mode.md) computes it
+// at rising precision until its rounding is certified and rounds it once,
+// exact, with `approx` the identity there and the flag of a rounding the
+// ceiling left uncertified carried by every operation after it. A sum whose
 // operands do not conform (`1 m + 1 s`) points at the whole sum for the
 // same reason, and carries the span of each operand besides, so that a
 // message can say what each one is; a call whose argument does not conform
@@ -123,7 +122,6 @@
 
 import {
   checkConformance,
-  powDimension,
   type ConformanceError,
   type Primitives,
 } from "./dimension.ts";
@@ -133,8 +131,9 @@ import {
   divideQuantities,
   multiplyQuantities,
   negateQuantity,
+  powQuantity,
   scalar,
-  settleQuantity,
+  stepQuantity,
   subtractQuantities,
   type Quantity,
 } from "./quantity.ts";
@@ -149,11 +148,10 @@ import {
   type Scaled,
 } from "./scaled.ts";
 import {
-  carrying,
-  certifiedStep,
+  decimalSumApart,
   isExact,
+  negateBall,
   orderOf,
-  powRationalBall,
   widened,
   type Ball,
   type BallError,
@@ -387,10 +385,6 @@ export function evaluate<E>(
 ): Result<Quantity, EvaluateError | E> {
   const result = evaluateNode(expr, lookup, primitives, context, assumptions);
   if (!result.ok) return result;
-  // A settle refuses only in decimal mode, a rounded midpoint past the
-  // exponent bound, which is the node's result and is located at it.
-  const settled = locate(settleQuantity(result.value, context), expr.span);
-  if (!settled.ok) return settled;
   // Every exact result is held to the range limit where it is formed
   // (D19): its canonical mantissa, what is stored and what the next
   // operation multiplies, measured after the fact, so that `x / x` is one
@@ -398,14 +392,14 @@ export function evaluate<E>(
   // was checked by the operation, so a result past both is at the bound.
   // An inexact result is settled to the working digits and never refused
   // for size, which is what `approx` at the node buys (D20).
-  const { magnitude } = settled.value;
+  const { magnitude } = result.value;
   if (isExact(magnitude) && !mantissaWithin(magnitude.mid, context.maxBits)) {
     const operand = firstOperand(expr);
     return operand === undefined
       ? err({ kind: "tooLarge", span: expr.span, exact: true })
       : err({ kind: "tooLarge", span: expr.span, exact: true, operand });
   }
-  return settled;
+  return result;
 }
 
 /**
@@ -448,10 +442,22 @@ function evaluateNode<E>(
       if (!mantissaWithin(node.value, context.maxBits)) {
         return err({ kind: "tooLarge", span });
       }
-      return ok(scalar(node.value));
+      return locate(
+        stepQuantity(() => ok(scalar(node.value)), context),
+        span,
+      );
     }
-    case "unit":
-      return lookup.unit(node.name, span);
+    case "unit": {
+      const unit = lookup.unit(node.name, span);
+      if (!unit.ok) return unit;
+      // A unit built at the ceiling is cut to the working precision in
+      // exact mode and rounded or certified in decimal mode; a bound
+      // parameter, a value stepped already, is unchanged by the step.
+      return locate(
+        stepQuantity(() => ok(unit.value), context, [unit.value]),
+        span,
+      );
+    }
     case "binary": {
       const left = evaluate(
         node.left,
@@ -472,9 +478,13 @@ function evaluateNode<E>(
       switch (node.op) {
         case "add":
         case "sub": {
-          const combine =
-            node.op === "add" ? addQuantities : subtractQuantities;
-          const sum = combine(left.value, right.value, primitives, context);
+          const op = node.op === "add" ? "add" : "sub";
+          const sum = stepQuantity(
+            (working) =>
+              summed(op, left.value, right.value, primitives, working, context),
+            context,
+            [left.value, right.value],
+          );
           if (sum.ok) return sum;
           const { error } = sum;
           if (
@@ -494,9 +504,20 @@ function evaluateNode<E>(
         }
         case "mul":
         case "juxtapose":
-          return locate(multiplyQuantities(left.value, right.value), span);
+          return locate(
+            stepQuantity(
+              () => multiplyQuantities(left.value, right.value),
+              context,
+              [left.value, right.value],
+            ),
+            span,
+          );
         case "div": {
-          const quotient = divideQuantities(left.value, right.value);
+          const quotient = stepQuantity(
+            () => divideQuantities(left.value, right.value),
+            context,
+            [left.value, right.value],
+          );
           // A divisor at fault (zero, or straddling it) is pointed at; a
           // quotient refused as too large or too small, or straddling the
           // bound, is the whole quotient's.
@@ -526,13 +547,12 @@ function evaluateNode<E>(
             : powerRefusal(base.value.magnitude.mid, exponent.quotient);
         return err({ ...(refusal ?? { kind: "tooLarge" }), span });
       }
-      const magnitude = base.value.magnitude;
       // The power is one step: in decimal mode its rounding is certified
       // at rising precision (D26), in exact mode it is computed once.
-      const power = certifiedStep(
-        (working) =>
-          poweredMagnitude(magnitude, exponent.value, working, context),
+      const power = stepQuantity(
+        (working) => powered(base.value, exponent.value, working, context),
         context,
+        [base.value],
       );
       // A base that cannot be told from zero is what is wrong, whether it
       // is raised to a negative power or put under an even root; a power
@@ -548,11 +568,7 @@ function evaluateNode<E>(
           edge: power.error.edge,
         });
       }
-      if (!power.ok) return locate(power, span);
-      return ok({
-        magnitude: carrying(power.value, magnitude),
-        dimension: powDimension(base.value.dimension, exponent.value),
-      });
+      return locate(power, span);
     }
     case "neg": {
       const operand = evaluate(
@@ -563,7 +579,12 @@ function evaluateNode<E>(
         assumptions,
       );
       if (!operand.ok) return operand;
-      return ok(negateQuantity(operand.value));
+      return locate(
+        stepQuantity(() => ok(negateQuantity(operand.value)), context, [
+          operand.value,
+        ]),
+        span,
+      );
     }
     case "call": {
       const fn = lookup.function(node.name, node.nameSpan, span);
@@ -733,17 +754,21 @@ function applyBuiltin<E>(
   // The call is one step: in decimal mode the function is computed at
   // rising precision until its rounding is certified (D26), and `approx`
   // is the identity there; in exact mode it is computed once.
-  const magnitude =
+  const result =
     fn.decimal === "identity" && modeOf(context) === "decimal"
-      ? ok(magnitudes[0]!)
-      : certifiedStep((working) => fn.apply(magnitudes, working), context);
-  if (magnitude.ok) {
-    return ok({
-      magnitude: carrying(magnitude.value, ...magnitudes),
-      dimension: dimension.value,
-    });
-  }
-  const { error } = magnitude;
+      ? ok({ magnitude: magnitudes[0]!, dimension: dimension.value })
+      : stepQuantity(
+          (working) => {
+            const magnitude = fn.apply(magnitudes, working);
+            return magnitude.ok
+              ? ok({ magnitude: magnitude.value, dimension: dimension.value })
+              : magnitude;
+          },
+          context,
+          values,
+        );
+  if (result.ok) return result;
+  const { error } = result;
   switch (error.kind) {
     case "domain":
       return err({
@@ -1009,30 +1034,66 @@ function evaluateBound<E>(
 }
 
 /**
- * `b` to `exponent` at `working`, by `powRationalBall`: an integer power
- * of an exact base exactly, a root through the kernel. In decimal mode
- * (D26; docs/decimal-mode.md, "Powers") an exact power that does not fit
- * the range limit is computed instead on `b` widened to the working
- * precision, so that `certifiedStep` certifies its rounding as it does an
+ * `q` to `exponent` at `working`, by `powQuantity`: an integer power of an
+ * exact base exactly, a root through the kernel. In decimal mode (D26;
+ * docs/decimal-mode.md, "Powers") an exact power that does not fit the
+ * range limit is computed instead on the base widened to the working
+ * precision, so that the step certifies its rounding as it does an
  * inexact function's: the limit is a cost limit, and a correctly rounded
  * power costs little.
  */
-function poweredMagnitude(
-  b: Ball,
+function powered(
+  q: Quantity,
   exponent: Rational,
   working: NumberContext,
   context: NumberContext,
-): Result<Ball, BallError> {
-  const power = powRationalBall(b, exponent, working);
+): Result<Quantity, BallError> {
+  const power = powQuantity(q, exponent, working);
   if (
     power.ok ||
     power.error.kind !== "tooLarge" ||
     modeOf(context) !== "decimal" ||
-    !isExact(b)
+    !isExact(q.magnitude)
   ) {
     return power;
   }
-  return powRationalBall(widened(b, working), exponent, working);
+  return powQuantity(
+    { magnitude: widened(q.magnitude, working), dimension: q.dimension },
+    exponent,
+    working,
+  );
+}
+
+/**
+ * `a + b` or `a - b` at `working`, by `addQuantities` and
+ * `subtractQuantities`. In decimal mode (D26; docs/decimal-mode.md, "Sums
+ * that do not align") two operands whose alignment the range limit does
+ * not hold, which the sum refuses as `tooLarge`, are summed by the
+ * neighbor rule instead (`decimalSumApart`), the operands being exact
+ * there; the conformance of the two was checked by the refusal.
+ */
+function summed(
+  op: "add" | "sub",
+  a: Quantity,
+  b: Quantity,
+  primitives: Primitives,
+  working: NumberContext,
+  context: NumberContext,
+): Result<Quantity, ConformanceError | BallError> {
+  const combine = op === "add" ? addQuantities : subtractQuantities;
+  const sum = combine(a, b, primitives, working);
+  if (
+    sum.ok ||
+    sum.error.kind !== "tooLarge" ||
+    modeOf(context) !== "decimal"
+  ) {
+    return sum;
+  }
+  const other = op === "add" ? b.magnitude : negateBall(b.magnitude);
+  const apart = decimalSumApart(a.magnitude, other, context);
+  return apart.ok
+    ? ok({ magnitude: apart.value, dimension: a.dimension })
+    : apart;
 }
 
 /** A lookup failure as `evaluateBound` boxes it. */

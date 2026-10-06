@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { multiplyBalls, settle, type Ball } from "../src/core/ball.ts";
+import { multiplyBalls, step, type Ball } from "../src/core/ball.ts";
+import { ok } from "../src/core/result.ts";
 import { chudnovsky, eSeries } from "../src/core/constants.ts";
 import { floatingToBall } from "../src/core/digits.ts";
 import {
@@ -176,7 +177,7 @@ function contextAt(precision: number): NumberContext {
 
 /** `b` settled at `context`, which a ball of ordinary magnitude never refuses. */
 function settledAt(b: Ball, context: NumberContext): Ball {
-  const settled = settle(b, context);
+  const settled = step(() => ok(b), context);
   if (!settled.ok) throw new Error("A benchmark's ball is within the bound");
   return settled.value;
 }
@@ -206,10 +207,10 @@ test("a settle and a product on the decimal grid at the ceiling cost at most 64 
   // operation to time, so that the preparation is outside the timing.
   const grid: readonly [string, (context: NumberContext) => () => void][] = [
     [
-      "settle",
+      "step",
       (context) => {
         const b = unsettledAt(context);
-        return () => void settle(b, context);
+        return () => void step(() => ok(b), context);
       },
     ],
     [

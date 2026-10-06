@@ -77,7 +77,7 @@ const table: UnitTable = (() => {
   return built.value;
 })();
 
-const lookup = unitLookup(table, CONTEXT);
+const lookup = unitLookup(table);
 
 /** The quantity the expression `source` denotes in the table. */
 function quantity(source: string): Quantity {

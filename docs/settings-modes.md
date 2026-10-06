@@ -18,7 +18,8 @@ restatement lands first, and this note resumes after it merges. What
 here depends on it is marked; the rest stands on its own. The first
 draft's ruling of one mode with three values, and its fit rule by a
 constant, were set aside in the same review and are recorded below as
-weighed.
+weighed; the second review ruled the shape of the mode setting and
+named the fit rule's candidates.
 
 ## Fractions are a setting of exact mode
 
@@ -29,42 +30,80 @@ exact, and its digits write it entire; the fractions display exists to
 write an exact value entire where its digits would lose it, so in
 decimal mode it has nothing to do. The two are exclusive (#97), and the
 fractions display is a sub-setting of exact mode: it belongs to that
-mode and is shown with it.
+mode, and the owner's ruling is that the type says so. **A setting that
+is possible only in one mode lives inside that mode's variant, so that
+the shape of the settings states what is and is not possible.**
 
-Three shapes were weighed:
+```ts
+/** The mode and what belongs to it: exact mode carries the fractions display; decimal mode carries nothing. */
+export type ModeSetting =
+  | { readonly kind: "exact"; readonly fractions: boolean }
+  | { readonly kind: "decimal" };
+```
+
+The discriminant is the core's `Mode`, the two arithmetics, so that
+`settings.mode.kind` is what `contextOf` hands the context and no
+mapping is needed; the core's type keeps its name and the first draft's
+rename to `Arithmetic` is dropped. `fractions` is a boolean today and is
+the place a richer fractions setting goes when the fit rule's step adds
+one (below): `{ kind: "off" } | { kind: "on"; width: number }` would
+replace the boolean here and nowhere else.
+
+Two other shapes were weighed:
 
 - **One mode with three values**, `exact | fractions | decimal`, the
-  first draft's ruling: three admissible states, three values. Set
-  aside by the owner: the fractions display is not a mode but a way of
-  writing exact mode's answers, and the panel should say so by placing
-  it under exact mode rather than beside it.
-- **A nested choice,** `{ kind: "exact"; fractions: boolean } | { kind:
-"decimal" }`: the type says the flag exists only where it applies.
-  It forgets the fractions preference when the user visits decimal mode
-  and comes back, and it reshapes the stored object for that.
-- **Two fields, the second scoped to the first:** `mode: "exact" |
-"decimal"` and `fractions: boolean`, where `fractions` means "in exact
-  mode, write exact values as fractions" and is remembered while the
-  mode is decimal. The panel shows the checkbox under the Mode select
-  only when exact mode is in force; the shell passes `mode === "exact"
-&& fractions` to the component.
+  first draft's ruling. Set aside by the owner: the fractions display is
+  not a mode but a way of writing exact mode's answers, and a flat
+  enumeration says the three are peers.
+- **Two fields, the second scoped to the first,** `mode` and `fractions`
+  as today, with the checkbox shown only in exact mode and the stored
+  `fractions` remembered through a visit to decimal mode. It keeps the
+  stored shape and the preference, and it was set aside by the owner
+  because the type then admits a state, `decimal` with `fractions`,
+  that the app must know to ignore; the shape should not say what the
+  rule then has to unsay.
 
-The third is the decision, pending the owner's confirmation. It is the
-stored shape of today, so S2 needs no migration for it and the first
-migration with meaning waits for a change that needs one; the stored
-`fractions: true` under decimal mode is not an inert state but a
-remembered preference, which the first draft's objection to this shape
-missed. One function, the view the shell takes, says where the flag
-applies, and it is not a consistency rule between stored values, so
+What the nested shape costs is that preference: a user who turns
+fractions on, visits decimal mode and comes back finds them off, since
+the exact variant is built afresh with its default. That is one tap and
+is the honest reading of the type: decimal mode has no fractions
+setting to remember. The panel presents the mode as a select on `kind`
+and, under it, the fractions checkbox when the kind is `exact`.
+
+Nothing about this needs a consistency rule between fields: every
+`ModeSetting` is valid with every value of every other setting, so
 `clampSettings` stays a clamp and keeps its name; the question of a
-rename, raised in the review of S1, waits for the first rule that is
-not a clamp. The nested shape is the alternative if the owner would
-rather the type say it; the cost is the forgotten preference and a
-version 3.
+rename, raised in the review of S1, waits for the first rule that is not
+a clamp. `resetSetting("mode")` resets the whole variant, and
+`isDefault` compares the field by value, since it is no longer a
+primitive.
 
-The core's two-valued `Mode` keeps its name and its place: the user's
-mode and the context's mode are the same two values again, and the
-first draft's rename of the core's type to `Arithmetic` is not needed.
+### The stored shape, version 3
+
+```json
+{
+  "version": 3,
+  "savedBy": "…",
+  "settings": {
+    "digits": 8,
+    "rounding": "halfEven",
+    "mode": { "kind": "exact", "fractions": true },
+    "maxDigits": 1000,
+    "maxBits": 65536
+  }
+}
+```
+
+The migration from 2 to 3 is the first that changes meaning. It builds
+`mode` from the two stored fields, `{ kind: "decimal" }` when the stored
+mode is `decimal` and `{ kind: "exact", fractions }` otherwise, with
+`fractions` true only when the stored field is `true`; it drops the
+stored `fractions`; and it carries the rounding default's change (below)
+in the same step. It is total and lax as S1 requires: a stored mode that
+is neither value passes through for the validation to default, and the
+validation of version 3 accepts a `mode` only when it is an object whose
+`kind` is one of the two and, for `exact`, whose `fractions` is a
+boolean, defaulting the whole field otherwise.
 
 ## Digits: one meaning in each mode
 
@@ -103,61 +142,66 @@ whether it leaves Digits is that step's to decide.
 docs/fractions.md writes an exact value as a fraction when its numerator
 and its denominator each have at most Digits digits, and otherwise falls
 back to the decimal display. The rule is provisional (#91). The first
-draft of this note replaced it with a constant of ten digits per part,
-whole numbers written entire when they fit; the review did not follow
-it, and the ruling is to **retain the current behavior** in S2 and decide
-the fit rule in a step of its own, after this one, with #95 beside it.
-What that step weighs, gathered here so that nothing is lost:
+draft of this note replaced it with a constant of ten digits per part;
+the review did not follow it, and the ruling is to **retain the current
+behavior** in S2 and decide the fit rule in a step of its own, after
+this one, with #95 beside it.
 
-- **The owner's inclinations.** Either a new setting, shown with the
-  fractions display, that sets the width a fraction may take; or no
-  bound at all, every exact value written as its fraction when the
-  display is on. The ground for the second: the display applies in
-  exact mode only, the radius says which values are exact, and every
-  bit of the value is in hand, so nothing stops the app from writing it.
-- **The two together.** The second inclination with the first as its
-  bound: fractions always, up to a width the user sets, with a generous
-  default, and the decimal display past it. A width setting is a
-  fourth number in the panel, which P13 counts against; a sub-setting
-  of the fractions display, shown only when it is on, costs less.
-- **Unbounded length.** Values legal under the range limit run to
-  15,634 digits (`3^32767`) and further at a raised limit, and a
-  fraction with parts that long is a line of thirty thousand characters
-  that wraps for screens; the copy button copies it faithfully. Whether
-  that is what a user who asked for fractions wants, or whether the
-  decimal display's `≈ 1.9e15634` serves them better past some length,
-  is the question a width answers.
+The owner's two candidates, which that step chooses between, and the
+constraint on both: the display must be predictable from the value and
+the settings alone, never from anything internal to the calculation.
+
+- **A width setting.** A stored field, a sub-setting of the fractions
+  display inside the exact variant above (`{ kind: "on"; width: number
+}`), giving the most digits a fraction's part may have; a fraction
+  within it is written, one past it falls back to the decimal display
+  as today. Digits plays no part. The default is the one number to
+  choose; Digits' default of eight, or something more generous, say
+  twenty, are the candidates.
+- **No bound.** With the display on, every exact value that is not a
+  whole number is written as its fraction in lowest terms, whatever its
+  length. The ground: the display applies in exact mode only, the radius
+  says which values are exact, and every bit of the value is in hand.
+  The cost: values legal under the range limit run to 15,634 digits
+  (`3^32767`) and further at a raised limit, so a line can be tens of
+  thousands of characters, wrapped; the copy button copies it
+  faithfully.
+
+This note's recommendation is the first, the width setting, for the
+reason the second's cost gives: a bound the user sets is as predictable
+as no bound, and it keeps the line finite. The second is the first with
+the width unbounded, and the step may offer that as a value of the
+setting if it is wanted. Neither depends on anything internal. Beside
+them, the step settles three smaller points, gathered here so that
+nothing is lost:
+
 - **Whole numbers.** docs/fractions.md and D21 send an exact integer to
   the decimal display, which writes it entire only when it fits Digits:
   `3^20` at eight digits is `≈ 3.4867844e+9` with fractions on, for a
   value that is exactly `3486784401`. If the display's purpose is exact
   values entire, a whole number is the simplest case and should follow
-  the same bound as a fraction's part. #91 raises the example; the step
-  decides.
-- **Per part or in total.** A bound on each part, as today's rule and
-  the first draft's constant, or on the fraction's total length. A
-  lopsided fraction, `1` over fifteen digits, is a power of ten in
-  disguise that the decimal display writes shorter and as exactly
-  (`= 1e-15`), which a per-part bound excludes and a total bound of the
-  same size admits.
-- **The coupling to Digits.** Under today's rule `1/123456789`, typed by
-  the user, is `≈ 8.1000001e-9` at eight digits and `= 1/123456789` at
-  nine, which also lengthens every decimal line; `1 m` in `in` at three
-  digits is `≈ 39.4 in` with fractions on though `5000/127` is eight
-  characters. Any bound that is not Digits removes this.
+  the same width as a fraction's part. #91 raises the example.
+- **Per part or in total.** Whether the width bounds each part, as
+  today's rule does, or the fraction's total length. A lopsided
+  fraction, `1` over fifteen digits, is a power of ten in disguise that
+  the decimal display writes shorter and as exactly (`= 1e-15`), which a
+  per-part width excludes and a total width of the same size admits.
+  Per part is today's measure and the recommendation.
 - **A power of ten factored out (#95)**: `1e+30/3` for a third of
   `1e30`, where the fraction's parts are short apart from the power of
   ten. The same study from the other side, which #95 asks be decided
-  together with the fit; whatever the bound measures, it measures the
+  together with the fit; whatever the width measures, it measures the
   text as written.
-- **What the first draft proposed**, for the record: each part at most
-  ten digits, a constant independent of Digits and of any setting,
-  whole numbers included; ten as "about what a phone's line holds beside
-  the units, and about the longest fraction anyone reads as one". At
-  eight digits it would have changed `1/123456789`, `3^20` and `1 lb` in
-  `kg` (to `(45359237/100000000) kg`, a fraction over a power of ten
-  where the decimal `0.45359237` was exact and shorter) and left the
-  rest of the common conversions as they are.
+
+For the record, the first draft's proposal was a constant of ten digits
+per part, independent of Digits and of any setting, whole numbers
+included; it was a bound like the width setting's with the width fixed
+by the app rather than the user, and it is superseded by the setting.
+What the coupling to Digits costs today, which either candidate
+removes: `1/123456789`, typed by the user, is `≈ 8.1000001e-9` at eight
+digits and `= 1/123456789` at nine, which also lengthens every decimal
+line, and `1 m` in `in` at three digits is `≈ 39.4 in` with fractions
+on though `5000/127` is eight characters.
 
 Until that step, S2 leaves `show`'s fit at Digits, and P5's remedy is
 the exclusion alone: the rounding mode never meets a fraction, since
@@ -184,9 +228,9 @@ Two options:
   one tap away, and the first migration that changes a value exercises
   S1's mechanism on the simplest possible change.
 
-The note recommends the migration, and that is a version 3 whatever the
-shape decision above. Either way README gains the sentence the default
-lacks: which it is and why.
+The note recommends the migration, which rides in the version 3
+migration the mode's shape needs in any case. Either way README gains
+the sentence the default lacks: which it is and why.
 
 **Two meanings.** The rounding mode rounds the display's last digit in
 exact mode and every step in decimal mode. That is D15's exact-mode half
@@ -252,22 +296,26 @@ Marked "after D26" where the text or the test depends on the decimal
 restatement.
 
 - `src/core/context.ts`: `DEFAULT_ROUNDING` to `halfEven`.
-- `src/settings.ts`: the migration from 2 to 3 for the rounding default,
-  `STORAGE_VERSION` 3; the shape of the two fields unchanged; a function
-  that says whether fractions apply (`mode === "exact" && fractions`).
+- `src/settings.ts`: `ModeSetting` as above in place of the `mode` and
+  `fractions` fields, its validation, `STORAGE_VERSION` 3 and the
+  migration from 2 (the mode's shape and the rounding default in one
+  step); `contextOf` reads `mode.kind`; `isDefault` compares the field
+  by value; a function that says whether fractions apply.
 - `src/app-shell.ts`: passes that function's answer to the component.
-- `src/settings-panel.ts`: the Mode select with two short options and a
-  line that follows the mode; the fractions checkbox rendered under it
-  in exact mode only; the lines under Digits and Rounding as functions
-  of the settings, which `NUMBER_FIELDS` already allows for the numbers
-  and the selects gain.
+- `src/settings-panel.ts`: the Mode select on `kind` with two short
+  options and a line that follows the mode; the fractions checkbox
+  rendered under it when the kind is `exact`, emitting the whole
+  variant; the lines under Digits and Rounding as functions of the
+  settings, which `NUMBER_FIELDS` already allows for the numbers and the
+  selects gain.
 - `src/outcome.ts`, `src/core/display.ts`: unchanged in logic; `show` is
   never asked for a fraction in decimal mode.
 - Tests: the decimal-mode fraction rows of `display.test.ts` and
   `outcome.test.ts` become digits (after D26 they are `=` with the
-  rounded digits); a version 2 fixture and the totality test over the
-  new migration; the tests at the default rounding; the panel's
-  checkbox under exact mode only.
+  rounded digits); a version 2 fixture with each combination of mode
+  and fractions, and the totality test over the new migration; the
+  tests at the default rounding; the panel's checkbox under exact mode
+  only.
 - docs: docs/fractions.md ("The decimal mode": no fractions in decimal
   mode, and why), README's "Settings" for the mode, Digits, Rounding
   and the default, ARCHITECTURE.md's settings paragraph; #97 closed,
@@ -275,15 +323,19 @@ restatement.
 
 ## Done when
 
+- The settings have a `mode` of the nested shape and no `fractions`
+  field beside it; a version 2 object with `mode: "exact"` and
+  `fractions: true` loads as the exact variant with fractions, one with
+  `mode: "decimal"` as the decimal variant whatever its `fractions`, and
+  the next save writes version 3.
 - In decimal mode no value is written as a fraction, in the display and
-  in the panel, and the stored `fractions` is kept and applies again in
-  exact mode.
+  in the panel.
 - The panel shows the fractions checkbox under the Mode select in exact
   mode only, the Mode select's options are the bare names, and nothing
   in the panel overflows a phone's width.
 - The rounding default is `halfEven`; a version 2 object with
-  `halfAwayFromZero` loads as `halfEven` and is saved at version 3; any
-  other stored mode is kept.
+  `halfAwayFromZero` loads as `halfEven`; any other stored rounding mode
+  is kept.
 - The lines under Digits, Rounding and Mode say what each means in the
   mode in force.
 - README's "Settings" says what each mode does, what Digits and Rounding

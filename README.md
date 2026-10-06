@@ -61,7 +61,7 @@ in` at twelve. In decimal mode it is also the digits of every value: a
   certified. The panel names the modes `exact` and `decimal` and says
   under the select what the one in force does.
 - **Notation** (exact mode; `mode.notation` in the stored settings,
-  `digits` or `ratio`): digits by default. With `ratio` checked, an
+  `digits` or `ratio`): digits by default. With `ratio` chosen, an
   exact value that is not a whole number is written as a fraction in
   lowest terms instead of its digits, when its numerator and its
   denominator each fit within Digits: `1 m = (5000/127) in`, `1 in =
@@ -77,9 +77,10 @@ in` would read as `5000 / (127 in)`, and bare when nothing follows it.
   Digits digits, which its digits write entire; choosing decimal mode
   and coming back finds digits again. `docs/fractions.md` is the
   design; the fit rule is provisional (issue #91).
-- **Working digits** (decimal mode; `mode.working` in the stored
-  settings, locked to Digits or `extended` with a count): locked to
-  Digits by default, under which every step is rounded to Digits. With
+- **Working digits** (decimal mode, grouped with Digits in the panel;
+  `mode.working` in the stored settings, locked to Digits or `extended`
+  with a count): locked to Digits by default, under which every step is
+  rounded to Digits. With
   `extended` checked, a count from Digits up to the precision limit
   appears, and every step but the last is rounded to that many digits
   while the answer is rounded to Digits directly from the exact result

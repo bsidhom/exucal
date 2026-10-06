@@ -8,8 +8,10 @@ import { buttonStyles, hintStyles } from "./styles.ts";
 import {
   DEFAULT_MODES,
   DEFAULT_SETTINGS,
+  NOTATIONS,
   isIntegerIn,
   isMode,
+  isNotation,
   isRoundingMode,
   rangesOf,
   type NumberSetting,
@@ -20,11 +22,12 @@ import {
 
 /**
  * The settings panel under the converter: the digits a result is shown
- * with, the cap on them, the range limit in bits, the rounding mode, the
- * mode and, under it, what belongs to the mode in force (exact mode's
- * notation, decimal mode's working digits; docs/settings-modes.md,
- * docs/working-digits.md), each with a line on what it does in that
- * mode. The settings come in as a property and every change the user
+ * with and, grouped with them in decimal mode, the working digits every
+ * step but the last is computed with; the cap on the digits; the range
+ * limit in bits; the rounding mode; the mode and, under it in exact
+ * mode, the notation its exact values are written in
+ * (docs/settings-modes.md, docs/working-digits.md); each with a line on
+ * what it does in the mode in force. The settings come in as a property and every change the user
  * makes goes out as a `settings-change` event carrying the fields that
  * changed, the mode always as a whole variant; the shell owns the
  * settings, clamps what depends on the change and saves them, so this
@@ -99,6 +102,12 @@ export class SettingsPanel extends LitElement {
         width: 6rem;
       }
 
+      .group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
       .toggle > span {
         display: flex;
         align-items: center;
@@ -106,7 +115,31 @@ export class SettingsPanel extends LitElement {
         font-weight: 400;
       }
 
-      input[type="checkbox"] {
+      fieldset {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        font-size: 0.875rem;
+        font-weight: 600;
+      }
+
+      legend {
+        padding: 0;
+      }
+
+      fieldset label {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 400;
+      }
+
+      input[type="checkbox"],
+      input[type="radio"] {
         width: auto;
         padding: 0;
         margin: 0;
@@ -140,7 +173,11 @@ export class SettingsPanel extends LitElement {
       <details>
         <summary>Settings</summary>
         <div class="settings">
-          ${NUMBER_FIELDS.map((field) => this.renderNumber(field))}
+          <div class="group">
+            ${this.renderNumber(DIGITS_FIELD)}
+            ${mode.kind === "decimal" ? this.renderWorking(mode.working) : nothing}
+          </div>
+          ${LIMIT_FIELDS.map((field) => this.renderNumber(field))}
           ${this.renderSelect(
             "Rounding",
             ROUNDING_MODES,
@@ -157,11 +194,7 @@ export class SettingsPanel extends LitElement {
             this.onModeChange,
             MODE_LINES[mode.kind],
           )}
-          ${
-            mode.kind === "exact"
-              ? this.renderNotation(mode.notation)
-              : this.renderWorking(mode.working)
-          }
+          ${mode.kind === "exact" ? this.renderNotation(mode.notation) : nothing}
           <button
             type="button"
             ?disabled=${this.recommending}
@@ -219,29 +252,36 @@ export class SettingsPanel extends LitElement {
     `;
   }
 
-  /** Exact mode's notation: a checkbox named for the `ratio` value. */
+  /** Exact mode's notation: a choice between its two values, each a radio button named for it. */
   private renderNotation(notation: Notation) {
     return html`
-      <label class="toggle">
-        Notation
-        <span>
-          <input
-            type="checkbox"
-            .checked=${notation === "ratio"}
-            @change=${this.onNotationChange}
-          />
-          ratio
-        </span>
+      <fieldset>
+        <legend>Notation</legend>
+        ${NOTATIONS.map(
+          (each) => html`
+            <label>
+              <input
+                type="radio"
+                name="notation"
+                value=${each}
+                .checked=${each === notation}
+                @change=${this.onNotationChange}
+              />
+              ${NOTATION_LABELS[each]}
+            </label>
+          `,
+        )}
         <small class="hint">
-          An exact value that is not a whole number is written as a ratio of two
-          whole numbers in lowest terms when both fit within Digits, and as its
-          digits otherwise; an inexact value is always digits.
+          How an exact value that is not a whole number is written: as its
+          digits, or as a ratio of two whole numbers in lowest terms when both
+          fit within Digits (and as its digits otherwise). An inexact value is
+          always digits.
         </small>
-      </label>
+      </fieldset>
     `;
   }
 
-  /** Decimal mode's working digits: a checkbox named for the `extended` value, and the count while it is checked. */
+  /** Decimal mode's working digits, under Digits: a checkbox named for the `extended` value, and the count while it is checked. */
   private renderWorking(working: Working) {
     const extended = working.kind === "extended";
     const { min, max } = rangesOf(this.settings).working;
@@ -316,12 +356,12 @@ export class SettingsPanel extends LitElement {
     }
   }
 
-  /** A change of exact mode's notation: the exact variant with it. */
+  /** A choice of exact mode's notation: the exact variant with it. */
   private onNotationChange(event: Event) {
-    const { checked } = event.target as HTMLInputElement;
-    this.emit({
-      mode: { kind: "exact", notation: checked ? "ratio" : "digits" },
-    });
+    const { value, checked } = event.target as HTMLInputElement;
+    if (checked && isNotation(value)) {
+      this.emit({ mode: { kind: "exact", notation: value } });
+    }
   }
 
   /**
@@ -395,18 +435,20 @@ type NumberField = {
   readonly hint: (settings: Settings) => string;
 };
 
-/** The three number settings, in the panel's order. */
-const NUMBER_FIELDS: readonly NumberField[] = [
-  {
-    key: "digits",
-    label: "Digits",
-    hint: ({ mode }) => {
-      if (mode.kind === "exact") return "Significant digits shown.";
-      return mode.working.kind === "extended"
-        ? "Significant digits of the answer; every step before the last is computed with the working digits."
-        : "Significant digits shown, and of every value: every step is rounded to them, and a typed number with more is rounded to them on the way in.";
-    },
+/** The digits, first in the panel, with decimal mode's working digits grouped under them. */
+const DIGITS_FIELD: NumberField = {
+  key: "digits",
+  label: "Digits",
+  hint: ({ mode }) => {
+    if (mode.kind === "exact") return "Significant digits shown.";
+    return mode.working.kind === "extended"
+      ? "Significant digits of the answer; every step before the last is computed with the working digits."
+      : "Significant digits shown, and of every value: every step is rounded to them, and a typed number with more is rounded to them on the way in.";
   },
+};
+
+/** The two limits, after the digits. */
+const LIMIT_FIELDS: readonly NumberField[] = [
   {
     key: "maxDigits",
     label: "Precision limit",
@@ -434,6 +476,12 @@ const ROUNDING_LABELS: Record<RoundingMode, string> = {
   awayFromZero: "away from zero",
   ceiling: "up (toward +∞)",
   floor: "down (toward −∞)",
+};
+
+/** How each notation is named in the settings: by its value. */
+const NOTATION_LABELS: Record<Notation, string> = {
+  digits: "digits",
+  ratio: "ratio",
 };
 
 /** What the rounding mode rounds, in each mode. */

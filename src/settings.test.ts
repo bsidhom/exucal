@@ -27,7 +27,7 @@ import {
   resetSettings,
   sameMode,
   saveSettings,
-  showsRatios,
+  ratioWidthOf,
   STORAGE_VERSION,
   type ModeSetting,
   type Settings,
@@ -161,9 +161,9 @@ test("the mode reaches the context as its kind, with the working digits when the
     working: 12,
   });
   // Whether ratios are shown is exact mode's notation alone.
-  assert.ok(showsRatios({ ...DEFAULT_SETTINGS, mode: RATIO }));
-  assert.ok(!showsRatios(DEFAULT_SETTINGS));
-  assert.ok(!showsRatios({ ...DEFAULT_SETTINGS, mode: DECIMAL }));
+  assert.equal(ratioWidthOf({ ...DEFAULT_SETTINGS, mode: RATIO }), 20);
+  assert.equal(ratioWidthOf(DEFAULT_SETTINGS), undefined);
+  assert.equal(ratioWidthOf({ ...DEFAULT_SETTINGS, mode: DECIMAL }), undefined);
 });
 
 test("each field that is missing or invalid falls back to its default alone", () => {

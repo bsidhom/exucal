@@ -20,7 +20,7 @@ import { show, type Shown } from "./display.ts";
 import { UNBOUNDED, powerOfTenRadius, powerOfTwoRadius } from "./radius.ts";
 import { rational } from "./rational.ts";
 import { ROUNDING_MODES } from "./rounding.ts";
-import { ZERO, compare, format, type Scaled } from "./scaled.ts";
+import { ZERO, compare, format, fromRational, type Scaled } from "./scaled.ts";
 import { ball, dec, fr } from "../testing/scaled.ts";
 
 /** A context at `precision` digits, in the default mode. */
@@ -337,62 +337,68 @@ test("the kinds are exclusive and cover every ball", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Fractions (docs/fractions.md, "The rule")
+// The ratio notation (docs/fractions.md, "The rule"; docs/ratio-width.md)
 
-test("with fractions, an exact value that is not an integer is its fraction when it fits", () => {
-  // 1.9's rows, restated under the setting.
-  assert.deepEqual(show(exact(fr(127n, 50n)), 8, nearest, true), {
-    kind: "exact",
-    text: "127/50",
-    fraction: true,
-  });
-  assert.deepEqual(show(exact(dec("2.54")), 8, nearest, true), {
-    kind: "exact",
-    text: "127/50",
-    fraction: true,
-  });
-  assert.deepEqual(show(exact(fr(1n, 3n)), 8, nearest, true), {
-    kind: "exact",
-    text: "1/3",
-    fraction: true,
-  });
-  assert.deepEqual(show(exact(fr(5000n, 127n)), 8, nearest, true), {
-    kind: "exact",
-    text: "5000/127",
-    fraction: true,
-  });
+/** `show` at eight digits to nearest with the ratio notation at `width`. */
+function ratio(ball: Ball, width: number, digits = 8): Shown {
+  return show(ball, digits, nearest, width);
+}
+
+/** The `exact` kind of a ratio `text`. */
+function asRatio(text: string): Shown {
+  return { kind: "exact", text, fraction: true };
+}
+
+test("with the ratio notation, an exact value that is not a whole number is its fraction in lowest terms when its parts fit the width together", () => {
+  // 1.9's rows, restated under the notation at the default width.
+  assert.deepEqual(ratio(exact(fr(127n, 50n)), 20), asRatio("127/50"));
+  assert.deepEqual(ratio(exact(dec("2.54")), 20), asRatio("127/50"));
+  assert.deepEqual(ratio(exact(fr(1n, 3n)), 20), asRatio("1/3"));
+  assert.deepEqual(ratio(exact(fr(5000n, 127n)), 20), asRatio("5000/127"));
   for (const digits of [1, 8, 40]) {
-    const shown = show(root(fr(2n), 2n, 40), digits, nearest, true);
+    const shown = show(root(fr(2n), 2n, 40), digits, nearest, 20);
     assert.equal(shown.kind, "certified", `${digits} digits`);
   }
-  assert.deepEqual(show(root(fr(4n), 2n, 40), 8, nearest, true), {
+  assert.deepEqual(ratio(root(fr(4n), 2n, 40), 20), {
     kind: "exact",
     text: "2",
   });
   // The fraction is the ordinary one, the power of ten multiplied back in.
-  assert.deepEqual(show(exact(dec("1.609344")), 8, nearest, true), {
-    kind: "exact",
-    text: "25146/15625",
-    fraction: true,
+  assert.deepEqual(ratio(exact(dec("1.609344")), 20), asRatio("25146/15625"));
+  assert.deepEqual(ratio(exact(dec("1e-7")), 20), asRatio("1/10000000"));
+  assert.deepEqual(ratio(exact(dec("0.5")), 2), asRatio("1/2"));
+  // The width is the two parts together: 5000/127 is seven digits, and
+  // 1/123456789 ten; the sign and the slash are not counted. Below seven
+  // the power of ten in 5000 is factored out (rule 4), and below four
+  // nothing fits.
+  assert.deepEqual(ratio(exact(fr(5000n, 127n)), 7), asRatio("5000/127"));
+  assert.deepEqual(ratio(exact(fr(5000n, 127n)), 6), asRatio("5e+3/127"));
+  assert.deepEqual(ratio(exact(fr(5000n, 127n)), 4), asRatio("5e+3/127"));
+  assert.deepEqual(ratio(exact(fr(5000n, 127n)), 3), {
+    kind: "certified",
+    text: "39.370079",
   });
-  assert.deepEqual(show(exact(dec("1e-7")), 8, nearest, true), {
-    kind: "exact",
-    text: "1/10000000",
-    fraction: true,
+  assert.deepEqual(
+    ratio(exact(fr(1n, 123456789n)), 10),
+    asRatio("1/123456789"),
+  );
+  assert.deepEqual(ratio(exact(fr(1n, 123456789n)), 9), {
+    kind: "certified",
+    text: "8.1000001e-9",
   });
-  assert.deepEqual(show(exact(dec("0.5")), 1, nearest, true), {
+  assert.deepEqual(ratio(exact(fr(-5000n, 127n)), 7), asRatio("-5000/127"));
+  assert.deepEqual(ratio(exact(dec("0.5")), 1), {
     kind: "exact",
-    text: "1/2",
-    fraction: true,
+    text: "0.5",
   });
   // The sign is on the numerator, and the rounding mode plays no part.
   for (const mode of ROUNDING_MODES) {
-    assert.deepEqual(show(exact(fr(-5000n, 127n)), 8, mode, true), {
+    assert.deepEqual(show(exact(fr(-5000n, 127n)), 8, mode, 20), {
       kind: "exact",
       text: "-5000/127",
       fraction: true,
     });
-    assert.deepEqual(show(exact(dec("-2.54")), 8, mode, true), {
+    assert.deepEqual(show(exact(dec("-2.54")), 8, mode, 20), {
       kind: "exact",
       text: "-127/50",
       fraction: true,
@@ -400,94 +406,140 @@ test("with fractions, an exact value that is not an integer is its fraction when
   }
 });
 
-test("with fractions, an exact integer is shown as the decimal display shows it", () => {
-  assert.deepEqual(show(exact(fr(36n)), 8, nearest, true), {
-    kind: "exact",
-    text: "36",
-  });
-  assert.deepEqual(show(exact(ZERO), 8, nearest, true), {
-    kind: "exact",
-    text: "0",
-  });
-  assert.deepEqual(show(exact(dec("1e20")), 8, nearest, true), {
-    kind: "exact",
-    text: "1e+20",
-  });
-  assert.deepEqual(show(exact(dec("1e999999999")), 8, nearest, true), {
-    kind: "exact",
-    text: "1e+999999999",
-  });
-  // 3^20 is exact and has ten digits: certified at eight, exact at ten.
-  assert.deepEqual(show(exact(fr(3486784401n)), 8, nearest, true), {
-    kind: "certified",
-    text: "3.4867844e+9",
-  });
-  assert.deepEqual(show(exact(fr(3486784401n)), 10, nearest, true), {
+test("with the ratio notation, a whole number is written entire when it fits the width, by the decimal display at the width", () => {
+  assert.deepEqual(ratio(exact(fr(36n)), 20), { kind: "exact", text: "36" });
+  assert.deepEqual(ratio(exact(ZERO), 20), { kind: "exact", text: "0" });
+  // 3^20 has ten digits: entire at a width of ten, and at eight digits
+  // without the width or below it.
+  assert.deepEqual(ratio(exact(fr(3486784401n)), 20), {
     kind: "exact",
     text: "3486784401",
   });
+  assert.deepEqual(ratio(exact(fr(3486784401n)), 10), {
+    kind: "exact",
+    text: "3486784401",
+  });
+  assert.deepEqual(ratio(exact(fr(3486784401n)), 9), {
+    kind: "certified",
+    text: "3.4867844e+9",
+  });
+  assert.deepEqual(show(exact(fr(3486784401n)), 8, nearest), {
+    kind: "certified",
+    text: "3.4867844e+9",
+  });
+  // 2^64 is twenty digits; 2^100 is thirty-one, and goes to the decimal
+  // display at the digits asked.
+  assert.deepEqual(ratio(exact(fr(2n ** 64n)), 20), {
+    kind: "exact",
+    text: "18446744073709551616",
+  });
+  assert.deepEqual(ratio(exact(fr(2n ** 100n)), 20), {
+    kind: "certified",
+    text: "1.2676506e+30",
+  });
+  // Trailing zeros are digits of the number until the width's %g rule
+  // moves them into an exponent, at a decimal exponent of the width.
+  assert.deepEqual(ratio(exact(dec("5e11")), 20), {
+    kind: "exact",
+    text: "500000000000",
+  });
+  assert.deepEqual(ratio(exact(dec("5e11")), 8), {
+    kind: "exact",
+    text: "5e+11",
+  });
+  assert.deepEqual(ratio(exact(dec("1e20")), 20), {
+    kind: "exact",
+    text: "1e+20",
+  });
+  assert.deepEqual(ratio(exact(dec("1e19")), 20), {
+    kind: "exact",
+    text: "10000000000000000000",
+  });
+  assert.deepEqual(ratio(exact(dec("1e999999999")), 20), {
+    kind: "exact",
+    text: "1e+999999999",
+  });
+  assert.deepEqual(ratio(exact(fr(-3486784401n)), 10), {
+    kind: "exact",
+    text: "-3486784401",
+  });
 });
 
-test("with fractions, a fraction that does not fit falls back to the decimal display", () => {
-  // The numerator and the denominator each fit within the digits asked.
-  assert.deepEqual(show(exact(fr(5000n, 127n)), 3, nearest, true), {
-    kind: "certified",
-    text: "39.4",
-  });
-  assert.deepEqual(show(exact(fr(5000n, 127n)), 4, nearest, true), {
+test("with the ratio notation, a ratio that fits only with its power of ten on the numerator is written so, and never with a denominator of one (#95)", () => {
+  // #95's table at the default width, each value in its canonical form
+  // (the numerator not divisible by ten): (5000/127) × 1e30 is 5/127 × 1e33.
+  const scaled = (num: bigint, den: bigint, exp: bigint) =>
+    exact({ mant: rational(num, den), exp });
+  assert.deepEqual(ratio(scaled(1n, 3n, 30n), 20), asRatio("1e+30/3"));
+  assert.deepEqual(ratio(scaled(5n, 127n, 33n), 20), asRatio("5e+33/127"));
+  assert.deepEqual(
+    ratio(exact(fromRational(rational(5000n * 10n ** 30n, 127n))), 20),
+    asRatio("5e+33/127"),
+  );
+  assert.deepEqual(ratio(scaled(1n, 3n, -30n), 20), asRatio("1e-30/3"));
+  assert.deepEqual(
+    ratio(scaled(1n, 3n, 999999999n), 20),
+    asRatio("1e+999999999/3"),
+  );
+  assert.deepEqual(ratio(scaled(-1n, 3n, 30n), 20), asRatio("-1e+30/3"));
+  // A ratio that fits without the exponent is written without it: the
+  // plain fraction comes first, 1e+30/3 only past a width of thirty-one.
+  assert.deepEqual(
+    ratio(scaled(1n, 3n, 30n), 32),
+    asRatio("1000000000000000000000000000000/3"),
+  );
+  assert.deepEqual(ratio(scaled(1n, 3n, 30n), 31), asRatio("1e+30/3"));
+  assert.deepEqual(ratio(exact(dec("1e-7")), 9), asRatio("1/10000000"));
+  assert.deepEqual(ratio(exact(dec("1e-7")), 8), {
     kind: "exact",
-    text: "5000/127",
-    fraction: true,
+    text: "1e-7",
   });
-  assert.deepEqual(show(exact(dec("1.609344")), 4, nearest, true), {
-    kind: "certified",
-    text: "1.609",
-  });
-  assert.deepEqual(show(exact(dec("1e-8")), 8, nearest, true), {
-    kind: "exact",
-    text: "1e-8",
-  });
-  assert.deepEqual(show(exact(dec("1e-8")), 9, nearest, true), {
-    kind: "exact",
-    text: "1/100000000",
-    fraction: true,
-  });
-  // The decimal display says `=` where its own rule allows.
-  assert.deepEqual(show(exact(dec("1.5e-999999999")), 8, nearest, true), {
-    kind: "exact",
-    text: "1.5e-999999999",
-  });
-  assert.deepEqual(show(exact(dec("-1.3e-999999999")), 8, nearest, true), {
-    kind: "exact",
-    text: "-1.3e-999999999",
-  });
-  // (1/3) × 1e30: a numerator of thirty-one digits.
-  const third = { mant: rational(1n, 3n), exp: 30n };
-  assert.deepEqual(show(exact(third), 8, nearest, true), {
+  // The parts of the factored form must fit too, the exponent uncounted.
+  assert.deepEqual(ratio(scaled(1n, 3n, 30n), 2), asRatio("1e+30/3"));
+  assert.deepEqual(ratio(scaled(1n, 3n, 30n), 1), {
     kind: "certified",
     text: "3.3333333e+29",
   });
-  assert.deepEqual(show(exact(third), 31, nearest, true), {
+  assert.deepEqual(ratio(scaled(5n, 127n, 33n), 3), {
+    kind: "certified",
+    text: "3.9370079e+31",
+  });
+  // A denominator of one is a decimal the fallback writes exactly in the
+  // same characters, never `15e-1000000000/1`.
+  assert.deepEqual(ratio(exact(dec("1.5e-999999999")), 20), {
     kind: "exact",
-    text: "1000000000000000000000000000000/3",
-    fraction: true,
+    text: "1.5e-999999999",
+  });
+  assert.deepEqual(ratio(exact(dec("-1.3e-999999999")), 20), {
+    kind: "exact",
+    text: "-1.3e-999999999",
+  });
+  assert.deepEqual(ratio(exact(dec("1e-7")), 7), {
+    kind: "exact",
+    text: "1e-7",
+  });
+  assert.deepEqual(ratio(exact(dec("2.54")), 4), {
+    kind: "exact",
+    text: "2.54",
+  });
+  assert.deepEqual(ratio(exact(dec("2.54")), 4, 2), {
+    kind: "certified",
+    text: "2.5",
   });
   // A power of two with a negative exponent cancels against the power of
-  // ten: 2^20 × 10^-20 is 1/5^20, which fits at fourteen digits.
+  // ten: 2^20 × 10^-20 is 1/5^20, fifteen digits as a fraction, and at
+  // fourteen a decimal, its canonical denominator being one.
   const dyadic = dec("1048576e-20");
-  assert.deepEqual(show(exact(dyadic), 14, nearest, true), {
-    kind: "exact",
-    text: "1/95367431640625",
-    fraction: true,
-  });
-  // At thirteen the fraction does not fit, and the decimal is exact.
-  assert.deepEqual(show(exact(dyadic), 13, nearest, true), {
+  assert.deepEqual(ratio(exact(dyadic), 15), asRatio("1/95367431640625"));
+  assert.deepEqual(ratio(exact(dyadic), 14), {
     kind: "exact",
     text: "1.048576e-14",
   });
+  // A sixth is 5/3 × 10^-1 in canonical form: the fraction first.
+  assert.deepEqual(ratio(exact(fr(1n, 6n)), 2), asRatio("1/6"));
 });
 
-test("with fractions off, or an inexact value, nothing changes", () => {
+test("without the width, or for an inexact value, nothing changes", () => {
   const balls: Ball[] = [
     exact(fr(3n)),
     exact(fr(1n, 3n)),
@@ -502,16 +554,20 @@ test("with fractions off, or an inexact value, nothing changes", () => {
   for (const b of balls) {
     for (const digits of [1, 4, 8]) {
       assert.deepEqual(
-        show(b, digits, nearest, false),
+        show(b, digits, nearest, undefined),
         show(b, digits, nearest),
       );
       if (!isExact(b)) {
         assert.deepEqual(
-          show(b, digits, nearest, true),
+          show(b, digits, nearest, 20),
           show(b, digits, nearest),
         );
       }
     }
+  }
+  // A width that is not a positive integer is a bug in the caller.
+  for (const width of [0, -1, 1.5, NaN]) {
+    assert.throws(() => show(exact(fr(1n, 3n)), 8, nearest, width), RangeError);
   }
 });
 
@@ -560,8 +616,8 @@ test("a decimal-mode value flagged uncertified is shown as its digits, whatever 
     kind: "uncertified",
     text: "1.2",
   });
-  // The fractions display does not reach it.
-  assert.deepEqual(show(flagged, 2, "halfEven", true), {
+  // The ratio notation does not reach it.
+  assert.deepEqual(show(flagged, 2, "halfEven", 20), {
     kind: "uncertified",
     text: "1.2",
   });

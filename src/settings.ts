@@ -417,9 +417,14 @@ export function sameMode(a: ModeSetting, b: ModeSetting): boolean {
     : b.working.kind === "extended" && a.working.digits === b.working.digits;
 }
 
-/** Whether `settings` write an exact value that is not a whole number as a ratio: exact mode with that notation. */
-export function showsRatios(settings: Settings): boolean {
-  return settings.mode.kind === "exact" && settings.mode.notation === "ratio";
+/** The ratio notation's width by default: twenty digits (docs/ratio-width.md). */
+export const DEFAULT_WIDTH = 20;
+
+/** The ratio notation's width under `settings`, or `undefined` for the digits notation or decimal mode. */
+export function ratioWidthOf(settings: Settings): number | undefined {
+  return settings.mode.kind === "exact" && settings.mode.notation === "ratio"
+    ? DEFAULT_WIDTH
+    : undefined;
 }
 
 /**

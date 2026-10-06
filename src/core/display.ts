@@ -28,16 +28,21 @@
 // certified, which is the kind `uncertified`: its digits, which the
 // outcome writes with the `≈` sign bearing a dot above it and a note.
 //
-// With `fractions` on (docs/fractions.md, "The rule"; D21), an exact value
-// that is not an integer is shown as its fraction in lowest terms when the
-// numerator and the denominator each fit within the digits asked, `= 1/3`
-// and `= 127/50` for `2.54`, the `exact` kind saying so with `fraction`;
-// an exact integer, an exact value whose fraction does not fit, and every
-// inexact value are shown as above, the decimal display being the
-// fallback, which says `=` where its own rule allows (`1.5e-999999999`).
-// The fit rule is provisional (#91). The user's rounding mode is applied
-// here and nowhere else in exact mode (D15), and plays no part in a
-// fraction, which is not rounded.
+// With the ratio notation at a `width` (docs/ratio-width.md, "The rule";
+// D28 amending D21), an exact value is written entire when its digits fit
+// the width: a whole number by the decimal display at the width
+// (`= 3486784401` for `3^20` at twenty), any other exact value as its
+// fraction in lowest terms when the numerator and the denominator have at
+// most the width in digits between them (`= 1/3`, `= 127/50` for `2.54`),
+// and, when that does not fit, with its power of ten factored onto the
+// numerator (`= 1e+30/3`) when the parts then fit and the denominator is
+// not one; the `exact` kind says so with `fraction` for either form of a
+// ratio. Everything else, an exact value past the width and every inexact
+// value, is shown as above at the digits asked, the decimal display being
+// the fallback, which says `=` where its own rule allows
+// (`1.5e-999999999`). The user's rounding mode is applied here and
+// nowhere else in exact mode (D15), and plays no part in a ratio, which
+// is not rounded.
 
 import {
   certifiedDigits,
@@ -49,7 +54,11 @@ import {
 } from "./ball.ts";
 import { isUnbounded, log2OfRadius } from "./radius.ts";
 import { LIMIT_BITS, rational } from "./rational.ts";
-import type { Precision, RoundingMode } from "./rounding.ts";
+import {
+  checkPrecision,
+  type Precision,
+  type RoundingMode,
+} from "./rounding.ts";
 import {
   MAX_EXPONENT,
   ONE,
@@ -98,37 +107,47 @@ function zeroBoundUnclamped(ball: Ball): Scaled {
 }
 
 /**
- * The non-integer `s` as the fraction `N/D` in lowest terms, with `N`
- * signed, when `N` and `D` each have at most `digits` digits
- * (docs/fractions.md, "The rule"), and `undefined` when they do not. The
- * fraction is the ordinary one, the power of ten multiplied back in, not
- * the canonical mantissa. It is formed only when it can fit: for an
- * exponent `k > 0`, `N` has at least `k + 1` digits; for `k < 0`, `D` keeps
- * at least `5^-k` of the `10^-k`, the mantissa's numerator being coprime
- * to ten, so it has more than `-k × log10 5` digits, and `N` is at most
- * the numerator, which has at most `2^-k` times fewer digits. So an
- * exponent beyond twice `digits` in magnitude, or a numerator beyond twice
- * `digits` in digits, cannot fit, and nothing is formed for it.
+ * The non-integer `s` as a ratio of two whole numbers, with the numerator
+ * signed, when its parts have at most `width` digits between them
+ * (docs/ratio-width.md, "The rule", rules 3 and 4), and `undefined` when
+ * they do not. First the fraction in lowest terms, the ordinary one with
+ * the power of ten multiplied back in (`127/50`, `1/10000000`); when that
+ * does not fit, the canonical mantissa with its exponent on the numerator
+ * (`1e+30/3`, `5e+33/127`; #95), when the mantissa's parts fit and its
+ * denominator is not one, a value with a denominator of one being a
+ * decimal the fallback writes exactly in the same characters. The sign,
+ * the slash and the exponent are not counted. The fraction is formed
+ * only when it can fit: for an exponent `k > 0`, its numerator has at
+ * least `k + 1` digits; for `k < 0`, its denominator keeps at least
+ * `5^-k` of the `10^-k`, the mantissa's numerator being coprime to ten,
+ * so it has more than `-k × log10 5` digits, and its numerator is at most
+ * the mantissa's, which has at most `2^-k` times fewer digits. So an
+ * exponent beyond twice `width` in magnitude, or a mantissa numerator
+ * beyond twice `width` in digits, cannot fit as a fraction, and nothing
+ * is formed for it.
  */
-function fractionText(s: Scaled, digits: Precision): string | undefined {
+function ratioText(s: Scaled, width: Precision): string | undefined {
   const { num, den } = s.mant;
   const k = s.exp;
-  const twice = 2n * BigInt(digits);
-  if (k > twice || k < -twice || decimalDigits(magnitude(num)) > 2 * digits) {
-    return undefined;
+  const twice = 2n * BigInt(width);
+  const numDigits = decimalDigits(magnitude(num));
+  if (k <= twice && k >= -twice && numDigits <= 2 * width) {
+    // For `k >= 0` the parts stay coprime, the denominator being coprime
+    // to ten; for `k < 0` the power of ten cancels against the numerator's
+    // twos or fives, which `rational` reduces.
+    const fraction =
+      k >= 0n ? { num: num * 10n ** k, den } : rational(num, den * 10n ** -k);
+    if (
+      decimalDigits(magnitude(fraction.num)) + decimalDigits(fraction.den) <=
+      width
+    ) {
+      return `${fraction.num}/${fraction.den}`;
+    }
   }
-  // For `k >= 0` the parts stay coprime, the denominator being coprime to
-  // ten; for `k < 0` the power of ten cancels against the numerator's twos
-  // or fives, which `rational` reduces.
-  const fraction =
-    k >= 0n ? { num: num * 10n ** k, den } : rational(num, den * 10n ** -k);
-  if (
-    decimalDigits(magnitude(fraction.num)) > digits ||
-    decimalDigits(fraction.den) > digits
-  ) {
-    return undefined;
+  if (den !== 1n && numDigits + decimalDigits(den) <= width) {
+    return `${num}e${k < 0n ? "-" : "+"}${magnitude(k)}/${den}`;
   }
-  return `${fraction.num}/${fraction.den}`;
+  return undefined;
 }
 
 function magnitude(n: bigint): bigint {
@@ -146,8 +165,9 @@ export type Shown =
   | { readonly kind: "uncertified"; readonly text: string }
   /**
    * An exact value, every digit of which is shown: `=`. With `fraction`,
-   * `text` is a fraction `N/D` in lowest terms, which the component
-   * parenthesizes where a unit follows it.
+   * `text` is a ratio `N/D` in lowest terms, or `Ne±k/D` with the power
+   * of ten on the numerator, which the outcome parenthesizes where a unit
+   * follows it.
    */
   | { readonly kind: "exact"; readonly text: string; readonly fraction?: true }
   /** Every digit asked for is certified; the value is inexact, or exact with more digits than shown. */
@@ -172,15 +192,18 @@ export type Shown =
  * is zero and rounding the midpoint to `digits` leaves it unchanged, so
  * that every digit held is shown; otherwise the kind the certification
  * gives, with `text` the midpoint rounded in `mode` to the digits certified.
- * With `fractions`, an exact value that is not an integer is `exact` with
- * its fraction as `text` when the fraction fits within `digits`, before
- * any of that.
+ * With the ratio notation's `width` (docs/ratio-width.md), an exact value
+ * is written entire when it fits the width, before any of that: a whole
+ * number of at most `width` significant digits by the decimal display at
+ * the width, and any other exact value as a ratio (`ratioText`) when its
+ * parts fit; an exact value that fits neither goes on to the rule above,
+ * at `digits`.
  */
 export function show(
   ball: Ball,
   digits: Precision,
   mode: RoundingMode,
-  fractions = false,
+  width?: Precision,
 ): Shown {
   const { mid } = ball;
   if (ball.uncertified === true) {
@@ -189,9 +212,16 @@ export function show(
   if (isUnbounded(ball.rad)) {
     return { kind: "unbounded", text: format(mid, digits, mode) };
   }
-  if (fractions && isExact(ball) && !isInteger(mid)) {
-    const text = fractionText(mid, digits);
-    if (text !== undefined) return { kind: "exact", text, fraction: true };
+  if (width !== undefined && isExact(ball)) {
+    checkPrecision(width);
+    if (isInteger(mid)) {
+      if (equals(roundTo(mid, width, mode), mid)) {
+        return { kind: "exact", text: format(mid, width, mode) };
+      }
+    } else {
+      const text = ratioText(mid, width);
+      if (text !== undefined) return { kind: "exact", text, fraction: true };
+    }
   }
   if (isExact(ball) && equals(roundTo(mid, digits, mode), mid)) {
     return { kind: "exact", text: format(mid, digits, mode) };

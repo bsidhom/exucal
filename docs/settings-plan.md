@@ -234,8 +234,8 @@ Implemented (docs/ratio-width.md, "As landed"; D28).
   digits a ratio's two parts may have between them, twenty by default,
   in `[1, 1000]`, independent of Digits; the measure the two parts
   together, as the owner ruled in review; a whole number written entire
-  when it fits the width; the exponent form `n e k / d` for a ratio that fits
-  with its power of ten factored onto the numerator and not without,
+  when it fits the width; the scaled form `n/d × 1e+k` for a ratio that
+  fits with its power of ten factored out and not without,
   the denominator not one; a mixed form and a fractional mantissa ruled
   out; the notation as `{ kind: "digits" } | { kind: "ratio"; width }`
   at stored version 4.

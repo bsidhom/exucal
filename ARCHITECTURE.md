@@ -259,9 +259,10 @@ digits, mode)` in `src/core/display.ts` formats the midpoint at the
    display at the width (`3486784401` for `3^20` at twenty), any other
    exact value as its fraction in lowest terms when the numerator and
    the denominator have at most the width in digits between them
-   (`127/50` for `2.54`, `5000/127`), and otherwise with its power of ten
-   on the numerator (`1e+30/3`) when the parts then fit and the
-   denominator is not one, `fraction: true` saying so for either form;
+   (`127/50` for `2.54`, `5000/127`), and otherwise as the ratio times
+   its power of ten (`1/3 × 1e+30`, the power a `scale` beside the text)
+   when the parts then fit and the denominator is not one,
+   `fraction: true` saying so for either form;
    `src/outcome.ts` parenthesizes a ratio where a unit follows, since
    the grammar reads `5000/127 in` as `5000 / (127 in)`. An exact value
    past the width and every inexact value are shown as above, the

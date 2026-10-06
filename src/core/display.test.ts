@@ -349,6 +349,11 @@ function asRatio(text: string): Shown {
   return { kind: "exact", text, fraction: true };
 }
 
+/** The `exact` kind of a ratio `text` scaled by the power of ten `scale`. */
+function asScaled(text: string, scale: string): Shown {
+  return { kind: "exact", text, fraction: true, scale };
+}
+
 test("with the ratio notation, an exact value that is not a whole number is its fraction in lowest terms when its parts fit the width together", () => {
   // 1.9's rows, restated under the notation at the default width.
   assert.deepEqual(ratio(exact(fr(127n, 50n)), 20), asRatio("127/50"));
@@ -372,8 +377,8 @@ test("with the ratio notation, an exact value that is not a whole number is its 
   // the power of ten in 5000 is factored out (rule 4), and below four
   // nothing fits.
   assert.deepEqual(ratio(exact(fr(5000n, 127n)), 7), asRatio("5000/127"));
-  assert.deepEqual(ratio(exact(fr(5000n, 127n)), 6), asRatio("5e+3/127"));
-  assert.deepEqual(ratio(exact(fr(5000n, 127n)), 4), asRatio("5e+3/127"));
+  assert.deepEqual(ratio(exact(fr(5000n, 127n)), 6), asScaled("5/127", "1e+3"));
+  assert.deepEqual(ratio(exact(fr(5000n, 127n)), 4), asScaled("5/127", "1e+3"));
   assert.deepEqual(ratio(exact(fr(5000n, 127n)), 3), {
     kind: "certified",
     text: "39.370079",
@@ -470,32 +475,35 @@ test("with the ratio notation, a ratio that fits only with its power of ten on t
   // (the numerator not divisible by ten): (5000/127) × 1e30 is 5/127 × 1e33.
   const scaled = (num: bigint, den: bigint, exp: bigint) =>
     exact({ mant: rational(num, den), exp });
-  assert.deepEqual(ratio(scaled(1n, 3n, 30n), 20), asRatio("1e+30/3"));
-  assert.deepEqual(ratio(scaled(5n, 127n, 33n), 20), asRatio("5e+33/127"));
+  assert.deepEqual(ratio(scaled(1n, 3n, 30n), 20), asScaled("1/3", "1e+30"));
+  assert.deepEqual(
+    ratio(scaled(5n, 127n, 33n), 20),
+    asScaled("5/127", "1e+33"),
+  );
   assert.deepEqual(
     ratio(exact(fromRational(rational(5000n * 10n ** 30n, 127n))), 20),
-    asRatio("5e+33/127"),
+    asScaled("5/127", "1e+33"),
   );
-  assert.deepEqual(ratio(scaled(1n, 3n, -30n), 20), asRatio("1e-30/3"));
+  assert.deepEqual(ratio(scaled(1n, 3n, -30n), 20), asScaled("1/3", "1e-30"));
   assert.deepEqual(
     ratio(scaled(1n, 3n, 999999999n), 20),
-    asRatio("1e+999999999/3"),
+    asScaled("1/3", "1e+999999999"),
   );
-  assert.deepEqual(ratio(scaled(-1n, 3n, 30n), 20), asRatio("-1e+30/3"));
+  assert.deepEqual(ratio(scaled(-1n, 3n, 30n), 20), asScaled("-1/3", "1e+30"));
   // A ratio that fits without the exponent is written without it: the
-  // plain fraction comes first, 1e+30/3 only past a width of thirty-one.
+  // plain fraction comes first, 1/3 × 1e+30 only past a width of thirty-one.
   assert.deepEqual(
     ratio(scaled(1n, 3n, 30n), 32),
     asRatio("1000000000000000000000000000000/3"),
   );
-  assert.deepEqual(ratio(scaled(1n, 3n, 30n), 31), asRatio("1e+30/3"));
+  assert.deepEqual(ratio(scaled(1n, 3n, 30n), 31), asScaled("1/3", "1e+30"));
   assert.deepEqual(ratio(exact(dec("1e-7")), 9), asRatio("1/10000000"));
   assert.deepEqual(ratio(exact(dec("1e-7")), 8), {
     kind: "exact",
     text: "1e-7",
   });
   // The parts of the factored form must fit too, the exponent uncounted.
-  assert.deepEqual(ratio(scaled(1n, 3n, 30n), 2), asRatio("1e+30/3"));
+  assert.deepEqual(ratio(scaled(1n, 3n, 30n), 2), asScaled("1/3", "1e+30"));
   assert.deepEqual(ratio(scaled(1n, 3n, 30n), 1), {
     kind: "certified",
     text: "3.3333333e+29",

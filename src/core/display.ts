@@ -34,10 +34,10 @@
 // (`= 3486784401` for `3^20` at twenty), any other exact value as its
 // fraction in lowest terms when the numerator and the denominator have at
 // most the width in digits between them (`= 1/3`, `= 127/50` for `2.54`),
-// and, when that does not fit, with its power of ten factored onto the
-// numerator (`= 1e+30/3`) when the parts then fit and the denominator is
-// not one; the `exact` kind says so with `fraction` for either form of a
-// ratio. Everything else, an exact value past the width and every inexact
+// and, when that does not fit, as a ratio times a power of ten written
+// after it (`= 1/3 × 1e+30`) when the parts then fit and the denominator
+// is not one; the `exact` kind says so with `fraction`, and `scale` for
+// the power of ten. Everything else, an exact value past the width and every inexact
 // value, is shown as above at the digits asked, the decimal display being
 // the fallback, which says `=` where its own rule allows
 // (`1.5e-999999999`). The user's rounding mode is applied here and
@@ -112,11 +112,12 @@ function zeroBoundUnclamped(ball: Ball): Scaled {
  * (docs/ratio-width.md, "The rule", rules 3 and 4), and `undefined` when
  * they do not. First the fraction in lowest terms, the ordinary one with
  * the power of ten multiplied back in (`127/50`, `1/10000000`); when that
- * does not fit, the canonical mantissa with its exponent on the numerator
- * (`1e+30/3`, `5e+33/127`; #95), when the mantissa's parts fit and its
- * denominator is not one, a value with a denominator of one being a
- * decimal the fallback writes exactly in the same characters. The sign,
- * the slash and the exponent are not counted. The fraction is formed
+ * does not fit, the canonical mantissa as the ratio with its power of
+ * ten as a `scale` written after it (`1/3` times `1e+30`, `5/127` times
+ * `1e+33`; #95), when the mantissa's parts fit and its denominator is not
+ * one, a value with a denominator of one being a decimal the fallback
+ * writes exactly in the same characters. The sign, the slash and the
+ * scale are not counted. The fraction is formed
  * only when it can fit: for an exponent `k > 0`, its numerator has at
  * least `k + 1` digits; for `k < 0`, its denominator keeps at least
  * `5^-k` of the `10^-k`, the mantissa's numerator being coprime to ten,
@@ -126,7 +127,7 @@ function zeroBoundUnclamped(ball: Ball): Scaled {
  * beyond twice `width` in digits, cannot fit as a fraction, and nothing
  * is formed for it.
  */
-function ratioText(s: Scaled, width: Precision): string | undefined {
+function ratioParts(s: Scaled, width: Precision): Ratio | undefined {
   const { num, den } = s.mant;
   const k = s.exp;
   const twice = 2n * BigInt(width);
@@ -141,14 +142,20 @@ function ratioText(s: Scaled, width: Precision): string | undefined {
       decimalDigits(magnitude(fraction.num)) + decimalDigits(fraction.den) <=
       width
     ) {
-      return `${fraction.num}/${fraction.den}`;
+      return { text: `${fraction.num}/${fraction.den}` };
     }
   }
   if (den !== 1n && numDigits + decimalDigits(den) <= width) {
-    return `${num}e${k < 0n ? "-" : "+"}${magnitude(k)}/${den}`;
+    return {
+      text: `${num}/${den}`,
+      scale: `1e${k < 0n ? "-" : "+"}${magnitude(k)}`,
+    };
   }
   return undefined;
 }
+
+/** A ratio as `ratioParts` writes it: the text `N/D`, and the power of ten it is scaled by, when it is. */
+type Ratio = { readonly text: string; readonly scale?: string };
 
 function magnitude(n: bigint): bigint {
   return n < 0n ? -n : n;
@@ -165,11 +172,17 @@ export type Shown =
   | { readonly kind: "uncertified"; readonly text: string }
   /**
    * An exact value, every digit of which is shown: `=`. With `fraction`,
-   * `text` is a ratio `N/D` in lowest terms, or `Ne±k/D` with the power
-   * of ten on the numerator, which the outcome parenthesizes where a unit
-   * follows it.
+   * `text` is a ratio `N/D` in lowest terms and, with `scale`, the value
+   * is that ratio times `scale`, a power of ten as a literal (`1e+30`),
+   * which the outcome writes as a product after the ratio (D28); it
+   * parenthesizes either where a unit follows.
    */
-  | { readonly kind: "exact"; readonly text: string; readonly fraction?: true }
+  | {
+      readonly kind: "exact";
+      readonly text: string;
+      readonly fraction?: true;
+      readonly scale?: string;
+    }
   /** Every digit asked for is certified; the value is inexact, or exact with more digits than shown. */
   | { readonly kind: "certified"; readonly text: string }
   /**
@@ -219,8 +232,10 @@ export function show(
         return { kind: "exact", text: format(mid, width, mode) };
       }
     } else {
-      const text = ratioText(mid, width);
-      if (text !== undefined) return { kind: "exact", text, fraction: true };
+      const ratio = ratioParts(mid, width);
+      if (ratio !== undefined) {
+        return { kind: "exact", fraction: true, ...ratio };
+      }
     }
   }
   if (isExact(ball) && equals(roundTo(mid, digits, mode), mid)) {

@@ -72,8 +72,8 @@ in` at twelve. In decimal mode it is also the digits of every value: a
   number is written entire when it has at most the width in digits
   (`3^20 = 3486784401`, where the digits notation writes
   `≈ 3.4867844e+9` at eight digits); and a ratio that fits only with
-  its power of ten factored out is written with the power on the
-  numerator (`(1/3) * 1e30 = 1e+30/3`, which reads back as itself).
+  its power of ten factored out is written as the ratio times the power
+  (`(1/3) * 1e30 = 1/3 × 1e+30`, which reads back as itself).
   Anything longer is written as a decimal at Digits, `=` when the
   decimal is exact and `≈` otherwise, and an inexact value is always
   a decimal with `≈` (`sqrt(2) m ≈ 1.4142136 m`): the notation changes

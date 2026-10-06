@@ -26,7 +26,8 @@ was provisional from the start (#91), and it has three faults:
   whole number is the simplest exact value there is, and the notation
   that exists to write exact values entire leaves it rounded. And a
   value whose ratio is short apart from a power of ten, `(1/3) * 1e30`,
-  is `≈ 3.3333333e+29` where `1e+30/3` would be exact and shorter (#95).
+  is `≈ 3.3333333e+29` where `1/3 × 1e+30` would be exact and shorter
+  (#95).
 - **It is hard to anticipate.** Whether a line is a ratio depends on
   the reduced parts of the value against a setting named for something
   else, so a user cannot say from the settings what a line will look
@@ -115,27 +116,31 @@ rules 1 and 4 unchanged; rules 2, 3 and 4 replace its rules 2 and 3.
    the S2 note raised, `1` over fifteen digits, comes out as it should:
    it is sixteen digits long, and a width of twenty admits it because
    it is that long, where a width of twelve does not.
-4. **When that fraction does not fit, the value is written with its
-   power of ten factored out of the numerator, `n e k / d`, when the
-   parts left, `n` and `d`, have at most `W` digits between them and
-   the denominator is not one** (#95), the exponent not counted, as the
-   decimal display's exponent is not counted against Digits: `= 1e+30/3` for `(1/3) * 1e30`, `= 5e+33/127` for
-   `(5000/127) * 1e30`, `= 1e-30/3` for `(1/3) * 1e-30`,
-   `= 1e+999999999/3` for `1e999999999/3`. The parts are the value's
-   canonical mantissa and exponent (scaled.ts: the numerator not
-   divisible by ten, the denominator coprime to ten, in lowest terms),
-   which is the one form in which the power of ten is all on one side;
-   the power is always the numerator's, since `1e+30/3` parses back as
-   `(1e30) / 3`, the value, and `1/3e+30` would be `1 / (3e30)`, another.
-   The rule meets #95's condition, that the power is factored only
-   where it shortens: rule 3 comes first, so a ratio that fits without
-   an exponent is written without one (`1/10000000`, never `1e-7/1`),
-   and the form appears only for a ratio that would otherwise fall to
-   the decimal display. A denominator of one is excluded because the
-   value is then a whole number or a terminating decimal, `n × 10^k`,
-   which the decimal display writes exactly in the same characters
-   (`1.5e-999999999`), and `15e-1000000000/1` would be the same value
-   wearing a slash.
+4. **When that fraction does not fit, the value is written as a ratio
+   times a power of ten, `n/d × 1e+k`, when the parts `n` and `d` have
+   at most `W` digits between them and the denominator is not one**
+   (#95), the power not counted, as the decimal display's exponent is
+   not counted against Digits: `= 1/3 × 1e+30` for `(1/3) * 1e30`,
+   `= 5/127 × 1e+33` for `(5000/127) * 1e30`, `= 1/3 × 1e-30` for
+   `(1/3) * 1e-30`, `= 1/3 × 1e+999999999` for `1e999999999/3`. The
+   parts are the value's canonical mantissa and exponent (scaled.ts:
+   the numerator not divisible by ten, the denominator coprime to ten,
+   in lowest terms), which is the one form in which the power of ten is
+   all in one factor. The power is written after the ratio as a
+   multiplier, by the owner's ruling, so that the line reads as the
+   ratio scaled and parses back left to right as `(1/3) × 1e30`, the
+   value (a power inside the numerator, `1e+30/3`, was the first
+   implementation and reads as a decimal over a number); the owner
+   means to render the multiplier as `× 10^30` in a change of the
+   display's own. The rule meets #95's condition, that the power is
+   factored only where it shortens: rule 3 comes first, so a ratio that
+   fits without a power is written without one (`1/10000000`, never
+   `1/1 × 1e-7`), and the form appears only for a ratio that would
+   otherwise fall to the decimal display. A denominator of one is
+   excluded because the value is then a whole number or a terminating
+   decimal, `n × 10^k`, which the decimal display writes exactly in the
+   same characters (`1.5e-999999999`), and `15/1 × 1e-1000000000` would
+   be the same value wearing a slash.
 5. **Everything else is written by the decimal display at `p`,** which
    says `=` where its own rule allows and `≈` otherwise:
    `= 1.5e-999999999`, `= 2.54` for `2.54` at a width of four (its ratio
@@ -152,7 +157,8 @@ is, to within a sign, a slash and an exponent, how many characters that
 value will take. Where a ratio is written on a line
 (parenthesized before a unit or the reciprocal's `×`, bare alone, term
 by term in a unit list) is docs/fractions.md's and is unchanged; a ratio
-in the exponent form is parenthesized like any other, `(1e+30/3) in`.
+times its power of ten is parenthesized like any other,
+`(1/3 × 1e+30) in`.
 
 Two forms #91 asks about are ruled out. A **mixed form**, `39 + 47/127`,
 does not parse back as it reads before a unit (`39 + 47/127 in` is
@@ -184,7 +190,7 @@ Notation      ( ) digits
 - The input is labeled "Ratio width" for assistive technology, and the
   line under Notation says the rule in the words above.
 - README's "Settings" entry for the notation gains the width, the
-  examples `3^20 = 3486784401` and `(1/3) * 1e30 = 1e+30/3`, and the
+  examples `3^20 = 3486784401` and `(1/3) * 1e30 = 1/3 × 1e+30`, and the
   sentence that the width is the one thing that decides whether a line
   is a ratio.
 
@@ -251,7 +257,7 @@ setting, so `clampSettings` does not touch it.
 **D28. The ratio notation has a width of its own, the most digits a
 ratio, its two parts together, or a whole number may have to be written
 entire, twenty by default and independent of Digits; a ratio that does
-not fit is written with its power of ten factored onto the numerator
+not fit is written as a ratio times a power of ten, the power after it,
 when its parts then fit and its denominator is not one, and otherwise
 the value is a decimal at Digits (S2c of docs/settings-plan.md; amends
 D21).** docs/ratio-width.md is the design. D21's fit at Digits coupled
@@ -283,16 +289,21 @@ inexact value stays ruled out.
   and the outcome still withholds it in decimal mode.
 - **Rule 4 reaches further than the examples showed.** The canonical
   mantissa strips a numerator's tens into the exponent, so `5000/127`
-  at a width below seven is `5e+3/127`, not the decimal: the ratio
-  does not fit plainly, and the factored form does. That is the rule
-  as ruled, where the power is factored only when the ratio would
+  at a width below seven is `5/127 × 1e+3`, not the decimal: the ratio
+  does not fit plainly, and the scaled form does. That is the rule as
+  ruled, where the power is factored only when the ratio would
   otherwise fall to the decimal display, and the tests record it; a
-  user who finds `5e+3/127` odd at a width of six has set a width
+  user who finds `5/127 × 1e+3` odd at a width of six has set a width
   below any ratio that conversions produce.
+- **The power is a `scale` beside the ratio** in `show`'s `exact` kind,
+  a literal (`1e+3`) the outcome multiplies after the ratio, so that a
+  later change can render it as `× 10^3` without the display's text
+  changing shape; the copy text is `(5/127 * 1e+3) in`, which reads
+  back as the value.
 - **The reciprocal of a ratio** is often a terminating decimal and is
-  written so (`in = 0.0254 × 1 m` beside `1 m = (5e+3/127) in`), since a
-  denominator of one is excluded from the factored form; `127/5000`
-  appears when the width admits the plain fraction.
+  written so (`in = 0.0254 × 1 m` beside `1 m = (5/127 × 1e+3) in`),
+  since a denominator of one is excluded from the scaled form;
+  `127/5000` appears when the width admits the plain fraction.
 - **The settings** hold the notation as `{ kind: "digits" }` or
   `{ kind: "ratio"; width }`, with `DEFAULT_WIDTH` twenty and
   `WIDTH_LIMIT` a thousand; `rangesOf` gives the width's range beside

@@ -9,7 +9,13 @@ mode stage 4 built (docs/decimal.md, "The decimal mode"; D15) rounds
 every step and also tracks, in the radius, how far the roundings have
 carried the value from the true one, so that `1 / 3 * 3` at eight digits
 is `0.99999999` shown as `≈ 1` with "7 of 8 digits are certain". That
-tracking is withdrawn here. The sections say what the mode promises,
+tracking is withdrawn here: it was built before what "decimal mode" meant
+had been settled, and as it stands the mode is not coherent. What it
+means is the arithmetic of a traditional calculator or a hand
+computation under a rounding mode: every operation the user can see,
+built-in function calls included, rounds once to the digits, and every
+intermediate result counts as exact because it was certified to the
+target precision before it was rounded. The sections say what the mode promises,
 what each kind of operation does under the promise, where the subtleties
 are, and what changes in the core, the display and the docs. The plan's
 D15 keeps its exact-mode half; its decimal-mode half is superseded by
@@ -22,7 +28,13 @@ Decimal mode was designed as per-operation rounding in the user's mode,
 and built as a second parameterization of the ball model: `settle`
 rounds every midpoint to Digits in the mode and adds the exact rounding
 error to the radius, so that the display can mark what the roundings
-destroyed. The two ideas pull against each other, and the seams show:
+destroyed. The specific error was to carry a nonzero radius on every
+intermediate value a user could observe, and every mismatch below
+follows from it. The ball model itself is not the error, and it stays
+where it is needed: inside a built-in, whose result must be certified at
+extra digits before it is rounded, the ball is what certifies. The two
+ideas pull against each other wherever a radius reaches a value the user
+can see, and the seams show:
 
 - **A ball reports on a question the mode does not ask.** A calculator's
   answer to `1 / 3 * 3` is `0.99999999`; that is the value the mode
@@ -49,7 +61,10 @@ Stage 4's note weighed "not tracking the radius in decimal mode" and set
 it aside, so that `1 / 3 * 3` would not show "eight digits of a value
 that is not the answer". The owner now rules the other way, and the
 reason is the first point above: in decimal mode `0.99999999` is the
-answer. A calculator that printed `≈ 1` would be the strange one.
+answer. A calculator that printed `≈ 1` would be the strange one, and
+`≈ 1` with a note is what exact mode already shows for a value it
+cannot certify, so the mode as built added no behavior and served no
+use case that exact mode did not.
 
 ## The promise
 
@@ -64,14 +79,21 @@ In decimal mode, at `p` digits in the rounding mode `R`:
    `p` digits in `R`. "Operation" means a node of the expression tree:
    each `+`, `-`, `*`, `/`, juxtaposition, `^`, each literal, each unit
    looked up, and each function call as a whole.
-3. **A function call is one operation.** `gamma(x)` is spelled as one
-   step and is one: its value at the exact argument is computed to
-   whatever precision certifying the `p`-digit rounding takes, and the
-   rounding is the result, exact. The alternative, decomposing the
-   function into its series or continued fraction and rounding each term
-   as the mode rounds a step, is set aside: it loses precision in
-   aggregate, is not what any calculator does, and throws away the one
-   thing the ball model is good for, certifying a rounding.
+3. **A function call is one operation.** `gamma(1/2)` is spelled as one
+   step and is one, as far as a user can observe: its value at the exact
+   argument is computed to whatever precision certifying the `p`-digit
+   rounding takes, and the rounding is the result, exact. The alternative,
+   decomposing the function into its series or continued fraction and
+   rounding each term as the mode rounds a step, is set aside: it loses
+   precision in aggregate, is not what any calculator does, and throws
+   away the one thing the ball model is good for, certifying a rounding.
+   The line between the two is observability. Every partial expression
+   visible in the user's expression tree, which the language evaluates in
+   one defined order, is a step and is subject to the decimal rounding;
+   an accumulator or an intermediate inside a built-in surfaces to no
+   one, and there the radius is kept and used to certify the rounded
+   result. Today that hidden interior exists only in built-ins; a
+   user-defined function's body is visible and is steps.
 4. **Rounding is the only source of difference from the real number**,
    and it is the user's, chosen by choosing the mode, step by step as a
    calculator rounds. The app does not report how far the roundings have
@@ -82,6 +104,40 @@ Exact mode is untouched: its promise stays D15's, that exact values are
 never rounded, inexact ones are settled at a working precision and
 certified at the digits asked, and the rounding mode is applied once by
 the display.
+
+### The denominator, and what fixing it costs
+
+Point 1 fixes the significand's denominator at one: a decimal-mode value
+is `n × 10^e` with `n` an integer of at most `p` digits. That is the
+spelling of General Decimal Arithmetic and of every calculator, it is
+tentative here, and it has two costs that should be stated rather than
+implied.
+
+- **Precision at the bottom of the exponent range.** A value's digits
+  are the significand's, and its magnitude is the exponent's; at the
+  exponent bound (`10^18`, docs/decimal.md) a value whose `p` digits
+  would need an exponent below the bound has nowhere to put them, and
+  the settle refuses it, `underflow`, as today's decimal mode does
+  (`1e-1000000000000000000 / 3`). Letting the denominator flex by powers
+  of ten, so that the significand may hold fewer digits than `p` while
+  the exponent stays at the bound, would give such a value a
+  representation with reduced precision, which is what IEEE 754's
+  subnormals do. `Scaled` can hold it, since its canonical mantissa is a
+  reduced fraction whose denominator carries the twos and fives a power
+  of ten leaves (`2.54` is `127/50 × 10^0` as stored); the invariant is
+  on the value, a `p`-digit decimal, not on the stored fraction. The
+  note keeps the refusal, which is D17's rule for decimal mode already,
+  and records the gradual alternative for the day the bound is reached
+  in practice.
+- **The range limit is nearly idle.** Most bits bounds the size of a
+  numerator or a denominator. With the denominator fixed, only the
+  numerator can grow, to `p` digits, and the limit binds only the exact
+  intermediate before a rounding (a product of `2p` digits, a quotient
+  of two `p`-digit parts) and the alignment of a sum. A setting that
+  speaks of bits a value may take, in a mode where no value takes more
+  than `p` digits, says something that is not quite so; the smell is
+  noted here and belongs to S3, which decides what the limits mean in
+  each mode.
 
 ## What each operation does
 
@@ -169,21 +225,37 @@ a gap to close where it is found.
 
 The owner's ruling is that such a result is rounded and answered, and
 that the app says it was not certified: the value is exact under the
-mode's fixed-precision rounding, and the last digit is nonetheless one
+mode's fixed-precision rounding, and its last digit is nonetheless one
 the computation could not vouch for, because the step secretly worked at
 a higher precision and the collapse to `p` digits lost the one fact it
-needed. How that is carried is new ground, and the decimal design
-session settles it; the candidates, so that it starts from something:
+needed. That is exact only of the step at which certification failed.
+Every operation after it rounds a value that may already be a unit off,
+and the error can compound, so the final result may differ from the
+correctly rounded one in more than its last digit; exact mode has no
+such compounding, since it rounds once, at the end, and knows exactly
+what a failed certification cost. This is how decimal-mode calculators
+behave by default, with every step rounded and no account kept; where
+this one differs is that it carries extra hidden precision inside each
+step, as the extended internal formats of IEEE 754 do, so that the
+uncertified step is the rare exception rather than the rule. How the
+exception is carried is new ground, and the decimal design session
+settles it; the candidates, so that it starts from something:
 
 - **A flag on the value, not a radius.** The decimal-mode value stays
   exact, radius zero, and carries a bit that says a step in its history
   was rounded without certification; every operation on a flagged
   operand produces a flagged result, as IEEE 754's inexact flag is
-  sticky through a computation, and the display writes the line with a
-  mark and a note ("a step could not be certified at the precision
-  limit") in place of `=`. This keeps the promise's invariant, every
-  value a `p`-digit decimal, and reports the one thing the radius was
-  good for without carrying a radius.
+  sticky through a computation, and the display marks the line. How it
+  marks it is to be decided; the leaning is `≈` as exact mode uses it,
+  with a mark or a note beside it that says the digits are uncertified
+  rather than rounded ("a step could not be certified at the precision
+  limit"), since `≈` alone would read as exact mode's rounding. No
+  established design language says "uncertified" concisely; a glyph
+  could be invented or borrowed (`≆`, "approximately but not actually
+  equal to", is the nearest Unicode has) and explained once in README.
+  This keeps the promise's invariant, every value a `p`-digit decimal,
+  and reports the one thing the radius was good for without carrying a
+  radius.
 - **A radius at the ceiling alone.** The uncertified result keeps the
   ball the ceiling produced instead of collapsing it, and the existing
   display rule then marks what it does not certify. Set aside in
@@ -195,7 +267,10 @@ session settles it; the candidates, so that it starts from something:
 
 The flag is the direction; its shape in `Ball` or beside it, what the
 display says, and whether the pipeline reports it as the notes report
-partial digits today, are the session's to decide. The ceiling thereby
+partial digits today, are the session's to decide. Whatever the shape,
+the ball with its radius stays in use for the hidden steps inside a
+built-in, where it certifies that the observed result is correctly
+rounded; the flag records the one case where it could not. The ceiling thereby
 has a meaning in decimal mode, the most digits any one call's
 certification may compute at, which #86 found it lacked; S3 takes that
 up.
@@ -209,7 +284,12 @@ the radius of zero is taken as zero. In practice the arguments that make a funct
 exact-case arguments; an inexact argument is rounded first and misses
 zero (`sin(pi() radian)` at eight digits is `sin(3.1415927 radian)`,
 which is `= -4.6410207e-8`, a calculator's answer, where today the mode
-shows `≈ -0 (within 1e-7 of zero)`).
+shows `≈ -0 (within 1e-7 of zero)`). How the kernel computes near a
+function's zeros is itself due for work: the owner intends fixes to the
+argument reduction that should improve the series expansions there,
+not yet filed as issues, so the behavior at such arguments may differ
+from a traditional calculator's once they land; the promise is
+unchanged by them.
 
 **Domains and edges.** With exact arguments, every domain check is
 decided: `ln(0)` is a domain error, `sqrt(-1)` a negative radicand, and
@@ -222,20 +302,28 @@ it in exact mode.
 
 **`approx`.** Every value in decimal mode is already at the user's
 precision, so `approx(x)` is `x`, the identity. It is exact mode's tool
-(docs/approximate.md), and its decimal-mode clause there goes.
+(docs/approximate.md), and its decimal-mode clause there goes. This is
+true of the one-argument form that exists. An `approx(x, precision)`
+that names a precision, not yet designed, could reduce the implied
+precision below the user's `p` and would not be the identity; what its
+precision means (an absolute radius, the initial intent, since it fits
+the ball directly; a relative error; a count of digits) is that design's
+to settle, and its decimal-mode behavior with it.
 
-**Defined functions.** A function the definitions file defines is its
-body, ordinary arithmetic evaluated by the same evaluator, and each step
-of the body rounds, as docs/functions.md says today and as a programmable
-calculator rounds each step of a program. The alternative, treating a
-defined function as one operation like a built-in, was weighed: the
-spelling `tempF(37)` suggests it, but the body is the user's own
-arithmetic, the same steps typed inline, and a mode that rounded a body
-once would make `tempF(37)` and its inlined body differ, the opposite
-surprise. The decision is the owner's to confirm; the note recommends
-the per-step rounding.
+**User-defined functions.** A function the definitions file defines,
+as distinct from a built-in, is its body, ordinary arithmetic evaluated
+by the same evaluator, and each step of the body rounds, as
+docs/functions.md says today and as a programmable calculator rounds
+each step of a program. The ruling is that a user-defined function
+behaves exactly as its expanded form does: calling it and typing its
+body inline round at the same subexpressions and give the same value.
+The alternative, treating a user-defined function as one operation like
+a built-in, was weighed and set aside: the spelling `tempF(37)` suggests
+it, but the body is the user's own arithmetic, the same steps typed
+inline, and a mode that rounded a body once would make `tempF(37)` and
+its inlined body differ, the opposite surprise.
 
-**Conditions.** A defined function's conditions compare exact values and
+**Conditions.** A user-defined function's conditions compare exact values and
 are always decided; the `undecidedCondition` report cannot arise in
 decimal mode.
 
@@ -244,17 +332,28 @@ counts and remainder, a function's count and the outcome's reciprocal
 are each one operation and rounded once, exact, as #96 already settles
 them; only the radius they carried goes.
 
-**Comparisons** compare exact values. **Dimensions** were never rounded
-and are not now.
+**Comparisons** compare exact values.
+
+**Dimensions carry strictly rational powers, whatever the mode.** A
+dimension's exponents are exact rationals (`m^(1/3)` is a third power of
+length, never `m^0.33333333`), formed by the exact arithmetic of
+dimension.ts, and the mode does not reach them: decimal mode rounds
+magnitudes, and a dimension is not a magnitude. This is the study's
+rule (docs/calculator.md, "4 and 5": "dimensions stay exact in both
+modes") and nothing here changes it.
 
 ## The display
 
 In decimal mode every value is exact and has at most `p` digits, so the
 display's `exact` kind applies to every line: `=`, every digit, no note.
 `≈`, "n of m digits are certain", "within … of zero" and "no digit
-certain" never appear in decimal mode; they are exact mode's, where the
-value is a real number known to a radius. The display rule itself does
-not change: it reads the radius, and the radius is zero.
+certain" never appear in decimal mode for a rounding the mode certified;
+they are exact mode's, where the value is a real number known to a
+radius. The one exception is a value carrying the uncertified flag of
+"The ceiling" above, whose rendering is still to be finalized there: the
+leaning is `≈` with a mark that says uncertified. The display rule
+itself does not change for the rest: it reads the radius, and the radius
+is zero.
 
 The fractions display has no place in decimal mode and is disallowed
 there. Its purpose is to write an exact value entire where its digits
@@ -314,9 +413,11 @@ once to `p` digits in the rounding mode; a built-in's rounding is
 certified by computing the function at rising precision until both ends
 of its ball round alike, and at the ceiling the midpoint's rounding is
 taken and the result flagged as uncertified, the ceiling being the
-computation limit that lets the mode always answer; the display writes
-every decimal-mode value with `=`, the flagged ones with a mark and a
-note; the fractions display does not apply. D15's decimal-mode half, under which the exact
+computation limit that lets the mode always answer; a user-defined
+function is its body and rounds at each step, exactly as its expanded
+form does; dimensions carry rational powers in every mode; the display
+writes every decimal-mode value with `=`, the flagged ones with a mark
+whose form is to be finalized; the fractions display does not apply. D15's decimal-mode half, under which the exact
 rounding error of every step went into the radius, is withdrawn: the
 radius answered how far the rounded value lies from the real number, and
 in this mode the rounded value is the answer. Exact mode is unchanged.

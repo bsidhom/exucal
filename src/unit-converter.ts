@@ -38,10 +38,11 @@ import "./copy-button.ts";
  * ceiling of the retry schedule, which the shell derives from the cap on
  * the digits; `<app-shell>` owns the settings and passes it down). It
  * defaults to the display's rules before the settings existed, eight
- * digits half away from zero, under the default cap's ceiling. The
- * `fractions` property is the display setting of docs/fractions.md,
- * whether an exact value is written as a reduced fraction; off by
- * default.
+ * digits half even, under the default cap's ceiling. The `ratioWidth`
+ * property is the ratio notation's width (docs/fractions.md,
+ * docs/ratio-width.md), the most digits an exact value may have to be
+ * written entire, as a whole number or a ratio; absent, the digits
+ * notation, by default.
  */
 @customElement("unit-converter")
 export class UnitConverter extends LitElement {
@@ -165,8 +166,8 @@ export class UnitConverter extends LitElement {
     ceiling: DEFAULT_CEILING,
   };
 
-  /** Whether an exact value is shown as its fraction in lowest terms (docs/fractions.md). */
-  @property({ attribute: false }) fractions = false;
+  /** The ratio notation's width, or absent for the digits notation (docs/ratio-width.md). */
+  @property({ attribute: false }) ratioWidth?: number;
 
   @state() private have = "";
   @state() private want = "";
@@ -195,7 +196,7 @@ export class UnitConverter extends LitElement {
     if (table === undefined) {
       return { kind: "error", message: "No units are loaded." };
     }
-    return outcomeOf(table, this.have, this.want, context, this.fractions);
+    return outcomeOf(table, this.have, this.want, context, this.ratioWidth);
   }
 }
 

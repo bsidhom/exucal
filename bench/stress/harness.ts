@@ -49,7 +49,7 @@ import {
   isMaxBits,
   isMode,
   rangesOf,
-  showsRatios,
+  ratioWidthOf,
   type Settings,
 } from "../../src/settings.ts";
 
@@ -446,7 +446,7 @@ function typeJob(c: Case): void {
       c.have.slice(0, length),
       c.want,
       context,
-      showsRatios(c.settings),
+      ratioWidthOf(c.settings),
     );
     const ms = performance.now() - start;
     port.postMessage({
@@ -494,7 +494,7 @@ function runJob(job: { readonly stressCase: Case }): void {
       have,
       want,
       context,
-      showsRatios(settings),
+      ratioWidthOf(settings),
       observe,
     );
     const ms = performance.now() - start;

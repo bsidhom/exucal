@@ -52,14 +52,19 @@ const table: UnitTable = (() => {
   return built.value;
 })();
 
-/** The lines for `have` into `want` at `context`, with `fractions`; a test's precondition that it is a result. */
+/** The ratio notation's width a test asks for: `true` is the default width, `false` the digits notation, a number itself. */
+function widthOf(ratio: boolean | number): number | undefined {
+  return ratio === true ? 20 : ratio === false ? undefined : ratio;
+}
+
+/** The lines for `have` into `want` at `context`, with the ratio notation (`ratio`); a test's precondition that it is a result. */
 function lines(
   have: string,
   want: string,
-  fractions: boolean,
+  ratio: boolean | number,
   context: NumberContext = CONTEXT,
 ): string[] {
-  const outcome = outcomeOf(table, have, want, context, fractions);
+  const outcome = outcomeOf(table, have, want, context, widthOf(ratio));
   assert.equal(outcome.kind, "result", inspect(outcome));
   return (outcome as Extract<Outcome, { kind: "result" }>).lines.map(
     displayText,
@@ -124,12 +129,11 @@ test("a unit list's remainder is a fraction, unrounded, and the counts are integ
   assert.deepEqual(lines("-1 m", "ft;in", true), [
     "-1 m = -3 ft - (428/127) in",
   ]);
-  // A fraction that does not fit the digits falls back to the digits:
-  // 428/127 fits at three digits and not at two.
-  assert.deepEqual(lines("1 m", "ft;in", true, { ...CONTEXT, precision: 3 }), [
-    "1 m = 3 ft + (428/127) in",
-  ]);
-  assert.deepEqual(lines("1 m", "ft;in", true, { ...CONTEXT, precision: 2 }), [
+  // A ratio that does not fit the width falls back to the digits: 428/127
+  // is six digits, and at two digits the remainder is rounded.
+  assert.deepEqual(lines("1 m", "ft;in", 6), ["1 m = 3 ft + (428/127) in"]);
+  assert.deepEqual(lines("1 m", "ft;in", 5), ["1 m ≈ 3 ft + 3.3700787 in"]);
+  assert.deepEqual(lines("1 m", "ft;in", 5, { ...CONTEXT, precision: 2 }), [
     "1 m ≈ 3 ft + 3.4 in",
   ]);
   // A remainder that is a whole number of its unit stays an integer.
@@ -197,7 +201,7 @@ test("with the setting off, every line is as it was", () => {
     ["0 m", "in"],
   ]) {
     assert.deepEqual(
-      outcomeOf(table, have!, want!, CONTEXT, false),
+      outcomeOf(table, have!, want!, CONTEXT, undefined),
       outcomeOf(table, have!, want!, CONTEXT),
       `${have} in ${want}`,
     );
@@ -210,13 +214,13 @@ test("with the setting off, every line is as it was", () => {
 const ASSUMED_TEMP_C =
   'Could not tell whether the argument of "tempC" meets "x >= -273.15"; the value assumes it does.';
 
-/** The outcome for `have` into `want` at `context`, without fractions. */
+/** The outcome for `have` into `want` at `context`, in the digits notation. */
 function outcome(
   have: string,
   want: string,
   context: NumberContext = CONTEXT,
 ): Outcome {
-  return outcomeOf(table, have, want, context, false);
+  return outcomeOf(table, have, want, context);
 }
 
 /** The warnings of a result. */
@@ -296,10 +300,10 @@ test("a reading below absolute zero is refused, naming the condition", () => {
 function resultLines(
   have: string,
   want: string,
-  fractions: boolean,
+  ratio: boolean | number,
   context: NumberContext = CONTEXT,
 ): readonly Line[] {
-  const result = outcomeOf(table, have, want, context, fractions);
+  const result = outcomeOf(table, have, want, context, widthOf(ratio));
   assert.equal(result.kind, "result", inspect(result));
   return (result as Extract<Outcome, { kind: "result" }>).lines;
 }

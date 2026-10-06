@@ -186,21 +186,21 @@ export function outcomeOf(
   haveText: string,
   wantString: string,
   context: NumberContext,
-  fractions = false,
+  width?: number,
   observe?: PassObserver,
 ): Outcome {
   if (haveText.trim() === "") return { kind: "empty" };
   const assumptions: Assumption[] = [];
-  // The fractions display is exact mode's (D26; docs/decimal-mode.md, "The
+  // The ratio notation is exact mode's (D26; docs/decimal-mode.md, "The
   // display"): in decimal mode every value is a decimal of the digits
-  // asked for, which its digits write entire, so `show` is never asked
-  // for a fraction there, whatever the setting says.
+  // asked for, which its digits write entire, so `show` is never given
+  // the width there, whatever the setting says.
   const outcome = outcomeAssuming(
     table,
     haveText,
     wantString,
     context,
-    fractions && modeOf(context) !== "decimal",
+    modeOf(context) === "decimal" ? undefined : width,
     assumptions,
     observe,
   );
@@ -230,7 +230,7 @@ function outcomeAssuming(
   haveText: string,
   wantString: string,
   context: NumberContext,
-  fractions: boolean,
+  width: number | undefined,
   assumptions: Assumption[],
   observe: PassObserver | undefined,
 ): Outcome {
@@ -255,7 +255,7 @@ function outcomeAssuming(
     const unit = dimensionExpr(dimension, table.primitives);
     return {
       kind: "result",
-      lines: [line(parsedHave(haveText), magnitude, unit, context, fractions)],
+      lines: [line(parsedHave(haveText), magnitude, unit, context, width)],
     };
   }
   const conversion = convertText(
@@ -281,11 +281,11 @@ function outcomeAssuming(
   }
   switch (conversion.value.kind) {
     case "unit":
-      return unitResult(conversion.value, context, fractions);
+      return unitResult(conversion.value, context, width);
     case "list":
-      return listResult(conversion.value, context, fractions);
+      return listResult(conversion.value, context, width);
     case "function":
-      return functionResult(conversion.value, context, fractions);
+      return functionResult(conversion.value, context, width);
   }
 }
 
@@ -307,15 +307,15 @@ function outcomeAssuming(
 function unitResult(
   conversion: Extract<Conversion, { kind: "unit" }>,
   context: NumberContext,
-  fractions: boolean,
+  width: number | undefined,
 ): Outcome {
   const { haveExpr, wantExpr, value } = conversion;
-  const lines = [line(haveExpr, value, wantExpr, context, fractions)];
+  const lines = [line(haveExpr, value, wantExpr, context, width)];
   // A step of the expression (`step` of ball.ts): settled in exact mode,
   // rounded once in decimal mode.
   const inverse = step(() => divideBalls(exact(ONE), value), context);
   if (inverse.ok) {
-    lines.push(line(wantExpr, inverse.value, haveExpr, context, fractions));
+    lines.push(line(wantExpr, inverse.value, haveExpr, context, width));
   }
   return { kind: "result", lines };
 }
@@ -323,18 +323,18 @@ function unitResult(
 /**
  * The line `have` is `value` `unit`s, as `show` certifies the value at
  * `context`: `=` for an exact value, `≈` otherwise, and a note for the
- * kinds that do not show every digit asked for. With `fractions`, an
- * exact value that is not an integer is its fraction where it fits. With
- * no `unit`, the value is a plain number.
+ * kinds that do not show every digit asked for. With the ratio notation's
+ * `width`, an exact value is written entire where it fits the width
+ * (docs/ratio-width.md). With no `unit`, the value is a plain number.
  */
 function line(
   have: Expr,
   value: Ball,
   unit: Expr | undefined,
   context: NumberContext,
-  fractions: boolean,
+  width: number | undefined,
 ): Line {
-  const shown = show(value, context.precision, context.rounding, fractions);
+  const shown = show(value, context.precision, context.rounding, width);
   return {
     have,
     relation: relationOf([shown]),
@@ -378,12 +378,13 @@ function numberExpr(text: string): Expr {
 
 /**
  * `shown` of `unit`, as the first factor of the unit (`timesFirst`) or
- * alone with no unit, negated when `negative`. A fraction is the quotient
+ * alone with no unit, negated when `negative`. A ratio is the quotient
  * of its two literals, with the sign on the numerator as the display
  * wrote it (`-5000/127`, and `(-5000/127) in` where a unit follows, the
- * printer parenthesizing the fraction; docs/fractions.md, "Where a
- * fraction is written"); any other value is its literal, and the quantity
- * negated whole (`-3 ft`).
+ * printer parenthesizing the ratio; docs/fractions.md, "Where a fraction
+ * is written"), the numerator carrying the power of ten in the factored
+ * form (`1e+30/3`; docs/ratio-width.md); any other value is its literal,
+ * and the quantity negated whole (`-3 ft`).
  */
 function quantityExpr(
   shown: Shown,
@@ -490,15 +491,16 @@ function noteOf(shown: Shown, digits: Precision): string | undefined {
 function listResult(
   conversion: Extract<Conversion, { kind: "list" }>,
   context: NumberContext,
-  fractions: boolean,
+  width: number | undefined,
 ): Outcome {
   const { haveExpr, units, terms } = conversion;
   const { precision, rounding } = context;
   const last = terms.length - 1;
-  const shown = terms.map((t) => show(t, precision, rounding, fractions));
+  const shown = terms.map((t) => show(t, precision, rounding, width));
   const unrounded = shown[last]!;
-  // With fractions, an exact remainder whose fraction fits is written as
-  // it is, entire, so there is nothing to round and nothing carries.
+  // With the ratio notation, an exact remainder whose ratio fits is
+  // written as it is, entire, so there is nothing to round and nothing
+  // carries.
   const asFraction = unrounded.kind === "exact" && unrounded.fraction === true;
   const certified =
     unrounded.kind === "partial" && unrounded.certified > 0
@@ -521,7 +523,7 @@ function listResult(
       .slice(0, last)
       .some((count, i) => !equals(count.mid, terms[i]!.mid));
   const remainder = carried
-    ? show(rounded[last]!, precision, rounding, fractions)
+    ? show(rounded[last]!, precision, rounding, width)
     : unrounded;
   const all = rounded.map((value, i) => {
     const negative = sign(value.mid) < 0;
@@ -535,7 +537,7 @@ function listResult(
         : remainder.kind === "zero"
           ? remainder
           : remainder.kind === "exact" && remainder.fraction === true
-            ? show(exact(magnitude), precision, rounding, true)
+            ? show(exact(magnitude), precision, rounding, width)
             : { kind: "exact", text: format(magnitude, certified, rounding) };
     return {
       value,
@@ -577,7 +579,7 @@ function listResult(
 function functionResult(
   conversion: Extract<Conversion, { kind: "function" }>,
   context: NumberContext,
-  fractions: boolean,
+  width: number | undefined,
 ): Outcome {
   const { haveExpr, name, value, unit } = conversion;
   const { relation, result } = line(
@@ -585,7 +587,7 @@ function functionResult(
     value,
     unit.text === "1" ? undefined : unit.expr,
     context,
-    fractions,
+    width,
   );
   const call = expr({
     kind: "call",

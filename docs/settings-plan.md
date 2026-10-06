@@ -151,7 +151,8 @@ Each step is one design note in docs/, reviewed, then one or more
 implementation PRs that also update README's "Settings" and
 ARCHITECTURE.md for what they change. The order is by dependency: the
 model before the surface, the storage before any rename, the user's guide
-last. S2 and S3 are independent of each other and could swap.
+last. S2 and S3 are independent of each other and could swap; S2b
+extends S2 and lands with it.
 
 ### S1. Persistence: a version, migrations, and reset
 
@@ -189,6 +190,29 @@ last. S2 and S3 are independent of each other and could swap.
   for a third mode value (the mode type reaches `NumberContext`), high if
   Digits splits (every reader of `precision`). **Size.** Medium to large,
   by the decisions.
+
+### S2b. The working digits of decimal mode
+
+- **Scope.** A floor on the digits every step of decimal mode is
+  computed at, apart from Digits, which the answer is shown with: the
+  guard digits a calculator keeps hidden, so that `ln(exp(1/10))` at
+  eight digits can show `0.1` rather than the first rounding's error.
+  Added after S2's note, on the owner's ruling (docs/working-digits.md,
+  D27). Decimal mode alone; exact mode's working precision is the retry
+  schedule's.
+- **Decisions.** In the note: the last step of a displayed value is
+  rounded to Digits directly from its exact result, every other step to
+  the working digits; the setting lives inside the decimal variant of
+  the mode setting as `Working`, "same as Digits" by default or a fixed
+  count in `[Digits, precision limit]`, clamped in that order; the panel
+  shows a checkbox and a number under the Mode select in decimal mode.
+- **Depends on.** S2, whose mode setting it extends; implemented with
+  S2 in one change by the note's recommendation.
+- **Touches.** context.ts (an optional `working` in `NumberContext`),
+  evaluate.ts (children at the working context), settings.ts, the
+  panel, D26 (amended by D27).
+- **Core impact.** Low: one field and one line in the evaluator; the
+  display is unchanged. **Size.** Small, on top of S2.
 
 ### S3. The limits: Digits, the precision limit, Most bits
 

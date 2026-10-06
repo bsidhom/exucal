@@ -159,24 +159,53 @@ that can sit on a boundary are the algebraic ones, roots and powers with
 rational exponents, whose exact cases are detected before the kernel
 runs where they are recognized: `sqrt(6.25)` and `6.25^(1/2)` are
 `= 2.5` today, while `6.25^0.5` and `pow(6.25, 0.5)` are not recognized
-and go to the kernel. At the ceiling the result is the midpoint's rounding, exact: that
-is what a calculator prints, and it is wrong only for an algebraic
-boundary value the exact cases missed, which is a gap in the exact cases
-to close where it is found (`6.25^0.5` and `pow(6.25, 0.5)` at one
-digit, a tie at `2.5` the exact cases miss, are the known ones; today's
-decimal mode shows the second as `≈ 2` with no digit certain). The alternative, refusing the call
-as `unresolved`, was weighed and set aside: it would refuse a value every
-calculator answers, over a case that is a missing exact case. The
-ceiling thereby has a meaning in decimal mode, the most digits any one
-call's certification may compute at, which #86 found it lacked; S3 takes
-that up.
+and go to the kernel. The ceiling is therefore a computation limit that
+lets the mode always answer: at it, the result is the midpoint's
+rounding in `R`, which is what a calculator prints, and it is wrong only
+for an algebraic boundary value the exact cases missed (`6.25^0.5` and
+`pow(6.25, 0.5)` at one digit, a tie at `2.5`, are the known ones;
+today's decimal mode shows the second as `≈ 2` with no digit certain),
+a gap to close where it is found.
+
+The owner's ruling is that such a result is rounded and answered, and
+that the app says it was not certified: the value is exact under the
+mode's fixed-precision rounding, and the last digit is nonetheless one
+the computation could not vouch for, because the step secretly worked at
+a higher precision and the collapse to `p` digits lost the one fact it
+needed. How that is carried is new ground, and the decimal design
+session settles it; the candidates, so that it starts from something:
+
+- **A flag on the value, not a radius.** The decimal-mode value stays
+  exact, radius zero, and carries a bit that says a step in its history
+  was rounded without certification; every operation on a flagged
+  operand produces a flagged result, as IEEE 754's inexact flag is
+  sticky through a computation, and the display writes the line with a
+  mark and a note ("a step could not be certified at the precision
+  limit") in place of `=`. This keeps the promise's invariant, every
+  value a `p`-digit decimal, and reports the one thing the radius was
+  good for without carrying a radius.
+- **A radius at the ceiling alone.** The uncertified result keeps the
+  ball the ceiling produced instead of collapsing it, and the existing
+  display rule then marks what it does not certify. Set aside in
+  advance: the radius would then propagate through the rest of the
+  expression, which is the mismatch this note removes.
+- **A refusal**, `unresolved` at the call: set aside, since it would
+  refuse a value every calculator answers, over a case that is a missing
+  exact case.
+
+The flag is the direction; its shape in `Ball` or beside it, what the
+display says, and whether the pipeline reports it as the notes report
+partial digits today, are the session's to decide. The ceiling thereby
+has a meaning in decimal mode, the most digits any one call's
+certification may compute at, which #86 found it lacked; S3 takes that
+up.
 
 **A result that is zero.** A function whose exact value is zero at an
 exact argument is an exact case (`sin(0 radian)`, `ln(1)`, `atan(0)`) and
 returns zero. A ball that contains zero without the exact case firing
 cannot certify any digit, and at the ceiling the midpoint's rounding
-applies as above, which for a midpoint within the radius of zero is
-taken as zero. In practice the arguments that make a function zero are
+applies as above, flagged as uncertified, which for a midpoint within
+the radius of zero is taken as zero. In practice the arguments that make a function zero are
 exact-case arguments; an inexact argument is rounded first and misses
 zero (`sin(pi() radian)` at eight digits is `sin(3.1415927 radian)`,
 which is `= -4.6410207e-8`, a calculator's answer, where today the mode
@@ -244,8 +273,9 @@ a fraction in decimal mode.
   the inexact paths of `^` (`powQuantity`'s roots): in decimal mode the
   function is computed at working contexts from `p` plus the guard up to
   the ceiling, in exact mode, until `certifies(ball, p, R)`; the result
-  is `roundTo(mid, p, R)`, exact; at the ceiling the midpoint's rounding.
-  The schedule is the pipeline's (`schedule` in pipeline.ts) at the node.
+  is `roundTo(mid, p, R)`, exact; at the ceiling the midpoint's rounding,
+  flagged as uncertified in the shape the session decides. The schedule
+  is the pipeline's (`schedule` in pipeline.ts) at the node.
 - **The lookup** rounds a unit once, exactly, and certifies an inexact
   unit as a call.
 - **`powBall`** in decimal mode takes the exact power where it fits and
@@ -282,9 +312,11 @@ radius zero; each node of the expression, a function call as a whole
 included, forms the exact result of its exact operands and rounds it
 once to `p` digits in the rounding mode; a built-in's rounding is
 certified by computing the function at rising precision until both ends
-of its ball round alike, with the midpoint's rounding at the ceiling;
-the display writes every decimal-mode value with `=`; the fractions
-display does not apply. D15's decimal-mode half, under which the exact
+of its ball round alike, and at the ceiling the midpoint's rounding is
+taken and the result flagged as uncertified, the ceiling being the
+computation limit that lets the mode always answer; the display writes
+every decimal-mode value with `=`, the flagged ones with a mark and a
+note; the fractions display does not apply. D15's decimal-mode half, under which the exact
 rounding error of every step went into the radius, is withdrawn: the
 radius answered how far the rounded value lies from the real number, and
 in this mode the rounded value is the answer. Exact mode is unchanged.
@@ -301,8 +333,10 @@ in this mode the rounded value is the answer. Exact mode is unchanged.
   a test shows a call that fails to certify at its first working
   precision and succeeds at its second.
 - `sqrt(9/4)` is `= 1.5`; `6.25^0.5` and `pow(6.25, 0.5)` at one digit
-  are recorded as the ceiling fallback's known cases, or their exact
-  case is added.
+  are answered as the midpoint's rounding and reported as uncertified,
+  or their exact case is added and they are `= 2` under `halfEven`.
+- An uncertified step is reported on the line, in the shape the session
+  decides, and the flag survives the operations after it.
 - `1e999999999 + 1` at eight digits is `= 1e+999999999`, and under
   `ceiling` it is `= 1.0000001e+999999999`.
 - `approx(1/3)` in decimal mode is `= 0.33333333`, as `1/3` is.

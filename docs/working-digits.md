@@ -2,8 +2,10 @@
 
 The design note for step S2b of docs/settings-plan.md, written after
 the decimal mode's restatement (D26, docs/decimal-mode.md) landed and
-the S2 note (docs/settings-modes.md) was reviewed, and before either is
-implemented. It adds one thing to decimal mode: a floor on the digits
+the S2 note (docs/settings-modes.md) was reviewed, and before either was
+implemented. **Status: implemented** with S2 in one change; "As landed"
+at the end says what the implementation settled. It adds one thing to
+decimal mode: a floor on the digits
 every step is computed at, set apart from the digits the answer is shown
 with, so that a short chain of operations does not visibly lose digits.
 Exact mode is untouched: it has no such setting and needs none, since
@@ -177,12 +179,15 @@ needs.
   for an extended count; the migration.
 - `src/settings-panel.ts`: the control above.
 - Tests: `ln(exp(1/10))` and `1/3 * 3` at eight digits over twelve, in
-  each rounding mode, against exact mode's certified digits at eight (the
-  answer of the last step over twelve-digit operands rounds to the same
-  eight digits as the exact value whenever the twelve-digit error is
-  below half a unit of the eighth, which these are); the clamp's order;
-  a version 2 fixture; the panel's control present in decimal mode only
-  and its input present only with "extended" checked.
+  each rounding mode: under the modes to nearest the answer is exact
+  mode's, `0.1` and `1`, since the twelve-digit error is below half a
+  unit of the eighth digit; under a directed mode the exact value sits
+  on the grid, so any error crosses it and the answer is the neighbor in
+  the mode's direction (`0.099999999` toward zero, `0.10000001` away),
+  which is the correctly rounded value of the last step and what a
+  calculator in that mode shows; the clamp's order; a version 2 fixture;
+  the panel's control present in decimal mode only and its input present
+  only with "extended" checked.
 - Docs: docs/decimal-mode.md (the promise's point 2 gains the last
   step's rounding; "As landed"), D26 amended as D27 says below, README
   ("Settings", the Mode and Digits entries), ARCHITECTURE.md
@@ -220,3 +225,31 @@ alone when this is taken up, it is a version 4 on its own.
   calculators ship, is a question for S3's look at the defaults.
 - **The uncertified mark (#173), `approx` (#171) and the vocabulary
   (#172).**
+
+## As landed
+
+- **`operandContext`** in context.ts is the context a step's operands
+  are computed at: in decimal mode with working digits above the
+  precision, the context at the working digits, otherwise the context
+  itself; idempotent, so an operand's operands are at the same context.
+  The evaluator uses it for every node's operands, a built-in's
+  arguments, and a function's conditions, whose terms are no part of a
+  displayed value; a user-defined function's body is the call's step, so
+  its root is at the call's context. The pipeline evaluates the have and
+  want texts at it and steps the ratio, a list's terms and a function's
+  count at the user's context, and `evaluateText`, whose value is the
+  one shown, keeps its root at the user's context. A context derived at
+  another precision (`workingContexts`, `ceilingContext`) drops the
+  field, and `checkContext` holds it to an integer at or above the
+  precision within the cap the ceiling was derived from.
+- **The vocabulary** has a clash this note foresaw: the retry schedule's
+  contexts are "working contexts" throughout the core, and the step
+  callbacks name their parameter `working`, beside a field `working`
+  that is the setting's digits. The field keeps the note's name and the
+  clash is #172's to settle.
+- **The directed modes** give the neighbor of a grid value, as the tests
+  bullet above now says; the note's first draft claimed every mode
+  matched exact mode, which holds for the modes to nearest alone.
+- **The panel** offers the last extended count when "extended" is
+  checked again in a session, and Digits otherwise; the count's input is
+  labeled "Extended working digits" for assistive technology.

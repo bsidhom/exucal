@@ -1317,6 +1317,21 @@ every step went into the radius, is withdrawn: the radius answered how
 far the rounded value lies from the real number, and in this mode the
 rounded value is the answer. Exact mode is unchanged.
 
+**D27. Decimal mode rounds every step but the last to the working
+digits, a setting of the mode at or above Digits, and the last step of
+a displayed value to Digits, directly from its exact result (ruled by
+the owner on the case of `ln(exp(1/10))`, after S2's note; S2b of
+docs/settings-plan.md).** docs/working-digits.md is the design. The
+working digits default to Digits, under which the mode is D26 as
+landed; set above Digits they keep a step's rounding out of the answer,
+as a calculator's hidden digits do, so that `ln(exp(1/10))` at eight
+digits over twelve is `= 0.1`. The last step is rounded once, from the
+exact result of its operation on working-digit operands, so that the
+answer is never a double rounding; the root of the `have` expression,
+the conversion's ratio, a list's counts and remainder, a function want's
+count and the reciprocal are each that last step. Exact mode has no such
+setting: its working precision is the retry schedule's.
+
 ## Stage 1: the context and the ball
 
 Firm. What lands: the seven rounding modes, named once; the context in

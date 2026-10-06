@@ -422,12 +422,19 @@ the ceiling context (`ceilingContext`), once per ceiling, by
 unit's precision is fixed when the table is built and must lie above every pass, and one
 ceiling serves every digits setting under one cap, so the table is rebuilt
 only when the cap changes. The user's context comes from the settings ("UI" below): the digits, the
-rounding mode, the exact or decimal mode, and the two limits, from which
-the ceiling is derived. In decimal mode the schedule is the user's
-context alone: one pass at the digits asked for, every operation rounding
-in the mode, and the display marking what the radius does not certify
-without escalating, since a higher internal precision would compute
-something other than what the mode asks for.
+rounding mode, the exact or decimal mode with its working digits, and
+the two limits, from which the ceiling is derived. In decimal mode the
+schedule is the user's context alone: one pass at the digits asked for,
+every operation rounding in the mode, and the display marking what the
+radius does not certify without escalating, since a higher internal
+precision would compute something other than what the mode asks for.
+With the working digits above the digits asked for (D27,
+docs/working-digits.md), the evaluator computes each node's operands at
+`operandContext`, the context at the working digits, and the node at
+its own context, so that every step but the last is rounded to the
+working digits and the last step of a displayed value (the root of a
+bare expression, the ratio, a list's terms, a function's count) to the
+digits asked for, from its exact result.
 
 **Settling.** Every result the evaluator produces, and every unit the
 lookup hands out, is settled to the working context (the plan's D15):
@@ -1426,7 +1433,7 @@ as there is none for a list.
 
 The output shows the two texts and the value between `=` or `≈`, decided by
 `show` of `src/core/display.ts` at the digits and in the rounding mode of
-the user's settings (eight digits, half away from zero, by default; the
+the user's settings (eight digits, half even, by default; the
 digits asked for are kept apart from the working precision as "Precision
 and rounding" describes): `=` when the value's radius is zero and every
 digit it holds is shown, `≈` otherwise. What follows the relation is what
@@ -1442,14 +1449,17 @@ from zero is left out as a term of zero is, with its note, unless it is
 the only term; the reciprocal line shows its own kind. The settings are the shell's
 (`src/settings.ts`, kept in `localStorage`, validated on the way in with
 the dependent ones clamped, so that a stale entry never leaves the app
-without a consistent context): the digits, the rounding mode, the exact
-or decimal mode, the cap on the digits and the range limit in bits (the
-plan's D16), reaching the component as
-its `context` property, the same `NumberContext` the pipeline takes, whose
-ceiling, the top of the retry schedule, is derived from the cap, and
-whether exact values are shown as reduced fractions, a display setting
-that reaches the component as its `fractions` property and the core
-never sees. A
+without a consistent context): the digits, the rounding mode, the mode
+with what belongs to it (exact mode the notation its exact values are
+written in, digits or a ratio in lowest terms; decimal mode its working
+digits, locked to Digits or an extended count; docs/settings-modes.md,
+docs/working-digits.md), the cap on the digits and the range limit in
+bits (the plan's D16), reaching the component as its `context`
+property, the same `NumberContext` the pipeline takes, whose ceiling,
+the top of the retry schedule, is derived from the cap and which carries
+the working digits when they are extended, and whether exact values are
+shown as ratios, a display setting that reaches the component as its
+`fractions` property and the core never sees. A
 button in the panel runs the probe of `src/limits.ts`, which times the
 costliest operation the app has on each axis at doubling sizes (an exact
 product with its reduction for the range limit, and for the cap one
@@ -1601,7 +1611,7 @@ src/edges.sweep.ts        the edge sweep at the text level: the pipeline and the
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
-src/settings.ts           Settings: the digits, the rounding mode, the exact or decimal mode, the two limits and the fractions display, in localStorage under a format version with migrations; contextOf, reset
+src/settings.ts           Settings: the digits, the rounding mode, the mode with its notation or working digits, and the two limits, in localStorage under a format version with migrations; contextOf, reset
 src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
 src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result, each two expressions the printer writes; src/outcome.test.ts checks them
 src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome

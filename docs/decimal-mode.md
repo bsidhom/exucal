@@ -80,7 +80,11 @@ In decimal mode, at `p` digits in the rounding mode `R`:
    on exact operands is the exact mathematical result rounded once to
    `p` digits in `R`. "Operation" means a node of the expression tree:
    each `+`, `-`, `*`, `/`, juxtaposition, `^`, each literal, each unit
-   looked up, and each function call as a whole.
+   looked up, and each function call as a whole. D27
+   (docs/working-digits.md) amends the `p`: every step but the last is
+   rounded to the working digits `w >= p`, a setting of the mode that
+   defaults to `p`, and the last step of a displayed value to `p`,
+   directly from its exact result.
 3. **A function call is one operation.** `gamma(1/2)` is spelled as one
    step and is one, as far as a user can observe: its value at the exact
    argument is computed to whatever precision certifying the `p`-digit
@@ -547,3 +551,8 @@ rediscovery:
   first, the operation run as the evaluator runs it, and the result
   required to be exact and the rounding of the exact result where that
   can be formed.
+- **The working digits** (D27, docs/working-digits.md) landed with the
+  settings of docs/settings-modes.md: the context carries them, the
+  evaluator computes a node's operands at them and the node at its own
+  context, and the pipeline's quotients are the last step of what they
+  show. With the setting at its default nothing above changes.

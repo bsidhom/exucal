@@ -85,6 +85,38 @@ The migration from 1 to 2 wraps the bare object in the envelope and
 changes nothing else, which is the point: the first real migration runs
 in every user's browser with no semantic change to go wrong.
 
+Version 3 (S2 and S2b, docs/settings-modes.md and docs/working-digits.md)
+is the first that changes meaning. The mode is a nested choice carrying
+what belongs to it, in place of the mode name and the `fractions` flag:
+
+```json
+{
+  "version": 3,
+  "savedBy": "…",
+  "settings": {
+    "digits": 8,
+    "rounding": "halfEven",
+    "mode": { "kind": "exact", "notation": "ratio" },
+    "maxDigits": 1000,
+    "maxBits": 65536
+  }
+}
+```
+
+`mode` is `{ "kind": "exact", "notation": "digits" | "ratio" }` or
+`{ "kind": "decimal", "working": { "kind": "digits" } | { "kind":
+"extended", "digits": 12 } }`. The migration from 2 to 3 builds it from
+the two stored fields (`decimal` with its working digits locked to
+Digits; `exact` with the notation `ratio` when the stored `fractions`
+was `true` and `digits` otherwise), drops `fractions`, and carries the
+rounding default's change in the same step: a stored `halfAwayFromZero`,
+the old default echoed by every save, becomes `halfEven`. A mode that is
+neither name passes through for the validation to default, as S1
+requires; the validation of version 3 accepts a `mode` only when it is
+an object of one of the two shapes, defaulting the whole field
+otherwise, and the clamp brings an extended count of working digits
+between Digits and the precision limit.
+
 The storage key stays `settings`.
 
 ## One version for the whole record

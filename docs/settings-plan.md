@@ -170,6 +170,10 @@ extends S2 and lands with it.
 
 ### S2. Mode, rounding and fractions
 
+Implemented, with S2b, in one change (docs/settings-modes.md, "As
+landed"); the fit rule is retained and is a step of its own after S2b,
+with #91 and #95.
+
 - **Scope.** What the mode setting is and how it relates to the fractions
   display (P4, #97); what Digits means in each mode and whether it should
   be one setting or two, digits shown apart from working precision (P6);
@@ -192,6 +196,8 @@ extends S2 and lands with it.
   by the decisions.
 
 ### S2b. The working digits of decimal mode
+
+Implemented with S2 (docs/working-digits.md, "As landed"; D27).
 
 - **Scope.** A floor on the digits every step of decimal mode is
   computed at, apart from Digits, which the answer is shown with: the

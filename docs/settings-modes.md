@@ -11,12 +11,14 @@ line explains (P8). This note settles the first, the third and the
 fourth, decides the names of the modes (P12, the mode half), and sends
 the fit rule to a step of its own with the ideas it has gathered.
 
-**Status: resumed.** The review of the first draft reopened what decimal
-mode is, and docs/decimal-mode.md restated it (D26): every operation one
-correctly rounded step, every value exact, no radius. That restatement
-has landed, with a guard in the outcome keeping the fractions display
-out of decimal mode, so every place this note leans on D26 now describes
-the code as it is. The first
+**Status: implemented**, with S2b (docs/working-digits.md) in one
+change; "As landed" at the end says where the code settled what the
+note left to the panel. The review of the first draft reopened what
+decimal mode is, and docs/decimal-mode.md restated it (D26): every
+operation one correctly rounded step, every value exact, no radius. That
+restatement landed first, with a guard in the outcome keeping the
+fractions display out of decimal mode, so every place this note leans on
+D26 describes the code as it is. The first
 draft's ruling of one mode with three values, and its fit rule by a
 constant, were set aside in the same review and are recorded below as
 weighed; the second review ruled the shape of the mode setting and
@@ -391,3 +393,28 @@ mode is in force:
 - **The panel's layout, grouping and disclosure (P13):** S4. This step
   changes the controls the model requires and no more.
 - **The reciprocal's retry and refusals (#92).**
+
+## As landed
+
+- **The notation's control** is a checkbox under the Mode select,
+  labeled "Notation" and named for the `ratio` value, present in exact
+  mode alone; decimal mode shows its working digits in the same place
+  (docs/working-digits.md). Each control emits the whole variant, and
+  the Mode select emits the chosen mode's variant at its defaults
+  (`DEFAULT_MODES` in settings.ts), so a change of mode is one event.
+- **The stored shape** is version 3 as above, with the decimal variant
+  carrying its `working` (docs/settings-storage.md); one migration from
+  version 2 builds the variant, drops `fractions` and carries
+  `halfAwayFromZero` to `halfEven`. A version 3 `mode` is validated as a
+  whole and built afresh from its fields, so a stray field of the other
+  variant is never carried.
+- **The lines** under Digits, Rounding, Mode and the precision limit are
+  functions of the mode in force; the precision limit's line says that
+  in decimal mode it bounds the hidden digits a step's rounding is
+  certified at. `min-width: 0` on the panel's labels is the belt #147
+  suggested; the select's short options are what fixes it, and the
+  panel fits a 360-pixel viewport with nothing to scroll sideways.
+- **The outcome's guard** stays, with its test, as the note says; the
+  shell passes `showsRatios(settings)` to the component.
+- **The default rounding's change** reached the two tests that rounded a
+  tie at the default (`round(2.5)` is `2`), and nothing else.

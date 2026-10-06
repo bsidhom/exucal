@@ -129,6 +129,18 @@ implied.
   note keeps the refusal, which is D17's rule for decimal mode already,
   and records the gradual alternative for the day the bound is reached
   in practice.
+
+  The owner's ruling, in the review: a denominator of one is the
+  provisional rule and representation. Its merit is that a decimal-mode
+  value is then always representable in the decimal system directly,
+  without fighting the rational's reduction, where a flexing denominator
+  means trading powers of ten between the mantissa and the exponent to
+  keep the two balanced, as the `2.54` example shows. Neither fix is
+  wholly satisfying; this one is taken, and it is a point to come back
+  to as the implementation gels, listed under "Provisional, to revisit"
+  below so that the backtracking point is on record, which the first
+  decimal-mode design did not do for its radius propagation.
+
 - **The range limit is nearly idle.** Most bits bounds the size of a
   numerator or a denominator. With the denominator fixed, only the
   numerator can grow, to `p` digits, and the limit binds only the exact
@@ -246,16 +258,22 @@ settles it; the candidates, so that it starts from something:
   was rounded without certification; every operation on a flagged
   operand produces a flagged result, as IEEE 754's inexact flag is
   sticky through a computation, and the display marks the line. How it
-  marks it is to be decided; the leaning is `≈` as exact mode uses it,
-  with a mark or a note beside it that says the digits are uncertified
-  rather than rounded ("a step could not be certified at the precision
-  limit"), since `≈` alone would read as exact mode's rounding. No
-  established design language says "uncertified" concisely; a glyph
-  could be invented or borrowed (`≆`, "approximately but not actually
-  equal to", is the nearest Unicode has) and explained once in README.
-  This keeps the promise's invariant, every value a `p`-digit decimal,
-  and reports the one thing the radius was good for without carrying a
-  radius.
+  marks it, by the owner's proposal: the line's relation is `≈` as
+  exact mode uses it, with a dot above the glyph, an equality-like sign
+  with a special semantic, here that the value is not known to be equal;
+  beside it a note in the style of exact mode's ("a step could not be
+  certified at the precision limit"), since `≈` alone would read as
+  exact mode's rounding. `≆`, "approximately but not actually equal to",
+  was weighed and rejected: it asserts an inequality the app cannot
+  attest, since the uncertified digits may be exactly right. Unicode has
+  no precomposed "almost equal to with dot above", so the text form is
+  `≈` followed by the combining dot above (U+2248 U+0307, `≈̇`), used
+  where a plain string is needed, and the component draws the dot itself
+  over the `≈` so that the mark does not depend on a font's placement of
+  a combining mark; the accessible name says "approximately,
+  uncertified", and README explains the sign once. This keeps the
+  promise's invariant, every value a `p`-digit decimal, and reports the
+  one thing the radius was good for without carrying a radius.
 - **A radius at the ceiling alone.** The uncertified result keeps the
   ball the ceiling produced instead of collapsing it, and the existing
   display rule then marks what it does not certify. Set aside in
@@ -350,8 +368,8 @@ display's `exact` kind applies to every line: `=`, every digit, no note.
 certain" never appear in decimal mode for a rounding the mode certified;
 they are exact mode's, where the value is a real number known to a
 radius. The one exception is a value carrying the uncertified flag of
-"The ceiling" above, whose rendering is still to be finalized there: the
-leaning is `≈` with a mark that says uncertified. The display rule
+"The ceiling" above, whose rendering is decided there: `≈` with a dot
+above, and a note. The display rule
 itself does not change for the rest: it reads the radius, and the radius
 is zero.
 
@@ -416,8 +434,8 @@ taken and the result flagged as uncertified, the ceiling being the
 computation limit that lets the mode always answer; a user-defined
 function is its body and rounds at each step, exactly as its expanded
 form does; dimensions carry rational powers in every mode; the display
-writes every decimal-mode value with `=`, the flagged ones with a mark
-whose form is to be finalized; the fractions display does not apply. D15's decimal-mode half, under which the exact
+writes every decimal-mode value with `=`, the flagged ones with `≈`
+under a dot above and a note; the fractions display does not apply. D15's decimal-mode half, under which the exact
 rounding error of every step went into the radius, is withdrawn: the
 radius answered how far the rounded value lies from the real number, and
 in this mode the rounded value is the answer. Exact mode is unchanged.
@@ -443,6 +461,23 @@ in this mode the rounded value is the answer. Exact mode is unchanged.
 - `approx(1/3)` in decimal mode is `= 0.33333333`, as `1/3` is.
 - The docs listed above say what the mode does, and no doc describes a
   decimal-mode value as inexact.
+
+## Provisional, to revisit
+
+Rulings taken here that the implementation may show to be wrong, kept
+on record so that backtracking from them is a decision and not a
+rediscovery:
+
+- **The denominator fixed at one** ("The denominator, and what fixing it
+  costs"): the alternative is a denominator flexing by powers of ten,
+  which gives gradual underflow at the exponent bound.
+- **The uncertified flag's shape**, in `Ball` or beside it, and whether
+  the pipeline reports it as the notes report partial digits today ("The
+  ceiling"). The mark it is shown with is decided; where the bit lives is
+  not.
+- **The midpoint's rounding at the ceiling** as the answer for an
+  uncertified call, rather than a refusal, should an exact case prove
+  common enough to be missed in practice.
 
 ## Not in this note
 

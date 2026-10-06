@@ -13,6 +13,8 @@ import {
   checkContext,
   maxDigitsFor,
   modeOf,
+  operandContext,
+  workingContexts,
   type NumberContext,
 } from "./context.ts";
 import { bitsFor } from "./fixed.ts";
@@ -192,4 +194,93 @@ test("maxDigitsFor is the largest cap whose ceiling fits half the range limit", 
   // A range limit too small for any digits gives zero.
   assert.equal(maxDigitsFor(100), 0);
   assert.equal(maxDigitsFor(1), 0);
+});
+
+test("the working digits are an integer at or above the precision within the cap, and checkContext rejects the rest (D27)", () => {
+  const decimal: NumberContext = {
+    precision: 8,
+    rounding: "halfEven",
+    maxBits: DEFAULT_MAX_BITS,
+    ceiling: DEFAULT_CEILING,
+    mode: "decimal",
+  };
+  for (const working of [8, 12, 100, DEFAULT_MAX_DIGITS]) {
+    checkContext({ ...decimal, working });
+  }
+  for (const working of [
+    7,
+    0,
+    -1,
+    8.5,
+    NaN,
+    Infinity,
+    DEFAULT_MAX_DIGITS + 1,
+  ]) {
+    assert.throws(
+      () => checkContext({ ...decimal, working }),
+      RangeError,
+      `${working}`,
+    );
+  }
+  // The same bounds in exact mode, where the field is carried and ignored.
+  checkContext({ ...decimal, mode: "exact", working: 12 });
+  assert.throws(
+    () => checkContext({ ...decimal, mode: "exact", working: 7 }),
+    RangeError,
+  );
+});
+
+test("operandContext is the context at the working digits in decimal mode, and the context itself otherwise (D27)", () => {
+  const decimal: NumberContext = {
+    precision: 8,
+    rounding: "floor",
+    maxBits: 4096,
+    ceiling: 840,
+    mode: "decimal",
+  };
+  const extended = { ...decimal, working: 12 };
+  assert.deepEqual(operandContext(extended), { ...extended, precision: 12 });
+  // Idempotent: an operand's operands are computed at the same context.
+  const inner = operandContext(extended);
+  assert.equal(operandContext(inner), inner);
+  // Absent or equal to the precision, and in exact mode, the context itself.
+  assert.equal(operandContext(decimal), decimal);
+  const locked = { ...decimal, working: 8 };
+  assert.equal(operandContext(locked), locked);
+  const exact = { ...decimal, mode: "exact" as const, working: 12 };
+  assert.equal(operandContext(exact), exact);
+  const plain = { ...decimal, mode: undefined, working: 12 };
+  assert.equal(operandContext(plain), plain);
+});
+
+test("a context derived at another precision does not carry the working digits", () => {
+  const context: NumberContext = {
+    precision: 8,
+    rounding: "halfEven",
+    maxBits: 4096,
+    ceiling: 840,
+    mode: "decimal",
+    working: 12,
+  };
+  const { working: _working, ...plain } = context;
+  // The schedule's contexts, which the decimal mode's steps run through in
+  // exact mode, and the ceiling context the table is built at.
+  assert.deepEqual(workingContexts(context), workingContexts(plain));
+  for (const each of workingContexts(context)) checkContext(each);
+  assert.deepEqual(ceilingContext(context), ceilingContext(plain));
+  assert.ok(!("working" in ceilingContext(context)));
+  checkContext(ceilingContext(context));
+  // At the ceiling in exact mode, the field still makes a new context.
+  const top = {
+    ...plain,
+    mode: "exact" as const,
+    precision: 840,
+    working: 840,
+  };
+  assert.deepEqual(ceilingContext(top), {
+    ...plain,
+    mode: "exact",
+    precision: 840,
+  });
+  assert.ok(!("working" in ceilingContext(top)));
 });

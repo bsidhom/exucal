@@ -113,7 +113,13 @@
 // exact mode and in decimal mode (D26; docs/decimal-mode.md) computes it
 // at rising precision until its rounding is certified and rounds it once,
 // exact, with `approx` the identity there and the flag of a rounding the
-// ceiling left uncertified carried by every operation after it. A sum whose
+// ceiling left uncertified carried by every operation after it. A node's
+// operands are evaluated at `operandContext` (D27, docs/working-digits.md):
+// in decimal mode with working digits above the precision, every step
+// below the node is rounded to the working digits and the node alone to
+// its context's precision, so the root of an expression is the one step
+// rounded to the digits asked for; otherwise the context is the same
+// throughout. A sum whose
 // operands do not conform (`1 m + 1 s`) points at the whole sum for the
 // same reason, and carries the span of each operand besides, so that a
 // message can say what each one is; a call whose argument does not conform
@@ -163,7 +169,7 @@ import type {
   DomainReason,
   Edge,
 } from "./builtin.ts";
-import { modeOf, type NumberContext } from "./context.ts";
+import { modeOf, operandContext, type NumberContext } from "./context.ts";
 import type { Comparator } from "./definitions.ts";
 import { err, ok, type Result } from "./result.ts";
 import type { Span } from "./span.ts";
@@ -424,7 +430,12 @@ function firstOperand(expr: Expr): Span | undefined {
   }
 }
 
-/** One node of `evaluate`, its operands evaluated (and settled) recursively. */
+/**
+ * One node of `evaluate`, its operands evaluated (and settled) recursively
+ * at the operand context (`operandContext`): in decimal mode with working
+ * digits, every step below this one is rounded to them and this step to
+ * the digits of `context` (D27); otherwise the same context throughout.
+ */
 function evaluateNode<E>(
   expr: Expr,
   lookup: Lookup<E>,
@@ -433,6 +444,7 @@ function evaluateNode<E>(
   assumptions: Assumption[] | undefined,
 ): Result<Quantity, EvaluateError | E> {
   const { node, span } = expr;
+  const inner = operandContext(context);
   switch (node.kind) {
     case "number": {
       // The parser checked the literal's mantissa against the hard bound
@@ -459,19 +471,13 @@ function evaluateNode<E>(
       );
     }
     case "binary": {
-      const left = evaluate(
-        node.left,
-        lookup,
-        primitives,
-        context,
-        assumptions,
-      );
+      const left = evaluate(node.left, lookup, primitives, inner, assumptions);
       if (!left.ok) return left;
       const right = evaluate(
         node.right,
         lookup,
         primitives,
-        context,
+        inner,
         assumptions,
       );
       if (!right.ok) return right;
@@ -528,13 +534,7 @@ function evaluateNode<E>(
       }
     }
     case "pow": {
-      const base = evaluate(
-        node.base,
-        lookup,
-        primitives,
-        context,
-        assumptions,
-      );
+      const base = evaluate(node.base, lookup, primitives, inner, assumptions);
       if (!base.ok) return base;
       const exponent = reduceExponent(node.exponent, context.maxBits);
       if (!exponent.ok) {
@@ -575,7 +575,7 @@ function evaluateNode<E>(
         node.operand,
         lookup,
         primitives,
-        context,
+        inner,
         assumptions,
       );
       if (!operand.ok) return operand;
@@ -618,7 +618,7 @@ function evaluateNode<E>(
           argumentExpr,
           lookup,
           primitives,
-          context,
+          inner,
           assumptions,
         );
         if (!argument.ok) return argument;
@@ -730,9 +730,12 @@ function applyBuiltin<E>(
 ): Result<Quantity, EvaluateError | E> {
   const { node, span } = expr;
   if (node.kind !== "call") throw new Error("A built-in is applied by a call");
+  // The arguments are the call's operands, computed at the operand
+  // context (D27); the call is the step at `context`.
+  const inner = operandContext(context);
   const values: Quantity[] = [];
   for (const argument of node.arguments) {
-    const value = evaluate(argument, lookup, primitives, context, assumptions);
+    const value = evaluate(argument, lookup, primitives, inner, assumptions);
     if (!value.ok) return value;
     values.push(value.value);
   }
@@ -889,6 +892,9 @@ export function checkConditions<E>(
   context: NumberContext,
   assumptions: Assumption[],
 ): Result<undefined, ConditionFailure<E>> {
+  // A condition's terms are no part of a displayed value: they are
+  // computed and compared at the operand context (D27).
+  const inner = operandContext(context);
   const terms: Assumption[] = [];
   const assumed: Assumption[] = [];
   for (const condition of conditions) {
@@ -898,7 +904,7 @@ export function checkConditions<E>(
       bindings,
       lookup,
       primitives,
-      context,
+      inner,
       terms,
     );
     let decided = true;
@@ -909,7 +915,7 @@ export function checkConditions<E>(
         bindings,
         lookup,
         primitives,
-        context,
+        inner,
         terms,
       );
       if (!right.ok) {
@@ -920,7 +926,7 @@ export function checkConditions<E>(
         left.value.magnitude,
         comparator,
         right.value.magnitude,
-        context,
+        inner,
       );
       if (verdict === "fails") return err({ kind: "failed", condition });
       if (verdict === "undecided") {

@@ -50,8 +50,9 @@
 // doublings of room for cancellation above it. The cap's own hard bound,
 // `maxDigitsFor`, follows from the range limit: a settled midpoint at the
 // ceiling must fit it with room for a product of two. The defaults are
-// the display's rules before the settings existed and the limits the
-// stage 1 code had: eight digits, half away from zero, 2^16 bits, and a
+// the display's rules before the settings existed, with the rounding
+// mode changed to ties-to-even by S2 of the settings plan, and the
+// limits the stage 1 code had: eight digits, half even, 2^16 bits, and a
 // cap of a thousand digits.
 //
 // A context whose precision is not a positive integer, whose rounding mode
@@ -143,8 +144,12 @@ export function workingDigits(context: NumberContext): Precision {
 /** The digits shown by default: GNU units' eight. */
 export const DEFAULT_DIGITS: Precision = 8;
 
-/** The rounding mode by default: to nearest, ties away from zero. */
-export const DEFAULT_ROUNDING: RoundingMode = "halfAwayFromZero";
+/**
+ * The rounding mode by default: to nearest, ties to even, IEEE 754's
+ * default and unbiased over many roundings where ties away from zero
+ * drift (docs/settings-modes.md).
+ */
+export const DEFAULT_ROUNDING: RoundingMode = "halfEven";
 
 /**
  * The range limit by default, 2^16 bits (about 19,700 decimal digits), at

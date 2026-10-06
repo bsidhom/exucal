@@ -49,6 +49,7 @@ import {
   isMaxBits,
   isMode,
   rangesOf,
+  showsRatios,
   type Settings,
 } from "../../src/settings.ts";
 
@@ -203,7 +204,15 @@ export function checkSettings(settings: Settings): void {
   if (!isIntegerIn(digits, ranges.digits)) {
     throw new RangeError(`Digits: ${digits} under a cap of ${maxDigits}`);
   }
-  if (!isMode(mode)) throw new RangeError(`Mode: ${String(mode)}`);
+  if (!isMode(mode.kind)) throw new RangeError(`Mode: ${String(mode.kind)}`);
+  if (mode.kind === "decimal" && mode.working.kind === "extended") {
+    const { digits: working } = mode.working;
+    if (!isIntegerIn(working, ranges.working)) {
+      throw new RangeError(
+        `Working digits: ${working} under ${digits} digits and a cap of ${maxDigits}`,
+      );
+    }
+  }
 }
 
 /**
@@ -437,7 +446,7 @@ function typeJob(c: Case): void {
       c.have.slice(0, length),
       c.want,
       context,
-      c.settings.fractions,
+      showsRatios(c.settings),
     );
     const ms = performance.now() - start;
     port.postMessage({
@@ -485,7 +494,7 @@ function runJob(job: { readonly stressCase: Case }): void {
       have,
       want,
       context,
-      settings.fractions,
+      showsRatios(settings),
       observe,
     );
     const ms = performance.now() - start;

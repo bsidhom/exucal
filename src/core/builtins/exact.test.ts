@@ -53,8 +53,10 @@ function run(source: string, context: NumberContext = CONTEXT): string {
 test("the exact functions through the pipeline, with their messages", () => {
   assert.equal(run("floor(3.7)"), "= 3");
   assert.equal(run("floor(sqrt(2))"), "= 1");
-  assert.equal(run("round(2.5)"), "= 3");
-  assert.equal(run("round(2.5)", at("halfEven")), "= 2");
+  // The default rounding is half even (S2 of the settings plan).
+  assert.equal(run("round(2.5)"), "= 2");
+  assert.equal(run("round(2.5)", at("halfAwayFromZero")), "= 3");
+  assert.equal(run("round(3.5)"), "= 4");
   assert.equal(run("round(3.14159, 2)"), "= 3.14");
   assert.equal(run("round(1234, -2)"), "= 1200");
   assert.equal(run("mod(-7, 2)"), "= 1");

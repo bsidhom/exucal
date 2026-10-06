@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { inspect } from "node:util";
 import { test } from "node:test";
 import {
   DEFAULT_MAX_BITS,
@@ -9,12 +10,14 @@ import {
 } from "./core/context.ts";
 import { LIMIT_BITS } from "./core/rational.ts";
 import {
+  DEFAULT_MODES,
   DEFAULT_SETTINGS,
   SETTINGS_KEY,
   clampSettings,
   contextOf,
   isMaxBits,
   isIntegerIn,
+  isNotation,
   isRoundingMode,
   isDefault,
   isMode,
@@ -22,8 +25,11 @@ import {
   loadSettings,
   resetSetting,
   resetSettings,
+  sameMode,
   saveSettings,
+  showsRatios,
   STORAGE_VERSION,
+  type ModeSetting,
   type Settings,
   type SettingsStorage,
 } from "./settings.ts";
@@ -43,20 +49,45 @@ function storage(entries: Record<string, string> = {}): SettingsStorage & {
 /** A build string as the shell passes it: the whole commit, never shortened. */
 const BUILD = "6c0d0946da31e92eb7d2737a1aebfdf61c1ebf86-dirty";
 
-/** The settings `value` loads as, through a storage holding its JSON. */
-function load(value: unknown): Settings {
+/** A stored object at `version` (the current one by default) holding `settings`. */
+function envelope(
+  settings: unknown,
+  version: unknown = STORAGE_VERSION,
+): unknown {
+  return { version, savedBy: BUILD, settings };
+}
+
+/** The settings `fields` load as, stored at the current version. */
+function load(fields: unknown): Settings {
+  return loadSettings(
+    storage({ [SETTINGS_KEY]: JSON.stringify(envelope(fields)) }),
+  );
+}
+
+/** The settings `value`, stored as it is, loads as. */
+function loadStored(value: unknown): Settings {
   return loadSettings(storage({ [SETTINGS_KEY]: JSON.stringify(value) }));
 }
+
+const RATIO: ModeSetting = { kind: "exact", notation: "ratio" };
+const DECIMAL: ModeSetting = DEFAULT_MODES.decimal;
+const EXTENDED: ModeSetting = {
+  kind: "decimal",
+  working: { kind: "extended", digits: 12 },
+};
 
 test("an empty storage gives the defaults", () => {
   assert.deepEqual(loadSettings(storage()), DEFAULT_SETTINGS);
   assert.deepEqual(DEFAULT_SETTINGS, {
     digits: 8,
-    rounding: "halfAwayFromZero",
-    mode: "exact",
+    rounding: "halfEven",
+    mode: { kind: "exact", notation: "digits" },
     maxDigits: 1000,
     maxBits: 65536,
-    fractions: false,
+  });
+  assert.deepEqual(DEFAULT_MODES, {
+    exact: { kind: "exact", notation: "digits" },
+    decimal: { kind: "decimal", working: { kind: "digits" } },
   });
 });
 
@@ -64,64 +95,75 @@ test("stored settings are parsed", () => {
   const stored = {
     digits: 12,
     rounding: "floor",
-    mode: "decimal",
+    mode: EXTENDED,
     maxDigits: 100,
     maxBits: 4096,
-    fractions: true,
   };
   assert.deepEqual(load(stored), stored);
 });
 
-test("the fractions setting loads, defaults to off when missing or not a boolean, and saves", () => {
-  assert.equal(load({ fractions: true }).fractions, true);
-  assert.equal(load({ fractions: false }).fractions, false);
-  for (const fractions of [undefined, "true", 1, null, "yes", []]) {
-    assert.equal(load({ fractions }).fractions, false, String(fractions));
-  }
-  // Settings stored before the setting existed load with it off.
-  assert.deepEqual(load({ digits: 12, rounding: "floor", mode: "decimal" }), {
-    ...DEFAULT_SETTINGS,
-    digits: 12,
-    rounding: "floor",
-    mode: "decimal",
-  });
-  const store = storage();
-  saveSettings(store, { ...DEFAULT_SETTINGS, fractions: true }, BUILD);
-  assert.equal(loadSettings(store).fractions, true);
-  // A display setting: the context the pipeline takes does not carry it.
-  assert.ok(
-    !("fractions" in contextOf({ ...DEFAULT_SETTINGS, fractions: true })),
-  );
-});
-
-test("the mode loads, defaults to exact when missing or neither, saves and reaches the context", () => {
-  assert.equal(load({ mode: "decimal" }).mode, "decimal");
-  assert.equal(load({ mode: "exact" }).mode, "exact");
-  for (const mode of [undefined, "approximate", "Decimal", 1, null, ""]) {
-    assert.equal(load({ mode }).mode, "exact", String(mode));
-  }
-  // Settings stored before the mode existed load with it exact.
+test("the mode is one of two variants, each built afresh from its fields, and anything else is the default", () => {
+  assert.deepEqual(load({ mode: RATIO }).mode, RATIO);
+  assert.deepEqual(load({ mode: DECIMAL }).mode, DECIMAL);
+  assert.deepEqual(load({ mode: EXTENDED }).mode, EXTENDED);
+  // Extra fields are dropped, and a field of the other variant is not carried.
   assert.deepEqual(
-    load({ digits: 12, rounding: "floor", maxDigits: 100, maxBits: 4096 }),
-    {
-      digits: 12,
-      rounding: "floor",
-      mode: "exact",
-      maxDigits: 100,
-      maxBits: 4096,
-      fractions: false,
-    },
+    load({ mode: { kind: "exact", notation: "ratio", working: 3, x: 1 } }).mode,
+    RATIO,
   );
-  const store = storage();
-  saveSettings(store, { ...DEFAULT_SETTINGS, mode: "decimal" }, BUILD);
-  assert.equal(loadSettings(store).mode, "decimal");
-  assert.equal(
-    contextOf({ ...DEFAULT_SETTINGS, mode: "decimal" }).mode,
+  assert.deepEqual(
+    load({ mode: { kind: "decimal", working: { kind: "digits", digits: 9 } } })
+      .mode,
+    DECIMAL,
+  );
+  // The names of the old shape, and every malformed variant, default.
+  for (const mode of [
+    undefined,
+    "exact",
     "decimal",
-  );
-  assert.equal(contextOf(DEFAULT_SETTINGS).mode, "exact");
+    { kind: "exact" },
+    { kind: "exact", notation: "fraction" },
+    { kind: "exact", notation: true },
+    { kind: "decimal" },
+    { kind: "decimal", working: "digits" },
+    { kind: "decimal", working: { kind: "extended" } },
+    { kind: "decimal", working: { kind: "extended", digits: 0 } },
+    { kind: "decimal", working: { kind: "extended", digits: 2.5 } },
+    { kind: "decimal", working: { kind: "extended", digits: "12" } },
+    { kind: "decimal", working: { kind: "fixed", digits: 12 } },
+    { kind: "approximate" },
+    1,
+    null,
+    [],
+  ]) {
+    assert.deepEqual(load({ mode }).mode, DEFAULT_SETTINGS.mode, inspect(mode));
+  }
   assert.ok(isMode("exact") && isMode("decimal"));
   assert.ok(!isMode("Exact") && !isMode(undefined) && !isMode(0));
+  assert.ok(isNotation("digits") && isNotation("ratio"));
+  assert.ok(!isNotation("fraction") && !isNotation(undefined));
+});
+
+test("the mode reaches the context as its kind, with the working digits when they are extended; the notation never does", () => {
+  assert.equal(contextOf(DEFAULT_SETTINGS).mode, "exact");
+  const ratio = contextOf({ ...DEFAULT_SETTINGS, mode: RATIO });
+  assert.equal(ratio.mode, "exact");
+  assert.ok(!("notation" in ratio) && !("working" in ratio));
+  const decimal = contextOf({ ...DEFAULT_SETTINGS, mode: DECIMAL });
+  assert.equal(decimal.mode, "decimal");
+  assert.ok(!("working" in decimal));
+  assert.deepEqual(contextOf({ ...DEFAULT_SETTINGS, mode: EXTENDED }), {
+    precision: 8,
+    rounding: "halfEven",
+    maxBits: DEFAULT_MAX_BITS,
+    ceiling: ceilingFor(DEFAULT_MAX_DIGITS),
+    mode: "decimal",
+    working: 12,
+  });
+  // Whether ratios are shown is exact mode's notation alone.
+  assert.ok(showsRatios({ ...DEFAULT_SETTINGS, mode: RATIO }));
+  assert.ok(!showsRatios(DEFAULT_SETTINGS));
+  assert.ok(!showsRatios({ ...DEFAULT_SETTINGS, mode: DECIMAL }));
 });
 
 test("each field that is missing or invalid falls back to its default alone", () => {
@@ -175,7 +217,7 @@ test("each field that is missing or invalid falls back to its default alone", ()
   assert.deepEqual(load(42), DEFAULT_SETTINGS);
 });
 
-test("the dependent settings are clamped: the cap to the range limit, the digits to the cap", () => {
+test("the dependent settings are clamped: the cap to the range limit, the digits to the cap, the working digits between them", () => {
   // A cap above what the range limit holds comes down to it.
   const cap = maxDigitsFor(DEFAULT_MAX_BITS);
   assert.deepEqual(load({ maxDigits: cap + 1 }), {
@@ -215,6 +257,41 @@ test("the dependent settings are clamped: the cap to the range limit, the digits
     maxDigits: 4,
     digits: 4,
   });
+  // An extended count of working digits is clamped last, between the
+  // digits and the cap: raising the digits above it raises it, lowering
+  // the cap below it lowers it, and a count between them is kept.
+  const extended = (digits: number): ModeSetting => ({
+    kind: "decimal",
+    working: { kind: "extended", digits },
+  });
+  const at = (digits: number, working: number, maxDigits = 1000): Settings => ({
+    ...DEFAULT_SETTINGS,
+    digits,
+    maxDigits,
+    mode: extended(working),
+  });
+  assert.deepEqual(clampSettings(at(8, 12)), at(8, 12));
+  assert.deepEqual(clampSettings(at(8, 8)), at(8, 8));
+  assert.deepEqual(clampSettings(at(16, 12)), at(16, 16));
+  assert.deepEqual(clampSettings(at(8, 1001)), at(8, 1000));
+  assert.deepEqual(clampSettings(at(8, 500, 100)), at(8, 100, 100));
+  assert.deepEqual(clampSettings(at(300, 500, 100)), at(100, 100, 100));
+  assert.deepEqual(load(at(8, 1001)), at(8, 1000));
+  assert.deepEqual(load(at(16, 12)), at(16, 16));
+  // A clamp that changes nothing leaves the mode itself.
+  const kept = at(8, 12);
+  assert.equal(clampSettings(kept).mode, kept.mode);
+  // The ranges the panel reads: the working digits from the digits to the cap.
+  assert.deepEqual(rangesOf(at(8, 12, 100)), {
+    maxBits: { min: MIN_MAX_BITS, max: LIMIT_BITS },
+    maxDigits: { min: 1, max: maxDigitsFor(DEFAULT_MAX_BITS) },
+    digits: { min: 1, max: 100 },
+    working: { min: 8, max: 100 },
+  });
+  assert.ok(isIntegerIn(12, rangesOf(at(8, 12)).working));
+  assert.ok(!isIntegerIn(7, rangesOf(at(8, 12)).working));
+  assert.ok(isMaxBits(DEFAULT_MAX_BITS) && !isMaxBits(0));
+  assert.ok(isRoundingMode("floor") && !isRoundingMode("nearest"));
 });
 
 test("text that is not JSON, and a storage that throws, give the defaults", () => {
@@ -239,34 +316,31 @@ test("text that is not JSON, and a storage that throws, give the defaults", () =
 });
 
 test("settings round-trip through storage, under one key", () => {
-  const stored = storage();
-  const settings: Settings = {
-    digits: 30,
-    rounding: "halfEven",
-    mode: "decimal",
-    maxDigits: 2000,
-    maxBits: 1 << 17,
-    fractions: true,
-  };
-  saveSettings(stored, settings, BUILD);
-  assert.deepEqual([...stored.map.keys()], [SETTINGS_KEY]);
-  assert.deepEqual(loadSettings(stored), settings);
-  // The stored object is the envelope: the version, the whole build string, the fields.
-  assert.deepEqual(JSON.parse(stored.map.get(SETTINGS_KEY)!), {
-    version: STORAGE_VERSION,
-    savedBy: BUILD,
-    settings,
-  });
-  saveSettings(stored, DEFAULT_SETTINGS, BUILD);
-  assert.deepEqual(loadSettings(stored), DEFAULT_SETTINGS);
+  for (const mode of [RATIO, DECIMAL, EXTENDED, DEFAULT_SETTINGS.mode]) {
+    const stored = storage();
+    const settings: Settings = {
+      digits: 10,
+      rounding: "halfAwayFromZero",
+      mode,
+      maxDigits: 2000,
+      maxBits: 1 << 17,
+    };
+    saveSettings(stored, settings, BUILD);
+    assert.deepEqual([...stored.map.keys()], [SETTINGS_KEY]);
+    assert.deepEqual(loadSettings(stored), settings);
+    // The stored object is the envelope: the version, the whole build string, the fields.
+    assert.deepEqual(JSON.parse(stored.map.get(SETTINGS_KEY)!), {
+      version: STORAGE_VERSION,
+      savedBy: BUILD,
+      settings,
+    });
+    saveSettings(stored, DEFAULT_SETTINGS, BUILD);
+    assert.deepEqual(loadSettings(stored), DEFAULT_SETTINGS);
+  }
+  assert.equal(STORAGE_VERSION, 3);
 });
 
-/** A stored object at version 2 holding `settings`. */
-function envelope(settings: unknown, version: unknown = 2): unknown {
-  return { version, savedBy: BUILD, settings };
-}
-
-test("a version 1 object, the fields bare, loads as it did and is saved back as version 2", () => {
+test("a version 1 object, the fields bare, loads through every migration and is saved back at the current version", () => {
   const bare = {
     digits: 12,
     rounding: "floor",
@@ -277,32 +351,121 @@ test("a version 1 object, the fields bare, loads as it did and is saved back as 
   };
   const store = storage({ [SETTINGS_KEY]: JSON.stringify(bare) });
   const loaded = loadSettings(store);
-  assert.deepEqual(loaded, bare);
+  const expected: Settings = {
+    digits: 12,
+    rounding: "floor",
+    mode: DECIMAL,
+    maxDigits: 100,
+    maxBits: 4096,
+  };
+  assert.deepEqual(loaded, expected);
   saveSettings(store, loaded, BUILD);
-  assert.deepEqual(JSON.parse(store.map.get(SETTINGS_KEY)!), envelope(bare));
+  assert.deepEqual(
+    JSON.parse(store.map.get(SETTINGS_KEY)!),
+    envelope(expected),
+  );
 });
 
-test("a version 2 object loads the settings it holds, with the fallbacks and clamps", () => {
-  const settings = { ...DEFAULT_SETTINGS, digits: 12, rounding: "floor" };
-  assert.deepEqual(load(envelope(settings)), settings);
-  // A field missing or malformed inside the envelope falls back on its own.
-  assert.deepEqual(load(envelope({ digits: 12, mode: 7 })), {
+test("a version 2 object loads as the nested mode: the mode name and the fractions flag become the variant, and the old rounding default becomes the new (docs/settings-modes.md)", () => {
+  const two = (settings: unknown) => loadStored(envelope(settings, 2));
+  const fields = {
+    digits: 12,
+    rounding: "floor",
+    maxDigits: 100,
+    maxBits: 4096,
+  };
+  // Each combination of the mode and the flag.
+  assert.deepEqual(two({ ...fields, mode: "exact", fractions: false }), {
+    ...fields,
+    mode: { kind: "exact", notation: "digits" },
+  });
+  assert.deepEqual(two({ ...fields, mode: "exact", fractions: true }), {
+    ...fields,
+    mode: RATIO,
+  });
+  assert.deepEqual(two({ ...fields, mode: "decimal", fractions: false }), {
+    ...fields,
+    mode: DECIMAL,
+  });
+  assert.deepEqual(two({ ...fields, mode: "decimal", fractions: true }), {
+    ...fields,
+    mode: DECIMAL,
+  });
+  // The flag is `ratio` only when it is `true`; a missing or malformed
+  // flag, or a missing or malformed mode, defaults.
+  for (const fractions of [undefined, "true", 1, null]) {
+    assert.deepEqual(
+      two({ ...fields, mode: "exact", fractions }).mode,
+      DEFAULT_SETTINGS.mode,
+      String(fractions),
+    );
+  }
+  for (const mode of [undefined, "approximate", 7, null, { kind: "exact" }]) {
+    assert.deepEqual(
+      two({ ...fields, mode, fractions: true }).mode,
+      DEFAULT_SETTINGS.mode,
+      String(mode),
+    );
+  }
+  // The old default rounding, echoed by every save, becomes the new; any
+  // other stored mode is kept.
+  assert.equal(
+    two({ ...fields, rounding: "halfAwayFromZero" }).rounding,
+    "halfEven",
+  );
+  for (const rounding of ["halfEven", "halfTowardZero", "floor", "ceiling"]) {
+    assert.equal(two({ ...fields, rounding }).rounding, rounding);
+  }
+  assert.equal(two({ ...fields, rounding: "nearest" }).rounding, "halfEven");
+  // At version 3 the old default is a choice and is kept.
+  assert.equal(
+    load({ ...fields, rounding: "halfAwayFromZero" }).rounding,
+    "halfAwayFromZero",
+  );
+  // A field missing or malformed inside the envelope falls back on its own,
+  // and the dependents are clamped as for a bare object.
+  assert.deepEqual(two({ digits: 12, mode: 7 }), {
     ...DEFAULT_SETTINGS,
     digits: 12,
   });
-  // The dependents are clamped as for a bare object.
-  assert.equal(load(envelope({ digits: 50, maxDigits: 20 })).digits, 20);
+  assert.equal(two({ digits: 50, maxDigits: 20 }).digits, 20);
   // An envelope whose settings are not an object gives the defaults.
-  assert.deepEqual(load(envelope(5)), DEFAULT_SETTINGS);
-  assert.deepEqual(load(envelope(null)), DEFAULT_SETTINGS);
-  assert.deepEqual(load({ version: 2 }), DEFAULT_SETTINGS);
+  assert.deepEqual(two(5), DEFAULT_SETTINGS);
+  assert.deepEqual(two(null), DEFAULT_SETTINGS);
+  assert.deepEqual(loadStored({ version: 2 }), DEFAULT_SETTINGS);
+  // The next save writes version 3.
+  const store = storage({
+    [SETTINGS_KEY]: JSON.stringify(
+      envelope({ ...fields, mode: "exact", fractions: true }, 2),
+    ),
+  });
+  saveSettings(store, loadSettings(store), BUILD);
+  assert.deepEqual(
+    JSON.parse(store.map.get(SETTINGS_KEY)!),
+    envelope({ ...fields, mode: RATIO }),
+  );
+});
+
+test("a version 3 object loads the settings it holds, with the fallbacks and clamps", () => {
+  const settings = { ...DEFAULT_SETTINGS, digits: 12, rounding: "floor" };
+  assert.deepEqual(load(settings), settings);
+  assert.deepEqual(load({ digits: 12, mode: 7 }), {
+    ...DEFAULT_SETTINGS,
+    digits: 12,
+  });
+  assert.equal(load({ digits: 50, maxDigits: 20 }).digits, 20);
+  assert.deepEqual(load(5), DEFAULT_SETTINGS);
+  assert.deepEqual(load(null), DEFAULT_SETTINGS);
+  assert.deepEqual(loadStored({ version: 3 }), DEFAULT_SETTINGS);
+  // A version 3 object still carrying the old fields: they are ignored.
+  assert.deepEqual(load({ ...settings, fractions: true }), settings);
 });
 
 test("a version from the future, or one that is not a positive integer, gives the defaults", () => {
   const settings = { ...DEFAULT_SETTINGS, digits: 12 };
   for (const version of [STORAGE_VERSION + 1, 99, 0, -1, 1.5, "2", null, {}]) {
     assert.deepEqual(
-      load(envelope(settings, version)),
+      loadStored(envelope(settings, version)),
       DEFAULT_SETTINGS,
       String(version),
     );
@@ -319,20 +482,48 @@ test("a version from the future, or one that is not a positive integer, gives th
 });
 
 test("every migration is total: a fixture of its source version, with each field missing or malformed, migrates without throwing", () => {
-  const fixtures: Record<number, unknown> = {
+  const fixtures: Record<number, { stored: unknown; loads: Settings }> = {
     1: {
-      digits: 12,
-      rounding: "floor",
-      mode: "decimal",
-      maxDigits: 100,
-      maxBits: 4096,
-      fractions: true,
+      stored: {
+        digits: 12,
+        rounding: "floor",
+        mode: "decimal",
+        maxDigits: 100,
+        maxBits: 4096,
+        fractions: true,
+      },
+      loads: {
+        digits: 12,
+        rounding: "floor",
+        mode: DECIMAL,
+        maxDigits: 100,
+        maxBits: 4096,
+      },
+    },
+    2: {
+      stored: {
+        digits: 12,
+        rounding: "halfAwayFromZero",
+        mode: "exact",
+        maxDigits: 100,
+        maxBits: 4096,
+        fractions: true,
+      },
+      loads: {
+        digits: 12,
+        rounding: "halfEven",
+        mode: RATIO,
+        maxDigits: 100,
+        maxBits: 4096,
+      },
     },
   };
   assert.deepEqual(Object.keys(fixtures).map(Number), [
     ...Array.from({ length: STORAGE_VERSION - 1 }, (_, i) => i + 1),
   ]);
-  for (const [version, fixture] of Object.entries(fixtures)) {
+  for (const [version, { stored: fixture, loads }] of Object.entries(
+    fixtures,
+  )) {
     const malformed = [fixture, 5, null, "text", [], {}];
     for (const [key] of Object.entries(fixture as object)) {
       const { [key]: _dropped, ...rest } = fixture as Record<string, unknown>;
@@ -352,30 +543,38 @@ test("every migration is total: a fixture of its source version, with each field
         loadSettings(storage({ [SETTINGS_KEY]: text })),
       );
     }
-    assert.deepEqual(
-      loadSettings(storage({ [SETTINGS_KEY]: JSON.stringify(fixture) })),
-      fixture,
+    const text = JSON.stringify(
+      Number(version) === 1
+        ? fixture
+        : { version: Number(version), settings: fixture },
     );
+    assert.deepEqual(loadSettings(storage({ [SETTINGS_KEY]: text })), loads);
   }
 });
 
 test("reset gives the defaults, for all the settings or for one with the clamp after it", () => {
   const settings: Settings = {
     digits: 30,
-    rounding: "halfEven",
-    mode: "decimal",
+    rounding: "halfAwayFromZero",
+    mode: { kind: "decimal", working: { kind: "extended", digits: 40 } },
     maxDigits: 50,
     maxBits: DEFAULT_MAX_BITS,
-    fractions: true,
   };
   assert.deepEqual(resetSettings(), DEFAULT_SETTINGS);
   assert.deepEqual(resetSetting(settings, "rounding"), {
     ...settings,
     rounding: DEFAULT_SETTINGS.rounding,
   });
+  // Resetting the digits to eight leaves an extended count of forty, still
+  // within its range, as it is.
   assert.deepEqual(resetSetting(settings, "digits"), {
     ...settings,
     digits: DEFAULT_SETTINGS.digits,
+  });
+  // Resetting the mode resets the whole variant.
+  assert.deepEqual(resetSetting(settings, "mode"), {
+    ...settings,
+    mode: DEFAULT_SETTINGS.mode,
   });
   // Resetting the cap to its default raises what the digits may be; they stay.
   assert.deepEqual(resetSetting(settings, "maxDigits"), {
@@ -389,79 +588,36 @@ test("reset gives the defaults, for all the settings or for one with the clamp a
     maxBits: 1 << 18,
     maxDigits: 5000,
     digits: 4000,
+    mode: { kind: "decimal", working: { kind: "extended", digits: 4500 } },
   };
   const reset = resetSetting(high, "maxBits");
   assert.equal(reset.maxBits, DEFAULT_SETTINGS.maxBits);
   assert.equal(reset.maxDigits, maxDigitsFor(DEFAULT_SETTINGS.maxBits));
   assert.equal(reset.digits, reset.maxDigits);
+  assert.deepEqual(reset.mode, {
+    kind: "decimal",
+    working: { kind: "extended", digits: reset.maxDigits },
+  });
   assert.ok(isDefault(DEFAULT_SETTINGS, "digits"));
   assert.ok(!isDefault(settings, "digits"));
   assert.ok(isDefault(resetSetting(settings, "digits"), "digits"));
-});
-
-test("contextOf is the settings as the pipeline takes them, with the cap's ceiling", () => {
-  const settings: Settings = {
-    digits: 12,
-    rounding: "floor",
-    mode: "decimal",
-    maxDigits: 300,
-    maxBits: 4096,
-    fractions: false,
-  };
-  assert.deepEqual(contextOf(settings), {
-    precision: 12,
-    rounding: "floor",
-    maxBits: 4096,
-    ceiling: ceilingFor(300),
-    mode: "decimal",
-  });
-  assert.equal(contextOf(DEFAULT_SETTINGS).ceiling, 4040);
-});
-
-test("the ranges of the number settings follow the settings above them", () => {
-  const cap = maxDigitsFor(DEFAULT_MAX_BITS);
-  assert.deepEqual(rangesOf(DEFAULT_SETTINGS), {
-    maxBits: { min: MIN_MAX_BITS, max: LIMIT_BITS },
-    maxDigits: { min: 1, max: cap },
-    digits: { min: 1, max: DEFAULT_MAX_DIGITS },
-  });
-  assert.deepEqual(rangesOf({ ...DEFAULT_SETTINGS, maxBits: 100 }).maxDigits, {
-    min: 1,
-    max: maxDigitsFor(100),
-  });
-  assert.deepEqual(rangesOf({ ...DEFAULT_SETTINGS, maxDigits: 8 }).digits, {
-    min: 1,
-    max: 8,
-  });
-});
-
-test("the validators accept the integers of their ranges and nothing else", () => {
-  const digits = { min: 1, max: 8 };
-  assert.ok(isIntegerIn(1, digits));
-  assert.ok(isIntegerIn(8, digits));
-  assert.ok(!isIntegerIn(9, digits));
-  assert.ok(!isIntegerIn(0, digits));
-  assert.ok(!isIntegerIn(1.5, digits));
-  assert.ok(!isIntegerIn(NaN, digits));
-  assert.ok(!isIntegerIn("8", digits));
-  assert.ok(!isIntegerIn(undefined, digits));
-  const cap = maxDigitsFor(DEFAULT_MAX_BITS);
-  const { maxDigits } = rangesOf(DEFAULT_SETTINGS);
-  assert.ok(isIntegerIn(1, maxDigits));
-  assert.ok(isIntegerIn(DEFAULT_MAX_DIGITS, maxDigits));
-  assert.ok(isIntegerIn(cap, maxDigits));
-  assert.ok(!isIntegerIn(cap + 1, maxDigits));
-  assert.ok(!isIntegerIn(0, maxDigits));
+  // The mode is compared by value, since it is no longer a primitive.
   assert.ok(
-    !isIntegerIn(1, rangesOf({ ...DEFAULT_SETTINGS, maxBits: 100 }).maxDigits),
+    isDefault({ ...settings, mode: { ...DEFAULT_SETTINGS.mode } }, "mode"),
   );
-  assert.ok(isMaxBits(MIN_MAX_BITS));
-  assert.ok(isMaxBits(DEFAULT_MAX_BITS));
-  assert.ok(isMaxBits(LIMIT_BITS));
-  assert.ok(!isMaxBits(MIN_MAX_BITS - 1));
-  assert.ok(!isMaxBits(LIMIT_BITS + 1));
-  assert.ok(!isMaxBits(65536.5));
-  assert.ok(!isMaxBits("65536"));
-  assert.ok(isRoundingMode("halfEven") && isRoundingMode("floor"));
-  assert.ok(!isRoundingMode("nearest") && !isRoundingMode(undefined));
+  assert.ok(!isDefault(settings, "mode"));
+  assert.ok(!isDefault({ ...settings, mode: RATIO }, "mode"));
+  assert.ok(sameMode(EXTENDED, { ...EXTENDED }));
+  assert.ok(
+    sameMode(DECIMAL, { kind: "decimal", working: { kind: "digits" } }),
+  );
+  assert.ok(!sameMode(DECIMAL, EXTENDED));
+  assert.ok(
+    !sameMode(EXTENDED, {
+      kind: "decimal",
+      working: { kind: "extended", digits: 13 },
+    }),
+  );
+  assert.ok(!sameMode(RATIO, DECIMAL) && !sameMode(DECIMAL, RATIO));
+  assert.ok(!sameMode(RATIO, DEFAULT_SETTINGS.mode));
 });

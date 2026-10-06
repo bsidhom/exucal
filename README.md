@@ -19,22 +19,27 @@ modeled.
 
 ## Settings
 
-The Settings panel under the converter has six settings, kept in the
+The Settings panel under the converter has five settings, kept in the
 browser so that they survive a reload (under a format version of their
 own, so that a later build migrates what an earlier one stored;
-`docs/settings-storage.md`):
+`docs/settings-storage.md`). The mode carries one more under it, which
+one depending on the mode: exact mode the notation its exact values are
+written in, decimal mode its working digits.
 
 - **Digits**: how many significant digits an answer is shown with, from 1
-  up to the precision limit; eight by default, as GNU units shows. In
-  decimal mode it is also the precision of every step.
+  up to the precision limit; eight by default, as GNU units shows.
   `1 m` in `in` is `≈ 39.370079 in` at eight digits and `≈ 39.3700787402
-in` at twelve.
-- **Rounding**: how the last digit shown is rounded, one of the seven
-  standard modes; to nearest with ties away from zero by default (`0.125`
-  at two digits is `0.13`). The directed modes (toward zero, away from
-  zero, up, down) show the value on the side they name, so at twelve digits
-  `1 m` in `in` is `39.3700787401` rounded down and `39.3700787402` to
-  nearest.
+in` at twelve. In decimal mode it is also the digits of every value: a
+  number typed with more is rounded to them as it is read, and every
+  step is rounded to them unless the working digits are extended, below.
+- **Rounding**: one of the seven standard modes; to nearest with ties to
+  even by default (`0.125` at two digits is `0.12`; `0.135` is `0.14`),
+  which is IEEE 754's default and unbiased over many roundings where
+  ties away from zero drift. In exact mode it rounds the last digit
+  shown; in decimal mode it rounds every step, the last digit shown with
+  it. The directed modes (toward zero, away from zero, up, down) show
+  the value on the side they name, so at twelve digits `1 m` in `in` is
+  `39.3700787401` rounded down and `39.3700787402` to nearest.
 - **Mode**: exact, the default, or decimal. In exact mode every digit
   shown is certain: the app computes at rising precisions until the
   digits asked for are certified, and nothing rounds before the display,
@@ -53,17 +58,50 @@ in` at twelve.
   that a function's rounding cannot be certified at the precision limit,
   the value is rounded all the same and the line is written with the `≈`
   sign bearing a dot above it, and a note says a step could not be
-  certified.
+  certified. The panel names the modes `exact` and `decimal` and says
+  under the select what the one in force does.
+- **Notation** (exact mode; `mode.notation` in the stored settings,
+  `digits` or `ratio`): digits by default. With `ratio` checked, an
+  exact value that is not a whole number is written as a fraction in
+  lowest terms instead of its digits, when its numerator and its
+  denominator each fit within Digits: `1 m = (5000/127) in`, `1 in =
+(127/50) cm`, `m / (3 m) = 1/3`, a unit list as `1 m = 3 ft +
+(428/127) in`, and `in = (1/36) × 3 ft` on the second line of `3 ft =
+36 in`. The fraction is in parentheses before a unit, since `5000/127
+in` would read as `5000 / (127 in)`, and bare when nothing follows it.
+  A fraction that does not fit falls back to the digits (`1 m ≈ 3 ft +
+3.4 in` at two digits), and an inexact value is always written as
+  digits with `≈` (`sqrt(2) m ≈ 1.4142136 m`): the setting changes how
+  an exact value is written, never what is exact. It is a setting of
+  exact mode alone, since in decimal mode every value is a decimal of
+  Digits digits, which its digits write entire; choosing decimal mode
+  and coming back finds digits again. `docs/fractions.md` is the
+  design; the fit rule is provisional (issue #91).
+- **Working digits** (decimal mode; `mode.working` in the stored
+  settings, locked to Digits or `extended` with a count): locked to
+  Digits by default, under which every step is rounded to Digits. With
+  `extended` checked, a count from Digits up to the precision limit
+  appears, and every step but the last is rounded to that many digits
+  while the answer is rounded to Digits directly from the exact result
+  of its last step, as a calculator keeps hidden digits behind its
+  display: `ln(exp(1/10))` at eight digits is `= 0.099999984`, the
+  first rounding's error having been amplified, and over twelve working
+  digits it is `= 0.1`; `1 / 3 * 3` is `= 0.99999999` and `= 1`. Under
+  a directed rounding mode the answer is the neighbor of a value that
+  sits on the grid, as that mode asks (`0.099999999` toward zero), since
+  the working digits change what is rounded, never how.
+  `docs/working-digits.md` is the design.
 - **Precision limit** (`maxDigits` in the code and the stored settings):
   the most digits an answer may be asked for, 1,000 by default, and
   through that a limit on effort: to certify an answer, exact mode
   computes at rising precisions, up to four times this plus ten digits
   (4,040 by default), and an expression whose digits can never be certain
   (`(2^(1/2))^2 - 2`, which is zero within a bound) runs all the way up on
-  every keystroke. In decimal mode, which computes in one pass at the
-  digits shown, it caps Digits, and it bounds how far a function's
-  rounding may be pursued for certification. Changing it rebuilds the
-  unit table,
+  every keystroke. In decimal mode, which computes in one pass, it caps
+  Digits and the working digits, and it bounds the hidden precision a
+  step's rounding is certified at: a function's value is computed at
+  rising precision up to that ceiling until its rounding is certain.
+  Changing it rebuilds the unit table,
   since the angle units carry `pi()` to that ceiling; changing the digits
   never does.
 - **Most bits** (`maxBits` in the code and the stored settings): the most
@@ -90,25 +128,9 @@ in` at twelve.
   exact mode the app never rounds an exact value on its own. It also
   bounds the most digits: lowering it lowers that setting, and the
   digits, when they no longer fit.
-- **Show reduced fractions** (`fractions` in the code and the stored
-  settings): off by default. When on, an exact value that is not a whole
-  number is written as a fraction in lowest terms instead of its digits,
-  when its numerator and its denominator each fit within Digits:
-  `1 m = (5000/127) in`, `1 in = (127/50) cm`, `m / (3 m) = 1/3`, a unit
-  list as `1 m = 3 ft + (428/127) in`, and `in = (1/36) × 3 ft` on the
-  second line of `3 ft = 36 in`. The fraction is in parentheses before a
-  unit, since `5000/127 in` would read as `5000 / (127 in)`, and bare
-  when nothing follows it. A fraction that does not fit falls back to
-  the digits (`1 m ≈ 3 ft + 3.4 in` at two digits), and an inexact value
-  is always written as digits with `≈` (`sqrt(2) m ≈ 1.4142136 m`): the
-  setting changes how an exact value is written, never what is exact. In
-  decimal mode the setting does not apply: every value there is a decimal
-  of Digits digits, which its digits write entire. `docs/fractions.md`
-  is the design; the fit rule is provisional (issue #91).
-
-Both limits are cost limits, and the right values depend on the device, so
-the panel's "Recommend limits" button measures what this one does within
-a fraction of a second and sets them; it runs only when pressed.
+  Both limits are cost limits, and the right values depend on the device, so
+  the panel's "Recommend limits" button measures what this one does within
+  a fraction of a second and sets them; it runs only when pressed.
 
 Tapping the build number in the footer asks at once whether a new version
 of the app has been deployed, rather than waiting for the app's own checks

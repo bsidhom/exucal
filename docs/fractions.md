@@ -166,8 +166,10 @@ The setting does not apply in decimal mode (D26; docs/decimal-mode.md,
 exact under the mode's rounding, which its digits write entire; a
 fraction would say nothing the digits do not, and the outcome never asks
 `show` for one in decimal mode, whatever the setting says. The settings'
-own shape, which puts the fractions display inside exact mode, is
-docs/settings-modes.md's.
+own shape puts the display inside exact mode, as its notation, `digits`
+or `ratio` (docs/settings-modes.md, landed): the combination cannot be
+stored or chosen, and the outcome's guard is what enforces it at the
+display's two-valued API.
 
 Before D26 the setting applied in decimal mode and showed fewer
 fractions, for the values the roundings happened to leave exact, and 5.2

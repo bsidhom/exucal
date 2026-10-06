@@ -132,6 +132,19 @@ test("a unit list's remainder is a fraction, unrounded, and the counts are integ
   // A ratio that does not fit the width falls back to the digits: 428/127
   // is six digits, and at two digits the remainder is rounded.
   assert.deepEqual(lines("1 m", "ft;in", 6), ["1 m = 3 ft + (428/127) in"]);
+  // A ratio scaled by a power of ten (D28, rule 4) is written as the
+  // ratio times the power, parenthesized before a unit like any ratio.
+  assert.deepEqual(lines("1 m", "in", 6), [
+    "1 m = (5/127 × 1e+3) in",
+    "in = 0.0254 × 1 m",
+  ]);
+  assert.deepEqual(lines("(1/3) * 1e30 m", "m", true), [
+    "1/3 × 1e30 m = (1/3 × 1e+30) m",
+    "m = 3e-30 × (1/3 × 1e30 m)",
+  ]);
+  assert.deepEqual(lines("-(1/3) * 1e30", "", true), [
+    "-(1/3) × 1e30 = -1/3 × 1e+30",
+  ]);
   assert.deepEqual(lines("1 m", "ft;in", 5), ["1 m ≈ 3 ft + 3.3700787 in"]);
   assert.deepEqual(lines("1 m", "ft;in", 5, { ...CONTEXT, precision: 2 }), [
     "1 m ≈ 3 ft + 3.4 in",
@@ -314,8 +327,11 @@ function resultText(line: Line): string {
 }
 
 test("the copy text is the result with `*` for the product the screen writes as `×`", () => {
-  const copied = (have: string, want: string, fractions = false) =>
-    resultLines(have, want, fractions).map(copyText);
+  const copied = (
+    have: string,
+    want: string,
+    ratio: boolean | number = false,
+  ) => resultLines(have, want, ratio).map(copyText);
   assert.deepEqual(copied("3 ft", "in"), ["36 in", "0.027777778 * 3 ft"]);
   assert.deepEqual(copied("1 mi", "1000 ft"), [
     "5.28 * 1000 ft",
@@ -329,6 +345,11 @@ test("the copy text is the result with `*` for the product the screen writes as 
     "(-5000/127) in",
     "(-127/5000) (-1 m)",
   ]);
+  assert.deepEqual(copied("1 m", "in", 6), [
+    "(5/127 * 1e+3) in",
+    "0.0254 * 1 m",
+  ]);
+  assert.deepEqual(copied("(1/3) * 1e30", "", true), ["1/3 * 1e+30"]);
   assert.deepEqual(copied("1 m", "ft;in"), ["3 ft + 3.3700787 in"]);
   assert.deepEqual(copied("-1 m", "ft;in"), ["-3 ft - 3.3700787 in"]);
   assert.equal(copied("1 m", "ft + in")[0], "3.0284676 (ft + in)");
@@ -344,25 +365,28 @@ test("what is copied, typed back as a have and converted into the line's own uni
   // Each case: the texts, the fractions setting, the want that reads each
   // line's result back (the want, then the have for the reciprocal), and
   // the context.
-  const cases: [string, string, boolean, string[], NumberContext?][] = [
-    ["3 ft", "in", false, ["in", "3 ft"]],
-    ["1 mi", "1000 ft", false, ["1000 ft", "1 mi"]],
-    ["1 m", "in", true, ["in", "1 m"]],
-    ["-1 m", "in", true, ["in", "-1 m"]],
-    ["-3 ft", "in", false, ["in", "-3 ft"]],
-    ["1 m", "ft;in", false, ["ft;in"]],
-    ["-1 m", "ft;in", true, ["ft;in"]],
-    ["1 m", "ft + in", false, ["ft + in", "1 m"]],
-    ["1 m", "-ft", false, ["-ft", "1 m"]],
-    ["1 m", "m/s*s", false, ["m/s*s", "1 m"]],
-    ["1 m", "(2 m)", false, ["(2 m)", "1 m"]],
-    ["sqrt(2) m", "m", false, ["m", "sqrt(2) m"]],
-    ["tempF(212)", "tempC", false, ["tempC"]],
-    ["2 * 3", "", false, [""]],
-    ["in", "", false, ["m"]],
-    ["3 ft", "in", false, ["in", "3 ft"], decimal],
-    ["1 m", "in", false, ["in", "1 m"], decimal],
-  ];
+  const cases: [string, string, boolean | number, string[], NumberContext?][] =
+    [
+      ["3 ft", "in", false, ["in", "3 ft"]],
+      ["1 mi", "1000 ft", false, ["1000 ft", "1 mi"]],
+      ["1 m", "in", true, ["in", "1 m"]],
+      ["1 m", "in", 6, ["in", "1 m"]],
+      ["(1/3) * 1e30 m", "m", true, ["m", "(1/3) * 1e30 m"]],
+      ["-1 m", "in", true, ["in", "-1 m"]],
+      ["-3 ft", "in", false, ["in", "-3 ft"]],
+      ["1 m", "ft;in", false, ["ft;in"]],
+      ["-1 m", "ft;in", true, ["ft;in"]],
+      ["1 m", "ft + in", false, ["ft + in", "1 m"]],
+      ["1 m", "-ft", false, ["-ft", "1 m"]],
+      ["1 m", "m/s*s", false, ["m/s*s", "1 m"]],
+      ["1 m", "(2 m)", false, ["(2 m)", "1 m"]],
+      ["sqrt(2) m", "m", false, ["m", "sqrt(2) m"]],
+      ["tempF(212)", "tempC", false, ["tempC"]],
+      ["2 * 3", "", false, [""]],
+      ["in", "", false, ["m"]],
+      ["3 ft", "in", false, ["in", "3 ft"], decimal],
+      ["1 m", "in", false, ["in", "1 m"], decimal],
+    ];
   for (const [have, want, fractions, wantsBack, context = CONTEXT] of cases) {
     const lines = resultLines(have, want, fractions, context);
     lines.forEach((line, i) => {

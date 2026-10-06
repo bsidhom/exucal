@@ -43,9 +43,9 @@ ten factored onto the numerator is written so. The rule as it stands:
    fraction in lowest terms when the numerator and the denominator have
    at most the width in digits between them** (`= 5000/127`, `= 127/50`
    for `2.54`).
-4. **When that does not fit, it is written with its power of ten on the
-   numerator, `n e k / d`, when the parts then fit and the denominator
-   is not one** (`= 1e+30/3`, `= 5e+33/127`; #95).
+4. **When that does not fit, it is written as a ratio times a power of
+   ten, `n/d × 1e+k`, when the parts then fit and the denominator is not
+   one** (`= 1/3 × 1e+30`, `= 5/127 × 1e+33`; #95).
 5. **Everything else is written by the decimal display at Digits.**
 
 The rule as it was ruled for stage 5, with Digits as the fit, follows
@@ -234,8 +234,8 @@ the mode's one rounding of those steps; the fractions do not.
   make.
 - **A mixed form** (`39 + 47/127`) for an exact value whose fraction
   does not fit: it does not parse back as it reads before a unit. A
-  fraction with an exponent (`1e+999999999/3`) was ruled out here and
-  ruled in by D28 (docs/ratio-width.md, rule 4).
+  fraction times a power of ten (`1/3 × 1e+999999999`) was ruled out
+  here and ruled in by D28 (docs/ratio-width.md, rule 4).
 - **A fraction for the counts of a unit list**, which are integers by
   construction, or for a `have` echoed back, which is the user's text.
 - **Anything in the core's arithmetic.** The setting reaches `show` and

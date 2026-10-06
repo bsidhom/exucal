@@ -1335,7 +1335,7 @@ setting: its working precision is the retry schedule's.
 **D28. The ratio notation has a width of its own, the most digits a
 ratio, its two parts together, or a whole number may have to be written
 entire, twenty by default and independent of Digits; a ratio that does
-not fit is written with its power of ten factored onto the numerator
+not fit is written as a ratio times a power of ten, the power after it,
 when its parts then fit and its denominator is not one, and otherwise
 the value is a decimal at Digits (S2c of docs/settings-plan.md; amends
 D21).** docs/ratio-width.md is the design. D21's fit at Digits coupled

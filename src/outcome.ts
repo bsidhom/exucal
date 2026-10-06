@@ -382,9 +382,10 @@ function numberExpr(text: string): Expr {
  * of its two literals, with the sign on the numerator as the display
  * wrote it (`-5000/127`, and `(-5000/127) in` where a unit follows, the
  * printer parenthesizing the ratio; docs/fractions.md, "Where a fraction
- * is written"), the numerator carrying the power of ten in the factored
- * form (`1e+30/3`; docs/ratio-width.md); any other value is its literal,
- * and the quantity negated whole (`-3 ft`).
+ * is written"), times its power of ten when the display scaled it
+ * (`1/3 × 1e+30`, parenthesized before a unit too; docs/ratio-width.md);
+ * any other value is its literal, and the quantity negated whole
+ * (`-3 ft`).
  */
 function quantityExpr(
   shown: Shown,
@@ -404,7 +405,16 @@ function quantityExpr(
       left: numerator,
       right: numberExpr(den),
     });
-    return unit === undefined ? fraction : timesFirst(fraction, unit);
+    const value =
+      shown.scale === undefined
+        ? fraction
+        : expr({
+            kind: "binary",
+            op: "mul",
+            left: fraction,
+            right: numberExpr(shown.scale),
+          });
+    return unit === undefined ? value : timesFirst(value, unit);
   }
   const value = numberExpr(text);
   const product = unit === undefined ? value : timesFirst(value, unit);

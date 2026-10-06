@@ -11,11 +11,12 @@ line explains (P8). This note settles the first, the third and the
 fourth, decides the names of the modes (P12, the mode half), and sends
 the fit rule to a step of its own with the ideas it has gathered.
 
-**Status: paused.** The review of the first draft reopened what decimal
-mode is, and docs/decimal-mode.md now restates it (D26, proposed): every
-operation one correctly rounded step, every value exact, no radius. That
-restatement lands first, and this note resumes after it merges. What
-here depends on it is marked; the rest stands on its own. The first
+**Status: resumed.** The review of the first draft reopened what decimal
+mode is, and docs/decimal-mode.md restated it (D26): every operation one
+correctly rounded step, every value exact, no radius. That restatement
+has landed, with the outcome keeping the fractions display out of decimal
+mode until this step moves the exclusion into the settings, so every
+place this note leans on D26 now describes the code as it is. The first
 draft's ruling of one mode with three values, and its fit rule by a
 constant, were set aside in the same review and are recorded below as
 weighed; the second review ruled the shape of the mode setting and
@@ -147,8 +148,8 @@ The rounding of a typed number in decimal mode is that definition
 applied to the first step, and is kept, documented rather than
 reconsidered: a value in a `p`-digit calculator has `p` digits, and a
 literal with more is the one place a value with more could enter.
-`2.5400001 cm` in `in` at three digits is `= 1 in` under D26, where today
-it is `≈ 1 in` with the rounding in the radius. Exempting literals would
+`2.5400001 cm` in `in` at three digits is `= 1 in` (D26; before it, `≈ 1
+in` with the rounding in the radius). Exempting literals would
 carry the extra digits into the first operation and round them there,
 one step later, for no gain. The panel's line under Digits says it in
 decimal mode, and README says it once.
@@ -307,12 +308,12 @@ mode is in force:
 - exact: every digit shown is certain, found at rising precision; an
   exact value is written as its digits or as a ratio.
 - decimal: every step is rounded to Digits in the rounding mode, as a
-  hand calculator does; every answer is exact in that arithmetic.
+  hand calculator does; every answer is exact in that arithmetic (a
+  rounding the precision limit could not certify is marked, which the
+  line under the result says, not this one; #173 asks whether it should
+  be).
 
 ## Where it goes
-
-Marked "after D26" where the text or the test depends on the decimal
-restatement.
 
 - `src/core/context.ts`: `DEFAULT_ROUNDING` to `halfEven`.
 - `src/settings.ts`: `ModeSetting` as above in place of the `mode` and
@@ -328,14 +329,15 @@ restatement.
   variant; the lines under Digits and Rounding as functions of the
   settings, which `NUMBER_FIELDS` already allows for the numbers and the
   selects gain.
-- `src/outcome.ts`, `src/core/display.ts`: unchanged in logic; `show` is
-  never asked for a fraction in decimal mode.
-- Tests: the decimal-mode fraction rows of `display.test.ts` and
-  `outcome.test.ts` become digits (after D26 they are `=` with the
-  rounded digits); a version 2 fixture with each combination of mode
-  and fractions, and the totality test over the new migration; the
-  tests at the default rounding; the panel's notation control under
-  exact mode only.
+- `src/outcome.ts`: the guard that keeps the fractions display out of
+  decimal mode, which D26's implementation put in `outcomeOf`, goes, the
+  settings now making the two exclusive at the source; `src/core/display.ts`
+  unchanged.
+- Tests: a version 2 fixture with each combination of mode and
+  fractions, and the totality test over the new migration; the tests at
+  the default rounding; the panel's notation control under exact mode
+  only; the outcome's decimal-mode lines unchanged, since D26 already
+  made them digits.
 - docs: docs/fractions.md ("The decimal mode": no fractions in decimal
   mode, and why), README's "Settings" for the mode, Digits, Rounding
   and the default, ARCHITECTURE.md's settings paragraph; #97 closed,
@@ -367,9 +369,9 @@ restatement.
 
 ## Not in this step
 
-- **The decimal mode's restatement (D26):** docs/decimal-mode.md, which
-  lands before this step resumes.
 - **The fit rule and #95:** the step after this one.
+- **The uncertified mark of decimal mode (#173)** and the other studies
+  D26's review queued (#171, #172).
 - **The precision limit in decimal mode (#86)** and everything about the
   two limits: S3.
 - **The panel's layout, grouping and disclosure (P13):** S4. This step

@@ -45,6 +45,12 @@ export type ModeSetting =
   | { readonly kind: "decimal" };
 ```
 
+Amended by S2b (docs/working-digits.md): the decimal variant carries
+the working digits of the mode, `{ kind: "decimal"; working: Working }`,
+a setting that applies to decimal mode alone and so lives inside its
+variant as the notation lives inside exact mode's. S2b lands with S2,
+so the stored version 3 has the decimal variant with its `working`.
+
 The discriminant is the core's `Mode`, the two arithmetics, so that
 `settings.mode.kind` is what `contextOf` hands the context and no
 mapping is needed; the core's type keeps its name and the first draft's

@@ -449,7 +449,7 @@ const PROFILES: readonly (readonly [number, Profile])[] = [
       name: "fractions",
       settings: {
         ...DEFAULT_SETTINGS,
-        mode: { kind: "exact", notation: "ratio" },
+        mode: { kind: "exact", notation: { kind: "ratio", width: 20 } },
       },
     },
   ],

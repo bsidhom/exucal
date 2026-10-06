@@ -2,10 +2,11 @@
 
 The design note for step S2c of docs/settings-plan.md, the step the S2
 note (docs/settings-modes.md, "The fit rule: retained, and a step of its
-own") sent the fit rule to, with #91 and #95 beside it. It decides when
-an exact value is written as a ratio and how long a ratio may be, and
-nothing else: what is exact is the radius's to say, as before, and the
-core computes nothing differently.
+own") sent the fit rule to, with #91 and #95 beside it. **Status:
+implemented**; "As landed" at the end says what the implementation
+settled. It decides when an exact value is written as a ratio and how
+long a ratio may be, and nothing else: what is exact is the radius's to
+say, as before, and the core computes nothing differently.
 
 ## The problem
 
@@ -137,9 +138,10 @@ rules 1 and 4 unchanged; rules 2, 3 and 4 replace its rules 2 and 3.
    wearing a slash.
 5. **Everything else is written by the decimal display at `p`,** which
    says `=` where its own rule allows and `≈` otherwise:
-   `= 1.5e-999999999`, `≈ 2.5` for `2.54` at a width of two, `≈ 39.4`
-   for `5000/127` at the same, `≈ 1.2345679` for a terminating decimal
-   of twenty-one digits at a width of twenty.
+   `= 1.5e-999999999`, `= 2.54` for `2.54` at a width of four (its ratio
+   `127/50` being five digits, and its decimal exact), `≈ 39.4` for
+   `5000/127` at a width of three and three digits, `≈ 1.2345679` for a
+   terminating decimal of twenty-one digits at a width of twenty.
 
 So the width is the most digits of any exact value written entire, a
 whole number or a ratio's two parts together, and Digits is the digits
@@ -271,3 +273,33 @@ inexact value stays ruled out.
   constant top should become a setting's; nothing here depends on it.
 - **The panel's layout (S4, S5).** This step adds one input beside one
   radio button and no more.
+
+## As landed
+
+- **`show(ball, digits, mode, width?)`** in display.ts, the width in
+  place of the flag; `ratioText` writes the fraction and then the
+  factored form, and the whole-number rule formats at the width. The
+  outcome, the converter (`ratioWidth`) and the shell carry the width,
+  and the outcome still withholds it in decimal mode.
+- **Rule 4 reaches further than the examples showed.** The canonical
+  mantissa strips a numerator's tens into the exponent, so `5000/127`
+  at a width below seven is `5e+3/127`, not the decimal: the ratio
+  does not fit plainly, and the factored form does. That is the rule
+  as ruled, where the power is factored only when the ratio would
+  otherwise fall to the decimal display, and the tests record it; a
+  user who finds `5e+3/127` odd at a width of six has set a width
+  below any ratio that conversions produce.
+- **The reciprocal of a ratio** is often a terminating decimal and is
+  written so (`in = 0.0254 × 1 m` beside `1 m = (5e+3/127) in`), since a
+  denominator of one is excluded from the factored form; `127/5000`
+  appears when the width admits the plain fraction.
+- **The settings** hold the notation as `{ kind: "digits" }` or
+  `{ kind: "ratio"; width }`, with `DEFAULT_WIDTH` twenty and
+  `WIDTH_LIMIT` a thousand; `rangesOf` gives the width's range beside
+  the others, and nothing clamps it. The panel offers the last width
+  when `ratio` is chosen again in a session, as "extended" offers the
+  last count.
+- **The S2 note's forecast** that the two notation strings would become
+  `{ kind: "digits" } | { kind: "ratio"; width: number }` "here and
+  nowhere else" held: the mode's shape and decimal mode's variant are
+  untouched.

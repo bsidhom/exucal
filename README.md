@@ -61,22 +61,29 @@ in` at twelve. In decimal mode it is also the digits of every value: a
   certified. The panel names the modes `exact` and `decimal` and says
   under the select what the one in force does.
 - **Notation** (exact mode; `mode.notation` in the stored settings,
-  `digits` or `ratio`): digits by default. With `ratio` chosen, an
-  exact value that is not a whole number is written as a fraction in
-  lowest terms instead of its digits, when its numerator and its
-  denominator each fit within Digits: `1 m = (5000/127) in`, `1 in =
-(127/50) cm`, `m / (3 m) = 1/3`, a unit list as `1 m = 3 ft +
-(428/127) in`, and `in = (1/36) × 3 ft` on the second line of `3 ft =
-36 in`. The fraction is in parentheses before a unit, since `5000/127
-in` would read as `5000 / (127 in)`, and bare when nothing follows it.
-  A fraction that does not fit falls back to the digits (`1 m ≈ 3 ft +
-3.4 in` at two digits), and an inexact value is always written as
-  digits with `≈` (`sqrt(2) m ≈ 1.4142136 m`): the setting changes how
-  an exact value is written, never what is exact. It is a setting of
-  exact mode alone, since in decimal mode every value is a decimal of
-  Digits digits, which its digits write entire; choosing decimal mode
-  and coming back finds digits again. `docs/fractions.md` is the
-  design; the fit rule is provisional (issue #91).
+  `digits` or `ratio` with a width): digits by default. With `ratio`
+  chosen, a width appears beside it, twenty by default, and the width
+  is the one thing that decides whether a line is a ratio: an exact
+  value that is not a whole number is written as a ratio of two whole
+  numbers in lowest terms when the two have at most the width in
+  digits between them (`1 m = (5000/127) in`, `1 in = (127/50) cm`,
+  `m / (3 m) = 1/3`, a unit list as `1 m = 3 ft + (428/127) in`, and
+  `in = (1/36) × 3 ft` on the second line of `3 ft = 36 in`); a whole
+  number is written entire when it has at most the width in digits
+  (`3^20 = 3486784401`, where the digits notation writes
+  `≈ 3.4867844e+9` at eight digits); and a ratio that fits only with
+  its power of ten factored out is written with the power on the
+  numerator (`(1/3) * 1e30 = 1e+30/3`, which reads back as itself).
+  Anything longer is written as a decimal at Digits, `=` when the
+  decimal is exact and `≈` otherwise, and an inexact value is always
+  a decimal with `≈` (`sqrt(2) m ≈ 1.4142136 m`): the notation changes
+  how an exact value is written, never what is exact. The ratio is in
+  parentheses before a unit, since `5000/127 in` would read as
+  `5000 / (127 in)`, and bare when nothing follows it. It is a setting
+  of exact mode alone, since in decimal mode every value is a decimal
+  of Digits digits, which its digits write entire; choosing decimal
+  mode and coming back finds digits again. `docs/fractions.md` and
+  `docs/ratio-width.md` are the design.
 - **Working digits** (decimal mode, grouped with Digits in the panel;
   `mode.working` in the stored settings, locked to Digits or `extended`
   with a count): locked to Digits by default, under which every step is

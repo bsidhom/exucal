@@ -28,7 +28,28 @@ disagree about what is exact, since both read the radius.
 
 ## The rule
 
-With the setting on, a value is written as follows, in this order:
+Amended by D28 (docs/ratio-width.md): the fit at Digits of rule 3 is
+replaced by the notation's own width, a whole number is written entire
+when it fits the width, and a ratio that fits only with its power of
+ten factored onto the numerator is written so. The rule as it stands:
+
+1. **An inexact value is written by the decimal display at Digits,
+   `≈`,** whatever the notation.
+2. **An exact whole number is written entire when it has at most the
+   width in significant digits,** by the decimal display at the width
+   (`= 3486784401` for `3^20` at twenty), and otherwise by the decimal
+   display at Digits (`≈ 1.2676506e+30` for `2^100` at eight).
+3. **An exact value that is not a whole number is written as its
+   fraction in lowest terms when the numerator and the denominator have
+   at most the width in digits between them** (`= 5000/127`, `= 127/50`
+   for `2.54`).
+4. **When that does not fit, it is written with its power of ten on the
+   numerator, `n e k / d`, when the parts then fit and the denominator
+   is not one** (`= 1e+30/3`, `= 5e+33/127`; #95).
+5. **Everything else is written by the decimal display at Digits.**
+
+The rule as it was ruled for stage 5, with Digits as the fit, follows
+for the record, with the setting on:
 
 1. **An inexact value is written by the decimal display, `≈`,** whatever
    the setting. After `sqrt(2)` at eight digits the midpoint held is
@@ -70,8 +91,9 @@ fraction only where the decimal is inexact, would have left `2.54` and
 `1.609344` as they are and turned only `≈` lines into `=` lines; it was
 set aside because a user who asks for fractions asks to see them.
 
-The fit rule of rule 3 is provisional, firm for stage 5 and open to a
-study after it ([#91](https://github.com/bsidhom/pwa-units/issues/91)).
+The fit rule of rule 3 was provisional, firm for stage 5 and open to a
+study after it ([#91](https://github.com/bsidhom/pwa-units/issues/91)),
+which D28 settled with the width above.
 Digits is the one measure of line length the user already sets, and a
 fraction of two parts within it is about as long as a decimal at it; a
 fixed constant, a bound on the total length, or a setting of its own are
@@ -180,10 +202,11 @@ the mode's one rounding of those steps; the fractions do not.
 
 ## Where it goes
 
-- `src/core/display.ts`: `show(ball, digits, mode, fractions)`; the
-  `exact` kind gains `fraction: true` when its text is a fraction; a
-  helper writes the fraction from the `Scaled` midpoint and says whether
-  it fits; `zeroBound` clamps the bound's exponent at `-10^18`.
+- `src/core/display.ts`: `show(ball, digits, mode, fractions)`, since
+  D28 `show(ball, digits, mode, width)`; the `exact` kind gains
+  `fraction: true` when its text is a fraction; a helper writes the
+  fraction from the `Scaled` midpoint and says whether it fits;
+  `zeroBound` clamps the bound's exponent at `-10^18`.
 - `src/settings.ts`: a sixth field, `fractions`, a boolean, `false` by
   default, stored with the rest and read as the others are. It is not
   part of the `NumberContext`, which the core takes: nothing in the core
@@ -209,9 +232,10 @@ the mode's one rounding of those steps; the fractions do not.
   an inexact value is shown as a decimal, which says what is known and no
   more, and a fraction written with `≈` reads as a claim the ball does not
   make.
-- **A mixed form** (`39 + 47/127`) or a fraction with an exponent
-  (`1e+999999999/3`) for an exact value whose fraction does not fit. The
-  decimal display is the fallback; #91's study may reconsider.
+- **A mixed form** (`39 + 47/127`) for an exact value whose fraction
+  does not fit: it does not parse back as it reads before a unit. A
+  fraction with an exponent (`1e+999999999/3`) was ruled out here and
+  ruled in by D28 (docs/ratio-width.md, rule 4).
 - **A fraction for the counts of a unit list**, which are integers by
   construction, or for a `have` echoed back, which is the user's text.
 - **Anything in the core's arithmetic.** The setting reaches `show` and

@@ -223,6 +223,8 @@ Implemented with S2 (docs/working-digits.md, "As landed"; D27).
 
 ### S2c. The width of a ratio: the fit rule
 
+Implemented (docs/ratio-width.md, "As landed"; D28).
+
 - **Scope.** When an exact value is written as a ratio and how long a
   ratio may be (P5, #91), with #95's power-of-ten form decided in the
   same rule, and whether a whole number follows the same width. Sent

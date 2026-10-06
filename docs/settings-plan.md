@@ -171,8 +171,7 @@ extends S2 and lands with it.
 ### S2. Mode, rounding and fractions
 
 Implemented, with S2b, in one change (docs/settings-modes.md, "As
-landed"); the fit rule is retained and is a step of its own after S2b,
-with #91 and #95.
+landed"); the fit rule is retained and is S2c below, with #91 and #95.
 
 - **Scope.** What the mode setting is and how it relates to the fractions
   display (P4, #97); what Digits means in each mode and whether it should
@@ -221,6 +220,28 @@ Implemented with S2 (docs/working-digits.md, "As landed"; D27).
   panel, D26 (amended by D27).
 - **Core impact.** Low: one field and one line in the evaluator; the
   display is unchanged. **Size.** Small, on top of S2.
+
+### S2c. The width of a ratio: the fit rule
+
+- **Scope.** When an exact value is written as a ratio and how long a
+  ratio may be (P5, #91), with #95's power-of-ten form decided in the
+  same rule, and whether a whole number follows the same width. Sent
+  here by the S2 note, which retained the fit at Digits and gathered the
+  candidates (docs/ratio-width.md).
+- **Decisions.** In the note: a width of the notation's own, the most
+  digits a part may have, twenty by default, in `[1, 1000]`, independent
+  of Digits; the measure per part; a whole number written entire when it
+  fits the width; the exponent form `n e k / d` for a ratio that fits
+  with its power of ten factored onto the numerator and not without,
+  the denominator not one; a mixed form and a fractional mantissa ruled
+  out; the notation as `{ kind: "digits" } | { kind: "ratio"; width }`
+  at stored version 4.
+- **Depends on.** S2, whose notation it extends.
+- **Touches.** display.ts (`show`'s fourth argument), outcome.ts,
+  unit-converter.ts, settings.ts, the panel; docs/fractions.md, D21
+  (amended by D28); #91, #95, P5.
+- **Core impact.** Low: the display's fit and one form; nothing in the
+  arithmetic. **Size.** Small to medium.
 
 ### S3. The limits: Digits, the precision limit, Most bits
 

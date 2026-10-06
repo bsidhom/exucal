@@ -473,6 +473,14 @@ Rulings taken here that the implementation may show to be wrong, kept
 on record so that backtracking from them is a decision and not a
 rediscovery:
 
+- **The uncertified result itself** ("The ceiling"; #173). The review of
+  the implementation questioned whether a rounding the ceiling cannot
+  certify should be marked at all: a step certified to digits far beyond
+  the working precision that still cannot decide the last digit sits at
+  a rounding boundary, which could count as a tie for the rounding mode
+  to decide, exact under the mode's rounding as every other value is,
+  and the mark, with the field, the carrying, the display kind and the
+  glyph it needs, would go. The flag stands for now; #173 is the study.
 - **The denominator fixed at one** ("The denominator, and what fixing it
   costs"): the alternative is a denominator flexing by powers of ten,
   which gives gradual underflow at the exponent bound.
@@ -500,9 +508,11 @@ rediscovery:
   never set to anything else, so that balls compare structurally as
   before; the ball operations carry it from operand to result through
   one wrapper each (`carrying` in ball.ts), and the evaluator carries it
-  from a built-in's arguments to its result. Where the bit lives was the
-  first of the provisional rulings above; this is the simplest shape that
-  propagates without each operation knowing of it.
+  from a built-in's arguments to its result. Where the bit lives was
+  among the provisional rulings above; this is the simplest shape that
+  propagates without each operation knowing of it. The flag is itself
+  provisional: #173 asks whether an uncertified rounding should instead
+  be decided as a tie and shown as exact, which would remove it.
 - **One entrance.** `step` in ball.ts is the one way a computed value
   becomes a value of the expression, in either mode: it runs a
   computation at the working contexts the retry schedule now gets from

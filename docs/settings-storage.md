@@ -117,6 +117,33 @@ an object of one of the two shapes, defaulting the whole field
 otherwise, and the clamp brings an extended count of working digits
 between Digits and the precision limit.
 
+Version 4 (S2c, docs/ratio-width.md) nests the notation inside an exact
+mode, the ratio carrying its width:
+
+```json
+{
+  "version": 4,
+  "savedBy": "…",
+  "settings": {
+    "digits": 8,
+    "rounding": "halfEven",
+    "mode": { "kind": "exact", "notation": { "kind": "ratio", "width": 20 } },
+    "maxDigits": 1000,
+    "maxBits": 65536
+  }
+}
+```
+
+`notation` is `{ "kind": "digits" }` or `{ "kind": "ratio", "width": 20 }`,
+the width an integer in `[1, 1000]`. The migration from 3 to 4 turns the
+string `"digits"` into the first and `"ratio"` into the second at the
+default width, twenty, since no earlier build stored one; a decimal mode
+passes through untouched, and a notation that is neither string passes
+through for the validation to default. The validation of version 4
+accepts a notation only when it is an object of one of the two shapes
+with a width in its range, defaulting the whole mode otherwise; the
+width depends on no other setting, so the clamp does not touch it.
+
 The storage key stays `settings`.
 
 ## One version for the whole record

@@ -951,7 +951,7 @@ written as the decimal display writes it, every other exact value as its
 fraction when the numerator and the denominator each fit within Digits
 digits, and everything else by the decimal display, which says `=` where
 its own rule allows. The fit rule is provisional, firm for stage 5 and
-studied after it (#91). An approximating fraction for an inexact value,
+studied after it (#91); D28 replaces it with the notation's own width. An approximating fraction for an inexact value,
 the study's later refinement, is ruled out for now: a decimal says what
 is known and no more.
 
@@ -1331,6 +1331,23 @@ answer is never a double rounding; the root of the `have` expression,
 the conversion's ratio, a list's counts and remainder, a function want's
 count and the reciprocal are each that last step. Exact mode has no such
 setting: its working precision is the retry schedule's.
+
+**D28. The ratio notation has a width of its own, the most digits a
+ratio, its two parts together, or a whole number may have to be written
+entire, twenty by default and independent of Digits; a ratio that does
+not fit is written with its power of ten factored onto the numerator
+when its parts then fit and its denominator is not one, and otherwise
+the value is a decimal at Digits (S2c of docs/settings-plan.md; amends
+D21).** docs/ratio-width.md is the design. D21's fit at Digits coupled
+a length to a precision, hid exact whole numbers and short ratios of
+large magnitude, and could not be read off the settings; the width is
+one number that decides what is written entire. The measure is the two
+parts together, the sign, the slash and the exponent of the factored
+form not counted, since the width stands for the characters a value
+takes on the line (ruled by the owner in the review of the note, over
+the per-part measure the S2 note recommended); a mixed form and a
+fractional mantissa are ruled out; an approximating fraction for an
+inexact value stays ruled out.
 
 ## Stage 1: the context and the ball
 

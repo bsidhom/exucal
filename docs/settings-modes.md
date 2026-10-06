@@ -396,12 +396,16 @@ mode is in force:
 
 ## As landed
 
-- **The notation's control** is a checkbox under the Mode select,
-  labeled "Notation" and named for the `ratio` value, present in exact
-  mode alone; decimal mode shows its working digits in the same place
-  (docs/working-digits.md). Each control emits the whole variant, and
-  the Mode select emits the chosen mode's variant at its defaults
-  (`DEFAULT_MODES` in settings.ts), so a change of mode is one event.
+- **The notation's control** is a pair of radio buttons under the Mode
+  select, labeled "Notation" and named for the two values, `digits` and
+  `ratio`, present in exact mode alone: the review ruled that a choice
+  among ways of writing a value is not an on/off toggle, and a radio
+  group shows every value it has, which a third notation would join.
+  Decimal mode's working digits sit under Digits instead, with which
+  they are intertwined (docs/working-digits.md). Each control emits the
+  whole variant, and the Mode select emits the chosen mode's variant at
+  its defaults (`DEFAULT_MODES` in settings.ts), so a change of mode is
+  one event.
 - **The stored shape** is version 3 as above, with the decimal variant
   carrying its `working` (docs/settings-storage.md); one migration from
   version 2 builds the variant, drops `fractions` and carries

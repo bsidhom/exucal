@@ -116,13 +116,13 @@ digits" for the setting and leaves the core's word to that study.
 
 ## The panel
 
-Under the Mode select, when the mode is decimal (as the notation's
-control appears under it when the mode is exact, S2):
+Under Digits, with which the working digits are intertwined, when the
+mode is decimal (the notation's control, S2, is under the Mode select
+when the mode is exact):
 
 ```
-Mode          [decimal ▾]
-              every step is rounded to Digits in the rounding mode, as a
-              hand calculator does; the answer is exact in that arithmetic.
+Digits        [ 8 ]
+              significant digits shown, and of every value.
 
 Working digits  [ ] extended
               every step is computed with Digits. Extended working digits
@@ -250,6 +250,9 @@ alone when this is taken up, it is a version 4 on its own.
 - **The directed modes** give the neighbor of a grid value, as the tests
   bullet above now says; the note's first draft claimed every mode
   matched exact mode, which holds for the modes to nearest alone.
-- **The panel** offers the last extended count when "extended" is
-  checked again in a session, and Digits otherwise; the count's input is
-  labeled "Extended working digits" for assistive technology.
+- **The panel** groups the control with Digits, on the review's ruling
+  that the two are logically intertwined and a control under the Mode
+  select did not say what it bore on; it offers the last extended count
+  when "extended" is checked again in a session, and Digits otherwise;
+  the count's input is labeled "Extended working digits" for assistive
+  technology.

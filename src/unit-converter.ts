@@ -11,6 +11,7 @@ import type { Side } from "./core/pipeline.ts";
 import type { UnitTable } from "./core/table.ts";
 import { print, text, type Piece } from "./core/print.ts";
 import {
+  UNCERTIFIED,
   copyText,
   outcomeOf,
   resultPieces,
@@ -97,6 +98,20 @@ export class UnitConverter extends LitElement {
 
     .hint {
       opacity: 0.7;
+    }
+
+    .uncertified {
+      position: relative;
+    }
+
+    .uncertified::after {
+      content: "•";
+      position: absolute;
+      left: 50%;
+      top: -0.6em;
+      transform: translateX(-50%);
+      font-size: 0.6em;
+      line-height: 1;
     }
 
     .note {
@@ -260,11 +275,28 @@ function renderLine(line: Line): TemplateResult {
       : html` <span class="note">(${line.note})</span>`;
   return html`<div class="line">
     <span class="expression">
-      <span>${text(print(line.have, "×"))}</span> ${line.relation}
+      <span>${text(print(line.have, "×"))}</span> ${renderRelation(line)}
       ${resultPieces(line).map(renderPiece)}${note}
     </span>
     <copy-button .text=${copyText(line)}></copy-button>
   </div>`;
+}
+
+/**
+ * The relation of `line`: its text, except the uncertified sign of decimal
+ * mode (D26), which is drawn as `≈` with a dot above it by the component
+ * rather than by the font's placement of a combining mark, and named for
+ * assistive technology.
+ */
+function renderRelation(line: Line): TemplateResult | string {
+  return line.relation === UNCERTIFIED
+    ? html`<span
+        class="uncertified"
+        role="img"
+        aria-label="approximately, uncertified"
+        >≈</span
+      >`
+    : line.relation;
 }
 
 /** One piece of a result: a number in the value's style, anything else as it is. */

@@ -163,6 +163,14 @@ export type Builtin = {
     args: readonly Ball[],
     context: NumberContext,
   ) => Result<Ball, BuiltinError>;
+  /**
+   * What the built-in is under decimal mode (D26; docs/decimal-mode.md,
+   * "`approx`"): absent for a function the kernel computes, which the
+   * evaluator runs at rising precision until its rounding is certified;
+   * `"identity"` for `approx`, whose result there is its argument, since
+   * every decimal-mode value is already at the user's precision.
+   */
+  readonly decimal?: "identity";
 };
 
 /** A set of built-ins by name: the app's (builtins.ts), or a test's. */

@@ -251,8 +251,9 @@ test("through the pipeline, exp and pow of a wide argument are a ball around zer
     );
   }
   assert.ok(performance.now() - start < 2000, "milliseconds, not seconds");
-  // In decimal mode the one pass is final: `y ln x` carries the settled
-  // third's radius, about `7.7e9`, and the answer is a zero with a bound.
+  // In decimal mode the third is 0.33333333 exactly and the power is one
+  // step, computed at rising precision until its eight digits certify
+  // (D26): a value with an exponent of eighteen digits, exact.
   const decimal = evaluateText(table.value, "pow(5e1000000000000000000, 1/3)", {
     ...CONTEXT,
     precision: 8,
@@ -260,8 +261,8 @@ test("through the pipeline, exp and pow of a wide argument are a ball around zer
   });
   assert.ok(decimal.ok, inspect(decimal));
   const shown = show(decimal.value.magnitude, 8, DEFAULT_ROUNDING);
-  assert.equal(shown.kind, "zero");
-  assert.ok(shown.kind === "zero" && /^\de\+3333333\d{11}$/.test(shown.bound));
+  assert.equal(shown.kind, "exact", inspect(shown));
+  assert.ok(/^\d\.\d{7}e\+33333333\d{10}$/.test(shown.text), shown.text);
 });
 
 test("through the pipeline, exp(1) certifies fifty digits on the first pass, exp(1e6) is a value and exp(1e30) is too large", () => {

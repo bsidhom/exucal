@@ -46,15 +46,17 @@ import {
 } from "./dimension.ts";
 import {
   addBalls,
+  carrying,
   divideBalls,
   exact,
   multiplyBalls,
   negateBall,
   powRationalBall,
-  settle,
+  step,
   subtractBalls,
   type Ball,
   type BallError,
+  type PastBound,
 } from "./ball.ts";
 import type { NumberContext } from "./context.ts";
 import type { Rational } from "./rational.ts";
@@ -73,23 +75,39 @@ export function scalar(value: Scaled): Quantity {
 }
 
 /**
- * `q` with its magnitude settled to the working precision of `context`
- * (D15): an inexact midpoint rounded to that precision's bits with the
- * rounding added to the radius, an exact one left as it is; refused as
- * `settle` refuses, in decimal mode, a rounded midpoint past the exponent
- * bound. The evaluator applies it to every result it produces, and the
- * lookup to every unit it hands out.
+ * A step of the expression on quantities (`step` of ball.ts, the one
+ * entrance through which a computed value becomes a value of the
+ * expression): `compute` at a working context gives the quantity, whose
+ * magnitude the step settles in exact mode and certifies and rounds in
+ * decimal mode, and which carries the uncertified flag of `operands`
+ * (D26). The dimension is the one `compute` gives, which does not vary
+ * with the precision.
  */
-export function settleQuantity(
-  q: Quantity,
+export function stepQuantity<E extends { readonly kind: string }>(
+  compute: (working: NumberContext) => Result<Quantity, E>,
   context: NumberContext,
-): Result<Quantity, BallError> {
-  const magnitude = settle(q.magnitude, context);
+  operands: readonly Quantity[] = [],
+): Result<Quantity, E | PastBound> {
+  let computed: Quantity | undefined;
+  const magnitude = step((working) => {
+    const quantity = compute(working);
+    if (!quantity.ok) return quantity;
+    computed = quantity.value;
+    return ok(quantity.value.magnitude);
+  }, context);
   if (!magnitude.ok) return magnitude;
+  if (computed === undefined)
+    throw new Error("A step that gave a value computed one");
+  const carried = carrying(
+    magnitude.value,
+    ...operands.map((q) => q.magnitude),
+  );
+  // The quantity computed, itself, when the step left its magnitude as it
+  // was: a value stepped already, or an exact one, is taken as it is.
   return ok(
-    magnitude.value === q.magnitude
-      ? q
-      : { magnitude: magnitude.value, dimension: q.dimension },
+    carried === computed.magnitude
+      ? computed
+      : { magnitude: carried, dimension: computed.dimension },
   );
 }
 

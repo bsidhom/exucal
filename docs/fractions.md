@@ -161,29 +161,20 @@ the edge is larger and so still sound, and is a note, not a literal.
 
 ## The decimal mode
 
-The setting applies in decimal mode as it does in exact mode, and shows
-fewer fractions. Every result there is rounded to Digits in the rounding
-mode (D15, the plan's 4.5), and a value that fit the digits without
-rounding is exact, radius zero, while one that did not is inexact by the
-rounding: `1/4` at eight digits is `= 1/4`, `2.54 cm` is `= (127/50) cm`,
-and `1/3` is `≈ 0.33333333`. Nothing else changes: the decimal display's
-answers in decimal mode are what they were, and a fraction in decimal
-mode always fits, its numerator and denominator being within a rounded
-mantissa's digits or a power of ten of Digits digits or fewer.
+The setting does not apply in decimal mode (D26; docs/decimal-mode.md,
+"The display"; #97). Every value there is a decimal of Digits digits,
+exact under the mode's rounding, which its digits write entire; a
+fraction would say nothing the digits do not, and the outcome never asks
+`show` for one in decimal mode, whatever the setting says. The settings'
+own shape, which puts the fractions display inside exact mode, is
+docs/settings-modes.md's.
 
-One thing had to move for this. Stage 4 left the pipeline's own
-quotients, the conversion's ratio, a list's counts and remainder and a
-function's count, and the outcome's reciprocal, unsettled in decimal
-mode, since the display rounded them to Digits in the mode and that
-rounding was the division's (docs/decimal.md, "The decimal mode"). The
-fractions display does not round an exact value, so `1 m` in `in` would
-have been `= (5000/127) in` in decimal mode, an exact result the mode
-never produces. 5.2 settles those quotients in decimal mode where they
-are formed, and the rule above then holds: `1 m` in `in` is
-`≈ 39.370079 in`, `1 in` in `cm` is `= (127/50) cm`, and `3 m` in `m`
-has the reciprocal `m ≈ 0.33333333 × 3 m`. The rest of what the
-reciprocal lacks from the pipeline, its retry in exact mode and a word
-on a refusal, is [#92](https://github.com/bsidhom/pwa-units/issues/92).
+Before D26 the setting applied in decimal mode and showed fewer
+fractions, for the values the roundings happened to leave exact, and 5.2
+settled the pipeline's own quotients in decimal mode so that an exact
+ratio would not become a fraction there (`1 m` in `in` was
+`≈ 39.370079 in`, `1 in` in `cm` `= (127/50) cm`). The settle stays, as
+the mode's one rounding of those steps; the fractions do not.
 
 ## Where it goes
 

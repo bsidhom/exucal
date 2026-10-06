@@ -1,6 +1,11 @@
 # The exponent and the decimal mode
 
-Status: design note for stage 4 of docs/calculator-plan.md, written after
+Status: the decimal mode this note designed has been restated by D26
+(docs/decimal-mode.md): every step is one correctly rounded operation,
+every value is exact, and no radius is carried; "The decimal mode" below
+and the stage-4 rulings on the radius it describes are superseded by
+that note, and the exponent, the bound and exact mode stand. Design note
+for stage 4 of docs/calculator-plan.md, written after
 stage 3 landed and before any of the stage's code; the plan's stage 4 was
 revised against it in the same change. The goal is the study's features
 4 and 5 (docs/calculator.md, "4 and 5. Floating point and decimal: one
@@ -458,6 +463,11 @@ count leaves, exactly for exact operands; a count that is an integer of
 any size (`1e999999999 m` into `km;m`) stays exact.
 
 ## The decimal mode
+
+Superseded in part by D26 (docs/decimal-mode.md): the radius this
+section adds at every step is no longer carried, every decimal-mode
+value being exact, and a function call is one step whose rounding is
+certified. The section stands as the record of what stage 4 built.
 
 `NumberContext` gains `mode: "exact" | "decimal"`, default exact, and
 `settle(b, context)` reads it. The two modes are one routine with two

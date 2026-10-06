@@ -128,14 +128,14 @@ import {
   divideBalls,
   isExact,
   position,
-  settle,
+  step,
   subtractBalls,
   type Ball,
 } from "./ball.ts";
 import {
-  GUARD_DIGITS,
   checkContext,
   modeOf,
+  workingContexts,
   type NumberContext,
 } from "./context.ts";
 import { isUnbounded } from "./radius.ts";
@@ -274,28 +274,19 @@ export type ConversionError =
 /**
  * The working contexts for the user's `context`, per D12: the digits asked
  * for plus the guard, then that doubled, doubled again, and so on while
- * below the context's ceiling, and the ceiling last; the rounding mode,
- * the range limit, the ceiling and the mode are the user's throughout. In
- * decimal mode the context itself, alone (4.6). A precision above the cap
+ * below the context's ceiling, and the ceiling last (`workingContexts` in
+ * context.ts); the rounding mode, the range limit, the ceiling and the
+ * mode are the user's throughout. In decimal mode the context itself,
+ * alone (4.6; D26): every step is rounded once, a built-in's rounding
+ * certified within the evaluator, and a second pass would compute
+ * something other than what the mode asks for. A precision above the cap
  * the ceiling was derived from (`ceilingFor` in context.ts, four times the
  * cap plus the guard) is a precondition failure.
  */
 export function schedule(context: NumberContext): NumberContext[] {
   checkContext(context);
-  const { ceiling } = context;
   if (modeOf(context) === "decimal") return [context];
-  const first = context.precision + GUARD_DIGITS;
-  if (4 * first > ceiling) {
-    throw new RangeError(
-      `${context.precision} digits exceed the cap for a ceiling of ${ceiling}`,
-    );
-  }
-  const contexts: NumberContext[] = [];
-  for (let precision = first; precision < ceiling; precision *= 2) {
-    contexts.push({ ...context, precision });
-  }
-  contexts.push({ ...context, precision: ceiling });
-  return contexts;
+  return workingContexts(context);
 }
 
 /**
@@ -572,23 +563,18 @@ function convertParsed(
 
 /**
  * `quotient`, formed by the pipeline outside the evaluator (a ratio, a
- * count, a list's term), settled in decimal mode as every step is (D15):
- * stage 4 left these to the display's rounding, which the fractions
- * display no longer applies to an exact value (docs/fractions.md, "The
- * decimal mode"), so `1 m` in `in` at eight digits is `39.370079` within
- * a bound there, inexact, and `1 in` in `cm` is `2.54`, exact. A refusal
- * is the quotient's. In exact mode the quotient of settled operands is
- * left as it is.
+ * count, a list's term), as a step of the expression (`step` of ball.ts;
+ * D15, D26): settled to the working precision in exact mode, and in
+ * decimal mode rounded once to the digits asked for, exact, so `1 m` in
+ * `in` at eight digits is `39.370079` there and `1 in` in `cm` is `2.54`.
+ * A refusal is the quotient's.
  */
 function settledInMode(
   quotient: Ball,
   context: NumberContext,
 ): Result<Ball, ConversionError> {
-  if (modeOf(context) !== "decimal") return ok(quotient);
-  const settled = settle(quotient, context);
-  if (settled.ok) return settled;
-  if (isRefusal(settled.error)) return err(refusal(settled.error));
-  throw new Error(`A settle failed otherwise: ${settled.error.kind}`);
+  const settled = step(() => ok(quotient), context);
+  return settled.ok ? settled : err(refusal(settled.error));
 }
 
 /** Each of `terms` as `settledInMode` settles it; the first refusal is the list's. */
@@ -596,7 +582,6 @@ function settledTermsInMode(
   terms: readonly Ball[],
   context: NumberContext,
 ): Result<readonly Ball[], ConversionError> {
-  if (modeOf(context) !== "decimal") return ok(terms);
   const settled: Ball[] = [];
   for (const term of terms) {
     const result = settledInMode(term, context);
@@ -708,7 +693,7 @@ function convertToFunction(
     table.primitives,
   );
   if (!conformance.ok) return conformance;
-  const lookup = unitLookup(table, context);
+  const lookup = unitLookup(table);
   const assumed: Assumption[] = [];
   const inDomain = checkConditions(
     { name: fn.name, parameters: [inverse.parameter] },
@@ -892,7 +877,7 @@ function evaluateExpr(
 ): Result<Quantity, TextError> {
   return evaluate(
     expr,
-    unitLookup(table, context),
+    unitLookup(table),
     table.primitives,
     context,
     assumptions,

@@ -27,7 +27,7 @@ import { evaluate, type Assumption } from "./evaluate.ts";
 import { parseExpr, type Expr } from "./expr.ts";
 import type { Quantity } from "./quantity.ts";
 import { certifies } from "./ball.ts";
-import { DEFAULT_PRECISION } from "./rounding.ts";
+import { DEFAULT_PRECISION, ROUNDING_MODES } from "./rounding.ts";
 import type { Result } from "./result.ts";
 import { ONE, ZERO, divide, equals, format, type Scaled } from "./scaled.ts";
 import { unitLookup, type UnitTable } from "./table.ts";
@@ -252,12 +252,7 @@ function passes(
     context,
     (working) => {
       at.push(working.precision);
-      return evaluate(
-        expr.value,
-        unitLookup(table, working),
-        table.primitives,
-        working,
-      );
+      return evaluate(expr.value, unitLookup(table), table.primitives, working);
     },
     (quantity) =>
       isExact(quantity.magnitude) ||
@@ -367,21 +362,18 @@ test("in decimal mode the schedule is the context alone and resolve runs one pas
   assert.deepEqual(result, { ok: false, error: { kind: "unresolved" } });
 });
 
-test("in decimal mode every operation rounds to the digits in the mode, and the display marks what the radius does not certify", () => {
-  // 1 / 3 * 3 at eight digits: 0.33333333 times three, 0.99999999 with the
-  // two roundings as its radius, the ball [0.99999998, 1]: under a nearest
-  // mode seven of eight digits are certain and the line reads ≈ 1; under
-  // towardZero the ends lie on either side of the boundary at 1 and no
-  // digit is certain.
-  for (const [mode, shown] of [
-    ["halfEven", { kind: "partial", text: "1", certified: 7 }],
-    ["halfAwayFromZero", { kind: "partial", text: "1", certified: 7 }],
-    ["towardZero", { kind: "partial", text: "0.99999999", certified: 0 }],
-  ] as const) {
+test("in decimal mode every operation is one rounded step and every value is exact (D26)", () => {
+  // 1 / 3 * 3 at eight digits: 0.33333333 times three, 0.99999999, exact,
+  // under every mode, and shown so: the rounded value is the answer.
+  for (const mode of ["halfEven", "halfAwayFromZero", "towardZero"] as const) {
     const result = evaluateText(table, "1 / 3 * 3", decimal(8, mode));
     assert.ok(result.ok, `${mode}: ${inspect(result)}`);
-    assert.deepEqual(show(result.value.magnitude, 8, mode), shown, mode);
-    assert.deepEqual(result.value.magnitude.mid, dec("0.99999999"), mode);
+    assert.deepEqual(result.value.magnitude, exact(dec("0.99999999")), mode);
+    assert.deepEqual(
+      show(result.value.magnitude, 8, mode),
+      { kind: "exact", text: "0.99999999" },
+      mode,
+    );
   }
   // A unit of p digits or fewer is exact in either mode: 1 ft in in.
   const foot = value("1 ft", "in");
@@ -395,44 +387,55 @@ test("in decimal mode every operation rounds to the digits in the mode, and the 
     kind: "exact",
     text: "12",
   });
-  // A quotient by a value the roundings made noise is unresolved at once;
-  // in exact mode the same difference is exactly zero, a division by
-  // zero, and it is the residue of a root that is unresolved there, after
-  // the ceiling.
+  // The noise of the roundings is a value, as on a calculator: in exact
+  // mode the same difference is exactly zero, a division by zero.
   const noise = evaluateText(table, "1 / (1 / 3 * 3 - 1)", decimal(8));
-  assert.ok(!noise.ok);
-  assert.deepEqual(noise.error, {
-    kind: "unresolved",
-    span: { start: 4, end: 19 },
-    edge: ZERO,
-  });
-  assert.equal(
-    describeTextError(noise.error, "1 / (1 / 3 * 3 - 1)", table.primitives),
-    '"(1 / 3 * 3 - 1)" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
-  );
+  assert.ok(noise.ok, inspect(noise));
+  assert.deepEqual(noise.value.magnitude, exact(dec("-1e8")));
   const exactZero = evaluateText(table, "1 / (1 / 3 * 3 - 1)", CONTEXT);
   assert.ok(!exactZero.ok && exactZero.error.kind === "divisionByZero");
-  const rootNoise = evaluateText(table, "1 / ((2^(1/2))^2 - 2)", decimal(8));
-  assert.ok(!rootNoise.ok && rootNoise.error.kind === "unresolved");
-  const rootNoiseExact = evaluateText(table, "1 / ((2^(1/2))^2 - 2)", CONTEXT);
-  assert.ok(!rootNoiseExact.ok && rootNoiseExact.error.kind === "unresolved");
-  // exp(1) at eight digits is 2.7182818 within the rounding, in one pass.
-  const e = evaluateText(table, "exp(1)", decimal(8));
-  assert.ok(e.ok);
-  assert.deepEqual(e.value.magnitude.mid, dec("2.7182818"));
-  assert.deepEqual(show(e.value.magnitude, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "2.7182818",
-  });
-  // sqrt(2)^2 - 2: the rounded residue of the mode, one pass.
+  // A root is one step, certified: sqrt 2 at eight digits is 1.4142136,
+  // its square 2.0000001 and the residue 1e-7, whose reciprocal is 1e7;
+  // in exact mode the residue is unresolved, after the ceiling.
   const residue = evaluateText(
     table,
     "(2^(1/2))^2 - 2",
     decimal(8, "halfEven"),
   );
   assert.ok(residue.ok, inspect(residue));
-  const shownResidue = show(residue.value.magnitude, 8, "halfEven");
-  assert.equal(shownResidue.kind, "zero");
+  assert.deepEqual(residue.value.magnitude, exact(dec("1e-7")));
+  const rootNoise = evaluateText(table, "1 / ((2^(1/2))^2 - 2)", decimal(8));
+  assert.ok(rootNoise.ok, inspect(rootNoise));
+  assert.deepEqual(rootNoise.value.magnitude, exact(dec("1e7")));
+  const rootNoiseExact = evaluateText(table, "1 / ((2^(1/2))^2 - 2)", CONTEXT);
+  assert.ok(!rootNoiseExact.ok && rootNoiseExact.error.kind === "unresolved");
+  // A built-in is one step, correctly rounded in every rounding mode: the
+  // digits exact mode certifies at the same digits in the same mode, and
+  // exact.
+  for (const text of [
+    "exp(1)",
+    "gamma(4.5)",
+    "sin(1 radian)",
+    "pi()",
+    "ln(10)",
+  ]) {
+    for (const mode of ROUNDING_MODES) {
+      const inDecimal = evaluateText(table, text, decimal(8, mode));
+      const inExact = evaluateText(table, text, { ...CONTEXT, rounding: mode });
+      assert.ok(inDecimal.ok && inExact.ok, `${text} under ${mode}`);
+      const shown = show(inDecimal.value.magnitude, 8, mode);
+      assert.equal(
+        shown.kind,
+        "exact",
+        `${text} under ${mode}: ${inspect(shown)}`,
+      );
+      assert.equal(
+        shown.text,
+        show(inExact.value.magnitude, 8, mode).text,
+        `${text} under ${mode}`,
+      );
+    }
+  }
   // A list want and a function want in decimal mode.
   const listed = convertText(table, "100 in", "ftin", decimal(8));
   assert.ok(listed.ok && listed.value.kind === "list", inspect(listed));
@@ -787,17 +790,16 @@ test("a result straddling the exponent bound is retried, and reported at the bou
     inspect(narrowing),
   );
   // No pass narrows this one below the top: unresolved at the bound at the
-  // ceiling, and at once in decimal mode, where it is final.
+  // ceiling. In decimal mode approx is the identity (D26), the difference
+  // is exactly zero and so is the product.
   const straddling =
     "5e1000000000000000000 * (approx(1e5000) - approx(1e5000))";
-  for (const context of [CONTEXT, decimal(8)]) {
-    const result = evaluateText(table, straddling, context);
-    assert.ok(
-      !result.ok && result.error.kind === "unresolved",
-      inspect(result),
-    );
-    assert.equal(result.error.edge, "bound");
-  }
+  const result = evaluateText(table, straddling, CONTEXT);
+  assert.ok(!result.ok && result.error.kind === "unresolved", inspect(result));
+  assert.equal(result.error.edge, "bound");
+  const inDecimal = evaluateText(table, straddling, decimal(8));
+  assert.ok(inDecimal.ok, inspect(inDecimal));
+  assert.deepEqual(inDecimal.value.magnitude, exact(ZERO));
   // The converter's ratio and a list's count straddling the top are the
   // converter's own retried variant.
   assert.deepEqual(failure("approx(1e1000000000000000000) m", "0.1 m"), {
@@ -1345,7 +1347,7 @@ test("a condition may guard the next: a term is computed only behind conditions 
 test("a certain failure after an undecided comparison is reported, not assumed or retried", () => {
   const evaluated = evaluate(
     parsedExpr("both(approx(1), 0)"),
-    unitLookup(conditional, CONTEXT),
+    unitLookup(conditional),
     conditional.primitives,
     CONTEXT,
     [],
@@ -1386,7 +1388,7 @@ test("an undecided condition is assumed, retried to the ceiling, and carried out
       at.push(working.precision);
       return evaluate(
         expr,
-        unitLookup(conditional, working),
+        unitLookup(conditional),
         conditional.primitives,
         working,
         assumptions,
@@ -1402,13 +1404,16 @@ test("an undecided condition is assumed, retried to the ceiling, and carried out
   assert.deepEqual(assumed, [assumption("tempC", "x >= -273.15")]);
   // The value is the body's honest ball: zero, within the argument's radius.
   assert.ok(containsZero(result.value.magnitude));
-  // evaluateText does the same; decimal mode assumes at its one pass.
+  // evaluateText does the same. In decimal mode approx is the identity
+  // (D26): the argument is exactly -273.15, the condition is decided and
+  // nothing is assumed, and the value is exactly zero.
   assert.deepEqual(assuming("tempC(approx(-273.15))").assumed, [
     assumption("tempC", "x >= -273.15"),
   ]);
   const once = assuming("tempC(approx(-273.15))", decimal(8));
   assert.ok(once.result.ok, inspect(once.result));
-  assert.deepEqual(once.assumed, [assumption("tempC", "x >= -273.15")]);
+  assert.deepEqual(once.assumed, []);
+  assert.deepEqual(once.result.value.magnitude, exact(ZERO));
 });
 
 test("a condition that more digits decide against fails, though an earlier pass assumed it", () => {
@@ -1418,7 +1423,7 @@ test("a condition that more digits decide against fails, though an earlier pass 
   const assumed: Assumption[] = [];
   const early = evaluate(
     parsedExpr(text),
-    unitLookup(conditional, first),
+    unitLookup(conditional),
     conditional.primitives,
     first,
     assumed,

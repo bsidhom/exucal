@@ -111,10 +111,12 @@ Three rules say where, and only where, a value can lose precision:
    (docs/decimal.md, "Sums, comparisons and the radius"): two exact
    operands that cannot be aligned within it have an exact sum that cannot
    be held and fail `tooLarge` in exact mode (`1e999999999 + 1`), while a
-   sum with an inexact operand, which is about to be settled, or any sum
-   in decimal mode, settles its operands
-   first and, when they still do not align, absorbs the smaller into the
-   radius (`sqrt(2) + 1e999999999` is `1e999999999` within `1.5`); a sum
+   sum with an inexact operand, which is about to be settled, settles its
+   operands first and, when they still do not align, absorbs the smaller
+   into the radius (`sqrt(2) + 1e999999999` is `1e999999999` within
+   `1.5`), and in decimal mode such a sum is the larger operand, or its
+   neighbor at the digits by the smaller's sign in a directed mode (D26);
+   a sum
    that aligns and whose value passes the bound is held to the bound as a
    product is, `overflow` or `underflow` when every value of its ball is
    past it and `unresolved` at the edge `bound` when some are (issue #48
@@ -260,18 +262,20 @@ digits, mode)` in `src/core/display.ts` formats the midpoint at the
    not fit, and every inexact value are shown as above, the decimal
    display being the fallback. In decimal mode the pipeline settles the
    quotients it forms outside the evaluator (the ratio, a list's terms, a
-   function's count), as every step is settled there, now that the
-   display no longer rounds every exact value; the outcome settles the
-   reciprocal the same way.
+   function's count), as every step is settled there; the outcome settles
+   the reciprocal the same way, and never asks for a fraction there, the
+   setting being exact mode's (D26).
    Exactness is a property of the value, not of the display: a value that
    passes through a root and comes out looking rational (`sqrt(2) /
 sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while `sqrt(4)` is
    `= 2` because the exact case was detected and nothing was rounded. The mode is applied here and nowhere else in exact mode (the plan's D15):
    the digits shown are the true value's rounding in it, and no intermediate
    step rounds in a mode; in decimal mode every step rounds in it, through
-   the settle, and the display certifies the digits of the exact expression
-   as before, so a value the roundings have moved off its cell certifies
-   fewer than asked and the note says so. The default mode is half away from
+   the settle, and is exact after it (D26; docs/decimal-mode.md), so every
+   line there is `=`, except a value flagged `uncertified`, a step whose
+   rounding the ceiling left uncertified, which is the kind `uncertified`
+   and is written with the `≈` sign bearing a dot above it and a note. The
+   default mode is half away from
    zero, the rounding people expect from `0.125 → 0.13` (the `halfExpand`
    of `Intl.NumberFormat`; C's `%g` differs only on exact ties, which are
    rare with doubles but ordinary with rationals). The retry loop below
@@ -435,17 +439,27 @@ an inexact midpoint never grows beyond the working precision however long
 the expression, while exact values stay the exact numbers they are; the
 first version of this design let inexact midpoints grow as exact
 rationals, and a thirteen-thousand-bit dyadic to the fifth power was then
-a size the range limit refused. In decimal mode the same settle rounds
-every midpoint, an exact one included, to the digits asked for in the
-rounding mode, and the exact difference between the rounded value and
-the midpoint goes into the radius, so that the rounding mode governs
-every operation there: a literal with more digits than asked is rounded
-and the radius records it, a unit is rounded once when it is looked up,
-a power of an inexact base at every squaring (an exact power once, on its
-result), and a call once on its result; a value with
-the digits asked for or fewer is its own rounding and stays exact, so
+a size the range limit refused. In decimal mode (D26; docs/decimal-mode.md)
+the settle is the mode's one rounding of each step: every value, an
+exact one included, is rounded to the digits asked for in the rounding
+mode and is exact after it, no radius recording the rounding, since
+there the rounded value is the value. A step is a node of the expression:
+a literal with more digits than asked is rounded as it is read, a unit is
+rounded once when it is looked up, an integer power of an exact base is
+rounded once on its exact result (or, where that does not fit the range
+limit, computed on the base widened to the working precision and
+certified), and a call is one step whose rounding is certified: the
+evaluator computes the built-in at the working precisions of the retry
+schedule, in exact mode, until both ends of its ball round alike at the
+digits asked for (`step` in `ball.ts`, the one entrance through which a
+computed value becomes a value of the expression in either mode), and
+takes that rounding;
+at the ceiling it takes the midpoint's rounding and flags the value
+`uncertified`, a flag every later operation carries (`carrying`), which
+the display shows. `approx` is the identity there. A value with
+the digits asked for or fewer is its own rounding and stays as it is, so
 `1 ft` in `in` is `= 12 in` in either mode. The two modes are one
-`roundTo` with two parameters (`settle` in `ball.ts`). `powBall` on an inexact base squares with
+`settle` with two branches (`ball.ts`). `powBall` on an inexact base squares with
 settling for the same reason, and only the magnitude of its result is
 guarded. In exact mode settling rounds to nearest, not in the user's
 mode: it bounds the
@@ -1246,7 +1260,8 @@ is an `undecidedCondition`, retried as an `unresolved` is. The pipeline
 gives each pass of the retry loop a collector of its own, and a result
 that assumes a condition is never final, so a condition across its
 bound by noise is computed again at more digits; one still undecided at
-the ceiling, or after decimal mode's one pass, reaches the outcome,
+the ceiling reaches the outcome (in decimal mode every value is exact
+and every condition decided, D26),
 which shows the value with every line's relation `≈` and a warning per
 condition, styled apart from the notes on digits. Conditions restrict
 arguments only: nothing checks a result against a range.

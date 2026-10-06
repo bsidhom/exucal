@@ -62,9 +62,16 @@ once the name has resolved and before any argument is evaluated.
   the value `fixedToBall` hands back, rounded onto the working digits, its
   radius the kernel's error and that rounding, and
   it rounds in no mode. The evaluator settles every result it produces,
-  so the built-in does not; the mode is the display's alone in exact mode,
-  and the settle's in decimal mode, where a call rounds once, on its
-  result (stage 4's 4.5).
+  so the built-in does not; the mode is the display's alone in exact mode.
+  In decimal mode (D26; docs/decimal-mode.md) a call is one step: the
+  evaluator runs the built-in at the working precisions of the retry
+  schedule, in exact mode, until the ball it returns certifies the digits
+  asked for in the rounding mode, and takes that rounding, exact; at the
+  ceiling it takes the midpoint's rounding and flags the value
+  uncertified. A built-in therefore never sees a decimal-mode context;
+  `approx` alone declares itself the identity there (`decimal:
+"identity"`), since every decimal-mode value is already at the user's
+  precision.
 - **An exact case returns an exact ball**, radius zero, wherever the value
   is rational and cheaply recognized. Which cases are listed per function
   below; the rest of the time the result is a ball however round it looks

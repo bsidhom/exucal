@@ -535,7 +535,7 @@ test("a unit of any exponent builds, and a prefix or a body scales it in the exp
   assertQuantity(table.units.get("huge"), "1e999999999", { m: 1 });
   assertQuantity(table.units.get("bigger"), "1e2000000001", { m: 1 });
   assertQuantity(table.units.get("tiny"), "1e-999999999", {});
-  const lookup = unitLookup(table, CONTEXT);
+  const lookup = unitLookup(table);
   const khuge = lookup.unit("khuge", { start: 0, end: 5 });
   assert.ok(khuge.ok, inspect(khuge));
   assertQuantity(khuge.value, "1e1000000002", { m: 1 });
@@ -582,7 +582,7 @@ test("a built table converts", () => {
     "hour 60 min",
     "hertz 1 / s",
   );
-  const lookup = unitLookup(table, CONTEXT);
+  const lookup = unitLookup(table);
   const quantity = (text: string): Quantity => {
     const expr = parseExpr(text);
     assert.ok(expr.ok, inspect(expr));
@@ -779,12 +779,7 @@ const TEMP = [
 function resultIn(table: UnitTable, text: string) {
   const expr = parseExpr(text);
   assert.ok(expr.ok, inspect(expr));
-  return evaluate(
-    expr.value,
-    unitLookup(table, CONTEXT),
-    table.primitives,
-    CONTEXT,
-  );
+  return evaluate(expr.value, unitLookup(table), table.primitives, CONTEXT);
 }
 
 /** The quantity `text` denotes in `table`. */
@@ -793,7 +788,7 @@ function quantityIn(table: UnitTable, text: string): Quantity {
   assert.ok(expr.ok, inspect(expr));
   const result = evaluate(
     expr.value,
-    unitLookup(table, CONTEXT),
+    unitLookup(table),
     table.primitives,
     CONTEXT,
   );
@@ -842,7 +837,7 @@ test("a built function applies and inverts", () => {
   const argument = invertFunction(
     table.functions.get("tempC")!.inverse!,
     boiling,
-    unitLookup(table, CONTEXT),
+    unitLookup(table),
     table.primitives,
     CONTEXT,
   );

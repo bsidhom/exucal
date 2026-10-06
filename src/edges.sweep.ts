@@ -171,50 +171,50 @@ const CASES: readonly TextCase[] = [
   },
   { text: "tanh(approx(1e60) - approx(1e60))", ...WIDE_32, expect: ZERO_VALUE },
   // #39: exp and pow of a wide argument crashed.
-  // In decimal mode the one pass leaves the argument wide, and the result
-  // straddles the bound: `unresolved`, final there (D18).
+  // In decimal mode every value is exact (D26): `approx` is the identity,
+  // the difference is exactly zero, and the function of zero is its value.
   {
     text: "exp(1e60 * sqrt(2) - 1e60 * sqrt(2))",
     ...WIDE_32,
-    expect: { exact: digits("1"), decimal: UNRESOLVED },
+    expect: digits("1"),
   },
   {
     text: "exp(approx(1e60) - approx(1e60))",
     ...WIDE_32,
-    expect: { exact: digits("1"), decimal: UNRESOLVED },
+    expect: digits("1"),
   },
   {
     text: "pow(2, approx(1e60) - approx(1e60))",
     ...WIDE_32,
-    expect: { exact: digits("1"), decimal: UNRESOLVED },
+    expect: digits("1"),
   },
-  // #40: a radius alone makes exp refuse; H.15's forms beside it.
+  // #40: a radius alone makes exp refuse; H.15's forms beside it. In
+  // decimal mode `1e999 - 5` is `1e999` at thirty-two digits, exactly, so
+  // every difference is zero and the functions give their value there.
   {
     text: "exp(approx(1e999) - approx(1e999 - 5))",
     ...WIDE_32,
-    expect: { exact: digits("148.41316"), decimal: UNRESOLVED },
+    expect: { exact: digits("148.41316"), decimal: digits("1") },
   },
-  // In decimal mode `1e999 - 5` rounds to `1e999` within five, and the
-  // exponential of a ball five wide is zero within `e^5`.
   {
     text: "exp(1e999 - (1e999 - 5))",
     ...WIDE_32,
-    expect: { exact: digits("148.41316"), decimal: containing("1") },
+    expect: { exact: digits("148.41316"), decimal: digits("1") },
   },
   {
     text: "sinh(approx(1e999) - approx(1e999 - 5))",
     ...WIDE_32,
-    expect: { exact: digits("74.203211"), decimal: UNRESOLVED },
+    expect: { exact: digits("74.203211"), decimal: digits("0") },
   },
   {
     text: "cosh(approx(1e999) - approx(1e999 - 5))",
     ...WIDE_32,
-    expect: { exact: digits("74.209949"), decimal: UNRESOLVED },
+    expect: { exact: digits("74.209949"), decimal: digits("1") },
   },
   {
     text: "pow(2, approx(1e999) - approx(1e999 - 5))",
     ...WIDE_32,
-    expect: { exact: digits("32"), decimal: UNRESOLVED },
+    expect: { exact: digits("32"), decimal: digits("1") },
   },
   // #44: values at the edge of the exponent bound crash; H.11 to H.13.
   { text: `1e-${E18} / approx(3)`, expect: refused("underflow") },
@@ -255,33 +255,32 @@ const CASES: readonly TextCase[] = [
   { text: "2^1e-400", expect: digits("1") },
   { text: "pow(2, 1e-300)", expect: digits("1") },
   // #46: powers near one, and of 0 and ±1; H.6, H.15 and H.16. In decimal
-  // mode `approx(1)` is one within `1e-7`, whose power reaches past both
-  // edges of the bound and within it: `unresolved` at the bound, final.
+  // mode `approx(1)` is exactly one (D26), and its power one.
   {
     text: "approx(1)^1000000000000000000000000000000",
-    expect: { exact: digits("1"), decimal: UNRESOLVED },
+    expect: digits("1"),
   },
   { text: "pow(1, approx(1e400))", expect: digits("1") },
-  // In decimal mode the base rounds to one within `1e-400`, and the power
-  // is a ball around one that certifies nothing.
+  // In decimal mode the base rounds to one, exactly, and the power is one.
   {
     text: "pow(1 + 1e-400, approx(1e400))",
-    expect: { exact: digits("2.7182818"), decimal: containing("1") },
+    expect: { exact: digits("2.7182818"), decimal: digits("1") },
   },
   { text: "pow(1, 1e999999999)", expect: digits("1") },
   { text: "pow(-1, 1e999999999)", expect: digits("1") },
   { text: "pow(0, 1e999999999)", expect: ZERO_VALUE },
-  // In decimal mode the base's ball touches one, so the power reaches
-  // one as well as past the top.
-  {
-    text: "approx(1.0000001)^1e30",
-    expect: { exact: refused("overflow"), decimal: UNRESOLVED },
-  },
+  // In decimal mode the base is exactly `1.0000001`, and its power is past
+  // the top as in exact mode.
+  { text: "approx(1.0000001)^1e30", expect: refused("overflow") },
   { text: "pow(2, approx(1e400))", expect: refused("overflow") },
-  { text: "pow(approx(1), 1e999999999)", expect: UNRESOLVED },
+  // Exact mode cannot tell `approx(1)` from one; decimal mode has one.
+  {
+    text: "pow(approx(1), 1e999999999)",
+    expect: { exact: UNRESOLVED, decimal: digits("1") },
+  },
   {
     text: "pow(1 + (approx(1/3) - 1/3) * 1e20, 1e999999999)",
-    expect: UNRESOLVED,
+    expect: { exact: UNRESOLVED, decimal: digits("1") },
   },
   // #47: the inverse trigonometric functions of extreme arguments.
   { text: `atan2(1, -1e${E18_LESS_ONE})`, expect: digits("3.1415927") },
@@ -300,8 +299,12 @@ const CASES: readonly TextCase[] = [
   // #48: a sum past the bound with an inexact operand was shown as zero.
   // The exact sum is past the bound throughout; the sum with `approx`'s
   // radius reaches back within it, `unresolved` at the bound (D18) at
-  // every precision, since the midpoint sits on the bound.
-  { text: `approx(5e${E18}) + 5e${E18}`, expect: UNRESOLVED },
+  // every precision, since the midpoint sits on the bound. In decimal
+  // mode `approx` is the identity and the sum is past the top.
+  {
+    text: `approx(5e${E18}) + 5e${E18}`,
+    expect: { exact: UNRESOLVED, decimal: refused("overflow") },
+  },
   { text: `5e${E18} + 5e${E18}`, expect: refused("overflow") },
   {
     text: "3047999999999999999999999999999999996953e999999999999999978 m",
@@ -309,12 +312,11 @@ const CASES: readonly TextCase[] = [
     expect: refused("overflow"),
   },
   // In decimal mode the `have` rounds to `3.048e+(10^18)` at eight digits,
-  // within the rounding's radius, and its count of feet straddles
-  // `1e+(10^18 + 1)`: `unresolved` at the bound, final in decimal mode.
+  // exactly (D26), and its count of feet is `1e+(10^18 + 1)`, past the top.
   {
     text: "3047999999999999999999999999999999996953e999999999999999961 m",
     want: "ft;in",
-    expect: { exact: LIST, decimal: error("unresolvedBound") },
+    expect: { exact: LIST, decimal: refused("overflow") },
   },
   {
     text: "1e999999999999999980/3 + approx(333333333333333333333e999999999999999980)",
@@ -445,15 +447,16 @@ const CASES: readonly TextCase[] = [
   { text: "pow(10, 1e-100)", expect: digits("1") },
   { text: "pow(1/3, 1e-30)", expect: digits("1") },
   { text: "pow(2e200, 1e-20)", expect: digits("1") },
-  // In decimal mode the exponent `3^-700` is rounded, so it is inexact, and
-  // a negative base, or one straddling zero, cannot take it.
+  // In decimal mode the exponent `3^-700` is rounded to eight digits, an
+  // exact fraction over a power of ten, which a negative base cannot take
+  // (an even root); `1e-5 - approx(1e-5)` is exactly zero there (D26).
   {
     text: "pow(-2, 3^-700)",
-    expect: { exact: digits("-1"), decimal: error("domain") },
+    expect: { exact: digits("-1"), decimal: error("negativeRadicand") },
   },
   {
     text: "pow(1e-5 - approx(1e-5), 3^-700)",
-    expect: { exact: ZERO_VALUE, decimal: UNRESOLVED },
+    expect: ZERO_VALUE,
   },
   { text: "pow(3^-10000, 2^-30)", expect: digits("0.99998977") },
   { text: "(7^-8000)^(1/99999)", expect: digits("0.85583783") },
@@ -481,39 +484,44 @@ const CASES: readonly TextCase[] = [
     want: `1e${E18} m`,
     expect: { exact: digits("10"), decimal: refused("overflow") },
   },
-  // #60: a product at the bound decided by its midpoint alone; H.13.
+  // #60: a product at the bound decided by its midpoint alone; H.13. In
+  // decimal mode `approx(1/3)` is `0.33333333` exactly, the difference
+  // `1e38` and the product past the top (D26).
   {
     text: "(1e46 - approx(1/3) * 3e46) * 1e999999999999999983",
-    expect: { exact: ZERO_VALUE, decimal: UNRESOLVED },
+    expect: { exact: ZERO_VALUE, decimal: refused("overflow") },
   },
   { text: "(approx(1/3) - 1/3) * 1e-999999999999999990", expect: ZERO_VALUE },
-  { text: `5e${E18} * (approx(1e5000) - approx(1e5000))`, expect: UNRESOLVED },
-  // #60's last row is decimal mode's, where the sum's radius passes the
-  // top and D18 leaves it `unresolved`; in exact mode the passes narrow it.
+  // In decimal mode the differences are exactly zero, and so the products.
+  {
+    text: `5e${E18} * (approx(1e5000) - approx(1e5000))`,
+    expect: { exact: UNRESOLVED, decimal: digits("0") },
+  },
   {
     text: "(approx(1e30) - approx(1e30)) * 3e999999999999999977 + (approx(1e30) - approx(1e30)) * 3e999999999999999977",
-    expect: { exact: ZERO_VALUE, decimal: UNRESOLVED },
+    expect: { exact: ZERO_VALUE, decimal: digits("0") },
   },
   // #61: the guards refused within 10^9 decades of the bound. In decimal
-  // mode the argument is settled to eight digits first, a ball of radius
-  // `5e10` straddling the edge: `unresolved` at the bound, final.
+  // mode the argument is rounded to eight digits first, exactly, and the
+  // exponential of `2.3025851e18` is past the top, of its negation past
+  // the bottom (D26).
   {
     text: "exp(2302585092994045000)",
     expect: {
       exact: digits("8.6e+999999999999999702"),
-      decimal: UNRESOLVED,
+      decimal: refused("overflow"),
     },
   },
   {
     text: "exp(-2302585092994045000)",
     expect: {
       exact: digits("1.2e-999999999999999703"),
-      decimal: UNRESOLVED,
+      decimal: refused("underflow"),
     },
   },
   {
     text: "exp(2302585092994045685)",
-    expect: { exact: digits(`2.7e+${E18}`), decimal: UNRESOLVED },
+    expect: { exact: digits(`2.7e+${E18}`), decimal: refused("overflow") },
   },
   {
     text: "approx(1e499999999900000000)^2",
@@ -524,9 +532,14 @@ const CASES: readonly TextCase[] = [
     text: `(1e-${E18_LESS_ONE} * (1 + approx(1e-30)))^-1`,
     expect: digits(`1e+${E18_LESS_ONE}`),
   },
+  // In decimal mode the exponent is `1e18` at eight digits, exactly, and
+  // the power the top of the bound itself.
   {
     text: `pow(10, ${E18}.5 + (approx(1e8) - approx(1e8)))`,
-    expect: { exact: digits(`3.1622777e+${E18}`), decimal: UNRESOLVED },
+    expect: {
+      exact: digits(`3.1622777e+${E18}`),
+      decimal: digits(`1e+${E18}`),
+    },
   },
   { text: `approx(9e${E18_LESS_ONE})`, expect: digits(`9e+${E18_LESS_ONE}`) },
   {
@@ -548,7 +561,7 @@ const CASES: readonly TextCase[] = [
   { text: "(approx(1e20) - approx(1e20))^100000", expect: ZERO_VALUE },
   {
     text: "(approx(1e20) - approx(1e20))^1e10000",
-    expect: { exact: ZERO_VALUE, decimal: UNRESOLVED },
+    expect: ZERO_VALUE,
   },
   {
     text: "(approx(1e20) - approx(1e20))^1e100000",
@@ -565,7 +578,11 @@ const CASES: readonly TextCase[] = [
     text: "atan2(approx(1e30000) - approx(1e30000) + 1, 1)",
     expect: containing("0.78539816"),
   },
-  { text: "atan2(1e-30000, 1 - approx(1))", expect: UNRESOLVED },
+  // In decimal mode `1 - approx(1)` is exactly zero and the angle a right one.
+  {
+    text: "atan2(1e-30000, 1 - approx(1))",
+    expect: { exact: UNRESOLVED, decimal: digits("1.5707963") },
+  },
   { text: "atan(approx(1e3000) - approx(1e3000))", expect: ZERO_VALUE },
   // #65: tanh between the fold and saturation costs a pass; the value is right.
   { text: "tanh(75)", precision: 32, expect: digits("1") },

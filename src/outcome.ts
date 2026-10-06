@@ -70,8 +70,8 @@
 // clipboard (`copyText`); what it writes reads back as the same tree, so
 // every line can be typed as a `have`.
 
-import { divideBalls, exact, settle, type Ball } from "./core/ball.ts";
-import type { NumberContext } from "./core/context.ts";
+import { divideBalls, exact, step, type Ball } from "./core/ball.ts";
+import { modeOf, type NumberContext } from "./core/context.ts";
 import { roundTerms } from "./core/convert.ts";
 import { dimensionExpr } from "./core/dimension.ts";
 import { show, type Shown } from "./core/display.ts";
@@ -104,15 +104,31 @@ import {
 } from "./messages.ts";
 
 /**
+ * How a line relates its two sides: `=` for an exact value every digit
+ * of which is shown, `≈` for a rounded or an inexact one, and, in decimal
+ * mode alone, the `≈` sign bearing a dot above it (U+2248 U+0307) for a
+ * value that is exact under the mode's rounding but one of whose steps
+ * could not be certified at the ceiling (D26; docs/decimal-mode.md, "The
+ * ceiling"): an equality-like sign with a special meaning, that the value
+ * is not known to be equal. The component draws the dot itself over the
+ * `≈`; this is the text form.
+ */
+export type Relation = "=" | "≈" | typeof UNCERTIFIED;
+
+/** The relation of an uncertified decimal-mode value: `≈` with the combining dot above. */
+export const UNCERTIFIED = "≈\u0307";
+
+/**
  * One line of a result: `have` is `relation` `result`, as in `3 ft = 36
  * in`, `1 m ≈ 39.370079 in` and `1 m ≈ 3 ft + 3.3700787 in`, each side an
  * expression the printer writes. `note` says what the digits are worth
  * when they are not all certain: how many are, that the value is within
- * a bound of zero, or that none is certified.
+ * a bound of zero, that none is certified, or that a step of a
+ * decimal-mode computation could not be certified.
  */
 export type Line = {
   readonly have: Expr;
-  readonly relation: "=" | "≈";
+  readonly relation: Relation;
   readonly result: Expr;
   readonly note?: string;
 };
@@ -175,12 +191,16 @@ export function outcomeOf(
 ): Outcome {
   if (haveText.trim() === "") return { kind: "empty" };
   const assumptions: Assumption[] = [];
+  // The fractions display is exact mode's (D26; docs/decimal-mode.md, "The
+  // display"): in decimal mode every value is a decimal of the digits
+  // asked for, which its digits write entire, so `show` is never asked
+  // for a fraction there, whatever the setting says.
   const outcome = outcomeAssuming(
     table,
     haveText,
     wantString,
     context,
-    fractions,
+    fractions && modeOf(context) !== "decimal",
     assumptions,
     observe,
   );
@@ -277,9 +297,10 @@ function outcomeAssuming(
  * (`in ≈ 0.027777778 * 3 ft`), the have taking the place of the unit. A
  * `value` of zero has no reciprocal (`0 ft = 0 in`, and nothing is a
  * multiple of `0 ft`), and nor does one that cannot be told from zero, so
- * the second line is left out rather than shown as anything. In decimal
- * mode the reciprocal is settled at the context, the mode's one rounding
- * of every step (D15), so that `1/3` is inexact there as it is in the
+ * the second line is left out rather than shown as anything. The
+ * reciprocal is a step of the expression (`step`), settled in exact mode
+ * and in decimal mode rounded once, the mode's rounding of every step
+ * (D15, D26), so that `1/3` is `0.33333333` there, exact, as it is in the
  * first line; the rest of what the reciprocal lacks from the pipeline
  * (its retry in exact mode, and a word on a refusal) is issue #92's.
  */
@@ -290,11 +311,9 @@ function unitResult(
 ): Outcome {
   const { haveExpr, wantExpr, value } = conversion;
   const lines = [line(haveExpr, value, wantExpr, context, fractions)];
-  const quotient = divideBalls(exact(ONE), value);
-  const inverse =
-    quotient.ok && context.mode === "decimal"
-      ? settle(quotient.value, context)
-      : quotient;
+  // A step of the expression (`step` of ball.ts): settled in exact mode,
+  // rounded once in decimal mode.
+  const inverse = step(() => divideBalls(exact(ONE), value), context);
   if (inverse.ok) {
     lines.push(line(wantExpr, inverse.value, haveExpr, context, fractions));
   }
@@ -318,10 +337,22 @@ function line(
   const shown = show(value, context.precision, context.rounding, fractions);
   return {
     have,
-    relation: shown.kind === "exact" ? "=" : "≈",
+    relation: relationOf([shown]),
     result: quantityExpr(shown, sign(value.mid) < 0, unit),
     note: noteOf(shown, context.precision),
   };
+}
+
+/**
+ * The relation of a line whose values are `shown`: `=` when every one is
+ * exact, the uncertified sign when every one is exact or uncertified and
+ * at least one is the latter, and `≈` otherwise.
+ */
+function relationOf(shown: readonly Shown[]): Relation {
+  if (shown.every((s) => s.kind === "exact")) return "=";
+  return shown.every((s) => s.kind === "exact" || s.kind === "uncertified")
+    ? UNCERTIFIED
+    : "≈";
 }
 
 /** The have as it was read; it was evaluated a moment ago, so it parses. */
@@ -436,6 +467,8 @@ function noteOf(shown: Shown, digits: Precision): string | undefined {
       return `within ${shown.bound} of zero`;
     case "unbounded":
       return "the digits are not certified";
+    case "uncertified":
+      return "a step could not be certified at the precision limit";
     default:
       return undefined;
   }
@@ -524,7 +557,7 @@ function listResult(
     lines: [
       {
         have: haveExpr,
-        relation: shown.every((s) => s.kind === "exact") ? "=" : "≈",
+        relation: relationOf(shown),
         result: sumExpr(kept),
         note: keepsRemainder ? noteOf(remainder, precision) : undefined,
       },

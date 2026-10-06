@@ -99,7 +99,7 @@ const TABLE: UnitTable = {
   builtins: new Map(),
 };
 
-const lookup = unitLookup(TABLE, CONTEXT);
+const lookup = unitLookup(TABLE);
 const SPAN = { start: 3, end: 5 };
 const CALL = { start: 3, end: 9 };
 
@@ -252,7 +252,7 @@ const WITH_BUILTINS: UnitTable = {
 };
 
 test("a built-in resolves by its name, after the defined functions", () => {
-  const lookup = unitLookup(WITH_BUILTINS, CONTEXT);
+  const lookup = unitLookup(WITH_BUILTINS);
   assert.deepEqual(lookup.function("twice", SPAN, CALL), {
     ok: true,
     value: { kind: "builtin", fn: TWICE },
@@ -273,7 +273,7 @@ test("a built-in resolves by its name, after the defined functions", () => {
 });
 
 test("a built-in's name is not a unit either, and the failure says how many arguments it takes", () => {
-  const lookup = unitLookup(WITH_BUILTINS, CONTEXT);
+  const lookup = unitLookup(WITH_BUILTINS);
   assert.deepEqual(lookup.unit("twice", SPAN), {
     ok: false,
     error: {

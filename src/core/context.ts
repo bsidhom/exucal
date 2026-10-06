@@ -5,11 +5,12 @@
 // `maxBits` the range limit, the most bits a numerator or denominator may
 // have, and `ceiling` the top of the retry schedule, the most digits any
 // pass may compute at, and `mode` the exact or the decimal mode of stage 4
-// (docs/decimal.md, "The decimal mode"), absent meaning exact: in exact
-// mode an inexact midpoint is settled to the working digits to nearest and
-// the rounding mode is the display's alone; in decimal mode every result
-// is settled to `precision` digits in the rounding mode, so the mode
-// governs every operation, and the pipeline runs one pass.
+// (docs/decimal.md; restated by D26 in docs/decimal-mode.md), absent
+// meaning exact: in exact mode an inexact midpoint is settled to the
+// working digits to nearest and the rounding mode is the display's alone;
+// in decimal mode every step is rounded once to `precision` digits in the
+// rounding mode and is exact, so the mode governs every operation, and
+// the pipeline runs one pass.
 //
 // One type serves two levels (D1). Below the pipeline, `precision` is the
 // working precision: every core function that does arithmetic (`evaluate`,
@@ -136,6 +137,33 @@ export function ceilingFor(maxDigits: Precision): Precision {
 
 /** The ceiling of the default cap: 4,040 digits. */
 export const DEFAULT_CEILING: Precision = ceilingFor(DEFAULT_MAX_DIGITS);
+
+/**
+ * The working contexts of the retry schedule for `context` (D12): the
+ * digits asked for plus the guard, then that doubled, doubled again, and
+ * so on while below the ceiling, and the ceiling last, each with the
+ * context's other fields as they are. Exact mode runs the pipeline
+ * through them (pipeline.ts, `schedule`); decimal mode runs each step of
+ * the expression through them, in exact mode, until its rounding is
+ * certified (ball.ts, `step`; D26). A precision above the cap the ceiling was
+ * derived from (`ceilingFor`, four times the cap plus the guard) is a
+ * precondition failure.
+ */
+export function workingContexts(context: NumberContext): NumberContext[] {
+  const { ceiling } = context;
+  const first = context.precision + GUARD_DIGITS;
+  if (4 * first > ceiling) {
+    throw new RangeError(
+      `${context.precision} digits exceed the cap for a ceiling of ${ceiling}`,
+    );
+  }
+  const contexts: NumberContext[] = [];
+  for (let precision = first; precision < ceiling; precision *= 2) {
+    contexts.push({ ...context, precision });
+  }
+  contexts.push({ ...context, precision: ceiling });
+  return contexts;
+}
 
 /**
  * `context` at its ceiling, in exact mode: the last working context of

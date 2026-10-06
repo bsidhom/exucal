@@ -224,7 +224,7 @@ test("digamma through the pipeline, with its messages", () => {
   assert.equal(run("digamma(1e-999999999)"), "≈ -1e+999999999");
   assert.equal(
     run("digamma(1)", { ...CONTEXT, precision: 8, mode: "decimal" }),
-    "≈ -0.57721566",
+    "= -0.57721566",
   );
   assert.equal(
     run("digamma(0)"),

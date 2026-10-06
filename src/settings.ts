@@ -96,7 +96,14 @@ export const STORAGE_VERSION = 2;
  * A migration: the whole stored object at one version to the whole stored
  * object at the next. Total: it never throws, and where it cannot carry a
  * value over it leaves the field for the validation to default. It reads
- * `unknown`, since what an older build wrote is not to be trusted.
+ * `unknown`, since what an older build wrote is not to be trusted, and it
+ * validates nothing itself: a migration moves and reshapes fields, and
+ * the validation runs once, after the last migration (`settingsFrom`),
+ * over whatever the chain produced. So a migration may pass a malformed
+ * field through, and the invariant is that nothing between the parse and
+ * the validation trusts a value. What is saved has the fixed shape
+ * `saveSettings` writes, so a stored object a migration reads is lax only
+ * where storage was edited by hand or written by a build with a bug.
  */
 type Migration = (stored: unknown) => unknown;
 
@@ -126,6 +133,14 @@ export function loadSettings(storage: SettingsStorage): Settings {
   }
   const version = versionOf(parsed);
   if (version === undefined || version > STORAGE_VERSION) {
+    // Not expected: a build never writes such a version. A rolled-back
+    // build can meet a newer one; the defaults apply and the next save
+    // overwrites the stored object.
+    console.warn(
+      `The stored settings have the version ${String(
+        version ?? (parsed as Record<string, unknown> | null)?.version,
+      )}, which this build (version ${STORAGE_VERSION}) cannot read; the defaults apply.`,
+    );
     return DEFAULT_SETTINGS;
   }
   let stored = parsed;

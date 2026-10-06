@@ -434,8 +434,9 @@ taken and the result flagged as uncertified, the ceiling being the
 computation limit that lets the mode always answer; a user-defined
 function is its body and rounds at each step, exactly as its expanded
 form does; dimensions carry rational powers in every mode; the display
-writes every decimal-mode value with `=`, the flagged ones with `≈`
-under a dot above and a note; the fractions display does not apply. D15's decimal-mode half, under which the exact
+writes every decimal-mode value with `=`, the flagged ones with the
+`≈` sign bearing a dot above it and a note; the fractions display does
+not apply. D15's decimal-mode half, under which the exact
 rounding error of every step went into the radius, is withdrawn: the
 radius answered how far the rounded value lies from the real number, and
 in this mode the rounded value is the answer. Exact mode is unchanged.

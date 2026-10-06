@@ -12,12 +12,14 @@ import { LIMIT_BITS } from "./core/rational.ts";
 import {
   DEFAULT_MODES,
   DEFAULT_SETTINGS,
+  DEFAULT_WIDTH,
   SETTINGS_KEY,
+  WIDTH_LIMIT,
   clampSettings,
   contextOf,
   isMaxBits,
   isIntegerIn,
-  isNotation,
+  isNotationKind,
   isRoundingMode,
   isDefault,
   isMode,
@@ -26,6 +28,7 @@ import {
   resetSetting,
   resetSettings,
   sameMode,
+  sameNotation,
   saveSettings,
   ratioWidthOf,
   STORAGE_VERSION,
@@ -69,7 +72,14 @@ function loadStored(value: unknown): Settings {
   return loadSettings(storage({ [SETTINGS_KEY]: JSON.stringify(value) }));
 }
 
-const RATIO: ModeSetting = { kind: "exact", notation: "ratio" };
+const RATIO: ModeSetting = {
+  kind: "exact",
+  notation: { kind: "ratio", width: 20 },
+};
+const WIDE: ModeSetting = {
+  kind: "exact",
+  notation: { kind: "ratio", width: 1000 },
+};
 const DECIMAL: ModeSetting = DEFAULT_MODES.decimal;
 const EXTENDED: ModeSetting = {
   kind: "decimal",
@@ -81,14 +91,16 @@ test("an empty storage gives the defaults", () => {
   assert.deepEqual(DEFAULT_SETTINGS, {
     digits: 8,
     rounding: "halfEven",
-    mode: { kind: "exact", notation: "digits" },
+    mode: { kind: "exact", notation: { kind: "digits" } },
     maxDigits: 1000,
     maxBits: 65536,
   });
   assert.deepEqual(DEFAULT_MODES, {
-    exact: { kind: "exact", notation: "digits" },
+    exact: { kind: "exact", notation: { kind: "digits" } },
     decimal: { kind: "decimal", working: { kind: "digits" } },
   });
+  assert.equal(DEFAULT_WIDTH, 20);
+  assert.equal(WIDTH_LIMIT, 1000);
 });
 
 test("stored settings are parsed", () => {
@@ -104,12 +116,25 @@ test("stored settings are parsed", () => {
 
 test("the mode is one of two variants, each built afresh from its fields, and anything else is the default", () => {
   assert.deepEqual(load({ mode: RATIO }).mode, RATIO);
+  assert.deepEqual(load({ mode: WIDE }).mode, WIDE);
   assert.deepEqual(load({ mode: DECIMAL }).mode, DECIMAL);
   assert.deepEqual(load({ mode: EXTENDED }).mode, EXTENDED);
   // Extra fields are dropped, and a field of the other variant is not carried.
   assert.deepEqual(
-    load({ mode: { kind: "exact", notation: "ratio", working: 3, x: 1 } }).mode,
+    load({
+      mode: {
+        kind: "exact",
+        notation: { kind: "ratio", width: 20, digits: 4 },
+        working: 3,
+        x: 1,
+      },
+    }).mode,
     RATIO,
+  );
+  assert.deepEqual(
+    load({ mode: { kind: "exact", notation: { kind: "digits", width: 9 } } })
+      .mode,
+    DEFAULT_SETTINGS.mode,
   );
   assert.deepEqual(
     load({ mode: { kind: "decimal", working: { kind: "digits", digits: 9 } } })
@@ -122,7 +147,14 @@ test("the mode is one of two variants, each built afresh from its fields, and an
     "exact",
     "decimal",
     { kind: "exact" },
-    { kind: "exact", notation: "fraction" },
+    { kind: "exact", notation: "digits" },
+    { kind: "exact", notation: "ratio" },
+    { kind: "exact", notation: { kind: "fraction" } },
+    { kind: "exact", notation: { kind: "ratio" } },
+    { kind: "exact", notation: { kind: "ratio", width: 0 } },
+    { kind: "exact", notation: { kind: "ratio", width: 1001 } },
+    { kind: "exact", notation: { kind: "ratio", width: 2.5 } },
+    { kind: "exact", notation: { kind: "ratio", width: "20" } },
     { kind: "exact", notation: true },
     { kind: "decimal" },
     { kind: "decimal", working: "digits" },
@@ -140,8 +172,10 @@ test("the mode is one of two variants, each built afresh from its fields, and an
   }
   assert.ok(isMode("exact") && isMode("decimal"));
   assert.ok(!isMode("Exact") && !isMode(undefined) && !isMode(0));
-  assert.ok(isNotation("digits") && isNotation("ratio"));
-  assert.ok(!isNotation("fraction") && !isNotation(undefined));
+  assert.ok(isNotationKind("digits") && isNotationKind("ratio"));
+  assert.ok(!isNotationKind("fraction") && !isNotationKind(undefined));
+  // The width's range is its own, in the ranges the panel reads.
+  assert.deepEqual(rangesOf(DEFAULT_SETTINGS).width, { min: 1, max: 1000 });
 });
 
 test("the mode reaches the context as its kind, with the working digits when they are extended; the notation never does", () => {
@@ -162,6 +196,7 @@ test("the mode reaches the context as its kind, with the working digits when the
   });
   // Whether ratios are shown is exact mode's notation alone.
   assert.equal(ratioWidthOf({ ...DEFAULT_SETTINGS, mode: RATIO }), 20);
+  assert.equal(ratioWidthOf({ ...DEFAULT_SETTINGS, mode: WIDE }), 1000);
   assert.equal(ratioWidthOf(DEFAULT_SETTINGS), undefined);
   assert.equal(ratioWidthOf({ ...DEFAULT_SETTINGS, mode: DECIMAL }), undefined);
 });
@@ -287,6 +322,7 @@ test("the dependent settings are clamped: the cap to the range limit, the digits
     maxDigits: { min: 1, max: maxDigitsFor(DEFAULT_MAX_BITS) },
     digits: { min: 1, max: 100 },
     working: { min: 8, max: 100 },
+    width: { min: 1, max: 1000 },
   });
   assert.ok(isIntegerIn(12, rangesOf(at(8, 12)).working));
   assert.ok(!isIntegerIn(7, rangesOf(at(8, 12)).working));
@@ -337,7 +373,7 @@ test("settings round-trip through storage, under one key", () => {
     saveSettings(stored, DEFAULT_SETTINGS, BUILD);
     assert.deepEqual(loadSettings(stored), DEFAULT_SETTINGS);
   }
-  assert.equal(STORAGE_VERSION, 3);
+  assert.equal(STORAGE_VERSION, 4);
 });
 
 test("a version 1 object, the fields bare, loads through every migration and is saved back at the current version", () => {
@@ -377,7 +413,7 @@ test("a version 2 object loads as the nested mode: the mode name and the fractio
   // Each combination of the mode and the flag.
   assert.deepEqual(two({ ...fields, mode: "exact", fractions: false }), {
     ...fields,
-    mode: { kind: "exact", notation: "digits" },
+    mode: { kind: "exact", notation: { kind: "digits" } },
   });
   assert.deepEqual(two({ ...fields, mode: "exact", fractions: true }), {
     ...fields,
@@ -433,7 +469,7 @@ test("a version 2 object loads as the nested mode: the mode name and the fractio
   assert.deepEqual(two(5), DEFAULT_SETTINGS);
   assert.deepEqual(two(null), DEFAULT_SETTINGS);
   assert.deepEqual(loadStored({ version: 2 }), DEFAULT_SETTINGS);
-  // The next save writes version 3.
+  // The next save writes the current version.
   const store = storage({
     [SETTINGS_KEY]: JSON.stringify(
       envelope({ ...fields, mode: "exact", fractions: true }, 2),
@@ -446,7 +482,59 @@ test("a version 2 object loads as the nested mode: the mode name and the fractio
   );
 });
 
-test("a version 3 object loads the settings it holds, with the fallbacks and clamps", () => {
+test("a version 3 object loads with the notation nested: the string becomes the variant, a ratio at the default width (docs/ratio-width.md)", () => {
+  const three = (settings: unknown) => loadStored(envelope(settings, 3));
+  const fields = {
+    digits: 12,
+    rounding: "floor",
+    maxDigits: 100,
+    maxBits: 4096,
+  };
+  assert.deepEqual(
+    three({ ...fields, mode: { kind: "exact", notation: "digits" } }),
+    {
+      ...fields,
+      mode: { kind: "exact", notation: { kind: "digits" } },
+    },
+  );
+  assert.deepEqual(
+    three({ ...fields, mode: { kind: "exact", notation: "ratio" } }),
+    {
+      ...fields,
+      mode: RATIO,
+    },
+  );
+  // A decimal mode passes through untouched; a notation that is neither
+  // string, and a malformed mode, default.
+  assert.deepEqual(three({ ...fields, mode: EXTENDED }), {
+    ...fields,
+    mode: EXTENDED,
+  });
+  for (const notation of [undefined, "fraction", 7, null, { kind: "ratio" }]) {
+    assert.deepEqual(
+      three({ ...fields, mode: { kind: "exact", notation } }).mode,
+      DEFAULT_SETTINGS.mode,
+      String(notation),
+    );
+  }
+  assert.deepEqual(
+    three({ ...fields, mode: "exact" }).mode,
+    DEFAULT_SETTINGS.mode,
+  );
+  assert.deepEqual(three(5), DEFAULT_SETTINGS);
+  assert.deepEqual(loadStored({ version: 3 }), DEFAULT_SETTINGS);
+  // Through both migrations from version 2, and saved at the current version.
+  const store = storage({
+    [SETTINGS_KEY]: JSON.stringify(
+      envelope({ ...fields, mode: "exact", fractions: true }, 2),
+    ),
+  });
+  assert.deepEqual(loadSettings(store), { ...fields, mode: RATIO });
+  saveSettings(store, loadSettings(store), BUILD);
+  assert.equal(JSON.parse(store.map.get(SETTINGS_KEY)!).version, 4);
+});
+
+test("a version 4 object loads the settings it holds, with the fallbacks and clamps", () => {
   const settings = { ...DEFAULT_SETTINGS, digits: 12, rounding: "floor" };
   assert.deepEqual(load(settings), settings);
   assert.deepEqual(load({ digits: 12, mode: 7 }), {
@@ -456,8 +544,8 @@ test("a version 3 object loads the settings it holds, with the fallbacks and cla
   assert.equal(load({ digits: 50, maxDigits: 20 }).digits, 20);
   assert.deepEqual(load(5), DEFAULT_SETTINGS);
   assert.deepEqual(load(null), DEFAULT_SETTINGS);
-  assert.deepEqual(loadStored({ version: 3 }), DEFAULT_SETTINGS);
-  // A version 3 object still carrying the old fields: they are ignored.
+  assert.deepEqual(loadStored({ version: 4 }), DEFAULT_SETTINGS);
+  // A version 4 object still carrying the old fields: they are ignored.
   assert.deepEqual(load({ ...settings, fractions: true }), settings);
 });
 
@@ -512,6 +600,22 @@ test("every migration is total: a fixture of its source version, with each field
       loads: {
         digits: 12,
         rounding: "halfEven",
+        mode: RATIO,
+        maxDigits: 100,
+        maxBits: 4096,
+      },
+    },
+    3: {
+      stored: {
+        digits: 12,
+        rounding: "floor",
+        mode: { kind: "exact", notation: "ratio" },
+        maxDigits: 100,
+        maxBits: 4096,
+      },
+      loads: {
+        digits: 12,
+        rounding: "floor",
         mode: RATIO,
         maxDigits: 100,
         maxBits: 4096,
@@ -620,4 +724,7 @@ test("reset gives the defaults, for all the settings or for one with the clamp a
   );
   assert.ok(!sameMode(RATIO, DECIMAL) && !sameMode(DECIMAL, RATIO));
   assert.ok(!sameMode(RATIO, DEFAULT_SETTINGS.mode));
+  assert.ok(sameMode(RATIO, { ...RATIO }) && !sameMode(RATIO, WIDE));
+  assert.ok(sameNotation({ kind: "digits" }, { kind: "digits" }));
+  assert.ok(!sameNotation({ kind: "digits" }, { kind: "ratio", width: 20 }));
 });

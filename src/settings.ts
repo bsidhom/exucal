@@ -1,8 +1,9 @@
 // The user's settings: the digits a result is shown with, the rounding
 // mode it is rounded in, the mode with what belongs to it (exact mode
 // with the notation its exact values are written in, digits or a ratio
-// in lowest terms, docs/fractions.md; decimal mode with its working
-// digits, docs/working-digits.md), and the two limits of D16, the cap on
+// in lowest terms with the width a ratio may have, docs/fractions.md and
+// docs/ratio-width.md; decimal mode with its working digits,
+// docs/working-digits.md), and the two limits of D16, the cap on
 // the digits and the range limit in bits, kept in `localStorage` so that
 // they survive a reload, and turned into the `NumberContext` the pipeline
 // takes, whose ceiling is derived from the cap. This is app code, not
@@ -36,10 +37,11 @@
 //
 // The stored object carries a format version (docs/settings-storage.md):
 // version 1 was the six fields bare, version 2 put them in an envelope
-// with the version and the build that saved them, and version 3 is the
+// with the version and the build that saved them, version 3 is the
 // mode's nested shape in place of the mode name and the fractions flag,
 // with the rounding default's change to ties-to-even carried in the same
-// step. A migration takes the whole stored object at one version to the
+// step, and version 4 nests the notation, the ratio carrying its width.
+// A migration takes the whole stored object at one version to the
 // whole object at the next, totally, so that a change in how the
 // settings interact is one function with one test; loading migrates from
 // the stored version up to `STORAGE_VERSION` and then validates and
@@ -64,14 +66,32 @@ import { LIMIT_BITS } from "./core/rational.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 
 /**
- * How an exact value that is not a whole number is written in exact mode:
- * as its digits, or as a ratio of two whole numbers in lowest terms (the
- * plan's 5.2; docs/fractions.md). A display setting: it is not part of
- * the context, and the core never sees it.
+ * How an exact value is written in exact mode: as its digits, or as a
+ * ratio of two whole numbers in lowest terms whose parts have at most
+ * `width` digits between them, a whole number written entire within the
+ * same width (the plan's 5.2; docs/fractions.md, docs/ratio-width.md). A
+ * display setting: it is not part of the context, and the core never
+ * sees it but through `show`'s width.
  */
-export type Notation = "digits" | "ratio";
+export type Notation =
+  | { readonly kind: "digits" }
+  | { readonly kind: "ratio"; readonly width: number };
 
-export const NOTATIONS: readonly Notation[] = ["digits", "ratio"];
+export type NotationKind = Notation["kind"];
+
+export const NOTATION_KINDS: readonly NotationKind[] = ["digits", "ratio"];
+
+/** The ratio notation's width by default: twenty digits (docs/ratio-width.md). */
+export const DEFAULT_WIDTH = 20;
+
+/** The most a ratio's width may be: a thousand digits, past which a line is past reading. */
+export const WIDTH_LIMIT = 1000;
+
+/** Each notation at its defaults: what a choice of the notation alone builds. */
+export const DEFAULT_NOTATIONS: Readonly<Record<NotationKind, Notation>> = {
+  digits: { kind: "digits" },
+  ratio: { kind: "ratio", width: DEFAULT_WIDTH },
+};
 
 /**
  * How many digits every step but the last is rounded to in decimal mode
@@ -105,7 +125,7 @@ export type Settings = {
 
 /** Each mode's variant at its defaults: what a choice of the mode alone builds. */
 export const DEFAULT_MODES: Readonly<Record<Mode, ModeSetting>> = {
-  exact: { kind: "exact", notation: "digits" },
+  exact: { kind: "exact", notation: DEFAULT_NOTATIONS.digits },
   decimal: { kind: "decimal", working: { kind: "digits" } },
 };
 
@@ -131,7 +151,7 @@ export const SETTINGS_KEY = "settings";
  * the stored shape or a field's meaning, never renumbered, and never
  * derived from a release identifier.
  */
-export const STORAGE_VERSION = 3;
+export const STORAGE_VERSION = 4;
 
 /**
  * A migration: the whole stored object at one version to the whole stored
@@ -179,6 +199,35 @@ const MIGRATIONS: Readonly<Record<number, Migration>> = {
                   notation: fractions === true ? "ratio" : "digits",
                 }
               : mode,
+      },
+    };
+  },
+  // Version 4 nests the notation (docs/ratio-width.md): the string
+  // `digits` becomes `{ kind: "digits" }` and `ratio` becomes
+  // `{ kind: "ratio", width: 20 }`, the default width, no earlier build
+  // having stored one; a decimal mode, and a notation that is neither
+  // string, pass through for the validation to default.
+  3: (stored) => {
+    if (!isRecord(stored)) return stored;
+    const { settings, ...envelope } = stored;
+    if (!isRecord(settings)) return { ...envelope, version: 4, settings };
+    const { mode } = settings;
+    if (!isRecord(mode) || mode.kind !== "exact") {
+      return { ...envelope, version: 4, settings };
+    }
+    const { notation } = mode;
+    return {
+      ...envelope,
+      version: 4,
+      settings: {
+        ...settings,
+        mode: {
+          ...mode,
+          notation:
+            notation === "digits" || notation === "ratio"
+              ? DEFAULT_NOTATIONS[notation]
+              : notation,
+        },
       },
     };
   },
@@ -257,20 +306,37 @@ function settingsFrom(fields: unknown): Settings {
 /**
  * The mode setting `value` holds, built afresh from its fields, or
  * `undefined` where it is not one: an object whose `kind` is one of the
- * two modes with, for `exact`, a `notation` among its two values and,
- * for `decimal`, a `working` whose kind is `digits` or `extended` with a
- * positive integer count. The count's range is the clamp's.
+ * two modes with, for `exact`, a `notation` of one of its two shapes
+ * (`ratio` with a width in its range) and, for `decimal`, a `working`
+ * whose kind is `digits` or `extended` with a positive integer count.
+ * The count's range is the clamp's; the width's is its own.
  */
 function modeSettingFrom(value: unknown): ModeSetting | undefined {
   if (!isRecord(value)) return undefined;
   switch (value.kind) {
     case "exact": {
-      const { notation } = value;
-      return isNotation(notation) ? { kind: "exact", notation } : undefined;
+      const notation = notationFrom(value.notation);
+      return notation === undefined ? undefined : { kind: "exact", notation };
     }
     case "decimal": {
       const working = workingFrom(value.working);
       return working === undefined ? undefined : { kind: "decimal", working };
+    }
+    default:
+      return undefined;
+  }
+}
+
+function notationFrom(value: unknown): Notation | undefined {
+  if (!isRecord(value)) return undefined;
+  switch (value.kind) {
+    case "digits":
+      return { kind: "digits" };
+    case "ratio": {
+      const { width } = value;
+      return isIntegerIn(width, WIDTH_RANGE)
+        ? { kind: "ratio", width }
+        : undefined;
     }
     default:
       return undefined;
@@ -296,8 +362,8 @@ function workingFrom(value: unknown): Working | undefined {
 /** The three settings that are numbers: the digits, the cap on them, and the range limit. */
 export type NumberSetting = "digits" | "maxDigits" | "maxBits";
 
-/** A setting with a range: the three numbers, and the working digits inside decimal mode. */
-export type RangedSetting = NumberSetting | "working";
+/** A setting with a range: the three numbers, the working digits inside decimal mode, and the ratio's width inside exact mode. */
+export type RangedSetting = NumberSetting | "working" | "width";
 
 /** A closed range of integers, `[min, max]`. */
 export type Range = { readonly min: number; readonly max: number };
@@ -305,14 +371,18 @@ export type Range = { readonly min: number; readonly max: number };
 /** The range limit's bounds: its floor and the hard bound. */
 const MAX_BITS_RANGE: Range = { min: MIN_MAX_BITS, max: LIMIT_BITS };
 
+/** The ratio's width: one digit up to `WIDTH_LIMIT`, depending on nothing. */
+const WIDTH_RANGE: Range = { min: 1, max: WIDTH_LIMIT };
+
 /**
  * The bounds of each ranged setting under `settings`, the one statement of
  * them, which the panel's inputs, their validation and `clampSettings` all
  * read: the range limit between its floor and the hard bound, the cap on
  * the digits up to what the range limit holds (`maxDigitsFor`), the
- * digits up to the cap, and the working digits of decimal mode from the
- * digits up to the cap. Each but the first depends on the settings above
- * it, so they are read off the settings in force.
+ * digits up to the cap, the working digits of decimal mode from the
+ * digits up to the cap, and the ratio's width between its own bounds.
+ * All but the first and the last depend on the settings above them, so
+ * they are read off the settings in force.
  */
 export function rangesOf(settings: Settings): Record<RangedSetting, Range> {
   return {
@@ -320,6 +390,7 @@ export function rangesOf(settings: Settings): Record<RangedSetting, Range> {
     maxDigits: { min: 1, max: maxDigitsFor(settings.maxBits) },
     digits: { min: 1, max: settings.maxDigits },
     working: { min: settings.digits, max: settings.maxDigits },
+    width: WIDTH_RANGE,
   };
 }
 
@@ -409,21 +480,27 @@ export function isDefault(settings: Settings, key: SettingKey): boolean {
 
 /** Whether `a` and `b` are the same mode setting, field for field. */
 export function sameMode(a: ModeSetting, b: ModeSetting): boolean {
-  if (a.kind === "exact")
-    return b.kind === "exact" && a.notation === b.notation;
+  if (a.kind === "exact") {
+    return b.kind === "exact" && sameNotation(a.notation, b.notation);
+  }
   if (b.kind !== "decimal") return false;
   return a.working.kind === "digits"
     ? b.working.kind === "digits"
     : b.working.kind === "extended" && a.working.digits === b.working.digits;
 }
 
-/** The ratio notation's width by default: twenty digits (docs/ratio-width.md). */
-export const DEFAULT_WIDTH = 20;
+/** Whether `a` and `b` are the same notation, field for field. */
+export function sameNotation(a: Notation, b: Notation): boolean {
+  return a.kind === "digits"
+    ? b.kind === "digits"
+    : b.kind === "ratio" && a.width === b.width;
+}
 
 /** The ratio notation's width under `settings`, or `undefined` for the digits notation or decimal mode. */
 export function ratioWidthOf(settings: Settings): number | undefined {
-  return settings.mode.kind === "exact" && settings.mode.notation === "ratio"
-    ? DEFAULT_WIDTH
+  const { mode } = settings;
+  return mode.kind === "exact" && mode.notation.kind === "ratio"
+    ? mode.notation.width
     : undefined;
 }
 
@@ -452,9 +529,11 @@ export function isMode(value: unknown): value is Mode {
   return typeof value === "string" && (MODES as string[]).includes(value);
 }
 
-/** Whether `value` is one of the two notations. */
-export function isNotation(value: unknown): value is Notation {
-  return typeof value === "string" && (NOTATIONS as string[]).includes(value);
+/** Whether `value` names one of the two notations. */
+export function isNotationKind(value: unknown): value is NotationKind {
+  return (
+    typeof value === "string" && (NOTATION_KINDS as string[]).includes(value)
+  );
 }
 
 /** Whether `value` is an integer in `range`. */

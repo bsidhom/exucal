@@ -7,13 +7,15 @@ import { recommendLimits } from "./limits.ts";
 import { buttonStyles, hintStyles } from "./styles.ts";
 import {
   DEFAULT_MODES,
+  DEFAULT_NOTATIONS,
   DEFAULT_SETTINGS,
-  NOTATIONS,
+  NOTATION_KINDS,
   isIntegerIn,
   isMode,
-  isNotation,
+  isNotationKind,
   isRoundingMode,
   rangesOf,
+  type NotationKind,
   type NumberSetting,
   type Settings,
   type Working,
@@ -160,10 +162,16 @@ export class SettingsPanel extends LitElement {
   /** The last extended count of working digits seen, so that checking "extended" again offers it. */
   private lastExtended?: number;
 
+  /** The last ratio width seen, so that choosing `ratio` again offers it. */
+  private lastWidth?: number;
+
   willUpdate() {
     const { mode } = this.settings;
     if (mode.kind === "decimal" && mode.working.kind === "extended") {
       this.lastExtended = mode.working.digits;
+    }
+    if (mode.kind === "exact" && mode.notation.kind === "ratio") {
+      this.lastWidth = mode.notation.width;
     }
   }
 
@@ -252,30 +260,46 @@ export class SettingsPanel extends LitElement {
     `;
   }
 
-  /** Exact mode's notation: a choice between its two values, each a radio button named for it. */
+  /** Exact mode's notation: a choice between its two values, each a radio button named for it, the ratio's width beside it while chosen. */
   private renderNotation(notation: Notation) {
+    const { min, max } = rangesOf(this.settings).width;
     return html`
       <fieldset>
         <legend>Notation</legend>
-        ${NOTATIONS.map(
+        ${NOTATION_KINDS.map(
           (each) => html`
             <label>
               <input
                 type="radio"
                 name="notation"
                 value=${each}
-                .checked=${each === notation}
+                .checked=${each === notation.kind}
                 @change=${this.onNotationChange}
               />
               ${NOTATION_LABELS[each]}
+              ${
+                each === "ratio" && notation.kind === "ratio"
+                  ? html`<input
+                      type="number"
+                      inputmode="numeric"
+                      aria-label="Ratio width"
+                      min=${min}
+                      max=${max}
+                      step="1"
+                      .value=${live(String(notation.width))}
+                      @change=${this.onWidthChange}
+                    />`
+                  : nothing
+              }
             </label>
           `,
         )}
         <small class="hint">
-          How an exact value that is not a whole number is written: as its
-          digits, or as a ratio of two whole numbers in lowest terms when both
-          fit within Digits (and as its digits otherwise). An inexact value is
-          always digits.
+          An exact value that is not a whole number is written as a ratio of two
+          whole numbers in lowest terms when the two have at most the width in
+          digits between them; a whole number is written entire when it fits the
+          width; anything longer is a decimal at Digits. An inexact value is
+          always a decimal.
         </small>
       </fieldset>
     `;
@@ -356,11 +380,26 @@ export class SettingsPanel extends LitElement {
     }
   }
 
-  /** A choice of exact mode's notation: the exact variant with it. */
+  /** A choice of exact mode's notation: the exact variant with it, a ratio at the last width seen or the default. */
   private onNotationChange(event: Event) {
     const { value, checked } = event.target as HTMLInputElement;
-    if (checked && isNotation(value)) {
-      this.emit({ mode: { kind: "exact", notation: value } });
+    if (!checked || !isNotationKind(value)) return;
+    const notation: Notation =
+      value === "ratio" && this.lastWidth !== undefined
+        ? { kind: "ratio", width: this.lastWidth }
+        : DEFAULT_NOTATIONS[value];
+    this.emit({ mode: { kind: "exact", notation } });
+  }
+
+  /** A change of the ratio's width: a value in its range is emitted, as for the number settings. */
+  private onWidthChange(event: Event) {
+    const value = (event.target as HTMLInputElement).valueAsNumber;
+    if (isIntegerIn(value, rangesOf(this.settings).width)) {
+      this.emit({
+        mode: { kind: "exact", notation: { kind: "ratio", width: value } },
+      });
+    } else {
+      this.requestUpdate();
     }
   }
 
@@ -479,7 +518,7 @@ const ROUNDING_LABELS: Record<RoundingMode, string> = {
 };
 
 /** How each notation is named in the settings: by its value. */
-const NOTATION_LABELS: Record<Notation, string> = {
+const NOTATION_LABELS: Record<NotationKind, string> = {
   digits: "digits",
   ratio: "ratio",
 };

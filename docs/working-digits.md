@@ -80,24 +80,24 @@ apply to decimal mode alone, and go inside the decimal variant for the
 same reason:
 
 ```ts
-/** How many digits every step but the last is rounded to in decimal mode: Digits, or a fixed count at or above them. */
+/** How many digits every step but the last is rounded to in decimal mode: Digits, or an extended count above them. */
 export type Working =
   | { readonly kind: "digits" }
-  | { readonly kind: "fixed"; readonly digits: number };
+  | { readonly kind: "extended"; readonly digits: number };
 
 export type ModeSetting =
   | { readonly kind: "exact"; readonly notation: Notation }
   | { readonly kind: "decimal"; readonly working: Working };
 ```
 
-- `digits` is the default: the working digits follow Digits, and the
-  mode is D26 as landed. It is a choice, not a boolean, by the house
-  rule; the panel shows it as the toggle below.
-- `fixed` holds the count. Its range is `[digits, maxDigits]`, Digits at
+- `digits` is the default: the working digits are locked to Digits, and
+  the mode is D26 as landed. It is a choice, not a boolean, by the house
+  rule; the panel shows it as the checkbox below.
+- `extended` holds the count. Its range is `[digits, maxDigits]`, Digits at
   the bottom (a floor below the digits shown would be no floor) and the
   precision limit at the top (the ceiling must hold the certification of
   a step at `w`). Both bounds are clamps in the sense of `clampSettings`:
-  raising Digits above a fixed count raises the count to meet it, and
+  raising Digits above an extended count raises the count to meet it, and
   lowering the precision limit below it lowers it. The clamp runs in the
   order of dependence after the existing three: the range limit, the
   precision limit, Digits, then the working digits. `clampSettings`
@@ -122,20 +122,30 @@ Mode          [decimal ▾]
               every step is rounded to Digits in the rounding mode, as a
               hand calculator does; the answer is exact in that arithmetic.
 
-Working digits  [x] same as Digits    [ 8 ]
-              the digits every step but the last is computed with; the
-              answer is shown at Digits. More than Digits keeps a step's
-              rounding out of the answer, as a calculator's hidden digits
-              do: at twelve, ln(exp(1/10)) is 0.1.
+Working digits  [ ] extended
+              every step is computed with Digits. Extended working digits
+              keep a step's rounding out of the answer, as a calculator's
+              hidden digits do: at twelve, ln(exp(1/10)) is 0.1.
 ```
 
-- The checkbox is the `digits` kind; checked by default. While it is
-  checked the number input is disabled and shows Digits, following it
-  as Digits changes, so that the user sees what the working digits are.
-- Unchecking it makes the input live at its current value (Digits, or
-  the last fixed count), which is the `fixed` kind; the input's range is
-  the clamp's, Digits to the precision limit, and a value outside it
-  snaps back as the other number inputs do.
+and with the box checked:
+
+```
+Working digits  [x] extended    [ 12 ]
+              the digits every step but the last is computed with; the
+              answer is shown at Digits.
+```
+
+- The checkbox is unchecked by default, which is the `digits` kind: the
+  working digits are locked to Digits, and no number is shown, since
+  there is none to set.
+- Checking it is the `extended` kind: a number input appears, at Digits
+  (or the last extended count), for the extended working digits. The
+  input's range is the clamp's, Digits to the precision limit, and a
+  value outside it snaps back as the other number inputs do; a count
+  below Digits is never stored, since the floor must be at least the
+  digits shown.
+- Unchecking it returns to `digits` and removes the input.
 - The control is absent in exact mode, as the notation's control is
   absent in decimal mode: each variant shows what it carries.
 
@@ -164,7 +174,7 @@ needs.
   display changes: a value with at most `p` digits is `exact`.
 - `src/settings.ts`: the decimal variant's `working`, its validation,
   the clamp and its range in `rangesOf`, `contextOf` setting `working`
-  for a fixed count; the migration.
+  for an extended count; the migration.
 - `src/settings-panel.ts`: the control above.
 - Tests: `ln(exp(1/10))` and `1/3 * 3` at eight digits over twelve, in
   each rounding mode, against exact mode's certified digits at eight (the
@@ -172,7 +182,7 @@ needs.
   eight digits as the exact value whenever the twelve-digit error is
   below half a unit of the eighth, which these are); the clamp's order;
   a version 2 fixture; the panel's control present in decimal mode only
-  and its input disabled under "same as Digits".
+  and its input present only with "extended" checked.
 - Docs: docs/decimal-mode.md (the promise's point 2 gains the last
   step's rounding; "As landed"), D26 amended as D27 says below, README
   ("Settings", the Mode and Digits entries), ARCHITECTURE.md

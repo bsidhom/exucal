@@ -203,9 +203,11 @@ extends S2 and lands with it.
 - **Decisions.** In the note: the last step of a displayed value is
   rounded to Digits directly from its exact result, every other step to
   the working digits; the setting lives inside the decimal variant of
-  the mode setting as `Working`, "same as Digits" by default or a fixed
-  count in `[Digits, precision limit]`, clamped in that order; the panel
-  shows a checkbox and a number under the Mode select in decimal mode.
+  the mode setting as `Working`, locked to Digits by default or an
+  extended count in `[Digits, precision limit]`, clamped in that order;
+  the panel shows an "extended" checkbox under the Mode select in
+  decimal mode, unchecked by default, and a number input for the count
+  while it is checked.
 - **Depends on.** S2, whose mode setting it extends; implemented with
   S2 in one change by the note's recommendation.
 - **Touches.** context.ts (an optional `working` in `NumberContext`),

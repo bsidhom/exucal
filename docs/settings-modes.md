@@ -35,19 +35,35 @@ is possible only in one mode lives inside that mode's variant, so that
 the shape of the settings states what is and is not possible.**
 
 ```ts
-/** The mode and what belongs to it: exact mode carries the fractions display; decimal mode carries nothing. */
+/** How an exact value that is not a whole number is written: as its digits, or as a ratio of two whole numbers in lowest terms. */
+export type Notation = "digits" | "ratio";
+
+/** The mode and what belongs to it: exact mode carries the notation of its exact values; decimal mode carries nothing. */
 export type ModeSetting =
-  | { readonly kind: "exact"; readonly fractions: boolean }
+  | { readonly kind: "exact"; readonly notation: Notation }
   | { readonly kind: "decimal" };
 ```
 
 The discriminant is the core's `Mode`, the two arithmetics, so that
 `settings.mode.kind` is what `contextOf` hands the context and no
 mapping is needed; the core's type keeps its name and the first draft's
-rename to `Arithmetic` is dropped. `fractions` is a boolean today and is
-the place a richer fractions setting goes when the fit rule's step adds
-one (below): `{ kind: "off" } | { kind: "on"; width: number }` would
-replace the boolean here and nowhere else.
+rename to `Arithmetic` is dropped.
+
+The choice inside exact mode is a two-valued enumeration, not a boolean,
+by the house rule that a choice is named by its values. The two obvious
+names are both taken in the settings' vocabulary: "decimal" is the other
+mode, and "fraction" is what the setting has been called ("Show reduced
+fractions"), so neither can name one side without a collision. The
+values chosen are `digits`, the value's decimal expansion as the display
+writes it today, and `ratio`, two whole numbers in lowest terms, which is
+what `5000/127` is; "rational" was the alternative (the study's own
+name, "Rational display") and was set aside as a word about the number
+rather than about how it is written. The user-facing words follow:
+README speaks of writing an exact value as its digits or as a ratio, and
+"a fraction in lowest terms" stays as the explanation of what a ratio
+is. `Notation` is the place a richer setting goes when the fit rule's
+step adds one (below): `{ kind: "digits" } | { kind: "ratio"; width:
+number }` would replace the two strings here and nowhere else.
 
 Two other shapes were weighed:
 
@@ -63,12 +79,14 @@ Two other shapes were weighed:
   that the app must know to ignore; the shape should not say what the
   rule then has to unsay.
 
-What the nested shape costs is that preference: a user who turns
-fractions on, visits decimal mode and comes back finds them off, since
-the exact variant is built afresh with its default. That is one tap and
-is the honest reading of the type: decimal mode has no fractions
-setting to remember. The panel presents the mode as a select on `kind`
-and, under it, the fractions checkbox when the kind is `exact`.
+What the nested shape costs is that preference: a user who chooses
+ratios, visits decimal mode and comes back finds digits, since the exact
+variant is built afresh with its default. That is one tap and is the
+honest reading of the type: decimal mode has no notation to remember.
+The panel presents the mode as a select on `kind` and, under it, the
+notation's control when the kind is `exact`; whether that control is a
+second select or a checkbox labeled for the `ratio` value is the panel's
+to choose, and S4's to revisit.
 
 Nothing about this needs a consistency rule between fields: every
 `ModeSetting` is valid with every value of every other setting, so
@@ -87,7 +105,7 @@ primitive.
   "settings": {
     "digits": 8,
     "rounding": "halfEven",
-    "mode": { "kind": "exact", "fractions": true },
+    "mode": { "kind": "exact", "notation": "ratio" },
     "maxDigits": 1000,
     "maxBits": 65536
   }
@@ -96,14 +114,15 @@ primitive.
 
 The migration from 2 to 3 is the first that changes meaning. It builds
 `mode` from the two stored fields, `{ kind: "decimal" }` when the stored
-mode is `decimal` and `{ kind: "exact", fractions }` otherwise, with
-`fractions` true only when the stored field is `true`; it drops the
-stored `fractions`; and it carries the rounding default's change (below)
-in the same step. It is total and lax as S1 requires: a stored mode that
-is neither value passes through for the validation to default, and the
-validation of version 3 accepts a `mode` only when it is an object whose
-`kind` is one of the two and, for `exact`, whose `fractions` is a
-boolean, defaulting the whole field otherwise.
+mode is `decimal` and `{ kind: "exact", notation }` otherwise, with
+`notation` `ratio` when the stored `fractions` is `true` and `digits`
+for anything else; it drops the stored `fractions`; and it carries the
+rounding default's change (below) in the same step. It is total and lax
+as S1 requires: a stored mode that is neither value passes through for
+the validation to default, and the validation of version 3 accepts a
+`mode` only when it is an object whose `kind` is one of the two and,
+for `exact`, whose `notation` is one of its two values, defaulting the
+whole field otherwise.
 
 ## Digits: one meaning in each mode
 
@@ -282,11 +301,11 @@ characters wide, and the overflow has nothing to cause it. #147's CSS
 and the layout itself is S4's. The owner asked to revisit this after
 the rest; it is recorded here for that.
 
-The two lines, with the fractions checkbox under the first when exact
+The two lines, with the notation's control under the first when exact
 mode is in force:
 
 - exact: every digit shown is certain, found at rising precision; an
-  exact value may be written as a fraction.
+  exact value is written as its digits or as a ratio.
 - decimal: every step is rounded to Digits in the rounding mode, as a
   hand calculator does; every answer is exact in that arithmetic.
 
@@ -300,10 +319,11 @@ restatement.
   `fractions` fields, its validation, `STORAGE_VERSION` 3 and the
   migration from 2 (the mode's shape and the rounding default in one
   step); `contextOf` reads `mode.kind`; `isDefault` compares the field
-  by value; a function that says whether fractions apply.
+  by value; a function that says whether ratios apply (the kind `exact`
+  with the notation `ratio`).
 - `src/app-shell.ts`: passes that function's answer to the component.
 - `src/settings-panel.ts`: the Mode select on `kind` with two short
-  options and a line that follows the mode; the fractions checkbox
+  options and a line that follows the mode; the notation's control
   rendered under it when the kind is `exact`, emitting the whole
   variant; the lines under Digits and Rounding as functions of the
   settings, which `NUMBER_FIELDS` already allows for the numbers and the
@@ -314,8 +334,8 @@ restatement.
   `outcome.test.ts` become digits (after D26 they are `=` with the
   rounded digits); a version 2 fixture with each combination of mode
   and fractions, and the totality test over the new migration; the
-  tests at the default rounding; the panel's checkbox under exact mode
-  only.
+  tests at the default rounding; the panel's notation control under
+  exact mode only.
 - docs: docs/fractions.md ("The decimal mode": no fractions in decimal
   mode, and why), README's "Settings" for the mode, Digits, Rounding
   and the default, ARCHITECTURE.md's settings paragraph; #97 closed,
@@ -325,12 +345,12 @@ restatement.
 
 - The settings have a `mode` of the nested shape and no `fractions`
   field beside it; a version 2 object with `mode: "exact"` and
-  `fractions: true` loads as the exact variant with fractions, one with
-  `mode: "decimal"` as the decimal variant whatever its `fractions`, and
-  the next save writes version 3.
+  `fractions: true` loads as the exact variant with the notation
+  `ratio`, one with `mode: "decimal"` as the decimal variant whatever
+  its `fractions`, and the next save writes version 3.
 - In decimal mode no value is written as a fraction, in the display and
   in the panel.
-- The panel shows the fractions checkbox under the Mode select in exact
+- The panel shows the notation's control under the Mode select in exact
   mode only, the Mode select's options are the bare names, and nothing
   in the panel overflows a phone's width.
 - The rounding default is `halfEven`; a version 2 object with

@@ -9,6 +9,9 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { buildTable } from "./core/build.ts";
+import { plainNumbers, type Builtin } from "./core/builtin.ts";
+import { powerOfTenRadius } from "./core/radius.ts";
+import { ok } from "./core/result.ts";
 import {
   DEFAULT_CEILING,
   DEFAULT_DIGITS,
@@ -22,6 +25,7 @@ import type { UnitTable } from "./core/table.ts";
 import { text as joined } from "./core/print.ts";
 import { format, parseDecimal } from "./core/scaled.ts";
 import {
+  UNCERTIFIED,
   copyText,
   displayText,
   outcomeOf,
@@ -146,40 +150,38 @@ test("an inexact value is written as digits with ≈, whatever the setting", () 
   }
 });
 
-test("in decimal mode a fraction appears only for a value the rounding left exact", () => {
+test("in decimal mode no value is written as a fraction, and every line is exact (D26)", () => {
+  // The fractions display is exact mode's: in decimal mode every value is
+  // a decimal of the digits asked for, written entire by its digits,
+  // whatever the setting says.
   const decimal: NumberContext = { ...CONTEXT, mode: "decimal" };
-  assert.deepEqual(lines("m / (4 m)", "", true, decimal), ["m / 4 m = 1/4"]);
-  // The reciprocal is settled at the context, as every step is: 50/127
-  // rounded to eight digits is inexact, so no fraction.
+  assert.deepEqual(lines("m / (4 m)", "", true, decimal), ["m / 4 m = 0.25"]);
   assert.deepEqual(lines("1 in", "cm", true, decimal), [
-    "1 in = (127/50) cm",
-    "cm ≈ 0.39370079 × 1 in",
+    "1 in = 2.54 cm",
+    "cm = 0.39370079 × 1 in",
   ]);
   assert.deepEqual(lines("3 m", "m", true, decimal), [
     "3 m = 3 m",
-    "m ≈ 0.33333333 × 3 m",
+    "m = 0.33333333 × 3 m",
   ]);
   assert.deepEqual(lines("3 m", "m", true), ["3 m = 3 m", "m = 1/3 × 3 m"]);
-  // The pipeline settles its ratio, a list's terms and a function's count
-  // in decimal mode, as every step is settled there.
+  // The pipeline's ratio, a list's terms and a function's count are each
+  // one rounded step, exact.
   assert.deepEqual(lines("1 m", "ft;in", true, decimal), [
-    "1 m ≈ 3 ft + 3.3700787 in",
+    "1 m = 3 ft + 3.3700787 in",
   ]);
   assert.deepEqual(lines("15 in", "ft;in", true, decimal), [
     "15 in = 1 ft + 3 in",
   ]);
-  // A function's recovered argument is inexact in decimal mode from the
-  // inverse body's own roundings, so no fraction.
   assert.deepEqual(lines("tempC(37)", "tempF", true, decimal), [
-    "tempC(37) ≈ tempF(98.6)",
+    "tempC(37) = tempF(98.6)",
   ]);
   assert.deepEqual(lines("m / (3 m)", "", true, decimal), [
-    "m / 3 m ≈ 0.33333333",
+    "m / 3 m = 0.33333333",
   ]);
-  // The ratio is settled, inexact, and so is its reciprocal.
   assert.deepEqual(lines("1 m", "in", true, decimal), [
-    "1 m ≈ 39.370079 in",
-    "in ≈ 0.0254 × 1 m",
+    "1 m = 39.370079 in",
+    "in = 0.0254 × 1 m",
   ]);
 });
 
@@ -230,10 +232,15 @@ test("a value that assumes a condition is shown, `≈`, with a warning apart fro
     "tempC(approx(-273.15)) ≈ 0 K (within 2e-4047 of zero)",
   ]);
   assert.deepEqual(warnings(zero), [ASSUMED_TEMP_C]);
-  // At once in decimal mode, which runs one pass.
+  // In decimal mode approx is the identity (D26): the argument is exactly
+  // absolute zero, the condition holds, and nothing is assumed.
   const decimal: NumberContext = { ...CONTEXT, mode: "decimal" };
-  assert.deepEqual(warnings(outcome("tempC(approx(-273.15))", "", decimal)), [
-    ASSUMED_TEMP_C,
+  assert.equal(
+    warnings(outcome("tempC(approx(-273.15))", "", decimal)),
+    undefined,
+  );
+  assert.deepEqual(lines("tempC(approx(-273.15))", "", false, decimal), [
+    "tempC(approx(-273.15)) = 0 K",
   ]);
   // A value whose digits are all certain is `≈` all the same, on the
   // reciprocal line too, and the same assumption is warned of once.
@@ -407,3 +414,63 @@ function significantDigits(text: string): number {
     .replace(/^0+/, "");
   return Math.max(mantissa.length, 1);
 }
+
+// ---------------------------------------------------------------------------
+// The uncertified mark (D26; docs/decimal-mode.md, "The ceiling")
+
+test("in decimal mode a step whose rounding the ceiling left uncertified is written with the ≈ sign bearing a dot above it, and a note", () => {
+  // A built-in whose value sits on the two-digit tie at 1.25, known within
+  // one unit in the working precision's last digit, certifies at no
+  // precision: at the ceiling the midpoint's rounding is taken, 1.2 under
+  // halfEven, flagged, and the flag carries through what follows, into
+  // the reciprocal line too.
+  const quarter = parseDecimal("1.25");
+  assert.ok(quarter.ok);
+  const tie: Builtin = {
+    name: "tie",
+    arity: { min: 0, max: 0 },
+    dimensions: plainNumbers(0),
+    apply: (_, working) =>
+      ok({
+        mid: quarter.value,
+        rad: powerOfTenRadius(-BigInt(working.precision)),
+      }),
+  };
+  const parsed = parseDefinitions("m  !\nin  0.0254 m");
+  assert.ok(parsed.ok, inspect(parsed));
+  const built = buildTable(
+    parsed.value,
+    ceilingContext(CONTEXT),
+    new Map([["tie", tie]]),
+  );
+  assert.ok(built.ok, inspect(built));
+  const context: NumberContext = {
+    ...CONTEXT,
+    precision: 2,
+    rounding: "halfEven",
+    mode: "decimal",
+  };
+  const note = "(a step could not be certified at the precision limit)";
+  const alone = outcomeOf(built.value, "tie()", "", context);
+  assert.equal(alone.kind, "result", inspect(alone));
+  const [line] = (alone as Extract<Outcome, { kind: "result" }>).lines;
+  assert.equal(line!.relation, UNCERTIFIED);
+  assert.equal(displayText(line!), `tie() ${UNCERTIFIED} 1.2 ${note}`);
+  const carried = outcomeOf(built.value, "tie() * 2 m", "in", context);
+  assert.equal(carried.kind, "result", inspect(carried));
+  assert.deepEqual(
+    (carried as Extract<Outcome, { kind: "result" }>).lines.map(displayText),
+    [
+      `tie() × 2 m ${UNCERTIFIED} 96 in ${note}`,
+      `in ${UNCERTIFIED} 0.01 tie() × 2 m ${note}`,
+    ],
+  );
+  // Without the flagged step every line is `=`: the inch is `0.025 m` at
+  // two digits, so `2 m` is `80 in`, and the reciprocal `0.012`.
+  const plain = outcomeOf(built.value, "2 m", "in", context);
+  assert.equal(plain.kind, "result", inspect(plain));
+  assert.deepEqual(
+    (plain as Extract<Outcome, { kind: "result" }>).lines.map(displayText),
+    ["2 m = 80 in", "in = 0.012 × 2 m"],
+  );
+});

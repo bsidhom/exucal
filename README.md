@@ -39,13 +39,21 @@ in` at twelve.
   shown is certain: the app computes at rising precisions until the
   digits asked for are certified, and nothing rounds before the display,
   so `1 / 3 * 3` is `= 1`. In decimal mode every step is rounded to the
-  digits, in the rounding mode, as a hand calculator or a decimal library
-  does, in one pass: `1 / 3 * 3` at eight digits is `0.99999999`, shown as
-  `≈ 1` with a note that seven of the eight digits are certain, since the
-  exact value lies within the roundings. A value with the digits asked
-  for or fewer is exact in either mode (`1 ft` in `in` is `= 12 in`), and
-  under a directed rounding mode a rounded value's last digit is marked
-  uncertain, the exact value lying at the edge of the shown cell.
+  digits, in the rounding mode, as a hand calculator does, and the
+  rounded value is the value: `1 / 3 * 3` at eight digits is
+  `= 0.99999999`, and `1 / (1 / 3 * 3 - 1)` is `= -100000000`. Every
+  answer in decimal mode is written with `=`, since every value there is
+  exact under the mode's rounding. A step is an operation you can see:
+  each `+`, `*`, `/` or `^`, each number typed (one with more digits than
+  Digits is rounded to them as it is read), each unit, and each function
+  call as a whole, `gamma(4.5)` being computed to whatever precision it
+  takes for its rounding to be certified and then rounded once
+  (`docs/decimal-mode.md`). A value with the digits asked for or fewer is
+  exact in either mode (`1 ft` in `in` is `= 12 in`). In the rare case
+  that a function's rounding cannot be certified at the precision limit,
+  the value is rounded all the same and the line is written with the `≈`
+  sign bearing a dot above it, and a note says a step could not be
+  certified.
 - **Precision limit** (`maxDigits` in the code and the stored settings):
   the most digits an answer may be asked for, 1,000 by default, and
   through that a limit on effort: to certify an answer, exact mode
@@ -53,7 +61,9 @@ in` at twelve.
   (4,040 by default), and an expression whose digits can never be certain
   (`(2^(1/2))^2 - 2`, which is zero within a bound) runs all the way up on
   every keystroke. In decimal mode, which computes in one pass at the
-  digits shown, it only caps Digits. Changing it rebuilds the unit table,
+  digits shown, it caps Digits, and it bounds how far a function's
+  rounding may be pursued for certification. Changing it rebuilds the
+  unit table,
   since the angle units carry `pi()` to that ceiling; changing the digits
   never does.
 - **Most bits** (`maxBits` in the code and the stored settings): the most
@@ -92,9 +102,8 @@ in` at twelve.
   the digits (`1 m ≈ 3 ft + 3.4 in` at two digits), and an inexact value
   is always written as digits with `≈` (`sqrt(2) m ≈ 1.4142136 m`): the
   setting changes how an exact value is written, never what is exact. In
-  decimal mode, where every step is rounded to Digits, a fraction appears
-  only for a value the rounding left exact (`m / (4 m) = 1/4` and
-  `1 in = (127/50) cm`, where `1 m ≈ 39.370079 in`). `docs/fractions.md`
+  decimal mode the setting does not apply: every value there is a decimal
+  of Digits digits, which its digits write entire. `docs/fractions.md`
   is the design; the fit rule is provisional (issue #91).
 
 Both limits are cost limits, and the right values depend on the device, so
@@ -132,8 +141,10 @@ power of ten is a separate exponent, so a value's magnitude costs
 nothing. Every value also carries a radius, a bound on how far the
 number held may lie from the number meant. An exact value has radius
 zero, and `=` means that. A value with a nonzero radius is inexact, and
-it arises in exactly three ways: an inexact function (a root, `exp`,
-`sin`, `pi()`), `approx`, and the decimal mode's rounding.
+in exact mode it arises in exactly two ways: an inexact function (a
+root, `exp`, `sin`, `pi()`) and `approx`. In decimal mode no value is
+inexact: every step is rounded and the rounded value is the value, and
+the radius serves only inside a function, to certify its rounding.
 
 The two kinds of value are limited by two different things, and that is
 why the settings come in two units.
@@ -163,8 +174,10 @@ inexact values, pass by pass, until the two ends of the ball round to
 the same digits. The precision limit is how far it may raise them, four
 times the limit plus ten, which is also the most digits an answer may
 be asked for. In decimal mode there is one pass, every value is rounded
-to Digits, exact values included, and the precision limit only caps
-Digits. In both modes, Most bits is the one limit on exact values, and
+to Digits, exact values included, and is exact after it; a function's
+value is computed at rising precision, up to the same ceiling, until its
+rounding to Digits is certified, so the precision limit caps Digits and
+bounds that certification. In both modes, Most bits is the one limit on exact values, and
 it also bounds the precision limit, since a midpoint at the ceiling must
 fit within it with room for a product.
 

@@ -7,9 +7,13 @@ import {
 } from "./context.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
-import { UNBOUNDED, powerOfTwoRadius, radiusUpper } from "./radius.ts";
 import {
-  certifiedDigits,
+  UNBOUNDED,
+  powerOfTenRadius,
+  powerOfTwoRadius,
+  radiusUpper,
+} from "./radius.ts";
+import {
   certifies,
   containsZero,
   exact,
@@ -279,24 +283,13 @@ function decimal(precision: number, rounding: RoundingMode): NumberContext {
 // ---------------------------------------------------------------------------
 // The decimal mode
 
-test("in decimal mode every result is settled to the precision in the rounding mode, and the radius records each rounding", () => {
-  // 1 / 3 * 3 at eight digits: 0.33333333 within 3.4e-9, times three
-  // 0.99999999 exactly, with eight digits and no further rounding, under
-  // towardZero and halfEven alike; the radius is the two roundings, so
-  // the ball is [0.99999998, 1], which certifies seven digits under a
-  // nearest mode and none under towardZero, where its ends lie on either
-  // side of the boundary at 1.
+test("in decimal mode every result is rounded to the precision in the rounding mode and is exact (D26)", () => {
+  // 1 / 3 * 3 at eight digits: 0.33333333 times three, 0.99999999 with
+  // eight digits and no further rounding, exact, under every mode: the
+  // rounded value is the value, and no radius records the roundings.
   for (const mode of ["towardZero", "halfEven", "halfAwayFromZero"] as const) {
     const q = value(run("1 / 3 * 3", decimal(8, mode))).magnitude;
-    assert.deepEqual(q.mid, dec("0.99999999"), mode);
-    const rad = radiusUpper(q.rad);
-    assert.ok(compareFractions(rad, fraction(dec("1e-8"))) >= 0, mode);
-    assert.ok(compareFractions(rad, fraction(dec("1.0000001e-8"))) < 0, mode);
-    assert.equal(
-      certifiedDigits(q, 8, mode),
-      mode === "towardZero" ? 0 : 7,
-      mode,
-    );
+    assert.deepEqual(q, exact(dec("0.99999999")), mode);
   }
   // 0.125 * 1 at two digits: the mode decides the tie.
   assert.deepEqual(
@@ -309,34 +302,44 @@ test("in decimal mode every result is settled to the precision in the rounding m
   );
   // 2 / 3 at eight: to nearest, and under the directed modes.
   assert.deepEqual(
-    value(run("2 / 3", decimal(8, "halfEven"))).magnitude.mid,
-    dec("0.66666667"),
+    value(run("2 / 3", decimal(8, "halfEven"))).magnitude,
+    exact(dec("0.66666667")),
   );
   assert.deepEqual(
-    value(run("2 / 3", decimal(8, "towardZero"))).magnitude.mid,
-    dec("0.66666666"),
+    value(run("2 / 3", decimal(8, "towardZero"))).magnitude,
+    exact(dec("0.66666666")),
   );
   assert.deepEqual(
-    value(run("2 / 3", decimal(8, "floor"))).magnitude.mid,
-    dec("0.66666666"),
+    value(run("2 / 3", decimal(8, "floor"))).magnitude,
+    exact(dec("0.66666666")),
   );
-  // A literal with more than p digits is rounded and the radius records
-  // it; one with p digits or fewer is exact.
-  const long = value(run("3.14159265358979", decimal(8, "halfEven"))).magnitude;
-  assert.deepEqual(long.mid, dec("3.1415927"));
-  assert.ok(!isExact(long));
-  assert.ok(
-    compareFractions(radiusUpper(long.rad), fraction(dec("4.7e-8"))) < 0,
+  // A literal with more than p digits is rounded as it is read, and is
+  // exact; one with p digits or fewer is itself.
+  assert.deepEqual(
+    value(run("3.14159265358979", decimal(8, "halfEven"))).magnitude,
+    exact(dec("3.1415927")),
   );
   assert.ok(isExact(value(run("2.54", decimal(8, "halfEven"))).magnitude));
-  // An exact power of an exact base is settled once.
-  const power = value(run("2^100", decimal(8, "halfEven"))).magnitude;
-  assert.deepEqual(power.mid, dec("1.2676506e30"));
-  assert.ok(!isExact(power));
-  // A sum that cannot be aligned is absorbed rather than refused.
-  const sum = value(run("1e999999999 + 1", decimal(8, "halfEven"))).magnitude;
-  assert.deepEqual(sum.mid, dec("1e999999999"));
-  assert.ok(compareFractions(radiusUpper(sum.rad), rational(1n)) >= 0);
+  // An integer power of an exact base is one step, rounded once.
+  assert.deepEqual(
+    value(run("2^100", decimal(8, "halfEven"))).magnitude,
+    exact(dec("1.2676506e30")),
+  );
+  // A sum that cannot be aligned is the larger operand, or its neighbor in
+  // a directed mode, by the smaller's sign.
+  assert.deepEqual(
+    value(run("1e999999999 + 1", decimal(8, "halfEven"))).magnitude,
+    exact(dec("1e999999999")),
+  );
+  assert.deepEqual(
+    value(run("1e999999999 + 1", decimal(8, "ceiling"))).magnitude,
+    exact(dec("1.0000001e999999999")),
+  );
+  // The noise of the roundings is a value, as on a calculator.
+  assert.deepEqual(
+    value(run("1 / (1 / 3 * 3 - 1)", decimal(8, "halfEven"))).magnitude,
+    exact(dec("-1e8")),
+  );
   // In exact mode none of this rounds: 2 / 3 is the exact fraction.
   assert.ok(isExact(value(run("2 / 3", at(8))).magnitude));
 });
@@ -1146,6 +1149,56 @@ const withBuiltins = lookupIn(UNITS, FUNCTIONS, BUILTINS);
 function runBuiltin(text: string): Result<Quantity, Failure> {
   return evaluate(parsed(text), withBuiltins, PRIMITIVES, CONTEXT);
 }
+
+test("in decimal mode a built-in is computed at rising precision until its rounding is certified, and marked uncertified at the ceiling (D26)", () => {
+  // A function whose value lies 1e-22 above the two-digit tie at 1.25,
+  // known within one unit in the working precision's last digit: at the
+  // first working precision, twelve digits, the ball straddles the tie;
+  // at the second, twenty-four, it does not, and the call is 1.3 under
+  // halfEven, exact.
+  const seen: number[] = [];
+  const near = builtin("near", 0, (_, working) => {
+    seen.push(working.precision);
+    return ok({
+      mid: dec("1.2500000000000000000001"),
+      rad: powerOfTenRadius(-BigInt(working.precision)),
+    });
+  });
+  // A value exactly on the tie never certifies: at the ceiling the
+  // midpoint's rounding is taken and the result is flagged, and the flag
+  // carries through what follows.
+  const tie = builtin("tie", 0, (_, working) =>
+    ok({ mid: dec("1.25"), rad: powerOfTenRadius(-BigInt(working.precision)) }),
+  );
+  const lookup = lookupIn(UNITS, FUNCTIONS, { near, tie });
+  const context = decimal(2, "halfEven");
+  const certified = evaluate(parsed("near()"), lookup, PRIMITIVES, context);
+  assert.ok(certified.ok, inspect(certified));
+  assert.deepEqual(certified.value.magnitude, exact(dec("1.3")));
+  assert.deepEqual(seen, [12, 24]);
+  const uncertified = evaluate(parsed("tie()"), lookup, PRIMITIVES, context);
+  assert.ok(uncertified.ok, inspect(uncertified));
+  assert.deepEqual(uncertified.value.magnitude, {
+    ...exact(dec("1.2")),
+    uncertified: true,
+  });
+  const carried = evaluate(
+    parsed("tie() * 2 + 1"),
+    lookup,
+    PRIMITIVES,
+    context,
+  );
+  assert.ok(carried.ok, inspect(carried));
+  assert.deepEqual(carried.value.magnitude, {
+    ...exact(dec("3.4")),
+    uncertified: true,
+  });
+  // In exact mode the built-in runs once, at the context.
+  seen.length = 0;
+  const once = evaluate(parsed("near()"), lookup, PRIMITIVES, at(2));
+  assert.ok(once.ok, inspect(once));
+  assert.deepEqual(seen, [2]);
+});
 
 test("the exponent bound is on the value, and a result straddling it is unresolved at the bound (D17, D18)", () => {
   const app = lookupIn(UNITS, FUNCTIONS, Object.fromEntries(APP_BUILTINS));

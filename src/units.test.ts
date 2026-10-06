@@ -391,13 +391,13 @@ test("the logarithmic units are functions: the decibel, the bel and the neper", 
 });
 
 test("in decimal mode a unit is settled to the digits in the rounding mode when it is looked up", () => {
-  // 1 surveyfoot in m: 1200/3937, rounded to 0.30480061 within 4e-10,
-  // certified to eight digits; 1 ft in in is exact in either mode.
+  // 1 surveyfoot in m: 1200/3937, rounded to 0.30480061, exact (D26); 1 ft
+  // in in is exact in either mode.
   const decimal = { ...CONTEXT, precision: 8, mode: "decimal" as const };
   const survey = convertText(table, "1 surveyfoot", "m", decimal);
   assert.ok(survey.ok && survey.value.kind === "unit", inspect(survey));
   assert.deepEqual(show(survey.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
+    kind: "exact",
     text: "0.30480061",
   });
   const foot = convertText(table, "1 ft", "in", decimal);
@@ -406,25 +406,21 @@ test("in decimal mode a unit is settled to the digits in the rounding mode when 
     kind: "exact",
     text: "12",
   });
-  // Under a directed mode a rounded value's last digit is not certified,
-  // the exact value lying at the edge of its cell (4.5 as landed): 2 / 3
-  // is 0.66666666, shown as 0.6666666 with seven of eight certain; the
-  // survey foot rounds toward zero to 0.30480060, whose trailing zero
-  // puts it on the boundary of the seven-digit cell too, so six certify.
+  // Under a directed mode the rounded value is the value, exact, with no
+  // radius to put its last digit in doubt (D26): 2 / 3 is 0.66666666 and
+  // the survey foot 0.3048006 toward zero.
   const down = { ...decimal, rounding: "towardZero" as const };
   const twoThirds = evaluateText(table, "2 / 3", down);
   assert.ok(twoThirds.ok, inspect(twoThirds));
   assert.deepEqual(show(twoThirds.value.magnitude, 8, "towardZero"), {
-    kind: "partial",
-    text: "0.6666666",
-    certified: 7,
+    kind: "exact",
+    text: "0.66666666",
   });
   const survey7 = convertText(table, "1 surveyfoot", "m", down);
   assert.ok(survey7.ok && survey7.value.kind === "unit", inspect(survey7));
   assert.deepEqual(show(survey7.value.value, 8, "towardZero"), {
-    kind: "partial",
-    text: "0.3048",
-    certified: 6,
+    kind: "exact",
+    text: "0.3048006",
   });
 });
 

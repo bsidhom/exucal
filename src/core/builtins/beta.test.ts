@@ -314,7 +314,7 @@ test("beta through the pipeline, with its messages", () => {
   assert.equal(run("beta(1e6, 1e6)"), "≈ 3.6164047e-602063");
   assert.equal(
     run("beta(2, 3)", { ...CONTEXT, precision: 8, mode: "decimal" }),
-    "≈ 0.083333333",
+    "= 0.083333333",
   );
   assert.equal(
     run("beta(0, 1)"),

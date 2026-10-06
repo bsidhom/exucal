@@ -119,12 +119,6 @@ test("approx gives an exact value the working radius and never narrows an inexac
   assert.deepEqual(value(approxBall(aroundZero, CONTEXT)), aroundZero);
   const unbounded: Ball = { mid: fr(3n), rad: UNBOUNDED };
   assert.deepEqual(value(approxBall(unbounded, CONTEXT)), unbounded);
-  // In decimal mode the working digits are the user's p.
-  const decimal = value(
-    approxBall(exact(dec("2.54")), { ...CONTEXT, mode: "decimal" }),
-  );
-  assert.ok(compare(radiusOf(decimal), dec("1e-7")) >= 0);
-  assert.ok(compare(radiusOf(decimal), dec("1.00000001e-7")) < 0);
   assert.deepEqual(exact(ZERO).rad, ZERO_RADIUS);
 });
 
@@ -188,16 +182,16 @@ test("through the pipeline: approx makes a value inexact on purpose, keeps its u
     kind: "certified",
     text: "0.33333333",
   });
-  // approx(2) in decimal mode is 2 within one unit in the last digit.
-  const decimal = evaluateText(table.value, "approx(2)", {
-    ...context,
-    mode: "decimal",
-  });
-  assert.ok(decimal.ok, inspect(decimal));
-  assert.deepEqual(decimal.value.magnitude.mid, fr(2n));
-  assert.ok(!isExact(decimal.value.magnitude));
-  assert.ok(compare(radiusOf(decimal.value.magnitude), dec("1e-7")) >= 0);
-  assert.ok(compare(radiusOf(decimal.value.magnitude), dec("1.1e-7")) < 0);
+  // In decimal mode approx is the identity (D26): every value is already
+  // at the user's precision, so approx(2) is exactly 2 and approx(1/3)
+  // exactly 0.33333333, as 1/3 is.
+  const decimal = { ...context, mode: "decimal" as const };
+  const two = evaluateText(table.value, "approx(2)", decimal);
+  assert.ok(two.ok, inspect(two));
+  assert.deepEqual(two.value.magnitude, exact(fr(2n)));
+  const thirdInDecimal = evaluateText(table.value, "approx(1/3)", decimal);
+  assert.ok(thirdInDecimal.ok, inspect(thirdInDecimal));
+  assert.deepEqual(thirdInDecimal.value.magnitude, exact(dec("0.33333333")));
   // A definition calling approx builds, and a conversion through it is ≈.
   const constant = at("G", "m^3");
   assert.ok(constant.ok && constant.value.kind === "unit", inspect(constant));

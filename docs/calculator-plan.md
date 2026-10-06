@@ -562,6 +562,12 @@ bound rounds toward zero instead and adds a whole unit in the last digit
 to the radius, so that settling never refuses a value; in decimal mode
 the rounded value is the result, and one past the bound is refused.
 
+Amended by D26 (docs/decimal-mode.md): the decimal-mode half of this
+decision, under which the exact rounding error of every step went into
+the radius, is withdrawn. In decimal mode every step is rounded once and
+is exact, and the ball certifies only inside a built-in; the exact-mode
+half stands.
+
 **D16. Two limits, on two axes, both the user's to set.** Range and
 precision are different quantities, as a float's exponent width and
 mantissa width are, and one number cannot stand for both. The range
@@ -1289,6 +1295,27 @@ lowered the defaults or moved the pipeline to a Web Worker:
   stress testing and never by `pnpm test:all`, since it is expected to
   run for minutes and a commit should not wait on it. Like the
   benchmarks, it asserts only what holds on any machine.
+
+**D26. Decimal mode is a calculator's arithmetic: every operation is one
+correctly rounded step, every value is exact, and no radius is carried
+(ruled by the owner in the review of the S2 settings note; added after
+S1 of docs/settings-plan.md).** docs/decimal-mode.md is the design. A
+value in decimal mode is an integer of at most `p` digits times a power
+of ten, radius zero; each node of the expression, a function call as a
+whole included, forms the exact result of its exact operands and rounds
+it once to `p` digits in the rounding mode; a built-in's rounding is
+certified by computing the function at rising precision until both ends
+of its ball round alike, and at the ceiling the midpoint's rounding is
+taken and the result flagged as uncertified, the ceiling being the
+computation limit that lets the mode always answer; a user-defined
+function is its body and rounds at each step, exactly as its expanded
+form does; dimensions carry rational powers in every mode; the display
+writes every decimal-mode value with `=`, the flagged ones with the `≈`
+sign bearing a dot above it and a note; the fractions display does not
+apply. D15's decimal-mode half, under which the exact rounding error of
+every step went into the radius, is withdrawn: the radius answered how
+far the rounded value lies from the real number, and in this mode the
+rounded value is the answer. Exact mode is unchanged.
 
 ## Stage 1: the context and the ball
 

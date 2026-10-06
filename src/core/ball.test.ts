@@ -58,7 +58,6 @@ import {
   toFraction,
   type Rational,
 } from "./rational.ts";
-import { addRadius } from "./radius.ts";
 import type { Result } from "./result.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./rounding.ts";
 import {
@@ -1487,7 +1486,7 @@ test("settle rounds an inexact midpoint to the working digits and grows the radi
   }
 });
 
-test("settle in decimal mode rounds every midpoint to the precision in the rounding mode and grows the radius by the difference", () => {
+test("settle in decimal mode rounds every value to the precision in the rounding mode and leaves it exact (D26)", () => {
   const decimal = (
     precision: number,
     rounding: RoundingMode,
@@ -1496,24 +1495,16 @@ test("settle in decimal mode rounds every midpoint to the precision in the round
     rounding,
     mode: "decimal",
   });
-  // An exact value with more than p digits is rounded, exactly the
-  // difference going into the radius: 1200/3937 at eight digits.
+  // An exact value with more than p digits is rounded, and is exact: no
+  // radius records the rounding, since in this mode the rounded value is
+  // the value (docs/decimal-mode.md). 1200/3937 at eight digits.
   const foot = exact(fr(1200n, 3937n));
-  const settledFoot = settled(foot, decimal(8, "halfAwayFromZero"));
-  assert.deepEqual(settledFoot.mid, dec("0.30480061"));
-  const difference = absoluteFraction(
-    subtractFractions(fraction(settledFoot.mid), rational(1200n, 3937n)),
+  assert.deepEqual(
+    settled(foot, decimal(8, "halfAwayFromZero")),
+    exact(dec("0.30480061")),
   );
-  assert.deepEqual(settledFoot.rad, radiusAbove(difference));
-  assert.ok(compareFractions(difference, fraction(dec("4e-10"))) < 0);
-  // With the difference the ball certifies eight digits, where half a
-  // unit would certify seven.
-  assert.ok(certifies(settledFoot, 8, "halfAwayFromZero"));
-  assert.ok(
-    !certifies(ball(dec("0.30480061"), dec("5e-9")), 8, "halfAwayFromZero"),
-  );
-  // A value with p digits or fewer is its own rounding and stays exact,
-  // as does zero, in every mode; an inexact one already on the grid too.
+  // A value with p digits or fewer is its own rounding and is returned as
+  // it is, as is zero, in every mode.
   for (const mode of ROUNDING_MODES) {
     const context = decimal(8, mode);
     for (const b of [
@@ -1521,8 +1512,6 @@ test("settle in decimal mode rounds every midpoint to the precision in the round
       exact(dec("12345678")),
       exact(dec("1.5e999999999")),
       exact(ZERO),
-      ball(ZERO, dec("1e-30")),
-      ball(dec("1.5"), dec("1e-30")),
     ]) {
       assert.equal(settled(b, context), b, `${mode}: ${inspect(b.mid)}`);
     }
@@ -1552,9 +1541,39 @@ test("settle in decimal mode rounds every midpoint to the precision in the round
     settled(exact(fr(-2n, 3n)), decimal(8, "floor")).mid,
     dec("-0.66666667"),
   );
-  // Over the shared source, in each of the seven modes: the midpoint is
-  // `roundTo` at p digits in the mode, the radius grows by exactly the
-  // difference, and the original's ends lie within the settled ball.
+  // An inexact ball, a built-in's result at a working precision, is
+  // rounded exactly when it certifies the digits (D7), and is otherwise
+  // the midpoint's rounding, marked uncertified; a ball containing zero
+  // that certifies nothing is zero, uncertified ("The ceiling").
+  assert.deepEqual(
+    settled(ball(dec("1.5"), dec("1e-30")), decimal(8, "halfEven")),
+    exact(dec("1.5")),
+  );
+  assert.deepEqual(
+    settled(
+      ball(dec("0.30480061"), dec("4e-10")),
+      decimal(8, "halfAwayFromZero"),
+    ),
+    exact(dec("0.30480061")),
+  );
+  assert.deepEqual(
+    settled(ball(dec("1.25"), dec("1e-30")), decimal(2, "halfEven")),
+    { ...exact(dec("1.2")), uncertified: true },
+  );
+  assert.deepEqual(settled(ball(ZERO, dec("1e-30")), decimal(8, "halfEven")), {
+    ...exact(ZERO),
+    uncertified: true,
+  });
+  // The flag carries over the rounding of a flagged value.
+  const flagged: Ball = { ...exact(fr(2n, 3n)), uncertified: true };
+  assert.deepEqual(settled(flagged, decimal(8, "halfEven")), {
+    ...exact(dec("0.66666667")),
+    uncertified: true,
+  });
+  // Over the shared source, in each of the seven modes: the result is
+  // exact, its midpoint `roundTo` at p digits in the mode where the ball
+  // certifies them or is exact, and otherwise the midpoint's rounding,
+  // flagged.
   const seed = key(4501);
   for (let i = 0; i < 70; i++) {
     const original = randomBall(foldIn(seed, i), 40, 12);
@@ -1563,24 +1582,25 @@ test("settle in decimal mode rounds every midpoint to the precision in the round
     const context = decimal(precision, mode);
     const s = settled(original, context);
     const label = `${mode} at ${precision}: ${inspect(original.mid)}`;
-    if (isZero(original.mid)) {
-      assert.equal(s, original, label);
-      continue;
+    assert.ok(isExact(s), label);
+    if (isExact(original) || certifies(original, precision, mode)) {
+      assert.equal(s.uncertified, undefined, label);
+      if (isZero(original.mid)) {
+        assert.equal(s, original, label);
+        continue;
+      }
+      const rounded = roundTo(original.mid, precision, mode);
+      assert.deepEqual(s.mid, rounded, label);
+      if (equals(rounded, original.mid)) assert.equal(s, original, label);
+    } else {
+      assert.equal(s.uncertified, true, label);
+      assert.deepEqual(
+        s.mid,
+        containsZero(original) ? ZERO : roundTo(original.mid, precision, mode),
+        label,
+      );
     }
-    const rounded = roundTo(original.mid, precision, mode);
-    assert.deepEqual(s.mid, rounded, label);
-    assert.ok(digitsOf(s.mid) <= precision, label);
-    if (equals(rounded, original.mid)) {
-      assert.equal(s, original, label);
-      continue;
-    }
-    const moved = absoluteFraction(
-      subtractFractions(fraction(rounded), fraction(original.mid)),
-    );
-    assert.deepEqual(s.rad, addRadius(original.rad, radiusAbove(moved)), label);
-    if (!isExact(original)) {
-      for (const x of ends(original)) assertContains(s, x, label);
-    }
+    assert.ok(isZero(s.mid) || digitsOf(s.mid) <= precision, label);
   }
 });
 
@@ -1618,14 +1638,13 @@ test("settle refuses a rounded midpoint past the bound in decimal mode, and neve
   const bottom = settled(third, at(8));
   assert.deepEqual(bottom.mid, roundTo(third.mid, digits, "halfEven"));
   assert.ok(covers(bottom, third.mid));
-  const inDecimal = settled(third, decimalAt(8, "halfAwayFromZero"));
+  const inDecimal = settled(exact(third.mid), decimalAt(8, "halfAwayFromZero"));
   // Its canonical exponent lies past the bound, which the value does not.
   assert.deepEqual(
-    inDecimal.mid,
-    scaledAt(33333333n, 1n, -(MAX_EXPONENT + 7n)),
+    inDecimal,
+    exact(scaledAt(33333333n, 1n, -(MAX_EXPONENT + 7n))),
   );
-  assert.ok(covers(inDecimal, third.mid));
-  const past = ball(scaledAt(1n, 3n, -MAX_EXPONENT), dec("1e-30"));
+  const past = exact(scaledAt(1n, 3n, -MAX_EXPONENT));
   assertRefused(settle(past, decimalAt(8, "halfAwayFromZero")), "underflow");
 });
 
@@ -1759,18 +1778,84 @@ test("position reads a difference past the bottom of the bound against the radiu
   );
 });
 
-test("a sum of two exact operands that cannot be aligned is settled and absorbed in decimal mode", () => {
-  const context: NumberContext = { ...at(8), mode: "decimal" };
+test("a sum of two exact operands that cannot be aligned is the larger, or its neighbor by the smaller's sign in a directed mode, in decimal mode (D26)", () => {
+  const decimal = (rounding: RoundingMode): NumberContext => ({
+    ...at(8),
+    rounding,
+    mode: "decimal",
+  });
   const huge = exact(dec("1e999999999"));
-  const sum = unwrap(addBalls(huge, exact(ONE), context));
-  assert.deepEqual(sum.mid, huge.mid);
-  // The absorbed one, as the coarse bound on its magnitude.
-  const rad = radiusUpper(sum.rad);
-  assert.ok(compareFractions(rad, rational(1n)) >= 0);
-  assert.ok(compareFractions(rad, rational((1n << 27n) + 1n, 1n << 27n)) < 0);
-  assert.ok(certifies(sum, 8, "halfEven"));
-  const difference = unwrap(subtractBalls(exact(ONE), huge, context));
-  assert.deepEqual(difference.mid, negate(huge.mid));
+  // In a nearest mode the one lies far below half a unit in the last digit.
+  for (const rounding of [
+    "halfEven",
+    "halfAwayFromZero",
+    "halfTowardZero",
+  ] as const) {
+    assert.deepEqual(
+      unwrap(addBalls(huge, exact(ONE), decimal(rounding))),
+      huge,
+      rounding,
+    );
+    assert.deepEqual(
+      unwrap(subtractBalls(huge, exact(ONE), decimal(rounding))),
+      huge,
+      rounding,
+    );
+  }
+  // A directed mode steps to the neighbor on the side the one lies on,
+  // in the decade the step lands in.
+  const up = exact(dec("1.0000001e999999999"));
+  const down = exact(dec("9.9999999e999999998"));
+  assert.deepEqual(unwrap(addBalls(huge, exact(ONE), decimal("ceiling"))), up);
+  assert.deepEqual(
+    unwrap(subtractBalls(huge, exact(ONE), decimal("ceiling"))),
+    huge,
+  );
+  assert.deepEqual(unwrap(addBalls(huge, exact(ONE), decimal("floor"))), huge);
+  assert.deepEqual(
+    unwrap(subtractBalls(huge, exact(ONE), decimal("floor"))),
+    down,
+  );
+  assert.deepEqual(
+    unwrap(addBalls(huge, exact(ONE), decimal("awayFromZero"))),
+    up,
+  );
+  assert.deepEqual(
+    unwrap(subtractBalls(huge, exact(ONE), decimal("awayFromZero"))),
+    huge,
+  );
+  assert.deepEqual(
+    unwrap(addBalls(huge, exact(ONE), decimal("towardZero"))),
+    huge,
+  );
+  assert.deepEqual(
+    unwrap(subtractBalls(huge, exact(ONE), decimal("towardZero"))),
+    down,
+  );
+  // A negative larger operand: the one is toward zero, the neighbor away.
+  const negative = negateBall(huge);
+  assert.deepEqual(
+    unwrap(addBalls(negative, exact(ONE), decimal("ceiling"))),
+    negateBall(down),
+  );
+  assert.deepEqual(
+    unwrap(addBalls(negative, exact(ONE), decimal("floor"))),
+    negative,
+  );
+  assert.deepEqual(
+    unwrap(subtractBalls(negative, exact(ONE), decimal("awayFromZero"))),
+    negateBall(up),
+  );
+  assert.deepEqual(
+    unwrap(subtractBalls(negative, exact(ONE), decimal("floor"))),
+    negateBall(up),
+  );
+  // A larger operand of eight digits steps in its own last digit.
+  const eight = exact(dec("1.2345678e999999999"));
+  assert.deepEqual(
+    unwrap(addBalls(eight, exact(ONE), decimal("ceiling"))),
+    exact(dec("1.2345679e999999999")),
+  );
   // In exact mode the same sum is too large, at the range limit.
   assertRefused(addBalls(huge, exact(ONE), at(8)), "tooLarge");
 });

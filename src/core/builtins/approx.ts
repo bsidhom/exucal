@@ -13,31 +13,23 @@
 // they are. The evaluator settles the result as it settles every inexact
 // one (D15), and the retry loop needs nothing of its own, since the radius
 // is the working precision's and shrinks with each pass. The working
-// digits are `workingDigits(context)` in exact mode and the context's
-// precision in decimal mode, where they are the user's `p` and the mode's
-// rounding follows as for every result.
+// digits are `workingDigits(context)`. In decimal mode (D26;
+// docs/decimal-mode.md, "`approx`") the evaluator does not call this at
+// all: every value there is already at the user's precision, so `approx`
+// is the identity, which the built-in declares with `decimal`.
 
 import type { Ball } from "../ball.ts";
+import { widened } from "../ball.ts";
 import { sameAsArgument, type Builtin, type BuiltinError } from "../builtin.ts";
-import { modeOf, workingDigits, type NumberContext } from "../context.ts";
-import { maxRadius, powerOfTenRadius } from "../radius.ts";
+import type { NumberContext } from "../context.ts";
 import { ok, type Result } from "../result.ts";
-import { decimalExponent, isZero } from "../scaled.ts";
 
-/** `approx(x)` at the context, as the header says. */
+/** `approx(x)` at the context, as the header says: `widened` of ball.ts. */
 export function approxBall(
   x: Ball,
   context: NumberContext,
 ): Result<Ball, BuiltinError> {
-  if (x.rad.kind === "unbounded" || isZero(x.mid)) return ok(x);
-  const digits =
-    modeOf(context) === "decimal" ? context.precision : workingDigits(context);
-  // One unit in the last of the working digits, as a radius: taken from
-  // its exponent without forming the unit, which lies past the exponent
-  // bound for a value near the bottom of it (`approx(1e-999999999999999999)`,
-  // issue #44).
-  const unit = powerOfTenRadius(decimalExponent(x.mid) - BigInt(digits) + 1n);
-  return ok({ mid: x.mid, rad: maxRadius(x.rad, unit) });
+  return ok(widened(x, context));
 }
 
 export const approx: Builtin = {
@@ -45,4 +37,5 @@ export const approx: Builtin = {
   arity: { min: 1, max: 1 },
   dimensions: sameAsArgument,
   apply: ([x], context) => approxBall(x!, context),
+  decimal: "identity",
 };

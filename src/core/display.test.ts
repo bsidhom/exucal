@@ -551,3 +551,22 @@ test("a zero's bound below the exponent bound is written as 1e-10000000000000000
   // The bound parses back, at the bound.
   assert.ok(compare(dec("1e-1000000000000000000"), ZERO) > 0);
 });
+
+// The uncertified kind (D26; docs/decimal-mode.md, "The ceiling")
+
+test("a decimal-mode value flagged uncertified is shown as its digits, whatever else the ball would be", () => {
+  const flagged: Ball = { ...exact(dec("1.2")), uncertified: true };
+  assert.deepEqual(show(flagged, 2, "halfEven"), {
+    kind: "uncertified",
+    text: "1.2",
+  });
+  // The fractions display does not reach it.
+  assert.deepEqual(show(flagged, 2, "halfEven", true), {
+    kind: "uncertified",
+    text: "1.2",
+  });
+  assert.deepEqual(show({ ...exact(ZERO), uncertified: true }, 8, "halfEven"), {
+    kind: "uncertified",
+    text: "0",
+  });
+});

@@ -426,9 +426,8 @@ held in the primitives, so their magnitudes compare directly: `1 ft >
   when its coarse radius bounds cannot tell, which can only turn a
   verdict into undecided, never into a wrong one.
 
-- **In decimal mode** the same rules apply: every value is a ball whose
-  radius carries its roundings, so a verdict is still certain, and only
-  fewer comparisons decide.
+- **In decimal mode** every value is exact (D26; docs/decimal-mode.md),
+  so every comparison decides and no condition is undecided there.
 
 **An undecided condition.** When a condition cannot be decided, the
 call goes on: the condition is assumed to hold, the body is evaluated,
@@ -444,7 +443,8 @@ best-effort, with the uncertainty called out, rather than refused:
   earlier result, which rested on the assumption, is not shown in its
   place.
 - **Shown at the end, with a warning.** If an assumption remains at the
-  ceiling (or after decimal mode's single pass), the value is shown, its
+  ceiling (decimal mode has none, its values being exact), the value is
+  shown, its
   relation is `≈` whatever its digits, and a warning beside it names
   each assumed condition, styled apart from the notes on digits so that
   it is not read as one: `tempC(approx(-273.15))` is `≈ 0 K`, with

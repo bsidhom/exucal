@@ -1,4 +1,4 @@
-import { LitElement, css, html } from "lit";
+import { LitElement, css, html, nothing } from "lit";
 import { live } from "lit/directives/live.js";
 import { customElement, property, state } from "lit/decorators.js";
 import { MODES, ceilingFor, type Mode } from "./core/context.ts";
@@ -14,25 +14,36 @@ import {
   rangesOf,
   type NumberSetting,
   type Settings,
+  type Working,
+  type Notation,
 } from "./settings.ts";
 
 /**
  * The settings panel under the converter: the digits a result is shown
  * with, the cap on them, the range limit in bits, the rounding mode, the
- * exact or decimal mode and the fractions display, each with a line on
- * what it does. The settings come in as a property and every change the
- * user makes goes out as a `settings-change` event carrying the fields
- * that changed; the shell owns the settings, clamps what depends on the
- * change and saves them, so this panel knows nothing of storage.
+ * mode and, under it, what belongs to the mode in force (exact mode's
+ * notation, decimal mode's working digits; docs/settings-modes.md,
+ * docs/working-digits.md), each with a line on what it does in that
+ * mode. The settings come in as a property and every change the user
+ * makes goes out as a `settings-change` event carrying the fields that
+ * changed, the mode always as a whole variant; the shell owns the
+ * settings, clamps what depends on the change and saves them, so this
+ * panel knows nothing of storage.
  *
  * Each number input accepts an integer in the range the settings above it
  * allow (`rangesOf`: the digits up to the cap, the cap up to what the
  * range limit holds, the range limit between its floor and the hard
- * bound), and a value outside that is not applied: the panel re-renders
- * and the `live` binding snaps the input back to the setting in force.
- * The cap on the digits is labeled "Precision limit": what it bounds is
- * the effort exact mode spends, through the ceiling of the retry schedule
- * (`ceilingFor`), and its line shows that ceiling.
+ * bound, the working digits from the digits up to the cap), and a value
+ * outside that is not applied: the panel re-renders and the `live`
+ * binding snaps the input back to the setting in force. The cap on the
+ * digits is labeled "Precision limit": what it bounds is the effort
+ * spent, through the ceiling of the retry schedule (`ceilingFor`), which
+ * in decimal mode is the most hidden digits a step's rounding is
+ * certified at, and its line shows that ceiling.
+ *
+ * The Mode select's options are the bare names, so that the select stays
+ * narrow and the panel fits a phone (#147); the explanation is the line
+ * under it, which follows the mode in force.
  *
  * A button beside them asks limits.ts to measure what this device does
  * within its latency budget and emits the two limits it recommends; it is
@@ -69,6 +80,7 @@ export class SettingsPanel extends LitElement {
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
+        min-width: 0;
         font-size: 0.875rem;
         font-weight: 600;
       }
@@ -91,6 +103,7 @@ export class SettingsPanel extends LitElement {
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        font-weight: 400;
       }
 
       input[type="checkbox"] {
@@ -111,6 +124,16 @@ export class SettingsPanel extends LitElement {
   /** Whether the probe for the recommended limits is running. */
   @state() private recommending = false;
 
+  /** The last extended count of working digits seen, so that checking "extended" again offers it. */
+  private lastExtended?: number;
+
+  willUpdate() {
+    const { mode } = this.settings;
+    if (mode.kind === "decimal" && mode.working.kind === "extended") {
+      this.lastExtended = mode.working.digits;
+    }
+  }
+
   render() {
     const { rounding, mode } = this.settings;
     return html`
@@ -124,6 +147,7 @@ export class SettingsPanel extends LitElement {
             ROUNDING_LABELS,
             rounding,
             this.onSelectChange("rounding", isRoundingMode),
+            ROUNDING_LINES[mode.kind],
           )}
           ${this.renderSelect(
             "Mode",
@@ -131,25 +155,12 @@ export class SettingsPanel extends LitElement {
             MODE_LABELS,
             mode.kind,
             this.onModeChange,
+            MODE_LINES[mode.kind],
           )}
           ${
             mode.kind === "exact"
-              ? html`<label class="toggle">
-                  <span>
-                    <input
-                      type="checkbox"
-                      .checked=${mode.notation === "ratio"}
-                      @change=${this.onNotationChange}
-                    />
-                    Show reduced fractions
-                  </span>
-                  <small class="hint">
-                    An exact value that is not a whole number is written as a
-                    fraction in lowest terms when both parts fit within Digits;
-                    inexact values stay decimal.
-                  </small>
-                </label>`
-              : null
+              ? this.renderNotation(mode.notation)
+              : this.renderWorking(mode.working)
           }
           <button
             type="button"
@@ -183,13 +194,14 @@ export class SettingsPanel extends LitElement {
     `;
   }
 
-  /** A choice among `options`, each named by `labels`. */
+  /** A choice among `options`, each named by `labels`, with a line under it. */
   private renderSelect<T extends string>(
     label: string,
     options: readonly T[],
     labels: Record<T, string>,
     value: T,
     onChange: (event: Event) => void,
+    hint: string,
   ) {
     return html`
       <label>
@@ -202,6 +214,69 @@ export class SettingsPanel extends LitElement {
               </option>`,
           )}
         </select>
+        <small class="hint">${hint}</small>
+      </label>
+    `;
+  }
+
+  /** Exact mode's notation: a checkbox named for the `ratio` value. */
+  private renderNotation(notation: Notation) {
+    return html`
+      <label class="toggle">
+        Notation
+        <span>
+          <input
+            type="checkbox"
+            .checked=${notation === "ratio"}
+            @change=${this.onNotationChange}
+          />
+          ratio
+        </span>
+        <small class="hint">
+          An exact value that is not a whole number is written as a ratio of two
+          whole numbers in lowest terms when both fit within Digits, and as its
+          digits otherwise; an inexact value is always digits.
+        </small>
+      </label>
+    `;
+  }
+
+  /** Decimal mode's working digits: a checkbox named for the `extended` value, and the count while it is checked. */
+  private renderWorking(working: Working) {
+    const extended = working.kind === "extended";
+    const { min, max } = rangesOf(this.settings).working;
+    return html`
+      <label class="toggle">
+        Working digits
+        <span>
+          <input
+            type="checkbox"
+            .checked=${extended}
+            @change=${this.onWorkingToggle}
+          />
+          extended
+          ${
+            working.kind === "extended"
+              ? html`<input
+                  type="number"
+                  inputmode="numeric"
+                  aria-label="Extended working digits"
+                  min=${min}
+                  max=${max}
+                  step="1"
+                  .value=${live(String(working.digits))}
+                  @change=${this.onWorkingChange}
+                />`
+              : nothing
+          }
+        </span>
+        <small class="hint">
+          ${
+            extended
+              ? "The digits every step but the last is computed with; the answer is shown at Digits."
+              : "Every step is computed with Digits. Extended working digits keep a step's rounding out of the answer, as a calculator's hidden digits do: at twelve, ln(exp(1/10)) is 0.1."
+          }
+        </small>
       </label>
     `;
   }
@@ -233,7 +308,7 @@ export class SettingsPanel extends LitElement {
     };
   }
 
-  /** A change of the mode's kind: the chosen mode's variant at its defaults, since each variant carries its own settings. */
+  /** A change of the mode: the chosen mode's variant at its defaults, since each variant carries its own settings. */
   private onModeChange(event: Event) {
     const { value } = event.target as HTMLSelectElement;
     if (isMode(value) && value !== this.settings.mode.kind) {
@@ -247,6 +322,38 @@ export class SettingsPanel extends LitElement {
     this.emit({
       mode: { kind: "exact", notation: checked ? "ratio" : "digits" },
     });
+  }
+
+  /**
+   * Checking or unchecking "extended": the decimal variant with the
+   * working digits extended, at the last extended count or at Digits, or
+   * locked to Digits.
+   */
+  private onWorkingToggle(event: Event) {
+    const { checked } = event.target as HTMLInputElement;
+    this.emit({
+      mode: {
+        kind: "decimal",
+        working: checked
+          ? {
+              kind: "extended",
+              digits: this.lastExtended ?? this.settings.digits,
+            }
+          : { kind: "digits" },
+      },
+    });
+  }
+
+  /** A change of the extended count: a value in its range is emitted, as for the number settings. */
+  private onWorkingChange(event: Event) {
+    const value = (event.target as HTMLInputElement).valueAsNumber;
+    if (isIntegerIn(value, rangesOf(this.settings).working)) {
+      this.emit({
+        mode: { kind: "decimal", working: { kind: "extended", digits: value } },
+      });
+    } else {
+      this.requestUpdate();
+    }
   }
 
   /**
@@ -281,7 +388,7 @@ async function afterPaint(host: LitElement): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-/** A number setting as the panel shows it: which, how it is labeled, and the line under it. */
+/** A number setting as the panel shows it: which, how it is labeled, and the line under it, which follows the mode in force. */
 type NumberField = {
   readonly key: NumberSetting;
   readonly label: string;
@@ -293,14 +400,22 @@ const NUMBER_FIELDS: readonly NumberField[] = [
   {
     key: "digits",
     label: "Digits",
-    hint: () =>
-      "Significant digits shown. In decimal mode, the precision of every step as well.",
+    hint: ({ mode }) => {
+      if (mode.kind === "exact") return "Significant digits shown.";
+      return mode.working.kind === "extended"
+        ? "Significant digits of the answer; every step before the last is computed with the working digits."
+        : "Significant digits shown, and of every value: every step is rounded to them, and a typed number with more is rounded to them on the way in.";
+    },
   },
   {
     key: "maxDigits",
     label: "Precision limit",
-    hint: ({ maxDigits }) =>
-      `The most digits an answer may be asked for. To certify one, exact mode works at up to 4 × (this + 10) = ${ceilingFor(maxDigits).toLocaleString("en-US")} digits, so this bounds the effort spent.`,
+    hint: ({ maxDigits, mode }) => {
+      const ceiling = ceilingFor(maxDigits).toLocaleString("en-US");
+      return mode.kind === "exact"
+        ? `The most digits an answer may be asked for. To certify one, exact mode works at up to 4 × (this + 10) = ${ceiling} digits, so this bounds the effort spent.`
+        : `The most digits an answer, or the working digits, may be asked for. A step's rounding is certified by computing it at up to 4 × (this + 10) = ${ceiling} hidden digits, so this bounds the effort spent.`;
+    },
   },
   {
     key: "maxBits",
@@ -321,10 +436,24 @@ const ROUNDING_LABELS: Record<RoundingMode, string> = {
   floor: "down (toward −∞)",
 };
 
-/** How each mode is named in the settings, with what it means. */
+/** What the rounding mode rounds, in each mode. */
+const ROUNDING_LINES: Record<Mode, string> = {
+  exact: "How the last digit shown is rounded.",
+  decimal: "How every step is rounded, the last digit shown with it.",
+};
+
+/** How each mode is named in the settings: the bare name, the line under the select explaining it. */
 const MODE_LABELS: Record<Mode, string> = {
-  exact: "exact: every digit shown is certain, at rising precision",
-  decimal: "decimal: every step rounded to the digits, in the rounding mode",
+  exact: "exact",
+  decimal: "decimal",
+};
+
+/** What each mode does, under the select. */
+const MODE_LINES: Record<Mode, string> = {
+  exact:
+    "Every digit shown is certain, found at rising precision; an exact value is written as its digits or as a ratio.",
+  decimal:
+    "Every step is rounded to Digits in the rounding mode, as a hand calculator does; every answer is exact in that arithmetic.",
 };
 
 declare global {

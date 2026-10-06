@@ -29,6 +29,7 @@ import {
   addBalls,
   containsZero,
   divideBalls,
+  certifiedStep,
   exact,
   isExact,
   multiplyBalls,
@@ -1310,6 +1311,7 @@ function judge(
   context: NumberContext,
 ): string | undefined {
   const mode = modeOf(context);
+  if (mode === "decimal") return judgeDecimal(op, args, context);
   const applied = op.apply(args, context);
   // An operation that returns its result unsettled is settled here, as
   // the evaluator settles it, which in decimal mode may refuse it.
@@ -1330,15 +1332,6 @@ function judge(
       case "overflow":
       case "underflow": {
         if (sure === error.kind) return undefined;
-        if (
-          mode === "decimal" &&
-          op.settles === true &&
-          error.kind === "overflow" &&
-          bounded &&
-          roundedPastTop(intervals as Interval[], context)
-        ) {
-          return undefined;
-        }
         return `refused ${error.kind} where ${sure === undefined ? "the result does not pass the bound throughout" : `every value is ${sure}`}`;
       }
       case "tooLarge":
@@ -1395,22 +1388,130 @@ function judge(
   return undefined;
 }
 
-/** Whether rounding the top of the arguments' magnitude to the context's precision in its mode carries it past the top (D17, decimal mode). */
-function roundedPastTop(
-  intervals: readonly Interval[],
+/**
+ * The oracle for decimal mode (D26; docs/decimal-mode.md): the operation
+ * is run as the evaluator runs it, on operands rounded to the context's
+ * digits in its mode (an operand the rounding carries past the bound is
+ * refused before the operation, and is not the operation's to judge), at
+ * rising precision until its rounding is certified (`certifiedStep`), and
+ * its result settled. The result must be exact; where the exact result of
+ * the operation on the rounded operands can be formed (`reference`, or
+ * `known` at a unit operation's point) the result must be its rounding in
+ * the mode, unless the result is marked uncertified, the midpoint's
+ * rounding at the ceiling, which is reported as such and not judged. A
+ * refusal must be right of the rounded operands' exact result, or be a
+ * rounding that carries past the top; a `tooLarge` from a power is what
+ * the evaluator recomputes on the widened base (`poweredMagnitude`), and
+ * is not judged here; an `unresolved` at the ceiling is the pipeline's to
+ * report.
+ */
+function judgeDecimal(
+  op: Operation,
+  args: readonly Ball[],
   context: NumberContext,
-): boolean {
-  return intervals.some((i) => {
-    for (const end of [i.lo, i.hi]) {
-      const s = scaledOf(end);
-      if (s === undefined) return true;
-      if (isZero(s)) continue;
-      const rounded = roundTo(s, context.precision, context.rounding);
-      if (!isZero(rounded) && decimalExponent(rounded) > MAX_EXPONENT)
-        return true;
+): string | undefined {
+  const rounded: Ball[] = [];
+  for (const arg of args) {
+    const settled = settle(arg, context);
+    if (!settled.ok) return undefined;
+    rounded.push(settled.value);
+  }
+  const applied = PLAIN.has(op.name)
+    ? op.apply(rounded, context)
+    : certifiedStep((working) => op.apply(rounded, working), context);
+  const result = applied.ok ? settle(applied.value, context) : applied;
+  const intervals = rounded.map(intervalOf);
+  const bounded = intervals.every((i) => i !== undefined);
+  const magnitude =
+    bounded && op.magnitude !== undefined
+      ? op.magnitude(intervals as Interval[])
+      : NO_MAGNITUDE;
+  const sure = surePast(magnitude);
+  const reference =
+    op.reference === undefined
+      ? undefined
+      : op.reference(rounded.map((a) => a.mid));
+  const roundedReference =
+    reference === undefined ? undefined : roundedLoose(reference, context);
+  if (!result.ok) {
+    const { error } = result;
+    switch (error.kind) {
+      case "overflow":
+      case "underflow": {
+        if (sure === error.kind) return undefined;
+        if (roundedReference === "past") return undefined;
+        return `refused ${error.kind} where ${sure === undefined ? "the result does not pass the bound throughout" : `every value is ${sure}`}`;
+      }
+      case "tooLarge":
+        if (op.name.startsWith("pow")) return undefined;
+        if (op.tooLarge?.(rounded, context) === true) return undefined;
+        return "refused tooLarge where no documented site applies";
+      case "domain":
+      case "negativeRadicand":
+        if (bounded && op.domain?.(intervals as Interval[]) === true)
+          return undefined;
+        return `${error.kind} where the argument is not outside the domain throughout`;
+      case "divisionByZero":
+        if (op.divisionByZero?.(rounded) === true) return undefined;
+        return "divisionByZero where the divisor is not exactly zero";
+      case "unresolved":
+        return undefined;
+      default:
+        return `an unexpected error ${error.kind}`;
     }
-    return false;
-  });
+  }
+  const value = result.value;
+  if (!isExact(value)) return "an inexact value in decimal mode";
+  if (sure === "overflow" || (sure === "underflow" && !isZero(value.mid)))
+    return `a value where every value of the result is ${sure}`;
+  const bad = checkValue(value, "decimal");
+  if (bad !== undefined) return bad;
+  if (value.uncertified === true) return undefined;
+  const point = op.known?.(rounded);
+  if (
+    point !== undefined &&
+    !equals(value.mid, roundedScaled(point, context))
+  ) {
+    return `the result is not the rounding of the known value ${describeScaled(point)}`;
+  }
+  if (roundedReference !== undefined) {
+    if (roundedReference === "past")
+      return "a value where the exact result of the midpoints passes the bound";
+    if (!equals(value.mid, roundedReference))
+      return "the result is not the rounding of the exact result of the midpoints";
+  }
+  if (op.range !== undefined && !intersects(value, op.range)) {
+    return "the result lies outside the function's range";
+  }
+  return undefined;
+}
+
+/**
+ * The operations the evaluator runs at the user's context itself in decimal
+ * mode, whose one rounding is the settle's; every other, a built-in or a
+ * power, it runs through `certifiedStep` in exact mode at rising precision.
+ */
+const PLAIN: ReadonlySet<string> = new Set([
+  "addBalls",
+  "subtractBalls",
+  "multiplyBalls",
+  "divideBalls",
+  "settle",
+]);
+
+/** `s` rounded to the context's digits in its mode; zero as it is. */
+function roundedScaled(s: Scaled, context: NumberContext): Scaled {
+  return isZero(s) ? s : roundTo(s, context.precision, context.rounding);
+}
+
+/** The rounding of the exact result `loose`, or `"past"` where it, or its rounding, lies past the exponent bound. */
+function roundedLoose(loose: Loose, context: NumberContext): Scaled | "past" {
+  const s = scaledOf(loose);
+  if (s === undefined) return "past";
+  const rounded = roundedScaled(s, context);
+  if (isZero(rounded)) return rounded;
+  const e = decimalExponent(rounded);
+  return e > MAX_EXPONENT || e < -MAX_EXPONENT ? "past" : rounded;
 }
 
 function describeScaled(s: Scaled): string {

@@ -22,6 +22,12 @@
 // per-operation stage displays. The retry loop of the pipeline (2.5) keeps
 // `partial` and `zero` from reaching the display except at the ceiling.
 //
+// In decimal mode every value is exact (D26; docs/decimal-mode.md), so the
+// rule writes `=` for every line there, except for a value flagged
+// `uncertified`, a step rounded at the ceiling without its digits
+// certified, which is the kind `uncertified`: its digits, which the
+// outcome writes with the `≈` sign bearing a dot above it and a note.
+//
 // With `fractions` on (docs/fractions.md, "The rule"; D21), an exact value
 // that is not an integer is shown as its fraction in lowest terms when the
 // numerator and the denominator each fit within the digits asked, `= 1/3`
@@ -132,6 +138,13 @@ function magnitude(n: bigint): bigint {
 /** A ball as shown: its `text`, and the `kind` that says what the text is worth. */
 export type Shown =
   /**
+   * A decimal-mode value one of whose steps was rounded at the ceiling
+   * without its digits certified (D26; docs/decimal-mode.md, "The
+   * ceiling"): every digit, exact under the mode's rounding, and not
+   * vouched for.
+   */
+  | { readonly kind: "uncertified"; readonly text: string }
+  /**
    * An exact value, every digit of which is shown: `=`. With `fraction`,
    * `text` is a fraction `N/D` in lowest terms, which the component
    * parenthesizes where a unit follows it.
@@ -170,6 +183,9 @@ export function show(
   fractions = false,
 ): Shown {
   const { mid } = ball;
+  if (ball.uncertified === true) {
+    return { kind: "uncertified", text: format(mid, digits, mode) };
+  }
   if (isUnbounded(ball.rad)) {
     return { kind: "unbounded", text: format(mid, digits, mode) };
   }

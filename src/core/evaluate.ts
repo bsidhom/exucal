@@ -108,7 +108,13 @@
 // rounded to the working precision after each operation, so that it never
 // grows beyond it, and its radius says so; exact values are never touched.
 // The settling is done once, in `evaluate`, around the switch over the
-// node kinds, so no case need remember it. A sum whose
+// node kinds, so no case need remember it. In decimal mode (D26;
+// docs/decimal-mode.md) the settle is the mode's one rounding of each
+// step, and every value is exact after it; a built-in's call and a power
+// are each one step, computed at rising precision through
+// `certifiedStep` until their rounding is certified, with `approx` the
+// identity, and the flag of a rounding the ceiling left uncertified is
+// carried by every operation after it. A sum whose
 // operands do not conform (`1 m + 1 s`) points at the whole sum for the
 // same reason, and carries the span of each operand besides, so that a
 // message can say what each one is; a call whose argument does not conform
@@ -117,6 +123,7 @@
 
 import {
   checkConformance,
+  powDimension,
   type ConformanceError,
   type Primitives,
 } from "./dimension.ts";
@@ -126,7 +133,6 @@ import {
   divideQuantities,
   multiplyQuantities,
   negateQuantity,
-  powQuantity,
   scalar,
   settleQuantity,
   subtractQuantities,
@@ -143,8 +149,12 @@ import {
   type Scaled,
 } from "./scaled.ts";
 import {
+  carrying,
+  certifiedStep,
   isExact,
   orderOf,
+  powRationalBall,
+  widened,
   type Ball,
   type BallError,
   type Order,
@@ -155,7 +165,7 @@ import type {
   DomainReason,
   Edge,
 } from "./builtin.ts";
-import type { NumberContext } from "./context.ts";
+import { modeOf, type NumberContext } from "./context.ts";
 import type { Comparator } from "./definitions.ts";
 import { err, ok, type Result } from "./result.ts";
 import type { Span } from "./span.ts";
@@ -516,7 +526,14 @@ function evaluateNode<E>(
             : powerRefusal(base.value.magnitude.mid, exponent.quotient);
         return err({ ...(refusal ?? { kind: "tooLarge" }), span });
       }
-      const power = powQuantity(base.value, exponent.value, context);
+      const magnitude = base.value.magnitude;
+      // The power is one step: in decimal mode its rounding is certified
+      // at rising precision (D26), in exact mode it is computed once.
+      const power = certifiedStep(
+        (working) =>
+          poweredMagnitude(magnitude, exponent.value, working, context),
+        context,
+      );
       // A base that cannot be told from zero is what is wrong, whether it
       // is raised to a negative power or put under an even root; a power
       // straddling the bound is the whole power's.
@@ -531,7 +548,11 @@ function evaluateNode<E>(
           edge: power.error.edge,
         });
       }
-      return locate(power, span);
+      if (!power.ok) return locate(power, span);
+      return ok({
+        magnitude: carrying(power.value, magnitude),
+        dimension: powDimension(base.value.dimension, exponent.value),
+      });
     }
     case "neg": {
       const operand = evaluate(
@@ -708,12 +729,19 @@ function applyBuiltin<E>(
       error: dimension.error,
     });
   }
-  const magnitude = fn.apply(
-    values.map((value) => value.magnitude),
-    context,
-  );
+  const magnitudes = values.map((value) => value.magnitude);
+  // The call is one step: in decimal mode the function is computed at
+  // rising precision until its rounding is certified (D26), and `approx`
+  // is the identity there; in exact mode it is computed once.
+  const magnitude =
+    fn.decimal === "identity" && modeOf(context) === "decimal"
+      ? ok(magnitudes[0]!)
+      : certifiedStep((working) => fn.apply(magnitudes, working), context);
   if (magnitude.ok) {
-    return ok({ magnitude: magnitude.value, dimension: dimension.value });
+    return ok({
+      magnitude: carrying(magnitude.value, ...magnitudes),
+      dimension: dimension.value,
+    });
   }
   const { error } = magnitude;
   switch (error.kind) {
@@ -978,6 +1006,33 @@ function evaluateBound<E>(
   if (result.ok) return result;
   const { error } = result;
   return err(error.kind === "lookup" ? error : { kind: "body", error });
+}
+
+/**
+ * `b` to `exponent` at `working`, by `powRationalBall`: an integer power
+ * of an exact base exactly, a root through the kernel. In decimal mode
+ * (D26; docs/decimal-mode.md, "Powers") an exact power that does not fit
+ * the range limit is computed instead on `b` widened to the working
+ * precision, so that `certifiedStep` certifies its rounding as it does an
+ * inexact function's: the limit is a cost limit, and a correctly rounded
+ * power costs little.
+ */
+function poweredMagnitude(
+  b: Ball,
+  exponent: Rational,
+  working: NumberContext,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  const power = powRationalBall(b, exponent, working);
+  if (
+    power.ok ||
+    power.error.kind !== "tooLarge" ||
+    modeOf(context) !== "decimal" ||
+    !isExact(b)
+  ) {
+    return power;
+  }
+  return powRationalBall(widened(b, working), exponent, working);
 }
 
 /** A lookup failure as `evaluateBound` boxes it. */

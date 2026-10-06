@@ -2,8 +2,10 @@
 
 Status: design note, written after S1 of docs/settings-plan.md landed
 and before S2, which it interrupts (docs/settings-modes.md, paused on
-this). It restates what the decimal mode is, and the restatement is the
-owner's ruling: **in decimal mode every operation is one correctly
+this); implemented in the change after its review, with "As landed" at
+the end saying where the code settled what the note left open. It
+restates what the decimal mode is, and the restatement is the owner's
+ruling: **in decimal mode every operation is one correctly
 rounded step, its result is exact, and nothing carries a radius.** The
 mode stage 4 built (docs/decimal.md, "The decimal mode"; D15) rounds
 every step and also tracks, in the radius, how far the roundings have
@@ -225,15 +227,16 @@ decimal, so for `exp`, `ln`, the trigonometric and hyperbolic functions,
 `gamma`, `erf` and their kin the case cannot arise, and the only values
 that can sit on a boundary are the algebraic ones, roots and powers with
 rational exponents, whose exact cases are detected before the kernel
-runs where they are recognized: `sqrt(6.25)` and `6.25^(1/2)` are
-`= 2.5` today, while `6.25^0.5` and `pow(6.25, 0.5)` are not recognized
-and go to the kernel. The ceiling is therefore a computation limit that
-lets the mode always answer: at it, the result is the midpoint's
-rounding in `R`, which is what a calculator prints, and it is wrong only
-for an algebraic boundary value the exact cases missed (`6.25^0.5` and
-`pow(6.25, 0.5)` at one digit, a tie at `2.5`, are the known ones;
-today's decimal mode shows the second as `≈ 2` with no digit certain),
-a gap to close where it is found.
+runs (`sqrt(6.25)`, `6.25^0.5` and `pow(6.25, 0.5)` are each exactly
+`2.5`). The ceiling is therefore a computation limit that lets the mode
+always answer: at it, the result is the midpoint's rounding in `R`,
+which is what a calculator prints, and it is wrong only for an algebraic
+boundary value the exact cases missed, a gap to close where it is found.
+No built-in of the app is known to reach it today; the implementation
+exercises it with a built-in injected by its tests, and the first draft
+of this note named `6.25^0.5` at one digit as a case, which it is not:
+the root is an exact case, and in decimal mode the literal is `6` before
+the root is taken.
 
 The owner's ruling is that such a result is rounded and answered, and
 that the app says it was not certified: the value is exact under the
@@ -452,9 +455,10 @@ in this mode the rounded value is the answer. Exact mode is unchanged.
   each of the seven rounding modes are the correctly rounded values, and
   a test shows a call that fails to certify at its first working
   precision and succeeds at its second.
-- `sqrt(9/4)` is `= 1.5`; `6.25^0.5` and `pow(6.25, 0.5)` at one digit
-  are answered as the midpoint's rounding and reported as uncertified,
-  or their exact case is added and they are `= 2` under `halfEven`.
+- `sqrt(9/4)` is `= 1.5`; a built-in injected by a test whose value
+  sits on a tie is answered as the midpoint's rounding and reported as
+  uncertified, and one whose value lies near a tie certifies at its
+  second working precision.
 - An uncertified step is reported on the line, in the shape the session
   decides, and the flag survives the operations after it.
 - `1e999999999 + 1` at eight digits is `= 1e+999999999`, and under
@@ -489,3 +493,38 @@ rediscovery:
 - **A one-sided radius in exact mode.** The symmetric ball is right for
   exact mode, whose roundings are the kernel's to nearest; nothing here
   changes it.
+
+## As landed
+
+- **The flag** is an optional field of `Ball`, `uncertified?: true`,
+  never set to anything else, so that balls compare structurally as
+  before; the ball operations carry it from operand to result through
+  one wrapper each (`carrying` in ball.ts), and the evaluator carries it
+  from a built-in's arguments to its result. Where the bit lives was the
+  first of the provisional rulings above; this is the simplest shape that
+  propagates without each operation knowing of it.
+- **The certifying step** is `certifiedStep` in ball.ts, over the
+  working contexts the retry schedule now gets from context.ts
+  (`workingContexts`), and the evaluator runs a built-in's call and a
+  power through it; `settle`'s decimal branch does the rounding and the
+  flagging, so that a unit looked up, which has no step to recompute, is
+  certified or flagged by the same code.
+- **`approx`** declares itself the identity in decimal mode through a
+  field of `Builtin` (`decimal: "identity"`), since the built-ins never
+  see a decimal-mode context: the certifying step runs them in exact
+  mode.
+- **The mark** is the `Relation` `≈` with the combining dot above
+  (U+2248 U+0307) in outcome.ts, which `displayText` and the tests use,
+  and the component draws the dot itself over an `≈` named
+  "approximately, uncertified" for assistive technology. The note is "a
+  step could not be certified at the precision limit".
+- **The fractions display** is kept out of decimal mode by the outcome
+  (`outcomeOf` passes `fractions` only in exact mode), until the settings
+  of docs/settings-modes.md make the two exclusive at the source.
+- **No built-in reaches the ceiling fallback** with the app's functions,
+  the algebraic exact cases catching every rational root tried; the
+  tests exercise it with an injected built-in whose value sits on a tie.
+- **The sweeps** judge decimal mode by the promise: the operands rounded
+  first, the operation run as the evaluator runs it, and the result
+  required to be exact and the rounding of the exact result where that
+  can be formed.

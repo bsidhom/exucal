@@ -24,11 +24,12 @@
 // beyond the working precision however long the expression; `powBall` on
 // an inexact base squares with settling for the same reason. Settling is a
 // bound on size, not a rounding the user chose: the mode is the display's
-// (the decimal mode of 4.5 settles in the user's mode), and in exact mode
-// it never refuses a value, a rounding that would carry the midpoint past
-// the top of the exponent bound rounding toward zero instead; in decimal
-// mode the rounded value is the result, so one past the bound is refused
-// there (D17, the plan's H.11). The rules are
+// (in decimal mode the settle is the mode's one rounding of a step, in
+// the user's mode, and the value is exact after it, D26), and in exact
+// mode it never refuses a value, a rounding that would carry the midpoint
+// past the top of the exponent bound rounding toward zero instead; in
+// decimal mode the rounded value is the result, so one past the bound is
+// refused there (D17, the plan's H.11). The rules are
 // the elementary ones, each a bound over the two operands' intervals: a
 // sum's radii add; a product's radius is `|a| rb + |b| ra + ra rb`; a
 // quotient's is `(|a| rb + |b| ra) / (|b| (|b| - rb))`, which requires the
@@ -164,7 +165,7 @@
 // otherwise.
 
 import type { NumberContext } from "./context.ts";
-import { modeOf, workingDigits } from "./context.ts";
+import { modeOf, workingContexts, workingDigits } from "./context.ts";
 import { floatingToBall } from "./digits.ts";
 import { expFixed } from "./fixed-exp.ts";
 import { ln2Fixed, ln10Fixed, lnFixed } from "./fixed-log.ts";
@@ -250,10 +251,18 @@ import {
   type ScaledError,
 } from "./scaled.ts";
 
-/** A midpoint with the radius that bounds its distance from the true value. */
+/**
+ * A midpoint with the radius that bounds its distance from the true value.
+ * `uncertified` is decimal mode's alone (D26; docs/decimal-mode.md, "The
+ * ceiling"): set on a value one of whose steps was rounded at the ceiling
+ * without its digits certified, and carried by every operation on it,
+ * sticky as IEEE 754's inexact flag; absent everywhere else, never set to
+ * anything but `true`, so that balls compare structurally as before.
+ */
 export type Ball = {
   readonly mid: Scaled;
   readonly rad: Radius;
+  readonly uncertified?: true;
 };
 
 /**
@@ -291,6 +300,27 @@ export function exact(mid: Scaled): Ball {
 /** Whether `b` is an exact value: its radius is zero. */
 export function isExact(b: Ball): boolean {
   return isZeroRadius(b.rad);
+}
+
+/**
+ * `result` carrying the uncertified flag of any of `operands` (D26): a
+ * step on an uncertified value is uncertified. The operations below
+ * return their results through this, so that the flag flows through an
+ * expression without each of them knowing of it.
+ */
+export function carrying(result: Ball, ...operands: readonly Ball[]): Ball {
+  if (result.uncertified === true) return result;
+  return operands.some((b) => b.uncertified === true)
+    ? { ...result, uncertified: true }
+    : result;
+}
+
+/** `result` with its value carrying the flag of `operands`, when it is a value. */
+function carried<E>(
+  result: Result<Ball, E>,
+  ...operands: readonly Ball[]
+): Result<Ball, E> {
+  return result.ok ? ok(carrying(result.value, ...operands)) : result;
 }
 
 /**
@@ -437,7 +467,7 @@ function radiusScaled(rad: Radius): Scaled | undefined {
 
 /** `-b`: the midpoint negated, the radius kept. */
 export function negateBall(b: Ball): Ball {
-  return { mid: negate(b.mid), rad: b.rad };
+  return { ...b, mid: negate(b.mid) };
 }
 
 /**
@@ -447,6 +477,14 @@ export function negateBall(b: Ball): Ball {
  * smaller absorbed into the radius when an operand is inexact.
  */
 export function addBalls(
+  a: Ball,
+  b: Ball,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  return carried(addBallsCore(a, b, context), a, b);
+}
+
+function addBallsCore(
   a: Ball,
   b: Ball,
   context: NumberContext,
@@ -461,10 +499,11 @@ export function addBalls(
     if (isZeroRadius(rad) || rad.kind === "unbounded") return sum;
     return held(sumOf(a.mid, b.mid), rad);
   }
-  // Two exact operands have an exact sum that cannot be held, except in
-  // decimal mode, where every operation rounds and the sum is settled as
-  // an inexact one is: `1e999999999 + 1` is `1e999999999` within one.
-  if (isExact(a) && isExact(b) && modeOf(context) === "exact") return sum;
+  // In decimal mode the operands are exact decimals of the context's
+  // digits (D26), and the rounded sum is determined without forming it.
+  if (modeOf(context) === "decimal") return decimalSumApart(a, b, context);
+  // Two exact operands have an exact sum that cannot be held.
+  if (isExact(a) && isExact(b)) return sum;
   const settledA = settle(a, context);
   if (!settledA.ok) return settledA;
   const settledB = settle(b, context);
@@ -483,6 +522,74 @@ export function addBalls(
   const [larger, smaller] =
     compare(absolute(sa.mid), absolute(sb.mid)) >= 0 ? [sa, sb] : [sb, sa];
   return heldSum(larger.mid, addRadius(larger.rad, magnitudeAbove(smaller)));
+}
+
+/**
+ * `a + b` in decimal mode where the two cannot be aligned within the
+ * range limit (D26; docs/decimal-mode.md, "Sums that do not align"): the
+ * smaller operand lies far below half a unit in the last of the context's
+ * digits of the larger, so the correctly rounded sum is the larger in a
+ * nearest mode, and in a directed mode the larger or its neighbor at
+ * those digits, by the side of it the smaller lies on: `1e999999999 + 1`
+ * at eight digits is `1e999999999`, and `1.0000001e999999999` under
+ * `ceiling`. The operands are exact, as every decimal-mode value is, and
+ * the smaller is not zero, since a zero aligns with anything.
+ */
+function decimalSumApart(
+  a: Ball,
+  b: Ball,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  const { precision, rounding } = context;
+  const [larger, smaller] =
+    compare(absolute(a.mid), absolute(b.mid)) >= 0 ? [a, b] : [b, a];
+  const base = roundTo(larger.mid, precision, rounding);
+  const toward = sign(smaller.mid) !== sign(base);
+  let step: "away" | "toward" | undefined;
+  switch (rounding) {
+    case "halfEven":
+    case "halfAwayFromZero":
+    case "halfTowardZero":
+      break;
+    case "ceiling":
+      if (sign(smaller.mid) > 0) step = sign(base) > 0 ? "away" : "toward";
+      break;
+    case "floor":
+      if (sign(smaller.mid) < 0) step = sign(base) > 0 ? "toward" : "away";
+      break;
+    case "towardZero":
+      if (toward) step = "toward";
+      break;
+    case "awayFromZero":
+      if (!toward) step = "away";
+      break;
+  }
+  if (step === undefined) return boundedDecimal(base);
+  const magnitude = absolute(base);
+  const exponent = decimalExponent(magnitude);
+  // One unit in the last digit, in the decade the step lands in: the step
+  // toward zero from a power of ten leaves it for the decade below, where
+  // the unit is a tenth of the one above (`1e9` to `9.9999999e8`).
+  const powerOfTen = magnitude.mant.num === 1n && magnitude.mant.den === 1n;
+  const unit = scaledPowerOfTen(
+    exponent - BigInt(precision) + (step === "toward" && powerOfTen ? 0n : 1n),
+  );
+  const stepped =
+    step === "away"
+      ? add(magnitude, unit, context.maxBits)
+      : subtract(magnitude, unit, context.maxBits);
+  if (!stepped.ok) return stepped;
+  return boundedDecimal(sign(base) < 0 ? negate(stepped.value) : stepped.value);
+}
+
+/** The exact ball of `mid`, or the refusal of a value whose exponent passes the bound (D17): the evaluator's operands are within it, a caller handing larger values in is not. */
+function boundedDecimal(mid: Scaled): Result<Ball, BallError> {
+  if (!isZero(mid)) {
+    const exponent = decimalExponent(mid);
+    if (exponent > MAX_EXPONENT) return err({ kind: "overflow" });
+    if (exponent < -MAX_EXPONENT) return err({ kind: "underflow" });
+  }
+  return ok(exact(mid));
 }
 
 /**
@@ -515,6 +622,10 @@ export function subtractBalls(
  * node (D19), so a caller takes any refusal.
  */
 export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
+  return carried(multiplyBallsCore(a, b), a, b);
+}
+
+function multiplyBallsCore(a: Ball, b: Ball): Result<Ball, BallError> {
   if (isExactZero(a) || isExactZero(b)) return ok(exact(ZERO));
   if (isExact(a) && isExact(b)) {
     const mid = multiply(a.mid, b.mid);
@@ -646,6 +757,10 @@ function againstPowerOfTen(
  * radius.
  */
 export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
+  return carried(divideBallsCore(a, b), a, b);
+}
+
+function divideBallsCore(a: Ball, b: Ball): Result<Ball, BallError> {
   if (isExactZero(b)) return err({ kind: "divisionByZero" });
   if (b.rad.kind === "unbounded") {
     if (isZero(b.mid)) return err({ kind: "unresolved", edge: ZERO });
@@ -705,6 +820,14 @@ export function powBall(
   n: bigint,
   context: NumberContext,
 ): Result<Ball, BallError> {
+  return carried(powBallCore(b, n, context), b);
+}
+
+function powBallCore(
+  b: Ball,
+  n: bigint,
+  context: NumberContext,
+): Result<Ball, BallError> {
   if (isExact(b)) {
     const mid = pow(b.mid, n, context.maxBits);
     return mid.ok ? ok(exact(mid.value)) : mid;
@@ -760,48 +883,37 @@ export function powBall(
 }
 
 /**
- * `b` settled to the working precision of `context` (D15), one rounding
- * with two parameters (docs/decimal.md, "The decimal mode"). In exact
- * mode an inexact midpoint is rounded to nearest at the working digits,
- * the decimal grid the kernel's results are rounded onto, and half a unit
- * in the last of those digits, its bound, is added to the radius when the
+ * `b` settled to the working precision of `context` (D15). In exact mode
+ * an inexact midpoint is rounded to nearest at the working digits, the
+ * decimal grid the kernel's results are rounded onto, and half a unit in
+ * the last of those digits, its bound, is added to the radius when the
  * rounding moved it; an exact ball is returned as it is, since the
  * rounding mode is the display's, applied once to the certified value of
- * the whole expression. In decimal mode every midpoint, an exact one
- * included, is rounded to the context's precision in its rounding mode,
- * and the exact difference between the rounded value and the midpoint
- * goes into the radius (not the bound: a value rounded to `p` digits with
- * half a unit of radius has its ends on the rounding boundaries and
- * certifies `p - 1`); a value with `p` digits or fewer is its own
- * rounding and stays as it is. A zero midpoint is left alone in both.
+ * the whole expression. In decimal mode (D26; docs/decimal-mode.md) the
+ * settle is the mode's one rounding of a step, `settleDecimal` below:
+ * every value, an exact one included, is rounded to the context's
+ * precision in its rounding mode and is exact after it, no radius
+ * recording the rounding, since in that mode the rounded value is the
+ * value. A zero midpoint is left alone in exact mode.
  *
  * The exponent bound (D17, the plan's H.11). In decimal mode the rounded
  * value is the result, so a rounded midpoint whose decimal exponent
  * passes the bound is refused, `overflow` above it and `underflow` below,
  * where stage 4 let `99999999999e999999999999999990` through as
- * `1e+1000000000000000001` (issue #44); the radius grows by the exact
- * difference, formed by `radiusOfMove` without the bound, since at the
- * bottom edge the difference itself lies past it. In exact mode a settle
- * is a bound on size and never refuses a value: a rounding to nearest
- * that would carry the midpoint past the top of the bound rounds toward
- * zero instead and adds a whole unit in the last working digit to the
- * radius, and the half unit is a radius from `powerOfTenRadius`, which a
- * value at the bottom edge, whose half unit lies past the bound, can take
- * (the same issue's first row threw here).
+ * `1e+1000000000000000001` (issue #44). In exact mode a settle is a bound
+ * on size and never refuses a value: a rounding to nearest that would
+ * carry the midpoint past the top of the bound rounds toward zero instead
+ * and adds a whole unit in the last working digit to the radius, and the
+ * half unit is a radius from `powerOfTenRadius`, which a value at the
+ * bottom edge, whose half unit lies past the bound, can take (the same
+ * issue's first row threw here).
  */
 export function settle(
   b: Ball,
   context: NumberContext,
 ): Result<Ball, BallError> {
+  if (modeOf(context) === "decimal") return settleDecimal(b, context);
   if (isZero(b.mid)) return ok(b);
-  if (modeOf(context) === "decimal") {
-    const mid = roundTo(b.mid, context.precision, context.rounding);
-    if (equals(mid, b.mid)) return ok(b);
-    const exponent = decimalExponent(mid);
-    if (exponent > MAX_EXPONENT) return err({ kind: "overflow" });
-    if (exponent < -MAX_EXPONENT) return err({ kind: "underflow" });
-    return ok({ mid, rad: addRadius(b.rad, radiusOfMove(mid, b.mid)) });
-  }
   if (isExact(b)) return ok(b);
   const digits = workingDigits(context);
   const mid = roundTo(b.mid, digits, "halfEven");
@@ -819,6 +931,105 @@ export function settle(
     mid,
     rad: addRadius(b.rad, shiftRadius(unitOf(mid, digits), -1n)),
   });
+}
+
+/**
+ * `b` as decimal mode's one rounding of a step leaves it (D26;
+ * docs/decimal-mode.md): an exact value is rounded to the context's digits
+ * in its rounding mode and is exact; an inexact one, a built-in's or a
+ * unit's ball computed at a working precision, takes the same rounding
+ * when the ball certifies it, both of its ends rounding alike (D7), and
+ * otherwise the midpoint's rounding, zero for a ball containing zero,
+ * marked uncertified ("The ceiling"). No radius leaves: every
+ * decimal-mode value is exact, and the flag carries over from `b`. A
+ * rounded value whose exponent passes the bound is refused (D17).
+ */
+function settleDecimal(
+  b: Ball,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  const { precision, rounding } = context;
+  if (isExact(b) || certifies(b, precision, rounding)) {
+    return roundedDecimal(b.mid, b, context);
+  }
+  const rounded = roundedDecimal(containsZero(b) ? ZERO : b.mid, b, context);
+  if (!rounded.ok) return rounded;
+  return ok({ ...rounded.value, uncertified: true });
+}
+
+/** `mid` rounded to the context's digits in its mode, as an exact ball carrying `from`'s flag; `from` itself when it is that already. */
+function roundedDecimal(
+  mid: Scaled,
+  from: Ball,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  const rounded = isZero(mid)
+    ? mid
+    : roundTo(mid, context.precision, context.rounding);
+  if (!isZero(rounded)) {
+    const exponent = decimalExponent(rounded);
+    if (exponent > MAX_EXPONENT) return err({ kind: "overflow" });
+    if (exponent < -MAX_EXPONENT) return err({ kind: "underflow" });
+  }
+  if (isExact(from) && equals(rounded, from.mid)) return ok(from);
+  return ok(carrying(exact(rounded), from));
+}
+
+/**
+ * A step's result certified for its rounding in decimal mode (D26;
+ * docs/decimal-mode.md, "Function calls" and "The ceiling"): `compute`,
+ * a built-in's function or a power, is run at the working contexts of the
+ * retry schedule in exact mode, the digits asked for plus the guard,
+ * doubling, up to the ceiling, until its ball is exact or certifies the
+ * context's digits in its rounding mode, and that ball is returned, at a
+ * working precision, for `settle` to round. At the ceiling the last ball
+ * is returned all the same, and `settle` marks its rounding uncertified.
+ * An error `retries` accepts (an `unresolved`, which more digits may
+ * decide) continues to the next context and is the result at the
+ * ceiling; any other ends the step. In exact mode `compute` runs once, at
+ * `context`, the schedule being the pipeline's.
+ */
+export function certifiedStep<E extends { readonly kind: string }>(
+  compute: (working: NumberContext) => Result<Ball, E>,
+  context: NumberContext,
+  retries: (error: E) => boolean = (error) => error.kind === "unresolved",
+): Result<Ball, E> {
+  if (modeOf(context) !== "decimal") return compute(context);
+  const { precision, rounding } = context;
+  let last: Result<Ball, E> | undefined;
+  for (const working of workingContexts({ ...context, mode: "exact" })) {
+    const result = compute(working);
+    if (!result.ok) {
+      if (!retries(result.error)) return result;
+    } else if (
+      isExact(result.value) ||
+      certifies(result.value, precision, rounding)
+    ) {
+      return result;
+    }
+    last = result;
+  }
+  return last!;
+}
+
+/**
+ * `b` known to the working precision of `context` and no better: its
+ * midpoint within the larger of its own radius and one unit in the last
+ * of the working digits at its magnitude, rounded up to a radius, so that
+ * an exact `b` gains the unit, one whose radius is larger keeps it, and
+ * one whose radius is smaller is widened to it; never narrowed, and
+ * idempotent. A zero or an unbounded `b` is returned as it is. This is
+ * `approx` (docs/approximate.md), and what the evaluator raises to a
+ * power in decimal mode when the exact power does not fit the range limit
+ * (D26). The unit is taken from the exponent without forming it, which
+ * lies past the exponent bound for a value near the bottom of it
+ * (`approx(1e-999999999999999999)`, issue #44).
+ */
+export function widened(b: Ball, context: NumberContext): Ball {
+  if (b.rad.kind === "unbounded" || isZero(b.mid)) return b;
+  const digits = workingDigits(context);
+  const unit = powerOfTenRadius(decimalExponent(b.mid) - BigInt(digits) + 1n);
+  return { ...b, rad: maxRadius(b.rad, unit) };
 }
 
 /** A radius at or above one unit in the last of `digits` significant digits of the nonzero `s`, whatever its exponent. */
@@ -896,6 +1107,14 @@ function timesPowerOfTen(r: Rational, k: bigint): Rational {
  * midpoint, unbounded.
  */
 export function rootBall(
+  b: Ball,
+  degree: bigint,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  return carried(rootBallCore(b, degree, context), b);
+}
+
+function rootBallCore(
   b: Ball,
   degree: bigint,
   context: NumberContext,
@@ -1075,6 +1294,14 @@ function rootAroundZero(b: Ball, degree: bigint): Ball {
  * radius.
  */
 export function powRationalBall(
+  b: Ball,
+  exponent: Rational,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  return carried(powRationalBallCore(b, exponent, context), b);
+}
+
+function powRationalBallCore(
   b: Ball,
   exponent: Rational,
   context: NumberContext,

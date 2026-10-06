@@ -126,7 +126,8 @@ test("the exact functions take every rounding mode in stride, and decimal mode",
     assert.equal(run("mod(-7, 2)", at(mode)), "= 1");
   }
   const decimal: NumberContext = { ...CONTEXT, mode: "decimal" };
-  assert.equal(run("factorial(20)", decimal), "≈ 2.432902e+18");
+  // In decimal mode the exact value is rounded once and is exact (D26).
+  assert.equal(run("factorial(20)", decimal), "= 2.432902e+18");
   assert.equal(run("floor(3.7)", decimal), "= 3");
   assert.equal(run("round(2.5)", { ...decimal, rounding: "halfEven" }), "= 2");
 });

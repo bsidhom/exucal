@@ -281,7 +281,7 @@ test("erf and erfc through the pipeline, with their messages", () => {
   assert.equal(run("erfc(1.96 / sqrt(2)) / 2"), "≈ 0.024997895");
   assert.equal(
     run("erf(1)", { ...CONTEXT, precision: 8, mode: "decimal" }),
-    "≈ 0.84270079",
+    "= 0.84270079",
   );
   assert.equal(
     run("erfc(1e400)"),

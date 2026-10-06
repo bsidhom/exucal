@@ -74,11 +74,12 @@ export function scalar(value: Scaled): Quantity {
 
 /**
  * `q` with its magnitude settled to the working precision of `context`
- * (D15): an inexact midpoint rounded to that precision's bits with the
- * rounding added to the radius, an exact one left as it is; refused as
- * `settle` refuses, in decimal mode, a rounded midpoint past the exponent
- * bound. The evaluator applies it to every result it produces, and the
- * lookup to every unit it hands out.
+ * (D15): in exact mode an inexact midpoint rounded to that precision's
+ * bits with the rounding added to the radius, an exact one left as it is;
+ * in decimal mode every magnitude rounded to the context's digits in its
+ * mode and exact (D26); refused as `settle` refuses, in decimal mode, a
+ * rounded midpoint past the exponent bound. The evaluator applies it to
+ * every result it produces, and the lookup to every unit it hands out.
  */
 export function settleQuantity(
   q: Quantity,

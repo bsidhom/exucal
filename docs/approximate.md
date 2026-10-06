@@ -116,14 +116,12 @@ cm` in `in` is `≈ 1` with every digit asked for certified on the first
   radius shrinks with each pass and ends at the ceiling with the bound
   the display shows. That is the ball model's honest reading, and the
   price of asking for it.
-- **In decimal mode** `approx` works as it does in exact mode, with the
-  mode's per-operation rounding on top: it reduces the implied precision
-  of its argument from the working precision, which there is the user's
-  `p` digits, so `approx(x)` is `x` within one unit in the `p`-th digit,
-  the binary form below is `x` within the larger of its radius and `u`,
-  and the settle then rounds the result in the user's mode as it rounds
-  everything. `approx` does not change what the mode does, and the mode
-  does not change what `approx` means.
+- **In decimal mode** `approx(x)` is `x`, the identity (D26;
+  docs/decimal-mode.md, "`approx`"): every value there is already at the
+  user's precision and exact, so there is no precision to reduce, and the
+  built-in declares as much (`decimal: "identity"` in builtin.ts). A
+  two-argument `approx(x, precision)`, not yet designed, could reduce the
+  precision below the user's and would not be the identity.
 - **In a definitions file** a body may call `approx` as it may call any
   built-in, so a measured constant can be defined as one:
   `G  approx(6.674e-11) N m^2 / kg^2`. The build evaluates the body at

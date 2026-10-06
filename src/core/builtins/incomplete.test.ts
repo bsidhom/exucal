@@ -523,7 +523,7 @@ test("the incomplete gamma functions through the pipeline, with their messages",
       precision: 8,
       mode: "decimal",
     }),
-    "≈ 0.68268949",
+    "= 0.68268949",
   );
   assert.equal(
     run("lowergamma(0, 1)"),

@@ -453,6 +453,9 @@ of the rational with different invariants. Concretely, one midpoint type
   always `1` and `num` has at most `p` digits, and each rounding adds
   half a unit in the last place to the radius. `1/3 * 3` is `0.999...9`,
   and displays as `≈ 1`, which is what a user who chose the mode expects.
+  (Superseded by D26, docs/decimal-mode.md: no radius is carried in
+  decimal mode, every value is exact, and `1/3 * 3` displays as
+  `= 0.99999999`, the rounded value being the answer.)
 
 The alternative, a second number type beside `Rational` with the core
 made generic over the two, doubles the numeric surface for every special
@@ -568,7 +571,9 @@ of rounding, and that is the radius of the precision model.
 - **In decimal mode** the setting still applies, and shows fewer
   fractions: a value that fit the precision without rounding
   (`1/4 = 0.25`) has radius zero and may be written `1/4`; one that did
-  not is inexact and shows as a decimal.
+  not is inexact and shows as a decimal. (Superseded by D26 and #97: the
+  setting does not apply in decimal mode, where every value is exact and
+  its digits write it entire.)
 
 Since exactness is a property of the value, not of the display, the
 decimal display uses the same radius for its `=` against `≈`, and the two

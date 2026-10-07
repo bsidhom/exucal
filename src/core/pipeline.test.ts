@@ -284,10 +284,13 @@ test("a pass that certifies the digits asked for ends the loop", () => {
   );
   const certified = passes("(2^(1/2) + 1e-100) - 2^(1/2)", 8).result;
   assert.ok(certified.ok);
-  assert.deepEqual(show(certified.value.magnitude, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "1e-100",
-  });
+  assert.deepEqual(
+    show(certified.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "1e-100",
+    },
+  );
 });
 
 test("a value that never certifies runs to the ceiling and is shown as what it is", () => {
@@ -295,7 +298,10 @@ test("a value that never certifies runs to the ceiling and is shown as what it i
   assert.equal(zero.at.length, 9);
   assert.equal(zero.at[8], CEILING);
   assert.ok(zero.result.ok);
-  const shown = show(zero.result.value.magnitude, 8, DEFAULT_ROUNDING);
+  const shown = show(zero.result.value.magnitude, {
+    digits: 8,
+    rounding: DEFAULT_ROUNDING,
+  });
   assert.equal(shown.kind, "zero");
   assert.ok(
     shown.kind === "zero" && /e-40[0-9][0-9]$/.test(shown.bound),
@@ -308,7 +314,8 @@ test("a value that never certifies runs to the ceiling and is shown as what it i
   });
   assert.ok(viaPipeline.ok);
   assert.equal(
-    show(viaPipeline.value.magnitude, 8, DEFAULT_ROUNDING).kind,
+    show(viaPipeline.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING })
+      .kind,
     "zero",
   );
 });
@@ -370,23 +377,29 @@ test("in decimal mode every operation is one rounded step and every value is exa
     assert.ok(result.ok, `${mode}: ${inspect(result)}`);
     assert.deepEqual(result.value.magnitude, exact(dec("0.99999999")), mode);
     assert.deepEqual(
-      show(result.value.magnitude, 8, mode),
+      show(result.value.magnitude, { digits: 8, rounding: mode }),
       { kind: "exact", text: "0.99999999" },
       mode,
     );
   }
   // A unit of p digits or fewer is exact in either mode: 1 ft in in.
   const foot = value("1 ft", "in");
-  assert.deepEqual(show(foot.value, 8, DEFAULT_ROUNDING), {
-    kind: "exact",
-    text: "12",
-  });
+  assert.deepEqual(
+    show(foot.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "exact",
+      text: "12",
+    },
+  );
   const footDecimal = convertText(table, "1 ft", "in", decimal(8));
   assert.ok(footDecimal.ok && footDecimal.value.kind === "unit");
-  assert.deepEqual(show(footDecimal.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "exact",
-    text: "12",
-  });
+  assert.deepEqual(
+    show(footDecimal.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "exact",
+      text: "12",
+    },
+  );
   // The noise of the roundings is a value, as on a calculator: in exact
   // mode the same difference is exactly zero, a division by zero.
   const noise = evaluateText(table, "1 / (1 / 3 * 3 - 1)", decimal(8));
@@ -423,7 +436,10 @@ test("in decimal mode every operation is one rounded step and every value is exa
       const inDecimal = evaluateText(table, text, decimal(8, mode));
       const inExact = evaluateText(table, text, { ...CONTEXT, rounding: mode });
       assert.ok(inDecimal.ok && inExact.ok, `${text} under ${mode}`);
-      const shown = show(inDecimal.value.magnitude, 8, mode);
+      const shown = show(inDecimal.value.magnitude, {
+        digits: 8,
+        rounding: mode,
+      });
       assert.equal(
         shown.kind,
         "exact",
@@ -431,7 +447,7 @@ test("in decimal mode every operation is one rounded step and every value is exa
       );
       assert.equal(
         shown.text,
-        show(inExact.value.magnitude, 8, mode).text,
+        show(inExact.value.magnitude, { digits: 8, rounding: mode }).text,
         `${text} under ${mode}`,
       );
     }
@@ -440,15 +456,20 @@ test("in decimal mode every operation is one rounded step and every value is exa
   const listed = convertText(table, "100 in", "ftin", decimal(8));
   assert.ok(listed.ok && listed.value.kind === "list", inspect(listed));
   assert.deepEqual(
-    listed.value.terms.map((t) => show(t, 8, DEFAULT_ROUNDING).text),
+    listed.value.terms.map(
+      (t) => show(t, { digits: 8, rounding: DEFAULT_ROUNDING }).text,
+    ),
     ["8", "4"],
   );
   const called = convertText(table, "300 K", "tempC", decimal(8));
   assert.ok(called.ok && called.value.kind === "function", inspect(called));
-  assert.deepEqual(show(called.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "exact",
-    text: "26.85",
-  });
+  assert.deepEqual(
+    show(called.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "exact",
+      text: "26.85",
+    },
+  );
 });
 
 test("in decimal mode the texts are the operands of what is shown, computed at the working digits, and the ratio, the terms and the count are rounded to the digits asked for (D27)", () => {
@@ -556,7 +577,7 @@ test("the range limit of the context reaches a literal's mantissa and a power", 
   const large = evaluateText(table, "(2^(1/2))^10000000", CONTEXT);
   assert.ok(large.ok, inspect(large));
   assert.equal(
-    show(large.value.magnitude, 8, DEFAULT_ROUNDING).text,
+    show(large.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }).text,
     "9.5130528e+1505149",
   );
   const huge = evaluateText(table, "(2^(1/2))^10000000000000000000", CONTEXT);
@@ -580,13 +601,13 @@ test("a value that looks rational after a root is inexact, and the display says 
   const ratio = value("2^(1/2) m", "2^(1/2) m").value;
   assert.ok(equals(ratio.mid, ONE));
   assert.ok(!isExact(ratio));
-  assert.deepEqual(show(ratio, 8, DEFAULT_ROUNDING), {
+  assert.deepEqual(show(ratio, { digits: 8, rounding: DEFAULT_ROUNDING }), {
     kind: "certified",
     text: "1",
   });
   // Whereas a root with an exact case is exact.
   const two = value("4^(1/2) m", "m").value;
-  assert.deepEqual(show(two, 8, DEFAULT_ROUNDING), {
+  assert.deepEqual(show(two, { digits: 8, rounding: DEFAULT_ROUNDING }), {
     kind: "exact",
     text: "2",
   });
@@ -606,7 +627,10 @@ test("evaluateText is the pipeline up to the quantity", () => {
 function shown(text: string, digits: number): ReturnType<typeof show> {
   const result = evaluateText(table, text, { ...CONTEXT, precision: digits });
   assert.ok(result.ok, `${text}: ${inspect(result)}`);
-  return show(result.value.magnitude, digits, DEFAULT_ROUNDING);
+  return show(result.value.magnitude, {
+    digits: digits,
+    rounding: DEFAULT_ROUNDING,
+  });
 }
 
 test("a literal of any exponent is a value, exact through the exact operations", () => {
@@ -705,7 +729,7 @@ test("the trigonometric functions saturate or refuse an argument of any exponent
   // The arc tangent is pi/2 within 2^-bits: 90 degrees, inexact.
   const right = value("atan(1e999999999)", "deg").value;
   assert.ok(!isExact(right));
-  assert.deepEqual(show(right, 8, DEFAULT_ROUNDING), {
+  assert.deepEqual(show(right, { digits: 8, rounding: DEFAULT_ROUNDING }), {
     kind: "certified",
     text: "90",
   });

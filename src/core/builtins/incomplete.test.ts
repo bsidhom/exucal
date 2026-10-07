@@ -61,11 +61,10 @@ function shown(
   x: Ball,
   context: NumberContext = CONTEXT,
 ): string {
-  const result = show(
-    value(call(which, s, x, context)),
-    context.precision,
-    context.rounding,
-  );
+  const result = show(value(call(which, s, x, context)), {
+    digits: context.precision,
+    rounding: context.rounding,
+  });
   return `${result.kind === "exact" ? "=" : "≈"} ${result.text}${result.kind === "certified" || result.kind === "exact" ? "" : ` [${result.kind}]`}`;
 }
 
@@ -465,8 +464,7 @@ test("balls inside the domain contain the truth, an unbounded radius passes, and
   for (const rounding of ROUNDING_MODES) {
     const result = show(
       value(call("lowerreg", exact(dec("0.5")), exact(dec("0.5")))),
-      8,
-      rounding,
+      { digits: 8, rounding: rounding },
     );
     assert.equal(result.kind, "certified", rounding);
     assert.ok(
@@ -497,11 +495,10 @@ function run(
   const result = evaluateText(table, source, context);
   if (!result.ok)
     return describeTextError(result.error, source, table.primitives);
-  const result2 = show(
-    result.value.magnitude,
-    context.precision,
-    context.rounding,
-  );
+  const result2 = show(result.value.magnitude, {
+    digits: context.precision,
+    rounding: context.rounding,
+  });
   return `${result2.kind === "exact" ? "=" : "≈"} ${result2.text}`;
 }
 

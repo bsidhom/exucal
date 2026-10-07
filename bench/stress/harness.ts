@@ -441,13 +441,10 @@ function typeJob(c: Case): void {
   port.postMessage({ kind: "ready" } satisfies Message);
   for (let length = 1; length <= c.have.length; length++) {
     const start = performance.now();
-    const outcome = outcomeOf(
-      table,
-      c.have.slice(0, length),
-      c.want,
-      context,
-      ratioWidthOf(c.settings),
-    );
+    const outcome = outcomeOf(table, c.have.slice(0, length), c.want, {
+      context: context,
+      width: ratioWidthOf(c.settings),
+    });
     const ms = performance.now() - start;
     port.postMessage({
       kind: "keystroke",
@@ -489,14 +486,11 @@ function runJob(job: { readonly stressCase: Case }): void {
       }
     };
     const start = performance.now();
-    const outcome = outcomeOf(
-      table,
-      have,
-      want,
-      context,
-      ratioWidthOf(settings),
-      observe,
-    );
+    const outcome = outcomeOf(table, have, want, {
+      context: context,
+      width: ratioWidthOf(settings),
+      observe: observe,
+    });
     const ms = performance.now() - start;
     port.postMessage({
       kind: "run",

@@ -200,23 +200,31 @@ export type Shown =
   /** The radius is not known: `text` is the midpoint at the digits asked, none of them certified. */
   | { readonly kind: "unbounded"; readonly text: string };
 
+/** How `show` writes a ball: at how many significant digits, in which rounding mode, and, under the ratio notation, within what width. */
+export type ShowOptions = {
+  readonly digits: Precision;
+  readonly rounding: RoundingMode;
+  /** The ratio notation's width (docs/ratio-width.md); absent is the digits notation. */
+  readonly width?: Precision;
+};
+
 /**
- * `ball` at `digits` significant digits in `mode`: `exact` when the radius
- * is zero and rounding the midpoint to `digits` leaves it unchanged, so
- * that every digit held is shown; otherwise the kind the certification
- * gives, with `text` the midpoint rounded in `mode` to the digits certified.
- * With the ratio notation's `width` (docs/ratio-width.md), an exact value
- * is written entire when it fits the width, before any of that: a whole
- * number of at most `width` significant digits by the decimal display at
- * the width, and any other exact value as a ratio (`ratioText`) when its
- * parts fit; an exact value that fits neither goes on to the rule above,
- * at `digits`.
+ * `ball` at `digits` significant digits in `rounding`: `exact` when the
+ * radius is zero and rounding the midpoint to `digits` leaves it
+ * unchanged, so that every digit held is shown; otherwise the kind the
+ * certification gives, with `text` the midpoint rounded in `rounding` to
+ * the digits certified. With the ratio notation's `width`
+ * (docs/ratio-width.md), an exact value is written entire when it fits
+ * the width, before any of that: a whole number of at most `width`
+ * significant digits by the decimal display at the width, and any other
+ * exact value as a ratio (`ratioParts`) when its parts fit; an exact
+ * value that fits neither goes on to the rule above, at `digits`. The
+ * ball is the one plain argument; the rest are named, so that a caller
+ * states each and the compiler holds it to the two that are required.
  */
 export function show(
   ball: Ball,
-  digits: Precision,
-  mode: RoundingMode,
-  width?: Precision,
+  { digits, rounding: mode, width }: ShowOptions,
 ): Shown {
   const { mid } = ball;
   if (ball.uncertified === true) {

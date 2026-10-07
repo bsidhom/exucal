@@ -496,6 +496,14 @@ export function sameNotation(a: Notation, b: Notation): boolean {
     : b.kind === "ratio" && a.width === b.width;
 }
 
+/** The extended count of working digits under `settings`, or `undefined` when they are locked to Digits or the mode is exact. */
+export function extendedWorkingOf(settings: Settings): number | undefined {
+  const { mode } = settings;
+  return mode.kind === "decimal" && mode.working.kind === "extended"
+    ? mode.working.digits
+    : undefined;
+}
+
 /** The ratio notation's width under `settings`, or `undefined` for the digits notation or decimal mode. */
 export function ratioWidthOf(settings: Settings): number | undefined {
   const { mode } = settings;

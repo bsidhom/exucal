@@ -46,7 +46,10 @@ function run(source: string, context: NumberContext = CONTEXT): string {
   const result = evaluateText(table, source, context);
   if (!result.ok)
     return describeTextError(result.error, source, table.primitives);
-  const shown = show(result.value.magnitude, 8, context.rounding);
+  const shown = show(result.value.magnitude, {
+    digits: 8,
+    rounding: context.rounding,
+  });
   return `${shown.kind === "exact" ? "=" : "≈"} ${shown.text}`;
 }
 

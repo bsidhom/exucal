@@ -174,20 +174,27 @@ export function displayText(line: Line): string {
   return `${have} ${line.relation} ${text(resultPieces(line))}${note}`;
 }
 
+/** What `outcomeOf` takes beside the texts: the user's context, the ratio notation's width when the notation is `ratio`, and an observer of the passes. */
+export type OutcomeOptions = {
+  readonly context: NumberContext;
+  /** The ratio notation's width (docs/ratio-width.md); absent is the digits notation. */
+  readonly width?: number;
+  /** Sees each pass of the retry loop (pipeline.ts), for the stress harness. */
+  readonly observe?: PassObserver;
+};
+
 /**
  * The outcome for `haveText` converted into `wantString` against `table`
  * at `context`: the lines to show, the error to show, or nothing for a
  * blank `have`. The texts are trimmed here; the errors are located in the
- * texts as typed. `observe`, when given, sees each pass of the retry loop
- * (pipeline.ts), for the stress harness.
+ * texts as typed. The texts and the table are the plain arguments; the
+ * rest are named (`OutcomeOptions`), the context required.
  */
 export function outcomeOf(
   table: UnitTable,
   haveText: string,
   wantString: string,
-  context: NumberContext,
-  width?: number,
-  observe?: PassObserver,
+  { context, width, observe }: OutcomeOptions,
 ): Outcome {
   if (haveText.trim() === "") return { kind: "empty" };
   const assumptions: Assumption[] = [];
@@ -334,7 +341,11 @@ function line(
   context: NumberContext,
   width: number | undefined,
 ): Line {
-  const shown = show(value, context.precision, context.rounding, width);
+  const shown = show(value, {
+    digits: context.precision,
+    rounding: context.rounding,
+    width: width,
+  });
   return {
     have,
     relation: relationOf([shown]),
@@ -506,7 +517,9 @@ function listResult(
   const { haveExpr, units, terms } = conversion;
   const { precision, rounding } = context;
   const last = terms.length - 1;
-  const shown = terms.map((t) => show(t, precision, rounding, width));
+  const shown = terms.map((t) =>
+    show(t, { digits: precision, rounding: rounding, width: width }),
+  );
   const unrounded = shown[last]!;
   // With the ratio notation, an exact remainder whose ratio fits is
   // written as it is, entire, so there is nothing to round and nothing
@@ -533,7 +546,11 @@ function listResult(
       .slice(0, last)
       .some((count, i) => !equals(count.mid, terms[i]!.mid));
   const remainder = carried
-    ? show(rounded[last]!, precision, rounding, width)
+    ? show(rounded[last]!, {
+        digits: precision,
+        rounding: rounding,
+        width: width,
+      })
     : unrounded;
   const all = rounded.map((value, i) => {
     const negative = sign(value.mid) < 0;
@@ -547,7 +564,11 @@ function listResult(
         : remainder.kind === "zero"
           ? remainder
           : remainder.kind === "exact" && remainder.fraction === true
-            ? show(exact(magnitude), precision, rounding, width)
+            ? show(exact(magnitude), {
+                digits: precision,
+                rounding: rounding,
+                width: width,
+              })
             : { kind: "exact", text: format(magnitude, certified, rounding) };
     return {
       value,

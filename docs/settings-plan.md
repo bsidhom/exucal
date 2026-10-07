@@ -240,7 +240,7 @@ Implemented (docs/ratio-width.md, "As landed"; D28).
   out; the notation as `{ kind: "digits" } | { kind: "ratio"; width }`
   at stored version 4.
 - **Depends on.** S2, whose notation it extends.
-- **Touches.** display.ts (`show`'s fourth argument), outcome.ts,
+- **Touches.** display.ts (`show`'s `width` option), outcome.ts,
   unit-converter.ts, settings.ts, the panel; docs/fractions.md, D21
   (amended by D28); #91, #95, P5.
 - **Core impact.** Low: the display's fit and one form; nothing in the

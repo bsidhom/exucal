@@ -143,20 +143,29 @@ test("through the pipeline: approx makes a value inexact on purpose, keeps its u
   // 2.54 cm in in is = 1.
   const one = at("approx(2.54) cm", "in");
   assert.ok(one.ok && one.value.kind === "unit", inspect(one));
-  assert.deepEqual(show(one.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "1",
-  });
+  assert.deepEqual(
+    show(one.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "1",
+    },
+  );
   const exactOne = at("2.54 cm", "in");
   assert.ok(exactOne.ok && exactOne.value.kind === "unit");
-  assert.equal(show(exactOne.value.value, 8, DEFAULT_ROUNDING).kind, "exact");
+  assert.equal(
+    show(exactOne.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }).kind,
+    "exact",
+  );
   // approx(1e999999999) + 1 is ≈ 1e+999999999: the 1 is absorbed.
   const huge = evaluateText(table.value, "approx(1e999999999) + 1", context);
   assert.ok(huge.ok, inspect(huge));
-  assert.deepEqual(show(huge.value.magnitude, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "1e+999999999",
-  });
+  assert.deepEqual(
+    show(huge.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "1e+999999999",
+    },
+  );
   // approx(0.1) + approx(0.2) - approx(0.3) is a zero with a bound at the
   // ceiling.
   const identity = evaluateText(
@@ -166,22 +175,31 @@ test("through the pipeline: approx makes a value inexact on purpose, keeps its u
   );
   assert.ok(identity.ok, inspect(identity));
   assert.ok(containsZero(identity.value.magnitude));
-  const shownIdentity = show(identity.value.magnitude, 8, DEFAULT_ROUNDING);
+  const shownIdentity = show(identity.value.magnitude, {
+    digits: 8,
+    rounding: DEFAULT_ROUNDING,
+  });
   assert.equal(shownIdentity.kind, "zero");
   // approx(1 ft) in in is ≈ 12: the dimension is the argument's.
   const foot = at("approx(1 ft)", "in");
   assert.ok(foot.ok && foot.value.kind === "unit", inspect(foot));
-  assert.deepEqual(show(foot.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "12",
-  });
+  assert.deepEqual(
+    show(foot.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "12",
+    },
+  );
   // approx(1/3) at eight digits is ≈ 0.33333333, certified.
   const third = evaluateText(table.value, "approx(1/3)", context);
   assert.ok(third.ok, inspect(third));
-  assert.deepEqual(show(third.value.magnitude, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "0.33333333",
-  });
+  assert.deepEqual(
+    show(third.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "0.33333333",
+    },
+  );
   // In decimal mode approx is the identity (D26): every value is already
   // at the user's precision, so approx(2) is exactly 2 and approx(1/3)
   // exactly 0.33333333, as 1/3 is.
@@ -195,16 +213,22 @@ test("through the pipeline: approx makes a value inexact on purpose, keeps its u
   // A definition calling approx builds, and a conversion through it is ≈.
   const constant = at("G", "m^3");
   assert.ok(constant.ok && constant.value.kind === "unit", inspect(constant));
-  assert.deepEqual(show(constant.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "6.674e-11",
-  });
+  assert.deepEqual(
+    show(constant.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "6.674e-11",
+    },
+  );
   const gauged = at("gauge(3)", "1");
   assert.ok(gauged.ok && gauged.value.kind === "unit", inspect(gauged));
-  assert.deepEqual(show(gauged.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "3",
-  });
+  assert.deepEqual(
+    show(gauged.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "3",
+    },
+  );
   // The arity errors, worded.
   const primitives = table.value.primitives;
   for (const [text, message] of [

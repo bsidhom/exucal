@@ -34,11 +34,10 @@ const CONTEXT: NumberContext = {
 
 /** `beta(a, b)` at the context, shown. */
 function b(a: Ball, c: Ball, context: NumberContext = CONTEXT): string {
-  const shown = show(
-    value(betaBall(a, c, context)),
-    context.precision,
-    context.rounding,
-  );
+  const shown = show(value(betaBall(a, c, context)), {
+    digits: context.precision,
+    rounding: context.rounding,
+  });
   return `${shown.kind === "exact" ? "=" : "≈"} ${shown.text}${shown.kind === "certified" || shown.kind === "exact" ? "" : ` [${shown.kind}]`}`;
 }
 
@@ -259,7 +258,10 @@ test("an unbounded radius, and the rounding modes", () => {
   const unbounded: Ball = { mid: dec("0.5"), rad: UNBOUNDED };
   const result = value(betaBall(unbounded, exact(dec("0.5")), CONTEXT));
   assert.equal(result.rad.kind, "unbounded");
-  assert.equal(show(result, 8, DEFAULT_ROUNDING).text, "3.1415927");
+  assert.equal(
+    show(result, { digits: 8, rounding: DEFAULT_ROUNDING }).text,
+    "3.1415927",
+  );
   assert.equal(
     value(betaBall(exact(dec("0.5")), unbounded, CONTEXT)).rad.kind,
     "unbounded",
@@ -267,8 +269,7 @@ test("an unbounded radius, and the rounding modes", () => {
   for (const rounding of ROUNDING_MODES) {
     const shown = show(
       value(betaBall(exact(dec("0.5")), exact(dec("1.5")), CONTEXT)),
-      8,
-      rounding,
+      { digits: 8, rounding: rounding },
     );
     assert.equal(shown.kind, "certified", rounding);
     assert.ok(/^1\.570796[34]$/.test(shown.text), `${rounding}: ${shown.text}`);
@@ -296,11 +297,10 @@ function run(
   const result = evaluateText(table, source, context);
   if (!result.ok)
     return describeTextError(result.error, source, table.primitives);
-  const shown = show(
-    result.value.magnitude,
-    context.precision,
-    context.rounding,
-  );
+  const shown = show(result.value.magnitude, {
+    digits: context.precision,
+    rounding: context.rounding,
+  });
   return `${shown.kind === "exact" ? "=" : "≈"} ${shown.text}`;
 }
 

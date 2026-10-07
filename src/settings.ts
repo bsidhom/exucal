@@ -189,7 +189,7 @@ const MIGRATIONS: Readonly<Record<number, Migration>> = {
       version: 3,
       settings: {
         ...rest,
-        rounding === "halfAwayFromZero" ? "halfEven" : rounding,
+        rounding: rounding === "halfAwayFromZero" ? "halfEven" : rounding,
         mode:
           mode === "decimal"
             ? DEFAULT_MODES.decimal

@@ -50,11 +50,10 @@ function shown(
   x: Ball,
   context: NumberContext = CONTEXT,
 ): string {
-  const result = show(
-    value(call(regularized, a, b, x, context)),
-    context.precision,
-    context.rounding,
-  );
+  const result = show(value(call(regularized, a, b, x, context)), {
+    digits: context.precision,
+    rounding: context.rounding,
+  });
   return `${result.kind === "exact" ? "=" : "≈"} ${result.text}${result.kind === "certified" || result.kind === "exact" ? "" : ` [${result.kind}]`}`;
 }
 
@@ -321,7 +320,10 @@ test("balls of the argument at the ends and wide ones are taken at their ends, a
     contains(inside, dec("0.486904191526117355254032731262758242434")),
     inspect(inside),
   );
-  assert.equal(show(inside, 8, DEFAULT_ROUNDING).text, "0.48690419");
+  assert.equal(
+    show(inside, { digits: 8, rounding: DEFAULT_ROUNDING }).text,
+    "0.48690419",
+  );
   const unbounded: Ball = { mid: dec("0.4"), rad: UNBOUNDED };
   assert.equal(
     value(call(true, d("2.5"), d("3.5"), unbounded)).rad.kind,
@@ -332,11 +334,10 @@ test("balls of the argument at the ends and wide ones are taken at their ends, a
     "unbounded",
   );
   for (const rounding of ROUNDING_MODES) {
-    const result = show(
-      value(call(true, d("2.5"), d("3.5"), d("0.4"))),
-      8,
-      rounding,
-    );
+    const result = show(value(call(true, d("2.5"), d("3.5"), d("0.4"))), {
+      digits: 8,
+      rounding: rounding,
+    });
     assert.equal(result.kind, "certified", rounding);
     assert.ok(
       /^0\.486904(19|2)$/.test(result.text),
@@ -409,11 +410,10 @@ function run(
   const result = evaluateText(table, source, context);
   if (!result.ok)
     return describeTextError(result.error, source, table.primitives);
-  const result2 = show(
-    result.value.magnitude,
-    context.precision,
-    context.rounding,
-  );
+  const result2 = show(result.value.magnitude, {
+    digits: context.precision,
+    rounding: context.rounding,
+  });
   return `${result2.kind === "exact" ? "=" : "≈"} ${result2.text}`;
 }
 

@@ -64,7 +64,10 @@ function lines(
   ratio: boolean | number,
   context: NumberContext = CONTEXT,
 ): string[] {
-  const outcome = outcomeOf(table, have, want, context, widthOf(ratio));
+  const outcome = outcomeOf(table, have, want, {
+    context: context,
+    width: widthOf(ratio),
+  });
   assert.equal(outcome.kind, "result", inspect(outcome));
   return (outcome as Extract<Outcome, { kind: "result" }>).lines.map(
     displayText,
@@ -214,8 +217,8 @@ test("with the setting off, every line is as it was", () => {
     ["0 m", "in"],
   ]) {
     assert.deepEqual(
-      outcomeOf(table, have!, want!, CONTEXT, undefined),
-      outcomeOf(table, have!, want!, CONTEXT),
+      outcomeOf(table, have!, want!, { context: CONTEXT, width: undefined }),
+      outcomeOf(table, have!, want!, { context: CONTEXT }),
       `${have} in ${want}`,
     );
   }
@@ -233,7 +236,7 @@ function outcome(
   want: string,
   context: NumberContext = CONTEXT,
 ): Outcome {
-  return outcomeOf(table, have, want, context);
+  return outcomeOf(table, have, want, { context: context });
 }
 
 /** The warnings of a result. */
@@ -316,7 +319,10 @@ function resultLines(
   ratio: boolean | number,
   context: NumberContext = CONTEXT,
 ): readonly Line[] {
-  const result = outcomeOf(table, have, want, context, widthOf(ratio));
+  const result = outcomeOf(table, have, want, {
+    context: context,
+    width: widthOf(ratio),
+  });
   assert.equal(result.kind, "result", inspect(result));
   return (result as Extract<Outcome, { kind: "result" }>).lines;
 }
@@ -479,12 +485,14 @@ test("in decimal mode a step whose rounding the ceiling left uncertified is writ
     mode: "decimal",
   };
   const note = "(a step could not be certified at the precision limit)";
-  const alone = outcomeOf(built.value, "tie()", "", context);
+  const alone = outcomeOf(built.value, "tie()", "", { context: context });
   assert.equal(alone.kind, "result", inspect(alone));
   const [line] = (alone as Extract<Outcome, { kind: "result" }>).lines;
   assert.equal(line!.relation, UNCERTIFIED);
   assert.equal(displayText(line!), `tie() ${UNCERTIFIED} 1.2 ${note}`);
-  const carried = outcomeOf(built.value, "tie() * 2 m", "in", context);
+  const carried = outcomeOf(built.value, "tie() * 2 m", "in", {
+    context: context,
+  });
   assert.equal(carried.kind, "result", inspect(carried));
   assert.deepEqual(
     (carried as Extract<Outcome, { kind: "result" }>).lines.map(displayText),
@@ -495,7 +503,7 @@ test("in decimal mode a step whose rounding the ceiling left uncertified is writ
   );
   // Without the flagged step every line is `=`: the inch is `0.025 m` at
   // two digits, so `2 m` is `80 in`, and the reciprocal `0.012`.
-  const plain = outcomeOf(built.value, "2 m", "in", context);
+  const plain = outcomeOf(built.value, "2 m", "in", { context: context });
   assert.equal(plain.kind, "result", inspect(plain));
   assert.deepEqual(
     (plain as Extract<Outcome, { kind: "result" }>).lines.map(displayText),

@@ -535,7 +535,10 @@ test("through the pipeline, roots of a large degree or of a tiny mantissa are va
     const result = at(text, precision);
     assert.ok(result.ok, `${text}: ${inspect(result)}`);
     assert.deepEqual(
-      show(result.value.magnitude, precision, DEFAULT_ROUNDING),
+      show(result.value.magnitude, {
+        digits: precision,
+        rounding: DEFAULT_ROUNDING,
+      }),
       { kind: "certified", text: digits },
       text,
     );
@@ -545,7 +548,8 @@ test("through the pipeline, roots of a large degree or of a tiny mantissa are va
   const aroundZero = at("pow(1e-5 - approx(1e-5), 3^-700)", 8);
   assert.ok(aroundZero.ok, inspect(aroundZero));
   assert.equal(
-    show(aroundZero.value.magnitude, 8, DEFAULT_ROUNDING).kind,
+    show(aroundZero.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING })
+      .kind,
     "zero",
   );
 });
@@ -569,7 +573,7 @@ test("through the pipeline, the exact bases 0, 1 and -1 are exact values where t
     const result = evaluateText(table.value, text, context);
     assert.ok(result.ok, `${text}: ${inspect(result)}`);
     assert.deepEqual(
-      show(result.value.magnitude, 8, DEFAULT_ROUNDING),
+      show(result.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }),
       { kind: "exact", text: digits },
       text,
     );
@@ -590,7 +594,8 @@ test("through the pipeline, the exact bases 0, 1 and -1 are exact values where t
     const result = evaluateText(table.value, text, context);
     assert.ok(result.ok, `${text}: ${inspect(result)}`);
     assert.equal(
-      show(result.value.magnitude, 8, DEFAULT_ROUNDING).text,
+      show(result.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING })
+        .text,
       digits,
       text,
     );
@@ -614,7 +619,11 @@ test("through the pipeline, the exact bases 0, 1 and -1 are exact values where t
     context,
   );
   assert.ok(admitted.ok, inspect(admitted));
-  assert.equal(show(admitted.value.magnitude, 8, DEFAULT_ROUNDING).text, "1");
+  assert.equal(
+    show(admitted.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING })
+      .text,
+    "1",
+  );
   assert.ok(performance.now() - start < 1000, "milliseconds, not seconds");
   for (const [text, message] of [
     ["pow(0, -1e999999999)", 'Division by zero in "pow(0, -1e999999999)".'],
@@ -667,7 +676,10 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
       precision: 30,
     });
     assert.ok(result.ok, inspect(result));
-    const shown = show(result.value.magnitude, 30, DEFAULT_ROUNDING);
+    const shown = show(result.value.magnitude, {
+      digits: 30,
+      rounding: DEFAULT_ROUNDING,
+    });
     assert.equal(shown.kind, "certified", text);
     assert.equal(shown.text, digits, text);
   }

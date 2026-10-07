@@ -225,7 +225,8 @@ setting, so `clampSettings` does not touch it.
 
 - `src/core/display.ts`: `show(ball, digits, mode, width?)`, the fourth
   argument the ratio's width in place of the flag, absent meaning the
-  notation `digits`; `fractionText` takes the width and gains the
+  notation `digits` (as landed, the options are named: `show(ball, {
+digits, rounding, width })`); `fractionText` takes the width and gains the
   exponent form of rule 4; the whole-number rule 2 formats at the width;
   the `exact` kind keeps `fraction: true` for a ratio in either form, so
   that the outcome parenthesizes it.
@@ -282,8 +283,12 @@ inexact value stays ruled out.
 
 ## As landed
 
-- **`show(ball, digits, mode, width?)`** in display.ts, the width in
-  place of the flag; `ratioText` writes the fraction and then the
+- **`show(ball, { digits, rounding, width? })`** in display.ts, the
+  width in place of the flag, and the digits and the rounding named
+  beside it on the review's ruling that a call should state each
+  modifier by name with the compiler holding it to the required ones
+  (the ball stays the one plain argument; `outcomeOf` takes its context,
+  width and observer the same way); `ratioText` writes the fraction and then the
   factored form, and the whole-number rule formats at the width. The
   outcome, the converter (`ratioWidth`) and the shell carry the width,
   and the outcome still withholds it in decimal mode.

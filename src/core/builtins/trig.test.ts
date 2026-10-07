@@ -357,21 +357,28 @@ test("through the pipeline: sin(30 deg) certifies 0.5, sin(pi() radian) is zero 
     const result = at(text!, 8);
     assert.ok(result.ok, `${text}: ${inspect(result)}`);
     assert.ok(!isExact(result.value.magnitude), text);
-    const shown = show(result.value.magnitude, 8, DEFAULT_ROUNDING);
+    const shown = show(result.value.magnitude, {
+      digits: 8,
+      rounding: DEFAULT_ROUNDING,
+    });
     assert.equal(shown.kind, "certified", text);
     assert.equal(shown.text, digits, text);
   }
   const thirty = at("sin(1 radian)", 30);
   assert.ok(thirty.ok);
   assert.equal(
-    show(thirty.value.magnitude, 30, DEFAULT_ROUNDING).text,
+    show(thirty.value.magnitude, { digits: 30, rounding: DEFAULT_ROUNDING })
+      .text,
     "0.84147098480789650665250232163",
   );
   // The value is a ball around zero at every pass, and ends at the ceiling
   // as the zero kind with a bound.
   const zero = at("sin(pi() radian)", 8);
   assert.ok(zero.ok, inspect(zero));
-  const shownZero = show(zero.value.magnitude, 8, DEFAULT_ROUNDING);
+  const shownZero = show(zero.value.magnitude, {
+    digits: 8,
+    rounding: DEFAULT_ROUNDING,
+  });
   assert.equal(shownZero.kind, "zero");
   assert.ok(
     shownZero.kind === "zero" &&

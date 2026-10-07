@@ -42,11 +42,10 @@ function shown(
   x: Ball,
   context: NumberContext = CONTEXT,
 ): string {
-  const result = show(
-    value(fn(x, context)),
-    context.precision,
-    context.rounding,
-  );
+  const result = show(value(fn(x, context)), {
+    digits: context.precision,
+    rounding: context.rounding,
+  });
   return `${result.kind === "exact" ? "=" : "≈"} ${result.text}${result.kind === "certified" || result.kind === "exact" ? "" : ` [${result.kind}]`}`;
 }
 
@@ -227,12 +226,18 @@ test("balls touching or straddling zero are taken at their ends, and an unbounde
     contains(inside, dec("0.8427007929497148693412206350826092592961")),
     inspect(inside),
   );
-  assert.equal(show(inside, 8, DEFAULT_ROUNDING).text, "0.84270079");
+  assert.equal(
+    show(inside, { digits: 8, rounding: DEFAULT_ROUNDING }).text,
+    "0.84270079",
+  );
   const unbounded: Ball = { mid: dec("1"), rad: UNBOUNDED };
   assert.equal(value(erfBall(unbounded, CONTEXT)).rad.kind, "unbounded");
   assert.equal(value(erfcBall(unbounded, CONTEXT)).rad.kind, "unbounded");
   for (const rounding of ROUNDING_MODES) {
-    const result = show(value(erfBall(exact(dec("1")), CONTEXT)), 8, rounding);
+    const result = show(value(erfBall(exact(dec("1")), CONTEXT)), {
+      digits: 8,
+      rounding: rounding,
+    });
     assert.equal(result.kind, "certified", rounding);
     assert.ok(
       /^0\.842700(79|8)$/.test(result.text),
@@ -262,11 +267,10 @@ function run(
   const result = evaluateText(table, source, context);
   if (!result.ok)
     return describeTextError(result.error, source, table.primitives);
-  const result2 = show(
-    result.value.magnitude,
-    context.precision,
-    context.rounding,
-  );
+  const result2 = show(result.value.magnitude, {
+    digits: context.precision,
+    rounding: context.rounding,
+  });
   return `${result2.kind === "exact" ? "=" : "≈"} ${result2.text}`;
 }
 

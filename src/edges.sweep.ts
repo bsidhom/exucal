@@ -747,7 +747,7 @@ function judgeEvaluation(
       expect,
     );
   const ball = result.value.magnitude;
-  show(ball, context.precision, context.rounding);
+  show(ball, { digits: context.precision, rounding: context.rounding });
   return (
     checkQuantity(ball, context) ??
     judgeOutcome({ kind: "value", ball }, expect)
@@ -772,9 +772,16 @@ function judgeConversion(
   switch (conversion.kind) {
     case "unit": {
       // The display shows the ratio and, where it exists, its reciprocal.
-      show(conversion.value, context.precision, context.rounding);
+      show(conversion.value, {
+        digits: context.precision,
+        rounding: context.rounding,
+      });
       const inverse = divideBalls(exact(ONE), conversion.value);
-      if (inverse.ok) show(inverse.value, context.precision, context.rounding);
+      if (inverse.ok)
+        show(inverse.value, {
+          digits: context.precision,
+          rounding: context.rounding,
+        });
       return (
         checkQuantity(conversion.value, context) ??
         judgeOutcome({ kind: "value", ball: conversion.value }, expect)
@@ -806,7 +813,9 @@ function checkList(
     const bad = checkValue(term, modeOf(context));
     if (bad !== undefined) return `a term: ${bad}`;
   }
-  const shown = terms.map((t) => show(t, precision, rounding));
+  const shown = terms.map((t) =>
+    show(t, { digits: precision, rounding: rounding }),
+  );
   const unrounded = shown[last]!;
   const certified =
     unrounded.kind === "partial" && unrounded.certified > 0
@@ -823,7 +832,7 @@ function checkList(
     .slice(0, last)
     .some((count, i) => !equals(count.mid, terms[i]!.mid));
   const remainder = carried
-    ? show(rounded[last]!, precision, rounding)
+    ? show(rounded[last]!, { digits: precision, rounding: rounding })
     : unrounded;
   let total: Loose = ZERO;
   const texts: string[] = [];

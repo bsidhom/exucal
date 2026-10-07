@@ -104,7 +104,7 @@ test("at a raised range limit the built-ins near the edges of what the kernel is
     const label = text!.length > 40 ? `${text!.slice(0, 40)}…` : text!;
     assert.ok(result.ok, `${label}: ${inspect(result)}`);
     assert.deepEqual(
-      show(result.value.magnitude, 8, DEFAULT_ROUNDING),
+      show(result.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }),
       { kind: "certified", text: digits },
       label,
     );

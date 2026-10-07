@@ -177,7 +177,10 @@ test("through the pipeline: sqrt(2) certifies, sqrt(9/4) m is exact, and the err
     precision: 30,
   });
   assert.ok(two.ok, inspect(two));
-  const shown = show(two.value.magnitude, 30, DEFAULT_ROUNDING);
+  const shown = show(two.value.magnitude, {
+    digits: 30,
+    rounding: DEFAULT_ROUNDING,
+  });
   assert.equal(shown.kind, "certified");
   assert.equal(shown.text, "1.41421356237309504880168872421");
   const exactCase = evaluateText(table.value, "sqrt(9/4) m", {
@@ -230,7 +233,7 @@ test("through the pipeline: sqrt(2) certifies, sqrt(9/4) m is exact, and the err
     });
     assert.ok(result.ok, `${text}: ${inspect(result)}`);
     assert.deepEqual(
-      show(result.value.magnitude, 8, DEFAULT_ROUNDING),
+      show(result.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }),
       { kind: "certified", text: digits },
       text,
     );

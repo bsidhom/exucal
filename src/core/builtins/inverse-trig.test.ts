@@ -459,7 +459,10 @@ test("through the pipeline, atan and atan2 are never refused for a radius (#64)"
   // ceiling, so the loop ends as a zero with a bound, the whole range.
   const wide = at("atan(approx(1e30000) - approx(1e30000))");
   assert.ok(wide.ok, inspect(wide));
-  assert.equal(show(wide.value.magnitude, 8, DEFAULT_ROUNDING).kind, "zero");
+  assert.equal(
+    show(wide.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }).kind,
+    "zero",
+  );
   // #64's second row is about 0.785 and cannot certify as written, and
   // not for anything in atan2. approx(1e30000) - approx(1e30000) is the
   // difference of two independent balls in the ball model, zero within
@@ -474,15 +477,21 @@ test("through the pipeline, atan and atan2 are never refused for a radius (#64)"
   // bound, the whole range, as the plan's rule gives.
   const ratio = at("atan2(approx(1e30000) - approx(1e30000) + 1, 1)");
   assert.ok(ratio.ok, inspect(ratio));
-  assert.equal(show(ratio.value.magnitude, 8, DEFAULT_ROUNDING).kind, "zero");
+  assert.equal(
+    show(ratio.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }).kind,
+    "zero",
+  );
   // With a radius the ceiling does narrow below the kernel's reach, the
   // same shape certifies: 1e3000's radius is 1e-1049 at the ceiling.
   const narrowed = at("atan2(approx(1e3000) - approx(1e3000) + 1, 1)");
   assert.ok(narrowed.ok, inspect(narrowed));
-  assert.deepEqual(show(narrowed.value.magnitude, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "0.78539816",
-  });
+  assert.deepEqual(
+    show(narrowed.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "0.78539816",
+    },
+  );
   // An x straddling zero at every pass is unresolved at zero at the
   // ceiling: the value ranges over nearly all of (0, pi) for such an x,
   // and which end it lies near is x's side of zero (the comment at the
@@ -838,7 +847,10 @@ test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angl
       result.ok && result.value.kind === "unit",
       `${have}: ${inspect(result)}`,
     );
-    const shown = show(result.value.value, 8, DEFAULT_ROUNDING);
+    const shown = show(result.value.value, {
+      digits: 8,
+      rounding: DEFAULT_ROUNDING,
+    });
     assert.equal(shown.kind, "certified", have);
     assert.equal(shown.text, digits, have);
   }
@@ -846,13 +858,15 @@ test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angl
   assert.ok(roundTrip.ok, inspect(roundTrip));
   assert.deepEqual(roundTrip.value.dimension, primitive(RADIAN));
   assert.equal(
-    show(roundTrip.value.magnitude, 30, DEFAULT_ROUNDING).text,
+    show(roundTrip.value.magnitude, { digits: 30, rounding: DEFAULT_ROUNDING })
+      .text,
     "0.5",
   );
   const other = at("sin(asin(0.5))", 30);
   assert.ok(
     other.ok &&
-      show(other.value.magnitude, 30, DEFAULT_ROUNDING).text === "0.5",
+      show(other.value.magnitude, { digits: 30, rounding: DEFAULT_ROUNDING })
+        .text === "0.5",
   );
   const exactZero = at("atan2(0 s, 2 s) m", 8);
   assert.ok(exactZero.ok && isExact(exactZero.value.magnitude));

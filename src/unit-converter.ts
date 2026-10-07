@@ -196,7 +196,10 @@ export class UnitConverter extends LitElement {
     if (table === undefined) {
       return { kind: "error", message: "No units are loaded." };
     }
-    return outcomeOf(table, this.have, this.want, context, this.ratioWidth);
+    return outcomeOf(table, this.have, this.want, {
+      context: context,
+      width: this.ratioWidth,
+    });
   }
 }
 

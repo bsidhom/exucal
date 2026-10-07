@@ -215,7 +215,7 @@ test("an argument below 2^-maxBits throughout is one within twice its magnitude,
     const result = evaluateText(table.value, text, context);
     assert.ok(result.ok, `${text}: ${inspect(result)}`);
     assert.deepEqual(
-      show(result.value.magnitude, 8, DEFAULT_ROUNDING),
+      show(result.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }),
       { kind: "certified", text: "1" },
       text,
     );
@@ -245,7 +245,7 @@ test("through the pipeline, exp and pow of a wide argument are a ball around zer
     });
     assert.ok(result.ok, `${text}: ${inspect(result)}`);
     assert.deepEqual(
-      show(result.value.magnitude, 32, DEFAULT_ROUNDING),
+      show(result.value.magnitude, { digits: 32, rounding: DEFAULT_ROUNDING }),
       { kind: "certified", text: "1" },
       text,
     );
@@ -260,7 +260,10 @@ test("through the pipeline, exp and pow of a wide argument are a ball around zer
     mode: "decimal",
   });
   assert.ok(decimal.ok, inspect(decimal));
-  const shown = show(decimal.value.magnitude, 8, DEFAULT_ROUNDING);
+  const shown = show(decimal.value.magnitude, {
+    digits: 8,
+    rounding: DEFAULT_ROUNDING,
+  });
   assert.equal(shown.kind, "exact", inspect(shown));
   assert.ok(/^\d\.\d{7}e\+33333333\d{10}$/.test(shown.text), shown.text);
 });
@@ -278,7 +281,10 @@ test("through the pipeline, exp(1) certifies fifty digits on the first pass, exp
     precision: 50,
   });
   assert.ok(fifty.ok, inspect(fifty));
-  const shown = show(fifty.value.magnitude, 50, DEFAULT_ROUNDING);
+  const shown = show(fifty.value.magnitude, {
+    digits: 50,
+    rounding: DEFAULT_ROUNDING,
+  });
   assert.equal(shown.kind, "certified");
   assert.equal(shown.text, "2.7182818284590452353602874713526624977572470937");
   // The first pass carries the guard beyond the digits asked, so the
@@ -289,10 +295,13 @@ test("through the pipeline, exp(1) certifies fifty digits on the first pass, exp
     precision: 8,
   });
   assert.ok(large.ok, inspect(large));
-  assert.deepEqual(show(large.value.magnitude, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "3.0332154e+434294",
-  });
+  assert.deepEqual(
+    show(large.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "3.0332154e+434294",
+    },
+  );
   const huge = evaluateText(table.value, "exp(1e30)", {
     ...CONTEXT,
     precision: 8,
@@ -350,7 +359,10 @@ test("through the pipeline, a wide argument is retried until its exponential is 
     const result = at(text, precision);
     assert.ok(result.ok, `${text}: ${inspect(result)}`);
     assert.deepEqual(
-      show(result.value.magnitude, precision, DEFAULT_ROUNDING),
+      show(result.value.magnitude, {
+        digits: precision,
+        rounding: DEFAULT_ROUNDING,
+      }),
       { kind: "certified", text: digits },
       text,
     );

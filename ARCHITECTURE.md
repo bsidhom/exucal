@@ -252,7 +252,7 @@ digits, mode)` in `src/core/display.ts` formats the midpoint at the
    is those), `zero` (a ball containing zero without being it, shown as
    `0` with a bound on how far from zero the value may lie), and
    `unbounded` (a radius not known, the midpoint's digits certifying none).
-   With the ratio notation's width (`show`'s fourth argument;
+   With the ratio notation's width (`show`'s `width` option;
    docs/fractions.md and docs/ratio-width.md, the plan's D21 and D28),
    an exact value is written entire when it fits the width: a whole
    number of at most the width in significant digits by the decimal

@@ -52,11 +52,10 @@ function shownOf(
   x: Ball,
   context: NumberContext = CONTEXT,
 ): string {
-  const shown = show(
-    value(fn(x, context)),
-    context.precision,
-    context.rounding,
-  );
+  const shown = show(value(fn(x, context)), {
+    digits: context.precision,
+    rounding: context.rounding,
+  });
   return `${shown.kind === "exact" ? "=" : "≈"} ${shown.text}${shown.kind === "certified" || shown.kind === "exact" ? "" : ` [${shown.kind}]`}`;
 }
 
@@ -161,7 +160,7 @@ test("the poles: a domain error for an exact non-positive integer, unresolved fo
   // Inside a negative cell, a ball is a value.
   const inside = value(digammaBall(ball(dec("-2.5"), dec("0.1")), CONTEXT));
   assert.ok(!isExact(inside));
-  const shown = show(inside, 40, DEFAULT_ROUNDING);
+  const shown = show(inside, { digits: 40, rounding: DEFAULT_ROUNDING });
   assert.ok(
     shown.kind === "partial" && shown.text.startsWith("1.103"),
     inspect(shown),
@@ -172,13 +171,15 @@ test("an unbounded radius, and the rounding modes", () => {
   const unbounded: Ball = { mid: dec("2"), rad: UNBOUNDED };
   const result = value(digammaBall(unbounded, CONTEXT));
   assert.equal(result.rad.kind, "unbounded");
-  assert.equal(show(result, 8, DEFAULT_ROUNDING).text, "0.42278434");
+  assert.equal(
+    show(result, { digits: 8, rounding: DEFAULT_ROUNDING }).text,
+    "0.42278434",
+  );
   for (const rounding of ROUNDING_MODES) {
-    const shown = show(
-      value(digammaBall(exact(dec("2")), CONTEXT)),
-      8,
-      rounding,
-    );
+    const shown = show(value(digammaBall(exact(dec("2")), CONTEXT)), {
+      digits: 8,
+      rounding: rounding,
+    });
     assert.equal(shown.kind, "certified", rounding);
     assert.ok(
       /^0\.4227843[34]$/.test(shown.text),
@@ -208,11 +209,10 @@ function run(
   const result = evaluateText(table, source, context);
   if (!result.ok)
     return describeTextError(result.error, source, table.primitives);
-  const shown = show(
-    result.value.magnitude,
-    context.precision,
-    context.rounding,
-  );
+  const shown = show(result.value.magnitude, {
+    digits: context.precision,
+    rounding: context.rounding,
+  });
   return `${shown.kind === "exact" ? "=" : "≈"} ${shown.text}`;
 }
 
@@ -519,7 +519,7 @@ test("the Gamma family's poles: a domain error for an exact non-positive integer
   const wide = value(gammaBall(ball(dec("-2.5"), dec("0.1")), CONTEXT));
   assert.ok(contains(wide, truth), inspect(wide));
   const inside = value(gammaBall(ball(dec("-2.5"), dec("0.001")), CONTEXT));
-  const shown = show(inside, 40, DEFAULT_ROUNDING);
+  const shown = show(inside, { digits: 40, rounding: DEFAULT_ROUNDING });
   assert.ok(
     shown.kind === "partial" && shown.text.startsWith("-0.9"),
     inspect(shown),
@@ -565,25 +565,26 @@ test("an unbounded radius, and the rounding modes, for lgamma and gamma", () => 
   assert.equal(value(gammaBall(unbounded, CONTEXT)).rad.kind, "unbounded");
   assert.equal(value(lgammaBall(unbounded, CONTEXT)).rad.kind, "unbounded");
   assert.equal(
-    show(value(gammaBall(unbounded, CONTEXT)), 8, DEFAULT_ROUNDING).text,
+    show(value(gammaBall(unbounded, CONTEXT)), {
+      digits: 8,
+      rounding: DEFAULT_ROUNDING,
+    }).text,
     "1.3293404",
   );
   for (const rounding of ROUNDING_MODES) {
-    const shownGamma = show(
-      value(gammaBall(exact(dec("2.5")), CONTEXT)),
-      8,
-      rounding,
-    );
+    const shownGamma = show(value(gammaBall(exact(dec("2.5")), CONTEXT)), {
+      digits: 8,
+      rounding: rounding,
+    });
     assert.equal(shownGamma.kind, "certified", rounding);
     assert.ok(
       /^1\.329340[34]$/.test(shownGamma.text),
       `${rounding}: ${shownGamma.text}`,
     );
-    const shownLgamma = show(
-      value(lgammaBall(exact(dec("2.5")), CONTEXT)),
-      8,
-      rounding,
-    );
+    const shownLgamma = show(value(lgammaBall(exact(dec("2.5")), CONTEXT)), {
+      digits: 8,
+      rounding: rounding,
+    });
     assert.equal(shownLgamma.kind, "certified", rounding);
     assert.ok(
       /^0\.2846828[78]$/.test(shownLgamma.text),

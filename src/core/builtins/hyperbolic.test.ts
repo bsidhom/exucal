@@ -779,13 +779,20 @@ test("through the pipeline: the values certify, the identities hold, and the err
   ]) {
     const result = at(text!, 8);
     assert.ok(result.ok, `${text}: ${inspect(result)}`);
-    const shown = show(result.value.magnitude, 8, DEFAULT_ROUNDING);
+    const shown = show(result.value.magnitude, {
+      digits: 8,
+      rounding: DEFAULT_ROUNDING,
+    });
     assert.equal(shown.kind, "certified", text);
     assert.equal(shown.text, digits, text);
   }
   const thirty = at("atanh(tanh(0.5))", 30);
   assert.ok(thirty.ok);
-  assert.equal(show(thirty.value.magnitude, 30, DEFAULT_ROUNDING).text, "0.5");
+  assert.equal(
+    show(thirty.value.magnitude, { digits: 30, rounding: DEFAULT_ROUNDING })
+      .text,
+    "0.5",
+  );
   const exactOne = at("cosh(0) m", 8);
   assert.ok(exactOne.ok && isExact(exactOne.value.magnitude));
   const exactZero = at("acosh(1) m", 8);
@@ -858,7 +865,10 @@ test("through the pipeline, tanh of a wide argument ends as a zero with a bound 
   ]) {
     const result = at(text, 32);
     assert.ok(result.ok, `${text}: ${inspect(result)}`);
-    const shown = show(result.value.magnitude, 32, DEFAULT_ROUNDING);
+    const shown = show(result.value.magnitude, {
+      digits: 32,
+      rounding: DEFAULT_ROUNDING,
+    });
     assert.equal(shown.kind, "zero", text);
   }
   // #49's texts: the argument stays wide to the ceiling, and the answer
@@ -870,7 +880,7 @@ test("through the pipeline, tanh of a wide argument ends as a zero with a bound 
     const result = at(text, 8);
     assert.ok(result.ok, `${text}: ${inspect(result)}`);
     assert.deepEqual(
-      show(result.value.magnitude, 8, DEFAULT_ROUNDING),
+      show(result.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }),
       { kind: "zero", text: "0", bound: "1" },
       text,
     );
@@ -878,8 +888,11 @@ test("through the pipeline, tanh of a wide argument ends as a zero with a bound 
   // An argument that narrows: wide at the first passes, then on the kernel.
   const narrowed = at("tanh(approx(1e40) - approx(1e40) - 1)", 8);
   assert.ok(narrowed.ok, inspect(narrowed));
-  assert.deepEqual(show(narrowed.value.magnitude, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "-0.76159416",
-  });
+  assert.deepEqual(
+    show(narrowed.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "-0.76159416",
+    },
+  );
 });

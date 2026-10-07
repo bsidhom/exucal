@@ -10,11 +10,13 @@ import {
   DEFAULT_NOTATIONS,
   DEFAULT_SETTINGS,
   NOTATION_KINDS,
+  extendedWorkingOf,
   isIntegerIn,
   isMode,
   isNotationKind,
   isRoundingMode,
   rangesOf,
+  ratioWidthOf,
   type NotationKind,
   type NumberSetting,
   type Settings,
@@ -166,13 +168,8 @@ export class SettingsPanel extends LitElement {
   private lastWidth?: number;
 
   willUpdate() {
-    const { mode } = this.settings;
-    if (mode.kind === "decimal" && mode.working.kind === "extended") {
-      this.lastExtended = mode.working.digits;
-    }
-    if (mode.kind === "exact" && mode.notation.kind === "ratio") {
-      this.lastWidth = mode.notation.width;
-    }
+    this.lastExtended = extendedWorkingOf(this.settings) ?? this.lastExtended;
+    this.lastWidth = ratioWidthOf(this.settings) ?? this.lastWidth;
   }
 
   render() {

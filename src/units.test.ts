@@ -365,20 +365,26 @@ test("the logarithmic units are functions: the decibel, the bel and the neper", 
   // `neper(1e30)` is too large; and `e` is still the elementary charge.
   const huge = convertText(table, "decibel(1000001)", "1", CONTEXT);
   assert.ok(huge.ok && huge.value.kind === "unit", inspect(huge));
-  assert.deepEqual(show(huge.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "1.2589254e+100000",
-  });
+  assert.deepEqual(
+    show(huge.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "1.2589254e+100000",
+    },
+  );
   assertConverts("decibel(1e6)", "1", "1e100000");
   const largeNeper = convertText(table, "neper(1000001)", "1", CONTEXT);
   assert.ok(
     largeNeper.ok && largeNeper.value.kind === "unit",
     inspect(largeNeper),
   );
-  assert.deepEqual(show(largeNeper.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "8.2451343e+434294",
-  });
+  assert.deepEqual(
+    show(largeNeper.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "8.2451343e+434294",
+    },
+  );
   const hugeNeper = convertText(table, "neper(1e30)", "1", CONTEXT);
   assert.ok(!hugeNeper.ok && hugeNeper.error.kind === "inputError");
   assert.equal(hugeNeper.error.error.kind, "callFailed");
@@ -396,32 +402,44 @@ test("in decimal mode a unit is settled to the digits in the rounding mode when 
   const decimal = { ...CONTEXT, precision: 8, mode: "decimal" as const };
   const survey = convertText(table, "1 surveyfoot", "m", decimal);
   assert.ok(survey.ok && survey.value.kind === "unit", inspect(survey));
-  assert.deepEqual(show(survey.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "exact",
-    text: "0.30480061",
-  });
+  assert.deepEqual(
+    show(survey.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "exact",
+      text: "0.30480061",
+    },
+  );
   const foot = convertText(table, "1 ft", "in", decimal);
   assert.ok(foot.ok && foot.value.kind === "unit", inspect(foot));
-  assert.deepEqual(show(foot.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "exact",
-    text: "12",
-  });
+  assert.deepEqual(
+    show(foot.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "exact",
+      text: "12",
+    },
+  );
   // Under a directed mode the rounded value is the value, exact, with no
   // radius to put its last digit in doubt (D26): 2 / 3 is 0.66666666 and
   // the survey foot 0.3048006 toward zero.
   const down = { ...decimal, rounding: "towardZero" as const };
   const twoThirds = evaluateText(table, "2 / 3", down);
   assert.ok(twoThirds.ok, inspect(twoThirds));
-  assert.deepEqual(show(twoThirds.value.magnitude, 8, "towardZero"), {
-    kind: "exact",
-    text: "0.66666666",
-  });
+  assert.deepEqual(
+    show(twoThirds.value.magnitude, { digits: 8, rounding: "towardZero" }),
+    {
+      kind: "exact",
+      text: "0.66666666",
+    },
+  );
   const survey7 = convertText(table, "1 surveyfoot", "m", down);
   assert.ok(survey7.ok && survey7.value.kind === "unit", inspect(survey7));
-  assert.deepEqual(show(survey7.value.value, 8, "towardZero"), {
-    kind: "exact",
-    text: "0.3048006",
-  });
+  assert.deepEqual(
+    show(survey7.value.value, { digits: 8, rounding: "towardZero" }),
+    {
+      kind: "exact",
+      text: "0.3048006",
+    },
+  );
 });
 
 /** Asserts that `have` in the function `want` is the call of it at exactly `expected`. */
@@ -830,18 +848,24 @@ test("a value of any exponent converts through the system table", () => {
   const mm = convertText(table, "1e999999999 m", "mm", CONTEXT);
   assert.ok(mm.ok && mm.value.kind === "unit", inspect(mm));
   assert.deepEqual(mm.value.value, exact(dec("1e1000000002")));
-  assert.deepEqual(show(mm.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "exact",
-    text: "1e+1000000002",
-  });
+  assert.deepEqual(
+    show(mm.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "exact",
+      text: "1e+1000000002",
+    },
+  );
   // `atan` saturates at `pi/2`, and `deg` carries `pi()`'s radius: ≈ 90.
   const right = convertText(table, "atan(1e999999999)", "deg", CONTEXT);
   assert.ok(right.ok && right.value.kind === "unit", inspect(right));
   assert.ok(!isExact(right.value.value));
-  assert.deepEqual(show(right.value.value, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "90",
-  });
+  assert.deepEqual(
+    show(right.value.value, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "90",
+    },
+  );
   // A count whose integer part cannot be formed is the midpoint itself,
   // an integer at that exponent, and the remainder is exactly nothing.
   const list = convertText(table, "1e999999999 m", "km;m", CONTEXT);

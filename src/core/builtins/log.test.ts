@@ -510,7 +510,10 @@ test("through the pipeline: exp(ln(3)) and ln(exp(3)) certify thirty digits, the
       precision: 30,
     });
     assert.ok(result.ok, inspect(result));
-    const shown = show(result.value.magnitude, 30, DEFAULT_ROUNDING);
+    const shown = show(result.value.magnitude, {
+      digits: 30,
+      rounding: DEFAULT_ROUNDING,
+    });
     assert.equal(shown.kind, "certified", text);
     assert.equal(shown.text, text === "exp(ln(3))" ? "3" : "3", text);
   }
@@ -531,10 +534,13 @@ test("through the pipeline: exp(ln(3)) and ln(exp(3)) certify thirty digits, the
     precision: 8,
   });
   assert.ok(natural.ok, inspect(natural));
-  assert.deepEqual(show(natural.value.magnitude, 8, DEFAULT_ROUNDING), {
-    kind: "certified",
-    text: "2.3025851e+9",
-  });
+  assert.deepEqual(
+    show(natural.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }),
+    {
+      kind: "certified",
+      text: "2.3025851e+9",
+    },
+  );
   const primitives = table.value.primitives;
   for (const [text, message] of [
     [

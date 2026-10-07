@@ -2,18 +2,23 @@ import { LitElement, css, html, nothing } from "lit";
 import { live } from "lit/directives/live.js";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { MODES, type Mode } from "./core/context.ts";
-import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
+import { ROUNDING_MODES } from "./core/rounding.ts";
 import { recommendLimits, type Recommendation } from "./limits.ts";
 import {
-  BUDGET_LINE,
+  ABOUT,
+  GROUP_HEADINGS,
   MODE_LINES,
-  NOTATION_LINE,
   PROBE_LINE,
+  RESET_ALL,
+  ROUNDING_LABELS,
   ROUNDING_LINES,
   SETTING_NAMES,
   UNITS,
+  budgetLine,
   clampLine,
+  defaultLine,
   displayDigitsLine,
+  notationLine,
   precisionLimitLine,
   proposalLine,
   refusalLine,
@@ -22,6 +27,7 @@ import {
 } from "./settings-lines.ts";
 import { hintStyles, pressableStyles } from "./styles.ts";
 import "./app-button.ts";
+import "./link-button.ts";
 import "./step-button.ts";
 import {
   DEFAULT_MODES,
@@ -29,6 +35,7 @@ import {
   DEFAULT_SETTINGS,
   NOTATION_KINDS,
   extendedWorkingOf,
+  isAtDefault,
   isMode,
   isNotationKind,
   isRoundingMode,
@@ -40,6 +47,7 @@ import {
   type NumberSetting,
   type RangedSetting,
   type Refusal,
+  type Resettable,
   type Settings,
   type Working,
   type Notation,
@@ -62,20 +70,26 @@ import {
  * on-screen keyboard to resize the layout, so that the sheet, sized in
  * `dvh`, rises with it and the input being typed in stays visible.
  *
- * The controls: The display digits a result is
- * shown with and, grouped with them in decimal mode, the working digits
- * every step but the last is computed with; the precision limit in
- * digits; the significand limit in bits; the rounding mode; the mode
- * and, under it in exact mode, the notation its exact values are written
- * in; and the probe with its budget in milliseconds
- * (docs/settings-modes.md, docs/working-digits.md,
- * docs/settings-limits.md); each with a line on what it does in the mode
- * in force (settings-lines.ts), and each number input with its unit after
- * it. The settings come in as a property and every change the user makes
+ * The controls, in three groups by what a setting is for and in the
+ * order of how often each is touched (docs/settings-controls.md, D31):
+ * how a result is shown, the display digits and, in exact mode, the
+ * notation its exact values are written in; how it is computed, the
+ * mode with what belongs to it under it, the working digits in decimal
+ * mode, and the rounding; how much it may cost, the precision limit in
+ * digits, the significand limit in bits, and the probe with its budget
+ * in milliseconds (docs/settings-modes.md, docs/working-digits.md,
+ * docs/settings-limits.md). Each control has a line under it that opens
+ * with a number's range and says what the setting does in the mode in
+ * force (settings-lines.ts), and each number input has its unit after
+ * it. Beside the label of a setting that is not at its default, a
+ * link-style button names the default ("default 8") and resets it on a
+ * press; at the foot, "Reset all settings" and the link to the guide.
+ * The settings come in as a property and every change the user makes
  * goes out as a `settings-change` event carrying the fields that changed,
- * the mode always as a whole variant; the shell owns the settings, clamps
- * what depends on the change and saves them, so this panel knows nothing
- * of storage.
+ * the mode always as a whole variant, and every reset as a
+ * `settings-reset` event naming the setting, or nothing for all; the
+ * shell owns the settings, clamps what depends on the change and saves
+ * them, so this panel knows nothing of storage.
  *
  * A change applies on the control's `change` event, uniformly: a
  * select or a radio the moment it is picked, a number input when it is
@@ -243,10 +257,54 @@ export class SettingsPanel extends LitElement {
         padding-bottom: calc(1rem + env(safe-area-inset-bottom));
       }
 
-      .settings {
+      .group {
+        /* A group: its heading, a rule above it from the second on, its controls in one column. */
         display: flex;
-        flex-wrap: wrap;
+        flex-direction: column;
         gap: 1rem;
+        min-width: 0;
+        margin: 0;
+        padding: 0.25rem 0 1rem;
+        border: 0;
+        border-bottom: 1px solid
+          color-mix(in srgb, currentColor 15%, transparent);
+      }
+
+      .group > legend {
+        padding: 0;
+        margin-bottom: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        opacity: 0.7;
+      }
+
+      .name {
+        /* A control's name, with its reset at the right when it is off its default. */
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.75rem;
+      }
+
+      .reset {
+        font-size: 0.75rem;
+        font-weight: 400;
+        white-space: nowrap;
+      }
+
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 1rem;
+        padding-top: 1rem;
+        font-size: 0.875rem;
+      }
+
+      a {
+        color: LinkText;
       }
 
       label {
@@ -290,7 +348,6 @@ export class SettingsPanel extends LitElement {
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
-        flex-basis: 100%;
       }
 
       .probe > div {
@@ -310,12 +367,6 @@ export class SettingsPanel extends LitElement {
         font-weight: 400;
       }
 
-      .group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
       .toggle > span {
         display: flex;
         align-items: center;
@@ -323,7 +374,8 @@ export class SettingsPanel extends LitElement {
         font-weight: 400;
       }
 
-      fieldset {
+      .choice {
+        /* A choice of two or three, as radios under their name. */
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
@@ -335,11 +387,11 @@ export class SettingsPanel extends LitElement {
         font-weight: 600;
       }
 
-      legend {
-        padding: 0;
+      .choice > legend {
+        display: contents;
       }
 
-      fieldset label {
+      .choice label {
         flex-direction: row;
         align-items: center;
         gap: 0.5rem;
@@ -442,34 +494,74 @@ export class SettingsPanel extends LitElement {
           </div>
         </header>
         <div class="body">
-          <div class="settings">
-            <div class="group">
-              ${this.renderNumber(DISPLAY_DIGITS_FIELD)}
-              ${mode.kind === "decimal" ? this.renderWorking(mode.working) : nothing}
-            </div>
-            ${LIMIT_FIELDS.map((field) => this.renderNumber(field))}
+          <fieldset class="group">
+            <legend>${GROUP_HEADINGS.shown}</legend>
+            ${this.renderNumber(DISPLAY_DIGITS_FIELD)}
+            ${mode.kind === "exact" ? this.renderNotation(mode.notation) : nothing}
+          </fieldset>
+          <fieldset class="group">
+            <legend>${GROUP_HEADINGS.computed}</legend>
+            ${this.renderMode()}
+            ${mode.kind === "decimal" ? this.renderWorking(mode.working) : nothing}
             ${this.renderSelect(
-              "Rounding",
+              this.renderName("Rounding", "rounding"),
               ROUNDING_MODES,
               ROUNDING_LABELS,
               rounding,
               this.onSelectChange("rounding", isRoundingMode),
               ROUNDING_LINES[mode.kind],
             )}
-            ${this.renderSelect(
-              "Mode",
-              MODES,
-              MODE_LABELS,
-              mode.kind,
-              this.onModeChange,
-              MODE_LINES[mode.kind],
-            )}
-            ${mode.kind === "exact" ? this.renderNotation(mode.notation) : nothing}
+          </fieldset>
+          <fieldset class="group">
+            <legend>${GROUP_HEADINGS.cost}</legend>
+            ${LIMIT_FIELDS.map((field) => this.renderNumber(field))}
             ${this.renderProbe()}
+          </fieldset>
+          <div class="foot">
+            <link-button @click=${this.onResetAll}>${RESET_ALL}</link-button>
+            <a href=${ABOUT.href} target="_blank" rel="noopener"
+              >${ABOUT.text}</a
+            >
           </div>
         </div>
       </dialog>
     `;
+  }
+
+  /**
+   * A control's name with, beside it when the setting is off its default,
+   * the reset that names the default and restores it. The reset sits
+   * inside the control's `<label>`, so its click must not also be the
+   * label's: the handler cancels the label's activation, which would
+   * focus the input or toggle the checkbox.
+   */
+  private renderName(text: string, key: Resettable) {
+    return html`<span class="name">
+      ${text}
+      ${
+        isAtDefault(this.settings, key)
+          ? nothing
+          : html`<link-button
+              class="reset"
+              @click=${(event: Event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.emitReset(key);
+              }}
+            >
+              ${defaultLine(key)}
+            </link-button>`
+      }
+    </span>`;
+  }
+
+  private onResetAll() {
+    this.emitReset(null);
+  }
+
+  /** Reports a reset, of `key` or, as `null`, of every setting, for the shell to apply as it applies a change; `null` since a CustomEvent's detail is never undefined. */
+  private emitReset(key: Resettable | null) {
+    this.dispatchEvent(new CustomEvent("settings-reset", { detail: key }));
   }
 
   /** Done: the sheet closes; a number being typed is committed first, the button's press having taken the focus from it. */
@@ -544,12 +636,14 @@ export class SettingsPanel extends LitElement {
   ) {
     const { min, max } = rangesOf(this.settings)[setting];
     const name = ariaLabel ?? SETTING_NAMES[setting as NumberSetting];
+    // A stepper at the bound it would pass is inert rather than refusing.
     const stepper = (delta: -1 | 1) =>
       step === undefined
         ? nothing
         : html`<step-button
             direction=${delta < 0 ? "down" : "up"}
             label=${`${delta < 0 ? "One fewer" : "One more"}: ${name}`}
+            ?disabled=${value + delta < min || value + delta > max}
             @click=${() => this.stepBy(setting, value + delta, step)}
           ></step-button>`;
     return html`
@@ -560,6 +654,7 @@ export class SettingsPanel extends LitElement {
           inputmode="decimal"
           enterkeyhint="done"
           aria-label=${ariaLabel ?? nothing}
+          aria-invalid=${this.refused?.setting === setting ? "true" : nothing}
           min=${min}
           max=${max}
           step="1"
@@ -607,7 +702,7 @@ export class SettingsPanel extends LitElement {
   private renderNumber(field: NumberField) {
     return html`
       <label>
-        ${field.label}
+        ${this.renderName(field.label, field.key)}
         ${this.renderInput(
           field.key,
           this.settings[field.key],
@@ -625,7 +720,7 @@ export class SettingsPanel extends LitElement {
 
   /** A choice among `options`, each named by `labels`, with a line under it. */
   private renderSelect<T extends string>(
-    label: string,
+    label: unknown,
     options: readonly T[],
     labels: Record<T, string>,
     value: T,
@@ -648,11 +743,36 @@ export class SettingsPanel extends LitElement {
     `;
   }
 
+  /** The mode: a choice between its two values as radios, each named for it, with the line of the one in force under them. */
+  private renderMode() {
+    const { mode } = this.settings;
+    return html`
+      <fieldset class="choice">
+        <legend>${this.renderName("Mode", "mode")}</legend>
+        ${MODES.map(
+          (each) => html`
+            <label>
+              <input
+                type="radio"
+                name="mode"
+                value=${each}
+                .checked=${each === mode.kind}
+                @change=${this.onModeChange}
+              />
+              ${MODE_LABELS[each]}
+            </label>
+          `,
+        )}
+        <small class="hint">${MODE_LINES[mode.kind]}</small>
+      </fieldset>
+    `;
+  }
+
   /** Exact mode's notation: a choice between its two values, each a radio button named for it, the ratio's width beside it while chosen. */
   private renderNotation(notation: Notation) {
     return html`
-      <fieldset>
-        <legend>Notation</legend>
+      <fieldset class="choice">
+        <legend>${this.renderName("Notation", "notation")}</legend>
         ${NOTATION_KINDS.map(
           (each) => html`
             <label>
@@ -685,17 +805,17 @@ export class SettingsPanel extends LitElement {
           `,
         )}
         ${this.renderNotice("width")}
-        <small class="hint">${NOTATION_LINE}</small>
+        <small class="hint">${notationLine(notation, this.settings)}</small>
       </fieldset>
     `;
   }
 
-  /** Decimal mode's working digits, under the display digits: a checkbox named for the `extended` value, and the count while it is checked. */
+  /** Decimal mode's working digits, under the mode: a checkbox named for the `extended` value, and the count while it is checked. */
   private renderWorking(working: Working) {
     const extended = working.kind === "extended";
     return html`
       <label class="toggle">
-        Working digits
+        ${this.renderName("Working digits", "working")}
         <span>
           <input
             type="checkbox"
@@ -722,7 +842,7 @@ export class SettingsPanel extends LitElement {
           }
         </span>
         ${this.renderNotice("working")}
-        <small class="hint">${workingDigitsLine(extended)}</small>
+        <small class="hint">${workingDigitsLine(this.settings)}</small>
       </label>
     `;
   }
@@ -803,7 +923,7 @@ export class SettingsPanel extends LitElement {
 
   /** A change of the mode: the chosen mode's variant at its defaults, since each variant carries its own settings. */
   private onModeChange(event: Event) {
-    const { value } = event.target as HTMLSelectElement;
+    const { value } = event.target as HTMLInputElement;
     if (isMode(value) && value !== this.settings.mode.kind) {
       this.emit({ mode: DEFAULT_MODES[value] });
     }
@@ -933,18 +1053,7 @@ const LIMIT_FIELDS: readonly NumberField[] = [
 const BUDGET_FIELD: NumberField = {
   key: "budgetMs",
   label: "Probe budget",
-  hint: () => BUDGET_LINE,
-};
-
-/** How each rounding mode is named in the settings, in the modes' order. */
-const ROUNDING_LABELS: Record<RoundingMode, string> = {
-  halfEven: "to nearest, ties to even",
-  halfAwayFromZero: "to nearest, ties away from zero",
-  halfTowardZero: "to nearest, ties toward zero",
-  towardZero: "toward zero",
-  awayFromZero: "away from zero",
-  ceiling: "up (toward +∞)",
-  floor: "down (toward −∞)",
+  hint: budgetLine,
 };
 
 /** How each notation is named in the settings: by its value. */
@@ -953,7 +1062,7 @@ const NOTATION_LABELS: Record<NotationKind, string> = {
   ratio: "ratio",
 };
 
-/** How each mode is named in the settings: the bare name, the line under the select explaining it. */
+/** How each mode is named in the settings: the bare name, the line under the radios explaining it. */
 const MODE_LABELS: Record<Mode, string> = {
   exact: "exact",
   decimal: "decimal",
@@ -969,5 +1078,7 @@ declare global {
     "settings-change": CustomEvent<Partial<Settings>>;
     /** The sheet closed itself (Done, Escape): the shell sets `open` false. */
     "settings-close": CustomEvent<void>;
+    /** A reset the user asked for: the setting, or `null` for all of them. */
+    "settings-reset": CustomEvent<Resettable | null>;
   }
 }

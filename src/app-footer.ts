@@ -5,6 +5,7 @@ import { BUILD_ID, SHORT_BUILD_ID, shortBuildId } from "./build-id.ts";
 import { applyUpdate, checkForUpdate } from "./register-service-worker.ts";
 import type { WorkerStatus } from "./service-worker-updates.ts";
 import { pressableStyles } from "./styles.ts";
+import "./link-button.ts";
 
 /**
  * The footer under everything: the build the page is running (build-id.ts),
@@ -56,14 +57,11 @@ export class AppFooter extends LitElement {
         opacity: 0.6;
       }
 
-      /* The footer's buttons are links: no box, no tint, the press seen in the text. */
+      /* The footer's links are link buttons; the build is its own: text until touched. */
       button {
         font: inherit;
-        padding: 0;
         border: none;
         background: transparent;
-        color: LinkText;
-        text-decoration: underline;
         cursor: pointer;
       }
 
@@ -71,14 +69,6 @@ export class AppFooter extends LitElement {
       button:active:not(:disabled) {
         background-color: transparent;
         transform: none;
-      }
-
-      button:hover:not(:disabled) {
-        text-decoration-thickness: 2px;
-      }
-
-      button:active:not(:disabled) {
-        opacity: 0.6;
       }
 
       /*
@@ -191,9 +181,9 @@ function renderStatus(status: WorkerStatus, check: UpdateCheck | undefined) {
  * to do, above all the waiting update.
  */
 function renderWorkerStatus(status: WorkerStatus) {
-  const reload = html`<button type="button" @click=${() => location.reload()}>
+  const reload = html`<link-button @click=${() => location.reload()}>
     reload
-  </button>`;
+  </link-button>`;
   switch (status.kind) {
     case "development":
     case "registering":
@@ -216,8 +206,7 @@ function renderWorkerStatus(status: WorkerStatus) {
     case "downloading":
       return quiet("downloading…");
     case "waiting":
-      return html`<button
-        type="button"
+      return html`<link-button
         title=${ifDefined(status.build)}
         @click=${applyUpdate}
       >
@@ -226,7 +215,7 @@ function renderWorkerStatus(status: WorkerStatus) {
             ? "update"
             : `update to ${shortBuildId(status.build)}`
         }
-      </button>`;
+      </link-button>`;
     case "applying":
       return quiet("updating…");
   }

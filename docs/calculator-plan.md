@@ -1471,6 +1471,20 @@ keyboard's Done key, and the display digits, the working digits and
 the ratio width are nudged from steppers. A result offers no shortcut
 to the settings that shaped it. docs/settings-surface.md is the design.
 
+**D31. The settings are three groups, by what a setting is for and in
+the order of how often it is touched, each number's line opening with
+its range and the setting that bounds it, a default named beside any
+setting off it and restored by a press, and the rest of the explanation
+in the user's guide (S5 of docs/settings-plan.md).** How it is shown
+(the display digits, the notation), how it is computed (the mode with
+its working digits or notation under it, the rounding), how much it may
+cost (the two limits and the probe); the mode a choice of two radios;
+one sentence under each control, always, with the range from `rangesOf`
+naming the chain where it bounds; "default 8" beside a changed setting
+as its indicator and its reset, "Reset all settings" at the foot, both
+through the clamp; a refused input marked invalid and a stepper at a
+bound disabled. docs/settings-controls.md is the design.
+
 ## Stage 1: the context and the ball
 
 Firm. What lands: the seven rounding modes, named once; the context in

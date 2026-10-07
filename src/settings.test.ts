@@ -24,12 +24,14 @@ import {
   isIntegerIn,
   isNotationKind,
   isRoundingMode,
+  isAtDefault,
   isDefault,
   isMode,
   rangesOf,
   loadSettings,
   resetSetting,
   resetSettings,
+  withDefault,
   sameMode,
   sameNotation,
   saveSettings,
@@ -1014,4 +1016,41 @@ test("reset gives the defaults, for all the settings or for one with the clamp a
   assert.ok(sameMode(RATIO, { ...RATIO }) && !sameMode(RATIO, WIDE));
   assert.ok(sameNotation({ kind: "digits" }, { kind: "digits" }));
   assert.ok(!sameNotation({ kind: "digits" }, { kind: "ratio", width: 20 }));
+});
+
+test("a reset of a field within the mode's variant is within the variant in force, and shows as off its default only there", () => {
+  const ratio: Settings = {
+    ...DEFAULT_SETTINGS,
+    mode: { kind: "exact", notation: { kind: "ratio", width: 30 } },
+  };
+  assert.ok(!isAtDefault(ratio, "notation"));
+  assert.deepEqual(withDefault(ratio, "notation"), DEFAULT_SETTINGS);
+  assert.ok(isAtDefault(withDefault(ratio, "notation"), "notation"));
+  const extended: Settings = {
+    ...DEFAULT_SETTINGS,
+    mode: { kind: "decimal", working: { kind: "extended", digits: 12 } },
+  };
+  assert.ok(!isAtDefault(extended, "working"));
+  assert.deepEqual(withDefault(extended, "working"), {
+    ...DEFAULT_SETTINGS,
+    mode: { kind: "decimal", working: { kind: "digits" } },
+  });
+  // A field of the variant not in force has no value: at its default, and a reset of it changes nothing.
+  assert.ok(isAtDefault(ratio, "working"));
+  assert.ok(isAtDefault(extended, "notation"));
+  assert.deepEqual(withDefault(ratio, "working"), ratio);
+  assert.deepEqual(withDefault(extended, "notation"), extended);
+  // The mode's own reset is the whole variant; a key's is the key, unclamped.
+  assert.deepEqual(withDefault(extended, "mode"), DEFAULT_SETTINGS);
+  assert.ok(!isAtDefault(extended, "mode"));
+  const high: Settings = {
+    ...DEFAULT_SETTINGS,
+    precisionLimitDigits: 20,
+    displayDigits: 20,
+  };
+  assert.deepEqual(withDefault(high, "precisionLimitDigits"), {
+    ...high,
+    precisionLimitDigits: DEFAULT_SETTINGS.precisionLimitDigits,
+  });
+  assert.ok(isAtDefault(DEFAULT_SETTINGS, "displayDigits"));
 });

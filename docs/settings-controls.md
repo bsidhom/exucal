@@ -8,7 +8,8 @@ range and its coupling to another are shown (P1, P9), whether the
 explanations are always shown or on request, the on-screen names (P12),
 the phone and desktop layouts, and, from S1, the reset's buttons and
 what shows which settings are not at their defaults (P11). **Status:
-proposed.** It changes no setting's meaning and nothing in the core; it
+implemented**; "As landed" at the end says what the implementation
+settled. It changes no setting's meaning and nothing in the core; it
 changes the panel, the lines it says, and the words of README's
 "Settings" for what moves.
 
@@ -220,3 +221,43 @@ disabled. docs/settings-controls.md is the design.
 - **Applying a setting as it is typed (#186)**, after #118.
 - **The probe's freeze (#163).**
 - **A quick change from a result**, deferred by S4.
+
+## As landed
+
+- **The reset is a `link-button`** (src/link-button.ts), a component
+  the footer's "reload" and "update" share, since the footer already had
+  link-style buttons of its own; the press is seen in the text, the
+  underline thickening and the text fading, with no box tint.
+- **The reset sits inside the control's `<label>`**, beside the name,
+  and its click cancels the label's activation (`preventDefault`), which
+  would otherwise focus the input or toggle the working digits'
+  checkbox; a custom element is not interactive content to the label.
+- **A field within the mode's variant** resets within the variant in
+  force and counts as at its default when its variant is not in force
+  (`withDefault`, `isAtDefault` in settings.ts, tested): the exact
+  mode's notation to `digits`, the decimal mode's working digits to not
+  extended. The mode's own reset is the whole variant, as S1 ruled.
+- **The shell applies a reset as it applies a change** (`settings-reset`
+  with the setting, or nothing for all; `withDefault` or
+  `resetSettings`, then the clamp with its report and the save), so a
+  reset of the significand limit lowers the precision limit and says so
+  under it, as the note asks.
+- **The rounding's labels moved to settings-lines.ts** (`ROUNDING_LABELS`),
+  since the reset names the default by its label ("default to nearest,
+  ties to even").
+- **The lines** are as the note has them, the range first, from
+  `rangeLine`; the budget's line became a function of the settings for
+  its range; the notation's line carries the width's range while a
+  ratio is chosen.
+- **The group headings** are small capitals above each group, with a
+  rule under each group; the mode and the notation are radios under
+  their name, in one column, and the working digits are under the mode.
+- **Verified** by a Playwright run against the built app, recorded in
+  the change: the three groups in order with the working digits under
+  the mode at 390 and 1,024 wide; the mode radios changing the mode; no
+  reset at the defaults, "default 8" after a step up and the display
+  digits back at 8 on its press, with the stored settings following;
+  "Reset all settings" restoring every default from a changed set; the
+  `−` stepper disabled at 1 and the `+` at the precision limit;
+  `aria-invalid` on a refused input and gone on the next change; no
+  sideways scroll at a phone's width.

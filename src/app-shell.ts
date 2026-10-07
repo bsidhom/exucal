@@ -9,8 +9,11 @@ import {
   contextOf,
   ratioOf,
   loadSettings,
+  resetSettings,
   saveSettings,
+  withDefault,
   type Clamp,
+  type Resettable,
   type Settings,
 } from "./settings.ts";
 import { onWorkerStatus } from "./register-service-worker.ts";
@@ -198,6 +201,7 @@ export class AppShell extends LitElement {
         .settings=${this.settings}
         .clamps=${this.clamps}
         @settings-change=${this.onSettingsChange}
+        @settings-reset=${this.onSettingsReset}
         @settings-close=${this.onSettingsClose}
       ></settings-panel>
     `;
@@ -222,7 +226,20 @@ export class AppShell extends LitElement {
    * panel to tell (`clampsOf`), and the settings are saved.
    */
   private onSettingsChange(event: CustomEvent<Partial<Settings>>) {
-    const changed = { ...this.settings, ...event.detail };
+    this.apply({ ...this.settings, ...event.detail });
+  }
+
+  /** A reset of one setting, or of all: the same path as a change, so the dependents are clamped and told. */
+  private onSettingsReset(event: CustomEvent<Resettable | null>) {
+    this.apply(
+      event.detail === null
+        ? resetSettings()
+        : withDefault(this.settings, event.detail),
+    );
+  }
+
+  /** `changed` becomes the settings: clamped, its clamp reported to the panel, and saved. */
+  private apply(changed: Settings) {
     this.clamps = clampsOf(changed);
     this.settings = clampSettings(changed);
     saveSettings(localStorage, this.settings, BUILD_ID);

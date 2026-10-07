@@ -295,7 +295,7 @@ Implemented (docs/settings-surface.md, "As landed"; D30).
 
 ### S5. The controls
 
-Design note: docs/settings-controls.md (proposed; D31).
+Implemented (docs/settings-controls.md, "As landed"; D31).
 
 - **Scope.** The grouping (how to compute, how to show, how much to
   spend); the widget for each setting (a number input, a stepper or a

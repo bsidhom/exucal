@@ -1438,10 +1438,15 @@ state the parts share, the definitions, the settings and the service
 worker's status, each with one source, and derives everything else in
 `render`. `<settings-panel>` (`src/settings-panel.ts`), the settings
 sheet, takes the settings and whether it is open as properties and
-reports each change the user makes as a `settings-change` event, which
-the shell applies, clamping what depends on it (`settings.ts`) and
-saving, and its closing itself as `settings-close`, which the shell
-follows; the panel never reaches for storage. The sheet is a non-modal
+reports each change the user makes as a `settings-change` event, and
+each reset, of one setting or of all, as `settings-reset`, which the
+shell applies alike, clamping what depends on it (`settings.ts`,
+`withDefault` and `clampSettings`) and saving, and its closing itself
+as `settings-close`, which the shell follows; the panel never reaches
+for storage. Its controls are three groups by what a setting is for
+(docs/settings-controls.md, the plan's D31), each with a line that
+opens with the number's range (`rangeLine`) and a "default …" reset
+beside any setting off its default (`isAtDefault`, `defaultLine`). The sheet is a non-modal
 `<dialog>` fixed to the viewport, a bottom sheet on a phone and a side
 sheet on a desktop, opened from the cog in the header's corner
 (`<settings-button>`, `src/settings-button.ts`), whose `click` flips the
@@ -1671,15 +1676,16 @@ src/messages.ts           the errors as sentences; src/messages.test.ts checks t
 src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
 src/settings.ts           Settings: The display digits, the rounding mode, the mode with its notation or working digits, the two limits and the probe budget, in localStorage under a format version with migrations; contextOf, the clamp with its report, the refusal, reset
-src/settings-lines.ts     the lines the settings panel says: the units, the lines under the numbers, the refusal, the clamp's line, the probe's proposal; src/settings-lines.test.ts checks them
+src/settings-lines.ts     the words the settings sheet says: the units, the group headings, the lines under the controls opening with each number's range, the refusal, the clamp's line, the resets, the probe's proposal; src/settings-lines.test.ts checks them
 src/limits.ts             recommendLimits: the probe that measures the device within the budget and proposes the two limits with their timings
 src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result, each two expressions the printer writes; src/outcome.test.ts checks them
 src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome
 src/copy-button.ts        the button beside each result that copies it
 src/app-button.ts         the app's button with words in it: Done, Apply, Retry, the probe's; the one place its look is defined
+src/link-button.ts        a button that reads as a link: the resets beside a setting, "Reset all settings", the footer's reload and update
 src/step-button.ts        a stepper's − or + beside a number input, the input's height, a thumb's hit area
 src/settings-button.ts    the cog in the header's corner that opens and closes the settings sheet
-src/settings-panel.ts     the settings sheet: the dialog with its handle and Done, the controls with their steppers, the refusal and clamp lines, the probe's button and its proposal; emits settings-change and settings-close
+src/settings-panel.ts     the settings sheet: the dialog with its handle and Done, the three groups of controls with their steppers and resets, the refusal and clamp lines, the probe's button and its proposal; emits settings-change, settings-reset and settings-close
 src/app-footer.ts         the footer: the build ID, which checks for updates when tapped, and the worker's status
 src/subscription.ts       Subscription: a reactive controller that mirrors a source into its host; src/subscription.test.ts checks it
 src/styles.ts             the styles the components share: the feedback every button gives (hover, press, focus, disabled) and the hint line

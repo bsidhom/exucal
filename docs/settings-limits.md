@@ -22,11 +22,14 @@ D25).
   most digits the app computes with. It bounds Digits, and decimal mode's
   working digits (D27).
 - **Most bits** (`maxBits`, "the range limit" in the core's docs): the
-  most bits a numerator or a denominator of an exact value may have,
-  65,536 by default, about 19,700 decimal digits (D16). It bounds the
-  precision limit, since a settled midpoint at the ceiling must fit it
-  with room for a product of two (`maxDigitsFor`): 2,453 digits at the
-  default.
+  most bits the numerator, and separately the denominator, of an exact
+  value may have, 65,536 by default, which is about 19,700 decimal
+  digits in each part (D16). The translation is per part: an exact value
+  is a ratio of two whole numbers times a power of ten, and a bound on
+  its parts is not a count of the value's digits, which a ratio such as
+  `1/3` does not have. It bounds the precision limit, since a settled
+  midpoint at the ceiling must fit it with room for a product of two
+  (`maxDigitsFor`): 2,453 digits at the default.
 
 The chain is Most bits → the precision limit → Digits (and the working
 digits), each clamped to the one above it when any changes
@@ -99,36 +102,93 @@ user reads. Two shapes:
   19,728, the translation is lossy at the edges, and the core's measure
   would differ from the setting's for no gain a sentence does not give.
 - **Bits as the unit, with the digits said beside it.** The input stays
-  in bits; the line under it says what that is in digits of an exact
-  value ("65,536 bits, about 19,700 digits of a numerator or a
-  denominator") and what it bounds; and the precision limit's line says
-  its own top under the size limit in force ("up to 2,453 under the
-  size limit"), so the relation between the two is read where it bites.
-  Chosen.
+  in bits; the line under it says what that is in digits of each part of
+  an exact value ("65,536 bits: a numerator or a denominator of up to
+  about 19,700 digits"), which is the only honest translation, since a
+  value that is a ratio has a size in its two parts and no digit count
+  of its own; and the precision limit's line says its own top under the
+  size limit in force ("up to 2,453 under the size limit"), so the
+  relation between the two is read where it bites. Chosen.
 
-**Ruling: Most bits keeps bits as its unit and gains a line translating
-it to digits; the precision limit's line names its top under it.**
+**Ruling: the size limit keeps bits as its unit and gains a line
+translating it to digits of each part; the precision limit's line names
+its top under it.**
 
 ## The names (P12, the limits half)
 
 Three vocabularies name the same things: the panel's Digits, Precision
 limit and Most bits; the storage's `digits`, `maxDigits` and `maxBits`;
-the docs' the digits, the cap and the range limit. The rulings:
+the docs' the digits, the cap and the range limit. One vocabulary is
+wanted, in the panel, the storage, the code and the docs alike. What
+each number denotes decides the words.
 
-- **On screen and in README: Digits, Precision limit, Size limit.** "Most
-  bits" says the unit and not the thing; "Size limit" says what it
-  bounds, the size of an exact value, and reads beside "Precision limit"
-  as its pair, the two cost limits of D16 on their two axes. "Precision
-  limit" stays: it is the most digits an answer may be asked for, which
-  is a precision, and its cost reading is the line's to say.
-- **The storage keys stay** `digits`, `maxDigits`, `maxBits`. A rename
-  is a version 5 migration S1 makes cheap, and it would buy nothing a
-  user sees; the keys are named in README once, as they are.
-- **The core's docs keep "the cap" and "the range limit"**, the names of
-  D12 and D16, and ARCHITECTURE.md's settings paragraph states the
-  mapping once: the precision limit is the cap, the size limit the
-  range limit. The churn of renaming through forty design notes is not
-  worth one vocabulary where a stated mapping gives it.
+**Two kinds of value, two quantities.** README's "How a number is held"
+states the distinction the names must follow. An inexact value is an
+approximation: a midpoint known within a radius, resolved to some
+number of significant digits, and what varies about it is how finely
+it is resolved, its _precision_. An exact value is not an approximation
+at all: every digit of it is there, it is never rounded, and what varies
+about it is how big the two whole numbers that hold it are, its _size_,
+measured in bits of its numerator and of its denominator. A precision
+is a resolution and is independent of magnitude (`pi()` at eight digits
+and `pi() * 1e30` at eight digits are resolved alike); a size is a
+storage cost and is independent of resolution (`3^100000` is exact at
+any Digits and costs 158,497 bits whatever is shown). The two cannot be
+expressed in one unit: there is no precision to an exact value, which is
+exactly itself, and no size to an inexact one beyond its working digits.
+
+- **Digits** is the precision asked for: the significant digits an
+  answer is shown with, and in decimal mode the precision every value is
+  rounded to. It is a precision, named by its unit as calculators name
+  it, and it stays "Digits".
+- **The precision limit** (`maxDigits`) is the most precision that may be
+  asked for and, through the ceiling, the most the app computes with.
+  It bounds a resolution, not a size: a value at the limit is a short
+  number known to many digits, and the cost it caps, the ceiling pass of
+  a built-in, is a cost in digits of an approximation. It is not a size
+  limit in the sense of the other, because the values it governs are
+  approximations and the quantity it bounds is how closely they are
+  resolved; "precision" is the word for that in every numeric library
+  (`mpmath`'s `prec`, `decimal`'s context precision, MPFR's precision),
+  and "Precision limit" says that there is a precision and this is the
+  most of it. So "Precision limit" stays.
+- **The size limit** (`maxBits`) is the most bits each part of an exact
+  value may have. It bounds a size, not a precision: an exact value has
+  no precision, and what the limit refuses (`3^1000000000`) is refused
+  for being too large to hold, not too fine. "Most bits" named the
+  unit and not the thing; "Range limit", D16's name, borrows a word that
+  in floating point means the exponent's reach, and the exponent is the
+  one thing this limit does not bound (a power of ten is free); "Size
+  limit" names what it bounds, the size of an exact value's parts, and
+  its line says the unit and the parts. The alternative "Exact size
+  limit" says which values it applies to and was set aside as a label
+  for reading oddly, the line carrying "of an exact value" instead; it
+  is the fallback if "Size limit" alone proves too bare on screen.
+
+So the pair reads: the precision limit bounds how finely an inexact
+value may be resolved; the size limit bounds how large an exact value
+may be held. Both are cost limits; what each costs differs, and the
+names say the quantity, not the cost, as "Digits" does.
+
+**Alignment.** The rulings:
+
+- **On screen and in README: Digits, Precision limit, Size limit.**
+- **The storage and the code follow**, in changes after this step's
+  panel work rather than atomically with it: the stored keys become
+  `digits`, `precisionLimit` and `sizeLimit` at a version 5 with one
+  migration (S1 makes it a few lines); `Settings` and `rangesOf` take
+  the same names; `NumberContext.maxBits` becomes `sizeLimit`
+  (`precision` and `ceiling` stay, the first being Digits' name below
+  the pipeline and the second derived); `maxDigitsFor` becomes
+  `precisionLimitFor`, `LIMIT_BITS` and `MIN_MAX_BITS` the size limit's
+  hard bound and floor under names that say so; and the core's docs
+  retire "the cap" and "the range limit" for "the precision limit" and
+  "the size limit", D12 and D16 amended by D29 to say so. The churn is
+  mechanical and the compiler finds every site.
+- **One mapping, stated once, until then**: ARCHITECTURE.md's settings
+  paragraph says that the precision limit is the cap and the size limit
+  the range limit of the older notes, so that a reader of D12 or D16 is
+  not lost while the renames land.
 
 ## Coupled edits (P9)
 
@@ -152,7 +212,11 @@ clamp is right, and it is silent. Three policies:
   settings and can compare them with what was asked.
 
 **Ruling: a clamp is told where it lands, once; nothing is refused and
-nothing is remembered.**
+nothing is remembered.** The load path is the one place the policy does
+not reach: a stored field that is missing, malformed or clamped on
+loading falls back silently (S1's policy), and the app has no path yet
+for a warning a user sees (#167). This step tells the user about edits;
+telling them about what loading changed waits on that path.
 
 ## Guard rails and the defaults (P3)
 
@@ -211,10 +275,32 @@ rulings:
   visible before it lands, which is P10's complaint met without a
   confirmation dialog. The alternative, applying at once and telling
   afterwards, was set aside: a measurement is information first.
-- **The budget is a constant, named in the line**, not a setting: a
-  user who wants more latency has the limits to raise, and a second
-  knob that moves what the first one recommends would be the coupling
-  P1 complains of, one level up.
+- **The budget is a setting**, in milliseconds, 50 by default, with a
+  reset like any setting (the owner's ruling, over the first draft's
+  constant): a user on a slow device who accepts a slower keystroke
+  should be able to say so once, and have the probe measure against
+  it, rather than read a number the probe will not let them change. Its
+  range is `[10, 10000]`: below ten milliseconds no candidate fits, and
+  ten seconds a pass is past any use. It is a setting of the probe, not
+  of the context: the core never sees it. Whether it is stored or
+  transient is weighed below.
+- **Stored or transient.** Two shapes:
+  - _Stored with the rest_, a sixth field of `Settings`, saved and
+    migrated like the others. For: a budget set for a device is set for
+    the device the storage lives on, and survives a reload as the
+    limits it produced do; the reset path S1 built covers it with no
+    new mechanism; and it is one field, one line of migration. Against:
+    a stale budget after an app update whose probe costs differently
+    would recommend differently, though the limits it set would stand.
+  - _Transient_, held by the shell for the session and lost on close,
+    update or reload, back to 50. For: it is a knob of a measurement,
+    not of an answer; no stored field, no migration, no reset button
+    beyond the default reappearing. Against: it is the one setting that
+    comes back different after a reload, which the plan's goal of
+    settings a user can predict argues against, and a user who found
+    the right budget for a phone finds it gone.
+  - The note's recommendation is stored, for the predictability; the
+    owner is comfortable with transient and the ruling is theirs.
 - **Its freeze is #163's**, not this step's: the probe runs on the main
   thread today, and whether it moves to a worker or yields between
   candidates changes nothing above.
@@ -230,21 +316,25 @@ rulings:
   working digits, may be asked for, up to 2,453 under the size limit. A
   step's rounding is certified at up to 4,040 hidden digits." The
   numbers are the settings in force; the formula is not written.
-- Size limit: "The most bits in an exact value's numerator or
-  denominator: 65,536 bits is about 19,700 digits. A hard limit on the
-  time and memory an exact value may cost; the app refuses a result
-  past it and names it." (#73, when it lands, makes that message say
-  how many bits the result needed.)
+- Size limit: "The most bits in an exact value's numerator, and in its
+  denominator: 65,536 bits is a numerator or a denominator of up to
+  about 19,700 digits. A hard limit on the time and memory an exact
+  value may cost; the app refuses a result past it and names it."
+  (#73, when it lands, makes that message say how many bits the result
+  needed.)
+- Budget: "The time the probe allows one pass, in milliseconds; it
+  recommends the largest limits that stay within it.
 - A clamp: under the setting lowered, "lowered from 1,000 to 990 to fit
   the size limit", until the next change.
 - The probe: "Measure this device", the proposal and "Apply".
 
 ## Where it goes
 
-- `src/settings.ts`: nothing in the shape; a function beside
-  `clampSettings` that says which settings a clamp lowered and from
-  what, for the panel's line (`clampSettings` keeps its name and its
-  contract).
+- `src/settings.ts`: the budget, stored or transient as ruled; a
+  function beside `clampSettings` that says which settings a clamp
+  lowered and from what, for the panel's line (`clampSettings` keeps its
+  name and its contract). The renames of the keys and the code follow
+  in their own change, with the version 5 migration.
 - `src/limits.ts`: `recommendLimits` returns the timings it found beside
   the limits, so that the proposal can say them; the budget is exported
   as it is.
@@ -264,17 +354,21 @@ rulings:
 ## D29, proposed
 
 **D29. The three limits stay three settings in the units they have,
-named Digits, Precision limit and Size limit on screen; the ceiling is
-derived from the precision limit and read in both modes, as the most
-digits the app computes with; a clamp is told where it lands; the
-defaults stay and depend on no device; the probe proposes and the user
-applies (S3 of docs/settings-plan.md; resolves #86).** D16's two axes
-stand, and D12's ceiling gains its decimal-mode reading from D26. What
-the step changes is what the user is told: each limit's line says what
-it bounds and what it costs with the numbers in force and no formula,
-the size limit's line translates bits to digits, a coupled edit names
-what it lowered, and the probe says what it measured before anything
-moves.
+named Digits, Precision limit and Size limit in the panel, the storage,
+the code and the docs, the precision limit bounding how finely an
+inexact value may be resolved and the size limit how large an exact
+value's parts may be held; the ceiling is derived from the precision
+limit and read in both modes, as the most digits the app computes with;
+a clamp is told where it lands; the defaults stay and depend on no
+device; the probe's budget is a setting in milliseconds, and the probe
+proposes and the user applies (S3 of docs/settings-plan.md; resolves
+#86; amends D12 and D16 in their names).** D16's two axes stand, and
+D12's ceiling gains its decimal-mode reading from D26. What the step
+changes is what the user is told and what things are called: each
+limit's line says what it bounds and what it costs with the numbers in
+force and no formula, the size limit's line translates bits to digits
+of each part, a coupled edit names what it lowered, and the probe says
+what it measured before anything moves.
 
 ## Not in this step
 
@@ -283,4 +377,6 @@ moves.
 - **The panel's placement, grouping and controls (S4, S5)**, which may
   present the proposal and the clamp's line otherwise; this step fixes
   the words and the policy.
-- **A rename of the storage keys or the core's vocabulary.**
+- **The renames of the storage keys and the core's vocabulary**, ruled
+  above and landed in changes of their own after the panel's.
+- **A warning path for what loading changed (#167).**

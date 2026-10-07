@@ -37,7 +37,7 @@ test("a case that certifies at once takes one pass, cold and warm", async () => 
 
 test("a case that never certifies runs the whole schedule to the ceiling", async () => {
   // A small cap keeps the ceiling, and the case, cheap.
-  const c = caseOf("exp(1) - exp(1)", "", { maxDigits: 50 });
+  const c = caseOf("exp(1) - exp(1)", "", { precisionLimitDigits: 50 });
   const measured = await measure(c, 30_000);
   assert.ok(measured.status === "done", inspect(measured));
   const precisions = schedule(contextOf(c.settings)).map((w) => w.precision);
@@ -144,15 +144,20 @@ test("a hang's estimate extends its passes along their growth", () => {
 
 test("the settings must be ones the panel could hold", () => {
   assert.throws(
-    () => checkSettings(caseOf("1", "", { digits: 2000 }).settings),
+    () => checkSettings(caseOf("1", "", { displayDigits: 2000 }).settings),
     RangeError,
   );
   assert.throws(
-    () => checkSettings(caseOf("1", "", { maxDigits: 3000 }).settings),
+    () =>
+      checkSettings(caseOf("1", "", { precisionLimitDigits: 3000 }).settings),
     RangeError,
   );
   assert.throws(
-    () => checkSettings(caseOf("1", "", { maxBits: 10 }).settings),
+    () => checkSettings(caseOf("1", "", { significandLimitBits: 10 }).settings),
+    RangeError,
+  );
+  assert.throws(
+    () => checkSettings(caseOf("1", "", { budgetMs: 5 }).settings),
     RangeError,
   );
   checkSettings(caseOf("1").settings);

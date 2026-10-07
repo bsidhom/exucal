@@ -46,7 +46,7 @@ import {
   DEFAULT_SETTINGS,
   contextOf,
   isIntegerIn,
-  isMaxBits,
+  isSignificandLimit,
   isMode,
   rangesOf,
   ratioOf,
@@ -191,25 +191,42 @@ export function caseOf(
 
 /**
  * Throws `RangeError` unless `settings` are ones the panel could hold: the
- * range limit within its bounds, the cap within what it allows, the digits
- * within the cap, and a mode, as settings.ts validates a stored entry.
+ * significand limit within its bounds, the precision limit within what it
+ * allows, the display digits within the precision limit, the working
+ * digits between them, the budget in its range, and a mode, as
+ * settings.ts validates a stored entry.
  */
 export function checkSettings(settings: Settings): void {
-  const { digits, maxDigits, maxBits, mode } = settings;
-  if (!isMaxBits(maxBits)) throw new RangeError(`Most bits: ${maxBits}`);
-  const ranges = rangesOf(settings);
-  if (!isIntegerIn(maxDigits, ranges.maxDigits)) {
-    throw new RangeError(`Precision limit: ${maxDigits} at ${maxBits} bits`);
+  const {
+    displayDigits,
+    precisionLimitDigits,
+    significandLimitBits,
+    budgetMs,
+    mode,
+  } = settings;
+  if (!isSignificandLimit(significandLimitBits)) {
+    throw new RangeError(`Significand limit: ${significandLimitBits} bits`);
   }
-  if (!isIntegerIn(digits, ranges.digits)) {
-    throw new RangeError(`Digits: ${digits} under a cap of ${maxDigits}`);
+  const ranges = rangesOf(settings);
+  if (!isIntegerIn(precisionLimitDigits, ranges.precisionLimitDigits)) {
+    throw new RangeError(
+      `Precision limit: ${precisionLimitDigits} digits at ${significandLimitBits} bits`,
+    );
+  }
+  if (!isIntegerIn(displayDigits, ranges.displayDigits)) {
+    throw new RangeError(
+      `Display digits: ${displayDigits} under a precision limit of ${precisionLimitDigits}`,
+    );
+  }
+  if (!isIntegerIn(budgetMs, ranges.budgetMs)) {
+    throw new RangeError(`Probe budget: ${budgetMs} ms`);
   }
   if (!isMode(mode.kind)) throw new RangeError(`Mode: ${String(mode.kind)}`);
   if (mode.kind === "decimal" && mode.working.kind === "extended") {
     const { digits: working } = mode.working;
     if (!isIntegerIn(working, ranges.working)) {
       throw new RangeError(
-        `Working digits: ${working} under ${digits} digits and a cap of ${maxDigits}`,
+        `Working digits: ${working} under ${displayDigits} display digits and a precision limit of ${precisionLimitDigits}`,
       );
     }
   }

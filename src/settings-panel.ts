@@ -413,7 +413,7 @@ export class SettingsPanel extends LitElement {
         working: checked
           ? {
               kind: "extended",
-              digits: this.lastExtended ?? this.settings.digits,
+              digits: this.lastExtended ?? this.settings.displayDigits,
             }
           : { kind: "digits" },
       },
@@ -441,8 +441,11 @@ export class SettingsPanel extends LitElement {
     this.recommending = true;
     await afterPaint(this);
     try {
-      const { maxBits, maxDigits } = recommendLimits();
-      this.emit({ maxBits, maxDigits });
+      const { maxBits, maxDigits } = recommendLimits(this.settings.budgetMs);
+      this.emit({
+        significandLimitBits: maxBits,
+        precisionLimitDigits: maxDigits,
+      });
     } finally {
       this.recommending = false;
     }
@@ -473,7 +476,7 @@ type NumberField = {
 
 /** The digits, first in the panel, with decimal mode's working digits grouped under them. */
 const DIGITS_FIELD: NumberField = {
-  key: "digits",
+  key: "displayDigits",
   label: "Digits",
   hint: ({ mode }) => {
     if (mode.kind === "exact") return "Significant digits shown.";
@@ -486,17 +489,17 @@ const DIGITS_FIELD: NumberField = {
 /** The two limits, after the digits. */
 const LIMIT_FIELDS: readonly NumberField[] = [
   {
-    key: "maxDigits",
+    key: "precisionLimitDigits",
     label: "Precision limit",
-    hint: ({ maxDigits, mode }) => {
-      const ceiling = ceilingFor(maxDigits).toLocaleString("en-US");
+    hint: ({ precisionLimitDigits, mode }) => {
+      const ceiling = ceilingFor(precisionLimitDigits).toLocaleString("en-US");
       return mode.kind === "exact"
         ? `The most digits an answer may be asked for. To certify one, exact mode works at up to 4 × (this + 10) = ${ceiling} digits, so this bounds the effort spent.`
         : `The most digits an answer, or the working digits, may be asked for. A step's rounding is certified by computing it at up to 4 × (this + 10) = ${ceiling} hidden digits, so this bounds the effort spent.`;
     },
   },
   {
-    key: "maxBits",
+    key: "significandLimitBits",
     label: "Most bits",
     hint: () =>
       "The most bits in an exact value's numerator or denominator. A hard limit on time and memory.",

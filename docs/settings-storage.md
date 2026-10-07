@@ -178,7 +178,9 @@ settings in the same envelope, `savedBy` the commit the case was
 measured at, and reads them through the same migrations
 (`settingsFromStored`), so a change here carries the catalogue with it;
 a test over the committed file checks that every case still reads as
-one the suite can run.
+one the suite can run and that the file stores each case's settings as
+the current version does, so a change here rewrites the catalogue
+(`pnpm stress:rewrite`) in the same change.
 
 ## One version for the whole record
 

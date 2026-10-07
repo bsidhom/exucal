@@ -912,21 +912,22 @@ Cloud environment below), so nothing above has to be done there by hand.
 
 ### Commands
 
-| Command              | What it does                                        |
-| -------------------- | --------------------------------------------------- |
-| `pnpm install`       | Install the dependencies the lockfile records.      |
-| `pnpm dev`           | Start the development server with hot reloading.    |
-| `pnpm build`         | Type-check and build a production bundle in `dist`. |
-| `pnpm preview`       | Serve the production bundle locally.                |
-| `pnpm typecheck`     | Type-check without building.                        |
-| `pnpm test`          | Run the tests with Node's built-in test runner.     |
-| `pnpm test:sweep`    | Run the edge sweeps, the conformance tests.         |
-| `pnpm test:all`      | Type-check, then run tests, sweeps and benchmarks.  |
-| `pnpm bench`         | Run the performance benchmarks (see Benchmarks).    |
-| `pnpm stress`        | Measure the catalogued inputs of named functions.   |
-| `pnpm stress:search` | Sample for the costliest inputs, ten minutes a run. |
-| `pnpm format`        | Format all source files with Prettier.              |
-| `pnpm format:check`  | Verify that all source files are formatted.         |
+| Command               | What it does                                                                                        |
+| --------------------- | --------------------------------------------------------------------------------------------------- |
+| `pnpm install`        | Install the dependencies the lockfile records.                                                      |
+| `pnpm dev`            | Start the development server with hot reloading.                                                    |
+| `pnpm build`          | Type-check and build a production bundle in `dist`.                                                 |
+| `pnpm preview`        | Serve the production bundle locally.                                                                |
+| `pnpm typecheck`      | Type-check without building.                                                                        |
+| `pnpm test`           | Run the tests with Node's built-in test runner.                                                     |
+| `pnpm test:sweep`     | Run the edge sweeps, the conformance tests.                                                         |
+| `pnpm test:all`       | Type-check, then run tests, sweeps and benchmarks.                                                  |
+| `pnpm bench`          | Run the performance benchmarks (see Benchmarks).                                                    |
+| `pnpm stress`         | Measure the catalogued inputs of named functions.                                                   |
+| `pnpm stress:search`  | Sample for the costliest inputs, ten minutes a run.                                                 |
+| `pnpm stress:rewrite` | Rewrite the catalogue as the current build stores it, after a change to the settings' stored shape. |
+| `pnpm format`         | Format all source files with Prettier.                                                              |
+| `pnpm format:check`   | Verify that all source files are formatted.                                                         |
 
 The lockfile is frozen for every install, everywhere, not only in CI:
 `frozenLockfile: true` in `pnpm-workspace.yaml` makes `pnpm install` fail

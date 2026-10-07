@@ -1,5 +1,6 @@
 import { LitElement, css, html, svg } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { pressableStyles } from "./styles.ts";
 
 /**
  * A button that copies `text` to the clipboard, as an icon the size of
@@ -14,55 +15,58 @@ import { customElement, property, state } from "lit/decorators.js";
  */
 @customElement("copy-button")
 export class CopyButton extends LitElement {
-  static styles = css`
-    :host {
-      display: inline-flex;
-    }
+  static styles = [
+    pressableStyles,
+    css`
+      :host {
+        display: inline-flex;
+      }
 
-    button {
-      /* A thumb's hit area, pulled back in so the layout sees the icon alone. */
-      padding: 0.625rem;
-      margin: -0.625rem;
-      border: none;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-      line-height: 0;
-      opacity: 0.6;
-      -webkit-tap-highlight-color: transparent;
-    }
+      button {
+        /* A thumb's hit area, pulled back in so the layout sees the icon alone. */
+        padding: 0.625rem;
+        margin: -0.625rem;
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        line-height: 0;
+        opacity: 0.6;
+      }
 
-    button:hover,
-    button:focus-visible,
-    button.copied {
-      opacity: 1;
-    }
+      button:hover,
+      button:focus-visible,
+      button.copied {
+        opacity: 1;
+      }
 
-    button.failed {
-      opacity: 1;
-      color: var(--color-error);
-    }
+      button.failed {
+        opacity: 1;
+        color: var(--color-error);
+      }
 
-    svg {
-      width: 1.125em;
-      height: 1.125em;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
+      svg {
+        width: 1.125em;
+        height: 1.125em;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
 
-    /* Read aloud, never shown. */
-    .status {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
-    }
-  `;
+      /* Read aloud, never shown. */
+      .status {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+    `,
+  ];
 
   /** What the button copies. */
   @property() text = "";

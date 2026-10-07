@@ -1676,11 +1676,13 @@ src/limits.ts             recommendLimits: the probe that measures the device wi
 src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result, each two expressions the printer writes; src/outcome.test.ts checks them
 src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome
 src/copy-button.ts        the button beside each result that copies it
+src/app-button.ts         the app's button with words in it: Done, Apply, Retry, the probe's; the one place its look is defined
+src/step-button.ts        a stepper's − or + beside a number input, the input's height, a thumb's hit area
 src/settings-button.ts    the cog in the header's corner that opens and closes the settings sheet
 src/settings-panel.ts     the settings sheet: the dialog with its handle and Done, the controls with their steppers, the refusal and clamp lines, the probe's button and its proposal; emits settings-change and settings-close
 src/app-footer.ts         the footer: the build ID, which checks for updates when tapped, and the worker's status
 src/subscription.ts       Subscription: a reactive controller that mirrors a source into its host; src/subscription.test.ts checks it
-src/styles.ts             the styles the components share
+src/styles.ts             the styles the components share: the feedback every button gives (hover, press, focus, disabled) and the hint line
 src/app-shell.ts          the composition root: loads the table, holds the settings and the worker's status, wires the parts
 ```
 

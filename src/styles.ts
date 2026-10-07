@@ -1,19 +1,53 @@
 // The styles more than one component shares, composed into a component's
-// `static styles` as `[buttonStyles, css\`…\`]`, so that each component's
-// own sheet holds only what is its own.
+// `static styles` as `[pressableStyles, css\`…\`]`, so that each
+// component's own sheet holds only what is its own.
 
 import { css } from "lit";
 
-/** A button in the app's look: the text's font, a thin border, and no fill. */
-export const buttonStyles = css`
+/**
+ * The feedback every button in the app gives, so that a press is seen
+ * to land: a tint of the text's color on hover, a deeper tint and a
+ * slight shrink while pressed, the browser's focus ring for a keyboard,
+ * and a faded, inert look when disabled. A component composes this
+ * sheet and adds its own shape; the transitions stand down under
+ * `prefers-reduced-motion`.
+ */
+export const pressableStyles = css`
   button {
-    font: inherit;
-    padding: 0.5rem 1rem;
-    border: 1px solid currentColor;
-    border-radius: 0.5rem;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
+    transition:
+      background-color 120ms,
+      opacity 120ms,
+      transform 80ms;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:hover:not(:disabled) {
+    background-color: color-mix(in srgb, currentColor 8%, transparent);
+  }
+
+  button:active:not(:disabled) {
+    background-color: color-mix(in srgb, currentColor 18%, transparent);
+    transform: scale(0.96);
+  }
+
+  button:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button {
+      transition: none;
+    }
+
+    button:active:not(:disabled) {
+      transform: none;
+    }
   }
 `;
 

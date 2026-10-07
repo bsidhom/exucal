@@ -4,7 +4,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { BUILD_ID, SHORT_BUILD_ID, shortBuildId } from "./build-id.ts";
 import { applyUpdate, checkForUpdate } from "./register-service-worker.ts";
 import type { WorkerStatus } from "./service-worker-updates.ts";
-import { buttonStyles } from "./styles.ts";
+import { pressableStyles } from "./styles.ts";
 
 /**
  * The footer under everything: the build the page is running (build-id.ts),
@@ -39,7 +39,7 @@ import { buttonStyles } from "./styles.ts";
 @customElement("app-footer")
 export class AppFooter extends LitElement {
   static styles = [
-    buttonStyles,
+    pressableStyles,
     css`
       :host {
         display: block;
@@ -56,12 +56,29 @@ export class AppFooter extends LitElement {
         opacity: 0.6;
       }
 
-      /* The footer's buttons are links. */
+      /* The footer's buttons are links: no box, no tint, the press seen in the text. */
       button {
+        font: inherit;
         padding: 0;
         border: none;
+        background: transparent;
         color: LinkText;
         text-decoration: underline;
+        cursor: pointer;
+      }
+
+      button:hover:not(:disabled),
+      button:active:not(:disabled) {
+        background-color: transparent;
+        transform: none;
+      }
+
+      button:hover:not(:disabled) {
+        text-decoration-thickness: 2px;
+      }
+
+      button:active:not(:disabled) {
+        opacity: 0.6;
       }
 
       /*

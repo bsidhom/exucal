@@ -1,5 +1,6 @@
 import { LitElement, css, html, svg } from "lit";
-import { customElement, property, query } from "lit/decorators.js";
+import { customElement, property } from "lit/decorators.js";
+import { pressableStyles } from "./styles.ts";
 
 /**
  * The cog that opens and closes the settings sheet (settings-panel.ts;
@@ -10,57 +11,59 @@ import { customElement, property, query } from "lit/decorators.js";
  * `expanded` is the sheet's state, said as `aria-expanded`, and the
  * label names it for a screen reader and, as a title, for the pointer.
  * The shell listens for its `click`, owns the open state, and calls
- * `focus()` to put focus back on it when the sheet closes.
+ * `focus()` to put focus back on it when the sheet closes, which the
+ * delegated focus hands to the button. The press is seen as every
+ * button's is (styles.ts, `pressableStyles`).
  */
 @customElement("settings-button")
 export class SettingsButton extends LitElement {
-  static styles = css`
-    :host {
-      display: inline-flex;
-    }
+  static shadowRootOptions = {
+    ...LitElement.shadowRootOptions,
+    delegatesFocus: true,
+  };
 
-    button {
-      /* A thumb's hit area around the glyph: 1.5rem and 0.625rem each side is 44 pixels at 16. */
-      padding: 0.625rem;
-      border: none;
-      border-radius: 50%;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-      line-height: 0;
-      opacity: 0.6;
-      -webkit-tap-highlight-color: transparent;
-    }
+  static styles = [
+    pressableStyles,
+    css`
+      :host {
+        display: inline-flex;
+      }
 
-    button:hover,
-    button:focus-visible,
-    button[aria-expanded="true"] {
-      opacity: 1;
-    }
+      button {
+        /* A thumb's hit area around the glyph: 1.5rem and 0.625rem each side is 44 pixels at 16. */
+        padding: 0.625rem;
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        line-height: 0;
+        opacity: 0.6;
+      }
 
-    svg {
-      width: 1.5rem;
-      height: 1.5rem;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 1.75;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-  `;
+      button:hover,
+      button:focus-visible,
+      button[aria-expanded="true"] {
+        opacity: 1;
+      }
+
+      svg {
+        width: 1.5rem;
+        height: 1.5rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.75;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    `,
+  ];
 
   /** Whether the sheet the cog discloses is open. */
   @property({ type: Boolean }) expanded = false;
 
   /** What the button is called, for a screen reader and the pointer. */
   @property() label = "Settings";
-
-  @query("button") private button?: HTMLButtonElement;
-
-  /** Puts focus on the button itself, for the shell when the sheet closes. */
-  focus() {
-    this.button?.focus();
-  }
 
   render() {
     return html`

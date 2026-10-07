@@ -1,13 +1,13 @@
 // The stress suite (docs/calculator-plan.md, task 8.3), run by hand:
 //
 //   pnpm stress [<function> ...] [--profile <name>] [--sample <n>]
-//               [--skip-hangs] [--record [--accept-rewording]] [--jobs <n>]
+//               [--skip-hangs] [--record] [--jobs <n>]
 //
 // The catalogue's cases (bench/stress/catalogue.json) that call the
 // functions named, or every case when none is named, measured again:
 // before and after a change aimed at those functions, after a change to
-// a kernel, to the pipeline or to how a result is written, before a
-// release, and when the interface's work (#118) wants a fresh target.
+// a kernel or to the pipeline, before a release, and when the interface's
+// work (#118) wants a fresh target.
 // `--profile` keeps the cases of one settings profile. `--sample <n>`
 // keeps `n` of the entries chosen the same way on every machine
 // (catalogue.ts, `sample`) and no hang: a spot check of the values in
@@ -28,26 +28,23 @@
 // typed out again (no margin applies, as it is the case's own cost), a
 // hang its new progress and estimate, and a hang that now finishes
 // becomes its family's entry. Entries that have become cheap stay: they
-// guard against the cost coming back, their value is still checked, and
-// a costlier case of their family found later replaces them. A changed
-// value or a passed deadline is never recorded, unless
-// `--accept-rewording` says so: then an entry whose result is written
-// otherwise than catalogued is recorded with the new line, each one
-// printed old and new, for a change to how a result is written rather
-// than to what it computes (a zero's sign, a unit's spelling). The tool
-// cannot tell the two apart, so the flag is a statement, made in the
-// change that uses it, that the values are the same, to be read against
-// the catalogue's diff.
+// guard against the cost coming back, and a costlier case of their
+// family found later replaces them. A case past its deadline or giving
+// another kind of outcome is never recorded.
 
-// It fails only on what holds on any machine:
+// It fails only on what holds on any machine, and only on what the
+// suite is for, the cost of long-running expressions and whether they
+// hang or crash, never on how an outcome is written:
 //
-// - **An entry gives another outcome than catalogued:** another kind,
-//   warnings or result, so that an optimization that changes a value
-//   fails. The result is what follows the relation (`≈ 0 K`, `= 3 ft +
-//   2 in`): the echo of the expression before it is the printer's
-//   writing of what was typed and no value, and the note after it is
-//   left out, since a kernel made sharper tightens the bound it states
-//   without changing the value (`≈ 0`, "within 2e-4049 of zero").
+// - **An entry gives another kind of outcome than catalogued:** a value
+//   where it was refused, a refusal where it computed, nothing where
+//   there was something. The line itself, the value as the display
+//   writes it or the message, is kept in the catalogue as a record of
+//   what was computed and is reported when it differs, as information
+//   (ℹ); the display, the printer and the messages have their own tests,
+//   and a sharper kernel changes a bound or a digit without changing
+//   what the suite guards.
+// - **A worker fails:** a crash, which no catalogued case may cause.
 // - **An entry passes its deadline,** four times the time catalogued for
 //   it and two minutes at least.
 //
@@ -62,7 +59,6 @@ import { parseArgs } from "node:util";
 import { costlyCalls } from "./cases.ts";
 import {
   DEADLINE_MS,
-  comparableLine,
   hangEstimate,
   perCall,
   readCatalogue,
@@ -83,7 +79,6 @@ import {
   typeOut,
   type Case,
   type Measurement,
-  type OutcomeSummary,
 } from "./harness.ts";
 import { runPool } from "./pool.ts";
 import {
@@ -108,9 +103,6 @@ type Unit =
 /** What checking a unit found: whether it fails the suite, and its line. */
 type Verdict = { readonly failed: boolean; readonly line: string };
 
-/** What the run accepts beyond the catalogue: a result written otherwise, recorded under `--accept-rewording`. */
-type Accepting = { readonly rewording: boolean };
-
 function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(2)} s`;
 }
@@ -132,24 +124,11 @@ function deadlineOf(unit: Unit): number {
     : DEADLINE_MS;
 }
 
-/**
- * What of an outcome must not change: its kind, its warnings, and the
- * result side of its first line, from the relation on, without the note
- * after the value, which states a bound or the digits certified and may
- * sharpen. The echo of the expression before the relation is left out:
- * it is the printer's, and changes with it.
- */
-function comparable(outcome: OutcomeSummary): OutcomeSummary {
-  if (outcome.kind !== "result") return outcome;
-  return { ...outcome, line: comparableLine(outcome.line) };
-}
-
 /** What measuring `unit` again found, against a reference warm time. */
 function verdict(
   unit: Unit,
   outcome: Outcome,
   referenceMs: number | undefined,
-  accepting: Accepting,
 ): Verdict {
   if (unit.kind === "hang") {
     const { hang } = unit;
@@ -195,28 +174,19 @@ function verdict(
       line: `✖ ${name}: past its deadline of ${seconds(m.deadlineMs)}`,
     };
   }
+  let differs = "";
   for (const [run, then] of [
     [m.cold, entry.cold],
     [m.warm, entry.warm],
   ] as const) {
-    const now = comparable(run.outcome);
-    const before = comparable(then.outcome);
-    if (JSON.stringify(now) !== JSON.stringify(before)) {
-      if (
-        accepting.rewording &&
-        now.kind === "result" &&
-        before.kind === "result" &&
-        now.warnings === before.warnings
-      ) {
-        return {
-          failed: false,
-          line: `✱ ${name}: reworded, recorded: was ${JSON.stringify(then.outcome.line)}, now ${JSON.stringify(run.outcome.line)}`,
-        };
-      }
+    if (run.outcome.kind !== then.outcome.kind) {
       return {
         failed: true,
-        line: `✖ ${name}: gave ${JSON.stringify(now)}, catalogued ${JSON.stringify(before)}`,
+        line: `✖ ${name}: gave ${JSON.stringify(run.outcome)}, catalogued ${JSON.stringify(then.outcome)}`,
       };
+    }
+    if (differs === "" && run.outcome.line !== then.outcome.line) {
+      differs = `\n    ℹ now ${JSON.stringify(run.outcome.line)}, catalogued ${JSON.stringify(then.outcome.line)}`;
     }
   }
   const ratio =
@@ -229,7 +199,7 @@ function verdict(
       : "";
   return {
     failed: false,
-    line: `✔ ${name}: cold ${seconds(m.cold.ms)} (catalogued ${seconds(entry.cold.ms)}), warm ${seconds(m.warm.ms)} (catalogued ${seconds(entry.warm.ms)})${ratio}; ${perCall({ warm: m.warm, calls: entry.calls }).toFixed(0)} ms a call${cheaper}`,
+    line: `✔ ${name}: cold ${seconds(m.cold.ms)} (catalogued ${seconds(entry.cold.ms)}), warm ${seconds(m.warm.ms)} (catalogued ${seconds(entry.warm.ms)})${ratio}; ${perCall({ warm: m.warm, calls: entry.calls }).toFixed(0)} ms a call${cheaper}${differs}`,
   };
 }
 
@@ -239,7 +209,8 @@ function verdict(
  * new timings, then its typing again; a hang still past its deadline its
  * new progress and estimate; a hang that now finishes leaves the hangs,
  * and becomes its family's entry as a hit of the search would. Called
- * only for a unit that passed: a changed value is never recorded.
+ * only for a unit that passed; the line recorded is the one the run
+ * gave, which may read otherwise than before.
  */
 async function record(
   unit: Unit,
@@ -325,7 +296,6 @@ async function main(): Promise<void> {
         profile: { type: "string" },
         sample: { type: "string" },
         record: { type: "boolean", default: false },
-        "accept-rewording": { type: "boolean", default: false },
         jobs: { type: "string" },
         "skip-hangs": { type: "boolean", default: false },
         help: { type: "boolean", default: false },
@@ -339,13 +309,9 @@ async function main(): Promise<void> {
   const functions = parsed.positionals;
   if (options.help) {
     console.log(
-      "usage: pnpm stress [<function> ...] [--profile <name>] [--sample <n>] [--skip-hangs] [--record [--accept-rewording]] [--jobs <n>]",
+      "usage: pnpm stress [<function> ...] [--profile <name>] [--sample <n>] [--skip-hangs] [--record] [--jobs <n>]",
     );
     return;
-  }
-  if (options["accept-rewording"] && !options.record) {
-    console.error("--accept-rewording records, so it takes --record");
-    process.exit(2);
   }
   const sampled =
     options.sample === undefined ? undefined : Number(options.sample);
@@ -410,7 +376,6 @@ async function main(): Promise<void> {
   );
 
   const commit = options.record ? currentCommit() : undefined;
-  const accepting: Accepting = { rewording: options["accept-rewording"] };
   const verdicts: Verdict[] = [];
   let i = 0;
   await runPool<Unit>({
@@ -418,7 +383,7 @@ async function main(): Promise<void> {
     next: () => units[i++],
     run: async (unit) => {
       const outcome = await measureCase(caseOfUnit(unit), deadlineOf(unit));
-      const v = verdict(unit, outcome, referenceMs, accepting);
+      const v = verdict(unit, outcome, referenceMs);
       verdicts.push(v);
       console.log(`[${verdicts.length}/${units.length}] ${v.line}`);
       if (commit !== undefined && !v.failed && "measured" in outcome) {

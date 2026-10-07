@@ -40,7 +40,8 @@
 // the tests take a set as a parameter with that one as the default, so that
 // a test can inject a built-in of its own.
 
-import type { Reach } from "./rational.ts";
+import { bitsFor } from "./fixed.ts";
+import type { Need, Reach } from "./rational.ts";
 import {
   magnitudeAbove,
   magnitudeBelow,
@@ -49,6 +50,7 @@ import {
   type Ball,
   type BallError,
   type Edge,
+  bitsOfRadius,
 } from "./ball.ts";
 import type { NumberContext } from "./context.ts";
 import {
@@ -405,6 +407,16 @@ export function isHuge(x: Ball, context: NumberContext): boolean {
 }
 
 /**
+ * The bits a trigonometric reduction of `x` would work at: the bits of
+ * its magnitude, which the reduction's fixed-point conversion takes
+ * whole, plus the working bits of the context; the need a `tooLarge` of
+ * `isHuge` reports, a bound.
+ */
+export function reductionBits(x: Ball, context: NumberContext): number {
+  return Number(bitsOfRadius(magnitudeAbove(x))) + bitsFor(context.precision);
+}
+
+/**
  * Whether the bounded `x` lies throughout at or beyond `2^bits` in
  * magnitude: where the saturations of `atan`, `asinh` and `acosh` hold
  * (docs/decimal.md, "The kernel's boundary").
@@ -451,9 +463,15 @@ export function unresolvedAt(
  * inexactly (`Reach`): every refusal states it, since the built-in alone
  * knows whether an inexact argument changes what it needs.
  */
-export function tooLarge(inexact: Reach): Result<never, BuiltinError> {
-  return err({ kind: "tooLarge", inexact });
+export function tooLarge(
+  inexact: Reach,
+  need: Need,
+): Result<never, BuiltinError> {
+  return err({ kind: "tooLarge", inexact, need });
 }
+
+/** The need of a refusal by a test that yields no count of bits. */
+export const UNKNOWN_NEED: Need = { kind: "unknown" };
 
 /** The result of a call on the midpoints of unbounded arguments, with an unbounded radius. */
 export function unboundedOf(

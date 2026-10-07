@@ -104,15 +104,18 @@ Three rules say where, and only where, a value can lose precision:
    and fails only at the exponent bound, `overflow` or `underflow` when
    every value of its ball is past it, and `unresolved` at the edge
    `bound`, which the retry loop narrows, when some are (the plan's D18);
-   an exact result past the significand limit is refused by the evaluator at
-   the node that forms it (D19, "Size limits" below), and the callers of
-   the operations take any refusal. A sum aligns the significands by
+   an exact result past the significand limit is refused by the operation
+   that would form it, which predicts its size first (D19 as amended,
+   "Size limits" below), and the callers of the operations take any
+   refusal. A sum aligns the significands by
    the difference of the exponents, which the significand limit bounds
    (docs/decimal.md, "Sums, comparisons and the radius"): two exact
    operands that cannot be aligned within it have an exact sum that cannot
    be held and fail `tooLarge` in exact mode (`1e999999999 + 1`), while a
-   sum with an inexact operand, which is about to be settled, settles its
-   operands first and, when they still do not align, absorbs the smaller
+   sum with an inexact operand, which is about to be settled, puts its
+   operands on the working grid first (an exact one of more bits than
+   the grid rounded there, the rounding charged to the radius) and, when
+   they still do not align, absorbs the smaller
    into the radius (`sqrt(2) + 1e999999999` is `1e999999999` within
    `1.5`), and in decimal mode such a sum is the larger operand, or its
    neighbor at the digits by the smaller's sign in a directed mode (D26);
@@ -504,11 +507,14 @@ The bound is kept by decision, for the exponential's cost beyond it and
 the parts of the number type that are exact only within it
 (docs/decimal.md, "Decision: the bound stays at `10^18`").
 The significand limit, `significandLimitBits` in the context, bounds the size of a significand's
-numerator or denominator and the alignment of a sum: an exact power,
+numerator or denominator and the alignment of a sum, strictly: no exact
+value is formed past it. An exact power,
 whose significand can be exponentially larger than its base's, predicts the
 size of its result and returns `tooLarge` instead of computing anything
 beyond it (reported at the bound instead when its decimal exponent
-passes that too, which no setting moves: `7^1e19`), a sum of two exact
+passes that too, which no setting moves: `7^1e19`), as every exact
+product, quotient and sum does since the strict limit (D19 as amended;
+"Size limits" below), a sum of two exact
 operands whose alignment, `|Δexp| log2 10` bits, exceeds the limit is
 `tooLarge` in exact mode, the kernel is handed no argument beyond
 `2^significandLimitBits` (the
@@ -546,25 +552,36 @@ big number by the measure that matters; `approx` is the remedy, as for
 any other. A binary exponent beside the decimal one, which
 docs/decimal.md weighed and withdrew, would have spared `2^-30000` and
 done nothing for `3^-100000`: the cost is in storing exact rationals as
-digits, not in the power of ten. Every exact result is held to the
-limit where the evaluator produces it (the plan's D19): `evaluate()`
-measures the settled result of every node, a unit looked up and a
-call's result included, and refuses one whose canonical significand passes
-the limit, `tooLarge` at the node, as the pipeline does again after the
-two quotients it forms outside the evaluator, the conversion's ratio and
-a function want's count. The measure is after the fact, on the reduced
-result, so `x / x` is one and a quotient costs its reduction, not its
-unreduced parts; what is formed before the check refuses is at most a
-product of two significands within the limit, a sum aligned within it or a
-quotient's two parts, each at most twice the limit and reduced once,
-which is the operation the probe times when it recommends the limit. A
-power still predicts its size before forming anything, with the node
-check as the backstop. The message names the node and the remedy:
-`approx` around the node's first operand, which makes the result inexact
-and settled rather than refused (around the node itself it would come
-too late, the node being refused before `approx` sees it), or a higher
-`significandLimitBits`; exact mode never rounds an exact value on its own to stay
-within the limit (the plan's D20). An inexact result, and every result
+digits, not in the power of ten. The limit is strict: no exact value is
+formed past it (the plan's D19 as amended). Every operation that forms
+one predicts its size from the operands first and refuses with the bits
+it would need, `tooLarge` with a `Need`: a product and a quotient after
+their two cross-cancelling gcds, which run on operands within the limit,
+so that `x / x` is one and the bound is the truth or a bit over it
+(rational.ts, `multiplyWithin` and `divideWithin`); a sum on the bound
+of its unreduced sum (`addWithin`), the price of never forming it; a
+power on `floor(|n| log2 p) + 1` for its larger part; a quotient and a
+power whose fraction fits on its canonical form too, a denominator's
+twos becoming fives in the numerator (scaled.ts, `scaledWithin`); a
+sum's alignment and a literal's digits as before. `evaluate()` asserts
+on every node's result, and the pipeline on the two quotients it forms
+outside the evaluator, the conversion's ratio and a function want's
+count: an exact result past the limit there is a bug in a prediction,
+thrown, never a refusal. What is formed is at most the gcds' operands,
+which is what the probe times when it recommends the limit. The message
+names the node, the bits it would need where the refusing function
+knows them ("of 113,262 bits", "of about 69,659 bits"; nothing where
+it does not) and the remedy: `approx` around the node's first operand,
+which makes the result inexact and settled rather than refused (around
+the node itself it would come too late, the node being refused before
+`approx` sees it), or decimal mode; nothing is said of raising the
+limit, which the user infers from the bits. Exact mode never rounds an
+exact value on its own to stay within the limit (the plan's D20), but
+an exact operand of more bits than the working grid, in a product, a
+quotient or a sum with an inexact operand whose result is inexact in
+any case, is put on the grid first when the exact step is refused,
+rounded to the working digits with the rounding charged to the radius
+as `approx` would. An inexact result, and every result
 in decimal mode, is settled to the working digits and never refused for
 size; the built-ins' internal intermediates, a unit list's
 decomposition, `powBall`'s settled loop and the display's reciprocal

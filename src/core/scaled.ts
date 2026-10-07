@@ -96,20 +96,22 @@ import {
   MAX_SIGNIFICAND_LIMIT_BITS,
   ONE as ONE_FRACTION,
   ZERO as ZERO_FRACTION,
-  add as addFractions,
   bitLength,
   compare as compareFractions,
-  divide as divideFractions,
   exactRoot as exactRootOfFraction,
   invert as invertFraction,
-  multiply as multiplyFractions,
   negate as negateFraction,
   pow as powFraction,
   sign as signOf,
-  subtract as subtractFractions,
   trunc as truncFraction,
   type Rational,
   type RationalError,
+  addWithin,
+  subtractWithin,
+  multiplyWithin,
+  divideWithin,
+  boundOf,
+  type Need,
 } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import {
@@ -218,7 +220,11 @@ export function toRational(
   const { num, den } = s.significand;
   if (s.exp === 0n) return ok(s.significand);
   // The value's own representation as a fraction passes the limit.
-  if (!formable(s, limit)) return err({ kind: "tooLarge", inexact: "exceeds" });
+  if (!formable(s, limit)) {
+    // The value's own representation as a fraction exceeds the limit:
+    // its digits with the power of ten written out.
+    return err({ kind: "tooLarge", inexact: "exceeds", need: formedNeed(s) });
+  }
   const magnitude = abs(s.exp);
   const power = 10n ** magnitude;
   // Multiplying the numerator keeps lowest terms, the denominator being
@@ -344,7 +350,7 @@ export function add(
   b: Scaled,
   limit: number,
 ): Result<Scaled, ScaledError> {
-  return combine(a, b, limit, addFractions);
+  return combine(a, b, limit, addWithin);
 }
 
 /** `a - b`, exactly, as `add` aligns and fails. */
@@ -353,30 +359,128 @@ export function subtract(
   b: Scaled,
   limit: number,
 ): Result<Scaled, ScaledError> {
-  return combine(a, b, limit, subtractFractions);
+  return combine(a, b, limit, subtractWithin);
 }
 
-/** `op` over the significands of `a` and `b` brought to the lesser exponent. */
+/**
+ * `op` over the significands of `a` and `b` brought to the lesser
+ * exponent, held to `limit` bits before anything is formed: the aligned
+ * significand, the larger one's numerator times the power of ten of the
+ * shift, is bounded first, since it is within a bit of what the sum
+ * takes, and then the sum itself (`addWithin`). The exact sum is what
+ * exceeds the limit: with an inexact operand the smaller is absorbed
+ * into the radius instead of aligned (ball.ts).
+ */
 function combine(
   a: Scaled,
   b: Scaled,
   limit: number,
-  op: (x: Rational, y: Rational) => Rational,
+  op: (
+    x: Rational,
+    y: Rational,
+    limit: number,
+  ) => Result<Rational, RationalError>,
 ): Result<Scaled, ScaledError> {
-  if (isZero(a)) return scaled(op(ZERO_FRACTION, b.significand), b.exp);
-  if (isZero(b)) return scaled(op(a.significand, ZERO_FRACTION), a.exp);
+  if (isZero(a))
+    return scaledFrom(op(ZERO_FRACTION, b.significand, limit), b.exp, limit);
+  if (isZero(b))
+    return scaledFrom(op(a.significand, ZERO_FRACTION, limit), a.exp, limit);
   const shift = abs(a.exp - b.exp);
-  if (shift > BigInt(limit) || Number(shift) * BITS_PER_DIGIT > limit) {
-    // The exact sum is what exceeds the limit: with an inexact operand the smaller
-    // is absorbed into the radius instead of aligned (ball.ts).
-    return err({ kind: "tooLarge", inexact: "fits" });
-  }
   const exp = a.exp < b.exp ? a.exp : b.exp;
+  const shifted = a.exp > exp ? a : b;
+  const bits =
+    bitLength(abs(shifted.significand.num)) + bitsOfTens(Number(shift));
+  if (bits > limit) {
+    return err({ kind: "tooLarge", inexact: "fits", need: boundOf(bits) });
+  }
   const left =
     a.exp > exp ? timesPowerOfTen(a.significand, shift) : a.significand;
   const right =
     b.exp > exp ? timesPowerOfTen(b.significand, shift) : b.significand;
-  return scaled(op(left, right), exp);
+  return scaledFrom(op(left, right, limit), exp, limit);
+}
+
+/** `significand` at `exp` within `limit` bits (`scaledWithin`), or the failure that produced no significand. */
+function scaledFrom(
+  significand: Result<Rational, RationalError>,
+  exp: bigint,
+  limit: number,
+): Result<Scaled, ScaledError> {
+  return significand.ok
+    ? scaledWithin(significand.value, exp, limit)
+    : significand;
+}
+
+/**
+ * `scaled(significand, exp)` when the canonical form stays within `limit`
+ * bits, `tooLarge` with the bits it would take otherwise, and nothing
+ * formed past the limit: the canonical form of a fraction within the
+ * limit can pass it, since a denominator's twos become fives in the
+ * numerator (`2^-30000` is `5^30000 × 10^-30000`, 69,659 bits for a
+ * fraction of 30,001), so a result whose fraction was predicted within
+ * the limit (`divideWithin`, `pow`) is sized here before it is formed.
+ * The reach is `fits`: the value's fraction fits, and the result would be
+ * exact. A product or a sum of canonical significands needs no such
+ * check, their denominators being coprime to ten, and it costs nothing
+ * on them.
+ */
+export function scaledWithin(
+  significand: Rational,
+  exp: bigint,
+  limit: number,
+): Result<Scaled, ScaledError> {
+  const bits = canonicalBits(significand);
+  if (bits > limit) {
+    return err({ kind: "tooLarge", inexact: "fits", need: boundOf(bits) });
+  }
+  return scaled(significand, exp);
+}
+
+/**
+ * The bits the canonical form of `significand` takes in its numerator, as
+ * `normalize` would form it, bounded from above within a bit: the
+ * numerator's bits plus those of the `5^k` or `2^k` that a denominator's
+ * twos or fives past its tens move into it. The denominator only shrinks.
+ */
+function canonicalBits(significand: Rational): number {
+  const { num, den } = significand;
+  if (num === 0n) return 0;
+  const twos = trailingZeros(den);
+  const fives = fivesIn(den, BigInt(bitLength(den)) / 2n);
+  const tens = min(twos, fives);
+  return (
+    bitLength(abs(num)) +
+    Math.ceil(Number(twos - tens) * Math.log2(5)) +
+    Number(fives - tens)
+  );
+}
+
+/** The bits `s`'s significand takes in its larger part, measured: the need of a value that exists. */
+export function measuredNeed(s: Scaled): {
+  readonly kind: "exact";
+  readonly bits: number;
+} {
+  const { num, den } = s.significand;
+  return {
+    kind: "exact",
+    bits: Math.max(bitLength(abs(num)), bitLength(den)),
+  };
+}
+
+/** The bits of `10^k` for `k >= 0`: `floor(k log2 10) + 1`. */
+export function bitsOfTens(k: number): number {
+  return Math.floor(k * Math.log2(10)) + 1;
+}
+
+/** The bits `s` takes as a fraction, its power of ten written out: what `toRational` would form. */
+function formedNeed(s: Scaled): Need {
+  const { num, den } = s.significand;
+  const tens = bitsOfTens(Number(abs(s.exp)));
+  return boundOf(
+    s.exp > 0n
+      ? bitLength(abs(num)) + tens
+      : Math.max(bitLength(abs(num)), bitLength(den) + tens),
+  );
 }
 
 /**
@@ -397,33 +501,74 @@ export function significandWithin(
 }
 
 /**
- * `a × b`, exactly: the significands multiplied, the exponents added; fails
- * at the bound. The product is not held to the significand limit, which the
- * evaluator's node check refuses it at once formed (D19), so a caller
- * takes any refusal.
+ * `a × b`, exactly: the significands multiplied within `limit` bits
+ * (`multiplyWithin`, which predicts the product's size after its gcds
+ * and forms nothing past the limit, D19 as the strict limit amended it),
+ * the exponents added; fails at the limit with the bits the product
+ * needs, and at the bound.
  */
-export function multiply(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
+export function multiply(
+  a: Scaled,
+  b: Scaled,
+  limit: number,
+): Result<Scaled, ScaledError> {
   if (isZero(a) || isZero(b)) return ok(ZERO);
-  return scaled(multiplyFractions(a.significand, b.significand), a.exp + b.exp);
+  const product = scaledFrom(
+    multiplyWithin(a.significand, b.significand, limit),
+    a.exp + b.exp,
+    limit,
+  );
+  if (product.ok || product.error.kind !== "tooLarge") return product;
+  // The product's decimal exponent is the operands' sum or one above it.
+  const low = decimalExponent(a) + decimalExponent(b);
+  const past = pastBoundBetween(low, low + 1n);
+  return past === undefined ? product : err(past);
 }
 
 /**
- * `a / b`, exactly: the significands divided, the exponents subtracted;
- * fails on a zero `b` and at the bound. Like a product, the quotient is
- * held to the significand limit at the node, not here, and a caller takes any
- * refusal.
+ * The refusal of a value whose decimal exponent lies between `low` and
+ * `high` when every exponent there is past the bound, `undefined` when
+ * one is within it: how a product or a quotient whose significand the
+ * limit refuses is reported at the bound instead when it is past that
+ * too, as it was when the result was formed and sized after, and as
+ * `pow` reports a power through `powerRefusal`; a hair from the bound,
+ * where the exponent cannot be told without the value, it is `tooLarge`.
  */
-export function divide(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
-  const significand = divideFractions(a.significand, b.significand);
-  if (!significand.ok) return significand;
-  if (isZero(a)) return ok(ZERO);
-  return scaled(significand.value, a.exp - b.exp);
+function pastBoundBetween(low: bigint, high: bigint): Refusal | undefined {
+  if (low > MAX_EXPONENT) return pastBound(low);
+  if (high < -MAX_EXPONENT) return pastBound(high);
+  return undefined;
 }
 
-/** The reciprocal of `s`; fails on zero and at the bound. */
-export function invert(s: Scaled): Result<Scaled, ScaledError> {
+/**
+ * `a / b`, exactly: the significands divided within `limit` bits, as a
+ * product is, and the quotient's canonical form sized within it too
+ * (`scaledWithin`), the exponents subtracted; fails on a zero `b`, at the
+ * limit with the bits the quotient needs, and at the bound.
+ */
+export function divide(
+  a: Scaled,
+  b: Scaled,
+  limit: number,
+): Result<Scaled, ScaledError> {
+  if (isZero(b)) return err({ kind: "divisionByZero" });
+  if (isZero(a)) return ok(ZERO);
+  const quotient = scaledFrom(
+    divideWithin(a.significand, b.significand, limit),
+    a.exp - b.exp,
+    limit,
+  );
+  if (quotient.ok || quotient.error.kind !== "tooLarge") return quotient;
+  // The quotient's decimal exponent is the operands' difference or one below it.
+  const high = decimalExponent(a) - decimalExponent(b);
+  const past = pastBoundBetween(high - 1n, high);
+  return past === undefined ? quotient : err(past);
+}
+
+/** The reciprocal of `s` within `limit` bits, its canonical form sized first (`scaledWithin`); fails on zero, at the limit and at the bound. */
+export function invert(s: Scaled, limit: number): Result<Scaled, ScaledError> {
   const significand = invertFraction(s.significand);
-  return significand.ok ? scaled(significand.value, -s.exp) : significand;
+  return scaledFrom(significand, -s.exp, limit);
 }
 
 /**
@@ -453,7 +598,7 @@ export function pow(
     return n < 0n ? err({ kind: "divisionByZero" }) : ok(ZERO);
   }
   const significand = powFraction(s.significand, n, limit);
-  if (significand.ok) return scaled(significand.value, s.exp * n);
+  if (significand.ok) return scaledWithin(significand.value, s.exp * n, limit);
   if (significand.error.kind !== "tooLarge") return significand;
   const refusal = powerRefusal(s, integerExponent(n));
   return err(
@@ -586,7 +731,11 @@ export function parseDecimal(text: string): Result<Scaled, ScaledError> {
   const digits = integerPart + fraction;
   if (digits.length * BITS_PER_DIGIT > MAX_SIGNIFICAND_LIMIT_BITS) {
     // The digits typed are the significand; nothing computes them smaller.
-    return err({ kind: "tooLarge", inexact: "exceeds" });
+    return err({
+      kind: "tooLarge",
+      inexact: "exceeds",
+      need: boundOf(bitsOfTens(digits.length)),
+    });
   }
   // The value is (integer digits ++ fraction digits) × 10^(exponent - #fraction).
   const exponent = match[5] === undefined ? 0n : BigInt(match[5]);

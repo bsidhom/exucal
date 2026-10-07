@@ -332,7 +332,12 @@ export function buildTable(
   // collected first and serve the walk as well as the finished table.
   const primitives = declaredPrimitives(index.units.values());
   const walk = walker<Node, Built, BuildError>((definition, visit) =>
-    evaluateNode(definition, lookupIn(index, visit), primitives, context),
+    evaluateNode(
+      definition,
+      lookupIn(index, visit, context),
+      primitives,
+      context,
+    ),
   );
   const prefixes = new Map<string, Ball>();
   const units = new Map<string, Quantity>();
@@ -345,7 +350,7 @@ export function buildTable(
       // from the top, so the inverse may call it.
       const inverse = checkInverse(
         definition,
-        lookupIn(index, walk),
+        lookupIn(index, walk, context),
         primitives,
         context,
       );
@@ -358,7 +363,7 @@ export function buildTable(
       // walk, requesting what they refer to from the top.
       const list = evaluateUnitList(
         definition,
-        lookupIn(index, walk),
+        lookupIn(index, walk, context),
         primitives,
         context,
       );
@@ -890,6 +895,7 @@ function evaluateUnitList(
 function lookupIn(
   index: Index,
   visit: Visit<Node, Built, BuildError>,
+  context: NumberContext,
 ): Lookup<BuildError> {
   return {
     unit: (name, span) => {
@@ -910,6 +916,7 @@ function lookupIn(
       const product = multiplyQuantities(
         asQuantity(prefix.value),
         asQuantity(unit.value),
+        context,
       );
       if (product.ok) return product;
       // A prefix and a unit each within the exponent bound multiply to

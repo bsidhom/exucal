@@ -501,6 +501,7 @@ test("a failed power is reported at the power", () => {
     kind: "tooLarge",
     span: power,
     inexact: "fits",
+    need: { kind: "bound", bits: 100_000 },
     operand: { start: power.start, end: power.start + 1 },
   });
   // A power of ten costs nothing: the exponent takes it.
@@ -538,7 +539,7 @@ test("a unit of any exponent builds, and a prefix or a body scales it in the exp
   assertQuantity(table.units.get("huge"), "1e999999999", { m: 1 });
   assertQuantity(table.units.get("bigger"), "1e2000000001", { m: 1 });
   assertQuantity(table.units.get("tiny"), "1e-999999999", {});
-  const lookup = unitLookup(table);
+  const lookup = unitLookup(table, CONTEXT);
   const khuge = lookup.unit("khuge", { start: 0, end: 5 });
   assert.ok(khuge.ok, inspect(khuge));
   assertQuantity(khuge.value, "1e1000000002", { m: 1 });
@@ -585,7 +586,7 @@ test("a built table converts", () => {
     "hour 60 min",
     "hertz 1 / s",
   );
-  const lookup = unitLookup(table);
+  const lookup = unitLookup(table, CONTEXT);
   const quantity = (text: string): Quantity => {
     const expr = parseExpr(text);
     assert.ok(expr.ok, inspect(expr));
@@ -593,7 +594,12 @@ test("a built table converts", () => {
     assert.ok(result.ok, inspect(result));
     return result.value;
   };
-  const miles = convert(quantity("1 mile"), quantity("km"), table.primitives);
+  const miles = convert(
+    quantity("1 mile"),
+    quantity("km"),
+    table.primitives,
+    CONTEXT,
+  );
   assert.ok(miles.ok, inspect(miles));
   assert.ok(equals(miles.value.mid, dec("1.609344")));
 
@@ -601,6 +607,7 @@ test("a built table converts", () => {
     quantity("60 mile / hour"),
     quantity("m / s"),
     table.primitives,
+    CONTEXT,
   );
   assert.ok(speed.ok, inspect(speed));
   assert.ok(equals(speed.value.mid, dec("26.8224")));
@@ -609,6 +616,7 @@ test("a built table converts", () => {
     quantity("radian / s"),
     quantity("millihertz"),
     table.primitives,
+    CONTEXT,
   );
   assert.ok(!rate.ok);
   assert.deepEqual(rate.error.kind, "kindMismatch");
@@ -782,7 +790,12 @@ const TEMP = [
 function resultIn(table: UnitTable, text: string) {
   const expr = parseExpr(text);
   assert.ok(expr.ok, inspect(expr));
-  return evaluate(expr.value, unitLookup(table), table.primitives, CONTEXT);
+  return evaluate(
+    expr.value,
+    unitLookup(table, CONTEXT),
+    table.primitives,
+    CONTEXT,
+  );
 }
 
 /** The quantity `text` denotes in `table`. */
@@ -791,7 +804,7 @@ function quantityIn(table: UnitTable, text: string): Quantity {
   assert.ok(expr.ok, inspect(expr));
   const result = evaluate(
     expr.value,
-    unitLookup(table),
+    unitLookup(table, CONTEXT),
     table.primitives,
     CONTEXT,
   );
@@ -840,7 +853,7 @@ test("a built function applies and inverts", () => {
   const argument = invertFunction(
     table.functions.get("tempC")!.inverse!,
     boiling,
-    unitLookup(table),
+    unitLookup(table, CONTEXT),
     table.primitives,
     CONTEXT,
   );
@@ -1365,7 +1378,7 @@ test("a unit defined by a call checks the call's conditions when the table is bu
 
 /** `x` doubled, exactly; the product of balls fails only at the exponent bound. */
 function doubled(x: Ball): Result<Ball, BuiltinError> {
-  const product = multiplyBalls(exact(fr(2n)), x);
+  const product = multiplyBalls(exact(fr(2n)), x, CONTEXT);
   return product.ok ? product : err(fromBallError(product.error, 0));
 }
 

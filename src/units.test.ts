@@ -77,7 +77,7 @@ const table: UnitTable = (() => {
   return built.value;
 })();
 
-const lookup = unitLookup(table);
+const lookup = unitLookup(table, CONTEXT);
 
 /** The quantity the expression `source` denotes in the table. */
 function quantity(source: string): Quantity {
@@ -92,7 +92,7 @@ function quantity(source: string): Quantity {
 }
 
 function converted(have: string, want: string): Result<Ball, ConvertError> {
-  return convert(quantity(have), quantity(want), table.primitives);
+  return convert(quantity(have), quantity(want), table.primitives, CONTEXT);
 }
 
 /** The rational `text` denotes: a decimal, or a quotient `a/b` of two. */

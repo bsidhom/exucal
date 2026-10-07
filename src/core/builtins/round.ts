@@ -30,10 +30,16 @@ import {
   unresolvedAt,
   type Builtin,
   type BuiltinError,
+  UNKNOWN_NEED,
 } from "../builtin.ts";
 import type { NumberContext } from "../context.ts";
 import { DIMENSIONLESS } from "../dimension.ts";
-import { MAX_SIGNIFICAND_LIMIT_BITS, abs, rational } from "../rational.ts";
+import {
+  MAX_SIGNIFICAND_LIMIT_BITS,
+  abs,
+  boundOf,
+  rational,
+} from "../rational.ts";
 import { err, ok, type Result } from "../result.ts";
 import { divideRounded, type RoundingMode } from "../rounding.ts";
 import {
@@ -49,6 +55,7 @@ import {
   sign,
   trunc,
   type Scaled,
+  bitsOfTens,
 } from "../scaled.ts";
 import { integerOf } from "./integers.ts";
 
@@ -64,13 +71,13 @@ export function truncScaled(
 ): Result<Scaled, BuiltinError> {
   if (isInteger(s)) return ok(s);
   const t = trunc(s, limit);
-  return t === undefined ? tooLarge("exceeds") : ok(t);
+  return t === undefined ? tooLarge("exceeds", UNKNOWN_NEED) : ok(t);
 }
 
 /** The integer `s` plus `n`, formed within the hard bound. */
 function stepped(s: Scaled, n: bigint): Result<Scaled, BuiltinError> {
   const sum = add(s, fromInteger(n), MAX_SIGNIFICAND_LIMIT_BITS);
-  return sum.ok ? sum : tooLarge("exceeds");
+  return sum.ok ? sum : tooLarge("exceeds", UNKNOWN_NEED);
 }
 
 /** The largest integer at or below `s`. */
@@ -136,7 +143,9 @@ export function roundScaled(
   let count: bigint;
   if (shift >= 0n) {
     const digits = Number(shift) + decimalDigits(abs(num));
-    if (digits * BITS_PER_DIGIT > limit) return tooLarge("exceeds");
+    if (digits * BITS_PER_DIGIT > limit) {
+      return tooLarge("exceeds", boundOf(bitsOfTens(digits)));
+    }
     count = divideRounded(num * 10n ** shift, den, mode);
   } else if (-shift > BigInt(decimalDigits(abs(num)) + 1)) {
     count = roundedBelowTenth(sign(s), mode);
@@ -145,7 +154,9 @@ export function roundScaled(
   }
   const rounded = scaled(rational(count), unit);
   if (rounded.ok) return rounded;
-  return isRefusal(rounded.error) ? err(rounded.error) : tooLarge("exceeds");
+  return isRefusal(rounded.error)
+    ? err(rounded.error)
+    : tooLarge("exceeds", UNKNOWN_NEED);
 }
 
 // ---------------------------------------------------------------------------
@@ -241,9 +252,9 @@ function offset(
   exponent: bigint,
 ): Result<Scaled, BuiltinError> {
   const step = scaled(rational(count), exponent);
-  if (!step.ok) return tooLarge("exceeds");
+  if (!step.ok) return tooLarge("exceeds", UNKNOWN_NEED);
   const sum = add(r, step.value, MAX_SIGNIFICAND_LIMIT_BITS);
-  return sum.ok ? sum : tooLarge("exceeds");
+  return sum.ok ? sum : tooLarge("exceeds", UNKNOWN_NEED);
 }
 
 /**

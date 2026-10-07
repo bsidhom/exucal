@@ -58,6 +58,7 @@ import {
   subtract as subtractFractions,
   toFraction,
   type Rational,
+  bitLength,
 } from "./rational.ts";
 import { ok, type Result } from "./result.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./rounding.ts";
@@ -79,6 +80,7 @@ import {
   ZERO,
   type Refusal,
   type Scaled,
+  bitsOfTens,
 } from "./scaled.ts";
 import { foldIn, key, randomBall, split } from "../testing/random.ts";
 import { ball, dec, digitsOf, fr, fraction } from "../testing/scaled.ts";
@@ -158,6 +160,13 @@ function within(a: Scaled, b: Scaled, bound: Scaled): boolean {
 }
 
 /** A context at `precision` digits, in the default mode. */
+/** The refusal of `1e999999999 + 1`: the sum's need is the aligned one, `1` shifted by the exponents' difference, within a bit of the truth. */
+const HUGE_SUM: Refusal = {
+  kind: "tooLarge",
+  inexact: "fits",
+  need: { kind: "bound", bits: bitLength(1n) + bitsOfTens(999_999_999) },
+};
+
 function at(precision: number): NumberContext {
   return {
     precision,
@@ -254,12 +263,12 @@ test("on exact balls every operation is the exact one, and stays exact", () => {
     exact(unwrap(subtract(a.mid, b.mid, MAX_SIGNIFICAND_LIMIT_BITS))),
   );
   assert.deepEqual(
-    unwrap(multiplyBalls(a, b)),
-    exact(unwrap(multiply(a.mid, b.mid))),
+    unwrap(multiplyBalls(a, b, at(8))),
+    exact(unwrap(multiply(a.mid, b.mid, MAX_SIGNIFICAND_LIMIT_BITS))),
   );
   assert.deepEqual(
-    unwrap(divideBalls(a, b)),
-    exact(unwrap(divide(a.mid, b.mid))),
+    unwrap(divideBalls(a, b, at(8))),
+    exact(unwrap(divide(a.mid, b.mid, MAX_SIGNIFICAND_LIMIT_BITS))),
   );
   for (const n of [0n, 1n, 3n, -2n]) {
     assert.deepEqual(
@@ -267,7 +276,7 @@ test("on exact balls every operation is the exact one, and stays exact", () => {
       exact(unwrap(pow(b.mid, n, MAX_SIGNIFICAND_LIMIT_BITS))),
     );
   }
-  assertError(divideBalls(a, exact(ZERO)), "divisionByZero");
+  assertError(divideBalls(a, exact(ZERO), at(8)), "divisionByZero");
   assertError(powBall(exact(ZERO), -1n, context), "divisionByZero");
   assertError(powBall(exact(fr(3n)), 100_000n, context), "tooLarge");
   // A power of ten costs nothing: the exponent takes it.
@@ -282,11 +291,11 @@ test("the exponent carries through the exact operations", () => {
   const huge = exact(dec("1e999999999"));
   const context = at(8);
   assert.deepEqual(
-    unwrap(multiplyBalls(huge, huge)),
+    unwrap(multiplyBalls(huge, huge, at(8))),
     exact(dec("1e1999999998")),
   );
   assert.deepEqual(
-    unwrap(divideBalls(exact(ONE), huge)),
+    unwrap(divideBalls(exact(ONE), huge, at(8))),
     exact(dec("1e-999999999")),
   );
   assert.deepEqual(
@@ -296,14 +305,10 @@ test("the exponent carries through the exact operations", () => {
   assert.deepEqual(unwrap(subtractBalls(huge, huge, context)), exact(ZERO));
   // Two exact operands that cannot be aligned within the significand limit have
   // an exact sum that cannot be held: `1e999999999 + 1`.
-  assertRefused(addBalls(huge, exact(ONE), context), {
-    kind: "tooLarge",
-    inexact: "fits",
-  });
-  assertRefused(subtractBalls(exact(ONE), huge, context), {
-    kind: "tooLarge",
-    inexact: "fits",
-  });
+  // The need is the aligned operand's bits: the one's digit shifted by
+  // the exponents' difference, within a bit of what the sum would take.
+  assertRefused(addBalls(huge, exact(ONE), context), HUGE_SUM);
+  assertRefused(subtractBalls(exact(ONE), huge, context), HUGE_SUM);
   // Within the limit they align, whatever the exponent.
   assert.deepEqual(
     unwrap(addBalls(huge, exact(dec("1e999999000")), context)),
@@ -312,9 +317,11 @@ test("the exponent carries through the exact operations", () => {
   // The exponent bound: a product beyond `10^(10^18)`, and a quotient
   // below `10^-(10^18)`.
   const edge = exact(dec("1e999999999999999999"));
-  assertRefused(multiplyBalls(edge, exact(dec("1e10"))), { kind: "overflow" });
+  assertRefused(multiplyBalls(edge, exact(dec("1e10")), at(8)), {
+    kind: "overflow",
+  });
   assertRefused(
-    divideBalls(exact(dec("1e-999999999999999999")), exact(dec("1e10"))),
+    divideBalls(exact(dec("1e-999999999999999999")), exact(dec("1e10")), at(8)),
     { kind: "underflow" },
   );
 });
@@ -435,8 +442,8 @@ test("each operation's interval contains the exact result over the operands' int
     ]) {
       const sum = unwrap(addBalls(a, b, context));
       const difference = unwrap(subtractBalls(a, b, context));
-      const product = unwrap(multiplyBalls(a, b));
-      const quotient = divideBalls(a, b);
+      const product = unwrap(multiplyBalls(a, b, at(8)));
+      const quotient = divideBalls(a, b, at(8));
       if (containsZero(b)) {
         assertError(quotient, isExact(b) ? "divisionByZero" : "unresolved");
       }
@@ -492,7 +499,7 @@ test("the radii are tight where the bound is attained, to the coarse type's widt
   );
   // A product's: |a| rb + |b| ra + ra rb = 0.5 + 0.5 + 0.125, the
   // magnitudes taken from the bounds, within `2^-27` above.
-  const product = radiusUpper(unwrap(multiplyBalls(a, b)).rad);
+  const product = radiusUpper(unwrap(multiplyBalls(a, b, at(8))).rad);
   assert.ok(compareFractions(product, fraction(dec("1.125"))) >= 0);
   assert.ok(
     compareFractions(
@@ -504,7 +511,7 @@ test("the radii are tight where the bound is attained, to the coarse type's widt
     ) < 0,
   );
   // A quotient's: (|a| rb + |b| ra) / (|b| (|b| - rb)) = (0.5 + 0.5) / (2 × 1.5).
-  const quotient = radiusUpper(unwrap(divideBalls(a, b)).rad);
+  const quotient = radiusUpper(unwrap(divideBalls(a, b, at(8))).rad);
   assert.ok(compareFractions(quotient, rational(1n, 3n)) >= 0);
   assert.ok(
     compareFractions(
@@ -529,7 +536,7 @@ test("the quotient rule on the coarse type is within 2^-25 of the exact bound ov
   for (const [i, a] of balls.entries()) {
     const b = balls[(i * 5 + 1) % balls.length]!;
     if (containsZero(b) || (isExact(b) && isExact(a))) continue;
-    const quotient = unwrap(divideBalls(a, b));
+    const quotient = unwrap(divideBalls(a, b, at(8)));
     const ra = radiusUpper(a.rad);
     const rb = radiusUpper(b.rad);
     const am = absoluteFraction(fraction(a.mid));
@@ -557,15 +564,21 @@ test("the quotient rule on the coarse type is within 2^-25 of the exact bound ov
 
 test("an exact zero times anything is exact zero", () => {
   const wide = ball(fr(5n), fr(100n));
-  assert.deepEqual(unwrap(multiplyBalls(exact(ZERO), wide)), exact(ZERO));
-  assert.deepEqual(unwrap(multiplyBalls(wide, exact(ZERO))), exact(ZERO));
   assert.deepEqual(
-    unwrap(multiplyBalls(exact(ZERO), { mid: ONE, rad: UNBOUNDED })),
+    unwrap(multiplyBalls(exact(ZERO), wide, at(8))),
+    exact(ZERO),
+  );
+  assert.deepEqual(
+    unwrap(multiplyBalls(wide, exact(ZERO), at(8))),
+    exact(ZERO),
+  );
+  assert.deepEqual(
+    unwrap(multiplyBalls(exact(ZERO), { mid: ONE, rad: UNBOUNDED }, at(8))),
     exact(ZERO),
   );
   // Whereas an inexact zero is not.
   const almostZero = ball(ZERO, dec("0.1"));
-  const doubled = unwrap(multiplyBalls(almostZero, exact(fr(2n))));
+  const doubled = unwrap(multiplyBalls(almostZero, exact(fr(2n)), at(8)));
   assert.ok(!isExact(doubled));
   const rad = radiusUpper(doubled.rad);
   assert.ok(compareFractions(rad, fraction(dec("0.2"))) >= 0);
@@ -574,12 +587,18 @@ test("an exact zero times anything is exact zero", () => {
 
 test("division by a ball around zero is unresolved, by exact zero a division by zero", () => {
   const one = exact(ONE);
-  assertError(divideBalls(one, ball(dec("0.001"), dec("0.002"))), "unresolved");
-  assertError(divideBalls(one, ball(ZERO, dec("1e-30"))), "unresolved");
-  assertError(divideBalls(one, exact(ZERO)), "divisionByZero");
-  assertError(divideBalls(ball(ZERO, ONE), exact(ZERO)), "divisionByZero");
+  assertError(
+    divideBalls(one, ball(dec("0.001"), dec("0.002")), at(8)),
+    "unresolved",
+  );
+  assertError(divideBalls(one, ball(ZERO, dec("1e-30")), at(8)), "unresolved");
+  assertError(divideBalls(one, exact(ZERO), at(8)), "divisionByZero");
+  assertError(
+    divideBalls(ball(ZERO, ONE), exact(ZERO), at(8)),
+    "divisionByZero",
+  );
   // A divisor just clear of zero divides.
-  assert.ok(divideBalls(one, ball(dec("0.003"), dec("0.002"))).ok);
+  assert.ok(divideBalls(one, ball(dec("0.003"), dec("0.002")), at(8)).ok);
 });
 
 test("every unresolved of the ball names its edge, zero", () => {
@@ -588,13 +607,23 @@ test("every unresolved of the ball names its edge, zero", () => {
   // of a ball that reaches within an ulp of zero at the kernel's bits.
   const one = exact(ONE);
   const unresolved = { ok: false, error: { kind: "unresolved", edge: ZERO } };
-  assert.deepEqual(divideBalls(one, ball(ZERO, dec("1e-30"))), unresolved);
-  assert.deepEqual(divideBalls(one, { mid: ZERO, rad: UNBOUNDED }), unresolved);
   assert.deepEqual(
-    divideBalls(one, {
-      mid: dec("1e-20"),
-      rad: radiusAbove(rational(1n, 10n ** 20n)),
-    }),
+    divideBalls(one, ball(ZERO, dec("1e-30")), at(8)),
+    unresolved,
+  );
+  assert.deepEqual(
+    divideBalls(one, { mid: ZERO, rad: UNBOUNDED }, at(8)),
+    unresolved,
+  );
+  assert.deepEqual(
+    divideBalls(
+      one,
+      {
+        mid: dec("1e-20"),
+        rad: radiusAbove(rational(1n, 10n ** 20n)),
+      },
+      at(8),
+    ),
     unresolved,
   );
   assert.deepEqual(
@@ -622,15 +651,15 @@ test("an unbounded radius propagates, and a divisor of unbounded radius divides 
     mid: fr(5n),
     rad: UNBOUNDED,
   });
-  assert.deepEqual(unwrap(multiplyBalls(unbounded, three)), {
+  assert.deepEqual(unwrap(multiplyBalls(unbounded, three, at(8))), {
     mid: fr(6n),
     rad: UNBOUNDED,
   });
-  assert.deepEqual(unwrap(divideBalls(three, unbounded)), {
+  assert.deepEqual(unwrap(divideBalls(three, unbounded, at(8))), {
     mid: fr(3n, 2n),
     rad: UNBOUNDED,
   });
-  assert.deepEqual(unwrap(divideBalls(unbounded, three)), {
+  assert.deepEqual(unwrap(divideBalls(unbounded, three, at(8))), {
     mid: fr(2n, 3n),
     rad: UNBOUNDED,
   });
@@ -643,9 +672,12 @@ test("an unbounded radius propagates, and a divisor of unbounded radius divides 
     rad: UNBOUNDED,
   });
   assert.deepEqual(unwrap(powBall(unbounded, 0n, at(8))), exact(ONE));
-  assertError(divideBalls(three, { mid: ZERO, rad: UNBOUNDED }), "unresolved");
-  assertError(divideBalls(three, exact(ZERO)), "divisionByZero");
-  assert.ok(isZero(unwrap(divideBalls(exact(ZERO), unbounded)).mid));
+  assertError(
+    divideBalls(three, { mid: ZERO, rad: UNBOUNDED }, at(8)),
+    "unresolved",
+  );
+  assertError(divideBalls(three, exact(ZERO), at(8)), "divisionByZero");
+  assert.ok(isZero(unwrap(divideBalls(exact(ZERO), unbounded, at(8))).mid));
 });
 
 // ---------------------------------------------------------------------------
@@ -760,7 +792,7 @@ test("rootBall scales the exponent off and roots the significand, whatever the e
   assert.ok(certifies(huge, 8, "halfEven"));
   assert.ok(within(huge.mid, SQRT_HUGE, dec("1e499999982")));
   // Its square contains the argument.
-  const square = unwrap(multiplyBalls(huge, huge));
+  const square = unwrap(multiplyBalls(huge, huge, at(8)));
   assert.notEqual(position(square, dec("1e999999999")), "above");
   assert.notEqual(position(square, dec("1e999999999")), "below");
   // The cube root of a tiny value, and of one whose exponent's remainder
@@ -786,11 +818,15 @@ test("rootBall scales the exponent off and roots the significand, whatever the e
     const scaled: Ball = {
       mid: { significand: b.mid.significand, exp: b.mid.exp + 999999990n },
       rad: unwrap(
-        multiplyBalls(exact(dec("1e999999990")), { mid: ZERO, rad: b.rad }),
+        multiplyBalls(
+          exact(dec("1e999999990")),
+          { mid: ZERO, rad: b.rad },
+          at(8),
+        ),
       ).rad,
     };
     const root = unwrap(rootBall(scaled, 2n, at(20)));
-    const back = unwrap(multiplyBalls(root, root));
+    const back = unwrap(multiplyBalls(root, root, at(8)));
     // The argument's midpoint lies within the square's interval.
     assert.notEqual(position(back, scaled.mid), "above", `${i}`);
     assert.notEqual(position(back, scaled.mid), "below", `${i}`);
@@ -1673,11 +1709,11 @@ test("a product or a quotient with an inexact operand is held to the bound by it
     dec(`5e${E18}`),
     dec(`5e${(MAX_EXPONENT - 30n).toString()}`),
   );
-  assert.deepEqual(multiplyBalls(edge, two), {
+  assert.deepEqual(multiplyBalls(edge, two, at(8)), {
     ok: false,
     error: { kind: "unresolved", edge: "bound" },
   });
-  assert.deepEqual(divideBalls(edge, exact(dec("0.5"))), {
+  assert.deepEqual(divideBalls(edge, exact(dec("0.5")), at(8)), {
     ok: false,
     error: { kind: "unresolved", edge: "bound" },
   });
@@ -1685,24 +1721,27 @@ test("a product or a quotient with an inexact operand is held to the bound by it
     dec(`1.000000001e${E18}`),
     dec(`1e${(MAX_EXPONENT - 27n).toString()}`),
   );
-  assertRefused(multiplyBalls(above, exact(fr(10n))), { kind: "overflow" });
+  assertRefused(multiplyBalls(above, exact(fr(10n)), at(8)), {
+    kind: "overflow",
+  });
   const within = ball(
     dec(`9.99999999e${E18}`),
     dec(`1e${(MAX_EXPONENT - 27n).toString()}`),
   );
-  assert.ok(multiplyBalls(within, exact(ONE)).ok);
+  assert.ok(multiplyBalls(within, exact(ONE), at(8)).ok);
   assert.ok(
-    multiplyBalls(ball(dec("4.9"), dec("0.05")), exact(dec(`1e${E18}`))).ok,
+    multiplyBalls(ball(dec("4.9"), dec("0.05")), exact(dec(`1e${E18}`)), at(8))
+      .ok,
   );
   // A midpoint within the bound whose radius reaches the top, and a zero
   // midpoint whose radius does: unresolved at the bound.
   const wide = ball(dec(`5e${E18}`), dec(`6e${E18}`));
-  assert.deepEqual(multiplyBalls(wide, exact(ONE)), {
+  assert.deepEqual(multiplyBalls(wide, exact(ONE), at(8)), {
     ok: false,
     error: { kind: "unresolved", edge: "bound" },
   });
   const aroundZero = ball(ZERO, dec("1e9"));
-  assert.deepEqual(multiplyBalls(aroundZero, exact(dec(`5e${E18}`))), {
+  assert.deepEqual(multiplyBalls(aroundZero, exact(dec(`5e${E18}`)), at(8)), {
     ok: false,
     error: { kind: "unresolved", edge: "bound" },
   });
@@ -1710,6 +1749,7 @@ test("a product or a quotient with an inexact operand is held to the bound by it
     multiplyBalls(
       aroundZero,
       exact(dec(`1e${(MAX_EXPONENT - 10n).toString()}`)),
+      at(8),
     ).ok,
   );
   // At the bottom: every value past it is underflow; a ball containing
@@ -1719,33 +1759,37 @@ test("a product or a quotient with an inexact operand is held to the bound by it
     mid: dec(`1e-${E18}`),
     rad: powerOfTenRadius(-(MAX_EXPONENT + 30n)),
   };
-  assertRefused(multiplyBalls(tiny, tenth), { kind: "underflow" });
+  assertRefused(multiplyBalls(tiny, tenth, at(8)), { kind: "underflow" });
   const spanning = ball(dec(`1e-${E18}`), dec(`2e-${E18}`));
-  const zero = unwrap(multiplyBalls(spanning, tenth));
+  const zero = unwrap(multiplyBalls(spanning, tenth, at(8)));
   assert.deepEqual(zero.mid, ZERO);
   assert.ok(containsZero(zero));
   // 8e-(10^18) within 5e-(10^18), a tenth of which reaches from
   // 3e-(10^18 + 1) to 1.3e-(10^18): the midpoint past the bound, the ball
   // not throughout.
   const straddling = ball(dec(`8e-${E18}`), dec(`5e-${E18}`));
-  assert.deepEqual(multiplyBalls(straddling, tenth), {
+  assert.deepEqual(multiplyBalls(straddling, tenth, at(8)), {
     ok: false,
     error: { kind: "unresolved", edge: "bound" },
   });
   // Two exact operands are refused by the value, as the constructor
   // decides it, and a ball of unbounded radius by its midpoint alone.
-  assertRefused(multiplyBalls(exact(dec(`9.99e${E18}`)), two), {
+  assertRefused(multiplyBalls(exact(dec(`9.99e${E18}`)), two, at(8)), {
     kind: "overflow",
   });
-  assertRefused(divideBalls(exact(dec(`1e-${E18}`)), exact(fr(7n))), {
+  assertRefused(divideBalls(exact(dec(`1e-${E18}`)), exact(fr(7n)), at(8)), {
     kind: "underflow",
   });
   assert.ok(
-    multiplyBalls({ mid: dec(`5e${E18}`), rad: UNBOUNDED }, exact(ONE)).ok,
+    multiplyBalls({ mid: dec(`5e${E18}`), rad: UNBOUNDED }, exact(ONE), at(8))
+      .ok,
   );
-  assertRefused(multiplyBalls({ mid: dec(`5e${E18}`), rad: UNBOUNDED }, two), {
-    kind: "overflow",
-  });
+  assertRefused(
+    multiplyBalls({ mid: dec(`5e${E18}`), rad: UNBOUNDED }, two, at(8)),
+    {
+      kind: "overflow",
+    },
+  );
 });
 
 test("radiusOfMove bounds the distance a rounding moved a midpoint, past the bound included", () => {
@@ -1810,14 +1854,8 @@ test("a sum of two exact operands that cannot be aligned is too large, and in de
   const minusOne = negateBall(exact(ONE));
   // The sum itself is too large in either mode, at the significand limit; the
   // evaluator answers it in decimal mode by `decimalSumApart`.
-  assertRefused(addBalls(huge, exact(ONE), at(8)), {
-    kind: "tooLarge",
-    inexact: "fits",
-  });
-  assertRefused(addBalls(huge, exact(ONE), decimal("halfEven")), {
-    kind: "tooLarge",
-    inexact: "fits",
-  });
+  assertRefused(addBalls(huge, exact(ONE), at(8)), HUGE_SUM);
+  assertRefused(addBalls(huge, exact(ONE), decimal("halfEven")), HUGE_SUM);
   // In a nearest mode the one lies far below half a unit in the last digit.
   for (const rounding of [
     "halfEven",
@@ -1955,8 +1993,10 @@ test("powBall on an inexact base squares with settling, and is guarded by magnit
   // The exact path is unchanged: an exact base is an exact power, under
   // the significand limit.
   assert.deepEqual(unwrap(powBall(exact(fr(3n)), 4n, at(8))), exact(fr(81n)));
+  // The need is the prediction, `floor(100000 log2 3) + 1`: the truth.
   assertRefused(powBall(exact(fr(3n)), 100_000n, at(8)), {
     kind: "tooLarge",
     inexact: "fits",
+    need: { kind: "bound", bits: bitLength(3n ** 100_000n) },
   });
 });

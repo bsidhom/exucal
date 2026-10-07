@@ -140,7 +140,12 @@ export function dimensionOf<E>(
       const exponent = reduceExponent(node.exponent, significandLimitBits);
       // A unit's exponent that cannot be formed: nothing rounds a unit.
       if (!exponent.ok) {
-        return err({ kind: "tooLarge", span, inexact: "exceeds" });
+        return err({
+          kind: "tooLarge",
+          span,
+          inexact: "exceeds",
+          need: exponent.need,
+        });
       }
       return ok(powDimension(base.value, exponent.value));
     }

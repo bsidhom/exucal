@@ -76,7 +76,11 @@ function assertNear(
     compare(distance(ball.mid, reference), radiusOf(ball)) <= 0,
     `${label}: midpoint`,
   );
-  const bound = multiply(absolute(reference), dec(`1e-${digits}`));
+  const bound = multiply(
+    absolute(reference),
+    dec(`1e-${digits}`),
+    MAX_SIGNIFICAND_LIMIT_BITS,
+  );
   assert.ok(bound.ok);
   assert.ok(compare(radiusOf(ball), bound.value) < 0, `${label}: radius`);
 }
@@ -443,7 +447,7 @@ test("the exact bases 0, 1 and -1 are answered before the exponent's fraction is
     value(powBallOf(minusOne, exact(fr(2n, 5n ** 16000n)), CONTEXT)),
     exact(ONE),
   );
-  const third = divide(dec("1e999999999"), fr(3n));
+  const third = divide(dec("1e999999999"), fr(3n), MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(third.ok);
   assert.deepEqual(
     value(powBallOf(minusOne, exact(third.value), CONTEXT)),
@@ -732,7 +736,7 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
     ],
     [
       "2^1442695",
-      '"2^1442695" would need a significand past the significand limit as an exact value. Try "approx(2)" in place of "2", or decimal mode, to compute it to the digits asked.',
+      '"2^1442695" would need a significand of about 1,442,696 bits as an exact value, past the significand limit. Try "approx(2)" in place of "2", or decimal mode, to compute it to the digits asked.',
     ],
     // A ^ exponent is reduced by the evaluator within the significand limit
     // (H.9): its denominator here, 10^310000, has a million bits, so the
@@ -741,7 +745,7 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
     // exponent past the limit to log space.
     [
       "2^1e-310000",
-      '"2^1e-310000" would need a significand past the significand limit, however it is computed.',
+      '"2^1e-310000" would need a significand of about 1,029,799 bits, past the significand limit, however it is computed.',
     ],
   ]) {
     const result = evaluateText(table.value, text!, {

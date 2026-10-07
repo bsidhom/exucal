@@ -849,7 +849,8 @@ The rule:
   assertion, since the node that names a unit checks it.
 
 Measuring after the fact, rather than predicting from the operands' sizes
-as a power does, is deliberate. A prediction from unreduced sizes refuses
+as a power does, was deliberate, until the amendment below made the limit
+strict and predicted everywhere. A prediction from unreduced sizes refuses
 `x / x`, and for a quotient it is no bound at all: `1/2^30000` has a
 69,658-bit canonical numerator. The cost is one reduction per node on
 operands within the limit, which H.9's reductions make milliseconds. The
@@ -867,6 +868,65 @@ README ("Significand limit") already promises a bound on how large a numerator a
 a denominator may grow. One visible consequence, of the measure as much
 as of the rule: `1 / 2^n` is refused past `n ≈ 28,225` at the default, as
 `0.5^30000` already is, since each is stored with `5^n`.
+
+**D19 as amended by the strict limit (after S3; closes #73).** The
+significand limit is a strict bound on the internal representation,
+defensive by design: no exact value is formed past it, and nothing is
+measured after the fact. Every operation that forms an exact value
+predicts its size first, from the operands, and refuses with the bits
+it would need:
+
+- A product and a quotient predict after their two cross-cancelling
+  gcds (H.9), which run on operands within the limit: the bound is the
+  larger of the two parts' bit sums, the truth or a bit over it, so
+  `x / x` is one and `(a/b) × (b/a)` is one, as the measured check had
+  them, and `3^32767 × 7^21845` is refused with 113,262 bits, nothing
+  formed.
+- A sum is refused on the bound of its unreduced sum, Henrici's form
+  (the cross products over the denominators' product, the common factor
+  taken out first): what the measured check admitted only by the
+  reduction that followed is refused now, the price of never forming
+  the unreduced sum. `1/3^32767 + 1/7^21845` is refused either way.
+- A power predicts `floor(|n| log2 p) + 1` on its larger part, the
+  truth or a bit over it, where it predicted `|n|` times the part's
+  bits: `2^65535` is a value at the default and `2^65536` is not.
+- A quotient and a power whose fraction fits size its canonical form
+  too, before it is made, since a denominator's twos become fives in the
+  numerator (D16 as restated once more): `2^-30000` is refused with
+  69,659 bits, as the measure refused it, and `2^-28000` stays a value.
+  A product and a sum of canonical significands need no such check,
+  their denominators being coprime to ten.
+- A sum's alignment and a literal's digits predict as they did, and the
+  built-ins that compute at an argument's bits (the trig reduction,
+  `beta`, the incomplete functions, `factorial`) refuse on their own
+  counts as they did.
+- The evaluator's check on every node result and the pipeline's on its
+  two quotients become assertions: an exact result past the limit is a
+  bug in a prediction, thrown, never a refusal. The exponent bound is
+  still reported first where a product or a quotient is past both,
+  read off the operands' decimal exponents; a hair from the bound, it is
+  `tooLarge`.
+- Every `tooLarge` carries the bits needed, `Need`: exact where a value
+  exists (a literal's digits, a reduction's working bits), a bound where
+  predicted, unknown where the function cannot say. The message says
+  them, "of 113,262 bits" or "of about 69,659 bits", and nothing where
+  unknown; it recommends nothing about the limit, which the panel shows,
+  and the user infers from the bits what they want (#73).
+- An exact operand of more bits than the working grid, in a product, a
+  quotient or a sum with an inexact operand whose result is inexact in
+  any case, is put on the grid first when the exact step is refused:
+  rounded to the working digits with the rounding charged to the
+  radius, as `approx` would (D15), so `(1 + 1/3^41300) + sqrt(2)` keeps
+  its digits where the alignment passes the limit. An exact operand
+  already on the grid stays exact and costs nothing, so `sqrt(2) +
+1e999999999` absorbs the root into the radius as before. Exact mode
+  still never rounds an exact value whose result is exact (D20).
+- `multiplyBalls`, `divideBalls`, `convert`, the table's lookup and the
+  built-ins that multiply or divide take the context, since a prediction
+  needs the limit: the "no signature changes" of the rule above is
+  withdrawn.
+- The probe times the same two gcds, the product refused by its
+  prediction and never formed.
 
 `approx` is the escape hatch: an inexact operand makes the result inexact,
 so it is settled rather than refused. Whether the app should apply that
@@ -929,9 +989,10 @@ Two things follow from the ruling. Knowing the node lets the user
 either round there with `approx` or raise `significandLimitBits`; to make the second
 realistic without trial and error, the refusal should also say how many
 bits the result needed, or a bound, which is known where the check
-measures after forming and predictable where it refuses before. That is
-a feature of its own, #73, to be studied there and landed after H.14,
-whose message it extends. And what rounding would be, should the ruling
+measures after forming and predictable where it refuses before. That
+was a feature of its own, #73, landed with the strict limit (D19 as
+amended): every refusal carries the bits needed, exact, a bound or
+unknown, and the message says them. And what rounding would be, should the ruling
 ever be reversed, so that the reversal is one amendment of D15 and D19
 rather than a redesign: the
 node's exact result past the limit is settled to the working digits by
@@ -3611,7 +3672,8 @@ request quotes the ruling:
 - #50's fourth row already parses. And the value's decimal exponent
   decides, not the canonical exponent (D17).
 - #52's size is measured on the reduced result where the evaluator forms
-  it, not predicted from the operands, and sums are included (D19); its
+  it, not predicted from the operands, and sums are included (D19; since
+  amended to predict before forming, the measure an assertion); its
   measure is the canonical form's, the cost the limit bounds (D16 as
   restated once more); and of the two resolutions it asks a decision
   between, a check and an input length limit, D19 chooses the check, and
@@ -4516,7 +4578,8 @@ keep their wording, since `approx` is not their remedy in the same way
 (a literal is exact by being typed, and the kernel's reach is not a
 matter of exactness). The conversion's ratio and a function want's count
 are worded the same way about the pair. Saying how many bits the result
-needed is #73, which extends this message after it lands.
+needed was #73, landed with the strict limit (D19 as amended), which
+also moved every check here before the forming.
 
 The range probe (limits.ts) times the costliest exact operation the limits
 still run: a product of two fractions of `bits` bits in each part, whose
@@ -4546,7 +4609,8 @@ Tests:
   a value after 3.7 s.
 - `2^-30000` and `1/2^30000`, whose canonical numerators have 69,658 bits,
   are `tooLarge`, and `2^-28000` stays a value (D19, by the measure of
-  D16 as restated once more).
+  D16 as restated once more; predicted before the form is made since
+  the strict limit, within a bit).
 - messages.test.ts: the refusal names the node and the remedy, and the
   remedy works: `approx(3^32767) * 7^21845` is a value, where
   `approx(3^32767 * 7^21845)` is refused at the product.
@@ -6140,7 +6204,8 @@ The work set aside, each with its issue:
   ([#67](https://github.com/bsidhom/pwa-units/issues/67)); stage 5's
   design note rules on it and 5.1 lands it.
 - The message for an exact result past the significand limit should say how many
-  bits it needed ([#73](https://github.com/bsidhom/pwa-units/issues/73)).
+  bits it needed ([#73](https://github.com/bsidhom/pwa-units/issues/73)):
+  landed with the strict limit, D19 as amended.
 - Where a quotient's reduction should run
   ([#78](https://github.com/bsidhom/pwa-units/issues/78)).
 - The precision limit does nothing for results in decimal mode, and the

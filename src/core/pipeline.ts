@@ -523,9 +523,10 @@ function convertParsed(
       haveQuantity.value,
       wantQuantity.value,
       table.primitives,
+      working,
     );
     if (!value.ok) return value;
-    if (pastLimit(value.value, working)) return err(EXACT_TOO_LARGE);
+    assertWithin(value.value, working);
     const settled = settledInMode(value.value, working);
     if (!settled.ok) return settled;
     return ok({
@@ -634,7 +635,7 @@ function refusedList(error: ListRefusal): Result<never, ConversionError> {
 function refusal(error: Refusal): Refusal {
   switch (error.kind) {
     case "tooLarge":
-      return { kind: "tooLarge", inexact: error.inexact };
+      return { kind: "tooLarge", inexact: error.inexact, need: error.need };
     case "overflow":
       return { kind: "overflow" };
     case "underflow":
@@ -705,7 +706,7 @@ function convertToFunction(
     table.primitives,
   );
   if (!conformance.ok) return conformance;
-  const lookup = unitLookup(table);
+  const lookup = unitLookup(table, context);
   const assumed: Assumption[] = [];
   // The inverse, the function applied back and their conditions are the
   // operands of the count, which is the step shown (D27).
@@ -784,13 +785,14 @@ function convertToFunction(
   const value = divideBalls(
     argument.value.magnitude,
     parameter.unit.quantity.magnitude,
+    context,
   );
   if (!value.ok) {
     // The count is refused as any quotient may be, as a ratio would be.
     if (isRefusal(value.error)) return err(refusal(value.error));
     throw new Error("A function in the table declares a zero argument unit");
   }
-  if (pastLimit(value.value, context)) return err(EXACT_TOO_LARGE);
+  assertWithin(value.value, context);
   const settled = settledInMode(value.value, context);
   if (!settled.ok) return settled;
   assumptions.push(...assumed);
@@ -869,22 +871,18 @@ function disjoint(a: Ball, b: Ball, context: NumberContext): boolean {
 }
 
 /**
- * An exact ratio or count past the significand limit (D19): the exact
- * quotient is what passes, and `approx` around the `have`, or decimal
- * mode, makes it inexact.
+ * The invariant of the strict limit (D19 as amended): no exact value is
+ * formed past the significand limit, every operation that forms one
+ * having predicted its size first, so an exact quotient past the limit
+ * here is a bug in a prediction, not a refusal.
  */
-const EXACT_TOO_LARGE: ConversionError = { kind: "tooLarge", inexact: "fits" };
-
-/**
- * Whether `quotient`, exact, has a canonical significand past the significand limit
- * of `context`: the check the evaluator makes at every node (D19), made
- * again after the two quotients formed outside it.
- */
-function pastLimit(quotient: Ball, context: NumberContext): boolean {
-  return (
+function assertWithin(quotient: Ball, context: NumberContext): void {
+  if (
     isExact(quotient) &&
     !significandWithin(quotient.mid, context.significandLimitBits)
-  );
+  ) {
+    throw new Error("An exact quotient was formed past the significand limit");
+  }
 }
 
 /**
@@ -899,7 +897,7 @@ function evaluateExpr(
 ): Result<Quantity, TextError> {
   return evaluate(
     expr,
-    unitLookup(table),
+    unitLookup(table, context),
     table.primitives,
     context,
     assumptions,

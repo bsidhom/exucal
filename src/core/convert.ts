@@ -165,6 +165,7 @@ export function convert(
   have: Quantity,
   want: Quantity,
   primitives: Primitives,
+  context: NumberContext,
 ): Result<Ball, ConvertError> {
   const conformance = checkConformance(
     have.dimension,
@@ -172,7 +173,7 @@ export function convert(
     primitives,
   );
   if (!conformance.ok) return conformance;
-  const ratio = divideBalls(have.magnitude, want.magnitude);
+  const ratio = divideBalls(have.magnitude, want.magnitude, context);
   if (ratio.ok) return ratio;
   switch (ratio.error.kind) {
     case "divisionByZero":
@@ -293,10 +294,10 @@ function rebuild(
   context: NumberContext,
 ): Result<Ball[], ListRefusal> {
   const last = sizes.length - 1;
-  let total = multiplyBalls(remainder, sizes[last]!);
+  let total = multiplyBalls(remainder, sizes[last]!, context);
   if (!total.ok) return passOn(total.error);
   for (const [i, count] of counts.entries()) {
-    const product = multiplyBalls(count, sizes[i]!);
+    const product = multiplyBalls(count, sizes[i]!, context);
     if (!product.ok) return passOn(product.error);
     total = addBalls(total.value, product.value, context);
     if (!total.ok) return passOn(total.error);
@@ -322,7 +323,7 @@ function decompose(
   const terms: Ball[] = [];
   let rest = magnitude;
   for (const [i, size] of sizes.entries()) {
-    const ratio = divideBalls(rest, size);
+    const ratio = divideBalls(rest, size, context);
     if (i === sizes.length - 1) {
       if (!ratio.ok) return passOn(ratio.error);
       terms.push(ratio.value);
@@ -335,7 +336,7 @@ function decompose(
     }
     const count = exact(countOf(ratio.value, context));
     terms.push(count);
-    const product = multiplyBalls(count, size);
+    const product = multiplyBalls(count, size, context);
     if (!product.ok) return passOn(product.error);
     const difference = subtractBalls(rest, product.value, context);
     if (!difference.ok) return passOn(difference.error);

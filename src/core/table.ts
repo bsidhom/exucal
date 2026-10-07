@@ -35,6 +35,7 @@
 // error that says what the name is otherwise, so that the message for
 // `kg(m/s)` can show the product the user probably meant.
 
+import type { NumberContext } from "./context.ts";
 import type { Ball } from "./ball.ts";
 import type { Builtin, Builtins } from "./builtin.ts";
 import type { Condition } from "./definitions.ts";
@@ -174,7 +175,10 @@ export type LookupError = UnknownUnit | FunctionAsUnit | NotAFunction;
  * working precision; and, for a call, a function by its name, defined
  * first and built-in second.
  */
-export function unitLookup(table: UnitTable): Lookup<LookupError> {
+export function unitLookup(
+  table: UnitTable,
+  context: NumberContext,
+): Lookup<LookupError> {
   return {
     unit: (name, span) => {
       const found = resolveName(name, table.prefixes, table.units);
@@ -193,6 +197,7 @@ export function unitLookup(table: UnitTable): Lookup<LookupError> {
       const scaled = multiplyQuantities(
         { magnitude: found.prefix, dimension: DIMENSIONLESS },
         found.unit,
+        context,
       );
       if (!scaled.ok) {
         // This assumes a prefix times a unit is never refused: the table's

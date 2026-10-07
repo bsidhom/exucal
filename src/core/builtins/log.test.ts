@@ -183,18 +183,51 @@ test("the exact cases: ln(1), integer powers of ten and two, and log of integer 
   assert.ok(!isExact(value(log10Ball(exact(fr(20n)), CONTEXT))));
   assert.ok(!isExact(value(log2Ball(exact(fr(6n)), CONTEXT))));
   // The integer power is read off the canonical forms, whatever the exponent.
-  assert.equal(integerPower(fr(10n), ONE), 0n);
-  assert.equal(integerPower(fr(10n), fr(100n)), 2n);
-  assert.equal(integerPower(fr(10n), fr(1n, 100n)), -2n);
-  assert.equal(integerPower(fr(10n), fr(20n)), undefined);
-  assert.equal(integerPower(fr(2n, 3n), fr(9n, 4n)), -2n);
-  assert.equal(integerPower(fr(2n, 3n), fr(4n, 3n)), undefined);
-  assert.equal(integerPower(dec("10"), dec("1e999999999")), 999999999n);
-  assert.equal(integerPower(dec("10"), dec("1e-999999999")), -999999999n);
-  assert.equal(integerPower(dec("100"), dec("1000")), undefined);
-  assert.equal(integerPower(fr(2n), fr(1n, 8n)), -3n);
-  assert.equal(integerPower(dec("0.1"), dec("1000")), -3n);
-  assert.equal(integerPower(fr(20n), fr(8000n)), 3n);
+  assert.equal(integerPower(fr(10n), ONE, CONTEXT.significandLimitBits), 0n);
+  assert.equal(
+    integerPower(fr(10n), fr(100n), CONTEXT.significandLimitBits),
+    2n,
+  );
+  assert.equal(
+    integerPower(fr(10n), fr(1n, 100n), CONTEXT.significandLimitBits),
+    -2n,
+  );
+  assert.equal(
+    integerPower(fr(10n), fr(20n), CONTEXT.significandLimitBits),
+    undefined,
+  );
+  assert.equal(
+    integerPower(fr(2n, 3n), fr(9n, 4n), CONTEXT.significandLimitBits),
+    -2n,
+  );
+  assert.equal(
+    integerPower(fr(2n, 3n), fr(4n, 3n), CONTEXT.significandLimitBits),
+    undefined,
+  );
+  assert.equal(
+    integerPower(dec("10"), dec("1e999999999"), CONTEXT.significandLimitBits),
+    999999999n,
+  );
+  assert.equal(
+    integerPower(dec("10"), dec("1e-999999999"), CONTEXT.significandLimitBits),
+    -999999999n,
+  );
+  assert.equal(
+    integerPower(dec("100"), dec("1000"), CONTEXT.significandLimitBits),
+    undefined,
+  );
+  assert.equal(
+    integerPower(fr(2n), fr(1n, 8n), CONTEXT.significandLimitBits),
+    -3n,
+  );
+  assert.equal(
+    integerPower(dec("0.1"), dec("1000"), CONTEXT.significandLimitBits),
+    -3n,
+  );
+  assert.equal(
+    integerPower(fr(20n), fr(8000n), CONTEXT.significandLimitBits),
+    3n,
+  );
 });
 
 test("ln(2) and ln(10) are their memos, and other values are the kernel's, within the radius", () => {

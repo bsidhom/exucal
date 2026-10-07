@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { bitsOfTens } from "./scaled.ts";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { exact } from "./ball.ts";
@@ -258,15 +259,18 @@ test("a ^ exponent is reduced within the significand limit, and one past it fail
     value("m^(1e30/1e30)", undefined, 64),
     new Map([["m", rational(1n)]]),
   );
+  // The need is the exponent's as a fraction: `10^30` over three.
   assert.deepEqual(failing("m^(1e30/3)", undefined, 64), {
     kind: "tooLarge",
     span: { start: 0, end: 10 },
     inexact: "exceeds",
+    need: { kind: "bound", bits: 1 + bitsOfTens(30) },
   });
   assert.deepEqual(failing("s m^(2/1e30)", undefined, 64), {
     kind: "tooLarge",
     span: { start: 2, end: 12 },
     inexact: "exceeds",
+    need: { kind: "bound", bits: 1 + bitsOfTens(30) },
   });
   assert.ok(of("m^(1e30/3)", undefined, 128).ok);
 });

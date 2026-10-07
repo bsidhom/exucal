@@ -42,13 +42,21 @@ import { parseExpr, type Expr } from "./expr.ts";
 import { key, randomBigInt } from "../testing/random.ts";
 import type { Quantity } from "./quantity.ts";
 import {
+  bitLength,
   absolute as absoluteFraction,
   compare as compareFractions,
   rational,
   subtract as subtractFractions,
   type Rational,
 } from "./rational.ts";
-import { ONE, ZERO, format, fromRational, type Scaled } from "./scaled.ts";
+import {
+  ONE,
+  ZERO,
+  bitsOfTens,
+  format,
+  fromRational,
+  type Scaled,
+} from "./scaled.ts";
 import { dec, fr, fraction } from "../testing/scaled.ts";
 import { DEFAULT_PRECISION, type RoundingMode } from "./rounding.ts";
 import type { Result } from "./result.ts";
@@ -482,15 +490,18 @@ test("a literal of any exponent is a value, and one whose significand exceeds th
   // bounds: twenty thousand digits are more bits than the default allows.
   const long = "1".repeat(20000);
   // The digits typed are the significand: nothing rounds them smaller.
+  const need = { kind: "exact", bits: bitLength(BigInt(long)) } as const;
   assert.deepEqual(failure(run(long)), {
     kind: "tooLarge",
     span: { start: 0, end: long.length },
     inexact: "exceeds",
+    need,
   });
   assert.deepEqual(failure(run(`2 * ${long} m`)), {
     kind: "tooLarge",
     span: { start: 4, end: 4 + long.length },
     inexact: "exceeds",
+    need,
   });
   // Whereas the `^` exponent is read as a fraction, and one whose power
   // of ten cannot be formed within the hard bound is rejected by the parser.
@@ -713,11 +724,13 @@ test("the exponent carries through the exact operations, and a sum that cannot b
     kind: "tooLarge",
     span: { start: 0, end: 15 },
     inexact: "fits",
+    need: { kind: "bound", bits: 1 + bitsOfTens(999999999) },
     operand: { start: 0, end: 11 },
   });
   assert.deepEqual(failure(run("2 m * (1 - 1e999999999)")), {
     kind: "tooLarge",
     span: { start: 6, end: 23 },
+    need: { kind: "bound", bits: 1 + bitsOfTens(999999999) },
     inexact: "fits",
     operand: { start: 7, end: 8 },
   });
@@ -910,12 +923,14 @@ test("a power that fails points at the whole power", () => {
     kind: "tooLarge",
     span: { start: 0, end: 8 },
     inexact: "fits",
+    need: { kind: "bound", bits: bitLength(7n ** 100_000n) },
     operand: { start: 0, end: 1 },
   });
   assert.deepEqual(failure(run("m (7^100000)")), {
     kind: "tooLarge",
     span: { start: 2, end: 12 },
     inexact: "fits",
+    need: { kind: "bound", bits: bitLength(7n ** 100_000n) },
     operand: { start: 3, end: 4 },
   });
   // Whereas a power of ten costs nothing: the exponent takes it.
@@ -1222,8 +1237,8 @@ function builtin(
 
 const BUILTINS: Record<string, Builtin> = {
   // A plain number doubled, exactly.
-  dbl: builtin("dbl", 1, ([x]) => {
-    const product = multiplyBalls(exact(fr(2n)), x!);
+  dbl: builtin("dbl", 1, ([x], context) => {
+    const product = multiplyBalls(exact(fr(2n)), x!, context);
     if (!product.ok) throw new Error("Doubling passes the bound");
     return ok(product.value);
   }),
@@ -1271,9 +1286,11 @@ const BUILTINS: Record<string, Builtin> = {
   ),
   huge: builtin("huge", 1, () => err({ kind: "overflow" })),
   tiny: builtin("tiny", 1, () => err({ kind: "underflow" })),
-  long: builtin("long", 1, () => err({ kind: "tooLarge", inexact: "exceeds" })),
+  long: builtin("long", 1, () =>
+    err({ kind: "tooLarge", inexact: "exceeds", need: { kind: "unknown" } }),
+  ),
   longFits: builtin("longFits", 2, () =>
-    err({ kind: "tooLarge", inexact: "fits" }),
+    err({ kind: "tooLarge", inexact: "fits", need: { kind: "unknown" } }),
   ),
   even: builtin("even", 1, () => err({ kind: "negativeRadicand", degree: 2n })),
   byzero: builtin("byzero", 1, () => err({ kind: "divisionByZero" })),
@@ -1463,13 +1480,17 @@ test("an exact result past the significand limit is refused at the node that for
   const app = lookupIn(UNITS, FUNCTIONS, Object.fromEntries(APP_BUILTINS));
   const run8 = (text: string, context: NumberContext = at(8)) =>
     evaluate(parsed(text), app, PRIMITIVES, context);
-  const tooLarge = (text: string, operandEnd: number) =>
+  const tooLarge = (text: string, operandEnd: number, bits: number) =>
     assert.deepEqual(failure(run8(text)), {
       kind: "tooLarge",
       span: { start: 0, end: text.length },
       inexact: "fits",
+      need: { kind: "bound", bits },
       operand: { start: 0, end: operandEnd },
     });
+  const three = bitLength(3n ** 32767n);
+  const seven = bitLength(7n ** 21845n);
+  const eleven = bitLength(11n ** 16383n);
   const within = (ms: number, label: string, f: () => void) => {
     const start = performance.now();
     f();
@@ -1477,8 +1498,10 @@ test("an exact result past the significand limit is refused at the node that for
     assert.ok(took <= ms, `${label} took ${took.toFixed(1)} ms, over ${ms}`);
   };
   // A product of two powers each within the limit passes it (issue #52's
-  // first family), measured on the canonical significand once formed.
-  tooLarge("3^32767 * 7^21845", "3^32767".length);
+  // first family), predicted from the parts after their gcds, which
+  // cancel nothing here: the need is the two parts' bits, and nothing is
+  // formed.
+  tooLarge("3^32767 * 7^21845", "3^32767".length, three + seven);
   // A quotient's reduction is what is measured: within the limit, the
   // plan's 50 ms with a margin for a slow runner, where its unreduced
   // parts would have been past it; a second quotient passes it.
@@ -1488,16 +1511,27 @@ test("an exact result past the significand limit is refused at the node that for
       "4.6288093e-2828",
     );
   });
-  tooLarge("3^32767 / 7^21845 / 11^16383", "3^32767 / 7^21845".length);
+  // The second quotient's need is the larger of its two parts' bounds:
+  // the denominator's, `7^21845 × 11^16383`.
+  tooLarge(
+    "3^32767 / 7^21845 / 11^16383",
+    "3^32767 / 7^21845".length,
+    Math.max(three + 1, seven + eleven),
+  );
   // A long product is refused at the first node past the limit, which
   // the span names, before anything larger is formed; the operand named
   // is that node's left one.
   const powers = COPRIME_POWERS.slice(0, 10).join(" * ");
+  const [first, second] = COPRIME_POWERS.slice(0, 2).map((text) => {
+    const [base, exponent] = text.split("^");
+    return bitLength(BigInt(base!) ** BigInt(exponent!));
+  });
   within(200, "ten coprime powers", () => {
     assert.deepEqual(failure(run8(powers)), {
       kind: "tooLarge",
       span: { start: 0, end: COPRIME_POWERS.slice(0, 2).join(" * ").length },
       inexact: "fits",
+      need: { kind: "bound", bits: first! + second! },
       operand: { start: 0, end: COPRIME_POWERS[0]!.length },
     });
   });
@@ -1518,12 +1552,13 @@ test("an exact result past the significand limit is refused at the node that for
     kind: "tooLarge",
     span: { start: 7, end: 24 },
     inexact: "fits",
+    need: { kind: "bound", bits: three + seven },
     operand: { start: 7, end: 14 },
   });
-  // A sum of fractions grows as a product does; the check is after the
-  // fact, so `x / x` is one where a prediction from the operands' sizes
-  // would refuse it.
-  tooLarge("1/3^32767 + 1/7^21845", "1/3^32767".length);
+  // A sum of fractions grows as a product does, and is refused on the
+  // bound of its unreduced sum, the denominators' product; `x / x` is
+  // one, the quotient's parts cancelling before its size is predicted.
+  tooLarge("1/3^32767 + 1/7^21845", "1/3^32767".length, three + seven + 1);
   assertEvaluatesWith(app, "(3^32767/7^21845) / (3^32767/7^21845)", of(ONE));
   // A tiny exact term within the limit keeps the digits of an inexact sum.
   assert.equal(
@@ -1536,9 +1571,11 @@ test("an exact result past the significand limit is refused at the node that for
     "2.4142135623730950488016887242097",
   );
   // The measure is the canonical form's size (D16 as restated): a dyadic
-  // is stored with fives for its twos, so `2^-30000` costs 69,658 bits.
-  tooLarge("2^-30000", 1);
-  tooLarge("1/2^30000", 1);
+  // is stored with fives for its twos, so `2^-30000` costs 69,658 bits,
+  // predicted before the form is made, within a bit.
+  const dyadic = 1 + Math.ceil(30000 * Math.log2(5));
+  tooLarge("2^-30000", 1, dyadic);
+  tooLarge("1/2^30000", 1, dyadic);
   value(run8("approx(2)^-30000"));
   value(run8("2^-28000"));
   // The exponent bound is checked first: a product past both is overflow.
@@ -1737,6 +1774,7 @@ test("a built-in's failures are located: domain and the rest at the call, unreso
     kind: "tooLarge",
     span: { start: 0, end: 7 },
     inexact: "exceeds",
+    need: { kind: "unknown" },
   });
   // The reach is the built-in's word, carried through: a call that says
   // an inexact argument fits gets its first argument named as the operand,
@@ -1746,6 +1784,7 @@ test("a built-in's failures are located: domain and the rest at the call, unreso
     kind: "tooLarge",
     span: { start: 0, end: 14 },
     inexact: "fits",
+    need: { kind: "unknown" },
     operand: { start: 9, end: 10 },
   });
   assert.deepEqual(failure(runBuiltin("even(1)")), {
@@ -1811,15 +1850,19 @@ test("a ^ exponent is reduced by the evaluator within the significand limit, and
   assertEvaluates("m^(1e30000/2e30000)", quantity("1", { m: half }));
   // An exponent that cannot be formed: its own bits pass the limit, which
   // no base changes, so no operand is named.
+  // The need is the exponent's as a fraction: one over `10^30000`.
   assert.deepEqual(failure(run("2^1e-30000")), {
     kind: "tooLarge",
     span: { start: 0, end: 10 },
     inexact: "exceeds",
+    need: { kind: "bound", bits: 1 + bitsOfTens(30000) },
   });
+  // The need is the quotient's bound: the bits of 10^30 and of one.
   assert.deepEqual(failure(run("m^(1e30/7)", small)), {
     kind: "tooLarge",
     span: { start: 0, end: 10 },
     inexact: "exceeds",
+    need: { kind: "bound", bits: bitLength(10n ** 30n) + 1 },
   });
   assert.deepEqual(
     value(run("m^(1e30/7)", { ...CONTEXT, significandLimitBits: 128 }))
@@ -1854,23 +1897,38 @@ test("a ^ exponent is reduced by the evaluator within the significand limit, and
   };
   const long = `2^(${literal(3)}/${literal(4)})`;
   const start = performance.now();
-  // An exponent that cannot be formed: `exceeds`, with no operand named.
+  // An exponent that cannot be formed: `exceeds`, with no operand named,
+  // and the need the exponent's bits, measured: the larger literal's.
   assert.deepEqual(failure(run(long)), {
     kind: "tooLarge",
     span: { start: 0, end: long.length },
     inexact: "exceeds",
+    need: {
+      kind: "exact",
+      bits: Math.max(
+        bitLength(BigInt(literal(3))),
+        bitLength(BigInt(literal(4))),
+      ),
+    },
   });
   const ms = performance.now() - start;
   assert.ok(ms < 2000, `refused in ${ms.toFixed(0)} ms`);
+  // The literal's own bits are the need, measured.
+  const literalNeed = {
+    kind: "exact",
+    bits: bitLength(12345678901234567890123n),
+  };
   assert.deepEqual(failure(run("2^(12345678901234567890123/3)", small)), {
     kind: "tooLarge",
     span: { start: 0, end: 29 },
     inexact: "exceeds",
+    need: literalNeed,
   });
   assert.deepEqual(failure(run("3 m^(2/12345678901234567890123)", small)), {
     kind: "tooLarge",
     span: { start: 2, end: 31 },
     inexact: "exceeds",
+    need: literalNeed,
   });
 });
 

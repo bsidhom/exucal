@@ -9,7 +9,7 @@
 // slicing uses the text as given.
 
 import type { Mode } from "./core/context.ts";
-import type { Reach } from "./core/rational.ts";
+import type { Need, Reach } from "./core/rational.ts";
 import {
   formatDimension,
   isDimensionless,
@@ -98,6 +98,7 @@ export function describeTextError(
       return pastSignificandLimit(
         slice(text, error.span),
         error.inexact,
+        error.need,
         error.operand === undefined ? undefined : slice(text, error.operand),
         mode,
       );
@@ -326,27 +327,35 @@ function describeRejection(reason: Rejection): string {
 
 /**
  * A result refused by the significand limit, worded from the refusing
- * function's word on the same step computed inexactly (`Reach`), which
- * the message reads and never infers (the plan's D20, amended for D29).
- * On `fits` the remedies are offered to try, not promised: `approx`
- * around `operand`, the node's first operand where the evaluator named
- * one (around the node itself it would come too late, the node being
- * refused before `approx` sees it), and decimal mode, left out when the
- * user is in it already, which the message knows from the context and
- * not from the arithmetic. On `exceeds` nothing is offered, the function
- * having said that no rounding of its operands brings the step within
- * the limit, and the user infers what a higher limit would need. A
- * `pair` is the conversion's two texts, already quoted together.
+ * function's word on the same step computed inexactly (`Reach`) and the
+ * bits it would need (`Need`), which the message reads and never infers
+ * (the plan's D20, amended for D29 and for the strict limit, #73). The
+ * bits are said where the function knows them, exactly ("of 113,262
+ * bits") or as a bound ("of about 69,659 bits"), and left unsaid where
+ * it does not; the limit in force is not restated, the panel showing
+ * it, and nothing is said of raising it: the user infers from the bits
+ * what they want. On `fits` the remedies are offered to try, not
+ * promised: `approx` around `operand`, the node's first operand where
+ * the evaluator named one (around the node itself it would come too
+ * late, the node being refused before `approx` sees it), and decimal
+ * mode, left out when the user is in it already, which the message
+ * knows from the context and not from the arithmetic. On `exceeds`
+ * nothing is offered, the function having said that no rounding of its
+ * operands brings the step within the limit. A `pair` is the
+ * conversion's two texts, already quoted together.
  */
 function pastSignificandLimit(
   node: string,
   inexact: Reach,
+  need: Need,
   operand: string | undefined,
   mode: Mode,
   shape: "node" | "pair" = "node",
 ): string {
-  const need = `${quote(node)} would need a significand past the significand limit`;
-  if (inexact === "exceeds") return `${need}, however it is computed.`;
+  const significand = `${quote(node)} would need a significand${bitsNeeded(need)}`;
+  if (inexact === "exceeds") {
+    return `${significand}, past the significand limit, however it is computed.`;
+  }
   const rewrite =
     operand === undefined
       ? "approx around a part of it"
@@ -354,7 +363,19 @@ function pastSignificandLimit(
         ? quote(`approx(${operand})`)
         : `${quote(`approx(${operand})`)} in place of ${quote(operand)}`;
   const decimal = mode === "decimal" ? "" : ", or decimal mode,";
-  return `${need} as an exact value. Try ${rewrite}${decimal} to compute it to the digits asked.`;
+  return `${significand} as an exact value, past the significand limit. Try ${rewrite}${decimal} to compute it to the digits asked.`;
+}
+
+/** The bits a refused significand would need, as the refusing function knows them: ` of 113,262 bits` exactly, ` of about 69,659 bits` as a bound, and nothing where it does not know. */
+function bitsNeeded(need: Need): string {
+  switch (need.kind) {
+    case "exact":
+      return ` of ${need.bits.toLocaleString("en-US")} bits`;
+    case "bound":
+      return ` of about ${need.bits.toLocaleString("en-US")} bits`;
+    case "unknown":
+      return "";
+  }
 }
 
 /**
@@ -475,6 +496,7 @@ export function describeConversionError(
       return pastSignificandLimit(
         `${have.trim()}" into "${want.trim()}`,
         error.inexact,
+        error.need,
         error.inexact === "fits" ? have.trim() : undefined,
         mode,
         "pair",

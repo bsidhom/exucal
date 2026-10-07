@@ -135,9 +135,12 @@ in bits, the probe budget in milliseconds (`docs/settings-limits.md`).
   still a big number by its digits (`3^-100000` costs its 158,497 bits
   under any way of storing it as digits), and `approx` is the way to
   compute with one, as below. The limit is what makes `3^1000000000`
-  an error rather than a hang. When a result would need a significand
-  past the limit, the app refuses that part of the expression and names
-  it. Where the operation that refused expects the same step to fit
+  an error rather than a hang. The limit is strict: no exact value past
+  it is ever formed, and an operation predicts the size of its result
+  before forming it. When a result would need a significand
+  past the limit, the app refuses that part of the expression, names
+  it and says how many bits it would need, exactly or about, where the
+  operation knows. Where the operation that refused expects the same step to fit
   when computed inexactly, the message suggests what to try: `approx(…)`
   around the operand it names, so that the part is computed to the
   digits asked and shown with `≈` instead of `=`, or decimal mode, which
@@ -753,7 +756,7 @@ result passes:
 
 ```
 "exp(1e999)" is too large to compute: its exponent would pass 10^18.
-"1e999999999 + 1" is too large to compute within the significand limit.
+"1e999999999 + 1" would need a significand of about 3,321,928,093 bits as an exact value, past the significand limit. Try "approx(1e999999999)" in place of "1e999999999", or decimal mode, to compute it to the digits asked.
 ```
 
 A value is held as a significand times a power of ten. The settings

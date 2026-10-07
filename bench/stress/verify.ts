@@ -1,14 +1,20 @@
 // The stress suite (docs/calculator-plan.md, task 8.3), run by hand:
 //
-//   pnpm stress [<function> ...] [--profile <name>] [--skip-hangs]
-//               [--jobs <n>]
+//   pnpm stress [<function> ...] [--profile <name>] [--sample <n>]
+//               [--skip-hangs] [--record [--accept-rewording]] [--jobs <n>]
 //
 // The catalogue's cases (bench/stress/catalogue.json) that call the
 // functions named, or every case when none is named, measured again:
 // before and after a change aimed at those functions, after a change to
-// a kernel, and when the interface's work (#118) wants a fresh target.
-// `--profile` keeps the cases of one settings profile. Neither `pnpm test`
-// nor `pnpm bench` runs it, so `pnpm test:all` never does.
+// a kernel, to the pipeline or to how a result is written, before a
+// release, and when the interface's work (#118) wants a fresh target.
+// `--profile` keeps the cases of one settings profile. `--sample <n>`
+// keeps `n` of the entries chosen the same way on every machine
+// (catalogue.ts, `sample`) and no hang: a spot check of the values in
+// minutes, for the question of whether a change broke a value, between
+// the full runs, which take the better part of an hour, the catalogue
+// being the costliest inputs known. Neither `pnpm test` nor `pnpm bench`
+// runs it, so `pnpm test:all` never does.
 //
 // Each case is measured cold and warm in a worker of its own: the entries
 // first, the cheapest first by their catalogued time so that results come
@@ -24,15 +30,24 @@
 // becomes its family's entry. Entries that have become cheap stay: they
 // guard against the cost coming back, their value is still checked, and
 // a costlier case of their family found later replaces them. A changed
-// value or a passed deadline is never recorded.
+// value or a passed deadline is never recorded, unless
+// `--accept-rewording` says so: then an entry whose result is written
+// otherwise than catalogued is recorded with the new line, each one
+// printed old and new, for a change to how a result is written rather
+// than to what it computes (a zero's sign, a unit's spelling). The tool
+// cannot tell the two apart, so the flag is a statement, made in the
+// change that uses it, that the values are the same, to be read against
+// the catalogue's diff.
 
 // It fails only on what holds on any machine:
 //
 // - **An entry gives another outcome than catalogued:** another kind,
-//   value or warnings, so that an optimization that changes a value
-//   fails. The note after the value is left out, since a kernel made
-//   sharper tightens the bound it states without changing the value
-//   (`≈ 0`, "within 2e-4049 of zero").
+//   warnings or result, so that an optimization that changes a value
+//   fails. The result is what follows the relation (`≈ 0 K`, `= 3 ft +
+//   2 in`): the echo of the expression before it is the printer's
+//   writing of what was typed and no value, and the note after it is
+//   left out, since a kernel made sharper tightens the bound it states
+//   without changing the value (`≈ 0`, "within 2e-4049 of zero").
 // - **An entry passes its deadline,** four times the time catalogued for
 //   it and two minutes at least.
 //
@@ -47,9 +62,11 @@ import { parseArgs } from "node:util";
 import { costlyCalls } from "./cases.ts";
 import {
   DEADLINE_MS,
+  comparableLine,
   hangEstimate,
   perCall,
   readCatalogue,
+  sample,
   summarizeTyping,
   withEntryAgain,
   withHangAgain,
@@ -91,6 +108,9 @@ type Unit =
 /** What checking a unit found: whether it fails the suite, and its line. */
 type Verdict = { readonly failed: boolean; readonly line: string };
 
+/** What the run accepts beyond the catalogue: a result written otherwise, recorded under `--accept-rewording`. */
+type Accepting = { readonly rewording: boolean };
+
 function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(2)} s`;
 }
@@ -113,17 +133,15 @@ function deadlineOf(unit: Unit): number {
 }
 
 /**
- * What of an outcome must not change: its kind, its warnings, and its
- * first line without the note after the value, which states a bound or
- * the digits certified and may sharpen.
+ * What of an outcome must not change: its kind, its warnings, and the
+ * result side of its first line, from the relation on, without the note
+ * after the value, which states a bound or the digits certified and may
+ * sharpen. The echo of the expression before the relation is left out:
+ * it is the printer's, and changes with it.
  */
 function comparable(outcome: OutcomeSummary): OutcomeSummary {
   if (outcome.kind !== "result") return outcome;
-  const line = outcome.line.replace(
-    / \((?:within [^()]*|\d+ of \d+ digits are certain|the digits are not certified)\)$/,
-    "",
-  );
-  return { ...outcome, line };
+  return { ...outcome, line: comparableLine(outcome.line) };
 }
 
 /** What measuring `unit` again found, against a reference warm time. */
@@ -131,6 +149,7 @@ function verdict(
   unit: Unit,
   outcome: Outcome,
   referenceMs: number | undefined,
+  accepting: Accepting,
 ): Verdict {
   if (unit.kind === "hang") {
     const { hang } = unit;
@@ -183,6 +202,17 @@ function verdict(
     const now = comparable(run.outcome);
     const before = comparable(then.outcome);
     if (JSON.stringify(now) !== JSON.stringify(before)) {
+      if (
+        accepting.rewording &&
+        now.kind === "result" &&
+        before.kind === "result" &&
+        now.warnings === before.warnings
+      ) {
+        return {
+          failed: false,
+          line: `✱ ${name}: reworded, recorded: was ${JSON.stringify(then.outcome.line)}, now ${JSON.stringify(run.outcome.line)}`,
+        };
+      }
       return {
         failed: true,
         line: `✖ ${name}: gave ${JSON.stringify(now)}, catalogued ${JSON.stringify(before)}`,
@@ -293,7 +323,9 @@ async function main(): Promise<void> {
       allowPositionals: true,
       options: {
         profile: { type: "string" },
+        sample: { type: "string" },
         record: { type: "boolean", default: false },
+        "accept-rewording": { type: "boolean", default: false },
         jobs: { type: "string" },
         "skip-hangs": { type: "boolean", default: false },
         help: { type: "boolean", default: false },
@@ -307,9 +339,19 @@ async function main(): Promise<void> {
   const functions = parsed.positionals;
   if (options.help) {
     console.log(
-      "usage: pnpm stress [<function> ...] [--profile <name>] [--skip-hangs] [--record] [--jobs <n>]",
+      "usage: pnpm stress [<function> ...] [--profile <name>] [--sample <n>] [--skip-hangs] [--record [--accept-rewording]] [--jobs <n>]",
     );
     return;
+  }
+  if (options["accept-rewording"] && !options.record) {
+    console.error("--accept-rewording records, so it takes --record");
+    process.exit(2);
+  }
+  const sampled =
+    options.sample === undefined ? undefined : Number(options.sample);
+  if (sampled !== undefined && !(Number.isInteger(sampled) && sampled >= 1)) {
+    console.error(`--sample takes a positive whole number: ${options.sample}`);
+    process.exit(2);
   }
   const jobs =
     options.jobs === undefined ? availableParallelism() : Number(options.jobs);
@@ -322,10 +364,15 @@ async function main(): Promise<void> {
   const chosen = (x: Entry | Hang) =>
     selects(functions, x.family.functions) &&
     (options.profile === undefined || x.family.profile === options.profile);
-  const entries = catalogue.entries
-    .filter(chosen)
-    .sort((a, b) => a.cold.ms + a.warm.ms - (b.cold.ms + b.warm.ms));
-  const hangs = options["skip-hangs"] ? [] : catalogue.hangs.filter(chosen);
+  const selected = catalogue.entries.filter(chosen);
+  const entries = (
+    sampled === undefined ? selected : sample(selected, sampled)
+  ).sort((a, b) => a.cold.ms + a.warm.ms - (b.cold.ms + b.warm.ms));
+  // A sample is a spot check of the values: no hang, which has none.
+  const hangs =
+    options["skip-hangs"] || sampled !== undefined
+      ? []
+      : catalogue.hangs.filter(chosen);
   const units: Unit[] = [
     ...entries.map((entry): Unit => ({ kind: "entry", entry })),
     ...hangs.map((hang): Unit => ({ kind: "hang", hang })),
@@ -363,6 +410,7 @@ async function main(): Promise<void> {
   );
 
   const commit = options.record ? currentCommit() : undefined;
+  const accepting: Accepting = { rewording: options["accept-rewording"] };
   const verdicts: Verdict[] = [];
   let i = 0;
   await runPool<Unit>({
@@ -370,7 +418,7 @@ async function main(): Promise<void> {
     next: () => units[i++],
     run: async (unit) => {
       const outcome = await measureCase(caseOfUnit(unit), deadlineOf(unit));
-      const v = verdict(unit, outcome, referenceMs);
+      const v = verdict(unit, outcome, referenceMs, accepting);
       verdicts.push(v);
       console.log(`[${verdicts.length}/${units.length}] ${v.line}`);
       if (commit !== undefined && !v.failed && "measured" in outcome) {

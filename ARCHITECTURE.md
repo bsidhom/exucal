@@ -1854,14 +1854,18 @@ tests. The rest of the directory is what they share:
   `pnpm stress` and discovered by neither `pnpm test` nor `pnpm bench`.
   It measures again the catalogued cases that call the functions named
   on its command line (all of them when none is named, those of one
-  profile with `--profile`), each in a worker of its own, cold and warm,
-  in the search's lanes, cheapest first by its catalogued time, then the
-  hangs (`--skip-hangs` leaves them out), printing each result as it
-  comes. An entry's deadline is four times its catalogued time and two
-  minutes at least. It fails on what holds on any machine: an entry's
-  outcome's kind, value and warnings as catalogued (the note after the
-  value, which states a bound a sharper kernel may tighten, is left
-  out), and no entry past its deadline. It reports the timings beside
+  profile with `--profile`, `n` of them chosen by a fixed hash of the
+  case with `--sample <n>`, `sample`, the spot check), each in a worker
+  of its own, cold and warm, in the search's lanes, cheapest first by
+  its catalogued time, then the hangs (`--skip-hangs` leaves them out,
+  as a sample does), printing each result as it comes. An entry's
+  deadline is four times its catalogued time and two minutes at least.
+  It fails on what holds on any machine: an entry's outcome's kind,
+  warnings and result as catalogued (`comparableLine`: the line from
+  its relation on, the echo of the expression before it being the
+  printer's and no value, and without the note after the value, which
+  states a bound a sharper kernel may tighten), and no entry past its
+  deadline. It reports the timings beside
   the catalogue's, each entry's cost as a multiple of a reference case
   (`exp(1) - exp(1)`), entries much cheaper than catalogued, and for
   each hang how far it got and its estimate, or that it now finishes.
@@ -1871,16 +1875,13 @@ tests. The rest of the directory is what they share:
   progress and estimate (`withHangAgain`), and a hang that now finishes
   as its family's entry. Entries that become cheap are kept: they guard
   the cost, their value is still checked, and a costlier case of their
-  family replaces them.
-- `bench/stress/reline.ts`, run by `pnpm stress:reline`, records again
-  the outcome line of every entry as the current build writes it
-  (`lineOf`, one evaluation in a worker lane under the suite's deadline;
-  `withOutcome`), the timings and the cases kept, after a change to how
-  a line is written rather than to what it computes: the printer's
-  spacing, the display's wording of a zero. It prints every line changed,
-  old and new, since it cannot tell a line reworded from a value changed,
-  which `verify.ts` never records; the change that runs it states, in
-  the diff of the catalogue, that only the writing differs.
+  family replaces them. A changed result is never recorded, unless
+  `--accept-rewording` says the result is written otherwise and not
+  computed otherwise, which the suite cannot tell: each such entry is
+  then recorded and printed, old and new, a statement the change that
+  uses the flag makes, to be read against the catalogue's diff. The
+  suite is run in full after a change to a kernel, the pipeline or the
+  writing of a result, and before a release; a sample between.
 - `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
   drawn from the letters `n` to `z` and unit names from `a` to `m`, so
   that no name is ambiguous and the ambiguity check scans everything: its

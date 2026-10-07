@@ -245,7 +245,7 @@ test("an argument below 2^-significandLimitBits throughout is its own sine and t
 
 test("an argument reaching 2^significandLimitBits is too large, since the reduction would need pi to that many bits", () => {
   // The significand limit, which the setting moves, whatever the sign.
-  const tooLarge = { kind: "tooLarge", inexact: "passes" };
+  const tooLarge = { kind: "tooLarge", inexact: "exceeds" };
   for (const fn of [sinBall, cosBall, tanBall]) {
     assert.deepEqual(failure(fn(exact(dec("1e999999999")), DEFAULT)), tooLarge);
     assert.deepEqual(

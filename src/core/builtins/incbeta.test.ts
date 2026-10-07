@@ -384,7 +384,7 @@ test("the ends of the exponent and the term limit", () => {
     error(
       call(true, d("1e6"), d("1e6"), d("0.5"), { ...CONTEXT, precision: 1000 }),
     ),
-    { kind: "tooLarge", inexact: "passes" },
+    { kind: "tooLarge", inexact: "exceeds" },
   );
   assert.equal(shown(true, d("1e6"), d("1e6"), d("0.5"), eight), "≈ 0.5");
 });

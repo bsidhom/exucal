@@ -917,10 +917,10 @@ Amended after S3 of the settings plan (D29). The message suggests
 rather than promises, and what it suggests is the refusing function's
 word: every `tooLarge` carries `inexact`, the function's expectation for
 the same step computed inexactly (`Reach` in rational.ts), `fits` or
-`passes`, stated where the refusal is made and never inferred above it
+`exceeds`, stated where the refusal is made and never inferred above it
 from the expression's shape. On `fits` the message offers `approx` around
 the first operand of the node, which the evaluator names, and decimal
-mode, as things to try; on `passes` it says the value passes however it
+mode, as things to try; on `exceeds` it says the value exceeds the limit however it
 is computed and offers nothing, a higher limit being the user's to
 judge. A function that learns to reach further (the trig reduction, say)
 changes its own refusal's reach and its own test, and nothing else.

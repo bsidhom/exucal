@@ -206,7 +206,7 @@ function incompleteBeta(
   const extra =
     magnitudeBits(a, context.significandLimitBits) +
     magnitudeBits(b, context.significandLimitBits);
-  if (bits + extra > context.significandLimitBits) return tooLarge("passes");
+  if (bits + extra > context.significandLimitBits) return tooLarge("exceeds");
   const working = bits + extra;
   const digits = workingDigits(context) + Math.ceil(extra / BITS_PER_DIGIT) + 1;
   // The complement of x, and the two orientations.
@@ -215,7 +215,7 @@ function incompleteBeta(
   const direct: Orientation = { a, b, x, other: complement.value };
   const swapped: Orientation = { a: b, b: a, x: complement.value, other: x };
   const choice = chooseOrientation(direct, swapped, working);
-  if (choice === undefined) return tooLarge("passes");
+  if (choice === undefined) return tooLarge("exceeds");
   const { orientation, swap } = choice;
   const value = valueOf(orientation, regularized, working, digits, context);
   if (!swap) return value;
@@ -489,7 +489,7 @@ function atEnds(
   if (r === undefined) throw new Error("A bounded radius has a value");
   const lo = subtract(x.mid, r, context.significandLimitBits);
   const hi = add(x.mid, r, context.significandLimitBits);
-  if (!lo.ok || !hi.ok) return tooLarge("passes");
+  if (!lo.ok || !hi.ok) return tooLarge("exceeds");
   // Clamped to the domain: the ends outside it were refused above.
   const low = sign(lo.value) < 0 ? ZERO : lo.value;
   const high = compare(hi.value, ONE) > 0 ? ONE : hi.value;

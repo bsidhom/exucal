@@ -118,7 +118,7 @@ export function modBall(
   context: NumberContext,
 ): Result<Ball, BuiltinError> {
   const q = quotientFloor(a, b, context);
-  if (!q.ok) return q.error.kind === "overflow" ? tooLarge("passes") : q;
+  if (!q.ok) return q.error.kind === "overflow" ? tooLarge("exceeds") : q;
   if (q.value.kind === "tiny") {
     if (isZero(q.value.count.mid)) return ok(a);
     const sum = addBalls(a, b, context);
@@ -131,13 +131,13 @@ export function modBall(
       count.mid,
       context.significandLimitBits,
     );
-    if (!fraction.ok) return tooLarge("passes");
+    if (!fraction.ok) return tooLarge("exceeds");
     // The product is within `|b|`, so it can only fall below the bound.
     const remainder = multiply(fraction.value, b.mid);
     if (remainder.ok) return ok(exact(remainder.value));
     return isRefusal(remainder.error)
       ? err(remainder.error)
-      : tooLarge("passes");
+      : tooLarge("exceeds");
   }
   const fraction = subtractBalls(quotient, count, context);
   if (!fraction.ok) return err(fromBallError(fraction.error, 0));

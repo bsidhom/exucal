@@ -111,7 +111,7 @@ export function tanBall(
 function sinCos(x: Ball, context: NumberContext): Result<SinCos, BuiltinError> {
   // The reduction needs the argument's own bits, exact or not, and an
   // inexact argument this large has no usable sine in any case.
-  if (isHuge(x, context)) return err({ kind: "tooLarge", inexact: "passes" });
+  if (isHuge(x, context)) return err({ kind: "tooLarge", inexact: "exceeds" });
   const bits = bitsFor(context.precision);
   return ok(
     sinCosFixed(

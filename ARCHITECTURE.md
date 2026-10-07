@@ -590,16 +590,16 @@ for the significand limit's `tooLarge`, and for the bound that the
 exponent would pass `10^18` (`overflow`), or fall below `-10^18` for a
 value too small to hold (`underflow`). A `tooLarge` carries the refusing
 function's word on the same step computed inexactly, `inexact` of
-`Reach` in rational.ts: `fits`, where only the exact result passes the
+`Reach` in rational.ts: `fits`, where only the exact result exceeds the
 limit (a sum's alignment, an exact power's prediction, a product formed
-and measured), or `passes`, where the computation needs more bits than
+and measured), or `exceeds`, where the computation needs more bits than
 the limit holds whatever its operands (a literal's digits, an exponent
 that cannot be formed, a kernel's reach). The field is required, so no
 refusal site can be silent about it, and it is stated where the
 refusal is made and carried through unchanged: the evaluator adds only
 the first operand's span on `fits`, a fact of the syntax tree, and the
 message reads the field, offering `approx` around that operand or
-decimal mode as things to try on `fits`, and on `passes` saying that the
+decimal mode as things to try on `fits`, and on `exceeds` saying that the
 value passes however it is computed. Nothing above the refusing
 function infers the reach from the expression's shape, so a function
 that learns to reach further changes its own refusal and its own test.

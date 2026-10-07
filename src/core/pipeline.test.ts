@@ -561,7 +561,7 @@ test("the significand limit of the context reaches a literal's significand and a
   assert.deepEqual(literal.error, {
     kind: "tooLarge",
     span: { start: 0, end: 21 },
-    inexact: "passes",
+    inexact: "exceeds",
   });
   assert.ok(evaluateText(table, "1e18 m", small).ok);
   assert.ok(evaluateText(table, "1e30 m", small).ok);
@@ -730,12 +730,16 @@ test("the trigonometric functions saturate or refuse an argument of any exponent
   assert.deepEqual(sine.error, {
     kind: "tooLarge",
     span: { start: 0, end: 23 },
-    inexact: "passes",
+    inexact: "exceeds",
   });
   assert.deepEqual(failure("sin(1e999999999 radian)", "1"), {
     kind: "inputError",
     side: "have",
-    error: { kind: "tooLarge", span: { start: 0, end: 23 }, inexact: "passes" },
+    error: {
+      kind: "tooLarge",
+      span: { start: 0, end: 23 },
+      inexact: "exceeds",
+    },
   });
   // The arc tangent is pi/2 within 2^-bits: 90 degrees, inexact.
   const right = value("atan(1e999999999)", "deg").value;

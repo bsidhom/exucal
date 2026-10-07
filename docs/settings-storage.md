@@ -144,6 +144,33 @@ accepts a notation only when it is an object of one of the two shapes
 with a width in its range, defaulting the whole mode otherwise; the
 width depends on no other setting, so the clamp does not touch it.
 
+Version 5 (S3, docs/settings-limits.md) names the three numbers with
+their units and adds the probe's budget:
+
+```json
+{
+  "version": 5,
+  "savedBy": "…",
+  "settings": {
+    "displayDigits": 8,
+    "rounding": "halfEven",
+    "mode": { "kind": "exact", "notation": { "kind": "digits" } },
+    "precisionLimitDigits": 1000,
+    "significandLimitBits": 65536,
+    "budgetMs": 50
+  }
+}
+```
+
+`digits` becomes `displayDigits`, `maxDigits` `precisionLimitDigits` and
+`maxBits` `significandLimitBits`, each carried over by the migration
+from 4 to 5 as it is, malformed or not, for the validation to default,
+and a missing one staying missing; `budgetMs`, which no earlier build
+stored, is left for the validation to default, 50, and is accepted as
+an integer in `[10, 10000]`, defaulting otherwise, since it depends on
+nothing and nothing clamps it. The old keys are not read at version 5:
+a version 5 object carrying `digits` loads the default display digits.
+
 The storage key stays `settings`.
 
 ## One version for the whole record

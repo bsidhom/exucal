@@ -5,10 +5,12 @@ import type { Definition } from "./core/definitions.ts";
 import type { Result } from "./core/result.ts";
 import {
   clampSettings,
+  clampsOf,
   contextOf,
   ratioOf,
   loadSettings,
   saveSettings,
+  type Clamp,
   type Settings,
 } from "./settings.ts";
 import { onWorkerStatus } from "./register-service-worker.ts";
@@ -38,17 +40,19 @@ import "./unit-converter.ts";
  *   is in flight. The load is one promise whose result is set on reactive
  *   state when it settles, the plain Lit pattern for a single asynchronous
  *   value. The build is synchronous and memoized by the ceiling, so it runs
- *   in `render` and reruns only when a change to the "Precision limit"
- *   setting moves the ceiling, which is the one reason the table is ever
- *   rebuilt; the digits setting never rebuilds it.
+ *   in `render` and reruns only when a change to the precision limit
+ *   moves the ceiling, which is the one reason the table is ever
+ *   rebuilt; the display digits never rebuild it.
  * - The settings (settings.ts): read from `localStorage` when the shell is
  *   created, passed to the settings panel (settings-panel.ts) as a
  *   property and to the converter as its context, whose ceiling is derived
- *   from the cap on the digits. The panel reports each change the user
+ *   from the precision limit. The panel reports each change the user
  *   makes as a `settings-change` event, and the shell applies it: it
  *   clamps what depends on the change, so lowering a limit lowers what
- *   depends on it (`clampSettings`), and saves the settings. That handler
- *   is the one place a settings change becomes state and an effect.
+ *   depends on it (`clampSettings`), hands the panel what the clamp
+ *   moved so that the panel can say so (`clampsOf`), and saves the
+ *   settings. That handler is the one place a settings change becomes
+ *   state and an effect.
  * - The service worker's status (register-service-worker.ts), mirrored
  *   into the shell by a `Subscription` for as long as it is connected and
  *   passed to the footer (app-footer.ts), which shows it beside the build
@@ -111,6 +115,9 @@ export class AppShell extends LitElement {
   /** The user's settings, from storage, saved on every change. */
   @state() private settings: Settings = loadSettings(localStorage);
 
+  /** What the clamp moved on the last change, for the panel to tell. */
+  @state() private clamps: readonly Clamp[] = [];
+
   /** The service worker's status, for the footer and the update check. */
   private readonly worker = new Subscription(this, onWorkerStatus);
 
@@ -146,6 +153,7 @@ export class AppShell extends LitElement {
         ${this.renderContent()}
         <settings-panel
           .settings=${this.settings}
+          .clamps=${this.clamps}
           @settings-change=${this.onSettingsChange}
         ></settings-panel>
       </main>
@@ -156,10 +164,13 @@ export class AppShell extends LitElement {
   /**
    * Applies a change the user made in the panel: the one place a settings
    * change becomes state and an effect. What depends on the change is
-   * clamped (`clampSettings`) and the settings are saved.
+   * clamped (`clampSettings`), what the clamp moved is handed back to the
+   * panel to tell (`clampsOf`), and the settings are saved.
    */
   private onSettingsChange(event: CustomEvent<Partial<Settings>>) {
-    this.settings = clampSettings({ ...this.settings, ...event.detail });
+    const changed = { ...this.settings, ...event.detail };
+    this.clamps = clampsOf(changed);
+    this.settings = clampSettings(changed);
     saveSettings(localStorage, this.settings, BUILD_ID);
   }
 

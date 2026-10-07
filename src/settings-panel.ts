@@ -1,9 +1,24 @@
 import { LitElement, css, html, nothing } from "lit";
 import { live } from "lit/directives/live.js";
 import { customElement, property, state } from "lit/decorators.js";
-import { MODES, ceilingFor, type Mode } from "./core/context.ts";
+import { MODES, type Mode } from "./core/context.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
-import { recommendLimits } from "./limits.ts";
+import { recommendLimits, type Recommendation } from "./limits.ts";
+import {
+  BUDGET_LINE,
+  MODE_LINES,
+  NOTATION_LINE,
+  PROBE_LINE,
+  ROUNDING_LINES,
+  UNITS,
+  clampLine,
+  displayDigitsLine,
+  precisionLimitLine,
+  proposalLine,
+  refusalLine,
+  significandLimitLine,
+  workingDigitsLine,
+} from "./settings-lines.ts";
 import { buttonStyles, hintStyles } from "./styles.ts";
 import {
   DEFAULT_MODES,
@@ -11,52 +26,63 @@ import {
   DEFAULT_SETTINGS,
   NOTATION_KINDS,
   extendedWorkingOf,
-  isIntegerIn,
   isMode,
   isNotationKind,
   isRoundingMode,
   rangesOf,
   ratioOf,
+  refusalOf,
+  type Clamp,
   type NotationKind,
   type NumberSetting,
+  type RangedSetting,
+  type Refusal,
   type Settings,
   type Working,
   type Notation,
 } from "./settings.ts";
 
 /**
- * The settings panel under the converter: the digits a result is shown
- * with and, grouped with them in decimal mode, the working digits every
- * step but the last is computed with; the cap on the digits; the range
- * limit in bits; the rounding mode; the mode and, under it in exact
- * mode, the notation its exact values are written in
- * (docs/settings-modes.md, docs/working-digits.md); each with a line on
- * what it does in the mode in force. The settings come in as a property and every change the user
- * makes goes out as a `settings-change` event carrying the fields that
- * changed, the mode always as a whole variant; the shell owns the
- * settings, clamps what depends on the change and saves them, so this
- * panel knows nothing of storage.
+ * The settings panel under the converter: the display digits a result is
+ * shown with and, grouped with them in decimal mode, the working digits
+ * every step but the last is computed with; the precision limit in
+ * digits; the significand limit in bits; the rounding mode; the mode
+ * and, under it in exact mode, the notation its exact values are written
+ * in; and the probe with its budget in milliseconds
+ * (docs/settings-modes.md, docs/working-digits.md,
+ * docs/settings-limits.md); each with a line on what it does in the mode
+ * in force (settings-lines.ts), and each number input with its unit after
+ * it. The settings come in as a property and every change the user makes
+ * goes out as a `settings-change` event carrying the fields that changed,
+ * the mode always as a whole variant; the shell owns the settings, clamps
+ * what depends on the change and saves them, so this panel knows nothing
+ * of storage.
  *
  * Each number input accepts an integer in the range the settings above it
- * allow (`rangesOf`: the digits up to the cap, the cap up to what the
- * range limit holds, the range limit between its floor and the hard
- * bound, the working digits from the digits up to the cap), and a value
- * outside that is not applied: the panel re-renders and the `live`
- * binding snaps the input back to the setting in force. The cap on the
- * digits is labeled "Precision limit": what it bounds is the effort
- * spent, through the ceiling of the retry schedule (`ceilingFor`), which
- * in decimal mode is the most hidden digits a step's rounding is
- * certified at, and its line shows that ceiling.
+ * allow (`rangesOf`: the display digits up to the precision limit, the
+ * precision limit up to what the significand limit holds, the significand
+ * limit between its floor and the hard bound, the working digits from
+ * the display digits up to the precision limit, the width and the budget
+ * between their own bounds). A value outside that is refused: it is not
+ * applied, the `live` binding snaps the input back to the setting in
+ * force, and a line under the input names the bound and the setting
+ * that sets it (`refusalOf`), until the next change. An accepted change
+ * may move the settings below it in the chain; the shell hands the panel
+ * what the clamp moved (`clamps`), and a line under each setting moved
+ * says from what to what and to fit which setting, until the next change
+ * (D29's clamp-and-tell).
  *
  * The Mode select's options are the bare names, so that the select stays
  * narrow and the panel fits a phone (#147); the explanation is the line
  * under it, which follows the mode in force.
  *
- * A button beside them asks limits.ts to measure what this device does
- * within its latency budget and emits the two limits it recommends; it is
- * disabled while the probe runs, which blocks the main thread for a
- * fraction of a second, and the probe runs only when asked (the plan's
- * D16).
+ * The probe: "Measure this device" asks limits.ts to time the costliest
+ * operation on each axis within the budget a pass and shows what it
+ * found as a proposal, the timings and the two limits, which "Apply"
+ * emits as a change like any other, through the shell's clamp and its
+ * telling; nothing changes before that. The button is disabled while the
+ * probe runs, which blocks the main thread for a fraction of a second,
+ * and the probe runs only when asked (the plan's D16).
  */
 @customElement("settings-panel")
 export class SettingsPanel extends LitElement {
@@ -106,6 +132,43 @@ export class SettingsPanel extends LitElement {
         width: 6rem;
       }
 
+      .measure {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-weight: 400;
+      }
+
+      .notice {
+        max-width: 16rem;
+        font-size: 0.75rem;
+        font-weight: 400;
+      }
+
+      .probe {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        flex-basis: 100%;
+      }
+
+      .probe > div {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+
+      .proposal {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+        max-width: 24rem;
+        font-size: 0.875rem;
+        font-weight: 400;
+      }
+
       .group {
         display: flex;
         flex-direction: column;
@@ -149,8 +212,8 @@ export class SettingsPanel extends LitElement {
         margin: 0;
       }
 
-      .settings > button {
-        align-self: flex-end;
+      .probe button {
+        align-self: flex-start;
       }
     `,
   ];
@@ -158,8 +221,20 @@ export class SettingsPanel extends LitElement {
   /** The settings in force, from the shell. */
   @property({ attribute: false }) settings: Settings = DEFAULT_SETTINGS;
 
-  /** Whether the probe for the recommended limits is running. */
-  @state() private recommending = false;
+  /** What the shell's clamp moved on the last change, for the lines under the settings moved. */
+  @property({ attribute: false }) clamps: readonly Clamp[] = [];
+
+  /** The last edit refused, for the line under its input, until the next change. */
+  @state() private refused?: {
+    readonly setting: RangedSetting;
+    readonly refusal: Refusal;
+  };
+
+  /** Whether the probe is running. */
+  @state() private measuring = false;
+
+  /** What the probe last proposed, until it is applied or the probe runs again. */
+  @state() private proposal?: Recommendation;
 
   /** The last extended count of working digits seen, so that checking "extended" again offers it. */
   private lastExtended?: number;
@@ -167,9 +242,11 @@ export class SettingsPanel extends LitElement {
   /** The last ratio width seen, so that choosing `ratio` again offers it. */
   private lastWidth?: number;
 
-  willUpdate() {
+  willUpdate(changed: Map<PropertyKey, unknown>) {
     this.lastExtended = extendedWorkingOf(this.settings) ?? this.lastExtended;
     this.lastWidth = ratioOf(this.settings)?.width ?? this.lastWidth;
+    // A change of the settings is the next change a refusal waits for.
+    if (changed.has("settings")) this.refused = undefined;
   }
 
   render() {
@@ -179,7 +256,7 @@ export class SettingsPanel extends LitElement {
         <summary>Settings</summary>
         <div class="settings">
           <div class="group">
-            ${this.renderNumber(DIGITS_FIELD)}
+            ${this.renderNumber(DISPLAY_DIGITS_FIELD)}
             ${mode.kind === "decimal" ? this.renderWorking(mode.working) : nothing}
           </div>
           ${LIMIT_FIELDS.map((field) => this.renderNumber(field))}
@@ -200,33 +277,69 @@ export class SettingsPanel extends LitElement {
             MODE_LINES[mode.kind],
           )}
           ${mode.kind === "exact" ? this.renderNotation(mode.notation) : nothing}
-          <button
-            type="button"
-            ?disabled=${this.recommending}
-            @click=${this.onRecommend}
-          >
-            ${this.recommending ? "Measuring…" : "Recommend limits"}
-          </button>
+          ${this.renderProbe()}
         </div>
       </details>
     `;
   }
 
-  /** A number setting's input, accepting an integer in its range, with its line under it. */
-  private renderNumber(field: NumberField) {
-    const { min, max } = rangesOf(this.settings)[field.key];
+  /**
+   * A number input for `setting` at `value`, with its unit after it; its
+   * bounds are the setting's range, and `onChange` takes the input's
+   * value, which the handler validates against the same range.
+   */
+  private renderInput(
+    setting: RangedSetting,
+    value: number,
+    onChange: (event: Event) => void,
+    ariaLabel?: string,
+  ) {
+    const { min, max } = rangesOf(this.settings)[setting];
     return html`
-      <label>
-        ${field.label}
+      <span class="measure">
         <input
           type="number"
           inputmode="numeric"
+          aria-label=${ariaLabel ?? nothing}
           min=${min}
           max=${max}
           step="1"
-          .value=${live(String(this.settings[field.key]))}
-          @change=${this.onNumberChange(field.key)}
+          .value=${live(String(value))}
+          @change=${onChange}
         />
+        ${UNITS[setting]}
+      </span>
+    `;
+  }
+
+  /** The line under `setting`'s input when its last edit was refused or the last change moved it; nothing otherwise. */
+  private renderNotice(setting: RangedSetting) {
+    const line = this.noticeFor(setting);
+    return line === undefined
+      ? nothing
+      : html`<small class="notice" role="status">${line}</small>`;
+  }
+
+  /** The refusal of `setting`'s last edit, else what the last change's clamp did to it, as a line; `undefined` when neither. */
+  private noticeFor(setting: RangedSetting): string | undefined {
+    if (this.refused?.setting === setting) {
+      return refusalLine(setting, this.refused.refusal);
+    }
+    const clamp = this.clamps.find((each) => each.setting === setting);
+    return clamp === undefined ? undefined : clampLine(clamp);
+  }
+
+  /** A number setting's input with its unit, any notice on it, and its line under it. */
+  private renderNumber(field: NumberField) {
+    return html`
+      <label>
+        ${field.label}
+        ${this.renderInput(
+          field.key,
+          this.settings[field.key],
+          this.onNumberChange(field.key),
+        )}
+        ${this.renderNotice(field.key)}
         <small class="hint">${field.hint(this.settings)}</small>
       </label>
     `;
@@ -259,7 +372,6 @@ export class SettingsPanel extends LitElement {
 
   /** Exact mode's notation: a choice between its two values, each a radio button named for it, the ratio's width beside it while chosen. */
   private renderNotation(notation: Notation) {
-    const { min, max } = rangesOf(this.settings).width;
     return html`
       <fieldset>
         <legend>Notation</legend>
@@ -276,36 +388,26 @@ export class SettingsPanel extends LitElement {
               ${NOTATION_LABELS[each]}
               ${
                 each === "ratio" && notation.kind === "ratio"
-                  ? html`<input
-                      type="number"
-                      inputmode="numeric"
-                      aria-label="Ratio width"
-                      min=${min}
-                      max=${max}
-                      step="1"
-                      .value=${live(String(notation.width))}
-                      @change=${this.onWidthChange}
-                    />`
+                  ? this.renderInput(
+                      "width",
+                      notation.width,
+                      this.onWidthChange,
+                      "Ratio width",
+                    )
                   : nothing
               }
             </label>
           `,
         )}
-        <small class="hint">
-          An exact value that is not a whole number is written as a ratio of two
-          whole numbers in lowest terms when the two have at most the width in
-          digits between them; a whole number is written entire when it fits the
-          width; anything longer is a decimal at Digits. An inexact value is
-          always a decimal.
-        </small>
+        ${this.renderNotice("width")}
+        <small class="hint">${NOTATION_LINE}</small>
       </fieldset>
     `;
   }
 
-  /** Decimal mode's working digits, under Digits: a checkbox named for the `extended` value, and the count while it is checked. */
+  /** Decimal mode's working digits, under the display digits: a checkbox named for the `extended` value, and the count while it is checked. */
   private renderWorking(working: Working) {
     const extended = working.kind === "extended";
-    const { min, max } = rangesOf(this.settings).working;
     return html`
       <label class="toggle">
         Working digits
@@ -318,44 +420,86 @@ export class SettingsPanel extends LitElement {
           extended
           ${
             working.kind === "extended"
-              ? html`<input
-                  type="number"
-                  inputmode="numeric"
-                  aria-label="Extended working digits"
-                  min=${min}
-                  max=${max}
-                  step="1"
-                  .value=${live(String(working.digits))}
-                  @change=${this.onWorkingChange}
-                />`
+              ? this.renderInput(
+                  "working",
+                  working.digits,
+                  this.onWorkingChange,
+                  "Extended working digits",
+                )
               : nothing
           }
         </span>
-        <small class="hint">
-          ${
-            extended
-              ? "The digits every step but the last is computed with; the answer is shown at Digits."
-              : "Every step is computed with Digits. Extended working digits keep a step's rounding out of the answer, as a calculator's hidden digits do: at twelve, ln(exp(1/10)) is 0.1."
-          }
-        </small>
+        ${this.renderNotice("working")}
+        <small class="hint">${workingDigitsLine(extended)}</small>
       </label>
     `;
   }
 
   /**
+   * The probe: its budget, the button that runs it, and what it last
+   * proposed with "Apply" beside it.
+   */
+  private renderProbe() {
+    const { budgetMs } = this.settings;
+    return html`
+      <div class="probe">
+        <div>
+          ${this.renderNumber(BUDGET_FIELD)}
+          <label>
+            Limits
+            <button
+              type="button"
+              ?disabled=${this.measuring}
+              @click=${this.onMeasure}
+            >
+              ${this.measuring ? "Measuring…" : "Measure this device"}
+            </button>
+            <small class="hint">${PROBE_LINE}</small>
+          </label>
+        </div>
+        ${
+          this.proposal === undefined
+            ? nothing
+            : html`
+                <div class="proposal" role="status">
+                  <span>${proposalLine(this.proposal, budgetMs)}</span>
+                  <button type="button" @click=${this.onApply}>Apply</button>
+                </div>
+              `
+        }
+      </div>
+    `;
+  }
+
+  /**
    * The handler for a number setting's input: a value in the setting's
-   * range is emitted; any other is not a setting, and a re-render snaps the
-   * input back to the one in force.
+   * range is emitted; any other is refused, with the reason kept for the
+   * line under the input, and a re-render snaps the input back to the
+   * setting in force.
    */
   private onNumberChange(key: NumberSetting) {
-    return (event: Event) => {
-      const value = (event.target as HTMLInputElement).valueAsNumber;
-      if (isIntegerIn(value, rangesOf(this.settings)[key])) {
-        this.emit({ [key]: value });
-      } else {
-        this.requestUpdate();
-      }
-    };
+    return (event: Event) =>
+      this.accept(key, event, (value) => this.emit({ [key]: value }));
+  }
+
+  /**
+   * Validates the value of `setting`'s input: in range, `emit` is called
+   * with it; out of range, the refusal is kept and the input re-rendered
+   * to the setting in force.
+   */
+  private accept(
+    setting: RangedSetting,
+    event: Event,
+    emit: (value: number) => void,
+  ) {
+    const value = (event.target as HTMLInputElement).valueAsNumber;
+    const refusal = refusalOf(value, setting, this.settings);
+    if (refusal === undefined) {
+      emit(value);
+    } else {
+      this.refused = { setting, refusal };
+      this.requestUpdate();
+    }
   }
 
   /** The handler for a select: a value that `is` the setting's type is emitted. */
@@ -390,14 +534,11 @@ export class SettingsPanel extends LitElement {
 
   /** A change of the ratio's width: a value in its range is emitted, as for the number settings. */
   private onWidthChange(event: Event) {
-    const value = (event.target as HTMLInputElement).valueAsNumber;
-    if (isIntegerIn(value, rangesOf(this.settings).width)) {
+    this.accept("width", event, (width) =>
       this.emit({
-        mode: { kind: "exact", notation: { kind: "ratio", width: value } },
-      });
-    } else {
-      this.requestUpdate();
-    }
+        mode: { kind: "exact", notation: { kind: "ratio", width } },
+      }),
+    );
   }
 
   /**
@@ -422,32 +563,35 @@ export class SettingsPanel extends LitElement {
 
   /** A change of the extended count: a value in its range is emitted, as for the number settings. */
   private onWorkingChange(event: Event) {
-    const value = (event.target as HTMLInputElement).valueAsNumber;
-    if (isIntegerIn(value, rangesOf(this.settings).working)) {
+    this.accept("working", event, (digits) =>
       this.emit({
-        mode: { kind: "decimal", working: { kind: "extended", digits: value } },
-      });
-    } else {
-      this.requestUpdate();
-    }
+        mode: { kind: "decimal", working: { kind: "extended", digits } },
+      }),
+    );
   }
 
   /**
-   * Runs the probe and emits the limits it recommends. The probe is
-   * synchronous and takes a fraction of a second, so the button is
-   * disabled and the frame painted before it starts.
+   * Runs the probe within the budget in force and keeps what it
+   * proposes. The probe is synchronous and takes a fraction of a second,
+   * so the button is disabled and the frame painted before it starts.
    */
-  private async onRecommend() {
-    this.recommending = true;
+  private async onMeasure() {
+    this.measuring = true;
+    this.proposal = undefined;
     await afterPaint(this);
     try {
-      const { significandLimitBits, precisionLimitDigits } = recommendLimits(
-        this.settings.budgetMs,
-      );
-      this.emit({ significandLimitBits, precisionLimitDigits });
+      this.proposal = recommendLimits(this.settings.budgetMs);
     } finally {
-      this.recommending = false;
+      this.measuring = false;
     }
+  }
+
+  /** Applies the proposal: the two limits, as a change like any other. */
+  private onApply() {
+    if (this.proposal === undefined) return;
+    const { significandLimitBits, precisionLimitDigits } = this.proposal;
+    this.proposal = undefined;
+    this.emit({ significandLimitBits, precisionLimitDigits });
   }
 
   /** Reports a change the user made, for the shell to apply. */
@@ -466,23 +610,18 @@ async function afterPaint(host: LitElement): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-/** A number setting as the panel shows it: which, how it is labeled, and the line under it, which follows the mode in force. */
+/** A number setting as the panel shows it: which, how it is labeled, and the line under it, which follows the settings in force. */
 type NumberField = {
   readonly key: NumberSetting;
   readonly label: string;
   readonly hint: (settings: Settings) => string;
 };
 
-/** The digits, first in the panel, with decimal mode's working digits grouped under them. */
-const DIGITS_FIELD: NumberField = {
+/** The display digits, first in the panel, with decimal mode's working digits grouped under them. */
+const DISPLAY_DIGITS_FIELD: NumberField = {
   key: "displayDigits",
-  label: "Digits",
-  hint: ({ mode }) => {
-    if (mode.kind === "exact") return "Significant digits shown.";
-    return mode.working.kind === "extended"
-      ? "Significant digits of the answer; every step before the last is computed with the working digits."
-      : "Significant digits shown, and of every value: every step is rounded to them, and a typed number with more is rounded to them on the way in.";
-  },
+  label: "Display digits",
+  hint: displayDigitsLine,
 };
 
 /** The two limits, after the digits. */
@@ -490,20 +629,21 @@ const LIMIT_FIELDS: readonly NumberField[] = [
   {
     key: "precisionLimitDigits",
     label: "Precision limit",
-    hint: ({ precisionLimitDigits, mode }) => {
-      const ceiling = ceilingFor(precisionLimitDigits).toLocaleString("en-US");
-      return mode.kind === "exact"
-        ? `The most digits an answer may be asked for. To certify one, exact mode works at up to 4 × (this + 10) = ${ceiling} digits, so this bounds the effort spent.`
-        : `The most digits an answer, or the working digits, may be asked for. A step's rounding is certified by computing it at up to 4 × (this + 10) = ${ceiling} hidden digits, so this bounds the effort spent.`;
-    },
+    hint: precisionLimitLine,
   },
   {
     key: "significandLimitBits",
-    label: "Most bits",
-    hint: () =>
-      "The most bits in an exact value's numerator or denominator. A hard limit on time and memory.",
+    label: "Significand limit",
+    hint: significandLimitLine,
   },
 ];
+
+/** The probe's budget, beside its button. */
+const BUDGET_FIELD: NumberField = {
+  key: "budgetMs",
+  label: "Probe budget",
+  hint: () => BUDGET_LINE,
+};
 
 /** How each rounding mode is named in the settings, in the modes' order. */
 const ROUNDING_LABELS: Record<RoundingMode, string> = {
@@ -522,24 +662,10 @@ const NOTATION_LABELS: Record<NotationKind, string> = {
   ratio: "ratio",
 };
 
-/** What the rounding mode rounds, in each mode. */
-const ROUNDING_LINES: Record<Mode, string> = {
-  exact: "How the last digit shown is rounded.",
-  decimal: "How every step is rounded, the last digit shown with it.",
-};
-
 /** How each mode is named in the settings: the bare name, the line under the select explaining it. */
 const MODE_LABELS: Record<Mode, string> = {
   exact: "exact",
   decimal: "decimal",
-};
-
-/** What each mode does, under the select. */
-const MODE_LINES: Record<Mode, string> = {
-  exact:
-    "Every digit shown is certain, found at rising precision; an exact value is written as its digits or as a ratio.",
-  decimal:
-    "Every step is rounded to Digits in the rounding mode, as a hand calculator does; every answer is exact in that arithmetic.",
 };
 
 declare global {

@@ -56,9 +56,13 @@ its own name below. Under the ratio notation it still governs the
 decimal fallback and the certification of every step.
 
 **Working digits**, in decimal digits (`mode.working` of decimal mode,
-S2b). The grid of every step but the last in decimal mode: locked to
+S2b). The grid of every observable step but the last in decimal mode,
+a step being a node of the expression a user can see (D26): locked to
 the display digits, or an extended count between them and the precision
-limit.
+limit. A built-in is one observable step, and inside it the kernel
+rounds onto finer grids, up to the ceiling, until its rounding onto the
+working grid is certified: the working digits bound what a user can
+see, not what a built-in may use to behave as one operation.
 
 **Precision limit**, in decimal digits (`maxDigits` today; 1,000 by
 default). The most digits any grid may be asked for: the cap on the
@@ -86,21 +90,25 @@ not the thing, and "Rational bit limit" says the representation but not
 that the exponent stands apart from it. The unit deserves its own
 paragraph, since "bits" is right only with care:
 
-- _It is bits per part._ The limit applies to the numerator and to the
-  denominator each on its own, so a significand at the limit holds up
-  to twice the limit in bits. Read as a size, the limit is a strict
-  upper bound on half the significand's storage, and nearly its size in
-  double-bits.
-- _It overstates the precision of a rational._ Only reduced
-  representations are admitted, so not every pair of integers within
-  the limit is a distinct significand, and the count of values a
-  significand of `S` bits per part can take is less than `2^(2S)`.
-  "Precision" in the binary sense is not what the limit measures.
-- _It is a lower bound on the significand's precision all the same._
-  With the denominator fixed at one, a significand of `S` bits is an
-  integer of `S` bits, so every precision up to `S` binary digits is
-  reachable within the limit; a user who reads the limit as a bit
-  precision is never promised more than the representation can hold.
+- _It is bits per part._ The limit `S` applies to the numerator and to
+  the denominator each on its own, so a significand at the limit holds
+  up to `2S` bits. Read as a size, `S` is a strict upper bound on half
+  the significand's storage, and the significand's size is nearly `S`
+  in double-bits.
+- _The double-bits reading would overstate the precision of a
+  rational,_ which is why the setting is not styled that way. Only
+  reduced representations are admitted, so not every pair of integers
+  within `S` bits each is a distinct significand, and the values a
+  significand of `S` bits per part can take number fewer than `2^(2S)`:
+  a claim of `2S` bits of precision would promise more than the
+  representation holds. The setting says `S` bits, and claims nothing
+  about `2S`.
+- _`S` bits is a lower bound on the significand's precision,_ which is
+  what makes the styling honest. With the denominator fixed at one, a
+  significand of `S` bits is an integer of `S` bits, so every precision
+  up to `S` binary digits is reachable within the limit; a user who
+  reads the limit as a bit precision is promised `S`, and `S` is
+  always there.
 - _The translation to decimal digits is per part_ and never a count of
   the value's digits: 65,536 bits is a numerator or a denominator of up
   to about 19,700 digits, and a ratio such as `1/3` has no digit count

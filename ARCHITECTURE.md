@@ -1872,6 +1872,15 @@ tests. The rest of the directory is what they share:
   as its family's entry. Entries that become cheap are kept: they guard
   the cost, their value is still checked, and a costlier case of their
   family replaces them.
+- `bench/stress/reline.ts`, run by `pnpm stress:reline`, records again
+  the outcome line of every entry as the current build writes it
+  (`lineOf`, one evaluation in a worker lane under the suite's deadline;
+  `withOutcome`), the timings and the cases kept, after a change to how
+  a line is written rather than to what it computes: the printer's
+  spacing, the display's wording of a zero. It prints every line changed,
+  old and new, since it cannot tell a line reworded from a value changed,
+  which `verify.ts` never records; the change that runs it states, in
+  the diff of the catalogue, that only the writing differs.
 - `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
   drawn from the letters `n` to `z` and unit names from `a` to `m`, so
   that no name is ambiguous and the ambiguity check scans everything: its

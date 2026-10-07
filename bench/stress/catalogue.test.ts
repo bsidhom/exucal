@@ -22,12 +22,14 @@ import {
   catalogueTable,
   catalogueText,
   hangEstimate,
+  lineChanged,
   readCatalogue,
   hangsTable,
   summarizeTyping,
   withEntryAgain,
   withHangAgain,
   withHit,
+  withOutcome,
   withRun,
   withTable,
   withTyping,
@@ -391,4 +393,26 @@ test("a case's settings are read through the settings migrations and written in 
     (JSON.parse(dirty) as typeof written).entries[0]!.settings.savedBy,
     `${COMMIT.hash}-dirty`,
   );
+});
+
+test("a line recorded again replaces what both runs gave, keeping every timing", () => {
+  const before = entry(family("gamma(x)"), "gamma(3) - 2", 1500);
+  const same = { kind: "result", line: "x ≈ 0", warnings: 0 } as const;
+  const reworded = {
+    kind: "result",
+    line: "x ≈ 0 (within 1e-30 of zero)",
+    warnings: 0,
+  } as const;
+  assert.equal(lineChanged(before, same), false);
+  assert.equal(lineChanged(before, reworded), true);
+  assert.equal(lineChanged(before, { ...same, warnings: 1 }), true);
+  const after = withOutcome(before, reworded);
+  assert.deepEqual(after.cold.outcome, reworded);
+  assert.deepEqual(after.warm.outcome, reworded);
+  assert.deepEqual({ ...after, cold: before.cold, warm: before.warm }, before);
+  assert.equal(after.cold.ms, before.cold.ms);
+  assert.deepEqual(after.warm.passes, before.warm.passes);
+  // A change in one run alone is a change.
+  const halfway = { ...before, warm: { ...before.warm, outcome: reworded } };
+  assert.equal(lineChanged(halfway, reworded), true);
 });

@@ -158,7 +158,8 @@ typing it back is the arithmetic's, and right.
 ## A zero's bound at the edges
 
 A ball that contains zero without being it is written as `0` with a
-bound, `≈ 0 (within 2e-30 of zero)`, the bound being at or above the sum
+bound, `≈ 0 (within 2e-30 of zero)`, never `-0`, whatever the sign of
+its midpoint, which is noise within the bound; the bound is at or above the sum
 of the midpoint's magnitude and the radius, rounded up to one digit
 (`zeroBound`, the plan's 2.4). Nothing holds a radius to the exponent
 bound, so a power of a ball around zero can carry the bound's exponent

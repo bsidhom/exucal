@@ -191,7 +191,8 @@ browser without service workers, which have no service worker to ask.
 An answer shows every digit asked for when the computation can vouch for
 them all. When it cannot, a note in parentheses says what the digits are
 worth: how many of them are certain ("8 of 12 digits are certain"), that
-the value is zero within a bound ("within 2e-30 of zero"), or that none
+the value is zero within a bound ("within 2e-30 of zero", the value
+written `0` whatever the sign of the noise it is within), or that none
 is certified.
 
 An answer is written with `=` when it is exact and every digit it has is
@@ -939,6 +940,7 @@ Cloud environment below), so nothing above has to be done there by hand.
 | `pnpm stress`         | Measure the catalogued inputs of named functions.                                                   |
 | `pnpm stress:search`  | Sample for the costliest inputs, ten minutes a run.                                                 |
 | `pnpm stress:rewrite` | Rewrite the catalogue as the current build stores it, after a change to the settings' stored shape. |
+| `pnpm stress:reline`  | Record again each catalogued line as the current build writes it, after a change to the writing.    |
 | `pnpm format`         | Format all source files with Prettier.                                                              |
 | `pnpm format:check`   | Verify that all source files are formatted.                                                         |
 

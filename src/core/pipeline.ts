@@ -59,9 +59,9 @@
 // working contexts the texts are evaluated at are derived here, by the
 // retry schedule of D12. `schedule` yields the digits asked for plus a
 // guard of ten, then twice that, four times, doubling, and last the
-// context's `ceiling` (the shell derives it from the cap on the digits
+// context's `ceiling` (the shell derives it from the precision limit
 // setting, `ceilingFor` in context.ts, and it is the same in every working
-// context; a context whose precision exceeds that cap is a precondition
+// context; a context whose precision exceeds that limit is a precondition
 // failure). In decimal mode (4.6) the schedule is the user's context
 // alone: every operation rounds to the digits asked for in the rounding
 // mode, so raising the internal precision would compute something other
@@ -149,7 +149,7 @@ import {
   ZERO,
   equals,
   isRefusal,
-  mantissaWithin,
+  significandWithin,
   type Refusal,
 } from "./scaled.ts";
 import {
@@ -257,7 +257,7 @@ export type ConversionError =
   | ConvertError
   /**
    * The conversion's ratio, or a function want's count, is exact and its
-   * canonical mantissa passes the range limit (D19), the two quotients
+   * canonical significand passes the significand limit (D19), the two quotients
    * the pipeline forms outside the evaluator; `exact` tells it from a
    * refusal the converter passes on, and the message names the remedy
    * (D20), `approx` around the `have`.
@@ -280,13 +280,13 @@ export type ConversionError =
  * The working contexts for the user's `context`, per D12: the digits asked
  * for plus the guard, then that doubled, doubled again, and so on while
  * below the context's ceiling, and the ceiling last (`workingContexts` in
- * context.ts); the rounding mode, the range limit, the ceiling and the
+ * context.ts); the rounding mode, the significand limit, the ceiling and the
  * mode are the user's throughout. In decimal mode the context itself,
  * alone (4.6; D26): every step is rounded once, a built-in's rounding
  * certified within the evaluator, and a second pass would compute
- * something other than what the mode asks for. A precision above the cap
+ * something other than what the mode asks for. A precision above the precision limit
  * the ceiling was derived from (`ceilingFor` in context.ts, four times the
- * cap plus the guard) is a precondition failure.
+ * precision limit plus the guard) is a precondition failure.
  */
 export function schedule(context: NumberContext): NumberContext[] {
   checkContext(context);
@@ -868,16 +868,19 @@ function disjoint(a: Ball, b: Ball, context: NumberContext): boolean {
   return where === "above" || where === "below";
 }
 
-/** An exact ratio or count past the range limit (D19). */
+/** An exact ratio or count past the significand limit (D19). */
 const EXACT_TOO_LARGE: ConversionError = { kind: "tooLarge", exact: true };
 
 /**
- * Whether `quotient`, exact, has a canonical mantissa past the range limit
+ * Whether `quotient`, exact, has a canonical significand past the significand limit
  * of `context`: the check the evaluator makes at every node (D19), made
  * again after the two quotients formed outside it.
  */
 function pastLimit(quotient: Ball, context: NumberContext): boolean {
-  return isExact(quotient) && !mantissaWithin(quotient.mid, context.maxBits);
+  return (
+    isExact(quotient) &&
+    !significandWithin(quotient.mid, context.significandLimitBits)
+  );
 }
 
 /**

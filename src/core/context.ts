@@ -2,7 +2,7 @@
 // about how to do it. docs/calculator-plan.md (D1, D2, D12, D16 and tasks
 // 1.4, 2.5 and 3.3) is the design. `precision` is a count of significant
 // decimal digits, `rounding` one of the seven modes of rounding.ts,
-// `maxBits` the range limit, the most bits a numerator or denominator may
+// `significandLimitBits` the significand limit, the most bits a numerator or denominator may
 // have, and `ceiling` the top of the retry schedule, the most digits any
 // pass may compute at, and `mode` the exact or the decimal mode of stage 4
 // (docs/decimal.md; restated by D26 in docs/decimal-mode.md), absent
@@ -29,42 +29,44 @@
 // retry schedule of D12, which doubles from the digits asked for plus a
 // guard up to the ceiling. A second type for the user's settings would be
 // the same fields with one renamed; the distinction is one of level,
-// stated where the derivation happens, not of shape. `maxBits` and
+// stated where the derivation happens, not of shape. `significandLimitBits` and
 // `ceiling` are the same at both levels: the one bounds what any pass may
 // form, the other how far the passes may rise, and `precision <= ceiling`
 // always. The ceiling is in the context so that it reaches the built-ins:
 // the memoized constants (constants.ts, D10) hold their value at the
 // ceiling, and `pi()` reads it from the context it is called with. It is
-// static, the user's, derived from the cap on the digits setting; a
+// static, the user's, derived from the precision limit; a
 // routine that needs more headroom than the working precision takes it
 // inside the kernel and never moves the ceiling.
 //
-// The two limits are on two axes (D16, restated by stage 4). The range
-// limit, `maxBits`, bounds the size of an exact value's mantissa and the
+// The two limits are on two axes (D16, restated by stage 4). The
+// significand limit, `significandLimitBits`, bounds the size of an exact value's significand and the
 // alignment of a sum, the magnitude being the exponent's (scaled.ts, whose
 // bound is `10^18`); it is what turns `3^1000000000` and `1e999999999 + 1`
 // into a clean `tooLarge` rather than a hang, and it is the user's to set,
-// between one bit and the hard bound `LIMIT_BITS` that the parser applies. The precision limit is the cap on the digits
-// setting, from which `ceilingFor` derives the top of the retry schedule:
-// four times the cap plus the guard, so that the largest request has two
-// doublings of room for cancellation above it. The cap's own hard bound,
-// `maxDigitsFor`, follows from the range limit: a settled midpoint at the
+// between one bit and the hard bound `MAX_SIGNIFICAND_LIMIT_BITS` that the
+// parser applies. The precision limit is the user's, the most digits any
+// grid may be asked for, from which `ceilingFor` derives the top of the
+// retry schedule:
+// four times the precision limit plus the guard, so that the largest request has two
+// doublings of room for cancellation above it. The precision limit's own hard bound,
+// `precisionLimitFor`, follows from the significand limit: a settled midpoint at the
 // ceiling must fit it with room for a product of two. The defaults are
 // the display's rules before the settings existed, with the rounding
 // mode changed to ties-to-even by S2 of the settings plan, and the
 // limits the stage 1 code had: eight digits, half even, 2^16 bits, and a
-// cap of a thousand digits.
+// precision limit of a thousand digits.
 //
 // A context whose precision is not a positive integer, whose rounding mode
 // is not one of the seven, whose mode is neither exact nor decimal, whose
-// range limit is not an integer in `[1, LIMIT_BITS]`, or whose ceiling is
+// significand limit is not an integer in `[1, MAX_SIGNIFICAND_LIMIT_BITS]`, or whose ceiling is
 // not an integer at or above the precision, or whose working digits are
-// not an integer at or above the precision within the cap the ceiling was
+// not an integer at or above the precision within the precision limit the ceiling was
 // derived from, is a bug in the caller and `checkContext` throws
 // `RangeError`, as `rational` does for a zero denominator.
 
 import { bitsFor } from "./fixed.ts";
-import { LIMIT_BITS } from "./rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS } from "./rational.ts";
 import {
   ROUNDING_MODES,
   digitsFor,
@@ -85,8 +87,8 @@ export const MODES: readonly Mode[] = ["exact", "decimal"];
 export type NumberContext = {
   readonly precision: Precision;
   readonly rounding: RoundingMode;
-  /** The range limit: the most bits a numerator or denominator may have. */
-  readonly maxBits: number;
+  /** The significand limit: the most bits a numerator or denominator may have. */
+  readonly significandLimitBits: number;
   /** The top of the retry schedule: the most digits any pass computes at, at or above `precision`. */
   readonly ceiling: Precision;
   /** Exact or decimal (4.5); absent is exact, so every context written before the mode existed is an exact one. */
@@ -142,7 +144,7 @@ export function workingDigits(context: NumberContext): Precision {
 }
 
 /** The digits shown by default: GNU units' eight. */
-export const DEFAULT_DIGITS: Precision = 8;
+export const DEFAULT_DISPLAY_DIGITS: Precision = 8;
 
 /**
  * The rounding mode by default: to nearest, ties to even, IEEE 754's
@@ -152,38 +154,40 @@ export const DEFAULT_DIGITS: Precision = 8;
 export const DEFAULT_ROUNDING: RoundingMode = "halfEven";
 
 /**
- * The range limit by default, 2^16 bits (about 19,700 decimal digits), at
+ * The significand limit by default, 2^16 bits (about 19,700 decimal digits), at
  * which every exact operation still takes milliseconds: the costliest,
  * a product of two fractions of that size in each part, reduced and then
  * measured and refused at the node (D19), takes about two of H.9's 19 ms
- * gcds. `LIMIT_BITS` in rational.ts is the most the setting may take.
+ * gcds. `MAX_SIGNIFICAND_LIMIT_BITS` in rational.ts is the most the setting may take.
  * The tests, sweeps and benchmarks compute at this value or at contexts
  * of their own, never at a device's setting, so their results do not
  * depend on the limits a device has chosen (ARCHITECTURE.md, "Layout").
  */
-export const DEFAULT_MAX_BITS = 1 << 16;
+export const DEFAULT_SIGNIFICAND_LIMIT_BITS = 1 << 16;
 
 /**
- * The cap on the digits setting by default: the most digits a user may
+ * The precision limit by default: the most digits a user may
  * ask for unless the setting is raised, 1,000. `ceilingFor` derives the
  * retry schedule's ceiling from it, 4,040 digits at this value.
  */
-export const DEFAULT_MAX_DIGITS: Precision = 1000;
+export const DEFAULT_PRECISION_LIMIT_DIGITS: Precision = 1000;
 
 /** The digits the schedule adds to the digits asked for, at its first pass. */
 export const GUARD_DIGITS: Precision = 10;
 
 /**
- * The ceiling of the retry schedule for a cap of `maxDigits` on the digits
- * setting: `4 (maxDigits + GUARD_DIGITS)`, so that the largest request has
+ * The ceiling of the retry schedule for a precision limit of
+ * `precisionLimitDigits`: `4 (precisionLimitDigits + GUARD_DIGITS)`, so that the largest request has
  * two doublings of room above its first pass (D12).
  */
-export function ceilingFor(maxDigits: Precision): Precision {
-  return 4 * (maxDigits + GUARD_DIGITS);
+export function ceilingFor(precisionLimitDigits: Precision): Precision {
+  return 4 * (precisionLimitDigits + GUARD_DIGITS);
 }
 
-/** The ceiling of the default cap: 4,040 digits. */
-export const DEFAULT_CEILING: Precision = ceilingFor(DEFAULT_MAX_DIGITS);
+/** The ceiling of the default precision limit: 4,040 digits. */
+export const DEFAULT_CEILING: Precision = ceilingFor(
+  DEFAULT_PRECISION_LIMIT_DIGITS,
+);
 
 /**
  * The working contexts of the retry schedule for `context` (D12): the
@@ -192,8 +196,8 @@ export const DEFAULT_CEILING: Precision = ceilingFor(DEFAULT_MAX_DIGITS);
  * context's other fields as they are. Exact mode runs the pipeline
  * through them (pipeline.ts, `schedule`); decimal mode runs each step of
  * the expression through them, in exact mode, until its rounding is
- * certified (ball.ts, `step`; D26). A precision above the cap the ceiling was
- * derived from (`ceilingFor`, four times the cap plus the guard) is a
+ * certified (ball.ts, `step`; D26). A precision above the precision limit the ceiling was
+ * derived from (`ceilingFor`, four times the precision limit plus the guard) is a
  * precondition failure.
  */
 export function workingContexts(context: NumberContext): NumberContext[] {
@@ -201,7 +205,7 @@ export function workingContexts(context: NumberContext): NumberContext[] {
   const first = context.precision + GUARD_DIGITS;
   if (4 * first > ceiling) {
     throw new RangeError(
-      `${context.precision} digits exceed the cap for a ceiling of ${ceiling}`,
+      `${context.precision} digits exceed the precision limit for a ceiling of ${ceiling}`,
     );
   }
   const base = withoutWorking(context);
@@ -228,30 +232,35 @@ export function ceilingContext(context: NumberContext): NumberContext {
 }
 
 /**
- * The most the cap on the digits setting may be under the range limit
- * `maxBits`: the largest `maxDigits` whose ceiling, at the kernel's bits,
- * is at most half the range limit, so that a settled midpoint at the
+ * The most the precision limit may be under the significand limit
+ * `significandLimitBits`: the largest `precisionLimitDigits` whose ceiling, at the kernel's bits,
+ * is at most half the significand limit, so that a settled midpoint at the
  * ceiling fits the limit with room for a product of two (D12, D16). About
- * 2,450 at the default range limit; zero when the limit holds no digits.
+ * 2,450 at the default significand limit; zero when the limit holds no digits.
  */
-export function maxDigitsFor(maxBits: number): Precision {
-  const fits = (maxDigits: Precision) =>
-    maxDigits >= 1 && 2 * bitsFor(ceilingFor(maxDigits)) <= maxBits;
-  let maxDigits = Math.floor((maxBits / 2 - 32) / (4 * Math.log2(10)) - 10);
-  while (maxDigits > 0 && !fits(maxDigits)) maxDigits--;
-  while (fits(maxDigits + 1)) maxDigits++;
-  return Math.max(0, maxDigits);
+export function precisionLimitFor(significandLimitBits: number): Precision {
+  const fits = (precisionLimitDigits: Precision) =>
+    precisionLimitDigits >= 1 &&
+    2 * bitsFor(ceilingFor(precisionLimitDigits)) <= significandLimitBits;
+  let precisionLimitDigits = Math.floor(
+    (significandLimitBits / 2 - 32) / (4 * Math.log2(10)) - 10,
+  );
+  while (precisionLimitDigits > 0 && !fits(precisionLimitDigits))
+    precisionLimitDigits--;
+  while (fits(precisionLimitDigits + 1)) precisionLimitDigits++;
+  return Math.max(0, precisionLimitDigits);
 }
 
 /**
- * The least range limit that holds a digit: twice the kernel's bits at the
- * ceiling of a cap of one digit (D16), the floor of the setting.
+ * The least significand limit that holds a digit: twice the kernel's bits at the
+ * ceiling of a precision limit of one digit (D16), the floor of the setting.
  */
-export const MIN_MAX_BITS = 2 * bitsFor(ceilingFor(1));
+export const MIN_SIGNIFICAND_LIMIT_BITS = 2 * bitsFor(ceilingFor(1));
 
 /** Throws `RangeError` unless `context` is one a caller may compute at. */
 export function checkContext(context: NumberContext): void {
-  const { precision, rounding, maxBits, ceiling, mode, working } = context;
+  const { precision, rounding, significandLimitBits, ceiling, mode, working } =
+    context;
   if (!Number.isInteger(precision) || precision < 1) {
     throw new RangeError(`Precision must be a positive integer: ${precision}`);
   }
@@ -261,9 +270,13 @@ export function checkContext(context: NumberContext): void {
   if (mode !== undefined && !MODES.includes(mode)) {
     throw new RangeError(`Not a mode: ${String(mode)}`);
   }
-  if (!Number.isInteger(maxBits) || maxBits < 1 || maxBits > LIMIT_BITS) {
+  if (
+    !Number.isInteger(significandLimitBits) ||
+    significandLimitBits < 1 ||
+    significandLimitBits > MAX_SIGNIFICAND_LIMIT_BITS
+  ) {
     throw new RangeError(
-      `The range limit must be an integer in [1, ${LIMIT_BITS}]: ${maxBits}`,
+      `The significand limit must be an integer in [1, ${MAX_SIGNIFICAND_LIMIT_BITS}]: ${significandLimitBits}`,
     );
   }
   if (!Number.isInteger(ceiling) || ceiling < precision) {
@@ -279,7 +292,7 @@ export function checkContext(context: NumberContext): void {
     }
     if (4 * (working + GUARD_DIGITS) > ceiling) {
       throw new RangeError(
-        `${working} working digits exceed the cap for a ceiling of ${ceiling}`,
+        `${working} working digits exceed the precision limit for a ceiling of ${ceiling}`,
       );
     }
   }

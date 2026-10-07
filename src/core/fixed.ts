@@ -47,7 +47,7 @@
 // value below half an ulp is zero within one ulp, decided from the coarse
 // bounds with nothing formed, and any other has its power of ten formed
 // within four times the hard bound, which holds whatever a built-in hands
-// the kernel at any range limit the settings allow) and
+// the kernel at any significand limit the settings allow) and
 // left through `fixedToBall` (docs/decimal.md, "The kernel's boundary"),
 // which rounds the dyadic `value × 2^-bits` to nearest at the working
 // digits it is given (`fixedToScaled`: a multiplication by a memoized power
@@ -56,7 +56,7 @@
 // with `error × 2^-bits` rounded up plus half a unit in the last digit as
 // the radius. Nothing here rounds in a rounding mode (D15): the mode is
 // the display's, applied once to a certified value. A routine whose result
-// can be large returns a `Floating`, a mantissa with a binary exponent
+// can be large returns a `Floating`, a significand with a binary exponent
 // (4.9), which leaves through digits.ts. A violated precondition (an
 // unbounded ball, a divisor whose interval contains zero, a negative
 // `bits`) is a programming error and throws `RangeError`, as `rational`
@@ -70,7 +70,12 @@ import {
   radiusAboveScaled,
   type Radius,
 } from "./radius.ts";
-import { LIMIT_BITS, ZERO, bitLength, type Rational } from "./rational.ts";
+import {
+  MAX_SIGNIFICAND_LIMIT_BITS,
+  ZERO,
+  bitLength,
+  type Rational,
+} from "./rational.ts";
 import { checkPrecision, divideRounded, type Precision } from "./rounding.ts";
 import {
   ZERO as ZERO_SCALED,
@@ -129,12 +134,12 @@ export function fixedFromRational(r: Rational, bits: number): Fixed {
 
 /**
  * The bits within which `fixedFromScaled` forms a value's power of ten:
- * four times the hard bound, which holds any mantissa within the range
- * limit at a magnitude between `2^-maxBits` and `2^maxBits` (about three
+ * four times the hard bound, which holds any significand within the range
+ * limit at a magnitude between `2^-significandLimitBits` and `2^significandLimitBits` (about three
  * times the hard bound in all), the most a built-in hands the kernel at
- * any range limit the settings allow (H.2 of the plan, issue #56).
+ * any significand limit the settings allow (H.2 of the plan, issue #56).
  */
-const FORMABLE_BITS = 4 * LIMIT_BITS;
+const FORMABLE_BITS = 4 * MAX_SIGNIFICAND_LIMIT_BITS;
 
 /**
  * `s` at `bits` fraction bits, rounded to nearest, as `fixedFromRational`
@@ -149,7 +154,7 @@ const FORMABLE_BITS = 4 * LIMIT_BITS;
  */
 export function fixedFromScaled(s: Scaled, bits: number): Fixed {
   checkBits(bits);
-  if (s.mant.num === 0n) return { value: 0n, error: 0n, bits };
+  if (s.significand.num === 0n) return { value: 0n, error: 0n, bits };
   // Below 2^-(bits + 1) throughout the bounds' slack: the upper bound's
   // integer part is at most -(bits + 2), so the value is below half an ulp.
   if (log2Bounds(s).upper.int < -BigInt(bits + 1)) {
@@ -211,8 +216,8 @@ function roundOntoGrid(
       shift >= 0n
         ? 1n << BigInt(f.bits)
         : (1n << BigInt(f.bits)) * powerOfTen(-shift);
-    const mantissa = divideRounded(scaled10, den, "halfEven");
-    const length = decimalDigits(mantissa);
+    const significand = divideRounded(scaled10, den, "halfEven");
+    const length = decimalDigits(significand);
     if (length > digits) {
       exp += 1n;
       continue;
@@ -222,7 +227,7 @@ function roundOntoGrid(
       continue;
     }
     const result = scaled(
-      { num: f.value < 0n ? -mantissa : mantissa, den: 1n },
+      { num: f.value < 0n ? -significand : significand, den: 1n },
       exp - BigInt(digits - 1),
     );
     if (!result.ok) throw new RangeError("A kernel value is within the bound");
@@ -244,7 +249,9 @@ export function fixedToBall(f: Fixed, digits: Precision): Ball {
   if (exact) return { mid, rad: error };
   const half = scaled(
     { num: 5n, den: 1n },
-    mid.exp + BigInt(decimalDigits(abs(mid.mant.num)) - 1) - BigInt(digits),
+    mid.exp +
+      BigInt(decimalDigits(abs(mid.significand.num)) - 1) -
+      BigInt(digits),
   );
   if (!half.ok) throw new RangeError("A kernel value is within the bound");
   return { mid, rad: addRadius(error, radiusAboveScaled(half.value)) };
@@ -254,62 +261,70 @@ export function fixedToBall(f: Fixed, digits: Precision): Ball {
 // The floating form
 
 /**
- * A kernel result with a binary exponent, `mant × 2^exp`, for the routines
+ * A kernel result with a binary exponent, `significand × 2^exp`, for the routines
  * whose result can be large (4.9 of the plan; docs/decimal.md, "The
  * kernel's boundary"): the exponential and, through it, the hyperbolic
- * functions. The mantissa is a `Fixed` of the working bits, normalized to
+ * functions. The significand is a `Fixed` of the working bits, normalized to
  * `[1, 2)` by `normalizeFloating`, and the exponent is a bigint the
  * exponent bound holds, never a value of the result's bits. It leaves the
  * kernel through `floatingToFixed` where the exponent is moderate and
  * through digits.ts, in log space, where it is not.
  */
-export type Floating = { readonly mant: Fixed; readonly exp: bigint };
+export type Floating = { readonly significand: Fixed; readonly exp: bigint };
 
 /** `f` as a `Floating` with exponent zero. */
 export function floatingOf(f: Fixed): Floating {
-  return { mant: f, exp: 0n };
+  return { significand: f, exp: 0n };
 }
 
 /**
- * `mant × 2^exp` with the mantissa brought to `[1, 2)` at `bits` fraction
+ * `significand × 2^exp` with the significand brought to `[1, 2)` at `bits` fraction
  * bits, the excess or the shortfall moved into the exponent: a value at
  * or above two is shifted down, its error rounded up with one added for
  * the truncation, and a value below one is shifted up, exactly; a zero
  * value keeps its error and its exponent as given.
  */
 export function normalizeFloating(
-  mant: Fixed,
+  significand: Fixed,
   exp: bigint,
   bits: number,
 ): Floating {
-  if (mant.value === 0n)
-    return { mant: rebaseFixed(mant, Math.max(mant.bits, bits)), exp };
-  const magnitude = abs(mant.value);
-  // The value's exponent: the mantissa must end with `bits` fraction bits
+  if (significand.value === 0n)
+    return {
+      significand: rebaseFixed(significand, Math.max(significand.bits, bits)),
+      exp,
+    };
+  const magnitude = abs(significand.value);
+  // The value's exponent: the significand must end with `bits` fraction bits
   // and a leading one at bit `bits`.
   const shift = BigInt(bitLength(magnitude) - 1 - bits);
-  if (shift === 0n) return { mant, exp: exp + BigInt(mant.bits - bits) };
+  if (shift === 0n)
+    return { significand, exp: exp + BigInt(significand.bits - bits) };
   if (shift > 0n) {
     return {
-      mant: {
-        value: mant.value >> shift,
-        error: ceilShift(mant.error, shift) + 1n,
+      significand: {
+        value: significand.value >> shift,
+        error: ceilShift(significand.error, shift) + 1n,
         bits,
       },
-      exp: exp + shift + BigInt(mant.bits - bits),
+      exp: exp + shift + BigInt(significand.bits - bits),
     };
   }
   return {
-    mant: { value: mant.value << -shift, error: mant.error << -shift, bits },
-    exp: exp + shift + BigInt(mant.bits - bits),
+    significand: {
+      value: significand.value << -shift,
+      error: significand.error << -shift,
+      bits,
+    },
+    exp: exp + shift + BigInt(significand.bits - bits),
   };
 }
 
 /**
  * `fl` as a `Fixed`, exactly, by moving the binary point, when its
  * exponent is within `limit` bits either way (a value of at most `limit`
- * integer bits, or `limit` fraction bits beyond the mantissa's, which
- * the range limit bounds); `undefined` otherwise, for the caller to take
+ * integer bits, or `limit` fraction bits beyond the significand's, which
+ * the significand limit bounds); `undefined` otherwise, for the caller to take
  * the log-space route.
  */
 export function floatingToFixed(
@@ -318,7 +333,7 @@ export function floatingToFixed(
 ): Fixed | undefined {
   const exp = fl.exp < 0n ? -fl.exp : fl.exp;
   if (exp > BigInt(limit)) return undefined;
-  return shiftFixed(fl.mant, Number(fl.exp));
+  return shiftFixed(fl.significand, Number(fl.exp));
 }
 
 /** The exact value of `f`, `value × 2^-bits`, as a rational. */
@@ -642,10 +657,10 @@ function firstGuess(a: Fixed, n: bigint): bigint {
   const log2 = Math.log2(Number(a.value >> BigInt(top))) + top - a.bits;
   const guess = Math.pow(2, log2 / Number(n));
   // The guess lies in [1/2, 2): 52 bits of it as an integer, then placed.
-  const mantissa = BigInt(Math.floor(guess * 2 ** 52));
+  const significand = BigInt(Math.floor(guess * 2 ** 52));
   return a.bits >= 52
-    ? mantissa << BigInt(a.bits - 52)
-    : mantissa >> BigInt(52 - a.bits);
+    ? significand << BigInt(a.bits - 52)
+    : significand >> BigInt(52 - a.bits);
 }
 
 /** `x^e` at `shift` fraction bits, each product truncated; the value alone. */
@@ -737,13 +752,13 @@ function ulpsAbove(rad: Radius, bits: number): bigint {
   if (rad.kind === "unbounded") {
     throw new RangeError("An unbounded radius has no ulps");
   }
-  if (rad.mant === 0n) return 0n;
+  if (rad.significand === 0n) return 0n;
   const exp = rad.exp + BigInt(bits);
-  if (exp >= 0n) return rad.mant << exp;
+  if (exp >= 0n) return rad.significand << exp;
   // Below one ulp, however far below, the ceiling is one; shifting by the
   // gap, which may be huge, is avoided.
-  if (-exp >= BigInt(bitLength(rad.mant))) return 1n;
-  return ceilDiv(rad.mant, 1n << -exp);
+  if (-exp >= BigInt(bitLength(rad.significand))) return 1n;
+  return ceilDiv(rad.significand, 1n << -exp);
 }
 
 /** `ceil(n / 2^shift)` for a non-negative `n`. */

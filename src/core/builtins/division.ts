@@ -108,7 +108,7 @@ export function divBall(
  * quotient past the top, whose floor cannot be formed, is `tooLarge`
  * rather than `overflow`, since no value of the remainder passes the
  * bound; one below the bottom leaves `a`, or `a + b` for the floor of
- * minus one. A remainder whose alignment passes the range limit
+ * minus one. A remainder whose alignment passes the significand limit
  * (`mod(-1, 1e20000)` has twenty thousand digits) is `tooLarge`, as any
  * exact sum's is.
  */
@@ -126,7 +126,11 @@ export function modBall(
   }
   const { quotient, count } = q.value;
   if (isExact(a) && isExact(b)) {
-    const fraction = subtract(quotient.mid, count.mid, context.maxBits);
+    const fraction = subtract(
+      quotient.mid,
+      count.mid,
+      context.significandLimitBits,
+    );
     if (!fraction.ok) return TOO_LARGE;
     // The product is within `|b|`, so it can only fall below the bound.
     const remainder = multiply(fraction.value, b.mid);

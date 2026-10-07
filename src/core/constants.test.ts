@@ -13,7 +13,7 @@ import {
   piMemoBits,
 } from "./constants.ts";
 import {
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   workingDigits,
   type NumberContext,
@@ -68,7 +68,7 @@ function at(precision: number, ceiling: number): NumberContext {
   return {
     precision,
     rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling,
   };
 }

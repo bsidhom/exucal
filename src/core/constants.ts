@@ -45,7 +45,7 @@
 // truncation). A request at a higher ceiling replaces the value, a lower
 // one leaves it, so the footprint is fixed by the ceiling, about 1.7 KB
 // per constant at the default of 4,040 digits, and bounded by the hard
-// bound on the cap. The margin covers the two ways a constant is asked
+// bound on the precision limit. The margin covers the two ways a constant is asked
 // for above a pass's bits at the ceiling pass. One is the argument
 // reduction of `sin` and `cos` (3.9), which needs pi to the working bits
 // plus the argument's bit length: at the ceiling pass that exceeds the

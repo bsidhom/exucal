@@ -4,12 +4,12 @@
 // a `domain` error (`notExact`), since `5 ± 1e-30` is not known to be `5`
 // and no pass of the retry loop narrows a ball to a point, and an exact
 // non-integer another (`notInteger`); an integer whose power of ten cannot
-// be formed within the range limit is `tooLarge`. `gcd` and `lcm` are
+// be formed within the significand limit is `tooLarge`. `gcd` and `lcm` are
 // non-negative, on absolute values, a normalization independent of the
 // division's definition. `factorial`, `binomial` and `doublefactorial`
 // predict their result's bits from Stirling's formula, within a bit, and
-// refuse past the range limit before computing, with the generic
-// `tooLarge`, whose message names Most bits; `approx` around the argument
+// refuse past the significand limit before computing, with the generic
+// `tooLarge`, whose message names the significand limit; `approx` around the argument
 // is no remedy here, an inexact argument being a `domain` error.
 
 import { exact, isExact, type Ball } from "../ball.ts";
@@ -42,7 +42,7 @@ export function integerOf(
   if (!isInteger(x.mid)) {
     return err({ kind: "domain", argument: index, reason: "notInteger" });
   }
-  const formed = toRational(x.mid, context.maxBits);
+  const formed = toRational(x.mid, context.significandLimitBits);
   if (!formed.ok) return TOO_LARGE;
   return ok(formed.value.num);
 }
@@ -73,16 +73,16 @@ export function log2Factorial(n: number): number {
 }
 
 /**
- * Whether a result predicted at `bits` passes the range limit of
+ * Whether a result predicted at `bits` passes the significand limit of
  * `context`: by more than the prediction's own bit of slack, so that a
  * value that fits is never refused, and the node check (D19) stands
  * behind a prediction a bit short.
  */
 function pastLimit(bits: number, context: NumberContext): boolean {
-  return bits - 1 > context.maxBits;
+  return bits - 1 > context.significandLimitBits;
 }
 
-/** An integer beyond which every factorial passes any range limit the settings allow. */
+/** An integer beyond which every factorial passes any significand limit the settings allow. */
 const FACTORIAL_LIMIT = 1_000_000n;
 
 /** The product of `from`, `from + step`, …, `to`, by splitting the range in two until it is short. */
@@ -98,7 +98,7 @@ function product(from: bigint, to: bigint, step: bigint): bigint {
   return product(from, middle - step, step) * product(middle, to, step);
 }
 
-/** `n!` for `n >= 0`, predicted first and refused past the range limit. */
+/** `n!` for `n >= 0`, predicted first and refused past the significand limit. */
 export function factorialOf(
   n: bigint,
   context: NumberContext,
@@ -111,7 +111,7 @@ export function factorialOf(
 
 /**
  * `n!!` for `n >= -1`: `2^k k!` for `n = 2k`, and `n! / (2^k k!)` for
- * `n = 2k + 1`, predicted from those and refused past the range limit;
+ * `n = 2k + 1`, predicted from those and refused past the significand limit;
  * `(-1)!!` and `0!!` are one.
  */
 export function doubleFactorialOf(
@@ -135,7 +135,7 @@ const STIRLING_LIMIT = 1n << 52n;
 /**
  * `binomial(n, k)` for `n >= 0`: zero for `k` outside `0..n`, and
  * otherwise the multiplicative formula over the smaller of `k` and
- * `n - k`, each step exact, predicted and refused past the range limit:
+ * `n - k`, each step exact, predicted and refused past the significand limit:
  * from three factorials where `n` is a double's size, and from `n^k / k!`
  * for a larger `n`, within `k` bits of the truth there, so that
  * `binomial(1e400, 2)` is the value it is.

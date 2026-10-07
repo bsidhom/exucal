@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { exact } from "../ball.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "../context.ts";
@@ -27,7 +27,7 @@ import {
 const CONTEXT: NumberContext = {
   precision: 8,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -77,7 +77,7 @@ test("gcd and lcm on integers are non-negative", () => {
     error(gcd.apply([ball(dec("4"), dec("1e-30")), exact(dec("2"))], CONTEXT)),
     { kind: "domain", argument: 0, reason: "notExact" },
   );
-  // An integer whose power of ten does not fit Most bits is refused.
+  // An integer whose power of ten does not fit the significand limit is refused.
   assert.equal(error(g("1e20000", "2")).kind, "tooLarge");
 });
 
@@ -142,7 +142,7 @@ test("factorial, binomial and doublefactorial are exact, and refuse by their siz
   // not, and nor does any factorial of a huge argument.
   const large = value(f("5000"));
   assert.equal(
-    decimalDigits(large.mid.mant.num) + Number(large.mid.exp),
+    decimalDigits(large.mid.significand.num) + Number(large.mid.exp),
     16326,
   );
   assert.equal(error(f("20000")).kind, "tooLarge");
@@ -172,11 +172,23 @@ test("the size predictions are within a bit of the truth, and sharp at the limit
   let f300 = 1n;
   for (let i = 2n; i <= 300n; i++) f300 *= i;
   const bits = bitLength(f300);
-  assert.ok(factorialOf(300n, { ...CONTEXT, maxBits: bits }).ok);
-  assert.ok(factorialOf(300n, { ...CONTEXT, maxBits: bits + 1 }).ok);
-  assert.ok(!factorialOf(300n, { ...CONTEXT, maxBits: bits - 3 }).ok);
-  assert.ok(binomialOf(300n, 150n, { ...CONTEXT, maxBits: 300 }).ok);
-  assert.ok(!binomialOf(300n, 150n, { ...CONTEXT, maxBits: 290 }).ok);
-  assert.ok(doubleFactorialOf(301n, { ...CONTEXT, maxBits: 1100 }).ok);
-  assert.ok(!doubleFactorialOf(301n, { ...CONTEXT, maxBits: 1000 }).ok);
+  assert.ok(factorialOf(300n, { ...CONTEXT, significandLimitBits: bits }).ok);
+  assert.ok(
+    factorialOf(300n, { ...CONTEXT, significandLimitBits: bits + 1 }).ok,
+  );
+  assert.ok(
+    !factorialOf(300n, { ...CONTEXT, significandLimitBits: bits - 3 }).ok,
+  );
+  assert.ok(
+    binomialOf(300n, 150n, { ...CONTEXT, significandLimitBits: 300 }).ok,
+  );
+  assert.ok(
+    !binomialOf(300n, 150n, { ...CONTEXT, significandLimitBits: 290 }).ok,
+  );
+  assert.ok(
+    doubleFactorialOf(301n, { ...CONTEXT, significandLimitBits: 1100 }).ok,
+  );
+  assert.ok(
+    !doubleFactorialOf(301n, { ...CONTEXT, significandLimitBits: 1000 }).ok,
+  );
 });

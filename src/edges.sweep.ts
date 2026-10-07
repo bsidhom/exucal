@@ -7,7 +7,7 @@
 // refusal of this kind; an error of this kind; a unit list), and the
 // oracle checks that, plus what src/testing/edges.ts checks of every
 // value: no throw, D17's two conditions, and, for an exact result in
-// exact mode, D19's size rule, that its mantissa is within `maxBits`. A
+// exact mode, D19's size rule, that its significand is within `significandLimitBits`. A
 // unit list is checked for the value of its shown terms: the terms times
 // their units must add up to the `have` within the rounding shown. The
 // cases run in a worker under a deadline, and the known violations are
@@ -21,7 +21,7 @@ import { divideBalls, exact, isExact, type Ball } from "./core/ball.ts";
 import { buildTable } from "./core/build.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   ceilingContext,
   modeOf,
@@ -87,7 +87,7 @@ const KNOWN: readonly Known[] = [
     cases: /^(asin|acos|acosh)\((0\.1|1\.5) \+ 1e-15000\)$/,
     violation: /got the error tooLarge$/,
     reason:
-      "`complementRoot` and `acosh` form `1 - x^2` and `x^2 - 1` exactly for an exact argument, whose square does not align within the range limit for a mantissa this long; an inexact argument is settled first and computed.",
+      "`complementRoot` and `acosh` form `1 - x^2` and `x^2 - 1` exactly for an exact argument, whose square does not align within the significand limit for a significand this long; an inexact argument is settled first and computed.",
   },
 ];
 
@@ -128,7 +128,7 @@ type TextCase = {
   /** The `want` of a conversion; absent for an evaluation. */
   readonly want?: string;
   readonly precision?: number;
-  readonly maxBits?: number;
+  readonly significandLimitBits?: number;
   readonly expect: Verdict;
 };
 
@@ -151,10 +151,10 @@ const UNRESOLVED = error("unresolved");
 
 const E18 = "1000000000000000000";
 const E18_LESS_ONE = "999999999999999999";
-const WIDE_32 = { precision: 32, maxBits: 32768 };
+const WIDE_32 = { precision: 32, significandLimitBits: 32768 };
 
 /**
- * The first twenty primes past two, each to a power the range limit
+ * The first twenty primes past two, each to a power the significand limit
  * admits: `pow` predicts a power's size as the base's bit length times the
  * exponent, so `3^30000` is admitted and `3^37855`, of 60,000 bits, is not.
  */
@@ -339,7 +339,7 @@ const CASES: readonly TextCase[] = [
   },
   { text: `1e${E18} / 3 * 10`, expect: digits(`3.3333333e+${E18}`) },
   { text: `1e-${E18} / 7`, expect: refused("underflow") },
-  // #52: exact results held to the range limit at the node (D19; its
+  // #52: exact results held to the significand limit at the node (D19; its
   // conversions are pipeline.test.ts's).
   {
     text: "3^32767 * 7^21845",
@@ -357,12 +357,12 @@ const CASES: readonly TextCase[] = [
     expect: { exact: refused("tooLarge"), decimal: VALUE },
   },
   {
-    name: "a product of ten coprime powers, each within maxBits",
+    name: "a product of ten coprime powers, each within significandLimitBits",
     text: COPRIME_POWERS.slice(0, 10).join(" * "),
     expect: { exact: refused("tooLarge"), decimal: VALUE },
   },
   {
-    name: "a product of twenty coprime powers, each within maxBits",
+    name: "a product of twenty coprime powers, each within significandLimitBits",
     text: COPRIME_POWERS.join(" * "),
     expect: { exact: refused("tooLarge"), decimal: VALUE },
   },
@@ -398,33 +398,57 @@ const CASES: readonly TextCase[] = [
     text: "sin(asin(".repeat(8) + "0.5",
     expect: error("syntax"),
   },
-  // #56: built-ins near the kernel's edges at a raised range limit.
-  { text: "sinh(1e-315000)", maxBits: 1_048_576, expect: digits("1e-315000") },
-  { text: "cosh(1e-315000)", maxBits: 1_048_576, expect: digits("1") },
-  { text: "tanh(1e-315000)", maxBits: 1_048_576, expect: digits("1e-315000") },
-  { text: "atan(1e-315000)", maxBits: 1_048_576, expect: digits("1e-315000") },
-  { text: "exp(1e-315000)", maxBits: 1_048_576, expect: digits("1") },
+  // #56: built-ins near the kernel's edges at a raised significand limit.
   {
-    text: "sin(1e-315000 radian)",
-    maxBits: 1_048_576,
+    text: "sinh(1e-315000)",
+    significandLimitBits: 1_048_576,
     expect: digits("1e-315000"),
   },
-  { text: "cos(1e-315000 radian)", maxBits: 1_048_576, expect: digits("1") },
+  {
+    text: "cosh(1e-315000)",
+    significandLimitBits: 1_048_576,
+    expect: digits("1"),
+  },
+  {
+    text: "tanh(1e-315000)",
+    significandLimitBits: 1_048_576,
+    expect: digits("1e-315000"),
+  },
+  {
+    text: "atan(1e-315000)",
+    significandLimitBits: 1_048_576,
+    expect: digits("1e-315000"),
+  },
+  {
+    text: "exp(1e-315000)",
+    significandLimitBits: 1_048_576,
+    expect: digits("1"),
+  },
+  {
+    text: "sin(1e-315000 radian)",
+    significandLimitBits: 1_048_576,
+    expect: digits("1e-315000"),
+  },
+  {
+    text: "cos(1e-315000 radian)",
+    significandLimitBits: 1_048_576,
+    expect: digits("1"),
+  },
   {
     text: "sin(1e315000 radian)",
-    maxBits: 1_048_576,
+    significandLimitBits: 1_048_576,
     expect: digits("0.93186736"),
   },
   {
     name: "sinh(0. followed by 200,000 ones) at 1,048,576 bits",
     text: `sinh(0.${"1".repeat(200_000)})`,
-    maxBits: 1_048_576,
+    significandLimitBits: 1_048_576,
     expect: digits("0.1113399"),
   },
   ...["sinh", "tanh", "atan", "exp"].map((fn) => ({
     name: `${fn}(0. followed by 170,000 ones) at 600,000 bits`,
     text: `${fn}(0.${"1".repeat(170_000)})`,
-    maxBits: 600_000,
+    significandLimitBits: 600_000,
     expect:
       fn === "exp"
         ? digits("1.1175191")
@@ -437,7 +461,7 @@ const CASES: readonly TextCase[] = [
   {
     name: "sinh(0. followed by 105,000 zeros and 105,000 ones) at 360,000 bits",
     text: `sinh(0.${"0".repeat(105_000)}${"1".repeat(105_000)})`,
-    maxBits: 360_000,
+    significandLimitBits: 360_000,
     expect: digits("1.1111111e-105001"),
   },
   // #57: roots of a large degree crashed or were never resolved.
@@ -556,7 +580,7 @@ const CASES: readonly TextCase[] = [
   // the bound the ball is `unresolved` there, as a product's is (D18).
   // The retry loop narrows the ball below one, whose power is then tiny;
   // in decimal mode the one pass is final. The last exponent is past the
-  // range limit as a fraction, so the power is `tooLarge` (H.16 leaves a
+  // significand limit as a fraction, so the power is `tooLarge` (H.16 leaves a
   // base reaching zero as it is).
   { text: "(approx(1e20) - approx(1e20))^100000", expect: ZERO_VALUE },
   {
@@ -567,12 +591,12 @@ const CASES: readonly TextCase[] = [
     text: "(approx(1e20) - approx(1e20))^1e100000",
     expect: refused("tooLarge"),
   },
-  // #63: asin, acos and acosh of an exact argument with a long mantissa; a follow-up.
+  // #63: asin, acos and acosh of an exact argument with a long significand; a follow-up.
   { text: "asin(0.1 + 1e-15000)", expect: digits("0.10016742") },
   { text: "acos(0.1 + 1e-15000)", expect: digits("1.4706289") },
   { text: "acosh(1.5 + 1e-15000)", expect: digits("0.96242365") },
   { text: "asin(0.1 + 1e-5000)", expect: digits("0.10016742") },
-  // #64: atan and atan2 of a wide ball reaching 2^maxBits; H.7.
+  // #64: atan and atan2 of a wide ball reaching 2^significandLimitBits; H.7.
   { text: "atan(approx(1e30000) - approx(1e30000))", expect: ZERO_VALUE },
   {
     text: "atan2(approx(1e30000) - approx(1e30000) + 1, 1)",
@@ -612,13 +636,14 @@ function systemTable(): UnitTable {
 
 /** The user's context of `c` in `mode`: the defaults but for what the case sets. */
 function contextFor(
-  c: Pick<TextCase, "precision" | "maxBits">,
+  c: Pick<TextCase, "precision" | "significandLimitBits">,
   mode: Mode,
 ): NumberContext {
   const base: NumberContext = {
     precision: c.precision ?? 8,
     rounding: DEFAULT_ROUNDING,
-    maxBits: c.maxBits ?? DEFAULT_MAX_BITS,
+    significandLimitBits:
+      c.significandLimitBits ?? DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
   };
   return mode === "decimal" ? { ...base, mode } : base;
@@ -712,8 +737,11 @@ function describe(outcome: Outcome): string {
 
 /** The significant digits in a decimal literal: its digits before the exponent, less leading zeros. */
 function significantDigits(text: string): number {
-  const mantissa = text.split("e")[0]!.replace(/[-.]/g, "").replace(/^0+/, "");
-  return Math.max(1, mantissa.length);
+  const significand = text
+    .split("e")[0]!
+    .replace(/[-.]/g, "")
+    .replace(/^0+/, "");
+  return Math.max(1, significand.length);
 }
 
 /**
@@ -724,10 +752,10 @@ function checkQuantity(ball: Ball, context: NumberContext): string | undefined {
   const bad = checkValue(ball, modeOf(context));
   if (bad !== undefined) return bad;
   if (isExact(ball) && modeOf(context) === "exact") {
-    const { num, den } = ball.mid.mant;
+    const { num, den } = ball.mid.significand;
     const bits = Math.max(bitLength(num < 0n ? -num : num), bitLength(den));
-    if (bits > context.maxBits) {
-      return `an exact result whose mantissa has ${bits} bits passes maxBits (D19)`;
+    if (bits > context.significandLimitBits) {
+      return `an exact result whose significand has ${bits} bits passes significandLimitBits (D19)`;
     }
   }
   return undefined;
@@ -885,9 +913,9 @@ function* cases(): Generator<Case> {
       const expect = "kind" in c.expect ? c.expect : c.expect[mode];
       const context = contextFor(c, mode);
       const settings =
-        c.precision === undefined && c.maxBits === undefined
+        c.precision === undefined && c.significandLimitBits === undefined
           ? ""
-          : ` @ ${context.precision} digits, ${context.maxBits} bits`;
+          : ` @ ${context.precision} digits, ${context.significandLimitBits} bits`;
       const name = `${c.name ?? c.text}${c.want === undefined ? "" : ` into ${c.want}`}${settings}${mode === "decimal" ? " [decimal]" : ""}`;
       yield {
         name,

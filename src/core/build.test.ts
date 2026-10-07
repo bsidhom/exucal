@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "./context.ts";
@@ -43,7 +43,7 @@ import { unitLookup, type UnitTable } from "./table.ts";
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -1113,7 +1113,7 @@ test("a body is checked over dimensions, not evaluated: one that fails at a valu
   assert.equal(atOne.error.error.kind, "divisionByZero");
   const never = resultIn(table, "never(2)");
   assert.ok(!never.ok && never.error.kind === "callFailed");
-  // A literal is not checked against the range limit either.
+  // A literal is not checked against the significand limit either.
   assert.ok(build("huge(x) = 1e30000 x").ok);
 });
 

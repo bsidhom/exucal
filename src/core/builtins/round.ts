@@ -16,9 +16,9 @@
 // `round` asks for. The cell of a result depends on the mode: half a unit
 // either side for the modes to nearest, a unit on the side the mode
 // rounds from for the directed modes. The power of ten is formed only
-// where it is small: a count with more digits than the range limit holds
+// where it is small: a count with more digits than the significand limit holds
 // is `tooLarge`, and a value below a tenth of the unit forms none. A
-// `places` count that cannot be formed within the range limit is
+// `places` count that cannot be formed within the significand limit is
 // `tooLarge` too.
 
 import { exact, isExact, position, type Ball } from "../ball.ts";
@@ -33,7 +33,7 @@ import {
 } from "../builtin.ts";
 import type { NumberContext } from "../context.ts";
 import { DIMENSIONLESS } from "../dimension.ts";
-import { LIMIT_BITS, abs, rational } from "../rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS, abs, rational } from "../rational.ts";
 import { err, ok, type Result } from "../result.ts";
 import { divideRounded, type RoundingMode } from "../rounding.ts";
 import {
@@ -69,7 +69,7 @@ export function truncScaled(
 
 /** The integer `s` plus `n`, formed within the hard bound. */
 function stepped(s: Scaled, n: bigint): Result<Scaled, BuiltinError> {
-  const sum = add(s, fromInteger(n), LIMIT_BITS);
+  const sum = add(s, fromInteger(n), MAX_SIGNIFICAND_LIMIT_BITS);
   return sum.ok ? sum : TOO_LARGE;
 }
 
@@ -130,7 +130,7 @@ export function roundScaled(
 ): Result<Scaled, BuiltinError> {
   if (isZero(s)) return ok(ZERO);
   const unit = -places;
-  const { num, den } = s.mant;
+  const { num, den } = s.significand;
   if (den === 1n && s.exp >= unit) return ok(s);
   const shift = s.exp - unit;
   let count: bigint;
@@ -202,7 +202,7 @@ export function floorBall(
 ): Result<Ball, BuiltinError> {
   return roundBall(
     x,
-    (s) => floorScaled(s, context.maxBits),
+    (s) => floorScaled(s, context.significandLimitBits),
     (r) => integerCell(r, 0n, 1n),
   );
 }
@@ -214,7 +214,7 @@ export function ceilBall(
 ): Result<Ball, BuiltinError> {
   return roundBall(
     x,
-    (s) => ceilScaled(s, context.maxBits),
+    (s) => ceilScaled(s, context.significandLimitBits),
     (r) => integerCell(r, -1n, 0n),
   );
 }
@@ -226,7 +226,7 @@ export function truncBall(
 ): Result<Ball, BuiltinError> {
   return roundBall(
     x,
-    (s) => truncScaled(s, context.maxBits),
+    (s) => truncScaled(s, context.significandLimitBits),
     (r) => {
       const side = sign(r);
       return integerCell(r, side > 0 ? 0n : -1n, side < 0 ? 0n : 1n);
@@ -242,7 +242,7 @@ function offset(
 ): Result<Scaled, BuiltinError> {
   const step = scaled(rational(count), exponent);
   if (!step.ok) return TOO_LARGE;
-  const sum = add(r, step.value, LIMIT_BITS);
+  const sum = add(r, step.value, MAX_SIGNIFICAND_LIMIT_BITS);
   return sum.ok ? sum : TOO_LARGE;
 }
 
@@ -296,7 +296,7 @@ export function roundToPlaces(
   const mode = context.rounding;
   return roundBall(
     x,
-    (s) => roundScaled(s, places, mode, context.maxBits),
+    (s) => roundScaled(s, places, mode, context.significandLimitBits),
     (r) => roundCell(r, places, mode),
   );
 }

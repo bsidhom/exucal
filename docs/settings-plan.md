@@ -13,24 +13,24 @@ D25 of docs/calculator-plan.md rules, and is not in this plan.
 
 ## The settings as they are
 
-| Setting                | Stored      | Range                     | What it means                                                                                                                                            | Depends on                    |
-| ---------------------- | ----------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| Digits                 | `digits`    | 1 to the precision limit  | Significant digits shown; in decimal mode the precision of every step; the bound a fraction must fit; in decimal mode what a typed literal is rounded to | the precision limit           |
-| Rounding               | `rounding`  | the seven modes           | In exact mode, how the last digit shown is rounded; in decimal mode, how every step is rounded                                                           | the mode, for what it touches |
-| Mode                   | `mode`      | exact, decimal            | Exact: certify every digit shown, at rising precision. Decimal: one pass, every step rounded to Digits                                                   |                               |
-| Precision limit        | `maxDigits` | 1 to what Most bits holds | The cap on Digits, and through the ceiling `4 × (cap + 10)` the effort exact mode spends; in decimal mode only the cap (#86)                             | Most bits                     |
-| Most bits              | `maxBits`   | 358 to 2^20               | The most bits of an exact value's numerator or denominator: a cost limit, in time and memory                                                             |                               |
-| Show reduced fractions | `fractions` | on, off                   | An exact non-integer is written as its fraction in lowest terms when both parts fit within Digits; in decimal mode almost never applies (#97)            | Digits, the mode              |
+| Setting                | Stored      | Range                                 | What it means                                                                                                                                            | Depends on                    |
+| ---------------------- | ----------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Digits                 | `digits`    | 1 to the precision limit              | Significant digits shown; in decimal mode the precision of every step; the bound a fraction must fit; in decimal mode what a typed literal is rounded to | the precision limit           |
+| Rounding               | `rounding`  | the seven modes                       | In exact mode, how the last digit shown is rounded; in decimal mode, how every step is rounded                                                           | the mode, for what it touches |
+| Mode                   | `mode`      | exact, decimal                        | Exact: certify every digit shown, at rising precision. Decimal: one pass, every step rounded to Digits                                                   |                               |
+| Precision limit        | `maxDigits` | 1 to what the significand limit holds | The cap on Digits, and through the ceiling `4 × (cap + 10)` the effort exact mode spends; in decimal mode only the precision limit (#86)                 | the significand limit         |
+| Significand limit      | `maxBits`   | 358 to 2^20                           | The most bits of an exact value's numerator or denominator: a cost limit, in time and memory                                                             |                               |
+| Show reduced fractions | `fractions` | on, off                               | An exact non-integer is written as its fraction in lowest terms when both parts fit within Digits; in decimal mode almost never applies (#97)            | Digits, the mode              |
 
 The "Recommend limits" button runs a synchronous probe (limits.ts) that
 times the app's costliest operations against a budget of 50 ms a pass and
-sets both limits to what the device manages, lowering Digits if the cap
+sets both limits to what the device manages, lowering Digits if the precision limit
 it sets is below it.
 
 Persistence (settings.ts): one JSON object under the key `settings`, with
 no version; a field that is missing or malformed falls back to its
 default on its own, and the dependent fields are clamped in the order of
-their dependence (Most bits, then the limit, then Digits). There is no
+their dependence (the significand limit, then the limit, then Digits). There is no
 way to reset to the defaults short of clearing the browser's storage, and
 nothing shows which settings are not at their defaults.
 
@@ -46,21 +46,21 @@ The first five are the ones raised in the request; the rest came out of
 reading the settings end to end.
 
 **P1. Digits and the precision limit are intertwined.** Digits may not
-exceed the limit, the limit may not exceed what Most bits holds, and
+exceed the limit, the limit may not exceed what the significand limit holds, and
 lowering either lowers what depends on it. The panel shows the limit's
 hint with the ceiling formula and the input's `max`, and nothing else
 about the chain.
 
-**P2. Most bits sets the most digits an exact value can have.** The
+**P2. The significand limit sets the most digits an exact value can have.** The
 relation runs through the ceiling: half the bits must hold `4 × (cap +
-10)` digits, so the precision limit's maximum moves when Most bits does
+10)` digits, so the precision limit's maximum moves when the significand limit does
 (2,453 at the default 65,536 bits), and the panel does not say why. Bits
 are not how a user of a converter thinks, and the only documentation of
 the setting is a dense paragraph in README's "Settings".
 
 **P3. Nothing stops a user from setting limits that freeze the page.** An
 expression that never certifies runs to the ceiling on every keystroke,
-and the range limit admits exact values of a million bits whose
+and the significand limit admits exact values of a million bits whose
 reductions take seconds. The probe is the one mitigation, and it freezes
 the page itself (#163). The defaults are desktop-sized by D25's ruling.
 Whether to add guard rails (a safe range, a confirmation past it,
@@ -95,7 +95,7 @@ a user looks.
 **P7. The precision limit is a cost knob dressed as a precision.** What it
 bounds is the effort exact mode may spend, and the hint says so with the
 ceiling formula, an internal of the retry schedule. In decimal mode it
-only caps Digits and the panel shows it unchanged (#86), with the
+only bounds Digits and the panel shows it unchanged (#86), with the
 question underneath of whether decimal mode should carry a ceiling at
 all, which touches how the limits are wired through `NumberContext`.
 
@@ -106,7 +106,7 @@ changes which lines read `=`. The default, ties away from zero, is the
 hand calculator's and the schoolroom's rather than the half-even of IEEE
 and `printf`, which deserves a sentence somewhere a user finds it.
 
-**P9. Coupled edits clamp silently.** Lowering Most bits can lower the
+**P9. Coupled edits clamp silently.** Lowering the significand limit can lower the
 precision limit and Digits; the probe sets both limits and can lower
 Digits below what the user chose; nothing says so, and raising a limit
 back does not restore what it lowered. The behavior is right (a stored
@@ -125,8 +125,8 @@ defaults, no indication of what is not at its default, and two tabs do
 not see each other's changes (minor).
 
 **P12. Three vocabularies name the same things.** The panel says Digits,
-Precision limit and Most bits; the storage says `digits`, `maxDigits` and
-`maxBits`; the docs and code say the digits, the cap and the range limit,
+Precision limit and the significand limit; the storage says `digits`, `maxDigits` and
+`maxBits`; the docs and code say the digits, the precision limit and the significand limit,
 and once said "Most digits". The modes are "exact" and "decimal", though
 both compute decimals and the first can show fractions.
 
@@ -236,7 +236,7 @@ Implemented (docs/ratio-width.md, "As landed"; D28).
   together, as the owner ruled in review; a whole number written entire
   when it fits the width; the scaled form `n/d × 1e+k` for a ratio that
   fits with its power of ten factored out and not without,
-  the denominator not one; a mixed form and a fractional mantissa ruled
+  the denominator not one; a mixed form and a fractional significand ruled
   out; the notation as `{ kind: "digits" } | { kind: "ratio"; width }`
   at stored version 4.
 - **Depends on.** S2, whose notation it extends.
@@ -246,18 +246,19 @@ Implemented (docs/ratio-width.md, "As landed"; D28).
 - **Core impact.** Low: the display's fit and one form; nothing in the
   arithmetic. **Size.** Small to medium.
 
-### S3. The limits: Digits, the precision limit, Most bits
+### S3. The limits: Digits, the precision limit, the significand limit
 
 Implemented (docs/settings-limits.md, "As landed"; D29). The terms are
 now the display digits, the working digits, the precision limit in
 digits, the significand limit in bits and the probe budget in
-milliseconds; the core's renames are an alignment change after it.
+milliseconds, in the panel, the storage, the core and the docs alike
+(the core's renames landed in the change after the panel's).
 
 - **Scope.** Which of the three are settings and which are derived
-  (P7, #86): whether the cap is a user's number or a cost knob with a
+  (P7, #86): whether the precision limit is a user's number or a cost knob with a
   better name, and whether decimal mode carries a ceiling at all. The
-  unit the range limit is expressed in, bits or digits, and how its
-  relation to the cap is shown (P2). What a coupled edit does and says
+  unit the significand limit is expressed in, bits or digits, and how its
+  relation to the precision limit is shown (P2). What a coupled edit does and says
   (P9). Guard rails and the defaults (P3), within D25's ruling that the
   defaults stay unless this step argues otherwise. The probe's role and
   promise (P10): what the button says, whether it may lower a value the
@@ -310,7 +311,7 @@ milliseconds; the core's renames are an alignment change after it.
 - **Scope.** Friendly documentation of the settings as they stand after
   S2 to S5: what each does, what the modes and the rounding modes mean
   for a line, what a fraction is and when it appears, what the limits
-  cost and why Most bits bounds digits, with the relation written for a
+  cost and why the significand limit bounds digits, with the relation written for a
   reader who has never seen a rational; where it lives (README, a docs
   page, in-app help reached from the panel); and the rewrite of README's
   "Settings", which is written for a developer today.

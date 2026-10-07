@@ -2,17 +2,17 @@
 // per ceiling. docs/calculator-plan.md (D6 and task 3.3) is the design: from
 // 3.4 the angle units call `pi()`, so a unit's precision is fixed when the
 // table is built and must lie above every pass of the retry loop, which the
-// ceiling is; the ceiling is the same for every digits setting under one
-// cap, so one table serves every request until the cap changes it. The
+// ceiling is; the ceiling is the same for every display digits under one
+// precision limit, so one table serves every request until the precision limit changes it. The
 // memo holds one table, keyed by the definitions it was built from and the
 // ceiling it was built at: a request at the same ceiling is the table held,
 // and one at another ceiling rebuilds and replaces it, so that the
-// footprint is one table however many caps a session has seen. A build
-// evaluates every definition under the range limit too (every exact
+// footprint is one table however many precision limits a session has seen. A build
+// evaluates every definition under the significand limit too (every exact
 // result is held to it at the node, D19), but the shipped definitions
-// build at the least limit the settings allow (`MIN_MAX_BITS`, which
+// build at the least limit the settings allow (`MIN_SIGNIFICAND_LIMIT_BITS`, which
 // units.test.ts checks), and the clamp the settings apply already makes
-// the ceiling fit the limit, so the range limit is not part of the key.
+// the ceiling fit the limit, so the significand limit is not part of the key.
 // A build takes milliseconds (the definitions, plus `pi` from
 // its memo and a few products of it), so the shell builds synchronously
 // when its settings move the ceiling. A failed build is memoized too: the

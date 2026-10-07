@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   workingDigits,
   type NumberContext,
@@ -41,7 +41,7 @@ import { radiusUpper } from "./radius.ts";
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -50,7 +50,7 @@ function at(precision: number): NumberContext {
   return {
     precision,
     rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
   };
 }
@@ -209,7 +209,7 @@ test("addition and subtraction combine magnitudes of one dimension", () => {
   );
 });
 
-test("a sum takes the context, and two exact magnitudes that cannot be aligned within its range limit are too large", () => {
+test("a sum takes the context, and two exact magnitudes that cannot be aligned within its significand limit are too large", () => {
   const huge = quantity("1e999999999", { m: 1 });
   // Aligned within the limit, whatever the exponent: exact.
   assertQuantity(

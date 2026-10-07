@@ -12,13 +12,13 @@ say, as before, and the core computes nothing differently.
 
 The ratio notation (docs/fractions.md; D21) writes an exact value that
 is not a whole number as its fraction in lowest terms when the numerator
-and the denominator each have at most Digits digits, and otherwise falls
+and the denominator each have at most the display digits, and otherwise falls
 back to the decimal display, `≈` where the decimal is inexact. The rule
 was provisional from the start (#91), and it has three faults:
 
-- **It couples a length to a precision.** Digits is how many significant
+- **It couples a length to a precision.** the display digits are how many significant
   digits an answer is shown with. A ratio's length is a different
-  quantity, and tying the two means that a user who raises Digits to
+  quantity, and tying the two means that a user who raises the display digits to
   see `1/123456789` written as itself (nine digits in the denominator)
   lengthens every decimal line too (P5; #91).
 - **It hides exact values.** `3^20` at eight digits is `≈ 3.4867844e+9`,
@@ -38,10 +38,10 @@ was provisional from the start (#91), and it has three faults:
 
 **The ratio notation carries a width, the most digits a ratio may have,
 its numerator and its denominator together, set by the user and
-independent of Digits.** It is the S2
+independent of the display digits.** It is the S2
 note's recommendation, chosen over no bound at all for the reason the
 note gave: a bound the user sets is as predictable as none, and it keeps
-a line finite, where values legal under the range limit run to 15,634
+a line finite, where values legal under the significand limit run to 15,634
 digits (`3^32767`) and further at a raised limit. The width is a setting
 of the notation, which is a setting of exact mode, so it lives where the
 S2 note said a richer notation would go, and nowhere else:
@@ -57,15 +57,15 @@ The two strings of S2 become the two variants; `digits` carries nothing,
 as before. The width's range is `[1, 1000]`: one digit at the bottom,
 and at the top a constant, `WIDTH_LIMIT`, a thousand digits, past which
 a line is a thousand characters that no one reads. The
-bound is the notation's own, not the precision limit's, which caps a
+bound is the notation's own, not the precision limit's, which bounds a
 different quantity and which S3 may rename or rework; the two have no
 dependence, and nothing about the width is a clamp.
 
 **The default is twenty.** Three candidates were weighed:
 
-- **Eight, Digits' default.** Every line at default settings would read
+- **Eight, the display digits' default.** Every line at default settings would read
   as it does today. Set aside: it keeps `3^20` rounded, and it makes the
-  default look coupled to Digits though it no longer is.
+  default look coupled to the display digits though it no longer is.
 - **No bound.** The owner's other candidate, every exact value written
   entire. Set aside as the default for the cost above, and not offered
   as a value of the setting either: the range's top serves a user who
@@ -79,7 +79,7 @@ dependence, and nothing about the width is a clamp.
 
 ## The rule
 
-With the notation `ratio` at width `W`, and Digits `p`, a value is
+With the notation `ratio` at width `W`, and the display digits `p`, a value is
 written as follows, in this order. Rules 1 and 5 are docs/fractions.md's
 rules 1 and 4 unchanged; rules 2, 3 and 4 replace its rules 2 and 3.
 
@@ -106,7 +106,7 @@ rules 1 and 4 unchanged; rules 2, 3 and 4 replace its rules 2 and 3.
    `1e-7`. The fraction is the ordinary one, the value's power of ten
    multiplied back in, and a negative value's sign is on the numerator;
    the sign and the slash are not counted. The measure is the two parts
-   together, not each part on its own as the fit at Digits measured and
+   together, not each part on its own as the fit at the display digits measured and
    as the S2 note recommended; the owner ruled for the total in the
    review of this note, and the reason is what the width stands for. A
    width is a bound on the line, and the digits of the two parts
@@ -120,10 +120,10 @@ rules 1 and 4 unchanged; rules 2, 3 and 4 replace its rules 2 and 3.
    times a power of ten, `n/d × 1e+k`, when the parts `n` and `d` have
    at most `W` digits between them and the denominator is not one**
    (#95), the power not counted, as the decimal display's exponent is
-   not counted against Digits: `= 1/3 × 1e+30` for `(1/3) * 1e30`,
+   not counted against the display digits: `= 1/3 × 1e+30` for `(1/3) * 1e30`,
    `= 5/127 × 1e+33` for `(5000/127) * 1e30`, `= 1/3 × 1e-30` for
    `(1/3) * 1e-30`, `= 1/3 × 1e+999999999` for `1e999999999/3`. The
-   parts are the value's canonical mantissa and exponent (scaled.ts:
+   parts are the value's canonical significand and exponent (scaled.ts:
    the numerator not divisible by ten, the denominator coprime to ten,
    in lowest terms), which is the one form in which the power of ten is
    all in one factor. The power is written after the ratio as a
@@ -149,10 +149,10 @@ rules 1 and 4 unchanged; rules 2, 3 and 4 replace its rules 2 and 3.
    terminating decimal of twenty-one digits at a width of twenty.
 
 So the width is the most digits of any exact value written entire, a
-whole number or a ratio's two parts together, and Digits is the digits
+whole number or a ratio's two parts together, and the display digits are the digits
 of everything else. A user can read a line from the settings: a ratio
 appears when its digits fit the width, a long whole number when its
-digits fit the width, and a decimal at Digits otherwise; and the width
+digits fit the width, and a decimal at the display digits otherwise; and the width
 is, to within a sign, a slash and an exponent, how many characters that
 value will take. Where a ratio is written on a line
 (parenthesized before a unit or the reciprocal's `×`, bare alone, term
@@ -164,7 +164,7 @@ Two forms #91 asks about are ruled out. A **mixed form**, `39 + 47/127`,
 does not parse back as it reads before a unit (`39 + 47/127 in` is
 `39 + (47/127) in`, a sum that does not conform), and it writes the
 value in three numbers where the ratio writes it in two. An **exponent
-form with a fractional mantissa**, `1.5e-999999999` for a value whose
+form with a fractional significand**, `1.5e-999999999` for a value whose
 ratio does not fit, is rule 5 already: the decimal display's.
 
 ## The panel
@@ -179,7 +179,7 @@ Notation      ( ) digits
               ratio of two whole numbers in lowest terms when the two have
               at most the width in digits between them; a whole number is
               written entire when it fits the width; anything longer is a
-              decimal at Digits.
+              decimal at the display digits.
 ```
 
 - The width's input appears with `ratio` and is absent with `digits`,
@@ -204,8 +204,8 @@ Notation      ( ) digits
     "digits": 8,
     "rounding": "halfEven",
     "mode": { "kind": "exact", "notation": { "kind": "ratio", "width": 20 } },
-    "maxDigits": 1000,
-    "maxBits": 65536
+    "precisionLimitDigits": 1000,
+    "significandLimitBits": 65536
   }
 }
 ```
@@ -258,11 +258,11 @@ digits, rounding, ratio: { width } })`); `fractionText` takes the width and gain
 
 **D28. The ratio notation has a width of its own, the most digits a
 ratio, its two parts together, or a whole number may have to be written
-entire, twenty by default and independent of Digits; a ratio that does
+entire, twenty by default and independent of the display digits; a ratio that does
 not fit is written as a ratio times a power of ten, the power after it,
 when its parts then fit and its denominator is not one, and otherwise
-the value is a decimal at Digits (S2c of docs/settings-plan.md; amends
-D21).** docs/ratio-width.md is the design. D21's fit at Digits coupled
+the value is a decimal at the display digits (S2c of docs/settings-plan.md; amends
+D21).** docs/ratio-width.md is the design. D21's fit at the display digits coupled
 a length to a precision, hid exact whole numbers and short ratios of
 large magnitude, and could not be read off the settings; the width is
 one number that decides what is written entire. The measure is the two
@@ -270,7 +270,7 @@ parts together, the sign, the slash and the exponent of the factored
 form not counted, since the width stands for the characters a value
 takes on the line (ruled by the owner in the review of the note, over
 the per-part measure the S2 note recommended); a mixed form and a
-fractional mantissa are ruled out; an approximating fraction for an
+fractional significand are ruled out; an approximating fraction for an
 inexact value stays ruled out.
 
 ## Not in this step
@@ -296,7 +296,7 @@ inexact value stays ruled out.
   outcome, the converter (`ratio`) and the shell carry the settings,
   and the outcome still withholds it in decimal mode.
 - **Rule 4 reaches further than the examples showed.** The canonical
-  mantissa strips a numerator's tens into the exponent, so `5000/127`
+  significand strips a numerator's tens into the exponent, so `5000/127`
   at a width below seven is `5/127 × 1e+3`, not the decimal: the ratio
   does not fit plainly, and the scaled form does. That is the rule as
   ruled, where the power is factored only when the ratio would

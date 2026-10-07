@@ -556,7 +556,7 @@ function checkFunction(
     definition.body,
     dimensions,
     primitives,
-    context.maxBits,
+    context.significandLimitBits,
   );
   if (!result.ok) return err(result.error);
   const conditions = checkConditions(
@@ -658,7 +658,7 @@ function checkInverse(
     definition.body,
     dimensions,
     primitives,
-    context.maxBits,
+    context.significandLimitBits,
   );
   if (!body.ok) return err(body.error);
   const conforms = checkConformance(
@@ -723,7 +723,12 @@ function checkConditions(
   for (const condition of conditions) {
     let left: Dimension | undefined;
     for (const [i, term] of condition.terms.entries()) {
-      const right = dimensionOf(term, dimensions, primitives, context.maxBits);
+      const right = dimensionOf(
+        term,
+        dimensions,
+        primitives,
+        context.significandLimitBits,
+      );
       if (!right.ok) return err(right.error);
       if (left !== undefined) {
         const conforms = checkConformance(left, right.value, primitives);
@@ -910,7 +915,7 @@ function lookupIn(
       // A prefix and a unit each within the exponent bound multiply to
       // within it unless both are at its edge, which the definitions the
       // app ships are nowhere near, but a product may be refused all the
-      // same, so any refusal is the name's; the range limit is the node's
+      // same, so any refusal is the name's; the significand limit is the node's
       // check (D19), made where the name is evaluated.
       const { error } = product;
       if (!isRefusal(error)) {

@@ -15,7 +15,7 @@
 // one ulp covers it. Each squaring doubles the relative error and adds an
 // ulp, so the work is done at `bits + k` plus a guard. The result is a
 // `Floating` (fixed.ts; 4.9 of the plan): after each squaring the
-// mantissa is brought back to `[1, 2)` at the working bits and the rest
+// significand is brought back to `[1, 2)` at the working bits and the rest
 // moved into the exponent (`normalizeFloating`), so that `exp(1e6)` costs
 // what `exp(1)` costs plus a squaring per bit of its magnitude, about
 // twenty at the working bits, rather than a value of 1.4 million bits, and a negative argument is the same
@@ -36,7 +36,7 @@
 // `e^(2 × 10^9)` at every step until V8 refused (issue #39); the end is
 // the signed one, not the largest magnitude, which for a wide negative
 // interval near `-2.3 × 10^18` would report an overflow, and the guard
-// before this bounds it. digits.ts takes such a result, whose mantissa's
+// before this bounds it. digits.ts takes such a result, whose significand's
 // interval contains zero and so has no logarithm, as zero within the
 // bound of its extent.
 //
@@ -102,7 +102,7 @@ const HYPERBOLIC_GUARD = 16;
 export type SinhCosh = { readonly sinh: Floating; readonly cosh: Floating };
 
 /**
- * `exp(f)` with `bits` significant bits kept for its mantissa, and an
+ * `exp(f)` with `bits` significant bits kept for its significand, and an
  * interval containing `exp` of every value in `f`'s, as a `Floating`.
  */
 export function expFixed(f: Fixed, bits: number): Floating {
@@ -125,10 +125,10 @@ export function expFixed(f: Fixed, bits: number): Floating {
       bits,
     );
     return {
-      mant: {
+      significand: {
         value: 0n,
-        error: abs(upper.mant.value) + upper.mant.error,
-        bits: upper.mant.bits,
+        error: abs(upper.significand.value) + upper.significand.error,
+        bits: upper.significand.bits,
       },
       exp: upper.exp,
     };
@@ -156,17 +156,20 @@ export function expFixed(f: Fixed, bits: number): Floating {
   let result = normalizeFloating(sum, 0n, working);
   for (let i = 0; i < halvings; i++) {
     result = normalizeFloating(
-      multiplyFixed(result.mant, result.mant),
+      multiplyFixed(result.significand, result.significand),
       2n * result.exp,
       working,
     );
   }
-  return { mant: truncateFixed(result.mant, bits), exp: result.exp };
+  return {
+    significand: truncateFixed(result.significand, bits),
+    exp: result.exp,
+  };
 }
 
 /**
  * `sinh(f)` and `cosh(f)` with `bits` significant bits kept for each one's
- * mantissa, and intervals containing the functions of every value in
+ * significand, and intervals containing the functions of every value in
  * `f`'s, as the header says; `f`'s magnitude must be within the exponent
  * bound, as `expFixed`'s must.
  */
@@ -252,11 +255,14 @@ function pair(f: Fixed, bits: number): SinhCosh {
   // E: the pair is E/2 within that ulp, and nothing larger is formed.
   if (e.exp > BigInt(working) / 2n + 2n) {
     const half: Floating = {
-      mant: { ...e.mant, error: e.mant.error + 1n },
+      significand: { ...e.significand, error: e.significand.error + 1n },
       exp: e.exp - 1n,
     };
     return {
-      sinh: x.value < 0n ? { ...half, mant: scaleFixed(half.mant, -1n) } : half,
+      sinh:
+        x.value < 0n
+          ? { ...half, significand: scaleFixed(half.significand, -1n) }
+          : half,
       cosh: half,
     };
   }
@@ -273,26 +279,30 @@ function pair(f: Fixed, bits: number): SinhCosh {
 /** A ball around zero whose error covers the whole of the `Floating` `fl`, at its exponent. */
 function around(fl: Floating): Floating {
   return {
-    mant: {
+    significand: {
       value: 0n,
-      error: abs(fl.mant.value) + fl.mant.error,
-      bits: fl.mant.bits,
+      error: abs(fl.significand.value) + fl.significand.error,
+      bits: fl.significand.bits,
     },
     exp: fl.exp,
   };
 }
 
-/** `fl` with `bits` significant bits kept for its mantissa (D9): normalized, then truncated to the bits. */
+/** `fl` with `bits` significant bits kept for its significand (D9): normalized, then truncated to the bits. */
 function cut(fl: Floating, bits: number): Floating {
-  if (fl.mant.value === 0n) {
-    return { mant: keepSignificant(fl.mant, bits), exp: fl.exp };
+  if (fl.significand.value === 0n) {
+    return { significand: keepSignificant(fl.significand, bits), exp: fl.exp };
   }
-  const normalized = normalizeFloating(fl.mant, fl.exp, fl.mant.bits);
+  const normalized = normalizeFloating(
+    fl.significand,
+    fl.exp,
+    fl.significand.bits,
+  );
   return {
-    mant:
-      normalized.mant.bits > bits
-        ? truncateFixed(normalized.mant, bits)
-        : normalized.mant,
+    significand:
+      normalized.significand.bits > bits
+        ? truncateFixed(normalized.significand, bits)
+        : normalized.significand,
     exp: normalized.exp,
   };
 }

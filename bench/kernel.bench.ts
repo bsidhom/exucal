@@ -6,7 +6,7 @@ import { chudnovsky, eSeries } from "../src/core/constants.ts";
 import { floatingToBall } from "../src/core/digits.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   workingDigits,
   type NumberContext,
@@ -170,7 +170,7 @@ function contextAt(precision: number): NumberContext {
   return {
     precision,
     rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
   };
 }
@@ -185,9 +185,9 @@ function settledAt(b: Ball, context: NumberContext): Ball {
 /** An inexact ball whose midpoint has about twice the working digits of `context`: what a product of two settled balls is before it is settled. */
 function unsettledAt(context: NumberContext): Ball {
   const digits = workingDigits(context);
-  const mant = 3n ** BigInt(Math.ceil((2 * digits) / Math.log10(3)));
+  const significand = 3n ** BigInt(Math.ceil((2 * digits) / Math.log10(3)));
   return {
-    mid: fromRational(rational(mant, 7n ** 20n)),
+    mid: fromRational(rational(significand, 7n ** 20n)),
     rad: radiusAbove(rational(1n, 10n ** BigInt(digits + 5))),
   };
 }

@@ -57,19 +57,19 @@
 // `underflow`, since its value cannot be written.
 //
 // The two ends of the exponent (4.4) are answered before the kernel is
-// entered. An argument of `atan` below `2^-maxBits` throughout is itself
+// entered. An argument of `atan` below `2^-significandLimitBits` throughout is itself
 // within its cube (`tinyOdd` of builtin.ts), and an argument of `asin` or
 // `acos` whose square lies below `2^-bitsFor(precision)` throughout is
 // its expansion at zero already, `asin` the argument within its cube and
 // `acos` `pi/2` less that, which keeps the working bits since the
 // expansion's relative error is the square: the threshold is on the
-// square at the working bits rather than `isTiny`'s `2^-maxBits`, since
-// `1 - x^2` stops aligning within the range limit long before that
+// square at the working bits rather than `isTiny`'s `2^-significandLimitBits`, since
+// `1 - x^2` stops aligning within the significand limit long before that
 // (`acos(1e-9860)` was refused at the default, issue #47); one of `atan` at
 // or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, the
 // saturation docs/decimal.md lists. Neither `atan` nor `atan2` is
 // refused for an argument's radius (issue #64, by H.1's rule for
-// `tanh`): a ball that reaches `2^maxBits` without lying beyond `2^bits`
+// `tanh`): a ball that reaches `2^significandLimitBits` without lying beyond `2^bits`
 // throughout, which the kernel's door refused as `tooLarge`, is the
 // function's whole range, zero within two for `atan`, the kernel's own
 // trivial bound for a wide interval, and zero within four for `atan2`
@@ -288,7 +288,7 @@ export function atan2Ball(
     const z = quotient(y, x, 1);
     if (!z.ok) return z;
     // A tiny ratio is its own arctangent within its cube, as atan's is,
-    // and one reaching 2^maxBits, a y straddling zero far wider than x,
+    // and one reaching 2^significandLimitBits, a y straddling zero far wider than x,
     // is the whole range.
     if (isTiny(z.value, context)) return ok(tinyOdd(z.value));
     if (isHuge(z.value, context)) return ok(WHOLE_RANGE_ATAN2);
@@ -309,7 +309,7 @@ export function atan2Ball(
     return ok(fixedToBall(keepSignificant(result, bits), digits));
   }
   // `x` reaches zero and `y` has a sign: ±pi/2 - atan(x / y). A ratio
-  // reaching 2^maxBits is `unresolved` at x rather than the whole range,
+  // reaching 2^significandLimitBits is `unresolved` at x rather than the whole range,
   // for what the value does over such an x. Take y = 1e-30000 and x = 0
   // within 1e-52, the first pass of atan2(1e-30000, 1 - approx(1)): the
   // value is within 1e-30000 / |x| of zero for x well above 1e-30000 and
@@ -341,7 +341,7 @@ export function atan2Ball(
  * throughout, and `unresolved` at the nearer end for one that reaches an
  * end, as the header says. Both are read off `x`'s position against the
  * ends before the square is formed, which for a huge `x` would pass the
- * range limit or the exponent bound first (issue #47); the square is then
+ * significand limit or the exponent bound first (issue #47); the square is then
  * of a value strictly inside the interval, and its complement is read
  * once more, since the coarse rounding of the product's radius can still
  * carry it onto zero.
@@ -425,7 +425,7 @@ function squareBelow(x: Ball, bits: number): boolean {
 
 /**
  * The kernel's arctangent of the bounded `z` at the context, for a `z`
- * below `2^maxBits`, which the caller sees to: `atan` and `atan2` answer
+ * below `2^significandLimitBits`, which the caller sees to: `atan` and `atan2` answer
  * a ball reaching it first, and the ratios of `asin` and `acos` lie
  * within one. A small `z` is converted at as many more fraction bits as
  * its magnitude is below one, so that the kernel keeps its digits.
@@ -441,7 +441,7 @@ function atanKernel(z: Ball, context: NumberContext): Fixed {
 
 /**
  * The whole range of `atan`, zero within two, for a ball that reaches
- * `2^maxBits` without lying beyond `2^bits` throughout (issue #64). Two
+ * `2^significandLimitBits` without lying beyond `2^bits` throughout (issue #64). Two
  * rather than `pi/2`, the range's own bound, because it is the kernel's
  * trivial bound for a wide interval (`atanFixed`), whose error is an
  * integer count of ulps written as a shift by a power of two with no
@@ -456,7 +456,7 @@ const WHOLE_RANGE_ATAN: Ball = { mid: ZERO, rad: powerOfTwoRadius(1n) };
 
 /**
  * The whole range of `atan2`, zero within four, the power of two above
- * `pi`, for a ratio that reaches `2^maxBits` (issue #64), by the same
+ * `pi`, for a ratio that reaches `2^significandLimitBits` (issue #64), by the same
  * reasoning as `WHOLE_RANGE_ATAN`.
  */
 const WHOLE_RANGE_ATAN2: Ball = { mid: ZERO, rad: powerOfTwoRadius(2n) };

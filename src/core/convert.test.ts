@@ -13,7 +13,7 @@ import {
 } from "./ball.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   workingDigits,
   type NumberContext,
@@ -30,7 +30,7 @@ import {
 import { DIMENSIONLESS, type Dimension, type Primitives } from "./dimension.ts";
 import type { Quantity } from "./quantity.ts";
 import {
-  LIMIT_BITS,
+  MAX_SIGNIFICAND_LIMIT_BITS,
   absolute as absoluteFraction,
   compare as compareFractions,
   rational,
@@ -59,7 +59,7 @@ import { ball, dec, digitsOf, fr, fraction } from "../testing/scaled.ts";
 const CONTEXT: NumberContext = {
   precision: 8,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -457,7 +457,7 @@ test("the terms sum to have exactly", () => {
     add(
       unwrap(multiply(feet!.mid, FOOT.magnitude.mid)),
       unwrap(multiply(inches!.mid, INCH.magnitude.mid)),
-      LIMIT_BITS,
+      MAX_SIGNIFICAND_LIMIT_BITS,
     ),
   );
   assert.ok(equals(sum, have.magnitude.mid));
@@ -502,7 +502,7 @@ test("a count carries its exponent, and one whose integer part cannot be formed 
   );
   // `1e999999999 m` over a unit of `3 m`: the ratio `3.333...e999999998`
   // has an integer part of a billion digits, which cannot be formed
-  // within the range limit, so the count is the midpoint settled toward
+  // within the significand limit, so the count is the midpoint settled toward
   // zero at the working digits (D8 as 4.4 amended it), an integer of that
   // many digits, and the remainder is what that count leaves, exactly.
   const three = quantity("3", { m: 1 });
@@ -640,12 +640,18 @@ test("a count whose ratio straddles an integer is that integer, and the remainde
   // A hair below the integer, straddling it, the same; a hair below and
   // not straddling, the truncated count and a remainder near sixty.
   const below: Quantity = {
-    magnitude: ball(unwrap(subtract(fr(360n), dec("1e-40"), LIMIT_BITS)), tiny),
+    magnitude: ball(
+      unwrap(subtract(fr(360n), dec("1e-40"), MAX_SIGNIFICAND_LIMIT_BITS)),
+      tiny,
+    ),
     dimension: dim({ deg: 1 }),
   };
   assert.deepEqual(terms(list(below, [degree, minute]))[0], exact(fr(360n)));
   const apart: Quantity = {
-    magnitude: ball(unwrap(subtract(fr(360n), dec("1e-20"), LIMIT_BITS)), tiny),
+    magnitude: ball(
+      unwrap(subtract(fr(360n), dec("1e-20"), MAX_SIGNIFICAND_LIMIT_BITS)),
+      tiny,
+    ),
     dimension: dim({ deg: 1 }),
   };
   const truncated = terms(list(apart, [degree, minute]));
@@ -832,11 +838,13 @@ test("roundTerms rounds by less than a unit in the last digit shown", () => {
     add(
       unwrap(multiply(rounded[0]!.mid, FOOT.magnitude.mid)),
       unwrap(multiply(rounded[1]!.mid, INCH.magnitude.mid)),
-      LIMIT_BITS,
+      MAX_SIGNIFICAND_LIMIT_BITS,
     ),
   );
   // Within 1e-7 in of the exact value: the resolution of 11.999999 at 8 digits.
-  const difference = unwrap(subtract(shown, have.magnitude.mid, LIMIT_BITS));
+  const difference = unwrap(
+    subtract(shown, have.magnitude.mid, MAX_SIGNIFICAND_LIMIT_BITS),
+  );
   const resolution = unwrap(multiply(dec("1e-7"), INCH.magnitude.mid));
   assert.ok(compare(absolute(difference), resolution) < 0);
 });

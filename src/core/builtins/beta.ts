@@ -6,7 +6,7 @@
 //
 // The exact case: positive integers, where `beta(a, b)` is `(a - 1)!
 // (b - 1)! / (a + b - 1)!`, formed as the reciprocal of `(a + b - 1)
-// binomial(a + b - 2, a - 1)` when that fits Most bits (`binomialOf`
+// binomial(a + b - 2, a - 1)` when that fits the significand limit (`binomialOf`
 // predicts and refuses as `binomial` does), and the kernel's value
 // otherwise. A pole of `Γ(a)` or `Γ(b)`, an exact non-positive integer,
 // is a `domain` error at that argument, and a ball reaching one is
@@ -27,10 +27,10 @@
 // `2^55`), so each is taken at the working bits plus the bits of the
 // largest argument's magnitude, uncapped, which keeps the absolute error
 // of `L`, the result's relative error, below the working ulp; an
-// argument whose magnitude would need more bits than Most bits allows
+// argument whose magnitude would need more bits than the significand limit allows
 // makes the call `tooLarge`, since no value of the difference can be
 // certified within the limit (`beta(1e20000, 2)`). The sum `a + b` is
-// formed exactly where it aligns within Most bits, and otherwise as the
+// formed exactly where it aligns within the significand limit, and otherwise as the
 // larger within the magnitude of the smaller, the smaller absorbed into
 // the radius, as an inexact sum that does not align is (`beta(2.5,
 // 1e-20000)` is a value).
@@ -122,11 +122,11 @@ export function betaBall(
   if (!atSum.ok) return atSum;
   const bits = bitsFor(context.precision);
   const extra = Math.max(
-    magnitudeBits(a, context.maxBits),
-    magnitudeBits(b, context.maxBits),
-    magnitudeBits(sum.value, context.maxBits),
+    magnitudeBits(a, context.significandLimitBits),
+    magnitudeBits(b, context.significandLimitBits),
+    magnitudeBits(sum.value, context.significandLimitBits),
   );
-  if (bits + extra > context.maxBits) return TOO_LARGE;
+  if (bits + extra > context.significandLimitBits) return TOO_LARGE;
   const digits = workingDigits(context) + Math.ceil(extra / BITS_PER_DIGIT) + 1;
   const la = blamed(logGamma(a, context, bits + extra, digits), 0);
   if (!la.ok) return la;
@@ -162,7 +162,7 @@ export function betaBall(
 
 /**
  * The exact case: `1 / ((a + b - 1) binomial(a + b - 2, a - 1))` for
- * exact positive integers whose value fits Most bits; `undefined` when
+ * exact positive integers whose value fits the significand limit; `undefined` when
  * the arguments are not that, or the value does not fit, for the kernel.
  */
 function exactIntegers(
@@ -173,19 +173,19 @@ function exactIntegers(
   if (!isExact(a) || !isExact(b)) return undefined;
   if (!isInteger(a.mid) || !isInteger(b.mid)) return undefined;
   if (sign(a.mid) <= 0 || sign(b.mid) <= 0) return undefined;
-  const m = toRational(a.mid, context.maxBits);
-  const n = toRational(b.mid, context.maxBits);
+  const m = toRational(a.mid, context.significandLimitBits);
+  const n = toRational(b.mid, context.significandLimitBits);
   if (!m.ok || !n.ok) return undefined;
   const top = m.value.num + n.value.num - 1n;
   const binomial = binomialOf(top - 1n, m.value.num - 1n, context);
   if (!binomial.ok) return undefined;
   const denominator = top * binomial.value;
-  if (bitLength(denominator) > context.maxBits) return undefined;
+  if (bitLength(denominator) > context.significandLimitBits) return undefined;
   return ok(exact(fromRational(rational(1n, denominator))));
 }
 
 /**
- * `a + b` as a ball: exactly where the operands align within Most bits,
+ * `a + b` as a ball: exactly where the operands align within the significand limit,
  * and otherwise the larger within the magnitude of the smaller, as an
  * inexact sum that does not align is formed, since the sum feeds the
  * logarithm, an inexact computation whatever its operands.

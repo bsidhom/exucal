@@ -5,7 +5,7 @@ import { containsZero, exact, isExact, rootBall, type Ball } from "../ball.ts";
 import { buildTable } from "../build.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   workingDigits,
   type NumberContext,
@@ -32,7 +32,7 @@ import { approx, approxBall } from "./approx.ts";
 const CONTEXT: NumberContext = {
   precision: 8,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 

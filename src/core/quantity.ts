@@ -15,7 +15,7 @@
 // Multiplication and division are exact on the midpoints and propagate the
 // radii, and are refused when the result is too large or too small to
 // compute, at the exponent bound (`overflow`, `underflow`); an exact
-// result past the range limit is refused by the evaluator at the node
+// result past the significand limit is refused by the evaluator at the node
 // that forms it (D19), not here, and the callers take any refusal all
 // the same; division also fails on a divisor that is
 // exactly zero, or that cannot be told from zero (`unresolved`); and a
@@ -28,8 +28,8 @@
 // dimension side is the conformance check of `dimension.ts`, the same one
 // `convert` applies to a `have` and a `want`, and the failure is its
 // `ConformanceError`; and the magnitudes add as `addBalls` rules, aligned
-// within the range limit of the `NumberContext` they take (4.4), two exact
-// magnitudes that cannot be aligned failing `tooLarge` at the range limit,
+// within the significand limit of the `NumberContext` they take (4.4), two exact
+// magnitudes that cannot be aligned failing `tooLarge` at the significand limit,
 // and a sum past the exponent bound at the bound. The check tells
 // dimensions from kinds by the roles of the table's primitives, so these
 // two operations take them, as `convert` does.
@@ -112,13 +112,13 @@ export function stepQuantity<E extends { readonly kind: string }>(
 }
 
 /**
- * `a + b`, exactly where the magnitudes align within the range limit of
+ * `a + b`, exactly where the magnitudes align within the significand limit of
  * `context` and as `addBalls` rules otherwise, provided the two conform:
  * `1 ft` plus `1 in` is `0.3302 m`. The sum has the dimension its terms
  * share; `1 m + 1 s`, `1 radian + 1` and `1 m + 0` (a plain number, not a
  * length) have none, and fail with the mismatch, `a` as its `have` and `b`
  * as its `want`; two exact magnitudes that cannot be aligned fail
- * `tooLarge` at the range limit, and a sum past the exponent bound at the
+ * `tooLarge` at the significand limit, and a sum past the exponent bound at the
  * bound.
  */
 export function addQuantities(
@@ -203,7 +203,7 @@ export function divideQuantities(
  * its exponents are rational. Fails as the magnitude does: `0` to a
  * negative power, a ball around zero to a negative power or under an even
  * root (`unresolved`), an even root of a negative magnitude, or a result
- * beyond the range limit (`tooLarge`) or the exponent bound (`overflow`,
+ * beyond the significand limit (`tooLarge`) or the exponent bound (`overflow`,
  * `underflow`).
  */
 export function powQuantity(

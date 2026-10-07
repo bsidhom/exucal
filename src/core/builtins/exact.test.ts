@@ -9,7 +9,7 @@ import { inspect } from "node:util";
 import { buildTable } from "../build.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   ceilingContext,
   type NumberContext,
@@ -23,7 +23,7 @@ import { describeTextError } from "../../messages.ts";
 const CONTEXT: NumberContext = {
   precision: 8,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -95,7 +95,7 @@ test("the exact functions through the pipeline, with their messages", () => {
   );
   assert.equal(
     run("factorial(20000)"),
-    '"factorial(20000)" is too large to compute within Most bits.',
+    '"factorial(20000)" is too large to compute within the significand limit.',
   );
   assert.equal(
     run("floor(sqrt(2)^2)"),

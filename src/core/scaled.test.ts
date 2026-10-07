@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import {
-  LIMIT_BITS,
+  MAX_SIGNIFICAND_LIMIT_BITS,
   ONE as ONE_FRACTION,
   ZERO as ZERO_FRACTION,
   absolute as absoluteFraction,
@@ -100,9 +100,9 @@ function at(num: bigint, den: bigint, exp: bigint): Scaled {
   return unwrap(scaled(rational(num, den), exp));
 }
 
-/** The literal `<mant>e<exp>`. */
-function big(mant: string, exp: bigint): Scaled {
-  return dec(`${mant}e${exp}`);
+/** The literal `<significand>e<exp>`. */
+function big(significand: string, exp: bigint): Scaled {
+  return dec(`${significand}e${exp}`);
 }
 
 /** `count` seeded rationals of about seven digits over seven, at magnitudes up to `10^±12`. */
@@ -114,14 +114,14 @@ function randomRationals(count: number, seed: number): Rational[] {
 // The canonical form
 
 test("one value has one representation, wherever its powers of ten sit", () => {
-  const twoFiftyFour = { mant: rational(254n), exp: -2n };
+  const twoFiftyFour = { significand: rational(254n), exp: -2n };
   assert.deepEqual(dec("2.54"), twoFiftyFour);
   assert.deepEqual(at(254n, 100n, 0n), twoFiftyFour);
   assert.deepEqual(at(127n, 50n, 0n), twoFiftyFour);
   assert.deepEqual(at(254n, 1n, -2n), twoFiftyFour);
   assert.deepEqual(at(2540n, 1n, -3n), twoFiftyFour);
   assert.deepEqual(at(127n, 5n, -1n), twoFiftyFour);
-  const thousand = { mant: rational(1n), exp: 3n };
+  const thousand = { significand: rational(1n), exp: 3n };
   assert.deepEqual(dec("1e3"), thousand);
   assert.deepEqual(dec("1000"), thousand);
   assert.deepEqual(
@@ -133,46 +133,61 @@ test("one value has one representation, wherever its powers of ten sit", () => {
 });
 
 test("the denominator's twos and fives move into the exponent", () => {
-  assert.deepEqual(at(1n, 6n, 0n), { mant: rational(5n, 3n), exp: -1n });
-  assert.deepEqual(at(1n, 1024n, 0n), { mant: rational(5n ** 10n), exp: -10n });
-  assert.deepEqual(at(1n, 125n, 0n), { mant: rational(8n), exp: -3n });
-  assert.deepEqual(at(3n, 50n, 0n), { mant: rational(6n), exp: -2n });
-  assert.deepEqual(at(7n, 12n, 0n), { mant: rational(175n, 3n), exp: -2n });
-  assert.deepEqual(at(1n, 3n, 0n), { mant: rational(1n, 3n), exp: 0n });
-  // A denominator coprime to ten is left alone, and the mantissa stays in
+  assert.deepEqual(at(1n, 6n, 0n), { significand: rational(5n, 3n), exp: -1n });
+  assert.deepEqual(at(1n, 1024n, 0n), {
+    significand: rational(5n ** 10n),
+    exp: -10n,
+  });
+  assert.deepEqual(at(1n, 125n, 0n), { significand: rational(8n), exp: -3n });
+  assert.deepEqual(at(3n, 50n, 0n), { significand: rational(6n), exp: -2n });
+  assert.deepEqual(at(7n, 12n, 0n), {
+    significand: rational(175n, 3n),
+    exp: -2n,
+  });
+  assert.deepEqual(at(1n, 3n, 0n), { significand: rational(1n, 3n), exp: 0n });
+  // A denominator coprime to ten is left alone, and the significand stays in
   // lowest terms without a gcd: what moved is coprime to what stayed.
-  assert.deepEqual(at(1n, 7n, 4n), { mant: rational(1n, 7n), exp: 4n });
+  assert.deepEqual(at(1n, 7n, 4n), { significand: rational(1n, 7n), exp: 4n });
 });
 
 test("the numerator's trailing zeros move into the exponent, with the sign kept", () => {
-  assert.deepEqual(at(1200n, 1n, 0n), { mant: rational(12n), exp: 2n });
-  assert.deepEqual(at(1200n, 7n, 0n), { mant: rational(12n, 7n), exp: 2n });
-  assert.deepEqual(at(-1200n, 1n, 0n), { mant: rational(-12n), exp: 2n });
-  assert.deepEqual(at(-1200n, 1n, -5n), { mant: rational(-12n), exp: -3n });
+  assert.deepEqual(at(1200n, 1n, 0n), { significand: rational(12n), exp: 2n });
+  assert.deepEqual(at(1200n, 7n, 0n), {
+    significand: rational(12n, 7n),
+    exp: 2n,
+  });
+  assert.deepEqual(at(-1200n, 1n, 0n), {
+    significand: rational(-12n),
+    exp: 2n,
+  });
+  assert.deepEqual(at(-1200n, 1n, -5n), {
+    significand: rational(-12n),
+    exp: -3n,
+  });
   // Twos or fives alone are not tens: the numerator keeps them.
-  assert.deepEqual(at(40n, 1n, 0n), { mant: rational(4n), exp: 1n });
-  assert.deepEqual(at(4n, 1n, 0n), { mant: rational(4n), exp: 0n });
-  assert.deepEqual(at(25n, 1n, 0n), { mant: rational(25n), exp: 0n });
-  assert.deepEqual(at(250n, 1n, 0n), { mant: rational(25n), exp: 1n });
+  assert.deepEqual(at(40n, 1n, 0n), { significand: rational(4n), exp: 1n });
+  assert.deepEqual(at(4n, 1n, 0n), { significand: rational(4n), exp: 0n });
+  assert.deepEqual(at(25n, 1n, 0n), { significand: rational(25n), exp: 0n });
+  assert.deepEqual(at(250n, 1n, 0n), { significand: rational(25n), exp: 1n });
 });
 
-test("a mantissa full of tens, twos or fives is normalized in a logarithmic number of divisions", () => {
+test("a significand full of tens, twos or fives is normalized in a logarithmic number of divisions", () => {
   const started = performance.now();
   assert.deepEqual(fromRational(rational(10n ** 20000n)), at(1n, 1n, 20000n));
   assert.deepEqual(fromRational(rational(1n, 5n ** 20000n)), {
-    mant: rational(1n << 20000n),
+    significand: rational(1n << 20000n),
     exp: -20000n,
   });
   assert.deepEqual(fromRational(rational(1n, 1n << 20000n)), {
-    mant: rational(5n ** 20000n),
+    significand: rational(5n ** 20000n),
     exp: -20000n,
   });
   assert.deepEqual(fromRational(rational(3n * 10n ** 20001n, 7n)), {
-    mant: rational(3n, 7n),
+    significand: rational(3n, 7n),
     exp: 20001n,
   });
   assert.deepEqual(fromRational(rational(2n ** 20000n * 5n ** 19999n)), {
-    mant: rational(2n),
+    significand: rational(2n),
     exp: 19999n,
   });
   assert.ok(performance.now() - started < 2000, "fast");
@@ -183,7 +198,7 @@ test("zero is zero with exponent zero, whatever exponent it was given", () => {
   assert.deepEqual(at(0n, 7n, 999n), ZERO);
   assert.deepEqual(unwrap(scaled(ZERO_FRACTION, MAX_EXPONENT * 5n)), ZERO);
   assert.deepEqual(fromRational(ZERO_FRACTION), ZERO);
-  assert.deepEqual(ONE, { mant: rational(1n), exp: 0n });
+  assert.deepEqual(ONE, { significand: rational(1n), exp: 0n });
 });
 
 test("the exponent bound is on the value's decimal exponent, checked after normalizing (D17)", () => {
@@ -195,8 +210,8 @@ test("the exponent bound is on the value's decimal exponent, checked after norma
   assertError(scaled(rational(10n), MAX_EXPONENT), "overflow");
   assert.ok(scaled(rational(1n, 10n), MAX_EXPONENT).ok);
   assertError(scaled(rational(1n, 10n), -MAX_EXPONENT), "underflow");
-  // A fraction mantissa: the canonical exponent may pass the bound by the
-  // mantissa's digits while the value is within it, and the other way.
+  // A fraction significand: the canonical exponent may pass the bound by the
+  // significand's digits while the value is within it, and the other way.
   // `1/3 × 10^(MAX + 1)` is `3.3 × 10^MAX`, within; `1/7 × 10^-MAX` is
   // `1.4 × 10^-(MAX + 1)`, past; `12345678 × 10^-(MAX + 7)` is
   // `1.2 × 10^-MAX`, within.
@@ -214,12 +229,12 @@ test("the exponent bound is on the value's decimal exponent, checked after norma
   });
 });
 
-test("the canonical mantissa, the fraction it denotes and an aligned operand are in lowest terms", () => {
+test("the canonical significand, the fraction it denotes and an aligned operand are in lowest terms", () => {
   // The fraction's arithmetic reduces with the smaller gcds its operands
   // allow, which is correct only for operands in lowest terms (the plan's
   // H.9), and the canonical form is built without `rational`: the
   // denominator's twos and fives move out as fives and twos on the
-  // numerator, and a sum's operand is a mantissa times a power of ten.
+  // numerator, and a sum's operand is a significand times a power of ten.
   for (const r of randomRationals(100, 4104)) {
     for (const [num, den, exp] of [
       [r.num, r.den, 0n],
@@ -228,24 +243,33 @@ test("the canonical mantissa, the fraction it denotes and an aligned operand are
       [r.num * 10n ** 9n, r.den * 3n * 7n, -20n],
     ] as const) {
       const s = at(num, den, exp);
-      assert.ok(inLowestTerms(s.mant), inspect(s));
-      assert.ok(inLowestTerms(unwrap(toRational(s, LIMIT_BITS))));
-      const sum = unwrap(add(s, at(7n, 3n, exp + 5n), LIMIT_BITS));
-      assert.ok(inLowestTerms(sum.mant), inspect(sum));
-      const shifted = unwrap(subtract(at(1n, 7n, exp - 3n), s, LIMIT_BITS));
-      assert.ok(inLowestTerms(shifted.mant), inspect(shifted));
+      assert.ok(inLowestTerms(s.significand), inspect(s));
+      assert.ok(
+        inLowestTerms(unwrap(toRational(s, MAX_SIGNIFICAND_LIMIT_BITS))),
+      );
+      const sum = unwrap(
+        add(s, at(7n, 3n, exp + 5n), MAX_SIGNIFICAND_LIMIT_BITS),
+      );
+      assert.ok(inLowestTerms(sum.significand), inspect(sum));
+      const shifted = unwrap(
+        subtract(at(1n, 7n, exp - 3n), s, MAX_SIGNIFICAND_LIMIT_BITS),
+      );
+      assert.ok(inLowestTerms(shifted.significand), inspect(shifted));
     }
   }
   for (const text of ["1e-30", "2.54e300", "0.000625", "1e5000", "6e-5000"]) {
-    assert.ok(inLowestTerms(dec(text).mant), text);
-    assert.ok(inLowestTerms(unwrap(toRational(dec(text), LIMIT_BITS))), text);
+    assert.ok(inLowestTerms(dec(text).significand), text);
+    assert.ok(
+      inLowestTerms(unwrap(toRational(dec(text), MAX_SIGNIFICAND_LIMIT_BITS))),
+      text,
+    );
   }
 });
 
 test("seeded fractions round-trip and equal structurally whichever form they were built from", () => {
   for (const r of randomRationals(100, 4101)) {
     const s = fromRational(r);
-    assert.deepEqual(unwrap(toRational(s, LIMIT_BITS)), r);
+    assert.deepEqual(unwrap(toRational(s, MAX_SIGNIFICAND_LIMIT_BITS)), r);
     assert.deepEqual(at(r.num * 100n, r.den, -2n), s);
     assert.deepEqual(at(r.num, r.den * 1000n, 3n), s);
     assert.deepEqual(at(r.num * 10n ** 7n, r.den * 10n ** 4n, -3n), s);
@@ -276,7 +300,7 @@ test("inspection", () => {
   assert.ok(!equals(dec("1e3"), dec("1e4")));
 });
 
-test("decimalExponent is the mantissa's plus the exponent, for any exponent", () => {
+test("decimalExponent is the significand's plus the exponent, for any exponent", () => {
   assert.equal(decimalExponent(dec("1")), 0n);
   assert.equal(decimalExponent(dec("9.99")), 0n);
   assert.equal(decimalExponent(dec("10")), 1n);
@@ -298,11 +322,11 @@ test("decimalExponent is the mantissa's plus the exponent, for any exponent", ()
 test("toRational forms the power of ten where it fits", () => {
   assert.deepEqual(unwrap(toRational(dec("2.54"), 64)), rational(127n, 50n));
   assert.deepEqual(
-    unwrap(toRational(dec("1e5000"), LIMIT_BITS)),
+    unwrap(toRational(dec("1e5000"), MAX_SIGNIFICAND_LIMIT_BITS)),
     rational(10n ** 5000n),
   );
   assert.deepEqual(
-    unwrap(toRational(dec("1e-5000"), LIMIT_BITS)),
+    unwrap(toRational(dec("1e-5000"), MAX_SIGNIFICAND_LIMIT_BITS)),
     rational(1n, 10n ** 5000n),
   );
   // A negative exponent cancels against the numerator's twos or fives.
@@ -318,15 +342,27 @@ test("toRational forms the power of ten where it fits", () => {
 });
 
 test("toRational refuses a power of ten beyond the bits it may form", () => {
-  assert.ok(toRational(big("1", 300000n), LIMIT_BITS).ok);
-  assertError(toRational(big("1", 400000n), LIMIT_BITS), "tooLarge");
-  assertError(toRational(big("1", -400000n), LIMIT_BITS), "tooLarge");
-  assertError(toRational(big("1", 999999999n), LIMIT_BITS), "tooLarge");
-  assertError(toRational(big("1", -999999999n), LIMIT_BITS), "tooLarge");
+  assert.ok(toRational(big("1", 300000n), MAX_SIGNIFICAND_LIMIT_BITS).ok);
+  assertError(
+    toRational(big("1", 400000n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
+  assertError(
+    toRational(big("1", -400000n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
+  assertError(
+    toRational(big("1", 999999999n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
+  assertError(
+    toRational(big("1", -999999999n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
   const sixteen = 1 << 16;
   assert.ok(toRational(dec("1e19000"), sixteen).ok);
   assertError(toRational(big("1", 300000n), sixteen), "tooLarge");
-  // The mantissa's digits count with the exponent's.
+  // The significand's digits count with the exponent's.
   assertError(
     toRational(at(10n ** 100n + 1n, 1n, 19600n), sixteen),
     "tooLarge",
@@ -398,8 +434,8 @@ test("log2Bounds contain log2 of seeded values within 2^-30", () => {
     // numerator and denominator are within a few bits of exact in a
     // double, and its exponent is at most twelve.
     const reference =
-      Math.log2(Math.abs(Number(s.mant.num))) -
-      Math.log2(Number(s.mant.den)) +
+      Math.log2(Math.abs(Number(s.significand.num))) -
+      Math.log2(Number(s.significand.den)) +
       Number(s.exp) * Math.log2(10);
     assert.ok(
       lower.frac >= 0 && lower.frac < 1 && upper.frac >= 0 && upper.frac < 1,
@@ -504,9 +540,15 @@ test("sums with large exponents of one base form exactly", () => {
 test("a sum whose alignment does not fit the limit is too large", () => {
   const sixteen = 1 << 16;
   assertError(add(big("1", 999999999n), ONE, sixteen), "tooLarge");
-  assertError(add(big("1", 999999999n), ONE, LIMIT_BITS), "tooLarge");
-  assertError(subtract(ONE, big("1", -999999999n), LIMIT_BITS), "tooLarge");
-  // `1e19000 + 1` aligns within the default range limit and not within
+  assertError(
+    add(big("1", 999999999n), ONE, MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
+  assertError(
+    subtract(ONE, big("1", -999999999n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
+  // `1e19000 + 1` aligns within the default significand limit and not within
   // 60,000 bits, which is what the limit means.
   assert.deepEqual(
     unwrap(add(big("1", 19000n), ONE, sixteen)),
@@ -558,39 +600,60 @@ test("products, quotients and powers combine exponents and hold the bound", () =
   assertError(invert(at(5n, 1n, MAX_EXPONENT)), "underflow");
 });
 
-test("pow raises the mantissa against the limit and the exponent against the bound", () => {
+test("pow raises the significand against the limit and the exponent against the bound", () => {
   assert.deepEqual(
-    unwrap(pow(dec("10"), 1442695n, LIMIT_BITS)),
+    unwrap(pow(dec("10"), 1442695n, MAX_SIGNIFICAND_LIMIT_BITS)),
     at(1n, 1n, 1442695n),
   );
-  assertError(pow(dec("2"), 1442695n, LIMIT_BITS), "tooLarge");
+  assertError(pow(dec("2"), 1442695n, MAX_SIGNIFICAND_LIMIT_BITS), "tooLarge");
   assert.deepEqual(
-    unwrap(pow(dec("1e9"), 10n ** 9n, LIMIT_BITS)),
+    unwrap(pow(dec("1e9"), 10n ** 9n, MAX_SIGNIFICAND_LIMIT_BITS)),
     at(1n, 1n, 9n * 10n ** 9n),
   );
-  assert.deepEqual(unwrap(pow(dec("2.54"), 2n, LIMIT_BITS)), dec("6.4516"));
   assert.deepEqual(
-    unwrap(pow(dec("2.54"), -1n, LIMIT_BITS)),
+    unwrap(pow(dec("2.54"), 2n, MAX_SIGNIFICAND_LIMIT_BITS)),
+    dec("6.4516"),
+  );
+  assert.deepEqual(
+    unwrap(pow(dec("2.54"), -1n, MAX_SIGNIFICAND_LIMIT_BITS)),
     at(50n, 127n, 0n),
   );
-  assert.deepEqual(unwrap(pow(dec("2e3"), 3n, LIMIT_BITS)), dec("8e9"));
-  assert.deepEqual(unwrap(pow(dec("2e3"), -3n, LIMIT_BITS)), at(1n, 8n, -9n));
-  assert.deepEqual(unwrap(pow(ZERO, 0n, LIMIT_BITS)), ONE);
-  assert.deepEqual(unwrap(pow(ZERO, 5n, LIMIT_BITS)), ZERO);
-  assertError(pow(ZERO, -1n, LIMIT_BITS), "divisionByZero");
-  assert.deepEqual(unwrap(pow(big("1", 999999999n), 0n, LIMIT_BITS)), ONE);
-  // The exponent's bound, at it and past it; the mantissa's limit.
-  assert.ok(pow(dec("1e9"), 10n ** 9n, LIMIT_BITS).ok);
-  assertError(pow(dec("1e9"), 10n ** 18n, LIMIT_BITS), "overflow");
-  assertError(pow(dec("1e-9"), 10n ** 18n, LIMIT_BITS), "underflow");
-  assertError(pow(dec("1e9"), 2n * 10n ** 17n, LIMIT_BITS), "overflow");
-  assert.ok(pow(dec("1e9"), 10n ** 17n, LIMIT_BITS).ok);
+  assert.deepEqual(
+    unwrap(pow(dec("2e3"), 3n, MAX_SIGNIFICAND_LIMIT_BITS)),
+    dec("8e9"),
+  );
+  assert.deepEqual(
+    unwrap(pow(dec("2e3"), -3n, MAX_SIGNIFICAND_LIMIT_BITS)),
+    at(1n, 8n, -9n),
+  );
+  assert.deepEqual(unwrap(pow(ZERO, 0n, MAX_SIGNIFICAND_LIMIT_BITS)), ONE);
+  assert.deepEqual(unwrap(pow(ZERO, 5n, MAX_SIGNIFICAND_LIMIT_BITS)), ZERO);
+  assertError(pow(ZERO, -1n, MAX_SIGNIFICAND_LIMIT_BITS), "divisionByZero");
+  assert.deepEqual(
+    unwrap(pow(big("1", 999999999n), 0n, MAX_SIGNIFICAND_LIMIT_BITS)),
+    ONE,
+  );
+  // The exponent's bound, at it and past it; the significand's limit.
+  assert.ok(pow(dec("1e9"), 10n ** 9n, MAX_SIGNIFICAND_LIMIT_BITS).ok);
+  assertError(
+    pow(dec("1e9"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "overflow",
+  );
+  assertError(
+    pow(dec("1e-9"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "underflow",
+  );
+  assertError(
+    pow(dec("1e9"), 2n * 10n ** 17n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "overflow",
+  );
+  assert.ok(pow(dec("1e9"), 10n ** 17n, MAX_SIGNIFICAND_LIMIT_BITS).ok);
   assertError(pow(dec("2"), 100n, 64), "tooLarge");
   assert.ok(pow(dec("2"), 30n, 64).ok);
   assertError(pow(dec("3e9"), 100_000n, 1 << 16), "tooLarge");
 });
 
-test("a refusal names the limit it passes: tooLarge for the range limit, overflow or underflow for the bound", () => {
+test("a refusal names the limit it passes: tooLarge for the significand limit, overflow or underflow for the bound", () => {
   // The constructor and the arithmetic, by the sign of the exponent that
   // passes the bound.
   assertRefused(scaled(rational(1n), MAX_EXPONENT + 1n), "overflow");
@@ -606,14 +669,27 @@ test("a refusal names the limit it passes: tooLarge for the range limit, overflo
   assertRefused(invert(at(5n, 1n, MAX_EXPONENT)), "underflow");
   // A sum's alignment and a fraction's power of ten are the range
   // limit's; a sum whose value passes the bound is the bound's.
-  assertRefused(add(big("1", 999999999n), ONE, LIMIT_BITS), "tooLarge");
-  assertRefused(subtract(ONE, big("1", -999999999n), LIMIT_BITS), "tooLarge");
-  assertRefused(toRational(big("1", -400000n), LIMIT_BITS), "tooLarge");
   assertRefused(
-    add(at(5n, 1n, MAX_EXPONENT), at(5n, 1n, MAX_EXPONENT), LIMIT_BITS),
+    add(big("1", 999999999n), ONE, MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
+  assertRefused(
+    subtract(ONE, big("1", -999999999n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
+  assertRefused(
+    toRational(big("1", -400000n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
+  assertRefused(
+    add(
+      at(5n, 1n, MAX_EXPONENT),
+      at(5n, 1n, MAX_EXPONENT),
+      MAX_SIGNIFICAND_LIMIT_BITS,
+    ),
     "overflow",
   );
-  // A literal: its mantissa is the hard bound's, its exponent the bound's.
+  // A literal: its significand is the hard bound's, its exponent the bound's.
   assertRefused(parseDecimal("9".repeat(320000)), "tooLarge");
   assertRefused(parseDecimal("1e1000000000000000001"), "overflow");
   assertRefused(parseDecimal("10e1000000000000000000"), "overflow");
@@ -622,65 +698,125 @@ test("a refusal names the limit it passes: tooLarge for the range limit, overflo
 
 test("a power refused is told by its decimal exponent, not by the check that fails first", () => {
   // Past the bound by the exponent alone, on the side the signs give.
-  assertRefused(pow(dec("1e9"), 10n ** 18n, LIMIT_BITS), "overflow");
-  assertRefused(pow(dec("1e-9"), 10n ** 18n, LIMIT_BITS), "underflow");
-  assertRefused(pow(dec("1e9"), -(10n ** 18n), LIMIT_BITS), "underflow");
-  assertRefused(pow(dec("1e-9"), -(10n ** 18n), LIMIT_BITS), "overflow");
+  assertRefused(
+    pow(dec("1e9"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "overflow",
+  );
+  assertRefused(
+    pow(dec("1e-9"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "underflow",
+  );
+  assertRefused(
+    pow(dec("1e9"), -(10n ** 18n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "underflow",
+  );
+  assertRefused(
+    pow(dec("1e-9"), -(10n ** 18n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "overflow",
+  );
   // 0.7 is 7 × 10^-1, so its power too is refused by the exponent first.
-  assertRefused(pow(dec("0.7"), 10n ** 19n, LIMIT_BITS), "underflow");
-  // Refused by the mantissa, which no range limit could hold, and past
+  assertRefused(
+    pow(dec("0.7"), 10n ** 19n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "underflow",
+  );
+  // Refused by the significand, which no significand limit could hold, and past
   // the bound too: 7^(10^19) is about 10^(8.45 × 10^18), and 1/7 to the
   // same power, whose canonical exponent is zero, as far below it.
-  assertRefused(pow(dec("7"), 10n ** 19n, LIMIT_BITS), "overflow");
-  assertRefused(pow(dec("7"), -(10n ** 19n), LIMIT_BITS), "underflow");
+  assertRefused(
+    pow(dec("7"), 10n ** 19n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "overflow",
+  );
+  assertRefused(
+    pow(dec("7"), -(10n ** 19n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "underflow",
+  );
   const seventh = fromRational(rational(1n, 7n));
-  assertRefused(pow(seventh, 10n ** 19n, LIMIT_BITS), "underflow");
-  assertRefused(pow(seventh, -(10n ** 19n), LIMIT_BITS), "overflow");
-  // Refused by the mantissa and within the bound: the range limit.
-  assertRefused(pow(dec("2"), 1442695n, LIMIT_BITS), "tooLarge");
+  assertRefused(
+    pow(seventh, 10n ** 19n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "underflow",
+  );
+  assertRefused(
+    pow(seventh, -(10n ** 19n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "overflow",
+  );
+  // Refused by the significand and within the bound: the significand limit.
+  assertRefused(
+    pow(dec("2"), 1442695n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
   assertRefused(pow(dec("2"), 100n, 64), "tooLarge");
   assertRefused(pow(dec("3e9"), 100_000n, 1 << 16), "tooLarge");
   // The canonical form, 254 × 10^-2, puts the exponent of 2.54^(10^18)
   // past the bound below, but the power is 10^(0.40 × 10^18), within it:
-  // refused at the range limit, not as a value too small.
-  assertRefused(pow(dec("2.54"), 10n ** 18n, LIMIT_BITS), "tooLarge");
-  assertRefused(pow(dec("2.54"), -(10n ** 18n), LIMIT_BITS), "tooLarge");
+  // refused at the significand limit, not as a value too small.
+  assertRefused(
+    pow(dec("2.54"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
+  assertRefused(
+    pow(dec("2.54"), -(10n ** 18n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
   // A base within 2^-30 of one: the side is the base's against one, and
   // the size its exact difference from one's. 1.0000000001 is
   // 10000000001 × 10^-10, whose canonical exponent is negative, but its
   // power 10^30 is about 10^(4.3 × 10^19), and 10^28 about
   // 10^(4.3 × 10^17), within the bound.
   const nearOne = dec("1.0000000001");
-  assertRefused(pow(nearOne, 10n ** 30n, LIMIT_BITS), "overflow");
-  assertRefused(pow(nearOne, -(10n ** 30n), LIMIT_BITS), "underflow");
-  assertRefused(pow(nearOne, 10n ** 28n, LIMIT_BITS), "tooLarge");
+  assertRefused(
+    pow(nearOne, 10n ** 30n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "overflow",
+  );
+  assertRefused(
+    pow(nearOne, -(10n ** 30n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "underflow",
+  );
+  assertRefused(
+    pow(nearOne, 10n ** 28n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
   const belowOne = dec("0.9999999999");
-  assertRefused(pow(belowOne, 10n ** 30n, LIMIT_BITS), "underflow");
-  assertRefused(pow(belowOne, -(10n ** 30n), LIMIT_BITS), "overflow");
+  assertRefused(
+    pow(belowOne, 10n ** 30n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "underflow",
+  );
+  assertRefused(
+    pow(belowOne, -(10n ** 30n), MAX_SIGNIFICAND_LIMIT_BITS),
+    "overflow",
+  );
   // At the bound: 10^(10^18) is a value, 10^(10^18 + 1) is not. Within a
   // relative 2^-20 of it, where the logarithms cannot tell, a power
-  // refused by its mantissa is the range limit's: 1.5 to
+  // refused by its significand is the significand limit's: 1.5 to
   // 5678870000000000000 is about 10^(0.9999994 × 10^18), within the
   // bound (the check of the canonical exponent times the power, which
   // read it as past the bound below, went with the plan's H.13).
-  assert.ok(pow(dec("10"), 10n ** 18n, LIMIT_BITS).ok);
-  assertRefused(pow(dec("10"), 10n ** 18n + 1n, LIMIT_BITS), "overflow");
-  assertRefused(pow(dec("0.1"), 10n ** 18n + 1n, LIMIT_BITS), "underflow");
-  assertRefused(pow(dec("1.5"), 5678870000000000000n, LIMIT_BITS), "tooLarge");
+  assert.ok(pow(dec("10"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS).ok);
+  assertRefused(
+    pow(dec("10"), 10n ** 18n + 1n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "overflow",
+  );
+  assertRefused(
+    pow(dec("0.1"), 10n ** 18n + 1n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "underflow",
+  );
+  assertRefused(
+    pow(dec("1.5"), 5678870000000000000n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
   // A value whose canonical exponent is past the bound, to the first
   // power, is itself (D17).
   const edgeValue = at(12345678n, 1n, -MAX_EXPONENT - 7n);
-  assert.deepEqual(pow(edgeValue, 1n, LIMIT_BITS), {
+  assert.deepEqual(pow(edgeValue, 1n, MAX_SIGNIFICAND_LIMIT_BITS), {
     ok: true,
     value: edgeValue,
   });
-  // One refused by its mantissa there is the range limit's.
+  // One refused by its significand there is the significand limit's.
   const edge = 1183294662454938368n;
   assert.equal(
     powerRefusal(dec("7"), fromRational(rational(edge)))?.kind,
     undefined,
   );
-  assertRefused(pow(dec("7"), edge, LIMIT_BITS), "tooLarge");
+  assertRefused(pow(dec("7"), edge, MAX_SIGNIFICAND_LIMIT_BITS), "tooLarge");
 });
 
 test("powerRefusal tells a power past the bound from one within it, and says nothing within a hair of it", () => {
@@ -744,13 +880,14 @@ test("every operation agrees with the fraction's through toRational where the va
     for (const b of values.slice(0, 10)) {
       const sa = fromRational(a);
       const sb = fromRational(b);
-      const back = (s: Scaled) => unwrap(toRational(s, LIMIT_BITS));
+      const back = (s: Scaled) =>
+        unwrap(toRational(s, MAX_SIGNIFICAND_LIMIT_BITS));
       assert.deepEqual(
-        back(unwrap(add(sa, sb, LIMIT_BITS))),
+        back(unwrap(add(sa, sb, MAX_SIGNIFICAND_LIMIT_BITS))),
         addFractions(a, b),
       );
       assert.deepEqual(
-        back(unwrap(subtract(sa, sb, LIMIT_BITS))),
+        back(unwrap(subtract(sa, sb, MAX_SIGNIFICAND_LIMIT_BITS))),
         subtractFractions(a, b),
       );
       assert.deepEqual(back(unwrap(multiply(sa, sb))), multiplyFractions(a, b));
@@ -765,11 +902,14 @@ test("every operation agrees with the fraction's through toRational where the va
       assert.deepEqual(back(negate(sa)), negateFraction(a));
       assert.deepEqual(back(absolute(sa)), absoluteFraction(a));
       for (const n of [3n, -2n]) {
-        const power = powFraction(a, n, LIMIT_BITS);
+        const power = powFraction(a, n, MAX_SIGNIFICAND_LIMIT_BITS);
         if (power.ok) {
-          assert.deepEqual(back(unwrap(pow(sa, n, LIMIT_BITS))), power.value);
+          assert.deepEqual(
+            back(unwrap(pow(sa, n, MAX_SIGNIFICAND_LIMIT_BITS))),
+            power.value,
+          );
         } else {
-          assertError(pow(sa, n, LIMIT_BITS), power.error.kind);
+          assertError(pow(sa, n, MAX_SIGNIFICAND_LIMIT_BITS), power.error.kind);
         }
       }
     }
@@ -1021,7 +1161,11 @@ test("parseDecimal reads decimal literals exactly", () => {
     ],
   ];
   for (const [text, expected] of cases) {
-    assert.deepEqual(unwrap(toRational(dec(text), LIMIT_BITS)), expected, text);
+    assert.deepEqual(
+      unwrap(toRational(dec(text), MAX_SIGNIFICAND_LIMIT_BITS)),
+      expected,
+      text,
+    );
   }
 });
 
@@ -1050,7 +1194,7 @@ test("parseDecimal rejects anything but a decimal literal", () => {
   }
 });
 
-test("parseDecimal keeps the exponent lazily and bounds the mantissa and the exponent", () => {
+test("parseDecimal keeps the exponent lazily and bounds the significand and the exponent", () => {
   assert.deepEqual(dec("1e5000"), at(1n, 1n, 5000n));
   assert.deepEqual(dec("1e-5000"), at(1n, 1n, -5000n));
   assert.deepEqual(dec("1e999999999"), at(1n, 1n, 999999999n));
@@ -1079,7 +1223,7 @@ test("parseDecimal keeps the exponent lazily and bounds the mantissa and the exp
     parseDecimal("3047999999999999999999999999999999996953e999999999999999978"),
     "overflow",
   );
-  // The hard bound, on the mantissa's digits alone.
+  // The hard bound, on the significand's digits alone.
   assert.ok(parseDecimal("9".repeat(300000)).ok);
   assertError(parseDecimal("9".repeat(320000)), "tooLarge");
   assertError(parseDecimal(`${"9".repeat(320000)}e-320000`), "tooLarge");
@@ -1393,12 +1537,12 @@ test("trunc drops the fraction toward zero, and says when the integer part canno
   assert.equal(trunc(at(1n, 3n, 999999999n), limit), undefined);
   assert.equal(trunc(at(1n, 3n, 30000n), limit), undefined);
   assert.deepEqual(
-    trunc(at(1n, 3n, 30000n), LIMIT_BITS),
+    trunc(at(1n, 3n, 30000n), MAX_SIGNIFICAND_LIMIT_BITS),
     fromRational(rational(10n ** 30000n / 3n)),
   );
 });
 
-test("exactRoot divides the exponent and folds the remainder into the mantissa", () => {
+test("exactRoot divides the exponent and folds the remainder into the significand", () => {
   const limit = 1 << 16;
   const root = (s: Scaled, degree: bigint) =>
     unwrap(exactRoot(s, degree, limit));

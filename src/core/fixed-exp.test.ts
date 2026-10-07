@@ -251,25 +251,25 @@ const EXP_1E18 =
 /**
  * The leading digits of the `Floating` `fl`, as a fraction in `[1, 10)`,
  * and its decimal exponent, through a double for the exponent's fraction:
- * `mant × 2^exp = 10^(exp log10 2 + log10 mant)`, with `bits` fraction
- * bits of the mantissa read by the kernel's own dyadic value.
+ * `significand × 2^exp = 10^(exp log10 2 + log10 significand)`, with `bits` fraction
+ * bits of the significand read by the kernel's own dyadic value.
  */
 function leadingDigits(fl: Floating, digits: number): [string, bigint] {
-  const mant = toRational(fl.mant);
+  const significand = toRational(fl.significand);
   const log10 =
     Number(fl.exp) * Math.log10(2) +
-    Math.log10(Number(mant.num) / Number(mant.den));
+    Math.log10(Number(significand.num) / Number(significand.den));
   const exponent = BigInt(Math.floor(log10));
   // The digits from the exact value over the power of ten, formed as a
-  // fraction of moderate size: mant × 2^exp × 10^-e is mant × 2^(exp - e)
+  // fraction of moderate size: significand × 2^exp × 10^-e is significand × 2^(exp - e)
   // × 5^-e, the twos cancelling.
   const twos = fl.exp - exponent;
   const num =
-    mant.num *
+    significand.num *
     (twos >= 0n ? 1n << twos : 1n) *
     (exponent < 0n ? 5n ** -exponent : 1n);
   const den =
-    mant.den *
+    significand.den *
     (twos < 0n ? 1n << -twos : 1n) *
     (exponent >= 0n ? 5n ** exponent : 1n);
   const scaled = (num * 10n ** BigInt(digits - 1)) / den;
@@ -283,16 +283,20 @@ test("exp of a large argument is a Floating with the exponent, and costs the squ
     ["-1000000", EXP_MINUS_1E6, -434295n],
   ] as const) {
     const fl = expFixed(fixedFromRational(dec(x), bits), bits);
-    // The mantissa is in [1, 2) at the bits asked, and the exponent is the
+    // The significand is in [1, 2) at the bits asked, and the exponent is the
     // binary one of the reference, floor(x log2 e).
-    assert.equal(fl.mant.bits, bits);
+    assert.equal(fl.significand.bits, bits);
     assert.ok(
-      fl.mant.value >= 1n << BigInt(bits) && fl.mant.value < 2n << BigInt(bits),
+      fl.significand.value >= 1n << BigInt(bits) &&
+        fl.significand.value < 2n << BigInt(bits),
       x,
     );
     assert.equal(fl.exp, BigInt(Math.floor(Number(x) * Math.LOG2E)), x);
-    assert.ok(fl.mant.error < 4096n, `${x}: ${fl.mant.error} ulps`);
-    // The exponent cannot be formed as a Fixed within the range limit.
+    assert.ok(
+      fl.significand.error < 4096n,
+      `${x}: ${fl.significand.error} ulps`,
+    );
+    // The exponent cannot be formed as a Fixed within the significand limit.
     assert.equal(floatingToFixed(fl, 65536), undefined);
     // Its leading digits agree with the reference to the bits asked.
     const [digits, e] = leadingDigits(fl, 25);
@@ -310,8 +314,8 @@ test("exp of a large argument is a Floating with the exponent, and costs the squ
   const huge = expFixed(fixedFromRational(dec("1e18"), bits), bits);
   assert.equal(huge.exp, 1442695040888963407n);
   assert.ok(
-    huge.mant.value >= 1n << BigInt(bits) &&
-      huge.mant.value < 2n << BigInt(bits),
+    huge.significand.value >= 1n << BigInt(bits) &&
+      huge.significand.value < 2n << BigInt(bits),
   );
   assert.equal(EXP_1E18.length, 71);
 });
@@ -319,14 +323,14 @@ test("exp of a large argument is a Floating with the exponent, and costs the squ
 test("containment: exp of an argument up to 1e6 either way contains the value computed at four times the precision", () => {
   const root = key(3602);
   for (let i = 0; i < 40; i++) {
-    // The magnitude's scale and its mantissa, the sign, and whether it is
+    // The magnitude's scale and its significand, the sign, and whether it is
     // a ball, each from its own fold.
     const k = foldIn(root, i);
     const scale = between(foldIn(k, 0), 0, 6);
-    const mantissa = randomRational(foldIn(k, 1), 20, 0);
+    const significand = randomRational(foldIn(k, 1), 20, 0);
     const negative = uniform(foldIn(k, 2)) < 0.5;
     const magnitude = multiply(
-      absolute(mantissa),
+      absolute(significand),
       rational(10n ** BigInt(scale)),
     );
     const x = negative ? subtract(rational(0n), magnitude) : magnitude;
@@ -348,7 +352,10 @@ test("containment: exp of an argument up to 1e6 either way contains the value co
       );
     }
     if (error === 0n)
-      assert.ok(at.mant.error <= 512n, `${label}: ${at.mant.error} ulps`);
+      assert.ok(
+        at.significand.error <= 512n,
+        `${label}: ${at.significand.error} ulps`,
+      );
   }
 });
 
@@ -365,8 +372,8 @@ test("exp of a wide interval is zero within the exponential of its signed upper 
   ] as const) {
     const f: Fixed = { value, error, bits: 8 };
     const at = expFixed(f, bits);
-    assert.equal(at.mant.value, 0n, inspect(at));
-    assert.ok(at.mant.error > 0n);
+    assert.equal(at.significand.value, 0n, inspect(at));
+    assert.ok(at.significand.error > 0n);
     const dyadic = toRational(f);
     const rad = multiply(rational(error), rational(1n, 256n));
     const label = `exp of ${toFraction(dyadic)} ± ${toFraction(rad)}`;
@@ -382,26 +389,31 @@ test("exp of a wide interval is zero within the exponential of its signed upper 
     // the bound's edge.
     const upper = expFixed(fixedFromRational(add(dyadic, rad), 8), bits);
     assert.equal(upper.exp, at.exp);
-    assert.ok(at.mant.error - upper.mant.value - upper.mant.error <= 0n);
+    assert.ok(
+      at.significand.error -
+        upper.significand.value -
+        upper.significand.error <=
+        0n,
+    );
   }
   // Just below one half, the interval is halved and squared as before.
   const narrow = expFixed({ value: 0n, error: 127n, bits: 8 }, bits);
-  assert.ok(narrow.mant.value > 0n);
+  assert.ok(narrow.significand.value > 0n);
 });
 
 /**
  * Whether the interval of `coarse` contains the value of `fine`, both
- * `Floating`s: compared at the coarse exponent, the fine mantissa shifted
+ * `Floating`s: compared at the coarse exponent, the fine significand shifted
  * to it exactly (the exponents differ by a few bits at most).
  */
 function containsFloating(coarse: Floating, fine: Floating): boolean {
   const shift = fine.exp - coarse.exp;
-  const fineValue = toRational(fine.mant);
+  const fineValue = toRational(fine.significand);
   const value =
     shift >= 0n
       ? multiply(fineValue, rational(1n << shift))
       : multiply(fineValue, rational(1n, 1n << -shift));
-  return contains(coarse.mant, value);
+  return contains(coarse.significand, value);
 }
 
 test("sinh and cosh of a large argument fold the reciprocal into the error, and tanh is one there", () => {
@@ -420,8 +432,8 @@ test("sinh and cosh of a large argument fold the reciprocal into the error, and 
   // infinity leaving it within an ulp of the negation.
   const negative = sinhCoshFixed(fixedFromRational(dec("-1e6"), bits), bits);
   assert.equal(negative.sinh.exp, cosh.exp);
-  assert.ok(negative.sinh.mant.value <= -cosh.mant.value);
-  assert.ok(negative.sinh.mant.value >= -cosh.mant.value - 1n);
+  assert.ok(negative.sinh.significand.value <= -cosh.significand.value);
+  assert.ok(negative.sinh.significand.value >= -cosh.significand.value - 1n);
   assert.deepEqual(negative.cosh, cosh);
   // tanh of it is one within two ulps.
   const t = tanhFixed(fixedFromRational(dec("1e6"), bits), bits);
@@ -457,8 +469,8 @@ test("sinh and cosh of a large argument fold the reciprocal into the error, and 
     { value: 0n, error: 1000000n << 8n, bits: 8 },
     bits,
   );
-  assert.equal(wide.sinh.mant.value, 0n);
-  assert.ok(wide.sinh.mant.error > 0n);
+  assert.equal(wide.sinh.significand.value, 0n);
+  assert.ok(wide.sinh.significand.error > 0n);
   assert.equal(wide.cosh.exp, wide.sinh.exp);
 });
 

@@ -775,7 +775,7 @@ radius needs nothing new. The caveats:
   (`(exp(x) - exp(-x)) / (exp(x) + exp(-x))` is refused at `x = 3e18`,
   where `tanh(3e18)` is `≈ 1`). The retry loop makes a composition's
   digits right all the same, at more passes, up to the ceiling.
-- **Decimal mode rounds each step of the body to Digits,** as it rounds
+- **Decimal mode rounds each step of the body to the display digits,** as it rounds
   an expression typed inline: `f(x)` is the hand calculator's sequence
   of keystrokes, not a correctly rounded `f`.
 - **A written inverse is checked where it is used.** The build checks

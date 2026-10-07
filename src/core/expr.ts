@@ -69,7 +69,7 @@
 // Numbers are unsigned decimal literals as `parseDecimal` of scaled.ts
 // reads them (`2`, `2.54`, `.5`, `1e-3`), parsed exactly into a `Scaled`,
 // the exponent kept as the number it is, so that `1e999999999` parses; a
-// mantissa beyond the hard bound `LIMIT_BITS`, or an exponent beyond the
+// significand beyond the hard bound `MAX_SIGNIFICAND_LIMIT_BITS`, or an exponent beyond the
 // exponent bound, is rejected where it is written, the message saying
 // which, and for the exponent on which side. Each literal of the `^`
 // exponent must be formable as a fraction within the hard bound
@@ -110,7 +110,7 @@ import {
   type Parser,
   type Spanned,
 } from "./parser.ts";
-import { LIMIT_BITS } from "./rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import { formable, isZero, parseDecimal, type Scaled } from "./scaled.ts";
 import type { Span } from "./span.ts";
@@ -141,7 +141,7 @@ export type BinaryOp = "add" | "sub" | "mul" | "div" | "juxtapose";
  * each formable within the hard bound and neither formed, since the
  * powers of ten cost nothing as `Scaled` values and cancel in the
  * quotient (the header says why). `reduceExponent` of evaluate.ts holds
- * the two mantissas to the range limit, takes the quotient and forms the
+ * the two significands to the significand limit, takes the quotient and forms the
  * fraction within the limit.
  */
 export type Exponent = { readonly num: Literal; readonly den?: Literal };
@@ -168,7 +168,7 @@ export type ExprNode =
 
 /** Why the grammar rejects text it recognized, as data for messages.ts to word. */
 export type Rejection =
-  /** A literal whose mantissa has more digits than the hard bound holds. */
+  /** A literal whose significand has more digits than the hard bound holds. */
   | { readonly kind: "numberTooLarge" }
   /** A literal whose exponent passes the exponent bound, above or below it. */
   | { readonly kind: "numberOverflow" | "numberUnderflow" }
@@ -324,7 +324,7 @@ function exponentLiteral(
   expected: string,
 ): Parser<Literal, Rejection> {
   return check(decimal(pattern, expected), (literal) =>
-    formable(literal.value, LIMIT_BITS)
+    formable(literal.value, MAX_SIGNIFICAND_LIMIT_BITS)
       ? ok(literal)
       : err({ kind: "exponentTooLarge" }),
   );

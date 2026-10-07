@@ -9,7 +9,11 @@ import assert from "node:assert/strict";
 import { inspect } from "node:util";
 import { exact, type Ball } from "../core/ball.ts";
 import { radiusAbove, radiusAboveScaled } from "../core/radius.ts";
-import { LIMIT_BITS, rational, type Rational } from "../core/rational.ts";
+import {
+  MAX_SIGNIFICAND_LIMIT_BITS,
+  rational,
+  type Rational,
+} from "../core/rational.ts";
 import {
   fromRational,
   parseDecimal,
@@ -36,7 +40,7 @@ export function exactDec(text: string): Ball {
 
 /** The fraction a `Scaled` of moderate exponent denotes; a test's precondition that it fits the hard bound. */
 export function fraction(s: Scaled): Rational {
-  const result = toRational(s, LIMIT_BITS);
+  const result = toRational(s, MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(result.ok, `${inspect(s)} fits the hard bound`);
   return result.value;
 }
@@ -47,13 +51,17 @@ export function fraction(s: Scaled): Rational {
  * the exponent otherwise.
  */
 export function ball(mid: Scaled, rad: Scaled): Ball {
-  const r = toRational(rad, LIMIT_BITS);
+  const r = toRational(rad, MAX_SIGNIFICAND_LIMIT_BITS);
   return { mid, rad: r.ok ? radiusAbove(r.value) : radiusAboveScaled(rad) };
 }
 
-/** The significant digits of a `Scaled` whose mantissa is an integer; a test's precondition that it is one. */
+/** The significant digits of a `Scaled` whose significand is an integer; a test's precondition that it is one. */
 export function digitsOf(s: Scaled): number {
-  assert.equal(s.mant.den, 1n, `${inspect(s)} has an integer mantissa`);
-  const num = s.mant.num < 0n ? -s.mant.num : s.mant.num;
+  assert.equal(
+    s.significand.den,
+    1n,
+    `${inspect(s)} has an integer significand`,
+  );
+  const num = s.significand.num < 0n ? -s.significand.num : s.significand.num;
   return num.toString().length;
 }

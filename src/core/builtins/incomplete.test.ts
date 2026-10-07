@@ -6,7 +6,7 @@ import { exact, isExact, type Ball } from "../ball.ts";
 import { buildTable } from "../build.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   ceilingContext,
   type NumberContext,
@@ -33,7 +33,7 @@ import {
 const CONTEXT: NumberContext = {
   precision: 40,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -375,7 +375,7 @@ test("the ends of the exponent: huge and tiny arguments and orders", () => {
     shown("lowerreg", exact(dec("1e-999999999")), exact(dec("0.5")), eight),
     "≈ 1",
   );
-  // Past Most bits in the bits the logarithm would need.
+  // Past the significand limit in the bits the logarithm would need.
   assert.deepEqual(
     error(call("lower", exact(dec("5e1000000000000000000")), exact(dec("2")))),
     { kind: "tooLarge" },

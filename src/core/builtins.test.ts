@@ -9,7 +9,7 @@ import { DEFAULT_CEILING, DEFAULT_ROUNDING } from "./context.ts";
 import { parseDefinitions } from "./definitions.ts";
 import { show } from "./display.ts";
 import { evaluateText } from "./pipeline.ts";
-import { LIMIT_BITS } from "./rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS } from "./rational.ts";
 
 test("the app's built-ins are gathered by name, each from its module", () => {
   assert.deepEqual(
@@ -70,17 +70,17 @@ test("the app's built-ins are gathered by name, each from its module", () => {
   for (const [name, fn] of BUILTINS) assert.equal(fn.name, name);
 });
 
-test("at a raised range limit the built-ins near the edges of what the kernel is handed are values, where their conversion threw", () => {
-  // Issue #56: at Most bits 1,048,576 the branch for a tiny argument
+test("at a raised significand limit the built-ins near the edges of what the kernel is handed are values, where their conversion threw", () => {
+  // Issue #56: at the significand limit 1,048,576 the branch for a tiny argument
   // leaves `1e-315000` to the kernel, and the literal check admits a
-  // mantissa the hard bound could not form; `fixedFromScaled` forms it
+  // significand the hard bound could not form; `fixedFromScaled` forms it
   // within four times the hard bound (H.2).
   const parsed = parseDefinitions("m  !\nradian  !kind");
   assert.ok(parsed.ok);
   const context = {
     precision: 8,
     rounding: DEFAULT_ROUNDING,
-    maxBits: LIMIT_BITS,
+    significandLimitBits: MAX_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
   };
   const table = buildTable(parsed.value, {

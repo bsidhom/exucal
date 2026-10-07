@@ -14,7 +14,7 @@ landed between stage 4 and the phase, and the issues they filed.
 "Before stage 5: hardening", between stage 4's tasks and stage 5's, is
 the phase that fixed those issues before stage 5, with the decisions it
 added (D17 to D20) and amended (D4, D8, D15 and D16); D20, on what exact
-mode does past the range limit, was ruled on in review of its pull
+mode does past the significand limit, was ruled on in review of its pull
 request, and D18's answer for a sum whose ball reaches back within the
 bound in review of H.13's. Stage 5's design note (5.0,
 docs/fractions.md) was written after the phase landed and the stage
@@ -100,7 +100,7 @@ open or a detail it does not reach, and the reasoning is given once here.
 
 **D1. One context type, with `precision` meaning the working precision
 below the pipeline and the digits wanted at its boundary.** `NumberContext`
-is `{ precision, rounding }` in stage 1, gains `maxBits` (the range limit
+is `{ precision, rounding }` in stage 1, gains `significandLimitBits` (the significand limit
 of D16) in stage 2, `ceiling` (the top of the retry schedule, D12) in
 stage 3 and `mode` in stage 4. Every
 core function that does arithmetic takes one and treats `precision` as the
@@ -110,7 +110,7 @@ evaluation runs at: it takes the user's context and derives working
 contexts from it (a fixed guard in stage 1, the retry schedule from
 stage 2). A second type for the user's settings would be the same fields
 with one renamed, and the distinction is one of level, stated in the
-pipeline's header, not of shape. `maxBits` and `ceiling` are the same at
+pipeline's header, not of shape. `significandLimitBits` and `ceiling` are the same at
 both levels: the one bounds what any pass may form, the other how far the
 passes may rise, and `checkContext` holds `precision <= ceiling`. The
 ceiling is in the context so that it reaches a built-in: the memos of D10
@@ -129,8 +129,8 @@ effect from stage 1 (the display's rounding, `roundTerms`, and from stage
 exact-or-decimal mode has none until the decimal mode exists.
 
 **D3. The radius is a coarse binary magnitude, a type of its own.**
-`Radius`, in radius.ts, is `{ mant, exp }` standing for `mant × 2^exp`,
-with `mant` zero or a normalized 30-bit bigint and `exp` a bigint, or the
+`Radius`, in radius.ts, is `{ significand, exp }` standing for `significand × 2^exp`,
+with `significand` zero or a normalized 30-bit bigint and `exp` a bigint, or the
 distinguished value unbounded; it is neither a `Rational` nor a `number`.
 Every operation on radii rounds up, so a radius is always a true bound;
 the tightness lost to 30 bits is a relative `2^-29`, invisible at any
@@ -142,7 +142,7 @@ needs it (certification, division), and never stored.
 Not a float64, although one has precision to spare, because of range. The
 radius is absolute, and the product rule scales it by the other operand's
 magnitude (`|a| rb + |b| ra`), so radii span the range of the values
-themselves: `10^±19700` at the default range limit (D16) and
+themselves: `10^±19700` at the default significand limit (D16) and
 `10^±(10^18)` once stage 4
 adds the exponent, against a float64's `10^±308`. A radius that overflowed
 to infinity would be an honest but useless bound on any large value, and
@@ -186,9 +186,9 @@ built: the passes of the retry loop re-evaluate the expression, not the
 table, so no pass can shrink it. A unit's precision must therefore lie
 above every pass, or a pass that would otherwise certify `p` digits is
 held back by the unit. The schedule of D12 doubles up to one
-ceiling, the same for every request under the cap setting, so the table
-is built once at that ceiling and rebuilt only when the cap changes it:
-the digits setting changes what the display asks for and what the passes
+ceiling, the same for every request under the precision limit setting, so the table
+is built once at that ceiling and rebuilt only when the precision limit changes it:
+The display digits changes what the display asks for and what the passes
 compute at, never the table. At the default ceiling of 4,040 digits
 `pi()` costs a few milliseconds once, each angle unit holds a rational of
 four thousand digits, which the lookup settles to the pass's precision
@@ -241,7 +241,7 @@ digits asked and takes the first count that certifies, and the boundary
 case above ends with one digit fewer than asked in the usual case and with
 none when the digit asked for is the first. In stage 2 the two ends are
 formed as they are written here, the midpoint being a `Rational` under
-the range limit; the comparison by exponents is stage 4's.
+the significand limit; the comparison by exponents is stage 4's.
 
 **D8. Unit list counts are taken from the midpoint.** In `convertToList`
 each count is the truncated ratio of midpoints and the remainder is the
@@ -330,21 +330,21 @@ Gamma family's guards were found to exceed it at the ceiling pass, #117),
 computed on first
 use however low the first request, and every request at or below that,
 which is every request the retry loop can make, is truncated from it. A
-request at a higher ceiling, after the cap setting is raised, replaces
+request at a higher ceiling, after the precision limit setting is raised, replaces
 the value; a lower one leaves it. The footprint is therefore fixed by the
 ceiling (about 1.7 KB per constant at the default ceiling of 4,040
 digits; four constants, `pi()`, `exp(1)`, `ln(2)` and `ln(10)`), never by what the
 user has typed, and the largest it can be is set by the hard bound on the
-cap (D16). The margin is for the argument reduction of `sin` and `cos`,
+precision limit (D16). The margin is for the argument reduction of `sin` and `cos`,
 which needs `pi` to the working bits plus the argument's bit length: at
 the ceiling pass that exceeds the ceiling by the argument's bit length,
 so without the margin every `sin(1 radian)` would recompute `pi` there;
 with it, every argument below `2^256` is served from the memo at every
 pass. The one request above the memo is that reduction at a larger
-argument (under the range limit; an argument beyond that is refused as
+argument (under the significand limit; an argument beyond that is refused as
 `tooLarge`): it is computed for that call and not kept, so a `sin(1e5000
 radian)` costs its milliseconds each time it is typed, at most `pi` to the
-range limit plus the ceiling, about 25 ms at the defaults, and leaves
+significand limit plus the ceiling, about 25 ms at the defaults, and leaves
 nothing behind.
 The alternative, keeping the largest value seen, is what the study
 describes and would be bounded too, but its footprint would depend on
@@ -395,24 +395,24 @@ that would let `asin(0.5)` into `1` succeed on request. None of these is
 needed to use an inverse the way the app is for: an angle in, an angle
 out, a unit to show it in.
 
-**D12. The retry schedule doubles up to a ceiling derived from the cap on
-the digits setting.** The internal precisions are `p + 10`, `2 (p + 10)`,
+**D12. The retry schedule doubles up to a ceiling derived from the precision
+limit.** The internal precisions are `p + 10`, `2 (p + 10)`,
 `4 (p + 10)`, ..., for `p` digits wanted, doubling up to and including
-the ceiling, which is the same for every `p`: `ceilingFor(maxDigits) =
-4 (maxDigits + 10)`, where `maxDigits` is the cap on the digits setting,
-itself a setting (D16) with the default `DEFAULT_MAX_DIGITS`, 1,000, so
+the ceiling, which is the same for every `p`: `ceilingFor(precisionLimitDigits) =
+4 (precisionLimitDigits + 10)`, where `precisionLimitDigits` is the precision limit,
+itself a setting (D16) with the default `DEFAULT_PRECISION_LIMIT_DIGITS`, 1,000, so
 that the default ceiling is 4,040 digits, nine passes at `p = 8` and
 three at `p = 1000`. The factor four gives the largest request two
 doublings of room for cancellation above it, and a smaller request has
 correspondingly more. A pass that certifies ends the loop, so the length
 of the schedule costs nothing in the common case; the expressions that
 never resolve (`sin(pi() radian)`, `sqrt(2)^2 - 2`) run to the ceiling
-however it is set, which is what bounds their latency, and the cap is
+however it is set, which is what bounds their latency, and the precision limit is
 therefore a cost setting: every elementary function at four thousand
 digits is milliseconds, and the special functions of stage 6 take
-seconds there, which stage 8 measures without moving the cap (D25). The ceiling is a field of the context (D1), set by
-the shell from the cap it owns and the same in every working context the
-schedule derives; a context whose precision exceeds the cap is a
+seconds there, which stage 8 measures without moving the precision limit (D25). The ceiling is a field of the context (D1), set by
+the shell from the precision limit it owns and the same in every working context the
+schedule derives; a context whose precision exceeds the precision limit is a
 precondition failure of the schedule. The ceiling is static, the user's:
 it bounds the schedule, and so the latency, and it sizes the memos of
 D10. An operation that needs more headroom than the working precision
@@ -420,16 +420,16 @@ takes it inside the kernel (the guard bits, the extra terms of a series,
 `pi` to the working bits plus the argument's bit length for a reduction)
 and never moves the ceiling, since headroom is a property of one routine
 at one argument and the ceiling a property of the whole schedule. The
-hard bound on the cap comes from the range limit, D16, since a settled
+hard bound on the precision limit comes from the significand limit, D16, since a settled
 midpoint at the ceiling must fit it with room for a product of two: at
-the default range limit the cap may be raised to about 2,400 digits, and
+the default significand limit the precision limit may be raised to about 2,400 digits, and
 a test pins the relation. The ceiling being the same for every `p` is
 also what lets D6 build the table once for the setting in force.
 
 **D13. The midpoint's exponent is a type of its own, `Scaled`, between
-the fraction and the ball (stage 4).** `Scaled = { mant: Rational; exp:
-bigint }` in `scaled.ts` stands for `mant × 10^exp`, in a canonical form:
-`mant` in lowest terms with its denominator coprime to 10 and its
+the fraction and the ball (stage 4).** `Scaled = { significand: Rational; exp:
+bigint }` in `scaled.ts` stands for `significand × 10^exp`, in a canonical form:
+`significand` in lowest terms with its denominator coprime to 10 and its
 numerator not divisible by 10 unless zero, and zero as `exp` 0, so that
 equal values have equal representations and `equals` stays structural.
 Stripping the factors of 2 and 5 from a denominator and the trailing
@@ -454,7 +454,7 @@ exponent the parser reads, and the exact value of a radius. One type
 would serve the magnitudes by degrading those. The canonical 10-free form
 belongs with the exponent, not with every fraction. And nearly everything
 in rational.ts beyond fraction arithmetic is decimal representation
-(`parseDecimal`, `format`, `roundTo`, `decimalExponent`, the range limit's
+(`parseDecimal`, `format`, `roundTo`, `decimalExponent`, the significand limit's
 sizing, the roots' scaling) and changes with the exponent, so it moves to
 scaled.ts and rational.ts is left the exact fraction. Not flat in the
 ball either: a midpoint must stand as a number on its own, with its own
@@ -485,7 +485,7 @@ D15 gives every inexact result; and `settle` rounds onto the same
 decimal grid, a division by a power of ten in place of a shift, measured
 at 0.2 ms against 0.04 ms at the default ceiling and nothing below it.
 Everything above the kernel then works in one base, exactly and totally
-within the range limit, and log space is needed only at the kernel's
+within the significand limit, and log space is needed only at the kernel's
 exit for a result whose binary exponent cannot be formed (4.9). The
 note's first draft carried a binary exponent beside the decimal one,
 which let both enter exactly but leaked the mixed base into every sum,
@@ -504,13 +504,13 @@ values never are.** Two things wear the name "exact mode" and only one of
 them is about exactness. An exact value, radius zero, is an exact rational
 however it was formed, and every exact operation on exact operands keeps
 it so: that is what `=` means, what stage 5 displays as a fraction, and
-what the range limit of D16 guards. An inexact value is a ball, and its
+what the significand limit of D16 guards. An inexact value is a ball, and its
 midpoint is a number computed, not a number known; keeping it as the
 exact rational result of exact operations on kernel outputs spends
 exactness on a value that has none, and lets its size grow without bound
 through an expression (`x^5` of a 13,000-bit dyadic is an exact
 67,000-bit rational whose information is 13,000 bits), which is where the
-range limit and the precision collided in the first version of this plan.
+significand limit and the precision collided in the first version of this plan.
 So the evaluator settles every inexact result it produces, in one place,
 as 4.5 planned for the decimal mode: `settle(b, context)` rounds the
 midpoint to nearest at `bitsFor(precision)` significant bits, a dyadic,
@@ -550,7 +550,7 @@ with two parameters; in decimal mode the radius grows by the exact
 rounding error rather than the half-unit bound, since a value rounded to
 `p` digits with half a unit of radius has its ends on the rounding
 boundaries and would never certify its last digit (4.5). And a sum whose
-exact alignment does not fit the range limit settles its operands first
+exact alignment does not fit the significand limit settles its operands first
 and absorbs the smaller into the radius when they still do not align,
 whenever an operand is inexact, or in decimal mode, since the result was
 about to be settled anyway; two exact operands in exact mode are
@@ -570,29 +570,29 @@ half stands.
 
 **D16. Two limits, on two axes, both the user's to set.** Range and
 precision are different quantities, as a float's exponent width and
-mantissa width are, and one number cannot stand for both. The range
-limit, `maxBits`, bounds the size of an exact value, numerator and
+significand width are, and one number cannot stand for both. The significand
+limit, `significandLimitBits`, bounds the size of an exact value, numerator and
 denominator, and so the magnitude of anything: it is what turns
 `10^(10^9)`, `1e999999999` and a power of an inexact value beyond any use
 into a clean `tooLarge` rather than a hang, and it is needed at every
 precision. It is the third field of `NumberContext`, since `pow` and the
 literal check apply it and every core function that does arithmetic
 already takes the context; the parser, which has no context, checks a
-literal against the hard bound `LIMIT_BITS` (2^20, about 315,000 digits,
+literal against the hard bound `MAX_SIGNIFICAND_LIMIT_BITS` (2^20, about 315,000 digits,
 the most the setting may take), and the evaluator checks it against the
 setting when it reads the literal. Its default is the `MAX_BITS` of stage
-1, 2^16. The precision limit is the cap on the digits setting,
-`maxDigits`, from which D12 derives the ceiling; its default is 1,000 and
-its hard bound follows from the range limit as D12 says. Both are
+1, 2^16. The precision limit, `precisionLimitDigits`, is the most digits
+any grid may be asked for, from which D12 derives the ceiling; its default is 1,000 and
+its hard bound follows from the significand limit as D12 says. Both are
 settings beside the digits and the mode, validated on the way in with the
-dependent one clamped (a range limit lowered below what the cap needs
-lowers the cap, and a cap lowered below the digits lowers the digits), so
+dependent one clamped (a significand limit lowered below what the precision limit needs
+lowers the precision limit, and a precision limit lowered below the digits lowers the digits), so
 that a stored entry can never leave the app with an inconsistent context.
 And because both are cost limits whose right value depends on the device,
 the settings panel offers to recommend them: a probe (app code, beside
 settings.ts) times the app's costliest operations at increasing sizes, an
-exact operation on values of a given size for the range limit and the
-costliest inexact operation the app has at a given precision for the cap
+exact operation on values of a given size for the significand limit and the
+costliest inexact operation the app has at a given precision for the precision limit
 (the root in stage 2; from stage 3 a composite expression of the
 costliest built-ins, chosen from the kernel benchmark's report of every
 routine, 3.11), and takes the
@@ -615,32 +615,32 @@ them, kilobytes to a few megabytes at any latency a phone can meet. The
 decision is revisited if a portable measure appears.
 
 Restated in 4.0, as the stage 4 introduction says: once the midpoint
-carries exponents (D13), the range limit bounds the size of an exact
-value, a mantissa's numerator and denominator, and the alignment of a
+carries exponents (D13), the significand limit bounds the size of an exact
+value, a significand's numerator and denominator, and the alignment of a
 sum, which is the size the exact result would have (a comparison aligns
 only values of one decimal exponent and needs no limit; a product and a
 quotient are not held to it yet, issue #52); it no
 longer bounds the magnitude of a value, which the exponent bound
 `MAX_EXPONENT` (`10^18`, 4.2) bounds for exact and inexact values alike. The literal
-check is the mantissa's digits against `LIMIT_BITS` in the parser and
-against the range limit in the evaluator, and the exponent against the
-exponent bound in the parser; `maxDigitsFor` is unchanged, since a
-settled midpoint at the ceiling must still fit the range limit with room
+check is the significand's digits against `MAX_SIGNIFICAND_LIMIT_BITS` in the parser and
+against the significand limit in the evaluator, and the exponent against the
+exponent bound in the parser; `precisionLimitFor` is unchanged, since a
+settled midpoint at the ceiling must still fit the significand limit with room
 for a product of two.
 
 Restated again before stage 5: the exponent bound is on a value's decimal
-exponent, not on the exponent of its representation (D17), and the range
+exponent, not on the exponent of its representation (D17), and the significand
 limit holds every exact result where the evaluator produces it, sums,
 products and quotients alike, not only a sum's alignment and a power
 (D19).
 
-Restated once more, with D19 and D20, on what the range limit is. It is
+Restated once more, with D19 and D20, on what the significand limit is. It is
 a hard limit on cost: on the bits the app forms, holds and multiplies
 for one number, in time and in memory, which is why its right value is
 the device's and the probe recommends it. Its measure is therefore the
-size of what is stored, the canonical mantissa of a `Scaled` (D13), a
+size of what is stored, the canonical significand of a `Scaled` (D13), a
 numerator and a denominator each in bits, and not the bits of the value
-the mantissa denotes. The two differ for a dyadic: `2^-30000`, a value
+the significand denotes. The two differ for a dyadic: `2^-30000`, a value
 of 30,000 bits, is stored as `5^30000 × 10^-30000`, whose numerator has
 69,658 bits, and that is what a product of it costs. The case deserves
 its context, since it looks worse than it is. What makes a value
@@ -662,18 +662,18 @@ draft docs/decimal.md withdrew, would have kept `2^-30000` at 30,000
 bits and done nothing for `3^-100000`; the cost is in storing exact
 rationals as digits, not in the power of ten. The owner's ruling, on
 review of this restatement, is to keep the representation and the
-decision and to document the rough edge plainly, which README ("Most
-bits") and ARCHITECTURE.md ("Size limits") do. That is where the
-range limit differs from the exponent bound, and deliberately so. The
+decision and to document the rough edge plainly, which README ("Significand
+limit") and ARCHITECTURE.md ("Size limits") do. That is where the
+significand limit differs from the exponent bound, and deliberately so. The
 bound is on the value (D17), since it exists so that a value can always
 be written, and a refusal at it must never be false about the value; the
-range limit is on the representation, since it exists so that the app
+significand limit is on the representation, since it exists so that the app
 never forms more than the device can afford, which is a fact about the
 representation and not about the value, and nothing else could be
 measured without forming what the limit forbids. So a refusal at the
-range limit says that a result was too large to hold, names the node
+significand limit says that a result was too large to hold, names the node
 that formed it, and names the remedy, `approx` around an operand of that
-node or a higher `maxBits`; and README's "Most bits" says what is
+node or a higher `significandLimitBits`; and README's "Significand limit" says what is
 counted. Whether exact
 mode rounds instead of refusing there is D20.
 
@@ -683,7 +683,7 @@ exponent, `floor(log10 |v|)`, lies within `±MAX_EXPONENT`. That is the
 exponent the display writes and the messages speak of. Zero is within at
 any exponent.
 
-D13's canonical `exp` may then pass `±10^18` by up to the mantissa's
+D13's canonical `exp` may then pass `±10^18` by up to the significand's
 digits: the denominator's digits above the bound, the numerator's below.
 Nothing needs it to stay within. The 128-bit `log2 10` of `log2Bounds`
 stays within `2^-68` there, and every `Number` taken of an exponent is
@@ -702,7 +702,7 @@ So the edge moved with the representation:
   was refused with a message saying its exponent passes `10^18`.
 - `1e-1000000000000000000 / 7`, which is past, was held.
 - The same quotient by `approx(3)` crashed once settled (#44), since
-  settling moved a fraction mantissa's canonical exponent past the edge.
+  settling moved a fraction significand's canonical exponent past the edge.
 
 With the bound on the value, an exact value and its settled form lie on
 the same side of the edge, except at the top. There a rounding can carry
@@ -726,7 +726,7 @@ radius is not held to the bottom edge.
 The alternative was to make the canonical check consistent everywhere. It
 was weighed and rejected:
 
-- It keeps a refusal whose message is false for a fraction mantissa.
+- It keeps a refusal whose message is false for a fraction significand.
 - It makes whether a value is held depend on whether it is exact.
 - It would have to overrule `powerRefusal`, which already reads the value,
   for no gain.
@@ -796,16 +796,16 @@ what D4 already means, with a second retry predicate to keep in step. In
 decimal mode one pass is the whole schedule (4.6), so an `unresolved` at
 the bound is final there, as every `unresolved` is.
 
-**D19. Every exact result is held to the range limit where the evaluator
+**D19. Every exact result is held to the significand limit where the evaluator
 produces it (added before stage 5).** Stage 4 held a sum's alignment and a
-power's predicted mantissa to `maxBits`, and no other result an expression
+power's predicted significand to `significandLimitBits`, and no other result an expression
 forms; the literal check holds what is typed, and the kernel is handed no
-argument past `2^maxBits`. The argument was that an operation which grows
+argument past `2^significandLimitBits`. The argument was that an operation which grows
 its inputs by a constant factor needs no check, since an expression of
 bounded length applies a bounded number of them. But nothing bounds the
 length (#52):
 
-- an exact product of coprime powers, each within Most bits, reached
+- an exact product of coprime powers, each within the significand limit, reached
   1,096,425 bits;
 - a sum of three fractions reached a denominator of 155,588 bits in 2.7 s;
 - a conversion between two such products took half a minute.
@@ -813,8 +813,8 @@ length (#52):
 The rule:
 
 - Every exact node result in exact mode is `tooLarge` at the node's span
-  when its reduced canonical mantissa has a numerator or a denominator
-  past `maxBits`. The measure is the canonical form's size, the cost the
+  when its reduced canonical significand has a numerator or a denominator
+  past `significandLimitBits`. The measure is the canonical form's size, the cost the
   limit bounds (D16 as restated once more): it is what is stored and what
   the next operation multiplies, it is the measure the literal check
   already uses, and the value's own bits could not be read without
@@ -824,10 +824,10 @@ The rule:
   within that factor of it, a big number by the measure that matters
   (D16 as restated once more has the limiting cases).
 - The refusal names the node and the remedy (D20): the message quotes the
-  subexpression, says it is too large to hold exactly within `maxBits`,
+  subexpression, says it is too large to hold exactly within `significandLimitBits`,
   and says to write `approx` around its first operand (a binary's left,
   a power's base, a call's first argument) to compute it to the digits
-  asked, or to raise `maxBits`. `approx` around the node itself would
+  asked, or to raise `significandLimitBits`. `approx` around the node itself would
   come too late, the node being refused before `approx` sees it, which
   H.14 found; an inexact operand is what makes the result inexact.
 - The exponent bound is checked first, so that a result past both is
@@ -852,7 +852,7 @@ as a power does, is deliberate. A prediction from unreduced sizes refuses
 69,658-bit canonical numerator. The cost is one reduction per node on
 operands within the limit, which H.9's reductions make milliseconds. The
 hard limit on cost still holds: the most that is formed before the check
-refuses is a product of two mantissas within the limit, a sum aligned
+refuses is a product of two significands within the limit, a sum aligned
 within it, or a quotient's two unreduced parts, each at most twice the
 limit and reduced once, which is the operation the probe times when it
 recommends the limit, so the budget already includes that factor of two.
@@ -861,7 +861,7 @@ is today and `factorial` and `binomial` will be in stage 6, with the node
 check as the backstop.
 
 Sums are included, since a sum of fractions grows as a product does, and
-README ("Most bits") already promises a bound on how large a numerator and
+README ("Significand limit") already promises a bound on how large a numerator and
 a denominator may grow. One visible consequence, of the measure as much
 as of the rule: `1 / 2^n` is refused past `n ≈ 28,225` at the default, as
 `0.5^30000` already is, since each is stored with `5^n`.
@@ -871,9 +871,9 @@ so it is settled rather than refused. Whether the app should apply that
 rounding on its own, rather than refuse and name the node, is the question
 D20 answers.
 
-**D20. Past the range limit, exact mode refuses at the node and names the
+**D20. Past the significand limit, exact mode refuses at the node and names the
 remedy; it does not round on its own (added before stage 5; ruled by the
-owner in review, #72).** The range limit is a hard
+owner in review, #72).** The significand limit is a hard
 limit on cost (D16), and there are two things an exact computation can
 do when an exact result would pass it: refuse, at the node, with a
 message that says where in the expression the precision the user asked
@@ -891,17 +891,17 @@ The decision is to refuse, for these reasons:
   (docs/decimal.md's "Alternatives considered", on a sum that cannot be
   aligned; docs/approximate.md, on a mode that rounds every literal),
   each time on the same ground: a value the user wrote exactly is not
-  silently replaced by one that is not it. A rounding at the range limit
+  silently replaced by one that is not it. A rounding at the significand limit
   would be a fourth source, and the only one the user cannot see in the
   expression.
-- **The limit is the device's.** The probe recommends `maxBits` per
+- **The limit is the device's.** The probe recommends `significandLimitBits` per
   device, so under rounding the same expression would be `= 0` on one
   machine and `≈ 0` within a bound on another, with nothing in the
   expression to say why. A refusal is loud, local, and the same
   everywhere but for where it fires.
 - **The remedy is one token, and it is the user's choice.** The message
   names the node and the two ways out: `approx` there, which accepts `≈`
-  for that part and nothing else, or a higher `maxBits`, which pays. The
+  for that part and nothing else, or a higher `significandLimitBits`, which pays. The
   app cannot know which the user wants; a user checking an exact
   identity wants the second, a user converting a measurement the first.
 - **Cost.** Refusing ends the work at the node. Rounding would carry on,
@@ -912,7 +912,7 @@ The decision is to refuse, for these reasons:
   same thing. A user who wants the app never to refuse has both.
 
 Two things follow from the ruling. Knowing the node lets the user
-either round there with `approx` or raise `maxBits`; to make the second
+either round there with `approx` or raise `significandLimitBits`; to make the second
 realistic without trial and error, the refusal should also say how many
 bits the result needed, or a bound, which is known where the check
 measures after forming and predictable where it refuses before. That is
@@ -923,8 +923,8 @@ rather than a redesign: the
 node's exact result past the limit is settled to the working digits by
 D15's settle, half a unit in the last digit into the radius, and the
 quantity is marked as rounded with the node's span, which the pipeline
-carries to the display as a note beside the value ("rounded within Most
-bits at `…`", quoting the subexpression), `=` being denied as for any
+carries to the display as a note beside the value ("rounded within the significand
+limit at `…`", quoting the subexpression), `=` being denied as for any
 inexact value; the retry loop certifies the digits asked as it does for
 `approx`, and nothing downstream changes. What would still refuse under
 either rule: a literal past the limit where it is typed, the kernel's
@@ -948,7 +948,7 @@ only ever turns a `≈` line into a `=` line, and was set aside: the
 setting shows fractions, for understanding as much as for exactness, and
 a user who asks for them asks to see them. So an exact integer is
 written as the decimal display writes it, every other exact value as its
-fraction when the numerator and the denominator each fit within Digits
+fraction when the numerator and the denominator each fit within the display digits
 digits, and everything else by the decimal display, which says `=` where
 its own rule allows. The fit rule is provisional, firm for stage 5 and
 studied after it (#91); D28 replaces it with the notation's own width. An approximating fraction for an inexact value,
@@ -1233,7 +1233,7 @@ The caveats, each of which the stage's docs state:
   at more passes, up to the ceiling, past which the display shows what
   certified.
 
-- **Decimal mode rounds each step of the body to Digits,** as it does an
+- **Decimal mode rounds each step of the body to the display digits,** as it does an
   expression typed inline. `f(x)` there is the hand calculator's
   sequence of keystrokes, not a correctly rounded `f`.
 - **A written inverse is checked where it is used** (D23). The build
@@ -1267,10 +1267,10 @@ which would have measured the slowest function on a phone and then
 lowered the defaults or moved the pipeline to a Web Worker:
 
 - **The defaults stay, and so does the probe.** The precision limit
-  keeps its default of 1,000 digits and the range limit its 2^16 bits.
+  keeps its default of 1,000 digits and the significand limit its 2^16 bits.
   The probe of limits.ts keeps its composite of the elementary
   functions and its budget of 50 ms a pass, and D16's sentence that
-  stage 8 revises them is withdrawn. A cap low enough to keep the
+  stage 8 revises them is withdrawn. A precision limit low enough to keep the
   special functions' ceiling pass within that budget would put out of
   reach values that are in reach now: a value that certifies is cheap
   even at thousands of digits (1,000 digits of `gamma(0.3)` take 73 ms,
@@ -1318,12 +1318,12 @@ far the rounded value lies from the real number, and in this mode the
 rounded value is the answer. Exact mode is unchanged.
 
 **D27. Decimal mode rounds every step but the last to the working
-digits, a setting of the mode at or above Digits, and the last step of
-a displayed value to Digits, directly from its exact result (ruled by
+digits, a setting of the mode at or above the display digits, and the last step of
+a displayed value to the display digits, directly from its exact result (ruled by
 the owner on the case of `ln(exp(1/10))`, after S2's note; S2b of
 docs/settings-plan.md).** docs/working-digits.md is the design. The
-working digits default to Digits, under which the mode is D26 as
-landed; set above Digits they keep a step's rounding out of the answer,
+working digits default to the display digits, under which the mode is D26 as
+landed; set above the display digits they keep a step's rounding out of the answer,
 as a calculator's hidden digits do, so that `ln(exp(1/10))` at eight
 digits over twelve is `= 0.1`. The last step is rounded once, from the
 exact result of its operation on working-digit operands, so that the
@@ -1334,11 +1334,11 @@ setting: its working precision is the retry schedule's.
 
 **D28. The ratio notation has a width of its own, the most digits a
 ratio, its two parts together, or a whole number may have to be written
-entire, twenty by default and independent of Digits; a ratio that does
+entire, twenty by default and independent of the display digits; a ratio that does
 not fit is written as a ratio times a power of ten, the power after it,
 when its parts then fit and its denominator is not one, and otherwise
-the value is a decimal at Digits (S2c of docs/settings-plan.md; amends
-D21).** docs/ratio-width.md is the design. D21's fit at Digits coupled
+the value is a decimal at the display digits (S2c of docs/settings-plan.md; amends
+D21).** docs/ratio-width.md is the design. D21's fit at the display digits coupled
 a length to a precision, hid exact whole numbers and short ratios of
 large magnitude, and could not be read off the settings; the width is
 one number that decides what is written entire. The measure is the two
@@ -1346,7 +1346,7 @@ parts together, the sign, the slash and the exponent of the factored
 form not counted, since the width stands for the characters a value
 takes on the line (ruled by the owner in the review of the note, over
 the per-part measure the S2 note recommended); a mixed form and a
-fractional mantissa are ruled out; an approximating fraction for an
+fractional significand are ruled out; an approximating fraction for an
 inexact value stays ruled out.
 
 **D29. The limits are a precision limit in decimal digits, the most
@@ -1366,13 +1366,14 @@ kept exact until it must be rounded, and then rounded not to a nearby
 rational but onto a decimal grid whose digits the precision limit
 bounds; the significand limit bounds the bits of the rational's parts,
 and the grid's points, being significands, must fit inside it, which
-`2 × bitsFor(4 × (L + 10)) ≤ S` states and `maxDigitsFor` enforces.
-The names in the core (`maxBits`, `maxDigitsFor`, `LIMIT_BITS`,
-`MIN_MAX_BITS`, `Scaled.mant`, "the cap", "the range limit",
-"mantissa") follow in an alignment change after the panel's; until
-then D12, D13 and D16 read with "the cap" as the precision limit, "the
-range limit" as the significand limit and "mantissa" as the
-significand.
+`2 × bitsFor(4 × (L + 10)) ≤ S` states and `precisionLimitFor` enforces.
+The names in the core followed in the alignment change right after the
+panel's: `NumberContext.significandLimitBits`, `precisionLimitFor`,
+`MIN_SIGNIFICAND_LIMIT_BITS` and `MAX_SIGNIFICAND_LIMIT_BITS`,
+`Scaled.significand`, and "the precision limit", "the significand
+limit", "the display digits" and "significand" throughout the docs and
+the messages in place of "the cap", "the range limit" or "Most bits",
+"Digits" and "mantissa"; D12, D13 and D16 read with those names.
 
 ## Stage 1: the context and the ball
 
@@ -1428,7 +1429,7 @@ radius at or above `|r|`; `addRadius`, `multiplyRadius`, `maxRadius`, and
 rounding up and all absorbing unbounded; `radiusUpper(rad)`, the exact
 rational a bounded radius stands for, which throws on unbounded (a caller
 checks first). The type is written out: `Radius = { kind: "bounded";
-mant: bigint; exp: bigint } | { kind: "unbounded" }`, with `mant` zero or
+significand: bigint; exp: bigint } | { kind: "unbounded" }`, with `significand` zero or
 in `[2^29, 2^30)`; it is a type of its own, and D3 says why neither a
 `Rational` nor a `number` serves.
 
@@ -1451,7 +1452,7 @@ Behavior: none; the module is unused.
 
 New `src/core/context.ts`: `NumberContext = { precision: Precision;
 rounding: RoundingMode }`, `DEFAULT_ROUNDING` (`halfAwayFromZero`, the
-display's rule today), `DEFAULT_DIGITS` (8, `DISPLAY_PRECISION` today),
+display's rule today), `DEFAULT_DISPLAY_DIGITS` (8, `DISPLAY_PRECISION` today),
 and `checkContext`. `Precision` stays in rational.ts. Then the parameter
 widening the study calls the natural first step, with no change of
 behavior: `evaluate`, `applyFunction`, `invertFunction`, `powQuantity`,
@@ -1589,7 +1590,7 @@ the study's rule for `=` (radius zero, and every digit held is shown).
 `unit-converter.ts` calls it for every term and `shownExactly` goes; the
 list's relation is `=` when every term is `exact`. The digits and the
 mode come from the component's context property, which 1.11 wires; until
-then it passes `DEFAULT_DIGITS` and `DEFAULT_ROUNDING`.
+then it passes `DEFAULT_DISPLAY_DIGITS` and `DEFAULT_ROUNDING`.
 
 Tests: `show` on an exact `127/50` at eight digits is exact, on `1/3` is
 not, on `sqrt 2` (a ball of one ulp) is not however many digits, on
@@ -1639,7 +1640,7 @@ kernel hands back its dyadic midpoint unrounded and the mode is the
 display's alone (D9); inexact midpoints are settled to the working
 precision (D15), moved here from 4.5; the roots are Newton in fixed point
 at any degree rather than the integer root on a scaled integer (2.2); the
-cap on the digits setting and the range limit are settings with a derived
+precision limit and the significand limit are settings with a derived
 ceiling and a probe that recommends them (D12, D16), which adds 2.7 and
 moves `pi` and the docs to 2.8 and 2.9. What lands: the fixed-point
 kernel on which every inexact function will run; `root` on it,
@@ -1698,7 +1699,7 @@ by squaring in fixed point, from a first guess taken through a double, so
 that the cost is logarithmic in the degree and no integer of `degree ×
 bits` bits is ever formed (the integer root on a scaled integer, which
 the first version of this task planned, admits only degree 4 at the
-default ceiling under the default range limit). The result's error is not
+default ceiling under the default significand limit). The result's error is not
 read off the iteration but verified: the power `y^n` is recomputed with
 the error rule, its distance from the argument bounded, and the root's
 error follows by `|y - a^(1/n)| <= (4 |ε| / n) y` for `y^n = a (1 + ε)`
@@ -1775,8 +1776,8 @@ same.
 
 `src/core/ball.ts`: `certifies(b, digits, mode)`, per D7, forming the two
 ends as exact rationals (an unbounded ball certifies nothing; an exact one
-certifies every count), and `certifiedDigits(b, maxDigits, mode)`, the
-largest `d <= maxDigits` that certifies, found by scanning down since
+certifies every count), and `certifiedDigits(b, precisionLimitDigits, mode)`, the
+largest `d <= precisionLimitDigits` that certifies, found by scanning down since
 certification is not monotone in `d`, or 0. `src/core/display.ts`: `show`
 returns a `Shown` with a `kind`: `exact` (as in 1.9); `certified` (all
 `digits` certified, `text` rounded to them; this includes an exact value
@@ -1804,7 +1805,7 @@ now appears where 1.9 showed digits it could not certify, and the
 component says `≈` for it as before, since it does not yet read the kind.
 2.5 removes that within the schedule and 2.6 shows the kinds.
 
-### 2.5 Settling, the range limit and the retry loop
+### 2.5 Settling, the significand limit and the retry loop
 
 Per D15, D16 and D12, in that order within the task. `src/core/ball.ts`
 gains `settle(b, context)`: an inexact midpoint rounded to nearest at
@@ -1816,20 +1817,20 @@ for a negative `n`; on an exact base it is `pow` as before.
 `src/core/quantity.ts` gains `settleQuantity`; `src/core/evaluate.ts`
 settles every result it produces, in one place, and `unitLookup(table,
 context)` settles a unit once when it is looked up. `NumberContext` gains
-`maxBits`, the range limit: `MAX_BITS` in rational.ts becomes
-`LIMIT_BITS` (2^20), the hard bound the parser applies through
-`parseDecimal`; context.ts holds `DEFAULT_MAX_BITS` (2^16), and
-`checkContext` accepts an integer in `[1, LIMIT_BITS]`; `pow` takes the
+`significandLimitBits`, the significand limit: `MAX_BITS` in rational.ts becomes
+`MAX_SIGNIFICAND_LIMIT_BITS` (2^20), the hard bound the parser applies through
+`parseDecimal`; context.ts holds `DEFAULT_SIGNIFICAND_LIMIT_BITS` (2^16), and
+`checkContext` accepts an integer in `[1, MAX_SIGNIFICAND_LIMIT_BITS]`; `pow` takes the
 limit as a parameter, and the evaluator's `number` case checks a literal
 against the setting, `tooLarge` at the literal's span. The comments of
 both constants say what each bounds.
 
 Then the schedule: `schedule(context, ceiling)` yields the working
 contexts `p + 10`, `2 (p + 10)`, ..., doubling, and last `ceiling`, with
-the user's mode and range limit throughout;
-`ceilingFor(maxDigits)` is `4 (maxDigits + GUARD_DIGITS)` in context.ts
-beside `DEFAULT_MAX_DIGITS` (1,000) and `maxDigitsFor(maxBits)`, the hard
-bound on the cap (`bitsFor` of the ceiling at most half the range limit);
+the user's mode and significand limit throughout;
+`ceilingFor(precisionLimitDigits)` is `4 (precisionLimitDigits + GUARD_DIGITS)` in context.ts
+beside `DEFAULT_PRECISION_LIMIT_DIGITS` (1,000) and `precisionLimitFor(significandLimitBits)`, the hard
+bound on the precision limit (`bitsFor` of the ceiling at most half the significand limit);
 `resolve(context, ceiling, run, done, retries)` calls `run` with each
 working context in turn and returns the first result that `done` accepts;
 a result `done` rejects is kept as the best so far; an error that
@@ -1844,7 +1845,7 @@ context and go through `resolve`, parsing once outside the passes, with
 `done` checking that every value in the result (the unit value, each list
 term unrounded, the function count) is exact, certified at
 `context.precision`, or unbounded; a context whose precision exceeds the
-cap the ceiling was derived from is a precondition failure. The stage 1
+precision limit the ceiling was derived from is a precondition failure. The stage 1
 working rule (`max(40, p + 10)`) goes, and `DEFAULT_PRECISION`'s comment
 says it is the table's build precision until 3.3. Two gaps are accepted
 and stated here: a list unit whose ball straddles zero is
@@ -1855,7 +1856,7 @@ to even, leaves a zero midpoint as it is, and adds half an ulp, the
 rounding's bound, rather than the exact difference, which would cost a
 gcd; `powBall`'s magnitude guard is `|log2|` of the base's magnitude
 bound and of its midpoint, whichever is larger, plus one, times the
-exponent, against the range limit, so that a base near one is guarded by
+exponent, against the significand limit, so that a base near one is guarded by
 its true magnitude and not by its degree; a `want` that fails to parse is
 still reported after the `have`, which is evaluated once at the first
 pass for that, so that the pipeline's rule that `have` is tried first
@@ -1876,10 +1877,10 @@ sqrt(2)` a third and `(sqrt(2) + 1e-100) - sqrt(2)` a fourth (the test
 counts passes through a `run` that records its contexts); at 8 digits the
 default schedule ends at 4,040 digits after nine passes; a later pass that fails `tooLarge` returns the
 earlier result; an error in the text returns at once; `ceilingFor` and
-`maxDigitsFor` at the defaults and the relation between them.
+`precisionLimitFor` at the defaults and the relation between them.
 
 Behavior: certified digits, or fewer with a note; `1e30000` is `tooLarge`
-as before, and remains so until the range limit is raised.
+as before, and remains so until the significand limit is raised.
 
 ### 2.6 The UI for the display kinds and the two limits
 
@@ -1888,18 +1889,18 @@ certain"), `zero` as `≈ 0` with its bound ("within 2e-30"), and
 `unbounded` with a note that the digits are not certified; a list is
 certified on its unrounded terms, its remainder rounded by `roundTerms`
 at the digits certified, and its counts are exact and carry no note; the
-reciprocal line shows its own kind. `settings.ts` gains `maxDigits`
-(default `DEFAULT_MAX_DIGITS`, at most `maxDigitsFor(maxBits)`) and
-`maxBits` (default `DEFAULT_MAX_BITS`, in `[1, LIMIT_BITS]`), validated
-with the dependent clamps of D16, `contextOf` carrying `maxBits` and a new
+reciprocal line shows its own kind. `settings.ts` gains `precisionLimitDigits`
+(default `DEFAULT_PRECISION_LIMIT_DIGITS`, at most `precisionLimitFor(significandLimitBits)`) and
+`significandLimitBits` (default `DEFAULT_SIGNIFICAND_LIMIT_BITS`, in `[1, MAX_SIGNIFICAND_LIMIT_BITS]`), validated
+with the dependent clamps of D16, `contextOf` carrying `significandLimitBits` and a new
 `ceilingOf(settings)`; `app-shell.ts` renders the two as number inputs
-beside the digits, whose `max` follows `maxDigits`, and passes the
+beside the digits, whose `max` follows `precisionLimitDigits`, and passes the
 ceiling to the converter with the context, which the converter passes to
 the pipeline. `MAX_DIGITS` goes. Rulings the task did not reach: the
 inputs are labelled "Digits", "Most digits" and "Most bits", each with
-`min` and `max` from the settings above it, and `MIN_MAX_BITS` in
-context.ts, twice the kernel's bits at a cap of one digit, is the floor
-of the range limit, below which no digit fits; the panel applies a change
+`min` and `max` from the settings above it, and `MIN_SIGNIFICAND_LIMIT_BITS` in
+context.ts, twice the kernel's bits at a precision limit of one digit, is the floor
+of the significand limit, below which no digit fits; the panel applies a change
 through `clampSettings`, so lowering a limit lowers what depends on it;
 a list's counts are formatted at the digits asked for and its remainder
 at the digits certified, as `0` when it cannot be told from zero; the
@@ -1918,8 +1919,8 @@ Behavior: the notes, and the two limits are the user's.
 New `src/limits.ts` (app code, beside settings.ts): `recommendLimits(
 budget, now)` times, through a clock passed in so that it is tested under
 Node, the app's costliest operations at increasing sizes, an exact
-multiplication and reduction of two rationals of `n` bits for the range
-limit and a `rootBall` at a working precision for the cap, doubling until
+multiplication and reduction of two rationals of `n` bits for the significand
+limit and a `rootBall` at a working precision for the precision limit, doubling until
 one exceeds `budget` milliseconds, and returns the largest values under
 it, clamped to the hard bounds and to the dependency between the two, and
 rounded down to round numbers. The budget is a constant of the module,
@@ -1930,13 +1931,13 @@ D16 gives. `app-shell.ts` gains a button in the settings panel that runs
 it and applies the result to both limits, disabled while it runs. Rulings
 the task did not reach: the clock and the two operations travel together
 as a `Probe`, which the test fakes and the shell takes as the real one;
-the range candidates are powers of two from 2^9 and the cap candidates 1,
+the range candidates are powers of two from 2^9 and the precision limit candidates 1,
 2 and 5 times a power of ten, so the recommendation is a round number by
 construction; each size is timed as the shortest of three runs after one
 untimed; the budget is 50 ms per pass, since the schedule's doubling makes
 an expression that runs to the ceiling cost about twice its last pass;
 the precision operation is a cube root, the kernel's Newton iteration, at
-the candidate cap's ceiling; the real probe's inputs come from a small
+the candidate limit's ceiling; the real probe's inputs come from a small
 congruential generator in the module, since the tests' random source is
 not part of the app; and the button yields a frame before the probe runs
 so that its disabled state is painted.
@@ -2000,7 +2001,7 @@ memos hold the ceiling plus a margin, and there are four (D10);
 are not all zero (D4); `log` takes exactly two arguments and the decibel
 is `decibel`, since `dB` reads as a prefixed unit (3.1, 3.12); a power
 with a rational exponent falls back to `exp(y ln x)` where the exact
-power would not fit the range limit, which is a behavior change for `^`
+power would not fit the significand limit, which is a behavior change for `^`
 (3.8); the build's lookup resolves built-ins and the tests build the
 system table at the ceiling as the app does (3.2, 3.3); the kernel
 benchmark reports every routine at the ceiling and the probe times a
@@ -2165,13 +2166,13 @@ context's; `context.ts` exports `ceilingContext(context)`, the context at
 the ceiling, which is the last context of `schedule(context)` for every
 precision; `settings.ts`'s `contextOf` carries the ceiling and
 `ceilingOf` goes; the component loses its `ceiling` property. Every
-test's context literal gains the field, the default cap's ceiling unless
+test's context literal gains the field, the default precision limit's ceiling unless
 the test is about the ceiling. Then the table: `src/system-table.ts`
 fetches and parses the definitions once, as now, and a new
 `src/system-build.ts`, without the asset import so that it is tested
 under Node, builds the table at the ceiling context and memoizes one
 table, keyed by the ceiling alone, since nothing in a build depends on
-the range limit beyond the clamp that already makes the ceiling fit it;
+the significand limit beyond the clamp that already makes the ceiling fit it;
 `app-shell.ts` rebuilds when a settings change moves the ceiling, which
 is the one reason it ever rebuilds, and not when the digits change, and
 keeps the table it has on screen until the new one is built, which is
@@ -2182,7 +2183,7 @@ context as the app does, so that no unit holds a pass back;
 `DEFAULT_PRECISION`'s comment loses its "until 3.3".
 
 Rulings the task did not reach: `DEFAULT_CEILING` in context.ts is the
-default cap's ceiling, 4,040, which the component's default context and
+default precision limit's ceiling, 4,040, which the component's default context and
 the tests use; `ceilingContext` returns the context itself when it is
 already at its ceiling; the memo of system-build.ts is keyed by the
 definitions' identity and the ceiling, holds a failed build too (the
@@ -2259,7 +2260,7 @@ bound parameter resolved before any unit as `evaluateBound` does. Its
 errors are the subset of `EvaluateError` a dimension can cause
 (`nonconformingOperands`, `argumentMismatch`, `arityMismatch`,
 `builtinArgument`, and the lookup's), so the messages hold; a literal is
-not checked against the range limit, so a body of `1e30000` builds and
+not checked against the significand limit, so a body of `1e30000` builds and
 fails at the call, as a body that fails for every value (`1 / 0`,
 `ln(0)`) now does, which the study accepts. `build.ts`'s `checkFunction`
 evaluates the declared units and runs `dimensionOf` on each body with
@@ -2277,7 +2278,7 @@ stay in evaluate.ts for the evaluator and the pipeline, which still
 evaluate bodies at values.
 
 Tests: `recip(x) [1;1] 1 / (x - 1) ; ...` builds, and so does a body of
-`x / 0` and one with a literal beyond the range limit, each of which then
+`x / 0` and one with a literal beyond the significand limit, each of which then
 fails at the call; a body of the wrong dimension still fails with
 `functionMismatch`; a body that adds a length to a time fails with
 `nonconformingOperands` at its span, one that calls a function with the
@@ -2310,7 +2311,7 @@ result is below one; the result's `bits` follow its magnitude (D9), so
 `memoAtCeiling` (D10). `builtins/exp.ts` holds `expBall` and the built-in
 (one dimensionless argument; `exp(0)` exact; `exp(1)` from the memo; an
 unbounded argument gives an unbounded result); it guards the result's
-magnitude against the range limit before computing, `tooLarge` at the
+magnitude against the significand limit before computing, `tooLarge` at the
 call, on either side of one, so that `exp(1e6)` and `exp(-1e6)` are
 refused alike, since the settled midpoint of the second would need a
 denominator beyond the limit. `bench/kernel.bench.ts` gains a report of every kernel routine at
@@ -2345,16 +2346,16 @@ those modules changed.
 Behavior: `exp` exists.
 
 Known limit, to be lifted in stage 4. `exp(1e6)` is `tooLarge`, and so is
-every argument beyond about 45,000 at the default range limit and
+every argument beyond about 45,000 at the default significand limit and
 727,000 at the hard bound, because a midpoint is a `Rational` and an
 inexact one is a dyadic `num × 2^-k` whose size is its exponent: `exp(1e6)`
 is about `2^1442695`, a numerator of 1.4 million bits, beyond
-`LIMIT_BITS`. The value asked for is an ordinary one, `≈ 3.0332e434294`,
-a mantissa at the working precision times an exponent, and `exp` is
+`MAX_SIGNIFICAND_LIMIT_BITS`. The value asked for is an ordinary one, `≈ 3.0332e434294`,
+a significand at the working precision times an exponent, and `exp` is
 inexact whatever its argument, so nothing is lost by giving it as such.
 That is the `Scaled` midpoint of D13 and stage 4, which this limit adds a
 requirement to: the kernel's results must reach the midpoint as a
-mantissa and an exponent without the exponent ever being formed as bits
+significand and an exponent without the exponent ever being formed as bits
 (4.4 amended, and 4.9 added). Until then the guard stands, and `sinh`,
 `cosh` (3.11), a power in log space (3.8) and a large decibel (3.12) share
 it, since each ends in `exp`.
@@ -2442,7 +2443,7 @@ dimensionless base and exponent (the rule says so). Its rule, and
 rational `y = p/q` in lowest terms is exact when `x` is exact and a
 perfect `q`-th power, found by `exactRoot(x, q)` and raised to `p`
 without ever forming `x^p`, since `x^(p/q)` is rational exactly when `x`
-is a perfect `q`-th power; otherwise, when `x^p` would fit the range
+is a perfect `q`-th power; otherwise, when `x^p` would fit the significand
 limit, the root route as today, `rootBall` of `powBall`, which also
 serves a negative `x` under an odd `q` and reports a straddling `x`
 `unresolved`; otherwise, and for an inexact `y`, log space: `exp(y ln x)`
@@ -2474,7 +2475,7 @@ argument), `sideOfZero`, `unboundedOf` and `fromBallError` (a ball
 operation's error as a built-in's, an `unresolved` naming the argument
 and edge zero), moved into builtin.ts, and `radiusBound` and `expFits`
 from builtins/exp.ts into ball.ts, since `powLogSpace` there holds the
-result to the range limit as `exp` does. The log-space route is ball.ts's
+result to the significand limit as `exp` does. The log-space route is ball.ts's
 `powLogSpace(x, y, context)`, for a bounded base positive as rationals and
 any bounded exponent, on `lnScaled` (the scaling of the base to order one
 before conversion, which builtins/log.ts's `ln` shares) and `expFixed`:
@@ -2686,8 +2687,8 @@ costs 1.5 ms and the composite 38 ms, the sum of its routines; nothing
 about the results changes, and the range probe, which times Euclid on two
 random numerators, is unaffected and stays as it was. On this project's
 cloud container the probe recommends 8,192 bits and 200 digits under
-Node and 4,096 bits and 100 digits under headless Chromium, the range
-limit binding the cap in both, as in 2.7.
+Node and 4,096 bits and 100 digits under headless Chromium, the significand
+limit binding the precision limit in both, as in 2.7.
 
 Behavior: the hyperbolic functions exist, and the "Recommend limits"
 button measures the new costliest operation.
@@ -2749,15 +2750,15 @@ mode rounds after every operation in the user's mode.
 Amended during stage 3 (3.6): the stage also lifts the magnitude limit on
 the inexact functions. Today an inexact midpoint is a dyadic whose size is
 its exponent, so `exp(1e6)`, about `2^1442695`, is refused as `tooLarge`
-at any range limit, though it is an ordinary value, `≈ 3.0332e434294`, a
-mantissa at the working precision times an exponent. With a `Scaled`
+at any significand limit, though it is an ordinary value, `≈ 3.0332e434294`, a
+significand at the working precision times an exponent. With a `Scaled`
 midpoint the exponent is a number, not bits, so the stage must carry a
 large result from the kernel to the midpoint without ever forming its
 bits, and display it. That reaches the kernel (a routine that squares up
-to a large magnitude renormalizes its mantissa as it goes), the
+to a large magnitude renormalizes its significand as it goes), the
 conversion `fixedToScaled`, the display (the decimal digits of `m × 2^e`
 for a large `e` are found in log space, through the memoized `ln 2` and
-`ln 10`, not by forming `10^E`), and D16, whose range limit then bounds
+`ln 10`, not by forming `10^E`), and D16, whose significand limit then bounds
 the size of exact values and the alignment of sums, not the magnitude of
 an inexact result, which the exponent bound `MAX_EXPONENT` bounds.
 
@@ -2769,7 +2770,7 @@ rounded onto the decimal grid of the working precision as it leaves
 division by a power of ten in place of a shift, measured at 0.2 ms
 against 0.04 ms per settle at the default ceiling and nothing below it;
 the two modes are thereby one `settle` with two parameters (4.5); a sum
-whose alignment does not fit the range limit is `tooLarge` for two exact
+whose alignment does not fit the significand limit is `tooLarge` for two exact
 operands in exact mode and otherwise settles its operands first and
 absorbs the smaller into the radius when they still do not align, so
 `addBalls` and `subtractBalls` take the context and every sum, product
@@ -2803,12 +2804,12 @@ before that, say `tooLarge`: the constructor's check and the arithmetic's
 (4.1, 4.2), a product's and a quotient's (4.4, and so the converter's
 ratio and a prefix times a unit), and the guards of the exponential, the
 log-space power and a power of an inexact base, with the log-space
-conversion's failure (4.9). `tooLarge` is the range limit's alone: a
-sum's alignment, an exact power's predicted mantissa, a literal's
-mantissa, a fraction's power of ten, and the reach of the kernel
+conversion's failure (4.9). `tooLarge` is the significand limit's alone: a
+sum's alignment, an exact power's predicted significand, a literal's
+significand, a fraction's power of ten, and the reach of the kernel
 (`sin(1e999999999 radian)`). The messages name the limit; where the
 tasks quote "too large to compute", it now reads "too large to compute
-within Most bits", "too large to compute: its exponent would pass
+within the significand limit", "too large to compute: its exponent would pass
 10^18" or "too small to compute: its exponent would fall below -10^18".
 
 ### 4.0 Design note
@@ -2831,9 +2832,9 @@ Behavior: none; a document.
 
 ### 4.1 The `Scaled` type, construction and comparison
 
-New `src/core/scaled.ts`, per D13: `Scaled = { mant, exp }` standing for
-`mant × 10^exp`, the constructor `scaled(mant, exp)` normalizing to the
-canonical form (the mantissa in lowest terms, its denominator coprime to
+New `src/core/scaled.ts`, per D13: `Scaled = { significand, exp }` standing for
+`significand × 10^exp`, the constructor `scaled(significand, exp)` normalizing to the
+canonical form (the significand in lowest terms, its denominator coprime to
 ten and its numerator not divisible by ten unless zero, zero as `exp`
 zero), stripping the numerator's trailing zeros and moving the
 denominator's twos and fives into the exponent (`1/6` is `5/3 × 10^-1`),
@@ -2841,16 +2842,16 @@ and checking the exponent bound of 4.2 (`tooLarge`; a `Result`);
 `fromRational`; `toRational(s, limit)`, which fails `tooLarge` when
 forming `10^|exp|` would exceed `limit` bits; `ZERO` and `ONE`; `isZero`,
 `isInteger` (a denominator of one and `exp` at or above zero), `sign`,
-`equals` (structural); `decimalExponent`, the mantissa's from its digit
+`equals` (structural); `decimalExponent`, the significand's from its digit
 counts plus `exp`, exact for any exponent and moved here from
 rational.ts; `log2Bounds(s)`, a lower and an upper bound on `log2 |s|`
-within `2^-30`, from the bit lengths of the mantissa and `exp` times
+within `2^-30`, from the bit lengths of the significand and `exp` times
 `log2 10` held as a 128-bit fraction, a constant of the module, for the
 radius (4.4); and `compare`, total, decided by the signs, by the decimal
 exponents, and, when those are within one of each other, by exact
-alignment, whose shift is then bounded by the mantissas' digit counts
-and never by the range limit. `rational.ts` is untouched. As it landed
-(found by 4.2's tests): the constructor counts a mantissa's fives by
+alignment, whose shift is then bounded by the significands' digit counts
+and never by the significand limit. `rational.ts` is untouched. As it landed
+(found by 4.2's tests): the constructor counts a significand's fives by
 dividing by `5^(2^k)` from the largest power worth trying down to five,
 each once, a logarithmic number of divisions, where one division per
 factor made normalizing `10^300000` take a minute; a test holds the cost
@@ -2874,13 +2875,13 @@ Behavior: none; the module is unused.
 
 ### 4.2 The arithmetic with an exponent
 
-`scaled.ts`: `add(a, b, limit)` and `subtract` align the mantissas by
+`scaled.ts`: `add(a, b, limit)` and `subtract` align the significands by
 `10^|Δexp|` and fail `tooLarge` when the shift, `|Δexp| log2 10` bits,
 exceeds `limit` (`Result`s, where the fraction's are total); `negate`,
 `absolute`, `multiply`, `divide`, `invert` and `pow(s, n, limit)` combine
-exponents, the mantissa's power sized against `limit` as `pow` sizes it
+exponents, the significand's power sized against `limit` as `pow` sizes it
 today and the exponent times `n` against the bound; every one calls the
-fraction's operation on the mantissas and renormalizes. `MAX_EXPONENT`
+fraction's operation on the significands and renormalizes. `MAX_EXPONENT`
 (`10^18`) bounds `|exp|`, checked wherever an exponent is combined,
 failing `tooLarge`, so that formatting is always possible (the study's
 bound, so that `10^(10^30)` fails cleanly instead of looping).
@@ -2890,12 +2891,12 @@ arithmetic stays total.
 Tests: every operation agrees with rational.ts through `toRational` over
 seeded pairs drawn by key where the values fit; sums with large exponents
 (`1e999999999 + 3e999999998`, `1e999999999 - 1e999999999`) form exactly;
-the alignment failure (`1e999999999 + 1` at the default range limit and
+the alignment failure (`1e999999999 + 1` at the default significand limit and
 at the hard bound, which no limit holds, and `1e19000 + 1`, which the
-default range limit holds and 60,000 bits do not); the exponent bound at the
+default significand limit holds and 60,000 bits do not); the exponent bound at the
 bound and one past it, in a product, a quotient and a power; `pow` of
 `10` to `1442695` is `{1, 1442695}` where `2` to the same is `tooLarge`
-by the mantissa and `1e9` to `1e9` is `{1, 9e9}`.
+by the significand and `1e9` to `1e9` is `{1, 9e9}`.
 
 Behavior: none; the module is unused.
 
@@ -2903,10 +2904,10 @@ Behavior: none; the module is unused.
 
 `parseDecimal`, `roundTo`, `trunc` and `format` move from rational.ts to
 scaled.ts and account for the exponent: `parseDecimal` keeps a literal's
-exponent lazily, checking the mantissa against `LIMIT_BITS` and the
+exponent lazily, checking the significand against `MAX_SIGNIFICAND_LIMIT_BITS` and the
 exponent against `MAX_EXPONENT`, so `1e999999999` parses where it is
 `tooLarge` today; rounding to significant digits commutes with the power
-of ten, so `roundTo` and `format` act on the mantissa as they do today
+of ten, so `roundTo` and `format` act on the significand as they do today
 and add `exp` to the exponent, and a value of any exponent is rounded
 and written with nothing formed; `format` writes the exponent form for
 anything the fixed form cannot hold; `roundTo` gives a `Scaled`; `trunc`
@@ -2914,7 +2915,7 @@ is the value itself for an integer, the exact truncation where the value
 can be formed within the bound given, zero for a value below one, and
 `undefined` for a fractional value whose integer part cannot be formed
 (4.9's count). `exactRoot(s, degree)` divides the exponent by the degree,
-folds the remainder's power of ten into the mantissa when it can be
+folds the remainder's power of ten into the significand when it can be
 formed within the bound, and takes rational.ts's `exactRoot` of that,
 so `sqrt(1e999999998)` is exactly `1e499999999`, `sqrt(1e999999999)` is
 the kernel's, and a remainder that cannot be formed is no exact root.
@@ -2925,7 +2926,7 @@ by a bigint, `trunc`, `exactRoot` on a fraction and `toFraction`;
 `ceil(bits log10 2)`. The parser's literal becomes a `Scaled` with a lazy
 exponent, and the `number` node of expr.ts holds it; the `^` exponent
 stays a `Rational`, the exponent grammar converting with `toRational` at
-`LIMIT_BITS`, so that `m^1e999999999` is rejected where it is written
+`MAX_SIGNIFICAND_LIMIT_BITS`, so that `m^1e999999999` is rejected where it is written
 and `m^1e300000` is what it is today. Nothing else changes yet: the
 callers still hold rationals, and convert through `fromRational` and
 `toRational` at the boundary until 4.4, where that boundary goes.
@@ -2947,11 +2948,11 @@ literal, and round and format a fraction, through `src/testing/fraction.ts`
 (`parseFraction`, `roundFraction`, `formatFraction`), test support beside
 the random source that converts at the boundary as the app does; the
 evaluator forms a literal's fraction with `toRational` at the context's
-range limit and then applies the same size check as before, so a literal
+significand limit and then applies the same size check as before, so a literal
 beyond the setting is still `tooLarge` at its span; and since the
 parser no longer refuses a large exponent, `1e999999999 m` is refused by
 the evaluator, worded as a value too large to compute rather than a
-number too large to represent, which the parser still says of a mantissa
+number too large to represent, which the parser still says of a significand
 beyond the hard bound and of a `^` exponent that cannot be formed.
 
 Behavior: a literal with a large exponent parses where the parser
@@ -2971,9 +2972,9 @@ the kernel's error; every built-in passes its context, and `piBall`,
 `eBall` and the memos' balls likewise. `fixedFromRational` becomes
 `fixedFromScaled(s, bits)`, the same division with the power of ten on
 one side, a precondition failure for a value whose power of ten cannot
-be formed within the range limit, which every routine that takes the
+be formed within the significand limit, which every routine that takes the
 value itself bounds first (`sin`, `cos` and `tan` refuse an argument
-whose integer part exceeds the range limit as `tooLarge`, since the
+whose integer part exceeds the significand limit as `tooLarge`, since the
 reduction needs `pi` to its bits; `atan` beyond `2^bits` is `±pi/2`
 within `2^-bits`, and `asinh` and `acosh` beyond it are `ln(2|x|)` within
 `1/(2x^2)`, the saturations the note lists, put in here so that no
@@ -2983,14 +2984,14 @@ memo, so `ln(1e999999999)` is `≈ 2302585090.691` on the first pass, and
 the logarithms' exact cases read exponents (`log10(1e999999999)` is
 exactly `999999999`); `positiveRoot` and `rootAroundZero` scale by
 `10^(q k)` in the exponent and root `m × 10^r` on the kernel when the
-remainder's power fits the range limit, and take `powLogSpace`
+remainder's power fits the significand limit, and take `powLogSpace`
 otherwise, as a rational power does today when its power does not fit.
 `settle` in exact mode rounds an inexact midpoint to the working digits
 to nearest, `roundTo` on the decimal grid in place of the shift, and
 adds half a unit in the last digit to the radius (D15 restated).
 
 The ball's sums: `addBalls(a, b, context)` and `subtractBalls` align
-exactly where the shift fits the context's range limit; where it does
+exactly where the shift fits the context's significand limit; where it does
 not, two exact operands in exact mode are `tooLarge`, and otherwise (an
 inexact operand, or the decimal mode of 4.5, read here from the mode
 field 4.5 adds, exact until then) each inexact operand is settled first,
@@ -3017,7 +3018,7 @@ bounds instead of bit lengths.
 
 `certifies` compares the midpoint with the radius by exponents and
 leading digits where forming the ends is infeasible (D7): where the
-radius aligns with the midpoint's grid within the range limit, the two
+radius aligns with the midpoint's grid within the significand limit, the two
 ends are formed exactly, as today; otherwise the radius is rounded up to
 a decimal through the `log2 10` constant, the midpoint is taken to two
 digits beyond those asked, and the ends are that interval widened by the
@@ -3054,11 +3055,11 @@ the context, every built-in passing `workingDigits(context)`, so that
 fixed.ts stays below the context. The kernel is handed no argument it
 cannot hold at either end of the exponent: beside the saturations above
 for a large argument (`isBeyond`, `isHuge` in builtin.ts), an argument
-throughout below `2^-maxBits` is answered by its expansion at zero, the
+throughout below `2^-significandLimitBits` is answered by its expansion at zero, the
 odd functions (`sin`, `tan`, `atan`, `asin`, `sinh`, `tanh`, `asinh`,
 `atanh`) giving the argument itself within its cube and `cos` and `cosh`
 one within its square (`isTiny`, `tinyOdd`, `tinyEven`), and `extraBits`
-is held to the range limit; a tiny ratio formed inside `asin`, `acos` or
+is held to the significand limit; a tiny ratio formed inside `asin`, `acos` or
 `atan2` converts to zero within an ulp at the limit's bits and gives a
 ball around zero that certifies nothing, correct and the one case the
 expansion does not reach, since those combine the kernel's arctangent
@@ -3088,7 +3089,7 @@ length and a comparison (`decimalDigits`) and the powers of ten memoized
 (`powerOfTen`), a settle at the ceiling costs about 0.4 ms, a product
 of two settled balls 0.1 ms and the kernel's exit 0.2 ms on the machine
 of 4.4, which the kernel benchmark reports. The literal's range check is
-on the mantissa, so `1e999999999 m` evaluates where 4.3 refused it.
+on the significand, so `1e999999999 m` evaluates where 4.3 refused it.
 `Edge` is a `Scaled`, worded through `format` at one digit. A prefix
 times a unit at the exponent bound is `tooLarge` at the name's span in
 the build and a thrown error in the table's lookup, unreachable with
@@ -3111,10 +3112,10 @@ tests of the ball and above take a literal, a fraction and a ball through
 beside `src/testing/fraction.ts` for the fraction side. Of the names
 above, the radius of a `Scaled` is `radiusAboveScaled`, `radiusAbove`
 keeping the fraction; `fixedFromRational` stays beside `fixedFromScaled`;
-`scaleOf` went, `lnScaled` scaling the mantissa alone and `powLogSpace`
+`scaleOf` went, `lnScaled` scaling the significand alone and `powLogSpace`
 reading `log2Of`, the coarse bounds, in its place; and
-`fixedFromScaled`'s precondition is the hard bound `LIMIT_BITS`, not the
-range limit, so that a value below about `10^-315000` cannot be entered at
+`fixedFromScaled`'s precondition is the hard bound `MAX_SIGNIFICAND_LIMIT_BITS`, not the
+significand limit, so that a value below about `10^-315000` cannot be entered at
 all, which the tiny ratio of `atan2` (issue #47) and the argument of `exp`
 (issue #53) can reach.
 
@@ -3123,7 +3124,7 @@ the values above are values; `1e999999999 + 1` still fails, as `tooLarge`;
 every other result is what it is today to within a settle at the working
 precision, except that a power of ten of any size, and a rational power
 whose base is a power of ten, are values where they were `tooLarge`, and
-an argument of a built-in below `2^-maxBits` or beyond `2^maxBits`, which
+an argument of a built-in below `2^-significandLimitBits` or beyond `2^significandLimitBits`, which
 did not parse today, is answered as above; `exp(1e6)` and its family are
 still `tooLarge` until 4.9.
 
@@ -3307,7 +3308,7 @@ As it landed. The sweep covered ARCHITECTURE.md ("Numbers", "Precision
 and rounding" with the settle in decimal mode and the one pass, "Working
 precision and the context", "Size limits", "UI", "Layout" and "Later"),
 README ("Settings" with the mode, "Functions in expressions" with the
-range of the inexact functions and `approx`, "Most bits" with the free
+range of the inexact functions and `approx`, "Significand limit" with the free
 power of ten), docs/builtins.md (the rules under the two modes, the
 large-argument rules, the limit on large results, `approx`),
 docs/decimal.md and docs/approximate.md ("Implementation notes" written,
@@ -3326,17 +3327,17 @@ Behavior: none; documentation.
 Added during stage 3 (3.6), after 4.4 in the order, since the midpoint
 can then hold a large result and the display write it; this task changes
 the kernel and the guards, and nothing in 4.4 depends on it. `Floating =
-{ mant: Fixed; exp: bigint }` in fixed.ts stands for `mant × 2^exp`, and
+{ significand: Fixed; exp: bigint }` in fixed.ts stands for `significand × 2^exp`, and
 `fixedToScaled` takes one: exactly, as 4.4 has it, for an exponent that
-can be formed within the range limit, and otherwise through new
+can be formed within the significand limit, and otherwise through new
 `src/core/digits.ts`, above the kernel, which finds the decimal digits
-in log space: the decimal exponent is `floor(exp log10 2 + log10 mant)`
+in log space: the decimal exponent is `floor(exp log10 2 + log10 significand)`
 and the leading digits are `10^fraction`, through `lnFixed`, `expFixed`
 and the memoized `ln 2` and `ln 10` at the working bits plus the bit
 length of the exponent plus a margin, the computation's error carried in
 the kernel's error counts and added to the radius beside the result's;
 it is the one place the program needs log space. `expFixed(f, bits)`
-returns a `Floating`: after each squaring of its loop the mantissa is
+returns a `Floating`: after each squaring of its loop the significand is
 cut to the working bits and the rest moved into the exponent (so
 `exp(1e6)` costs what `exp(1)` costs plus sixty squarings at the working
 bits), and a negative argument is the same loop with the exponent going
@@ -3365,7 +3366,7 @@ exponent through `evaluateText`; `digits.ts` against Python's decimal
 module for `2^1442695`, `2^-1442695`, `3 × 2^1442695` and `7 × 2^(3 ×
 10^18)` at 8, 30 and 60 digits, and its agreement with the exact
 conversion on every value both can form (`2^100000`, `2^-100000`, at the
-range limit and on both sides of it); `exp(1e18)` is a value and
+significand limit and on both sides of it); `exp(1e18)` is a value and
 `exp(1e30)` is `tooLarge` at the exponent bound, with its message; the
 containment test of `exp` extended to arguments up to `1e6` of either
 sign, at a precision against four times it, at the value and both ends,
@@ -3377,7 +3378,7 @@ the kernel benchmark's `exp 1e6` at the
 ceiling costs within a small factor of `exp 1`.
 
 As it landed. `Floating` and its helpers (`floatingOf`,
-`normalizeFloating`, which brings a mantissa to `[1, 2)` at the working
+`normalizeFloating`, which brings a significand to `[1, 2)` at the working
 bits and moves the rest into the exponent, and `floatingToFixed`, the
 exact way back within a limit) are in fixed.ts, and `expFixed` returns
 one, normalizing after each squaring; its precondition is an argument
@@ -3389,12 +3390,12 @@ working bits in the exponent; `tanhFixed` is one within two ulps there,
 which the built-in's saturation never lets it reach. `digits.ts`'s
 `floatingToBall(fl, context)` is the one way out, a `Result` that fails
 `tooLarge` only where the decimal exponent passes the bound by the
-guard's double slack: exactly through `floatingToFixed` at the range
+guard's double slack: exactly through `floatingToFixed` at the significand
 limit, and otherwise `t = (e ln 2 + ln m) / ln 10` at the working bits
 plus the exponent's bit length plus 24, the decimal exponent `floor(t)`
 and the leading digits `exp((t - floor(t)) ln 10)` as a ball on the
 grid times the power of ten; the first landing scaled `ln 2` by the
-exponent less the mantissa's bits, which the mantissa's own fraction
+exponent less the significand's bits, which the significand's own fraction
 bits already say, and gave `exp(1e6)` eighteen digits short. `expFits`
 takes the bound alone and compares `bound log10 e` with `MAX_EXPONENT`,
 `powBall`'s guard is `log10` of the base's magnitude times the exponent
@@ -3406,7 +3407,7 @@ digits of the result at 47 ms, the logarithm and the two memos computed
 for the call at the ceiling's bits plus the exponent's, on the machine
 of 4.9. `7^(100000/3)`, `pow(7, 100000/3)` and `pow(2, 1e6/3)` are
 values through log space, and `pow(10, 100000 ± 1)` is a ball that
-covers `10^100000`, where the range limit refused all four; `1e999999999
+covers `10^100000`, where the significand limit refused all four; `1e999999999
 m` into `ft;in` is the settled count of 4.4. The tests take
 `neper(1000001)` for the large logarithmic unit, `decibel` being a
 function whose large argument is an exact power of ten that the exponent
@@ -3511,8 +3512,8 @@ tasks come in two tiers:
   the amendments to D4, D8, D15 and D16), which land with this section. It
   is H.10 to H.16, in their order: the sweep, `settle` as a `Result` (with
   the edge on `BallError`'s `unresolved`), the unit lists, the bound on
-  the value, the size check, the guard, and `pow`'s exponent past Most
-  bits.
+  the value, the size check, the guard, and `pow`'s exponent past the significand
+  limit.
 
 H.17 records the phase as it landed. Each task is one commit unless it
 says otherwise, and each says what closes which issue. The table gives the
@@ -3520,25 +3521,25 @@ order and the edges; "text" marks an edge that exists only because two
 tasks edit the same lines, and "preferred" an order the task asks for but
 does not need.
 
-| Task                                           | Closes                  | Depends on                        |
-| ---------------------------------------------- | ----------------------- | --------------------------------- |
-| H.1 `tanh` of a wide argument                  | #38, #49                |                                   |
-| H.2 Tiny arguments at the kernel's door        | #53, #56                |                                   |
-| H.3 `exp` of a wide argument                   | #39                     | H.1 (text)                        |
-| H.4 The radius of a power of ten               | part of #44             |                                   |
-| H.5 Roots of a large degree or a tiny mantissa | #45, #57                | H.4 (text)                        |
-| H.6 `pow` of the exact bases 0, 1 and −1       | part of #46             | H.5 (text)                        |
-| H.7 The inverse trigonometric functions        | #47, #64                | H.2 (text)                        |
-| H.8 A name followed by `(` is only a call      | #54                     |                                   |
-| H.9 Smaller reductions, then Lehmer's gcd      | part of #52, #66        |                                   |
-| H.10 The edge sweep                            |                         | the decisions; tier 1 (preferred) |
-| H.11 `settle` returns a `Result`               | part of #44             | H.4                               |
-| H.12 Unit lists report refusals                | #58, part of #44        | H.11                              |
-| H.13 The exponent bound is on the value        | #50, #48, #44, #59, #60 | H.4, H.11, H.12; H.2 (preferred)  |
-| H.14 Exact results are held to `maxBits`       | #52                     | H.9, H.13 (text)                  |
-| H.15 One guard for the exponential and powers  | #40, #46, #61, #62      | H.1, H.2, H.3, H.6, H.13          |
-| H.16 `pow`'s exponent past `maxBits`           | part of #46             | H.2, H.6, H.15                    |
-| H.17 The phase as it landed                    |                         | all                               |
+| Task                                                  | Closes                  | Depends on                        |
+| ----------------------------------------------------- | ----------------------- | --------------------------------- |
+| H.1 `tanh` of a wide argument                         | #38, #49                |                                   |
+| H.2 Tiny arguments at the kernel's door               | #53, #56                |                                   |
+| H.3 `exp` of a wide argument                          | #39                     | H.1 (text)                        |
+| H.4 The radius of a power of ten                      | part of #44             |                                   |
+| H.5 Roots of a large degree or a tiny significand     | #45, #57                | H.4 (text)                        |
+| H.6 `pow` of the exact bases 0, 1 and −1              | part of #46             | H.5 (text)                        |
+| H.7 The inverse trigonometric functions               | #47, #64                | H.2 (text)                        |
+| H.8 A name followed by `(` is only a call             | #54                     |                                   |
+| H.9 Smaller reductions, then Lehmer's gcd             | part of #52, #66        |                                   |
+| H.10 The edge sweep                                   |                         | the decisions; tier 1 (preferred) |
+| H.11 `settle` returns a `Result`                      | part of #44             | H.4                               |
+| H.12 Unit lists report refusals                       | #58, part of #44        | H.11                              |
+| H.13 The exponent bound is on the value               | #50, #48, #44, #59, #60 | H.4, H.11, H.12; H.2 (preferred)  |
+| H.14 Exact results are held to `significandLimitBits` | #52                     | H.9, H.13 (text)                  |
+| H.15 One guard for the exponential and powers         | #40, #46, #61, #62      | H.1, H.2, H.3, H.6, H.13          |
+| H.16 `pow`'s exponent past `significandLimitBits`     | part of #46             | H.2, H.6, H.15                    |
+| H.17 The phase as it landed                           |                         | all                               |
 
 The pull requests: H.1; H.2 with H.3; H.4 with H.5; H.6; H.7; H.8; H.9;
 then, in tier 2, H.10; H.11 with H.12; H.13; H.14; H.15; H.16; H.17.
@@ -3612,7 +3613,7 @@ them on:
     `pow(1/3, 1e-30)` throw (H.5, #57).
   - `pow(2e200, 1e-20)` runs half a minute and then throws, and
     `pow(1e-5 - approx(1e-5), 3^-700)` throws in the radius (H.5, #57).
-  - At a range limit from about 350,000 bits up, which the settings allow,
+  - At a significand limit from about 350,000 bits up, which the settings allow,
     `exp`, `sinh`, `tanh`, `atan` and `sin` of values near the edges of
     what the kernel is handed throw (H.2, #56).
   - `cbrt(1e-1000000000000000000)` and `cbrt(2e-1000000000000000000)`
@@ -3622,7 +3623,7 @@ them on:
   - `3^32767 m` into `ft/7^21845; in/7^21845` throws (H.12, #58).
   - `pow(5e1000000000000000000, 1/3)` throws after twenty seconds in
     decimal mode (H.3, added to #39).
-- Roots of a tiny mantissa that no pass resolves: `pow(3^-10000, 2^-30)`
+- Roots of a tiny significand that no pass resolves: `pow(3^-10000, 2^-30)`
   is reported as not told from zero, and `(7^-8000)^(1/99999)` is shown as
   zero within `0.9` (H.5, #57).
 - A wrong answer: a unit list near the bound is certified at a tenth below
@@ -3635,17 +3636,17 @@ them on:
   - `pow(approx(1), 1e999999999)` (added to #46);
   - `floatingToBall`'s decision on its midpoint (#61);
   - the cost of a zero midpoint's power (#62).
-- Sums of fractions not held to Most bits (H.14, added to #52).
+- Sums of fractions not held to the significand limit (H.14, added to #52).
 
 Three more the review found are taken on by this phase or by stage 5,
 since each is the twin of a fix here, and stage 6's functions would copy
 whichever handling is in place:
 
-- `atan` and `atan2` refuse a wide ball that reaches `2^maxBits`, as #49
+- `atan` and `atan2` refuse a wide ball that reaches `2^significandLimitBits`, as #49
   had `tanh` do (#64): H.7, by H.1's rule.
 - The parser reduces a `^` exponent's fraction on literals up to the hard
   bound, which takes minutes with Euclid's gcd and seconds with Lehmer's
-  (#66): H.9, by moving the reduction to the evaluator, where the range
+  (#66): H.9, by moving the reduction to the evaluator, where the significand
   limit applies, as D19 asks of what can be bounded before forming.
 - A zero's bound far below the exponent bound is written with every digit
   of its exponent. `(approx(1e20) - approx(1e20))^1e100000`, which H.15
@@ -3655,7 +3656,7 @@ whichever handling is in place:
 
 Three go to follow-up issues rather than this phase:
 
-- `asin`, `acos` and `acosh` of an exact argument with a long mantissa
+- `asin`, `acos` and `acosh` of an exact argument with a long significand
   (`asin(0.1 + 1e-15000)`) are refused, since their exact `1 - x^2` does
   not align (#63).
 - `tanhFixed`'s fold band costs an extra pass (`tanh(75)`, #65).
@@ -3752,20 +3753,20 @@ and `atan2`'s tiny ratio (#47). The threshold is half an ulp, not an ulp,
 so that the result equals the rounding it replaces.
 
 The hard bound it forms the fraction within is also too small for the
-range limits the settings allow. `isTiny` hands the kernel an argument
-down to `2^-maxBits`, about `1.5e-315653` at Most bits 1,048,576, and a
+significand limits the settings allow. `isTiny` hands the kernel an argument
+down to `2^-significandLimitBits`, about `1.5e-315653` at the significand limit 1,048,576, and a
 caller of `extraBits` converts it at more bits than its magnitude, so it
-is never below half an ulp there. `toRational` at `LIMIT_BITS`, at 3.33
+is never below half an ulp there. `toRational` at `MAX_SIGNIFICAND_LIMIT_BITS`, at 3.33
 bits a digit, forms nothing below about `1e-314887`, nor a literal of
-170,000 digits of order one, which Most bits 600,000 admits; and `sin`'s
-`2^maxBits` lets `1e315000` through. So from a range limit of about
+170,000 digits of order one, which the significand limit 600,000 admits; and `sin`'s
+`2^significandLimitBits` lets `1e315000` through. So from a significand limit of about
 350,000 bits up, `exp`, `sinh`, `tanh`, `atan` and `sin` of such values
 throw today (#56). `fixedFromScaled` therefore forms the fraction within
-`4 × LIMIT_BITS`, which holds any mantissa within the range limit at a
-magnitude between `2^-maxBits` and `2^maxBits` (about `3 × LIMIT_BITS`),
+`4 × MAX_SIGNIFICAND_LIMIT_BITS`, which holds any significand within the significand limit at a
+magnitude between `2^-significandLimitBits` and `2^significandLimitBits` (about `3 × MAX_SIGNIFICAND_LIMIT_BITS`),
 and it still throws past that.
 
-`expBall` answers an argument throughout below `2^-maxBits` with one
+`expBall` answers an argument throughout below `2^-significandLimitBits` with one
 within twice its magnitude bound, which is sound since `e^|x| - 1 <= 2|x|`
 there. That is how the other built-ins answer a tiny argument, by their
 expansion at zero (4.4). #53 also asks `powLogSpace` to answer a tiny `y`
@@ -3775,7 +3776,7 @@ itself, which needs a certified bound on `|ln x|`, lands with H.15. The
 pull request that closes #53 quotes this.
 
 The total conversion, with the larger bound, is the root fix: it closes
-the crash for every caller at every range limit, stage 6's included. The
+the crash for every caller at every significand limit, stage 6's included. The
 expansion keeps the digits where a function has one, and the sweep (H.10)
 keeps a missing expansion visible.
 
@@ -3788,7 +3789,7 @@ Tests:
 - `powLogSpace` of a tiny exponent, and `pow(2, approx(1e-999999999))`.
 - `atan2(1e-999999999999999999, -1)` is `≈ pi`, as the crash's regression
   test; H.7 gives the ratio its value.
-- At Most bits 1,048,576: `sinh`, `cosh`, `tanh`, `atan` and `sin` of
+- At the significand limit 1,048,576: `sinh`, `cosh`, `tanh`, `atan` and `sin` of
   `1e-315000`, `sinh` of `0.` followed by 200,000 ones, and
   `sin(1e315000 radian)` are values.
 
@@ -3803,7 +3804,7 @@ kernel's boundary".
 
 Behavior: `exp` and the log-space power of a tiny argument are values
 where they threw, and so are the built-ins near the edges of what the
-kernel is handed at a raised range limit.
+kernel is handed at a raised significand limit.
 
 ### H.3 `exp` of a wide argument
 
@@ -3812,7 +3813,7 @@ error of at least one half) with zero within the exponential of its signed
 upper end. That end, `value + error`, is formed exactly, with no error,
 and the bound is the exponential's value plus its error: every value of
 the interval has its exponential between zero and that. `floatingToBall`
-(digits.ts) takes such a result, whose mantissa's interval contains zero
+(digits.ts) takes such a result, whose significand's interval contains zero
 and so has no logarithm, as zero within the bound of its extent.
 
 Stage 4 halved and squared the whole interval. A relative error of
@@ -3869,7 +3870,7 @@ Docs: radius.ts's header; the comment in `farLogarithm`.
 
 Behavior: the six inputs above are values where they threw.
 
-### H.5 Roots of a large degree or a tiny mantissa
+### H.5 Roots of a large degree or a tiny significand
 
 `rootFixed` (fixed.ts) takes a degree up to `ROOT_DEGREE_LIMIT`, `2^32`,
 as a precondition. Its doc gives the reasons. The first guess is a
@@ -3885,11 +3886,11 @@ that) to `undefined`, so that `rootBall` keeps its odd and even handling
 (`pow(-2, 3^-700)` is `≈ -1` through its negative branch):
 
 - a degree past the limit;
-- a mantissa whose remainder's power of ten does not fit the range limit
+- a significand whose remainder's power of ten does not fit the significand limit
   (stage 4's fallback);
-- a mantissa scaled so far below one that its exponent, less `j` times the
-  degree, passes `-bitsFor(precision)`. That mantissa converted to zero
-  and reported a false `unresolved`. A mantissa below one by less than
+- a significand scaled so far below one that its exponent, less `j` times the
+  degree, passes `-bitsFor(precision)`. That significand converted to zero
+  and reported a false `unresolved`. A significand below one by less than
   that is converted at the working bits plus the deficit, as `extraBits`
   converts a small argument of an odd function, so that it keeps its
   digits through the root rather than certifying fewer per pass; the
@@ -3920,7 +3921,7 @@ Tests:
   `0.99998976842809102303`.
 - `rootFixed` at degree `2^32`, over arguments across its range at 36, 69
   and 200 bits, and the precondition at `2^32 + 1`.
-- A mantissa below one by less than the working bits keeps its digits:
+- A significand below one by less than the working bits keeps its digits:
   `pow(3^-20, 1/1000)` certifies the digits asked at the first pass.
 - `rootRadiusAbove` at degrees `10^400` and `3^700`.
 
@@ -3935,7 +3936,7 @@ request, H.4 first.
 ### H.6 `pow` of the exact bases 0, 1 and −1
 
 `powBallOf` (builtins/pow.ts) answers these cases in this order, before it
-forms the exponent's fraction within the range limit:
+forms the exponent's fraction within the significand limit:
 
 1. An exact exponent of zero gives one.
 2. An exact base of one gives exactly one, for any exponent, an inexact or
@@ -3946,9 +3947,9 @@ forms the exponent's fraction within the range limit:
    cannot be formed, is decided by the parity the canonical form gives,
    where `toRational` fails and without forming the fraction. An exponent
    with `exp > 0` has a numerator that is a multiple of ten over an odd
-   denominator (the mantissa's denominator is coprime to ten), so the
+   denominator (the significand's denominator is coprime to ten), so the
    power is `1`, `1e999999999/3` included. With `exp < 0` the fraction's
-   denominator is even unless the mantissa's numerator holds at least
+   denominator is even unless the significand's numerator holds at least
    `-exp` twos: with fewer the power is the even root of a negative number
    (`1e-30000`), with exactly `-exp` it is `-1` (`5^-16000`), and with
    more it is `1` (`2 * 5^-16000`). A formable exponent keeps the rational
@@ -3965,7 +3966,7 @@ Tests:
 - `pow(0, -1e999999999)` is a division by zero, and `pow(-1, 1e-30000)` is
   the even root of a negative number.
 - `pow(-1, 1/3)` is `-1`, and `pow(-1, 2/3)` is `1`.
-- At the default range limit, `pow(-1, 5^-16000)` is `-1`, and
+- At the default significand limit, `pow(-1, 5^-16000)` is `-1`, and
   `pow(-1, 2 * 5^-16000)` and `pow(-1, 1e999999999/3)` are `1`; `5^-15000`
   still forms, and `pow(-1, 5^-15000)` stays `-1` by the rational route.
 - The test that pins `pow(1, 1e999999999)` as refused changes, and so does
@@ -3986,8 +3987,8 @@ Four commits in builtins/inverse-trig.ts, which close #47 and #64.
 - `asin` and `acos` answer an argument whose square lies below
   `2^-bitsFor(precision)` by their expansion: `asin` as the argument
   within its cube, and `acos` as `pi/2` less that. The threshold is on the
-  square at the working bits, not `isTiny`'s `2^-maxBits`. That would
-  leave `1e-9841` to `1e-19728` refused at the default range limit, where
+  square at the working bits, not `isTiny`'s `2^-significandLimitBits`. That would
+  leave `1e-9841` to `1e-19728` refused at the default significand limit, where
   `1 - x^2` does not align.
 - `atan2`, for a `y` of definite sign, compares magnitudes as radii and
   forms no ratio where it cannot:
@@ -4002,7 +4003,7 @@ Four commits in builtins/inverse-trig.ts, which close #47 and #64.
   value, rather than a ball around zero that certifies nothing.
 
 - `atan` and `atan2` are never refused for an argument's radius (#64),
-  by H.1's rule for `tanh`: a ball that reaches `2^maxBits` without lying
+  by H.1's rule for `tanh`: a ball that reaches `2^significandLimitBits` without lying
   beyond `2^bits` throughout, which `atanKernel` refused as `tooLarge`,
   is the function's whole range, zero within two for `atan` (the
   kernel's own trivial bound for a wide interval) and zero within four
@@ -4105,8 +4106,8 @@ second commit's gcd makes that seconds, not milliseconds. The tree now
 carries the exponent as the parser read it, `Exponent = { num: bigint;
 den: bigint }` with `den` positive and the pair unreduced (a `Rational`
 promises lowest terms, which the parser can no longer promise), and the
-evaluator reduces it where the range limit applies, `reduceExponent(e,
-maxBits)`: a numerator or a denominator past `maxBits` is `tooLarge` at
+evaluator reduces it where the significand limit applies, `reduceExponent(e,
+significandLimitBits)`: a numerator or a denominator past `significandLimitBits` is `tooLarge` at
 the power's span before any gcd runs, as D19 asks of what can be bounded
 before forming, and the rest is `rational(num, den)` with the gcd of the
 second commit, milliseconds at any setting. `dimensionOf` reduces the
@@ -4125,7 +4126,7 @@ construction; reducedness asserted over every constructor that bypasses
 since the smaller reductions are correct only for operands in lowest
 terms, and a full reduction of the result no longer forgives a broken
 invariant upstream; `2^(a/b)` with pseudo-random literals of 315,000
-digits parses in milliseconds and is `tooLarge` at the default range
+digits parses in milliseconds and is `tooLarge` at the default significand
 limit, and with 10,000-digit literals evaluates to its value. A
 benchmark, bench/rational.bench.ts, reports the probe's operation, one gcd
 and #52's quotients, and asserts only ratios within the run;
@@ -4137,8 +4138,8 @@ terms, the invariant of `Rational`, with `rational` the one constructor
 that reduces; expr.ts's header and ARCHITECTURE.md ("Expressions"), whose
 exponent "travels in the tree as a `Rational`" no longer.
 
-Behavior: none but speed, and a `^` exponent past the range limit refused
-at the power rather than reduced for minutes. The range limit that
+Behavior: none but speed, and a `^` exponent past the significand limit refused
+at the power rather than reduced for minutes. The significand limit that
 "Recommend limits" proposes rises, from 8,192 to 32,768 bits on this
 project's cloud container. H.14 redefines the probe.
 
@@ -4165,12 +4166,12 @@ relative radius of `1e-30`:
   are not symmetric;
 - `1e-400`, `1e±20000`, `1e-400000`, `1e-999999999`, `1e-10^18` and
   `1e-(10^18 - 1)`;
-- `1e19`, `1e400`, `5e10^18`, `9.99e10^18`, and a long all-nines mantissa
+- `1e19`, `1e400`, `5e10^18`, `9.99e10^18`, and a long all-nines significand
   at the top;
-- a fraction mantissa at either edge, `1e10^18 / 3` and
+- a fraction significand at either edge, `1e10^18 / 3` and
   `1e-(10^18 - 1) / 3`; the second reaches both of #44's settle crashes,
   as `1e-10^18 / 3` does, and stays within the bound under D17, where
-  `scaled()` refuses `1e-10^18 / 3` from H.13; and a mantissa of 25 digits
+  `scaled()` refuses `1e-10^18 / 3` from H.13; and a significand of 25 digits
   near one;
 - wide balls: `0 ± 1e9`, `0 ± 1e30`, `0 ± 1e948`, `5 ± 2e948`,
   `1 ± 1e-400` and `3e18 ± 2e18`, and the exact `1 + 1e-400`.
@@ -4366,7 +4367,7 @@ Tests:
 
 Docs: convert.ts's header, the comments that name #44 and #48, and the
 `#52` clauses in `decompose`'s and `settled`'s comments (`ConvertError`'s
-sentence that a quotient is not held to the range limit stays until H.14);
+sentence that a quotient is not held to the significand limit stays until H.14);
 ARCHITECTURE.md, "Unit lists".
 
 Behavior: a unit list's refusal is an error, and the display's rounding
@@ -4381,7 +4382,7 @@ The first commit lands D17 and D18's rule for the arithmetic together,
 since either alone regresses.
 
 - `scaled()` checks the decimal exponent inside D17's band, with a fast
-  path for an integer mantissa's digit count. `parseDecimal`'s check of
+  path for an integer significand's digit count. `parseDecimal`'s check of
   the exponent as written goes, and so does `pow`'s canonical pre-check.
   The check that `settle` imports takes the new body.
 - `multiplyBalls` and `divideBalls` apply D18 when an operand is inexact
@@ -4482,20 +4483,20 @@ for its representation, and a ball that straddles it is retried. It is
 best landed after H.2, so that `exp` of a newly admitted tiny literal does
 not throw.
 
-### H.14 Exact results are held to `maxBits`
+### H.14 Exact results are held to `significandLimitBits`
 
 The check of D19 runs in `evaluate()`'s wrapper, on the settled result,
 and after the pipeline's ratio and a function want's count. The exponent
 bound is checked first, and no signature changes. Its action is D20's:
 the node is refused, `tooLarge` at its span, and messages.ts words it
 with the remedy, `"3^32767 * 7^21845" is too large to hold exactly within
-Most bits: write "approx(3^32767)" in place of "3^32767" to compute it to
-the digits asked, or raise Most bits.` (the message keeps the panel's
-label, "Most bits", which is what the user sees; the setting is `maxBits`
+the significand limit: write "approx(3^32767)" in place of "3^32767" to compute it to
+the digits asked, or raise the significand limit.` (the message keeps the panel's
+label, "Significand limit", which is what the user sees; the setting is `significandLimitBits`
 in the code; the remedy is `approx` around the node's first operand,
 whose span the error carries, since `approx(3^32767 * 7^21845)` is
 refused at the product before `approx` sees it, as H.14 found), where
-the range limit's other refusals (a
+the significand limit's other refusals (a
 literal, a sum's alignment, a power's prediction, the kernel's reach)
 keep their wording, since `approx` is not their remedy in the same way
 (a literal is exact by being typed, and the kernel's reach is not a
@@ -4508,7 +4509,7 @@ still run: a product of two fractions of `bits` bits in each part, whose
 two cross-cancelling gcds (H.9) run before its result is measured and
 refused, with its operands built outside the timed call. It timed a
 product of that size with three gcds, the last on the full product.
-`DEFAULT_MAX_BITS` stays 65,536, at which that operation takes about two
+`DEFAULT_SIGNIFICAND_LIMIT_BITS` stays 65,536, at which that operation takes about two
 of H.9's 19 ms gcds.
 
 Tests:
@@ -4525,7 +4526,7 @@ Tests:
 - `asin`, `acosh` and `atan2` of large exact arguments are unchanged.
 - Every repro is a value in decimal mode.
 - A product past both limits is `overflow`.
-- The shipped definitions build at `MIN_MAX_BITS`.
+- The shipped definitions build at `MIN_SIGNIFICAND_LIMIT_BITS`.
 - `3^25000/7^14000 m` into `11^15000/13^14000 ft`, whose two sides are
   within the limit, is `tooLarge` at the conversion's ratio, where it was
   a value after 3.7 s.
@@ -4542,19 +4543,19 @@ Docs:
   rule 1.
 - docs/calculator.md's "Memory", which says exact growth is already
   bounded.
-- docs/decimal.md, "The range limit, restated".
-- README, "Most bits": already says what is counted (the bits of what is
+- docs/decimal.md, "The significand limit, restated".
+- README, "Significand limit": already says what is counted (the bits of what is
   stored, fives for a dyadic's twos) and what the app does at the limit,
   as D16 and D20 have it; this task removes its "not yet" on products and
   quotients. README's `approx` paragraph: products and quotients join
   sums and powers, and a sum's growth joins its alignment.
 - The comments on the default in context.ts and limits.ts, and
   system-build.ts's header.
-- scaled.ts's header sentence that the range limit's reasoning allows the
+- scaled.ts's header sentence that the significand limit's reasoning allows the
   canonical form's growth.
 - The comments that name #52 (see the list above).
 
-Behavior: an exact result past Most bits is refused at the node that forms
+Behavior: an exact result past the significand limit is refused at the node that forms
 it, and `approx` lifts the refusal. "Recommend limits" recommends from the
 new operation.
 
@@ -4591,7 +4592,7 @@ Each site has its own `L`:
   (`radiusBound`, which it used, is infinite past about `2^1030`). When
   `|L|max`, the bound on `|y ln x|`, is below `2^-bits`, the result is one
   within `2|L|max`, without the kernel. When the bits it would need pass
-  the range limit, the answer comes from its bound, or is `tooLarge`.
+  the significand limit, the answer comes from its bound, or is `tooLarge`.
 - `powBall`: `n ln |b|`, taken at the midpoint alone for a ball of
   unbounded radius, as `log2Scale` took it, with three special cases:
   - a base whose ball contains zero is tested against the top edge alone;
@@ -4672,9 +4673,9 @@ Docs:
 Behavior: the exponential family and the powers are refused only when
 every value of the argument passes the bound, and retried when some do.
 
-### H.16 `pow`'s exponent past `maxBits`
+### H.16 `pow`'s exponent past `significandLimitBits`
 
-`pow` forms an exact exponent as a fraction within the range limit, and
+`pow` forms an exact exponent as a fraction within the significand limit, and
 refuses one it cannot form, as documented: `pow(2, 1e-999999999)` is
 `tooLarge`, though its value is about one, while H.2 makes
 `pow(2, approx(1e-999999999))` a value. That is the asymmetry D17 exists
@@ -4728,20 +4729,20 @@ exact and short; its digits are not).
 Written after the hardening phase, from D17. The note settles the four
 questions this task carried, and one more:
 
-- A display length that does not depend on Most bits. Values legal under
-  the range limit already run to 15,634 digits (`3^32767`), and far more
-  at a raised limit, so the range limit is not a display rule. The rule:
+- A display length that does not depend on the significand limit. Values legal under
+  the significand limit already run to 15,634 digits (`3^32767`), and far more
+  at a raised limit, so the significand limit is not a display rule. The rule:
   a fraction is written when its numerator and its denominator each fit
-  within the Digits setting; provisional, studied after the stage (#91).
+  within the display digits; provisional, studied after the stage (#91).
 - A third outcome, beside the fraction and the exponent notation for a
-  short mantissa with a large exponent: an exact value too long to write
+  short significand with a large exponent: an exact value too long to write
   as a fraction falls back to the decimal display, which says `=` where
   its own rule allows (`= 1.5e-999999999`) and `≈` otherwise
   (`≈ 3.4867844e+9` for `3^20` at eight digits). The two outcomes are one
   rule, the fallback.
 - Every literal it writes parses back under D17. It writes the value's
-  decimal exponent with a normalized mantissa, never the canonical
-  `exp`; a fraction is a quotient of two literals within Digits. The one
+  decimal exponent with a normalized significand, never the canonical
+  `exp`; a fraction is a quotient of two literals within the display digits. The one
   exception, a value at the exponent `10^18` whose rounding carries it to
   `1e+1000000000000000001`, is written as the rounding mode gives it and
   refused when typed back, which the note argues is right.
@@ -4854,8 +4855,8 @@ cell) or `unresolved` at the boundary it straddles; `sign` `unresolved`
 at zero; the integer functions refusing an inexact argument as a
 `domain` error (`notExact`) and a non-integer as another (`notInteger`);
 `factorial`, `binomial` and `doublefactorial` predicting their bits
-from Stirling's formula and refusing past `maxBits` with a `tooLarge`
-worded as their own, the remedy being Most bits. `round` is the first
+from Stirling's formula and refusing past `significandLimitBits` with a `tooLarge`
+worded as their own, the remedy being the significand limit. `round` is the first
 built-in with a range of arities, one or two; the sweep's builder
 enumerates each. Three domain reasons in builtin.ts, worded in
 messages.ts.
@@ -4884,7 +4885,7 @@ balls throughout (D9). No exact case.
 
 `lgamma` by the shift and Stirling's series with the same bound, the
 reflection, the poles; `gamma` as its exponential with the sign, an
-exact integer whose factorial fits Most bits exact, one that does not
+exact integer whose factorial fits the significand limit exact, one that does not
 the kernel's value (the factorial refusal's remedy), and the classifier
 on the `lgamma` ball as the guard at the exponent bound; propagation by
 running on balls, so `gamma` does not depend on `digamma`. The cost at
@@ -4894,7 +4895,7 @@ the study's estimate.
 ### 6.4 `beta`
 
 Through `lgamma` under the classifier; exact for positive integers
-within Most bits; a pole of `Γ(a + b)` alone exactly zero.
+within the significand limit; a pole of `Γ(a + b)` alone exactly zero.
 
 ### 6.5 The incomplete gamma functions
 
@@ -5146,7 +5147,7 @@ Tests:
   holding exactly;
 - each row of docs/functions.md's table of comparisons on balls,
   including a ball with an end exactly on the bound;
-- an exact comparison of values past Most bits, never refused;
+- an exact comparison of values past the significand limit, never refused;
 - `-5 K` into `tempC` refused.
 
 ### 7.4 Stage 7 docs
@@ -5233,7 +5234,7 @@ fresh process with the table built (cold) and then again in that process
 | `digamma(approx(0.3)) - digamma(approx(0.3))`           | 7.4 s | 4.3 s  |
 | `exp(1) - exp(1)`, for scale                            | 17 ms | 8 ms   |
 
-At a cap of 2,450 digits, just under the highest the default range limit
+At a precision limit of 2,450 digits, just under the highest the default significand limit
 allows (2,453, a ceiling of 9,852), `beta(0.5, 0.5) - pi()` is 16 s cold
 and 6.3 s warm. The expression a user happened to find is far from the
 worst, and the worst are found only by looking.
@@ -5247,8 +5248,8 @@ worst, and the worst are found only by looking.
   evaluated again in that worker.
 - **The passes** the retry loop ran, with the precision and the time of
   each, and the outcome's kind and first line.
-- **The settings,** which are part of a case: the digits, the cap, the
-  range limit, the mode, the rounding, the fractions display, and the
+- **The settings,** which are part of a case: the digits, the precision limit, the
+  significand limit, the mode, the rounding, the fractions display, and the
   want (blank, a unit, a list or a function).
 
 Time depends on the machine, so a catalogue names the machine it was
@@ -5279,17 +5280,17 @@ The search covers the factors that set the cost:
   the costly kind. The catalogue reports the cost per call beside the
   cost per case, so that long expressions do not fill it.
 - **What is paid once:** the Bernoulli run, the constants' memos at a
-  new ceiling, and the table rebuilt when the cap moves. The cold and
+  new ceiling, and the table rebuilt when the precision limit moves. The cold and
   warm timings tell these apart from the cost of every pass.
-- **The settings:** the cap, which sets the ceiling, and the kernels'
+- **The settings:** the precision limit, which sets the ceiling, and the kernels'
   costs grow faster than linearly with it; the digits, which set the
-  schedule's length; the range limit, which sizes the exact operations;
+  schedule's length; the significand limit, which sizes the exact operations;
   decimal mode, which runs one pass; and the want, which adds a list's
   terms, a function's inverse with the check of its answer, or the
   reciprocal line. The search runs at the default settings and at the
-  highest cap the default range limit allows, and samples the extreme
-  settings (the range limit's hard bound of 2^20 bits, which allows a
-  cap of 39,444 digits) to find where cases pass their deadline.
+  highest precision limit the default significand limit allows, and samples the extreme
+  settings (the significand limit's hard bound of 2^20 bits, which allows a
+  precision limit of 39,444 digits) to find where cases pass their deadline.
 - **Typing.** The interface evaluates at every keystroke, and a prefix
   of a text can cost more than the whole:
   `digamma(approx(0.3)) - digamma(approx(0.3))` never certifies, and
@@ -5405,10 +5406,10 @@ and its tables; and `search.ts`, the command. The choices the task left open:
   whose value lies in its domain one time in five.
 - **A family is keyed by the settings profile too,** besides the
   pattern, the functions and the argument classes: the profiles (the
-  defaults; 32 digits; the highest cap the default range limit allows;
+  defaults; 32 digits; the highest precision limit the default significand limit allows;
   the decimal mode; the fractions display; the extreme settings) differ
   in cost by more than any argument does, so without the profile the
-  costliest cap would take every family's entry and the defaults would
+  costliest precision limit would take every family's entry and the defaults would
   go unrecorded.
 - **The defaults:** ten minutes a run (as 8.3 landed it; `--forever`
   runs until stopped, and `--list` prints 20 cases) and one job per
@@ -5426,8 +5427,8 @@ and its tables; and `search.ts`, the command. The choices the task left open:
 
 A first run of sixteen cases at the defaults (2 min 50 s on four cores)
 found, among others, `erfc(0.5) - uppergammareg(1/2, 0.5^2)` at 10 s warm
-at the highest default cap, `digamma(-2.718281828459045)` less itself at
-29 s cold there, and two cases past a 40 s deadline at high caps.
+at the highest precision limit under the default significand limit, `digamma(-2.718281828459045)` less itself at
+29 s cold there, and two cases past a 40 s deadline at high precision limits.
 
 ### 8.3 The catalogue and the stress suite
 
@@ -5487,7 +5488,7 @@ docs/cost.md gives the findings by cause:
   Bernoulli numbers are #103 and #121.
 - The elementary functions stay under the catalogue's floor at the
   defaults.
-- At the default digits cap, typing out the entries puts every
+- At the default precision limit, typing out the entries puts every
   keystroke of 100 ms or more on the last one, the keystroke that
   completes the expression.
 
@@ -5543,7 +5544,7 @@ machinery than the task needs. As it landed, the search is a sampler:
 
 Hangs are filed one issue per setting that produces them, not one per
 case, since each setting's hangs share their causes. #151 covers the
-highest cap under the default range limit, a 9,852-digit ceiling: the
+highest precision limit under the default significand limit, a 9,852-digit ceiling: the
 Gamma family, incbeta and the incomplete gamma functions. #152 covers
 the hard bound, a 157,816-digit ceiling, where `expFixed`'s fixed
 reduction and term-by-term series put even `cosh` past two minutes.
@@ -5637,13 +5638,13 @@ same commit, and this is the list of them, with what stage 3 inherits.
   its digits, so the cancellation tests start at `1e-20`, not `1e-15`;
   `schedule` is the function's name.
 - **2.6.** The inputs are "Digits", "Most digits" and "Most bits", with
-  `MIN_MAX_BITS`, twice the kernel's bits at a cap of one digit, as the
-  floor of the range limit; `clampSettings` applies in the panel as on
+  `MIN_SIGNIFICAND_LIMIT_BITS`, twice the kernel's bits at a precision limit of one digit, as the
+  floor of the significand limit; `clampSettings` applies in the panel as on
   loading; a list's counts are formatted at the digits asked for and its
   remainder at the digits certified, `0` when it cannot be told from zero;
   the notes are in parentheses after the line. `MAX_DIGITS` went.
 - **2.7.** The clock and the operations travel as a `Probe`; the range
-  candidates are powers of two and the cap candidates 1, 2 and 5 times a
+  candidates are powers of two and the precision limit candidates 1, 2 and 5 times a
   power of ten; the budget is 50 ms per pass; the precision operation is
   a cube root; the real inputs come from a small congruential generator;
   the button yields a frame before the probe runs. Memory is an explicit
@@ -5660,7 +5661,7 @@ same commit, and this is the list of them, with what stage 3 inherits.
 
 What stage 3 inherits: the table is built at 40 digits by system-table.ts
 until 3.3 builds it at the ceiling in force and the shell rebuilds it when
-the cap changes; every unit in units.txt is exact, so nothing is held back
+the precision limit changes; every unit in units.txt is exact, so nothing is held back
 by the table until `pi()` enters it in 3.4; the integer square root of
 `sqrtFixed` costs twice the Newton cube root at the default ceiling (3.8
 against 1.7 ms in the kernel benchmark), which 3.8's `sqrt` may revisit;
@@ -5686,7 +5687,7 @@ inherits.
   default; `resolveFunction` and `functionArity` in table.ts are the one
   order and the one arity rule the two lookups share; the pole is worded
   `a pole of the tangent`.
-- **3.3.** `DEFAULT_CEILING` is the default cap's ceiling; the memo of
+- **3.3.** `DEFAULT_CEILING` is the default precision limit's ceiling; the memo of
   system-build.ts is keyed by the definitions' identity and the ceiling,
   holds a failed build too, and the shell calls it from `render`.
 - **3.4.** Each built-in lives in a module of its own under builtins/,
@@ -5749,7 +5750,7 @@ ln(3) radian)` at the candidate's ceiling, and timing it found that
 What stage 4 inherits: the midpoint is a `Rational`, an inexact one a
 dyadic whose size is its exponent, so `exp`, `sinh`, `cosh`, a power in
 log space and a large decibel are `tooLarge` beyond about 45,000 at the
-default range limit through the one guard `expFits`, which 4.9 lifts
+default significand limit through the one guard `expFits`, which 4.9 lifts
 together with the squaring loop of `expFixed`, the kernel-to-ball
 conversion and the hyperbolic module's branch through the exponential;
 `lnFixed` and `lnScaled` already take a scale, and `tanh` already answers
@@ -5785,14 +5786,14 @@ stage 5 inherits.
   doubling (`fivesIn`), after one division per factor made `10^300000`
   take a minute; `MAX_EXPONENT` is `10^18`.
 - **4.2.** The alignment limit is on the shift alone, not on the
-  mantissas' sizes; `1e19000 + 1` at the default range limit is the test
+  significands' sizes; `1e19000 + 1` at the default significand limit is the test
   of it.
 - **4.3.** The tests of the modules that still held fractions read a
   literal through `src/testing/fraction.ts`; the evaluator formed a
-  literal's fraction at the range limit until 4.4.
+  literal's fraction at the significand limit until 4.4.
 - **4.4.** `fixedToBall(f, digits)` takes the digit count; an argument
-  below `2^-maxBits` throughout is answered by its expansion at zero, and
-  `extraBits` is held to the range limit; `convert` takes no context;
+  below `2^-significandLimitBits` throughout is answered by its expansion at zero, and
+  `extraBits` is held to the significand limit; `convert` takes no context;
   `ConvertError` gains `tooLarge`; D8's amended count landed here; a
   power of ten costs nothing, so `10^100000` and `10^(100000/3)` are
   values; the quotient rule is within `2^-25` of the exact bound; `log2Of`
@@ -5832,7 +5833,7 @@ stage 5 inherits.
 
 What stage 5 inherits: the midpoint is a `Scaled` and every reader of it
 formats through scaled.ts, so the rational display of stage 5 has the
-fraction at hand in the mantissa and the exponent beside it; the kernel's
+fraction at hand in the significand and the exponent beside it; the kernel's
 results leave on the decimal grid of the working digits and a
 `Floating` leaves through digits.ts, the one place that needs log space;
 the two modes are one settle with two parameters, and the display
@@ -5845,8 +5846,8 @@ conversion at the ceiling costs 47 ms, the logarithm and the two memos
 computed for the call, which a stage that runs it often may memoize at
 the ceiling plus the exponent's bits; the two gaps of 2.5 still stand;
 the display's `unbounded` kind still has no producer; the probe of
-limits.ts still times an exact product for the range limit and, for the
-cap, the one expression of the four costliest built-ins of 3.11 at their
+limits.ts still times an exact product for the significand limit and, for the
+precision limit, the one expression of the four costliest built-ins of 3.11 at their
 moderate arguments, the large arguments of 4.9 costing a few more
 squarings; and what "After stage 4" adds.
 
@@ -5873,14 +5874,14 @@ statements the second changed.
   [#41](https://github.com/bsidhom/pwa-units/issues/41)). Every refusal
   was `tooLarge`, worded "too large to compute" whichever limit it
   passed, so `exp(1e999)` read as a precision limit that `approx` might
-  lift. The fraction's `tooLarge` (rational.ts) is now the range limit's
+  lift. The fraction's `tooLarge` (rational.ts) is now the significand limit's
   alone, and the exponent bound refuses with `overflow` above it or
   `underflow` below it, errors of `Scaled` (`ScaledError`, with `Refusal`
   and `isRefusal` for the three together), since only a value with an
   exponent can pass it. `BallError`, `BuiltinError`, `EvaluateError` (with
   its span), `ConvertError` and the grammar's rejections forward the
-  kind, and messages.ts words them "too large to compute within Most
-  bits", "too large to compute: its exponent would pass 10^18" and "too
+  kind, and messages.ts words them "too large to compute within the significand
+  limit", "too large to compute: its exponent would pass 10^18" and "too
   small to compute: its exponent would fall below -10^18"
   (docs/decimal.md, "Which limit a refusal names"). The side is the sign
   of the exponent that passes the bound in `scaled()`, and in the guards
@@ -5889,9 +5890,9 @@ statements the second changed.
   `sinh` and `cosh` are `overflow` for either sign. An exact power is
   told by its decimal exponent rather than by the check that fails first
   (`powerRefusal`, `powerSide`): `7^1e19` is an `overflow` where the
-  range limit's prediction refuses it first, and `2.54^1e18` is
+  significand limit's prediction refuses it first, and `2.54^1e18` is
   `tooLarge`, since `approx(2.54)^1e18` computes. Products and quotients
-  are held to the exponent bound alone, not to the range limit (issue
+  are held to the exponent bound alone, not to the significand limit (issue
   #52), and their callers take any refusal, so that a check added there
   changes none of them; the three that have no error to return (the
   prefix lookup of table.ts, a unit list's decomposition in convert.ts,
@@ -5932,7 +5933,7 @@ open against the stage 4 code, none of which stage 5 depends on:
   ([#50](https://github.com/bsidhom/pwa-units/issues/50));
 - a sum past the exponent bound with an inexact operand shown as zero
   ([#48](https://github.com/bsidhom/pwa-units/issues/48));
-- costs past their budget: products and quotients not held to the range
+- costs past their budget: products and quotients not held to the significand
   limit, and a large quotient's reduction taking seconds
   ([#52](https://github.com/bsidhom/pwa-units/issues/52), which asks for
   a decision between a check and an input length limit, recorded in
@@ -5941,7 +5942,7 @@ open against the stage 4 code, none of which stage 5 depends on:
   ([#54](https://github.com/bsidhom/pwa-units/issues/54)).
 
 [#51](https://github.com/bsidhom/pwa-units/issues/51), that the docs had
-`approx` relax the range limit only in a sum where it does in an integer
+`approx` relax the significand limit only in a sum where it does in an integer
 power too, is corrected in ARCHITECTURE.md and the README with this
 record.
 
@@ -5973,8 +5974,8 @@ merged on its own with the tests passing under it, and the tasks above
 left as they were written except where a ruling in review changed a
 row, which the task's text now says. A change outside the phase landed
 between H.15 and H.16
-([#85](https://github.com/bsidhom/pwa-units/pull/85)): the cap on the
-digits setting is labeled "Precision limit", the panel says what each
+([#85](https://github.com/bsidhom/pwa-units/pull/85)): the precision limit
+is labeled "Precision limit", the panel says what each
 setting does, and README ("How a number is held, and what the settings
 touch") says why one limit is in bits and the others in digits, and
 where the ceiling's four times plus ten comes from. The list, with the
@@ -6004,7 +6005,7 @@ issues each closed:
 - **H.5** (#45, #57). `rootFixed` takes a degree up to `2^32` as a
   precondition, and `positiveRoot` sends three cases to
   `rootInLogSpace`: a degree past that, a remainder of the exponent
-  whose power of ten does not fit the range limit, and a mantissa below
+  whose power of ten does not fit the significand limit, and a significand below
   one by more than the working bits; one below by less converts at that
   many more bits. `rootRadiusAbove` divides by the degree in bigints.
 - **H.6** (part of #46). The bases 0, 1 and -1 are answered before the
@@ -6013,12 +6014,12 @@ issues each closed:
 - **H.7** (#47, #64). Four commits: `complementRoot` reads the argument's
   position against `±1` before forming its square; `asin` and `acos`
   take their expansion at zero as soon as the square lies below `2^-bits`
-  of the working precision, not `isTiny`'s `2^-maxBits`; `atan2`
+  of the working precision, not `isTiny`'s `2^-significandLimitBits`; `atan2`
   compares its magnitudes as radii before forming a ratio, `±pi/2` or
   `±pi` within `2^-bits` where one dominates, a tiny ratio over a
   positive `x` its own arctangent within its cube, and a ratio past the
   bound the quotient's refusal; and neither `atan` nor `atan2` is
-  refused for an argument's radius, a ball reaching `2^maxBits` without
+  refused for an argument's radius, a ball reaching `2^significandLimitBits` without
   lying beyond `2^bits` being the whole range, zero within two and
   within four, the powers of two above `pi/2` and `pi`, with a ratio
   whose `x` straddles zero `unresolved` at `x`. #64 was closed with this
@@ -6030,7 +6031,7 @@ issues each closed:
   bypasses `rational()`; Lehmer's gcd, about forty times cheaper than
   Euclid's at the default limit and still quadratic, a half-gcd left for
   a larger limit; the `^` exponent reduced in the evaluator within the
-  range limit, `Exponent` carrying the two literals unreduced; and, from
+  significand limit, `Exponent` carrying the two literals unreduced; and, from
   review, the quotient taken as `Scaled` values so that a literal's
   power of ten is not counted (`2^(1e30000/1e30000)` is a value at any
   limit). Where a quotient's reduction should run is
@@ -6069,7 +6070,7 @@ issues each closed:
   the ball reaches back within the bound and a refusal must never be
   wrong; the exact row is `overflow` in both modes.
 - **H.14** (#52). The check in `evaluate()`'s wrapper and after the
-  pipeline's two quotients, with `mantissaWithin` moved to scaled.ts;
+  pipeline's two quotients, with `significandWithin` moved to scaled.ts;
   the error carries `exact` and the span of the node's first operand,
   since `approx` around the node itself comes too late, the node being
   refused before `approx` sees it, which the plan's message had assumed
@@ -6084,11 +6085,11 @@ issues each closed:
   one, and the kernel within their slack, with a margin of forty bits
   below the working bits on `compute`; `powLogSpace` takes the bits from
   `log2OfRadius` of `y`'s magnitude and answers from the bound where
-  those pass the range limit; `powRadiusAbove` takes a zero midpoint's
+  those pass the significand limit; `powRadiusAbove` takes a zero midpoint's
   power from the radius's logarithm; `floatingToBall` holds its decimal
   exponent to the bound by the interval of `t`. Two kinds of
   expectations changed beyond the issues' rows: in decimal mode the
-  argument is settled to the Digits setting first, so
+  argument is settled to the display digits first, so
   `exp(2302585092994045000)` and `approx(1.0000001)^1e30` at eight digits
   straddle an edge and are `unresolved`; and a ball around zero whose
   power's radius reaches the top is `unresolved` there, as a product's
@@ -6110,7 +6111,7 @@ row; the three refusals and the edge `bound`, worded in messages.ts;
 and the classifier, which stage 6's functions take their guard from.
 The work set aside, each with its issue:
 
-- `asin`, `acos` and `acosh` of an exact argument with a long mantissa
+- `asin`, `acos` and `acosh` of an exact argument with a long significand
   are refused, since their exact `1 - x^2` does not align
   ([#63](https://github.com/bsidhom/pwa-units/issues/63)); the text
   sweep's one remaining known entry.
@@ -6124,7 +6125,7 @@ The work set aside, each with its issue:
   digit of its exponent
   ([#67](https://github.com/bsidhom/pwa-units/issues/67)); stage 5's
   design note rules on it and 5.1 lands it.
-- The message for an exact result past Most bits should say how many
+- The message for an exact result past the significand limit should say how many
   bits it needed ([#73](https://github.com/bsidhom/pwa-units/issues/73)).
 - Where a quotient's reduction should run
   ([#78](https://github.com/bsidhom/pwa-units/issues/78)).
@@ -6156,7 +6157,7 @@ merged on its own, the tasks as revised against the design note:
   when it fits, an integer is written as the decimal display writes it,
   and an inexact value is a decimal, always; the alternative, a fraction
   only where the decimal is inexact, was set aside. The fit rule, each
-  part within Digits, is provisional
+  part within the display digits, is provisional
   ([#91](https://github.com/bsidhom/pwa-units/issues/91)). The study's
   unit-list example was corrected (`428/127`, not `437/127`). The
   reciprocal line's holes were filed apart
@@ -6243,7 +6244,7 @@ each task left behind:
   before any logarithm; a sum at or past the top of the bound is
   `underflow`, not the sum's `overflow` passed on (D18, the sweep's
   finding); the exact case through `binomialOf`; a sum that does not
-  align within Most bits taken as the larger within the smaller's
+  align within the significand limit taken as the larger within the smaller's
   magnitude.
 - **6.5** (#106). The continued fraction's bound was written, by the
   bracketing of consecutive convergents for an order at or below one and

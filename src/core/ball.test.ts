@@ -30,7 +30,7 @@ import {
 } from "./ball.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   workingDigits,
   type NumberContext,
@@ -47,7 +47,7 @@ import {
   radiusUpper,
 } from "./radius.ts";
 import {
-  LIMIT_BITS,
+  MAX_SIGNIFICAND_LIMIT_BITS,
   absolute as absoluteFraction,
   add as addFractions,
   compare as compareFractions,
@@ -105,7 +105,7 @@ function decimalAt(precision: number, rounding: RoundingMode): NumberContext {
  * `num` must not be divisible by ten and `den` must be coprime to it.
  */
 function scaledAt(num: bigint, den: bigint, exp: bigint): Scaled {
-  return { mant: rational(num, den), exp };
+  return { significand: rational(num, den), exp };
 }
 
 /** Whether the ball `b` reaches `point`: on it, straddling it or touching it. */
@@ -139,7 +139,7 @@ function ends(b: Ball): [Rational, Rational, Rational] {
 /** Asserts that `value` lies within the bounded ball `b`, exactly, as fractions. */
 function assertContains(b: Ball, value: Rational | Scaled, label: string) {
   assert.ok(!isUnbounded(b.rad), `${label}: bounded`);
-  const v = "mant" in value ? fraction(value) : value;
+  const v = "significand" in value ? fraction(value) : value;
   const mid = fraction(b.mid);
   assert.ok(
     compareFractions(
@@ -152,7 +152,12 @@ function assertContains(b: Ball, value: Rational | Scaled, label: string) {
 
 /** `|a - b| < bound`, on `Scaled`s. */
 function within(a: Scaled, b: Scaled, bound: Scaled): boolean {
-  return compare(absolute(unwrap(subtract(a, b, LIMIT_BITS))), bound) < 0;
+  return (
+    compare(
+      absolute(unwrap(subtract(a, b, MAX_SIGNIFICAND_LIMIT_BITS))),
+      bound,
+    ) < 0
+  );
 }
 
 /** A context at `precision` digits, in the default mode. */
@@ -160,7 +165,7 @@ function at(precision: number): NumberContext {
   return {
     precision,
     rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
   };
 }
@@ -245,11 +250,11 @@ test("on exact balls every operation is the exact one, and stays exact", () => {
   assert.deepEqual(negateBall(a), exact(negate(a.mid)));
   assert.deepEqual(
     unwrap(addBalls(a, b, context)),
-    exact(unwrap(add(a.mid, b.mid, LIMIT_BITS))),
+    exact(unwrap(add(a.mid, b.mid, MAX_SIGNIFICAND_LIMIT_BITS))),
   );
   assert.deepEqual(
     unwrap(subtractBalls(a, b, context)),
-    exact(unwrap(subtract(a.mid, b.mid, LIMIT_BITS))),
+    exact(unwrap(subtract(a.mid, b.mid, MAX_SIGNIFICAND_LIMIT_BITS))),
   );
   assert.deepEqual(
     unwrap(multiplyBalls(a, b)),
@@ -262,7 +267,7 @@ test("on exact balls every operation is the exact one, and stays exact", () => {
   for (const n of [0n, 1n, 3n, -2n]) {
     assert.deepEqual(
       unwrap(powBall(b, n, context)),
-      exact(unwrap(pow(b.mid, n, LIMIT_BITS))),
+      exact(unwrap(pow(b.mid, n, MAX_SIGNIFICAND_LIMIT_BITS))),
     );
   }
   assertError(divideBalls(a, exact(ZERO)), "divisionByZero");
@@ -292,7 +297,7 @@ test("the exponent carries through the exact operations", () => {
     exact(dec("1.3e999999999")),
   );
   assert.deepEqual(unwrap(subtractBalls(huge, huge, context)), exact(ZERO));
-  // Two exact operands that cannot be aligned within the range limit have
+  // Two exact operands that cannot be aligned within the significand limit have
   // an exact sum that cannot be held: `1e999999999 + 1`.
   assertRefused(addBalls(huge, exact(ONE), context), "tooLarge");
   assertRefused(subtractBalls(exact(ONE), huge, context), "tooLarge");
@@ -339,7 +344,7 @@ test("a sum with an inexact operand that cannot be aligned settles first and abs
           subtract(
             sum.mid,
             dec("1.7475468957064283821350173307390313"),
-            LIMIT_BITS,
+            MAX_SIGNIFICAND_LIMIT_BITS,
           ),
         ),
       ),
@@ -464,7 +469,7 @@ test("each operation's interval contains the exact result over the operands' int
       for (const x of ends(a)) {
         assertContains(
           unwrap(power),
-          unwrap(powFraction(x, n, LIMIT_BITS)),
+          unwrap(powFraction(x, n, MAX_SIGNIFICAND_LIMIT_BITS)),
           `${toFraction(x)}^${n}`,
         );
       }
@@ -671,8 +676,8 @@ function tenTo(digits: number): Rational {
  */
 function rootsWithin(b: Ball, from: Rational, to: Rational, degree: bigint) {
   const [low, , high] = ends(b);
-  const lowPower = powFraction(low, degree, LIMIT_BITS);
-  const highPower = powFraction(high, degree, LIMIT_BITS);
+  const lowPower = powFraction(low, degree, MAX_SIGNIFICAND_LIMIT_BITS);
+  const highPower = powFraction(high, degree, MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(lowPower.ok && highPower.ok);
   const below =
     degree % 2n === 0n && low.num < 0n
@@ -742,9 +747,9 @@ test("rootBall of an exact argument otherwise is the kernel's root at the precis
   assertContains(billionth, ROOT_BILLIONTH_2, "2^(1/10^9)");
 });
 
-test("rootBall scales the exponent off and roots the mantissa, whatever the exponent", () => {
+test("rootBall scales the exponent off and roots the significand, whatever the exponent", () => {
   // sqrt(1e999999999): the exponent's odd remainder is folded into the
-  // mantissa, and the result is `≈ 3.1622777e+499999999` on the first pass.
+  // significand, and the result is `≈ 3.1622777e+499999999` on the first pass.
   const huge = unwrap(rootBall(exact(dec("1e999999999")), 2n, at(8)));
   assert.ok(!isExact(huge));
   assert.equal(huge.mid.exp + BigInt(digitsOf(huge.mid)) - 1n, 499999999n);
@@ -755,11 +760,11 @@ test("rootBall scales the exponent off and roots the mantissa, whatever the expo
   assert.notEqual(position(square, dec("1e999999999")), "above");
   assert.notEqual(position(square, dec("1e999999999")), "below");
   // The cube root of a tiny value, and of one whose exponent's remainder
-  // does not fit the range limit, which goes through log space.
+  // does not fit the significand limit, which goes through log space.
   const tiny = unwrap(rootBall(exact(dec("8e-999999999")), 3n, at(8)));
   assert.ok(certifies(tiny, 8, "halfEven"));
   assert.ok(within(tiny.mid, dec("2e-333333333"), dec("1e-333333341")));
-  const context = { ...at(8), maxBits: 256 };
+  const context = { ...at(8), significandLimitBits: 256 };
   const remainder = unwrap(rootBall(exact(dec("1e101")), 3n, context));
   assert.ok(
     within(
@@ -768,14 +773,14 @@ test("rootBall scales the exponent off and roots the mantissa, whatever the expo
       dec("1e26"),
     ),
   );
-  // A root of a value with a large exponent over a seeded mantissa: the
+  // A root of a value with a large exponent over a seeded significand: the
   // square of the result contains the argument.
   const seed = key(4401);
   for (let i = 0; i < 30; i++) {
     const b = randomBall(foldIn(seed, i), 24, 3);
     if (containsZero(b) || compare(b.mid, ZERO) < 0) continue;
     const scaled: Ball = {
-      mid: { mant: b.mid.mant, exp: b.mid.exp + 999999990n },
+      mid: { significand: b.mid.significand, exp: b.mid.exp + 999999990n },
       rad: unwrap(
         multiplyBalls(exact(dec("1e999999990")), { mid: ZERO, rad: b.rad }),
       ).rad,
@@ -1005,7 +1010,7 @@ test("powRationalBall composes the power and the root, root last", () => {
   assert.deepEqual(squared.mid, fr(4n));
 });
 
-test("a root the kernel cannot take goes to log space, and a mantissa below one keeps its digits", () => {
+test("a root the kernel cannot take goes to log space, and a significand below one keeps its digits", () => {
   // A degree past 2^32 (issues #45 and #57): 2^(1/10^20), from Python's
   // decimal module, certified to 32 digits on the first pass.
   const tiny = unwrap(rootBall(exact(fr(2n)), 10n ** 20n, at(32)));
@@ -1035,7 +1040,7 @@ test("a root the kernel cannot take goes to log space, and a mantissa below one 
     powRationalBall(ball(ZERO, dec("1e-23")), rational(1n, 3n ** 700n), at(8)),
   );
   assert.ok(containsZero(aroundZero));
-  // A mantissa below one by more than the working bits: 7^-8000 under the
+  // A significand below one by more than the working bits: 7^-8000 under the
   // 99999th root converted to zero and was shown as zero within 0.9; in
   // log space it is 0.85583783261454849435… (Python's decimal module).
   const deep = unwrap(
@@ -1047,7 +1052,7 @@ test("a root the kernel cannot take goes to log space, and a mantissa below one 
     "(7^-8000)^(1/99999)",
   );
   assert.ok(certifies(deep, 20, "halfEven"));
-  // A mantissa below one by less than the working bits is converted at
+  // A significand below one by less than the working bits is converted at
   // that many more bits, and keeps its digits: 3^-20 under the 1000th
   // root certifies eight digits on the first pass.
   const shallow = unwrap(
@@ -1063,7 +1068,7 @@ test("a root the kernel cannot take goes to log space, and a mantissa below one 
 });
 
 test("powLogSpace of an exponent below half an ulp converts it to zero within an ulp, and the power is one within a few ulps", () => {
-  // The exponent is far below 2^-maxBits: its fraction could not be
+  // The exponent is far below 2^-significandLimitBits: its fraction could not be
   // formed, and the kernel's door answers it (H.2, issue #53).
   // Since H.15 the classifier answers first: one within twice the bound
   // on `|y ln x|`, a radius far below the working sizes, which the
@@ -1184,7 +1189,7 @@ test("the classifier holds a power to the bound by the interval of y ln x (D18, 
       compareRadius(tiny.rad, powerOfTenRadius(-24n)) < 0 &&
       compareRadius(tiny.rad, powerOfTenRadius(-25n)) > 0,
   );
-  // Where the kernel's decision would need more bits than the range limit
+  // Where the kernel's decision would need more bits than the significand limit
   // holds: the bound answers where it is at most a half, and the rest is
   // too large.
   const wholeUp = exact(dec("1.000000001e0"));
@@ -1392,7 +1397,7 @@ test("certifiedDigits is the largest count that certifies, which is not monotone
   assert.equal(certifiedDigits(exact(ZERO), 12, nearest), 12);
   // The scan's starting bound never cuts a count that certifies: over the
   // shared source, the count found is one that certifies and the next one
-  // up does not, wherever the answer is below the cap.
+  // up does not, wherever the answer is below the precision limit.
   const seed = key(2401);
   for (let i = 0; i < 60; i++) {
     const b = randomBall(foldIn(seed, i), 24, 6);
@@ -1740,14 +1745,20 @@ test("a product or a quotient with an inexact operand is held to the bound by it
 });
 
 test("radiusOfMove bounds the distance a rounding moved a midpoint, past the bound included", () => {
-  const to = { mant: rational(12345679n), exp: -(MAX_EXPONENT + 7n) };
-  const from = { mant: rational(1234567891n), exp: -(MAX_EXPONENT + 9n) };
+  const to = { significand: rational(12345679n), exp: -(MAX_EXPONENT + 7n) };
+  const from = {
+    significand: rational(1234567891n),
+    exp: -(MAX_EXPONENT + 9n),
+  };
   const moved = radiusOfMove(to, from);
   // The difference is 9e-(10^18 + 9).
   assert.ok(
     compareRadius(
       moved,
-      radiusAboveScaled({ mant: rational(9n), exp: -(MAX_EXPONENT + 9n) }),
+      radiusAboveScaled({
+        significand: rational(9n),
+        exp: -(MAX_EXPONENT + 9n),
+      }),
     ) >= 0,
   );
   assert.ok(compareRadius(moved, powerOfTenRadius(-(MAX_EXPONENT + 8n))) < 0);
@@ -1793,7 +1804,7 @@ test("a sum of two exact operands that cannot be aligned is too large, and in de
   });
   const huge = exact(dec("1e999999999"));
   const minusOne = negateBall(exact(ONE));
-  // The sum itself is too large in either mode, at the range limit; the
+  // The sum itself is too large in either mode, at the significand limit; the
   // evaluator answers it in decimal mode by `decimalSumApart`.
   assertRefused(addBalls(huge, exact(ONE), at(8)), "tooLarge");
   assertRefused(addBalls(huge, exact(ONE), decimal("halfEven")), "tooLarge");
@@ -1931,7 +1942,7 @@ test("powBall on an inexact base squares with settling, and is guarded by magnit
   const nearOne = ball(dec("1.0000001"), dec("1e-30"));
   assert.ok(powBall(nearOne, 10_000_000n, at(20)).ok);
   // The exact path is unchanged: an exact base is an exact power, under
-  // the range limit.
+  // the significand limit.
   assert.deepEqual(unwrap(powBall(exact(fr(3n)), 4n, at(8))), exact(fr(81n)));
   assertRefused(powBall(exact(fr(3n)), 100_000n, at(8)), "tooLarge");
 });

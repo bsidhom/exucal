@@ -28,16 +28,16 @@ ball to it by its whole interval (D18), which "The exponent bound" and
 After stage 3 a midpoint is a `Rational`, and an inexact midpoint is a
 dyadic `d × 2^-k` settled to the working bits (D15). The size of a dyadic
 is its exponent: `exp(1e6)`, about `2^1442695`, is a numerator of 1.4
-million bits, beyond the hard bound on the range limit, though it is an
-ordinary value, a mantissa at the working precision times an exponent.
+million bits, beyond the hard bound on the significand limit, though it is an
+ordinary value, a significand at the working precision times an exponent.
 So `exp`, `sinh`, `cosh`, a power in log space and a large decibel are
-refused beyond about 45,000 at the default range limit, through the one
+refused beyond about 45,000 at the default significand limit, through the one
 guard on the exponential in ball.ts, and a literal `1e999999999` is
 refused by the parser, because the only way to hold either is to form
 its digits.
 
 D13 chose the shape of the remedy: a type of its own, `Scaled`, between
-the fraction and the ball, a mantissa times a power of ten in a canonical
+the fraction and the ball, a significand times a power of ten in a canonical
 form, with `rational.ts` left the total fraction it is (the exponents of
 dimensions, the `^` exponent and a radius's exact value need a fraction
 with total arithmetic and structural equality). It left one question to
@@ -49,13 +49,13 @@ power of ten, or carries a binary exponent beside the decimal one.
 
 ## The design in one line
 
-`Scaled` is `mant × 10^exp`, one decimal exponent, and the kernel's
+`Scaled` is `significand × 10^exp`, one decimal exponent, and the kernel's
 binary base never crosses the kernel's boundary: a result leaving the
 kernel is rounded onto the decimal grid of the working precision as it
 leaves, which is the settling it was about to get anyway (D15), so that
 everything above the kernel, the sums, the comparisons, the display, the
 certification and the decimal mode, works in one base, exactly and
-totally within the range limit, and log space is needed in one place
+totally within the significand limit, and log space is needed in one place
 only, the kernel's exit for a result whose binary exponent cannot be
 formed.
 
@@ -73,7 +73,7 @@ anyway, and the binary base does not leak into the ball layer.
 
 Nothing above changes what exactness means. An exact value has radius
 zero, and in exact mode it keeps it through everything exact: a literal
-of any length up to the range limit, a unit, an exact operation on exact
+of any length up to the significand limit, a unit, an exact operation on exact
 operands (`0.1 + 0.2` is exactly `0.3`; `1e999999999 * 1e999999999` is
 exactly `1e1999999998`, with the exponents added; `1 ft` in `in` is
 `= 12 in`), an exact case of a built-in (`sqrt(9/4)`, `log(2, 8)`,
@@ -93,12 +93,12 @@ powers) without taking any away.
 
 ## The `Scaled` type
 
-`Scaled = { mant: Rational; exp: bigint }` in `src/core/scaled.ts` stands
-for `mant × 10^exp`, in the canonical form D13 gives: `mant` in lowest
+`Scaled = { significand: Rational; exp: bigint }` in `src/core/scaled.ts` stands
+for `significand × 10^exp`, in the canonical form D13 gives: `significand` in lowest
 terms with its denominator coprime to ten and its numerator not divisible
 by ten unless zero, and zero as `exp` zero, so that equal values have
 equal representations and `equals` is structural. The constructor
-`scaled(mant, exp)` strips the numerator's trailing zeros and moves the
+`scaled(significand, exp)` strips the numerator's trailing zeros and moves the
 denominator's factors of two and five out (`1/6` is `5/3 × 10^-1`), a
 loop of small divisions on top of the lowest-terms invariant `rational`
 keeps, each constructor owning one rule; a literal is its digits with
@@ -107,10 +107,10 @@ twos and fives are few. The form is internal: `format`, `roundTo`,
 `toRational` and the fraction display of stage 5 are functions of the
 value, and `2.54`, `254/100` and `127/50` render alike in every display.
 Rounding to significant digits commutes with the power of ten, so
-`roundTo` and `format` act on the mantissa alone and add `exp` to the
+`roundTo` and `format` act on the significand alone and add `exp` to the
 exponent: the digits of `1e999999999`, of its square and of `exp(1e6)`
 are written with nothing formed, and the decimal exponent of any value
-is the mantissa's plus `exp`, exact and cheap.
+is the significand's plus `exp`, exact and cheap.
 
 What the type does not hold exactly is a dyadic. A settled midpoint is
 `d × 2^-k` today, and as a `Scaled` it would be `d × 5^k × 10^-k`, three
@@ -142,13 +142,13 @@ nothing below it, which is the whole runtime price of one base above the
 kernel.
 
 Why not two exponents. The first draft of this note carried a binary
-exponent beside the decimal one, `mant × 2^two × 10^ten`, so that a
+exponent beside the decimal one, `significand × 2^two × 10^ten`, so that a
 kernel result and a literal both entered exactly and settling stayed a
 shift. The price was that the mixed base leaked into every operation
 that brings the two together: a sum of two large exponents of different
 bases needed a rebase in log space, a comparison had an undecidable
 case, certification and the radius needed the `log2 10` constant, and
-the display had to fold `2^two` into the mantissa before it could write
+the display had to fold `2^two` into the significand before it could write
 a digit. No arithmetic library keeps two exponents on a value, and the
 reason is the one above: it defers the base change instead of doing it
 once at a boundary. The decimal form pays a division per settle for a
@@ -176,7 +176,7 @@ A value is within the bound when its decimal exponent, `floor(log10
 |v|)`, the exponent the display writes, lies within `±MAX_EXPONENT`,
 `10^18`, the study's bound, and zero is within at any exponent (D17, the
 plan's H.13; stage 4 checked the canonical `exp`, which passes the bound
-by the mantissa's digits where the value does not, and the other way).
+by the significand's digits where the value does not, and the other way).
 The constructor checks it after normalizing, so it is checked wherever
 exponents combine, in `multiply`, `divide` and `pow`, and failing it is
 an `overflow` above it or an `underflow` below it, so that `10^1e30` and
@@ -184,7 +184,7 @@ an `overflow` above it or an `underflow` below it, so that `10^1e30` and
 form an exponent that could not be formatted. The parser leaves a
 literal to the constructor, so `0.001e1000000000000000003` parses and
 `0e2000000000000000000` is zero, and the hard bound on a literal's
-mantissa stays `LIMIT_BITS`, as today. The kernel's guard on the
+significand stays `MAX_SIGNIFICAND_LIMIT_BITS`, as today. The kernel's guard on the
 exponential becomes the same bound, on the whole ball of the argument
 (D18, the plan's H.15): the classifier of ball.ts holds an interval
 bounding the result's natural logarithm to the edges
@@ -215,9 +215,9 @@ apart from an unresolved want.
 
 Each limit refuses with an error of its own, defined where its check
 lives, so that the message can say which: the fraction's `tooLarge`
-(rational.ts) for the range limit, at the alignment of a sum, at the
-sizes predicted for a power's mantissa or a fraction's power of ten, at
-a literal's mantissa, and at the reach of the kernel
+(rational.ts) for the significand limit, at the alignment of a sum, at the
+sizes predicted for a power's significand or a fraction's power of ten, at
+a literal's significand, and at the reach of the kernel
 (`sin(1e999999999 radian)`); and
 `overflow` or `underflow` of `Scaled` (scaled.ts) for this bound, by
 the sign of the exponent that passes it, or from the classifier, of the
@@ -230,16 +230,16 @@ exponent can pass the bound, so the fraction has no such error, and a
 `Scaled` operation reports the fraction's `tooLarge` unchanged, a power
 aside, as below. The
 messages are `"1e999999999 + 1" is too large
-to compute within Most bits.`, `"exp(1e999)" is too large to compute:
+to compute within the significand limit.`, `"exp(1e999)" is too large to compute:
 its exponent would pass 10^18.` and `"exp(-1e999)" is too small to
 compute: its exponent would fall below -10^18.` An exact power is told
 by its decimal exponent rather than by the check that fails first
 (`powerRefusal` of scaled.ts), neither of its two checks, the canonical
-exponent's against the bound and then the mantissa's predicted size,
-being that exponent: `7^1e19`, refused by the range limit's prediction, is an
+exponent's against the bound and then the significand's predicted size,
+being that exponent: `7^1e19`, refused by the significand limit's prediction, is an
 `overflow`, past the bound, which no setting moves; and `2.54^1e18`,
 whose canonical exponent, `-2 × 10^18`, is past the bound below, is
-`10^(0.40 × 10^18)`, within it, and is `tooLarge`, the range limit's.
+`10^(0.40 × 10^18)`, within it, and is `tooLarge`, the significand limit's.
 The side is told exactly,
 by comparing the base's magnitude with one, and the size by bounds on
 the exponent's logarithm, taken for a base within `2^-30` of one from
@@ -247,7 +247,7 @@ its exact difference from one, so that `1.0000000001^1e30`, about
 `10^(4.3 × 10^19)`, is too large; within a relative `2^-20` of the
 bound, where the bounds cannot tell, a power refused by its exponent is
 past the bound on the side its signs give, and one refused by its
-mantissa is `tooLarge`. A power of an inexact base that the guard
+significand is `tooLarge`. A power of an inexact base that the guard
 refuses is past the bound on the side of one its midpoint lies, and a
 negative power on the other side. A literal past the bound is the
 parser's to word: its exponent passes `10^18`, or falls below `-10^18`,
@@ -293,11 +293,11 @@ is the exponential of a difference.
 
 ## Sums, comparisons and the radius
 
-**Alignment.** To add `m1 × 10^e1` and `m2 × 10^e2`, the mantissa of the
+**Alignment.** To add `m1 × 10^e1` and `m2 × 10^e2`, the significand of the
 larger exponent is multiplied by `10^|Δe|` and the two fractions are
 added, which costs `|Δe| log2 10` bits and is exact; the sum is
 renormalized. `add(a, b, limit)` in `scaled.ts` fails `tooLarge` when
-that shift exceeds the limit given, the range limit (D16): the exact sum
+that shift exceeds the limit given, the significand limit (D16): the exact sum
 exists and cannot be held, which is what the limit means. The ball's
 sum, `addBalls(a, b, context)`, applies the rule for what the result is:
 
@@ -332,25 +332,25 @@ sum, `addBalls(a, b, context)`, applies the rule for what the result is:
   the bound as well.
 
 So `addBalls` and `subtractBalls` take the context, for its precision,
-its mode and its range limit, and return a `Result`; `multiplyBalls` and
+its mode and its significand limit, and return a `Result`; `multiplyBalls` and
 `divideBalls` add and subtract exponents and return a `Result` for the
 exponent bound. There is no rebase between bases, since there is one
 base.
 
 **Comparison.** `compare` is total and cheap: by the signs, by the
-decimal exponents (the mantissa's from its digit counts, settled by one
+decimal exponents (the significand's from its digit counts, settled by one
 comparison, plus `exp`, exact), and, when those are equal, by
-exact alignment, whose shift is then bounded by the mantissas' own digit
-counts and never by the range limit. `1e999999999` compares with `1`,
+exact alignment, whose shift is then bounded by the significands' own digit
+counts and never by the significand limit. `1e999999999` compares with `1`,
 with `1.0000000001e999999999` and with `2^3321928094` (which is a kernel
 result, entered as a decimal) without forming anything.
 
 **The radius.** The radius stays binary and coarse (D3), and meets a
 decimal midpoint in two places. The product rule needs a radius at or
 above `|mid|`: the radius of a `Scaled` (`radiusAboveScaled`) is
-`2^(exp log2 10 + log2 mant)` rounded up, with `exp × log2 10` taken
+`2^(exp log2 10 + log2 significand)` rounded up, with `exp × log2 10` taken
 exactly enough through a
-128-bit fraction of `log2 10`, a constant of scaled.ts, and `log2 mant`
+128-bit fraction of `log2 10`, a constant of scaled.ts, and `log2 significand`
 from the bit lengths and a double, tight to the radius's own thirty
 bits; the quotient rule likewise takes a lower bound on the divisor's
 distance from zero from the same bounds, rounded down, and divides the
@@ -382,16 +382,16 @@ margin.)
 
 ## The kernel's boundary
 
-A kernel routine whose result can be large returns a mantissa with a
+A kernel routine whose result can be large returns a significand with a
 binary exponent and never a value of the result's bits. `Floating = {
-mant: Fixed; exp: bigint }` in `fixed.ts` stands for `mant × 2^exp`, and
+significand: Fixed; exp: bigint }` in `fixed.ts` stands for `significand × 2^exp`, and
 `floatingToBall` of digits.ts takes one: for an exponent that can be
-formed within the range limit, the value is rounded to the working
+formed within the significand limit, the value is rounded to the working
 digits exactly (`fixedToScaled`, a multiplication by a memoized power of
 ten and a shift, 0.04 ms at the
 ceiling); for one that cannot, the digits are found in log space, in
 `src/core/digits.ts` above the kernel, since it calls it: the decimal
-exponent is `floor(exp log10 2 + log10 mant)` and the leading digits are
+exponent is `floor(exp log10 2 + log10 significand)` and the leading digits are
 `10^fraction`, through `lnFixed`, `expFixed` and the memoized `ln 2` and
 `ln 10` at the working bits plus the bit length of the exponent plus a
 margin, with the computation's error carried in the kernel's own error
@@ -399,7 +399,7 @@ counts and added to the radius beside the result's. Nothing else in the
 program needs log space: the display writes the decimal it is given.
 
 `expFixed` renormalizes after each squaring of its squaring loop: the
-mantissa is kept to the working bits and the rest moved into the
+significand is kept to the working bits and the rest moved into the
 exponent, so that `exp(1e6)` costs what `exp(1)` costs plus a squaring
 per bit of its magnitude, twenty at the working bits, and a negative
 argument is the same loop
@@ -418,7 +418,7 @@ scale, `ln(m × 10^e) = ln m + e ln 10` from the memo, so `ln(1e999999999)`
 is `≈ 2302585090.691` on the first pass and `log10(1e999999999)` is
 exactly `999999999` by the exact case, read off the exponent; `rootBall`
 scales by `10^(q k)` exactly and roots `m × 10^r` on the kernel when the
-remainder's power fits the range limit, and takes log space through
+remainder's power fits the significand limit, and takes log space through
 `powLogSpace` otherwise, as a rational power does today when its power
 does not fit. A power of an inexact base by squaring with settling has
 the range of its exponent too, so `sqrt(2)^1e7`, refused by magnitude
@@ -429,9 +429,9 @@ The way in is exact but for one rounding: `fixedFromScaled(s, bits)` is
 `(num × 2^bits) / (den × 10^-exp)`, or with `10^exp` in the numerator, a
 division as `fixedFromRational` is today, for a value whose power of ten
 can be formed within four times the hard bound, which holds any
-mantissa within the range limit at a magnitude between `2^-maxBits` and
-`2^maxBits`, the most a built-in hands the kernel at any range limit the
-settings allow (the hard bound alone was too small from a range limit of
+significand within the significand limit at a magnitude between `2^-significandLimitBits` and
+`2^significandLimitBits`, the most a built-in hands the kernel at any significand limit the
+settings allow (the hard bound alone was too small from a significand limit of
 about 350,000 bits up, issue #56); a nonzero value below half an ulp at
 the bits asked is zero within one ulp, which is what the division's
 rounding gives it, decided from the coarse bounds with nothing formed,
@@ -439,12 +439,12 @@ so that the door takes an argument of any exponent (the plan's H.2); and
 a value past four times the hard bound is a precondition failure, which
 every routine that takes the value itself bounds first: `sin`, `cos`
 and `tan` need `pi` to the argument's bits for their reduction, so an
-argument whose integer part exceeds the range limit is `tooLarge`, as
+argument whose integer part exceeds the significand limit is `tooLarge`, as
 the literal was; `atan` of an argument beyond `2^bits` is `±pi/2` within
 `2^-bits`, as `tanh` saturates; `asinh` and `acosh` of such an argument
 are `ln(2|x|)` within `1/(2x^2)`, through the logarithm's scale. The
 plan's 4.4 lists them, with the tiny end the code added (an argument
-below `2^-maxBits` answered by its expansion at zero, `exp` giving one
+below `2^-significandLimitBits` answered by its expansion at zero, `exp` giving one
 within twice its magnitude, since `e^|x| - 1 <= 2|x|` there); the
 log-space power of a tiny exponent reaches the door, where the exponent
 is zero within an ulp, which makes `pow(2, approx(1e-999999999))` a
@@ -574,34 +574,34 @@ applies in exact mode only, and the table is built in exact mode at the
 ceiling whatever the user's mode, since a unit is settled in the user's
 mode when it is looked up.
 
-## The range limit, restated
+## The significand limit, restated
 
-D16's two limits stay, on their two axes, and the range limit's meaning
+D16's two limits stay, on their two axes, and the significand limit's meaning
 narrows to what it always guarded: the size of an exact value, that is
-of a mantissa's numerator and denominator, and the alignment of a sum,
+of a significand's numerator and denominator, and the alignment of a sum,
 which is the size the exact result would have (a comparison aligns only
 values of one decimal exponent, above, and needs no limit; a product, a
 quotient and a sum are held to it by the evaluator's check on every
 exact node result, D19). The
-magnitude of a value is no longer its size, so the range limit does not
+magnitude of a value is no longer its size, so the significand limit does not
 bound it; the exponent bound does, for exact and inexact values alike,
 and a result's magnitude is refused only there (`exp(1e30)`) or where a
 routine needs the value's bits (`sin(1e999999999 radian)`). The literal
-check is the mantissa's digits against `LIMIT_BITS` in the parser and
-against the range limit in the evaluator, and the exponent against the
-exponent bound in the parser. `maxDigitsFor` is unchanged: a settled
-midpoint at the ceiling must still fit the range limit with room for a
+check is the significand's digits against `MAX_SIGNIFICAND_LIMIT_BITS` in the parser and
+against the significand limit in the evaluator, and the exponent against the
+exponent bound in the parser. `precisionLimitFor` is unchanged: a settled
+midpoint at the ceiling must still fit the significand limit with room for a
 product of two.
 
-What the range limit measures, restated before stage 5 (the plan's D16,
+What the significand limit measures, restated before stage 5 (the plan's D16,
 D19 and D20): it is a hard limit on cost, on the bits the app forms,
 holds and multiplies for one number, so its measure is the canonical
-mantissa's size, what is stored, and not the bits of the value the
-mantissa denotes; a dyadic is stored with fives for its twos and costs
+significand's size, what is stored, and not the bits of the value the
+significand denotes; a dyadic is stored with fives for its twos and costs
 up to 2.33 times its bits, and that is what the next product of it
 costs. That is the one place the two limits read differently, and on
 purpose: the exponent bound is on the value, since a refusal at it must
-never be false about the value; the range limit is on the
+never be false about the value; the significand limit is on the
 representation, since nothing else could be measured without forming
 what the limit forbids. A result past it is refused at the node that
 forms it, with the node and the remedy named, `approx` around the
@@ -662,7 +662,7 @@ setting, the docs. So the plan's numbering is the order.
   fraction display of an exact `Scaled` is the value's, not the form's,
   and lands in `display.ts`.
 - **An inexact literal**: a literal is exact whatever its length, up to
-  the range limit, in exact mode. Marking a value as known only
+  the significand limit, in exact mode. Marking a value as known only
   approximately is docs/approximate.md's, the built-in `approx` of task
   4.10, which the sum rule above serves (`approx(1e999999999) + 1` is a
   value).
@@ -673,8 +673,8 @@ setting, the docs. So the plan's numbering is the order.
 - **Decimal arithmetic on the kernel**: the kernel stays binary, and the
   mode rounds its results; a decimal kernel would double the numeric
   surface for every function, which the study rules out.
-- **An exact `2^1442695`**: an exact power whose mantissa exceeds the
-  range limit is `tooLarge`, as today; `10^1442695` is exact, since the
+- **An exact `2^1442695`**: an exact power whose significand exceeds the
+  significand limit is `tooLarge`, as today; `10^1442695` is exact, since the
   ten goes into the exponent.
 
 ## Alternatives considered
@@ -709,7 +709,7 @@ plan's "Stage 4 as it landed" lists the rulings task by task. What
 departed from this note:
 
 - **The exponent's cost.** A power of ten costs nothing, so `10^100000`
-  is exactly `1e100000` and `10^(100000/3)` is a value, where the range
+  is exactly `1e100000` and `10^(100000/3)` is a value, where the significand
   limit refused both; `7^(100000/3)` and its kind are values
   too, through log space, since 4.9 gave the exponential the range of
   its exponent, and only the exponent bound refuses.
@@ -726,9 +726,9 @@ departed from this note:
   a boundary.
 - **The quotient rule** is within `2^-25` of the exact bound, not
   `2^-28`, over the rule's five coarse roundings.
-- **The tiny end.** An argument below `2^-maxBits` throughout is answered
+- **The tiny end.** An argument below `2^-significandLimitBits` throughout is answered
   by its expansion at zero, which the note did not list beside the
-  saturations, and `extraBits` is held to the range limit.
+  saturations, and `extraBits` is held to the significand limit.
 - **The decimal mode under a directed rounding mode** certifies at most
   one digit fewer than asked: the rounded value is the boundary of its
   own cell and the ball has no one-sided radius, so `2 / 3` under
@@ -743,7 +743,7 @@ departed from this note:
 - **Log space** is `src/core/digits.ts`, entered through `floatingToBall`,
   a `Result` that fails at the bound only where the guard's double let an
   exponent at the bound through; the first landing scaled `ln 2` by the
-  exponent less the mantissa's bits and gave `exp(1e6)` eighteen digits
+  exponent less the significand's bits and gave `exp(1e6)` eighteen digits
   short, which the tests against Python's digits caught. The log-space
   conversion costs about 47 ms at the ceiling, the logarithm and the two
   memos computed for the call at the ceiling's bits plus the exponent's.

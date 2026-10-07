@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "./context.ts";
@@ -34,7 +34,7 @@ import {
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -145,7 +145,7 @@ test("a unit of any exponent looks up, and a prefix scales it by adding to the e
   const huge = found(lookup.unit("huge", SPAN));
   assertQuantity(huge, quantity("1e999999999", { m: 1 }));
   assert.deepEqual(huge.magnitude.mid, {
-    mant: { num: 1n, den: 1n },
+    significand: { num: 1n, den: 1n },
     exp: 999999999n,
   });
   assertQuantity(

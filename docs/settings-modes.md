@@ -1,11 +1,11 @@
 # Mode, rounding and fractions: one choice, one meaning each
 
 The design note for S2 of docs/settings-plan.md. Four of the plan's
-problems are about how the mode, the rounding mode, Digits and the
+problems are about how the mode, the rounding mode, the display digits and the
 fractions display read together: decimal mode and the fractions display
 promise opposite things and are both on at once (P4, #97); whether a
-value is a fraction depends on Digits, so a user who raises Digits to
-see a longer fraction changes every decimal line (P5, #91); Digits means
+value is a fraction depends on the display digits, so a user who raises the display digits to
+see a longer fraction changes every decimal line (P5, #91); the display digits mean
 four things (P6); and the rounding mode means two, with a default no
 line explains (P8). This note settles the first, the third and the
 fourth, decides the names of the modes (P12, the mode half), and sends
@@ -115,8 +115,8 @@ primitive.
     "digits": 8,
     "rounding": "halfEven",
     "mode": { "kind": "exact", "notation": "ratio" },
-    "maxDigits": 1000,
-    "maxBits": 65536
+    "precisionLimitDigits": 1000,
+    "significandLimitBits": 65536
   }
 }
 ```
@@ -133,9 +133,9 @@ the validation to default, and the validation of version 3 accepts a
 for `exact`, whose `notation` is one of its two values, defaulting the
 whole field otherwise.
 
-## Digits: one meaning in each mode
+## The display digits: one meaning in each mode
 
-Digits means four things today: the significant digits shown; in
+The display digits mean four things today: the significant digits shown; in
 decimal mode the precision of every step; the bound a fraction's parts
 must fit; and in decimal mode the digits a typed number is rounded to on
 the way in. P6 asks whether it should split, the digits shown apart from
@@ -148,7 +148,7 @@ has. In decimal mode the digits shown and the digits computed are one
 number by the mode's definition, and under D26 literally so: every value
 is a `p`-digit decimal. A second number in the panel would apply in one
 mode and would mean, in that mode, "compute with more digits than you
-show", which is what exact mode is for. So Digits is the digits an
+show", which is what exact mode is for. So the display digits are the digits an
 answer has: in exact mode the app finds them, and in decimal mode it
 computes with them.
 
@@ -159,16 +159,16 @@ literal with more is the one place a value with more could enter.
 `2.5400001 cm` in `in` at three digits is `= 1 in` (D26; before it, `≈ 1
 in` with the rounding in the radius). Exempting literals would
 carry the extra digits into the first operation and round them there,
-one step later, for no gain. The panel's line under Digits says it in
+one step later, for no gain. The panel's line under the display digits says it in
 decimal mode, and README says it once.
 
 The fourth meaning, the fit of a fraction, is the next section's, and
-whether it leaves Digits is that step's to decide.
+whether it leaves the display digits are that step's to decide.
 
 ## The fit rule: retained, and a step of its own
 
 docs/fractions.md writes an exact value as a fraction when its numerator
-and its denominator each have at most Digits digits, and otherwise falls
+and its denominator each have at most the display digits, and otherwise falls
 back to the decimal display. The rule is provisional (#91). The first
 draft of this note replaced it with a constant of ten digits per part;
 the review did not follow it, and the ruling is to **retain the current
@@ -183,14 +183,14 @@ the settings alone, never from anything internal to the calculation.
   display inside the exact variant above (`{ kind: "on"; width: number
 }`), giving the most digits a fraction's part may have; a fraction
   within it is written, one past it falls back to the decimal display
-  as today. Digits plays no part. The default is the one number to
-  choose; Digits' default of eight, or something more generous, say
+  as today. The display digits play no part. The default is the one number to
+  choose; the display digits' default of eight, or something more generous, say
   twenty, are the candidates.
 - **No bound.** With the display on, every exact value that is not a
   whole number is written as its fraction in lowest terms, whatever its
   length. The ground: the display applies in exact mode only, the radius
   says which values are exact, and every bit of the value is in hand.
-  The cost: values legal under the range limit run to 15,634 digits
+  The cost: values legal under the significand limit run to 15,634 digits
   (`3^32767`) and further at a raised limit, so a line can be tens of
   thousands of characters, wrapped; the copy button copies it
   faithfully.
@@ -204,7 +204,7 @@ them, the step settles three smaller points, gathered here so that
 nothing is lost:
 
 - **Whole numbers.** docs/fractions.md and D21 send an exact integer to
-  the decimal display, which writes it entire only when it fits Digits:
+  the decimal display, which writes it entire only when it fits the display digits:
   `3^20` at eight digits is `≈ 3.4867844e+9` with fractions on, for a
   value that is exactly `3486784401`. If the display's purpose is exact
   values entire, a whole number is the simplest case and should follow
@@ -222,16 +222,16 @@ nothing is lost:
   text as written.
 
 For the record, the first draft's proposal was a constant of ten digits
-per part, independent of Digits and of any setting, whole numbers
+per part, independent of the display digits and of any setting, whole numbers
 included; it was a bound like the width setting's with the width fixed
 by the app rather than the user, and it is superseded by the setting.
-What the coupling to Digits costs today, which either candidate
+What the coupling to the display digits costs today, which either candidate
 removes: `1/123456789`, typed by the user, is `≈ 8.1000001e-9` at eight
 digits and `= 1/123456789` at nine, which also lengthens every decimal
 line, and `1 m` in `in` at three digits is `≈ 39.4 in` with fractions
 on though `5000/127` is eight characters.
 
-Until that step, S2 leaves `show`'s fit at Digits, and P5's remedy is
+Until that step, S2 leaves `show`'s fit at the display digits, and P5's remedy is
 the exclusion alone: the rounding mode never meets a fraction, since
 fractions are exact mode's and exact mode rounds only the display.
 
@@ -263,13 +263,13 @@ the sentence the default lacks: which it is and why.
 **Two meanings.** The rounding mode rounds the display's last digit in
 exact mode and every step in decimal mode. That is D15's exact-mode half
 and D26's decimal mode, and it is right; what is wrong is that the
-panel's line under Rounding says neither. The lines under Digits,
+panel's line under Rounding says neither. The lines under the display digits,
 Rounding and Mode become functions of the mode in force, so that each
 says what the setting means now:
 
 - Rounding in exact mode: how the last digit shown is rounded. In
   decimal mode: how every step is rounded, the last digit shown with it.
-- Digits in exact mode: the significant digits shown. In decimal mode:
+- The display digits in exact mode: the significant digits shown. In decimal mode:
   the significant digits of every value, a typed number with more being
   rounded to them on the way in.
 
@@ -315,7 +315,7 @@ mode is in force:
 
 - exact: every digit shown is certain, found at rising precision; an
   exact value is written as its digits or as a ratio.
-- decimal: every step is rounded to Digits in the rounding mode, as a
+- decimal: every step is rounded to the display digits in the rounding mode, as a
   hand calculator does; every answer is exact in that arithmetic (a
   rounding the precision limit could not certify is marked, which the
   line under the result says, not this one; #173 asks whether it should
@@ -334,7 +334,7 @@ mode is in force:
 - `src/settings-panel.ts`: the Mode select on `kind` with two short
   options and a line that follows the mode; the notation's control
   rendered under it when the kind is `exact`, emitting the whole
-  variant; the lines under Digits and Rounding as functions of the
+  variant; the lines under the display digits and Rounding as functions of the
   settings, which `NUMBER_FIELDS` already allows for the numbers and the
   selects gain.
 - `src/outcome.ts`, `src/core/display.ts`: unchanged. The guard D26's
@@ -354,7 +354,7 @@ mode is in force:
   only; the outcome's decimal-mode lines unchanged, since D26 already
   made them digits.
 - docs: docs/fractions.md ("The decimal mode": no fractions in decimal
-  mode, and why), README's "Settings" for the mode, Digits, Rounding
+  mode, and why), README's "Settings" for the mode, the display digits, Rounding
   and the default, ARCHITECTURE.md's settings paragraph; #97 closed,
   #147 closed, #91 and #95 pointed at the fit rule's step.
 
@@ -374,9 +374,9 @@ mode is in force:
 - The rounding default is `halfEven`; a version 2 object with
   `halfAwayFromZero` loads as `halfEven`; any other stored rounding mode
   is kept.
-- The lines under Digits, Rounding and Mode say what each means in the
+- The lines under the display digits, Rounding and Mode say what each means in the
   mode in force.
-- README's "Settings" says what each mode does, what Digits and Rounding
+- README's "Settings" says what each mode does, what the display digits and Rounding
   mean in each, that a typed number is rounded on the way in in decimal
   mode, and which rounding mode is the default and why.
 - The fit rule is as it was, and its step is listed in the plan after
@@ -401,7 +401,7 @@ mode is in force:
   `ratio`, present in exact mode alone: the review ruled that a choice
   among ways of writing a value is not an on/off toggle, and a radio
   group shows every value it has, which a third notation would join.
-  Decimal mode's working digits sit under Digits instead, with which
+  Decimal mode's working digits sit under the display digits instead, with which
   they are intertwined (docs/working-digits.md). Each control emits the
   whole variant, and the Mode select emits the chosen mode's variant at
   its defaults (`DEFAULT_MODES` in settings.ts), so a change of mode is
@@ -412,7 +412,7 @@ mode is in force:
   `halfAwayFromZero` to `halfEven`. A version 3 `mode` is validated as a
   whole and built afresh from its fields, so a stray field of the other
   variant is never carried.
-- **The lines** under Digits, Rounding, Mode and the precision limit are
+- **The lines** under the display digits, Rounding, Mode and the precision limit are
   functions of the mode in force; the precision limit's line says that
   in decimal mode it bounds the hidden digits a step's rounding is
   certified at. `min-width: 0` on the panel's labels is the belt #147

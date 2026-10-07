@@ -15,8 +15,8 @@ import { powerOfTenRadius } from "./core/radius.ts";
 import { ok } from "./core/result.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_DIGITS,
-  DEFAULT_MAX_BITS,
+  DEFAULT_DISPLAY_DIGITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   ceilingContext,
   type NumberContext,
@@ -36,9 +36,9 @@ import {
 } from "./outcome.ts";
 
 const CONTEXT: NumberContext = {
-  precision: DEFAULT_DIGITS,
+  precision: DEFAULT_DISPLAY_DIGITS,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -447,11 +447,11 @@ function readsBackAs(
 
 /** How many significant digits a decimal text shows. */
 function significantDigits(text: string): number {
-  const mantissa = text
+  const significand = text
     .replace(/[eE].*$/, "")
     .replace(/[-.]/g, "")
     .replace(/^0+/, "");
-  return Math.max(mantissa.length, 1);
+  return Math.max(significand.length, 1);
 }
 
 // ---------------------------------------------------------------------------

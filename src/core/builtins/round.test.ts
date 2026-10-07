@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { exact, rootBall, type Ball } from "../ball.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "../context.ts";
@@ -23,7 +23,7 @@ import { ceil, floor, round, truncFn } from "./round.ts";
 const CONTEXT: NumberContext = {
   precision: 8,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -73,8 +73,8 @@ test("floor, ceil and trunc on exact values", () => {
   }
   assertExact(floor.apply([exact(fr(-7n, 2n))], CONTEXT), "-4");
   assertExact(ceil.apply([exact(fr(7n, 2n))], CONTEXT), "4");
-  // An integer part that cannot be formed within Most bits is refused.
-  const huge = { mant: { num: 1n, den: 3n }, exp: 30000n };
+  // An integer part that cannot be formed within the significand limit is refused.
+  const huge = { significand: { num: 1n, den: 3n }, exp: 30000n };
   assert.equal(error(floor.apply([exact(huge)], CONTEXT)).kind, "tooLarge");
 });
 
@@ -143,8 +143,8 @@ test("round to an integer and to places, in the context's rounding mode", () => 
     ),
     { kind: "domain", argument: 1, reason: "notExact" },
   );
-  // A count with more digits than Most bits holds is refused.
-  const third = { mant: { num: 1n, den: 3n }, exp: 0n };
+  // A count with more digits than the significand limit holds is refused.
+  const third = { significand: { num: 1n, den: 3n }, exp: 0n };
   assert.equal(
     error(round.apply([exact(third), exact(dec("30000"))], CONTEXT)).kind,
     "tooLarge",

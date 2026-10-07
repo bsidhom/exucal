@@ -14,7 +14,7 @@
 // walk's, so an unknown name and a cycle are found as before; a sum or
 // difference checks that its operands conform, as the evaluator does, and
 // has the left's dimension; a product or quotient combines; a power raises
-// by the `^` exponent, reduced within the range limit as the evaluator
+// by the `^` exponent, reduced within the significand limit as the evaluator
 // reduces it (`reduceExponent`), so that one past the limit fails the
 // build at the power as it would fail the call; a negation keeps; and a
 // call checks the count of
@@ -24,7 +24,7 @@
 // errors are the evaluator's own of those kinds (`nonconformingOperands`,
 // `arityMismatch`, `argumentMismatch`, `builtinArgument`), so their spans
 // and messages hold; nothing here is new to the user. A literal is not
-// checked against the range limit, so a body of `1e30000` builds and fails
+// checked against the significand limit, so a body of `1e30000` builds and fails
 // at the call, as a body that fails for every value now does; a `^`
 // exponent is, since its reduction is what the limit bounds, and the
 // build's context supplies the limit.
@@ -75,13 +75,13 @@ export type DimensionError = Extract<
 /**
  * The dimension `expr` denotes, with unit names resolved by `lookup`,
  * conformance checked by the roles in `primitives` and a `^` exponent
- * reduced within `maxBits`, the range limit, or why it has none.
+ * reduced within `significandLimitBits`, the significand limit, or why it has none.
  */
 export function dimensionOf<E>(
   expr: Expr,
   lookup: DimensionLookup<E>,
   primitives: Primitives,
-  maxBits: number,
+  significandLimitBits: number,
 ): Result<Dimension, DimensionError | E> {
   const { node, span } = expr;
   switch (node.kind) {
@@ -90,9 +90,19 @@ export function dimensionOf<E>(
     case "unit":
       return lookup.unit(node.name, span);
     case "binary": {
-      const left = dimensionOf(node.left, lookup, primitives, maxBits);
+      const left = dimensionOf(
+        node.left,
+        lookup,
+        primitives,
+        significandLimitBits,
+      );
       if (!left.ok) return left;
-      const right = dimensionOf(node.right, lookup, primitives, maxBits);
+      const right = dimensionOf(
+        node.right,
+        lookup,
+        primitives,
+        significandLimitBits,
+      );
       if (!right.ok) return right;
       switch (node.op) {
         case "add":
@@ -120,14 +130,24 @@ export function dimensionOf<E>(
       }
     }
     case "pow": {
-      const base = dimensionOf(node.base, lookup, primitives, maxBits);
+      const base = dimensionOf(
+        node.base,
+        lookup,
+        primitives,
+        significandLimitBits,
+      );
       if (!base.ok) return base;
-      const exponent = reduceExponent(node.exponent, maxBits);
+      const exponent = reduceExponent(node.exponent, significandLimitBits);
       if (!exponent.ok) return err({ kind: "tooLarge", span });
       return ok(powDimension(base.value, exponent.value));
     }
     case "neg":
-      return dimensionOf(node.operand, lookup, primitives, maxBits);
+      return dimensionOf(
+        node.operand,
+        lookup,
+        primitives,
+        significandLimitBits,
+      );
     case "call": {
       const fn = lookup.function(node.name, node.nameSpan, span);
       if (!fn.ok) return fn;
@@ -145,7 +165,12 @@ export function dimensionOf<E>(
       }
       const dimensions: Dimension[] = [];
       for (const argument of node.arguments) {
-        const dimension = dimensionOf(argument, lookup, primitives, maxBits);
+        const dimension = dimensionOf(
+          argument,
+          lookup,
+          primitives,
+          significandLimitBits,
+        );
         if (!dimension.ok) return dimension;
         dimensions.push(dimension.value);
       }

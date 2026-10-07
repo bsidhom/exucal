@@ -8,7 +8,7 @@ import { RADIAN, type BuiltinError } from "../builtin.ts";
 import { BUILTINS } from "../builtins.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "../context.ts";
@@ -23,7 +23,7 @@ import {
   radiusAboveScaled,
   radiusUpper,
 } from "../radius.ts";
-import { LIMIT_BITS, rational } from "../rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS, rational } from "../rational.ts";
 import type { Result } from "../result.ts";
 import {
   ONE,
@@ -43,11 +43,11 @@ import { cos, cosBall, sin, sinBall, tan, tanBall } from "./trig.ts";
 const CONTEXT: NumberContext = {
   precision: 40,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
-/** The default context: eight digits, the default range limit. */
+/** The default context: eight digits, the default significand limit. */
 const DEFAULT: NumberContext = { ...CONTEXT, precision: 8 };
 
 /** A metre and the radian kind, as units.txt declares them. */
@@ -68,7 +68,7 @@ function failure(result: Result<Ball, BuiltinError>): BuiltinError {
 
 /** `|a - b|` on `Scaled`s of moderate exponent. */
 function distance(a: Scaled, b: Scaled): Scaled {
-  const d = subtract(a, b, LIMIT_BITS);
+  const d = subtract(a, b, MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(d.ok, `${inspect(a)} - ${inspect(b)} aligns`);
   return absolute(d.value);
 }
@@ -204,7 +204,7 @@ test("the values are the kernel's, within the radius, and a tiny argument keeps 
   assert.ok(compare(radiusOf(tiny), dec("1e-96")) < 0);
 });
 
-test("an argument below 2^-maxBits throughout is its own sine and tangent within its cube, and its cosine is one within its square", () => {
+test("an argument below 2^-significandLimitBits throughout is its own sine and tangent within its cube, and its cosine is one within its square", () => {
   const tiny = dec("1e-999999999");
   for (const fn of [sinBall, tanBall]) {
     const result = value(fn(exact(tiny), DEFAULT));
@@ -243,8 +243,8 @@ test("an argument below 2^-maxBits throughout is its own sine and tangent within
   assert.ok(certifies(kernel, 8, "halfEven"));
 });
 
-test("an argument reaching 2^maxBits is too large, since the reduction would need pi to that many bits", () => {
-  // The range limit, which the setting moves, whatever the sign.
+test("an argument reaching 2^significandLimitBits is too large, since the reduction would need pi to that many bits", () => {
+  // The significand limit, which the setting moves, whatever the sign.
   const tooLarge = { kind: "tooLarge" };
   for (const fn of [sinBall, cosBall, tanBall]) {
     assert.deepEqual(failure(fn(exact(dec("1e999999999")), DEFAULT)), tooLarge);
@@ -424,7 +424,7 @@ test("through the pipeline: sin(30 deg) certifies 0.5, sin(pi() radian) is zero 
     ],
     [
       "sin(1e999999999 radian)",
-      '"sin(1e999999999 radian)" is too large to compute within Most bits.',
+      '"sin(1e999999999 radian)" is too large to compute within the significand limit.',
     ],
   ]) {
     const result = at(text!, 8);

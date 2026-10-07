@@ -6,7 +6,7 @@ import { exact, isExact, type Ball } from "../ball.ts";
 import { buildTable } from "../build.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   ceilingContext,
   type NumberContext,
@@ -28,7 +28,7 @@ import { incbeta, incbetaBall, incbetareg } from "./incbeta.ts";
 const CONTEXT: NumberContext = {
   precision: 40,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -228,7 +228,7 @@ test("the exact cases: the ends of the argument, and the polynomial for whole nu
     inspect(unreg),
   );
   assert.ok(isExact(value(call(true, d("1"), d("1000"), d("0.01")))));
-  // A rational argument whose power would pass Most bits: the kernel's value.
+  // A rational argument whose power would pass the significand limit: the kernel's value.
   const dense = value(
     call(
       true,

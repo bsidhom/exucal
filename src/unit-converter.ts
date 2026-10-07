@@ -3,8 +3,8 @@ import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import {
   DEFAULT_CEILING,
-  DEFAULT_DIGITS,
-  DEFAULT_MAX_BITS,
+  DEFAULT_DISPLAY_DIGITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "./core/context.ts";
@@ -35,11 +35,11 @@ import "./copy-button.ts";
  * by the host.
  *
  * The `context` property is the user's settings as the pipeline takes them
- * (the digits asked for, the rounding mode, the range limit and the
- * ceiling of the retry schedule, which the shell derives from the cap on
+ * (the digits asked for, the rounding mode, the significand limit and the
+ * ceiling of the retry schedule, which the shell derives from the precision limit on
  * the digits; `<app-shell>` owns the settings and passes it down). It
  * defaults to the display's rules before the settings existed, eight
- * digits half even, under the default cap's ceiling. The `ratio`
+ * digits half even, under the default precision limit's ceiling. The `ratio`
  * property is the ratio notation's settings (docs/fractions.md,
  * docs/ratio-width.md), its width the most digits an exact value may
  * have to be written entire, as a whole number or a ratio; absent, the
@@ -161,9 +161,9 @@ export class UnitConverter extends LitElement {
 
   /** The user's context: the digits to show, in which rounding mode, within which limits. */
   @property({ attribute: false }) context: NumberContext = {
-    precision: DEFAULT_DIGITS,
+    precision: DEFAULT_DISPLAY_DIGITS,
     rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
   };
 

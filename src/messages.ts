@@ -50,8 +50,8 @@ import type { Span } from "./core/span.ts";
  * for a quantity as the base of `pow`); one outside its domain quotes the
  * argument and says the domain; a value that straddles an edge names the
  * edge (zero, `1`, `-1`, or a pole of the function); a value too large
- * or too small to compute names the limit it passes, Most bits or the
- * exponent bound; and an exact result past Most bits names the remedy,
+ * or too small to compute names the limit it passes, the significand limit or the
+ * exponent bound; and an exact result past the significand limit names the remedy,
  * `approx` around an operand of the node or a higher setting (the plan's
  * D20).
  */
@@ -299,7 +299,7 @@ function domainValue(reason: DomainReason): string {
 
 /**
  * Why the parser rejected a literal it recognized, as a clause about "this
- * number" without the final period: a mantissa of too many digits for the
+ * number" without the final period: a significand of too many digits for the
  * hard bound, or a value whose decimal exponent passes the exponent bound
  * on either side (D17: `0.001e1000000000000000003` is within it, and
  * `1e1000000000000000001` is not); a `^` exponent that cannot be formed
@@ -320,12 +320,12 @@ function describeRejection(reason: Rejection): string {
 }
 
 /**
- * An exact result past Most bits, the range limit, worded with the remedy
+ * An exact result past the significand limit, worded with the remedy
  * (the plan's D20): `approx` around the node's first `operand`, which
  * makes the result inexact and computes it to the digits asked (around
  * the node itself it would come too late, the node being refused before
- * `approx` sees it), or a higher setting. The message keeps the panel's
- * label, "Most bits", which is what the user sees. The range limit's
+ * `approx` sees it), or a higher setting. The message names the setting
+ * as the panel labels it, the significand limit. The significand limit's
  * other refusals (a literal, a sum's alignment, a power's prediction, the
  * kernel's reach) keep `describeRefusal`'s wording, since `approx` is not
  * their remedy in the same way.
@@ -333,14 +333,14 @@ function describeRejection(reason: Rejection): string {
 function exactPastLimit(node: string, operand: string | undefined): string {
   const remedy =
     operand === undefined
-      ? "raise Most bits, or write approx around a part of it to compute it to the digits asked"
-      : `write ${quote(`approx(${operand})`)} in place of ${quote(operand)} to compute it to the digits asked, or raise Most bits`;
-  return `${quote(node)} is too large to hold exactly within Most bits: ${remedy}.`;
+      ? "raise the significand limit, or write approx around a part of it to compute it to the digits asked"
+      : `write ${quote(`approx(${operand})`)} in place of ${quote(operand)} to compute it to the digits asked, or raise the significand limit`;
+  return `${quote(node)} is too large to hold exactly within the significand limit: ${remedy}.`;
 }
 
 /**
  * What a refused result is, as a predicate without the final period: too
- * large to compute within Most bits, the setting that is the range limit,
+ * large to compute within the significand limit, the setting that is the significand limit,
  * or too large or too small for the exponent bound, which is fixed, with
  * the bound named, so that the one the user can change reads apart from
  * the one they cannot.
@@ -348,7 +348,7 @@ function exactPastLimit(node: string, operand: string | undefined): string {
 function describeRefusal(kind: Refusal["kind"]): string {
   switch (kind) {
     case "tooLarge":
-      return "is too large to compute within Most bits";
+      return "is too large to compute within the significand limit";
     case "overflow":
       return "is too large to compute: its exponent would pass 10^18";
     case "underflow":
@@ -356,11 +356,11 @@ function describeRefusal(kind: Refusal["kind"]): string {
   }
 }
 
-/** A refused value, as the qualifier of a body's description: `too large to form within Most bits`. */
+/** A refused value, as the qualifier of a body's description: `too large to form within the significand limit`. */
 function describeValuePast(kind: Refusal["kind"]): string {
   switch (kind) {
     case "tooLarge":
-      return "too large to form within Most bits";
+      return "too large to form within the significand limit";
     case "overflow":
       return "whose exponent would pass 10^18";
     case "underflow":
@@ -446,11 +446,11 @@ export function describeConversionError(
     case "unresolvedBound":
       return `${quote(have.trim())} into ${quote(want.trim())} cannot be told from the point where the result passes the exponent bound at this precision.`;
     case "tooLarge":
-      // The pipeline's ratio or count, exact and past the range limit, is
+      // The pipeline's ratio or count, exact and past the significand limit, is
       // worded as a node is, about the pair, with `approx` around the
       // `have`, which is within the limit and makes the ratio inexact.
       if ("exact" in error) {
-        return `${quote(have.trim())} into ${quote(want.trim())} is too large to hold exactly within Most bits: write ${quote(`approx(${have.trim()})`)} to compute it to the digits asked, or raise Most bits.`;
+        return `${quote(have.trim())} into ${quote(want.trim())} is too large to hold exactly within the significand limit: write ${quote(`approx(${have.trim()})`)} to compute it to the digits asked, or raise the significand limit.`;
       }
       return `${quote(have.trim())} into ${quote(want.trim())} ${describeRefusal(error.kind)}.`;
     case "overflow":

@@ -32,7 +32,7 @@ converter runs on each keystroke, `outcomeOf`, in wall time:
 - **Passes** is how many passes of the retry loop the warm evaluation
   ran. Every case here runs the whole schedule to the ceiling, since
   its value never certifies: nine passes at the default settings, eleven
-  at the highest cap the default range limit allows.
+  at the highest precision limit the default significand limit allows.
 - **Typing** is the case typed out a keystroke at a time, `outcomeOf` on
   every prefix of the `have` in order, in one worker so that the memos
   carry over as they do in a session. The slowest keystroke is usually
@@ -101,14 +101,14 @@ The causes, costliest first, at the default settings (a ceiling of
   wide argument is shifted up through a rising factorial before the
   Stirling series; #125 would make the shift cheap. The cold run also
   pays for the Bernoulli run at the new ceiling, several seconds at the
-  defaults and about a minute at the highest cap (#103, #121). A short
+  defaults and about a minute at the highest precision limit (#103, #121). A short
   exact argument costs about half as much, 0.3 to 0.8 s a call
   (`beta(0.3, 7)`): its shift is exact.
 - **The elementary functions** are cheap at the defaults: the stress
   suite's reference case, `exp(1) - exp(1)`, takes tens of
   milliseconds, and no elementary case reaches the catalogue's
   one-second floor. Their cost grows faster than the digits: at the
-  highest cap, two and a half times the digits, `exp(355/113) -
+  highest precision limit, two and a half times the digits, `exp(355/113) -
 exp(355/113)` costs 0.8 s a call, and at the hard bound `cos` costs
   20 s (#152).
 
@@ -118,14 +118,14 @@ about what a cold one does, except in the Gamma family, whose cold run
 also builds the Bernoulli numbers.
 
 Typing tells the same story from the user's side. Typing out the 229
-entries at the default digits cap (the default, `digits32` and
+entries at the default precision limit (the default, `digits32` and
 fractions profiles) took 16,548 keystrokes. Exactly 229 of them took
 100 ms or more: the last keystroke of each case. Every prefix before
 it is either incomplete, an error found at once, or a value that
 certifies at the first pass: `incbeta(0.3, 7, 1/3)` alone has nothing
 to cancel. So the interface freezes once per expression, on the
 keystroke that completes it, for the case's whole cost. That keystroke
-is the one #118 has to keep responsive. At the highest cap, the first
+is the one #118 has to keep responsive. At the highest precision limit, the first
 keystroke that completes a call also costs 150 to 200 ms, against
 about 50 ms at the defaults: a one-time cost that grows with the
 ceiling, most likely the memoized constants built to it (D10).
@@ -137,15 +137,15 @@ to it. What they cannot find, as the search stands:
 
 - **The exact functions.** `factorial`, `binomial`, `doublefactorial`,
   `gcd`, `lcm`, `div`, `mod`, `abs`, `ceil` and `trunc` are never drawn.
-  Their cost is the size of an exact result, held by the range limit's
+  Their cost is the size of an exact result, held by the significand limit's
   refusals rather than by passes, so a search for them would vary sizes
   rather than look for values that never certify.
 - **Four functions it draws have no entry yet:** `log10`, `acos`,
   `asinh` and `acosh`. They are elementary and cheap at the defaults,
-  and no sample has caught them at a raised cap.
+  and no sample has caught them at a raised precision limit.
 - **The decimal profile has no entries:** its cases have settled in one
   pass in every sample so far.
-- **Settings outside the six profiles:** other digit counts, and range
+- **Settings outside the six profiles:** other digit counts, and significand
   limits between the default and the hard bound.
 - **Expressions of other shapes.** A costly call is composed into an
   argument at most one level deep, with exact arguments of its own;
@@ -167,12 +167,12 @@ them again last and reports how far each gets. Two settings produce
 them. Both raise the ceiling, and none of these cases hangs at the
 defaults.
 
-- **The highest digits cap under the default range limit** (2,453
+- **The highest precision limit under the default significand limit** (2,453
   digits, a ceiling of 9,852): the Gamma family at an inexact argument,
   the incomplete beta function, and the incomplete gamma functions at
   an inexact or large argument. All are #151, and the causes above
   apply at two and a half times the digits.
-- **The hard bound** (`LIMIT_BITS`, a ceiling of 157,816 digits): the
+- **The hard bound** (`MAX_SIGNIFICAND_LIMIT_BITS`, a ceiling of 157,816 digits): the
   special functions by the pass at 18,432 or 36,864 digits, and the
   elementary functions too,
   e.g. `cosh(2.5)^2 - sinh(2.5)^2 - 1` in its pass at 147,456 digits.

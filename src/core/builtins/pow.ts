@@ -21,11 +21,11 @@
 // Any other base with an exact exponent follows one rule with `^`
 // (`powRationalBall` of ball.ts): integer powers exact, a rational
 // exponent exact when the base is a perfect power, the root of the power
-// when it fits the range limit, and log space otherwise (a root of a
-// degree past `2^32`, `pow(3, 1e-30)`, or of a mantissa too far below one
+// when it fits the significand limit, and log space otherwise (a root of a
+// degree past `2^32`, `pow(3, 1e-30)`, or of a significand too far below one
 // for the kernel's root goes to log space too, ball.ts's `positiveRoot`;
 // issues #45 and #57). The exponent is formed as a fraction within the
-// range limit; one that cannot be formed goes to log space as an inexact
+// significand limit; one that cannot be formed goes to log space as an inexact
 // exponent does (`unformable` below; the plan's H.16), an exact base told
 // past the bound by its value first (`pow(2, 1e999999999)` is `overflow`),
 // so that `pow(2, 1e-999999999)`, a value near one whose exponent's
@@ -106,7 +106,7 @@ export function powBallOf(
     }
   }
   if (isExact(y)) {
-    const exponent = toRational(y.mid, context.maxBits);
+    const exponent = toRational(y.mid, context.significandLimitBits);
     if (!exponent.ok) return unformable(x, y, context);
     const power = powRationalBall(x, exponent.value, context);
     return power.ok ? power : err(fromBallError(power.error, 0));
@@ -190,7 +190,7 @@ function located(error: BallError, x: Ball, y: Ball): BuiltinError {
 
 /**
  * `(-1)^y` for a nonzero exact `y` whose fraction cannot be formed within
- * the range limit, from the parity its canonical form gives: `y` is
+ * the significand limit, from the parity its canonical form gives: `y` is
  * `num / den × 10^exp` with `den` coprime to ten, hence odd, and `num`
  * not divisible by ten. With `exp > 0` the fraction is `num × 10^exp`
  * over `den`, an even numerator over an odd denominator in lowest terms,
@@ -207,7 +207,7 @@ function located(error: BallError, x: Ball, y: Ball): BuiltinError {
  */
 function minusOneTo(y: Scaled): Result<Ball, BuiltinError> {
   if (y.exp > 0n) return ok(exact(ONE));
-  const num = y.mant.num < 0n ? -y.mant.num : y.mant.num;
+  const num = y.significand.num < 0n ? -y.significand.num : y.significand.num;
   const twos = trailingZeros(num);
   if (twos < -y.exp) return err({ kind: "negativeRadicand", degree: 2n });
   return ok(exact(twos === -y.exp ? MINUS_ONE : ONE));

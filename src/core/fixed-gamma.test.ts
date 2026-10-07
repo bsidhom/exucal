@@ -19,7 +19,13 @@ import {
   toRational,
   type Fixed,
 } from "./fixed.ts";
-import { LIMIT_BITS, add, compare, rational, subtract } from "./rational.ts";
+import {
+  MAX_SIGNIFICAND_LIMIT_BITS,
+  add,
+  compare,
+  rational,
+  subtract,
+} from "./rational.ts";
 import {
   ratioGrowths,
   ratioMemoBits,
@@ -58,7 +64,7 @@ function at(text: string, bits: number): Fixed {
 
 /** The exact fraction a decimal reference denotes. */
 function fraction(text: string) {
-  const r = scaledToRational(dec(text), LIMIT_BITS);
+  const r = scaledToRational(dec(text), MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(r.ok);
   return r.value;
 }

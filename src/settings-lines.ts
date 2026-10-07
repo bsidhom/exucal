@@ -9,7 +9,7 @@
 // separators; the ceiling is written as a number and never as a formula
 // (D29).
 
-import { ceilingFor, maxDigitsFor, type Mode } from "./core/context.ts";
+import { ceilingFor, precisionLimitFor, type Mode } from "./core/context.ts";
 import type { Recommendation } from "./limits.ts";
 import type {
   Clamp,
@@ -73,7 +73,7 @@ export function workingDigitsLine(extended: boolean): string {
  * is what bounds the effort an expression may cost.
  */
 export function precisionLimitLine(settings: Settings): string {
-  const most = formatNumber(maxDigitsFor(settings.significandLimitBits));
+  const most = formatNumber(precisionLimitFor(settings.significandLimitBits));
   const ceiling = measure(ceilingFor(settings.precisionLimitDigits), "digits");
   return settings.mode.kind === "exact"
     ? `The most digits an answer may be asked for, up to ${most} under the significand limit. To certify an answer the app rounds onto a decimal grid of up to ${ceiling}, so this also bounds the effort an expression may cost: one whose digits can never be certain runs to that grid on every keystroke.`
@@ -133,7 +133,7 @@ export function refusalLine(setting: RangedSetting, refusal: Refusal): string {
 
 /**
  * The line under a setting a clamp moved: lowered to fit the setting
- * whose cap it passed, or raised to the setting that is its floor
+ * whose limit it passed, or raised to the setting that is its floor
  * ("lowered from 1,000 to 990 digits to fit the significand limit";
  * "raised from 8 to 16 digits to the display digits").
  */

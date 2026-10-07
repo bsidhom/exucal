@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { inspect } from "node:util";
 import { test } from "node:test";
 import {
-  DEFAULT_MAX_BITS,
-  DEFAULT_MAX_DIGITS,
-  MIN_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
+  DEFAULT_PRECISION_LIMIT_DIGITS,
+  MIN_SIGNIFICAND_LIMIT_BITS,
   ceilingFor,
-  maxDigitsFor,
+  precisionLimitFor,
 } from "./core/context.ts";
-import { LIMIT_BITS } from "./core/rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS } from "./core/rational.ts";
 import {
   DEFAULT_MODES,
   DEFAULT_SETTINGS,
@@ -200,8 +200,8 @@ test("the mode reaches the context as its kind, with the working digits when the
   assert.deepEqual(contextOf({ ...DEFAULT_SETTINGS, mode: EXTENDED }), {
     precision: 8,
     rounding: "halfEven",
-    maxBits: DEFAULT_MAX_BITS,
-    ceiling: ceilingFor(DEFAULT_MAX_DIGITS),
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
+    ceiling: ceilingFor(DEFAULT_PRECISION_LIMIT_DIGITS),
     mode: "decimal",
     working: 12,
   });
@@ -257,22 +257,28 @@ test("each field that is missing or invalid falls back to its default alone", ()
     ...DEFAULT_SETTINGS,
     displayDigits: 12,
   });
-  for (const bits of [0, MIN_MAX_BITS - 1, LIMIT_BITS + 1, 1.5, "65536"]) {
+  for (const bits of [
+    0,
+    MIN_SIGNIFICAND_LIMIT_BITS - 1,
+    MAX_SIGNIFICAND_LIMIT_BITS + 1,
+    1.5,
+    "65536",
+  ]) {
     assert.deepEqual(
       load({ significandLimitBits: bits }),
       DEFAULT_SETTINGS,
       `${bits}`,
     );
   }
-  assert.deepEqual(load({ significandLimitBits: MIN_MAX_BITS }), {
+  assert.deepEqual(load({ significandLimitBits: MIN_SIGNIFICAND_LIMIT_BITS }), {
     ...DEFAULT_SETTINGS,
-    significandLimitBits: MIN_MAX_BITS,
+    significandLimitBits: MIN_SIGNIFICAND_LIMIT_BITS,
     precisionLimitDigits: 1,
     displayDigits: 1,
   });
-  assert.deepEqual(load({ significandLimitBits: LIMIT_BITS }), {
+  assert.deepEqual(load({ significandLimitBits: MAX_SIGNIFICAND_LIMIT_BITS }), {
     ...DEFAULT_SETTINGS,
-    significandLimitBits: LIMIT_BITS,
+    significandLimitBits: MAX_SIGNIFICAND_LIMIT_BITS,
   });
   for (const limit of [0, -3, 2.5, "500"]) {
     assert.deepEqual(
@@ -298,7 +304,7 @@ test("each field that is missing or invalid falls back to its default alone", ()
 
 test("the dependent settings are clamped: the precision limit to the significand limit, the display digits to the precision limit, the working digits between them", () => {
   // A precision limit above what the significand limit holds comes down to it.
-  const most = maxDigitsFor(DEFAULT_MAX_BITS);
+  const most = precisionLimitFor(DEFAULT_SIGNIFICAND_LIMIT_BITS);
   assert.deepEqual(load({ precisionLimitDigits: most + 1 }), {
     ...DEFAULT_SETTINGS,
     precisionLimitDigits: most,
@@ -324,7 +330,7 @@ test("the dependent settings are clamped: the precision limit to the significand
     significandLimitBits: 1024,
   });
   assert.equal(small.significandLimitBits, 1024);
-  assert.equal(small.precisionLimitDigits, maxDigitsFor(1024));
+  assert.equal(small.precisionLimitDigits, precisionLimitFor(1024));
   assert.ok(small.precisionLimitDigits < 100);
   assert.equal(small.displayDigits, small.precisionLimitDigits);
   // `clampSettings` is the same rule on its own, for the shell.
@@ -333,8 +339,8 @@ test("the dependent settings are clamped: the precision limit to the significand
     {
       ...DEFAULT_SETTINGS,
       significandLimitBits: 1024,
-      precisionLimitDigits: maxDigitsFor(1024),
-      displayDigits: Math.min(8, maxDigitsFor(1024)),
+      precisionLimitDigits: precisionLimitFor(1024),
+      displayDigits: Math.min(8, precisionLimitFor(1024)),
     },
   );
   assert.deepEqual(clampSettings(DEFAULT_SETTINGS), DEFAULT_SETTINGS);
@@ -383,10 +389,13 @@ test("the dependent settings are clamped: the precision limit to the significand
   // The ranges the panel reads, each bound with the setting that sets it:
   // the working digits from the display digits to the precision limit.
   assert.deepEqual(rangesOf(at(8, 12, 100)), {
-    significandLimitBits: { min: MIN_MAX_BITS, max: LIMIT_BITS },
+    significandLimitBits: {
+      min: MIN_SIGNIFICAND_LIMIT_BITS,
+      max: MAX_SIGNIFICAND_LIMIT_BITS,
+    },
     precisionLimitDigits: {
       min: 1,
-      max: maxDigitsFor(DEFAULT_MAX_BITS),
+      max: precisionLimitFor(DEFAULT_SIGNIFICAND_LIMIT_BITS),
       maxBy: "significandLimitBits",
     },
     displayDigits: { min: 1, max: 100, maxBy: "precisionLimitDigits" },
@@ -401,7 +410,10 @@ test("the dependent settings are clamped: the precision limit to the significand
   });
   assert.ok(isIntegerIn(12, rangesOf(at(8, 12)).working));
   assert.ok(!isIntegerIn(7, rangesOf(at(8, 12)).working));
-  assert.ok(isSignificandLimit(DEFAULT_MAX_BITS) && !isSignificandLimit(0));
+  assert.ok(
+    isSignificandLimit(DEFAULT_SIGNIFICAND_LIMIT_BITS) &&
+      !isSignificandLimit(0),
+  );
   assert.ok(isRoundingMode("floor") && !isRoundingMode("nearest"));
 });
 
@@ -422,7 +434,7 @@ test("the clamp reports what it moved, from what to what and by which setting, i
     displayDigits: 100,
     mode: extended(200),
   });
-  const held = maxDigitsFor(1024);
+  const held = precisionLimitFor(1024);
   const expected: Clamp[] = [
     {
       setting: "precisionLimitDigits",
@@ -482,7 +494,7 @@ test("a refusal says why an edit is out of range: the bound passed and the setti
   });
   assert.deepEqual(refusalOf(5000, "precisionLimitDigits", settings), {
     kind: "above",
-    bound: maxDigitsFor(DEFAULT_MAX_BITS),
+    bound: precisionLimitFor(DEFAULT_SIGNIFICAND_LIMIT_BITS),
     by: "significandLimitBits",
   });
   assert.deepEqual(refusalOf(7, "working", settings), {
@@ -502,18 +514,18 @@ test("a refusal says why an edit is out of range: the bound passed and the setti
     by: undefined,
   });
   assert.deepEqual(
-    refusalOf(LIMIT_BITS + 1, "significandLimitBits", settings),
+    refusalOf(MAX_SIGNIFICAND_LIMIT_BITS + 1, "significandLimitBits", settings),
     {
       kind: "above",
-      bound: LIMIT_BITS,
+      bound: MAX_SIGNIFICAND_LIMIT_BITS,
       by: undefined,
     },
   );
   assert.deepEqual(
-    refusalOf(MIN_MAX_BITS - 1, "significandLimitBits", settings),
+    refusalOf(MIN_SIGNIFICAND_LIMIT_BITS - 1, "significandLimitBits", settings),
     {
       kind: "below",
-      bound: MIN_MAX_BITS,
+      bound: MIN_SIGNIFICAND_LIMIT_BITS,
       by: undefined,
     },
   );
@@ -790,7 +802,7 @@ test("a version 4 object loads with the three numbers under their new keys, and 
   // to default; a missing one stays missing.
   assert.deepEqual(four({ ...fields, maxBits: "4096" }), {
     ...NEW_KEYS,
-    significandLimitBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     rounding: "floor",
     mode: RATIO,
   });
@@ -922,7 +934,7 @@ test("reset gives the defaults, for all the settings or for one with the clamp a
     rounding: "halfAwayFromZero",
     mode: { kind: "decimal", working: { kind: "extended", digits: 40 } },
     precisionLimitDigits: 50,
-    significandLimitBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     budgetMs: 200,
   };
   assert.deepEqual(resetSettings(), DEFAULT_SETTINGS);
@@ -968,7 +980,7 @@ test("reset gives the defaults, for all the settings or for one with the clamp a
   );
   assert.equal(
     reset.precisionLimitDigits,
-    maxDigitsFor(DEFAULT_SETTINGS.significandLimitBits),
+    precisionLimitFor(DEFAULT_SETTINGS.significandLimitBits),
   );
   assert.equal(reset.displayDigits, reset.precisionLimitDigits);
   assert.deepEqual(reset.mode, {

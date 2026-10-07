@@ -16,13 +16,13 @@
 // (`exp(approx(1e999) - approx(1e999 - 5))` at its first pass, issue #40,
 // which stage 4 refused for good), while `exp(1e6)` and
 // `exp(1e18)` are values (4.9): the kernel returns a `Floating`, a
-// mantissa with a binary exponent, which comes out through digits.ts
+// significand with a binary exponent, which comes out through digits.ts
 // (`floatingToBall`), exactly where the exponent is within the range
 // limit and in log space otherwise. A tiny argument needs no scaling: the
 // result is `1 + x + ...`, whose digits certify at the first pass, and
 // the digits of the difference from one are the retry loop's to find;
-// one throughout below `2^-maxBits`, which the kernel cannot be handed
-// at any bits within the range limit, is one within twice its magnitude
+// one throughout below `2^-significandLimitBits`, which the kernel cannot be handed
+// at any bits within the significand limit, is one within twice its magnitude
 // bound, its expansion at zero, since `e^|x| - 1 <= 2|x|` there (4.4,
 // H.2 of the plan), and one between that and half an ulp of the working
 // bits converts to zero within an ulp at the kernel's door
@@ -63,7 +63,7 @@ export function expBall(
     if (isZero(x.mid)) return ok(exact(ONE));
     if (equals(x.mid, ONE)) return ok(eBall(context));
   }
-  // Below 2^-maxBits throughout: one within twice the magnitude bound,
+  // Below 2^-significandLimitBits throughout: one within twice the magnitude bound,
   // since e^|x| - 1 <= 2|x| there, the expansion at zero (4.4, H.2).
   if (isTiny(x, context)) {
     return ok({ mid: ONE, rad: shiftRadius(magnitudeAbove(x), 1n) });

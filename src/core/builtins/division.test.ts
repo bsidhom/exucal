@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { exact, isExact } from "../ball.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "../context.ts";
@@ -21,7 +21,7 @@ import { div, mod } from "./division.ts";
 const CONTEXT: NumberContext = {
   precision: 8,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -85,7 +85,12 @@ test("div and mod are floored division, concordant, on rationals and over signs"
     for (const b of ["2", "-2", "0.3", "-0.3", "1e-21"]) {
       const rem = value(m(a, b));
       assert.ok(isExact(rem), `${a} mod ${b}`);
-      const side = rem.mid.mant.num === 0n ? 0 : rem.mid.mant.num < 0n ? -1 : 1;
+      const side =
+        rem.mid.significand.num === 0n
+          ? 0
+          : rem.mid.significand.num < 0n
+            ? -1
+            : 1;
       assert.ok(
         side === 0 || side === (b.startsWith("-") ? -1 : 1),
         `${a} mod ${b}`,

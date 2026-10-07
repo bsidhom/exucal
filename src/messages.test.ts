@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceilingContext,
   DEFAULT_ROUNDING,
   type NumberContext,
@@ -49,7 +49,7 @@ import {
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -97,7 +97,7 @@ const withApp: UnitTable = (() => {
   return built.value;
 })();
 
-/** A product of two coprime powers, each within the default range limit, past it together. */
+/** A product of two coprime powers, each within the default significand limit, past it together. */
 const COPRIME_PRODUCT = "3^30000 * 7^20000";
 
 /** The message for the error `text` fails with, in `against`. */
@@ -145,14 +145,14 @@ test("a parse error names what was expected and what was found", () => {
   );
   assert.equal(textMessage("m^(1/0)"), '"1/0": the exponent divides by zero.');
   // A literal of any exponent is a value; the sum that cannot align it
-  // is what is too large, at the sum, within the range limit.
+  // is what is too large, at the sum, within the significand limit.
   assert.equal(
     textMessage("1e999999999 + 1"),
-    '"1e999999999 + 1" is too large to compute within Most bits.',
+    '"1e999999999 + 1" is too large to compute within the significand limit.',
   );
   assert.equal(
     textMessage("1e999999999 m - 1 m"),
-    '"1e999999999 m - 1 m" is too large to compute within Most bits.',
+    '"1e999999999 m - 1 m" is too large to compute within the significand limit.',
   );
   // A literal past the exponent bound is rejected where it is written,
   // with the side it is past.
@@ -181,12 +181,12 @@ test("an evaluation error quotes the text at fault", () => {
   );
   assert.equal(
     textMessage("2^99999 m"),
-    '"2^99999" is too large to compute within Most bits.',
+    '"2^99999" is too large to compute within the significand limit.',
   );
   // A built-in that refuses an argument it cannot reduce fails at the call.
   assert.equal(
     textMessage("sin(1e999999999 radian)"),
-    '"sin(1e999999999 radian)" is too large to compute within Most bits.',
+    '"sin(1e999999999 radian)" is too large to compute within the significand limit.',
   );
   assert.equal(
     textMessage("(-4)^0.5 m"),
@@ -245,33 +245,33 @@ test("a zero want is reported as such, and one that cannot be told from zero too
 });
 
 test("a value too large to compute names the limit it passes, and one too small says so", () => {
-  // The range limit is the setting, Most bits; the exponent bound is not,
+  // The significand limit is the setting, the significand limit; the exponent bound is not,
   // and a value past it below is too small rather than too large.
   assert.equal(
     textMessage("3^1000000000"),
-    '"3^1000000000" is too large to compute within Most bits.',
+    '"3^1000000000" is too large to compute within the significand limit.',
   );
-  // An exact result formed and measured past Most bits names the node
+  // An exact result formed and measured past the significand limit names the node
   // and the remedy (the plan's D20), and the remedy works; a power's
   // prediction, above, keeps the plain wording.
   assert.equal(
     textMessage("3^32767 * 7^21845", withApp),
-    '"3^32767 * 7^21845" is too large to hold exactly within Most bits: write "approx(3^32767)" in place of "3^32767" to compute it to the digits asked, or raise Most bits.',
+    '"3^32767 * 7^21845" is too large to hold exactly within the significand limit: write "approx(3^32767)" in place of "3^32767" to compute it to the digits asked, or raise the significand limit.',
   );
   assert.equal(
     textMessage(`${COPRIME_PRODUCT} * 11^16000`, withApp),
-    `"${COPRIME_PRODUCT}" is too large to hold exactly within Most bits: write "approx(3^30000)" in place of "3^30000" to compute it to the digits asked, or raise Most bits.`,
+    `"${COPRIME_PRODUCT}" is too large to hold exactly within the significand limit: write "approx(3^30000)" in place of "3^30000" to compute it to the digits asked, or raise the significand limit.`,
   );
   assert.equal(
     textMessage("2^-30000", withApp),
-    '"2^-30000" is too large to hold exactly within Most bits: write "approx(2)" in place of "2" to compute it to the digits asked, or raise Most bits.',
+    '"2^-30000" is too large to hold exactly within the significand limit: write "approx(2)" in place of "2" to compute it to the digits asked, or raise the significand limit.',
   );
   assert.ok(evaluateText(withApp, "approx(3^32767) * 7^21845", CONTEXT).ok);
   assert.ok(evaluateText(withApp, "approx(2)^-30000", CONTEXT).ok);
   // The conversion's ratio, about the pair, with `approx` on the have.
   assert.equal(
     conversionMessage("3^25000/7^14000 m", "11^15000/13^14000 ft"),
-    '"3^25000/7^14000 m" into "11^15000/13^14000 ft" is too large to hold exactly within Most bits: write "approx(3^25000/7^14000 m)" to compute it to the digits asked, or raise Most bits.',
+    '"3^25000/7^14000 m" into "11^15000/13^14000 ft" is too large to hold exactly within the significand limit: write "approx(3^25000/7^14000 m)" to compute it to the digits asked, or raise the significand limit.',
   );
   assert.ok(
     convertText(
@@ -293,7 +293,7 @@ test("a value too large to compute names the limit it passes, and one too small 
     textMessage("10^1e999"),
     '"10^1e999" is too large to compute: its exponent would pass 10^18.',
   );
-  // A power the range limit refuses is reported at the bound when the
+  // A power the significand limit refuses is reported at the bound when the
   // bound would refuse it too, since no setting could compute it.
   assert.equal(
     textMessage("7^10000000000000000000"),
@@ -330,7 +330,7 @@ test("a result that straddles the exponent bound names the edge, in an expressio
 test("a list refused by its arithmetic names the pair and the limit", () => {
   assert.equal(
     conversionMessage("3^32767 m", "ft/7^21845; in/7^21845"),
-    '"3^32767 m" into "ft/7^21845; in/7^21845" is too large to compute within Most bits.',
+    '"3^32767 m" into "ft/7^21845; in/7^21845" is too large to compute within the significand limit.',
   );
   assert.equal(
     conversionMessage(
@@ -443,7 +443,7 @@ test("a body that fails is described by what the definition does", () => {
   // own does.
   assert.equal(
     textMessage("square(3^30000)", failing),
-    'Cannot compute "square(3^30000)": the definition of "square" computes a value too large to form within Most bits.',
+    'Cannot compute "square(3^30000)": the definition of "square" computes a value too large to form within the significand limit.',
   );
   assert.equal(
     textMessage("square(1e999999999999999999)", failing),

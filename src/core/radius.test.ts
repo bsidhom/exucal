@@ -21,7 +21,7 @@ import {
   type Radius,
 } from "./radius.ts";
 import {
-  LIMIT_BITS,
+  MAX_SIGNIFICAND_LIMIT_BITS,
   ONE,
   ZERO,
   absolute,
@@ -37,21 +37,24 @@ import {
 import { key, randomRational, split } from "../testing/random.ts";
 
 /** A bounded radius written out, for the expected side of a `deepEqual`. */
-function bounded(mant: bigint, exp: bigint): Radius {
-  return { kind: "bounded", mant, exp };
+function bounded(significand: bigint, exp: bigint): Radius {
+  return { kind: "bounded", significand, exp };
 }
 
-/** `1 + 2^-29`, the factor an operation may lose to the 30-bit mantissa. */
+/** `1 + 2^-29`, the factor an operation may lose to the 30-bit significand. */
 const SLACK = add(ONE, rational(1n, MANT_MIN));
 
-/** Asserts that `rad` is normalized: zero as `ZERO_RADIUS`, or a 30-bit mantissa. */
+/** Asserts that `rad` is normalized: zero as `ZERO_RADIUS`, or a 30-bit significand. */
 function assertNormalized(rad: Radius) {
   if (rad.kind === "unbounded") return;
-  if (rad.mant === 0n) {
+  if (rad.significand === 0n) {
     assert.deepEqual(rad, ZERO_RADIUS);
     return;
   }
-  assert.ok(rad.mant >= MANT_MIN && rad.mant < MANT_LIMIT, `${rad.mant}`);
+  assert.ok(
+    rad.significand >= MANT_MIN && rad.significand < MANT_LIMIT,
+    `${rad.significand}`,
+  );
 }
 
 /**
@@ -111,8 +114,8 @@ test("radiusAbove of a power of two is exact, and of zero is zero", () => {
   );
 });
 
-test("radiusAbove rounds up to the 30-bit mantissa, by the least it can", () => {
-  // Every integer below 2^30 is a mantissa of its own.
+test("radiusAbove rounds up to the 30-bit significand, by the least it can", () => {
+  // Every integer below 2^30 is a significand of its own.
   assert.deepEqual(radiusAbove(rational(3n)), bounded(3n << 28n, -28n));
   assert.deepEqual(
     radiusAbove(rational(MANT_LIMIT - 1n)),
@@ -127,7 +130,7 @@ test("radiusAbove rounds up to the 30-bit mantissa, by the least it can", () => 
     radiusAbove(rational(MANT_LIMIT + 2n)),
     bounded(MANT_MIN + 1n, 1n),
   );
-  // 1/3 lies in [2^-2, 2^-1): its mantissa is ceil(2^31 / 3).
+  // 1/3 lies in [2^-2, 2^-1): its significand is ceil(2^31 / 3).
   assert.deepEqual(radiusAbove(rational(1n, 3n)), bounded(715827883n, -31n));
   assert.deepEqual(radiusAbove(rational(-1n, 3n)), bounded(715827883n, -31n));
   // A value just below a power of two rounds up to it.
@@ -151,11 +154,11 @@ test("radiusAbove is at or above its argument, within 2^-29, and the least such"
   for (const r of seeded()) {
     const rad = radiusAbove(r);
     assertBounds(rad, absolute(r));
-    // The least: one mantissa step down is below |r|.
+    // The least: one significand step down is below |r|.
     assert.ok(rad.kind === "bounded");
     const below =
-      rad.mant > MANT_MIN
-        ? bounded(rad.mant - 1n, rad.exp)
+      rad.significand > MANT_MIN
+        ? bounded(rad.significand - 1n, rad.exp)
         : bounded(MANT_LIMIT - 1n, rad.exp - 1n);
     assert.ok(
       compare(radiusUpper(below), absolute(r)) < 0,
@@ -181,7 +184,7 @@ test("each operation is at or above the exact result, within 2^-29 of it", () =>
       assert.deepEqual(max, compare(exact[i]!, exact[j]!) >= 0 ? a : b);
     }
     for (const n of powers) {
-      const p = pow(exact[i]!, n, LIMIT_BITS);
+      const p = pow(exact[i]!, n, MAX_SIGNIFICAND_LIMIT_BITS);
       assert.ok(p.ok);
       // One product per bit of `n` and one per squaring, each within the slack.
       const products = 2 * n.toString(2).length;
@@ -192,7 +195,7 @@ test("each operation is at or above the exact result, within 2^-29 of it", () =>
   }
 });
 
-test("the operations are exact where the mantissas allow, so equal radii are equal", () => {
+test("the operations are exact where the significands allow, so equal radii are equal", () => {
   const one = radiusAbove(ONE);
   const two = radiusAbove(rational(2n));
   const three = radiusAbove(rational(3n));
@@ -222,11 +225,11 @@ test("powRadiusAbove is at or above the power, within a little of powRadius, and
   for (const r of values) {
     const rad = radiusAbove(r);
     for (const n of [1n, 2n, 3n, 7n, 10n]) {
-      const p = pow(radiusUpper(rad), n, LIMIT_BITS);
+      const p = pow(radiusUpper(rad), n, MAX_SIGNIFICAND_LIMIT_BITS);
       assert.ok(p.ok);
       // The 40-bit fraction's margin is a relative 2^-40 times n, which
       // the slack of one product covers for these n, on top of the
-      // mantissa's own 2^-29.
+      // significand's own 2^-29.
       assertBounds(powRadiusAbove(rad, n), p.value, multiply(SLACK, SLACK));
     }
   }
@@ -280,7 +283,7 @@ test("a sum of radii far apart in exponent is one unit up, without a shift by th
   const near = bounded(MANT_MIN, 0n);
   assert.deepEqual(addRadius(far, near), bounded(MANT_MIN + 1n, 10n ** 18n));
   assert.deepEqual(addRadius(near, far), bounded(MANT_MIN + 1n, 10n ** 18n));
-  // At the edge of the mantissa's width the shifted sum agrees with the
+  // At the edge of the significand's width the shifted sum agrees with the
   // shortcut: 2^29 × 2^30 + 2^29 rounds up to (2^29 + 1) × 2^30 either way.
   assert.deepEqual(
     addRadius(bounded(MANT_MIN, 30n), near),
@@ -333,7 +336,7 @@ test("powerOfTenRadius is at or above 10^k, within 2^-29, at any exponent the bo
   }
   // Past the exponent bound, where no power of ten can be formed: the
   // radius's binary logarithm has the integer part of `k log2 10`, so it
-  // lies within the mantissa's width of `10^k` (the fraction is in [0, 1)
+  // lies within the significand's width of `10^k` (the fraction is in [0, 1)
   // and the radius is at or above the value). The expected integers are
   // floor(k × 3.32192809488736234787…), computed with 60 digits.
   for (const [k, int] of [
@@ -361,11 +364,15 @@ test("rootRadiusAbove is at or above the root, within 2^-27, at any degree, a de
     for (const degree of [2n, 3n, 7n, 1000n]) {
       const root = rootRadiusAbove(rad, degree);
       assertNormalized(root);
-      const power = pow(radiusUpper(root), degree, LIMIT_BITS);
+      const power = pow(radiusUpper(root), degree, MAX_SIGNIFICAND_LIMIT_BITS);
       assert.ok(power.ok);
       const exact = radiusUpper(rad);
       assert.ok(compare(power.value, exact) >= 0, `${i}: degree ${degree}`);
-      const slack = pow(add(ONE, rational(1n, 1n << 27n)), degree, LIMIT_BITS);
+      const slack = pow(
+        add(ONE, rational(1n, 1n << 27n)),
+        degree,
+        MAX_SIGNIFICAND_LIMIT_BITS,
+      );
       assert.ok(slack.ok);
       assert.ok(
         compare(power.value, multiply(exact, slack.value)) <= 0,

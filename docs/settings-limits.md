@@ -233,8 +233,10 @@ formula.**
 ## Alignment of the code, the storage and the docs
 
 The terms above are the one vocabulary, in the panel, the storage, the
-code and the docs. The storage, the code and the docs follow in changes
-after this step's panel work, not atomically with it: the stored keys
+code and the docs. As written, the storage, the code and the docs were
+to follow in changes after this step's panel work, not atomically with
+it; as landed (below), the storage's renames rode with the panel and the
+core's in a change of their own right after. The stored keys
 become `displayDigits`, `precisionLimitDigits` and
 `significandLimitBits` at a version 5 with one migration (S1 makes it a
 few lines); `Settings` and `rangesOf` take the same names;
@@ -459,12 +461,22 @@ must fit inside it, which `2 × bitsFor(4 × (L + 10)) ≤ S` states and
   budget needed a version 5, and the note asks that the keys' renames
   and the new field ride one migration, so `Settings` and the stored
   object say `displayDigits`, `precisionLimitDigits`,
-  `significandLimitBits` and `budgetMs` now (docs/settings-storage.md,
-  version 5). The core's renames (`NumberContext.maxBits`,
-  `maxDigitsFor`, `LIMIT_BITS`, `MIN_MAX_BITS`, `Scaled.mant`, the
-  docs' "cap", "range limit" and "mantissa", D12, D13 and D16) wait for
-  the alignment change as ruled; `contextOf` is where the two
-  vocabularies meet, and ARCHITECTURE.md states the mapping.
+  `significandLimitBits` and `budgetMs` (docs/settings-storage.md,
+  version 5).
+- **The alignment landed in the change after the panel's**, as ruled:
+  `NumberContext.maxBits` is `significandLimitBits`, `maxDigitsFor` is
+  `precisionLimitFor`, `LIMIT_BITS` and `MIN_MAX_BITS` are
+  `MAX_SIGNIFICAND_LIMIT_BITS` and `MIN_SIGNIFICAND_LIMIT_BITS`,
+  `DEFAULT_MAX_BITS`, `DEFAULT_MAX_DIGITS` and `DEFAULT_DIGITS` are
+  `DEFAULT_SIGNIFICAND_LIMIT_BITS`, `DEFAULT_PRECISION_LIMIT_DIGITS` and
+  `DEFAULT_DISPLAY_DIGITS`, `Scaled.mant` is `significand` with every
+  `mantissa` in the code's names and comments, and the docs, the
+  messages and the decisions say "the precision limit", "the
+  significand limit", "the display digits" and "significand" where they
+  said "the cap", "the range limit" or "Most bits", "Digits" and
+  "mantissa"; this note alone keeps the old words, since it is where
+  they are weighed. The user-facing refusals ("too large to compute
+  within the significand limit") changed with them.
 - **The bound's setter is in the range.** `rangesOf` gives each ranged
   setting its `Bounds`, the range with `minBy` and `maxBy` naming the
   setting that sets a bound where the chain sets one, and the refusal

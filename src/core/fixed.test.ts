@@ -41,7 +41,7 @@ import {
   subtract,
   toFraction,
   type Rational,
-  LIMIT_BITS,
+  MAX_SIGNIFICAND_LIMIT_BITS,
 } from "./rational.ts";
 import { digitsFor } from "./rounding.ts";
 import {
@@ -629,7 +629,7 @@ test("shiftFixed multiplies by a power of two by moving the binary point", () =>
   assert.deepEqual(shiftFixed(f, 6), { value: 20n, error: 4n, bits: 0 });
   for (const k of [-70, -3, 0, 2, 4, 9, 70]) {
     const shifted = shiftFixed(f, k);
-    const factor = pow(rational(2n), BigInt(k), LIMIT_BITS);
+    const factor = pow(rational(2n), BigInt(k), MAX_SIGNIFICAND_LIMIT_BITS);
     assert.ok(factor.ok);
     assert.ok(
       equals(toRational(shifted), multiply(toRational(f), factor.value)),
@@ -949,10 +949,10 @@ test("rootFixed at the largest degree, 2^32, contains the root of every value in
       // Magnitudes from 2^-20 to 2^20, as exact values and as balls.
       const k = foldIn(foldIn(root, bits), i);
       const scale = between(foldIn(k, 0), -20, 20);
-      const mantissa = absolute(randomRational(foldIn(k, 1), 24, 0));
-      if (mantissa.num === 0n) continue;
+      const significand = absolute(randomRational(foldIn(k, 1), 24, 0));
+      if (significand.num === 0n) continue;
       const value = multiply(
-        mantissa,
+        significand,
         scale >= 0
           ? rational(1n << BigInt(scale))
           : rational(1n, 1n << BigInt(-scale)),

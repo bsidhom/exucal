@@ -6,7 +6,7 @@ import { exact, isExact, type Ball } from "../ball.ts";
 import { buildTable } from "../build.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   ceilingContext,
   type NumberContext,
@@ -37,7 +37,7 @@ import {
 const CONTEXT: NumberContext = {
   precision: 40,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -122,7 +122,7 @@ test("digamma matches mpmath to forty digits on positive and negative arguments"
     psi(exact(dec("1e999999999")), { ...CONTEXT, precision: 8 }),
     "≈ 2.3025851e+9",
   );
-  // Below 2^-maxBits throughout: ψ(1) - 1 / x within 2x.
+  // Below 2^-significandLimitBits throughout: ψ(1) - 1 / x within 2x.
   assert.equal(
     psi(exact(dec("1e-999999999")), { ...CONTEXT, precision: 8 }),
     "≈ -1e+999999999",
@@ -472,7 +472,7 @@ test("gamma of an exact integer is the exact factorial where it fits, and the ke
     "≈ 2.8462597e+35655",
   );
   assert.ok(isExact(value(gammaBall(exact(dec("5001")), CONTEXT))));
-  // 20000! has 77,338 digits, past Most bits, so the factorial is
+  // 20000! has 77,338 digits, past the significand limit, so the factorial is
   // refused and gamma gives the value in log space (the remedy).
   assert.equal(
     g(exact(dec("20001")), { ...CONTEXT, precision: 8 }),

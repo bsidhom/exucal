@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   ceilingFor,
   type NumberContext,
@@ -21,13 +21,13 @@ function parsed(): readonly Definition[] {
   return result.value;
 }
 
-/** The user's context at `digits` under a cap of `maxDigits`. */
-function context(digits: number, maxDigits: number): NumberContext {
+/** The user's context at `digits` under a precision limit of `precisionLimitDigits`. */
+function context(digits: number, precisionLimitDigits: number): NumberContext {
   return {
     precision: digits,
     rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
-    ceiling: ceilingFor(maxDigits),
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
+    ceiling: ceilingFor(precisionLimitDigits),
   };
 }
 

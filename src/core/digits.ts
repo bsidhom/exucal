@@ -7,7 +7,7 @@
 // `exp`, `sinh` and `cosh`, and the log-space power of ball.ts take their
 // results out through `floatingToBall`).
 //
-// A `Floating` `m × 2^e` whose exponent is within the range limit is
+// A `Floating` `m × 2^e` whose exponent is within the significand limit is
 // converted exactly, the binary point moved and the value rounded onto
 // the decimal grid of the working digits as every kernel result is
 // (`fixedToBall`). One whose exponent is beyond it, `exp(1e6)` at about
@@ -62,7 +62,7 @@ const GUARD = 24;
 
 /**
  * The ball of `fl` at the working digits of `context`: exactly where the
- * exponent is within the range limit, and in log space otherwise, as the
+ * exponent is within the significand limit, and in log space otherwise, as the
  * header says; `overflow` or `underflow` when the decimal exponent passes
  * the bound.
  */
@@ -71,17 +71,17 @@ export function floatingToBall(
   context: NumberContext,
 ): Result<Ball, BallError> {
   const digits = workingDigits(context);
-  const fixed = floatingToFixed(fl, context.maxBits);
+  const fixed = floatingToFixed(fl, context.significandLimitBits);
   if (fixed !== undefined) return ok(fixedToBall(fixed, digits));
-  const { mant, exp } = fl;
-  const magnitude = abs(mant.value);
-  const binaryExponent = exp - BigInt(mant.bits);
-  if (magnitude <= mant.error) {
+  const { significand, exp } = fl;
+  const magnitude = abs(significand.value);
+  const binaryExponent = exp - BigInt(significand.bits);
+  if (magnitude <= significand.error) {
     // The interval reaches zero: a ball around it, bounded by the extent.
     return ok({
       mid: ZERO,
       rad: shiftRadius(
-        radiusAbove(rational(magnitude + mant.error)),
+        radiusAbove(rational(magnitude + significand.error)),
         binaryExponent,
       ),
     });
@@ -90,15 +90,15 @@ export function floatingToBall(
   const ceilingBits = bitsFor(context.ceiling);
   const working = bits + bitLength(abs(exp)) + GUARD;
   // t = (e ln 2 + ln m) / ln 10, the decimal logarithm of the magnitude,
-  // the mantissa's own fraction bits being the logarithm's to read.
-  const lnMantissa = lnFixed(
-    { value: magnitude, error: mant.error, bits: mant.bits },
+  // the significand's own fraction bits being the logarithm's to read.
+  const lnSignificand = lnFixed(
+    { value: magnitude, error: significand.error, bits: significand.bits },
     working,
     ceilingBits,
   );
   const lnPower = scaleFixed(ln2Fixed(working, ceilingBits), exp);
   const t = divideFixed(
-    addFixed(lnPower, lnMantissa),
+    addFixed(lnPower, lnSignificand),
     ln10Fixed(working, ceilingBits),
   );
   // The interval of t against the edges of the bound (D18): past the top
@@ -136,7 +136,7 @@ export function floatingToBall(
   const mid = multiply(ball.mid, power.value);
   if (!mid.ok) return err(atBound);
   return ok({
-    mid: mant.value < 0n ? negate(mid.value) : mid.value,
+    mid: significand.value < 0n ? negate(mid.value) : mid.value,
     rad: multiplyRadius(ball.rad, radiusAboveScaled(power.value)),
   });
 }

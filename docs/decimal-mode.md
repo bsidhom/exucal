@@ -28,7 +28,7 @@ D26, proposed at the end.
 Decimal mode was designed as per-operation rounding in the user's mode,
 "a hand calculator or a decimal library" (docs/calculator.md, "4 and 5"),
 and built as a second parameterization of the ball model: `settle`
-rounds every midpoint to Digits in the mode and adds the exact rounding
+rounds every midpoint to the display digits in the mode and adds the exact rounding
 error to the radius, so that the display can mark what the roundings
 destroyed. The specific error was to carry a nonzero radius on every
 intermediate value a user could observe, and every mismatch below
@@ -128,7 +128,7 @@ implied.
   of ten, so that the significand may hold fewer digits than `p` while
   the exponent stays at the bound, would give such a value a
   representation with reduced precision, which is what IEEE 754's
-  subnormals do. `Scaled` can hold it, since its canonical mantissa is a
+  subnormals do. `Scaled` can hold it, since its canonical significand is a
   reduced fraction whose denominator carries the twos and fives a power
   of ten leaves (`2.54` is `127/50 × 10^0` as stored); the invariant is
   on the value, a `p`-digit decimal, not on the stored fraction. The
@@ -140,14 +140,14 @@ implied.
   provisional rule and representation. Its merit is that a decimal-mode
   value is then always representable in the decimal system directly,
   without fighting the rational's reduction, where a flexing denominator
-  means trading powers of ten between the mantissa and the exponent to
+  means trading powers of ten between the significand and the exponent to
   keep the two balanced, as the `2.54` example shows. Neither fix is
   wholly satisfying; this one is taken, and it is a point to come back
   to as the implementation gels, listed under "Provisional, to revisit"
   below so that the backtracking point is on record, which the first
   decimal-mode design did not do for its radius propagation.
 
-- **The range limit is nearly idle.** Most bits bounds the size of a
+- **The significand limit is nearly idle.** the significand limit bounds the size of a
   numerator or a denominator. With the denominator fixed, only the
   numerator can grow, to `p` digits, and the limit binds only the exact
   intermediate before a rounding (a product of `2p` digits, a quotient
@@ -165,7 +165,7 @@ three digits is `2.54 cm`, and in `in` it is `= 1 in`, not `≈ 1 in`. This
 is the invariant applied to the one place a value enters: a `p`-digit
 calculator holds `p` digits, and the user who typed more into it knows
 where they went. The radius that recorded the rounding today goes;
-README says it once, under Digits.
+README says it once, under the display digits.
 
 **Arithmetic.** `+`, `-`, `*`, `/` and juxtaposition form the exact
 result of two `p`-digit decimals, which always exists and is small (at
@@ -177,7 +177,7 @@ exact mode has a division by zero. Division by an exact zero is an
 error, and nothing else is: no value straddles anything.
 
 **Sums that do not align.** Two decimals whose exponents differ by more
-than the range limit holds cannot be added exactly (`1e999999999 + 1`;
+than the significand limit holds cannot be added exactly (`1e999999999 + 1`;
 docs/decimal.md, "Sums, comparisons and the radius"). Today the mode
 settles the operands and absorbs the smaller into the radius. Under the
 promise the rounded sum is still determined without forming it: the
@@ -191,7 +191,7 @@ formed and rounded; the rule above applies only past it.
 rounded once, `2^100` at eight digits being `1.2676506e+30`, not the
 squaring loop with a rounding at each product that `powBall` runs today
 for an inexact base (every base is exact here). Where the exact power
-does not fit the range limit the power is computed as the inexact
+does not fit the significand limit the power is computed as the inexact
 functions are, below, through the kernel in log space and certified; the
 limit is a cost limit and a correctly rounded power costs little. A
 rational exponent, `x^(1/2)`, is a root, an inexact function, and `^`'s
@@ -421,7 +421,7 @@ a fraction in decimal mode.
 - **Docs:** docs/decimal.md's "The decimal mode" gains a status line
   pointing here and the plan's D15 is amended as D26 says; docs/builtins.md's
   first rule, docs/functions.md's and docs/approximate.md's decimal-mode
-  clauses, docs/fractions.md's "The decimal mode", README's Mode, Digits
+  clauses, docs/fractions.md's "The decimal mode", README's Mode, the display digits
   and Rounding entries and its "How a number is held", ARCHITECTURE.md's
   "Settling" and display rule, and docs/calculator.md's "4 and 5" (which
   reads `1/3 * 3` as `≈ 1`) are brought to the promise.

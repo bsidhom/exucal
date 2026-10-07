@@ -28,7 +28,7 @@
 // #52's conversion). The rules are correct only for operands in lowest
 // terms, which is the type's invariant, so anything that builds a fraction
 // without `rational` (`scaleByPowerOfTwo` here, fixed.ts's dyadics,
-// scaled.ts's canonical mantissas) keeps it, and the tests assert so: a
+// scaled.ts's canonical significands) keeps it, and the tests assert so: a
 // full reduction of the result no longer forgives a broken invariant
 // upstream. The gcd is Lehmer's (Knuth's Algorithm L) on the odd parts:
 // still quadratic in the operands' size, but it takes its steps on the
@@ -53,16 +53,16 @@ export type RationalError =
   | { readonly kind: "divisionByZero" }
   /** An even root of a negative number, which has no real value. */
   | { readonly kind: "negativeRadicand"; readonly degree: bigint }
-  /** The result would exceed the range limit and was not computed. */
+  /** The result would exceed the significand limit and was not computed. */
   | { readonly kind: "tooLarge" }
   /** The text is not a decimal number. */
   | { readonly kind: "invalidNumber" };
 
 /**
  * The hard bound on the size of a numerator or denominator, in bits (2^20,
- * about 315,000 decimal digits): the most the range limit of the context
- * (`maxBits`, D16 of the plan) may be set to, and the bound the parser
- * applies to a decimal literal's mantissa through scaled.ts's
+ * about 315,000 decimal digits): the most the significand limit of the context
+ * (`significandLimitBits`, D16 of the plan) may be set to, and the bound the parser
+ * applies to a decimal literal's significand through scaled.ts's
  * `parseDecimal`, since it has no context; the evaluator then checks the
  * literal against the setting. Operations whose result can be
  * exponentially larger than their inputs (`pow`) predict the size of their
@@ -72,7 +72,7 @@ export type RationalError =
  * apply a bounded number of them, and inexact midpoints are settled to the
  * working precision (D15), so only exact values grow.
  */
-export const LIMIT_BITS = 1 << 20;
+export const MAX_SIGNIFICAND_LIMIT_BITS = 1 << 20;
 
 export const ZERO: Rational = { num: 0n, den: 1n };
 export const ONE: Rational = { num: 1n, den: 1n };
@@ -154,7 +154,7 @@ export function subtract(a: Rational, b: Rational): Rational {
  * only factor `t` can share with the denominator divides `g`, since `b'`
  * and `d'` are coprime to each other and to the numerators they multiply.
  * So one more gcd, of `t` with `g`, reduces it. Two integers add with no
- * gcd, and one denominator, the common case of two aligned mantissas,
+ * gcd, and one denominator, the common case of two aligned significands,
  * takes the gcd of the sum with it.
  */
 function henrici(a: bigint, b: bigint, c: bigint, d: bigint): Rational {
@@ -242,7 +242,7 @@ export function divide(
  * `r` raised to the integer power `n`, exactly. A negative `n` inverts, so
  * `0` to a negative power is a division by zero. The result can be `|n|`
  * times as large as `r`, so it is checked against `limit` bits first, the
- * context's range limit.
+ * context's significand limit.
  */
 export function pow(
   r: Rational,

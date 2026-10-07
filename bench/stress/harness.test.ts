@@ -36,7 +36,7 @@ test("a case that certifies at once takes one pass, cold and warm", async () => 
 });
 
 test("a case that never certifies runs the whole schedule to the ceiling", async () => {
-  // A small cap keeps the ceiling, and the case, cheap.
+  // A small precision limit keeps the ceiling, and the case, cheap.
   const c = caseOf("exp(1) - exp(1)", "", { precisionLimitDigits: 50 });
   const measured = await measure(c, 30_000);
   assert.ok(measured.status === "done", inspect(measured));

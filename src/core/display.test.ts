@@ -12,7 +12,7 @@ import {
 } from "./ball.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "./context.ts";
@@ -28,7 +28,7 @@ function at(precision: number): NumberContext {
   return {
     precision,
     rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
   };
 }
@@ -80,7 +80,7 @@ test("an exact value whose digits all fit is shown exactly", () => {
       },
     );
   }
-  // Whatever the exponent: the digits are the mantissa's.
+  // Whatever the exponent: the digits are the significand's.
   assert.deepEqual(
     show(exact(dec("1e999999999")), { digits: 8, rounding: nearest }),
     {
@@ -595,7 +595,7 @@ test("with the ratio notation, a ratio that fits only with its power of ten on t
   // #95's table at the default width, each value in its canonical form
   // (the numerator not divisible by ten): (5000/127) × 1e30 is 5/127 × 1e33.
   const scaled = (num: bigint, den: bigint, exp: bigint) =>
-    exact({ mant: rational(num, den), exp });
+    exact({ significand: rational(num, den), exp });
   assert.deepEqual(ratio(scaled(1n, 3n, 30n), 20), asScaled("1/3", "1e+30"));
   assert.deepEqual(
     ratio(scaled(5n, 127n, 33n), 20),

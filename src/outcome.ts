@@ -13,8 +13,8 @@
 // count of the unit the function's parameter takes.
 //
 // The `context` is the user's settings as the pipeline takes them (the
-// digits asked for, the rounding mode, the range limit and the ceiling of
-// the retry schedule, which the shell derives from the cap on the digits):
+// digits asked for, the rounding mode, the significand limit and the ceiling of
+// the retry schedule, which the shell derives from the precision limit):
 // the pipeline computes at as many passes of rising precision as the
 // digits asked for take, up to the ceiling, `roundTerms` and `show` round
 // to the context's digits in its mode, and `=` is decided at those digits.

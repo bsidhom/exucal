@@ -27,11 +27,24 @@ panel along the right edge. Every change applies as it is made, so the
 result shows what a setting does while it is changed, and Done, Escape
 or the cog closes the sheet. A number typed on a phone is committed
 from the keyboard's Done key, and the display digits, the working
-digits and the ratio width have − and + buttons beside them. There are
+digits and the ratio width have − and + buttons beside them. The
+settings sit in three groups, by what each is for and in the order of
+how often it is touched: how a result is shown (the display digits, the
+notation), how it is computed (the mode with what belongs to it under
+it, the rounding), and how much it may cost (the two limits and the
+probe). Under each control a line opens with the number's range, naming
+the setting that bounds it ("From 1 to 1,000 digits, up to the
+precision limit"), and says in a sentence what it does; the rest is
+here. Beside the name of any setting that is not at its default, a
+"default …" link names the default and restores it when pressed, with
+what depends on it clamped and told as after any change, and "Reset all
+settings" at the foot restores every default; a setting at its default
+has no such link, so a glance shows what has been changed. There are
 six settings, kept in the
 browser so that they survive a reload (under a format version of their
 own, so that a later build migrates what an earlier one stored;
-`docs/settings-storage.md`; the surface is `docs/settings-surface.md`). The mode carries one more under it, which
+`docs/settings-storage.md`; the surface is `docs/settings-surface.md`
+and the controls `docs/settings-controls.md`). The mode carries one more under it, which
 one depending on the mode: exact mode the notation its exact values are
 written in, decimal mode its working digits. Every number carries its
 unit, on screen after the input and in the stored key: the display
@@ -71,8 +84,8 @@ in bits, the probe budget in milliseconds (`docs/settings-limits.md`).
   that a function's rounding cannot be certified at the precision limit,
   the value is rounded all the same and the line is written with the `≈`
   sign bearing a dot above it, and a note says a step could not be
-  certified. The panel names the modes `exact` and `decimal` and says
-  under the select what the one in force does.
+  certified. The panel offers the modes as two choices, `exact` and
+  `decimal`, and says under them what the one in force does.
 - **Notation** (exact mode; `mode.notation` in the stored settings,
   `digits` or `ratio` with a width): digits by default. With `ratio`
   chosen, a width appears beside it, twenty by default, and the width
@@ -97,8 +110,8 @@ in bits, the probe budget in milliseconds (`docs/settings-limits.md`).
   of the display digits, which its digits write entire; choosing decimal
   mode and coming back finds digits again. `docs/fractions.md` and
   `docs/ratio-width.md` are the design.
-- **Working digits** (decimal mode, grouped with the display digits in
-  the panel; `mode.working` in the stored settings, locked to the
+- **Working digits** (decimal mode, under the mode in the panel;
+  `mode.working` in the stored settings, locked to the
   display digits or `extended` with a count): locked to the display
   digits by default, under which every step is rounded to them. With
   `extended` checked, a count from the display digits up to the

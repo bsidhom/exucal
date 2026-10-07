@@ -699,13 +699,65 @@ export function resetSettings(): Settings {
 }
 
 /**
+ * A setting the panel resets on its own (docs/settings-controls.md): a
+ * key of the settings, or a field within the mode's variant, the exact
+ * mode's notation or the decimal mode's working digits, each reset within
+ * the variant in force.
+ */
+export type Resettable = SettingKey | "notation" | "working";
+
+/**
+ * `settings` with `key` at its default and nothing clamped: the change a
+ * reset makes, which the shell clamps and reports as it does any change
+ * (`clampsOf`, `clampSettings`). A field within the mode's variant is
+ * reset within the variant in force, and left as it is when its variant
+ * is not the one in force, since it has no value then.
+ */
+export function withDefault(settings: Settings, key: Resettable): Settings {
+  switch (key) {
+    case "notation":
+      return settings.mode.kind === "exact"
+        ? { ...settings, mode: DEFAULT_MODES.exact }
+        : settings;
+    case "working":
+      return settings.mode.kind === "decimal"
+        ? { ...settings, mode: DEFAULT_MODES.decimal }
+        : settings;
+    default:
+      return { ...settings, [key]: DEFAULT_SETTINGS[key] };
+  }
+}
+
+/**
+ * Whether `key` is at its default in `settings`, a field within the mode's
+ * variant counting as at its default when its variant is not in force.
+ * The panel shows the reset beside a setting that is not.
+ */
+export function isAtDefault(settings: Settings, key: Resettable): boolean {
+  switch (key) {
+    case "notation":
+      return (
+        settings.mode.kind !== "exact" ||
+        sameNotation(settings.mode.notation, DEFAULT_NOTATIONS.digits)
+      );
+    case "working":
+      return (
+        settings.mode.kind !== "decimal" ||
+        settings.mode.working.kind === "digits"
+      );
+    default:
+      return isDefault(settings, key);
+  }
+}
+
+/**
  * `settings` with `key` reset to its default and the dependent settings
  * clamped after it, as after any change: resetting the significand limit
  * can lower the precision limit, and the precision limit the display
  * digits. Resetting the mode resets the whole variant.
  */
 export function resetSetting(settings: Settings, key: SettingKey): Settings {
-  return clampSettings({ ...settings, [key]: DEFAULT_SETTINGS[key] });
+  return clampSettings(withDefault(settings, key));
 }
 
 /** Whether `key` is at its default in `settings`: the mode compared by value, the rest primitives. */

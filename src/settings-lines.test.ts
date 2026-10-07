@@ -7,19 +7,25 @@ import {
 } from "./core/context.ts";
 import { MAX_SIGNIFICAND_LIMIT_BITS } from "./core/rational.ts";
 import {
-  BUDGET_LINE,
+  ABOUT,
+  GROUP_HEADINGS,
   MODE_LINES,
   NOTATION_LINE,
   PROBE_LINE,
+  RESET_ALL,
   ROUNDING_LINES,
   UNITS,
+  budgetLine,
   clampLine,
+  defaultLine,
   digitsOfBits,
   displayDigitsLine,
   formatMs,
   measure,
+  notationLine,
   precisionLimitLine,
   proposalLine,
+  rangeLine,
   refusalLine,
   significandLimitLine,
   workingDigitsLine,
@@ -46,41 +52,104 @@ test("every ranged setting has its unit, and the lines name the settings by thei
   });
   assert.equal(
     displayDigitsLine(DEFAULT_SETTINGS),
-    "Significant digits shown.",
+    "From 1 to 1,000 digits, up to the precision limit. Significant digits shown.",
   );
   assert.match(displayDigitsLine(DECIMAL), /every step is rounded to them/);
   assert.match(displayDigitsLine(EXTENDED), /computed with the working digits/);
   assert.match(
-    workingDigitsLine(false),
+    workingDigitsLine(DECIMAL),
     /^Every step is computed with the display digits\./,
   );
-  assert.match(workingDigitsLine(true), /shown at the display digits\.$/);
+  assert.equal(
+    workingDigitsLine(EXTENDED),
+    "From 8 to 1,000 digits, from the display digits up to the precision limit. The digits every step but the last is computed with; the answer is shown at the display digits.",
+  );
   // No line says "Digits" as a name any more: the setting is the display digits.
   for (const line of [
     displayDigitsLine(DECIMAL),
-    workingDigitsLine(false),
-    workingDigitsLine(true),
+    workingDigitsLine(DECIMAL),
+    workingDigitsLine(EXTENDED),
     MODE_LINES.exact,
     MODE_LINES.decimal,
     ROUNDING_LINES.exact,
     ROUNDING_LINES.decimal,
     NOTATION_LINE,
-    BUDGET_LINE,
+    budgetLine(DEFAULT_SETTINGS),
     PROBE_LINE,
   ]) {
     assert.doesNotMatch(line, /\bDigits\b/, line);
   }
 });
 
-test("the precision limit's line says its top under the significand limit and the ceiling as numbers, by mode", () => {
+test("a number's line opens with its range and names what sets a bound the chain sets", () => {
+  assert.equal(
+    rangeLine("displayDigits", DEFAULT_SETTINGS),
+    "From 1 to 1,000 digits, up to the precision limit.",
+  );
+  assert.equal(
+    rangeLine("working", EXTENDED),
+    "From 8 to 1,000 digits, from the display digits up to the precision limit.",
+  );
+  assert.equal(
+    rangeLine("precisionLimitDigits", DEFAULT_SETTINGS),
+    "From 1 to 2,453 digits, up to the significand limit.",
+  );
+  assert.equal(
+    rangeLine("significandLimitBits", DEFAULT_SETTINGS),
+    "From 358 to 1,048,576 bits.",
+  );
+  assert.equal(rangeLine("width", DEFAULT_SETTINGS), "From 1 to 1,000 digits.");
+  assert.equal(
+    budgetLine(DEFAULT_SETTINGS),
+    "From 10 to 10,000 ms. The time the probe allows one pass.",
+  );
+  // The range follows the settings in force.
+  assert.equal(
+    rangeLine("displayDigits", {
+      ...DEFAULT_SETTINGS,
+      precisionLimitDigits: 20,
+    }),
+    "From 1 to 20 digits, up to the precision limit.",
+  );
+  // The notation's line carries the width's range while a ratio is chosen.
+  assert.equal(
+    notationLine({ kind: "digits" }, DEFAULT_SETTINGS),
+    NOTATION_LINE,
+  );
+  assert.equal(
+    notationLine({ kind: "ratio", width: 20 }, DEFAULT_SETTINGS),
+    `The width from 1 to 1,000 digits. ${NOTATION_LINE}`,
+  );
+});
+
+test("the groups, the resets and the foot say their words", () => {
+  assert.deepEqual(Object.values(GROUP_HEADINGS), [
+    "How it is shown",
+    "How it is computed",
+    "How much it may cost",
+  ]);
+  assert.equal(defaultLine("displayDigits"), "default 8");
+  assert.equal(defaultLine("precisionLimitDigits"), "default 1,000");
+  assert.equal(defaultLine("significandLimitBits"), "default 65,536");
+  assert.equal(defaultLine("budgetMs"), "default 50");
+  assert.equal(defaultLine("rounding"), "default to nearest, ties to even");
+  assert.equal(defaultLine("mode"), "default exact");
+  assert.equal(defaultLine("notation"), "default digits");
+  assert.equal(defaultLine("working"), "default not extended");
+  assert.equal(RESET_ALL, "Reset all settings");
+  assert.equal(ABOUT.text, "About these settings");
+  assert.match(ABOUT.href, /#settings$/);
+});
+
+test("the precision limit's line says its top under the significand limit as a number, by mode, and no formula", () => {
   const exact = precisionLimitLine(DEFAULT_SETTINGS);
   assert.equal(
     exact,
-    "The most digits an answer may be asked for, up to 2,453 under the significand limit. To certify an answer the app rounds onto a decimal grid of up to 4,040 digits, so this also bounds the effort an expression may cost: one whose digits can never be certain runs to that grid on every keystroke.",
+    "From 1 to 2,453 digits, up to the significand limit. The most digits an answer may be asked for; it bounds the effort an expression may cost.",
   );
   assert.equal(
     precisionLimitLine(DECIMAL),
-    "The most digits an answer, or the working digits, may be asked for, up to 2,453 under the significand limit. A step's rounding is certified on a grid of up to 4,040 digits.",
+    "From 1 to 2,453 digits, up to the significand limit. The most digits an answer, or the working digits, may be asked for; it bounds the effort a step's rounding may cost.",
   );
   // The numbers follow the settings in force; the formula is never written.
   const small = precisionLimitLine({
@@ -88,15 +157,17 @@ test("the precision limit's line says its top under the significand limit and th
     significandLimitBits: 1024,
     precisionLimitDigits: 20,
   });
-  assert.match(small, new RegExp(`up to ${precisionLimitFor(1024)} under`));
-  assert.match(small, /grid of up to 120 digits/);
+  assert.match(
+    small,
+    new RegExp(`to ${precisionLimitFor(1024)} digits, up to`),
+  );
   assert.doesNotMatch(exact, /4 ×|\+ 10/);
 });
 
 test("the significand limit's line translates the limit to the digits of one part, to three figures", () => {
   assert.equal(
     significandLimitLine(DEFAULT_SETTINGS),
-    "The most bits in a number's significand, its numerator and, separately, its denominator: 65,536 bits is a numerator or a denominator of up to about 19,700 digits. An exact result past it is refused and named; the finest grid must fit inside it.",
+    "From 358 to 1,048,576 bits. The most bits in a number's numerator or denominator, 65,536 bits being about 19,700 digits; an exact result past it is refused.",
   );
   assert.equal(digitsOfBits(DEFAULT_SIGNIFICAND_LIMIT_BITS), 19700);
   assert.equal(digitsOfBits(MAX_SIGNIFICAND_LIMIT_BITS), 316000);
@@ -105,7 +176,7 @@ test("the significand limit's line translates the limit to the digits of one par
   assert.equal(digitsOfBits(MIN_SIGNIFICAND_LIMIT_BITS), 107);
   assert.match(
     significandLimitLine({ ...DEFAULT_SETTINGS, significandLimitBits: 1024 }),
-    /1,024 bits is a numerator or a denominator of up to about 308 digits/,
+    /1,024 bits being about 308 digits/,
   );
 });
 

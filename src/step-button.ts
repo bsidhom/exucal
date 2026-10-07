@@ -72,9 +72,12 @@ export class StepButton extends LitElement {
   /** What the button is called, for a screen reader. */
   @property() label = "";
 
+  /** Whether the step is inert: at the bound it would pass, the button is faded and fires no click. */
+  @property({ type: Boolean, reflect: true }) disabled = false;
+
   render() {
     return html`
-      <button type="button" aria-label=${this.label}>
+      <button type="button" aria-label=${this.label} ?disabled=${this.disabled}>
         ${this.direction === "up" ? "+" : "−"}
       </button>
     `;

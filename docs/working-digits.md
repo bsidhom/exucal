@@ -256,3 +256,8 @@ alone when this is taken up, it is a version 4 on its own.
   when "extended" is checked again in a session, and the display digits otherwise;
   the count's input is labeled "Extended working digits" for assistive
   technology.
+- **The control moved under the mode** with S5 of the settings plan
+  (docs/settings-controls.md): the working digits are the decimal mode's
+  field and exist only in that mode, as the notation is the exact
+  mode's, so the two swap places under the Mode control as the mode
+  changes; the line under the count says its floor, the display digits.

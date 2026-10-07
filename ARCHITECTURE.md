@@ -1805,9 +1805,18 @@ tests. The rest of the directory is what they share:
   timing, and the catalogue grows run by run. The floor and the deadline
   are constants (`FLOOR_MS`, `DEADLINE_MS` in `catalogue.ts`), not
   options, so that every run records hits by the same measure and any
-  run, however short or for whatever purpose, can be committed. The tests of `cases.ts`,
+  run, however short or for whatever purpose, can be committed. A
+  case's settings are stored in the catalogue as the app stores its own,
+  in the envelope of docs/settings-storage.md with its format version,
+  and read back through the settings migrations
+  (`settingsFromStored`), so that a step that reshapes the settings
+  leaves every catalogued case readable. The tests of `cases.ts`,
   `catalogue.ts` and `pool.ts` are ordinary ones, since they evaluate
-  nothing.
+  nothing; one of `catalogue.ts` reads the committed catalogue and checks
+  that every case is one the suite can run (its settings ones the panel
+  could hold, its profile one that exists, its texts parsing, its
+  settings stored at the current version), the smoke test for data no
+  type checks.
 - `bench/stress/verify.ts` is the stress suite (8.3), run by
   `pnpm stress` and discovered by neither `pnpm test` nor `pnpm bench`.
   It measures again the catalogued cases that call the functions named

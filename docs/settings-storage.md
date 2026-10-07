@@ -173,6 +173,13 @@ a version 5 object carrying `digits` loads the default display digits.
 
 The storage key stays `settings`.
 
+The stress catalogue (bench/stress/catalogue.json) keeps each case's
+settings in the same envelope, `savedBy` the commit the case was
+measured at, and reads them through the same migrations
+(`settingsFromStored`), so a change here carries the catalogue with it;
+a test over the committed file checks that every case still reads as
+one the suite can run.
+
 ## One version for the whole record
 
 The version is the record's, not each field's. The settings interact:

@@ -1,15 +1,22 @@
 import assert from "node:assert/strict";
+import { inspect } from "node:util";
 import { test } from "node:test";
-import { DEFAULT_SETTINGS } from "../../src/settings.ts";
-import type { Family } from "./cases.ts";
+import { parseExpr, parseUnitList } from "../../src/core/expr.ts";
+import { DEFAULT_SETTINGS, STORAGE_VERSION } from "../../src/settings.ts";
+import { PROFILE_NAMES, type Family } from "./cases.ts";
+import { checkSettings } from "./harness.ts";
+import { CATALOGUE } from "./tooling.ts";
 import {
   HANGS_END,
   HANGS_START,
   MARGIN,
   TABLE_END,
   TABLE_START,
+  catalogueFromStored,
   catalogueTable,
+  catalogueText,
   hangEstimate,
+  readCatalogue,
   hangsTable,
   summarizeTyping,
   withEntryAgain,
@@ -290,4 +297,77 @@ test("the tables replace the text between their markers, and only there", () => 
   assert.ok(updated.endsWith(`${HANGS_END}\n\nAfter.\n`));
   assert.ok(!updated.includes("STALE"));
   assert.equal(withTable("no markers", table), undefined);
+});
+
+test("the committed catalogue reads as cases the stress suite can run: every entry's and hang's settings are ones the panel could hold, of a profile that exists, and its texts parse", () => {
+  // The smoke test the suite needs, since the catalogue is data no type
+  // checks: it reads the real file, as `pnpm stress` does. S2 reshaped
+  // the mode and the suite failed on every case until this test existed.
+  const catalogue = readCatalogue(CATALOGUE);
+  assert.ok(catalogue.entries.length > 0);
+  for (const c of [...catalogue.entries, ...catalogue.hangs]) {
+    const where = inspect({ have: c.have, want: c.want, family: c.family });
+    assert.doesNotThrow(() => checkSettings(c.settings), where);
+    assert.ok(PROFILE_NAMES.includes(c.family.profile), where);
+    assert.ok(parseExpr(c.have).ok, where);
+    if (c.want !== "") assert.ok(parseUnitList(c.want).ok, where);
+  }
+  // Every case's settings are stored at the current version, so that the
+  // file reads as it was written and not through a migration.
+  const stored = JSON.parse(catalogueText(catalogue)) as {
+    entries: { settings: { version: number } }[];
+    hangs: { settings: { version: number } }[];
+  };
+  for (const c of [...stored.entries, ...stored.hangs]) {
+    assert.equal(c.settings.version, STORAGE_VERSION);
+  }
+});
+
+test("a case's settings are read through the settings migrations and written in the storage envelope", () => {
+  // The first catalogue stored the fields bare, in the shape of stored
+  // version 1: they read as the settings they meant, the mode nested and
+  // the old rounding default become the new.
+  const bare = {
+    digits: 32,
+    rounding: "halfAwayFromZero",
+    mode: "exact",
+    maxDigits: 2453,
+    maxBits: 65536,
+    fractions: false,
+  };
+  const f = family("cancel");
+  const e = entry(f, "exp(1) - exp(1)", 1500);
+  const stored = {
+    entries: [{ ...e, settings: bare }],
+    hangs: [{ ...hang(f, "gamma(1/3)", 100), settings: bare }],
+    runs: [],
+  };
+  const catalogue = catalogueFromStored(stored);
+  const expected = {
+    ...DEFAULT_SETTINGS,
+    displayDigits: 32,
+    precisionLimitDigits: 2453,
+  };
+  assert.deepEqual(catalogue.entries[0]!.settings, expected);
+  assert.deepEqual(catalogue.hangs[0]!.settings, expected);
+  // Written back, each case's settings are the envelope the app stores,
+  // saved by the commit that measured the case, and read back the same.
+  const text = catalogueText(catalogue);
+  const written = JSON.parse(text) as {
+    entries: {
+      settings: { version: number; savedBy: string; settings: object };
+    }[];
+  };
+  assert.equal(written.entries[0]!.settings.version, STORAGE_VERSION);
+  assert.equal(written.entries[0]!.settings.savedBy, COMMIT.hash);
+  assert.deepEqual(catalogueFromStored(JSON.parse(text)), catalogue);
+  // A dirty tree is said in the build string, as build-id.ts says it.
+  const dirty = catalogueText({
+    ...catalogue,
+    entries: [{ ...catalogue.entries[0]!, commit: { ...COMMIT, dirty: true } }],
+  });
+  assert.equal(
+    (JSON.parse(dirty) as typeof written).entries[0]!.settings.savedBy,
+    `${COMMIT.hash}-dirty`,
+  );
 });

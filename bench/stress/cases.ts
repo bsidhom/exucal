@@ -734,6 +734,11 @@ export function describeCase(index: number, drawn: Drawn): string {
   return `${index}\t${drawn.family.profile}\t${drawn.family.pattern}\t${drawn.case.have}${want}`;
 }
 
+/** The names of the settings profiles, in their order. */
+export const PROFILE_NAMES: readonly string[] = PROFILES.map(
+  ([, { name }]) => name,
+);
+
 /** Whether the settings of every profile are ones the panel could hold. */
 export function profilesValid(): boolean {
   return PROFILES.every(([, { settings }]) => {

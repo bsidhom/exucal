@@ -33,6 +33,8 @@ import {
   sameMode,
   sameNotation,
   saveSettings,
+  settingsFromStored,
+  storedSettings,
   ratioOf,
   refusalOf,
   STORAGE_VERSION,
@@ -596,6 +598,21 @@ test("settings round-trip through storage, under one key", () => {
     assert.deepEqual(loadSettings(stored), DEFAULT_SETTINGS);
   }
   assert.equal(STORAGE_VERSION, 5);
+  // The envelope and its reading are one pair, for any store that keeps
+  // settings (the stress catalogue keeps a case's): what `storedSettings`
+  // shapes, `settingsFromStored` reads back, and a bare object is version 1.
+  const settings: Settings = { ...DEFAULT_SETTINGS, displayDigits: 12 };
+  assert.deepEqual(storedSettings(settings, BUILD), envelope(settings));
+  assert.deepEqual(
+    settingsFromStored(storedSettings(settings, BUILD)),
+    settings,
+  );
+  assert.deepEqual(
+    settingsFromStored({ digits: 12, mode: "exact", fractions: false }),
+    settings,
+  );
+  assert.deepEqual(settingsFromStored(null), DEFAULT_SETTINGS);
+  assert.deepEqual(settingsFromStored({ version: 99 }), DEFAULT_SETTINGS);
 });
 
 test("a version 1 object, the fields bare, loads through every migration and is saved back at the current version", () => {

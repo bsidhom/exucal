@@ -49,7 +49,7 @@ import {
   type BallError,
 } from "../ball.ts";
 import {
-  TOO_LARGE,
+  tooLarge,
   fromBallError,
   plainNumbers,
   unboundedOf,
@@ -126,7 +126,7 @@ export function betaBall(
     magnitudeBits(b, context.significandLimitBits),
     magnitudeBits(sum.value, context.significandLimitBits),
   );
-  if (bits + extra > context.significandLimitBits) return TOO_LARGE;
+  if (bits + extra > context.significandLimitBits) return tooLarge("passes");
   const digits = workingDigits(context) + Math.ceil(extra / BITS_PER_DIGIT) + 1;
   const la = blamed(logGamma(a, context, bits + extra, digits), 0);
   if (!la.ok) return la;

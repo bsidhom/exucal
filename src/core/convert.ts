@@ -185,7 +185,7 @@ export function convert(
     case "tooLarge":
     case "overflow":
     case "underflow":
-      return err({ kind: ratio.error.kind });
+      return err(ratio.error);
     default:
       // A quotient takes no root and reads no text.
       throw new Error(`A ratio of magnitudes failed: ${ratio.error.kind}`);

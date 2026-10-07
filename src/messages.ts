@@ -8,6 +8,8 @@
 // blanks; the spans the core reports are offsets into the untrimmed text, so
 // slicing uses the text as given.
 
+import type { Mode } from "./core/context.ts";
+import type { Reach } from "./core/rational.ts";
 import {
   formatDimension,
   isDimensionless,
@@ -50,15 +52,19 @@ import type { Span } from "./core/span.ts";
  * for a quantity as the base of `pow`); one outside its domain quotes the
  * argument and says the domain; a value that straddles an edge names the
  * edge (zero, `1`, `-1`, or a pole of the function); a value too large
- * or too small to compute names the limit it passes, the significand limit or the
- * exponent bound; and an exact result past the significand limit names the remedy,
- * `approx` around an operand of the node or a higher setting (the plan's
- * D20).
+ * or too small to compute names the limit it passes, the significand
+ * limit or the exponent bound; and a result past the significand limit
+ * offers what to try where the refusing function expects an inexact
+ * computation to fit, `approx` around the operand the evaluator named
+ * or decimal mode, and says that it passes however it is computed where
+ * the function expects that (the plan's D20, amended for D29). The reach
+ * is read from the error and never inferred here.
  */
 export function describeTextError(
   error: TextError,
   text: string,
   primitives: Primitives,
+  mode: Mode,
 ): string {
   switch (error.kind) {
     case "unexpected": {
@@ -89,13 +95,12 @@ export function describeTextError(
     case "negativeRadicand":
       return `${quote(slice(text, error.span))} takes an even root of a negative value.`;
     case "tooLarge":
-      if (error.exact) {
-        return exactPastLimit(
-          slice(text, error.span),
-          error.operand === undefined ? undefined : slice(text, error.operand),
-        );
-      }
-      return `${quote(slice(text, error.span))} ${describeRefusal(error.kind)}.`;
+      return pastSignificandLimit(
+        slice(text, error.span),
+        error.inexact,
+        error.operand === undefined ? undefined : slice(text, error.operand),
+        mode,
+      );
     case "overflow":
     case "underflow":
       return `${quote(slice(text, error.span))} ${describeRefusal(error.kind)}.`;
@@ -320,35 +325,49 @@ function describeRejection(reason: Rejection): string {
 }
 
 /**
- * An exact result past the significand limit, worded with the remedy
- * (the plan's D20): `approx` around the node's first `operand`, which
- * makes the result inexact and computes it to the digits asked (around
- * the node itself it would come too late, the node being refused before
- * `approx` sees it), or a higher setting. The message names the setting
- * as the panel labels it, the significand limit. The significand limit's
- * other refusals (a literal, a sum's alignment, a power's prediction, the
- * kernel's reach) keep `describeRefusal`'s wording, since `approx` is not
- * their remedy in the same way.
+ * A result refused by the significand limit, worded from the refusing
+ * function's word on the same step computed inexactly (`Reach`), which
+ * the message reads and never infers (the plan's D20, amended for D29).
+ * On `fits` the remedies are offered to try, not promised: `approx`
+ * around `operand`, the node's first operand where the evaluator named
+ * one (around the node itself it would come too late, the node being
+ * refused before `approx` sees it), and decimal mode, left out when the
+ * user is in it already, which the message knows from the context and
+ * not from the arithmetic. On `passes` nothing is offered, the function
+ * having said that no rounding of its operands brings the step within
+ * the limit, and the user infers what a higher limit would need. A
+ * `pair` is the conversion's two texts, already quoted together.
  */
-function exactPastLimit(node: string, operand: string | undefined): string {
-  const remedy =
+function pastSignificandLimit(
+  node: string,
+  inexact: Reach,
+  operand: string | undefined,
+  mode: Mode,
+  shape: "node" | "pair" = "node",
+): string {
+  const need = `${quote(node)} would need a significand past the significand limit`;
+  if (inexact === "passes") return `${need}, however it is computed.`;
+  const rewrite =
     operand === undefined
-      ? "raise the significand limit, or write approx around a part of it to compute it to the digits asked"
-      : `write ${quote(`approx(${operand})`)} in place of ${quote(operand)} to compute it to the digits asked, or raise the significand limit`;
-  return `${quote(node)} is too large to hold exactly within the significand limit: ${remedy}.`;
+      ? "approx around a part of it"
+      : shape === "pair"
+        ? quote(`approx(${operand})`)
+        : `${quote(`approx(${operand})`)} in place of ${quote(operand)}`;
+  const decimal = mode === "decimal" ? "" : ", or decimal mode,";
+  return `${need} as an exact value. Try ${rewrite}${decimal} to compute it to the digits asked.`;
 }
 
 /**
- * What a refused result is, as a predicate without the final period: too
- * large to compute within the significand limit, the setting that is the significand limit,
- * or too large or too small for the exponent bound, which is fixed, with
- * the bound named, so that the one the user can change reads apart from
- * the one they cannot.
+ * What a refused result is, as a predicate without the final period: a
+ * value past the exponent bound, which is fixed, with the bound named,
+ * so that the limit the user cannot change reads apart from the one they
+ * can; a size refusal is worded by `pastSignificandLimit`, and this is
+ * its wording where no span or reach is at hand.
  */
 function describeRefusal(kind: Refusal["kind"]): string {
   switch (kind) {
     case "tooLarge":
-      return "is too large to compute within the significand limit";
+      return "would need a significand past the significand limit";
     case "overflow":
       return "is too large to compute: its exponent would pass 10^18";
     case "underflow":
@@ -356,11 +375,11 @@ function describeRefusal(kind: Refusal["kind"]): string {
   }
 }
 
-/** A refused value, as the qualifier of a body's description: `too large to form within the significand limit`. */
+/** A refused value, as the qualifier of a body's description: `whose significand would pass the significand limit`. */
 function describeValuePast(kind: Refusal["kind"]): string {
   switch (kind) {
     case "tooLarge":
-      return "too large to form within the significand limit";
+      return "whose significand would pass the significand limit";
     case "overflow":
       return "whose exponent would pass 10^18";
     case "underflow":
@@ -412,6 +431,7 @@ export function describeConversionError(
   have: string,
   want: string,
   primitives: Primitives,
+  mode: Mode,
 ): string {
   switch (error.kind) {
     case "inputError":
@@ -434,6 +454,7 @@ export function describeConversionError(
             error.error,
             error.side === "have" ? have : want,
             primitives,
+            mode,
           );
       }
     case "dimensionMismatch":
@@ -446,13 +467,18 @@ export function describeConversionError(
     case "unresolvedBound":
       return `${quote(have.trim())} into ${quote(want.trim())} cannot be told from the point where the result passes the exponent bound at this precision.`;
     case "tooLarge":
-      // The pipeline's ratio or count, exact and past the significand limit, is
-      // worded as a node is, about the pair, with `approx` around the
-      // `have`, which is within the limit and makes the ratio inexact.
-      if ("exact" in error) {
-        return `${quote(have.trim())} into ${quote(want.trim())} is too large to hold exactly within the significand limit: write ${quote(`approx(${have.trim()})`)} to compute it to the digits asked, or raise the significand limit.`;
-      }
-      return `${quote(have.trim())} into ${quote(want.trim())} ${describeRefusal(error.kind)}.`;
+      // The pipeline's ratio or count, or a list's arithmetic, past the
+      // significand limit, worded as a node is, about the pair, with
+      // `approx` around the `have`, which is within the limit and makes
+      // the ratio inexact, where the refusing function expects that to
+      // fit.
+      return pastSignificandLimit(
+        `${have.trim()}" into "${want.trim()}`,
+        error.inexact,
+        error.inexact === "fits" ? have.trim() : undefined,
+        mode,
+        "pair",
+      );
     case "overflow":
     case "underflow":
       return `${quote(have.trim())} into ${quote(want.trim())} ${describeRefusal(error.kind)}.`;

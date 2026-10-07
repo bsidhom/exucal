@@ -824,10 +824,12 @@ The rule:
   within that factor of it, a big number by the measure that matters
   (D16 as restated once more has the limiting cases).
 - The refusal names the node and the remedy (D20): the message quotes the
-  subexpression, says it is too large to hold exactly within `significandLimitBits`,
-  and says to write `approx` around its first operand (a binary's left,
-  a power's base, a call's first argument) to compute it to the digits
-  asked, or to raise `significandLimitBits`. `approx` around the node itself would
+  subexpression, says it would need a significand past the limit as an
+  exact value, and suggests `approx` around its first operand (a
+  binary's left, a power's base, a call's first argument), or decimal
+  mode, to compute it to the digits asked (as amended for D29, where the
+  refusing function's reach decides whether anything is suggested).
+  `approx` around the node itself would
   come too late, the node being refused before `approx` sees it, which
   H.14 found; an inexact operand is what makes the result inexact.
 - The exponent bound is checked first, so that a result past both is
@@ -910,6 +912,18 @@ The decision is to refuse, for these reasons:
 - **The calculator's behavior exists already.** Decimal mode is the mode
   where every step rounds, and `approx` is the per-value form of the
   same thing. A user who wants the app never to refuse has both.
+
+Amended after S3 of the settings plan (D29). The message suggests
+rather than promises, and what it suggests is the refusing function's
+word: every `tooLarge` carries `inexact`, the function's expectation for
+the same step computed inexactly (`Reach` in rational.ts), `fits` or
+`passes`, stated where the refusal is made and never inferred above it
+from the expression's shape. On `fits` the message offers `approx` around
+the first operand of the node, which the evaluator names, and decimal
+mode, as things to try; on `passes` it says the value passes however it
+is computed and offers nothing, a higher limit being the user's to
+judge. A function that learns to reach further (the trig reduction, say)
+changes its own refusal's reach and its own test, and nothing else.
 
 Two things follow from the ruling. Knowing the node lets the user
 either round there with `approx` or raise `significandLimitBits`; to make the second

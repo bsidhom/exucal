@@ -211,7 +211,7 @@ test("beta is held to the exponent bound by the classifier, and to the significa
   );
   assert.deepEqual(
     error(betaBall(exact(dec("1e20000")), exact(dec("2")), CONTEXT)),
-    { kind: "tooLarge" },
+    { kind: "tooLarge", inexact: "passes" },
   );
   assert.deepEqual(
     error(betaBall(exact(dec("2")), exact(dec("-1e999999999")), CONTEXT)),
@@ -296,7 +296,7 @@ function run(
 ): string {
   const result = evaluateText(table, source, context);
   if (!result.ok)
-    return describeTextError(result.error, source, table.primitives);
+    return describeTextError(result.error, source, table.primitives, "exact");
   const shown = show(result.value.magnitude, {
     digits: context.precision,
     rounding: context.rounding,
@@ -330,7 +330,7 @@ test("beta through the pipeline, with its messages", () => {
   );
   assert.equal(
     run("beta(1e20000, 2)"),
-    '"beta(1e20000, 2)" is too large to compute within the significand limit.',
+    '"beta(1e20000, 2)" would need a significand past the significand limit, however it is computed.',
   );
   assert.equal(
     run("beta(2 m, 3)"),

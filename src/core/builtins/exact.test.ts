@@ -45,7 +45,7 @@ const table = (() => {
 function run(source: string, context: NumberContext = CONTEXT): string {
   const result = evaluateText(table, source, context);
   if (!result.ok)
-    return describeTextError(result.error, source, table.primitives);
+    return describeTextError(result.error, source, table.primitives, "exact");
   const shown = show(result.value.magnitude, {
     digits: 8,
     rounding: context.rounding,
@@ -95,7 +95,7 @@ test("the exact functions through the pipeline, with their messages", () => {
   );
   assert.equal(
     run("factorial(20000)"),
-    '"factorial(20000)" is too large to compute within the significand limit.',
+    '"factorial(20000)" would need a significand past the significand limit, however it is computed.',
   );
   assert.equal(
     run("floor(sqrt(2)^2)"),

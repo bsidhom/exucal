@@ -254,15 +254,15 @@ export type ConversionError =
       readonly side: Side;
       readonly error: TextError | FunctionWantError;
     }
-  | ConvertError
   /**
-   * The conversion's ratio, or a function want's count, is exact and its
-   * canonical significand passes the significand limit (D19), the two quotients
-   * the pipeline forms outside the evaluator; `exact` tells it from a
-   * refusal the converter passes on, and the message names the remedy
-   * (D20), `approx` around the `have`.
+   * The converter's own failures, and the refusals it passes on from the
+   * ball's arithmetic; the conversion's ratio, or a function want's
+   * count, exact and past the significand limit (D19), the two quotients
+   * the pipeline forms outside the evaluator, is the same `tooLarge`
+   * with `inexact` `fits`, and the message names `approx` around the
+   * `have` (D20).
    */
-  | { readonly kind: "tooLarge"; readonly exact: true }
+  | ConvertError
   /**
    * The `want` is a list typed out whose unit at `error.index` fails as
    * `error` says; `units` are the texts of its units, in order.
@@ -634,7 +634,7 @@ function refusedList(error: ListRefusal): Result<never, ConversionError> {
 function refusal(error: Refusal): Refusal {
   switch (error.kind) {
     case "tooLarge":
-      return { kind: "tooLarge" };
+      return { kind: "tooLarge", inexact: error.inexact };
     case "overflow":
       return { kind: "overflow" };
     case "underflow":
@@ -868,8 +868,12 @@ function disjoint(a: Ball, b: Ball, context: NumberContext): boolean {
   return where === "above" || where === "below";
 }
 
-/** An exact ratio or count past the significand limit (D19). */
-const EXACT_TOO_LARGE: ConversionError = { kind: "tooLarge", exact: true };
+/**
+ * An exact ratio or count past the significand limit (D19): the exact
+ * quotient is what passes, and `approx` around the `have`, or decimal
+ * mode, makes it inexact.
+ */
+const EXACT_TOO_LARGE: ConversionError = { kind: "tooLarge", inexact: "fits" };
 
 /**
  * Whether `quotient`, exact, has a canonical significand past the significand limit

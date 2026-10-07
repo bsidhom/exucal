@@ -14,7 +14,7 @@
 
 import { exact, isExact, type Ball } from "../ball.ts";
 import {
-  TOO_LARGE,
+  tooLarge,
   plainNumbers,
   type Builtin,
   type BuiltinError,
@@ -43,7 +43,7 @@ export function integerOf(
     return err({ kind: "domain", argument: index, reason: "notInteger" });
   }
   const formed = toRational(x.mid, context.significandLimitBits);
-  if (!formed.ok) return TOO_LARGE;
+  if (!formed.ok) return tooLarge("passes");
   return ok(formed.value.num);
 }
 
@@ -104,7 +104,7 @@ export function factorialOf(
   context: NumberContext,
 ): Result<bigint, BuiltinError> {
   if (n > FACTORIAL_LIMIT || pastLimit(log2Factorial(Number(n)), context)) {
-    return TOO_LARGE;
+    return tooLarge("passes");
   }
   return ok(product(2n, n, 1n));
 }
@@ -119,13 +119,13 @@ export function doubleFactorialOf(
   context: NumberContext,
 ): Result<bigint, BuiltinError> {
   if (n <= 0n) return ok(1n);
-  if (n > FACTORIAL_LIMIT) return TOO_LARGE;
+  if (n > FACTORIAL_LIMIT) return tooLarge("passes");
   const k = Number(n / 2n);
   const bits =
     n % 2n === 0n
       ? k + log2Factorial(k)
       : log2Factorial(Number(n)) - k - log2Factorial(k);
-  if (pastLimit(bits, context)) return TOO_LARGE;
+  if (pastLimit(bits, context)) return tooLarge("passes");
   return ok(product(n % 2n === 0n ? 2n : 1n, n, 2n));
 }
 
@@ -149,14 +149,14 @@ export function binomialOf(
   const smaller = k < n - k ? k : n - k;
   if (smaller === 0n) return ok(1n);
   // `binomial(n, k)` is at least `2^k` for `k` up to half of `n`.
-  if (smaller > FACTORIAL_LIMIT) return TOO_LARGE;
+  if (smaller > FACTORIAL_LIMIT) return tooLarge("passes");
   const bits =
     n <= STIRLING_LIMIT
       ? log2Factorial(Number(n)) -
         log2Factorial(Number(smaller)) -
         log2Factorial(Number(n - smaller))
       : Number(smaller) * n.toString(2).length - log2Factorial(Number(smaller));
-  if (pastLimit(bits, context)) return TOO_LARGE;
+  if (pastLimit(bits, context)) return tooLarge("passes");
   let result = 1n;
   for (let i = 1n; i <= smaller; i++) {
     result = (result * (n - smaller + i)) / i;

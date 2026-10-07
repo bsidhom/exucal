@@ -104,7 +104,7 @@ const COPRIME_PRODUCT = "3^30000 * 7^20000";
 function textMessage(text: string, against: UnitTable = table): string {
   const result = evaluateText(against, text, CONTEXT);
   assert.ok(!result.ok, `expected ${JSON.stringify(text)} to fail`);
-  return describeTextError(result.error, text, against.primitives);
+  return describeTextError(result.error, text, against.primitives, "exact");
 }
 
 /** The message for the error converting `have` to `want` fails with, in `against`. */
@@ -115,7 +115,13 @@ function conversionMessage(
 ): string {
   const result = convertText(against, have, want, CONTEXT);
   assert.ok(!result.ok, `expected ${have} in ${want} to fail`);
-  return describeConversionError(result.error, have, want, against.primitives);
+  return describeConversionError(
+    result.error,
+    have,
+    want,
+    against.primitives,
+    "exact",
+  );
 }
 
 test("a parse error names what was expected and what was found", () => {
@@ -148,11 +154,11 @@ test("a parse error names what was expected and what was found", () => {
   // is what is too large, at the sum, within the significand limit.
   assert.equal(
     textMessage("1e999999999 + 1"),
-    '"1e999999999 + 1" is too large to compute within the significand limit.',
+    '"1e999999999 + 1" would need a significand past the significand limit as an exact value. Try "approx(1e999999999)" in place of "1e999999999", or decimal mode, to compute it to the digits asked.',
   );
   assert.equal(
     textMessage("1e999999999 m - 1 m"),
-    '"1e999999999 m - 1 m" is too large to compute within the significand limit.',
+    '"1e999999999 m - 1 m" would need a significand past the significand limit as an exact value. Try "approx(1e999999999 m)" in place of "1e999999999 m", or decimal mode, to compute it to the digits asked.',
   );
   // A literal past the exponent bound is rejected where it is written,
   // with the side it is past.
@@ -181,12 +187,12 @@ test("an evaluation error quotes the text at fault", () => {
   );
   assert.equal(
     textMessage("2^99999 m"),
-    '"2^99999" is too large to compute within the significand limit.',
+    '"2^99999" would need a significand past the significand limit as an exact value. Try "approx(2)" in place of "2", or decimal mode, to compute it to the digits asked.',
   );
   // A built-in that refuses an argument it cannot reduce fails at the call.
   assert.equal(
     textMessage("sin(1e999999999 radian)"),
-    '"sin(1e999999999 radian)" is too large to compute within the significand limit.',
+    '"sin(1e999999999 radian)" would need a significand past the significand limit, however it is computed.',
   );
   assert.equal(
     textMessage("(-4)^0.5 m"),
@@ -249,29 +255,78 @@ test("a value too large to compute names the limit it passes, and one too small 
   // and a value past it below is too small rather than too large.
   assert.equal(
     textMessage("3^1000000000"),
-    '"3^1000000000" is too large to compute within the significand limit.',
+    '"3^1000000000" would need a significand past the significand limit as an exact value. Try "approx(3)" in place of "3", or decimal mode, to compute it to the digits asked.',
   );
   // An exact result formed and measured past the significand limit names the node
   // and the remedy (the plan's D20), and the remedy works; a power's
   // prediction, above, keeps the plain wording.
   assert.equal(
     textMessage("3^32767 * 7^21845", withApp),
-    '"3^32767 * 7^21845" is too large to hold exactly within the significand limit: write "approx(3^32767)" in place of "3^32767" to compute it to the digits asked, or raise the significand limit.',
+    '"3^32767 * 7^21845" would need a significand past the significand limit as an exact value. Try "approx(3^32767)" in place of "3^32767", or decimal mode, to compute it to the digits asked.',
   );
   assert.equal(
     textMessage(`${COPRIME_PRODUCT} * 11^16000`, withApp),
-    `"${COPRIME_PRODUCT}" is too large to hold exactly within the significand limit: write "approx(3^30000)" in place of "3^30000" to compute it to the digits asked, or raise the significand limit.`,
+    `"${COPRIME_PRODUCT}" would need a significand past the significand limit as an exact value. Try "approx(3^30000)" in place of "3^30000", or decimal mode, to compute it to the digits asked.`,
   );
   assert.equal(
     textMessage("2^-30000", withApp),
-    '"2^-30000" is too large to hold exactly within the significand limit: write "approx(2)" in place of "2" to compute it to the digits asked, or raise the significand limit.',
+    '"2^-30000" would need a significand past the significand limit as an exact value. Try "approx(2)" in place of "2", or decimal mode, to compute it to the digits asked.',
   );
   assert.ok(evaluateText(withApp, "approx(3^32767) * 7^21845", CONTEXT).ok);
   assert.ok(evaluateText(withApp, "approx(2)^-30000", CONTEXT).ok);
+  // The remedies a `fits` message offers are the refusing function's
+  // expectation, not a promise; this checks the expectation on the inputs
+  // the messages above cite, as a regression test and not a proof: approx
+  // around the operand named, and decimal mode, each compute them.
+  const decimal: NumberContext = { ...CONTEXT, mode: "decimal" };
+  for (const [text, remedy] of [
+    ["3^1000000000", "approx(3)^1000000000"],
+    ["1e999999999 + 1", "approx(1e999999999) + 1"],
+    ["3^32767 * 7^21845", "approx(3^32767) * 7^21845"],
+    ["2^99999", "approx(2)^99999"],
+  ] as const) {
+    assert.equal(evaluateText(withApp, text, CONTEXT).ok, false, text);
+    assert.ok(evaluateText(withApp, remedy, CONTEXT).ok, remedy);
+    assert.ok(evaluateText(withApp, text, decimal).ok, `${text} in decimal`);
+  }
+  // A `passes` message offers nothing, and nothing reaches these.
+  for (const [text, tried] of [
+    ["sin(1e999999999 radian)", "sin(approx(1e999999999) radian)"],
+    ["factorial(20000)", "factorial(approx(20000))"],
+    ["2^1e-30000", "approx(2)^1e-30000"],
+  ] as const) {
+    assert.equal(evaluateText(withApp, text, CONTEXT).ok, false, text);
+    assert.equal(evaluateText(withApp, tried, CONTEXT).ok, false, tried);
+    assert.equal(evaluateText(withApp, text, decimal).ok, false, text);
+  }
+  // In decimal mode the message does not offer decimal mode: it reads the
+  // mode from the context it is given, not from the arithmetic.
+  const inDecimal = evaluateText(withApp, "2^1e-30000", decimal);
+  assert.ok(!inDecimal.ok);
+  assert.equal(
+    describeTextError(
+      inDecimal.error,
+      "2^1e-30000",
+      withApp.primitives,
+      "decimal",
+    ),
+    '"2^1e-30000" would need a significand past the significand limit, however it is computed.',
+  );
+  const exactRefusal = evaluateText(withApp, "3^1000000000", CONTEXT);
+  assert.ok(!exactRefusal.ok);
+  assert.equal(
+    describeTextError(
+      exactRefusal.error,
+      "3^1000000000",
+      withApp.primitives,
+      "decimal",
+    ),
+    '"3^1000000000" would need a significand past the significand limit as an exact value. Try "approx(3)" in place of "3" to compute it to the digits asked.',
+  );
   // The conversion's ratio, about the pair, with `approx` on the have.
   assert.equal(
     conversionMessage("3^25000/7^14000 m", "11^15000/13^14000 ft"),
-    '"3^25000/7^14000 m" into "11^15000/13^14000 ft" is too large to hold exactly within the significand limit: write "approx(3^25000/7^14000 m)" to compute it to the digits asked, or raise the significand limit.',
+    '"3^25000/7^14000 m" into "11^15000/13^14000 ft" would need a significand past the significand limit as an exact value. Try "approx(3^25000/7^14000 m)", or decimal mode, to compute it to the digits asked.',
   );
   assert.ok(
     convertText(
@@ -330,7 +385,7 @@ test("a result that straddles the exponent bound names the edge, in an expressio
 test("a list refused by its arithmetic names the pair and the limit", () => {
   assert.equal(
     conversionMessage("3^32767 m", "ft/7^21845; in/7^21845"),
-    '"3^32767 m" into "ft/7^21845; in/7^21845" is too large to compute within the significand limit.',
+    '"3^32767 m" into "ft/7^21845; in/7^21845" would need a significand past the significand limit as an exact value. Try "approx(3^32767 m)", or decimal mode, to compute it to the digits asked.',
   );
   assert.equal(
     conversionMessage(
@@ -443,7 +498,7 @@ test("a body that fails is described by what the definition does", () => {
   // own does.
   assert.equal(
     textMessage("square(3^30000)", failing),
-    'Cannot compute "square(3^30000)": the definition of "square" computes a value too large to form within the significand limit.',
+    'Cannot compute "square(3^30000)": the definition of "square" computes a value whose significand would pass the significand limit.',
   );
   assert.equal(
     textMessage("square(1e999999999999999999)", failing),
@@ -688,6 +743,7 @@ test("a built-in's dimension rule is worded from its data", () => {
       { kind: "callFailed", name: "f", span: call, error },
       "f(1 m)",
       withBuiltins.primitives,
+      "exact",
     );
   assert.equal(
     bodyForm({
@@ -862,7 +918,12 @@ test("a body that fails under an assumed condition names the assumption", () => 
     },
   };
   assert.equal(
-    describeTextError(error, "tempC(approx(-273.15))", table.primitives),
+    describeTextError(
+      error,
+      "tempC(approx(-273.15))",
+      table.primitives,
+      "exact",
+    ),
     'Cannot compute "tempC(approx(-273.15))": could not tell whether the argument of "tempC" meets "x >= -273.15".',
   );
 });

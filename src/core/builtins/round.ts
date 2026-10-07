@@ -23,7 +23,7 @@
 
 import { exact, isExact, position, type Ball } from "../ball.ts";
 import {
-  TOO_LARGE,
+  tooLarge,
   checkArgument,
   plainNumbers,
   unboundedOf,
@@ -64,13 +64,13 @@ export function truncScaled(
 ): Result<Scaled, BuiltinError> {
   if (isInteger(s)) return ok(s);
   const t = trunc(s, limit);
-  return t === undefined ? TOO_LARGE : ok(t);
+  return t === undefined ? tooLarge("passes") : ok(t);
 }
 
 /** The integer `s` plus `n`, formed within the hard bound. */
 function stepped(s: Scaled, n: bigint): Result<Scaled, BuiltinError> {
   const sum = add(s, fromInteger(n), MAX_SIGNIFICAND_LIMIT_BITS);
-  return sum.ok ? sum : TOO_LARGE;
+  return sum.ok ? sum : tooLarge("passes");
 }
 
 /** The largest integer at or below `s`. */
@@ -136,7 +136,7 @@ export function roundScaled(
   let count: bigint;
   if (shift >= 0n) {
     const digits = Number(shift) + decimalDigits(abs(num));
-    if (digits * BITS_PER_DIGIT > limit) return TOO_LARGE;
+    if (digits * BITS_PER_DIGIT > limit) return tooLarge("passes");
     count = divideRounded(num * 10n ** shift, den, mode);
   } else if (-shift > BigInt(decimalDigits(abs(num)) + 1)) {
     count = roundedBelowTenth(sign(s), mode);
@@ -145,7 +145,7 @@ export function roundScaled(
   }
   const rounded = scaled(rational(count), unit);
   if (rounded.ok) return rounded;
-  return isRefusal(rounded.error) ? err(rounded.error) : TOO_LARGE;
+  return isRefusal(rounded.error) ? err(rounded.error) : tooLarge("passes");
 }
 
 // ---------------------------------------------------------------------------
@@ -241,9 +241,9 @@ function offset(
   exponent: bigint,
 ): Result<Scaled, BuiltinError> {
   const step = scaled(rational(count), exponent);
-  if (!step.ok) return TOO_LARGE;
+  if (!step.ok) return tooLarge("passes");
   const sum = add(r, step.value, MAX_SIGNIFICAND_LIMIT_BITS);
-  return sum.ok ? sum : TOO_LARGE;
+  return sum.ok ? sum : tooLarge("passes");
 }
 
 /**

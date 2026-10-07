@@ -921,7 +921,7 @@ function lookupIn(
       if (!isRefusal(error)) {
         throw new Error(`A prefix times a unit failed: ${error.kind}`);
       }
-      return err({ kind: error.kind, span });
+      return err({ ...error, span });
     },
     function: (name, span, call) => {
       const found = index.functions.get(name);

@@ -384,7 +384,7 @@ test("the ends of the exponent and the term limit", () => {
     error(
       call(true, d("1e6"), d("1e6"), d("0.5"), { ...CONTEXT, precision: 1000 }),
     ),
-    { kind: "tooLarge" },
+    { kind: "tooLarge", inexact: "passes" },
   );
   assert.equal(shown(true, d("1e6"), d("1e6"), d("0.5"), eight), "≈ 0.5");
 });
@@ -409,7 +409,7 @@ function run(
 ): string {
   const result = evaluateText(table, source, context);
   if (!result.ok)
-    return describeTextError(result.error, source, table.primitives);
+    return describeTextError(result.error, source, table.primitives, "exact");
   const result2 = show(result.value.magnitude, {
     digits: context.precision,
     rounding: context.rounding,

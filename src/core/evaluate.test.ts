@@ -481,13 +481,16 @@ test("a literal of any exponent is a value, and one whose significand exceeds th
   // The exponent costs nothing; the significand is what the significand limit
   // bounds: twenty thousand digits are more bits than the default allows.
   const long = "1".repeat(20000);
+  // The digits typed are the significand: nothing rounds them smaller.
   assert.deepEqual(failure(run(long)), {
     kind: "tooLarge",
     span: { start: 0, end: long.length },
+    inexact: "passes",
   });
   assert.deepEqual(failure(run(`2 * ${long} m`)), {
     kind: "tooLarge",
     span: { start: 4, end: 4 + long.length },
+    inexact: "passes",
   });
   // Whereas the `^` exponent is read as a fraction, and one whose power
   // of ten cannot be formed within the hard bound is rejected by the parser.
@@ -704,13 +707,19 @@ test("the exponent carries through the exact operations, and a sum that cannot b
   assertEvaluates("-1e999999999 m", quantity("-1e999999999", { m: 1 }));
   // Two exact operands whose exponents cannot be aligned within the range
   // limit have an exact sum that cannot be held: `1e999999999 + 1`.
+  // The sum says an inexact operand fits, and the evaluator names the
+  // left one as the span `approx` around would make inexact.
   assert.deepEqual(failure(run("1e999999999 + 1")), {
     kind: "tooLarge",
     span: { start: 0, end: 15 },
+    inexact: "fits",
+    operand: { start: 0, end: 11 },
   });
   assert.deepEqual(failure(run("2 m * (1 - 1e999999999)")), {
     kind: "tooLarge",
     span: { start: 6, end: 23 },
+    inexact: "fits",
+    operand: { start: 7, end: 8 },
   });
   // A product or a quotient that passes the exponent bound is too large
   // at the whole operation, where a division by zero points at the
@@ -896,13 +905,18 @@ test("a power that fails points at the whole power", () => {
     degree: 4n,
     span: { start: 2, end: 10 },
   });
+  // The exact power says an inexact base fits; the base is the operand.
   assert.deepEqual(failure(run("7^100000")), {
     kind: "tooLarge",
     span: { start: 0, end: 8 },
+    inexact: "fits",
+    operand: { start: 0, end: 1 },
   });
   assert.deepEqual(failure(run("m (7^100000)")), {
     kind: "tooLarge",
     span: { start: 2, end: 12 },
+    inexact: "fits",
+    operand: { start: 3, end: 4 },
   });
   // Whereas a power of ten costs nothing: the exponent takes it.
   assertEvaluates("10^100000", quantity("1e100000"));
@@ -1257,7 +1271,10 @@ const BUILTINS: Record<string, Builtin> = {
   ),
   huge: builtin("huge", 1, () => err({ kind: "overflow" })),
   tiny: builtin("tiny", 1, () => err({ kind: "underflow" })),
-  long: builtin("long", 1, () => err({ kind: "tooLarge" })),
+  long: builtin("long", 1, () => err({ kind: "tooLarge", inexact: "passes" })),
+  longFits: builtin("longFits", 2, () =>
+    err({ kind: "tooLarge", inexact: "fits" }),
+  ),
   even: builtin("even", 1, () => err({ kind: "negativeRadicand", degree: 2n })),
   byzero: builtin("byzero", 1, () => err({ kind: "divisionByZero" })),
   // An unbounded argument, propagated as the rules say.
@@ -1450,7 +1467,7 @@ test("an exact result past the significand limit is refused at the node that for
     assert.deepEqual(failure(run8(text)), {
       kind: "tooLarge",
       span: { start: 0, end: text.length },
-      exact: true,
+      inexact: "fits",
       operand: { start: 0, end: operandEnd },
     });
   const within = (ms: number, label: string, f: () => void) => {
@@ -1480,7 +1497,7 @@ test("an exact result past the significand limit is refused at the node that for
     assert.deepEqual(failure(run8(powers)), {
       kind: "tooLarge",
       span: { start: 0, end: COPRIME_POWERS.slice(0, 2).join(" * ").length },
-      exact: true,
+      inexact: "fits",
       operand: { start: 0, end: COPRIME_POWERS[0]!.length },
     });
   });
@@ -1500,7 +1517,7 @@ test("an exact result past the significand limit is refused at the node that for
   assert.deepEqual(failure(run8("approx(3^32767 * 7^21845)")), {
     kind: "tooLarge",
     span: { start: 7, end: 24 },
-    exact: true,
+    inexact: "fits",
     operand: { start: 7, end: 14 },
   });
   // A sum of fractions grows as a product does; the check is after the
@@ -1719,6 +1736,17 @@ test("a built-in's failures are located: domain and the rest at the call, unreso
   assert.deepEqual(failure(runBuiltin("long(1)")), {
     kind: "tooLarge",
     span: { start: 0, end: 7 },
+    inexact: "passes",
+  });
+  // The reach is the built-in's word, carried through: a call that says
+  // an inexact argument fits gets its first argument named as the operand,
+  // and one that says the value passes anyway gets no operand, whatever
+  // the evaluator could have named.
+  assert.deepEqual(failure(runBuiltin("longFits(1, 2)")), {
+    kind: "tooLarge",
+    span: { start: 0, end: 14 },
+    inexact: "fits",
+    operand: { start: 9, end: 10 },
   });
   assert.deepEqual(failure(runBuiltin("even(1)")), {
     kind: "negativeRadicand",
@@ -1781,13 +1809,17 @@ test("a ^ exponent is reduced by the evaluator within the significand limit, and
   assertEvaluates("2^(1e30000/1e30000)", quantity("2"));
   assertEvaluates("2^(1e20000/1e19999)", quantity("1024"));
   assertEvaluates("m^(1e30000/2e30000)", quantity("1", { m: half }));
+  // An exponent that cannot be formed: its own bits pass the limit, which
+  // no base changes, so no operand is named.
   assert.deepEqual(failure(run("2^1e-30000")), {
     kind: "tooLarge",
     span: { start: 0, end: 10 },
+    inexact: "passes",
   });
   assert.deepEqual(failure(run("m^(1e30/7)", small)), {
     kind: "tooLarge",
     span: { start: 0, end: 10 },
+    inexact: "passes",
   });
   assert.deepEqual(
     value(run("m^(1e30/7)", { ...CONTEXT, significandLimitBits: 128 }))
@@ -1822,19 +1854,23 @@ test("a ^ exponent is reduced by the evaluator within the significand limit, and
   };
   const long = `2^(${literal(3)}/${literal(4)})`;
   const start = performance.now();
+  // An exponent that cannot be formed: `passes`, with no operand named.
   assert.deepEqual(failure(run(long)), {
     kind: "tooLarge",
     span: { start: 0, end: long.length },
+    inexact: "passes",
   });
   const ms = performance.now() - start;
   assert.ok(ms < 2000, `refused in ${ms.toFixed(0)} ms`);
   assert.deepEqual(failure(run("2^(12345678901234567890123/3)", small)), {
     kind: "tooLarge",
     span: { start: 0, end: 29 },
+    inexact: "passes",
   });
   assert.deepEqual(failure(run("3 m^(2/12345678901234567890123)", small)), {
     kind: "tooLarge",
     span: { start: 2, end: 31 },
+    inexact: "passes",
   });
 });
 

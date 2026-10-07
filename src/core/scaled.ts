@@ -217,7 +217,8 @@ export function toRational(
 ): Result<Rational, ScaledError> {
   const { num, den } = s.significand;
   if (s.exp === 0n) return ok(s.significand);
-  if (!formable(s, limit)) return err({ kind: "tooLarge" });
+  // The value's own representation as a fraction passes the limit.
+  if (!formable(s, limit)) return err({ kind: "tooLarge", inexact: "passes" });
   const magnitude = abs(s.exp);
   const power = 10n ** magnitude;
   // Multiplying the numerator keeps lowest terms, the denominator being
@@ -366,7 +367,9 @@ function combine(
   if (isZero(b)) return scaled(op(a.significand, ZERO_FRACTION), a.exp);
   const shift = abs(a.exp - b.exp);
   if (shift > BigInt(limit) || Number(shift) * BITS_PER_DIGIT > limit) {
-    return err({ kind: "tooLarge" });
+    // The exact sum is what passes: with an inexact operand the smaller
+    // is absorbed into the radius instead of aligned (ball.ts).
+    return err({ kind: "tooLarge", inexact: "fits" });
   }
   const exp = a.exp < b.exp ? a.exp : b.exp;
   const left =
@@ -437,7 +440,8 @@ export function invert(s: Scaled): Result<Scaled, ScaledError> {
  * bound, where `powerRefusal` cannot tell, it is `tooLarge`. A check of
  * the canonical exponent times `n` came first until the plan's H.13,
  * which refused `12345678e-1000000000000000007` to the first power, a
- * value (D17).
+ * value (D17). The `tooLarge` is the fraction's, whose reach is `fits`:
+ * the exponent was formed, and an inexact base is raised in log space.
  */
 export function pow(
   s: Scaled,
@@ -451,7 +455,12 @@ export function pow(
   const significand = powFraction(s.significand, n, limit);
   if (significand.ok) return scaled(significand.value, s.exp * n);
   if (significand.error.kind !== "tooLarge") return significand;
-  return err(powerRefusal(s, integerExponent(n)) ?? significand.error);
+  const refusal = powerRefusal(s, integerExponent(n));
+  return err(
+    refusal === undefined || refusal.kind === "limit"
+      ? significand.error
+      : refusal,
+  );
 }
 
 /**
@@ -576,7 +585,8 @@ export function parseDecimal(text: string): Result<Scaled, ScaledError> {
   const fraction = fractionPart || bareFraction;
   const digits = integerPart + fraction;
   if (digits.length * BITS_PER_DIGIT > MAX_SIGNIFICAND_LIMIT_BITS) {
-    return err({ kind: "tooLarge" });
+    // The digits typed are the significand; nothing computes them smaller.
+    return err({ kind: "tooLarge", inexact: "passes" });
   }
   // The value is (integer digits ++ fraction digits) × 10^(exponent - #fraction).
   const exponent = match[5] === undefined ? 0n : BigInt(match[5]);
@@ -748,18 +758,28 @@ const NEAR_ONE_SLACK = 2 ** -25;
  * the error names the bound, which no setting moves, when no setting
  * could compute the power (`7^(10^19)`), and the significand limit when an
  * inexact base would give it a value. A zero `s` or `y`, and an `s` of
- * magnitude one, give a power of magnitude zero or one: `tooLarge`.
+ * magnitude one, give a power of magnitude zero or one: `limit`. The
+ * `limit` verdict says only which limit refuses; what the same power
+ * computed inexactly would need (`Reach`) is the caller's to state, since
+ * the caller knows whether the exponent was formed (`pow` below, where
+ * the base's exactness is all that passes) or could not be (the
+ * evaluator's `2^1e-30000`, whose exponent's own bits pass the limit).
  */
-export function powerRefusal(s: Scaled, y: Scaled): Refusal | undefined {
+
+/** `powerRefusal`'s verdict: past the exponent bound on a side, or refused by the significand limit, the reach being the caller's. */
+export type PowerRefusal =
+  | Extract<Refusal, { readonly kind: "overflow" | "underflow" }>
+  | { readonly kind: "limit" };
+export function powerRefusal(s: Scaled, y: Scaled): PowerRefusal | undefined {
   if (isZero(s) || isZero(y) || equals(absolute(s), ONE)) {
-    return { kind: "tooLarge" };
+    return { kind: "limit" };
   }
   const base = log2OfLog10(s);
   if (base === undefined) return undefined;
   const power = log2Bounds(y);
   const leastLog2 = valueOfLog2(power.lower) + base.lower;
   const mostLog2 = valueOfLog2(power.upper) + base.upper;
-  if (mostLog2 < LOG2_MAX_EXPONENT - POWER_MARGIN) return { kind: "tooLarge" };
+  if (mostLog2 < LOG2_MAX_EXPONENT - POWER_MARGIN) return { kind: "limit" };
   if (leastLog2 <= LOG2_MAX_EXPONENT + POWER_MARGIN) return undefined;
   return powerSide(s, y);
 }
@@ -770,7 +790,10 @@ export function powerRefusal(s: Scaled, y: Scaled): Refusal | undefined {
  * positive and `|s|` above one or both are the other way, `underflow`
  * otherwise, told exactly, by comparing `|s|` with one.
  */
-export function powerSide(s: Scaled, y: Scaled): Refusal {
+export function powerSide(
+  s: Scaled,
+  y: Scaled,
+): Extract<Refusal, { readonly kind: "overflow" | "underflow" }> {
   const belowOne = compare(absolute(s), ONE) < 0;
   const negative = sign(y) < 0;
   return { kind: negative === belowOne ? "overflow" : "underflow" };

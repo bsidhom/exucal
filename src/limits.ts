@@ -1,28 +1,33 @@
 // The recommended limits: a probe that measures what this device can do
-// in a latency budget and proposes the two limits of D16, the range limit
-// in bits and the cap on the digits. docs/calculator-plan.md (D16 and task
-// 2.7) is the design; the settings panel runs it on request and never on
-// its own, since a benchmark at every launch would be noise on the main
-// thread for a number the user can also type. This is app code beside
-// settings.ts: the core knows nothing of time.
+// in a latency budget and proposes the two limits of D16 and D29, the
+// significand limit in bits and the precision limit in digits, with the
+// timings behind them, so that the settings panel can show the proposal
+// and the user apply it (docs/settings-limits.md, "The probe's
+// promise"). docs/calculator-plan.md (D16 and task 2.7) is the design;
+// the panel runs it on request and never on its own, since a benchmark at
+// every launch would be noise on the main thread for a number the user
+// can also type. This is app code beside settings.ts: the core knows
+// nothing of time.
 //
 // What it times is the costliest operation the app has on each axis, at
 // sizes doubling until one exceeds the budget, and it recommends the
 // largest size that stayed within it, rounded down to a round number. For
-// the range limit the operation is the costliest exact operation the
-// limits still run: an exact multiplication of two rationals of the
+// the significand limit the operation is the costliest exact operation
+// the limits still run: an exact multiplication of two rationals of the
 // candidate size in each part, whose two cross-cancelling gcds (the
 // plan's H.9) are the quadratic step of exact arithmetic and run before
 // the result is measured against the limit and refused (D19); the
 // operands are built outside the timed call, memoized by size, since a
-// build is not what the limit bounds. The candidates are powers of two
-// from 2^9 to the hard bound. For the cap it is `COMPOSITE`, one
-// expression of the costliest built-ins, evaluated once at the ceiling the
-// candidate cap would give (D12: four times the cap plus the guard), since
-// the ceiling pass is the costliest an expression that never certifies
-// runs, and such an expression runs every built-in it names at that pass;
-// the candidates are 1, 2 and 5 times a power of ten, up to what the
-// recommended range limit holds (`maxDigitsFor`). The composite was chosen
+// build is not what the limit bounds. The candidates are the setting's
+// floor and then the powers of two from 2^9 to the hard bound, so that
+// the size recommended was always timed, the floor included. For the
+// precision limit it is `COMPOSITE`, one expression of the costliest
+// built-ins, evaluated once at the ceiling the candidate limit would give
+// (D12: four times the limit plus the guard), since the ceiling pass is
+// the costliest an expression that never certifies runs, and such an
+// expression runs every built-in it names at that pass; the candidates
+// are 1, 2 and 5 times a power of ten, up to what the recommended
+// significand limit holds (`maxDigitsFor`). The composite was chosen
 // from the kernel benchmark's report of every routine at the default
 // ceiling (bench/kernel.bench.ts, the plan's 3.11): `exp`, `atan`, `sin`
 // (with `cos`, computed together) and `ln` cost about 12, 12, 11 and 10 ms
@@ -36,16 +41,18 @@
 // The expression is evaluated through the evaluator at that one precision,
 // not the pipeline's retry schedule, against a table of the one primitive
 // the angle needs, built at the same context. The special functions are
-// not in the composite, and the budget stands (D25 of the plan): a cap low
-// enough for their ceiling pass would put out of reach values that are in
-// reach, and keeping the interface responsive while such a pass runs is
-// issue #118's. The operations and the budget are named in one place here,
-// so that a change to either touches nothing else.
+// not in the composite, and the budget stands (D25 of the plan): a limit
+// low enough for their ceiling pass would put out of reach values that
+// are in reach, and keeping the interface responsive while such a pass
+// runs is issue #118's. The operations are named in one place here, so
+// that a change to them touches nothing else; the budget is the user's,
+// a stored setting in milliseconds (settings.ts, `budgetMs`) the panel
+// passes in.
 //
 // The budget is per pass: the retry schedule doubles, so an expression that
-// runs to the ceiling costs about twice its last pass, and 50 ms a pass
-// keeps that under the tenth of a second an interactive keystroke has. The
-// probe measures time alone; memory is an explicit omission (D16 says why:
+// runs to the ceiling costs about twice its last pass, and the default's
+// 50 ms a pass keeps that under the tenth of a second an interactive
+// keystroke has. The probe measures time alone; memory is an explicit omission (D16 says why:
 // no portable measure of it exists in a browser, and probing by allocation
 // could crash the page), bounded indirectly by the time budget, since a
 // value of `n` bits is `n / 8` bytes.
@@ -86,10 +93,19 @@ export const COMPOSITE = "sin(atan(exp(1)) + ln(3) radian)";
 /** The one primitive the composite needs: the angle its calls take and return. */
 const DEFINITIONS = "radian  !kind";
 
-/** The two limits the probe recommends. */
-export type Limits = {
-  readonly maxBits: number;
-  readonly maxDigits: number;
+/**
+ * What the probe recommends: the two limits, each with the time its
+ * operation took at the recommended size, in milliseconds, which is
+ * within the budget unless the size is the setting's floor, the least
+ * the probe may recommend, whose operation may have cost more.
+ */
+export type Recommendation = {
+  readonly significandLimitBits: number;
+  /** The costliest exact product at `significandLimitBits`. */
+  readonly productMs: number;
+  readonly precisionLimitDigits: number;
+  /** The costliest built-ins at the ceiling `precisionLimitDigits` gives. */
+  readonly builtinsMs: number;
 };
 
 /**
@@ -100,12 +116,9 @@ export type Probe = {
   readonly now: () => number;
   /** The costliest exact operation at `bits`: a product of two fractions of `bits` bits in each part, with its cross-cancelling gcds. */
   readonly range: (bits: number) => void;
-  /** The costliest inexact operation at the ceiling for a cap of `digits`. */
+  /** The costliest inexact operation at the ceiling for a precision limit of `digits`. */
   readonly precision: (digits: number) => void;
 };
-
-/** The latency budget per pass, in milliseconds; the header says why. */
-export const BUDGET_MS = 50;
 
 /** The probe over the real clock and operations. */
 export function realProbe(): Probe {
@@ -176,29 +189,68 @@ function memo<T>(compute: () => T): () => T {
 
 /**
  * The limits recommended for the device `probe` measures, within `budget`
- * milliseconds per operation: the largest power of two from 2^9 to
- * `LIMIT_BITS` whose range operation stays within the budget (at least
- * `MIN_MAX_BITS`), and the largest cap of the form 1, 2 or 5 times a power
- * of ten, up to what that range limit holds, whose precision operation
- * stays within it (at least 1). Each size is timed as the shortest of
- * three runs after one that is not timed.
+ * milliseconds per operation, each with the timing behind it: the
+ * largest of the significand limit's floor and the powers of two from
+ * 2^9 to `LIMIT_BITS` whose range operation stays within the budget (the
+ * floor when none does), and the largest precision limit of the form 1,
+ * 2 or 5 times a power of ten, up to what that significand limit holds,
+ * whose precision operation stays within it (1 when none does). Each
+ * size is timed as the shortest of three runs after one that is not
+ * timed.
  */
 export function recommendLimits(
-  budget: number = BUDGET_MS,
+  budget: number,
   probe: Probe = realProbe(),
-): Limits {
-  let maxBits = MIN_MAX_BITS;
+): Recommendation {
+  const bits = largestWithin(probe, budget, bitCandidates(), probe.range);
+  const digits = largestWithin(
+    probe,
+    budget,
+    roundNumbers(maxDigitsFor(bits.size)),
+    probe.precision,
+  );
+  return {
+    significandLimitBits: bits.size,
+    productMs: bits.ms,
+    precisionLimitDigits: digits.size,
+    builtinsMs: digits.ms,
+  };
+}
+
+/** A size the probe timed, and what its operation took, in milliseconds. */
+type Timed = { readonly size: number; readonly ms: number };
+
+/**
+ * The largest of `candidates`, ascending and never empty, whose
+ * `operation` stays within `budget` on `probe`'s clock, with its time;
+ * the first candidate with its time when none does, so that what is
+ * recommended was always timed. Stops at the first candidate over the
+ * budget: the sizes grow, and so does the cost.
+ */
+function largestWithin(
+  probe: Probe,
+  budget: number,
+  candidates: readonly number[],
+  operation: (size: number) => void,
+): Timed {
+  let best: Timed | undefined;
+  for (const size of candidates) {
+    const ms = timed(probe, () => operation(size));
+    if (ms > budget && best !== undefined) break;
+    best = { size, ms };
+    if (ms > budget) break;
+  }
+  if (best === undefined) throw new Error("The probe has no candidate");
+  return best;
+}
+
+/** The significand limit's floor, then the powers of two from 2^9 to the hard bound, ascending. */
+function bitCandidates(): number[] {
+  const candidates = [MIN_MAX_BITS];
   for (let bits = 512; bits <= LIMIT_BITS; bits *= 2) {
-    if (timed(probe, () => probe.range(bits)) > budget) break;
-    maxBits = Math.max(maxBits, bits);
+    if (bits > MIN_MAX_BITS) candidates.push(bits);
   }
-  const most = maxDigitsFor(maxBits);
-  let maxDigits = 1;
-  for (const digits of roundNumbers(most)) {
-    if (timed(probe, () => probe.precision(digits)) > budget) break;
-    maxDigits = digits;
-  }
-  return { maxBits, maxDigits };
+  return candidates;
 }
 
 /** 1, 2, 5, 10, 20, 50, ... up to `limit`, ascending. */

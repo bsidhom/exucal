@@ -344,7 +344,7 @@ function line(
   const shown = show(value, {
     digits: context.precision,
     rounding: context.rounding,
-    width: width,
+    width,
   });
   return {
     have,
@@ -518,7 +518,7 @@ function listResult(
   const { precision, rounding } = context;
   const last = terms.length - 1;
   const shown = terms.map((t) =>
-    show(t, { digits: precision, rounding: rounding, width: width }),
+    show(t, { digits: precision, rounding, width }),
   );
   const unrounded = shown[last]!;
   // With the ratio notation, an exact remainder whose ratio fits is
@@ -548,8 +548,8 @@ function listResult(
   const remainder = carried
     ? show(rounded[last]!, {
         digits: precision,
-        rounding: rounding,
-        width: width,
+        rounding,
+        width,
       })
     : unrounded;
   const all = rounded.map((value, i) => {
@@ -566,8 +566,8 @@ function listResult(
           : remainder.kind === "exact" && remainder.fraction === true
             ? show(exact(magnitude), {
                 digits: precision,
-                rounding: rounding,
-                width: width,
+                rounding,
+                width,
               })
             : { kind: "exact", text: format(magnitude, certified, rounding) };
     return {

@@ -178,7 +178,7 @@ test("an unbounded radius, and the rounding modes", () => {
   for (const rounding of ROUNDING_MODES) {
     const shown = show(value(digammaBall(exact(dec("2")), CONTEXT)), {
       digits: 8,
-      rounding: rounding,
+      rounding,
     });
     assert.equal(shown.kind, "certified", rounding);
     assert.ok(
@@ -574,7 +574,7 @@ test("an unbounded radius, and the rounding modes, for lgamma and gamma", () => 
   for (const rounding of ROUNDING_MODES) {
     const shownGamma = show(value(gammaBall(exact(dec("2.5")), CONTEXT)), {
       digits: 8,
-      rounding: rounding,
+      rounding,
     });
     assert.equal(shownGamma.kind, "certified", rounding);
     assert.ok(
@@ -583,7 +583,7 @@ test("an unbounded radius, and the rounding modes, for lgamma and gamma", () => 
     );
     const shownLgamma = show(value(lgammaBall(exact(dec("2.5")), CONTEXT)), {
       digits: 8,
-      rounding: rounding,
+      rounding,
     });
     assert.equal(shownLgamma.kind, "certified", rounding);
     assert.ok(

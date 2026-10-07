@@ -269,7 +269,7 @@ test("an unbounded radius, and the rounding modes", () => {
   for (const rounding of ROUNDING_MODES) {
     const shown = show(
       value(betaBall(exact(dec("0.5")), exact(dec("1.5")), CONTEXT)),
-      { digits: 8, rounding: rounding },
+      { digits: 8, rounding },
     );
     assert.equal(shown.kind, "certified", rounding);
     assert.ok(/^1\.570796[34]$/.test(shown.text), `${rounding}: ${shown.text}`);

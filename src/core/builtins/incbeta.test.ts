@@ -336,7 +336,7 @@ test("balls of the argument at the ends and wide ones are taken at their ends, a
   for (const rounding of ROUNDING_MODES) {
     const result = show(value(call(true, d("2.5"), d("3.5"), d("0.4"))), {
       digits: 8,
-      rounding: rounding,
+      rounding,
     });
     assert.equal(result.kind, "certified", rounding);
     assert.ok(

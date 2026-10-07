@@ -442,7 +442,7 @@ function typeJob(c: Case): void {
   for (let length = 1; length <= c.have.length; length++) {
     const start = performance.now();
     const outcome = outcomeOf(table, c.have.slice(0, length), c.want, {
-      context: context,
+      context,
       width: ratioWidthOf(c.settings),
     });
     const ms = performance.now() - start;
@@ -487,9 +487,9 @@ function runJob(job: { readonly stressCase: Case }): void {
     };
     const start = performance.now();
     const outcome = outcomeOf(table, have, want, {
-      context: context,
+      context,
       width: ratioWidthOf(settings),
-      observe: observe,
+      observe,
     });
     const ms = performance.now() - start;
     port.postMessage({

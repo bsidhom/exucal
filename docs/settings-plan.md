@@ -278,6 +278,8 @@ milliseconds, in the panel, the storage, the core and the docs alike
 
 ### S4. The surface
 
+Design note: docs/settings-surface.md (proposed; D30).
+
 - **Scope.** Where the settings live: the disclosure under the output as
   today, a modal, a popover from a control in the shell, or a page of
   their own; how they are reached on a phone when a result is long; apply

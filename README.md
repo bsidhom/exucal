@@ -135,12 +135,22 @@ in bits, the probe budget in milliseconds (`docs/settings-limits.md`).
   still a big number by its digits (`3^-100000` costs its 158,497 bits
   under any way of storing it as digits), and `approx` is the way to
   compute with one, as below. The limit is what makes `3^1000000000`
-  an error rather than a hang. When an exact result would need more
-  than the limit, the app refuses that part of the expression and names
-  it, and there are two ways on: write `approx(…)` around one of its
-  operands, which the message shows, so that the part is computed to
-  the digits asked and shown with `≈` instead of `=`, or raise the
-  limit; in exact mode the app never rounds an exact value on its own.
+  an error rather than a hang. When a result would need a significand
+  past the limit, the app refuses that part of the expression and names
+  it. Where the operation that refused expects the same step to fit
+  when computed inexactly, the message suggests what to try: `approx(…)`
+  around the operand it names, so that the part is computed to the
+  digits asked and shown with `≈` instead of `=`, or decimal mode, which
+  rounds every step and so never holds the exact value. Where the
+  operation expects the value to pass the limit however it is computed,
+  a built-in whose value needs more bits than the limit holds even
+  rounded (`factorial(20000)`, `sin` of an angle whose reduction passes
+  the limit), a literal of more digits than the limit, a power whose
+  exponent cannot be formed within it (`2^1e-30000`), the message says
+  so and suggests nothing; what a higher limit would need is the user's
+  to judge. The suggestion is the operation's expectation, not a
+  promise. In exact mode the app never rounds an exact value on its
+  own.
   The finest grid must fit inside it, so it also bounds the precision
   limit: 2,453 digits at the default.
 - **Probe budget**, in milliseconds (`budgetMs` in the stored settings):

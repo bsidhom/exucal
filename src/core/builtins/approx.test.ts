@@ -244,7 +244,7 @@ test("through the pipeline: approx makes a value inexact on purpose, keeps its u
     const result = evaluateText(table.value, text!, context);
     assert.ok(!result.ok, text);
     assert.equal(
-      describeTextError(result.error, text!, primitives),
+      describeTextError(result.error, text!, primitives, "exact"),
       message,
       text,
     );
@@ -252,7 +252,13 @@ test("through the pipeline: approx makes a value inexact on purpose, keeps its u
   const wantError = at("1 m", "approx()");
   assert.ok(!wantError.ok);
   assert.equal(
-    describeConversionError(wantError.error, "1 m", "approx()", primitives),
+    describeConversionError(
+      wantError.error,
+      "1 m",
+      "approx()",
+      primitives,
+      "exact",
+    ),
     '"approx" takes 1 argument, but "approx()" gives no arguments.',
   );
 });

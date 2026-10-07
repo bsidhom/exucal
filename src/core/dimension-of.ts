@@ -138,7 +138,10 @@ export function dimensionOf<E>(
       );
       if (!base.ok) return base;
       const exponent = reduceExponent(node.exponent, significandLimitBits);
-      if (!exponent.ok) return err({ kind: "tooLarge", span });
+      // A unit's exponent that cannot be formed: nothing rounds a unit.
+      if (!exponent.ok) {
+        return err({ kind: "tooLarge", span, inexact: "passes" });
+      }
       return ok(powDimension(base.value, exponent.value));
     }
     case "neg":

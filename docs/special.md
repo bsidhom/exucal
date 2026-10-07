@@ -173,11 +173,11 @@ formula with its first correction, `log2 n!` as the sum of
 bit of the truth for every `n >= 1`, so the refusal is sharp: `binomial(n, k)` from three such
 terms, and `n!!` from `2^k k!` for even `n = 2k` and `n! / (2^k k!)`
 for odd `n = 2k + 1`. A prediction past `significandLimitBits` is a `tooLarge`
-refusal at the call, worded as the function's own: `factorial(20000)` is
-too large to hold exactly within the significand limit, and the remedy is to raise
-the significand limit, or `gamma(n + 1)` for the digits asked once 6.3 lands. The
-generic node check's remedy, `approx` around the first operand, is not
-offered: an inexact argument is a `domain` error here, not a way to an
+refusal at the call, with the reach `passes`: `factorial(20000)` would
+need a significand past the significand limit however it is computed,
+and the message suggests nothing; `gamma(n + 1)` for the digits asked is
+the way on once 6.3 lands. `approx` around the argument is not offered,
+as the reach says: an inexact argument is a `domain` error here, not a way to an
 inexact result. The node check of D19 stands behind the prediction for
 the product itself. The refusal applies in both modes: the significand limit is a
 cost limit, and decimal mode would form the exact product before

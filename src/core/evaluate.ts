@@ -126,6 +126,7 @@
 // to the unit its parameter takes points at the whole call and carries the
 // argument's span the same way.
 
+import type { Reach } from "./rational.ts";
 import {
   checkConformance,
   type ConformanceError,
@@ -229,14 +230,19 @@ export type EvaluateError =
    * `operand`, the node's first operand (a binary's left, a power's base,
    * a call's first argument), which makes the node's result inexact,
    * settled rather than refused; a unit has no operand, and the remedy is
-   * the setting. Without `exact`, the operation or call was not computed
-   * at all (a sum's alignment, a power's prediction, the kernel's reach),
-   * or the literal at `span` already passes.
+   * the setting, or the operation or call was not computed at all (a
+   * sum's alignment, a power's prediction, the kernel's reach), or the
+   * literal at `span` already passes. `inexact` is the refusing function's
+   * word on the same step computed inexactly (`Reach`), carried through
+   * unchanged; `operand`, on `fits` alone, is the span `approx` around
+   * would make the step inexact, the node's first operand, which is the
+   * evaluator's one addition, a fact of the syntax tree and not of the
+   * arithmetic.
    */
   | {
       readonly kind: "tooLarge";
       readonly span: Span;
-      readonly exact?: true;
+      readonly inexact: Reach;
       readonly operand?: Span;
     }
   /**
@@ -390,7 +396,7 @@ export function evaluate<E>(
   assumptions?: Assumption[],
 ): Result<Quantity, EvaluateError | E> {
   const result = evaluateNode(expr, lookup, primitives, context, assumptions);
-  if (!result.ok) return result;
+  if (!result.ok) return withOperand(result, expr);
   // Every exact result is held to the significand limit where it is formed
   // (D19): its canonical significand, what is stored and what the next
   // operation multiplies, measured after the fact, so that `x / x` is one
@@ -403,12 +409,54 @@ export function evaluate<E>(
     isExact(magnitude) &&
     !significandWithin(magnitude.mid, context.significandLimitBits)
   ) {
-    const operand = firstOperand(expr);
-    return operand === undefined
-      ? err({ kind: "tooLarge", span: expr.span, exact: true })
-      : err({ kind: "tooLarge", span: expr.span, exact: true, operand });
+    // The exact result is what passes: computed inexactly the step fits.
+    return withOperand(
+      err({ kind: "tooLarge", span: expr.span, inexact: "fits" }),
+      expr,
+    );
   }
   return result;
+}
+
+/**
+ * `result`, a failure of `expr`'s own step refused for size whose
+ * refusing function expects an inexact computation to fit, with the span
+ * `approx` around would make the step inexact: the first operand of the
+ * node, where it has one. A failure below `expr` carries its own span and
+ * is left as it is, and so is a refusal the function says nothing rounds
+ * within the limit. The evaluator adds the operand and nothing else: the
+ * reach is the function's word.
+ */
+function withOperand<E>(
+  result: Result<Quantity, EvaluateError | E>,
+  expr: Expr,
+): Result<Quantity, EvaluateError | E> {
+  if (result.ok) return result;
+  const { error } = result;
+  if (!isSizeRefusal(error) || error.inexact !== "fits") return result;
+  if (error.operand !== undefined || !sameSpan(error.span, expr.span)) {
+    return result;
+  }
+  const operand = firstOperand(expr);
+  return operand === undefined ? result : err({ ...error, operand });
+}
+
+/** Whether `error` is the evaluator's own size refusal, which carries a span and a reach. */
+function isSizeRefusal(
+  error: unknown,
+): error is Extract<EvaluateError, { readonly kind: "tooLarge" }> {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "kind" in error &&
+    error.kind === "tooLarge" &&
+    "span" in error &&
+    "inexact" in error
+  );
+}
+
+function sameSpan(a: Span, b: Span): boolean {
+  return a.start === b.start && a.end === b.end;
 }
 
 /**
@@ -455,7 +503,9 @@ function evaluateNode<E>(
       // the context is the setting, applied to the significand, the exponent
       // costing nothing (D16).
       if (!significandWithin(node.value, context.significandLimitBits)) {
-        return err({ kind: "tooLarge", span });
+        // The digits typed are the significand; nothing rounds them
+        // smaller before this check, in either mode.
+        return err({ kind: "tooLarge", span, inexact: "passes" });
       }
       return locate(
         stepQuantity(() => ok(scalar(node.value)), context),
@@ -547,11 +597,15 @@ function evaluateNode<E>(
         // An exponent that cannot be formed is refused as pow refuses one:
         // at the bound when the power would pass it, and otherwise at the
         // significand limit.
+        // Its own bits are what pass the limit (`2^1e-30000`), which no
+        // inexact base changes, nor decimal mode: the reach is `passes`.
         const refusal =
           exponent.quotient === undefined
             ? undefined
             : powerRefusal(base.value.magnitude.mid, exponent.quotient);
-        return err({ ...(refusal ?? { kind: "tooLarge" }), span });
+        return refusal === undefined || refusal.kind === "limit"
+          ? err({ kind: "tooLarge", span, inexact: "passes" })
+          : err({ ...refusal, span });
       }
       // The power is one step: in decimal mode its rounding is certified
       // at rising precision (D26), in exact mode it is computed once.
@@ -797,6 +851,7 @@ function applyBuiltin<E>(
     case "divisionByZero":
       return err({ kind: "divisionByZero", span });
     case "tooLarge":
+      return err({ kind: "tooLarge", span, inexact: error.inexact });
     case "overflow":
     case "underflow":
       return err({ kind: error.kind, span });
@@ -1170,6 +1225,7 @@ function locate(
     case "divisionByZero":
       return err({ kind: "divisionByZero", span });
     case "tooLarge":
+      return err({ kind: "tooLarge", span, inexact: error.inexact });
     case "overflow":
     case "underflow":
       return err({ kind: error.kind, span });

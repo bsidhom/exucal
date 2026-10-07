@@ -122,11 +122,8 @@ function assertError(result: Result<unknown, BallError>, kind: string) {
 }
 
 /** Asserts that `result` was refused with `kind`. */
-function assertRefused(
-  result: Result<unknown, BallError>,
-  kind: Refusal["kind"],
-) {
-  assert.deepEqual(result, { ok: false, error: { kind } });
+function assertRefused(result: Result<unknown, BallError>, refusal: Refusal) {
+  assert.deepEqual(result, { ok: false, error: refusal });
 }
 
 /** The ends of a bounded ball's interval, with its midpoint between them, as fractions. */
@@ -299,8 +296,14 @@ test("the exponent carries through the exact operations", () => {
   assert.deepEqual(unwrap(subtractBalls(huge, huge, context)), exact(ZERO));
   // Two exact operands that cannot be aligned within the significand limit have
   // an exact sum that cannot be held: `1e999999999 + 1`.
-  assertRefused(addBalls(huge, exact(ONE), context), "tooLarge");
-  assertRefused(subtractBalls(exact(ONE), huge, context), "tooLarge");
+  assertRefused(addBalls(huge, exact(ONE), context), {
+    kind: "tooLarge",
+    inexact: "fits",
+  });
+  assertRefused(subtractBalls(exact(ONE), huge, context), {
+    kind: "tooLarge",
+    inexact: "fits",
+  });
   // Within the limit they align, whatever the exponent.
   assert.deepEqual(
     unwrap(addBalls(huge, exact(dec("1e999999000")), context)),
@@ -309,10 +312,10 @@ test("the exponent carries through the exact operations", () => {
   // The exponent bound: a product beyond `10^(10^18)`, and a quotient
   // below `10^-(10^18)`.
   const edge = exact(dec("1e999999999999999999"));
-  assertRefused(multiplyBalls(edge, exact(dec("1e10"))), "overflow");
+  assertRefused(multiplyBalls(edge, exact(dec("1e10"))), { kind: "overflow" });
   assertRefused(
     divideBalls(exact(dec("1e-999999999999999999")), exact(dec("1e10"))),
-    "underflow",
+    { kind: "underflow" },
   );
 });
 
@@ -359,25 +362,26 @@ test("a sum is held to the bound by its whole ball (D18, issue #48)", () => {
   const half = exact(dec(`5e${E18}`));
   // Two exact operands whose sum passes the bound are refused in either
   // mode, where the settle-first path absorbed one into the radius.
-  assertRefused(addBalls(half, half, context), "overflow");
-  assertRefused(addBalls(half, half, decimalAt(8, "halfEven")), "overflow");
+  assertRefused(addBalls(half, half, context), { kind: "overflow" });
+  assertRefused(addBalls(half, half, decimalAt(8, "halfEven")), {
+    kind: "overflow",
+  });
   assertRefused(
     subtractBalls(exact(dec(`1.5e-${E18}`)), exact(dec(bottom)), context),
-    "underflow",
+    { kind: "underflow" },
   );
   // An inexact sum is refused only when the whole ball is past.
   const wide = dec(`1e${E18.replace(/0{10}$/, "")}`);
-  assertRefused(
-    addBalls(ball(dec(`6e${E18}`), wide), half, context),
-    "overflow",
-  );
+  assertRefused(addBalls(ball(dec(`6e${E18}`), wide), half, context), {
+    kind: "overflow",
+  });
   assertRefused(
     subtractBalls(
       { mid: dec(`1.5e-${E18}`), rad: powerOfTenRadius(-MAX_EXPONENT - 30n) },
       exact(dec(bottom)),
       context,
     ),
-    "underflow",
+    { kind: "underflow" },
   );
   // One straddling the top is unresolved at the bound; the sum of #48's
   // first row, whose radius reaches back within.
@@ -1619,7 +1623,7 @@ test("settle refuses a rounded midpoint past the bound in decimal mode, and neve
   const top = ball(dec(`${nines[0]}.${nines.slice(1)}e${E18}`), dec("1e-30"));
   assertRefused(
     step(() => ok(top), decimalAt(8, "halfAwayFromZero")),
-    "overflow",
+    { kind: "overflow" },
   );
   const digits = workingDigits(at(8));
   const truncated = settled(top, at(8));
@@ -1656,7 +1660,7 @@ test("settle refuses a rounded midpoint past the bound in decimal mode, and neve
   const past = exact(scaledAt(1n, 3n, -MAX_EXPONENT));
   assertRefused(
     step(() => ok(past), decimalAt(8, "halfAwayFromZero")),
-    "underflow",
+    { kind: "underflow" },
   );
 });
 
@@ -1681,7 +1685,7 @@ test("a product or a quotient with an inexact operand is held to the bound by it
     dec(`1.000000001e${E18}`),
     dec(`1e${(MAX_EXPONENT - 27n).toString()}`),
   );
-  assertRefused(multiplyBalls(above, exact(fr(10n))), "overflow");
+  assertRefused(multiplyBalls(above, exact(fr(10n))), { kind: "overflow" });
   const within = ball(
     dec(`9.99999999e${E18}`),
     dec(`1e${(MAX_EXPONENT - 27n).toString()}`),
@@ -1715,7 +1719,7 @@ test("a product or a quotient with an inexact operand is held to the bound by it
     mid: dec(`1e-${E18}`),
     rad: powerOfTenRadius(-(MAX_EXPONENT + 30n)),
   };
-  assertRefused(multiplyBalls(tiny, tenth), "underflow");
+  assertRefused(multiplyBalls(tiny, tenth), { kind: "underflow" });
   const spanning = ball(dec(`1e-${E18}`), dec(`2e-${E18}`));
   const zero = unwrap(multiplyBalls(spanning, tenth));
   assert.deepEqual(zero.mid, ZERO);
@@ -1730,18 +1734,18 @@ test("a product or a quotient with an inexact operand is held to the bound by it
   });
   // Two exact operands are refused by the value, as the constructor
   // decides it, and a ball of unbounded radius by its midpoint alone.
-  assertRefused(multiplyBalls(exact(dec(`9.99e${E18}`)), two), "overflow");
-  assertRefused(
-    divideBalls(exact(dec(`1e-${E18}`)), exact(fr(7n))),
-    "underflow",
-  );
+  assertRefused(multiplyBalls(exact(dec(`9.99e${E18}`)), two), {
+    kind: "overflow",
+  });
+  assertRefused(divideBalls(exact(dec(`1e-${E18}`)), exact(fr(7n))), {
+    kind: "underflow",
+  });
   assert.ok(
     multiplyBalls({ mid: dec(`5e${E18}`), rad: UNBOUNDED }, exact(ONE)).ok,
   );
-  assertRefused(
-    multiplyBalls({ mid: dec(`5e${E18}`), rad: UNBOUNDED }, two),
-    "overflow",
-  );
+  assertRefused(multiplyBalls({ mid: dec(`5e${E18}`), rad: UNBOUNDED }, two), {
+    kind: "overflow",
+  });
 });
 
 test("radiusOfMove bounds the distance a rounding moved a midpoint, past the bound included", () => {
@@ -1806,8 +1810,14 @@ test("a sum of two exact operands that cannot be aligned is too large, and in de
   const minusOne = negateBall(exact(ONE));
   // The sum itself is too large in either mode, at the significand limit; the
   // evaluator answers it in decimal mode by `decimalSumApart`.
-  assertRefused(addBalls(huge, exact(ONE), at(8)), "tooLarge");
-  assertRefused(addBalls(huge, exact(ONE), decimal("halfEven")), "tooLarge");
+  assertRefused(addBalls(huge, exact(ONE), at(8)), {
+    kind: "tooLarge",
+    inexact: "fits",
+  });
+  assertRefused(addBalls(huge, exact(ONE), decimal("halfEven")), {
+    kind: "tooLarge",
+    inexact: "fits",
+  });
   // In a nearest mode the one lies far below half a unit in the last digit.
   for (const rounding of [
     "halfEven",
@@ -1887,10 +1897,9 @@ test("a sum of two exact operands that cannot be aligned is too large, and in de
   );
   // A step past the top of the exponent bound is refused.
   const top = exact(dec("9.9999999e1000000000000000000"));
-  assertRefused(
-    decimalSumApart(top, exact(ONE), decimal("ceiling")),
-    "overflow",
-  );
+  assertRefused(decimalSumApart(top, exact(ONE), decimal("ceiling")), {
+    kind: "overflow",
+  });
 });
 
 test("powBall on an inexact base squares with settling, and is guarded by magnitude", () => {
@@ -1924,25 +1933,30 @@ test("powBall on an inexact base squares with settling, and is guarded by magnit
     ),
   );
   assert.ok(certifies(tenMillionth, 15, "halfEven"));
-  assertRefused(powBall(root, 10n ** 19n, at(20)), "overflow");
+  assertRefused(powBall(root, 10n ** 19n, at(20)), { kind: "overflow" });
   // Below one the power is past the bound below, and a negative power is
   // past it on the other side.
-  assertRefused(powBall(root, -(10n ** 19n), at(20)), "underflow");
+  assertRefused(powBall(root, -(10n ** 19n), at(20)), { kind: "underflow" });
   const half = ball(dec("0.5"), dec("1e-30"));
-  assertRefused(powBall(half, 10n ** 19n, at(20)), "underflow");
-  assertRefused(powBall(half, -(10n ** 19n), at(20)), "overflow");
+  assertRefused(powBall(half, 10n ** 19n, at(20)), { kind: "underflow" });
+  assertRefused(powBall(half, -(10n ** 19n), at(20)), { kind: "overflow" });
   // The side is the midpoint's against one, told exactly, however near
   // one: 0.9999999999^(10^30) is about 10^-(4.3 × 10^19).
   const justBelow = ball(dec("0.9999999999"), dec("1e-27"));
-  assertRefused(powBall(justBelow, 10n ** 30n, at(20)), "underflow");
-  assertRefused(powBall(justBelow, -(10n ** 30n), at(20)), "overflow");
+  assertRefused(powBall(justBelow, 10n ** 30n, at(20)), { kind: "underflow" });
+  assertRefused(powBall(justBelow, -(10n ** 30n), at(20)), {
+    kind: "overflow",
+  });
   const justAbove = ball(dec("1.0000000001"), dec("1e-27"));
-  assertRefused(powBall(justAbove, 10n ** 30n, at(20)), "overflow");
+  assertRefused(powBall(justAbove, 10n ** 30n, at(20)), { kind: "overflow" });
   // A base near one is guarded by its true magnitude, not by its degree.
   const nearOne = ball(dec("1.0000001"), dec("1e-30"));
   assert.ok(powBall(nearOne, 10_000_000n, at(20)).ok);
   // The exact path is unchanged: an exact base is an exact power, under
   // the significand limit.
   assert.deepEqual(unwrap(powBall(exact(fr(3n)), 4n, at(8))), exact(fr(81n)));
-  assertRefused(powBall(exact(fr(3n)), 100_000n, at(8)), "tooLarge");
+  assertRefused(powBall(exact(fr(3n)), 100_000n, at(8)), {
+    kind: "tooLarge",
+    inexact: "fits",
+  });
 });

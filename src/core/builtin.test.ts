@@ -73,8 +73,9 @@ test("fromBallError passes the edge of an unresolved on, whatever it is", () => 
     argument: 1,
     edge: ONE,
   });
-  assert.deepEqual(fromBallError({ kind: "tooLarge" }, 0), {
+  assert.deepEqual(fromBallError({ kind: "tooLarge", inexact: "fits" }, 0), {
     kind: "tooLarge",
+    inexact: "fits",
   });
 });
 

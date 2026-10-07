@@ -642,7 +642,10 @@ test("through the pipeline, the exact bases 0, 1 and -1 are exact values where t
   ] as const) {
     const result = evaluateText(table.value, text, context);
     assert.ok(!result.ok, text);
-    assert.equal(describeTextError(result.error, text, primitives), message);
+    assert.equal(
+      describeTextError(result.error, text, primitives, "exact"),
+      message,
+    );
   }
 });
 
@@ -729,7 +732,7 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
     ],
     [
       "2^1442695",
-      '"2^1442695" is too large to compute within the significand limit.',
+      '"2^1442695" would need a significand past the significand limit as an exact value. Try "approx(2)" in place of "2", or decimal mode, to compute it to the digits asked.',
     ],
     // A ^ exponent is reduced by the evaluator within the significand limit
     // (H.9): its denominator here, 10^310000, has a million bits, so the
@@ -738,7 +741,7 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
     // exponent past the limit to log space.
     [
       "2^1e-310000",
-      '"2^1e-310000" is too large to compute within the significand limit.',
+      '"2^1e-310000" would need a significand past the significand limit, however it is computed.',
     ],
   ]) {
     const result = evaluateText(table.value, text!, {
@@ -747,7 +750,7 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
     });
     assert.ok(!result.ok, text);
     assert.equal(
-      describeTextError(result.error, text!, primitives),
+      describeTextError(result.error, text!, primitives, "exact"),
       message,
       text,
     );

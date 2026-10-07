@@ -78,11 +78,8 @@ function assertError(result: Result<unknown, ScaledError>, kind: string) {
 }
 
 /** Asserts that `result` was refused with `kind`. */
-function assertRefused(
-  result: Result<unknown, ScaledError>,
-  kind: Refusal["kind"],
-) {
-  assert.deepEqual(result, { ok: false, error: { kind } });
+function assertRefused(result: Result<unknown, ScaledError>, refusal: Refusal) {
+  assert.deepEqual(result, { ok: false, error: refusal });
 }
 
 /** A decimal literal that is expected to be valid. */
@@ -656,134 +653,136 @@ test("pow raises the significand against the limit and the exponent against the 
 test("a refusal names the limit it passes: tooLarge for the significand limit, overflow or underflow for the bound", () => {
   // The constructor and the arithmetic, by the sign of the exponent that
   // passes the bound.
-  assertRefused(scaled(rational(1n), MAX_EXPONENT + 1n), "overflow");
-  assertRefused(scaled(rational(1n), -MAX_EXPONENT - 1n), "underflow");
+  assertRefused(scaled(rational(1n), MAX_EXPONENT + 1n), { kind: "overflow" });
+  assertRefused(scaled(rational(1n), -MAX_EXPONENT - 1n), {
+    kind: "underflow",
+  });
   const half = MAX_EXPONENT / 2n;
-  assertRefused(multiply(at(1n, 1n, half), at(1n, 1n, half + 1n)), "overflow");
-  assertRefused(
-    multiply(at(1n, 1n, -half), at(1n, 1n, -half - 1n)),
-    "underflow",
-  );
-  assertRefused(divide(at(1n, 1n, half), at(1n, 1n, -half - 1n)), "overflow");
-  assertRefused(divide(at(1n, 1n, -half), at(1n, 1n, half + 1n)), "underflow");
-  assertRefused(invert(at(5n, 1n, MAX_EXPONENT)), "underflow");
+  assertRefused(multiply(at(1n, 1n, half), at(1n, 1n, half + 1n)), {
+    kind: "overflow",
+  });
+  assertRefused(multiply(at(1n, 1n, -half), at(1n, 1n, -half - 1n)), {
+    kind: "underflow",
+  });
+  assertRefused(divide(at(1n, 1n, half), at(1n, 1n, -half - 1n)), {
+    kind: "overflow",
+  });
+  assertRefused(divide(at(1n, 1n, -half), at(1n, 1n, half + 1n)), {
+    kind: "underflow",
+  });
+  assertRefused(invert(at(5n, 1n, MAX_EXPONENT)), { kind: "underflow" });
   // A sum's alignment and a fraction's power of ten are the range
   // limit's; a sum whose value passes the bound is the bound's.
-  assertRefused(
-    add(big("1", 999999999n), ONE, MAX_SIGNIFICAND_LIMIT_BITS),
-    "tooLarge",
-  );
+  assertRefused(add(big("1", 999999999n), ONE, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "tooLarge",
+    inexact: "fits",
+  });
   assertRefused(
     subtract(ONE, big("1", -999999999n), MAX_SIGNIFICAND_LIMIT_BITS),
-    "tooLarge",
+    { kind: "tooLarge", inexact: "fits" },
   );
-  assertRefused(
-    toRational(big("1", -400000n), MAX_SIGNIFICAND_LIMIT_BITS),
-    "tooLarge",
-  );
+  assertRefused(toRational(big("1", -400000n), MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "tooLarge",
+    inexact: "passes",
+  });
   assertRefused(
     add(
       at(5n, 1n, MAX_EXPONENT),
       at(5n, 1n, MAX_EXPONENT),
       MAX_SIGNIFICAND_LIMIT_BITS,
     ),
-    "overflow",
+    { kind: "overflow" },
   );
   // A literal: its significand is the hard bound's, its exponent the bound's.
-  assertRefused(parseDecimal("9".repeat(320000)), "tooLarge");
-  assertRefused(parseDecimal("1e1000000000000000001"), "overflow");
-  assertRefused(parseDecimal("10e1000000000000000000"), "overflow");
-  assertRefused(parseDecimal("0.01e-999999999999999999"), "underflow");
+  assertRefused(parseDecimal("9".repeat(320000)), {
+    kind: "tooLarge",
+    inexact: "passes",
+  });
+  assertRefused(parseDecimal("1e1000000000000000001"), { kind: "overflow" });
+  assertRefused(parseDecimal("10e1000000000000000000"), { kind: "overflow" });
+  assertRefused(parseDecimal("0.01e-999999999999999999"), {
+    kind: "underflow",
+  });
 });
 
 test("a power refused is told by its decimal exponent, not by the check that fails first", () => {
   // Past the bound by the exponent alone, on the side the signs give.
-  assertRefused(
-    pow(dec("1e9"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "overflow",
-  );
-  assertRefused(
-    pow(dec("1e-9"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "underflow",
-  );
-  assertRefused(
-    pow(dec("1e9"), -(10n ** 18n), MAX_SIGNIFICAND_LIMIT_BITS),
-    "underflow",
-  );
-  assertRefused(
-    pow(dec("1e-9"), -(10n ** 18n), MAX_SIGNIFICAND_LIMIT_BITS),
-    "overflow",
-  );
+  assertRefused(pow(dec("1e9"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "overflow",
+  });
+  assertRefused(pow(dec("1e-9"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "underflow",
+  });
+  assertRefused(pow(dec("1e9"), -(10n ** 18n), MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "underflow",
+  });
+  assertRefused(pow(dec("1e-9"), -(10n ** 18n), MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "overflow",
+  });
   // 0.7 is 7 × 10^-1, so its power too is refused by the exponent first.
-  assertRefused(
-    pow(dec("0.7"), 10n ** 19n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "underflow",
-  );
+  assertRefused(pow(dec("0.7"), 10n ** 19n, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "underflow",
+  });
   // Refused by the significand, which no significand limit could hold, and past
   // the bound too: 7^(10^19) is about 10^(8.45 × 10^18), and 1/7 to the
   // same power, whose canonical exponent is zero, as far below it.
-  assertRefused(
-    pow(dec("7"), 10n ** 19n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "overflow",
-  );
-  assertRefused(
-    pow(dec("7"), -(10n ** 19n), MAX_SIGNIFICAND_LIMIT_BITS),
-    "underflow",
-  );
+  assertRefused(pow(dec("7"), 10n ** 19n, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "overflow",
+  });
+  assertRefused(pow(dec("7"), -(10n ** 19n), MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "underflow",
+  });
   const seventh = fromRational(rational(1n, 7n));
-  assertRefused(
-    pow(seventh, 10n ** 19n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "underflow",
-  );
-  assertRefused(
-    pow(seventh, -(10n ** 19n), MAX_SIGNIFICAND_LIMIT_BITS),
-    "overflow",
-  );
+  assertRefused(pow(seventh, 10n ** 19n, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "underflow",
+  });
+  assertRefused(pow(seventh, -(10n ** 19n), MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "overflow",
+  });
   // Refused by the significand and within the bound: the significand limit.
-  assertRefused(
-    pow(dec("2"), 1442695n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "tooLarge",
-  );
-  assertRefused(pow(dec("2"), 100n, 64), "tooLarge");
-  assertRefused(pow(dec("3e9"), 100_000n, 1 << 16), "tooLarge");
+  assertRefused(pow(dec("2"), 1442695n, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "tooLarge",
+    inexact: "fits",
+  });
+  assertRefused(pow(dec("2"), 100n, 64), { kind: "tooLarge", inexact: "fits" });
+  assertRefused(pow(dec("3e9"), 100_000n, 1 << 16), {
+    kind: "tooLarge",
+    inexact: "fits",
+  });
   // The canonical form, 254 × 10^-2, puts the exponent of 2.54^(10^18)
   // past the bound below, but the power is 10^(0.40 × 10^18), within it:
   // refused at the significand limit, not as a value too small.
-  assertRefused(
-    pow(dec("2.54"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "tooLarge",
-  );
-  assertRefused(
-    pow(dec("2.54"), -(10n ** 18n), MAX_SIGNIFICAND_LIMIT_BITS),
-    "tooLarge",
-  );
+  assertRefused(pow(dec("2.54"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "tooLarge",
+    inexact: "fits",
+  });
+  assertRefused(pow(dec("2.54"), -(10n ** 18n), MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "tooLarge",
+    inexact: "fits",
+  });
   // A base within 2^-30 of one: the side is the base's against one, and
   // the size its exact difference from one's. 1.0000000001 is
   // 10000000001 × 10^-10, whose canonical exponent is negative, but its
   // power 10^30 is about 10^(4.3 × 10^19), and 10^28 about
   // 10^(4.3 × 10^17), within the bound.
   const nearOne = dec("1.0000000001");
-  assertRefused(
-    pow(nearOne, 10n ** 30n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "overflow",
-  );
-  assertRefused(
-    pow(nearOne, -(10n ** 30n), MAX_SIGNIFICAND_LIMIT_BITS),
-    "underflow",
-  );
-  assertRefused(
-    pow(nearOne, 10n ** 28n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "tooLarge",
-  );
+  assertRefused(pow(nearOne, 10n ** 30n, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "overflow",
+  });
+  assertRefused(pow(nearOne, -(10n ** 30n), MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "underflow",
+  });
+  assertRefused(pow(nearOne, 10n ** 28n, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "tooLarge",
+    inexact: "fits",
+  });
   const belowOne = dec("0.9999999999");
-  assertRefused(
-    pow(belowOne, 10n ** 30n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "underflow",
-  );
-  assertRefused(
-    pow(belowOne, -(10n ** 30n), MAX_SIGNIFICAND_LIMIT_BITS),
-    "overflow",
-  );
+  assertRefused(pow(belowOne, 10n ** 30n, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "underflow",
+  });
+  assertRefused(pow(belowOne, -(10n ** 30n), MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "overflow",
+  });
   // At the bound: 10^(10^18) is a value, 10^(10^18 + 1) is not. Within a
   // relative 2^-20 of it, where the logarithms cannot tell, a power
   // refused by its significand is the significand limit's: 1.5 to
@@ -791,17 +790,15 @@ test("a power refused is told by its decimal exponent, not by the check that fai
   // bound (the check of the canonical exponent times the power, which
   // read it as past the bound below, went with the plan's H.13).
   assert.ok(pow(dec("10"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS).ok);
-  assertRefused(
-    pow(dec("10"), 10n ** 18n + 1n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "overflow",
-  );
-  assertRefused(
-    pow(dec("0.1"), 10n ** 18n + 1n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "underflow",
-  );
+  assertRefused(pow(dec("10"), 10n ** 18n + 1n, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "overflow",
+  });
+  assertRefused(pow(dec("0.1"), 10n ** 18n + 1n, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "underflow",
+  });
   assertRefused(
     pow(dec("1.5"), 5678870000000000000n, MAX_SIGNIFICAND_LIMIT_BITS),
-    "tooLarge",
+    { kind: "tooLarge", inexact: "fits" },
   );
   // A value whose canonical exponent is past the bound, to the first
   // power, is itself (D17).
@@ -816,30 +813,30 @@ test("a power refused is told by its decimal exponent, not by the check that fai
     powerRefusal(dec("7"), fromRational(rational(edge)))?.kind,
     undefined,
   );
-  assertRefused(pow(dec("7"), edge, MAX_SIGNIFICAND_LIMIT_BITS), "tooLarge");
+  assertRefused(pow(dec("7"), edge, MAX_SIGNIFICAND_LIMIT_BITS), {
+    kind: "tooLarge",
+    inexact: "fits",
+  });
 });
 
 test("powerRefusal tells a power past the bound from one within it, and says nothing within a hair of it", () => {
   assert.equal(powerRefusal(dec("7"), dec("1e19"))?.kind, "overflow");
-  assert.equal(powerRefusal(dec("7"), dec("1e17"))?.kind, "tooLarge");
+  assert.equal(powerRefusal(dec("7"), dec("1e17"))?.kind, "limit");
   assert.equal(powerRefusal(dec("0.5"), dec("1e19"))?.kind, "underflow");
   assert.equal(powerRefusal(dec("0.5"), dec("-1e19"))?.kind, "overflow");
   assert.equal(powerRefusal(dec("-7"), dec("1e19"))?.kind, "overflow");
-  assert.equal(powerRefusal(dec("7"), dec("1e-999999999"))?.kind, "tooLarge");
+  assert.equal(powerRefusal(dec("7"), dec("1e-999999999"))?.kind, "limit");
   // Near one, the magnitude of the logarithm decides: 1.0000001^(10^30)
   // is about 10^(4.3 × 10^22), and 1.0000001^(10^20) 10^(4.3 × 10^12).
   assert.equal(powerRefusal(dec("1.0000001"), dec("1e30"))?.kind, "overflow");
-  assert.equal(powerRefusal(dec("1.0000001"), dec("1e20"))?.kind, "tooLarge");
+  assert.equal(powerRefusal(dec("1.0000001"), dec("1e20"))?.kind, "limit");
   // Within 2^-30 of one, by the exact difference from one, on the side
   // the comparison with one gives.
   assert.equal(
     powerRefusal(dec("1.0000000001"), dec("1e30"))?.kind,
     "overflow",
   );
-  assert.equal(
-    powerRefusal(dec("1.0000000001"), dec("1e28"))?.kind,
-    "tooLarge",
-  );
+  assert.equal(powerRefusal(dec("1.0000000001"), dec("1e28"))?.kind, "limit");
   assert.equal(
     powerRefusal(dec("-1.0000000001"), dec("1e30"))?.kind,
     "overflow",
@@ -853,16 +850,16 @@ test("powerRefusal tells a power past the bound from one within it, and says not
     "overflow",
   );
   // A zero base or exponent, or a base of magnitude one, is never past it.
-  assert.equal(powerRefusal(ZERO, dec("1e19"))?.kind, "tooLarge");
-  assert.equal(powerRefusal(dec("7"), ZERO)?.kind, "tooLarge");
-  assert.equal(powerRefusal(ONE, dec("1e6"))?.kind, "tooLarge");
-  assert.equal(powerRefusal(ONE, dec("1e999999999"))?.kind, "tooLarge");
-  assert.equal(powerRefusal(negate(ONE), dec("1e999999999"))?.kind, "tooLarge");
+  assert.equal(powerRefusal(ZERO, dec("1e19"))?.kind, "limit");
+  assert.equal(powerRefusal(dec("7"), ZERO)?.kind, "limit");
+  assert.equal(powerRefusal(ONE, dec("1e6"))?.kind, "limit");
+  assert.equal(powerRefusal(ONE, dec("1e999999999"))?.kind, "limit");
+  assert.equal(powerRefusal(negate(ONE), dec("1e999999999"))?.kind, "limit");
   // Within a relative 2^-20 of the bound it cannot tell: 10^(10^18) is
   // at it.
   assert.equal(powerRefusal(dec("10"), dec("1e18"))?.kind, undefined);
   assert.equal(powerRefusal(dec("10"), dec("1.000001e18"))?.kind, "overflow");
-  assert.equal(powerRefusal(dec("10"), dec("0.999999e18"))?.kind, "tooLarge");
+  assert.equal(powerRefusal(dec("10"), dec("0.999999e18"))?.kind, "limit");
 });
 
 test("powerSide gives the side of the bound by the signs of the exponent and of log |s|", () => {

@@ -578,7 +578,7 @@ test("through the pipeline: exp(ln(3)) and ln(exp(3)) certify thirty digits, the
     });
     assert.ok(!result.ok, text);
     assert.equal(
-      describeTextError(result.error, text!, primitives),
+      describeTextError(result.error, text!, primitives, "exact"),
       message,
       text,
     );

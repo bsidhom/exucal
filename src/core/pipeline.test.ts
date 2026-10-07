@@ -561,6 +561,7 @@ test("the significand limit of the context reaches a literal's significand and a
   assert.deepEqual(literal.error, {
     kind: "tooLarge",
     span: { start: 0, end: 21 },
+    inexact: "passes",
   });
   assert.ok(evaluateText(table, "1e18 m", small).ok);
   assert.ok(evaluateText(table, "1e30 m", small).ok);
@@ -570,6 +571,8 @@ test("the significand limit of the context reaches a literal's significand and a
   assert.deepEqual(power.error, {
     kind: "tooLarge",
     span: { start: 0, end: 5 },
+    inexact: "fits",
+    operand: { start: 0, end: 1 },
   });
   // An inexact base is bounded by the exponent bound, not by an exact
   // power (4.9): sqrt(2)^(10^7) is a value, sqrt(2)^(10^19) is not.
@@ -653,11 +656,18 @@ test("a sum of two exact values that cannot be aligned is too large, at the sum"
   assert.deepEqual(sum.error, {
     kind: "tooLarge",
     span: { start: 0, end: 15 },
+    inexact: "fits",
+    operand: { start: 0, end: 11 },
   });
   assert.deepEqual(failure("1e999999999 m - 1 m", "m"), {
     kind: "inputError",
     side: "have",
-    error: { kind: "tooLarge", span: { start: 0, end: 19 } },
+    error: {
+      kind: "tooLarge",
+      span: { start: 0, end: 19 },
+      inexact: "fits",
+      operand: { start: 0, end: 13 },
+    },
   });
   // With an inexact operand the smaller is absorbed into the radius, and
   // the sum certifies on the first pass.
@@ -720,11 +730,12 @@ test("the trigonometric functions saturate or refuse an argument of any exponent
   assert.deepEqual(sine.error, {
     kind: "tooLarge",
     span: { start: 0, end: 23 },
+    inexact: "passes",
   });
   assert.deepEqual(failure("sin(1e999999999 radian)", "1"), {
     kind: "inputError",
     side: "have",
-    error: { kind: "tooLarge", span: { start: 0, end: 23 } },
+    error: { kind: "tooLarge", span: { start: 0, end: 23 }, inexact: "passes" },
   });
   // The arc tangent is pi/2 within 2^-bits: 90 degrees, inexact.
   const right = value("atan(1e999999999)", "deg").value;
@@ -916,6 +927,7 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
   // within the significand limit (#58): the conversion's tooLarge.
   assert.deepEqual(failure("3^32767 m", "ft/7^21845; in/7^21845"), {
     kind: "tooLarge",
+    inexact: "fits",
   });
   // The conversion's ratio is held to the significand limit once formed (D19),
   // as a node's result is: two sides each within the limit whose ratio
@@ -924,7 +936,7 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
   // remedy; in decimal mode the ratio is settled and is a value.
   assert.deepEqual(failure("3^25000/7^14000 m", "11^15000/13^14000 ft"), {
     kind: "tooLarge",
-    exact: true,
+    inexact: "fits",
   });
   assert.ok(
     convertText(table, "3^25000/7^14000 m", "11^15000/13^14000 ft", decimal(8))
@@ -1366,12 +1378,12 @@ test("a condition that certainly fails is a conditionFailed, naming it and the a
     arguments: [{ parameter: "x", span: { start: 6, end: 10 } }],
   });
   assert.equal(
-    describeTextError(refused(text), text, conditional.primitives),
+    describeTextError(refused(text), text, conditional.primitives, "exact"),
     'Cannot compute "tempC(-300)": "tempC" requires "x >= -273.15", and x is "-300".',
   );
   const two = "both(2, 1)";
   assert.equal(
-    describeTextError(refused(two), two, conditional.primitives),
+    describeTextError(refused(two), two, conditional.primitives, "exact"),
     'Cannot compute "both(2, 1)": "both" requires "y > 1", and y is "1".',
   );
 });
@@ -1514,7 +1526,12 @@ test("a body that fails under an assumption reports the assumption", () => {
   assert.deepEqual(error.assumption, assumption("pole", "x >= 1"));
   assert.equal(error.error?.kind, "unresolved");
   assert.equal(
-    describeTextError(error, "pole(approx(1))", conditional.primitives),
+    describeTextError(
+      error,
+      "pole(approx(1))",
+      conditional.primitives,
+      "exact",
+    ),
     'Cannot compute "pole(approx(1))" at this precision: could not tell whether the argument of "pole" meets "x >= 1", and assuming so, the definition of "pole" depends on a value that cannot be told from zero at this precision.',
   );
   // Exactly at the bound, the body divides by zero, which is its own.

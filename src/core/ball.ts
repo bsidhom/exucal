@@ -248,6 +248,7 @@ import {
   toRational,
   trunc,
   type Scaled,
+  type Refusal,
   type ScaledError,
 } from "./scaled.ts";
 
@@ -852,7 +853,7 @@ function powBallCore(
     case "overflow":
     case "underflow":
     case "tooLarge":
-      return err({ kind: held.kind });
+      return err(held);
     case "unresolved":
       return err({ kind: "unresolved", edge: held.edge });
     case "one":
@@ -1395,7 +1396,7 @@ export function powLogSpace(
     case "overflow":
     case "underflow":
     case "tooLarge":
-      return err({ kind: held.kind });
+      return err(held);
     case "unresolved":
       return err({ kind: "unresolved", edge: held.edge });
     case "one":
@@ -1635,7 +1636,7 @@ export type PowerVerdict =
       readonly working: number;
       readonly product?: Fixed;
     }
-  | { readonly kind: "overflow" | "underflow" | "tooLarge" }
+  | Refusal
   | { readonly kind: "unresolved"; readonly edge: Edge }
   | { readonly kind: "one"; readonly rad: Radius };
 
@@ -1711,11 +1712,13 @@ export function classifyPower(
     if (compareRadius(L.maxUp, HALF_RADIUS) <= 0) {
       return { kind: "one", rad: shiftRadius(L.maxUp, 1n) };
     }
-    return { kind: "tooLarge" };
+    // The decision itself needs more bits than the limit holds: the
+    // inexact computation is what passes.
+    return { kind: "tooLarge", inexact: "passes" };
   }
   if (coarse === "unresolved") return { kind: "unresolved", edge: "bound" };
   if (coarse !== "undecided") return { kind: coarse };
-  if (!affordable) return { kind: "tooLarge" };
+  if (!affordable) return { kind: "tooLarge", inexact: "passes" };
   const product = logProduct(magnitude, y, Number(working), context);
   if (product === undefined) return { kind: "unresolved", edge: ZERO };
   const verdict = classifyLog(product, bits, bitsFor(context.ceiling), false);

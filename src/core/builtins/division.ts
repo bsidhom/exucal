@@ -24,7 +24,7 @@ import {
   type Ball,
 } from "../ball.ts";
 import {
-  TOO_LARGE,
+  tooLarge,
   conformingArguments,
   fromBallError,
   sideOfZero,
@@ -118,7 +118,7 @@ export function modBall(
   context: NumberContext,
 ): Result<Ball, BuiltinError> {
   const q = quotientFloor(a, b, context);
-  if (!q.ok) return q.error.kind === "overflow" ? TOO_LARGE : q;
+  if (!q.ok) return q.error.kind === "overflow" ? tooLarge("passes") : q;
   if (q.value.kind === "tiny") {
     if (isZero(q.value.count.mid)) return ok(a);
     const sum = addBalls(a, b, context);
@@ -131,11 +131,13 @@ export function modBall(
       count.mid,
       context.significandLimitBits,
     );
-    if (!fraction.ok) return TOO_LARGE;
+    if (!fraction.ok) return tooLarge("passes");
     // The product is within `|b|`, so it can only fall below the bound.
     const remainder = multiply(fraction.value, b.mid);
     if (remainder.ok) return ok(exact(remainder.value));
-    return isRefusal(remainder.error) ? err(remainder.error) : TOO_LARGE;
+    return isRefusal(remainder.error)
+      ? err(remainder.error)
+      : tooLarge("passes");
   }
   const fraction = subtractBalls(quotient, count, context);
   if (!fraction.ok) return err(fromBallError(fraction.error, 0));

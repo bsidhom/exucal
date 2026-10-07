@@ -141,7 +141,7 @@ function unformable(
 ): Result<Ball, BuiltinError> {
   if (isExact(x)) {
     const refusal = powerRefusal(x.mid, y.mid);
-    if (refusal !== undefined && refusal.kind !== "tooLarge") {
+    if (refusal !== undefined && refusal.kind !== "limit") {
       return err(refusal);
     }
   }
@@ -167,12 +167,13 @@ function unformable(
         case "overflow":
         case "underflow":
         case "tooLarge":
-          return err({ kind: held.kind });
+          return err(held);
         case "unresolved":
           return err({ kind: "unresolved", argument: 0, edge: held.edge });
         case "one":
         case "compute":
-          return err({ kind: "tooLarge" });
+          // A base straddling zero has no power to compute, at any bits.
+          return err({ kind: "tooLarge", inexact: "passes" });
       }
     }
   }

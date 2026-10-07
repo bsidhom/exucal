@@ -40,6 +40,7 @@
 // the tests take a set as a parameter with that one as the default, so that
 // a test can inject a built-in of its own.
 
+import type { Reach } from "./rational.ts";
 import {
   magnitudeAbove,
   magnitudeBelow,
@@ -444,8 +445,15 @@ export function unresolvedAt(
   return err({ kind: "unresolved", argument: index, edge });
 }
 
-/** A result that would pass the significand limit and was not computed. */
-export const TOO_LARGE: Result<never, BuiltinError> = err({ kind: "tooLarge" });
+/**
+ * A result that would need a significand past the significand limit and
+ * was not computed, with the built-in's word on the same step computed
+ * inexactly (`Reach`): every refusal states it, since the built-in alone
+ * knows whether an inexact argument changes what it needs.
+ */
+export function tooLarge(inexact: Reach): Result<never, BuiltinError> {
+  return err({ kind: "tooLarge", inexact });
+}
 
 /** The result of a call on the midpoints of unbounded arguments, with an unbounded radius. */
 export function unboundedOf(

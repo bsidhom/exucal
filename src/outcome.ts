@@ -255,7 +255,12 @@ function outcomeAssuming(
       return {
         kind: "error",
         side: "have",
-        message: describeTextError(quantity.error, haveText, table.primitives),
+        message: describeTextError(
+          quantity.error,
+          haveText,
+          table.primitives,
+          modeOf(context),
+        ),
       };
     }
     const { magnitude, dimension } = quantity.value;
@@ -283,6 +288,7 @@ function outcomeAssuming(
         haveText,
         wantString,
         table.primitives,
+        modeOf(context),
       ),
     };
   }

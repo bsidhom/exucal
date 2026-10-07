@@ -245,7 +245,7 @@ test("an argument below 2^-significandLimitBits throughout is its own sine and t
 
 test("an argument reaching 2^significandLimitBits is too large, since the reduction would need pi to that many bits", () => {
   // The significand limit, which the setting moves, whatever the sign.
-  const tooLarge = { kind: "tooLarge" };
+  const tooLarge = { kind: "tooLarge", inexact: "passes" };
   for (const fn of [sinBall, cosBall, tanBall]) {
     assert.deepEqual(failure(fn(exact(dec("1e999999999")), DEFAULT)), tooLarge);
     assert.deepEqual(
@@ -424,13 +424,13 @@ test("through the pipeline: sin(30 deg) certifies 0.5, sin(pi() radian) is zero 
     ],
     [
       "sin(1e999999999 radian)",
-      '"sin(1e999999999 radian)" is too large to compute within the significand limit.',
+      '"sin(1e999999999 radian)" would need a significand past the significand limit, however it is computed.',
     ],
   ]) {
     const result = at(text!, 8);
     assert.ok(!result.ok, text);
     assert.equal(
-      describeTextError(result.error, text!, primitives),
+      describeTextError(result.error, text!, primitives, "exact"),
       message,
       text,
     );

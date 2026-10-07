@@ -496,9 +496,12 @@ test("a nonconforming sum in a body is reported at the sum", () => {
 
 test("a failed power is reported at the power", () => {
   const lines = ["m !", "big 2^99999 m"];
+  const power = spanOf(lines, "2^99999");
   assert.deepEqual(failed(...lines), {
     kind: "tooLarge",
-    span: spanOf(lines, "2^99999"),
+    span: power,
+    inexact: "fits",
+    operand: { start: power.start, end: power.start + 1 },
   });
   // A power of ten costs nothing: the exponent takes it.
   assertQuantity(built("m !", "big 10^99999 m").units.get("big"), "1e99999", {

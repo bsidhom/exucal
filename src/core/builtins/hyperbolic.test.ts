@@ -840,7 +840,7 @@ test("through the pipeline: the values certify, the identities hold, and the err
     const result = at(text!, 8);
     assert.ok(!result.ok, text);
     assert.equal(
-      describeTextError(result.error, text!, primitives),
+      describeTextError(result.error, text!, primitives, "exact"),
       message,
       text,
     );

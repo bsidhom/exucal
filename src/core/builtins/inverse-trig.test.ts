@@ -503,6 +503,7 @@ test("through the pipeline, atan and atan2 are never refused for a radius (#64)"
       straddling.error,
       "atan2(1e-30000, 1 - approx(1))",
       table.value.primitives,
+      "exact",
     ),
     '"1 - approx(1)" cannot be told from zero at this precision, and the result depends on which side of zero it lies.',
   );
@@ -932,7 +933,7 @@ test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angl
     const result = at(text!, 8);
     assert.ok(!result.ok, text);
     assert.equal(
-      describeTextError(result.error, text!, primitives),
+      describeTextError(result.error, text!, primitives, "exact"),
       message,
       text,
     );

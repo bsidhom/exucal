@@ -208,7 +208,7 @@ test("through the pipeline: sqrt(2) certifies, sqrt(9/4) m is exact, and the err
     });
     assert.ok(!result.ok, text);
     assert.equal(
-      describeTextError(result.error, text!, primitives),
+      describeTextError(result.error, text!, primitives, "exact"),
       message,
       text,
     );

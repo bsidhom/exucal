@@ -266,7 +266,7 @@ function run(
 ): string {
   const result = evaluateText(table, source, context);
   if (!result.ok)
-    return describeTextError(result.error, source, table.primitives);
+    return describeTextError(result.error, source, table.primitives, "exact");
   const result2 = show(result.value.magnitude, {
     digits: context.precision,
     rounding: context.rounding,

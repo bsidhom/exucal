@@ -6,10 +6,12 @@ applies as it is made or when the panel closes, which the plan's P13
 (its placement half) and P14 raise. **Status: proposed.** It decides
 the container, the apply semantics and the entry point, and no more:
 the grouping, the widgets, the explanations and the names are S5's, and
-the reset's buttons, which S1 left to S5, stay there; this step moves
-the controls as they are into a container that fits them, so that S5
-can change the controls without moving them again. It changes no
-setting's meaning and nothing in the core.
+the reset's buttons, which S1 left to S5, stay there, with one widget
+pulled forward, the steppers of the small numbers, because the trouble
+it fixes is the surface's (below, "Committing a change on a phone");
+otherwise this step moves the controls as they are into a container
+that fits them, so that S5 can change the controls without moving them
+again. It changes no setting's meaning and nothing in the core.
 
 ## The surface as it is
 
@@ -51,16 +53,37 @@ while it is open, and that applies a change as it is made.
 
 ## Decision: a sheet, opened from the header, live
 
-**The container is a sheet**: a panel laid over the page rather than in
-its flow, fixed to the viewport, scrolling inside itself, with the page
-behind it still live and still scrollable. On a narrow viewport it is a
-bottom sheet, the lower part of the screen, so that the inputs and the
-first lines of the result stay in view above it; on a wide viewport it
-is a side sheet along the right edge, the full height, so that the
-centered column of inputs and result stays in view beside it. One
-element, two placements by a media query at the width where the column
-and the sheet no longer fit side by side (the column is 32rem wide and
-the sheet about 24rem, so about 60rem with margins).
+**The container is a sheet**, in the sense Material gives the word: a
+surface that slides up from the bottom edge and lies over the page
+rather than in its flow, fixed to the viewport, with the page behind it
+still live and still scrollable, which is where this one departs from
+Material's modal sheet. The settings are longer than any phone's
+screen, so the sheet is a window onto its own content: the controls
+scroll inside it, a finger on the sheet scrolls the sheet and a finger
+on the page scrolls the page, and every control is reached by
+scrolling the sheet, as the result is reached by scrolling the page
+above it. It has two heights. Open, it takes the lower three fifths of
+the screen, so that the inputs and the first lines of the result stay
+in view; a handle at its top edge drags it to nearly the full height
+and back, for a user working through several settings who wants more
+of them at once, and the result is then a drag away rather than a
+scroll. On a wide viewport it is a side sheet along the right edge
+instead, the full height, so that the centered column of inputs and
+result stays in view beside it. One element, two placements by a media
+query at the width where the column and the sheet no longer fit side by
+side (the column is 32rem wide and the sheet about 24rem, so about
+60rem with margins).
+
+The on-screen keyboard is part of the design, since the sheet holds
+number inputs. When one takes focus the keyboard rises, and a sheet
+fixed to the bottom must rise with it rather than be covered: the page
+declares `interactive-widget=resizes-content` in its viewport meta, so
+that the keyboard shrinks the layout viewport, and the sheet's heights
+are in `dvh`, so that they follow it. On Android Chrome without the
+declaration the keyboard covers the lower half of the sheet, the input
+being typed in included; the Playwright check cannot raise a keyboard,
+so this is verified by hand on a phone, and the check's part is that
+the sheet's heights are the dynamic unit.
 
 The sheet is a `<dialog>` shown non-modally (`show()`, not
 `showModal()`): the element the platform has for a panel that is opened
@@ -84,6 +107,43 @@ memoizes by the ceiling and that no other setting incurs, and the probe
 proposes rather than applies, with its own Apply. A refused number
 snaps back with its line and a clamp tells what it moved, as S3 landed
 them; nothing about that changes.
+
+"As it is made" means on the control's `change` event, uniformly, as
+today: a select or a radio the moment it is picked, a number input
+when it is committed. Applying the cheap settings keystroke by
+keystroke, on `input` with a debounce, was weighed and set aside for
+now: it would mix two events and a debounce of the panel's own across
+the settings, by a per-setting judgement of what is cheap, which is
+spaghetti in the code and an interim UX that behaves differently from
+control to control; and the debounce is the device #118 plans for the
+converter itself. #186 records the intention: once #118's scheduler
+lands, the settings' typing rides it, with `change` as the commit, one
+device for the expression and the settings alike.
+
+## Committing a change on a phone
+
+A number input's `change` fires on blur or on Enter. On a phone the
+numeric keypad the inputs ask for (`inputmode="numeric"`) has no Enter
+key on iOS, so a typed number is committed only by tapping away, and
+the page has few inert places to tap: the result's lines, the inputs
+and the controls all do something. Three fixes, together, all of them
+the surface's:
+
+- **A commit key on the keyboard.** Each number input declares
+  `enterkeyhint="done"`, and asks for the decimal keypad
+  (`inputmode="decimal"`) rather than the numeric one, which on iOS is
+  the keypad that has a key to press; Done is Enter, Enter fires
+  `change`, and the keyboard goes.
+- **Steppers for the small numbers.** The display digits, the working
+  digits and the ratio width are nearly always nudged by a few, so each
+  gets a pair of − and + buttons beside its input, each tap a `change`
+  of one, applied at once with no keyboard at all; the input stays for
+  a jump to a far value. This is S5's widget pulled forward, since the
+  tap-away trouble is the surface's; the limits and the budget, typed
+  with intention and rarely, keep the input alone.
+- **A Done button in the sheet's header**, which commits whatever has
+  focus and closes the sheet: the inert place to tap that the page
+  lacks, and the Close button under another name.
 
 **The entry point is a button in the header**, beside the title, on the
 page from the first paint and above the inputs, so that it is in the
@@ -110,13 +170,12 @@ convenience over the same setting and never a second place it is kept.
 ## What the sheet holds
 
 Everything the panel holds today, in the order it has today, unchanged
-in this step: the display digits with decimal mode's working digits,
-the two limits, the rounding, the mode with its notation, the probe's
-budget and button, and the proposal with its Apply. Above them a
-header with the title "Settings" and the Close button. The sheet
-scrolls when its content is taller than it, which on a phone it is: the
-bottom sheet is at most three fifths of the viewport's height, so that
-the inputs and the result's first lines stay above it, and the user
+in this step but for the steppers above: the display digits with
+decimal mode's working digits, the two limits, the rounding, the mode
+with its notation, the probe's budget and button, and the proposal with
+its Apply. Above them a header with the drag handle, the title
+"Settings" and the Done button. The sheet scrolls when its content is
+taller than it, which on a phone it is at either height, and the user
 scrolls the controls within it. S5 decides whether the lines are shown
 always or on request, which is what will shorten it; this step makes no
 line shorter and hides none.
@@ -126,11 +185,16 @@ line shorter and hides none.
 - `src/settings-panel.ts`: the `<dialog>` as the root of the panel in
   place of the `<details>`, with the header; an `open` property the
   shell sets and a `settings-close` event the panel emits when it
-  closes itself (Close, Escape), so that the shell's state and the
+  closes itself (Done, Escape), so that the shell's state and the
   dialog's agree; `show()` and `close()` called in `updated` when the
-  property changes; the two placements in the panel's own styles, with
-  the media query and the height and width above; focus into the sheet
-  on open. The controls and their lines as they are.
+  property changes; the two placements and the two heights in the
+  panel's own styles, with the media query above, and the drag handle's
+  touch handling, which toggles between the heights; focus into the
+  sheet on open; `enterkeyhint` and `inputmode` on the number inputs;
+  the steppers beside the three small numbers, emitting a change of one
+  through the same validation as a typed value. The lines as they are.
+- `index.html`: `interactive-widget=resizes-content` in the viewport
+  meta.
 - `src/app-shell.ts`: the header as a row holding the title and the
   toggle button, which flips an `open` state the shell owns and passes
   to the panel, and takes focus back when the panel closes; the panel
@@ -150,8 +214,11 @@ line shorter and hides none.
   run against the built app recorded in the change's description: at
   320 to 480 pixels wide with the sheet open, the page's `scrollWidth`
   is the viewport's width and the output's top edge is within the
-  viewport; at 1,024 wide the column and the sheet do not overlap; the
-  toggle, Close and Escape agree with the dialog's `open`.
+  viewport at the lower height; the sheet scrolls to its last control
+  at both heights; at 1,024 wide the column and the sheet do not
+  overlap; the toggle, Done and Escape agree with the dialog's `open`;
+  a stepper's tap changes the setting by one and the result with it.
+  The keyboard's behavior is checked by hand on a phone.
 
 ## Done when
 
@@ -162,33 +229,47 @@ line shorter and hides none.
 - A change applies as it is made, and the result shows it while the
   sheet is open; the refusal's and the clamp's lines are as S3 landed
   them.
-- The sheet closes from its Close button, from Escape and from the
-  header's button, and focus returns to that button.
+- The sheet closes from its Done button, from Escape and from the
+  header's button, and focus returns to that button; Done commits a
+  number being typed.
+- On a phone a typed number is committed from the keyboard's Done key,
+  and the display digits, the working digits and the ratio width are
+  changed by one from their steppers with no keyboard.
+- The sheet has its two heights, and every control is reached by
+  scrolling it at either; with the keyboard up, the input being typed
+  in is visible above it.
+- Every change applies on `change`, as today; nothing applies on
+  `input` (#186 is the refinement).
 - Nothing in the sheet overflows a phone's width (#147 stays closed).
-- Every control, line and value is as it was: this step moves the
-  panel and changes nothing in it.
+- Every control, line and value is as it was but for the steppers: this
+  step moves the panel and changes nothing else in it.
 
 ## D30, proposed
 
 **D30. The settings are a sheet over the page, opened from the header,
-and a change applies as it is made.** A bottom sheet on a narrow
-viewport and a side sheet on a wide one, a non-modal `<dialog>` fixed
-to the viewport with the page live behind it, so that the result stays
-in view while a setting is changed to see its effect; opened and
-closed from a toggle beside the title, which is on the page whatever
-the result's length, and closed from its own Close button and Escape.
-Apply-on-change stays: the costs it incurs are the table's memoized
-rebuild on a change to the precision limit and nothing else, and
-apply-on-close would need a draft and a Cancel and would hide what the
-sheet is for. A result offers no shortcut to the settings that shaped
-it; a stepper beside the output for the display digits is the one shape
-to consider later, as a convenience over the same setting.
+and a change applies as it is made, on `change`.** A bottom sheet on a
+narrow viewport, with two heights and its controls scrolling inside
+it, and a side sheet on a wide one, a non-modal `<dialog>` fixed to the
+viewport with the page live behind it and rising with the keyboard, so
+that the result stays in view while a setting is changed to see its
+effect; opened and closed from a toggle beside the title, which is on
+the page whatever the result's length, and closed from its own Done
+button and Escape. Apply-on-change stays, uniformly on the control's
+`change`: the costs it incurs are the table's memoized rebuild on a
+change to the precision limit and nothing else, apply-on-close would
+need a draft and a Cancel and would hide what the sheet is for, and
+applying as a number is typed waits for #118's scheduler (#186) rather
+than a debounce of the panel's own. On a phone a typed number is
+committed from the keyboard's Done key, and the small numbers are
+nudged from steppers. A result offers no shortcut to the settings that
+shaped it.
 
 ## Not in this step
 
-- **The grouping, the widgets, the explanations on request, the names,
-  the reset's buttons and the per-control feedback (S5).** The sheet
-  holds the controls as they are.
+- **The grouping, the other widgets, the explanations on request, the
+  names, the reset's buttons and the per-control feedback (S5).** The
+  sheet holds the controls as they are, the steppers aside.
+- **Applying a setting as it is typed (#186)**, after #118.
 - **The user's guide (S6).**
 - **The probe's freeze (#163)** and responsiveness while a cost is paid
   (#118): the sheet changes nothing about what blocks the main thread.

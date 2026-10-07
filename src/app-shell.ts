@@ -1,5 +1,5 @@
 import { LitElement, css, html } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { customElement, query, state } from "lit/decorators.js";
 import { BUILD_ID } from "./build-id.ts";
 import type { Definition } from "./core/definitions.ts";
 import type { Result } from "./core/result.ts";
@@ -22,8 +22,10 @@ import {
   type SystemDefinitionsError,
 } from "./system-table.ts";
 import "./app-footer.ts";
+import "./settings-button.ts";
 import "./settings-panel.ts";
 import "./unit-converter.ts";
+import type { SettingsButton } from "./settings-button.ts";
 
 /**
  * The top-level shell of the app: the composition root. Every page of the
@@ -52,7 +54,12 @@ import "./unit-converter.ts";
  *   depends on it (`clampSettings`), hands the panel what the clamp
  *   moved so that the panel can say so (`clampsOf`), and saves the
  *   settings. That handler is the one place a settings change becomes
- *   state and an effect.
+ *   state and an effect. Whether the sheet is open is the shell's state
+ *   too (docs/settings-surface.md, D30): the cog in the header's corner
+ *   (settings-button.ts) flips it, the sheet follows it and reports
+ *   closing itself with `settings-close`, and the shell puts focus back
+ *   on the cog when the sheet closes. The sheet is fixed to the viewport
+ *   and lies over the page, so it is rendered outside `<main>`'s flow.
  * - The service worker's status (register-service-worker.ts), mirrored
  *   into the shell by a `Subscription` for as long as it is connected and
  *   passed to the footer (app-footer.ts), which shows it beside the build
@@ -81,10 +88,33 @@ export class AppShell extends LitElement {
         padding: 1.5rem 1rem;
       }
 
+      @media (min-width: 60rem) {
+        /* The side sheet's width kept clear beside the column while it is open. */
+        main.sheet {
+          padding-right: 25rem;
+        }
+      }
+
+      header {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+      }
+
       h1 {
         margin: 0;
         font-size: clamp(1.5rem, 5vw, 2.25rem);
         font-weight: 600;
+      }
+
+      settings-button {
+        /* The corner: the glyph's edge a gutter from the page's, the hit area past it. */
+        position: absolute;
+        right: -0.625rem;
+        top: 50%;
+        transform: translateY(-50%);
       }
 
       p {
@@ -118,6 +148,11 @@ export class AppShell extends LitElement {
   /** What the clamp moved on the last change, for the panel to tell. */
   @state() private clamps: readonly Clamp[] = [];
 
+  /** Whether the settings sheet is open. */
+  @state() private settingsOpen = false;
+
+  @query("settings-button") private cog?: SettingsButton;
+
   /** The service worker's status, for the footer and the update check. */
   private readonly worker = new Subscription(this, onWorkerStatus);
 
@@ -148,17 +183,37 @@ export class AppShell extends LitElement {
 
   render() {
     return html`
-      <main>
-        <h1>Units</h1>
+      <main class=${this.settingsOpen ? "sheet" : ""}>
+        <header>
+          <h1>Units</h1>
+          <settings-button
+            .expanded=${this.settingsOpen}
+            @click=${this.onToggleSettings}
+          ></settings-button>
+        </header>
         ${this.renderContent()}
-        <settings-panel
-          .settings=${this.settings}
-          .clamps=${this.clamps}
-          @settings-change=${this.onSettingsChange}
-        ></settings-panel>
       </main>
       <app-footer .status=${this.worker.value}></app-footer>
+      <settings-panel
+        .open=${this.settingsOpen}
+        .settings=${this.settings}
+        .clamps=${this.clamps}
+        @settings-change=${this.onSettingsChange}
+        @settings-close=${this.onSettingsClose}
+      ></settings-panel>
     `;
+  }
+
+  /** The cog: opens the sheet, or closes it when it is open, keeping focus on itself. */
+  private onToggleSettings() {
+    this.settingsOpen = !this.settingsOpen;
+    if (!this.settingsOpen) this.cog?.focus();
+  }
+
+  /** The sheet closed itself: the state follows, and focus returns to the cog. */
+  private onSettingsClose() {
+    this.settingsOpen = false;
+    this.cog?.focus();
   }
 
   /**

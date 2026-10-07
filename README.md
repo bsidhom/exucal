@@ -19,10 +19,19 @@ modeled.
 
 ## Settings
 
-The Settings panel under the converter has six settings, kept in the
+The settings open from the cog in the top right corner, as a sheet
+over the page that leaves the result in view: on a phone a panel that
+slides up over the lower part of the screen, which its handle drags
+taller, with the settings scrolling inside it; on a wider screen a
+panel along the right edge. Every change applies as it is made, so the
+result shows what a setting does while it is changed, and Done, Escape
+or the cog closes the sheet. A number typed on a phone is committed
+from the keyboard's Done key, and the display digits, the working
+digits and the ratio width have − and + buttons beside them. There are
+six settings, kept in the
 browser so that they survive a reload (under a format version of their
 own, so that a later build migrates what an earlier one stored;
-`docs/settings-storage.md`). The mode carries one more under it, which
+`docs/settings-storage.md`; the surface is `docs/settings-surface.md`). The mode carries one more under it, which
 one depending on the mode: exact mode the notation its exact values are
 written in, decimal mode its working digits. Every number carries its
 unit, on screen after the input and in the stored key: the display

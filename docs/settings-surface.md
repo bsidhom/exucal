@@ -3,7 +3,8 @@
 The design note for step S4 of docs/settings-plan.md: where the settings
 live, how they are reached when a result is long, and whether a change
 applies as it is made or when the panel closes, which the plan's P13
-(its placement half) and P14 raise. **Status: proposed.** It decides
+(its placement half) and P14 raise. **Status: implemented**; "As
+landed" at the end says what the implementation settled. It decides
 the container, the apply semantics and the entry point, and no more:
 the grouping, the widgets, the explanations and the names are S5's, and
 the reset's buttons, which S1 left to S5, stay there, with one widget
@@ -302,3 +303,47 @@ shaped it.
   (#118): the sheet changes nothing about what blocks the main thread.
 - **A sticky header**, revisited by S5 if the phone's use wants it.
 - **The quick change from a result**, deferred as above.
+
+## As landed
+
+- **The column moves aside for the side sheet.** At 1,024 pixels the
+  centered 32rem column and a 24rem sheet at the right edge overlap by
+  8rem, which the note's "about 60rem with margins" did not account
+  for; rather than a wider breakpoint, the shell pads `<main>` on the
+  right by the sheet's width while the sheet is open at 60rem and up,
+  so the column centers in what is left and the two never overlap.
+- **No `aria-controls`.** The sheet lives in the panel's shadow root and
+  the cog in the shell's, and an id reference does not cross a shadow
+  boundary, so the attribute would dangle; the cog carries
+  `aria-expanded` and its label, and the sheet is labelled by its own
+  heading.
+- **Focus lands on the sheet itself** (`tabindex="-1"` on the dialog),
+  not on its first control: focusing a number input on a phone would
+  raise the keyboard the moment the sheet opened. Tab from there reaches
+  the handle, Done and then the controls.
+- **The handle** is a button, so a keyboard's Enter or Space toggles the
+  height as a tap does; a pointer drag of 24 pixels or more up or down
+  changes it and marks the press as a drag, so that the click that ends
+  the press is not also a tap. On a wide viewport the handle is hidden.
+- **The stepper** is a `−` and a `+` button around the input, 2.75rem
+  each way, a change of one through `refusalOf` as a typed value goes,
+  so a step past a bound shows the same refusal line. The display
+  digits, the working digits and the ratio width have them; the limits
+  and the budget do not.
+- **The decimal keypad.** The inputs ask for `inputmode="decimal"` with
+  `enterkeyhint="done"`, as the note says; whether iOS shows the Done
+  key on that keypad is checked by hand, not by the Playwright run.
+- **The new component is browser-only**, so tsconfig.node.json excludes
+  it as it does the other components, which the coverage test under
+  `pnpm test` requires.
+- **Verified** by a Playwright run against the built app, recorded in
+  the change: at 320, 390, 414 and 480 pixels wide with the sheet open
+  the page's `scrollWidth` is the viewport's and the output's top edge
+  is above the sheet; the sheet scrolls to its last control at both
+  heights; at 1,024 the column's right edge is left of the sheet; the
+  cog's hit area is 44 by 44, Tab reaches it first, Enter and Space
+  open the sheet, Escape, Done and the cog close it with focus back on
+  the cog and `aria-expanded` following the dialog's `open`; a
+  stepper's tap takes the display digits from 8 to 9, stores it and
+  changes the result; a drag of the handle up makes the sheet tall and
+  down short.

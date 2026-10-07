@@ -401,7 +401,9 @@ enough that what they do is visible in the template.
 
 The layout above is meant to leave these open rather than answer them:
 whether the settings become a dialog or a page of their own (the panel
-already takes everything by property, so it can move), whether the
+already takes everything by property, so it can move; answered since
+by S4 of docs/settings-plan.md, docs/settings-surface.md: a non-modal
+dialog, a sheet over the page), whether the
 limits and the probe are "advanced" settings apart from digits, rounding
 and mode (the field list splits in two), and where "Check for updates"
 belongs (one line in the shell).

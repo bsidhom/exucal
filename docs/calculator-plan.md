@@ -1450,6 +1450,27 @@ limit", "the display digits" and "significand" throughout the docs and
 the messages in place of "the cap", "the range limit" or "Most bits",
 "Digits" and "mantissa"; D12, D13 and D16 read with those names.
 
+**D30. The settings are a sheet over the page, opened from a cog in the
+header's corner, and a change applies as it is made, on `change` (S4 of
+docs/settings-plan.md).** A non-modal `<dialog>` fixed to the viewport
+with the page live and scrollable behind it, so that the result stays
+in view while a setting is changed to see its effect: on a narrow
+viewport a bottom sheet with two heights, its controls scrolling inside
+it and a handle dragging or tapping between them, rising with the
+on-screen keyboard; on a wide one a side sheet along the right edge
+with the column kept clear beside it. The cog is an icon button of its
+own component with a thumb's hit area and a button's keyboard, never a
+switch, on the page whatever the result's length; Done and Escape close
+the sheet and focus returns to the cog. Apply-on-change stays,
+uniformly on the control's `change`: the one cost it incurs is the
+table's memoized rebuild on a change to the precision limit,
+apply-on-close would need a draft and a Cancel and would hide what the
+sheet is for, and applying a number as it is typed waits for #118's
+scheduler (#186). On a phone a typed number is committed from the
+keyboard's Done key, and the display digits, the working digits and
+the ratio width are nudged from steppers. A result offers no shortcut
+to the settings that shaped it. docs/settings-surface.md is the design.
+
 ## Stage 1: the context and the ball
 
 Firm. What lands: the seven rounding modes, named once; the context in

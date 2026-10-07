@@ -325,11 +325,22 @@ shaped it.
   height as a tap does; a pointer drag of 24 pixels or more up or down
   changes it and marks the press as a drag, so that the click that ends
   the press is not also a tap. On a wide viewport the handle is hidden.
-- **The stepper** is a `−` and a `+` button around the input, 2.75rem
-  each way, a change of one through `refusalOf` as a typed value goes,
-  so a step past a bound shows the same refusal line. The display
+- **The stepper** is a `−` and a `+` button around the input
+  (`step-button`, src/step-button.ts), each a square the input's own
+  height in the input's border and radius, so that the three read as
+  one control, with a thumb's hit area past the square drawn by a
+  pseudo-element; a change of one through `refusalOf` as a typed value
+  goes, so a step past a bound shows the same refusal line. The display
   digits, the working digits and the ratio width have them; the limits
-  and the budget do not.
+  and the budget do not. The review found the first cut's steppers too
+  tall and every button, old and new, inert under the pointer, so the
+  buttons became components: `app-button` (src/app-button.ts) is the
+  app's button with words in it, Done, Apply, Retry and the probe's,
+  and `pressableStyles` (src/styles.ts) is the feedback every button
+  gives, a tint on hover, a deeper tint and a slight shrink while
+  pressed, the focus ring, the faded disabled look, composed by the
+  cog, the copy button, the steppers, the handle and the footer's
+  links as well.
 - **The decimal keypad.** The inputs ask for `inputmode="decimal"` with
   `enterkeyhint="done"`, as the note says; whether iOS shows the Done
   key on that keypad is checked by hand, not by the Playwright run.

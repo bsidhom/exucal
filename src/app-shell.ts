@@ -14,13 +14,13 @@ import {
   type Settings,
 } from "./settings.ts";
 import { onWorkerStatus } from "./register-service-worker.ts";
-import { buttonStyles } from "./styles.ts";
 import { Subscription } from "./subscription.ts";
 import { tableOf } from "./system-build.ts";
 import {
   loadSystemDefinitions,
   type SystemDefinitionsError,
 } from "./system-table.ts";
+import "./app-button.ts";
 import "./app-footer.ts";
 import "./settings-button.ts";
 import "./settings-panel.ts";
@@ -68,7 +68,6 @@ import type { SettingsButton } from "./settings-button.ts";
 @customElement("app-shell")
 export class AppShell extends LitElement {
   static styles = [
-    buttonStyles,
     css`
       :host {
         display: flex;
@@ -251,7 +250,7 @@ export class AppShell extends LitElement {
                 : "This is a bug in the app, not in what you typed."
             }
           </p>
-          <button type="button" @click=${this.load}>Retry</button>
+          <app-button @click=${this.load}>Retry</app-button>
         </div>`;
       case "ready":
         return html`<unit-converter

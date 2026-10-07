@@ -20,7 +20,9 @@ import {
   significandLimitLine,
   workingDigitsLine,
 } from "./settings-lines.ts";
-import { buttonStyles, hintStyles } from "./styles.ts";
+import { hintStyles, pressableStyles } from "./styles.ts";
+import "./app-button.ts";
+import "./step-button.ts";
 import {
   DEFAULT_MODES,
   DEFAULT_NOTATIONS,
@@ -114,7 +116,7 @@ import {
 @customElement("settings-panel")
 export class SettingsPanel extends LitElement {
   static styles = [
-    buttonStyles,
+    pressableStyles,
     hintStyles,
     css`
       :host {
@@ -183,16 +185,21 @@ export class SettingsPanel extends LitElement {
       }
 
       .handle {
-        /* The drag handle: a bar, with a thumb's hit area around it. */
+        /* The drag handle: a bar, with a thumb's hit area around it; the bar darkens under the pointer and the press. */
         width: 100%;
         padding: 0.5rem 0;
         border: none;
+        border-radius: 0.5rem;
         background: transparent;
         color: inherit;
         cursor: grab;
         line-height: 0;
         touch-action: none;
-        -webkit-tap-highlight-color: transparent;
+      }
+
+      .handle:active {
+        cursor: grabbing;
+        transform: none;
       }
 
       .handle::before {
@@ -203,6 +210,15 @@ export class SettingsPanel extends LitElement {
         margin: 0 auto;
         border-radius: 0.15rem;
         background: color-mix(in srgb, currentColor 35%, transparent);
+        transition: background-color 120ms;
+      }
+
+      .handle:hover::before {
+        background: color-mix(in srgb, currentColor 55%, transparent);
+      }
+
+      .handle:active::before {
+        background: color-mix(in srgb, currentColor 75%, transparent);
       }
 
       .bar {
@@ -233,15 +249,6 @@ export class SettingsPanel extends LitElement {
         gap: 1rem;
       }
 
-      .stepper {
-        /* A step of one, with a thumb's hit area. */
-        min-width: 2.75rem;
-        min-height: 2.75rem;
-        padding: 0;
-        border-radius: 50%;
-        line-height: 1;
-      }
-
       label {
         display: flex;
         flex-direction: column;
@@ -266,6 +273,7 @@ export class SettingsPanel extends LitElement {
       }
 
       .measure {
+        /* The steppers stretch to the input's height; the unit sits at the middle. */
         display: flex;
         align-items: center;
         gap: 0.375rem;
@@ -345,7 +353,7 @@ export class SettingsPanel extends LitElement {
         margin: 0;
       }
 
-      .probe button {
+      .probe app-button {
         align-self: flex-start;
       }
     `,
@@ -430,7 +438,7 @@ export class SettingsPanel extends LitElement {
           ></button>
           <div class="bar">
             <h2 id="title">Settings</h2>
-            <button type="button" @click=${this.onDone}>Done</button>
+            <app-button @click=${this.onDone}>Done</app-button>
           </div>
         </header>
         <div class="body">
@@ -539,14 +547,11 @@ export class SettingsPanel extends LitElement {
     const stepper = (delta: -1 | 1) =>
       step === undefined
         ? nothing
-        : html`<button
-            type="button"
-            class="stepper"
-            aria-label=${`${delta < 0 ? "One fewer" : "One more"}: ${name}`}
+        : html`<step-button
+            direction=${delta < 0 ? "down" : "up"}
+            label=${`${delta < 0 ? "One fewer" : "One more"}: ${name}`}
             @click=${() => this.stepBy(setting, value + delta, step)}
-          >
-            ${delta < 0 ? "−" : "+"}
-          </button>`;
+          ></step-button>`;
     return html`
       <span class="measure">
         ${stepper(-1)}
@@ -734,13 +739,9 @@ export class SettingsPanel extends LitElement {
           ${this.renderNumber(BUDGET_FIELD)}
           <label>
             Limits
-            <button
-              type="button"
-              ?disabled=${this.measuring}
-              @click=${this.onMeasure}
-            >
+            <app-button ?disabled=${this.measuring} @click=${this.onMeasure}>
               ${this.measuring ? "Measuring…" : "Measure this device"}
-            </button>
+            </app-button>
             <small class="hint">${PROBE_LINE}</small>
           </label>
         </div>
@@ -750,7 +751,7 @@ export class SettingsPanel extends LitElement {
             : html`
                 <div class="proposal" role="status">
                   <span>${proposalLine(this.proposal, budgetMs)}</span>
-                  <button type="button" @click=${this.onApply}>Apply</button>
+                  <app-button @click=${this.onApply}>Apply</app-button>
                 </div>
               `
         }

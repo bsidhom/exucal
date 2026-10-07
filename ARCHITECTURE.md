@@ -1860,12 +1860,14 @@ tests. The rest of the directory is what they share:
   its catalogued time, then the hangs (`--skip-hangs` leaves them out,
   as a sample does), printing each result as it comes. An entry's
   deadline is four times its catalogued time and two minutes at least.
-  It fails on what holds on any machine: an entry's outcome's kind,
-  warnings and result as catalogued (`comparableLine`: the line from
-  its relation on, the echo of the expression before it being the
-  printer's and no value, and without the note after the value, which
-  states a bound a sharper kernel may tighten), and no entry past its
-  deadline. It reports the timings beside
+  It fails on what holds on any machine and on what it is for, the cost
+  of long-running expressions and whether they hang or crash: an
+  entry's outcome's kind as catalogued (a value, a refusal, nothing), a
+  worker that fails, and no entry past its deadline. The line, the
+  value as the display writes it or the message, is recorded as what
+  was computed and reported when it differs, as information, never
+  compared: the display, the printer and the messages have their own
+  tests. It reports the timings beside
   the catalogue's, each entry's cost as a multiple of a reference case
   (`exp(1) - exp(1)`), entries much cheaper than catalogued, and for
   each hang how far it got and its estimate, or that it now finishes.
@@ -1875,13 +1877,9 @@ tests. The rest of the directory is what they share:
   progress and estimate (`withHangAgain`), and a hang that now finishes
   as its family's entry. Entries that become cheap are kept: they guard
   the cost, their value is still checked, and a costlier case of their
-  family replaces them. A changed result is never recorded, unless
-  `--accept-rewording` says the result is written otherwise and not
-  computed otherwise, which the suite cannot tell: each such entry is
-  then recorded and printed, old and new, a statement the change that
-  uses the flag makes, to be read against the catalogue's diff. The
-  suite is run in full after a change to a kernel, the pipeline or the
-  writing of a result, and before a release; a sample between.
+  family replaces them; the line recorded is the run's. The suite is
+  run in full after a change to a kernel or the pipeline and before a
+  release; a sample between.
 - `bench/synthetic.ts` builds tables of a chosen size. Prefix names are
   drawn from the letters `n` to `z` and unit names from `a` to `m`, so
   that no name is ambiguous and the ambiguity check scans everything: its

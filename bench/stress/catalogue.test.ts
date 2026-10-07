@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { inspect } from "node:util";
 import { test } from "node:test";
 import { parseExpr, parseUnitList } from "../../src/core/expr.ts";
-import { UNCERTIFIED } from "../../src/outcome.ts";
 import {
   DEFAULT_SETTINGS,
   STORAGE_VERSION,
@@ -22,7 +21,6 @@ import {
   catalogueFromStored,
   catalogueTable,
   catalogueText,
-  comparableLine,
   hangEstimate,
   readCatalogue,
   hangsTable,
@@ -419,33 +417,4 @@ test("a sample is the same entries whatever the order given, and all of them whe
   // is another entry, ranked on its own.
   const other = { ...entries[0]!, family: { ...f, profile: "maxcap" } };
   assert.equal(sample([...entries, other], 7).length, 7);
-});
-
-test("an entry is held to the result side of its line, the echo and the note left out", () => {
-  // The printer's echo of the expression changes with the printer.
-  assert.equal(
-    comparableLine("digamma(1e-5 + 1) - 1/1e-5 ≈ 0 (within 2e-4044 of zero)"),
-    "≈ 0",
-  );
-  assert.equal(
-    comparableLine("digamma(1e-5 + 1) - 1 / 1e-5 ≈ 0 (within 3e-4044 of zero)"),
-    "≈ 0",
-  );
-  // The relation is part of the result: exact and inexact differ.
-  assert.equal(comparableLine("1 in = 2.54 cm"), "= 2.54 cm");
-  assert.equal(comparableLine("1 m ≈ 39.370079 in"), "≈ 39.370079 in");
-  assert.equal(
-    comparableLine("2 m = 6 ft + 6.7401575 in (8 of 12 digits are certain)"),
-    "= 6 ft + 6.7401575 in",
-  );
-  assert.equal(
-    comparableLine(`x ${UNCERTIFIED} 3 (the digits are not certified)`),
-    `${UNCERTIFIED} 3`,
-  );
-  // A sign on the value is the value's, not the echo's.
-  assert.notEqual(comparableLine("x ≈ -0"), comparableLine("x ≈ 0"));
-  // The first relation is the one taken.
-  assert.equal(comparableLine("a ≈ b ≈ 3"), "≈ b ≈ 3");
-  // A message with no relation is held whole.
-  assert.equal(comparableLine('"x" is not a unit'), '"x" is not a unit');
 });

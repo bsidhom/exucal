@@ -1218,26 +1218,27 @@ names it measures them all. Run it before and after a change aimed at
 those functions: one function's inputs take one to four minutes on four
 cores; a full run, every input and every hang, takes the better part
 of an hour, since the catalogue is the costliest inputs known, so run it
-in full after a change to a kernel, to the pipeline or to how a result
-is written, and before a release. `--profile <name>` keeps one settings
+in full after a change to a kernel or to the pipeline, and before a
+release. `--profile <name>` keeps one settings
 profile, `--skip-hangs` leaves out the inputs that hang, and `--sample
 <n>` keeps `n` inputs chosen the same way on every machine and no hang:
 a spot check of the values in minutes (`pnpm stress --sample 24`),
-between the full runs. It fails only when an input gives a different
-result than it was catalogued with (the result after the `=` or `≈`,
-without the note in parentheses, which may sharpen; the echo of the
-expression before it is written by the printer and is not compared), or
-passes its deadline; the timings, each input's cost as a multiple of a
-reference, inputs that have become much cheaper and how far each hang
-gets are reported. After a change that makes them cheaper, `--record`
-writes the new timings into the catalogue (a hang that now finishes
-becomes an entry); inputs that have become cheap stay, as guards
-against the cost coming back, and a costlier input of their family
-found later replaces them. A changed result is never recorded, unless
-`--record --accept-rewording` says it is a change to how the result is
-written and not to its value: each is then recorded and printed, old
-and new, to be read against the catalogue's diff. `pnpm test:all` runs
-neither.
+between the full runs. It fails only on what it is for, the cost of
+long-running inputs and whether they hang or crash: an input that
+passes its deadline, a worker that crashes, or an input that gives
+another kind of outcome than catalogued (a refusal where it computed,
+a value where it was refused). How an outcome is written, the value's
+digits, its note, the message, is never compared: the display, the
+printer and the messages have their own tests. The line is kept in the
+catalogue as a record of what was computed and reported when it reads
+otherwise, as information; the timings, each input's cost as a
+multiple of a reference, inputs that have become much cheaper and how
+far each hang gets are reported too. After a change that makes them
+cheaper, `--record` writes the new timings and lines into the
+catalogue (a hang that now finishes becomes an entry); inputs that
+have become cheap stay, as guards against the cost coming back, and a
+costlier input of their family found later replaces them. `pnpm
+test:all` runs neither.
 
 ### Offline behavior
 

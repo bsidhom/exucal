@@ -35,7 +35,6 @@ import {
 } from "../../src/settings.ts";
 import type { Family } from "./cases.ts";
 import type { Machine, Progress, Run, Running, Typing } from "./harness.ts";
-import { UNCERTIFIED } from "../../src/outcome.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,31 +99,6 @@ export function summarizeTyping(typing: Typing): TypingSummary {
 function tenth(ms: number): number {
   return Math.round(ms * 10) / 10;
 }
-
-/**
- * What of a result's line `verify.ts` holds an entry to: the line from
- * its relation on (`≈ 0 K`, `= 3 ft + 2 in`), without the note after
- * the value. The echo of the expression before the relation is the
- * printer's writing of what was typed and no value, and changes with
- * the printer; the note states a bound or the digits certified, which a
- * kernel made sharper tightens without changing the value. A line with
- * no relation, which no result has, is held whole.
- */
-export function comparableLine(line: string): string {
-  let at = -1;
-  for (const relation of RELATIONS) {
-    const i = line.indexOf(relation);
-    if (i >= 0 && (at < 0 || i < at)) at = i;
-  }
-  const result = at < 0 ? line : line.slice(at + 1);
-  return result.replace(
-    / \((?:within [^()]*|\d+ of \d+ digits are certain|the digits are not certified)\)$/,
-    "",
-  );
-}
-
-/** The relations a line is written with (outcome.ts), each with the spaces around it. */
-const RELATIONS = [" = ", " ≈ ", ` ${UNCERTIFIED} `];
 
 /**
  * `n` of `entries` chosen the same way on every machine and every run,

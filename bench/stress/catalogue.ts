@@ -14,10 +14,25 @@
 // and the margin keeps near-equal cases from trading places. Each run is
 // logged with its seed and how many cases it measured, and each entry
 // with the seed and index that drew it, so that any case replays.
+//
+// An entry's settings are stored as the app stores its own, in the
+// envelope of docs/settings-storage.md with the format version, and read
+// back through the same migrations (`settingsFromStored`), so that a
+// step that reshapes the settings (S2 nested the mode, S3 renamed the
+// limits) leaves every catalogued case readable, as it leaves every
+// user's storage readable: the catalogue is data the settings module
+// owns the shape of, not a copy of it. The first catalogue stored the
+// fields bare, which reads as version 1, as a bare object in the
+// browser does. The build string the envelope carries is the commit the
+// case was measured at.
 
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import type { Settings } from "../../src/settings.ts";
+import {
+  settingsFromStored,
+  storedSettings,
+  type Settings,
+} from "../../src/settings.ts";
 import type { Family } from "./cases.ts";
 import type { Machine, Progress, Run, Running, Typing } from "./harness.ts";
 
@@ -337,7 +352,19 @@ export function withRun(catalogue: Catalogue, run: RunRecord): Catalogue {
 // ---------------------------------------------------------------------------
 // Files
 
-/** The catalogue at `path`, or the empty one when there is no file. */
+/** An entry or a hang as the file holds it: its settings stored, whatever shape an earlier version gave them. */
+type Stored<T extends { readonly settings: Settings }> = Omit<T, "settings"> & {
+  readonly settings: unknown;
+};
+
+/** The catalogue as the file holds it. */
+type StoredCatalogue = {
+  readonly entries: readonly Stored<Entry>[];
+  readonly hangs: readonly Stored<Hang>[];
+  readonly runs: readonly RunRecord[];
+};
+
+/** The catalogue at `path`, or the empty one when there is no file; each case's settings read through the settings migrations. */
 export function readCatalogue(path: string | URL): Catalogue {
   let text: string;
   try {
@@ -346,7 +373,38 @@ export function readCatalogue(path: string | URL): Catalogue {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return EMPTY;
     throw e;
   }
-  return JSON.parse(text) as Catalogue;
+  return catalogueFromStored(JSON.parse(text));
+}
+
+/** `stored`, the parsed file, as the catalogue: the settings of each entry and hang migrated and validated. */
+export function catalogueFromStored(stored: unknown): Catalogue {
+  const { entries, hangs, runs } = stored as StoredCatalogue;
+  const read = <T extends { readonly settings: Settings }>(c: Stored<T>): T =>
+    ({ ...c, settings: settingsFromStored(c.settings) }) as T;
+  return { entries: entries.map(read), hangs: hangs.map(read), runs };
+}
+
+/** `catalogue` as the file holds it, as text: each case's settings in the storage envelope, saved by the commit that measured it. */
+export function catalogueText(catalogue: Catalogue): string {
+  const store = <
+    T extends { readonly settings: Settings; readonly commit: Commit },
+  >(
+    c: T,
+  ): Stored<T> => ({
+    ...c,
+    settings: storedSettings(c.settings, buildOf(c.commit)),
+  });
+  const stored: StoredCatalogue = {
+    entries: catalogue.entries.map(store),
+    hangs: catalogue.hangs.map(store),
+    runs: catalogue.runs,
+  };
+  return `${JSON.stringify(stored, null, 2)}\n`;
+}
+
+/** `commit` as a build string, as build-id.ts writes one: the hash, `-dirty` when the tree had changes. */
+function buildOf(commit: Commit): string {
+  return commit.dirty ? `${commit.hash}-dirty` : commit.hash;
 }
 
 /** Writes `text` to `path` through a file beside it, renamed over it. */

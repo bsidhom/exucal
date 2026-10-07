@@ -26,6 +26,7 @@ import {
   readCatalogue,
   roundRun,
   withTable,
+  catalogueText,
   writeAtomically,
   type Catalogue,
   type Commit,
@@ -192,10 +193,7 @@ export async function update(
   const release = await takeLock();
   try {
     const catalogue = change(readCatalogue(CATALOGUE));
-    const text = await formatText(
-      `${JSON.stringify(catalogue, null, 2)}\n`,
-      CATALOGUE,
-    );
+    const text = await formatText(catalogueText(catalogue), CATALOGUE);
     let doc: string | undefined;
     if (existsSync(DOC)) {
       doc = withTable(readFileSync(DOC, "utf8"), catalogueTable(catalogue));

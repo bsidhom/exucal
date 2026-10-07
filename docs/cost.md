@@ -64,7 +64,8 @@ the first catalogue was built from. `pnpm stress:search --seed <seed>
 --list <n>` prints the first cases a seed draws without evaluating
 them, and the catalogue logs each run's seed and how many cases it
 measured. Typing the `have` into the converter, with the entry's
-settings, reproduces the cost a user meets. `pnpm stress <function>`
+settings, stored as the app stores its own and read through the same
+migrations, reproduces the cost a user meets. `pnpm stress <function>`
 measures again the entries that call a function, and fails only if one
 gives a different value or passes its deadline.
 

@@ -291,13 +291,9 @@ const MIGRATIONS: Readonly<Record<number, Migration>> = {
 };
 
 /**
- * The settings `storage` holds: the stored object migrated from its
- * version up to `STORAGE_VERSION`, then each field validated and defaulted
- * on its own and the dependent ones clamped (`clampSettings`). A storage
- * that has no entry, holds something that is not JSON or not an object, or
- * throws, gives the defaults; so does a version above `STORAGE_VERSION`,
- * or one that is not a positive integer. An object with no version is
- * version 1.
+ * The settings `storage` holds: the stored object read as
+ * `settingsFromStored` reads it. A storage that has no entry, holds
+ * something that is not JSON, or throws, gives the defaults.
  */
 export function loadSettings(storage: SettingsStorage): Settings {
   let parsed: unknown;
@@ -308,6 +304,20 @@ export function loadSettings(storage: SettingsStorage): Settings {
   } catch {
     return DEFAULT_SETTINGS;
   }
+  return settingsFromStored(parsed);
+}
+
+/**
+ * The settings a stored object holds, wherever it was stored (the
+ * browser's storage, or the stress catalogue's entries, which keep the
+ * settings each case was measured under): migrated from its version up
+ * to `STORAGE_VERSION`, then each field validated and defaulted on its
+ * own and the dependent ones clamped (`clampSettings`). Something that
+ * is not an object gives the defaults; so does a version above
+ * `STORAGE_VERSION`, or one that is not a positive integer. An object
+ * with no version is version 1.
+ */
+export function settingsFromStored(parsed: unknown): Settings {
   const version = versionOf(parsed);
   if (version === undefined || version > STORAGE_VERSION) {
     // Not expected: a build never writes such a version. A rolled-back
@@ -639,12 +649,28 @@ export function refusalOf(
 }
 
 /**
- * Stores `settings` in `storage` at `STORAGE_VERSION`, with `savedBy`, the
- * whole build string of the build saving them (build-id.ts; the shell
- * passes it, so that this module needs no build of its own), which says
- * which build wrote a stored object and nothing more. A storage that
- * throws is ignored.
+ * `settings` as they are stored: the envelope at `STORAGE_VERSION`, with
+ * `savedBy`, the whole build string of the build saving them
+ * (build-id.ts; the shell passes it, so that this module needs no build
+ * of its own), which says which build wrote a stored object and nothing
+ * more, and the six fields and no other. What `settingsFromStored` reads.
  */
+export function storedSettings(settings: Settings, savedBy: string): object {
+  return {
+    version: STORAGE_VERSION,
+    savedBy,
+    settings: {
+      displayDigits: settings.displayDigits,
+      rounding: settings.rounding,
+      mode: settings.mode,
+      precisionLimitDigits: settings.precisionLimitDigits,
+      significandLimitBits: settings.significandLimitBits,
+      budgetMs: settings.budgetMs,
+    },
+  };
+}
+
+/** Stores `settings` in `storage` as `storedSettings` shapes them. A storage that throws is ignored. */
 export function saveSettings(
   storage: SettingsStorage,
   settings: Settings,
@@ -653,18 +679,7 @@ export function saveSettings(
   try {
     storage.setItem(
       SETTINGS_KEY,
-      JSON.stringify({
-        version: STORAGE_VERSION,
-        savedBy,
-        settings: {
-          displayDigits: settings.displayDigits,
-          rounding: settings.rounding,
-          mode: settings.mode,
-          precisionLimitDigits: settings.precisionLimitDigits,
-          significandLimitBits: settings.significandLimitBits,
-          budgetMs: settings.budgetMs,
-        },
-      }),
+      JSON.stringify(storedSettings(settings, savedBy)),
     );
   } catch {
     // Nothing to do: the settings still apply for this session.

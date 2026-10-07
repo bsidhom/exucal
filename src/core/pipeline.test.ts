@@ -628,7 +628,7 @@ function shown(text: string, digits: number): ReturnType<typeof show> {
   const result = evaluateText(table, text, { ...CONTEXT, precision: digits });
   assert.ok(result.ok, `${text}: ${inspect(result)}`);
   return show(result.value.magnitude, {
-    digits: digits,
+    digits,
     rounding: DEFAULT_ROUNDING,
   });
 }

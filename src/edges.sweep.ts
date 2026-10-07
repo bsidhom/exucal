@@ -813,9 +813,7 @@ function checkList(
     const bad = checkValue(term, modeOf(context));
     if (bad !== undefined) return `a term: ${bad}`;
   }
-  const shown = terms.map((t) =>
-    show(t, { digits: precision, rounding: rounding }),
-  );
+  const shown = terms.map((t) => show(t, { digits: precision, rounding }));
   const unrounded = shown[last]!;
   const certified =
     unrounded.kind === "partial" && unrounded.certified > 0
@@ -832,7 +830,7 @@ function checkList(
     .slice(0, last)
     .some((count, i) => !equals(count.mid, terms[i]!.mid));
   const remainder = carried
-    ? show(rounded[last]!, { digits: precision, rounding: rounding })
+    ? show(rounded[last]!, { digits: precision, rounding })
     : unrounded;
   let total: Loose = ZERO;
   const texts: string[] = [];

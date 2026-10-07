@@ -236,7 +236,7 @@ test("balls touching or straddling zero are taken at their ends, and an unbounde
   for (const rounding of ROUNDING_MODES) {
     const result = show(value(erfBall(exact(dec("1")), CONTEXT)), {
       digits: 8,
-      rounding: rounding,
+      rounding,
     });
     assert.equal(result.kind, "certified", rounding);
     assert.ok(

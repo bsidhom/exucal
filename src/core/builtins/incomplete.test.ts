@@ -464,7 +464,7 @@ test("balls inside the domain contain the truth, an unbounded radius passes, and
   for (const rounding of ROUNDING_MODES) {
     const result = show(
       value(call("lowerreg", exact(dec("0.5")), exact(dec("0.5")))),
-      { digits: 8, rounding: rounding },
+      { digits: 8, rounding },
     );
     assert.equal(result.kind, "certified", rounding);
     assert.ok(

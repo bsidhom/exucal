@@ -418,21 +418,27 @@ type Profile = { readonly name: string; readonly settings: Settings };
 
 /**
  * The settings profiles, with their weights: the defaults most of all,
- * then the highest cap the default range limit allows, more digits, the
- * decimal mode, the fractions display, and the extreme settings, the range
- * limit's hard bound with the cap it allows, where cases are expected to
- * pass their deadline.
+ * then the highest precision limit the default significand limit allows,
+ * more digits, the decimal mode, the fractions display, and the extreme
+ * settings, the significand limit's hard bound with the precision limit it
+ * allows, where cases are expected to pass their deadline.
  */
 const PROFILES: readonly (readonly [number, Profile])[] = [
   [12, { name: "default", settings: DEFAULT_SETTINGS }],
-  [2, { name: "digits32", settings: { ...DEFAULT_SETTINGS, digits: 32 } }],
+  [
+    2,
+    {
+      name: "digits32",
+      settings: { ...DEFAULT_SETTINGS, displayDigits: 32 },
+    },
+  ],
   [
     4,
     {
       name: "maxcap",
       settings: {
         ...DEFAULT_SETTINGS,
-        maxDigits: maxDigitsFor(DEFAULT_MAX_BITS),
+        precisionLimitDigits: maxDigitsFor(DEFAULT_MAX_BITS),
       },
     },
   ],
@@ -459,8 +465,8 @@ const PROFILES: readonly (readonly [number, Profile])[] = [
       name: "extreme",
       settings: {
         ...DEFAULT_SETTINGS,
-        maxBits: LIMIT_BITS,
-        maxDigits: maxDigitsFor(LIMIT_BITS),
+        significandLimitBits: LIMIT_BITS,
+        precisionLimitDigits: maxDigitsFor(LIMIT_BITS),
       },
     },
   ],
@@ -733,8 +739,8 @@ export function profilesValid(): boolean {
   return PROFILES.every(([, { settings }]) => {
     const ranges = rangesOf(settings);
     return (
-      isIntegerIn(settings.maxDigits, ranges.maxDigits) &&
-      isIntegerIn(settings.digits, ranges.digits)
+      isIntegerIn(settings.precisionLimitDigits, ranges.precisionLimitDigits) &&
+      isIntegerIn(settings.displayDigits, ranges.displayDigits)
     );
   });
 }

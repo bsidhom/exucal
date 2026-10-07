@@ -1,5 +1,11 @@
 # The settings: triage and plan
 
+**Status: complete.** S1 to S5 are implemented, each with its design
+note and a decision in docs/calculator-plan.md (D27 to D31); S6, the
+user's guide, is deferred to #191, to follow the app-wide documentation
+cleanup, and is the one step this plan leaves open. The problems below
+are kept as they were found, as the record of what the steps answered.
+
 The six settings grew one stage at a time, each sound on its own, and
 they no longer cohere: two of them mean different things depending on a
 third, two make opposite promises, two are coupled by a formula the panel
@@ -311,6 +317,11 @@ Implemented (docs/settings-controls.md, "As landed"; D31).
 - **Core impact.** None. **Size.** Medium to large, all UI.
 
 ### S6. The user's guide
+
+Deferred to #191, after the app-wide documentation cleanup; the issue
+carries the context the guide needs that lives nowhere else (what S5
+cut from the sheet's lines, where the sheet's "About these settings"
+link points until the guide exists, the notes behind each setting).
 
 - **Scope.** Friendly documentation of the settings as they stand after
   S2 to S5: what each does, what the modes and the rounding modes mean

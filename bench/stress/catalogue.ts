@@ -34,14 +34,8 @@ import {
   type Settings,
 } from "../../src/settings.ts";
 import type { Family } from "./cases.ts";
-import type {
-  Machine,
-  OutcomeSummary,
-  Progress,
-  Run,
-  Running,
-  Typing,
-} from "./harness.ts";
+import type { Machine, Progress, Run, Running, Typing } from "./harness.ts";
+import { UNCERTIFIED } from "../../src/outcome.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,23 +102,68 @@ function tenth(ms: number): number {
 }
 
 /**
- * `entry` with `outcome` as what its cold and its warm run gave, the
- * timings and the passes kept: how `reline.ts` records a line written
- * anew by the current build. Whether the line changed is `lineChanged`.
+ * What of a result's line `verify.ts` holds an entry to: the line from
+ * its relation on (`≈ 0 K`, `= 3 ft + 2 in`), without the note after
+ * the value. The echo of the expression before the relation is the
+ * printer's writing of what was typed and no value, and changes with
+ * the printer; the note states a bound or the digits certified, which a
+ * kernel made sharper tightens without changing the value. A line with
+ * no relation, which no result has, is held whole.
  */
-export function withOutcome(entry: Entry, outcome: OutcomeSummary): Entry {
-  return {
-    ...entry,
-    cold: { ...entry.cold, outcome },
-    warm: { ...entry.warm, outcome },
-  };
+export function comparableLine(line: string): string {
+  let at = -1;
+  for (const relation of RELATIONS) {
+    const i = line.indexOf(relation);
+    if (i >= 0 && (at < 0 || i < at)) at = i;
+  }
+  const result = at < 0 ? line : line.slice(at + 1);
+  return result.replace(
+    / \((?:within [^()]*|\d+ of \d+ digits are certain|the digits are not certified)\)$/,
+    "",
+  );
 }
 
-/** Whether `outcome` differs from what either run of `entry` gave, in any part. */
-export function lineChanged(entry: Entry, outcome: OutcomeSummary): boolean {
-  return [entry.cold, entry.warm].some(
-    (run) => JSON.stringify(run.outcome) !== JSON.stringify(outcome),
-  );
+/** The relations a line is written with (outcome.ts), each with the spaces around it. */
+const RELATIONS = [" = ", " ≈ ", ` ${UNCERTIFIED} `];
+
+/**
+ * `n` of `entries` chosen the same way on every machine and every run,
+ * whatever order they come in: the entries ranked by a hash of their
+ * case (FNV-1a over the profile, the have and the want), the first `n`
+ * taken, so that `pnpm stress --sample <n>` is a spot check that can be
+ * repeated and compared. All of them when `n` is not less than their
+ * count.
+ */
+export function sample<T extends Pick<Entry, "family" | "have" | "want">>(
+  entries: readonly T[],
+  n: number,
+): T[] {
+  const keyed = entries.map((entry) => ({
+    entry,
+    hash: fnv1a(`${entry.family.profile}\n${entry.have}\n${entry.want}`),
+  }));
+  keyed.sort((a, b) => a.hash - b.hash || compareText(a.entry, b.entry));
+  return keyed.slice(0, Math.max(0, n)).map((k) => k.entry);
+}
+
+/** FNV-1a over the UTF-16 units of `text`, 32 bits: a fixed hash with no dependency, for an order that is the same everywhere. */
+function fnv1a(text: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash;
+}
+
+/** The order of two cases' texts, for a tie of the hash. */
+function compareText(
+  a: Pick<Entry, "family" | "have" | "want">,
+  b: Pick<Entry, "family" | "have" | "want">,
+): number {
+  const ka = `${a.family.profile}\n${a.have}\n${a.want}`;
+  const kb = `${b.family.profile}\n${b.have}\n${b.want}`;
+  return ka < kb ? -1 : ka > kb ? 1 : 0;
 }
 
 /** `run` with its timings rounded to a tenth of a millisecond, as the catalogue keeps it. */

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { inspect } from "node:util";
 import { test } from "node:test";
 import { parseExpr, parseUnitList } from "../../src/core/expr.ts";
+import { UNCERTIFIED } from "../../src/outcome.ts";
 import {
   DEFAULT_SETTINGS,
   STORAGE_VERSION,
@@ -21,15 +22,15 @@ import {
   catalogueFromStored,
   catalogueTable,
   catalogueText,
+  comparableLine,
   hangEstimate,
-  lineChanged,
   readCatalogue,
   hangsTable,
+  sample,
   summarizeTyping,
   withEntryAgain,
   withHangAgain,
   withHit,
-  withOutcome,
   withRun,
   withTable,
   withTyping,
@@ -395,24 +396,56 @@ test("a case's settings are read through the settings migrations and written in 
   );
 });
 
-test("a line recorded again replaces what both runs gave, keeping every timing", () => {
-  const before = entry(family("gamma(x)"), "gamma(3) - 2", 1500);
-  const same = { kind: "result", line: "x ≈ 0", warnings: 0 } as const;
-  const reworded = {
-    kind: "result",
-    line: "x ≈ 0 (within 1e-30 of zero)",
-    warnings: 0,
-  } as const;
-  assert.equal(lineChanged(before, same), false);
-  assert.equal(lineChanged(before, reworded), true);
-  assert.equal(lineChanged(before, { ...same, warnings: 1 }), true);
-  const after = withOutcome(before, reworded);
-  assert.deepEqual(after.cold.outcome, reworded);
-  assert.deepEqual(after.warm.outcome, reworded);
-  assert.deepEqual({ ...after, cold: before.cold, warm: before.warm }, before);
-  assert.equal(after.cold.ms, before.cold.ms);
-  assert.deepEqual(after.warm.passes, before.warm.passes);
-  // A change in one run alone is a change.
-  const halfway = { ...before, warm: { ...before.warm, outcome: reworded } };
-  assert.equal(lineChanged(halfway, reworded), true);
+test("a sample is the same entries whatever the order given, and all of them when asked for more", () => {
+  const f = family("gamma(x)");
+  const entries = [
+    "gamma(3)",
+    "gamma(1/3)",
+    "gamma(2.5)",
+    "gamma(7)",
+    "gamma(0.5)",
+    "gamma(1e-5)",
+  ].map((have) => entry(f, have, 1500));
+  const chosen = sample(entries, 3);
+  assert.equal(chosen.length, 3);
+  assert.equal(new Set(chosen).size, 3);
+  assert.deepEqual(sample([...entries].reverse(), 3), chosen);
+  // The first of a larger sample are the smaller sample: the order is fixed.
+  assert.deepEqual(sample(entries, 4).slice(0, 3), chosen);
+  assert.deepEqual(sample(entries, 6), sample(entries, 100));
+  assert.equal(sample(entries, 6).length, 6);
+  assert.deepEqual(sample(entries, 0), []);
+  // The profile is part of the case: the same text under another profile
+  // is another entry, ranked on its own.
+  const other = { ...entries[0]!, family: { ...f, profile: "maxcap" } };
+  assert.equal(sample([...entries, other], 7).length, 7);
+});
+
+test("an entry is held to the result side of its line, the echo and the note left out", () => {
+  // The printer's echo of the expression changes with the printer.
+  assert.equal(
+    comparableLine("digamma(1e-5 + 1) - 1/1e-5 ≈ 0 (within 2e-4044 of zero)"),
+    "≈ 0",
+  );
+  assert.equal(
+    comparableLine("digamma(1e-5 + 1) - 1 / 1e-5 ≈ 0 (within 3e-4044 of zero)"),
+    "≈ 0",
+  );
+  // The relation is part of the result: exact and inexact differ.
+  assert.equal(comparableLine("1 in = 2.54 cm"), "= 2.54 cm");
+  assert.equal(comparableLine("1 m ≈ 39.370079 in"), "≈ 39.370079 in");
+  assert.equal(
+    comparableLine("2 m = 6 ft + 6.7401575 in (8 of 12 digits are certain)"),
+    "= 6 ft + 6.7401575 in",
+  );
+  assert.equal(
+    comparableLine(`x ${UNCERTIFIED} 3 (the digits are not certified)`),
+    `${UNCERTIFIED} 3`,
+  );
+  // A sign on the value is the value's, not the echo's.
+  assert.notEqual(comparableLine("x ≈ -0"), comparableLine("x ≈ 0"));
+  // The first relation is the one taken.
+  assert.equal(comparableLine("a ≈ b ≈ 3"), "≈ b ≈ 3");
+  // A message with no relation is held whole.
+  assert.equal(comparableLine('"x" is not a unit'), '"x" is not a unit');
 });

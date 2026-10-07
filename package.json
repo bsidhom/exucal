@@ -16,7 +16,6 @@
     "stress": "node bench/stress/verify.ts",
     "stress:search": "node bench/stress/search.ts",
     "stress:rewrite": "node bench/stress/rewrite.ts",
-    "stress:reline": "node bench/stress/reline.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

@@ -248,6 +248,11 @@ Implemented (docs/ratio-width.md, "As landed"; D28).
 
 ### S3. The limits: Digits, the precision limit, Most bits
 
+Implemented (docs/settings-limits.md, "As landed"; D29). The terms are
+now the display digits, the working digits, the precision limit in
+digits, the significand limit in bits and the probe budget in
+milliseconds; the core's renames are an alignment change after it.
+
 - **Scope.** Which of the three are settings and which are derived
   (P7, #86): whether the cap is a user's number or a cost knob with a
   better name, and whether decimal mode carries a ceiling at all. The

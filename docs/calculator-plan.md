@@ -1349,6 +1349,31 @@ the per-part measure the S2 note recommended); a mixed form and a
 fractional mantissa are ruled out; an approximating fraction for an
 inexact value stays ruled out.
 
+**D29. The limits are a precision limit in decimal digits, the most
+digits any grid may be asked for, and a significand limit in bits, the
+most bits in a significand's numerator or denominator; with the display
+digits and the working digits they are four settings in the units their
+names and keys carry, clamped top-down with the working digits last, a
+clamp told where it lands and an edit past a bound refused with the
+bound named; the ceiling is derived from the precision limit and read
+in both modes as the finest decimal grid the app rounds onto; the
+defaults stay and depend on no device; the probe's budget is a stored
+setting in milliseconds, and the probe proposes and the user applies
+(S3 of docs/settings-plan.md; resolves #86; amends D12, D13 and D16 in
+their names).** docs/settings-limits.md is the design. The model the
+terms state: a value is a rational significand times a power of ten,
+kept exact until it must be rounded, and then rounded not to a nearby
+rational but onto a decimal grid whose digits the precision limit
+bounds; the significand limit bounds the bits of the rational's parts,
+and the grid's points, being significands, must fit inside it, which
+`2 × bitsFor(4 × (L + 10)) ≤ S` states and `maxDigitsFor` enforces.
+The names in the core (`maxBits`, `maxDigitsFor`, `LIMIT_BITS`,
+`MIN_MAX_BITS`, `Scaled.mant`, "the cap", "the range limit",
+"mantissa") follow in an alignment change after the panel's; until
+then D12, D13 and D16 read with "the cap" as the precision limit, "the
+range limit" as the significand limit and "mantissa" as the
+significand.
+
 ## Stage 1: the context and the ball
 
 Firm. What lands: the seven rounding modes, named once; the context in

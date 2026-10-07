@@ -3,7 +3,9 @@
 The design note for step S3 of docs/settings-plan.md: Digits, the
 precision limit and Most bits, which the plan's P1, P2, P3, P7, P9, P10
 and P12 (its limits half) find intertwined, misnamed and silent, and
-which #86 asks whether decimal mode needs at all. It also settles two
+which #86 asks whether decimal mode needs at all. **Status:
+implemented**; "As landed" at the end says what the implementation
+settled. It also settles two
 questions the earlier steps sent here: whether the defaults should
 depend on the device, and whether decimal mode's working digits should
 default above Digits (docs/working-digits.md). It changes no number's
@@ -450,3 +452,50 @@ must fit inside it, which `2 × bitsFor(4 × (L + 10)) ≤ S` states and
 - **Re-basing the precision limit on the grid itself**, weighed above
   and recorded as the alternative.
 - **A warning path for what loading changed (#167).**
+
+## As landed
+
+- **The storage's renames landed with the panel**, not after it: the
+  budget needed a version 5, and the note asks that the keys' renames
+  and the new field ride one migration, so `Settings` and the stored
+  object say `displayDigits`, `precisionLimitDigits`,
+  `significandLimitBits` and `budgetMs` now (docs/settings-storage.md,
+  version 5). The core's renames (`NumberContext.maxBits`,
+  `maxDigitsFor`, `LIMIT_BITS`, `MIN_MAX_BITS`, `Scaled.mant`, the
+  docs' "cap", "range limit" and "mantissa", D12, D13 and D16) wait for
+  the alignment change as ruled; `contextOf` is where the two
+  vocabularies meet, and ARCHITECTURE.md states the mapping.
+- **The bound's setter is in the range.** `rangesOf` gives each ranged
+  setting its `Bounds`, the range with `minBy` and `maxBy` naming the
+  setting that sets a bound where the chain sets one, and the refusal
+  (`refusalOf`: not a whole number, or below or above a bound with its
+  setter) and the clamp's report (`clampsOf`: each setting moved, from
+  what to what, by which setting, in the order moved) read it from
+  there; `clampSettings` is the same fold without the report.
+- **The clamp's line reaches the panel through the shell**, which
+  computes the report beside the clamp and passes it as a property with
+  the settings; the refusal never leaves the panel. Both lines sit
+  under the input, above the setting's own line, and a refusal clears
+  on the next change of the settings, the clamp's line on the next
+  change that comes through the shell, so a refused edit leaves a
+  clamp's line standing.
+- **The unit after the input, once.** Every number input shows its
+  unit after it ("digits", "bits", "ms"), the two digit settings
+  included, since the suffix sits on the number and the name on the
+  label, and the ratio's width shows "digits" as well, having no unit
+  in its label. A count of one is "1 digit".
+- **The probe times its floor.** `recommendLimits` tries the
+  significand limit's floor before the powers of two, so that the size
+  it recommends was always timed, and its result carries the time of
+  each operation at the recommended size; a floor that cost more than
+  the budget is said to have ("over the 50 ms budget at the least this
+  device may be set to") rather than claimed to fit. The budget is the
+  caller's, the panel passing the stored setting; the module has no
+  budget of its own.
+- **The words are a module.** The lines, the refusal, the clamp's line
+  and the proposal are text functions in settings-lines.ts, which the
+  panel composes and a test under Node reads, since a Lit component is
+  not what a Node test loads.
+- **The significand limit's line translates per part** at three
+  significant figures ("65,536 bits is a numerator or a denominator of
+  up to about 19,700 digits"), following the limit in force.

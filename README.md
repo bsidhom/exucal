@@ -19,17 +19,21 @@ modeled.
 
 ## Settings
 
-The Settings panel under the converter has five settings, kept in the
+The Settings panel under the converter has six settings, kept in the
 browser so that they survive a reload (under a format version of their
 own, so that a later build migrates what an earlier one stored;
 `docs/settings-storage.md`). The mode carries one more under it, which
 one depending on the mode: exact mode the notation its exact values are
-written in, decimal mode its working digits.
+written in, decimal mode its working digits. Every number carries its
+unit, on screen after the input and in the stored key: the display
+digits and the precision limit in decimal digits, the significand limit
+in bits, the probe budget in milliseconds (`docs/settings-limits.md`).
 
-- **Digits**: how many significant digits an answer is shown with, from 1
-  up to the precision limit; eight by default, as GNU units shows.
-  `1 m` in `in` is `≈ 39.370079 in` at eight digits and `≈ 39.3700787402
-in` at twelve. In decimal mode it is also the digits of every value: a
+- **Display digits** (`displayDigits` in the stored settings): how many
+  significant digits an answer is shown with, from 1 up to the
+  precision limit; eight by default, as GNU units shows. `1 m` in `in`
+  is `≈ 39.370079 in` at eight digits and `≈ 39.3700787402 in` at
+  twelve. In decimal mode it is also the digits of every value: a
   number typed with more is rounded to them as it is read, and every
   step is rounded to them unless the working digits are extended, below.
 - **Rounding**: one of the seven standard modes; to nearest with ties to
@@ -44,13 +48,13 @@ in` at twelve. In decimal mode it is also the digits of every value: a
   shown is certain: the app computes at rising precisions until the
   digits asked for are certified, and nothing rounds before the display,
   so `1 / 3 * 3` is `= 1`. In decimal mode every step is rounded to the
-  digits, in the rounding mode, as a hand calculator does, and the
+  display digits, in the rounding mode, as a hand calculator does, and the
   rounded value is the value: `1 / 3 * 3` at eight digits is
   `= 0.99999999`, and `1 / (1 / 3 * 3 - 1)` is `= -100000000`. Every
   answer in decimal mode is written with `=`, since every value there is
   exact under the mode's rounding. A step is an operation you can see:
   each `+`, `*`, `/` or `^`, each number typed (one with more digits than
-  Digits is rounded to them as it is read), each unit, and each function
+  the display digits is rounded to them as it is read), each unit, and each function
   call as a whole, `gamma(4.5)` being computed to whatever precision it
   takes for its rounding to be certified and then rounded once
   (`docs/decimal-mode.md`). A value with the digits asked for or fewer is
@@ -74,23 +78,24 @@ in` at twelve. In decimal mode it is also the digits of every value: a
   `≈ 3.4867844e+9` at eight digits); and a ratio that fits only with
   its power of ten factored out is written as the ratio times the power
   (`(1/3) * 1e30 = 1/3 × 1e+30`, which reads back as itself).
-  Anything longer is written as a decimal at Digits, `=` when the
+  Anything longer is written as a decimal at the display digits, `=` when the
   decimal is exact and `≈` otherwise, and an inexact value is always
   a decimal with `≈` (`sqrt(2) m ≈ 1.4142136 m`): the notation changes
   how an exact value is written, never what is exact. The ratio is in
   parentheses before a unit, since `5000/127 in` would read as
   `5000 / (127 in)`, and bare when nothing follows it. It is a setting
   of exact mode alone, since in decimal mode every value is a decimal
-  of Digits digits, which its digits write entire; choosing decimal
+  of the display digits, which its digits write entire; choosing decimal
   mode and coming back finds digits again. `docs/fractions.md` and
   `docs/ratio-width.md` are the design.
-- **Working digits** (decimal mode, grouped with Digits in the panel;
-  `mode.working` in the stored settings, locked to Digits or `extended`
-  with a count): locked to Digits by default, under which every step is
-  rounded to Digits. With
-  `extended` checked, a count from Digits up to the precision limit
-  appears, and every step but the last is rounded to that many digits
-  while the answer is rounded to Digits directly from the exact result
+- **Working digits** (decimal mode, grouped with the display digits in
+  the panel; `mode.working` in the stored settings, locked to the
+  display digits or `extended` with a count): locked to the display
+  digits by default, under which every step is rounded to them. With
+  `extended` checked, a count from the display digits up to the
+  precision limit appears, and every step but the last is rounded to
+  that many digits while the answer is rounded to the display digits
+  directly from the exact result
   of its last step, as a calculator keeps hidden digits behind its
   display: `ln(exp(1/10))` at eight digits is `= 0.099999984`, the
   first rounding's error having been amplified, and over twelve working
@@ -99,46 +104,68 @@ in` at twelve. In decimal mode it is also the digits of every value: a
   sits on the grid, as that mode asks (`0.099999999` toward zero), since
   the working digits change what is rounded, never how.
   `docs/working-digits.md` is the design.
-- **Precision limit** (`maxDigits` in the code and the stored settings):
-  the most digits an answer may be asked for, 1,000 by default, and
-  through that a limit on effort: to certify an answer, exact mode
-  computes at rising precisions, up to four times this plus ten digits
-  (4,040 by default), and an expression whose digits can never be certain
-  (`(2^(1/2))^2 - 2`, which is zero within a bound) runs all the way up on
-  every keystroke. In decimal mode, which computes in one pass, it caps
-  Digits and the working digits, and it bounds the hidden precision a
-  step's rounding is certified at: a function's value is computed at
-  rising precision up to that ceiling until its rounding is certain.
-  Changing it rebuilds the unit table,
-  since the angle units carry `pi()` to that ceiling; changing the digits
-  never does.
-- **Most bits** (`maxBits` in the code and the stored settings): the most
-  bits the app will form and hold for one number, as the bits of a
-  numerator or denominator of what it stores, 65,536 by default (about
-  19,700 digits). It is a hard limit on cost, in time and
-  in memory, not on how large a value may be: a value is stored as a
-  fraction times a power of ten, so a power of ten is free
-  (`10^1000000000` is `1e+1000000000`, and only its exponent, bounded at
-  `10^18` either way, is counted), while a fraction with a power of two
-  in its denominator is stored with fives instead, so `2^-30000`, a
-  30,000-bit value, costs 69,658 bits. That is the one case where the
-  cost is more than the value's own bits, by a factor of about 2.3 at
-  most, and it only matters for a value already within that factor of
-  the limit: a number that simple by its factors is still a big number
-  by its digits (`3^-100000` costs its 158,497 bits under any way of
-  storing it as digits), and `approx` is the way to compute with one, as
-  below. The limit is what makes `3^1000000000` an
-  error rather than a hang. When an exact result would need more than
-  the limit, the app refuses that part of the expression and names it,
-  and there are two ways on: write `approx(…)` around one of its
-  operands, which the message shows, so that the part is computed to the
-  digits asked and shown with `≈` instead of `=`, or raise `maxBits`; in
-  exact mode the app never rounds an exact value on its own. It also
-  bounds the most digits: lowering it lowers that setting, and the
-  digits, when they no longer fit.
-  Both limits are cost limits, and the right values depend on the device, so
-  the panel's "Recommend limits" button measures what this one does within
-  a fraction of a second and sets them; it runs only when pressed.
+- **Precision limit**, in digits (`precisionLimitDigits` in the stored
+  settings): the most digits any grid may be asked for ("How a number
+  is held" below says what the grid is), 1,000 by default: the cap on
+  the display digits and on the working digits, and through the finest
+  grid the app rounds onto, four times this plus ten digits (4,040 by
+  default), a limit on effort. To certify an answer, exact mode rounds
+  onto finer and finer grids up to that one, and an expression whose
+  digits can never be certain (`(2^(1/2))^2 - 2`, which is zero within
+  a bound) runs all the way up on every keystroke; in decimal mode a
+  step's rounding is certified on grids up to the same one. The panel's
+  line says the limit's own top under the significand limit and the
+  finest grid as numbers, never as a formula. Changing it rebuilds the
+  unit table, since the angle units carry `pi()` to that grid; changing
+  the display digits never does.
+- **Significand limit**, in bits (`significandLimitBits` in the stored
+  settings): a value is a significand, a numerator over a denominator
+  in lowest terms, times a power of ten, and this is the most bits the
+  numerator and, separately, the denominator may have, 65,536 by default
+  (a numerator or a denominator of about 19,700 digits; a ratio such as
+  `1/3` has no digit count of its own). It is a hard limit on cost, in
+  time and in memory, not on how large a value may be: the power of ten
+  is free (`10^1000000000` is `1e+1000000000`, and only its exponent,
+  bounded at `10^18` either way, is counted), while a fraction with a
+  power of two in its denominator is stored with fives instead, so
+  `2^-30000`, a 30,000-bit value, costs 69,658 bits. That is the one
+  case where the cost is more than the value's own bits, by a factor of
+  about 2.3 at most, and it only matters for a value already within
+  that factor of the limit: a number that simple by its factors is
+  still a big number by its digits (`3^-100000` costs its 158,497 bits
+  under any way of storing it as digits), and `approx` is the way to
+  compute with one, as below. The limit is what makes `3^1000000000`
+  an error rather than a hang. When an exact result would need more
+  than the limit, the app refuses that part of the expression and names
+  it, and there are two ways on: write `approx(…)` around one of its
+  operands, which the message shows, so that the part is computed to
+  the digits asked and shown with `≈` instead of `=`, or raise the
+  limit; in exact mode the app never rounds an exact value on its own.
+  The finest grid must fit inside it, so it also bounds the precision
+  limit: 2,453 digits at the default.
+- **Probe budget**, in milliseconds (`budgetMs` in the stored settings):
+  the time the probe below allows one pass, 50 by default, from 10 to
+  10,000.
+
+The limits are set top-down: the significand limit bounds the precision
+limit, the precision limit the display digits, and the two of them the
+working digits. An edit within a setting's range is accepted; one past
+a bound is refused, and a line under the input names the bound and the
+setting that sets it ("at most 2,453 digits under the significand
+limit"). An accepted edit that lowers a limit lowers what depends on it,
+and a line under each setting moved says so ("lowered from 1,000 to 26
+digits to fit the significand limit"), until the next change: the
+bounding setting always wins, since a limit is a cost bound the user
+set and an edit to a dependent must not raise it unasked. The defaults
+are the app's and depend on no device. Both limits are cost limits whose
+right values do depend on the device, so the panel's "Measure this
+device" button times the costliest exact product and the costliest
+built-ins at rising sizes, within the probe budget a pass, and proposes
+the largest significand limit and precision limit at which each stays
+within it, so that an expression that runs to the finest grid answers
+within a keystroke; the proposal shows the sizes and the timings it
+found, and nothing changes until "Apply" is pressed. The probe runs only
+when pressed, on the main thread, for a fraction of a second.
 
 Tapping the build number in the footer asks at once whether a new version
 of the app has been deployed, rather than waiting for the app's own checks
@@ -176,43 +203,58 @@ root, `exp`, `sin`, `pi()`) and `approx`. In decimal mode no value is
 inexact: every step is rounded and the rounded value is the value, and
 the radius serves only inside a function, to certify its rounding.
 
-The two kinds of value are limited by two different things, and that is
-why the settings come in two units.
+The fraction is the value's significand, the part the power of ten
+scales, as a float's significand is the part its exponent scales, with
+the one difference that here it is a rational rather than a binary
+fraction. When a value is rounded, it is not snapped to a nearby
+rational: its significand is snapped onto a decimal grid, an integer of
+some number of significant digits times a power of ten, and the number
+of digits of the grid is the working precision of the arithmetic at
+that moment. A rounding adds half a grid cell to the radius, which is
+what decides what digits of an answer are certain; a finer grid is
+necessary for more certain digits and never sufficient, since
+cancellation keeps `(2^(1/2))^2 - 2` at a radius of a grid cell on every
+grid. The two kinds of value are limited by two different things, and
+that is why the limits come in two units.
 
-- **An exact value is limited by its size, in bits.** `1/3` is small,
-  `3^100000` is not, and what it costs to store and multiply is the bits
-  of its numerator and denominator. Most bits bounds that, and nothing
-  else touches an exact value in exact mode: it is never rounded, and
-  no digits setting applies to it. The display writes as many of its
-  digits as Digits asks for and marks the rest rounded away with `≈`.
-- **An inexact value is limited by its precision, in decimal digits.**
-  What is known of it is its midpoint within its radius, and the app
-  keeps the midpoint to a working number of significant digits, rounding
-  it after every step and adding the rounding to the radius, so that an
-  inexact number never grows past what its radius makes meaningful. The
-  digits are decimal because the exponent is decimal: a midpoint rounded
-  to `w` digits is an integer of `w` digits times a power of ten, the
-  smallest form the type has, and it is what the display writes, so the
-  digits shown and the digits computed are the same kind of thing. The
-  functions themselves work in binary, at the bits those digits are
-  worth plus a guard, and round their results onto the decimal grid on
-  the way out.
+- **An exact value is limited by the significand limit, in bits.** `1/3`
+  is small, `3^100000` is not, and what it costs to store and multiply
+  is the bits of its numerator and denominator. The significand limit
+  bounds each of them, and nothing else touches an exact value in exact
+  mode: it is never rounded, and no digits setting applies to it. The
+  display writes as many of its digits as the display digits ask for
+  and marks the rest rounded away with `≈`.
+- **An inexact value is limited by the precision limit, in decimal
+  digits.** What is known of it is its midpoint within its radius, and
+  the app keeps the midpoint on a grid, rounding it after every step and
+  adding the rounding to the radius, so that an inexact number never
+  grows past what its radius makes meaningful. The grid is decimal
+  because the exponent is decimal: a midpoint rounded to `w` digits is
+  an integer of `w` digits times a power of ten, the smallest form the
+  type has, and it is what the display writes, so the digits shown and
+  the digits computed are the same kind of thing. The functions
+  themselves work in binary, at the bits those digits are worth plus a
+  guard, and round their results onto the decimal grid on the way out.
+  A grid point is itself a significand, an integer over one, so it must
+  fit inside the significand limit: that is how the two limits meet.
 
-In exact mode, Digits is how many digits of the answer must be certain
-before it is shown, and the app raises the working digits of the
+In exact mode, the display digits are how many digits of the answer
+must be certain before it is shown, and the app raises the grid of the
 inexact values, pass by pass, until the two ends of the ball round to
 the same digits. The precision limit is how far it may raise them, four
 times the limit plus ten, which is also the most digits an answer may
-be asked for. In decimal mode there is one pass, every value is rounded
-to Digits, exact values included, and is exact after it; a function's
-value is computed at rising precision, up to the same ceiling, until its
-rounding to Digits is certified, so the precision limit caps Digits and
-bounds that certification. In both modes, Most bits is the one limit on exact values, and
-it also bounds the precision limit, since a midpoint at the ceiling must
-fit within it with room for a product.
+be asked for. In decimal mode every step is rounded onto the grid of
+the display digits (or the working digits), exact values included, and
+is exact after it; a function's value is computed on finer grids, up to
+the same ceiling, until its rounding onto that grid is certified, so the
+precision limit caps the display digits and the working digits and
+bounds that certification. In both modes, the significand limit is the
+one limit on exact values, and it also bounds the precision limit, since
+a grid point at the ceiling must fit within it with room for a product
+of two: at 65,536 bits the precision limit may be 2,453 digits.
 
 **Why four times the limit plus ten.** The passes of exact mode are a
-geometric schedule: the first computes at Digits plus ten, and each
+geometric schedule: the first computes at the display digits plus ten, and each
 later one at twice the one before, so the passes together cost at most
 about twice the pass that succeeds, whatever it is. Cancellation costs
 digits, `k` of them when two values agree to `k` digits before they are
@@ -221,9 +263,9 @@ guard of the first pass: a short expression loses a few digits to the
 rounding of each step and a little more to an ordinary cancellation,
 and ten covers that, so that the common case certifies on its first
 pass. The ceiling is the top of the schedule, and it has to be one
-number for every Digits, since the unit table and the constants are
+number for every display digits, since the unit table and the constants are
 built once at it. It is set from the largest request the limit allows:
-at Digits equal to the limit, the first pass is the limit plus ten, and
+at display digits equal to the limit, the first pass is the limit plus ten, and
 four times that gives that request two doublings above its first pass,
 two chances to pay for a cancellation, where a smaller request has
 correspondingly more (nine passes at eight digits). Four was chosen as
@@ -231,7 +273,7 @@ the least factor that gives the largest request more than one such
 chance without doubling what the table and the constants cost for
 every setting; the guard of ten and the factor are judgments, not
 measurements, and they moved once, from a fixed ceiling of a thousand
-digits with Digits capped at two hundred, when the cap became a setting.
+digits with the digits capped at two hundred, when the cap became a setting.
 
 ## Unit definitions
 
@@ -622,7 +664,7 @@ which go anywhere a unit goes and are called the same way. They are:
   `gamma(0.5)^2` is `≈ 3.1415927`, and `gamma(-1.5)` is `≈ 2.3632718`.
   `gamma(x + 1)` is `factorial(x)` for any `x`, which is where a
   factorial of a value that is not a whole number known exactly, or one
-  past Most bits, is pointed: `gamma(20001)` is `≈ 1.8192063e+77337`,
+  past the significand limit, is pointed: `gamma(20001)` is `≈ 1.8192063e+77337`,
   the value `factorial(20000)` cannot hold. `lgamma` is the way to a
   Gamma value whose exponent passes `10^18` (`lgamma(1e19)` is a value
   where `gamma(1e19)` is refused), and `lgamma(1)` and `lgamma(2)` are
@@ -637,7 +679,7 @@ which go anywhere a unit goes and are called the same way. They are:
 - `beta(a, b)`, the Beta function `gamma(a) gamma(b) / gamma(a + b)`,
   of two plain numbers: `beta(0.5, 0.5)` is `≈ 3.1415927`, and
   `beta(2, 3)` is the exact `1/12`, as it is for any whole numbers
-  whose value fits Most bits. A whole number at or below zero in either
+  whose value fits the significand limit. A whole number at or below zero in either
   argument is a pole, an error; a sum at one with neither argument
   there makes the value exactly `0` (`beta(-0.5, -0.5)`). Large
   arguments go through `lgamma`, so `beta(1e6, 1e6)` is
@@ -670,7 +712,7 @@ which go anywhere a unit goes and are called the same way. They are:
   `a` and `b` and `x` within `[0, 1]`, the parameters first as the
   incomplete Gamma functions take them: `incbetareg(2, 3, 0.5)` is the
   exact `0.6875`, as it is for any whole numbers at a fraction whose
-  powers fit Most bits, and `incbetareg(3/2, 1/2, 3/(3 + 2^2)) / 2` is
+  powers fit the significand limit, and `incbetareg(3/2, 1/2, 3/(3 + 2^2)) / 2` is
   `≈ 0.069662984`, the one-sided tail of Student's t with three degrees
   of freedom at `2`. Every result is certified: the series carries its
   truncation bound, and the symmetry `I_x(a, b) = 1 - I_(1-x)(b, a)`
@@ -701,13 +743,13 @@ result passes:
 
 ```
 "exp(1e999)" is too large to compute: its exponent would pass 10^18.
-"1e999999999 + 1" is too large to compute within Most bits.
+"1e999999999 + 1" is too large to compute within the significand limit.
 ```
 
-A value is held as a mantissa times a power of ten. The settings limit
-the mantissa: Digits and the precision limit say how many of its digits
-must be certain, and Most bits how large its numerator and denominator
-may grow.
+A value is held as a significand times a power of ten. The settings
+limit the significand: the display digits and the precision limit say
+how many of its digits must be certain, and the significand limit how
+large its numerator and denominator may grow.
 The exponent has a fixed bound of its own, `10^18` either way, which is
 not a setting. `1e999` is `1 × 10^999`, well within both. `exp(1e999)` has
 a mantissa that 32 digits hold with ease and an exponent that is itself a
@@ -715,11 +757,11 @@ number of 999 digits:
 
 ```
 exp(1e999) = 2.0307164965753263882718190599363 × 10^434294481903251827…4497145
-             └────────── mantissa ───────────┘      └─────── exponent ───────┘
-             the settings' part: Digits,            fixed, not a setting:
-             Precision limit and Most bits;         at most 10^18 either
-             32 digits fit with ease                way; this one has 999
-                                                    digits, 4.3 × 10^998
+             └───────── significand ─────────┘      └─────── exponent ───────┘
+             the settings' part: the display        fixed, not a setting:
+             digits, the precision limit and        at most 10^18 either
+             the significand limit; 32 digits       way; this one has 999
+             fit with ease                          digits, 4.3 × 10^998
 ```
 
 The exponential of `x` has the decimal exponent `x log10 e`, so `exp(x)`
@@ -732,19 +774,19 @@ to compute, its exponent would fall below `-10^18`. `sinh`, `cosh` and
 powers (`pow(10, 1e999)`, `10^1e999`) share the limit, `sinh` and `cosh`
 of a negative argument being too large rather than too small, and a
 power that no setting could hold is reported at the bound even where
-Most bits refuses it first (`7^1e19`, an integer of about `8.5 × 10^18`
+The significand limit refuses it first (`7^1e19`, an integer of about `8.5 × 10^18`
 digits). A refusal needs the whole ball past the edge: an argument whose
 value may lie on either side of it, because its radius reaches across
 (`exp(approx(1e999) - approx(1e999 - 5))` at its first pass, `5` within
 about `2e948`), is not refused but retried at more digits, until the
 ball is within the bound (`≈ 148.41316`) or past it, or the retries run
 out, when the message says the value cannot be told from the point
-where the result passes the bound. What `approx` does relax is Most bits, in a sum,
+where the result passes the bound. What `approx` does relax is the significand limit, in a sum,
 in an integer power, and in any product, quotient or sum whose exact
 result would grow past the limit: `1e999999999 + 1` is refused, since
 its exact value has a billion digits, while `approx(1e999999999) + 1` is
 `≈ 1e+999999999`, the `1` absorbed into the radius; `3^1000000000` is
-refused, its exact value needing more bits than Most bits allows, while
+refused, its exact value needing more bits than the significand limit allows, while
 `approx(3)^1000000000` is `≈ 5.243997e+477121254`, its digits kept to the
 working precision at every step; and `3^32767 * 7^21845` is refused,
 each power within the limit and their product past it, while
@@ -760,7 +802,7 @@ that argument to many more digits than the result shows. `exp(1e999)` to
 and 33 after. `approx(1e999)` is `1e999` within one unit in its last
 working digit, and the app computes at rising precisions until the digits
 asked for are certain, so the radius shrinks with each pass; but at 32
-digits, with a precision limit of 1,000 and Most bits 32,768, it stays
+digits, with a precision limit of 1,000 and a significand limit of 32,768 bits, it stays
 above one, where `exp` would have no digit to show, until the sixth pass:
 
 ```
@@ -799,7 +841,7 @@ would cost it five passes.
 
 So the settings are not what stands in the way. The sixth pass is within
 the ceiling of 4,040 digits that a precision limit of 1,000 gives, and its
-1,354-digit midpoint fits Most bits of 32,768. A test build with the
+1,354-digit midpoint fits a significand limit of 32,768 bits. A test build with the
 exponent bound raised to `10^1100` found the right digits of `exp(1e999)`
 at the first pass and of `exp(approx(1e999))` at the sixth, each in under
 half a second: a 32-digit answer 1,034 characters long, most of them the
@@ -1015,9 +1057,12 @@ hook's output at session start says which part is out of date.
   that mirrors the worker's status into it, checked by
   `src/subscription.test.ts`.
 - `src/settings-panel.ts` defines `<settings-panel>`, the controls of the
-  Settings panel (see Settings above) and the "Recommend limits" button.
-  It takes the settings as a property and reports each change as an event;
-  the shell applies and saves it.
+  Settings panel (see Settings above) and the "Measure this device"
+  button with its proposal. It takes the settings as a property and
+  reports each change as an event; the shell applies and saves it, and
+  hands back what the clamp moved for the panel to say.
+  `src/settings-lines.ts` holds the lines the panel says, text alone,
+  checked by `src/settings-lines.test.ts`.
 - `src/app-footer.ts` defines `<app-footer>`, the build the page is running,
   which checks for updates when tapped, and the worker's status (see
   Offline behavior below).
@@ -1034,9 +1079,10 @@ hook's output at session start says which part is out of date.
   computes with, whose ceiling is derived from the precision limit.
   `src/settings.test.ts` checks the parsing, the migrations and the reset
   under Node.js with a fake storage.
-- `src/limits.ts` is the probe behind the "Recommend limits" button: it
-  times the app's costliest operations on this device and proposes the two
-  limits. `src/limits.test.ts` checks it against a fake clock.
+- `src/limits.ts` is the probe behind the "Measure this device" button: it
+  times the app's costliest operations on this device within the probe
+  budget and proposes the two limits with the timings behind them.
+  `src/limits.test.ts` checks it against a fake clock.
 - `src/outcome.ts` turns the pipeline's result for a pair of texts into the
   lines the output area shows, each two expressions and `=` or `≈` with a
   note, written by the core's printer so that every line can be typed back

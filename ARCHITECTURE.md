@@ -1455,25 +1455,40 @@ from zero is left out as a term of zero is, with its note, unless it is
 the only term; the reciprocal line shows its own kind. The settings are the shell's
 (`src/settings.ts`, kept in `localStorage`, validated on the way in with
 the dependent ones clamped, so that a stale entry never leaves the app
-without a consistent context): the digits, the rounding mode, the mode
-with what belongs to it (exact mode the notation its exact values are
-written in, digits or a ratio in lowest terms; decimal mode its working
-digits, locked to Digits or an extended count; docs/settings-modes.md,
-docs/working-digits.md), the cap on the digits and the range limit in
-bits (the plan's D16), reaching the component as its `context`
+without a consistent context): the display digits, the rounding mode,
+the mode with what belongs to it (exact mode the notation its exact
+values are written in, digits or a ratio in lowest terms; decimal mode
+its working digits, locked to the display digits or an extended count;
+docs/settings-modes.md, docs/working-digits.md), the precision limit in
+digits and the significand limit in bits (the plan's D16 and D29,
+docs/settings-limits.md), reaching the component as its `context`
 property, the same `NumberContext` the pipeline takes, whose ceiling,
-the top of the retry schedule, is derived from the cap and which carries
-the working digits when they are extended, and the ratio notation's
-width, a display setting that reaches the component as its `ratio`
-property and the core never sees but through `show`. A
-button in the panel runs the probe of `src/limits.ts`, which times the
-costliest operation the app has on each axis at doubling sizes (an exact
-product with its reduction for the range limit, and for the cap one
-expression of the four costliest built-ins of the kernel benchmark's
-report, evaluated at the candidate's ceiling) and
-recommends the largest limits that stay within a latency budget per pass;
-it runs only when asked, and it measures time alone (the plan's D16 says
-why memory is left out). The line is written so
+the top of the retry schedule, is derived from the precision limit and
+which carries the working digits when they are extended, and the ratio
+notation's width, a display setting that reaches the component as its
+`ratio` property and the core never sees but through `show`. The
+settings speak the user's vocabulary and the core, until the alignment
+change docs/settings-limits.md lists, its own: `Settings.displayDigits`
+is `NumberContext.precision`, `Settings.significandLimitBits` is
+`NumberContext.maxBits`, `Settings.precisionLimitDigits` derives
+`NumberContext.ceiling` through `ceilingFor` and has its top under the
+significand limit from `maxDigitsFor`, and `LIMIT_BITS` and
+`MIN_MAX_BITS` are the significand limit's hard bound and floor;
+`contextOf` is where the two meet. A change the panel reports goes
+through the shell's clamp, and what the clamp moved goes back to the
+panel (`clampsOf`), which says under each setting moved from what to
+what and to fit which setting; an edit past a bound the panel refuses
+itself, naming the bound and its setter (`refusalOf`); the words are
+settings-lines.ts's. A button in the panel runs the probe of
+`src/limits.ts`, which times the costliest operation the app has on
+each axis at doubling sizes (an exact product with its reduction for
+the significand limit, and for the precision limit one expression of
+the four costliest built-ins of the kernel benchmark's report,
+evaluated at the candidate's ceiling) within the stored budget a pass
+and proposes the largest limits that stay within it, with the timings
+behind them; the panel shows the proposal and the user applies it as a
+change like any other. The probe runs only when asked, and it measures
+time alone (the plan's D16 says why memory is left out). The line is written so
 that it reads as the expression it means: a `want` with a magnitude of its
 own is written with a multiplication sign (`1 mi = 5.28 × 1000 ft`), since
 juxtaposing two numbers would read as one product, and a `want` that is a
@@ -1617,12 +1632,13 @@ src/edges.sweep.ts        the edge sweep at the text level: the pipeline and the
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
-src/settings.ts           Settings: the digits, the rounding mode, the mode with its notation or working digits, and the two limits, in localStorage under a format version with migrations; contextOf, reset
-src/limits.ts             recommendLimits: the probe that measures the device and proposes the two limits
+src/settings.ts           Settings: the display digits, the rounding mode, the mode with its notation or working digits, the two limits and the probe budget, in localStorage under a format version with migrations; contextOf, the clamp with its report, the refusal, reset
+src/settings-lines.ts     the lines the settings panel says: the units, the lines under the numbers, the refusal, the clamp's line, the probe's proposal; src/settings-lines.test.ts checks them
+src/limits.ts             recommendLimits: the probe that measures the device within the budget and proposes the two limits with their timings
 src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result, each two expressions the printer writes; src/outcome.test.ts checks them
 src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome
 src/copy-button.ts        the button beside each result that copies it
-src/settings-panel.ts     the settings panel: the controls and the probe's button; emits settings-change
+src/settings-panel.ts     the settings panel: the controls, the refusal and clamp lines, the probe's button and its proposal; emits settings-change
 src/app-footer.ts         the footer: the build ID, which checks for updates when tapped, and the worker's status
 src/subscription.ts       Subscription: a reactive controller that mirrors a source into its host; src/subscription.test.ts checks it
 src/styles.ts             the styles the components share
@@ -1649,9 +1665,9 @@ lists its files one per line ("Security" below).
 `pnpm test:all` runs `pnpm typecheck` before the tests.
 
 No test, sweep or benchmark depends on the limits a device has chosen.
-Most bits and the precision limit are settings, kept in the browser and
-proposed per device by the probe of `limits.ts`, and only the shell reads
-them, through `contextOf`. Every test, sweep and benchmark passes an
+The significand limit and the precision limit are settings, kept in the
+browser and proposed per device by the probe of `limits.ts`, and only
+the shell reads them, through `contextOf`. Every test, sweep and benchmark passes an
 explicit `NumberContext`, built from the defaults of context.ts
 (`DEFAULT_MAX_BITS`, `DEFAULT_CEILING`) or from literals; the tests of
 settings.ts read a storage in memory, and the probe's tests run over a
@@ -1661,7 +1677,7 @@ exponent bound `MAX_EXPONENT` are constants. So a device whose limits are
 set low runs the same suite to the same results, and a new test keeps it
 so: it builds its context from the constants, or one of its own when it
 needs more than the defaults (`rational.bench.ts` runs the quotients of
-issue #52 at twice the default range limit), never from the settings or
+issue #52 at twice the default significand limit), never from the settings or
 the probe. What
 does depend on the machine is time: one test of limits.ts asserts that a
 real probe answers within five seconds, and the benchmarks assert ratios

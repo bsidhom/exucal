@@ -441,11 +441,10 @@ export class SettingsPanel extends LitElement {
     this.recommending = true;
     await afterPaint(this);
     try {
-      const { maxBits, maxDigits } = recommendLimits(this.settings.budgetMs);
-      this.emit({
-        significandLimitBits: maxBits,
-        precisionLimitDigits: maxDigits,
-      });
+      const { significandLimitBits, precisionLimitDigits } = recommendLimits(
+        this.settings.budgetMs,
+      );
+      this.emit({ significandLimitBits, precisionLimitDigits });
     } finally {
       this.recommending = false;
     }

@@ -1,6 +1,6 @@
 import { LitElement, css, html, nothing } from "lit";
 import { live } from "lit/directives/live.js";
-import { customElement, property, state } from "lit/decorators.js";
+import { customElement, property, query, state } from "lit/decorators.js";
 import { MODES, type Mode } from "./core/context.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 import { recommendLimits, type Recommendation } from "./limits.ts";
@@ -10,6 +10,7 @@ import {
   NOTATION_LINE,
   PROBE_LINE,
   ROUNDING_LINES,
+  SETTING_NAMES,
   UNITS,
   clampLine,
   displayDigitsLine,
@@ -43,7 +44,23 @@ import {
 } from "./settings.ts";
 
 /**
- * The settings panel under the converter: The display digits a result is
+ * The settings sheet (docs/settings-surface.md, D30): a non-modal
+ * `<dialog>` laid over the page, fixed to the viewport, the page live
+ * and scrollable behind it, so that the result stays in view while a
+ * setting is changed to see its effect. On a narrow viewport it is a
+ * bottom sheet with two heights, three fifths of the screen or nearly
+ * all of it, which the handle at its top edge drags or taps between;
+ * on a wide one a side sheet along the right edge, the full height. Its
+ * controls scroll inside it. It opens when the shell sets `open`, from
+ * the cog (settings-button.ts), and closes from its Done button, from
+ * Escape and from the cog again, telling the shell with a
+ * `settings-close` event so that the shell's state and the dialog's
+ * agree; focus moves onto the sheet when it opens and the shell puts it
+ * back on the cog when it closes. The page's viewport meta asks the
+ * on-screen keyboard to resize the layout, so that the sheet, sized in
+ * `dvh`, rises with it and the input being typed in stays visible.
+ *
+ * The controls: The display digits a result is
  * shown with and, grouped with them in decimal mode, the working digits
  * every step but the last is computed with; the precision limit in
  * digits; the significand limit in bits; the rounding mode; the mode
@@ -57,6 +74,16 @@ import {
  * the mode always as a whole variant; the shell owns the settings, clamps
  * what depends on the change and saves them, so this panel knows nothing
  * of storage.
+ *
+ * A change applies on the control's `change` event, uniformly: a
+ * select or a radio the moment it is picked, a number input when it is
+ * committed, by Enter, by the keyboard's Done key (`enterkeyhint`, on
+ * the decimal keypad, which on iOS has one where the numeric keypad
+ * does not), by the sheet's Done button or by a tap away. The display
+ * digits, the working digits and the ratio width, the numbers nudged
+ * by a few, have steppers beside their inputs, each tap a change of
+ * one through the same range check as a typed value. Applying a
+ * number as it is typed waits for #118's scheduler (#186).
  *
  * Each number input accepts an integer in the range the settings above it
  * allow (`rangesOf`: The display digits up to the precision limit, the
@@ -91,22 +118,128 @@ export class SettingsPanel extends LitElement {
     hintStyles,
     css`
       :host {
-        display: block;
-        width: 100%;
-        max-width: 32rem;
+        display: contents;
         text-align: start;
       }
 
-      summary {
-        cursor: pointer;
+      dialog {
+        /* A bottom sheet: fixed to the viewport's lower edge, the page live behind it. */
+        position: fixed;
+        inset: auto 0 0 0;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: none;
+        height: 60dvh;
+        max-height: none;
+        margin: 0;
+        padding: 0;
+        border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+        border-bottom: none;
+        border-radius: 1rem 1rem 0 0;
+        box-shadow: 0 -0.5rem 2rem
+          color-mix(in srgb, currentColor 15%, transparent);
+        color: inherit;
+        font: inherit;
+        z-index: 1;
+      }
+
+      dialog[open] {
+        display: flex;
+        flex-direction: column;
+      }
+
+      dialog.tall {
+        height: calc(100dvh - 2rem);
+      }
+
+      @media (min-width: 60rem) {
+        /* A side sheet: along the right edge, the full height, beside the column. */
+        dialog,
+        dialog.tall {
+          inset: 0 0 0 auto;
+          width: 24rem;
+          height: 100dvh;
+          border: none;
+          border-left: 1px solid
+            color-mix(in srgb, currentColor 20%, transparent);
+          border-radius: 0;
+          box-shadow: -0.5rem 0 2rem
+            color-mix(in srgb, currentColor 15%, transparent);
+        }
+
+        .handle {
+          display: none;
+        }
+      }
+
+      header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: none;
+        padding: 0.25rem 1rem 0.5rem;
+        border-bottom: 1px solid
+          color-mix(in srgb, currentColor 15%, transparent);
+      }
+
+      .handle {
+        /* The drag handle: a bar, with a thumb's hit area around it. */
+        width: 100%;
+        padding: 0.5rem 0;
+        border: none;
+        background: transparent;
+        color: inherit;
+        cursor: grab;
+        line-height: 0;
+        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .handle::before {
+        content: "";
+        display: block;
+        width: 2.5rem;
+        height: 0.3rem;
+        margin: 0 auto;
+        border-radius: 0.15rem;
+        background: color-mix(in srgb, currentColor 35%, transparent);
+      }
+
+      .bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 1rem;
         font-weight: 600;
+      }
+
+      .body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 0.75rem 1rem;
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom));
       }
 
       .settings {
         display: flex;
         flex-wrap: wrap;
         gap: 1rem;
-        padding-top: 0.75rem;
+      }
+
+      .stepper {
+        /* A step of one, with a thumb's hit area. */
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+        padding: 0;
+        border-radius: 50%;
+        line-height: 1;
       }
 
       label {
@@ -218,6 +351,9 @@ export class SettingsPanel extends LitElement {
     `,
   ];
 
+  /** Whether the sheet is open: the shell's state, which the dialog follows. */
+  @property({ type: Boolean }) open = false;
+
   /** The settings in force, from the shell. */
   @property({ attribute: false }) settings: Settings = DEFAULT_SETTINGS;
 
@@ -236,6 +372,17 @@ export class SettingsPanel extends LitElement {
   /** What the probe last proposed, until it is applied or the probe runs again. */
   @state() private proposal?: Recommendation;
 
+  /** Whether the bottom sheet is at its taller height; nothing on a wide viewport. */
+  @state() private tall = false;
+
+  @query("dialog") private dialog?: HTMLDialogElement;
+
+  /** Where a drag of the handle started, while one is under way. */
+  private dragStart?: number;
+
+  /** Whether the press under way dragged the sheet, so that the click that ends it is not a tap. */
+  private dragged = false;
+
   /** The last extended count of working digits seen, so that checking "extended" again offers it. */
   private lastExtended?: number;
 
@@ -249,38 +396,130 @@ export class SettingsPanel extends LitElement {
     if (changed.has("settings")) this.refused = undefined;
   }
 
+  /** The dialog follows `open`: shown non-modally, so the page stays live, and focused on opening. */
+  updated(changed: Map<PropertyKey, unknown>) {
+    if (!changed.has("open") || this.dialog === undefined) return;
+    if (this.open && !this.dialog.open) {
+      this.dialog.show();
+      this.dialog.focus();
+    } else if (!this.open && this.dialog.open) {
+      this.dialog.close();
+    }
+  }
+
   render() {
     const { rounding, mode } = this.settings;
     return html`
-      <details>
-        <summary>Settings</summary>
-        <div class="settings">
-          <div class="group">
-            ${this.renderNumber(DISPLAY_DIGITS_FIELD)}
-            ${mode.kind === "decimal" ? this.renderWorking(mode.working) : nothing}
+      <dialog
+        class=${this.tall ? "tall" : ""}
+        aria-labelledby="title"
+        tabindex="-1"
+        @keydown=${this.onKeydown}
+        @close=${this.onClosed}
+      >
+        <header>
+          <button
+            type="button"
+            class="handle"
+            aria-label=${this.tall ? "Make the settings shorter" : "Make the settings taller"}
+            @pointerdown=${this.onHandleDown}
+            @pointermove=${this.onHandleMove}
+            @pointerup=${this.onHandleUp}
+            @pointercancel=${this.onHandleCancel}
+            @click=${this.onHandleClick}
+          ></button>
+          <div class="bar">
+            <h2 id="title">Settings</h2>
+            <button type="button" @click=${this.onDone}>Done</button>
           </div>
-          ${LIMIT_FIELDS.map((field) => this.renderNumber(field))}
-          ${this.renderSelect(
-            "Rounding",
-            ROUNDING_MODES,
-            ROUNDING_LABELS,
-            rounding,
-            this.onSelectChange("rounding", isRoundingMode),
-            ROUNDING_LINES[mode.kind],
-          )}
-          ${this.renderSelect(
-            "Mode",
-            MODES,
-            MODE_LABELS,
-            mode.kind,
-            this.onModeChange,
-            MODE_LINES[mode.kind],
-          )}
-          ${mode.kind === "exact" ? this.renderNotation(mode.notation) : nothing}
-          ${this.renderProbe()}
+        </header>
+        <div class="body">
+          <div class="settings">
+            <div class="group">
+              ${this.renderNumber(DISPLAY_DIGITS_FIELD)}
+              ${mode.kind === "decimal" ? this.renderWorking(mode.working) : nothing}
+            </div>
+            ${LIMIT_FIELDS.map((field) => this.renderNumber(field))}
+            ${this.renderSelect(
+              "Rounding",
+              ROUNDING_MODES,
+              ROUNDING_LABELS,
+              rounding,
+              this.onSelectChange("rounding", isRoundingMode),
+              ROUNDING_LINES[mode.kind],
+            )}
+            ${this.renderSelect(
+              "Mode",
+              MODES,
+              MODE_LABELS,
+              mode.kind,
+              this.onModeChange,
+              MODE_LINES[mode.kind],
+            )}
+            ${mode.kind === "exact" ? this.renderNotation(mode.notation) : nothing}
+            ${this.renderProbe()}
+          </div>
         </div>
-      </details>
+      </dialog>
     `;
+  }
+
+  /** Done: the sheet closes; a number being typed is committed first, the button's press having taken the focus from it. */
+  private onDone() {
+    this.emitClose();
+  }
+
+  /** Escape closes the sheet, which a non-modal dialog does not do on its own. */
+  private onKeydown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      this.emitClose();
+    }
+  }
+
+  /** The dialog closed by other means than the shell: the shell is told, so that the two agree. */
+  private onClosed() {
+    if (this.open) this.emitClose();
+  }
+
+  private emitClose() {
+    this.dispatchEvent(new CustomEvent("settings-close"));
+  }
+
+  private onHandleDown(event: PointerEvent) {
+    this.dragStart = event.clientY;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  /** A drag past `DRAG_PX` up makes the sheet taller, down shorter, and ends the drag; a shorter press is a tap. */
+  private onHandleMove(event: PointerEvent) {
+    if (this.dragStart === undefined) return;
+    const moved = this.dragStart - event.clientY;
+    if (moved > DRAG_PX && !this.tall) {
+      this.tall = true;
+      this.dragged = true;
+    } else if (moved < -DRAG_PX && this.tall) {
+      this.tall = false;
+      this.dragged = true;
+    }
+  }
+
+  private onHandleUp() {
+    this.dragStart = undefined;
+  }
+
+  private onHandleCancel() {
+    this.dragStart = undefined;
+    this.dragged = false;
+  }
+
+  /** A click that was not a drag, a tap or the keyboard's Enter or Space, toggles the height. */
+  private onHandleClick() {
+    if (this.dragged) {
+      this.dragged = false;
+      return;
+    }
+    this.tall = !this.tall;
   }
 
   /**
@@ -293,13 +532,28 @@ export class SettingsPanel extends LitElement {
     value: number,
     onChange: (event: Event) => void,
     ariaLabel?: string,
+    step?: (value: number) => void,
   ) {
     const { min, max } = rangesOf(this.settings)[setting];
+    const name = ariaLabel ?? SETTING_NAMES[setting as NumberSetting];
+    const stepper = (delta: -1 | 1) =>
+      step === undefined
+        ? nothing
+        : html`<button
+            type="button"
+            class="stepper"
+            aria-label=${`${delta < 0 ? "One fewer" : "One more"}: ${name}`}
+            @click=${() => this.stepBy(setting, value + delta, step)}
+          >
+            ${delta < 0 ? "−" : "+"}
+          </button>`;
     return html`
       <span class="measure">
+        ${stepper(-1)}
         <input
           type="number"
-          inputmode="numeric"
+          inputmode="decimal"
+          enterkeyhint="done"
           aria-label=${ariaLabel ?? nothing}
           min=${min}
           max=${max}
@@ -307,9 +561,24 @@ export class SettingsPanel extends LitElement {
           .value=${live(String(value))}
           @change=${onChange}
         />
-        ${UNITS[setting]}
+        ${stepper(1)} ${UNITS[setting]}
       </span>
     `;
+  }
+
+  /** A stepper's tap: `value` in the setting's range is emitted through `step`, and one past it is refused as a typed value is. */
+  private stepBy(
+    setting: RangedSetting,
+    value: number,
+    step: (value: number) => void,
+  ) {
+    const refusal = refusalOf(value, setting, this.settings);
+    if (refusal === undefined) {
+      step(value);
+    } else {
+      this.refused = { setting, refusal };
+      this.requestUpdate();
+    }
   }
 
   /** The line under `setting`'s input when its last edit was refused or the last change moved it; nothing otherwise. */
@@ -329,7 +598,7 @@ export class SettingsPanel extends LitElement {
     return clamp === undefined ? undefined : clampLine(clamp);
   }
 
-  /** A number setting's input with its unit, any notice on it, and its line under it. */
+  /** A number setting's input with its unit, any notice on it, and its line under it; the display digits with steppers. */
   private renderNumber(field: NumberField) {
     return html`
       <label>
@@ -338,6 +607,10 @@ export class SettingsPanel extends LitElement {
           field.key,
           this.settings[field.key],
           this.onNumberChange(field.key),
+          undefined,
+          field.key === "displayDigits"
+            ? (value) => this.emit({ displayDigits: value })
+            : undefined,
         )}
         ${this.renderNotice(field.key)}
         <small class="hint">${field.hint(this.settings)}</small>
@@ -393,6 +666,13 @@ export class SettingsPanel extends LitElement {
                       notation.width,
                       this.onWidthChange,
                       "Ratio width",
+                      (width) =>
+                        this.emit({
+                          mode: {
+                            kind: "exact",
+                            notation: { kind: "ratio", width },
+                          },
+                        }),
                     )
                   : nothing
               }
@@ -425,6 +705,13 @@ export class SettingsPanel extends LitElement {
                   working.digits,
                   this.onWorkingChange,
                   "Extended working digits",
+                  (digits) =>
+                    this.emit({
+                      mode: {
+                        kind: "decimal",
+                        working: { kind: "extended", digits },
+                      },
+                    }),
                 )
               : nothing
           }
@@ -610,6 +897,9 @@ async function afterPaint(host: LitElement): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/** How far the handle is dragged before the sheet changes height, in pixels; less is a tap. */
+const DRAG_PX = 24;
+
 /** A number setting as the panel shows it: which, how it is labeled, and the line under it, which follows the settings in force. */
 type NumberField = {
   readonly key: NumberSetting;
@@ -676,5 +966,7 @@ declare global {
   interface HTMLElementEventMap {
     /** A change the user made in the panel: the fields that changed. */
     "settings-change": CustomEvent<Partial<Settings>>;
+    /** The sheet closed itself (Done, Escape): the shell sets `open` false. */
+    "settings-close": CustomEvent<void>;
   }
 }

@@ -278,7 +278,7 @@ milliseconds, in the panel, the storage, the core and the docs alike
 
 ### S4. The surface
 
-Design note: docs/settings-surface.md (proposed; D30).
+Implemented (docs/settings-surface.md, "As landed"; D30).
 
 - **Scope.** Where the settings live: the disclosure under the output as
   today, a modal, a popover from a control in the shell, or a page of

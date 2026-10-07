@@ -1436,10 +1436,17 @@ The shell is the composition root, and the rest of the UI follows one
 rule: properties down, events up. The shell holds the three pieces of
 state the parts share, the definitions, the settings and the service
 worker's status, each with one source, and derives everything else in
-`render`. `<settings-panel>` (`src/settings-panel.ts`) takes the settings
-as a property and reports each change the user makes as a
-`settings-change` event, which the shell applies, clamping what depends
-on it (`settings.ts`) and saving; the panel never reaches for storage.
+`render`. `<settings-panel>` (`src/settings-panel.ts`), the settings
+sheet, takes the settings and whether it is open as properties and
+reports each change the user makes as a `settings-change` event, which
+the shell applies, clamping what depends on it (`settings.ts`) and
+saving, and its closing itself as `settings-close`, which the shell
+follows; the panel never reaches for storage. The sheet is a non-modal
+`<dialog>` fixed to the viewport, a bottom sheet on a phone and a side
+sheet on a desktop, opened from the cog in the header's corner
+(`<settings-button>`, `src/settings-button.ts`), whose `click` flips the
+shell's open state and which takes focus back when the sheet closes
+(docs/settings-surface.md, the plan's D30).
 `<app-footer>` takes the worker's status as a property, which a reactive
 controller (`src/subscription.ts`) mirrors into the shell for as long as
 it is connected, and checks for an update when its build number is
@@ -1669,7 +1676,8 @@ src/limits.ts             recommendLimits: the probe that measures the device wi
 src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result, each two expressions the printer writes; src/outcome.test.ts checks them
 src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome
 src/copy-button.ts        the button beside each result that copies it
-src/settings-panel.ts     the settings panel: the controls, the refusal and clamp lines, the probe's button and its proposal; emits settings-change
+src/settings-button.ts    the cog in the header's corner that opens and closes the settings sheet
+src/settings-panel.ts     the settings sheet: the dialog with its handle and Done, the controls with their steppers, the refusal and clamp lines, the probe's button and its proposal; emits settings-change and settings-close
 src/app-footer.ts         the footer: the build ID, which checks for updates when tapped, and the worker's status
 src/subscription.ts       Subscription: a reactive controller that mirrors a source into its host; src/subscription.test.ts checks it
 src/styles.ts             the styles the components share

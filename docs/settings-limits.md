@@ -12,89 +12,132 @@ what the panel says about it, what a coupled edit tells the user, and
 what the probe promises. Responsiveness while a cost is paid stays apart
 (#118, #163; D25).
 
-## The representation the limits bound
+## The terms
 
-Every value is a midpoint and a radius. The midpoint is a rational
-significand, a numerator over a denominator in lowest terms, times a
-power of ten (scaled.ts, D13); the exponent is bounded by a hard
-constant and costs nothing. An exact value has radius zero and keeps its
-rational significand as it is: `1/3` is one over three, `3^100000` is
-that integer, and nothing rounds either. An inexact value, one that has
-passed through a root, an elementary function or `approx`, is rounded,
-and the rounding does not snap to a nearby rational: it snaps the
-midpoint onto a **decimal grid**, an integer of some number of
-significant digits times a power of ten (`settle` in ball.ts, D15),
-adding half a grid cell to the radius. The number of digits of that
-grid is the working precision of the arithmetic: the grid a pass of the
-retry schedule computes on in exact mode, and the working digits of
-every step in decimal mode (D26, D27). Whether an answer has the digits
-asked for is the radius's to say (D7, the certified digits), and the
-grid only bounds the radius from below: a finer grid is necessary for
-more certified digits and never sufficient, since cancellation keeps
-`(2^(1/2))^2 - 2` at a radius of a grid cell on every grid.
+The definitions below stand on their own: everything after them, the
+relation between the limits, the clamps and the lines, follows from
+them. Each names a quantity, gives its unit, and says why it is called
+what it is. The first two are not settings but the words the settings
+are defined with.
 
-Two bounds follow from this, on two different things:
+**Significand.** A value is a significand times a power of ten. The
+significand is a rational number, a numerator over a denominator in
+lowest terms, kept exactly as it is until a rounding has to happen; the
+power of ten is a separate exponent, bounded by a hard constant and
+costing nothing. "Significand" is IEEE 754's word for the part a
+number's exponent scales, and that is what this is, with the one
+difference that here it is a rational rather than a binary fraction.
+"Mantissa", the code's and the earlier notes' word, is set aside: IEEE
+754 moved away from it, and it also names the fractional part of a
+logarithm; the code base follows in the alignment change below.
 
-- **The significand's size, in bits.** An exact significand can grow
-  without limit through exact arithmetic, and what it costs to hold and
-  to multiply is the bits of its numerator and of its denominator. The
-  **significand limit** (`maxBits` today) bounds those bits, each part
-  on its own, at every node of the expression (D19), and refuses an
-  exact result past it, naming it. An inexact value's significand is a
-  grid point, an integer of the grid's digits, so its size is the
-  grid's, and it is never refused for size.
-- **The grid's fineness, in decimal digits.** The **precision limit**
-  (`maxDigits` today) is the most digits an answer may be asked for,
-  and through the ceiling of the retry schedule, four times the limit
-  plus the guard (D12), the finest grid the app computes on: the top of
-  the schedule in exact mode, the top of a step's certification in
-  decimal mode, and in both the grid the unit table and the constants
-  are held at. It bounds display digits and the working digits.
+**Grid.** When a value is rounded, it is not snapped to a nearby
+rational. Its significand is snapped onto a decimal grid: an integer of
+some number of significant digits times a power of ten. The number of
+digits of the grid is the working precision of the arithmetic at that
+moment: the grid a pass of the retry schedule rounds onto in exact mode
+(D12, D15), and the grid every step is rounded onto in decimal mode
+(D26). A rounding adds half a grid cell to the value's radius, which is
+the error bound that decides what digits of an answer are certain (D7).
+The grid is the floor of that error and never its ceiling: a finer grid
+is necessary for more certain digits, and never sufficient, since
+cancellation keeps `(2^(1/2))^2 - 2` at a radius of a grid cell on every
+grid. A grid point is itself a significand, an integer of the grid's
+digits over a denominator of one, which is what ties the two limits
+below together.
 
-These are not two quantities that could be one setting in one unit, and
-not two unrelated knobs either. They meet in the grid: a grid point of
-`d` digits is a significand of about `3.32 d` bits, so the finest grid
-must fit inside the significand limit. That is the inequality below,
-and it is why a reader of mpmath or MPFR, where the precision is the
+**Display digits**, in decimal digits (`digits` today; 8 by default).
+The significant digits an answer is shown with. In exact mode the
+schedule raises the grid until that many digits are certain; in decimal
+mode they are also the grid every step is rounded onto, unless the
+working digits extend it. The name says what the number is, the digits
+of the display, and no longer stands for a working precision, which has
+its own name below. Under the ratio notation it still governs the
+decimal fallback and the certification of every step.
+
+**Working digits**, in decimal digits (`mode.working` of decimal mode,
+S2b). The grid of every step but the last in decimal mode: locked to
+the display digits, or an extended count between them and the precision
+limit.
+
+**Precision limit**, in decimal digits (`maxDigits` today; 1,000 by
+default). The most digits any grid may be asked for: the cap on the
+display digits and on the working digits, and, through the ceiling of
+the retry schedule, four times the limit plus the guard (D12), the
+finest grid the app rounds onto, in either mode. The ceiling is derived
+from it and never set. "Precision" is the word the numeric libraries
+use for the digit count of the working grid (`mpmath`'s `dps`, the
+`decimal` context's precision), and this is the cap on that; the name
+is kept over three alternatives. "Digits limit" was set aside as
+suggesting the old decimal mode's reading, a cap on Digits and nothing
+else. "Grid limit" was set aside with the alternative recorded under
+"Which numbers are settings", where the setting would be the ceiling
+grid itself. "Grid precision" was set aside as reading as a value
+rather than a bound, and as colliding with the working digits, which
+are the grid in use in decimal mode.
+
+**Significand limit**, in bits (`maxBits` today; 65,536 by default).
+The most bits in a significand's numerator, and separately in its
+denominator; an exact result past it is refused and named, and a grid
+point, being a significand, must fit inside it, which is the relation
+below. The name says the part of the representation it bounds; "Size
+limit" said nothing about what is sized, "Most bits" named the unit and
+not the thing, and "Rational bit limit" says the representation but not
+that the exponent stands apart from it. The unit deserves its own
+paragraph, since "bits" is right only with care:
+
+- _It is bits per part._ The limit applies to the numerator and to the
+  denominator each on its own, so a significand at the limit holds up
+  to twice the limit in bits. Read as a size, the limit is a strict
+  upper bound on half the significand's storage, and nearly its size in
+  double-bits.
+- _It overstates the precision of a rational._ Only reduced
+  representations are admitted, so not every pair of integers within
+  the limit is a distinct significand, and the count of values a
+  significand of `S` bits per part can take is less than `2^(2S)`.
+  "Precision" in the binary sense is not what the limit measures.
+- _It is a lower bound on the significand's precision all the same._
+  With the denominator fixed at one, a significand of `S` bits is an
+  integer of `S` bits, so every precision up to `S` binary digits is
+  reachable within the limit; a user who reads the limit as a bit
+  precision is never promised more than the representation can hold.
+- _The translation to decimal digits is per part_ and never a count of
+  the value's digits: 65,536 bits is a numerator or a denominator of up
+  to about 19,700 digits, and a ratio such as `1/3` has no digit count
+  of its own.
+
+So the setting is styled as a bit size and named for the significand,
+with the line under it saying "its numerator and, separately, its
+denominator"; a reader of mpmath or MPFR, where the precision is the
 width of a binary significand and there is nothing else, should not
-expect the two to coincide here: an exact value keeps a rational
-significand up to the bit limit, and only an inexact one lives on the
-decimal grid, whose digits the precision limit bounds.
+expect it to coincide with the precision limit, because here an exact
+value keeps a rational significand up to this limit and only an inexact
+one lives on the grid, whose digits the precision limit bounds.
 
-## The three numbers, and the fourth
+**Probe budget**, in milliseconds (`budgetMs`; 50 by default). The time
+the probe of limits.ts allows one pass when it measures what the device
+can do; a setting of the probe, not of the arithmetic, and stored with
+the rest (below).
 
-- **Display digits** (`digits` today): the significant digits an answer
-  is shown with; eight by default. In exact mode they are what the
-  schedule certifies; in decimal mode they are also the grid every step
-  is rounded to, unless the working digits are extended.
-- **Working digits** (decimal mode's `mode.working`, S2b): the grid of
-  every step but the last, locked to the display digits or an extended
-  count between them and the precision limit.
-- **Precision limit** (`maxDigits` today), in decimal digits: the most
-  digits an answer, or the working digits, may be asked for, 1,000 by
-  default; the ceiling grid, 4,040 digits at the default, is derived
-  from it and never set.
-- **Significand limit** (`maxBits` today), in bits: the most bits in a
-  significand's numerator, and separately in its denominator, 65,536 by
-  default. The translation to decimal digits is per part, about 19,700
-  digits in a numerator or a denominator at the default, and is never a
-  count of the value's digits, which a ratio such as `1/3` does not
-  have.
-
-The chain is significand limit → precision limit → display digits →
-working digits, each clamped by the one above it (`clampSettings`), so
-that a stored entry is never inconsistent. The ceiling is derived, and
-so is the precision limit's own top.
+**The unit is baked in, in both places.** On screen, every number input
+carries its unit after it as a suffix, "1000 digits", "65536 bits",
+"50 ms", so that no name has to carry it and no number is read without
+it; the two digit settings carry "digits" in their names already and
+show it once. In the storage and the code the unit is in the key:
+`displayDigits`, `precisionLimitDigits`, `significandLimitBits`,
+`budgetMs`, so that a reader of the stored object or of `Settings` sees
+the unit beside the number as the user does.
 
 ## The relation between the two limits
 
-The link the grid implies is enforced today and is tight. A grid of `d`
-digits takes `bitsFor(d) = ceil(d × log2 10) + 32` significand bits in
-the kernel, the 32 being the guard; the finest grid under a precision
-limit `L` is `4 × (L + 10)` digits; and every ball operation forms its
-result from its operands' significands under the significand limit,
-inexact operands included (`add`, `pow` and the roots all take it), the
-worst case being a product of two grid points on the ceiling grid. So:
+The two limits bound different things, the bits of a rational and the
+digits of a grid, and they meet in the grid: a grid of `d` digits takes
+`bitsFor(d) = ceil(d × log2 10) + 32` significand bits in the kernel,
+the 32 being the guard; the finest grid under a precision limit `L` is
+`4 × (L + 10)` digits; and every ball operation forms its result from
+its operands' significands under the significand limit, inexact
+operands included (`add`, `pow` and the roots all take it), the worst
+case being a product of two grid points on the ceiling grid. So:
 
 ```
 2 × bitsFor(4 × (L + 10)) ≤ S
@@ -106,9 +149,25 @@ may be 2,453 (a ceiling of 9,852 digits, 32,760 bits, twice that just
 under 65,536) and 2,454 fails. Read one way, a small significand limit
 forces a smaller precision limit; read the other, a precision limit
 needs a significand limit of at least twice its ceiling grid's bits.
-One inequality, both directions, and the only slack in it is the
-guard's 32 bits, which the derivation counts. What is missing is not the
-clamp but the telling, below.
+One inequality, both directions, enforced today by `clampSettings` and
+`rangesOf`, and the only slack in it is the guard's 32 bits, which the
+derivation counts. What is missing is not the clamp but the telling,
+below.
+
+Two consequences for the other numbers. An exact value is bounded by the
+significand limit alone: it is never rounded, so no digits setting
+touches it, and the display writes as many of its digits as the display
+digits ask for and marks the rest rounded away. An inexact value is
+bounded by the precision limit alone: its significand is a grid point,
+so its size is the grid's, and it is never refused for size (D19).
+
+## The chain
+
+Significand limit → precision limit → display digits → working digits,
+each clamped by the one above it, the working digits last and by both
+their bounds. The ceiling is derived from the precision limit, and so is
+the precision limit's own top under the significand limit. A stored
+entry is therefore never inconsistent (S1, D16).
 
 ## What the ceiling is for in each mode (#86)
 
@@ -117,10 +176,10 @@ read the ceiling only to size the unit table and the constants' memos,
 so that the precision limit did nothing for a decimal-mode result. D26
 changed what the ceiling is read for: in decimal mode every step whose
 exact result is not representable (a built-in, a quotient, a root) is
-computed at rising grids up to the ceiling until its rounding is
+computed on rising grids up to the ceiling until its rounding is
 certified, and D27 lets the working digits rise to the precision limit.
 So the ceiling has one meaning in both modes, the finest grid the app
-computes on, and one field serves the schedule, a step's certification,
+rounds onto, and one field serves the schedule, a step's certification,
 the table and the memos. #86's UX question, whether the panel should
 say what the limit does in decimal mode, S2 answered with the line
 under the setting, which follows the mode. #86 is closed on this note.
@@ -161,53 +220,12 @@ internal. Three shapes were weighed:
 the ceiling is derived and shown, never set and never written as a
 formula.**
 
-## The names and their units (P2, P12, the limits half)
+## Alignment of the code, the storage and the docs
 
-Three vocabularies name the same things: the panel's Digits, Precision
-limit and Most bits; the storage's `digits`, `maxDigits` and `maxBits`;
-the docs' the digits, the cap and the range limit. One vocabulary is
-wanted, and it must carry two things the present names do not: what
-part of the representation each number bounds, and in what unit. The
-rulings:
-
-- **Display digits**, in digits, for Digits: it names what the number
-  is, the digits of the display, and no longer stands for the working
-  precision, which has its own name. Under the ratio notation it still
-  governs the decimal fallback and the certification of every step.
-- **Working digits**, in digits, as S2b has it.
-- **Precision limit**, in decimal digits: the most digits any grid may
-  be asked for. "Precision" is the word the numeric libraries use for
-  the working grid's digit count (`mpmath`'s `dps`, the `decimal`
-  context's precision), and the limit is the cap on that grid; "Digits
-  limit" was weighed and set aside, since it suggests the old decimal
-  mode's reading, a cap on Digits and nothing else; "Grid limit" and
-  "Grid precision" were weighed and set aside with the alternative
-  above, the first naming the ceiling rather than the setting, the
-  second reading as a value and colliding with the working digits.
-- **Significand limit**, in bits: the most bits in the significand's
-  numerator or denominator. "Significand" is IEEE 754's word for the
-  part a number's exponent scales, which is what this is, a rational
-  one; "mantissa" was weighed and set aside as the word IEEE 754 moved
-  away from, ambiguous with the logarithm's fractional part; "Size
-  limit" said nothing about what is sized; "Most bits" named the unit
-  and not the thing; "Rational bit limit" says the representation but
-  not that the exponent is apart from it. The core's own word follows:
-  the docs say "significand" from here, and the `Scaled` type's `mant`
-  is renamed in the alignment change below.
-- **Probe budget**, in milliseconds (below).
-
-**The unit is baked in, in both places.** On screen, every number input
-carries its unit after it as a suffix, "1000 digits", "65536 bits",
-"50 ms", so that no name has to carry it and no number is read without
-it; the two digit settings carry "digits" in their names already and
-show it once. In the storage and the code the unit is in the key:
-`displayDigits`, `precisionLimitDigits`, `significandLimitBits`,
-`budgetMs`, so that a reader of the stored object or of `Settings` sees
-the unit beside the number as the user does.
-
-**Alignment.** The storage, the code and the docs follow the names in
-changes after this step's panel work, not atomically with it: the
-stored keys become `displayDigits`, `precisionLimitDigits` and
+The terms above are the one vocabulary, in the panel, the storage, the
+code and the docs. The storage, the code and the docs follow in changes
+after this step's panel work, not atomically with it: the stored keys
+become `displayDigits`, `precisionLimitDigits` and
 `significandLimitBits` at a version 5 with one migration (S1 makes it a
 few lines); `Settings` and `rangesOf` take the same names;
 `NumberContext.maxBits` becomes `significandLimitBits` (`precision` and
@@ -379,14 +397,13 @@ Each number input carries its unit as a suffix; the lines say the rest.
 - `src/app-shell.ts`: applies a change through the clamp and hands the
   panel what the clamp lowered.
 - The alignment change, after: the core's and the storage's renames
-  listed under "The names", `Scaled.mant` included, with D12, D13 and
+  listed under "Alignment", `Scaled.mant` included, with D12, D13 and
   D16 amended.
-- README ("Settings"): the four names with their units, the grid
-  explained in "How a number is held", the clamp's and the refusal's
-  sentences, the probe's promise, the defaults' sentence.
-  ARCHITECTURE.md: the mapping of the names until the alignment lands,
-  the probe's proposal. docs/settings-plan.md: S3 done. #86 closed;
-  #73 and #163 referenced.
+- README ("Settings"): the terms with their units, the grid explained
+  in "How a number is held", the clamp's and the refusal's sentences,
+  the probe's promise, the defaults' sentence. ARCHITECTURE.md: the
+  mapping of the names until the alignment lands, the probe's proposal.
+  docs/settings-plan.md: S3 done. #86 closed; #73 and #163 referenced.
 - Tests: the clamp's report and the refusal's reason; the probe's
   timings in its result; the panel's lines, suffixes and the proposal;
   the version 5 migration.
@@ -404,12 +421,12 @@ in both modes as the finest decimal grid the app rounds onto; the
 defaults stay and depend on no device; the probe's budget is a stored
 setting in milliseconds, and the probe proposes and the user applies
 (S3 of docs/settings-plan.md; resolves #86; amends D12, D13 and D16 in
-their names).** The model the names state: a value is a rational
+their names).** The model the terms state: a value is a rational
 significand times a power of ten, kept exact until it must be rounded,
 and then rounded not to a nearby rational but onto a decimal grid whose
 digits the precision limit bounds; the significand limit bounds the
-bits of the rational, and the grid's points, being significands, must
-fit inside it, which `2 × bitsFor(4 × (L + 10)) ≤ S` states and
+bits of the rational's parts, and the grid's points, being significands,
+must fit inside it, which `2 × bitsFor(4 × (L + 10)) ≤ S` states and
 `maxDigitsFor` enforces.
 
 ## Not in this step

@@ -205,7 +205,7 @@ function incompleteGamma(
   const extra =
     magnitudeBits(s, context.significandLimitBits) +
     magnitudeBits(x, context.significandLimitBits);
-  if (bits + extra > context.significandLimitBits) return tooLarge("passes");
+  if (bits + extra > context.significandLimitBits) return tooLarge("exceeds");
   const working = bits + extra;
   const digits = workingDigits(context) + Math.ceil(extra / BITS_PER_DIGIT) + 1;
   const ceilingBits = bitsFor(context.ceiling);
@@ -231,7 +231,7 @@ function incompleteGamma(
   const { route, steps } = routeOf(form, s, x, sf, xf, working);
   // Neither within its limit, a large order near a large argument: not
   // computed, rather than shown with digits nothing certifies.
-  if (route === undefined) return tooLarge("passes");
+  if (route === undefined) return tooLarge("exceeds");
   const arguments_ = { s, x, common: common.value, working, digits, context };
   if (route === "series") {
     const sum = fixedToBall(
@@ -282,7 +282,7 @@ function atEnds(
   if (r === undefined) throw new Error("A bounded radius has a value");
   const lo = subtract(x.mid, r, context.significandLimitBits);
   const hi = add(x.mid, r, context.significandLimitBits);
-  if (!lo.ok || !hi.ok) return tooLarge("passes");
+  if (!lo.ok || !hi.ok) return tooLarge("exceeds");
   const atLo = incompleteGamma(s, exact(lo.value), form, regularized, context);
   const atHi = incompleteGamma(s, exact(hi.value), form, regularized, context);
   return hullOfEnds(atLo, atHi, 1);

@@ -333,7 +333,7 @@ function describeRejection(reason: Rejection): string {
  * one (around the node itself it would come too late, the node being
  * refused before `approx` sees it), and decimal mode, left out when the
  * user is in it already, which the message knows from the context and
- * not from the arithmetic. On `passes` nothing is offered, the function
+ * not from the arithmetic. On `exceeds` nothing is offered, the function
  * having said that no rounding of its operands brings the step within
  * the limit, and the user infers what a higher limit would need. A
  * `pair` is the conversion's two texts, already quoted together.
@@ -346,7 +346,7 @@ function pastSignificandLimit(
   shape: "node" | "pair" = "node",
 ): string {
   const need = `${quote(node)} would need a significand past the significand limit`;
-  if (inexact === "passes") return `${need}, however it is computed.`;
+  if (inexact === "exceeds") return `${need}, however it is computed.`;
   const rewrite =
     operand === undefined
       ? "approx around a part of it"

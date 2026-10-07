@@ -192,7 +192,7 @@ function atEnds(
   if (r === undefined) throw new Error("A bounded radius has a value");
   const lo = subtract(x.mid, r, context.significandLimitBits);
   const hi = add(x.mid, r, context.significandLimitBits);
-  if (!lo.ok || !hi.ok) return tooLarge("passes");
+  if (!lo.ok || !hi.ok) return tooLarge("exceeds");
   return hullOfEnds(f(exact(lo.value)), f(exact(hi.value)), 0);
 }
 

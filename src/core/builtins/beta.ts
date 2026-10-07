@@ -126,7 +126,7 @@ export function betaBall(
     magnitudeBits(b, context.significandLimitBits),
     magnitudeBits(sum.value, context.significandLimitBits),
   );
-  if (bits + extra > context.significandLimitBits) return tooLarge("passes");
+  if (bits + extra > context.significandLimitBits) return tooLarge("exceeds");
   const digits = workingDigits(context) + Math.ceil(extra / BITS_PER_DIGIT) + 1;
   const la = blamed(logGamma(a, context, bits + extra, digits), 0);
   if (!la.ok) return la;

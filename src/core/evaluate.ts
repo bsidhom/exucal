@@ -409,7 +409,8 @@ export function evaluate<E>(
     isExact(magnitude) &&
     !significandWithin(magnitude.mid, context.significandLimitBits)
   ) {
-    // The exact result is what passes: computed inexactly the step fits.
+    // The exact result is what exceeds the limit: computed inexactly the
+    // step fits.
     return withOperand(
       err({ kind: "tooLarge", span: expr.span, inexact: "fits" }),
       expr,
@@ -505,7 +506,7 @@ function evaluateNode<E>(
       if (!significandWithin(node.value, context.significandLimitBits)) {
         // The digits typed are the significand; nothing rounds them
         // smaller before this check, in either mode.
-        return err({ kind: "tooLarge", span, inexact: "passes" });
+        return err({ kind: "tooLarge", span, inexact: "exceeds" });
       }
       return locate(
         stepQuantity(() => ok(scalar(node.value)), context),
@@ -598,13 +599,13 @@ function evaluateNode<E>(
         // at the bound when the power would pass it, and otherwise at the
         // significand limit.
         // Its own bits are what pass the limit (`2^1e-30000`), which no
-        // inexact base changes, nor decimal mode: the reach is `passes`.
+        // inexact base changes, nor decimal mode: the reach is `exceeds`.
         const refusal =
           exponent.quotient === undefined
             ? undefined
             : powerRefusal(base.value.magnitude.mid, exponent.quotient);
         return refusal === undefined || refusal.kind === "limit"
-          ? err({ kind: "tooLarge", span, inexact: "passes" })
+          ? err({ kind: "tooLarge", span, inexact: "exceeds" })
           : err({ ...refusal, span });
       }
       // The power is one step: in decimal mode its rounding is certified

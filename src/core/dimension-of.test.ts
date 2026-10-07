@@ -261,12 +261,12 @@ test("a ^ exponent is reduced within the significand limit, and one past it fail
   assert.deepEqual(failing("m^(1e30/3)", undefined, 64), {
     kind: "tooLarge",
     span: { start: 0, end: 10 },
-    inexact: "passes",
+    inexact: "exceeds",
   });
   assert.deepEqual(failing("s m^(2/1e30)", undefined, 64), {
     kind: "tooLarge",
     span: { start: 2, end: 12 },
-    inexact: "passes",
+    inexact: "exceeds",
   });
   assert.ok(of("m^(1e30/3)", undefined, 128).ok);
 });

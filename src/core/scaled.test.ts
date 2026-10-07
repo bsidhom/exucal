@@ -683,7 +683,7 @@ test("a refusal names the limit it passes: tooLarge for the significand limit, o
   );
   assertRefused(toRational(big("1", -400000n), MAX_SIGNIFICAND_LIMIT_BITS), {
     kind: "tooLarge",
-    inexact: "passes",
+    inexact: "exceeds",
   });
   assertRefused(
     add(
@@ -696,7 +696,7 @@ test("a refusal names the limit it passes: tooLarge for the significand limit, o
   // A literal: its significand is the hard bound's, its exponent the bound's.
   assertRefused(parseDecimal("9".repeat(320000)), {
     kind: "tooLarge",
-    inexact: "passes",
+    inexact: "exceeds",
   });
   assertRefused(parseDecimal("1e1000000000000000001"), { kind: "overflow" });
   assertRefused(parseDecimal("10e1000000000000000000"), { kind: "overflow" });

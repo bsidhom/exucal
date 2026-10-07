@@ -52,17 +52,18 @@ export type Rational = { readonly num: bigint; readonly den: bigint };
  * The refusing function's expectation for the same step computed
  * inexactly, as `approx` around an operand or decimal mode arrange:
  * `fits`, within the significand limit, where only the exact result
- * passes it (a product of two exact fractions, a sum's alignment, an
- * exact power's prediction); `passes`, where the computation needs more
- * bits than the limit holds whatever its operands' exactness (a literal's
- * digits, an exponent that cannot be formed, a kernel's reach). The
+ * exceeds it (a product of two exact fractions, a sum's alignment, an
+ * exact power's prediction); `exceeds`, where the computation exceeds
+ * the limit whatever its operands' exactness, needing more bits than it
+ * holds (a literal's digits, an exponent that cannot be formed, a
+ * kernel's reach). The
  * function that refuses states it, since it alone knows how it computes
  * and what an inexact operand changes; nothing above it infers the reach
  * from the expression's shape, and the message suggests a remedy on
  * `fits` alone. It is an expectation, not a guarantee: the remedy is
  * offered to try, and the tests check it on representative inputs.
  */
-export type Reach = "fits" | "passes";
+export type Reach = "fits" | "exceeds";
 
 export type RationalError =
   /** Division by zero, including `0` raised to a negative power. */
@@ -275,7 +276,7 @@ export function pow(
   const magnitude = abs(n);
   const bits = Math.max(bitLength(abs(r.num)), bitLength(r.den));
   if (magnitude > BigInt(limit) || Number(magnitude) * bits > limit) {
-    // The exact power is what passes; an inexact base is raised in log
+    // The exact power is what exceeds the limit; an inexact base is raised in log
     // space (ball.ts), where the exponent's size alone is the cost.
     return err({ kind: "tooLarge", inexact: "fits" });
   }

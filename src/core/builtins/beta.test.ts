@@ -211,7 +211,7 @@ test("beta is held to the exponent bound by the classifier, and to the significa
   );
   assert.deepEqual(
     error(betaBall(exact(dec("1e20000")), exact(dec("2")), CONTEXT)),
-    { kind: "tooLarge", inexact: "passes" },
+    { kind: "tooLarge", inexact: "exceeds" },
   );
   assert.deepEqual(
     error(betaBall(exact(dec("2")), exact(dec("-1e999999999")), CONTEXT)),

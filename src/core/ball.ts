@@ -1713,12 +1713,12 @@ export function classifyPower(
       return { kind: "one", rad: shiftRadius(L.maxUp, 1n) };
     }
     // The decision itself needs more bits than the limit holds: the
-    // inexact computation is what passes.
-    return { kind: "tooLarge", inexact: "passes" };
+    // inexact computation is what exceeds it.
+    return { kind: "tooLarge", inexact: "exceeds" };
   }
   if (coarse === "unresolved") return { kind: "unresolved", edge: "bound" };
   if (coarse !== "undecided") return { kind: coarse };
-  if (!affordable) return { kind: "tooLarge", inexact: "passes" };
+  if (!affordable) return { kind: "tooLarge", inexact: "exceeds" };
   const product = logProduct(magnitude, y, Number(working), context);
   if (product === undefined) return { kind: "unresolved", edge: ZERO };
   const verdict = classifyLog(product, bits, bitsFor(context.ceiling), false);

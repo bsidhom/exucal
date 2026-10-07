@@ -485,12 +485,12 @@ test("a literal of any exponent is a value, and one whose significand exceeds th
   assert.deepEqual(failure(run(long)), {
     kind: "tooLarge",
     span: { start: 0, end: long.length },
-    inexact: "passes",
+    inexact: "exceeds",
   });
   assert.deepEqual(failure(run(`2 * ${long} m`)), {
     kind: "tooLarge",
     span: { start: 4, end: 4 + long.length },
-    inexact: "passes",
+    inexact: "exceeds",
   });
   // Whereas the `^` exponent is read as a fraction, and one whose power
   // of ten cannot be formed within the hard bound is rejected by the parser.
@@ -1271,7 +1271,7 @@ const BUILTINS: Record<string, Builtin> = {
   ),
   huge: builtin("huge", 1, () => err({ kind: "overflow" })),
   tiny: builtin("tiny", 1, () => err({ kind: "underflow" })),
-  long: builtin("long", 1, () => err({ kind: "tooLarge", inexact: "passes" })),
+  long: builtin("long", 1, () => err({ kind: "tooLarge", inexact: "exceeds" })),
   longFits: builtin("longFits", 2, () =>
     err({ kind: "tooLarge", inexact: "fits" }),
   ),
@@ -1736,7 +1736,7 @@ test("a built-in's failures are located: domain and the rest at the call, unreso
   assert.deepEqual(failure(runBuiltin("long(1)")), {
     kind: "tooLarge",
     span: { start: 0, end: 7 },
-    inexact: "passes",
+    inexact: "exceeds",
   });
   // The reach is the built-in's word, carried through: a call that says
   // an inexact argument fits gets its first argument named as the operand,
@@ -1814,12 +1814,12 @@ test("a ^ exponent is reduced by the evaluator within the significand limit, and
   assert.deepEqual(failure(run("2^1e-30000")), {
     kind: "tooLarge",
     span: { start: 0, end: 10 },
-    inexact: "passes",
+    inexact: "exceeds",
   });
   assert.deepEqual(failure(run("m^(1e30/7)", small)), {
     kind: "tooLarge",
     span: { start: 0, end: 10 },
-    inexact: "passes",
+    inexact: "exceeds",
   });
   assert.deepEqual(
     value(run("m^(1e30/7)", { ...CONTEXT, significandLimitBits: 128 }))
@@ -1854,23 +1854,23 @@ test("a ^ exponent is reduced by the evaluator within the significand limit, and
   };
   const long = `2^(${literal(3)}/${literal(4)})`;
   const start = performance.now();
-  // An exponent that cannot be formed: `passes`, with no operand named.
+  // An exponent that cannot be formed: `exceeds`, with no operand named.
   assert.deepEqual(failure(run(long)), {
     kind: "tooLarge",
     span: { start: 0, end: long.length },
-    inexact: "passes",
+    inexact: "exceeds",
   });
   const ms = performance.now() - start;
   assert.ok(ms < 2000, `refused in ${ms.toFixed(0)} ms`);
   assert.deepEqual(failure(run("2^(12345678901234567890123/3)", small)), {
     kind: "tooLarge",
     span: { start: 0, end: 29 },
-    inexact: "passes",
+    inexact: "exceeds",
   });
   assert.deepEqual(failure(run("3 m^(2/12345678901234567890123)", small)), {
     kind: "tooLarge",
     span: { start: 2, end: 31 },
-    inexact: "passes",
+    inexact: "exceeds",
   });
 });
 

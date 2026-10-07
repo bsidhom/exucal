@@ -218,7 +218,7 @@ export function toRational(
   const { num, den } = s.significand;
   if (s.exp === 0n) return ok(s.significand);
   // The value's own representation as a fraction passes the limit.
-  if (!formable(s, limit)) return err({ kind: "tooLarge", inexact: "passes" });
+  if (!formable(s, limit)) return err({ kind: "tooLarge", inexact: "exceeds" });
   const magnitude = abs(s.exp);
   const power = 10n ** magnitude;
   // Multiplying the numerator keeps lowest terms, the denominator being
@@ -367,7 +367,7 @@ function combine(
   if (isZero(b)) return scaled(op(a.significand, ZERO_FRACTION), a.exp);
   const shift = abs(a.exp - b.exp);
   if (shift > BigInt(limit) || Number(shift) * BITS_PER_DIGIT > limit) {
-    // The exact sum is what passes: with an inexact operand the smaller
+    // The exact sum is what exceeds the limit: with an inexact operand the smaller
     // is absorbed into the radius instead of aligned (ball.ts).
     return err({ kind: "tooLarge", inexact: "fits" });
   }
@@ -586,7 +586,7 @@ export function parseDecimal(text: string): Result<Scaled, ScaledError> {
   const digits = integerPart + fraction;
   if (digits.length * BITS_PER_DIGIT > MAX_SIGNIFICAND_LIMIT_BITS) {
     // The digits typed are the significand; nothing computes them smaller.
-    return err({ kind: "tooLarge", inexact: "passes" });
+    return err({ kind: "tooLarge", inexact: "exceeds" });
   }
   // The value is (integer digits ++ fraction digits) × 10^(exponent - #fraction).
   const exponent = match[5] === undefined ? 0n : BigInt(match[5]);

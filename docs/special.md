@@ -173,7 +173,7 @@ formula with its first correction, `log2 n!` as the sum of
 bit of the truth for every `n >= 1`, so the refusal is sharp: `binomial(n, k)` from three such
 terms, and `n!!` from `2^k k!` for even `n = 2k` and `n! / (2^k k!)`
 for odd `n = 2k + 1`. A prediction past `significandLimitBits` is a `tooLarge`
-refusal at the call, with the reach `passes`: `factorial(20000)` would
+refusal at the call, with the reach `exceeds`: `factorial(20000)` would
 need a significand past the significand limit however it is computed,
 and the message suggests nothing; `gamma(n + 1)` for the digits asked is
 the way on once 6.3 lands. `approx` around the argument is not offered,

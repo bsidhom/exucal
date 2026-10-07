@@ -289,7 +289,7 @@ test("a value too large to compute names the limit it passes, and one too small 
     assert.ok(evaluateText(withApp, remedy, CONTEXT).ok, remedy);
     assert.ok(evaluateText(withApp, text, decimal).ok, `${text} in decimal`);
   }
-  // A `passes` message offers nothing, and nothing reaches these.
+  // An `exceeds` message offers nothing, and nothing reaches these.
   for (const [text, tried] of [
     ["sin(1e999999999 radian)", "sin(approx(1e999999999) radian)"],
     ["factorial(20000)", "factorial(approx(20000))"],

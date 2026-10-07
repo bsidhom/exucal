@@ -173,7 +173,7 @@ function unformable(
         case "one":
         case "compute":
           // A base straddling zero has no power to compute, at any bits.
-          return err({ kind: "tooLarge", inexact: "passes" });
+          return err({ kind: "tooLarge", inexact: "exceeds" });
       }
     }
   }

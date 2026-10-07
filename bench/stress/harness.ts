@@ -169,13 +169,18 @@ type Message =
       readonly kind: "run";
       readonly run: "cold" | "warm";
       readonly result: Run;
-    };
+    }
+  | { readonly kind: "line"; readonly outcome: OutcomeSummary };
 
 /**
  * The data a worker is started with, tagged so that no other worker
- * mistakes it: a case to measure, or one to type out.
+ * mistakes it: a case to measure, one to type out, or one to evaluate
+ * once for its outcome alone.
  */
-type Job = { readonly stressCase: Case } | { readonly stressTyping: Case };
+type Job =
+  | { readonly stressCase: Case }
+  | { readonly stressTyping: Case }
+  | { readonly stressLine: Case };
 
 // ---------------------------------------------------------------------------
 // Measuring
@@ -471,6 +476,65 @@ function typeJob(c: Case): void {
   port.postMessage({ kind: "typed" } satisfies Message);
 }
 
+/**
+ * The outcome of `c` as the current build writes it, evaluated once in a
+ * worker of its own, with no timing kept: what `reline.ts` records again
+ * when the writing of a line has changed. `undefined` when the
+ * evaluation has not ended `deadlineMs` after the table is built.
+ */
+export async function lineOf(
+  c: Case,
+  deadlineMs: number,
+): Promise<OutcomeSummary | undefined> {
+  checkSettings(c.settings);
+  const worker = new Worker(new URL(import.meta.url), {
+    workerData: { stressLine: c } satisfies Job,
+  });
+  try {
+    return await new Promise<OutcomeSummary | undefined>((resolve, reject) => {
+      let timer: NodeJS.Timeout | undefined;
+      worker.on("message", (message: Message) => {
+        switch (message.kind) {
+          case "ready":
+            timer = setTimeout(() => {
+              void worker.terminate();
+              resolve(undefined);
+            }, deadlineMs);
+            break;
+          case "line":
+            clearTimeout(timer);
+            resolve(message.outcome);
+            break;
+          default:
+            break;
+        }
+      });
+      worker.on("error", (e) => {
+        clearTimeout(timer);
+        reject(e);
+      });
+    });
+  } finally {
+    await worker.terminate();
+  }
+}
+
+/** Builds the table, then evaluates the case once, posting its outcome. */
+function lineJob(c: Case): void {
+  const port = parentPort!;
+  const { have, want, settings } = c;
+  const { context, table } = systemTable(settings);
+  port.postMessage({ kind: "ready" } satisfies Message);
+  const outcome = outcomeOf(table, have, want, {
+    context,
+    ratio: ratioOf(settings),
+  });
+  port.postMessage({
+    kind: "line",
+    outcome: summarize(outcome),
+  } satisfies Message);
+}
+
 /** Builds the table, then evaluates the case cold and warm, posting as it goes. */
 function runJob(job: { readonly stressCase: Case }): void {
   const port = parentPort!;
@@ -537,7 +601,9 @@ if (!isMainThread) {
   const job = workerData as Partial<{
     stressCase: Case;
     stressTyping: Case;
+    stressLine: Case;
   }> | null;
   if (job?.stressCase !== undefined) runJob({ stressCase: job.stressCase });
   else if (job?.stressTyping !== undefined) typeJob(job.stressTyping);
+  else if (job?.stressLine !== undefined) lineJob(job.stressLine);
 }

@@ -355,7 +355,7 @@ function line(
   return {
     have,
     relation: relationOf([shown]),
-    result: quantityExpr(shown, sign(value.mid) < 0, unit),
+    result: quantityExpr(shown, isNegative(value, shown), unit),
     note: noteOf(shown, context.precision),
   };
 }
@@ -440,6 +440,16 @@ function quantityExpr(
 
 function negated(operand: Expr): Expr {
   return expr({ kind: "neg", operand });
+}
+
+/**
+ * Whether `value`, written as `shown`, is written with a minus: its
+ * midpoint is below zero and it is not a value that cannot be told from
+ * zero, which is written `0` and never `-0`, the sign of a midpoint
+ * within its own bound of zero being noise.
+ */
+function isNegative(value: Ball, shown: Shown): boolean {
+  return shown.kind !== "zero" && sign(value.mid) < 0;
 }
 
 /**
@@ -559,8 +569,7 @@ function listResult(
       })
     : unrounded;
   const all = rounded.map((value, i) => {
-    const negative = sign(value.mid) < 0;
-    const magnitude = negative ? absolute(value.mid) : value.mid;
+    const magnitude = sign(value.mid) < 0 ? absolute(value.mid) : value.mid;
     // The remainder's fraction is taken from the magnitude's own ball,
     // which is exact as the term is; a count and a rounded remainder are
     // formatted from the magnitude at their digits.
@@ -578,7 +587,7 @@ function listResult(
             : { kind: "exact", text: format(magnitude, certified, rounding) };
     return {
       value,
-      negative,
+      negative: isNegative(value, shown),
       quantity: quantityExpr(shown, false, units[i]!.expr),
     };
   });

@@ -34,7 +34,14 @@ import {
   type Settings,
 } from "../../src/settings.ts";
 import type { Family } from "./cases.ts";
-import type { Machine, Progress, Run, Running, Typing } from "./harness.ts";
+import type {
+  Machine,
+  OutcomeSummary,
+  Progress,
+  Run,
+  Running,
+  Typing,
+} from "./harness.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -98,6 +105,26 @@ export function summarizeTyping(typing: Typing): TypingSummary {
 /** `ms` rounded to a tenth of a millisecond, finer than any timing is worth. */
 function tenth(ms: number): number {
   return Math.round(ms * 10) / 10;
+}
+
+/**
+ * `entry` with `outcome` as what its cold and its warm run gave, the
+ * timings and the passes kept: how `reline.ts` records a line written
+ * anew by the current build. Whether the line changed is `lineChanged`.
+ */
+export function withOutcome(entry: Entry, outcome: OutcomeSummary): Entry {
+  return {
+    ...entry,
+    cold: { ...entry.cold, outcome },
+    warm: { ...entry.warm, outcome },
+  };
+}
+
+/** Whether `outcome` differs from what either run of `entry` gave, in any part. */
+export function lineChanged(entry: Entry, outcome: OutcomeSummary): boolean {
+  return [entry.cold, entry.warm].some(
+    (run) => JSON.stringify(run.outcome) !== JSON.stringify(outcome),
+  );
 }
 
 /** `run` with its timings rounded to a tenth of a millisecond, as the catalogue keeps it. */

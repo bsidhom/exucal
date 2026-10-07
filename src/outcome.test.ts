@@ -515,3 +515,19 @@ test("in decimal mode a step whose rounding the ceiling left uncertified is writ
     ["2 m = 80 in", "in = 0.012 × 2 m"],
   );
 });
+
+test("a value that cannot be told from zero is written `0`, never `-0`, whatever the sign of its midpoint", () => {
+  // `approx(1) / 3`, rounded to the working digits, times three falls
+  // short of one by a unit in the last digit: the midpoint is below zero
+  // within a radius that covers it, and the sign is noise.
+  assert.deepEqual(lines("(approx(1)/3)*3 - 1", "", false), [
+    "approx(1) / 3 × 3 - 1 ≈ 0 (within 2e-4049 of zero)",
+  ]);
+  // The same as the remainder of a unit list, and as a conversion's count.
+  assert.deepEqual(lines("(approx(1)/3)*3 m - 1 m", "ft; in", false), [
+    "approx(1) / 3 × 3 m - 1 m ≈ 0 in (within 5e-4048 of zero)",
+  ]);
+  assert.deepEqual(lines("(approx(1)/3)*3 m - 1 m", "ft", false), [
+    "approx(1) / 3 × 3 m - 1 m ≈ 0 ft (within 5e-4049 of zero)",
+  ]);
+});

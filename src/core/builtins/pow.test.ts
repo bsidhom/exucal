@@ -7,7 +7,7 @@ import type { BuiltinError } from "../builtin.ts";
 import { BUILTINS } from "../builtins.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "../context.ts";
@@ -16,7 +16,7 @@ import { DIMENSIONLESS } from "../dimension.ts";
 import { show } from "../display.ts";
 import { evaluateText } from "../pipeline.ts";
 import { UNBOUNDED, radiusUpper } from "../radius.ts";
-import { LIMIT_BITS } from "../rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS } from "../rational.ts";
 import type { Result } from "../result.ts";
 import {
   ONE,
@@ -39,7 +39,7 @@ import { pow, powBallOf } from "./pow.ts";
 const CONTEXT: NumberContext = {
   precision: 40,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -55,7 +55,7 @@ function failure(result: Result<Ball, BuiltinError>): BuiltinError {
 
 /** `|a - b|` on `Scaled`s of moderate exponent. */
 function distance(a: Scaled, b: Scaled): Scaled {
-  const d = subtract(a, b, LIMIT_BITS);
+  const d = subtract(a, b, MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(d.ok, `${inspect(a)} - ${inspect(b)} aligns`);
   return absolute(d.value);
 }
@@ -161,7 +161,7 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
     45,
     "pow(-2, 1/3)",
   );
-  // Log space, where the power of the base does not fit the range limit.
+  // Log space, where the power of the base does not fit the significand limit.
   assertNear(
     value(powBallOf(exact(fr(10n)), exact(dec("2.3456789")), CONTEXT)),
     TEN_TO_2_3456789,
@@ -176,7 +176,7 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
   );
   // A base of ten under a large rational exponent is a value, its
   // exponent carried as the exponent it is; a base of seven is not, its
-  // power's mantissa beyond the range limit.
+  // power's significand beyond the significand limit.
   const tenThirds = value(
     powBallOf(exact(fr(10n)), exact(fr(100000n, 3n)), CONTEXT),
   );
@@ -204,9 +204,9 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
     ) < 0,
   );
   // Beyond the exponent bound, above it or below: 7^(±10^19) is refused by
-  // its mantissa first and 0.7^(10^19) by its exponent, 0.7 being 7 ×
+  // its significand first and 0.7^(10^19) by its exponent, 0.7 being 7 ×
   // 10^-1, and each is reported at the bound, which would refuse it
-  // whatever the range limit.
+  // whatever the significand limit.
   assert.deepEqual(
     failure(powBallOf(exact(fr(7n)), exact(dec("1e19")), CONTEXT)),
     { kind: "overflow" },
@@ -221,7 +221,7 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
   );
   // An exact exponent whose fraction cannot be formed within the range
   // limit: at the bound when the power would pass it, and otherwise log
-  // space (H.16), where it was refused at the range limit: 2^(1e-999999999)
+  // space (H.16), where it was refused at the significand limit: 2^(1e-999999999)
   // is one within a hair, as its `approx` form is.
   assert.deepEqual(
     failure(powBallOf(exact(fr(2n)), exact(dec("1e999999999")), CONTEXT)),
@@ -427,14 +427,14 @@ test("the exact bases 0, 1 and -1 are answered before the exponent's fraction is
     value(powBallOf(minusOne, exact(fr(2n, 3n)), CONTEXT)),
     exact(ONE),
   );
-  // Past the default range limit the parity is read off the canonical
+  // Past the default significand limit the parity is read off the canonical
   // form: 5^-16000 is 2^16000 × 10^-16000, whose twos exactly cancel the
   // denominator's, so both parts are odd and the power is -1; twice it
   // keeps an even numerator, and 1e999999999/3 has a numerator that is a
   // multiple of ten, so each is 1. 5^-15000 still forms, and its power is
   // -1 by the rational route.
   const fiveTo = (n: bigint) => fr(1n, 5n ** n);
-  assert.ok(!toRational(fiveTo(16000n), DEFAULT_MAX_BITS).ok);
+  assert.ok(!toRational(fiveTo(16000n), DEFAULT_SIGNIFICAND_LIMIT_BITS).ok);
   assert.deepEqual(
     value(powBallOf(minusOne, exact(fiveTo(16000n)), CONTEXT)),
     minusOne,
@@ -449,7 +449,7 @@ test("the exact bases 0, 1 and -1 are answered before the exponent's fraction is
     value(powBallOf(minusOne, exact(third.value), CONTEXT)),
     exact(ONE),
   );
-  assert.ok(toRational(fiveTo(15000n), DEFAULT_MAX_BITS).ok);
+  assert.ok(toRational(fiveTo(15000n), DEFAULT_SIGNIFICAND_LIMIT_BITS).ok);
   assert.deepEqual(
     value(powBallOf(minusOne, exact(fiveTo(15000n)), CONTEXT)),
     minusOne,
@@ -500,7 +500,7 @@ test("unbounded arguments give the power of the midpoints with an unbounded radi
   assert.ok(compare(distance(both.mid, SQRT2), dec("1e-40")) < 0);
 });
 
-test("through the pipeline, roots of a large degree or of a tiny mantissa are values where they crashed or were refused", () => {
+test("through the pipeline, roots of a large degree or of a tiny significand are values where they crashed or were refused", () => {
   const parsed = parseDefinitions("m  !");
   assert.ok(parsed.ok);
   const context = { ...CONTEXT, ceiling: 200 };
@@ -509,7 +509,7 @@ test("through the pipeline, roots of a large degree or of a tiny mantissa are va
   const at = (text: string, precision: number) =>
     evaluateText(table.value, text, { ...context, precision });
   // Issues #45 and #57: the kernel's root of a degree past 2^32 threw, or
-  // overshot for half a minute, or reported a mantissa far below one as
+  // overshot for half a minute, or reported a significand far below one as
   // not told from zero. Each is a value, against the references of #57
   // (Python's decimal module).
   for (const [text, precision, digits] of [
@@ -521,7 +521,7 @@ test("through the pipeline, roots of a large degree or of a tiny mantissa are va
     ["pow(2e200, 1e-20)", 8, "1"],
     ["pow(2, 1e-400)", 8, "1"],
     ["2^1e-400", 8, "1"],
-    // A ^ exponent is held to the range limit since H.9 (below), so the
+    // A ^ exponent is held to the significand limit since H.9 (below), so the
     // largest degree the default takes is about 10^19000.
     ["2^1e-19000", 8, "1"],
     ["pow(-2, 3^-700)", 8, "-1"],
@@ -663,7 +663,7 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
     // A tiny inexact exponent converts to zero within an ulp at the
     // kernel's door, and the power is one (#53).
     ["pow(2, approx(1e-999999999))", "1"],
-    // An exact exponent past the range limit as a fraction, in log space
+    // An exact exponent past the significand limit as a fraction, in log space
     // (H.16), gives what its approx form gives.
     ["pow(2, 1e-999999999)", "1"],
     ["pow(2, 1e-30000)", "1"],
@@ -727,13 +727,19 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
       "pow(-2, 1e-30000)",
       '"pow(-2, 1e-30000)" takes an even root of a negative value.',
     ],
-    ["2^1442695", '"2^1442695" is too large to compute within Most bits.'],
-    // A ^ exponent is reduced by the evaluator within the range limit
+    [
+      "2^1442695",
+      '"2^1442695" is too large to compute within the significand limit.',
+    ],
+    // A ^ exponent is reduced by the evaluator within the significand limit
     // (H.9): its denominator here, 10^310000, has a million bits, so the
     // power is refused as pow's is, where the parser once formed it at the
     // hard bound and the root went to log space (H.5); H.16 sends pow's
     // exponent past the limit to log space.
-    ["2^1e-310000", '"2^1e-310000" is too large to compute within Most bits.'],
+    [
+      "2^1e-310000",
+      '"2^1e-310000" is too large to compute within the significand limit.',
+    ],
   ]) {
     const result = evaluateText(table.value, text!, {
       ...context,

@@ -4,7 +4,7 @@
 // the ball is for. This module is the radius alone: ball.ts pairs one with
 // a midpoint, and quantity.ts makes that ball every magnitude.
 //
-// A bounded radius is `mant × 2^exp` with `mant` zero or a normalized 30-bit
+// A bounded radius is `significand × 2^exp` with `significand` zero or a normalized 30-bit
 // integer, in `[2^29, 2^30)`, and `exp` a bigint; the distinguished value
 // `unbounded` stands for a bound that is not known at all (a function whose
 // propagation rule is not yet written, in the study's words). It is a type
@@ -22,7 +22,7 @@
 // Every operation rounds the safe way, so a radius is always a true bound:
 // `radiusAbove` is the least representable value at or above its argument,
 // and the sum, the product, the power and the maximum of true bounds are
-// computed exactly on the mantissas and then rounded up to 30 bits. The
+// computed exactly on the significands and then rounded up to 30 bits. The
 // tightness lost to the rounding is a relative `2^-29` per operation,
 // invisible at any precision; the tests check both directions, that each
 // result is at or above the exact one and within that factor of it.
@@ -33,7 +33,7 @@
 // The magnitude of a midpoint enters as a radius without its power of ten
 // being formed (4.4): `radiusAboveScaled` and `radiusBelowScaled` take the
 // upper and the lower bound of scaled.ts's `log2Bounds`, within `2^-30` of
-// the truth, and round the mantissa the same way, so the two bracket the
+// the truth, and round the significand the same way, so the two bracket the
 // magnitude. `powerOfTenRadius` is the same bound for a bare power of
 // ten, `10^k`, for any `k` the bounds hold, past the exponent bound
 // included: a caller that needs only the radius of a power of ten takes
@@ -60,34 +60,50 @@ import {
   type Scaled,
 } from "./scaled.ts";
 
-/** The bits of a normalized mantissa. */
+/** The bits of a normalized significand. */
 export const MANT_BITS = 30;
-/** The least normalized mantissa, `2^29`: the invariant's lower bound, inclusive. */
+/** The least normalized significand, `2^29`: the invariant's lower bound, inclusive. */
 export const MANT_MIN = 1n << BigInt(MANT_BITS - 1);
-/** One past the largest mantissa, `2^30`: the invariant's upper bound, exclusive. */
+/** One past the largest significand, `2^30`: the invariant's upper bound, exclusive. */
 export const MANT_LIMIT = 1n << BigInt(MANT_BITS);
 
 /**
- * A radius: `mant × 2^exp`, with `mant` zero (the radius of an exact value)
- * or in `[MANT_MIN, MANT_LIMIT)`, or unbounded. Zero is `mant: 0n, exp: 0n`,
+ * A radius: `significand × 2^exp`, with `significand` zero (the radius of an exact value)
+ * or in `[MANT_MIN, MANT_LIMIT)`, or unbounded. Zero is `significand: 0n, exp: 0n`,
  * so that equal radii are structurally equal.
  */
 export type Radius =
-  | { readonly kind: "bounded"; readonly mant: bigint; readonly exp: bigint }
+  | {
+      readonly kind: "bounded";
+      readonly significand: bigint;
+      readonly exp: bigint;
+    }
   | { readonly kind: "unbounded" };
 
 /** The radius of an exact value. */
-export const ZERO_RADIUS: Radius = { kind: "bounded", mant: 0n, exp: 0n };
+export const ZERO_RADIUS: Radius = {
+  kind: "bounded",
+  significand: 0n,
+  exp: 0n,
+};
 
 /** A bound that is not known at all. */
 export const UNBOUNDED: Radius = { kind: "unbounded" };
 
 /** Exactly one: `2^29 × 2^-29`, the identity of `multiplyRadius`. */
-const ONE_RADIUS: Radius = { kind: "bounded", mant: MANT_MIN, exp: -29n };
+const ONE_RADIUS: Radius = {
+  kind: "bounded",
+  significand: MANT_MIN,
+  exp: -29n,
+};
 
 /** Exactly `2^k`, for a bigint `k`: the bound of a rounding to `-k` bits. */
 export function powerOfTwoRadius(k: bigint): Radius {
-  return { kind: "bounded", mant: MANT_MIN, exp: k - BigInt(MANT_BITS - 1) };
+  return {
+    kind: "bounded",
+    significand: MANT_MIN,
+    exp: k - BigInt(MANT_BITS - 1),
+  };
 }
 
 /**
@@ -109,11 +125,11 @@ export function powerOfTenRadius(k: bigint): Radius {
   if (k >= POWER_OF_TEN_LIMIT || k <= -POWER_OF_TEN_LIMIT) {
     throw new RangeError(`A power of ten's radius is bounded to 2^90: ${k}`);
   }
-  return radiusAboveScaled({ mant: ONE_FRACTION, exp: k });
+  return radiusAboveScaled({ significand: ONE_FRACTION, exp: k });
 }
 
 export function isZeroRadius(rad: Radius): boolean {
-  return rad.kind === "bounded" && rad.mant === 0n;
+  return rad.kind === "bounded" && rad.significand === 0n;
 }
 
 export function isUnbounded(rad: Radius): boolean {
@@ -130,14 +146,15 @@ export function radiusAbove(r: Rational): Radius {
   // [2^29 + 1, 2^31]: at most one bit too many, which `normalized` rounds
   // off, still upward.
   const exp = BigInt(bitLength(num) - bitLength(den) - MANT_BITS);
-  const mant = exp >= 0n ? ceilDiv(num, den << exp) : ceilDiv(num << -exp, den);
-  return normalized(mant, exp);
+  const significand =
+    exp >= 0n ? ceilDiv(num, den << exp) : ceilDiv(num << -exp, den);
+  return normalized(significand, exp);
 }
 
 /**
  * The least representable radius at or above `|s|`, from the upper bound
  * of scaled.ts's `log2Bounds`, so that nothing is formed whatever the
- * exponent; zero for zero. Tight to `2^-29` of the value, the mantissa's
+ * exponent; zero for zero. Tight to `2^-29` of the value, the significand's
  * own width, plus the bound's `2^-30`.
  */
 export function radiusAboveScaled(s: Scaled): Radius {
@@ -155,13 +172,13 @@ export function radiusBelowScaled(s: Scaled): Radius {
   return fromLog2(log2Bounds(s).lower, "down");
 }
 
-/** `2^(int + frac)` as a radius, its 30-bit mantissa rounded `up` or `down`. */
+/** `2^(int + frac)` as a radius, its 30-bit significand rounded `up` or `down`. */
 function fromLog2(log2: Log2, direction: "up" | "down"): Radius {
   const scaled = 2 ** log2.frac * 2 ** (MANT_BITS - 1);
-  const mant = BigInt(
+  const significand = BigInt(
     direction === "up" ? Math.ceil(scaled) : Math.floor(scaled),
   );
-  return normalized(mant, log2.int - BigInt(MANT_BITS - 1));
+  return normalized(significand, log2.int - BigInt(MANT_BITS - 1));
 }
 
 /**
@@ -170,10 +187,10 @@ function fromLog2(log2: Log2, direction: "up" | "down"): Radius {
  * from.
  */
 export function log2OfRadius(rad: Radius): Log2 {
-  if (rad.kind === "unbounded" || rad.mant === 0n) {
+  if (rad.kind === "unbounded" || rad.significand === 0n) {
     throw new RangeError("Only a bounded, nonzero radius has a logarithm");
   }
-  const log2 = Math.log2(Number(rad.mant));
+  const log2 = Math.log2(Number(rad.significand));
   const whole = Math.floor(log2);
   return { int: rad.exp + BigInt(whole), frac: log2 - whole };
 }
@@ -194,15 +211,15 @@ export function subtractRadiusDown(a: Radius, b: Radius): Radius {
   if (a.kind === "unbounded" || b.kind === "unbounded") {
     throw new RangeError("A lower bound needs bounded radii");
   }
-  if (b.mant === 0n) return a;
+  if (b.significand === 0n) return a;
   if (compareBounded(a, b) <= 0) return ZERO_RADIUS;
   const gap = a.exp - b.exp;
   // `b` is below `a`, so its exponent is at most `a`'s plus one; when it is
   // far below, the difference rounded down is `a` less one unit.
-  if (gap > BigInt(MANT_BITS)) return normalizedDown(a.mant - 1n, a.exp);
+  if (gap > BigInt(MANT_BITS)) return normalizedDown(a.significand - 1n, a.exp);
   return gap >= 0n
-    ? normalizedDown((a.mant << gap) - b.mant, b.exp)
-    : normalizedDown(a.mant - (b.mant << -gap), a.exp);
+    ? normalizedDown((a.significand << gap) - b.significand, b.exp)
+    : normalizedDown(a.significand - (b.significand << -gap), a.exp);
 }
 
 /**
@@ -213,8 +230,8 @@ export function multiplyRadiusDown(a: Radius, b: Radius): Radius {
   if (a.kind === "unbounded" || b.kind === "unbounded") {
     throw new RangeError("A lower bound needs bounded radii");
   }
-  if (a.mant === 0n || b.mant === 0n) return ZERO_RADIUS;
-  return normalizedDown(a.mant * b.mant, a.exp + b.exp);
+  if (a.significand === 0n || b.significand === 0n) return ZERO_RADIUS;
+  return normalizedDown(a.significand * b.significand, a.exp + b.exp);
 }
 
 /**
@@ -225,7 +242,7 @@ export function multiplyRadiusDown(a: Radius, b: Radius): Radius {
  */
 export function rootRadiusAbove(rad: Radius, degree: bigint): Radius {
   if (degree < 1n) throw new RangeError("Root degree must be positive");
-  if (rad.kind === "unbounded" || rad.mant === 0n) return rad;
+  if (rad.kind === "unbounded" || rad.significand === 0n) return rad;
   const log2 = log2OfRadius(rad);
   // (int + frac) / degree: the integer quotient rounded toward minus
   // infinity, and the rest as a fraction in [0, 1).
@@ -255,17 +272,18 @@ export function rootRadiusAbove(rad: Radius, degree: bigint): Radius {
  */
 export function divideRadius(num: Radius, den: Radius): Radius {
   if (num.kind === "unbounded" || den.kind === "unbounded") return UNBOUNDED;
-  if (den.mant === 0n) throw new RangeError("A radius is not divided by zero");
-  if (num.mant === 0n) return ZERO_RADIUS;
-  // The mantissas' quotient at 2^31 scale keeps 30 bits, rounded up.
+  if (den.significand === 0n)
+    throw new RangeError("A radius is not divided by zero");
+  if (num.significand === 0n) return ZERO_RADIUS;
+  // The significands' quotient at 2^31 scale keeps 30 bits, rounded up.
   return normalized(
-    ceilDiv(num.mant << BigInt(MANT_BITS + 1), den.mant),
+    ceilDiv(num.significand << BigInt(MANT_BITS + 1), den.significand),
     num.exp - den.exp - BigInt(MANT_BITS + 1),
   );
 }
 
 /**
- * The exact value of the bounded `rad`, `mant × 2^exp`, as a rational.
+ * The exact value of the bounded `rad`, `significand × 2^exp`, as a rational.
  * Throws `RangeError` on unbounded: a caller checks `isUnbounded` first.
  */
 export function radiusUpper(rad: Radius): Rational {
@@ -273,35 +291,36 @@ export function radiusUpper(rad: Radius): Rational {
     throw new RangeError("An unbounded radius has no value");
   }
   return rad.exp >= 0n
-    ? rational(rad.mant << rad.exp)
-    : rational(rad.mant, 1n << -rad.exp);
+    ? rational(rad.significand << rad.exp)
+    : rational(rad.significand, 1n << -rad.exp);
 }
 
 /** `a + b`, rounded up. Zero is the identity; unbounded absorbs. */
 export function addRadius(a: Radius, b: Radius): Radius {
   if (a.kind === "unbounded" || b.kind === "unbounded") return UNBOUNDED;
-  if (a.mant === 0n) return b;
-  if (b.mant === 0n) return a;
+  if (a.significand === 0n) return b;
+  if (b.significand === 0n) return a;
   const [large, small] = a.exp >= b.exp ? [a, b] : [b, a];
   const gap = large.exp - small.exp;
   // `small` is below `2^(small.exp + 30)`, so when the gap exceeds the
-  // mantissa's width it is below one unit of `large`, and rounding the sum
+  // significand's width it is below one unit of `large`, and rounding the sum
   // up is adding that unit, without a shift by the gap, which may be huge.
-  if (gap > BigInt(MANT_BITS)) return normalized(large.mant + 1n, large.exp);
-  return normalized((large.mant << gap) + small.mant, small.exp);
+  if (gap > BigInt(MANT_BITS))
+    return normalized(large.significand + 1n, large.exp);
+  return normalized((large.significand << gap) + small.significand, small.exp);
 }
 
 /** `a × b`, rounded up. Zero annihilates a bounded radius; unbounded absorbs. */
 export function multiplyRadius(a: Radius, b: Radius): Radius {
   if (a.kind === "unbounded" || b.kind === "unbounded") return UNBOUNDED;
-  if (a.mant === 0n || b.mant === 0n) return ZERO_RADIUS;
-  return normalized(a.mant * b.mant, a.exp + b.exp);
+  if (a.significand === 0n || b.significand === 0n) return ZERO_RADIUS;
+  return normalized(a.significand * b.significand, a.exp + b.exp);
 }
 
 /** `rad × 2^k` for an integer `k` of either sign. Exact: the exponent moves; unbounded absorbs. */
 export function shiftRadius(rad: Radius, k: bigint): Radius {
-  if (rad.kind === "unbounded" || rad.mant === 0n) return rad;
-  return { kind: "bounded", mant: rad.mant, exp: rad.exp + k };
+  if (rad.kind === "unbounded" || rad.significand === 0n) return rad;
+  return { kind: "bounded", significand: rad.significand, exp: rad.exp + k };
 }
 
 /** The larger of `a` and `b`; unbounded absorbs. Exact: nothing is rounded. */
@@ -321,7 +340,7 @@ export function maxRadius(a: Radius, b: Radius): Radius {
  */
 export function powRadiusAbove(rad: Radius, n: bigint): Radius {
   if (n < 1n) throw new RangeError(`A positive power is needed: ${n}`);
-  if (rad.kind === "unbounded" || rad.mant === 0n) return rad;
+  if (rad.kind === "unbounded" || rad.significand === 0n) return rad;
   const { int, frac } = log2OfRadius(rad);
   const scale = 40;
   // The logarithm scaled by 2^40 and rounded up, plus one for the
@@ -361,60 +380,64 @@ export function powRadius(rad: Radius, n: bigint): Radius {
 type Bounded = Extract<Radius, { kind: "bounded" }>;
 
 /**
- * `mant × 2^exp` as a normalized radius, rounded up: a mantissa too wide is
+ * `significand × 2^exp` as a normalized radius, rounded up: a significand too wide is
  * divided by the excess power of two with its ceiling taken, and one too
  * narrow is shifted up exactly. The ceiling can carry into a 31st bit
  * (`2^30` exactly), which is `2^29` one exponent higher.
  */
-function normalized(mant: bigint, exp: bigint): Radius {
-  if (mant === 0n) return ZERO_RADIUS;
-  const excess = bitLength(mant) - MANT_BITS;
+function normalized(significand: bigint, exp: bigint): Radius {
+  if (significand === 0n) return ZERO_RADIUS;
+  const excess = bitLength(significand) - MANT_BITS;
   if (excess > 0) {
-    mant = ceilDiv(mant, 1n << BigInt(excess));
+    significand = ceilDiv(significand, 1n << BigInt(excess));
     exp += BigInt(excess);
-    if (mant === MANT_LIMIT) {
-      mant = MANT_MIN;
+    if (significand === MANT_LIMIT) {
+      significand = MANT_MIN;
       exp += 1n;
     }
   } else if (excess < 0) {
-    mant <<= BigInt(-excess);
+    significand <<= BigInt(-excess);
     exp -= BigInt(-excess);
   }
-  return { kind: "bounded", mant, exp };
+  return { kind: "bounded", significand, exp };
 }
 
 /**
- * `mant × 2^exp` as a normalized radius, rounded down: a mantissa too wide
+ * `significand × 2^exp` as a normalized radius, rounded down: a significand too wide
  * is shifted down with its low bits dropped, and one too narrow shifted up
- * exactly; zero for a non-positive mantissa.
+ * exactly; zero for a non-positive significand.
  */
-function normalizedDown(mant: bigint, exp: bigint): Radius {
-  if (mant <= 0n) return ZERO_RADIUS;
-  const excess = bitLength(mant) - MANT_BITS;
+function normalizedDown(significand: bigint, exp: bigint): Radius {
+  if (significand <= 0n) return ZERO_RADIUS;
+  const excess = bitLength(significand) - MANT_BITS;
   if (excess > 0)
     return {
       kind: "bounded",
-      mant: mant >> BigInt(excess),
+      significand: significand >> BigInt(excess),
       exp: exp + BigInt(excess),
     };
   if (excess < 0)
     return {
       kind: "bounded",
-      mant: mant << BigInt(-excess),
+      significand: significand << BigInt(-excess),
       exp: exp - BigInt(-excess),
     };
-  return { kind: "bounded", mant, exp };
+  return { kind: "bounded", significand, exp };
 }
 
 /** Compares two bounded radii by value: -1, 0 or 1. */
 function compareBounded(a: Bounded, b: Bounded): -1 | 0 | 1 {
-  if (a.mant === 0n || b.mant === 0n) {
-    return a.mant === b.mant ? 0 : a.mant === 0n ? -1 : 1;
+  if (a.significand === 0n || b.significand === 0n) {
+    return a.significand === b.significand ? 0 : a.significand === 0n ? -1 : 1;
   }
-  // Both mantissas are in [2^29, 2^30), so the exponents order the values
-  // and the mantissas break the tie.
+  // Both significands are in [2^29, 2^30), so the exponents order the values
+  // and the significands break the tie.
   if (a.exp !== b.exp) return a.exp < b.exp ? -1 : 1;
-  return a.mant < b.mant ? -1 : a.mant > b.mant ? 1 : 0;
+  return a.significand < b.significand
+    ? -1
+    : a.significand > b.significand
+      ? 1
+      : 0;
 }
 
 /** `ceil(num / den)` for non-negative `num` and positive `den`. */

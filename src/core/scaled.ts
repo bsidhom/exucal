@@ -1,4 +1,4 @@
-// The midpoint's number type: a fraction times a power of ten, `mant ×
+// The midpoint's number type: a fraction times a power of ten, `significand ×
 // 10^exp`, so that a value carries an exponent as a number rather than as
 // digits and `1e999999999` is a value. docs/decimal.md is the design and
 // docs/calculator-plan.md (D13, D16 and tasks 4.1 to 4.4) places it; it
@@ -7,7 +7,7 @@
 // midpoint it is).
 //
 // The form is canonical, so that equal values have equal representations
-// and `equals` is structural: the mantissa is in lowest terms with its
+// and `equals` is structural: the significand is in lowest terms with its
 // denominator coprime to ten and its numerator not divisible by ten unless
 // zero, and zero is the zero fraction with exponent zero. The constructor
 // strips the numerator's tens into the exponent and moves the
@@ -17,8 +17,8 @@
 // one rule, and the result is in lowest terms without a gcd, since the
 // factors moved are coprime to what stays. The canonical form of a
 // fraction is at most 2.33 times its size (`5^k` for a denominator `2^k`),
-// and the canonical form is what the range limit measures (D16, D19:
-// `mantissaWithin`), since it is what is stored and multiplied; a kernel result,
+// and the canonical form is what the significand limit measures (D16, D19:
+// `significandWithin`), since it is what is stored and multiplied; a kernel result,
 // a dyadic of the working bits, never enters exactly, since the boundary
 // rounds it onto the decimal grid as it leaves the kernel (fixed.ts).
 //
@@ -29,26 +29,26 @@
 // `scaled` checks it after normalizing and fails `overflow` above it or
 // `underflow` below it, and the arithmetic (4.2) fails the same way
 // wherever exponents combine. The canonical `exp` itself may then pass
-// `±10^18` by up to the mantissa's digits, the denominator's digits above
+// `±10^18` by up to the significand's digits, the denominator's digits above
 // the bound and the numerator's below, which nothing needs it not to;
 // before the plan's H.13 the check was on `exp`, so that `1e-10^18 / 7`,
 // past the bound, was held as `1/7 × 10^-(10^18)` and `1e10^18 / 3 * 10`,
 // within it, was refused as `1/3 × 10^(10^18 + 1)`. The check is cheap:
 // the decimal exponent is computed only when `exp` lies within
 // `BOUND_BAND` of the bound, which is more than the digits of any
-// mantissa, so the common case is one comparison. These are this
+// significand, so the common case is one comparison. These are this
 // module's own failures, since only a value with an exponent can pass
-// the bound; the fraction's `tooLarge` is the range limit's, and a
+// the bound; the fraction's `tooLarge` is the significand limit's, and a
 // `Scaled` operation reports it unchanged. Nothing here
 // forms a power of ten the exponent stands for except `toRational`, which
 // takes the bits it may form and fails `tooLarge` beyond them: the
-// decimal exponent of a value is the mantissa's plus `exp`, and a
+// decimal exponent of a value is the significand's plus `exp`, and a
 // comparison is decided by the signs, by the decimal exponents, and, when
 // those are equal, by an alignment whose shift is then bounded by the
-// mantissas' own digit counts and never by the range limit, so `compare`
+// significands' own digit counts and never by the significand limit, so `compare`
 // is total. The binary magnitude a radius needs (`log2Bounds`, for
 // radius.ts) is a lower and an upper bound on `log2 |s|` within `2^-30`,
-// from the bit lengths of the mantissa and the exponent times `log2 10`
+// from the bit lengths of the significand and the exponent times `log2 10`
 // held as a 128-bit fraction, with no call into the kernel;
 // `decimalExponentOfLog2` and `oneDigitAbove` go the other way, from a
 // binary logarithm to a decimal exponent and to a one-digit value above
@@ -57,28 +57,28 @@
 // of ten (`powerOfTen`, memoized) are here for the boundary too, since
 // `toString` is an order slower at the ceiling's sizes.
 //
-// The arithmetic (4.2) is the fraction's on the mantissas with the
+// The arithmetic (4.2) is the fraction's on the significands with the
 // exponents combined and the result renormalized. A sum aligns the
-// mantissas by `10^|Δexp|`, which costs `|Δexp| log2 10` bits and is exact,
-// and fails `tooLarge` when that exceeds the limit given, the range limit:
+// significands by `10^|Δexp|`, which costs `|Δexp| log2 10` bits and is exact,
+// and fails `tooLarge` when that exceeds the limit given, the significand limit:
 // the exact sum exists and cannot be held (`1e999999999 + 1`), which is
 // what the limit means; a product, a quotient and a power add, subtract
-// and multiply exponents and fail at the bound, a power's mantissa sized
+// and multiply exponents and fail at the bound, a power's significand sized
 // against the limit as the fraction's `pow` sizes it. So `add`,
 // `subtract`, `multiply`, `divide`, `invert` and `pow` are `Result`s
 // where the fraction's are total, and `negate` and `absolute` stay total.
 // A power refused is reported by its decimal exponent (`powerRefusal`),
-// so that one the range limit refuses is reported at the bound when the
+// so that one the significand limit refuses is reported at the bound when the
 // bound would refuse it too.
 //
 // The decimal representation (4.3) lives here, moved from rational.ts:
 // `parseDecimal` reads a literal exactly with its exponent kept lazily,
-// the mantissa checked against `LIMIT_BITS` and the value against the
+// the significand checked against `MAX_SIGNIFICAND_LIMIT_BITS` and the value against the
 // bound by the constructor, so that `1e999999999` parses and so does
 // `0.001e1000000000000000003`, whose value is `1e1000000000000000000`
 // (issue #50); rounding to significant digits
 // commutes with the power of ten, so `roundTo` and `format` act on the
-// mantissa alone, as the fraction's did, and add `exp` to the exponent,
+// significand alone, as the fraction's did, and add `exp` to the exponent,
 // and a value of any exponent is rounded and written with nothing formed;
 // every rounding is a scaling to an integer division and back, the
 // division being `divideRounded` of rounding.ts, the one place a mode is
@@ -93,7 +93,7 @@
 // throws `RangeError`, as `rational` does.
 
 import {
-  LIMIT_BITS,
+  MAX_SIGNIFICAND_LIMIT_BITS,
   ONE as ONE_FRACTION,
   ZERO as ZERO_FRACTION,
   add as addFractions,
@@ -119,12 +119,12 @@ import {
   type RoundingMode,
 } from "./rounding.ts";
 
-/** A number `mant × 10^exp`, in the canonical form the header states. */
-export type Scaled = { readonly mant: Rational; readonly exp: bigint };
+/** A number `significand × 10^exp`, in the canonical form the header states. */
+export type Scaled = { readonly significand: Rational; readonly exp: bigint };
 
 /**
  * The failures a `Scaled` operation can report: the fraction's, whose
- * `tooLarge` is a result past the range limit (rational.ts), and the
+ * `tooLarge` is a result past the significand limit (rational.ts), and the
  * exponent bound's, which only a value with an exponent can pass.
  */
 export type ScaledError =
@@ -164,27 +164,27 @@ export const MAX_EXPONENT = 10n ** 18n;
 /**
  * How far from the bound the canonical exponent must lie for the decimal
  * exponent to be computed in `scaled`, `4 × 10^8`: more than the digits
- * of any mantissa within the hard bound, so that an exponent farther in
+ * of any significand within the hard bound, so that an exponent farther in
  * cannot put the value past the bound.
  */
 const BOUND_BAND = 400_000_000n;
 
-export const ZERO: Scaled = { mant: ZERO_FRACTION, exp: 0n };
-export const ONE: Scaled = { mant: ONE_FRACTION, exp: 0n };
+export const ZERO: Scaled = { significand: ZERO_FRACTION, exp: 0n };
+export const ONE: Scaled = { significand: ONE_FRACTION, exp: 0n };
 
 // ---------------------------------------------------------------------------
 // Construction and inspection
 
 /**
- * `mant × 10^exp` in canonical form, or `overflow` or `underflow` when the
+ * `significand × 10^exp` in canonical form, or `overflow` or `underflow` when the
  * value's decimal exponent passes `MAX_EXPONENT` above or below (D17);
  * zero is within the bound at any exponent.
  */
 export function scaled(
-  mant: Rational,
+  significand: Rational,
   exp: bigint,
 ): Result<Scaled, ScaledError> {
-  const s = normalize(mant, exp);
+  const s = normalize(significand, exp);
   if (s.exp > MAX_EXPONENT - BOUND_BAND || s.exp < BOUND_BAND - MAX_EXPONENT) {
     const e = decimalExponent(s);
     if (e > MAX_EXPONENT || e < -MAX_EXPONENT) return err(pastBound(e));
@@ -209,14 +209,14 @@ export function fromRational(r: Rational): Scaled {
 
 /**
  * The exact fraction `s` stands for, when forming its power of ten stays
- * within `limit` bits (the range limit); `tooLarge` otherwise.
+ * within `limit` bits (the significand limit); `tooLarge` otherwise.
  */
 export function toRational(
   s: Scaled,
   limit: number,
 ): Result<Rational, ScaledError> {
-  const { num, den } = s.mant;
-  if (s.exp === 0n) return ok(s.mant);
+  const { num, den } = s.significand;
+  if (s.exp === 0n) return ok(s.significand);
   if (!formable(s, limit)) return err({ kind: "tooLarge" });
   const magnitude = abs(s.exp);
   const power = 10n ** magnitude;
@@ -241,39 +241,42 @@ export function formable(s: Scaled, limit: number): boolean {
   const magnitude = abs(s.exp);
   return (
     magnitude <= BigInt(limit) &&
-    (Number(magnitude) + decimalDigits(abs(s.mant.num))) * BITS_PER_DIGIT <=
+    (Number(magnitude) + decimalDigits(abs(s.significand.num))) *
+      BITS_PER_DIGIT <=
       limit
   );
 }
 
 export function isZero(s: Scaled): boolean {
-  return s.mant.num === 0n;
+  return s.significand.num === 0n;
 }
 
-/** Whether `s` is an integer: a mantissa of denominator one and an exponent at or above zero. */
+/** Whether `s` is an integer: a significand of denominator one and an exponent at or above zero. */
 export function isInteger(s: Scaled): boolean {
-  return s.mant.den === 1n && s.exp >= 0n;
+  return s.significand.den === 1n && s.exp >= 0n;
 }
 
 /** The sign of `s`: -1, 0 or 1. */
 export function sign(s: Scaled): -1 | 0 | 1 {
-  return signOf(s.mant);
+  return signOf(s.significand);
 }
 
 /** Structural equality, which the canonical form makes equality of values. */
 export function equals(a: Scaled, b: Scaled): boolean {
   return (
-    a.exp === b.exp && a.mant.num === b.mant.num && a.mant.den === b.mant.den
+    a.exp === b.exp &&
+    a.significand.num === b.significand.num &&
+    a.significand.den === b.significand.den
   );
 }
 
 /**
  * The decimal exponent of `s`, which must be non-zero: the integer `e`
- * with `10^e <= |s| < 10^(e+1)`, the mantissa's plus `exp`, exact for any
+ * with `10^e <= |s| < 10^(e+1)`, the significand's plus `exp`, exact for any
  * exponent and formed without any power of ten.
  */
 export function decimalExponent(s: Scaled): bigint {
-  return BigInt(decimalExponentOfFraction(s.mant)) + s.exp;
+  return BigInt(decimalExponentOfFraction(s.significand)) + s.exp;
 }
 
 /**
@@ -294,9 +297,9 @@ function decimalExponentOfFraction(r: Rational): number {
 
 /**
  * Compares `a` with `b`: -1, 0 or 1. Decided by the signs, then by the
- * decimal exponents, and, when those are equal, by aligning the mantissas
+ * decimal exponents, and, when those are equal, by aligning the significands
  * by the difference of the exponents, which is then at most the
- * mantissas' digit counts, so nothing large is ever formed.
+ * significands' digit counts, so nothing large is ever formed.
  */
 export function compare(a: Scaled, b: Scaled): -1 | 0 | 1 {
   const sa = sign(a);
@@ -308,26 +311,30 @@ export function compare(a: Scaled, b: Scaled): -1 | 0 | 1 {
   // A larger decimal exponent is a larger magnitude, which the sign orders.
   if (da !== db) return da < db === sa > 0 ? -1 : 1;
   const shift = a.exp - b.exp;
-  const left = shift > 0n ? timesPowerOfTen(a.mant, shift) : a.mant;
-  const right = shift < 0n ? timesPowerOfTen(b.mant, -shift) : b.mant;
+  const left =
+    shift > 0n ? timesPowerOfTen(a.significand, shift) : a.significand;
+  const right =
+    shift < 0n ? timesPowerOfTen(b.significand, -shift) : b.significand;
   return compareFractions(left, right);
 }
 
 // ---------------------------------------------------------------------------
 // Arithmetic
 
-/** `-s`: the mantissa negated, the exponent kept; canonical as `s` is. */
+/** `-s`: the significand negated, the exponent kept; canonical as `s` is. */
 export function negate(s: Scaled): Scaled {
-  return isZero(s) ? s : { mant: negateFraction(s.mant), exp: s.exp };
+  return isZero(s)
+    ? s
+    : { significand: negateFraction(s.significand), exp: s.exp };
 }
 
 /** `|s|`. */
 export function absolute(s: Scaled): Scaled {
-  return s.mant.num < 0n ? negate(s) : s;
+  return s.significand.num < 0n ? negate(s) : s;
 }
 
 /**
- * `a + b`, exactly, the mantissas aligned by `10^|Δexp|`; `tooLarge` when
+ * `a + b`, exactly, the significands aligned by `10^|Δexp|`; `tooLarge` when
  * the alignment would exceed `limit` bits, and `overflow` or `underflow`
  * when the sum's exponent would pass the bound.
  */
@@ -348,79 +355,85 @@ export function subtract(
   return combine(a, b, limit, subtractFractions);
 }
 
-/** `op` over the mantissas of `a` and `b` brought to the lesser exponent. */
+/** `op` over the significands of `a` and `b` brought to the lesser exponent. */
 function combine(
   a: Scaled,
   b: Scaled,
   limit: number,
   op: (x: Rational, y: Rational) => Rational,
 ): Result<Scaled, ScaledError> {
-  if (isZero(a)) return scaled(op(ZERO_FRACTION, b.mant), b.exp);
-  if (isZero(b)) return scaled(op(a.mant, ZERO_FRACTION), a.exp);
+  if (isZero(a)) return scaled(op(ZERO_FRACTION, b.significand), b.exp);
+  if (isZero(b)) return scaled(op(a.significand, ZERO_FRACTION), a.exp);
   const shift = abs(a.exp - b.exp);
   if (shift > BigInt(limit) || Number(shift) * BITS_PER_DIGIT > limit) {
     return err({ kind: "tooLarge" });
   }
   const exp = a.exp < b.exp ? a.exp : b.exp;
-  const left = a.exp > exp ? timesPowerOfTen(a.mant, shift) : a.mant;
-  const right = b.exp > exp ? timesPowerOfTen(b.mant, shift) : b.mant;
+  const left =
+    a.exp > exp ? timesPowerOfTen(a.significand, shift) : a.significand;
+  const right =
+    b.exp > exp ? timesPowerOfTen(b.significand, shift) : b.significand;
   return scaled(op(left, right), exp);
 }
 
 /**
- * Whether the mantissa of `s` has at most `maxBits` bits in its numerator
- * and its denominator: the range limit's measure, the canonical form's
+ * Whether the significand of `s` has at most `significandLimitBits` bits in its numerator
+ * and its denominator: the significand limit's measure, the canonical form's
  * size (D16, D19), which the evaluator checks a literal and every exact
  * result against, and the pipeline its two quotients.
  */
-export function mantissaWithin(s: Scaled, maxBits: number): boolean {
-  const { num, den } = s.mant;
+export function significandWithin(
+  s: Scaled,
+  significandLimitBits: number,
+): boolean {
+  const { num, den } = s.significand;
   return (
-    bitLength(num < 0n ? -num : num) <= maxBits && bitLength(den) <= maxBits
+    bitLength(num < 0n ? -num : num) <= significandLimitBits &&
+    bitLength(den) <= significandLimitBits
   );
 }
 
 /**
- * `a × b`, exactly: the mantissas multiplied, the exponents added; fails
- * at the bound. The product is not held to the range limit, which the
+ * `a × b`, exactly: the significands multiplied, the exponents added; fails
+ * at the bound. The product is not held to the significand limit, which the
  * evaluator's node check refuses it at once formed (D19), so a caller
  * takes any refusal.
  */
 export function multiply(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
   if (isZero(a) || isZero(b)) return ok(ZERO);
-  return scaled(multiplyFractions(a.mant, b.mant), a.exp + b.exp);
+  return scaled(multiplyFractions(a.significand, b.significand), a.exp + b.exp);
 }
 
 /**
- * `a / b`, exactly: the mantissas divided, the exponents subtracted;
+ * `a / b`, exactly: the significands divided, the exponents subtracted;
  * fails on a zero `b` and at the bound. Like a product, the quotient is
- * held to the range limit at the node, not here, and a caller takes any
+ * held to the significand limit at the node, not here, and a caller takes any
  * refusal.
  */
 export function divide(a: Scaled, b: Scaled): Result<Scaled, ScaledError> {
-  const mant = divideFractions(a.mant, b.mant);
-  if (!mant.ok) return mant;
+  const significand = divideFractions(a.significand, b.significand);
+  if (!significand.ok) return significand;
   if (isZero(a)) return ok(ZERO);
-  return scaled(mant.value, a.exp - b.exp);
+  return scaled(significand.value, a.exp - b.exp);
 }
 
 /** The reciprocal of `s`; fails on zero and at the bound. */
 export function invert(s: Scaled): Result<Scaled, ScaledError> {
-  const mant = invertFraction(s.mant);
-  return mant.ok ? scaled(mant.value, -s.exp) : mant;
+  const significand = invertFraction(s.significand);
+  return significand.ok ? scaled(significand.value, -s.exp) : significand;
 }
 
 /**
- * `s` raised to the integer power `n`, exactly: the mantissa's power as
+ * `s` raised to the integer power `n`, exactly: the significand's power as
  * the fraction's `pow` sizes it against `limit` bits, so that `10^1442695`
- * is `1 × 10^1442695` where `2^1442695` is `tooLarge` by its mantissa,
+ * is `1 × 10^1442695` where `2^1442695` is `tooLarge` by its significand,
  * and the exponent times `n`, the value checked against the bound by the
  * constructor. A negative `n` inverts, so zero to a negative power is a
- * division by zero; `s^0` is one for any `s`. A refusal by the mantissa
+ * division by zero; `s^0` is one for any `s`. A refusal by the significand
  * is reported by the power's decimal exponent (`powerRefusal`), not by
- * the check that fails first: `7^(10^19)`, refused by its mantissa, is an
+ * the check that fails first: `7^(10^19)`, refused by its significand, is an
  * `overflow`, and `2.54^(10^18)` is `10^(0.40 × 10^18)`, within the
- * bound, and is `tooLarge`, the range limit's; within a hair of the
+ * bound, and is `tooLarge`, the significand limit's; within a hair of the
  * bound, where `powerRefusal` cannot tell, it is `tooLarge`. A check of
  * the canonical exponent times `n` came first until the plan's H.13,
  * which refused `12345678e-1000000000000000007` to the first power, a
@@ -435,10 +448,10 @@ export function pow(
   if (isZero(s)) {
     return n < 0n ? err({ kind: "divisionByZero" }) : ok(ZERO);
   }
-  const mant = powFraction(s.mant, n, limit);
-  if (mant.ok) return scaled(mant.value, s.exp * n);
-  if (mant.error.kind !== "tooLarge") return mant;
-  return err(powerRefusal(s, integerExponent(n)) ?? mant.error);
+  const significand = powFraction(s.significand, n, limit);
+  if (significand.ok) return scaled(significand.value, s.exp * n);
+  if (significand.error.kind !== "tooLarge") return significand;
+  return err(powerRefusal(s, integerExponent(n)) ?? significand.error);
 }
 
 /**
@@ -447,14 +460,14 @@ export function pow(
  * `n` of `2^20` bits out would cost a tenth of a second on every refusal.
  */
 function integerExponent(n: bigint): Scaled {
-  return { mant: { num: n, den: 1n }, exp: 0n };
+  return { significand: { num: n, den: 1n }, exp: 0n };
 }
 
 // ---------------------------------------------------------------------------
 // Rounding, truncation and the exact root
 
 /**
- * `s` rounded to `digits` significant digits in `mode`: the mantissa
+ * `s` rounded to `digits` significant digits in `mode`: the significand
  * rounded as the fraction's `roundTo` rounded it, since rounding to
  * significant digits commutes with the power of ten, and the exponent
  * kept, so nothing is formed. `equals(roundTo(s, d, mode), s)` says
@@ -469,9 +482,9 @@ export function roundTo(
 ): Scaled {
   checkPrecision(digits);
   if (isZero(s)) return ZERO;
-  const { num, den } = s.mant;
-  const shift = digits - 1 - decimalExponentOfFraction(s.mant);
-  // The mantissa at `digits` digits is `num × 10^shift / den` rounded, an
+  const { num, den } = s.significand;
+  const shift = digits - 1 - decimalExponentOfFraction(s.significand);
+  // The significand at `digits` digits is `num × 10^shift / den` rounded, an
   // integer; it goes to the canonical form with the shift taken off the
   // exponent, and not through `rational`, whose lowest terms would cost a
   // gcd against the power of ten that the form moves out anyway.
@@ -499,7 +512,7 @@ export function trunc(s: Scaled, limit: number): Scaled | undefined {
 /**
  * The exact `degree`-th root of `s`, where `degree >= 1`: the exponent
  * divided by the degree, its remainder's power of ten folded into the
- * mantissa when it can be formed within `limit` bits, and the fraction's
+ * significand when it can be formed within `limit` bits, and the fraction's
  * `exactRoot` of that, so that `sqrt(1e999999998)` is exactly
  * `1e499999999` and `sqrt(1e999999999)` is irrational; `undefined` when
  * the root is irrational or the remainder cannot be formed, in which case
@@ -513,7 +526,7 @@ export function exactRoot(
 ): Result<Scaled | undefined, ScaledError> {
   if (degree < 1n) throw new RangeError("Root degree must be positive");
   if (degree === 1n || isZero(s)) return ok(s);
-  if (s.mant.num < 0n && degree % 2n === 0n) {
+  if (s.significand.num < 0n && degree % 2n === 0n) {
     return err({ kind: "negativeRadicand", degree });
   }
   let k = s.exp / degree;
@@ -522,18 +535,18 @@ export function exactRoot(
     r += degree;
     k -= 1n;
   }
-  let mant = s.mant;
+  let significand = s.significand;
   if (r > 0n) {
     if (
       r > BigInt(limit) ||
-      (Number(r) + decimalDigits(abs(mant.num))) * BITS_PER_DIGIT > limit
+      (Number(r) + decimalDigits(abs(significand.num))) * BITS_PER_DIGIT > limit
     ) {
       return ok(undefined);
     }
     // Still in lowest terms: the denominator is coprime to ten.
-    mant = { num: mant.num * 10n ** r, den: mant.den };
+    significand = { num: significand.num * 10n ** r, den: significand.den };
   }
-  const root = exactRootOfFraction(mant, degree);
+  const root = exactRootOfFraction(significand, degree);
   if (!root.ok) return root;
   if (root.value === undefined) return ok(undefined);
   return ok(normalize(root.value, k));
@@ -549,7 +562,7 @@ const DECIMAL = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/;
  * optional fraction (`12`, `1.5`, `.5`, `5.`) and an optional exponent
  * (`1.5e-3` is `15 × 10^-4`), the exponent kept as the exponent it is.
  * Anything else, including surrounding whitespace, is `invalidNumber`; a
- * mantissa of more digits than `LIMIT_BITS` holds is `tooLarge`, and a
+ * significand of more digits than `MAX_SIGNIFICAND_LIMIT_BITS` holds is `tooLarge`, and a
  * value past `MAX_EXPONENT` is `overflow` or `underflow`, by its side, as
  * the constructor decides it: `0e2000000000000000000` is zero, and
  * `10e-1000000000000000001` is `1e-1000000000000000000`, at the bound
@@ -562,15 +575,15 @@ export function parseDecimal(text: string): Result<Scaled, ScaledError> {
     match;
   const fraction = fractionPart || bareFraction;
   const digits = integerPart + fraction;
-  if (digits.length * BITS_PER_DIGIT > LIMIT_BITS) {
+  if (digits.length * BITS_PER_DIGIT > MAX_SIGNIFICAND_LIMIT_BITS) {
     return err({ kind: "tooLarge" });
   }
   // The value is (integer digits ++ fraction digits) × 10^(exponent - #fraction).
   const exponent = match[5] === undefined ? 0n : BigInt(match[5]);
   const shift = exponent - BigInt(fraction.length);
-  const mantissa = BigInt(digits);
+  const significand = BigInt(digits);
   return scaled(
-    { num: signText === "-" ? -mantissa : mantissa, den: 1n },
+    { num: signText === "-" ? -significand : significand, den: 1n },
     shift,
   );
 }
@@ -590,8 +603,8 @@ export function format(
 ): string {
   checkPrecision(digits);
   if (isZero(s)) return "0";
-  const { num, den } = s.mant;
-  let exponent = decimalExponentOfFraction(s.mant);
+  const { num, den } = s.significand;
+  let exponent = decimalExponentOfFraction(s.significand);
   const shift = digits - 1 - exponent;
   // The signed numerator is rounded, since the directed modes tell the sign
   // apart (`-9.99` at two digits is `-9.9` under `ceiling` and `-10` under
@@ -603,14 +616,14 @@ export function format(
     shift >= 0 ? den : den * 10n ** BigInt(-shift),
     mode,
   );
-  let mantissa = abs(signed);
+  let significand = abs(signed);
   // Rounding can carry into a new leading digit (9.99 → 10.0), in any mode
   // that rounds the magnitude up.
-  if (mantissa === 10n ** BigInt(digits)) {
-    mantissa /= 10n;
+  if (significand === 10n ** BigInt(digits)) {
+    significand /= 10n;
     exponent += 1;
   }
-  const text = mantissa.toString(); // exactly `digits` characters
+  const text = significand.toString(); // exactly `digits` characters
   const sign = signed < 0n ? "-" : "";
   const total = BigInt(exponent) + s.exp;
   if (total < -4n || total >= BigInt(digits)) {
@@ -648,15 +661,16 @@ const LOG2_10_SCALED = 1130393554869435518674010122299176348979n;
 
 /**
  * A lower and an upper bound on `log2 |s|`, for a non-zero `s`, within
- * `2^-30` of each other and of the truth: `log2` of the mantissa's
+ * `2^-30` of each other and of the truth: `log2` of the significand's
  * numerator and denominator through their top bits and a double, and the
  * exponent times `log2 10` through the 128-bit fraction, with `LOG2_MARGIN`
  * taken off and added on. What a radius at or above, or below, `|s|`
  * needs (4.4).
  */
 export function log2Bounds(s: Scaled): { lower: Log2; upper: Log2 } {
-  if (s.mant.num === 0n) throw new RangeError("Zero has no binary magnitude");
-  const m = log2Of(abs(s.mant.num)) - log2Of(s.mant.den);
+  if (s.significand.num === 0n)
+    throw new RangeError("Zero has no binary magnitude");
+  const m = log2Of(abs(s.significand.num)) - log2Of(s.significand.den);
   const product = s.exp * LOG2_10_SCALED;
   const int = product >> 128n;
   const rest = Number(product - (int << 128n)) / 2 ** 128;
@@ -732,7 +746,7 @@ const NEAR_ONE_SLACK = 2 ** -25;
  * binary logarithm, `log2 |y|` plus `log2 |log10 |s||` (`log2OfLog10`),
  * is bounded from both sides. For a power the arithmetic refuses, so that
  * the error names the bound, which no setting moves, when no setting
- * could compute the power (`7^(10^19)`), and the range limit when an
+ * could compute the power (`7^(10^19)`), and the significand limit when an
  * inexact base would give it a value. A zero `s` or `y`, and an `s` of
  * magnitude one, give a power of magnitude zero or one: `tooLarge`.
  */
@@ -769,7 +783,7 @@ export function powerSide(s: Scaled, y: Scaled): Refusal {
  * lie on one side of zero; and otherwise, `|s|` being within `2^-30` or so
  * of one, from `d = |s| - 1` formed exactly, `|ln |s||` being `|d|` within
  * `NEAR_ONE_SLACK`. `undefined` when `d` cannot be aligned within the hard
- * bound, which only a mantissa of the hard bound's size makes possible.
+ * bound, which only a significand of the hard bound's size makes possible.
  */
 function log2OfLog10(s: Scaled): { lower: number; upper: number } | undefined {
   const bounds = log2Bounds(s);
@@ -783,7 +797,7 @@ function log2OfLog10(s: Scaled): { lower: number; upper: number } | undefined {
       upper: Math.log2(most * LOG10_2),
     };
   }
-  const d = subtract(absolute(s), ONE, LIMIT_BITS);
+  const d = subtract(absolute(s), ONE, MAX_SIGNIFICAND_LIMIT_BITS);
   if (!d.ok) return undefined;
   const near = log2Bounds(d.value);
   return {
@@ -813,18 +827,18 @@ function log2Of(n: bigint): number {
 // Helpers
 
 /** log2(10), rounded up: the bits a decimal digit can need. */
-/** About the bits of a decimal digit, the measure `formable` sizes a mantissa by. */
+/** About the bits of a decimal digit, the measure `formable` sizes a significand by. */
 export const BITS_PER_DIGIT = 3.33;
 
 /**
- * `mant × 10^exp` in canonical form, unchecked against the bound: the
+ * `significand × 10^exp` in canonical form, unchecked against the bound: the
  * denominator's tens, then its twos or its fives, moved out, and the
  * numerator's tens moved into the exponent, as the header says.
  */
-function normalize(mant: Rational, exp: bigint): Scaled {
-  if (mant.num === 0n) return ZERO;
-  let num = abs(mant.num);
-  let den = mant.den;
+function normalize(significand: Rational, exp: bigint): Scaled {
+  if (significand.num === 0n) return ZERO;
+  let num = abs(significand.num);
+  let den = significand.den;
   let e = exp;
   const denTens = tensIn(den);
   den = den / 10n ** denTens;
@@ -846,7 +860,10 @@ function normalize(mant: Rational, exp: bigint): Scaled {
   const numTens = tensIn(num);
   num = num / 10n ** numTens;
   e += numTens;
-  return { mant: { num: mant.num < 0n ? -num : num, den }, exp: e };
+  return {
+    significand: { num: significand.num < 0n ? -num : num, den },
+    exp: e,
+  };
 }
 
 /** `r × 10^k` for `k > 0`, not reduced: for a comparison, which needs no lowest terms. */
@@ -865,7 +882,7 @@ function tensIn(n: bigint): bigint {
  * smaller: the count is read off in binary by dividing by `5^(2^k)` from
  * the largest such power worth trying down to five, each once, which is a
  * logarithmic number of divisions where one division per factor would be
- * a quadratic loop on a mantissa full of tens (`10^300000` took a minute).
+ * a quadratic loop on a significand full of tens (`10^300000` took a minute).
  * With the top power chosen so that `2^(k+1)` exceeds `most`, the greedy
  * count is exact below `most` and at least `most` otherwise.
  */

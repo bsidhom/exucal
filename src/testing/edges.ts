@@ -34,12 +34,12 @@
 // that a value past the bound can be written down, and an `Interval` is a
 // pair of them bracketing every value of a ball. From the intervals of the
 // arguments the sweep bounds the magnitude of the true result, exactly for
-// the arithmetic on small mantissas and in log space for the exponential
+// the arithmetic on small significands and in log space for the exponential
 // and the powers (`Magnitude`), and `surePast` says whether every value of
 // the result passes the bound, which is when, and only when, an
 // `overflow` or `underflow` is allowed (D18). The decisions near `±10^18`
 // are made on bigint exponents and exact fractions, never on doubles: the
-// bounds on `log10` of a mantissa come from an exact power of the mantissa
+// bounds on `log10` of a significand come from an exact power of the significand
 // or, near one, from the exact difference from one, and a radius that
 // cannot be formed as a fraction is bounded from above within a relative
 // `5.4 × 10^-10`, in bigint arithmetic throughout (`radiusAtMost`, which
@@ -284,7 +284,7 @@ function assertViolations(
 // Loose values and intervals
 
 /**
- * A `Scaled` read loosely: `mant × 10^exp` with no exponent bound and no
+ * A `Scaled` read loosely: `significand × 10^exp` with no exponent bound and no
  * canonical form, for a value the number type refuses to hold. scaled.ts's
  * `compare`, `sign`, `absolute`, `negate`, `isZero` and `decimalExponent`
  * read the form and never the bound, so they serve a `Loose` as they are.
@@ -293,11 +293,11 @@ export type Loose = Scaled;
 
 /** `num / den × 10^exp` as a `Loose`. */
 export function loose(num: bigint, den = 1n, exp = 0n): Loose {
-  return { mant: rational(num, den), exp };
+  return { significand: rational(num, den), exp };
 }
 
 /** `10^(10^18 + 1)`, the first value past the top of the bound. */
-const TOP: Loose = { mant: ONE_FRACTION, exp: MAX_EXPONENT + 1n };
+const TOP: Loose = { significand: ONE_FRACTION, exp: MAX_EXPONENT + 1n };
 
 /** The decimal exponents past which `surePast` decides, as log values. */
 const TOP_LOG: Loose = loose(MAX_EXPONENT + 1n);
@@ -327,16 +327,16 @@ export function addLoose(a: Loose, b: Loose, direction: "up" | "down"): Loose {
   if (gap > GAP_DIGITS) {
     // |small| < 10^(e + 1) for its exponent e, which is below the bump's.
     const bump: Loose = {
-      mant: ONE_FRACTION,
+      significand: ONE_FRACTION,
       exp: (ea >= eb ? ea : eb) - GAP_DIGITS,
     };
     small = direction === "up" ? bump : negate(bump);
   }
   const exp = big.exp < small.exp ? big.exp : small.exp;
   return {
-    mant: addFractions(
-      timesPowerOfTen(big.mant, big.exp - exp),
-      timesPowerOfTen(small.mant, small.exp - exp),
+    significand: addFractions(
+      timesPowerOfTen(big.significand, big.exp - exp),
+      timesPowerOfTen(small.significand, small.exp - exp),
     ),
     exp,
   };
@@ -353,19 +353,22 @@ function timesPowerOfTen(r: Rational, k: bigint): Rational {
 
 /** `a × b`, exactly. */
 export function multiplyLoose(a: Loose, b: Loose): Loose {
-  return { mant: multiplyFractions(a.mant, b.mant), exp: a.exp + b.exp };
+  return {
+    significand: multiplyFractions(a.significand, b.significand),
+    exp: a.exp + b.exp,
+  };
 }
 
 /** `a / b`, exactly, for a nonzero `b`. */
 export function divideLoose(a: Loose, b: Loose): Loose {
-  const quotient = divideFractions(a.mant, b.mant);
+  const quotient = divideFractions(a.significand, b.significand);
   if (!quotient.ok) throw new RangeError("A loose divisor is nonzero");
-  return { mant: quotient.value, exp: a.exp - b.exp };
+  return { significand: quotient.value, exp: a.exp - b.exp };
 }
 
 /** `v × q`, exactly, for a fraction `q`. */
 export function scaleLoose(v: Loose, q: Rational): Loose {
-  return { mant: multiplyFractions(v.mant, q), exp: v.exp };
+  return { significand: multiplyFractions(v.significand, q), exp: v.exp };
 }
 
 /** The lesser and the greater of `a` and `b`. */
@@ -448,7 +451,7 @@ function ceilDiv(n: bigint, d: bigint): bigint {
 }
 
 /**
- * A `Loose` at or above the bounded `rad`, `mant × 2^exp`: its exact value
+ * A `Loose` at or above the bounded `rad`, `significand × 2^exp`: its exact value
  * where the fraction is worth forming, and otherwise a value within a
  * relative `5.4 × 10^-10` above it, in bigint arithmetic throughout:
  * `exp log10 2` is taken exactly, from above, through the forty-digit
@@ -464,14 +467,18 @@ function ceilDiv(n: bigint, d: bigint): bigint {
  */
 export function radiusAtMost(rad: Radius): Loose | undefined {
   if (rad.kind === "unbounded") return undefined;
-  if (rad.mant === 0n) return ZERO;
+  if (rad.significand === 0n) return ZERO;
   const exp = rad.exp < 0n ? -rad.exp : rad.exp;
-  if (exp <= FORMABLE_RADIUS_BITS) return { mant: radiusUpper(rad), exp: 0n };
+  if (exp <= FORMABLE_RADIUS_BITS)
+    return { significand: radiusUpper(rad), exp: 0n };
   const log = multiplyFractions(rational(rad.exp), LOG10_2_ABOVE);
   const k = floorDiv(log.num, log.den);
   const fraction = subtractFractions(log, rational(k));
   return {
-    mant: multiplyFractions(rational(rad.mant), tenToAbove(fraction)),
+    significand: multiplyFractions(
+      rational(rad.significand),
+      tenToAbove(fraction),
+    ),
     exp: k,
   };
 }
@@ -614,32 +621,33 @@ const INV_LN10_ABOVE = rational(
   10n ** 40n,
 );
 
-/** The power the bounds on `log10` of a mantissa are read from: `64` gives them within `1/64`. */
+/** The power the bounds on `log10` of a significand are read from: `64` gives them within `1/64`. */
 const LOG_POWER = 64n;
 
 /**
  * Bounds on `log10 |v|` for a nonzero `v`, as fractions: the decimal
- * exponent plus bounds on the logarithm of the normalized mantissa `m` in
+ * exponent plus bounds on the logarithm of the normalized significand `m` in
  * `[1, 10)`, from `ln(1 + d) ∈ [d / (1 + d), d]` for `m = 1 + d` within a
  * half of one, so that a base near one is bounded sharply, and from the
  * decimal exponent of `m^64` otherwise.
  */
 export function log10Bounds(v: Loose): { lo: Rational; hi: Rational } {
   const e = decimalExponent(v);
-  const m = timesPowerOfTen(absolute(v).mant, v.exp - e);
+  const m = timesPowerOfTen(absolute(v).significand, v.exp - e);
   const d = subtractFractions(m, ONE_FRACTION);
   let lo: Rational;
   let hi: Rational;
   if (compareFractionWithHalf(d) <= 0) {
     const lnBelow = divideFractions(d, m);
-    if (!lnBelow.ok) throw new RangeError("A normalized mantissa is nonzero");
+    if (!lnBelow.ok)
+      throw new RangeError("A normalized significand is nonzero");
     lo = multiplyFractions(lnBelow.value, INV_LN10_BELOW);
     hi = multiplyFractions(d, INV_LN10_ABOVE);
   } else {
     const power = powFraction(m, LOG_POWER, 1 << 20);
     if (!power.ok)
-      throw new RangeError("A mantissa's power fits the hard bound");
-    const k = decimalExponent({ mant: power.value, exp: 0n });
+      throw new RangeError("A significand's power fits the hard bound");
+    const k = decimalExponent({ significand: power.value, exp: 0n });
     lo = rational(k, LOG_POWER);
     hi = rational(k + 1n, LOG_POWER);
   }
@@ -661,8 +669,8 @@ export function powerMagnitude(x: Interval, y: Interval): Magnitude {
   const m = magnitudeInterval(x);
   if (isZero(m.lo)) return NO_MAGNITUDE;
   const logs: Interval = {
-    lo: { mant: log10Bounds(m.lo).lo, exp: 0n },
-    hi: { mant: log10Bounds(m.hi).hi, exp: 0n },
+    lo: { significand: log10Bounds(m.lo).lo, exp: 0n },
+    hi: { significand: log10Bounds(m.hi).hi, exp: 0n },
   };
   const product = multiplyIntervals(y, logs);
   return { kind: "log", lo: product.lo, hi: product.hi };
@@ -765,8 +773,8 @@ const LOG10_E_ABOVE = INV_LN10_ABOVE;
 /** Bounds on `log10 x` over the interval of `x`, for `x` positive throughout. */
 function log10Interval(x: Interval): Interval {
   return {
-    lo: { mant: log10Bounds(x.lo).lo, exp: 0n },
-    hi: { mant: log10Bounds(x.hi).hi, exp: 0n },
+    lo: { significand: log10Bounds(x.lo).lo, exp: 0n },
+    hi: { significand: log10Bounds(x.hi).hi, exp: 0n },
   };
 }
 
@@ -788,7 +796,7 @@ function log10GammaInterval(s: Interval): Interval {
   // Γ rising past 1.46; the pieces an interval covers, at most.
   let hi: Loose = ZERO;
   if (compare(s.lo, ONE) < 0) {
-    hi = maxLoose(hi, negate({ mant: log10Bounds(s.lo).lo, exp: 0n }));
+    hi = maxLoose(hi, negate({ significand: log10Bounds(s.lo).lo, exp: 0n }));
   }
   if (compare(s.hi, TWO) > 0) {
     const top = compare(s.hi, TEN) >= 0 ? 10n : ceilingOf(s.hi);
@@ -812,7 +820,7 @@ function log10GammaInterval(s: Interval): Interval {
     lo = maxLoose(
       lo,
       addLoose(
-        negate({ mant: log10Bounds(s.hi).hi, exp: 0n }),
+        negate({ significand: log10Bounds(s.hi).hi, exp: 0n }),
         maxLoose(minimum, scaleLoose(s.hi, rational(-26n, 100n))),
         "down",
       ),
@@ -848,10 +856,10 @@ function floorOf(v: Loose): bigint {
 
 /** `log10(n!)` from above and from below, for a small `n`. */
 function log10FactorialAbove(n: bigint): Loose {
-  return { mant: log10Bounds(loose(factorialOfSmall(n))).hi, exp: 0n };
+  return { significand: log10Bounds(loose(factorialOfSmall(n))).hi, exp: 0n };
 }
 function log10FactorialBelow(n: bigint): Loose {
-  return { mant: log10Bounds(loose(factorialOfSmall(n))).lo, exp: 0n };
+  return { significand: log10Bounds(loose(factorialOfSmall(n))).lo, exp: 0n };
 }
 function factorialOfSmall(n: bigint): bigint {
   let f = 1n;
@@ -891,9 +899,9 @@ export function incompleteGammaMagnitude(
       ? { kind: "log", lo: ZERO, hi: ZERO }
       : { kind: "log", lo: gamma.lo, hi: gamma.hi };
   }
-  const logXHi: Loose = { mant: log10Bounds(x.hi).hi, exp: 0n };
+  const logXHi: Loose = { significand: log10Bounds(x.hi).hi, exp: 0n };
   const logXLoBelow: Loose | undefined =
-    sign(x.lo) > 0 ? { mant: log10Bounds(x.lo).lo, exp: 0n } : undefined;
+    sign(x.lo) > 0 ? { significand: log10Bounds(x.lo).lo, exp: 0n } : undefined;
   const xHiLog10e = scaleLoose(x.hi, LOG10_E_ABOVE);
   let bounds: Interval;
   if (form === "lower") {
@@ -928,7 +936,7 @@ export function incompleteGammaMagnitude(
     if (compare(s.lo, ONE) <= 0) {
       const part: Interval = { lo: less.lo, hi: minLoose(less.hi, ZERO) };
       const xPlus = addLoose(x.hi, ONE, "up");
-      const logXPlus: Loose = { mant: log10Bounds(xPlus).hi, exp: 0n };
+      const logXPlus: Loose = { significand: log10Bounds(xPlus).hi, exp: 0n };
       candidates.push(
         addLoose(
           addLoose(
@@ -970,7 +978,7 @@ export function incompleteGammaMagnitude(
         parts.push(
           addLoose(
             addLoose(multiplyIntervals(part, logX).hi, negate(xLoLog10e), "up"),
-            { mant: subtractFractions(numerator, denominator), exp: 0n },
+            { significand: subtractFractions(numerator, denominator), exp: 0n },
             "up",
           ),
         );
@@ -982,7 +990,10 @@ export function incompleteGammaMagnitude(
           parts.push(
             addLoose(
               addLoose(
-                multiplyLoose(top, { mant: log10Bounds(x.lo).hi, exp: 0n }),
+                multiplyLoose(top, {
+                  significand: log10Bounds(x.lo).hi,
+                  exp: 0n,
+                }),
                 negate(xLoLog10e),
                 "up",
               ),
@@ -1028,7 +1039,7 @@ export function erfcMagnitude(x: Interval): Magnitude {
     negate(scaleLoose(squareHi, INV_LN10_ABOVE)),
     negate(
       addLoose(
-        { mant: log10Bounds(addLoose(x.hi, ONE, "up")).hi, exp: 0n },
+        { significand: log10Bounds(addLoose(x.hi, ONE, "up")).hi, exp: 0n },
         loose(25n, 100n),
         "up",
       ),
@@ -1058,7 +1069,7 @@ const INCBETA_EXACT_RATIOS = 16;
  * parameters.
  */
 function incbetaPrefactor(a: Interval, b: Interval, x: Loose): Interval {
-  // 1 - x rounded each way to a short mantissa, which keeps the
+  // 1 - x rounded each way to a short significand, which keeps the
   // logarithm's bounds cheap where x is tiny; the ceiling may reach one,
   // whose logarithm, zero, still bounds the term from above.
   const yBelow = roundTo(addLoose(ONE, negate(x), "down"), 15, "floor");
@@ -1087,8 +1098,8 @@ function incbetaSumAbove(
   b: Interval,
   x: Loose,
 ): Loose | undefined {
-  // Every ratio and partial sum is rounded up to a short mantissa: the
-  // exact arithmetic on the gapped intervals would grow the mantissas
+  // Every ratio and partial sum is rounded up to a short significand: the
+  // exact arithmetic on the gapped intervals would grow the significands
   // past what the logarithm's bounds take, and the roundings only raise
   // the bound.
   const ratio = (k: number): Loose =>
@@ -1117,7 +1128,7 @@ function incbetaSumAbove(
       "ceiling",
     );
   }
-  return { mant: log10Bounds(sum).hi, exp: 0n };
+  return { significand: log10Bounds(sum).hi, exp: 0n };
 }
 
 /**
@@ -1264,13 +1275,13 @@ export function looseFromText(text: string): Loose {
   const [, minus, whole, fraction = "", exponent = "0"] = match;
   const digits = BigInt(`${whole}${fraction}`);
   return {
-    mant: rational(minus === "-" ? -digits : digits),
+    significand: rational(minus === "-" ? -digits : digits),
     exp: BigInt(exponent) - BigInt(fraction.length),
   };
 }
 
 /** The `Loose` `v` as a `Scaled`, when it is within the bound. */
 export function scaledOf(v: Loose): Scaled | undefined {
-  const s = scaled(v.mant, v.exp);
+  const s = scaled(v.significand, v.exp);
   return s.ok ? s.value : undefined;
 }

@@ -191,15 +191,15 @@ function reciprocalSum(
 
 /**
  * `ln m` for a positive integer `m` with `bits` significant bits kept: the
- * top `bits` of `m` as a mantissa in `[1, 2)`, within an ulp when it
+ * top `bits` of `m` as a significand in `[1, 2)`, within an ulp when it
  * drops any, and the rest as the logarithm's scale.
  */
 function lnOfInteger(m: bigint, bits: number, ceilingBits: number): Fixed {
   const e = bitLength(m) - 1 - bits;
   const value = e >= 0 ? m >> BigInt(e) : m << BigInt(-e);
   const dropped = e > 0 && (m & ((1n << BigInt(e)) - 1n)) !== 0n;
-  const mantissa: Fixed = { value, error: dropped ? 1n : 0n, bits };
-  return lnFixed(mantissa, bits, ceilingBits, bitLength(m) - 1);
+  const significand: Fixed = { value, error: dropped ? 1n : 0n, bits };
+  return lnFixed(significand, bits, ceilingBits, bitLength(m) - 1);
 }
 
 /** The shift's parameters for `f` at `bits`: the working bits, the argument at them, and the count of steps to the target. */
@@ -428,7 +428,7 @@ export function lnPiMemoBits(): number | undefined {
  * interval containing the logarithm of the Gamma function of every value
  * in `f`'s, whose interval must be positive (a precondition); `ln(2)`
  * and `pi` come from their memos at `ceilingBits` plus the margin (D10).
- * The shift's product `x (x + 1) … (x + n - 1)` is kept as a mantissa at
+ * The shift's product `x (x + 1) … (x + n - 1)` is kept as a significand at
  * the working bits with a binary exponent, so that its factors cost one
  * multiplication at the working bits each, and its logarithm is taken
  * once; the first factor, `x` itself, is taken at `f`'s own bits, which
@@ -447,19 +447,19 @@ export function lgammaFixed(
   if (n > 0) {
     lnProduct = at(lnFixed(f, working, ceilingBits), working);
     y = addFixed(y, one);
-    let mantissa = one;
+    let significand = one;
     let exponent = 0;
     for (let j = 1; j < n; j++) {
-      const product = multiplyFixed(mantissa, y);
+      const product = multiplyFixed(significand, y);
       const e = exponentOf(product);
-      mantissa = at(shiftFixed(product, -e), working);
+      significand = at(shiftFixed(product, -e), working);
       exponent += e;
       y = addFixed(y, one);
     }
     if (n > 1) {
       lnProduct = addFixed(
         lnProduct,
-        at(lnFixed(mantissa, working, ceilingBits, exponent), working),
+        at(lnFixed(significand, working, ceilingBits, exponent), working),
       );
     }
   }

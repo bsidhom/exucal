@@ -13,7 +13,7 @@ import { buildTable } from "../build.ts";
 import { BUILTINS } from "../builtins.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "../context.ts";
@@ -28,7 +28,7 @@ import {
   radiusAboveScaled,
   radiusUpper,
 } from "../radius.ts";
-import { LIMIT_BITS, rational } from "../rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS, rational } from "../rational.ts";
 import {
   absolute,
   compare,
@@ -45,7 +45,7 @@ import { exp, expBall } from "./exp.ts";
 const CONTEXT: NumberContext = {
   precision: 40,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -56,7 +56,7 @@ function value(result: ReturnType<typeof expBall>): Ball {
 
 /** `|a - b|` on `Scaled`s of moderate exponent. */
 function distance(a: Scaled, b: Scaled): Scaled {
-  const d = subtract(a, b, LIMIT_BITS);
+  const d = subtract(a, b, MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(d.ok, `${inspect(a)} - ${inspect(b)} aligns`);
   return absolute(d.value);
 }
@@ -173,7 +173,7 @@ test("an argument whose exponential would pass the exponent bound is an overflow
   assert.ok(Math.abs(radiusBound(radiusAbove(rational(3n))) - 3) < 1e-6);
 });
 
-test("an argument below 2^-maxBits throughout is one within twice its magnitude, and one below half an ulp reaches the kernel as zero within an ulp", () => {
+test("an argument below 2^-significandLimitBits throughout is one within twice its magnitude, and one below half an ulp reaches the kernel as zero within an ulp", () => {
   const context = { ...CONTEXT, precision: 8 };
   for (const text of ["1e-999999999", "-1e-999999999", "1e-316000"]) {
     const tiny = value(expBall(exact(dec(text)), context));
@@ -189,7 +189,7 @@ test("an argument below 2^-maxBits throughout is one within twice its magnitude,
     );
     assert.ok(certifies(tiny, 8, "halfEven"), text);
   }
-  // Below half an ulp of the working bits but not below 2^-maxBits: the
+  // Below half an ulp of the working bits but not below 2^-significandLimitBits: the
   // kernel's door converts it to zero within an ulp, and the result is
   // one within a few ulps.
   const near = value(expBall(exact(dec("1e-10000")), context));

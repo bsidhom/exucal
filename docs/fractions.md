@@ -11,10 +11,10 @@ a fraction in lowest terms, `1 m = (5000/127) in` rather than
 
 ## The problem
 
-The decimal display writes a value's digits, rounded to the Digits
-setting in the rounding mode, and says `=` only when the radius is zero
+The decimal display writes a value's digits, rounded to the display digits
+in the rounding mode, and says `=` only when the radius is zero
 and every digit held is shown (D7, the plan's 1.9 and 2.4). An exact
-value with more digits than Digits is written with `≈` and no note:
+value with more digits than the display digits are written with `≈` and no note:
 `1 m` in `in` is `≈ 39.370079 in`, though the value is exactly
 `5000/127` inches, and `1/3` is `≈ 0.33333333`. The display is right that
 the digits shown are not the whole value, and it has no way to show the
@@ -28,17 +28,17 @@ disagree about what is exact, since both read the radius.
 
 ## The rule
 
-Amended by D28 (docs/ratio-width.md): the fit at Digits of rule 3 is
+Amended by D28 (docs/ratio-width.md): the fit at the display digits of rule 3 is
 replaced by the notation's own width, a whole number is written entire
 when it fits the width, and a ratio that fits only with its power of
 ten factored onto the numerator is written so. The rule as it stands:
 
-1. **An inexact value is written by the decimal display at Digits,
+1. **An inexact value is written by the decimal display at the display digits,
    `≈`,** whatever the notation.
 2. **An exact whole number is written entire when it has at most the
    width in significant digits,** by the decimal display at the width
    (`= 3486784401` for `3^20` at twenty), and otherwise by the decimal
-   display at Digits (`≈ 1.2676506e+30` for `2^100` at eight).
+   display at the display digits (`≈ 1.2676506e+30` for `2^100` at eight).
 3. **An exact value that is not a whole number is written as its
    fraction in lowest terms when the numerator and the denominator have
    at most the width in digits between them** (`= 5000/127`, `= 127/50`
@@ -46,9 +46,9 @@ ten factored onto the numerator is written so. The rule as it stands:
 4. **When that does not fit, it is written as a ratio times a power of
    ten, `n/d × 1e+k`, when the parts then fit and the denominator is not
    one** (`= 1/3 × 1e+30`, `= 5/127 × 1e+33`; #95).
-5. **Everything else is written by the decimal display at Digits.**
+5. **Everything else is written by the decimal display at the display digits.**
 
-The rule as it was ruled for stage 5, with Digits as the fit, follows
+The rule as it was ruled for stage 5, with the display digits as the fit, follows
 for the record, with the setting on:
 
 1. **An inexact value is written by the decimal display, `≈`,** whatever
@@ -61,15 +61,15 @@ for the record, with the setting on:
    `= 12`, `= 1e+20`, `= 1e+999999999`, and `≈ 3.4867844e+9` for `3^20`
    at eight digits, which is exact but has ten. The decimal display
    already writes an integer exactly wherever its digits, with the
-   trailing zeros moved into the exponent, fit within Digits, and says
+   trailing zeros moved into the exponent, fit within the display digits, and says
    `≈` otherwise; a fraction of denominator one would add nothing.
 3. **An exact value that is not an integer is written as its fraction in
    lowest terms, `=`, when the numerator and the denominator each have
-   at most Digits digits:** `= 5000/127`, `= 1/3`, `= 127/50` for
+   at most the display digits:** `= 5000/127`, `= 1/3`, `= 127/50` for
    `2.54`, `= 25146/15625` for `1.609344`, `= 1/10000000` for `1e-7` at
    eight digits. The fraction is the ordinary one, the value's power of
    ten multiplied back in (`toRational` on the `Scaled` form of D13), so
-   the setting never shows the canonical mantissa and exponent, which are
+   the setting never shows the canonical significand and exponent, which are
    how the value is stored and not what it is. A negative value's sign is
    on the numerator, `-5000/127`.
 4. **An exact value whose fraction does not fit is written by the decimal
@@ -78,7 +78,7 @@ for the record, with the setting on:
    billion-digit denominator and its decimal every digit of the value;
    `5000/127` at three digits is `≈ 39.4`; `(1/3) * 1e30` at eight is
    `≈ 3.3333333e+29`. These are the plan's exponent notation for a short
-   mantissa with a large exponent and its third outcome, an exact value
+   significand with a large exponent and its third outcome, an exact value
    too long to write as a fraction, and they need no rule of their own:
    the decimal display is the fallback, and it already knows when it is
    exact.
@@ -94,14 +94,14 @@ set aside because a user who asks for fractions asks to see them.
 The fit rule of rule 3 was provisional, firm for stage 5 and open to a
 study after it ([#91](https://github.com/bsidhom/pwa-units/issues/91)),
 which D28 settled with the width above.
-Digits is the one measure of line length the user already sets, and a
+The display digits are the one measure of line length the user already sets, and a
 fraction of two parts within it is about as long as a decimal at it; a
 fixed constant, a bound on the total length, or a setting of its own are
 the alternatives the study weighs. Whatever it decides, the fallback
 stays the decimal display, and the rule stays a function of the value
-and the settings alone, never of Most bits: values legal under the range
+and the settings alone, never of the significand limit: values legal under the significand
 limit run to 15,634 digits (`3^32767`) and further at a raised limit, so
-the range limit is not a display rule.
+the significand limit is not a display rule.
 
 Exactness is the ball's radius being zero, the same test as `=` today,
 and the rounding mode plays no part in a fraction, which is not rounded.
@@ -135,18 +135,18 @@ it knows what follows the value on the line.
 ## Every literal parses back
 
 A fraction the setting writes is a quotient of two integer literals,
-each within Digits digits, so within the hard bound on a literal's
-mantissa and, since the value was formed within Most bits, within the
-range limit when divided (D19). It evaluates to the value it was written
+each within the display digits, so within the hard bound on a literal's
+significand and, since the value was formed within the significand limit, within the
+significand limit when divided (D19). It evaluates to the value it was written
 from, exactly.
 
 A decimal the fallback writes is the decimal display's, and stage 4 and
 the hardening phase made those parse back: the exponent written is the
-value's decimal exponent, the mantissa normalized, never the canonical
+value's decimal exponent, the significand normalized, never the canonical
 `exp` (D17), and a value within the bound has a decimal exponent within
 `±10^18`, which `parseDecimal` accepts at the bound (`1e-1000000000000000000`
 parses). One literal is the exception: a value whose decimal exponent is
-exactly `10^18` and whose rounding at Digits carries into the next power
+exactly `10^18` and whose rounding at the display digits carries into the next power
 of ten, `9.5e1000000000000000000` at one digit, is written
 `1e+1000000000000000001`, which names a value past the bound and is
 refused when typed back, as `overflow`. The display writes it anyway:
@@ -184,7 +184,7 @@ the edge is larger and so still sound, and is a note, not a literal.
 ## The decimal mode
 
 The setting does not apply in decimal mode (D26; docs/decimal-mode.md,
-"The display"; #97). Every value there is a decimal of Digits digits,
+"The display"; #97). Every value there is a decimal of the display digits,
 exact under the mode's rounding, which its digits write entire; a
 fraction would say nothing the digits do not, and the outcome never asks
 `show` for one in decimal mode, whatever the setting says. The settings'
@@ -217,7 +217,7 @@ the mode's one rounding of those steps; the fractions do not.
 - `src/settings-panel.ts` (then part of `src/app-shell.ts`): the checkbox,
   labeled "Show reduced fractions", with
   the hint "An exact value that is not a whole number is written as a
-  fraction in lowest terms when both parts fit within Digits; inexact
+  fraction in lowest terms when both parts fit within the display digits; inexact
   values stay decimal."
 - README ("Settings"): the sixth setting, with the example lines
   `1 m = (5000/127) in`, `1 in = (127/50) cm`, `1 m = 3 ft + (428/127) in`

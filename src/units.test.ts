@@ -7,12 +7,12 @@
 import assert from "node:assert/strict";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
-  MIN_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
+  MIN_SIGNIFICAND_LIMIT_BITS,
   ceilingContext,
   ceilingFor,
   DEFAULT_ROUNDING,
-  maxDigitsFor,
+  precisionLimitFor,
   type NumberContext,
 } from "./core/context.ts";
 import { readFileSync } from "node:fs";
@@ -59,7 +59,7 @@ import { dec, fr, fraction } from "./testing/scaled.ts";
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -166,17 +166,17 @@ function assertApproximates(
 // ---------------------------------------------------------------------------
 // The file as a whole
 
-test("the file builds at the least range limit the settings allow", () => {
-  // Every exact result is held to the range limit at the node (D19), so a
+test("the file builds at the least significand limit the settings allow", () => {
+  // Every exact result is held to the significand limit at the node (D19), so a
   // definition past it would fail the build; the shipped file is nowhere
-  // near, at `MIN_MAX_BITS` and the ceiling that limit allows.
+  // near, at `MIN_SIGNIFICAND_LIMIT_BITS` and the ceiling that limit allows.
   const parsed = parseDefinitions(text);
   assert.ok(parsed.ok);
-  const ceiling = ceilingFor(maxDigitsFor(MIN_MAX_BITS));
+  const ceiling = ceilingFor(precisionLimitFor(MIN_SIGNIFICAND_LIMIT_BITS));
   const built = buildTable(parsed.value, {
     precision: ceiling,
     rounding: DEFAULT_ROUNDING,
-    maxBits: MIN_MAX_BITS,
+    significandLimitBits: MIN_SIGNIFICAND_LIMIT_BITS,
     ceiling,
   });
   assert.ok(built.ok, `expected a table, got ${inspect(built)}`);

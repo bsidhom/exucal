@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   DEFAULT_ROUNDING,
-  MIN_MAX_BITS,
+  MIN_SIGNIFICAND_LIMIT_BITS,
   ceilingFor,
-  maxDigitsFor,
+  precisionLimitFor,
 } from "./core/context.ts";
-import { LIMIT_BITS } from "./core/rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS } from "./core/rational.ts";
 import {
   COMPOSITE,
   evaluateComposite,
@@ -52,7 +52,17 @@ test("the significand limit is the largest power of two whose operation fits the
   // over the budget.
   assert.deepEqual(
     [...new Set(probe.bits)],
-    [MIN_MAX_BITS, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536],
+    [
+      MIN_SIGNIFICAND_LIMIT_BITS,
+      512,
+      1024,
+      2048,
+      4096,
+      8192,
+      16384,
+      32768,
+      65536,
+    ],
   );
 });
 
@@ -61,7 +71,7 @@ test("the precision limit is the largest round number of digits whose operation 
   const limits = recommendLimits(50, fakeProbe(0, 0.1));
   assert.equal(limits.precisionLimitDigits, 500);
   assert.ok(Math.abs(limits.builtinsMs - 50) < 1e-9);
-  assert.equal(limits.significandLimitBits, LIMIT_BITS);
+  assert.equal(limits.significandLimitBits, MAX_SIGNIFICAND_LIMIT_BITS);
   assert.equal(limits.productMs, 0);
   // The candidates are 1, 2, 5 times a power of ten, in order.
   const probe = fakeProbe(0, 0.1);
@@ -72,8 +82,8 @@ test("the precision limit is the largest round number of digits whose operation 
   );
   // A cheaper device gets more, up to what the significand limit holds.
   const fast = recommendLimits(50, fakeProbe(0, 0.00001));
-  assert.equal(fast.significandLimitBits, LIMIT_BITS);
-  const most = maxDigitsFor(LIMIT_BITS);
+  assert.equal(fast.significandLimitBits, MAX_SIGNIFICAND_LIMIT_BITS);
+  const most = precisionLimitFor(MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(fast.precisionLimitDigits <= most);
   assert.ok(fast.precisionLimitDigits > most / 10);
   // The budget is the caller's: a larger one admits a larger limit.
@@ -88,24 +98,27 @@ test("the recommendation respects the dependency and the hard bounds, and times 
   // with its time over the budget, and the precision limit is what the
   // floor holds, at most.
   const slow = recommendLimits(50, fakeProbe(1, 0));
-  assert.equal(slow.significandLimitBits, MIN_MAX_BITS);
-  assert.equal(slow.productMs, MIN_MAX_BITS);
-  assert.equal(slow.precisionLimitDigits, maxDigitsFor(MIN_MAX_BITS));
+  assert.equal(slow.significandLimitBits, MIN_SIGNIFICAND_LIMIT_BITS);
+  assert.equal(slow.productMs, MIN_SIGNIFICAND_LIMIT_BITS);
+  assert.equal(
+    slow.precisionLimitDigits,
+    precisionLimitFor(MIN_SIGNIFICAND_LIMIT_BITS),
+  );
   assert.equal(slow.precisionLimitDigits, 1);
   // A device that is slow only at digits keeps at least one digit, timed.
   const slowDigits = recommendLimits(50, fakeProbe(0, 1000));
   assert.equal(slowDigits.precisionLimitDigits, 1);
   assert.equal(slowDigits.builtinsMs, 1000);
-  // A middling significand limit caps the digits to what it holds.
+  // A middling significand limit bounds the digits to what it holds.
   const middling = recommendLimits(50, fakeProbe(0.01, 0));
   assert.equal(middling.significandLimitBits, 4096);
-  assert.ok(middling.precisionLimitDigits <= maxDigitsFor(4096));
+  assert.ok(middling.precisionLimitDigits <= precisionLimitFor(4096));
   assert.ok(middling.precisionLimitDigits >= 100);
 });
 
 test("the composite names the four costliest built-ins and evaluates at a candidate's ceiling", () => {
   // The four of the kernel benchmark's report, each once; a change here is
-  // a change of what the cap measures, and the header says why these.
+  // a change of what the precision limit measures, and the header says why these.
   for (const name of ["exp", "atan", "sin", "ln"]) {
     assert.equal(COMPOSITE.split(`${name}(`).length, 2, name);
   }
@@ -115,7 +128,7 @@ test("the composite names the four costliest built-ins and evaluates at a candid
     evaluateComposite({
       precision: ceiling,
       rounding: DEFAULT_ROUNDING,
-      maxBits: LIMIT_BITS,
+      significandLimitBits: MAX_SIGNIFICAND_LIMIT_BITS,
       ceiling,
     }),
   );
@@ -126,12 +139,13 @@ test("the real probe answers within a small budget without hanging", () => {
   const limits = recommendLimits(1, realProbe());
   assert.ok(performance.now() - start < 5000);
   assert.ok(
-    limits.significandLimitBits >= MIN_MAX_BITS &&
-      limits.significandLimitBits <= LIMIT_BITS,
+    limits.significandLimitBits >= MIN_SIGNIFICAND_LIMIT_BITS &&
+      limits.significandLimitBits <= MAX_SIGNIFICAND_LIMIT_BITS,
   );
   assert.ok(
     limits.precisionLimitDigits >= 1 &&
-      limits.precisionLimitDigits <= maxDigitsFor(limits.significandLimitBits),
+      limits.precisionLimitDigits <=
+        precisionLimitFor(limits.significandLimitBits),
   );
   assert.ok(limits.productMs >= 0 && limits.builtinsMs >= 0);
 });

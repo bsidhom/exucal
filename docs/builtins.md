@@ -84,17 +84,17 @@ once the name has resolved and before any argument is evaluated.
   kernel at the working bits plus its negative binary exponent, as
   `rootBall` scales its argument, and `sin(1e-50 radian)` certifies on the
   first pass rather than at the ceiling. An argument throughout below
-  `2^-maxBits`, which the kernel cannot be handed at any bits within the
-  range limit, is answered by its expansion at zero (stage 4's 4.4): the
+  `2^-significandLimitBits`, which the kernel cannot be handed at any bits within the
+  significand limit, is answered by its expansion at zero (stage 4's 4.4): the
   odd functions give the argument itself within its cube, `cos` and
   `cosh` give one within its square, and `exp` gives one within twice
   the argument's magnitude, so `sin(1e-999999999 radian)` is
   `≈ 1e-999999999` on the first pass and `exp(1e-999999999)` is `≈ 1`.
   `asin` and `acos` take their expansion already where the argument's
   square lies below `2^-bits` of the working precision, `acos` as `pi/2`
-  less the argument, since `1 - x^2` stops aligning within the range
-  limit long before `2^-maxBits` (the plan's H.7: `acos(1e-9860)` was
-  refused at the default range limit, issue #47).
+  less the argument, since `1 - x^2` stops aligning within the significand
+  limit long before `2^-significandLimitBits` (the plan's H.7: `acos(1e-9860)` was
+  refused at the default significand limit, issue #47).
   Between that and half an ulp of the working bits, the kernel's door
   (`fixedFromScaled`) converts the argument to zero within an ulp, which
   is what the log-space power of a tiny exponent goes in as; `atan2`'s
@@ -105,12 +105,12 @@ once the name has resolved and before any argument is evaluated.
   certain, since the ball straddles one, as `cosh(1e-999999999)` and
   `approx(1)` already do.
 - **A large argument is answered before the kernel is entered** (4.4),
-  which holds a value only up to the range limit: `sin`, `cos` and `tan`
-  of an argument reaching `2^maxBits` are `tooLarge` at the range limit,
+  which holds a value only up to the significand limit: `sin`, `cos` and `tan`
+  of an argument reaching `2^significandLimitBits` are `tooLarge` at the significand limit,
   since the reduction would need `pi` to that many bits; `atan` of one at
   or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, and neither
   `atan` nor `atan2` is refused for an argument's radius: a ball that
-  reaches `2^maxBits` without lying beyond `2^bits` throughout is the
+  reaches `2^significandLimitBits` without lying beyond `2^bits` throughout is the
   function's whole range, zero within two for `atan` and within four for
   `atan2` (the powers of two above `pi/2` and `pi`, the kernel's own
   trivial bound; nothing certified would differ with the fractions of
@@ -139,7 +139,7 @@ once the name has resolved and before any argument is evaluated.
   functions have the
   range of an exponent (4.9): `exp(1e6)` is `≈ 3.0332154e434294` and
   `exp(1e18)` a value with the exponent `434294481903251827`, since the
-  kernel returns a `Floating`, a mantissa with a binary exponent, and the
+  kernel returns a `Floating`, a significand with a binary exponent, and the
   digits of one whose exponent cannot be formed are found in log space
   (digits.ts).
 - **Propagation** is by running the series on the argument with its error
@@ -224,23 +224,23 @@ literal so that the dimension stays exact. The two share one rule for the
 magnitude (3.8): an integer exponent is the exact power; a rational
 exponent `p/q` is exact when `x` is a perfect `q`-th power (`pow(8, 1/3)`
 is `2`, `pow(1/4, 3/2)` is `1/8`), which `exactRoot(x, q)` finds without
-forming `x^p`; otherwise the root of the power when `x^p` fits the range
+forming `x^p`; otherwise the root of the power when `x^p` fits the significand
 limit, which also serves a negative base under an odd root; otherwise,
 and for an inexact exponent, `exp(y ln x)` for a positive base. An exact
-exponent whose fraction does not fit the range limit takes the same log
+exponent whose fraction does not fit the significand limit takes the same log
 space (the plan's H.16), an exact base told past the bound by its value
 first: `pow(2, 1e999999999)` is `overflow`, `pow(2, 1e-999999999)` and
-`pow(2, 1e-30000)` are `≈ 1` where they were refused at the range limit,
+`pow(2, 1e-30000)` are `≈ 1` where they were refused at the significand limit,
 and a negative base takes the exponent's parity from its canonical form,
 so `pow(-2, 1e-30000)` is the even root of a negative number. The root
 itself goes to log space when the kernel cannot take it: a degree past
-`2^32` (`pow(3, 1e-30)`, whose root is the `10^30`-th), or a mantissa too
+`2^32` (`pow(3, 1e-30)`, whose root is the `10^30`-th), or a significand too
 far below one for the working bits (`(7^-8000)^(1/99999)`), each of
 which crashed or was shown as zero before the plan's H.5. Log space
-is where `2^0.1234567` computes, since `2^1234567` does not fit any range
+is where `2^0.1234567` computes, since `2^1234567` does not fit any significand
 limit, and `pow(10, 2.3456789)` too, since 4.4 by the root: `10^23456789`
 is exact in the exponent, but its root leaves `10^3456789` to the kernel,
-which the range limit does not hold; what log space gives up is
+which the significand limit does not hold; what log space gives up is
 exactness where none was reachable. A non-positive base with an inexact
 exponent is a domain error, a negative base under an even root the
 `negativeRadicand` that
@@ -251,7 +251,7 @@ inexact or a huge one included (`pow(1, approx(1e400))`,
 `pow(1, 1e999999999)`); `pow(0, y)` is `0`, a division by zero or
 `unresolved` at zero by the side of zero `y` lies on (`pow(0,
 1e999999999)` is `0`); and `pow(-1, y)` for an exact `y` whose fraction
-does not fit the range limit is decided by the parity the canonical form
+does not fit the significand limit is decided by the parity the canonical form
 of the exponent gives, `1` for `1e999999999` and `1e999999999/3`, `-1`
 for `5^-16000`, and the even root of a negative number for `1e-30000`;
 an exponent that fits keeps the rational route, so `pow(-1, 1/3)` is
@@ -326,7 +326,7 @@ rulings in full.
   for `asinh`, one for `tanh` and for `exp`) gets a trivial bound
   instead, zero within one for the sine, the cosine and the hyperbolic
   tangent, zero within two for the arctangent (and for `atan` of a ball
-  reaching `2^maxBits`, zero within four for `atan2`'s ratio), zero within the
+  reaching `2^significandLimitBits`, zero within four for `atan2`'s ratio), zero within the
   exponential of the signed upper end for `exp`, the exponential of
   the largest magnitude for the hyperbolic pair, the value at the
   midpoint plus the radius for `asinh`; the retry loop narrows such an
@@ -358,7 +358,7 @@ x)`, `atan2` an arctangent by quadrant, and `asinh`, `acosh` and
   zero, and the `origin` error for one exactly zero.
 - **The limit on large results.** `exp`, `sinh`, `cosh`, a power in log
   space and a large decibel shared one guard, `expFits` in ball.ts, and
-  were `tooLarge` beyond about 45,000 at the default range limit; `tanh`
+  were `tooLarge` beyond about 45,000 at the default significand limit; `tanh`
   was not, since for an argument beyond what the working bits can tell
   from one it is `±1` within `2 e^-2|x|`, a radius the coarse type holds
   at any magnitude. Since 4.9 the guard is the exponent bound, the squaring loop
@@ -367,7 +367,7 @@ x)`, `atan2` an arctangent by quadrant, and `asinh`, `acosh` and
   the reciprocal into the error beyond half the working bits; the
   kernel-to-ball conversion rounds onto the decimal grid of the working
   digits since 4.4 and takes any exponent, through digits.ts for one the
-  range limit cannot hold. Since the follow-up of the plan's "After stage
+  significand limit cannot hold. Since the follow-up of the plan's "After stage
   4" the guard refuses with the bound's own errors, an `overflow`, or an
   `underflow` for `exp` of a negative argument and a power toward zero,
   and a large decibel no longer reaches it: its body's power of ten is

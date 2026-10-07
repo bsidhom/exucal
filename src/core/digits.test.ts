@@ -4,7 +4,7 @@ import { inspect } from "node:util";
 import { certifies, containsZero, position } from "./ball.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   workingDigits,
   type NumberContext,
@@ -34,14 +34,14 @@ function at(precision: number): NumberContext {
   return {
     precision,
     rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
   };
 }
 
 /** `m × 2^exp` with `m` an exact integer, as a `Floating` of 64 fraction bits. */
 function floating(m: bigint, exp: bigint, error = 0n): Floating {
-  return { mant: { value: m << 64n, error, bits: 64 }, exp };
+  return { significand: { value: m << 64n, error, bits: 64 }, exp };
 }
 
 function unwrap<T, E>(
@@ -69,7 +69,7 @@ const THREE_TWO_UP =
 const SEVEN_FAR =
   "3.064183179177493984966931430417643166722414753806577472025862219424364e903089986991943586";
 
-test("the digits of a Floating beyond the range limit are found in log space, to the working digits", () => {
+test("the digits of a Floating beyond the significand limit are found in log space, to the working digits", () => {
   for (const [fl, reference] of [
     [floating(1n, 1442695n), TWO_UP],
     [floating(1n, -1442695n), TWO_DOWN],
@@ -102,7 +102,7 @@ test("the digits of a Floating beyond the range limit are found in log space, to
 });
 
 test("the log-space digits agree with the exact conversion on every value both can form", () => {
-  // Powers of two on both sides of the range limit: exact within it, in
+  // Powers of two on both sides of the significand limit: exact within it, in
   // log space beyond it, and the two agree to the working digits; the
   // references from Python's decimal module at a precision of 70.
   for (const [exp, reference] of [
@@ -129,7 +129,7 @@ test("the log-space digits agree with the exact conversion on every value both c
   ] as const) {
     const fl = floating(1n, exp);
     const context = at(30);
-    const exact = floatingToFixed(fl, DEFAULT_MAX_BITS);
+    const exact = floatingToFixed(fl, DEFAULT_SIGNIFICAND_LIMIT_BITS);
     const b = unwrap(floatingToBall(fl, context));
     assert.ok(
       agrees(b.mid, reference, 30),
@@ -155,9 +155,9 @@ test("the log-space digits agree with the exact conversion on every value both c
       assert.ok(certifies(b, 30, "halfEven"));
     }
   }
-  // The limit is the range limit of the context: 2^65537 is exact at a
+  // The limit is the significand limit of the context: 2^65537 is exact at a
   // wider one.
-  const wider = { ...at(30), maxBits: 1 << 17 };
+  const wider = { ...at(30), significandLimitBits: 1 << 17 };
   const b = unwrap(floatingToBall(floating(1n, 65537n), wider));
   assert.deepEqual(
     b,
@@ -168,10 +168,10 @@ test("the log-space digits agree with the exact conversion on every value both c
   );
 });
 
-test("the log-space ball contains the value and carries the mantissa's error, over seeded values drawn by key", () => {
+test("the log-space ball contains the value and carries the significand's error, over seeded values drawn by key", () => {
   const root = key(4901);
   for (let i = 0; i < 40; i++) {
-    // The mantissa's width, its bits, the exponent's magnitude and sign,
+    // The significand's width, its bits, the exponent's magnitude and sign,
     // and the error, each from its own fold.
     const k = foldIn(root, i);
     const width = between(foldIn(k, 0), 1, 60);
@@ -179,14 +179,17 @@ test("the log-space ball contains the value and carries the mantissa's error, ov
     const magnitude = randomBigInt(foldIn(k, 2), 19) + 70000n;
     const exp = uniform(foldIn(k, 3)) < 0.5 ? magnitude : -magnitude;
     const error = randomBigInt(foldIn(k, 4), 4);
-    const fl: Floating = { mant: { value: m << 64n, error, bits: 64 }, exp };
+    const fl: Floating = {
+      significand: { value: m << 64n, error, bits: 64 },
+      exp,
+    };
     const context = at(20);
     const b = unwrap(floatingToBall(fl, context));
     const label = `${m} × 2^${exp} ± ${error} ulps`;
     // The wide exact conversion's midpoint, `m × 2^exp` itself, lies in
     // the ball, and the ball's radius covers the error at the exponent.
     const wide = floatingToFixed(
-      { ...fl, mant: { ...fl.mant, error: 0n } },
+      { ...fl, significand: { ...fl.significand, error: 0n } },
       1 << 20,
     );
     assert.ok(wide !== undefined, label);
@@ -196,7 +199,7 @@ test("the log-space ball contains the value and carries the mantissa's error, ov
     assert.ok(certifies(b, 20, "halfEven") || error > 0n, label);
     assert.ok(!containsZero(b), label);
   }
-  // A mantissa whose interval reaches zero: a ball around zero bounded by
+  // A significand whose interval reaches zero: a ball around zero bounded by
   // the extent at the exponent.
   const zero = unwrap(floatingToBall(floating(2n, 100000n, 3n << 64n), at(8)));
   assert.ok(containsZero(zero));
@@ -206,7 +209,7 @@ test("the log-space ball contains the value and carries the mantissa's error, ov
 });
 
 test("the log-space digits hold the decimal exponent to the bound by the interval of t (D18, #61)", () => {
-  // 2^3321928094887362351 is 10^(10^18 + 0.94…): a mantissa of one is
+  // 2^3321928094887362351 is 10^(10^18 + 0.94…): a significand of one is
   // within the top, of two is past it (10^(10^18 + 1.24…)), and one of
   // one within a half reaches both sides of the edge.
   const top = 3321928094887362351n;
@@ -221,7 +224,7 @@ test("the log-space digits hold the decimal exponent to the bound by the interva
     error: { kind: "unresolved", edge: "bound" },
   });
   // At the bottom: 2^-3321928094887362347 is 10^-(10^18 - 0.26…), within,
-  // and half of it past; a wide mantissa reaches both.
+  // and half of it past; a wide significand reaches both.
   const bottom = -3321928094887362347n;
   const above = unwrap(floatingToBall(floating(1n, bottom), at(8)));
   assert.equal(format(above.mid, 2, "halfEven"), "1.8e-1000000000000000000");
@@ -235,7 +238,7 @@ test("the log-space digits hold the decimal exponent to the bound by the interva
   });
 });
 
-test("a decimal exponent beyond the bound is an overflow or an underflow, and the exact path rounds a value of the range limit's size", () => {
+test("a decimal exponent beyond the bound is an overflow or an underflow, and the exact path rounds a value of the significand limit's size", () => {
   const huge = floatingToBall(floating(1n, 4n * 10n ** 18n), at(8));
   assert.deepEqual(huge, {
     ok: false,
@@ -246,7 +249,7 @@ test("a decimal exponent beyond the bound is an overflow or an underflow, and th
     ok: false,
     error: { kind: "underflow" },
   });
-  // Within the range limit the exact path rounds onto the grid.
+  // Within the significand limit the exact path rounds onto the grid.
   const b = unwrap(floatingToBall(floating(3n, 60000n), at(8)));
   assert.ok(
     agrees(

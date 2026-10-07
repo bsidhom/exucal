@@ -107,7 +107,7 @@ What follows from that, with nothing else changed:
 cm` in `in` is `≈ 1` with every digit asked for certified on the first
   pass, and `≈` rather than `=`, which is the point.
 - **A large exponent is a value.** `approx(1e999999999) + 1` is
-  `≈ 1e+999999999`: the sum's alignment does not fit the range limit, an
+  `≈ 1e+999999999`: the sum's alignment does not fit the significand limit, an
   operand is inexact, and the rule of docs/decimal.md absorbs the `1`
   into the radius rather than failing.
 - **Identities through approximate values are `≈ 0` with a bound**, as
@@ -267,11 +267,11 @@ above invites the reading. README "Very large results and `approx`" is
 the user's account, with the same numbers.
 
 **Two axes.** ARCHITECTURE.md ("Size limits") bounds a value on two
-axes, and the example above, `approx(1e999999999) + 1`, is the range
-limit's: the exact sum needs a mantissa of a billion digits, and
+axes, and the example above, `approx(1e999999999) + 1`, is the significand
+limit's: the exact sum needs a significand of a billion digits, and
 `approx` lets the `1` be absorbed into the radius (docs/decimal.md,
 "Sums, comparisons and the radius"). `exp(1e999)` is the other axis. Its
-mantissa is of the working digits, as every kernel result's is, and its
+significand is of the working digits, as every kernel result's is, and its
 decimal exponent, `1e999 log10 e`, about `4.34 × 10^998`, passes
 `MAX_EXPONENT`, `10^18`, so `expBall` refuses it before the kernel: the
 classifier of ball.ts (`classifyExp`; the plan's D18 and H.15) finds
@@ -284,16 +284,16 @@ the answer at the first pass; and a ball that reaches across an edge is
 it, and the same for `-x`, `sinh`, `cosh` and the log-space power. The
 message names the axis:
 `"exp(1e999)" is too large to compute: its exponent would pass 10^18.`,
-where the range limit's reads `"1e999999999 + 1" is too large to compute
-within Most bits.`, and `exp(-1e999)` is too small, its exponent falling
+where the significand limit's reads `"1e999999999 + 1" is too large to compute
+within the significand limit.`, and `exp(-1e999)` is too small, its exponent falling
 below `-10^18`.
 
 **The condition.** Were the exponent held, `approx` would cost rather
 than help. `exp` turns an absolute radius `r` of its argument into a
 relative factor `e^±r` of its result, so what `approx(x)` bounds, the
 relative precision of `x`, is the relative precision of the result's
-logarithm and not of the result. At 32 digits, with the cap on the
-digits at 1,000 (a ceiling of 4,040) and the range limit at 32,768 bits,
+logarithm and not of the result. At 32 digits, with the precision limit on the
+digits at 1,000 (a ceiling of 4,040) and the significand limit at 32,768 bits,
 the schedule measures:
 
 | Pass | Working digits | Radius of `approx(1e999)` | `exp` of it, known within | Exponent digits known |
@@ -347,7 +347,7 @@ in it:
   setting for the bound aside because nothing a user computes needs
   `10^(10^18)`; an expression whose intermediate is `exp(1e999)` and whose
   result is ordinary is the case that does. One candidate is to tie the
-  bound to the range limit, an exponent of as many bits as a mantissa may
+  bound to the significand limit, an exponent of as many bits as a significand may
   have.
 - The classifier's edges (`classifyExp`, `classifyHyperbolic` and
   `classifyPower` in ball.ts, on `(10^18 + 1) ln 10` and `-10^18 ln 10`
@@ -371,4 +371,4 @@ in it:
 - The display: a 32-digit answer carries its exponent in full, 999 digits
   here, 1,034 characters in all.
 - The cost: the exponential squares once per bit of its argument, so the
-  argument's bits want the range limit's bound, as `sin`'s do.
+  argument's bits want the significand limit's bound, as `sin`'s do.

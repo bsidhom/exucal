@@ -6,7 +6,7 @@ import { exact, type Ball } from "../ball.ts";
 import { buildTable } from "../build.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   ceilingContext,
   type NumberContext,
@@ -27,7 +27,7 @@ import { erf, erfBall, erfc, erfcBall } from "./erf.ts";
 const CONTEXT: NumberContext = {
   precision: 40,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 

@@ -43,7 +43,7 @@
 //
 // A sum is where the exponent costs something (docs/decimal.md, "Sums,
 // comparisons and the radius"). `addBalls` aligns the midpoints exactly
-// where the shift fits the context's range limit. Where it does not, two
+// where the shift fits the context's significand limit. Where it does not, two
 // exact operands are `tooLarge`, the exact sum existing and not being
 // holdable (`1e999999999 + 1`); otherwise the result is inexact and about
 // to be settled, so it is settled a step early: each inexact operand is
@@ -64,7 +64,7 @@
 // around zero. An exact result is its value or a refusal, and a ball of
 // unbounded radius is held by its midpoint alone. So `addBalls`,
 // `subtractBalls`, `multiplyBalls` and `divideBalls` are `Result`s,
-// failing `tooLarge` at the range limit, `overflow` or `underflow` at the
+// failing `tooLarge` at the significand limit, `overflow` or `underflow` at the
 // exponent bound, and `unresolved` on it.
 //
 // The exponential family and the powers are held to the bound by one
@@ -110,10 +110,10 @@
 // (fixed.ts; task 2.3 of the plan). An exact argument with a rational root
 // is exact, as `exactRoot` finds it. Otherwise a ball whose interval
 // excludes zero is scaled by an exact power of ten in the exponent and an
-// exact power of `2^degree` on the mantissa so that it is of order one (the
+// exact power of `2^degree` on the significand so that it is of order one (the
 // scaling belongs here, on the ball, since a tiny ball converted at the
 // kernel's bits would lose its digits), converted at `bitsFor(precision)`,
-// plus as many more bits as the scaled mantissa still lies below one,
+// plus as many more bits as the scaled significand still lies below one,
 // rooted, scaled back and handed back through `fixedToBall`, so that the
 // radius covers the argument's radius and the kernel's own error, and the
 // midpoint is the kernel's, rounded to the working digits in no mode (D15:
@@ -121,7 +121,7 @@
 // to log space instead, `x^(1/n)` as `exp(ln x / n)` (H.5 of the plan): a
 // degree past `2^32`, which Newton's iteration from a double's guess
 // cannot verify (`pow(3, 1e-30)` threw, issue #57); a remainder of the
-// exponent whose power of ten does not fit the range limit; and a mantissa
+// exponent whose power of ten does not fit the significand limit; and a significand
 // that lies below one by more than the working bits, which the conversion
 // would turn to zero (`(7^-8000)^(1/99999)` was shown as zero within
 // `0.9`). A negative ball of odd degree is the negated
@@ -139,7 +139,7 @@
 // share; task 3.8) has three routes. An exact base that is a perfect
 // `q`-th power gives the exact root raised to `p`, without ever forming
 // `x^p`, since `x^(p/q)` is rational exactly when `x` is a perfect `q`-th
-// power. Otherwise, when `x^p` fits the range limit, the root of the power
+// power. Otherwise, when `x^p` fits the significand limit, the root of the power
 // as above, root last so that the one inexact step comes last, which also
 // serves a negative base under an odd root and reports a base straddling
 // zero `unresolved`. Otherwise log space: `exp(y ln x)` on the kernel
@@ -148,20 +148,20 @@
 // reach them), for a base positive throughout, and for a negative base
 // under an odd root by symmetry; `powLogSpace` is that route on any
 // bounded exponent, which `pow` takes for an inexact one. The base's
-// mantissa is scaled to order one by a power of two before it is
+// significand is scaled to order one by a power of two before it is
 // converted, and that power goes to the logarithm with the decimal
 // exponent (`lnScaled`, which the logarithms share, adds `exp × ln 10` from
 // the memo), so that a tiny or a huge base loses nothing to the
 // conversion; the product `y ln x` is formed at the bits plus the
 // exponent's and the logarithm's magnitudes, and is held to the exponent
 // bound by the classifier below before the exponential, so that
-// `7^(100000/3)` is a value of about `10^28170` where the range limit
+// `7^(100000/3)` is a value of about `10^28170` where the significand limit
 // refused it, `2^0.1234567` and `10^2.3456789`, once refused as
 // `tooLarge`, are values with a radius, and `7^(10^19)` is an `overflow`,
 // past the bound; a power of ten costs nothing in the exponent, so
 // `10^(100000/3)` is the cube root of ten times `10^33333`, a value; the
 // kernel's `Floating` comes out through digits.ts (`floatingToBall`),
-// exactly where its exponent is within the range limit and in log space
+// exactly where its exponent is within the significand limit and in log space
 // otherwise.
 
 import type { NumberContext } from "./context.ts";
@@ -187,7 +187,7 @@ import {
   type Fixed,
 } from "./fixed.ts";
 import {
-  LIMIT_BITS,
+  MAX_SIGNIFICAND_LIMIT_BITS,
   ONE as ONE_FRACTION,
   add as addFractions,
   bitLength,
@@ -330,7 +330,7 @@ function carried<E>(
  */
 export function containsZero(b: Ball): boolean {
   if (b.rad.kind === "unbounded") return true;
-  if (b.rad.mant === 0n) return isZero(b.mid);
+  if (b.rad.significand === 0n) return isZero(b.mid);
   if (isZero(b.mid)) return true;
   return (compareWithRadius(absolute(b.mid), b.rad) ?? 0) <= 0;
 }
@@ -361,11 +361,11 @@ export function position(
   point: Scaled,
 ): "below" | "above" | "touchingBelow" | "touchingAbove" | "at" | "straddles" {
   if (b.rad.kind === "unbounded") return "straddles";
-  if (b.rad.mant === 0n) {
+  if (b.rad.significand === 0n) {
     const c = compare(b.mid, point);
     return c < 0 ? "below" : c > 0 ? "above" : "at";
   }
-  const d = subtract(b.mid, point, LIMIT_BITS);
+  const d = subtract(b.mid, point, MAX_SIGNIFICAND_LIMIT_BITS);
   if (d.ok) {
     if (isZero(d.value)) return "straddles";
     const c = compareWithRadius(absolute(d.value), b.rad);
@@ -456,7 +456,7 @@ function compareWithRadius(
 /** The exact value of the bounded `rad` as a `Scaled`, when its power of two is worth forming; `undefined` otherwise. */
 function radiusScaled(rad: Radius): Scaled | undefined {
   if (rad.kind === "unbounded") return undefined;
-  if (rad.mant === 0n) return ZERO;
+  if (rad.significand === 0n) return ZERO;
   const exp = rad.exp < 0n ? -rad.exp : rad.exp;
   if (exp > BigInt(FORMABLE_RADIUS_BITS)) return undefined;
   return fromRational(radiusUpper(rad));
@@ -472,7 +472,7 @@ export function negateBall(b: Ball): Ball {
 
 /**
  * `a + b`: the midpoints added, the radii added, aligned exactly where the
- * shift fits the context's range limit, and otherwise as the header says:
+ * shift fits the context's significand limit, and otherwise as the header says:
  * `tooLarge` for two exact operands, and a settle-first sum with the
  * smaller absorbed into the radius when an operand is inexact.
  */
@@ -490,7 +490,7 @@ function addBallsCore(
   context: NumberContext,
 ): Result<Ball, BallError> {
   const rad = addRadius(a.rad, b.rad);
-  const sum = add(a.mid, b.mid, context.maxBits);
+  const sum = add(a.mid, b.mid, context.significandLimitBits);
   if (sum.ok) return heldSum(sum.value, rad);
   if (sum.error.kind !== "tooLarge") {
     // The sum aligns and its value passes the bound. Two exact operands
@@ -510,7 +510,7 @@ function addBallsCore(
   const sa = settledA.value;
   const sb = settledB.value;
   const settledRad = addRadius(sa.rad, sb.rad);
-  const settled = add(sa.mid, sb.mid, context.maxBits);
+  const settled = add(sa.mid, sb.mid, context.significandLimitBits);
   if (settled.ok) return heldSum(settled.value, settledRad);
   if (settled.error.kind !== "tooLarge") {
     if (isZeroRadius(settledRad) || settledRad.kind === "unbounded") {
@@ -525,7 +525,7 @@ function addBallsCore(
 
 /**
  * `a + b` in decimal mode where the two cannot be aligned within the
- * range limit (D26; docs/decimal-mode.md, "Sums that do not align"), which
+ * significand limit (D26; docs/decimal-mode.md, "Sums that do not align"), which
  * the evaluator applies when `addBalls` refuses such a sum as `tooLarge`:
  * the smaller operand lies far below half a unit in the last of the
  * context's digits of the larger, so the correctly rounded sum is the
@@ -571,14 +571,15 @@ export function decimalSumApart(
   // One unit in the last digit, in the decade the step lands in: the step
   // toward zero from a power of ten leaves it for the decade below, where
   // the unit is a tenth of the one above (`1e9` to `9.9999999e8`).
-  const powerOfTen = magnitude.mant.num === 1n && magnitude.mant.den === 1n;
+  const powerOfTen =
+    magnitude.significand.num === 1n && magnitude.significand.den === 1n;
   const unit = scaledPowerOfTen(
     exponent - BigInt(precision) + (step === "toward" && powerOfTen ? 0n : 1n),
   );
   const stepped =
     step === "away"
-      ? add(magnitude, unit, context.maxBits)
-      : subtract(magnitude, unit, context.maxBits);
+      ? add(magnitude, unit, context.significandLimitBits)
+      : subtract(magnitude, unit, context.significandLimitBits);
   if (!stepped.ok) return stepped;
   return boundedDecimal(sign(base) < 0 ? negate(stepped.value) : stepped.value);
 }
@@ -619,7 +620,7 @@ export function subtractBalls(
  * `|a| rb + |b| ra + ra rb`, rounded up. An exact zero times anything is
  * exact zero; an exact product whose value passes the bound is `overflow`
  * or `underflow`, and an inexact one is held to the bound as `held` says
- * (D18); the evaluator holds an exact product to the range limit at the
+ * (D18); the evaluator holds an exact product to the significand limit at the
  * node (D19), so a caller takes any refusal.
  */
 export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
@@ -645,7 +646,7 @@ function multiplyBallsCore(a: Ball, b: Ball): Result<Ball, BallError> {
   );
   return held(
     {
-      mant: multiplyFractions(a.mid.mant, b.mid.mant),
+      significand: multiplyFractions(a.mid.significand, b.mid.significand),
       exp: a.mid.exp + b.mid.exp,
     },
     rad,
@@ -686,7 +687,7 @@ function held(loose: Scaled, rad: Radius): Result<Ball, BallError> {
       ? err({ kind: "underflow" })
       : err(AT_BOUND);
   }
-  const mid = scaled(loose.mant, loose.exp);
+  const mid = scaled(loose.significand, loose.exp);
   if (!mid.ok) throw new Error("A midpoint within the bound is held");
   return belowTop(mid.value, rad);
 }
@@ -696,7 +697,7 @@ const AT_BOUND: BallError = { kind: "unresolved", edge: "bound" };
 
 /** Zero within the bounded `rad`, unless the radius itself reaches the top of the bound. */
 function zeroWithin(rad: Radius): Result<Ball, BallError> {
-  const top: Scaled = { mant: ONE_FRACTION, exp: MAX_EXPONENT + 1n };
+  const top: Scaled = { significand: ONE_FRACTION, exp: MAX_EXPONENT + 1n };
   return compareRadius(rad, radiusBelowScaled(top)) < 0
     ? ok({ mid: ZERO, rad })
     : err(AT_BOUND);
@@ -733,7 +734,7 @@ function againstPowerOfTen(
   k: bigint,
 ): "above" | "below" | "straddles" {
   const magnitude = absolute(mid);
-  const power: Scaled = { mant: ONE_FRACTION, exp: k };
+  const power: Scaled = { significand: ONE_FRACTION, exp: k };
   const least = subtractRadiusDown(radiusBelowScaled(magnitude), rad);
   if (compareRadius(least, powerOfTenRadius(k)) >= 0) return "above";
   const most = addRadius(radiusAboveScaled(magnitude), rad);
@@ -785,17 +786,17 @@ function divideBallsCore(a: Ball, b: Ball): Result<Ball, BallError> {
   const distance = magnitudeBelow(b);
   if (isZeroRadius(distance)) return err({ kind: "unresolved", edge: ZERO });
   const denominator = multiplyRadiusDown(radiusBelowScaled(b.mid), distance);
-  const mant = divideFractions(a.mid.mant, b.mid.mant);
-  if (!mant.ok) throw new Error("A divisor excluding zero is nonzero");
+  const significand = divideFractions(a.mid.significand, b.mid.significand);
+  if (!significand.ok) throw new Error("A divisor excluding zero is nonzero");
   return held(
-    { mant: mant.value, exp: a.mid.exp - b.mid.exp },
+    { significand: significand.value, exp: a.mid.exp - b.mid.exp },
     divideRadius(numerator, denominator),
   );
 }
 
 /**
  * `b^n` for an integer `n`. An exact ball goes through `pow`, exactly,
- * within the context's range limit. An inexact ball is raised by squaring
+ * within the context's significand limit. An inexact ball is raised by squaring
  * with `multiplyBalls`, settled after each product (D15), so that the
  * midpoint stays at the working precision, once the classifier has held
  * `n ln |b|` to the exponent bound over the whole ball (D18, the plan's
@@ -803,7 +804,7 @@ function divideBallsCore(a: Ball, b: Ball): Result<Ball, BallError> {
  * passes the bound, `unresolved` at the edge `bound` when some do, the
  * squaring loop when none does, and one within twice `n ln |b|`'s bound
  * where that bound is below an ulp of the working bits, or where the
- * kernel's decision would need more bits than the range limit holds and
+ * kernel's decision would need more bits than the significand limit holds and
  * the bound is at most a half (`(-1)^n` for a negative base). A base
  * whose ball contains zero is held to the top edge alone, since zero is
  * within the bound at any exponent; one with a zero midpoint is zero
@@ -830,7 +831,7 @@ function powBallCore(
   context: NumberContext,
 ): Result<Ball, BallError> {
   if (isExact(b)) {
-    const mid = pow(b.mid, n, context.maxBits);
+    const mid = pow(b.mid, n, context.significandLimitBits);
     return mid.ok ? ok(exact(mid.value)) : mid;
   }
   if (n === 0n) return ok(exact(ONE));
@@ -1046,7 +1047,7 @@ function settled(b: Ball, context: NumberContext): Result<Ball, PastBound> {
  * one whose radius is smaller is widened to it; never narrowed, and
  * idempotent. A zero or an unbounded `b` is returned as it is. This is
  * `approx` (docs/approximate.md), and what the evaluator raises to a
- * power in decimal mode when the exact power does not fit the range limit
+ * power in decimal mode when the exact power does not fit the significand limit
  * (D26). The unit is taken from the exponent without forming it, which
  * lies past the exponent bound for a value near the bottom of it
  * (`approx(1e-999999999999999999)`, issue #44).
@@ -1065,7 +1066,7 @@ function unitOf(s: Scaled, digits: Precision): Radius {
 
 /**
  * A radius at or above `|to - from|`, the distance a rounding moved a
- * midpoint: the difference is formed as a subtraction of the mantissas
+ * midpoint: the difference is formed as a subtraction of the significands
  * at the lesser of the two exponents, with no bound checked, since at the
  * bottom edge the difference itself lies past the bound
  * (`1e-1000000000000000000 / 3` rounded to eight digits, issue #44), and
@@ -1083,7 +1084,7 @@ export function radiusOfMove(to: Scaled, from: Scaled): Radius {
 /**
  * `a - b` as a `Scaled` with no bound checked and no canonical form, for
  * two values whose exponents lie within their digits of each other: the
- * mantissas aligned at the lesser exponent. What `radiusOfMove` and
+ * significands aligned at the lesser exponent. What `radiusOfMove` and
  * `position` read a difference from where `subtract` refuses it.
  */
 function differenceOf(a: Scaled, b: Scaled): Scaled {
@@ -1092,7 +1093,7 @@ function differenceOf(a: Scaled, b: Scaled): Scaled {
 
 /**
  * `a + b` as a `Scaled` with no bound checked and no canonical form, for
- * two values whose alignment `add` found to fit the range limit and whose
+ * two values whose alignment `add` found to fit the significand limit and whose
  * sum it refused at the bound: what `addBalls` holds to the bound by the
  * whole ball.
  */
@@ -1100,18 +1101,18 @@ function sumOf(a: Scaled, b: Scaled): Scaled {
   return alignedOf(a, b, addFractions);
 }
 
-/** `op` over the mantissas of `a` and `b` aligned at the lesser exponent, in no canonical form. */
+/** `op` over the significands of `a` and `b` aligned at the lesser exponent, in no canonical form. */
 function alignedOf(
   a: Scaled,
   b: Scaled,
   op: (x: Rational, y: Rational) => Rational,
 ): Scaled {
   const exp = a.exp < b.exp ? a.exp : b.exp;
-  const mant = op(
-    timesPowerOfTen(a.mant, a.exp - exp),
-    timesPowerOfTen(b.mant, b.exp - exp),
+  const significand = op(
+    timesPowerOfTen(a.significand, a.exp - exp),
+    timesPowerOfTen(b.significand, b.exp - exp),
   );
-  return { mant, exp };
+  return { significand, exp };
 }
 
 /** `r × 10^k` for `k >= 0`. */
@@ -1147,7 +1148,7 @@ function rootBallCore(
 ): Result<Ball, BallError> {
   if (degree < 1n) throw new RangeError("Root degree must be positive");
   if (isExact(b)) {
-    const exactValue = exactRoot(b.mid, degree, context.maxBits);
+    const exactValue = exactRoot(b.mid, degree, context.significandLimitBits);
     if (!exactValue.ok) return exactValue;
     if (exactValue.value !== undefined) return ok(exact(exactValue.value));
   }
@@ -1185,15 +1186,15 @@ function rootBallCore(
 /**
  * The root of a bounded `b` whose interval is positive, through the kernel:
  * the exponent is split into a multiple of the degree, taken off exactly,
- * and a remainder folded into the mantissa; the mantissa is then scaled by
+ * and a remainder folded into the significand; the significand is then scaled by
  * `2^(-j × degree)` so that it is of order one, converted at
- * `bitsFor(precision)` plus as many more bits as the scaled mantissa lies
+ * `bitsFor(precision)` plus as many more bits as the scaled significand lies
  * below one, so that it keeps its digits through the root, rooted, scaled
  * back by `2^j` and the power of ten, and handed back. Three cases go to
  * log space instead (`rootInLogSpace`), as a rational power that does not
- * fit the range limit does: a degree past `ROOT_DEGREE_LIMIT`, which the
+ * fit the significand limit does: a degree past `ROOT_DEGREE_LIMIT`, which the
  * kernel's root cannot verify; a remainder whose power of ten does not
- * fit the range limit; and a mantissa that lies below one by more than
+ * fit the significand limit; and a significand that lies below one by more than
  * the working bits, which the conversion would turn to zero within an ulp
  * and report as a false `unresolved` (`pow(3^-10000, 2^-30)`, issue #57).
  * `undefined` when the scaled ball's interval is not positive at those
@@ -1211,20 +1212,23 @@ function positiveRoot(
     r += degree;
     k -= 1n;
   }
-  const mantissa = toRational({ mant: b.mid.mant, exp: r }, context.maxBits);
-  if (!mantissa.ok) return rootInLogSpace(b, degree, context);
-  // The radius over the power of ten taken off, then over the mantissa's
+  const significand = toRational(
+    { significand: b.mid.significand, exp: r },
+    context.significandLimitBits,
+  );
+  if (!significand.ok) return rootInLogSpace(b, degree, context);
+  // The radius over the power of ten taken off, then over the significand's
   // binary scaling: both exact powers, rounded up on the radius. The
   // power taken off is not formed: its multiple of the degree can overshoot
   // the exponent by up to the degree less one, past the bound for
   // `cbrt(1e-1000000000000000000)` (issue #44), and only its radius is
   // needed.
   const radOverTen = multiplyRadius(b.rad, powerOfTenRadius(-(k * degree)));
-  const m = mantissa.value;
+  const m = significand.value;
   const exponent = BigInt(bitLength(m.num) - bitLength(m.den));
   const j = exponent / degree;
   const shift = j * degree;
-  // The scaled mantissa, `m × 2^-shift`, lies between `2^-degree` and
+  // The scaled significand, `m × 2^-shift`, lies between `2^-degree` and
   // `2^degree`. Where it lies below one, `deficit` is about how many bits
   // below: past the working bits the conversion would lose it entirely,
   // and within them it is converted at that many more bits, as a small
@@ -1289,12 +1293,12 @@ function scaledPowerOfTen(k: bigint): Scaled {
 function ulpsOf(rad: Radius, bits: number): bigint {
   if (rad.kind === "unbounded")
     throw new RangeError("An unbounded radius has no ulps");
-  if (rad.mant === 0n) return 0n;
+  if (rad.significand === 0n) return 0n;
   const exp = rad.exp + BigInt(bits);
-  if (exp >= 0n) return rad.mant << exp;
-  if (-exp >= BigInt(bitLength(rad.mant))) return 1n;
+  if (exp >= 0n) return rad.significand << exp;
+  if (-exp >= BigInt(bitLength(rad.significand))) return 1n;
   const den = 1n << -exp;
-  return (rad.mant + den - 1n) / den;
+  return (rad.significand + den - 1n) / den;
 }
 
 /**
@@ -1336,10 +1340,10 @@ function powRationalBallCore(
   const { num: p, den: q } = exponent;
   const even = q % 2n === 0n;
   if (isExact(b)) {
-    const root = exactRoot(b.mid, q, context.maxBits);
+    const root = exactRoot(b.mid, q, context.significandLimitBits);
     if (!root.ok) return root;
     if (root.value !== undefined) {
-      const power = pow(root.value, p, context.maxBits);
+      const power = pow(root.value, p, context.significandLimitBits);
       return power.ok ? ok(exact(power.value)) : power;
     }
   }
@@ -1373,7 +1377,7 @@ function powRationalBallCore(
  * ball that straddles an edge `unresolved` at the edge `bound`, answers
  * one within twice the bound on `|y ln x|` where that bound is below an
  * ulp of the working bits (or where the kernel's decision would need more
- * bits than the range limit holds and the bound is at most a half), and
+ * bits than the significand limit holds and the bound is at most a half), and
  * is `tooLarge` where the decision needs more bits than the limit holds;
  * `unresolved` at zero when `x` reaches within an ulp of zero at the bits
  * the logarithm is taken at, the working bits plus the magnitudes of `y`
@@ -1422,7 +1426,7 @@ function logProduct(
 /**
  * The kernel's logarithm of a bounded `x` positive as rationals (a
  * precondition) at `bits` fraction bits, `ln(2)` and `ln(10)` from their
- * memos at `ceilingBits`: the mantissa is scaled to order one by an exact
+ * memos at `ceilingBits`: the significand is scaled to order one by an exact
  * power of two and converted at `bits`, that power goes to `lnFixed` as
  * its `scale`, and the decimal exponent times `ln(10)` is added at the
  * bits its size calls for, so that a tiny or a huge `x` loses nothing to
@@ -1435,22 +1439,25 @@ export function lnScaled(
   bits: number,
   ceilingBits: number,
 ): Fixed | undefined {
-  const { mant, exp } = x.mid;
-  const scale = bitLength(mant.num) - bitLength(mant.den);
+  const { significand, exp } = x.mid;
+  const scale = bitLength(significand.num) - bitLength(significand.den);
   // Only the radius of the power of ten is needed, so it is not formed;
   // `10^-exp` can lie past the bound when `x` lies near it.
   const radOverTen = multiplyRadius(x.rad, powerOfTenRadius(-exp));
-  const f = fixedFromRational(scaleByPowerOfTwo(mant, -BigInt(scale)), bits);
+  const f = fixedFromRational(
+    scaleByPowerOfTwo(significand, -BigInt(scale)),
+    bits,
+  );
   const withRad: Fixed = {
     ...f,
     error: f.error + ulpsOf(shiftRadius(radOverTen, -BigInt(scale)), bits),
   };
   if (withRad.value <= withRad.error) return undefined;
-  const lnMantissa = lnFixed(withRad, bits, ceilingBits, scale);
-  if (exp === 0n) return lnMantissa;
+  const lnSignificand = lnFixed(withRad, bits, ceilingBits, scale);
+  if (exp === 0n) return lnSignificand;
   const expBits = bitLength(exp < 0n ? -exp : exp);
   const lnTen = scaleFixed(ln10Fixed(bits + expBits + 8, ceilingBits), exp);
-  return keepSignificant(addFixed(lnMantissa, lnTen), bits);
+  return keepSignificant(addFixed(lnSignificand, lnTen), bits);
 }
 
 /**
@@ -1460,10 +1467,10 @@ export function lnScaled(
  */
 export function radiusBound(rad: Radius): number {
   if (rad.kind === "unbounded") return Infinity;
-  if (rad.mant === 0n) return 0;
+  if (rad.significand === 0n) return 0;
   if (rad.exp > 1000n) return Infinity;
   if (rad.exp < -1100n) return 0;
-  return Number(rad.mant) * 2 ** Number(rad.exp);
+  return Number(rad.significand) * 2 ** Number(rad.exp);
 }
 
 /** The failure of the reciprocal of a value that failed with `error`: past the bound on its other side, and otherwise the same. */
@@ -1617,7 +1624,7 @@ export function classifyHyperbolic(x: Ball, context: NumberContext): Verdict {
  * on `|y ln x|`, where that bound is below an ulp of the working bits or
  * the kernel's decision is out of reach and the bound at most a half
  * (`e^L - 1 <= 2|L|` there); `tooLarge`, where the decision needs the
- * logarithm at more bits than the range limit holds; and `unresolved` at
+ * logarithm at more bits than the significand limit holds; and `unresolved` at
  * the edge zero where `x` reaches within an ulp of zero at those bits.
  * `compute` carries the bits the logarithm is to be taken at, and the
  * product `y ln x` when the kernel formed it to decide.
@@ -1642,7 +1649,7 @@ export type PowerVerdict =
  * above the edge on the product's side to refuse, and an interval that
  * surely reaches past an edge while surely reaching within to leave
  * `unresolved`; within their slack the kernel decides on `y ln |x|`,
- * where the bits `y`'s size asks for fit the range limit. A base whose
+ * where the bits `y`'s size asks for fit the significand limit. A base whose
  * ball contains zero is held to the top edge alone by `|x|`'s upper end,
  * for a `y` positive throughout, since values near zero are within the
  * bound at any exponent; a `y` that reaches zero or below over such a
@@ -1698,7 +1705,7 @@ export function classifyPower(
   const yBits = bitsOfRadius(yb.maxUp);
   const lnBits = bitsOfRadius(lb.maxUp);
   const working = BigInt(bits + 8) + yBits + lnBits;
-  const affordable = working <= BigInt(context.maxBits);
+  const affordable = working <= BigInt(context.significandLimitBits);
   if (coarse === "compute") {
     if (affordable) return { kind: "compute", working: Number(working) };
     if (compareRadius(L.maxUp, HALF_RADIUS) <= 0) {
@@ -1728,7 +1735,8 @@ export function classifyPower(
 export function logPowerBlame(x: Ball, y: Ball): 0 | 1 {
   if (x.rad.kind === "unbounded" || y.rad.kind === "unbounded") return 0;
   const xb = magnitudeBounds(x);
-  if (xb.minDown.kind === "unbounded" || xb.minDown.mant === 0n) return 0;
+  if (xb.minDown.kind === "unbounded" || xb.minDown.significand === 0n)
+    return 0;
   const lb = lnBounds({ mid: absolute(x.mid), rad: x.rad }, xb);
   if (lb === undefined) return 0;
   const fromX = multiplyRadius(
@@ -1806,7 +1814,7 @@ function lnBounds(x: Ball, xb: MagnitudeBounds): MagnitudeBounds | undefined {
       minUp: shiftRadius(above, 1n),
     };
   }
-  if (xb.minDown.kind === "unbounded" || xb.minDown.mant === 0n) {
+  if (xb.minDown.kind === "unbounded" || xb.minDown.significand === 0n) {
     return undefined;
   }
   switch (sideOfOne(x)) {
@@ -1852,7 +1860,7 @@ const NEAR_ONE_BELOW = radiusBelowScaled(fromRational(rational(3n, 5n)));
  */
 function lnOfRadius(r: Radius, direction: "up" | "down"): Radius {
   if (r.kind === "unbounded") return UNBOUNDED;
-  if (r.mant === 0n) return direction === "up" ? UNBOUNDED : ZERO_RADIUS;
+  if (r.significand === 0n) return direction === "up" ? UNBOUNDED : ZERO_RADIUS;
   const { int, frac } = log2OfRadius(r);
   const scale = 40n;
   const log2 = (int << scale) + BigInt(Math.floor(frac * 2 ** 40));
@@ -1872,8 +1880,8 @@ function lnOfRadius(r: Radius, direction: "up" | "down"): Radius {
 
 /** The bits a value bounded by the radius `r` takes before the binary point, at least zero; a bigint, since `r`'s exponent is one. */
 function bitsOfRadius(r: Radius): bigint {
-  if (r.kind === "unbounded") return BigInt(LIMIT_BITS) * 8n;
-  if (r.mant === 0n) return 0n;
+  if (r.kind === "unbounded") return BigInt(MAX_SIGNIFICAND_LIMIT_BITS) * 8n;
+  if (r.significand === 0n) return 0n;
   const int = log2OfRadius(r).int + 1n;
   return int < 0n ? 0n : int;
 }
@@ -1955,11 +1963,11 @@ export function certifies(
   mode: RoundingMode,
 ): boolean {
   if (b.rad.kind === "unbounded") return false;
-  if (b.rad.mant === 0n) return true;
+  if (b.rad.significand === 0n) return true;
   const rad = radiusScaled(b.rad);
   if (rad !== undefined) {
-    const lower = subtract(b.mid, rad, LIMIT_BITS);
-    const upper = add(b.mid, rad, LIMIT_BITS);
+    const lower = subtract(b.mid, rad, MAX_SIGNIFICAND_LIMIT_BITS);
+    const upper = add(b.mid, rad, MAX_SIGNIFICAND_LIMIT_BITS);
     if (lower.ok && upper.ok) {
       return equals(
         roundTo(lower.value, digits, mode),
@@ -1998,20 +2006,21 @@ function certifiesByBoundary(
   const unitExp = decimalExponent(mid) - BigInt(digits) + 1n;
   // The midpoint in units: its integer part has `digits` digits.
   const q = atExponent(mid, mid.exp - unitExp);
-  const whole = trunc(q, LIMIT_BITS);
+  const whole = trunc(q, MAX_SIGNIFICAND_LIMIT_BITS);
   if (whole === undefined) return false;
-  const fraction = subtract(q, whole, LIMIT_BITS);
+  const fraction = subtract(q, whole, MAX_SIGNIFICAND_LIMIT_BITS);
   if (!fraction.ok) return false;
   const f = fraction.value;
   let distance = nearest
-    ? absolute(settledSum(subtract(f, HALF, LIMIT_BITS)))
-    : minimum(f, settledSum(subtract(ONE, f, LIMIT_BITS)));
+    ? absolute(settledSum(subtract(f, HALF, MAX_SIGNIFICAND_LIMIT_BITS)))
+    : minimum(f, settledSum(subtract(ONE, f, MAX_SIGNIFICAND_LIMIT_BITS)));
   // The boundary just below 10^e, which is 10^(digits - 1) units: at the
   // power itself under a directed mode, a twentieth of a unit below it
   // under a nearest one.
   const power = scaledPowerOfTen(BigInt(digits - 1));
-  let below = settledSum(subtract(q, power, LIMIT_BITS));
-  if (nearest) below = settledSum(add(below, TWENTIETH, LIMIT_BITS));
+  let below = settledSum(subtract(q, power, MAX_SIGNIFICAND_LIMIT_BITS));
+  if (nearest)
+    below = settledSum(add(below, TWENTIETH, MAX_SIGNIFICAND_LIMIT_BITS));
   distance = minimum(distance, below);
   if (isZero(distance)) return false;
   return (
@@ -2019,9 +2028,9 @@ function certifiesByBoundary(
   );
 }
 
-/** `s` with its exponent replaced, the canonical mantissa kept: `s × 10^(exp - s.exp)`; zero stays zero. */
+/** `s` with its exponent replaced, the canonical significand kept: `s × 10^(exp - s.exp)`; zero stays zero. */
 function atExponent(s: Scaled, exp: bigint): Scaled {
-  return isZero(s) ? ZERO : { mant: s.mant, exp };
+  return isZero(s) ? ZERO : { significand: s.significand, exp };
 }
 
 /** The lesser of two `Scaled`s. */
@@ -2035,11 +2044,11 @@ function settledSum(result: Result<Scaled, BallError>): Scaled {
   return result.value;
 }
 
-const HALF: Scaled = { mant: { num: 5n, den: 1n }, exp: -1n };
-const TWENTIETH: Scaled = { mant: { num: 5n, den: 1n }, exp: -2n };
+const HALF: Scaled = { significand: { num: 5n, den: 1n }, exp: -1n };
+const TWENTIETH: Scaled = { significand: { num: 5n, den: 1n }, exp: -2n };
 
 /**
- * The largest `d <= maxDigits` that `b` certifies in `mode`, or 0 when it
+ * The largest `d <= precisionLimitDigits` that `b` certifies in `mode`, or 0 when it
  * certifies none. Certification is not monotone in `d`: `[1.246, 1.254]`
  * certifies three digits, both ends rounding to `1.25`, and not two,
  * `1.25` being a two-digit tie; so the counts are tried from the top
@@ -2050,16 +2059,19 @@ const TWENTIETH: Scaled = { mant: { num: 5n, den: 1n }, exp: -2n };
  */
 export function certifiedDigits(
   b: Ball,
-  maxDigits: Precision,
+  precisionLimitDigits: Precision,
   mode: RoundingMode,
 ): number {
   if (b.rad.kind === "unbounded" || containsZero(b)) {
-    return isExactZero(b) ? maxDigits : 0;
+    return isExactZero(b) ? precisionLimitDigits : 0;
   }
-  if (b.rad.mant === 0n) return maxDigits;
+  if (b.rad.significand === 0n) return precisionLimitDigits;
   const radExp = decimalExponentOfLog2(log2OfRadius(b.rad)).exp;
   const atMost = decimalExponent(b.mid) + 1n - radExp + 2n;
-  const start = atMost < BigInt(maxDigits) ? Number(atMost) : maxDigits;
+  const start =
+    atMost < BigInt(precisionLimitDigits)
+      ? Number(atMost)
+      : precisionLimitDigits;
   for (let d = start; d >= 1; d--) {
     if (certifies(b, d, mode)) return d;
   }

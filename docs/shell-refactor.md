@@ -202,7 +202,7 @@ fields:
 ```ts
 /** A number setting: which, how it is labeled, and the line under it. */
 type NumberField = {
-  readonly key: "digits" | "maxDigits" | "maxBits";
+  readonly key: "digits" | "precisionLimitDigits" | "significandLimitBits";
   readonly label: string;
   readonly hint: (settings: Settings) => string;
 };
@@ -210,12 +210,16 @@ type NumberField = {
 const NUMBER_FIELDS: readonly NumberField[] = [
   { key: "digits", label: "Digits", hint: () => "Significant digits shown. …" },
   {
-    key: "maxDigits",
+    key: "precisionLimitDigits",
     label: "Precision limit",
-    hint: ({ maxDigits }) =>
-      `… ${ceilingFor(maxDigits).toLocaleString("en-US")} digits, …`,
+    hint: ({ precisionLimitDigits }) =>
+      `… ${ceilingFor(precisionLimitDigits).toLocaleString("en-US")} digits, …`,
   },
-  { key: "maxBits", label: "Most bits", hint: () => "The most bits in …" },
+  {
+    key: "significandLimitBits",
+    label: "Most bits",
+    hint: () => "The most bits in …",
+  },
 ];
 ```
 
@@ -246,9 +250,9 @@ private onNumberChange(field: NumberField) {
 Two things to note:
 
 - **`rangesOf(settings)`** moves to `settings.ts` and becomes the one
-  statement of each number setting's bounds (`maxBits` in
-  `[MIN_MAX_BITS, LIMIT_BITS]`, `maxDigits` in `[1, maxDigitsFor(maxBits)]`,
-  `digits` in `[1, maxDigits]`). The template's `min`/`max`, the validation,
+  statement of each number setting's bounds (`significandLimitBits` in
+  `[MIN_SIGNIFICAND_LIMIT_BITS, MAX_SIGNIFICAND_LIMIT_BITS]`, `precisionLimitDigits` in `[1, precisionLimitFor(significandLimitBits)]`,
+  `digits` in `[1, precisionLimitDigits]`). The template's `min`/`max`, the validation,
   and `clampSettings` all read it, so the range can no longer drift between
   them. `isDigits`, `isMaxDigits` and `isMaxBits` become
   `isIntegerIn(value, rangesOf(settings).digits)` and so on; their tests

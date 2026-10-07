@@ -37,7 +37,7 @@
 // for whole numbers) and `1`; whole numbers `a` and `b` with a rational `x`
 // make `I_x(a, b)` the polynomial `Σ binomial(a + b - 1, j) x^j (1 -
 // x)^(a + b - 1 - j)` over `j` from `a` to `a + b - 1`, exact where its
-// terms fit Most bits, and `B(x; a, b)` that times `B(a, b)`. A parameter
+// terms fit the significand limit, and `B(x; a, b)` that times `B(a, b)`. A parameter
 // at or below zero and an argument outside `[0, 1]` are `domain` errors
 // (`notPositive`, `outsideZeroOne`); balls at those edges are `unresolved`
 // at the edge; a ball of the argument wide or touching an end is taken at
@@ -106,7 +106,7 @@ import { binomialOf } from "./integers.ts";
 /** The most terms the series is given. */
 const SERIES_LIMIT = 50_000;
 
-/** The largest `a + b - 1` the exact polynomial is formed for: its terms number `b`, each a product of integers of up to Most bits. */
+/** The largest `a + b - 1` the exact polynomial is formed for: its terms number `b`, each a product of integers of up to the significand limit. */
 const POLYNOMIAL_LIMIT = 10_000;
 
 /** The radius of a whole whose other part passed the bottom of the bound: `10^-(10^18)`. */
@@ -204,8 +204,9 @@ function incompleteBeta(
   if (polynomial !== undefined) return polynomial;
   const bits = bitsFor(context.precision);
   const extra =
-    magnitudeBits(a, context.maxBits) + magnitudeBits(b, context.maxBits);
-  if (bits + extra > context.maxBits) return TOO_LARGE;
+    magnitudeBits(a, context.significandLimitBits) +
+    magnitudeBits(b, context.significandLimitBits);
+  if (bits + extra > context.significandLimitBits) return TOO_LARGE;
   const working = bits + extra;
   const digits = workingDigits(context) + Math.ceil(extra / BITS_PER_DIGIT) + 1;
   // The complement of x, and the two orientations.
@@ -230,7 +231,7 @@ function incompleteBeta(
   return result.ok ? result : failed(result.error, 2);
 }
 
-/** `1 - x` as a ball: exactly where it aligns within Most bits, and otherwise one within the magnitude of a tiny `x`. */
+/** `1 - x` as a ball: exactly where it aligns within the significand limit, and otherwise one within the magnitude of a tiny `x`. */
 function complementOf(
   x: Ball,
   context: NumberContext,
@@ -398,7 +399,7 @@ function multiplyBallsSafe(p: Ball, l: Ball): Result<Ball, BuiltinError> {
   return failed(r.error, 0);
 }
 
-/** `a + b` as a ball: exactly where the operands align within Most bits, and otherwise the larger within the smaller's magnitude. */
+/** `a + b` as a ball: exactly where the operands align within the significand limit, and otherwise the larger within the smaller's magnitude. */
 function sumOf(
   a: Ball,
   b: Ball,
@@ -421,7 +422,7 @@ function sumOf(
  * has the denominator `q^(a + b - 1)`, so the sum is one integer over
  * that power, reduced once; `B(x; a, b)` is it times `B(a, b)`.
  * `undefined` when the arguments are not that or the power does not fit
- * Most bits, for the kernel.
+ * the significand limit, for the kernel.
  */
 function exactPolynomial(
   a: Ball,
@@ -432,15 +433,16 @@ function exactPolynomial(
 ): Result<Ball, BuiltinError> | undefined {
   if (!isExact(a) || !isExact(b) || !isExact(x)) return undefined;
   if (!isInteger(a.mid) || !isInteger(b.mid)) return undefined;
-  const m = toRational(a.mid, context.maxBits);
-  const n = toRational(b.mid, context.maxBits);
-  const r = toRational(x.mid, context.maxBits);
+  const m = toRational(a.mid, context.significandLimitBits);
+  const n = toRational(b.mid, context.significandLimitBits);
+  const r = toRational(x.mid, context.significandLimitBits);
   if (!m.ok || !n.ok || !r.ok) return undefined;
   const top = m.value.num + n.value.num - 1n;
   if (top > BigInt(POLYNOMIAL_LIMIT)) return undefined;
   const p = r.value.num;
   const q = r.value.den;
-  if (Number(top) * bitLength(q) > context.maxBits) return undefined;
+  if (Number(top) * bitLength(q) > context.significandLimitBits)
+    return undefined;
   // Σ binomial(top, j) p^j (q - p)^(top - j) over j from a to top, with
   // the powers stepped from the ends.
   const first = binomialOf(top, m.value.num, context);
@@ -462,11 +464,14 @@ function exactPolynomial(
   if (!regularized) {
     const whole = betaBall(a, b, context);
     if (!whole.ok || !isExact(whole.value)) return undefined;
-    const w = toRational(whole.value.mid, context.maxBits);
+    const w = toRational(whole.value.mid, context.significandLimitBits);
     if (!w.ok) return undefined;
     total = multiplyRationals(total, w.value);
   }
-  if (bitLength(total.num) + bitLength(total.den) > context.maxBits) {
+  if (
+    bitLength(total.num) + bitLength(total.den) >
+    context.significandLimitBits
+  ) {
     return undefined;
   }
   return ok(exact(fromRational(total)));
@@ -482,8 +487,8 @@ function atEnds(
 ): Result<Ball, BuiltinError> {
   const r = radiusValue(x.rad);
   if (r === undefined) throw new Error("A bounded radius has a value");
-  const lo = subtract(x.mid, r, context.maxBits);
-  const hi = add(x.mid, r, context.maxBits);
+  const lo = subtract(x.mid, r, context.significandLimitBits);
+  const hi = add(x.mid, r, context.significandLimitBits);
   if (!lo.ok || !hi.ok) return TOO_LARGE;
   // Clamped to the domain: the ends outside it were refused above.
   const low = sign(lo.value) < 0 ? ZERO : lo.value;
@@ -532,8 +537,9 @@ export function withinLimits(
 ): boolean {
   const bits = bitsFor(context.precision);
   const extra =
-    magnitudeBits(a, context.maxBits) + magnitudeBits(b, context.maxBits);
-  if (bits + extra > context.maxBits) return false;
+    magnitudeBits(a, context.significandLimitBits) +
+    magnitudeBits(b, context.significandLimitBits);
+  if (bits + extra > context.significandLimitBits) return false;
   const working = bits + extra;
   const complement = complementOf(x, context);
   if (!complement.ok) return false;

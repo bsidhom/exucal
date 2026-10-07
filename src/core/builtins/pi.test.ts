@@ -4,12 +4,12 @@ import { inspect } from "node:util";
 import { isExact, type Ball } from "../ball.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
 } from "../context.ts";
 import { DIMENSIONLESS } from "../dimension.ts";
 import { radiusUpper } from "../radius.ts";
-import { LIMIT_BITS } from "../rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS } from "../rational.ts";
 import {
   absolute,
   compare,
@@ -27,7 +27,7 @@ const PI = dec(
 
 /** `|a - b|` on `Scaled`s of moderate exponent. */
 function distance(a: Scaled, b: Scaled): Scaled {
-  const d = subtract(a, b, LIMIT_BITS);
+  const d = subtract(a, b, MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(d.ok, `${inspect(a)} - ${inspect(b)} aligns`);
   return absolute(d.value);
 }
@@ -51,7 +51,7 @@ test("pi() is the kernel's ball of pi at the context's precision, never exact", 
     const result = pi.apply([], {
       precision,
       rounding: DEFAULT_ROUNDING,
-      maxBits: DEFAULT_MAX_BITS,
+      significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
       ceiling: DEFAULT_CEILING,
     });
     assert.ok(result.ok);

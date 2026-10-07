@@ -32,7 +32,7 @@
 // × size`, computed with the ball operations at the `NumberContext` the
 // sums align within (4.4), so that the terms times the units still
 // contain `have`; a ratio whose integer part cannot be formed within the
-// range limit (`1e999999999 m` into `km;m`) is counted as its midpoint
+// significand limit (`1e999999999 m` into `km;m`) is counted as its midpoint
 // settled toward zero at the working digits, an integer of that many
 // digits, and the remainder is what that count leaves (D8 as 4.4 amended
 // it); and a count whose ratio falls below the exponent bound is zero,
@@ -44,7 +44,7 @@
 // conversion's (`ListRefusal`): stage 4 assumed that a quotient, a product
 // and a difference of values within the bound stay within it, and threw
 // where a count passed the bound (issue #44) or a remainder could not
-// align within the range limit (#58). One case is decided the other way: when the
+// align within the significand limit (#58). One case is decided the other way: when the
 // ratio's ball straddles an integer, as `turn / deg` does once both carry
 // `pi()`'s radius (`359.999... ± ε`), the count is that integer, since a
 // count that cannot be told from a boundary is best taken as the boundary,
@@ -93,7 +93,7 @@ import {
 } from "./dimension.ts";
 import type { Quantity } from "./quantity.ts";
 import { addRadius, isZeroRadius } from "./radius.ts";
-import { LIMIT_BITS } from "./rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
 import type { Precision, RoundingMode } from "./rounding.ts";
 import {
@@ -128,7 +128,7 @@ export type ConvertError =
   | { readonly kind: "unresolvedBound" }
   /**
    * The ratio was refused: its exponent passes the bound, above it or
-   * below it. The range limit is the pipeline's check on the ratio once
+   * below it. The significand limit is the pipeline's check on the ratio once
    * formed (D19), so the ratio is never `tooLarge` here; one would be
    * passed on all the same.
    */
@@ -368,16 +368,16 @@ function passOn(error: BallError): Result<never, ListRefusal> {
  * whole number is counted as that whole number and leaves a remainder
  * around zero rather than a whole of the unit. An exact ratio straddles an
  * integer only when it is one, and an unbounded one is truncated. A
- * midpoint whose integer part cannot be formed within the range limit of
+ * midpoint whose integer part cannot be formed within the significand limit of
  * `context` is settled toward zero at the working digits instead, which
  * is an integer, the value being that far above one.
  */
 function countOf(ratio: Ball, context: NumberContext): Scaled {
-  const truncated = trunc(ratio.mid, context.maxBits);
+  const truncated = trunc(ratio.mid, context.significandLimitBits);
   if (truncated === undefined) {
     const count = trunc(
       roundTo(ratio.mid, workingDigits(context), "towardZero"),
-      LIMIT_BITS,
+      MAX_SIGNIFICAND_LIMIT_BITS,
     );
     if (count === undefined) throw new Error("A settled count is an integer");
     return count;
@@ -397,10 +397,10 @@ function countOf(ratio: Ball, context: NumberContext): Scaled {
 
 /** The integer nearest `s`, given `truncated`, its truncation toward zero: a half rounds away from zero. */
 function nearestInteger(s: Scaled, truncated: Scaled): Scaled {
-  const fraction = settled(subtract(s, truncated, LIMIT_BITS));
+  const fraction = settled(subtract(s, truncated, MAX_SIGNIFICAND_LIMIT_BITS));
   if (compare(absolute(fraction), HALF) < 0) return truncated;
   const step = sign(fraction) > 0 ? ONE : negate(ONE);
-  return settled(add(truncated, step, LIMIT_BITS));
+  return settled(add(truncated, step, MAX_SIGNIFICAND_LIMIT_BITS));
 }
 
 const HALF: Scaled = ((): Scaled => {

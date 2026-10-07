@@ -2,32 +2,32 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   DEFAULT_CEILING,
-  DEFAULT_DIGITS,
-  DEFAULT_MAX_BITS,
-  DEFAULT_MAX_DIGITS,
+  DEFAULT_DISPLAY_DIGITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
+  DEFAULT_PRECISION_LIMIT_DIGITS,
   DEFAULT_ROUNDING,
   GUARD_DIGITS,
   MODES,
   ceilingContext,
   ceilingFor,
   checkContext,
-  maxDigitsFor,
+  precisionLimitFor,
   modeOf,
   operandContext,
   workingContexts,
   type NumberContext,
 } from "./context.ts";
 import { bitsFor } from "./fixed.ts";
-import { LIMIT_BITS } from "./rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS } from "./rational.ts";
 import { ROUNDING_MODES } from "./rounding.ts";
 
 test("the defaults are eight digits and half even (S2 of the settings plan)", () => {
-  assert.equal(DEFAULT_DIGITS, 8);
+  assert.equal(DEFAULT_DISPLAY_DIGITS, 8);
   assert.equal(DEFAULT_ROUNDING, "halfEven");
   checkContext({
-    precision: DEFAULT_DIGITS,
+    precision: DEFAULT_DISPLAY_DIGITS,
     rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
   });
 });
@@ -38,7 +38,7 @@ test("checkContext accepts every mode at any positive integer precision", () => 
       checkContext({
         precision,
         rounding,
-        maxBits: DEFAULT_MAX_BITS,
+        significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
         ceiling: DEFAULT_CEILING,
       });
     }
@@ -52,7 +52,7 @@ test("checkContext rejects a precision that is not a positive integer", () => {
         checkContext({
           precision,
           rounding: DEFAULT_ROUNDING,
-          maxBits: DEFAULT_MAX_BITS,
+          significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
           ceiling: DEFAULT_CEILING,
         }),
       RangeError,
@@ -69,41 +69,47 @@ test("checkContext rejects a name that is not a rounding mode", () => {
   assert.throws(() => checkContext(context), RangeError);
 });
 
-test("checkContext rejects a range limit outside [1, LIMIT_BITS]", () => {
-  for (const maxBits of [0, -1, 1.5, NaN, LIMIT_BITS + 1]) {
+test("checkContext rejects a significand limit outside [1, MAX_SIGNIFICAND_LIMIT_BITS]", () => {
+  for (const significandLimitBits of [
+    0,
+    -1,
+    1.5,
+    NaN,
+    MAX_SIGNIFICAND_LIMIT_BITS + 1,
+  ]) {
     assert.throws(
       () =>
         checkContext({
           precision: 8,
           rounding: DEFAULT_ROUNDING,
-          maxBits,
+          significandLimitBits,
           ceiling: DEFAULT_CEILING,
         }),
       RangeError,
-      `${maxBits}`,
+      `${significandLimitBits}`,
     );
   }
   checkContext({
     precision: 8,
     rounding: DEFAULT_ROUNDING,
-    maxBits: 1,
+    significandLimitBits: 1,
     ceiling: DEFAULT_CEILING,
   });
   checkContext({
     precision: 8,
     rounding: DEFAULT_ROUNDING,
-    maxBits: LIMIT_BITS,
+    significandLimitBits: MAX_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
   });
-  assert.equal(DEFAULT_MAX_BITS, 1 << 16);
-  assert.equal(LIMIT_BITS, 1 << 20);
+  assert.equal(DEFAULT_SIGNIFICAND_LIMIT_BITS, 1 << 16);
+  assert.equal(MAX_SIGNIFICAND_LIMIT_BITS, 1 << 20);
 });
 
 test("checkContext rejects a ceiling that is not an integer at or above the precision", () => {
   const at = (precision: number, ceiling: number) => ({
     precision,
     rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling,
   });
   for (const ceiling of [7, 0, -1, 8.5, NaN, Infinity]) {
@@ -119,7 +125,7 @@ test("ceilingContext is the context at its ceiling, the same for every precision
   const context = {
     precision: 8,
     rounding: "floor" as const,
-    maxBits: 4096,
+    significandLimitBits: 4096,
     ceiling: 840,
   };
   assert.deepEqual(ceilingContext(context), { ...context, precision: 840 });
@@ -149,7 +155,7 @@ test("the mode is exact where none is given, and checkContext rejects a mode tha
   const context = {
     precision: 8,
     rounding: "floor" as const,
-    maxBits: 4096,
+    significandLimitBits: 4096,
     ceiling: 840,
   };
   assert.equal(modeOf(context), "exact");
@@ -166,45 +172,50 @@ test("the mode is exact where none is given, and checkContext rejects a mode tha
   }
 });
 
-test("the ceiling is four times the cap plus the guard", () => {
+test("the ceiling is four times the precision limit plus the guard", () => {
   assert.equal(GUARD_DIGITS, 10);
-  assert.equal(DEFAULT_MAX_DIGITS, 1000);
-  assert.equal(ceilingFor(DEFAULT_MAX_DIGITS), 4040);
+  assert.equal(DEFAULT_PRECISION_LIMIT_DIGITS, 1000);
+  assert.equal(ceilingFor(DEFAULT_PRECISION_LIMIT_DIGITS), 4040);
   assert.equal(ceilingFor(1), 44);
   assert.equal(ceilingFor(200), 840);
 });
 
-test("maxDigitsFor is the largest cap whose ceiling fits half the range limit", () => {
-  for (const maxBits of [DEFAULT_MAX_BITS, LIMIT_BITS, 4096, 1000]) {
-    const cap = maxDigitsFor(maxBits);
-    assert.ok(cap >= 1, `${maxBits}`);
+test("precisionLimitFor is the largest precision limit whose ceiling fits half the significand limit", () => {
+  for (const significandLimitBits of [
+    DEFAULT_SIGNIFICAND_LIMIT_BITS,
+    MAX_SIGNIFICAND_LIMIT_BITS,
+    4096,
+    1000,
+  ]) {
+    const limit = precisionLimitFor(significandLimitBits);
+    assert.ok(limit >= 1, `${significandLimitBits}`);
     assert.ok(
-      2 * bitsFor(ceilingFor(cap)) <= maxBits,
-      `${maxBits}: ${cap} fits`,
+      2 * bitsFor(ceilingFor(limit)) <= significandLimitBits,
+      `${significandLimitBits}: ${limit} fits`,
     );
     assert.ok(
-      2 * bitsFor(ceilingFor(cap + 1)) > maxBits,
-      `${maxBits}: ${cap + 1} does not`,
+      2 * bitsFor(ceilingFor(limit + 1)) > significandLimitBits,
+      `${significandLimitBits}: ${limit + 1} does not`,
     );
   }
-  // About 2,450 at the default range limit, so the default cap has room.
-  const cap = maxDigitsFor(DEFAULT_MAX_BITS);
-  assert.ok(cap > 2400 && cap < 2500, `${cap}`);
-  assert.ok(DEFAULT_MAX_DIGITS <= cap);
-  // A range limit too small for any digits gives zero.
-  assert.equal(maxDigitsFor(100), 0);
-  assert.equal(maxDigitsFor(1), 0);
+  // About 2,450 at the default significand limit, so the default precision limit has room.
+  const limit = precisionLimitFor(DEFAULT_SIGNIFICAND_LIMIT_BITS);
+  assert.ok(limit > 2400 && limit < 2500, `${limit}`);
+  assert.ok(DEFAULT_PRECISION_LIMIT_DIGITS <= limit);
+  // A significand limit too small for any digits gives zero.
+  assert.equal(precisionLimitFor(100), 0);
+  assert.equal(precisionLimitFor(1), 0);
 });
 
-test("the working digits are an integer at or above the precision within the cap, and checkContext rejects the rest (D27)", () => {
+test("the working digits are an integer at or above the precision within the precision limit, and checkContext rejects the rest (D27)", () => {
   const decimal: NumberContext = {
     precision: 8,
     rounding: "halfEven",
-    maxBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
     mode: "decimal",
   };
-  for (const working of [8, 12, 100, DEFAULT_MAX_DIGITS]) {
+  for (const working of [8, 12, 100, DEFAULT_PRECISION_LIMIT_DIGITS]) {
     checkContext({ ...decimal, working });
   }
   for (const working of [
@@ -214,7 +225,7 @@ test("the working digits are an integer at or above the precision within the cap
     8.5,
     NaN,
     Infinity,
-    DEFAULT_MAX_DIGITS + 1,
+    DEFAULT_PRECISION_LIMIT_DIGITS + 1,
   ]) {
     assert.throws(
       () => checkContext({ ...decimal, working }),
@@ -234,7 +245,7 @@ test("operandContext is the context at the working digits in decimal mode, and t
   const decimal: NumberContext = {
     precision: 8,
     rounding: "floor",
-    maxBits: 4096,
+    significandLimitBits: 4096,
     ceiling: 840,
     mode: "decimal",
   };
@@ -257,7 +268,7 @@ test("a context derived at another precision does not carry the working digits",
   const context: NumberContext = {
     precision: 8,
     rounding: "halfEven",
-    maxBits: 4096,
+    significandLimitBits: 4096,
     ceiling: 840,
     mode: "decimal",
     working: 12,

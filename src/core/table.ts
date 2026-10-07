@@ -197,7 +197,7 @@ export function unitLookup(table: UnitTable): Lookup<LookupError> {
       if (!scaled.ok) {
         // This assumes a prefix times a unit is never refused: the table's
         // prefixes and units are nowhere near the exponent bound, and the
-        // product is held to the range limit by the node that names the
+        // product is held to the significand limit by the node that names the
         // unit (D19), not here. A lookup has no error for a refusal to
         // return, so a table with a unit near the bound must add one here.
         throw new Error("A prefix times a unit was refused");

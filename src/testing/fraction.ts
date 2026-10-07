@@ -7,7 +7,7 @@
 // (src/testing/scaled.ts is the support on that side); nothing in the app
 // imports this directory.
 
-import { LIMIT_BITS, type Rational } from "../core/rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS, type Rational } from "../core/rational.ts";
 import type { Result } from "../core/result.ts";
 import type { Precision, RoundingMode } from "../core/rounding.ts";
 import {
@@ -39,7 +39,9 @@ export function inLowestTerms(r: Rational): boolean {
 /** The exact fraction the literal `text` denotes, through `parseDecimal` and `toRational` at the hard bound. */
 export function parseFraction(text: string): Result<Rational, ScaledError> {
   const parsed = parseDecimal(text);
-  return parsed.ok ? toRational(parsed.value, LIMIT_BITS) : parsed;
+  return parsed.ok
+    ? toRational(parsed.value, MAX_SIGNIFICAND_LIMIT_BITS)
+    : parsed;
 }
 
 /** `r` rounded to `digits` significant digits in `mode`, as a fraction. */
@@ -48,7 +50,10 @@ export function roundFraction(
   digits: Precision,
   mode: RoundingMode,
 ): Rational {
-  const back = toRational(roundTo(fromRational(r), digits, mode), LIMIT_BITS);
+  const back = toRational(
+    roundTo(fromRational(r), digits, mode),
+    MAX_SIGNIFICAND_LIMIT_BITS,
+  );
   if (!back.ok) throw new Error("A rounded fraction fits the hard bound");
   return back.value;
 }

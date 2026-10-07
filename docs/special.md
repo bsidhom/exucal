@@ -164,7 +164,7 @@ the ceiling reports.
 
 ### Size
 
-`factorial`, `binomial` and `doublefactorial` grow past Most bits long
+`factorial`, `binomial` and `doublefactorial` grow past the significand limit long
 before they cost anything: `factorial(20000)` has 77,338 digits. Each
 predicts its result's bits before computing (D19's "what can be
 predicted cheaply before forming still should be"), from Stirling's
@@ -172,14 +172,14 @@ formula with its first correction, `log2 n!` as the sum of
 `(n + 1/2) log2 n`, `-n log2 e` and `log2(2π) / 2`, which is within a
 bit of the truth for every `n >= 1`, so the refusal is sharp: `binomial(n, k)` from three such
 terms, and `n!!` from `2^k k!` for even `n = 2k` and `n! / (2^k k!)`
-for odd `n = 2k + 1`. A prediction past `maxBits` is a `tooLarge`
+for odd `n = 2k + 1`. A prediction past `significandLimitBits` is a `tooLarge`
 refusal at the call, worded as the function's own: `factorial(20000)` is
-too large to hold exactly within Most bits, and the remedy is to raise
-Most bits, or `gamma(n + 1)` for the digits asked once 6.3 lands. The
+too large to hold exactly within the significand limit, and the remedy is to raise
+the significand limit, or `gamma(n + 1)` for the digits asked once 6.3 lands. The
 generic node check's remedy, `approx` around the first operand, is not
 offered: an inexact argument is a `domain` error here, not a way to an
 inexact result. The node check of D19 stands behind the prediction for
-the product itself. The refusal applies in both modes: Most bits is a
+the product itself. The refusal applies in both modes: the significand limit is a
 cost limit, and decimal mode would form the exact product before
 rounding it.
 
@@ -284,7 +284,7 @@ cases: `lgamma(1)` and `lgamma(2)` are `0`. The poles are `domain`
 errors and a ball across one `unresolved` at the pole.
 
 `gamma(x)` is `exp(lgamma(x))` with the sign from the reflection, except
-that an exact integer `x >= 1` whose factorial fits Most bits is the
+that an exact integer `x >= 1` whose factorial fits the significand limit is the
 exact `factorial(x - 1)`, and an exact integer whose factorial does not
 fit is the kernel's value, inexact and a value, which is the remedy the
 factorial's refusal names (`gamma(20001)` is `≈ 1.8192063e+77337`). The
@@ -315,7 +315,7 @@ unless `gamma` proves costlier than the four routines it times.
 
 `beta(a, b)` is `Γ(a) Γ(b) / Γ(a + b)`. Exact case: positive integers,
 where it is `(a - 1)! (b - 1)! / (a + b - 1)!`, formed as the reciprocal
-of `(a + b - 1) binomial(a + b - 2, a - 1)` within Most bits, and the
+of `(a + b - 1) binomial(a + b - 2, a - 1)` within the significand limit, and the
 kernel's value otherwise. For the rest, the exponential of
 `lgamma(a) + lgamma(b) - lgamma(a + b)` with the sign from the three
 reflections, under the same classifier, so large arguments pass
@@ -373,7 +373,7 @@ write, with the same interim rule as the upper incomplete gamma. Exact
 cases: `x = 0` is `0`, `x = 1` is `1`, and positive integers `a` and
 `b` make it a polynomial in `x`, `Σ binomial(a + b - 1, j) x^j (1 -
 x)^(a + b - 1 - j)` over `j` from `a` to `a + b - 1`, exact for a
-rational `x` within Most bits.
+rational `x` within the significand limit.
 
 ### The rest of feature 3 (6.8)
 
@@ -436,7 +436,7 @@ rulings and what it left behind.
   bound, whose floor cannot be formed, makes `div` `overflow` and `mod`
   `tooLarge`, no value of the remainder passing the bound; one below the
   bottom, which the division refuses, has a floor all the same, zero or
-  minus one by the signs. A remainder whose alignment passes the range
+  minus one by the signs. A remainder whose alignment passes the significand
   limit (`mod(-1, 1e20000)` has twenty thousand digits) is `tooLarge`,
   as any exact sum's is. The rounding functions decide a ball by
   `position` against the open cell of the midpoint's result, a ball
@@ -444,7 +444,7 @@ rulings and what it left behind.
   cannot be formed (an integer midpoint near the top of the bound, or a
   unit below the bottom of it) leaves the ball `unresolved` at the
   result itself, which is never wrong about the value. A `places` count
-  that cannot be formed within Most bits (`round(x, 1e20000)`) is
+  that cannot be formed within the significand limit (`round(x, 1e20000)`) is
   `tooLarge`. `binomial` predicts its size from `n^k / k!` where `n` is
   past a double's exactness, so that `binomial(1e400, 2)` is the value it
   is. The sweep enumerates `round` at both arities, which its builder
@@ -500,7 +500,7 @@ rulings and what it left behind.
   the ceiling from 760 to 440 ms where measured, and `digamma` to 1.5 s
   there, the shift's divisions being most of it). The built-in
   routes an argument at or beyond `2^bits` to `ln x` within `1 / x`
-  through `lnScaled`, and one below `2^-maxBits` to `ψ(1) - 1 / x` with
+  through `lnScaled`, and one below `2^-significandLimitBits` to `ψ(1) - 1 / x` with
   `ψ(1)` within `2 |x|`, so that any exponent is a value; a negative
   argument takes the reflection at its fractional part, folded to the
   half nearer zero, with `floorBall` deciding whether the ball lies inside
@@ -511,7 +511,7 @@ rulings and what it left behind.
   the shift and the series loop with `digammaFixed`: the loop is one
   routine over the term ratio's index factors, `2k / (2k + 2)` for
   `digamma` and `2k (2k - 1) / ((2k + 2) (2k + 1))` for `lgamma`. The
-  shift's product `x (x + 1) … (x + n - 1)` is kept as a mantissa at the
+  shift's product `x (x + 1) … (x + n - 1)` is kept as a significand at the
   working bits with a binary exponent, normalized after each factor, so
   that the `n` multiplications stay at the working bits (the product has
   some fifty thousand bits at the ceiling) and its logarithm is taken
@@ -525,7 +525,7 @@ rulings and what it left behind.
   error, the result's relative one, stays below the working ulp:
   `gamma(1e15)` has a logarithm near `2^55`. The exact integer case
   calls `factorialOf`, so that `gamma` and `factorial` agree on what
-  fits Most bits, and the kernel's value in log space is the remedy
+  fits the significand limit, and the kernel's value in log space is the remedy
   past it (`gamma(20001)`). Both functions take the expansion at zero
   for a tiny argument of either sign, `-ln |x|` within `|x|` for
   `lgamma`, and `digamma` now takes its own for a negative one too, so
@@ -563,10 +563,10 @@ rulings and what it left behind.
   is large (`beta(1e15, 1)` is `1e-15` from logarithms near `2^55`),
   where `gamma`'s cap at 64 bits rests on its result passing the bound
   past `2^64`, which no difference does. An argument whose magnitude
-  would need more bits than Most bits allows is `tooLarge`
+  would need more bits than the significand limit allows is `tooLarge`
   (`beta(1e20000, 2)`), since no value of the difference can be
   certified within the limit; the sweep's rule names that site. The sum
-  `a + b` is formed exactly where it aligns within Most bits and
+  `a + b` is formed exactly where it aligns within the significand limit and
   otherwise as the larger within the magnitude of the smaller, as an
   inexact sum that does not align is formed, so that `beta(2.5,
 1e-20000)` is a value and not the `tooLarge` of an exact sum; a sum
@@ -620,14 +620,14 @@ rulings and what it left behind.
   `tooLarge`, a refusal that is never wrong about the value, rather than
   digits nothing certifies; the uniform asymptotic expansions that
   regime wants are not in this design, and the refusal's message speaks
-  of Most bits where the limit is one of cost (issue #107 has the
+  of the significand limit where the limit is one of cost (issue #107 has the
   regime's map and the ways out). Within the limits the complement
   keeps the digits below one, since the exponential is taken at the
   working digits rather than the context's:
   `uppergammareg(1e6, 1.01e6)` is `1.06e-23`. The logarithm is formed at
   the working bits plus the bits of the magnitudes of `s` and `x`, as
   `beta`'s is, since the exponent `s ln x - x - ln Γ(s + 1)` cancels;
-  past Most bits that is `tooLarge` too. Where the form computed passes
+  past the significand limit that is `tooLarge` too. Where the form computed passes
   the bottom of the bound, its complement is `Γ(s)` or one within
   `10^-(10^18)`. An argument whose radius is above `2^-16` of its
   magnitude is taken at its two ends and the results hulled, each form
@@ -656,7 +656,7 @@ rulings and what it left behind.
   `2^bits`, whose square the routine is not handed, is the limit within
   the bound's edge, `erfc(|x|)` being below `e^-x^2 < 10^-(10^18)` there,
   and `erfc` of such a positive argument is `underflow`; a tiny argument,
-  whose square passes below the bound or below `2^-maxBits`, is `2x /
+  whose square passes below the bound or below `2^-significandLimitBits`, is `2x /
 √π` within `|x|^3`, the series' next term being `-2x^3 / (3 √π)`. A
   ball touching or straddling zero, whose square the routine refuses, is
   taken at its ends and the results hulled, both functions being
@@ -696,7 +696,7 @@ a)` is the choice of orientation by estimated terms, which the region
   bits of the parameters' magnitudes, under `expBall`'s classifier
   (D18); the exponential is taken at the working digits so that a
   complement keeps the digits below one, and a tiny `x` whose complement
-  does not align within Most bits has it as one within `|x|`. Past the
+  does not align within the significand limit has it as one within `|x|`. Past the
   term limit of 50,000 in both orientations, large parameters near the
   median (`incbetareg(1e6, 1e6, 0.5)` at a thousand digits), the call is
   `tooLarge`, the regime of issue #107; a term whose error reaches its
@@ -704,7 +704,7 @@ a)` is the choice of orientation by estimated terms, which the region
   ratios, and where no tail bound holds there the call is `unresolved`,
   retried narrower. The exact polynomial for whole
   numbers at a rational `x = p / q` is one integer over `q^(a + b - 1)`,
-  the binomial stepped exactly, formed where that power fits Most bits
+  the binomial stepped exactly, formed where that power fits the significand limit
   and `a + b - 1` is at most ten thousand; a first version took a power
   and a reduction per term, 600 ms for `(1, 1000, 0.01)`, now 60 ms,
   and the whole numbers' `B(a, b)` comes from `beta`. A wide or

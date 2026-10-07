@@ -20,10 +20,10 @@
 // keeps its digits and `sin(1e-50 radian)` certifies on the first pass
 // rather than at the ceiling; the kernel chooses the result's bits from
 // its magnitude (D9). The two ends of the exponent (4.4) are answered
-// before the kernel is entered: an argument below `2^-maxBits` throughout
+// before the kernel is entered: an argument below `2^-significandLimitBits` throughout
 // is its own sine and tangent within its cube, and its cosine is one
 // within its square (`tinyOdd` and `tinyEven` of builtin.ts), and one
-// reaching `2^maxBits` is `tooLarge`, since the reduction would need `pi`
+// reaching `2^significandLimitBits` is `tooLarge`, since the reduction would need `pi`
 // to that many bits. An argument of unbounded radius gives the function
 // of its midpoint with an unbounded radius.
 
@@ -104,7 +104,7 @@ export function tanBall(
 
 /**
  * The kernel's sine and cosine of the bounded `x` at the context, or
- * `tooLarge` when `x` reaches the range limit: a small `x` is converted
+ * `tooLarge` when `x` reaches the significand limit: a small `x` is converted
  * at as many more fraction bits as its magnitude is below one, so that
  * the kernel keeps its digits.
  */

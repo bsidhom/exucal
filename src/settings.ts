@@ -16,11 +16,12 @@
 //
 // The names here are the user's, with the unit in the key (D29):
 // `displayDigits`, `precisionLimitDigits`, `significandLimitBits`,
-// `budgetMs`. The core still says `maxBits` for the significand limit,
-// `maxDigitsFor` for the precision limit under it and `LIMIT_BITS` and
-// `MIN_MAX_BITS` for its hard bound and floor; `contextOf` is where the
-// two vocabularies meet, until the alignment change the note lists
-// renames the core's (ARCHITECTURE.md states the mapping).
+// `budgetMs`; the core says the same (`NumberContext.significandLimitBits`,
+// `precisionLimitFor` for the precision limit's top under it,
+// `MIN_SIGNIFICAND_LIMIT_BITS` and `MAX_SIGNIFICAND_LIMIT_BITS` for the
+// significand limit's floor and hard bound), and `contextOf` hands the
+// display digits over as the context's `precision`, the grid's digits
+// below the pipeline.
 //
 // The mode is a nested choice (docs/settings-modes.md): a setting that is
 // possible in one mode alone lives inside that mode's variant, so that
@@ -38,8 +39,8 @@
 // the wrong shape, falls back to that field's default, and the fields are
 // then made consistent in the order of their dependence, the chain of
 // docs/settings-limits.md: the significand limit first (an integer in
-// `[MIN_MAX_BITS, LIMIT_BITS]`), then the precision limit, clamped to what
-// the significand limit holds (`maxDigitsFor`), then the display digits,
+// `[MIN_SIGNIFICAND_LIMIT_BITS, MAX_SIGNIFICAND_LIMIT_BITS]`), then the precision limit, clamped to what
+// the significand limit holds (`precisionLimitFor`), then the display digits,
 // clamped to the precision limit, then the working digits of decimal
 // mode, clamped between the display digits and the precision limit. The
 // budget is a setting of the probe alone and depends on nothing. The same
@@ -68,19 +69,19 @@
 // release.
 
 import {
-  DEFAULT_DIGITS,
-  DEFAULT_MAX_BITS,
-  DEFAULT_MAX_DIGITS,
+  DEFAULT_DISPLAY_DIGITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
+  DEFAULT_PRECISION_LIMIT_DIGITS,
   DEFAULT_ROUNDING,
-  MIN_MAX_BITS,
+  MIN_SIGNIFICAND_LIMIT_BITS,
   MODES,
   ceilingFor,
-  maxDigitsFor,
+  precisionLimitFor,
   type Mode,
   type NumberContext,
 } from "./core/context.ts";
 import type { RatioDisplay } from "./core/display.ts";
-import { LIMIT_BITS } from "./core/rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS } from "./core/rational.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 
 /**
@@ -140,7 +141,7 @@ export type Settings = {
   readonly displayDigits: number;
   readonly rounding: RoundingMode;
   readonly mode: ModeSetting;
-  /** The precision limit: the most digits any grid may be asked for, the cap on the display and working digits. */
+  /** The precision limit: the most digits any grid may be asked for, the precision limit on the display and working digits. */
   readonly precisionLimitDigits: number;
   /** The significand limit: the most bits in a significand's numerator, and separately its denominator. */
   readonly significandLimitBits: number;
@@ -163,11 +164,11 @@ export const DEFAULT_MODES: Readonly<Record<Mode, ModeSetting>> = {
 export const DEFAULT_BUDGET_MS = 50;
 
 export const DEFAULT_SETTINGS: Settings = {
-  displayDigits: DEFAULT_DIGITS,
+  displayDigits: DEFAULT_DISPLAY_DIGITS,
   rounding: DEFAULT_ROUNDING,
   mode: DEFAULT_MODES.exact,
-  precisionLimitDigits: DEFAULT_MAX_DIGITS,
-  significandLimitBits: DEFAULT_MAX_BITS,
+  precisionLimitDigits: DEFAULT_PRECISION_LIMIT_DIGITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   budgetMs: DEFAULT_BUDGET_MS,
 };
 
@@ -466,7 +467,10 @@ export type Bounds = Range & {
 };
 
 /** The significand limit's bounds: its floor and the hard bound. */
-const SIGNIFICAND_LIMIT_RANGE: Range = { min: MIN_MAX_BITS, max: LIMIT_BITS };
+const SIGNIFICAND_LIMIT_RANGE: Range = {
+  min: MIN_SIGNIFICAND_LIMIT_BITS,
+  max: MAX_SIGNIFICAND_LIMIT_BITS,
+};
 
 /** The ratio's width: one digit up to `WIDTH_LIMIT`, depending on nothing. */
 const WIDTH_RANGE: Range = { min: 1, max: WIDTH_LIMIT };
@@ -482,7 +486,7 @@ export const BUDGET_MS_RANGE: Range = { min: 10, max: 10_000 };
  * them, which the panel's inputs, their validation, `clampSettings` and
  * `refusalOf` all read: the significand limit between its floor and the
  * hard bound, the precision limit up to what the significand limit holds
- * (`maxDigitsFor`), the display digits up to the precision limit, the
+ * (`precisionLimitFor`), the display digits up to the precision limit, the
  * working digits of decimal mode from the display digits up to the
  * precision limit, the ratio's width and the budget each between their
  * own bounds. The three in the middle depend on the settings above them,
@@ -493,7 +497,7 @@ export function rangesOf(settings: Settings): Record<RangedSetting, Bounds> {
     significandLimitBits: SIGNIFICAND_LIMIT_RANGE,
     precisionLimitDigits: {
       min: 1,
-      max: maxDigitsFor(settings.significandLimitBits),
+      max: precisionLimitFor(settings.significandLimitBits),
       maxBy: "significandLimitBits",
     },
     displayDigits: {
@@ -527,7 +531,7 @@ const CLAMP_ORDER: readonly ClampedSetting[] = [
  * and the setting that sets that bound, for the panel's line ("lowered
  * from 1,000 to 990 digits to fit the significand limit"; "raised from 8
  * to 16 digits to the display digits"). `to` below `from` is a lowering
- * to a cap; above it, the one upward move, the working digits raised to
+ * to a limit; above it, the one upward move, the working digits raised to
  * their floor.
  */
 export type Clamp = {
@@ -748,7 +752,7 @@ export function ratioOf(settings: Settings): RatioDisplay | undefined {
 /**
  * The context the pipeline takes for `settings`: the display digits as
  * the precision, in the rounding mode and the exact or decimal mode,
- * within the significand limit (the core's `maxBits`), under the ceiling
+ * within the significand limit, under the ceiling
  * the precision limit gives (D12), with the working digits of decimal
  * mode when they are extended (D27). The budget is the probe's and never
  * reaches the core.
@@ -758,7 +762,7 @@ export function contextOf(settings: Settings): NumberContext {
   const context: NumberContext = {
     precision: settings.displayDigits,
     rounding: settings.rounding,
-    maxBits: settings.significandLimitBits,
+    significandLimitBits: settings.significandLimitBits,
     ceiling: ceilingFor(settings.precisionLimitDigits),
     mode: mode.kind,
   };
@@ -784,7 +788,7 @@ export function isIntegerIn(value: unknown, range: Range): value is number {
   return isInteger(value) && value >= range.min && value <= range.max;
 }
 
-/** Whether `value` is a significand limit: an integer in `[MIN_MAX_BITS, LIMIT_BITS]`. */
+/** Whether `value` is a significand limit: an integer in `[MIN_SIGNIFICAND_LIMIT_BITS, MAX_SIGNIFICAND_LIMIT_BITS]`. */
 export function isSignificandLimit(value: unknown): value is number {
   return isIntegerIn(value, SIGNIFICAND_LIMIT_RANGE);
 }

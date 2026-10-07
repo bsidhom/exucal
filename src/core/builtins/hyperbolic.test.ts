@@ -7,7 +7,7 @@ import type { BuiltinError } from "../builtin.ts";
 import { BUILTINS } from "../builtins.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "../context.ts";
@@ -23,7 +23,7 @@ import {
   radiusAboveScaled,
   radiusUpper,
 } from "../radius.ts";
-import { LIMIT_BITS, rational } from "../rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS, rational } from "../rational.ts";
 import type { Result } from "../result.ts";
 import {
   ONE,
@@ -59,11 +59,11 @@ import {
 const CONTEXT: NumberContext = {
   precision: 40,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
-/** The default context: eight digits, the default range limit. */
+/** The default context: eight digits, the default significand limit. */
 const DEFAULT: NumberContext = { ...CONTEXT, precision: 8 };
 
 function value(result: Result<Ball, BuiltinError>): Ball {
@@ -78,21 +78,21 @@ function failure(result: Result<Ball, BuiltinError>): BuiltinError {
 
 /** `|a - b|` on `Scaled`s of moderate exponent. */
 function distance(a: Scaled, b: Scaled): Scaled {
-  const d = subtract(a, b, LIMIT_BITS);
+  const d = subtract(a, b, MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(d.ok, `${inspect(a)} - ${inspect(b)} aligns`);
   return absolute(d.value);
 }
 
 /** `a - b` on `Scaled`s of moderate exponent. */
 function minus(a: Scaled, b: Scaled): Scaled {
-  const d = subtract(a, b, LIMIT_BITS);
+  const d = subtract(a, b, MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(d.ok, `${inspect(a)} - ${inspect(b)} aligns`);
   return d.value;
 }
 
 /** `a + b` on `Scaled`s of moderate exponent. */
 function plus(a: Scaled, b: Scaled): Scaled {
-  const sum = add(a, b, LIMIT_BITS);
+  const sum = add(a, b, MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(sum.ok, `${inspect(a)} + ${inspect(b)} aligns`);
   return sum.value;
 }

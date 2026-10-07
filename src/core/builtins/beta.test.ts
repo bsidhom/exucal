@@ -6,7 +6,7 @@ import { exact, isExact, type Ball } from "../ball.ts";
 import { buildTable } from "../build.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   ceilingContext,
   type NumberContext,
@@ -28,7 +28,7 @@ import { beta, betaBall } from "./beta.ts";
 const CONTEXT: NumberContext = {
   precision: 40,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -91,7 +91,7 @@ test("beta matches mpmath to forty digits", () => {
     }),
     "≈ 2e+999999999",
   );
-  // A sum that does not align within Most bits is the larger within the
+  // A sum that does not align within the significand limit is the larger within the
   // smaller's magnitude: B(2.5, b) ≈ 1 / b for a tiny b.
   assert.equal(
     b(exact(dec("2.5")), exact(dec("1e-20000")), { ...CONTEXT, precision: 8 }),
@@ -99,7 +99,7 @@ test("beta matches mpmath to forty digits", () => {
   );
 });
 
-test("beta of exact positive integers is the exact reciprocal where it fits Most bits", () => {
+test("beta of exact positive integers is the exact reciprocal where it fits the significand limit", () => {
   assert.equal(
     b(exact(dec("2")), exact(dec("3"))),
     "≈ 0.08333333333333333333333333333333333333333",
@@ -113,7 +113,7 @@ test("beta of exact positive integers is the exact reciprocal where it fits Most
     b(exact(dec("4")), exact(dec("5"))),
     "≈ 0.003571428571428571428571428571428571428571",
   );
-  // binomial(9998, 4999) has some ten thousand bits, within Most bits.
+  // binomial(9998, 4999) has some ten thousand bits, within the significand limit.
   assert.ok(
     isExact(value(betaBall(exact(dec("5000")), exact(dec("5000")), CONTEXT))),
   );
@@ -204,7 +204,7 @@ test("the poles: a domain error at an argument, zero at a pole of the sum alone,
   );
 });
 
-test("beta is held to the exponent bound by the classifier, and to Most bits by the bits its logarithms need", () => {
+test("beta is held to the exponent bound by the classifier, and to the significand limit by the bits its logarithms need", () => {
   assert.deepEqual(
     error(betaBall(exact(dec("1e19")), exact(dec("1e19")), CONTEXT)),
     { kind: "underflow" },
@@ -330,7 +330,7 @@ test("beta through the pipeline, with its messages", () => {
   );
   assert.equal(
     run("beta(1e20000, 2)"),
-    '"beta(1e20000, 2)" is too large to compute within Most bits.',
+    '"beta(1e20000, 2)" is too large to compute within the significand limit.',
   );
   assert.equal(
     run("beta(2 m, 3)"),

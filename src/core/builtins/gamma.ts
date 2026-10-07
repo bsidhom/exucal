@@ -17,7 +17,7 @@
 // on balls, since `ln` takes any exponent: `digamma` is `ln x` within
 // `1 / x`, as `|ψ(x) - ln x| <= 1 / (2x) + 1 / (12 x^2)` there, and
 // `lgamma` is `x (ln x - 1) - ln(x) / 2 + ln(2π) / 2` within `1 / (12 x)`,
-// the first omitted term of Stirling's series. One below `2^-maxBits` in
+// the first omitted term of Stirling's series. One below `2^-significandLimitBits` in
 // magnitude throughout, which the kernel cannot be handed, takes the
 // expansion at zero: `ψ(x)` is `ψ(1 + x) - 1 / x` with `ψ(1 + x)` taken
 // as `ψ(1)` within `2 |x|`, the derivative being below two on `[1, 2]`,
@@ -166,7 +166,7 @@ export function isPole(x: Ball): boolean {
 
 /**
  * The positive exact `x` as a fraction for the kernel's exact entries,
- * when it has one within the range limit whose denominator is short
+ * when it has one within the significand limit whose denominator is short
  * enough for the exact shift; `undefined` for an inexact `x` or a wide
  * one, which take the kernel at the working bits.
  */
@@ -175,7 +175,7 @@ function shortRational(
   context: NumberContext,
 ): { readonly num: bigint; readonly den: bigint } | undefined {
   if (!isExact(x) || sign(x.mid) <= 0) return undefined;
-  const fraction = toRational(x.mid, context.maxBits);
+  const fraction = toRational(x.mid, context.significandLimitBits);
   if (!fraction.ok || bitLength(fraction.value.den) > EXACT_DENOMINATOR_BITS) {
     return undefined;
   }
@@ -242,7 +242,7 @@ function positiveDigamma(
   return ok(fixedToBall(digammaFixed(f, bits, ceilingBits), digits));
 }
 
-/** `ψ(x)` for `x` of either sign below `2^-maxBits` throughout: `ψ(1) - 1 / x` within `2 |x|`. */
+/** `ψ(x)` for `x` of either sign below `2^-significandLimitBits` throughout: `ψ(1) - 1 / x` within `2 |x|`. */
 function tinyDigamma(
   x: Ball,
   context: NumberContext,
@@ -321,8 +321,8 @@ export function gammaBall(
   }
   if (isPole(x)) return AT_POLE;
   if (isExact(x) && isInteger(x.mid)) {
-    // (x - 1)! where it fits Most bits; otherwise the kernel's value.
-    const n = toRational(x.mid, context.maxBits);
+    // (x - 1)! where it fits the significand limit; otherwise the kernel's value.
+    const n = toRational(x.mid, context.significandLimitBits);
     if (n.ok) {
       const factorial = factorialOf(n.value.num - 1n, context);
       if (factorial.ok) return ok(exact(fromInteger(factorial.value)));
@@ -364,7 +364,7 @@ const GAMMA_CAP = 64;
  * the working bits a caller asks it at beyond its own: for `|x| < 2^(e +
  * 1)` with `e >= 0` it is below `2^(e + 1) (e + 1)`, and for `|x| <
  * 2^-e` near a pole or zero it is of the order of `e`; `cap` bounds the
- * count, at `GAMMA_CAP` for `gamma` and at the range limit for `beta`,
+ * count, at `GAMMA_CAP` for `gamma` and at the significand limit for `beta`,
  * whose logarithms cancel and which refuses what it cannot afford.
  */
 export function magnitudeBits(x: Ball, cap: number): number {
@@ -426,7 +426,7 @@ export function logGamma(
   if (!floored.ok) {
     return floored.error.kind === "unresolved" ? POLE : floored;
   }
-  const floor = toRational(floored.value.mid, context.maxBits);
+  const floor = toRational(floored.value.mid, context.significandLimitBits);
   if (!floor.ok) throw new Error("A floor that was formed is within the limit");
   const negative = floor.value.num % 2n !== 0n;
   const fraction = subtractBalls(x, floored.value, context);
@@ -481,7 +481,7 @@ function positiveLogGamma(
   return ok(fixedToBall(lgammaFixed(f, bits, ceilingBits), digits));
 }
 
-/** `ln |Γ(x)|` for `x` of either sign below `2^-maxBits` throughout: `-ln |x|` within `|x|`. */
+/** `ln |Γ(x)|` for `x` of either sign below `2^-significandLimitBits` throughout: `-ln |x|` within `|x|`. */
 function tinyLogGamma(
   x: Ball,
   context: NumberContext,

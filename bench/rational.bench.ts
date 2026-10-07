@@ -4,7 +4,7 @@ import { inspect } from "node:util";
 import { buildTable } from "../src/core/build.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "../src/core/context.ts";
@@ -47,7 +47,7 @@ test("the probe's range operation, a product with its cross-cancelling gcds, gro
   );
 });
 
-test("one gcd at the default range limit grows quadratically at most", (t) => {
+test("one gcd at the default significand limit grows quadratically at most", (t) => {
   const timings = new Map<number, number>();
   for (const bits of [16384, 32768, 65536]) {
     const a = odd(100 + bits, bits);
@@ -69,7 +69,7 @@ test("one gcd at the default range limit grows quadratically at most", (t) => {
 test("the quotients of issue #52 are reported", (t) => {
   // Each is a quotient of coprime powers whose reduction is one gcd of
   // their size; the first took 469 ms with Euclid's gcd, the second 949 ms.
-  // Both were within the default range limit when #52 was measured, but
+  // Both were within the default significand limit when #52 was measured, but
   // the second's denominator, 7^21845 11^16383, is about 116,800 bits, and
   // since H.14 (D19) an exact result past the limit is refused at the node
   // that forms it, so the two run at twice the default limit, which holds
@@ -80,7 +80,7 @@ test("the quotients of issue #52 are reported", (t) => {
   const context: NumberContext = {
     precision: 8,
     rounding: DEFAULT_ROUNDING,
-    maxBits: 2 * DEFAULT_MAX_BITS,
+    significandLimitBits: 2 * DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
   };
   const table = buildTable(parsed.value, {

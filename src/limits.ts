@@ -27,7 +27,7 @@
 // the costliest an expression that never certifies runs, and such an
 // expression runs every built-in it names at that pass; the candidates
 // are 1, 2 and 5 times a power of ten, up to what the recommended
-// significand limit holds (`maxDigitsFor`). The composite was chosen
+// significand limit holds (`precisionLimitFor`). The composite was chosen
 // from the kernel benchmark's report of every routine at the default
 // ceiling (bench/kernel.bench.ts, the plan's 3.11): `exp`, `atan`, `sin`
 // (with `cos`, computed together) and `ln` cost about 12, 12, 11 and 10 ms
@@ -67,16 +67,16 @@
 import { buildTable } from "./core/build.ts";
 import {
   DEFAULT_ROUNDING,
-  MIN_MAX_BITS,
+  MIN_SIGNIFICAND_LIMIT_BITS,
   ceilingFor,
-  maxDigitsFor,
+  precisionLimitFor,
   type NumberContext,
 } from "./core/context.ts";
 import { parseDefinitions } from "./core/definitions.ts";
 import { evaluate } from "./core/evaluate.ts";
 import { parseExpr } from "./core/expr.ts";
 import {
-  LIMIT_BITS,
+  MAX_SIGNIFICAND_LIMIT_BITS,
   multiply,
   rational,
   type Rational,
@@ -143,7 +143,7 @@ export function realProbe(): Probe {
       evaluateComposite({
         precision: ceiling,
         rounding: DEFAULT_ROUNDING,
-        maxBits: LIMIT_BITS,
+        significandLimitBits: MAX_SIGNIFICAND_LIMIT_BITS,
         ceiling,
       });
     },
@@ -191,7 +191,7 @@ function memo<T>(compute: () => T): () => T {
  * The limits recommended for the device `probe` measures, within `budget`
  * milliseconds per operation, each with the timing behind it: the
  * largest of the significand limit's floor and the powers of two from
- * 2^9 to `LIMIT_BITS` whose range operation stays within the budget (the
+ * 2^9 to `MAX_SIGNIFICAND_LIMIT_BITS` whose range operation stays within the budget (the
  * floor when none does), and the largest precision limit of the form 1,
  * 2 or 5 times a power of ten, up to what that significand limit holds,
  * whose precision operation stays within it (1 when none does). Each
@@ -206,7 +206,7 @@ export function recommendLimits(
   const digits = largestWithin(
     probe,
     budget,
-    roundNumbers(maxDigitsFor(bits.size)),
+    roundNumbers(precisionLimitFor(bits.size)),
     probe.precision,
   );
   return {
@@ -246,9 +246,9 @@ function largestWithin(
 
 /** The significand limit's floor, then the powers of two from 2^9 to the hard bound, ascending. */
 function bitCandidates(): number[] {
-  const candidates = [MIN_MAX_BITS];
-  for (let bits = 512; bits <= LIMIT_BITS; bits *= 2) {
-    if (bits > MIN_MAX_BITS) candidates.push(bits);
+  const candidates = [MIN_SIGNIFICAND_LIMIT_BITS];
+  for (let bits = 512; bits <= MAX_SIGNIFICAND_LIMIT_BITS; bits *= 2) {
+    if (bits > MIN_SIGNIFICAND_LIMIT_BITS) candidates.push(bits);
   }
   return candidates;
 }

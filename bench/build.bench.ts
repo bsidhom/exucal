@@ -5,7 +5,7 @@ import { buildTable } from "../src/core/build.ts";
 import { parseDefinitions, type Definition } from "../src/core/definitions.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
 } from "../src/core/context.ts";
 import { DEFAULT_PRECISION } from "../src/core/rounding.ts";
@@ -32,7 +32,7 @@ function timePipeline(
     const result = buildTable(definitions, {
       precision: DEFAULT_PRECISION,
       rounding: DEFAULT_ROUNDING,
-      maxBits: DEFAULT_MAX_BITS,
+      significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
       ceiling: DEFAULT_CEILING,
     });
     assert.ok(result.ok, `expected a table, got ${inspect(result)}`);
@@ -85,7 +85,7 @@ test("functions and their inverses parse and build linearly with their number", 
       const result = buildTable(definitions, {
         precision: DEFAULT_PRECISION,
         rounding: DEFAULT_ROUNDING,
-        maxBits: DEFAULT_MAX_BITS,
+        significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
         ceiling: DEFAULT_CEILING,
       });
       assert.ok(result.ok, `expected a table, got ${inspect(result)}`);

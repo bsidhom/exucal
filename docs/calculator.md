@@ -20,7 +20,7 @@ The features, in the order of their priority:
    and lower incomplete forms.
 3. Other selected special functions, whichever can be computed at
    arbitrary precision with reasonable performance.
-4. A floating-point representation: a rational mantissa and a nearly
+4. A floating-point representation: a rational significand and a nearly
    arbitrary integer exponent.
 5. A decimal representation (an integer coefficient times a power of ten)
    with configurable rounding modes.
@@ -409,8 +409,8 @@ than ruled out; see "Not now, but not ruled out".
 
 ### 4 and 5. Floating point and decimal: one feature, not two
 
-Feature 4 pictures a rational mantissa with a nearly arbitrary integer
-exponent, `m × 10^e` with `m` a `Rational`. Consider what the mantissa
+Feature 4 pictures a rational significand with a nearly arbitrary integer
+exponent, `m × 10^e` with `m` a `Rational`. Consider what the significand
 can be:
 
 - **Unbounded.** Then the type is today's rational with a power of ten
@@ -420,15 +420,15 @@ can be:
   digits, so it must either fail (as `tooLarge` does today) or round. As
   long as it fails, this is an exact rational with a wider range for
   products and powers, and nothing more.
-- **Bounded.** Then every operation must bring the mantissa back within
+- **Bounded.** Then every operation must bring the significand back within
   its bound, which is rounding. But rationals of bounded denominator are
   not closed under addition (`1/3 + 1/7 = 10/21`), so rounding a rational
-  mantissa to a "nearby rational of bounded size" means a continued
+  significand to a "nearby rational of bounded size" means a continued
   fraction or Stern–Brocot step, a rounding no user of a calculator
-  expects and no rounding mode describes. The mantissa that rounding
+  expects and no rounding mode describes. The significand that rounding
   modes are defined for is an integer of at most `p` decimal digits.
 
-So a float with a bounded mantissa is a decimal float: an integer
+So a float with a bounded significand is a decimal float: an integer
 coefficient, a power-of-ten exponent, a precision and a rounding mode.
 That is feature 5 exactly, and it is the arithmetic of the General
 Decimal Arithmetic specification that IEEE 754-2008 and Python's
@@ -618,7 +618,7 @@ Three runtime concerns cut across everything:
   default, so that the special functions' high-precision values stay in
   reach; keeping the interface responsive is issue #118's; and the
   plan's stage 8 measures the costliest expressions instead.)
-- **Memory.** Exact mode's growth is bounded by the range limit, Most
+- **Memory.** Exact mode's growth is bounded by the significand limit, Most
   bits, a hard limit on the bits held for one number, measured on what is
   stored (the plan's D16 and D19: literals, a sum's alignment and a
   power's prediction are held to it before anything is formed, and every
@@ -698,7 +698,7 @@ what it would take, and what in this design keeps it possible.
 
 ## Ruled out, and why
 
-- **A float with a rational mantissa as a third number type.** Subsumed:
+- **A float with a rational significand as a third number type.** Subsumed:
   unbounded, it is the exact rational; bounded, it is the decimal (see
   features 4 and 5).
 - **Binary floats or a configurable radix.** Decimal literals would no

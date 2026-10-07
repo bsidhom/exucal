@@ -14,12 +14,12 @@
 // says it is, and the operators are the quantity arithmetic of `quantity.ts`:
 // juxtaposition and `*` multiply, `/` divides, `+` and `-` add and subtract,
 // a leading `-` negates, and `^` raises to the exponent the parser read,
-// the quotient of its two literals taken here within the range limit
-// (`reduceExponent`): each literal's mantissa is held to `maxBits` as
+// the quotient of its two literals taken here within the significand limit
+// (`reduceExponent`): each literal's significand is held to `significandLimitBits` as
 // every literal's is, before any gcd runs, as D19 asks of what can be
 // bounded before forming; the quotient is taken as `Scaled` values, whose
 // powers of ten cancel for nothing; and the fraction is formed within
-// `maxBits`, as `pow` forms an exact exponent, so that `2^(1e30/1e30)` is
+// `significandLimitBits`, as `pow` forms an exact exponent, so that `2^(1e30/1e30)` is
 // `2` at any limit and `2^1e-30000` is refused at the default as
 // `pow(2, 1e-30000)` is (H.16 sends such an exponent to log space). The
 // parser, which has no context, once reduced the pair at the hard bound
@@ -98,9 +98,9 @@
 // (`0^-1`, an even root of a negative magnitude, a result beyond the range
 // limit) points at the whole power, since it is the combination of base
 // and exponent that fails; a sum, a product or a quotient that is too
-// large (two exact operands that cannot be aligned within the range limit,
+// large (two exact operands that cannot be aligned within the significand limit,
 // or an exponent beyond the bound; 4.4) points at the whole operation, as
-// the power does; a literal whose mantissa is beyond the range limit,
+// the power does; a literal whose significand is beyond the significand limit,
 // which the parser let through under its hard bound, points at the
 // literal, the exponent costing nothing.
 //
@@ -148,7 +148,7 @@ import {
   ONE,
   divide,
   isRefusal,
-  mantissaWithin,
+  significandWithin,
   powerRefusal,
   toRational,
   type Scaled,
@@ -223,8 +223,8 @@ export type EvaluateError =
       readonly span: Span;
     }
   /**
-   * The result at `span` passes the range limit. With `exact`, an exact
-   * result was formed and its canonical mantissa measured past the limit
+   * The result at `span` passes the significand limit. With `exact`, an exact
+   * result was formed and its canonical significand measured past the limit
    * (D19), and the message names the remedy (D20): `approx` around the
    * `operand`, the node's first operand (a binary's left, a power's base,
    * a call's first argument), which makes the node's result inexact,
@@ -380,7 +380,7 @@ export type BodyError<E> =
  * operands of every sum checked for conformance by the roles in
  * `primitives`, every inexact operation computed at the precision of
  * `context`, every result settled to it (D15), every literal checked
- * against its range limit, and every exact result held to it (D19).
+ * against its significand limit, and every exact result held to it (D19).
  */
 export function evaluate<E>(
   expr: Expr,
@@ -391,15 +391,18 @@ export function evaluate<E>(
 ): Result<Quantity, EvaluateError | E> {
   const result = evaluateNode(expr, lookup, primitives, context, assumptions);
   if (!result.ok) return result;
-  // Every exact result is held to the range limit where it is formed
-  // (D19): its canonical mantissa, what is stored and what the next
+  // Every exact result is held to the significand limit where it is formed
+  // (D19): its canonical significand, what is stored and what the next
   // operation multiplies, measured after the fact, so that `x / x` is one
   // and a quotient's reduction is what is measured. The exponent bound
   // was checked by the operation, so a result past both is at the bound.
   // An inexact result is settled to the working digits and never refused
   // for size, which is what `approx` at the node buys (D20).
   const { magnitude } = result.value;
-  if (isExact(magnitude) && !mantissaWithin(magnitude.mid, context.maxBits)) {
+  if (
+    isExact(magnitude) &&
+    !significandWithin(magnitude.mid, context.significandLimitBits)
+  ) {
     const operand = firstOperand(expr);
     return operand === undefined
       ? err({ kind: "tooLarge", span: expr.span, exact: true })
@@ -447,11 +450,11 @@ function evaluateNode<E>(
   const inner = operandContext(context);
   switch (node.kind) {
     case "number": {
-      // The parser checked the literal's mantissa against the hard bound
-      // and its exponent against the exponent bound; the range limit of
-      // the context is the setting, applied to the mantissa, the exponent
+      // The parser checked the literal's significand against the hard bound
+      // and its exponent against the exponent bound; the significand limit of
+      // the context is the setting, applied to the significand, the exponent
       // costing nothing (D16).
-      if (!mantissaWithin(node.value, context.maxBits)) {
+      if (!significandWithin(node.value, context.significandLimitBits)) {
         return err({ kind: "tooLarge", span });
       }
       return locate(
@@ -536,11 +539,14 @@ function evaluateNode<E>(
     case "pow": {
       const base = evaluate(node.base, lookup, primitives, inner, assumptions);
       if (!base.ok) return base;
-      const exponent = reduceExponent(node.exponent, context.maxBits);
+      const exponent = reduceExponent(
+        node.exponent,
+        context.significandLimitBits,
+      );
       if (!exponent.ok) {
         // An exponent that cannot be formed is refused as pow refuses one:
         // at the bound when the power would pass it, and otherwise at the
-        // range limit.
+        // significand limit.
         const refusal =
           exponent.quotient === undefined
             ? undefined
@@ -1043,7 +1049,7 @@ function evaluateBound<E>(
  * `q` to `exponent` at `working`, by `powQuantity`: an integer power of an
  * exact base exactly, a root through the kernel. In decimal mode (D26;
  * docs/decimal-mode.md, "Powers") an exact power that does not fit the
- * range limit is computed instead on the base widened to the working
+ * significand limit is computed instead on the base widened to the working
  * precision, so that the step certifies its rounding as it does an
  * inexact function's: the limit is a cost limit, and a correctly rounded
  * power costs little.
@@ -1073,7 +1079,7 @@ function powered(
 /**
  * `a + b` or `a - b` at `working`, by `addQuantities` and
  * `subtractQuantities`. In decimal mode (D26; docs/decimal-mode.md, "Sums
- * that do not align") two operands whose alignment the range limit does
+ * that do not align") two operands whose alignment the significand limit does
  * not hold, which the sum refuses as `tooLarge`, are summed by the
  * neighbor rule instead (`decimalSumApart`), the operands being exact
  * there; the conformance of the two was checked by the refusal.
@@ -1113,20 +1119,26 @@ export type ReducedExponent =
 
 /**
  * The `^` exponent `e` as the fraction it denotes, in lowest terms, within
- * `maxBits`, the range limit (the plan's H.9, issue #66): each literal's
- * mantissa is held to the limit first, as every literal's is, so that no
+ * `significandLimitBits`, the significand limit (the plan's H.9, issue #66): each literal's
+ * significand is held to the limit first, as every literal's is, so that no
  * gcd runs on more than the limit allows (`quotient` undefined when one
  * is past it); the quotient of the two is taken as `Scaled` values, the
- * powers of ten cancelling and the mantissas reduced by one gcd within
+ * powers of ten cancelling and the significands reduced by one gcd within
  * the limit; and the fraction is formed from the quotient within the
  * limit, as `pow` forms an exact exponent, or the quotient is handed back
  * for the caller to refuse the power by, at the bound or at the limit.
  * `dimensionOf` reduces the same way under the build's context.
  */
-export function reduceExponent(e: Exponent, maxBits: number): ReducedExponent {
+export function reduceExponent(
+  e: Exponent,
+  significandLimitBits: number,
+): ReducedExponent {
   const num = e.num.value;
   const den = e.den === undefined ? ONE : e.den.value;
-  if (!mantissaWithin(num, maxBits) || !mantissaWithin(den, maxBits)) {
+  if (
+    !significandWithin(num, significandLimitBits) ||
+    !significandWithin(den, significandLimitBits)
+  ) {
     return { ok: false, quotient: undefined };
   }
   // The literals are formable within the hard bound, so their exponents
@@ -1135,7 +1147,7 @@ export function reduceExponent(e: Exponent, maxBits: number): ReducedExponent {
   const quotient = divide(num, den);
   if (!quotient.ok)
     throw new Error("An exponent's quotient is within the bound");
-  const fraction = toRational(quotient.value, maxBits);
+  const fraction = toRational(quotient.value, significandLimitBits);
   return fraction.ok
     ? { ok: true, value: fraction.value }
     : { ok: false, quotient: quotient.value };

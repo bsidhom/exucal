@@ -203,8 +203,9 @@ function incompleteGamma(
   if (wide(x)) return atEnds(s, x, form, regularized, context);
   const bits = bitsFor(context.precision);
   const extra =
-    magnitudeBits(s, context.maxBits) + magnitudeBits(x, context.maxBits);
-  if (bits + extra > context.maxBits) return TOO_LARGE;
+    magnitudeBits(s, context.significandLimitBits) +
+    magnitudeBits(x, context.significandLimitBits);
+  if (bits + extra > context.significandLimitBits) return TOO_LARGE;
   const working = bits + extra;
   const digits = workingDigits(context) + Math.ceil(extra / BITS_PER_DIGIT) + 1;
   const ceilingBits = bitsFor(context.ceiling);
@@ -279,8 +280,8 @@ function atEnds(
 ): Result<Ball, BuiltinError> {
   const r = radiusValue(x.rad);
   if (r === undefined) throw new Error("A bounded radius has a value");
-  const lo = subtract(x.mid, r, context.maxBits);
-  const hi = add(x.mid, r, context.maxBits);
+  const lo = subtract(x.mid, r, context.significandLimitBits);
+  const hi = add(x.mid, r, context.significandLimitBits);
   if (!lo.ok || !hi.ok) return TOO_LARGE;
   const atLo = incompleteGamma(s, exact(lo.value), form, regularized, context);
   const atHi = incompleteGamma(s, exact(hi.value), form, regularized, context);
@@ -370,8 +371,9 @@ export function withinLimits(
 ): boolean {
   const bits = bitsFor(context.precision);
   const extra =
-    magnitudeBits(s, context.maxBits) + magnitudeBits(x, context.maxBits);
-  if (bits + extra > context.maxBits) return false;
+    magnitudeBits(s, context.significandLimitBits) +
+    magnitudeBits(x, context.significandLimitBits);
+  if (bits + extra > context.significandLimitBits) return false;
   const working = bits + extra;
   const sf = fixedFromBall(s, working);
   const xf = fixedFromBall(x, working);
@@ -398,7 +400,7 @@ function lowerOf(
   let subtrahend: Ball;
   if (regularized) {
     const sum = subtractBalls(s, exact(negate(ONE)), context);
-    // A tiny order's s + 1 does not align within Most bits: one within s.
+    // A tiny order's s + 1 does not align within the significand limit: one within s.
     const next: Result<Ball, BuiltinError> =
       !sum.ok && sum.error.kind === "tooLarge"
         ? ok({ mid: ONE, rad: addRadius(s.rad, radiusAboveScaled(s.mid)) })

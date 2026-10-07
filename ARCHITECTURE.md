@@ -52,9 +52,9 @@ through `invertFunction`, which "Functions" below describes.
 
 The number type is an exact fraction times a power of ten: a `Rational`
 over `bigint`, a numerator and a positive denominator kept in lowest terms,
-as the mantissa, and a `bigint` decimal exponent, in a canonical form (the
+as the significand, and a `bigint` decimal exponent, in a canonical form (the
 denominator coprime to ten, the numerator not divisible by ten), so that
-`1e999999999` is a mantissa of one and an exponent, and `2.54` is
+`1e999999999` is a significand of one and an exponent, and `2.54` is
 `254 × 10^-2`. Exact fractions rather than arbitrary-precision floats
 because almost every unit definition is a rational (`2.54 cm`,
 `0.45359237 kg`), so conversions are exact and rounding happens only once,
@@ -72,7 +72,7 @@ evaluated at, where GNU units defines `pi` as a decimal literal.
 `src/core/rational.ts` provides the fraction's arithmetic and comparison,
 integer powers and the exact case of the n-th root, total and unbounded.
 `src/core/scaled.ts` (stage 4 of the plan) holds `Scaled` over it: the
-arithmetic, which aligns a sum's mantissas within a stated limit on the
+arithmetic, which aligns a sum's significands within a stated limit on the
 shift and bounds a value's decimal exponent by `10^18` (`MAX_EXPONENT`),
 comparison, the
 parsing of a literal, whose exponent it keeps as the number it is, rounding
@@ -104,10 +104,10 @@ Three rules say where, and only where, a value can lose precision:
    and fails only at the exponent bound, `overflow` or `underflow` when
    every value of its ball is past it, and `unresolved` at the edge
    `bound`, which the retry loop narrows, when some are (the plan's D18);
-   an exact result past the range limit is refused by the evaluator at
+   an exact result past the significand limit is refused by the evaluator at
    the node that forms it (D19, "Size limits" below), and the callers of
-   the operations take any refusal. A sum aligns the mantissas by
-   the difference of the exponents, which the range limit bounds
+   the operations take any refusal. A sum aligns the significands by
+   the difference of the exponents, which the significand limit bounds
    (docs/decimal.md, "Sums, comparisons and the radius"): two exact
    operands that cannot be aligned within it have an exact sum that cannot
    be held and fail `tooLarge` in exact mode (`1e999999999 + 1`), while a
@@ -143,16 +143,16 @@ Three rules say where, and only where, a value can lose precision:
    the kernel and say what they lost.** A root that is rational
    (`sqrt(9/4)`, `sqrt(2.25)`, `cbrt(-8)`) is detected and returned
    exactly, so `(4 m^2)^(1/2)` is exactly `2 m`. Otherwise `rootBall`
-   takes an exact power of ten off the exponent and scales the mantissa
+   takes an exact power of ten off the exponent and scales the significand
    by an exact power of `2^n` so that it is of order one, converts that
    to the kernel's fixed point at the bits of the working precision plus
-   a guard (plus as many more bits as the scaled mantissa still lies
+   a guard (plus as many more bits as the scaled significand still lies
    below one, so that it keeps its digits), takes the root there
    (`sqrtFixed`, `rootFixed`), scales back,
    and hands back the kernel's value through `fixedToBall`; a root the
-   kernel cannot take, of a degree past `2^32`, of a mantissa too far
+   kernel cannot take, of a degree past `2^32`, of a significand too far
    below one for the working bits, or with a remainder of the exponent
-   the range limit does not hold, is taken in log space instead,
+   the significand limit does not hold, is taken in log space instead,
    `x^(1/n)` as `exp(ln x / n)`, so `pow(3, 1e-30)` and
    `(7^-8000)^(1/99999)` are values (the plan's H.5): the midpoint
    rounded to nearest onto the decimal grid of the working digits
@@ -168,7 +168,7 @@ Three rules say where, and only where, a value can lose precision:
    bounded by the root of the farther end; an even root of a negative
    ball fails as it always did. `x^(p/q)` is the `q`-th root of `x^p`,
    root last, so the one inexact step comes last, or `exp(y ln x)` on the
-   kernel when `x^p` is refused, past the range limit or the exponent
+   kernel when `x^p` is refused, past the significand limit or the exponent
    bound. Every built-in
    function does the same (docs/builtins.md): an exact case is returned
    exactly (`exp(0)`, `log(2, 8)`, `cos(0 radian)`), and otherwise the
@@ -178,25 +178,25 @@ Three rules say where, and only where, a value can lose precision:
    the argument's error carried through, and the kernel's ball comes back
    rounded onto the working digits with the error as its radius. The two
    ends of the exponent are answered before the kernel is entered, since
-   it holds a value only up to the range limit: an argument throughout
-   below `2^-maxBits` is answered by its expansion at zero (`sin`, `tan`,
+   it holds a value only up to the significand limit: an argument throughout
+   below `2^-significandLimitBits` is answered by its expansion at zero (`sin`, `tan`,
    `atan`, `asinh` and the rest of the odd functions give the argument
    within its cube, `cos` and `cosh` one within its square, and `exp` one
    within twice the argument's magnitude; any other argument goes in
    through `fixedFromScaled`, whose power of ten is formed within four
    times the hard bound, enough for whatever a built-in hands it at any
-   range limit the settings allow, and a value below half an ulp of the
+   significand limit the settings allow, and a value below half an ulp of the
    bits asked is zero within an ulp there, decided from the coarse bounds
    with nothing formed, which is how the log-space power of a tiny
    exponent reaches the kernel), `sin`, `cos`
-   and `tan` of one reaching `2^maxBits` are `tooLarge`, since the
+   and `tan` of one reaching `2^significandLimitBits` are `tooLarge`, since the
    reduction would need `pi` to that many bits, `atan` beyond `2^bits` is
    `±pi/2` within `2^-bits`, `atan2` of a `y` of definite sign is `±pi/2`
    within `2^-bits` when `|y|` is at least `|x| 2^bits` throughout and
    `±pi` within it when `x` is negative and `|y| / |x|` lies below
    `2^-bits`, the ratio not formed, a tiny ratio over a positive `x`
    is its own arctangent within its cube, neither is refused for an
-   argument's radius (a ball reaching `2^maxBits` without lying beyond
+   argument's radius (a ball reaching `2^significandLimitBits` without lying beyond
    `2^bits` throughout is the function's whole range, zero within two
    for `atan` and within four for `atan2`, which certifies nothing and
    lets the retry loop narrow it), and `asinh` and `acosh` beyond it are
@@ -216,12 +216,12 @@ Three rules say where, and only where, a value can lose precision:
    (the plan's D18 and H.15), while
    `exp(1e6)`,
    `cosh(1e6)` and `2^(1e6/3)` are values: the exponential returns a
-   `Floating`, a mantissa of the working bits with a binary exponent,
+   `Floating`, a significand of the working bits with a binary exponent,
    renormalized after each squaring so that the argument's size costs a
    squaring per bit of its magnitude, twenty for `exp(1e6)` and some
    sixty at the bound, and not a value of a million bits, and it leaves the
    kernel through digits.ts, exactly where the exponent is within the
-   range limit and in log space, `10^(t - floor(t))` for `t` the decimal
+   significand limit and in log space, `10^(t - floor(t))` for `t` the decimal
    logarithm found on the kernel, where it is not.
 
 3. **Display rounds once, in a rounding mode, shows only the digits the
@@ -290,12 +290,12 @@ sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while `sqrt(4)` is
 
 **The types**, each layer adding one concept (the plan's D13 has the
 argument): `Rational` (`rational.ts`) is the exact fraction in lowest terms
-with total arithmetic, used for the mantissas, the exponents of dimensions
+with total arithmetic, used for the significands, the exponents of dimensions
 and of `^`, and the exact value of a radius. `Scaled` (`scaled.ts`) is the
 fraction times a power of ten, the midpoint's type, in a module of its
 own between the fraction and the ball so that `rational.ts` stays the
 total fraction it is (the plan's D13). `Radius` (`radius.ts`) is the
-coarse bound, `mant × 2^exp` with a 30-bit mantissa and a bigint exponent,
+coarse bound, `significand × 2^exp` with a 30-bit significand and a bigint exponent,
 or the distinguished value unbounded, with the operations a propagation
 rule needs (`radiusAbove` of a fraction and `radiusAboveScaled` of a
 midpoint from its binary bounds, the sum, the product, the quotient
@@ -316,10 +316,10 @@ ball whose power of ten can be formed (`fixedFromScaled`; the callers
 bound their arguments first) and left through `fixedToBall`, which rounds
 the value onto the decimal grid of the working digits and hands back the
 count and the rounding as a radius. `Floating` (`fixed.ts` too) is a
-`Fixed` mantissa with a binary exponent, `mant × 2^exp`, the form of the
+`Fixed` significand with a binary exponent, `significand × 2^exp`, the form of the
 results that can be large, the exponential's and the hyperbolic pair's;
 `digits.ts`, above the kernel since it calls it, takes one out as a ball,
-exactly where the exponent is within the range limit and in log space
+exactly where the exponent is within the significand limit and in log space
 otherwise, the one place the program needs log space. Its first routines are the roots: the square
 root by Newton on the reciprocal square root, multiplications only with
 the precision doubling, and the root of any degree up to `2^32` by
@@ -384,24 +384,24 @@ representation issue #103 asked for).
 **Working precision and the context.** Every core function that does
 arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`: a precision in
 significant digits, a rounding mode, the exact or decimal mode, and the
-range limit `maxBits`) and computes at its precision; below the pipeline that precision is a working precision, not
+significand limit `significandLimitBits`) and computes at its precision; below the pipeline that precision is a working precision, not
 the digits shown. The pipeline (`evaluateText`, `convertText`) is the one
 place that knows the difference (the plan's D1): the context it takes is
 the user's, whose precision is the digits asked for, and it derives the
 working contexts it evaluates at by the retry schedule of the plan's D12.
 `schedule` yields the digits asked for plus a guard of ten, then twice
 that, doubling, and last the context's `ceiling`, a field of its own: the
-shell derives it from the cap on the digits setting, `ceilingFor` in
-context.ts, four times the cap plus the guard, so that the largest request
+shell derives it from the precision limit, `ceilingFor` in
+context.ts, four times the precision limit plus the guard, so that the largest request
 has two doublings of room above its first pass (4,040 digits for the
-default cap of 1,000; nine passes at eight digits, three at a thousand),
-and it is the same in every working context, as the range limit is. The
+default precision limit of 1,000; nine passes at eight digits, three at a thousand),
+and it is the same in every working context, as the significand limit is. The
 guard of ten digits is the first pass's headroom for the rounding of each
 step and an ordinary cancellation, so that the common case certifies at
 once; it is separate from the kernel's `GUARD_BITS`, which is one
 routine's headroom for its own error count. The ceiling is one number
 for every request because the table (D6) and the memos (D10) are built
-at it once; it is set from the largest request the cap allows, and four
+at it once; it is set from the largest request the precision limit allows, and four
 is the least factor that leaves that request more than one doubling
 without doubling the table's and the memos' cost for every setting.
 Both numbers are judgments, not measurements, and README ("Why four
@@ -426,8 +426,8 @@ latency; the ceiling is therefore a cost setting. The table is built at
 the ceiling context (`ceilingContext`), once per ceiling, by
 `system-build.ts` (the plan's D6): since the angle units call `pi()`, a
 unit's precision is fixed when the table is built and must lie above every pass, and one
-ceiling serves every digits setting under one cap, so the table is rebuilt
-only when the cap changes. The user's context comes from the settings ("UI" below): the digits, the
+ceiling serves every display digits under one precision limit, so the table is rebuilt
+only when the precision limit changes. The user's context comes from the settings ("UI" below): the digits, the
 rounding mode, the exact or decimal mode with its working digits, and
 the two limits, from which the ceiling is derived. In decimal mode the
 schedule is the user's context alone: one pass at the digits asked for,
@@ -452,14 +452,14 @@ an inexact midpoint never grows beyond the working precision however long
 the expression, while exact values stay the exact numbers they are; the
 first version of this design let inexact midpoints grow as exact
 rationals, and a thirteen-thousand-bit dyadic to the fifth power was then
-a size the range limit refused. In decimal mode (D26; docs/decimal-mode.md)
+a size the significand limit refused. In decimal mode (D26; docs/decimal-mode.md)
 the settle is the mode's one rounding of each step: every value, an
 exact one included, is rounded to the digits asked for in the rounding
 mode and is exact after it, no radius recording the rounding, since
 there the rounded value is the value. A step is a node of the expression:
 a literal with more digits than asked is rounded as it is read, a unit is
 rounded once when it is looked up, an integer power of an exact base is
-rounded once on its exact result (or, where that does not fit the range
+rounded once on its exact result (or, where that does not fit the significand
 limit, computed on the base widened to the working precision and
 certified), and a call is one step whose rounding is certified: the
 evaluator computes the built-in at the working precisions of the retry
@@ -485,7 +485,7 @@ certification guarantees is the true value's rounding in that mode.
 Exact arithmetic cannot overflow, but it can grow without bound:
 `3^1000000` and `1e999999999 + 1` are valid input. Two limits on two axes
 bound it (the plan's D16 as stage 4 restated it), in two units, because
-they bound two kinds of value: the range limit is in bits, the size of
+they bound two kinds of value: the significand limit is in bits, the size of
 an exact rational's numerator and denominator, which is what an exact
 value costs to hold and to multiply; the precision and its ceiling are
 in decimal digits, the count an inexact midpoint is settled to, which is
@@ -493,8 +493,8 @@ decimal because the exponent is (a midpoint of `w` digits is an integer
 of `w` digits times a power of ten, the type's smallest form, and the
 form the display writes), and which the kernel converts to bits plus a
 guard for its own work (`bitsFor`, `digitsFor`). The two meet once:
-`maxDigitsFor` caps the digits so that a settled midpoint at the ceiling
-fits the range limit with room for a product. README ("How a number is
+`precisionLimitFor` bounds the digits so that a settled midpoint at the ceiling
+fits the significand limit with room for a product. README ("How a number is
 held, and what the settings touch") is the user's account. The magnitude is the
 value's decimal exponent, bounded by `MAX_EXPONENT`, `10^18`, in
 scaled.ts (the plan's D17), beyond which an operation is refused, an
@@ -503,29 +503,29 @@ costs nothing.
 The bound is kept by decision, for the exponential's cost beyond it and
 the parts of the number type that are exact only within it
 (docs/decimal.md, "Decision: the bound stays at `10^18`").
-The range limit, `maxBits` in the context, bounds the size of a mantissa's
+The significand limit, `significandLimitBits` in the context, bounds the size of a significand's
 numerator or denominator and the alignment of a sum: an exact power,
-whose mantissa can be exponentially larger than its base's, predicts the
+whose significand can be exponentially larger than its base's, predicts the
 size of its result and returns `tooLarge` instead of computing anything
 beyond it (reported at the bound instead when its decimal exponent
 passes that too, which no setting moves: `7^1e19`), a sum of two exact
 operands whose alignment, `|Δexp| log2 10` bits, exceeds the limit is
 `tooLarge` in exact mode, the kernel is handed no argument beyond
-`2^maxBits` (the
+`2^significandLimitBits` (the
 built-ins answer such an argument or refuse it first), and the evaluator
-checks every literal's mantissa against it. A power of an inexact base is
+checks every literal's significand against it. A power of an inexact base is
 guarded by the exponent bound alone, its midpoint settled at every
 squaring. Its default is 2^16 bits
 (about 19,700 decimal digits, at which every exact operation still takes
-milliseconds, the reduction of a quotient of two mantissas at the limit
+milliseconds, the reduction of a quotient of two significands at the limit
 included) and it is
 the user's to set up to the hard bound
-`LIMIT_BITS` in rational.ts (2^20, about 315,000 digits), which the
-parser, having no context, applies to a literal's mantissa. What the
+`MAX_SIGNIFICAND_LIMIT_BITS` in rational.ts (2^20, about 315,000 digits), which the
+parser, having no context, applies to a literal's significand. What the
 limit means is cost: it is a hard limit on the bits the app forms, holds
 and multiplies for one number, in time and in memory, which is why its
 right value is the device's and the probe recommends it; and so its
-measure is the size of what is stored, the canonical mantissa of a
+measure is the size of what is stored, the canonical significand of a
 `Scaled`, and not the bits of the value it denotes. The two differ for a
 dyadic, whose twos in the denominator the canonical form trades for
 fives in the numerator: `2^-30000`, a value of 30,000 bits, is stored as
@@ -549,13 +549,13 @@ done nothing for `3^-100000`: the cost is in storing exact rationals as
 digits, not in the power of ten. Every exact result is held to the
 limit where the evaluator produces it (the plan's D19): `evaluate()`
 measures the settled result of every node, a unit looked up and a
-call's result included, and refuses one whose canonical mantissa passes
+call's result included, and refuses one whose canonical significand passes
 the limit, `tooLarge` at the node, as the pipeline does again after the
 two quotients it forms outside the evaluator, the conversion's ratio and
 a function want's count. The measure is after the fact, on the reduced
 result, so `x / x` is one and a quotient costs its reduction, not its
 unreduced parts; what is formed before the check refuses is at most a
-product of two mantissas within the limit, a sum aligned within it or a
+product of two significands within the limit, a sum aligned within it or a
 quotient's two parts, each at most twice the limit and reduced once,
 which is the operation the probe times when it recommends the limit. A
 power still predicts its size before forming anything, with the node
@@ -563,19 +563,19 @@ check as the backstop. The message names the node and the remedy:
 `approx` around the node's first operand, which makes the result inexact
 and settled rather than refused (around the node itself it would come
 too late, the node being refused before `approx` sees it), or a higher
-`maxBits`; exact mode never rounds an exact value on its own to stay
+`significandLimitBits`; exact mode never rounds an exact value on its own to stay
 within the limit (the plan's D20). An inexact result, and every result
 in decimal mode, is settled to the working digits and never refused for
 size; the built-ins' internal intermediates, a unit list's
 decomposition, `powBall`'s settled loop and the display's reciprocal
 work on node results already held to the limit, within a constant
 factor of them, and are not checked. The
-precision limit is the cap on the digits setting, from
+precision limit is the user's, the most digits any grid may be asked for, from
 which the retry schedule's ceiling is derived; its own hard bound,
-`maxDigitsFor`, follows from the range limit, since a settled midpoint at
+`precisionLimitFor`, follows from the significand limit, since a settled midpoint at
 the ceiling must fit it with room for a product of two: about 2,450
-digits at the default range limit.
-`approx` bears on the range limit alone: in a sum, whose smaller operand
+digits at the default significand limit.
+`approx` bears on the significand limit alone: in a sum, whose smaller operand
 it lets the radius absorb, in an integer power, whose inexact base is
 settled at every squaring (`approx(3)^1000000000` is a value where
 `3^1000000000` is `tooLarge`), and in any product, quotient or sum
@@ -585,7 +585,7 @@ inexact and settled (`approx(3^32767) * 7^21845` is a value where
 result past the exponent bound is refused with it or without it
 (`exp(approx(1e999))`; docs/approximate.md, "`approx` and the exponent
 bound"). The two limits refuse with errors of their own, and the message
-words them apart: "too large to compute within Most bits" for the range
+words them apart: "too large to compute within the significand limit" for the significand
 limit's `tooLarge`, and for the bound that the exponent would pass
 `10^18` (`overflow`), or fall below `-10^18` for a value too small to
 hold (`underflow`).
@@ -594,8 +594,8 @@ hold (`underflow`).
 
 A value that cannot be computed is a `Result` error, never an exception:
 division by zero (including `0` to a negative power), an even root of a
-negative number, a result beyond the range limit or the exponent bound,
-or text that is not a number. A result beyond the range limit is
+negative number, a result beyond the significand limit or the exponent bound,
+or text that is not a number. A result beyond the significand limit is
 `tooLarge`, the fraction's error (rational.ts), and one beyond the
 exponent bound is `overflow` or `underflow`, errors of `Scaled`
 (scaled.ts), since only a value with an exponent can pass it; so the
@@ -673,16 +673,16 @@ The arithmetic the evaluator needs lives here as well: multiplication,
 division and raising to a rational power, each a ball operation beside the
 matching dimension operation. Only the magnitude can fail (a zero divisor,
 or one that cannot be told from zero, `0` to a negative power, an even root
-of a negative number, a result beyond the range limit or the exponent
+of a negative number, a result beyond the significand limit or the exponent
 bound), so the failures are those of `ball.ts`, and the power is the one
-of the three that takes a `NumberContext`: for the range limit of an
+of the three that takes a `NumberContext`: for the significand limit of an
 exact power, the settling of an inexact base, and the root, or the
 log-space route, of a non-integer exponent. Negation touches the
 magnitude alone and cannot fail. Addition and subtraction have both
 sides: only quantities of one dimension have a sum, so the dimension side
 is the conformance check above, the sum has the dimension its terms
 share, and the failure is a `ConformanceError`; and the magnitudes align
-within the range limit of the `NumberContext` the two take, failing
+within the significand limit of the `NumberContext` the two take, failing
 `tooLarge` as `addBalls` does, or `overflow`, `underflow` or `unresolved`
 at the bound for a sum that aligns and passes the exponent bound. Since
 that check tells dimensions
@@ -915,7 +915,7 @@ rational (`m^(1/2)`), never an expression, so it is known at parse time and
 travels in the tree as the two literals the parser read, undivided
 (`Exponent`): each must be formable within the hard bound and a zero
 divisor is rejected, both read off the literals with nothing formed, and
-the evaluator takes the quotient where the range limit applies, since a
+the evaluator takes the quotient where the significand limit applies, since a
 reduction in the parser, which has no context, took seconds on long
 literals and minutes at the hard bound, on every keystroke (the plan's
 H.9, issue #66). A unit name is a letter or underscore
@@ -1038,7 +1038,7 @@ Three properties make the combinators simple to reason about:
   so, and no combinator retries past a rejection: the text was understood and
   found unacceptable, not misread, so trying another reading would only
   produce a worse error. This is how a numeric literal that `parseDecimal`
-  refuses (a mantissa past the hard bound, or an exponent past the
+  refuses (a significand past the hard bound, or an exponent past the
   exponent bound) becomes a parse error pointing at the literal.
   `check` is the only source of `rejected` errors. The reason is data, the
   `R` of `Parser<A, R>`: the expression grammar's is its `Rejection` (a
@@ -1067,9 +1067,9 @@ the expression denotes. A number is a dimensionless quantity, a unit name
 is whatever the lookup says it is, and the operators are the quantity
 arithmetic above: juxtaposition and `*` multiply, `/` divides, `+` and `-`
 add and subtract, a leading `-` negates, and `^` raises to the exponent the
-parser read, made a fraction here within the range limit
+parser read, made a fraction here within the significand limit
 (`reduceExponent`, which `dimensionOf` applies under the build's context
-too): each literal's mantissa is held to the limit as every literal's is,
+too): each literal's significand is held to the limit as every literal's is,
 the quotient of the two is taken as `Scaled` values, whose powers of ten
 cancel for nothing, and the fraction is formed from it within the limit
 as `pow` forms an exact exponent, so that `2^(1e30/1e30)` is `2` at any
@@ -1091,8 +1091,8 @@ function to their magnitudes, and locates a `domain` failure at the call
 (`domainError`), an `unresolved` at the argument that straddles the edge
 the error names, and any other failure at the call.
 The context goes to every power and every built-in, the operations that
-can lose digits, and to every sum, which aligns within its range limit,
-and every literal's mantissa is checked against that limit; everything
+can lose digits, and to every sum, which aligns within its significand limit,
+and every literal's significand is checked against that limit; everything
 else is exact, and every result is settled. The
 primitives go to every sum, whose operands must conform: this is where
 evaluation checks conformance, beside a call's argument against what the
@@ -1122,12 +1122,12 @@ this precision (`unresolved`: the divisor's ball contains zero without
 being exactly zero, as `sqrt(2)^2 - 2` does); a power whose base cannot
 be told from zero, raised to a negative power or put under an even root,
 points at the base for the same reason, and any other power that fails
-(`0^-1`, an even root of a negative magnitude, a result beyond the range
+(`0^-1`, an even root of a negative magnitude, a result beyond the significand
 limit or the exponent bound) points at the whole power, since it is the
 combination of base and exponent that fails. A sum, a product or a
 quotient refused as too large or too small (`tooLarge`, `overflow`,
 `underflow`) points at the whole operation, as a power does, and a
-literal whose mantissa is beyond the range limit at the literal. A sum
+literal whose significand is beyond the significand limit at the literal. A sum
 whose operands do not
 conform points at the whole sum for the same reason, and carries the span of
 each operand and the `ConformanceError` between them, with the left
@@ -1180,7 +1180,7 @@ plan's D8), so a count is an exact integer and never `unresolved`, and the
 remainder is the ball `have` less the counted units, computed with the ball
 operations, so the terms times the units add up to `have` exactly when
 everything is exact and contain it otherwise. A ratio whose integer part
-cannot be formed within the range limit (`1e999999999 m` into `ft;in`) is
+cannot be formed within the significand limit (`1e999999999 m` into `ft;in`) is
 counted as its midpoint settled toward zero at the working digits, still
 an exact integer, and the remainder is what that count leaves (the plan's
 D8 as stage 4 amended it), and a count whose ratio falls below the exponent
@@ -1190,7 +1190,7 @@ it). Any other refusal of a count, of a count times its unit, or of the
 difference it leaves, and an `unresolved` of them, is the list's failure,
 which the pipeline reports as the conversion's, as it reports a refused
 ratio (`3^32767 m` into `ft/7^21845; in/7^21845` is `tooLarge`, its
-remainder not aligning within the range limit, where stage 4 threw). A
+remainder not aligning within the significand limit, where stage 4 threw). A
 ratio whose ball straddles
 an integer, as `turn / deg` does once both carry `pi()`'s radius, counts
 as that integer rather than its truncation, so that the remainder is a
@@ -1371,7 +1371,7 @@ built-in rounds at every step where the built-in rounds once, with its
 radius from one bound over the whole ball, loses the built-in's exact
 cases (`ln(8) / ln(2)` is `≈ 3` where `log(2, 8)` is `= 3`), and can be
 refused where an intermediate passes a bound the result does not; and
-decimal mode rounds each step of a body to Digits. docs/functions.md
+decimal mode rounds each step of a body to the display digits. docs/functions.md
 ("Precision and the radius", "Cost") has the reasoning.
 
 ## UI
@@ -1455,7 +1455,7 @@ from zero is left out as a term of zero is, with its note, unless it is
 the only term; the reciprocal line shows its own kind. The settings are the shell's
 (`src/settings.ts`, kept in `localStorage`, validated on the way in with
 the dependent ones clamped, so that a stale entry never leaves the app
-without a consistent context): the display digits, the rounding mode,
+without a consistent context): The display digits, the rounding mode,
 the mode with what belongs to it (exact mode the notation its exact
 values are written in, digits or a ratio in lowest terms; decimal mode
 its working digits, locked to the display digits or an extended count;
@@ -1467,14 +1467,14 @@ the top of the retry schedule, is derived from the precision limit and
 which carries the working digits when they are extended, and the ratio
 notation's width, a display setting that reaches the component as its
 `ratio` property and the core never sees but through `show`. The
-settings speak the user's vocabulary and the core, until the alignment
-change docs/settings-limits.md lists, its own: `Settings.displayDigits`
-is `NumberContext.precision`, `Settings.significandLimitBits` is
-`NumberContext.maxBits`, `Settings.precisionLimitDigits` derives
-`NumberContext.ceiling` through `ceilingFor` and has its top under the
-significand limit from `maxDigitsFor`, and `LIMIT_BITS` and
-`MIN_MAX_BITS` are the significand limit's hard bound and floor;
-`contextOf` is where the two meet. A change the panel reports goes
+settings and the core speak one vocabulary (D29): `Settings.displayDigits`
+is `NumberContext.precision`, the grid's digits below the pipeline;
+`Settings.significandLimitBits` is `NumberContext.significandLimitBits`;
+`Settings.precisionLimitDigits` derives `NumberContext.ceiling` through
+`ceilingFor` and has its top under the significand limit from
+`precisionLimitFor`, with `MIN_SIGNIFICAND_LIMIT_BITS` and
+`MAX_SIGNIFICAND_LIMIT_BITS` the significand limit's floor and hard
+bound; `contextOf` builds the one from the other. A change the panel reports goes
 through the shell's clamp, and what the clamp moved goes back to the
 panel (`clampsOf`), which says under each setting moved from what to
 what and to fit which setting; an edit past a bound the panel refuses
@@ -1569,12 +1569,12 @@ changes to the core.
 src/core/rational.ts      Rational, the exact fraction: arithmetic, comparison, integer powers, the exact root
 src/core/scaled.ts        Scaled, the midpoint's type, a fraction times a power of ten in canonical form: arithmetic within the alignment limit and the exponent bound (MAX_EXPONENT; ScaledError, Refusal, powerRefusal), comparison, parsing, rounding, formatting, the binary magnitude
 src/core/rounding.ts      RoundingMode, ROUNDING_MODES, divideRounded: the one place a mode is interpreted; Precision
-src/core/context.ts       NumberContext: the precision, the rounding mode, the range limit, the ceiling and the exact or decimal mode arithmetic is done under
+src/core/context.ts       NumberContext: the precision, the rounding mode, the significand limit, the ceiling and the exact or decimal mode arithmetic is done under
 src/core/radius.ts        Radius, the coarse bound a ball carries, and its operations, each rounding the way its bound needs, up or down
 src/core/ball.ts          Ball (a midpoint with a Radius), its exact operations, the root and the rational power on the kernel, unresolved
 src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error count in ulps, its exact operations, the roots
 src/core/fixed-exp.ts     expFixed, sinhCoshFixed and tanhFixed: the exponential on the kernel, by halving, Taylor and squaring into a Floating, and the hyperbolic functions through it
-src/core/digits.ts        floatingToBall: a Floating as a ball, exactly within the range limit and by its decimal logarithm in log space beyond it
+src/core/digits.ts        floatingToBall: a Floating as a ball, exactly within the significand limit and by its decimal logarithm in log space beyond it
 src/core/fixed-log.ts     lnFixed: the logarithm on the kernel, by square roots and the atanh series; ln(2) and ln(10) memoized
 src/core/fixed-gamma.ts   digammaFixed and lgammaFixed, and digammaRational and lgammaRational for an exact argument of short denominator: the shift up, by a loop or exactly by binary splitting, and the asymptotic series on the Bernoulli ratios, ln pi memoized (stage 6, docs/special.md)
 src/core/fixed-incomplete.ts the incomplete gamma series with its tail bound, and Legendre's continued fraction with the bracket of its convergents (stage 6, docs/special.md)
@@ -1611,7 +1611,7 @@ src/core/builtins/round.ts floor, ceil, trunc and round(x, places): a plain numb
 src/core/builtins/division.ts div and mod: floored division and its remainder, one quotient serving both
 src/core/builtins/integers.ts gcd, lcm, factorial, binomial, doublefactorial: the functions of exact integers, with their size predictions
 src/core/builtins/gamma.ts digamma(x), lgamma(x) and gamma(x): the Gamma family, on fixed-gamma.ts, with the poles, the reflection, the routes for any exponent and the classifier on gamma
-src/core/builtins/beta.ts beta(a, b): the Beta function through lgamma under the classifier, exact for whole numbers within Most bits, zero at a pole of the sum alone
+src/core/builtins/beta.ts beta(a, b): the Beta function through lgamma under the classifier, exact for whole numbers within the significand limit, zero at a pole of the sum alone
 src/core/builtins/incomplete.ts lowergamma, uppergamma and the regularized pair: the series or the fraction by cost, the rest in log space through the classifier
 src/core/builtins/erf.ts  erf(x) and erfc(x) on the incomplete gamma functions of order one half, odd and complementary, the ends of the exponent apart
 src/core/builtins/incbeta.ts incbeta and incbetareg: the series in the cheaper orientation of the symmetry, the rest in log space through the classifier, the polynomial exact case
@@ -1632,7 +1632,7 @@ src/edges.sweep.ts        the edge sweep at the text level: the pipeline and the
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
 src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling
-src/settings.ts           Settings: the display digits, the rounding mode, the mode with its notation or working digits, the two limits and the probe budget, in localStorage under a format version with migrations; contextOf, the clamp with its report, the refusal, reset
+src/settings.ts           Settings: The display digits, the rounding mode, the mode with its notation or working digits, the two limits and the probe budget, in localStorage under a format version with migrations; contextOf, the clamp with its report, the refusal, reset
 src/settings-lines.ts     the lines the settings panel says: the units, the lines under the numbers, the refusal, the clamp's line, the probe's proposal; src/settings-lines.test.ts checks them
 src/limits.ts             recommendLimits: the probe that measures the device within the budget and proposes the two limits with their timings
 src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result, each two expressions the printer writes; src/outcome.test.ts checks them
@@ -1669,10 +1669,10 @@ The significand limit and the precision limit are settings, kept in the
 browser and proposed per device by the probe of `limits.ts`, and only
 the shell reads them, through `contextOf`. Every test, sweep and benchmark passes an
 explicit `NumberContext`, built from the defaults of context.ts
-(`DEFAULT_MAX_BITS`, `DEFAULT_CEILING`) or from literals; the tests of
+(`DEFAULT_SIGNIFICAND_LIMIT_BITS`, `DEFAULT_CEILING`) or from literals; the tests of
 settings.ts read a storage in memory, and the probe's tests run over a
 fake clock, asserting of a real probe only that its proposal lies within
-the bounds every device's must. The hard bound `LIMIT_BITS` and the
+the bounds every device's must. The hard bound `MAX_SIGNIFICAND_LIMIT_BITS` and the
 exponent bound `MAX_EXPONENT` are constants. So a device whose limits are
 set low runs the same suite to the same results, and a new test keeps it
 so: it builds its context from the constants, or one of its own when it
@@ -1696,8 +1696,8 @@ At the ball level, src/core/edges.sweep.ts runs every built-in of `BUILTINS`,
 enumerated by arity so that a function added later joins it, and the
 ball's own operations over the classes of arguments at the edges of the
 number type: zero and the units, values at both ends of the exponent
-bound and past the range limit's reach, a fraction mantissa at either
-edge, a mantissa near one, and wide balls, each exact and with a relative
+bound and past the significand limit's reach, a fraction significand at either
+edge, a significand near one, and wide balls, each exact and with a relative
 radius of about `1e-30`, in decimal mode too where an operation reads the
 mode. At the text level, src/edges.sweep.ts runs `parseExpr`, `evaluateText`
 and `convertText` on the reproductions of every issue filed against stage
@@ -1709,7 +1709,7 @@ or `underflow` only when every value of the true result passes the bound,
 outside the domain throughout); a value whose midpoint's exponent or whose
 `|mid| + rad` passes the bound; a value that misses a known point (`exp(0)`,
 `approx(x)`, the exact result of a sum or a product) or a known range
-(`|tanh| <= 1`); and, at the text level, an exact result past `maxBits`,
+(`|tanh| <= 1`); and, at the text level, an exact result past `significandLimitBits`,
 and a unit list whose shown terms do not add up to the `have`. The
 magnitude of the true result is bounded in src/testing/edges.ts from the
 arguments' intervals, exactly for the arithmetic and in log space for the
@@ -1891,11 +1891,11 @@ rectangular splitting the logarithm, the sine and the arctangent use.
 `rational.bench.ts` times the probe's range operation, a product of two
 fractions and its reduction, at 8,192 to 65,536 bits, one gcd on its own
 at 16,384 to 65,536 bits, and the quotients of issue #52, at twice the
-default range limit since the second passes the default and H.14 refuses
+default significand limit since the second passes the default and H.14 refuses
 it there (issue #135), and asserts
 that doubling the size costs at most eight times, twice what the
 quadratic gcd gives; Lehmer's gcd is about forty times cheaper than
-Euclid's at the default range limit and still quadratic, and the
+Euclid's at the default significand limit and still quadratic, and the
 benchmark is what would show a half-gcd's gain should the limit grow.
 
 ## Security

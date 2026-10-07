@@ -3,7 +3,12 @@ import { test } from "node:test";
 import { inspect } from "node:util";
 import { parseExpr, parseUnitList, type Expr, type Rejection } from "./expr.ts";
 import type { ParseError } from "./parser.ts";
-import { LIMIT_BITS, bitLength, rational, toFraction } from "./rational.ts";
+import {
+  MAX_SIGNIFICAND_LIMIT_BITS,
+  bitLength,
+  rational,
+  toFraction,
+} from "./rational.ts";
 import { ONE, divide, fromRational, toRational } from "./scaled.ts";
 import type { Span } from "./span.ts";
 import { parseFraction } from "../testing/fraction.ts";
@@ -24,11 +29,11 @@ function show(e: Expr): string {
   switch (node.kind) {
     case "number": {
       // A literal that fits the hard bound renders as its fraction; one
-      // beyond it as its mantissa and exponent.
-      const fraction = toRational(node.value, LIMIT_BITS);
+      // beyond it as its significand and exponent.
+      const fraction = toRational(node.value, MAX_SIGNIFICAND_LIMIT_BITS);
       return fraction.ok
         ? toFraction(fraction.value)
-        : `${toFraction(node.value.mant)}e${node.value.exp}`;
+        : `${toFraction(node.value.significand)}e${node.value.exp}`;
     }
     case "unit":
       return node.name;
@@ -41,7 +46,7 @@ function show(e: Expr): string {
         node.exponent.den?.value ?? ONE,
       );
       assert.ok(quotient.ok);
-      const fraction = toRational(quotient.value, LIMIT_BITS);
+      const fraction = toRational(quotient.value, MAX_SIGNIFICAND_LIMIT_BITS);
       assert.ok(fraction.ok);
       return `${show(node.base)}^${toFraction(fraction.value)}`;
     }
@@ -280,7 +285,7 @@ test("an exponent may be a parenthesized rational", () => {
 test("an exponent travels in the tree as the two literals the parser read, undivided", () => {
   // The parser has no context to reduce within, and a reduction at the
   // hard bound took seconds to minutes on long literals (issue #66); the
-  // evaluator takes the quotient within the range limit, so nothing is
+  // evaluator takes the quotient within the significand limit, so nothing is
   // formed here, not even a literal's power of ten.
   for (const [text, num, den] of [
     ["m^2", "2", "1"],
@@ -329,8 +334,10 @@ test("a ^ exponent of two literals at the hard bound parses in milliseconds (#66
   assert.ok(ms < 2000, `parsed in ${ms.toFixed(0)} ms`);
   assert.ok(e.node.kind === "pow");
   if (e.node.kind === "pow") {
-    assert.ok(bitLength(e.node.exponent.num.value.mant.num) > 1_000_000);
-    assert.ok(bitLength(e.node.exponent.den!.value.mant.num) > 1_000_000);
+    assert.ok(bitLength(e.node.exponent.num.value.significand.num) > 1_000_000);
+    assert.ok(
+      bitLength(e.node.exponent.den!.value.significand.num) > 1_000_000,
+    );
   }
 });
 
@@ -393,7 +400,7 @@ test("an e that does not start an exponent is a unit name", () => {
 
 test("a number too large to represent is rejected with its span", () => {
   // A literal's exponent is kept as the number it is (stage 4's 4.3), so
-  // `1e999999` parses; what is rejected is a mantissa beyond the hard
+  // `1e999999` parses; what is rejected is a significand beyond the hard
   // bound, an exponent beyond the exponent bound, with the side it passes,
   // and a `^` exponent whose power of ten cannot be formed within the hard
   // bound. The reasons are data; messages.ts words them.

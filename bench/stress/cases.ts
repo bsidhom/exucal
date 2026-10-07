@@ -44,8 +44,11 @@ import {
   type Settings,
 } from "../../src/settings.ts";
 import { DEFAULT_SETTINGS } from "../../src/settings.ts";
-import { DEFAULT_MAX_BITS, maxDigitsFor } from "../../src/core/context.ts";
-import { LIMIT_BITS } from "../../src/core/rational.ts";
+import {
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
+  precisionLimitFor,
+} from "../../src/core/context.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS } from "../../src/core/rational.ts";
 import {
   between,
   foldIn,
@@ -438,7 +441,7 @@ const PROFILES: readonly (readonly [number, Profile])[] = [
       name: "maxcap",
       settings: {
         ...DEFAULT_SETTINGS,
-        precisionLimitDigits: maxDigitsFor(DEFAULT_MAX_BITS),
+        precisionLimitDigits: precisionLimitFor(DEFAULT_SIGNIFICAND_LIMIT_BITS),
       },
     },
   ],
@@ -465,8 +468,8 @@ const PROFILES: readonly (readonly [number, Profile])[] = [
       name: "extreme",
       settings: {
         ...DEFAULT_SETTINGS,
-        significandLimitBits: LIMIT_BITS,
-        precisionLimitDigits: maxDigitsFor(LIMIT_BITS),
+        significandLimitBits: MAX_SIGNIFICAND_LIMIT_BITS,
+        precisionLimitDigits: precisionLimitFor(MAX_SIGNIFICAND_LIMIT_BITS),
       },
     },
   ],

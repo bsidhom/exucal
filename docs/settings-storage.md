@@ -107,7 +107,7 @@ what belongs to it, in place of the mode name and the `fractions` flag:
 `{ "kind": "decimal", "working": { "kind": "digits" } | { "kind":
 "extended", "digits": 12 } }`. The migration from 2 to 3 builds it from
 the two stored fields (`decimal` with its working digits locked to
-Digits; `exact` with the notation `ratio` when the stored `fractions`
+The display digits; `exact` with the notation `ratio` when the stored `fractions`
 was `true` and `digits` otherwise), drops `fractions`, and carries the
 rounding default's change in the same step: a stored `halfAwayFromZero`,
 the old default echoed by every save, becomes `halfEven`. A mode that is
@@ -115,7 +115,7 @@ neither name passes through for the validation to default, as S1
 requires; the validation of version 3 accepts a `mode` only when it is
 an object of one of the two shapes, defaulting the whole field
 otherwise, and the clamp brings an extended count of working digits
-between Digits and the precision limit.
+between the display digits and the precision limit.
 
 Version 4 (S2c, docs/ratio-width.md) nests the notation inside an exact
 mode, the ratio carrying its width:
@@ -185,10 +185,10 @@ the current version does, so a change here rewrites the catalogue
 ## One version for the whole record
 
 The version is the record's, not each field's. The settings interact:
-Digits is clamped to the precision limit and that to what Most bits
+The display digits are clamped to the precision limit and that to what the significand limit
 holds, and the steps ahead change the interactions themselves, S2
 perhaps merging the mode and the fractions flag into one choice and S3
-perhaps splitting Digits or renaming the limits. A migration must be able
+perhaps splitting the display digits or renaming the limits. A migration must be able
 to read several fields to write one, or write several from one, and a
 per-field version cannot express that. The record is six fields, so the
 whole-record version costs nothing and buys the only thing that matters.
@@ -259,8 +259,8 @@ that run them left to S5:
 
 - **Reset all:** the defaults, written at the current version.
 - **Reset one field:** the field at its default, and then the dependent
-  fields clamped as after any change, since resetting Most bits to its
-  default can lower the precision limit and Digits. Where a later step
+  fields clamped as after any change, since resetting the significand limit to its
+  default can lower the precision limit and the display digits. Where a later step
   makes two fields one choice, resetting one may have to mean resetting
   both; that is decided when the interaction is added.
 

@@ -358,9 +358,9 @@ export function sideOfZero(
 /**
  * The fraction bits a value of magnitude below one needs beyond the
  * working bits to keep its digits through the kernel: its negative binary
- * exponent, from the lower bound of `log2Bounds`, held to the range limit
+ * exponent, from the lower bound of `log2Bounds`, held to the significand limit
  * of `context`, since the kernel is handed nothing wider (a value below
- * `2^-maxBits` converts to zero within an ulp there; `isTiny` is the rule
+ * `2^-significandLimitBits` converts to zero within an ulp there; `isTiny` is the rule
  * that catches such a value first); zero for zero and for a magnitude at
  * or above one.
  */
@@ -368,12 +368,14 @@ export function extraBits(s: Scaled, context: NumberContext): number {
   if (isZero(s)) return 0;
   const { int } = log2Bounds(s).lower;
   if (int >= 0n) return 0;
-  return -int > BigInt(context.maxBits) ? context.maxBits : Number(-int);
+  return -int > BigInt(context.significandLimitBits)
+    ? context.significandLimitBits
+    : Number(-int);
 }
 
 /**
- * Whether the bounded `x` lies throughout below `2^-maxBits` in
- * magnitude, the range limit of `context`: below what the kernel can be
+ * Whether the bounded `x` lies throughout below `2^-significandLimitBits` in
+ * magnitude, the significand limit of `context`: below what the kernel can be
  * handed at any bits within the limit, so a built-in answers it by the
  * value's expansion at zero (`tinyOdd`, `tinyEven`) rather than by the
  * kernel.
@@ -382,13 +384,13 @@ export function isTiny(x: Ball, context: NumberContext): boolean {
   return (
     compareRadius(
       magnitudeAbove(x),
-      powerOfTwoRadius(-BigInt(context.maxBits)),
+      powerOfTwoRadius(-BigInt(context.significandLimitBits)),
     ) < 0
   );
 }
 
 /**
- * Whether the bounded `x` reaches `2^maxBits` in magnitude, the range
+ * Whether the bounded `x` reaches `2^significandLimitBits` in magnitude, the range
  * limit of `context`: beyond what the kernel can be handed, so a routine
  * that takes the value itself refuses it as `tooLarge`.
  */
@@ -396,7 +398,7 @@ export function isHuge(x: Ball, context: NumberContext): boolean {
   return (
     compareRadius(
       magnitudeAbove(x),
-      powerOfTwoRadius(BigInt(context.maxBits)),
+      powerOfTwoRadius(BigInt(context.significandLimitBits)),
     ) >= 0
   );
 }
@@ -442,7 +444,7 @@ export function unresolvedAt(
   return err({ kind: "unresolved", argument: index, edge });
 }
 
-/** A result that would pass the range limit and was not computed. */
+/** A result that would pass the significand limit and was not computed. */
 export const TOO_LARGE: Result<never, BuiltinError> = err({ kind: "tooLarge" });
 
 /** The result of a call on the midpoints of unbounded arguments, with an unbounded radius. */

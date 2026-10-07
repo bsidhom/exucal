@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspect } from "node:util";
 import {
-  LIMIT_BITS,
+  MAX_SIGNIFICAND_LIMIT_BITS,
   ONE,
   ZERO,
   absolute,
@@ -122,48 +122,82 @@ test("divide and invert fail on zero", () => {
 
 test("pow with an integer exponent is exact", () => {
   const twoThirds = rational(2n, 3n);
-  assert.deepEqual(unwrap(pow(twoThirds, 3n, LIMIT_BITS)), rational(8n, 27n));
-  assert.deepEqual(unwrap(pow(twoThirds, -3n, LIMIT_BITS)), rational(27n, 8n));
-  assert.deepEqual(unwrap(pow(twoThirds, 0n, LIMIT_BITS)), ONE);
-  assert.deepEqual(unwrap(pow(ZERO, 0n, LIMIT_BITS)), ONE);
-  assert.deepEqual(unwrap(pow(ZERO, 5n, LIMIT_BITS)), ZERO);
-  assert.deepEqual(unwrap(pow(rational(-2n), 3n, LIMIT_BITS)), rational(-8n));
-  assert.deepEqual(unwrap(pow(rational(-2n), 2n, LIMIT_BITS)), rational(4n));
   assert.deepEqual(
-    unwrap(pow(rational(-1n, 2n), -2n, LIMIT_BITS)),
+    unwrap(pow(twoThirds, 3n, MAX_SIGNIFICAND_LIMIT_BITS)),
+    rational(8n, 27n),
+  );
+  assert.deepEqual(
+    unwrap(pow(twoThirds, -3n, MAX_SIGNIFICAND_LIMIT_BITS)),
+    rational(27n, 8n),
+  );
+  assert.deepEqual(unwrap(pow(twoThirds, 0n, MAX_SIGNIFICAND_LIMIT_BITS)), ONE);
+  assert.deepEqual(unwrap(pow(ZERO, 0n, MAX_SIGNIFICAND_LIMIT_BITS)), ONE);
+  assert.deepEqual(unwrap(pow(ZERO, 5n, MAX_SIGNIFICAND_LIMIT_BITS)), ZERO);
+  assert.deepEqual(
+    unwrap(pow(rational(-2n), 3n, MAX_SIGNIFICAND_LIMIT_BITS)),
+    rational(-8n),
+  );
+  assert.deepEqual(
+    unwrap(pow(rational(-2n), 2n, MAX_SIGNIFICAND_LIMIT_BITS)),
     rational(4n),
   );
-  assert.deepEqual(unwrap(pow(dec("2.54"), 2n, LIMIT_BITS)), dec("6.4516"));
-  assertError(pow(ZERO, -1n, LIMIT_BITS), "divisionByZero");
+  assert.deepEqual(
+    unwrap(pow(rational(-1n, 2n), -2n, MAX_SIGNIFICAND_LIMIT_BITS)),
+    rational(4n),
+  );
+  assert.deepEqual(
+    unwrap(pow(dec("2.54"), 2n, MAX_SIGNIFICAND_LIMIT_BITS)),
+    dec("6.4516"),
+  );
+  assertError(pow(ZERO, -1n, MAX_SIGNIFICAND_LIMIT_BITS), "divisionByZero");
 });
 
 test("pow refuses results beyond the size limit, but not trivial ones", () => {
   assert.deepEqual(
-    unwrap(pow(rational(10n), 5000n, LIMIT_BITS)),
+    unwrap(pow(rational(10n), 5000n, MAX_SIGNIFICAND_LIMIT_BITS)),
     rational(10n ** 5000n),
   );
   assertError(
-    pow(rational(2n), BigInt(LIMIT_BITS + 1), LIMIT_BITS),
+    pow(
+      rational(2n),
+      BigInt(MAX_SIGNIFICAND_LIMIT_BITS + 1),
+      MAX_SIGNIFICAND_LIMIT_BITS,
+    ),
     "tooLarge",
   );
-  // The limit is the caller's: the context's range limit.
+  // The limit is the caller's: the context's significand limit.
   assertError(pow(rational(2n), 100n, 64), "tooLarge");
   assert.ok(pow(rational(2n), 30n, 64).ok);
   const sixteen = 1 << 16;
   assertError(pow(rational(10n), 100_000n, sixteen), "tooLarge");
   assertError(pow(rational(10n), -100_000n, sixteen), "tooLarge");
   assertError(pow(rational(1n, 10n), 100_000n, sixteen), "tooLarge");
-  assert.ok(pow(rational(10n), 100_000n, LIMIT_BITS).ok);
-  assertError(pow(rational(10n), 400_000n, LIMIT_BITS), "tooLarge");
-  assertError(pow(rational(2n), 10n ** 30n, LIMIT_BITS), "tooLarge");
+  assert.ok(pow(rational(10n), 100_000n, MAX_SIGNIFICAND_LIMIT_BITS).ok);
+  assertError(
+    pow(rational(10n), 400_000n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
+  assertError(
+    pow(rational(2n), 10n ** 30n, MAX_SIGNIFICAND_LIMIT_BITS),
+    "tooLarge",
+  );
   // 0, 1 and -1 never grow.
-  assert.deepEqual(unwrap(pow(ONE, 10n ** 30n, LIMIT_BITS)), ONE);
-  assert.deepEqual(unwrap(pow(rational(-1n), 10n ** 30n, LIMIT_BITS)), ONE);
   assert.deepEqual(
-    unwrap(pow(rational(-1n), 10n ** 30n + 1n, LIMIT_BITS)),
+    unwrap(pow(ONE, 10n ** 30n, MAX_SIGNIFICAND_LIMIT_BITS)),
+    ONE,
+  );
+  assert.deepEqual(
+    unwrap(pow(rational(-1n), 10n ** 30n, MAX_SIGNIFICAND_LIMIT_BITS)),
+    ONE,
+  );
+  assert.deepEqual(
+    unwrap(pow(rational(-1n), 10n ** 30n + 1n, MAX_SIGNIFICAND_LIMIT_BITS)),
     rational(-1n),
   );
-  assert.deepEqual(unwrap(pow(ZERO, 10n ** 30n, LIMIT_BITS)), ZERO);
+  assert.deepEqual(
+    unwrap(pow(ZERO, 10n ** 30n, MAX_SIGNIFICAND_LIMIT_BITS)),
+    ZERO,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -228,7 +262,7 @@ test("scaleByPowerOfTwo multiplies by a power of two exactly, in lowest terms", 
   for (const r of randomRationals(60)) {
     for (const k of [-70n, -3n, 1n, 64n]) {
       const scaled = scaleByPowerOfTwo(r, k);
-      const factor = unwrap(pow(rational(2n), k, LIMIT_BITS));
+      const factor = unwrap(pow(rational(2n), k, MAX_SIGNIFICAND_LIMIT_BITS));
       assert.deepEqual(scaled, multiply(r, factor));
     }
   }
@@ -311,7 +345,7 @@ test("the smaller reductions agree with reducing after, and every result is in l
       assert.deepEqual(reciprocal, rational(a.den, a.num));
       assert.ok(inLowestTerms(reciprocal));
       for (const n of [-3n, -1n, 2n, 3n]) {
-        const power = unwrap(pow(a, n, LIMIT_BITS));
+        const power = unwrap(pow(a, n, MAX_SIGNIFICAND_LIMIT_BITS));
         assert.deepEqual(
           power,
           n > 0n

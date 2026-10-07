@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "./context.ts";
@@ -60,7 +60,7 @@ import { err, ok } from "./result.ts";
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -69,7 +69,7 @@ function at(precision: number): NumberContext {
   return {
     precision,
     rounding: DEFAULT_ROUNDING,
-    maxBits: DEFAULT_MAX_BITS,
+    significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
     ceiling: DEFAULT_CEILING,
   };
 }
@@ -474,11 +474,11 @@ test("a number is a dimensionless quantity", () => {
   assertEvaluates("0", quantity("0"));
 });
 
-test("a literal of any exponent is a value, and one whose mantissa exceeds the range limit is too large at its span", () => {
+test("a literal of any exponent is a value, and one whose significand exceeds the significand limit is too large at its span", () => {
   assertEvaluates("1e999999999", quantity("1e999999999"));
   assertEvaluates("1.5e-999999999", quantity("1.5e-999999999"));
   assertEvaluates("1e999999999 m", quantity("1e999999999", { m: 1 }));
-  // The exponent costs nothing; the mantissa is what the range limit
+  // The exponent costs nothing; the significand is what the significand limit
   // bounds: twenty thousand digits are more bits than the default allows.
   const long = "1".repeat(20000);
   assert.deepEqual(failure(run(long)), {
@@ -1334,7 +1334,7 @@ test("the exponent bound is on the value, and a result straddling it is unresolv
       digits,
       "halfAwayFromZero",
     );
-  // The canonical exponent passes the bound by the mantissa's digits where
+  // The canonical exponent passes the bound by the significand's digits where
   // the value does not, and the other way (issue #50's family).
   assert.equal(
     shown("1e1000000000000000000 / 3 * 10", 8),
@@ -1355,7 +1355,7 @@ test("the exponent bound is on the value, and a result straddling it is unresolv
     }
   }
   assert.deepEqual(value(run8("12345678e-1000000000000000007")).magnitude.mid, {
-    mant: rational(12345678n),
+    significand: rational(12345678n),
     exp: -1000000000000000007n,
   });
   // The built-ins take the newly admitted values.
@@ -1442,7 +1442,7 @@ test("the exponent bound is on the value, and a result straddling it is unresolv
   );
 });
 
-test("an exact result past the range limit is refused at the node that forms it, and approx lifts the refusal (D19, D20)", () => {
+test("an exact result past the significand limit is refused at the node that forms it, and approx lifts the refusal (D19, D20)", () => {
   const app = lookupIn(UNITS, FUNCTIONS, Object.fromEntries(APP_BUILTINS));
   const run8 = (text: string, context: NumberContext = at(8)) =>
     evaluate(parsed(text), app, PRIMITIVES, context);
@@ -1460,7 +1460,7 @@ test("an exact result past the range limit is refused at the node that forms it,
     assert.ok(took <= ms, `${label} took ${took.toFixed(1)} ms, over ${ms}`);
   };
   // A product of two powers each within the limit passes it (issue #52's
-  // first family), measured on the canonical mantissa once formed.
+  // first family), measured on the canonical significand once formed.
   tooLarge("3^32767 * 7^21845", "3^32767".length);
   // A quotient's reduction is what is measured: within the limit, the
   // plan's 50 ms with a margin for a slow runner, where its unreduced
@@ -1544,7 +1544,7 @@ test("an exact result past the range limit is refused at the node that forms it,
   }
 });
 
-/** The coprime powers of issue #52, each within the default range limit. */
+/** The coprime powers of issue #52, each within the default significand limit. */
 const COPRIME_POWERS = [
   3, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79,
 ].map((p) => `${p}^${Math.floor(60000 / BigInt(p).toString(2).length)}`);
@@ -1746,7 +1746,7 @@ test("a built-in's result is settled like any other, and an unbounded one propag
   assert.deepEqual(wide.magnitude, { mid: fr(3n), rad: UNBOUNDED });
 });
 
-test("a ^ exponent is reduced by the evaluator within the range limit, and one past it is too large at the power (#66)", () => {
+test("a ^ exponent is reduced by the evaluator within the significand limit, and one past it is too large at the power (#66)", () => {
   // The parser hands the pair over unreduced; the reduction here is one
   // gcd of numbers within the limit, so a fraction of long literals that
   // reduces to a small one gets its value: 3c / 2c for a c of ten
@@ -1776,7 +1776,7 @@ test("a ^ exponent is reduced by the evaluator within the range limit, and one p
   // limit; and the fraction is formed within the limit, as pow forms an
   // exact exponent, so a tiny exponent is refused at the default as
   // pow(2, 1e-30000) is, until H.16 sends both to log space.
-  const small = { ...CONTEXT, maxBits: 64 };
+  const small = { ...CONTEXT, significandLimitBits: 64 };
   assert.deepEqual(value(run("2^(1e30/1e30)", small)), quantity("2"));
   assertEvaluates("2^(1e30000/1e30000)", quantity("2"));
   assertEvaluates("2^(1e20000/1e19999)", quantity("1024"));
@@ -1790,7 +1790,8 @@ test("a ^ exponent is reduced by the evaluator within the range limit, and one p
     span: { start: 0, end: 10 },
   });
   assert.deepEqual(
-    value(run("m^(1e30/7)", { ...CONTEXT, maxBits: 128 })).dimension,
+    value(run("m^(1e30/7)", { ...CONTEXT, significandLimitBits: 128 }))
+      .dimension,
     dim({ m: rational(10n ** 30n, 7n) }),
   );
   // 2^(1e30/7) is past the bound at any limit, and says so.
@@ -1808,7 +1809,7 @@ test("a ^ exponent is reduced by the evaluator within the range limit, and one p
     kind: "underflow",
     span: { start: 0, end: 24 },
   });
-  // A literal's mantissa past the limit is too large at the power before
+  // A literal's significand past the limit is too large at the power before
   // any gcd runs, as D19 asks of what can be bounded before forming: two
   // literals of 314,000 digits at the default limit, in milliseconds,
   // and at a small limit a literal of 23 digits.
@@ -1900,7 +1901,7 @@ test("a comparison on balls gives each verdict of docs/functions.md's table", ()
   assert.deepEqual(verdicts(ball, near), across);
 });
 
-test("two exact values compare exactly, past Most bits and the exponent bound, and are never refused", () => {
+test("two exact values compare exactly, past the significand limit and the exponent bound, and are never refused", () => {
   const digits = "7".repeat(400);
   const big = exact(dec(digits));
   const bigger = exact(dec(`${digits}1e-1`));

@@ -22,7 +22,7 @@
 // (`log(4, 8)` is `≈ 1.5`).
 // Every other value is the kernel's `ln`, or the quotient of two, handed
 // back as the kernel's ball for the evaluator to settle (D15). The
-// argument's mantissa is scaled to order one by a power of two before it
+// argument's significand is scaled to order one by a power of two before it
 // is converted, and the power goes to the kernel with the decimal
 // exponent (`lnScaled` of ball.ts, which the log-space power shares), so
 // that `ln(1e-300)` and `ln(1e999999999)` lose nothing to the conversion
@@ -208,9 +208,9 @@ function lnKernel(
  * a value of one, else a positive power of the base, or of its reciprocal
  * as a positive power of the value's reciprocal. Read off the canonical
  * forms without forming a power: for `n >= 1`, `base^n` in canonical form
- * is `mant^n × 10^(n exp)`, a numerator not divisible by ten and a
+ * is `significand^n × 10^(n exp)`, a numerator not divisible by ten and a
  * denominator coprime to ten staying so under a power, so `n` is the
- * power the mantissas are in, checked on the exponents, or the quotient
+ * power the significands are in, checked on the exponents, or the quotient
  * of the exponents for a base that is a power of ten
  * (`log10(1e999999999)`); a negative `n` inverts the value first, since
  * the canonical form of `1/8` is `125 × 10^-3`.
@@ -227,15 +227,15 @@ export function integerPower(base: Scaled, value: Scaled): bigint | undefined {
 
 /** The `n` of at least one with `value = base^n`, or `undefined`, as `integerPower` reads it off. */
 function positivePower(base: Scaled, value: Scaled): bigint | undefined {
-  if (equalsFraction(base.mant, ONE_FRACTION)) {
-    if (base.exp === 0n || !equalsFraction(value.mant, ONE_FRACTION)) {
+  if (equalsFraction(base.significand, ONE_FRACTION)) {
+    if (base.exp === 0n || !equalsFraction(value.significand, ONE_FRACTION)) {
       return undefined;
     }
     if (value.exp % base.exp !== 0n) return undefined;
     const n = value.exp / base.exp;
     return n >= 1n ? n : undefined;
   }
-  const n = positivePowerOfFraction(base.mant, value.mant);
+  const n = positivePowerOfFraction(base.significand, value.significand);
   if (n === undefined || value.exp !== n * base.exp) return undefined;
   return n;
 }

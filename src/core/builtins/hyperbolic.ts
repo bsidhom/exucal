@@ -64,7 +64,7 @@
 // the root would not stay positive under the error rules.
 //
 // The two ends of the exponent (4.4) are answered before the kernel is
-// entered. An argument below `2^-maxBits` throughout is its own `sinh`,
+// entered. An argument below `2^-significandLimitBits` throughout is its own `sinh`,
 // `tanh`, `asinh` and `atanh` within its cube, and its `cosh` is one
 // within its square (`tinyOdd` and `tinyEven` of builtin.ts). An argument
 // at or beyond `2^bits` throughout has `asinh(x)` and `acosh(x)` equal to
@@ -312,7 +312,7 @@ export function atanhBall(
   const quotient = divideBalls(numerator.value, denominator.value);
   if (!quotient.ok) {
     // The divisor was checked to be above zero, so only a refusal of the
-    // quotient is left, at the exponent bound; the range limit is the
+    // quotient is left, at the exponent bound; the significand limit is the
     // evaluator's check on the call's result (D19), not the quotient's.
     if (!isRefusal(quotient.error)) {
       throw new Error("A divisor above zero was checked");

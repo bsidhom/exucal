@@ -8,7 +8,7 @@ import { RADIAN, type BuiltinError } from "../builtin.ts";
 import { BUILTINS } from "../builtins.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "../context.ts";
@@ -23,7 +23,7 @@ import {
   radiusAboveScaled,
   radiusUpper,
 } from "../radius.ts";
-import { LIMIT_BITS, rational } from "../rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS, rational } from "../rational.ts";
 import type { Result } from "../result.ts";
 import {
   ONE,
@@ -54,11 +54,11 @@ import {
 const CONTEXT: NumberContext = {
   precision: 40,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
-/** The default context: eight digits, the default range limit. */
+/** The default context: eight digits, the default significand limit. */
 const DEFAULT: NumberContext = { ...CONTEXT, precision: 8 };
 
 /** A metre, a second and the radian kind, as units.txt declares them. */
@@ -80,14 +80,14 @@ function failure(result: Result<Ball, BuiltinError>): BuiltinError {
 
 /** `|a - b|` on `Scaled`s of moderate exponent. */
 function distance(a: Scaled, b: Scaled): Scaled {
-  const d = subtract(a, b, LIMIT_BITS);
+  const d = subtract(a, b, MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(d.ok, `${inspect(a)} - ${inspect(b)} aligns`);
   return absolute(d.value);
 }
 
 /** `a + b` on `Scaled`s of moderate exponent. */
 function plus(a: Scaled, b: Scaled): Scaled {
-  const sum = add(a, b, LIMIT_BITS);
+  const sum = add(a, b, MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(sum.ok, `${inspect(a)} + ${inspect(b)} aligns`);
   return sum.value;
 }
@@ -339,15 +339,15 @@ test("the values are the kernel's, within the radius: fractions of pi and the re
 });
 
 test("asin and acos of an argument whose square lies below the working bits are their expansion at zero", () => {
-  // At the default range limit 1 - x^2 stops aligning below about 1e-9840,
-  // and isTiny's 2^-maxBits is about 1e-19728, so these were refused (#47).
+  // At the default significand limit 1 - x^2 stops aligning below about 1e-9840,
+  // and isTiny's 2^-significandLimitBits is about 1e-19728, so these were refused (#47).
   for (const text of ["1e-9860", "8e-9865", "-1e-15000", "1e-20000"]) {
     const x = dec(text);
     const s = value(asinBall(exact(x), CONTEXT));
     assert.ok(equals(s.mid, x), `asin(${text})`);
     assert.ok(certifies(s, 40, "halfEven"), `asin(${text})`);
     const c = value(acosBall(exact(x), CONTEXT));
-    const reference = subtract(PI_OVER_2, x, LIMIT_BITS);
+    const reference = subtract(PI_OVER_2, x, MAX_SIGNIFICAND_LIMIT_BITS);
     assert.ok(reference.ok);
     assertNear(c, reference.value, 45, `acos(${text})`);
   }
@@ -378,7 +378,7 @@ test("asin and acos of an argument whose square lies below the working bits are 
   );
 });
 
-test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^-maxBits is the argument within its cube", () => {
+test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^-significandLimitBits is the argument within its cube", () => {
   /** pi/2 to forty digits, from Python's decimal module. */
   const halfPi = dec("1.5707963267948966192313216916397514420986");
   const far = value(atanBall(exact(dec("1e999999999")), DEFAULT));
@@ -394,7 +394,7 @@ test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^
   const wide = value(atanBall(ballOf(dec("1e100"), dec("1e90")), DEFAULT));
   assert.ok(compare(distance(wide.mid, halfPi), dec("1e-17")) < 0);
   assert.ok(certifies(wide, 8, "halfEven"));
-  // Below the range limit's reciprocal, the argument itself within its cube.
+  // Below the significand limit's reciprocal, the argument itself within its cube.
   const tiny = dec("1e-999999999");
   const small = value(atanBall(exact(tiny), DEFAULT));
   assert.ok(!isExact(small));
@@ -407,9 +407,9 @@ test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^
   const asinSmall = value(asinBall(exact(tiny), DEFAULT));
   assert.ok(equals(asinSmall.mid, tiny));
   assert.ok(certifies(asinSmall, 8, "halfEven"));
-  // A ball reaching 2^maxBits without lying beyond 2^bits throughout is
+  // A ball reaching 2^significandLimitBits without lying beyond 2^bits throughout is
   // the whole range, zero within two, where the kernel's door refused it
-  // at the range limit (#64).
+  // at the significand limit (#64).
   const wholeRange = { mid: ZERO, rad: radiusAbove(rational(2n)) };
   assert.deepEqual(
     value(atanBall(ballOf(ZERO, dec("1e19729")), DEFAULT)),
@@ -455,7 +455,7 @@ test("through the pipeline, atan and atan2 are never refused for a radius (#64)"
   });
   assert.ok(table.ok, inspect(table));
   const at = (text: string) => evaluateText(table.value, text, context);
-  // The argument's radius reaches past 2^maxBits at every pass up to the
+  // The argument's radius reaches past 2^significandLimitBits at every pass up to the
   // ceiling, so the loop ends as a zero with a bound, the whole range.
   const wide = at("atan(approx(1e30000) - approx(1e30000))");
   assert.ok(wide.ok, inspect(wide));
@@ -565,7 +565,7 @@ test("asin and acos outside [-1, 1] are domain errors, and a ball reaching an en
   }
   // A huge argument is the domain error, read off the argument's position
   // against the ends before its square is formed, where the square passed
-  // the range limit or the exponent bound first (#47).
+  // the significand limit or the exponent bound first (#47).
   for (const x of [
     exact(dec("1e30000")),
     exact(dec("-1e30000")),

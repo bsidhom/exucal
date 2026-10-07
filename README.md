@@ -106,7 +106,7 @@ in bits, the probe budget in milliseconds (`docs/settings-limits.md`).
   `docs/working-digits.md` is the design.
 - **Precision limit**, in digits (`precisionLimitDigits` in the stored
   settings): the most digits any grid may be asked for ("How a number
-  is held" below says what the grid is), 1,000 by default: the cap on
+  is held" below says what the grid is), 1,000 by default: the precision limit on
   the display digits and on the working digits, and through the finest
   grid the app rounds onto, four times this plus ten digits (4,040 by
   default), a limit on effort. To certify an answer, exact mode rounds
@@ -247,7 +247,7 @@ be asked for. In decimal mode every step is rounded onto the grid of
 the display digits (or the working digits), exact values included, and
 is exact after it; a function's value is computed on finer grids, up to
 the same ceiling, until its rounding onto that grid is certified, so the
-precision limit caps the display digits and the working digits and
+precision limit bounds the display digits and the working digits and
 bounds that certification. In both modes, the significand limit is the
 one limit on exact values, and it also bounds the precision limit, since
 a grid point at the ceiling must fit within it with room for a product
@@ -273,7 +273,7 @@ the least factor that gives the largest request more than one such
 chance without doubling what the table and the constants cost for
 every setting; the guard of ten and the factor are judgments, not
 measurements, and they moved once, from a fixed ceiling of a thousand
-digits with the digits capped at two hundred, when the cap became a setting.
+digits with the digits limited to two hundred, when the precision limit became a setting.
 
 ## Unit definitions
 
@@ -650,8 +650,8 @@ which go anywhere a unit goes and are called the same way. They are:
 - `gcd(a, b)` and `lcm(a, b)` of whole numbers, never negative; and
   `factorial(n)`, `binomial(n, k)` and `doublefactorial(n)` of whole
   numbers known exactly (`factorial(approx(5))` is refused, since a
-  value known to a precision is not known to be `5`), refused past Most
-  bits before anything is computed: `factorial(5000)` is a value of
+  value known to a precision is not known to be `5`), refused past the significand
+  limit before anything is computed: `factorial(5000)` is a value of
   16,326 digits and `factorial(20000)`, with 77,338, is not
   (`gamma(20001)` gives it to the digits asked).
 - `digamma(x)`, the logarithmic derivative of the Gamma function, of a
@@ -752,7 +752,7 @@ how many of its digits must be certain, and the significand limit how
 large its numerator and denominator may grow.
 The exponent has a fixed bound of its own, `10^18` either way, which is
 not a setting. `1e999` is `1 × 10^999`, well within both. `exp(1e999)` has
-a mantissa that 32 digits hold with ease and an exponent that is itself a
+a significand that 32 digits hold with ease and an exponent that is itself a
 number of 999 digits:
 
 ```
@@ -830,7 +830,7 @@ pass  digits  ┊       ┊       ┊       ┊       ┊       ┊       ┊   
 
 What the relative precision of `approx(1e999)` bounds is the precision
 of the result's logarithm, not of the result: at the first pass the
-exponent would be known to 51 of its 999 digits, and the mantissa not at
+exponent would be known to 51 of its 999 digits, and the significand not at
 all. The app never gets that far. At every pass `exp` measures its
 argument over the whole ball and finds that the result's exponent passes
 the bound for every value in it, so it refuses, and the refusal is the

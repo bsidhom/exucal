@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  DEFAULT_MAX_BITS,
-  MIN_MAX_BITS,
-  maxDigitsFor,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
+  MIN_SIGNIFICAND_LIMIT_BITS,
+  precisionLimitFor,
 } from "./core/context.ts";
-import { LIMIT_BITS } from "./core/rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS } from "./core/rational.ts";
 import {
   BUDGET_LINE,
   MODE_LINES,
@@ -88,7 +88,7 @@ test("the precision limit's line says its top under the significand limit and th
     significandLimitBits: 1024,
     precisionLimitDigits: 20,
   });
-  assert.match(small, new RegExp(`up to ${maxDigitsFor(1024)} under`));
+  assert.match(small, new RegExp(`up to ${precisionLimitFor(1024)} under`));
   assert.match(small, /grid of up to 120 digits/);
   assert.doesNotMatch(exact, /4 ×|\+ 10/);
 });
@@ -98,11 +98,11 @@ test("the significand limit's line translates the limit to the digits of one par
     significandLimitLine(DEFAULT_SETTINGS),
     "The most bits in a number's significand, its numerator and, separately, its denominator: 65,536 bits is a numerator or a denominator of up to about 19,700 digits. An exact result past it is refused and named; the finest grid must fit inside it.",
   );
-  assert.equal(digitsOfBits(DEFAULT_MAX_BITS), 19700);
-  assert.equal(digitsOfBits(LIMIT_BITS), 316000);
+  assert.equal(digitsOfBits(DEFAULT_SIGNIFICAND_LIMIT_BITS), 19700);
+  assert.equal(digitsOfBits(MAX_SIGNIFICAND_LIMIT_BITS), 316000);
   assert.equal(digitsOfBits(4096), 1230);
   assert.equal(digitsOfBits(1024), 308);
-  assert.equal(digitsOfBits(MIN_MAX_BITS), 107);
+  assert.equal(digitsOfBits(MIN_SIGNIFICAND_LIMIT_BITS), 107);
   assert.match(
     significandLimitLine({ ...DEFAULT_SETTINGS, significandLimitBits: 1024 }),
     /1,024 bits is a numerator or a denominator of up to about 308 digits/,
@@ -130,7 +130,7 @@ test("a refusal names the bound and the setting that sets it", () => {
   assert.equal(line(5, "budgetMs"), "At least 10 ms.");
   assert.equal(line(10001, "budgetMs"), "At most 10,000 ms.");
   assert.equal(
-    line(LIMIT_BITS + 1, "significandLimitBits"),
+    line(MAX_SIGNIFICAND_LIMIT_BITS + 1, "significandLimitBits"),
     "At most 1,048,576 bits.",
   );
   assert.equal(line(2.5, "displayDigits"), "A whole number.");
@@ -178,7 +178,7 @@ test("the proposal says the sizes timed, what they took against the budget, and 
   assert.equal(
     proposalLine(
       {
-        significandLimitBits: MIN_MAX_BITS,
+        significandLimitBits: MIN_SIGNIFICAND_LIMIT_BITS,
         productMs: 80,
         precisionLimitDigits: 1,
         builtinsMs: 0.04,

@@ -16,7 +16,7 @@
 // has `erf` at `±1` within `erfc(|x|)`, which is below `e^-x^2 < 10^-(10^18)`
 // there, so `erf(1e400)` is one within the bound's edge and `erfc(1e400)`
 // is `underflow`, `erfc(-1e400)` two within the edge. A tiny argument,
-// whose square passes below the bound or below `2^-maxBits`, has `erf(x)`
+// whose square passes below the bound or below `2^-significandLimitBits`, has `erf(x)`
 // as `2x / √π` within `|x|^3`, the next term of its series being
 // `-2x^3 / (3 √π)`, and `erfc` as one less that.
 //
@@ -190,8 +190,8 @@ function atEnds(
 ): Result<Ball, BuiltinError> {
   const r = radiusValue(x.rad);
   if (r === undefined) throw new Error("A bounded radius has a value");
-  const lo = subtract(x.mid, r, context.maxBits);
-  const hi = add(x.mid, r, context.maxBits);
+  const lo = subtract(x.mid, r, context.significandLimitBits);
+  const hi = add(x.mid, r, context.significandLimitBits);
   if (!lo.ok || !hi.ok) return TOO_LARGE;
   return hullOfEnds(f(exact(lo.value)), f(exact(hi.value)), 0);
 }

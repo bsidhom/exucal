@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
-  DEFAULT_MAX_DIGITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
+  DEFAULT_PRECISION_LIMIT_DIGITS,
   ceilingFor,
   DEFAULT_ROUNDING,
   type NumberContext,
@@ -38,12 +38,12 @@ import { describeTextError } from "../messages.ts";
 const CONTEXT: NumberContext = {
   precision: DEFAULT_PRECISION,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
-/** The ceiling of the retry schedule the tests run under: the default cap's. */
-const CEILING = ceilingFor(DEFAULT_MAX_DIGITS);
+/** The ceiling of the retry schedule the tests run under: the default precision limit's. */
+const CEILING = ceilingFor(DEFAULT_PRECISION_LIMIT_DIGITS);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -221,13 +221,13 @@ test("the schedule doubles from the digits asked for plus the guard, and ends at
   assert.deepEqual(precisions(1, 44), [11, 22, 44]);
   assert.deepEqual(precisions(1, 45), [11, 22, 44, 45]);
   assert.equal(CEILING, 4040);
-  // The mode, the range limit and the ceiling are the user's throughout.
+  // The mode, the significand limit and the ceiling are the user's throughout.
   for (const working of schedule({ ...CONTEXT, rounding: "floor" })) {
     assert.equal(working.rounding, "floor");
-    assert.equal(working.maxBits, CONTEXT.maxBits);
+    assert.equal(working.significandLimitBits, CONTEXT.significandLimitBits);
     assert.equal(working.ceiling, CEILING);
   }
-  // A precision above the cap the ceiling was derived from is a bug.
+  // A precision above the precision limit the ceiling was derived from is a bug.
   assert.throws(() => schedule({ ...CONTEXT, precision: 1001 }), RangeError);
   assert.throws(() => schedule({ ...CONTEXT, precision: 0 }), RangeError);
   assert.throws(
@@ -553,8 +553,8 @@ test("resolve keeps the best result so far and returns it when a later pass is u
   assert.deepEqual(never, { ok: false, error: { kind: "unresolved" } });
 });
 
-test("the range limit of the context reaches a literal's mantissa and a power", () => {
-  const small = { ...CONTEXT, maxBits: 64 };
+test("the significand limit of the context reaches a literal's significand and a power", () => {
+  const small = { ...CONTEXT, significandLimitBits: 64 };
   // Twenty-one digits are about seventy bits; the exponent costs nothing.
   const literal = evaluateText(table, "123456789012345678901 m", small);
   assert.ok(!literal.ok);
@@ -872,7 +872,7 @@ test("a result straddling the exponent bound is retried, and reported at the bou
   assert.deepEqual(failure("approx(1e1000000000000000000) m", "0.1 m;0.01 m"), {
     kind: "unresolvedBound",
   });
-  // A literal at the bottom edge with a fraction mantissa is a value, and
+  // A literal at the bottom edge with a fraction significand is a value, and
   // its list too (H.12's row that waited for H.13).
   assert.equal(
     list("1.234567891e-999999999999999999 m", "m;mm").terms.length,
@@ -913,11 +913,11 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
     { kind: "overflow" },
   );
   // A count at an ordinary size can leave a remainder that cannot align
-  // within the range limit (#58): the conversion's tooLarge.
+  // within the significand limit (#58): the conversion's tooLarge.
   assert.deepEqual(failure("3^32767 m", "ft/7^21845; in/7^21845"), {
     kind: "tooLarge",
   });
-  // The conversion's ratio is held to the range limit once formed (D19),
+  // The conversion's ratio is held to the significand limit once formed (D19),
   // as a node's result is: two sides each within the limit whose ratio
   // passes it (#52's conversion, a value after 3.7 s before), refused as
   // the pipeline's own `tooLarge`, which the message words with the
@@ -1280,7 +1280,7 @@ test("a zero's bound far below the exponent bound is written in a bounded length
     bound: "1e-1000000000000000000",
   });
   // The issue's third row, `^1e100000`, is refused since the hardening
-  // phase (H.15): the exponent is past the range limit as a fraction.
+  // phase (H.15): the exponent is past the significand limit as a fraction.
   const refused = evaluateText(
     table,
     "(approx(1e20) - approx(1e20))^1e100000",

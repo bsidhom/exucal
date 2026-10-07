@@ -43,7 +43,7 @@ import {
 } from "./settings.ts";
 
 /**
- * The settings panel under the converter: the display digits a result is
+ * The settings panel under the converter: The display digits a result is
  * shown with and, grouped with them in decimal mode, the working digits
  * every step but the last is computed with; the precision limit in
  * digits; the significand limit in bits; the rounding mode; the mode
@@ -59,7 +59,7 @@ import {
  * of storage.
  *
  * Each number input accepts an integer in the range the settings above it
- * allow (`rangesOf`: the display digits up to the precision limit, the
+ * allow (`rangesOf`: The display digits up to the precision limit, the
  * precision limit up to what the significand limit holds, the significand
  * limit between its floor and the hard bound, the working digits from
  * the display digits up to the precision limit, the width and the budget
@@ -543,8 +543,8 @@ export class SettingsPanel extends LitElement {
 
   /**
    * Checking or unchecking "extended": the decimal variant with the
-   * working digits extended, at the last extended count or at Digits, or
-   * locked to Digits.
+   * working digits extended, at the last extended count or at the display digits, or
+   * locked to the display digits.
    */
   private onWorkingToggle(event: Event) {
     const { checked } = event.target as HTMLInputElement;

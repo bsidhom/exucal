@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { exact, isExact, type Ball } from "../ball.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   type NumberContext,
 } from "../context.ts";
@@ -21,7 +21,7 @@ import { abs, signFn } from "./abs.ts";
 const CONTEXT: NumberContext = {
   precision: 8,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 

@@ -44,7 +44,7 @@ import { isHuge, type BuiltinError } from "./builtin.ts";
 import { BUILTINS } from "./builtins.ts";
 import {
   DEFAULT_CEILING,
-  DEFAULT_MAX_BITS,
+  DEFAULT_SIGNIFICAND_LIMIT_BITS,
   DEFAULT_ROUNDING,
   modeOf,
   type Mode,
@@ -57,7 +57,7 @@ import {
   shiftRadius,
 } from "./radius.ts";
 import {
-  LIMIT_BITS,
+  MAX_SIGNIFICAND_LIMIT_BITS,
   ONE as ONE_FRACTION,
   bitLength,
   multiply as multiplyFractions,
@@ -176,7 +176,7 @@ const DEADLINE_MS = 90_000;
 const EXACT: NumberContext = {
   precision: 18,
   rounding: DEFAULT_ROUNDING,
-  maxBits: DEFAULT_MAX_BITS,
+  significandLimitBits: DEFAULT_SIGNIFICAND_LIMIT_BITS,
   ceiling: DEFAULT_CEILING,
 };
 
@@ -223,7 +223,7 @@ function fraction(num: bigint, den: bigint, exp: bigint): Scaled {
 function edgeArguments(): readonly Argument[] {
   const symmetric = ["0", "1", "-1", "0.5", "-0.5", "2", "-2"];
   const oneSided = [
-    // Tiny, and the top of the range limit.
+    // Tiny, and the top of the significand limit.
     "1e-400",
     "1e-20000",
     "1e20000",
@@ -237,7 +237,7 @@ function edgeArguments(): readonly Argument[] {
     `5e${E18}`,
     `9.99e${E18}`,
     `${NINES[0]}.${NINES.slice(1)}e${E18}`,
-    // A mantissa of 25 digits near one.
+    // A significand of 25 digits near one.
     "1.000000000000000000000001",
   ];
   const fractions: readonly (readonly [string, Scaled])[] = [
@@ -400,14 +400,16 @@ function belowMinusOne(i: Interval): boolean {
 /** The integer `s` is, where it is one of the sweep's moderate size; `undefined` otherwise. */
 function integerValue(s: Scaled): bigint | undefined {
   if (!isInteger(s)) return undefined;
-  const formed = toRational(s, LIMIT_BITS);
+  const formed = toRational(s, MAX_SIGNIFICAND_LIMIT_BITS);
   return formed.ok ? formed.value.num : undefined;
 }
 
-/** Whether `x` is an exact integer whose power of ten cannot be formed within the context's range limit. */
+/** Whether `x` is an exact integer whose power of ten cannot be formed within the context's significand limit. */
 function unformable(x: Ball, context: NumberContext): boolean {
   return (
-    isExact(x) && isInteger(x.mid) && !toRational(x.mid, context.maxBits).ok
+    isExact(x) &&
+    isInteger(x.mid) &&
+    !toRational(x.mid, context.significandLimitBits).ok
   );
 }
 
@@ -437,7 +439,7 @@ function divReference(a: Scaled, b: Scaled): Scaled | undefined {
   if (isZero(b)) return undefined;
   const q = divide(a, b);
   if (!q.ok) return undefined;
-  return valueOr(floorScaled(q.value, LIMIT_BITS));
+  return valueOr(floorScaled(q.value, MAX_SIGNIFICAND_LIMIT_BITS));
 }
 
 /** The exact `mod` of two midpoints, where `div` can be formed. */
@@ -446,13 +448,13 @@ function modReference(a: Scaled, b: Scaled): Scaled | undefined {
   if (n === undefined) return undefined;
   const product = multiply(b, n);
   if (!product.ok) return undefined;
-  return valueOr(subtract(a, product.value, LIMIT_BITS));
+  return valueOr(subtract(a, product.value, MAX_SIGNIFICAND_LIMIT_BITS));
 }
 
 /**
  * The rules of the four incomplete gamma functions: the order positive
  * and the argument at or above zero, the refusals the bits the logarithm
- * would need past the range limit, the magnitude from the bounds of the
+ * would need past the significand limit, the magnitude from the bounds of the
  * testing module, the exact value at `x = 0`, and the regularized forms
  * within `[0, 1]`.
  */
@@ -495,7 +497,7 @@ function incompleteGammaRules(): [string, Partial<Operation>][] {
 /**
  * The rules of the incomplete beta function and its regularized form:
  * positive parameters and an argument within `[0, 1]`, the refusals the
- * bits the logarithm would need past the range limit or neither
+ * bits the logarithm would need past the significand limit or neither
  * orientation of the series within its limit, the magnitude from the
  * bounds of the testing module, the exact value at the ends of the
  * argument, the closed forms at a parameter of one as the reference, and
@@ -544,18 +546,18 @@ function incompleteBetaRules(): [string, Partial<Operation>][] {
           return undefined;
         }
         if (m > 300n || n > 300n || (m !== 1n && n !== 1n)) return undefined;
-        const r = toRational(x!, LIMIT_BITS);
+        const r = toRational(x!, MAX_SIGNIFICAND_LIMIT_BITS);
         if (!r.ok || sign(x!) < 0 || compare(x!, ONE) > 0) {
           return undefined;
         }
         const value =
           n === 1n
-            ? powFraction(r.value, m, LIMIT_BITS)
+            ? powFraction(r.value, m, MAX_SIGNIFICAND_LIMIT_BITS)
             : (() => {
                 const complement = powFraction(
                   subtractFractions(ONE_FRACTION, r.value),
                   n,
-                  LIMIT_BITS,
+                  MAX_SIGNIFICAND_LIMIT_BITS,
                 );
                 return complement.ok
                   ? {
@@ -584,8 +586,8 @@ function endsOf(x: Ball): Ball[] {
   if (isExact(x)) return [x];
   const r = radiusValue(x.rad);
   if (r === undefined) return [x];
-  const lo = subtract(x.mid, r, LIMIT_BITS);
-  const hi = add(x.mid, r, LIMIT_BITS);
+  const lo = subtract(x.mid, r, MAX_SIGNIFICAND_LIMIT_BITS);
+  const hi = add(x.mid, r, MAX_SIGNIFICAND_LIMIT_BITS);
   if (!lo.ok || !hi.ok) return [x];
   const bound = compareRadius(
     x.rad,
@@ -606,20 +608,20 @@ function sumBall(a: Ball, b: Ball): Ball | undefined {
   return compare(absolute(a.mid), absolute(b.mid)) >= 0 ? a : b;
 }
 
-/** Whether the floor of `x`'s midpoint, or its fractional part, cannot be formed within the context's range limit, as `digamma`'s reflection forms them. */
+/** Whether the floor of `x`'s midpoint, or its fractional part, cannot be formed within the context's significand limit, as `digamma`'s reflection forms them. */
 function reflectionPastLimit(x: Ball, context: NumberContext): boolean {
-  const floored = floorScaled(x.mid, context.maxBits);
+  const floored = floorScaled(x.mid, context.significandLimitBits);
   if (!floored.ok) return floored.error.kind === "tooLarge";
-  const fraction = subtract(x.mid, floored.value, context.maxBits);
+  const fraction = subtract(x.mid, floored.value, context.significandLimitBits);
   return !fraction.ok && fraction.error.kind === "tooLarge";
 }
 
-/** Whether the quotient of the midpoints has a floor that cannot be formed within the context's range limit. */
+/** Whether the quotient of the midpoints has a floor that cannot be formed within the context's significand limit. */
 function quotientPastLimit(a: Ball, b: Ball, context: NumberContext): boolean {
   if (isZero(b.mid)) return false;
   const q = divide(a.mid, b.mid);
   if (!q.ok) return false;
-  const floored = floorScaled(q.value, context.maxBits);
+  const floored = floorScaled(q.value, context.significandLimitBits);
   return !floored.ok && floored.error.kind === "tooLarge";
 }
 
@@ -634,7 +636,7 @@ function quotientPastTop(a: Ball, b: Ball): boolean {
 
 /**
  * Whether the exact remainder of the midpoints cannot be aligned within
- * the context's range limit, as `mod` forms it: the quotient less its
+ * the context's significand limit, as `mod` forms it: the quotient less its
  * floor, or, for a quotient below the bound and a dividend of the other
  * sign, the sum `a + b`.
  */
@@ -645,12 +647,12 @@ function remainderPastLimit(a: Ball, b: Ball, context: NumberContext): boolean {
     if (q.error.kind !== "underflow" || sign(a.mid) * sign(b.mid) >= 0) {
       return false;
     }
-    const sum = add(a.mid, b.mid, context.maxBits);
+    const sum = add(a.mid, b.mid, context.significandLimitBits);
     return !sum.ok && sum.error.kind === "tooLarge";
   }
-  const n = floorScaled(q.value, LIMIT_BITS);
+  const n = floorScaled(q.value, MAX_SIGNIFICAND_LIMIT_BITS);
   if (!n.ok) return false;
-  const fraction = subtract(q.value, n.value, context.maxBits);
+  const fraction = subtract(q.value, n.value, context.significandLimitBits);
   return !fraction.ok && fraction.error.kind === "tooLarge";
 }
 
@@ -664,8 +666,8 @@ function modMagnitude(a: Interval, b: Interval): Magnitude {
   // A quotient reaching zero has a remainder reaching `a`, within the
   // bound as every argument is.
   if (q === undefined || containsZeroInterval(q)) return NO_MAGNITUDE;
-  const lo = floorScaled(q.lo, LIMIT_BITS);
-  const hi = floorScaled(q.hi, LIMIT_BITS);
+  const lo = floorScaled(q.lo, MAX_SIGNIFICAND_LIMIT_BITS);
+  const hi = floorScaled(q.hi, MAX_SIGNIFICAND_LIMIT_BITS);
   if (!lo.ok || !hi.ok || !equals(lo.value, hi.value)) return NO_MAGNITUDE;
   const fraction = addIntervals(q, negateInterval(pointInterval(lo.value)));
   const remainder = multiplyIntervals(fraction, b);
@@ -718,22 +720,25 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
   [
     "floor",
     {
-      reference: ([x]) => valueOr(floorScaled(x!, LIMIT_BITS)),
-      tooLarge: ([x], context) => !truncScaled(x!.mid, context.maxBits).ok,
+      reference: ([x]) => valueOr(floorScaled(x!, MAX_SIGNIFICAND_LIMIT_BITS)),
+      tooLarge: ([x], context) =>
+        !truncScaled(x!.mid, context.significandLimitBits).ok,
     },
   ],
   [
     "ceil",
     {
-      reference: ([x]) => valueOr(ceilScaled(x!, LIMIT_BITS)),
-      tooLarge: ([x], context) => !truncScaled(x!.mid, context.maxBits).ok,
+      reference: ([x]) => valueOr(ceilScaled(x!, MAX_SIGNIFICAND_LIMIT_BITS)),
+      tooLarge: ([x], context) =>
+        !truncScaled(x!.mid, context.significandLimitBits).ok,
     },
   ],
   [
     "trunc",
     {
-      reference: ([x]) => valueOr(truncScaled(x!, LIMIT_BITS)),
-      tooLarge: ([x], context) => !truncScaled(x!.mid, context.maxBits).ok,
+      reference: ([x]) => valueOr(truncScaled(x!, MAX_SIGNIFICAND_LIMIT_BITS)),
+      tooLarge: ([x], context) =>
+        !truncScaled(x!.mid, context.significandLimitBits).ok,
     },
   ],
   [
@@ -745,7 +750,14 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
         const count = places === undefined ? 0n : integerValue(places);
         return count === undefined
           ? undefined
-          : valueOr(roundScaled(x!, count, DEFAULT_ROUNDING, LIMIT_BITS));
+          : valueOr(
+              roundScaled(
+                x!,
+                count,
+                DEFAULT_ROUNDING,
+                MAX_SIGNIFICAND_LIMIT_BITS,
+              ),
+            );
       },
       tooLarge: ([x, places], context) => {
         if (places !== undefined && unformable(places, context)) return true;
@@ -755,7 +767,7 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
           x!.mid,
           count,
           DEFAULT_ROUNDING,
-          context.maxBits,
+          context.significandLimitBits,
         );
         return !rounded.ok && rounded.error.kind === "tooLarge";
       },
@@ -808,7 +820,7 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
           ? undefined
           : integer(valueOrOne(factorialOf(value, EXACT)));
       },
-      // Past about 5,900 every factorial passes the default range limit.
+      // Past about 5,900 every factorial passes the default significand limit.
       tooLarge: ([n], context) =>
         unformable(n!, context) || (integerValue(n!.mid) ?? 0n) > 5_900n,
     },
@@ -835,7 +847,7 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
     {
       // The poles are the non-positive integers; the reflection of a
       // negative argument forms its floor and fractional part, which a
-      // magnitude past the range limit's digits cannot.
+      // magnitude past the significand limit's digits cannot.
       domain: ([x]) =>
         isExactInterval(x!) && isInteger(x!.lo) && sign(x!.lo) <= 0,
       tooLarge: ([x], context) =>
@@ -875,15 +887,16 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
     "beta",
     {
       // A pole of Γ at either argument; the refusals are the bits an
-      // argument's magnitude would need past the range limit and the
+      // argument's magnitude would need past the significand limit and the
       // reflection's floor of a negative argument or sum.
       domain: ([a, b]) => isExactPole(a!) || isExactPole(b!),
       tooLarge: ([a, b], context) =>
         [a!, b!, sumBall(a!, b!)].some(
           (x) =>
             x !== undefined &&
-            (bitsFor(context.precision) + magnitudeBits(x, context.maxBits) >
-              context.maxBits ||
+            (bitsFor(context.precision) +
+              magnitudeBits(x, context.significandLimitBits) >
+              context.significandLimitBits ||
               (sign(x.mid) <= 0 && reflectionPastLimit(x, context))),
         ),
       magnitude: ([a, b]) => betaMagnitude(a!, b!),
@@ -897,7 +910,7 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
         }
         if (m + n > 300n) return undefined;
         const c = valueOrOne(binomialOf(m + n - 2n, m - 1n, EXACT));
-        return { mant: rational(1n, (m + n - 1n) * c), exp: 0n };
+        return { significand: rational(1n, (m + n - 1n) * c), exp: 0n };
       },
     },
   ],
@@ -978,7 +991,7 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
       // `^` is.
       tooLarge: ([x, y], context) =>
         isExact(y!) &&
-        (!formable(y!.mid, context.maxBits) ||
+        (!formable(y!.mid, context.significandLimitBits) ||
           (isExact(x!) &&
             isInteger(y!.mid) &&
             predictedPastLimit(x!.mid, y!.mid, context))),
@@ -1156,8 +1169,8 @@ function powerOf(mid: Scaled, n: bigint): Loose | undefined {
   let result: Loose = ONE;
   for (let i = 0n; i < magnitude; i++) result = multiplyLoose(result, mid);
   if (n >= 0n) return result;
-  const inverse = rational(result.mant.den, result.mant.num);
-  return { mant: inverse, exp: -result.exp };
+  const inverse = rational(result.significand.den, result.significand.num);
+  return { significand: inverse, exp: -result.exp };
 }
 
 /** The exact powers of the ball operations' sweep: `1`, `2`, `3`, `-1` and `10^30`. */
@@ -1176,7 +1189,7 @@ function ballOperations(): (Operation & { arity: number })[] {
     // In decimal mode the operands are settled first, so an operand whose
     // rounding passes the top refuses the sum (D17).
     settles: true,
-    // Two exact operands whose alignment exceeds the range limit are
+    // Two exact operands whose alignment exceeds the significand limit are
     // `tooLarge` in exact mode, as documented.
     tooLarge: ([a, b], context) =>
       isExact(a!) &&
@@ -1184,7 +1197,7 @@ function ballOperations(): (Operation & { arity: number })[] {
       modeOf(context) === "exact" &&
       !isZero(a!.mid) &&
       !isZero(b!.mid) &&
-      alignmentBits(a!.mid, b!.mid) > context.maxBits,
+      alignmentBits(a!.mid, b!.mid) > context.significandLimitBits,
     // The exact sum where the two align within the loose arithmetic's cap.
     reference: ([a, b]) => {
       const other = op === "add" ? b! : negate(b!);
@@ -1219,9 +1232,9 @@ function ballOperations(): (Operation & { arity: number })[] {
         isZero(b!)
           ? undefined
           : {
-              mant: rational(
-                a!.mant.num * b!.mant.den,
-                a!.mant.den * b!.mant.num,
+              significand: rational(
+                a!.significand.num * b!.significand.den,
+                a!.significand.den * b!.significand.num,
               ),
               exp: a!.exp - b!.exp,
             },
@@ -1232,7 +1245,7 @@ function ballOperations(): (Operation & { arity: number })[] {
       apply: (args, context) => powBall(args[0]!, n, context),
       modes: ["exact", "decimal"],
       magnitude: ([b]) => powerMagnitude(b!, pointInterval(integer(n))),
-      // An exact base whose power's predicted size passes the range limit
+      // An exact base whose power's predicted size passes the significand limit
       // is `tooLarge`, as documented.
       tooLarge: ([b], context) =>
         isExact(b!) && predictedPastLimit(b!.mid, integer(n), context),
@@ -1270,8 +1283,8 @@ function ballOperations(): (Operation & { arity: number })[] {
 
 /**
  * Whether `pow` in rational.ts predicts the exact power `mid^n` past the
- * range limit of `context`, for an integer `n`: `|n|` times the larger of
- * the mantissa's two sizes in bits, the prediction that refuses `3^1000000000`.
+ * significand limit of `context`, for an integer `n`: `|n|` times the larger of
+ * the significand's two sizes in bits, the prediction that refuses `3^1000000000`.
  */
 function predictedPastLimit(
   mid: Scaled,
@@ -1279,14 +1292,14 @@ function predictedPastLimit(
   context: NumberContext,
 ): boolean {
   if (isZero(mid)) return false;
-  const magnitude = absoluteBig(n.mant.num) * 10n ** n.exp;
+  const magnitude = absoluteBig(n.significand.num) * 10n ** n.exp;
   const bits = Math.max(
-    bitLength(absoluteBig(mid.mant.num)),
-    bitLength(mid.mant.den),
+    bitLength(absoluteBig(mid.significand.num)),
+    bitLength(mid.significand.den),
   );
   return (
-    magnitude > BigInt(context.maxBits) ||
-    Number(magnitude) * bits > context.maxBits
+    magnitude > BigInt(context.significandLimitBits) ||
+    Number(magnitude) * bits > context.significandLimitBits
   );
 }
 
@@ -1509,8 +1522,8 @@ function roundedLoose(loose: Loose, context: NumberContext): Scaled | "past" {
 
 function describeScaled(s: Scaled): string {
   return isInteger(s) && s.exp === 0n
-    ? s.mant.num.toString()
-    : `${s.mant.num}/${s.mant.den}e${s.exp}`;
+    ? s.significand.num.toString()
+    : `${s.significand.num}/${s.significand.den}e${s.exp}`;
 }
 
 // ---------------------------------------------------------------------------

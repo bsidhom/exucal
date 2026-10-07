@@ -14,7 +14,7 @@ are certified at the end.
 
 ## The problem
 
-In decimal mode every step is rounded to Digits (D26). At eight digits,
+In decimal mode every step is rounded to the display digits (D26). At eight digits,
 `ln(exp(1/10))` is `0.099999984`: `exp(0.1)` is `1.1051709180756476…`,
 rounded to `1.1051709`, which drops `1.8e-8`, and `ln` of that is
 `0.0999999836…`, rounded to `0.099999984`. The arithmetic is right and
@@ -28,7 +28,7 @@ has no guard digits at all, so the first rounding is visible in the
 answer whenever a later step amplifies it, and `1/3 * 3` is `0.99999999`
 where a calculator shows `1`.
 
-The S2 note weighed splitting Digits into the digits shown and the
+The S2 note weighed splitting the display digits into the digits shown and the
 digits computed with (P6) and declined, on the ground that a second
 number would mean "compute with more digits than you show", which is
 what exact mode is for. This note takes the other side for decimal mode
@@ -38,7 +38,7 @@ computed with are two settings there, not one.
 
 ## The rule
 
-In decimal mode, with Digits `p` and working digits `w`, `w >= p`:
+In decimal mode, with the display digits `p` and working digits `w`, `w >= p`:
 
 - **Every step but the last is rounded to `w` digits** in the rounding
   mode, exact after it, as D26 has every step rounded to `p` today: each
@@ -82,7 +82,7 @@ apply to decimal mode alone, and go inside the decimal variant for the
 same reason:
 
 ```ts
-/** How many digits every step but the last is rounded to in decimal mode: Digits, or an extended count above them. */
+/** How many digits every step but the last is rounded to in decimal mode: The display digits, or an extended count above them. */
 export type Working =
   | { readonly kind: "digits" }
   | { readonly kind: "extended"; readonly digits: number };
@@ -92,17 +92,17 @@ export type ModeSetting =
   | { readonly kind: "decimal"; readonly working: Working };
 ```
 
-- `digits` is the default: the working digits are locked to Digits, and
+- `digits` is the default: the working digits are locked to the display digits, and
   the mode is D26 as landed. It is a choice, not a boolean, by the house
   rule; the panel shows it as the checkbox below.
-- `extended` holds the count. Its range is `[digits, maxDigits]`, Digits at
+- `extended` holds the count. Its range is `[digits, precisionLimitDigits]`, the display digits at
   the bottom (a floor below the digits shown would be no floor) and the
   precision limit at the top (the ceiling must hold the certification of
   a step at `w`). Both bounds are clamps in the sense of `clampSettings`:
-  raising Digits above an extended count raises the count to meet it, and
+  raising the display digits above an extended count raises the count to meet it, and
   lowering the precision limit below it lowers it. The clamp runs in the
-  order of dependence after the existing three: the range limit, the
-  precision limit, Digits, then the working digits. `clampSettings`
+  order of dependence after the existing three: the significand limit, the
+  precision limit, the display digits, then the working digits. `clampSettings`
   keeps its name, this being a clamp.
 - The stored shape is the decimal variant with its `working`, at the
   version S2 introduces; the migration from version 2 builds
@@ -116,16 +116,16 @@ digits" for the setting and leaves the core's word to that study.
 
 ## The panel
 
-Under Digits, with which the working digits are intertwined, when the
+Under the display digits, with which the working digits are intertwined, when the
 mode is decimal (the notation's control, S2, is under the Mode select
 when the mode is exact):
 
 ```
-Digits        [ 8 ]
+Display digits [ 8 ]
               significant digits shown, and of every value.
 
 Working digits  [ ] extended
-              every step is computed with Digits. Extended working digits
+              every step is computed with the display digits. Extended working digits
               keep a step's rounding out of the answer, as a calculator's
               hidden digits do: at twelve, ln(exp(1/10)) is 0.1.
 ```
@@ -135,23 +135,23 @@ and with the box checked:
 ```
 Working digits  [x] extended    [ 12 ]
               the digits every step but the last is computed with; the
-              answer is shown at Digits.
+              answer is shown at the display digits.
 ```
 
 - The checkbox is unchecked by default, which is the `digits` kind: the
-  working digits are locked to Digits, and no number is shown, since
+  working digits are locked to the display digits, and no number is shown, since
   there is none to set.
-- Checking it is the `extended` kind: a number input appears, at Digits
+- Checking it is the `extended` kind: a number input appears, at the display digits
   (or the last extended count), for the extended working digits. The
-  input's range is the clamp's, Digits to the precision limit, and a
+  input's range is the clamp's, the display digits to the precision limit, and a
   value outside it snaps back as the other number inputs do; a count
-  below Digits is never stored, since the floor must be at least the
+  below the display digits are never stored, since the floor must be at least the
   digits shown.
 - Unchecking it returns to `digits` and removes the input.
 - The control is absent in exact mode, as the notation's control is
   absent in decimal mode: each variant shows what it carries.
 
-The line under Digits in decimal mode says "the digits of the answer;
+The line under the display digits in decimal mode says "the digits of the answer;
 every step before the last is computed with the working digits", and
 README's "Settings" gains the setting and the `ln(exp(1/10))` example.
 S4 may lay the controls out otherwise; this is the minimum the model
@@ -190,17 +190,17 @@ needs.
   only with "extended" checked.
 - Docs: docs/decimal-mode.md (the promise's point 2 gains the last
   step's rounding; "As landed"), D26 amended as D27 says below, README
-  ("Settings", the Mode and Digits entries), ARCHITECTURE.md
+  ("Settings", the Mode and the display digits entries), ARCHITECTURE.md
   ("Settling").
 
 ## D27, proposed
 
 **D27. Decimal mode rounds every step but the last to the working
-digits, a setting of the mode at or above Digits, and the last step of
-a displayed value to Digits, directly from its exact result (added after
+digits, a setting of the mode at or above the display digits, and the last step of
+a displayed value to the display digits, directly from its exact result (added after
 S2's note; ruled by the owner on the case of `ln(exp(1/10))`).** The
-working digits default to Digits, under which the mode is D26 as landed;
-set above Digits they keep a step's rounding out of the answer, as a
+working digits default to the display digits, under which the mode is D26 as landed;
+set above the display digits they keep a step's rounding out of the answer, as a
 calculator's internal digits do. The last step is rounded once, from the
 exact result of its operation on working-digit operands, so that the
 answer is never a double rounding. Exact mode has no such setting: its
@@ -219,9 +219,9 @@ alone when this is taken up, it is a version 4 on its own.
 ## Not in this step
 
 - **A floor on exact mode's first pass**, which this note declines above.
-- **Default working digits above Digits.** The default is Digits, by the
+- **Default working digits above the display digits.** The default is the display digits, by the
   owner's ruling, so that a user who has not touched the setting sees
-  D26's mode; whether the default should be Digits plus a few, as
+  D26's mode; whether the default should be the display digits plus a few, as
   calculators ship, is a question for S3's look at the defaults.
 - **The uncertified mark (#173), `approx` (#171) and the vocabulary
   (#172).**
@@ -241,7 +241,7 @@ alone when this is taken up, it is a version 4 on its own.
   one shown, keeps its root at the user's context. A context derived at
   another precision (`workingContexts`, `ceilingContext`) drops the
   field, and `checkContext` holds it to an integer at or above the
-  precision within the cap the ceiling was derived from.
+  precision within the precision limit the ceiling was derived from.
 - **The vocabulary** has a clash this note foresaw: the retry schedule's
   contexts are "working contexts" throughout the core, and the step
   callbacks name their parameter `working`, beside a field `working`
@@ -250,9 +250,9 @@ alone when this is taken up, it is a version 4 on its own.
 - **The directed modes** give the neighbor of a grid value, as the tests
   bullet above now says; the note's first draft claimed every mode
   matched exact mode, which holds for the modes to nearest alone.
-- **The panel** groups the control with Digits, on the review's ruling
+- **The panel** groups the control with the display digits, on the review's ruling
   that the two are logically intertwined and a control under the Mode
   select did not say what it bore on; it offers the last extended count
-  when "extended" is checked again in a session, and Digits otherwise;
+  when "extended" is checked again in a session, and the display digits otherwise;
   the count's input is labeled "Extended working digits" for assistive
   technology.

@@ -54,7 +54,7 @@ import {
 } from "./fixed.ts";
 import { bitLength } from "./rational.ts";
 
-/** The square roots that bring the mantissa within `2^-8` of one. */
+/** The square roots that bring the significand within `2^-8` of one. */
 const SQUARE_ROOTS = 8;
 
 /** The bits the logarithm works beyond the result and the shift, for the series' ulps. */

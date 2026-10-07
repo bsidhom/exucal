@@ -53,7 +53,7 @@ import {
   type Ball,
 } from "./ball.ts";
 import { isUnbounded, log2OfRadius } from "./radius.ts";
-import { LIMIT_BITS, rational } from "./rational.ts";
+import { MAX_SIGNIFICAND_LIMIT_BITS, rational } from "./rational.ts";
 import {
   checkPrecision,
   type Precision,
@@ -100,7 +100,7 @@ function zeroBound(ball: Ball): Scaled {
 function zeroBoundUnclamped(ball: Ball): Scaled {
   const rad = radiusValue(ball.rad);
   if (rad !== undefined) {
-    const bound = add(absolute(ball.mid), rad, LIMIT_BITS);
+    const bound = add(absolute(ball.mid), rad, MAX_SIGNIFICAND_LIMIT_BITS);
     if (bound.ok) return bound.value;
   }
   return oneDigitAbove(log2OfRadius(magnitudeAbove(ball)));
@@ -112,23 +112,23 @@ function zeroBoundUnclamped(ball: Ball): Scaled {
  * (docs/ratio-width.md, "The rule", rules 3 and 4), and `undefined` when
  * they do not. First the fraction in lowest terms, the ordinary one with
  * the power of ten multiplied back in (`127/50`, `1/10000000`); when that
- * does not fit, the canonical mantissa as the ratio with its power of
+ * does not fit, the canonical significand as the ratio with its power of
  * ten as a `scale` written after it (`1/3` times `1e+30`, `5/127` times
- * `1e+33`; #95), when the mantissa's parts fit and its denominator is not
+ * `1e+33`; #95), when the significand's parts fit and its denominator is not
  * one, a value with a denominator of one being a decimal the fallback
  * writes exactly in the same characters. The sign, the slash and the
  * scale are not counted. The fraction is formed
  * only when it can fit: for an exponent `k > 0`, its numerator has at
  * least `k + 1` digits; for `k < 0`, its denominator keeps at least
- * `5^-k` of the `10^-k`, the mantissa's numerator being coprime to ten,
+ * `5^-k` of the `10^-k`, the significand's numerator being coprime to ten,
  * so it has more than `-k × log10 5` digits, and its numerator is at most
- * the mantissa's, which has at most `2^-k` times fewer digits. So an
- * exponent beyond twice `width` in magnitude, or a mantissa numerator
+ * the significand's, which has at most `2^-k` times fewer digits. So an
+ * exponent beyond twice `width` in magnitude, or a significand numerator
  * beyond twice `width` in digits, cannot fit as a fraction, and nothing
  * is formed for it.
  */
 function ratioParts(s: Scaled, width: Precision): Ratio | undefined {
-  const { num, den } = s.mant;
+  const { num, den } = s.significand;
   const k = s.exp;
   const twice = 2n * BigInt(width);
   const numDigits = decimalDigits(magnitude(num));

@@ -226,7 +226,7 @@ setting, so `clampSettings` does not touch it.
 - `src/core/display.ts`: `show(ball, digits, mode, width?)`, the fourth
   argument the ratio's width in place of the flag, absent meaning the
   notation `digits` (as landed, the options are named: `show(ball, {
-digits, rounding, width })`); `fractionText` takes the width and gains the
+digits, rounding, ratio: { width } })`); `fractionText` takes the width and gains the
   exponent form of rule 4; the whole-number rule 2 formats at the width;
   the `exact` kind keeps `fraction: true` for a ratio in either form, so
   that the outcome parenthesizes it.
@@ -234,8 +234,9 @@ digits, rounding, width })`); `fractionText` takes the width and gains the
   exact mode alone, the guard unchanged in substance; the reciprocal
   and the list's remainder follow.
 - `src/unit-converter.ts`: the `fractions` property becomes the width,
-  `ratioWidth`, absent for `digits`; `src/app-shell.ts` passes it from
-  the settings (`ratioWidthOf(settings)` in place of `showsRatios`).
+  `ratio`, the notation's settings, absent for `digits`;
+  `src/app-shell.ts` passes it from the settings (`ratioOf(settings)` in
+  place of `showsRatios`).
 - `src/settings.ts`: `Notation` as above, `WIDTH_LIMIT`, `DEFAULT_WIDTH`,
   the validation, `STORAGE_VERSION` 4 and the migration from 3; the
   ranges gain `width`.
@@ -283,14 +284,16 @@ inexact value stays ruled out.
 
 ## As landed
 
-- **`show(ball, { digits, rounding, width? })`** in display.ts, the
-  width in place of the flag, and the digits and the rounding named
+- **`show(ball, { digits, rounding, ratio? })`** in display.ts, the
+  ratio notation's settings (`RatioDisplay`, today the width alone, the
+  place a further setting of the notation goes) in place of the flag,
+  and the digits and the rounding named
   beside it on the review's ruling that a call should state each
   modifier by name with the compiler holding it to the required ones
   (the ball stays the one plain argument; `outcomeOf` takes its context,
   width and observer the same way); `ratioText` writes the fraction and then the
   factored form, and the whole-number rule formats at the width. The
-  outcome, the converter (`ratioWidth`) and the shell carry the width,
+  outcome, the converter (`ratio`) and the shell carry the settings,
   and the outcome still withholds it in decimal mode.
 - **Rule 4 reaches further than the examples showed.** The canonical
   mantissa strips a numerator's tens into the exponent, so `5000/127`

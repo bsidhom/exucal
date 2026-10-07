@@ -62,6 +62,7 @@ import {
   type Mode,
   type NumberContext,
 } from "./core/context.ts";
+import type { RatioDisplay } from "./core/display.ts";
 import { LIMIT_BITS } from "./core/rational.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 
@@ -74,8 +75,7 @@ import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
  * sees it but through `show`'s width.
  */
 export type Notation =
-  | { readonly kind: "digits" }
-  | { readonly kind: "ratio"; readonly width: number };
+  { readonly kind: "digits" } | ({ readonly kind: "ratio" } & RatioDisplay);
 
 export type NotationKind = Notation["kind"];
 
@@ -504,11 +504,11 @@ export function extendedWorkingOf(settings: Settings): number | undefined {
     : undefined;
 }
 
-/** The ratio notation's width under `settings`, or `undefined` for the digits notation or decimal mode. */
-export function ratioWidthOf(settings: Settings): number | undefined {
+/** The ratio notation's settings under `settings`, as `show` takes them, or `undefined` for the digits notation or decimal mode. */
+export function ratioOf(settings: Settings): RatioDisplay | undefined {
   const { mode } = settings;
   return mode.kind === "exact" && mode.notation.kind === "ratio"
-    ? mode.notation.width
+    ? mode.notation
     : undefined;
 }
 

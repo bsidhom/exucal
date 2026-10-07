@@ -1,3 +1,4 @@
+import type { RatioDisplay } from "./core/display.ts";
 import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import {
@@ -38,11 +39,11 @@ import "./copy-button.ts";
  * ceiling of the retry schedule, which the shell derives from the cap on
  * the digits; `<app-shell>` owns the settings and passes it down). It
  * defaults to the display's rules before the settings existed, eight
- * digits half even, under the default cap's ceiling. The `ratioWidth`
- * property is the ratio notation's width (docs/fractions.md,
- * docs/ratio-width.md), the most digits an exact value may have to be
- * written entire, as a whole number or a ratio; absent, the digits
- * notation, by default.
+ * digits half even, under the default cap's ceiling. The `ratio`
+ * property is the ratio notation's settings (docs/fractions.md,
+ * docs/ratio-width.md), its width the most digits an exact value may
+ * have to be written entire, as a whole number or a ratio; absent, the
+ * digits notation, by default.
  */
 @customElement("unit-converter")
 export class UnitConverter extends LitElement {
@@ -166,8 +167,8 @@ export class UnitConverter extends LitElement {
     ceiling: DEFAULT_CEILING,
   };
 
-  /** The ratio notation's width, or absent for the digits notation (docs/ratio-width.md). */
-  @property({ attribute: false }) ratioWidth?: number;
+  /** The ratio notation's settings, or absent for the digits notation (docs/ratio-width.md). */
+  @property({ attribute: false }) ratio?: RatioDisplay;
 
   @state() private have = "";
   @state() private want = "";
@@ -198,7 +199,7 @@ export class UnitConverter extends LitElement {
     }
     return outcomeOf(table, this.have, this.want, {
       context,
-      width: this.ratioWidth,
+      ratio: this.ratio,
     });
   }
 }

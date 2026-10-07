@@ -441,7 +441,7 @@ test("the kinds are exclusive and cover every ball", () => {
 
 /** `show` at eight digits to nearest with the ratio notation at `width`. */
 function ratio(ball: Ball, width: number, digits = 8): Shown {
-  return show(ball, { digits, rounding: nearest, width });
+  return show(ball, { digits, rounding: nearest, ratio: { width } });
 }
 
 /** The `exact` kind of a ratio `text`. */
@@ -464,7 +464,7 @@ test("with the ratio notation, an exact value that is not a whole number is its 
     const shown = show(root(fr(2n), 2n, 40), {
       digits,
       rounding: nearest,
-      width: 20,
+      ratio: { width: 20 },
     });
     assert.equal(shown.kind, "certified", `${digits} digits`);
   }
@@ -503,7 +503,11 @@ test("with the ratio notation, an exact value that is not a whole number is its 
   // The sign is on the numerator, and the rounding mode plays no part.
   for (const mode of ROUNDING_MODES) {
     assert.deepEqual(
-      show(exact(fr(-5000n, 127n)), { digits: 8, rounding: mode, width: 20 }),
+      show(exact(fr(-5000n, 127n)), {
+        digits: 8,
+        rounding: mode,
+        ratio: { width: 20 },
+      }),
       {
         kind: "exact",
         text: "-5000/127",
@@ -511,7 +515,11 @@ test("with the ratio notation, an exact value that is not a whole number is its 
       },
     );
     assert.deepEqual(
-      show(exact(dec("-2.54")), { digits: 8, rounding: mode, width: 20 }),
+      show(exact(dec("-2.54")), {
+        digits: 8,
+        rounding: mode,
+        ratio: { width: 20 },
+      }),
       {
         kind: "exact",
         text: "-127/50",
@@ -675,12 +683,12 @@ test("without the width, or for an inexact value, nothing changes", () => {
   for (const b of balls) {
     for (const digits of [1, 4, 8]) {
       assert.deepEqual(
-        show(b, { digits, rounding: nearest, width: undefined }),
+        show(b, { digits, rounding: nearest, ratio: undefined }),
         show(b, { digits, rounding: nearest }),
       );
       if (!isExact(b)) {
         assert.deepEqual(
-          show(b, { digits, rounding: nearest, width: 20 }),
+          show(b, { digits, rounding: nearest, ratio: { width: 20 } }),
           show(b, { digits, rounding: nearest }),
         );
       }
@@ -689,7 +697,12 @@ test("without the width, or for an inexact value, nothing changes", () => {
   // A width that is not a positive integer is a bug in the caller.
   for (const width of [0, -1, 1.5, NaN]) {
     assert.throws(
-      () => show(exact(fr(1n, 3n)), { digits: 8, rounding: nearest, width }),
+      () =>
+        show(exact(fr(1n, 3n)), {
+          digits: 8,
+          rounding: nearest,
+          ratio: { width },
+        }),
       RangeError,
     );
   }
@@ -742,7 +755,7 @@ test("a decimal-mode value flagged uncertified is shown as its digits, whatever 
   });
   // The ratio notation does not reach it.
   assert.deepEqual(
-    show(flagged, { digits: 2, rounding: "halfEven", width: 20 }),
+    show(flagged, { digits: 2, rounding: "halfEven", ratio: { width: 20 } }),
     {
       kind: "uncertified",
       text: "1.2",

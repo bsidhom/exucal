@@ -6,7 +6,7 @@ import type { Result } from "./core/result.ts";
 import {
   clampSettings,
   contextOf,
-  ratioWidthOf,
+  ratioOf,
   loadSettings,
   saveSettings,
   type Settings,
@@ -191,7 +191,7 @@ export class AppShell extends LitElement {
         return html`<unit-converter
           .table=${table.table}
           .context=${context}
-          .ratioWidth=${ratioWidthOf(this.settings)}
+          .ratio=${ratioOf(this.settings)}
         ></unit-converter>`;
     }
   }

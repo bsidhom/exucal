@@ -200,12 +200,22 @@ export type Shown =
   /** The radius is not known: `text` is the midpoint at the digits asked, none of them certified. */
   | { readonly kind: "unbounded"; readonly text: string };
 
-/** How `show` writes a ball: at how many significant digits, in which rounding mode, and, under the ratio notation, within what width. */
+/**
+ * The ratio notation's settings (docs/ratio-width.md): the width, the
+ * most digits a ratio's two parts, or a whole number, may have to be
+ * written entire. The place a further setting of the notation goes, so
+ * that it reaches every caller of `show` without a change of signature.
+ */
+export type RatioDisplay = {
+  readonly width: Precision;
+};
+
+/** How `show` writes a ball: at how many significant digits, in which rounding mode, and, under the ratio notation, with its settings. */
 export type ShowOptions = {
   readonly digits: Precision;
   readonly rounding: RoundingMode;
-  /** The ratio notation's width (docs/ratio-width.md); absent is the digits notation. */
-  readonly width?: Precision;
+  /** The ratio notation's settings; absent is the digits notation, which has none. */
+  readonly ratio?: RatioDisplay;
 };
 
 /**
@@ -220,11 +230,12 @@ export type ShowOptions = {
  * exact value as a ratio (`ratioParts`) when its parts fit; an exact
  * value that fits neither goes on to the rule above, at `digits`. The
  * ball is the one plain argument; the rest are named, so that a caller
- * states each and the compiler holds it to the two that are required.
+ * states each and the compiler holds it to the two that are required,
+ * the ratio notation's settings grouped under `ratio`.
  */
 export function show(
   ball: Ball,
-  { digits, rounding: mode, width }: ShowOptions,
+  { digits, rounding: mode, ratio }: ShowOptions,
 ): Shown {
   const { mid } = ball;
   if (ball.uncertified === true) {
@@ -233,16 +244,17 @@ export function show(
   if (isUnbounded(ball.rad)) {
     return { kind: "unbounded", text: format(mid, digits, mode) };
   }
-  if (width !== undefined && isExact(ball)) {
+  if (ratio !== undefined && isExact(ball)) {
+    const { width } = ratio;
     checkPrecision(width);
     if (isInteger(mid)) {
       if (equals(roundTo(mid, width, mode), mid)) {
         return { kind: "exact", text: format(mid, width, mode) };
       }
     } else {
-      const ratio = ratioParts(mid, width);
-      if (ratio !== undefined) {
-        return { kind: "exact", fraction: true, ...ratio };
+      const parts = ratioParts(mid, width);
+      if (parts !== undefined) {
+        return { kind: "exact", fraction: true, ...parts };
       }
     }
   }

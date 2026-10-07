@@ -16,7 +16,7 @@ import {
   isNotationKind,
   isRoundingMode,
   rangesOf,
-  ratioWidthOf,
+  ratioOf,
   type NotationKind,
   type NumberSetting,
   type Settings,
@@ -169,7 +169,7 @@ export class SettingsPanel extends LitElement {
 
   willUpdate() {
     this.lastExtended = extendedWorkingOf(this.settings) ?? this.lastExtended;
-    this.lastWidth = ratioWidthOf(this.settings) ?? this.lastWidth;
+    this.lastWidth = ratioOf(this.settings)?.width ?? this.lastWidth;
   }
 
   render() {

@@ -99,7 +99,7 @@ const TABLE: UnitTable = {
   builtins: new Map(),
 };
 
-const lookup = unitLookup(TABLE);
+const lookup = unitLookup(TABLE, CONTEXT);
 const SPAN = { start: 3, end: 5 };
 const CALL = { start: 3, end: 9 };
 
@@ -199,7 +199,7 @@ test("the table's primitives serve the converter", () => {
   const have = evaluate(parsed("1 min"), lookup, TABLE.primitives, CONTEXT);
   const want = evaluate(parsed("ms"), lookup, TABLE.primitives, CONTEXT);
   assert.ok(have.ok && want.ok);
-  const result = convert(have.value, want.value, TABLE.primitives);
+  const result = convert(have.value, want.value, TABLE.primitives, CONTEXT);
   assert.ok(result.ok, inspect(result));
   assert.deepEqual(result.value, exact(fr(60000n)));
 
@@ -211,7 +211,7 @@ test("the table's primitives serve the converter", () => {
   );
   const rate = evaluate(parsed("1 / s"), lookup, TABLE.primitives, CONTEXT);
   assert.ok(angle.ok && rate.ok);
-  const mismatch = convert(angle.value, rate.value, TABLE.primitives);
+  const mismatch = convert(angle.value, rate.value, TABLE.primitives, CONTEXT);
   assert.ok(!mismatch.ok);
   assert.equal(mismatch.error.kind, "kindMismatch");
 });
@@ -225,7 +225,7 @@ test("a function resolves by its name, for a call", () => {
 
 /** `x` doubled, exactly; the product of balls fails only at the exponent bound. */
 function twice(x: Ball): Result<Ball, BuiltinError> {
-  const product = multiplyBalls(exact(fr(2n)), x);
+  const product = multiplyBalls(exact(fr(2n)), x, CONTEXT);
   return product.ok ? product : err(fromBallError(product.error, 0));
 }
 
@@ -252,7 +252,7 @@ const WITH_BUILTINS: UnitTable = {
 };
 
 test("a built-in resolves by its name, after the defined functions", () => {
-  const lookup = unitLookup(WITH_BUILTINS);
+  const lookup = unitLookup(WITH_BUILTINS, CONTEXT);
   assert.deepEqual(lookup.function("twice", SPAN, CALL), {
     ok: true,
     value: { kind: "builtin", fn: TWICE },
@@ -273,7 +273,7 @@ test("a built-in resolves by its name, after the defined functions", () => {
 });
 
 test("a built-in's name is not a unit either, and the failure says how many arguments it takes", () => {
-  const lookup = unitLookup(WITH_BUILTINS);
+  const lookup = unitLookup(WITH_BUILTINS, CONTEXT);
   assert.deepEqual(lookup.unit("twice", SPAN), {
     ok: false,
     error: {

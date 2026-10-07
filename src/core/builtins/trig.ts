@@ -28,6 +28,7 @@
 // of its midpoint with an unbounded radius.
 
 import { exact, isExact, type Ball } from "../ball.ts";
+import { boundOf } from "../rational.ts";
 import {
   angleToNumber,
   extraBits,
@@ -38,6 +39,8 @@ import {
   unboundedOf,
   type Builtin,
   type BuiltinError,
+  tooLarge,
+  reductionBits,
 } from "../builtin.ts";
 import { workingDigits, type NumberContext } from "../context.ts";
 import { sinCosFixed, type SinCos } from "../fixed-trig.ts";
@@ -111,7 +114,9 @@ export function tanBall(
 function sinCos(x: Ball, context: NumberContext): Result<SinCos, BuiltinError> {
   // The reduction needs the argument's own bits, exact or not, and an
   // inexact argument this large has no usable sine in any case.
-  if (isHuge(x, context)) return err({ kind: "tooLarge", inexact: "exceeds" });
+  if (isHuge(x, context)) {
+    return tooLarge("exceeds", boundOf(reductionBits(x, context)));
+  }
   const bits = bitsFor(context.precision);
   return ok(
     sinCosFixed(

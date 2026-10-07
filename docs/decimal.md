@@ -581,8 +581,9 @@ narrows to what it always guarded: the size of an exact value, that is
 of a significand's numerator and denominator, and the alignment of a sum,
 which is the size the exact result would have (a comparison aligns only
 values of one decimal exponent, above, and needs no limit; a product, a
-quotient and a sum are held to it by the evaluator's check on every
-exact node result, D19). The
+quotient and a sum are held to it by each operation's prediction of its
+size before forming it, D19 as amended, with the evaluator's check on
+every exact node result as an assertion). The
 magnitude of a value is no longer its size, so the significand limit does not
 bound it; the exponent bound does, for exact and inexact values alike,
 and a result's magnitude is refused only there (`exp(1e30)`) or where a

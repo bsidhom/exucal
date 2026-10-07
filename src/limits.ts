@@ -16,9 +16,10 @@
 // the limits still run: an exact multiplication of two rationals of the
 // candidate size in each part, whose two cross-cancelling gcds (the
 // plan's H.9) are the quadratic step of exact arithmetic and run before
-// the result is measured against the limit and refused (D19); the
-// operands are built outside the timed call, memoized by size, since a
-// build is not what the limit bounds. The candidates are the setting's
+// the product's size is predicted against the limit and refused, nothing
+// formed past it (D19 as the strict limit amended it); the operands are
+// built outside the timed call, memoized by size, since a build is not
+// what the limit bounds. The candidates are the setting's
 // floor and then the powers of two from 2^9 to the hard bound, so that
 // the size recommended was always timed, the floor included. For the
 // precision limit it is `COMPOSITE`, one expression of the costliest
@@ -77,7 +78,7 @@ import { evaluate } from "./core/evaluate.ts";
 import { parseExpr } from "./core/expr.ts";
 import {
   MAX_SIGNIFICAND_LIMIT_BITS,
-  multiply,
+  multiplyWithin,
   rational,
   type Rational,
 } from "./core/rational.ts";
@@ -127,7 +128,8 @@ export function realProbe(): Probe {
     now: () => performance.now(),
     range: (bits) => {
       // The untimed first run of `timed` builds the operands; the timed
-      // runs multiply them.
+      // runs multiply them within the candidate limit, which the product
+      // of two parts of that size passes: the gcds run, and it is refused.
       let pair = operands.get(bits);
       if (pair === undefined) {
         pair = [
@@ -136,7 +138,7 @@ export function realProbe(): Probe {
         ];
         operands.set(bits, pair);
       }
-      multiply(pair[0], pair[1]);
+      multiplyWithin(pair[0], pair[1], bits);
     },
     precision: (digits) => {
       const ceiling = ceilingFor(digits);
@@ -160,7 +162,7 @@ export function evaluateComposite(context: NumberContext): void {
   if (!table.ok) throw new Error("The probe's definitions do not build");
   const result = evaluate(
     composite(),
-    unitLookup(table.value),
+    unitLookup(table.value, context),
     table.value.primitives,
     context,
   );

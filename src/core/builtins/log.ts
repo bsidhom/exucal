@@ -123,9 +123,9 @@ export function logBall(
   if (isExact(x)) {
     if (equals(x.mid, ONE)) return ok(exact(ZERO));
     if (isExact(b)) {
-      const n = integerPower(b.mid, x.mid);
+      const n = integerPower(b.mid, x.mid, context.significandLimitBits);
       if (n !== undefined) return ok(exact(fromRational(rational(n))));
-      const inverse = integerPower(x.mid, b.mid);
+      const inverse = integerPower(x.mid, b.mid, context.significandLimitBits);
       if (inverse !== undefined)
         return ok(exact(fromRational(rational(1n, inverse))));
     }
@@ -158,7 +158,7 @@ function logOfConstantBase(
   if (isExact(x)) {
     const positive = checkPositive(x, 0);
     if (!positive.ok) return positive;
-    const n = integerPower(base, x.mid);
+    const n = integerPower(base, x.mid, context.significandLimitBits);
     if (n !== undefined) return ok(exact(fromRational(rational(n))));
   }
   const lnX = lnKernel(x, context, 0);
@@ -215,11 +215,15 @@ function lnKernel(
  * (`log10(1e999999999)`); a negative `n` inverts the value first, since
  * the canonical form of `1/8` is `125 × 10^-3`.
  */
-export function integerPower(base: Scaled, value: Scaled): bigint | undefined {
+export function integerPower(
+  base: Scaled,
+  value: Scaled,
+  limit: number,
+): bigint | undefined {
   if (equals(value, ONE)) return 0n;
   const positive = positivePower(base, value);
   if (positive !== undefined) return positive;
-  const reciprocal = invert(value);
+  const reciprocal = invert(value, limit);
   if (!reciprocal.ok) return undefined;
   const negative = positivePower(base, reciprocal.value);
   return negative === undefined ? undefined : -negative;

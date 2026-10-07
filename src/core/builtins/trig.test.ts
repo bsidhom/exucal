@@ -89,7 +89,11 @@ function assertNear(
     compare(distance(ball.mid, reference), radiusOf(ball)) <= 0,
     `${label}: midpoint`,
   );
-  const bound = multiply(absolute(reference), dec(`1e-${digits}`));
+  const bound = multiply(
+    absolute(reference),
+    dec(`1e-${digits}`),
+    MAX_SIGNIFICAND_LIMIT_BITS,
+  );
   assert.ok(bound.ok);
   assert.ok(compare(radiusOf(ball), bound.value) < 0, `${label}: radius`);
 }
@@ -245,17 +249,22 @@ test("an argument below 2^-significandLimitBits throughout is its own sine and t
 
 test("an argument reaching 2^significandLimitBits is too large, since the reduction would need pi to that many bits", () => {
   // The significand limit, which the setting moves, whatever the sign.
-  const tooLarge = { kind: "tooLarge", inexact: "exceeds" };
+  // The need is the reduction's: the argument's bits above the binary
+  // point and the working bits, bounded, so it is the argument's.
+  const tooLarge = (bits: number) => ({
+    kind: "tooLarge",
+    inexact: "exceeds",
+    need: { kind: "bound", bits },
+  });
+  const huge = tooLarge(3321928151);
+  const edge = tooLarge(65598);
   for (const fn of [sinBall, cosBall, tanBall]) {
-    assert.deepEqual(failure(fn(exact(dec("1e999999999")), DEFAULT)), tooLarge);
-    assert.deepEqual(
-      failure(fn(exact(dec("-1e999999999")), DEFAULT)),
-      tooLarge,
-    );
+    assert.deepEqual(failure(fn(exact(dec("1e999999999")), DEFAULT)), huge);
+    assert.deepEqual(failure(fn(exact(dec("-1e999999999")), DEFAULT)), huge);
     // 2^65536 is about 2.0e19728: just below computes, at and above does not.
     assert.ok(fn(exact(dec("1e19728")), DEFAULT).ok);
-    assert.deepEqual(failure(fn(exact(dec("1e19729")), DEFAULT)), tooLarge);
-    assert.deepEqual(failure(fn(ball("0", "1e19729"), DEFAULT)), tooLarge);
+    assert.deepEqual(failure(fn(exact(dec("1e19729")), DEFAULT)), edge);
+    assert.deepEqual(failure(fn(ball("0", "1e19729"), DEFAULT)), edge);
   }
 });
 
@@ -424,7 +433,7 @@ test("through the pipeline: sin(30 deg) certifies 0.5, sin(pi() radian) is zero 
     ],
     [
       "sin(1e999999999 radian)",
-      '"sin(1e999999999 radian)" would need a significand past the significand limit, however it is computed.',
+      '"sin(1e999999999 radian)" would need a significand of about 3,321,928,184 bits, past the significand limit, however it is computed.',
     ],
   ]) {
     const result = at(text!, 8);

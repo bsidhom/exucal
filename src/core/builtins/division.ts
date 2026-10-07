@@ -31,6 +31,7 @@ import {
   unresolvedAt,
   type Builtin,
   type BuiltinError,
+  UNKNOWN_NEED,
 } from "../builtin.ts";
 import type { NumberContext } from "../context.ts";
 import { err, ok, type Result } from "../result.ts";
@@ -65,7 +66,7 @@ function quotientFloor(
   b: Ball,
   context: NumberContext,
 ): Result<Quotient, BuiltinError> {
-  const quotient = divideBalls(a, b);
+  const quotient = divideBalls(a, b, context);
   if (!quotient.ok) {
     if (quotient.error.kind !== "underflow") {
       return err(fromBallError(quotient.error, 1));
@@ -86,7 +87,7 @@ function quotientFloor(
   if (floored.error.kind !== "unresolved") return floored;
   const edge = floored.error.edge;
   if (typeof edge === "string") return floored;
-  const scaledEdge = multiply(edge, b.mid);
+  const scaledEdge = multiply(edge, b.mid, context.significandLimitBits);
   return unresolvedAt(0, scaledEdge.ok ? scaledEdge.value : edge);
 }
 
@@ -118,7 +119,8 @@ export function modBall(
   context: NumberContext,
 ): Result<Ball, BuiltinError> {
   const q = quotientFloor(a, b, context);
-  if (!q.ok) return q.error.kind === "overflow" ? tooLarge("exceeds") : q;
+  if (!q.ok)
+    return q.error.kind === "overflow" ? tooLarge("exceeds", UNKNOWN_NEED) : q;
   if (q.value.kind === "tiny") {
     if (isZero(q.value.count.mid)) return ok(a);
     const sum = addBalls(a, b, context);
@@ -131,17 +133,21 @@ export function modBall(
       count.mid,
       context.significandLimitBits,
     );
-    if (!fraction.ok) return tooLarge("exceeds");
+    if (!fraction.ok) return tooLarge("exceeds", UNKNOWN_NEED);
     // The product is within `|b|`, so it can only fall below the bound.
-    const remainder = multiply(fraction.value, b.mid);
+    const remainder = multiply(
+      fraction.value,
+      b.mid,
+      context.significandLimitBits,
+    );
     if (remainder.ok) return ok(exact(remainder.value));
     return isRefusal(remainder.error)
       ? err(remainder.error)
-      : tooLarge("exceeds");
+      : tooLarge("exceeds", UNKNOWN_NEED);
   }
   const fraction = subtractBalls(quotient, count, context);
   if (!fraction.ok) return err(fromBallError(fraction.error, 0));
-  const remainder = multiplyBalls(fraction.value, b);
+  const remainder = multiplyBalls(fraction.value, b, context);
   return remainder.ok ? remainder : err(fromBallError(remainder.error, 0));
 }
 

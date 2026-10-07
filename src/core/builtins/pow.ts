@@ -60,6 +60,8 @@ import {
   unboundedOf,
   type Builtin,
   type BuiltinError,
+  UNKNOWN_NEED,
+  tooLarge,
 } from "../builtin.ts";
 import type { NumberContext } from "../context.ts";
 import { err, ok, type Result } from "../result.ts";
@@ -173,7 +175,7 @@ function unformable(
         case "one":
         case "compute":
           // A base straddling zero has no power to compute, at any bits.
-          return err({ kind: "tooLarge", inexact: "exceeds" });
+          return tooLarge("exceeds", UNKNOWN_NEED);
       }
     }
   }

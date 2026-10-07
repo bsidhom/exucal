@@ -224,7 +224,7 @@ test("a settle and a product on the decimal grid at the ceiling cost at most 64 
           },
           context,
         );
-        return () => void multiplyBalls(a, b);
+        return () => void multiplyBalls(a, b, context);
       },
     ],
     [

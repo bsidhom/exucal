@@ -168,8 +168,9 @@ export function negateQuantity(q: Quantity): Quantity {
 export function multiplyQuantities(
   a: Quantity,
   b: Quantity,
+  context: NumberContext,
 ): Result<Quantity, BallError> {
-  const magnitude = multiplyBalls(a.magnitude, b.magnitude);
+  const magnitude = multiplyBalls(a.magnitude, b.magnitude, context);
   if (!magnitude.ok) return magnitude;
   return ok({
     magnitude: magnitude.value,
@@ -185,8 +186,9 @@ export function multiplyQuantities(
 export function divideQuantities(
   a: Quantity,
   b: Quantity,
+  context: NumberContext,
 ): Result<Quantity, BallError> {
-  const magnitude = divideBalls(a.magnitude, b.magnitude);
+  const magnitude = divideBalls(a.magnitude, b.magnitude, context);
   if (!magnitude.ok) return magnitude;
   return ok({
     magnitude: magnitude.value,

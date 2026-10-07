@@ -94,7 +94,7 @@ function plus(a: Scaled, b: Scaled): Scaled {
 
 /** `s × num / den`. */
 function scale(s: Scaled, num: bigint, den = 1n): Scaled {
-  const product = multiply(s, fr(num, den));
+  const product = multiply(s, fr(num, den), MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(product.ok);
   return product.value;
 }
@@ -115,7 +115,11 @@ function assertNear(
     compare(distance(ball.mid, reference), radiusOf(ball)) <= 0,
     `${label}: midpoint`,
   );
-  const bound = multiply(absolute(reference), dec(`1e-${digits}`));
+  const bound = multiply(
+    absolute(reference),
+    dec(`1e-${digits}`),
+    MAX_SIGNIFICAND_LIMIT_BITS,
+  );
   assert.ok(bound.ok);
   assert.ok(compare(radiusOf(ball), bound.value) < 0, `${label}: radius`);
 }

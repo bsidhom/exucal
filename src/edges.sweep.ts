@@ -804,7 +804,7 @@ function judgeConversion(
         digits: context.precision,
         rounding: context.rounding,
       });
-      const inverse = divideBalls(exact(ONE), conversion.value);
+      const inverse = divideBalls(exact(ONE), conversion.value, context);
       if (inverse.ok)
         show(inverse.value, {
           digits: context.precision,

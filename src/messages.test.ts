@@ -154,11 +154,11 @@ test("a parse error names what was expected and what was found", () => {
   // is what is too large, at the sum, within the significand limit.
   assert.equal(
     textMessage("1e999999999 + 1"),
-    '"1e999999999 + 1" would need a significand past the significand limit as an exact value. Try "approx(1e999999999)" in place of "1e999999999", or decimal mode, to compute it to the digits asked.',
+    '"1e999999999 + 1" would need a significand of about 3,321,928,093 bits as an exact value, past the significand limit. Try "approx(1e999999999)" in place of "1e999999999", or decimal mode, to compute it to the digits asked.',
   );
   assert.equal(
     textMessage("1e999999999 m - 1 m"),
-    '"1e999999999 m - 1 m" would need a significand past the significand limit as an exact value. Try "approx(1e999999999 m)" in place of "1e999999999 m", or decimal mode, to compute it to the digits asked.',
+    '"1e999999999 m - 1 m" would need a significand of about 3,321,928,093 bits as an exact value, past the significand limit. Try "approx(1e999999999 m)" in place of "1e999999999 m", or decimal mode, to compute it to the digits asked.',
   );
   // A literal past the exponent bound is rejected where it is written,
   // with the side it is past.
@@ -187,12 +187,12 @@ test("an evaluation error quotes the text at fault", () => {
   );
   assert.equal(
     textMessage("2^99999 m"),
-    '"2^99999" would need a significand past the significand limit as an exact value. Try "approx(2)" in place of "2", or decimal mode, to compute it to the digits asked.',
+    '"2^99999" would need a significand of about 100,000 bits as an exact value, past the significand limit. Try "approx(2)" in place of "2", or decimal mode, to compute it to the digits asked.',
   );
   // A built-in that refuses an argument it cannot reduce fails at the call.
   assert.equal(
     textMessage("sin(1e999999999 radian)"),
-    '"sin(1e999999999 radian)" would need a significand past the significand limit, however it is computed.',
+    '"sin(1e999999999 radian)" would need a significand of about 3,321,928,291 bits, past the significand limit, however it is computed.',
   );
   assert.equal(
     textMessage("(-4)^0.5 m"),
@@ -255,22 +255,22 @@ test("a value too large to compute names the limit it passes, and one too small 
   // and a value past it below is too small rather than too large.
   assert.equal(
     textMessage("3^1000000000"),
-    '"3^1000000000" would need a significand past the significand limit as an exact value. Try "approx(3)" in place of "3", or decimal mode, to compute it to the digits asked.',
+    '"3^1000000000" would need a significand of about 1,584,962,501 bits as an exact value, past the significand limit. Try "approx(3)" in place of "3", or decimal mode, to compute it to the digits asked.',
   );
   // An exact result formed and measured past the significand limit names the node
   // and the remedy (the plan's D20), and the remedy works; a power's
   // prediction, above, keeps the plain wording.
   assert.equal(
     textMessage("3^32767 * 7^21845", withApp),
-    '"3^32767 * 7^21845" would need a significand past the significand limit as an exact value. Try "approx(3^32767)" in place of "3^32767", or decimal mode, to compute it to the digits asked.',
+    '"3^32767 * 7^21845" would need a significand of about 113,262 bits as an exact value, past the significand limit. Try "approx(3^32767)" in place of "3^32767", or decimal mode, to compute it to the digits asked.',
   );
   assert.equal(
     textMessage(`${COPRIME_PRODUCT} * 11^16000`, withApp),
-    `"${COPRIME_PRODUCT}" would need a significand past the significand limit as an exact value. Try "approx(3^30000)" in place of "3^30000", or decimal mode, to compute it to the digits asked.`,
+    `"${COPRIME_PRODUCT}" would need a significand of about 103,697 bits as an exact value, past the significand limit. Try "approx(3^30000)" in place of "3^30000", or decimal mode, to compute it to the digits asked.`,
   );
   assert.equal(
     textMessage("2^-30000", withApp),
-    '"2^-30000" would need a significand past the significand limit as an exact value. Try "approx(2)" in place of "2", or decimal mode, to compute it to the digits asked.',
+    '"2^-30000" would need a significand of about 69,659 bits as an exact value, past the significand limit. Try "approx(2)" in place of "2", or decimal mode, to compute it to the digits asked.',
   );
   assert.ok(evaluateText(withApp, "approx(3^32767) * 7^21845", CONTEXT).ok);
   assert.ok(evaluateText(withApp, "approx(2)^-30000", CONTEXT).ok);
@@ -310,7 +310,7 @@ test("a value too large to compute names the limit it passes, and one too small 
       withApp.primitives,
       "decimal",
     ),
-    '"2^1e-30000" would need a significand past the significand limit, however it is computed.',
+    '"2^1e-30000" would need a significand of about 99,659 bits, past the significand limit, however it is computed.',
   );
   const exactRefusal = evaluateText(withApp, "3^1000000000", CONTEXT);
   assert.ok(!exactRefusal.ok);
@@ -321,12 +321,12 @@ test("a value too large to compute names the limit it passes, and one too small 
       withApp.primitives,
       "decimal",
     ),
-    '"3^1000000000" would need a significand past the significand limit as an exact value. Try "approx(3)" in place of "3" to compute it to the digits asked.',
+    '"3^1000000000" would need a significand of about 1,584,962,501 bits as an exact value, past the significand limit. Try "approx(3)" in place of "3" to compute it to the digits asked.',
   );
   // The conversion's ratio, about the pair, with `approx` on the have.
   assert.equal(
     conversionMessage("3^25000/7^14000 m", "11^15000/13^14000 ft"),
-    '"3^25000/7^14000 m" into "11^15000/13^14000 ft" would need a significand past the significand limit as an exact value. Try "approx(3^25000/7^14000 m)", or decimal mode, to compute it to the digits asked.',
+    '"3^25000/7^14000 m" into "11^15000/13^14000 ft" would need a significand of about 91,440 bits as an exact value, past the significand limit. Try "approx(3^25000/7^14000 m)", or decimal mode, to compute it to the digits asked.',
   );
   assert.ok(
     convertText(
@@ -385,7 +385,7 @@ test("a result that straddles the exponent bound names the edge, in an expressio
 test("a list refused by its arithmetic names the pair and the limit", () => {
   assert.equal(
     conversionMessage("3^32767 m", "ft/7^21845; in/7^21845"),
-    '"3^32767 m" into "ft/7^21845; in/7^21845" would need a significand past the significand limit as an exact value. Try "approx(3^32767 m)", or decimal mode, to compute it to the digits asked.',
+    '"3^32767 m" into "ft/7^21845; in/7^21845" would need a significand of about 113,260 bits as an exact value, past the significand limit. Try "approx(3^32767 m)", or decimal mode, to compute it to the digits asked.',
   );
   assert.equal(
     conversionMessage(

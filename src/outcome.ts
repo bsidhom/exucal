@@ -326,7 +326,7 @@ function unitResult(
   const lines = [line(haveExpr, value, wantExpr, context, ratio)];
   // A step of the expression (`step` of ball.ts): settled in exact mode,
   // rounded once in decimal mode.
-  const inverse = step(() => divideBalls(exact(ONE), value), context);
+  const inverse = step(() => divideBalls(exact(ONE), value, context), context);
   if (inverse.ok) {
     lines.push(line(wantExpr, inverse.value, haveExpr, context, ratio));
   }

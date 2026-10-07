@@ -55,7 +55,7 @@ import {
 } from "./radius.ts";
 import { bitLength, rational } from "./rational.ts";
 import { err, ok, type Result } from "./result.ts";
-import { MAX_EXPONENT, ZERO, multiply, negate, scaled } from "./scaled.ts";
+import { MAX_EXPONENT, ZERO, negate, scaled } from "./scaled.ts";
 
 /** The bits the logarithm and the exponential work beyond the result, for their ulps. */
 const GUARD = 24;
@@ -133,7 +133,8 @@ export function floatingToBall(
   if (!power.ok) throw new Error("A decimal exponent within the bound");
   // The leading digits rounded onto the grid can carry to ten at the top,
   // a power of ten past the bound: the value reaches the edge (#61).
-  const mid = multiply(ball.mid, power.value);
+  // The exponent moves by the decimal exponent; the significand stays.
+  const mid = scaled(ball.mid.significand, ball.mid.exp + decimalExponent);
   if (!mid.ok) return err(atBound);
   return ok({
     mid: significand.value < 0n ? negate(mid.value) : mid.value,

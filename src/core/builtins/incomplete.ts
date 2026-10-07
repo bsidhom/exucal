@@ -75,6 +75,7 @@ import {
   unboundedOf,
   type Builtin,
   type BuiltinError,
+  UNKNOWN_NEED,
 } from "../builtin.ts";
 import { workingDigits, type NumberContext } from "../context.ts";
 import {
@@ -100,6 +101,7 @@ import {
   absolute,
   add,
   equals,
+  isZero,
   log2Bounds,
   negate,
   sign,
@@ -202,10 +204,19 @@ function incompleteGamma(
   }
   if (wide(x)) return atEnds(s, x, form, regularized, context);
   const bits = bitsFor(context.precision);
-  const extra =
-    magnitudeBits(s, context.significandLimitBits) +
-    magnitudeBits(x, context.significandLimitBits);
-  if (bits + extra > context.significandLimitBits) return tooLarge("exceeds");
+  const limit = context.significandLimitBits;
+  const extra = magnitudeBits(s, limit) + magnitudeBits(x, limit);
+  if (bits + extra > limit) {
+    // The working bits are the need, exact when neither magnitude was
+    // capped at the limit, and unknown past the cap, which only bounds
+    // the count from below.
+    return tooLarge(
+      "exceeds",
+      capped(s, limit) || capped(x, limit)
+        ? UNKNOWN_NEED
+        : { kind: "exact", bits: bits + extra },
+    );
+  }
   const working = bits + extra;
   const digits = workingDigits(context) + Math.ceil(extra / BITS_PER_DIGIT) + 1;
   const ceilingBits = bitsFor(context.ceiling);
@@ -214,7 +225,7 @@ function incompleteGamma(
   if (lnX === undefined) {
     return err({ kind: "unresolved", argument: 1, edge: ZERO });
   }
-  const product = multiplyBalls(s, fixedToBall(lnX, digits));
+  const product = multiplyBalls(s, fixedToBall(lnX, digits), context);
   // A tiny order's s ln x may pass the bottom of the bound: it is then
   // zero within the bound's edge, which the sum absorbs.
   const sLnX: Result<Ball, BuiltinError> =
@@ -231,7 +242,7 @@ function incompleteGamma(
   const { route, steps } = routeOf(form, s, x, sf, xf, working);
   // Neither within its limit, a large order near a large argument: not
   // computed, rather than shown with digits nothing certifies.
-  if (route === undefined) return tooLarge("exceeds");
+  if (route === undefined) return tooLarge("exceeds", UNKNOWN_NEED);
   const arguments_ = { s, x, common: common.value, working, digits, context };
   if (route === "series") {
     const sum = fixedToBall(
@@ -282,7 +293,7 @@ function atEnds(
   if (r === undefined) throw new Error("A bounded radius has a value");
   const lo = subtract(x.mid, r, context.significandLimitBits);
   const hi = add(x.mid, r, context.significandLimitBits);
-  if (!lo.ok || !hi.ok) return tooLarge("exceeds");
+  if (!lo.ok || !hi.ok) return tooLarge("exceeds", UNKNOWN_NEED);
   const atLo = incompleteGamma(s, exact(lo.value), form, regularized, context);
   const atHi = incompleteGamma(s, exact(hi.value), form, regularized, context);
   return hullOfEnds(atLo, atHi, 1);
@@ -378,6 +389,11 @@ export function withinLimits(
   const sf = fixedFromBall(s, working);
   const xf = fixedFromBall(x, working);
   return routeOf("lower", s, x, sf, xf, working).route !== undefined;
+}
+
+/** Whether `magnitudeBits(b, limit)` counted `b`'s magnitude at its cap rather than from `b`: a midpoint of more than `limit` bits above the binary point. */
+function capped(b: Ball, limit: number): boolean {
+  return !isZero(b.mid) && log2Bounds(b.mid).upper.int > BigInt(limit);
 }
 
 type Arguments = {

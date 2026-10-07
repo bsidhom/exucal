@@ -44,6 +44,7 @@ function show(e: Expr): string {
       const quotient = divide(
         node.exponent.num.value,
         node.exponent.den?.value ?? ONE,
+        MAX_SIGNIFICAND_LIMIT_BITS,
       );
       assert.ok(quotient.ok);
       const fraction = toRational(quotient.value, MAX_SIGNIFICAND_LIMIT_BITS);

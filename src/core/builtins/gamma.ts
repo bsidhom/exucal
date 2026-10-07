@@ -256,7 +256,7 @@ function tinyDigamma(
     mid: one.mid,
     rad: addRadius(one.rad, shiftRadius(magnitudeAbove(x), 1n)),
   };
-  const reciprocal = divideBalls(exact(ONE), x);
+  const reciprocal = divideBalls(exact(ONE), x, context);
   if (!reciprocal.ok) return failed(reciprocal.error);
   const result = subtractBalls(psiOne, reciprocal.value, context);
   return result.ok ? result : failed(result.error);
@@ -457,9 +457,9 @@ function positiveLogGamma(
     const ln = fixedToBall(lnX, digits);
     const lessOne = subtractBalls(ln, exact(ONE), context);
     if (!lessOne.ok) return failed(lessOne.error);
-    const product = multiplyBalls(x, lessOne.value);
+    const product = multiplyBalls(x, lessOne.value, context);
     if (!product.ok) return failed(product.error);
-    const halfLn = multiplyBalls(ln, exact(HALF));
+    const halfLn = multiplyBalls(ln, exact(HALF), context);
     if (!halfLn.ok) return failed(halfLn.error);
     const difference = subtractBalls(product.value, halfLn.value, context);
     if (!difference.ok) return failed(difference.error);

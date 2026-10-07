@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { MAX_SIGNIFICAND_LIMIT_BITS, bitLength } from "./rational.ts";
 import {
   DEFAULT_CEILING,
   DEFAULT_SIGNIFICAND_LIMIT_BITS,
@@ -29,7 +30,15 @@ import type { Quantity } from "./quantity.ts";
 import { certifies } from "./ball.ts";
 import { DEFAULT_PRECISION, ROUNDING_MODES } from "./rounding.ts";
 import type { Result } from "./result.ts";
-import { ONE, ZERO, divide, equals, format, type Scaled } from "./scaled.ts";
+import {
+  ONE,
+  ZERO,
+  bitsOfTens,
+  divide,
+  equals,
+  format,
+  type Scaled,
+} from "./scaled.ts";
 import { unitLookup, type UnitTable } from "./table.ts";
 import { dec, fr } from "../testing/scaled.ts";
 import { describeTextError } from "../messages.ts";
@@ -147,7 +156,7 @@ function number(text: string): Scaled {
   const [numerator, denominator] = text.split("/");
   const num = dec(numerator!);
   if (denominator === undefined) return num;
-  const quotient = divide(num, dec(denominator));
+  const quotient = divide(num, dec(denominator), MAX_SIGNIFICAND_LIMIT_BITS);
   assert.ok(quotient.ok, `${JSON.stringify(text)} divides by zero`);
   return quotient.value;
 }
@@ -252,7 +261,12 @@ function passes(
     context,
     (working) => {
       at.push(working.precision);
-      return evaluate(expr.value, unitLookup(table), table.primitives, working);
+      return evaluate(
+        expr.value,
+        unitLookup(table, working),
+        table.primitives,
+        working,
+      );
     },
     (quantity) =>
       isExact(quantity.magnitude) ||
@@ -562,6 +576,7 @@ test("the significand limit of the context reaches a literal's significand and a
     kind: "tooLarge",
     span: { start: 0, end: 21 },
     inexact: "exceeds",
+    need: { kind: "exact", bits: bitLength(10n ** 20n) },
   });
   assert.ok(evaluateText(table, "1e18 m", small).ok);
   assert.ok(evaluateText(table, "1e30 m", small).ok);
@@ -572,6 +587,7 @@ test("the significand limit of the context reaches a literal's significand and a
     kind: "tooLarge",
     span: { start: 0, end: 5 },
     inexact: "fits",
+    need: { kind: "bound", bits: 101 },
     operand: { start: 0, end: 1 },
   });
   // An inexact base is bounded by the exponent bound, not by an exact
@@ -653,10 +669,12 @@ test("a literal of any exponent is a value, exact through the exact operations",
 test("a sum of two exact values that cannot be aligned is too large, at the sum", () => {
   const sum = evaluateText(table, "1e999999999 + 1", CONTEXT);
   assert.ok(!sum.ok);
+  const aligned = { kind: "bound", bits: 1 + bitsOfTens(999999999) };
   assert.deepEqual(sum.error, {
     kind: "tooLarge",
     span: { start: 0, end: 15 },
     inexact: "fits",
+    need: aligned,
     operand: { start: 0, end: 11 },
   });
   assert.deepEqual(failure("1e999999999 m - 1 m", "m"), {
@@ -666,6 +684,7 @@ test("a sum of two exact values that cannot be aligned is too large, at the sum"
       kind: "tooLarge",
       span: { start: 0, end: 19 },
       inexact: "fits",
+      need: aligned,
       operand: { start: 0, end: 13 },
     },
   });
@@ -727,10 +746,13 @@ test("the trigonometric functions saturate or refuse an argument of any exponent
   // be: too large, at the call.
   const sine = evaluateText(table, "sin(1e999999999 radian)", CONTEXT);
   assert.ok(!sine.ok);
+  // The need is the reduction's: the argument's bits above the binary
+  // point with the working bits at this context, bounded.
   assert.deepEqual(sine.error, {
     kind: "tooLarge",
     span: { start: 0, end: 23 },
     inexact: "exceeds",
+    need: { kind: "bound", bits: 3321928291 },
   });
   assert.deepEqual(failure("sin(1e999999999 radian)", "1"), {
     kind: "inputError",
@@ -739,6 +761,7 @@ test("the trigonometric functions saturate or refuse an argument of any exponent
       kind: "tooLarge",
       span: { start: 0, end: 23 },
       inexact: "exceeds",
+      need: { kind: "bound", bits: 3321928291 },
     },
   });
   // The arc tangent is pi/2 within 2^-bits: 90 degrees, inexact.
@@ -929,18 +952,26 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
   );
   // A count at an ordinary size can leave a remainder that cannot align
   // within the significand limit (#58): the conversion's tooLarge.
+  // The need is the quotient's, predicted after its gcds: the two parts'
+  // bits, one three of the count cancelled against the 381 of a foot.
   assert.deepEqual(failure("3^32767 m", "ft/7^21845; in/7^21845"), {
     kind: "tooLarge",
     inexact: "fits",
+    need: {
+      kind: "bound",
+      bits: bitLength(3n ** 32766n) + bitLength(7n ** 21845n),
+    },
   });
   // The conversion's ratio is held to the significand limit once formed (D19),
   // as a node's result is: two sides each within the limit whose ratio
   // passes it (#52's conversion, a value after 3.7 s before), refused as
-  // the pipeline's own `tooLarge`, which the message words with the
-  // remedy; in decimal mode the ratio is settled and is a value.
+  // the pipeline's own `tooLarge` with the bits the ratio's quotient
+  // would need, predicted; in decimal mode the ratio is settled and is a
+  // value.
   assert.deepEqual(failure("3^25000/7^14000 m", "11^15000/13^14000 ft"), {
     kind: "tooLarge",
     inexact: "fits",
+    need: { kind: "bound", bits: 91440 },
   });
   assert.ok(
     convertText(table, "3^25000/7^14000 m", "11^15000/13^14000 ft", decimal(8))
@@ -1427,7 +1458,7 @@ test("a condition may guard the next: a term is computed only behind conditions 
 test("a certain failure after an undecided comparison is reported, not assumed or retried", () => {
   const evaluated = evaluate(
     parsedExpr("both(approx(1), 0)"),
-    unitLookup(conditional),
+    unitLookup(conditional, CONTEXT),
     conditional.primitives,
     CONTEXT,
     [],
@@ -1468,7 +1499,7 @@ test("an undecided condition is assumed, retried to the ceiling, and carried out
       at.push(working.precision);
       return evaluate(
         expr,
-        unitLookup(conditional),
+        unitLookup(conditional, CONTEXT),
         conditional.primitives,
         working,
         assumptions,
@@ -1503,7 +1534,7 @@ test("a condition that more digits decide against fails, though an earlier pass 
   const assumed: Assumption[] = [];
   const early = evaluate(
     parsedExpr(text),
-    unitLookup(conditional),
+    unitLookup(conditional, CONTEXT),
     conditional.primitives,
     first,
     assumed,

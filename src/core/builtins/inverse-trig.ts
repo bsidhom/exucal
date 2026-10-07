@@ -176,7 +176,7 @@ export function asinBall(
   if (!root.ok) return root;
   const denominator = addBalls(exact(ONE), root.value, context);
   if (!denominator.ok) return err(fromBallError(denominator.error, 0));
-  const z = quotient(x, denominator.value, 0);
+  const z = quotient(x, denominator.value, 0, context);
   if (!z.ok) return z;
   return ok(fixedToBall(scaleFixed(atanKernel(z.value, context), 2n), digits));
 }
@@ -210,7 +210,7 @@ export function acosBall(
   if (sign(x.mid) >= 0) {
     const denominator = addBalls(exact(ONE), x, context);
     if (!denominator.ok) return err(fromBallError(denominator.error, 0));
-    const z = quotient(root.value, denominator.value, 0);
+    const z = quotient(root.value, denominator.value, 0, context);
     if (!z.ok) return z;
     return ok(
       fixedToBall(scaleFixed(atanKernel(z.value, context), 2n), digits),
@@ -218,7 +218,7 @@ export function acosBall(
   }
   const denominator = subtractBalls(exact(ONE), x, context);
   if (!denominator.ok) return err(fromBallError(denominator.error, 0));
-  const z = quotient(root.value, denominator.value, 0);
+  const z = quotient(root.value, denominator.value, 0, context);
   if (!z.ok) return z;
   const twice = scaleFixed(atanKernel(z.value, context), 2n);
   return ok(
@@ -285,7 +285,7 @@ export function atan2Ball(
     }
   }
   if (xSide === "positive") {
-    const z = quotient(y, x, 1);
+    const z = quotient(y, x, 1, context);
     if (!z.ok) return z;
     // A tiny ratio is its own arctangent within its cube, as atan's is,
     // and one reaching 2^significandLimitBits, a y straddling zero far wider than x,
@@ -298,7 +298,7 @@ export function atan2Ball(
     return err({ kind: "unresolved", argument: 0, edge: ZERO });
   }
   if (xSide === "negative") {
-    const z = quotient(y, x, 1);
+    const z = quotient(y, x, 1, context);
     if (!z.ok) return z;
     if (isHuge(z.value, context)) return ok(WHOLE_RANGE_ATAN2);
     const t = atanKernel(z.value, context);
@@ -324,7 +324,7 @@ export function atan2Ball(
   // straddling zero over a positive x, is not like this: its range is
   // (-pi/2, pi/2), symmetric about zero, and y's side of zero gives only
   // the sign of the result, so a ball around zero describes it.
-  const z = quotient(x, y, 0);
+  const z = quotient(x, y, 0, context);
   if (!z.ok) return z;
   if (isHuge(z.value, context)) {
     return err({ kind: "unresolved", argument: 1, edge: ZERO });
@@ -363,7 +363,7 @@ function complementRoot(
   if (top !== "below" || bottom !== "above") {
     return err({ kind: "unresolved", argument: 0, edge });
   }
-  const square = multiplyBalls(x, x);
+  const square = multiplyBalls(x, x, context);
   if (!square.ok) return err(fromBallError(square.error, 0));
   const complement = subtractBalls(exact(ONE), square.value, context);
   if (!complement.ok) return err(fromBallError(complement.error, 0));
@@ -466,8 +466,9 @@ function quotient(
   a: Ball,
   b: Ball,
   argument: number,
+  context: NumberContext,
 ): Result<Ball, BuiltinError> {
-  const result = divideBalls(a, b);
+  const result = divideBalls(a, b, context);
   if (result.ok) return result;
   return err(fromBallError(result.error, argument));
 }

@@ -27,11 +27,12 @@ import {
 } from "./quantity.ts";
 import {
   ZERO as ZERO_FRACTION,
+  bitLength,
   compare as compareFractions,
   rational,
   type Rational,
 } from "./rational.ts";
-import { ONE, ZERO, format, type Scaled } from "./scaled.ts";
+import { ONE, ZERO, bitsOfTens, format, type Scaled } from "./scaled.ts";
 import { dec, digitsOf, fr } from "../testing/scaled.ts";
 import { DEFAULT_PRECISION } from "./rounding.ts";
 import type { Result } from "./result.ts";
@@ -128,15 +129,21 @@ test("a scalar is a magnitude of no dimension", () => {
 
 test("multiplication multiplies magnitudes and adds exponents", () => {
   assertQuantity(
-    value(multiplyQuantities(quantity("2", { m: 1 }), quantity("3", { s: 1 }))),
+    value(
+      multiplyQuantities(
+        quantity("2", { m: 1 }),
+        quantity("3", { s: 1 }),
+        CONTEXT,
+      ),
+    ),
     quantity("6", { m: 1, s: 1 }),
   );
   assertQuantity(
-    value(multiplyQuantities(METRE, METRE)),
+    value(multiplyQuantities(METRE, METRE, CONTEXT)),
     quantity("1", { m: 2 }),
   );
   assertQuantity(
-    value(multiplyQuantities(scalar(fr(3n)), FOOT)),
+    value(multiplyQuantities(scalar(fr(3n)), FOOT, CONTEXT)),
     quantity("0.9144", { m: 1 }),
   );
 });
@@ -144,11 +151,13 @@ test("multiplication multiplies magnitudes and adds exponents", () => {
 test("a product is a Result: the exponent carries, and passes the bound", () => {
   const huge = quantity("1e999999999", { m: 1 });
   assertQuantity(
-    value(multiplyQuantities(huge, huge)),
+    value(multiplyQuantities(huge, huge, CONTEXT)),
     quantity("1e1999999998", { m: 2 }),
   );
   assertQuantity(
-    value(multiplyQuantities(huge, quantity("1e-999999999", { s: 1 }))),
+    value(
+      multiplyQuantities(huge, quantity("1e-999999999", { s: 1 }), CONTEXT),
+    ),
     quantity("1", { m: 1, s: 1 }),
   );
   // Beyond `10^(10^18)` the product is too large, whatever the dimension,
@@ -158,6 +167,7 @@ test("a product is a Result: the exponent carries, and passes the bound", () => 
       multiplyQuantities(
         quantity("1e999999999999999999", { m: 1 }),
         quantity("1e10"),
+        CONTEXT,
       ),
     ),
     { kind: "overflow" },
@@ -167,6 +177,7 @@ test("a product is a Result: the exponent carries, and passes the bound", () => 
       divideQuantities(
         quantity("1e-999999999999999999", { m: 1 }),
         quantity("1e10"),
+        CONTEXT,
       ),
     ),
     { kind: "underflow" },
@@ -227,14 +238,20 @@ test("a sum takes the context, and two exact magnitudes that cannot be aligned w
     value(subtractQuantities(huge, huge, PRIMITIVES, CONTEXT)),
     quantity("0", { m: 1 }),
   );
-  // `1e999999999 m + 1 m` has an exact sum that cannot be held.
+  // `1e999999999 m + 1 m` has an exact sum that cannot be held: the need
+  // is the alignment's, the one shifted by the power of ten.
   assert.deepEqual(failure(addQuantities(huge, METRE, PRIMITIVES, CONTEXT)), {
     kind: "tooLarge",
     inexact: "fits",
+    need: { kind: "bound", bits: 1 + bitsOfTens(999999999) },
   });
   assert.deepEqual(
     failure(subtractQuantities(METRE, huge, PRIMITIVES, CONTEXT)),
-    { kind: "tooLarge", inexact: "fits" },
+    {
+      kind: "tooLarge",
+      inexact: "fits",
+      need: { kind: "bound", bits: 1 + bitsOfTens(999999999) },
+    },
   );
   // The conformance check comes first: a mismatch is reported as one.
   assert.equal(
@@ -303,17 +320,27 @@ test("a sum of quantities that do not conform fails with the mismatch", () => {
 
 test("division divides magnitudes and subtracts exponents", () => {
   assertQuantity(
-    value(divideQuantities(quantity("6", { m: 1 }), quantity("3", { s: 1 }))),
+    value(
+      divideQuantities(
+        quantity("6", { m: 1 }),
+        quantity("3", { s: 1 }),
+        CONTEXT,
+      ),
+    ),
     quantity("2", { m: 1, s: -1 }),
   );
   assertQuantity(
-    value(divideQuantities(scalar(ONE), SECOND)),
+    value(divideQuantities(scalar(ONE), SECOND, CONTEXT)),
     quantity("1", { s: -1 }),
   );
   // Exact: 1 m / 3 ft is 1250/1143, which no decimal writes.
   assertQuantity(
     value(
-      divideQuantities(METRE, value(multiplyQuantities(scalar(fr(3n)), FOOT))),
+      divideQuantities(
+        METRE,
+        value(multiplyQuantities(scalar(fr(3n)), FOOT, CONTEXT)),
+        CONTEXT,
+      ),
     ),
     of(fr(1250n, 1143n)),
   );
@@ -321,40 +348,48 @@ test("division divides magnitudes and subtracts exponents", () => {
 
 test("exponents that cancel are dropped", () => {
   assert.deepEqual(
-    value(divideQuantities(METRE, METRE)).dimension,
+    value(divideQuantities(METRE, METRE, CONTEXT)).dimension,
     DIMENSIONLESS,
   );
   assert.deepEqual(
-    value(multiplyQuantities(quantity("1", { s: -1 }), SECOND)).dimension,
+    value(multiplyQuantities(quantity("1", { s: -1 }), SECOND, CONTEXT))
+      .dimension,
     DIMENSIONLESS,
   );
   assert.deepEqual(
-    value(divideQuantities(quantity("1", { m: 2, s: -1 }), METRE)).dimension,
+    value(divideQuantities(quantity("1", { m: 2, s: -1 }), METRE, CONTEXT))
+      .dimension,
     dim({ m: 1, s: -1 }),
   );
 });
 
 test("kinds are exponents like any other", () => {
   assertQuantity(
-    value(divideQuantities(RADIAN, SECOND)),
+    value(divideQuantities(RADIAN, SECOND, CONTEXT)),
     quantity("1", { radian: 1, s: -1 }),
   );
   assert.deepEqual(
-    value(divideQuantities(RADIAN, RADIAN)).dimension,
+    value(divideQuantities(RADIAN, RADIAN, CONTEXT)).dimension,
     DIMENSIONLESS,
   );
 });
 
 test("dividing by a zero magnitude fails", () => {
-  assert.deepEqual(failure(divideQuantities(METRE, quantity("0", { m: 1 }))), {
-    kind: "divisionByZero",
-  });
-  assert.deepEqual(failure(divideQuantities(scalar(ZERO), scalar(ZERO))), {
-    kind: "divisionByZero",
-  });
+  assert.deepEqual(
+    failure(divideQuantities(METRE, quantity("0", { m: 1 }), CONTEXT)),
+    {
+      kind: "divisionByZero",
+    },
+  );
+  assert.deepEqual(
+    failure(divideQuantities(scalar(ZERO), scalar(ZERO), CONTEXT)),
+    {
+      kind: "divisionByZero",
+    },
+  );
   // Whereas a zero dividend is simply zero.
   assertQuantity(
-    value(divideQuantities(quantity("0", { m: 1 }), SECOND)),
+    value(divideQuantities(quantity("0", { m: 1 }), SECOND, CONTEXT)),
     quantity("0", { m: 1, s: -1 }),
   );
 });
@@ -452,14 +487,14 @@ test("an inexact root is computed once on the kernel, at the precision", () => {
 
 test("an inexact magnitude carries its radius through the exact operations", () => {
   const root = value(powQuantity(quantity("2", { m: 2 }), half, CONTEXT));
-  const doubled = value(multiplyQuantities(scalar(fr(2n)), root));
+  const doubled = value(multiplyQuantities(scalar(fr(2n)), root, CONTEXT));
   assert.ok(!isExact(doubled.magnitude));
   assert.ok(
     !isExact(value(addQuantities(root, METRE, PRIMITIVES, CONTEXT)).magnitude),
   );
   assert.ok(!isExact(negateQuantity(root).magnitude));
   // Whereas an exact zero times it is exact zero.
-  assert.deepEqual(value(multiplyQuantities(scalar(ZERO), root)), {
+  assert.deepEqual(value(multiplyQuantities(scalar(ZERO), root, CONTEXT)), {
     magnitude: exact(ZERO),
     dimension: dim({ m: 1 }),
   });
@@ -474,7 +509,7 @@ test("dividing by a magnitude that cannot be told from zero is unresolved", () =
   );
   assert.ok(containsZero(almostZero.magnitude));
   assert.ok(!isExact(almostZero.magnitude));
-  assert.deepEqual(failure(divideQuantities(METRE, almostZero)), {
+  assert.deepEqual(failure(divideQuantities(METRE, almostZero, CONTEXT)), {
     kind: "unresolved",
     edge: ZERO,
   });
@@ -499,7 +534,12 @@ test("a power fails as its magnitude does", () => {
   });
   assert.deepEqual(
     failure(powQuantity(scalar(fr(7n)), rational(100000n), CONTEXT)),
-    { kind: "tooLarge", inexact: "fits" },
+    // The prediction, `floor(100000 log2 7) + 1`: the truth.
+    {
+      kind: "tooLarge",
+      inexact: "fits",
+      need: { kind: "bound", bits: bitLength(7n ** 100_000n) },
+    },
   );
   // A power of ten costs nothing: the exponent takes it.
   assertQuantity(
@@ -519,9 +559,9 @@ test("a power fails as its magnitude does", () => {
 test("the operations leave their operands alone", () => {
   const a = quantity("2", { m: 1, s: -1 });
   const b = quantity("0", { m: 1 });
-  multiplyQuantities(a, b);
-  divideQuantities(a, b);
-  divideQuantities(b, a);
+  multiplyQuantities(a, b, CONTEXT);
+  divideQuantities(a, b, CONTEXT);
+  divideQuantities(b, a, CONTEXT);
   addQuantities(a, b, PRIMITIVES, CONTEXT);
   subtractQuantities(b, b, PRIMITIVES, CONTEXT);
   negateQuantity(a);

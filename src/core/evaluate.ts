@@ -126,7 +126,7 @@
 // to the unit its parameter takes points at the whole call and carries the
 // argument's span the same way.
 
-import type { Reach } from "./rational.ts";
+import type { Need, Reach } from "./rational.ts";
 import {
   checkConformance,
   type ConformanceError,
@@ -153,6 +153,7 @@ import {
   powerRefusal,
   toRational,
   type Scaled,
+  measuredNeed,
 } from "./scaled.ts";
 import {
   decimalSumApart,
@@ -233,16 +234,17 @@ export type EvaluateError =
    * the setting, or the operation or call was not computed at all (a
    * sum's alignment, a power's prediction, the kernel's reach), or the
    * literal at `span` already passes. `inexact` is the refusing function's
-   * word on the same step computed inexactly (`Reach`), carried through
-   * unchanged; `operand`, on `fits` alone, is the span `approx` around
-   * would make the step inexact, the node's first operand, which is the
-   * evaluator's one addition, a fact of the syntax tree and not of the
-   * arithmetic.
+   * word on the same step computed inexactly (`Reach`) and `need` the
+   * bits it would take (`Need`), both carried through unchanged;
+   * `operand`, on `fits` alone, is the span `approx` around would make
+   * the step inexact, the node's first operand, which is the evaluator's
+   * one addition, a fact of the syntax tree and not of the arithmetic.
    */
   | {
       readonly kind: "tooLarge";
       readonly span: Span;
       readonly inexact: Reach;
+      readonly need: Need;
       readonly operand?: Span;
     }
   /**
@@ -397,24 +399,18 @@ export function evaluate<E>(
 ): Result<Quantity, EvaluateError | E> {
   const result = evaluateNode(expr, lookup, primitives, context, assumptions);
   if (!result.ok) return withOperand(result, expr);
-  // Every exact result is held to the significand limit where it is formed
-  // (D19): its canonical significand, what is stored and what the next
-  // operation multiplies, measured after the fact, so that `x / x` is one
-  // and a quotient's reduction is what is measured. The exponent bound
-  // was checked by the operation, so a result past both is at the bound.
-  // An inexact result is settled to the working digits and never refused
-  // for size, which is what `approx` at the node buys (D20).
+  // No exact result is formed past the significand limit (D19 as the
+  // strict limit amended it): every operation that forms one, the
+  // literal's parse, the sum's alignment, the product, the quotient and
+  // the power, predicts its size first and refuses with the bits it
+  // would need. So an exact result past the limit here is a bug in a
+  // prediction, not a refusal.
   const { magnitude } = result.value;
   if (
     isExact(magnitude) &&
     !significandWithin(magnitude.mid, context.significandLimitBits)
   ) {
-    // The exact result is what exceeds the limit: computed inexactly the
-    // step fits.
-    return withOperand(
-      err({ kind: "tooLarge", span: expr.span, inexact: "fits" }),
-      expr,
-    );
+    throw new Error("An exact result was formed past the significand limit");
   }
   return result;
 }
@@ -505,8 +501,13 @@ function evaluateNode<E>(
       // costing nothing (D16).
       if (!significandWithin(node.value, context.significandLimitBits)) {
         // The digits typed are the significand; nothing rounds them
-        // smaller before this check, in either mode.
-        return err({ kind: "tooLarge", span, inexact: "exceeds" });
+        // smaller before this check, in either mode. Its size is known.
+        return err({
+          kind: "tooLarge",
+          span,
+          inexact: "exceeds",
+          need: measuredNeed(node.value),
+        });
       }
       return locate(
         stepQuantity(() => ok(scalar(node.value)), context),
@@ -566,7 +567,7 @@ function evaluateNode<E>(
         case "juxtapose":
           return locate(
             stepQuantity(
-              () => multiplyQuantities(left.value, right.value),
+              () => multiplyQuantities(left.value, right.value, context),
               context,
               [left.value, right.value],
             ),
@@ -574,7 +575,7 @@ function evaluateNode<E>(
           );
         case "div": {
           const quotient = stepQuantity(
-            () => divideQuantities(left.value, right.value),
+            () => divideQuantities(left.value, right.value, context),
             context,
             [left.value, right.value],
           );
@@ -605,7 +606,12 @@ function evaluateNode<E>(
             ? undefined
             : powerRefusal(base.value.magnitude.mid, exponent.quotient);
         return refusal === undefined || refusal.kind === "limit"
-          ? err({ kind: "tooLarge", span, inexact: "exceeds" })
+          ? err({
+              kind: "tooLarge",
+              span,
+              inexact: "exceeds",
+              need: exponent.need,
+            })
           : err({ ...refusal, span });
       }
       // The power is one step: in decimal mode its rounding is certified
@@ -852,7 +858,12 @@ function applyBuiltin<E>(
     case "divisionByZero":
       return err({ kind: "divisionByZero", span });
     case "tooLarge":
-      return err({ kind: "tooLarge", span, inexact: error.inexact });
+      return err({
+        kind: "tooLarge",
+        span,
+        inexact: error.inexact,
+        need: error.need,
+      });
     case "overflow":
     case "underflow":
       return err({ kind: error.kind, span });
@@ -1171,7 +1182,12 @@ type Boxed<E> = Extract<BodyError<E>, { kind: "lookup" }>;
 /** What `reduceExponent` gives: the fraction, or why not (the doc there). */
 export type ReducedExponent =
   | { readonly ok: true; readonly value: Rational }
-  | { readonly ok: false; readonly quotient: Scaled | undefined };
+  | {
+      readonly ok: false;
+      readonly quotient: Scaled | undefined;
+      /** The bits the exponent would take: a literal's measured, or the quotient's as a fraction. */
+      readonly need: Need;
+    };
 
 /**
  * The `^` exponent `e` as the fraction it denotes, in lowest terms, within
@@ -1195,18 +1211,30 @@ export function reduceExponent(
     !significandWithin(num, significandLimitBits) ||
     !significandWithin(den, significandLimitBits)
   ) {
-    return { ok: false, quotient: undefined };
+    const larger = (s: Scaled) => measuredNeed(s).bits;
+    return {
+      ok: false,
+      quotient: undefined,
+      need: { kind: "exact", bits: Math.max(larger(num), larger(den)) },
+    };
   }
   // The literals are formable within the hard bound, so their exponents
   // are far within the exponent bound and the quotient cannot fail there;
-  // the divisor is nonzero by the parser's check.
-  const quotient = divide(num, den);
-  if (!quotient.ok)
+  // the divisor is nonzero by the parser's check. The quotient itself is
+  // held to the limit as any is, and refused with its need.
+  const quotient = divide(num, den, significandLimitBits);
+  if (!quotient.ok) {
+    if (quotient.error.kind === "tooLarge") {
+      return { ok: false, quotient: undefined, need: quotient.error.need };
+    }
     throw new Error("An exponent's quotient is within the bound");
+  }
   const fraction = toRational(quotient.value, significandLimitBits);
-  return fraction.ok
-    ? { ok: true, value: fraction.value }
-    : { ok: false, quotient: quotient.value };
+  if (fraction.ok) return { ok: true, value: fraction.value };
+  if (fraction.error.kind !== "tooLarge") {
+    throw new Error("A formable quotient is within the bound");
+  }
+  return { ok: false, quotient: quotient.value, need: fraction.error.need };
 }
 
 /** Whether `error` is the result's, at a limit: a refusal, or an `unresolved` at the exponent bound. */
@@ -1226,7 +1254,12 @@ function locate(
     case "divisionByZero":
       return err({ kind: "divisionByZero", span });
     case "tooLarge":
-      return err({ kind: "tooLarge", span, inexact: error.inexact });
+      return err({
+        kind: "tooLarge",
+        span,
+        inexact: error.inexact,
+        need: error.need,
+      });
     case "overflow":
     case "underflow":
       return err({ kind: error.kind, span });

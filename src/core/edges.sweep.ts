@@ -60,6 +60,7 @@ import {
   MAX_SIGNIFICAND_LIMIT_BITS,
   ONE as ONE_FRACTION,
   bitLength,
+  gcd,
   multiply as multiplyFractions,
   pow as powFraction,
   rational,
@@ -437,7 +438,7 @@ function onIntegers(
 /** The exact `div` of two midpoints, where it can be formed within the hard bound. */
 function divReference(a: Scaled, b: Scaled): Scaled | undefined {
   if (isZero(b)) return undefined;
-  const q = divide(a, b);
+  const q = divide(a, b, MAX_SIGNIFICAND_LIMIT_BITS);
   if (!q.ok) return undefined;
   return valueOr(floorScaled(q.value, MAX_SIGNIFICAND_LIMIT_BITS));
 }
@@ -446,7 +447,7 @@ function divReference(a: Scaled, b: Scaled): Scaled | undefined {
 function modReference(a: Scaled, b: Scaled): Scaled | undefined {
   const n = divReference(a, b);
   if (n === undefined) return undefined;
-  const product = multiply(b, n);
+  const product = multiply(b, n, MAX_SIGNIFICAND_LIMIT_BITS);
   if (!product.ok) return undefined;
   return valueOr(subtract(a, product.value, MAX_SIGNIFICAND_LIMIT_BITS));
 }
@@ -619,7 +620,7 @@ function reflectionPastLimit(x: Ball, context: NumberContext): boolean {
 /** Whether the quotient of the midpoints has a floor that cannot be formed within the context's significand limit. */
 function quotientPastLimit(a: Ball, b: Ball, context: NumberContext): boolean {
   if (isZero(b.mid)) return false;
-  const q = divide(a.mid, b.mid);
+  const q = divide(a.mid, b.mid, MAX_SIGNIFICAND_LIMIT_BITS);
   if (!q.ok) return false;
   const floored = floorScaled(q.value, context.significandLimitBits);
   return !floored.ok && floored.error.kind === "tooLarge";
@@ -642,7 +643,7 @@ function quotientPastTop(a: Ball, b: Ball): boolean {
  */
 function remainderPastLimit(a: Ball, b: Ball, context: NumberContext): boolean {
   if (isZero(b.mid)) return false;
-  const q = divide(a.mid, b.mid);
+  const q = divide(a.mid, b.mid, MAX_SIGNIFICAND_LIMIT_BITS);
   if (!q.ok) {
     if (q.error.kind !== "underflow" || sign(a.mid) * sign(b.mid) >= 0) {
       return false;
@@ -1189,15 +1190,17 @@ function ballOperations(): (Operation & { arity: number })[] {
     // In decimal mode the operands are settled first, so an operand whose
     // rounding passes the top refuses the sum (D17).
     settles: true,
-    // Two exact operands whose alignment exceeds the significand limit are
-    // `tooLarge` in exact mode, as documented.
+    // Two exact operands whose aligned sum passes the significand limit,
+    // by its alignment or by the bound of its unreduced sum, are
+    // `tooLarge` in exact mode, as documented (D19 as amended).
     tooLarge: ([a, b], context) =>
       isExact(a!) &&
       isExact(b!) &&
       modeOf(context) === "exact" &&
       !isZero(a!.mid) &&
       !isZero(b!.mid) &&
-      alignmentBits(a!.mid, b!.mid) > context.significandLimitBits,
+      sumBits(a!.mid, b!.mid, context.significandLimitBits) >
+        context.significandLimitBits,
     // The exact sum where the two align within the loose arithmetic's cap.
     reference: ([a, b]) => {
       const other = op === "add" ? b! : negate(b!);
@@ -1213,7 +1216,7 @@ function ballOperations(): (Operation & { arity: number })[] {
     {
       name: "multiplyBalls",
       arity: 2,
-      apply: (args) => multiplyBalls(args[0]!, args[1]!),
+      apply: (args, context) => multiplyBalls(args[0]!, args[1]!, context),
       modes: ["exact"],
       magnitude: ([a, b]) => valueMagnitude(multiplyIntervals(a!, b!)),
       reference: ([a, b]) => multiplyLoose(a!, b!),
@@ -1221,7 +1224,7 @@ function ballOperations(): (Operation & { arity: number })[] {
     {
       name: "divideBalls",
       arity: 2,
-      apply: (args) => divideBalls(args[0]!, args[1]!),
+      apply: (args, context) => divideBalls(args[0]!, args[1]!, context),
       modes: ["exact"],
       magnitude: ([a, b]) => {
         const q = divideIntervals(a!, b!);
@@ -1283,8 +1286,9 @@ function ballOperations(): (Operation & { arity: number })[] {
 
 /**
  * Whether `pow` in rational.ts predicts the exact power `mid^n` past the
- * significand limit of `context`, for an integer `n`: `|n|` times the larger of
- * the significand's two sizes in bits, the prediction that refuses `3^1000000000`.
+ * significand limit of `context`, for an integer `n`: `floor(|n| log2 p) + 1`
+ * for `p` the larger of the significand's two parts, the prediction that
+ * refuses `3^1000000000` and holds `2^65535` (D19 as amended).
  */
 function predictedPastLimit(
   mid: Scaled,
@@ -1293,20 +1297,54 @@ function predictedPastLimit(
 ): boolean {
   if (isZero(mid)) return false;
   const magnitude = absoluteBig(n.significand.num) * 10n ** n.exp;
-  const bits = Math.max(
-    bitLength(absoluteBig(mid.significand.num)),
-    bitLength(mid.significand.den),
-  );
+  const num = absoluteBig(mid.significand.num);
+  const part = num > mid.significand.den ? num : mid.significand.den;
+  if (magnitude > BigInt(context.significandLimitBits)) return true;
+  const below = Math.max(0, bitLength(part) - 53);
+  const log2 = Math.log2(Number(part >> BigInt(below))) + below;
   return (
-    magnitude > BigInt(context.significandLimitBits) ||
-    Number(magnitude) * bits > context.significandLimitBits
+    Math.floor(Number(magnitude) * log2) + 1 > context.significandLimitBits
   );
 }
 
-/** The bits a sum of `a` and `b` aligns by: the decades between their exponents at `log2 10` each. */
-function alignmentBits(a: Scaled, b: Scaled): number {
+/**
+ * The bits the exact sum of `a` and `b` is predicted to take before it is
+ * formed (D19 as amended): the operand shifted to the lesser exponent,
+ * its numerator's bits and the shift's power of ten, and then the bound
+ * of the unreduced sum of the aligned fractions, the cross products over
+ * the denominators' product with their common factor taken out; past
+ * `limit` at the alignment already, nothing more is counted.
+ */
+function sumBits(a: Scaled, b: Scaled, limit: number): number {
   const shift = a.exp > b.exp ? a.exp - b.exp : b.exp - a.exp;
-  return shift > 10n ** 15n ? Infinity : Number(shift) * Math.log2(10);
+  if (shift > 10n ** 15n) return Infinity;
+  const [shifted, other] = a.exp > b.exp ? [a, b] : [b, a];
+  const tens = Math.floor(Number(shift) * Math.log2(10)) + 1;
+  const aligned = bitLength(absoluteBig(shifted.significand.num)) + tens;
+  if (aligned > limit) return aligned;
+  const left = {
+    num: shifted.significand.num * 10n ** shift,
+    den: shifted.significand.den,
+  };
+  const right = other.significand;
+  if (left.den === right.den) {
+    return (
+      Math.max(
+        bitLength(absoluteBig(left.num)),
+        bitLength(absoluteBig(right.num)),
+      ) + 1
+    );
+  }
+  const g = gcd(left.den, right.den);
+  const bb = left.den / g;
+  const dd = right.den / g;
+  const numerator =
+    Math.max(
+      bitLength(absoluteBig(left.num)) + bitLength(dd),
+      bitLength(absoluteBig(right.num)) + bitLength(bb),
+    ) + 1;
+  const denominator = bitLength(bb) + bitLength(dd) + bitLength(g);
+  return Math.max(numerator, denominator);
 }
 
 function absoluteBig(n: bigint): bigint {

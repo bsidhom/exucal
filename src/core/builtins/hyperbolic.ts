@@ -254,7 +254,7 @@ export function acoshBall(
   }
   const bits = bitsFor(context.precision);
   if (isBeyond(x, bits)) return ok(farLogarithm(x, context));
-  const square = multiplyBalls(x, x);
+  const square = multiplyBalls(x, x, context);
   if (!square.ok) return err(fromBallError(square.error, 0));
   const complement = subtractBalls(square.value, exact(ONE), context);
   if (!complement.ok) return err(fromBallError(complement.error, 0));
@@ -309,7 +309,7 @@ export function atanhBall(
   if (!numerator.ok) return err(fromBallError(numerator.error, 0));
   const denominator = subtractBalls(exact(ONE), x, context);
   if (!denominator.ok) return err(fromBallError(denominator.error, 0));
-  const quotient = divideBalls(numerator.value, denominator.value);
+  const quotient = divideBalls(numerator.value, denominator.value, context);
   if (!quotient.ok) {
     // The divisor was checked to be above zero, so only a refusal of the
     // quotient is left, at the exponent bound; the significand limit is the

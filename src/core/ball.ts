@@ -191,8 +191,9 @@ import {
   ONE as ONE_FRACTION,
   add as addFractions,
   bitLength,
-  divide as divideFractions,
+  divideWithin,
   multiply as multiplyFractions,
+  multiplyWithin,
   rational,
   scaleByPowerOfTwo,
   subtract as subtractFractions,
@@ -504,9 +505,9 @@ function addBallsCore(
   // in exact mode, and in decimal mode the evaluator's to answer by the
   // neighbor rule (`decimalSumApart`, D26).
   if (isExact(a) && isExact(b)) return sum;
-  const settledA = settle(a, context);
+  const settledA = onGrid(a, context);
   if (!settledA.ok) return settledA;
-  const settledB = settle(b, context);
+  const settledB = onGrid(b, context);
   if (!settledB.ok) return settledB;
   const sa = settledA.value;
   const sb = settledB.value;
@@ -624,33 +625,65 @@ export function subtractBalls(
  * (D18); the evaluator holds an exact product to the significand limit at the
  * node (D19), so a caller takes any refusal.
  */
-export function multiplyBalls(a: Ball, b: Ball): Result<Ball, BallError> {
-  return carried(multiplyBallsCore(a, b), a, b);
+export function multiplyBalls(
+  a: Ball,
+  b: Ball,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  return carried(multiplyBallsCore(a, b, context), a, b);
 }
 
-function multiplyBallsCore(a: Ball, b: Ball): Result<Ball, BallError> {
+function multiplyBallsCore(
+  a: Ball,
+  b: Ball,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  const limit = context.significandLimitBits;
   if (isExactZero(a) || isExactZero(b)) return ok(exact(ZERO));
   if (isExact(a) && isExact(b)) {
-    const mid = multiply(a.mid, b.mid);
+    const mid = multiply(a.mid, b.mid, limit);
     return mid.ok ? ok(exact(mid.value)) : mid;
   }
   if (a.rad.kind === "unbounded" || b.rad.kind === "unbounded") {
-    const mid = multiply(a.mid, b.mid);
+    const mid = multiply(a.mid, b.mid, limit);
     return mid.ok ? ok({ mid: mid.value, rad: UNBOUNDED }) : mid;
   }
-  const rad = addRadius(
+  const product = multiplyWithin(a.mid.significand, b.mid.significand, limit);
+  if (product.ok) {
+    return held(
+      { significand: product.value, exp: a.mid.exp + b.mid.exp },
+      productRadius(a, b),
+    );
+  }
+  // An operand of more bits than the working grid, an exact value times
+  // an inexact one: the product is inexact in any case, so each operand
+  // is put on the grid first (`onGrid`, D15), as a sum that cannot align
+  // does, and two grid significands multiply within the limit by the
+  // limits' relation (`precisionLimitFor`).
+  const settledA = onGrid(a, context);
+  if (!settledA.ok) return settledA;
+  const settledB = onGrid(b, context);
+  if (!settledB.ok) return settledB;
+  const sa = settledA.value;
+  const sb = settledB.value;
+  const retried = multiplyWithin(sa.mid.significand, sb.mid.significand, limit);
+  if (!retried.ok) {
+    throw new Error("Two settled significands multiply within the limit");
+  }
+  return held(
+    { significand: retried.value, exp: sa.mid.exp + sb.mid.exp },
+    productRadius(sa, sb),
+  );
+}
+
+/** The radius of the product of the bounded `a` and `b`: each midpoint's magnitude times the other's radius, and the radii's product. */
+function productRadius(a: Ball, b: Ball): Radius {
+  return addRadius(
     addRadius(
       multiplyRadius(radiusAboveScaled(a.mid), b.rad),
       multiplyRadius(radiusAboveScaled(b.mid), a.rad),
     ),
     multiplyRadius(a.rad, b.rad),
-  );
-  return held(
-    {
-      significand: multiplyFractions(a.mid.significand, b.mid.significand),
-      exp: a.mid.exp + b.mid.exp,
-    },
-    rad,
   );
 }
 
@@ -691,6 +724,15 @@ function held(loose: Scaled, rad: Radius): Result<Ball, BallError> {
   const mid = scaled(loose.significand, loose.exp);
   if (!mid.ok) throw new Error("A midpoint within the bound is held");
   return belowTop(mid.value, rad);
+}
+
+/** The log-space power refused by the bits its decision would work at, `working`, which exceed the limit however the operands are held. */
+function unaffordable(working: bigint): PowerVerdict {
+  return {
+    kind: "tooLarge",
+    inexact: "exceeds",
+    need: { kind: "exact", bits: Number(working) },
+  };
 }
 
 /** A result that passes the bound for some values of its ball and not for others (D18). */
@@ -759,25 +801,55 @@ function againstPowerOfTen(
  * unbounded radius with a nonzero midpoint gives a quotient of unbounded
  * radius.
  */
-export function divideBalls(a: Ball, b: Ball): Result<Ball, BallError> {
-  return carried(divideBallsCore(a, b), a, b);
+export function divideBalls(
+  a: Ball,
+  b: Ball,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  return carried(divideBallsCore(a, b, context), a, b);
 }
 
-function divideBallsCore(a: Ball, b: Ball): Result<Ball, BallError> {
+function divideBallsCore(
+  a: Ball,
+  b: Ball,
+  context: NumberContext,
+): Result<Ball, BallError> {
+  const limit = context.significandLimitBits;
   if (isExactZero(b)) return err({ kind: "divisionByZero" });
   if (b.rad.kind === "unbounded") {
     if (isZero(b.mid)) return err({ kind: "unresolved", edge: ZERO });
-    const mid = divide(a.mid, b.mid);
+    const mid = divide(a.mid, b.mid, limit);
     return mid.ok ? ok({ mid: mid.value, rad: UNBOUNDED }) : mid;
   }
   if (containsZero(b)) return err({ kind: "unresolved", edge: ZERO });
   if (a.rad.kind === "unbounded" || (isExact(a) && isExact(b))) {
-    const mid = divide(a.mid, b.mid);
+    const mid = divide(a.mid, b.mid, limit);
     if (!mid.ok) return mid;
     return ok(
       isExact(a) ? exact(mid.value) : { mid: mid.value, rad: UNBOUNDED },
     );
   }
+  const quotient = inexactQuotient(a, b, limit);
+  if (quotient.ok) return quotient;
+  if (quotient.error.kind !== "tooLarge") return quotient;
+  // As a product puts an operand of more bits than the grid on it first.
+  const settledA = onGrid(a, context);
+  if (!settledA.ok) return settledA;
+  const settledB = onGrid(b, context);
+  if (!settledB.ok) return settledB;
+  const retried = inexactQuotient(settledA.value, settledB.value, limit);
+  if (!retried.ok && retried.error.kind === "tooLarge") {
+    throw new Error("Two settled significands divide within the limit");
+  }
+  return retried;
+}
+
+/** `a / b` for bounded balls, `b` excluding zero, the quotient's significand held to `limit`. */
+function inexactQuotient(
+  a: Ball,
+  b: Ball,
+  limit: number,
+): Result<Ball, BallError> {
   const numerator = addRadius(
     multiplyRadius(radiusAboveScaled(a.mid), b.rad),
     multiplyRadius(radiusAboveScaled(b.mid), a.rad),
@@ -787,8 +859,11 @@ function divideBallsCore(a: Ball, b: Ball): Result<Ball, BallError> {
   const distance = magnitudeBelow(b);
   if (isZeroRadius(distance)) return err({ kind: "unresolved", edge: ZERO });
   const denominator = multiplyRadiusDown(radiusBelowScaled(b.mid), distance);
-  const significand = divideFractions(a.mid.significand, b.mid.significand);
-  if (!significand.ok) throw new Error("A divisor excluding zero is nonzero");
+  const significand = divideWithin(a.mid.significand, b.mid.significand, limit);
+  if (!significand.ok) {
+    if (significand.error.kind === "tooLarge") return significand;
+    throw new Error("A divisor excluding zero is nonzero");
+  }
   return held(
     { significand: significand.value, exp: a.mid.exp - b.mid.exp },
     divideRadius(numerator, denominator),
@@ -841,7 +916,7 @@ function powBallCore(
       return err({ kind: "unresolved", edge: ZERO });
     }
     const positive = powBall(b, -n, context);
-    if (positive.ok) return divideBalls(exact(ONE), positive.value);
+    if (positive.ok) return divideBalls(exact(ONE), positive.value, context);
     // The reciprocal of a power past the bound is past it on the other side.
     return err(reciprocalError(positive.error));
   }
@@ -868,14 +943,14 @@ function powBallCore(
   let base = b;
   for (let rest = n; rest > 0n; rest >>= 1n) {
     if (rest & 1n) {
-      const product = multiplyBalls(result, base);
+      const product = multiplyBalls(result, base, context);
       if (!product.ok) return product;
       const settled = settle(product.value, context);
       if (!settled.ok) return settled;
       result = settled.value;
     }
     if (rest > 1n) {
-      const square = multiplyBalls(base, base);
+      const square = multiplyBalls(base, base, context);
       if (!square.ok) return square;
       const settled = settle(square.value, context);
       if (!settled.ok) return settled;
@@ -914,26 +989,47 @@ function powBallCore(
  * bottom edge, whose half unit lies past the bound, can take (the same
  * issue's first row threw here).
  */
+/**
+ * `b` on the working grid of `context`, whether exact or not: rounded to
+ * the working digits with the rounding charged to the radius, as `settle`
+ * rounds an inexact value, so that an exact operand of more bits than the
+ * grid, in an operation whose result is inexact in any case (a sum,
+ * product or quotient with an inexact operand that the strict limit
+ * cannot form on the exact operand), is rounded as `approx` would (D15)
+ * and an exact operand already on the grid, `1e999999999`, stays exact
+ * and costs nothing. Exact mode never rounds an exact value whose result
+ * is exact; this is for a result that is not.
+ */
+function onGrid(b: Ball, context: NumberContext): Result<Ball, BallError> {
+  if (modeOf(context) === "decimal") return settleDecimal(b, context);
+  return ok(gridded(b, context));
+}
+
 function settle(b: Ball, context: NumberContext): Result<Ball, BallError> {
   if (modeOf(context) === "decimal") return settleDecimal(b, context);
-  if (isZero(b.mid)) return ok(b);
   if (isExact(b)) return ok(b);
+  return ok(gridded(b, context));
+}
+
+/** `b` rounded to the working digits of `context` in exact mode, the rounding charged to the radius, exact or not; a zero or a value on the grid is itself. */
+function gridded(b: Ball, context: NumberContext): Ball {
+  if (isZero(b.mid)) return b;
   const digits = workingDigits(context);
   const mid = roundTo(b.mid, digits, "halfEven");
-  if (equals(mid, b.mid)) return ok(b);
+  if (equals(mid, b.mid)) return b;
   if (decimalExponent(mid) > MAX_EXPONENT) {
     // The rounding carried past the top: truncated instead, the midpoint
     // stays within the bound, and a whole unit covers what was cut.
     const truncated = roundTo(b.mid, digits, "towardZero");
-    return ok({
+    return {
       mid: truncated,
       rad: addRadius(b.rad, unitOf(truncated, digits)),
-    });
+    };
   }
-  return ok({
+  return {
     mid,
     rad: addRadius(b.rad, shiftRadius(unitOf(mid, digits), -1n)),
-  });
+  };
 }
 
 /**
@@ -1251,8 +1347,9 @@ function positiveRoot(
     shiftFixed(rootFixed(withRad, degree), Number(j)),
     workingDigits(context),
   );
+  // Back by the power of ten: the exponent moves, the significand stays.
   const backTen = scaledPowerOfTen(k);
-  const mid = multiply(root.mid, backTen);
+  const mid = scaled(root.mid.significand, root.mid.exp + k);
   if (!mid.ok) return mid;
   return ok({
     mid: mid.value,
@@ -1713,12 +1810,12 @@ export function classifyPower(
       return { kind: "one", rad: shiftRadius(L.maxUp, 1n) };
     }
     // The decision itself needs more bits than the limit holds: the
-    // inexact computation is what exceeds it.
-    return { kind: "tooLarge", inexact: "exceeds" };
+    // inexact computation is what exceeds it, by the bits it would work at.
+    return unaffordable(working);
   }
   if (coarse === "unresolved") return { kind: "unresolved", edge: "bound" };
   if (coarse !== "undecided") return { kind: coarse };
-  if (!affordable) return { kind: "tooLarge", inexact: "exceeds" };
+  if (!affordable) return unaffordable(working);
   const product = logProduct(magnitude, y, Number(working), context);
   if (product === undefined) return { kind: "unresolved", edge: ZERO };
   const verdict = classifyLog(product, bits, bitsFor(context.ceiling), false);
@@ -1882,7 +1979,7 @@ function lnOfRadius(r: Radius, direction: "up" | "down"): Radius {
 }
 
 /** The bits a value bounded by the radius `r` takes before the binary point, at least zero; a bigint, since `r`'s exponent is one. */
-function bitsOfRadius(r: Radius): bigint {
+export function bitsOfRadius(r: Radius): bigint {
   if (r.kind === "unbounded") return BigInt(MAX_SIGNIFICAND_LIMIT_BITS) * 8n;
   if (r.significand === 0n) return 0n;
   const int = log2OfRadius(r).int + 1n;

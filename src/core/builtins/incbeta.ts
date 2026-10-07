@@ -65,6 +65,7 @@ import {
   unboundedOf,
   type Builtin,
   type BuiltinError,
+  UNKNOWN_NEED,
 } from "../builtin.ts";
 import { workingDigits, type NumberContext } from "../context.ts";
 import { incbetaSeriesFixed, incbetaTermCount } from "../fixed-incbeta.ts";
@@ -206,7 +207,9 @@ function incompleteBeta(
   const extra =
     magnitudeBits(a, context.significandLimitBits) +
     magnitudeBits(b, context.significandLimitBits);
-  if (bits + extra > context.significandLimitBits) return tooLarge("exceeds");
+  if (bits + extra > context.significandLimitBits) {
+    return tooLarge("exceeds", { kind: "exact", bits: bits + extra });
+  }
   const working = bits + extra;
   const digits = workingDigits(context) + Math.ceil(extra / BITS_PER_DIGIT) + 1;
   // The complement of x, and the two orientations.
@@ -215,7 +218,7 @@ function incompleteBeta(
   const direct: Orientation = { a, b, x, other: complement.value };
   const swapped: Orientation = { a: b, b: a, x: complement.value, other: x };
   const choice = chooseOrientation(direct, swapped, working);
-  if (choice === undefined) return tooLarge("exceeds");
+  if (choice === undefined) return tooLarge("exceeds", UNKNOWN_NEED);
   const { orientation, swap } = choice;
   const value = valueOf(orientation, regularized, working, digits, context);
   if (!swap) return value;
@@ -356,9 +359,9 @@ function valueOf(
   if (!lnA.ok) return lnA;
   const lnSum = log(fixedToBall(sum, digits), 2);
   if (!lnSum.ok) return lnSum;
-  const aLnX = multiplyBallsSafe(o.a, lnX.value);
+  const aLnX = multiplyBallsSafe(o.a, lnX.value, context);
   if (!aLnX.ok) return aLnX;
-  const bLnOther = multiplyBallsSafe(o.b, lnOther.value);
+  const bLnOther = multiplyBallsSafe(o.b, lnOther.value, context);
   if (!bLnOther.ok) return bLnOther;
   const sumXY = addBalls(aLnX.value, bLnOther.value, context);
   if (!sumXY.ok) return failed(sumXY.error, 2);
@@ -392,8 +395,12 @@ function valueOf(
 }
 
 /** `p × l` as balls, a tiny product past the bottom being zero within the bound's edge. */
-function multiplyBallsSafe(p: Ball, l: Ball): Result<Ball, BuiltinError> {
-  const r = multiplyBalls(p, l);
+function multiplyBallsSafe(
+  p: Ball,
+  l: Ball,
+  context: NumberContext,
+): Result<Ball, BuiltinError> {
+  const r = multiplyBalls(p, l, context);
   if (r.ok) return r;
   if (r.error.kind === "underflow") return ok({ mid: ZERO, rad: PAST_BOTTOM });
   return failed(r.error, 0);
@@ -489,7 +496,7 @@ function atEnds(
   if (r === undefined) throw new Error("A bounded radius has a value");
   const lo = subtract(x.mid, r, context.significandLimitBits);
   const hi = add(x.mid, r, context.significandLimitBits);
-  if (!lo.ok || !hi.ok) return tooLarge("exceeds");
+  if (!lo.ok || !hi.ok) return tooLarge("exceeds", UNKNOWN_NEED);
   // Clamped to the domain: the ends outside it were refused above.
   const low = sign(lo.value) < 0 ? ZERO : lo.value;
   const high = compare(hi.value, ONE) > 0 ? ONE : hi.value;

@@ -378,11 +378,21 @@ test("the ends of the exponent: huge and tiny arguments and orders", () => {
   // Past the significand limit in the bits the logarithm would need.
   assert.deepEqual(
     error(call("lower", exact(dec("5e1000000000000000000")), exact(dec("2")))),
-    { kind: "tooLarge", inexact: "exceeds" },
+    { kind: "tooLarge", inexact: "exceeds", need: { kind: "unknown" } },
   );
   assert.deepEqual(
     error(call("upperreg", exact(dec("2")), exact(dec("1e20000")))),
-    { kind: "tooLarge", inexact: "exceeds" },
+    { kind: "tooLarge", inexact: "exceeds", need: { kind: "unknown" } },
+  );
+  // An argument below 2^65536 whose working bits still pass the limit:
+  // the need is those bits, exactly, and past the limit.
+  const near = error(call("lower", exact(dec("2")), exact(dec("1e19700"))));
+  assert.equal(near.kind, "tooLarge");
+  assert.ok(
+    near.kind === "tooLarge" &&
+      near.need.kind === "exact" &&
+      near.need.bits > CONTEXT.significandLimitBits,
+    inspect(near),
   );
 });
 
@@ -398,7 +408,7 @@ test("a large order near a large argument: the series where it is affordable, an
   );
   assert.deepEqual(
     error(call("lowerreg", exact(dec("1e8")), exact(dec("1e8")), eight)),
-    { kind: "tooLarge", inexact: "exceeds" },
+    { kind: "tooLarge", inexact: "exceeds", need: { kind: "unknown" } },
   );
   // Past the order, where only the series is affordable, the complement
   // keeps the digits below one: Q(1e6, 1.01e6) from P at the working bits.
@@ -408,7 +418,7 @@ test("a large order near a large argument: the series where it is affordable, an
   );
   assert.deepEqual(
     error(call("upperreg", exact(dec("1e6")), exact(dec("1.5e6")), eight)),
-    { kind: "tooLarge", inexact: "exceeds" },
+    { kind: "tooLarge", inexact: "exceeds", need: { kind: "unknown" } },
   );
 });
 

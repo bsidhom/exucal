@@ -65,13 +65,35 @@ export type Rational = { readonly num: bigint; readonly den: bigint };
  */
 export type Reach = "fits" | "exceeds";
 
+/**
+ * The bits a refused result would need in its significand's larger part,
+ * as the refusing function can tell (issue #73): `exact` where it
+ * measured a value that exists (a literal's digits, a kernel's working
+ * bits), `bound` where it predicted before forming, an upper bound that
+ * a limit at or above admits the result, within a bit of the truth for a
+ * product or a quotient after cross-cancellation and for an aligned sum,
+ * and `|n|` bits at most over it for a power; `unknown` where the
+ * function refuses by a test that yields no count. The message reports
+ * the number and recommends nothing: what a limit that holds it would
+ * cost on a device is the user's to judge.
+ */
+export type Need =
+  | { readonly kind: "exact"; readonly bits: number }
+  | { readonly kind: "bound"; readonly bits: number }
+  | { readonly kind: "unknown" };
+
+/** A `bound` need of `bits`, or `unknown` where the count is past a double's range. */
+export function boundOf(bits: number): Need {
+  return Number.isFinite(bits) ? { kind: "bound", bits } : { kind: "unknown" };
+}
+
 export type RationalError =
   /** Division by zero, including `0` raised to a negative power. */
   | { readonly kind: "divisionByZero" }
   /** An even root of a negative number, which has no real value. */
   | { readonly kind: "negativeRadicand"; readonly degree: bigint }
-  /** The result would need a significand past the significand limit and was not computed; `inexact` is the refusing function's word on the same step computed inexactly. */
-  | { readonly kind: "tooLarge"; readonly inexact: Reach }
+  /** The result would need a significand past the significand limit and was not computed; `inexact` is the refusing function's word on the same step computed inexactly, `need` its count of the bits the result would take. */
+  | { readonly kind: "tooLarge"; readonly inexact: Reach; readonly need: Need }
   /** The text is not a decimal number. */
   | { readonly kind: "invalidNumber" };
 
@@ -154,14 +176,77 @@ export function absolute(r: Rational): Rational {
   return r.num < 0n ? negate(r) : r;
 }
 
-/** `a + b`, by Henrici's rule (the header says what each operation reduces with). */
+/** `a + b`, by Henrici's rule (the header says what each operation reduces with), for operands bounded by construction; `addWithin` holds a sum to the significand limit. */
 export function add(a: Rational, b: Rational): Rational {
   return henrici(a.num, a.den, b.num, b.den);
 }
 
-/** `a - b`, by Henrici's rule. */
+/** `a - b`, by Henrici's rule, for operands bounded by construction. */
 export function subtract(a: Rational, b: Rational): Rational {
   return henrici(a.num, a.den, -b.num, b.den);
+}
+
+/**
+ * `a + b` by Henrici's rule, held to `limit` bits before anything larger
+ * than the operands is formed: the sum's numerator `a d' + c b'` and its
+ * denominator `b' d' g` are bounded from the parts' bit lengths, and a
+ * bound past the limit is refused with the bound as the need. The bound
+ * is the unreduced sum's; a sum that would reduce to fit is refused with
+ * it, since the limit bounds what is formed and not only what is kept.
+ * Two integers, and two fractions over one denominator, the common case
+ * of two aligned significands, are bounded by the larger numerator plus
+ * one.
+ */
+export function addWithin(
+  a: Rational,
+  b: Rational,
+  limit: number,
+): Result<Rational, RationalError> {
+  return henriciWithin(a.num, a.den, b.num, b.den, limit);
+}
+
+/** `a - b`, as `addWithin` holds it. */
+export function subtractWithin(
+  a: Rational,
+  b: Rational,
+  limit: number,
+): Result<Rational, RationalError> {
+  return henriciWithin(a.num, a.den, -b.num, b.den, limit);
+}
+
+function henriciWithin(
+  a: bigint,
+  b: bigint,
+  c: bigint,
+  d: bigint,
+  limit: number,
+): Result<Rational, RationalError> {
+  if (b === d) {
+    const bits = Math.max(bitLength(abs(a)), bitLength(abs(c))) + 1;
+    if (bits > limit) return refusedSum(bits);
+    return ok(henrici(a, b, c, d));
+  }
+  const g = gcd(b, d);
+  const bb = b / g;
+  const dd = d / g;
+  const numerator =
+    Math.max(
+      bitLength(abs(a)) + bitLength(dd),
+      bitLength(abs(c)) + bitLength(bb),
+    ) + 1;
+  const denominator = bitLength(bb) + bitLength(dd) + bitLength(g);
+  const bits = Math.max(numerator, denominator);
+  if (bits > limit) return refusedSum(bits);
+  const t = a * dd + c * bb;
+  if (t === 0n) return ok(ZERO);
+  if (g === 1n) return ok({ num: t, den: b * d });
+  const g2 = gcd(abs(t), g);
+  return ok({ num: t / g2, den: bb * dd * (g / g2) });
+}
+
+/** A sum refused before forming: the exact sum is what exceeds the limit, an inexact operand being absorbed into the radius instead (ball.ts). */
+function refusedSum(bits: number): Result<never, RationalError> {
+  return err({ kind: "tooLarge", inexact: "fits", need: boundOf(bits) });
 }
 
 /**
@@ -198,7 +283,9 @@ function henrici(a: bigint, b: bigint, c: bigint, d: bigint): Rational {
 /**
  * `a × b`, by cross-cancellation: each numerator against the other
  * denominator, which is all a product of two fractions in lowest terms
- * can share.
+ * can share. For operands bounded by construction (the kernel's grid
+ * points, a radius, a dimension's exponents); `multiplyWithin` holds an
+ * exact product to the significand limit.
  */
 export function multiply(a: Rational, b: Rational): Rational {
   if (a.num === 0n || b.num === 0n) return ZERO;
@@ -208,6 +295,69 @@ export function multiply(a: Rational, b: Rational): Rational {
     num: (a.num / g1) * (b.num / g2),
     den: (a.den / g2) * (b.den / g1),
   };
+}
+
+/**
+ * `a × b` held to `limit` bits before the product is formed: after the
+ * cross-cancelling gcds, which run on the operands and cost no more than
+ * they do, the product's numerator and denominator are bounded by the
+ * sums of the parts' bit lengths, within a bit of the truth, and a bound
+ * past the limit is refused with the bound as the need. The gcds first,
+ * so that `x / x` and `(a/b) × (b/a)` are one whatever their size, and
+ * nothing larger than the limit is ever formed (D19, as the strict limit
+ * amended it).
+ */
+export function multiplyWithin(
+  a: Rational,
+  b: Rational,
+  limit: number,
+): Result<Rational, RationalError> {
+  if (a.num === 0n || b.num === 0n) return ok(ZERO);
+  const g1 = gcd(abs(a.num), b.den);
+  const g2 = gcd(abs(b.num), a.den);
+  return formedWithin(a.num / g1, b.num / g2, a.den / g2, b.den / g1, limit);
+}
+
+/**
+ * `a / b` held to `limit` bits as `multiplyWithin` holds a product, the
+ * two numerators cancelling against each other and so the denominators;
+ * fails if `b` is zero.
+ */
+export function divideWithin(
+  a: Rational,
+  b: Rational,
+  limit: number,
+): Result<Rational, RationalError> {
+  if (b.num === 0n) return err({ kind: "divisionByZero" });
+  if (a.num === 0n) return ok(ZERO);
+  const g1 = gcd(abs(a.num), abs(b.num));
+  const g2 = gcd(b.den, a.den);
+  const num = b.num / g1;
+  return formedWithin(
+    num < 0n ? -(a.num / g1) : a.num / g1,
+    b.den / g2,
+    a.den / g2,
+    abs(num),
+    limit,
+  );
+}
+
+/** `(n1 n2) / (d1 d2)` for cross-cancelled parts, formed only within `limit` bits; the exact product is what exceeds it. */
+function formedWithin(
+  n1: bigint,
+  n2: bigint,
+  d1: bigint,
+  d2: bigint,
+  limit: number,
+): Result<Rational, RationalError> {
+  const bits = Math.max(
+    bitLength(abs(n1)) + bitLength(abs(n2)),
+    bitLength(d1) + bitLength(d2),
+  );
+  if (bits > limit) {
+    return err({ kind: "tooLarge", inexact: "fits", need: boundOf(bits) });
+  }
+  return ok({ num: n1 * n2, den: d1 * d2 });
 }
 
 /**
@@ -258,8 +408,11 @@ export function divide(
 /**
  * `r` raised to the integer power `n`, exactly. A negative `n` inverts, so
  * `0` to a negative power is a division by zero. The result can be `|n|`
- * times as large as `r`, so it is checked against `limit` bits first, the
- * context's significand limit.
+ * times as large as `r`, so its size is predicted first against `limit`
+ * bits, the context's significand limit: the bits of `p^|n|` for `p` the
+ * larger part are `floor(|n| log2 p) + 1`, taken with `log2 p` from the
+ * part's top bits rounded up, which is the truth or a bit over it, so
+ * that `2^65535` is a value at the default and `2^65536` is not.
  */
 export function pow(
   r: Rational,
@@ -274,11 +427,13 @@ export function pow(
     return ok(r.num === 1n || n % 2n === 0n ? ONE : r);
   }
   const magnitude = abs(n);
-  const bits = Math.max(bitLength(abs(r.num)), bitLength(r.den));
-  if (magnitude > BigInt(limit) || Number(magnitude) * bits > limit) {
+  const part = abs(r.num) > r.den ? abs(r.num) : r.den;
+  const bits = Math.floor(Number(magnitude) * log2Above(part)) + 1;
+  if (bits > limit) {
     // The exact power is what exceeds the limit; an inexact base is raised in log
-    // space (ball.ts), where the exponent's size alone is the cost.
-    return err({ kind: "tooLarge", inexact: "fits" });
+    // space (ball.ts), where the exponent's size alone is the cost. The
+    // need is the prediction, within a bit of the truth.
+    return err({ kind: "tooLarge", inexact: "fits", need: boundOf(bits) });
   }
   const num = r.num ** magnitude;
   const den = r.den ** magnitude;
@@ -323,6 +478,16 @@ export function trunc(r: Rational): Rational {
 
 // ---------------------------------------------------------------------------
 // bigint helpers
+
+/**
+ * `log2 n` for a positive `n`, rounded up: taken on the top 53 bits of
+ * `n` and the count below them, with a margin above a double's rounding,
+ * so that a bit count predicted from it is never below the truth.
+ */
+function log2Above(n: bigint): number {
+  const below = Math.max(0, bitLength(n) - 53);
+  return Math.log2(Number(n >> BigInt(below))) + below + 2 ** -40;
+}
 
 /** The magnitude of a bigint. */
 export function abs(n: bigint): bigint {

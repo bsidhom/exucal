@@ -383,8 +383,8 @@ Each number input carries its unit as a suffix; the lines say the rest.
   its numerator and, separately, its denominator: 65,536 bits is a
   numerator or a denominator of up to about 19,700 digits. An exact
   result past it is refused and named; the finest grid must fit inside
-  it." (#73, when it lands, makes the refusal say how many bits the
-  result needed.)
+  it." (#73, landed with the strict limit after this step, makes the
+  refusal say how many bits the result would need.)
 - Probe budget, "ms": "The time the probe allows one pass; it proposes
   the largest limits that stay within it."
 - A refusal: under the input, "at most 2,453 digits under the
@@ -444,7 +444,8 @@ must fit inside it, which `2 × bitsFor(4 × (L + 10)) ≤ S` states and
 ## Not in this step
 
 - **The probe's freeze (#163)** and responsiveness (#118).
-- **The bits a refusal needed (#73).**
+- **The bits a refusal needed (#73).** Landed after this step, with
+  the strict limit (the plan's D19 as amended).
 - **The panel's placement, grouping and controls (S4, S5)**, which may
   present the proposal, the refusal and the clamp's line otherwise; this
   step fixes the words and the policy.

@@ -211,7 +211,12 @@ test("beta is held to the exponent bound by the classifier, and to the significa
   );
   assert.deepEqual(
     error(betaBall(exact(dec("1e20000")), exact(dec("2")), CONTEXT)),
-    { kind: "tooLarge", inexact: "exceeds" },
+    // The need is the bits the logarithms' route would work at.
+    {
+      kind: "tooLarge",
+      inexact: "exceeds",
+      need: { kind: "exact", bits: 65735 },
+    },
   );
   assert.deepEqual(
     error(betaBall(exact(dec("2")), exact(dec("-1e999999999")), CONTEXT)),
@@ -330,7 +335,7 @@ test("beta through the pipeline, with its messages", () => {
   );
   assert.equal(
     run("beta(1e20000, 2)"),
-    '"beta(1e20000, 2)" would need a significand past the significand limit, however it is computed.',
+    '"beta(1e20000, 2)" would need a significand of 65,662 bits, past the significand limit, however it is computed.',
   );
   assert.equal(
     run("beta(2 m, 3)"),

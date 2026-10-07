@@ -95,7 +95,7 @@ test("the exact functions through the pipeline, with their messages", () => {
   );
   assert.equal(
     run("factorial(20000)"),
-    '"factorial(20000)" would need a significand past the significand limit, however it is computed.',
+    '"factorial(20000)" would need a significand of about 256,909 bits, past the significand limit, however it is computed.',
   );
   assert.equal(
     run("floor(sqrt(2)^2)"),

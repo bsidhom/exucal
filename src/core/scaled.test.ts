@@ -22,6 +22,8 @@ import {
   toFraction,
   type Rational,
   type RationalError,
+  bitLength,
+  abs,
 } from "./rational.ts";
 import {
   formatFraction,
@@ -62,6 +64,7 @@ import {
   type Log2,
   type Scaled,
   type ScaledError,
+  bitsOfTens,
 } from "./scaled.ts";
 import { ROUNDING_MODES, type RoundingMode } from "./rounding.ts";
 import { inLowestTerms } from "../testing/fraction.ts";
@@ -80,6 +83,28 @@ function assertError(result: Result<unknown, ScaledError>, kind: string) {
 /** Asserts that `result` was refused with `kind`. */
 function assertRefused(result: Result<unknown, ScaledError>, refusal: Refusal) {
   assert.deepEqual(result, { ok: false, error: refusal });
+}
+
+/** The refusal of an exact power predicted past the limit: `floor(|n| log2 p) + 1` for `p` the larger part, with `log2 p` from its top bits and a margin of `2^-40` above, as `pow` predicts it. */
+function predicted(s: Scaled, n: bigint): Refusal {
+  const { num, den } = s.significand;
+  const part = abs(num) > den ? abs(num) : den;
+  const below = Math.max(0, bitLength(part) - 53);
+  const log2 = Math.log2(Number(part >> BigInt(below))) + below + 2 ** -40;
+  return {
+    kind: "tooLarge",
+    inexact: "fits",
+    need: { kind: "bound", bits: Math.floor(Number(abs(n)) * log2) + 1 },
+  };
+}
+
+/** The refusal of a sum whose aligned operand, `digits` ones shifted by `shift` places, passes the limit. */
+function aligned(bits: number, shift: number): Refusal {
+  return {
+    kind: "tooLarge",
+    inexact: "fits",
+    need: { kind: "bound", bits: bits + bitsOfTens(shift) },
+  };
 }
 
 /** A decimal literal that is expected to be valid. */
@@ -565,36 +590,94 @@ test("a sum whose alignment does not fit the limit is too large", () => {
 
 test("products, quotients and powers combine exponents and hold the bound", () => {
   assert.deepEqual(
-    unwrap(multiply(big("1", 999999999n), big("1", 999999999n))),
+    unwrap(
+      multiply(
+        big("1", 999999999n),
+        big("1", 999999999n),
+        MAX_SIGNIFICAND_LIMIT_BITS,
+      ),
+    ),
     big("1", 1999999998n),
   );
   assert.deepEqual(
-    unwrap(multiply(big("2.5", 999999999n), big("4", -999999999n))),
+    unwrap(
+      multiply(
+        big("2.5", 999999999n),
+        big("4", -999999999n),
+        MAX_SIGNIFICAND_LIMIT_BITS,
+      ),
+    ),
     dec("10"),
   );
   assert.deepEqual(
-    unwrap(divide(big("1", 999999999n), big("4", -999999999n))),
+    unwrap(
+      divide(
+        big("1", 999999999n),
+        big("4", -999999999n),
+        MAX_SIGNIFICAND_LIMIT_BITS,
+      ),
+    ),
     big("2.5", 1999999997n),
   );
-  assert.deepEqual(unwrap(divide(ZERO, big("4", -999999999n))), ZERO);
-  assertError(divide(ONE, ZERO), "divisionByZero");
-  assertError(invert(ZERO), "divisionByZero");
   assert.deepEqual(
-    unwrap(invert(big("4", -999999999n))),
+    unwrap(divide(ZERO, big("4", -999999999n), MAX_SIGNIFICAND_LIMIT_BITS)),
+    ZERO,
+  );
+  assertError(divide(ONE, ZERO, MAX_SIGNIFICAND_LIMIT_BITS), "divisionByZero");
+  assertError(invert(ZERO, MAX_SIGNIFICAND_LIMIT_BITS), "divisionByZero");
+  assert.deepEqual(
+    unwrap(invert(big("4", -999999999n), MAX_SIGNIFICAND_LIMIT_BITS)),
     big("2.5", 999999998n),
   );
-  assert.deepEqual(unwrap(invert(dec("8"))), dec("0.125"));
-  assert.deepEqual(unwrap(multiply(ZERO, big("1", MAX_EXPONENT))), ZERO);
+  assert.deepEqual(
+    unwrap(invert(dec("8"), MAX_SIGNIFICAND_LIMIT_BITS)),
+    dec("0.125"),
+  );
+  assert.deepEqual(
+    unwrap(multiply(ZERO, big("1", MAX_EXPONENT), MAX_SIGNIFICAND_LIMIT_BITS)),
+    ZERO,
+  );
   // At the bound and one past it.
   const half = MAX_EXPONENT / 2n;
-  assert.ok(multiply(at(1n, 1n, half), at(1n, 1n, half)).ok);
-  assertError(multiply(at(1n, 1n, half), at(1n, 1n, half + 1n)), "overflow");
-  assertError(multiply(at(10n, 1n, half), at(1n, 1n, half)), "overflow");
-  assert.ok(divide(at(1n, 1n, half), at(1n, 1n, -half)).ok);
-  assertError(divide(at(1n, 1n, half), at(1n, 1n, -half - 1n)), "overflow");
-  assertError(divide(at(1n, 1n, -half), at(1n, 1n, half + 1n)), "underflow");
-  assert.ok(invert(at(1n, 1n, MAX_EXPONENT)).ok);
-  assertError(invert(at(5n, 1n, MAX_EXPONENT)), "underflow");
+  assert.ok(
+    multiply(at(1n, 1n, half), at(1n, 1n, half), MAX_SIGNIFICAND_LIMIT_BITS).ok,
+  );
+  assertError(
+    multiply(
+      at(1n, 1n, half),
+      at(1n, 1n, half + 1n),
+      MAX_SIGNIFICAND_LIMIT_BITS,
+    ),
+    "overflow",
+  );
+  assertError(
+    multiply(at(10n, 1n, half), at(1n, 1n, half), MAX_SIGNIFICAND_LIMIT_BITS),
+    "overflow",
+  );
+  assert.ok(
+    divide(at(1n, 1n, half), at(1n, 1n, -half), MAX_SIGNIFICAND_LIMIT_BITS).ok,
+  );
+  assertError(
+    divide(
+      at(1n, 1n, half),
+      at(1n, 1n, -half - 1n),
+      MAX_SIGNIFICAND_LIMIT_BITS,
+    ),
+    "overflow",
+  );
+  assertError(
+    divide(
+      at(1n, 1n, -half),
+      at(1n, 1n, half + 1n),
+      MAX_SIGNIFICAND_LIMIT_BITS,
+    ),
+    "underflow",
+  );
+  assert.ok(invert(at(1n, 1n, MAX_EXPONENT), MAX_SIGNIFICAND_LIMIT_BITS).ok);
+  assertError(
+    invert(at(5n, 1n, MAX_EXPONENT), MAX_SIGNIFICAND_LIMIT_BITS),
+    "underflow",
+  );
 });
 
 test("pow raises the significand against the limit and the exponent against the bound", () => {
@@ -658,32 +741,65 @@ test("a refusal names the limit it passes: tooLarge for the significand limit, o
     kind: "underflow",
   });
   const half = MAX_EXPONENT / 2n;
-  assertRefused(multiply(at(1n, 1n, half), at(1n, 1n, half + 1n)), {
-    kind: "overflow",
-  });
-  assertRefused(multiply(at(1n, 1n, -half), at(1n, 1n, -half - 1n)), {
+  assertRefused(
+    multiply(
+      at(1n, 1n, half),
+      at(1n, 1n, half + 1n),
+      MAX_SIGNIFICAND_LIMIT_BITS,
+    ),
+    {
+      kind: "overflow",
+    },
+  );
+  assertRefused(
+    multiply(
+      at(1n, 1n, -half),
+      at(1n, 1n, -half - 1n),
+      MAX_SIGNIFICAND_LIMIT_BITS,
+    ),
+    {
+      kind: "underflow",
+    },
+  );
+  assertRefused(
+    divide(
+      at(1n, 1n, half),
+      at(1n, 1n, -half - 1n),
+      MAX_SIGNIFICAND_LIMIT_BITS,
+    ),
+    {
+      kind: "overflow",
+    },
+  );
+  assertRefused(
+    divide(
+      at(1n, 1n, -half),
+      at(1n, 1n, half + 1n),
+      MAX_SIGNIFICAND_LIMIT_BITS,
+    ),
+    {
+      kind: "underflow",
+    },
+  );
+  assertRefused(invert(at(5n, 1n, MAX_EXPONENT), MAX_SIGNIFICAND_LIMIT_BITS), {
     kind: "underflow",
   });
-  assertRefused(divide(at(1n, 1n, half), at(1n, 1n, -half - 1n)), {
-    kind: "overflow",
-  });
-  assertRefused(divide(at(1n, 1n, -half), at(1n, 1n, half + 1n)), {
-    kind: "underflow",
-  });
-  assertRefused(invert(at(5n, 1n, MAX_EXPONENT)), { kind: "underflow" });
   // A sum's alignment and a fraction's power of ten are the range
   // limit's; a sum whose value passes the bound is the bound's.
-  assertRefused(add(big("1", 999999999n), ONE, MAX_SIGNIFICAND_LIMIT_BITS), {
-    kind: "tooLarge",
-    inexact: "fits",
-  });
+  assertRefused(
+    add(big("1", 999999999n), ONE, MAX_SIGNIFICAND_LIMIT_BITS),
+    aligned(1, 999_999_999),
+  );
   assertRefused(
     subtract(ONE, big("1", -999999999n), MAX_SIGNIFICAND_LIMIT_BITS),
-    { kind: "tooLarge", inexact: "fits" },
+    aligned(1, 999_999_999),
   );
+  // The need is the fraction `toRational` would form: a denominator of
+  // `10^400000`.
   assertRefused(toRational(big("1", -400000n), MAX_SIGNIFICAND_LIMIT_BITS), {
     kind: "tooLarge",
     inexact: "exceeds",
+    need: { kind: "bound", bits: 1 + bitsOfTens(400_000) },
   });
   assertRefused(
     add(
@@ -697,6 +813,7 @@ test("a refusal names the limit it passes: tooLarge for the significand limit, o
   assertRefused(parseDecimal("9".repeat(320000)), {
     kind: "tooLarge",
     inexact: "exceeds",
+    need: { kind: "bound", bits: bitsOfTens(320000) },
   });
   assertRefused(parseDecimal("1e1000000000000000001"), { kind: "overflow" });
   assertRefused(parseDecimal("10e1000000000000000000"), { kind: "overflow" });
@@ -740,26 +857,26 @@ test("a power refused is told by its decimal exponent, not by the check that fai
     kind: "overflow",
   });
   // Refused by the significand and within the bound: the significand limit.
-  assertRefused(pow(dec("2"), 1442695n, MAX_SIGNIFICAND_LIMIT_BITS), {
-    kind: "tooLarge",
-    inexact: "fits",
-  });
-  assertRefused(pow(dec("2"), 100n, 64), { kind: "tooLarge", inexact: "fits" });
-  assertRefused(pow(dec("3e9"), 100_000n, 1 << 16), {
-    kind: "tooLarge",
-    inexact: "fits",
-  });
+  assertRefused(
+    pow(dec("2"), 1442695n, MAX_SIGNIFICAND_LIMIT_BITS),
+    predicted(dec("2"), 1442695n),
+  );
+  assertRefused(pow(dec("2"), 100n, 64), predicted(dec("2"), 100n));
+  assertRefused(
+    pow(dec("3e9"), 100_000n, 1 << 16),
+    predicted(dec("3e9"), 100_000n),
+  );
   // The canonical form, 254 × 10^-2, puts the exponent of 2.54^(10^18)
   // past the bound below, but the power is 10^(0.40 × 10^18), within it:
   // refused at the significand limit, not as a value too small.
-  assertRefused(pow(dec("2.54"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS), {
-    kind: "tooLarge",
-    inexact: "fits",
-  });
-  assertRefused(pow(dec("2.54"), -(10n ** 18n), MAX_SIGNIFICAND_LIMIT_BITS), {
-    kind: "tooLarge",
-    inexact: "fits",
-  });
+  assertRefused(
+    pow(dec("2.54"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS),
+    predicted(dec("2.54"), 10n ** 18n),
+  );
+  assertRefused(
+    pow(dec("2.54"), -(10n ** 18n), MAX_SIGNIFICAND_LIMIT_BITS),
+    predicted(dec("2.54"), 10n ** 18n),
+  );
   // A base within 2^-30 of one: the side is the base's against one, and
   // the size its exact difference from one's. 1.0000000001 is
   // 10000000001 × 10^-10, whose canonical exponent is negative, but its
@@ -772,10 +889,10 @@ test("a power refused is told by its decimal exponent, not by the check that fai
   assertRefused(pow(nearOne, -(10n ** 30n), MAX_SIGNIFICAND_LIMIT_BITS), {
     kind: "underflow",
   });
-  assertRefused(pow(nearOne, 10n ** 28n, MAX_SIGNIFICAND_LIMIT_BITS), {
-    kind: "tooLarge",
-    inexact: "fits",
-  });
+  assertRefused(
+    pow(nearOne, 10n ** 28n, MAX_SIGNIFICAND_LIMIT_BITS),
+    predicted(nearOne, 10n ** 28n),
+  );
   const belowOne = dec("0.9999999999");
   assertRefused(pow(belowOne, 10n ** 30n, MAX_SIGNIFICAND_LIMIT_BITS), {
     kind: "underflow",
@@ -798,7 +915,7 @@ test("a power refused is told by its decimal exponent, not by the check that fai
   });
   assertRefused(
     pow(dec("1.5"), 5678870000000000000n, MAX_SIGNIFICAND_LIMIT_BITS),
-    { kind: "tooLarge", inexact: "fits" },
+    predicted(dec("1.5"), 5678870000000000000n),
   );
   // A value whose canonical exponent is past the bound, to the first
   // power, is itself (D17).
@@ -813,10 +930,10 @@ test("a power refused is told by its decimal exponent, not by the check that fai
     powerRefusal(dec("7"), fromRational(rational(edge)))?.kind,
     undefined,
   );
-  assertRefused(pow(dec("7"), edge, MAX_SIGNIFICAND_LIMIT_BITS), {
-    kind: "tooLarge",
-    inexact: "fits",
-  });
+  assertRefused(
+    pow(dec("7"), edge, MAX_SIGNIFICAND_LIMIT_BITS),
+    predicted(dec("7"), edge),
+  );
 });
 
 test("powerRefusal tells a power past the bound from one within it, and says nothing within a hair of it", () => {
@@ -887,14 +1004,23 @@ test("every operation agrees with the fraction's through toRational where the va
         back(unwrap(subtract(sa, sb, MAX_SIGNIFICAND_LIMIT_BITS))),
         subtractFractions(a, b),
       );
-      assert.deepEqual(back(unwrap(multiply(sa, sb))), multiplyFractions(a, b));
+      assert.deepEqual(
+        back(unwrap(multiply(sa, sb, MAX_SIGNIFICAND_LIMIT_BITS))),
+        multiplyFractions(a, b),
+      );
       if (b.num !== 0n) {
         const quotient = divideFractions(a, b);
         assert.ok(quotient.ok);
-        assert.deepEqual(back(unwrap(divide(sa, sb))), quotient.value);
+        assert.deepEqual(
+          back(unwrap(divide(sa, sb, MAX_SIGNIFICAND_LIMIT_BITS))),
+          quotient.value,
+        );
         const reciprocal = invertFraction(b);
         assert.ok(reciprocal.ok);
-        assert.deepEqual(back(unwrap(invert(sb))), reciprocal.value);
+        assert.deepEqual(
+          back(unwrap(invert(sb, MAX_SIGNIFICAND_LIMIT_BITS))),
+          reciprocal.value,
+        );
       }
       assert.deepEqual(back(negate(sa)), negateFraction(a));
       assert.deepEqual(back(absolute(sa)), absoluteFraction(a));
@@ -1285,7 +1411,11 @@ test("format renders like %g with the given significant digits", () => {
   );
   // The GNU units default: 1 m in inches, to 8 digits.
   assert.equal(
-    format(unwrap(divide(q(100n), dec("2.54"))), 8, nearest),
+    format(
+      unwrap(divide(q(100n), dec("2.54"), MAX_SIGNIFICAND_LIMIT_BITS)),
+      8,
+      nearest,
+    ),
     "39.370079",
   );
   assert.throws(() => format(ONE, 0, nearest), RangeError);
@@ -1435,7 +1565,13 @@ test("format and roundTo write a value of any exponent without forming it, again
   // The square of `1e999999999` and its product, from the arithmetic.
   assert.equal(
     format(
-      unwrap(multiply(dec("1e999999999"), dec("1e999999999"))),
+      unwrap(
+        multiply(
+          dec("1e999999999"),
+          dec("1e999999999"),
+          MAX_SIGNIFICAND_LIMIT_BITS,
+        ),
+      ),
       8,
       "halfEven",
     ),
@@ -1443,7 +1579,13 @@ test("format and roundTo write a value of any exponent without forming it, again
   );
   assert.equal(
     format(
-      unwrap(multiply(dec("2.5e999999999"), dec("4e-999999999"))),
+      unwrap(
+        multiply(
+          dec("2.5e999999999"),
+          dec("4e-999999999"),
+          MAX_SIGNIFICAND_LIMIT_BITS,
+        ),
+      ),
       8,
       "halfEven",
     ),

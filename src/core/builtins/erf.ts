@@ -49,6 +49,7 @@ import {
   unboundedOf,
   type Builtin,
   type BuiltinError,
+  UNKNOWN_NEED,
 } from "../builtin.ts";
 import { piFixed } from "../constants.ts";
 import { workingDigits, type NumberContext } from "../context.ts";
@@ -100,7 +101,7 @@ export function erfBall(
   const bits = bitsFor(context.precision);
   if (isBeyond(x, bits)) return ok({ mid: ONE, rad: PAST_BOTTOM });
   if (isTiny(x, context)) return ok(tinyErf(x, context));
-  const square = multiplyBalls(x, x);
+  const square = multiplyBalls(x, x, context);
   if (!square.ok) {
     // Past the bottom of the bound: the tiny route; past the top is
     // beyond 2^bits, answered above.
@@ -139,7 +140,7 @@ export function erfcBall(
   const bits = bitsFor(context.precision);
   if (isBeyond(x, bits)) return err({ kind: "underflow" });
   if (isTiny(x, context)) return oneLess(tinyErf(x, context), context);
-  const square = multiplyBalls(x, x);
+  const square = multiplyBalls(x, x, context);
   if (!square.ok) {
     if (square.error.kind === "underflow") {
       return oneLess(tinyErf(x, context), context);
@@ -161,7 +162,7 @@ function tinyErf(x: Ball, context: NumberContext): Ball {
     divideFixed(two, sqrtFixed(pi)),
     workingDigits(context),
   );
-  const product = multiplyBalls(factor, x);
+  const product = multiplyBalls(factor, x, context);
   if (!product.ok)
     throw new Error("A tiny argument times a constant is within the bound");
   const magnitude = magnitudeAbove(x);
@@ -192,7 +193,7 @@ function atEnds(
   if (r === undefined) throw new Error("A bounded radius has a value");
   const lo = subtract(x.mid, r, context.significandLimitBits);
   const hi = add(x.mid, r, context.significandLimitBits);
-  if (!lo.ok || !hi.ok) return tooLarge("exceeds");
+  if (!lo.ok || !hi.ok) return tooLarge("exceeds", UNKNOWN_NEED);
   return hullOfEnds(f(exact(lo.value)), f(exact(hi.value)), 0);
 }
 

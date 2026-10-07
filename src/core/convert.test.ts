@@ -144,7 +144,9 @@ const NEWTON_METRE = quantity("1", { kg: 1, m: 2, s: -2, radian: -1 });
 /** `n` of the unit `u`. */
 function times(n: string, u: Quantity): Quantity {
   return {
-    magnitude: exact(unwrap(multiply(dec(n), u.magnitude.mid))),
+    magnitude: exact(
+      unwrap(multiply(dec(n), u.magnitude.mid, MAX_SIGNIFICAND_LIMIT_BITS)),
+    ),
     dimension: u.dimension,
   };
 }
@@ -153,20 +155,20 @@ function times(n: string, u: Quantity): Quantity {
 // The value
 
 test("the value is the ratio of the magnitudes", () => {
-  assertValue(convert(times("3", FOOT), INCH, SI), fr(36n));
-  assertValue(convert(INCH, CENTIMETRE, SI), dec("2.54"));
-  assertValue(convert(HOUR, SECOND, SI), fr(3600n));
-  assertValue(convert(MILE, FOOT, SI), fr(5280n));
+  assertValue(convert(times("3", FOOT), INCH, SI, CONTEXT), fr(36n));
+  assertValue(convert(INCH, CENTIMETRE, SI, CONTEXT), dec("2.54"));
+  assertValue(convert(HOUR, SECOND, SI, CONTEXT), fr(3600n));
+  assertValue(convert(MILE, FOOT, SI, CONTEXT), fr(5280n));
 });
 
 test("the value is exact, never rounded", () => {
   // 1 m in inches is 5000/127, which no decimal writes exactly.
-  const inches = value(convert(METRE, INCH, SI)).mid;
+  const inches = value(convert(METRE, INCH, SI, CONTEXT)).mid;
   assert.deepEqual(inches, fr(5000n, 127n));
   assert.ok(!equals(roundTo(inches, 8, "halfAwayFromZero"), inches));
   assert.equal(format(inches, 8, "halfAwayFromZero"), "39.370079");
   // Whereas 1 in in cm is exactly 2.54, and a display can say so.
-  const centimetres = value(convert(INCH, CENTIMETRE, SI)).mid;
+  const centimetres = value(convert(INCH, CENTIMETRE, SI, CONTEXT)).mid;
   assert.ok(equals(roundTo(centimetres, 8, "halfAwayFromZero"), centimetres));
   assert.equal(format(centimetres, 8, "halfAwayFromZero"), "2.54");
 });
@@ -174,11 +176,11 @@ test("the value is exact, never rounded", () => {
 test("the exponent carries through the ratio, whatever its size", () => {
   // `1e999999999 m` into `mm` is exactly `1e1000000002`.
   assertValue(
-    convert(quantity("1e999999999", { m: 1 }), MILLIMETRE, SI),
+    convert(quantity("1e999999999", { m: 1 }), MILLIMETRE, SI, CONTEXT),
     dec("1e1000000002"),
   );
   assertValue(
-    convert(quantity("1e999999999", { m: 1 }), KILOMETRE, SI),
+    convert(quantity("1e999999999", { m: 1 }), KILOMETRE, SI, CONTEXT),
     dec("1e999999996"),
   );
   assertValue(
@@ -186,6 +188,7 @@ test("the exponent carries through the ratio, whatever its size", () => {
       quantity("1e-999999999", { m: 1 }),
       quantity("1e999999999", { m: 1 }),
       SI,
+      CONTEXT,
     ),
     dec("1e-1999999998"),
   );
@@ -197,6 +200,7 @@ test("the exponent carries through the ratio, whatever its size", () => {
         quantity("1e-999999999999999999", { m: 1 }),
         quantity("1e10", { m: 1 }),
         SI,
+        CONTEXT,
       ),
     ),
     { kind: "underflow" },
@@ -207,6 +211,7 @@ test("the exponent carries through the ratio, whatever its size", () => {
         quantity("1e999999999999999999", { m: 1 }),
         quantity("1e-10", { m: 1 }),
         SI,
+        CONTEXT,
       ),
     ),
     { kind: "overflow" },
@@ -214,9 +219,12 @@ test("the exponent carries through the ratio, whatever its size", () => {
 });
 
 test("want may have a magnitude of its own", () => {
-  assertValue(convert(MILE, times("1000", FOOT), SI), dec("5.28"));
-  assertValue(convert(times("2", METRE), times("4", METRE), SI), fr(1n, 2n));
-  assertValue(convert(times("3", FOOT), times("3", FOOT), SI), ONE);
+  assertValue(convert(MILE, times("1000", FOOT), SI, CONTEXT), dec("5.28"));
+  assertValue(
+    convert(times("2", METRE), times("4", METRE), SI, CONTEXT),
+    fr(1n, 2n),
+  );
+  assertValue(convert(times("3", FOOT), times("3", FOOT), SI, CONTEXT), ONE);
 });
 
 test("a compound dimension converts like any other", () => {
@@ -224,72 +232,85 @@ test("a compound dimension converts like any other", () => {
   const milesPerHour = of(fr(1609344n, 1000n * 3600n), { m: 1, s: -1 });
   const metresPerSecond = quantity("1", { m: 1, s: -1 });
   assertValue(
-    convert(times("60", milesPerHour), metresPerSecond, SI),
+    convert(times("60", milesPerHour), metresPerSecond, SI, CONTEXT),
     dec("26.8224"),
   );
 });
 
 test("dimensionless quantities convert to plain numbers", () => {
-  assertValue(convert(quantity("2"), quantity("1"), SI), fr(2n));
-  assertValue(convert(quantity("2"), quantity("0.5"), SI), fr(4n));
-  assertValue(convert(quantity("2"), quantity("2"), SI), ONE);
+  assertValue(convert(quantity("2"), quantity("1"), SI, CONTEXT), fr(2n));
+  assertValue(convert(quantity("2"), quantity("0.5"), SI, CONTEXT), fr(4n));
+  assertValue(convert(quantity("2"), quantity("2"), SI, CONTEXT), ONE);
   // The empty dimension, however it was built.
   assertValue(
     convert(
       { magnitude: exact(fr(3n)), dimension: DIMENSIONLESS },
       { magnitude: exact(ONE), dimension: new Map() },
       SI,
+      CONTEXT,
     ),
     fr(3n),
   );
 });
 
 test("a zero have converts to zero", () => {
-  assertValue(convert(times("0", METRE), INCH, SI), ZERO);
-  assertValue(convert(quantity("0"), quantity("7"), SI), ZERO);
+  assertValue(convert(times("0", METRE), INCH, SI, CONTEXT), ZERO);
+  assertValue(convert(quantity("0"), quantity("7"), SI, CONTEXT), ZERO);
 });
 
 test("signs carry through", () => {
-  assertValue(convert(times("-3", FOOT), INCH, SI), fr(-36n));
-  assertValue(convert(times("3", FOOT), times("-1", INCH), SI), fr(-36n));
-  assertValue(convert(times("-3", FOOT), times("-1", INCH), SI), fr(36n));
+  assertValue(convert(times("-3", FOOT), INCH, SI, CONTEXT), fr(-36n));
+  assertValue(
+    convert(times("3", FOOT), times("-1", INCH), SI, CONTEXT),
+    fr(-36n),
+  );
+  assertValue(
+    convert(times("-3", FOOT), times("-1", INCH), SI, CONTEXT),
+    fr(36n),
+  );
 });
 
 test("the order of a dimension's entries does not matter", () => {
   const a = quantity("1", { kg: 1, m: 2, s: -2 });
   const b = of(fr(2n), { s: -2, kg: 1, m: 2 });
-  assertValue(convert(a, b, SI), fr(1n, 2n));
+  assertValue(convert(a, b, SI, CONTEXT), fr(1n, 2n));
 });
 
 test("kinds that match on both sides are no obstacle", () => {
-  assertValue(convert(times("2", NEWTON_METRE), NEWTON_METRE, SI), fr(2n));
+  assertValue(
+    convert(times("2", NEWTON_METRE), NEWTON_METRE, SI, CONTEXT),
+    fr(2n),
+  );
   const rpm = of(fr(2n * 314159n, 100000n * 60n), { radian: 1, s: -1 });
-  assert.ok(convert(rpm, RADIAN_PER_SECOND, SI).ok);
+  assert.ok(convert(rpm, RADIAN_PER_SECOND, SI, CONTEXT).ok);
 });
 
 test("fractional exponents conform when equal", () => {
   const half = rational(1n, 2n);
   const rootMetre = quantity("1", { m: half });
   const rootFoot = quantity("0.3048", { m: half });
-  assertValue(convert(rootFoot, rootMetre, SI), dec("0.3048"));
+  assertValue(convert(rootFoot, rootMetre, SI, CONTEXT), dec("0.3048"));
 });
 
 // ---------------------------------------------------------------------------
 // Failures
 
 test("a dimension mismatch carries both dimensions", () => {
-  assert.deepEqual(failure(convert(METRE, SECOND, SI)), {
+  assert.deepEqual(failure(convert(METRE, SECOND, SI, CONTEXT)), {
     kind: "dimensionMismatch",
     have: METRE.dimension,
     want: SECOND.dimension,
   });
-  assert.deepEqual(failure(convert(times("2", METRE), quantity("2"), SI)), {
-    kind: "dimensionMismatch",
-    have: METRE.dimension,
-    want: DIMENSIONLESS,
-  });
+  assert.deepEqual(
+    failure(convert(times("2", METRE), quantity("2"), SI, CONTEXT)),
+    {
+      kind: "dimensionMismatch",
+      have: METRE.dimension,
+      want: DIMENSIONLESS,
+    },
+  );
   const area = quantity("1", { m: 2 });
-  assert.deepEqual(failure(convert(METRE, area, SI)), {
+  assert.deepEqual(failure(convert(METRE, area, SI, CONTEXT)), {
     kind: "dimensionMismatch",
     have: METRE.dimension,
     want: area.dimension,
@@ -297,13 +318,13 @@ test("a dimension mismatch carries both dimensions", () => {
 });
 
 test("a kind mismatch names the kinds that differ", () => {
-  assert.deepEqual(failure(convert(RADIAN_PER_SECOND, HERTZ, SI)), {
+  assert.deepEqual(failure(convert(RADIAN_PER_SECOND, HERTZ, SI, CONTEXT)), {
     kind: "kindMismatch",
     have: RADIAN_PER_SECOND.dimension,
     want: HERTZ.dimension,
     kinds: ["radian"],
   });
-  assert.deepEqual(failure(convert(NEWTON_METRE, JOULE, SI)), {
+  assert.deepEqual(failure(convert(NEWTON_METRE, JOULE, SI, CONTEXT)), {
     kind: "kindMismatch",
     have: NEWTON_METRE.dimension,
     want: JOULE.dimension,
@@ -315,36 +336,42 @@ test("which names are kinds comes from the primitives given", () => {
   // With radian a dimension primitive, the same pair is a dimension mismatch.
   const physical = primitives("kg", "m", "s", "radian");
   assert.equal(
-    failure(convert(RADIAN_PER_SECOND, HERTZ, physical)).kind,
+    failure(convert(RADIAN_PER_SECOND, HERTZ, physical, CONTEXT)).kind,
     "dimensionMismatch",
   );
   // And with nothing declared, every name is a dimension.
   assert.equal(
-    failure(convert(RADIAN_PER_SECOND, HERTZ, new Map())).kind,
+    failure(convert(RADIAN_PER_SECOND, HERTZ, new Map(), CONTEXT)).kind,
     "dimensionMismatch",
   );
 });
 
 test("a want of zero is an error", () => {
-  assert.deepEqual(failure(convert(METRE, times("0", METRE), SI)), {
+  assert.deepEqual(failure(convert(METRE, times("0", METRE), SI, CONTEXT)), {
     kind: "zeroWant",
   });
-  assert.deepEqual(failure(convert(quantity("1"), quantity("0"), SI)), {
-    kind: "zeroWant",
-  });
+  assert.deepEqual(
+    failure(convert(quantity("1"), quantity("0"), SI, CONTEXT)),
+    {
+      kind: "zeroWant",
+    },
+  );
   // Even when have is zero too: 0/0 is not 1.
-  assert.deepEqual(failure(convert(times("0", METRE), times("0", METRE), SI)), {
-    kind: "zeroWant",
-  });
+  assert.deepEqual(
+    failure(convert(times("0", METRE), times("0", METRE), SI, CONTEXT)),
+    {
+      kind: "zeroWant",
+    },
+  );
 });
 
 test("a mismatch is reported before a zero want", () => {
   assert.equal(
-    failure(convert(METRE, times("0", SECOND), SI)).kind,
+    failure(convert(METRE, times("0", SECOND), SI, CONTEXT)).kind,
     "dimensionMismatch",
   );
   assert.equal(
-    failure(convert(RADIAN_PER_SECOND, times("0", HERTZ), SI)).kind,
+    failure(convert(RADIAN_PER_SECOND, times("0", HERTZ), SI, CONTEXT)).kind,
     "kindMismatch",
   );
 });
@@ -352,8 +379,8 @@ test("a mismatch is reported before a zero want", () => {
 test("conversion leaves its operands alone", () => {
   const have = times("3", FOOT);
   const want = times("0", INCH);
-  convert(have, want, SI);
-  convert(have, INCH, SI);
+  convert(have, want, SI, CONTEXT);
+  convert(have, INCH, SI, CONTEXT);
   assert.deepEqual(have, times("3", FOOT));
   assert.deepEqual(want, times("0", INCH));
   assert.deepEqual(SI, primitives("kg", "m", "s", "A", "radian!kind"));
@@ -402,7 +429,7 @@ function denoted(text: string): Scaled {
   const num = dec(numerator!);
   return denominator === undefined
     ? num
-    : unwrap(divide(num, dec(denominator)));
+    : unwrap(divide(num, dec(denominator), MAX_SIGNIFICAND_LIMIT_BITS));
 }
 
 /** Asserts that `actual` are exactly the values `expected` denote: decimals, or fractions `a/b`. */
@@ -446,7 +473,7 @@ test("a list conversion is an integer count of each unit but the last, and the e
 test("a list of one unit gives the ratio, as convert does", () => {
   const have = quantity("3", { m: 1 });
   const [ratio] = terms(list(have, [FOOT]));
-  assert.deepEqual(ratio!, value(convert(have, FOOT, SI)));
+  assert.deepEqual(ratio!, value(convert(have, FOOT, SI, CONTEXT)));
   assertTerms([ratio!], ["1250/127"]);
 });
 
@@ -455,8 +482,12 @@ test("the terms sum to have exactly", () => {
   const [feet, inches] = terms(list(have, [FOOT, INCH]));
   const sum = unwrap(
     add(
-      unwrap(multiply(feet!.mid, FOOT.magnitude.mid)),
-      unwrap(multiply(inches!.mid, INCH.magnitude.mid)),
+      unwrap(
+        multiply(feet!.mid, FOOT.magnitude.mid, MAX_SIGNIFICAND_LIMIT_BITS),
+      ),
+      unwrap(
+        multiply(inches!.mid, INCH.magnitude.mid, MAX_SIGNIFICAND_LIMIT_BITS),
+      ),
       MAX_SIGNIFICAND_LIMIT_BITS,
     ),
   );
@@ -529,7 +560,9 @@ test("a list of an inexact have of a huge exponent counts the settled midpoint, 
   // kilometres, a ball around zero whose radius is the have's, far below
   // its magnitude.
   const root = unwrap(rootBall(exact(fr(2n)), 2n, CONTEXT));
-  const magnitude = unwrap(multiplyBalls(root, exact(dec("1e999999999"))));
+  const magnitude = unwrap(
+    multiplyBalls(root, exact(dec("1e999999999")), CONTEXT),
+  );
   const have: Quantity = { magnitude, dimension: dim({ m: 1 }) };
   const [count, rest] = terms(list(have, [KILOMETRE, METRE]));
   assert.ok(count !== undefined && rest !== undefined);
@@ -537,7 +570,9 @@ test("a list of an inexact have of a huge exponent counts the settled midpoint, 
   assert.ok(compare(count.mid, dec("1.414e999999996")) > 0);
   assert.ok(compare(count.mid, dec("1.415e999999996")) < 0);
   assert.deepEqual(
-    unwrap(multiply(count.mid, KILOMETRE.magnitude.mid)),
+    unwrap(
+      multiply(count.mid, KILOMETRE.magnitude.mid, MAX_SIGNIFICAND_LIMIT_BITS),
+    ),
     magnitude.mid,
   );
   assert.ok(isZero(rest.mid));
@@ -741,8 +776,8 @@ test("roundTerms widens the remainder's radius by the rounding's shift, so the r
   );
   const sum = unwrap(
     addBalls(
-      unwrap(multiplyBalls(rounded[0]!, FOOT.magnitude)),
-      unwrap(multiplyBalls(remainder, INCH.magnitude)),
+      unwrap(multiplyBalls(rounded[0]!, FOOT.magnitude, CONTEXT)),
+      unwrap(multiplyBalls(remainder, INCH.magnitude, CONTEXT)),
       CONTEXT,
     ),
   );
@@ -836,8 +871,20 @@ test("roundTerms rounds by less than a unit in the last digit shown", () => {
   );
   const shown = unwrap(
     add(
-      unwrap(multiply(rounded[0]!.mid, FOOT.magnitude.mid)),
-      unwrap(multiply(rounded[1]!.mid, INCH.magnitude.mid)),
+      unwrap(
+        multiply(
+          rounded[0]!.mid,
+          FOOT.magnitude.mid,
+          MAX_SIGNIFICAND_LIMIT_BITS,
+        ),
+      ),
+      unwrap(
+        multiply(
+          rounded[1]!.mid,
+          INCH.magnitude.mid,
+          MAX_SIGNIFICAND_LIMIT_BITS,
+        ),
+      ),
       MAX_SIGNIFICAND_LIMIT_BITS,
     ),
   );
@@ -845,7 +892,9 @@ test("roundTerms rounds by less than a unit in the last digit shown", () => {
   const difference = unwrap(
     subtract(shown, have.magnitude.mid, MAX_SIGNIFICAND_LIMIT_BITS),
   );
-  const resolution = unwrap(multiply(dec("1e-7"), INCH.magnitude.mid));
+  const resolution = unwrap(
+    multiply(dec("1e-7"), INCH.magnitude.mid, MAX_SIGNIFICAND_LIMIT_BITS),
+  );
   assert.ok(compare(absolute(difference), resolution) < 0);
 });
 
@@ -861,7 +910,7 @@ test("convert of an inexact have carries its radius", () => {
   // 1 m ± 1e-10 m in feet: the ratio is 1250/381 ± about 1e-10 / 0.3048,
   // the radius on the coarse type within `2^-25` above that.
   const have = about("1", "1e-10", METRE);
-  const ratio = value(convert(have, FOOT, SI));
+  const ratio = value(convert(have, FOOT, SI, CONTEXT));
   assert.ok(equals(ratio.mid, fr(1250n, 381n)));
   assert.ok(!isExact(ratio));
   const rad = radiusUpper(ratio.rad);
@@ -869,24 +918,29 @@ test("convert of an inexact have carries its radius", () => {
   assert.ok(compareFractions(rad, fraction(dec("3.29e-10"))) <= 0);
   // And an inexact want too.
   assert.ok(
-    !isExact(value(convert(METRE, about("0.3048", "1e-10", METRE), SI))),
+    !isExact(
+      value(convert(METRE, about("0.3048", "1e-10", METRE), SI, CONTEXT)),
+    ),
   );
   // Exact quantities give an exact ratio.
-  assert.ok(isExact(value(convert(METRE, FOOT, SI))));
+  assert.ok(isExact(value(convert(METRE, FOOT, SI, CONTEXT))));
 });
 
 test("a want that cannot be told from zero is unresolvedWant, apart from zeroWant", () => {
   assert.deepEqual(
-    failure(convert(METRE, about("1e-12", "1e-11", METRE), SI)),
+    failure(convert(METRE, about("1e-12", "1e-11", METRE), SI, CONTEXT)),
     {
       kind: "unresolvedWant",
     },
   );
-  assert.deepEqual(failure(convert(METRE, about("0", "1e-30", METRE), SI)), {
-    kind: "unresolvedWant",
-  });
+  assert.deepEqual(
+    failure(convert(METRE, about("0", "1e-30", METRE), SI, CONTEXT)),
+    {
+      kind: "unresolvedWant",
+    },
+  );
   // Just clear of zero, it converts.
-  assert.ok(convert(METRE, about("1e-10", "1e-11", METRE), SI).ok);
+  assert.ok(convert(METRE, about("1e-10", "1e-11", METRE), SI, CONTEXT).ok);
 });
 
 test("a list of an inexact have has the radius on its remainder alone", () => {

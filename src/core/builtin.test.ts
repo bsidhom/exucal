@@ -73,10 +73,12 @@ test("fromBallError passes the edge of an unresolved on, whatever it is", () => 
     argument: 1,
     edge: ONE,
   });
-  assert.deepEqual(fromBallError({ kind: "tooLarge", inexact: "fits" }, 0), {
+  const refused = {
     kind: "tooLarge",
     inexact: "fits",
-  });
+    need: { kind: "bound", bits: 70000 },
+  } as const;
+  assert.deepEqual(fromBallError(refused, 0), refused);
 });
 
 test("angle is the radian kind where the table declares it, and nothing otherwise", () => {

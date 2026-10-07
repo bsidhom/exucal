@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { inspect } from "node:util";
 import { test } from "node:test";
 import { parseExpr, parseUnitList } from "../../src/core/expr.ts";
-import { DEFAULT_SETTINGS, STORAGE_VERSION } from "../../src/settings.ts";
+import {
+  DEFAULT_SETTINGS,
+  STORAGE_VERSION,
+  settingsFromStored,
+  storedSettings,
+} from "../../src/settings.ts";
 import { PROFILE_NAMES, type Family } from "./cases.ts";
 import { checkSettings } from "./harness.ts";
 import { CATALOGUE } from "./tooling.ts";
@@ -312,16 +318,31 @@ test("the committed catalogue reads as cases the stress suite can run: every ent
     assert.ok(parseExpr(c.have).ok, where);
     if (c.want !== "") assert.ok(parseUnitList(c.want).ok, where);
   }
-  // Every case's settings are stored at the current version, so that the
-  // file reads as it was written and not through a migration.
-  const stored = JSON.parse(catalogueText(catalogue)) as {
-    entries: { settings: { version: number } }[];
-    hangs: { settings: { version: number } }[];
+  // Every case's settings are stored as the current version writes them,
+  // read from the file itself: a case stored under an earlier version, or
+  // with a field the current version would not write, reads through the
+  // migrations above but fails here, so that a step that changes the
+  // settings' shape rewrites the catalogue (`pnpm stress:rewrite`) in the
+  // same change rather than leaving the file to a migration.
+  const raw = JSON.parse(readFileSync(CATALOGUE, "utf8")) as {
+    entries: { have: string; settings: StoredSettings }[];
+    hangs: { have: string; settings: StoredSettings }[];
   };
-  for (const c of [...stored.entries, ...stored.hangs]) {
-    assert.equal(c.settings.version, STORAGE_VERSION);
+  for (const c of [...raw.entries, ...raw.hangs]) {
+    assert.deepEqual(
+      c.settings,
+      storedSettings(settingsFromStored(c.settings), c.settings.savedBy),
+      `${c.have}: the catalogue's settings are not as version ${STORAGE_VERSION} stores them; run pnpm stress:rewrite`,
+    );
   }
 });
+
+/** A case's settings as the file holds them: the envelope, whatever version. */
+type StoredSettings = {
+  readonly version: number;
+  readonly savedBy: string;
+  readonly settings: object;
+};
 
 test("a case's settings are read through the settings migrations and written in the storage envelope", () => {
   // The first catalogue stored the fields bare, in the shape of stored

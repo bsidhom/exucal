@@ -1814,9 +1814,11 @@ tests. The rest of the directory is what they share:
   `catalogue.ts` and `pool.ts` are ordinary ones, since they evaluate
   nothing; one of `catalogue.ts` reads the committed catalogue and checks
   that every case is one the suite can run (its settings ones the panel
-  could hold, its profile one that exists, its texts parsing, its
-  settings stored at the current version), the smoke test for data no
-  type checks.
+  could hold, its profile one that exists, its texts parsing) and that
+  its settings are stored in the file as the current version stores
+  them, the smoke test for data no type checks: a change to the
+  settings' stored shape fails it until `pnpm stress:rewrite`
+  (`rewrite.ts`, `update` with no change) has rewritten the file.
 - `bench/stress/verify.ts` is the stress suite (8.3), run by
   `pnpm stress` and discovered by neither `pnpm test` nor `pnpm bench`.
   It measures again the catalogued cases that call the functions named

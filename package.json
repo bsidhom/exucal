@@ -15,6 +15,7 @@
     "bench": "node --test \"bench/**/*.bench.ts\"",
     "stress": "node bench/stress/verify.ts",
     "stress:search": "node bench/stress/search.ts",
+    "stress:rewrite": "node bench/stress/rewrite.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

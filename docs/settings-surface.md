@@ -145,17 +145,39 @@ the surface's:
   focus and closes the sheet: the inert place to tap that the page
   lacks, and the Close button under another name.
 
-**The entry point is a button in the header**, beside the title, on the
-page from the first paint and above the inputs, so that it is in the
-same place whatever the result's length: a short scroll to the top on
-a phone when a long result has been read, and one tap. It is a toggle
-(`aria-expanded`, `aria-controls` naming the sheet), labelled
-"Settings" with a gear glyph, and it is the one entry point: the
-summary under the output goes. Focus moves into the sheet when it opens
-and back to the button when it closes. The header is not made sticky:
-it would cost a line of every screen for the one case of a long result,
-and the browser's own scroll to the top is a flick; S5 can revisit it
-with the layouts if the phone's use finds otherwise.
+**The entry point is a cog in the top right corner of the page**: an
+icon button, discreet, in the corner where settings are looked for, on
+the page from the first paint and above the inputs, so that it is in
+the same place whatever the result's length: a short scroll to the top
+on a phone when a long result has been read, and one tap. It is the
+one entry point: the summary under the output goes.
+
+The cog is a component of its own, `settings-button`
+(src/settings-button.ts), built as the copy button is
+(src/copy-button.ts): a `<button>` holding an inline SVG, the cog
+glyph drawn with the same stroke as the copy icon, quiet until hovered
+or focused and full-strength then, with a hit area of at least 44 by
+44 CSS pixels whatever the glyph's size (the copy button's padding
+pulled back by a negative margin, so that the layout sees the icon
+alone). It is a plain button and not a switch: it opens and closes a
+panel, which is a disclosure, so it carries `aria-expanded` for the
+sheet's state and `aria-controls` naming the sheet, and an
+`aria-label` of "Settings", which a title repeats for the pointer;
+there is no switch role, no track and no knob. It is in the tab order
+in its place on the page, first, before the inputs, so that the order
+of focus is the order on the screen; Enter and Space open it as any
+button; its focus ring is the browser's `focus-visible` ring, never
+suppressed; it is the element that opens the sheet with `aria-expanded`
+true and the sheet's `aria-labelledby` points at its header. Focus
+moves into the sheet when it opens and back to the cog when it closes.
+It sits in the shell's header row, absolutely at the right edge within
+the safe area insets, at the title's height, so that the centered title
+does not move; on a phone that is the top right corner within a thumb's
+reach from the top, and the glyph is 1.5rem so that it reads at arm's
+length. The header is not made sticky: it would cost a line of every
+screen for the one case of a long result, and the browser's own scroll
+to the top is a flick; S5 can revisit it with the layouts if the
+phone's use finds otherwise.
 
 **A result does not offer a quick change of the settings that shaped
 it** (more digits, the other mode, a ratio): deferred, not refused. The
@@ -195,13 +217,16 @@ line shorter and hides none.
   through the same validation as a typed value. The lines as they are.
 - `index.html`: `interactive-widget=resizes-content` in the viewport
   meta.
-- `src/app-shell.ts`: the header as a row holding the title and the
-  toggle button, which flips an `open` state the shell owns and passes
-  to the panel, and takes focus back when the panel closes; the panel
-  moved out of `<main>`'s flow, since the sheet is fixed to the
-  viewport.
-- `src/styles.ts`: nothing new unless the toggle shares the button's
-  look, which it does.
+- `src/settings-button.ts`: the cog, a component as the copy button
+  is: the glyph, the hit area, the states, `aria-expanded` and
+  `aria-controls` as properties, a `click` the shell listens to.
+- `src/app-shell.ts`: the header as a row holding the title and, at its
+  right edge, the cog, whose click flips an `open` state the shell owns
+  and passes to the panel, and which takes focus back when the panel
+  closes; the panel moved out of `<main>`'s flow, since the sheet is
+  fixed to the viewport.
+- `src/styles.ts`: nothing new; the cog has its own look, as the copy
+  button has.
 - README ("Settings"): the first sentence, "under the converter", says
   where the sheet is and how it opens, and that a change applies as it
   is made. ARCHITECTURE.md: the shell's description of the panel and the
@@ -216,22 +241,23 @@ line shorter and hides none.
   is the viewport's width and the output's top edge is within the
   viewport at the lower height; the sheet scrolls to its last control
   at both heights; at 1,024 wide the column and the sheet do not
-  overlap; the toggle, Done and Escape agree with the dialog's `open`;
+  overlap; the cog, Done and Escape agree with the dialog's `open` and
+  the cog's `aria-expanded`; the cog's hit area measures at least 44 by
+  44 and it is reached by Tab first and opened by Enter and Space;
   a stepper's tap changes the setting by one and the result with it.
   The keyboard's behavior is checked by hand on a phone.
 
 ## Done when
 
-- The settings open from a button in the header and nowhere else, as a
-  sheet over the page: a bottom sheet at a phone's width, a side sheet
+- The settings open from the cog in the top right corner and nowhere
+  else, a button and not a switch, as a sheet over the page: a bottom sheet at a phone's width, a side sheet
   at a desktop's, the page behind it live and scrollable, the result
   visible with the sheet open at both widths.
 - A change applies as it is made, and the result shows it while the
   sheet is open; the refusal's and the clamp's lines are as S3 landed
   them.
-- The sheet closes from its Done button, from Escape and from the
-  header's button, and focus returns to that button; Done commits a
-  number being typed.
+- The sheet closes from its Done button, from Escape and from the cog,
+  and focus returns to the cog; Done commits a number being typed.
 - On a phone a typed number is committed from the keyboard's Done key,
   and the display digits, the working digits and the ratio width are
   changed by one from their steppers with no keyboard.
@@ -252,9 +278,10 @@ narrow viewport, with two heights and its controls scrolling inside
 it, and a side sheet on a wide one, a non-modal `<dialog>` fixed to the
 viewport with the page live behind it and rising with the keyboard, so
 that the result stays in view while a setting is changed to see its
-effect; opened and closed from a toggle beside the title, which is on
-the page whatever the result's length, and closed from its own Done
-button and Escape. Apply-on-change stays, uniformly on the control's
+effect; opened and closed from a cog in the top right corner, an icon
+button of its own component with a thumb's hit area and a button's
+keyboard, which is on the page whatever the result's length, and
+closed from its own Done button and Escape. Apply-on-change stays, uniformly on the control's
 `change`: the costs it incurs are the table's memoized rebuild on a
 change to the precision limit and nothing else, apply-on-close would
 need a draft and a Cancel and would hide what the sheet is for, and

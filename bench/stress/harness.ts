@@ -49,7 +49,7 @@ import {
   isMaxBits,
   isMode,
   rangesOf,
-  ratioWidthOf,
+  ratioOf,
   type Settings,
 } from "../../src/settings.ts";
 
@@ -443,7 +443,7 @@ function typeJob(c: Case): void {
     const start = performance.now();
     const outcome = outcomeOf(table, c.have.slice(0, length), c.want, {
       context,
-      width: ratioWidthOf(c.settings),
+      ratio: ratioOf(c.settings),
     });
     const ms = performance.now() - start;
     port.postMessage({
@@ -488,7 +488,7 @@ function runJob(job: { readonly stressCase: Case }): void {
     const start = performance.now();
     const outcome = outcomeOf(table, have, want, {
       context,
-      width: ratioWidthOf(settings),
+      ratio: ratioOf(settings),
       observe,
     });
     const ms = performance.now() - start;

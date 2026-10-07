@@ -203,7 +203,7 @@ the mode's one rounding of those steps; the fractions do not.
 ## Where it goes
 
 - `src/core/display.ts`: `show(ball, digits, mode, fractions)`, since
-  D28 `show(ball, { digits, rounding, width })`; the `exact` kind gains
+  D28 `show(ball, { digits, rounding, ratio: { width } })`; the `exact` kind gains
   `fraction: true` when its text is a fraction; a helper writes the
   fraction from the `Scaled` midpoint and says whether it fits;
   `zeroBound` clamps the bound's exponent at `-10^18`.

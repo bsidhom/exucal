@@ -252,7 +252,7 @@ digits, mode)` in `src/core/display.ts` formats the midpoint at the
    is those), `zero` (a ball containing zero without being it, shown as
    `0` with a bound on how far from zero the value may lie), and
    `unbounded` (a radius not known, the midpoint's digits certifying none).
-   With the ratio notation's width (`show`'s `width` option;
+   With the ratio notation's width (`show`'s `ratio` option;
    docs/fractions.md and docs/ratio-width.md, the plan's D21 and D28),
    an exact value is written entire when it fits the width: a whole
    number of at most the width in significant digits by the decimal
@@ -1464,7 +1464,7 @@ bits (the plan's D16), reaching the component as its `context`
 property, the same `NumberContext` the pipeline takes, whose ceiling,
 the top of the retry schedule, is derived from the cap and which carries
 the working digits when they are extended, and the ratio notation's
-width, a display setting that reaches the component as its `ratioWidth`
+width, a display setting that reaches the component as its `ratio`
 property and the core never sees but through `show`. A
 button in the panel runs the probe of `src/limits.ts`, which times the
 costliest operation the app has on each axis at doubling sizes (an exact

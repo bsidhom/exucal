@@ -4,6 +4,7 @@
 // parenthesized, where it is bare, the reciprocal, a unit list's
 // remainder, a function's argument, and both modes.
 
+import type { RatioDisplay } from "./core/display.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -52,9 +53,13 @@ const table: UnitTable = (() => {
   return built.value;
 })();
 
-/** The ratio notation's width a test asks for: `true` is the default width, `false` the digits notation, a number itself. */
-function widthOf(ratio: boolean | number): number | undefined {
-  return ratio === true ? 20 : ratio === false ? undefined : ratio;
+/** The ratio notation a test asks for: `true` is the default width, `false` the digits notation, a number a width. */
+function ratioDisplayOf(ratio: boolean | number): RatioDisplay | undefined {
+  return ratio === true
+    ? { width: 20 }
+    : ratio === false
+      ? undefined
+      : { width: ratio };
 }
 
 /** The lines for `have` into `want` at `context`, with the ratio notation (`ratio`); a test's precondition that it is a result. */
@@ -66,7 +71,7 @@ function lines(
 ): string[] {
   const outcome = outcomeOf(table, have, want, {
     context,
-    width: widthOf(ratio),
+    ratio: ratioDisplayOf(ratio),
   });
   assert.equal(outcome.kind, "result", inspect(outcome));
   return (outcome as Extract<Outcome, { kind: "result" }>).lines.map(
@@ -217,7 +222,7 @@ test("with the setting off, every line is as it was", () => {
     ["0 m", "in"],
   ]) {
     assert.deepEqual(
-      outcomeOf(table, have!, want!, { context: CONTEXT, width: undefined }),
+      outcomeOf(table, have!, want!, { context: CONTEXT, ratio: undefined }),
       outcomeOf(table, have!, want!, { context: CONTEXT }),
       `${have} in ${want}`,
     );
@@ -321,7 +326,7 @@ function resultLines(
 ): readonly Line[] {
   const result = outcomeOf(table, have, want, {
     context,
-    width: widthOf(ratio),
+    ratio: ratioDisplayOf(ratio),
   });
   assert.equal(result.kind, "result", inspect(result));
   return (result as Extract<Outcome, { kind: "result" }>).lines;

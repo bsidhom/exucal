@@ -74,7 +74,7 @@ import { divideBalls, exact, step, type Ball } from "./core/ball.ts";
 import { modeOf, type NumberContext } from "./core/context.ts";
 import { roundTerms } from "./core/convert.ts";
 import { dimensionExpr } from "./core/dimension.ts";
-import { show, type Shown } from "./core/display.ts";
+import { show, type RatioDisplay, type Shown } from "./core/display.ts";
 import type { Assumption } from "./core/evaluate.ts";
 import { parseExpr, type Expr, type ExprNode } from "./core/expr.ts";
 import { leadsWithNumber, print, text, type Piece } from "./core/print.ts";
@@ -174,11 +174,11 @@ export function displayText(line: Line): string {
   return `${have} ${line.relation} ${text(resultPieces(line))}${note}`;
 }
 
-/** What `outcomeOf` takes beside the texts: the user's context, the ratio notation's width when the notation is `ratio`, and an observer of the passes. */
+/** What `outcomeOf` takes beside the texts: the user's context, the ratio notation's settings when the notation is `ratio`, and an observer of the passes. */
 export type OutcomeOptions = {
   readonly context: NumberContext;
-  /** The ratio notation's width (docs/ratio-width.md); absent is the digits notation. */
-  readonly width?: number;
+  /** The ratio notation's settings (docs/ratio-width.md); absent is the digits notation. */
+  readonly ratio?: RatioDisplay;
   /** Sees each pass of the retry loop (pipeline.ts), for the stress harness. */
   readonly observe?: PassObserver;
 };
@@ -194,20 +194,20 @@ export function outcomeOf(
   table: UnitTable,
   haveText: string,
   wantString: string,
-  { context, width, observe }: OutcomeOptions,
+  { context, ratio, observe }: OutcomeOptions,
 ): Outcome {
   if (haveText.trim() === "") return { kind: "empty" };
   const assumptions: Assumption[] = [];
   // The ratio notation is exact mode's (D26; docs/decimal-mode.md, "The
   // display"): in decimal mode every value is a decimal of the digits
   // asked for, which its digits write entire, so `show` is never given
-  // the width there, whatever the setting says.
+  // the ratio notation there, whatever the setting says.
   const outcome = outcomeAssuming(
     table,
     haveText,
     wantString,
     context,
-    modeOf(context) === "decimal" ? undefined : width,
+    modeOf(context) === "decimal" ? undefined : ratio,
     assumptions,
     observe,
   );
@@ -237,7 +237,7 @@ function outcomeAssuming(
   haveText: string,
   wantString: string,
   context: NumberContext,
-  width: number | undefined,
+  ratio: RatioDisplay | undefined,
   assumptions: Assumption[],
   observe: PassObserver | undefined,
 ): Outcome {
@@ -262,7 +262,7 @@ function outcomeAssuming(
     const unit = dimensionExpr(dimension, table.primitives);
     return {
       kind: "result",
-      lines: [line(parsedHave(haveText), magnitude, unit, context, width)],
+      lines: [line(parsedHave(haveText), magnitude, unit, context, ratio)],
     };
   }
   const conversion = convertText(
@@ -288,11 +288,11 @@ function outcomeAssuming(
   }
   switch (conversion.value.kind) {
     case "unit":
-      return unitResult(conversion.value, context, width);
+      return unitResult(conversion.value, context, ratio);
     case "list":
-      return listResult(conversion.value, context, width);
+      return listResult(conversion.value, context, ratio);
     case "function":
-      return functionResult(conversion.value, context, width);
+      return functionResult(conversion.value, context, ratio);
   }
 }
 
@@ -314,15 +314,15 @@ function outcomeAssuming(
 function unitResult(
   conversion: Extract<Conversion, { kind: "unit" }>,
   context: NumberContext,
-  width: number | undefined,
+  ratio: RatioDisplay | undefined,
 ): Outcome {
   const { haveExpr, wantExpr, value } = conversion;
-  const lines = [line(haveExpr, value, wantExpr, context, width)];
+  const lines = [line(haveExpr, value, wantExpr, context, ratio)];
   // A step of the expression (`step` of ball.ts): settled in exact mode,
   // rounded once in decimal mode.
   const inverse = step(() => divideBalls(exact(ONE), value), context);
   if (inverse.ok) {
-    lines.push(line(wantExpr, inverse.value, haveExpr, context, width));
+    lines.push(line(wantExpr, inverse.value, haveExpr, context, ratio));
   }
   return { kind: "result", lines };
 }
@@ -330,8 +330,8 @@ function unitResult(
 /**
  * The line `have` is `value` `unit`s, as `show` certifies the value at
  * `context`: `=` for an exact value, `≈` otherwise, and a note for the
- * kinds that do not show every digit asked for. With the ratio notation's
- * `width`, an exact value is written entire where it fits the width
+ * kinds that do not show every digit asked for. With the ratio notation
+ * (`ratio`), an exact value is written entire where it fits its width
  * (docs/ratio-width.md). With no `unit`, the value is a plain number.
  */
 function line(
@@ -339,12 +339,12 @@ function line(
   value: Ball,
   unit: Expr | undefined,
   context: NumberContext,
-  width: number | undefined,
+  ratio: RatioDisplay | undefined,
 ): Line {
   const shown = show(value, {
     digits: context.precision,
     rounding: context.rounding,
-    width,
+    ratio,
   });
   return {
     have,
@@ -512,13 +512,13 @@ function noteOf(shown: Shown, digits: Precision): string | undefined {
 function listResult(
   conversion: Extract<Conversion, { kind: "list" }>,
   context: NumberContext,
-  width: number | undefined,
+  ratio: RatioDisplay | undefined,
 ): Outcome {
   const { haveExpr, units, terms } = conversion;
   const { precision, rounding } = context;
   const last = terms.length - 1;
   const shown = terms.map((t) =>
-    show(t, { digits: precision, rounding, width }),
+    show(t, { digits: precision, rounding, ratio }),
   );
   const unrounded = shown[last]!;
   // With the ratio notation, an exact remainder whose ratio fits is
@@ -549,7 +549,7 @@ function listResult(
     ? show(rounded[last]!, {
         digits: precision,
         rounding,
-        width,
+        ratio,
       })
     : unrounded;
   const all = rounded.map((value, i) => {
@@ -567,7 +567,7 @@ function listResult(
             ? show(exact(magnitude), {
                 digits: precision,
                 rounding,
-                width,
+                ratio,
               })
             : { kind: "exact", text: format(magnitude, certified, rounding) };
     return {
@@ -610,7 +610,7 @@ function listResult(
 function functionResult(
   conversion: Extract<Conversion, { kind: "function" }>,
   context: NumberContext,
-  width: number | undefined,
+  ratio: RatioDisplay | undefined,
 ): Outcome {
   const { haveExpr, name, value, unit } = conversion;
   const { relation, result } = line(
@@ -618,7 +618,7 @@ function functionResult(
     value,
     unit.text === "1" ? undefined : unit.expr,
     context,
-    width,
+    ratio,
   );
   const call = expr({
     kind: "call",

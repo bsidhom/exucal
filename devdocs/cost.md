@@ -1,7 +1,6 @@
 # The costliest expressions
 
-Status: the catalogue of stage 8 (devdocs/history/calculator-plan.md, task 8.3,
-under D25). It lists the costliest inputs the cost search has found,
+The catalogue lists the costliest inputs the cost search has found,
 what each pays for, and the issue that would make it cheaper. Runs of
 the search add to it over time: each is a short sample, safe to repeat
 and to run as often as wanted, since a hit only fills an empty slot or
@@ -13,8 +12,7 @@ The catalogue is the target for two kinds of work. Making the kernels
 cheaper takes a case off the list or moves it down; keeping the
 interface responsive whatever an evaluation costs (#118, with #119 to
 #121) is measured against the same cases, since they are the ones that
-freeze it today. Neither is part of the plan: the plan finds and records
-the costs, and the issues named below carry the work.
+freeze it today. The issues named below carry the work.
 
 ## How a case is measured
 
@@ -79,7 +77,7 @@ cost is the passes times the cost of its costliest call at the last
 pass, and the last pass, at the ceiling, outweighs all the earlier ones
 together. A value that certifies stops at the first pass that settles
 it, so it costs milliseconds. Exact cancellation is not a contrived
-case: `beta(0.5, 0.5) - pi()` (#117) is one, and so is any expression
+case: `beta(0.5, 0.5) - pi()` is one, and so is any expression
 that subtracts a quantity from itself by a longer route.
 
 The causes, costliest first, at the default settings (a ceiling of
@@ -128,7 +126,7 @@ keystroke that completes it, for the case's whole cost. That keystroke
 is the one #118 has to keep responsive. At the highest precision limit, the first
 keystroke that completes a call also costs 150 to 200 ms, against
 about 50 ms at the defaults: a one-time cost that grows with the
-ceiling, most likely the memoized constants built to it (D10).
+ceiling, most likely the memoized constants built to it.
 
 ## What the search has not reached
 
@@ -179,7 +177,7 @@ defaults.
   This is #152. Each step of `expFixed`'s series gains a fixed eight
   bits, and the series is summed term by term.
 
-The defaults stay as they are (D25 in devdocs/history/calculator-plan.md). These
+The defaults stay as they are. These
 settings are a user's to choose, and the response to them is the
 interface's (#118, with #120's workers), helped by whatever the kernel
 issues above make cheaper.

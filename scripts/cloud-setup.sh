@@ -9,7 +9,7 @@
 # change (each pin names its source file). The environment's variables are
 # kept the same way, in scripts/cloud-env, and the per-session work is the
 # SessionStart hook in .claude/hooks/session-start.sh, which the repository
-# itself supplies; README.md ("Cloud environment") describes the three.
+# itself supplies; devdocs/development.md ("Cloud environment") describes the three.
 #
 # How the cloud runs it: once, as root, on Ubuntu 24.04, before Claude Code
 # starts, with no repository checked out. The filesystem is then snapshotted
@@ -39,7 +39,7 @@ set -u -o pipefail
 # ---------------------------------------------------------------------------
 
 # package.json "engines.node" and "devEngines.runtime" require >=24;
-# README.md "Prerequisites" says Node.js 24 (the current LTS line). The repo
+# devdocs/development.md ("Prerequisites") says Node.js 24 (the current LTS line). The repo
 # pins no exact patch release, so this is the newest 24.x at the time of
 # writing; bump it freely within the 24.x line.
 NODE_VERSION="24.21.0"

@@ -1,7 +1,7 @@
 // The definitions file: the text that declares which units, prefixes and
 // primitives exist. `parseDefinitions` turns it into a list of `Definition`s
 // and knows nothing about what they mean; `buildTable` evaluates them.
-// ARCHITECTURE.md ("Definitions") gives the overview.
+// devdocs/architecture.md ("Definitions") gives the overview.
 //
 // The format is in the spirit of a GNU units file: one definition per line, the
 // name, whitespace, then the body, and `#` starts a comment that runs to the

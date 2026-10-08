@@ -12,7 +12,7 @@
 // and knows nothing of where it comes from. devdocs/history/calculator-plan.md
 // (tasks 1.10 and 2.6, D12 and D16) places it, devdocs/design/settings-modes.md
 // shapes the mode, devdocs/design/settings-limits.md names the limits, and
-// README.md ("Settings") describes the settings from the user's side.
+// docs/settings.md describes the settings from the user's side.
 //
 // The names here are the user's, with the unit in the key (D29):
 // `displayDigits`, `precisionLimitDigits`, `significandLimitBits`,

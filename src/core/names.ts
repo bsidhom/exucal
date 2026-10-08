@@ -1,5 +1,5 @@
 // Name resolution: the rule by which a name in an expression means a unit.
-// ARCHITECTURE.md ("Definitions") states it: an exact unit name if there is
+// devdocs/architecture.md ("Definitions") states it: an exact unit name if there is
 // one, otherwise one prefix followed by a unit name. Prefixes do not stack.
 //
 // `buildTable` applies the rule over definitions while it evaluates them,

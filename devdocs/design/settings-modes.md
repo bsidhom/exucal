@@ -68,7 +68,7 @@ writes it today, and `ratio`, two whole numbers in lowest terms, which is
 what `5000/127` is; "rational" was the alternative (the study's own
 name, "Rational display") and was set aside as a word about the number
 rather than about how it is written. The user-facing words follow:
-README speaks of writing an exact value as its digits or as a ratio, and
+docs/settings.md speaks of writing an exact value as its digits or as a ratio, and
 "a fraction in lowest terms" stays as the explanation of what a ratio
 is. `Notation` is the place a richer setting goes when the fit rule's
 step adds one (below): `{ kind: "digits" } | { kind: "ratio"; width:
@@ -160,7 +160,7 @@ literal with more is the one place a value with more could enter.
 in` with the rounding in the radius). Exempting literals would
 carry the extra digits into the first operation and round them there,
 one step later, for no gain. The panel's line under the display digits says it in
-decimal mode, and README says it once.
+decimal mode, and docs/settings.md says it once.
 
 The fourth meaning, the fit of a fraction, is the next section's, and
 whether it leaves the display digits are that step's to decide.
@@ -241,7 +241,7 @@ fractions are exact mode's and exact mode rounds only the display.
 ties-away-from-zero as the default; `halfEven` is IEEE 754's default,
 `printf`'s and the decimal libraries', and it is unbiased over many
 roundings where ties-away drifts. `DEFAULT_ROUNDING` in context.ts
-changes, the tests that compute at the default follow, and README's
+changes, the tests that compute at the default follow, and docs/settings.md's
 example (`0.125` at two digits is `0.13`) becomes `0.12`. What to do
 with stored settings is the one question: `saveSettings` writes every
 field on every change, so a stored `halfAwayFromZero` is the old default
@@ -257,7 +257,7 @@ Two options:
   S1's mechanism on the simplest possible change.
 
 The note recommends the migration, which rides in the version 3
-migration the mode's shape needs in any case. Either way README gains
+migration the mode's shape needs in any case. Either way docs/settings.md gains
 the sentence the default lacks: which it is and why.
 
 **Two meanings.** The rounding mode rounds the display's last digit in
@@ -292,8 +292,8 @@ other also has in part (exact mode's display rounds; decimal mode's
 arithmetic everywhere else, IEEE 754's decimal formats, the General
 Decimal Arithmetic specification, Python's `decimal`, the study's feature
 5, and under D26 it is that arithmetic exactly. The gain of a rename
-would be small and the churn across the design notes, README and
-ARCHITECTURE.md large.
+would be small and the churn across the design notes, docs/settings.md and
+devdocs/architecture.md large.
 
 What changes is how the panel names them. The option text of the Mode
 select becomes the name alone, `exact` and `decimal`, and the
@@ -354,8 +354,8 @@ mode is in force:
   only; the outcome's decimal-mode lines unchanged, since D26 already
   made them digits.
 - docs: devdocs/design/fractions.md ("The decimal mode": no fractions in decimal
-  mode, and why), README's "Settings" for the mode, the display digits, Rounding
-  and the default, ARCHITECTURE.md's settings paragraph; #97 closed,
+  mode, and why), docs/settings.md for the mode, the display digits, Rounding
+  and the default, devdocs/architecture.md's settings paragraph; #97 closed,
   #147 closed, #91 and #95 pointed at the fit rule's step.
 
 ## Done when
@@ -376,7 +376,7 @@ mode is in force:
   is kept.
 - The lines under the display digits, Rounding and Mode say what each means in the
   mode in force.
-- README's "Settings" says what each mode does, what the display digits and Rounding
+- docs/settings.md says what each mode does, what the display digits and Rounding
   mean in each, that a typed number is rounded on the way in in decimal
   mode, and which rounding mode is the default and why.
 - The fit rule is as it was, and its step is listed in the plan after

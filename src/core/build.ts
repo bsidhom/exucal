@@ -1,4 +1,4 @@
-// Building the unit table from parsed definitions. ARCHITECTURE.md
+// Building the unit table from parsed definitions. devdocs/architecture.md
 // ("Definitions") gives the overview; this module orders the checks and
 // connects the pieces: the definitions are indexed by name, the index is
 // checked for ambiguous names (`names.ts`), and then every body is

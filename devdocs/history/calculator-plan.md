@@ -65,7 +65,7 @@ that changes behavior says exactly which behavior.
 Every task ends in the same state: `pnpm typecheck`, `pnpm test:all`
 (the tests, the edge sweeps, which `pnpm test` alone leaves out since
 issue #108, and the benchmarks, since issue #135) and
-`pnpm format:check` pass, every benchmark reaching its assertion, and the module headers and ARCHITECTURE.md say
+`pnpm format:check` pass, every benchmark reaching its assertion, and the module headers and devdocs/architecture.md say
 what the code now does (the last task of each stage sweeps the docs, but
 a task must not leave a header that lies). The tests are the `*.test.ts`
 beside each module, under Node's test runner, with no new dependency.
@@ -88,7 +88,7 @@ refer to them (the fourth was added before stage 5, H.10):
 - **Edge sweep.** Every built-in and every ball operation runs over the
   classes of arguments at the edges of the number type: tiny, huge, at
   the exponent bound, wide, near one, exact and inexact, in both modes.
-  Each case is checked for what ARCHITECTURE.md rules out: a throw, a
+  Each case is checked for what devdocs/architecture.md rules out: a throw, a
   refusal where a value exists, and a value that misses a known point or
   range. Known violations are a table keyed by issue, which the task that
   fixes the issue empties, so that no fix is silent.
@@ -390,7 +390,7 @@ correctly, and `asin(0.5) / pi()` is an angle, not a fraction of a turn.
 Three ways to the number exist, each one token: the `want` field
 (`asin(0.5)` into `turn` is `≈ 0.083333`, into `radian` the count in
 radians), `/ radian` in the expression, or the lenient kind conversion
-that ARCHITECTURE.md already lists under "Later", a flag on `convert`
+that devdocs/architecture.md already lists under "Later", a flag on `convert`
 that would let `asin(0.5)` into `1` succeed on request. None of these is
 needed to use an inverse the way the app is for: an angle in, an angle
 out, a unit to show it in.
@@ -662,8 +662,7 @@ draft devdocs/design/decimal.md withdrew, would have kept `2^-30000` at 30,000
 bits and done nothing for `3^-100000`; the cost is in storing exact
 rationals as digits, not in the power of ten. The owner's ruling, on
 review of this restatement, is to keep the representation and the
-decision and to document the rough edge plainly, which README ("Significand
-limit") and ARCHITECTURE.md ("Size limits") do. That is where the
+decision and to document the rough edge plainly, which docs/settings.md ("Significand limit") and devdocs/architecture.md ("Size limits") do. That is where the
 significand limit differs from the exponent bound, and deliberately so. The
 bound is on the value (D17), since it exists so that a value can always
 be written, and a refusal at it must never be false about the value; the
@@ -673,7 +672,7 @@ representation and not about the value, and nothing else could be
 measured without forming what the limit forbids. So a refusal at the
 significand limit says that a result was too large to hold, names the node
 that formed it, and names the remedy, `approx` around an operand of that
-node or a higher `significandLimitBits`; and README's "Significand limit" says what is
+node or a higher `significandLimitBits`; and docs/settings.md ("Significand limit") says what is
 counted. Whether exact
 mode rounds instead of refusing there is D20.
 
@@ -864,7 +863,7 @@ is today and `factorial` and `binomial` will be in stage 6, with the node
 check as the backstop.
 
 Sums are included, since a sum of fractions grows as a product does, and
-README ("Significand limit") already promises a bound on how large a numerator and
+docs/settings.md ("Significand limit") already promises a bound on how large a numerator and
 a denominator may grow. One visible consequence, of the measure as much
 as of the rule: `1 / 2^n` is refused past `n ≈ 28,225` at the default, as
 `0.5^30000` already is, since each is stored with `5^n`.
@@ -1056,7 +1055,7 @@ syntax options for 7.0).** The bracketed form of devdocs/design/functions.md,
 `tempC(x) [1;K] x K + 273.15 K ; tempC / K - 273.15`, is replaced
 outright, and the five functions of units.txt are rewritten in it. No
 user definitions are stored anywhere yet (storage and an editor are a
-"Later" item of ARCHITECTURE.md), so a change of syntax costs nothing
+"Later" item of devdocs/architecture.md), so a change of syntax costs nothing
 now and would cost a migration later. A function and an inverse read:
 
 ```
@@ -1332,7 +1331,7 @@ The caveats, each of which the stage's docs state:
   evaluates it twice, so nesting such calls `k` levels deep costs `2^k`
   evaluations of the innermost, at every pass of the retry loop. That
   is what the same expression written out in full costs, so it is not a
-  new limit, but README ("Functions") and ARCHITECTURE.md ("Functions")
+  new limit, but docs/definitions.md ("Functions") and devdocs/architecture.md ("Functions")
   say so in 7.4.
 
 **D25. The limits keep their defaults; stage 8 finds and records the
@@ -1737,7 +1736,7 @@ Behavior: the digits and the rounding mode are the user's.
 
 ### 1.11 Stage 1 docs
 
-ARCHITECTURE.md: "Precision and rounding" rewritten around the ball and
+devdocs/architecture.md: "Precision and rounding" rewritten around the ball and
 the context, "UI" for the settings and the `=` rule, "Layout" for the new
 modules; README.md gains a short "Settings" section; module headers that
 mention truncation or `DEFAULT_PRECISION` are corrected; devdocs/history/calculator-study.md
@@ -2019,7 +2018,7 @@ the rounding carried into an earlier unit, the remainder left is a new
 value, what remains after the carried units, so its kind is judged on the
 rounded remainder rather than the unrounded one, and a last term that
 cannot be told from zero is left out as a term of zero is, with its note,
-unless it is the only term. README's "Settings" describes the four
+unless it is the only term. docs/settings.md describes the four
 settings and the notes.
 
 Behavior: the notes, and the two limits are the user's.
@@ -2094,7 +2093,7 @@ Behavior: none; unused until stage 3.
 
 ### 2.9 Stage 2 docs
 
-ARCHITECTURE.md "Precision and rounding" gains the kernel, settling,
+devdocs/architecture.md "Precision and rounding" gains the kernel, settling,
 certification, the schedule and the two limits; "Layout" the new modules;
 the benchmark section the kernel benchmark; README "Settings" explains
 the note about fewer digits, the two limits and the recommendation;
@@ -2810,7 +2809,7 @@ pow(10, x) ; log10(bel)` and `decibel(x) [1;1] pow(10, x / 10) ; 10
 log10(decibel)`, with a comment on what a logarithmic unit is and on why
 `dB` is absent: it reads as `d` + `B`, deci-byte, and a function's name
 may not read as a prefixed unit, the rule that keeps `u` and `at` out
-too. README's "What the file contains" loses the sentence that says
+too. docs/definitions.md ("What the file contains") loses the sentence that says
 logarithmic units cannot be defined and gains the three.
 
 Tests: `decibel(20)` is `= 100`, `bel(2)` is `= 100` (exact cases, through
@@ -2833,7 +2832,7 @@ Behavior: the three logarithmic units.
 
 ### 3.13 Stage 3 docs
 
-ARCHITECTURE.md: "Functions" gains the built-in kind and the dimension
+devdocs/architecture.md: "Functions" gains the built-in kind and the dimension
 rules; "Evaluation" the new errors; "Definitions" the check over
 dimensions; "Precision and rounding" the elementary functions beside the
 root and the ceiling in the context; "Later" loses built-in functions;
@@ -3400,7 +3399,7 @@ Behavior: the mode setting.
 
 ### 4.8 Stage 4 docs
 
-ARCHITECTURE.md "Numbers" for the type ladder of D13 (`Rational`,
+devdocs/architecture.md "Numbers" for the type ladder of D13 (`Rational`,
 `Scaled`, `Radius`, `Ball`, `Quantity`), the exponent, its bound and the
 two modes; "Precision and rounding" for the decimal grid at the kernel's
 boundary, the sums that settle first, certification by the digit
@@ -3414,7 +3413,7 @@ payload line is measured again after `pnpm build`. devdocs/design/decimal.md's
 "Implementation notes" and the plan's "Stage 4 as it landed", in the
 style of "Stage 3 as it landed".
 
-As it landed. The sweep covered ARCHITECTURE.md ("Numbers", "Precision
+As it landed. The sweep covered devdocs/architecture.md ("Numbers", "Precision
 and rounding" with the settle in decimal mode and the one pass, "Working
 precision and the context", "Size limits", "UI", "Layout" and "Later"),
 README ("Settings" with the mode, "Functions in expressions" with the
@@ -3425,7 +3424,7 @@ devdocs/design/decimal.md and devdocs/design/approximate.md ("Implementation not
 the status lines), devdocs/history/calculator-study.md (the status line and the payload)
 and this plan ("Stage 4 as it landed"); much of it was written task by
 task as each landed, since every commit leaves the module headers and
-ARCHITECTURE.md truthful. The production build after stage 4 precaches
+devdocs/architecture.md truthful. The production build after stage 4 precaches
 129 KB, 42 KB compressed: the script is 111 KB (35 KB compressed), 17 KB
 more than after stage 3 for scaled.ts, digits.ts, the `Floating` and
 `approx`, and the definitions file 16 KB (6 KB compressed).
@@ -3544,8 +3543,7 @@ as it is; the evaluator settles the result as it settles every inexact
 one. In decimal mode the working digits are the user's `p`, and the
 mode's rounding follows as for every result. The
 retry loop needs no change, since the radius is the precision's and
-shrinks with each pass. devdocs/design/builtins.md and README "Functions in
-expressions" name it; the two-argument form, an absolute uncertainty,
+shrinks with each pass. devdocs/design/builtins.md and docs/functions.md name it; the two-argument form, an absolute uncertainty,
 is future work the note lays out, with the retry loop's stopping rule
 it will need.
 
@@ -3570,8 +3568,7 @@ working digits are the context's precision in decimal mode and
 the settle rounds the result in the mode as it rounds every result; a
 zero midpoint, exact or not, is returned as it is, since a unit of the
 last digit of zero would be a unit of nothing. `approx` is named in
-devdocs/design/builtins.md's names, dimension table and layout, and in README
-"Functions in expressions". The tests' definitions file defines `G
+devdocs/design/builtins.md's names, dimension table and layout, and in docs/functions.md. The tests' definitions file defines `G
 approx(6.674e-11) m^3` and a function whose body calls `approx`, and
 converts through both with `≈`.
 
@@ -3580,7 +3577,7 @@ Behavior: `approx` exists.
 ## Before stage 5: hardening
 
 Firm. Stage 4 landed with thirteen issues open against its code ("After
-stage 4" lists them): a wrong answer, crashes where ARCHITECTURE.md
+stage 4" lists them): a wrong answer, crashes where devdocs/architecture.md
 ("Failures") requires a `Result`, values refused that could be computed, a
 sum shown as zero, and two costs past their budget. This phase fixes them
 before stage 5. Its order was checked against the code at 32192ed (main
@@ -3785,11 +3782,11 @@ Every sentence in the docs and comments that names an open issue is
 corrected by the task that closes it:
 
 - The `#52` comments in scaled.ts, ball.ts, quantity.ts, table.ts,
-  build.ts and hyperbolic.ts, ARCHITECTURE.md's three (rule 1, and two in
+  build.ts and hyperbolic.ts, devdocs/architecture.md's three (rule 1, and two in
   "Size limits"), and devdocs/design/decimal.md's go with H.14. convert.ts's, in
   `decompose` and `settled`, go with H.12, and the one in `ConvertError`'s
   doc goes with H.14.
-- ARCHITECTURE.md's `#48` goes with H.13, its `#53` with H.2, and its
+- devdocs/architecture.md's `#48` goes with H.13, its `#53` with H.2, and its
   `#54` with H.8.
 - devdocs/design/builtins.md's `#49` goes with H.1.
 - devdocs/design/approximate.md's `#38`, `#39` and `#40` go with H.1, H.3 and H.15,
@@ -3908,7 +3905,7 @@ Under a directed rounding mode these show `≈ 1` with no digit certain,
 since the ball straddles one, as `cosh(1e-999999999)` and `approx(1)`
 already do. The docs say so.
 
-Docs: ARCHITECTURE.md's rule 2, whose exception for `exp` goes; fixed.ts's
+Docs: devdocs/architecture.md's rule 2, whose exception for `exp` goes; fixed.ts's
 header and `fixedFromScaled`'s precondition; exp.ts's header ("A tiny
 argument needs no scaling"); devdocs/design/builtins.md; devdocs/design/decimal.md, "The
 kernel's boundary".
@@ -4037,7 +4034,7 @@ Tests:
 - `rootRadiusAbove` at degrees `10^400` and `3^700`.
 
 Docs: pow.ts's header; ball.ts's header on the root, and `positiveRoot`'s
-doc; `rootRadiusAbove`'s comment; ARCHITECTURE.md's rule 2 and its
+doc; `rootRadiusAbove`'s comment; devdocs/architecture.md's rule 2 and its
 paragraph on the kernel; devdocs/design/builtins.md, `pow`.
 
 Behavior: the inputs above are values where they threw or were refused.
@@ -4138,7 +4135,7 @@ Tests:
   where its square was refused as `overflow`. A ball around zero of radius
   `1e600000000000000000` stays `unresolved` at `1`.
 
-Docs: inverse-trig.ts's header; devdocs/design/builtins.md; ARCHITECTURE.md's rule
+Docs: inverse-trig.ts's header; devdocs/design/builtins.md; devdocs/architecture.md's rule
 2; devdocs/design/decimal.md, "The kernel's boundary", whose sentences H.2 edits
 first.
 
@@ -4155,7 +4152,7 @@ whose argument list fails is then not read again as a name before a
 parenthesized factor. So a nested call with an error in it costs a
 constant per level, where each level doubled the cost (#54). The
 alternatives of `unitAtom` again begin with different tokens, as
-ARCHITECTURE.md ("Parsing") requires.
+devdocs/architecture.md ("Parsing") requires.
 
 A cut combinator in parser.ts was weighed. It would serve other grammars,
 but a committed failure skips every enclosing `alt`, `optional` and
@@ -4168,7 +4165,7 @@ Tests: nestings of 20 levels (with an error inside, unclosed, and
 error, position and expectations; a balanced nesting parses; a definition
 body with a broken call of 20 levels does the same.
 
-Docs: ARCHITECTURE.md, "Parsing". Its sentence on the call rule goes, and
+Docs: devdocs/architecture.md, "Parsing". Its sentence on the call rule goes, and
 "first character" becomes "first primitive". The sentence that an operator
 with nothing after it is "the one way an alternative fails after consuming
 input" gains the call: one whose argument list fails has consumed its
@@ -4241,12 +4238,12 @@ digits parses in milliseconds and is `tooLarge` at the default significand
 limit, and with 10,000-digit literals evaluates to its value. A
 benchmark, bench/rational.bench.ts, reports the probe's operation, one gcd
 and #52's quotients, and asserts only ratios within the run;
-ARCHITECTURE.md ("Benchmarks") names it.
+devdocs/benchmarks.md names it.
 
 Docs: rational.ts's header says what each operation reduces with, that the
 gcd is quadratic, and that the rules hold only for operands in lowest
 terms, the invariant of `Rational`, with `rational` the one constructor
-that reduces; expr.ts's header and ARCHITECTURE.md ("Expressions"), whose
+that reduces; expr.ts's header and devdocs/architecture.md ("Expressions"), whose
 exponent "travels in the tree as a `Rational`" no longer.
 
 Behavior: none but speed, and a `^` exponent past the significand limit refused
@@ -4341,7 +4338,7 @@ and a hang already known when the sweep lands is matched by a predicate
 and not run. The whole sweep stays within a few seconds: a prototype ran
 6,437 cases in 3.2 s.
 
-Docs: ARCHITECTURE.md gains a paragraph on the sweep.
+Docs: devdocs/architecture.md gains a paragraph on the sweep.
 
 Behavior: none; tests. It lands after the decisions, which its oracle
 encodes, and best after tier 1, so that its table holds only what tier 2
@@ -4479,7 +4476,7 @@ Tests:
 Docs: convert.ts's header, the comments that name #44 and #48, and the
 `#52` clauses in `decompose`'s and `settled`'s comments (`ConvertError`'s
 sentence that a quotient is not held to the significand limit stays until H.14);
-ARCHITECTURE.md, "Unit lists".
+devdocs/architecture.md, "Unit lists".
 
 Behavior: a unit list's refusal is an error, and the display's rounding
 never throws.
@@ -4585,7 +4582,7 @@ Tests:
   `tooLarge`) change.
 
 Docs: devdocs/design/decimal.md, "The exponent bound" and "Which limit a refusal
-names", whose examples reverse; ARCHITECTURE.md, "Numbers", rule 1 of
+names", whose examples reverse; devdocs/architecture.md, "Numbers", rule 1 of
 "Precision and rounding", "Size limits" and "Formatting"; the headers of
 scaled.ts and ball.ts; messages.ts's comment on the literal's message.
 
@@ -4652,7 +4649,7 @@ Tests:
 
 Docs:
 
-- ARCHITECTURE.md: "Size limits", whose constant-factor argument goes, and
+- devdocs/architecture.md: "Size limits", whose constant-factor argument goes, and
   rule 1.
 - devdocs/history/calculator-study.md's "Memory", which says exact growth is already
   bounded.
@@ -4660,7 +4657,7 @@ Docs:
 - README, "Significand limit": already says what is counted (the bits of what is
   stored, fives for a dyadic's twos) and what the app does at the limit,
   as D16 and D20 have it; this task removes its "not yet" on products and
-  quotients. README's `approx` paragraph: products and quotients join
+  quotients. docs/functions.md's `approx` paragraph: products and quotients join
   sums and powers, and a sum's growth joins its alignment.
 - The comments on the default in context.ts and limits.ts, and
   system-build.ts's header.
@@ -4766,7 +4763,7 @@ Tests:
 
 Docs:
 
-- README, "Very large results and `approx`": the refusal needs the whole
+- docs/functions.md ("Very large results and `approx`"): the refusal needs the whole
   argument past the edge, and #40's workaround goes.
 - devdocs/design/approximate.md: "Two axes" changes, and "A related gap" goes.
 - devdocs/design/builtins.md: "The rules every built-in follows", whose result past
@@ -4778,9 +4775,9 @@ Docs:
 - devdocs/design/approximate.md, "What raising the bound would take", which names
   `expFits` and says `unresolved` speaks of an edge.
 - fixed-exp.ts's header, which names `expFits`.
-- README's edge for `exp`, `10^18 ln 10`, which becomes
+- docs/functions.md's edge for `exp`, `10^18 ln 10`, which becomes
   `(10^18 + 1) ln 10` at the top.
-- ARCHITECTURE.md's rule 2.
+- devdocs/architecture.md's rule 2.
 - The headers of exp.ts, hyperbolic.ts, ball.ts, pow.ts and digits.ts.
 
 Behavior: the exponential family and the powers are refused only when
@@ -4913,8 +4910,7 @@ context, passed to `show` for every term; the parentheses before a unit
 (`= (5000/127) in`, `(-5000/127) in`) and before the reciprocal's
 `× 3 ft`, none for a dimensionless value or a function line's argument
 (`tempF(493/5)`); a unit list's remainder as a fraction, as in
-`1 m = 3 ft + (428/127) in`; README's
-"Settings" bullet with the example lines, and ARCHITECTURE.md ("The
+`1 m = 3 ft + (428/127) in`; docs/settings.md bullet with the example lines, and devdocs/architecture.md ("The
 display rule") the rule and the kind.
 
 Tests: the settings field (parsed, defaulted, saved); the component's
@@ -4981,8 +4977,7 @@ b) + mod(a, b)` over signs and over quantities, `mod(-7, 2)` is `1` and
 to the ceiling, of `sqrt(2)` exactly `1`; `gcd(-6, 4)` is `2`,
 `lcm(a, 0)` is `0`; `factorial(20000)` refused at the default with its
 message, `factorial(5000)` a value; `binomial(5, 7)` is `0`; a
-dimensioned `floor` the dimension-rule error; the sweep's rows. README
-("Functions in expressions") and devdocs/design/builtins.md ("Names") gain them.
+dimensioned `floor` the dimension-rule error; the sweep's rows. docs/functions.md and devdocs/design/builtins.md ("Names") gain them.
 
 ### 6.2 `digamma`
 
@@ -5064,7 +5059,7 @@ The tasks changed as follows:
   function's conditions.
 - Dimension-generic functions are deferred to an issue of their own.
 
-Each task changes README.md and ARCHITECTURE.md where it makes them
+Each task changes README.md and devdocs/architecture.md where it makes them
 false, as stage 6 grew README's list of built-ins task by task; 7.4
 sweeps the rest. The definitions file is the system's alone until
 storage and an editor exist, so the syntax can change in one commit
@@ -5136,8 +5131,7 @@ unchanged, and `src/units.test.ts` holds them.
 
 Behavior: nothing a user of the converter can see changes, since the
 five functions convert as before and each has an inverse that passes
-the check. The definitions syntax changes, so README ("The format",
-"Functions"), ARCHITECTURE.md ("Definitions", "Functions") and the
+the check. The definitions syntax changes, so docs/definitions.md ("The format", "Functions"), devdocs/architecture.md ("Definitions", "Functions") and the
 module headers of definitions.ts, table.ts, build.ts, evaluate.ts and
 pipeline.ts describe the new form in this commit, and
 devdocs/design/functions.md's status says that 7.1 has landed.
@@ -5167,7 +5161,7 @@ allowed, as the note's grammar writes the list (`params?`) and as
 inverse either (devdocs/design/functions.md, "Definitions").
 
 Behavior: none visible with the system file, whose functions take one
-parameter; README's "Functions" says a defined function may take
+parameter; docs/definitions.md ("Functions") says a defined function may take
 several.
 
 Tests: binding by position, the arity of a defined function in
@@ -5229,7 +5223,7 @@ non-empty is the build's `undecidedCondition`.
 
 Behavior: `tempC(-300)` and `tempF(-500)` are refused, naming the
 condition, where they were negative temperatures; `-5 K` into `tempC`
-is refused. README's "Functions" loses its "There is no domain checking
+is refused. docs/definitions.md ("Functions") loses its "There is no domain checking
 yet", and gains conditions and the warning of an assumed one.
 
 Tests:
@@ -5265,13 +5259,13 @@ Tests:
 
 ### 7.4 Stage 7 docs
 
-README "Functions", devdocs/design/functions.md's implementation notes, and
-ARCHITECTURE.md "Functions". The README and ARCHITECTURE.md each gain
+docs/definitions.md ("Functions"), devdocs/design/functions.md's implementation notes, and
+devdocs/architecture.md "Functions". The README and devdocs/architecture.md each gain
 two notes from D24: that calls are not memoized, so nesting costs what
 the expression written out would; and the caveats of compositions
 against built-ins. The README also says what the warning of an assumed
 condition means, and how it differs from a refusal at a built-in's
-edge. ARCHITECTURE.md's "Later" loses its item on domain and range,
+edge. devdocs/future.md's "Planned extensions" loses its item on domain and range,
 conditions replacing the domain and the range being dropped
 (devdocs/design/functions.md, "No assertion on a result"), and points to the deferred issues (#130 to
 #133). devdocs/design/functions.md gains its implementation notes, and this plan
@@ -5569,10 +5563,10 @@ only what holds on any machine:
   reported, with how far it gets, never failed.
 
 A case that has become much cheaper is reported, and `--record` writes
-its new cost into the catalogue. README ("Benchmarks") says what the suite is, how
+its new cost into the catalogue. devdocs/benchmarks.md says what the suite is, how
 long it runs, and when to run it: before and after a change aimed at one
 of its cases, after a change to a kernel, and when #118's work wants a
-fresh target. ARCHITECTURE.md ("Benchmarks") says how it is built.
+fresh target. devdocs/benchmarks.md says how it is built.
 
 Behavior: none.
 
@@ -5666,7 +5660,7 @@ No case hangs at the defaults. #118 links the catalogue as its target.
 ### 8.4 Stage 8 docs
 
 This plan's record of the stage, "Stage 8 as it landed"; devdocs/cost.md's
-notes on what the search did not reach; README and ARCHITECTURE.md where
+notes on what the search did not reach; README and devdocs/architecture.md where
 the stage changed them.
 
 ## The first follow-up
@@ -5981,7 +5975,7 @@ statements the second changed.
   would be unsound beyond it, and a bound is needed anyway, so the bound
   is kept by decision (devdocs/design/decimal.md, "Decision: the bound stays at
   `10^18`"; devdocs/design/approximate.md, "`approx` and the exponent bound", with
-  the measurements; README, "Very large results and `approx`").
+  the measurements; docs/functions.md ("Very large results and `approx`")).
 - **Each limit refuses with an error of its own**
   ([#43](https://github.com/bsidhom/exucal/pull/43), fixing
   [#41](https://github.com/bsidhom/exucal/issues/41)). Every refusal
@@ -6025,7 +6019,7 @@ open against the stage 4 code, none of which stage 5 depends on:
 
 - a wrong answer: `tanh` of a wide ball around zero certified as `±1`
   ([#38](https://github.com/bsidhom/exucal/issues/38));
-- crashes where "Failures" in ARCHITECTURE.md requires a `Result`: `exp`
+- crashes where "Failures" in devdocs/architecture.md requires a `Result`: `exp`
   and `pow` of a wide argument
   ([#39](https://github.com/bsidhom/exucal/issues/39)), values at the
   edge of the exponent bound
@@ -6050,13 +6044,13 @@ open against the stage 4 code, none of which stage 5 depends on:
   limit, and a large quotient's reduction taking seconds
   ([#52](https://github.com/bsidhom/exucal/issues/52), which asks for
   a decision between a check and an input length limit, recorded in
-  ARCHITECTURE.md, "Size limits"), and a nested call
+  devdocs/architecture.md, "Size limits"), and a nested call
   with a syntax error parsed in time exponential in its depth
   ([#54](https://github.com/bsidhom/exucal/issues/54)).
 
 [#51](https://github.com/bsidhom/exucal/issues/51), that the docs had
 `approx` relax the significand limit only in a sum where it does in an integer
-power too, is corrected in ARCHITECTURE.md and the README with this
+power too, is corrected in devdocs/architecture.md and the README with this
 record.
 
 "Before stage 5: hardening", between stage 4's tasks and stage 5's, is
@@ -6089,8 +6083,7 @@ row, which the task's text now says. A change outside the phase landed
 between H.15 and H.16
 ([#85](https://github.com/bsidhom/exucal/pull/85)): the precision limit
 is labeled "Precision limit", the panel says what each
-setting does, and README ("How a number is held, and what the settings
-touch") says why one limit is in bits and the others in digits, and
+setting does, and docs/settings.md ("How a number is held, and what the settings touch") says why one limit is in bits and the others in digits, and
 where the ceiling's four times plus ten comes from. The list, with the
 issues each closed:
 
@@ -6341,7 +6334,7 @@ each task left behind:
   never terminated or never reached the floor. From review: the
   Bernoulli numbers are computed on first use and memoized, and their cost, 2.9 s once at
   the default ceiling, and footprint, about 3 MB there, are documented
-  in ARCHITECTURE.md and README at the owner's asking, and
+  in devdocs/architecture.md and README at the owner's asking, and
   [#103](https://github.com/bsidhom/exucal/issues/103) is to
   reconsider the footprint (eviction, no memo, or a cheaper
   representation).
@@ -6459,7 +6452,7 @@ record of the rulings and of what each task left behind:
   it, and [#135](https://github.com/bsidhom/exucal/issues/135) was
   filed and fixed as #137: the benchmarks repaired, `pnpm test:all` now
   running them after the tests and the sweeps, so that a commit leaves
-  all three green, and ARCHITECTURE.md saying that no test depends on
+  all three green, and devdocs/architecture.md saying that no test depends on
   the limits a device has chosen, which the owner asked to have either
   fixed or recorded. From then on each task was opened on a fresh
   branch, at the owner's asking.
@@ -6474,11 +6467,11 @@ record of the rulings and of what each task left behind:
   result that assumed a condition, a rule found by re-reading the change
   before it was committed. units.txt gives `tempC` and `tempF` their
   conditions, and only those, as the task says.
-- **7.4.** This record; README's and ARCHITECTURE.md's notes from D24 on
+- **7.4.** This record; README's and devdocs/architecture.md's notes from D24 on
   the cost of nested calls and the caveats of a composition against a
   built-in (README already said, from 7.3, what the warning of an
   assumed condition means and how it differs from a refusal at a
-  built-in's edge); ARCHITECTURE.md's "Later" without its item on
+  built-in's edge); devdocs/future.md's "Planned extensions" without its item on
   domain and range, pointing to #130 to #134; and devdocs/design/functions.md's
   implementation notes. After `pnpm build` the script is 177 KB (55 KB
   compressed), against 167 KB (52 KB) at the commit before 7.0 measured
@@ -6523,7 +6516,7 @@ what each left behind:
   every TypeScript file is type-checked by a project, its paths read
   NUL-separated; `pnpm test:all` now starts with `pnpm typecheck`. #144,
   from the owner's review: the security stance gathered into
-  ARCHITECTURE.md's "Security", since the README is to be for users
+  devdocs/security.md, since the README is to be for users
   alone.
 - **8.2** (#145). Cases drawn from a seed alone, `foldIn(seed, i)`, with
   fixed weights and no timing deciding what is drawn, at the owner's
@@ -6554,7 +6547,7 @@ what each left behind:
   two, with `--record` to write their new costs back. Entries that
   become cheap stay, at the owner's question: there is one per family,
   so the file cannot grow without bound, and they guard the cost.
-- **8.4.** This record; the status lines of this plan, ARCHITECTURE.md
+- **8.4.** This record; the status lines of this plan, devdocs/architecture.md
   and devdocs/history/calculator-study.md; and devdocs/cost.md's notes on what the search
   has not reached. The stage's own pull requests added 112 bytes of
   script (46 compressed), the pass observer: after `pnpm build` the

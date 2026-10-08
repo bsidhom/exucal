@@ -189,7 +189,7 @@ Notation      ( ) digits
   last count, and the default otherwise.
 - The input is labeled "Ratio width" for assistive technology, and the
   line under Notation says the rule in the words above.
-- README's "Settings" entry for the notation gains the width, the
+- docs/settings.md's entry for the notation gains the width, the
   examples `3^20 = 3486784401` and `(1/3) * 1e30 = 1/3 × 1e+30`, and the
   sentence that the width is the one thing that decides whether a line
   is a ratio.
@@ -251,7 +251,7 @@ digits, rounding, ratio: { width } })`); `fractionText` takes the width and gain
 - Docs: devdocs/design/fractions.md ("The rule" rewritten to the five rules
   above, "Not in this design" losing the exponent form, "Where it goes"
   noting the width), D21 amended by D28 below, devdocs/design/settings-storage.md
-  (version 4), README, ARCHITECTURE.md ("The display rule"); #91 and
+  (version 4), docs/settings.md, devdocs/architecture.md ("The display rule"); #91 and
   #95 closed, P5 closed.
 
 ## D28, proposed

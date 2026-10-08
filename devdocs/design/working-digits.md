@@ -153,7 +153,7 @@ Working digits  [x] extended    [ 12 ]
 
 The line under the display digits in decimal mode says "the digits of the answer;
 every step before the last is computed with the working digits", and
-README's "Settings" gains the setting and the `ln(exp(1/10))` example.
+docs/settings.md gains the setting and the `ln(exp(1/10))` example.
 S4 may lay the controls out otherwise; this is the minimum the model
 needs.
 
@@ -189,8 +189,7 @@ needs.
   the panel's control present in decimal mode only and its input present
   only with "extended" checked.
 - Docs: devdocs/design/decimal-mode.md (the promise's point 2 gains the last
-  step's rounding; "As landed"), D26 amended as D27 says below, README
-  ("Settings", the Mode and the display digits entries), ARCHITECTURE.md
+  step's rounding; "As landed"), D26 amended as D27 says below, docs/settings.md (the Mode and the display digits entries), devdocs/architecture.md
   ("Settling").
 
 ## D27, proposed

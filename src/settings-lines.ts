@@ -110,10 +110,10 @@ export function defaultLine(key: Resettable): string {
 /** The button at the sheet's foot that restores every default. */
 export const RESET_ALL = "Reset all settings";
 
-/** The link at the sheet's foot to the guide: README's "Settings" until the user's guide (S6) lands. */
+/** The link at the sheet's foot to the guide: docs/settings.md until the user's guide (S6) lands. */
 export const ABOUT = {
   text: "About these settings",
-  href: "https://github.com/bsidhom/exucal#settings",
+  href: "https://github.com/bsidhom/exucal/blob/main/docs/settings.md",
 } as const;
 
 /** `n` with its unit after it, the digits singular at one: "1 digit", "2,453 digits", "65,536 bits", "50 ms". */

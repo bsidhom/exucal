@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # SessionStart hook for Claude Code on the web (claude.ai/code). Registered in
-# .claude/settings.json; README.md ("Cloud environment") describes how it
+# .claude/settings.json; devdocs/development.md ("Cloud environment") describes how it
 # fits with scripts/cloud-setup.sh and scripts/cloud-env.
 #
 # The cloud runs scripts/cloud-setup.sh once, before any repository is
@@ -19,7 +19,7 @@
 #    lockfile is frozen by pnpm-workspace.yaml for every install, so the
 #    `--frozen-lockfile` below changes nothing and is written out so that
 #    the hook says what it does. pnpm only: never npm, npx, yarn or corepack
-#    (see README.md). The install is incremental, so a rerun with
+#    (see devdocs/development.md). The install is incremental, so a rerun with
 #    node_modules already in sync is a second's check.
 #
 # It runs only on the web ($CLAUDE_CODE_REMOTE): on a developer's machine the

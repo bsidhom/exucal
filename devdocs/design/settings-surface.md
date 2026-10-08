@@ -228,9 +228,9 @@ line shorter and hides none.
   fixed to the viewport.
 - `src/styles.ts`: nothing new; the cog has its own look, as the copy
   button has.
-- README ("Settings"): the first sentence, "under the converter", says
+- docs/settings.md: the first sentence, "under the converter", says
   where the sheet is and how it opens, and that a change applies as it
-  is made. ARCHITECTURE.md: the shell's description of the panel and the
+  is made. devdocs/architecture.md: the shell's description of the panel and the
   settings' flow. devdocs/history/shell-refactor.md's open questions for the UX
   step: the one about the settings' surface answered here.
   devdocs/history/settings-plan.md: S4 done, with this note.

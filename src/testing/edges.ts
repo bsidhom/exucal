@@ -1,7 +1,7 @@
 // Test support for the edge sweep, the fourth test pattern of
 // devdocs/history/calculator-plan.md ("How to read a task"; task H.10): every built-in
 // and every ball operation runs over the classes of arguments at the edges
-// of the number type, and each case is checked for what ARCHITECTURE.md
+// of the number type, and each case is checked for what devdocs/architecture.md
 // rules out. src/core/edges.sweep.ts is the sweep at the ball level and
 // src/edges.sweep.ts at the text level; this module is what the two share.
 // The suffix keeps the sweeps out of `pnpm test`, the run for every edit:

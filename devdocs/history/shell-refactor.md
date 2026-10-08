@@ -79,7 +79,7 @@ Three specific things make it harder to read than it needs to be:
   `@lit/context` would each cover a part of this, but the shell has one
   async value, one subscription and two levels of nesting, which is not
   enough to pay for a library, and the project's rule is "nothing beyond
-  Lit" (ARCHITECTURE.md). The proposal below is about 40 lines of generic
+  Lit" (devdocs/architecture.md). The proposal below is about 40 lines of generic
   code in total.
 
 ## The target
@@ -386,8 +386,8 @@ retry, the update check, the footer link).
 6. The shell: `tableOf`, the layout-only sheet, the doc comment rewritten
    to describe the wiring rather than every feature (each feature's
    comment moves with its code).
-7. Docs: the file lists in README.md ("Repository layout") and
-   ARCHITECTURE.md (the table at the end and "UI"), and the three places
+7. Docs: the file lists in devdocs/layout.md and
+   devdocs/architecture.md (the table at the end and "UI"), and the three places
    that say which file holds a control (devdocs/design/decimal.md 4.7,
    devdocs/design/fractions.md, devdocs/history/calculator-plan.md D16) now name
    `settings-panel.ts`.

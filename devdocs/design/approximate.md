@@ -231,8 +231,7 @@ says how many are certain ("3 of 8 digits are certain"). Tentatively:
   builtin.ts, with the dimension rule `sameAsArgument` new in builtin.ts.
 - `src/core/builtins.ts`: `approx` in the map.
 - devdocs/design/builtins.md: its name, rule, and the two rules every built-in
-  follows, which it follows trivially; README "Functions in
-  expressions": one sentence with an example.
+  follows, which it follows trivially; docs/functions.md: one sentence with an example.
 - Tests: the built-in's own (an exact value gains the working radius, an
   inexact one whose radius is larger is unchanged and one whose radius
   is smaller is widened to the unit, `approx` of an `approx` is the same
@@ -263,10 +262,10 @@ Written after a report that `exp(approx(1e999))` is refused, on the
 expectation that `approx` would make the argument a value known to the
 working precision and so the result a value that can be computed. It
 cannot, and the reason is kept here, since "A large exponent is a value"
-above invites the reading. README "Very large results and `approx`" is
+above invites the reading. docs/functions.md ("Very large results and `approx`") is
 the user's account, with the same numbers.
 
-**Two axes.** ARCHITECTURE.md ("Size limits") bounds a value on two
+**Two axes.** devdocs/architecture.md ("Size limits") bounds a value on two
 axes, and the example above, `approx(1e999999999) + 1`, is the significand
 limit's: the exact sum needs a significand of a billion digits, and
 `approx` lets the `1` be absorbed into the radius (devdocs/design/decimal.md,

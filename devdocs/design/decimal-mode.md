@@ -165,7 +165,7 @@ three digits is `2.54 cm`, and in `in` it is `= 1 in`, not `≈ 1 in`. This
 is the invariant applied to the one place a value enters: a `p`-digit
 calculator holds `p` digits, and the user who typed more into it knows
 where they went. The radius that recorded the rounding today goes;
-README says it once, under the display digits.
+docs/settings.md says it once, under the display digits.
 
 **Arithmetic.** `+`, `-`, `*`, `/` and juxtaposition form the exact
 result of two `p`-digit decimals, which always exists and is small (at
@@ -278,7 +278,7 @@ settles it; the candidates, so that it starts from something:
   where a plain string is needed, and the component draws the dot itself
   over the `≈` so that the mark does not depend on a font's placement of
   a combining mark; the accessible name says "approximately,
-  uncertified", and README explains the sign once. This keeps the
+  uncertified", and docs/settings.md explains the sign once. This keeps the
   promise's invariant, every value a `p`-digit decimal, and reports the
   one thing the radius was good for without carrying a radius.
 - **A radius at the ceiling alone.** The uncertified result keeps the
@@ -421,8 +421,8 @@ a fraction in decimal mode.
 - **Docs:** devdocs/design/decimal.md's "The decimal mode" gains a status line
   pointing here and the plan's D15 is amended as D26 says; devdocs/design/builtins.md's
   first rule, devdocs/design/functions.md's and devdocs/design/approximate.md's decimal-mode
-  clauses, devdocs/design/fractions.md's "The decimal mode", README's Mode, the display digits
-  and Rounding entries and its "How a number is held", ARCHITECTURE.md's
+  clauses, devdocs/design/fractions.md's "The decimal mode", docs/settings.md's Mode, the display digits
+  and Rounding entries and its "How a number is held", devdocs/architecture.md's
   "Settling" and display rule, and devdocs/history/calculator-study.md's "4 and 5" (which
   reads `1/3 * 3` as `≈ 1`) are brought to the promise.
 

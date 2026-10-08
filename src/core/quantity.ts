@@ -2,7 +2,7 @@
 // is a magnitude, which is a `Ball` (a midpoint with the radius that bounds
 // its distance from the true value; radius zero for an exact value), and the
 // dimension it is a multiple of: `2.54 cm` is the magnitude `127/5000`,
-// exactly, of the dimension `m`, given `m` as the primitive. ARCHITECTURE.md
+// exactly, of the dimension `m`, given `m` as the primitive. devdocs/architecture.md
 // ("Quantities, dimensions and kinds") gives the overview.
 //
 // This module is the layer that pairs the two below it. `ball.ts` knows

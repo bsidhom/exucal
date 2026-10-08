@@ -248,7 +248,7 @@ floor under names that say so; `Scaled.mant` becomes `significand`; and
 the core's docs retire "the cap", "the range limit" and "mantissa" for
 "the precision limit", "the significand limit" and "significand", D12,
 D13 and D16 amended by D29 to say so. The churn is mechanical and the
-compiler finds every site. Until then ARCHITECTURE.md's settings
+compiler finds every site. Until then devdocs/architecture.md's settings
 paragraph states the mapping once.
 
 ## Coupled edits (P1, P9)
@@ -411,9 +411,9 @@ Each number input carries its unit as a suffix; the lines say the rest.
 - The alignment change, after: the core's and the storage's renames
   listed under "Alignment", `Scaled.mant` included, with D12, D13 and
   D16 amended.
-- README ("Settings"): the terms with their units, the grid explained
+- docs/settings.md: the terms with their units, the grid explained
   in "How a number is held", the clamp's and the refusal's sentences,
-  the probe's promise, the defaults' sentence. ARCHITECTURE.md: the
+  the probe's promise, the defaults' sentence. devdocs/architecture.md: the
   mapping of the names until the alignment lands, the probe's proposal.
   devdocs/history/settings-plan.md: S3 done. #86 closed; #73 and #163 referenced.
 - Tests: the clamp's report and the refusal's reason; the probe's

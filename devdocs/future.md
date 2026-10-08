@@ -3,10 +3,10 @@
 Notes on extensions that are not goals now, kept so that no design closes
 the door on them by accident. Each entry says what the extension is, why
 it is not pursued, what it would take, and what in the current design
-keeps it possible. ARCHITECTURE.md ("Later") lists the planned extensions
-that fit without reshaping the core; the entries here are the ones that
-would reshape part of it, and a design that touches that part should read
-the entry first.
+keeps it possible. "Planned extensions" at the end lists the extensions
+that fit without reshaping the core; the entries before it are the ones
+that would reshape part of it, and a design that touches that part should
+read the entry first.
 
 ## Symbolic values
 
@@ -124,3 +124,50 @@ a second field. Domain errors as `Result` values that a mode can turn into
 values. Conformance and dimensions independent of the magnitude. What
 would change: the midpoint type, the kernel's primitive operations, every
 built-in, and the display.
+
+## Planned extensions
+
+Planned extensions, listed to show that they fit without reshaping the core:
+
+- **The rest of the calculator program.** devdocs/history/calculator-study.md weighs the
+  special functions, a decimal mode, a rational display and richer
+  user-defined functions, with the elementary functions, as one program
+  toward an arbitrary-precision calculator under whole-expression
+  precision in the manner of Arb, and devdocs/history/calculator-plan.md is the
+  plan, now complete. Stages 1 to 8 have landed, with the hardening
+  phase before stage 5: the ball, the kernel and the retry loop, the
+  elementary functions, the `Scaled` midpoint and the decimal mode, the
+  rational display, the exact functions and the Gamma and Beta families,
+  the user-function extensions, and the search for the costliest
+  expressions, whose catalogue (devdocs/cost.md) is the target for keeping
+  the interface responsive
+  ([#118](https://github.com/bsidhom/exucal/issues/118)) and for
+  making the kernels cheaper (#149, #150, #125 and others). The limits
+  keep their defaults (D25). Stage 6's eight remaining special functions
+  are deferred ([#115](https://github.com/bsidhom/exucal/issues/115)),
+  and the plan's "Stage 8 as it landed" lists the issues that carry the
+  rest.
+- **More of the user functions.** Stage 7 deferred four extensions, each
+  to an issue of its own: a bare call's value shown in its function's
+  result annotation
+  ([#130](https://github.com/bsidhom/exucal/issues/130)); the
+  shadowing error in a head relaxed to a warning
+  ([#131](https://github.com/bsidhom/exucal/issues/131)); definitions
+  typed into the converter
+  ([#132](https://github.com/bsidhom/exucal/issues/132)); and
+  dimension-generic functions, with type bounds on their variables
+  ([#133](https://github.com/bsidhom/exucal/issues/133)), for which
+  the parser already reserves `name[`. A function's result is never
+  checked against a range, since nothing would act on it; whether ranges
+  could instead narrow a result's ball is studied in
+  [#134](https://github.com/bsidhom/exucal/issues/134).
+- **User definitions** are already supported by `buildTable`; only storage and
+  an editor are missing.
+- **Lenient kind conversion** (converting `rad/s` to `Hz` on request) is a flag
+  to `convert` that skips step 2 of the conformance check. Sums would keep
+  the strict check: adding an angle to a plain number is a mistake whether
+  or not the user asked to convert between them.
+- **Symbolic values and complex numbers** are not planned, and would
+  reshape the number type rather than fit around it; devdocs/future.md
+  records what each would take and what keeps it possible, so that no
+  design closes the door on them by accident.

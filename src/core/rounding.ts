@@ -37,7 +37,7 @@ export type Precision = number;
 /**
  * The fixed working precision the app computed at before the number
  * context existed, in significant decimal digits; the tests use it as a
- * working precision. See ARCHITECTURE.md ("Working precision and the
+ * working precision. See devdocs/architecture.md ("Working precision and the
  * context").
  */
 export const DEFAULT_PRECISION: Precision = 40;

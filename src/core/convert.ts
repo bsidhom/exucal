@@ -1,6 +1,6 @@
 // Conversion: the last step of the pipeline. `convert` takes the `have` and
 // `want` quantities the evaluator produced and answers how many `want`s make
-// up `have`, or says why it cannot. ARCHITECTURE.md ("Conversion") gives the
+// up `have`, or says why it cannot. devdocs/architecture.md ("Conversion") gives the
 // overview.
 //
 // Each quantity already carries its own scale (`3 ft` is `0.9144 m`, `in` is
@@ -22,7 +22,7 @@
 // second. Conformance is checked first, so a `want` of `0 s` against a
 // `have` in metres is reported as the mismatch it is, not as a zero.
 //
-// `convertToList` is the second output mode (ARCHITECTURE.md, "Unit lists"):
+// `convertToList` is the second output mode (devdocs/architecture.md, "Unit lists"):
 // `have` as a sum over a list of units, `1 m` into `ft;in` being `3 ft` plus
 // `3.37 in`. Each unit but the last gets the integer count of it that fits
 // in what the earlier units left, truncated toward zero so that every term

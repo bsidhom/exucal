@@ -12,32 +12,40 @@ bullets under `#(top)`, so most of its pointers use the bullet form.
 Claims are numbered `N1…` (numeric type) and `Q1…` (quantity) so that
 later sections can cite them.
 
-**Chronology caveat, stated once.** The repository's history is fifty
-commits over three days (2026-10-06 to 2026-10-08). The first commit
-imported an already mature code base with a 1,389-line `README.md`, a
-2,013-line `ARCHITECTURE.md` and sixteen design notes and plans under
-`docs/`. On 2026-10-08 the notes were moved to `devdocs/design/` and
-`devdocs/history/` (commit 54aec25), the two big files were split into
-`docs/` and `devdocs/` (d634a65), and then `devdocs/` was "pared into
-current-state pages" (270b471: 17,007 lines deleted, 6,015 added), with a
-follow-up restoring what the pare dropped (c226625). Every current
-`devdocs/` page therefore dates from 2026-10-08 (only `architecture.md`,
-`cost.md` and `future.md` trace back to 2026-10-06 through renames), and
-`devdocs/README.md` now describes them as "current-state documents, not a
-history; git holds the history". Chronology *inside* the current corpus
-is therefore recoverable only from the pages' own narrative ("an earlier
-version…", "the first design…", the settings migrations 1→5) and from the
-three days of commit subjects (S2/S2b/S2c notation and width, S3 limits
-renamed, #73 strict significand limit, S4/S5 sheet). Section 12 raises
-the tension between the prompt's framing of `devdocs/` as a historical
-record and the corpus's own self-description.
+**What "history" means in this plan.** The target is a living set of
+pages that preserves *design intentions* and the most salient decisions
+and decisions-against, with minimal cruft. It is not an archaeological
+record in commit or change order, and it does not track every quirk the
+design passed through. The test applied throughout this plan, and to be
+applied in every audit unit:
 
-The deleted notes, for reference (paths as of 54aec25, all removed in
-270b471): `devdocs/design/{approximate, builtins, decimal-mode, decimal,
-fractions, functions, ratio-width, settings-controls, settings-limits,
-settings-modes, settings-storage, settings-surface, special,
-working-digits}.md` and `devdocs/history/{calculator-plan (6,571 lines),
-calculator-study, settings-plan, shell-refactor}.md`.
+- **Keep:** a decision together with its reason; an alternative ruled
+  out up front, with the reason; a design that was redesigned after
+  seeing how it fleshed out, kept as the decision-against with the
+  reason (the lesson, not the sequence); an open decision tracked by an
+  issue, kept as a living pointer beside the concept it concerns.
+- **Drop:** a mistake from a minor misunderstanding that was quickly
+  corrected; commit order, dates and commit hashes; old names and old
+  shapes beyond what a migration must still read; interim-state notes
+  ("until X lands") once X has landed, or where the issue link alone
+  says it; measurements and counts that a tool regenerates.
+- **Not history, so neither kept nor dropped on these grounds:** the
+  settings migrations (mechanism the code needs to read old storage);
+  a rule's current statement, however it was arrived at.
+
+Where this plan says *decision-against*, it means a passage to keep by
+that test; where it says *quirk*, one to drop. Rows marked *uncertain*
+are ones the test does not settle from the text alone (§12, question 25).
+
+The repository's own state fits that aim: on 2026-10-08 `devdocs/` was
+pared into current-state pages and its design notes and plans were
+removed (they remain in git only, as `devdocs/design/*.md` and
+`devdocs/history/*.md` at commit 54aec25, removed in 270b471), and
+`devdocs/README.md` describes the pages as "current-state documents, not
+a history". The removed notes are not to be resurrected. An audit unit
+may consult one for a single purpose: to recover the *reason* for a
+decision that a current page states without one (§12, question 1).
+Nothing else in this plan depends on git history.
 
 ---
 
@@ -336,27 +344,35 @@ and the schedule`, `#The significand limit`.
 - `approx`'s alternatives (syntax forms, the binary form #100): `#approx`.
 - Failures vs preconditions: `#Failures`; formatting internals:
   `#Formatting`.
-- The ratio notation's design history, `show`'s `fraction`/`scale`:
-  `devdocs/notation.md#The width`, `#Where it lives`.
+- The ratio notation's width rule and the alternatives set aside,
+  `show`'s `fraction`/`scale`: `devdocs/notation.md#The width`, `#Where it
+  lives`.
 
-#### 1.1.5 Where the semantics changed over time; which passage is current
+#### 1.1.5 Decisions and decisions-against to carry forward; quirks to drop
 
-| Change | Superseded reading | Current passage |
-| --- | --- | --- |
-| Decimal mode tracked roundings in the radius ("7 of 8 digits are certain") | withdrawn | `devdocs/numbers.md#Decimal mode` (rules 1–4) |
-| Inexact midpoints grew as exact rationals | first design | `devdocs/numbers.md#Settling` |
-| A binary exponent beside the decimal one | first design | `devdocs/numbers.md#The types › Scaled` |
-| Certification widened the midpoint by two digits | first version | `devdocs/numbers.md#Certification…` (distance rule) |
-| Fixed ceiling of 1,000 digits, display ≤ 200 | before the precision limit became a setting | `devdocs/numbers.md#Working precision and the schedule` |
-| Significand limit measured after forming | until #73 (commit 3ae73bb, 2026-10-07) | `devdocs/numbers.md#The significand limit` (strict prediction) |
-| Refusal reach worded "passes" | commit 1fc768d | "exceeds" / "fits", same section |
-| Ratio notation as a `fractions` flag; fit tied to display digits | storage v2–v3; "the first rule" | `devdocs/notation.md#The rule`, `#The width` (width `W`, both parts together; commits 946bcde, fcc1c96) |
-| Settings named `digits`/`maxDigits`/`maxBits` | storage v4 | `devdocs/settings.md#The model`, `#Storage` (v5: `displayDigits`, `precisionLimitDigits`, `significandLimitBits`, `budgetMs`) |
-| Rounding default half away from zero | storage v2 | half even (`devdocs/settings.md#The model › Rounding`) |
-| A ball around zero could print `-0` | until commit 6b38e25 | `devdocs/numbers.md#Certification…` (zero kind) |
-| `settle` exported, reachable from two sites | earlier shape | `devdocs/numbers.md#Settling` (`step` is the one entrance) |
-| Vocabulary "working digits" vs schedule's working precision | unsettled (#172) | `devdocs/numbers.md#The working digits` (flagged there) |
-| `uncertified` shown vs decided as a tie | open (#173) | `devdocs/numbers.md#Decimal mode › The ceiling` |
+Every narrated predecessor and every "set aside" in the numeric pages,
+classified by the test at the top of this plan. "Owner" is the current
+passage that states the decision; "treatment" is what the living pages
+keep.
+
+| Passage, as narrated | Classification | Owner | Treatment |
+| --- | --- | --- | --- |
+| Decimal mode once tracked the roundings in the radius ("7 of 8 digits are certain") | decision-against: redesigned after seeing it fleshed out | `devdocs/numbers.md#Decimal mode` | keep in one or two sentences: what it did and why it was withdrawn (the radius answered a question the mode does not ask; a directed rounding could never certify its last digit) |
+| Inexact midpoints grew as exact rationals | decision-against: seen in use (a dyadic to the fifth power refused by the limit) | `devdocs/numbers.md#Settling` | keep as the reason settling exists; drop the sizes |
+| A binary exponent beside the decimal one | decision-against: a larger flaw, found when the mixed base leaked into every operation | `devdocs/numbers.md#The types › Scaled` | keep, trimmed to the reasons (one base, where the base changes, the cost accepted); the millisecond figures are *uncertain* |
+| Certification widened the midpoint by two digits | quirk: an implementation slip, corrected | `devdocs/numbers.md#Certification and the display rule` | drop the parenthetical; the distance rule stands alone |
+| A fixed ceiling of 1,000 digits with the display digits capped at 200 ("they moved once") | quirk: the parameters moved; the judgment behind four and ten is the decision | `devdocs/numbers.md#Working precision and the schedule` | drop the sentence; keep that four and ten are judgments and why |
+| The significand limit measured after forming | decision-against: deliberate while it lasted, replaced by prediction after the gcds (#73) | `devdocs/numbers.md#The significand limit` | keep why prediction runs after the gcds (`x / x` is one) and why the limit is strict; drop the commit |
+| Refusal reach worded "passes" | quirk: wording | same section | drop |
+| The ratio notation's fit tied to the display digits ("the first rule") | decision-against: redesigned after use (a length coupled to a precision; exact values hidden; not readable off the settings) | `devdocs/notation.md#The width` | keep as the reasons for the width; drop the commits |
+| The `fractions` flag and notation-as-string shapes; the settings' old keys (`digits`, `maxDigits`, `maxBits`) | not history: the migrations must read them | `devdocs/settings.md#Storage` | keep only inside the migration list; the naming rationale stays in `#The model` |
+| The rounding default, half away from zero | decision: an unbiased default, the old one echoed by every save | `devdocs/settings.md#The model › Rounding`, `#Storage` (2→3) | keep the reason for half even; the migration row as mechanism |
+| A ball around zero could print `-0` | quirk: quickly corrected | `devdocs/numbers.md#Certification…` (zero kind) | drop any trace; the rule "written `0` whatever the sign" stays |
+| `settle` exported and reachable from two sites | quirk: an internal shape | `devdocs/numbers.md#Settling` | drop; keep "`step` is the one entrance" as the design rule |
+| The vocabulary around `working` (#172) | open decision | `devdocs/numbers.md#The working digits` | keep as one sentence plus the issue; §8 proposes the terms |
+| `uncertified` shown rather than decided as a tie (#173); the two "provisional" rulings of decimal mode | open decisions, with their reasons given | `devdocs/numbers.md#Decimal mode` | keep as decisions-for-now with the reasons and the issue |
+| Per-operation precision (MPFR's guarantee) set aside for whole-expression precision | decision-against: ruled out up front | `devdocs/numbers.md#Exact mode` | keep |
+| Rounding an exact result past the limit at the node, a third mode rounding every literal, a setting for the exponent bound, raising the bound, stored digits of `pi`, the `approx` spellings | decisions-against: ruled out with reasons | `devdocs/numbers.md#The significand limit`, `#approx`, `#Why the exponent bound stays at 10^18`; `devdocs/future.md#Ruled out, and why` | keep; the scratch-build timings under the exponent bound are *uncertain* (they justify the decision but no tool regenerates them) |
 
 #### 1.1.6 Claims that most need verification against the code
 
@@ -612,17 +628,22 @@ table; decimal mode rounds each unit once (Q11).
   as the want`, `#An undecided condition`.
 - Kind-lenient conversion, complex magnitudes, offsets: `devdocs/future.md`.
 
-#### 1.2.5 Where the semantics changed over time; which passage is current
+#### 1.2.5 Decisions and decisions-against to carry forward; quirks to drop
 
-| Change | Superseded reading | Current passage |
-| --- | --- | --- |
-| Function heads `tempC(x) [1;K] body ; inverse` with required unit brackets, one argument | first form | `devdocs/functions.md#Definitions`, `#Alternatives considered` |
-| Annotations as GNU `units=` (parameter bound to its count) | weighed, not adopted | `devdocs/functions.md#Annotations` ("checks a dimension and changes no value") |
-| Build check evaluated each body at one value | first version | `devdocs/functions.md#Build-time checks` (`dimensionOf` only) |
-| Reciprocal as GNU units' `(1 / 0.027777778) in` | rejected | `devdocs/architecture.md#The converter and its lines › The reciprocal` |
-| A list count by truncation when the ratio straddles an integer | implied earlier (`359 deg + 60 arcmin`) | `devdocs/architecture.md#Unit lists` (takes the integer) |
-| Shadowing a unit in a head is an error | current; to become a warning (#131) | `devdocs/functions.md#Names and shadowing` |
-| Kinds introduced to keep angles from numbers | rationale only | `devdocs/builtins.md#Dimension rules › Angles` |
+| Passage, as narrated | Classification | Owner | Treatment |
+| --- | --- | --- | --- |
+| Function heads in the first form, `tempC(x) [1;K] body ; inverse` | decision-against: redesigned after use (no home for bounds; annotations all or nothing) | `devdocs/functions.md#Alternatives considered` | keep the reason each alternative lost; trim the first form to one line |
+| Annotations as GNU `units=` (a parameter bound to its count) | decision-against: ruled out up front | `devdocs/functions.md#Annotations` | keep |
+| Bounds written in the parameter list; keyword clauses; a multi-line block | decisions-against: ruled out up front | `devdocs/functions.md#Alternatives considered` | keep |
+| The build check evaluated each body at one value | decision-against: untenable once the elementary functions existed | `devdocs/functions.md#Build-time checks` | keep as one clause: why bodies are not evaluated at build |
+| The reciprocal as GNU units' `(1 / 0.027777778) in` | decision-against | `devdocs/architecture.md#The converter and its lines › The reciprocal` | keep |
+| A list count by truncation when the ratio straddles an integer (`359 deg + 60 arcmin`) | *uncertain*: reads as a slip corrected on sight, but the rule's reason is worth a clause | `devdocs/architecture.md#Unit lists` | keep the rule with its reason; drop any "before" framing |
+| The shadowing error, meant to become a warning (#131) | open decision | `devdocs/functions.md#Names and shadowing` | keep the rule and the issue |
+| Kinds, against the degree-radian confusion; "the radian treated as 1" with plain inverses | decision and decision-against | `devdocs/builtins.md#Dimension rules › Angles` | keep |
+| An offset on `Quantity` for temperatures; lenient kind conversion | decision-against; deferred extension | `devdocs/future.md#Ruled out, and why`, `#Extensions that fit` | keep |
+| Calls decided by the table; a cut combinator for the call rule ("broke it once") | decisions-against: the cut set aside with its failure mode | `devdocs/architecture.md#Parsing`; `devdocs/functions.md#Not in this design` | keep the reasons; reduce "broke it once" to the reason the lookahead is used |
+| Trusting an inverse, checking it once, or sampling it at build | decisions-against | `devdocs/functions.md#A function as the want` | keep |
+| A sigil on parameters (`$t`) against silent shadowing | decision-against | `devdocs/functions.md#Names and shadowing` | keep |
 
 #### 1.2.6 Claims that most need verification against the code
 
@@ -980,11 +1001,11 @@ Everything other than the two core abstractions themselves (§1), one
 entry per concept. Fields: *class* (user, internal, or bridge: a user
 concept whose realization devdocs/ explains); *terms* (user term ↔
 internal names, where they differ); *docs/*; *devdocs/* in reading order
-with the passage that reads as current marked **(current)** and any
-narrated predecessor marked *historical* (see the chronology caveat at
-the top: ordering follows `architecture.md` (overview, older lineage) →
-the topical page → `future.md`, since every page dates from the
-2026-10-08 pare); *depends on* (claims of §1); *modules*; *owner*
+with the authoritative passage marked **(current)** and any narrated
+predecessor classified by the test at the top of this plan as
+*decision-against* (keep, with its reason) or *quirk* (drop); the order
+`architecture.md` (overview) → the topical page → `future.md` is reading
+order, not chronology; *depends on* (claims of §1); *modules*; *owner*
 (proposed owning location in the restructured docs/, naming pages from
 the outline in §7).
 
@@ -1100,9 +1121,10 @@ kernel's boundary` → `#Settling` **(current)** → `#The working digits`
 *Class:* internal. *Terms:* none in docs ↔ `settle`, `step`, `onGrid`,
 `stepQuantity`. *docs/:* implicit in `docs/settings.md#How a number is
 held…` ("rounding it after every step"). *devdocs/:* `numbers.md#Settling`
-**(current)**, `#Sums and alignment`, `#The significand limit`; *historical:*
-"The first design let inexact midpoints grow as exact rationals", "an
-earlier shape, a settle any inexact ball could reach". *Modules:*
+**(current)**, `#Sums and alignment`, `#The significand limit`; *decision-against:*
+"The first design let inexact midpoints grow as exact rationals" (keep:
+the reason settling exists); *quirk:* "an earlier shape, a settle any
+inexact ball could reach" (drop). *Modules:*
 `ball.ts`, `quantity.ts`, `evaluate.ts`. *Owner:* `devdocs/numbers.md#Settling`.
 
 **C13. Rounding modes.** The seven modes. *Class:* user. *Terms:* panel
@@ -1125,8 +1147,9 @@ exact and decimal`. *Depends on:* N1–N16. *Modules:* `context.ts`,
 **C15. Decimal mode.** *Class:* user. *Terms:* "decimal" (rejected:
 "rounded", "calculator") ↔ `mode: "decimal"`. *docs/:*
 `docs/settings.md#(top) › Mode`, `› Working digits`. *devdocs/:*
-`numbers.md#Decimal mode` **(current)**, *historical:* "An earlier version
-of the mode rounded every step and also tracked, in the radius…";
+`numbers.md#Decimal mode` **(current)**, *decision-against:* "An earlier
+version of the mode rounded every step and also tracked, in the radius…"
+(keep, with why it was withdrawn);
 `#The working digits`; `settings.md#The model`. *Depends on:* N17–N20.
 *Modules:* `context.ts`, `ball.ts`, `evaluate.ts`, `pipeline.ts`. *Owner:*
 `numbers.md` › "The two modes".
@@ -1156,7 +1179,8 @@ Display digits`. *devdocs/:* `settings.md#The model › Display digits`
 N8, N17. *Modules:* `settings.ts`, `context.ts`. *Owner:* `settings.md`.
 
 **C19. Precision limit.** *Class:* user. *Terms:* "precision limit" ↔
-`precisionLimitDigits`; *historical* `maxDigits` (storage v4); rejected
+`precisionLimitDigits`; `maxDigits` (an old stored key the migration
+still reads; not history); rejected
 "digits limit", "grid limit". *docs/:* `docs/settings.md#(top) › Precision
 limit`. *devdocs/:* `settings.md#The model › Precision limit` **(current)**,
 `#Storage` (4→5); `numbers.md#Working precision and the schedule`, `#The
@@ -1166,12 +1190,14 @@ significand limit` (`precisionLimitFor`). *Depends on:* N8, N21. *Modules:*
 **C20. Significand limit and its refusal.** Bits per part of an exact
 significand; "would need a significand of about N bits". *Class:*
 bridge. *Terms:* "past the significand limit" ↔ `tooLarge`, `Need`,
-`Reach` (`fits`/`exceeds`), `significandLimitBits`; *historical*
-`maxBits`, "size limit", "most bits". *docs/:* `docs/settings.md#(top) ›
+`Reach` (`fits`/`exceeds`), `significandLimitBits`; `maxBits` (an old
+stored key), "size limit", "most bits" (names argued and set aside in
+`settings.md#The model`). *docs/:* `docs/settings.md#(top) ›
 Significand limit`, `#How a number is held…`; `docs/functions.md#Very large
 results and approx`. *devdocs/:* `numbers.md#The significand limit`
-**(current)**, *historical:* "Measuring after forming, which the limit did
-at first"; `#Which limit a refusal names`; `settings.md#The model ›
+**(current)**, *decision-against:* "Measuring after forming, which the
+limit did at first" (keep: why prediction runs after the gcds); `#Which
+limit a refusal names`; `settings.md#The model ›
 Significand limit`; `builtins.md#The exact functions` (prediction).
 *Depends on:* N21, N24. *Modules:* `rational.ts`, `scaled.ts`, `ball.ts`,
 `evaluate.ts`, `messages.ts`, `settings.ts`. *Owner:* `numbers.md` ›
@@ -1248,10 +1274,12 @@ values`. *Depends on:* N8. *Owner:* `devdocs/numbers.md`; named once in
 
 **C29. Ratio notation and its width.** *Class:* user. *Terms:* "ratio
 notation", "ratio", "width" ↔ `Notation`, `RatioDisplay`, `ratioParts`,
-`fraction: true`, `scale`; *historical* the `fractions` flag (storage
-v2), notation as a string (v3). *docs/:* `docs/settings.md#(top) ›
+`fraction: true`, `scale`; the `fractions` flag and the
+notation-as-string shape (old stored forms the migrations read; not
+history). *docs/:* `docs/settings.md#(top) ›
 Notation`. *devdocs/:* `notation.md#The rule` **(current)**, `#The width`
-(*historical:* "The first rule tied the fit to the display digits"),
+(*decision-against:* "The first rule tied the fit to the display digits",
+keep as the reasons for the width),
 `#Where a ratio is written`, `#Not in decimal mode`; `settings.md#The model`
 (nested choice), `#Storage`. *Depends on:* N13, N2. *Modules:*
 `display.ts`, `outcome.ts`, `settings.ts`. *Owner:* `settings.md` (entry);
@@ -1340,8 +1368,9 @@ on:* Q15, N10. *Modules:* `convert.ts`, `pipeline.ts`, `outcome.ts`,
 function the file defines" ↔ `UnitFunction`, `Definition.function`,
 `applyFunction`, `callFailed`. *docs/:* `docs/definitions.md#Functions`.
 *devdocs/:* `architecture.md#Definitions`, `#Functions` → `functions.md#(top)`,
-`#Definitions`, `#Calls`, `#Build-time checks` **(current)**; *historical:*
-`#Alternatives considered` (the `[1;K]` form). *Depends on:* Q3, Q5, N14.
+`#Definitions`, `#Calls`, `#Build-time checks` **(current)**; *decision-against:*
+`#Alternatives considered` (the `[1;K]` form and the other head syntaxes,
+keep with the reason each lost). *Depends on:* Q3, Q5, N14.
 *Modules:* `definitions.ts`, `build.ts`, `evaluate.ts`, `table.ts`.
 *Owner:* `definitions.md` › "Functions".
 
@@ -1435,7 +1464,7 @@ message says…", "marks the input at fault" ↔ `messages.ts`, `Span`,
 "format version" (docs) ↔ `STORAGE_VERSION`, `savedBy`,
 `settingsFromStored`; "stored version" (commit subjects). *docs/:*
 `docs/settings.md#(top)`. *devdocs/:* `settings.md#Storage` **(current; the
-migrations 1→5 are the dated history)**; `benchmarks.md#The search`.
+migrations are mechanism, not history)**; `benchmarks.md#The search`.
 *Modules:* `settings.ts`. *Owner:* `devdocs/settings.md#Storage`; one
 sentence in `settings.md`.
 
@@ -1879,6 +1908,34 @@ function, the template of §4.1, grouped by family.
 offline use, updates and the build number, the settings sheet's
 mechanics, copying results.
 
+### 7.1 The developer-side counterparts (unified concept map)
+
+The focus is the conceptual building blocks, unified across the two
+sides: each concept area has one user-side owner, which states the
+rules, and one developer-side owner, which keeps three things and no
+more: the mechanism, the decision with its reason, and the
+decisions-against with theirs. Each side links to the other at the
+section level. The developer-side owners below are the existing pages;
+the units in §10.c reshape them to this map.
+
+| Concept area | docs/ owner (the rules) | devdocs/ owner (mechanism, decisions, decisions-against) |
+| --- | --- | --- |
+| Exactness and the error radius | `numbers.md` › Exact and approximate values | `devdocs/numbers.md#The types`, `#Exact mode` |
+| Digits, certification, the retry loop | `numbers.md` › Digits you can trust | `devdocs/numbers.md#Certification and the display rule`, `#Working precision and the schedule`, `#Settling` |
+| Comparison and edges | `numbers.md` › Comparison; Values at an edge | `devdocs/numbers.md#Comparison`, `#Exact operations` |
+| Decimal mode and working digits | `numbers.md` › The two modes | `devdocs/numbers.md#Decimal mode`, `#The working digits` |
+| Size limits and `approx` | `numbers.md` › Values too big to hold; `approx` | `devdocs/numbers.md#The significand limit`, `#The exponent bound`, `#Why the exponent bound stays at 10^18`, `#approx` |
+| Writing numbers; ratio notation | `numbers.md` › How numbers are written | `devdocs/numbers.md#Formatting`; `devdocs/notation.md` |
+| Quantities, dimensions, kinds, conformance | `quantities.md` | `devdocs/architecture.md#Quantities, dimensions and kinds` |
+| Conversion and the output modes | `quantities.md` › How a conversion is answered; Unit lists; Conversion into a function | `devdocs/architecture.md#Conversion`, `#Unit lists`, `#The converter and its lines`; `devdocs/functions.md#A function as the want` |
+| The expression language | `expressions.md` | `devdocs/architecture.md#Expressions`, `#Parsing`, `#Evaluation` |
+| The definition language and user functions | `definitions.md` | `devdocs/architecture.md#Definitions`; `devdocs/functions.md` |
+| The units the app knows | `units.md` | `devdocs/development.md#Adding a unit` (the contributor's side); the comments in `src/units.txt` |
+| Settings | `settings.md` | `devdocs/settings.md` |
+| Built-in functions | `functions.md` | `devdocs/builtins.md` |
+| The app's surface | `app.md` or `getting-started.md` | `devdocs/architecture.md#UI`; `devdocs/offline.md` |
+| What is ruled out or deferred | one sentence where a user would look for it ("real values only") | `devdocs/future.md`; each page's "Not in this design" |
+
 ---
 
 ## 8. Terminology
@@ -2031,53 +2088,70 @@ Conflicting or synonymous terms found, with a proposed canonical term.
 - Name resolution: `docs/definitions.md#Names` (a definitions page) owns
   a rule that governs every expression.
 
-### 9.4 Passages that appear superseded but read as current
+### 9.4 Passages that read as current but are history, plans, interim state or cruft
 
-- `devdocs/README.md#(top)`: "current-state documents, not a history; git
-  holds the history" conflicts with the prompt's framing of devdocs as
-  the historical record (§12, question 1).
-- `docs/definitions.md#(top)`: "This section describes that file" is a
-  leftover from when the page was a README section (the split of
-  2026-10-08).
+Each with its classification by the test at the top of this plan.
+
+- `devdocs/README.md#(top)`: "current-state documents, not a history" is
+  consistent with the aim; keep. What the plan adds is that each page
+  carries its decisions with their reasons, and no quirks.
+- `docs/definitions.md#(top)`: "This section describes that file" is left
+  over from the page's life as a README section. Cruft; fix.
 - `docs/functions.md#(top)`: "Beside the functions the file defines" with
-  "the file" undefined on that page (same leftover).
+  "the file" undefined on the page. Cruft; fix.
 - `docs/settings.md#(top) › Probe budget` and the paragraph "The limits are
   set top-down": the probe "times the costliest exact product and the
   costliest built-ins", while `devdocs/settings.md#The probe` says the
   composite is the four elementary routines, deliberately not the
-  costlier Gamma family.
+  costlier Gamma family. Correctness; fix the docs.
 - `devdocs/cost.md#What the costs come from` ("Typing out the 229 entries …
-  16,548 keystrokes") against `#What the search has not reached` ("what
-  four runs found, 714 cases in all") and tables of 344 and 47 rows: the
-  prose was written for an earlier catalogue than the tables now hold
-  (the page says the prose is revised by hand).
-- `devdocs/architecture.md#Pipeline` diagram ends in `format ──▶ string`,
-  while the text names `show`, `roundTerms` and `outcomeOf`; possibly a
-  stale name.
-- `devdocs/numbers.md#The working digits` (last paragraph) describes the
-  unsettled vocabulary around `working` as current state with #172
-  open; `#Decimal mode` has "Two rulings are provisional" and #173.
+  16,548 keystrokes") against `#What the search has not reached` ("714
+  cases in all") and tables of 344 and 47 rows. Counts that the tool
+  regenerates, carried in hand-revised prose; drop the counts from the
+  prose or have the tool write them.
+- `devdocs/architecture.md#Pipeline`: the diagram ends in `format ──▶
+  string` while the text names `show`, `roundTerms` and `outcomeOf`.
+  Possibly a stale name; fix.
+- `devdocs/numbers.md#The working digits` (last paragraph): the unsettled
+  vocabulary around `working`, #172 open. Open decision; trim to one
+  sentence plus the issue.
+- `devdocs/numbers.md#Decimal mode`: "Two rulings are provisional", #173.
+  Open decisions with their reasons; keep.
+- `devdocs/numbers.md#Working precision and the schedule`: "they moved
+  once, from a fixed ceiling of a thousand digits…". Quirk; drop, keeping
+  that four and ten are judgments.
+- `devdocs/numbers.md#The types › Scaled` (the division's 0.2 ms against
+  0.04 ms "when the base was chosen"), `#Exact operations` (Lehmer against
+  Euclid at 65,536 bits), `#Why the exponent bound stays at 10^18` (the
+  scratch build's timings), `#Formatting` (what a settle costs),
+  `devdocs/builtins.md` (per-routine costs at the ceiling),
+  `devdocs/future.md#Ruled out` (`pi` in 0.4 ms). Measurements that justify
+  decisions but that no tool regenerates. *Uncertain*; see §12,
+  question 25.
 - `devdocs/builtins.md#Huge and tiny arguments`: "(`acos(1e-9860)` was
-  refused at the default limit)" reads as history inside a current rule.
-- `devdocs/testing.md#Type-checking`: "(one did, until the projects were
+  refused at the default limit)". Quirk inside a current rule; drop the
+  parenthetical, keep the rule.
+- `devdocs/architecture.md#Parsing`: "(The call rule broke it once: …)".
+  The reason the lookahead is used and the cut was set aside is a
+  decision-against; keep the reason, drop the narrative.
+- `devdocs/testing.md#Type-checking` "(one did, until the projects were
   made to match by pattern)" and `#(top)` "three of them once failed
-  unnoticed" are history kept as rationale (fine, but should be marked
-  as such if the corpus is to be read as a record).
+  unnoticed for a whole stage". Each is the reason a rule exists (the
+  coverage test; the benchmarks in `test:all`); keep as one clause each,
+  without the narrative.
 - `devdocs/functions.md#Annotations`: "No message is worded for a
-  definitions rejection today … the wording meant for this one is …" is
-  a plan embedded in a current-state page.
-- `devdocs/settings.md#The controls`: the `ABOUT` link "pointing at
-  docs/settings.md until the guide lands (#191)" describes an interim
-  state.
-- `docs/settings.md#(top)`: "There are six settings" while the entries
-  that follow are eight controls (the notation's width and the extended
-  count under the mode); consistent with devdocs but confusing on its
-  own.
-- `docs/functions.md#(top)` (gamma bullet): the cost sentence ("computed
-  once per page load for each precision asked for beyond the last and
-  kept") describes the memo's growth rule; `devdocs/builtins.md` says a
-  larger run replaces a smaller one. Same behaviour, different emphasis;
-  the docs sentence may predate the replacement rule.
+  definitions rejection today … the wording meant for this one is …".
+  Interim state; keep the intended wording in one sentence plus #132
+  while that issue is open, drop it when it lands.
+- `devdocs/settings.md#The controls`: the `ABOUT` link "until the guide
+  lands (#191)". Interim state; one clause plus the issue until the guide
+  exists, then nothing.
+- `docs/settings.md#(top)`: "There are six settings" against eight
+  controls. Wording; fix.
+- `docs/functions.md#(top)` (gamma bullet): the memo's growth rule stated
+  one way, `devdocs/builtins.md` another (a larger run replaces a smaller
+  one). State the current rule once, in devdocs; the docs keep the
+  qualitative cost sentence only.
 
 ---
 
@@ -2270,6 +2344,17 @@ question 3). *Context:* A8, §7.
 
 ### 10.c devdocs/ units (each with the docs sections and claims it touches as read-only context)
 
+Every devdocs unit also applies the test at the top of this plan to each
+narrated predecessor, "set aside" and "once" in its pages: keep it as a
+decision-against with its reason beside the concept it concerns, or
+drop it as a quirk; trim interim-state notes to the current state plus
+the issue; and replace a measurement that no tool regenerates by the
+decision it supported, or date it. The unit's output lists each such
+passage with its classification and flags the uncertain ones for §12,
+question 25. Where a current page states a decision without its reason,
+the unit may read the removed design note in git for that reason alone
+(§12, question 1).
+
 **V1. `devdocs/numbers.md`.** All sections. *Modules:* those of A1–A6 (the
 unit re-reads only where the page's statements were not covered by an A
 unit: `#The kernel's boundary`, `#Memoized constants`, `#Roots and
@@ -2277,7 +2362,8 @@ powers`, `#Failures`). *Context:* claims N1–N25 with A1–A6 findings;
 `docs/settings.md#How a number is held…`, `docs/functions.md#Very large
 results and approx` (to be replaced by links to `numbers.md`); §9.1, §9.4
 rows for this page. *Output:* which passages become links to docs, which
-stay as mechanism, which are marked historical.
+stay as mechanism, which are kept as decisions-against and which are
+dropped as quirks.
 
 **V2. `devdocs/architecture.md`.** All sections. *Modules:* those of A7–A9
 and D1 (`pipeline.ts`, `evaluate.ts`, `convert.ts`, `table.ts`,
@@ -2413,19 +2499,17 @@ For later mechanical coverage checks. No grammar file (`.peg`, `.ebnf`,
 
 Each with a proposed answer, none decided.
 
-1. **What counts as the "historical record" in devdocs/?** The prompt
-   treats `devdocs/` as a deliberate record of design intent and says
-   nothing in it will be discarded; `devdocs/README.md` says the pages are
-   current-state and that git holds the history, and the 2026-10-08
-   pare deleted fourteen design notes and four plans (listed at the top).
-   *Proposed:* keep the current pages as the record; do not resurrect
-   the deleted notes; add a short `devdocs/history.md` index naming the
-   deleted notes with their last paths and the commits (54aec25,
-   270b471) so the record is reachable; mark every "earlier version"
-   passage in the current pages as history inline rather than cutting
-   it; drop the sentence "not a history" from `devdocs/README.md` or
-   reword it to "current state, with the history of each decision kept
-   where it is".
+1. **The removed design notes.** Settled in principle: the pages
+   preserve design intentions and the salient decisions and
+   decisions-against, not the archaeological record, so the notes
+   removed on 2026-10-08 are not resurrected and no history page is
+   added. One question remains. Several current passages give a ruling
+   without its ground ("was set aside", "was weighed and left undone"
+   in `devdocs/numbers.md` and `devdocs/settings.md`). May an audit unit
+   read the removed note in git to recover the reason? *Proposed:* yes,
+   for that purpose only; the recovered reason is written into the
+   current page in one or two sentences, and nothing else is taken from
+   the notes.
 2. **Which framing leads docs/: unit converter or calculator?** The root
    and docs READMEs open with "converts units, in the spirit of GNU
    units"; `devdocs/architecture.md` opens with "grown into an
@@ -2461,11 +2545,10 @@ Each with a proposed answer, none decided.
    appendix to `expressions.md` listing each message family with the rule
    it enforces and the page that owns the rule, generated or checked
    from `messages.ts`; internal kind names never appear in docs.
-7. **Chronology inside devdocs/.** Given the three-day history and the
-   pare, is "which passage is current" to be decided from the text
-   alone? *Proposed:* yes; the current pages are authoritative, the
-   narrated predecessors are marked historical, and git is cited only in
-   `devdocs/history.md`.
+7. **What is authoritative.** Settled: the current pages are
+   authoritative; a narrated predecessor is classified by the test at
+   the top of this plan, never by its date; git is not cited in the
+   pages.
 8. **"certain" vs "certified".** The notes say "8 of 12 digits are
    certain"; devdocs say "certified" 100+ times; docs mix both.
    *Proposed:* "certified" as the concept in both corpora, the note text
@@ -2536,3 +2619,30 @@ Each with a proposed answer, none decided.
     opens with one sentence and a link to the owning docs section, then
     mechanism and rationale only; rules restated for the sake of a
     rationale are quoted in one line, not re-derived.
+25. **The threshold between a quirk and a salient decision-against.**
+    The test at the top of this plan settles most rows, but some need
+    judgment: the measurements that justify decisions in
+    `devdocs/numbers.md`, `devdocs/builtins.md` and `devdocs/future.md`, and
+    the list-count rule in §1.2.5. *Proposed test:* keep a predecessor
+    when a competent maintainer, reading only the current rule, would
+    plausibly re-propose it, so that the reason against it must be on
+    the page; drop it when it was a slip no one would repeat, or when
+    the rule's own statement already excludes it. A measurement is kept
+    only if dated and attributed to the machine, or replaced by the
+    qualitative reason it supports.
+26. **Open-issue pointers as the living record.** The pages carry some
+    forty links to open decisions and deferred extensions. *Proposed:*
+    keep them, one per concept where a decision is pending, as the
+    living record of what is open; drop a link once its issue is closed
+    and the page states the outcome.
+27. **The settings migrations.** The list in `devdocs/settings.md#Storage`
+    reads like history (versions 1 to 5 with their shapes). *Proposed:*
+    it is mechanism the code needs and stays, written as what each
+    migration reads and writes, without the reasons for the renames,
+    which live with the concept in `#The model`.
+28. **Unification across the two sides.** *Proposed:* the concept map in
+    §7.1 is the instrument. Each core concept has exactly one user-side
+    owner and one developer-side owner, each linking to the other; the
+    user side states the rule, the developer side the mechanism, the
+    decision and the decisions-against. A concept that lacks either
+    owner after the restructuring is a gap to fill, not a page to pad.

@@ -1,7 +1,7 @@
 # The width of a ratio: the fit rule
 
-The design note for step S2c of docs/settings-plan.md, the step the S2
-note (docs/settings-modes.md, "The fit rule: retained, and a step of its
+The design note for step S2c of devdocs/history/settings-plan.md, the step the S2
+note (devdocs/design/settings-modes.md, "The fit rule: retained, and a step of its
 own") sent the fit rule to, with #91 and #95 beside it. **Status:
 implemented**; "As landed" at the end says what the implementation
 settled. It decides when an exact value is written as a ratio and how
@@ -10,7 +10,7 @@ say, as before, and the core computes nothing differently.
 
 ## The problem
 
-The ratio notation (docs/fractions.md; D21) writes an exact value that
+The ratio notation (devdocs/design/fractions.md; D21) writes an exact value that
 is not a whole number as its fraction in lowest terms when the numerator
 and the denominator each have at most the display digits, and otherwise falls
 back to the decimal display, `≈` where the decimal is inexact. The rule
@@ -80,12 +80,12 @@ dependence, and nothing about the width is a clamp.
 ## The rule
 
 With the notation `ratio` at width `W`, and the display digits `p`, a value is
-written as follows, in this order. Rules 1 and 5 are docs/fractions.md's
+written as follows, in this order. Rules 1 and 5 are devdocs/design/fractions.md's
 rules 1 and 4 unchanged; rules 2, 3 and 4 replace its rules 2 and 3.
 
 1. **An inexact value is written by the decimal display at `p`, `≈`.**
    The notation writes exact values, and a ratio of what is held after
-   `sqrt(2)` would be honest and useless (docs/fractions.md).
+   `sqrt(2)` would be honest and useless (devdocs/design/fractions.md).
 2. **An exact whole number is written entire when it has at most `W`
    significant digits,** by the decimal display at `W` digits, which
    writes every digit it is given and moves trailing zeros into an
@@ -156,7 +156,7 @@ digits fit the width, and a decimal at the display digits otherwise; and the wid
 is, to within a sign, a slash and an exponent, how many characters that
 value will take. Where a ratio is written on a line
 (parenthesized before a unit or the reciprocal's `×`, bare alone, term
-by term in a unit list) is docs/fractions.md's and is unchanged; a ratio
+by term in a unit list) is devdocs/design/fractions.md's and is unchanged; a ratio
 times its power of ten is parenthesized like any other,
 `(1/3 × 1e+30) in`.
 
@@ -248,9 +248,9 @@ digits, rounding, ratio: { width } })`); `fractionText` takes the width and gain
   form before a unit and in a list; a version 3 fixture for each
   notation and for decimal mode; the panel's input present with `ratio`
   alone.
-- Docs: docs/fractions.md ("The rule" rewritten to the five rules
+- Docs: devdocs/design/fractions.md ("The rule" rewritten to the five rules
   above, "Not in this design" losing the exponent form, "Where it goes"
-  noting the width), D21 amended by D28 below, docs/settings-storage.md
+  noting the width), D21 amended by D28 below, devdocs/design/settings-storage.md
   (version 4), README, ARCHITECTURE.md ("The display rule"); #91 and
   #95 closed, P5 closed.
 
@@ -261,8 +261,8 @@ ratio, its two parts together, or a whole number may have to be written
 entire, twenty by default and independent of the display digits; a ratio that does
 not fit is written as a ratio times a power of ten, the power after it,
 when its parts then fit and its denominator is not one, and otherwise
-the value is a decimal at the display digits (S2c of docs/settings-plan.md; amends
-D21).** docs/ratio-width.md is the design. D21's fit at the display digits coupled
+the value is a decimal at the display digits (S2c of devdocs/history/settings-plan.md; amends
+D21).** devdocs/design/ratio-width.md is the design. D21's fit at the display digits coupled
 a length to a precision, hid exact whole numbers and short ratios of
 large magnitude, and could not be read off the settings; the width is
 one number that decides what is written entire. The measure is the two

@@ -1,7 +1,7 @@
 # Approximate values
 
-Status: design note, written during the review of docs/decimal.md
-(stage 4 of docs/calculator-plan.md) and placed as task 4.10 of that
+Status: design note, written during the review of devdocs/design/decimal.md
+(stage 4 of devdocs/history/calculator-plan.md) and placed as task 4.10 of that
 stage; "Future work" at the end records the uncertain-measurement form
 and how it will be implemented, tentatively. The task has landed, and
 "Implementation notes" says how; "`approx` and the exponent bound", after
@@ -13,12 +13,12 @@ Every literal is exact. `2.54` is `127/50`, `6.674e-11` is
 `3337/50000000000000`, and the arithmetic keeps them so: `0.1 + 0.2` is
 exactly `0.3`, and `1 in` in `cm` is `= 2.54 cm`. For a unit converter
 that is right by default, since a definition is exact and the display's
-`=` means exactly that (docs/calculator.md, "The precision model"). But
+`=` means exactly that (devdocs/history/calculator-study.md, "The precision model"). But
 a value the user types is not always a definition. A measured constant
 has digits that are not known, and a value written in exponent form
 often means a magnitude rather than an integer; treating either as
 exact costs nothing in exact arithmetic, but it shows `=` where `≈` is
-the truth, and once the midpoint carries an exponent (docs/decimal.md)
+the truth, and once the midpoint carries an exponent (devdocs/design/decimal.md)
 it turns `1e999999999 + 1` into `tooLarge`, since the exact sum of two
 exact values cannot be held, where the user meant a value that a `1`
 does not change.
@@ -44,7 +44,7 @@ future work.
 
 Why a function and not syntax. A call needs no grammar: `approx` is a
 built-in like `exp`, with a dimension rule, an arity and the same
-evaluation path (docs/builtins.md), and its wording in messages comes
+evaluation path (devdocs/design/builtins.md), and its wording in messages comes
 for free. It generalizes: the unary form and the binary form are one
 name, and the second argument is where the uncertain-measurement case
 goes. It applies to any subexpression, not only a literal, so
@@ -95,7 +95,7 @@ the claim is true.
 
 `approx` is the one way, in exact mode, to make an exact value inexact
 on purpose: nothing else in the arithmetic ever rounds a value of radius
-zero (docs/decimal.md, "What stays exact"), and a value that is not
+zero (devdocs/design/decimal.md, "What stays exact"), and a value that is not
 passed through `approx` is as exact as it was before the built-in
 existed.
 
@@ -108,7 +108,7 @@ cm` in `in` is `≈ 1` with every digit asked for certified on the first
   pass, and `≈` rather than `=`, which is the point.
 - **A large exponent is a value.** `approx(1e999999999) + 1` is
   `≈ 1e+999999999`: the sum's alignment does not fit the significand limit, an
-  operand is inexact, and the rule of docs/decimal.md absorbs the `1`
+  operand is inexact, and the rule of devdocs/design/decimal.md absorbs the `1`
   into the radius rather than failing.
 - **Identities through approximate values are `≈ 0` with a bound**, as
   they are through any inexact value: the difference
@@ -117,7 +117,7 @@ cm` in `in` is `≈ 1` with every digit asked for certified on the first
   the display shows. That is the ball model's honest reading, and the
   price of asking for it.
 - **In decimal mode** `approx(x)` is `x`, the identity (D26;
-  docs/decimal-mode.md, "`approx`"): every value there is already at the
+  devdocs/design/decimal-mode.md, "`approx`"): every value there is already at the
   user's precision and exact, so there is no precision to reduce, and the
   built-in declares as much (`decimal: "identity"` in builtin.ts). A
   two-argument `approx(x, precision)`, not yet designed, could reduce the
@@ -147,7 +147,7 @@ for `approx` used as a unit is the general one for a function's name.
   mode where a mark was wanted.
 - **Postfix `~` on a literal** (`2.54~`): terse, unambiguous, and it keeps
   prefix `~name` free for the inverse-call notation GNU units uses,
-  which docs/functions.md keeps out of the design without closing the
+  which devdocs/design/functions.md keeps out of the design without closing the
   door; but it needs grammar, applies to literals alone, and has no
   natural binary form. It remains the likely spelling of `approx(x)`
   later.
@@ -203,7 +203,7 @@ says how many are certain ("3 of 8 digits are certain"). Tentatively:
   input does not shrink with the working precision, so a result
   dominated by one never certifies the digits asked for and would run
   every pass to the ceiling on every keystroke. The rule, to be written
-  in `resolve` (docs/calculator-plan.md 2.5): a pass whose result's
+  in `resolve` (devdocs/history/calculator-plan.md 2.5): a pass whose result's
   radius is not below half the previous pass's ends the loop with that
   result, since the radius is then not the precision's; every
   precision-bound contribution at least halves when the working bits
@@ -230,7 +230,7 @@ says how many are certain ("3 of 8 digits are certain"). Tentatively:
 - `src/core/builtins/approx.ts`: the built-in, on the shared helpers of
   builtin.ts, with the dimension rule `sameAsArgument` new in builtin.ts.
 - `src/core/builtins.ts`: `approx` in the map.
-- docs/builtins.md: its name, rule, and the two rules every built-in
+- devdocs/design/builtins.md: its name, rule, and the two rules every built-in
   follows, which it follows trivially; README "Functions in
   expressions": one sentence with an example.
 - Tests: the built-in's own (an exact value gains the working radius, an
@@ -269,7 +269,7 @@ the user's account, with the same numbers.
 **Two axes.** ARCHITECTURE.md ("Size limits") bounds a value on two
 axes, and the example above, `approx(1e999999999) + 1`, is the significand
 limit's: the exact sum needs a significand of a billion digits, and
-`approx` lets the `1` be absorbed into the radius (docs/decimal.md,
+`approx` lets the `1` be absorbed into the radius (devdocs/design/decimal.md,
 "Sums, comparisons and the radius"). `exp(1e999)` is the other axis. Its
 significand is of the working digits, as every kernel result's is, and its
 decimal exponent, `1e999 log10 e`, about `4.34 × 10^998`, passes
@@ -338,12 +338,12 @@ exponent digits already blows the app's 50 ms budget (`BUDGET_MS` in
 limits.ts), on every keystroke.
 
 **What raising the bound would take.** It was decided not to
-(docs/decimal.md, "Decision: the bound stays at `10^18`"), for the cost
+(devdocs/design/decimal.md, "Decision: the bound stays at `10^18`"), for the cost
 above and the list below; the list is kept for whoever reopens the
 question. It is a change to the number type, and `approx` has no part
 in it:
 
-- `MAX_EXPONENT`, and a reason for its new value. docs/decimal.md sets a
+- `MAX_EXPONENT`, and a reason for its new value. devdocs/design/decimal.md sets a
   setting for the bound aside because nothing a user computes needs
   `10^(10^18)`; an expression whose intermediate is `exp(1e999)` and whose
   result is ordinary is the case that does. One candidate is to tie the

@@ -1,6 +1,6 @@
 # Functions in the definitions file
 
-Status: the design note of stage 7 (task 7.0 of docs/calculator-plan.md),
+Status: the design note of stage 7 (task 7.0 of devdocs/history/calculator-plan.md),
 revised from the first design for D23 and D24 and the owner's rulings on
 them. Stage 7 has landed (tasks 7.1 to 7.4): the signature and `=`,
 annotations and the inferred result, the `~` line and the check of an
@@ -17,7 +17,7 @@ checked at every conversion into its function.
 The goal of the first design was `tempC` and `tempF` for temperature
 readings, without adding anything to the core that only temperature
 needs. The goal of this revision is user-defined functions as the study
-describes them (docs/calculator.md, feature 6): shorthand compositions
+describes them (devdocs/history/calculator-study.md, feature 6): shorthand compositions
 of the expression language and the built-ins, of several parameters,
 with the units of their arguments declared where that helps and an
 inverse only where one is wanted, agnostic to the precision and the
@@ -169,7 +169,7 @@ span).
 
 **An annotation checks a dimension and changes no value.** A quantity
 carries no unit of its own: its magnitude is held in the primitives
-(docs/calculator-plan.md, D22), so `100 lb` and `45.359237 kg` are one
+(devdocs/history/calculator-plan.md, D22), so `100 lb` and `45.359237 kg` are one
 value, and nothing remembers which was typed. `weight: kg` therefore
 means "a mass", exactly as `weight: lb` does. An argument in any
 conformable unit is accepted as it stands, by conformance, the test a
@@ -426,7 +426,7 @@ held in the primitives, so their magnitudes compare directly: `1 ft >
   when its coarse radius bounds cannot tell, which can only turn a
   verdict into undecided, never into a wrong one.
 
-- **In decimal mode** every value is exact (D26; docs/decimal-mode.md),
+- **In decimal mode** every value is exact (D26; devdocs/design/decimal-mode.md),
   so every comparison decides and no condition is undecided there.
 
 **An undecided condition.** When a condition cannot be decided, the
@@ -847,7 +847,7 @@ reads small can be large, and README ("Functions") and ARCHITECTURE.md
 
 ## Deferred
 
-Each of these has an issue of its own (docs/calculator-plan.md,
+Each of these has an issue of its own (devdocs/history/calculator-plan.md,
 "Deferred from stage 7"):
 
 - **The result annotation as the default want of a bare call**
@@ -1036,6 +1036,6 @@ the revision keeps unless it says otherwise:
 - **The `function` conversion carries the count** of the declared unit,
   so that the UI does no arithmetic.
 - **The build's check takes dimensions without evaluating** (stage 3 of
-  docs/calculator-plan.md): the first version evaluated each body at
+  devdocs/history/calculator-plan.md): the first version evaluated each body at
   one of the declared unit, which `ln(x - 1)` and its like made
   untenable.

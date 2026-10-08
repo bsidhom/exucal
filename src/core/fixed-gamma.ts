@@ -1,7 +1,7 @@
 // The digamma and log-gamma functions on the kernel: `digammaFixed` and
 // `lgammaFixed`, the routines behind the built-ins `digamma`, `lgamma`
 // and `gamma` (builtins/gamma.ts), sharing the shift and the asymptotic
-// series (docs/special.md, "The Gamma and Beta families"; the plan's 6.2
+// series (devdocs/design/special.md, "The Gamma and Beta families"; the plan's 6.2
 // and 6.3).
 //
 // For a positive argument `x`, the recurrences `ψ(x + 1) = ψ(x) + 1/x`

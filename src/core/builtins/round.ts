@@ -1,4 +1,4 @@
-// `floor`, `ceil`, `trunc` and `round` (docs/special.md, "The exact
+// `floor`, `ceil`, `trunc` and `round` (devdocs/design/special.md, "The exact
 // functions"; the plan's 6.1 and D22). Each takes a plain number: a
 // quantity's magnitude is stored in the primitives, so `floor(3.7 ft)`
 // would floor `1.12776 m`, and a function whose answer depends on the

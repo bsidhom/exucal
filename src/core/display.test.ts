@@ -437,7 +437,7 @@ test("the kinds are exclusive and cover every ball", () => {
 });
 
 // ---------------------------------------------------------------------------
-// The ratio notation (docs/fractions.md, "The rule"; docs/ratio-width.md)
+// The ratio notation (devdocs/design/fractions.md, "The rule"; devdocs/design/ratio-width.md)
 
 /** `show` at eight digits to nearest with the ratio notation at `width`. */
 function ratio(ball: Ball, width: number, digits = 8): Shown {
@@ -709,7 +709,7 @@ test("without the width, or for an inexact value, nothing changes", () => {
 });
 
 // ---------------------------------------------------------------------------
-// A zero's bound at the edges (docs/fractions.md; #67)
+// A zero's bound at the edges (devdocs/design/fractions.md; #67)
 
 test("a zero's bound below the exponent bound is written as 1e-1000000000000000000", () => {
   // A radius of 2^-(10^19), far below the bound: the bound written is the
@@ -745,7 +745,7 @@ test("a zero's bound below the exponent bound is written as 1e-10000000000000000
   assert.ok(compare(dec("1e-1000000000000000000"), ZERO) > 0);
 });
 
-// The uncertified kind (D26; docs/decimal-mode.md, "The ceiling")
+// The uncertified kind (D26; devdocs/design/decimal-mode.md, "The ceiling")
 
 test("a decimal-mode value flagged uncertified is shown as its digits, whatever else the ball would be", () => {
   const flagged: Ball = { ...exact(dec("1.2")), uncertified: true };

@@ -47,13 +47,13 @@
 // `tempC(100)^2` and `-tempC(100)` mean what they look like, and each
 // argument is any expression. The comma appears nowhere else in the
 // grammar. How many arguments a function takes is its own business and the
-// evaluator's to check (docs/builtins.md, "Arity"); the parser accepts any
+// evaluator's to check (devdocs/design/builtins.md, "Arity"); the parser accepts any
 // count. Whether the name is a function is the evaluator's business too;
 // the parser decides a call by the text alone, and the one rule it applies
 // is lexical: no space between the name and the `(` makes a call, and a
 // space makes a product, so `kg (m/s)` is a product and `kg(m/s)` is a
 // call of `kg`, which the evaluator will reject. That is the one
-// whitespace-sensitive rule in the grammar (docs/functions.md says why).
+// whitespace-sensitive rule in the grammar (devdocs/design/functions.md says why).
 // A name directly followed by `(` is only a call: a plain name is read
 // only where no `(` follows it, so that a call whose argument list fails
 // is not read again as a name before a parenthesized factor, which cost

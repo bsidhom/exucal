@@ -27,7 +27,7 @@
 // `3.37 in`. Each unit but the last gets the integer count of it that fits
 // in what the earlier units left, truncated toward zero so that every term
 // has the sign of `have`, and the last gets the remainder. The counts are
-// taken from the midpoints (D8 of docs/calculator-plan.md), so a count is
+// taken from the midpoints (D8 of devdocs/history/calculator-plan.md), so a count is
 // exact and never `unresolved`, and the remainder is the ball `have - count
 // × size`, computed with the ball operations at the `NumberContext` the
 // sums align within (4.4), so that the terms times the units still

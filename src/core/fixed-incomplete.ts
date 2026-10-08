@@ -1,7 +1,7 @@
 // The incomplete gamma functions on the kernel, scaled: the routines
 // behind the built-ins `lowergamma`, `uppergamma` and their regularized
 // forms (builtins/incomplete.ts), and through them `erf` and `erfc`
-// (docs/special.md, "The incomplete gamma functions"; the plan's 6.5).
+// (devdocs/design/special.md, "The incomplete gamma functions"; the plan's 6.5).
 // Both take the order `s` and the argument `x` as `Fixed` intervals and
 // give a factor of order one, the exponential prefactor `x^s e^-x` and
 // the Gamma function being the built-in's to apply in log space:

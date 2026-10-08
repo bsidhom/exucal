@@ -1,7 +1,7 @@
 // `asin(x)`, `acos(x)`, `atan(x)` and `atan2(y, x)`: the inverse
 // trigonometric functions, which return an angle (the `radian` kind, D11),
-// on the kernel's `atanFixed` (fixed-trig.ts). docs/builtins.md is the
-// design and docs/calculator-plan.md (task 3.10) places them; they share a
+// on the kernel's `atanFixed` (fixed-trig.ts). devdocs/design/builtins.md is the
+// design and devdocs/history/calculator-plan.md (task 3.10) places them; they share a
 // module because every one of them is an arctangent. `asin` and `acos`
 // take a plain number in `[-1, 1]`; `atan` any plain number; `atan2` two
 // quantities of one dimension, kinds included, whose ratio is the plain
@@ -67,7 +67,7 @@
 // `1 - x^2` stops aligning within the significand limit long before that
 // (`acos(1e-9860)` was refused at the default, issue #47); one of `atan` at
 // or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, the
-// saturation docs/decimal.md lists. Neither `atan` nor `atan2` is
+// saturation devdocs/design/decimal.md lists. Neither `atan` nor `atan2` is
 // refused for an argument's radius (issue #64, by H.1's rule for
 // `tanh`): a ball that reaches `2^significandLimitBits` without lying beyond `2^bits`
 // throughout, which the kernel's door refused as `tooLarge`, is the

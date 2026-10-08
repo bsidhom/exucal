@@ -1,9 +1,9 @@
 // `incbeta(a, b, x)`, the incomplete beta function `B(x; a, b) = ∫_0^x
 // t^(a-1) (1 - t)^(b-1) dt`, and `incbetareg(a, b, x)`, the regularized
 // `I_x(a, b) = B(x; a, b) / B(a, b)`, for `a, b > 0` and `0 <= x <= 1`,
-// on the kernel's series (fixed-incbeta.ts). docs/special.md ("The
+// on the kernel's series (fixed-incbeta.ts). devdocs/design/special.md ("The
 // incomplete beta function (6.7)") is the design and
-// docs/calculator-plan.md (task 6.7) places them; the series with positive
+// devdocs/history/calculator-plan.md (task 6.7) places them; the series with positive
 // terms stands in for the design's continued fraction, whose elements
 // have both signs and whose convergents therefore do not bracket, so that
 // every result is certified (the PR of 6.7 has the ruling). The parameters

@@ -1,13 +1,13 @@
 # The decimal mode, restated: a calculator's arithmetic
 
-Status: design note, written after S1 of docs/settings-plan.md landed
-and before S2, which it interrupts (docs/settings-modes.md, paused on
+Status: design note, written after S1 of devdocs/history/settings-plan.md landed
+and before S2, which it interrupts (devdocs/design/settings-modes.md, paused on
 this); implemented in the change after its review, with "As landed" at
 the end saying where the code settled what the note left open. It
 restates what the decimal mode is, and the restatement is the owner's
 ruling: **in decimal mode every operation is one correctly
 rounded step, its result is exact, and nothing carries a radius.** The
-mode stage 4 built (docs/decimal.md, "The decimal mode"; D15) rounds
+mode stage 4 built (devdocs/design/decimal.md, "The decimal mode"; D15) rounds
 every step and also tracks, in the radius, how far the roundings have
 carried the value from the true one, so that `1 / 3 * 3` at eight digits
 is `0.99999999` shown as `≈ 1` with "7 of 8 digits are certain". That
@@ -26,7 +26,7 @@ D26, proposed at the end.
 ## The mismatch
 
 Decimal mode was designed as per-operation rounding in the user's mode,
-"a hand calculator or a decimal library" (docs/calculator.md, "4 and 5"),
+"a hand calculator or a decimal library" (devdocs/history/calculator-study.md, "4 and 5"),
 and built as a second parameterization of the ball model: `settle`
 rounds every midpoint to the display digits in the mode and adds the exact rounding
 error to the radius, so that the display can mark what the roundings
@@ -44,7 +44,7 @@ can see, and the seams show:
   radius answers a different question, how far that is from the real
   number, and the display then shows `≈ 1` with a note, a value the mode
   never computed.
-- **A directed rounding cannot be certified** (docs/decimal.md,
+- **A directed rounding cannot be certified** (devdocs/design/decimal.md,
   "Implementation notes"; found again in the S2 note). A rounding toward
   zero puts the true value on one side of the result; the ball is
   symmetric, so it reaches across the boundary the result sits on, and
@@ -81,7 +81,7 @@ In decimal mode, at `p` digits in the rounding mode `R`:
    `p` digits in `R`. "Operation" means a node of the expression tree:
    each `+`, `-`, `*`, `/`, juxtaposition, `^`, each literal, each unit
    looked up, and each function call as a whole. D27
-   (docs/working-digits.md) amends the `p`: every step but the last is
+   (devdocs/design/working-digits.md) amends the `p`: every step but the last is
    rounded to the working digits `w >= p`, a setting of the mode that
    defaults to `p`, and the last step of a displayed value to `p`,
    directly from its exact result.
@@ -121,7 +121,7 @@ implied.
 
 - **Precision at the bottom of the exponent range.** A value's digits
   are the significand's, and its magnitude is the exponent's; at the
-  exponent bound (`10^18`, docs/decimal.md) a value whose `p` digits
+  exponent bound (`10^18`, devdocs/design/decimal.md) a value whose `p` digits
   would need an exponent below the bound has nowhere to put them, and
   the settle refuses it, `underflow`, as today's decimal mode does
   (`1e-1000000000000000000 / 3`). Letting the denominator flex by powers
@@ -178,7 +178,7 @@ error, and nothing else is: no value straddles anything.
 
 **Sums that do not align.** Two decimals whose exponents differ by more
 than the significand limit holds cannot be added exactly (`1e999999999 + 1`;
-docs/decimal.md, "Sums, comparisons and the radius"). Today the mode
+devdocs/design/decimal.md, "Sums, comparisons and the radius"). Today the mode
 settles the operands and absorbs the smaller into the radius. Under the
 promise the rounded sum is still determined without forming it: the
 smaller operand is below half a unit in the larger's last digit, so in a
@@ -218,7 +218,7 @@ is what IEEE 754-2008 recommends for the decimal transcendental functions
 and what few calculators achieve. `approx` is exempt, below.
 
 **Exact cases.** A built-in's exact cases (`sqrt(9/4)`, `log(2, 8)`,
-`exp(0)`, `log10(1e999999999)`; docs/builtins.md, "Domains, exact cases
+`exp(0)`, `log10(1e999999999)`; devdocs/design/builtins.md, "Domains, exact cases
 and edges") return exact values as today, which are then rounded to `p`
 digits if they have more. They matter more in this mode than in exact
 mode, next.
@@ -327,7 +327,7 @@ it in exact mode.
 
 **`approx`.** Every value in decimal mode is already at the user's
 precision, so `approx(x)` is `x`, the identity. It is exact mode's tool
-(docs/approximate.md), and its decimal-mode clause there goes. This is
+(devdocs/design/approximate.md), and its decimal-mode clause there goes. This is
 true of the one-argument form that exists. An `approx(x, precision)`
 that names a precision, not yet designed, could reduce the implied
 precision below the user's `p` and would not be the identity; what its
@@ -338,7 +338,7 @@ to settle, and its decimal-mode behavior with it.
 **User-defined functions.** A function the definitions file defines,
 as distinct from a built-in, is its body, ordinary arithmetic evaluated
 by the same evaluator, and each step of the body rounds, as
-docs/functions.md says today and as a programmable calculator rounds
+devdocs/design/functions.md says today and as a programmable calculator rounds
 each step of a program. The ruling is that a user-defined function
 behaves exactly as its expanded form does: calling it and typing its
 body inline round at the same subexpressions and give the same value.
@@ -364,7 +364,7 @@ dimension's exponents are exact rationals (`m^(1/3)` is a third power of
 length, never `m^0.33333333`), formed by the exact arithmetic of
 dimension.ts, and the mode does not reach them: decimal mode rounds
 magnitudes, and a dimension is not a magnitude. This is the study's
-rule (docs/calculator.md, "4 and 5": "dimensions stay exact in both
+rule (devdocs/history/calculator-study.md, "4 and 5": "dimensions stay exact in both
 modes") and nothing here changes it.
 
 ## The display
@@ -385,7 +385,7 @@ there. Its purpose is to write an exact value entire where its digits
 would lose it; in decimal mode every value is a `p`-digit decimal, which
 its digits write entire and exactly, and a fraction would say nothing
 the digits do not. The settings make the two exclusive (#97;
-docs/settings-modes.md decides the shape), and `show` is never asked for
+devdocs/design/settings-modes.md decides the shape), and `show` is never asked for
 a fraction in decimal mode.
 
 ## What changes
@@ -418,12 +418,12 @@ a fraction in decimal mode.
   the ceiling fallback, for the sum past the alignment limit, and for
   `approx` as the identity. The sweeps that run both modes
   (edges.sweep.ts) are revised against the promise.
-- **Docs:** docs/decimal.md's "The decimal mode" gains a status line
-  pointing here and the plan's D15 is amended as D26 says; docs/builtins.md's
-  first rule, docs/functions.md's and docs/approximate.md's decimal-mode
-  clauses, docs/fractions.md's "The decimal mode", README's Mode, the display digits
+- **Docs:** devdocs/design/decimal.md's "The decimal mode" gains a status line
+  pointing here and the plan's D15 is amended as D26 says; devdocs/design/builtins.md's
+  first rule, devdocs/design/functions.md's and devdocs/design/approximate.md's decimal-mode
+  clauses, devdocs/design/fractions.md's "The decimal mode", README's Mode, the display digits
   and Rounding entries and its "How a number is held", ARCHITECTURE.md's
-  "Settling" and display rule, and docs/calculator.md's "4 and 5" (which
+  "Settling" and display rule, and devdocs/history/calculator-study.md's "4 and 5" (which
   reads `1/3 * 3` as `≈ 1`) are brought to the promise.
 
 ## D26, proposed
@@ -499,7 +499,7 @@ rediscovery:
 ## Not in this note
 
 - **The shape of the settings** that make fractions and decimal mode
-  exclusive: docs/settings-modes.md.
+  exclusive: devdocs/design/settings-modes.md.
 - **The precision limit's role in decimal mode (#86):** this note gives
   the ceiling a job there; S3 decides the setting.
 - **A one-sided radius in exact mode.** The symmetric ball is right for
@@ -543,7 +543,7 @@ rediscovery:
   step could not be certified at the precision limit".
 - **The fractions display** is kept out of decimal mode by the outcome
   (`outcomeOf` passes `fractions` only in exact mode), until the settings
-  of docs/settings-modes.md make the two exclusive at the source.
+  of devdocs/design/settings-modes.md make the two exclusive at the source.
 - **No built-in reaches the ceiling fallback** with the app's functions,
   the algebraic exact cases catching every rational root tried; the
   tests exercise it with an injected built-in whose value sits on a tie.
@@ -551,8 +551,8 @@ rediscovery:
   first, the operation run as the evaluator runs it, and the result
   required to be exact and the rounding of the exact result where that
   can be formed.
-- **The working digits** (D27, docs/working-digits.md) landed with the
-  settings of docs/settings-modes.md: the context carries them, the
+- **The working digits** (D27, devdocs/design/working-digits.md) landed with the
+  settings of devdocs/design/settings-modes.md: the context carries them, the
   evaluator computes a node's operands at them and the node at its own
   context, and the pipeline's quotients are the last step of what they
   show. With the setting at its default nothing above changes.

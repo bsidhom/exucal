@@ -1,5 +1,5 @@
-// `pow(x, y)`: a plain base to a plain exponent. docs/builtins.md is the
-// design and docs/calculator-plan.md (task 3.8, then H.6) places it; a
+// `pow(x, y)`: a plain base to a plain exponent. devdocs/design/builtins.md is the
+// design and devdocs/history/calculator-plan.md (task 3.8, then H.6) places it; a
 // power of a quantity is written with `^`, whose exponent is a literal so
 // that the dimension stays exact, and the dimension rule's message says
 // so.

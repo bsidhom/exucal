@@ -1,7 +1,7 @@
 // The midpoint's number type: a fraction times a power of ten, `significand ×
 // 10^exp`, so that a value carries an exponent as a number rather than as
-// digits and `1e999999999` is a value. docs/decimal.md is the design and
-// docs/calculator-plan.md (D13, D16 and tasks 4.1 to 4.4) places it; it
+// digits and `1e999999999` is a value. devdocs/design/decimal.md is the design and
+// devdocs/history/calculator-plan.md (D13, D16 and tasks 4.1 to 4.4) places it; it
 // sits between the fraction (rational.ts, which stays the total fraction
 // the dimensions and the `^` exponent need) and the ball (ball.ts, whose
 // midpoint it is).
@@ -159,7 +159,7 @@ export function isRefusal<E extends { readonly kind: string }>(
 /**
  * The bound on a value's decimal exponent, `10^18`: generous and finite,
  * so that a value's decimal exponent can always be written
- * (docs/calculator.md, feature 4).
+ * (devdocs/history/calculator-study.md, feature 4).
  */
 export const MAX_EXPONENT = 10n ** 18n;
 

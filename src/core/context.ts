@@ -1,17 +1,17 @@
 // The number context: what every function that does arithmetic is told
-// about how to do it. docs/calculator-plan.md (D1, D2, D12, D16 and tasks
+// about how to do it. devdocs/history/calculator-plan.md (D1, D2, D12, D16 and tasks
 // 1.4, 2.5 and 3.3) is the design. `precision` is a count of significant
 // decimal digits, `rounding` one of the seven modes of rounding.ts,
 // `significandLimitBits` the significand limit, the most bits a numerator or denominator may
 // have, and `ceiling` the top of the retry schedule, the most digits any
 // pass may compute at, and `mode` the exact or the decimal mode of stage 4
-// (docs/decimal.md; restated by D26 in docs/decimal-mode.md), absent
+// (devdocs/design/decimal.md; restated by D26 in devdocs/design/decimal-mode.md), absent
 // meaning exact: in exact mode an inexact midpoint is settled to the
 // working digits to nearest and the rounding mode is the display's alone;
 // in decimal mode every step is rounded once to `precision` digits in the
 // rounding mode and is exact, so the mode governs every operation, and
 // the pipeline runs one pass. In decimal mode `working`, the working
-// digits of D27 (docs/working-digits.md), is the precision every step but
+// digits of D27 (devdocs/design/working-digits.md), is the precision every step but
 // the last is rounded to: the evaluator computes a step's operands at
 // `operandContext`, the context at the working digits, and the step
 // itself at the context it was given, so that the root of an expression
@@ -75,7 +75,7 @@ import {
 } from "./rounding.ts";
 
 /**
- * The two modes of D15 and docs/decimal.md: `exact`, where an exact value
+ * The two modes of D15 and devdocs/design/decimal.md: `exact`, where an exact value
  * is never rounded and the rounding mode is the display's, and `decimal`,
  * where every result is rounded to the precision in the rounding mode.
  */
@@ -149,7 +149,7 @@ export const DEFAULT_DISPLAY_DIGITS: Precision = 8;
 /**
  * The rounding mode by default: to nearest, ties to even, IEEE 754's
  * default and unbiased over many roundings where ties away from zero
- * drift (docs/settings-modes.md).
+ * drift (devdocs/design/settings-modes.md).
  */
 export const DEFAULT_ROUNDING: RoundingMode = "halfEven";
 

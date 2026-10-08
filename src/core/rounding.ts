@@ -4,8 +4,8 @@
 // (`roundTo` and `format` in scaled.ts, and through them the display and
 // the rounding of a unit list's remainder) scales its value so that the
 // digits to keep form an integer, divides here, and scales back, so a mode
-// means the same thing wherever it is applied. docs/calculator-plan.md
-// (task 1.1) places this module; docs/calculator.md (features 4 and 5) says
+// means the same thing wherever it is applied. devdocs/history/calculator-plan.md
+// (task 1.1) places this module; devdocs/history/calculator-study.md (features 4 and 5) says
 // why one setting governs every rounding there is.
 //
 // The seven modes are those of the General Decimal Arithmetic specification

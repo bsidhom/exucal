@@ -1,8 +1,8 @@
 # The working digits of decimal mode
 
-The design note for step S2b of docs/settings-plan.md, written after
-the decimal mode's restatement (D26, docs/decimal-mode.md) landed and
-the S2 note (docs/settings-modes.md) was reviewed, and before either was
+The design note for step S2b of devdocs/history/settings-plan.md, written after
+the decimal mode's restatement (D26, devdocs/design/decimal-mode.md) landed and
+the S2 note (devdocs/design/settings-modes.md) was reviewed, and before either was
 implemented. **Status: implemented** with S2 in one change; "As landed"
 at the end says what the implementation settled. It adds one thing to
 decimal mode: a floor on the digits
@@ -188,7 +188,7 @@ needs.
   calculator in that mode shows; the clamp's order; a version 2 fixture;
   the panel's control present in decimal mode only and its input present
   only with "extended" checked.
-- Docs: docs/decimal-mode.md (the promise's point 2 gains the last
+- Docs: devdocs/design/decimal-mode.md (the promise's point 2 gains the last
   step's rounding; "As landed"), D26 amended as D27 says below, README
   ("Settings", the Mode and the display digits entries), ARCHITECTURE.md
   ("Settling").
@@ -257,7 +257,7 @@ alone when this is taken up, it is a version 4 on its own.
   the count's input is labeled "Extended working digits" for assistive
   technology.
 - **The control moved under the mode** with S5 of the settings plan
-  (docs/settings-controls.md): the working digits are the decimal mode's
+  (devdocs/design/settings-controls.md): the working digits are the decimal mode's
   field and exist only in that mode, as the notation is the exact
   mode's, so the two swap places under the Mode control as the mode
   changes; the line under the count says its floor, the display digits.

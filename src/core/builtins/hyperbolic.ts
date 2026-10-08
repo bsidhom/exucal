@@ -1,8 +1,8 @@
 // The hyperbolic functions and their inverses: `sinh(x)`, `cosh(x)`,
 // `tanh(x)` on the kernel's `sinhCoshFixed` (fixed-exp.ts, through `exp`),
 // and `asinh(x)`, `acosh(x)`, `atanh(x)` through the logarithm and the
-// square root (`lnScaled` and `rootBall` of ball.ts). docs/builtins.md is
-// the design and docs/calculator-plan.md (task 3.11) places them; they
+// square root (`lnScaled` and `rootBall` of ball.ts). devdocs/design/builtins.md is
+// the design and devdocs/history/calculator-plan.md (task 3.11) places them; they
 // share a module because the three forward functions share one kernel
 // routine and the three inverses share the one route through `ln` of a
 // root. All six take and return plain numbers, since their arguments are
@@ -68,7 +68,7 @@
 // `tanh`, `asinh` and `atanh` within its cube, and its `cosh` is one
 // within its square (`tinyOdd` and `tinyEven` of builtin.ts). An argument
 // at or beyond `2^bits` throughout has `asinh(x)` and `acosh(x)` equal to
-// `ln(2|x|)` within `1/(2x^2)`, the saturation docs/decimal.md lists
+// `ln(2|x|)` within `1/(2x^2)`, the saturation devdocs/design/decimal.md lists
 // (`farLogarithm`, on `lnScaled`, which takes any exponent), with the
 // argument's radius over its distance from zero added, the slope of the
 // logarithm; `tanh`'s saturation stands and comes first, and `sinh` and

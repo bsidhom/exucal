@@ -25,7 +25,7 @@
 // parser, which has no context, once reduced the pair at the hard bound
 // for seconds to minutes (issue #66). The
 // `NumberContext` given is the working one (D1 of
-// docs/calculator-plan.md): its precision is passed to every power, where
+// devdocs/history/calculator-plan.md): its precision is passed to every power, where
 // the root of a non-integer exponent is the only operation that can lose
 // digits. The `Primitives` given are the table's, with their roles: a sum
 // is the one place the evaluator checks conformance, between its operands,
@@ -47,14 +47,14 @@
 // of table.ts). For either, the count of arguments is checked against
 // what the function takes (`arityMismatch` otherwise, before any argument
 // is evaluated, since the count is about the call's shape as
-// `notAFunction` is). A defined function (docs/functions.md) takes exactly
+// `notAFunction` is). A defined function (devdocs/design/functions.md) takes exactly
 // as many as it has parameters: the arguments are evaluated, left to
 // right, each checked to conform to the unit its parameter takes (a plain
 // number when it has no annotation), and bound to the parameters by
 // position while the body is evaluated through the same lookup, so that
 // the body's units resolve as the user's would, and the parameters before
 // any unit of their names. Between the two, the function's conditions are
-// checked on the bound arguments (`checkConditions`, docs/functions.md,
+// checked on the bound arguments (`checkConditions`, devdocs/design/functions.md,
 // "Conditions"), each comparison decided on balls by `decide`, as one
 // conjunction in three-valued logic: a certain failure is a
 // `conditionFailed` at the call, naming the condition and the arguments
@@ -66,7 +66,7 @@
 // one is an `undecidedCondition` naming it, which may be the
 // assumption's doing, where a body failing under none is a `callFailed`.
 // Without a collector, assumptions are dropped, which no caller that can
-// meet a condition does: the build and the pipeline each pass one. A built-in (docs/builtins.md) has its
+// meet a condition does: the build and the pipeline each pass one. A built-in (devdocs/design/builtins.md) has its
 // arguments evaluated, its dimension rule applied to their dimensions
 // (`builtinArgument` at the call when the rule fails, carrying the rule's
 // error and the spans of all the arguments, so that a message can write
@@ -91,7 +91,7 @@
 // The arithmetic failures are those of `ball.ts` that a value can cause,
 // located in the input: a division by zero points at the divisor, since its
 // value is what is wrong, and so does a division by a value that cannot be
-// told from zero (`unresolved`, D4 of docs/calculator-plan.md: the divisor's
+// told from zero (`unresolved`, D4 of devdocs/history/calculator-plan.md: the divisor's
 // ball contains zero without being exactly zero); a power whose base cannot
 // be told from zero, raised to a negative power or put under an even root,
 // points at the base for the same reason; any other power that fails
@@ -110,11 +110,11 @@
 // Each node is a step of the
 // expression (`step` of ball.ts, through `stepQuantity`): the one entrance
 // through which a computed value becomes a value, which settles it in
-// exact mode and in decimal mode (D26; docs/decimal-mode.md) computes it
+// exact mode and in decimal mode (D26; devdocs/design/decimal-mode.md) computes it
 // at rising precision until its rounding is certified and rounds it once,
 // exact, with `approx` the identity there and the flag of a rounding the
 // ceiling left uncertified carried by every operation after it. A node's
-// operands are evaluated at `operandContext` (D27, docs/working-digits.md):
+// operands are evaluated at `operandContext` (D27, devdocs/design/working-digits.md):
 // in decimal mode with working digits above the precision, every step
 // below the node is rounded to the working digits and the node alone to
 // its context's precision, so the root of an expression is the one step
@@ -946,7 +946,7 @@ export type ConditionFailure<E> =
 /**
  * Whether the arguments of `bindings` meet the `conditions` of `owner`, a
  * function or (`of`) its inverse, in three-valued logic
- * (docs/functions.md, "Conditions"): the conditions left to right, and
+ * (devdocs/design/functions.md, "Conditions"): the conditions left to right, and
  * the comparisons of each left to right, each decided on balls by
  * `decide`. The first certain failure ends the check, even after an
  * undecided comparison; a term that fails to evaluate ends it too when
@@ -1031,7 +1031,7 @@ export type Verdict = "holds" | "fails" | "undecided";
 
 /**
  * Whether `a comparator b` holds, from where `a` lies against `b`
- * (`orderOf`): the table of docs/functions.md ("Conditions"), in which an
+ * (`orderOf`): the table of devdocs/design/functions.md ("Conditions"), in which an
  * end exactly on the other side leaves a strict comparison undecided,
  * since a ball is closed, and two exact values always decide.
  */
@@ -1115,7 +1115,7 @@ function evaluateBound<E>(
 /**
  * `q` to `exponent` at `working`, by `powQuantity`: an integer power of an
  * exact base exactly, a root through the kernel. In decimal mode (D26;
- * docs/decimal-mode.md, "Powers") an exact power that does not fit the
+ * devdocs/design/decimal-mode.md, "Powers") an exact power that does not fit the
  * significand limit is computed instead on the base widened to the working
  * precision, so that the step certifies its rounding as it does an
  * inexact function's: the limit is a cost limit, and a correctly rounded
@@ -1145,7 +1145,7 @@ function powered(
 
 /**
  * `a + b` or `a - b` at `working`, by `addQuantities` and
- * `subtractQuantities`. In decimal mode (D26; docs/decimal-mode.md, "Sums
+ * `subtractQuantities`. In decimal mode (D26; devdocs/design/decimal-mode.md, "Sums
  * that do not align") two operands whose alignment the significand limit does
  * not hold, which the sum refuses as `tooLarge`, are summed by the
  * neighbor rule instead (`decimalSumApart`), the operands being exact

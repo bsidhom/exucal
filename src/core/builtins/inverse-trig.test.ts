@@ -475,7 +475,7 @@ test("through the pipeline, atan and atan2 are never refused for a radius (#64)"
   // atan2, certifies nothing until the working digits pass 30,000, which
   // no ceiling the settings allow reaches (the default is 4,040). Only a
   // rewrite, approx(1e30000 - 1e30000 + 1), which is approx(1), or a
-  // symbolic cancellation, which docs/future.md rules out, would give
+  // symbolic cancellation, which devdocs/future.md rules out, would give
   // it its digits. What this task fixes is that the row was refused at
   // the first pass; it now runs to the ceiling and ends as a zero with a
   // bound, the whole range, as the plan's rule gives.

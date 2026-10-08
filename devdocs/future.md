@@ -22,7 +22,7 @@ calculator: a certified `= 0` where the numeric model can only say
 `≈ 0` with a bound, and a cancellation that costs nothing where the
 numeric model pays for it with a retry at higher precision.
 
-**Why not now.** docs/calculator.md chooses a numeric model,
+**Why not now.** devdocs/history/calculator-study.md chooses a numeric model,
 whole-expression precision over balls, in which `sqrt(2)` and `pi()` are
 digits at the internal precision and `sqrt(2)^2 - 2` is a ball around
 zero. The numeric model already gives correct digits, and where a rounded
@@ -73,7 +73,7 @@ the line.
 The rational display of feature 7 extends to write a symbolic value as
 it is (`sqrt(2)/2`, `pi/6`, `2 e`); the decimal display is unchanged. The
 angle units, all rational multiples of `pi`, become exact, and the
-conservative `≈` that docs/calculator.md accepts for `turn` into `deg`
+conservative `≈` that devdocs/history/calculator-study.md accepts for `turn` into `deg`
 goes away; `(2 m^2)^(1/2)` becomes exactly `sqrt(2) m`.
 
 **What keeps it possible.** The magnitude is one type behind one module.
@@ -101,7 +101,7 @@ as `230 exp(i pi()/4) V` is a quantity like any other.
 beside its real one (branch cuts for `ln`, `sqrt` and the inverse
 trigonometric functions; `gamma` off the real line), the display needs a
 form for `3 + 4i`, and there is no complex use in sight. So
-docs/calculator.md makes an argument outside a function's real domain a
+devdocs/history/calculator-study.md makes an argument outside a function's real domain a
 domain error, which is what a real-only calculator should do.
 
 **What it would take.** The ball becomes a complex ball, a real and an

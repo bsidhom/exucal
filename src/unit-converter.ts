@@ -40,8 +40,8 @@ import "./copy-button.ts";
  * the digits; `<app-shell>` owns the settings and passes it down). It
  * defaults to the display's rules before the settings existed, eight
  * digits half even, under the default precision limit's ceiling. The `ratio`
- * property is the ratio notation's settings (docs/fractions.md,
- * docs/ratio-width.md), its width the most digits an exact value may
+ * property is the ratio notation's settings (devdocs/design/fractions.md,
+ * devdocs/design/ratio-width.md), its width the most digits an exact value may
  * have to be written entire, as a whole number or a ratio; absent, the
  * digits notation, by default.
  */
@@ -167,7 +167,7 @@ export class UnitConverter extends LitElement {
     ceiling: DEFAULT_CEILING,
   };
 
-  /** The ratio notation's settings, or absent for the digits notation (docs/ratio-width.md). */
+  /** The ratio notation's settings, or absent for the digits notation (devdocs/design/ratio-width.md). */
   @property({ attribute: false }) ratio?: RatioDisplay;
 
   @state() private have = "";

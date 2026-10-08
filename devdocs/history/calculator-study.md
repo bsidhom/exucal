@@ -1,16 +1,16 @@
 # From unit converter to arbitrary-precision calculator: feasibility
 
-Status: design study; docs/calculator-plan.md is the implementation plan
+Status: design study; devdocs/history/calculator-plan.md is the implementation plan
 that follows from it, and the plan is complete, its stages 1 to 8
 landed, with
 the plan's records of how each departed from this study (feature 7's
 domain and range, for one, became conditions on the arguments, with no
-range on the result: docs/functions.md). This document
+range on the result: devdocs/design/functions.md). This document
 weighs a list of features
 against the core as it stands and says which fit together, which have to
 be toggled against one another, which are set aside for later, and which
 are ruled out. It stays in broad strokes on purpose: each feature it
-admits gets a design of its own later, in the manner of docs/functions.md,
+admits gets a design of its own later, in the manner of devdocs/design/functions.md,
 and nothing here is that design.
 
 The features, in the order of their priority:
@@ -453,7 +453,7 @@ of the rational with different invariants. Concretely, one midpoint type
   always `1` and `num` has at most `p` digits, and each rounding adds
   half a unit in the last place to the radius. `1/3 * 3` is `0.999...9`,
   and displays as `≈ 1`, which is what a user who chose the mode expects.
-  (Superseded by D26, docs/decimal-mode.md: no radius is carried in
+  (Superseded by D26, devdocs/design/decimal-mode.md: no radius is carried in
   decimal mode, every value is exact, and `1/3 * 3` displays as
   `= 0.99999999`, the rounded value being the answer.)
 
@@ -526,7 +526,7 @@ took, and its author wrote nothing about precision. What remains is:
   not usable as a want, and a missing declaration means plain numbers.
 - **A different build-time check.** Today the build evaluates a body at
   one of the declared argument unit, so that a body which fails for
-  every argument fails the build, and docs/functions.md accepts that a
+  every argument fails the build, and devdocs/design/functions.md accepts that a
   body which fails only at `1` fails too, "since no function in sight is
   like that". With elementary functions, most are: `ln(x - 1)`,
   `asin(x + 1)`, `gamma(x - 1)`, `1 / ln(x)`. The check has to become
@@ -536,7 +536,7 @@ took, and its author wrote nothing about precision. What remains is:
   dimension rule. That is an abstract interpretation of the evaluator
   over dimensions, a small module, and it catches the same class of
   errors at load time without evaluating anything. Domain and range
-  bounds on a definition (already listed in docs/functions.md as a later
+  bounds on a definition (already listed in devdocs/design/functions.md as a later
   addition) become worth having at the same time, since `normcdf` has a
   meaning outside its domain but `ln` does not.
 
@@ -674,7 +674,7 @@ What is toggled, and what is concurrent:
 ## Not now, but not ruled out
 
 Two extensions that this design does not pursue, and takes care not to
-prevent. docs/future.md records each in full: what it is, why not now,
+prevent. devdocs/future.md records each in full: what it is, why not now,
 what it would take, and what in this design keeps it possible.
 
 - **Symbolic values** (radicals, `pi` and `e` kept exact through the

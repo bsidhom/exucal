@@ -1543,7 +1543,7 @@ test("settle in decimal mode rounds every value to the precision in the rounding
   });
   // An exact value with more than p digits is rounded, and is exact: no
   // radius records the rounding, since in this mode the rounded value is
-  // the value (docs/decimal-mode.md). 1200/3937 at eight digits.
+  // the value (devdocs/design/decimal-mode.md). 1200/3937 at eight digits.
   const foot = exact(fr(1200n, 3937n));
   assert.deepEqual(
     settled(foot, decimal(8, "halfAwayFromZero")),

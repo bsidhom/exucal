@@ -1,6 +1,6 @@
 // The Bernoulli numbers, exact rationals: `B_2k`, which the asymptotic
 // series of `digamma` and `lgamma` take through the ratios of consecutive
-// ones (bernoulli-ratios.ts; docs/special.md, "Bernoulli numbers"). They
+// ones (bernoulli-ratios.ts; devdocs/design/special.md, "Bernoulli numbers"). They
 // are computed from the tangent numbers `T_k`, the integers in `tan x = Σ
 // T_k x^(2k-1) / (2k-1)!`, by the in-place recurrence of Brent and
 // Zimmermann (Modern Computer Arithmetic, algorithm TangentNumbers),

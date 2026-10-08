@@ -58,7 +58,7 @@ import type { SettingsButton } from "./settings-button.ts";
  *   moved so that the panel can say so (`clampsOf`), and saves the
  *   settings. That handler is the one place a settings change becomes
  *   state and an effect. Whether the sheet is open is the shell's state
- *   too (docs/settings-surface.md, D30): the cog in the header's corner
+ *   too (devdocs/design/settings-surface.md, D30): the cog in the header's corner
  *   (settings-button.ts) flips it, the sheet follows it and reports
  *   closing itself with `settings-close`, and the shell puts focus back
  *   on the cog when the sheet closes. The sheet is fixed to the viewport

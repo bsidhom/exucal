@@ -1,6 +1,6 @@
 # The costliest expressions
 
-Status: the catalogue of stage 8 (docs/calculator-plan.md, task 8.3,
+Status: the catalogue of stage 8 (devdocs/history/calculator-plan.md, task 8.3,
 under D25). It lists the costliest inputs the cost search has found,
 what each pays for, and the issue that would make it cheaper. Runs of
 the search add to it over time: each is a short sample, safe to repeat
@@ -179,7 +179,7 @@ defaults.
   This is #152. Each step of `expFixed`'s series gains a fixed eight
   bits, and the series is summed term by term.
 
-The defaults stay as they are (D25 in docs/calculator-plan.md). These
+The defaults stay as they are (D25 in devdocs/history/calculator-plan.md). These
 settings are a user's to choose, and the response to them is the
 interface's (#118, with #120's workers), helped by whatever the kernel
 issues above make cheaper.

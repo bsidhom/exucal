@@ -1,6 +1,6 @@
 # Settings storage: a version, migrations, and reset
 
-The design note for S1 of docs/settings-plan.md. The settings are stored
+The design note for S1 of devdocs/history/settings-plan.md. The settings are stored
 as one JSON object with no version, so a field that is renamed, split or
 merged by a later step would silently fall back to its default on the
 next load. This note gives the stored settings a version and a migration
@@ -85,7 +85,7 @@ The migration from 1 to 2 wraps the bare object in the envelope and
 changes nothing else, which is the point: the first real migration runs
 in every user's browser with no semantic change to go wrong.
 
-Version 3 (S2 and S2b, docs/settings-modes.md and docs/working-digits.md)
+Version 3 (S2 and S2b, devdocs/design/settings-modes.md and devdocs/design/working-digits.md)
 is the first that changes meaning. The mode is a nested choice carrying
 what belongs to it, in place of the mode name and the `fractions` flag:
 
@@ -117,7 +117,7 @@ an object of one of the two shapes, defaulting the whole field
 otherwise, and the clamp brings an extended count of working digits
 between the display digits and the precision limit.
 
-Version 4 (S2c, docs/ratio-width.md) nests the notation inside an exact
+Version 4 (S2c, devdocs/design/ratio-width.md) nests the notation inside an exact
 mode, the ratio carrying its width:
 
 ```json
@@ -144,7 +144,7 @@ accepts a notation only when it is an object of one of the two shapes
 with a width in its range, defaulting the whole mode otherwise; the
 width depends on no other setting, so the clamp does not touch it.
 
-Version 5 (S3, docs/settings-limits.md) names the three numbers with
+Version 5 (S3, devdocs/design/settings-limits.md) names the three numbers with
 their units and adds the probe's budget:
 
 ```json
@@ -201,7 +201,7 @@ never one field to one field, so that a change in how the settings
 interact is one function with one test. Each migration is total: it
 never fails and never throws. Where it cannot carry a value over, it
 writes that field's default at the new version, which is the fallback
-policy of docs/settings-plan.md applied at the granularity of a field
+policy of devdocs/history/settings-plan.md applied at the granularity of a field
 rather than the whole record. Each is pure, takes the record as data (an
 `unknown` it validates, not a typed object it trusts, since it is reading
 what an older build wrote), and is tested against a fixture of a real

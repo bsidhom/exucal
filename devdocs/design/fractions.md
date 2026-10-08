@@ -1,10 +1,10 @@
 # The fractions display
 
-Status: design note for stage 5 of docs/calculator-plan.md (task 5.0),
+Status: design note for stage 5 of devdocs/history/calculator-plan.md (task 5.0),
 written after the hardening phase landed and before any of the stage's
 code; the plan's 5.1 and 5.2 were revised against it in the same change,
 and D21 records the ruling. The goal is the study's feature 7
-(docs/calculator.md, "7. Rational display: feasible, and cheap once
+(devdocs/history/calculator-study.md, "7. Rational display: feasible, and cheap once
 exactness is known"): a setting under which an exact value is written as
 a fraction in lowest terms, `1 m = (5000/127) in` rather than
 `≈ 39.370079 in`, and nothing in the core changes what it computes.
@@ -28,7 +28,7 @@ disagree about what is exact, since both read the radius.
 
 ## The rule
 
-Amended by D28 (docs/ratio-width.md): the fit at the display digits of rule 3 is
+Amended by D28 (devdocs/design/ratio-width.md): the fit at the display digits of rule 3 is
 replaced by the notation's own width, a whole number is written entire
 when it fits the width, and a ratio that fits only with its power of
 ten factored onto the numerator is written so. The rule as it stands:
@@ -184,13 +184,13 @@ the edge is larger and so still sound, and is a note, not a literal.
 
 ## The decimal mode
 
-The setting does not apply in decimal mode (D26; docs/decimal-mode.md,
+The setting does not apply in decimal mode (D26; devdocs/design/decimal-mode.md,
 "The display"; #97). Every value there is a decimal of the display digits,
 exact under the mode's rounding, which its digits write entire; a
 fraction would say nothing the digits do not, and the outcome never asks
 `show` for one in decimal mode, whatever the setting says. The settings'
 own shape puts the display inside exact mode, as its notation, `digits`
-or `ratio` (docs/settings-modes.md, landed): the combination cannot be
+or `ratio` (devdocs/design/settings-modes.md, landed): the combination cannot be
 stored or chosen, and the outcome's guard is what enforces it at the
 display's two-valued API.
 
@@ -236,7 +236,7 @@ the mode's one rounding of those steps; the fractions do not.
 - **A mixed form** (`39 + 47/127`) for an exact value whose fraction
   does not fit: it does not parse back as it reads before a unit. A
   fraction times a power of ten (`1/3 × 1e+999999999`) was ruled out
-  here and ruled in by D28 (docs/ratio-width.md, rule 4).
+  here and ruled in by D28 (devdocs/design/ratio-width.md, rule 4).
 - **A fraction for the counts of a unit list**, which are integers by
   construction, or for a `have` echoed back, which is the user's text.
 - **Anything in the core's arithmetic.** The setting reaches `show` and

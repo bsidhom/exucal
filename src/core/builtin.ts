@@ -1,7 +1,7 @@
 // What a built-in function is: the type of the functions the core
 // implements in code beside the ones a definitions file defines, its
-// errors, and the rule helpers the built-ins share. docs/builtins.md is the
-// design and docs/calculator-plan.md (task 3.2, then 3.4 and 3.6 to 3.11)
+// errors, and the rule helpers the built-ins share. devdocs/design/builtins.md is the
+// design and devdocs/history/calculator-plan.md (task 3.2, then 3.4 and 3.6 to 3.11)
 // places them. A built-in has a name, the count of arguments it takes, a
 // dimension rule, which says what dimensions its arguments must have and
 // what dimension its result has, and `apply`, the function itself from
@@ -11,7 +11,7 @@
 // table and the build take; this module holds what every one of them
 // imports, so that no module under builtins/ depends on the map.
 //
-// Two rules hold for every built-in (docs/builtins.md, "The rules every
+// Two rules hold for every built-in (devdocs/design/builtins.md, "The rules every
 // built-in follows"). A built-in returns the kernel's ball as `fixedToBall`
 // hands it back, or an exact ball for an exact case, and rounds in no
 // mode: the evaluator settles every result it produces (D15), and the mode
@@ -167,7 +167,7 @@ export type Builtin = {
     context: NumberContext,
   ) => Result<Ball, BuiltinError>;
   /**
-   * What the built-in is under decimal mode (D26; docs/decimal-mode.md,
+   * What the built-in is under decimal mode (D26; devdocs/design/decimal-mode.md,
    * "`approx`"): absent for a function the kernel computes, which the
    * evaluator runs at rising precision until its rounding is certified;
    * `"identity"` for `approx`, whose result there is its argument, since
@@ -419,7 +419,7 @@ export function reductionBits(x: Ball, context: NumberContext): number {
 /**
  * Whether the bounded `x` lies throughout at or beyond `2^bits` in
  * magnitude: where the saturations of `atan`, `asinh` and `acosh` hold
- * (docs/decimal.md, "The kernel's boundary").
+ * (devdocs/design/decimal.md, "The kernel's boundary").
  */
 export function isBeyond(x: Ball, bits: number): boolean {
   return compareRadius(magnitudeBelow(x), powerOfTwoRadius(BigInt(bits))) >= 0;

@@ -1,17 +1,17 @@
 // The user's settings: the display digits a result is shown with, the
 // rounding mode it is rounded in, the mode with what belongs to it (exact
 // mode with the notation its exact values are written in, digits or a
-// ratio in lowest terms with the width a ratio may have, docs/fractions.md
-// and docs/ratio-width.md; decimal mode with its working digits,
-// docs/working-digits.md), the two limits of D16 and D29, the precision
+// ratio in lowest terms with the width a ratio may have, devdocs/design/fractions.md
+// and devdocs/design/ratio-width.md; decimal mode with its working digits,
+// devdocs/design/working-digits.md), the two limits of D16 and D29, the precision
 // limit in decimal digits and the significand limit in bits
-// (docs/settings-limits.md), and the probe's budget in milliseconds, kept
+// (devdocs/design/settings-limits.md), and the probe's budget in milliseconds, kept
 // in `localStorage` so that they survive a reload, and turned into the
 // `NumberContext` the pipeline takes, whose ceiling is derived from the
 // precision limit. This is app code, not core: the core takes a context
-// and knows nothing of where it comes from. docs/calculator-plan.md
-// (tasks 1.10 and 2.6, D12 and D16) places it, docs/settings-modes.md
-// shapes the mode, docs/settings-limits.md names the limits, and
+// and knows nothing of where it comes from. devdocs/history/calculator-plan.md
+// (tasks 1.10 and 2.6, D12 and D16) places it, devdocs/design/settings-modes.md
+// shapes the mode, devdocs/design/settings-limits.md names the limits, and
 // README.md ("Settings") describes the settings from the user's side.
 //
 // The names here are the user's, with the unit in the key (D29):
@@ -23,7 +23,7 @@
 // display digits over as the context's `precision`, the grid's digits
 // below the pipeline.
 //
-// The mode is a nested choice (docs/settings-modes.md): a setting that is
+// The mode is a nested choice (devdocs/design/settings-modes.md): a setting that is
 // possible in one mode alone lives inside that mode's variant, so that
 // the shape of the settings states what is and is not possible. The
 // notation is exact mode's, since in decimal mode every value is a
@@ -38,7 +38,7 @@
 // fields; anything that does not parse, or a field that is missing or of
 // the wrong shape, falls back to that field's default, and the fields are
 // then made consistent in the order of their dependence, the chain of
-// docs/settings-limits.md: the significand limit first (an integer in
+// devdocs/design/settings-limits.md: the significand limit first (an integer in
 // `[MIN_SIGNIFICAND_LIMIT_BITS, MAX_SIGNIFICAND_LIMIT_BITS]`), then the precision limit, clamped to what
 // the significand limit holds (`precisionLimitFor`), then the display digits,
 // clamped to the precision limit, then the working digits of decimal
@@ -52,7 +52,7 @@
 // browsing, a full quota) is treated as empty on read and ignored on
 // write.
 //
-// The stored object carries a format version (docs/settings-storage.md):
+// The stored object carries a format version (devdocs/design/settings-storage.md):
 // version 1 was the six fields bare, version 2 put them in an envelope
 // with the version and the build that saved them, version 3 is the
 // mode's nested shape in place of the mode name and the fractions flag,
@@ -88,7 +88,7 @@ import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
  * How an exact value is written in exact mode: as its digits, or as a
  * ratio of two whole numbers in lowest terms whose parts have at most
  * `width` digits between them, a whole number written entire within the
- * same width (the plan's 5.2; docs/fractions.md, docs/ratio-width.md). A
+ * same width (the plan's 5.2; devdocs/design/fractions.md, devdocs/design/ratio-width.md). A
  * display setting: it is not part of the context, and the core never
  * sees it but through `show`'s width.
  */
@@ -99,7 +99,7 @@ export type NotationKind = Notation["kind"];
 
 export const NOTATION_KINDS: readonly NotationKind[] = ["digits", "ratio"];
 
-/** The ratio notation's width by default: twenty digits (docs/ratio-width.md). */
+/** The ratio notation's width by default: twenty digits (devdocs/design/ratio-width.md). */
 export const DEFAULT_WIDTH = 20;
 
 /** The most a ratio's width may be: a thousand digits, past which a line is past reading. */
@@ -113,7 +113,7 @@ export const DEFAULT_NOTATIONS: Readonly<Record<NotationKind, Notation>> = {
 
 /**
  * How many digits every observable step but the last is rounded to in
- * decimal mode (D27, docs/working-digits.md): the display digits, or an
+ * decimal mode (D27, devdocs/design/working-digits.md): the display digits, or an
  * extended count above them, which keeps a step's rounding out of the
  * answer as a calculator's hidden digits do. The count's range is the
  * display digits to the precision limit.
@@ -134,7 +134,7 @@ export type ModeSetting =
 /**
  * The settings: the display digits, the rounding mode, the mode with what
  * belongs to it, the two limits and the probe's budget, each number's key
- * carrying its unit (docs/settings-limits.md, "The terms").
+ * carrying its unit (devdocs/design/settings-limits.md, "The terms").
  */
 export type Settings = {
   /** The significant digits an answer is shown with. */
@@ -207,7 +207,7 @@ type Migration = (stored: unknown) => unknown;
 const MIGRATIONS: Readonly<Record<number, Migration>> = {
   // Version 1 was the six fields bare; version 2 wraps them in the envelope.
   1: (stored) => ({ version: 2, settings: stored }),
-  // Version 3 nests the mode (docs/settings-modes.md): the stored mode
+  // Version 3 nests the mode (devdocs/design/settings-modes.md): the stored mode
   // name and the fractions flag become the variant, `decimal` carrying
   // its working digits at their default and `exact` the notation, `ratio`
   // when the flag was `true`; and the rounding default's change rides
@@ -237,7 +237,7 @@ const MIGRATIONS: Readonly<Record<number, Migration>> = {
       },
     };
   },
-  // Version 4 nests the notation (docs/ratio-width.md): the string
+  // Version 4 nests the notation (devdocs/design/ratio-width.md): the string
   // `digits` becomes `{ kind: "digits" }` and `ratio` becomes
   // `{ kind: "ratio", width: 20 }`, the default width, no earlier build
   // having stored one; a decimal mode, and a notation that is neither
@@ -267,7 +267,7 @@ const MIGRATIONS: Readonly<Record<number, Migration>> = {
     };
   },
   // Version 5 names the three numbers with their units
-  // (docs/settings-limits.md, D29): `digits` becomes `displayDigits`,
+  // (devdocs/design/settings-limits.md, D29): `digits` becomes `displayDigits`,
   // `maxDigits` `precisionLimitDigits` and `maxBits`
   // `significandLimitBits`, each carried over as it is, malformed or not;
   // and the probe's budget joins as `budgetMs`, which no earlier build
@@ -457,7 +457,7 @@ export type Range = { readonly min: number; readonly max: number };
 /**
  * A ranged setting's range under the settings in force, with the setting
  * that sets each bound where one does (the chain of
- * docs/settings-limits.md): a bound without a setter is the setting's
+ * devdocs/design/settings-limits.md): a bound without a setter is the setting's
  * own, fixed. The panel names the setter in a refusal ("at most 2,453
  * digits under the significand limit") and in a clamp's line.
  */
@@ -477,7 +477,7 @@ const WIDTH_RANGE: Range = { min: 1, max: WIDTH_LIMIT };
 
 /**
  * The probe's budget: from ten milliseconds, below which no candidate
- * fits, to ten seconds a pass, past any use (docs/settings-limits.md).
+ * fits, to ten seconds a pass, past any use (devdocs/design/settings-limits.md).
  */
 export const BUDGET_MS_RANGE: Range = { min: 10, max: 10_000 };
 
@@ -559,7 +559,7 @@ export function clampSettings(settings: Settings): Settings {
 /**
  * What `clampSettings` moves in `settings` and where to, in the order it
  * moves them: empty when they are consistent already. Beside the clamp,
- * for the panel to tell the user (docs/settings-limits.md, "Coupled
+ * for the panel to tell the user (devdocs/design/settings-limits.md, "Coupled
  * edits").
  */
 export function clampsOf(settings: Settings): readonly Clamp[] {
@@ -621,7 +621,7 @@ function withClampedValue(
  * setting that sets it where one does (`rangesOf`); `undefined` when it
  * is a value of the setting. For the panel's refusal line ("at most
  * 2,453 digits under the significand limit"). A refused edit changes
- * nothing: the bounding setting always wins (docs/settings-limits.md).
+ * nothing: the bounding setting always wins (devdocs/design/settings-limits.md).
  */
 export type Refusal =
   | { readonly kind: "notInteger" }
@@ -699,7 +699,7 @@ export function resetSettings(): Settings {
 }
 
 /**
- * A setting the panel resets on its own (docs/settings-controls.md): a
+ * A setting the panel resets on its own (devdocs/design/settings-controls.md): a
  * key of the settings, or a field within the mode's variant, the exact
  * mode's notation or the decimal mode's working digits, each reset within
  * the variant in force.

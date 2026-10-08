@@ -1,6 +1,6 @@
 # The limits: a rational significand, a decimal grid, and their bounds
 
-The design note for step S3 of docs/settings-plan.md: Digits, the
+The design note for step S3 of devdocs/history/settings-plan.md: Digits, the
 precision limit and Most bits, which the plan's P1, P2, P3, P7, P9, P10
 and P12 (its limits half) find intertwined, misnamed and silent, and
 which #86 asks whether decimal mode needs at all. **Status:
@@ -8,7 +8,7 @@ implemented**; "As landed" at the end says what the implementation
 settled. It also settles two
 questions the earlier steps sent here: whether the defaults should
 depend on the device, and whether decimal mode's working digits should
-default above Digits (docs/working-digits.md). It changes no number's
+default above Digits (devdocs/design/working-digits.md). It changes no number's
 meaning: what it changes is what each number is called, with its unit,
 what the panel says about it, what a coupled edit tells the user, and
 what the probe promises. Responsiveness while a cost is paid stays apart
@@ -415,7 +415,7 @@ Each number input carries its unit as a suffix; the lines say the rest.
   in "How a number is held", the clamp's and the refusal's sentences,
   the probe's promise, the defaults' sentence. ARCHITECTURE.md: the
   mapping of the names until the alignment lands, the probe's proposal.
-  docs/settings-plan.md: S3 done. #86 closed; #73 and #163 referenced.
+  devdocs/history/settings-plan.md: S3 done. #86 closed; #73 and #163 referenced.
 - Tests: the clamp's report and the refusal's reason; the probe's
   timings in its result; the panel's lines, suffixes and the proposal;
   the version 5 migration.
@@ -432,7 +432,7 @@ bound named; the ceiling is derived from the precision limit and read
 in both modes as the finest decimal grid the app rounds onto; the
 defaults stay and depend on no device; the probe's budget is a stored
 setting in milliseconds, and the probe proposes and the user applies
-(S3 of docs/settings-plan.md; resolves #86; amends D12, D13 and D16 in
+(S3 of devdocs/history/settings-plan.md; resolves #86; amends D12, D13 and D16 in
 their names).** The model the terms state: a value is a rational
 significand times a power of ten, kept exact until it must be rounded,
 and then rounded not to a nearby rational but onto a decimal grid whose
@@ -462,7 +462,7 @@ must fit inside it, which `2 × bitsFor(4 × (L + 10)) ≤ S` states and
   budget needed a version 5, and the note asks that the keys' renames
   and the new field ride one migration, so `Settings` and the stored
   object say `displayDigits`, `precisionLimitDigits`,
-  `significandLimitBits` and `budgetMs` (docs/settings-storage.md,
+  `significandLimitBits` and `budgetMs` (devdocs/design/settings-storage.md,
   version 5).
 - **The alignment landed in the change after the panel's**, as ruled:
   `NumberContext.maxBits` is `significandLimitBits`, `maxDigitsFor` is

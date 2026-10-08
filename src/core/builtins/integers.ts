@@ -1,5 +1,5 @@
 // `gcd`, `lcm`, `factorial`, `binomial` and `doublefactorial`
-// (docs/special.md, "The exact functions"; the plan's 6.1 and D22): the
+// (devdocs/design/special.md, "The exact functions"; the plan's 6.1 and D22): the
 // functions of integers. Each takes exact integers: an inexact argument is
 // a `domain` error (`notExact`), since `5 ± 1e-30` is not known to be `5`
 // and no pass of the retry loop narrows a ball to a point, and an exact

@@ -56,7 +56,7 @@ test("pi by Chudnovsky grows as the multiplication does, not quadratically", (t)
 
 /**
  * Every routine of the kernel, each run at `bits` on an argument of order
- * one: the report of docs/calculator-plan.md's 3.6, from which 3.11 chose
+ * one: the report of devdocs/history/calculator-plan.md's 3.6, from which 3.11 chose
  * what the probe of limits.ts times (the four costliest, `exp`, `atan`,
  * `sin` and `ln`, each about 10 to 12 ms at the default ceiling on the
  * machine of 3.11, against the roots' 0.5 and 1.6), and where the cost of
@@ -193,7 +193,7 @@ function unsettledAt(context: NumberContext): Ball {
 }
 
 /**
- * The decimal grid's own costs (4.4 of docs/calculator-plan.md): the
+ * The decimal grid's own costs (4.4 of devdocs/history/calculator-plan.md): the
  * settle of a midpoint to the working digits, the product of two settled
  * balls, and the kernel's exit onto the grid, each at the ceiling and at a
  * quarter of it, beside the routines above. The settle is a division by a

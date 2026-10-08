@@ -12,7 +12,7 @@
 // list. Each unit of a list keeps the text it was defined as, for the
 // converter to show beside its term.
 //
-// The functions are apart from the units in the same way (docs/functions.md):
+// The functions are apart from the units in the same way (devdocs/design/functions.md):
 // a function's name means something only in a call, `tempC(100)`, or as a
 // `want` on its own, and typed as a unit it is a `functionAsUnit` error,
 // which says so and carries the count of arguments the function takes, so
@@ -27,7 +27,7 @@
 // conditions and body. The builder has checked every body's and every
 // condition's dimensions, so a call can fail only on its argument (its
 // conformance or its conditions) or on a value.
-// The built-ins (builtins.ts, docs/builtins.md) share the namespace: the
+// The built-ins (builtins.ts, devdocs/design/builtins.md) share the namespace: the
 // table carries the set it was built against, the builder having kept the
 // two disjoint, and the name of a call resolves among the defined
 // functions first and the built-ins second, as a `ResolvedFunction` that
@@ -81,7 +81,7 @@ export type ListedUnit = WrittenUnit;
  * for the argument in its position. `result` is the dimension of the body,
  * which the builder inferred and checked against the result's annotation.
  * `conditions` are what its arguments must meet, checked by a call before
- * the body (docs/functions.md, "Conditions"), the builder having checked
+ * the body (devdocs/design/functions.md, "Conditions"), the builder having checked
  * that the terms of each conform to one another and that each mentions a
  * parameter.
  * `inverse` is the function's inverse, when one is defined, which only a

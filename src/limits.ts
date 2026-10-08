@@ -2,8 +2,8 @@
 // in a latency budget and proposes the two limits of D16 and D29, the
 // significand limit in bits and the precision limit in digits, with the
 // timings behind them, so that the settings panel can show the proposal
-// and the user apply it (docs/settings-limits.md, "The probe's
-// promise"). docs/calculator-plan.md (D16 and task 2.7) is the design;
+// and the user apply it (devdocs/design/settings-limits.md, "The probe's
+// promise"). devdocs/history/calculator-plan.md (D16 and task 2.7) is the design;
 // the panel runs it on request and never on its own, since a benchmark at
 // every launch would be noise on the main thread for a number the user
 // can also type. This is app code beside settings.ts: the core knows

@@ -2,7 +2,7 @@
 // `ln`, `log10`, `log2` and `log` (builtins/log.ts) and the log-space route
 // of a power (ball.ts), with the constants it needs, `ln(2)` and `ln(10)`,
 // memoized as constants.ts memoizes `pi` and `e` (D10).
-// docs/calculator-plan.md (D9 and task 3.7) is the design.
+// devdocs/history/calculator-plan.md (D9 and task 3.7) is the design.
 //
 // The argument is written `m × 2^k` with `m` in `[1, 2)`, exactly, so that
 // `ln(x) = k ln(2) + ln(m)`; `m` is brought within `2^-8` of one by eight

@@ -45,7 +45,7 @@
 // as, since that is what the converter shows beside its term (`1 m ≈ 3 ft +
 // 3.37 in`), and the table has no other way to get at it.
 //
-// A function (docs/functions.md) is a signature, `=` and a body. Inside
+// A function (devdocs/design/functions.md) is a signature, `=` and a body. Inside
 // the head, spaces are free around every token, and `=` ends it: an
 // annotation is an expression, and juxtaposition would run a result
 // annotation into the body. A function has any number of parameters,

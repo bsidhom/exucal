@@ -60,7 +60,7 @@ because almost every unit definition is a rational (`2.54 cm`,
 `0.45359237 kg`), so conversions are exact and rounding happens only once,
 at display time, in the exact mode that is the default; the exponent
 beside them because a value's magnitude should cost nothing
-(docs/decimal.md). The decimal mode, the other of the two modes of the
+(devdocs/design/decimal.md). The decimal mode, the other of the two modes of the
 plan's D15, rounds every result to the digits asked for in the rounding
 mode instead, as a hand calculator or a decimal library does, and the
 two differ in nothing else ("Precision and rounding" below). Decimal literals parse exactly
@@ -88,8 +88,8 @@ to; `Precision`, a count of significant digits, lives there too.
 Every magnitude is a **ball**: a midpoint, the number computed, and a
 radius, a coarse bound on how far the midpoint may lie from the value it
 stands for. An exact value has radius zero, and `=` in the display means
-exactly that. This is the precision model of docs/calculator.md ("The
-precision model"), being built stage by stage along docs/calculator-plan.md;
+exactly that. This is the precision model of devdocs/history/calculator-study.md ("The
+precision model"), being built stage by stage along devdocs/history/calculator-plan.md;
 what is in place is its first four stages, the ball as the value, the
 kernel with the root and the elementary functions on it, the retry loop
 with certification, and the `Scaled` midpoint with the decimal mode.
@@ -109,7 +109,7 @@ Three rules say where, and only where, a value can lose precision:
    "Size limits" below), and the callers of the operations take any
    refusal. A sum aligns the significands by
    the difference of the exponents, which the significand limit bounds
-   (docs/decimal.md, "Sums, comparisons and the radius"): two exact
+   (devdocs/design/decimal.md, "Sums, comparisons and the radius"): two exact
    operands that cannot be aligned within it have an exact sum that cannot
    be held and fail `tooLarge` in exact mode (`1e999999999 + 1`), while a
    sum with an inexact operand, which is about to be settled, puts its
@@ -173,7 +173,7 @@ Three rules say where, and only where, a value can lose precision:
    root last, so the one inexact step comes last, or `exp(y ln x)` on the
    kernel when `x^p` is refused, past the significand limit or the exponent
    bound. Every built-in
-   function does the same (docs/builtins.md): an exact case is returned
+   function does the same (devdocs/design/builtins.md): an exact case is returned
    exactly (`exp(0)`, `log(2, 8)`, `cos(0 radian)`), and otherwise the
    argument is converted at the working bits (a small argument of an odd
    function at as many more as its magnitude is below one, so that it
@@ -256,7 +256,7 @@ digits, mode)` in `src/core/display.ts` formats the midpoint at the
    `0` with a bound on how far from zero the value may lie), and
    `unbounded` (a radius not known, the midpoint's digits certifying none).
    With the ratio notation's width (`show`'s `ratio` option;
-   docs/fractions.md and docs/ratio-width.md, the plan's D21 and D28),
+   devdocs/design/fractions.md and devdocs/design/ratio-width.md, the plan's D21 and D28),
    an exact value is written entire when it fits the width: a whole
    number of at most the width in significant digits by the decimal
    display at the width (`3486784401` for `3^20` at twenty), any other
@@ -280,7 +280,7 @@ sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while `sqrt(4)` is
    `= 2` because the exact case was detected and nothing was rounded. The mode is applied here and nowhere else in exact mode (the plan's D15):
    the digits shown are the true value's rounding in it, and no intermediate
    step rounds in a mode; in decimal mode every step rounds in it, through
-   the settle, and is exact after it (D26; docs/decimal-mode.md), so every
+   the settle, and is exact after it (D26; devdocs/design/decimal-mode.md), so every
    line there is `=`, except a value flagged `uncertified`, a step whose
    rounding the ceiling left uncertified, which is the kind `uncertified`
    and is written with the `≈` sign bearing a dot above it and a note. The
@@ -374,7 +374,7 @@ call 0.14 s for an exact argument, and 0.45 s and 1.2 s for an inexact
 one, the loop's shift being most of those (measured in #117's session;
 before the ratios the series alone was 0.37 s of each); at forty digits
 the series is microseconds and at a thousand a call is tens of
-milliseconds (docs/special.md, "6.2" and "6.3"). The memo's size is
+milliseconds (devdocs/design/special.md, "6.2" and "6.3"). The memo's size is
 bounded by the bits it serves: at the default ceiling it holds 730 to
 1,430 ratios, the first at the ceiling's bits plus the margin and the
 last at about two hundred, about 0.8 to 1 MB in all, with the exact
@@ -438,7 +438,7 @@ every operation rounding in the mode, and the display marking what the
 radius does not certify without escalating, since a higher internal
 precision would compute something other than what the mode asks for.
 With the working digits above the digits asked for (D27,
-docs/working-digits.md), the evaluator computes each node's operands at
+devdocs/design/working-digits.md), the evaluator computes each node's operands at
 `operandContext`, the context at the working digits, and the node at
 its own context, so that every step but the last is rounded to the
 working digits and the last step of a displayed value (the root of a
@@ -455,7 +455,7 @@ an inexact midpoint never grows beyond the working precision however long
 the expression, while exact values stay the exact numbers they are; the
 first version of this design let inexact midpoints grow as exact
 rationals, and a thirteen-thousand-bit dyadic to the fifth power was then
-a size the significand limit refused. In decimal mode (D26; docs/decimal-mode.md)
+a size the significand limit refused. In decimal mode (D26; devdocs/design/decimal-mode.md)
 the settle is the mode's one rounding of each step: every value, an
 exact one included, is rounded to the digits asked for in the rounding
 mode and is exact after it, no radius recording the rounding, since
@@ -505,7 +505,7 @@ scaled.ts (the plan's D17), beyond which an operation is refused, an
 costs nothing.
 The bound is kept by decision, for the exponential's cost beyond it and
 the parts of the number type that are exact only within it
-(docs/decimal.md, "Decision: the bound stays at `10^18`").
+(devdocs/design/decimal.md, "Decision: the bound stays at `10^18`").
 The significand limit, `significandLimitBits` in the context, bounds the size of a significand's
 numerator or denominator and the alignment of a sum, strictly: no exact
 value is formed past it. An exact power,
@@ -550,7 +550,7 @@ factor of 2.32 below the limit and only for dyadics, and a value it moves
 past the limit was already, by its own bits, within that factor of it, a
 big number by the measure that matters; `approx` is the remedy, as for
 any other. A binary exponent beside the decimal one, which
-docs/decimal.md weighed and withdrew, would have spared `2^-30000` and
+devdocs/design/decimal.md weighed and withdrew, would have spared `2^-30000` and
 done nothing for `3^-100000`: the cost is in storing exact rationals as
 digits, not in the power of ten. The limit is strict: no exact value is
 formed past it (the plan's D19 as amended). Every operation that forms
@@ -600,7 +600,7 @@ whose exact result would pass the limit, which an inexact operand makes
 inexact and settled (`approx(3^32767) * 7^21845` is a value where
 `3^32767 * 7^21845` is `tooLarge`). It never changes an exponent, so a
 result past the exponent bound is refused with it or without it
-(`exp(approx(1e999))`; docs/approximate.md, "`approx` and the exponent
+(`exp(approx(1e999))`; devdocs/design/approximate.md, "`approx` and the exponent
 bound"). The two limits refuse with errors of their own, and the message
 words them apart: "would need a significand past the significand limit"
 for the significand limit's `tooLarge`, and for the bound that the
@@ -631,7 +631,7 @@ or text that is not a number. A result beyond the significand limit is
 exponent bound is `overflow` or `underflow`, errors of `Scaled`
 (scaled.ts), since only a value with an exponent can pass it; so the
 message names the limit the user can change apart from the one they
-cannot (docs/decimal.md, "Which limit a refusal names").
+cannot (devdocs/design/decimal.md, "Which limit a refusal names").
 
 A violated precondition (a zero denominator passed to the `rational`
 constructor, a precision that is not a positive integer, a root degree below
@@ -923,7 +923,7 @@ and the rule is lexical: no space before the `(` makes a call, and a space
 makes a product, so `kg (m/s)` stays the product it always was and
 `kg(m/s)` is a call of `kg`, which the evaluator rejects with a message
 that shows the product with the space. That is the one whitespace-sensitive
-rule in the grammar; docs/functions.md weighs the alternative. The tree
+rule in the grammar; devdocs/design/functions.md weighs the alternative. The tree
 holds a call as the name with its own span and its arguments.
 
 Juxtaposition means "this many of these units" (`2 m`) or a product of units
@@ -1270,7 +1270,7 @@ for a single `want`, so that the message quotes the name the user typed.
 
 ### Functions
 
-A function (docs/functions.md is the design, with the reasoning) is a body
+A function (devdocs/design/functions.md is the design, with the reasoning) is a body
 with any number of parameters, bound by position, as in
 `tempC(x) = x K + 273.15 K` or `kinetic(mass: kg, v: m/s) = mass v^2 / 2`,
 or none, as in `twopi() = 2 pi()`, called `twopi()`; and, for a function
@@ -1338,7 +1338,7 @@ value is an `inverseFailed` on the want side, carrying the body's error
 as a call carries its body's. A `want` that is a call is not special: it
 is an expression, and the conversion is the ratio, with a reciprocal.
 
-A built-in (docs/builtins.md; `src/core/builtin.ts`, and the set in
+A built-in (devdocs/design/builtins.md; `src/core/builtin.ts`, and the set in
 `builtins.ts`) is a function the
 core implements in code rather than a definition: a name, the count of
 arguments it takes, a dimension rule from its arguments' dimensions to
@@ -1352,8 +1352,8 @@ call's name resolves to a defined function first and a built-in second.
 A built-in has no inverse, so its name is not a `want`. The set is the
 elementary functions: `pi()`, `exp`, the logarithms, the roots, `pow`,
 the trigonometric and hyperbolic functions and their inverses; and
-`approx`, the value known to the working precision (docs/approximate.md);
-docs/builtins.md lists each one's rule, domain, exact cases and edges,
+`approx`, the value known to the working precision (devdocs/design/approximate.md);
+devdocs/design/builtins.md lists each one's rule, domain, exact cases and edges,
 and the modules under `builtins/` hold one function or one family each.
 The neper, the bel and the decibel are defined functions in units.txt
 whose bodies call the built-ins.
@@ -1385,7 +1385,7 @@ body's own failures can be told from the lookup's without the evaluator
 knowing the lookup's error type.
 
 A call costs what its body typed out in its place would, and is
-certified the same way (D24 of docs/calculator-plan.md): the body is an
+certified the same way (D24 of devdocs/history/calculator-plan.md): the body is an
 expression evaluated on balls, settled at every node, and evaluated
 again at each pass of the retry loop, so a cancellation in a body is
 paid for by the next pass's digits, and the radius needs nothing new,
@@ -1402,7 +1402,7 @@ built-in rounds at every step where the built-in rounds once, with its
 radius from one bound over the whole ball, loses the built-in's exact
 cases (`ln(8) / ln(2)` is `≈ 3` where `log(2, 8)` is `= 3`), and can be
 refused where an intermediate passes a bound the result does not; and
-decimal mode rounds each step of a body to the display digits. docs/functions.md
+decimal mode rounds each step of a body to the display digits. devdocs/design/functions.md
 ("Precision and the radius", "Cost") has the reasoning.
 
 ## UI
@@ -1444,14 +1444,14 @@ shell applies alike, clamping what depends on it (`settings.ts`,
 `withDefault` and `clampSettings`) and saving, and its closing itself
 as `settings-close`, which the shell follows; the panel never reaches
 for storage. Its controls are three groups by what a setting is for
-(docs/settings-controls.md, the plan's D31), each with a line that
+(devdocs/design/settings-controls.md, the plan's D31), each with a line that
 opens with the number's range (`rangeLine`) and a "default …" reset
 beside any setting off its default (`isAtDefault`, `defaultLine`). The sheet is a non-modal
 `<dialog>` fixed to the viewport, a bottom sheet on a phone and a side
 sheet on a desktop, opened from the cog in the header's corner
 (`<settings-button>`, `src/settings-button.ts`), whose `click` flips the
 shell's open state and which takes focus back when the sheet closes
-(docs/settings-surface.md, the plan's D30).
+(devdocs/design/settings-surface.md, the plan's D30).
 `<app-footer>` takes the worker's status as a property, which a reactive
 controller (`src/subscription.ts`) mirrors into the shell for as long as
 it is connected, and checks for an update when its build number is
@@ -1502,9 +1502,9 @@ without a consistent context): The display digits, the rounding mode,
 the mode with what belongs to it (exact mode the notation its exact
 values are written in, digits or a ratio in lowest terms; decimal mode
 its working digits, locked to the display digits or an extended count;
-docs/settings-modes.md, docs/working-digits.md), the precision limit in
+devdocs/design/settings-modes.md, devdocs/design/working-digits.md), the precision limit in
 digits and the significand limit in bits (the plan's D16 and D29,
-docs/settings-limits.md), reaching the component as its `context`
+devdocs/design/settings-limits.md), reaching the component as its `context`
 property, the same `NumberContext` the pipeline takes, whose ceiling,
 the top of the retry schedule, is derived from the precision limit and
 which carries the working digits when they are extended, and the ratio
@@ -1619,9 +1619,9 @@ src/core/fixed.ts         Fixed, the fixed-point kernel: a value with an error c
 src/core/fixed-exp.ts     expFixed, sinhCoshFixed and tanhFixed: the exponential on the kernel, by halving, Taylor and squaring into a Floating, and the hyperbolic functions through it
 src/core/digits.ts        floatingToBall: a Floating as a ball, exactly within the significand limit and by its decimal logarithm in log space beyond it
 src/core/fixed-log.ts     lnFixed: the logarithm on the kernel, by square roots and the atanh series; ln(2) and ln(10) memoized
-src/core/fixed-gamma.ts   digammaFixed and lgammaFixed, and digammaRational and lgammaRational for an exact argument of short denominator: the shift up, by a loop or exactly by binary splitting, and the asymptotic series on the Bernoulli ratios, ln pi memoized (stage 6, docs/special.md)
-src/core/fixed-incomplete.ts the incomplete gamma series with its tail bound, and Legendre's continued fraction with the bracket of its convergents (stage 6, docs/special.md)
-src/core/fixed-incbeta.ts the incomplete beta series with positive terms and its geometric tail bound, and the estimate of its terms (stage 6, docs/special.md)
+src/core/fixed-gamma.ts   digammaFixed and lgammaFixed, and digammaRational and lgammaRational for an exact argument of short denominator: the shift up, by a loop or exactly by binary splitting, and the asymptotic series on the Bernoulli ratios, ln pi memoized (stage 6, devdocs/design/special.md)
+src/core/fixed-incomplete.ts the incomplete gamma series with its tail bound, and Legendre's continued fraction with the bracket of its convergents (stage 6, devdocs/design/special.md)
+src/core/fixed-incbeta.ts the incomplete beta series with positive terms and its geometric tail bound, and the estimate of its terms (stage 6, devdocs/design/special.md)
 src/core/fixed-trig.ts    sinCosFixed and atanFixed: the sine, cosine and arctangent on the kernel, by reduction and the Taylor series
 src/core/constants.ts     pi by Chudnovsky's series and e by its series, both with binary splitting, memoized at the ceiling
 src/core/bernoulli.ts     the Bernoulli numbers, exact, from the tangent numbers, a run on request
@@ -1649,7 +1649,7 @@ src/core/builtins/trig.ts sin, cos and tan: the trigonometric functions of an an
 src/core/builtins/inverse-trig.ts asin, acos, atan and atan2: the inverses, returning an angle, every one an arctangent
 src/core/builtins/hyperbolic.ts sinh, cosh, tanh, asinh, acosh and atanh: through exp, and through ln of a root
 src/core/builtins/approx.ts approx(x): the value known to the working precision and no better, of any dimension, never narrowing
-src/core/builtins/abs.ts  abs and sign: the magnitude and the side of any quantity (stage 6, docs/special.md)
+src/core/builtins/abs.ts  abs and sign: the magnitude and the side of any quantity (stage 6, devdocs/design/special.md)
 src/core/builtins/round.ts floor, ceil, trunc and round(x, places): a plain number to the cell its midpoint's result stands for
 src/core/builtins/division.ts div and mod: floored division and its remainder, one quotient serving both
 src/core/builtins/integers.ts gcd, lcm, factorial, binomial, doublefactorial: the functions of exact integers, with their size predictions
@@ -1732,7 +1732,7 @@ of timings taken in one run, which noise can move and a machine's speed
 cannot.
 
 Two more files are the edge sweeps, the fourth of the plan's test
-patterns (docs/calculator-plan.md, "How to read a task"; the plan's
+patterns (devdocs/history/calculator-plan.md, "How to read a task"; the plan's
 H.10), named `*.sweep.ts` and run by `pnpm test:sweep` rather than with
 every edit, since they are conformance tests that grow with every
 built-in (36,000 cases and about 35 s at the ball level after stage 6,
@@ -1801,7 +1801,7 @@ tests. The rest of the directory is what they share:
   the shortest, the estimate least disturbed by whatever else the machine
   is doing.
 - `bench/stress/harness.ts` is stage 8's cost harness
-  (docs/calculator-plan.md, 8.1): it measures one case, the two texts and
+  (devdocs/history/calculator-plan.md, 8.1): it measures one case, the two texts and
   the panel's settings, as the converter runs it, `outcomeOf` in wall
   time. Each case runs in a worker of its own, so that it starts with
   empty memos; the worker builds the system table at the case's ceiling,
@@ -1840,7 +1840,7 @@ tests. The rest of the directory is what they share:
   written too. Every change goes through `update` of `tooling.ts`, under
   a lock file (`bench/stress/catalogue.lock`, ignored by git, taken over
   from a process that is gone): the catalogue is read as it is, changed,
-  formatted with the tables of `docs/cost.md` by Prettier on its stdin,
+  formatted with the tables of `devdocs/cost.md` by Prettier on its stdin,
   and each file written whole through a file renamed over it. So runs
   can share a working tree, and a copy of the files, or a commit, taken
   at any moment holds them formatted and complete. When the time is up,
@@ -1854,7 +1854,7 @@ tests. The rest of the directory is what they share:
   options, so that every run records hits by the same measure and any
   run, however short or for whatever purpose, can be committed. A
   case's settings are stored in the catalogue as the app stores its own,
-  in the envelope of docs/settings-storage.md with its format version,
+  in the envelope of devdocs/design/settings-storage.md with its format version,
   and read back through the settings migrations
   (`settingsFromStored`), so that a step that reshapes the settings
   leaves every catalogued case readable. The tests of `cases.ts`,
@@ -2057,17 +2057,17 @@ too:
 
 Planned extensions, listed to show that they fit without reshaping the core:
 
-- **The rest of the calculator program.** docs/calculator.md weighs the
+- **The rest of the calculator program.** devdocs/history/calculator-study.md weighs the
   special functions, a decimal mode, a rational display and richer
   user-defined functions, with the elementary functions, as one program
   toward an arbitrary-precision calculator under whole-expression
-  precision in the manner of Arb, and docs/calculator-plan.md is the
+  precision in the manner of Arb, and devdocs/history/calculator-plan.md is the
   plan, now complete. Stages 1 to 8 have landed, with the hardening
   phase before stage 5: the ball, the kernel and the retry loop, the
   elementary functions, the `Scaled` midpoint and the decimal mode, the
   rational display, the exact functions and the Gamma and Beta families,
   the user-function extensions, and the search for the costliest
-  expressions, whose catalogue (docs/cost.md) is the target for keeping
+  expressions, whose catalogue (devdocs/cost.md) is the target for keeping
   the interface responsive
   ([#118](https://github.com/bsidhom/exucal/issues/118)) and for
   making the kernels cheaper (#149, #150, #125 and others). The limits
@@ -2096,6 +2096,6 @@ Planned extensions, listed to show that they fit without reshaping the core:
   the strict check: adding an angle to a plain number is a mistake whether
   or not the user asked to convert between them.
 - **Symbolic values and complex numbers** are not planned, and would
-  reshape the number type rather than fit around it; docs/future.md
+  reshape the number type rather than fit around it; devdocs/future.md
   records what each would take and what keeps it possible, so that no
   design closes the door on them by accident.

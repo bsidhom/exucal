@@ -1,4 +1,4 @@
-// The cost harness of stage 8 (docs/calculator-plan.md, task 8.1): what one
+// The cost harness of stage 8 (devdocs/history/calculator-plan.md, task 8.1): what one
 // case costs the interface. A case is the two texts and the settings, the
 // panel's own (`Settings` of settings.ts), and what is measured is what
 // the converter runs on every keystroke, `outcomeOf` (outcome.ts), in wall

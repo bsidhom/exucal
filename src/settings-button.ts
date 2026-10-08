@@ -4,7 +4,7 @@ import { pressableStyles } from "./styles.ts";
 
 /**
  * The cog that opens and closes the settings sheet (settings-panel.ts;
- * docs/settings-surface.md), built as the copy button is: an icon drawn
+ * devdocs/design/settings-surface.md), built as the copy button is: an icon drawn
  * as strokes in the text's color, quiet until hovered or focused, with a
  * hit area of a thumb's size, 44 pixels each way, around a glyph of
  * 1.5rem. It is a plain button that discloses a panel, never a switch:

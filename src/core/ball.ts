@@ -3,9 +3,9 @@
 // power of ten, from stage 4's 4.4); the radius, a `Radius` of radius.ts,
 // bounds its distance from the value it stands for. An exact value has
 // radius zero, and `=` in the display means exactly that.
-// docs/calculator.md ("The precision model") is the design,
-// docs/decimal.md the exponent and the two modes, and
-// docs/calculator-plan.md (D3, D4, D7, D15, tasks 1.5, 2.3, 2.4, 2.5 and
+// devdocs/history/calculator-study.md ("The precision model") is the design,
+// devdocs/design/decimal.md the exponent and the two modes, and
+// devdocs/history/calculator-plan.md (D3, D4, D7, D15, tasks 1.5, 2.3, 2.4, 2.5 and
 // 4.4) the decisions; this module is the type, its exact operations and the
 // one inexact one, the root; quantity.ts makes a ball the magnitude of
 // every quantity.
@@ -41,7 +41,7 @@
 // right way and a result's interval contains the exact result for every
 // pair of values in the operands' intervals, which is what the tests check.
 //
-// A sum is where the exponent costs something (docs/decimal.md, "Sums,
+// A sum is where the exponent costs something (devdocs/design/decimal.md, "Sums,
 // comparisons and the radius"). `addBalls` aligns the midpoints exactly
 // where the shift fits the context's significand limit. Where it does not, two
 // exact operands are `tooLarge`, the exact sum existing and not being
@@ -255,7 +255,7 @@ import {
 
 /**
  * A midpoint with the radius that bounds its distance from the true value.
- * `uncertified` is decimal mode's alone (D26; docs/decimal-mode.md, "The
+ * `uncertified` is decimal mode's alone (D26; devdocs/design/decimal-mode.md, "The
  * ceiling"): set on a value one of whose steps was rounded at the ceiling
  * without its digits certified, and carried by every operation on it,
  * sticky as IEEE 754's inexact flag; absent everywhere else, never set to
@@ -412,7 +412,7 @@ export type Order = ReturnType<typeof position>;
  * `context`, against zero, a difference refused as too large to form
  * (or straddling the bound) answering `straddles`, the conservative
  * answer. Conditions on a function's arguments are decided on it
- * (docs/functions.md, "Conditions").
+ * (devdocs/design/functions.md, "Conditions").
  */
 export function orderOf(a: Ball, b: Ball, context: NumberContext): Order {
   if (isExact(b)) return position(a, b.mid);
@@ -527,7 +527,7 @@ function addBallsCore(
 
 /**
  * `a + b` in decimal mode where the two cannot be aligned within the
- * significand limit (D26; docs/decimal-mode.md, "Sums that do not align"), which
+ * significand limit (D26; devdocs/design/decimal-mode.md, "Sums that do not align"), which
  * the evaluator applies when `addBalls` refuses such a sum as `tooLarge`:
  * the smaller operand lies far below half a unit in the last of the
  * context's digits of the larger, so the correctly rounded sum is the
@@ -970,7 +970,7 @@ function powBallCore(
  * the last of those digits, its bound, is added to the radius when the
  * rounding moved it; an exact ball is returned as it is, since the
  * rounding mode is the display's, applied once to the certified value of
- * the whole expression. In decimal mode (D26; docs/decimal-mode.md) the
+ * the whole expression. In decimal mode (D26; devdocs/design/decimal-mode.md) the
  * settle is the mode's one rounding of a step, `settleDecimal` below:
  * every value, an exact one included, is rounded to the context's
  * precision in its rounding mode and is exact after it, no radius
@@ -1034,7 +1034,7 @@ function gridded(b: Ball, context: NumberContext): Ball {
 
 /**
  * `b` as decimal mode's one rounding of a step leaves it (D26;
- * docs/decimal-mode.md): an exact value is rounded to the context's digits
+ * devdocs/design/decimal-mode.md): an exact value is rounded to the context's digits
  * in its rounding mode and is exact; an inexact one, a built-in's or a
  * unit's ball computed at a working precision, takes the same rounding
  * when the ball certifies it, both of its ends rounding alike (D7), and
@@ -1080,7 +1080,7 @@ export type PastBound = Extract<BallError, { kind: "overflow" | "underflow" }>;
 /**
  * A step of the expression at `context`: the one entrance through which a
  * value `compute` produces becomes a value of the expression, in either
- * mode (D15, D26; docs/decimal-mode.md). Every node of the evaluator, the
+ * mode (D15, D26; devdocs/design/decimal-mode.md). Every node of the evaluator, the
  * pipeline's own quotients and the outcome's reciprocal go through it,
  * and nothing else settles or rounds a value.
  *
@@ -1143,7 +1143,7 @@ function settled(b: Ball, context: NumberContext): Result<Ball, PastBound> {
  * an exact `b` gains the unit, one whose radius is larger keeps it, and
  * one whose radius is smaller is widened to it; never narrowed, and
  * idempotent. A zero or an unbounded `b` is returned as it is. This is
- * `approx` (docs/approximate.md), and what the evaluator raises to a
+ * `approx` (devdocs/design/approximate.md), and what the evaluator raises to a
  * power in decimal mode when the exact power does not fit the significand limit
  * (D26). The unit is taken from the exponent without forming it, which
  * lies past the exponent bound for a value near the bottom of it
@@ -2080,7 +2080,7 @@ export function certifies(
 
 /**
  * Certification by the distance to the nearest rounding boundary (D7,
- * docs/decimal.md), for a radius that cannot be formed or aligned: the
+ * devdocs/design/decimal.md), for a radius that cannot be formed or aligned: the
  * ends round alike exactly when no boundary of the `digits`-digit cells
  * lies within the radius of the midpoint. In the magnitude's units `u`,
  * `10^(e - digits + 1)` for the midpoint's decimal exponent `e`, the

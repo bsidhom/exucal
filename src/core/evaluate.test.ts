@@ -1935,7 +1935,7 @@ test("a ^ exponent is reduced by the evaluator within the significand limit, and
 // ---------------------------------------------------------------------------
 // Conditions: comparisons on balls
 
-test("a comparison on balls gives each verdict of docs/functions.md's table", () => {
+test("a comparison on balls gives each verdict of devdocs/design/functions.md's table", () => {
   // `[1, 2]`: a radius of a power of two, so that its ends are exact.
   const ball: Ball = { mid: dec("1.5"), rad: powerOfTwoRadius(-1n) };
   const verdicts = (a: Ball, b: Ball) =>

@@ -1,5 +1,5 @@
 // The fixed-point kernel: the representation every inexact function runs
-// on, and its exact operations with their error rules. docs/calculator-plan.md
+// on, and its exact operations with their error rules. devdocs/history/calculator-plan.md
 // (D9 and task 2.1) is the design. A kernel value is `{ value, error,
 // bits }`: the integer `value` stands for `value × 2^-bits`, and `error` is
 // an upper bound, in units of `2^-bits` (ulps), on how far that stands from
@@ -48,7 +48,7 @@
 // bounds with nothing formed, and any other has its power of ten formed
 // within four times the hard bound, which holds whatever a built-in hands
 // the kernel at any significand limit the settings allow) and
-// left through `fixedToBall` (docs/decimal.md, "The kernel's boundary"),
+// left through `fixedToBall` (devdocs/design/decimal.md, "The kernel's boundary"),
 // which rounds the dyadic `value × 2^-bits` to nearest at the working
 // digits it is given (`fixedToScaled`: a multiplication by a memoized power
 // of ten and a shift, the decimal exponent estimated from the bit length
@@ -150,7 +150,7 @@ const FORMABLE_BITS = 4 * MAX_SIGNIFICAND_LIMIT_BITS;
  * (issues #53 and #47); any other value has its power of ten formed
  * within `FORMABLE_BITS`, and one past that is a precondition failure: a
  * routine that takes the value itself bounds its argument first
- * (docs/decimal.md, "The kernel's boundary").
+ * (devdocs/design/decimal.md, "The kernel's boundary").
  */
 export function fixedFromScaled(s: Scaled, bits: number): Fixed {
   checkBits(bits);
@@ -186,7 +186,7 @@ export function fixedFromBall(b: Ball, bits: number): Fixed {
 /**
  * The value of `f`, `value × 2^-bits`, rounded to nearest at `digits`
  * significant decimal digits: the way out of the kernel onto the decimal
- * grid of the working precision (docs/decimal.md), a multiplication by a
+ * grid of the working precision (devdocs/design/decimal.md), a multiplication by a
  * power of ten and a shift, with nothing rounded in a mode. The decimal
  * exponent is found from the value's bit length and checked on the digits
  * produced, since the estimate can be one off next to a power of ten.
@@ -262,7 +262,7 @@ export function fixedToBall(f: Fixed, digits: Precision): Ball {
 
 /**
  * A kernel result with a binary exponent, `significand × 2^exp`, for the routines
- * whose result can be large (4.9 of the plan; docs/decimal.md, "The
+ * whose result can be large (4.9 of the plan; devdocs/design/decimal.md, "The
  * kernel's boundary"): the exponential and, through it, the hyperbolic
  * functions. The significand is a `Fixed` of the working bits, normalized to
  * `[1, 2)` by `normalizeFloating`, and the exponent is a bigint the

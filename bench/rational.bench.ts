@@ -15,7 +15,7 @@ import { realProbe } from "../src/limits.ts";
 import { key, randomBigInt } from "../src/testing/random.ts";
 import { bestOf, millis } from "./harness.ts";
 
-// The exact arithmetic's cost is the gcd's (docs/calculator-plan.md, H.9):
+// The exact arithmetic's cost is the gcd's (devdocs/history/calculator-plan.md, H.9):
 // Lehmer's gcd on the odd parts is quadratic in the operands' size, as
 // Euclid's was, but about forty times cheaper in V8 at the default range
 // limit, and the smaller reductions of a sum, a product and a quotient

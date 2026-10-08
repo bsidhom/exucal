@@ -1,14 +1,14 @@
 # The exponent and the decimal mode
 
 Status: the decimal mode this note designed has been restated by D26
-(docs/decimal-mode.md): every step is one correctly rounded operation,
+(devdocs/design/decimal-mode.md): every step is one correctly rounded operation,
 every value is exact, and no radius is carried; "The decimal mode" below
 and the stage-4 rulings on the radius it describes are superseded by
 that note, and the exponent, the bound and exact mode stand. Design note
-for stage 4 of docs/calculator-plan.md, written after
+for stage 4 of devdocs/history/calculator-plan.md, written after
 stage 3 landed and before any of the stage's code; the plan's stage 4 was
 revised against it in the same change. The goal is the study's features
-4 and 5 (docs/calculator.md, "4 and 5. Floating point and decimal: one
+4 and 5 (devdocs/history/calculator-study.md, "4 and 5. Floating point and decimal: one
 feature, not two") as one: a midpoint that carries an exponent, so that
 `1e999999999` is a value and `exp(1e6)` is `≈ 3.0332154e434294` rather
 than `tooLarge`, and a decimal mode that rounds after every operation in
@@ -84,7 +84,7 @@ construction, and any value downstream of one; `settle` is the identity
 on an exact ball, and the sum rule below refuses a sum of two exact
 operands it cannot align rather than round either of them. Exactly three
 things ever produce a nonzero radius: an inexact function (a root, a
-kernel routine, `pi()`), the built-in `approx` (docs/approximate.md),
+kernel routine, `pi()`), the built-in `approx` (devdocs/design/approximate.md),
 which makes a value inexact at the user's request, and the decimal
 mode's rounding, which is the mode's definition and leaves a value with
 `p` digits or fewer exact. Zero-radius arithmetic is available wherever
@@ -464,7 +464,7 @@ any size (`1e999999999 m` into `km;m`) stays exact.
 
 ## The decimal mode
 
-Superseded in part by D26 (docs/decimal-mode.md): the radius this
+Superseded in part by D26 (devdocs/design/decimal-mode.md): the radius this
 section adds at every step is no longer carried, every decimal-mode
 value being exact, and a function call is one step whose rounding is
 certified. The section stands as the record of what stage 4 built.
@@ -537,7 +537,7 @@ settled, so in decimal mode
 The pipeline's conversion settles its own quotients in decimal mode
 (stage 5's 5.2; stage 4 left them to the display, whose rounding of an
 exact ratio to `p` digits in the mode was the division's per-operation
-rounding, until the fractions display of docs/fractions.md stopped
+rounding, until the fractions display of devdocs/design/fractions.md stopped
 rounding every exact value): the ratio of the two magnitudes, a list's
 counts and remainder, and a function's count are each settled once at
 the context, and the outcome settles the reciprocal the same way, so
@@ -559,7 +559,7 @@ the reading the study gives for the case (`0.999...9`, "displays as
 such rather than shown with digits the radius does not back, and a
 division by it is `unresolved` as in exact mode, reported at once.
 
-The built-in `approx` (docs/approximate.md) works in decimal mode as it
+The built-in `approx` (devdocs/design/approximate.md) works in decimal mode as it
 does in exact mode, with the mode's rounding on top: it reduces the
 implied precision of its argument from the working precision, which
 there is the user's `p` digits, and never raises it, so `approx(x)` is
@@ -637,7 +637,7 @@ rounding at the limit, is recorded with the decision.
   of `.mid` and the context reaching every sum; one pass in decimal mode.
 - `src/settings.ts`, `src/settings-panel.ts` (then part of
   `src/app-shell.ts`), `src/unit-converter.ts` (4.7): the mode setting.
-- README.md, ARCHITECTURE.md, docs/builtins.md, docs/calculator.md
+- README.md, ARCHITECTURE.md, devdocs/design/builtins.md, devdocs/history/calculator-study.md
   (4.8).
 
 ## The order of the tasks
@@ -664,7 +664,7 @@ setting, the docs. So the plan's numbering is the order.
   and lands in `display.ts`.
 - **An inexact literal**: a literal is exact whatever its length, up to
   the significand limit, in exact mode. Marking a value as known only
-  approximately is docs/approximate.md's, the built-in `approx` of task
+  approximately is devdocs/design/approximate.md's, the built-in `approx` of task
   4.10, which the sum rule above serves (`approx(1e999999999) + 1` is a
   value).
 - **A setting for the exponent bound**: it is a constant, generous and

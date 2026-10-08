@@ -38,7 +38,7 @@
 // would mean the function, and typed as the have a prefixed unit. A
 // function is a node of the walk, so that a unit may be defined by a call,
 // a body may call another function, and a cycle through a function is
-// reported like any other. Checking a function (docs/functions.md) means
+// reported like any other. Checking a function (devdocs/design/functions.md) means
 // evaluating its annotations and taking its body's dimension without
 // evaluating it (dimension-of.ts), with the parameter bound to its
 // annotation's dimension (a plain number without one), through the walk's

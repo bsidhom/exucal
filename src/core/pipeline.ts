@@ -16,7 +16,7 @@
 // the list or the function only when it stands alone: `2 time` and
 // `2 tempC` are unknown units.
 //
-// A function as the `want` (docs/functions.md) is answered by the call that
+// A function as the `want` (devdocs/design/functions.md) is answered by the call that
 // would produce the `have`: `tempF(212)` into `tempC` is `tempC(100)`. It
 // needs the function's inverse, `~tempC`, and a function without one is a
 // `noInverse` on the want side. The `have` must conform to the function's
@@ -55,7 +55,7 @@
 //
 // The `NumberContext` both take is the user's: its precision is the digits
 // asked for, not the precision anything is computed at. This is the one
-// place that knows the difference (D1 of docs/calculator-plan.md): the
+// place that knows the difference (D1 of devdocs/history/calculator-plan.md): the
 // working contexts the texts are evaluated at are derived here, by the
 // retry schedule of D12. `schedule` yields the digits asked for plus a
 // guard of ten, then twice that, four times, doubling, and last the
@@ -67,7 +67,7 @@
 // mode, so raising the internal precision would compute something other
 // than what the mode asks for, and the display marks what the radius does
 // not certify without escalating; an `unresolved` is then final and
-// reported at once. With working digits set (D27, docs/working-digits.md)
+// reported at once. With working digits set (D27, devdocs/design/working-digits.md)
 // the texts, being the operands of the ratio, the terms or the count that
 // is shown, are evaluated at `operandContext`, the context at the working
 // digits, and that last step is rounded to the digits asked for from

@@ -1,5 +1,5 @@
 // `exp(x)`: the exponential of a plain number, on the kernel's `expFixed`
-// (fixed-exp.ts). docs/builtins.md is the design and docs/calculator-plan.md
+// (fixed-exp.ts). devdocs/design/builtins.md is the design and devdocs/history/calculator-plan.md
 // (task 3.6) places it. The exact cases are `exp(0)`, one, and `exp(1)`,
 // which is `e` from its memo (constants.ts, D10); every other argument is
 // converted at the working bits, passed through the kernel, and handed

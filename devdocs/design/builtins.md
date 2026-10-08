@@ -1,9 +1,9 @@
 # Built-in functions
 
-Status: design note for stage 3 of docs/calculator-plan.md, written from
+Status: design note for stage 3 of devdocs/history/calculator-plan.md, written from
 the plan's decisions (D4, D9, D10, D11, D15) and tasks 3.1 to 3.13 before
 the stage was implemented; "Implementation notes" at the end records where
-the code departed from it. docs/calculator.md ("Elementary functions") is
+the code departed from it. devdocs/history/calculator-study.md ("Elementary functions") is
 the study this follows.
 
 A built-in is a function the core implements in code rather than a
@@ -30,13 +30,13 @@ It has no inverse, so its name is not a `want`.
   read as a prefix followed by a unit, the rule that keeps `u` and `at`
   out of the file. The neper is `neper` and the bel `bel`.
 - **`approx(x)` is the value known to the working precision and no
-  better** (docs/approximate.md; stage 4's 4.10): the one way to make an
+  better** (devdocs/design/approximate.md; stage 4's 4.10): the one way to make an
   exact value inexact on purpose, of any dimension, never narrowing.
 - No built-in collides with a unit of units.txt or reads as a prefix
   followed by one: `pi`, `exp`, `ln`, `log`, `log10`, `log2`, `sqrt`,
   `cbrt`, `pow`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`,
   `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`, `approx`, and the
-  exact functions of stage 6 (docs/special.md): `abs`, `sign`, `floor`,
+  exact functions of stage 6 (devdocs/design/special.md): `abs`, `sign`, `floor`,
   `ceil`, `trunc`, `round`, `div`, `mod`, `gcd`, `lcm`, `factorial`,
   `binomial`, `doublefactorial`, and its Gamma family: `digamma`,
   `lgamma`, `gamma`, `beta`, `lowergamma`, `uppergamma`,
@@ -63,7 +63,7 @@ once the name has resolved and before any argument is evaluated.
   radius the kernel's error and that rounding, and
   it rounds in no mode. The evaluator settles every result it produces,
   so the built-in does not; the mode is the display's alone in exact mode.
-  In decimal mode (D26; docs/decimal-mode.md) a call is one step: the
+  In decimal mode (D26; devdocs/design/decimal-mode.md) a call is one step: the
   evaluator runs the built-in at the working precisions of the retry
   schedule, in exact mode, until the ball it returns certifies the digits
   asked for in the rounding mode, and takes that rounding, exact; at the
@@ -311,7 +311,7 @@ are served from their memos inside an `lgamma` at the ceiling pass
 ## Implementation notes
 
 Where the code departed from the note above, or settled what it left
-open; docs/calculator-plan.md ("Stage 3 as it landed") has each task's
+open; devdocs/history/calculator-plan.md ("Stage 3 as it landed") has each task's
 rulings in full.
 
 - **Two more rules every built-in follows.** A built-in that reaches the

@@ -17,9 +17,9 @@ added (D17 to D20) and amended (D4, D8, D15 and D16); D20, on what exact
 mode does past the significand limit, was ruled on in review of its pull
 request, and D18's answer for a sum whose ball reaches back within the
 bound in review of H.13's. Stage 5's design note (5.0,
-docs/fractions.md) was written after the phase landed and the stage
+devdocs/design/fractions.md) was written after the phase landed and the stage
 revised against it (D21 added, and 5.1 and 5.2); its introduction lists
-the changes. Stage 6's design note (6.0, docs/special.md) was written
+the changes. Stage 6's design note (6.0, devdocs/design/special.md) was written
 after stage 5 landed and the stage revised against it (D22 added, and
 6.1 to 6.9); its introduction lists the changes, and 6.8 was deferred
 after 6.7 landed. D23 and D24 were added before stage 7, from the
@@ -32,10 +32,10 @@ implementation and revised (D9, D10, D12, the new D15 and D16, and tasks
 2.2 and 2.5 among others); the stage's introduction lists the changes.
 Stage 3 was reviewed the same way against the stage 2 code and revised
 (D1, D4, D10, D12, D16 and every task from 3.1 to 3.13); its introduction
-lists the changes. Stage 4's design note (4.0, docs/decimal.md) was
+lists the changes. Stage 4's design note (4.0, devdocs/design/decimal.md) was
 written against the stage 3 code and the stage revised against it (D13
 settled, D8, D15 and D16 restated, and every task from 4.1 to 4.9); its
-introduction lists the changes. docs/calculator.md is the design study
+introduction lists the changes. devdocs/history/calculator-study.md is the design study
 and its "A sequence for the follow-ups" is the order this plan follows.
 This document turns that sequence into tasks small enough that each is one
 commit, reviewable on its own, with the tests that prove it and the state
@@ -45,7 +45,7 @@ decision before any code depends on it.
 
 The plan is firm for stages 1 to 6 and the phase before stage 5, whose
 shape follows from the code as it stands, for stage 7, whose design note
-(docs/functions.md) is written and ruled on, and for stage 8, which the
+(devdocs/design/functions.md) is written and ruled on, and for stage 8, which the
 owner redefined after stage 7 (D25): it was provisional, a study of the
 runtime, and is now a search for the costliest expressions, whose design
 is the stage's own text. Every stage was listed task by task from the
@@ -199,7 +199,7 @@ with the rest of the ceiling as room for cancellation on the unit's side:
 certifies every one of its `p` digits of `360`, and shows `≈` only
 because the radius is not zero, as the study accepts. So the precision a
 user asks for is always reachable through `pi`; what is not reachable is
-exactness, which is the symbolic layer's business (docs/future.md). The
+exactness, which is the symbolic layer's business (devdocs/future.md). The
 alternatives: rebuilding the table at each pass's precision, milliseconds
 per pass and a table per pass, for no gain, since no pass needs a unit
 beyond the ceiling; and a table per setting at the setting's own ceiling,
@@ -475,7 +475,7 @@ power of ten is 4.1's to decide, by settling to a decimal in that stage
 or by a binary exponent beside the decimal one; nothing in stages 2 and 3
 depends on the answer.
 
-Settled in 4.0 (docs/decimal.md): the kernel's binary scale is settled
+Settled in 4.0 (devdocs/design/decimal.md): the kernel's binary scale is settled
 into the power of ten at the kernel's exit, and the type carries one
 exponent, as written above. A dyadic `d × 2^-k` entered exactly would be
 `d × 5^k × 10^-k`, three times its size for no information, so a kernel
@@ -562,7 +562,7 @@ bound rounds toward zero instead and adds a whole unit in the last digit
 to the radius, so that settling never refuses a value; in decimal mode
 the rounded value is the result, and one past the bound is refused.
 
-Amended by D26 (docs/decimal-mode.md): the decimal-mode half of this
+Amended by D26 (devdocs/design/decimal-mode.md): the decimal-mode half of this
 decision, under which the exact rounding error of every step went into
 the radius, is withdrawn. In decimal mode every step is rounded once and
 is exact, and the ball certifies only inside a built-in; the exact-mode
@@ -658,7 +658,7 @@ dyadics, and a value it moves past the limit was already, by its own
 bits, within that factor of it: a big number by the measure that
 matters, for which `approx` is the remedy as for any other. A
 representation with a binary exponent beside the decimal one, the
-draft docs/decimal.md withdrew, would have kept `2^-30000` at 30,000
+draft devdocs/design/decimal.md withdrew, would have kept `2^-30000` at 30,000
 bits and done nothing for `3^-100000`; the cost is in storing exact
 rationals as digits, not in the power of ten. The owner's ruling, on
 review of this restatement, is to keep the representation and the
@@ -946,12 +946,12 @@ certifying the digits asked as it does for any inexact value, and the
 display saying `≈`. #52 records the owner's leaning toward rounding.
 The decision is to refuse, for these reasons:
 
-- **The mode's contract.** Exact mode's one promise (D15; docs/decimal.md,
+- **The mode's contract.** Exact mode's one promise (D15; devdocs/design/decimal.md,
   "What stays exact") is that exactly three things ever make a value
   inexact: an inexact function, `approx`, and the decimal mode. The
   design has twice declined to add a rounding the user did not ask for
-  (docs/decimal.md's "Alternatives considered", on a sum that cannot be
-  aligned; docs/approximate.md, on a mode that rounds every literal),
+  (devdocs/design/decimal.md's "Alternatives considered", on a sum that cannot be
+  aligned; devdocs/design/approximate.md, on a mode that rounds every literal),
   each time on the same ground: a value the user wrote exactly is not
   silently replaced by one that is not it. A rounding at the significand limit
   would be a fourth source, and the only one the user cannot see in the
@@ -1012,7 +1012,7 @@ both.
 **D21. The fractions display writes every exact value that is not an
 integer as a reduced fraction, when it fits, and writes every inexact
 value as a decimal (added before stage 5; ruled by the owner in the
-review of 5.0).** docs/fractions.md is the design. The study's feature 7
+review of 5.0).** devdocs/design/fractions.md is the design. The study's feature 7
 writes an exact value as its fraction in lowest terms and an inexact one
 as a decimal with `≈`; the choice it left open was whether a value the
 decimal display already writes exactly (`2.54`, `1.609344`, `1e-7`)
@@ -1033,7 +1033,7 @@ is known and no more.
 **D22. The exact functions: `floor` and its kin take a plain number;
 `div` and `mod` are floored division; `gcd` and `lcm` are non-negative
 (added before stage 6; ruled by the owner on the design note 6.0).**
-docs/special.md is the design. The plan had `floor`, `ceil`, `trunc` and
+devdocs/design/special.md is the design. The plan had `floor`, `ceil`, `trunc` and
 `round` keep their argument's dimension; a quantity's magnitude is
 stored in the primitives, so `floor(3.7 ft)` would answer `1 m`, and a
 function whose answer depends on the unit the value is written in is
@@ -1052,7 +1052,7 @@ holds for any quotient.
 
 **D23. A function is a signature, `=` and a body, and its inverse is a
 definition of its own (added before stage 7; ruled by the owner on the
-syntax options for 7.0).** The bracketed form of docs/functions.md,
+syntax options for 7.0).** The bracketed form of devdocs/design/functions.md,
 `tempC(x) [1;K] x K + 273.15 K ; tempC / K - 273.15`, is replaced
 outright, and the five functions of units.txt are rewritten in it. No
 user definitions are stored anywhere yet (storage and an editor are a
@@ -1118,7 +1118,7 @@ The inverse on its own line makes "optional" literal. A function has no
 inverse slot to leave empty, and adding an inverse adds a line. The line
 reads as what it is, it gives the inverse a parameter of its own, and it
 leads to `~tempC(373.15 K)` in an expression, a call of a name that
-already exists (docs/functions.md, "Not in this design").
+already exists (devdocs/design/functions.md, "Not in this design").
 
 D23 leaves room for these evolutions:
 
@@ -1249,7 +1249,7 @@ left open:
   had room for a relation between parameters.
 
 - **Dimension-generic functions are deferred** from stage 7 to an issue
-  of their own. docs/functions.md ("Dimension-generic functions")
+  of their own. devdocs/design/functions.md ("Dimension-generic functions")
   records the intended design: variables in brackets, a stand-in
   primitive per variable so that the build checks a generic body in
   full, and room in the brackets for type bounds. The `*` of the first
@@ -1374,7 +1374,7 @@ lowered the defaults or moved the pipeline to a Web Worker:
 **D26. Decimal mode is a calculator's arithmetic: every operation is one
 correctly rounded step, every value is exact, and no radius is carried
 (ruled by the owner in the review of the S2 settings note; added after
-S1 of docs/settings-plan.md).** docs/decimal-mode.md is the design. A
+S1 of devdocs/history/settings-plan.md).** devdocs/design/decimal-mode.md is the design. A
 value in decimal mode is an integer of at most `p` digits times a power
 of ten, radius zero; each node of the expression, a function call as a
 whole included, forms the exact result of its exact operands and rounds
@@ -1396,7 +1396,7 @@ rounded value is the answer. Exact mode is unchanged.
 digits, a setting of the mode at or above the display digits, and the last step of
 a displayed value to the display digits, directly from its exact result (ruled by
 the owner on the case of `ln(exp(1/10))`, after S2's note; S2b of
-docs/settings-plan.md).** docs/working-digits.md is the design. The
+devdocs/history/settings-plan.md).** devdocs/design/working-digits.md is the design. The
 working digits default to the display digits, under which the mode is D26 as
 landed; set above the display digits they keep a step's rounding out of the answer,
 as a calculator's hidden digits do, so that `ln(exp(1/10))` at eight
@@ -1412,8 +1412,8 @@ ratio, its two parts together, or a whole number may have to be written
 entire, twenty by default and independent of the display digits; a ratio that does
 not fit is written as a ratio times a power of ten, the power after it,
 when its parts then fit and its denominator is not one, and otherwise
-the value is a decimal at the display digits (S2c of docs/settings-plan.md; amends
-D21).** docs/ratio-width.md is the design. D21's fit at the display digits coupled
+the value is a decimal at the display digits (S2c of devdocs/history/settings-plan.md; amends
+D21).** devdocs/design/ratio-width.md is the design. D21's fit at the display digits coupled
 a length to a precision, hid exact whole numbers and short ratios of
 large magnitude, and could not be read off the settings; the width is
 one number that decides what is written entire. The measure is the two
@@ -1434,8 +1434,8 @@ bound named; the ceiling is derived from the precision limit and read
 in both modes as the finest decimal grid the app rounds onto; the
 defaults stay and depend on no device; the probe's budget is a stored
 setting in milliseconds, and the probe proposes and the user applies
-(S3 of docs/settings-plan.md; resolves #86; amends D12, D13 and D16 in
-their names).** docs/settings-limits.md is the design. The model the
+(S3 of devdocs/history/settings-plan.md; resolves #86; amends D12, D13 and D16 in
+their names).** devdocs/design/settings-limits.md is the design. The model the
 terms state: a value is a rational significand times a power of ten,
 kept exact until it must be rounded, and then rounded not to a nearby
 rational but onto a decimal grid whose digits the precision limit
@@ -1452,7 +1452,7 @@ the messages in place of "the cap", "the range limit" or "Most bits",
 
 **D30. The settings are a sheet over the page, opened from a cog in the
 header's corner, and a change applies as it is made, on `change` (S4 of
-docs/settings-plan.md).** A non-modal `<dialog>` fixed to the viewport
+devdocs/history/settings-plan.md).** A non-modal `<dialog>` fixed to the viewport
 with the page live and scrollable behind it, so that the result stays
 in view while a setting is changed to see its effect: on a narrow
 viewport a bottom sheet with two heights, its controls scrolling inside
@@ -1469,13 +1469,13 @@ sheet is for, and applying a number as it is typed waits for #118's
 scheduler (#186). On a phone a typed number is committed from the
 keyboard's Done key, and the display digits, the working digits and
 the ratio width are nudged from steppers. A result offers no shortcut
-to the settings that shaped it. docs/settings-surface.md is the design.
+to the settings that shaped it. devdocs/design/settings-surface.md is the design.
 
 **D31. The settings are three groups, by what a setting is for and in
 the order of how often it is touched, each number's line opening with
 its range and the setting that bounds it, a default named beside any
 setting off it and restored by a press, and the rest of the explanation
-in the user's guide (S5 of docs/settings-plan.md).** How it is shown
+in the user's guide (S5 of devdocs/history/settings-plan.md).** How it is shown
 (the display digits, the notation), how it is computed (the mode with
 its working digits or notation under it, the rounding), how much it may
 cost (the two limits and the probe); the mode a choice of two radios;
@@ -1483,7 +1483,7 @@ one sentence under each control, always, with the range from `rangesOf`
 naming the chain where it bounds; "default 8" beside a changed setting
 as its indicator and its reset, "Reset all settings" at the foot, both
 through the clamp; a refused input marked invalid and a stepper at a
-bound disabled. docs/settings-controls.md is the design.
+bound disabled. devdocs/design/settings-controls.md is the design.
 
 ## Stage 1: the context and the ball
 
@@ -1712,7 +1712,7 @@ Behavior: one visible change, a value that passes through a root and comes
 out looking rational is `≈`: `sqrt(2) / sqrt(2)`, whose midpoint is exactly
 `1` because the same truncated value is divided by itself, shows `≈ 1`
 rather than `= 1`, which is the fix the study describes (and the case the
-symbolic values of docs/future.md would make `= 1`). `sqrt(2)^2` was
+symbolic values of devdocs/future.md would make `= 1`). `sqrt(2)^2` was
 already `≈ 2`, its midpoint being a hair below `2`; the plan's first
 version named it as the change by mistake.
 
@@ -1740,7 +1740,7 @@ Behavior: the digits and the rounding mode are the user's.
 ARCHITECTURE.md: "Precision and rounding" rewritten around the ball and
 the context, "UI" for the settings and the `=` rule, "Layout" for the new
 modules; README.md gains a short "Settings" section; module headers that
-mention truncation or `DEFAULT_PRECISION` are corrected; docs/calculator.md
+mention truncation or `DEFAULT_PRECISION` are corrected; devdocs/history/calculator-study.md
 gets a status line naming this plan.
 
 ## Stage 2: the kernel, `root`, settling, `pi`, the retry loop
@@ -2098,7 +2098,7 @@ ARCHITECTURE.md "Precision and rounding" gains the kernel, settling,
 certification, the schedule and the two limits; "Layout" the new modules;
 the benchmark section the kernel benchmark; README "Settings" explains
 the note about fewer digits, the two limits and the recommendation;
-docs/calculator.md's status line names stage 2 as landed, and its "one
+devdocs/history/calculator-study.md's status line names stage 2 as landed, and its "one
 mode governs every rounding" gains the qualification of D15.
 
 ## Stage 3: built-in functions
@@ -2130,7 +2130,7 @@ decibel defined.
 
 ### 3.0 Design note
 
-docs/builtins.md, short: the names (Euler's number is `exp(1)`, Lambert's
+devdocs/design/builtins.md, short: the names (Euler's number is `exp(1)`, Lambert's
 function is `lambertw`, `log` is the two-argument logarithm and `ln`,
 `log10` and `log2` the one-argument ones, the decibel is `decibel`
 because `dB` reads as `d` + `B`, and no built-in collides with a unit or
@@ -2156,7 +2156,7 @@ the call's shape as `notAFunction` is, so `tempC(bogus, 1)` is the arity
 error and not the unknown unit. `src/messages.ts` words it: `"tempC"
 takes 1 argument, but "tempC(1, 2)" gives 2`, and `takes no arguments`,
 `takes 2 arguments`, `takes 1 to 3 arguments` for the ranges. The
-`argumentMismatch` error keeps its one argument's span. `docs/functions.md`
+`argumentMismatch` error keeps its one argument's span. `devdocs/design/functions.md`
 and README note the grammar. The decision on arity: the grammar accepts
 any number of arguments, and what a function accepts is its own. A
 built-in declares a range `{ min, max }` (every elementary function is
@@ -2376,7 +2376,7 @@ fails at the call, as a body that fails for every value (`1 / 0`,
 evaluates the declared units and runs `dimensionOf` on each body with
 the bound name at the declared dimension, in place of evaluating at one
 of the unit; `applyFunction` and `invertFunction` are no longer called at
-build time. docs/functions.md's "Build-time checks" and its acceptance of
+build time. devdocs/design/functions.md's "Build-time checks" and its acceptance of
 the `1 / (x - 1)` failure are updated.
 
 Rulings the task did not reach: the lookup `dimensionOf` takes,
@@ -2840,8 +2840,8 @@ root and the ceiling in the context; "Later" loses built-in functions;
 "Layout" the new modules; "Benchmarks" the kernel report. README: a
 "Functions in expressions" section listing the built-ins, and the
 settings note that the table is rebuilt when the "most digits" setting
-changes (not the digits, which never rebuild it: D6). docs/builtins.md
-gains its implementation notes; docs/calculator.md's status line names
+changes (not the digits, which never rebuild it: D6). devdocs/design/builtins.md
+gains its implementation notes; devdocs/history/calculator-study.md's status line names
 stage 3 as landed and records the payload after `pnpm build` against the
 study's estimate, as the first stage 8 asked at the end of stages 3 and
 6; and the plan
@@ -2851,7 +2851,7 @@ Behavior: none; documentation.
 
 ## Stage 4: the `Scaled` midpoint and the decimal mode
 
-Firm in shape, as 4.0 settled it; docs/decimal.md is the design note and
+Firm in shape, as 4.0 settled it; devdocs/design/decimal.md is the design note and
 the reasoning, and this introduction lists what the note changed in the
 tasks as first written. The study's features 4 and 5 as one: the midpoint
 becomes a `Scaled`, a fraction times a power of ten (D13), and a decimal
@@ -2872,7 +2872,7 @@ for a large `e` are found in log space, through the memoized `ln 2` and
 the size of exact values and the alignment of sums, not the magnitude of
 an inexact result, which the exponent bound `MAX_EXPONENT` bounds.
 
-Revised by 4.0 against the stage 3 code (docs/decimal.md has each
+Revised by 4.0 against the stage 3 code (devdocs/design/decimal.md has each
 argument): the type is the one decimal exponent D13 wrote down, and the
 kernel's binary base stops at the kernel's boundary, a result being
 rounded onto the decimal grid of the working precision as it leaves
@@ -2902,7 +2902,7 @@ whatever the user's mode (4.6); `Precision` and `DEFAULT_PRECISION` move
 to rounding.ts (4.3); and
 4.10, added in review, is the built-in `approx(x)`, which marks a value
 as known only to the working precision and never narrows a radius its
-argument carries (docs/approximate.md), placed
+argument carries (devdocs/design/approximate.md), placed
 after 4.9 since it is a use of the exponent and needs nothing after it,
 with its two-argument form, an absolute uncertainty, left as future work
 with the retry loop's stopping rule it will need.
@@ -2924,7 +2924,7 @@ within the significand limit", "too large to compute: its exponent would pass
 
 ### 4.0 Design note
 
-docs/decimal.md: the `Scaled` type and its canonical form (D13), the
+devdocs/design/decimal.md: the `Scaled` type and its canonical form (D13), the
 alignment rule for sums and its `tooLarge`, the exponent bound (`10^18`),
 what "after every operation" means for a unit looked up, a power, a call,
 and a defined function's body (every result the evaluator produces is
@@ -3213,7 +3213,7 @@ by a unit or two: the interval refused any count whose two digits beyond
 lay within two of a boundary, which `sqrt(2) * 1e999999999` at fifty
 digits does (its 51st and 52nd digits are 48), and the distance is exact
 and has no margin
-(docs/decimal.md restated). `fixedToBall` adds the half unit only when
+(devdocs/design/decimal.md restated). `fixedToBall` adds the half unit only when
 the rounding moved the value, so a kernel value of no error on the grid
 is exact, as it was. A quotient at the exponent bound is located at the
 whole quotient, where a division by zero points at the divisor. The
@@ -3407,10 +3407,10 @@ boundary, the sums that settle first, certification by the digit
 interval, and the decimal mode's settle; "Size limits" for D16 restated;
 "Layout" for scaled.ts and digits.ts. README "Settings" for the mode,
 and "Functions in expressions" for the range of the inexact functions
-(`exp(1e6)` is a value; `exp(1e30)` is not). docs/builtins.md's rule on
+(`exp(1e6)` is a value; `exp(1e30)` is not). devdocs/design/builtins.md's rule on
 a large result and its implementation note on the limit.
-docs/calculator.md's status line names stage 4 as landed and the
-payload line is measured again after `pnpm build`. docs/decimal.md's
+devdocs/history/calculator-study.md's status line names stage 4 as landed and the
+payload line is measured again after `pnpm build`. devdocs/design/decimal.md's
 "Implementation notes" and the plan's "Stage 4 as it landed", in the
 style of "Stage 3 as it landed".
 
@@ -3419,10 +3419,10 @@ and rounding" with the settle in decimal mode and the one pass, "Working
 precision and the context", "Size limits", "UI", "Layout" and "Later"),
 README ("Settings" with the mode, "Functions in expressions" with the
 range of the inexact functions and `approx`, "Significand limit" with the free
-power of ten), docs/builtins.md (the rules under the two modes, the
+power of ten), devdocs/design/builtins.md (the rules under the two modes, the
 large-argument rules, the limit on large results, `approx`),
-docs/decimal.md and docs/approximate.md ("Implementation notes" written,
-the status lines), docs/calculator.md (the status line and the payload)
+devdocs/design/decimal.md and devdocs/design/approximate.md ("Implementation notes" written,
+the status lines), devdocs/history/calculator-study.md (the status line and the payload)
 and this plan ("Stage 4 as it landed"); much of it was written task by
 task as each landed, since every commit leaves the module headers and
 ARCHITECTURE.md truthful. The production build after stage 4 precaches
@@ -3530,7 +3530,7 @@ the bits of their value; a power of an inexact base likewise.
 
 ### 4.10 `approx(x)`
 
-Added in review of 4.0 (docs/approximate.md is the design). New
+Added in review of 4.0 (devdocs/design/approximate.md is the design). New
 `src/core/builtins/approx.ts`: a built-in of one argument of any
 dimension, kinds included, whose result has the argument's dimension
 (`sameAsArgument`, new in builtin.ts, the rule D14 describes for the
@@ -3544,7 +3544,7 @@ as it is; the evaluator settles the result as it settles every inexact
 one. In decimal mode the working digits are the user's `p`, and the
 mode's rounding follows as for every result. The
 retry loop needs no change, since the radius is the precision's and
-shrinks with each pass. docs/builtins.md and README "Functions in
+shrinks with each pass. devdocs/design/builtins.md and README "Functions in
 expressions" name it; the two-argument form, an absolute uncertainty,
 is future work the note lays out, with the retry loop's stopping rule
 it will need.
@@ -3570,7 +3570,7 @@ working digits are the context's precision in decimal mode and
 the settle rounds the result in the mode as it rounds every result; a
 zero midpoint, exact or not, is returned as it is, since a unit of the
 last digit of zero would be a unit of nothing. `approx` is named in
-docs/builtins.md's names, dimension table and layout, and in README
+devdocs/design/builtins.md's names, dimension table and layout, and in README
 "Functions in expressions". The tests' definitions file defines `G
 approx(6.674e-11) m^3` and a function whose body calls `approx`, and
 converts through both with `≈`.
@@ -3786,15 +3786,15 @@ corrected by the task that closes it:
 
 - The `#52` comments in scaled.ts, ball.ts, quantity.ts, table.ts,
   build.ts and hyperbolic.ts, ARCHITECTURE.md's three (rule 1, and two in
-  "Size limits"), and docs/decimal.md's go with H.14. convert.ts's, in
+  "Size limits"), and devdocs/design/decimal.md's go with H.14. convert.ts's, in
   `decompose` and `settled`, go with H.12, and the one in `ConvertError`'s
   doc goes with H.14.
 - ARCHITECTURE.md's `#48` goes with H.13, its `#53` with H.2, and its
   `#54` with H.8.
-- docs/builtins.md's `#49` goes with H.1.
-- docs/approximate.md's `#38`, `#39` and `#40` go with H.1, H.3 and H.15,
+- devdocs/design/builtins.md's `#49` goes with H.1.
+- devdocs/design/approximate.md's `#38`, `#39` and `#40` go with H.1, H.3 and H.15,
   and README's `#40` with H.15.
-- docs/decimal.md's `#50` and `#48` go with H.13, and its `#53` and `#47`
+- devdocs/design/decimal.md's `#50` and `#48` go with H.13, and its `#53` and `#47`
   with H.2 and H.7.
 - `farLogarithm`'s `#44` goes with H.4.
 
@@ -3827,7 +3827,7 @@ refused for its argument's size (#49). Zero within one is `tanh`'s whole
 range and certifies nothing, and the retry loop narrows the argument. The
 monotone ends `[tanh(lo), tanh(hi)]` would be tighter. They wait until an
 argument can carry a radius of its own that no pass narrows, the
-two-argument `approx` of docs/approximate.md.
+two-argument `approx` of devdocs/design/approximate.md.
 
 Tests:
 
@@ -3846,8 +3846,8 @@ Tests:
 
 Docs: fixed-exp.ts's header and `tanhFixed`'s doc; hyperbolic.ts's header,
 whose sentence that the guard never refuses `tanh` is false;
-docs/builtins.md, "The limit on large results" and the trivial bounds; the
-#38 clause of docs/approximate.md.
+devdocs/design/builtins.md, "The limit on large results" and the trivial bounds; the
+#38 clause of devdocs/design/approximate.md.
 
 Behavior: `tanh` of a wide argument is zero within one, where it was `±1`
 certified or a refusal.
@@ -3910,7 +3910,7 @@ already do. The docs say so.
 
 Docs: ARCHITECTURE.md's rule 2, whose exception for `exp` goes; fixed.ts's
 header and `fixedFromScaled`'s precondition; exp.ts's header ("A tiny
-argument needs no scaling"); docs/builtins.md; docs/decimal.md, "The
+argument needs no scaling"); devdocs/design/builtins.md; devdocs/design/decimal.md, "The
 kernel's boundary".
 
 Behavior: `exp` and the log-space power of a tiny argument are values
@@ -3943,8 +3943,8 @@ Tests:
   carries the settled third's radius, which crashed after twenty seconds.
 - exp.test.ts's wide-argument test becomes a containment test.
 
-Docs: fixed-exp.ts's header; the #39 clause of docs/approximate.md;
-docs/builtins.md's list of trivial bounds (an error of one half for `exp`,
+Docs: fixed-exp.ts's header; the #39 clause of devdocs/design/approximate.md;
+devdocs/design/builtins.md's list of trivial bounds (an error of one half for `exp`,
 which gets zero within the exponential of the upper end).
 
 Behavior: `exp` and `pow` of a wide argument are a ball around zero that
@@ -4038,7 +4038,7 @@ Tests:
 
 Docs: pow.ts's header; ball.ts's header on the root, and `positiveRoot`'s
 doc; `rootRadiusAbove`'s comment; ARCHITECTURE.md's rule 2 and its
-paragraph on the kernel; docs/builtins.md, `pow`.
+paragraph on the kernel; devdocs/design/builtins.md, `pow`.
 
 Behavior: the inputs above are values where they threw or were refused.
 H.4 edits other lines of `positiveRoot`, so the two go in one pull
@@ -4084,7 +4084,7 @@ Tests:
   its comment.
 - `approx(1.0000001)^1e30` and `pow(2, approx(1e400))` stay refused.
 
-Docs: pow.ts's header; docs/builtins.md's exact cases.
+Docs: pow.ts's header; devdocs/design/builtins.md's exact cases.
 
 Behavior: the four powers are exact values where they were refused.
 
@@ -4138,8 +4138,8 @@ Tests:
   where its square was refused as `overflow`. A ball around zero of radius
   `1e600000000000000000` stays `unresolved` at `1`.
 
-Docs: inverse-trig.ts's header; docs/builtins.md; ARCHITECTURE.md's rule
-2; docs/decimal.md, "The kernel's boundary", whose sentences H.2 edits
+Docs: inverse-trig.ts's header; devdocs/design/builtins.md; ARCHITECTURE.md's rule
+2; devdocs/design/decimal.md, "The kernel's boundary", whose sentences H.2 edits
 first.
 
 Behavior: the arguments of #47 give their angles or the domain error, and
@@ -4313,7 +4313,7 @@ The oracle, per case:
     never by doubles;
   - `tooLarge` only at the documented sites;
   - a domain error only for a ball outside the domain throughout, as
-    docs/builtins.md has it.
+    devdocs/design/builtins.md has it.
 - On a value:
   - the midpoint is zero or has a decimal exponent within `±10^18`, and
     `|mid| + rad` is below `10^(10^18+1)`, both compared exactly, save a
@@ -4412,7 +4412,7 @@ Tests:
 - The edge on `unresolved`: every producer's edge, and the three
   consumers pass it on (a test each, on the first commit).
 
-Docs: `settle`'s doc and ball.ts's header; docs/decimal.md, "The decimal
+Docs: `settle`'s doc and ball.ts's header; devdocs/design/decimal.md, "The decimal
 mode".
 
 Behavior: a settled midpoint past the top of the bound is refused in
@@ -4584,7 +4584,7 @@ Tests:
   `0e99999999999999999999999`, and of `1.5^5678870000000000000` (now
   `tooLarge`) change.
 
-Docs: docs/decimal.md, "The exponent bound" and "Which limit a refusal
+Docs: devdocs/design/decimal.md, "The exponent bound" and "Which limit a refusal
 names", whose examples reverse; ARCHITECTURE.md, "Numbers", rule 1 of
 "Precision and rounding", "Size limits" and "Formatting"; the headers of
 scaled.ts and ball.ts; messages.ts's comment on the literal's message.
@@ -4654,9 +4654,9 @@ Docs:
 
 - ARCHITECTURE.md: "Size limits", whose constant-factor argument goes, and
   rule 1.
-- docs/calculator.md's "Memory", which says exact growth is already
+- devdocs/history/calculator-study.md's "Memory", which says exact growth is already
   bounded.
-- docs/decimal.md, "The significand limit, restated".
+- devdocs/design/decimal.md, "The significand limit, restated".
 - README, "Significand limit": already says what is counted (the bits of what is
   stored, fives for a dyadic's twos) and what the app does at the limit,
   as D16 and D20 have it; this task removes its "not yet" on products and
@@ -4768,14 +4768,14 @@ Docs:
 
 - README, "Very large results and `approx`": the refusal needs the whole
   argument past the edge, and #40's workaround goes.
-- docs/approximate.md: "Two axes" changes, and "A related gap" goes.
-- docs/builtins.md: "The rules every built-in follows", whose result past
+- devdocs/design/approximate.md: "Two axes" changes, and "A related gap" goes.
+- devdocs/design/builtins.md: "The rules every built-in follows", whose result past
   the bound "is refused before anything is computed", and "The limit on
   large results", which names `expFits`.
-- docs/decimal.md: "The exponent bound", whose kernel guard refuses on the
+- devdocs/design/decimal.md: "The exponent bound", whose kernel guard refuses on the
   whole ball's magnitude; "Which limit a refusal names"; and "Decision:
   the bound stays" and "The kernel's boundary", which name `expFits`.
-- docs/approximate.md, "What raising the bound would take", which names
+- devdocs/design/approximate.md, "What raising the bound would take", which names
   `expFits` and says `unresolved` speaks of an edge.
 - fixed-exp.ts's header, which names `expFits`.
 - README's edge for `exp`, `10^18 ln 10`, which becomes
@@ -4816,7 +4816,7 @@ Tests: `pow(2, 1e-30000)`, `pow(2, 1e-999999999)` and
 negative number; `pow(2, 1e999999999)` stays `overflow`; pow.test.ts's two
 tests that pin the refusal change.
 
-Docs: pow.ts's header; docs/builtins.md.
+Docs: pow.ts's header; devdocs/design/builtins.md.
 
 ### H.17 The phase as it landed
 
@@ -4826,7 +4826,7 @@ with the issues each closed. The tasks above stay as they were written.
 ## Stage 5: the rational display
 
 Firm from its design note. 5.0 was written after the hardening phase
-landed (docs/fractions.md) and the stage revised against it: D21 added,
+landed (devdocs/design/fractions.md) and the stage revised against it: D21 added,
 the rule of "The rule" there in place of the four open questions below,
 `fraction: true` on the `exact` kind in place of `needsParentheses`, the
 setting named "Show reduced fractions", the fit rule marked provisional
@@ -4835,7 +4835,7 @@ fixed here.
 
 ### 5.0 Design note
 
-docs/fractions.md: the rules of feature 7, and the size at which an exact
+devdocs/design/fractions.md: the rules of feature 7, and the size at which an exact
 value's fraction gives way to the decimal display (`1e+999999999` is
 exact and short; its digits are not).
 
@@ -4925,7 +4925,7 @@ including the parenthesized, bare and list cases and the reciprocal
 ## Stage 6: the exact functions, then the Gamma and Beta families
 
 Firm from its design note. 6.0 was written after stage 5 landed
-(docs/special.md) and the stage revised against it: D22 added; `div`
+(devdocs/design/special.md) and the stage revised against it: D22 added; `div`
 added beside `mod`, `floor` and its kin on plain numbers, `round` to
 decimal places with no mode argument, and the factorials' refusal
 worded as their own (6.1); `gamma`'s propagation on balls rather than
@@ -4946,7 +4946,7 @@ factorials predict their size under D19.
 
 ### 6.0 Design note
 
-docs/special.md: the dimension rules of the exact functions (`abs`,
+devdocs/design/special.md: the dimension rules of the exact functions (`abs`,
 `sign`, `div` and `mod` take quantities, `abs` and `mod` keeping the
 dimension; `floor`, `ceil`, `trunc`, `round`, `gcd`, `lcm`, `factorial`,
 `binomial` and `doublefactorial` take plain numbers), `round(x, places)`
@@ -4982,7 +4982,7 @@ to the ceiling, of `sqrt(2)` exactly `1`; `gcd(-6, 4)` is `2`,
 `lcm(a, 0)` is `0`; `factorial(20000)` refused at the default with its
 message, `factorial(5000)` a value; `binomial(5, 7)` is `0`; a
 dimensioned `floor` the dimension-rule error; the sweep's rows. README
-("Functions in expressions") and docs/builtins.md ("Names") gain them.
+("Functions in expressions") and devdocs/design/builtins.md ("Names") gain them.
 
 ### 6.2 `digamma`
 
@@ -5002,7 +5002,7 @@ exact integer whose factorial fits the significand limit exact, one that does no
 the kernel's value (the factorial refusal's remedy), and the classifier
 on the `lgamma` ball as the guard at the exponent bound; propagation by
 running on balls, so `gamma` does not depend on `digamma`. The cost at
-the default ceiling measured and recorded in docs/calculator.md against
+the default ceiling measured and recorded in devdocs/history/calculator-study.md against
 the study's estimate.
 
 ### 6.4 `beta`
@@ -5043,14 +5043,14 @@ depend on it.
 
 ### 6.9 Stage 6 docs
 
-docs/special.md's implementation notes gathered; the payload measured
-and recorded in docs/calculator.md against its estimate; this plan's
+devdocs/design/special.md's implementation notes gathered; the payload measured
+and recorded in devdocs/history/calculator-study.md against its estimate; this plan's
 record of the stage, with 6.8's deferral noted wherever the plan speaks
 of it. README's list of built-ins grows with each task, not here.
 
 ## Stage 7: the user-function extensions
 
-Firm from its design note. 7.0 (docs/functions.md) was written after
+Firm from its design note. 7.0 (devdocs/design/functions.md) was written after
 stage 6 landed, and the stage was revised against D23 and D24, which
 came out of the owner's review of the syntax options and of the note.
 The tasks changed as follows:
@@ -5072,7 +5072,7 @@ with its five functions.
 
 ### 7.0 Design note
 
-docs/functions.md rewritten for D23. Written. It covers:
+devdocs/design/functions.md rewritten for D23. Written. It covers:
 
 - the grammar of a head and of a `~` line;
 - the scope of annotations and of conditions;
@@ -5140,7 +5140,7 @@ the check. The definitions syntax changes, so README ("The format",
 "Functions"), ARCHITECTURE.md ("Definitions", "Functions") and the
 module headers of definitions.ts, table.ts, build.ts, evaluate.ts and
 pipeline.ts describe the new form in this commit, and
-docs/functions.md's status says that 7.1 has landed.
+devdocs/design/functions.md's status says that 7.1 has landed.
 
 Tests:
 
@@ -5164,7 +5164,7 @@ single-parameter, as the study says, so a `~f` whose `f` takes several
 parameters is a build error. An empty parameter list, `c() = 3 m`, is
 allowed, as the note's grammar writes the list (`params?`) and as
 `pi()` takes none: a function of none is called `c()`, and has no
-inverse either (docs/functions.md, "Definitions").
+inverse either (devdocs/design/functions.md, "Definitions").
 
 Behavior: none visible with the system file, whose functions take one
 parameter; README's "Functions" says a defined function may take
@@ -5177,7 +5177,7 @@ a `~f` of a function of two parameters or of none.
 ### 7.3 Conditions
 
 The head reads `| condition, …` before the `=`, on a function and on an
-inverse, in the grammar of docs/functions.md ("Conditions"). A condition
+inverse, in the grammar of devdocs/design/functions.md ("Conditions"). A condition
 is a chain of comparisons in one direction, and conditions are
 separated by commas. The build takes each term's dimension with the
 parameters bound, holds adjacent terms to conformance, and requires
@@ -5198,7 +5198,7 @@ naming the condition. A condition undecided when the table is built fails the
 build. The want checks the have against the inverse's conditions, which
 are the inverse's own domain, and checks the recovered argument against
 the function's own conditions; no condition is ever checked against a
-result's value (docs/functions.md, "No assertion on a result"). units.txt gives `tempC` and `tempF` their
+result's value (devdocs/design/functions.md, "No assertion on a result"). units.txt gives `tempC` and `tempF` their
 conditions.
 
 How an assumption travels is this task's to choose: a list beside the
@@ -5258,14 +5258,14 @@ Tests:
 - the build's errors, including `| x > 0` for `x: K`;
 - the exact boundary under `<` and `<=`, and `0.1 + 0.2 <= 0.3`
   holding exactly;
-- each row of docs/functions.md's table of comparisons on balls,
+- each row of devdocs/design/functions.md's table of comparisons on balls,
   including a ball with an end exactly on the bound;
 - an exact comparison of values past the significand limit, never refused;
 - `-5 K` into `tempC` refused.
 
 ### 7.4 Stage 7 docs
 
-README "Functions", docs/functions.md's implementation notes, and
+README "Functions", devdocs/design/functions.md's implementation notes, and
 ARCHITECTURE.md "Functions". The README and ARCHITECTURE.md each gain
 two notes from D24: that calls are not memoized, so nesting costs what
 the expression written out would; and the caveats of compositions
@@ -5273,8 +5273,8 @@ against built-ins. The README also says what the warning of an assumed
 condition means, and how it differs from a refusal at a built-in's
 edge. ARCHITECTURE.md's "Later" loses its item on domain and range,
 conditions replacing the domain and the range being dropped
-(docs/functions.md, "No assertion on a result"), and points to the deferred issues (#130 to
-#133). docs/functions.md gains its implementation notes, and this plan
+(devdocs/design/functions.md, "No assertion on a result"), and points to the deferred issues (#130 to
+#133). devdocs/design/functions.md gains its implementation notes, and this plan
 its record of the stage.
 
 ### Deferred from stage 7
@@ -5299,7 +5299,7 @@ own, to study the options later:
   way to report warnings. The same change could warn about a body that
   seems to need the unit its parameter hides.
 - **Definitions typed into the converter** (D23, [#132](https://github.com/bsidhom/exucal/issues/132)).
-- **Dimension-generic functions** ([#133](https://github.com/bsidhom/exucal/issues/133); D23; docs/functions.md,
+- **Dimension-generic functions** ([#133](https://github.com/bsidhom/exucal/issues/133); D23; devdocs/design/functions.md,
   "Dimension-generic functions"). The issue covers the bracketed
   variables and the stand-in check, whether a literal `0` in a
   condition stands for zero in any dimension, and type bounds on the
@@ -5496,7 +5496,7 @@ landed it, 10% more, written the moment it is found). Each
 entry records the seed and the index that drew it, or the enumeration,
 with the commit, the date and the machine, so that it can be drawn again
 and its text read back. A run leaves its changes as a diff to
-`bench/stress/catalogue.json`, with the table of docs/cost.md
+`bench/stress/catalogue.json`, with the table of devdocs/cost.md
 regenerated, for review like any other change.
 
 Behavior: none; no test run includes the search. Tests, ordinary ones
@@ -5534,7 +5534,7 @@ and its tables; and `search.ts`, the command. The choices the task left open:
   worker failed (a throw, which is a bug) are both hangs, one per
   family. The catalogue logs every run, with its seed or the
   enumeration, the count of cases, the commit, the date and the machine.
-- **The table** is written into docs/cost.md between two markers once
+- **The table** is written into devdocs/cost.md between two markers once
   8.3 creates the file; the profile of each catalogued case as typed is
   8.3's too.
 
@@ -5545,7 +5545,7 @@ at the highest precision limit under the default significand limit, `digamma(-2.
 
 ### 8.3 The catalogue and the stress suite
 
-docs/cost.md gathers the catalogue, which runs of the search build up
+devdocs/cost.md gathers the catalogue, which runs of the search build up
 over time (8.2). It lists the costliest expressions found, by cause, with their timings on the machine the search ran on,
 what each pays for (the passes, the routine, the memo), and its profile
 as typed. Each entry names the issue that would make it cheaper: an open
@@ -5590,7 +5590,7 @@ ceiling in milliseconds. A hang records the issue filed for it.
 
 The first catalogue is the fixed enumeration plus one run of 596 cases from
 a fresh seed, `15bb91548182473c`.
-docs/cost.md gives the findings by cause:
+devdocs/cost.md gives the findings by cause:
 
 - The incomplete beta function, at 0.7 to 7 s a call at the defaults,
   is #150. `erf`, `erfc` and the incomplete gamma functions, at 0.3 to
@@ -5627,7 +5627,7 @@ machinery than the task needs. As it landed, the search is a sampler:
   A hit that joins is typed out and that is written too.
 - **The files are whole at every moment.** Each change is made under a
   lock file, from the catalogue as it is, and the catalogue and the
-  tables of docs/cost.md are formatted on Prettier's stdin and each
+  tables of devdocs/cost.md are formatted on Prettier's stdin and each
   written through a file renamed over it. So several runs can share a
   working tree, and whenever a run ends or is stopped, what it found is
   ready to commit, with nothing to resume and nothing to merge. The
@@ -5641,7 +5641,7 @@ machinery than the task needs. As it landed, the search is a sampler:
 - **Hangs rank.** A case past its deadline records the passes it
   finished, how long the running one had run and the schedule, and
   `estimateMs` (harness.ts) extends the passes along their growth in
-  precision to the end of the schedule: the hangs table of docs/cost.md
+  precision to the end of the schedule: the hangs table of devdocs/cost.md
   ranks them by that estimate.
 - **The stress suite targets functions.** `verify.ts`, `pnpm stress
 <function> ...`, measures again the catalogued cases that call the
@@ -5665,7 +5665,7 @@ No case hangs at the defaults. #118 links the catalogue as its target.
 
 ### 8.4 Stage 8 docs
 
-This plan's record of the stage, "Stage 8 as it landed"; docs/cost.md's
+This plan's record of the stage, "Stage 8 as it landed"; devdocs/cost.md's
 notes on what the search did not reach; README and ARCHITECTURE.md where
 the stage changed them.
 
@@ -5858,7 +5858,7 @@ ln(3) radian)` at the candidate's ceiling, and timing it found that
 - **3.13.** The payload after stage 3 is 94 KB of script (30 KB
   compressed), 46 KB (13 KB) above the study's baseline and above its
   estimate for the whole numeric program before the Gamma family exists,
-  recorded in docs/calculator.md with what the figure includes.
+  recorded in devdocs/history/calculator-study.md with what the figure includes.
 
 What stage 4 inherits: the midpoint is a `Rational`, an inexact one a
 dyadic whose size is its exponent, so `exp`, `sinh`, `cosh`, a power in
@@ -5892,7 +5892,7 @@ stage 5 inherits.
 - **4.0.** The design note settled on one decimal exponent after a first
   draft with two (a binary one beside it), the user's review having asked
   for the representation to follow from the design intent; `approx`
-  (docs/approximate.md, 4.10) came out of the same review, a built-in
+  (devdocs/design/approximate.md, 4.10) came out of the same review, a built-in
   rather than a syntax, never narrowing, with exact values keeping their
   radius of zero everywhere in exact mode.
 - **4.1.** The canonical form counts the fives of a denominator by
@@ -5953,7 +5953,7 @@ the two modes are one settle with two parameters, and the display
 certifies the exact expression's digits in both, marking a decimal-mode
 value that the roundings moved off its cell; `approx` is the one way to
 make an exact value inexact in exact mode, and its two-argument form
-waits on the retry loop's stopping rule docs/approximate.md lays out;
+waits on the retry loop's stopping rule devdocs/design/approximate.md lays out;
 the log-space
 conversion at the ceiling costs 47 ms, the logarithm and the two memos
 computed for the call, which a stage that runs it often may memoize at
@@ -5979,8 +5979,8 @@ statements the second changed.
   length (13 s for `exp(1e9000)`), the parts of the number type that are
   exact only within the bound (`log2Bounds`, and the guards in doubles)
   would be unsound beyond it, and a bound is needed anyway, so the bound
-  is kept by decision (docs/decimal.md, "Decision: the bound stays at
-  `10^18`"; docs/approximate.md, "`approx` and the exponent bound", with
+  is kept by decision (devdocs/design/decimal.md, "Decision: the bound stays at
+  `10^18`"; devdocs/design/approximate.md, "`approx` and the exponent bound", with
   the measurements; README, "Very large results and `approx`").
 - **Each limit refuses with an error of its own**
   ([#43](https://github.com/bsidhom/exucal/pull/43), fixing
@@ -5996,7 +5996,7 @@ statements the second changed.
   kind, and messages.ts words them "too large to compute within the significand
   limit", "too large to compute: its exponent would pass 10^18" and "too
   small to compute: its exponent would fall below -10^18"
-  (docs/decimal.md, "Which limit a refusal names"). The side is the sign
+  (devdocs/design/decimal.md, "Which limit a refusal names"). The side is the sign
   of the exponent that passes the bound in `scaled()`, and in the guards
   the sign of `exp`'s argument, of `y ln x` in `powLogSpace`, and of the
   midpoint's side of one in `powBall`, flipped for a negative power;
@@ -6266,7 +6266,7 @@ and 5.2 ([#93](https://github.com/bsidhom/exucal/pull/93),
 [#96](https://github.com/bsidhom/exucal/pull/96)), each reviewed and
 merged on its own, the tasks as revised against the design note:
 
-- **5.0.** docs/fractions.md, and D21 from the owner's ruling in its
+- **5.0.** devdocs/design/fractions.md, and D21 from the owner's ruling in its
   review: every exact value that is not an integer is a reduced fraction
   when it fits, an integer is written as the decimal display writes it,
   and an inexact value is a decimal, always; the alternative, a fraction
@@ -6294,7 +6294,7 @@ merged on its own, the tasks as revised against the design note:
   and the outcome's reciprocal are settled in decimal mode, which stage
   4 had left to the display's rounding; with an exact value no longer
   rounded by the display, `1 m` in `in` would have been `= (5000/127)
-in` in decimal mode. docs/decimal.md ("The decimal mode") says so in
+in` in decimal mode. devdocs/design/decimal.md ("The decimal mode") says so in
   place of "needs no settle of its own". Exact mode is unchanged.
 
 What stage 6 inherits: nothing new in the core's arithmetic; a display
@@ -6317,11 +6317,11 @@ own run ([#99](https://github.com/bsidhom/exucal/pull/99),
 [#111](https://github.com/bsidhom/exucal/pull/111),
 [#113](https://github.com/bsidhom/exucal/pull/113) and 6.9's), each
 reviewed and merged on its own; 6.8 did not land and is deferred (below).
-docs/special.md's "Implementation notes" has each task's departures
+devdocs/design/special.md's "Implementation notes" has each task's departures
 from the design in full; this is the record of the rulings and of what
 each task left behind:
 
-- **6.0** (#99). docs/special.md, and D22 from the owner's rulings in
+- **6.0** (#99). devdocs/design/special.md, and D22 from the owner's rulings in
   its review: `floor` and its kin on plain numbers, `div` and `mod` the
   floored pair, `gcd` and `lcm` non-negative, `round` to decimal places
   with no mode argument
@@ -6351,7 +6351,7 @@ each task left behind:
   case through `factorialOf`. Two rulings: the probe's composite
   (`src/limits.ts`) was not changed to time the new routines, and pull
   request titles say what the change does from here on. The costs
-  measured and recorded in docs/calculator.md: at a thousand digits 31
+  measured and recorded in devdocs/history/calculator-study.md: at a thousand digits 31
   and 34 ms a call, where the study's estimate said a second.
 - **6.4** (#105). `beta` through `logGamma`, exported from gamma.ts with
   the bits uncapped since the logarithms cancel; the poles decided
@@ -6426,11 +6426,11 @@ The re-read after 7.4. The stage landed as six pull requests: 7.0 to
 [#137](https://github.com/bsidhom/exucal/pull/137),
 [#138](https://github.com/bsidhom/exucal/pull/138),
 [#139](https://github.com/bsidhom/exucal/pull/139) and 7.4's), each
-reviewed and merged on its own. docs/functions.md's "Implementation
+reviewed and merged on its own. devdocs/design/functions.md's "Implementation
 notes" has each task's departures from the design in full; this is the
 record of the rulings and of what each task left behind:
 
-- **7.0** (#129). docs/functions.md rewritten, and D23 and D24 from the
+- **7.0** (#129). devdocs/design/functions.md rewritten, and D23 and D24 from the
   owner's review of the syntax options and of the note: signatures and
   `~` lines in place of the brackets, the inverse optional; an
   annotation a check of dimension that changes no value, a unit
@@ -6479,7 +6479,7 @@ record of the rulings and of what each task left behind:
   built-in (README already said, from 7.3, what the warning of an
   assumed condition means and how it differs from a refusal at a
   built-in's edge); ARCHITECTURE.md's "Later" without its item on
-  domain and range, pointing to #130 to #134; and docs/functions.md's
+  domain and range, pointing to #130 to #134; and devdocs/design/functions.md's
   implementation notes. After `pnpm build` the script is 177 KB (55 KB
   compressed), against 167 KB (52 KB) at the commit before 7.0 measured
   by the same build: the stage added about 11 KB of script (3.3 KB
@@ -6529,7 +6529,7 @@ what each left behind:
   fixed weights and no timing deciding what is drawn, at the owner's
   ruling; a fresh seed from the cryptographic source when none is given,
   recorded with the run, so that any case can be drawn again.
-- **8.3** (#153). The catalogue, docs/cost.md and the stress suite, and
+- **8.3** (#153). The catalogue, devdocs/cost.md and the stress suite, and
   the issues for the costs found: #149 and #150 for the series that
   divide at full precision on every term, #151 and #152 for the hangs at
   raised ceilings. Typing each entry out a keystroke at a time was added
@@ -6555,7 +6555,7 @@ what each left behind:
   become cheap stay, at the owner's question: there is one per family,
   so the file cannot grow without bound, and they guard the cost.
 - **8.4.** This record; the status lines of this plan, ARCHITECTURE.md
-  and docs/calculator.md; and docs/cost.md's notes on what the search
+  and devdocs/history/calculator-study.md; and devdocs/cost.md's notes on what the search
   has not reached. The stage's own pull requests added 112 bytes of
   script (46 compressed), the pass observer: after `pnpm build` the
   script is 177,515 bytes (54,680 compressed) at #145 against 177,403

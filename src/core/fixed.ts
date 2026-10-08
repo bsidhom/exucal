@@ -1,6 +1,6 @@
 // The fixed-point kernel: the representation every inexact function runs
-// on, and its exact operations with their error rules. devdocs/history/calculator-plan.md
-// (D9 and task 2.1) is the design. A kernel value is `{ value, error,
+// on, and its exact operations with their error rules. devdocs/numbers.md
+// ("The kernel's boundary") is the design. A kernel value is `{ value, error,
 // bits }`: the integer `value` stands for `value × 2^-bits`, and `error` is
 // an upper bound, in units of `2^-bits` (ulps), on how far that stands from
 // the number it approximates. Every operation here updates `error` by an
@@ -25,22 +25,22 @@
 // count grows by at least one per operation and a series of a thousand
 // terms spends ten of them.
 //
-// The roots are the first routines on the kernel (task 2.2): the square
-// root by Newton on the reciprocal square root, multiplications only with
-// the precision doubling (3.7 replaced the integer square root of the
-// argument's ends, which cost twice the cube root at the ceiling because
-// V8 divides big integers quadratically), and the root of any degree by
-// Newton in fixed point; either root's error is verified by raising the
-// result back to the power with the error rule rather than read off the
-// iteration, so that the argument's error and the iteration's rounding
-// enter one bound. The
-// elementary functions of stage 3 follow the same pattern, reduce the
+// The roots are the first routines on the kernel (devdocs/numbers.md,
+// "Roots and powers"): the square root by Newton on the reciprocal square
+// root, multiplications only with the precision doubling (an earlier
+// version took the integer square root of the argument's ends, which cost
+// twice the cube root at the ceiling because V8 divides big integers
+// quadratically), and the root of any degree by Newton in fixed point;
+// either root's error is verified by raising the result back to the power
+// with the error rule rather than read off the iteration, so that the
+// argument's error and the iteration's rounding enter one bound. The
+// elementary functions follow the same pattern, reduce the
 // argument, run a series on values of order one with the argument's error
 // included from the start, and bound the result from what was computed,
 // each in a module of its own beside this one (fixed-exp.ts, fixed-log.ts,
 // ...) on the operations here and the helpers exported for them:
 // `rebaseFixed`, `scaleFixed`, `divideFixedByInteger`, `exponentOf` and
-// `keepSignificant`, the last being D9's rule for a result's `bits`.
+// `keepSignificant`, the last being the kernel's rule for a result's `bits`.
 //
 // The kernel is entered from a `Scaled` or a ball (`fixedFromScaled`,
 // `fixedFromBall`, both rounding to nearest with the rounding counted: a
@@ -48,16 +48,17 @@
 // bounds with nothing formed, and any other has its power of ten formed
 // within four times the hard bound, which holds whatever a built-in hands
 // the kernel at any significand limit the settings allow) and
-// left through `fixedToBall` (devdocs/design/decimal.md, "The kernel's boundary"),
+// left through `fixedToBall` (devdocs/numbers.md, "The kernel's boundary"),
 // which rounds the dyadic `value × 2^-bits` to nearest at the working
 // digits it is given (`fixedToScaled`: a multiplication by a memoized power
 // of ten and a shift, the decimal exponent estimated from the bit length
 // and checked on the digits produced) and hands that back as the midpoint
 // with `error × 2^-bits` rounded up plus half a unit in the last digit as
-// the radius. Nothing here rounds in a rounding mode (D15): the mode is
-// the display's, applied once to a certified value. A routine whose result
-// can be large returns a `Floating`, a significand with a binary exponent
-// (4.9), which leaves through digits.ts. A violated precondition (an
+// the radius. Nothing here rounds in a rounding mode (devdocs/numbers.md,
+// "Settling"): the mode is the display's, applied once to a certified
+// value. A routine whose result can be large returns a `Floating`, a
+// significand with a binary exponent (devdocs/numbers.md, "The exponent
+// bound"), which leaves through digits.ts. A violated precondition (an
 // unbounded ball, a divisor whose interval contains zero, a negative
 // `bits`) is a programming error and throws `RangeError`, as `rational`
 // does; the ball layer decides what such values mean before calling in.
@@ -134,10 +135,11 @@ export function fixedFromRational(r: Rational, bits: number): Fixed {
 
 /**
  * The bits within which `fixedFromScaled` forms a value's power of ten:
- * four times the hard bound, which holds any significand within the range
+ * four times the hard bound, which holds any significand within the significand
  * limit at a magnitude between `2^-significandLimitBits` and `2^significandLimitBits` (about three
  * times the hard bound in all), the most a built-in hands the kernel at
- * any significand limit the settings allow (H.2 of the plan, issue #56).
+ * any significand limit the settings allow (devdocs/numbers.md, "The
+ * kernel's boundary").
  */
 const FORMABLE_BITS = 4 * MAX_SIGNIFICAND_LIMIT_BITS;
 
@@ -146,11 +148,11 @@ const FORMABLE_BITS = 4 * MAX_SIGNIFICAND_LIMIT_BITS;
  * converts the fraction it denotes. A nonzero value below half an ulp at
  * `bits` is zero within one ulp, which is what that rounding gives it,
  * decided from the coarse bounds without forming its power of ten, so
- * that `exp(1e-999999999)` and `atan2`'s tiny ratio reach the kernel
- * (issues #53 and #47); any other value has its power of ten formed
- * within `FORMABLE_BITS`, and one past that is a precondition failure: a
- * routine that takes the value itself bounds its argument first
- * (devdocs/design/decimal.md, "The kernel's boundary").
+ * that `exp(1e-999999999)` and `atan2`'s tiny ratio reach the kernel;
+ * any other value has its power of ten formed within `FORMABLE_BITS`,
+ * and one past that is a precondition failure: a routine that takes the
+ * value itself bounds its argument first (devdocs/numbers.md, "The
+ * kernel's boundary").
  */
 export function fixedFromScaled(s: Scaled, bits: number): Fixed {
   checkBits(bits);
@@ -186,8 +188,9 @@ export function fixedFromBall(b: Ball, bits: number): Fixed {
 /**
  * The value of `f`, `value × 2^-bits`, rounded to nearest at `digits`
  * significant decimal digits: the way out of the kernel onto the decimal
- * grid of the working precision (devdocs/design/decimal.md), a multiplication by a
- * power of ten and a shift, with nothing rounded in a mode. The decimal
+ * grid of the working precision (devdocs/numbers.md, "The kernel's
+ * boundary"), a multiplication by a power of ten and a shift, with
+ * nothing rounded in a mode. The decimal
  * exponent is found from the value's bit length and checked on the digits
  * produced, since the estimate can be one off next to a power of ten.
  */
@@ -262,8 +265,8 @@ export function fixedToBall(f: Fixed, digits: Precision): Ball {
 
 /**
  * A kernel result with a binary exponent, `significand × 2^exp`, for the routines
- * whose result can be large (4.9 of the plan; devdocs/design/decimal.md, "The
- * kernel's boundary"): the exponential and, through it, the hyperbolic
+ * whose result can be large (devdocs/numbers.md, "The kernel's boundary"
+ * and "The exponent bound"): the exponential and, through it, the hyperbolic
  * functions. The significand is a `Fixed` of the working bits, normalized to
  * `[1, 2)` by `normalizeFloating`, and the exponent is a bigint the
  * exponent bound holds, never a value of the result's bits. It leaves the
@@ -362,8 +365,8 @@ export function subtractFixed(a: Fixed, b: Fixed): Fixed {
  * an ulp of the larger), which is the product of the aligned values
  * shifted down by the larger, so that an operand of fewer bits costs a
  * multiplication of its own size and not the other's (the series of
- * fixed-gamma.ts cut their multipliers to the bits a term still needs,
- * #117); the error is `|a| eb + |b| ea + ea eb` shifted down by the same
+ * fixed-gamma.ts cut their multipliers to the bits a term still needs);
+ * the error is `|a| eb + |b| ea + ea eb` shifted down by the same
  * and rounded up, the bound for the product over the two intervals, plus
  * one for the shift when it discarded anything.
  */
@@ -432,8 +435,9 @@ export function rebaseFixed(f: Fixed, bits: number): Fixed {
 }
 
 /**
- * `f` with its `bits` chosen for its magnitude (D9): a result of magnitude
- * `2^k` keeps `bits` significant bits, so it is truncated to `bits - k`
+ * `f` with its `bits` chosen for its magnitude (devdocs/numbers.md, "The
+ * kernel's boundary"): a result of magnitude `2^k` keeps `bits`
+ * significant bits, so it is truncated to `bits - k`
  * fraction bits (none for a value at or above `2^bits`) when it has more,
  * and kept as it is when it has fewer, since truncation cannot add
  * accuracy. A zero value is kept as it is.
@@ -491,8 +495,7 @@ const SQRT_GUARD = 16;
  * `n`, so `n × 2^-working` must stay below one half for its check to
  * pass (past that, `pow(3, 1e-30)` threw "Newton's root is not within
  * half of its argument"). Both hold to `2^32` with room; a larger degree
- * is taken in log space by the ball, as `x^(1/n) = exp(ln x / n)`
- * (issues #45 and #57).
+ * is taken in log space by the ball, as `x^(1/n) = exp(ln x / n)`.
  */
 export const ROOT_DEGREE_LIMIT = 1n << 32n;
 
@@ -513,7 +516,7 @@ export const ROOT_DEGREE_LIMIT = 1n << 32n;
  * the logarithm takes eight of). The argument's own error enters the same
  * bound, and no derivative bound is needed. The work is done `SQRT_GUARD`
  * bits beyond the result, which keeps the argument's significant bits for
- * a root of magnitude `2^k` (D9): `bits - k` fraction bits.
+ * a root of magnitude `2^k`: `bits - k` fraction bits.
  */
 export function sqrtFixed(f: Fixed): Fixed {
   checkPositive(f);
@@ -595,7 +598,7 @@ function reciprocalSqrt(m: bigint, bits: number): bigint {
  * within twice its argument). The argument's own error thus enters the
  * same bound, and no separate derivative bound is needed. The result's
  * `bits` keep the argument's significant bits for a root of magnitude
- * `2^k` (D9).
+ * `2^k`.
  */
 export function rootFixed(f: Fixed, degree: bigint): Fixed {
   if (degree < 1n) throw new RangeError("Root degree must be positive");

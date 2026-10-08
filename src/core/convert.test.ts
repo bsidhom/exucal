@@ -534,7 +534,8 @@ test("a count carries its exponent, and one whose integer part cannot be formed 
   // `1e999999999 m` over a unit of `3 m`: the ratio `3.333...e999999998`
   // has an integer part of a billion digits, which cannot be formed
   // within the significand limit, so the count is the midpoint settled toward
-  // zero at the working digits (D8 as 4.4 amended it), an integer of that
+  // zero at the working digits (devdocs/architecture.md, "Unit lists"), an
+  // integer of that
   // many digits, and the remainder is what that count leaves, exactly.
   const three = quantity("3", { m: 1 });
   const [count, rest] = terms(
@@ -659,7 +660,8 @@ test("an empty list is a programming error", () => {
 
 test("a count whose ratio straddles an integer is that integer, and the remainder is then around zero", () => {
   // A have of 360 ± 1e-30 degrees in degrees and minutes, the case of
-  // units that carry a radius (D8 as amended at 3.4): the ratio straddles
+  // units that carry a radius (devdocs/architecture.md, "Unit lists"): the
+  // ratio straddles
   // 360, so the count is 360 and the remainder a ball around zero, not
   // 359 and a whole degree of minutes.
   const degree = quantity("1", { deg: 1 });

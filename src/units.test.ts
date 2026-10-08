@@ -137,7 +137,7 @@ const PI = number(
 /**
  * Asserts that `have` converts to `want` inexactly, that the ball contains
  * `expected`, and that it certifies thirty digits at the working precision
- * of forty: what a unit defined through `pi()` gives (the plan's 3.4).
+ * of forty: what a unit defined through `pi()` gives.
  */
 function assertApproximates(
   have: string,
@@ -167,9 +167,10 @@ function assertApproximates(
 // The file as a whole
 
 test("the file builds at the least significand limit the settings allow", () => {
-  // Every exact result is held to the significand limit at the node (D19), so a
-  // definition past it would fail the build; the shipped file is nowhere
-  // near, at `MIN_SIGNIFICAND_LIMIT_BITS` and the ceiling that limit allows.
+  // Every exact result is held to the significand limit at the node
+  // (devdocs/numbers.md, "The significand limit"), so a definition past it
+  // would fail the build; the shipped file is nowhere near, at
+  // `MIN_SIGNIFICAND_LIMIT_BITS` and the ceiling that limit allows.
   const parsed = parseDefinitions(text);
   assert.ok(parsed.ok);
   const ceiling = ceilingFor(precisionLimitFor(MIN_SIGNIFICAND_LIMIT_BITS));
@@ -331,8 +332,9 @@ test("the logarithmic units are functions: the decibel, the bel and the neper", 
   assertCall("1000", "bel", "3");
   assertCall("100", "decibel", "20");
   assertCall("0.1", "decibel", "-10");
-  // Inexact through the log-space route of `pow` (the plan's 3.8):
-  // references from Python's decimal module.
+  // Inexact through the log-space route of `pow`
+  // (devdocs/numbers.md, "Roots and powers"): references from Python's
+  // decimal module.
   assertApproximates(
     "decibel(23.4)",
     "1",
@@ -361,8 +363,9 @@ test("the logarithmic units are functions: the decibel, the bel and the neper", 
   );
   // A large decibel is a power of ten, which the exponent takes: a value
   // (`10^100000.1`), and a large neper has the exponential's range, the
-  // exponent bound (4.9): `neper(1000001)` is `e^100000.1`, and
-  // `neper(1e30)` is too large; and `e` is still the elementary charge.
+  // exponent bound (devdocs/numbers.md, "The exponent bound"):
+  // `neper(1000001)` is `e^100000.1`, and `neper(1e30)` is too large; and
+  // `e` is still the elementary charge.
   const huge = convertText(table, "decibel(1000001)", "1", CONTEXT);
   assert.ok(huge.ok && huge.value.kind === "unit", inspect(huge));
   assert.deepEqual(
@@ -397,8 +400,9 @@ test("the logarithmic units are functions: the decibel, the bel and the neper", 
 });
 
 test("in decimal mode a unit is settled to the digits in the rounding mode when it is looked up", () => {
-  // 1 surveyfoot in m: 1200/3937, rounded to 0.30480061, exact (D26); 1 ft
-  // in in is exact in either mode.
+  // 1 surveyfoot in m: 1200/3937, rounded to 0.30480061, exact
+  // (devdocs/numbers.md, "Decimal mode"); 1 ft in in is exact in either
+  // mode.
   const decimal = { ...CONTEXT, precision: 8, mode: "decimal" as const };
   const survey = convertText(table, "1 surveyfoot", "m", decimal);
   assert.ok(survey.ok && survey.value.kind === "unit", inspect(survey));
@@ -419,7 +423,7 @@ test("in decimal mode a unit is settled to the digits in the rounding mode when 
     },
   );
   // Under a directed mode the rounded value is the value, exact, with no
-  // radius to put its last digit in doubt (D26): 2 / 3 is 0.66666666 and
+  // radius to put its last digit in doubt: 2 / 3 is 0.66666666 and
   // the survey foot 0.3048006 toward zero.
   const down = { ...decimal, rounding: "towardZero" as const };
   const twoThirds = evaluateText(table, "2 / 3", down);
@@ -479,7 +483,8 @@ test("angles are a kind of their own", () => {
   ]);
   // The angle units call `pi()`, so a conversion between them is a ratio
   // of two inexact values: it certifies its digits and is `≈`, never `=`,
-  // however round it is (the study accepts the conservative `≈`).
+  // however round it is (the conservative `≈` is the display rule's,
+  // devdocs/numbers.md, "Certification and the display rule").
   assertApproximates("1 turn", "deg", rational(360n));
   assertApproximates("1 deg", "arcsec", rational(3600n));
   assertApproximates("1 gon", "deg", number("0.9"));
@@ -800,9 +805,9 @@ test("the unit lists convert", () => {
   assertList("100000 s", "dhms", ["1", "3", "46", "40"]);
   // The angle units carry `pi()`'s radius, and `deg` and `arcmin` were each
   // settled on their own, so `0.5 deg / arcmin` is `30 ± ε`, straddling 30:
-  // the count is 30 (D8 as amended at 3.4) and the last term a ball around
-  // zero, which the display leaves out; `roundTerms` then has nothing to
-  // round and returns the terms as they are.
+  // the count is 30 (devdocs/architecture.md, "Unit lists") and the last
+  // term a ball around zero, which the display leaves out; `roundTerms`
+  // then has nothing to round and returns the terms as they are.
   const dms = table.unitLists.get("dms")!;
   const raw = convertToList(
     quantity("1.5 deg"),

@@ -19,12 +19,13 @@
 // digits asked for take, up to the ceiling, `roundTerms` and `show` round
 // to the context's digits in its mode, and `=` is decided at those digits.
 //
-// What is shown is what `show` certifies (devdocs/history/calculator-plan.md, D7 and
-// task 2.6): every digit asked for when the value allows, and otherwise
-// the certified digits with a note saying how many of those asked for are
-// certain, `≈ 0` with a note giving the bound within which the value lies
-// when it cannot be told from zero, or the midpoint's digits with a note
-// that none is certified when the radius is not known. A list is certified
+// What is shown is what `show` certifies
+// (devdocs/numbers.md, "Certification and the display rule"): every digit
+// asked for when the value allows, and otherwise the certified digits
+// with a note saying how many of those asked for are certain, `≈ 0` with
+// a note giving the bound within which the value lies when it cannot be
+// told from zero, or the midpoint's digits with a note that none is
+// certified when the radius is not known. A list is certified
 // on its unrounded terms, since `roundTerms` moves the remainder's midpoint
 // onto a rounding cell's edge in a directed mode, where re-certifying it
 // would lose a digit; the remainder is then rounded at the digits
@@ -51,7 +52,7 @@
 // a value of zero, which has no reciprocal.
 //
 // A value computed under a condition that could not be decided
-// (devdocs/design/functions.md, "An undecided condition") is shown all the same,
+// (devdocs/functions.md, "An undecided condition") is shown all the same,
 // with a warning for each condition it assumes, worded by messages.ts, and
 // every line's relation `≈` whatever its digits; the reciprocal line, a
 // list's line and a function want's line carry it alike, since the
@@ -108,10 +109,10 @@ import {
  * of which is shown, `≈` for a rounded or an inexact one, and, in decimal
  * mode alone, the `≈` sign bearing a dot above it (U+2248 U+0307) for a
  * value that is exact under the mode's rounding but one of whose steps
- * could not be certified at the ceiling (D26; devdocs/design/decimal-mode.md, "The
- * ceiling"): an equality-like sign with a special meaning, that the value
- * is not known to be equal. The component draws the dot itself over the
- * `≈`; this is the text form.
+ * could not be certified at the ceiling
+ * (devdocs/numbers.md, "Decimal mode"): an equality-like sign with a
+ * special meaning, that the value is not known to be equal. The
+ * component draws the dot itself over the `≈`; this is the text form.
  */
 export type Relation = "=" | "≈" | typeof UNCERTIFIED;
 
@@ -177,7 +178,7 @@ export function displayText(line: Line): string {
 /** What `outcomeOf` takes beside the texts: the user's context, the ratio notation's settings when the notation is `ratio`, and an observer of the passes. */
 export type OutcomeOptions = {
   readonly context: NumberContext;
-  /** The ratio notation's settings (devdocs/design/ratio-width.md); absent is the digits notation. */
+  /** The ratio notation's settings (devdocs/notation.md, "The rule"); absent is the digits notation. */
   readonly ratio?: RatioDisplay;
   /** Sees each pass of the retry loop (pipeline.ts), for the stress harness. */
   readonly observe?: PassObserver;
@@ -198,10 +199,11 @@ export function outcomeOf(
 ): Outcome {
   if (haveText.trim() === "") return { kind: "empty" };
   const assumptions: Assumption[] = [];
-  // The ratio notation is exact mode's (D26; devdocs/design/decimal-mode.md, "The
-  // display"): in decimal mode every value is a decimal of the digits
-  // asked for, which its digits write entire, so `show` is never given
-  // the ratio notation there, whatever the setting says.
+  // The ratio notation is exact mode's
+  // (devdocs/numbers.md, "Decimal mode"): in decimal mode every value is a
+  // decimal of the digits asked for, which its digits write entire, so
+  // `show` is never given the ratio notation there, whatever the setting
+  // says.
   const outcome = outcomeAssuming(
     table,
     haveText,
@@ -313,9 +315,10 @@ function outcomeAssuming(
  * the second line is left out rather than shown as anything. The
  * reciprocal is a step of the expression (`step`), settled in exact mode
  * and in decimal mode rounded once, the mode's rounding of every step
- * (D15, D26), so that `1/3` is `0.33333333` there, exact, as it is in the
- * first line; the rest of what the reciprocal lacks from the pipeline
- * (its retry in exact mode, and a word on a refusal) is issue #92's.
+ * (devdocs/numbers.md, "Settling" and "Decimal mode"), so that `1/3` is
+ * `0.33333333` there, exact, as it is in the first line; the rest of what
+ * the reciprocal lacks from the pipeline (its retry in exact mode, and a
+ * word on a refusal) is issue #92's.
  */
 function unitResult(
   conversion: Extract<Conversion, { kind: "unit" }>,
@@ -338,7 +341,8 @@ function unitResult(
  * `context`: `=` for an exact value, `≈` otherwise, and a note for the
  * kinds that do not show every digit asked for. With the ratio notation
  * (`ratio`), an exact value is written entire where it fits its width
- * (devdocs/design/ratio-width.md). With no `unit`, the value is a plain number.
+ * (devdocs/notation.md, "The rule"). With no `unit`, the value is a plain
+ * number.
  */
 function line(
   have: Expr,
@@ -398,11 +402,11 @@ function numberExpr(text: string): Expr {
  * alone with no unit, negated when `negative`. A ratio is the quotient
  * of its two literals, with the sign on the numerator as the display
  * wrote it (`-5000/127`, and `(-5000/127) in` where a unit follows, the
- * printer parenthesizing the ratio; devdocs/design/fractions.md, "Where a fraction
- * is written"), times its power of ten when the display scaled it
- * (`1/3 × 1e+30`, parenthesized before a unit too; devdocs/design/ratio-width.md);
- * any other value is its literal, and the quantity negated whole
- * (`-3 ft`).
+ * printer parenthesizing the ratio;
+ * devdocs/notation.md, "Where a ratio is written"), times its power of
+ * ten when the display scaled it (`1/3 × 1e+30`, parenthesized before a
+ * unit too); any other value is its literal, and the quantity negated
+ * whole (`-3 ft`).
  */
 function quantityExpr(
   shown: Shown,

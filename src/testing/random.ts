@@ -5,8 +5,8 @@
 // pulled out of a loop or reordered without moving every draw after it.
 // Nothing in the app imports this directory: it is test support beside
 // the core, checked with the tests by tsconfig.node.json and left out of
-// the app's program. devdocs/history/calculator-plan.md (task 1.3 and the follow-up
-// after stage 3) places it; devdocs/benchmarks.md says what the
+// the app's program. devdocs/testing.md ("The random source") describes
+// it; devdocs/benchmarks.md ("How the benchmarks are built") says what the
 // benchmarks draw from it.
 //
 // The design is JAX's. A `Key` is two 32-bit words. `split(key, n)` makes

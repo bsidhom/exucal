@@ -258,8 +258,9 @@ test("a value too large to compute names the limit it passes, and one too small 
     '"3^1000000000" would need a significand of about 1,584,962,501 bits as an exact value, past the significand limit. Try "approx(3)" in place of "3", or decimal mode, to compute it to the digits asked.',
   );
   // An exact result formed and measured past the significand limit names the node
-  // and the remedy (the plan's D20), and the remedy works; a power's
-  // prediction, above, keeps the plain wording.
+  // and the remedy (devdocs/numbers.md, "Which limit a refusal names"),
+  // and the remedy works; a power's prediction, above, keeps the plain
+  // wording.
   assert.equal(
     textMessage("3^32767 * 7^21845", withApp),
     '"3^32767 * 7^21845" would need a significand of about 113,262 bits as an exact value, past the significand limit. Try "approx(3^32767)" in place of "3^32767", or decimal mode, to compute it to the digits asked.',

@@ -1,8 +1,8 @@
-// The cost harness of stage 8 (devdocs/history/calculator-plan.md, task 8.1): what one
+// The cost harness (devdocs/benchmarks.md, "The harness"): what one
 // case costs the interface. A case is the two texts and the settings, the
 // panel's own (`Settings` of settings.ts), and what is measured is what
 // the converter runs on every keystroke, `outcomeOf` (outcome.ts), in wall
-// time. The search (8.2) and the stress suite (8.3) are built on it.
+// time. The search and the stress suite are built on it.
 //
 // Each case runs in a `Worker` of its own, so that it starts cold: the
 // constants' memos, the Bernoulli run and the table are module state, and a

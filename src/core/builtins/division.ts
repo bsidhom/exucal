@@ -1,5 +1,5 @@
-// `div` and `mod` (devdocs/design/special.md, "The exact functions"; the plan's
-// 6.1 and D22): floored division and its remainder as one definition,
+// `div` and `mod` (devdocs/builtins.md, "The exact functions"): floored
+// division and its remainder as one definition,
 // `div(a, b) = floor(a / b)` and `mod(a, b) = a - b × div(a, b)`, so that
 // `a = b × div(a, b) + mod(a, b)` exactly and the remainder is zero or has
 // the divisor's sign (Boute's F-division). Both take two quantities of one

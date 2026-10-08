@@ -1,8 +1,8 @@
 // The ratios of consecutive Bernoulli numbers, `|B_(2k+2) / B_2k|`, in
 // fixed point, memoized: what the asymptotic series of `digamma` and
-// `lgamma` take (fixed-gamma.ts; devdocs/design/special.md, "Bernoulli numbers"),
-// each term being the last times the ratio, an index factor and `1 /
-// y^2`. The exact numbers (bernoulli.ts) served the series before #117,
+// `lgamma` take (fixed-gamma.ts; devdocs/builtins.md, "The Gamma and Beta
+// families"), each term being the last times the ratio, an index factor
+// and `1 / y^2`. The exact numbers (bernoulli.ts) once served the series,
 // and a term was scaled by a numerator of twenty thousand bits and
 // divided by the denominator, more work than the precision warranted,
 // while the memo of exact rationals held about 1.8 MB at the default
@@ -29,7 +29,7 @@
 // the run's bits can have; a call at fewer bits needs fewer bits of every
 // ratio it takes, since its terms are of its own working bits, which
 // fall faster with the bits than the shifted argument's logarithm raises
-// the terms (the prototype in #117 measured the slack at every size, and
+// the terms (a prototype measured the slack at every size, and
 // the series' own error accounting carries a ratio's truncation whatever
 // its bits, so a shortfall would loosen a bound and never break it). A
 // request beyond the run, a prediction's shortfall, grows it by a quarter

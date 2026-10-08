@@ -1,4 +1,4 @@
-// The edge sweep at the ball level (devdocs/history/calculator-plan.md, H.10): every
+// The edge sweep at the ball level (devdocs/testing.md, "The edge sweeps"): every
 // built-in of `BUILTINS`, enumerated by arity so that a function added
 // later joins it, the four exact operations of the ball, `powBall`,
 // `rootBall` and `step`, run over the classes of arguments at the edges
@@ -7,11 +7,12 @@
 // decimal mode too. Each case is checked against the oracle
 // src/testing/edges.ts states: no throw; a refusal only where the
 // decisions allow one (an `overflow` or `underflow` only when every value
-// of the true result passes the bound, D18; `tooLarge` only at a
+// of the true result passes the bound, devdocs/numbers.md ("The exponent
+// bound"); `tooLarge` only at a
 // documented site; a domain error only for an argument outside the domain
 // throughout; an `unresolved` is retried by the pipeline and never a
 // violation, an exact argument's included); and, for a value,
-// D17's two conditions, the known points (`sin(0)`, `exp(0)`, `pow(1, y)`,
+// the bound's two conditions, the known points (`sin(0)`, `exp(0)`, `pow(1, y)`,
 // the exact result of a sum or a product where it can be formed), and the
 // range facts (`|tanh| <= 1`, `acos` in `[0, pi]`, `exp` positive). The
 // cases run in a worker under a deadline, and the known violations are
@@ -472,7 +473,7 @@ function incompleteGammaRules(): [string, Partial<Operation>][] {
       domain: ([s, x]) =>
         (isExactInterval(s!) && sign(s!.lo) <= 0) ||
         (isExactInterval(x!) && sign(x!.lo) < 0),
-      // The refusals: the bits the logarithm would need past the range
+      // The refusals: the bits the logarithm would need past the significand
       // limit, or neither route within its limit, at the argument or at
       // either end of a wide one.
       tooLarge: ([s, x], context) =>
@@ -713,7 +714,8 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
     },
   ],
   ["ln", { domain: ([x]) => nonpositive(x!), known: at(ONE, ZERO) }],
-  // The exact functions (6.1): exact references over the midpoints, the
+  // The exact functions (devdocs/builtins.md, "The exact functions"): exact
+  // references over the midpoints, the
   // domain of the integer functions, and the refusals their size
   // predictions and the quotient's floor document.
   ["abs", { reference: ([x]) => absolute(x!) }],
@@ -986,10 +988,12 @@ const BUILTIN_RULES: ReadonlyMap<string, Partial<Operation>> = new Map<
     "pow",
     {
       magnitude: ([x, y]) => powerMagnitude(x!, y!),
-      // An exact exponent whose fraction cannot be formed within the range
-      // limit is refused as documented (H.9, until H.16), and so is an
-      // integer power of an exact base whose predicted size passes it, as
-      // `^` is.
+      // An exact exponent whose fraction cannot be formed within the
+      // significand limit may be refused (devdocs/numbers.md, "The
+      // significand limit"), as `^` refuses it, though `pow` takes it to
+      // log space (devdocs/numbers.md, "Roots and powers"; #88), and so
+      // may an integer power of an exact base whose predicted size passes
+      // it, as `^`'s is.
       tooLarge: ([x, y], context) =>
         isExact(y!) &&
         (!formable(y!.mid, context.significandLimitBits) ||
@@ -1188,11 +1192,11 @@ function ballOperations(): (Operation & { arity: number })[] {
     magnitude: ([a, b]) =>
       valueMagnitude(addIntervals(a!, op === "add" ? b! : negateInterval(b!))),
     // In decimal mode the operands are settled first, so an operand whose
-    // rounding passes the top refuses the sum (D17).
+    // rounding passes the top refuses the sum (devdocs/numbers.md, "The exponent bound").
     settles: true,
     // Two exact operands whose aligned sum passes the significand limit,
     // by its alignment or by the bound of its unreduced sum, are
-    // `tooLarge` in exact mode, as documented (D19 as amended).
+    // `tooLarge` in exact mode, as documented (devdocs/numbers.md, "The significand limit").
     tooLarge: ([a, b], context) =>
       isExact(a!) &&
       isExact(b!) &&
@@ -1288,7 +1292,7 @@ function ballOperations(): (Operation & { arity: number })[] {
  * Whether `pow` in rational.ts predicts the exact power `mid^n` past the
  * significand limit of `context`, for an integer `n`: `floor(|n| log2 p) + 1`
  * for `p` the larger of the significand's two parts, the prediction that
- * refuses `3^1000000000` and holds `2^65535` (D19 as amended).
+ * refuses `3^1000000000` and holds `2^65535` (devdocs/numbers.md, "The significand limit").
  */
 function predictedPastLimit(
   mid: Scaled,
@@ -1309,7 +1313,8 @@ function predictedPastLimit(
 
 /**
  * The bits the exact sum of `a` and `b` is predicted to take before it is
- * formed (D19 as amended): the operand shifted to the lesser exponent,
+ * formed (devdocs/numbers.md, "The significand limit"): the operand
+ * shifted to the lesser exponent,
  * its numerator's bits and the shift's power of ten, and then the bound
  * of the unreduced sum of the aligned fractions, the cross products over
  * the denominators' product with their common factor taken out; past
@@ -1406,7 +1411,8 @@ function judge(
     }
   }
   const value = result.value;
-  // A ball around zero may reach below the bottom edge (D17), so a result
+  // A ball around zero may reach below the bottom edge (devdocs/numbers.md,
+  // "The exponent bound"), so a result
   // that is surely past it may still come back as zero within a bound,
   // when the operation's own radius rule cannot exclude zero; past the
   // top no value is sound.
@@ -1423,7 +1429,7 @@ function judge(
     if (reference !== undefined) {
       const s = scaledOf(reference);
       if (s === undefined) {
-        // Past the bottom, a ball around zero is a sound answer (D17).
+        // Past the bottom, a ball around zero is a sound answer.
         if (decimalExponent(reference) < -MAX_EXPONENT && containsZero(value))
           return undefined;
         return "a value where the exact result of the midpoints passes the bound";
@@ -1439,7 +1445,7 @@ function judge(
 }
 
 /**
- * The oracle for decimal mode (D26; devdocs/design/decimal-mode.md): the operation
+ * The oracle for decimal mode (devdocs/numbers.md, "Decimal mode"): the operation
  * is run as the evaluator runs it, on operands rounded to the context's
  * digits in its mode (an operand the rounding carries past the bound is
  * refused before the operation, and is not the operation's to judge), at
@@ -1492,7 +1498,8 @@ function judgeDecimal(
       case "tooLarge":
         // The evaluator answers these by its own rules on top of the ball
         // operation: a sum that does not align by the neighbor rule, a
-        // power that does not fit on the widened base (D26).
+        // power that does not fit on the widened base (devdocs/numbers.md,
+        // "Decimal mode").
         if (EVALUATOR_RULES.has(op.name) || op.name.startsWith("pow"))
           return undefined;
         if (op.tooLarge?.(rounded, context) === true) return undefined;

@@ -1,4 +1,4 @@
-// The cost search (devdocs/history/calculator-plan.md, tasks 8.2 and 8.3), run by
+// The cost search (devdocs/benchmarks.md, "The search"), run by
 // hand:
 //
 //   pnpm stress:search [--seed <hex>] [--minutes <n> | --forever]

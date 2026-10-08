@@ -1,19 +1,20 @@
 // The radius of a ball: a coarse upper bound on how far a computed midpoint
-// may lie from the value it stands for. devdocs/history/calculator-plan.md (D3 and task
-// 1.3) is the design; devdocs/history/calculator-study.md ("The precision model") says what
-// the ball is for. This module is the radius alone: ball.ts pairs one with
-// a midpoint, and quantity.ts makes that ball every magnitude.
+// may lie from the value it stands for. devdocs/numbers.md ("The types") is
+// the design, and devdocs/numbers.md ("Certification and the display
+// rule") says what the ball is for. This module is the radius alone:
+// ball.ts pairs one with a midpoint, and quantity.ts makes that ball every
+// magnitude.
 //
 // A bounded radius is `significand × 2^exp` with `significand` zero or a normalized 30-bit
 // integer, in `[2^29, 2^30)`, and `exp` a bigint; the distinguished value
 // `unbounded` stands for a bound that is not known at all (a function whose
-// propagation rule is not yet written, in the study's words). It is a type
+// propagation rule is not yet written). It is a type
 // of its own and neither a `Rational` nor a `number`: not a rational because
 // a radius is propagated through every operation of an expression and must
 // cost nothing and never grow, where a rational grows with each step; not a
 // float64 because a radius is absolute and scales with the values (the
 // product rule is `|a| rb + |b| ra`), so it spans their range, up to
-// `10^±(10^18)` with the exponent of stage 4, far beyond a
+// `10^±(10^18)` at the exponent bound (scaled.ts), far beyond a
 // double's `10^±308`, and because JavaScript has no directed rounding, so a
 // double would need a manual nudge up after every operation anyway. The
 // exponent is a bigint for the same reason: the binary exponent of a value
@@ -31,14 +32,14 @@
 // recognized as exact, if it is worth recognizing.
 //
 // The magnitude of a midpoint enters as a radius without its power of ten
-// being formed (4.4): `radiusAboveScaled` and `radiusBelowScaled` take the
+// being formed: `radiusAboveScaled` and `radiusBelowScaled` take the
 // upper and the lower bound of scaled.ts's `log2Bounds`, within `2^-30` of
 // the truth, and round the significand the same way, so the two bracket the
 // magnitude. `powerOfTenRadius` is the same bound for a bare power of
 // ten, `10^k`, for any `k` the bounds hold, past the exponent bound
 // included: a caller that needs only the radius of a power of ten takes
 // it here rather than forming the power as a `Scaled`, which is refused
-// past the bound (the plan's H.4). A lower bound is what a quotient's rule divides by, and the
+// past the bound. A lower bound is what a quotient's rule divides by, and the
 // operations that produce one round down: `subtractRadiusDown` (a
 // divisor's distance from zero, `|b| - rb`, zero when the difference is
 // not positive), `multiplyRadiusDown`, and `divideRadius`, a quotient
@@ -238,7 +239,7 @@ export function multiplyRadiusDown(a: Radius, b: Radius): Radius {
  * A radius at or above the `degree`-th root of the bounded `rad`: its
  * logarithm divided by the degree, rounded up; unbounded absorbs. The
  * degree may be any bigint: the division is done on bigints, so a degree
- * past a double's range (`3^700`) is no longer `NaN` (issue #57).
+ * past a double's range (`3^700`) is no longer `NaN`.
  */
 export function rootRadiusAbove(rad: Radius, degree: bigint): Radius {
   if (degree < 1n) throw new RangeError("Root degree must be positive");
@@ -336,7 +337,7 @@ export function maxRadius(a: Radius, b: Radius): Radius {
  * exactly, then a radius at or above `2^` of that. One multiplication,
  * where `powRadius` squares once per bit of `n` on an exponent that gains
  * a bit each step, which took a minute for a ball around zero to the
- * power `1e100000` (issue #62); unbounded absorbs, and zero stays zero.
+ * power `1e100000`; unbounded absorbs, and zero stays zero.
  */
 export function powRadiusAbove(rad: Radius, n: bigint): Radius {
   if (n < 1n) throw new RangeError(`A positive power is needed: ${n}`);

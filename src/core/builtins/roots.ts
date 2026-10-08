@@ -1,8 +1,8 @@
 // `sqrt(x)` and `cbrt(x)`: the square and cube roots of a plain number,
 // `rootBall` under a name (ball.ts), with the same exact cases as `^(1/2)`
 // and `^(1/3)`, so that `sqrt(9/4)` is exactly `3/2` and `cbrt(-8)` is
-// exactly `-2`. devdocs/design/builtins.md is the design and devdocs/history/calculator-plan.md
-// (task 3.8) places them; they share a module because they are one rule
+// exactly `-2`. devdocs/builtins.md ("The elementary routines") is the
+// design; they share a module because they are one rule
 // under two names. The errors are the root's: `sqrt(-1)` is the
 // `negativeRadicand` that `(-1)^(1/2)` is, worded as it is (`"sqrt(-1)"
 // takes an even root of a negative value`), a ball straddling zero under

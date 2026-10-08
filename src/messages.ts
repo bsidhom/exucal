@@ -57,8 +57,9 @@ import type { Span } from "./core/span.ts";
  * offers what to try where the refusing function expects an inexact
  * computation to fit, `approx` around the operand the evaluator named
  * or decimal mode, and says that it passes however it is computed where
- * the function expects that (the plan's D20, amended for D29). The reach
- * is read from the error and never inferred here.
+ * the function expects that
+ * (devdocs/numbers.md, "Which limit a refusal names"). The reach is read
+ * from the error and never inferred here.
  */
 export function describeTextError(
   error: TextError,
@@ -307,9 +308,10 @@ function domainValue(reason: DomainReason): string {
  * Why the parser rejected a literal it recognized, as a clause about "this
  * number" without the final period: a significand of too many digits for the
  * hard bound, or a value whose decimal exponent passes the exponent bound
- * on either side (D17: `0.001e1000000000000000003` is within it, and
- * `1e1000000000000000001` is not); a `^` exponent that cannot be formed
- * as a fraction; a `^` exponent that divides by zero.
+ * on either side (devdocs/numbers.md, "The exponent bound":
+ * `0.001e1000000000000000003` is within it, and `1e1000000000000000001`
+ * is not); a `^` exponent that cannot be formed as a fraction; a `^`
+ * exponent that divides by zero.
  */
 function describeRejection(reason: Rejection): string {
   switch (reason.kind) {
@@ -329,8 +331,8 @@ function describeRejection(reason: Rejection): string {
  * A result refused by the significand limit, worded from the refusing
  * function's word on the same step computed inexactly (`Reach`) and the
  * bits it would need (`Need`), which the message reads and never infers
- * (the plan's D20, amended for D29 and for the strict limit, #73). The
- * bits are said where the function knows them, exactly ("of 113,262
+ * (devdocs/numbers.md, "Which limit a refusal names"). The bits are said
+ * where the function knows them, exactly ("of 113,262
  * bits") or as a bound ("of about 69,659 bits"), and left unsaid where
  * it does not; the limit in force is not restated, the panel showing
  * it, and nothing is said of raising it: the user infers from the bits

@@ -27,24 +27,26 @@
 // `3.37 in`. Each unit but the last gets the integer count of it that fits
 // in what the earlier units left, truncated toward zero so that every term
 // has the sign of `have`, and the last gets the remainder. The counts are
-// taken from the midpoints (D8 of devdocs/history/calculator-plan.md), so a count is
+// taken from the midpoints, so a count is
 // exact and never `unresolved`, and the remainder is the ball `have - count
 // × size`, computed with the ball operations at the `NumberContext` the
-// sums align within (4.4), so that the terms times the units still
+// sums align within (devdocs/numbers.md, "Sums and alignment"), so that
+// the terms times the units still
 // contain `have`; a ratio whose integer part cannot be formed within the
 // significand limit (`1e999999999 m` into `km;m`) is counted as its midpoint
 // settled toward zero at the working digits, an integer of that many
-// digits, and the remainder is what that count leaves (D8 as 4.4 amended
-// it); and a count whose ratio falls below the exponent bound is zero,
-// nothing of that unit fitting in what is left (D8 as the plan's H.12
-// clarified it: `1e-999999999999999999 s` into `hr;min;s` is `0 hr + 0
+// digits, and the remainder is what that count leaves; and a count whose
+// ratio falls below the exponent bound is zero, nothing of that unit
+// fitting in what is left
+// (`1e-999999999999999999 s` into `hr;min;s` is `0 hr + 0
 // min + 1e-999999999999999999 s`). Any other refusal of a count, of the
 // product of a count and its unit, or of the difference it leaves, and an
 // `unresolved` of them, is the list's failure, passed on as the
-// conversion's (`ListRefusal`): stage 4 assumed that a quotient, a product
-// and a difference of values within the bound stay within it, and threw
-// where a count passed the bound (issue #44) or a remainder could not
-// align within the significand limit (#58). One case is decided the other way: when the
+// conversion's (`ListRefusal`): an earlier version assumed that a
+// quotient, a product and a difference of values within the bound stay
+// within it, and threw where a count passed the bound or a remainder
+// could not align within the significand limit. One case is decided the
+// other way: when the
 // ratio's ball straddles an integer, as `turn / deg` does once both carry
 // `pi()`'s radius (`359.999... ± ε`), the count is that integer, since a
 // count that cannot be told from a boundary is best taken as the boundary,
@@ -56,7 +58,7 @@
 // the display's carry case, which `roundTerms` handles; and when
 // rebuilding the total from the rounded terms fails, the terms come back
 // uncarried, which still contain `have` (the carry's rebuilt total can
-// pass the bound where the terms did not, issue #48's first constraint),
+// pass the bound where the terms did not),
 // so that `roundTerms` stays total for the display. That is only a
 // meaningful sum when the
 // units run from the largest to the smallest, so a unit that is not smaller
@@ -70,7 +72,7 @@
 // would read wrongly, the counts are taken again from the rounded sum, so
 // that the rounding carries (`3 ft`) as a digit does. The widening matters
 // after a carry: the remainder that is left is then a hair from zero, and
-// its ball must say so (the plan's 3.4 found it claiming digits instead).
+// its ball must say so (it once claimed digits instead).
 
 import {
   addBalls,
@@ -122,14 +124,16 @@ export type ConvertError =
   /**
    * The ratio, or a list's count, product or remainder, straddles the
    * exponent bound at this precision, so that whether it is a value or a
-   * refusal depends on which side the true value lies (D18); retried, as
+   * refusal depends on which side the true value lies (devdocs/numbers.md,
+   * "The exponent bound"); retried, as
    * an unresolved want is.
    */
   | { readonly kind: "unresolvedBound" }
   /**
    * The ratio was refused: its exponent passes the bound, above it or
    * below it. The significand limit is the pipeline's check on the ratio once
-   * formed (D19), so the ratio is never `tooLarge` here; one would be
+   * formed (devdocs/numbers.md, "The significand limit"), so the ratio is
+   * never `tooLarge` here; one would be
    * passed on all the same.
    */
   | Refusal;
@@ -137,8 +141,8 @@ export type ConvertError =
 /**
  * Why a list's terms could not be formed: a count, a product of a count
  * and its unit, or the difference it leaves was refused at a limit, or
- * cannot be told from the edge the result depends on (`unresolved`; from
- * H.13 the exponent bound is such an edge).
+ * cannot be told from the edge the result depends on (`unresolved`; the
+ * exponent bound is such an edge, devdocs/numbers.md, "The exponent bound").
  */
 export type ListRefusal =
   Refusal | { readonly kind: "unresolved"; readonly edge: Edge };
@@ -274,7 +278,7 @@ export function roundTerms(
   const rounded = roundTo(remainder.mid, digits, mode);
   if (equals(rounded, remainder.mid)) return terms;
   // The shift is formed without the bound: at the bottom edge it lies
-  // past it (`1e-999999999999999999 m` into `ft;in`, issue #44).
+  // past it (`1e-999999999999999999 m` into `ft;in`).
   const shift = radiusOfMove(rounded, remainder.mid);
   const widened: Ball = { mid: rounded, rad: addRadius(remainder.rad, shift) };
   const sizes = units.map((unit) => unit.magnitude);
@@ -311,7 +315,7 @@ function rebuild(
  * what is left, from the ratio of midpoints (`countOf`), and the remainder
  * in the last, the ball of what is left over the last size, the sums
  * aligned at `context`. A count whose ratio falls below the exponent
- * bound is zero (D8, as the plan's H.12 clarified it); any other refusal
+ * bound is zero (devdocs/architecture.md, "Unit lists"); any other refusal
  * of a count, a product or a difference, and an `unresolved` of them, is
  * the list's failure.
  */
@@ -363,7 +367,8 @@ function passOn(error: BallError): Result<never, ListRefusal> {
 }
 
 /**
- * The count a `ratio` of magnitudes gives (D8): its midpoint truncated
+ * The count a `ratio` of magnitudes gives (devdocs/architecture.md, "Unit
+ * lists"): its midpoint truncated
  * toward zero, unless the ball straddles the integer nearest its midpoint,
  * which is then the count, so that a ratio that cannot be told from a
  * whole number is counted as that whole number and leaves a remainder

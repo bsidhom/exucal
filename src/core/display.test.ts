@@ -437,7 +437,7 @@ test("the kinds are exclusive and cover every ball", () => {
 });
 
 // ---------------------------------------------------------------------------
-// The ratio notation (devdocs/design/fractions.md, "The rule"; devdocs/design/ratio-width.md)
+// The ratio notation (devdocs/notation.md, "The rule")
 
 /** `show` at eight digits to nearest with the ratio notation at `width`. */
 function ratio(ball: Ball, width: number, digits = 8): Shown {
@@ -591,8 +591,8 @@ test("with the ratio notation, a whole number is written entire when it fits the
   });
 });
 
-test("with the ratio notation, a ratio that fits only with its power of ten on the numerator is written so, and never with a denominator of one (#95)", () => {
-  // #95's table at the default width, each value in its canonical form
+test("with the ratio notation, a ratio that fits only with its power of ten on the numerator is written so, and never with a denominator of one", () => {
+  // A table at the default width, each value in its canonical form
   // (the numerator not divisible by ten): (5000/127) × 1e30 is 5/127 × 1e33.
   const scaled = (num: bigint, den: bigint, exp: bigint) =>
     exact({ significand: rational(num, den), exp });
@@ -709,7 +709,7 @@ test("without the width, or for an inexact value, nothing changes", () => {
 });
 
 // ---------------------------------------------------------------------------
-// A zero's bound at the edges (devdocs/design/fractions.md; #67)
+// A zero's bound at the edges (devdocs/numbers.md, "Certification and the display rule")
 
 test("a zero's bound below the exponent bound is written as 1e-1000000000000000000", () => {
   // A radius of 2^-(10^19), far below the bound: the bound written is the
@@ -745,7 +745,7 @@ test("a zero's bound below the exponent bound is written as 1e-10000000000000000
   assert.ok(compare(dec("1e-1000000000000000000"), ZERO) > 0);
 });
 
-// The uncertified kind (D26; devdocs/design/decimal-mode.md, "The ceiling")
+// The uncertified kind (devdocs/numbers.md, "Decimal mode")
 
 test("a decimal-mode value flagged uncertified is shown as its digits, whatever else the ball would be", () => {
   const flagged: Ball = { ...exact(dec("1.2")), uncertified: true };

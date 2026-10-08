@@ -1,4 +1,4 @@
-// The work pool of the stress tools (devdocs/history/calculator-plan.md, task 8.3):
+// The work pool of the stress tools (devdocs/benchmarks.md, "The search"):
 // lanes, one per core by default, that each take the next case as they
 // come free, so that the work is shared at the grain of a case however
 // unequal the cases' costs, and a long case holds one lane while the

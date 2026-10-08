@@ -287,7 +287,7 @@ test("lgammaFixed takes a positive interval", () => {
   assert.throws(() => lgammaFixed(at("-1.5", bits), bits, bits), RangeError);
 });
 
-test("ln pi is memoized at the ceiling plus the margin, as the constants are (D10)", () => {
+test("ln pi is memoized at the ceiling plus the margin, as the constants are", () => {
   const ceilingBits = bitsFor(60);
   const f = lnPiFixed(bitsFor(20), ceilingBits);
   assert.equal(f.bits, bitsFor(20));

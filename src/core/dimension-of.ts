@@ -1,8 +1,8 @@
 // The dimension of an expression without its value: the abstract
 // interpretation of the evaluator over dimensions alone, which the build
 // runs on a function's bodies in place of evaluating them at one of the
-// declared unit (devdocs/history/calculator-plan.md, task 3.5; devdocs/history/calculator-study.md,
-// "User-defined functions"). A body's dimension never depends on the value
+// declared unit (devdocs/functions.md, "Build-time checks"). A body's
+// dimension never depends on the value
 // of its argument, so the check catches at load time exactly what
 // evaluating at a value caught, a body of the wrong dimension or one that
 // refers to nothing, without refusing a body that happens to fail at that

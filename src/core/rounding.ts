@@ -4,9 +4,11 @@
 // (`roundTo` and `format` in scaled.ts, and through them the display and
 // the rounding of a unit list's remainder) scales its value so that the
 // digits to keep form an integer, divides here, and scales back, so a mode
-// means the same thing wherever it is applied. devdocs/history/calculator-plan.md
-// (task 1.1) places this module; devdocs/history/calculator-study.md (features 4 and 5) says
-// why one setting governs every rounding there is.
+// means the same thing wherever it is applied. devdocs/numbers.md
+// ("Certification and the display rule") places this module and says why
+// one setting governs every rounding there is: in exact mode the mode is
+// applied at the display and nowhere else, and in decimal mode every step
+// rounds in it.
 //
 // The seven modes are those of the General Decimal Arithmetic specification
 // and IEEE 754-2008. Three are to nearest and differ only on a tie, a
@@ -25,8 +27,8 @@
 // denominator that is a power of ten or a `Rational`'s, which is positive by
 // invariant.
 //
-// `Precision`, a count of significant decimal digits, lives here too (from
-// stage 4's 4.3, out of rational.ts, which is left the fraction alone),
+// `Precision`, a count of significant decimal digits, lives here too (not
+// in rational.ts, which is left the fraction alone),
 // with `checkPrecision`, `digitsFor`, the digits a count of binary digits
 // is worth, and `DEFAULT_PRECISION`, the working precision the app computed
 // at before the number context existed, which the tests still use.
@@ -37,8 +39,8 @@ export type Precision = number;
 /**
  * The fixed working precision the app computed at before the number
  * context existed, in significant decimal digits; the tests use it as a
- * working precision. See devdocs/architecture.md ("Working precision and the
- * context").
+ * working precision. See devdocs/numbers.md ("Working precision and the
+ * schedule").
  */
 export const DEFAULT_PRECISION: Precision = 40;
 
@@ -52,7 +54,8 @@ export function checkPrecision(precision: Precision): void {
 /**
  * The decimal digits `bits` binary digits are worth, `ceil(bits log10 2)`:
  * the digits a kernel result of `bits` significant bits is rounded to as
- * it leaves the kernel, and settling's grid in exact mode (4.4).
+ * it leaves the kernel, and settling's grid in exact mode
+ * (devdocs/numbers.md, "Settling").
  */
 export function digitsFor(bits: number): Precision {
   if (!Number.isInteger(bits) || bits < 1) {

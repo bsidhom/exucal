@@ -1,4 +1,5 @@
-// The exact functions of stage 6 through the pipeline, over the system
+// The exact functions (devdocs/builtins.md, "The exact functions") through
+// the pipeline, over the system
 // definitions: the lines and the messages, in every rounding mode and in
 // decimal mode. Each module under builtins/ has its own tests beside it.
 
@@ -56,7 +57,7 @@ function run(source: string, context: NumberContext = CONTEXT): string {
 test("the exact functions through the pipeline, with their messages", () => {
   assert.equal(run("floor(3.7)"), "= 3");
   assert.equal(run("floor(sqrt(2))"), "= 1");
-  // The default rounding is half even (S2 of the settings plan).
+  // The default rounding is half even (devdocs/settings.md, "The model").
   assert.equal(run("round(2.5)"), "= 2");
   assert.equal(run("round(2.5)", at("halfAwayFromZero")), "= 3");
   assert.equal(run("round(3.5)"), "= 4");
@@ -131,7 +132,8 @@ test("the exact functions take every rounding mode in stride, and decimal mode",
     assert.equal(run("mod(-7, 2)", at(mode)), "= 1");
   }
   const decimal: NumberContext = { ...CONTEXT, mode: "decimal" };
-  // In decimal mode the exact value is rounded once and is exact (D26).
+  // In decimal mode the exact value is rounded once and is exact
+  // (devdocs/numbers.md, "Decimal mode").
   assert.equal(run("factorial(20)", decimal), "= 2.432902e+18");
   assert.equal(run("floor(3.7)", decimal), "= 3");
   assert.equal(run("round(2.5)", { ...decimal, rounding: "halfEven" }), "= 2");

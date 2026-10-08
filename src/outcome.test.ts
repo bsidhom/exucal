@@ -1,6 +1,6 @@
 // The lines the output area shows, through the pipeline over the system
-// definitions, with the fractions setting on and off (devdocs/design/fractions.md,
-// "Where a fraction is written"; the plan's 5.2): where a fraction is
+// definitions, with the fractions setting on and off
+// (devdocs/notation.md, "Where a ratio is written"): where a fraction is
 // parenthesized, where it is bare, the reciprocal, a unit list's
 // remainder, a function's argument, and both modes.
 
@@ -96,7 +96,8 @@ test("a fraction is parenthesized before a unit, and the reciprocal before the h
     "3 ft = 36 in",
     "in = 1/36 × 3 ft",
   ]);
-  // A value the decimal writes exactly still becomes a fraction (D21).
+  // A value the decimal writes exactly still becomes a fraction
+  // (devdocs/notation.md, "The rule").
   assert.deepEqual(lines("1 in", "cm", false), [
     "1 in = 2.54 cm",
     "cm ≈ 0.39370079 × 1 in",
@@ -140,8 +141,9 @@ test("a unit list's remainder is a fraction, unrounded, and the counts are integ
   // A ratio that does not fit the width falls back to the digits: 428/127
   // is six digits, and at two digits the remainder is rounded.
   assert.deepEqual(lines("1 m", "ft;in", 6), ["1 m = 3 ft + (428/127) in"]);
-  // A ratio scaled by a power of ten (D28, rule 4) is written as the
-  // ratio times the power, parenthesized before a unit like any ratio.
+  // A ratio scaled by a power of ten (rule 4 of
+  // devdocs/notation.md, "The rule") is written as the ratio times the
+  // power, parenthesized before a unit like any ratio.
   assert.deepEqual(lines("1 m", "in", 6), [
     "1 m = (5/127 × 1e+3) in",
     "in = 0.0254 × 1 m",
@@ -175,7 +177,7 @@ test("an inexact value is written as digits with ≈, whatever the setting", () 
   }
 });
 
-test("in decimal mode no value is written as a fraction, and every line is exact (D26)", () => {
+test('in decimal mode no value is written as a fraction, and every line is exact (devdocs/numbers.md, "Decimal mode")', () => {
   // The fractions display is exact mode's: in decimal mode every value is
   // a decimal of the digits asked for, written entire by its digits,
   // whatever the setting says.
@@ -257,8 +259,9 @@ test("a value that assumes a condition is shown, `≈`, with a warning apart fro
     "tempC(approx(-273.15)) ≈ 0 K (within 2e-4047 of zero)",
   ]);
   assert.deepEqual(warnings(zero), [ASSUMED_TEMP_C]);
-  // In decimal mode approx is the identity (D26): the argument is exactly
-  // absolute zero, the condition holds, and nothing is assumed.
+  // In decimal mode approx is the identity
+  // (devdocs/numbers.md, "Decimal mode"): the argument is exactly absolute
+  // zero, the condition holds, and nothing is assumed.
   const decimal: NumberContext = { ...CONTEXT, mode: "decimal" };
   assert.equal(
     warnings(outcome("tempC(approx(-273.15))", "", decimal)),
@@ -455,7 +458,7 @@ function significantDigits(text: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// The uncertified mark (D26; devdocs/design/decimal-mode.md, "The ceiling")
+// The uncertified mark (devdocs/numbers.md, "Decimal mode")
 
 test("in decimal mode a step whose rounding the ceiling left uncertified is written with the ≈ sign bearing a dot above it, and a note", () => {
   // A built-in whose value sits on the two-digit tie at 1.25, known within

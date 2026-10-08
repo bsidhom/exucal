@@ -247,7 +247,7 @@ test("a lookup's failure comes back unchanged, from wherever it is in the tree",
 });
 
 test("a ^ exponent is reduced within the significand limit, and one past it fails at the power", () => {
-  // The exponent travels as its two literals (the plan's H.9, issue #66)
+  // The exponent travels as its two literals (devdocs/numbers.md, "The significand limit")
   // and is reduced here as the evaluator reduces it: `m^(6/4)` is
   // `m^(3/2)`, the powers of ten cancel, and a literal past the limit or
   // a fraction that cannot be formed within it is `tooLarge` at the

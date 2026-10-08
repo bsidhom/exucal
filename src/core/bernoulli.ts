@@ -1,7 +1,8 @@
 // The Bernoulli numbers, exact rationals: `B_2k`, which the asymptotic
 // series of `digamma` and `lgamma` take through the ratios of consecutive
-// ones (bernoulli-ratios.ts; devdocs/design/special.md, "Bernoulli numbers"). They
-// are computed from the tangent numbers `T_k`, the integers in `tan x = Σ
+// ones (bernoulli-ratios.ts; devdocs/builtins.md, "The Gamma and Beta
+// families"). They are computed from the tangent numbers `T_k`, the
+// integers in `tan x = Σ
 // T_k x^(2k-1) / (2k-1)!`, by the in-place recurrence of Brent and
 // Zimmermann (Modern Computer Arithmetic, algorithm TangentNumbers),
 // `O(K^2)` additions of integers of `O(K log K)` bits for the first `K`
@@ -19,8 +20,8 @@
 // is computed on request (`bernoulliRun`) and not kept here: the ratio
 // memo forms its fixed-point ratios from one and releases it, which holds
 // about 1 MB at the default ceiling where the exact numbers held 1.8
-// (#117, which also had the series reserve the count it will take, so
-// that a pass needing more numbers than the last computes one run).
+// (the series also reserves the count it will take, so that a pass
+// needing more numbers than the last computes one run).
 
 import { rational, type Rational } from "./rational.ts";
 

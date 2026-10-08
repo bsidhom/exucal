@@ -160,7 +160,7 @@ test("the reduction takes pi from the memo for arguments below 2^256 at the ceil
   // 2^255 has an integer part of 256 bits: the last argument served.
   sinFixed(fixedFromRational(rational(1n << 255n), ceiling), ceiling, ceiling);
   assert.equal(piMemoBits(), held);
-  // 2^70 was computed uncached while the margin was 64 bits (#117); it is
+  // 2^70 was once computed uncached while the margin was 64 bits; it is
   // served now, to the reference's digits still.
   const [x70, sin70, cos70] = REFERENCES[REFERENCES.length - 2]!;
   assert.equal(x70, String(1n << 70n));

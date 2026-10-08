@@ -1,13 +1,14 @@
 // Test support for the edge sweep, the fourth test pattern of
-// devdocs/history/calculator-plan.md ("How to read a task"; task H.10): every built-in
+// devdocs/testing.md ("The numeric test patterns"), described in
+// devdocs/testing.md ("The edge sweeps"): every built-in
 // and every ball operation runs over the classes of arguments at the edges
-// of the number type, and each case is checked for what devdocs/architecture.md
-// rules out. src/core/edges.sweep.ts is the sweep at the ball level and
+// of the number type, and each case is checked for what devdocs/numbers.md
+// ("The exponent bound") rules out. src/core/edges.sweep.ts is the sweep
+// at the ball level and
 // src/edges.sweep.ts at the text level; this module is what the two share.
 // The suffix keeps the sweeps out of `pnpm test`, the run for every edit:
 // they are conformance tests, run by `pnpm test:sweep` before a commit and
-// in CI, and `pnpm test:all` runs both (issue #108), with the benchmarks
-// (issue #135).
+// in CI, and `pnpm test:all` runs both, with the benchmarks.
 //
 // The runner. node:test's `timeout` neither interrupts nor fails a
 // synchronous test, so a computation that hangs would hang the run. The
@@ -27,8 +28,9 @@
 // entries and no fix is silent. Node's `todo` is not used: a passing
 // `todo` is silent, and a failing one prints its stack on every run.
 //
-// The oracle. What a case is checked for is decided by the plan's D17 and
-// D18, on the true result's magnitude rather than on the code's own
+// The oracle. What a case is checked for is decided by the exponent bound
+// (devdocs/numbers.md, "The exponent bound"), on the true result's
+// magnitude rather than on the code's own
 // verdict, so the checks here reason on a loose form of the number type:
 // a `Loose` is a `Scaled` with no exponent bound and no canonical form, so
 // that a value past the bound can be written down, and an `Interval` is a
@@ -37,7 +39,7 @@
 // the arithmetic on small significands and in log space for the exponential
 // and the powers (`Magnitude`), and `surePast` says whether every value of
 // the result passes the bound, which is when, and only when, an
-// `overflow` or `underflow` is allowed (D18). The decisions near `±10^18`
+// `overflow` or `underflow` is allowed. The decisions near `±10^18`
 // are made on bigint exponents and exact fractions, never on doubles: the
 // bounds on `log10` of a significand come from an exact power of the significand
 // or, near one, from the exact difference from one, and a radius that
@@ -46,7 +48,7 @@
 // says why no bound of it can be exact). A result is checked on its own
 // by `checkValue`: its
 // midpoint's decimal exponent within the bound and `|mid| + rad` below
-// its top, the two conditions of D17 for a value.
+// its top, the bound's two conditions for a value.
 
 import assert from "node:assert/strict";
 import type { TestContext } from "node:test";
@@ -586,7 +588,7 @@ export function valueMagnitude(i: Interval): Magnitude {
  * on which side: `overflow` when the whole magnitude interval lies at or
  * above `10^(10^18 + 1)`, `underflow` when it lies below `10^-(10^18)`
  * without reaching zero, and `undefined` otherwise. A refusal at the bound
- * is allowed exactly when this is decided (D18).
+ * is allowed exactly when this is decided (devdocs/numbers.md, "The exponent bound").
  */
 export function surePast(m: Magnitude): "overflow" | "underflow" | undefined {
   switch (m.kind) {
@@ -1206,7 +1208,8 @@ export function hyperbolicMagnitude(x: Interval): Magnitude {
 // The checks on a value
 
 /**
- * What D17 requires of a value: a violation when the midpoint's decimal
+ * What the exponent bound requires of a value (devdocs/numbers.md, "The
+ * exponent bound"): a violation when the midpoint's decimal
  * exponent lies past `±10^18`, or when `|mid| + rad` reaches
  * `10^(10^18 + 1)`, the radius taken exactly where its fraction is formed
  * and by `radiusAtMost`'s bound otherwise; in exact mode `|mid| + rad`

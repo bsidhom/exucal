@@ -1,10 +1,9 @@
 // The midpoint's number type: a fraction times a power of ten, `significand ×
 // 10^exp`, so that a value carries an exponent as a number rather than as
-// digits and `1e999999999` is a value. devdocs/design/decimal.md is the design and
-// devdocs/history/calculator-plan.md (D13, D16 and tasks 4.1 to 4.4) places it; it
-// sits between the fraction (rational.ts, which stays the total fraction
-// the dimensions and the `^` exponent need) and the ball (ball.ts, whose
-// midpoint it is).
+// digits and `1e999999999` is a value. devdocs/numbers.md ("The types") is
+// the design; it sits between the fraction (rational.ts, which stays the
+// total fraction the dimensions and the `^` exponent need) and the ball
+// (ball.ts, whose midpoint it is).
 //
 // The form is canonical, so that equal values have equal representations
 // and `equals` is structural: the significand is in lowest terms with its
@@ -17,21 +16,22 @@
 // one rule, and the result is in lowest terms without a gcd, since the
 // factors moved are coprime to what stays. The canonical form of a
 // fraction is at most 2.33 times its size (`5^k` for a denominator `2^k`),
-// and the canonical form is what the significand limit measures (D16, D19:
-// `significandWithin`), since it is what is stored and multiplied; a kernel result,
+// and the canonical form is what the significand limit measures
+// (`significandWithin`; devdocs/numbers.md, "The significand limit"),
+// since it is what is stored and multiplied; a kernel result,
 // a dyadic of the working bits, never enters exactly, since the boundary
 // rounds it onto the decimal grid as it leaves the kernel (fixed.ts).
 //
-// The exponent is bounded, the study's `10^18`, so that a value can
-// always be written: a value is within the bound when its decimal
-// exponent, `floor(log10 |v|)`, the exponent the display writes, lies
-// within `±MAX_EXPONENT` (D17), and zero is within at any exponent.
-// `scaled` checks it after normalizing and fails `overflow` above it or
-// `underflow` below it, and the arithmetic (4.2) fails the same way
+// The exponent is bounded at `10^18` (devdocs/numbers.md, "The exponent
+// bound"), so that a value can always be written: a value is within the
+// bound when its decimal exponent, `floor(log10 |v|)`, the exponent the
+// display writes, lies within `±MAX_EXPONENT`, and zero is within at any
+// exponent. `scaled` checks it after normalizing and fails `overflow`
+// above it or `underflow` below it, and the arithmetic fails the same way
 // wherever exponents combine. The canonical `exp` itself may then pass
 // `±10^18` by up to the significand's digits, the denominator's digits above
 // the bound and the numerator's below, which nothing needs it not to;
-// before the plan's H.13 the check was on `exp`, so that `1e-10^18 / 7`,
+// an earlier version checked `exp` itself, so that `1e-10^18 / 7`,
 // past the bound, was held as `1/7 × 10^-(10^18)` and `1e10^18 / 3 * 10`,
 // within it, was refused as `1/3 × 10^(10^18 + 1)`. The check is cheap:
 // the decimal exponent is computed only when `exp` lies within
@@ -57,8 +57,9 @@
 // of ten (`powerOfTen`, memoized) are here for the boundary too, since
 // `toString` is an order slower at the ceiling's sizes.
 //
-// The arithmetic (4.2) is the fraction's on the significands with the
-// exponents combined and the result renormalized. A sum aligns the
+// The arithmetic (devdocs/numbers.md, "Exact operations") is the
+// fraction's on the significands with the exponents combined and the
+// result renormalized. A sum aligns the
 // significands by `10^|Δexp|`, which costs `|Δexp| log2 10` bits and is exact,
 // and fails `tooLarge` when that exceeds the limit given, the significand limit:
 // the exact sum exists and cannot be held (`1e999999999 + 1`), which is
@@ -71,12 +72,12 @@
 // so that one the significand limit refuses is reported at the bound when the
 // bound would refuse it too.
 //
-// The decimal representation (4.3) lives here, moved from rational.ts:
+// The decimal representation lives here, not in rational.ts:
 // `parseDecimal` reads a literal exactly with its exponent kept lazily,
 // the significand checked against `MAX_SIGNIFICAND_LIMIT_BITS` and the value against the
 // bound by the constructor, so that `1e999999999` parses and so does
-// `0.001e1000000000000000003`, whose value is `1e1000000000000000000`
-// (issue #50); rounding to significant digits
+// `0.001e1000000000000000003`, whose value is `1e1000000000000000000`;
+// rounding to significant digits
 // commutes with the power of ten, so `roundTo` and `format` act on the
 // significand alone, as the fraction's did, and add `exp` to the exponent,
 // and a value of any exponent is rounded and written with nothing formed;
@@ -137,7 +138,7 @@ export type ScaledError =
   | { readonly kind: "underflow" };
 
 /**
- * A refusal: a result the limits keep from being computed, past the range
+ * A refusal: a result the limits keep from being computed, past the significand
  * limit (`tooLarge`) or the exponent bound (`overflow`, `underflow`).
  */
 export type Refusal = Extract<
@@ -159,7 +160,7 @@ export function isRefusal<E extends { readonly kind: string }>(
 /**
  * The bound on a value's decimal exponent, `10^18`: generous and finite,
  * so that a value's decimal exponent can always be written
- * (devdocs/history/calculator-study.md, feature 4).
+ * (devdocs/numbers.md, "The exponent bound").
  */
 export const MAX_EXPONENT = 10n ** 18n;
 
@@ -179,8 +180,9 @@ export const ONE: Scaled = { significand: ONE_FRACTION, exp: 0n };
 
 /**
  * `significand × 10^exp` in canonical form, or `overflow` or `underflow` when the
- * value's decimal exponent passes `MAX_EXPONENT` above or below (D17);
- * zero is within the bound at any exponent.
+ * value's decimal exponent passes `MAX_EXPONENT` above or below
+ * (devdocs/numbers.md, "The exponent bound"); zero is within the bound at
+ * any exponent.
  */
 export function scaled(
   significand: Rational,
@@ -241,7 +243,8 @@ export function toRational(
  * Whether `toRational(s, limit)` would form the fraction: its power of
  * ten, times the numerator's digits, sized against `limit` bits with
  * nothing formed, so that the parser can test a `^` exponent's literal
- * against the hard bound without paying for the fraction (H.9).
+ * against the hard bound without paying for the fraction
+ * (devdocs/numbers.md, "The significand limit").
  */
 export function formable(s: Scaled, limit: number): boolean {
   if (s.exp === 0n) return true;
@@ -486,8 +489,9 @@ function formedNeed(s: Scaled): Need {
 /**
  * Whether the significand of `s` has at most `significandLimitBits` bits in its numerator
  * and its denominator: the significand limit's measure, the canonical form's
- * size (D16, D19), which the evaluator checks a literal and every exact
- * result against, and the pipeline its two quotients.
+ * size (devdocs/numbers.md, "The significand limit"), which the evaluator
+ * checks a literal and every exact result against, and the pipeline its
+ * two quotients.
  */
 export function significandWithin(
   s: Scaled,
@@ -503,8 +507,9 @@ export function significandWithin(
 /**
  * `a × b`, exactly: the significands multiplied within `limit` bits
  * (`multiplyWithin`, which predicts the product's size after its gcds
- * and forms nothing past the limit, D19 as the strict limit amended it),
- * the exponents added; fails at the limit with the bits the product
+ * and forms nothing past the limit; devdocs/numbers.md, "The significand
+ * limit"), the exponents added; fails at the limit with the bits the
+ * product
  * needs, and at the bound.
  */
 export function multiply(
@@ -582,11 +587,12 @@ export function invert(s: Scaled, limit: number): Result<Scaled, ScaledError> {
  * the check that fails first: `7^(10^19)`, refused by its significand, is an
  * `overflow`, and `2.54^(10^18)` is `10^(0.40 × 10^18)`, within the
  * bound, and is `tooLarge`, the significand limit's; within a hair of the
- * bound, where `powerRefusal` cannot tell, it is `tooLarge`. A check of
- * the canonical exponent times `n` came first until the plan's H.13,
- * which refused `12345678e-1000000000000000007` to the first power, a
- * value (D17). The `tooLarge` is the fraction's, whose reach is `fits`:
- * the exponent was formed, and an inexact base is raised in log space.
+ * bound, where `powerRefusal` cannot tell, it is `tooLarge`. An earlier
+ * version checked the canonical exponent times `n` first, which refused
+ * `12345678e-1000000000000000007` to the first power, a value
+ * (devdocs/numbers.md, "The exponent bound"). The `tooLarge` is the
+ * fraction's, whose reach is `fits`: the exponent was formed, and an
+ * inexact base is raised in log space.
  */
 export function pow(
   s: Scaled,
@@ -719,8 +725,7 @@ const DECIMAL = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/;
  * significand of more digits than `MAX_SIGNIFICAND_LIMIT_BITS` holds is `tooLarge`, and a
  * value past `MAX_EXPONENT` is `overflow` or `underflow`, by its side, as
  * the constructor decides it: `0e2000000000000000000` is zero, and
- * `10e-1000000000000000001` is `1e-1000000000000000000`, at the bound
- * (issue #50).
+ * `10e-1000000000000000001` is `1e-1000000000000000000`, at the bound.
  */
 export function parseDecimal(text: string): Result<Scaled, ScaledError> {
   const match = DECIMAL.exec(text);
@@ -824,7 +829,7 @@ const LOG2_10_SCALED = 1130393554869435518674010122299176348979n;
  * numerator and denominator through their top bits and a double, and the
  * exponent times `log2 10` through the 128-bit fraction, with `LOG2_MARGIN`
  * taken off and added on. What a radius at or above, or below, `|s|`
- * needs (4.4).
+ * needs.
  */
 export function log2Bounds(s: Scaled): { lower: Log2; upper: Log2 } {
   if (s.significand.num === 0n)
@@ -898,7 +903,7 @@ const NEAR_ONE_SLACK = 2 ** -25;
 /**
  * The failure that reports a refused `s^y`, told by where its decimal
  * exponent, `y log10 |s|`, lies: `overflow` or `underflow` when that is
- * past the bound, on the side `powerSide` gives; `tooLarge`, the range
+ * past the bound, on the side `powerSide` gives; `tooLarge`, the significand
  * limit's, when it is within it, so that the bound is not what refuses
  * the power; and `undefined` when it is within a relative `2^-20` of the
  * bound, where the bounds cannot tell. The exponent is never formed: its

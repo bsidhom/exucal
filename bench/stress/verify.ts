@@ -1,4 +1,4 @@
-// The stress suite (devdocs/history/calculator-plan.md, task 8.3), run by hand:
+// The stress suite (devdocs/benchmarks.md, "The stress suite"), run by hand:
 //
 //   pnpm stress [<function> ...] [--profile <name>] [--sample <n>]
 //               [--skip-hangs] [--record] [--jobs <n>]

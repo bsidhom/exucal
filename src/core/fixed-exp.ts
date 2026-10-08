@@ -1,21 +1,23 @@
 // The exponential on the kernel: `expFixed`, the routine behind the
 // built-in `exp` (builtins/exp.ts) and the log-space route of a power
 // (ball.ts), and `sinhCoshFixed`, behind the hyperbolic functions
-// (builtins/hyperbolic.ts). devdocs/history/calculator-plan.md (D9 and tasks 3.6 and
-// 3.11) is the design.
+// (builtins/hyperbolic.ts). devdocs/builtins.md ("The elementary
+// routines") is the design.
 //
 // The argument is reduced by halving: `r = x / 2^k` with `k` chosen so that
 // `|r| < 2^-8`, which is exact (a rebase), then `exp(r)` is the Taylor
 // series `Σ r^n / n!` summed in fixed point with the argument's error
 // included from the start, so that the sum's interval contains `exp` of
-// every value in the argument's (D9: no derivative bound is needed), and
-// `exp(x)` is the sum squared `k` times. The series stops at the first term
+// every value in the argument's (no derivative bound is needed;
+// devdocs/numbers.md, "The kernel's boundary"), and `exp(x)` is the sum
+// squared `k` times. The series stops at the first term
 // whose whole interval lies within an ulp: the terms shrink by better than
 // `2^-8` each, so the tail after that term is below a 255th of an ulp, and
 // one ulp covers it. Each squaring doubles the relative error and adds an
 // ulp, so the work is done at `bits + k` plus a guard. The result is a
-// `Floating` (fixed.ts; 4.9 of the plan): after each squaring the
-// significand is brought back to `[1, 2)` at the working bits and the rest
+// `Floating` (fixed.ts; devdocs/numbers.md, "The exponent bound"): after
+// each squaring the significand is brought back to `[1, 2)` at the
+// working bits and the rest
 // moved into the exponent (`normalizeFloating`), so that `exp(1e6)` costs
 // what `exp(1)` costs plus a squaring per bit of its magnitude, about
 // twenty at the working bits, rather than a value of 1.4 million bits, and a negative argument is the same
@@ -33,7 +35,7 @@
 // the interval, so that `exp(approx(1e60) - approx(1e60))` at the first
 // pass, `0` within about `2e9`, costs milliseconds where squaring the
 // whole interval doubled the bit length of a relative error of
-// `e^(2 × 10^9)` at every step until V8 refused (issue #39); the end is
+// `e^(2 × 10^9)` at every step until V8 refused; the end is
 // the signed one, not the largest magnitude, which for a wide negative
 // interval near `-2.3 × 10^18` would report an overflow, and the guard
 // before this bounds it. digits.ts takes such a result, whose significand's
@@ -52,7 +54,7 @@
 // `e`. The work is done at the larger of the bits asked for and the
 // argument's bits plus a guard, so that a tiny argument, which a caller
 // converts at more bits, keeps its digits, and the results are cut to the
-// bits their magnitudes call for (D9); `tanhFixed` divides the pair before
+// bits their magnitudes call for; `tanhFixed` divides the pair before
 // the cut, so that the quotient of two large values keeps the working
 // bits. An argument whose interval is wider than one is the trivial bound
 // from the exponential of its largest magnitude, since the exponential of
@@ -60,9 +62,9 @@
 // `tanhFixed` such an argument is zero within one, the function's whole
 // range, decided before the pair is formed, since the pair's bound beyond
 // the working bits would read as saturation on whichever side the
-// midpoint lies (issue #38). The
+// midpoint lies. The
 // argument's magnitude is bounded as `expFixed`'s is, by the caller:
-// `sinh` and `cosh` share the exponential's range (3.6, then 4.9). The
+// `sinh` and `cosh` share the exponential's range. The
 // pair is a pair of `Floating`s: where the exponential's exponent is
 // beyond half the working bits, the reciprocal `1/E` is below an ulp of
 // `E` and is folded into the error, so that `sinh(1e6)` and `cosh(1e6)`
@@ -118,7 +120,7 @@ export function expFixed(f: Fixed, bits: number): Floating {
   // within the exponential of its signed upper end, formed exactly, whose
   // value plus its error bounds the exponential of every value in the
   // interval; the squarings below would double the bit length of a
-  // relative error of `e^(2 × 10^9)` at every step (issue #39).
+  // relative error of `e^(2 × 10^9)` at every step.
   if (f.error << 1n >= 1n << BigInt(f.bits)) {
     const upper = expFixed(
       { value: f.value + f.error, error: 0n, bits: f.bits },
@@ -185,7 +187,7 @@ export function sinhCoshFixed(f: Fixed, bits: number): SinhCosh {
  * width one or more (an error of one half or more) is zero within one,
  * `tanh`'s whole range, decided before the pair is formed: the pair's own
  * wide bound reads as saturation beyond the working bits, which is sound
- * only far out on one side (issue #38). Where the pair was folded, which
+ * only far out on one side. Where the pair was folded, which
  * an interval narrower than one reaches only far out on one side, the
  * result is `±1` within two ulps.
  */
@@ -288,7 +290,7 @@ function around(fl: Floating): Floating {
   };
 }
 
-/** `fl` with `bits` significant bits kept for its significand (D9): normalized, then truncated to the bits. */
+/** `fl` with `bits` significant bits kept for its significand: normalized, then truncated to the bits. */
 function cut(fl: Floating, bits: number): Floating {
   if (fl.significand.value === 0n) {
     return { significand: keepSignificant(fl.significand, bits), exp: fl.exp };

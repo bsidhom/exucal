@@ -1,25 +1,29 @@
 // `sin(x)`, `cos(x)` and `tan(x)`: the trigonometric functions of an angle,
-// on the kernel's `sinCosFixed` (fixed-trig.ts). devdocs/design/builtins.md is the
-// design and devdocs/history/calculator-plan.md (task 3.9) places them; they share a
+// on the kernel's `sinCosFixed` (fixed-trig.ts). devdocs/builtins.md ("The
+// elementary routines") is the design; they share a
 // module because they share the reduction and the series, which the
 // kernel computes once for both the sine and the cosine. The rule requires
-// the `radian` kind (D11) and hands the kernel the magnitude, which is in
+// the `radian` kind (devdocs/builtins.md, "Dimension rules") and hands the
+// kernel the magnitude, which is in
 // radians since `radian` is the primitive (`30 deg` is `pi() radian / 6`,
 // and the kernel sees `pi / 6`); a plain number is the kind mismatch `1 m
 // + 0` is, worded to say how to write an angle, so `sin(0)` is that
 // mismatch and `sin(0 radian)` the exact zero. The exact cases: zero for
 // `sin` and `tan`, one for `cos`. Every other argument is the kernel's
-// ball, rounded in no mode, for the evaluator to settle (D15). `tan` is
+// ball, rounded in no mode, for the evaluator to settle (devdocs/numbers.md,
+// "Settling"). `tan` is
 // the quotient of the two, cut to the bits its magnitude calls for, and
 // `unresolved` at the argument with the edge `"pole"` when the cosine's
-// ball contains zero (D4): the true value lies on one side of a pole or
+// ball contains zero (devdocs/numbers.md, "Exact operations"): the true
+// value lies on one side of a pole or
 // the other, and the retry loop raises the precision.
 //
 // A tiny argument is converted at the working bits plus its negative
 // binary exponent, as `rootBall` scales its argument, so that the kernel
 // keeps its digits and `sin(1e-50 radian)` certifies on the first pass
 // rather than at the ceiling; the kernel chooses the result's bits from
-// its magnitude (D9). The two ends of the exponent (4.4) are answered
+// its magnitude (devdocs/numbers.md, "The kernel's boundary"). The two ends
+// of the exponent (devdocs/builtins.md, "Huge and tiny arguments") are answered
 // before the kernel is entered: an argument below `2^-significandLimitBits` throughout
 // is its own sine and tangent within its cube, and its cosine is one
 // within its square (`tinyOdd` and `tinyEven` of builtin.ts), and one

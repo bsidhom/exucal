@@ -1,19 +1,20 @@
 // The hyperbolic functions and their inverses: `sinh(x)`, `cosh(x)`,
 // `tanh(x)` on the kernel's `sinhCoshFixed` (fixed-exp.ts, through `exp`),
 // and `asinh(x)`, `acosh(x)`, `atanh(x)` through the logarithm and the
-// square root (`lnScaled` and `rootBall` of ball.ts). devdocs/design/builtins.md is
-// the design and devdocs/history/calculator-plan.md (task 3.11) places them; they
+// square root (`lnScaled` and `rootBall` of ball.ts). devdocs/builtins.md
+// ("The elementary routines") is the design; they
 // share a module because the three forward functions share one kernel
 // routine and the three inverses share the one route through `ln` of a
 // root. All six take and return plain numbers, since their arguments are
-// not angles (D11). Each returns the kernel's ball, rounded in no mode,
-// for the evaluator to settle (D15), and an argument of unbounded radius
+// not angles (devdocs/builtins.md, "Dimension rules"). Each returns the
+// kernel's ball, rounded in no mode, for the evaluator to settle
+// (devdocs/numbers.md, "Settling"), and an argument of unbounded radius
 // gives the function of its midpoint with an unbounded radius. The exact
 // cases: zero for `sinh`, `tanh`, `asinh` and `atanh`, `cosh(0)` is one,
 // and `acosh(1)` is zero.
 //
 // `sinh` and `cosh` are held to the exponent bound as `exp` is, and share
-// its range (3.6, then 4.9, then H.15): the classifier of ball.ts
+// its range (devdocs/numbers.md, "The exponent bound"): the classifier of ball.ts
 // (`classifyHyperbolic`) holds `|x| - ln 2`, the logarithm of either's
 // magnitude within an ulp, to the top edge over the whole ball, an
 // `overflow` at the call before anything is computed only when every
@@ -29,8 +30,8 @@
 // magnitude; an argument of radius one half or more that is not saturated
 // is zero within one, `tanh`'s whole range, which certifies nothing and
 // lets the retry loop narrow it (a ball reaching both sides of zero was
-// refused by the exponential's guard, issue #49, and the kernel's bound
-// certified `±1`, issue #38); and every other argument is the quotient of
+// refused by the exponential's guard, and the kernel's bound certified
+// `±1`); and every other argument is the quotient of
 // the pair on the kernel (`tanhFixed`), before either is cut to its bits,
 // so that the quotient of two large values keeps the working bits. So
 // `tanh` has no guard and is never refused for its argument's size: with
@@ -52,7 +53,8 @@
 // the edge `1`, apart from the exact one; `atanh` strictly between `-1`
 // and `1`, an argument at or beyond an end throughout a `domain` error
 // (`outsideOpenUnitInterval`) and one reaching an end `unresolved` at it
-// (D4). The logarithm's argument is converted at the working bits plus
+// (devdocs/numbers.md, "Exact operations"). The logarithm's argument is
+// converted at the working bits plus
 // the negative binary exponent of the small part it carries (`x` for
 // `atanh`, the root for `acosh`), so that `ln(1 + small)`
 // keeps the digits of `small` and `asinh(1e-50)`, `atanh(1e-50)` and
@@ -63,12 +65,13 @@
 // being within the identity's slope everywhere, since the square under
 // the root would not stay positive under the error rules.
 //
-// The two ends of the exponent (4.4) are answered before the kernel is
+// The two ends of the exponent are answered before the kernel is
 // entered. An argument below `2^-significandLimitBits` throughout is its own `sinh`,
 // `tanh`, `asinh` and `atanh` within its cube, and its `cosh` is one
 // within its square (`tinyOdd` and `tinyEven` of builtin.ts). An argument
 // at or beyond `2^bits` throughout has `asinh(x)` and `acosh(x)` equal to
-// `ln(2|x|)` within `1/(2x^2)`, the saturation devdocs/design/decimal.md lists
+// `ln(2|x|)` within `1/(2x^2)`, the saturation
+// devdocs/builtins.md ("Huge and tiny arguments") lists
 // (`farLogarithm`, on `lnScaled`, which takes any exponent), with the
 // argument's radius over its distance from zero added, the slope of the
 // logarithm; `tanh`'s saturation stands and comes first, and `sinh` and
@@ -183,7 +186,7 @@ export function tanhBall(
   if (saturated !== undefined) return ok(saturated);
   // Wider than one: zero within one, tanh's whole range, which certifies
   // nothing and lets the retry loop narrow the argument; the kernel is
-  // never handed a midpoint it may not hold (issues #38 and #49).
+  // never handed a midpoint it may not hold.
   if (compareRadius(x.rad, powerOfTwoRadius(-1n)) >= 0) {
     return ok({ mid: ZERO, rad: powerOfTwoRadius(0n) });
   }
@@ -313,7 +316,8 @@ export function atanhBall(
   if (!quotient.ok) {
     // The divisor was checked to be above zero, so only a refusal of the
     // quotient is left, at the exponent bound; the significand limit is the
-    // evaluator's check on the call's result (D19), not the quotient's.
+    // evaluator's check on the call's result
+    // (devdocs/numbers.md, "The significand limit"), not the quotient's.
     if (!isRefusal(quotient.error)) {
       throw new Error("A divisor above zero was checked");
     }
@@ -393,7 +397,7 @@ function farLogarithm(x: Ball, context: NumberContext): Ball {
   const ceilingBits = bitsFor(context.ceiling);
   // `ln(2|x|)` as `ln 2 + ln |x|`, the logarithm of `|x|` from the kernel
   // and `ln 2` from its memo: `2|x|` itself is never formed, since it
-  // passes the exponent bound for `5e1000000000000000000` (issue #44).
+  // passes the exponent bound for `5e1000000000000000000`.
   const f = lnScaled(exact(absolute(x.mid)), bits, ceilingBits);
   if (f === undefined) throw new Error("The logarithm's argument is positive");
   const sum = addFixed(f, ln2Fixed(bits, ceilingBits));

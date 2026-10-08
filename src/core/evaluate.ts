@@ -16,16 +16,18 @@
 // a leading `-` negates, and `^` raises to the exponent the parser read,
 // the quotient of its two literals taken here within the significand limit
 // (`reduceExponent`): each literal's significand is held to `significandLimitBits` as
-// every literal's is, before any gcd runs, as D19 asks of what can be
-// bounded before forming; the quotient is taken as `Scaled` values, whose
-// powers of ten cancel for nothing; and the fraction is formed within
+// every literal's is, before any gcd runs, as devdocs/numbers.md ("The
+// significand limit") asks of what can be bounded before forming; the
+// quotient is taken as `Scaled` values, whose powers of ten cancel for
+// nothing; and the fraction is formed within
 // `significandLimitBits`, as `pow` forms an exact exponent, so that `2^(1e30/1e30)` is
-// `2` at any limit and `2^1e-30000` is refused at the default as
-// `pow(2, 1e-30000)` is (H.16 sends such an exponent to log space). The
-// parser, which has no context, once reduced the pair at the hard bound
-// for seconds to minutes (issue #66). The
-// `NumberContext` given is the working one (D1 of
-// devdocs/history/calculator-plan.md): its precision is passed to every power, where
+// `2` at any limit and `2^1e-30000` is refused at the default, where
+// `pow(2, 1e-30000)` goes to log space instead (devdocs/numbers.md,
+// "Roots and powers"; the disagreement is #88). The parser, which has no
+// context, once reduced the pair at the hard bound for seconds to
+// minutes. The `NumberContext` given is the working one
+// (devdocs/numbers.md, "Working precision and the schedule"): its
+// precision is passed to every power, where
 // the root of a non-integer exponent is the only operation that can lose
 // digits. The `Primitives` given are the table's, with their roles: a sum
 // is the one place the evaluator checks conformance, between its operands,
@@ -47,15 +49,15 @@
 // of table.ts). For either, the count of arguments is checked against
 // what the function takes (`arityMismatch` otherwise, before any argument
 // is evaluated, since the count is about the call's shape as
-// `notAFunction` is). A defined function (devdocs/design/functions.md) takes exactly
+// `notAFunction` is). A defined function (devdocs/functions.md, "Calls") takes exactly
 // as many as it has parameters: the arguments are evaluated, left to
 // right, each checked to conform to the unit its parameter takes (a plain
 // number when it has no annotation), and bound to the parameters by
 // position while the body is evaluated through the same lookup, so that
 // the body's units resolve as the user's would, and the parameters before
 // any unit of their names. Between the two, the function's conditions are
-// checked on the bound arguments (`checkConditions`, devdocs/design/functions.md,
-// "Conditions"), each comparison decided on balls by `decide`, as one
+// checked on the bound arguments (`checkConditions`, devdocs/functions.md,
+// "The check at a call"), each comparison decided on balls by `decide`, as one
 // conjunction in three-valued logic: a certain failure is a
 // `conditionFailed` at the call, naming the condition and the arguments
 // it mentions; a term that fails is the call's `callFailed` when nothing
@@ -66,7 +68,8 @@
 // one is an `undecidedCondition` naming it, which may be the
 // assumption's doing, where a body failing under none is a `callFailed`.
 // Without a collector, assumptions are dropped, which no caller that can
-// meet a condition does: the build and the pipeline each pass one. A built-in (devdocs/design/builtins.md) has its
+// meet a condition does: the build and the pipeline each pass one. A
+// built-in (devdocs/builtins.md, "The rules every built-in follows") has its
 // arguments evaluated, its dimension rule applied to their dimensions
 // (`builtinArgument` at the call when the rule fails, carrying the rule's
 // error and the spans of all the arguments, so that a message can write
@@ -91,30 +94,32 @@
 // The arithmetic failures are those of `ball.ts` that a value can cause,
 // located in the input: a division by zero points at the divisor, since its
 // value is what is wrong, and so does a division by a value that cannot be
-// told from zero (`unresolved`, D4 of devdocs/history/calculator-plan.md: the divisor's
+// told from zero (`unresolved`, devdocs/numbers.md, "Exact operations": the divisor's
 // ball contains zero without being exactly zero); a power whose base cannot
 // be told from zero, raised to a negative power or put under an even root,
 // points at the base for the same reason; any other power that fails
-// (`0^-1`, an even root of a negative magnitude, a result beyond the range
+// (`0^-1`, an even root of a negative magnitude, a result beyond the significand
 // limit) points at the whole power, since it is the combination of base
 // and exponent that fails; a sum, a product or a quotient that is too
 // large (two exact operands that cannot be aligned within the significand limit,
-// or an exponent beyond the bound; 4.4) points at the whole operation, as
+// or an exponent beyond the bound; devdocs/numbers.md, "Sums and
+// alignment") points at the whole operation, as
 // the power does; a literal whose significand is beyond the significand limit,
 // which the parser let through under its hard bound, points at the
 // literal, the exponent costing nothing.
 //
-// Every result is settled (D15 of the plan): an inexact magnitude is
-// rounded to the working precision after each operation, so that it never
-// grows beyond it, and its radius says so; exact values are never touched.
+// Every result is settled (devdocs/numbers.md, "Settling"): an inexact
+// magnitude is rounded to the working precision after each operation, so
+// that it never grows beyond it, and its radius says so; exact values are
+// never touched.
 // Each node is a step of the
 // expression (`step` of ball.ts, through `stepQuantity`): the one entrance
 // through which a computed value becomes a value, which settles it in
-// exact mode and in decimal mode (D26; devdocs/design/decimal-mode.md) computes it
+// exact mode and in decimal mode (devdocs/numbers.md, "Decimal mode") computes it
 // at rising precision until its rounding is certified and rounds it once,
 // exact, with `approx` the identity there and the flag of a rounding the
 // ceiling left uncertified carried by every operation after it. A node's
-// operands are evaluated at `operandContext` (D27, devdocs/design/working-digits.md):
+// operands are evaluated at `operandContext` (devdocs/numbers.md, "The working digits"):
 // in decimal mode with working digits above the precision, every step
 // below the node is rounded to the working digits and the node alone to
 // its context's precision, so the root of an expression is the one step
@@ -227,13 +232,14 @@ export type EvaluateError =
   /**
    * The result at `span` passes the significand limit. With `exact`, an exact
    * result was formed and its canonical significand measured past the limit
-   * (D19), and the message names the remedy (D20): `approx` around the
-   * `operand`, the node's first operand (a binary's left, a power's base,
-   * a call's first argument), which makes the node's result inexact,
-   * settled rather than refused; a unit has no operand, and the remedy is
-   * the setting, or the operation or call was not computed at all (a
-   * sum's alignment, a power's prediction, the kernel's reach), or the
-   * literal at `span` already passes. `inexact` is the refusing function's
+   * (devdocs/numbers.md, "The significand limit"), and the message names
+   * the remedy (devdocs/numbers.md, "Which limit a refusal names"): `approx`
+   * around the `operand`, the node's first operand (a binary's left, a
+   * power's base, a call's first argument), which makes the node's result
+   * inexact, settled rather than refused; a unit has no operand, and the
+   * remedy is the setting, or the operation or call was not computed at
+   * all (a sum's alignment, a power's prediction, the kernel's reach), or
+   * the literal at `span` already passes. `inexact` is the refusing function's
    * word on the same step computed inexactly (`Reach`) and `need` the
    * bits it would take (`Need`), both carried through unchanged;
    * `operand`, on `fits` alone, is the span `approx` around would make
@@ -387,8 +393,9 @@ export type BodyError<E> =
  * The quantity `expr` denotes, with unit names resolved by `lookup`, the
  * operands of every sum checked for conformance by the roles in
  * `primitives`, every inexact operation computed at the precision of
- * `context`, every result settled to it (D15), every literal checked
- * against its significand limit, and every exact result held to it (D19).
+ * `context`, every result settled to it (devdocs/numbers.md, "Settling"),
+ * every literal checked against its significand limit, and every exact
+ * result held to it (devdocs/numbers.md, "The significand limit").
  */
 export function evaluate<E>(
   expr: Expr,
@@ -399,8 +406,8 @@ export function evaluate<E>(
 ): Result<Quantity, EvaluateError | E> {
   const result = evaluateNode(expr, lookup, primitives, context, assumptions);
   if (!result.ok) return withOperand(result, expr);
-  // No exact result is formed past the significand limit (D19 as the
-  // strict limit amended it): every operation that forms one, the
+  // No exact result is formed past the significand limit (devdocs/numbers.md,
+  // "The significand limit"): every operation that forms one, the
   // literal's parse, the sum's alignment, the product, the quotient and
   // the power, predicts its size first and refuses with the bits it
   // would need. So an exact result past the limit here is a bug in a
@@ -482,7 +489,8 @@ function firstOperand(expr: Expr): Span | undefined {
  * One node of `evaluate`, its operands evaluated (and settled) recursively
  * at the operand context (`operandContext`): in decimal mode with working
  * digits, every step below this one is rounded to them and this step to
- * the digits of `context` (D27); otherwise the same context throughout.
+ * the digits of `context` (devdocs/numbers.md, "The working digits");
+ * otherwise the same context throughout.
  */
 function evaluateNode<E>(
   expr: Expr,
@@ -498,7 +506,7 @@ function evaluateNode<E>(
       // The parser checked the literal's significand against the hard bound
       // and its exponent against the exponent bound; the significand limit of
       // the context is the setting, applied to the significand, the exponent
-      // costing nothing (D16).
+      // costing nothing (devdocs/settings.md, "The model").
       if (!significandWithin(node.value, context.significandLimitBits)) {
         // The digits typed are the significand; nothing rounds them
         // smaller before this check, in either mode. Its size is known.
@@ -615,7 +623,8 @@ function evaluateNode<E>(
           : err({ ...refusal, span });
       }
       // The power is one step: in decimal mode its rounding is certified
-      // at rising precision (D26), in exact mode it is computed once.
+      // at rising precision (devdocs/numbers.md, "Decimal mode"), in exact
+      // mode it is computed once.
       const power = stepQuantity(
         (working) => powered(base.value, exponent.value, working, context),
         context,
@@ -798,7 +807,8 @@ function applyBuiltin<E>(
   const { node, span } = expr;
   if (node.kind !== "call") throw new Error("A built-in is applied by a call");
   // The arguments are the call's operands, computed at the operand
-  // context (D27); the call is the step at `context`.
+  // context (devdocs/numbers.md, "The working digits"); the call is the
+  // step at `context`.
   const inner = operandContext(context);
   const values: Quantity[] = [];
   for (const argument of node.arguments) {
@@ -822,8 +832,9 @@ function applyBuiltin<E>(
   }
   const magnitudes = values.map((value) => value.magnitude);
   // The call is one step: in decimal mode the function is computed at
-  // rising precision until its rounding is certified (D26), and `approx`
-  // is the identity there; in exact mode it is computed once.
+  // rising precision until its rounding is certified (devdocs/numbers.md,
+  // "Decimal mode"), and `approx` is the identity there; in exact mode it
+  // is computed once.
   const result =
     fn.decimal === "identity" && modeOf(context) === "decimal"
       ? ok({ magnitude: magnitudes[0]!, dimension: dimension.value })
@@ -946,7 +957,7 @@ export type ConditionFailure<E> =
 /**
  * Whether the arguments of `bindings` meet the `conditions` of `owner`, a
  * function or (`of`) its inverse, in three-valued logic
- * (devdocs/design/functions.md, "Conditions"): the conditions left to right, and
+ * (devdocs/functions.md, "The check at a call"): the conditions left to right, and
  * the comparisons of each left to right, each decided on balls by
  * `decide`. The first certain failure ends the check, even after an
  * undecided comparison; a term that fails to evaluate ends it too when
@@ -966,7 +977,8 @@ export function checkConditions<E>(
   assumptions: Assumption[],
 ): Result<undefined, ConditionFailure<E>> {
   // A condition's terms are no part of a displayed value: they are
-  // computed and compared at the operand context (D27).
+  // computed and compared at the operand context (devdocs/numbers.md,
+  // "The working digits").
   const inner = operandContext(context);
   const terms: Assumption[] = [];
   const assumed: Assumption[] = [];
@@ -1031,7 +1043,7 @@ export type Verdict = "holds" | "fails" | "undecided";
 
 /**
  * Whether `a comparator b` holds, from where `a` lies against `b`
- * (`orderOf`): the table of devdocs/design/functions.md ("Conditions"), in which an
+ * (`orderOf`): the table of devdocs/functions.md ("The check at a call"), in which an
  * end exactly on the other side leaves a strict comparison undecided,
  * since a ball is closed, and two exact values always decide.
  */
@@ -1114,8 +1126,8 @@ function evaluateBound<E>(
 
 /**
  * `q` to `exponent` at `working`, by `powQuantity`: an integer power of an
- * exact base exactly, a root through the kernel. In decimal mode (D26;
- * devdocs/design/decimal-mode.md, "Powers") an exact power that does not fit the
+ * exact base exactly, a root through the kernel. In decimal mode
+ * (devdocs/numbers.md, "Decimal mode") an exact power that does not fit the
  * significand limit is computed instead on the base widened to the working
  * precision, so that the step certifies its rounding as it does an
  * inexact function's: the limit is a cost limit, and a correctly rounded
@@ -1145,8 +1157,8 @@ function powered(
 
 /**
  * `a + b` or `a - b` at `working`, by `addQuantities` and
- * `subtractQuantities`. In decimal mode (D26; devdocs/design/decimal-mode.md, "Sums
- * that do not align") two operands whose alignment the significand limit does
+ * `subtractQuantities`. In decimal mode (devdocs/numbers.md, "Decimal mode")
+ * two operands whose alignment the significand limit does
  * not hold, which the sum refuses as `tooLarge`, are summed by the
  * neighbor rule instead (`decimalSumApart`), the operands being exact
  * there; the conformance of the two was checked by the refusal.
@@ -1191,9 +1203,10 @@ export type ReducedExponent =
 
 /**
  * The `^` exponent `e` as the fraction it denotes, in lowest terms, within
- * `significandLimitBits`, the significand limit (the plan's H.9, issue #66): each literal's
- * significand is held to the limit first, as every literal's is, so that no
- * gcd runs on more than the limit allows (`quotient` undefined when one
+ * `significandLimitBits`, the significand limit (devdocs/numbers.md, "The
+ * significand limit"): each literal's significand is held to the limit
+ * first, as every literal's is, so that no gcd runs on more than the limit
+ * allows (`quotient` undefined when one
  * is past it); the quotient of the two is taken as `Scaled` values, the
  * powers of ten cancelling and the significands reduced by one gcd within
  * the limit; and the fraction is formed from the quotient within the

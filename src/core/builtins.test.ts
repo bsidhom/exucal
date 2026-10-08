@@ -71,10 +71,10 @@ test("the app's built-ins are gathered by name, each from its module", () => {
 });
 
 test("at a raised significand limit the built-ins near the edges of what the kernel is handed are values, where their conversion threw", () => {
-  // Issue #56: at the significand limit 1,048,576 the branch for a tiny argument
+  // At the significand limit 1,048,576 the branch for a tiny argument
   // leaves `1e-315000` to the kernel, and the literal check admits a
   // significand the hard bound could not form; `fixedFromScaled` forms it
-  // within four times the hard bound (H.2).
+  // within four times the hard bound (devdocs/builtins.md, "Huge and tiny arguments").
   const parsed = parseDefinitions("m  !\nradian  !kind");
   assert.ok(parsed.ok);
   const context = {

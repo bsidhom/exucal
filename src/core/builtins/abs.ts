@@ -1,5 +1,5 @@
-// `abs` and `sign` (devdocs/design/special.md, "The exact functions"; the plan's
-// 6.1): the magnitude and the side of a value, the two exact functions
+// `abs` and `sign` (devdocs/builtins.md, "The exact functions"): the
+// magnitude and the side of a value, the two exact functions
 // that take any quantity, since both are invariant under the unit's
 // scale. `abs` keeps its argument's dimension; `sign` is a plain number.
 // `abs` of a ball is the midpoint's magnitude with the same radius, which

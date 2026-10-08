@@ -1,8 +1,7 @@
 // The digamma and log-gamma functions on the kernel: `digammaFixed` and
 // `lgammaFixed`, the routines behind the built-ins `digamma`, `lgamma`
 // and `gamma` (builtins/gamma.ts), sharing the shift and the asymptotic
-// series (devdocs/design/special.md, "The Gamma and Beta families"; the plan's 6.2
-// and 6.3).
+// series (devdocs/builtins.md, "The Gamma and Beta families").
 //
 // For a positive argument `x`, the recurrences `ψ(x + 1) = ψ(x) + 1/x`
 // and `Γ(x + 1) = x Γ(x)` shift the argument up to `y = x + n` at or
@@ -33,7 +32,7 @@
 // a shorter shift would need many more of them.
 //
 // An exact argument `p / q` whose denominator is short takes the shift
-// exactly (`lgammaRational`, `digammaRational`, #117): the product `Π (p +
+// exactly (`lgammaRational`, `digammaRational`): the product `Π (p +
 // i q)` and the sum `Σ 1 / (p + i q)` over the shift's `n` factors by
 // binary splitting, one integer and one fraction, then one logarithm of
 // the product less `n ln q` taken at bits enough for the scaling, or one
@@ -47,8 +46,9 @@
 // takes the loop at a third of the bits, where the shift's cost is the
 // same whatever the argument.
 //
-// The argument's error rides through every operation (D9): the shift's
-// reciprocals or factors, the logarithms, and the powers of `1 / y^2`.
+// The argument's error rides through every operation (devdocs/numbers.md,
+// "The kernel's boundary"): the shift's reciprocals or factors, the
+// logarithms, and the powers of `1 / y^2`.
 // Each result is cut to the bits its magnitude calls for
 // (`keepSignificant`). A negative or a huge argument, and one near a
 // pole, are the built-in's to turn into a positive one of moderate size
@@ -284,7 +284,7 @@ function bernoulliSeries(
  * and `factor` at `working` bits, so that the ratios it needs can be
  * reserved before the sum and their memo computed once for the pass
  * rather than grown term by term, which recomputed the run at every
- * quarter and had a cold ceiling pass compute it five times over (#117).
+ * quarter and had a cold ceiling pass compute it five times over.
  * The loop ends at the first term within `TERM_FLOOR` ulps, and this
  * follows the terms' magnitudes in floating point from the bounds above
  * them `termLog2s` gives, under one bit over the terms; the count is the
@@ -316,7 +316,7 @@ function termsNeeded(
  * `ψ(f)` with `bits` significant bits kept for its magnitude, and an
  * interval containing the digamma function of every value in `f`'s, whose
  * interval must be positive (a precondition); `ln(2)` comes from its memo
- * at `ceilingBits` plus the margin (D10).
+ * at `ceilingBits` plus the margin (devdocs/numbers.md, "Memoized constants").
  */
 export function digammaFixed(
   f: Fixed,
@@ -394,10 +394,10 @@ function asymptoticDigamma(
   return subtractFixed(subtractFixed(ln, half), series);
 }
 
-/** The memo of `ln π`, as the constants of D10 are held: one value at the ceiling plus the margin. */
+/** The memo of `ln π`, as the memoized constants are held (devdocs/numbers.md, "Memoized constants"): one value at the ceiling plus the margin. */
 let lnPiHeld: Fixed | undefined;
 
-/** `ln π` at `bits` fraction bits, from the memo of `pi` at `ceilingBits` plus the margin (D10). */
+/** `ln π` at `bits` fraction bits, from the memo of `pi` at `ceilingBits` plus the margin (devdocs/numbers.md, "Memoized constants"). */
 export function lnPiFixed(bits: number, ceilingBits: number): Fixed {
   const compute = (b: number): Fixed =>
     lnFixed(piFixed(b, ceilingBits), b, ceilingBits);
@@ -427,7 +427,8 @@ export function lnPiMemoBits(): number | undefined {
  * `ln Γ(f)` with `bits` significant bits kept for its magnitude, and an
  * interval containing the logarithm of the Gamma function of every value
  * in `f`'s, whose interval must be positive (a precondition); `ln(2)`
- * and `pi` come from their memos at `ceilingBits` plus the margin (D10).
+ * and `pi` come from their memos at `ceilingBits` plus the margin
+ * (devdocs/numbers.md, "Memoized constants").
  * The shift's product `x (x + 1) … (x + n - 1)` is kept as a significand at
  * the working bits with a binary exponent, so that its factors cost one
  * multiplication at the working bits each, and its logarithm is taken

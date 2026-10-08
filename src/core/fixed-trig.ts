@@ -2,21 +2,22 @@
 // `sinCosFixed`, the routines behind the built-ins `sin`, `cos` and `tan`
 // (builtins/trig.ts), which share one reduction and one series, and
 // `atanFixed`, behind the inverses (builtins/inverse-trig.ts), which reach
-// `asin`, `acos` and `atan2` through it. devdocs/history/calculator-plan.md (D9, D10
-// and tasks 3.9 and 3.10) is the design.
+// `asin`, `acos` and `atan2` through it. devdocs/builtins.md ("The
+// elementary routines") is the design.
 //
 // The argument is reduced by the nearest multiple of `pi/2`: `x = n pi/2 +
 // r` with `|r|` at most `pi/4`, and the quadrant `n mod 4` says which of
 // `±sin r` and `±cos r` each function is. `n` is `round(2x / pi)` on the
-// integers, and pi comes from its memo (constants.ts, D10) at the bits
-// asked for plus the bit length of the argument's integer part, so that
+// integers, and pi comes from its memo (constants.ts; devdocs/numbers.md,
+// "Memoized constants") at the bits asked for plus the bit length of the
+// argument's integer part, so that
 // `n pi/2` is exact to those bits however large the argument: pi's three
 // ulps times `n/2` are under one ulp of the result, and the memo's margin
 // of 256 bits serves every argument below `2^256` at the ceiling pass; a
 // larger argument computes pi for the call and keeps nothing. The
 // argument's own error rides through the subtraction, so `r` carries it
-// and the series runs on `r` with that error included (D9): no derivative
-// bound is needed.
+// and the series runs on `r` with that error included (devdocs/numbers.md,
+// "The kernel's boundary"): no derivative bound is needed.
 //
 // `sin r` and `cos r` are the Taylor series in `v = -r^2`, `cos r = Σ v^k /
 // (2k)!` and `sin r = r Σ v^k / (2k+1)!`, whose powers of `v` are shared
@@ -37,7 +38,7 @@
 // guard, so that a tiny argument, which a caller converts at as many more
 // fraction bits as its magnitude is below one, keeps its digits; the
 // results are cut to the bits their magnitudes call for
-// (`keepSignificant`, D9), so that `sin(1e-50)` keeps its digits and `sin`
+// (`keepSignificant`), so that `sin(1e-50)` keeps its digits and `sin`
 // of a value near a multiple of pi is a ball around zero.
 //
 // An argument whose interval is wider than about a fifth of a radian after
@@ -55,7 +56,7 @@
 // logarithm's series in `-z^2`, which gains fourteen bits a term; the sum
 // times `2^8` is an exact shift that scales the error with it, so the
 // work is done at the bits plus eight plus a guard, and the result is cut
-// to the bits its magnitude calls for (D9), a tiny argument keeping its
+// to the bits its magnitude calls for, a tiny argument keeping its
 // digits as the sine does. An argument whose interval is wider than one
 // radian is the trivial bound, zero within two, for the same reason as
 // above: its square would not stay positive under the error rules.
@@ -93,8 +94,8 @@ export type SinCos = { readonly sin: Fixed; readonly cos: Fixed };
  * `sin(f)` and `cos(f)` with `bits` significant bits kept for each one's
  * magnitude, and intervals containing the sine and the cosine of every
  * value in `f`'s; pi comes from its memo at `ceilingBits` plus the margin
- * (D10). The two share the reduction and the powers of the series, so
- * both cost what one does.
+ * (devdocs/numbers.md, "Memoized constants"). The two share the reduction
+ * and the powers of the series, so both cost what one does.
  */
 export function sinCosFixed(
   f: Fixed,

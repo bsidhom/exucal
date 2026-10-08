@@ -1,11 +1,13 @@
 // The logarithms: `ln(x)`, `log10(x)`, `log2(x)` and `log(b, x)`, the base
-// first (devdocs/design/builtins.md), on the kernel's `lnFixed` (fixed-log.ts) and
-// its memoized `ln(2)` and `ln(10)`. devdocs/history/calculator-plan.md (task 3.7)
-// places them. They share one module because they share the domain rule
+// first (devdocs/builtins.md, "Names"), on the kernel's `lnFixed`
+// (fixed-log.ts) and its memoized `ln(2)` and `ln(10)`. devdocs/builtins.md
+// ("The elementary routines") is the design. They share one module
+// because they share the domain rule
 // and the kernel call: a logarithm takes a positive plain number, so an
 // argument that is not positive throughout its ball is a `domain` error
 // (`notPositive`), and one that straddles zero is `unresolved` at edge
-// zero (D4), as is one that reaches within an ulp of zero at the working
+// zero (devdocs/numbers.md, "Exact operations"), as is one that reaches
+// within an ulp of zero at the working
 // bits. The base of `log` must also not be one: a base that is exactly one
 // is a `domain` error (`baseOne`), and one that straddles one, or whose
 // logarithm cannot be told from zero at the working bits, is `unresolved`
@@ -21,7 +23,8 @@
 // `log(b, 1)` is zero; a rational exponent in general is not looked for
 // (`log(4, 8)` is `≈ 1.5`).
 // Every other value is the kernel's `ln`, or the quotient of two, handed
-// back as the kernel's ball for the evaluator to settle (D15). The
+// back as the kernel's ball for the evaluator to settle (devdocs/numbers.md,
+// "Settling"). The
 // argument's significand is scaled to order one by a power of two before it
 // is converted, and the power goes to the kernel with the decimal
 // exponent (`lnScaled` of ball.ts, which the log-space power shares), so

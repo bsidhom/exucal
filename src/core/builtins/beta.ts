@@ -1,8 +1,8 @@
 // `beta(a, b)`: the Beta function `Γ(a) Γ(b) / Γ(a + b)`, through
 // `lgamma` (gamma.ts, `logGamma`) under the classifier, so that large
-// arguments never form a `Γ` that would not fit. devdocs/design/special.md ("`beta`
-// (6.4)") is the design and devdocs/history/calculator-plan.md (task 6.4) places
-// it. Both arguments are plain numbers and the result is one.
+// arguments never form a `Γ` that would not fit. devdocs/builtins.md ("The
+// Gamma and Beta families") is the design. Both arguments are plain
+// numbers and the result is one.
 //
 // The exact case: positive integers, where `beta(a, b)` is `(a - 1)!
 // (b - 1)! / (a + b - 1)!`, formed as the reciprocal of `(a + b - 1)

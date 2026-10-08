@@ -21,7 +21,7 @@ import { bitsFor } from "./fixed.ts";
 import { MAX_SIGNIFICAND_LIMIT_BITS } from "./rational.ts";
 import { ROUNDING_MODES } from "./rounding.ts";
 
-test("the defaults are eight digits and half even (S2 of the settings plan)", () => {
+test('the defaults are eight digits and half even (devdocs/settings.md, "The model")', () => {
   assert.equal(DEFAULT_DISPLAY_DIGITS, 8);
   assert.equal(DEFAULT_ROUNDING, "halfEven");
   checkContext({
@@ -137,8 +137,9 @@ test("ceilingContext is the context at its ceiling, the same for every precision
   const top = { ...context, precision: 840 };
   assert.equal(ceilingContext(top), top);
   assert.equal(DEFAULT_CEILING, 4040);
-  // In exact mode whatever the user's mode (4.6): the table is built
-  // exactly, and a unit is settled in the user's mode when looked up.
+  // In exact mode whatever the user's mode (devdocs/numbers.md, "Decimal
+  // mode"): the table is built exactly, and a unit is settled in the
+  // user's mode when looked up.
   assert.deepEqual(ceilingContext({ ...context, mode: "decimal" }), {
     ...context,
     precision: 840,
@@ -207,7 +208,7 @@ test("precisionLimitFor is the largest precision limit whose ceiling fits half t
   assert.equal(precisionLimitFor(1), 0);
 });
 
-test("the working digits are an integer at or above the precision within the precision limit, and checkContext rejects the rest (D27)", () => {
+test("the working digits are an integer at or above the precision within the precision limit, and checkContext rejects the rest", () => {
   const decimal: NumberContext = {
     precision: 8,
     rounding: "halfEven",
@@ -241,7 +242,7 @@ test("the working digits are an integer at or above the precision within the pre
   );
 });
 
-test("operandContext is the context at the working digits in decimal mode, and the context itself otherwise (D27)", () => {
+test("operandContext is the context at the working digits in decimal mode, and the context itself otherwise", () => {
   const decimal: NumberContext = {
     precision: 8,
     rounding: "floor",

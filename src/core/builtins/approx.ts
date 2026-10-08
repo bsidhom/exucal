@@ -1,9 +1,9 @@
 // `approx(x)`: the value known to the working precision and no better.
-// devdocs/design/approximate.md is the design and devdocs/history/calculator-plan.md (task
-// 4.10) places it. The argument is any quantity, of any dimension, kinds
+// devdocs/numbers.md ("`approx`") is the design. The argument is any
+// quantity, of any dimension, kinds
 // included, and the result has the argument's dimension (`sameAsArgument`
-// of builtin.ts, the rule D14 describes for the exact functions of stage
-// 6, landing here ahead of them). The magnitude is the ball whose midpoint
+// of builtin.ts, the rule devdocs/builtins.md ("The exact functions")
+// describes for the exact functions). The magnitude is the ball whose midpoint
 // is the argument's and whose radius is the larger of the argument's own
 // and one unit in the last of the working digits at the value's
 // magnitude, rounded up to a radius: an exact argument gains the unit, an
@@ -11,10 +11,11 @@
 // radius is smaller is widened to the unit, so `approx` never narrows and
 // is idempotent. An exact zero and an unbounded argument are returned as
 // they are. The evaluator settles the result as it settles every inexact
-// one (D15), and the retry loop needs nothing of its own, since the radius
+// one (devdocs/numbers.md, "Settling"), and the retry loop needs nothing of
+// its own, since the radius
 // is the working precision's and shrinks with each pass. The working
-// digits are `workingDigits(context)`. In decimal mode (D26;
-// devdocs/design/decimal-mode.md, "`approx`") the evaluator does not call this at
+// digits are `workingDigits(context)`. In decimal mode
+// (devdocs/numbers.md, "Decimal mode") the evaluator does not call this at
 // all: every value there is already at the user's precision, so `approx`
 // is the identity, which the built-in declares with `decimal`.
 

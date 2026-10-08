@@ -38,7 +38,8 @@
 // would mean the function, and typed as the have a prefixed unit. A
 // function is a node of the walk, so that a unit may be defined by a call,
 // a body may call another function, and a cycle through a function is
-// reported like any other. Checking a function (devdocs/design/functions.md) means
+// reported like any other. Checking a function (devdocs/functions.md,
+// "Build-time checks") means
 // evaluating its annotations and taking its body's dimension without
 // evaluating it (dimension-of.ts), with the parameter bound to its
 // annotation's dimension (a plain number without one), through the walk's
@@ -923,7 +924,8 @@ function lookupIn(
       // within it unless both are at its edge, which the definitions the
       // app ships are nowhere near, but a product may be refused all the
       // same, so any refusal is the name's; the significand limit is the node's
-      // check (D19), made where the name is evaluated.
+      // check (devdocs/numbers.md, "The significand limit"), made where the
+      // name is evaluated.
       const { error } = product;
       if (!isRefusal(error)) {
         throw new Error(`A prefix times a unit failed: ${error.kind}`);

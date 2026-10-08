@@ -2,8 +2,8 @@
 // x)`, the unregularized `γ(s, x)` and `Γ(s, x)`, and `lowergammareg`
 // and `uppergammareg`, the regularized `P(s, x)` and `Q(s, x)`, on the
 // kernel's series and continued fraction (fixed-incomplete.ts).
-// devdocs/design/special.md ("The incomplete gamma functions (6.5)") is the design
-// and devdocs/history/calculator-plan.md (task 6.5) places them. Each takes two
+// devdocs/builtins.md ("The Gamma and Beta families") is the design. Each
+// takes two
 // plain numbers, the order `s` positive and the argument `x` at or
 // above zero, and gives a plain number.
 //
@@ -17,7 +17,8 @@
 // the bits of its own magnitude (`magnitudeBits` of `s` and `x`, as
 // `beta` takes them), so that its absolute error, the result's relative
 // error, stays below the working ulp, and `expBall` applies the
-// classifier of ball.ts to it (D18): `lowergamma(1e400, 2)` is
+// classifier of ball.ts to it (devdocs/numbers.md, "The exponent bound"):
+// `lowergamma(1e400, 2)` is
 // `overflow` and `uppergamma(2, 1e400)` is `underflow`. The other form of
 // the pair is the complement, `Γ(s) - γ(s, x)` or `1 - P`, taken from
 // the one computed, so only one series or fraction runs; where the one
@@ -37,7 +38,7 @@
 // certify (`routeOf`). Past both limits, a large order near a large
 // argument, the regime of the uniform asymptotic expansions, which are
 // not in this design, the call is `tooLarge` rather than a value with
-// digits nothing certifies: the plan's fallback of an unbounded radius
+// digits nothing certifies: an earlier fallback of an unbounded radius
 // was for the fraction's bound being unwritten, and the bound is
 // written.
 //

@@ -35,11 +35,10 @@
 // (`m^2`, `s^-1`, `m^0.5`) or a parenthesized rational (`m^(1/2)`,
 // `m^(-3/2)`), so the exponent is known at parse time and travels in the
 // tree as the two literals the parser read, an `Exponent`, undivided: the
-// evaluator takes their quotient and forms the fraction where the range
+// evaluator takes their quotient and forms the fraction where the significand
 // limit applies (`reduceExponent` of evaluate.ts), since a reduction
 // here, with no context, ran Euclid's gcd at the hard bound on every
-// keystroke, seconds on long literals and minutes at the bound (issue
-// #66).
+// keystroke, seconds on long literals and minutes at the bound.
 //
 // A call, `tempC(100)`, is a name directly followed by `(`, zero or more
 // expressions separated by commas, and `)`: `pi()`, `tempC(100)`,
@@ -47,17 +46,18 @@
 // `tempC(100)^2` and `-tempC(100)` mean what they look like, and each
 // argument is any expression. The comma appears nowhere else in the
 // grammar. How many arguments a function takes is its own business and the
-// evaluator's to check (devdocs/design/builtins.md, "Arity"); the parser accepts any
+// evaluator's to check (devdocs/builtins.md, "Arity"); the parser accepts any
 // count. Whether the name is a function is the evaluator's business too;
 // the parser decides a call by the text alone, and the one rule it applies
 // is lexical: no space between the name and the `(` makes a call, and a
 // space makes a product, so `kg (m/s)` is a product and `kg(m/s)` is a
 // call of `kg`, which the evaluator will reject. That is the one
-// whitespace-sensitive rule in the grammar (devdocs/design/functions.md says why).
+// whitespace-sensitive rule in the grammar (devdocs/functions.md,
+// "Alternatives considered", says why).
 // A name directly followed by `(` is only a call: a plain name is read
 // only where no `(` follows it, so that a call whose argument list fails
 // is not read again as a name before a parenthesized factor, which cost
-// `2^k` for `k` levels of nesting (issue #54).
+// `2^k` for `k` levels of nesting.
 //
 // A unit list, `ft;in`, is what the user may type as `want` to have the
 // value shown as a sum of units (devdocs/architecture.md, "Unit lists"), and what
@@ -412,7 +412,7 @@ const call: Parser<Expr, Rejection> = map(
  * front of the `(`; a call whose argument list fails is then not read
  * again as a name before a parenthesized factor, and a nested call with an
  * error in it costs a constant per level, where each level doubled the
- * cost (issue #54). It is labelled as a name is, for the same reason
+ * cost. It is labelled as a name is, for the same reason
  * `callName` is.
  */
 const plainName: Parser<Spanned<string>> = token(

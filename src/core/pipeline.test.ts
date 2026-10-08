@@ -355,7 +355,7 @@ test("an unresolved is retried to the ceiling, and any other error returns at on
 });
 
 // ---------------------------------------------------------------------------
-// The decimal mode (4.6)
+// The decimal mode (devdocs/numbers.md, "Decimal mode")
 
 /** A decimal-mode context at `precision` digits in `rounding`. */
 function decimal(
@@ -383,7 +383,7 @@ test("in decimal mode the schedule is the context alone and resolve runs one pas
   assert.deepEqual(result, { ok: false, error: { kind: "unresolved" } });
 });
 
-test("in decimal mode every operation is one rounded step and every value is exact (D26)", () => {
+test('in decimal mode every operation is one rounded step and every value is exact (devdocs/numbers.md, "Decimal mode")', () => {
   // 1 / 3 * 3 at eight digits: 0.33333333 times three, 0.99999999, exact,
   // under every mode, and shown so: the rounded value is the answer.
   for (const mode of ["halfEven", "halfAwayFromZero", "towardZero"] as const) {
@@ -486,7 +486,7 @@ test("in decimal mode every operation is one rounded step and every value is exa
   );
 });
 
-test("in decimal mode the texts are the operands of what is shown, computed at the working digits, and the ratio, the terms and the count are rounded to the digits asked for (D27)", () => {
+test('in decimal mode the texts are the operands of what is shown, computed at the working digits, and the ratio, the terms and the count are rounded to the digits asked for (devdocs/numbers.md, "The working digits")', () => {
   const over12: NumberContext = { ...decimal(8, "halfEven"), working: 12 };
   // A bare expression is the value shown: its root is rounded to eight
   // from twelve-digit operands.
@@ -591,7 +591,8 @@ test("the significand limit of the context reaches a literal's significand and a
     operand: { start: 0, end: 1 },
   });
   // An inexact base is bounded by the exponent bound, not by an exact
-  // power (4.9): sqrt(2)^(10^7) is a value, sqrt(2)^(10^19) is not.
+  // power (devdocs/numbers.md, "The exponent bound"): sqrt(2)^(10^7) is a
+  // value, sqrt(2)^(10^19) is not.
   assert.ok(evaluateText(table, "(2^(1/2))^1000", CONTEXT).ok);
   const large = evaluateText(table, "(2^(1/2))^10000000", CONTEXT);
   assert.ok(large.ok, inspect(large));
@@ -879,9 +880,9 @@ function assertTerms(
   );
 }
 
-test("a result straddling the exponent bound is retried, and reported at the bound when no pass decides it (D18)", () => {
+test('a result straddling the exponent bound is retried, and reported at the bound when no pass decides it (devdocs/numbers.md, "The exponent bound")', () => {
   // The first pass leaves the product straddling the top; the later ones
-  // narrow it to zero within a bound (#60).
+  // narrow it to zero within a bound.
   const narrowing = evaluateText(
     table,
     "(1e46 - approx(1/3) * 3e46) * 1e999999999999999983",
@@ -892,8 +893,8 @@ test("a result straddling the exponent bound is retried, and reported at the bou
     inspect(narrowing),
   );
   // No pass narrows this one below the top: unresolved at the bound at the
-  // ceiling. In decimal mode approx is the identity (D26), the difference
-  // is exactly zero and so is the product.
+  // ceiling. In decimal mode approx is the identity (devdocs/numbers.md,
+  // "Decimal mode"), the difference is exactly zero and so is the product.
   const straddling =
     "5e1000000000000000000 * (approx(1e5000) - approx(1e5000))";
   const result = evaluateText(table, straddling, CONTEXT);
@@ -911,16 +912,17 @@ test("a result straddling the exponent bound is retried, and reported at the bou
     kind: "unresolvedBound",
   });
   // A literal at the bottom edge with a fraction significand is a value, and
-  // its list too (H.12's row that waited for H.13).
+  // its list too.
   assert.equal(
     list("1.234567891e-999999999999999999 m", "m;mm").terms.length,
     2,
   );
 });
 
-test("a list at the edges of the bound gives its terms or the refusal, and never throws (H.12)", () => {
-  // A count whose ratio falls below the bound is zero (D8): the value is
-  // all remainder. In both modes, through the display's rounding too.
+test('a list at the edges of the bound gives its terms or the refusal, and never throws (devdocs/architecture.md, "Unit lists")', () => {
+  // A count whose ratio falls below the bound is zero (devdocs/architecture.md,
+  // "Unit lists"): the value is all remainder. In both modes, through the
+  // display's rounding too.
   const tiny = "1e-999999999999999999";
   for (const want of ["hr;min;s", "time"]) {
     for (const context of [CONTEXT, decimal(8)]) {
@@ -951,7 +953,7 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
     { kind: "overflow" },
   );
   // A count at an ordinary size can leave a remainder that cannot align
-  // within the significand limit (#58): the conversion's tooLarge.
+  // within the significand limit: the conversion's tooLarge.
   // The need is the quotient's, predicted after its gcds: the two parts'
   // bits, one three of the count cancelled against the 381 of a foot.
   assert.deepEqual(failure("3^32767 m", "ft/7^21845; in/7^21845"), {
@@ -962,9 +964,10 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
       bits: bitLength(3n ** 32766n) + bitLength(7n ** 21845n),
     },
   });
-  // The conversion's ratio is held to the significand limit once formed (D19),
-  // as a node's result is: two sides each within the limit whose ratio
-  // passes it (#52's conversion, a value after 3.7 s before), refused as
+  // The conversion's ratio is held to the significand limit once formed
+  // (devdocs/numbers.md, "The significand limit"), as a node's result is:
+  // two sides each within the limit whose ratio passes it (once a value,
+  // after 3.7 s), refused as
   // the pipeline's own `tooLarge` with the bits the ratio's quotient
   // would need, predicted; in decimal mode the ratio is settled and is a
   // value.
@@ -978,7 +981,7 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
       .ok,
   );
   // A list whose display rounding carries into a total past the bound
-  // (#48's first constraint, in a form the literal check admits) comes
+  // (in a form the literal check admits) comes
   // back uncarried from roundTerms, which used to throw. At the display's
   // eight digits: the count of feet is then twenty-eight nines, and the
   // carry takes it to 1e+(10^18 + 1).
@@ -1000,7 +1003,7 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
     ),
     carry.value.terms,
   );
-  // #59: the display's rounding carries the second unit into a whole of
+  // The display's rounding carries the second unit into a whole of
   // the first, and the rebuilt total, `1e+(10^18 + 1)`, is unresolved at
   // the bound, where the sum absorbed it and the list came back a tenth
   // short; the terms come back uncarried.
@@ -1037,9 +1040,9 @@ test("a list at the edges of the bound gives its terms or the refusal, and never
     );
     assert.deepEqual(rounded[0]!.mid, ZERO);
     // The display formats the remainder at the digits certified, which is
-    // the line shown whether or not the rounding carried (before H.13 the
-    // carry's product was refused by its canonical exponent, and the
-    // terms came back uncarried).
+    // the line shown whether or not the rounding carried (an earlier version
+    // refused the carry's product by its canonical exponent, and the terms
+    // came back uncarried).
     assert.equal(
       format(rounded[1]!.mid, 8, DEFAULT_ROUNDING),
       "3.9370079e-999999999999999998",
@@ -1311,11 +1314,11 @@ test("a call's argument too large to count in its unit is refused, not thrown", 
   assert.ok(within.ok && within.value.kind === "function", inspect(within));
 });
 
-test("a zero's bound far below the exponent bound is written in a bounded length (#67)", () => {
+test("a zero's bound far below the exponent bound is written in a bounded length", () => {
   // A power of a ball around zero carries the radius's exponent far
   // below the bound; the display writes `1e-1000000000000000000`, larger
   // than the bound and so still sound, in place of an exponent of ten
-  // thousand digits (devdocs/design/fractions.md, "A zero's bound at the edges").
+  // thousand digits (devdocs/numbers.md, "Certification and the display rule").
   assert.deepEqual(shown("(approx(1e20) - approx(1e20))^100000", 8), {
     kind: "zero",
     text: "0",
@@ -1326,8 +1329,8 @@ test("a zero's bound far below the exponent bound is written in a bounded length
     text: "0",
     bound: "1e-1000000000000000000",
   });
-  // The issue's third row, `^1e100000`, is refused since the hardening
-  // phase (H.15): the exponent is past the significand limit as a fraction.
+  // A third case, `^1e100000`, is refused: the exponent is past the
+  // significand limit as a fraction.
   const refused = evaluateText(
     table,
     "(approx(1e20) - approx(1e20))^1e100000",
@@ -1339,7 +1342,7 @@ test("a zero's bound far below the exponent bound is written in a bounded length
 // ---------------------------------------------------------------------------
 // Conditions
 
-/** A table of functions with conditions, for devdocs/design/functions.md's cases. */
+/** A table of functions with conditions, for the cases of devdocs/functions.md ("Conditions"). */
 const conditional: UnitTable = (() => {
   const definitions = parseDefinitions(
     [
@@ -1516,8 +1519,9 @@ test("an undecided condition is assumed, retried to the ceiling, and carried out
   // The value is the body's honest ball: zero, within the argument's radius.
   assert.ok(containsZero(result.value.magnitude));
   // evaluateText does the same. In decimal mode approx is the identity
-  // (D26): the argument is exactly -273.15, the condition is decided and
-  // nothing is assumed, and the value is exactly zero.
+  // (devdocs/numbers.md, "Decimal mode"): the argument is exactly -273.15,
+  // the condition is decided and nothing is assumed, and the value is
+  // exactly zero.
   assert.deepEqual(assuming("tempC(approx(-273.15))").assumed, [
     assumption("tempC", "x >= -273.15"),
   ]);

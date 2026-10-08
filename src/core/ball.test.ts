@@ -103,8 +103,9 @@ function decimalAt(precision: number, rounding: RoundingMode): NumberContext {
 /**
  * `num / den × 10^exp` as a `Scaled`, built without the constructor's
  * normalization, for a value whose canonical exponent lies past the bound
- * while its value does not, which the constructor admits since H.13;
- * `num` must not be divisible by ten and `den` must be coprime to it.
+ * while its value does not, which the constructor admits
+ * (devdocs/numbers.md, "The exponent bound"); `num` must not be divisible
+ * by ten and `den` must be coprime to it.
  */
 function scaledAt(num: bigint, den: bigint, exp: bigint): Scaled {
   return { significand: rational(num, den), exp };
@@ -363,7 +364,7 @@ test("a sum with an inexact operand that cannot be aligned settles first and abs
   );
 });
 
-test("a sum is held to the bound by its whole ball (D18, issue #48)", () => {
+test("a sum is held to the bound by its whole ball", () => {
   const context = at(8);
   const bottom = `1e-${E18}`;
   const half = exact(dec(`5e${E18}`));
@@ -390,8 +391,8 @@ test("a sum is held to the bound by its whole ball (D18, issue #48)", () => {
     ),
     { kind: "underflow" },
   );
-  // One straddling the top is unresolved at the bound; the sum of #48's
-  // first row, whose radius reaches back within.
+  // One straddling the top is unresolved at the bound: a sum whose
+  // radius reaches back within.
   assert.deepEqual(addBalls(ball(dec(`5e${E18}`), wide), half, context), {
     ok: false,
     error: { kind: "unresolved", edge: "bound" },
@@ -953,8 +954,9 @@ test("powRationalBall composes the power and the root, root last", () => {
     "divisionByZero",
   );
   // A base that is not a power of ten goes through log space and has the
-  // range of its exponent (4.9): 7^(100000/3) is about 8.6e28169, from
-  // Python's decimal module, and 7^(10^19) passes the exponent bound.
+  // range of its exponent (devdocs/numbers.md, "The exponent bound"):
+  // 7^(100000/3) is about 8.6e28169, from Python's decimal module, and
+  // 7^(10^19) passes the exponent bound.
   const sevenThirds = unwrap(
     powRationalBall(exact(fr(7n)), rational(100_000n, 3n), at(8)),
   );
@@ -1016,8 +1018,9 @@ test("powRationalBall composes the power and the root, root last", () => {
   );
   // A base straddling zero whose power reaches past the top of the
   // exponent bound, while its values near zero stay within, is
-  // unresolved at the bound (D18; stage 4 refused it by its midpoint);
-  // one whose power fits is a ball around zero under an odd root.
+  // unresolved at the bound (an earlier version refused it by its
+  // midpoint); one whose power fits is a ball around zero under an odd
+  // root.
   assert.deepEqual(
     powRationalBall(
       ball(dec("0.5"), dec("1")),
@@ -1051,7 +1054,7 @@ test("powRationalBall composes the power and the root, root last", () => {
 });
 
 test("a root the kernel cannot take goes to log space, and a significand below one keeps its digits", () => {
-  // A degree past 2^32 (issues #45 and #57): 2^(1/10^20), from Python's
+  // A degree past 2^32: 2^(1/10^20), from Python's
   // decimal module, certified to 32 digits on the first pass.
   const tiny = unwrap(rootBall(exact(fr(2n)), 10n ** 20n, at(32)));
   assertContains(
@@ -1109,10 +1112,11 @@ test("a root the kernel cannot take goes to log space, and a significand below o
 
 test("powLogSpace of an exponent below half an ulp converts it to zero within an ulp, and the power is one within a few ulps", () => {
   // The exponent is far below 2^-significandLimitBits: its fraction could not be
-  // formed, and the kernel's door answers it (H.2, issue #53).
-  // Since H.15 the classifier answers first: one within twice the bound
-  // on `|y ln x|`, a radius far below the working sizes, which the
-  // bounds compare and no fraction forms.
+  // formed, and the kernel's door answers it (devdocs/numbers.md, "The
+  // kernel's boundary"). The classifier (devdocs/numbers.md, "The exponent
+  // bound") answers first: one within twice the bound on `|y ln x|`, a
+  // radius far below the working sizes, which the bounds compare and no
+  // fraction forms.
   for (const y of ["1e-999999999", "-1e-999999999", "1e-400000"]) {
     const power = unwrap(powLogSpace(exact(fr(2n)), exact(dec(y)), at(8)));
     assert.deepEqual(power.mid, ONE, `2^${y}`);
@@ -1128,7 +1132,7 @@ test("powLogSpace of an exponent below half an ulp converts it to zero within an
 // ---------------------------------------------------------------------------
 // The exponent bound on a logarithm
 
-test("the classifier holds exp, sinh and cosh to the bound by the whole argument, exactly at the edges (D18, H.15)", () => {
+test("the classifier holds exp, sinh and cosh to the bound by the whole argument, exactly at the edges", () => {
   const context = at(8);
   // U = (10^18 + 1) ln 10 = 2302585092994045686.32…, and D = -10^18 ln 10
   // = -2302585092994045684.02…: an exact argument on either side of an
@@ -1173,7 +1177,7 @@ test("the classifier holds exp, sinh and cosh to the bound by the whole argument
   );
 });
 
-test("the classifier holds a power to the bound by the interval of y ln x (D18, H.15)", () => {
+test("the classifier holds a power to the bound by the interval of y ln x", () => {
   const context = at(8);
   const kind = (x: Ball, y: Ball) => classifyPower(x, y, context).kind;
   // Coarse: far within, and far past on the side the signs give.
@@ -1210,7 +1214,7 @@ test("the classifier holds a power to the bound by the interval of y ln x (D18, 
   );
   // A base near one is bounded by its exact difference from one: the
   // interval of an inexact base of one straddles both edges for sure,
-  // whatever the bits the kernel would need (#46's `pow(approx(1),
+  // whatever the bits the kernel would need (`pow(approx(1),
   // 1e999999999)`), and a tiny difference times a huge exponent is one
   // within twice their product, without the kernel.
   const nearOne = ball(ONE, dec("1e-7"));
@@ -1240,7 +1244,7 @@ test("the classifier holds a power to the bound by the interval of y ln x (D18, 
   // A base reaching zero is held to the top alone: the values near zero
   // are within, and the top is reached through the upper end; one with a
   // zero midpoint is zero within its radius to the power, from the
-  // radius's logarithm, quick for a huge exponent (#62), and unresolved
+  // radius's logarithm, quick for a huge exponent, and unresolved
   // at the bound where that radius reaches the top.
   const zero = ball(ZERO, dec("1e12"));
   const start = performance.now();
@@ -1532,7 +1536,7 @@ test("settle rounds an inexact midpoint to the working digits and grows the radi
   }
 });
 
-test("settle in decimal mode rounds every value to the precision in the rounding mode and leaves it exact (D26)", () => {
+test("settle in decimal mode rounds every value to the precision in the rounding mode and leaves it exact", () => {
   const decimal = (
     precision: number,
     rounding: RoundingMode,
@@ -1543,7 +1547,7 @@ test("settle in decimal mode rounds every value to the precision in the rounding
   });
   // An exact value with more than p digits is rounded, and is exact: no
   // radius records the rounding, since in this mode the rounded value is
-  // the value (devdocs/design/decimal-mode.md). 1200/3937 at eight digits.
+  // the value (devdocs/numbers.md, "Decimal mode"). 1200/3937 at eight digits.
   const foot = exact(fr(1200n, 3937n));
   assert.deepEqual(
     settled(foot, decimal(8, "halfAwayFromZero")),
@@ -1588,9 +1592,9 @@ test("settle in decimal mode rounds every value to the precision in the rounding
     dec("-0.66666667"),
   );
   // An inexact ball, a built-in's result at a working precision, is
-  // rounded exactly when it certifies the digits (D7), and is otherwise
-  // the midpoint's rounding, marked uncertified; a ball containing zero
-  // that certifies nothing is zero, uncertified ("The ceiling").
+  // rounded exactly when it certifies the digits, and is otherwise the
+  // midpoint's rounding, marked uncertified; a ball containing zero that
+  // certifies nothing is zero, uncertified.
   assert.deepEqual(
     settled(ball(dec("1.5"), dec("1e-30")), decimal(8, "halfEven")),
     exact(dec("1.5")),
@@ -1650,11 +1654,11 @@ test("settle in decimal mode rounds every value to the precision in the rounding
   }
 });
 
-test("settle refuses a rounded midpoint past the bound in decimal mode, and never in exact mode (D17)", () => {
+test("settle refuses a rounded midpoint past the bound in decimal mode, and never in exact mode", () => {
   // At the top: eleven nines at 10^18 round to 1e+(10^18 + 1) at eight
-  // digits, which is overflow in decimal mode, where stage 4 let it
-  // through; in exact mode the settle rounds toward zero instead and adds
-  // a whole unit in the last working digit to the radius.
+  // digits, which is overflow in decimal mode, where an earlier version
+  // let it through; in exact mode the settle rounds toward zero instead
+  // and adds a whole unit in the last working digit to the radius.
   const nines = "9".repeat(45);
   const top = ball(dec(`${nines[0]}.${nines.slice(1)}e${E18}`), dec("1e-30"));
   assertRefused(
@@ -1681,7 +1685,7 @@ test("settle refuses a rounded midpoint past the bound in decimal mode, and neve
   );
   // At the bottom: a third of 10^-(10^18 - 1) is 3.3e-(10^18), within the
   // bound, whose rounding at eight digits stays within it and whose half
-  // unit lies past it, where the settle threw (issue #44); a value past
+  // unit lies past it, where the settle once threw; a value past
   // the bound is underflow in decimal mode.
   const third = ball(scaledAt(1n, 3n, -(MAX_EXPONENT - 1n)), dec("1e-30"));
   const bottom = settled(third, at(8));
@@ -1700,7 +1704,7 @@ test("settle refuses a rounded midpoint past the bound in decimal mode, and neve
   );
 });
 
-test("a product or a quotient with an inexact operand is held to the bound by its whole ball (D18)", () => {
+test("a product or a quotient with an inexact operand is held to the bound by its whole ball", () => {
   const two = exact(fr(2n));
   const tenth = exact(dec("0.1"));
   // Every value past the top: overflow. Straddling it: unresolved at the
@@ -1844,7 +1848,7 @@ test("position reads a difference past the bottom of the bound against the radiu
   );
 });
 
-test("a sum of two exact operands that cannot be aligned is too large, and in decimal mode the evaluator's rule gives the larger, or its neighbor by the smaller's sign in a directed mode (D26)", () => {
+test("a sum of two exact operands that cannot be aligned is too large, and in decimal mode the evaluator's rule gives the larger, or its neighbor by the smaller's sign in a directed mode", () => {
   const decimal = (rounding: RoundingMode): NumberContext => ({
     ...at(8),
     rounding,
@@ -1959,9 +1963,9 @@ test("powBall on an inexact base squares with settling, and is guarded by magnit
   // A negative power inverts, and stays settled.
   const inverse = unwrap(powBall(root, -1000n, at(20)));
   assertContains(inverse, rational(1n, 2n ** 500n), "sqrt(2)^-1000");
-  // The guard is the exponent bound (4.9): sqrt(2)^(10^7), about
-  // 9.5e1505149 (Python's decimal module), is a value, settled at each
-  // squaring, and sqrt(2)^(10^19) is not.
+  // The guard is the exponent bound (devdocs/numbers.md, "The exponent
+  // bound"): sqrt(2)^(10^7), about 9.5e1505149 (Python's decimal module),
+  // is a value, settled at each squaring, and sqrt(2)^(10^19) is not.
   const tenMillionth = unwrap(powBall(root, 10_000_000n, at(20)));
   assert.ok(
     within(

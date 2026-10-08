@@ -1,5 +1,5 @@
 // `gcd`, `lcm`, `factorial`, `binomial` and `doublefactorial`
-// (devdocs/design/special.md, "The exact functions"; the plan's 6.1 and D22): the
+// (devdocs/builtins.md, "The exact functions"): the
 // functions of integers. Each takes exact integers: an inexact argument is
 // a `domain` error (`notExact`), since `5 ± 1e-30` is not known to be `5`
 // and no pass of the retry loop narrows a ball to a point, and an exact
@@ -26,7 +26,7 @@ import { err, ok, type Result } from "../result.ts";
 import { fromInteger, isInteger, toRational } from "../scaled.ts";
 
 /**
- * The exact integer the argument at `index` is, formed within the range
+ * The exact integer the argument at `index` is, formed within the significand
  * limit of `context`: a `domain` error for an inexact ball (`notExact`),
  * which is not known to be any integer, or an exact non-integer
  * (`notInteger`), and `tooLarge` for an integer whose power of ten cannot
@@ -80,7 +80,8 @@ export function log2Factorial(n: number): number {
 /**
  * Whether a result predicted at `bits` passes the significand limit of
  * `context`: by more than the prediction's own bit of slack, so that a
- * value that fits is never refused, and the node check (D19) stands
+ * value that fits is never refused, and the node check (devdocs/numbers.md,
+ * "The significand limit") stands
  * behind a prediction a bit short.
  */
 function pastLimit(bits: number, context: NumberContext): boolean {

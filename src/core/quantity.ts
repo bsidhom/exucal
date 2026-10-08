@@ -16,7 +16,8 @@
 // radii, and are refused when the result is too large or too small to
 // compute, at the exponent bound (`overflow`, `underflow`); an exact
 // result past the significand limit is refused by the evaluator at the node
-// that forms it (D19), not here, and the callers take any refusal all
+// that forms it (devdocs/numbers.md, "The significand limit"), not here,
+// and the callers take any refusal all
 // the same; division also fails on a divisor that is
 // exactly zero, or that cannot be told from zero (`unresolved`); and a
 // power takes the `NumberContext` whose precision its one inexact step, the
@@ -28,7 +29,8 @@
 // dimension side is the conformance check of `dimension.ts`, the same one
 // `convert` applies to a `have` and a `want`, and the failure is its
 // `ConformanceError`; and the magnitudes add as `addBalls` rules, aligned
-// within the significand limit of the `NumberContext` they take (4.4), two exact
+// within the significand limit of the `NumberContext` they take
+// (devdocs/numbers.md, "Sums and alignment"), two exact
 // magnitudes that cannot be aligned failing `tooLarge` at the significand limit,
 // and a sum past the exponent bound at the bound. The check tells
 // dimensions from kinds by the roles of the table's primitives, so these
@@ -80,7 +82,8 @@ export function scalar(value: Scaled): Quantity {
  * expression): `compute` at a working context gives the quantity, whose
  * magnitude the step settles in exact mode and certifies and rounds in
  * decimal mode, and which carries the uncertified flag of `operands`
- * (D26). The dimension is the one `compute` gives, which does not vary
+ * (devdocs/numbers.md, "Decimal mode"). The dimension is the one `compute`
+ * gives, which does not vary
  * with the precision.
  */
 export function stepQuantity<E extends { readonly kind: string }>(

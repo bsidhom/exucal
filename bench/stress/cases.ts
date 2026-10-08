@@ -1,4 +1,4 @@
-// The cases of the cost search (devdocs/history/calculator-plan.md, task 8.2): what
+// The cases of the cost search (devdocs/benchmarks.md, "The search"): what
 // it draws, as a pure function of a seed. Nothing here measures or reads a
 // clock, so the sequence a seed gives is the same on any machine, in any
 // order, and whatever the cases cost.
@@ -18,8 +18,8 @@
 // - `identity`: an identity between different functions, from the table
 //   `IDENTITIES`, `beta(a, b) - gamma(a) gamma(b) / gamma(a + b)` and the
 //   like. Free composition almost never gives an exact cancellation
-//   between different functions, the class #117 found, so the table is
-//   where they come from; it grows with the built-ins.
+//   between different functions, so the table is where they come from; it
+//   grows with the built-ins.
 // - `edge`: a value that never certifies at an edge where a built-in's
 //   result jumps or does not exist: `floor(z + 3)`, `round(z + 2.5)`,
 //   `sign(z)`, `1 / (z)`, for a zero `z` of one of the two kinds above,

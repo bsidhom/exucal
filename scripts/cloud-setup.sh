@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Claude Code cloud environment setup script for pwa-units.
+# Claude Code cloud environment setup script for exucal.
 #
 # KEEP IN SYNC: the cloud environment's "Setup script" field (claude.ai/code,
 # environment settings) holds a pasted copy of this file. It is not read from
@@ -61,7 +61,7 @@ PNPM_INTEGRITY_ARM64="sha512-cx+uF6xqwEtm7B8NV+1ve0xBg9gcuzQZ5R+0WgOWvKG/h978Ulj
 NODE_PREFIX="/opt/node24"
 # Sourced by login shells after the image's /etc/profile.d/nodejs.sh (which
 # prepends /opt/node22/bin); "zz-" sorts it last so /opt/node24/bin wins.
-PROFILE_FILE="/etc/profile.d/zz-pwa-units-node.sh"
+PROFILE_FILE="/etc/profile.d/zz-exucal-node.sh"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -222,7 +222,7 @@ fi
 # PATH for login shells (non-critical: the SessionStart hook exports it for
 # the session's own shells, which are not login shells)
 # ---------------------------------------------------------------------------
-PROFILE_CONTENT="# Written by scripts/cloud-setup.sh (pwa-units). Puts the project's Node.js
+PROFILE_CONTENT="# Written by scripts/cloud-setup.sh (exucal). Puts the project's Node.js
 # and pnpm ahead of the base image's /opt/node22/bin set by nodejs.sh.
 export PATH=\"$NODE_PREFIX/bin:\$PATH\"
 "

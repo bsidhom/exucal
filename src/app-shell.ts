@@ -187,7 +187,7 @@ export class AppShell extends LitElement {
     return html`
       <main class=${this.settingsOpen ? "sheet" : ""}>
         <header>
-          <h1>Units</h1>
+          <h1>Exucal</h1>
           <settings-button
             .expanded=${this.settingsOpen}
             @click=${this.onToggleSettings}

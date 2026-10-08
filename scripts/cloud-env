@@ -1,4 +1,4 @@
-# Environment variables for the Claude Code cloud environment of pwa-units.
+# Environment variables for the Claude Code cloud environment of exucal.
 #
 # KEEP IN SYNC: the cloud environment's "Environment variables" field
 # (claude.ai/code, environment settings) holds a pasted copy of the

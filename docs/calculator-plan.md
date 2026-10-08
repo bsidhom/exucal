@@ -1132,13 +1132,13 @@ D23 leaves room for these evolutions:
 - **Conditions on the arguments** (task 7.3), after a `|`. There is no
   assertion on a result's value: nothing downstream narrows a value by
   its range, so one could only check a body against itself. Issue
-  [#134](https://github.com/bsidhom/pwa-units/issues/134) studies ranges that would narrow balls instead. A
+  [#134](https://github.com/bsidhom/exucal/issues/134) studies ranges that would narrow balls instead. A
   conversion into a function checks the have against the inverse's
   conditions and the recovered argument against the function's own.
 - **Definitions typed into the converter.** `f(x) = …` in the have field
   could define a function for the session, unambiguously, since `=` is
   in no expression. Issue
-  [#132](https://github.com/bsidhom/pwa-units/issues/132) holds it. It
+  [#132](https://github.com/bsidhom/exucal/issues/132) holds it. It
   is not part of this plan.
 - **The result annotation as the default want of a bare call.** This
   is deferred from stage 7 (see "Deferred from stage 7").
@@ -1198,7 +1198,7 @@ left open:
   definitions have an editor and the build has a way to report
   warnings. There is nowhere to show a warning today, and relaxing an
   error later breaks no file where tightening a silence would. Issue
-  [#131](https://github.com/bsidhom/pwa-units/issues/131) tracks it;
+  [#131](https://github.com/bsidhom/exucal/issues/131) tracks it;
   "Deferred from stage 7" lists it.
 
 - **An annotation is a unit expression, with no number but `1`.** It
@@ -4936,7 +4936,7 @@ function is a task with the four test patterns, the edge sweep taking
 it from the map of built-ins. After 6.7 landed the owner deferred 6.8,
 the rest of feature 3, so as not to hold the rest of the calculator on
 eight functions wanted less than stage 7; it is no longer part of this
-plan, and issue [#115](https://github.com/bsidhom/pwa-units/issues/115)
+plan, and issue [#115](https://github.com/bsidhom/exucal/issues/115)
 holds its functions with the context to take them up later, one
 sub-issue each. The exact functions come first (D14). The
 stage follows the whole of the phase before stage 5: its functions
@@ -5037,7 +5037,7 @@ exact case for integer `a` and `b`.
 
 Deferred after 6.7 landed, by the owner's decision not to block the rest
 of the calculator on it, and no longer part of this plan; issue
-[#115](https://github.com/bsidhom/pwa-units/issues/115) holds the
+[#115](https://github.com/bsidhom/exucal/issues/115) holds the
 functions and the context to take them up later. 6.9 and stage 7 do not
 depend on it.
 
@@ -5283,7 +5283,7 @@ The following are not tasks of this plan. Each has an issue of its
 own, to study the options later:
 
 - **The result annotation as the default want of a bare call**
-  ([#130](https://github.com/bsidhom/pwa-units/issues/130)). When the have is exactly one call of a function with an annotated result,
+  ([#130](https://github.com/bsidhom/exucal/issues/130)). When the have is exactly one call of a function with an annotated result,
   and the want is blank, the value could be shown in the annotated unit
   (`lb/ft^2`, `percent`) rather than in the primitives. This changes
   only the display, never how a quantity or a dimension is held. The
@@ -5293,13 +5293,13 @@ own, to study the options later:
   Scaled results and lists in the result's annotation are its use
   cases, so the restriction to unit expressions with no number but `1`
   is to be revisited with it.
-- **Shadowing in the head as a warning** ([#131](https://github.com/bsidhom/pwa-units/issues/131)). D23's error for a parameter
+- **Shadowing in the head as a warning** ([#131](https://github.com/bsidhom/exucal/issues/131)). D23's error for a parameter
   whose name is also a unit in its definition's annotations is relaxed
   to a warning once user definitions have an editor and the build has a
   way to report warnings. The same change could warn about a body that
   seems to need the unit its parameter hides.
-- **Definitions typed into the converter** (D23, [#132](https://github.com/bsidhom/pwa-units/issues/132)).
-- **Dimension-generic functions** ([#133](https://github.com/bsidhom/pwa-units/issues/133); D23; docs/functions.md,
+- **Definitions typed into the converter** (D23, [#132](https://github.com/bsidhom/exucal/issues/132)).
+- **Dimension-generic functions** ([#133](https://github.com/bsidhom/exucal/issues/133); D23; docs/functions.md,
   "Dimension-generic functions"). The issue covers the bracketed
   variables and the stand-in check, whether a literal `0` in a
   condition stands for zero in any dimension, and type bounds on the
@@ -5972,7 +5972,7 @@ are left as they landed, and its introduction says which of their
 statements the second changed.
 
 - **The exponent bound stays at `10^18`**
-  ([#42](https://github.com/bsidhom/pwa-units/pull/42)), documentation
+  ([#42](https://github.com/bsidhom/exucal/pull/42)), documentation
   alone. A report that `exp(approx(1e999))` is refused led to a scratch
   build with the bound raised to `10^1100`. It computed, but the
   exponential's cost grows at least as the square of its argument's
@@ -5983,8 +5983,8 @@ statements the second changed.
   `10^18`"; docs/approximate.md, "`approx` and the exponent bound", with
   the measurements; README, "Very large results and `approx`").
 - **Each limit refuses with an error of its own**
-  ([#43](https://github.com/bsidhom/pwa-units/pull/43), fixing
-  [#41](https://github.com/bsidhom/pwa-units/issues/41)). Every refusal
+  ([#43](https://github.com/bsidhom/exucal/pull/43), fixing
+  [#41](https://github.com/bsidhom/exucal/issues/41)). Every refusal
   was `tooLarge`, worded "too large to compute" whichever limit it
   passed, so `exp(1e999)` read as a precision limit that `approx` might
   lift. The fraction's `tooLarge` (rational.ts) is now the significand limit's
@@ -6024,37 +6024,37 @@ follow-ups and in checking these documents against the code after them,
 open against the stage 4 code, none of which stage 5 depends on:
 
 - a wrong answer: `tanh` of a wide ball around zero certified as `±1`
-  ([#38](https://github.com/bsidhom/pwa-units/issues/38));
+  ([#38](https://github.com/bsidhom/exucal/issues/38));
 - crashes where "Failures" in ARCHITECTURE.md requires a `Result`: `exp`
   and `pow` of a wide argument
-  ([#39](https://github.com/bsidhom/pwa-units/issues/39)), values at the
+  ([#39](https://github.com/bsidhom/exucal/issues/39)), values at the
   edge of the exponent bound
-  ([#44](https://github.com/bsidhom/pwa-units/issues/44)), `pow` with an
+  ([#44](https://github.com/bsidhom/exucal/issues/44)), `pow` with an
   exact exponent below about `1e-308`
-  ([#45](https://github.com/bsidhom/pwa-units/issues/45)), and `exp` and
+  ([#45](https://github.com/bsidhom/exucal/issues/45)), and `exp` and
   the log-space power of an argument below about `1e-315000`
-  ([#53](https://github.com/bsidhom/pwa-units/issues/53));
+  ([#53](https://github.com/bsidhom/exucal/issues/53));
 - values refused that could be computed: by a radius alone in `exp`
-  ([#40](https://github.com/bsidhom/pwa-units/issues/40)), powers near one
+  ([#40](https://github.com/bsidhom/exucal/issues/40)), powers near one
   and of `0` and `±1`
-  ([#46](https://github.com/bsidhom/pwa-units/issues/46)), the inverse
+  ([#46](https://github.com/bsidhom/exucal/issues/46)), the inverse
   trigonometric functions of a tiny or huge argument, `acos(1e-999999999)`
-  among them ([#47](https://github.com/bsidhom/pwa-units/issues/47), which
+  among them ([#47](https://github.com/bsidhom/exucal/issues/47), which
   crash as well), `tanh` of a ball reaching both sides of zero
-  ([#49](https://github.com/bsidhom/pwa-units/issues/49)), and a literal
+  ([#49](https://github.com/bsidhom/exucal/issues/49)), and a literal
   by its written exponent
-  ([#50](https://github.com/bsidhom/pwa-units/issues/50));
+  ([#50](https://github.com/bsidhom/exucal/issues/50));
 - a sum past the exponent bound with an inexact operand shown as zero
-  ([#48](https://github.com/bsidhom/pwa-units/issues/48));
+  ([#48](https://github.com/bsidhom/exucal/issues/48));
 - costs past their budget: products and quotients not held to the significand
   limit, and a large quotient's reduction taking seconds
-  ([#52](https://github.com/bsidhom/pwa-units/issues/52), which asks for
+  ([#52](https://github.com/bsidhom/exucal/issues/52), which asks for
   a decision between a check and an input length limit, recorded in
   ARCHITECTURE.md, "Size limits"), and a nested call
   with a syntax error parsed in time exponential in its depth
-  ([#54](https://github.com/bsidhom/pwa-units/issues/54)).
+  ([#54](https://github.com/bsidhom/exucal/issues/54)).
 
-[#51](https://github.com/bsidhom/pwa-units/issues/51), that the docs had
+[#51](https://github.com/bsidhom/exucal/issues/51), that the docs had
 `approx` relax the significand limit only in a sum where it does in an integer
 power too, is corrected in ARCHITECTURE.md and the README with this
 record.
@@ -6069,25 +6069,25 @@ records it.
 The re-read after H.16. The phase landed as fourteen pull requests in
 the order its introduction gives, tier 1 as H.1, H.2 with H.3, H.8, H.4
 with H.5, H.6, H.7 and H.9
-([#69](https://github.com/bsidhom/pwa-units/pull/69),
-[#70](https://github.com/bsidhom/pwa-units/pull/70),
-[#71](https://github.com/bsidhom/pwa-units/pull/71),
-[#74](https://github.com/bsidhom/pwa-units/pull/74),
-[#75](https://github.com/bsidhom/pwa-units/pull/75),
-[#76](https://github.com/bsidhom/pwa-units/pull/76),
-[#77](https://github.com/bsidhom/pwa-units/pull/77)), and tier 2 as
+([#69](https://github.com/bsidhom/exucal/pull/69),
+[#70](https://github.com/bsidhom/exucal/pull/70),
+[#71](https://github.com/bsidhom/exucal/pull/71),
+[#74](https://github.com/bsidhom/exucal/pull/74),
+[#75](https://github.com/bsidhom/exucal/pull/75),
+[#76](https://github.com/bsidhom/exucal/pull/76),
+[#77](https://github.com/bsidhom/exucal/pull/77)), and tier 2 as
 H.10, H.11 with H.12, H.13, H.14, H.15 and H.16
-([#80](https://github.com/bsidhom/pwa-units/pull/80),
-[#81](https://github.com/bsidhom/pwa-units/pull/81),
-[#82](https://github.com/bsidhom/pwa-units/pull/82),
-[#83](https://github.com/bsidhom/pwa-units/pull/83),
-[#84](https://github.com/bsidhom/pwa-units/pull/84),
-[#87](https://github.com/bsidhom/pwa-units/pull/87)), each reviewed and
+([#80](https://github.com/bsidhom/exucal/pull/80),
+[#81](https://github.com/bsidhom/exucal/pull/81),
+[#82](https://github.com/bsidhom/exucal/pull/82),
+[#83](https://github.com/bsidhom/exucal/pull/83),
+[#84](https://github.com/bsidhom/exucal/pull/84),
+[#87](https://github.com/bsidhom/exucal/pull/87)), each reviewed and
 merged on its own with the tests passing under it, and the tasks above
 left as they were written except where a ruling in review changed a
 row, which the task's text now says. A change outside the phase landed
 between H.15 and H.16
-([#85](https://github.com/bsidhom/pwa-units/pull/85)): the precision limit
+([#85](https://github.com/bsidhom/exucal/pull/85)): the precision limit
 is labeled "Precision limit", the panel says what each
 setting does, and README ("How a number is held, and what the settings
 touch") says why one limit is in bits and the others in digits, and
@@ -6148,7 +6148,7 @@ issues each closed:
   review, the quotient taken as `Scaled` values so that a literal's
   power of ten is not counted (`2^(1e30000/1e30000)` is a value at any
   limit). Where a quotient's reduction should run is
-  [#78](https://github.com/bsidhom/pwa-units/issues/78).
+  [#78](https://github.com/bsidhom/exucal/issues/78).
 - **H.10.** Two levels, 14,241 ball cases and 274 text cases, each
   judged against the decisions rather than the code, with a table of
   known violations keyed by issue that fails on a violation it does not
@@ -6191,7 +6191,7 @@ issues each closed:
   3^32767". The probe times the product's two cross-cancelling gcds with
   the operands built outside the timed call. The optional commit
   aligning `pow`'s prediction with the check is
-  [#89](https://github.com/bsidhom/pwa-units/issues/89).
+  [#89](https://github.com/bsidhom/exucal/issues/89).
 - **H.15** (#40, #61, #62; #46's rows 1 and 3). One classifier on an
   interval bounding the natural logarithm of the result's magnitude,
   the coarse radii first, a base near one by its exact difference from
@@ -6213,7 +6213,7 @@ issues each closed:
   base takes the parity rule times the magnitude's power, and a base
   reaching zero keeps the classifier's answer. The `^` operator keeps
   its refusal, which is
-  [#88](https://github.com/bsidhom/pwa-units/issues/88).
+  [#88](https://github.com/bsidhom/exucal/issues/88).
 
 What stage 5 inherits: D17 to D20 as the tasks landed them, the bound
 on the value and a refusal needing the whole ball past it, so that its
@@ -6226,33 +6226,33 @@ The work set aside, each with its issue:
 
 - `asin`, `acos` and `acosh` of an exact argument with a long significand
   are refused, since their exact `1 - x^2` does not align
-  ([#63](https://github.com/bsidhom/pwa-units/issues/63)); the text
+  ([#63](https://github.com/bsidhom/exucal/issues/63)); the text
   sweep's one remaining known entry.
 - A root of degree three or more of a wide positive ball throws in the
   kernel's verification
-  ([#79](https://github.com/bsidhom/pwa-units/issues/79)); the ball
+  ([#79](https://github.com/bsidhom/exucal/issues/79)); the ball
   sweep's one remaining known entry.
 - `tanhFixed`'s fold band costs an extra pass
-  ([#65](https://github.com/bsidhom/pwa-units/issues/65)).
+  ([#65](https://github.com/bsidhom/exucal/issues/65)).
 - A zero's bound far below the exponent bound is written with every
   digit of its exponent
-  ([#67](https://github.com/bsidhom/pwa-units/issues/67)); stage 5's
+  ([#67](https://github.com/bsidhom/exucal/issues/67)); stage 5's
   design note rules on it and 5.1 lands it.
 - The message for an exact result past the significand limit should say how many
-  bits it needed ([#73](https://github.com/bsidhom/pwa-units/issues/73)):
+  bits it needed ([#73](https://github.com/bsidhom/exucal/issues/73)):
   landed with the strict limit, D19 as amended.
 - Where a quotient's reduction should run
-  ([#78](https://github.com/bsidhom/pwa-units/issues/78)).
+  ([#78](https://github.com/bsidhom/exucal/issues/78)).
 - The precision limit does nothing for results in decimal mode, and the
   panel does not say so; whether to hide it there, and whether decimal
   mode should carry a ceiling at all
-  ([#86](https://github.com/bsidhom/pwa-units/issues/86)).
+  ([#86](https://github.com/bsidhom/exucal/issues/86)).
 - `^` and `pow` disagree on a dimensionless base with an exact exponent;
   one shared rule for an exact exponent, and the parser handing an
   exponent literal through as a number
-  ([#88](https://github.com/bsidhom/pwa-units/issues/88)).
+  ([#88](https://github.com/bsidhom/exucal/issues/88)).
 - `pow`'s size prediction refuses powers the node check would admit
-  ([#89](https://github.com/bsidhom/pwa-units/issues/89)).
+  ([#89](https://github.com/bsidhom/exucal/issues/89)).
 - The table's prefix lookup still throws on a prefix times a unit that
   the arithmetic refuses or leaves `unresolved`; only a user definition
   within a prefix's factor of the bound reaches it, so it is filed with
@@ -6261,9 +6261,9 @@ The work set aside, each with its issue:
 ## Stage 5 as it landed
 
 The re-read after 5.2. The stage landed as three pull requests, 5.0, 5.1
-and 5.2 ([#93](https://github.com/bsidhom/pwa-units/pull/93),
-[#94](https://github.com/bsidhom/pwa-units/pull/94),
-[#96](https://github.com/bsidhom/pwa-units/pull/96)), each reviewed and
+and 5.2 ([#93](https://github.com/bsidhom/exucal/pull/93),
+[#94](https://github.com/bsidhom/exucal/pull/94),
+[#96](https://github.com/bsidhom/exucal/pull/96)), each reviewed and
 merged on its own, the tasks as revised against the design note:
 
 - **5.0.** docs/fractions.md, and D21 from the owner's ruling in its
@@ -6272,17 +6272,17 @@ merged on its own, the tasks as revised against the design note:
   and an inexact value is a decimal, always; the alternative, a fraction
   only where the decimal is inexact, was set aside. The fit rule, each
   part within the display digits, is provisional
-  ([#91](https://github.com/bsidhom/pwa-units/issues/91)). The study's
+  ([#91](https://github.com/bsidhom/exucal/issues/91)). The study's
   unit-list example was corrected (`428/127`, not `437/127`). The
   reciprocal line's holes were filed apart
-  ([#92](https://github.com/bsidhom/pwa-units/issues/92)).
+  ([#92](https://github.com/bsidhom/exucal/issues/92)).
 - **5.1** (#67). `show` takes `fractions` as a fourth argument, off by
   default; the `exact` kind carries `fraction: true`; `fractionText`
   forms the ordinary fraction only when it can fit, by the guards its
   comment argues; `zeroBound` writes a bound below `10^-(10^18)` as
   `1e-1000000000000000000`. From review: writing a fraction with its
   power of ten where that shortens the line is
-  [#95](https://github.com/bsidhom/pwa-units/issues/95), to be settled
+  [#95](https://github.com/bsidhom/exucal/issues/95), to be settled
   with #91.
 - **5.2.** The sixth setting, "Show reduced fractions"; the line logic
   moved from the component into outcome.ts so that the lines are tested
@@ -6307,15 +6307,15 @@ the reciprocal's retry and a word on its refusal.
 
 The re-read after 6.9. The stage landed as ten pull requests, 6.0 to
 6.7 and 6.9 and one between 6.5 and 6.6 that moved the sweeps to their
-own run ([#99](https://github.com/bsidhom/pwa-units/pull/99),
-[#101](https://github.com/bsidhom/pwa-units/pull/101),
-[#102](https://github.com/bsidhom/pwa-units/pull/102),
-[#104](https://github.com/bsidhom/pwa-units/pull/104),
-[#105](https://github.com/bsidhom/pwa-units/pull/105),
-[#106](https://github.com/bsidhom/pwa-units/pull/106),
-[#109](https://github.com/bsidhom/pwa-units/pull/109),
-[#111](https://github.com/bsidhom/pwa-units/pull/111),
-[#113](https://github.com/bsidhom/pwa-units/pull/113) and 6.9's), each
+own run ([#99](https://github.com/bsidhom/exucal/pull/99),
+[#101](https://github.com/bsidhom/exucal/pull/101),
+[#102](https://github.com/bsidhom/exucal/pull/102),
+[#104](https://github.com/bsidhom/exucal/pull/104),
+[#105](https://github.com/bsidhom/exucal/pull/105),
+[#106](https://github.com/bsidhom/exucal/pull/106),
+[#109](https://github.com/bsidhom/exucal/pull/109),
+[#111](https://github.com/bsidhom/exucal/pull/111),
+[#113](https://github.com/bsidhom/exucal/pull/113) and 6.9's), each
 reviewed and merged on its own; 6.8 did not land and is deferred (below).
 docs/special.md's "Implementation notes" has each task's departures
 from the design in full; this is the record of the rulings and of what
@@ -6325,7 +6325,7 @@ each task left behind:
   its review: `floor` and its kin on plain numbers, `div` and `mod` the
   floored pair, `gcd` and `lcm` non-negative, `round` to decimal places
   with no mode argument
-  ([#98](https://github.com/bsidhom/pwa-units/issues/98) for
+  ([#98](https://github.com/bsidhom/exucal/issues/98) for
   significant digits). The plan's 6.1 to 6.9 were revised against it in
   the same change.
 - **6.1** (#101). The one module `exact.ts` became four by subject
@@ -6342,7 +6342,7 @@ each task left behind:
   Bernoulli numbers are computed on first use and memoized, and their cost, 2.9 s once at
   the default ceiling, and footprint, about 3 MB there, are documented
   in ARCHITECTURE.md and README at the owner's asking, and
-  [#103](https://github.com/bsidhom/pwa-units/issues/103) is to
+  [#103](https://github.com/bsidhom/exucal/issues/103) is to
   reconsider the footprint (eviction, no memo, or a cheaper
   representation).
 - **6.3** (#104). `lgamma` and `gamma` sharing the series loop with
@@ -6366,13 +6366,13 @@ each task left behind:
   allowed was never shipped; the route chosen by measured cost; the
   exponential classified with its factor, not apart. Past the limits a
   large order with the argument at or past it is `tooLarge`, which
-  [#107](https://github.com/bsidhom/pwa-units/issues/107) maps with the
+  [#107](https://github.com/bsidhom/exucal/issues/107) maps with the
   ways out. From review: three threads answered on the PR, and the
   sweep's 14 s on every edit led to
-  [#108](https://github.com/bsidhom/pwa-units/issues/108), fixed at once
+  [#108](https://github.com/bsidhom/exucal/issues/108), fixed at once
   as #109 (the sweeps named `*.sweep.ts`, run by `pnpm test:sweep` and
   `pnpm test:all`, before a commit and in CI, not by `pnpm test`), and
-  [#110](https://github.com/bsidhom/pwa-units/issues/110) for the
+  [#110](https://github.com/bsidhom/exucal/issues/110) for the
   suite's speed, to be taken up later.
 - **6.6** (#111). `erf` and `erfc` through `incompleteGammaBall`, which
   takes the complement where the other form is computed, so no rule of
@@ -6387,14 +6387,14 @@ each task left behind:
   for three-argument functions, whose oracle took tighter Gamma bounds
   and forty-digit constants to certify the refusals it met. At the
   owner's asking,
-  [#112](https://github.com/bsidhom/pwa-units/issues/112): document,
+  [#112](https://github.com/bsidhom/exucal/issues/112): document,
   cite and audit every numeric routine and rigorous bound, since the
   values are certified through balls and the logic must be auditable;
-  from review, [#114](https://github.com/bsidhom/pwa-units/issues/114),
+  from review, [#114](https://github.com/bsidhom/exucal/issues/114),
   the sweep split into modules by subject without a change to its cases.
 - **6.8.** Deferred, and no longer part of this plan: after 6.7 the
   owner chose not to block the rest of the calculator on the eight
-  functions, and [#115](https://github.com/bsidhom/pwa-units/issues/115)
+  functions, and [#115](https://github.com/bsidhom/exucal/issues/115)
   holds them with the context to resume, one sub-issue each when they
   are taken up. The task's text stays above, marked deferred, as the
   record of what was intended.
@@ -6421,11 +6421,11 @@ regime), #110 (the suite's speed), #112 (the audit of every bound), #114
 
 The re-read after 7.4. The stage landed as six pull requests: 7.0 to
 7.3, one between 7.1 and 7.2 that fixed the benchmarks, and 7.4's
-([#129](https://github.com/bsidhom/pwa-units/pull/129),
-[#136](https://github.com/bsidhom/pwa-units/pull/136),
-[#137](https://github.com/bsidhom/pwa-units/pull/137),
-[#138](https://github.com/bsidhom/pwa-units/pull/138),
-[#139](https://github.com/bsidhom/pwa-units/pull/139) and 7.4's), each
+([#129](https://github.com/bsidhom/exucal/pull/129),
+[#136](https://github.com/bsidhom/exucal/pull/136),
+[#137](https://github.com/bsidhom/exucal/pull/137),
+[#138](https://github.com/bsidhom/exucal/pull/138),
+[#139](https://github.com/bsidhom/exucal/pull/139) and 7.4's), each
 reviewed and merged on its own. docs/functions.md's "Implementation
 notes" has each task's departures from the design in full; this is the
 record of the rulings and of what each task left behind:
@@ -6436,19 +6436,19 @@ record of the rulings and of what each task left behind:
   annotation a check of dimension that changes no value, a unit
   expression with no number but `1`; a parameter named like a unit its
   own head's annotations use a hard error for now
-  ([#131](https://github.com/bsidhom/pwa-units/issues/131) to relax it);
+  ([#131](https://github.com/bsidhom/exucal/issues/131) to relax it);
   conditions after a `|`, in either direction, several and relating
   parameters, of any expressions, decided by the ball model and, when
   undecided, assumed and shown best-effort with a warning; no assertion
   on a result's value
-  ([#134](https://github.com/bsidhom/pwa-units/issues/134) to study
+  ([#134](https://github.com/bsidhom/exucal/issues/134) to study
   ranges that narrow balls); the inverse checked at every conversion;
   and dimension-generic functions deferred
-  ([#133](https://github.com/bsidhom/pwa-units/issues/133)), with type
+  ([#133](https://github.com/bsidhom/exucal/issues/133)), with type
   bounds in the sense of ad-hoc polymorphism. The default want of a bare
-  call ([#130](https://github.com/bsidhom/pwa-units/issues/130)) and
+  call ([#130](https://github.com/bsidhom/exucal/issues/130)) and
   definitions typed into the converter
-  ([#132](https://github.com/bsidhom/pwa-units/issues/132)) were filed
+  ([#132](https://github.com/bsidhom/exucal/issues/132)) were filed
   too. The plan's 7.0 to 7.4 were revised against the note in the same
   change.
 - **7.1** (#136). The new form with one parameter, units.txt's five
@@ -6456,7 +6456,7 @@ record of the rulings and of what each task left behind:
   asking, a seeded property test of drawn heads and a benchmark of
   functions. The benchmarks, run for the latter, were found failing
   since stage 6; the owner asked for the cause rather than a commit past
-  it, and [#135](https://github.com/bsidhom/pwa-units/issues/135) was
+  it, and [#135](https://github.com/bsidhom/exucal/issues/135) was
   filed and fixed as #137: the benchmarks repaired, `pnpm test:all` now
   running them after the tests and the sweeps, so that a commit leaves
   all three green, and ARCHITECTURE.md saying that no test depends on
@@ -6500,13 +6500,13 @@ after this stage, from the owner's ruling (D25). Set aside: #130 to
 
 The re-read after 8.4. The stage landed as six pull requests of its own
 and 8.4's: the stage's rewrite
-([#141](https://github.com/bsidhom/pwa-units/pull/141)), 8.1
-([#142](https://github.com/bsidhom/pwa-units/pull/142)), two between
+([#141](https://github.com/bsidhom/exucal/pull/141)), 8.1
+([#142](https://github.com/bsidhom/exucal/pull/142)), two between
 8.1 and 8.2 at the owner's asking
-([#143](https://github.com/bsidhom/pwa-units/pull/143) and
-[#144](https://github.com/bsidhom/pwa-units/pull/144)), 8.2
-([#145](https://github.com/bsidhom/pwa-units/pull/145)), 8.3
-([#153](https://github.com/bsidhom/pwa-units/pull/153)) and 8.4's, each
+([#143](https://github.com/bsidhom/exucal/pull/143) and
+[#144](https://github.com/bsidhom/exucal/pull/144)), 8.2
+([#145](https://github.com/bsidhom/exucal/pull/145)), 8.3
+([#153](https://github.com/bsidhom/exucal/pull/153)) and 8.4's, each
 reviewed and merged on its own. This is the record of the rulings and of
 what each left behind:
 

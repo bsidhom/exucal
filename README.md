@@ -1,4 +1,4 @@
-# pwa-units
+# Exucal
 
 An offline-first progressive web app (PWA) that converts units, in the
 spirit of GNU units: type a quantity you have (`3 ft`) and a unit you want
@@ -897,7 +897,7 @@ exp(1e999 - 5)`, which is refused, is `exp(1e999 - (1e999 - 5))`, `≈
 `approx(1e999) - approx(1e999 - 5)` is `5` within about `2e948` at the
 first pass, and `exp` refuses it for the size that radius allows,
 although by the sixth pass it would be `5` within `2e-354` (issue
-[#40](https://github.com/bsidhom/pwa-units/issues/40)).
+[#40](https://github.com/bsidhom/exucal/issues/40)).
 
 ### Adding a unit
 

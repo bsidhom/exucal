@@ -113,7 +113,7 @@ export const RESET_ALL = "Reset all settings";
 /** The link at the sheet's foot to the guide: README's "Settings" until the user's guide (S6) lands. */
 export const ABOUT = {
   text: "About these settings",
-  href: "https://github.com/bsidhom/pwa-units#settings",
+  href: "https://github.com/bsidhom/exucal#settings",
 } as const;
 
 /** `n` with its unit after it, the digits singular at one: "1 digit", "2,453 digits", "65,536 bits", "50 ms". */

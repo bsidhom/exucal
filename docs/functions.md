@@ -510,7 +510,7 @@ assertion for the author that nothing else would act on, and GNU's
 `range=` has no counterpart. Whether ranges, on defined functions and
 more systematically on the built-ins, could instead narrow a result's
 ball and so carry their knowledge through the pipeline is a study of
-its own, issue [#134](https://github.com/bsidhom/pwa-units/issues/134).
+its own, issue [#134](https://github.com/bsidhom/exucal/issues/134).
 
 What a conversion into a function checks is two things, neither of them
 a range on forward calls:
@@ -532,7 +532,7 @@ a range on forward calls:
 ## Dimension-generic functions
 
 Deferred from stage 7 to issue
-[#133](https://github.com/bsidhom/pwa-units/issues/133); this section
+[#133](https://github.com/bsidhom/exucal/issues/133); this section
 records the design intended, so that stage 7 closes no door on it. A function may declare dimension variables, in brackets after its
 name, and use them in its annotations to take arguments of any
 dimension and to tie the dimensions of its parameters and its result
@@ -840,7 +840,7 @@ reads small can be large, and README ("Functions") and ARCHITECTURE.md
 - **Disjunctions and `!=` in conditions** ("Conditions" says why).
 - **An assertion on a result's value,** GNU's `range=`: nothing would
   consume it ("No assertion on a result"). Ranges that narrow balls are
-  studied in [#134](https://github.com/bsidhom/pwa-units/issues/134).
+  studied in [#134](https://github.com/bsidhom/exucal/issues/134).
 - **Optional parameters** and defaults.
 - **Built-ins defined in the file**: a built-in is code, and its name is
   a duplicate of any definition.
@@ -851,29 +851,29 @@ Each of these has an issue of its own (docs/calculator-plan.md,
 "Deferred from stage 7"):
 
 - **The result annotation as the default want of a bare call**
-  ([#130](https://github.com/bsidhom/pwa-units/issues/130)). When the
+  ([#130](https://github.com/bsidhom/exucal/issues/130)). When the
   have is one call of a function with an annotated result and the want
   is blank, the value could be shown in the annotated unit (`lb/ft^2`,
   `percent`). Scaled results and lists in that position are its use
   cases, and the restriction on annotations can be relaxed for them
   then.
 - **The shadowing error as a warning**
-  ([#131](https://github.com/bsidhom/pwa-units/issues/131)), once there
+  ([#131](https://github.com/bsidhom/exucal/issues/131)), once there
   is somewhere to show one.
 - **Definitions typed into the converter**
-  ([#132](https://github.com/bsidhom/pwa-units/issues/132)): `f(x) = …`
+  ([#132](https://github.com/bsidhom/exucal/issues/132)): `f(x) = …`
   in the have field is unambiguous, since `=` is in no expression.
 - **Dimension-generic functions**
-  ([#133](https://github.com/bsidhom/pwa-units/issues/133)), with
+  ([#133](https://github.com/bsidhom/exucal/issues/133)), with
   dimension variables in brackets and, later, type bounds on them, as
   "Dimension-generic functions" intends.
 
 ## Implementation notes
 
 Stage 7 landed as four pull requests, 7.1 to 7.3 and 7.4's, after the
-note itself (#129): [#136](https://github.com/bsidhom/pwa-units/pull/136),
-[#138](https://github.com/bsidhom/pwa-units/pull/138),
-[#139](https://github.com/bsidhom/pwa-units/pull/139) and this record's.
+note itself (#129): [#136](https://github.com/bsidhom/exucal/pull/136),
+[#138](https://github.com/bsidhom/exucal/pull/138),
+[#139](https://github.com/bsidhom/exucal/pull/139) and this record's.
 The code follows the note, with these departures and choices it left
 open:
 

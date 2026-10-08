@@ -12,30 +12,38 @@ bullets under `#(top)`, so most of its pointers use the bullet form.
 Claims are numbered `N1…` (numeric type) and `Q1…` (quantity) so that
 later sections can cite them.
 
-**What "history" means in this plan.** The target is a living set of
-pages that preserves *design intentions* and the most salient decisions
-and decisions-against, with minimal cruft. It is not an archaeological
-record in commit or change order, and it does not track every quirk the
-design passed through. The test applied throughout this plan, and to be
-applied in every audit unit:
+**What "history" means in this plan.** The governing statement is the
+principle in `audit/principles.md`, "Documentation principle: intent,
+not history": the docs describe the current design and the intent
+behind it, including the paths ruled out wherever knowing them would
+stop a future reader from re-proposing or re-litigating them; they do
+not record how the design evolved, and a passage describing a design
+that is no longer current is rewritten to the current design, keeping
+only the intent it carries, as rationale or as a ruled-out alternative.
+Git history is the record of change; the docs are the record of intent.
+This plan applies the principle as a three-way test, used in every
+audit unit:
 
-- **Keep:** a decision together with its reason; an alternative ruled
-  out up front, with the reason; a design that was redesigned after
-  seeing how it fleshed out, kept as the decision-against with the
-  reason (the lesson, not the sequence); an open decision tracked by an
-  issue, kept as a living pointer beside the concept it concerns.
+- **Keep, rewritten as intent:** a decision together with its reason;
+  an alternative ruled out up front, with the reason; a design that was
+  redesigned after seeing how it fleshed out, rewritten as a ruled-out
+  alternative with its reason, in the present tense, never as a
+  "previously X" note; an open decision tracked by an issue, kept as a
+  living pointer beside the concept it concerns.
 - **Drop:** a mistake from a minor misunderstanding that was quickly
-  corrected; commit order, dates and commit hashes; old names and old
-  shapes beyond what a migration must still read; interim-state notes
-  ("until X lands") once X has landed, or where the issue link alone
-  says it; measurements and counts that a tool regenerates.
+  corrected, which no reader would re-propose; commit order, dates and
+  commit hashes; old names and old shapes beyond what a migration must
+  still read; interim-state notes ("until X lands") once X has landed,
+  or where the issue link alone says it; measurements and counts that
+  a tool regenerates.
 - **Not history, so neither kept nor dropped on these grounds:** the
   settings migrations (mechanism the code needs to read old storage);
   a rule's current statement, however it was arrived at.
 
 Where this plan says *decision-against*, it means a passage to keep by
-that test; where it says *quirk*, one to drop. Rows marked *uncertain*
-are ones the test does not settle from the text alone (§12, question 25).
+that test, rewritten as a ruled-out alternative; where it says *quirk*,
+one to drop. Rows marked *uncertain* are ones the test does not settle
+from the text alone (§12, question 25).
 
 The repository's own state fits that aim: on 2026-10-08 `devdocs/` was
 pared into current-state pages and its design notes and plans were
@@ -357,7 +365,7 @@ keep.
 
 | Passage, as narrated | Classification | Owner | Treatment |
 | --- | --- | --- | --- |
-| Decimal mode once tracked the roundings in the radius ("7 of 8 digits are certain") | decision-against: redesigned after seeing it fleshed out | `devdocs/numbers.md#Decimal mode` | keep in one or two sentences: what it did and why it was withdrawn (the radius answered a question the mode does not ask; a directed rounding could never certify its last digit) |
+| Decimal mode once tracked the roundings in the radius ("7 of 8 digits are certain") | decision-against: redesigned after seeing it fleshed out | `devdocs/numbers.md#Decimal mode` | rewrite as a ruled-out alternative: carrying a radius through the mode's steps answers a question the mode does not ask, and a directed rounding could never certify its last digit |
 | Inexact midpoints grew as exact rationals | decision-against: seen in use (a dyadic to the fifth power refused by the limit) | `devdocs/numbers.md#Settling` | keep as the reason settling exists; drop the sizes |
 | A binary exponent beside the decimal one | decision-against: a larger flaw, found when the mixed base leaked into every operation | `devdocs/numbers.md#The types › Scaled` | keep, trimmed to the reasons (one base, where the base changes, the cost accepted); the millisecond figures are *uncertain* |
 | Certification widened the midpoint by two digits | quirk: an implementation slip, corrected | `devdocs/numbers.md#Certification and the display rule` | drop the parenthetical; the distance rule stands alone |
@@ -1149,7 +1157,7 @@ exact and decimal`. *Depends on:* N1–N16. *Modules:* `context.ts`,
 `docs/settings.md#(top) › Mode`, `› Working digits`. *devdocs/:*
 `numbers.md#Decimal mode` **(current)**, *decision-against:* "An earlier
 version of the mode rounded every step and also tracked, in the radius…"
-(keep, with why it was withdrawn);
+(rewrite as a ruled-out alternative with its reason);
 `#The working digits`; `settings.md#The model`. *Depends on:* N17–N20.
 *Modules:* `context.ts`, `ball.ts`, `evaluate.ts`, `pipeline.ts`. *Owner:*
 `numbers.md` › "The two modes".
@@ -2093,8 +2101,8 @@ Conflicting or synonymous terms found, with a proposed canonical term.
 Each with its classification by the test at the top of this plan.
 
 - `devdocs/README.md#(top)`: "current-state documents, not a history" is
-  consistent with the aim; keep. What the plan adds is that each page
-  carries its decisions with their reasons, and no quirks.
+  the principle of `audit/principles.md` in one sentence; keep, and link
+  to the principle once it is installed (§12, question 29).
 - `docs/definitions.md#(top)`: "This section describes that file" is left
   over from the page's life as a README section. Cruft; fix.
 - `docs/functions.md#(top)`: "Beside the functions the file defines" with
@@ -2345,9 +2353,9 @@ question 3). *Context:* A8, §7.
 ### 10.c devdocs/ units (each with the docs sections and claims it touches as read-only context)
 
 Every devdocs unit also applies the test at the top of this plan to each
-narrated predecessor, "set aside" and "once" in its pages: keep it as a
-decision-against with its reason beside the concept it concerns, or
-drop it as a quirk; trim interim-state notes to the current state plus
+narrated predecessor, "set aside" and "once" in its pages: rewrite it as
+a ruled-out alternative with its reason, in the present tense, beside
+the concept it concerns (`audit/principles.md`), or drop it as a quirk; trim interim-state notes to the current state plus
 the issue; and replace a measurement that no tool regenerates by the
 decision it supported, or date it. The unit's output lists each such
 passage with its classification and flags the uncertain ones for §12,
@@ -2420,7 +2428,10 @@ settings only). *Context:* D9 output; `docs/README.md`;
 `docs/settings.md#(top)` update paragraph; §12 question 1 (the README's
 self-description). *Output:* `devdocs/README.md`'s page list and framing
 revised to the new docs/ outline; the user-facing update/offline facts
-moved to `app.md` or getting started with links back.
+moved to `app.md` or getting started with links back; the principle of
+`audit/principles.md` installed in `devdocs/development.md#Style guide`
+beside the existing rule on code comments, and linked from
+`devdocs/README.md` (pending §12, question 29).
 
 ---
 
@@ -2619,17 +2630,17 @@ Each with a proposed answer, none decided.
     opens with one sentence and a link to the owning docs section, then
     mechanism and rationale only; rules restated for the sake of a
     rationale are quoted in one line, not re-derived.
-25. **The threshold between a quirk and a salient decision-against.**
-    The test at the top of this plan settles most rows, but some need
-    judgment: the measurements that justify decisions in
-    `devdocs/numbers.md`, `devdocs/builtins.md` and `devdocs/future.md`, and
-    the list-count rule in §1.2.5. *Proposed test:* keep a predecessor
-    when a competent maintainer, reading only the current rule, would
-    plausibly re-propose it, so that the reason against it must be on
-    the page; drop it when it was a slip no one would repeat, or when
-    the rule's own statement already excludes it. A measurement is kept
-    only if dated and attributed to the machine, or replaced by the
-    qualitative reason it supports.
+25. **Measurements that justify decisions.** The threshold between a
+    quirk and a decision-against is settled by the principle's own
+    criterion: keep a ruled-out path wherever knowing it would stop a
+    future reader from re-proposing or re-litigating it; drop a slip no
+    one would repeat, or one the rule's own statement already excludes.
+    What remains open is the measurements that justify decisions in
+    `devdocs/numbers.md`, `devdocs/builtins.md` and `devdocs/future.md`
+    (timings of a scratch build, of gcds, of `pi`), which no tool
+    regenerates. *Proposed:* keep a measurement only where the decision
+    rests on its order of magnitude, dated and attributed to the
+    machine; otherwise replace it by the qualitative reason it supports.
 26. **Open-issue pointers as the living record.** The pages carry some
     forty links to open decisions and deferred extensions. *Proposed:*
     keep them, one per concept where a decision is pending, as the
@@ -2646,3 +2657,13 @@ Each with a proposed answer, none decided.
     user side states the rule, the developer side the mechanism, the
     decision and the decisions-against. A concept that lacks either
     owner after the restructuring is a gap to fill, not a page to pad.
+29. **The principle's permanent home.** `audit/principles.md` holds the
+    documentation principle during the revamp. *Proposed:* install it in
+    `devdocs/development.md#Style guide` when the revamp lands, beside the
+    existing rule that a code comment names a page and a section and
+    never a decision number, which is the same principle applied to
+    comments; `devdocs/README.md` keeps its one-sentence statement and
+    links to it. A `CLAUDE.md`, if one is ever added, points at the
+    style guide rather than restating it, since the rule binds every
+    contributor. It should merge into `main` with the revamp: it is a
+    standing rule for the pages, not an artifact of the audit.

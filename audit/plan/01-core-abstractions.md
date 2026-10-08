@@ -1,0 +1,634 @@
+*Section 1 of the audit plan. The index, the pointer conventions and the test for history are in [plan.md](../plan.md).*
+
+## 1. Core abstractions
+
+### 1.1 The numeric type
+
+#### 1.1.1 User-level semantic model (claims, with current devdocs sources)
+
+Values and exactness
+
+- **N1.** A value is an exact fraction (in lowest terms) times a power of
+  ten; its magnitude costs nothing. Decimal literals are read exactly
+  (`1.5e-3` is `15 × 10^-4`; `0.1 + 0.2` is exactly `0.3`).
+  → `devdocs/numbers.md#(top)`, `#The types › Scaled`,
+  `#Exact mode`.
+- **N2.** Every value carries an error radius bounding its distance from
+  the number meant. Radius zero is *exact*; nonzero is *inexact*. The
+  `=` relation means radius zero and every digit shown.
+  → `devdocs/numbers.md#The types › Ball`, `#Certification and the
+  display rule`.
+- **N3.** In exact mode, inexactness enters in exactly two ways: an
+  inexact built-in (a root, `exp`, `ln`, the trigonometric, hyperbolic,
+  Gamma and Beta families, `pi()`) and `approx`. Decimal mode's rounding
+  is the third source, inside a step only.
+  → `devdocs/numbers.md#Exact mode` ("Exactly three things ever produce a
+  nonzero radius"); `docs/settings.md#How a number is held…` says "exactly
+  two ways" for exact mode (consistent).
+- **N4.** `+ - * /`, integer powers and comparisons on exact operands are
+  exact and as long as they need to be; exact values are never rounded in
+  exact mode. A sum that cannot be aligned within the significand limit
+  is refused, not rounded.
+  → `devdocs/numbers.md#Exact operations`, `#Sums and alignment`,
+  `#Exact mode`.
+- **N5.** Inexact values propagate radii by the elementary rules; every
+  occurrence of a value is independent (so `x - x` of an inexact `x`
+  is a ball around zero, never `0`; `sqrt(2)/sqrt(2)` is `≈ 1`).
+  → `devdocs/numbers.md#Exact operations`; `devdocs/functions.md#Precision,
+  the radius and cost`; `devdocs/numbers.md#Certification… ` ("Exactness is a
+  property of the value, not of the display").
+- **N6.** Built-ins return an exact result wherever the value is rational
+  and cheaply recognized (`sqrt(9/4) = 1.5`, `log(2, 8) = 3`, `exp(0)`,
+  `cos(0 radian)`, `gamma(5) = 24`, `lgamma(1) = 0`, `erf(0) = 0`,
+  `beta(2, 3) = 1/12`, `incbetareg(2, 3, 0.5) = 0.6875`); otherwise the
+  result is `≈` however round it looks (`ln(8)/ln(2) ≈ 3`).
+  → `devdocs/builtins.md#The rules every built-in follows`, `#Domains,
+  exact cases and edges`.
+- **N7.** An identity through an irrational step never certifies zero or
+  a rational: `sqrt(2)^2 - 2` is `≈ 0` within a bound, `turn` into `deg`
+  is `≈ 360`, `sin(pi() radian)` is `≈ 0`; such expressions run every
+  pass up to the ceiling (cost), and dividing by such a value is refused
+  ("cannot be told from zero").
+  → `devdocs/numbers.md#Exact mode`, `#Exact operations` (`unresolved`),
+  `#Working precision and the schedule`; `devdocs/cost.md#What the costs
+  come from`.
+
+Precision, certification and display (exact mode)
+
+- **N8.** The display digits are how many digits of the answer must be
+  certain; the app recomputes at rising working precisions (the digits
+  asked for plus ten, doubling, up to a ceiling of four times the
+  precision limit plus ten) until the digits are certified; the cost of
+  all passes is at most about twice the last.
+  → `devdocs/numbers.md#Working precision and the schedule`.
+- **N9.** `d` digits are certified when both ends of the ball round to
+  the same `d`-digit value in the rounding mode (correctly rounded, not
+  merely close); certification is checked from the digits asked down.
+  → `devdocs/numbers.md#Certification and the display rule`.
+- **N10.** What a line shows, in this order of kinds: *uncertified*
+  (decimal mode only, `≈` with a dot above it plus a note), *unbounded*
+  (no operation produces one today), *exact* (`=`), *zero* ("within
+  2e-30 of zero", the value written `0` whatever the sign), *certified*
+  (every digit asked for, `≈`), *partial* ("8 of 12 digits are
+  certain"). An exact value with more digits than shown is `≈` with no
+  note (`1/3 ≈ 0.33333333`).
+  → `devdocs/numbers.md#Certification and the display rule`;
+  `devdocs/architecture.md#The converter and its lines › The relation and
+  the note`.
+- **N11.** The rounding mode (seven; half-even default) is applied once,
+  at the display, in exact mode, and at every step in decimal mode;
+  `round(x[, places])` is the one place it acts inside an expression.
+  Directed modes show the value on the side they name, so a ball
+  straddling a grid point under a directed mode certifies nothing
+  (`cosh(1e-999999999)`, `approx(1)` show `≈ 1` with no digit certain).
+  → `devdocs/numbers.md#The types` (rounding.ts), `#Certification…`;
+  `devdocs/builtins.md#The exact functions`, `#Huge and tiny arguments`.
+- **N12.** Formatting is `%g`-like: significant digits in the mode,
+  trailing zeros dropped, exponent notation below `1e-4` or at the digit
+  count, exponents as `1e+21`; the power of ten is never formed, so any
+  magnitude renders. Every line parses back as a `have` (copy text uses
+  `*`, the screen `×`); one edge literal at the exponent bound does not.
+  → `devdocs/numbers.md#Formatting`; `devdocs/notation.md#Every literal
+  parses back`; `devdocs/architecture.md#The converter and its lines`.
+- **N13.** Ratio notation (exact mode only): an exact whole number is
+  written entire when it has at most `W` digits; an exact non-integer as
+  `n/d` when the two parts together have at most `W` digits (sign and
+  slash not counted); else as `n/d × 1e+k` when that fits and `d ≠ 1`;
+  else by the decimal display. Inexact values are always decimals. The
+  width is independent of the display digits. The ratio is parenthesized
+  before a unit and bare alone.
+  → `devdocs/notation.md#The rule`, `#Where a ratio is written`, `#Not in
+  decimal mode`.
+
+Comparison and equality
+
+- **N14.** Two exact values compare exactly, never refused for size; an
+  inexact value is placed against an exact one directly; two inexact
+  values through their difference. A ball touching a point counts as
+  straddling it, so a strict comparison of an inexact value at its bound
+  is undecided and a non-strict one decides only when the ball ends
+  exactly on the bound. A difference refused as too large counts as
+  across zero.
+  → `devdocs/numbers.md#Comparison`; `devdocs/functions.md#The check at a
+  call` (the verdict table).
+- **N15.** A value that straddles an edge where the answer would jump
+  (zero as a divisor, a domain end such as `1` for `asin`, a pole of
+  `tan` or `gamma`, an integer or rounding boundary for `floor`/`round`,
+  the exponent bound) is retried at more digits and, at the ceiling,
+  refused with "cannot be told from <edge> at this precision". A value
+  exactly on an exact case is decided (`tempC(-273.15)` meets
+  `x >= -273.15`; `floor(2)` is `2`).
+  → `devdocs/numbers.md#Exact operations`, `#The exponent bound`;
+  `devdocs/builtins.md#The rules every built-in follows`, `#The exact
+  functions`.
+- **N16.** There is no equality operator; equality surfaces only as `=`
+  on a line, as exact cases, in the inverse check ("certainly other than
+  the have" refutes), and in `<=`/`>=` chains.
+  → `devdocs/functions.md#Conditions` ("no equality and no `!=`"), `#A
+  function as the want` step 6.
+
+Decimal mode
+
+- **N17.** Decimal mode: every value is exact with at most `p` digits;
+  every observable step (`+ - * /`, juxtaposition, `^`, each literal,
+  each unit, each call as a whole, the pipeline's own quotients) is the
+  exact result rounded once to `p` digits in the mode; a literal with
+  more digits is rounded as read; a prefixed unit is one product rounded
+  once; `approx` is the identity; comparisons and conditions always
+  decide; dimensions keep exact rational exponents; every line is `=`.
+  → `devdocs/numbers.md#Decimal mode`.
+- **N18.** A built-in call in decimal mode is certified: computed on
+  finer grids up to the ceiling until its `p`-digit rounding is certain;
+  if never (a value exactly on a boundary, only algebraic cases), the
+  midpoint's rounding is shown flagged *uncertified* (`≈` with a dot,
+  "a step could not be certified at the precision limit"), sticky
+  through later steps. No shipped built-in is known to reach it.
+  → `devdocs/numbers.md#Decimal mode › The ceiling`.
+- **N19.** Working digits (decimal mode): with `w ≥ p`, every step but the
+  last is rounded to `w`; the last step of each displayed value is
+  rounded to `p` directly from the exact result of its operation. The
+  last steps are: the `have`'s root, the conversion ratio, a list's
+  counts and remainder, a function want's count, the reciprocal.
+  → `devdocs/numbers.md#The working digits`.
+- **N20.** In decimal mode `sin(pi() radian)` is `sin(3.1415927 radian)`
+  `= -4.6410207e-8`; `1/3*3 = 0.99999999`; `2.5400001 cm` at three digits
+  is `= 1 in`; two exact operands that cannot align take the neighbour
+  rule (`1e999999999 + 1` is `1e+999999999`, or `1.0000001e+999999999`
+  under ceiling).
+  → `devdocs/numbers.md#Decimal mode`, `#Sums and alignment`.
+
+Size limits and refusals
+
+- **N21.** Significand limit (bits, default 65,536): the most bits of a
+  significand's numerator and, separately, denominator. It is strict:
+  every exact result's size is predicted before forming and refused
+  with the bits needed. Where the same step would fit computed inexactly
+  the message suggests `approx(…)` around the operand it names, or
+  decimal mode; where it would not (a literal of too many digits,
+  `factorial(20000)`, `2^1e-30000`, `sin` of a huge angle) it suggests
+  nothing. Inexact results are never refused for size. A dyadic
+  denominator is stored with fives (`2^-30000` costs 69,658 bits).
+  → `devdocs/numbers.md#The significand limit`, `#Which limit a refusal
+  names`; `devdocs/builtins.md#The exact functions` (factorial prediction).
+- **N22.** Exponent bound: a value's decimal exponent must lie within
+  ±10^18 (not a setting). Passing it is "too large/too small to compute:
+  its exponent would pass 10^18 / fall below -10^18" (overflow /
+  underflow); a ball reaching across the edge is retried and, at the
+  ceiling, "cannot be told from the point where the result passes the
+  exponent bound". `exp(2.3e18)` is a value, `exp(2.31e18)` refused;
+  `exp(1e6) ≈ 3.0332154e+434294`.
+  → `devdocs/numbers.md#The exponent bound`, `#Why the exponent bound
+  stays at 10^18`; `docs/functions.md#Very large results and approx`.
+- **N23.** `approx(x)`: the value known to the working precision and no
+  better (radius the larger of `x`'s own and one unit in the last
+  working digit); never narrows; idempotent; keeps the dimension; zero
+  and unbounded pass through; the identity in decimal mode. It relaxes
+  the significand limit (sums, integer powers, products, quotients whose
+  exact result would pass it) and never the exponent bound.
+  → `devdocs/numbers.md#approx`, `#The significand limit` (last paragraph).
+- **N24.** Which limit a refusal names: a sum, product, quotient or power
+  past both limits is reported at the exponent bound; a hair from the
+  bound, at the significand limit (`7^1e19` is overflow; `2.54^1e18` is
+  tooLarge).
+  → `devdocs/numbers.md#Which limit a refusal names`.
+
+Cost (observable as latency)
+
+- **N25.** A value that certifies costs milliseconds; one that never
+  certifies runs to the ceiling, which is why the precision limit is a
+  cost setting; the first Gamma-family call at a new ceiling computes
+  the Bernoulli numbers (seconds); constants are computed on first use
+  and kept.
+  → `devdocs/numbers.md#Working precision and the schedule`, `#Memoized
+  constants`; `devdocs/builtins.md#The Gamma and Beta families`;
+  `devdocs/cost.md#What the costs come from`.
+
+#### 1.1.2 Settings that parameterize the numeric model
+
+| Setting (stored key) | Model parameter | Effect |
+| --- | --- | --- |
+| Display digits (`displayDigits`) | `NumberContext.precision` at the user level | Exact mode: digits that must certify (N8–N10). Decimal mode: the grid of every step and of literals as read (N17). |
+| Rounding (`rounding`) | the context's rounding mode | Exact: the display's one rounding (N11). Decimal: every step (N17). `round()` (N11). |
+| Mode (`mode.kind`) | `NumberContext.mode` (`exact`/`decimal`) | Selects the arithmetic (N1–N16 vs N17–N20). |
+| Notation (`mode.notation`, `digits`/`ratio` + width) | display only (`RatioDisplay.width`) | N13; exact mode only; never changes what is exact. |
+| Working digits (`mode.working`, `digits`/`extended` + count) | `NumberContext.working` (decimal mode) | N19. |
+| Precision limit (`precisionLimitDigits`) | `NumberContext.ceiling = 4 × (L + 10)` | Caps display and working digits; bounds the retry schedule (N8) and decimal-mode certification (N18); rebuilds the unit table. |
+| Significand limit (`significandLimitBits`) | `NumberContext.significandLimitBits` | N21; also caps the precision limit via `precisionLimitFor` (2,453 at the default). |
+| Probe budget (`budgetMs`) | none (the probe's per-pass budget) | Only the "Measure this device" proposal. |
+
+Fixed, not settings: the exponent bound (10^18), the guard of ten
+digits and the factor four, `MIN/MAX_SIGNIFICAND_LIMIT_BITS` (358 /
+2^20), the width's range `[1, 1000]`, `ROOT_DEGREE_LIMIT` (2^32).
+→ `devdocs/settings.md#The model`; `devdocs/numbers.md#Working precision
+and the schedule`, `#The significand limit`.
+
+#### 1.1.3 Edge cases users are likely to hit
+
+- `1 m` in `in` is `≈ 39.370079 in` although exact (`= (5000/127) in`
+  under ratio notation). `devdocs/notation.md#(top)`.
+- `sqrt(2)^2 - 2` is `≈ 0` with a bound; `1 / (sqrt(2)^2 - 2)` is refused;
+  `floor(sqrt(2)^2)` is refused; each runs to the ceiling on every
+  keystroke. `devdocs/numbers.md#Exact mode`; `devdocs/builtins.md#The
+  exact functions`.
+- `turn` into `deg` is `≈ 360`; `parsec` into `au` is `≈`.
+  `devdocs/builtins.md#The elementary routines`.
+- `1/3*3` is `= 1` in exact mode and `= 0.99999999` in decimal mode;
+  `ln(exp(1/10))` is `= 0.099999984` at eight digits and `= 0.1` with
+  twelve working digits. `devdocs/numbers.md#Decimal mode`, `#The working
+  digits`.
+- `1e999999999 + 1` refused ("would need a significand of about
+  3,321,928,093 bits"); `approx(1e999999999) + 1` is `≈ 1e+999999999`.
+  `devdocs/numbers.md#The significand limit`.
+- `exp(1e999)` refused with or without `approx`; work in log space.
+  `devdocs/numbers.md#Why the exponent bound stays at 10^18`.
+- `factorial(approx(5))` refused ("needs a whole number known exactly");
+  `factorial(20000)` refused, `gamma(20001)` is the way.
+  `devdocs/builtins.md#The exact functions`.
+- `2^-30000` refused while `2^-28000` is a value (dyadic storage cost);
+  `3^-100000` refused by its own bits. `devdocs/numbers.md#The significand
+  limit`.
+- `tan(90 deg)` "cannot be told from a pole"; `asin(approx(1))`
+  undecided at the edge. `devdocs/builtins.md#Domains, exact cases and edges`.
+- `round(2.5)` is `2` under half-even and `3` under half away from zero.
+  `devdocs/builtins.md#The exact functions`.
+- `pow(2, 1e-30000)` is `≈ 1` where `2^1e-30000` is refused (#88, #89).
+  `devdocs/architecture.md#Evaluation`; `devdocs/numbers.md#Roots and powers`.
+- `(1/3) * 1e30` is `1/3 × 1e+30` under ratio notation; `5000/127` at a
+  width below seven is `5/127 × 1e+3`. `devdocs/notation.md#The rule`.
+- A unit-list remainder that rounds up carries: `2.9999999999 ft` in
+  `ft;in` is `3 ft`; `3599.9999999999 s` in `hr;min;s` is `1 hr` (not
+  under `floor`). `devdocs/architecture.md#Unit lists`.
+- A ball around zero is written `0`, never `-0`; its bound is rounded up
+  to one digit. `devdocs/numbers.md#Certification…` (zero kind).
+- `9.5e1000000000000000000` at one digit writes a literal that is refused
+  when typed back. `devdocs/notation.md#Every literal parses back`.
+- `sin(1e-999999999 radian)` certifies at once; `sin(1e5000 radian)`
+  costs `pi` to that size each time; `sin` of an angle past
+  `2^significandLimitBits` radians is refused.
+  `devdocs/builtins.md#Huge and tiny arguments`.
+
+#### 1.1.4 What stays in devdocs (representation and mechanism), by pointer
+
+- The type tower `Rational`/`Scaled`/`Radius`/`Ball`/`Fixed`/`Floating`,
+  canonical form, why one decimal exponent: `devdocs/numbers.md#The types`.
+- Henrici/Lehmer gcd, cross-cancellation, `BOUND_BAND`, `log2Bounds`:
+  `#Exact operations`, `#The exponent bound`.
+- The kernel's door and exit, memoized constants, `MEMO_MARGIN`:
+  `#The kernel's boundary`, `#Memoized constants`.
+- Root and power algorithms, `rootInLogSpace`, `powLogSpace`, parity
+  rules: `#Roots and powers`; `devdocs/builtins.md#Domains…` (pow).
+- The classifier for the exponent bound, `logPowerBlame`,
+  `powerRefusal`: `#The exponent bound`, `#Which limit a refusal names`.
+- Why 10^18 stays, the scratch-build measurements, the six-pass table:
+  `#Why the exponent bound stays at 10^18` (duplicated today in
+  `docs/functions.md#Very large results and approx`; see §9).
+- Certification of unformable radii, `certifiedDigits` scanning,
+  `zeroBound`: `#Certification and the display rule`.
+- The schedule's derivation (why four and ten), `workingContexts`,
+  `resolve`'s retry predicate, `PassObserver`: `#Working precision and the
+  schedule`.
+- Settling, `step`/`settle`, `onGrid`: `#Settling`, `#Sums and alignment`.
+- Decimal mode's provisional rulings, `uncertified` as a flag,
+  `operandContext`: `#Decimal mode`, `#The working digits`.
+- Size prediction (`Need`, `Reach`, `multiplyWithin`, …), the asserted
+  invariant, the rejected rounding alternative: `#The significand limit`.
+- `approx`'s alternatives (syntax forms, the binary form #100): `#approx`.
+- Failures vs preconditions: `#Failures`; formatting internals:
+  `#Formatting`.
+- The ratio notation's width rule and the alternatives set aside,
+  `show`'s `fraction`/`scale`: `devdocs/notation.md#The width`, `#Where it
+  lives`.
+
+#### 1.1.5 Decisions and decisions-against to carry forward; quirks to drop
+
+Every narrated predecessor and every "set aside" in the numeric pages,
+classified by the test at the top of this plan. "Owner" is the current
+passage that states the decision; "treatment" is what the living pages
+keep.
+
+| Passage, as narrated | Classification | Owner | Treatment |
+| --- | --- | --- | --- |
+| Decimal mode once tracked the roundings in the radius ("7 of 8 digits are certain") | decision-against: redesigned after seeing it fleshed out | `devdocs/numbers.md#Decimal mode` | rewrite as a ruled-out alternative: carrying a radius through the mode's steps answers a question the mode does not ask, and a directed rounding could never certify its last digit |
+| Inexact midpoints grew as exact rationals | decision-against: seen in use (a dyadic to the fifth power refused by the limit) | `devdocs/numbers.md#Settling` | keep as the reason settling exists; drop the sizes |
+| A binary exponent beside the decimal one | decision-against: a larger flaw, found when the mixed base leaked into every operation | `devdocs/numbers.md#The types › Scaled` | keep, trimmed to the reasons (one base, where the base changes, the cost accepted); the millisecond figures are *uncertain* |
+| Certification widened the midpoint by two digits | quirk: an implementation slip, corrected | `devdocs/numbers.md#Certification and the display rule` | drop the parenthetical; the distance rule stands alone |
+| A fixed ceiling of 1,000 digits with the display digits capped at 200 ("they moved once") | quirk: the parameters moved; the judgment behind four and ten is the decision | `devdocs/numbers.md#Working precision and the schedule` | drop the sentence; keep that four and ten are judgments and why |
+| The significand limit measured after forming | decision-against: deliberate while it lasted, replaced by prediction after the gcds (#73) | `devdocs/numbers.md#The significand limit` | keep why prediction runs after the gcds (`x / x` is one) and why the limit is strict; drop the commit |
+| Refusal reach worded "passes" | quirk: wording | same section | drop |
+| The ratio notation's fit tied to the display digits ("the first rule") | decision-against: redesigned after use (a length coupled to a precision; exact values hidden; not readable off the settings) | `devdocs/notation.md#The width` | keep as the reasons for the width; drop the commits |
+| The `fractions` flag and notation-as-string shapes; the settings' old keys (`digits`, `maxDigits`, `maxBits`) | not history: the migrations must read them | `devdocs/settings.md#Storage` | keep only inside the migration list; the naming rationale stays in `#The model` |
+| The rounding default, half away from zero | decision: an unbiased default, the old one echoed by every save | `devdocs/settings.md#The model › Rounding`, `#Storage` (2→3) | keep the reason for half even; the migration row as mechanism |
+| A ball around zero could print `-0` | quirk: quickly corrected | `devdocs/numbers.md#Certification…` (zero kind) | drop any trace; the rule "written `0` whatever the sign" stays |
+| `settle` exported and reachable from two sites | quirk: an internal shape | `devdocs/numbers.md#Settling` | drop; keep "`step` is the one entrance" as the design rule |
+| The vocabulary around `working` (#172) | open decision | `devdocs/numbers.md#The working digits` | keep as one sentence plus the issue; §8 proposes the terms |
+| `uncertified` shown rather than decided as a tie (#173); the two "provisional" rulings of decimal mode | open decisions, with their reasons given | `devdocs/numbers.md#Decimal mode` | keep as decisions-for-now with the reasons and the issue |
+| Per-operation precision (MPFR's guarantee) set aside for whole-expression precision | decision-against: ruled out up front | `devdocs/numbers.md#Exact mode` | keep |
+| Rounding an exact result past the limit at the node, a third mode rounding every literal, a setting for the exponent bound, raising the bound, stored digits of `pi`, the `approx` spellings | decisions-against: ruled out with reasons | `devdocs/numbers.md#The significand limit`, `#approx`, `#Why the exponent bound stays at 10^18`; `devdocs/future.md#Ruled out, and why` | keep; the scratch-build timings under the exponent bound are *uncertain* (they justify the decision but no tool regenerates them) |
+
+#### 1.1.6 Claims that most need verification against the code
+
+Ranked by how much of docs/ would rest on them and by how specific the
+text is (quoted messages and constants are easy to get wrong):
+
+1. N10's kind order and the exact wording of the three notes and the
+   uncertified note (`display.ts`, `outcome.ts`, `messages.ts`).
+2. N17's list of what counts as a step in decimal mode, literal rounding
+   as read, and "a prefixed unit is rounded once" (`evaluate.ts`,
+   `table.ts`, `context.ts`).
+3. N19's list of "last steps" and the directed-mode neighbour claim
+   (`pipeline.ts`, `outcome.ts`, `context.ts#operandContext`).
+4. N8's schedule (p + 10, doubling, `4 × (L + 10)`, nine passes at eight
+   digits) and N21/N22 constants (65,536; 2,453; 358; 2^20; 10^18;
+   `BOUND_BAND`) (`context.ts`, `pipeline.ts`, `rational.ts`,
+   `scaled.ts`, `settings.ts`).
+5. N21's `fits`/`exceeds` suggestion rule and the exact message texts
+   (`rational.ts`, `messages.ts`, `evaluate.ts`).
+6. N14's verdict table and "touching counts as straddling"
+   (`ball.ts#position`, `#orderOf`, `evaluate.ts#decide`).
+7. N13's five rules and the counting of the width (`display.ts`,
+   `outcome.ts`).
+8. N23's radius rule (larger of own and one unit), zero pass-through
+   (`builtins/approx.ts`, `ball.ts#widened`).
+9. N3 "exactly three sources" (any `onGrid` rounding of an exact operand
+   is charged to an already inexact result?) (`ball.ts`).
+10. N12 copy text `*` vs screen `×`, and the parser's acceptance of `×`
+    (not stated anywhere; §12) (`print.ts`, `expr.ts`).
+11. N24's "a hair from the bound is tooLarge" (`scaled.ts#powerRefusal`).
+12. N11 directed-mode behaviour for exact values with more digits than
+    shown (`39.3700787401` rounded down) (`display.ts`).
+
+#### 1.1.7 Source modules to check against
+
+`src/core/rational.ts`, `scaled.ts`, `radius.ts`, `ball.ts`,
+`rounding.ts`, `context.ts`, `display.ts`, `pipeline.ts`, `digits.ts`,
+`fixed.ts` (boundary only), `constants.ts`, `quantity.ts`
+(`stepQuantity`), `evaluate.ts` (literal/unit nodes, settling),
+`src/core/builtins/approx.ts`, `src/outcome.ts`, `src/messages.ts`,
+`src/settings.ts` (`contextOf`, `ratioOf`, `precisionLimitFor`),
+`src/system-build.ts` (table at the ceiling).
+
+### 1.2 The quantity
+
+#### 1.2.1 User-level semantic model
+
+Dimensions and kinds
+
+- **Q1.** A quantity is a magnitude (a value as in §1.1) paired with a
+  dimension: an exponent vector over the primitives with rational
+  exponents, zero exponents absent. `m^(1/2)` is a dimension;
+  `(m^2)^(1/2)` is `m`; exponents stay exact in both modes.
+  → `devdocs/architecture.md#Quantities, dimensions and kinds`;
+  `devdocs/numbers.md#Decimal mode` ("Dimensions carry exact rational
+  powers").
+- **Q2.** Primitives are declared by the definitions file in two roles:
+  dimension primitives (`m`, `kg`, `s`, …; body `!`) and kind primitives
+  (`radian`; body `!kind`), dimensionless markers that ride in the same
+  vector. Which kinds exist is the file's business, not the core's.
+  → `devdocs/architecture.md#Quantities…`; `docs/definitions.md#The format`.
+- **Q3.** Conformance is checked in two steps: the vectors restricted to
+  dimension primitives (a *dimension mismatch*, e.g. length vs time),
+  then the full vectors (a *kind mismatch*, naming the kinds that
+  differ). The same check, with the same roles, decides `have` vs
+  `want`, the operands of `+`/`-`, a call's argument against its
+  parameter's annotation, and adjacent terms of a condition.
+  → `devdocs/architecture.md#Quantities…`, `#Evaluation`;
+  `devdocs/functions.md#Annotations`, `#Conditions`.
+- **Q4.** There is no special case for zero: `0` is a plain number, so
+  `1 m + 0` and `sin(0)` are mismatches; `1 rad + 1` is a kind mismatch;
+  `rad/s` does not convert to `Hz`, while `rpm` converts to `rad/s`.
+  → `devdocs/architecture.md#Quantities…`; `devdocs/builtins.md#Dimension
+  rules › Angles`.
+- **Q5.** A quantity carries no unit of its own: its magnitude is held in
+  the primitives, so `100 lb` and `45.359237 kg` are one value and
+  nothing remembers which was typed. Consequences: an annotation checks
+  a dimension and changes no value; `floor`, `ceil`, `trunc`, `round` and
+  the integer functions take plain numbers (`floor(3.7 ft)` would floor
+  the metres); `abs`, `sign`, `div`, `mod`, `approx` take quantities.
+  → `devdocs/functions.md#Annotations`; `devdocs/builtins.md#Dimension
+  rules › floor and its kin`.
+- **Q6.** Arithmetic: juxtaposition and `*` multiply dimensions, `/`
+  divides, `^` raises by its literal rational exponent, `+`/`-` require
+  conformance and keep the shared dimension, negation touches the
+  magnitude only. Only the magnitude can fail (zero divisor, even root
+  of a negative, a size limit).
+  → `devdocs/architecture.md#Quantities…` (last paragraph), `#Evaluation`.
+- **Q7.** A dimension is written in the expression language itself:
+  primitives in declaration order, positive exponents first, negative
+  ones after `/`, `1` for an empty numerator, a non-integer exponent
+  parenthesized (`m^2 kg / s^3 A`, `m^(1/2)`), so an error's dimension
+  can be typed back.
+  → `devdocs/architecture.md#Quantities…`.
+- **Q8.** Angles: `sin`, `cos`, `tan` require the `radian` kind
+  (`sin(30 deg)` works, `sin(1)` says to write `sin(1 radian)`); `asin`,
+  `acos`, `atan`, `atan2` return the `radian` kind, so `asin(0.5)` into
+  `deg` is `30` and `asin(0.5)` into `turn` or `/ radian` is the number;
+  the hyperbolic functions take plain numbers; `atan2` takes two
+  quantities of one dimension, kinds included.
+  → `devdocs/builtins.md#Dimension rules`.
+
+Units and names
+
+- **Q9.** A name means the unit of that name if there is one, else one
+  prefix followed by a unit; an exact name always wins (`min`); prefixes
+  do not stack; prefixes and units are separate namespaces (`m-` and
+  `m`); lists, functions and built-ins share the unit namespace and may
+  not read as a prefixed unit; prefixes never apply to functions
+  (`ktempC(1)` is a call of nothing); an ambiguous name is a file error,
+  not a resolved ambiguity (`u`, `at` are absent for this reason).
+  → `docs/definitions.md#Names`; `devdocs/architecture.md#Definitions`;
+  `devdocs/builtins.md#Names`.
+- **Q10.** Every unit factor is exact as its defining document states,
+  so conversions between rationally defined units are exact (`1 in` is
+  `2.54 cm`, `1 ft` in `in` is `= 12 in`). The angle units, `parsec` and
+  `oersted` call `pi()` and carry its radius; the constants are exact by
+  the 2019 SI except the dalton, a CODATA decimal written exact.
+  → `docs/definitions.md#What the file contains`; `devdocs/numbers.md#(top)`,
+  `#approx` (last paragraphs); `devdocs/builtins.md#The elementary routines`.
+- **Q11.** The unit table is built once, in exact mode, at the ceiling of
+  the precision limit, and a unit is settled to each pass's precision at
+  the node that names it; in decimal mode a unit is rounded once to `p`
+  digits (`surveyfoot` at eight digits is `0.30480061 m`).
+  → `devdocs/numbers.md#Working precision and the schedule`, `#Decimal
+  mode › A unit`.
+- **Q12.** Temperature: `degC`, `degF`, `degR` are differences (`1 degC`
+  is `1 K`); a reading is a call of `tempC`/`tempF`, whose inverses let
+  the function be the `want`; there are no affine units. Logarithmic
+  units are functions the same way (`decibel`, `bel`, `neper`).
+  → `docs/definitions.md#What the file contains`;
+  `devdocs/functions.md#(top)`; `devdocs/future.md#Ruled out, and why`;
+  `devdocs/builtins.md#Names`.
+
+Conversion and the answer
+
+- **Q13.** With a single `want`, the answer is the ratio of the two
+  magnitudes after conformance; the `want` may carry a magnitude (`1 mi`
+  into `1000 ft` is `5.28 × 1000 ft`); failures are the mismatch, a
+  `want` of zero, a `want` that cannot be told from zero, a ratio at the
+  exponent bound. A blank `want` answers in the primitives (`1 in =
+  0.0254 m`).
+  → `devdocs/architecture.md#Conversion`, `#The converter and its lines`.
+- **Q14.** The reciprocal line: a conversion into one unit also answers
+  the other way round (`in ≈ 0.027777778 × 3 ft`), each line's relation
+  decided from its own value; none for a unit list, a blank `want`, a
+  function `want`, a zero or an unresolvable value. It is computed once
+  at the user's context, outside the retry loop (#92).
+  → `devdocs/architecture.md#The converter and its lines › The reciprocal`.
+- **Q15.** Unit lists (`ft;in`, or a defined list's name): a sum largest
+  first, every unit but the last an integer count (truncated toward
+  zero, so terms carry `have`'s sign), the last the remainder; a count
+  whose ratio straddles an integer takes that integer; the remainder is
+  rounded at the display digits and a rounding that reaches a whole of
+  an earlier unit carries; zero terms are left out (a sum of nothing but
+  zeros keeps its last); `=` only when every term is exact. The units
+  must conform to `have`, be positive throughout their ball, and
+  decrease along the list (by midpoint); they need not be multiples
+  (`mi;km`) and may carry magnitudes (`ft;in/8`). A list is an output
+  form only; its name is not a unit anywhere else.
+  → `devdocs/architecture.md#Unit lists`, `#The converter and its lines ›
+  A unit list`; `docs/definitions.md#Unit lists`.
+- **Q16.** A function as the `want` (third output mode): needs an
+  inverse; the `have` must conform to the result and meet the inverse's
+  conditions; the recovered argument must meet the function's
+  conditions; the function is reapplied and a value certainly other than
+  the `have` refutes the inverse; the answer is written as the call with
+  the argument as a count of the parameter's annotation unit
+  (`2 ft = dozen(2 in)`, `300 K = tempF(80.33)`), with no reciprocal.
+  → `devdocs/functions.md#A function as the want`, `#Display`;
+  `devdocs/architecture.md#Functions`.
+- **Q17.** The `want` is read as: one bare name that is a list → the
+  list; one bare name that is a function → the function; any other
+  single item → a unit expression; two or more `;`-separated items → a
+  typed list. A `want` that is a call is an ordinary expression.
+  → `devdocs/architecture.md#Pipeline`, `#Unit lists` (last paragraph),
+  `#Functions`.
+- **Q18.** Every result line is typeable back as a `have`: a `want` with
+  a magnitude is joined with `×`, a `want` that is a sum, difference or
+  negation is parenthesized, a ratio is parenthesized before a unit.
+  → `devdocs/architecture.md#The converter and its lines`;
+  `devdocs/notation.md#Where a ratio is written`.
+- **Q19.** Errors point at the text at fault (the input marked on its
+  side), a sum's mismatch worded as the same mismatch between `have` and
+  `want`, and a dimension formatted as in Q7.
+  → `devdocs/architecture.md#Evaluation`, `#Messages`.
+
+#### 1.2.2 Settings that parameterize the quantity model
+
+None parameterize the dimension side. The magnitude side follows §1.1.2:
+display digits, rounding and mode decide how a ratio, a list's remainder
+and a recovered argument are shown and rounded (Q13–Q16; `roundTerms`
+uses the display's digits and mode); the precision limit fixes the
+ceiling the unit table is built at (Q11), so changing it rebuilds the
+table; decimal mode rounds each unit once (Q11).
+→ `devdocs/architecture.md#Unit lists` (`roundTerms`);
+`devdocs/numbers.md#Working precision and the schedule`.
+
+#### 1.2.3 Edge cases users are likely to hit
+
+- `1 m + 0`, `1 m + 1/2 m` (`1/(2 m)`), `1/12 year` (a frequency): the
+  juxtaposition-before-quotient rule. `docs/definitions.md#Expressions`.
+- `sin(1)`, `2 asin(0.5) + 1`, `sin(pi())`: kind mismatches; write
+  `sin(1 radian)`, `sin(f t turn)`. `devdocs/builtins.md#Dimension rules`.
+- `rad/s` into `Hz` refused; `J` is `N m` (no torque kind).
+  `devdocs/architecture.md#Quantities…`.
+- `floor(3.7 ft)` refused; write `floor(3.7 ft / ft) ft`; `mod(-30 deg,
+  360 deg)` is `330 deg`; `div(7 ft, 2 ft)` is `3`.
+  `devdocs/builtins.md#The exact functions`.
+- `m2` is a name; `kg(m/s)` is a call of `kg`; `kg (m/s)` a product;
+  `kkm`, `inches` are nothing; `dB` is `d` + `B`, use `decibel`.
+  `docs/definitions.md#Names`, `#Expressions`; `devdocs/builtins.md#Names`.
+- `2 tempC`, `tempC;degC`, `2 time`: a function's or a list's name is
+  not a unit. `devdocs/functions.md#A function as the want` (last
+  paragraph); `devdocs/architecture.md#Definitions`.
+- `in;ft` and `ft;12 in` refused (not decreasing); a unit that cannot be
+  told from zero refused as a list unit and not retried.
+  `devdocs/architecture.md#Unit lists`; `devdocs/numbers.md#Working
+  precision…` ("Two gaps are accepted").
+- `-1 m` into `ft;in` is `-3 ft - 3.3700787 in`; `3601 s` into
+  `hr;min;s` is `1 hr + 1 s`; `turn` into `deg;arcmin` is `≈ 360 deg`,
+  not `359 deg + 60 arcmin`. `devdocs/architecture.md#Unit lists`.
+- `bmi(100 lb, 4 ft)` with a blank `want` shows `kg / m^2`, not the
+  annotated `lb/ft^2` (#130). `devdocs/functions.md#Annotations`.
+- `-5 K` into `tempC` refused by `tempC`'s own condition; `tempF(-40)`
+  into `tempC` is `tempC(-40)`. `devdocs/functions.md#A function as the
+  want`.
+- `0 s` as the `want` for a length is a mismatch, not "zero want";
+  `0 ft = 0 in` has no reciprocal line. `devdocs/architecture.md#Conversion`,
+  `#The converter and its lines › The reciprocal`.
+- `1e999999999 m` into `ft;in` counts by the settled midpoint;
+  `3^32767 m` into `ft/7^21845;in/7^21845` is tooLarge.
+  `devdocs/architecture.md#Unit lists`.
+
+#### 1.2.4 What stays in devdocs, by pointer
+
+- Dimension arithmetic, the roles plumbing (`Primitives`), declaration
+  order, "a name the table does not declare counts as a dimension
+  primitive": `devdocs/architecture.md#Quantities, dimensions and kinds`.
+- `Quantity` as the pairing layer; which operation takes a
+  `NumberContext`: same section, last paragraph.
+- The build: the walker, memoization, cycles, the ambiguity index and
+  its cost, the build-error catalogue, the lookup's one throw:
+  `devdocs/architecture.md#Definitions`; `devdocs/benchmarks.md#What each
+  benchmark asserts`.
+- `convert`'s error kinds (`unresolvedWant`, `unresolvedBound`,
+  `zeroWant`), the count rule's mechanics, `roundTerms`' rebuild
+  fallback: `devdocs/architecture.md#Conversion`, `#Unit lists`.
+- The reciprocal as a view in the component, `outcome.ts`' parsing of
+  the `want` again: `devdocs/architecture.md#The converter and its lines`.
+- Inverse checking as refutation, `applyFunction`/`invertFunction`
+  sharing, the collector of assumptions: `devdocs/functions.md#A function
+  as the want`, `#An undecided condition`.
+- Kind-lenient conversion, complex magnitudes, offsets: `devdocs/future.md`.
+
+#### 1.2.5 Decisions and decisions-against to carry forward; quirks to drop
+
+| Passage, as narrated | Classification | Owner | Treatment |
+| --- | --- | --- | --- |
+| Function heads in the first form, `tempC(x) [1;K] body ; inverse` | decision-against: redesigned after use (no home for bounds; annotations all or nothing) | `devdocs/functions.md#Alternatives considered` | keep the reason each alternative lost; trim the first form to one line |
+| Annotations as GNU `units=` (a parameter bound to its count) | decision-against: ruled out up front | `devdocs/functions.md#Annotations` | keep |
+| Bounds written in the parameter list; keyword clauses; a multi-line block | decisions-against: ruled out up front | `devdocs/functions.md#Alternatives considered` | keep |
+| The build check evaluated each body at one value | decision-against: untenable once the elementary functions existed | `devdocs/functions.md#Build-time checks` | keep as one clause: why bodies are not evaluated at build |
+| The reciprocal as GNU units' `(1 / 0.027777778) in` | decision-against | `devdocs/architecture.md#The converter and its lines › The reciprocal` | keep |
+| A list count by truncation when the ratio straddles an integer (`359 deg + 60 arcmin`) | *uncertain*: reads as a slip corrected on sight, but the rule's reason is worth a clause | `devdocs/architecture.md#Unit lists` | keep the rule with its reason; drop any "before" framing |
+| The shadowing error, meant to become a warning (#131) | open decision | `devdocs/functions.md#Names and shadowing` | keep the rule and the issue |
+| Kinds, against the degree-radian confusion; "the radian treated as 1" with plain inverses | decision and decision-against | `devdocs/builtins.md#Dimension rules › Angles` | keep |
+| An offset on `Quantity` for temperatures; lenient kind conversion | decision-against; deferred extension | `devdocs/future.md#Ruled out, and why`, `#Extensions that fit` | keep |
+| Calls decided by the table; a cut combinator for the call rule ("broke it once") | decisions-against: the cut set aside with its failure mode | `devdocs/architecture.md#Parsing`; `devdocs/functions.md#Not in this design` | keep the reasons; reduce "broke it once" to the reason the lookahead is used |
+| Trusting an inverse, checking it once, or sampling it at build | decisions-against | `devdocs/functions.md#A function as the want` | keep |
+| A sigil on parameters (`$t`) against silent shadowing | decision-against | `devdocs/functions.md#Names and shadowing` | keep |
+
+#### 1.2.6 Claims that most need verification against the code
+
+1. Q3's two-step check and that sums, calls and conditions use the very
+   same function with the same roles (`dimension.ts`, `evaluate.ts`,
+   `dimension-of.ts`).
+2. Q15's count rule (truncate toward zero; straddling → the integer; the
+   decreasing check by midpoint; the positive check on the whole ball),
+   the carry in `roundTerms`, and the zero-term omission (`convert.ts`,
+   `outcome.ts`, `display.ts`).
+3. Q17's reading order of the `want` (list name, function name, unit) and
+   that a list's name typed inside a list is an unknown unit
+   (`pipeline.ts`, `table.ts`).
+4. Q9's resolution order inside a function body (parameter before unit
+   before prefix) and the function-before-built-in order
+   (`evaluate.ts`, `table.ts#resolveFunction`).
+5. Q8's dimension rules table, in particular `atan2` "kinds included" and
+   `mod` returning the arguments' dimension (`builtin.ts`,
+   `builtins/*.ts`).
+6. Q7's dimension text (declaration order, `1` numerator) (`dimension.ts`,
+   `print.ts`).
+7. Q11's "table built in exact mode at the ceiling; settled at the node"
+   and the decimal-mode unit rounding (`system-build.ts`, `evaluate.ts`).
+8. Q14's exclusions for the reciprocal line (`outcome.ts`).
+9. Q16's six steps and `inverseMismatch`'s criterion (`pipeline.ts`,
+   `evaluate.ts#invertFunction`).
+10. Q10's "every factor exact" and which units call `pi()` (`units.txt`
+    read in unit D3).
+
+#### 1.2.7 Source modules to check against
+
+`src/core/dimension.ts`, `quantity.ts`, `convert.ts`, `table.ts`,
+`names.ts`, `name-index.ts`, `build.ts`, `graph.ts`, `dimension-of.ts`,
+`evaluate.ts` (sums, calls, `applyFunction`, `invertFunction`),
+`pipeline.ts` (reading the `want`), `src/outcome.ts`, `src/core/print.ts`,
+`src/units.txt`, `src/units.test.ts`, `src/system-build.ts`,
+`src/system-table.ts`, `src/core/builtin.ts` (dimension-rule helpers).

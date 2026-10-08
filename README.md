@@ -1441,22 +1441,29 @@ Workers Builds running these commands from the repository root:
 | Deploy | `pnpm exec wrangler deploy` |
 
 `wrangler.jsonc` holds the Worker name, the assets directory (`dist`), the
-compatibility date, and the switches that keep the Worker off `workers.dev`.
-Keep the compatibility date as recent as the pinned wrangler supports, and bump
-it whenever wrangler is updated.
+compatibility date, and the switches that keep production off `workers.dev`
+while leaving Previews on it. Keep the compatibility date as recent as the
+pinned wrangler supports, and bump it whenever wrangler is updated.
 
 The app is served from a custom domain, attached to the Worker in the
 Cloudflare dashboard (the Worker's Domains & Routes settings) rather than
 listed in `wrangler.jsonc`. That keeps the repository deployable by anyone to
 their own account and domain without changing it: wrangler adds the routes and
 domains its configuration lists, but never removes one added in the dashboard,
-and a Worker's name is scoped to its account. `workers_dev` and `preview_urls`
-are both `false`, so the Worker has no `workers.dev` address and no
-`workers.dev` Preview URLs. A PWA needs one origin, since its installs and its
-saved settings belong to the origin they were made on. Wrangler applies both
-settings on every deploy, so turning either back on in the dashboard lasts only
-until the next one. Previews on a custom domain are a setting of that domain
-and are unaffected. To deploy without a custom domain, set both to `true`.
+and a Worker's name is scoped to its account.
+
+- `workers_dev` is `false`, so production has no `workers.dev` address. A PWA
+  needs one origin, since its installs and its saved settings belong to the
+  origin they were made on. To deploy without a custom domain, set it to
+  `true`.
+- `preview_urls` is `true`, so each Preview also has a `workers.dev` URL beside
+  any on a custom domain set up for Previews, and stays reachable if that
+  domain's routing breaks. It is set explicitly because, when it is absent,
+  Preview URLs follow `workers_dev`.
+
+Wrangler applies both settings on every `wrangler deploy`; building a Preview
+does not change them. A change made only in the dashboard therefore lasts until
+the next production deploy.
 
 Wrangler sends usage telemetry to Cloudflare unless told otherwise, and its
 [telemetry docs](https://github.com/cloudflare/workers-sdk/blob/main/packages/wrangler/telemetry.md)

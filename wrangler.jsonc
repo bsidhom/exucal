@@ -18,16 +18,18 @@
   "assets": {
     "directory": "./dist",
   },
-  // Serve the app from a custom domain only, so that it has one origin: a
-  // PWA's installs and saved settings belong to the origin they were made
-  // on. The domain is attached in the Cloudflare dashboard, not listed here,
-  // so that anyone can deploy this repository to their own domain without
-  // editing it; wrangler never removes a domain added in the dashboard.
-  // These two turn off the workers.dev address and the workers.dev Preview
-  // URLs. Wrangler applies them on every deploy, so turning either back on
-  // in the dashboard lasts only until the next one. Previews on a custom
-  // domain are set per domain and are unaffected. To deploy without a
-  // custom domain, set both to true.
+  // Serve the app in production from a custom domain only, so that it has
+  // one origin: a PWA's installs and saved settings belong to the origin
+  // they were made on. The domain is attached in the Cloudflare dashboard,
+  // not listed here, so that anyone can deploy this repository to their own
+  // domain without editing it; wrangler never removes a domain added in the
+  // dashboard. To deploy without a custom domain, set this to true.
   "workers_dev": false,
-  "preview_urls": false,
+  // Keep Preview URLs on workers.dev as well as on any custom domain set up
+  // for Previews, so that a Preview stays reachable even if the domain's
+  // routing breaks. Set explicitly because, when it is absent, Preview URLs
+  // follow workers_dev, which is off. Wrangler applies both settings on
+  // every `wrangler deploy` (Previews do not change them), so a change made
+  // only in the dashboard lasts until the next production deploy.
+  "preview_urls": true,
 }

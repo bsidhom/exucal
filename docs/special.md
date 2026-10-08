@@ -65,7 +65,7 @@ integers, and an integer is a plain number.
   grammar has no strings, a bare name is a unit, and two of the modes'
   names, `floor` and `ceiling`, are functions. Rounding to significant
   digits, and entering a reading with its uncertainty, are
-  [#98](https://github.com/bsidhom/pwa-units/issues/98).
+  [#98](https://github.com/bsidhom/exucal/issues/98).
 - **`div(a, b)`** and **`mod(a, b)`** are floored division and its
   remainder, F-division in Boute's terms (Raymond T. Boute, "The Euclidean definition of the functions div and mod", ACM Transactions on Programming Languages and Systems 14(2), 1992, pages 127 to 144; D22): `div(a, b)` is
   `floor(a / b)`, and `mod(a, b)` is `a - b × div(a, b)`, so that

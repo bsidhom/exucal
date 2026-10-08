@@ -1,8 +1,8 @@
 {
-  "name": "pwa-units",
+  "name": "exucal",
   "version": "0.0.0",
   "private": true,
-  "description": "An offline-first progressive web app skeleton built with Lit and Vite.",
+  "description": "An exact unit calculator: an offline-first progressive web app built with Lit and Vite.",
   "type": "module",
   "scripts": {
     "dev": "vite",

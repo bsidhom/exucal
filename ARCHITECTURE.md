@@ -2069,26 +2069,26 @@ Planned extensions, listed to show that they fit without reshaping the core:
   the user-function extensions, and the search for the costliest
   expressions, whose catalogue (docs/cost.md) is the target for keeping
   the interface responsive
-  ([#118](https://github.com/bsidhom/pwa-units/issues/118)) and for
+  ([#118](https://github.com/bsidhom/exucal/issues/118)) and for
   making the kernels cheaper (#149, #150, #125 and others). The limits
   keep their defaults (D25). Stage 6's eight remaining special functions
-  are deferred ([#115](https://github.com/bsidhom/pwa-units/issues/115)),
+  are deferred ([#115](https://github.com/bsidhom/exucal/issues/115)),
   and the plan's "Stage 8 as it landed" lists the issues that carry the
   rest.
 - **More of the user functions.** Stage 7 deferred four extensions, each
   to an issue of its own: a bare call's value shown in its function's
   result annotation
-  ([#130](https://github.com/bsidhom/pwa-units/issues/130)); the
+  ([#130](https://github.com/bsidhom/exucal/issues/130)); the
   shadowing error in a head relaxed to a warning
-  ([#131](https://github.com/bsidhom/pwa-units/issues/131)); definitions
+  ([#131](https://github.com/bsidhom/exucal/issues/131)); definitions
   typed into the converter
-  ([#132](https://github.com/bsidhom/pwa-units/issues/132)); and
+  ([#132](https://github.com/bsidhom/exucal/issues/132)); and
   dimension-generic functions, with type bounds on their variables
-  ([#133](https://github.com/bsidhom/pwa-units/issues/133)), for which
+  ([#133](https://github.com/bsidhom/exucal/issues/133)), for which
   the parser already reserves `name[`. A function's result is never
   checked against a range, since nothing would act on it; whether ranges
   could instead narrow a result's ball is studied in
-  [#134](https://github.com/bsidhom/pwa-units/issues/134).
+  [#134](https://github.com/bsidhom/exucal/issues/134).
 - **User definitions** are already supported by `buildTable`; only storage and
   an editor are missing.
 - **Lenient kind conversion** (converting `rad/s` to `Hz` on request) is a flag

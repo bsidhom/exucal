@@ -92,7 +92,7 @@ fraction only where the decimal is inexact, would have left `2.54` and
 set aside because a user who asks for fractions asks to see them.
 
 The fit rule of rule 3 was provisional, firm for stage 5 and open to a
-study after it ([#91](https://github.com/bsidhom/pwa-units/issues/91)),
+study after it ([#91](https://github.com/bsidhom/exucal/issues/91)),
 which D28 settled with the width above.
 The display digits are the one measure of line length the user already sets, and a
 fraction of two parts within it is about as long as a decimal at it; a
@@ -165,7 +165,7 @@ of the midpoint's magnitude and the radius, rounded up to one digit
 bound, so a power of a ball around zero can carry the bound's exponent
 far below it, and the power `(approx(1e20) - approx(1e20))^1e100000` is
 written with a bound whose exponent has 100,004 digits
-([#67](https://github.com/bsidhom/pwa-units/issues/67)).
+([#67](https://github.com/bsidhom/exucal/issues/67)).
 
 The rule: **a bound whose decimal exponent lies below `-10^18` is written
 as `1e-1000000000000000000`.** That literal is `10^-(10^18)`, larger than

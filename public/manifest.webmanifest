@@ -1,7 +1,7 @@
 {
-  "name": "PWA Units",
-  "short_name": "Units",
-  "description": "An offline-first progressive web app.",
+  "name": "Exucal",
+  "short_name": "Exucal",
+  "description": "An exact unit calculator that works offline.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

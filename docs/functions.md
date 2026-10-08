@@ -234,17 +234,13 @@ would cost it five passes.
 
 So the settings are not what stands in the way. The sixth pass is within
 the ceiling of 4,040 digits that a precision limit of 1,000 gives, and its
-1,354-digit midpoint fits a significand limit of 32,768 bits. A test build with the
-exponent bound raised to `10^1100` found the right digits of `exp(1e999)`
-at the first pass and of `exp(approx(1e999))` at the sixth, each in under
-half a second: a 32-digit answer 1,034 characters long, most of them the
-exponent. The bound stays, though. Its cost grows fast with the argument
-(`exp(1e3000)` took a second and `exp(1e9000)` thirteen), and parts of
-the number type are exact only because the exponent is at most `10^18`,
-so the test build's digits were right but its guarantee that they were
-right was not. Keeping the bound is a decision, recorded with its
-reasons in `devdocs/design/decimal.md` ("Decision: the bound stays at `10^18`"),
-and `devdocs/design/approximate.md` has the measurements.
+1,354-digit midpoint fits a significand limit of 32,768 bits. The bound
+stays, though: parts of the number type are exact only because the
+exponent is at most `10^18`, and the cost of an exponential grows fast
+with its argument once the bound is raised. Keeping the bound is a
+decision, recorded with its reasons and the measurements of a test build
+that raised it in `devdocs/numbers.md` ("Why the exponent bound stays at
+`10^18`").
 
 Instead, work in log space, as on paper: `1e999 / ln(10)` is the
 decimal exponent of `exp(1e999)`, `≈ 4.3429448e+998`, and a quotient of

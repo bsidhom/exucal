@@ -1,29 +1,49 @@
 # Architecture
 
-A unit converter inspired by GNU units. The user types a quantity to convert
-(**have**) and a unit to convert it to (**want**); the app answers with the
-converted value, or with an error saying why the two do not conform.
+A unit converter inspired by GNU units, grown into an arbitrary-precision
+calculator. The user types a quantity to convert (**have**) and a unit to
+convert it to (**want**); the app answers with the converted value, or
+with an error saying why the two do not conform. With the `want` blank,
+the answer is what the `have` is worth in the primitive units, and the
+`have` alone may be any expression over the built-in and user-defined
+functions.
 
-GNU units is the source of the conceptual patterns: a definitions file that
-defines every unit in terms of others down to a few primitives, an expression
-language that serves both the definitions and the input, and the have/want
-interaction. It is not a specification. Where this design borrows a rule from
-GNU units it says so, and where it diverges in grammar (a number may only
-start a product; a name is never split into a unit and an exponent) or in
-behavior (exact rational arithmetic; kinds that keep angles apart from plain
-numbers) it does so deliberately, and the GNU units behavior is not a fallback.
+GNU units is the source of the conceptual patterns: a definitions file
+that defines every unit in terms of others down to a few primitives, an
+expression language that serves both the definitions and the input, and
+the have/want interaction. It is not a specification. Where this design
+borrows a rule from GNU units it says so, and where it diverges in
+grammar (a number may only start a product; a name is never split into a
+unit and an exponent) or in behavior (exact rational arithmetic; kinds
+that keep angles apart from plain numbers) it does so deliberately, and
+the GNU units behavior is not a fallback.
 
 Two rules shape everything below:
 
-- **The core is pure.** Every function in `src/core/` maps immutable inputs to
-  immutable outputs, with no I/O, no globals and no exceptions across module
-  boundaries: failures are returned as `Result` values. The UI is a thin layer
-  that calls into it.
-- **No third-party runtime dependencies** beyond Lit. Arithmetic is built on
-  `bigint`.
+- **The core is pure.** Every function in `src/core/` maps immutable
+  inputs to immutable outputs, with no I/O, no globals and no exceptions
+  across module boundaries: failures are returned as `Result` values, a
+  discriminated union of a value or an error, each module defining its
+  own error type. A throw is reserved for a precondition failure, which
+  is a bug, never an input. The UI is a thin layer that calls into it.
+- **No third-party runtime dependencies** beyond Lit. Arithmetic is
+  built on `bigint`. [security.md](security.md) gathers what follows
+  from this rule and the rest of the project's security stance.
 
-[security.md](security.md) gathers what follows from the second rule and the
-rest of the project's security stance.
+This page is the overview: the pipeline and each of its stages, from the
+definitions file to the lines on the screen. The parts with a design of
+their own have pages of their own:
+
+- [numbers.md](numbers.md): the number type, the precision model, the
+  retry loop, the two modes and the size limits.
+- [builtins.md](builtins.md): the built-in functions.
+- [functions.md](functions.md): user-defined functions in the
+  definitions file.
+- [notation.md](notation.md): the ratio notation of exact mode.
+- [settings.md](settings.md): the settings, their storage and the sheet.
+- [testing.md](testing.md), [benchmarks.md](benchmarks.md) and
+  [layout.md](layout.md): the suites, the benchmarks and where each
+  module lives.
 
 ## Pipeline
 
@@ -36,1570 +56,1018 @@ want text ──parseUnitList──▶ Expr[] ──evaluate──▶ Quantity[]
                                                               └──▶ format ──▶ string
 ```
 
-Each arrow is one pure function in its own module. Parsing never touches the
-table, and conversion never formats. The pipeline (`src/core/pipeline.ts`)
-runs the evaluation and the conversion at each working context of a retry
-schedule until every value is certified at the digits asked for; "Working
-precision and the context" below describes the schedule. Evaluation checks conformance in the
-operands of a sum and the argument of a call, and with the same check that
-conversion applies to the pair. The `want` is read as a unit list, of which
-one expression is a list of one: one unit goes through `convert`, several
-(or the name of a list the table defines) through `convertToList`, which
-"Unit lists" below describes, and the name of a function the table defines
-through `invertFunction`, which "Functions" below describes.
+Each arrow is one pure function in its own module. Parsing never touches
+the table, and conversion never formats. The pipeline
+(`src/core/pipeline.ts`) runs the evaluation and the conversion at each
+working context of a retry schedule until every value is certified at
+the digits asked for ([numbers.md](numbers.md), "Working precision and
+the schedule"). Evaluation checks conformance in the operands of a sum
+and the argument of a call, and with the same check that conversion
+applies to the pair. The `want` is read as a unit list, of which one
+expression is a list of one: one unit goes through `convert`, several
+(or the name of a list the table defines) through `convertToList`
+("Unit lists" below), and the name of a function the table defines
+through `invertFunction` ("Functions" below).
 
-## Numbers: `Scaled` over `Rational`
+## Numbers
 
-The number type is an exact fraction times a power of ten: a `Rational`
-over `bigint`, a numerator and a positive denominator kept in lowest terms,
-as the significand, and a `bigint` decimal exponent, in a canonical form (the
-denominator coprime to ten, the numerator not divisible by ten), so that
-`1e999999999` is a significand of one and an exponent, and `2.54` is
-`254 × 10^-2`. Exact fractions rather than arbitrary-precision floats
-because almost every unit definition is a rational (`2.54 cm`,
-`0.45359237 kg`), so conversions are exact and rounding happens only once,
-at display time, in the exact mode that is the default; the exponent
-beside them because a value's magnitude should cost nothing
-(devdocs/design/decimal.md). The decimal mode, the other of the two modes of the
-plan's D15, rounds every result to the digits asked for in the rounding
-mode instead, as a hand calculator or a decimal library does, and the
-two differ in nothing else ("Precision and rounding" below). Decimal literals parse exactly
-(`1.5e-3` is `15 × 10^-4`). The definitions file holds no irrational
-literal: the circle constant is the built-in `pi()`, computed to the
-precision of the table it is built in and of the pass an expression is
-evaluated at, where GNU units defines `pi` as a decimal literal.
-
-`src/core/rational.ts` provides the fraction's arithmetic and comparison,
-integer powers and the exact case of the n-th root, total and unbounded.
-`src/core/scaled.ts` (stage 4 of the plan) holds `Scaled` over it: the
-arithmetic, which aligns a sum's significands within a stated limit on the
-shift and bounds a value's decimal exponent by `10^18` (`MAX_EXPONENT`),
-comparison, the
-parsing of a literal, whose exponent it keeps as the number it is, rounding
-to significant digits in a rounding mode, formatting, and the binary
-magnitude (`log2Bounds`) from which a radius is taken without forming the
-power of ten. `src/core/rounding.ts` names the seven rounding modes and is
-the one place a mode is interpreted: `divideRounded`, an integer division
-rounded in a mode, which every rounding in the core scales its value down
-to; `Precision`, a count of significant digits, lives there too.
-
-### Precision and rounding
-
-Every magnitude is a **ball**: a midpoint, the number computed, and a
-radius, a coarse bound on how far the midpoint may lie from the value it
-stands for. An exact value has radius zero, and `=` in the display means
-exactly that. This is the precision model of devdocs/history/calculator-study.md ("The
-precision model"), being built stage by stage along devdocs/history/calculator-plan.md;
-what is in place is its first four stages, the ball as the value, the
-kernel with the root and the elementary functions on it, the retry loop
-with certification, and the `Scaled` midpoint with the decimal mode.
-Three rules say where, and only where, a value can lose precision:
-
-1. **Exact operations never round an exact midpoint.** Addition,
-   subtraction, multiplication, division, integer powers and comparisons
-   are exact on the midpoints, and an exact result is as long as it needs
-   to be; nothing in exact mode rounds an exact intermediate to keep it
-   small (the decimal mode rounds every result, which is what the mode
-   is; "Settling" below). A product or a quotient combines the exponents,
-   and fails only at the exponent bound, `overflow` or `underflow` when
-   every value of its ball is past it, and `unresolved` at the edge
-   `bound`, which the retry loop narrows, when some are (the plan's D18);
-   an exact result past the significand limit is refused by the operation
-   that would form it, which predicts its size first (D19 as amended,
-   "Size limits" below), and the callers of the operations take any
-   refusal. A sum aligns the significands by
-   the difference of the exponents, which the significand limit bounds
-   (devdocs/design/decimal.md, "Sums, comparisons and the radius"): two exact
-   operands that cannot be aligned within it have an exact sum that cannot
-   be held and fail `tooLarge` in exact mode (`1e999999999 + 1`), while a
-   sum with an inexact operand, which is about to be settled, puts its
-   operands on the working grid first (an exact one of more bits than
-   the grid rounded there, the rounding charged to the radius) and, when
-   they still do not align, absorbs the smaller
-   into the radius (`sqrt(2) + 1e999999999` is `1e999999999` within
-   `1.5`), and in decimal mode such a sum is the larger operand, or its
-   neighbor at the digits by the smaller's sign in a directed mode (D26);
-   a sum
-   that aligns and whose value passes the bound is held to the bound as a
-   product is, `overflow` or `underflow` when every value of its ball is
-   past it and `unresolved` at the edge `bound` when some are (issue #48
-   absorbed it as an alignment failure). What
-   the operations do to the radii is the elementary propagation (a sum's
-   radii add, a product's radius is `|a| rb + |b| ra + ra rb`, a quotient's
-   `(|a| rb + |b| ra) / (|b| (|b| - rb))`, a power's the derivative
-   bound), the magnitudes taken as coarse radii from the binary bounds so
-   that nothing is formed whatever the exponent, every step rounding up,
-   so that a result's interval contains the exact result over the
-   operands' intervals, and an exact value stays exact through them. A
-   divisor whose ball contains zero without being exactly zero cannot be
-   divided by, since the true quotient may have either sign: that is
-   `unresolved`, an error kind of its own beside `divisionByZero` (the
-   plan's D4), because the retry loop of the pipeline retries on the first
-   and never on the second. `1 / (sqrt(2)^2 - 2)` reports it where it once
-   showed a huge number. Comparing a midpoint with a radius, which the
-   built-ins' edge checks do through `position`, is exact where the
-   radius's power of two can be formed, every radius of the working
-   sizes, and by the coarse bounds otherwise, with the conservative answer
-   where they cannot tell.
-
-2. **The inexact operations, the root and the built-in functions, run on
-   the kernel and say what they lost.** A root that is rational
-   (`sqrt(9/4)`, `sqrt(2.25)`, `cbrt(-8)`) is detected and returned
-   exactly, so `(4 m^2)^(1/2)` is exactly `2 m`. Otherwise `rootBall`
-   takes an exact power of ten off the exponent and scales the significand
-   by an exact power of `2^n` so that it is of order one, converts that
-   to the kernel's fixed point at the bits of the working precision plus
-   a guard (plus as many more bits as the scaled significand still lies
-   below one, so that it keeps its digits), takes the root there
-   (`sqrtFixed`, `rootFixed`), scales back,
-   and hands back the kernel's value through `fixedToBall`; a root the
-   kernel cannot take, of a degree past `2^32`, of a significand too far
-   below one for the working bits, or with a remainder of the exponent
-   the significand limit does not hold, is taken in log space instead,
-   `x^(1/n)` as `exp(ln x / n)`, so `pow(3, 1e-30)` and
-   `(7^-8000)^(1/99999)` are values (the plan's H.5): the midpoint
-   rounded to nearest onto the decimal grid of the working digits
-   (`workingDigits`, the digits of those bits), with the kernel's error
-   and half a unit of the last digit as the radius, which covers the
-   argument's own radius: an inexact argument gives an inexact root with
-   a bound, not an unbounded one, and `sqrt(1e999999999)` is
-   `≈ 3.1622777e+499999999` on the first pass. Nothing
-   rounds in a rounding mode on the way (the plan's D15): the mode is the
-   display's. A ball containing zero without being exactly zero is
-   `unresolved` under an even root, since whether there is a real root at
-   all depends on the sign, and under an odd root a ball around zero
-   bounded by the root of the farther end; an even root of a negative
-   ball fails as it always did. `x^(p/q)` is the `q`-th root of `x^p`,
-   root last, so the one inexact step comes last, or `exp(y ln x)` on the
-   kernel when `x^p` is refused, past the significand limit or the exponent
-   bound. Every built-in
-   function does the same (devdocs/design/builtins.md): an exact case is returned
-   exactly (`exp(0)`, `log(2, 8)`, `cos(0 radian)`), and otherwise the
-   argument is converted at the working bits (a small argument of an odd
-   function at as many more as its magnitude is below one, so that it
-   keeps its digits), the routine runs its reduction and its series with
-   the argument's error carried through, and the kernel's ball comes back
-   rounded onto the working digits with the error as its radius. The two
-   ends of the exponent are answered before the kernel is entered, since
-   it holds a value only up to the significand limit: an argument throughout
-   below `2^-significandLimitBits` is answered by its expansion at zero (`sin`, `tan`,
-   `atan`, `asinh` and the rest of the odd functions give the argument
-   within its cube, `cos` and `cosh` one within its square, and `exp` one
-   within twice the argument's magnitude; any other argument goes in
-   through `fixedFromScaled`, whose power of ten is formed within four
-   times the hard bound, enough for whatever a built-in hands it at any
-   significand limit the settings allow, and a value below half an ulp of the
-   bits asked is zero within an ulp there, decided from the coarse bounds
-   with nothing formed, which is how the log-space power of a tiny
-   exponent reaches the kernel), `sin`, `cos`
-   and `tan` of one reaching `2^significandLimitBits` are `tooLarge`, since the
-   reduction would need `pi` to that many bits, `atan` beyond `2^bits` is
-   `±pi/2` within `2^-bits`, `atan2` of a `y` of definite sign is `±pi/2`
-   within `2^-bits` when `|y|` is at least `|x| 2^bits` throughout and
-   `±pi` within it when `x` is negative and `|y| / |x|` lies below
-   `2^-bits`, the ratio not formed, a tiny ratio over a positive `x`
-   is its own arctangent within its cube, neither is refused for an
-   argument's radius (a ball reaching `2^significandLimitBits` without lying beyond
-   `2^bits` throughout is the function's whole range, zero within two
-   for `atan` and within four for `atan2`, which certifies nothing and
-   lets the retry loop narrow it), and `asinh` and `acosh` beyond it are
-   `ln(2|x|)`; the logarithms take any exponent, `ln(m × 10^e)` being
-   `ln m + e ln 10` from the memo, so `ln(1e999999999)` is a value and
-   `log10(1e999999999)` exactly `999999999`. An argument outside the
-   function's domain throughout its ball is a `domain` error, and one
-   that straddles an edge of the domain (`ln` at zero, `asin` at one,
-   `tan` at a pole) is `unresolved` at that edge, which the retry loop
-   retries; a result whose decimal exponent would pass the exponent bound
-   for every value of the argument's ball (`exp(1e30)`) is refused before
-   it is computed, an `overflow`, or an `underflow` for one that would
-   fall below it (`exp(-1e30)`), and one that passes it for some values
-   and not for others is `unresolved` at the edge `bound`, retried, the
-   classifier of ball.ts holding an interval bounding the result's
-   logarithm to the edges for `exp`, `sinh`, `cosh` and the powers alike
-   (the plan's D18 and H.15), while
-   `exp(1e6)`,
-   `cosh(1e6)` and `2^(1e6/3)` are values: the exponential returns a
-   `Floating`, a significand of the working bits with a binary exponent,
-   renormalized after each squaring so that the argument's size costs a
-   squaring per bit of its magnitude, twenty for `exp(1e6)` and some
-   sixty at the bound, and not a value of a million bits, and it leaves the
-   kernel through digits.ts, exactly where the exponent is within the
-   significand limit and in log space, `10^(t - floor(t))` for `t` the decimal
-   logarithm found on the kernel, where it is not.
-
-3. **Display rounds once, in a rounding mode, shows only the digits the
-   radius certifies, and `=` is the radius's to decide.** `show(ball,
-digits, mode)` in `src/core/display.ts` formats the midpoint at the
-   digits the user asked for in one of the seven rounding modes of
-   `rounding.ts` (half even, half away from zero, half toward zero, toward
-   zero, away from zero, ceiling, floor; `divideRounded` is the one place a
-   mode is interpreted, and every rounding in the core scales to an integer
-   division and calls it), with the carry across a power of ten (`9.99` at
-   two digits is `10`) in every mode that rounds the magnitude up. A digit
-   is shown only when it is certified (the plan's D7): the two ends of the
-   ball, `mid - rad` and `mid + rad`, round to the same value at that many
-   digits, so that, rounding being monotone, the digits shown are what
-   rounding the true value would give, correctly rounded and not merely
-   close. The ends are formed exactly where the radius can be formed and
-   aligned with the midpoint, which is every radius of the working sizes;
-   where it cannot (`1e999999999 ± 1.5`, a radius of `2^-70000`), the
-   distance from the midpoint to the nearest rounding boundary of those
-   digits, exact within the midpoint's own digits, is measured against
-   the radius by its coarse bounds, erring only toward certifying less.
-   `certifies` and `certifiedDigits` in `ball.ts`
-   decide it; certification is not monotone in the digit count (`[1.246,
-1.254]` certifies three digits and not two), so the count is found from
-   the top down. `show` returns a kind with the text: `exact` (radius zero
-   and every digit held shown, the one kind shown with `=`), `certified`
-   (every digit asked for is certain), `partial` (fewer are, and the text
-   is those), `zero` (a ball containing zero without being it, shown as
-   `0` with a bound on how far from zero the value may lie), and
-   `unbounded` (a radius not known, the midpoint's digits certifying none).
-   With the ratio notation's width (`show`'s `ratio` option;
-   devdocs/design/fractions.md and devdocs/design/ratio-width.md, the plan's D21 and D28),
-   an exact value is written entire when it fits the width: a whole
-   number of at most the width in significant digits by the decimal
-   display at the width (`3486784401` for `3^20` at twenty), any other
-   exact value as its fraction in lowest terms when the numerator and
-   the denominator have at most the width in digits between them
-   (`127/50` for `2.54`, `5000/127`), and otherwise as the ratio times
-   its power of ten (`1/3 × 1e+30`, the power a `scale` beside the text)
-   when the parts then fit and the denominator is not one,
-   `fraction: true` saying so for either form;
-   `src/outcome.ts` parenthesizes a ratio where a unit follows, since
-   the grammar reads `5000/127 in` as `5000 / (127 in)`. An exact value
-   past the width and every inexact value are shown as above, the
-   decimal display at the digits asked being the fallback. In decimal mode the pipeline settles the
-   quotients it forms outside the evaluator (the ratio, a list's terms, a
-   function's count), as every step is settled there; the outcome settles
-   the reciprocal the same way, and never asks for a fraction there, the
-   setting being exact mode's (D26).
-   Exactness is a property of the value, not of the display: a value that
-   passes through a root and comes out looking rational (`sqrt(2) /
-sqrt(2)`, whose midpoint is exactly `1`) is `≈ 1`, while `sqrt(4)` is
-   `= 2` because the exact case was detected and nothing was rounded. The mode is applied here and nowhere else in exact mode (the plan's D15):
-   the digits shown are the true value's rounding in it, and no intermediate
-   step rounds in a mode; in decimal mode every step rounds in it, through
-   the settle, and is exact after it (D26; devdocs/design/decimal-mode.md), so every
-   line there is `=`, except a value flagged `uncertified`, a step whose
-   rounding the ceiling left uncertified, which is the kind `uncertified`
-   and is written with the `≈` sign bearing a dot above it and a note. The
-   default mode is half away from
-   zero, the rounding people expect from `0.125 → 0.13` (the `halfExpand`
-   of `Intl.NumberFormat`; C's `%g` differs only on exact ties, which are
-   rare with doubles but ordinary with rationals). The retry loop below
-   narrows a `partial` or a `zero` where a pass can, and the component
-   shows each kind with its note ("UI" below).
-
-**The types**, each layer adding one concept (the plan's D13 has the
-argument): `Rational` (`rational.ts`) is the exact fraction in lowest terms
-with total arithmetic, used for the significands, the exponents of dimensions
-and of `^`, and the exact value of a radius. `Scaled` (`scaled.ts`) is the
-fraction times a power of ten, the midpoint's type, in a module of its
-own between the fraction and the ball so that `rational.ts` stays the
-total fraction it is (the plan's D13). `Radius` (`radius.ts`) is the
-coarse bound, `significand × 2^exp` with a 30-bit significand and a bigint exponent,
-or the distinguished value unbounded, with the operations a propagation
-rule needs (`radiusAbove` of a fraction and `radiusAboveScaled` of a
-midpoint from its binary bounds, the sum, the product, the quotient
-against a lower bound, the power, the maximum, and the exact fraction a
-bounded radius stands for), every one rounding the right way so that a
-radius is always a true bound; the plan's D3 says why it is binary,
-coarse, and neither a `Rational` nor a `number`. `Ball` (`ball.ts`) is a
-midpoint beside a radius, and its operations compose the arithmetic of
-the midpoint's type with the propagation rules of the radius's; scaled.ts
-knows nothing of radii, radius.ts reads a midpoint only for its binary
-bounds (`radiusAboveScaled`, through `log2Bounds`), and nothing stores a
-radius inside a number.
-Beside these, `Fixed` (`fixed.ts`) is the kernel's own representation, on
-which the inexact functions run: an integer standing for `value × 2^-bits`
-with an error count in ulps, every operation updating the count by a
-stated over-approximation (the plan's D9), entered from a `Scaled` or a
-ball whose power of ten can be formed (`fixedFromScaled`; the callers
-bound their arguments first) and left through `fixedToBall`, which rounds
-the value onto the decimal grid of the working digits and hands back the
-count and the rounding as a radius. `Floating` (`fixed.ts` too) is a
-`Fixed` significand with a binary exponent, `significand × 2^exp`, the form of the
-results that can be large, the exponential's and the hyperbolic pair's;
-`digits.ts`, above the kernel since it calls it, takes one out as a ball,
-exactly where the exponent is within the significand limit and in log space
-otherwise, the one place the program needs log space. Its first routines are the roots: the square
-root by Newton on the reciprocal square root, multiplications only with
-the precision doubling, and the root of any degree up to `2^32` by
-Newton in fixed point, either one's error verified by raising the result
-back to the power rather than read off the iteration; a larger degree
-would overshoot from the double's first guess and fail the verification,
-and the ball takes it in log space. The elementary functions
-are the routines beside it, one module per family: `fixed-exp.ts`
-(the exponential, by halving, a Taylor series and squaring, and the
-hyperbolic sine and cosine through it, or through the sine's series in
-`x^2` for a small argument) and
-`fixed-log.ts` (the logarithm, by square roots and the `atanh` series
-summed by rectangular splitting, with `ln(2)` and `ln(10)` memoized) and
-`fixed-trig.ts` (the sine and the cosine together, by a reduction modulo
-`pi/2` against the memoized `pi` and the two Taylor series summed by the
-same splitting, the tangent being their quotient; and the arctangent, by
-inversion above one, eight half-angle steps and the logarithm's series in
-`-z^2`, through which `asin`, `acos` and `atan2` go); a
-rational power that is neither exact nor small enough for the root of the
-power goes through them as `exp(y ln x)` (`powRationalBall`, which `^`
-and the built-in `pow` share), so that `2^0.1234567` is a value with a
-radius where it was too large. `constants.ts` computes `pi`
-on it by Chudnovsky's series with binary splitting, its tail bounded in
-the comment, and memoizes one value, the digits at the ceiling of the
-retry schedule in force plus a margin of 256 bits, from which every request
-at or below that is truncated (the plan's D10); the built-in `pi()`
-(`builtins/pi.ts`) hands it back as a ball at the context's precision, and
-the angle units of units.txt call it, so their quantities carry its radius
-and a conversion between them is `≈`. `bernoulli.ts` computes the
-Bernoulli numbers the Gamma family's asymptotic series takes
-(`fixed-gamma.ts`), exact rationals from the tangent numbers, and
-`bernoulli-ratios.ts` memoizes the ratios of consecutive ones in fixed
-point, by count and by the bits they serve, each ratio at the bits the
-term it makes still needs, since only the count and the bits depend on
-the pass: about twenty ratios at forty digits, three hundred and sixty
-at a thousand, and at the default ceiling 730 for an argument typed as
-a short decimal or fraction, which the kernel shifts exactly and four
-times as far, or 1,423 for an inexact one, which it shifts by a loop to
-a third of the bits. Every memo of the core is filled on first use,
-none at module load or at the table's build: a page that never
-evaluates the Gamma family never computes a Bernoulli number, and the
-run at the ceiling, half a second once for the exact shift and about
-two for the loop's, is paid by the first evaluation of the family whose
-retry loop reaches the ceiling (each pass that needs more ratios than
-the last computes one exact run, for the count its series predicts and
-reserves before it sums, and forms the ratios from it; #117), after
-which a `gamma` or `lgamma` call there is about 0.12 s and a `digamma`
-call 0.14 s for an exact argument, and 0.45 s and 1.2 s for an inexact
-one, the loop's shift being most of those (measured in #117's session;
-before the ratios the series alone was 0.37 s of each); at forty digits
-the series is microseconds and at a thousand a call is tens of
-milliseconds (devdocs/design/special.md, "6.2" and "6.3"). The memo's size is
-bounded by the bits it serves: at the default ceiling it holds 730 to
-1,430 ratios, the first at the ceiling's bits plus the margin and the
-last at about two hundred, about 0.8 to 1 MB in all, with the exact
-run, up to about 1.8 MB, and the tangent numbers, up to about 2.2 MB,
-held while the run is computed and released after; at a thousand
-digits it is about 80 KB and at forty under a kilobyte. A larger run
-replaces a smaller one, so the memo never holds more than one (the
-representation issue #103 asked for).
-
-**Working precision and the context.** Every core function that does
-arithmetic (`evaluate`, `buildTable`, `powQuantity`) takes a `NumberContext` (`src/core/context.ts`: a precision in
-significant digits, a rounding mode, the exact or decimal mode, and the
-significand limit `significandLimitBits`) and computes at its precision; below the pipeline that precision is a working precision, not
-the digits shown. The pipeline (`evaluateText`, `convertText`) is the one
-place that knows the difference (the plan's D1): the context it takes is
-the user's, whose precision is the digits asked for, and it derives the
-working contexts it evaluates at by the retry schedule of the plan's D12.
-`schedule` yields the digits asked for plus a guard of ten, then twice
-that, doubling, and last the context's `ceiling`, a field of its own: the
-shell derives it from the precision limit, `ceilingFor` in
-context.ts, four times the precision limit plus the guard, so that the largest request
-has two doublings of room above its first pass (4,040 digits for the
-default precision limit of 1,000; nine passes at eight digits, three at a thousand),
-and it is the same in every working context, as the significand limit is. The
-guard of ten digits is the first pass's headroom for the rounding of each
-step and an ordinary cancellation, so that the common case certifies at
-once; it is separate from the kernel's `GUARD_BITS`, which is one
-routine's headroom for its own error count. The ceiling is one number
-for every request because the table (D6) and the memos (D10) are built
-at it once; it is set from the largest request the precision limit allows, and four
-is the least factor that leaves that request more than one doubling
-without doubling the table's and the memos' cost for every setting.
-Both numbers are judgments, not measurements, and docs/settings.md ("Why four times the limit plus ten") gives the user's account. The
-ceiling is in the context so that it reaches the built-ins, whose memoized
-constants hold their value at it (the plan's D10); it is static, the
-user's, and a routine that needs more headroom than the working precision
-takes it inside the kernel rather than moving the ceiling. `resolve` runs the evaluation at each working context in turn
-and stops at the first result whose every value is exact, certified at the
-digits asked for, or of unbounded radius; a result that certifies fewer
-digits is kept as the best so far and the next pass tried, since
-cancellation that cost `k` digits is paid for by `k` more working digits;
-an `unresolved`, at any depth of a call or an inverse, and the converter's
-`unresolvedWant` are retried the same way; any other error ends the loop,
-with the best result so far if a pass produced one (the only such error a
-later pass can newly raise is a `tooLarge` marking the pass unaffordable)
-and otherwise with the error. At the ceiling the best result so far, or
-the last error, is returned, and the display shows what is certified.
-Expressions that never certify, `sqrt(2)^2 - 2` and `sin(pi()
-radian)`, run to the ceiling however it is set, which is what bounds their
-latency; the ceiling is therefore a cost setting. The table is built at
-the ceiling context (`ceilingContext`), once per ceiling, by
-`system-build.ts` (the plan's D6): since the angle units call `pi()`, a
-unit's precision is fixed when the table is built and must lie above every pass, and one
-ceiling serves every display digits under one precision limit, so the table is rebuilt
-only when the precision limit changes. The user's context comes from the settings ("UI" below): the digits, the
-rounding mode, the exact or decimal mode with its working digits, and
-the two limits, from which the ceiling is derived. In decimal mode the
-schedule is the user's context alone: one pass at the digits asked for,
-every operation rounding in the mode, and the display marking what the
-radius does not certify without escalating, since a higher internal
-precision would compute something other than what the mode asks for.
-With the working digits above the digits asked for (D27,
-devdocs/design/working-digits.md), the evaluator computes each node's operands at
-`operandContext`, the context at the working digits, and the node at
-its own context, so that every step but the last is rounded to the
-working digits and the last step of a displayed value (the root of a
-bare expression, the ratio, a list's terms, a function's count) to the
-digits asked for, from its exact result.
-
-**Settling.** Every result the evaluator produces, and every unit the
-lookup hands out, is settled to the working context (the plan's D15):
-an inexact midpoint is rounded to nearest at the working digits
-(`workingDigits`, the decimal digits of `bitsFor`, the digits plus 32
-guard bits), the grid the kernel's results leave on, with half a unit in
-the last digit added to the radius; an exact value is never touched. So
-an inexact midpoint never grows beyond the working precision however long
-the expression, while exact values stay the exact numbers they are; the
-first version of this design let inexact midpoints grow as exact
-rationals, and a thirteen-thousand-bit dyadic to the fifth power was then
-a size the significand limit refused. In decimal mode (D26; devdocs/design/decimal-mode.md)
-the settle is the mode's one rounding of each step: every value, an
-exact one included, is rounded to the digits asked for in the rounding
-mode and is exact after it, no radius recording the rounding, since
-there the rounded value is the value. A step is a node of the expression:
-a literal with more digits than asked is rounded as it is read, a unit is
-rounded once when it is looked up, an integer power of an exact base is
-rounded once on its exact result (or, where that does not fit the significand
-limit, computed on the base widened to the working precision and
-certified), and a call is one step whose rounding is certified: the
-evaluator computes the built-in at the working precisions of the retry
-schedule, in exact mode, until both ends of its ball round alike at the
-digits asked for (`step` in `ball.ts`, the one entrance through which a
-computed value becomes a value of the expression in either mode), and
-takes that rounding;
-at the ceiling it takes the midpoint's rounding and flags the value
-`uncertified`, a flag every later operation carries (`carrying`), which
-the display shows. `approx` is the identity there. A value with
-the digits asked for or fewer is its own rounding and stays as it is, so
-`1 ft` in `in` is `= 12 in` in either mode. The two modes are one
-`settle` with two branches (`ball.ts`). `powBall` on an inexact base squares with
-settling for the same reason, and only the magnitude of its result is
-guarded. In exact mode settling rounds to nearest, not in the user's
-mode: it bounds the
-size of a number the user never sees, and the mode is applied once, by
-the display, to the certified value of the whole expression, which
-certification guarantees is the true value's rounding in that mode.
-
-### Size limits
-
-Exact arithmetic cannot overflow, but it can grow without bound:
-`3^1000000` and `1e999999999 + 1` are valid input. Two limits on two axes
-bound it (the plan's D16 as stage 4 restated it), in two units, because
-they bound two kinds of value: the significand limit is in bits, the size of
-an exact rational's numerator and denominator, which is what an exact
-value costs to hold and to multiply; the precision and its ceiling are
-in decimal digits, the count an inexact midpoint is settled to, which is
-decimal because the exponent is (a midpoint of `w` digits is an integer
-of `w` digits times a power of ten, the type's smallest form, and the
-form the display writes), and which the kernel converts to bits plus a
-guard for its own work (`bitsFor`, `digitsFor`). The two meet once:
-`precisionLimitFor` bounds the digits so that a settled midpoint at the ceiling
-fits the significand limit with room for a product. docs/settings.md ("How a number is held, and what the settings touch") is the user's account. The magnitude is the
-value's decimal exponent, bounded by `MAX_EXPONENT`, `10^18`, in
-scaled.ts (the plan's D17), beyond which an operation is refused, an
-`overflow` above it or an `underflow` below it; within it a magnitude
-costs nothing.
-The bound is kept by decision, for the exponential's cost beyond it and
-the parts of the number type that are exact only within it
-(devdocs/design/decimal.md, "Decision: the bound stays at `10^18`").
-The significand limit, `significandLimitBits` in the context, bounds the size of a significand's
-numerator or denominator and the alignment of a sum, strictly: no exact
-value is formed past it. An exact power,
-whose significand can be exponentially larger than its base's, predicts the
-size of its result and returns `tooLarge` instead of computing anything
-beyond it (reported at the bound instead when its decimal exponent
-passes that too, which no setting moves: `7^1e19`), as every exact
-product, quotient and sum does since the strict limit (D19 as amended;
-"Size limits" below), a sum of two exact
-operands whose alignment, `|Δexp| log2 10` bits, exceeds the limit is
-`tooLarge` in exact mode, the kernel is handed no argument beyond
-`2^significandLimitBits` (the
-built-ins answer such an argument or refuse it first), and the evaluator
-checks every literal's significand against it. A power of an inexact base is
-guarded by the exponent bound alone, its midpoint settled at every
-squaring. Its default is 2^16 bits
-(about 19,700 decimal digits, at which every exact operation still takes
-milliseconds, the reduction of a quotient of two significands at the limit
-included) and it is
-the user's to set up to the hard bound
-`MAX_SIGNIFICAND_LIMIT_BITS` in rational.ts (2^20, about 315,000 digits), which the
-parser, having no context, applies to a literal's significand. What the
-limit means is cost: it is a hard limit on the bits the app forms, holds
-and multiplies for one number, in time and in memory, which is why its
-right value is the device's and the probe recommends it; and so its
-measure is the size of what is stored, the canonical significand of a
-`Scaled`, and not the bits of the value it denotes. The two differ for a
-dyadic, whose twos in the denominator the canonical form trades for
-fives in the numerator: `2^-30000`, a value of 30,000 bits, is stored as
-`5^30000 × 10^-30000`, 69,658 bits, and that is what a product of it
-costs (the plan's D16, as restated before stage 5). The rough edge is
-narrower than it looks. What makes an exact value expensive is the bits
-of the two integers that store it, not how simple its factorization is:
-`3^-100000` is as simple as `2^-30000` and is stored as itself,
-`1/3^100000`, 158,497 bits under this representation and under any
-other short of a factored one, which the app does not use. The canonical
-form adds cost in one case only, a denominator with twos: a factor of
-`log2 5`, about 2.32, for a pure power of two, less for a mixed
-denominator, and nothing for a denominator with no twos, which is every
-other fraction. So the factor is bounded, it bites only in a band of a
-factor of 2.32 below the limit and only for dyadics, and a value it moves
-past the limit was already, by its own bits, within that factor of it, a
-big number by the measure that matters; `approx` is the remedy, as for
-any other. A binary exponent beside the decimal one, which
-devdocs/design/decimal.md weighed and withdrew, would have spared `2^-30000` and
-done nothing for `3^-100000`: the cost is in storing exact rationals as
-digits, not in the power of ten. The limit is strict: no exact value is
-formed past it (the plan's D19 as amended). Every operation that forms
-one predicts its size from the operands first and refuses with the bits
-it would need, `tooLarge` with a `Need`: a product and a quotient after
-their two cross-cancelling gcds, which run on operands within the limit,
-so that `x / x` is one and the bound is the truth or a bit over it
-(rational.ts, `multiplyWithin` and `divideWithin`); a sum on the bound
-of its unreduced sum (`addWithin`), the price of never forming it; a
-power on `floor(|n| log2 p) + 1` for its larger part; a quotient and a
-power whose fraction fits on its canonical form too, a denominator's
-twos becoming fives in the numerator (scaled.ts, `scaledWithin`); a
-sum's alignment and a literal's digits as before. `evaluate()` asserts
-on every node's result, and the pipeline on the two quotients it forms
-outside the evaluator, the conversion's ratio and a function want's
-count: an exact result past the limit there is a bug in a prediction,
-thrown, never a refusal. What is formed is at most the gcds' operands,
-which is what the probe times when it recommends the limit. The message
-names the node, the bits it would need where the refusing function
-knows them ("of 113,262 bits", "of about 69,659 bits"; nothing where
-it does not) and the remedy: `approx` around the node's first operand,
-which makes the result inexact and settled rather than refused (around
-the node itself it would come too late, the node being refused before
-`approx` sees it), or decimal mode; nothing is said of raising the
-limit, which the user infers from the bits. Exact mode never rounds an
-exact value on its own to stay within the limit (the plan's D20), but
-an exact operand of more bits than the working grid, in a product, a
-quotient or a sum with an inexact operand whose result is inexact in
-any case, is put on the grid first when the exact step is refused,
-rounded to the working digits with the rounding charged to the radius
-as `approx` would. An inexact result, and every result
-in decimal mode, is settled to the working digits and never refused for
-size; the built-ins' internal intermediates, a unit list's
-decomposition, `powBall`'s settled loop and the display's reciprocal
-work on node results already held to the limit, within a constant
-factor of them, and are not checked. The
-precision limit is the user's, the most digits any grid may be asked for, from
-which the retry schedule's ceiling is derived; its own hard bound,
-`precisionLimitFor`, follows from the significand limit, since a settled midpoint at
-the ceiling must fit it with room for a product of two: about 2,450
-digits at the default significand limit.
-`approx` bears on the significand limit alone: in a sum, whose smaller operand
-it lets the radius absorb, in an integer power, whose inexact base is
-settled at every squaring (`approx(3)^1000000000` is a value where
-`3^1000000000` is `tooLarge`), and in any product, quotient or sum
-whose exact result would pass the limit, which an inexact operand makes
-inexact and settled (`approx(3^32767) * 7^21845` is a value where
-`3^32767 * 7^21845` is `tooLarge`). It never changes an exponent, so a
-result past the exponent bound is refused with it or without it
-(`exp(approx(1e999))`; devdocs/design/approximate.md, "`approx` and the exponent
-bound"). The two limits refuse with errors of their own, and the message
-words them apart: "would need a significand past the significand limit"
-for the significand limit's `tooLarge`, and for the bound that the
-exponent would pass `10^18` (`overflow`), or fall below `-10^18` for a
-value too small to hold (`underflow`). A `tooLarge` carries the refusing
-function's word on the same step computed inexactly, `inexact` of
-`Reach` in rational.ts: `fits`, where only the exact result exceeds the
-limit (a sum's alignment, an exact power's prediction, a product formed
-and measured), or `exceeds`, where the computation needs more bits than
-the limit holds whatever its operands (a literal's digits, an exponent
-that cannot be formed, a kernel's reach). The field is required, so no
-refusal site can be silent about it, and it is stated where the
-refusal is made and carried through unchanged: the evaluator adds only
-the first operand's span on `fits`, a fact of the syntax tree, and the
-message reads the field, offering `approx` around that operand or
-decimal mode as things to try on `fits`, and on `exceeds` saying that the
-value passes however it is computed. Nothing above the refusing
-function infers the reach from the expression's shape, so a function
-that learns to reach further changes its own refusal and its own test.
-
-### Failures
-
-A value that cannot be computed is a `Result` error, never an exception:
-division by zero (including `0` to a negative power), an even root of a
-negative number, a result beyond the significand limit or the exponent bound,
-or text that is not a number. A result beyond the significand limit is
-`tooLarge`, the fraction's error (rational.ts), and one beyond the
-exponent bound is `overflow` or `underflow`, errors of `Scaled`
-(scaled.ts), since only a value with an exponent can pass it; so the
-message names the limit the user can change apart from the one they
-cannot (devdocs/design/decimal.md, "Which limit a refusal names").
-
-A violated precondition (a zero denominator passed to the `rational`
-constructor, a precision that is not a positive integer, a root degree below
-one) is a bug in the caller, not a value that can fail, and throws
-`RangeError`, as `1n / 0n` does. Every value that can be zero or negative
-because the user typed it reaches the numerics through the ball's
-`divideBalls`, `powBall` and `rootBall`, and through them `divide`, `pow`
-and `exactRoot`, which report it; the kernel's preconditions (a positive
-interval under a root) are checked by the ball before it calls in.
-
-### Formatting
-
-`format(s, digits, mode)` in scaled.ts renders a `Scaled` as a decimal
-string in the style of C's `%g`: rounded to `digits` significant digits as
-above, trailing zeros dropped, and exponent notation when the decimal
-exponent is below -4 or at least `digits`, with the exponent written as
-JavaScript writes it (`1.5e+21`, `1e-7`, `1e+999999999`). Nothing goes
-through a `number` on the way, and the power of ten is never formed, so a
-value of any magnitude renders exactly.
+Every magnitude is a `Ball`: a midpoint, which is an exact fraction
+times a power of ten (`Scaled` over `Rational`, both on `bigint`), beside
+a coarse binary radius bounding the distance to the true value. Exact
+values have a radius of zero and stay exact through every exact
+operation, so a conversion between rationally defined units is exact and
+rounds once, at the display; the inexact functions run on a fixed-point
+kernel and return a ball whose radius bounds their error. The pipeline
+evaluates at a working precision and retries at more digits until the
+display can certify the digits asked for, up to a ceiling; decimal mode
+instead rounds every step to the digits asked for, as a calculator does.
+A significand limit and an exponent bound keep every value a size the
+machine can hold. [numbers.md](numbers.md) is the whole of it: the
+types, the kernel's boundary, the exponent bound and why it stays where
+it is, certification and the display rule, the retry schedule, the two
+modes, the significand limit, `approx` and the failures.
 
 ## Quantities, dimensions and kinds
 
-Every unit resolves to a quantity: a magnitude, which is a `Ball` (a
-`Scaled` midpoint with a `Radius`; "Precision and rounding" above), and a
+Every unit resolves to a quantity: a magnitude, which is a `Ball`, and a
 dimension, which is an exponent vector over the primitive units, keyed by
-primitive name with zero exponents left out. Exponents are rational so that
-roots are exact on the dimension side (`m^(1/2)` is a dimension, and
+primitive name with zero exponents left out. Exponents are rational so
+that roots are exact on the dimension side (`m^(1/2)` is a dimension, and
 `(m^2)^(1/2)` is `m`).
 
 Primitives come in two roles, declared in the definitions file:
 
 - **Dimension primitives** (`m`, `kg`, `s`, ...) are the physical base
   quantities.
-- **Kind primitives** (`radian`, ...) are dimensionless markers. They ride
-  along in the same exponent vector, so no separate mechanism is needed, but
-  the conformance check treats them differently.
+- **Kind primitives** (`radian`, ...) are dimensionless markers. They
+  ride along in the same exponent vector, so no separate mechanism is
+  needed, but the conformance check treats them differently.
 
 Conformance between `have` and `want` is checked in two steps:
 
-1. Compare the vectors restricted to dimension primitives. A difference is a
-   `dimensionMismatch` (length vs time).
-2. Compare the full vectors. A remaining difference is a `kindMismatch`: the
-   quantities are dimensionally compatible but semantically different, and the
-   error names the kind primitives that differ.
+1. Compare the vectors restricted to dimension primitives. A difference
+   is a `dimensionMismatch` (length vs time).
+2. Compare the full vectors. A remaining difference is a `kindMismatch`:
+   the quantities are dimensionally compatible but semantically
+   different, and the error names the kind primitives that differ.
 
 So `rad/s` does not conform to `Hz` (`1/s`), because the former carries
-`radian^1`. Torque could be separated from energy the same way, by defining
-torque units with a `/ radian` factor as the SI brochure suggests; units.txt
-defines no torque unit, and its `J` is `N m`. Which kinds exist
-is entirely a matter of the definitions file; the core has no list of them.
+`radian^1`. Torque could be separated from energy the same way, by
+defining torque units with a `/ radian` factor as the SI brochure
+suggests; units.txt defines no torque unit, and its `J` is `N m`. Which
+kinds exist is entirely a matter of the definitions file; the core has
+no list of them.
 
 `src/core/dimension.ts` holds the dimension arithmetic (multiplication,
-division and raising to a rational power, with exponents that cancel to zero
-dropped), the conformance check and the formatter. The check takes the
-primitives with their roles from the table, in declaration order, so the kinds
-a `kindMismatch` names come out in that order; a name the table does not
-declare counts as a dimension primitive. A dimension formats in the expression
-language itself: the primitives in declaration order, those with positive
-exponents first and those with negative ones after a `/` (`m^2 kg / s^3 A`
-for units.txt's volt, which the grammar reads as `(m^2 kg) / (s^3 A)`), `1`
-standing in for an
-empty numerator, and a non-integer exponent parenthesized (`m^(1/2)`). So what
-the UI shows in an error is something the user could type back.
+division and raising to a rational power, with exponents that cancel to
+zero dropped), the conformance check and the formatter. The check takes
+the primitives with their roles from the table, in declaration order, so
+the kinds a `kindMismatch` names come out in that order; a name the
+table does not declare counts as a dimension primitive. A dimension
+formats in the expression language itself: the primitives in declaration
+order, those with positive exponents first and those with negative ones
+after a `/` (`m^2 kg / s^3 A` for units.txt's volt, which the grammar
+reads as `(m^2 kg) / (s^3 A)`), `1` standing in for an empty numerator,
+and a non-integer exponent parenthesized (`m^(1/2)`). So what the UI
+shows in an error is something the user could type back.
 
-`src/core/quantity.ts` holds the `Quantity` type itself, and is the layer
-that pairs the two below it: a `Ball` from `ball.ts` and a `Dimension` from
-`dimension.ts`, neither of which knows about the other. The table stores
-quantities, the evaluator produces them, and the converter consumes them.
-The arithmetic the evaluator needs lives here as well: multiplication,
-division and raising to a rational power, each a ball operation beside the
-matching dimension operation. Only the magnitude can fail (a zero divisor,
-or one that cannot be told from zero, `0` to a negative power, an even root
-of a negative number, a result beyond the significand limit or the exponent
-bound), so the failures are those of `ball.ts`, and the power is the one
-of the three that takes a `NumberContext`: for the significand limit of an
-exact power, the settling of an inexact base, and the root, or the
-log-space route, of a non-integer exponent. Negation touches the
-magnitude alone and cannot fail. Addition and subtraction have both
-sides: only quantities of one dimension have a sum, so the dimension side
-is the conformance check above, the sum has the dimension its terms
-share, and the failure is a `ConformanceError`; and the magnitudes align
-within the significand limit of the `NumberContext` the two take, failing
-`tooLarge` as `addBalls` does, or `overflow`, `underflow` or `unresolved`
-at the bound for a sum that aligns and passes the exponent bound. Since
-that check tells dimensions
-from kinds by the roles of the primitives, these two operations take the
-primitives as
-`convert` does; `1 rad + 1` is a kind mismatch and `1 m + 1 s` a dimension
-mismatch, exactly as the same pair would be as `have` and `want`. There is
-no special case for zero: `0` is a plain number, and `1 m + 0` is a
+`src/core/quantity.ts` holds the `Quantity` type itself, and is the
+layer that pairs the two below it: a `Ball` from `ball.ts` and a
+`Dimension` from `dimension.ts`, neither of which knows about the other.
+The table stores quantities, the evaluator produces them, and the
+converter consumes them. The arithmetic the evaluator needs lives here
+as well: multiplication, division and raising to a rational power, each
+a ball operation beside the matching dimension operation. Only the
+magnitude can fail (a zero divisor, or one that cannot be told from
+zero, `0` to a negative power, an even root of a negative number, a
+result beyond the significand limit or the exponent bound), so the
+failures are those of `ball.ts`, and the power is the one of the three
+that takes a `NumberContext`: for the significand limit of an exact
+power, the settling of an inexact base, and the root, or the log-space
+route, of a non-integer exponent. Negation touches the magnitude alone
+and cannot fail. Addition and subtraction have both sides: only
+quantities of one dimension have a sum, so the dimension side is the
+conformance check above, the sum has the dimension its terms share, and
+the failure is a `ConformanceError`; and the magnitudes align within the
+significand limit of the `NumberContext` the two take, failing
+`tooLarge` as `addBalls` does, or `overflow`, `underflow` or
+`unresolved` at the bound for a sum that aligns and passes the exponent
+bound. Since that check tells dimensions from kinds by the roles of the
+primitives, these two operations take the primitives as `convert` does;
+`1 rad + 1` is a kind mismatch and `1 m + 1 s` a dimension mismatch,
+exactly as the same pair would be as `have` and `want`. There is no
+special case for zero: `0` is a plain number, and `1 m + 0` is a
 mismatch, as in GNU units.
 
 ## Definitions
 
 System units are not special: they live in a static definitions file,
-`src/units.txt`, that is bundled into the app as an asset of its own (a URL
-import, so it is emitted beside the scripts and precached with the rest of
-the build, and fetched when the app starts) and go through the same parser
-as any user-supplied definitions. `buildTable` takes one list of definitions, so
-user definitions are simply appended to the system ones.
+`src/units.txt`, that is bundled into the app as an asset of its own (a
+URL import, so it is emitted beside the scripts and precached with the
+rest of the build, and fetched when the app starts) and go through the
+same parser as any user-supplied definitions. `buildTable` takes one
+list of definitions, so user definitions are simply appended to the
+system ones.
 
-The format, the name rules and the expression language are user-facing, so
-docs/definitions.md describes them, along with what the system
-file contains and how to add to it. This section covers what the core does
-with a definitions file. In short, the format is in the spirit of a GNU
-units file, pared down: one definition per line, name then whitespace then
-body, `#` comments, where a name with a trailing dash is a prefix, a body
-of `!` or `!kind` declares a primitive, a name directly followed by `(`
-is a function, `name(parameter) = body`, and a line that starts with `~`
-is a function's inverse. The whitespace after a unit's or a prefix's name
-is required, so that `inch2.54 cm` is an error rather than a definition
-of `inch2`. `src/units.test.ts` builds the system file and checks a sample of
-conversions from each of its sections.
+The format, the name rules and the expression language are user-facing,
+so [docs/definitions.md](../docs/definitions.md) describes them, along
+with what the system file contains and how to add to it. This section
+covers what the core does with a definitions file. In short, the format
+is in the spirit of a GNU units file, pared down: one definition per
+line, name then whitespace then body, `#` comments, where a name with a
+trailing dash is a prefix, a body of `!` or `!kind` declares a
+primitive, a name directly followed by `(` is a function,
+`name(parameter) = body`, and a line that starts with `~` is a
+function's inverse. The whitespace after a unit's or a prefix's name is
+required, so that `inch2.54 cm` is an error rather than a definition of
+`inch2`. `src/units.test.ts` builds the system file and checks a sample
+of conversions from each of its sections.
 
-A definition is one of six things: a primitive with its role, a prefix
-(named without its dash) with a body, a unit with a body, where a body is
-an expression, a unit list, whose body is two or more expressions
-separated by `;` (a body of one is a unit), each kept with the text it was
-written as, since that text is what the UI shows beside its term and the
-table has no other way to get at it, a function, named with its parameters
-in parentheses, separated by commas and none named twice, each of them
-and the result optionally annotated with a unit expression (kept with its text, as a list's items are),
-optionally conditions after a `|`, and its body after `=`, or the
-inverse of a function, `~name(parameter) = body`, which may have
-conditions too ("Functions" below). A condition is a chain of
-expressions joined by comparisons that all point one way, kept with its
-text for the messages that quote it; a chain that turns, `0 < x > 1`,
-is rejected. The parser rejects an annotation with a number
-other than `1`, a sum, a negation or a call, and a parameter named like a
-unit its own head's annotations use, each where it is written; it
-reserves a `[` after a function's name, for the dimension variables to
-come, and rejects it as not supported yet. `parseDefinitions` returns them in the order written,
-duplicates included, and knows nothing about what they mean. Every span is an
-offset into the whole text, not the line: a definition carries the span of
-its text from name to body, for the errors `buildTable` reports against a
-definition as a whole (a duplicate name, a cycle, a prefix that is not
-dimensionless), and the spans inside its body serve the errors within it.
+A definition is one of six things: a primitive with its role; a prefix
+(named without its dash) with a body; a unit with a body, where a body
+is an expression; a unit list, whose body is two or more expressions
+separated by `;` (a body of one is a unit), each kept with the text it
+was written as, since that text is what the UI shows beside its term
+and the table has no other way to get at it; a function, named with its
+parameters in parentheses, separated by commas and none named twice,
+each of them and the result optionally annotated with a unit expression
+(kept with its text, as a list's items are), optionally conditions
+after a `|`, and its body after `=`; or the inverse of a function,
+`~name(parameter) = body`, which may have conditions too
+([functions.md](functions.md)). A condition is a chain of expressions
+joined by comparisons that all point one way, kept with its text for
+the messages that quote it; a chain that turns, `0 < x > 1`, is
+rejected. The parser rejects an annotation with a number other than
+`1`, a sum, a negation or a call, and a parameter named like a unit its
+own head's annotations use, each where it is written; it reserves a `[`
+after a function's name, for dimension variables, and rejects it as not
+supported yet. `parseDefinitions` returns them in the order written,
+duplicates included, and knows nothing about what they mean. Every span
+is an offset into the whole text, not the line: a definition carries
+the span of its text from name to body, for the errors `buildTable`
+reports against a definition as a whole (a duplicate name, a cycle, a
+prefix that is not dimensionless), and the spans inside its body serve
+the errors within it.
 
 `buildTable` evaluates each body to a quantity, resolving references on
-demand with memoization and a visiting set, so definitions may appear in any
-order and cycles are reported rather than looping. Prefix bodies must be plain
-numbers: no dimension and no kind. The result is the unit table: the
-primitives with their roles, the prefixes with their factors, and the units
-with their quantities, each a map keyed by name in declaration order. The
-primitives are among the units, as quantities of one of themselves, so that a
-lookup is one map read. The primitives with their roles are collected from
-the definitions before any body is evaluated, because a body that is a sum
-needs them to check its operands, and a body may refer to a primitive
-declared after it.
+demand with memoization and a visiting set, so definitions may appear
+in any order and cycles are reported rather than looping. Prefix bodies
+must be plain numbers: no dimension and no kind. The result is the unit
+table: the primitives with their roles, the prefixes with their
+factors, and the units with their quantities, each a map keyed by name
+in declaration order. The primitives are among the units, as quantities
+of one of themselves, so that a lookup is one map read. The primitives
+with their roles are collected from the definitions before any body is
+evaluated, because a body that is a sum needs them to check its
+operands, and a body may refer to a primitive declared after it.
 
-Prefixes and units are separate namespaces, so `m-` (milli) and `m` (the
-metre) coexist, while a primitive and a unit share one. A name in an
-expression resolves to an exact unit name if there is one, and otherwise to
-one prefix followed by a unit name (the rule docs/definitions.md states for users).
-Prefixes do not stack, and there is no plural handling: `inches  inch` is
-an ordinary alias definition. Prefixes apply to units alone: a call's
-name resolves among the functions and the built-ins exactly, so
-`ktempC(1)` is a call of nothing (`notAFunction`), and a function's or a
-built-in's name may not itself read as a prefix followed by a unit, which
-the build checks.
+Prefixes and units are separate namespaces, so `m-` (milli) and `m`
+(the metre) coexist, while a primitive and a unit share one. A name in
+an expression resolves to an exact unit name if there is one, and
+otherwise to one prefix followed by a unit name (the rule
+docs/definitions.md states for users). Prefixes do not stack, and there
+is no plural handling: `inches  inch` is an ordinary alias definition.
+Prefixes apply to units alone: a call's name resolves among the
+functions and the built-ins exactly, so `ktempC(1)` is a call of
+nothing (`notAFunction`), and a function's or a built-in's name may not
+itself read as a prefix followed by a unit, which the build checks.
 
-Unit lists share the unit namespace (a list and a unit of one name are a
-duplicate) but are not units: no expression can refer to one, so they stay
-out of the walk, and each is evaluated in its place in the order, item by
-item, through the same lookup a body uses, requesting what it refers to
-from the top of the walker (which can never close a cycle). Since a list's
-name means the list only as a bare `want`, while a unit's name means the
-unit everywhere, a list's name that also reads as a prefix followed by a
-unit (`ms`) would make one text mean two things in the two fields, and the
-build rejects it once the ambiguity check has passed. A list's units are
-checked as `convertToList` checks any list, against the first of them, so
-that a defined list can fail to convert only for not conforming to the
-`have`. The table holds each list as its units with their texts, apart from
-the units.
+Unit lists share the unit namespace (a list and a unit of one name are
+a duplicate) but are not units: no expression can refer to one, so they
+stay out of the walk, and each is evaluated in its place in the order,
+item by item, through the same lookup a body uses, requesting what it
+refers to from the top of the walker (which can never close a cycle).
+Since a list's name means the list only as a bare `want`, while a
+unit's name means the unit everywhere, a list's name that also reads as
+a prefix followed by a unit (`ms`) would make one text mean two things
+in the two fields, and the build rejects it once the ambiguity check
+has passed. A list's units are checked as `convertToList` checks any
+list, against the first of them, so that a defined list can fail to
+convert only for not conforming to the `have`. The table holds each
+list as its units with their texts, apart from the units.
 
-Functions share the unit namespace as lists do, and their names are held
-to the same rule against reading as a prefixed unit, for the same reason.
-Unlike a list, a function can be referred to, by a call in any body, so a
-function is a node of the walk, and evaluating it means checking it
-("Functions" below): its annotations are evaluated, and its body's
-dimension is taken without evaluating it (`dimension-of.ts`), with the
-parameter bound to its annotation's dimension (plain without one),
-through the walk's own lookup; that dimension is the function's result,
-checked against the result's annotation when there is one; and each
-condition's terms are taken the same way, each conforming to the next,
-and each condition must mention a parameter. A call in a condition is a
-dependency of the walk as one in a body is. A unit may
-then be defined by a call (`boiling  tempC(100)`), a function's body may
-call another, and a cycle through a function is reported like any other.
-An inverse is keyed by its function's name apart from every namespace,
-and nothing can refer to it, so, like a list, it stays out of the walk
-and is checked in its place in the order, requesting its function from
-the top, which lets it call its own function: its function must have one
-parameter, and its body's dimension, with its own parameter bound to the
-function's result, must conform to what that parameter takes, its
-conditions checked as a function's are. The table
-holds each function as its body, still an expression, with its
-parameters in order, each with the unit it takes and its text, its
-result's dimension, its conditions with the parameters each mentions,
-and its inverse when one is defined: a call evaluates the body afresh,
-through the table's lookup. A unit, a list's unit or an annotation that
-calls a function evaluates the call's conditions when the table is
-built, at the ceiling, and one left undecided fails the build, since a
-unit has nowhere to carry the warning.
+Functions share the unit namespace as lists do, and their names are
+held to the same rule against reading as a prefixed unit, for the same
+reason. Unlike a list, a function can be referred to, by a call in any
+body, so a function is a node of the walk, and evaluating it means
+checking it ([functions.md](functions.md), "Build-time checks"): its
+annotations are evaluated, and its body's dimension is taken without
+evaluating it (`dimension-of.ts`), with the parameter bound to its
+annotation's dimension (plain without one), through the walk's own
+lookup; that dimension is the function's result, checked against the
+result's annotation when there is one; and each condition's terms are
+taken the same way, each conforming to the next, and each condition
+must mention a parameter. A call in a condition is a dependency of the
+walk as one in a body is. A unit may then be defined by a call
+(`boiling  tempC(100)`), a function's body may call another, and a
+cycle through a function is reported like any other. An inverse is
+keyed by its function's name apart from every namespace, and nothing
+can refer to it, so, like a list, it stays out of the walk and is
+checked in its place in the order, requesting its function from the
+top, which lets it call its own function: its function must have one
+parameter, and its body's dimension, with its own parameter bound to
+the function's result, must conform to what that parameter takes, its
+conditions checked as a function's are. The table holds each function
+as its body, still an expression, with its parameters in order, each
+with the unit it takes and its text, its result's dimension, its
+conditions with the parameters each mentions, and its inverse when one
+is defined: a call evaluates the body afresh, through the table's
+lookup. A unit, a list's unit or an annotation that calls a function
+evaluates the call's conditions when the table is built, at the
+ceiling, and one left undecided fails the build, since a unit has
+nowhere to carry the warning.
 
-Every name is known once the table is built, so ambiguity is a property of the
-table rather than of the input, and `buildTable` checks for it. A name with
-two different prefix-unit splits (`d`+`am` against `da`+`m`, were `am` a unit)
-is a build error, so a table that builds has at most one split per name. A
-unit name that is also a valid split (`min`, the minute, against `m`+`in`) is
-allowed, because real unit conventions are full of them, and the exact name
-wins. The check is cheap: for each pair of prefixes where one extends the
-other, one map lookup per unit that starts with the extension, found in an
-index of the unit names, which for most extensions (`icro`, `eci`) is no
-unit at all.
+Every name is known once the table is built, so ambiguity is a property
+of the table rather than of the input, and `buildTable` checks for it.
+A name with two different prefix-unit splits (`d`+`am` against `da`+`m`,
+were `am` a unit) is a build error, so a table that builds has at most
+one split per name. A unit name that is also a valid split (`min`, the
+minute, against `m`+`in`) is allowed, because real unit conventions are
+full of them, and the exact name wins. The check is cheap: for each
+pair of prefixes where one extends the other, one map lookup per unit
+that starts with the extension, found in an index of the unit names,
+which for most extensions (`icro`, `eci`) is no unit at all.
 
-Building is four concerns in four modules. `table.ts` holds the `UnitTable`
-itself and the lookup over it that the evaluator resolves user input against.
-`names.ts` holds the resolution rule and the ambiguity check, generic in what
-a prefix or a unit maps to, because the build applies the same rule over
-definitions before any quantity exists; `name-index.ts` is the index the
-check searches, the names sorted so that those starting with any text are
-one contiguous run. `graph.ts` is the on-demand
-evaluation: a walker takes a function that computes a node's value given a
-way to request the values of the nodes it depends on, and memoizes each
-result; a request for a node whose evaluation is in progress is a cycle, and
-the walker returns it to the requester, which knows where the request came
-from. Nothing in it knows what a definition is. `build.ts` puts them together
-in a fixed order: index the definitions by name, rejecting a duplicate;
-check the index for an ambiguous name, and the names of the lists, the
-functions and the built-ins for one that reads as a prefixed unit;
-collect the primitives and their
-roles; then walk every definition in order, where a body is evaluated by
-`evaluate` against a lookup that resolves each name through the index and
-requests the definitions it means from the walker, with those primitives.
-The first failure ends the build.
+Building is five modules. `table.ts` holds the `UnitTable` itself and
+the lookup over it that the evaluator resolves user input against.
+`names.ts` holds the resolution rule and the ambiguity check, generic in
+what a prefix or a unit maps to, because the build applies the same
+rule over definitions before any quantity exists; `name-index.ts` is
+the index the check searches, the names sorted so that those starting
+with any text are one contiguous run. `graph.ts` is the on-demand
+evaluation: a walker takes a function that computes a node's value
+given a way to request the values of the nodes it depends on, and
+memoizes each result; a request for a node whose evaluation is in
+progress is a cycle, and the walker returns it to the requester, which
+knows where the request came from. Nothing in it knows what a
+definition is. `build.ts` puts them together in a fixed order: index
+the definitions by name, rejecting a duplicate; check the index for an
+ambiguous name, and the names of the lists, the functions and the
+built-ins for one that reads as a prefixed unit; collect the primitives
+and their roles; then walk every definition in order, where a body is
+evaluated by `evaluate` against a lookup that resolves each name
+through the index and requests the definitions it means from the
+walker, with those primitives. The first failure ends the build.
 
-A build error is one of: a duplicate name, carrying both definitions, or
-the built-in's name and the definition that takes it; an
-ambiguous name with its two splits; a unit list, function or built-in
-whose name reads as a prefix and a unit, carrying the definition (or the
-built-in's name) and the split; a
-lookup failure at its reference (an unknown name, a function used as a
-unit, a call of what is not a function, or a prefix times a unit refused
-as too large or too small); a cycle, carrying the
-definitions on it in order and the span of the reference that closed it; a
-prefix whose body is not a plain number, carrying the definition and the
-dimension it has; a unit list whose units do not make a list, carrying the
-definition and the list error with the index of the unit at fault; a
-function whose body does not conform to its result's annotation, or an
-inverse whose body does not conform to what its function's parameter
-takes, carrying the definition and the mismatch; an inverse of no defined
-function; a function whose parameter's or result's annotation is zero, or
-cannot be told from zero, since a recovered argument is written as a
-count of the parameter's; or an arithmetic failure from the evaluator, located as the evaluator
-locates it. Every span is an offset into the whole definitions text, and a
-definition's span covers its text from name to body, so each error points
-at something the user can see.
+A build error is one of: a duplicate name, carrying both definitions,
+or the built-in's name and the definition that takes it; an ambiguous
+name with its two splits; a unit list, function or built-in whose name
+reads as a prefix and a unit, carrying the definition (or the built-in's
+name) and the split; a lookup failure at its reference (an unknown
+name, a function used as a unit, a call of what is not a function, or a
+prefix times a unit refused as too large or too small); a cycle,
+carrying the definitions on it in order and the span of the reference
+that closed it; a prefix whose body is not a plain number, carrying the
+definition and the dimension it has; a unit list whose units do not
+make a list, carrying the definition and the list error with the index
+of the unit at fault; a function whose body does not conform to its
+result's annotation, or an inverse whose body does not conform to what
+its function's parameter takes, carrying the definition and the
+mismatch; an inverse of no defined function; a function whose
+parameter's or result's annotation is zero, or cannot be told from
+zero, since a recovered argument is written as a count of the
+parameter's; or an arithmetic failure from the evaluator, located as
+the evaluator locates it. Every span is an offset into the whole
+definitions text, and a definition's span covers its text from name to
+body, so each error points at something the user can see.
 
 ## Expressions
 
-One grammar serves both definition bodies and user input, so anything that can
-be typed can also be defined. docs/definitions.md describes it
-from the user's side; this section is about how it is parsed and what the
-tree holds. It is a small expression language: decimal
-numbers, unit names, juxtaposition and `*` for multiplication, `/`, `+` and
-`-`, `^` with a literal exponent, parentheses, and calls. The precedence follows
-GNU units: juxtaposition binds tighter than `*` and `/`, which are one
-left-associative level, so `kg m / s^2` is `(kg m) / (s^2)` and `m/s*s` is
-`(m/s)*s`; `+` and `-` are one more left-associative level below those, so
-`1 ft + 3 in` is `(1 ft) + (3 in)` and `2 m * 3 + 1 m` is
-`(2 m * 3) + (1 m)`. A `-` before a product negates it, binding tighter than
-`*` and `/` and looser than juxtaposition and `^`, so `-2 m` is `-(2 m)`,
-`2 * -3` is `2 * (-3)` and `-2^2` is `-(2^2)`, as in arithmetic; it does
-not stack, and there is no unary `+`. A unit list, `ft;in`, is one or more
-expressions separated by `;`, and is not an expression: `;` binds looser
-than anything and cannot appear inside parentheses. `parseUnitList` reads
-one, and `expr.ts` exports the list grammar over any item parser, since the
-definitions parser wants each item with its text.
+One grammar serves both definition bodies and user input, so anything
+that can be typed can also be defined. docs/definitions.md describes it
+from the user's side; this section is about how it is parsed and what
+the tree holds. It is a small expression language: decimal numbers,
+unit names, juxtaposition and `*` for multiplication, `/`, `+` and `-`,
+`^` with a literal exponent, parentheses, and calls. The precedence
+follows GNU units: juxtaposition binds tighter than `*` and `/`, which
+are one left-associative level, so `kg m / s^2` is `(kg m) / (s^2)` and
+`m/s*s` is `(m/s)*s`; `+` and `-` are one more left-associative level
+below those, so `1 ft + 3 in` is `(1 ft) + (3 in)` and `2 m * 3 + 1 m`
+is `(2 m * 3) + (1 m)`. A `-` before a product negates it, binding
+tighter than `*` and `/` and looser than juxtaposition and `^`, so
+`-2 m` is `-(2 m)`, `2 * -3` is `2 * (-3)` and `-2^2` is `-(2^2)`, as
+in arithmetic; it does not stack, and there is no unary `+`. A unit
+list, `ft;in`, is one or more expressions separated by `;`, and is not
+an expression: `;` binds looser than anything and cannot appear inside
+parentheses. `parseUnitList` reads one, and `expr.ts` exports the list
+grammar over any item parser, since the definitions parser wants each
+item with its text.
 
 A call, `tempC(100)`, is a name directly followed by `(`, zero or more
-expressions separated by commas, and `)` (`pi()`, `atan2(3 m, 4 m)`), and
-is an atom like a name: `2 tempC(100)`, `tempC(100)^2` and `-tempC(100)`
-mean what they look like. The comma appears nowhere else in the grammar,
-and how many arguments a function takes is the evaluator's to check, not
-the parser's. The parser decides a call by the
-text alone, since it cannot ask the table whether a name is a function,
-and the rule is lexical: no space before the `(` makes a call, and a space
-makes a product, so `kg (m/s)` stays the product it always was and
-`kg(m/s)` is a call of `kg`, which the evaluator rejects with a message
-that shows the product with the space. That is the one whitespace-sensitive
-rule in the grammar; devdocs/design/functions.md weighs the alternative. The tree
-holds a call as the name with its own span and its arguments.
+expressions separated by commas, and `)` (`pi()`, `atan2(3 m, 4 m)`),
+and is an atom like a name: `2 tempC(100)`, `tempC(100)^2` and
+`-tempC(100)` mean what they look like. The comma appears nowhere else
+in the grammar, and how many arguments a function takes is the
+evaluator's to check, not the parser's. The parser decides a call by
+the text alone, since it cannot ask the table whether a name is a
+function, and the rule is lexical: no space before the `(` makes a
+call, and a space makes a product, so `kg (m/s)` stays the product it
+always was and `kg(m/s)` is a call of `kg`, which the evaluator rejects
+with a message that shows the product with the space. That is the one
+whitespace-sensitive rule in the grammar; [functions.md](functions.md)
+("Alternatives considered") weighs the alternative. The tree holds a
+call as the name with its own span and its arguments.
 
-Juxtaposition means "this many of these units" (`2 m`) or a product of units
-(`kg m`), so a number may only be the first factor of a product: `m 2`,
-`1 2 3` and `2 3 m` are errors, and multiplying numbers is written with `*`.
-In the tree it is an ordinary multiplication, indistinguishable from `*`.
+Juxtaposition means "this many of these units" (`2 m`) or a product of
+units (`kg m`), so a number may only be the first factor of a product:
+`m 2`, `1 2 3` and `2 3 m` are errors, and multiplying numbers is
+written with `*`. In the tree it is an ordinary multiplication,
+indistinguishable from `*`.
 
-Whether the two sides of a sum can be added is not the parser's concern:
-`1 m + 1 s` parses, and the evaluator rejects it. What the parser decides is
-where a `-` belongs. A number's literal is read as far as it goes, so `2e-3`
-is one number and `2 - 3` a difference, and an exponent's sign is part of
-the exponent, so `m^-1` is a power while `m^2 - 1` and `m^2-1` are
-differences. Elsewhere a `-` where an operand can start is a negation and a
-`-` after an operand is a subtraction, so `2 -3` is a difference and
-`2 * -3` a product with a negation. A number is never negative in the tree:
-`-2` is the negation of `2`.
+Whether the two sides of a sum can be added is not the parser's
+concern: `1 m + 1 s` parses, and the evaluator rejects it. What the
+parser decides is where a `-` belongs. A number's literal is read as
+far as it goes, so `2e-3` is one number and `2 - 3` a difference, and
+an exponent's sign is part of the exponent, so `m^-1` is a power while
+`m^2 - 1` and `m^2-1` are differences. Elsewhere a `-` where an operand
+can start is a negation and a `-` after an operand is a subtraction, so
+`2 -3` is a difference and `2 * -3` a product with a negation. A number
+is never negative in the tree: `-2` is the negation of `2`.
 
-An exponent is a signed decimal (`m^2`, `s^-1`, `m^0.5`) or a parenthesized
-rational (`m^(1/2)`), never an expression, so it is known at parse time and
-travels in the tree as the two literals the parser read, undivided
-(`Exponent`): each must be formable within the hard bound and a zero
-divisor is rejected, both read off the literals with nothing formed, and
-the evaluator takes the quotient where the significand limit applies, since a
-reduction in the parser, which has no context, took seconds on long
-literals and minutes at the hard bound, on every keystroke (the plan's
-H.9, issue #66). A unit name is a letter or underscore
-followed by letters, digits and underscores, in any script, taken as long as
-it goes: `m2` is one name rather than `m` beside `2`, and whether a name
-means anything is decided by the table, not the parser. Whitespace is spaces
-and tabs, never a newline, because a definition body is one line.
+An exponent is a signed decimal (`m^2`, `s^-1`, `m^0.5`) or a
+parenthesized rational (`m^(1/2)`), never an expression, so it is known
+at parse time and travels in the tree as the two literals the parser
+read, undivided (`Exponent`): each must be formable within the hard
+bound and a zero divisor is rejected, both read off the literals with
+nothing formed, and the evaluator takes the quotient where the
+significand limit applies. The parser has no context, and a reduction
+there took seconds on long literals and minutes at the hard bound, on
+every keystroke. A unit name is a letter or underscore followed by
+letters, digits and underscores, in any script, taken as long as it
+goes: `m2` is one name rather than `m` beside `2`, and whether a name
+means anything is decided by the table, not the parser. Whitespace is
+spaces and tabs, never a newline, because a definition body is one
+line.
 
-The tree has six kinds of node: a number, a unit name, a binary operation
-(a sum, difference, product or quotient) of two subtrees, a negated
-subtree, a subtree raised to a rational exponent, and a call. Every
-node carries the span of text it came from, so an error found later in the
-pipeline (an unknown unit, a dimension mismatch) can point back at the input.
-`parseExpr` knows nothing about units, and `evaluate` knows nothing about
-text. `ParseError` comes from the parsing toolkit below, which both parsers
-are built from; `Span` has its own small module, because it is not a parsing
-concept but the vocabulary every later stage uses to locate its errors.
+The tree has six kinds of node: a number, a unit name, a binary
+operation (a sum, difference, product or quotient) of two subtrees, a
+negated subtree, a subtree raised to a rational exponent, and a call.
+Every node carries the span of text it came from, so an error found
+later in the pipeline (an unknown unit, a dimension mismatch) can point
+back at the input. `parseExpr` knows nothing about units, and
+`evaluate` knows nothing about text. `ParseError` comes from the parsing
+toolkit below, which both parsers are built from; `Span` has its own
+small module, because it is not a parsing concept but the vocabulary
+every later stage uses to locate its errors.
 
 The grammar's levels of binding and its binary operators are data in
 `src/core/expr.ts` (`LEVELS`, `BINARY`): the two left-associative levels
 of the parser are built from the table, and the printer,
 `src/core/print.ts`, writes a tree back by it, so the two cannot
 disagree. Juxtaposition is its own operator in the tree, `juxtapose`,
-and a number node keeps the text it was read from, so that a tree can be
-written back as it was read: the printer's text is canonical, one space
-between juxtaposed factors and around the other operators, a quotient of
-two literals tight as a fraction, and the fewest parentheses that read
-the tree back as it is, which `levelOf` and the levels decide position by
-position. The printer never changes a tree. Its output is pieces, each
-saying what it is (a number, a name, an exponent, a symbol), so that the
-converter can style a result's numbers apart; `text` joins them. A
-property test prints random trees (`src/testing/expr.ts`) and parses them
-back, and `formatDimension` is the printer over a dimension built as an
-expression (`dimensionExpr`).
+and a number node keeps the text it was read from, so that a tree can
+be written back as it was read: the printer's text is canonical, one
+space between juxtaposed factors and around the other operators, a
+quotient of two literals tight as a fraction, and the fewest
+parentheses that read the tree back as it is, which `levelOf` and the
+levels decide position by position. The printer never changes a tree.
+Its output is pieces, each saying what it is (a number, a name, an
+exponent, a symbol), so that the converter can style a result's numbers
+apart; `text` joins them. A property test prints random trees
+(`src/testing/expr.ts`) and parses them back, and `formatDimension` is
+the printer over a dimension built as an expression (`dimensionExpr`).
 
 ## Parsing
 
 Both parsers are assembled from a small set of parser combinators in
-`src/core/parser.ts`. A parser is a plain function from the input text and a
-position to a reply: the value it recognized and the position just past it,
-or an error. A grammar is plain code that combines parsers into parsers, with
-primitives for literals, patterns and the end of input, and combinators for
-sequencing, ordered choice, repetition, one left-associative precedence level
-(`chainl1`), attaching spans (`spanned`), validating a recognized value
-(`check`) and self-reference (`lazy`). The types carry the grammar's shape: a
-sequence of parsers is a parser of a tuple and a choice is a parser of a
-union, so a grammar that type-checks produces the tree its types say it does.
+`src/core/parser.ts`. A parser is a plain function from the input text
+and a position to a reply: the value it recognized and the position
+just past it, or an error. A grammar is plain code that combines
+parsers into parsers, with primitives for literals, patterns and the
+end of input, and combinators for sequencing, ordered choice,
+repetition, one left-associative precedence level (`chainl1`),
+attaching spans (`spanned`), validating a recognized value (`check`)
+and self-reference (`lazy`). The types carry the grammar's shape: a
+sequence of parsers is a parser of a tuple and a choice is a parser of
+a union, so a grammar that type-checks produces the tree its types say
+it does.
 
-We chose combinators instead of a hand-written recursive-descent parser or a
-Pratt (top-down operator precedence) parser because the grammars are small
-and fixed. The expression language has a handful of precedence levels, each
-of which is one `chainl1` (or `many`, for juxtaposition) over the level
-below, and the definitions file is a line with two or three fields. A Pratt
-parser is general: it drives a table of operators with numeric binding powers
-from a loop whose invariant has to be checked. That generality buys nothing
-here, while a combinator grammar is checked by reading it against the grammar
-it transcribes. Should the language ever need user-defined or many-levelled
-operators, a Pratt loop can be written with `flatMap` on the same primitives,
-without changing them.
+Combinators were chosen over a hand-written recursive-descent parser or
+a Pratt (top-down operator precedence) parser because the grammars are
+small and fixed. The expression language has a handful of precedence
+levels, each of which is one `chainl1` (or `many`, for juxtaposition)
+over the level below, and the definitions file is a line with two or
+three fields. A Pratt parser is general: it drives a table of operators
+with numeric binding powers from a loop whose invariant has to be
+checked. That generality buys nothing here, while a combinator grammar
+is checked by reading it against the grammar it transcribes. Should the
+language ever need user-defined or many-levelled operators, a Pratt
+loop can be written with `flatMap` on the same primitives, without
+changing them.
 
 Three properties make the combinators simple to reason about:
 
 - **`alt` is ordered choice, and the only backtracking is local.**
-  `alt(a, b)` tries `a`; if `a` fails, however far into the input it got
-  before failing, the position is rewound and `b` is tried from the same
-  place. The first alternative that matches is taken for good: a failure
-  later in the parse never reopens an earlier choice to try its remaining
-  alternatives, so the parser never searches a space of parse trees.
-  "Backtracking" here means only that rewinding, which is what lets an
-  alternative be written without lookahead: an optional exponent, written
-  `optional(seq(string("^"), exponent))`, may consume the `^` before finding
-  no exponent, and still cleanly matches nothing.
+  `alt(a, b)` tries `a`; if `a` fails, however far into the input it
+  got before failing, the position is rewound and `b` is tried from the
+  same place. The first alternative that matches is taken for good: a
+  failure later in the parse never reopens an earlier choice to try its
+  remaining alternatives, so the parser never searches a space of parse
+  trees. "Backtracking" here means only that rewinding, which is what
+  lets an alternative be written without lookahead: an optional
+  exponent, written `optional(seq(string("^"), exponent))`, may consume
+  the `^` before finding no exponent, and still cleanly matches nothing.
 
-  That makes the cost easy to bound. The work of a parse is the number of
-  primitive (`string`, `regex`) matches attempted. Text is read more than
-  once only when an alternative fails after consuming some of it and the next
-  alternative reads the same text again. That is the exponential case of
-  unmemoized ordered choice: `alt(seq(p, a), seq(p, b))` parses `p` twice,
-  and nesting that pattern `k` deep parses the innermost `p` `2^k` times. Our
-  grammars never share a prefix between alternatives. At every `alt`, the
-  alternatives are told apart by their first primitive (a digit, a name
-  followed by `(`, a name not followed by it, `(`, or an operator symbol),
-  so all but at most one of them fail on their first primitive, at
-  constant cost. An alternative fails after consuming input in two ways
-  only: an operator with nothing valid after it (`3 m ^`), which rewinds
-  by one token and is followed at once by a failure at that token; and a
-  call whose argument list fails, which has consumed its text, and the
-  alternatives after it, a plain name (one not directly followed by `(`,
-  decided by a lookahead that includes the name's own characters, so that
-  the match cannot back off to a shorter name in front of the `(`) and a
-  parenthesized expression, fail at their first primitive, so nothing is
-  read twice. So each character is consumed by exactly one primitive, each
-  failed alternative costs one primitive attempt, and a parse costs a
-  constant number of primitive attempts per token, times the depth of the
-  grammar for passing each reply up through the enclosing combinators. A
-  hundred-character line is a few hundred primitive attempts. The
-  discipline that keeps this true, and that any new grammar built on these
-  combinators must follow, is that the alternatives of one `alt` begin with
-  different tokens, and repetition is expressed with `many`, `many1` or
-  `chainl1` rather than with a recursive alternative. (The call rule broke
-  it once: a call and a name began alike, told apart only by a lookahead
-  for `(`, so a nested call with an error in it cost `2^k` for `k` levels,
-  issue #54.)
+  That makes the cost easy to bound. The work of a parse is the number
+  of primitive (`string`, `regex`) matches attempted. Text is read more
+  than once only when an alternative fails after consuming some of it
+  and the next alternative reads the same text again. That is the
+  exponential case of unmemoized ordered choice: `alt(seq(p, a),
+seq(p, b))` parses `p` twice, and nesting that pattern `k` deep parses
+  the innermost `p` `2^k` times. Our grammars never share a prefix
+  between alternatives. At every `alt`, the alternatives are told apart
+  by their first primitive (a digit, a name followed by `(`, a name not
+  followed by it, `(`, or an operator symbol), so all but at most one of
+  them fail on their first primitive, at constant cost. An alternative
+  fails after consuming input in two ways only: an operator with
+  nothing valid after it (`3 m ^`), which rewinds by one token and is
+  followed at once by a failure at that token; and a call whose
+  argument list fails, which has consumed its text, and the
+  alternatives after it, a plain name (one not directly followed by
+  `(`, decided by a lookahead that includes the name's own characters,
+  so that the match cannot back off to a shorter name in front of the
+  `(`) and a parenthesized expression, fail at their first primitive,
+  so nothing is read twice. So each character is consumed by exactly
+  one primitive, each failed alternative costs one primitive attempt,
+  and a parse costs a constant number of primitive attempts per token,
+  times the depth of the grammar for passing each reply up through the
+  enclosing combinators. A hundred-character line is a few hundred
+  primitive attempts. The discipline that keeps this true, and that any
+  new grammar built on these combinators must follow, is that the
+  alternatives of one `alt` begin with different tokens, and repetition
+  is expressed with `many`, `many1` or `chainl1` rather than with a
+  recursive alternative. (The call rule broke it once: a call and a
+  name began alike, told apart only by a lookahead for `(`, so a nested
+  call with an error in it cost `2^k` for `k` levels.)
 
-- **Every reply carries the furthest expectation.** An `Expectation` is a
-  position and the labels of the primitives tried there. Not only failures but
-  successes carry one, and every combinator keeps whichever of its parts got
-  furthest (merging the labels of those that tie), so the error reported for a
-  parse is where the parser got furthest and what it wanted there, whatever
-  alternatives it undid afterwards. This is what makes the error for
-  `3 m ^` say "expected a number or `(`" after the `^`: the optional
-  exponent fails there, the
-  parser backs out of it, the product ends, and `eof` fails earlier at the
-  `^`; the furthest expectation survives. Without it, backtracking parsers
-  report the position where the outermost rule gave up, which is usually not
-  where the mistake is.
+- **Every reply carries the furthest expectation.** An `Expectation` is
+  a position and the labels of the primitives tried there. Not only
+  failures but successes carry one, and every combinator keeps
+  whichever of its parts got furthest (merging the labels of those that
+  tie), so the error reported for a parse is where the parser got
+  furthest and what it wanted there, whatever alternatives it undid
+  afterwards. This is what makes the error for `3 m ^` say "expected a
+  number or `(`" after the `^`: the optional exponent fails there, the
+  parser backs out of it, the product ends, and `eof` fails earlier at
+  the `^`; the furthest expectation survives. Without it, backtracking
+  parsers report the position where the outermost rule gave up, which
+  is usually not where the mistake is.
 
-- **Rejection is final.** `check(parser, validate)` turns a recognized value
-  into a `rejected` error carrying its span and a reason when `validate` says
-  so, and no combinator retries past a rejection: the text was understood and
-  found unacceptable, not misread, so trying another reading would only
-  produce a worse error. This is how a numeric literal that `parseDecimal`
-  refuses (a significand past the hard bound, or an exponent past the
-  exponent bound) becomes a parse error pointing at the literal.
-  `check` is the only source of `rejected` errors. The reason is data, the
-  `R` of `Parser<A, R>`: the expression grammar's is its `Rejection` (a
-  literal past the hard bound or past the exponent bound on either side;
-  a `^` exponent that cannot be formed; one that divides by zero), and
-  `src/messages.ts` words it, as it words every other error, so that no
-  sentence is written in the core.
+- **Rejection is final.** `check(parser, validate)` turns a recognized
+  value into a `rejected` error carrying its span and a reason when
+  `validate` says so, and no combinator retries past a rejection: the
+  text was understood and found unacceptable, not misread, so trying
+  another reading would only produce a worse error. This is how a
+  numeric literal that `parseDecimal` refuses (a significand past the
+  hard bound, or an exponent past the exponent bound) becomes a parse
+  error pointing at the literal. `check` is the only source of
+  `rejected` errors. The reason is data, the `R` of `Parser<A, R>`: the
+  expression grammar's is its `Rejection` (a literal past the hard
+  bound or past the exponent bound on either side; a `^` exponent that
+  cannot be formed; one that divides by zero), and `src/messages.ts`
+  words it, as it words every other error, so that no sentence is
+  written in the core.
 
 A parse error is therefore one of two things: nothing acceptable at a
-position, with the labels of what would have been, or text at a span that was
-recognized and rejected, with the reason. Spans are attached with `spanned`
-on the leaves, and a composite node spans from its first child to its last.
+position, with the labels of what would have been, or text at a span
+that was recognized and rejected, with the reason. Spans are attached
+with `spanned` on the leaves, and a composite node spans from its first
+child to its last.
 
-The combinators are pure: a parser is a closure over its configuration and a
-function of `(text, pos)`. The two pieces of mutable state are internal and
-unobservable: `regex` reuses one sticky `RegExp` whose `lastIndex` it sets
-before every use, and `lazy` memoizes the parser it builds. `many` of a
-parser that matches the empty string would loop forever; that is a bug in the
-grammar, not an input that can fail, and it throws.
+The combinators are pure: a parser is a closure over its configuration
+and a function of `(text, pos)`. The two pieces of mutable state are
+internal and unobservable: `regex` reuses one sticky `RegExp` whose
+`lastIndex` it sets before every use, and `lazy` memoizes the parser it
+builds. `many` of a parser that matches the empty string would loop
+forever; that is a bug in the grammar, not an input that can fail, and
+it throws.
 
 ## Evaluation
 
 `evaluate` takes an `Expr`, a `Lookup` for unit and function names, the
-table's `Primitives` and the working `NumberContext`, and returns the `Quantity`
-the expression denotes. A number is a dimensionless quantity, a unit name
-is whatever the lookup says it is, and the operators are the quantity
-arithmetic above: juxtaposition and `*` multiply, `/` divides, `+` and `-`
-add and subtract, a leading `-` negates, and `^` raises to the exponent the
-parser read, made a fraction here within the significand limit
-(`reduceExponent`, which `dimensionOf` applies under the build's context
-too): each literal's significand is held to the limit as every literal's is,
-the quotient of the two is taken as `Scaled` values, whose powers of ten
-cancel for nothing, and the fraction is formed from it within the limit
-as `pow` forms an exact exponent, so that `2^(1e30/1e30)` is `2` at any
-limit and `2^1e-30000` is refused at the default as `pow(2, 1e-30000)`
-is, at the bound when the power would pass it and otherwise at the limit.
-A call resolves its name among the functions, through
-the lookup, to a function the table defines or a built-in (`ResolvedFunction`),
-checks that it gives as many arguments as the function takes
-(`arityMismatch` otherwise, before any argument is evaluated, since the
-count is about the call's shape; a defined function takes exactly as many
-as it has parameters), and then, for a defined function, evaluates its
-arguments, checks that each conforms to the unit its parameter takes, and
-evaluates the body with the parameters bound to the arguments by
-position ("Functions"
-below); for a built-in it evaluates every argument, applies the built-in's
-dimension rule to their dimensions (`builtinArgument` at the call when it
-fails, carrying the rule's error and every argument's span) and its
-function to their magnitudes, and locates a `domain` failure at the call
-(`domainError`), an `unresolved` at the argument that straddles the edge
-the error names, and any other failure at the call.
-The context goes to every power and every built-in, the operations that
-can lose digits, and to every sum, which aligns within its significand limit,
-and every literal's significand is checked against that limit; everything
-else is exact, and every result is settled. The
-primitives go to every sum, whose operands must conform: this is where
-evaluation checks conformance, beside a call's argument against what the
-function takes, and it is the same check, with the
-same roles, that conversion applies to `have` and `want`, so that what can
-be added is exactly what can be converted. The primitives come from the
-table for user input, and from the definitions, collected before the walk,
-while the table is being built.
+table's `Primitives` and the working `NumberContext`, and returns the
+`Quantity` the expression denotes. A number is a dimensionless quantity,
+a unit name is whatever the lookup says it is, and the operators are the
+quantity arithmetic above: juxtaposition and `*` multiply, `/` divides,
+`+` and `-` add and subtract, a leading `-` negates, and `^` raises to
+the exponent the parser read, made a fraction here within the
+significand limit (`reduceExponent`, which `dimensionOf` applies under
+the build's context too): each literal's significand is held to the
+limit as every literal's is, the quotient of the two is taken as
+`Scaled` values, whose powers of ten cancel for nothing, and the
+fraction is formed from it within the limit as `pow` forms an exact
+exponent, so that `2^(1e30/1e30)` is `2` at any limit and `2^1e-30000`
+is refused at the default as `pow(2, 1e-30000)` is, at the bound when
+the power would pass it and otherwise at the limit. A call resolves its
+name among the functions, through the lookup, to a function the table
+defines or a built-in (`ResolvedFunction`), checks that it gives as
+many arguments as the function takes (`arityMismatch` otherwise, before
+any argument is evaluated, since the count is about the call's shape; a
+defined function takes exactly as many as it has parameters), and then,
+for a defined function, evaluates its arguments, checks that each
+conforms to the unit its parameter takes, and evaluates the body with
+the parameters bound to the arguments by position ("Functions" below);
+for a built-in it evaluates every argument, applies the built-in's
+dimension rule to their dimensions (`builtinArgument` at the call when
+it fails, carrying the rule's error and every argument's span) and its
+function to their magnitudes, and locates a `domain` failure at the
+call (`domainError`), an `unresolved` at the argument that straddles
+the edge the error names, and any other failure at the call. The
+context goes to every power and every built-in, the operations that can
+lose digits, and to every sum, which aligns within its significand
+limit, and every literal's significand is checked against that limit;
+everything else is exact, and every result is settled
+([numbers.md](numbers.md), "Settling"). The primitives go to every sum,
+whose operands must conform: this is where evaluation checks
+conformance, beside a call's argument against what the function takes,
+and it is the same check, with the same roles, that conversion applies
+to `have` and `want`, so that what can be added is exactly what can be
+converted. The primitives come from the table for user input, and from
+the definitions, collected before the walk, while the table is being
+built.
 
-Names are resolved through a lookup function rather than a table, because the
-same evaluator serves both ends of the pipeline. The table supplies a lookup
-over its finished units for the user's `have` and `want`, applying the
-prefix-splitting rule described under Definitions; `buildTable` supplies one
-that evaluates definitions on demand, with its memoization and visiting set,
-while the table is still being built. Each lookup defines its own error type
-(an unknown name, a cycle among definitions); `evaluate` takes that type as a
-type parameter and returns a lookup failure unchanged. The lookup is given
-the span of the reference along with the name, so that its error can point
-at the text as the evaluator's own errors do.
+Names are resolved through a lookup function rather than a table,
+because the same evaluator serves both ends of the pipeline. The table
+supplies a lookup over its finished units for the user's `have` and
+`want`, applying the prefix-splitting rule described under Definitions;
+`buildTable` supplies one that evaluates definitions on demand, with
+its memoization and visiting set, while the table is still being built.
+Each lookup defines its own error type (an unknown name, a cycle among
+definitions); `evaluate` takes that type as a type parameter and
+returns a lookup failure unchanged. The lookup is given the span of the
+reference along with the name, so that its error can point at the text
+as the evaluator's own errors do.
 
 Operands are evaluated left to right and the first failure ends the
-evaluation, so `bogus / 0` reports the unknown unit rather than the division.
-The evaluator's own errors are the arithmetic failures, each located in the
-input: a division by zero points at the divisor, since its value is what is
-wrong, and so does a division by a value that cannot be told from zero at
-this precision (`unresolved`: the divisor's ball contains zero without
-being exactly zero, as `sqrt(2)^2 - 2` does); a power whose base cannot
-be told from zero, raised to a negative power or put under an even root,
-points at the base for the same reason, and any other power that fails
-(`0^-1`, an even root of a negative magnitude, a result beyond the significand
-limit or the exponent bound) points at the whole power, since it is the
-combination of base and exponent that fails. A sum, a product or a
-quotient refused as too large or too small (`tooLarge`, `overflow`,
-`underflow`) points at the whole operation, as a power does, and a
-literal whose significand is beyond the significand limit at the literal. A sum
-whose operands do not
-conform points at the whole sum for the same reason, and carries the span of
-each operand and the `ConformanceError` between them, with the left
-operand's dimension as its `have` and the right's as its `want`, so that a
-message can say what each side is, in the words a conversion error uses.
-A call whose argument does not conform points at the whole call and carries
-the argument's span the same way. A call whose body fails for the argument
-is one `callFailed` at the call, naming the function and carrying the
-body's error, whose spans are into the definitions text; only the
-evaluator's own failures are wrapped so, and a lookup failure inside a body
-(which a table that built cannot produce) comes back as any lookup failure
-does. The evaluator never sees the text: the spans in the tree are all it
-knows of it.
+evaluation, so `bogus / 0` reports the unknown unit rather than the
+division. The evaluator's own errors are the arithmetic failures, each
+located in the input: a division by zero points at the divisor, since
+its value is what is wrong, and so does a division by a value that
+cannot be told from zero at this precision (`unresolved`: the divisor's
+ball contains zero without being exactly zero, as `sqrt(2)^2 - 2`
+does); a power whose base cannot be told from zero, raised to a
+negative power or put under an even root, points at the base for the
+same reason, and any other power that fails (`0^-1`, an even root of a
+negative magnitude, a result beyond the significand limit or the
+exponent bound) points at the whole power, since it is the combination
+of base and exponent that fails. A sum, a product or a quotient refused
+as too large or too small (`tooLarge`, `overflow`, `underflow`) points
+at the whole operation, as a power does, and a literal whose
+significand is beyond the significand limit at the literal. A sum whose
+operands do not conform points at the whole sum for the same reason,
+and carries the span of each operand and the `ConformanceError`
+between them, with the left operand's dimension as its `have` and the
+right's as its `want`, so that a message can say what each side is, in
+the words a conversion error uses. A call whose argument does not
+conform points at the whole call and carries the argument's span the
+same way. A call whose body fails for the argument is one `callFailed`
+at the call, naming the function and carrying the body's error, whose
+spans are into the definitions text; only the evaluator's own failures
+are wrapped so, and a lookup failure inside a body (which a table that
+built cannot produce) comes back as any lookup failure does. The
+evaluator never sees the text: the spans in the tree are all it knows
+of it.
 
 ## Conversion
 
-`convert` takes the two quantities and the table's primitives (whose roles
-the conformance check needs) and returns the output value: how many `want`s
-make up `have`, which after the conformance check is simply the ratio of their
-magnitudes, since each quantity already carries its own scale. `want` may have
-a magnitude (`1 mi` into `1000 ft` gives `5.28`), as in GNU units. The
-ratio is the ball quotient of the two magnitudes, exact on the midpoints
-with the radii propagated, so `1 m` into `in` is exactly `5000/127`, and
-the display is where it becomes `39.370079`. A failure is a dimension
-mismatch or a kind mismatch, carrying both dimension vectors, a `want`
-whose magnitude is zero,
-of which nothing is a multiple, or a `want` whose magnitude cannot be told
-from zero at this precision (`unresolvedWant`, kept apart from `zeroWant` as
-the ball's `unresolved` is from its division by zero, since the retry loop
-retries the one and never the other), or a ratio refused as the quotient
-it is, today at the exponent bound (`1e999999999999999999 m` into
-`1e-999999999999999999 m` is an `overflow`); the conformance check
-comes first, so `0 s` as the `want` for a length is reported as the mismatch
-it is. A core function formats a
-dimension as text (`m^2 / s`), so the UI can explain a mismatch without
-interpreting anything itself.
-
-Every failure in the core is a `Result`: a discriminated union of a value or
-an error, with each module defining its own error type.
+`convert` takes the two quantities and the table's primitives (whose
+roles the conformance check needs) and returns the output value: how
+many `want`s make up `have`, which after the conformance check is
+simply the ratio of their magnitudes, since each quantity already
+carries its own scale. `want` may have a magnitude (`1 mi` into
+`1000 ft` gives `5.28`), as in GNU units. The ratio is the ball quotient
+of the two magnitudes, exact on the midpoints with the radii
+propagated, so `1 m` into `in` is exactly `5000/127`, and the display
+is where it becomes `39.370079`. A failure is a dimension mismatch or a
+kind mismatch, carrying both dimension vectors, a `want` whose
+magnitude is zero, of which nothing is a multiple, or a `want` whose
+magnitude cannot be told from zero at this precision (`unresolvedWant`,
+kept apart from `zeroWant` as the ball's `unresolved` is from its
+division by zero, since the retry loop retries the one and never the
+other), or a ratio refused as the quotient it is, today at the exponent
+bound (`1e999999999999999999 m` into `1e-999999999999999999 m` is an
+`overflow`); the conformance check comes first, so `0 s` as the `want`
+for a length is reported as the mismatch it is. A core function formats
+a dimension as text (`m^2 / s`), so the UI can explain a mismatch
+without interpreting anything itself.
 
 ### Unit lists
 
-`convertToList` is the second output mode, over the same conformance check:
-`have` as a sum over a list of units, largest first, `1 m` into `ft;in`
-being `3 ft` plus `3.37 in`. Each unit but the last gets the integer count
-of it that fits in what the earlier units left, truncated toward zero so
-that every term has the sign of `have` (`-1 m` is `-3 ft - 3.37 in`), and
-the last gets the remainder. The counts are taken from the midpoints (the
-plan's D8), so a count is an exact integer and never `unresolved`, and the
-remainder is the ball `have` less the counted units, computed with the ball
-operations, so the terms times the units add up to `have` exactly when
-everything is exact and contain it otherwise. A ratio whose integer part
-cannot be formed within the significand limit (`1e999999999 m` into `ft;in`) is
-counted as its midpoint settled toward zero at the working digits, still
-an exact integer, and the remainder is what that count leaves (the plan's
-D8 as stage 4 amended it), and a count whose ratio falls below the exponent
-bound is zero, nothing of that unit fitting in what is left
-(`1e-999999999999999999 s` into `hr;min;s`; D8 as the plan's H.12 clarified
-it). Any other refusal of a count, of a count times its unit, or of the
-difference it leaves, and an `unresolved` of them, is the list's failure,
-which the pipeline reports as the conversion's, as it reports a refused
-ratio (`3^32767 m` into `ft/7^21845; in/7^21845` is `tooLarge`, its
-remainder not aligning within the significand limit, where stage 4 threw). A
-ratio whose ball straddles
-an integer, as `turn / deg` does once both carry `pi()`'s radius, counts
-as that integer rather than its truncation, so that the remainder is a
-ball around zero, which the display leaves out, rather than a whole of the
-unit (`≈ 360 deg`, not `359 deg + 60 arcmin`). That is only a meaningful sum
-when the units run from the largest to the smallest, so the units are
-checked in order, each for conformance with `have`, for a positive
-magnitude whose ball excludes zero (a unit that cannot be told from zero is
-no size to count by), and for being smaller than the one before it by
-midpoint, and the first failure is reported with the index of the unit at
-fault. The units need not be multiples of one another (`mi;km` works) and
-may carry magnitudes (`ft;in/8`).
+`convertToList` is the second output mode, over the same conformance
+check: `have` as a sum over a list of units, largest first, `1 m` into
+`ft;in` being `3 ft` plus `3.37 in`. Each unit but the last gets the
+integer count of it that fits in what the earlier units left, truncated
+toward zero so that every term has the sign of `have` (`-1 m` is
+`-3 ft - 3.37 in`), and the last gets the remainder. The counts are
+taken from the midpoints, so a count is an exact integer and never
+`unresolved`, and the remainder is the ball `have` less the counted
+units, computed with the ball operations, so the terms times the units
+add up to `have` exactly when everything is exact and contain it
+otherwise. A ratio whose integer part cannot be formed within the
+significand limit (`1e999999999 m` into `ft;in`) is counted as its
+midpoint settled toward zero at the working digits, still an exact
+integer, and the remainder is what that count leaves, and a count whose
+ratio falls below the exponent bound is zero, nothing of that unit
+fitting in what is left (`1e-999999999999999999 s` into `hr;min;s`).
+Any other refusal of a count, of a count times its unit, or of the
+difference it leaves, and an `unresolved` of them, is the list's
+failure, which the pipeline reports as the conversion's, as it reports
+a refused ratio (`3^32767 m` into `ft/7^21845; in/7^21845` is
+`tooLarge`, its remainder not aligning within the significand limit). A
+ratio whose ball straddles an integer, as `turn / deg` does once both
+carry `pi()`'s radius, counts as that integer rather than its
+truncation, so that the remainder is a ball around zero, which the
+display leaves out, rather than a whole of the unit (`≈ 360 deg`, not
+`359 deg + 60 arcmin`). That is only a meaningful sum when the units
+run from the largest to the smallest, so the units are checked in
+order, each for conformance with `have`, for a positive magnitude whose
+ball excludes zero (a unit that cannot be told from zero is no size to
+count by), and for being smaller than the one before it by midpoint,
+and the first failure is reported with the index of the unit at fault.
+The units need not be multiples of one another (`mi;km` works) and may
+carry magnitudes (`ft;in/8`).
 
-The terms are exact for exact quantities, as the ratio `convert` returns
-is, and rounding them for display is more than rounding each: a remainder
-of `11.9999999988 in` shown at eight digits is `12 in`, which beside `2 ft`
-reads wrongly. So `roundTerms` is the display rounding that goes with the
-sum: it rounds the remainder's midpoint to the display precision, in the
-display's rounding mode, as `roundTo` does, widening its radius by the
-rounding's shift so that the rounded terms still contain `have`, and, when
-that changes it, takes the counts again from the
-rounded sum, so that a remainder which rounds up to a whole of an earlier
-unit carries into it, through as many units as it must
-(`3599.9999999999 s` in `hr;min;s` is `1 hr`; under `floor` nothing rounds
-up, and it stays `59 min + 59.999999 s`). That is
-one rounding of the whole sum, by less than a unit in the last digit of the
-remainder, and the second decomposition is exact. The counts are integers
-and are left alone; one too long for the display is the display's to round,
-as any value is. When the remainder is already exact at the display
-precision, the terms come back as they are, and so do they, uncarried,
-when rebuilding the total from the rounded terms fails, since the display
-calls `roundTerms` and the uncarried terms still contain `have`: the
-carry's rebuilt total can pass the exponent bound where the terms did not
-(the plan's H.12).
+The terms are exact for exact quantities, as the ratio `convert`
+returns is, and rounding them for display is more than rounding each:
+a remainder of `11.9999999988 in` shown at eight digits is `12 in`,
+which beside `2 ft` reads wrongly. So `roundTerms` is the display
+rounding that goes with the sum: it rounds the remainder's midpoint to
+the display precision, in the display's rounding mode, as `roundTo`
+does, widening its radius by the rounding's shift so that the rounded
+terms still contain `have`, and, when that changes it, takes the counts
+again from the rounded sum, so that a remainder which rounds up to a
+whole of an earlier unit carries into it, through as many units as it
+must (`3599.9999999999 s` in `hr;min;s` is `1 hr`; under `floor`
+nothing rounds up, and it stays `59 min + 59.999999 s`). That is one
+rounding of the whole sum, by less than a unit in the last digit of the
+remainder, and the second decomposition is exact. The counts are
+integers and are left alone; one too long for the display is the
+display's to round, as any value is. When the remainder is already
+exact at the display precision, the terms come back as they are, and
+so do they, uncarried, when rebuilding the total from the rounded terms
+fails, since the display calls `roundTerms` and the uncarried terms
+still contain `have`: the carry's rebuilt total can pass the exponent
+bound where the terms did not.
 
-The pipeline reads the `want` as a unit list. One item that is a bare name
-of a list in the table means that list, with the texts of its units from
-the definition; any other one item is a unit and goes through `convert`;
-two or more items are a list typed out, each evaluated as an expression and
-paired with its text, sliced from the `want` by its span. A unit of a
-typed list that fails the list's checks is reported with the texts of all
-of them, so that a message can quote the one at fault; a list from the
-table passed those checks when it was built, and can fail only for not
-conforming to the `have`, which is reported as the mismatch of the pair, as
-for a single `want`, so that the message quotes the name the user typed.
+The pipeline reads the `want` as a unit list. One item that is a bare
+name of a list in the table means that list, with the texts of its
+units from the definition; any other one item is a unit and goes
+through `convert`; two or more items are a list typed out, each
+evaluated as an expression and paired with its text, sliced from the
+`want` by its span. A unit of a typed list that fails the list's checks
+is reported with the texts of all of them, so that a message can quote
+the one at fault; a list from the table passed those checks when it was
+built, and can fail only for not conforming to the `have`, which is
+reported as the mismatch of the pair, as for a single `want`, so that
+the message quotes the name the user typed.
 
 ### Functions
 
-A function (devdocs/design/functions.md is the design, with the reasoning) is a body
-with any number of parameters, bound by position, as in
-`tempC(x) = x K + 273.15 K` or `kinetic(mass: kg, v: m/s) = mass v^2 / 2`,
-or none, as in `twopi() = 2 pi()`, called `twopi()`; and, for a function
-of one parameter, an optional inverse on a line of its own,
+A function is a body with any number of parameters, bound by position,
+as in `tempC(x) = x K + 273.15 K` or
+`kinetic(mass: kg, v: m/s) = mass v^2 / 2`, or none, as in
+`twopi() = 2 pi()`, called `twopi()`; and, for a function of one
+parameter, an optional inverse on a line of its own,
 `~tempC(y) = y / K - 273.15`. It exists for readings such as a
-temperature, which are not multiples of a unit,
-without giving `Quantity` an offset that every operation would then need
-a rule for, and for compositions of the built-ins that a user would
-otherwise type out. Nothing about functions touches quantities: a call
-is a quantity like any other once the body has run, and the rest of the
-expression goes on as before. A parameter's annotation checks a
-dimension and changes no value, since a quantity carries no unit of its
-own: `x: kg` admits any mass, as `x: lb` does, and a body that needs a
-number in a given unit divides it out.
+temperature, which are not multiples of a unit, without giving
+`Quantity` an offset that every operation would then need a rule for,
+and for compositions of the built-ins that a user would otherwise type
+out. Nothing about functions touches quantities: a call is a quantity
+like any other once the body has run, and the rest of the expression
+goes on as before. A parameter's annotation checks a dimension and
+changes no value, since a quantity carries no unit of its own: `x: kg`
+admits any mass, as `x: lb` does, and a body that needs a number in a
+given unit divides it out. A function may restrict its arguments by
+conditions, `tempC(x) | x >= -273.15 = …`, checked at the call after the
+arguments conform and before the body; an undecided condition is
+assumed to hold and reaches the outcome as a warning when it is still
+undecided at the ceiling. [functions.md](functions.md) has the whole
+design: the grammar, the annotations, the conditions and their
+three-valued check, the build-time checks, what a call costs and the
+alternatives weighed.
 
-A function may restrict its arguments by conditions, `tempC(x) | x >=
--273.15 = …`, which a call checks after the arguments conform and before
-the body, left to right, as one conjunction in three-valued logic
-(`checkConditions` of evaluate.ts): each comparison of two terms is
-decided on balls with no tolerance (`decide`, over `orderOf` of
-ball.ts, which compares two exact values exactly and places an inexact
-value against an exact one directly), and holds, fails, or is
-undecided when the balls meet at the bound. The first certain failure
-is a `conditionFailed` at the call, naming the condition as written and
-the arguments it mentions; a term that cannot be computed is the call's
-failure only when nothing before it was undecided, so that a condition
-may guard the next. An undecided condition is assumed to hold, and the
-call goes on: the assumption is added to a collector the evaluation may
-be given, once the body has computed, and a body that fails under one
-is an `undecidedCondition`, retried as an `unresolved` is. The pipeline
-gives each pass of the retry loop a collector of its own, and a result
-that assumes a condition is never final, so a condition across its
-bound by noise is computed again at more digits; one still undecided at
-the ceiling reaches the outcome (in decimal mode every value is exact
-and every condition decided, D26),
-which shows the value with every line's relation `≈` and a warning per
-condition, styled apart from the notes on digits. Conditions restrict
-arguments only: nothing checks a result against a range.
+The pipeline reads a `want` that is the bare name of a function, after
+a list's name and before a unit's, as the third output mode: the answer
+is the call that would produce the `have`, `tempF(212)` into `tempC`
+being `tempC(100)`. It needs the function's inverse, and a function
+without one is a `noInverse` on the want side. The `have` must conform
+to the function's result, which is the ordinary mismatch of the pair
+when it does not; the `have` must meet the inverse's conditions, which
+are the inverse's own domain, and `invertFunction` evaluates the
+inverse's body with its parameter bound to the `have`, through the
+table's lookup; the recovered argument must meet the function's
+conditions, so that `-5 K` into `tempC` is refused as needing a reading
+below absolute zero (a condition failing on either side is a
+`wantConditionFailed`, and an undecided one is assumed as at a call).
+Since an inverse is the one part of a definition the build cannot
+check, the answer is then checked: the function is applied to the
+recovered argument, and a value certainly other than the `have` (two
+exact values compared exactly, otherwise a difference wholly on one
+side of zero) is an `inverseMismatch`, as is a failure of the
+function's body there; the check refutes a wrong answer and proves
+nothing, overlap being what balls can decide. The conversion carries
+the recovered argument, the unit the parameter takes with its text, and
+the argument as a count of that unit, so that the UI writes it as it
+writes any value beside a unit; a count refused as a ratio may be (a
+quotient past the exponent bound) is the conversion's refusal. An
+inverse's body that fails for the value is an `inverseFailed` on the
+want side, carrying the body's error as a call carries its body's. A
+`want` that is a call is not special: it is an expression, and the
+conversion is the ratio, with a reciprocal.
 
-The pipeline reads a `want` that is the bare name of a function, after a
-list's name and before a unit's, as the third output mode: the answer is
-the call that would produce the `have`, `tempF(212)` into `tempC` being
-`tempC(100)`. It needs the function's inverse, and a function without one
-is a `noInverse` on the want side. The `have` must conform to the
-function's result, which is the ordinary mismatch of the pair when it
-does not; the `have` must meet the inverse's conditions, which are the
-inverse's own domain, and `invertFunction` evaluates the inverse's body
-with its parameter bound to the `have`, through the table's lookup; the
-recovered argument must meet the function's conditions, so that `-5 K`
-into `tempC` is refused as needing a reading below absolute zero (a
-condition failing on either side is a `wantConditionFailed`, and an
-undecided one is assumed as at a call). Since an
-inverse is the one part of a definition the build cannot check, the
-answer is then checked: the function is applied to the recovered
-argument, and a value certainly other than the `have` (two exact values
-compared exactly, otherwise a difference wholly on one side of zero) is
-an `inverseMismatch`, as is a failure of the function's body there; the
-check refutes a wrong answer and proves nothing, overlap being what
-balls can decide. The conversion carries the recovered argument, the
-unit the parameter takes with its text, and the argument as a count of
-that unit, so that the UI writes it as it writes any value beside a
-unit; a count refused as a ratio may be (a quotient past the exponent
-bound) is the conversion's refusal. An inverse's body that fails for the
-value is an `inverseFailed` on the want side, carrying the body's error
-as a call carries its body's. A `want` that is a call is not special: it
-is an expression, and the conversion is the ratio, with a reciprocal.
+A built-in (`src/core/builtin.ts`, and the set in `builtins.ts`) is a
+function the core implements in code rather than a definition: a name,
+the count of arguments it takes, a dimension rule from its arguments'
+dimensions to its result's, and the function itself from balls to a
+ball at a working context, which returns the kernel's ball as it is and
+rounds in no mode, the evaluator settling it as it settles every
+result. Built-ins share the function namespace: the table carries the
+set it was built against, the build rejects a definition named like one
+as a duplicate and a built-in whose name reads as a prefixed unit as it
+rejects a function's, and a call's name resolves to a defined function
+first and a built-in second. A built-in has no inverse, so its name is
+not a `want`. [builtins.md](builtins.md) lists each one's rule, domain,
+exact cases and edges, and the modules under `builtins/` hold one
+function or one family each. The neper, the bel and the decibel are
+defined functions in units.txt whose bodies call the built-ins.
 
-A built-in (devdocs/design/builtins.md; `src/core/builtin.ts`, and the set in
-`builtins.ts`) is a function the
-core implements in code rather than a definition: a name, the count of
-arguments it takes, a dimension rule from its arguments' dimensions to
-its result's, and the function itself from balls to a ball at a working
-context, which returns the kernel's ball as it is and rounds in no mode,
-the evaluator settling it as it settles every result. Built-ins share the
-function namespace: the table carries the set it was built against, the
-build rejects a definition named like one as a duplicate and a built-in
-whose name reads as a prefixed unit as it rejects a function's, and a
-call's name resolves to a defined function first and a built-in second.
-A built-in has no inverse, so its name is not a `want`. The set is the
-elementary functions: `pi()`, `exp`, the logarithms, the roots, `pow`,
-the trigonometric and hyperbolic functions and their inverses; and
-`approx`, the value known to the working precision (devdocs/design/approximate.md);
-devdocs/design/builtins.md lists each one's rule, domain, exact cases and edges,
-and the modules under `builtins/` hold one function or one family each.
-The neper, the bel and the decibel are defined functions in units.txt
-whose bodies call the built-ins.
-
-The build checks each function once so that a call at run time can fail
-only on its argument or on a value: the annotations are evaluated and
-must be nonzero, since an argument is written as a count of the
+The build checks each function once so that a call at run time can
+fail only on its argument or on a value: the annotations are evaluated
+and must be nonzero, since an argument is written as a count of the
 parameter's; the body's dimension is taken without evaluating it, by
-`dimensionOf` in `dimension-of.ts`, the evaluator's rules over dimensions
-alone (a number is dimensionless, a unit is its dimension through the
-walk's lookup, a sum checks conformance, a product combines, a power
-raises, a call applies the callee's rule), with each parameter bound to
-its annotation's dimension, so that a body which refers to nothing, or
-is put together wrongly, fails the build with its span in the
-definitions text; that dimension is the result's, exact because a body's
-dimension cannot vary with the value of its argument, and is checked
-against the result's annotation when there is one; and an inverse's body
-is taken the same way, with its parameter bound to the result, and
-checked against what the parameter takes. A body that fails at some value, or at every value, builds and
-fails at the call that reaches the value; the first version of the check
-evaluated each body at one of the declared unit of the first form of
-definitions, which the elementary
-functions made untenable (`ln(x - 1)` fails at one). Applying and
-inverting are one operation, a body
-evaluated under a binding, and `applyFunction` and `invertFunction` share
-it: the bound parameter is resolved before any unit or prefix, and the lookup's
-failures are boxed on the way in and unboxed on the way out, so that the
-body's own failures can be told from the lookup's without the evaluator
-knowing the lookup's error type.
+`dimensionOf` in `dimension-of.ts`, the evaluator's rules over
+dimensions alone (a number is dimensionless, a unit is its dimension
+through the walk's lookup, a sum checks conformance, a product
+combines, a power raises, a call applies the callee's rule), with each
+parameter bound to its annotation's dimension, so that a body which
+refers to nothing, or is put together wrongly, fails the build with its
+span in the definitions text; that dimension is the result's, exact
+because a body's dimension cannot vary with the value of its argument,
+and is checked against the result's annotation when there is one; and
+an inverse's body is taken the same way, with its parameter bound to
+the result, and checked against what the parameter takes. A body that
+fails at some value, or at every value, builds and fails at the call
+that reaches the value: evaluating each body at a sample value is no
+check once the elementary functions exist (`ln(x - 1)` fails at one).
+Applying and inverting are one operation, a body evaluated under a
+binding, and `applyFunction` and `invertFunction` share it: the bound
+parameter is resolved before any unit or prefix, and the lookup's
+failures are boxed on the way in and unboxed on the way out, so that
+the body's own failures can be told from the lookup's without the
+evaluator knowing the lookup's error type.
 
 A call costs what its body typed out in its place would, and is
-certified the same way (D24 of devdocs/history/calculator-plan.md): the body is an
-expression evaluated on balls, settled at every node, and evaluated
-again at each pass of the retry loop, so a cancellation in a body is
-paid for by the next pass's digits, and the radius needs nothing new,
-since a user can write no primitive, series or loop. Calls are not
-memoized: a body that calls a function twice evaluates it twice, so
-calls nested `k` deep evaluate the innermost `2^k` times at every pass.
-That is the cost of the expression written out, bounded by the ceiling
-as any expression is, but a definition that reads small can be large.
-A composition is not a built-in, and the difference is the caveat to
-keep in mind: a parameter used twice is two occurrences of one ball,
-treated as independent (the dependency problem), so `x - x` of an
-inexact argument never certifies `0`; a hand-written equivalent of a
-built-in rounds at every step where the built-in rounds once, with its
-radius from one bound over the whole ball, loses the built-in's exact
-cases (`ln(8) / ln(2)` is `≈ 3` where `log(2, 8)` is `= 3`), and can be
-refused where an intermediate passes a bound the result does not; and
-decimal mode rounds each step of a body to the display digits. devdocs/design/functions.md
-("Precision and the radius", "Cost") has the reasoning.
+certified the same way: the body is an expression evaluated on balls,
+settled at every node, and evaluated again at each pass of the retry
+loop, so a cancellation in a body is paid for by the next pass's
+digits, and the radius needs nothing new, since a user can write no
+primitive, series or loop. Calls are not memoized: a body that calls a
+function twice evaluates it twice, so calls nested `k` deep evaluate
+the innermost `2^k` times at every pass. That is the cost of the
+expression written out, bounded by the ceiling as any expression is,
+but a definition that reads small can be large. A composition is not a
+built-in, and the difference is the caveat to keep in mind: a parameter
+used twice is two occurrences of one ball, treated as independent (the
+dependency problem), so `x - x` of an inexact argument never certifies
+`0`; a hand-written equivalent of a built-in rounds at every step where
+the built-in rounds once, with its radius from one bound over the whole
+ball, loses the built-in's exact cases (`ln(8) / ln(2)` is `≈ 3` where
+`log(2, 8)` is `= 3`), and can be refused where an intermediate passes
+a bound the result does not; and decimal mode rounds each step of a
+body to the display digits. [functions.md](functions.md) ("Precision,
+the radius and cost") has the reasoning.
 
 ## UI
 
-`<unit-converter>` is a Lit component with two text inputs, "you have" and
-"you want", and an output area. Its only state is the two strings; on every
-change it runs the pipeline and renders either the formatted result or the
-error. A result line (`src/outcome.ts`) is two expressions and a relation:
-the have as it was read, and the result composed from the values the
-display wrote and the units as they were read, by the grammar's own
-operators, the value as the first factor of its unit (`36 m / s`), or
-multiplying it whole with `*` where it leads with a number
-(`5.28 × 1000 ft`), the terms of a list summed, the argument inside the
-call. The printer writes both sides canonically, with `×` for the screen,
-so every line can be typed back as a have, and the component styles the
-numbers among the printer's pieces. A `<copy-button>` beside each line
-(`src/copy-button.ts`) copies the result as the printer writes it with
-`*`, which parses: typed back as a have and converted into the line's own
-unit it gives the line again, which `outcome.test.ts` checks. `<app-shell>` hosts it and owns the `UnitTable`: `src/system-table.ts`
-fetches the bundled definitions and parses them on the main thread (a few
-milliseconds), once, and `src/system-build.ts` builds the table from them
-at the ceiling of the retry schedule in force, memoizing one table by its
-ceiling, so that the shell, which starts the load when it is connected and
-shows a loading message until the promise settles, builds in `render` and
-rebuilds only when the precision limit setting moves the ceiling. Loading
-the components never waits on the table. Should the fetch fail, or the
-file fail to parse or build (which `units.test.ts` guards against), the
-shell says so instead of rendering a converter.
+The UI is a handful of Lit components under `src/`, and the shell,
+`<app-shell>` (`src/app-shell.ts`), is their composition root. The rest
+follows four rules:
 
-The shell is the composition root, and the rest of the UI follows one
-rule: properties down, events up. The shell holds the three pieces of
-state the parts share, the definitions, the settings and the service
-worker's status, each with one source, and derives everything else in
-`render`. `<settings-panel>` (`src/settings-panel.ts`), the settings
-sheet, takes the settings and whether it is open as properties and
-reports each change the user makes as a `settings-change` event, and
-each reset, of one setting or of all, as `settings-reset`, which the
-shell applies alike, clamping what depends on it (`settings.ts`,
-`withDefault` and `clampSettings`) and saving, and its closing itself
-as `settings-close`, which the shell follows; the panel never reaches
-for storage. Its controls are three groups by what a setting is for
-(devdocs/design/settings-controls.md, the plan's D31), each with a line that
-opens with the number's range (`rangeLine`) and a "default …" reset
-beside any setting off its default (`isAtDefault`, `defaultLine`). The sheet is a non-modal
-`<dialog>` fixed to the viewport, a bottom sheet on a phone and a side
-sheet on a desktop, opened from the cog in the header's corner
-(`<settings-button>`, `src/settings-button.ts`), whose `click` flips the
-shell's open state and which takes focus back when the sheet closes
-(devdocs/design/settings-surface.md, the plan's D30).
-`<app-footer>` takes the worker's status as a property, which a reactive
-controller (`src/subscription.ts`) mirrors into the shell for as long as
-it is connected, and checks for an update when its build number is
-tapped. What each part shows that is not state is a pure function beside
-it, checked under Node like the rest: `rangesOf` for the panel's bounds,
-`tableOf` for the shell's content.
+- **The view is a function of the state.** Every template is
+  `render(state) → html`, and anything the view needs that is not state
+  is derived in a pure function beside the component, checked under Node
+  (`outcome.ts`, `messages.ts`, `settings-lines.ts`, `system-build.ts`'s
+  `tableOf`, `settings.ts`'s `rangesOf` and `clampsOf`).
+- **Properties down, events up.** A child component takes what it shows
+  as properties and reports what the user did as an event. It never
+  reaches for storage or the parent. The shell is the one place that
+  turns an event into a state change and an effect (the save).
+- **Compose in Lit's own terms.** Lit gives three units of composition:
+  custom elements (for a piece with its own state or styles), template
+  functions (for a piece with neither), and reactive controllers (for a
+  piece of lifecycle). Those are used, and nothing from outside Lit.
+- **One file, one job**, named for the thing it renders
+  ([layout.md](layout.md)).
+
+### The shell and its parts
+
+The shell holds the three pieces of state the parts share, each with
+one source, and derives everything else in `render`: the definitions,
+the settings, and the service worker's status.
+
+The definitions: `src/system-table.ts` fetches the bundled `units.txt`
+and parses it on the main thread (a few milliseconds), once, and
+`src/system-build.ts` builds the table from the definitions at the
+ceiling of the retry schedule in force, memoizing one table by its
+ceiling, so that the shell, which starts the load when it is connected
+and shows a loading message until the promise settles, builds in
+`render` and rebuilds only when the precision limit setting moves the
+ceiling. Loading the components never waits on the table. Should the
+fetch fail, or the file fail to parse or build (which `units.test.ts`
+guards against), the shell says so instead of rendering a converter;
+`tableOf` is the three-state view (loading, failed, built) as a pure
+function.
+
+The settings ([settings.md](settings.md)): the shell reads them from
+`localStorage` through `settings.ts` when it starts, validated and
+migrated, and hands the converter the `NumberContext` they make
+(`contextOf`) and the ratio notation's width. `<settings-panel>`
+(`src/settings-panel.ts`), the settings sheet, takes the settings and
+whether it is open as properties and reports each change the user makes
+as a `settings-change` event, and each reset, of one setting or of all,
+as `settings-reset`, which the shell applies alike, clamping what
+depends on it and saving, and hands back what the clamp moved for the
+panel to say; its closing itself is `settings-close`, which the shell
+follows. The sheet is a non-modal `<dialog>` fixed to the viewport, a
+bottom sheet on a phone and a side sheet on a desktop, opened from the
+cog in the header's corner (`<settings-button>`,
+`src/settings-button.ts`), whose `click` flips the shell's open state
+and which takes focus back when the sheet closes. The probe behind the
+sheet's "Measure this device" button (`src/limits.ts`) runs only when
+asked, and its proposal is applied as a change like any other.
+
+The worker's status: `<app-footer>` (`src/app-footer.ts`) takes it as a
+property, which a reactive controller (`src/subscription.ts`) mirrors
+into the shell for as long as it is connected, and checks for an update
+when its build number is tapped ([offline.md](offline.md)).
+
+The buttons are three small components, each the one place its look is
+defined: `<app-button>` for a button with words in it (Done, Apply,
+Retry), `<link-button>` for one that reads as a link (the resets, the
+footer's reload and update), and `<step-button>` for a stepper's `−` or
+`+` beside a number input. `src/styles.ts` holds the feedback every
+button gives and the hint line, the styles the components share.
+
+### Not in this design
+
+A settings store or state manager: the settings are one value, one
+reducer line (`clampSettings({...settings, ...change})`) and one effect
+(`saveSettings`), and a class around that would hide the simplest part
+of the app. Signals (`@lit-labs/signals`) would make the status and the
+settings globally readable, which is exactly what keeps a flow hard to
+follow; worth revisiting only if the UI gains routes or more than one
+page. `@lit/task` for the definitions load: one promise set on one
+state field is already the idiom, and `tableOf` gives the three-state
+view without a dependency. `@lit/context` for the worker status: two
+properties on two children is not deep enough to need it. Each would
+cover a part of the shell, but the shell has one async value, one
+subscription and two levels of nesting, which is not enough to pay for
+a library, and the rule is nothing beyond Lit.
+
+### The converter and its lines
+
+`<unit-converter>` (`src/unit-converter.ts`) is two text inputs, "you
+have" and "you want", and an output area. It takes the table, the
+`NumberContext` and the ratio notation's width as properties (`table`,
+`context`, `ratio`), and its only state is the two strings; on every
+change it runs the pipeline and renders either the lines or the error.
 
 The core's surface to the UI is `(table, haveText, wantText, context) →
-Result`, and `src/core/pipeline.ts` is that function: `convertText` parses
-and evaluates each text and converts the pair, and returns each step's own
-error, a text's tagged with the side (`have` or `want`) it came from, so
-that the component can mark the input at fault, and the conversion's
-about the pair. `src/outcome.ts` turns that result into the lines the
-output area shows: it calls the display's `show` and `roundTerms`, and
-parses the `want` again to write it (below), which are views of the
-result rather than steps of it, and it has no DOM dependency, so
-`outcome.test.ts` checks the lines under Node. `evaluateText` is the first
-half alone; with the `want` field blank, the outcome is what `have` is in
-the primitives (`1 in = 0.0254 m`), as GNU units does.
+Result`, and `src/core/pipeline.ts` is that function: `convertText`
+parses and evaluates each text and converts the pair, and returns each
+step's own error, a text's tagged with the side (`have` or `want`) it
+came from, so that the component can mark the input at fault, and the
+conversion's about the pair. `evaluateText` is the first half alone;
+with the `want` field blank, the outcome is what `have` is in the
+primitives (`1 in = 0.0254 m`), as GNU units does. `src/outcome.ts`
+turns the result into the lines the output area shows: it calls the
+display's `show` and `roundTerms`, and parses the `want` again to write
+it, which are views of the result rather than steps of it, and it has
+no DOM dependency, so `outcome.test.ts` checks the lines under Node.
 
-A conversion into a function is one line, the `have` and then the call at
-the recovered argument, `tempF(212) = tempC(100)`, the argument written as
-a count of the unit the function's parameter takes followed by that
-unit's text as a `want`'s is written, and by nothing when the unit is
-`1`, as for a parameter without an annotation. There is
-no reciprocal line: a call is not a ratio, so there is no other way round,
+A result line is two expressions and a relation: the have as it was
+read, and the result composed from the values the display wrote and the
+units as they were read, by the grammar's own operators, the value as
+the first factor of its unit (`36 m / s`), or multiplying it whole with
+`*` where it leads with a number (`5.28 × 1000 ft`), the terms of a list
+summed, the argument inside the call. The printer writes both sides
+canonically, with `×` for the screen, so every line can be typed back
+as a have, and the component styles the numbers among the printer's
+pieces. A `<copy-button>` beside each line (`src/copy-button.ts`) copies
+the result as the printer writes it with `*`, which parses: typed back
+as a have and converted into the line's own unit it gives the line
+again, which `outcome.test.ts` checks.
+
+The line is written so that it reads as the expression it means: a
+`want` with a magnitude of its own is written with a multiplication
+sign (`1 mi = 5.28 × 1000 ft`), since juxtaposing two numbers would read
+as one product, and a `want` that is a sum, a difference or a negation
+is parenthesized (`1 m ≈ 3.0284676 (ft + in)`,
+`1 m ≈ -3.2808399 (-ft)`), since `3.0284676 ft + in` would read as
+`(3.0284676 ft) + in` and `-3.2808399 -ft` as a difference. The
+component parses the `want` once more to tell, which is the same parse
+the pipeline did a moment earlier.
+
+**The relation and the note.** The output shows the two texts and the
+value between `=` or `≈`, decided by `show` of `src/core/display.ts` at
+the digits and in the rounding mode of the user's settings (eight
+digits, half even, by default; the digits asked for are kept apart from
+the working precision, [numbers.md](numbers.md), "Certification and the
+display rule"): `=` when the value's radius is zero and every digit it
+holds is shown, `≈` otherwise. What follows the relation is what `show`
+certifies: every digit asked for when the value allows, and otherwise a
+note in parentheses after the line, "8 of 12 digits are certain" with
+the certified digits shown, "within 2e-30 of zero" with the value shown
+as `0`, or "the digits are not certified" for a radius not known. In
+decimal mode every line is `=`, except a value whose rounding the
+ceiling left uncertified, which is written with the `≈` sign bearing a
+dot above it and a note. A condition left undecided at the ceiling
+makes every line's relation `≈` and adds a warning per condition,
+styled apart from the notes on digits ([functions.md](functions.md),
+"An undecided condition").
+
+**A unit list** is shown as the sum of its terms, each unit written as
+a single `want` would be, with `roundTerms` applied at the display
+precision in the display's mode, and the relation `=` only when every
+term is exact by the same rule. The first term keeps its sign and each
+later one is joined by `+` or `-` and written unsigned, so that
+`-1 m ≈ -3 ft - 3.3700787 in` reads as the expression it is and could
+be typed back as a `have`. A term of zero is left out, as it would be
+in speech (`1 hr + 1 s`), except that a sum of nothing but zeros keeps
+its last term (`0 in`). A list is certified on its unrounded terms, its
+remainder is rounded at the digits certified, and its counts, exact
+integers, carry no note; when the rounding carried into an earlier unit
+the remainder left is a new value, judged on its own, and a last term
+that cannot be told from zero is left out as a term of zero is, with
+its note, unless it is the only term.
+
+**A conversion into a function** is one line, the `have` and then the
+call at the recovered argument, `tempF(212) = tempC(100)`, the argument
+written as a count of the unit the function's parameter takes followed
+by that unit's text as a `want`'s is written, and by nothing when the
+unit is `1`, as for a parameter without an annotation. There is no
+reciprocal line: a call is not a ratio, so there is no other way round,
 as there is none for a list.
 
-The output shows the two texts and the value between `=` or `≈`, decided by
-`show` of `src/core/display.ts` at the digits and in the rounding mode of
-the user's settings (eight digits, half even, by default; the
-digits asked for are kept apart from the working precision as "Precision
-and rounding" describes): `=` when the value's radius is zero and every
-digit it holds is shown, `≈` otherwise. What follows the relation is what
-`show` certifies: every digit asked for when the value allows, and
-otherwise a note in parentheses after the line, "8 of 12 digits are
-certain" with the certified digits shown, "within 2e-30 of zero" with the
-value shown as `0`, or "the digits are not certified" for a radius not
-known. A list is certified on its unrounded terms, its remainder is
-rounded at the digits certified, and its counts, exact integers, carry no
-note; when the rounding carried into an earlier unit the remainder left
-is a new value, judged on its own, and a last term that cannot be told
-from zero is left out as a term of zero is, with its note, unless it is
-the only term; the reciprocal line shows its own kind. The settings are the shell's
-(`src/settings.ts`, kept in `localStorage`, validated on the way in with
-the dependent ones clamped, so that a stale entry never leaves the app
-without a consistent context): The display digits, the rounding mode,
-the mode with what belongs to it (exact mode the notation its exact
-values are written in, digits or a ratio in lowest terms; decimal mode
-its working digits, locked to the display digits or an extended count;
-devdocs/design/settings-modes.md, devdocs/design/working-digits.md), the precision limit in
-digits and the significand limit in bits (the plan's D16 and D29,
-devdocs/design/settings-limits.md), reaching the component as its `context`
-property, the same `NumberContext` the pipeline takes, whose ceiling,
-the top of the retry schedule, is derived from the precision limit and
-which carries the working digits when they are extended, and the ratio
-notation's width, a display setting that reaches the component as its
-`ratio` property and the core never sees but through `show`. The
-settings and the core speak one vocabulary (D29): `Settings.displayDigits`
-is `NumberContext.precision`, the grid's digits below the pipeline;
-`Settings.significandLimitBits` is `NumberContext.significandLimitBits`;
-`Settings.precisionLimitDigits` derives `NumberContext.ceiling` through
-`ceilingFor` and has its top under the significand limit from
-`precisionLimitFor`, with `MIN_SIGNIFICAND_LIMIT_BITS` and
-`MAX_SIGNIFICAND_LIMIT_BITS` the significand limit's floor and hard
-bound; `contextOf` builds the one from the other. A change the panel reports goes
-through the shell's clamp, and what the clamp moved goes back to the
-panel (`clampsOf`), which says under each setting moved from what to
-what and to fit which setting; an edit past a bound the panel refuses
-itself, naming the bound and its setter (`refusalOf`); the words are
-settings-lines.ts's. A button in the panel runs the probe of
-`src/limits.ts`, which times the costliest operation the app has on
-each axis at doubling sizes (an exact product with its reduction for
-the significand limit, and for the precision limit one expression of
-the four costliest built-ins of the kernel benchmark's report,
-evaluated at the candidate's ceiling) within the stored budget a pass
-and proposes the largest limits that stay within it, with the timings
-behind them; the panel shows the proposal and the user applies it as a
-change like any other. The probe runs only when asked, and it measures
-time alone (the plan's D16 says why memory is left out). The line is written so
-that it reads as the expression it means: a `want` with a magnitude of its
-own is written with a multiplication sign (`1 mi = 5.28 × 1000 ft`), since
-juxtaposing two numbers would read as one product, and a `want` that is a
-sum, a difference or a negation is parenthesized (`1 m ≈ 3.0284676 (ft + in)`,
-`1 m ≈ -3.2808399 (-ft)`), since `3.0284676 ft + in` would read as
-`(3.0284676 ft) + in` and `-3.2808399 -ft` as a difference. The component
-parses the `want` once more to tell, which is the same parse the pipeline
-did a moment earlier.
-
-A conversion into a unit list is shown as the sum of its terms, each unit
-written as a single `want` would be, with `roundTerms` applied at the
-display precision in the display's mode, and the relation `=` only when
-every term is exact by the same rule. The first term keeps its sign and each
-later one is joined by `+` or
-`-` and written unsigned, so that `-1 m ≈ -3 ft - 3.3700787 in` reads as
-the expression it is and could be typed back as a `have`. A term of zero is
-left out, as it would be in speech (`1 hr + 1 s`), except that a sum of
-nothing but zeros keeps its last term (`0 in`).
-
-GNU units answers every conversion twice, with the number to multiply by
-(`* 36`) and the number to divide by (`/ 0.027777778`). Dividing by the
-second number converts the other way, from `want`s to `have`s, so it is the
-reverse conversion in disguise: one `in` is `0.027777778` of `3 ft`. The
-converter shows that reverse conversion on a second line, written as the
-first line is with the sides swapped, so that both read as statements about
-quantities and could be typed back as a `have`:
+**The reciprocal.** GNU units answers every conversion twice, with the
+number to multiply by (`* 36`) and the number to divide by
+(`/ 0.027777778`). Dividing by the second number converts the other
+way, from `want`s to `have`s, so it is the reverse conversion in
+disguise: one `in` is `0.027777778` of `3 ft`. The converter shows that
+reverse conversion on a second line, written as the first line is with
+the sides swapped, so that both read as statements about quantities and
+could be typed back as a `have`:
 
 ```
 3 ft = 36 in
 in ≈ 0.027777778 × 3 ft
 ```
 
-The `have` takes the unit's place and is written as a unit is, by the same
-rule as a `want`: with a multiplication sign when it starts with a number,
-since `0.027777778 3 ft` would read as one product, and parenthesized when
-it is a sum, a difference or a negation (`in ≈ -0.027777778 (-3 ft)`). Each
-line's relation is decided from its own value: `2 m = 2 m` and `m = 0.5 ×
-2 m` are both exact, while `1 in = 2.54 cm` has the approximate `cm ≈
-0.39370079 × 1 in`. The reciprocal is the ball quotient of one by the
-ratio the pipeline returns (the ratio of `want` to `have`, as `convert`
-would give it with the
-two swapped), and it stays in the component: it is a second view of the
-same value, like the rounding, not a step of the conversion. GNU units'
-verbose form writes the second line as `3 ft = (1 / 0.027777778) in`
-instead, which is true but reads as nothing; the swapped line says what
-the number is for.
+The `have` takes the unit's place and is written as a unit is, by the
+same rule as a `want`: with a multiplication sign when it starts with a
+number, since `0.027777778 3 ft` would read as one product, and
+parenthesized when it is a sum, a difference or a negation
+(`in ≈ -0.027777778 (-3 ft)`). Each line's relation is decided from its
+own value: `2 m = 2 m` and `m = 0.5 × 2 m` are both exact, while
+`1 in = 2.54 cm` has the approximate `cm ≈ 0.39370079 × 1 in`. The
+reciprocal is the ball quotient of one by the ratio the pipeline
+returns (the ratio of `want` to `have`, as `convert` would give it with
+the two swapped), and it stays in the component: it is a second view of
+the same value, like the rounding, not a step of the conversion. GNU
+units' verbose form writes the second line as `3 ft = (1 / 0.027777778)
+in` instead, which is true but reads as nothing; the swapped line says
+what the number is for.
 
-Only a conversion into one unit has a reciprocal. That conversion is one
-ratio, `have / want`, and the reciprocal is the same ratio the other way
-round, `want / have`, which says the same thing. A conversion into a unit
-list is not a ratio but a sum, `3 ft + 3.3700787 in`, a positional way of
-writing one quantity, and there is no other way round for it: inverting
-each term gives numbers that add up to nothing, `1 / have` in the same
-list never conforms (its dimension is the inverse), and the reciprocal of
-the total in any one unit of the list would be a reciprocal of a different
-conversion, for a unit chosen by some rule the user did not ask for. GNU
-units prints no reciprocal for a unit list either. So a list, typed or
-named, gets no second line, nor does a blank `want`, which shows a
-definition, as GNU units shows one without a reciprocal. A value of zero
-has no reciprocal (`0 ft = 0 in`, and nothing is a multiple of `0 ft`), nor
-has one that cannot be told from zero, and the line is left out rather
-than shown as anything, as it is whenever the quotient fails.
+Only a conversion into one unit has a reciprocal. That conversion is
+one ratio, `have / want`, and the reciprocal is the same ratio the
+other way round, `want / have`, which says the same thing. A conversion
+into a unit list is not a ratio but a sum, `3 ft + 3.3700787 in`, a
+positional way of writing one quantity, and there is no other way round
+for it: inverting each term gives numbers that add up to nothing,
+`1 / have` in the same list never conforms (its dimension is the
+inverse), and the reciprocal of the total in any one unit of the list
+would be a reciprocal of a different conversion, for a unit chosen by
+some rule the user did not ask for. GNU units prints no reciprocal for
+a unit list either. So a list, typed or named, gets no second line, nor
+does a blank `want`, which shows a definition, as GNU units shows one
+without a reciprocal. A value of zero has no reciprocal (`0 ft = 0 in`,
+and nothing is a multiple of `0 ft`), nor has one that cannot be told
+from zero, and the line is left out rather than shown as anything, as
+it is whenever the quotient fails.
+
+### Messages
 
 The errors the core returns are values with spans and dimensions, not
-sentences; `src/messages.ts` puts them into words, quoting the text at fault
-and formatting dimensions with `formatDimension`, so that the wording is
-tested under Node.js beside the core rather than in a browser. A sum that
-does not conform is worded as the same mismatch between `have` and `want`
-would be, with the two operands quoted in place of the two texts. Richer UX
-later is a matter of new components that edit the same two strings or read
-the table: autocomplete lists `table.units` and `table.prefixes`, unit
-buttons insert text, and error spans drive highlighting. None of that needs
-changes to the core.
+sentences; `src/messages.ts` puts them into words, quoting the text at
+fault and formatting dimensions with `formatDimension`, so that the
+wording is tested under Node beside the core rather than in a browser.
+A sum that does not conform is worded as the same mismatch between
+`have` and `want` would be, with the two operands quoted in place of
+the two texts. The two size limits refuse with errors of their own, and
+the message words them apart ([numbers.md](numbers.md), "Which limit a
+refusal names").
+
+Richer UX is a matter of new components that edit the same two strings
+or read the table: autocomplete lists `table.units` and
+`table.prefixes`, unit buttons insert text, and error spans drive
+highlighting. None of that needs changes to the core.

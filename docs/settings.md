@@ -24,13 +24,12 @@ has no such link, so a glance shows what has been changed. There are
 six settings, kept in the
 browser so that they survive a reload (under a format version of their
 own, so that a later build migrates what an earlier one stored;
-`devdocs/design/settings-storage.md`; the surface is `devdocs/design/settings-surface.md`
-and the controls `devdocs/design/settings-controls.md`). The mode carries one more under it, which
+`devdocs/settings.md` is the design). The mode carries one more under it, which
 one depending on the mode: exact mode the notation its exact values are
 written in, decimal mode its working digits. Every number carries its
 unit, on screen after the input and in the stored key: the display
 digits and the precision limit in decimal digits, the significand limit
-in bits, the probe budget in milliseconds (`devdocs/design/settings-limits.md`).
+in bits, the probe budget in milliseconds (`devdocs/settings.md`, "The model").
 
 - **Display digits** (`displayDigits` in the stored settings): how many
   significant digits an answer is shown with, from 1 up to the
@@ -60,7 +59,7 @@ in bits, the probe budget in milliseconds (`devdocs/design/settings-limits.md`).
   the display digits is rounded to them as it is read), each unit, and each function
   call as a whole, `gamma(4.5)` being computed to whatever precision it
   takes for its rounding to be certified and then rounded once
-  (`devdocs/design/decimal-mode.md`). A value with the digits asked for or fewer is
+  (`devdocs/numbers.md`, "Decimal mode"). A value with the digits asked for or fewer is
   exact in either mode (`1 ft` in `in` is `= 12 in`). In the rare case
   that a function's rounding cannot be certified at the precision limit,
   the value is rounded all the same and the line is written with the `≈`
@@ -89,8 +88,7 @@ in bits, the probe budget in milliseconds (`devdocs/design/settings-limits.md`).
   `5000 / (127 in)`, and bare when nothing follows it. It is a setting
   of exact mode alone, since in decimal mode every value is a decimal
   of the display digits, which its digits write entire; choosing decimal
-  mode and coming back finds digits again. `devdocs/design/fractions.md` and
-  `devdocs/design/ratio-width.md` are the design.
+  mode and coming back finds digits again. `devdocs/notation.md` is the design.
 - **Working digits** (decimal mode, under the mode in the panel;
   `mode.working` in the stored settings, locked to the
   display digits or `extended` with a count): locked to the display
@@ -106,7 +104,7 @@ in bits, the probe budget in milliseconds (`devdocs/design/settings-limits.md`).
   a directed rounding mode the answer is the neighbor of a value that
   sits on the grid, as that mode asks (`0.099999999` toward zero), since
   the working digits change what is rounded, never how.
-  `devdocs/design/working-digits.md` is the design.
+  `devdocs/numbers.md` ("The working digits") is the design.
 - **Precision limit**, in digits (`precisionLimitDigits` in the stored
   settings): the most digits any grid may be asked for ("How a number
   is held" below says what the grid is), 1,000 by default: the precision limit on
@@ -270,24 +268,4 @@ one limit on exact values, and it also bounds the precision limit, since
 a grid point at the ceiling must fit within it with room for a product
 of two: at 65,536 bits the precision limit may be 2,453 digits.
 
-**Why four times the limit plus ten.** The passes of exact mode are a
-geometric schedule: the first computes at the display digits plus ten, and each
-later one at twice the one before, so the passes together cost at most
-about twice the pass that succeeds, whatever it is. Cancellation costs
-digits, `k` of them when two values agree to `k` digits before they are
-subtracted, and each doubling pays for as many again. The ten is the
-guard of the first pass: a short expression loses a few digits to the
-rounding of each step and a little more to an ordinary cancellation,
-and ten covers that, so that the common case certifies on its first
-pass. The ceiling is the top of the schedule, and it has to be one
-number for every display digits, since the unit table and the constants are
-built once at it. It is set from the largest request the limit allows:
-at display digits equal to the limit, the first pass is the limit plus ten, and
-four times that gives that request two doublings above its first pass,
-two chances to pay for a cancellation, where a smaller request has
-correspondingly more (nine passes at eight digits). Four was chosen as
-the least factor that gives the largest request more than one such
-chance without doubling what the table and the constants cost for
-every setting; the guard of ten and the factor are judgments, not
-measurements, and they moved once, from a fixed ceiling of a thousand
-digits with the digits limited to two hundred, when the precision limit became a setting.
+**Why four times the limit plus ten.** The schedule of passes, and why its factor is four and its guard ten, are explained in `devdocs/numbers.md` ("Working precision and the schedule").

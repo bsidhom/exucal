@@ -29,12 +29,20 @@ without it.
 
 **The terms.** A value is a significand, a rational kept exact until a
 rounding has to happen, times a power of ten that costs nothing
-([numbers.md](numbers.md)). When a value is rounded, its significand is
-snapped onto a decimal grid, an integer of some number of significant
-digits times a power of ten, and the number of digits of the grid is the
-working precision of the arithmetic at that moment; a grid point is
-itself a significand, an integer over one, which is what ties the two
-limits together.
+([numbers.md](numbers.md)). "Significand" is IEEE 754's word for the
+part an exponent scales, and it is the word everywhere in the code and
+the docs over "mantissa": IEEE 754 moved away from that word, and it
+also names the fractional part of a logarithm. When a value is rounded,
+its significand is snapped onto a decimal grid, an integer of some
+number of significant digits times a power of ten, and the number of
+digits of the grid is the working precision of the arithmetic at that
+moment; a grid point is itself a significand, an integer over one, which
+is what ties the two limits together. A rounding adds half a grid cell
+to the value's radius, the error bound that decides which digits are
+certain; the grid is the floor of that error and never its ceiling,
+since a finer grid is necessary for more certain digits and never
+sufficient (cancellation keeps `(2^(1/2))^2 - 2` at a radius of a grid
+cell on every grid).
 
 - **Display digits**, in decimal digits (8 by default): the significant
   digits an answer is shown with. In exact mode the schedule raises the
@@ -58,8 +66,9 @@ limits together.
 - **Precision limit**, in decimal digits (1,000 by default): the most
   digits any grid may be asked for, the cap on the display digits and on
   the working digits, and, through the ceiling of the retry schedule,
-  four times the limit plus ten, the finest grid the app rounds onto, in
-  either mode. The ceiling is derived from it and never set.
+  four times the limit plus the guard of ten (`4 × (L + 10)` for a limit
+  `L`, 4,040 digits at the default), the finest grid the app rounds onto,
+  in either mode. The ceiling is derived from it and never set.
   "Precision" is the word the numeric libraries use for the digit count
   of the working grid (mpmath's `dps`, the `decimal` context's
   precision), and this is the cap on that; "digits limit" would suggest
@@ -87,7 +96,8 @@ limits together.
   limit in force. A reader of mpmath or MPFR, where the precision is the
   width of a binary significand and there is nothing else, should not
   expect the limit to coincide with the precision limit.
-- **Probe budget**, in milliseconds (50 by default, from 10 to 10,000):
+- **Probe budget**, in milliseconds (50 by default; from 10, below which
+  no candidate fits, to 10,000, ten seconds a pass being past any use):
   the time the probe allows one pass. A setting of the probe, not of
   the arithmetic, stored with the rest and never seen by the core.
 
@@ -263,10 +273,12 @@ the totality test over every field of every fixture missing or
 malformed. The migrations are a list indexed by source version, so that
 adding a version is appending one function and one fixture:
 
-- **1 → 2.** Version 1 is the bare six-field object with no `version`
-  field, which is how it is recognized. The migration wraps it in the
-  envelope and changes nothing else, so that the mechanism was exercised
-  end to end before a migration with a semantic change existed.
+- **1 → 2.** Version 1 is the bare object of `digits`, `rounding`,
+  `mode` (a string), `maxDigits`, `maxBits` and `fractions`, with no
+  `version` field, which is how it is recognized. The migration wraps it
+  in the envelope and changes nothing else, so that the mechanism was
+  exercised end to end before a migration with a semantic change
+  existed.
 - **2 → 3.** The mode becomes the nested choice in place of the mode
   name and the `fractions` flag: `{ kind: "decimal", working: { kind:
 "digits" } }` for a stored `"decimal"`, and `{ kind: "exact", notation }`
@@ -277,7 +289,8 @@ adding a version is appending one function and one fixture:
 - **3 → 4.** The notation nests inside the exact mode: the string
   `"digits"` becomes `{ kind: "digits" }` and `"ratio"` becomes `{ kind:
 "ratio", width: 20 }`, the default width, since no earlier build stored
-  one; a decimal mode passes through untouched.
+  one; a decimal mode passes through untouched, and so does a notation
+  that is neither string, for the validation to default.
 - **4 → 5.** `digits` becomes `displayDigits`, `maxDigits`
   `precisionLimitDigits` and `maxBits` `significandLimitBits`, each
   carried over as it is, malformed or not, and a missing one staying
@@ -298,8 +311,14 @@ its range, an `extended` a count the clamp then brings between the
 display digits and the precision limit, and the significand limit is
 accepted in its own range). The validation stays the first line of
 defense, so that the version only has to carry renames and changes of
-meaning, not corruption. Saving writes the envelope at the current
-version, with the build that saved it, every time a setting changes.
+meaning, not corruption. Where a field's default is not the right
+fallback on its own, the migration or the validation of the change that
+added the interaction handles it, case by case and not by a general
+policy; the mode validated as a whole is the one instance. Saving writes
+the envelope at the current version, with the build that saved it, every
+time a setting changes. The storage is read once, when the shell is
+created, and never watched: two tabs do not see each other's changes,
+and the last to save wins.
 
 A stored version above the one the build knows can occur after a deploy
 is rolled back, or when a page served from an old cache runs after a
@@ -339,10 +358,18 @@ them. One rule decides every edit:
 - **An edit within the setting's range is accepted; one outside it is
   refused, and the refusal names the bound and the setting that sets
   it** (`refusalOf`: not a whole number, or below or above a bound with
-  its setter; "at most 2,453 digits under the significand limit"), under
-  the input, with the input marked `aria-invalid` while the line shows.
-  The refusal never leaves the panel, and clears on the next change of
-  the settings.
+  its setter; "At most 2,453 digits under the significand limit.", "At
+  least 8 digits, the display digits.", "A whole number."), under the
+  input, with the input marked `aria-invalid` while the line shows. The
+  refusal never leaves the panel, and clears on the next change of the
+  settings. A refused value does not stay in the input: the panel
+  re-renders, and the input shows the setting in force again. The
+  input's `.value` is bound through Lit's `live()` directive, which
+  compares the bound value with the input's live DOM value rather than
+  with the last value Lit committed, so the snap-back is the render
+  itself and never an imperative write; a plain `.value` binding would
+  not re-set a property whose bound value has not changed, and the
+  refused text would stay.
 - **An accepted edit re-clamps every setting whose range it changed, and
   says so under each setting moved**, once, until the next change that
   comes through the shell ("lowered from 1,000 to 990 digits to fit the
@@ -351,7 +378,8 @@ them. One rule decides every edit:
   the setting moved, from what to what, by which setting, in the order
   moved; the shell computes the report beside the clamp and passes it to
   the panel as a property with the settings (`clampLine`). A refused
-  edit leaves a clamp's line standing.
+  edit leaves a clamp's line standing. A clamp writes the value, so
+  raising the limit back afterwards does not restore what it lowered.
 
 So the bounding setting always wins: setting the significand limit too
 small for the precision limit lowers the precision limit, because a
@@ -415,11 +443,12 @@ limit the composite `sin(atan(exp(1)) + ln(3) radian)`, the four
 costliest routines of the kernel benchmark's report each once
 ([builtins.md](builtins.md)), evaluated through the evaluator at the
 candidate's ceiling against a table of the one primitive the angle
-needs, built at that context. The candidates are powers of two from the
-significand limit's floor, which is tried first so that the size it
-recommends was always timed, and 1, 2 and 5 times a power of ten for the
-precision limit, so the recommendation is a round number by construction;
-each size is timed as the shortest of three runs after one untimed. The
+needs, built at that context. The candidates are the significand
+limit's floor, which is tried first so that the size it recommends was
+always timed, and then the powers of two from 512 up to the hard bound;
+and 1, 2 and 5 times a power of ten for the precision limit, so the
+recommendation is a round number by construction; each size is timed as
+the shortest of three runs after one untimed. The
 budget is per pass, since the schedule's doubling makes an expression
 that runs to the ceiling cost about twice its last pass, so that an
 expression that runs to the finest grid answers within a keystroke. It
@@ -435,6 +464,16 @@ proposal with "Apply", through the same clamp-and-tell as any edit: a
 proposal that lowers a setting the user raised is visible before it
 lands. Applying at once and telling afterwards was set aside, since a
 measurement is information first.
+
+The composite is the elementary routines and not the Gamma and Beta
+families, though a ceiling pass of those costs seconds
+([cost.md](cost.md)): a precision limit low enough to keep such a pass
+within the budget would put out of reach values that are in reach now,
+since a value that certifies is cheap at any digits a user asks for (a
+thousand digits of `gamma(0.3)` take tens of milliseconds) and only an
+expression that never certifies pays for the ceiling pass. What such a
+pass costs is the interface's responsiveness, which is [#118][118]'s
+and not a limit's.
 
 The probe runs only when pressed, on the main thread, for a fraction of
 a second (its freeze is [#163][163]); the button yields a frame before it
@@ -485,20 +524,20 @@ viewport it is a bottom sheet that takes the lower three fifths of the
 screen, so that the inputs and the first lines of the result stay in
 view, and a handle at its top edge drags it to nearly the full height and
 back; the handle is a button, so a keyboard's Enter or Space toggles the
-height as a tap does, and a pointer drag of 24 pixels or more changes it
+height as a tap does, and a pointer drag past 24 pixels changes it
 and marks the press as a drag, so that the click that ends the press is
 not also a tap. The controls scroll inside the sheet, which is a window
 onto its own content: a finger on the sheet scrolls the sheet and a
 finger on the page scrolls the page. On a wide viewport, 60rem and up, it
-is a side sheet along the right edge, the full height, and the shell pads
-`<main>` on the right by the sheet's width while it is open, so that the
-centered 32rem column and the 24rem sheet never overlap. One element, two
-placements by a media query. It closes from its own Done button, from
-Escape (which a non-modal dialog does not handle on its own; the panel
-does) and from the cog, and not on a tap outside it, since on a desktop
-the user may type in the inputs with it open and watch the result, and
-on a phone a tap on the result above the sheet is reading, not
-dismissing. It is closed on every load.
+is a side sheet along the right edge, the full height, with no handle,
+and the shell pads `<main>` on the right by the sheet's width while it
+is open, so that the centered 32rem column and the 24rem sheet never
+overlap. One element, two placements by a media query. It closes from
+its own Done button, from Escape (which a non-modal dialog does not
+handle on its own; the panel does) and from the cog, and not on a tap
+outside it, since on a desktop the user may type in the inputs with it
+open and watch the result, and on a phone a tap on the result above the
+sheet is reading, not dismissing. It is closed on every load.
 
 The on-screen keyboard is part of the design, since the sheet holds
 number inputs: the page declares `interactive-widget=resizes-content` in
@@ -524,19 +563,22 @@ in the top right corner of the page, on the page from the first paint
 and above the inputs, so that it is in the same place whatever the
 result's length. It is built as the copy button is, a `<button>` holding
 an inline SVG, quiet until hovered or focused, with a hit area of at
-least 44 by 44 CSS pixels whatever the glyph's size (the padding pulled
-back by a negative margin, so that the layout sees the icon alone). It
-is a plain button and not a switch: it opens and closes a panel, which is
-a disclosure, so it carries `aria-expanded` for the sheet's state and an
-`aria-label` of "Settings", which a title repeats for the pointer, and
-no switch role. It is first in the tab order, so that the order of focus
-is the order on the screen; Enter and Space open it; its focus ring is
-the browser's own; focus moves into the sheet when it opens and back to
-the cog when it closes. It sits in the shell's header row, absolutely at
-the right edge within the safe area insets, at the title's height, so
-that the centered title does not move. The header is not made sticky: it
-would cost a line of every screen for the one case of a long result, and
-the browser's own scroll to the top is a flick.
+least 44 by 44 CSS pixels whatever the glyph's size (0.625rem of padding
+around the 1.5rem glyph, 44 pixels at 16, the shell pulling it 0.625rem
+past the page's gutter so that the glyph's edge sits at the gutter and
+the hit area past it, where the copy button, which sits in the flow
+beside its line, pulls its padding back with a negative margin instead).
+It is a plain button and not a switch: it opens and closes a panel,
+which is a disclosure, so it carries `aria-expanded` for the sheet's
+state and an `aria-label` of "Settings", which a title repeats for the
+pointer, and no switch role. It is first in the tab order, so that the
+order of focus is the order on the screen; Enter and Space open it; its
+focus ring is the browser's own; focus moves into the sheet when it
+opens and back to the cog when it closes. It sits in the shell's header
+row, absolutely at the right edge within the safe area insets, at the
+title's height, so that the centered title does not move. The header is
+not made sticky: it would cost a line of every screen for the one case
+of a long result, and the browser's own scroll to the top is a flick.
 
 **A change applies as it is made**, on the control's `change` event,
 uniformly: a select or a radio the moment it is picked, a number input
@@ -571,8 +613,11 @@ and the limits once per device.
 
 - **How it is shown.** The display digits: a number input with `−` and
   `+` steppers. The notation, in exact mode: two radios, `digits` and
-  `ratio`, with the width's input and steppers beside `ratio` while it is
-  chosen (the input labelled "Ratio width" for assistive technology).
+  `ratio` (a choice among ways of writing a value is not an on/off
+  toggle, and a radio group shows every value it has, which a third
+  notation would join), with the width's input and steppers beside
+  `ratio` while it is chosen (the input labelled "Ratio width" for
+  assistive technology).
 - **How it is computed.** The mode: two radios, `exact` and `decimal`,
   since a choice of two is seen whole as radios, one tap, both names on
   screen, and a select is as wide as its widest option's text (sentences
@@ -583,11 +628,17 @@ and the limits once per device.
   while it is checked (the input labelled "Extended working digits"),
   the two dependents swapping places under the Mode control as the mode
   changes, which shows what each belongs to. The rounding: a select of
-  the seven modes (`ROUNDING_LABELS`).
+  the seven modes (`ROUNDING_LABELS`), the select kept for a choice too
+  long to lay out as radios.
 - **How much it may cost.** The precision limit and the significand
   limit: a number input each, without steppers, typed with intention and
   rarely; the probe's budget likewise; the probe's button, "Measure this
   device", and its proposal with Apply.
+
+The labels are "Display digits", "Notation", "Mode", "Working digits",
+"Rounding", "Precision limit", "Significand limit" and "Probe budget",
+with the probe's button under "Limits"; the mode's and the notation's
+values are the bare lowercase names they have in the storage.
 
 Each control emits the whole of what it changes, so a change of mode is
 one event carrying the chosen mode's variant at its defaults. The
@@ -603,11 +654,14 @@ nudged by a few; the input stays for a jump to a far value.
 Under each control a line, always shown, cut to what a user needs at the
 control: each number's line opens with its range and names the setting
 that sets a bound where the chain does, from `rangesOf` (`rangeLine`:
-"From 1 to 1,000 digits, the precision limit." for the display digits;
-"From 1 to 2,453 digits under the significand limit." for the precision
-limit; "From 358 to 1,048,576 bits." for the significand limit, whose
-bounds are the app's), the numbers being the settings in force, so the
-range moves when its setter does; then one sentence on what the setting
+"From 1 to 1,000 digits, up to the precision limit." for the display
+digits; "From 8 to 1,000 digits, from the display digits up to the
+precision limit." for the working digits; "From 1 to 2,453 digits, up to
+the significand limit." for the precision limit; "From 358 to 1,048,576
+bits." for the significand limit, whose bounds are the app's; and "The
+width from 1 to 1,000 digits." opening the notation's line while `ratio`
+is chosen), the numbers being the settings in force, so the range moves
+when its setter does; then one sentence on what the setting
 does, following the mode where the meaning does (`displayDigitsLine`,
 `workingDigitsLine`, `precisionLimitLine`, `significandLimitLine`,
 `notationLine`, `budgetLine`, `MODE_LINES`, `ROUNDING_LINES`). Showing the
@@ -648,7 +702,8 @@ room in either.
   `extendedWorkingOf`, and the validators.
 - `settings-lines.ts`: the units, the names, the group headings, the
   rounding labels, the lines, the refusal, the clamp's line, the resets'
-  text, the probe's line and proposal, the guide link.
+  text (`defaultLine`, `RESET_ALL`), the probe's line and proposal, the
+  guide link.
 - `settings-panel.ts`: the sheet, the groups and their controls, the
   events `settings-change`, `settings-reset` and `settings-close`.
 - `settings-button.ts`, `step-button.ts`, `link-button.ts`,

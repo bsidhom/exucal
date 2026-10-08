@@ -17,8 +17,9 @@ only when someone remembers it is not run: three of them once failed
 unnoticed for a whole stage, two of them before reaching their
 assertions. The stress tools ([benchmarks.md](benchmarks.md), "The stress
 tools") run for minutes and are run by hand, never by `pnpm test:all`.
-Each core module but the two smallest, `span.ts` and `result.ts`, has a
-`*.test.ts` beside it.
+Each core module but `span.ts`, `result.ts` and `fixed-incbeta.ts`,
+which is reached only through `builtins/incbeta.test.ts` and the sweep,
+has a `*.test.ts` beside it.
 
 ## What a test may depend on
 
@@ -98,8 +99,9 @@ operation run as the evaluator runs it, and the result required to be
 exact and the rounding of the exact result where that can be formed. Each
 function joins the sweep by the map of built-ins with an oracle rule: the
 domain predicate, an exact reference over the midpoints (the identity
-`a = b × div(a, b) + mod(a, b)`, closed forms at a parameter of one), and
-bounds on the magnitude of the true result.
+`a = b × div(a, b) + mod(a, b)`, and closed forms at a parameter of one,
+`x^a` for `incbetareg(a, 1, x)` and `1 - (1 - x)^b` for
+`incbetareg(1, b, x)`), and bounds on the magnitude of the true result.
 
 At the text level, `src/edges.sweep.ts` runs `parseExpr`, `evaluateText`
 and `convertText` (into `hr;min;s`, `time` and `ft;in` at both edges) on

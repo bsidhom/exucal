@@ -2,7 +2,7 @@
 // `sinCosFixed`, the routines behind the built-ins `sin`, `cos` and `tan`
 // (builtins/trig.ts), which share one reduction and one series, and
 // `atanFixed`, behind the inverses (builtins/inverse-trig.ts), which reach
-// `asin`, `acos` and `atan2` through it. docs/calculator-plan.md (D9, D10
+// `asin`, `acos` and `atan2` through it. devdocs/history/calculator-plan.md (D9, D10
 // and tasks 3.9 and 3.10) is the design.
 //
 // The argument is reduced by the nearest multiple of `pi/2`: `x = n pi/2 +

@@ -1,6 +1,6 @@
 // `sin(x)`, `cos(x)` and `tan(x)`: the trigonometric functions of an angle,
-// on the kernel's `sinCosFixed` (fixed-trig.ts). docs/builtins.md is the
-// design and docs/calculator-plan.md (task 3.9) places them; they share a
+// on the kernel's `sinCosFixed` (fixed-trig.ts). devdocs/design/builtins.md is the
+// design and devdocs/history/calculator-plan.md (task 3.9) places them; they share a
 // module because they share the reduction and the series, which the
 // kernel computes once for both the sine and the cosine. The rule requires
 // the `radian` kind (D11) and hands the kernel the magnitude, which is in

@@ -4,7 +4,7 @@ Implemented, in the seven steps at the end, with three departures from
 the text below: `styles.ts` shares the button and hint rules but leaves
 the converter's control look where it is, since the converter was not to
 change; `isMaxBits` stays, for `loadSettings` and the bench; and
-docs/calculator-plan.md is left as it is, since it records the tasks as
+devdocs/history/calculator-plan.md is left as it is, since it records the tasks as
 they landed. The questions for the UX step still stand, but one is answered since:
 the update check moved out of the settings panel into the footer, where
 tapping the build number checks and the footer's one status slot reports
@@ -388,8 +388,8 @@ retry, the update check, the footer link).
    comment moves with its code).
 7. Docs: the file lists in README.md ("Repository layout") and
    ARCHITECTURE.md (the table at the end and "UI"), and the three places
-   that say which file holds a control (docs/decimal.md 4.7,
-   docs/fractions.md, docs/calculator-plan.md D16) now name
+   that say which file holds a control (devdocs/design/decimal.md 4.7,
+   devdocs/design/fractions.md, devdocs/history/calculator-plan.md D16) now name
    `settings-panel.ts`.
 
 New Node tests: `rangesOf` (in `settings.test.ts`), `checkReport` and
@@ -402,7 +402,7 @@ enough that what they do is visible in the template.
 The layout above is meant to leave these open rather than answer them:
 whether the settings become a dialog or a page of their own (the panel
 already takes everything by property, so it can move; answered since
-by S4 of docs/settings-plan.md, docs/settings-surface.md: a non-modal
+by S4 of devdocs/history/settings-plan.md, devdocs/design/settings-surface.md: a non-modal
 dialog, a sheet over the page), whether the
 limits and the probe are "advanced" settings apart from digits, rounding
 and mode (the field list splits in two), and where "Check for updates"

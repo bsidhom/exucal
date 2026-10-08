@@ -1,6 +1,6 @@
 // The radius of a ball: a coarse upper bound on how far a computed midpoint
-// may lie from the value it stands for. docs/calculator-plan.md (D3 and task
-// 1.3) is the design; docs/calculator.md ("The precision model") says what
+// may lie from the value it stands for. devdocs/history/calculator-plan.md (D3 and task
+// 1.3) is the design; devdocs/history/calculator-study.md ("The precision model") says what
 // the ball is for. This module is the radius alone: ball.ts pairs one with
 // a midpoint, and quantity.ts makes that ball every magnitude.
 //

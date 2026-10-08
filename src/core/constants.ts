@@ -1,7 +1,7 @@
 // The constants the kernel computes on demand and memoizes: `pi` and `e`
 // (`exp(1)`); the logarithms' `ln(2)` and `ln(10)` are memoized the same
-// way in fixed-log.ts, which computes them. docs/calculator-plan.md (D10,
-// tasks 2.8 and 3.6) is the design and docs/calculator.md ("Elementary
+// way in fixed-log.ts, which computes them. devdocs/history/calculator-plan.md (D10,
+// tasks 2.8 and 3.6) is the design and devdocs/history/calculator-study.md ("Elementary
 // functions") the measurement behind it: no digits are shipped, since a
 // thousand digits cost under a millisecond to compute and a stored table
 // would cost more payload than it saves.

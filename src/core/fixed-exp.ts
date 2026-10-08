@@ -1,7 +1,7 @@
 // The exponential on the kernel: `expFixed`, the routine behind the
 // built-in `exp` (builtins/exp.ts) and the log-space route of a power
 // (ball.ts), and `sinhCoshFixed`, behind the hyperbolic functions
-// (builtins/hyperbolic.ts). docs/calculator-plan.md (D9 and tasks 3.6 and
+// (builtins/hyperbolic.ts). devdocs/history/calculator-plan.md (D9 and tasks 3.6 and
 // 3.11) is the design.
 //
 // The argument is reduced by halving: `r = x / 2^k` with `k` chosen so that

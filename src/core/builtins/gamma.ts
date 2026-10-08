@@ -1,8 +1,8 @@
 // The Gamma family: `digamma(x)`, the logarithmic derivative of the
 // Gamma function, `lgamma(x)`, the logarithm of its magnitude, and
 // `gamma(x)` itself, on the kernel's `digammaFixed` and `lgammaFixed`
-// (fixed-gamma.ts). docs/special.md ("The Gamma and Beta families") is
-// the design and docs/calculator-plan.md (tasks 6.2 and 6.3) places them.
+// (fixed-gamma.ts). devdocs/design/special.md ("The Gamma and Beta families") is
+// the design and devdocs/history/calculator-plan.md (tasks 6.2 and 6.3) places them.
 // Every one takes a plain number and gives one.
 //
 // A positive argument of moderate size goes to the kernel at the working

@@ -1,4 +1,4 @@
-// The edge sweep at the text level (docs/calculator-plan.md, H.10):
+// The edge sweep at the text level (devdocs/history/calculator-plan.md, H.10):
 // `parseExpr`, `evaluateText` and `convertText` on the reproductions of
 // every issue filed against stage 4's code, in both modes, with `show` and
 // `roundTerms` called as outcome.ts calls them, so that the

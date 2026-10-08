@@ -1,7 +1,7 @@
 // The way out of the kernel for a result whose binary exponent cannot be
 // formed: the decimal digits of a `Floating` (fixed.ts) found in log space.
-// docs/decimal.md ("The kernel's boundary") is the design and
-// docs/calculator-plan.md (task 4.9) places it; it sits above the kernel,
+// devdocs/design/decimal.md ("The kernel's boundary") is the design and
+// devdocs/history/calculator-plan.md (task 4.9) places it; it sits above the kernel,
 // since it calls the kernel's logarithm and exponential, and below the
 // ball, which it hands a ball to (the built-ins that return a `Floating`,
 // `exp`, `sinh` and `cosh`, and the log-space power of ball.ts take their

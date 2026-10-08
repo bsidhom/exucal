@@ -1,6 +1,6 @@
 // The display rule: what a ball is shown as, how many of its digits are
-// certain, and whether the display may say `=`. docs/calculator.md ("The
-// precision model") states the rule and docs/calculator-plan.md (D7, tasks
+// certain, and whether the display may say `=`. devdocs/history/calculator-study.md ("The
+// precision model") states the rule and devdocs/history/calculator-plan.md (D7, tasks
 // 1.9 and 2.4) places it. `=` is shown when the radius is zero and the
 // digits displayed are all the digits held; everything else is `≈`. So a
 // value that passes through an irrational step and comes out looking
@@ -22,13 +22,13 @@
 // per-operation stage displays. The retry loop of the pipeline (2.5) keeps
 // `partial` and `zero` from reaching the display except at the ceiling.
 //
-// In decimal mode every value is exact (D26; docs/decimal-mode.md), so the
+// In decimal mode every value is exact (D26; devdocs/design/decimal-mode.md), so the
 // rule writes `=` for every line there, except for a value flagged
 // `uncertified`, a step rounded at the ceiling without its digits
 // certified, which is the kind `uncertified`: its digits, which the
 // outcome writes with the `≈` sign bearing a dot above it and a note.
 //
-// With the ratio notation at a `width` (docs/ratio-width.md, "The rule";
+// With the ratio notation at a `width` (devdocs/design/ratio-width.md, "The rule";
 // D28 amending D21), an exact value is written entire when its digits fit
 // the width: a whole number by the decimal display at the width
 // (`= 3486784401` for `3^20` at twenty), any other exact value as its
@@ -77,7 +77,7 @@ import {
 /**
  * The smallest positive value within the exponent bound,
  * `1e-1000000000000000000`: what a zero's bound below it is written as
- * (docs/fractions.md, "A zero's bound at the edges"; #67). Nothing holds
+ * (devdocs/design/fractions.md, "A zero's bound at the edges"; #67). Nothing holds
  * a radius to the exponent bound, and a power of a ball around zero can
  * carry its exponent to a hundred thousand digits; this is larger than
  * any such bound, so the line stays sound, and the shortest that can be
@@ -109,7 +109,7 @@ function zeroBoundUnclamped(ball: Ball): Scaled {
 /**
  * The non-integer `s` as a ratio of two whole numbers, with the numerator
  * signed, when its parts have at most `width` digits between them
- * (docs/ratio-width.md, "The rule", rules 3 and 4), and `undefined` when
+ * (devdocs/design/ratio-width.md, "The rule", rules 3 and 4), and `undefined` when
  * they do not. First the fraction in lowest terms, the ordinary one with
  * the power of ten multiplied back in (`127/50`, `1/10000000`); when that
  * does not fit, the canonical significand as the ratio with its power of
@@ -165,7 +165,7 @@ function magnitude(n: bigint): bigint {
 export type Shown =
   /**
    * A decimal-mode value one of whose steps was rounded at the ceiling
-   * without its digits certified (D26; docs/decimal-mode.md, "The
+   * without its digits certified (D26; devdocs/design/decimal-mode.md, "The
    * ceiling"): every digit, exact under the mode's rounding, and not
    * vouched for.
    */
@@ -201,7 +201,7 @@ export type Shown =
   | { readonly kind: "unbounded"; readonly text: string };
 
 /**
- * The ratio notation's settings (docs/ratio-width.md): the width, the
+ * The ratio notation's settings (devdocs/design/ratio-width.md): the width, the
  * most digits a ratio's two parts, or a whole number, may have to be
  * written entire. The place a further setting of the notation goes, so
  * that it reaches every caller of `show` without a change of signature.
@@ -224,7 +224,7 @@ export type ShowOptions = {
  * unchanged, so that every digit held is shown; otherwise the kind the
  * certification gives, with `text` the midpoint rounded in `rounding` to
  * the digits certified. With the ratio notation's `width`
- * (docs/ratio-width.md), an exact value is written entire when it fits
+ * (devdocs/design/ratio-width.md), an exact value is written entire when it fits
  * the width, before any of that: a whole number of at most `width`
  * significant digits by the decimal display at the width, and any other
  * exact value as a ratio (`ratioParts`) when its parts fit; an exact

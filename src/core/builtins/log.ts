@@ -1,6 +1,6 @@
 // The logarithms: `ln(x)`, `log10(x)`, `log2(x)` and `log(b, x)`, the base
-// first (docs/builtins.md), on the kernel's `lnFixed` (fixed-log.ts) and
-// its memoized `ln(2)` and `ln(10)`. docs/calculator-plan.md (task 3.7)
+// first (devdocs/design/builtins.md), on the kernel's `lnFixed` (fixed-log.ts) and
+// its memoized `ln(2)` and `ln(10)`. devdocs/history/calculator-plan.md (task 3.7)
 // places them. They share one module because they share the domain rule
 // and the kernel call: a logarithm takes a positive plain number, so an
 // argument that is not positive throughout its ball is a `domain` error

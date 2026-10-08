@@ -1,4 +1,4 @@
-// The edge sweep at the ball level (docs/calculator-plan.md, H.10): every
+// The edge sweep at the ball level (devdocs/history/calculator-plan.md, H.10): every
 // built-in of `BUILTINS`, enumerated by arity so that a function added
 // later joins it, the four exact operations of the ball, `powBall`,
 // `rootBall` and `step`, run over the classes of arguments at the edges
@@ -1439,7 +1439,7 @@ function judge(
 }
 
 /**
- * The oracle for decimal mode (D26; docs/decimal-mode.md): the operation
+ * The oracle for decimal mode (D26; devdocs/design/decimal-mode.md): the operation
  * is run as the evaluator runs it, on operands rounded to the context's
  * digits in its mode (an operand the rounding carries past the bound is
  * refused before the operation, and is not the operation's to judge), at

@@ -1,6 +1,6 @@
 # The surface: where the settings live, and when a change applies
 
-The design note for step S4 of docs/settings-plan.md: where the settings
+The design note for step S4 of devdocs/history/settings-plan.md: where the settings
 live, how they are reached when a result is long, and whether a change
 applies as it is made or when the panel closes, which the plan's P13
 (its placement half) and P14 raise. **Status: implemented**; "As
@@ -185,7 +185,7 @@ it** (more digits, the other mode, a ratio): deferred, not refused. The
 sheet is a tap away and shows the result live, which is what such an
 affordance would give, and it would have to be designed per line (which
 settings, where on the line, how it reads in a list of terms) against
-the display rules of docs/fractions.md and docs/ratio-width.md. If S5
+the display rules of devdocs/design/fractions.md and devdocs/design/ratio-width.md. If S5
 or S6 finds the sheet too far for the display digits in particular, a
 stepper beside the output is the shape to consider then, as a
 convenience over the same setting and never a second place it is kept.
@@ -231,9 +231,9 @@ line shorter and hides none.
 - README ("Settings"): the first sentence, "under the converter", says
   where the sheet is and how it opens, and that a change applies as it
   is made. ARCHITECTURE.md: the shell's description of the panel and the
-  settings' flow. docs/shell-refactor.md's open questions for the UX
+  settings' flow. devdocs/history/shell-refactor.md's open questions for the UX
   step: the one about the settings' surface answered here.
-  docs/settings-plan.md: S4 done, with this note.
+  devdocs/history/settings-plan.md: S4 done, with this note.
 - Tests: the shell and the panel are Lit components, which the Node
   suite does not render, as today; the lines stay in settings-lines.ts
   with their tests. The change is verified as #147 was, by a Playwright

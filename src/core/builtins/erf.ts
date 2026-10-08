@@ -1,8 +1,8 @@
 // `erf(x)` and `erfc(x)`, the error function and its complement, on the
 // incomplete gamma functions of order one half (incomplete.ts):
 // `erf(x) = P(1/2, x^2)` for `x >= 0`, odd, and `erfc(x) = Q(1/2, x^2)`,
-// with `erfc(-x) = 2 - erfc(x)`. docs/special.md ("`erf` and `erfc`
-// (6.6)") is the design and docs/calculator-plan.md (task 6.6) places
+// with `erfc(-x) = 2 - erfc(x)`. devdocs/design/special.md ("`erf` and `erfc`
+// (6.6)") is the design and devdocs/history/calculator-plan.md (task 6.6) places
 // them. Each takes a plain number and gives one.
 //
 // The incomplete gamma routine chooses its route by cost and takes the

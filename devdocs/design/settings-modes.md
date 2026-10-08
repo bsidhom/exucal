@@ -1,6 +1,6 @@
 # Mode, rounding and fractions: one choice, one meaning each
 
-The design note for S2 of docs/settings-plan.md. Four of the plan's
+The design note for S2 of devdocs/history/settings-plan.md. Four of the plan's
 problems are about how the mode, the rounding mode, the display digits and the
 fractions display read together: decimal mode and the fractions display
 promise opposite things and are both on at once (P4, #97); whether a
@@ -11,10 +11,10 @@ line explains (P8). This note settles the first, the third and the
 fourth, decides the names of the modes (P12, the mode half), and sends
 the fit rule to a step of its own with the ideas it has gathered.
 
-**Status: implemented**, with S2b (docs/working-digits.md) in one
+**Status: implemented**, with S2b (devdocs/design/working-digits.md) in one
 change; "As landed" at the end says where the code settled what the
 note left to the panel. The review of the first draft reopened what
-decimal mode is, and docs/decimal-mode.md restated it (D26): every
+decimal mode is, and devdocs/design/decimal-mode.md restated it (D26): every
 operation one correctly rounded step, every value exact, no radius. That
 restatement landed first, with a guard in the outcome keeping the
 fractions display out of decimal mode, so every place this note leans on
@@ -47,7 +47,7 @@ export type ModeSetting =
   | { readonly kind: "decimal" };
 ```
 
-Amended by S2b (docs/working-digits.md): the decimal variant carries
+Amended by S2b (devdocs/design/working-digits.md): the decimal variant carries
 the working digits of the mode, `{ kind: "decimal"; working: Working }`,
 a setting that applies to decimal mode alone and so lives inside its
 variant as the notation lives inside exact mode's. S2b lands with S2,
@@ -167,7 +167,7 @@ whether it leaves the display digits are that step's to decide.
 
 ## The fit rule: retained, and a step of its own
 
-docs/fractions.md writes an exact value as a fraction when its numerator
+devdocs/design/fractions.md writes an exact value as a fraction when its numerator
 and its denominator each have at most the display digits, and otherwise falls
 back to the decimal display. The rule is provisional (#91). The first
 draft of this note replaced it with a constant of ten digits per part;
@@ -203,7 +203,7 @@ setting if it is wanted. Neither depends on anything internal. Beside
 them, the step settles three smaller points, gathered here so that
 nothing is lost:
 
-- **Whole numbers.** docs/fractions.md and D21 send an exact integer to
+- **Whole numbers.** devdocs/design/fractions.md and D21 send an exact integer to
   the decimal display, which writes it entire only when it fits the display digits:
   `3^20` at eight digits is `≈ 3.4867844e+9` with fractions on, for a
   value that is exactly `3486784401`. If the display's purpose is exact
@@ -353,7 +353,7 @@ mode is in force:
   the default rounding; the panel's notation control under exact mode
   only; the outcome's decimal-mode lines unchanged, since D26 already
   made them digits.
-- docs: docs/fractions.md ("The decimal mode": no fractions in decimal
+- docs: devdocs/design/fractions.md ("The decimal mode": no fractions in decimal
   mode, and why), README's "Settings" for the mode, the display digits, Rounding
   and the default, ARCHITECTURE.md's settings paragraph; #97 closed,
   #147 closed, #91 and #95 pointed at the fit rule's step.
@@ -402,12 +402,12 @@ mode is in force:
   among ways of writing a value is not an on/off toggle, and a radio
   group shows every value it has, which a third notation would join.
   Decimal mode's working digits sit under the display digits instead, with which
-  they are intertwined (docs/working-digits.md). Each control emits the
+  they are intertwined (devdocs/design/working-digits.md). Each control emits the
   whole variant, and the Mode select emits the chosen mode's variant at
   its defaults (`DEFAULT_MODES` in settings.ts), so a change of mode is
   one event.
 - **The stored shape** is version 3 as above, with the decimal variant
-  carrying its `working` (docs/settings-storage.md); one migration from
+  carrying its `working` (devdocs/design/settings-storage.md); one migration from
   version 2 builds the variant, drops `fractions` and carries
   `halfAwayFromZero` to `halfEven`. A version 3 `mode` is validated as a
   whole and built afresh from its fields, so a stray field of the other

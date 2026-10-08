@@ -1,5 +1,5 @@
 // `approx(x)`: the value known to the working precision and no better.
-// docs/approximate.md is the design and docs/calculator-plan.md (task
+// devdocs/design/approximate.md is the design and devdocs/history/calculator-plan.md (task
 // 4.10) places it. The argument is any quantity, of any dimension, kinds
 // included, and the result has the argument's dimension (`sameAsArgument`
 // of builtin.ts, the rule D14 describes for the exact functions of stage
@@ -14,7 +14,7 @@
 // one (D15), and the retry loop needs nothing of its own, since the radius
 // is the working precision's and shrinks with each pass. The working
 // digits are `workingDigits(context)`. In decimal mode (D26;
-// docs/decimal-mode.md, "`approx`") the evaluator does not call this at
+// devdocs/design/decimal-mode.md, "`approx`") the evaluator does not call this at
 // all: every value there is already at the user's precision, so `approx`
 // is the identity, which the built-in declares with `decimal`.
 

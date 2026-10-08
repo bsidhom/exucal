@@ -1,14 +1,14 @@
 # The exact functions, and the Gamma and Beta families
 
-Status: design note for stage 6 of docs/calculator-plan.md (task 6.0),
+Status: design note for stage 6 of devdocs/history/calculator-plan.md (task 6.0),
 written after stage 5 landed and before any of the stage's code; the
 plan's 6.1 to 6.9 were revised against it in the same change, and D22
 records the owner's rulings on it. The stage has landed, 6.8 deferred
 (the plan's 6.8); "Implementation notes" below and the plan's "Stage 6
 as it landed" record the stage. The goal is the study's feature
 3 for the exact functions and feature 2 for the Gamma and Beta families
-(docs/calculator.md, "3. Other special functions" and "2. Gamma and Beta
-families"), as built-ins in the manner of docs/builtins.md, whose rules
+(devdocs/history/calculator-study.md, "3. Other special functions" and "2. Gamma and Beta
+families"), as built-ins in the manner of devdocs/design/builtins.md, whose rules
 every function here follows unless this note says otherwise.
 
 ## The exact functions
@@ -202,14 +202,14 @@ enumerates it at each, which its builder gains in 6.1.
 The dimension-rule failures are worded as every built-in's are. Three
 domain reasons are new, `notInteger`, `notExact` and `negative`, worded
 in messages.ts. README's "Functions in expressions" gains the thirteen
-in 6.1, and docs/builtins.md's list of names that collide with no unit
+in 6.1, and devdocs/design/builtins.md's list of names that collide with no unit
 grows with them (the build checks it: `div`, `mod`, `sign` and the rest
 are not units of units.txt, and none reads as a prefix followed by a
 unit).
 
 ## The Gamma and Beta families
 
-Built-ins that reach the kernel, in the manner of docs/builtins.md: the
+Built-ins that reach the kernel, in the manner of devdocs/design/builtins.md: the
 module does the exact cases and the conversion, a routine beside fixed.ts
 does the work on `Fixed` values with the argument's error included (D9),
 and the result returns through `fixedToBall`. Every function here takes
@@ -308,7 +308,7 @@ bits over `2 log2 N`, so some hundreds at the default ceiling, a product
 of that many balls; the series then takes of the order of `N` terms, each
 a division at the working bits. 6.3 measures it at the default ceiling
 against the study's estimate (approaching a second at 1,000 digits) and
-records it in docs/calculator.md; the probe of limits.ts is not changed
+records it in devdocs/history/calculator-study.md; the probe of limits.ts is not changed
 unless `gamma` proves costlier than the four routines it times.
 
 ### `beta` (6.4)
@@ -405,7 +405,7 @@ their series for small arguments. Each sub-note is a paragraph in the
 - `src/core/edges.sweep.ts`: the rules for each, and the builder's
   enumeration of a range of arities.
 - `src/messages.ts`: the domain reasons and the factorial's refusal.
-- README ("Functions in expressions"), docs/builtins.md ("Names"), and
+- README ("Functions in expressions"), devdocs/design/builtins.md ("Names"), and
   this note's "Implementation notes", per task.
 
 ## Not in this design
@@ -421,7 +421,7 @@ their series for small arguments. Each sub-note is a paragraph in the
 ## Implementation notes
 
 Where the code departed from the note above, or settled what it left
-open; docs/calculator-plan.md ("Stage 6 as it landed") has each task's
+open; devdocs/history/calculator-plan.md ("Stage 6 as it landed") has each task's
 rulings and what it left behind.
 
 - **6.1, the exact functions** (`src/core/builtins/abs.ts`, `round.ts`,
@@ -540,7 +540,7 @@ rulings and what it left behind.
   `approx` one. Measured at the default ceiling: `lgamma`
   0.7 s a call and `gamma` 0.7 to 0.9 s, against `digamma`'s 1.3 s, the
   shift being a multiplication a step rather than a division; at a
-  thousand digits 31 and 34 ms, where docs/calculator.md's estimate said
+  thousand digits 31 and 34 ms, where devdocs/history/calculator-study.md's estimate said
   a second (recorded there). Since #117 an argument typed as a short
   decimal or fraction takes the kernel's exact shift (`lgammaRational`,
   `digammaRational`): the product or the sum of reciprocals by binary
@@ -716,7 +716,7 @@ a)` is the choice of orientation by estimated terms, which the region
 (a + 1)) x`. Measured at forty digits: a few milliseconds a call for
   moderate parameters, fifty for `(1e4, 1e4, 0.5)`.
 - **6.9, the stage's docs.** The payload after the stage, measured by
-  `pnpm build` and recorded in docs/calculator.md ("Payload"): the script
+  `pnpm build` and recorded in devdocs/history/calculator-study.md ("Payload"): the script
   grew by 30 KB (9 KB compressed) over stage 5's, at the top of the
   study's estimate. The sweeps at the stage's end run 36,353 cases at
   the ball level in about 35 s and 274 at the text level, apart from

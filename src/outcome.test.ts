@@ -1,5 +1,5 @@
 // The lines the output area shows, through the pipeline over the system
-// definitions, with the fractions setting on and off (docs/fractions.md,
+// definitions, with the fractions setting on and off (devdocs/design/fractions.md,
 // "Where a fraction is written"; the plan's 5.2): where a fraction is
 // parenthesized, where it is bare, the reciprocal, a unit list's
 // remainder, a function's argument, and both modes.
@@ -455,7 +455,7 @@ function significantDigits(text: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// The uncertified mark (D26; docs/decimal-mode.md, "The ceiling")
+// The uncertified mark (D26; devdocs/design/decimal-mode.md, "The ceiling")
 
 test("in decimal mode a step whose rounding the ceiling left uncertified is written with the ≈ sign bearing a dot above it, and a note", () => {
   // A built-in whose value sits on the two-digit tie at 1.25, known within

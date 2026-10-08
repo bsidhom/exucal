@@ -5,7 +5,7 @@
 // pulled out of a loop or reordered without moving every draw after it.
 // Nothing in the app imports this directory: it is test support beside
 // the core, checked with the tests by tsconfig.node.json and left out of
-// the app's program. docs/calculator-plan.md (task 1.3 and the follow-up
+// the app's program. devdocs/history/calculator-plan.md (task 1.3 and the follow-up
 // after stage 3) places it; ARCHITECTURE.md ("Benchmarks") says what the
 // benchmarks draw from it.
 //

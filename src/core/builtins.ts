@@ -1,5 +1,5 @@
 // The built-in functions the app has, gathered from their modules under
-// builtins/ into one map by name. docs/builtins.md is the design; builtin.ts
+// builtins/ into one map by name. devdocs/design/builtins.md is the design; builtin.ts
 // holds the type, the errors and the shared rule helpers, and each function
 // lives in a module of its own under builtins/, grouped with others only
 // when they share internal machinery. The table and the build take this

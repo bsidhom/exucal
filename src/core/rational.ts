@@ -1,6 +1,6 @@
 // The exact fraction: a rational over `bigint`, with the arithmetic the
 // evaluator needs and the exact case of the n-th root. It is the total
-// fraction of the type ladder (docs/calculator-plan.md, D13): the exponents
+// fraction of the type ladder (devdocs/history/calculator-plan.md, D13): the exponents
 // of dimensions and of `^` and the exact value of a radius are fractions,
 // and from stage 4 the midpoint is a `Scaled` (scaled.ts), a fraction times
 // a power of ten, which holds the decimal representation, the parsing of a

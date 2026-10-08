@@ -1,4 +1,4 @@
-// The cases of the cost search (docs/calculator-plan.md, task 8.2): what
+// The cases of the cost search (devdocs/history/calculator-plan.md, task 8.2): what
 // it draws, as a pure function of a seed. Nothing here measures or reads a
 // clock, so the sequence a seed gives is the same on any machine, in any
 // order, and whatever the cases cost.

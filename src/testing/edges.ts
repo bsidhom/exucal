@@ -1,5 +1,5 @@
 // Test support for the edge sweep, the fourth test pattern of
-// docs/calculator-plan.md ("How to read a task"; task H.10): every built-in
+// devdocs/history/calculator-plan.md ("How to read a task"; task H.10): every built-in
 // and every ball operation runs over the classes of arguments at the edges
 // of the number type, and each case is checked for what ARCHITECTURE.md
 // rules out. src/core/edges.sweep.ts is the sweep at the ball level and

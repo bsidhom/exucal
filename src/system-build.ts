@@ -1,5 +1,5 @@
 // Building the system unit table at the ceiling of the retry schedule, once
-// per ceiling. docs/calculator-plan.md (D6 and task 3.3) is the design: from
+// per ceiling. devdocs/history/calculator-plan.md (D6 and task 3.3) is the design: from
 // 3.4 the angle units call `pi()`, so a unit's precision is fixed when the
 // table is built and must lie above every pass of the retry loop, which the
 // ceiling is; the ceiling is the same for every display digits under one

@@ -43,13 +43,13 @@ has no such link, so a glance shows what has been changed. There are
 six settings, kept in the
 browser so that they survive a reload (under a format version of their
 own, so that a later build migrates what an earlier one stored;
-`docs/settings-storage.md`; the surface is `docs/settings-surface.md`
-and the controls `docs/settings-controls.md`). The mode carries one more under it, which
+`devdocs/design/settings-storage.md`; the surface is `devdocs/design/settings-surface.md`
+and the controls `devdocs/design/settings-controls.md`). The mode carries one more under it, which
 one depending on the mode: exact mode the notation its exact values are
 written in, decimal mode its working digits. Every number carries its
 unit, on screen after the input and in the stored key: the display
 digits and the precision limit in decimal digits, the significand limit
-in bits, the probe budget in milliseconds (`docs/settings-limits.md`).
+in bits, the probe budget in milliseconds (`devdocs/design/settings-limits.md`).
 
 - **Display digits** (`displayDigits` in the stored settings): how many
   significant digits an answer is shown with, from 1 up to the
@@ -79,7 +79,7 @@ in bits, the probe budget in milliseconds (`docs/settings-limits.md`).
   the display digits is rounded to them as it is read), each unit, and each function
   call as a whole, `gamma(4.5)` being computed to whatever precision it
   takes for its rounding to be certified and then rounded once
-  (`docs/decimal-mode.md`). A value with the digits asked for or fewer is
+  (`devdocs/design/decimal-mode.md`). A value with the digits asked for or fewer is
   exact in either mode (`1 ft` in `in` is `= 12 in`). In the rare case
   that a function's rounding cannot be certified at the precision limit,
   the value is rounded all the same and the line is written with the `≈`
@@ -108,8 +108,8 @@ in bits, the probe budget in milliseconds (`docs/settings-limits.md`).
   `5000 / (127 in)`, and bare when nothing follows it. It is a setting
   of exact mode alone, since in decimal mode every value is a decimal
   of the display digits, which its digits write entire; choosing decimal
-  mode and coming back finds digits again. `docs/fractions.md` and
-  `docs/ratio-width.md` are the design.
+  mode and coming back finds digits again. `devdocs/design/fractions.md` and
+  `devdocs/design/ratio-width.md` are the design.
 - **Working digits** (decimal mode, under the mode in the panel;
   `mode.working` in the stored settings, locked to the
   display digits or `extended` with a count): locked to the display
@@ -125,7 +125,7 @@ in bits, the probe budget in milliseconds (`docs/settings-limits.md`).
   a directed rounding mode the answer is the neighbor of a value that
   sits on the grid, as that mode asks (`0.099999999` toward zero), since
   the working digits change what is rounded, never how.
-  `docs/working-digits.md` is the design.
+  `devdocs/design/working-digits.md` is the design.
 - **Precision limit**, in digits (`precisionLimitDigits` in the stored
   settings): the most digits any grid may be asked for ("How a number
   is held" below says what the grid is), 1,000 by default: the precision limit on
@@ -886,8 +886,8 @@ exponent. The bound stays, though. Its cost grows fast with the argument
 the number type are exact only because the exponent is at most `10^18`,
 so the test build's digits were right but its guarantee that they were
 right was not. Keeping the bound is a decision, recorded with its
-reasons in `docs/decimal.md` ("Decision: the bound stays at `10^18`"),
-and `docs/approximate.md` has the measurements.
+reasons in `devdocs/design/decimal.md` ("Decision: the bound stays at `10^18`"),
+and `devdocs/design/approximate.md` has the measurements.
 
 Instead, work in log space, as on paper: `1e999 / ln(10)` is the
 decimal exponent of `exp(1e999)`, `≈ 4.3429448e+998`, and a quotient of
@@ -1082,7 +1082,7 @@ hook's output at session start says which part is out of date.
   which is run by hand and never by `pnpm test:all` (`--help` lists its
   options; ARCHITECTURE.md, "Benchmarks", describes it), and the stress
   suite, `pnpm stress`, which measures again the catalogued inputs of
-  the functions named (see Stress tests below; `docs/cost.md` presents
+  the functions named (see Stress tests below; `devdocs/cost.md` presents
   the catalogue).
 - `src/app-shell.ts` defines `<app-shell>`, the top-level component that every
   part of the app renders inside: the composition root. It holds the three
@@ -1214,7 +1214,7 @@ noise: such a benchmark guards nothing until it is fixed. `ARCHITECTURE.md`
 `pnpm stress:search` samples for the costliest inputs. It draws a stream
 of random inputs from a seed (a fresh one unless `--seed`, printed and
 logged with the run), measures them one per core, and writes each hit
-into `bench/stress/catalogue.json` and the tables of `docs/cost.md` as
+into `bench/stress/catalogue.json` and the tables of `devdocs/cost.md` as
 soon as it is found: an input whose warm cost reaches a second, or that
 runs past the two-minute deadline. A hit takes its family's place when
 the place is empty or holds an input it costs at least 10% more than. A

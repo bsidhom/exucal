@@ -2,10 +2,10 @@
 // group headings, the line under each control as a function of the
 // settings in force and the mode, which opens with the number's range
 // and names the setting that bounds it where the chain does
-// (docs/settings-controls.md), the line that refuses an edit past a
+// (devdocs/design/settings-controls.md), the line that refuses an edit past a
 // bound, the line that tells where a clamp landed a setting, the reset
 // beside a setting off its default ("default 8"), and the probe's
-// proposal with the timings behind it (docs/settings-limits.md, "The
+// proposal with the timings behind it (devdocs/design/settings-limits.md, "The
 // lines, as the panel will say them"). Text alone, with no element in
 // it, so that the panel composes it and a test under Node reads it. The
 // numbers are the settings in force, written with thousands separators;
@@ -47,7 +47,7 @@ export const SETTING_NAMES: Readonly<Record<NumberSetting, string>> = {
   budgetMs: "the probe budget",
 };
 
-/** The headings of the sheet's three groups, in their order: by what a setting is for (docs/settings-controls.md). */
+/** The headings of the sheet's three groups, in their order: by what a setting is for (devdocs/design/settings-controls.md). */
 export const GROUP_HEADINGS = {
   shown: "How it is shown",
   computed: "How it is computed",
@@ -170,7 +170,7 @@ export function notationLine(notation: Notation, settings: Settings): string {
   return `${width}${NOTATION_LINE}`;
 }
 
-/** The decimal digits an integer of `bits` bits has, to three significant figures: the translation is per part (docs/settings-limits.md). */
+/** The decimal digits an integer of `bits` bits has, to three significant figures: the translation is per part (devdocs/design/settings-limits.md). */
 export function digitsOfBits(bits: number): number {
   const digits = Math.floor(bits * Math.log10(2));
   if (digits < 1000) return digits;

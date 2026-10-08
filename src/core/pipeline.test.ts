@@ -1315,7 +1315,7 @@ test("a zero's bound far below the exponent bound is written in a bounded length
   // A power of a ball around zero carries the radius's exponent far
   // below the bound; the display writes `1e-1000000000000000000`, larger
   // than the bound and so still sound, in place of an exponent of ten
-  // thousand digits (docs/fractions.md, "A zero's bound at the edges").
+  // thousand digits (devdocs/design/fractions.md, "A zero's bound at the edges").
   assert.deepEqual(shown("(approx(1e20) - approx(1e20))^100000", 8), {
     kind: "zero",
     text: "0",
@@ -1339,7 +1339,7 @@ test("a zero's bound far below the exponent bound is written in a bounded length
 // ---------------------------------------------------------------------------
 // Conditions
 
-/** A table of functions with conditions, for docs/functions.md's cases. */
+/** A table of functions with conditions, for devdocs/design/functions.md's cases. */
 const conditional: UnitTable = (() => {
   const definitions = parseDefinitions(
     [

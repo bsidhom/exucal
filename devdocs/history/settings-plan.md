@@ -1,7 +1,7 @@
 # The settings: triage and plan
 
 **Status: complete.** S1 to S5 are implemented, each with its design
-note and a decision in docs/calculator-plan.md (D27 to D31); S6, the
+note and a decision in devdocs/history/calculator-plan.md (D27 to D31); S6, the
 user's guide, is deferred to #191, to follow the app-wide documentation
 cleanup, and is the one step this plan leaves open. The problems below
 are kept as they were found, as the record of what the steps answered.
@@ -15,7 +15,7 @@ with the settings, as a model and as a surface, chunked into steps that
 can each be designed in one review and then implemented. It designs
 nothing: every step starts with its own design note. Responsiveness
 (#118 and its sub-issues, and #163, the probe's own freeze) is apart, as
-D25 of docs/calculator-plan.md rules, and is not in this plan.
+D25 of devdocs/history/calculator-plan.md rules, and is not in this plan.
 
 ## The settings as they are
 
@@ -95,7 +95,7 @@ decimal mode the working precision of every step; the bound a fraction's
 numerator and denominator must each fit (#91); and in decimal mode the
 digits a typed literal is rounded to on the way in, so that `2.5400001 cm`
 at three digits is `2.54 cm` before anything is computed
-(docs/decimal.md, "The decimal mode"). The last is unmentioned anywhere
+(devdocs/design/decimal.md, "The decimal mode"). The last is unmentioned anywhere
 a user looks.
 
 **P7. The precision limit is a cost knob dressed as a precision.** What it
@@ -176,7 +176,7 @@ extends S2 and lands with it.
 
 ### S2. Mode, rounding and fractions
 
-Implemented, with S2b, in one change (docs/settings-modes.md, "As
+Implemented, with S2b, in one change (devdocs/design/settings-modes.md, "As
 landed"); the fit rule is retained and is S2c below, with #91 and #95.
 
 - **Scope.** What the mode setting is and how it relates to the fractions
@@ -193,8 +193,8 @@ landed"); the fit rule is retained and is S2c below, with #91 and #95.
   reconsider. The fit rule: Digits, a constant, a bound on the total
   length, or a setting of its own (#91's options).
 - **Depends on.** S1 if the stored shape changes.
-- **Touches.** #97, #91, #95 (its decimal-mode clause), docs/fractions.md
-  and docs/decimal.md, D21.
+- **Touches.** #97, #91, #95 (its decimal-mode clause), devdocs/design/fractions.md
+  and devdocs/design/decimal.md, D21.
 - **Core impact.** Low for the checkbox shape (display and tests), medium
   for a third mode value (the mode type reaches `NumberContext`), high if
   Digits splits (every reader of `precision`). **Size.** Medium to large,
@@ -202,13 +202,13 @@ landed"); the fit rule is retained and is S2c below, with #91 and #95.
 
 ### S2b. The working digits of decimal mode
 
-Implemented with S2 (docs/working-digits.md, "As landed"; D27).
+Implemented with S2 (devdocs/design/working-digits.md, "As landed"; D27).
 
 - **Scope.** A floor on the digits every step of decimal mode is
   computed at, apart from Digits, which the answer is shown with: the
   guard digits a calculator keeps hidden, so that `ln(exp(1/10))` at
   eight digits can show `0.1` rather than the first rounding's error.
-  Added after S2's note, on the owner's ruling (docs/working-digits.md,
+  Added after S2's note, on the owner's ruling (devdocs/design/working-digits.md,
   D27). Decimal mode alone; exact mode's working precision is the retry
   schedule's.
 - **Decisions.** In the note: the last step of a displayed value is
@@ -229,13 +229,13 @@ Implemented with S2 (docs/working-digits.md, "As landed"; D27).
 
 ### S2c. The width of a ratio: the fit rule
 
-Implemented (docs/ratio-width.md, "As landed"; D28).
+Implemented (devdocs/design/ratio-width.md, "As landed"; D28).
 
 - **Scope.** When an exact value is written as a ratio and how long a
   ratio may be (P5, #91), with #95's power-of-ten form decided in the
   same rule, and whether a whole number follows the same width. Sent
   here by the S2 note, which retained the fit at Digits and gathered the
-  candidates (docs/ratio-width.md).
+  candidates (devdocs/design/ratio-width.md).
 - **Decisions.** In the note: a width of the notation's own, the most
   digits a ratio's two parts may have between them, twenty by default,
   in `[1, 1000]`, independent of Digits; the measure the two parts
@@ -247,14 +247,14 @@ Implemented (docs/ratio-width.md, "As landed"; D28).
   at stored version 4.
 - **Depends on.** S2, whose notation it extends.
 - **Touches.** display.ts (`show`'s `ratio` option), outcome.ts,
-  unit-converter.ts, settings.ts, the panel; docs/fractions.md, D21
+  unit-converter.ts, settings.ts, the panel; devdocs/design/fractions.md, D21
   (amended by D28); #91, #95, P5.
 - **Core impact.** Low: the display's fit and one form; nothing in the
   arithmetic. **Size.** Small to medium.
 
 ### S3. The limits: Digits, the precision limit, the significand limit
 
-Implemented (docs/settings-limits.md, "As landed"; D29). The terms are
+Implemented (devdocs/design/settings-limits.md, "As landed"; D29). The terms are
 now the display digits, the working digits, the precision limit in
 digits, the significand limit in bits and the probe budget in
 milliseconds, in the panel, the storage, the core and the docs alike
@@ -284,7 +284,7 @@ milliseconds, in the panel, the storage, the core and the docs alike
 
 ### S4. The surface
 
-Implemented (docs/settings-surface.md, "As landed"; D30).
+Implemented (devdocs/design/settings-surface.md, "As landed"; D30).
 
 - **Scope.** Where the settings live: the disclosure under the output as
   today, a modal, a popover from a control in the shell, or a page of
@@ -301,7 +301,7 @@ Implemented (docs/settings-surface.md, "As landed"; D30).
 
 ### S5. The controls
 
-Implemented (docs/settings-controls.md, "As landed"; D31).
+Implemented (devdocs/design/settings-controls.md, "As landed"; D31).
 
 - **Scope.** The grouping (how to compute, how to show, how much to
   spend); the widget for each setting (a number input, a stepper or a

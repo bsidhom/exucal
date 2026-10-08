@@ -54,7 +54,7 @@ import {
 } from "./settings.ts";
 
 /**
- * The settings sheet (docs/settings-surface.md, D30): a non-modal
+ * The settings sheet (devdocs/design/settings-surface.md, D30): a non-modal
  * `<dialog>` laid over the page, fixed to the viewport, the page live
  * and scrollable behind it, so that the result stays in view while a
  * setting is changed to see its effect. On a narrow viewport it is a
@@ -71,14 +71,14 @@ import {
  * `dvh`, rises with it and the input being typed in stays visible.
  *
  * The controls, in three groups by what a setting is for and in the
- * order of how often each is touched (docs/settings-controls.md, D31):
+ * order of how often each is touched (devdocs/design/settings-controls.md, D31):
  * how a result is shown, the display digits and, in exact mode, the
  * notation its exact values are written in; how it is computed, the
  * mode with what belongs to it under it, the working digits in decimal
  * mode, and the rounding; how much it may cost, the precision limit in
  * digits, the significand limit in bits, and the probe with its budget
- * in milliseconds (docs/settings-modes.md, docs/working-digits.md,
- * docs/settings-limits.md). Each control has a line under it that opens
+ * in milliseconds (devdocs/design/settings-modes.md, devdocs/design/working-digits.md,
+ * devdocs/design/settings-limits.md). Each control has a line under it that opens
  * with a number's range and says what the setting does in the mode in
  * force (settings-lines.ts), and each number input has its unit after
  * it. Beside the label of a setting that is not at its default, a

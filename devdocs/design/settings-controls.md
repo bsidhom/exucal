@@ -1,6 +1,6 @@
 # The controls: groups, widgets, lines and resets
 
-The design note for step S5 of docs/settings-plan.md: what the sheet
+The design note for step S5 of devdocs/history/settings-plan.md: what the sheet
 holds and how, now that S4 settled where it is and when a change
 applies. The plan gives this step the grouping, the widget for each
 setting, the feedback on a refused or a clamped edit, how a number's
@@ -174,8 +174,8 @@ they have. The side sheet's column is the same markup at its width.
   mode's variant wants a helper beside `resetSetting`.
 - README ("Settings"): the groups and their order, the mode as a choice
   of two, the reset and the default marker; ARCHITECTURE.md: the
-  panel's and the shell's descriptions; docs/settings-plan.md: S5 done;
-  docs/working-digits.md: the working digits' place, as landed.
+  panel's and the shell's descriptions; devdocs/history/settings-plan.md: S5 done;
+  devdocs/design/working-digits.md: the working digits' place, as landed.
 - Tests: settings-lines.test.ts for every line, heading and reset text;
   settings.test.ts for `resetSetting` on a field within the variant if a
   helper is added. The panel is verified as S4 was, by a Playwright run
@@ -213,7 +213,7 @@ each control, always, with the range from `rangesOf` naming the chain
 where it bounds; "default 8" beside a changed setting as its indicator
 and its reset, "Reset all settings" at the foot, both through the
 clamp; a refused input marked invalid and a stepper at a bound
-disabled. docs/settings-controls.md is the design.
+disabled. devdocs/design/settings-controls.md is the design.
 
 ## Not in this step
 

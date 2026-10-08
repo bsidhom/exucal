@@ -1,6 +1,6 @@
 // The ratios of consecutive Bernoulli numbers, `|B_(2k+2) / B_2k|`, in
 // fixed point, memoized: what the asymptotic series of `digamma` and
-// `lgamma` take (fixed-gamma.ts; docs/special.md, "Bernoulli numbers"),
+// `lgamma` take (fixed-gamma.ts; devdocs/design/special.md, "Bernoulli numbers"),
 // each term being the last times the ratio, an index factor and `1 /
 // y^2`. The exact numbers (bernoulli.ts) served the series before #117,
 // and a term was scaled by a numerator of twenty thousand bits and

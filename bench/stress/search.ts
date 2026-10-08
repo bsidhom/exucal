@@ -1,4 +1,4 @@
-// The cost search (docs/calculator-plan.md, tasks 8.2 and 8.3), run by
+// The cost search (devdocs/history/calculator-plan.md, tasks 8.2 and 8.3), run by
 // hand:
 //
 //   pnpm stress:search [--seed <hex>] [--minutes <n> | --forever]
@@ -6,7 +6,7 @@
 //
 // It draws a stream of cases from a seed (cases.ts), measures them with
 // the harness, and adds each hit to bench/stress/catalogue.json
-// (catalogue.ts) and its tables in docs/cost.md as soon as it is found. A
+// (catalogue.ts) and its tables in devdocs/cost.md as soon as it is found. A
 // hit is a case whose warm cost reaches a second (`FLOOR_MS`), or a hang:
 // a case past its two-minute deadline (`DEADLINE_MS`), or whose worker
 // failed. The floor and the deadline are fixed, so that every run records
@@ -231,7 +231,7 @@ async function main(): Promise<void> {
     await writes;
     await update((catalogue) => withRun(catalogue, record()));
     console.log(
-      `${measured} cases measured, ${hits} hits; seed ${seed.text}. The catalogue and docs/cost.md are ready to commit.`,
+      `${measured} cases measured, ${hits} hits; seed ${seed.text}. The catalogue and devdocs/cost.md are ready to commit.`,
     );
     process.exit(0);
   };

@@ -1,4 +1,4 @@
-// What the stress tools share (docs/calculator-plan.md, task 8.3): the
+// What the stress tools share (devdocs/history/calculator-plan.md, task 8.3): the
 // commit a measurement was taken at, a case measured into the form the
 // catalogue keeps, and the one way the catalogue and its tables are
 // changed (`update`).
@@ -42,7 +42,7 @@ export const root = new URL("../../", import.meta.url);
 
 /** The catalogue, and the doc that holds its tables. */
 export const CATALOGUE = new URL("bench/stress/catalogue.json", root);
-const DOC = new URL("docs/cost.md", root);
+const DOC = new URL("devdocs/cost.md", root);
 
 /** The lock taken while the catalogue and its tables are changed (ignored by git). */
 const LOCK = new URL("bench/stress/catalogue.lock", root);
@@ -182,7 +182,7 @@ async function takeLock(): Promise<() => void> {
 /**
  * Changes the catalogue by `change`, under the lock, so that processes
  * running in one working tree at once take turns: the catalogue read as
- * it is now, changed, and it and the tables of docs/cost.md formatted and
+ * it is now, changed, and it and the tables of devdocs/cost.md formatted and
  * then each written whole, through a file renamed over it, so that a copy
  * taken at any moment, or a process stopped at any moment, leaves both
  * files formatted and complete. Gives the catalogue written.

@@ -2,8 +2,8 @@
 // x)`, the unregularized `γ(s, x)` and `Γ(s, x)`, and `lowergammareg`
 // and `uppergammareg`, the regularized `P(s, x)` and `Q(s, x)`, on the
 // kernel's series and continued fraction (fixed-incomplete.ts).
-// docs/special.md ("The incomplete gamma functions (6.5)") is the design
-// and docs/calculator-plan.md (task 6.5) places them. Each takes two
+// devdocs/design/special.md ("The incomplete gamma functions (6.5)") is the design
+// and devdocs/history/calculator-plan.md (task 6.5) places them. Each takes two
 // plain numbers, the order `s` positive and the argument `x` at or
 // above zero, and gives a plain number.
 //

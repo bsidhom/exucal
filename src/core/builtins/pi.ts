@@ -1,6 +1,6 @@
 // `pi()`: the circle constant as a call of no arguments, so that a
 // definition body reads `pi() radian / 180` and gets the precision of the
-// table it is built in (D6 of docs/calculator-plan.md), and an expression
+// table it is built in (D6 of devdocs/history/calculator-plan.md), and an expression
 // gets the working precision of its pass. The digits come from
 // constants.ts, Chudnovsky's series memoized at the ceiling of the context
 // plus a margin (D10), truncated to the context's precision; the ball is

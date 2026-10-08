@@ -62,7 +62,7 @@ relation runs through the ceiling: half the bits must hold `4 × (cap +
 10)` digits, so the precision limit's maximum moves when the significand limit does
 (2,453 at the default 65,536 bits), and the panel does not say why. Bits
 are not how a user of a converter thinks, and the only documentation of
-the setting is a dense paragraph in README's "Settings".
+the setting is a dense paragraph in docs/settings.md.
 
 **P3. Nothing stops a user from setting limits that freeze the page.** An
 expression that never certifies runs to the ceiling on every keystroke,
@@ -154,8 +154,8 @@ does not forget it.
 ## The steps
 
 Each step is one design note in docs/, reviewed, then one or more
-implementation PRs that also update README's "Settings" and
-ARCHITECTURE.md for what they change. The order is by dependency: the
+implementation PRs that also update docs/settings.md and
+devdocs/architecture.md for what they change. The order is by dependency: the
 model before the surface, the storage before any rename, the user's guide
 last. S2 and S3 are independent of each other and could swap; S2b
 extends S2 and lands with it.
@@ -328,10 +328,9 @@ link points until the guide exists, the notes behind each setting).
   for a line, what a fraction is and when it appears, what the limits
   cost and why the significand limit bounds digits, with the relation written for a
   reader who has never seen a rational; where it lives (README, a docs
-  page, in-app help reached from the panel); and the rewrite of README's
-  "Settings", which is written for a developer today.
+  page, in-app help reached from the panel); and the rewrite of docs/settings.md, which is written for a developer today.
 - **Depends on.** All of the above. Each earlier step keeps README and
-  ARCHITECTURE.md true for what it changes; this step writes the guide.
+  devdocs/architecture.md true for what it changes; this step writes the guide.
 - **Core impact.** None. **Size.** Medium.
 
 ## Not in this plan

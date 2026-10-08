@@ -3,7 +3,7 @@
 // catalogue keeps, and the one way the catalogue and its tables are
 // changed (`update`).
 //
-// Commands run as security rules require (ARCHITECTURE.md, "Security"):
+// Commands run as security rules require (devdocs/security.md):
 // git and Prettier through `execFileSync` and `spawn` with an argument
 // array and no shell, git's lists read NUL-separated.
 

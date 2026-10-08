@@ -8,7 +8,7 @@
 // lived here until 4.3.
 //
 // Everything here is exact, and the rules for when a value may lose
-// precision are spelled out in ARCHITECTURE.md ("Precision and rounding").
+// precision are spelled out in devdocs/architecture.md ("Precision and rounding").
 // In short: arithmetic never rounds; the digits of an irrational root are
 // the kernel's business (fixed.ts, through `rootBall` of ball.ts), and
 // `exactRoot` here answers only whether a root is rational.

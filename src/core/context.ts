@@ -161,7 +161,7 @@ export const DEFAULT_ROUNDING: RoundingMode = "halfEven";
  * gcds. `MAX_SIGNIFICAND_LIMIT_BITS` in rational.ts is the most the setting may take.
  * The tests, sweeps and benchmarks compute at this value or at contexts
  * of their own, never at a device's setting, so their results do not
- * depend on the limits a device has chosen (ARCHITECTURE.md, "Layout").
+ * depend on the limits a device has chosen (devdocs/layout.md).
  */
 export const DEFAULT_SIGNIFICAND_LIMIT_BITS = 1 << 16;
 

@@ -637,7 +637,7 @@ rounding at the limit, is recorded with the decision.
   of `.mid` and the context reaching every sum; one pass in decimal mode.
 - `src/settings.ts`, `src/settings-panel.ts` (then part of
   `src/app-shell.ts`), `src/unit-converter.ts` (4.7): the mode setting.
-- README.md, ARCHITECTURE.md, devdocs/design/builtins.md, devdocs/history/calculator-study.md
+- docs/settings.md, docs/functions.md, devdocs/architecture.md, devdocs/design/builtins.md, devdocs/history/calculator-study.md
   (4.8).
 
 ## The order of the tasks

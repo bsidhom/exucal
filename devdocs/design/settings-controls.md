@@ -10,8 +10,7 @@ the phone and desktop layouts, and, from S1, the reset's buttons and
 what shows which settings are not at their defaults (P11). **Status:
 implemented**; "As landed" at the end says what the implementation
 settled. It changes no setting's meaning and nothing in the core; it
-changes the panel, the lines it says, and the words of README's
-"Settings" for what moves.
+changes the panel, the lines it says, and the words of docs/settings.md for what moves.
 
 ## The sheet as it is
 
@@ -107,7 +106,7 @@ expression may cost." and the significand limit's "From 358 to
 65,536 being about 19,700 digits; an exact result past it is refused."
 The grid, the ceiling, why a refusal names the bits, what the probe
 measures: that is the user's guide, S6, which the sheet ends with a
-link to ("About these settings"), pointing at README's "Settings" until
+link to ("About these settings"), pointing at docs/settings.md until
 the guide lands and at the guide after. The lines live in
 settings-lines.ts as today, with their tests following the new words.
 
@@ -172,8 +171,8 @@ they have. The side sheet's column is the same markup at its width.
   the clamp and its report, and saves.
 - `src/settings.ts`: unchanged, unless the reset of a field within the
   mode's variant wants a helper beside `resetSetting`.
-- README ("Settings"): the groups and their order, the mode as a choice
-  of two, the reset and the default marker; ARCHITECTURE.md: the
+- docs/settings.md: the groups and their order, the mode as a choice
+  of two, the reset and the default marker; devdocs/architecture.md: the
   panel's and the shell's descriptions; devdocs/history/settings-plan.md: S5 done;
   devdocs/design/working-digits.md: the working digits' place, as landed.
 - Tests: settings-lines.test.ts for every line, heading and reset text;

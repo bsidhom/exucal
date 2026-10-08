@@ -4,7 +4,7 @@
 // match ended, or a `ParseError`. Larger parsers are built from smaller ones by
 // plain functions (`seq`, `alt`, `many`, ...), so a grammar reads as a direct
 // transcription of itself and every combinator is a few lines that can be
-// checked by eye. ARCHITECTURE.md ("Parsing") explains the approach.
+// checked by eye. devdocs/architecture.md ("Parsing") explains the approach.
 //
 // Two decisions shape the design:
 //

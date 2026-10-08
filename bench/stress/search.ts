@@ -36,7 +36,7 @@
 // made under a lock, from the files as they are.
 //
 // Commands run as tooling.ts runs them, as security rules require
-// (ARCHITECTURE.md, "Security").
+// (devdocs/security.md).
 
 import { availableParallelism } from "node:os";
 import { parseArgs } from "node:util";

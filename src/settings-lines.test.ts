@@ -138,7 +138,7 @@ test("the groups, the resets and the foot say their words", () => {
   assert.equal(defaultLine("working"), "default not extended");
   assert.equal(RESET_ALL, "Reset all settings");
   assert.equal(ABOUT.text, "About these settings");
-  assert.match(ABOUT.href, /#settings$/);
+  assert.match(ABOUT.href, /\/docs\/settings\.md$/);
 });
 
 test("the precision limit's line says its top under the significand limit as a number, by mode, and no formula", () => {

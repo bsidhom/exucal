@@ -1,6 +1,6 @@
 // The expression language: what the user types as `have` and `want`, and what
 // the body of a unit or prefix definition is. `parseExpr` turns text into an
-// `Expr` tree and knows nothing about which units exist; ARCHITECTURE.md
+// `Expr` tree and knows nothing about which units exist; devdocs/architecture.md
 // ("Expressions") gives the overview.
 //
 // The grammar, from the loosest binding to the tightest:
@@ -60,7 +60,7 @@
 // `2^k` for `k` levels of nesting (issue #54).
 //
 // A unit list, `ft;in`, is what the user may type as `want` to have the
-// value shown as a sum of units (ARCHITECTURE.md, "Unit lists"), and what
+// value shown as a sum of units (devdocs/architecture.md, "Unit lists"), and what
 // the body of a unit list definition is. It is one or more expressions
 // separated by `;`, and is not an expression itself: `;` binds looser than
 // anything and cannot appear inside parentheses. `parseUnitList` reads one,
@@ -423,7 +423,7 @@ const plainName: Parser<Spanned<string>> = token(
 
 /**
  * An atom that can follow another factor by juxtaposition: not a number.
- * The alternatives begin with different tokens (ARCHITECTURE.md,
+ * The alternatives begin with different tokens (devdocs/architecture.md,
  * "Parsing"): a name followed by `(`, a name not followed by it, and `(`.
  */
 const unitAtom: Parser<Expr, Rejection> = alt(

@@ -108,8 +108,7 @@ and the rounding mode plays no part in a fraction, which is not rounded.
 
 ## Where a fraction is written
 
-Every line the app writes must be typeable back as a `have` (README,
-"Expressions"), and the grammar reads a juxtaposition before a
+Every line the app writes must be typeable back as a `have` (docs/definitions.md, "Expressions"), and the grammar reads a juxtaposition before a
 quotient: `5000/127 in` is `5000 / (127 in)`, a frequency. So:
 
 - **Before a unit, the fraction is parenthesized**, as in
@@ -220,9 +219,9 @@ the mode's one rounding of those steps; the fractions do not.
   the hint "An exact value that is not a whole number is written as a
   fraction in lowest terms when both parts fit within the display digits; inexact
   values stay decimal."
-- README ("Settings"): the sixth setting, with the example lines
+- docs/settings.md: the sixth setting, with the example lines
   `1 m = (5000/127) in`, `1 in = (127/50) cm`, `1 m = 3 ft + (428/127) in`
-  and `1 m ≈ 39.4 in` at three digits; ARCHITECTURE.md ("The display
+  and `1 m ≈ 39.4 in` at three digits; devdocs/architecture.md ("The display
   rule") the rule and the kind.
 
 ## Not in this design

@@ -201,7 +201,7 @@ enumerates it at each, which its builder gains in 6.1.
 
 The dimension-rule failures are worded as every built-in's are. Three
 domain reasons are new, `notInteger`, `notExact` and `negative`, worded
-in messages.ts. README's "Functions in expressions" gains the thirteen
+in messages.ts. docs/functions.md gains the thirteen
 in 6.1, and devdocs/design/builtins.md's list of names that collide with no unit
 grows with them (the build checks it: `div`, `mod`, `sign` and the rest
 are not units of units.txt, and none reads as a prefix followed by a
@@ -405,7 +405,7 @@ their series for small arguments. Each sub-note is a paragraph in the
 - `src/core/edges.sweep.ts`: the rules for each, and the builder's
   enumeration of a range of arities.
 - `src/messages.ts`: the domain reasons and the factorial's refusal.
-- README ("Functions in expressions"), devdocs/design/builtins.md ("Names"), and
+- docs/functions.md, devdocs/design/builtins.md ("Names"), and
   this note's "Implementation notes", per task.
 
 ## Not in this design

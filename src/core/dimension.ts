@@ -1,7 +1,7 @@
 // Dimensions: the exponent vector over the primitive units that every
 // quantity carries, the arithmetic the evaluator applies to it, the
 // conformance check between a `have` and a `want`, and formatting as text.
-// ARCHITECTURE.md ("Quantities, dimensions and kinds") gives the overview.
+// devdocs/architecture.md ("Quantities, dimensions and kinds") gives the overview.
 //
 // A dimension maps each primitive name to its exponent, with zero exponents
 // left out, so that a dimensionless quantity is the empty map and equal

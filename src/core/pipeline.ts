@@ -1,5 +1,5 @@
 // The pipeline over text: the one function the UI calls. `convertText` runs
-// the whole of the pipeline ARCHITECTURE.md describes for one `have` and one
+// the whole of the pipeline devdocs/architecture.md describes for one `have` and one
 // `want`: each text is parsed (`expr.ts`) and evaluated against the table
 // (`evaluate.ts`, `table.ts`), and the two quantities are converted
 // (`convert.ts`). It is the composition and nothing more: every step is one

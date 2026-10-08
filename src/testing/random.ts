@@ -6,7 +6,7 @@
 // Nothing in the app imports this directory: it is test support beside
 // the core, checked with the tests by tsconfig.node.json and left out of
 // the app's program. devdocs/history/calculator-plan.md (task 1.3 and the follow-up
-// after stage 3) places it; ARCHITECTURE.md ("Benchmarks") says what the
+// after stage 3) places it; devdocs/benchmarks.md says what the
 // benchmarks draw from it.
 //
 // The design is JAX's. A `Key` is two 32-bit words. `split(key, n)` makes

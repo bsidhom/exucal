@@ -64,7 +64,7 @@ starting with one never means redoing the other.
 
 ## What the core gives us
 
-The pieces that matter here, from ARCHITECTURE.md:
+The pieces that matter here, from devdocs/architecture.md:
 
 - **The number type is an exact rational** over `bigint`. Exact operations
   never round. The one inexact operation, the n-th root, takes a
@@ -751,4 +751,4 @@ on the one before it.
    feature 3 as wanted.
 7. The user-function extensions: several parameters, optional inverse
    and declaration, domain and range. Storage and an editor for user
-   definitions are the "Later" item ARCHITECTURE.md already lists.
+   definitions are the "Later" item devdocs/architecture.md already lists.

@@ -1,5 +1,5 @@
 // The unit table: what `buildTable` produces and what the rest of the app
-// reads. ARCHITECTURE.md ("Definitions") gives the overview; `build.ts` is
+// reads. devdocs/architecture.md ("Definitions") gives the overview; `build.ts` is
 // the builder, and this module holds only the finished table and its lookup.
 //
 // The units map holds every name a user can type as a unit, the primitives

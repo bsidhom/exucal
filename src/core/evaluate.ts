@@ -2,10 +2,10 @@
 // `parseExpr` produced the tree without knowing which units exist, and
 // `convert` will consume the quantity without knowing where it came from;
 // this module sits between them and knows nothing about text or about
-// conformance. ARCHITECTURE.md ("Evaluation") gives the overview.
+// conformance. devdocs/architecture.md ("Evaluation") gives the overview.
 //
 // TODO: This header, like those of the other core modules, restates much of
-// what ARCHITECTURE.md says about the module. Keep the design and intent in
+// what devdocs/architecture.md says about the module. Keep the design and intent in
 // one place (the architecture doc) and reduce the module headers to what is
 // specific to the code: the invariants, the edge cases and the reasons for a
 // particular implementation choice.

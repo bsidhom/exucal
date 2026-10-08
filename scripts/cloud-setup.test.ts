@@ -5,7 +5,7 @@
 // noticed only when a cloud session starts with the wrong toolchain. This
 // test fails `pnpm test` instead, and its messages say what to do: bump the
 // pin at the top of the script, then paste the script into the
-// environment's settings again (README.md, "Cloud environment").
+// environment's settings again (devdocs/development.md, "Cloud environment").
 //
 // What it checks:
 //
@@ -37,7 +37,7 @@ const packageJson = JSON.parse(
 };
 
 const REPASTE =
-  'then paste scripts/cloud-setup.sh into the cloud environment\'s settings again (README.md, "Cloud environment")';
+  'then paste scripts/cloud-setup.sh into the cloud environment\'s settings again (devdocs/development.md, "Cloud environment")';
 
 /** The value assigned to `name` at the top of the script, `NAME="value"`. */
 function pin(name: string): string {

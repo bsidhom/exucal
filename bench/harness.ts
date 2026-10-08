@@ -3,8 +3,8 @@
 // measures the same synthetic data (a name is a pure function of its key,
 // as every draw is), and a timer that takes the best of
 // several runs, the estimate least disturbed by whatever else the machine is
-// doing. ARCHITECTURE.md ("Benchmarks") describes the benchmarks and what
-// they are for; README.md says how and when to run them.
+// doing. devdocs/benchmarks.md describes the benchmarks, what they are
+// for, and how and when to run them.
 //
 // A benchmark reports its timings as diagnostics, for a person to compare
 // between runs, and asserts only how a cost scales with the size of its

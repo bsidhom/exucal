@@ -797,7 +797,7 @@ twice, so nesting such calls `k` levels deep evaluates the innermost
 `2^k` times, at every pass of the retry loop. That is what the same
 expression written out in full costs, so it is no new limit, and the
 ceiling bounds it as it bounds any expression; but a definition that
-reads small can be large, and README ("Functions") and ARCHITECTURE.md
+reads small can be large, and docs/definitions.md ("Functions") and devdocs/architecture.md
 ("Functions") say so.
 
 ## Where it goes

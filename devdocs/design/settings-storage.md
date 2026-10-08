@@ -291,7 +291,7 @@ their own.
 - `resetSettings` and `resetSetting(key)` exist and are tested, with the
   clamp after a single reset; `isDefault(settings, key)` exists.
 - `savedBy` holds the whole build string.
-- README's "Settings" says that the settings carry a version and are
-  migrated, in one sentence; ARCHITECTURE.md's file table says the same
+- docs/settings.md says that the settings carry a version and are
+  migrated, in one sentence; devdocs/layout.md's file table says the same
   of settings.ts.
 - No field is renamed, and the panel is unchanged.

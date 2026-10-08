@@ -139,11 +139,11 @@ The focus is the conceptual building blocks, unified across the two
 sides: each concept area has one user-side owner, which states the
 rules, and one developer-side owner, which keeps three things and no
 more: the mechanism, the decision with its reason, and the
-decisions-against with theirs. Each side links to the other at the
+ruled-out alternatives with theirs. Each side links to the other at the
 section level. The developer-side owners below are the existing pages;
 the units in §10.c reshape them to this map.
 
-| Concept area | docs/ owner (the rules) | devdocs/ owner (mechanism, decisions, decisions-against) |
+| Concept area | docs/ owner (the rules) | devdocs/ owner (mechanism, decisions, ruled-out alternatives) |
 | --- | --- | --- |
 | Exactness and the error radius | `numbers.md` › Exact and approximate values | `devdocs/numbers.md#The types`, `#Exact mode` |
 | Digits, certification, the retry loop | `numbers.md` › Digits you can trust | `devdocs/numbers.md#Certification and the display rule`, `#Working precision and the schedule`, `#Settling` |

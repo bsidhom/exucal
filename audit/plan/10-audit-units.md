@@ -189,49 +189,42 @@ question 3). *Context:* A8, §7.
 
 ### 10.c devdocs/ units (each with the docs sections and claims it touches as read-only context)
 
-Every devdocs unit also applies the test at the top of this plan to each
-narrated predecessor, "set aside" and "once" in its pages: rewrite it as
-a ruled-out alternative with its reason, in the present tense, beside
-the concept it concerns (`audit/principles.md`), or drop it as a quirk; trim interim-state notes to the current state plus
-the issue; and replace a measurement that no tool regenerates by the
-decision it supported, or date it. The unit's output lists each such
-passage with its classification and flags the uncertain ones for §12,
-question 25. Where a current page states a decision without its reason,
-the unit may read the removed design note in git for that reason alone
-(§12, question 1).
+Every devdocs unit applies the principle in `audit/principles.md` to its
+pages: a passage that describes a superseded design is rewritten to the
+current design, keeping only the intent it carries, as rationale or as
+a ruled-out alternative. The unit's output tags each such passage
+"update", "keep as intent" or "drop", starting from the rows of §1.1.5,
+§1.2.5 and §9.4 for its pages and adding any it finds. Where a current
+page states a decision without its reason, the unit may read the
+removed design note in git for that reason alone (§12, question 1).
 
 **V1. `devdocs/numbers.md`.** All sections. *Modules:* those of A1–A6 (the
 unit re-reads only where the page's statements were not covered by an A
 unit: `#The kernel's boundary`, `#Memoized constants`, `#Roots and
 powers`, `#Failures`). *Context:* claims N1–N25 with A1–A6 findings;
 `docs/settings.md#How a number is held…`, `docs/functions.md#Very large
-results and approx` (to be replaced by links to `numbers.md`); §9.1, §9.4
-rows for this page. *Output:* which passages become links to docs, which
-stay as mechanism, which are kept as decisions-against and which are
-dropped as quirks.
+results and approx` (to be replaced by links to `numbers.md`); §9.1 and §1.1.5 rows for this page. *Output:* which passages become links to docs, which
+stay as mechanism, which stale passages are updated, kept as intent or dropped.
 
 **V2. `devdocs/architecture.md`.** All sections. *Modules:* those of A7–A9
 and D1 (`pipeline.ts`, `evaluate.ts`, `convert.ts`, `table.ts`,
 `build.ts`, `expr.ts`, `parser.ts`, `print.ts`; the UI modules by header
 only). *Context:* claims Q1–Q19; `docs/definitions.md#Expressions`,
-`#Names`, `#Unit lists`; §9.1 (precedence, lists, calls duplication), §9.4
-(the pipeline diagram). *Output:* the pared "Expressions", "Definitions",
+`#Names`, `#Unit lists`; §9.1 (precedence, lists, calls duplication), §1.2.5 (the pipeline diagram). *Output:* the pared "Expressions", "Definitions",
 "Unit lists" sections that link to the references; the UI sections
 checked against `app.md`'s decision.
 
 **V3. `devdocs/builtins.md`.** All sections. *Modules:* `builtin.ts`,
 `builtins.ts`, `builtins/*.ts` (as in D5–D7), `fixed-*.ts` by header only.
-*Context:* D5–D7 entries; claims N6, N15, N21, N22, Q5, Q8; §9.1 (angle
-rules, cost figures). *Output:* the user-rule passages replaced by links
+*Context:* D5–D7 entries; claims N6, N15, N21, N22, Q5, Q8; §9.1 (angle rules, cost figures), §1.1.5 rows for this page. *Output:* the user-rule passages replaced by links
 to `functions.md` entries; the algorithms, bounds and measurements kept.
 
 **V4. `devdocs/functions.md`.** All sections. *Modules:* `definitions.ts`,
 `build.ts`, `dimension-of.ts`, `evaluate.ts`, `pipeline.ts`, `outcome.ts`
 (as in D2 and A6/A8). *Context:* D2 output; claims N14–N16, Q3, Q5, Q16;
-`docs/definitions.md#Functions`; §9.1 (triplicated cost paragraph), §9.4
-(the unworded rejection). *Output:* `#Calls`, `#Display`, `#Conditions`
+`docs/definitions.md#Functions`; §9.1 (triplicated cost paragraph), §1.2.5 (the unworded rejection). *Output:* `#Calls`, `#Display`, `#Conditions`
 reduced to links plus mechanism; "Deferred" and "Alternatives
-considered" kept as record.
+considered" kept as intent, the ruled-out alternatives and deferred designs with their reasons.
 
 **V5. `devdocs/notation.md` and `devdocs/settings.md`.** All sections.
 *Modules:* `display.ts`, `outcome.ts`, `settings.ts`, `settings-lines.ts`,
@@ -250,7 +243,7 @@ issue list in both corpora.
 
 **V7. `devdocs/layout.md`, `devdocs/testing.md`, `devdocs/benchmarks.md`.** All
 sections. *Modules:* the tree (§11) against `layout.md#The modules`; test
-and bench files by name. *Context:* §11; no docs dependency. *Output:*
+and bench files by name. *Context:* §11; §9.4 rows for these pages; no docs dependency. *Output:*
 the module table reconciled with the tree (e.g. `exact.test.ts` listed
 among modules; `fixed-incbeta.ts` without a test), and the
 "what a test may depend on" claims checked against the settings' hard
@@ -262,8 +255,7 @@ bounds (A5).
 `src/register-service-worker.ts`, `src/service-worker-updates.ts`,
 `wrangler.jsonc`, `package.json`, `pnpm-workspace.yaml` (headers and
 settings only). *Context:* D9 output; `docs/README.md`;
-`docs/settings.md#(top)` update paragraph; §12 question 1 (the README's
-self-description). *Output:* `devdocs/README.md`'s page list and framing
+`docs/settings.md#(top)` update paragraph; §9.4 (the development page's row); §12 question 1 (the removed notes). *Output:* `devdocs/README.md`'s page list and framing
 revised to the new docs/ outline; the user-facing update/offline facts
 moved to `app.md` or getting started with links back; the principle of
 `audit/principles.md` installed in `devdocs/development.md#Style guide`

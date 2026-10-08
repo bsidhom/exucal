@@ -6,7 +6,7 @@ Each with a proposed answer, none decided.
 
 1. **The removed design notes.** Settled in principle: the pages
    preserve design intentions and the salient decisions and
-   decisions-against, not the archaeological record, so the notes
+   ruled-out alternatives, not the archaeological record, so the notes
    removed on 2026-10-08 are not resurrected and no history page is
    added. One question remains. Several current passages give a ruling
    without its ground ("was set aside", "was weighed and left undone"
@@ -51,9 +51,9 @@ Each with a proposed answer, none decided.
    it enforces and the page that owns the rule, generated or checked
    from `messages.ts`; internal kind names never appear in docs.
 7. **What is authoritative.** Settled: the current pages are
-   authoritative; a narrated predecessor is classified by the test at
-   the top of this plan, never by its date; git is not cited in the
-   pages.
+   authoritative; a passage describing a superseded design is rewritten
+   to the current design and only its intent kept, whatever its date
+   (`audit/principles.md`); git is not cited in the pages.
 8. **"certain" vs "certified".** The notes say "8 of 12 digits are
    certain"; devdocs say "certified" 100+ times; docs mix both.
    *Proposed:* "certified" as the concept in both corpora, the note text
@@ -124,11 +124,9 @@ Each with a proposed answer, none decided.
     opens with one sentence and a link to the owning docs section, then
     mechanism and rationale only; rules restated for the sake of a
     rationale are quoted in one line, not re-derived.
-25. **Measurements that justify decisions.** The threshold between a
-    quirk and a decision-against is settled by the principle's own
-    criterion: keep a ruled-out path wherever knowing it would stop a
-    future reader from re-proposing or re-litigating it; drop a slip no
-    one would repeat, or one the rule's own statement already excludes.
+25. **Measurements that justify decisions.** The principle settles what
+    to keep: rationale and ruled-out alternatives wherever knowing them
+    would stop a future reader from re-proposing or re-litigating them.
     What remains open is the measurements that justify decisions in
     `devdocs/numbers.md`, `devdocs/builtins.md` and `devdocs/future.md`
     (timings of a scratch build, of gcds, of `pi`), which no tool
@@ -149,7 +147,7 @@ Each with a proposed answer, none decided.
     §7.1 is the instrument. Each core concept has exactly one user-side
     owner and one developer-side owner, each linking to the other; the
     user side states the rule, the developer side the mechanism, the
-    decision and the decisions-against. A concept that lacks either
+    decision and the ruled-out alternatives. A concept that lacks either
     owner after the restructuring is a gap to fill, not a page to pad.
 29. **The principle's permanent home.** `audit/principles.md` holds the
     documentation principle during the revamp. *Proposed:* install it in

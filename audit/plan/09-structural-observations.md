@@ -97,67 +97,24 @@
 - Name resolution: `docs/definitions.md#Names` (a definitions page) owns
   a rule that governs every expression.
 
-### 9.4 Passages that read as current but are history, plans, interim state or cruft
+### 9.4 Stale passages elsewhere, tagged
 
-Each with its classification by the test at the top of this plan.
+Passages outside the core-abstraction pages that describe a superseded
+design, an interim state, or a count a tool regenerates, tagged as in
+§1.1.5: **update**, **keep as intent** or **drop**.
 
-- `devdocs/README.md#(top)`: "current-state documents, not a history" is
-  the principle of `audit/principles.md` in one sentence; keep, and link
-  to the principle once it is installed (§12, question 29).
-- `docs/definitions.md#(top)`: "This section describes that file" is left
-  over from the page's life as a README section. Cruft; fix.
-- `docs/functions.md#(top)`: "Beside the functions the file defines" with
-  "the file" undefined on the page. Cruft; fix.
-- `docs/settings.md#(top) › Probe budget` and the paragraph "The limits are
-  set top-down": the probe "times the costliest exact product and the
-  costliest built-ins", while `devdocs/settings.md#The probe` says the
-  composite is the four elementary routines, deliberately not the
-  costlier Gamma family. Correctness; fix the docs.
-- `devdocs/cost.md#What the costs come from` ("Typing out the 229 entries …
-  16,548 keystrokes") against `#What the search has not reached` ("714
-  cases in all") and tables of 344 and 47 rows. Counts that the tool
-  regenerates, carried in hand-revised prose; drop the counts from the
-  prose or have the tool write them.
-- `devdocs/architecture.md#Pipeline`: the diagram ends in `format ──▶
-  string` while the text names `show`, `roundTerms` and `outcomeOf`.
-  Possibly a stale name; fix.
-- `devdocs/numbers.md#The working digits` (last paragraph): the unsettled
-  vocabulary around `working`, #172 open. Open decision; trim to one
-  sentence plus the issue.
-- `devdocs/numbers.md#Decimal mode`: "Two rulings are provisional", #173.
-  Open decisions with their reasons; keep.
-- `devdocs/numbers.md#Working precision and the schedule`: "they moved
-  once, from a fixed ceiling of a thousand digits…". Quirk; drop, keeping
-  that four and ten are judgments.
-- `devdocs/numbers.md#The types › Scaled` (the division's 0.2 ms against
-  0.04 ms "when the base was chosen"), `#Exact operations` (Lehmer against
-  Euclid at 65,536 bits), `#Why the exponent bound stays at 10^18` (the
-  scratch build's timings), `#Formatting` (what a settle costs),
-  `devdocs/builtins.md` (per-routine costs at the ceiling),
-  `devdocs/future.md#Ruled out` (`pi` in 0.4 ms). Measurements that justify
-  decisions but that no tool regenerates. *Uncertain*; see §12,
-  question 25.
-- `devdocs/builtins.md#Huge and tiny arguments`: "(`acos(1e-9860)` was
-  refused at the default limit)". Quirk inside a current rule; drop the
-  parenthetical, keep the rule.
-- `devdocs/architecture.md#Parsing`: "(The call rule broke it once: …)".
-  The reason the lookahead is used and the cut was set aside is a
-  decision-against; keep the reason, drop the narrative.
-- `devdocs/testing.md#Type-checking` "(one did, until the projects were
-  made to match by pattern)" and `#(top)` "three of them once failed
-  unnoticed for a whole stage". Each is the reason a rule exists (the
-  coverage test; the benchmarks in `test:all`); keep as one clause each,
-  without the narrative.
-- `devdocs/functions.md#Annotations`: "No message is worded for a
-  definitions rejection today … the wording meant for this one is …".
-  Interim state; keep the intended wording in one sentence plus #132
-  while that issue is open, drop it when it lands.
-- `devdocs/settings.md#The controls`: the `ABOUT` link "until the guide
-  lands (#191)". Interim state; one clause plus the issue until the guide
-  exists, then nothing.
-- `docs/settings.md#(top)`: "There are six settings" against eight
-  controls. Wording; fix.
-- `docs/functions.md#(top)` (gamma bullet): the memo's growth rule stated
-  one way, `devdocs/builtins.md` another (a larger run replaces a smaller
-  one). State the current rule once, in devdocs; the docs keep the
-  qualitative cost sentence only.
+| Where | Stale passage | Tag | What the rewrite keeps |
+| --- | --- | --- | --- |
+| `docs/definitions.md#(top)` | "This section describes that file" | update | the page is no longer a README section |
+| `docs/functions.md#(top)` | "Beside the functions the file defines", with "the file" undefined on the page | update | name the definitions file |
+| `docs/settings.md#(top) › Probe budget` and "The limits are set top-down" | the probe "times the costliest exact product and the costliest built-ins" | update | the composite is the four elementary routines, deliberately not the costlier special functions (`devdocs/settings.md#The probe`) |
+| `docs/settings.md#(top)` | "There are six settings", against eight controls | update | one entry per control, the two nested ones under their mode |
+| `docs/functions.md#(top)` (gamma bullet) | "computed once per page load for each precision asked for beyond the last and kept" | update | the current rule stated once, in devdocs (a larger run replaces a smaller one); the docs keep a qualitative cost sentence |
+| `devdocs/cost.md#What the costs come from`, `#What the search has not reached` | "Typing out the 229 entries … 16,548 keystrokes"; "what four runs found, 714 cases in all" | update | counts the tool regenerates do not belong in hand-revised prose: drop them, or have the tool write them |
+| `devdocs/settings.md#The controls` | "pointing at docs/settings.md until the guide lands (#191)" | update | what the link points at; the issue says what is pending |
+| `devdocs/settings.md#The controls` | "(sentences as options once made the panel overflow a phone; `min-width: 0` on the labels is a belt to that)" | keep as intent | a select is as wide as its widest option, so the options are bare names and `min-width: 0` on the labels keeps a long one from overflowing a phone |
+| `devdocs/testing.md#(top)` | "three of them once failed unnoticed for a whole stage, two of them before reaching their assertions" | keep as intent | why the benchmarks run in `test:all`: a benchmark left out of it fails unnoticed, often before reaching its assertion |
+| `devdocs/testing.md#Type-checking` | "(one did, until the projects were made to match by pattern)" | drop | the reason is already stated in the present tense |
+| `devdocs/testing.md#Type-checking` | "the kernel's modules once formed an initialization cycle through `fixed.ts`, `ball.ts` and `context.ts` that only such imports kept alive, so that a module's top level ran before its constants existed…" | keep as intent | why every type-only import is `import type`: an `import { type X }` still loads its module, so an initialization cycle among the kernel's modules would run a module's top level before its constants exist |
+| `devdocs/benchmarks.md#What each benchmark asserts` | "(it costs about the same; before the index it cost fifty times as much)" | keep as intent | what the benchmark guards: without the index the check costs fifty times as much |
+| `devdocs/development.md#Commands` | "(The one place the flag is still written out is the cloud session hook, so that the hook reads as what it does.)" | update | the hook writes the flag out so that it reads as what it does; no "still" |

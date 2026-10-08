@@ -12,40 +12,30 @@ bullets under `#(top)`, so most of its pointers use the bullet form.
 Claims are numbered `N1…` (numeric type) and `Q1…` (quantity) so that
 later sections can cite them.
 
-**What "history" means in this plan.** The governing statement is the
-principle in `audit/principles.md`, "Documentation principle: intent,
-not history": the docs describe the current design and the intent
-behind it, including the paths ruled out wherever knowing them would
-stop a future reader from re-proposing or re-litigating them; they do
-not record how the design evolved, and a passage describing a design
-that is no longer current is rewritten to the current design, keeping
-only the intent it carries, as rationale or as a ruled-out alternative.
-Git history is the record of change; the docs are the record of intent.
-This plan applies the principle as a three-way test, used in every
-audit unit:
+**The principle, and how the plan applies it.** The governing statement
+is the principle in `audit/principles.md`, "Documentation principle:
+intent, not history": the docs describe the current design and the
+intent behind it, including the paths ruled out wherever knowing them
+would stop a future reader from re-proposing or re-litigating them;
+they do not record how the design evolved. Where this plan and the
+principle conflict, the principle wins. `devdocs/` is not a historical
+record: it states the current design and its intent, including
+ruled-out alternatives, and nothing about how the design evolved. The
+plan therefore lists, for each concept, the passages that discuss it,
+in no particular order, and tags each passage that describes a
+superseded design with one of three words:
 
-- **Keep, rewritten as intent:** a decision together with its reason;
-  an alternative ruled out up front, with the reason; a design that was
-  redesigned after seeing how it fleshed out, rewritten as a ruled-out
-  alternative with its reason, in the present tense, never as a
-  "previously X" note; an open decision tracked by an issue, kept as a
-  living pointer beside the concept it concerns.
-- **Drop:** a mistake from a minor misunderstanding that was quickly
-  corrected, which no reader would re-propose; commit order, dates and
-  commit hashes; old names and old shapes beyond what a migration must
-  still read; interim-state notes ("until X lands") once X has landed,
-  or where the issue link alone says it; measurements and counts that
-  a tool regenerates.
-- **Not history, so neither kept nor dropped on these grounds:** the
-  settings migrations (mechanism the code needs to read old storage);
-  a rule's current statement, however it was arrived at.
+- **update:** the passage is stale; rewrite it to the current design.
+- **keep as intent:** the passage carries rationale or a ruled-out
+  alternative worth keeping; rewrite it as such, in the present tense,
+  never as a "previously X" note.
+- **drop:** the passage carries no intent the page does not already
+  state; delete it.
 
-Where this plan says *decision-against*, it means a passage to keep by
-that test, rewritten as a ruled-out alternative; where it says *quirk*,
-one to drop. Rows marked *uncertain* are ones the test does not settle
-from the text alone (§12, question 25).
+The tagged passages are in §1.1.5, §1.2.5 and §9.4; every devdocs audit
+unit extends the list for its pages and applies the tags.
 
-The repository's own state fits that aim: on 2026-10-08 `devdocs/` was
+The repository's own state fits the principle: on 2026-10-08 `devdocs/` was
 pared into current-state pages and its design notes and plans were
 removed (they remain in git only, as `devdocs/design/*.md` and
 `devdocs/history/*.md` at commit 54aec25, removed in 270b471), and
@@ -62,7 +52,7 @@ Nothing else in this plan depends on git history.
 The plan is one file per section under `plan/`. Section numbers in
 cross-references (§5, "§12, question 25") name these files.
 
-1. [Core abstractions](plan/01-core-abstractions.md): the numeric type and the quantity as numbered claims (N1 to N25, Q1 to Q19) with their devdocs sources, the settings that parameterize them, edge cases, what stays in devdocs, decisions and decisions-against to carry forward, the claims to verify, and the modules to check.
+1. [Core abstractions](plan/01-core-abstractions.md): the numeric type and the quantity as numbered claims (N1 to N25, Q1 to Q19) with their devdocs sources, the settings that parameterize them, edge cases, what stays in devdocs, stale passages tagged update, keep as intent or drop, the claims to verify, and the modules to check.
 2. [The two languages](plan/02-the-two-languages.md): the expression language and the definition language: constructs by pointer, where syntax meets the core abstractions, whether a formal grammar exists and what form the references should take, and the modules to check.
 3. [Settings](plan/03-settings.md): every setting, the model parameter or behaviour it controls, its default and range, and where it is documented today.
 4. [Built-in functions](plan/04-built-in-functions.md): the entry template for the function reference, the functions grouped into families, and whether descriptions live in the source.
@@ -70,7 +60,7 @@ cross-references (§5, "§12, question 25") name these files.
 6. [Coverage gaps in docs/, measured against the target](plan/06-coverage-gaps.md): what docs/ lacks against the target, with the devdocs passages the new content would derive from, and which existing pages must link to the foundation pages.
 7. [Proposed docs/ outline (skeleton)](plan/07-docs-outline.md): the page skeleton for the restructured docs/ and the unified concept map pairing each concept's user-side and developer-side owners.
 8. [Terminology](plan/08-terminology.md): conflicting and synonymous terms found in both corpora, with a proposed canonical term for each.
-9. [Preliminary structural observations (from the docs alone; unverified)](plan/09-structural-observations.md): duplication across the corpora, links against the ownership direction, concepts without an owner, and passages that are history, plans or interim state; all unverified.
+9. [Preliminary structural observations (from the docs alone; unverified)](plan/09-structural-observations.md): duplication across the corpora, links against the ownership direction, concepts without an owner, and stale passages elsewhere tagged the same way; all unverified.
 10. [Audit units](plan/10-audit-units.md): twenty-six audit units in order: the core abstractions, then docs/ by target area, then devdocs/ page by page, each sized for one session.
 11. [User-facing surface files (from the tree; not read)](plan/11-surface-files.md): the source files that define the parsers, the built-in registry, the unit definitions and the settings, for later mechanical coverage checks.
 12. [Open questions](plan/12-open-questions.md): twenty-nine open questions on ownership, terminology and placement, each with a proposed answer.

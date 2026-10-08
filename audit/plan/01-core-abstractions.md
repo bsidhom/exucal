@@ -299,31 +299,32 @@ and the schedule`, `#The significand limit`.
   `show`'s `fraction`/`scale`: `devdocs/notation.md#The width`, `#Where it
   lives`.
 
-#### 1.1.5 Decisions and decisions-against to carry forward; quirks to drop
+#### 1.1.5 Stale passages in the numeric pages, tagged
 
-Every narrated predecessor and every "set aside" in the numeric pages,
-classified by the test at the top of this plan. "Owner" is the current
-passage that states the decision; "treatment" is what the living pages
-keep.
+Passages that describe a superseded design, each tagged **update**
+(rewrite to the current design), **keep as intent** (rewrite as
+rationale or as a ruled-out alternative, in the present tense) or
+**drop** (delete; the page already states the intent). The migration
+list in `devdocs/settings.md#Storage` is mechanism, not a description of
+a superseded design, and is not tagged (§12, question 27).
 
-| Passage, as narrated | Classification | Owner | Treatment |
+| Where | Stale passage | Tag | What the rewrite keeps |
 | --- | --- | --- | --- |
-| Decimal mode once tracked the roundings in the radius ("7 of 8 digits are certain") | decision-against: redesigned after seeing it fleshed out | `devdocs/numbers.md#Decimal mode` | rewrite as a ruled-out alternative: carrying a radius through the mode's steps answers a question the mode does not ask, and a directed rounding could never certify its last digit |
-| Inexact midpoints grew as exact rationals | decision-against: seen in use (a dyadic to the fifth power refused by the limit) | `devdocs/numbers.md#Settling` | keep as the reason settling exists; drop the sizes |
-| A binary exponent beside the decimal one | decision-against: a larger flaw, found when the mixed base leaked into every operation | `devdocs/numbers.md#The types › Scaled` | keep, trimmed to the reasons (one base, where the base changes, the cost accepted); the millisecond figures are *uncertain* |
-| Certification widened the midpoint by two digits | quirk: an implementation slip, corrected | `devdocs/numbers.md#Certification and the display rule` | drop the parenthetical; the distance rule stands alone |
-| A fixed ceiling of 1,000 digits with the display digits capped at 200 ("they moved once") | quirk: the parameters moved; the judgment behind four and ten is the decision | `devdocs/numbers.md#Working precision and the schedule` | drop the sentence; keep that four and ten are judgments and why |
-| The significand limit measured after forming | decision-against: deliberate while it lasted, replaced by prediction after the gcds (#73) | `devdocs/numbers.md#The significand limit` | keep why prediction runs after the gcds (`x / x` is one) and why the limit is strict; drop the commit |
-| Refusal reach worded "passes" | quirk: wording | same section | drop |
-| The ratio notation's fit tied to the display digits ("the first rule") | decision-against: redesigned after use (a length coupled to a precision; exact values hidden; not readable off the settings) | `devdocs/notation.md#The width` | keep as the reasons for the width; drop the commits |
-| The `fractions` flag and notation-as-string shapes; the settings' old keys (`digits`, `maxDigits`, `maxBits`) | not history: the migrations must read them | `devdocs/settings.md#Storage` | keep only inside the migration list; the naming rationale stays in `#The model` |
-| The rounding default, half away from zero | decision: an unbiased default, the old one echoed by every save | `devdocs/settings.md#The model › Rounding`, `#Storage` (2→3) | keep the reason for half even; the migration row as mechanism |
-| A ball around zero could print `-0` | quirk: quickly corrected | `devdocs/numbers.md#Certification…` (zero kind) | drop any trace; the rule "written `0` whatever the sign" stays |
-| `settle` exported and reachable from two sites | quirk: an internal shape | `devdocs/numbers.md#Settling` | drop; keep "`step` is the one entrance" as the design rule |
-| The vocabulary around `working` (#172) | open decision | `devdocs/numbers.md#The working digits` | keep as one sentence plus the issue; §8 proposes the terms |
-| `uncertified` shown rather than decided as a tie (#173); the two "provisional" rulings of decimal mode | open decisions, with their reasons given | `devdocs/numbers.md#Decimal mode` | keep as decisions-for-now with the reasons and the issue |
-| Per-operation precision (MPFR's guarantee) set aside for whole-expression precision | decision-against: ruled out up front | `devdocs/numbers.md#Exact mode` | keep |
-| Rounding an exact result past the limit at the node, a third mode rounding every literal, a setting for the exponent bound, raising the bound, stored digits of `pi`, the `approx` spellings | decisions-against: ruled out with reasons | `devdocs/numbers.md#The significand limit`, `#approx`, `#Why the exponent bound stays at 10^18`; `devdocs/future.md#Ruled out, and why` | keep; the scratch-build timings under the exponent bound are *uncertain* (they justify the decision but no tool regenerates them) |
+| `devdocs/numbers.md#The types › Scaled` | "A first design carried a binary exponent beside the decimal one…", and the division "measured, when the base was chosen, at 0.2 ms against 0.04 ms" | keep as intent | the ruled-out alternative, one exponent per base, rejected because the mixed base leaks into every operation that brings the two together; the cost of one base stated as its present cost |
+| `devdocs/numbers.md#Roots and powers` | "…which converted to zero and reported a false `unresolved`" | keep as intent | why the third case goes to log space: such a significand would convert to zero and report a false `unresolved` |
+| `devdocs/numbers.md#The kernel's boundary` | "(the hard bound alone was too small from a limit of about 350,000 bits up)" | keep as intent | why the door allows four times the hard bound: the hard bound alone does not hold a significand within the limit at a magnitude of `2^±significandLimitBits` once the limit passes about 350,000 bits |
+| `devdocs/numbers.md#Certification and the display rule` | "(A first version widened the midpoint taken to two digits beyond those asked…)" | drop | the distance rule stands on its own |
+| `devdocs/numbers.md#Working precision and the schedule` | "they moved once, from a fixed ceiling of a thousand digits with the digits limited to two hundred, when the precision limit became a setting" | drop | that four and ten are judgments, not measurements, is already stated |
+| `devdocs/numbers.md#Settling` | "(The first design let inexact midpoints grow as exact rationals, and a thirteen-thousand-bit dyadic to the fifth power was then a size the significand limit refused.)" | keep as intent | why settling exists: an inexact midpoint left to grow as an exact rational reaches the significand limit in a few operations |
+| `devdocs/numbers.md#Settling` | "Its primitive, `settle`, is not exported: an earlier shape, a settle any inexact ball could reach…, was a contract that lived in documentation." | keep as intent | `settle` is not exported because a settle any ball could reach would be a contract that lives in documentation |
+| `devdocs/numbers.md#Decimal mode` | "An earlier version of the mode rounded every step and also tracked, in the radius, how far the roundings had carried the value… That was withdrawn: …" | keep as intent | the ruled-out alternative, a radius carried through the mode's steps: it answers a question the mode does not ask, a directed rounding could never certify its last digit, and it adds no behaviour exact mode lacks |
+| `devdocs/numbers.md#The significand limit` | "Measuring after forming, which the limit did at first, was deliberate while it lasted (…), and the strict limit keeps its answers by predicting after the gcds." | keep as intent | the ruled-out alternative, measuring after forming, and why prediction runs after the gcds (a prediction from unreduced sizes refuses `x / x`) |
+| `devdocs/builtins.md#The elementary routines` | "Timing it once found that the exact arithmetic on settled midpoints ran Euclid's gcd on dyadics of the ceiling's size…, which is why the gcd strips the common power of two first." | keep as intent | the gcd strips the common power of two first because settled midpoints are dyadics of the ceiling's size, on which Euclid's gcd costs tens of milliseconds a sum |
+| `devdocs/builtins.md#The Gamma and Beta families` | "(growing the memo term by term had a cold ceiling pass recompute the run five times over)" | keep as intent | why a series reserves its count up front: a memo grown term by term would recompute the run several times in one cold pass |
+| `devdocs/builtins.md#Huge and tiny arguments` | "(`acos(1e-9860)` was refused at the default limit)" | drop | the reason `asin` and `acos` take their expansion earlier is already stated |
+| `devdocs/notation.md#The width` | "The first rule tied the fit to the display digits, each part fitting within them; that coupled a length to a precision…, hid exact values…, and could not be read off the settings." | keep as intent | the ruled-out alternative, a fit tied to the display digits, with those three reasons |
+| `devdocs/settings.md#The model › Rounding` | "the stored value of the earlier default, `halfAwayFromZero`, echoed by every save…, was migrated to `halfEven` once, with the control one tap away" | drop | the reason for half even is already stated; the migration row in `#Storage` carries the mechanism |
+| `devdocs/settings.md#Storage › 1 → 2` | "so that the mechanism was exercised end to end before a migration with a semantic change existed" | drop | what the migration reads and writes is mechanism; why it came first is not |
 
 #### 1.1.6 Claims that most need verification against the code
 
@@ -579,22 +580,17 @@ table; decimal mode rounds each unit once (Q11).
   as the want`, `#An undecided condition`.
 - Kind-lenient conversion, complex magnitudes, offsets: `devdocs/future.md`.
 
-#### 1.2.5 Decisions and decisions-against to carry forward; quirks to drop
+#### 1.2.5 Stale passages in the quantity and language pages, tagged
 
-| Passage, as narrated | Classification | Owner | Treatment |
+Tags as in §1.1.5.
+
+| Where | Stale passage | Tag | What the rewrite keeps |
 | --- | --- | --- | --- |
-| Function heads in the first form, `tempC(x) [1;K] body ; inverse` | decision-against: redesigned after use (no home for bounds; annotations all or nothing) | `devdocs/functions.md#Alternatives considered` | keep the reason each alternative lost; trim the first form to one line |
-| Annotations as GNU `units=` (a parameter bound to its count) | decision-against: ruled out up front | `devdocs/functions.md#Annotations` | keep |
-| Bounds written in the parameter list; keyword clauses; a multi-line block | decisions-against: ruled out up front | `devdocs/functions.md#Alternatives considered` | keep |
-| The build check evaluated each body at one value | decision-against: untenable once the elementary functions existed | `devdocs/functions.md#Build-time checks` | keep as one clause: why bodies are not evaluated at build |
-| The reciprocal as GNU units' `(1 / 0.027777778) in` | decision-against | `devdocs/architecture.md#The converter and its lines › The reciprocal` | keep |
-| A list count by truncation when the ratio straddles an integer (`359 deg + 60 arcmin`) | *uncertain*: reads as a slip corrected on sight, but the rule's reason is worth a clause | `devdocs/architecture.md#Unit lists` | keep the rule with its reason; drop any "before" framing |
-| The shadowing error, meant to become a warning (#131) | open decision | `devdocs/functions.md#Names and shadowing` | keep the rule and the issue |
-| Kinds, against the degree-radian confusion; "the radian treated as 1" with plain inverses | decision and decision-against | `devdocs/builtins.md#Dimension rules › Angles` | keep |
-| An offset on `Quantity` for temperatures; lenient kind conversion | decision-against; deferred extension | `devdocs/future.md#Ruled out, and why`, `#Extensions that fit` | keep |
-| Calls decided by the table; a cut combinator for the call rule ("broke it once") | decisions-against: the cut set aside with its failure mode | `devdocs/architecture.md#Parsing`; `devdocs/functions.md#Not in this design` | keep the reasons; reduce "broke it once" to the reason the lookahead is used |
-| Trusting an inverse, checking it once, or sampling it at build | decisions-against | `devdocs/functions.md#A function as the want` | keep |
-| A sigil on parameters (`$t`) against silent shadowing | decision-against | `devdocs/functions.md#Names and shadowing` | keep |
+| `devdocs/architecture.md#Parsing` | "(The call rule broke it once: a call and a name began alike…, so a nested call with an error in it cost `2^k`… A cut combinator… was set aside for the fix: …)" | keep as intent | why the lookahead includes the name's own characters, and the ruled-out alternative, a cut combinator, rejected because a committed failure skips every enclosing `alt`, `optional` and `many`, so a misplaced cut changes the meaning of valid input |
+| `devdocs/architecture.md#Pipeline` | the diagram's `format ──▶ string`, where the text names `show`, `roundTerms` and `outcomeOf` | update | name the function the pipeline ends in (verify in V2) |
+| `devdocs/functions.md#Build-time checks` | "(The first version of the check evaluated each body at one of the declared unit, which the elementary functions made untenable.)" | drop | the sentence before it already gives the reason in the present tense |
+| `devdocs/functions.md#Alternatives considered › The syntax` | "The first form, `tempC(x) [1;K] x K + 273.15 K ; tempC / K - 273.15`, declared… and took one argument. Extending it in place… the first form's use of the function's own name…" | keep as intent | the ruled-out alternatives, a bracketed head, keyword clauses and a multi-line block, each with the reason it loses, written as alternatives rather than as a first form |
+| `devdocs/functions.md#Annotations` | "No message is worded for a definitions rejection today, since definitions cannot be typed (#132); the wording meant for this one is …" | update | state the current fact, that definitions cannot be typed so no rejection is worded, with the issue; the intended wording belongs to the issue |
 
 #### 1.2.6 Claims that most need verification against the code
 

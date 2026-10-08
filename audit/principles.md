@@ -19,9 +19,9 @@ alternative.
 
 Git history is the record of change; the docs are the record of intent.
 
-*Where it is applied:* `audit/plan.md` turns the principle into the
-three-way test (keep as intent, drop, not history) that every audit
-unit uses, and classifies the passages it has already found.
+*Where it is applied:* `audit/plan.md` tags each passage that describes
+a superseded design "update", "keep as intent" or "drop", and every
+audit unit extends the list for its pages.
 
 *Proposed permanent home:* `devdocs/development.md#Style guide`, beside
 the existing rule that a code comment names a page and a section and

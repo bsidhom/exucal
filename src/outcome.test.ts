@@ -1,5 +1,5 @@
 // The lines the output area shows, through the pipeline over the system
-// definitions, with the fractions setting on and off
+// definitions, with the ratio notation on and off
 // (devdocs/notation.md, "Where a ratio is written"): where a fraction is
 // parenthesized, where it is bare, the reciprocal, a unit list's
 // remainder, a function's argument, and both modes.
@@ -376,7 +376,7 @@ test("the copy text is the result with `*` for the product the screen writes as 
 
 test("what is copied, typed back as a have and converted into the line's own unit, gives the line again", () => {
   const decimal: NumberContext = { ...CONTEXT, precision: 3, mode: "decimal" };
-  // Each case: the texts, the fractions setting, the want that reads each
+  // Each case: the texts, the ratio notation, the want that reads each
   // line's result back (the want, then the have for the reciprocal), and
   // the context.
   const cases: [string, string, boolean | number, string[], NumberContext?][] =

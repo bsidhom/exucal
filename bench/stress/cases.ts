@@ -422,7 +422,7 @@ type Profile = { readonly name: string; readonly settings: Settings };
 /**
  * The settings profiles, with their weights: the defaults most of all,
  * then the highest precision limit the default significand limit allows,
- * more digits, the decimal mode, the fractions display, and the extreme
+ * more digits, the decimal mode, the ratio notation (the `fractions` profile), and the extreme
  * settings, the significand limit's hard bound with the precision limit it
  * allows, where cases are expected to pass their deadline.
  */

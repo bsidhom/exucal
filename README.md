@@ -1440,9 +1440,23 @@ Workers Builds running these commands from the repository root:
 | Build  | `pnpm run build`            |
 | Deploy | `pnpm exec wrangler deploy` |
 
-`wrangler.jsonc` holds the Worker name, the assets directory (`dist`), and the
-compatibility date. Keep the compatibility date as recent as the pinned
-wrangler supports, and bump it whenever wrangler is updated.
+`wrangler.jsonc` holds the Worker name, the assets directory (`dist`), the
+compatibility date, and the switches that keep the Worker off `workers.dev`.
+Keep the compatibility date as recent as the pinned wrangler supports, and bump
+it whenever wrangler is updated.
+
+The app is served from a custom domain, attached to the Worker in the
+Cloudflare dashboard (the Worker's Domains & Routes settings) rather than
+listed in `wrangler.jsonc`. That keeps the repository deployable by anyone to
+their own account and domain without changing it: wrangler adds the routes and
+domains its configuration lists, but never removes one added in the dashboard,
+and a Worker's name is scoped to its account. `workers_dev` and `preview_urls`
+are both `false`, so the Worker has no `workers.dev` address and no
+`workers.dev` Preview URLs. A PWA needs one origin, since its installs and its
+saved settings belong to the origin they were made on. Wrangler applies both
+settings on every deploy, so turning either back on in the dashboard lasts only
+until the next one. Previews on a custom domain are a setting of that domain
+and are unaffected. To deploy without a custom domain, set both to `true`.
 
 Wrangler sends usage telemetry to Cloudflare unless told otherwise, and its
 [telemetry docs](https://github.com/cloudflare/workers-sdk/blob/main/packages/wrangler/telemetry.md)

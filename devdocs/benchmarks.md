@@ -118,7 +118,8 @@ is what they share:
 The stress tools run for minutes and are run by hand; `pnpm test:all`
 runs none of them. Their tests (`cases.test.ts`, `catalogue.test.ts`,
 `harness.test.ts`, `pool.test.ts`) are ordinary ones, run by
-`pnpm test`, since they evaluate nothing costly.
+`pnpm test`, since they evaluate nothing costly. Either command prints
+its options with `--help`.
 
 ### The harness
 

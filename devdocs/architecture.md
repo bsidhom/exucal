@@ -25,7 +25,9 @@ Two rules shape everything below:
   across module boundaries: failures are returned as `Result` values, a
   discriminated union of a value or an error, each module defining its
   own error type. A throw is reserved for a precondition failure, which
-  is a bug, never an input. The UI is a thin layer that calls into it.
+  is a bug, never an input, with one known exception, the table's lookup
+  of a prefixed unit near the exponent bound ("Definitions" below). The
+  UI is a thin layer that calls into it.
 - **No third-party runtime dependencies** beyond Lit. Arithmetic is
   built on `bigint`. [security.md](security.md) gathers what follows
   from this rule and the rest of the project's security stance.
@@ -200,8 +202,8 @@ the messages that quote it; a chain that turns, `0 < x > 1`, is
 rejected. The parser rejects an annotation with a number other than
 `1`, a sum, a negation or a call, and a parameter named like a unit its
 own head's annotations use, each where it is written; it reserves a `[`
-after a function's name, for dimension variables, and rejects it as not
-supported yet. `parseDefinitions` returns them in the order written,
+after a function's name, for dimension variables, and rejects it
+(`unsupported`). `parseDefinitions` returns them in the order written,
 duplicates included, and knows nothing about what they mean. Every span
 is an offset into the whole text, not the line: a definition carries
 the span of its text from name to body, for the errors `buildTable`
@@ -231,6 +233,17 @@ Prefixes apply to units alone: a call's name resolves among the
 functions and the built-ins exactly, so `ktempC(1)` is a call of
 nothing (`notAFunction`), and a function's or a built-in's name may not
 itself read as a prefix followed by a unit, which the build checks.
+
+The table's lookup forms a prefixed unit as the prefix's factor times
+the unit's quantity, under the context the lookup is given, and assumes
+the product is never refused: the file's prefixes and units are nowhere
+near the exponent bound, and the product's size is held to the
+significand limit by the node that names the unit, not here. A lookup
+has no error to return for a refusal, so the one case that could reach
+it, a definition that puts a unit within a prefix's factor of the bound,
+throws (`table.ts`). That is the one place the core's rule on exceptions
+is knowingly not met; the error kind it needs belongs with the editor
+for user definitions, the only way such a unit can be written.
 
 Unit lists share the unit namespace (a list and a unit of one name are
 a duplicate) but are not units: no expression can refer to one, so they
@@ -498,7 +511,12 @@ seq(p, b))` parses `p` twice, and nesting that pattern `k` deep parses
   is expressed with `many`, `many1` or `chainl1` rather than with a
   recursive alternative. (The call rule broke it once: a call and a
   name began alike, told apart only by a lookahead for `(`, so a nested
-  call with an error in it cost `2^k` for `k` levels.)
+  call with an error in it cost `2^k` for `k` levels. A cut combinator,
+  which commits an `alt` once a prefix has matched and would serve other
+  grammars, was set aside for the fix: a committed failure skips every
+  enclosing `alt`, `optional` and `many`, so a misplaced cut changes the
+  meaning of valid input, where the local lookahead has no such failure
+  mode.)
 
 - **Every reply carries the furthest expectation.** An `Expectation` is
   a position and the labels of the primitives tried there. Not only
@@ -598,7 +616,9 @@ Each lookup defines its own error type (an unknown name, a cycle among
 definitions); `evaluate` takes that type as a type parameter and
 returns a lookup failure unchanged. The lookup is given the span of the
 reference along with the name, so that its error can point at the text
-as the evaluator's own errors do.
+as the evaluator's own errors do; the function resolver is given the
+span of the whole call as well as the name's, which is how
+`notAFunction` shows the product with the space (`kg (m/s)`).
 
 Operands are evaluated left to right and the first failure ends the
 evaluation, so `bogus / 0` reports the unknown unit rather than the
@@ -632,8 +652,9 @@ of it.
 
 ## Conversion
 
-`convert` takes the two quantities and the table's primitives (whose
-roles the conformance check needs) and returns the output value: how
+`convert` takes the two quantities, the table's primitives (whose roles
+the conformance check needs) and the context, for the quotient's size
+prediction, and returns the output value: how
 many `want`s make up `have`, which after the conformance check is
 simply the ratio of their magnitudes, since each quantity already
 carries its own scale. `want` may have a magnitude (`1 mi` into
@@ -646,8 +667,12 @@ magnitude is zero, of which nothing is a multiple, or a `want` whose
 magnitude cannot be told from zero at this precision (`unresolvedWant`,
 kept apart from `zeroWant` as the ball's `unresolved` is from its
 division by zero, since the retry loop retries the one and never the
-other), or a ratio refused as the quotient it is, today at the exponent
-bound (`1e999999999999999999 m` into `1e-999999999999999999 m` is an
+other), a ratio, or a list's count, product or remainder, that straddles
+the exponent bound at this precision (`unresolvedBound`, retried as
+`unresolvedWant` is and worded apart from it: the pair cannot be told
+from the point where the result passes the exponent bound), or a ratio
+refused as the quotient it is, today at the exponent bound
+(`1e999999999999999999 m` into `1e-999999999999999999 m` is an
 `overflow`); the conformance check comes first, so `0 s` as the `want`
 for a length is reported as the mismatch it is. A core function formats
 a dimension as text (`m^2 / s`), so the UI can explain a mismatch
@@ -836,7 +861,7 @@ the built-in rounds once, with its radius from one bound over the whole
 ball, loses the built-in's exact cases (`ln(8) / ln(2)` is `≈ 3` where
 `log(2, 8)` is `= 3`), and can be refused where an intermediate passes
 a bound the result does not; and decimal mode rounds each step of a
-body to the display digits. [functions.md](functions.md) ("Precision,
+body to the working digits. [functions.md](functions.md) ("Precision,
 the radius and cost") has the reasoning.
 
 ## UI
@@ -874,7 +899,14 @@ ceiling of the retry schedule in force, memoizing one table by its
 ceiling, so that the shell, which starts the load when it is connected
 and shows a loading message until the promise settles, builds in
 `render` and rebuilds only when the precision limit setting moves the
-ceiling. Loading the components never waits on the table. Should the
+ceiling. The memo is keyed by the definitions and the ceiling, and holds
+a failed build too: the system file is checked by `units.test.ts`, so a
+failure is a bug, and rebuilding on every render would not change it.
+The significand limit is not part of the key, although a build holds
+every exact result to it: the shipped file builds at the least limit the
+settings allow (`MIN_SIGNIFICAND_LIMIT_BITS`, which `units.test.ts`
+checks), and the settings' clamp already keeps the ceiling within the
+limit. Loading the components never waits on the table. Should the
 fetch fail, or the file fail to parse or build (which `units.test.ts`
 guards against), the shell says so instead of rendering a converter;
 `tableOf` is the three-state view (loading, failed, built) as a pure
@@ -901,7 +933,12 @@ asked, and its proposal is applied as a change like any other.
 The worker's status: `<app-footer>` (`src/app-footer.ts`) takes it as a
 property, which a reactive controller (`src/subscription.ts`) mirrors
 into the shell for as long as it is connected, and checks for an update
-when its build number is tapped ([offline.md](offline.md)).
+when its build number is tapped ([offline.md](offline.md)). The source
+(`onWorkerStatus`) calls the listener with the current value at once,
+synchronously, and with each new one, and returns the stop; the
+controller subscribes on each connect and unsubscribes on each
+disconnect, so its `value` is set before the shell's first render and
+the shell overrides no lifecycle method for it.
 
 The buttons are three small components, each the one place its look is
 defined: `<app-button>` for a button with words in it (Done, Apply,
@@ -1055,7 +1092,12 @@ does a blank `want`, which shows a definition, as GNU units shows one
 without a reciprocal. A value of zero has no reciprocal (`0 ft = 0 in`,
 and nothing is a multiple of `0 ft`), nor has one that cannot be told
 from zero, and the line is left out rather than shown as anything, as
-it is whenever the quotient fails.
+it is whenever the quotient fails. The reciprocal is one step at the
+user's context, settled in exact mode and rounded once in decimal mode,
+and it runs outside the retry loop: the line shows whatever kind
+`1 / value` has at that one pass, a reciprocal that a higher pass would
+certify is not retried on its own, and a refusal of it has no words,
+the line being left out. Both are [#92][92].
 
 ### Messages
 
@@ -1075,3 +1117,4 @@ or read the table: autocomplete lists `table.units` and
 highlighting. None of that needs changes to the core.
 
 [88]: https://github.com/bsidhom/exucal/issues/88
+[92]: https://github.com/bsidhom/exucal/issues/92

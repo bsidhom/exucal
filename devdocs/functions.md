@@ -50,8 +50,8 @@ dims       := "[" name ("," name)* "]"       reserved ("Deferred")
 - **The head decides the grammar,** as a trailing dash decides a prefix:
   a name directly followed by `(` makes the line a function, a line whose
   first character is `~` an inverse, and a name directly followed by `[`
-  is reserved and rejected with a message saying it is not supported
-  yet. Inside the head, spaces are free around every token, so the head
+  is reserved for dimension variables and rejected (`unsupported`).
+  Inside the head, spaces are free around every token, so the head
   is read by parser combinators rather than a regex over one token;
   between the name and `(` there is no space, as in a call.
 - **`=` ends the head.** An annotation is an expression and
@@ -82,7 +82,8 @@ dims       := "[" name ("," name)* "]"       reserved ("Deferred")
   one, the inferred dimension is checked against it, so that `: 1`
   asserts a plain result and catches a body that is not.
 - **An inverse is optional.** `~name(p) = body` defines the inverse of
-  `name`, which must be defined, with exactly one parameter. The
+  `name`, which must be defined, with exactly one parameter, since only
+  a function of one argument has one argument that gives a value. The
   inverse's parameter has `name`'s result dimension and takes no
   annotation, since that dimension is known, but may take conditions,
   which restrict the `have`s a conversion into the function accepts; its
@@ -97,7 +98,8 @@ dims       := "[" name ("," name)* "]"       reserved ("Deferred")
 
 A function's name lives in the unit namespace, with units and lists: a
 function and a unit of one name are a duplicate, and so are a function
-and a built-in. It must not read as a prefix followed by a unit, for the
+and a built-in. It must not read as a prefix followed by a unit
+(`prefixedName`, one error for lists, functions and built-ins), for the
 reason a list's may not: typed as the `want`, `ms` would mean the
 function, and typed as the `have`, milliseconds. An inverse's name is its
 function's, behind the `~`, which no other name can start with.
@@ -167,9 +169,12 @@ restricted to unit names (prefixed or not), juxtaposition, `*`, `/`, `^`
 with its literal exponent, parentheses, and the number `1`, written `1`:
 `kg`, `m/s`, `kg m^2 / s^2`, `1 / s`, `1`. Any other number, a sum or
 difference, a negation and a call are rejected where they are written
-(`annotationScale`, `annotationNotUnits`), with a message that says why:
-"An annotation names units and cannot scale. Write a scale in the body;
-for a plain number, write 1." Conformance ignores magnitude, so `: 2`
+(`annotationScale` for the number, `annotationNotUnits` for the rest;
+`f(x: 2)`, `f(x: 1000 m)` and `f(x): kg/2` alike). No message is worded
+for a definitions rejection today, since definitions cannot be typed
+([#132][132]); the wording meant for this one is "An annotation names
+units and cannot scale. Write a scale in the body; for a plain number,
+write 1." Conformance ignores magnitude, so `: 2`
 could only be read two ways, and both bite: as `: 1`, which is a lie to
 the reader who expects a scale, or as a scale, which breaks the rule that
 an annotation changes no value. The `1` is kept because a plain result
@@ -226,9 +231,10 @@ text alone and reported when the definitions are parsed:
   (`parameterNamesUnit`, at the annotation's use of the name):
   `kinetic(m: kg, v: m/s) = m v^2 / 2`, where the head's `m` is the metre
   and the body's is the mass. The name resolves one way in each place,
-  but the line reads both ways. The message names the parameter and the
-  annotation, and suggests renaming the parameter. It is meant to
-  become a warning once user definitions have an editor and the build
+  but the line reads both ways. The rejection carries the parameter, and
+  the message meant for it names the parameter and the annotation and
+  suggests renaming the parameter. The error is meant to become a
+  warning once user definitions have an editor and the build
   has a way to report warnings ([#131][131]): relaxing an error later
   breaks no file, where tightening a silence would.
 
@@ -322,12 +328,10 @@ logic:
   the whole false.
 - **A term that cannot be computed ends it too,** as `callFailed`, as a
   body's failure does, but only when every comparison before it
-  certainly holds. So a condition may guard the next: in `| x > 0, ln(x)
-
-> 1`, a negative argument fails the first condition and never reaches
-  `ln`. After an undecided comparison, a term that cannot be computed is
-> undecided as well, since the guard may yet exclude it.
-
+  certainly holds. So a condition may guard the next: in
+  `| x > 0, ln(x) > 1`, a negative argument fails the first condition and
+  never reaches `ln`. After an undecided comparison, a term that cannot
+  be computed is undecided as well, since the guard may yet exclude it.
 - **Otherwise, an undecided comparison is assumed to hold,** and the
   assumption is recorded.
 
@@ -474,8 +478,9 @@ since parsing never touches the table, and the rule is lexical, no space
 before `(` a call and a space a product. `kg (m/s)` is a product, and
 `kg(m/s)` a call of `kg`, which is not a function, and the error says so
 and shows the product with the space: `"kg" is a unit, not a function.
-For a product, write "kg (m/s)", with a space.` A bare function name in
-an expression is not a unit: `tempC` alone, or `2 tempC`, is
+For a product, write "kg (m/s)", with a space.` A name that is nothing,
+`foo(2)`, is `Unknown function "foo".` A bare function name in an
+expression is not a unit: `tempC` alone, or `2 tempC`, is
 `functionAsUnit`, whose message shows the call form.
 
 A call of a defined function evaluates in these steps, and the first
@@ -630,7 +635,11 @@ some value, or at every value, builds and fails at the call that reaches
 it, since `ln(x - 1)`, `asin(x + 1)` and `1 / ln(x)` fail at some value
 and are fine functions. (The first version of the check evaluated each
 body at one of the declared unit, which the elementary functions made
-untenable.) The table holds each function as its body, still an
+untenable.) A literal in a body is not checked against the significand
+limit either, so a body of `1e30000` builds and fails at the call; a `^`
+exponent is (`reduceExponent`), since its reduction is what the limit
+bounds and the build's context supplies it. The table holds each
+function as its body, still an
 expression, with its parameters in order, each with the unit it takes and
 its text, its result's dimension, its conditions with the parameters each
 mentions, and its inverse when one is defined (`UnitFunction` in
@@ -762,13 +771,20 @@ s): Q / s = amount / time`, `rms[D](x: D^2) = sqrt(x)`. A variable
   parameter's annotation may mention one variable at most, and left to
   right the first parameter that mentions a variable binds it, by solving
   its annotation for it (a dimension's exponents are rationals, so `x:
-D^2` always solves), every later mention being a check. At build time
-  each variable is a fresh stand-in primitive, which no unit can equal,
-  and `dimensionOf` checks the body in full (`D + D` holds, `D + D^2`,
+D^2` always solves), every later mention being a check. A variable that
+  no parameter mentions is an error, as is one named like a parameter,
+  and the result's annotation can only check one; a variable comes
+  before a unit of its name because it is declared there and deliberate,
+  so a unit added later cannot break the function. At build time each
+  variable is a fresh stand-in primitive, which no unit can equal, and
+  `dimensionOf` checks the body in full (`D + D` holds, `D + D^2`,
   `exp(x)` and `sin(x)` fail), which is sound since substituting a
   dimension for a primitive keeps every conformance; the result's
-  dimension comes out in the variables and is filled in at the call.
-  Conditions relate generic parameters to one another as they are; a
+  dimension comes out in the variables and is filled in at the call. A
+  call can then fail only on its arguments, against the annotations
+  (`hypot(1 m, 1 s)`: `b` must have `a`'s dimension, `m`, but has `s`),
+  or on a value, as for any function. Conditions relate generic
+  parameters to one another as they are; a
   comparison with a constant needs one of dimension `D`, which only zero
   could be, and whether a literal `0` stands for zero in any dimension
   is for the issue. No inverse, since a recovered argument with no unit

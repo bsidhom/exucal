@@ -65,7 +65,9 @@ measured. Typing the `have` into the converter, with the entry's
 settings, stored as the app stores its own and read through the same
 migrations, reproduces the cost a user meets. `pnpm stress <function>`
 measures again the entries that call a function, and fails only if one
-gives a different value or passes its deadline.
+gives another kind of outcome (a refusal where it computed, a value
+where it was refused), crashes, or passes its deadline; a changed value
+is reported, not failed.
 
 ## What the costs come from
 

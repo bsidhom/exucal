@@ -64,8 +64,9 @@ value is written as follows, in this order:
    against the display digits: `= 1/3 × 1e+30` for `(1/3) * 1e30`,
    `= 5/127 × 1e+33` for `(5000/127) * 1e30`, `= 1/3 × 1e-30`,
    `= 1/3 × 1e+999999999` for `1e999999999/3`. The parts are the value's
-   canonical significand and exponent, the one form in which the power
-   of ten is all in one factor. The power is written after the ratio as a
+   canonical significand and exponent ([numbers.md](numbers.md), "The
+   types"), the one form in which the power of ten is all in one factor.
+   The power is written after the ratio as a
    multiplier, so that the line reads as the ratio scaled and parses back
    left to right as `(1/3) × 1e30`; a power inside the numerator,
    `1e+30/3`, reads as a decimal over a number. Rule 3 comes first, so a
@@ -229,9 +230,12 @@ fraction there.
 - `display.ts`: `show(ball, { digits, rounding, ratio })`, the ratio
   notation's settings (`RatioDisplay`, today the width alone, the place a
   further setting of the notation goes) named beside the digits and the
-  rounding; `ratioText` writes the fraction and then the factored form;
-  the whole-number rule formats at the width; the `exact` kind's
-  `fraction` and `scale`.
+  rounding, the ball the one plain argument, so that a caller states each
+  modifier and the compiler holds it to the required ones (`outcomeOf`
+  takes its context, ratio settings and observer the same way,
+  `OutcomeOptions`); `ratioParts` writes the fraction and then the
+  factored form; the whole-number rule formats at the width; the `exact`
+  kind's `fraction` and `scale`.
 - `outcome.ts`: the ratio settings passed to `show` in exact mode alone;
   the parentheses before a unit and the reciprocal's `×`; the reciprocal
   and a list's remainder.

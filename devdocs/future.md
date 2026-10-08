@@ -152,7 +152,11 @@ them:
   [#107][107] at a large order past the argument), the Gamma family's shift at an
   inexact argument ([#125][125]) head the catalogue, and the Bernoulli memo's footprint is
   [#103][103]; the hangs at a raised precision limit are
-  [#151][151] and at the hard bound [#152][152].
+  [#151][151] and at the hard bound [#152][152]. One declarative
+  language for each function's own switch points (the Gamma family's
+  exact shift against its loop, the incomplete gamma's series against
+  its fraction, `tanh`'s saturation, a power's three routes), built from
+  reusable measures, is [#126][126].
 - **More special functions.** The eight special functions deferred when
   the Gamma and Beta families landed are [#115][115]
   ([builtins.md](builtins.md), "Not in this design", says which were
@@ -181,8 +185,14 @@ them:
 ## Ruled out, and why
 
 - **A float with a rational significand as a third number type.**
-  Subsumed: unbounded, it is the exact rational; bounded, it is decimal
-  mode ([numbers.md](numbers.md), "Decimal mode").
+  Subsumed: unbounded, it is the exact rational with its power of ten;
+  bounded, it is decimal mode, since rationals of bounded denominator
+  are not closed under addition (`1/3 + 1/7` is `10/21`), so rounding a
+  rational significand to a nearby rational of bounded size would be a
+  continued-fraction step that no rounding mode describes and no
+  calculator's user expects, and the significand the rounding modes are
+  defined for is an integer of at most `p` decimal digits
+  ([numbers.md](numbers.md), "Decimal mode").
 - **Binary floats or a configurable radix.** Decimal literals would no
   longer parse exactly and the display would need conversion; nothing a
   calculator user types is binary. Binary is the kernel's business
@@ -194,10 +204,18 @@ them:
 - **Exactness as a flag on values** rather than a radius. It is the
   ball with the radius collapsed to one bit, and it would have to be
   replaced the day the first propagation rule is written.
-- **Stored digits of `pi` or `e`.** Measured against the payload and
-  the cost of computing them, they buy nothing at any precision a user
-  will set. Computation on demand, memoized, instead
-  ([numbers.md](numbers.md), "Memoized constants").
+- **Stored digits of `pi` or `e`.** Chudnovsky's series with binary
+  splitting computes `pi` in about 0.4 ms for a thousand digits, 8 ms
+  for ten thousand and 260 ms for a hundred thousand (a phone perhaps
+  three to five times slower; a Machin formula is five to fifteen times
+  slower and still under 2 ms at a thousand digits; spigot algorithms
+  are quadratic and buy nothing), while stored digits compress to no
+  better than their entropy, 0.42 bytes a digit, so ten thousand digits
+  would add 4.4 KB to a payload of a few tens of kilobytes compressed
+  for a range that costs 8 ms to compute. They buy nothing at any
+  precision a user will set: computation on demand, memoized, instead
+  ([numbers.md](numbers.md), "Memoized constants"), and `e` the same
+  way, as the `exp` routine's series.
 - **General hypergeometric functions, Bessel `Y` and `K`, Bessel
   functions at large argument.** Library-sized casework for little use
   here.
@@ -217,6 +235,7 @@ them:
 [119]: https://github.com/bsidhom/exucal/issues/119
 [121]: https://github.com/bsidhom/exucal/issues/121
 [125]: https://github.com/bsidhom/exucal/issues/125
+[126]: https://github.com/bsidhom/exucal/issues/126
 [130]: https://github.com/bsidhom/exucal/issues/130
 [131]: https://github.com/bsidhom/exucal/issues/131
 [132]: https://github.com/bsidhom/exucal/issues/132

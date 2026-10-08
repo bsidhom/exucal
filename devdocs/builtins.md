@@ -20,10 +20,11 @@ call's name resolves to a defined function first and a built-in second
 (`resolveFunction` in `table.ts`, the one order the table's lookup and
 the build's share). It has no inverse, so its name is not a `want`; used
 as a unit, or typed as a `want`, it is `functionAsUnit`, whose message
-writes `pi()` for arity zero and `exp(value)` otherwise. Each built-in
-lives in a module of its own under `builtins/`, several sharing one only
-when they share internal machinery, with its test beside it; `builtin.ts`
-holds the type, the error types and the rule helpers every such module
+writes `pi()` for arity zero, `exp(value)` for one argument and
+`log(value, value)` for two. Each built-in lives in a module of its own
+under `builtins/`, several sharing one only when they share internal
+machinery, with its test beside it; `builtin.ts` holds the type, the
+error types and the rule helpers every such module
 imports, and `builtins.ts` gathers the modules into `BUILTINS`, a map by
 name, so that no module under `builtins/` depends on the map. The table
 carries the set it was built against (`UnitTable.builtins`), and
@@ -117,11 +118,19 @@ not the unknown unit.
   half for `tanh` and for `exp`) is answered without the kernel: zero
   within one for the sine, the cosine and the hyperbolic tangent, zero
   within two for the arctangent, zero within the exponential of the
-  signed upper end (formed exactly) for `exp`, the exponential of the
+  signed upper end (formed exactly; the signed end rather than the
+  largest magnitude, since a wide negative interval near the bottom edge
+  would otherwise read as an overflow) for `exp`, the exponential of the
   largest magnitude for the hyperbolic pair, the value at the midpoint
-  plus the radius for `asinh`. Such a bound is the function's whole range,
-  certifies nothing, and lets the retry loop narrow the argument. A
-  function monotone in its argument (`erf`, `erfc`, the incomplete
+  plus the radius for `asinh`, whose slope is within one everywhere,
+  since `x^2 + 1` under its root would not stay positive under the error
+  rules at such a width. Such a bound is the function's whole range,
+  certifies nothing, and lets the retry loop narrow the argument. The
+  monotone ends, `[tanh(lo), tanh(hi)]` for the hyperbolic tangent, would
+  be tighter and are not taken: every wide argument today is narrowed by
+  the next pass, and the ends are worth writing only once an argument
+  can carry a radius of its own that no pass narrows, the two-argument
+  `approx` ([#100][100]). A function monotone in its argument (`erf`, `erfc`, the incomplete
   functions in `x`) is taken at the two ends of a wide ball and the
   results hulled (`hullOfEnds`): a value beside a refusal past the
   bottom of the exponent bound is the value's hull with zero, one beside
@@ -177,9 +186,11 @@ since the kernel holds a value only up to the significand limit
   precision, `acos` as `pi/2` less the argument, since `1 - x^2` stops
   aligning within the significand limit long before
   `2^-significandLimitBits` (`acos(1e-9860)` was refused at the default
-  limit). `erf` of a tiny argument is `2x / √π` within `|x|^3`. Under a
-  directed rounding mode these show `≈ 1` with no digit certain, since
-  the ball straddles one, as `cosh(1e-999999999)` and `approx(1)` do.
+  limit). `erf` of a tiny argument is `2x / √π` within `|x|^3`, the next
+  term of its series being `-2x^3 / (3 √π)`, and `erfc` one less that.
+  Under a directed rounding mode these show `≈ 1` with no digit certain,
+  since the ball straddles one, as `cosh(1e-999999999)` and `approx(1)`
+  do.
 - Between that and half an ulp of the working bits, the kernel's door
   converts the argument to zero within an ulp, which is what the
   log-space power of a tiny exponent goes in as; a tiny ratio formed
@@ -210,7 +221,10 @@ since the kernel holds a value only up to the significand limit
 - Neither `atan` nor `atan2` is refused for an argument's radius: a ball
   that reaches `2^significandLimitBits` without lying beyond `2^bits`
   throughout is the function's whole range, zero within two for `atan`
-  and within four for `atan2` (the powers of two above `pi/2` and `pi`),
+  and within four for `atan2` (the powers of two above `pi/2` and `pi`,
+  the kernel's own trivial bound; the fractions of pi themselves would
+  change nothing certified, since a ball around zero of either radius
+  certifies no digit, only the bound the display shows at the ceiling),
   except a ratio `x / y` with `x` straddling zero and `y` of definite
   sign, which is `unresolved` at `x`, since the value then ranges over
   nearly all of `(0, pi)` and which end it lies near is `x`'s side of
@@ -314,9 +328,11 @@ number.
 | `atanh`                | `-1 < x < 1`                                           | `atanh(0)`                                                                                                    | `1`, `-1`                                   |
 
 The domain reasons (`notPositive`, `baseOne`, `outsideClosedUnitInterval`,
-`belowOne`, `outsideOpenUnitInterval`, `origin`, and the integer
-functions' `notInteger`, `notExact` and `negative`) are data that
-`messages.ts` words, located at the call and quoting the argument:
+`belowOne`, `outsideOpenUnitInterval`, `origin`, the integer functions'
+`notInteger`, `notExact` and `negative`, the incomplete beta function's
+`outsideZeroOne`, and the Gamma family's `pole`, an exact non-positive
+integer) are data that `messages.ts` words, located at the call and
+quoting the argument:
 `Cannot compute "ln(-1)": "-1" is not positive, and a logarithm is
 defined only for positive values`. `asin(±1)`, `acos(-1)`, `atan2(0, x <
 0)` and `atan2(±y, 0)` are the memo's `pi` and its halves rather than
@@ -459,8 +475,9 @@ sqrt(x^2 - 1))` with `x^2 - 1` formed on the ball and rooted by
 the same exact cases as `^(1/2)` and `^(1/3)`, so `sqrt(9/4)` is exact
 and `sqrt(-1)` is the `negativeRadicand` that `(-1)^(1/2)` is. `pi()`
 (`builtins/pi.ts`) hands the memo's value back as a ball at the context's
-precision, and the angle units of `units.txt` call it, so their
-quantities carry its radius and a conversion between them is `≈`. The
+precision, and the angle units of `units.txt` call it, as do `oersted`
+and `parsec`, so their quantities carry its radius and a conversion
+through any of them is `≈` (`turn` into `deg`, `parsec` into `au`). The
 helpers the modules share (`checkPositive`, the domain rule for a
 positive argument; `sideOfZero`; `unboundedOf`; `fromBallError`, a ball
 operation's error as a built-in's, an `unresolved` naming the argument
@@ -589,8 +606,10 @@ from `n^k / k!` where `n` is past a double's exactness, so that
 `n = 2k` and `n! / (2^k k!)` for odd `n`. A prediction past the limit is
 a `tooLarge` refusal at the call with the reach `exceeds`, so the message
 suggests nothing: `factorial(20000)` would need a significand past the
-limit however it is computed, and `gamma(n + 1)` for the digits asked is
-the way on. The refusal applies in both modes, since decimal mode would
+limit however it is computed; `approx` around the argument is not
+offered, since an inexact argument is a `domain` error here and not a
+way to an inexact result; and `gamma(n + 1)` for the digits asked is the
+way on. The refusal applies in both modes, since decimal mode would
 form the exact product before rounding it. `gcd` and `lcm` form nothing
 larger than their arguments' product, and `div`, `mod` and the rounding
 functions nothing larger than their arguments.
@@ -700,8 +719,12 @@ remedy the factorial's refusal names (`gamma(20001)` is
 the order of `10^16` (`lgamma(x) ≈ x ln x` reaches `10^18 ln 10` near `x
 ≈ 6 × 10^16`), and `gamma` takes the classifier on the `lgamma` ball as
 its guard, an `underflow` toward zero for a large negative non-integer
-argument. A wide ball's `gamma` is sound but loose: the shift's product
-and Stirling's part carry the radius at their own slopes, which cancel in
+argument. The radius is carried through the shift and the series, so no
+derivative rule (`Γ(x) ψ(x)`) is written and `gamma` does not depend on
+`digamma`; the two share the machinery of the shift and the series, not
+each other's values. A wide ball's `gamma` is sound but loose: the
+shift's product and Stirling's part carry the radius at their own
+slopes, which cancel in
 the truth and not in the interval, about six times the true width at
 `-2.5 ± 0.1`; a narrower ball shows its digits, and the retry loop
 narrows an `approx` one. Costs at the default ceiling: `gamma` or
@@ -766,9 +789,10 @@ the whole, so that a value past the bound is refused as `exp`'s is; the
 logarithm is formed at the working bits plus the bits of the magnitudes
 of `s` and `x`, since the exponent `s ln x - x - ln Γ(s + 1)` cancels, and
 past the significand limit that is `tooLarge`. The route is chosen by
-cost, mpmath's region rule refined: the fraction's convergents number
-about `(bits ln 2)^2 / (7 x)`, measured (768 at forty digits for `x =
-1.5`, 443,000 at a thousand), each a few times a series term's cost, and
+cost, mpmath's region rule (the fraction where `x > s + 1`) refined: the
+fraction's convergents number about `(bits ln 2)^2 / (7 x)`, measured
+(768 at forty digits for `x = 1.5`, 443,000 at a thousand), each a few
+times a series term's cost, and
 the series' terms about `x - s` to the largest plus what the bits need,
 or `sqrt(2 s bits ln 2)` where `x` is near a large `s`; the cheaper runs
 within the limits (50,000 terms, 20,000 convergents, 20,000 reduction

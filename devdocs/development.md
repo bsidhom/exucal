@@ -75,7 +75,10 @@ benchmarks, and [testing.md](testing.md) says what each suite is and
 why the sweeps and the benchmarks are in it. Prettier formats the
 Markdown too, with prose wrapping preserved, and
 `pnpm stress:search` writes the tables of `devdocs/cost.md` through
-it.
+it. A commit also leaves the module headers and the pages under
+`devdocs/` saying what the code now does: a change must not leave a
+header that lies, and the page that describes the changed part is
+revised in the same commit.
 
 The service worker is only registered in production builds, so
 `pnpm dev` never caches anything. To try the offline behavior, run

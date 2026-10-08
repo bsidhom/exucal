@@ -12,10 +12,11 @@ and [testing.md](testing.md) which suites run them.
 - `src/main.ts` is the entry point. It registers the app's components
   and the service worker.
 - `src/core/` is the pure conversion core: no I/O, no DOM, and failures
-  returned as `Result` values. Each module but the two smallest,
-  `span.ts` and `result.ts`, has a `*.test.ts` beside it, and
-  `src/core/builtins/` holds one module per built-in function or
-  family.
+  returned as `Result` values. Each module but `span.ts`, `result.ts`
+  and `fixed-incbeta.ts` (reached only through
+  `builtins/incbeta.test.ts` and the sweep) has a `*.test.ts` beside
+  it, and `src/core/builtins/` holds one module per built-in function
+  or family.
 - `src/units.txt` is the system definitions file: the units, prefixes,
   lists and functions the app knows, described in
   [docs/definitions.md](../docs/definitions.md). `src/units.test.ts`
@@ -163,10 +164,10 @@ src/testing/edges.ts      the edge sweeps' support: the worker under a deadline,
 src/edges.sweep.ts        the edge sweep at the text level: the pipeline and the display's steps on every issue's reproductions, in both modes
 src/messages.ts           the errors as sentences; src/messages.test.ts checks them
 src/system-table.ts       loadSystemDefinitions: fetches and parses the system definitions, once
-src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling; tableOf, the three-state view
-src/settings.ts           Settings: the display digits, the rounding mode, the mode with its notation or working digits, the two limits and the probe budget, in localStorage under a format version with migrations; contextOf, ratioOf, the clamp with its report, the refusal, reset
+src/system-build.ts       buildSystemTable: builds the system table at the ceiling in force, once per ceiling; tableOf, the three-state view; src/system-build.test.ts checks the memo
+src/settings.ts           Settings: the display digits, the rounding mode, the mode with its notation or working digits, the two limits and the probe budget, in localStorage under a format version with migrations; contextOf, ratioOf, the clamp with its report, the refusal, reset; src/settings.test.ts checks the parsing, the migrations and the reset over a storage in memory
 src/settings-lines.ts     the words the settings sheet says: the units, the group headings, the lines under the controls opening with each number's range, the refusal, the clamp's line, the resets, the probe's proposal; src/settings-lines.test.ts checks them
-src/limits.ts             recommendLimits: the probe that measures the device within the budget and proposes the two limits with their timings
+src/limits.ts             recommendLimits: the probe that measures the device within the budget and proposes the two limits with their timings; src/limits.test.ts checks it over a fake clock
 src/outcome.ts            outcomeOf: the lines the output area shows for a pair of texts, from the pipeline's result, each two expressions the printer writes; src/outcome.test.ts checks them
 src/unit-converter.ts     the component: the two inputs and the output area, rendering the outcome
 src/copy-button.ts        the button beside each result that copies it

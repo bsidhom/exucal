@@ -15,13 +15,13 @@ import { realProbe } from "../src/limits.ts";
 import { key, randomBigInt } from "../src/testing/random.ts";
 import { bestOf, millis } from "./harness.ts";
 
-// The exact arithmetic's cost is the gcd's (devdocs/history/calculator-plan.md, H.9):
+// The exact arithmetic's cost is the gcd's (devdocs/numbers.md, "Exact operations"):
 // Lehmer's gcd on the odd parts is quadratic in the operands' size, as
-// Euclid's was, but about forty times cheaper in V8 at the default range
+// Euclid's was, but about forty times cheaper in V8 at the default significand
 // limit, and the smaller reductions of a sum, a product and a quotient
 // keep the gcds it runs no larger than the operands allow. This benchmark
-// reports what the probe of limits.ts times when it recommends the range
-// limit, one gcd on its own, and the quotients of issue #52, and asserts
+// reports what the probe of limits.ts times when it recommends the significand
+// limit, one gcd on its own, and two quotients of coprime powers, and asserts
 // only how the cost scales between two sizes measured in the same run.
 
 /** An odd number of `bits` bits, drawn from the seed `seed`. */
@@ -66,15 +66,15 @@ test("one gcd at the default significand limit grows quadratically at most", (t)
   );
 });
 
-test("the quotients of issue #52 are reported", (t) => {
+test("two quotients of coprime powers are reported", (t) => {
   // Each is a quotient of coprime powers whose reduction is one gcd of
   // their size; the first took 469 ms with Euclid's gcd, the second 949 ms.
-  // Both were within the default significand limit when #52 was measured, but
+  // Both were within the default significand limit when first measured, but
   // the second's denominator, 7^21845 11^16383, is about 116,800 bits, and
-  // since H.14 (D19) an exact result past the limit is refused at the node
-  // that forms it, so the two run at twice the default limit, which holds
-  // both: the inputs stay those of #52, and so stay comparable with its
-  // timings (issue #135).
+  // an exact result past the limit is refused at the node that forms it
+  // (devdocs/numbers.md, "The significand limit"), so the two run at twice
+  // the default limit, which holds both: the inputs stay as they were
+  // first measured, and so stay comparable with those timings.
   const parsed = parseDefinitions("m  !");
   assert.ok(parsed.ok);
   const context: NumberContext = {

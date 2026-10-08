@@ -67,7 +67,7 @@ test("checkArgument tells a dimension mismatch from a kind mismatch, and a missi
 
 test("fromBallError passes the edge of an unresolved on, whatever it is", () => {
   // The ball's operations name zero today; the edge is carried as data so
-  // that one at another point (the bound, from H.13) reaches the message.
+  // that one at another point (the bound) reaches the message.
   assert.deepEqual(fromBallError({ kind: "unresolved", edge: ONE }, 1), {
     kind: "unresolved",
     argument: 1,

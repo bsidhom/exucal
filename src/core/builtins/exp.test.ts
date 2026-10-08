@@ -124,7 +124,8 @@ test("an argument whose exponential would pass the exponent bound is an overflow
       error: { kind: x.startsWith("-") ? "underflow" : "overflow" },
     });
   }
-  // Within it, on either side: the range of an exponent (4.9), with the
+  // Within it, on either side: the range of an exponent
+  // (devdocs/numbers.md, "The exponent bound"), with the
   // digits from Python's decimal module at a precision of 70.
   for (const [x, digits] of [
     ["1e6", "3.0332154e+434294"],
@@ -146,10 +147,10 @@ test("an argument whose exponential would pass the exponent bound is an overflow
     "3.03321539680208754508640214142e+434294",
   );
   // A wide ball is judged over its whole extent: one reaching past the
-  // bound is unresolved at the bound (D18, H.15; stage 4 refused it for
-  // good), and one within it is zero within the exponential of its upper
-  // end, containing the exponentials of both ends and of the midpoint
-  // (H.3).
+  // bound is unresolved at the bound (devdocs/numbers.md, "The exponent bound";
+  // an earlier version refused it for good), and one within it is zero
+  // within the exponential of its upper end, containing the exponentials
+  // of both ends and of the midpoint (devdocs/builtins.md, "Huge and tiny arguments").
   assert.deepEqual(expBall(ball(ZERO, dec("1e30")), CONTEXT), {
     ok: false,
     error: { kind: "unresolved", argument: 0, edge: "bound" },
@@ -196,7 +197,7 @@ test("an argument below 2^-significandLimitBits throughout is one within twice i
   assert.ok(compare(distance(near.mid, ONE), radiusOf(near)) <= 0);
   assert.ok(compare(radiusOf(near), dec("1e-15")) < 0);
   assert.ok(certifies(near, 8, "halfEven"));
-  // Through the pipeline (#53's rows): each is `≈ 1`, where it threw.
+  // Through the pipeline: each is `≈ 1`, where it threw.
   const parsed = parseDefinitions("m  !");
   assert.ok(parsed.ok);
   const table = buildTable(parsed.value, {
@@ -230,7 +231,7 @@ test("through the pipeline, exp and pow of a wide argument are a ball around zer
     precision: DEFAULT_CEILING,
   });
   assert.ok(table.ok, inspect(table));
-  // #39's texts at 32 digits: the first pass's argument is `0` within
+  // At 32 digits: the first pass's argument is `0` within
   // about `2e9`, which crashed after seconds in the squarings; the second
   // pass narrows it and the answer is `≈ 1`.
   const start = performance.now();
@@ -253,7 +254,8 @@ test("through the pipeline, exp and pow of a wide argument are a ball around zer
   assert.ok(performance.now() - start < 2000, "milliseconds, not seconds");
   // In decimal mode the third is 0.33333333 exactly and the power is one
   // step, computed at rising precision until its eight digits certify
-  // (D26): a value with an exponent of eighteen digits, exact.
+  // (devdocs/numbers.md, "Decimal mode"): a value with an exponent of
+  // eighteen digits, exact.
   const decimal = evaluateText(table.value, "pow(5e1000000000000000000, 1/3)", {
     ...CONTEXT,
     precision: 8,
@@ -318,7 +320,7 @@ test("through the pipeline, exp(1) certifies fifty digits on the first pass, exp
   assert.ok(zero.ok && isExact(zero.value.magnitude));
 });
 
-test("through the pipeline, a wide argument is retried until its exponential is within the bound, and a refusal needs the whole ball past (#40, #61)", () => {
+test("through the pipeline, a wide argument is retried until its exponential is within the bound, and a refusal needs the whole ball past", () => {
   const parsed = parseDefinitions("m  !");
   assert.ok(parsed.ok);
   const table = buildTable(parsed.value, {
@@ -328,7 +330,7 @@ test("through the pipeline, a wide argument is retried until its exponential is 
   assert.ok(table.ok, inspect(table));
   const at = (text: string, precision: number) =>
     evaluateText(table.value, text, { ...CONTEXT, precision });
-  // #40: `5` within about `2e948` at the first pass, unresolved at the
+  // `5` within about `2e948` at the first pass, unresolved at the
   // bound there and computed once the loop narrows it (the sixth pass);
   // the hyperbolic forms and a power alike (references from Python's
   // decimal module at 40). An argument whose midpoint alone passes the
@@ -378,7 +380,7 @@ test("through the pipeline, a wide argument is retried until its exponential is 
     assert.ok(!result.ok, text);
     assert.equal(result.error.kind, kind, text);
   }
-  // Within `10^9` decades of the bound the guards refused values (#61);
+  // Within `10^9` decades of the bound the guards refused values;
   // the classifier decides them on the kernel.
   for (const [text, digits] of [
     ["exp(2302585092994045000)", "8.6e+999999999999999702"],

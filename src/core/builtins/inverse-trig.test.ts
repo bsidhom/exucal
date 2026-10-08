@@ -344,7 +344,7 @@ test("the values are the kernel's, within the radius: fractions of pi and the re
 
 test("asin and acos of an argument whose square lies below the working bits are their expansion at zero", () => {
   // At the default significand limit 1 - x^2 stops aligning below about 1e-9840,
-  // and isTiny's 2^-significandLimitBits is about 1e-19728, so these were refused (#47).
+  // and isTiny's 2^-significandLimitBits is about 1e-19728, so these were refused.
   for (const text of ["1e-9860", "8e-9865", "-1e-15000", "1e-20000"]) {
     const x = dec(text);
     const s = value(asinBall(exact(x), CONTEXT));
@@ -413,7 +413,7 @@ test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^
   assert.ok(certifies(asinSmall, 8, "halfEven"));
   // A ball reaching 2^significandLimitBits without lying beyond 2^bits throughout is
   // the whole range, zero within two, where the kernel's door refused it
-  // at the significand limit (#64).
+  // at the significand limit.
   const wholeRange = { mid: ZERO, rad: radiusAbove(rational(2n)) };
   assert.deepEqual(
     value(atanBall(ballOf(ZERO, dec("1e19729")), DEFAULT)),
@@ -449,7 +449,7 @@ test("atan at or beyond 2^bits throughout is ±pi/2 within 2^-bits, and below 2^
   }
 });
 
-test("through the pipeline, atan and atan2 are never refused for a radius (#64)", () => {
+test("through the pipeline, atan and atan2 are never refused for a radius", () => {
   const parsed = parseDefinitions("m  !\nradian  !kind");
   assert.ok(parsed.ok);
   const context = { ...DEFAULT, ceiling: DEFAULT_CEILING };
@@ -467,7 +467,7 @@ test("through the pipeline, atan and atan2 are never refused for a radius (#64)"
     show(wide.value.magnitude, { digits: 8, rounding: DEFAULT_ROUNDING }).kind,
     "zero",
   );
-  // #64's second row is about 0.785 and cannot certify as written, and
+  // The next case is about 0.785 and cannot certify as written, and
   // not for anything in atan2. approx(1e30000) - approx(1e30000) is the
   // difference of two independent balls in the ball model, zero within
   // twice 1e30000 less the working digits, and the + 1 is one within
@@ -475,10 +475,11 @@ test("through the pipeline, atan and atan2 are never refused for a radius (#64)"
   // atan2, certifies nothing until the working digits pass 30,000, which
   // no ceiling the settings allow reaches (the default is 4,040). Only a
   // rewrite, approx(1e30000 - 1e30000 + 1), which is approx(1), or a
-  // symbolic cancellation, which devdocs/future.md rules out, would give
-  // it its digits. What this task fixes is that the row was refused at
-  // the first pass; it now runs to the ceiling and ends as a zero with a
-  // bound, the whole range, as the plan's rule gives.
+  // symbolic cancellation, which devdocs/future.md ("Symbolic values")
+  // rules out, would give it its digits. What changed is that the case
+  // was refused at the first pass; it now runs to the ceiling and ends as
+  // a zero with a bound, the whole range, as the rule gives
+  // (devdocs/builtins.md, "Huge and tiny arguments").
   const ratio = at("atan2(approx(1e30000) - approx(1e30000) + 1, 1)");
   assert.ok(ratio.ok, inspect(ratio));
   assert.equal(
@@ -570,7 +571,7 @@ test("asin and acos outside [-1, 1] are domain errors, and a ball reaching an en
   }
   // A huge argument is the domain error, read off the argument's position
   // against the ends before its square is formed, where the square passed
-  // the significand limit or the exponent bound first (#47).
+  // the significand limit or the exponent bound first.
   for (const x of [
     exact(dec("1e30000")),
     exact(dec("-1e30000")),
@@ -706,7 +707,7 @@ test("atan2 by quadrant, its exact and unresolved cases, and the origin", () => 
   });
 });
 
-test("atan2 compares magnitudes before forming a ratio: the quadrants at both extremes, and a tiny ratio keeps its value (#47)", () => {
+test("atan2 compares magnitudes before forming a ratio: the quadrants at both extremes, and a tiny ratio keeps its value", () => {
   /** pi and pi/2 to forty digits, from Python's decimal module. */
   const piDigits = dec("3.141592653589793238462643383279502884197");
   const halfPi = dec("1.570796326794896619231321691639751442099");
@@ -825,7 +826,7 @@ test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angl
     ["asin(0.5)", "turn", "0.083333333"],
     ["asin(3 m / 5 m)", "deg", "36.869898"],
     ["acos(1 - 1e-30)", "radian", "1.4142136e-15"],
-    // #47's tiny rows of acos: pi/2 less the argument.
+    // Tiny arguments of acos: pi/2 less the argument.
     ["acos(1e-20000)", "radian", "1.5707963"],
     ["acos(1e-999999999)", "radian", "1.5707963"],
     ["acos(1e-600000000000000000)", "radian", "1.5707963"],
@@ -833,9 +834,9 @@ test("through the pipeline: asin(0.5) into deg is 30, atan2(3 m, 4 m) is an angl
     ["atan(1e999999999)", "deg", "90"],
     ["atan(-1e999999999)", "radian", "-1.5707963"],
     ["atan(1e-999999999)", "radian", "1e-999999999"],
-    // #47's atan2 rows: the ratio's magnitude decides, and no ratio is
-    // formed where it cannot be (the crash rows threw in the kernel's
-    // door before H.2, and went in as zero within an ulp after it).
+    // atan2 at the extremes: the ratio's magnitude decides, and no ratio is
+    // formed where it cannot be (the crash rows once threw in the kernel's
+    // door, and later went in as zero within an ulp).
     ["atan2(1e-999999999999999999, -1)", "radian", "3.1415927"],
     ["atan2(1, -1e999999999999999999)", "radian", "3.1415927"],
     ["atan2(1e30000, 1)", "radian", "1.5707963"],

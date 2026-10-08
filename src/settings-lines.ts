@@ -1,15 +1,15 @@
 // The words the settings sheet says: the unit each number carries, the
 // group headings, the line under each control as a function of the
 // settings in force and the mode, which opens with the number's range
-// and names the setting that bounds it where the chain does
-// (devdocs/design/settings-controls.md), the line that refuses an edit past a
-// bound, the line that tells where a clamp landed a setting, the reset
-// beside a setting off its default ("default 8"), and the probe's
-// proposal with the timings behind it (devdocs/design/settings-limits.md, "The
-// lines, as the panel will say them"). Text alone, with no element in
+// and names the setting that bounds it where the chain does, the line
+// that refuses an edit past a bound, the line that tells where a clamp
+// landed a setting, the reset beside a setting off its default ("default
+// 8"), and the probe's proposal with the timings behind it
+// (devdocs/settings.md, "The controls"). Text alone, with no element in
 // it, so that the panel composes it and a test under Node reads it. The
 // numbers are the settings in force, written with thousands separators;
-// the ceiling is written as a number and never as a formula (D29).
+// the ceiling is written as a number and never as a formula
+// (devdocs/settings.md, "The model").
 
 import { ceilingFor, type Mode } from "./core/context.ts";
 import type { RoundingMode } from "./core/rounding.ts";
@@ -47,7 +47,7 @@ export const SETTING_NAMES: Readonly<Record<NumberSetting, string>> = {
   budgetMs: "the probe budget",
 };
 
-/** The headings of the sheet's three groups, in their order: by what a setting is for (devdocs/design/settings-controls.md). */
+/** The headings of the sheet's three groups, in their order: by what a setting is for (devdocs/settings.md, "The controls"). */
 export const GROUP_HEADINGS = {
   shown: "How it is shown",
   computed: "How it is computed",
@@ -110,7 +110,7 @@ export function defaultLine(key: Resettable): string {
 /** The button at the sheet's foot that restores every default. */
 export const RESET_ALL = "Reset all settings";
 
-/** The link at the sheet's foot to the guide: docs/settings.md until the user's guide (S6) lands. */
+/** The link at the sheet's foot to the guide, docs/settings.md. */
 export const ABOUT = {
   text: "About these settings",
   href: "https://github.com/bsidhom/exucal/blob/main/docs/settings.md",
@@ -170,7 +170,7 @@ export function notationLine(notation: Notation, settings: Settings): string {
   return `${width}${NOTATION_LINE}`;
 }
 
-/** The decimal digits an integer of `bits` bits has, to three significant figures: the translation is per part (devdocs/design/settings-limits.md). */
+/** The decimal digits an integer of `bits` bits has, to three significant figures: the translation is per part (devdocs/settings.md, "The model"). */
 export function digitsOfBits(bits: number): number {
   const digits = Math.floor(bits * Math.log10(2));
   if (digits < 1000) return digits;

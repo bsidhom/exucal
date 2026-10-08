@@ -1,18 +1,19 @@
 // The Gamma family: `digamma(x)`, the logarithmic derivative of the
 // Gamma function, `lgamma(x)`, the logarithm of its magnitude, and
 // `gamma(x)` itself, on the kernel's `digammaFixed` and `lgammaFixed`
-// (fixed-gamma.ts). devdocs/design/special.md ("The Gamma and Beta families") is
-// the design and devdocs/history/calculator-plan.md (tasks 6.2 and 6.3) places them.
+// (fixed-gamma.ts). devdocs/builtins.md ("The Gamma and Beta families") is
+// the design.
 // Every one takes a plain number and gives one.
 //
 // A positive argument of moderate size goes to the kernel at the working
 // bits, plus the bits a small argument needs to keep its digits
 // (`extraBits`, as the odd functions scale theirs), and comes back as the
-// kernel's ball, rounded in no mode, for the evaluator to settle (D15);
+// kernel's ball, rounded in no mode, for the evaluator to settle
+// (devdocs/numbers.md, "Settling");
 // an exact one whose denominator is short, which is what a typed decimal
 // or fraction is, goes to the kernel's exact entries instead
 // (`shortRational`, `lgammaRational` and `digammaRational`), which shift
-// it by binary splitting and four times as far (#117).
+// it by binary splitting and four times as far.
 // One at or beyond `2^bits` throughout takes the series' leading terms
 // on balls, since `ln` takes any exponent: `digamma` is `ln x` within
 // `1 / x`, as `|ψ(x) - ln x| <= 1 / (2x) + 1 / (12 x^2)` there, and
@@ -44,7 +45,8 @@
 // bits (`factorialOf`) and the kernel's value, inexact, when it does not,
 // which is the remedy the factorial's refusal names: `gamma(20001)` is a
 // value of 77,338 digits in log space. The result takes the guard every
-// exponential takes (D18, the plan's H.15): the classifier of ball.ts
+// exponential takes (devdocs/numbers.md, "The exponent bound"): the
+// classifier of ball.ts
 // (`classifyExp`) on the `lgamma` ball, which refuses `overflow` only
 // when every value of the argument puts the result past the top of the
 // exponent bound, `underflow` when every value puts it below the bottom
@@ -56,7 +58,8 @@
 // its own magnitude, so that its absolute error, which is the result's
 // relative error, stays below the working bits' ulp: `gamma(1e15)` has
 // a logarithm near `2^55`. Propagation is by running the shift and the
-// series on the argument's interval (D9), so `gamma` does not depend on
+// series on the argument's interval (devdocs/numbers.md, "The kernel's
+// boundary"), so `gamma` does not depend on
 // `digamma`. An argument of unbounded radius gives the function of its
 // midpoint with an unbounded radius.
 

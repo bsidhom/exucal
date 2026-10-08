@@ -15,8 +15,8 @@
 // a prefix followed by it (`i` beside the prefix `p`, for `pi`), is
 // renamed, since built-ins share the unit namespace and the build rejects
 // such a table as it would a real one; the draws are untouched. The first
-// case went unnoticed from stage 6.1, when `lcm` became a built-in, to
-// issue #135: the build failed before the benchmark's assertion.
+// case went unnoticed for some time after `lcm` became a built-in: the
+// build failed before the benchmark's assertion.
 // Every name is a pure function of the key and its index, so the units,
 // the prefixes and the references are drawn from keys of their own and
 // none depends on how many of the others were drawn.

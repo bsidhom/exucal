@@ -25,7 +25,8 @@ import {
  * here, independent of rational.ts's, so that a broken gcd cannot vouch
  * for itself: the arithmetic there reduces with the smaller gcds its
  * operands allow, which is correct only for operands in lowest terms, so
- * every constructor that feeds it is held to this (the plan's H.9).
+ * every constructor that feeds it is held to this (devdocs/numbers.md,
+ * "Exact operations").
  */
 export function inLowestTerms(r: Rational): boolean {
   if (r.den <= 0n) return false;

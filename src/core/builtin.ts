@@ -1,8 +1,8 @@
 // What a built-in function is: the type of the functions the core
 // implements in code beside the ones a definitions file defines, its
-// errors, and the rule helpers the built-ins share. devdocs/design/builtins.md is the
-// design and devdocs/history/calculator-plan.md (task 3.2, then 3.4 and 3.6 to 3.11)
-// places them. A built-in has a name, the count of arguments it takes, a
+// errors, and the rule helpers the built-ins share. devdocs/builtins.md
+// ("The rules every built-in follows") is the design. A built-in has a
+// name, the count of arguments it takes, a
 // dimension rule, which says what dimensions its arguments must have and
 // what dimension its result has, and `apply`, the function itself from
 // balls to a ball at a working context. Each built-in is defined in a
@@ -11,10 +11,11 @@
 // table and the build take; this module holds what every one of them
 // imports, so that no module under builtins/ depends on the map.
 //
-// Two rules hold for every built-in (devdocs/design/builtins.md, "The rules every
+// Two rules hold for every built-in (devdocs/builtins.md, "The rules every
 // built-in follows"). A built-in returns the kernel's ball as `fixedToBall`
 // hands it back, or an exact ball for an exact case, and rounds in no
-// mode: the evaluator settles every result it produces (D15), and the mode
+// mode: the evaluator settles every result it produces (devdocs/numbers.md,
+// "Settling"), and the mode
 // is the display's. And an argument of unbounded radius gives the function
 // of its midpoint with an unbounded radius, as `rootBall` rules.
 //
@@ -28,12 +29,14 @@
 // argument that has the wrong dimension, with the dimension wanted and the
 // conformance error between them, on two arguments that must conform to
 // each other and do not, or because the rule wants the radian kind and the
-// table declares no `radian` primitive (D11: the rule names the primitive
+// table declares no `radian` primitive (devdocs/builtins.md, "Dimension
+// rules": the rule names the primitive
 // by convention, and a table without it has no angles). `apply` fails with
 // a `domain` error on an argument outside the function's domain throughout
 // its ball, naming the argument and the reason, with `unresolved` on an
 // argument whose ball straddles an edge of the domain, or another point
-// the result depends on which side of it lies (D4), naming the argument
+// the result depends on which side of it lies (devdocs/numbers.md, "Exact
+// operations"), naming the argument
 // and the edge, and with the ball errors a computation can raise.
 //
 // The set the app has is builtins.ts's `BUILTINS`; the table, the build and
@@ -123,10 +126,13 @@ export type DomainReason =
   | "negative"
   /** A value outside `[0, 1]`, where the incomplete beta function takes its argument. */
   | "outsideZeroOne"
-  /** An exact non-positive integer, a pole of the Gamma family (6.2). */
+  /**
+   * An exact non-positive integer, a pole of the Gamma family
+   * (devdocs/builtins.md, "The Gamma and Beta families").
+   */
   | "pole";
 
-/** The edge a value straddles (D4), the ball's own type, re-exported for the built-ins. */
+/** The edge a value straddles, the ball's own type, re-exported for the built-ins. */
 export type { Edge } from "./ball.ts";
 
 export type BuiltinError =
@@ -167,8 +173,8 @@ export type Builtin = {
     context: NumberContext,
   ) => Result<Ball, BuiltinError>;
   /**
-   * What the built-in is under decimal mode (D26; devdocs/design/decimal-mode.md,
-   * "`approx`"): absent for a function the kernel computes, which the
+   * What the built-in is under decimal mode (devdocs/numbers.md, "Decimal
+   * mode"): absent for a function the kernel computes, which the
    * evaluator runs at rising precision until its rounding is certified;
    * `"identity"` for `approx`, whose result there is its argument, since
    * every decimal-mode value is already at the user's precision.
@@ -179,7 +185,10 @@ export type Builtin = {
 /** A set of built-ins by name: the app's (builtins.ts), or a test's. */
 export type Builtins = ReadonlyMap<string, Builtin>;
 
-/** The name of the primitive that is an angle, by convention (D11). */
+/**
+ * The name of the primitive that is an angle, by convention
+ * (devdocs/builtins.md, "Dimension rules").
+ */
 export const RADIAN = "radian";
 
 // ---------------------------------------------------------------------------
@@ -201,7 +210,8 @@ export function plainNumbers(count: number): DimensionRule {
 
 /**
  * The rule of a function of one angle whose result is a plain number
- * (`sin`, `cos`, `tan`; D11): the argument must have the radian kind, and
+ * (`sin`, `cos`, `tan`; devdocs/builtins.md, "Dimension rules"): the
+ * argument must have the radian kind, and
  * a table that declares no `radian` primitive has no angles (`noAngles`).
  */
 export const angleToNumber: DimensionRule = (args, primitives) => {
@@ -213,7 +223,8 @@ export const angleToNumber: DimensionRule = (args, primitives) => {
 
 /**
  * The rule of a function of one plain number whose result is an angle
- * (`asin`, `acos`, `atan`; D11): the result has the radian kind, so a
+ * (`asin`, `acos`, `atan`; devdocs/builtins.md, "Dimension rules"): the
+ * result has the radian kind, so a
  * table that declares no `radian` primitive has no such function
  * (`noAngles`), and the argument must be dimensionless.
  */
@@ -225,7 +236,8 @@ export const numberToAngle: DimensionRule = (args, primitives) => {
 };
 
 /**
- * The rule of `atan2(y, x)` (D11): the two arguments must conform to each
+ * The rule of `atan2(y, x)` (devdocs/builtins.md, "Dimension rules"): the
+ * two arguments must conform to each
  * other, kinds included (`nonconformingArguments` otherwise), and the
  * result has the radian kind, so a table without it has no `atan2`.
  */
@@ -270,13 +282,18 @@ export function checkArgument(
 
 /**
  * The rule of a function of one argument of any dimension, kinds
- * included, whose result has the argument's dimension: `approx` (4.10)
- * and `abs` (6.1).
+ * included, whose result has the argument's dimension: `approx`
+ * (devdocs/numbers.md, "`approx`") and `abs` (devdocs/builtins.md, "The
+ * exact functions").
  */
 export const sameAsArgument: DimensionRule = (args) =>
   ok(args[0] ?? DIMENSIONLESS);
 
-/** The rule of a function of one quantity of any dimension, kinds included, whose result is a plain number: `sign` (6.1). */
+/**
+ * The rule of a function of one quantity of any dimension, kinds included,
+ * whose result is a plain number: `sign` (devdocs/builtins.md, "The exact
+ * functions").
+ */
 export const anyToNumber: DimensionRule = () => ok(DIMENSIONLESS);
 
 /**
@@ -393,7 +410,7 @@ export function isTiny(x: Ball, context: NumberContext): boolean {
 }
 
 /**
- * Whether the bounded `x` reaches `2^significandLimitBits` in magnitude, the range
+ * Whether the bounded `x` reaches `2^significandLimitBits` in magnitude, the significand
  * limit of `context`: beyond what the kernel can be handed, so a routine
  * that takes the value itself refuses it as `tooLarge`.
  */
@@ -419,7 +436,7 @@ export function reductionBits(x: Ball, context: NumberContext): number {
 /**
  * Whether the bounded `x` lies throughout at or beyond `2^bits` in
  * magnitude: where the saturations of `atan`, `asinh` and `acosh` hold
- * (devdocs/design/decimal.md, "The kernel's boundary").
+ * (devdocs/numbers.md, "The kernel's boundary").
  */
 export function isBeyond(x: Ball, bits: number): boolean {
   return compareRadius(magnitudeBelow(x), powerOfTwoRadius(BigInt(bits))) >= 0;

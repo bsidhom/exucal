@@ -1,9 +1,8 @@
 // `incbeta(a, b, x)`, the incomplete beta function `B(x; a, b) = ∫_0^x
 // t^(a-1) (1 - t)^(b-1) dt`, and `incbetareg(a, b, x)`, the regularized
 // `I_x(a, b) = B(x; a, b) / B(a, b)`, for `a, b > 0` and `0 <= x <= 1`,
-// on the kernel's series (fixed-incbeta.ts). devdocs/design/special.md ("The
-// incomplete beta function (6.7)") is the design and
-// devdocs/history/calculator-plan.md (task 6.7) places them; the series with positive
+// on the kernel's series (fixed-incbeta.ts). devdocs/builtins.md ("The Gamma
+// and Beta families") is the design; the series with positive
 // terms stands in for the design's continued fraction, whose elements
 // have both signs and whose convergents therefore do not bracket, so that
 // every result is certified (the PR of 6.7 has the ruling). The parameters
@@ -18,7 +17,8 @@
 //
 // with the logarithm formed on balls at the working bits plus the bits of
 // the parameters' magnitudes (`magnitudeBits`, as `beta` takes them),
-// since its terms cancel, and `expBall`'s classifier on the whole (D18),
+// since its terms cancel, and `expBall`'s classifier on the whole
+// (devdocs/numbers.md, "The exponent bound"),
 // so `incbetareg(2, 3, 1e-20)` is `6e-40` and a result past the bottom of
 // the bound is `underflow`. The symmetry `I_x(a, b) = 1 - I_(1-x)(b, a)`
 // chooses the orientation: the series takes about `bits ln 2 / ln(1 / x)`

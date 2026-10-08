@@ -1,16 +1,18 @@
 // The built-in functions the app has, gathered from their modules under
-// builtins/ into one map by name. devdocs/design/builtins.md is the design; builtin.ts
-// holds the type, the errors and the shared rule helpers, and each function
+// builtins/ into one map by name. devdocs/builtins.md ("Names") is the design;
+// builtin.ts holds the type, the errors and the shared rule helpers, and
+// each function
 // lives in a module of its own under builtins/, grouped with others only
 // when they share internal machinery. The table and the build take this
 // map as their default set of built-ins (table.ts, build.ts), and a test
-// may pass a set of its own instead. `pi` is the first (task 3.4), `exp`
-// the second (3.6), the logarithms follow (3.7), then the roots and `pow`
-// (3.8), then the trigonometric functions (3.9), their inverses (3.10) and
-// the hyperbolic functions with theirs (3.11), which complete the
-// elementary set; `approx` (4.10) and the exact functions of stage 6
-// (6.1: abs.ts, round.ts, division.ts, integers.ts) follow, then the
-// Gamma family (6.2, gamma.ts).
+// may pass a set of its own instead. `pi` is the first, `exp` the second,
+// the logarithms follow, then the roots and `pow`, then the trigonometric
+// functions, their inverses and the hyperbolic functions with theirs,
+// which complete the elementary set (devdocs/builtins.md, "The elementary
+// routines"); `approx` (devdocs/numbers.md, "`approx`") and the exact
+// functions (devdocs/builtins.md, "The exact functions": abs.ts, round.ts,
+// division.ts, integers.ts) follow, then the Gamma family
+// (devdocs/builtins.md, "The Gamma and Beta families"; gamma.ts).
 
 import type { Builtin, Builtins } from "./builtin.ts";
 import { abs, signFn } from "./builtins/abs.ts";

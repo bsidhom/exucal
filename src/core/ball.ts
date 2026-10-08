@@ -1,14 +1,12 @@
 // The ball: a midpoint with a radius, the value every magnitude becomes. The
 // midpoint is the number computed, a `Scaled` (scaled.ts: a fraction times a
-// power of ten, from stage 4's 4.4); the radius, a `Radius` of radius.ts,
-// bounds its distance from the value it stands for. An exact value has
-// radius zero, and `=` in the display means exactly that.
-// devdocs/history/calculator-study.md ("The precision model") is the design,
-// devdocs/design/decimal.md the exponent and the two modes, and
-// devdocs/history/calculator-plan.md (D3, D4, D7, D15, tasks 1.5, 2.3, 2.4, 2.5 and
-// 4.4) the decisions; this module is the type, its exact operations and the
-// one inexact one, the root; quantity.ts makes a ball the magnitude of
-// every quantity.
+// power of ten); the radius, a `Radius` of radius.ts, bounds its distance
+// from the value it stands for. An exact value has radius zero, and `=` in
+// the display means exactly that. devdocs/numbers.md ("The types") is the
+// design, with ("Settling") and ("Certification and the display rule")
+// the rules on an inexact value; this module is the type, its exact
+// operations and the one inexact one, the root; quantity.ts makes a ball
+// the magnitude of every quantity.
 //
 // Each operation composes the arithmetic of scaled.ts on the midpoints
 // with a propagation rule of radius.ts on the radii; scaled.ts knows
@@ -16,7 +14,7 @@
 // bounds (`radiusAboveScaled`). The exact operations never round an exact
 // value: an exact value stays the exact number it is, and only the radius
 // says what has been lost upstream (a root, a function). An inexact value
-// is another matter (D15): its midpoint is a number computed, not known,
+// is another matter: its midpoint is a number computed, not known,
 // and the evaluator settles it after every operation with `settle`, which
 // rounds it to nearest at the working digits, the decimal grid the kernel's
 // results are rounded onto as they leave the kernel (`fixedToBall`), and
@@ -25,11 +23,11 @@
 // an inexact base squares with settling for the same reason. Settling is a
 // bound on size, not a rounding the user chose: the mode is the display's
 // (in decimal mode the settle is the mode's one rounding of a step, in
-// the user's mode, and the value is exact after it, D26), and in exact
-// mode it never refuses a value, a rounding that would carry the midpoint
-// past the top of the exponent bound rounding toward zero instead; in
-// decimal mode the rounded value is the result, so one past the bound is
-// refused there (D17, the plan's H.11). The rules are
+// the user's mode, and the value is exact after it; devdocs/numbers.md,
+// "Decimal mode"), and in exact mode it never refuses a value, a rounding
+// that would carry the midpoint past the top of the exponent bound
+// rounding toward zero instead; in decimal mode the rounded value is the
+// result, so one past the bound is refused there. The rules are
 // the elementary ones, each a bound over the two operands' intervals: a
 // sum's radii add; a product's radius is `|a| rb + |b| ra + ra rb`; a
 // quotient's is `(|a| rb + |b| ra) / (|b| (|b| - rb))`, which requires the
@@ -41,8 +39,8 @@
 // right way and a result's interval contains the exact result for every
 // pair of values in the operands' intervals, which is what the tests check.
 //
-// A sum is where the exponent costs something (devdocs/design/decimal.md, "Sums,
-// comparisons and the radius"). `addBalls` aligns the midpoints exactly
+// A sum is where the exponent costs something (devdocs/numbers.md, "Sums
+// and alignment"). `addBalls` aligns the midpoints exactly
 // where the shift fits the context's significand limit. Where it does not, two
 // exact operands are `tooLarge`, the exact sum existing and not being
 // holdable (`1e999999999 + 1`); otherwise the result is inexact and about
@@ -51,11 +49,12 @@
 // still do not, the smaller, which then lies below the working precision
 // of the larger, is absorbed into the radius. That path is taken on
 // `tooLarge` alone: a sum that aligns and passes the exponent bound is
-// held to the bound like a product (issue #48 took it for an alignment
-// failure and showed zero).
+// held to the bound like a product (an earlier version took it for an
+// alignment failure and showed zero).
 //
-// The exponent bound is on the value (D17), and an inexact result is held
-// to it by its whole ball (D18, `held`): a product, a quotient or a sum
+// The exponent bound is on the value, and an inexact result is held to it
+// by its whole ball (devdocs/numbers.md, "The exponent bound"; `held`): a
+// product, a quotient or a sum
 // is `overflow` or `underflow` only when every value of its ball is past
 // the bound, zero within `|mid| + rad` when the ball contains zero and
 // the midpoint passes below, a value when the midpoint is within and
@@ -68,10 +67,10 @@
 // exponent bound, and `unresolved` on it.
 //
 // The exponential family and the powers are held to the bound by one
-// classifier (D18, the plan's H.15): `classifyExp`, `classifyHyperbolic`
-// and `classifyPower` work on an interval bounding the natural logarithm
-// of the result's magnitude, `x` for `exp`, `|x| - ln 2` within an ulp
-// for `sinh` and `cosh`, and `y ln |x|` for a power, against the edges
+// classifier: `classifyExp`, `classifyHyperbolic` and `classifyPower`
+// work on an interval bounding the natural logarithm of the result's
+// magnitude, `x` for `exp`, `|x| - ln 2` within an ulp for `sinh` and
+// `cosh`, and `y ln |x|` for a power, against the edges
 // `U = (10^18 + 1) ln 10` and `D = -10^18 ln 10`. A refusal, `overflow`
 // or `underflow`, needs the whole interval past an edge; a computation
 // needs the whole interval within, with a margin for the kernel's error
@@ -81,22 +80,22 @@
 // magnitudes, and a base near one from its exact difference from one;
 // only within their slack is the interval formed on the kernel, so an
 // exact argument is left `unresolved` only when it lies within the
-// ceiling's precision of an edge. Stage 4's guards refused on the whole
-// ball's magnitude in doubles, so a radius alone refused `exp` (#40), a
-// base of magnitude one was refused past `n ≈ 3.3 × 10^27` (#46), and
-// values within `10^9` decades of the bound were refused (#61).
+// ceiling's precision of an edge. An earlier version's guards refused on
+// the whole ball's magnitude in doubles, so a radius alone refused `exp`,
+// a base of magnitude one was refused past `n ≈ 3.3 × 10^27`, and values
+// within `10^9` decades of the bound were refused.
 //
 // Two values are special. An exact zero times anything is exact zero,
 // however wide the other operand, unbounded included: unbounded stands for
 // a bound that is not known, not for an infinite value. And a divisor that
 // contains zero without being exactly zero cannot be divided by, since the
-// true quotient may have either sign or none: that is `unresolved` (D4), a
-// kind of its own beside `divisionByZero`, because the retry loop of the
-// pipeline retries on the first (a narrower ball may exclude zero) and
-// never on the second. A divisor of unbounded radius with a nonzero
-// midpoint divides, and the quotient's radius is unbounded, as the study's
-// per-operation fallback says; one with a zero midpoint is `unresolved`,
-// since nothing is known of its sign.
+// true quotient may have either sign or none: that is `unresolved`
+// (devdocs/numbers.md, "Exact operations"), a kind of its own beside
+// `divisionByZero`, because the retry loop of the pipeline retries on the
+// first (a narrower ball may exclude zero) and never on the second. A
+// divisor of unbounded radius with a nonzero midpoint divides, and the
+// quotient's radius is unbounded; one with a zero midpoint is
+// `unresolved`, since nothing is known of its sign.
 //
 // Comparing a midpoint with a radius, which `containsZero`, the
 // certification and the built-ins' edge checks (`position`) do, is exact
@@ -107,20 +106,21 @@
 // point; the digit is not certified), and the retry loop narrows the ball.
 //
 // The root is the one inexact operation, and it runs on the kernel
-// (fixed.ts; task 2.3 of the plan). An exact argument with a rational root
-// is exact, as `exactRoot` finds it. Otherwise a ball whose interval
-// excludes zero is scaled by an exact power of ten in the exponent and an
-// exact power of `2^degree` on the significand so that it is of order one (the
+// (fixed.ts; devdocs/numbers.md, "Roots and powers"). An exact argument
+// with a rational root is exact, as `exactRoot` finds it. Otherwise a ball
+// whose interval excludes zero is scaled by an exact power of ten in the
+// exponent and an exact power of `2^degree` on the significand so that it
+// is of order one (the
 // scaling belongs here, on the ball, since a tiny ball converted at the
 // kernel's bits would lose its digits), converted at `bitsFor(precision)`,
 // plus as many more bits as the scaled significand still lies below one,
 // rooted, scaled back and handed back through `fixedToBall`, so that the
 // radius covers the argument's radius and the kernel's own error, and the
-// midpoint is the kernel's, rounded to the working digits in no mode (D15:
-// the mode is the display's). Three cases the kernel's root cannot take go
-// to log space instead, `x^(1/n)` as `exp(ln x / n)` (H.5 of the plan): a
-// degree past `2^32`, which Newton's iteration from a double's guess
-// cannot verify (`pow(3, 1e-30)` threw, issue #57); a remainder of the
+// midpoint is the kernel's, rounded to the working digits in no mode (the
+// mode is the display's). Three cases the kernel's root cannot take go
+// to log space instead, `x^(1/n)` as `exp(ln x / n)`: a degree past
+// `2^32`, which Newton's iteration from a double's guess cannot verify
+// (`pow(3, 1e-30)`); a remainder of the
 // exponent whose power of ten does not fit the significand limit; and a significand
 // that lies below one by more than the working bits, which the conversion
 // would turn to zero (`(7^-8000)^(1/99999)` was shown as zero within
@@ -136,7 +136,7 @@
 // nothing here reads its rounding mode.
 //
 // A rational power (`powRationalBall`, which `^` and the built-in `pow`
-// share; task 3.8) has three routes. An exact base that is a perfect
+// share) has three routes. An exact base that is a perfect
 // `q`-th power gives the exact root raised to `p`, without ever forming
 // `x^p`, since `x^(p/q)` is rational exactly when `x` is a perfect `q`-th
 // power. Otherwise, when `x^p` fits the significand limit, the root of the power
@@ -255,8 +255,8 @@ import {
 
 /**
  * A midpoint with the radius that bounds its distance from the true value.
- * `uncertified` is decimal mode's alone (D26; devdocs/design/decimal-mode.md, "The
- * ceiling"): set on a value one of whose steps was rounded at the ceiling
+ * `uncertified` is decimal mode's alone (devdocs/numbers.md, "Decimal
+ * mode"): set on a value one of whose steps was rounded at the ceiling
  * without its digits certified, and carried by every operation on it,
  * sticky as IEEE 754's inexact flag; absent everywhere else, never set to
  * anything but `true`, so that balls compare structurally as before.
@@ -268,11 +268,12 @@ export type Ball = {
 };
 
 /**
- * What a value that cannot be told from it straddles (D4): a point, zero
- * for a divisor or a base, `1` or `-1` at the end of a domain, a pole of
- * the tangent, or the exponent bound (D18), a name rather than a number
- * since for a power it lies on `y ln x` rather than on an argument. The
- * built-ins' errors carry the same edges (builtin.ts).
+ * What a value that cannot be told from it straddles (devdocs/numbers.md,
+ * "Exact operations"): a point, zero for a divisor or a base, `1` or `-1`
+ * at the end of a domain, a pole of the tangent, or the exponent bound, a
+ * name rather than a number since for a power it lies on `y ln x` rather
+ * than on an argument. The built-ins' errors carry the same edges
+ * (builtin.ts).
  */
 export type Edge = Scaled | "pole" | "bound";
 
@@ -282,7 +283,7 @@ export type BallError =
    * The answer depends on which side of `edge` the true value lies, and
    * the ball straddles it: a divisor that cannot be told from zero. Every
    * operation here names zero; the built-ins name their own edges, and
-   * the consumers pass the edge on rather than assume it (D18).
+   * the consumers pass the edge on rather than assume it.
    */
   | { readonly kind: "unresolved"; readonly edge: Edge };
 
@@ -305,7 +306,7 @@ export function isExact(b: Ball): boolean {
 }
 
 /**
- * `result` carrying the uncertified flag of any of `operands` (D26): a
+ * `result` carrying the uncertified flag of any of `operands`: a
  * step on an uncertified value is uncertified. The operations below
  * return their results through this, so that the flag flows through an
  * expression without each of them knowing of it.
@@ -379,10 +380,9 @@ export function position(
   if (d.error.kind !== "tooLarge") {
     // The two aligned, and their difference lies past the exponent bound:
     // below it, for a midpoint at the bottom edge within its radius of
-    // the point (the plan's H.11 found `settle` there), or above it, for
-    // two values near the top on either side of zero. Formed without the
-    // bound, its magnitude is compared with the radius by the bounds,
-    // which cannot tell a touch from a straddle.
+    // the point, or above it, for two values near the top on either side
+    // of zero. Formed without the bound, its magnitude is compared with
+    // the radius by the bounds, which cannot tell a touch from a straddle.
     const difference = differenceOf(b.mid, point);
     const above = sign(difference) > 0;
     if (compareRadius(radiusBelowScaled(difference), b.rad) > 0) {
@@ -412,7 +412,7 @@ export type Order = ReturnType<typeof position>;
  * `context`, against zero, a difference refused as too large to form
  * (or straddling the bound) answering `straddles`, the conservative
  * answer. Conditions on a function's arguments are decided on it
- * (devdocs/design/functions.md, "Conditions").
+ * (devdocs/functions.md, "Conditions").
  */
 export function orderOf(a: Ball, b: Ball, context: NumberContext): Order {
   if (isExact(b)) return position(a, b.mid);
@@ -496,14 +496,15 @@ function addBallsCore(
   if (sum.ok) return heldSum(sum.value, rad);
   if (sum.error.kind !== "tooLarge") {
     // The sum aligns and its value passes the bound. Two exact operands
-    // have an exact sum, which is past it in both modes (issue #48);
-    // otherwise the whole ball decides (D18), as a product's does.
+    // have an exact sum, which is past it in both modes; otherwise the
+    // whole ball decides, as a product's does (devdocs/numbers.md, "The
+    // exponent bound").
     if (isZeroRadius(rad) || rad.kind === "unbounded") return sum;
     return held(sumOf(a.mid, b.mid), rad);
   }
   // Two exact operands have an exact sum that cannot be held: `tooLarge`
   // in exact mode, and in decimal mode the evaluator's to answer by the
-  // neighbor rule (`decimalSumApart`, D26).
+  // neighbor rule (`decimalSumApart`; devdocs/numbers.md, "Decimal mode").
   if (isExact(a) && isExact(b)) return sum;
   const settledA = onGrid(a, context);
   if (!settledA.ok) return settledA;
@@ -527,7 +528,7 @@ function addBallsCore(
 
 /**
  * `a + b` in decimal mode where the two cannot be aligned within the
- * significand limit (D26; devdocs/design/decimal-mode.md, "Sums that do not align"), which
+ * significand limit (devdocs/numbers.md, "Decimal mode"), which
  * the evaluator applies when `addBalls` refuses such a sum as `tooLarge`:
  * the smaller operand lies far below half a unit in the last of the
  * context's digits of the larger, so the correctly rounded sum is the
@@ -586,7 +587,7 @@ export function decimalSumApart(
   return boundedDecimal(sign(base) < 0 ? negate(stepped.value) : stepped.value);
 }
 
-/** The exact ball of `mid`, or the refusal of a value whose exponent passes the bound (D17): the evaluator's operands are within it, a caller handing larger values in is not. */
+/** The exact ball of `mid`, or the refusal of a value whose exponent passes the bound: the evaluator's operands are within it, a caller handing larger values in is not. */
 function boundedDecimal(mid: Scaled): Result<Ball, BallError> {
   if (!isZero(mid)) {
     const exponent = decimalExponent(mid);
@@ -598,8 +599,9 @@ function boundedDecimal(mid: Scaled): Result<Ball, BallError> {
 
 /**
  * The ball of the canonical `mid`, within the bound, and the radius
- * `rad`, held to the bound's top as D18 has a sum (issue #48): the ball
- * itself when `rad` is zero or unbounded, and otherwise `held`'s answer
+ * `rad`, held to the bound's top as a sum is (devdocs/numbers.md, "The
+ * exponent bound"): the ball itself when `rad` is zero or unbounded, and
+ * otherwise `held`'s answer
  * for a midpoint within the bound, the ball when `|mid| + rad` lies
  * below the top and `unresolved` at the edge `bound` when it reaches it.
  */
@@ -622,8 +624,9 @@ export function subtractBalls(
  * `|a| rb + |b| ra + ra rb`, rounded up. An exact zero times anything is
  * exact zero; an exact product whose value passes the bound is `overflow`
  * or `underflow`, and an inexact one is held to the bound as `held` says
- * (D18); the evaluator holds an exact product to the significand limit at the
- * node (D19), so a caller takes any refusal.
+ * (devdocs/numbers.md, "The exponent bound"); the evaluator holds an exact
+ * product to the significand limit at the node (devdocs/numbers.md, "The
+ * significand limit"), so a caller takes any refusal.
  */
 export function multiplyBalls(
   a: Ball,
@@ -657,9 +660,9 @@ function multiplyBallsCore(
   }
   // An operand of more bits than the working grid, an exact value times
   // an inexact one: the product is inexact in any case, so each operand
-  // is put on the grid first (`onGrid`, D15), as a sum that cannot align
-  // does, and two grid significands multiply within the limit by the
-  // limits' relation (`precisionLimitFor`).
+  // is put on the grid first (`onGrid`; devdocs/numbers.md, "Settling"),
+  // as a sum that cannot align does, and two grid significands multiply
+  // within the limit by the limits' relation (`precisionLimitFor`).
   const settledA = onGrid(a, context);
   if (!settledA.ok) return settledA;
   const settledB = onGrid(b, context);
@@ -690,19 +693,20 @@ function productRadius(a: Ball, b: Ball): Radius {
 /**
  * The bounded, inexact ball of the midpoint `loose`, formed with no bound
  * checked and in no canonical form, and the radius `rad`, held to the
- * exponent bound as D18 has it: a value when the midpoint is within the
- * bound and `|mid| + rad` lies below its top; `overflow` when
+ * exponent bound as devdocs/numbers.md ("The exponent bound") has it: a
+ * value when the midpoint is within the bound and `|mid| + rad` lies
+ * below its top; `overflow` when
  * `|mid| - rad` is at or above `10^(10^18 + 1)`, the whole ball past the
  * top; `underflow` when `|mid| + rad` lies below `10^-(10^18)` with the
  * ball excluding zero, the whole ball past the bottom; zero within
  * `|mid| + rad` when the ball contains zero and the midpoint passes below,
- * zero being within the bound at any exponent (D17); and `unresolved` at
+ * zero being within the bound at any exponent; and `unresolved` at
  * the edge `bound` otherwise, a result that passes the bound for some
  * values of the ball and not for others, which the retry loop narrows. The
  * decisions are `againstPowerOfTen`'s: the coarse bounds first, the exact
- * distance from the power of ten within their slack. Stage 4 decided by
- * the midpoint alone, so a product straddling the top was refused for
- * good and one around zero carried a radius past it (issue #60).
+ * distance from the power of ten within their slack. An earlier version
+ * decided by the midpoint alone, so a product straddling the top was
+ * refused for good and one around zero carried a radius past it.
  */
 function held(loose: Scaled, rad: Radius): Result<Ball, BallError> {
   if (isZero(loose)) return zeroWithin(rad);
@@ -735,7 +739,7 @@ function unaffordable(working: bigint): PowerVerdict {
   };
 }
 
-/** A result that passes the bound for some values of its ball and not for others (D18). */
+/** A result that passes the bound for some values of its ball and not for others (devdocs/numbers.md, "The exponent bound"). */
 const AT_BOUND: BallError = { kind: "unresolved", edge: "bound" };
 
 /** Zero within the bounded `rad`, unless the radius itself reaches the top of the bound. */
@@ -873,10 +877,11 @@ function inexactQuotient(
 /**
  * `b^n` for an integer `n`. An exact ball goes through `pow`, exactly,
  * within the context's significand limit. An inexact ball is raised by squaring
- * with `multiplyBalls`, settled after each product (D15), so that the
- * midpoint stays at the working precision, once the classifier has held
- * `n ln |b|` to the exponent bound over the whole ball (D18, the plan's
- * H.15): `overflow` or `underflow` only when every value of the power
+ * with `multiplyBalls`, settled after each product (devdocs/numbers.md,
+ * "Settling"), so that the midpoint stays at the working precision, once
+ * the classifier has held `n ln |b|` to the exponent bound over the whole
+ * ball (devdocs/numbers.md, "The exponent bound"): `overflow` or
+ * `underflow` only when every value of the power
  * passes the bound, `unresolved` at the edge `bound` when some do, the
  * squaring loop when none does, and one within twice `n ln |b|`'s bound
  * where that bound is below an ulp of the working bits, or where the
@@ -886,7 +891,7 @@ function inexactQuotient(
  * within the bound at any exponent; one with a zero midpoint is zero
  * within its radius to the power, taken from the radius's logarithm
  * (`powRadiusAbove`), where squaring the ball took a minute for
- * `n = 1e100000` (issue #62). A negative `n` inverts by the division
+ * `n = 1e100000`. A negative `n` inverts by the division
  * rule, so a ball containing zero to a negative power is `unresolved` at
  * zero, and a power past the bound on one side is past it on the other.
  * `b^0` is exactly one, as `pow` has it, for any ball. A ball of unbounded
@@ -961,33 +966,33 @@ function powBallCore(
 }
 
 /**
- * `b` settled to the working precision of `context` (D15): the primitive
- * of `step`, which is the one way a computed value enters the expression,
- * and of the operations here that settle inside themselves (a sum with an
- * inexact operand, a power's squarings). In exact mode
- * an inexact midpoint is rounded to nearest at the working digits, the
- * decimal grid the kernel's results are rounded onto, and half a unit in
- * the last of those digits, its bound, is added to the radius when the
- * rounding moved it; an exact ball is returned as it is, since the
- * rounding mode is the display's, applied once to the certified value of
- * the whole expression. In decimal mode (D26; devdocs/design/decimal-mode.md) the
- * settle is the mode's one rounding of a step, `settleDecimal` below:
- * every value, an exact one included, is rounded to the context's
- * precision in its rounding mode and is exact after it, no radius
- * recording the rounding, since in that mode the rounded value is the
- * value. A zero midpoint is left alone in exact mode.
+ * `b` settled to the working precision of `context` (devdocs/numbers.md,
+ * "Settling"): the primitive of `step`, which is the one way a computed
+ * value enters the expression, and of the operations here that settle
+ * inside themselves (a sum with an inexact operand, a power's squarings).
+ * In exact mode an inexact midpoint is rounded to nearest at the working
+ * digits, the decimal grid the kernel's results are rounded onto, and
+ * half a unit in the last of those digits, its bound, is added to the
+ * radius when the rounding moved it; an exact ball is returned as it is,
+ * since the rounding mode is the display's, applied once to the certified
+ * value of the whole expression. In decimal mode (devdocs/numbers.md,
+ * "Decimal mode") the settle is the mode's one rounding of a step,
+ * `settleDecimal` below: every value, an exact one included, is rounded
+ * to the context's precision in its rounding mode and is exact after it,
+ * no radius recording the rounding, since in that mode the rounded value
+ * is the value. A zero midpoint is left alone in exact mode.
  *
- * The exponent bound (D17, the plan's H.11). In decimal mode the rounded
- * value is the result, so a rounded midpoint whose decimal exponent
- * passes the bound is refused, `overflow` above it and `underflow` below,
- * where stage 4 let `99999999999e999999999999999990` through as
- * `1e+1000000000000000001` (issue #44). In exact mode a settle is a bound
- * on size and never refuses a value: a rounding to nearest that would
- * carry the midpoint past the top of the bound rounds toward zero instead
- * and adds a whole unit in the last working digit to the radius, and the
- * half unit is a radius from `powerOfTenRadius`, which a value at the
- * bottom edge, whose half unit lies past the bound, can take (the same
- * issue's first row threw here).
+ * The exponent bound (devdocs/numbers.md, "The exponent bound"). In
+ * decimal mode the rounded value is the result, so a rounded midpoint
+ * whose decimal exponent passes the bound is refused, `overflow` above it
+ * and `underflow` below, where an earlier version let
+ * `99999999999e999999999999999990` through as `1e+1000000000000000001`.
+ * In exact mode a settle is a bound on size and never refuses a value: a
+ * rounding to nearest that would carry the midpoint past the top of the
+ * bound rounds toward zero instead and adds a whole unit in the last
+ * working digit to the radius, and the half unit is a radius from
+ * `powerOfTenRadius`, which a value at the bottom edge, whose half unit
+ * lies past the bound, can take (an earlier version threw here).
  */
 /**
  * `b` on the working grid of `context`, whether exact or not: rounded to
@@ -995,8 +1000,9 @@ function powBallCore(
  * rounds an inexact value, so that an exact operand of more bits than the
  * grid, in an operation whose result is inexact in any case (a sum,
  * product or quotient with an inexact operand that the strict limit
- * cannot form on the exact operand), is rounded as `approx` would (D15)
- * and an exact operand already on the grid, `1e999999999`, stays exact
+ * cannot form on the exact operand), is rounded as `approx` would
+ * (devdocs/numbers.md, "Settling") and an exact operand already on the
+ * grid, `1e999999999`, stays exact
  * and costs nothing. Exact mode never rounds an exact value whose result
  * is exact; this is for a result that is not.
  */
@@ -1033,15 +1039,15 @@ function gridded(b: Ball, context: NumberContext): Ball {
 }
 
 /**
- * `b` as decimal mode's one rounding of a step leaves it (D26;
- * devdocs/design/decimal-mode.md): an exact value is rounded to the context's digits
- * in its rounding mode and is exact; an inexact one, a built-in's or a
- * unit's ball computed at a working precision, takes the same rounding
- * when the ball certifies it, both of its ends rounding alike (D7), and
- * otherwise the midpoint's rounding, zero for a ball containing zero,
- * marked uncertified ("The ceiling"). No radius leaves: every
+ * `b` as decimal mode's one rounding of a step leaves it
+ * (devdocs/numbers.md, "Decimal mode"): an exact value is rounded to the
+ * context's digits in its rounding mode and is exact; an inexact one, a
+ * built-in's or a unit's ball computed at a working precision, takes the
+ * same rounding when the ball certifies it, both of its ends rounding
+ * alike, and otherwise the midpoint's rounding, zero for a ball
+ * containing zero, marked uncertified. No radius leaves: every
  * decimal-mode value is exact, and the flag carries over from `b`. A
- * rounded value whose exponent passes the bound is refused (D17).
+ * rounded value whose exponent passes the bound is refused.
  */
 function settleDecimal(
   b: Ball,
@@ -1074,15 +1080,15 @@ function roundedDecimal(
   return ok(carrying(exact(rounded), from));
 }
 
-/** A refusal the rounding of a step can raise: the rounded value's exponent past the bound (D17). */
+/** A refusal the rounding of a step can raise: the rounded value's exponent past the bound. */
 export type PastBound = Extract<BallError, { kind: "overflow" | "underflow" }>;
 
 /**
  * A step of the expression at `context`: the one entrance through which a
  * value `compute` produces becomes a value of the expression, in either
- * mode (D15, D26; devdocs/design/decimal-mode.md). Every node of the evaluator, the
- * pipeline's own quotients and the outcome's reciprocal go through it,
- * and nothing else settles or rounds a value.
+ * mode (devdocs/numbers.md, "Settling" and "Decimal mode"). Every node of
+ * the evaluator, the pipeline's own quotients and the outcome's
+ * reciprocal go through it, and nothing else settles or rounds a value.
  *
  * In exact mode `compute` runs once, at `context`, and its value is
  * settled: an inexact midpoint rounded to the working digits with the
@@ -1090,9 +1096,9 @@ export type PastBound = Extract<BallError, { kind: "overflow" | "underflow" }>;
  * `compute` runs at the working contexts of the retry schedule, in exact
  * mode, from the digits asked for plus the guard, doubling, up to the
  * ceiling, until its ball is exact or certifies the context's digits in
- * its rounding mode (D7), and that ball is rounded once to those digits,
+ * its rounding mode, and that ball is rounded once to those digits,
  * exact; at the ceiling the last ball's midpoint is rounded and the value
- * marked uncertified ("The ceiling"). An error `retries` accepts (an
+ * marked uncertified. An error `retries` accepts (an
  * `unresolved`, which more digits may decide) continues to the next
  * context and is the result at the ceiling; any other ends the step. A
  * `compute` that does not read its context, an exact operation on exact
@@ -1143,11 +1149,11 @@ function settled(b: Ball, context: NumberContext): Result<Ball, PastBound> {
  * an exact `b` gains the unit, one whose radius is larger keeps it, and
  * one whose radius is smaller is widened to it; never narrowed, and
  * idempotent. A zero or an unbounded `b` is returned as it is. This is
- * `approx` (devdocs/design/approximate.md), and what the evaluator raises to a
+ * `approx` (devdocs/numbers.md, "`approx`"), and what the evaluator raises to a
  * power in decimal mode when the exact power does not fit the significand limit
- * (D26). The unit is taken from the exponent without forming it, which
- * lies past the exponent bound for a value near the bottom of it
- * (`approx(1e-999999999999999999)`, issue #44).
+ * (devdocs/numbers.md, "Decimal mode"). The unit is taken from the exponent
+ * without forming it, which lies past the exponent bound for a value near
+ * the bottom of it (`approx(1e-999999999999999999)`).
  */
 export function widened(b: Ball, context: NumberContext): Ball {
   if (b.rad.kind === "unbounded" || isZero(b.mid)) return b;
@@ -1166,7 +1172,7 @@ function unitOf(s: Scaled, digits: Precision): Radius {
  * midpoint: the difference is formed as a subtraction of the significands
  * at the lesser of the two exponents, with no bound checked, since at the
  * bottom edge the difference itself lies past the bound
- * (`1e-1000000000000000000 / 3` rounded to eight digits, issue #44), and
+ * (`1e-1000000000000000000 / 3` rounded to eight digits), and
  * is taken exactly where its power of ten is worth forming and by its
  * binary bounds otherwise. The alignment is bounded by the two values'
  * digits, a rounding moving a value within them.
@@ -1293,7 +1299,7 @@ function rootBallCore(
  * kernel's root cannot verify; a remainder whose power of ten does not
  * fit the significand limit; and a significand that lies below one by more than
  * the working bits, which the conversion would turn to zero within an ulp
- * and report as a false `unresolved` (`pow(3^-10000, 2^-30)`, issue #57).
+ * and report as a false `unresolved` (`pow(3^-10000, 2^-30)`).
  * `undefined` when the scaled ball's interval is not positive at those
  * bits, which only a ball reaching within an ulp of zero can produce.
  */
@@ -1318,7 +1324,7 @@ function positiveRoot(
   // binary scaling: both exact powers, rounded up on the radius. The
   // power taken off is not formed: its multiple of the degree can overshoot
   // the exponent by up to the degree less one, past the bound for
-  // `cbrt(1e-1000000000000000000)` (issue #44), and only its radius is
+  // `cbrt(1e-1000000000000000000)`, and only its radius is
   // needed.
   const radOverTen = multiplyRadius(b.rad, powerOfTenRadius(-(k * degree)));
   const m = significand.value;
@@ -1412,7 +1418,7 @@ function rootAroundZero(b: Ball, degree: bigint): Ball {
  * `b` raised to the rational power `exponent`, by the three routes the
  * header lays out: `powBall` for an integer exponent; for `p/q` in lowest
  * terms the exact root raised to `p` when `b` is exact and a perfect
- * `q`-th power; else `rootBall` of `powBall` when `b^p` fits the range
+ * `q`-th power; else `rootBall` of `powBall` when `b^p` fits the significand
  * limit, root last; else log space. A ball negative throughout under an
  * even root fails with `negativeRadicand` before anything is computed, so
  * that `(-8)^(2/4)` is refused rather than computed as the fourth root of
@@ -1470,8 +1476,9 @@ function powRationalBallCore(
 /**
  * `exp(y ln x)` on the kernel, for a bounded `x` positive as rationals (a
  * precondition) and a bounded `y`: `y ln x` held to the exponent bound
- * over the whole ball by the classifier (D18, the plan's H.15), which
- * refuses only when every value of the power passes the bound, leaves a
+ * over the whole ball by the classifier (devdocs/numbers.md, "The
+ * exponent bound"), which refuses only when every value of the power
+ * passes the bound, leaves a
  * ball that straddles an edge `unresolved` at the edge `bound`, answers
  * one within twice the bound on `|y ln x|` where that bound is below an
  * ulp of the working bits (or where the kernel's decision would need more
@@ -1560,7 +1567,7 @@ export function lnScaled(
 
 /**
  * A number at or above the radius `rad`, `Infinity` for an unbounded one
- * or one beyond a double: enough to compare a magnitude with the range
+ * or one beyond a double: enough to compare a magnitude with the significand
  * limit.
  */
 export function radiusBound(rad: Radius): number {
@@ -1587,9 +1594,10 @@ function reciprocalError(error: BallError): BallError {
 // The exponent bound on a logarithm
 
 /**
- * The verdict of the classifier (D18, the plan's H.15) on a result whose
- * magnitude is `e^L` for an interval `L`: `overflow` when every value
- * passes the top of the exponent bound, `underflow` when every value
+ * The verdict of the classifier (devdocs/numbers.md, "The exponent
+ * bound") on a result whose magnitude is `e^L` for an interval `L`:
+ * `overflow` when every value passes the top of the exponent bound,
+ * `underflow` when every value
  * passes the bottom, `compute` when every value lies within it with a
  * margin for the kernel's error and the working digits' rounding, and
  * `unresolved` otherwise, an edge that the retry loop narrows.
@@ -1635,7 +1643,7 @@ const EDGE_BITS = 70;
  * a result within `2^-(bits - MARGIN_BITS)`, relative, of an edge is not
  * computed, so that the result's ball, the kernel's error and the
  * rounding onto the working digits included, never reaches the edge, and
- * the carry of a rounding at the top (issue #61) cannot occur. A power of
+ * the carry of a rounding at the top cannot occur. A power of
  * two above every ulp the exponential's squarings and the log-space
  * digits spend.
  */
@@ -2045,9 +2053,10 @@ function coarseVerdict(
 // Certification
 
 /**
- * Whether `b` certifies `digits` significant digits in `mode` (D7 of the
- * plan): its two ends, `mid - rad` and `mid + rad`, round to the same
- * `digits`-digit value in `mode`. Rounding is monotone, so every value
+ * Whether `b` certifies `digits` significant digits in `mode`
+ * (devdocs/numbers.md, "Certification and the display rule"): its two
+ * ends, `mid - rad` and `mid + rad`, round to the same `digits`-digit
+ * value in `mode`. Rounding is monotone, so every value
  * between them rounds to it too, and the shown digits are what rounding
  * the true value would give: correctly rounded, not merely close. The
  * ends are formed exactly where the radius can be formed and aligned with
@@ -2079,9 +2088,10 @@ export function certifies(
 }
 
 /**
- * Certification by the distance to the nearest rounding boundary (D7,
- * devdocs/design/decimal.md), for a radius that cannot be formed or aligned: the
- * ends round alike exactly when no boundary of the `digits`-digit cells
+ * Certification by the distance to the nearest rounding boundary
+ * (devdocs/numbers.md, "Certification and the display rule"), for a
+ * radius that cannot be formed or aligned: the ends round alike exactly
+ * when no boundary of the `digits`-digit cells
  * lies within the radius of the midpoint. In the magnitude's units `u`,
  * `10^(e - digits + 1)` for the midpoint's decimal exponent `e`, the
  * boundaries lie at the whole units under a directed mode and at the

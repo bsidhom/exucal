@@ -54,7 +54,7 @@ import {
 } from "./settings.ts";
 
 /**
- * The settings sheet (devdocs/design/settings-surface.md, D30): a non-modal
+ * The settings sheet (devdocs/settings.md, "The sheet"): a non-modal
  * `<dialog>` laid over the page, fixed to the viewport, the page live
  * and scrollable behind it, so that the result stays in view while a
  * setting is changed to see its effect. On a narrow viewport it is a
@@ -71,19 +71,19 @@ import {
  * `dvh`, rises with it and the input being typed in stays visible.
  *
  * The controls, in three groups by what a setting is for and in the
- * order of how often each is touched (devdocs/design/settings-controls.md, D31):
+ * order of how often each is touched (devdocs/settings.md, "The controls"):
  * how a result is shown, the display digits and, in exact mode, the
  * notation its exact values are written in; how it is computed, the
  * mode with what belongs to it under it, the working digits in decimal
  * mode, and the rounding; how much it may cost, the precision limit in
  * digits, the significand limit in bits, and the probe with its budget
- * in milliseconds (devdocs/design/settings-modes.md, devdocs/design/working-digits.md,
- * devdocs/design/settings-limits.md). Each control has a line under it that opens
- * with a number's range and says what the setting does in the mode in
- * force (settings-lines.ts), and each number input has its unit after
- * it. Beside the label of a setting that is not at its default, a
- * link-style button names the default ("default 8") and resets it on a
- * press; at the foot, "Reset all settings" and the link to the guide.
+ * in milliseconds (devdocs/settings.md, "The model"). Each control has a
+ * line under it that opens with a number's range and says what the
+ * setting does in the mode in force (settings-lines.ts), and each number
+ * input has its unit after it. Beside the label of a setting that is
+ * not at its default, a link-style button names the default ("default
+ * 8") and resets it on a press; at the foot, "Reset all settings" and
+ * the link to the guide.
  * The settings come in as a property and every change the user makes
  * goes out as a `settings-change` event carrying the fields that changed,
  * the mode always as a whole variant, and every reset as a
@@ -113,11 +113,11 @@ import {
  * may move the settings below it in the chain; the shell hands the panel
  * what the clamp moved (`clamps`), and a line under each setting moved
  * says from what to what and to fit which setting, until the next change
- * (D29's clamp-and-tell).
+ * (the clamp-and-tell of devdocs/settings.md, "Applying a change").
  *
  * The Mode select's options are the bare names, so that the select stays
- * narrow and the panel fits a phone (#147); the explanation is the line
- * under it, which follows the mode in force.
+ * narrow and the panel fits a phone; the explanation is the line under
+ * it, which follows the mode in force.
  *
  * The probe: "Measure this device" asks limits.ts to time the costliest
  * operation on each axis within the budget a pass and shows what it
@@ -125,7 +125,7 @@ import {
  * emits as a change like any other, through the shell's clamp and its
  * telling; nothing changes before that. The button is disabled while the
  * probe runs, which blocks the main thread for a fraction of a second,
- * and the probe runs only when asked (the plan's D16).
+ * and the probe runs only when asked (devdocs/settings.md, "The probe").
  */
 @customElement("settings-panel")
 export class SettingsPanel extends LitElement {

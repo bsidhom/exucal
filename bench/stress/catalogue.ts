@@ -1,8 +1,9 @@
-// The catalogue of the costliest expressions (devdocs/history/calculator-plan.md,
-// tasks 8.2 and 8.3): what runs of the search have found, kept in
-// bench/stress/catalogue.json for the stress suite and as a table in
-// devdocs/cost.md for people. Nothing here measures; the search hands in what
-// it measured, and this module decides what the catalogue keeps.
+// The catalogue of the costliest expressions
+// (devdocs/benchmarks.md, "The stress suite"): what runs of the search
+// have found, kept in bench/stress/catalogue.json for the stress suite and
+// as a table in devdocs/cost.md for people. Nothing here measures; the
+// search hands in what it measured, and this module decides what the
+// catalogue keeps.
 //
 // A run adds to the catalogue rather than replacing it, a hit at a time.
 // Each entry is the costliest case found of its family (cases.ts), ranked
@@ -16,9 +17,9 @@
 // with the seed and index that drew it, so that any case replays.
 //
 // An entry's settings are stored as the app stores its own, in the
-// envelope of devdocs/design/settings-storage.md with the format version, and read
-// back through the same migrations (`settingsFromStored`), so that a
-// step that reshapes the settings (S2 nested the mode, S3 renamed the
+// envelope of devdocs/settings.md ("Storage") with the format version, and
+// read back through the same migrations (`settingsFromStored`), so that a
+// step that reshapes the settings (one nested the mode, one renamed the
 // limits) leaves every catalogued case readable, as it leaves every
 // user's storage readable: the catalogue is data the settings module
 // owns the shape of, not a copy of it. The first catalogue stored the

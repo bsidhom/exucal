@@ -208,7 +208,7 @@ test("the log-space ball contains the value and carries the significand's error,
   assert.ok(compare(radiusUpper(zero.rad), rational(5n * 2n ** 100000n)) >= 0);
 });
 
-test("the log-space digits hold the decimal exponent to the bound by the interval of t (D18, #61)", () => {
+test("the log-space digits hold the decimal exponent to the bound by the interval of t", () => {
   // 2^3321928094887362351 is 10^(10^18 + 0.94…): a significand of one is
   // within the top, of two is past it (10^(10^18 + 1.24…)), and one of
   // one within a half reaches both sides of the edge.

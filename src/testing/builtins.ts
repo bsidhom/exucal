@@ -1,4 +1,4 @@
-// Test support for the exact functions of stage 6 (abs.ts, round.ts,
+// Test support for the exact functions (abs.ts, round.ts,
 // division.ts, integers.ts): the assertions their tests share, on a
 // built-in's result.
 

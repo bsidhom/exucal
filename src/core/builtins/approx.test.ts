@@ -80,7 +80,7 @@ test("approx gives an exact value the working radius and never narrows an inexac
   assert.ok(compare(radiusOf(exactValue), dec("1e-17")) >= 0);
   assert.ok(compare(radiusOf(exactValue), dec("1.00000001e-17")) < 0);
   // At the bottom of the exponent bound the unit of the last working digit
-  // lies past the bound; it is taken as a radius without being formed (#44).
+  // lies past the bound; it is taken as a radius without being formed.
   const bottom = value(
     approxBall(exact(dec("1e-999999999999999999")), CONTEXT),
   );
@@ -200,7 +200,8 @@ test("through the pipeline: approx makes a value inexact on purpose, keeps its u
       text: "0.33333333",
     },
   );
-  // In decimal mode approx is the identity (D26): every value is already
+  // In decimal mode approx is the identity (devdocs/numbers.md, "Decimal
+  // mode"): every value is already
   // at the user's precision, so approx(2) is exactly 2 and approx(1/3)
   // exactly 0.33333333, as 1/3 is.
   const decimal = { ...context, mode: "decimal" as const };

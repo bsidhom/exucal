@@ -219,7 +219,7 @@ test("the result keeps the argument's significant bits for a result of any magni
   const bits = bitsFor(20);
   const big = expAt(fixedFromRational(rational(100n), bits), bits);
   // exp(100) is about 2^144.3, beyond 2^bits: an integer with at least
-  // `bits` significant bits (D9: none of the fraction bits are needed).
+  // `bits` significant bits (none of the fraction bits are needed).
   assert.equal(big.bits, 0);
   assert.ok(bitLength(big.value) >= bits);
   const middling = expAt(fixedFromRational(rational(20n), bits), bits);

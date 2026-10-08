@@ -1022,7 +1022,8 @@ test("a wide argument gives a wide root, and a root of a root composes", () => {
 test("the exact value of a fixed-point number is a fraction in lowest terms", () => {
   // `dyadic` cancels the numerator's trailing zeros against the power of
   // two without a gcd, and what it builds feeds the fraction's arithmetic,
-  // whose reductions assume lowest terms (the plan's H.9).
+  // whose reductions assume lowest terms (devdocs/numbers.md, "Exact
+  // operations").
   for (const [value, bits] of [
     [0n, 10],
     [1n, 0],

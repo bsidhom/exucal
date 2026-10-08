@@ -1,8 +1,8 @@
 // The way out of the kernel for a result whose binary exponent cannot be
 // formed: the decimal digits of a `Floating` (fixed.ts) found in log space.
-// devdocs/design/decimal.md ("The kernel's boundary") is the design and
-// devdocs/history/calculator-plan.md (task 4.9) places it; it sits above the kernel,
-// since it calls the kernel's logarithm and exponential, and below the
+// devdocs/numbers.md ("The kernel's boundary") is the design; it sits
+// above the kernel, since it calls the kernel's logarithm and
+// exponential, and below the
 // ball, which it hands a ball to (the built-ins that return a `Floating`,
 // `exp`, `sinh` and `cosh`, and the log-space power of ball.ts take their
 // results out through `floatingToBall`).
@@ -19,16 +19,17 @@
 // exponential of the fraction times `ln 10`, a value of order one, and
 // the result is that value's ball, rounded onto the working digits, times
 // the power of ten in the exponent. Every step is a kernel operation with
-// its error carried in the kernel's counts (D9), so the ball's radius
+// its error carried in the kernel's counts, so the ball's radius
 // covers the logarithm's error, the exponential's and the rounding's, and
 // the whole interval of the `Floating`; a `Floating` whose interval
 // reaches zero is a ball around zero bounded by its extent. Nothing else
 // in the program needs log space: the display writes the decimal it is
 // given. The decimal exponent is held to the exponent bound by the
-// interval of `t` (D18): `overflow` or `underflow` when the whole interval
-// passes an edge, and `unresolved` at the edge `bound` when it reaches
-// one, or when the rounding onto the working digits carries the leading
-// digits to ten at the top (issue #61), where a power of ten past the
+// interval of `t` (devdocs/numbers.md, "The exponent bound"): `overflow`
+// or `underflow` when the whole interval passes an edge, and `unresolved`
+// at the edge `bound` when it reaches one, or when the rounding onto the
+// working digits carries the leading digits to ten at the top, where a
+// power of ten past the
 // bound would have been formed and refused; the callers' classifier
 // (ball.ts) decides with a margin, so that neither is reached from them.
 
@@ -101,7 +102,7 @@ export function floatingToBall(
     addFixed(lnPower, lnSignificand),
     ln10Fixed(working, ceilingBits),
   );
-  // The interval of t against the edges of the bound (D18): past the top
+  // The interval of t against the edges of the bound: past the top
   // throughout when its floor is above 10^18 at the lower end, past the
   // bottom throughout when it lies below -10^18 at the upper end, and
   // straddling an edge when only one end passes it.
@@ -132,7 +133,7 @@ export function floatingToBall(
   const power = scaled({ num: 1n, den: 1n }, decimalExponent);
   if (!power.ok) throw new Error("A decimal exponent within the bound");
   // The leading digits rounded onto the grid can carry to ten at the top,
-  // a power of ten past the bound: the value reaches the edge (#61).
+  // a power of ten past the bound: the value reaches the edge.
   // The exponent moves by the decimal exponent; the significand stays.
   const mid = scaled(ball.mid.significand, ball.mid.exp + decimalExponent);
   if (!mid.ok) return err(atBound);

@@ -285,7 +285,7 @@ test("an exponent may be a parenthesized rational", () => {
 
 test("an exponent travels in the tree as the two literals the parser read, undivided", () => {
   // The parser has no context to reduce within, and a reduction at the
-  // hard bound took seconds to minutes on long literals (issue #66); the
+  // hard bound took seconds to minutes on long literals; the
   // evaluator takes the quotient within the significand limit, so nothing is
   // formed here, not even a literal's power of ten.
   for (const [text, num, den] of [
@@ -314,7 +314,7 @@ test("an exponent travels in the tree as the two literals the parser read, undiv
   assert.ok(one.node.kind === "pow" && one.node.exponent.den === undefined);
 });
 
-test("a ^ exponent of two literals at the hard bound parses in milliseconds (#66)", () => {
+test("a ^ exponent of two literals at the hard bound parses in milliseconds", () => {
   // Two pseudo-random literals of 314,000 digits, the most the hard bound
   // takes: the parse forms each within the bound and pairs them with no
   // gcd, where a reduction here took about three and a half minutes,
@@ -400,7 +400,8 @@ test("an e that does not start an exponent is a unit name", () => {
 });
 
 test("a number too large to represent is rejected with its span", () => {
-  // A literal's exponent is kept as the number it is (stage 4's 4.3), so
+  // A literal's exponent is kept as the number it is (devdocs/numbers.md,
+  // "The types"), so
   // `1e999999` parses; what is rejected is a significand beyond the hard
   // bound, an exponent beyond the exponent bound, with the side it passes,
   // and a `^` exponent whose power of ten cannot be formed within the hard
@@ -635,7 +636,7 @@ test("a call needs a closing parenthesis, and a comma needs an argument after it
 
 test("a nested call with an error in it parses in time linear in its depth, with the same error", () => {
   // A call whose argument list fails was read again as a name before a
-  // parenthesized factor, so each level doubled the cost (issue #54);
+  // parenthesized factor, so each level doubled the cost;
   // twenty levels took minutes. The error, its position and its
   // expectations are what they were.
   const inner = [...AFTER_FACTOR, '","', '")"'];

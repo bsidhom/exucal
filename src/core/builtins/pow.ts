@@ -1,5 +1,6 @@
-// `pow(x, y)`: a plain base to a plain exponent. devdocs/design/builtins.md is the
-// design and devdocs/history/calculator-plan.md (task 3.8, then H.6) places it; a
+// `pow(x, y)`: a plain base to a plain exponent. devdocs/builtins.md ("The
+// elementary routines") is the design and devdocs/builtins.md ("Domains,
+// exact cases and edges") places its exact bases; a
 // power of a quantity is written with `^`, whose exponent is a literal so
 // that the dimension stays exact, and the dimension rule's message says
 // so.
@@ -13,27 +14,28 @@
 // when negative throughout, and `unresolved` at edge zero on the exponent
 // when it straddles zero. A fourth, an exact base of minus one, needs the
 // exponent's parity alone and is the exception to the fraction below.
-// Stage 4 formed an exact exponent's fraction first, so
+// An earlier version formed an exact exponent's fraction first, so
 // `pow(1, 1e999999999)` and `pow(0, 1e999999999)` were refused as
 // `tooLarge`, and it took `pow(1, approx(1e400))` to log space, which
-// refused it (issue #46).
+// refused it.
 //
 // Any other base with an exact exponent follows one rule with `^`
 // (`powRationalBall` of ball.ts): integer powers exact, a rational
 // exponent exact when the base is a perfect power, the root of the power
 // when it fits the significand limit, and log space otherwise (a root of a
 // degree past `2^32`, `pow(3, 1e-30)`, or of a significand too far below one
-// for the kernel's root goes to log space too, ball.ts's `positiveRoot`;
-// issues #45 and #57). The exponent is formed as a fraction within the
+// for the kernel's root goes to log space too, ball.ts's `positiveRoot`).
+// The exponent is formed as a fraction within the
 // significand limit; one that cannot be formed goes to log space as an inexact
-// exponent does (`unformable` below; the plan's H.16), an exact base told
+// exponent does (`unformable` below; devdocs/numbers.md, "Roots and
+// powers"), an exact base told
 // past the bound by its value first (`pow(2, 1e999999999)` is `overflow`),
 // so that `pow(2, 1e-999999999)`, a value near one whose exponent's
 // denominator is too large to form, is `≈ 1` where it was `tooLarge`,
 // and a negative base takes the exponent's parity, which the canonical
 // form of `Scaled` gives without the fraction (`minusOneTo` below):
 // `pow(-1, 1e999999999)` is `1`, `pow(-1, 5^-16000)` is `-1` and
-// `pow(-2, 1e-30000)` is the even root of a negative number (#46). An
+// `pow(-2, 1e-30000)` is the even root of a negative number. An
 // inexact exponent is log space
 // (`powLogSpace`, `exp(y ln x)`) for a base positive throughout its ball;
 // a base non-positive throughout is a `domain` error (`notPositive`,
@@ -120,15 +122,16 @@ export function powBallOf(
 }
 
 /**
- * `x^y` for an exact `y` whose fraction cannot be formed within the range
- * limit (the plan's H.16, issue #46): log space, as for an inexact
+ * `x^y` for an exact `y` whose fraction cannot be formed within the significand
+ * limit (devdocs/numbers.md, "Roots and powers"): log space, as for an inexact
  * exponent, rather than a refusal, so that `pow(2, 1e-999999999)` is one
- * within a hair as `pow(2, approx(1e-999999999))` is (D17: whether a
+ * within a hair as `pow(2, approx(1e-999999999))` is (devdocs/numbers.md,
+ * "The exponent bound": whether a
  * value is held does not depend on whether it is exact). An exact base
  * is first told past the bound by `powerRefusal`, which reads the value
  * alone (`pow(2, 1e999999999)` stays `overflow`), and otherwise goes on
  * as an inexact one does, the classifier of `powLogSpace` deciding on
- * the interval of `y ln |x|` (H.15): a base positive throughout goes
+ * the interval of `y ln |x|`: a base positive throughout goes
  * through `powLogSpace`; a base negative throughout follows the parity
  * rule of `minusOneTo`, `(-1)^y` times the power of its magnitude
  * (`pow(-2, 1e-30000)` is the even root of a negative number); and a base

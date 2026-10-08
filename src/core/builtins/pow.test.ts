@@ -191,7 +191,8 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
     compare(distance(tenThirds.mid, TEN_TO_100000_THIRDS), dec("1e33290")) < 0,
   );
   // A base that is not a power of ten goes through log space, and the
-  // result has the range of its exponent (4.9): 7^(100000/3) from
+  // result has the range of its exponent (devdocs/numbers.md, "The
+  // exponent bound"): 7^(100000/3) from
   // Python's decimal module at a precision of 70.
   const sevenThirds = value(
     powBallOf(exact(fr(7n)), exact(fr(100000n, 3n)), CONTEXT),
@@ -223,10 +224,11 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
     failure(powBallOf(exact(dec("0.7")), exact(dec("1e19")), CONTEXT)),
     { kind: "underflow" },
   );
-  // An exact exponent whose fraction cannot be formed within the range
+  // An exact exponent whose fraction cannot be formed within the significand
   // limit: at the bound when the power would pass it, and otherwise log
-  // space (H.16), where it was refused at the significand limit: 2^(1e-999999999)
-  // is one within a hair, as its `approx` form is.
+  // space (devdocs/numbers.md, "Roots and powers"), where it was refused
+  // at the significand limit: 2^(1e-999999999) is one within a hair, as
+  // its `approx` form is.
   assert.deepEqual(
     failure(powBallOf(exact(fr(2n)), exact(dec("1e999999999")), CONTEXT)),
     { kind: "overflow" },
@@ -256,7 +258,8 @@ test("an exact exponent follows the rule of ^: integer powers, perfect roots, th
   assert.ok(certifies(odd, 40, "halfEven"));
   // A base within 2^-30 of one is past the bound by its exact difference
   // from one; a base of one is answered before the exponent's fraction is
-  // formed (H.6, the test below), so its power is exactly one where it was
+  // formed (devdocs/builtins.md, "Domains, exact cases and edges"; the test
+  // below), so its power is exactly one where it was
   // refused as the exponent's fraction.
   assert.deepEqual(
     failure(
@@ -363,7 +366,8 @@ test("an inexact exponent is log space for a positive base, and the base's sign 
   }
   // An exponent straddling the edge of the bound is unresolved at the
   // bound, located at the argument whose radius widens `y ln x` more
-  // (H.15): the exponent's here, the base's where the base is wide.
+  // (devdocs/numbers.md, "The exponent bound"): the exponent's here, the
+  // base's where the base is wide.
   assert.deepEqual(
     failure(powBallOf(exact(fr(2n)), ball("3e18", "2e18"), CONTEXT)),
     {
@@ -388,11 +392,11 @@ test("an inexact exponent is log space for a positive base, and the base's sign 
   assert.notEqual(position(wideExponent, dec("1e100000")), "below");
 });
 
-test("the exact bases 0, 1 and -1 are answered before the exponent's fraction is formed (H.6, #46)", () => {
+test('the exact bases 0, 1 and -1 are answered before the exponent\'s fraction is formed (devdocs/builtins.md, "Domains, exact cases and edges")', () => {
   const minusOne = exact(negate(ONE));
   const huge = exact(dec("1e999999999"));
-  // #46's rows 4 to 6, refused as tooLarge when the fraction was formed
-  // first, and its row 2, taken to log space, which refused it.
+  // Three cases once refused as tooLarge when the fraction was formed
+  // first, and one taken to log space, which refused it.
   assert.deepEqual(value(powBallOf(exact(ONE), huge, CONTEXT)), exact(ONE));
   assert.deepEqual(value(powBallOf(minusOne, huge, CONTEXT)), exact(ONE));
   assert.deepEqual(value(powBallOf(exact(ZERO), huge, CONTEXT)), exact(ZERO));
@@ -512,10 +516,10 @@ test("through the pipeline, roots of a large degree or of a tiny significand are
   assert.ok(table.ok, inspect(table));
   const at = (text: string, precision: number) =>
     evaluateText(table.value, text, { ...context, precision });
-  // Issues #45 and #57: the kernel's root of a degree past 2^32 threw, or
-  // overshot for half a minute, or reported a significand far below one as
-  // not told from zero. Each is a value, against the references of #57
-  // (Python's decimal module).
+  // The kernel's root of a degree past 2^32 once threw, or overshot for
+  // half a minute, or reported a significand far below one as not told
+  // from zero. Each is a value, against references from Python's decimal
+  // module.
   for (const [text, precision, digits] of [
     ["pow(3, 1e-30)", 8, "1"],
     ["3^1e-30", 8, "1"],
@@ -525,7 +529,7 @@ test("through the pipeline, roots of a large degree or of a tiny significand are
     ["pow(2e200, 1e-20)", 8, "1"],
     ["pow(2, 1e-400)", 8, "1"],
     ["2^1e-400", 8, "1"],
-    // A ^ exponent is held to the significand limit since H.9 (below), so the
+    // A ^ exponent is held to the significand limit (below), so the
     // largest degree the default takes is about 10^19000.
     ["2^1e-19000", 8, "1"],
     ["pow(-2, 3^-700)", 8, "-1"],
@@ -558,7 +562,7 @@ test("through the pipeline, roots of a large degree or of a tiny significand are
   );
 });
 
-test("through the pipeline, the exact bases 0, 1 and -1 are exact values where they were refused (#46), and a power past the bound stays refused", () => {
+test("through the pipeline, the exact bases 0, 1 and -1 are exact values where they were refused, and a power past the bound stays refused", () => {
   const parsed = parseDefinitions("m  !");
   assert.ok(parsed.ok);
   const context = { ...CONTEXT, precision: 8, ceiling: 200 };
@@ -583,9 +587,10 @@ test("through the pipeline, the exact bases 0, 1 and -1 are exact values where t
     );
   }
   const primitives = table.value.primitives;
-  // #46's rows 1 and 3, and an exact exponent whose fraction cannot be
-  // formed over an inexact base, decided by the classifier on the
-  // interval (H.15): a base of one within `1e-17` to `1e999999999` reaches
+  // Two powers of an inexact base, and an exact exponent whose fraction
+  // cannot be formed over an inexact base, decided by the classifier on
+  // the interval (devdocs/numbers.md, "The exponent bound"): a base of one
+  // within `1e-17` to `1e999999999` reaches
   // past both edges of the bound and within it at every precision.
   for (const [text, digits] of [
     ["approx(1)^1000000000000000000000000000000", "1"],
@@ -668,10 +673,10 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
     ["pow(7, 100000/3)", "8.60334110021009353583310171446e+28169"],
     ["pow(2, 1e6 / 3)", "2.14727661156281285594787335594e+100343"],
     // A tiny inexact exponent converts to zero within an ulp at the
-    // kernel's door, and the power is one (#53).
+    // kernel's door, and the power is one.
     ["pow(2, approx(1e-999999999))", "1"],
     // An exact exponent past the significand limit as a fraction, in log space
-    // (H.16), gives what its approx form gives.
+    // (devdocs/numbers.md, "Roots and powers"), gives what its approx form gives.
     ["pow(2, 1e-999999999)", "1"],
     ["pow(2, 1e-30000)", "1"],
     ["pow(0.5, -1e-30000)", "1"],
@@ -739,10 +744,12 @@ test("through the pipeline: 2^0.1234567 and pow(10, 2.3456789) certify, pow(2 m,
       '"2^1442695" would need a significand of about 1,442,696 bits as an exact value, past the significand limit. Try "approx(2)" in place of "2", or decimal mode, to compute it to the digits asked.',
     ],
     // A ^ exponent is reduced by the evaluator within the significand limit
-    // (H.9): its denominator here, 10^310000, has a million bits, so the
-    // power is refused as pow's is, where the parser once formed it at the
-    // hard bound and the root went to log space (H.5); H.16 sends pow's
-    // exponent past the limit to log space.
+    // (devdocs/numbers.md, "The significand limit"): its denominator here,
+    // 10^310000, has a million bits, so the power is refused (the parser
+    // once formed the fraction at the hard bound, and the root went to log
+    // space), where pow's exponent past the limit goes to log space
+    // instead (devdocs/numbers.md, "Roots and powers"; the disagreement
+    // is #88).
     [
       "2^1e-310000",
       '"2^1e-310000" would need a significand of about 1,029,799 bits, past the significand limit, however it is computed.',

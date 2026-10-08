@@ -1,14 +1,13 @@
 // The exact fraction: a rational over `bigint`, with the arithmetic the
 // evaluator needs and the exact case of the n-th root. It is the total
-// fraction of the type ladder (devdocs/history/calculator-plan.md, D13): the exponents
-// of dimensions and of `^` and the exact value of a radius are fractions,
-// and from stage 4 the midpoint is a `Scaled` (scaled.ts), a fraction times
+// fraction of the type ladder (devdocs/numbers.md, "The types"): the
+// exponents of dimensions and of `^` and the exact value of a radius are
+// fractions, and the midpoint is a `Scaled` (scaled.ts), a fraction times
 // a power of ten, which holds the decimal representation, the parsing of a
-// literal, rounding to significant digits and formatting, all of which
-// lived here until 4.3.
+// literal, rounding to significant digits and formatting.
 //
 // Everything here is exact, and the rules for when a value may lose
-// precision are spelled out in devdocs/architecture.md ("Precision and rounding").
+// precision are spelled out in devdocs/numbers.md ("Settling").
 // In short: arithmetic never rounds; the digits of an irrational root are
 // the kernel's business (fixed.ts, through `rootBall` of ball.ts), and
 // `exactRoot` here answers only whether a root is rational.
@@ -17,15 +16,16 @@
 // `rational` is the one constructor that reduces. Every operation below
 // assumes its operands are in lowest terms and reduces its result with the
 // smaller gcds the operands allow, rather than a full gcd on the unreduced
-// parts (the plan's H.9; issue #52): a sum and a difference by Henrici's
-// rule, the gcd of the two denominators and then of that with the new
+// parts (devdocs/numbers.md, "Exact operations"): a sum and a difference
+// by Henrici's rule, the gcd of the two denominators and then of that
+// with the new
 // numerator; a product by cross-cancellation, the gcd of each numerator
 // with the other denominator; a quotient as the product by the divisor's
 // reciprocal, the gcd of the two numerators and of the two denominators;
 // and an inverse, a negative power and a truncation by swapping or
 // dividing, with no gcd at all, where the reciprocal of a reduced pair
 // once paid a full gcd for nothing (the display's reciprocal line doubled
-// #52's conversion). The rules are correct only for operands in lowest
+// a conversion's time). The rules are correct only for operands in lowest
 // terms, which is the type's invariant, so anything that builds a fraction
 // without `rational` (`scaleByPowerOfTwo` here, fixed.ts's dyadics,
 // scaled.ts's canonical significands) keeps it, and the tests assert so: a
@@ -36,7 +36,7 @@
 // some twenty-six bits at a time, about forty times cheaper in V8 than
 // Euclid's step per bit or two at 65,536 bits; a half-gcd, which is
 // subquadratic, gains only above `2^16` bits and is left for a larger
-// limit (the plan's H.9).
+// limit.
 //
 // Failures on values (dividing by zero, an even root of a negative number, a
 // result too large to compute) are returned as `Result`s. Violated
@@ -67,7 +67,7 @@ export type Reach = "fits" | "exceeds";
 
 /**
  * The bits a refused result would need in its significand's larger part,
- * as the refusing function can tell (issue #73): `exact` where it
+ * as the refusing function can tell: `exact` where it
  * measured a value that exists (a literal's digits, a kernel's working
  * bits), `bound` where it predicted before forming, an upper bound that
  * a limit at or above admits the result, within a bit of the truth for a
@@ -100,8 +100,9 @@ export type RationalError =
 /**
  * The hard bound on the size of a numerator or denominator, in bits (2^20,
  * about 315,000 decimal digits): the most the significand limit of the context
- * (`significandLimitBits`, D16 of the plan) may be set to, and the bound the parser
- * applies to a decimal literal's significand through scaled.ts's
+ * (`significandLimitBits`; devdocs/settings.md, "The model") may be set
+ * to, and the bound the parser applies to a decimal literal's
+ * significand through scaled.ts's
  * `parseDecimal`, since it has no context; the evaluator then checks the
  * literal against the setting. Operations whose result can be
  * exponentially larger than their inputs (`pow`) predict the size of their
@@ -109,7 +110,7 @@ export type RationalError =
  * they are given. Operations that grow their inputs by at most a constant
  * factor do not check, since an expression of bounded length can only
  * apply a bounded number of them, and inexact midpoints are settled to the
- * working precision (D15), so only exact values grow.
+ * working precision (devdocs/numbers.md, "Settling"), so only exact values grow.
  */
 export const MAX_SIGNIFICAND_LIMIT_BITS = 1 << 20;
 
@@ -304,8 +305,8 @@ export function multiply(a: Rational, b: Rational): Rational {
  * sums of the parts' bit lengths, within a bit of the truth, and a bound
  * past the limit is refused with the bound as the need. The gcds first,
  * so that `x / x` and `(a/b) × (b/a)` are one whatever their size, and
- * nothing larger than the limit is ever formed (D19, as the strict limit
- * amended it).
+ * nothing larger than the limit is ever formed (devdocs/numbers.md, "The
+ * significand limit").
  */
 export function multiplyWithin(
   a: Rational,

@@ -39,7 +39,7 @@ import type { SettingsButton } from "./settings-button.ts";
  * - The system definitions (system-table.ts): the shell starts loading
  *   them when it is connected, shows a loading message until they arrive
  *   and builds the unit table from them at the ceiling of the retry
- *   schedule in force (system-build.ts; the plan's D6), which it hands to
+ *   schedule in force (system-build.ts), which it hands to
  *   the converter as a property. Nothing waits on the definitions before
  *   that: the components are defined and the page renders while the fetch
  *   is in flight. The load is one promise whose result is set on reactive
@@ -47,7 +47,8 @@ import type { SettingsButton } from "./settings-button.ts";
  *   value. The build is synchronous and memoized by the ceiling, so it runs
  *   in `render` and reruns only when a change to the precision limit
  *   moves the ceiling, which is the one reason the table is ever
- *   rebuilt; the display digits never rebuild it.
+ *   rebuilt; the display digits never rebuild it
+ *   (devdocs/architecture.md, "The shell and its parts").
  * - The settings (settings.ts): read from `localStorage` when the shell is
  *   created, passed to the settings panel (settings-panel.ts) as a
  *   property and to the converter as its context, whose ceiling is derived
@@ -58,7 +59,7 @@ import type { SettingsButton } from "./settings-button.ts";
  *   moved so that the panel can say so (`clampsOf`), and saves the
  *   settings. That handler is the one place a settings change becomes
  *   state and an effect. Whether the sheet is open is the shell's state
- *   too (devdocs/design/settings-surface.md, D30): the cog in the header's corner
+ *   too (devdocs/settings.md, "The sheet"): the cog in the header's corner
  *   (settings-button.ts) flips it, the sheet follows it and reports
  *   closing itself with `settings-close`, and the shell puts focus back
  *   on the cog when the sheet closes. The sheet is fixed to the viewport

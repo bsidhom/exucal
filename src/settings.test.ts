@@ -667,7 +667,7 @@ const NEW_KEYS = {
   budgetMs: DEFAULT_BUDGET_MS,
 };
 
-test("a version 2 object loads as the nested mode: the mode name and the fractions flag become the variant, and the old rounding default becomes the new (devdocs/design/settings-modes.md)", () => {
+test('a version 2 object loads as the nested mode: the mode name and the fractions flag become the variant, and the old rounding default becomes the new (devdocs/settings.md, "Storage")', () => {
   const two = (settings: unknown) => loadStored(envelope(settings, 2));
   const fields = { ...OLD_KEYS, rounding: "floor" };
   const loads = { ...NEW_KEYS, rounding: "floor" };
@@ -744,7 +744,7 @@ test("a version 2 object loads as the nested mode: the mode name and the fractio
   );
 });
 
-test("a version 3 object loads with the notation nested: the string becomes the variant, a ratio at the default width (devdocs/design/ratio-width.md)", () => {
+test('a version 3 object loads with the notation nested: the string becomes the variant, a ratio at the default width (devdocs/settings.md, "Storage")', () => {
   const three = (settings: unknown) => loadStored(envelope(settings, 3));
   const fields = { ...OLD_KEYS, rounding: "floor" };
   const loads = { ...NEW_KEYS, rounding: "floor" };
@@ -792,7 +792,7 @@ test("a version 3 object loads with the notation nested: the string becomes the 
   assert.equal(JSON.parse(store.map.get(SETTINGS_KEY)!).version, 5);
 });
 
-test("a version 4 object loads with the three numbers under their new keys, and the budget at its default (devdocs/design/settings-limits.md)", () => {
+test('a version 4 object loads with the three numbers under their new keys, and the budget at its default (devdocs/settings.md, "Storage")', () => {
   const four = (settings: unknown) => loadStored(envelope(settings, 4));
   const fields = { ...OLD_KEYS, rounding: "floor", mode: RATIO };
   assert.deepEqual(four(fields), {

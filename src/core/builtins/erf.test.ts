@@ -280,7 +280,7 @@ test("erf and erfc through the pipeline, with their messages", () => {
   assert.equal(run("erf(0)"), "= 0");
   assert.equal(run("erfc(0)"), "= 1");
   assert.equal(run("erf(approx(1))"), "≈ 0.84270079");
-  // The normal distribution, as the study promised.
+  // The normal distribution.
   assert.equal(run("(1 + erf(1.96 / sqrt(2))) / 2"), "≈ 0.9750021");
   assert.equal(run("erfc(1.96 / sqrt(2)) / 2"), "≈ 0.024997895");
   assert.equal(

@@ -1,18 +1,20 @@
-// The edge sweep at the text level (devdocs/history/calculator-plan.md, H.10):
+// The edge sweep at the text level (devdocs/testing.md, "The edge sweeps"):
 // `parseExpr`, `evaluateText` and `convertText` on the reproductions of
-// every issue filed against stage 4's code, in both modes, with `show` and
-// `roundTerms` called as outcome.ts calls them, so that the
-// display's own steps run too. Each case carries what the decisions say
+// every issue filed against the number type, in both modes, with `show`
+// and `roundTerms` called as outcome.ts calls them, so that the
+// display's own steps run too. Each case carries what the design says
 // it should give (a value with these digits, or containing this point; a
 // refusal of this kind; an error of this kind; a unit list), and the
 // oracle checks that, plus what src/testing/edges.ts checks of every
-// value: no throw, D17's two conditions, and, for an exact result in
-// exact mode, D19's size rule, that its significand is within `significandLimitBits`. A
-// unit list is checked for the value of its shown terms: the terms times
-// their units must add up to the `have` within the rounding shown. The
-// cases run in a worker under a deadline, and the known violations are
-// the table `KNOWN`, keyed by the issue and the task that empties each
-// entry; #52's conversions are H.14's tests, not the sweep's.
+// value: no throw, the exponent bound's two conditions
+// (devdocs/numbers.md, "The exponent bound"), and, for an exact result in
+// exact mode, the size rule (devdocs/numbers.md, "The significand limit"),
+// that its significand is within `significandLimitBits`. A unit list is
+// checked for the value of its shown terms: the terms times their units
+// must add up to the `have` within the rounding shown. The cases run in a
+// worker under a deadline, and the known violations are the table
+// `KNOWN`, keyed by the issue and the task that empties each entry; #52's
+// conversions are pipeline.test.ts's, not the sweep's.
 
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -74,7 +76,7 @@ import { rational } from "./core/rational.ts";
 /**
  * The violations the sweep finds today, each the pattern of an open issue
  * and the task that fixes it; the task deletes the entry. Two of the
- * follow-ups the plan leaves open have no entry, since the sweep sees no
+ * follow-ups left open have no entry, since the sweep sees no
  * violation of theirs: #65 is a cost, the pass `tanh(75)` wastes at 32
  * digits, whose case below reports its time and asserts nothing of it;
  * and the table's prefix lookup throws only for a user definition within
@@ -100,7 +102,7 @@ const DEADLINE_MS = 90_000;
 // ---------------------------------------------------------------------------
 // The cases
 
-/** What a case should give, per the decisions. */
+/** What a case should give, per the design. */
 type Expect =
   /** A value: one whose midpoint formats to `digits` at their count, or whose ball contains the point `contains`, or any. */
   | {
@@ -171,8 +173,9 @@ const CASES: readonly TextCase[] = [
   },
   { text: "tanh(approx(1e60) - approx(1e60))", ...WIDE_32, expect: ZERO_VALUE },
   // #39: exp and pow of a wide argument crashed.
-  // In decimal mode every value is exact (D26): `approx` is the identity,
-  // the difference is exactly zero, and the function of zero is its value.
+  // In decimal mode every value is exact (devdocs/numbers.md, "Decimal mode"):
+  // `approx` is the identity, the difference is exactly zero, and the
+  // function of zero is its value.
   {
     text: "exp(1e60 * sqrt(2) - 1e60 * sqrt(2))",
     ...WIDE_32,
@@ -188,7 +191,8 @@ const CASES: readonly TextCase[] = [
     ...WIDE_32,
     expect: digits("1"),
   },
-  // #40: a radius alone makes exp refuse; H.15's forms beside it. In
+  // #40: a radius alone makes exp refuse; the other forms the classifier
+  // guards beside it (devdocs/numbers.md, "The exponent bound"). In
   // decimal mode `1e999 - 5` is `1e999` at thirty-two digits, exactly, so
   // every difference is zero and the functions give their value there.
   {
@@ -216,7 +220,7 @@ const CASES: readonly TextCase[] = [
     ...WIDE_32,
     expect: { exact: digits("32"), decimal: digits("1") },
   },
-  // #44: values at the edge of the exponent bound crash; H.11 to H.13.
+  // #44: values at the edge of the exponent bound crash.
   { text: `1e-${E18} / approx(3)`, expect: refused("underflow") },
   { text: `1e-${E18} / 3`, expect: refused("underflow") },
   { text: `approx(1e-${E18_LESS_ONE})`, expect: digits(`1e-${E18_LESS_ONE}`) },
@@ -254,8 +258,10 @@ const CASES: readonly TextCase[] = [
   { text: "pow(2, 1e-400)", expect: digits("1") },
   { text: "2^1e-400", expect: digits("1") },
   { text: "pow(2, 1e-300)", expect: digits("1") },
-  // #46: powers near one, and of 0 and ±1; H.6, H.15 and H.16. In decimal
-  // mode `approx(1)` is exactly one (D26), and its power one.
+  // #46: powers near one, and of 0 and ±1
+  // (devdocs/builtins.md, "Domains, exact cases and edges";
+  // devdocs/numbers.md, "Roots and powers"). In decimal mode `approx(1)`
+  // is exactly one, and its power one.
   {
     text: "approx(1)^1000000000000000000000000000000",
     expect: digits("1"),
@@ -298,9 +304,10 @@ const CASES: readonly TextCase[] = [
   },
   // #48: a sum past the bound with an inexact operand was shown as zero.
   // The exact sum is past the bound throughout; the sum with `approx`'s
-  // radius reaches back within it, `unresolved` at the bound (D18) at
-  // every precision, since the midpoint sits on the bound. In decimal
-  // mode `approx` is the identity and the sum is past the top.
+  // radius reaches back within it, `unresolved` at the bound
+  // (devdocs/numbers.md, "The exponent bound") at every precision, since
+  // the midpoint sits on the bound. In decimal mode `approx` is the
+  // identity and the sum is past the top.
   {
     text: `approx(5e${E18}) + 5e${E18}`,
     expect: { exact: UNRESOLVED, decimal: refused("overflow") },
@@ -312,7 +319,7 @@ const CASES: readonly TextCase[] = [
     expect: refused("overflow"),
   },
   // In decimal mode the `have` rounds to `3.048e+(10^18)` at eight digits,
-  // exactly (D26), and its count of feet is `1e+(10^18 + 1)`, past the top.
+  // exactly, and its count of feet is `1e+(10^18 + 1)`, past the top.
   {
     text: "3047999999999999999999999999999999996953e999999999999999961 m",
     want: "ft;in",
@@ -328,7 +335,7 @@ const CASES: readonly TextCase[] = [
     expect: ZERO_VALUE,
   },
   { text: "tanh(1e20000 - approx(1e20000))", expect: ZERO_VALUE },
-  // #50: a literal refused by its written exponent; H.13.
+  // #50: a literal refused by its written exponent.
   { text: "0e2000000000000000000", expect: ZERO_VALUE },
   { text: "10e-1000000000000000001", expect: digits(`1e-${E18}`) },
   { text: "1000e-1000000000000000002", expect: digits(`1e-${E18_LESS_ONE}`) },
@@ -339,8 +346,9 @@ const CASES: readonly TextCase[] = [
   },
   { text: `1e${E18} / 3 * 10`, expect: digits(`3.3333333e+${E18}`) },
   { text: `1e-${E18} / 7`, expect: refused("underflow") },
-  // #52: exact results held to the significand limit at the node (D19; its
-  // conversions are pipeline.test.ts's).
+  // #52: exact results held to the significand limit at the node
+  // (devdocs/numbers.md, "The significand limit"; its conversions are
+  // pipeline.test.ts's).
   {
     text: "3^32767 * 7^21845",
     expect: { exact: refused("tooLarge"), decimal: VALUE },
@@ -473,7 +481,7 @@ const CASES: readonly TextCase[] = [
   { text: "pow(2e200, 1e-20)", expect: digits("1") },
   // In decimal mode the exponent `3^-700` is rounded to eight digits, an
   // exact fraction over a power of ten, which a negative base cannot take
-  // (an even root); `1e-5 - approx(1e-5)` is exactly zero there (D26).
+  // (an even root); `1e-5 - approx(1e-5)` is exactly zero there.
   {
     text: "pow(-2, 3^-700)",
     expect: { exact: digits("-1"), decimal: error("negativeRadicand") },
@@ -484,7 +492,8 @@ const CASES: readonly TextCase[] = [
   },
   { text: "pow(3^-10000, 2^-30)", expect: digits("0.99998977") },
   { text: "(7^-8000)^(1/99999)", expect: digits("0.85583783") },
-  // #58: a unit list crashed when a count left a remainder that could not align; H.12.
+  // #58: a unit list crashed when a count left a remainder that could not
+  // align (devdocs/architecture.md, "Unit lists").
   {
     text: "3^32767 m",
     want: "ft/7^21845; in/7^21845",
@@ -495,9 +504,10 @@ const CASES: readonly TextCase[] = [
     want: "ft/7^21845",
     expect: { exact: refused("tooLarge"), decimal: VALUE },
   },
-  // #59: a unit list near the top shown a tenth below its value; H.12 and H.13.
-  // In decimal mode the `have` itself rounds to `1e+(10^18 + 1)` at eight
-  // digits, which D17 refuses (H.11).
+  // #59: a unit list near the top shown a tenth below its value. In
+  // decimal mode the `have` itself rounds to `1e+(10^18 + 1)` at eight
+  // digits, which the settle refuses as past the exponent bound
+  // (devdocs/numbers.md, "Settling").
   {
     text: `9.99999999999e${E18} m`,
     want: `1e${E18} m; 1e999999999999999990 m`,
@@ -508,9 +518,9 @@ const CASES: readonly TextCase[] = [
     want: `1e${E18} m`,
     expect: { exact: digits("10"), decimal: refused("overflow") },
   },
-  // #60: a product at the bound decided by its midpoint alone; H.13. In
-  // decimal mode `approx(1/3)` is `0.33333333` exactly, the difference
-  // `1e38` and the product past the top (D26).
+  // #60: a product at the bound decided by its midpoint alone. In decimal
+  // mode `approx(1/3)` is `0.33333333` exactly, the difference `1e38` and
+  // the product past the top.
   {
     text: "(1e46 - approx(1/3) * 3e46) * 1e999999999999999983",
     expect: { exact: ZERO_VALUE, decimal: refused("overflow") },
@@ -528,7 +538,7 @@ const CASES: readonly TextCase[] = [
   // #61: the guards refused within 10^9 decades of the bound. In decimal
   // mode the argument is rounded to eight digits first, exactly, and the
   // exponential of `2.3025851e18` is past the top, of its negation past
-  // the bottom (D26).
+  // the bottom.
   {
     text: "exp(2302585092994045000)",
     expect: {
@@ -577,10 +587,11 @@ const CASES: readonly TextCase[] = [
   { text: "exp(2302587288910310144)", expect: refused("overflow") },
   // #62: a power of a ball around zero took a minute. The radius comes
   // from its logarithm times the exponent; where it reaches the top of
-  // the bound the ball is `unresolved` there, as a product's is (D18).
+  // the bound the ball is `unresolved` there, as a product's is.
   // The retry loop narrows the ball below one, whose power is then tiny;
   // in decimal mode the one pass is final. The last exponent is past the
-  // significand limit as a fraction, so the power is `tooLarge` (H.16 leaves a
+  // significand limit as a fraction, so the power is `tooLarge` (the
+  // log-space route, devdocs/numbers.md, "Roots and powers", leaves a
   // base reaching zero as it is).
   { text: "(approx(1e20) - approx(1e20))^100000", expect: ZERO_VALUE },
   {
@@ -596,7 +607,8 @@ const CASES: readonly TextCase[] = [
   { text: "acos(0.1 + 1e-15000)", expect: digits("1.4706289") },
   { text: "acosh(1.5 + 1e-15000)", expect: digits("0.96242365") },
   { text: "asin(0.1 + 1e-5000)", expect: digits("0.10016742") },
-  // #64: atan and atan2 of a wide ball reaching 2^significandLimitBits; H.7.
+  // #64: atan and atan2 of a wide ball reaching 2^significandLimitBits
+  // (devdocs/builtins.md, "Huge and tiny arguments").
   { text: "atan(approx(1e30000) - approx(1e30000))", expect: ZERO_VALUE },
   {
     text: "atan2(approx(1e30000) - approx(1e30000) + 1, 1)",
@@ -610,7 +622,8 @@ const CASES: readonly TextCase[] = [
   { text: "atan(approx(1e3000) - approx(1e3000))", expect: ZERO_VALUE },
   // #65: tanh between the fold and saturation costs a pass; the value is right.
   { text: "tanh(75)", precision: 32, expect: digits("1") },
-  // #66: the ^ exponent of long literals; H.9.
+  // #66: the ^ exponent of long literals
+  // (devdocs/numbers.md, "The significand limit").
   {
     name: "2^(a/b) with 10,000-digit literals",
     text: `2^(${"1234567890".repeat(1000)}/${"9876543210".repeat(1000)})`,
@@ -745,8 +758,9 @@ function significantDigits(text: string): number {
 }
 
 /**
- * What every value must satisfy: D17's two conditions, and D19's size
- * rule for an exact result in exact mode.
+ * What every value must satisfy: the exponent bound's two conditions
+ * (devdocs/numbers.md, "The exponent bound"), and the size rule for an
+ * exact result in exact mode (devdocs/numbers.md, "The significand limit").
  */
 function checkQuantity(ball: Ball, context: NumberContext): string | undefined {
   const bad = checkValue(ball, modeOf(context));
@@ -755,7 +769,7 @@ function checkQuantity(ball: Ball, context: NumberContext): string | undefined {
     const { num, den } = ball.mid.significand;
     const bits = Math.max(bitLength(num < 0n ? -num : num), bitLength(den));
     if (bits > context.significandLimitBits) {
-      return `an exact result whose significand has ${bits} bits passes significandLimitBits (D19)`;
+      return `an exact result whose significand has ${bits} bits passes significandLimitBits (devdocs/numbers.md, "The significand limit")`;
     }
   }
   return undefined;

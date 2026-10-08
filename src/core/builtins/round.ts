@@ -1,5 +1,5 @@
-// `floor`, `ceil`, `trunc` and `round` (devdocs/design/special.md, "The exact
-// functions"; the plan's 6.1 and D22). Each takes a plain number: a
+// `floor`, `ceil`, `trunc` and `round` (devdocs/builtins.md, "The exact
+// functions"). Each takes a plain number: a
 // quantity's magnitude is stored in the primitives, so `floor(3.7 ft)`
 // would floor `1.12776 m`, and a function whose answer depends on the
 // unit the value is written in is defined only on plain numbers. On an
@@ -7,12 +7,14 @@
 // midpoint's result stands for and is exact when the ball lies strictly
 // inside it, by `position`, and `unresolved` at the cell's boundary it
 // touches or reaches across, a ball touching a boundary counting as
-// straddling it (D4), which the retry loop narrows.
+// straddling it (devdocs/numbers.md, "Exact operations"), which the retry
+// loop narrows.
 //
 // `round(x)` rounds to an integer and `round(x, places)` to a multiple of
 // `10^-places`, a negative count rounding to the left of the point, in
 // the context's rounding mode: the mode surfaces inside an expression
-// here and nowhere else in exact mode (D15), which is what a call of
+// here and nowhere else in exact mode (devdocs/numbers.md, "Settling"),
+// which is what a call of
 // `round` asks for. The cell of a result depends on the mode: half a unit
 // either side for the modes to nearest, a unit on the side the mode
 // rounds from for the directed modes. The power of ten is formed only

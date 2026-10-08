@@ -1,12 +1,14 @@
 // `asin(x)`, `acos(x)`, `atan(x)` and `atan2(y, x)`: the inverse
-// trigonometric functions, which return an angle (the `radian` kind, D11),
-// on the kernel's `atanFixed` (fixed-trig.ts). devdocs/design/builtins.md is the
-// design and devdocs/history/calculator-plan.md (task 3.10) places them; they share a
+// trigonometric functions, which return an angle (the `radian` kind;
+// devdocs/builtins.md, "Dimension rules"), on the kernel's `atanFixed`
+// (fixed-trig.ts). devdocs/builtins.md ("The elementary routines") is the
+// design; they share a
 // module because every one of them is an arctangent. `asin` and `acos`
 // take a plain number in `[-1, 1]`; `atan` any plain number; `atan2` two
 // quantities of one dimension, kinds included, whose ratio is the plain
 // number it takes the arctangent of by quadrant. Each returns the kernel's
-// ball, rounded in no mode, for the evaluator to settle (D15), and an
+// ball, rounded in no mode, for the evaluator to settle (devdocs/numbers.md,
+// "Settling"), and an
 // argument of unbounded radius gives the function of its midpoint with an
 // unbounded radius.
 //
@@ -17,12 +19,14 @@
 // formed on the ball, exactly for an exact `x`, and its root goes through
 // `rootBall`, which scales a tiny value to order one. The domain is read
 // off `x`'s position against `±1` before the square is formed, so that a
-// huge argument is the domain error and not a square past a limit (the
-// plan's H.7, issue #47): above `1` or below `-1` throughout, the error is
+// huge argument is the domain error and not a square past a limit
+// (devdocs/builtins.md, "Huge and tiny arguments"): above `1` or below `-1`
+// throughout, the error is
 // `domain` (`outsideClosedUnitInterval`); reaching either end (a ball
 // touching `1` cannot be told from crossing it), the error is
-// `unresolved` at the edge `1` or `-1` on the side of the midpoint (D4),
-// and a complement positive as numbers that the root cannot tell from
+// `unresolved` at the edge `1` or `-1` on the side of the midpoint
+// (devdocs/numbers.md, "Exact operations"), and a complement positive as
+// numbers that the root cannot tell from
 // zero at the working bits is the same case; exactly `±1` are the cases
 // `asin(1)` is `pi/2`, `asin(-1)` is `-pi/2`, `acos(-1)` is `pi`, and
 // `acos(1)` is the exact zero. The other exact cases are zero for `asin`
@@ -33,8 +37,8 @@
 // throughout; `±pi/2 - atan(x / y)` by the sign of `y` for a `y` of
 // definite sign when `x` reaches zero, which is where `y / x` could not
 // be formed; before any of these, for a `y` of definite sign, the
-// magnitudes compared as radii where no ratio needs forming (the plan's
-// H.7, issue #47): `±pi/2` within `2^-bits` when `|y|` is at least
+// magnitudes compared as radii where no ratio needs forming: `±pi/2`
+// within `2^-bits` when `|y|` is at least
 // `|x| 2^bits` throughout, since `|atan(x / y)|` is then within that,
 // and `±pi` within `2^-bits` when `x` is negative and `|y| / |x|` lies
 // below `2^-bits`, so that `atan2(1e600000000000000000,
@@ -56,7 +60,7 @@
 // refusal, `atan2(-1e-600000000000000000, 1e600000000000000000)` an
 // `underflow`, since its value cannot be written.
 //
-// The two ends of the exponent (4.4) are answered before the kernel is
+// The two ends of the exponent are answered before the kernel is
 // entered. An argument of `atan` below `2^-significandLimitBits` throughout is itself
 // within its cube (`tinyOdd` of builtin.ts), and an argument of `asin` or
 // `acos` whose square lies below `2^-bitsFor(precision)` throughout is
@@ -65,10 +69,10 @@
 // expansion's relative error is the square: the threshold is on the
 // square at the working bits rather than `isTiny`'s `2^-significandLimitBits`, since
 // `1 - x^2` stops aligning within the significand limit long before that
-// (`acos(1e-9860)` was refused at the default, issue #47); one of `atan` at
+// (`acos(1e-9860)` was refused at the default); one of `atan` at
 // or beyond `2^bits` throughout is `±pi/2` within `2^-bits`, the
-// saturation devdocs/design/decimal.md lists. Neither `atan` nor `atan2` is
-// refused for an argument's radius (issue #64, by H.1's rule for
+// saturation devdocs/builtins.md ("Huge and tiny arguments") lists. Neither
+// `atan` nor `atan2` is refused for an argument's radius (by the rule for
 // `tanh`): a ball that reaches `2^significandLimitBits` without lying beyond `2^bits`
 // throughout, which the kernel's door refused as `tooLarge`, is the
 // function's whole range, zero within two for `atan`, the kernel's own
@@ -79,7 +83,7 @@
 // instead: `x / y` with `x` straddling zero and `y` of definite sign,
 // since the value then ranges over nearly all of `(0, pi)` or `(-pi, 0)`
 // and which end it lies near depends on `x`'s side of zero, which is
-// what D4's error says, where a ball around zero would read as a value
+// what the `unresolved` error says, where a ball around zero would read as a value
 // near zero (the comment at that branch has the case). A refusal is
 // final, and no value of either function reaches any limit.
 
@@ -316,7 +320,8 @@ export function atan2Ball(
   // within that of pi for x well below -1e-30000, and the whole change
   // between them happens inside |x| < 1e-30000, far within the ball. So
   // the answer ranges over nearly all of (0, pi), and which end it lies
-  // near is decided by x's side of zero, the case D4 names: the retry
+  // near is decided by x's side of zero, the case the `unresolved` error
+  // names (devdocs/numbers.md, "Exact operations"): the retry
   // loop retries it as it retries the whole range, and at the ceiling the
   // message says that x cannot be told from zero and the result depends
   // on which side it lies, which is the truth, where zero within four
@@ -341,7 +346,7 @@ export function atan2Ball(
  * throughout, and `unresolved` at the nearer end for one that reaches an
  * end, as the header says. Both are read off `x`'s position against the
  * ends before the square is formed, which for a huge `x` would pass the
- * significand limit or the exponent bound first (issue #47); the square is then
+ * significand limit or the exponent bound first; the square is then
  * of a value strictly inside the interval, and its complement is read
  * once more, since the coarse rounding of the product's radius can still
  * carry it onto zero.
@@ -441,7 +446,7 @@ function atanKernel(z: Ball, context: NumberContext): Fixed {
 
 /**
  * The whole range of `atan`, zero within two, for a ball that reaches
- * `2^significandLimitBits` without lying beyond `2^bits` throughout (issue #64). Two
+ * `2^significandLimitBits` without lying beyond `2^bits` throughout. Two
  * rather than `pi/2`, the range's own bound, because it is the kernel's
  * trivial bound for a wide interval (`atanFixed`), whose error is an
  * integer count of ulps written as a shift by a power of two with no
@@ -456,7 +461,7 @@ const WHOLE_RANGE_ATAN: Ball = { mid: ZERO, rad: powerOfTwoRadius(1n) };
 
 /**
  * The whole range of `atan2`, zero within four, the power of two above
- * `pi`, for a ratio that reaches `2^significandLimitBits` (issue #64), by the same
+ * `pi`, for a ratio that reaches `2^significandLimitBits`, by the same
  * reasoning as `WHOLE_RANGE_ATAN`.
  */
 const WHOLE_RANGE_ATAN2: Ball = { mid: ZERO, rad: powerOfTwoRadius(2n) };

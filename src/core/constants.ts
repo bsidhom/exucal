@@ -1,10 +1,9 @@
 // The constants the kernel computes on demand and memoizes: `pi` and `e`
 // (`exp(1)`); the logarithms' `ln(2)` and `ln(10)` are memoized the same
-// way in fixed-log.ts, which computes them. devdocs/history/calculator-plan.md (D10,
-// tasks 2.8 and 3.6) is the design and devdocs/history/calculator-study.md ("Elementary
-// functions") the measurement behind it: no digits are shipped, since a
-// thousand digits cost under a millisecond to compute and a stored table
-// would cost more payload than it saves.
+// way in fixed-log.ts, which computes them. devdocs/numbers.md ("Memoized
+// constants") is the design: no digits are shipped, since a thousand
+// digits cost under a millisecond to compute and a stored table would
+// cost more payload than it saves.
 //
 // `chudnovsky(bits)` is the Chudnovsky series with binary splitting, the
 // algorithm libbf and every fast library use: the terms of
@@ -36,8 +35,8 @@
 // `2^(bits + 2)`, and the error is two ulps, one for the tail and one for
 // the final truncation.
 //
-// `piFixed(bits, ceilingBits)` and `eFixed(bits, ceilingBits)` memoize per
-// D10, by one rule (`memoAtCeiling`): each holds exactly one value, the
+// `piFixed(bits, ceilingBits)` and `eFixed(bits, ceilingBits)` memoize by
+// one rule (`memoAtCeiling`): each holds exactly one value, the
 // digits at the ceiling of the retry schedule in force plus a margin of
 // `MEMO_MARGIN` bits, computed on the first request however low, and every
 // request at or below that, which is every request the loop can make, is
@@ -47,7 +46,7 @@
 // per constant at the default of 4,040 digits, and bounded by the hard
 // bound on the precision limit. The margin covers the two ways a constant is asked
 // for above a pass's bits at the ceiling pass. One is the argument
-// reduction of `sin` and `cos` (3.9), which needs pi to the working bits
+// reduction of `sin` and `cos`, which needs pi to the working bits
 // plus the argument's bit length: at the ceiling pass that exceeds the
 // ceiling by the argument's bit length, so without the margin every
 // `sin(1 radian)` would recompute pi there; with it, every argument below
@@ -58,7 +57,7 @@
 // plus its own 29, and `lnFixed` works 33 bits above what it is asked for
 // plus the bit length of its scale, so `ln 2` and `ln π` are asked for
 // up to about 180 bits above the ceiling inside an `lgamma` there; a
-// margin of 64 had them recomputed for every such call (#117). A request
+// margin of 64 had them recomputed for every such call. A request
 // above the memo (the reduction at a larger argument, or a logarithm of
 // `beta` at a larger one) is computed for the call and not kept. The
 // memos are unobservable through the core's results, as `lazy` in
@@ -127,7 +126,7 @@ function split(a: bigint, b: bigint): { p: bigint; q: bigint; t: bigint } {
 /**
  * `sqrt(10005)` at `bits` fraction bits, within two ulps: `sqrtFixed` on
  * the integer at six more bits, since a root of magnitude `2^6` keeps six
- * fewer fraction bits than its argument (D9); more than two ulps means
+ * fewer fraction bits than its argument; more than two ulps means
  * the iteration did not converge, which is a bug.
  */
 function sqrt10005(bits: number): Fixed {
@@ -176,7 +175,7 @@ function splitFactorials(a: bigint, b: bigint): { q: bigint; t: bigint } {
  * of the trigonometric functions at the ceiling pass is served from it for
  * arguments below `2^256`, and the guard bits the Gamma family and the
  * logarithm stack above the pass, about 180 at most for arguments of
- * moderate size, stay within it (D10; the header says how they add up).
+ * moderate size, stay within it (the header says how they add up).
  */
 export const MEMO_MARGIN = 256;
 
@@ -187,8 +186,9 @@ type Memo = {
 };
 
 /**
- * The memo rule of D10 over `compute`, a constant at any bits: one value
- * is held, computed at `ceilingBits` plus the margin on the first request
+ * The memo rule (devdocs/numbers.md, "Memoized constants") over
+ * `compute`, a constant at any bits: one value is held, computed at
+ * `ceilingBits` plus the margin on the first request
  * at or below that, replaced when a higher ceiling is asked for, and
  * truncated to `bits` for every request it covers; a request above it is
  * computed for the call and not kept.
@@ -209,12 +209,12 @@ export function memoAtCeiling(compute: (bits: number) => Fixed): Memo {
 const piMemo = memoAtCeiling(chudnovsky);
 const eMemo = memoAtCeiling(eSeries);
 
-/** `pi` at `bits` fraction bits, from the memo at `ceilingBits` plus the margin (D10). */
+/** `pi` at `bits` fraction bits, from the memo at `ceilingBits` plus the margin (devdocs/numbers.md, "Memoized constants"). */
 export function piFixed(bits: number, ceilingBits: number): Fixed {
   return piMemo.at(bits, ceilingBits);
 }
 
-/** `e` at `bits` fraction bits, from the memo at `ceilingBits` plus the margin (D10). */
+/** `e` at `bits` fraction bits, from the memo at `ceilingBits` plus the margin (devdocs/numbers.md, "Memoized constants"). */
 export function eFixed(bits: number, ceilingBits: number): Fixed {
   return eMemo.at(bits, ceilingBits);
 }

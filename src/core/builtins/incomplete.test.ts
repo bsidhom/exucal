@@ -548,6 +548,6 @@ test("the incomplete gamma functions through the pipeline, with their messages",
     run("lowergamma(2 m, 3)"),
     'Cannot apply "lowergamma" to "2 m": "2 m" has dimension m, but the first argument of "lowergamma" must be a plain number.',
   );
-  // The normal distribution's tail, as the study promised: Q(1/2, x^2 / 2) / 2.
+  // The normal distribution's tail: Q(1/2, x^2 / 2) / 2.
   assert.equal(run("uppergammareg(1/2, 1.96^2 / 2) / 2"), "≈ 0.024997895");
 });

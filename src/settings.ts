@@ -1,20 +1,19 @@
 // The user's settings: the display digits a result is shown with, the
 // rounding mode it is rounded in, the mode with what belongs to it (exact
 // mode with the notation its exact values are written in, digits or a
-// ratio in lowest terms with the width a ratio may have, devdocs/design/fractions.md
-// and devdocs/design/ratio-width.md; decimal mode with its working digits,
-// devdocs/design/working-digits.md), the two limits of D16 and D29, the precision
-// limit in decimal digits and the significand limit in bits
-// (devdocs/design/settings-limits.md), and the probe's budget in milliseconds, kept
-// in `localStorage` so that they survive a reload, and turned into the
-// `NumberContext` the pipeline takes, whose ceiling is derived from the
-// precision limit. This is app code, not core: the core takes a context
-// and knows nothing of where it comes from. devdocs/history/calculator-plan.md
-// (tasks 1.10 and 2.6, D12 and D16) places it, devdocs/design/settings-modes.md
-// shapes the mode, devdocs/design/settings-limits.md names the limits, and
-// docs/settings.md describes the settings from the user's side.
+// ratio in lowest terms with the width a ratio may have,
+// devdocs/notation.md ("The rule"); decimal mode with its working digits,
+// devdocs/numbers.md ("The working digits")), the two limits, the
+// precision limit in decimal digits and the significand limit in bits,
+// and the probe's budget in milliseconds, kept in `localStorage` so that
+// they survive a reload, and turned into the `NumberContext` the pipeline
+// takes, whose ceiling is derived from the precision limit. This is app
+// code, not core: the core takes a context and knows nothing of where it
+// comes from. devdocs/settings.md ("The model") shapes the mode and names
+// the limits, devdocs/settings.md ("Where it lives") places this module,
+// and docs/settings.md describes the settings from the user's side.
 //
-// The names here are the user's, with the unit in the key (D29):
+// The names here are the user's, with the unit in the key:
 // `displayDigits`, `precisionLimitDigits`, `significandLimitBits`,
 // `budgetMs`; the core says the same (`NumberContext.significandLimitBits`,
 // `precisionLimitFor` for the precision limit's top under it,
@@ -23,7 +22,7 @@
 // display digits over as the context's `precision`, the grid's digits
 // below the pipeline.
 //
-// The mode is a nested choice (devdocs/design/settings-modes.md): a setting that is
+// The mode is a nested choice (devdocs/settings.md, "The model"): a setting that is
 // possible in one mode alone lives inside that mode's variant, so that
 // the shape of the settings states what is and is not possible. The
 // notation is exact mode's, since in decimal mode every value is a
@@ -38,7 +37,7 @@
 // fields; anything that does not parse, or a field that is missing or of
 // the wrong shape, falls back to that field's default, and the fields are
 // then made consistent in the order of their dependence, the chain of
-// devdocs/design/settings-limits.md: the significand limit first (an integer in
+// devdocs/settings.md ("The model"): the significand limit first (an integer in
 // `[MIN_SIGNIFICAND_LIMIT_BITS, MAX_SIGNIFICAND_LIMIT_BITS]`), then the precision limit, clamped to what
 // the significand limit holds (`precisionLimitFor`), then the display digits,
 // clamped to the precision limit, then the working digits of decimal
@@ -48,11 +47,12 @@
 // limit lowers what depends on it and a stored or edited entry can never
 // leave the app with an inconsistent context; `clampsOf` says what a
 // clamp moved and `refusalOf` why an edit is out of range, for the panel
-// to tell the user (D29's clamp-and-tell). A storage that throws (private
-// browsing, a full quota) is treated as empty on read and ignored on
-// write.
+// to tell the user, the clamp-and-tell of
+// devdocs/settings.md ("Applying a change"). A storage that throws
+// (private browsing, a full quota) is treated as empty on read and
+// ignored on write.
 //
-// The stored object carries a format version (devdocs/design/settings-storage.md):
+// The stored object carries a format version (devdocs/settings.md, "Storage"):
 // version 1 was the six fields bare, version 2 put them in an envelope
 // with the version and the build that saved them, version 3 is the
 // mode's nested shape in place of the mode name and the fractions flag,
@@ -88,9 +88,9 @@ import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
  * How an exact value is written in exact mode: as its digits, or as a
  * ratio of two whole numbers in lowest terms whose parts have at most
  * `width` digits between them, a whole number written entire within the
- * same width (the plan's 5.2; devdocs/design/fractions.md, devdocs/design/ratio-width.md). A
- * display setting: it is not part of the context, and the core never
- * sees it but through `show`'s width.
+ * same width (devdocs/notation.md, "The rule"). A display setting: it is
+ * not part of the context, and the core never sees it but through
+ * `show`'s width.
  */
 export type Notation =
   { readonly kind: "digits" } | ({ readonly kind: "ratio" } & RatioDisplay);
@@ -99,7 +99,7 @@ export type NotationKind = Notation["kind"];
 
 export const NOTATION_KINDS: readonly NotationKind[] = ["digits", "ratio"];
 
-/** The ratio notation's width by default: twenty digits (devdocs/design/ratio-width.md). */
+/** The ratio notation's width by default: twenty digits (devdocs/notation.md, "The rule"). */
 export const DEFAULT_WIDTH = 20;
 
 /** The most a ratio's width may be: a thousand digits, past which a line is past reading. */
@@ -113,7 +113,7 @@ export const DEFAULT_NOTATIONS: Readonly<Record<NotationKind, Notation>> = {
 
 /**
  * How many digits every observable step but the last is rounded to in
- * decimal mode (D27, devdocs/design/working-digits.md): the display digits, or an
+ * decimal mode (devdocs/numbers.md, "The working digits"): the display digits, or an
  * extended count above them, which keeps a step's rounding out of the
  * answer as a calculator's hidden digits do. The count's range is the
  * display digits to the precision limit.
@@ -123,9 +123,10 @@ export type Working =
   | { readonly kind: "extended"; readonly digits: number };
 
 /**
- * The mode (the plan's 4.7) and what belongs to it: exact mode carries
- * the notation of its exact values, decimal mode its working digits. The
- * discriminant is the core's `Mode`, which `contextOf` hands the context.
+ * The mode and what belongs to it (devdocs/settings.md, "The model"):
+ * exact mode carries the notation of its exact values, decimal mode its
+ * working digits. The discriminant is the core's `Mode`, which
+ * `contextOf` hands the context.
  */
 export type ModeSetting =
   | { readonly kind: "exact"; readonly notation: Notation }
@@ -134,7 +135,7 @@ export type ModeSetting =
 /**
  * The settings: the display digits, the rounding mode, the mode with what
  * belongs to it, the two limits and the probe's budget, each number's key
- * carrying its unit (devdocs/design/settings-limits.md, "The terms").
+ * carrying its unit (devdocs/settings.md, "The model").
  */
 export type Settings = {
   /** The significant digits an answer is shown with. */
@@ -159,7 +160,7 @@ export const DEFAULT_MODES: Readonly<Record<Mode, ModeSetting>> = {
  * The probe's budget by default, 50 ms a pass: the retry schedule
  * doubles, so an expression that runs to the ceiling costs about twice
  * its last pass, and 50 ms a pass keeps that under the tenth of a second
- * an interactive keystroke has (limits.ts, D16).
+ * an interactive keystroke has (limits.ts; devdocs/settings.md, "The probe").
  */
 export const DEFAULT_BUDGET_MS = 50;
 
@@ -207,7 +208,7 @@ type Migration = (stored: unknown) => unknown;
 const MIGRATIONS: Readonly<Record<number, Migration>> = {
   // Version 1 was the six fields bare; version 2 wraps them in the envelope.
   1: (stored) => ({ version: 2, settings: stored }),
-  // Version 3 nests the mode (devdocs/design/settings-modes.md): the stored mode
+  // Version 3 nests the mode (devdocs/settings.md, "Storage"): the stored mode
   // name and the fractions flag become the variant, `decimal` carrying
   // its working digits at their default and `exact` the notation, `ratio`
   // when the flag was `true`; and the rounding default's change rides
@@ -237,7 +238,7 @@ const MIGRATIONS: Readonly<Record<number, Migration>> = {
       },
     };
   },
-  // Version 4 nests the notation (devdocs/design/ratio-width.md): the string
+  // Version 4 nests the notation (devdocs/settings.md, "Storage"): the string
   // `digits` becomes `{ kind: "digits" }` and `ratio` becomes
   // `{ kind: "ratio", width: 20 }`, the default width, no earlier build
   // having stored one; a decimal mode, and a notation that is neither
@@ -267,7 +268,7 @@ const MIGRATIONS: Readonly<Record<number, Migration>> = {
     };
   },
   // Version 5 names the three numbers with their units
-  // (devdocs/design/settings-limits.md, D29): `digits` becomes `displayDigits`,
+  // (devdocs/settings.md, "Storage"): `digits` becomes `displayDigits`,
   // `maxDigits` `precisionLimitDigits` and `maxBits`
   // `significandLimitBits`, each carried over as it is, malformed or not;
   // and the probe's budget joins as `budgetMs`, which no earlier build
@@ -457,7 +458,7 @@ export type Range = { readonly min: number; readonly max: number };
 /**
  * A ranged setting's range under the settings in force, with the setting
  * that sets each bound where one does (the chain of
- * devdocs/design/settings-limits.md): a bound without a setter is the setting's
+ * devdocs/settings.md, "The model"): a bound without a setter is the setting's
  * own, fixed. The panel names the setter in a refusal ("at most 2,453
  * digits under the significand limit") and in a clamp's line.
  */
@@ -477,7 +478,7 @@ const WIDTH_RANGE: Range = { min: 1, max: WIDTH_LIMIT };
 
 /**
  * The probe's budget: from ten milliseconds, below which no candidate
- * fits, to ten seconds a pass, past any use (devdocs/design/settings-limits.md).
+ * fits, to ten seconds a pass, past any use (devdocs/settings.md, "The model").
  */
 export const BUDGET_MS_RANGE: Range = { min: 10, max: 10_000 };
 
@@ -559,8 +560,7 @@ export function clampSettings(settings: Settings): Settings {
 /**
  * What `clampSettings` moves in `settings` and where to, in the order it
  * moves them: empty when they are consistent already. Beside the clamp,
- * for the panel to tell the user (devdocs/design/settings-limits.md, "Coupled
- * edits").
+ * for the panel to tell the user (devdocs/settings.md, "Applying a change").
  */
 export function clampsOf(settings: Settings): readonly Clamp[] {
   const clamps: Clamp[] = [];
@@ -621,7 +621,8 @@ function withClampedValue(
  * setting that sets it where one does (`rangesOf`); `undefined` when it
  * is a value of the setting. For the panel's refusal line ("at most
  * 2,453 digits under the significand limit"). A refused edit changes
- * nothing: the bounding setting always wins (devdocs/design/settings-limits.md).
+ * nothing: the bounding setting always wins
+ * (devdocs/settings.md, "Applying a change").
  */
 export type Refusal =
   | { readonly kind: "notInteger" }
@@ -699,7 +700,7 @@ export function resetSettings(): Settings {
 }
 
 /**
- * A setting the panel resets on its own (devdocs/design/settings-controls.md): a
+ * A setting the panel resets on its own (devdocs/settings.md, "The controls"): a
  * key of the settings, or a field within the mode's variant, the exact
  * mode's notation or the decimal mode's working digits, each reset within
  * the variant in force.
@@ -804,10 +805,11 @@ export function ratioOf(settings: Settings): RatioDisplay | undefined {
 /**
  * The context the pipeline takes for `settings`: the display digits as
  * the precision, in the rounding mode and the exact or decimal mode,
- * within the significand limit, under the ceiling
- * the precision limit gives (D12), with the working digits of decimal
- * mode when they are extended (D27). The budget is the probe's and never
- * reaches the core.
+ * within the significand limit, under the ceiling the precision limit
+ * gives (devdocs/numbers.md, "Working precision and the schedule"), with
+ * the working digits of decimal mode when they are extended
+ * (devdocs/numbers.md, "The working digits"). The budget is the probe's
+ * and never reaches the core.
  */
 export function contextOf(settings: Settings): NumberContext {
   const { mode } = settings;

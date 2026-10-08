@@ -40,11 +40,11 @@ function timePi(report: (message: string) => void, digits: number): number {
 test("pi by Chudnovsky grows as the multiplication does, not quadratically", (t) => {
   // Binary splitting costs a few multiplications of numbers the size of the
   // result, so it grows as V8's bigint multiplication does: Karatsuba at
-  // these sizes, about 38 times per decade of digits at most (the study
-  // measured twenty from 1,000 to 10,000 digits). A series summed term by
-  // term in fixed point would be quadratic and show a hundred. The decade
-  // asserted is the upper one, whose timings are well above the timer's
-  // noise; the lower is reported.
+  // these sizes, about 38 times per decade of digits at most (an earlier
+  // measurement found twenty from 1,000 to 10,000 digits). A series summed
+  // term by term in fixed point would be quadratic and show a hundred. The
+  // decade asserted is the upper one, whose timings are well above the
+  // timer's noise; the lower is reported.
   timePi((m) => t.diagnostic(m), 1_000);
   const tenThousand = timePi((m) => t.diagnostic(m), 10_000);
   const hundredThousand = timePi((m) => t.diagnostic(m), 100_000);
@@ -56,17 +56,18 @@ test("pi by Chudnovsky grows as the multiplication does, not quadratically", (t)
 
 /**
  * Every routine of the kernel, each run at `bits` on an argument of order
- * one: the report of devdocs/history/calculator-plan.md's 3.6, from which 3.11 chose
- * what the probe of limits.ts times (the four costliest, `exp`, `atan`,
+ * one (devdocs/builtins.md, "The elementary routines"): the report the
+ * probe of limits.ts was chosen from (the four costliest, `exp`, `atan`,
  * `sin` and `ln`, each about 10 to 12 ms at the default ceiling on the
- * machine of 3.11, against the roots' 0.5 and 1.6), and where the cost of
- * the ceiling pass is measured rather than assumed. The logarithm, the
- * sine and the arctangent sum their series by rectangular splitting, about
- * `2 sqrt(N)` full multiplications for `N` terms; the exponential's series
- * is summed term by term, one multiplication a term, and is the remaining
- * candidate for the same splitting (V8 multiplies integers of 13,500 bits
- * by the schoolbook rule, about 60 µs a product, and `exp 1` spends most
- * of its time there). The series of `e` costs a fraction of any of them.
+ * machine they were chosen on, against the roots' 0.5 and 1.6), and where
+ * the cost of the ceiling pass is measured rather than assumed. The
+ * logarithm, the sine and the arctangent sum their series by rectangular
+ * splitting, about `2 sqrt(N)` full multiplications for `N` terms; the
+ * exponential's series is summed term by term, one multiplication a term,
+ * and is the remaining candidate for the same splitting (V8 multiplies
+ * integers of 13,500 bits by the schoolbook rule, about 60 µs a product,
+ * and `exp 1` spends most of its time there). The series of `e` costs a
+ * fraction of any of them.
  */
 const ROUTINES: readonly [string, (bits: number) => void][] = [
   ["sqrt 2", (bits) => void sqrtFixed(fixedFromRational(rational(2n), bits))],
@@ -147,10 +148,11 @@ test("exp of 1e6 at the ceiling costs within a small factor of exp of 1", (t) =>
 
 test("every kernel routine at the default ceiling costs at most 64 times what it costs at a quarter of it", (t) => {
   // The ceiling pass is the costliest an expression that never certifies
-  // runs (D12). A series of a length linear in the bits over Karatsuba
-  // multiplication grows as bits^2.58, about 36 times for four times the
-  // digits; 64 is twice that, so noise does not fail what a regression would
-  // not fail by a wide margin. The timings are the diagnostics to read.
+  // runs (devdocs/numbers.md, "Working precision and the schedule"). A
+  // series of a length linear in the bits over Karatsuba multiplication
+  // grows as bits^2.58, about 36 times for four times the digits; 64 is
+  // twice that, so noise does not fail what a regression would not fail
+  // by a wide margin. The timings are the diagnostics to read.
   const quarter = DEFAULT_CEILING / 4;
   for (const [name, run] of ROUTINES) {
     const low = bestOf(5, () => run(bitsFor(quarter)));
@@ -193,11 +195,12 @@ function unsettledAt(context: NumberContext): Ball {
 }
 
 /**
- * The decimal grid's own costs (4.4 of devdocs/history/calculator-plan.md): the
- * settle of a midpoint to the working digits, the product of two settled
- * balls, and the kernel's exit onto the grid, each at the ceiling and at a
- * quarter of it, beside the routines above. The settle is a division by a
- * power of ten and a rounding, the product an integer multiplication and a
+ * The decimal grid's own costs (devdocs/numbers.md, "Settling", and
+ * devdocs/numbers.md, "The kernel's boundary"): the settle of a midpoint
+ * to the working digits, the product of two settled balls, and the
+ * kernel's exit onto the grid, each at the ceiling and at a quarter of
+ * it, beside the routines above. The settle is a division by a power of
+ * ten and a rounding, the product an integer multiplication and a
  * canonical form; both are far below any routine, and grow as the
  * multiplication does.
  */

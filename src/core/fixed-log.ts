@@ -1,8 +1,9 @@
 // The logarithm on the kernel: `lnFixed`, the routine behind the built-ins
 // `ln`, `log10`, `log2` and `log` (builtins/log.ts) and the log-space route
 // of a power (ball.ts), with the constants it needs, `ln(2)` and `ln(10)`,
-// memoized as constants.ts memoizes `pi` and `e` (D10).
-// devdocs/history/calculator-plan.md (D9 and task 3.7) is the design.
+// memoized as constants.ts memoizes `pi` and `e` (devdocs/numbers.md,
+// "Memoized constants"). devdocs/builtins.md ("The elementary routines")
+// is the design.
 //
 // The argument is written `m × 2^k` with `m` in `[1, 2)`, exactly, so that
 // `ln(x) = k ln(2) + ln(m)`; `m` is brought within `2^-8` of one by eight
@@ -23,8 +24,9 @@
 // scales the error with it, and `k ln(2)` is added from the memo, so the
 // work is done at the bits plus nine plus the bit length of `k` plus a
 // guard, and the result is cut to the bits its magnitude calls for
-// (`keepSignificant`, D9). A caller whose value is of any magnitude scales
-// it to order one by a power of two before converting, and passes the
+// (`keepSignificant`; devdocs/numbers.md, "The kernel's boundary"). A
+// caller whose value is of any magnitude scales it to order one by a
+// power of two before converting, and passes the
 // power as `scale`, so that `ln(1e-300)` loses nothing to the conversion.
 //
 // `ln(2)` is `2 atanh(1/3)` and `ln(10)` is `3 ln(2) + 2 atanh(1/9)`, since
@@ -65,7 +67,7 @@ const LN_GUARD = 24;
  * and an interval containing the logarithm of every value in `f`'s, whose
  * interval must be positive (a precondition; the caller decides what a
  * ball around zero means). `ln(2)` comes from its memo at `ceilingBits`
- * plus the margin (D10).
+ * plus the margin (devdocs/numbers.md, "Memoized constants").
  */
 export function lnFixed(
   f: Fixed,
@@ -194,12 +196,12 @@ function checkBits(bits: number): void {
 const ln2Memo = memoAtCeiling(ln2Series);
 const ln10Memo = memoAtCeiling(ln10Series);
 
-/** `ln(2)` at `bits` fraction bits, from the memo at `ceilingBits` plus the margin (D10). */
+/** `ln(2)` at `bits` fraction bits, from the memo at `ceilingBits` plus the margin (devdocs/numbers.md, "Memoized constants"). */
 export function ln2Fixed(bits: number, ceilingBits: number): Fixed {
   return ln2Memo.at(bits, ceilingBits);
 }
 
-/** `ln(10)` at `bits` fraction bits, from the memo at `ceilingBits` plus the margin (D10). */
+/** `ln(10)` at `bits` fraction bits, from the memo at `ceilingBits` plus the margin (devdocs/numbers.md, "Memoized constants"). */
 export function ln10Fixed(bits: number, ceilingBits: number): Fixed {
   return ln10Memo.at(bits, ceilingBits);
 }

@@ -1,4 +1,4 @@
-// What the stress tools share (devdocs/history/calculator-plan.md, task 8.3): the
+// What the stress tools share (devdocs/benchmarks.md, "The stress tools"): the
 // commit a measurement was taken at, a case measured into the form the
 // catalogue keeps, and the one way the catalogue and its tables are
 // changed (`update`).

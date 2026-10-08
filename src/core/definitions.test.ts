@@ -164,7 +164,7 @@ test("a body may be any expression", () => {
 
 test("a body with a broken call of twenty levels fails in milliseconds, at the same place", () => {
   // The body is the expression grammar, and shares its fix for a nested
-  // call with an error in it (issue #54).
+  // call with an error in it.
   const start = performance.now();
   assert.deepEqual(
     failed("foo  " + "f(".repeat(20) + "1"),

@@ -59,7 +59,8 @@ function assertNormalized(rad: Radius) {
 
 /**
  * Asserts that `rad` is a true bound on `exact`, at or above it, and within
- * a relative `slack` of it (the tightness D3 claims).
+ * a relative `slack` of it (the tightness devdocs/numbers.md ("The types")
+ * claims).
  */
 function assertBounds(rad: Radius, exact: Rational, slack = SLACK) {
   assertNormalized(rad);
@@ -220,7 +221,7 @@ test("the operations are exact where the significands allow, so equal radii are 
   assert.deepEqual(maxRadius(two, two), two);
 });
 
-test("powRadiusAbove is at or above the power, within a little of powRadius, and quick for a huge exponent (#62)", () => {
+test("powRadiusAbove is at or above the power, within a little of powRadius, and quick for a huge exponent", () => {
   const values = seeded();
   for (const r of values) {
     const rad = radiusAbove(r);
@@ -380,8 +381,8 @@ test("rootRadiusAbove is at or above the root, within 2^-27, at any degree, a de
       );
     }
   }
-  // A degree past a double's range (issue #57's `pow(1e-5 - approx(1e-5),
-  // 3^-700)`): the root of any radius is one within a hair, from below
+  // A degree past a double's range (`pow(1e-5 - approx(1e-5), 3^-700)`):
+  // the root of any radius is one within a hair, from below
   // for a radius below one and from above for one above it, and the
   // result is at or above it and within 2^-27 of one.
   for (const degree of [10n ** 400n, 3n ** 700n]) {

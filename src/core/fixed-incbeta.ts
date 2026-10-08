@@ -1,6 +1,6 @@
 // The incomplete beta function's series on the kernel: the routine
 // behind the built-ins `incbeta` and `incbetareg` (builtins/incbeta.ts;
-// devdocs/design/special.md, "The incomplete beta function"; the plan's 6.7). For
+// devdocs/builtins.md, "The Gamma and Beta families"). For
 // `a, b > 0` and `0 < x < 1`,
 //
 //   I_x(a, b) = x^a (1 - x)^b / (a B(a, b)) × Σ_{n>=0} ((a + b)_n / (a + 1)_n) x^n

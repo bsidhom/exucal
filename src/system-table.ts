@@ -6,9 +6,10 @@
 // while the fetch is in flight. Parsing happens on the main thread once the
 // text arrives; it takes a few milliseconds, so a worker would cost more
 // than it saves. Building the table is system-build.ts's: the table depends
-// on the ceiling of the retry schedule (D6 of devdocs/history/calculator-plan.md), so
-// it is built from these definitions once per ceiling, while the text is
-// fetched and parsed once.
+// on the ceiling of the retry schedule
+// (devdocs/architecture.md, "The shell and its parts"), so it is built
+// from these definitions once per ceiling, while the text is fetched and
+// parsed once.
 //
 // The result is memoized: every caller shares one fetch and one parse. A
 // failure is not kept, so that a caller can ask again after a network

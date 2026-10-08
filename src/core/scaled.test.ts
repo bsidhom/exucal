@@ -223,7 +223,7 @@ test("zero is zero with exponent zero, whatever exponent it was given", () => {
   assert.deepEqual(ONE, { significand: rational(1n), exp: 0n });
 });
 
-test("the exponent bound is on the value's decimal exponent, checked after normalizing (D17)", () => {
+test("the exponent bound is on the value's decimal exponent, checked after normalizing", () => {
   assert.ok(scaled(rational(1n), MAX_EXPONENT).ok);
   assert.ok(scaled(rational(1n), -MAX_EXPONENT).ok);
   assertError(scaled(rational(1n), MAX_EXPONENT + 1n), "overflow");
@@ -253,8 +253,9 @@ test("the exponent bound is on the value's decimal exponent, checked after norma
 
 test("the canonical significand, the fraction it denotes and an aligned operand are in lowest terms", () => {
   // The fraction's arithmetic reduces with the smaller gcds its operands
-  // allow, which is correct only for operands in lowest terms (the plan's
-  // H.9), and the canonical form is built without `rational`: the
+  // allow, which is correct only for operands in lowest terms
+  // (devdocs/numbers.md, "Exact operations"), and the canonical form is
+  // built without `rational`: the
   // denominator's twos and fives move out as fives and twos on the
   // numerator, and a sum's operand is a significand times a power of ten.
   for (const r of randomRationals(100, 4104)) {
@@ -784,7 +785,7 @@ test("a refusal names the limit it passes: tooLarge for the significand limit, o
   assertRefused(invert(at(5n, 1n, MAX_EXPONENT), MAX_SIGNIFICAND_LIMIT_BITS), {
     kind: "underflow",
   });
-  // A sum's alignment and a fraction's power of ten are the range
+  // A sum's alignment and a fraction's power of ten are the significand
   // limit's; a sum whose value passes the bound is the bound's.
   assertRefused(
     add(big("1", 999999999n), ONE, MAX_SIGNIFICAND_LIMIT_BITS),
@@ -904,8 +905,8 @@ test("a power refused is told by its decimal exponent, not by the check that fai
   // relative 2^-20 of it, where the logarithms cannot tell, a power
   // refused by its significand is the significand limit's: 1.5 to
   // 5678870000000000000 is about 10^(0.9999994 × 10^18), within the
-  // bound (the check of the canonical exponent times the power, which
-  // read it as past the bound below, went with the plan's H.13).
+  // bound (an earlier check of the canonical exponent times the power
+  // read it as past the bound below).
   assert.ok(pow(dec("10"), 10n ** 18n, MAX_SIGNIFICAND_LIMIT_BITS).ok);
   assertRefused(pow(dec("10"), 10n ** 18n + 1n, MAX_SIGNIFICAND_LIMIT_BITS), {
     kind: "overflow",
@@ -918,7 +919,7 @@ test("a power refused is told by its decimal exponent, not by the check that fai
     predicted(dec("1.5"), 5678870000000000000n),
   );
   // A value whose canonical exponent is past the bound, to the first
-  // power, is itself (D17).
+  // power, is itself.
   const edgeValue = at(12345678n, 1n, -MAX_EXPONENT - 7n);
   assert.deepEqual(pow(edgeValue, 1n, MAX_SIGNIFICAND_LIMIT_BITS), {
     ok: true,
@@ -1324,8 +1325,9 @@ test("parseDecimal keeps the exponent lazily and bounds the significand and the 
   assert.deepEqual(dec("-2.50e-999999999"), at(-25n, 1n, -1000000000n));
   assert.deepEqual(dec("1e1000000000000000000"), at(1n, 1n, MAX_EXPONENT));
   assert.deepEqual(dec("0.1e-999999999999999999"), at(1n, 1n, -MAX_EXPONENT));
-  // The exponent bound, on the value (D17): after the fraction digits and
-  // the trailing zeros move, and zero at any exponent (issue #50).
+  // The exponent bound, on the value (devdocs/numbers.md, "The exponent
+  // bound"): after the fraction digits and the trailing zeros move, and
+  // zero at any exponent.
   assertError(parseDecimal("1e1000000000000000001"), "overflow");
   assertError(parseDecimal("10e1000000000000000000"), "overflow");
   assertError(parseDecimal("0.01e-999999999999999999"), "underflow");

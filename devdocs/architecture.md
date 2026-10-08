@@ -557,8 +557,10 @@ limit as every literal's is, the quotient of the two is taken as
 `Scaled` values, whose powers of ten cancel for nothing, and the
 fraction is formed from it within the limit as `pow` forms an exact
 exponent, so that `2^(1e30/1e30)` is `2` at any limit and `2^1e-30000`
-is refused at the default as `pow(2, 1e-30000)` is, at the bound when
-the power would pass it and otherwise at the limit. A call resolves its
+is refused at the default, at the bound when the power would pass it
+and otherwise at the limit, where `pow(2, 1e-30000)` goes to log space
+instead and is `≈ 1`: `^` and `pow` disagree on such an exponent, which
+[#88][88] tracks ([numbers.md](numbers.md), "Roots and powers"). A call resolves its
 name among the functions, through the lookup, to a function the table
 defines or a built-in (`ResolvedFunction`), checks that it gives as
 many arguments as the function takes (`arityMismatch` otherwise, before
@@ -1071,3 +1073,5 @@ Richer UX is a matter of new components that edit the same two strings
 or read the table: autocomplete lists `table.units` and
 `table.prefixes`, unit buttons insert text, and error spans drive
 highlighting. None of that needs changes to the core.
+
+[88]: https://github.com/bsidhom/exucal/issues/88

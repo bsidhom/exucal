@@ -37,7 +37,7 @@ function unwrap<T>(result: Result<T, unknown>): T {
   return result.value;
 }
 
-/** The fraction a decimal literal denotes, through scaled.ts's `parseDecimal` (4.3). */
+/** The fraction a decimal literal denotes, through scaled.ts's `parseDecimal`. */
 function dec(text: string): Rational {
   return unwrap(parseFraction(text));
 }

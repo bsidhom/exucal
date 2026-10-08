@@ -308,8 +308,9 @@ test("the tables replace the text between their markers, and only there", () => 
 
 test("the committed catalogue reads as cases the stress suite can run: every entry's and hang's settings are ones the panel could hold, of a profile that exists, and its texts parse", () => {
   // The smoke test the suite needs, since the catalogue is data no type
-  // checks: it reads the real file, as `pnpm stress` does. S2 reshaped
-  // the mode and the suite failed on every case until this test existed.
+  // checks: it reads the real file, as `pnpm stress` does. When the mode
+  // was nested (devdocs/settings.md, "Storage") the suite failed on every
+  // case until this test existed.
   const catalogue = readCatalogue(CATALOGUE);
   assert.ok(catalogue.entries.length > 0);
   for (const c of [...catalogue.entries, ...catalogue.hangs]) {

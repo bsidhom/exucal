@@ -283,7 +283,7 @@ function assertEvaluates(text: string, expected: Quantity): void {
 
 const half = rational(1n, 2n);
 
-/** A decimal-mode context at `precision` digits in `rounding` (4.5). */
+/** A decimal-mode context at `precision` digits in `rounding`. */
 function decimal(precision: number, rounding: RoundingMode): NumberContext {
   return { ...CONTEXT, precision, rounding, mode: "decimal" };
 }
@@ -291,7 +291,7 @@ function decimal(precision: number, rounding: RoundingMode): NumberContext {
 // ---------------------------------------------------------------------------
 // The decimal mode
 
-test("in decimal mode every result is rounded to the precision in the rounding mode and is exact (D26)", () => {
+test('in decimal mode every result is rounded to the precision in the rounding mode and is exact (devdocs/numbers.md, "Decimal mode")', () => {
   // 1 / 3 * 3 at eight digits: 0.33333333 times three, 0.99999999 with
   // eight digits and no further rounding, exact, under every mode: the
   // rounded value is the value, and no radius records the roundings.
@@ -352,7 +352,7 @@ test("in decimal mode every result is rounded to the precision in the rounding m
   assert.ok(isExact(value(run("2 / 3", at(8))).magnitude));
 });
 
-test("in decimal mode with working digits every step but the last is rounded to them, and the last to the precision from its exact result (D27)", () => {
+test('in decimal mode with working digits every step but the last is rounded to them, and the last to the precision from its exact result (devdocs/numbers.md, "The working digits")', () => {
   const over = (
     precision: number,
     working: number,
@@ -441,7 +441,7 @@ test("in decimal mode with working digits every step but the last is rounded to 
     ).magnitude,
     exact(dec("0.1")),
   );
-  // Working digits equal to the precision are D26 as landed, and exact
+  // Working digits equal to the precision are plain decimal mode, and exact
   // mode ignores them: the results are the same, operand for operand.
   assert.deepEqual(
     value(
@@ -716,7 +716,7 @@ test("the exponent carries through the exact operations, and a sum that cannot b
   assertEvaluates("1e999999999 + 3e999999998", quantity("1.3e999999999"));
   assertEvaluates("1e999999999 - 1e999999999", quantity("0"));
   assertEvaluates("-1e999999999 m", quantity("-1e999999999", { m: 1 }));
-  // Two exact operands whose exponents cannot be aligned within the range
+  // Two exact operands whose exponents cannot be aligned within the significand
   // limit have an exact sum that cannot be held: `1e999999999 + 1`.
   // The sum says an inexact operand fits, and the evaluator names the
   // left one as the span `approx` around would make inexact.
@@ -1308,7 +1308,7 @@ function runBuiltin(text: string): Result<Quantity, Failure> {
   return evaluate(parsed(text), withBuiltins, PRIMITIVES, CONTEXT);
 }
 
-test("in decimal mode a built-in is computed at rising precision until its rounding is certified, and marked uncertified at the ceiling (D26)", () => {
+test('in decimal mode a built-in is computed at rising precision until its rounding is certified, and marked uncertified at the ceiling (devdocs/numbers.md, "Decimal mode")', () => {
   // A function whose value lies 1e-22 above the two-digit tie at 1.25,
   // known within one unit in the working precision's last digit: at the
   // first working precision, twelve digits, the ball straddles the tie;
@@ -1358,7 +1358,7 @@ test("in decimal mode a built-in is computed at rising precision until its round
   assert.deepEqual(seen, [2]);
 });
 
-test("the exponent bound is on the value, and a result straddling it is unresolved at the bound (D17, D18)", () => {
+test('the exponent bound is on the value, and a result straddling it is unresolved at the bound (devdocs/numbers.md, "The exponent bound")', () => {
   const app = lookupIn(UNITS, FUNCTIONS, Object.fromEntries(APP_BUILTINS));
   const run8 = (text: string, context: NumberContext = at(8)) =>
     evaluate(parsed(text), app, PRIMITIVES, context);
@@ -1369,7 +1369,7 @@ test("the exponent bound is on the value, and a result straddling it is unresolv
       "halfAwayFromZero",
     );
   // The canonical exponent passes the bound by the significand's digits where
-  // the value does not, and the other way (issue #50's family).
+  // the value does not, and the other way.
   assert.equal(
     shown("1e1000000000000000000 / 3 * 10", 8),
     "3.3333333e+1000000000000000000",
@@ -1379,7 +1379,7 @@ test("the exponent bound is on the value, and a result straddling it is unresolv
     kind: "underflow",
     span: { start: 0, end: seventh.length },
   });
-  // #44's first two rows are refused at the quotient in either mode.
+  // Both texts are refused at the quotient in either mode.
   for (const text of [
     "1e-1000000000000000000 / 3",
     "1e-1000000000000000000 / approx(3)",
@@ -1408,7 +1408,7 @@ test("the exponent bound is on the value, and a result straddling it is unresolv
     ),
   );
   assert.ok(certifies(settled.magnitude, 8, "halfAwayFromZero"));
-  // The arithmetic keeps the values stage 4 certified: at eight digits
+  // The arithmetic keeps the values certified: at eight digits
   // the first pass leaves the product straddling the top, and the retry
   // loop's later passes, at forty digits here, decide it.
   const wide =
@@ -1447,7 +1447,7 @@ test("the exponent bound is on the value, and a result straddling it is unresolv
   // A log-space power at the bottom edge is a value, where the canonical
   // check refused its midpoint's digits.
   value(run8("pow(10, approx(-999999999999999990.5))"));
-  // A sum that aligns and passes the bound (#48): two exact operands are
+  // A sum that aligns and passes the bound: two exact operands are
   // past it throughout, in either mode, where the settle-first path
   // absorbed one into the radius and showed zero; with `approx`'s radius
   // the sum reaches back within the bound, unresolved at the bound at the
@@ -1465,7 +1465,7 @@ test("the exponent bound is on the value, and a result straddling it is unresolv
     edge: "bound",
     span: { start: 0, end: approxPast.length },
   });
-  // #48's second constraint: a sum within the bound whose canonical
+  // A second case: a sum within the bound whose canonical
   // exponent is past it, reached through the settle path before.
   assert.equal(
     shown(
@@ -1476,7 +1476,7 @@ test("the exponent bound is on the value, and a result straddling it is unresolv
   );
 });
 
-test("an exact result past the significand limit is refused at the node that forms it, and approx lifts the refusal (D19, D20)", () => {
+test('an exact result past the significand limit is refused at the node that forms it, and approx lifts the refusal (devdocs/numbers.md, "The significand limit")', () => {
   const app = lookupIn(UNITS, FUNCTIONS, Object.fromEntries(APP_BUILTINS));
   const run8 = (text: string, context: NumberContext = at(8)) =>
     evaluate(parsed(text), app, PRIMITIVES, context);
@@ -1497,8 +1497,8 @@ test("an exact result past the significand limit is refused at the node that for
     const took = performance.now() - start;
     assert.ok(took <= ms, `${label} took ${took.toFixed(1)} ms, over ${ms}`);
   };
-  // A product of two powers each within the limit passes it (issue #52's
-  // first family), predicted from the parts after their gcds, which
+  // A product of two powers each within the limit passes it, predicted
+  // from the parts after their gcds, which
   // cancel nothing here: the need is the two parts' bits, and nothing is
   // formed.
   tooLarge("3^32767 * 7^21845", "3^32767".length, three + seven);
@@ -1570,9 +1570,10 @@ test("an exact result past the significand limit is refused at the node that for
     ),
     "2.4142135623730950488016887242097",
   );
-  // The measure is the canonical form's size (D16 as restated): a dyadic
-  // is stored with fives for its twos, so `2^-30000` costs 69,658 bits,
-  // predicted before the form is made, within a bit.
+  // The measure is the canonical form's size (devdocs/numbers.md, "The
+  // significand limit"): a dyadic is stored with fives for its twos, so
+  // `2^-30000` costs 69,658 bits, predicted before the form is made,
+  // within a bit.
   const dyadic = 1 + Math.ceil(30000 * Math.log2(5));
   tooLarge("2^-30000", 1, dyadic);
   tooLarge("1/2^30000", 1, dyadic);
@@ -1598,7 +1599,7 @@ test("an exact result past the significand limit is refused at the node that for
   }
 });
 
-/** The coprime powers of issue #52, each within the default significand limit. */
+/** Coprime powers, each within the default significand limit. */
 const COPRIME_POWERS = [
   3, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79,
 ].map((p) => `${p}^${Math.floor(60000 / BigInt(p).toString(2).length)}`);
@@ -1614,13 +1615,14 @@ function assertEvaluatesWith(
   assert.deepEqual(actual.dimension, expected.dimension, text);
 }
 
-test("a settled midpoint past the bound is refused in decimal mode and truncated in exact mode (H.11)", () => {
+test('a settled midpoint past the bound is refused in decimal mode and truncated in exact mode (devdocs/numbers.md, "Settling")', () => {
   const lookupWithApprox = lookupIn(UNITS, FUNCTIONS, { approx });
   const withApprox = (text: string, context: NumberContext) =>
     evaluate(parsed(text), lookupWithApprox, PRIMITIVES, context);
   const at8 = decimal(8, "halfAwayFromZero");
   // Eleven nines at 10^18 round to 1e+(10^18 + 1) at eight digits: overflow
-  // at the literal, where stage 4 showed it as a value past the bound.
+  // at the literal, where an earlier version showed it as a value past
+  // the bound.
   const nines = "99999999999e999999999999999990";
   assert.deepEqual(failure(run(nines, at8)), {
     kind: "overflow",
@@ -1813,7 +1815,7 @@ test("a built-in's result is settled like any other, and an unbounded one propag
   assert.deepEqual(wide.magnitude, { mid: fr(3n), rad: UNBOUNDED });
 });
 
-test("a ^ exponent is reduced by the evaluator within the significand limit, and one past it is too large at the power (#66)", () => {
+test("a ^ exponent is reduced by the evaluator within the significand limit, and one past it is too large at the power", () => {
   // The parser hands the pair over unreduced; the reduction here is one
   // gcd of numbers within the limit, so a fraction of long literals that
   // reduces to a small one gets its value: 3c / 2c for a c of ten
@@ -1841,8 +1843,9 @@ test("a ^ exponent is reduced by the evaluator within the significand limit, and
   // The quotient is taken as Scaled values, whose powers of ten cancel
   // for nothing, so a pair of long powers of ten is its value at any
   // limit; and the fraction is formed within the limit, as pow forms an
-  // exact exponent, so a tiny exponent is refused at the default as
-  // pow(2, 1e-30000) is, until H.16 sends both to log space.
+  // exact exponent, so a tiny exponent is refused at the default, where
+  // pow(2, 1e-30000) goes to log space instead (devdocs/numbers.md,
+  // "Roots and powers"; the disagreement is #88).
   const small = { ...CONTEXT, significandLimitBits: 64 };
   assert.deepEqual(value(run("2^(1e30/1e30)", small)), quantity("2"));
   assertEvaluates("2^(1e30000/1e30000)", quantity("2"));
@@ -1885,7 +1888,8 @@ test("a ^ exponent is reduced by the evaluator within the significand limit, and
     span: { start: 0, end: 24 },
   });
   // A literal's significand past the limit is too large at the power before
-  // any gcd runs, as D19 asks of what can be bounded before forming: two
+  // any gcd runs, as devdocs/numbers.md ("The significand limit") asks of
+  // what can be bounded before forming: two
   // literals of 314,000 digits at the default limit, in milliseconds,
   // and at a small limit a literal of 23 digits.
   const literal = (seed: number) => {
@@ -1935,7 +1939,7 @@ test("a ^ exponent is reduced by the evaluator within the significand limit, and
 // ---------------------------------------------------------------------------
 // Conditions: comparisons on balls
 
-test("a comparison on balls gives each verdict of devdocs/design/functions.md's table", () => {
+test('a comparison on balls gives each verdict of the table of devdocs/functions.md ("The check at a call")', () => {
   // `[1, 2]`: a radius of a power of two, so that its ends are exact.
   const ball: Ball = { mid: dec("1.5"), rad: powerOfTwoRadius(-1n) };
   const verdicts = (a: Ball, b: Ball) =>

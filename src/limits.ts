@@ -1,62 +1,64 @@
 // The recommended limits: a probe that measures what this device can do
-// in a latency budget and proposes the two limits of D16 and D29, the
-// significand limit in bits and the precision limit in digits, with the
-// timings behind them, so that the settings panel can show the proposal
-// and the user apply it (devdocs/design/settings-limits.md, "The probe's
-// promise"). devdocs/history/calculator-plan.md (D16 and task 2.7) is the design;
-// the panel runs it on request and never on its own, since a benchmark at
-// every launch would be noise on the main thread for a number the user
-// can also type. This is app code beside settings.ts: the core knows
-// nothing of time.
+// in a latency budget and proposes the two limits
+// (devdocs/settings.md, "The model"), the significand limit in bits and
+// the precision limit in digits, with the timings behind them, so that
+// the settings panel can show the proposal and the user apply it.
+// devdocs/settings.md ("The probe") is the design; the panel runs it on
+// request and never on its own, since a benchmark at every launch would
+// be noise on the main thread for a number the user can also type. This
+// is app code beside settings.ts: the core knows nothing of time.
 //
 // What it times is the costliest operation the app has on each axis, at
 // sizes doubling until one exceeds the budget, and it recommends the
 // largest size that stayed within it, rounded down to a round number. For
 // the significand limit the operation is the costliest exact operation
 // the limits still run: an exact multiplication of two rationals of the
-// candidate size in each part, whose two cross-cancelling gcds (the
-// plan's H.9) are the quadratic step of exact arithmetic and run before
-// the product's size is predicted against the limit and refused, nothing
-// formed past it (D19 as the strict limit amended it); the operands are
-// built outside the timed call, memoized by size, since a build is not
+// candidate size in each part, whose two cross-cancelling gcds
+// (devdocs/numbers.md, "Exact operations") are the quadratic step of
+// exact arithmetic and run before the product's size is predicted
+// against the limit and refused, nothing formed past it
+// (devdocs/numbers.md, "The significand limit"); the operands are built
+// outside the timed call, memoized by size, since a build is not
 // what the limit bounds. The candidates are the setting's
 // floor and then the powers of two from 2^9 to the hard bound, so that
 // the size recommended was always timed, the floor included. For the
 // precision limit it is `COMPOSITE`, one expression of the costliest
 // built-ins, evaluated once at the ceiling the candidate limit would give
-// (D12: four times the limit plus the guard), since the ceiling pass is
-// the costliest an expression that never certifies runs, and such an
-// expression runs every built-in it names at that pass; the candidates
-// are 1, 2 and 5 times a power of ten, up to what the recommended
-// significand limit holds (`precisionLimitFor`). The composite was chosen
-// from the kernel benchmark's report of every routine at the default
-// ceiling (bench/kernel.bench.ts, the plan's 3.11): `exp`, `atan`, `sin`
-// (with `cos`, computed together) and `ln` cost about 12, 12, 11 and 10 ms
-// each there on the machine it was chosen on, the roots 0.5 and 1.6 ms,
-// and the hyperbolic functions and the remaining inverses are compositions
-// of those, so the composite names each of the four once (the arctangent
-// is an angle, and so is the logarithm in radians, which the sine takes)
-// and costs about 45 ms at that ceiling, the pass an expression of four
-// such calls pays;
-// stage 2's probe timed a cube root, the costliest operation it had.
+// (four times the limit plus the guard;
+// devdocs/numbers.md, "Working precision and the schedule"), since the
+// ceiling pass is the costliest an expression that never certifies runs,
+// and such an expression runs every built-in it names at that pass; the
+// candidates are 1, 2 and 5 times a power of ten, up to what the
+// recommended significand limit holds (`precisionLimitFor`). The
+// composite was chosen from the kernel benchmark's report of every
+// routine at the default ceiling (bench/kernel.bench.ts): `exp`, `atan`,
+// `sin` (with `cos`, computed together) and `ln` cost about 12, 12, 11
+// and 10 ms each there on the machine it was chosen on, the roots 0.5 and
+// 1.6 ms, and the hyperbolic functions and the remaining inverses are
+// compositions of those, so the composite names each of the four once
+// (the arctangent is an angle, and so is the logarithm in radians, which
+// the sine takes) and costs about 45 ms at that ceiling, the pass an
+// expression of four such calls pays; an earlier probe timed a cube root,
+// the costliest operation it had.
 // The expression is evaluated through the evaluator at that one precision,
 // not the pipeline's retry schedule, against a table of the one primitive
 // the angle needs, built at the same context. The special functions are
-// not in the composite, and the budget stands (D25 of the plan): a limit
-// low enough for their ceiling pass would put out of reach values that
-// are in reach, and keeping the interface responsive while such a pass
-// runs is issue #118's. The operations are named in one place here, so
-// that a change to them touches nothing else; the budget is the user's,
-// a stored setting in milliseconds (settings.ts, `budgetMs`) the panel
-// passes in.
+// not in the composite, and the budget stands
+// (devdocs/settings.md, "The model"): a limit low enough for their
+// ceiling pass would put out of reach values that are in reach, and
+// keeping the interface responsive while such a pass runs is issue
+// #118's. The operations are named in one place here, so that a change
+// to them touches nothing else; the budget is the user's, a stored
+// setting in milliseconds (settings.ts, `budgetMs`) the panel passes in.
 //
 // The budget is per pass: the retry schedule doubles, so an expression that
 // runs to the ceiling costs about twice its last pass, and the default's
 // 50 ms a pass keeps that under the tenth of a second an interactive
-// keystroke has. The probe measures time alone; memory is an explicit omission (D16 says why:
-// no portable measure of it exists in a browser, and probing by allocation
-// could crash the page), bounded indirectly by the time budget, since a
-// value of `n` bits is `n / 8` bytes.
+// keystroke has. The probe measures time alone; memory is an explicit
+// omission (devdocs/settings.md ("The probe") says why: no portable
+// measure of it exists in a browser, and probing by allocation could
+// crash the page), bounded indirectly by the time budget, since a value
+// of `n` bits is `n / 8` bytes.
 //
 // The clock and the operations are a `Probe` passed in, so that the tests
 // run the recommendation against a fake that charges a set cost per bit

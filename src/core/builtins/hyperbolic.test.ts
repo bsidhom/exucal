@@ -471,7 +471,7 @@ test("the two ends of the exponent: the odd functions of a tiny argument are its
     compare(distance(negative.mid, negate(LN_TWICE_HUGE)), dec("1e-7")) < 0,
   );
   // At the top of the exponent bound, where twice the argument would pass
-  // it: ln(2x) is taken as ln 2 + ln x, and 2x is never formed (#44).
+  // it: ln(2x) is taken as ln 2 + ln x, and 2x is never formed.
   // ln(1e1000000000000000001) = (10^18 + 1) ln 10.
   for (const fn of [asinhBall, acoshBall]) {
     const top = value(fn(exact(dec("5e1000000000000000000")), DEFAULT));
@@ -561,7 +561,8 @@ test("sinh and cosh share the exponential's range, the exponent bound, and tanh 
     const t = value(tanhBall(exact(dec(x)), CONTEXT));
     assert.deepEqual(t.mid, x.startsWith("-") ? negate(ONE) : ONE);
   }
-  // Within it, the values (4.9): cosh(1e6) and sinh(1e6) are exp(1e6) / 2
+  // Within it, the values (devdocs/numbers.md, "The exponent bound"):
+  // cosh(1e6) and sinh(1e6) are exp(1e6) / 2
   // to every digit, 1.5166076984010437725432010707090571635e434294 from
   // Python's decimal module, and sinh(-1e6) the negation.
   for (const [x, digits] of [
@@ -583,7 +584,8 @@ test("sinh and cosh share the exponential's range, the exponent bound, and tanh 
   assert.ok(sinhBall(exact(fr(40000n)), CONTEXT).ok);
   assert.ok(coshBall(exact(fr(-40000n)), CONTEXT).ok);
   // A wide ball reaching past the bound is unresolved at the bound, not
-  // refused (D18, H.15), and one within it is a value.
+  // refused (devdocs/numbers.md, "The exponent bound"), and one within it
+  // is a value.
   assert.deepEqual(coshBall(ballOf(ZERO, dec("1e30")), CONTEXT), {
     ok: false,
     error: { kind: "unresolved", argument: 0, edge: "bound" },
@@ -601,7 +603,7 @@ test("sinh and cosh share the exponential's range, the exponent bound, and tanh 
 
 test("tanh of a wide argument is zero within one, never refused for its size, and sinh and cosh of one contain the functions", () => {
   // Around zero, one-sided, and far past the exponential's guard: the
-  // whole range, which certifies nothing (issues #38 and #49).
+  // whole range, which certifies nothing.
   for (const [mid, rad] of [
     ["0", "1e9"],
     ["-1", "1e13"],
@@ -859,7 +861,7 @@ test("through the pipeline, tanh of a wide argument ends as a zero with a bound 
   assert.ok(table.ok, inspect(table));
   const at = (text: string, precision: number) =>
     evaluateText(table.value, text, { ...context, precision });
-  // #38's texts: at every pass the argument is a ball around zero, and at
+  // The narrowing texts: at every pass the argument is a ball around zero, and at
   // the last it is narrow enough for the kernel, whose tanh is a ball
   // around zero too; a ball containing zero never certifies, so the
   // result is a zero with a bound, not `≈ 0` certified, and never `±1`.
@@ -875,7 +877,7 @@ test("through the pipeline, tanh of a wide argument ends as a zero with a bound 
     });
     assert.equal(shown.kind, "zero", text);
   }
-  // #49's texts: the argument stays wide to the ceiling, and the answer
+  // The wide texts: the argument stays wide to the ceiling, and the answer
   // is the whole range, `0` within `1`, where it was refused.
   for (const text of [
     "tanh(1e5000 * (sin(1 radian)^2 + cos(1 radian)^2 - 1))",

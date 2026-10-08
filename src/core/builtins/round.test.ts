@@ -90,7 +90,7 @@ test("round to an integer and to places, in the context's rounding mode", () => 
         : [exact(dec(x)), exact(dec(places))],
       at(mode),
     );
-  // The default rounding is half even (S2 of the settings plan).
+  // The default rounding is half even (devdocs/settings.md, "The model").
   assertExact(r("2.5"), "2");
   assertExact(r("-2.5"), "-2");
   assertExact(r("3.5"), "4");

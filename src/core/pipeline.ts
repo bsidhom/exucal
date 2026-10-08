@@ -16,7 +16,8 @@
 // the list or the function only when it stands alone: `2 time` and
 // `2 tempC` are unknown units.
 //
-// A function as the `want` (devdocs/design/functions.md) is answered by the call that
+// A function as the `want` (devdocs/functions.md, "A function as the
+// want") is answered by the call that
 // would produce the `have`: `tempF(212)` into `tempC` is `tempC(100)`. It
 // needs the function's inverse, `~tempC`, and a function without one is a
 // `noInverse` on the want side. The `have` must conform to the function's
@@ -55,19 +56,21 @@
 //
 // The `NumberContext` both take is the user's: its precision is the digits
 // asked for, not the precision anything is computed at. This is the one
-// place that knows the difference (D1 of devdocs/history/calculator-plan.md): the
-// working contexts the texts are evaluated at are derived here, by the
-// retry schedule of D12. `schedule` yields the digits asked for plus a
+// place that knows the difference (devdocs/numbers.md, "Working precision
+// and the schedule"): the working contexts the texts are evaluated at are
+// derived here, by the retry schedule. `schedule` yields the digits asked
+// for plus a
 // guard of ten, then twice that, four times, doubling, and last the
 // context's `ceiling` (the shell derives it from the precision limit
 // setting, `ceilingFor` in context.ts, and it is the same in every working
 // context; a context whose precision exceeds that limit is a precondition
-// failure). In decimal mode (4.6) the schedule is the user's context
+// failure). In decimal mode (devdocs/numbers.md, "Decimal mode") the
+// schedule is the user's context
 // alone: every operation rounds to the digits asked for in the rounding
 // mode, so raising the internal precision would compute something other
 // than what the mode asks for, and the display marks what the radius does
 // not certify without escalating; an `unresolved` is then final and
-// reported at once. With working digits set (D27, devdocs/design/working-digits.md)
+// reported at once. With working digits set (devdocs/numbers.md, "The working digits")
 // the texts, being the operands of the ratio, the terms or the count that
 // is shown, are evaluated at `operandContext`, the context at the working
 // digits, and that last step is rounded to the digits asked for from
@@ -92,7 +95,8 @@
 // reciprocal line the component computes is shown with whatever kind `1 /
 // value` has, not retried on its own. The texts are parsed once, outside
 // the passes. The table is built at the ceiling context, by its builder
-// (D6), so that no unit holds a pass back.
+// (devdocs/architecture.md, "The shell and its parts"), so that no unit
+// holds a pass back.
 //
 // Each pass has a collector of its own for the conditions it assumes
 // (evaluate.ts), and a result that assumes one is never final: it is kept
@@ -102,8 +106,9 @@
 // `unresolved`. The returned pass's assumptions are added to the
 // collector `evaluateText` or `convertText` is given, for the outcome's
 // warnings. Both, and `resolve`, also take an optional `PassObserver`,
-// called as each pass starts and ends: the stress harness of stage 8
-// (bench/stress/harness.ts) times the passes the interface runs by it, and
+// called as each pass starts and ends: the stress harness
+// (bench/stress/harness.ts; devdocs/benchmarks.md, "The harness") times
+// the passes the interface runs by it, and
 // it changes nothing the loop does.
 
 import {
@@ -257,10 +262,11 @@ export type ConversionError =
   /**
    * The converter's own failures, and the refusals it passes on from the
    * ball's arithmetic; the conversion's ratio, or a function want's
-   * count, exact and past the significand limit (D19), the two quotients
-   * the pipeline forms outside the evaluator, is the same `tooLarge`
-   * with `inexact` `fits`, and the message names `approx` around the
-   * `have` (D20).
+   * count, exact and past the significand limit (devdocs/numbers.md, "The
+   * significand limit"), the two quotients the pipeline forms outside the
+   * evaluator, is the same `tooLarge` with `inexact` `fits`, and the
+   * message names `approx` around the `have` (devdocs/numbers.md, "Which
+   * limit a refusal names").
    */
   | ConvertError
   /**
@@ -277,12 +283,14 @@ export type ConversionError =
 // The pipeline
 
 /**
- * The working contexts for the user's `context`, per D12: the digits asked
+ * The working contexts for the user's `context`, per devdocs/numbers.md
+ * ("Working precision and the schedule"): the digits asked
  * for plus the guard, then that doubled, doubled again, and so on while
  * below the context's ceiling, and the ceiling last (`workingContexts` in
  * context.ts); the rounding mode, the significand limit, the ceiling and the
  * mode are the user's throughout. In decimal mode the context itself,
- * alone (4.6; D26): every step is rounded once, a built-in's rounding
+ * alone (devdocs/numbers.md, "Decimal mode"): every step is rounded once,
+ * a built-in's rounding
  * certified within the evaluator, and a second pass would compute
  * something other than what the mode asks for. A precision above the precision limit
  * the ceiling was derived from (`ceilingFor` in context.ts, four times the
@@ -479,7 +487,8 @@ export function convertText(
  * One pass of `convertText`, at the `working` context, over the parsed
  * texts. The texts denote the operands of what is shown, the ratio or the
  * list's terms, so they are evaluated at the operand context
- * (`operandContext`; D27) and the ratio or the terms are stepped at the
+ * (`operandContext`; devdocs/numbers.md, "The working digits") and the
+ * ratio or the terms are stepped at the
  * pass's context.
  */
 function convertParsed(
@@ -577,8 +586,9 @@ function convertParsed(
 /**
  * `quotient`, formed by the pipeline outside the evaluator (a ratio, a
  * count, a list's term), as a step of the expression (`step` of ball.ts;
- * D15, D26): settled to the working precision in exact mode, and in
- * decimal mode rounded once to the digits asked for, exact, so `1 m` in
+ * devdocs/numbers.md, "Settling"): settled to the working precision in
+ * exact mode, and in decimal mode (devdocs/numbers.md, "Decimal mode")
+ * rounded once to the digits asked for, exact, so `1 m` in
  * `in` at eight digits is `39.370079` there and `1 in` in `cm` is `2.54`.
  * A refusal is the quotient's.
  */
@@ -709,7 +719,8 @@ function convertToFunction(
   const lookup = unitLookup(table, context);
   const assumed: Assumption[] = [];
   // The inverse, the function applied back and their conditions are the
-  // operands of the count, which is the step shown (D27).
+  // operands of the count, which is the step shown (devdocs/numbers.md,
+  // "The working digits").
   const inner = operandContext(context);
   const inDomain = checkConditions(
     { name: fn.name, parameters: [inverse.parameter] },
@@ -871,7 +882,8 @@ function disjoint(a: Ball, b: Ball, context: NumberContext): boolean {
 }
 
 /**
- * The invariant of the strict limit (D19 as amended): no exact value is
+ * The invariant of the strict limit (devdocs/numbers.md, "The significand
+ * limit"): no exact value is
  * formed past the significand limit, every operation that forms one
  * having predicted its size first, so an exact quotient past the limit
  * here is a bug in a prediction, not a refusal.

@@ -23,6 +23,20 @@ follows the same prompt whatever the model:
    `reports/<UNIT>/<label>.md`, commits that file alone, pushes the
    branch, and stops. It changes no page and no code.
 
+A session loads its skills once, at startup, from the checkout it starts
+on, and a cloud session starts on a checkout made when its container was
+prepared, which can be an hour or more before the session itself; a
+skill merged into `docs-revamp` after that is not in the session. If the
+session answers that `/audit-unit` is not available, do not let it
+improvise: send it this instead, with the unit and the label filled in.
+It fetches the branch's current tip and runs the same prompt from it.
+
+```
+Run `git fetch origin docs-revamp`, read the skill with
+`git show origin/docs-revamp:.claude/skills/audit-unit/SKILL.md`,
+and carry it out exactly as if I had typed `/audit-unit A7 fable`.
+```
+
 To run one unit on several models, run it once per model with the
 model as the label; the reports land side by side under
 `reports/<UNIT>/`, with the same headings in the same order, so they can

@@ -73,3 +73,5 @@ cross-references (§5, "§12, question 25") name these files.
 
 The principle that governs the revamp, "intent, not history", is in
 [principles.md](principles.md).
+How to run the audit units, one per session and comparable across
+models, is in [README.md](README.md).

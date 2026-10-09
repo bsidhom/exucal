@@ -1,8 +1,7 @@
 ---
 name: audit-unit
-description: Run one unit of the documentation audit (defined in audit/plan/10-audit-units.md) and write its report under audit/reports/ on a branch of its own, without editing any page. Invoke as /audit-unit <UNIT> [label], for example /audit-unit A1 fable.
+description: Run one unit of the documentation audit (defined in audit/plan/10-audit-units.md) and write its report under audit/reports/ on a branch of its own, without editing any page. Use only when the user invokes it by name, as /audit-unit <UNIT> [label], for example /audit-unit A1 fable; never start it on your own.
 argument-hint: "<UNIT> [label]"
-disable-model-invocation: true
 ---
 
 # Run one documentation audit unit

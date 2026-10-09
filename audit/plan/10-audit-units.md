@@ -121,7 +121,8 @@ list. *Context:* A6, A7, A9, §2.2.
 the file contains`; `devdocs/development.md#Adding a unit`;
 `devdocs/functions.md#Definitions` (the five functions). *Modules:*
 `src/units.txt` (read in full here), `src/units.test.ts`. *Output:*
-verification of every claim in "What the file contains" (sections,
+verification of every claim in "What the file contains" (that the
+radian is the only `!kind` primitive, §12 question 20; sections,
 spellings of micro, binary prefixes, `imp`/`uk`, the lists, the absent
 `u`/`at`, exact factors and their sources) and the skeleton of
 `units.md`. *Context:* A9, §7 (`units.md`), §12 question 4.

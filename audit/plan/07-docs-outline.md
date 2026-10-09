@@ -53,7 +53,8 @@ needs to predict and interpret any result.
 kinds and what a conversion is.
 - A quantity: a value with a dimension; dimensions have rational
   exponents by design, so `^` takes a literal rational exponent
-- Primitives, dimensions and kinds (angles as the example)
+- Primitives, dimensions and kinds (the radian the only kind today,
+  named verbosely; §12, question 20)
 - Conformance: what can be added, converted, passed
 - No unit of its own: consequences (floor, annotations)
 - Units, prefixes and exactness of factors (which units are approximate)

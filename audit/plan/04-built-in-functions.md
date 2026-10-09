@@ -141,5 +141,8 @@ beside the code; until then the two pages stay as they are.
   `src/units.txt` (§12, question 4). One docs tool carries these
   extractors, under the rule against new dependencies, wired into the
   standard build and never run out of band against the tracked tree
-  (§12, question 30); whether the hand-written pages ship with the app
-  through the same tool is §12, question 31.
+  (§12, question 30). Packaging every document useful to a user with
+  the app, rendered from Markdown to HTML by a homegrown parser and
+  generator and cached for offline use, is a further chunk of its own
+  with its own design (§12, question 31); the refactor only keeps its
+  door open.

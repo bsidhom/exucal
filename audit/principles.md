@@ -39,3 +39,18 @@ A link between pages, in either corpus, is a repo-relative path
 path that names the repository, so that the docs read the same in any
 clone, fork or rename. The plan's pointer convention (`file#Heading`)
 materializes as such links.
+
+## Markdown principle: a small, stable subset (proposed)
+
+Proposed, pending the owner's confirmation. The documents useful to a
+user are to ship with the app, rendered from Markdown to HTML by a
+homegrown parser and generator rather than by a dependency
+(`audit/plan/12-open-questions.md`, question 31). So the pages are
+written in a small subset of Markdown that such a renderer can carry:
+headings, paragraphs, bulleted and numbered lists, emphasis, inline
+code, fenced code blocks, tables, and links by repo-relative path; no
+raw HTML, no footnote syntax, no nested constructs a renderer would have
+to special-case. A page that needs more is a design question for the
+renderer, not a reason to write past the subset. The subset is fixed
+when the renderer is designed; until then, writing within it costs
+nothing and keeps the door open.

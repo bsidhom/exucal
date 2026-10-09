@@ -4,7 +4,8 @@
 
 The owner's decisions, recorded question by question from the review of
 this plan; the numbering is kept so that references elsewhere still
-resolve. Two items remain open (20 and 31) and say so.
+resolve. Every question is decided; 20 and 31 are decided for now, with
+the later work each needs noted.
 
 1. **The removed design notes.** Decided: not resurrected, and no
    history page. An audit unit may read a removed note in git for one
@@ -107,13 +108,13 @@ resolve. Two items remain open (20 and 31) and say so.
     revised to the map in §7.1.
 19. **"Interval" for the temperature units.** Decided: "temperature
     difference".
-20. **"dimensionless" and the kinds.** Decided in part: "dimensionless"
+20. **"dimensionless" and the kinds.** Decided for now: "dimensionless"
     is reserved for a plain scalar number, with neither dimension nor
-    kind, and never describes a kind. Open: the term for a quantity that
-    has a kind and no dimension, such as an angle. The kind abstraction
-    itself is unclear today and may need shoring up before the docs can
-    name it well; until then the docs say "an angle" or "a quantity of
-    the radian kind" and never "dimensionless".
+    kind, and never describes a kind. The radian is believed to be the
+    only kind today (unit D3 confirms it in the file), so the docs refer
+    to it verbosely, "an angle" or "a quantity of the radian kind", and
+    a general term for a quantity with a kind and no dimension is
+    settled later, when the kind abstraction itself is shored up.
 21. **Getting started's scope.** Decided: both, opening with the basic
     calculator and adding conversions after it (question 2).
 22. **Offline and installation content.** Decided: `app.md` (question
@@ -154,13 +155,14 @@ resolve. Two items remain open (20 and 31) and say so.
     shipping them is not opposed. One docs tool carries the extractors
     (structured comments, the grammar DSL, the messages), wired into the
     standard build and never run out of band against the tracked tree.
-31. **Do the hand-written pages ship with the app too?** Open. If the
-    generated reference ships with the app and is cached offline, the
-    hand-written foundation and reference pages presumably ship beside
-    it (the settings sheet's "About these settings" link, #191, points at
-    an in-app guide). *Proposed:* yes: the docs tool renders `docs/` to
-    HTML at build time, emits the generated pages into the same tree,
-    rewrites the repo-relative links so the pages read alike on GitHub
-    and in the app, and the precache includes them. This affects the
-    outline's file names, which must stay stable as anchors, and the
-    offline page's rules.
+31. **Do the hand-written pages ship with the app too?** Decided in
+    principle: yes. The intention is to package every document useful
+    to a user with the app itself and cache it for offline use. That is
+    its own work chunk with its own design questions, not to be solved
+    now: the owner leans away from shipping raw Markdown, so it needs a
+    homegrown Markdown parser and HTML generator, and it touches the
+    pipeline and the packaging. What the refactor does now is keep the
+    door open: stable file names and heading anchors, repo-relative
+    links, and pages written in a small, stable Markdown subset that
+    such a renderer can carry (`audit/principles.md`, "Markdown
+    principle", proposed).

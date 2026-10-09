@@ -9,7 +9,7 @@ Conflicting or synonymous terms found, with a proposed canonical term.
 | --- | --- | --- |
 | "the quantity to convert" / "the unit to convert to" (docs) vs `have` / `want` (devdocs, 100+ uses) vs "You have" / "You want" (the fields) | `docs/definitions.md`; `devdocs/architecture.md` | **have** and **want**, introduced once in getting started as the fields' names; devdocs keep the code names unchanged. |
 | "exact" / "inexact" (both) vs "approximate", "known to a precision" (docs) | `docs/functions.md`, `devdocs/numbers.md` | **exact** / **inexact** as the model's words; "approximate" only as the plain-language gloss and in `approx`'s name. |
-| "certain" (the notes; docs) vs "certified" (devdocs) | counts in §9.1 | **certified** as the concept in both; the notes keep "are certain" as quoted text (§12, question 8). |
+| "certain" (the notes; docs) vs "certified" (devdocs) | counts in §9.1 | **certified** / **certification** everywhere applicable, in both corpora and in the app's notes, since the term has its specific meaning on the ball (§12, question 8); aligning the note text is a code change recorded for unit A2. |
 | "pass", "retry loop", "retries", "escalation", "schedule", "working contexts" | `devdocs/numbers.md`, `cost.md`, `docs/settings.md` | **pass** (one evaluation at a precision) and **retry loop** in both; "schedule" devdocs-only. |
 | "finest grid" (docs) vs "ceiling" (devdocs) | `docs/settings.md`; `devdocs/numbers.md`, `settings.md` | **ceiling**, glossed once as "the finest grid the app rounds onto". |
 | "working digits" (the decimal-mode setting) vs "working digits" / "working precision" of a pass (`workingDigits`, `workingContexts`; #172) | `devdocs/numbers.md#The working digits` | **working digits** = the setting only; **working precision** = a pass's precision; devdocs to rename the schedule's "working digits" (code vocabulary is #172's). |
@@ -20,7 +20,7 @@ Conflicting or synonymous terms found, with a proposed canonical term.
 | "ratio notation" / "ratio" vs "fractions" (old flag, commit subjects) vs "fraction" (devdocs for the value's representation) | `devdocs/notation.md`, `settings.md#Storage` | **ratio notation**, **ratio** (the written form), **width**; "fraction" reserved for the significand in devdocs. |
 | "digits notation" vs "the decimal display" / "decimal expansion" | `devdocs/notation.md` | **digits** (the notation's value) and **the decimal display** (the mechanism, devdocs). |
 | "decimal" overloaded: decimal mode, decimal literal, decimal display, decimal grid, decimal exponent | both | keep, but each page says which on first use; never "decimal" alone for the mode in docs ("decimal mode"). |
-| "plain number" (docs, builtins.md) vs "dimensionless" (architecture.md, sometimes including kinds) vs "number" | both | **plain number** (no dimension, no kind) in docs; devdocs: "dimensionless" only for an empty vector, "plain" when kinds are excluded too. |
+| "plain number" (docs, builtins.md) vs "dimensionless" (architecture.md, sometimes including kinds) vs "number" | both | **dimensionless** is reserved for a plain scalar number, with neither dimension nor kind, in both corpora, glossed "a plain number" in docs; a kind is never called dimensionless, and the term for a quantity with a kind and no dimension is open (§12, question 20). |
 | "kind" / "kind primitive" (devdocs) vs "dimensionless marker" (docs) vs "angle" | both | **kind**; "the radian kind" / "an angle" for the one kind the file declares. |
 | "conform" / "conformance" (devdocs) vs "quantities of the same thing", "the same test" (docs) | both | **conform** / **conformance**, defined in `quantities.md`. |
 | "primitive" / "dimension primitive" / "base unit" | both | **primitive** (with its role); "base unit" only when quoting the SI. |
@@ -40,13 +40,13 @@ Conflicting or synonymous terms found, with a proposed canonical term.
 | "interval" for `degC` etc. (docs) vs "interval" of a ball (devdocs) | `docs/definitions.md#What the file contains` | **temperature difference** for the units; "interval" devdocs-only. |
 | "note" vs "warning" | `devdocs/architecture.md`, `functions.md` | **note** (about digits) and **warning** (an assumed condition). |
 | "`≈` with a dot", "uncertified" | both | **uncertified** (`≈̇`), named in docs. |
-| "grid" | `docs/settings.md` (many), devdocs | devdocs-only, except in the settings reference's explanation of the two limits (§12, question 5). |
+| "grid" | `docs/settings.md` (many), devdocs | explained once in `numbers.md`'s section on how a value is held, as the digits an approximate value is kept to; the mechanism in devdocs (§12, question 5). |
 | "settle" / "settling" | devdocs | devdocs-only. |
 | "kernel" (leaks once into docs/functions.md) | both | devdocs-only. |
 | "the probe" vs "Measure this device" | both | **"Measure this device"** in docs with "(the probe)" once; **probe** in devdocs. |
 | "format version" (docs) vs "stored version" / "storage version" (commits, `STORAGE_VERSION`) | both | **format version**. |
 | "whole number" (docs) vs "integer" (devdocs) | both | **whole number** in docs, **integer** in devdocs, mapped once. |
-| "Exucal" / "the app" / "the converter" / "the calculator" | both | **Exucal** for the product, **the app** generically, **the converter** for the two-field component; "calculator" only in the framing sentence (§12, question 2). |
+| "Exucal" / "the app" / "the converter" / "the calculator" | both | **Exucal** for the product, **the calculator** for what it is, with unit awareness and kind checking as features, **the app** generically, **the converter** only for the two-field component (§12, question 2). |
 | "span" vs "the text at fault" | both | docs: "the text at fault"; **span** devdocs-only. |
 | "exact case" vs "recognized as exact" | both | **exact case**. |
 | "juxtaposition" (both) | both | keep; gloss "writing two factors side by side" once. |

@@ -53,8 +53,11 @@ What the plan fixes now, so that the later design starts from it:
   when a registered built-in lacks a comment or a comment lacks a
   required field, so completeness is enforced by generation rather than
   by a separate check; emits the reference page grouped by family in a
-  fixed order; and runs in CI (§12, question 30 asks whether the output
-  is committed or built).
+  fixed order; and runs as part of the standard build, emitting the page
+  beside the app's other build artifacts so that it ships with the app
+  and is cached for offline use. Nothing generated is checked in, and
+  the tool never runs out of band against the tracked tree (§12,
+  question 30).
 - **What stays hand-written,** in `devdocs/builtins.md` and the family
   preamble of the generated page: the rules every built-in follows
   (`devdocs/builtins.md#The rules every built-in follows`), the naming
@@ -133,5 +136,10 @@ beside the code; until then the two pages stay as they are.
 - **Follow-on work, after the refactor,** as separate blocks: the
   structured-comment format and the generator for the built-in
   reference (this section); the grammar DSL and its generator (§2.1.3,
-  §2.2.3). The two share the rule against dependencies and may share a
-  tool; whether they do is part of their design (§12, question 30).
+  §2.2.3); the error catalogue generated from `src/messages.ts` (§12,
+  question 6); and, later, the units page from structured comments in
+  `src/units.txt` (§12, question 4). One docs tool carries these
+  extractors, under the rule against new dependencies, wired into the
+  standard build and never run out of band against the tracked tree
+  (§12, question 30); whether the hand-written pages ship with the app
+  through the same tool is §12, question 31.

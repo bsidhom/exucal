@@ -108,7 +108,7 @@ design, an interim state, or a count a tool regenerates, tagged as in
 | `docs/definitions.md#(top)` | "This section describes that file" | update | the page is no longer a README section |
 | `docs/functions.md#(top)` | "Beside the functions the file defines", with "the file" undefined on the page | update | name the definitions file |
 | `docs/settings.md#(top) > Probe budget` and "The limits are set top-down" | the probe "times the costliest exact product and the costliest built-ins" | update | the composite is the four elementary routines, deliberately not the costlier special functions (`devdocs/settings.md#The probe`) |
-| `docs/settings.md#(top)` | "There are six settings", against eight controls | update | one entry per control, the two nested ones under their mode |
+| `docs/settings.md#(top)` | "There are six settings", against eight controls | update | no count at all: list the controls grouped and nested by mode (§12, question 16) |
 | `docs/functions.md#(top)` (gamma bullet) | "computed once per page load for each precision asked for beyond the last and kept" | update | the current rule stated once, in devdocs (a larger run replaces a smaller one); the docs keep a qualitative cost sentence |
 | `devdocs/cost.md#What the costs come from`, `#What the search has not reached` | "Typing out the 229 entries … 16,548 keystrokes"; "what four runs found, 714 cases in all" | update | counts the tool regenerates do not belong in hand-revised prose: drop them, or have the tool write them |
 | `devdocs/settings.md#The controls` | "pointing at docs/settings.md until the guide lands (#191)" | update | what the link points at; the issue says what is pending |

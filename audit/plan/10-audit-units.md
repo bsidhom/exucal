@@ -133,8 +133,9 @@ digits`. *Modules:* `src/settings.ts` (defaults, `rangesOf`,
 `clampSettings`, `refusalOf`, `contextOf`, `ratioOf`, `STORAGE_VERSION`),
 `src/settings-lines.ts` (every line's text), `src/limits.ts`,
 `src/core/context.ts` (`ceilingFor`, defaults), `src/core/rounding.ts`.
-*Output:* the per-setting table of §3 verified, the clamp table, the
-probe procedure. *Context:* A3, A4, A5, §3.
+*Output:* the per-setting table of §3 verified, the clamp table, the probe
+procedure; each entry links to `numbers.md` for the foundation rather
+than restating it (§12, question 5). *Context:* A3, A4, A5, §3.
 
 **D5. Built-ins: the elementary families.** `pi`, `exp`, `ln`, `log10`,
 `log2`, `log`, `sqrt`, `cbrt`, `pow`, `sin`, `cos`, `tan`, `asin`,
@@ -198,7 +199,8 @@ a ruled-out alternative. The unit's output tags each such passage
 "update", "keep as intent" or "drop", starting from the rows of §1.1.5,
 §1.2.5 and §9.4 for its pages and adding any it finds. Where a current
 page states a decision without its reason, the unit may read the
-removed design note in git for that reason alone (§12, question 1).
+removed design note in git for that reason alone, and defers to the
+owner where the note does not settle it (§12, question 1).
 
 **V1. `devdocs/numbers.md`.** All sections. *Modules:* those of A1–A6 (the
 unit re-reads only where the page's statements were not covered by an A
@@ -262,4 +264,4 @@ revised to the new docs/ outline; the user-facing update/offline facts
 moved to `app.md` or getting started with links back; the principle of
 `audit/principles.md` installed in `devdocs/development.md#Style guide`
 beside the existing rule on code comments, and linked from
-`devdocs/README.md` (pending §12, question 29).
+`devdocs/README.md` (§12, question 29).

@@ -2,172 +2,165 @@
 
 ## 12. Open questions
 
-Each with a proposed answer, none decided.
+The owner's decisions, recorded question by question from the review of
+this plan; the numbering is kept so that references elsewhere still
+resolve. Two items remain open (20 and 31) and say so.
 
-1. **The removed design notes.** Settled in principle: the pages
-   preserve design intentions and the salient decisions and
-   ruled-out alternatives, not the archaeological record, so the notes
-   removed on 2026-10-08 are not resurrected and no history page is
-   added. One question remains. Several current passages give a ruling
-   without its ground ("was set aside", "was weighed and left undone"
-   in `devdocs/numbers.md` and `devdocs/settings.md`). May an audit unit
-   read the removed note in git to recover the reason? *Proposed:* yes,
-   for that purpose only; the recovered reason is written into the
-   current page in one or two sentences, and nothing else is taken from
-   the notes.
-2. **Which framing leads docs/: unit converter or calculator?** The root
-   and docs READMEs open with "converts units, in the spirit of GNU
-   units"; `devdocs/architecture.md` opens with "grown into an
-   arbitrary-precision calculator"; the prompt says calculator.
-   *Proposed:* "an exact, unit-aware calculator whose primary interaction
-   is a conversion", GNU units named once in getting started and in one
-   "Differences from GNU units" appendix there; the eight-digit default
-   keeps its "as GNU units shows" note in the settings reference.
-   The owner's review leans against grounding the docs on GNU units;
-   the answer is pending.
-3. **Where do the interface facts live?** The two fields, the lines, the
-   copy button, the settings sheet's mechanics, installation, offline
-   use and updates have no page in the target. *Proposed:* reading
-   results goes into the foundation pages (it is semantics); the rest
-   into one short `docs/app.md` guide page, or into getting started if
-   it stays under a screen.
-4. **Should the system units catalogue be its own page?** Settled in
-   review: yes, `docs/units.md`, as a friendly guide to what the file
-   holds, with `src/units.txt` the source of truth that the page may
-   defer to; checked against the file (every unit, prefix, list and
-   function name present) rather than duplicating it.
-5. **How much representation may the settings reference show?** The
-   significand limit is in bits and the precision limit in digits, which
-   cannot be explained without saying what a significand and a grid
-   are; the ownership rule allows naming the representation at a high
-   level. *Proposed:* `numbers.md` says "a fraction times a power of ten,
-   with an error radius" and "approximate values are kept to a number of
-   digits"; `settings.md` explains each limit in one paragraph in those
-   terms ("the size of an exact value, in bits of its numerator and
-   denominator"; "the most digits an approximate value may be computed
-   to"); grids, bits-per-digit, the 2,453 derivation and the dyadic
-   cost stay in devdocs with a link.
-6. **An error-message catalogue in docs/?** Messages are quoted all over
-   both corpora and `src/messages.ts` has no page. *Proposed:* an
-   appendix to `expressions.md` listing each message family with the rule
-   it enforces and the page that owns the rule, generated or checked
-   from `messages.ts`; internal kind names never appear in docs.
-7. **What is authoritative.** Settled: the current pages are
+1. **The removed design notes.** Decided: not resurrected, and no
+   history page. An audit unit may read a removed note in git for one
+   purpose, to recover the reason for a decision that a current page
+   states without one, and writes that reason into the page in one or
+   two sentences. Where the note does not settle it, the unit defers to
+   the owner.
+2. **Which framing leads docs/.** Decided: the calculator, with unit
+   awareness and kind checking as a feature. The calculator is the bulk
+   of the work and the app's original motivation; a setting or toggle
+   that suppresses the conversion target, for first-class calculator
+   use, is under consideration (§1.3). The docs are not grounded on GNU
+   units: a similarity is called out only where it helps a user onboard,
+   in unit-conversion semantics and definitions, and never for numeric
+   semantics, so the "as GNU units shows" note on the display digits
+   goes. The getting started guide opens with the calculator (question
+   21), and there is no "Differences from GNU units" section.
+3. **Where the interface facts live.** Decided: how to use the have and
+   want fields and how to interpret the results belong to the foundation
+   pages; what is specific to the web app, installing, offline use,
+   updates, the settings sheet's mechanics and copying, goes in
+   `docs/app.md`, an app-specific guide.
+4. **The units page.** Decided: kept, as a friendly guide, with
+   `src/units.txt` the source of truth the page may defer to. Later it
+   may be generated from structured comments in the definitions file,
+   by the docs tool (§4.4).
+5. **Foundational detail and the settings reference.** Decided against
+   the division first proposed: the settings page is not where
+   foundational details surface; it references the numerics foundation.
+   `numbers.md` owns how a value is held, to the depth a user needs to
+   understand the behaviour: the fraction and its bit size, the power
+   of ten and its bound, the error radius, the digits an approximate
+   value is kept to, and the two limits that bound them; each settings
+   entry explains its limit in a sentence and links there. The dyadic
+   cost (`2^-30000` refused where `2^-28000` is a value) goes to the
+   user docs too, on this reasoning: it decides which inputs are
+   refused, and a user of a ball-arithmetic calculator, like a user of
+   Arb or FLINT, needs the representation's cost model to predict both
+   refusals and cost; the derivation (the factor of `log2 5`) stays in
+   devdocs. The owner leaned the same way and may still overrule.
+6. **An error-message catalogue.** Decided: generated from
+   `src/messages.ts` by the docs tool, as one of its extractors, at
+   build time (question 30); nothing is hand-written in the interim;
+   internal kind names never appear in docs.
+7. **What is authoritative.** Decided: the current pages are
    authoritative; a passage describing a superseded design is rewritten
    to the current design and only its intent kept, whatever its date
    (`audit/principles.md`); git is not cited in the pages.
-8. **"certain" vs "certified".** The notes say "8 of 12 digits are
-   certain"; devdocs say "certified" 100+ times; docs mix both.
-   *Proposed:* "certified" as the concept in both corpora, the note text
-   unchanged; alternatively rename the concept "certain digits" in docs
-   only, which costs a mapping sentence in devdocs.
-9. **Cost figures in docs/.** `docs/functions.md` gives timings for the
-   Gamma family that disagree with devdocs and depend on the machine.
-   *Proposed:* docs state qualitative cost rules only (expressions that
-   never certify run to the ceiling; the first Gamma call at a new
-   precision pays for the Bernoulli numbers); every number stays in
-   `devdocs/cost.md` and `devdocs/builtins.md`.
-10. **Who owns the exponent-bound explanation and the pass table?**
-    Duplicated today (§9.1). *Proposed:* `numbers.md` (docs) owns the
-    rule, the thresholds (`2.3026e18`) and the log-space advice with one
-    example; `devdocs/numbers.md` owns the table and the measurements;
-    `docs/functions.md#Very large results and approx` is dissolved.
-11. **Does the parser accept `×`, `≤`, `≥` or `#` in the fields?** The
-    screen writes `×` and the copy text `*`; conditions accept `≤`/`≥`;
-    comments are a file feature. Nothing states what the two fields
-    accept. *Proposed:* decide from `expr.ts` in D1 and state it in the
-    grammar; if `×` is not accepted, say so beside the copy button's
-    behaviour.
-12. **Are user definitions documented as a feature?** Only the system
-    file exists (#132). *Proposed:* the definition reference documents
-    the language as the file's, with one sentence that typed definitions
-    are not yet available; "Adding a unit" stays a contributor task in
-    `devdocs/development.md`.
-13. **Which page owns "conversion into a function"?** It is an output
-    mode (quantities) and a consequence of inverses (definitions).
-    *Proposed:* `quantities.md` owns what the answer is and when it
-    exists; `definitions.md` owns writing an inverse and what is checked;
-    `functions.md` says built-ins have none.
-14. **`approx`: foundation or reference?** *Proposed:* both, with the
-    foundation owning the concept (making a value inexact on purpose,
-    never narrowing, identity in decimal mode) and the reference entry
-    owning the signature and linking up.
-15. **The width's name.** The panel's accessible label is "Ratio width";
-    devdocs say "the notation's width". *Proposed:* "ratio width".
-16. **How to count the settings.** "Six settings" with two nested
-    sub-settings. *Proposed:* the reference has one entry per control
-    (eight), and says the two nested ones belong to a mode.
-17. **Generating part of the built-in reference.** Settled in review,
-    and inverted: the documentation of each built-in lives beside its
-    implementation as a structured comment, and a TypeScript tool
-    generates the whole reference from those comments; the design and
-    the implementation follow the docs refactor as a separate block of
-    work (§4). Nothing is hand-documented per function in the meantime.
-18. **Root `README.md` vs `docs/README.md`.** Identical intros.
-    *Proposed:* the root README becomes three sentences and two links;
-    `docs/README.md` is the user index.
-19. **"Interval" for the temperature units.** Collides with the ball's
-    interval. *Proposed:* "temperature difference" in docs.
-20. **"Plain number" vs "dimensionless".** `architecture.md` calls kind
-    primitives "dimensionless markers", so "dimensionless" there admits
-    kinds. *Proposed:* "plain number" = no dimension and no kind, in
-    both corpora; "dimensionless" in devdocs only for the empty vector.
-21. **Getting started's scope.** Conversions only, or the calculator too?
-    *Proposed:* both, conversions first, about ten worked examples, each
-    linking to its owner; no definitions of its own.
-22. **Offline/PWA content.** Currently in `docs/README.md`'s intro.
-    *Proposed:* in `app.md` (question 3) with one line in the index.
-23. **The probe's description in docs.** "the costliest built-ins" vs
-    devdocs' elementary composite. *Proposed:* docs say "a composite of
-    the elementary functions at the candidate ceiling, deliberately not
-    the costlier special functions", citing the rationale's location.
-24. **Devdocs re-explaining user semantics.** The ownership rule says
-    devdocs link to docs for user-level semantics; today every topical
-    page restates them. How far to cut? *Proposed:* each devdocs section
-    opens with one sentence and a link to the owning docs section, then
-    mechanism and rationale only; rules restated for the sake of a
-    rationale are quoted in one line, not re-derived.
-25. **Measurements that justify decisions.** The principle settles what
-    to keep: rationale and ruled-out alternatives wherever knowing them
-    would stop a future reader from re-proposing or re-litigating them.
-    What remains open is the measurements that justify decisions in
-    `devdocs/numbers.md`, `devdocs/builtins.md` and `devdocs/future.md`
-    (timings of a scratch build, of gcds, of `pi`), which no tool
-    regenerates. *Proposed:* keep a measurement only where the decision
-    rests on its order of magnitude, dated and attributed to the
-    machine; otherwise replace it by the qualitative reason it supports.
-26. **Open-issue pointers as the living record.** The pages carry some
-    forty links to open decisions and deferred extensions. *Proposed:*
-    keep them, one per concept where a decision is pending, as the
-    living record of what is open; drop a link once its issue is closed
-    and the page states the outcome.
-27. **The settings migrations.** The list in `devdocs/settings.md#Storage`
-    reads like history (versions 1 to 5 with their shapes). *Proposed:*
-    it is mechanism the code needs and stays, written as what each
-    migration reads and writes, without the reasons for the renames,
-    which live with the concept in `#The model`.
-28. **Unification across the two sides.** *Proposed:* the concept map in
-    §7.1 is the instrument. Each core concept has exactly one user-side
-    owner and one developer-side owner, each linking to the other; the
-    user side states the rule, the developer side the mechanism, the
-    decision and the ruled-out alternatives. A concept that lacks either
-    owner after the restructuring is a gap to fill, not a page to pad.
-29. **The principle's permanent home.** `audit/principles.md` holds the
-    documentation principle during the revamp. *Proposed:* install it in
-    `devdocs/development.md#Style guide` when the revamp lands, beside the
-    existing rule that a code comment names a page and a section and
-    never a decision number, which is the same principle applied to
-    comments; `devdocs/README.md` keeps its one-sentence statement and
-    links to it. A `CLAUDE.md`, if one is ever added, points at the
-    style guide rather than restating it, since the rule binds every
-    contributor. It should merge into `main` with the revamp: it is a
-    standing rule for the pages, not an artifact of the audit.
-30. **The generated references: committed or built, one tool or two.**
-    For the built-in reference (§4) and the grammar (§2.1.3, §2.2.3): is
-    the generated page committed to `docs/` and checked in CI for being
-    up to date, or produced at build time only? *Proposed:* committed
-    and checked, since the docs are read on GitHub and the deploy ships
-    no docs. And should one tool carry both extractors, the structured
-    comments and the grammar DSL? *Proposed:* yes, one `docs` tool with
-    two extractors, designed when that block of work starts; the plan
-    only reserves the shape.
+8. **"certain" vs "certified".** Decided: "certified" and
+   "certification" everywhere applicable, in both corpora and in the
+   app's notes, since the term has its specific meaning on the ball. The
+   note wording in the app ("8 of 12 digits are certain") is a code
+   change, recorded for unit A2.
+9. **Cost figures in docs/.** Decided: user docs give qualitative
+   descriptions and warnings only, never concrete runtime
+   characteristics; numbers stay with the benchmarks and the stress
+   tools.
+10. **The exponent-bound explanation and the pass table.** Decided as
+    proposed: `numbers.md` owns the rule, the thresholds and the
+    log-space advice with one example; `devdocs/numbers.md` owns the
+    table and the measurements; `docs/functions.md#Very large results and
+    approx` is dissolved. `approx` still gets an explicit built-in
+    entry, through the generated reference (question 14).
+11. **Display-only characters and the copy path.** Decided: rendering
+    characters such as `×` are not accepted by the grammar today (they
+    may be added later). The copy button does not copy the display text;
+    it produces its output from the internal representation through a
+    copy-output path. The guiding principle of the output format is that
+    every result pastes back into the calculator, modulo display
+    niceties; `numbers.md` states the principle and `expressions.md` what
+    the grammar accepts. Whether `#` is accepted in the fields is read
+    from `expr.ts` in unit D1.
+12. **User definitions.** Decided: true user-defined functions and units
+    are intended; the editing UX, a general text-editing problem, is not
+    designed yet (#132). The definition reference documents the language
+    as the language of definitions, system and user alike, and says that
+    today only the system file is loaded; the intent is recorded (§1.3).
+13. **Conversion into a function.** Decided as proposed: `quantities.md`
+    owns what the answer is and when it exists; `definitions.md` owns
+    writing an inverse and what is checked; `functions.md` says
+    built-ins have none.
+14. **`approx`: foundation and reference.** Decided as proposed: the
+    foundation owns the concept and its semantics; the reference entry
+    is mechanical (signature and the like) with a brief description that
+    need not be self-contained.
+15. **The width's name.** Decided: the panel's "width" with a "digits"
+    unit on the input stays; the docs call it the ratio width, in
+    digits, naming its unit as every setting's is named.
+16. **Counting the settings.** Decided: no count anywhere; the reference
+    lists the settings grouped and nested by mode.
+17. **Generating the built-in reference.** Decided, and inverted: the
+    documentation of each built-in lives beside its implementation as a
+    structured comment, and a TypeScript tool generates the reference
+    from those comments at build time (question 30); the design and the
+    implementation follow the docs refactor as a separate block of work
+    (§4). Nothing is hand-documented per function in the meantime.
+18. **Root `README.md` vs `docs/README.md`.** Decided as proposed: the
+    root README becomes three sentences and two links; `docs/README.md`
+    is the user index and `devdocs/README.md` the developer index,
+    revised to the map in §7.1.
+19. **"Interval" for the temperature units.** Decided: "temperature
+    difference".
+20. **"dimensionless" and the kinds.** Decided in part: "dimensionless"
+    is reserved for a plain scalar number, with neither dimension nor
+    kind, and never describes a kind. Open: the term for a quantity that
+    has a kind and no dimension, such as an angle. The kind abstraction
+    itself is unclear today and may need shoring up before the docs can
+    name it well; until then the docs say "an angle" or "a quantity of
+    the radian kind" and never "dimensionless".
+21. **Getting started's scope.** Decided: both, opening with the basic
+    calculator and adding conversions after it (question 2).
+22. **Offline and installation content.** Decided: `app.md` (question
+    3), with one line in the index.
+23. **The probe's description in docs.** Decided as proposed; "the
+    costliest built-ins" is incorrect and stays incorrect for the
+    elementary composite.
+24. **Devdocs re-explaining user semantics.** Decided as proposed: each
+    devdocs section opens with one sentence and a link to the owning
+    docs section, then mechanism and rationale only; a rule restated for
+    the sake of a rationale is quoted in one line, not re-derived.
+25. **Measurements in documentation.** Decided: concrete timings leave
+    the pages wherever reasonable and live in the benchmarks and the
+    stress tools; a decision keeps the qualitative reason it rests on.
+26. **Issue pointers.** Decided, with the clarification the owner asked
+    for: the docs do not mirror issues. An open issue is linked from at
+    most one place, the passage that owns the concept it concerns, and
+    the link says only what is open. When the issue is resolved, every
+    reference to it is deleted and the page is fixed to state the
+    current design.
+27. **The settings migrations.** Decided: `devdocs/settings.md` keeps why
+    migrations exist, the envelope and the format version, the
+    interface and the load-and-migrate flow, and the intent and
+    structure of the current version's fields. The per-version list of
+    migrated fields is a code concern and goes (§1.1.5).
+28. **Unification across the two sides.** Decided as proposed: the map
+    in §7.1 is the instrument; a concept that lacks either owner after
+    the restructuring is a gap to fill, not a page to pad.
+29. **The principle's permanent home.** Decided as proposed:
+    `devdocs/development.md#Style guide`, with `devdocs/README.md` linking
+    to it; a `CLAUDE.md`, if ever added, points at the style guide; it
+    merges into `main` with the revamp.
+30. **The generated references: built, not committed; one tool.**
+    Decided: only the code and the structured comments are checked in.
+    The documentation is generated at build time, with the rest of the
+    build artifacts, and distributed with the web app so that it is
+    cached for offline use; devdocs need not ship that way, though
+    shipping them is not opposed. One docs tool carries the extractors
+    (structured comments, the grammar DSL, the messages), wired into the
+    standard build and never run out of band against the tracked tree.
+31. **Do the hand-written pages ship with the app too?** Open. If the
+    generated reference ships with the app and is cached offline, the
+    hand-written foundation and reference pages presumably ship beside
+    it (the settings sheet's "About these settings" link, #191, points at
+    an in-app guide). *Proposed:* yes: the docs tool renders `docs/` to
+    HTML at build time, emits the generated pages into the same tree,
+    rewrites the repo-relative links so the pages read alike on GitHub
+    and in the app, and the precache includes them. This affects the
+    outline's file names, which must stay stable as anchors, and the
+    offline page's rules.

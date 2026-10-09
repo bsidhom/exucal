@@ -68,7 +68,8 @@
 - **The intended end state** (owner's decision in review): the grammar
   is written once, as a TypeScript DSL with paired data structures that
   the parser and the printer are built from, and a tool generates a
-  readable EBNF-style grammar from it for the references. `LEVELS` and
+  readable EBNF-style grammar from it for the references, at build time
+  and shipped with the app rather than checked in (§12, question 30). `LEVELS` and
   `BINARY` are the seed of that DSL. It is a large work item of its own,
   with no new dependency, and follows the docs audit and refactor (§4.4
   lists the generated-docs work items together).

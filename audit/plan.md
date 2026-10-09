@@ -47,7 +47,8 @@ removed (they remain in git only, as `devdocs/design/*.md` and
 `devdocs/README.md` describes the pages as "current-state documents, not
 a history". The removed notes are not to be resurrected. An audit unit
 may consult one for a single purpose: to recover the *reason* for a
-decision that a current page states without one (§12, question 1).
+decision that a current page states without one, and defers to the
+owner where the note does not settle it (§12, question 1).
 Nothing else in this plan depends on git history.
 
 ---
@@ -68,7 +69,7 @@ cross-references (§5, "§12, question 25") name these files.
 9. [Preliminary structural observations (from the docs alone; unverified)](plan/09-structural-observations.md): duplication across the corpora, links against the ownership direction, concepts without an owner, and stale passages elsewhere tagged the same way; all unverified.
 10. [Audit units](plan/10-audit-units.md): twenty-six audit units in order: the core abstractions, then docs/ by target area, then devdocs/ page by page, each sized for one session.
 11. [User-facing surface files (from the tree; not read)](plan/11-surface-files.md): the source files that define the parsers, the built-in registry, the unit definitions and the settings, for later mechanical coverage checks.
-12. [Open questions](plan/12-open-questions.md): twenty-nine open questions on ownership, terminology and placement, each with a proposed answer.
+12. [Open questions](plan/12-open-questions.md): the owner's decisions on ownership, terminology and placement, recorded question by question, with the two still open marked.
 
 The principle that governs the revamp, "intent, not history", is in
 [principles.md](principles.md).

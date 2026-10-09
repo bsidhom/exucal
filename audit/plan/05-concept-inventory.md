@@ -58,8 +58,10 @@ user. *Terms:* "copy", "typed back" ↔ "the printer", "canonical text",
 `print`, `text`. *docs/:* `docs/README.md#(top)`. *devdocs/:*
 `architecture.md#Expressions` (printer), `#The converter and its lines`; `notation.md#Every literal parses back`. *Depends on:* N12,
 Q18. *Modules:* `print.ts`, `copy-button.ts`, `outcome.ts`. *Owner:*
-`expressions.md` > "How the app writes expressions" (the printed form);
-one line in `getting-started.md`.
+`numbers.md` for the principle (every result is input the calculator
+accepts, produced from the internal representation and not from the
+display text; §12, question 11); `expressions.md` > "How the app writes
+expressions" (the printed form); one line in `getting-started.md`.
 
 **C6. Exact and inexact values.** Radius zero vs nonzero. *Class:*
 bridge. *Terms:* "exact" / "inexact", "known to a precision" ↔ `radius`,
@@ -113,8 +115,9 @@ schedule's) ↔ `workingDigits`, `digitsFor(bitsFor(precision))`. *docs/:*
 kernel's boundary`, `#Settling`, `#The working digits`
 (the collision flagged, #172); `settings.md#The model > The terms`.
 *Depends on:* N8. *Modules:* `rounding.ts`, `fixed.ts`, `ball.ts`. *Owner:*
-`devdocs/numbers.md`; docs avoid "grid" outside the limits' explanation
-(§12, question 5).
+`numbers.md` > "How a value is held" for the user-facing rule (the
+digits an approximate value is kept to); `devdocs/numbers.md` for the
+mechanism (§12, question 5).
 
 **C12. Settling.** Rounding every inexact result to the working grid.
 *Class:* internal. *Terms:* none in docs ↔ `settle`, `step`, `onGrid`,
@@ -415,10 +418,12 @@ are functions).
 `builtins/trig.ts`, `builtins/inverse-trig.ts`, `units.txt`. *Owner:*
 `quantities.md` > "Kinds" (angles as the example); `functions.md` entries.
 
-**C49. Plain number.** A quantity with no dimension and no kind.
-*Class:* user. *Terms:* "plain number" (docs, builtins.md) ↔
-"dimensionless" (architecture.md; which there sometimes includes kinds).
-*Owner:* `quantities.md` defines it; see §8.
+**C49. Dimensionless number.** A quantity with no dimension and no
+kind. *Class:* user. *Terms:* "dimensionless", reserved for this (§12,
+question 20) and glossed "a plain number" in docs ↔ "dimensionless" in
+architecture.md, which there sometimes includes kinds (to be fixed);
+"plain number" in builtins.md. *Owner:* `quantities.md` defines it; see
+§8.
 
 **C50. The system definitions file.** `src/units.txt` and what it holds.
 *Class:* user. *Terms:* "definitions file", "the file", "system
@@ -469,8 +474,8 @@ user (interface). *Terms:* "sheet", "panel", "cog" ↔ `settings-panel.ts`,
 `settings-button.ts`, `step-button.ts`. *docs/:* `docs/settings.md#(top)`
 (first paragraph). *devdocs/:* `architecture.md#UI`, `settings.md#The
 sheet`, `#The controls`. *Modules:* `settings-panel.ts`,
-`settings-button.ts`, `step-button.ts`, `app-shell.ts`. *Owner:* §12,
-question 3 (`app.md` or the preamble of `settings.md`).
+`settings-button.ts`, `step-button.ts`, `app-shell.ts`. *Owner:* `app.md`
+(§12, question 3).
 
 **C57. Installation, offline use, updates, the build number.** *Class:*
 user. *Terms:* "build number", "update to …", "up to date", "couldn't
@@ -479,8 +484,8 @@ check (offline?)" ↔ `BUILD_ID`, `sw.ts`, precache, `register-service-worker.ts
 `docs/settings.md#(top)` ("Tapping the build number…"). *devdocs/:*
 `offline.md`; `layout.md#The files`; `architecture.md#The shell
 and its parts`. *Modules:* `app-footer.ts`, `register-service-worker.ts`,
-`service-worker-updates.ts`, `sw.ts`, `build-id.ts`. *Owner:* §12,
-question 3 (`app.md`); not `settings.md`.
+`service-worker-updates.ts`, `sw.ts`, `build-id.ts`. *Owner:* `app.md`
+(§12, question 3); not `settings.md`.
 
 **C58. Hard bounds and fixed constants.** *Class:* bridge. *Terms:* the
 ranges in the panel ↔ `MAX_SIGNIFICAND_LIMIT_BITS` (2^20),
@@ -502,7 +507,10 @@ says "real values only" once.
 **C60. GNU units lineage and divergences.** *Class:* framing. *docs/:*
 `docs/README.md#(top)`, `docs/definitions.md#(top)`, `docs/settings.md#(top) >
 Display digits`. *devdocs/:* `architecture.md#(top)`, `#Expressions`, `#Conversion`, `#The converter and its lines > The reciprocal`; `builtins.md#Names`; `functions.md#Annotations`,
-`#Alternatives considered`; `numbers.md#(top)`. *Owner:* §12, question 2.
+`#Alternatives considered`; `numbers.md#(top)`. *Owner:* no page of its
+own: a similarity to GNU units is called out only where it helps a user
+onboard, in `quantities.md` and `definitions.md` (conversion semantics
+and definitions), never in `numbers.md` (§12, question 2).
 
 **C61. Juxtaposition.** *Class:* user. *Terms:* ↔ the `juxtapose` node.
 *docs/:* `docs/definitions.md#Expressions`. *devdocs/:*

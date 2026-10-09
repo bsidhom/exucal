@@ -105,8 +105,12 @@ Precision, certification and display (exact mode)
 - **N12.** Formatting is `%g`-like: significant digits in the mode,
   trailing zeros dropped, exponent notation below `1e-4` or at the digit
   count, exponents as `1e+21`; the power of ten is never formed, so any
-  magnitude renders. Every line parses back as a `have` (copy text uses
-  `*`, the screen `×`); one edge literal at the exponent bound does not.
+  magnitude renders. Every result pastes back into the calculator as a
+  `have`, the guiding principle of the output format: the copy button
+  writes parseable text from the internal representation, not the
+  display text (`*` where the screen shows `×`, since display-only
+  characters are not accepted by the grammar); one edge literal at the
+  exponent bound does not paste back.
   This is today's behaviour; making the written form configurable is a
   possible future setting (§1.3).
   → `devdocs/numbers.md#Formatting`; `devdocs/notation.md#Every literal
@@ -338,9 +342,9 @@ and the schedule`, `#The significand limit`.
 Passages that describe a superseded design, each tagged **update**
 (rewrite to the current design), **keep as intent** (rewrite as
 rationale or as a ruled-out alternative, in the present tense) or
-**drop** (delete; the page already states the intent). The migration
-list in `devdocs/settings.md#Storage` is mechanism, not a description of
-a superseded design, and is not tagged (§12, question 27).
+**drop** (delete; the page already states the intent). The per-version
+migration list in `devdocs/settings.md#Storage` is tagged below (§12,
+question 27).
 
 | Where | Stale passage | Tag | What the rewrite keeps |
 | --- | --- | --- | --- |
@@ -358,7 +362,7 @@ a superseded design, and is not tagged (§12, question 27).
 | `devdocs/builtins.md#Huge and tiny arguments` | "(`acos(1e-9860)` was refused at the default limit)" | drop | the reason `asin` and `acos` take their expansion earlier is already stated |
 | `devdocs/notation.md#The width` | "The first rule tied the fit to the display digits, each part fitting within them; that coupled a length to a precision…, hid exact values…, and could not be read off the settings." | keep as intent | the ruled-out alternative, a fit tied to the display digits, with those three reasons |
 | `devdocs/settings.md#The model > Rounding` | "the stored value of the earlier default, `halfAwayFromZero`, echoed by every save…, was migrated to `halfEven` once, with the control one tap away" | drop | the reason for half even is already stated; the migration row in `#Storage` carries the mechanism |
-| `devdocs/settings.md#Storage > 1 → 2` | "so that the mechanism was exercised end to end before a migration with a semantic change existed" | drop | what the migration reads and writes is mechanism; why it came first is not |
+| `devdocs/settings.md#Storage` | the per-version migration list (1 → 2 to 4 → 5) with the fields each reads and writes, and "so that the mechanism was exercised end to end before a migration with a semantic change existed" | update | keep why migrations exist, the envelope and the format version, the interface and the load-and-migrate flow, and the intent and structure of the current version's fields; the migrated fields are a code concern (§12, question 27) |
 | `devdocs/numbers.md#The significand limit`, `#Which limit a refusal names`, `#Working precision and the schedule` | `tooLarge` described as one refusal carrying a `Need` and a `Reach`, which the retry loop never retries | update | per the owner's review there are classes of `tooLarge`, some of which are retried: describe the classes and which are retried, from the code (§1.1.6) |
 
 #### 1.1.6 Claims that most need verification against the code
@@ -387,8 +391,11 @@ text is (quoted messages and constants are easy to get wrong):
    (`builtins/approx.ts`, `ball.ts#widened`).
 9. N3 "exactly three sources" (any `onGrid` rounding of an exact operand
    is charged to an already inexact result?) (`ball.ts`).
-10. N12 copy text `*` vs screen `×`, and the parser's acceptance of `×`
-    (not stated anywhere; §12) (`print.ts`, `expr.ts`).
+10. N12's copy path: that the copy button writes from the internal
+    representation and that display-only characters are rejected by the
+    grammar (settled by the owner, §12 question 11; confirm in
+    `print.ts`, `copy-button.ts`, `expr.ts`), and whether `#` is accepted
+    in the fields.
 11. N24's "a hair from the bound is tooLarge" (`scaled.ts#powerRefusal`).
 12. N11 directed-mode behaviour for exact values with more digits than
     shown (`39.3700787401` rounded down) (`display.ts`).
@@ -706,3 +713,12 @@ the user docs state today's behaviour without promising them.
   Bessel `Y` and `K`, polygamma beyond `digamma`, complex `gamma`,
   statistical distributions as built-ins) are deferred, not ruled out
   indefinitely (§4.2, §9.4).
+- **A setting or toggle that suppresses the conversion target,** so
+  that the app serves as a first-class calculator when no conversion is
+  wanted (§12, question 2).
+- **True user-defined functions and units,** with an editing UX still
+  to be designed (#132; §12, question 12).
+- **The units page generated from structured comments in the
+  definitions file** (§12, question 4).
+- **Rendering-only characters such as `×` accepted by the grammar**
+  (§12, question 11).

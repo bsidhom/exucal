@@ -17,6 +17,11 @@ Missing or thin, with the devdocs passages to derive from:
 
 - Exact and inexact values, their sources, what `=` means: derive from
   `devdocs/numbers.md#Exact mode`, `#The types > Ball` (the claim only).
+- How a value is held, to the depth needed to predict refusals: the
+  fraction and its bit size, the power of ten and its bound, the error
+  radius, the digits an approximate value is kept to, the dyadic cost:
+  `#The types` (the claims only), `#The significand limit`, `#The
+  exponent bound` (§12, question 5).
 - Which operations are exact and that exact values are never rounded;
   sums that cannot align are refused: `#Exact operations`, `#Sums and
   alignment`, `#Exact mode`.
@@ -154,9 +159,10 @@ mechanics, the model, and representation. Missing or to restructure:
   Apply): `devdocs/settings.md#The probe`.
 - The ratio width and the extended working digits as entries of their
   own: `devdocs/notation.md#The width`; `devdocs/numbers.md#The working digits`.
-- Remove from here: the update-check paragraph (C57), the
-  representation section (C11), the sheet's layout detail beyond what a
-  user needs to find a control.
+- Remove from here: the update-check paragraph (to `app.md`, C57); the
+  representation section (to `numbers.md`, which each settings entry
+  links to rather than restating, §12 question 5); the sheet's layout
+  detail beyond what a user needs to find a control (to `app.md`).
 
 ### 6.6 Built-in function reference — a prose list, not a reference
 

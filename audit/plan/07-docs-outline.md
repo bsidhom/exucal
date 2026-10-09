@@ -9,23 +9,29 @@ concept-level sections. File names are proposals.
 the page list below with one line each; where the developer docs are.
 
 **`docs/getting-started.md` — Getting started (guide).** A task-oriented
-tour that defines nothing and links everything.
+tour that defines nothing and links everything; it opens with the
+calculator and adds conversions after it, since the calculator is the
+app's focus (§12, questions 2 and 21). GNU units is named only where a
+similarity in conversion semantics or definitions helps.
+- Your first calculation (`2 kg * 3 m/s^2`, `exp(1)`, `sqrt(2)`; the
+  blank want)
+- Reading `=`, `≈` and a note
 - Your first conversion (`3 ft` → `in`; the two lines; copy)
 - Lists of units (`ft;in`, `time`)
-- Calculating with a blank want (`2 kg * 3 m/s^2`, `exp(1)`)
-- Reading `=`, `≈` and a note
 - Functions and readings (`sin(30 deg)`, `tempC(20)`, `300 K` → `tempF`)
 - Making a value approximate (`approx(2.54)`)
 - Changing a setting (display digits, ratio notation, decimal mode)
 - When something is refused (a mismatch, a size refusal, an edge)
-- Installing and working offline
-- Differences from GNU units (pending §12, question 2; the owner leans
-  against grounding the docs on GNU units)
+- Where to go next (the app guide for installing and offline use)
 
 **`docs/numbers.md` — Numbers (foundation).** The numeric model a user
 needs to predict and interpret any result.
 - Exact and approximate values (the fraction times a power of ten; the
   error radius; the sources of approximation)
+- How a value is held (the fraction and its bit size; the power of ten
+  and its bound; the error radius; the digits an approximate value is
+  kept to; the dyadic cost), as foundation that the settings reference
+  links to (§12, question 5)
 - Operations that stay exact; exact cases of functions
 - Digits you can trust (display digits; retries up to a ceiling; what a
   note says; the uncertified mark)
@@ -38,7 +44,8 @@ needs to predict and interpret any result.
 - Rounding modes and where they act
 - Values too big to hold (the significand limit and its remedies; the
   exponent bound; which message says which)
-- How numbers are written (digits, exponents, zero, ratio notation)
+- How numbers are written (digits, exponents, zero, ratio notation;
+  every result pastes back as input, §12 question 11)
 - What costs time (qualitative)
 - Real values only
 
@@ -70,7 +77,10 @@ and semantics of what is typed into either field.
 - Evaluation order and error locations
 - What the app writes back (printed form, `×` vs `*`)
 - Pitfalls (`1/12 year`, `kg(m/s)`, `-2^2`, `m2`)
-- Appendix: parse and evaluation errors (pending §12, question 6)
+- What is not accepted (display-only characters such as `×`; §12,
+  question 11)
+- Appendix: parse and evaluation errors, generated from `src/messages.ts`
+  by the docs tool (§12, question 6); nothing hand-written meanwhile
 
 **`docs/definitions.md` — The definition language (reference).** The
 file's format and the semantics of each definition kind.
@@ -85,11 +95,13 @@ file's format and the semantics of each definition kind.
 - Inverses (conditions; what a conversion into the function checks)
 - Names: namespaces, prefixed-name rule, shadowing
 - Build-time checks (table: error, cause, fix)
-- User definitions today (system file only; #132)
+- User definitions: intended, with the editing UX still to be designed
+  (#132); today only the system file is loaded (§12, question 12)
 
 **`docs/units.md` — The units the app knows (reference).** A friendly
 guide to the system file's contents; `src/units.txt` is the source of
-truth, and the page may defer to it (§12, question 4, settled).
+truth, and the page may defer to it; later possibly generated from
+structured comments in the file (§12, question 4).
 - The SI (base units, prefixes, derived, accepted non-SI)
 - US customary; UK imperial; naming conventions (`imp`, `uk`, `long`)
 - Constants and extras (CGS, pressure, calories, time, bits and bytes)
@@ -100,7 +112,9 @@ truth, and the page may defer to it (§12, question 4, settled).
 - Names deliberately absent (`u`, `at`, `dB`, `e`)
 
 **`docs/settings.md` — Settings (reference).** Every control, in terms
-of the model parameter it sets.
+of the model parameter it sets, grouped and nested by mode and never
+counted; foundational detail lives in `numbers.md`, which each entry
+links to (§12, questions 5 and 16).
 - Where the settings are and how a change applies (short)
 - Display digits
 - Rounding
@@ -133,9 +147,9 @@ until the generator exists, today's prose list, corrected.
 - Not provided, and what to write instead (distributions, deferred
   specials)
 
-**`docs/app.md` — The app (guide; pending §12, question 3).** Installing,
-offline use, updates and the build number, the settings sheet's
-mechanics, copying results.
+**`docs/app.md` — The app (guide).** What is specific to the web app:
+installing, offline use, updates and the build number, the settings
+sheet's mechanics, copying results (§12, questions 3 and 22).
 
 ### 7.1 The developer-side counterparts (unified concept map)
 

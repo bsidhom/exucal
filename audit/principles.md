@@ -31,3 +31,11 @@ applied to comments. `devdocs/README.md` keeps its one-sentence
 statement and links to it. A `CLAUDE.md`, if one is ever added, points
 at the style guide rather than restating it, since the rule binds every
 contributor and not only Claude.
+
+## Linking principle: repo-relative paths only
+
+A link between pages, in either corpus, is a repo-relative path
+(`../devdocs/numbers.md#the-types`), never an absolute URL and never a
+path that names the repository, so that the docs read the same in any
+clone, fork or rename. The plan's pointer convention (`file#Heading`)
+materializes as such links.

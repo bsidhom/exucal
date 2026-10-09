@@ -9,14 +9,22 @@
 Values and exactness
 
 - **N1.** A value is an exact fraction (in lowest terms) times a power of
-  ten; its magnitude costs nothing. Decimal literals are read exactly
-  (`1.5e-3` is `15 × 10^-4`; `0.1 + 0.2` is exactly `0.3`).
-  → `devdocs/numbers.md#(top)`, `#The types › Scaled`,
-  `#Exact mode`.
+  ten. Both parts are bounded: the fraction's size by the significand
+  limit, a setting (N21), and the power of ten's exponent by a fixed
+  bound of ±10^18 (N22), so a value's magnitude is cheap to hold but not
+  unbounded. Decimal literals are read exactly (`1.5e-3` is
+  `15 × 10^-4`; `0.1 + 0.2` is exactly `0.3`). That the fraction and the
+  power of ten are two types, one composed of the other, is
+  representation and stays in devdocs.
+  → `devdocs/numbers.md#(top)`, `#The types > Rational`, `#The types >
+  Scaled`, `#Exact mode`.
 - **N2.** Every value carries an error radius bounding its distance from
   the number meant. Radius zero is *exact*; nonzero is *inexact*. The
-  `=` relation means radius zero and every digit shown.
-  → `devdocs/numbers.md#The types › Ball`, `#Certification and the
+  `=` relation marks an exact value: every digit of it is certified,
+  known exactly. How many of those digits a line shows, and how a line
+  reads when it shows fewer, is display policy (N10, N12), not the
+  model.
+  → `devdocs/numbers.md#The types > Ball`, `#Certification and the
   display rule`.
 - **N3.** In exact mode, inexactness enters in exactly two ways: an
   inexact built-in (a root, `exp`, `ln`, the trigonometric, hyperbolic,
@@ -28,9 +36,11 @@ Values and exactness
 - **N4.** `+ - * /`, integer powers and comparisons on exact operands are
   exact and as long as they need to be; exact values are never rounded in
   exact mode. A sum that cannot be aligned within the significand limit
-  is refused, not rounded.
+  is refused, not rounded. `approx` is the designed escape hatch from
+  that strictness: it makes a value inexact on purpose, so that the
+  arithmetic may round it (N23).
   → `devdocs/numbers.md#Exact operations`, `#Sums and alignment`,
-  `#Exact mode`.
+  `#Exact mode`, `#approx`.
 - **N5.** Inexact values propagate radii by the elementary rules; every
   occurrence of a value is independent (so `x - x` of an inexact `x`
   is a ball around zero, never `0`; `sqrt(2)/sqrt(2)` is `≈ 1`).
@@ -44,22 +54,27 @@ Values and exactness
   result is `≈` however round it looks (`ln(8)/ln(2) ≈ 3`).
   → `devdocs/builtins.md#The rules every built-in follows`, `#Domains,
   exact cases and edges`.
-- **N7.** An identity through an irrational step never certifies zero or
-  a rational: `sqrt(2)^2 - 2` is `≈ 0` within a bound, `turn` into `deg`
-  is `≈ 360`, `sin(pi() radian)` is `≈ 0`; such expressions run every
-  pass up to the ceiling (cost), and dividing by such a value is refused
-  ("cannot be told from zero").
+- **N7.** As the numeric model stands, an identity through an irrational
+  step never certifies zero or a rational: `sqrt(2)^2 - 2` is `≈ 0`
+  within a bound, `turn` into `deg` is `≈ 360`, `sin(pi() radian)` is
+  `≈ 0`; such expressions run every pass up to the ceiling (cost), and
+  dividing by such a value is refused ("cannot be told from zero"). This
+  is a consequence of the current representation and computation paths,
+  not a design goal: the user docs state it as today's behaviour, and
+  the intended remedy, if one comes, is a symbolic layer for a subset of
+  identities (§1.3; `devdocs/future.md#Symbolic values`).
   → `devdocs/numbers.md#Exact mode`, `#Exact operations` (`unresolved`),
   `#Working precision and the schedule`; `devdocs/cost.md#What the costs
-  come from`.
+  come from`; `devdocs/future.md#Symbolic values`.
 
 Precision, certification and display (exact mode)
 
 - **N8.** The display digits are how many digits of the answer must be
-  certain; the app recomputes at rising working precisions (the digits
-  asked for plus ten, doubling, up to a ceiling of four times the
-  precision limit plus ten) until the digits are certified; the cost of
-  all passes is at most about twice the last.
+  certified. The app evaluates at a working precision a little above
+  that (the digits asked for plus ten); if the digits cannot be
+  certified at that precision, it evaluates again at double the
+  precision, and so on, up to a ceiling of four times the precision
+  limit plus ten. The passes together cost at most about twice the last.
   → `devdocs/numbers.md#Working precision and the schedule`.
 - **N9.** `d` digits are certified when both ends of the ball round to
   the same `d`-digit value in the rounding mode (correctly rounded, not
@@ -70,16 +85,20 @@ Precision, certification and display (exact mode)
   (no operation produces one today), *exact* (`=`), *zero* ("within
   2e-30 of zero", the value written `0` whatever the sign), *certified*
   (every digit asked for, `≈`), *partial* ("8 of 12 digits are
-  certain"). An exact value with more digits than shown is `≈` with no
-  note (`1/3 ≈ 0.33333333`).
+  certain"). Under today's display policy an exact value with more
+  digits than shown is `≈` with no note (`1/3 ≈ 0.33333333`); that policy
+  is separable from the model and may change (§1.3). Whether *partial*
+  surfaces today, and for which inputs, is to be verified (§1.1.6); the
+  intended route to partially certified results is the two-argument
+  `approx`, not yet designed (#100).
   → `devdocs/numbers.md#Certification and the display rule`;
-  `devdocs/architecture.md#The converter and its lines › The relation and
+  `devdocs/architecture.md#The converter and its lines > The relation and
   the note`.
 - **N11.** The rounding mode (seven; half-even default) is applied once,
-  at the display, in exact mode, and at every step in decimal mode;
-  `round(x[, places])` is the one place it acts inside an expression.
-  Directed modes show the value on the side they name, so a ball
-  straddling a grid point under a directed mode certifies nothing
+  at the display, in exact mode, and at every observable step in decimal
+  mode (N17); `round(x[, places])` is the one place it acts inside an
+  expression. Directed modes show the value on the side they name, so a
+  ball straddling a grid point under a directed mode certifies nothing
   (`cosh(1e-999999999)`, `approx(1)` show `≈ 1` with no digit certain).
   → `devdocs/numbers.md#The types` (rounding.ts), `#Certification…`;
   `devdocs/builtins.md#The exact functions`, `#Huge and tiny arguments`.
@@ -88,6 +107,8 @@ Precision, certification and display (exact mode)
   count, exponents as `1e+21`; the power of ten is never formed, so any
   magnitude renders. Every line parses back as a `have` (copy text uses
   `*`, the screen `×`); one edge literal at the exponent bound does not.
+  This is today's behaviour; making the written form configurable is a
+  possible future setting (§1.3).
   → `devdocs/numbers.md#Formatting`; `devdocs/notation.md#Every literal
   parses back`; `devdocs/architecture.md#The converter and its lines`.
 - **N13.** Ratio notation (exact mode only): an exact whole number is
@@ -121,21 +142,28 @@ Comparison and equality
   → `devdocs/numbers.md#Exact operations`, `#The exponent bound`;
   `devdocs/builtins.md#The rules every built-in follows`, `#The exact
   functions`.
-- **N16.** There is no equality operator; equality surfaces only as `=`
-  on a line, as exact cases, in the inverse check ("certainly other than
-  the have" refutes), and in `<=`/`>=` chains.
+- **N16.** There is no equality operator today; equality surfaces only as
+  `=` on a line, as exact cases, in the inverse check ("certainly other
+  than the have" refutes), and in `<=`/`>=` chains. That is an incidental
+  limit, not a design goal: equality operators and conditional
+  expressions may be added (§1.3), and a design for them must say what
+  an undecidable comparison of inexact values yields.
   → `devdocs/functions.md#Conditions` ("no equality and no `!=`"), `#A
   function as the want` step 6.
 
 Decimal mode
 
 - **N17.** Decimal mode: every value is exact with at most `p` digits;
-  every observable step (`+ - * /`, juxtaposition, `^`, each literal,
-  each unit, each call as a whole, the pipeline's own quotients) is the
-  exact result rounded once to `p` digits in the mode; a literal with
-  more digits is rounded as read; a prefixed unit is one product rounded
-  once; `approx` is the identity; comparisons and conditions always
-  decide; dimensions keep exact rational exponents; every line is `=`.
+  every *observable step* is the exact result rounded once to `p` digits
+  in the mode. An observable step is the value of each subexpression in
+  the evaluation order: each `+ - * /`, juxtaposition, `^`, each literal,
+  each unit, and each built-in call as a whole, which certifies its
+  result from its exact arguments and rounds it once; a user-defined
+  function is not one step but its body's steps, as the expanded
+  expression would be. A literal with more digits is rounded as read; a
+  prefixed unit is one product rounded once; `approx` is the identity;
+  comparisons and conditions always decide; dimensions keep exact
+  rational exponents; every line is `=`.
   → `devdocs/numbers.md#Decimal mode`.
 - **N18.** A built-in call in decimal mode is certified: computed on
   finer grids up to the ceiling until its `p`-digit rounding is certain;
@@ -143,7 +171,7 @@ Decimal mode
   midpoint's rounding is shown flagged *uncertified* (`≈` with a dot,
   "a step could not be certified at the precision limit"), sticky
   through later steps. No shipped built-in is known to reach it.
-  → `devdocs/numbers.md#Decimal mode › The ceiling`.
+  → `devdocs/numbers.md#Decimal mode > The ceiling`.
 - **N19.** Working digits (decimal mode): with `w ≥ p`, every step but the
   last is rounded to `w`; the last step of each displayed value is
   rounded to `p` directly from the exact result of its operation. The
@@ -166,17 +194,23 @@ Size limits and refusals
   the message suggests `approx(…)` around the operand it names, or
   decimal mode; where it would not (a literal of too many digits,
   `factorial(20000)`, `2^1e-30000`, `sin` of a huge angle) it suggests
-  nothing. Inexact results are never refused for size. A dyadic
-  denominator is stored with fives (`2^-30000` costs 69,658 bits).
+  nothing. Inexact results are never refused for significand size, being
+  settled to the working precision; any result, exact or inexact, is
+  still held to the exponent bound (N22). A dyadic denominator is stored
+  with fives (`2^-30000` costs 69,658 bits). The pages describe one
+  refusal, `tooLarge`, carrying a `Need` and a `Reach`; per the owner's
+  review there are now classes of `tooLarge`, some of which the retry
+  loop retries, so the pages are stale here (§1.1.5) and the classes are
+  to be read from the code (§1.1.6).
   → `devdocs/numbers.md#The significand limit`, `#Which limit a refusal
   names`; `devdocs/builtins.md#The exact functions` (factorial prediction).
 - **N22.** Exponent bound: a value's decimal exponent must lie within
-  ±10^18 (not a setting). Passing it is "too large/too small to compute:
-  its exponent would pass 10^18 / fall below -10^18" (overflow /
-  underflow); a ball reaching across the edge is retried and, at the
-  ceiling, "cannot be told from the point where the result passes the
-  exponent bound". `exp(2.3e18)` is a value, `exp(2.31e18)` refused;
-  `exp(1e6) ≈ 3.0332154e+434294`.
+  ±10^18 (not a setting), whether the value is exact or inexact. Passing
+  it is "too large/too small to compute: its exponent would pass 10^18 /
+  fall below -10^18" (overflow / underflow); a ball reaching across the
+  edge is retried and, at the ceiling, "cannot be told from the point
+  where the result passes the exponent bound". `exp(2.3e18)` is a value,
+  `exp(2.31e18)` refused; `exp(1e6) ≈ 3.0332154e+434294`.
   → `devdocs/numbers.md#The exponent bound`, `#Why the exponent bound
   stays at 10^18`; `docs/functions.md#Very large results and approx`.
 - **N23.** `approx(x)`: the value known to the working precision and no
@@ -189,7 +223,7 @@ Size limits and refusals
 - **N24.** Which limit a refusal names: a sum, product, quotient or power
   past both limits is reported at the exponent bound; a hair from the
   bound, at the significand limit (`7^1e19` is overflow; `2.54^1e18` is
-  tooLarge).
+  `tooLarge`, of whichever class applies, N21).
   → `devdocs/numbers.md#Which limit a refusal names`.
 
 Cost (observable as latency)
@@ -310,7 +344,7 @@ a superseded design, and is not tagged (§12, question 27).
 
 | Where | Stale passage | Tag | What the rewrite keeps |
 | --- | --- | --- | --- |
-| `devdocs/numbers.md#The types › Scaled` | "A first design carried a binary exponent beside the decimal one…", and the division "measured, when the base was chosen, at 0.2 ms against 0.04 ms" | keep as intent | the ruled-out alternative, one exponent per base, rejected because the mixed base leaks into every operation that brings the two together; the cost of one base stated as its present cost |
+| `devdocs/numbers.md#The types > Scaled` | "A first design carried a binary exponent beside the decimal one…", and the division "measured, when the base was chosen, at 0.2 ms against 0.04 ms" | keep as intent | the ruled-out alternative, one exponent per base, rejected because the mixed base leaks into every operation that brings the two together; the cost of one base stated as its present cost |
 | `devdocs/numbers.md#Roots and powers` | "…which converted to zero and reported a false `unresolved`" | keep as intent | why the third case goes to log space: such a significand would convert to zero and report a false `unresolved` |
 | `devdocs/numbers.md#The kernel's boundary` | "(the hard bound alone was too small from a limit of about 350,000 bits up)" | keep as intent | why the door allows four times the hard bound: the hard bound alone does not hold a significand within the limit at a magnitude of `2^±significandLimitBits` once the limit passes about 350,000 bits |
 | `devdocs/numbers.md#Certification and the display rule` | "(A first version widened the midpoint taken to two digits beyond those asked…)" | drop | the distance rule stands on its own |
@@ -323,8 +357,9 @@ a superseded design, and is not tagged (§12, question 27).
 | `devdocs/builtins.md#The Gamma and Beta families` | "(growing the memo term by term had a cold ceiling pass recompute the run five times over)" | keep as intent | why a series reserves its count up front: a memo grown term by term would recompute the run several times in one cold pass |
 | `devdocs/builtins.md#Huge and tiny arguments` | "(`acos(1e-9860)` was refused at the default limit)" | drop | the reason `asin` and `acos` take their expansion earlier is already stated |
 | `devdocs/notation.md#The width` | "The first rule tied the fit to the display digits, each part fitting within them; that coupled a length to a precision…, hid exact values…, and could not be read off the settings." | keep as intent | the ruled-out alternative, a fit tied to the display digits, with those three reasons |
-| `devdocs/settings.md#The model › Rounding` | "the stored value of the earlier default, `halfAwayFromZero`, echoed by every save…, was migrated to `halfEven` once, with the control one tap away" | drop | the reason for half even is already stated; the migration row in `#Storage` carries the mechanism |
-| `devdocs/settings.md#Storage › 1 → 2` | "so that the mechanism was exercised end to end before a migration with a semantic change existed" | drop | what the migration reads and writes is mechanism; why it came first is not |
+| `devdocs/settings.md#The model > Rounding` | "the stored value of the earlier default, `halfAwayFromZero`, echoed by every save…, was migrated to `halfEven` once, with the control one tap away" | drop | the reason for half even is already stated; the migration row in `#Storage` carries the mechanism |
+| `devdocs/settings.md#Storage > 1 → 2` | "so that the mechanism was exercised end to end before a migration with a semantic change existed" | drop | what the migration reads and writes is mechanism; why it came first is not |
+| `devdocs/numbers.md#The significand limit`, `#Which limit a refusal names`, `#Working precision and the schedule` | `tooLarge` described as one refusal carrying a `Need` and a `Reach`, which the retry loop never retries | update | per the owner's review there are classes of `tooLarge`, some of which are retried: describe the classes and which are retried, from the code (§1.1.6) |
 
 #### 1.1.6 Claims that most need verification against the code
 
@@ -357,6 +392,13 @@ text is (quoted messages and constants are easy to get wrong):
 11. N24's "a hair from the bound is tooLarge" (`scaled.ts#powerRefusal`).
 12. N11 directed-mode behaviour for exact values with more digits than
     shown (`39.3700787401` rounded down) (`display.ts`).
+13. N10's *partial* kind: whether any input today yields a line with
+    some digits certified and a note, or whether the kind is reachable
+    only through the undesigned two-argument `approx` (`display.ts`,
+    `pipeline.ts`, the tests of `display.ts`).
+14. N21's `tooLarge`: its classes, what each carries, and which the
+    retry loop retries, since the pages describe one refusal
+    (`rational.ts`, `scaled.ts`, `ball.ts`, `pipeline.ts`).
 
 #### 1.1.7 Source modules to check against
 
@@ -375,12 +417,15 @@ text is (quoted messages and constants are easy to get wrong):
 Dimensions and kinds
 
 - **Q1.** A quantity is a magnitude (a value as in §1.1) paired with a
-  dimension: an exponent vector over the primitives with rational
-  exponents, zero exponents absent. `m^(1/2)` is a dimension;
-  `(m^2)^(1/2)` is `m`; exponents stay exact in both modes.
-  → `devdocs/architecture.md#Quantities, dimensions and kinds`;
-  `devdocs/numbers.md#Decimal mode` ("Dimensions carry exact rational
-  powers").
+  dimension: an exponent vector over the primitives whose exponents are
+  rational numbers, zero exponents absent. The exponents are rational by
+  design, so that dimensions stay exact: `m^(1/2)` is a dimension,
+  `(m^2)^(1/2)` is `m`, an irrational exponent is not representable, and
+  that is why `^` takes only a literal rational exponent (C63); the
+  exponents stay exact in both modes.
+  → `devdocs/architecture.md#Quantities, dimensions and kinds`,
+  `#Expressions` (the `^` exponent); `devdocs/numbers.md#Decimal mode`
+  ("Dimensions carry exact rational powers").
 - **Q2.** Primitives are declared by the definitions file in two roles:
   dimension primitives (`m`, `kg`, `s`, …; body `!`) and kind primitives
   (`radian`; body `!kind`), dimensionless markers that ride in the same
@@ -398,7 +443,7 @@ Dimensions and kinds
   `1 m + 0` and `sin(0)` are mismatches; `1 rad + 1` is a kind mismatch;
   `rad/s` does not convert to `Hz`, while `rpm` converts to `rad/s`.
   → `devdocs/architecture.md#Quantities…`; `devdocs/builtins.md#Dimension
-  rules › Angles`.
+  rules > Angles`.
 - **Q5.** A quantity carries no unit of its own: its magnitude is held in
   the primitives, so `100 lb` and `45.359237 kg` are one value and
   nothing remembers which was typed. Consequences: an annotation checks
@@ -406,7 +451,7 @@ Dimensions and kinds
   the integer functions take plain numbers (`floor(3.7 ft)` would floor
   the metres); `abs`, `sign`, `div`, `mod`, `approx` take quantities.
   → `devdocs/functions.md#Annotations`; `devdocs/builtins.md#Dimension
-  rules › floor and its kin`.
+  rules > floor and its kin`.
 - **Q6.** Arithmetic: juxtaposition and `*` multiply dimensions, `/`
   divides, `^` raises by its literal rational exponent, `+`/`-` require
   conformance and keep the shared dimension, negation touches the
@@ -450,7 +495,7 @@ Units and names
   the node that names it; in decimal mode a unit is rounded once to `p`
   digits (`surveyfoot` at eight digits is `0.30480061 m`).
   → `devdocs/numbers.md#Working precision and the schedule`, `#Decimal
-  mode › A unit`.
+  mode > A unit`.
 - **Q12.** Temperature: `degC`, `degF`, `degR` are differences (`1 degC`
   is `1 K`); a reading is a call of `tempC`/`tempF`, whose inverses let
   the function be the `want`; there are no affine units. Logarithmic
@@ -473,7 +518,7 @@ Conversion and the answer
   decided from its own value; none for a unit list, a blank `want`, a
   function `want`, a zero or an unresolvable value. It is computed once
   at the user's context, outside the retry loop (#92).
-  → `devdocs/architecture.md#The converter and its lines › The reciprocal`.
+  → `devdocs/architecture.md#The converter and its lines > The reciprocal`.
 - **Q15.** Unit lists (`ft;in`, or a defined list's name): a sum largest
   first, every unit but the last an integer count (truncated toward
   zero, so terms carry `have`'s sign), the last the remainder; a count
@@ -485,7 +530,7 @@ Conversion and the answer
   decrease along the list (by midpoint); they need not be multiples
   (`mi;km`) and may carry magnitudes (`ft;in/8`). A list is an output
   form only; its name is not a unit anywhere else.
-  → `devdocs/architecture.md#Unit lists`, `#The converter and its lines ›
+  → `devdocs/architecture.md#Unit lists`, `#The converter and its lines >
   A unit list`; `docs/definitions.md#Unit lists`.
 - **Q16.** A function as the `want` (third output mode): needs an
   inverse; the `have` must conform to the result and meet the inverse's
@@ -554,7 +599,7 @@ table; decimal mode rounds each unit once (Q11).
   want`.
 - `0 s` as the `want` for a length is a mismatch, not "zero want";
   `0 ft = 0 in` has no reciprocal line. `devdocs/architecture.md#Conversion`,
-  `#The converter and its lines › The reciprocal`.
+  `#The converter and its lines > The reciprocal`.
 - `1e999999999 m` into `ft;in` counts by the settled midpoint;
   `3^32767 m` into `ft/7^21845;in/7^21845` is tooLarge.
   `devdocs/architecture.md#Unit lists`.
@@ -589,8 +634,9 @@ Tags as in §1.1.5.
 | `devdocs/architecture.md#Parsing` | "(The call rule broke it once: a call and a name began alike…, so a nested call with an error in it cost `2^k`… A cut combinator… was set aside for the fix: …)" | keep as intent | why the lookahead includes the name's own characters, and the ruled-out alternative, a cut combinator, rejected because a committed failure skips every enclosing `alt`, `optional` and `many`, so a misplaced cut changes the meaning of valid input |
 | `devdocs/architecture.md#Pipeline` | the diagram's `format ──▶ string`, where the text names `show`, `roundTerms` and `outcomeOf` | update | name the function the pipeline ends in (verify in V2) |
 | `devdocs/functions.md#Build-time checks` | "(The first version of the check evaluated each body at one of the declared unit, which the elementary functions made untenable.)" | drop | the sentence before it already gives the reason in the present tense |
-| `devdocs/functions.md#Alternatives considered › The syntax` | "The first form, `tempC(x) [1;K] x K + 273.15 K ; tempC / K - 273.15`, declared… and took one argument. Extending it in place… the first form's use of the function's own name…" | keep as intent | the ruled-out alternatives, a bracketed head, keyword clauses and a multi-line block, each with the reason it loses, written as alternatives rather than as a first form |
+| `devdocs/functions.md#Alternatives considered > The syntax` | "The first form, `tempC(x) [1;K] x K + 273.15 K ; tempC / K - 273.15`, declared… and took one argument. Extending it in place… the first form's use of the function's own name…" | keep as intent | the ruled-out alternatives, a bracketed head, keyword clauses and a multi-line block, each with the reason it loses, written as alternatives rather than as a first form |
 | `devdocs/functions.md#Annotations` | "No message is worded for a definitions rejection today, since definitions cannot be typed (#132); the wording meant for this one is …" | update | state the current fact, that definitions cannot be typed so no rejection is worded, with the issue; the intended wording belongs to the issue |
+| `devdocs/functions.md#Conditions` | "There is no equality and no `!=`. `=` always ends the head, and equality of an inexact argument can never be decided on a ball, so an equality condition would be undecided for every inexact argument." | update | not provided today, not ruled out: equality operators and conditional expressions may come (§1.3); keep the constraint that equality of inexact values is undecidable on balls, which any such design must answer |
 
 #### 1.2.6 Claims that most need verification against the code
 
@@ -628,3 +674,35 @@ Tags as in §1.1.5.
 `pipeline.ts` (reading the `want`), `src/outcome.ts`, `src/core/print.ts`,
 `src/units.txt`, `src/units.test.ts`, `src/system-build.ts`,
 `src/system-table.ts`, `src/core/builtin.ts` (dimension-rule helpers).
+
+### 1.3 Design intents stated in review, to record
+
+Intents the owner stated while reviewing this plan that no page records
+yet. Each is a possible future direction, not part of the model today;
+the audit units record them in `devdocs/future.md` ("Extensions that
+fit") beside the concept they touch, as intent and not as a plan, and
+the user docs state today's behaviour without promising them.
+
+- **A symbolic layer for a subset of identities,** so that cases like
+  `sqrt(2)/sqrt(2)` and `turn` into `deg` can certify exactly (N5, N7).
+  `devdocs/future.md#Symbolic values` already describes the extension;
+  the user docs state today's behaviour as a limitation, not a goal.
+- **Partially certified results through a two-argument `approx`,** whose
+  second argument gives a precision, a radius or similar; undesigned
+  (#100; N10, N23).
+- **Equality operators and conditional expressions** in the expression
+  language; their absence is incidental (N16).
+- **Configurable number formatting;** today's `%g`-like form is the
+  behaviour, not a commitment (N12).
+- **Display policy separable from the model:** what `=` means is the
+  value's exactness (N2); how many digits a line shows, and how an
+  exact value with more digits than shown is written, may change (N10).
+- **A grammar generated from a TypeScript DSL** and its paired data
+  structures, so that the references carry an EBNF-style grammar
+  produced from the code (§2.1.3, §2.2.3).
+- **A built-in function reference generated from structured comments
+  beside each implementation** (§4).
+- **Function classes not in the initial design** (hypergeometric,
+  Bessel `Y` and `K`, polygamma beyond `digamma`, complex `gamma`,
+  statistical distributions as built-ins) are deferred, not ruled out
+  indefinitely (§4.2, §9.4).

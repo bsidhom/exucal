@@ -20,9 +20,9 @@ alignment`, `#Exact mode`; `docs/settings.md#How a number is held…`.
 N9–N13, N24's display part. *Sections:* `devdocs/numbers.md#Certification
 and the display rule`, `#Formatting`; `devdocs/notation.md#The rule`, `#Where
 a ratio is written`, `#Every literal parses back`, `#Not in decimal mode`;
-`devdocs/architecture.md#The converter and its lines › The relation and the
-note`, `› A unit list`; `docs/settings.md#(top)` (the two tail paragraphs),
-`#(top) › Notation`, `› Rounding`. *Modules:* `src/core/display.ts`,
+`devdocs/architecture.md#The converter and its lines > The relation and the
+note`, `> A unit list`; `docs/settings.md#(top)` (the two tail paragraphs),
+`#(top) > Notation`, `> Rounding`. *Modules:* `src/core/display.ts`,
 `ball.ts` (`certifies`, `certifiedDigits`), `scaled.ts` (`format`,
 `roundTo`), `rounding.ts`, `src/outcome.ts`, `src/unit-converter.ts` (the
 `≈̇` glyph). *Context:* §1.1.1, §1.1.6 items 1, 7, 12.
@@ -30,14 +30,13 @@ note`, `› A unit list`; `docs/settings.md#(top)` (the two tail paragraphs),
 **A3. The retry schedule, settling and the ceiling.** Claims N7, N8,
 N25's schedule part, Q11. *Sections:* `devdocs/numbers.md#Working precision
 and the schedule`, `#Settling`, `#Memoized constants` (cost claims only);
-`docs/settings.md#(top) › Precision limit`, `› Display digits`. *Modules:*
+`docs/settings.md#(top) > Precision limit`, `> Display digits`. *Modules:*
 `src/core/pipeline.ts`, `context.ts`, `ball.ts` (`step`, `settle`),
 `quantity.ts` (`stepQuantity`), `src/system-build.ts`, `src/core/constants.ts`
 (memo sizing only). *Context:* §1.1.1, §1.1.6 item 4.
 
 **A4. Decimal mode and the working digits.** Claims N17–N20. *Sections:*
-`devdocs/numbers.md#Decimal mode`, `#The working digits`; `docs/settings.md#(top)
-› Mode`, `› Working digits`. *Modules:* `src/core/context.ts`
+`devdocs/numbers.md#Decimal mode`, `#The working digits`; `docs/settings.md#(top) > Mode`, `> Working digits`. *Modules:* `src/core/context.ts`
 (`operandContext`, `checkContext`), `ball.ts` (`decimalSumApart`,
 `uncertified`, `carrying`), `evaluate.ts` (literal, unit, call nodes),
 `builtin.ts` (`decimal: "identity"`), `pipeline.ts` (schedule in decimal
@@ -47,7 +46,7 @@ mode), `display.ts` (uncertified), `src/outcome.ts` (last steps).
 **A5. Size limits, refusals and `approx`.** Claims N21–N24, N3's `approx`
 part. *Sections:* `devdocs/numbers.md#The significand limit`, `#The exponent
 bound`, `#Which limit a refusal names`, `#approx`, `#Failures`;
-`docs/functions.md#Very large results and approx`; `docs/settings.md#(top) ›
+`docs/functions.md#Very large results and approx`; `docs/settings.md#(top) >
 Significand limit`. *Modules:* `src/core/rational.ts` (`tooLarge`,
 `Need`, `Reach`, `*Within`), `scaled.ts` (`overflow`, `underflow`,
 `BOUND_BAND`, `powerRefusal`), `ball.ts` (the classifier, `powBall`,
@@ -101,8 +100,9 @@ table at the ceiling); `devdocs/builtins.md#Names`. *Modules:*
 parts: rejections, error positions), `#Evaluation`. *Modules:*
 `src/core/expr.ts` (`LEVELS`, `BINARY`, the grammar), `parser.ts`,
 `print.ts`, `evaluate.ts`, `src/messages.ts` (parse wording),
-`src/testing/expr.ts`. *Output:* the EBNF and precedence table, the
-want-field grammar, the pitfalls list, the open questions on `×`, `#`,
+`src/testing/expr.ts`. *Output:* the precedence table and the prose verified against
+`expr.ts` and the property test (no hand-written EBNF: the grammar is
+generated later, §2.1.3), the want-field grammar, the pitfalls list, the open questions on `×`, `#`,
 `≤`/`≥` in the fields. *Context:* A1 (literal limits), A5, A7, §2.1.
 
 **D2. Definition language.** *Sections:* `docs/definitions.md#The format`,
@@ -112,8 +112,9 @@ checks`; `devdocs/architecture.md#Definitions`. *Modules:*
 `src/core/definitions.ts`, `build.ts`, `dimension-of.ts`, `table.ts`
 (`UnitFunction`, `arityOf`), `src/units.test.ts`, `src/messages.ts`
 (function and want messages), `src/core/definitions.test.ts` (the
-property test's rejected pieces, as a checklist). *Output:* the line
-grammar, the build-error table, the exactness/dimension interaction
+property test's rejected pieces, as a checklist). *Output:* the line grammar's facts verified against
+`definitions.ts` (the head-grammar block in `devdocs/functions.md#Definitions`
+stays hand-maintained until generated, §2.2.3), the build-error table, the exactness/dimension interaction
 list. *Context:* A6, A7, A9, §2.2.
 
 **D3. The system units catalogue.** *Sections:* `docs/definitions.md#What
@@ -145,7 +146,7 @@ built-in follows`, `#Huge and tiny arguments`, `#Dimension rules`,
 exact cases only, not the algorithms). *Modules:* `src/core/builtins.ts`,
 `builtin.ts`, `builtins/{pi,exp,log,roots,pow,trig,inverse-trig,hyperbolic}.ts`
 (signatures, dimension rules, exact cases, domain reasons; not the
-kernels). *Output:* entries in the §4.1 template. *Context:* A2, A5, A6,
+kernels). *Output:* the family-level rules and the dimension-rule table verified, stale passages tagged; no per-function entries (§4.4). *Context:* A2, A5, A6,
 A7 (angles), §4.
 
 **D6. Built-ins: `approx`, magnitude, rounding, division and integers.**
@@ -155,7 +156,7 @@ A7 (angles), §4.
 functions`; `devdocs/numbers.md#approx`. *Modules:*
 `builtins/{approx,abs,round,division,integers}.ts`,
 `builtins/exact.test.ts` (as a checklist of exact behaviour in every
-mode). *Output:* entries. *Context:* A4 (decimal mode), A5, A6, §4.
+mode). *Output:* the family-level rules verified, stale passages tagged; no per-function entries (§4.4). *Context:* A4 (decimal mode), A5, A6, §4.
 
 **D7. Built-ins: Gamma, Beta, incomplete and error functions.**
 `digamma`, `gamma`, `lgamma`, `beta`, `lowergamma`, `uppergamma`,
@@ -164,8 +165,9 @@ mode). *Output:* entries. *Context:* A4 (decimal mode), A5, A6, §4.
 Gamma and Beta families`, `#Not in this design`; `devdocs/cost.md#What the
 costs come from` (for the qualitative cost notes only). *Modules:*
 `builtins/{gamma,beta,incomplete,erf,incbeta}.ts` (signatures, exact
-cases, domains, refusals; not `fixed-*.ts`). *Output:* entries; the
-decision on cost sentences (§12, question 9). *Context:* A5, §4.
+cases, domains, refusals; not `fixed-*.ts`). *Output:* the family-level rules verified, stale passages tagged, no
+per-function entries (§4.4); the decision on cost sentences (§12,
+question 9). *Context:* A5, §4.
 
 **D8. Existing foundation-level content in docs/ to dissolve.**
 *Sections:* `docs/functions.md#Very large results and approx`;

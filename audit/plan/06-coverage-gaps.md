@@ -7,7 +7,7 @@
 What exists is scattered and partly at the wrong level:
 `docs/settings.md#How a number is held, and what the settings touch`
 (representation-level: grids, significands, bits),
-`docs/settings.md#(top) › Mode` (the two modes, compressed into one
+`docs/settings.md#(top) > Mode` (the two modes, compressed into one
 bullet), `docs/settings.md#(top)` (two paragraphs on notes and the
 relation), `docs/functions.md#(top)` (the paragraph "Every built-in takes
 plain numbers…": exact cases, domains, refusals), `docs/functions.md#Very
@@ -16,14 +16,14 @@ large results and approx` (the exponent bound, with the pass table).
 Missing or thin, with the devdocs passages to derive from:
 
 - Exact and inexact values, their sources, what `=` means: derive from
-  `devdocs/numbers.md#Exact mode`, `#The types › Ball` (the claim only).
+  `devdocs/numbers.md#Exact mode`, `#The types > Ball` (the claim only).
 - Which operations are exact and that exact values are never rounded;
   sums that cannot align are refused: `#Exact operations`, `#Sums and
   alignment`, `#Exact mode`.
 - Digits you can trust: certification stated as a user rule, the retry
   up to a ceiling, notes and the uncertified mark: `#Certification and the
   display rule`, `#Working precision and the schedule` (first and last
-  paragraphs), `#Decimal mode › The ceiling`.
+  paragraphs), `#Decimal mode > The ceiling`.
 - Comparison and equality: exact compare exactly; inexact at a bound is
   undecided; where that surfaces (conditions, division, rounding
   functions, lists, inverses): `#Comparison`; `devdocs/functions.md#The
@@ -56,7 +56,7 @@ Missing or thin, with the devdocs passages to derive from:
 ### 6.2 Foundation: the quantity — missing as a page
 
 What exists: pieces of `docs/definitions.md#The format` (primitives and
-kinds), `#Expressions › + and -` (conformance by example), `#Names`,
+kinds), `#Expressions > + and -` (conformance by example), `#Names`,
 `#Unit lists`, `#Functions` (annotations). Nothing states the model.
 
 Missing, with sources:
@@ -68,8 +68,8 @@ Missing, with sources:
   mismatches; no special zero: `devdocs/architecture.md#Quantities…`.
 - "A quantity carries no unit of its own" and its consequences (floor,
   annotations): `devdocs/functions.md#Annotations`; `devdocs/builtins.md#Dimension
-  rules › floor and its kin`.
-- Angles as the kind users meet: `devdocs/builtins.md#Dimension rules ›
+  rules > floor and its kin`.
+- Angles as the kind users meet: `devdocs/builtins.md#Dimension rules >
   Angles`.
 - How a conversion is answered: the ratio, a want with a magnitude, the
   blank want, the reciprocal line and when there is none, lines that
@@ -97,7 +97,7 @@ but sit under "Unit definitions". Missing:
   magnitude, a call as a want: `devdocs/architecture.md#Pipeline`, `#Unit
   lists`, `#Functions`.
 - Literal limits at parse (hard bound, exponent bound) and at evaluation
-  (significand limit): `devdocs/architecture.md#Parsing › Rejection is final`;
+  (significand limit): `devdocs/architecture.md#Parsing > Rejection is final`;
   `devdocs/numbers.md#The significand limit`.
 - Name resolution order in full (exact unit, prefix + unit; parameter
   before unit; function before built-in; no prefixes on functions):
@@ -149,7 +149,7 @@ mechanics, the model, and representation. Missing or to restructure:
   it, effect in each mode: `devdocs/settings.md#The model`, `#Applying a
   change` (`rangesOf`).
 - The clamp chain and refusals as a short table: `devdocs/settings.md#The
-  model › The chain`, `#Applying a change`.
+  model > The chain`, `#Applying a change`.
 - "Measure this device" as a procedure (what it times, what it proposes,
   Apply): `devdocs/settings.md#The probe`.
 - The ratio width and the extended working digits as entries of their
@@ -161,14 +161,14 @@ mechanics, the model, and representation. Missing or to restructure:
 ### 6.6 Built-in function reference — a prose list, not a reference
 
 `docs/functions.md#(top)` covers every family in bullets. Missing per
-entry (template in §4.1): signature and argument order; dimension
+entry (the fields of §4.1, to be supplied by the generated reference, not by hand): signature and argument order; dimension
 requirements and result; exact cases; domain wording; edges; decimal
 mode; related settings. Specific gaps, with sources in
 `devdocs/builtins.md`:
 
 - `pow`: `pow(1, y)`, `pow(0, y)`, `pow(-1, y)` parity, `pow(0, 0)`, the
-  log-space route: `#Domains… › pow, and ^ with it`.
-- `log`: the exact cases both ways, `b` checked first: `#Domains… › log's
+  log-space route: `#Domains… > pow, and ^ with it`.
+- `log`: the exact cases both ways, `b` checked first: `#Domains… > log's
   exact cases`.
 - `atan2`: quadrant rules, `y` exactly zero, the origin: `#Domains…`,
   `#Huge and tiny arguments`.
@@ -189,7 +189,7 @@ mode; related settings. Specific gaps, with sources in
   the `tooLarge` regime, `erfc` thresholds, `incbetareg`'s polynomial
   case: `#The Gamma and Beta families`.
 - Decimal-mode behaviour of each family (one step, exact cases rounded):
-  `devdocs/numbers.md#Decimal mode › A built-in's call`.
+  `devdocs/numbers.md#Decimal mode > A built-in's call`.
 - `docs/functions.md#Very large results and approx` belongs to the numeric
   foundation (C21) and duplicates `devdocs/numbers.md#Why the exponent bound
   stays at 10^18`.
@@ -205,8 +205,8 @@ what `=`/`≈` and a note mean, each linking to the owning page.
 
 ### 6.8 Existing pages that must link to the foundation pages
 
-- `docs/definitions.md`: `#Expressions › + and -` (conformance →
-  `quantities.md`); `› Numbers` (exactness → `numbers.md`); `#Unit lists`
+- `docs/definitions.md`: `#Expressions > + and -` (conformance →
+  `quantities.md`); `> Numbers` (exactness → `numbers.md`); `#Unit lists`
   (rounding of the remainder, `=` on a list → `numbers.md`,
   `quantities.md`); `#Functions` (conditions on inexact values, calls not
   memoized, the dependency problem, decimal mode → `numbers.md`;

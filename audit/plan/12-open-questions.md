@@ -23,17 +23,19 @@ Each with a proposed answer, none decided.
    is a conversion", GNU units named once in getting started and in one
    "Differences from GNU units" appendix there; the eight-digit default
    keeps its "as GNU units shows" note in the settings reference.
+   The owner's review leans against grounding the docs on GNU units;
+   the answer is pending.
 3. **Where do the interface facts live?** The two fields, the lines, the
    copy button, the settings sheet's mechanics, installation, offline
    use and updates have no page in the target. *Proposed:* reading
    results goes into the foundation pages (it is semantics); the rest
    into one short `docs/app.md` guide page, or into getting started if
    it stays under a screen.
-4. **Should the system units catalogue be its own page?**
-   `docs/definitions.md#What the file contains` is a catalogue inside a
-   language reference. *Proposed:* yes, `docs/units.md`, checked
-   mechanically against `src/units.txt` (every unit, prefix, list and
-   function name present), with the language page linking to it.
+4. **Should the system units catalogue be its own page?** Settled in
+   review: yes, `docs/units.md`, as a friendly guide to what the file
+   holds, with `src/units.txt` the source of truth that the page may
+   defer to; checked against the file (every unit, prefix, list and
+   function name present) rather than duplicating it.
 5. **How much representation may the settings reference show?** The
    significand limit is in bits and the precision limit in digits, which
    cannot be explained without saying what a significand and a grid
@@ -95,11 +97,12 @@ Each with a proposed answer, none decided.
 16. **How to count the settings.** "Six settings" with two nested
     sub-settings. *Proposed:* the reference has one entry per control
     (eight), and says the two nested ones belong to a mode.
-17. **Generating part of the built-in reference.** *Proposed:* a script
-    that imports `BUILTINS` and emits name, arity and dimension rule as a
-    table, run in CI against the reference's headings; descriptions stay
-    hand-written; adding a description field to `Builtin` is a source
-    change to raise separately.
+17. **Generating part of the built-in reference.** Settled in review,
+    and inverted: the documentation of each built-in lives beside its
+    implementation as a structured comment, and a TypeScript tool
+    generates the whole reference from those comments; the design and
+    the implementation follow the docs refactor as a separate block of
+    work (§4). Nothing is hand-documented per function in the meantime.
 18. **Root `README.md` vs `docs/README.md`.** Identical intros.
     *Proposed:* the root README becomes three sentences and two links;
     `docs/README.md` is the user index.
@@ -159,3 +162,12 @@ Each with a proposed answer, none decided.
     style guide rather than restating it, since the rule binds every
     contributor. It should merge into `main` with the revamp: it is a
     standing rule for the pages, not an artifact of the audit.
+30. **The generated references: committed or built, one tool or two.**
+    For the built-in reference (§4) and the grammar (§2.1.3, §2.2.3): is
+    the generated page committed to `docs/` and checked in CI for being
+    up to date, or produced at build time only? *Proposed:* committed
+    and checked, since the docs are read on GitHub and the deploy ships
+    no docs. And should one tool carry both extractors, the structured
+    comments and the grammar DSL? *Proposed:* yes, one `docs` tool with
+    two extractors, designed when that block of work starts; the plan
+    only reserves the shape.

@@ -8,17 +8,17 @@
 
 | Construct | docs/ | devdocs/ |
 | --- | --- | --- |
-| Numbers: unsigned decimals with optional exponent, read exactly; sign only in the exponent | `docs/definitions.md#Expressions › Numbers` | `devdocs/architecture.md#Expressions` (literal read "as far as it goes"); `devdocs/numbers.md#(top)` |
-| Literal limits: significand past the hard bound (2^20 bits) or exponent past ±10^18 rejected at parse; past the significand limit refused at evaluation | — (only `docs/settings.md#(top) › Significand limit`: "a literal of more digits than the limit") | `devdocs/architecture.md#Parsing › Rejection is final`; `devdocs/numbers.md#The significand limit` |
+| Numbers: unsigned decimals with optional exponent, read exactly; sign only in the exponent | `docs/definitions.md#Expressions > Numbers` | `devdocs/architecture.md#Expressions` (literal read "as far as it goes"); `devdocs/numbers.md#(top)` |
+| Literal limits: significand past the hard bound (2^20 bits) or exponent past ±10^18 rejected at parse; past the significand limit refused at evaluation | — (only `docs/settings.md#(top) > Significand limit`: "a literal of more digits than the limit") | `devdocs/architecture.md#Parsing > Rejection is final`; `devdocs/numbers.md#The significand limit` |
 | Names: letter/underscore then letters, digits, underscores, any script; longest match; case-sensitive | `docs/definitions.md#Names` | `devdocs/architecture.md#Expressions` |
 | Name resolution: exact unit, else prefix + unit; parameter before unit in a body; call names exact; defined function before built-in | `docs/definitions.md#Names` | `devdocs/architecture.md#Definitions`, `#Evaluation`; `devdocs/functions.md#Names and shadowing`; `devdocs/builtins.md#(top)` |
-| Juxtaposition multiplies; a number only as the first factor | `docs/definitions.md#Expressions › Juxtaposition` | `devdocs/architecture.md#Expressions` |
-| `*` and `/`: one left-associative level below juxtaposition | `docs/definitions.md#Expressions › * and /` | `devdocs/architecture.md#Expressions` |
-| `+` and `-`: one left-associative level, loosest; operands must conform | `docs/definitions.md#Expressions › + and -` | `devdocs/architecture.md#Expressions`, `#Evaluation` |
-| Unary `-`: tighter than `*`/`/`, looser than juxtaposition and `^`; no stacking; no unary `+`; where a `-` belongs (`2e-3`, `m^-1`, `2 -3`, `2 * -3`) | `docs/definitions.md#Expressions › - before a product` | `devdocs/architecture.md#Expressions` |
-| `^` with a literal exponent (signed decimal or parenthesized rational), tightest; the exponent is reduced within the significand limit at evaluation | `docs/definitions.md#Expressions › ^` | `devdocs/architecture.md#Expressions`, `#Evaluation` (`reduceExponent`); `devdocs/numbers.md#Roots and powers` |
-| Parentheses | `docs/definitions.md#Expressions › Parentheses` | `devdocs/architecture.md#Expressions` |
-| Calls: name immediately followed by `(`, comma-separated arguments; lexical rule (space → product); arity checked before arguments; an atom | `docs/definitions.md#Expressions › A call`, `#Functions` | `devdocs/architecture.md#Expressions`; `devdocs/functions.md#Calls`; `devdocs/builtins.md#Arity` |
+| Juxtaposition multiplies; a number only as the first factor | `docs/definitions.md#Expressions > Juxtaposition` | `devdocs/architecture.md#Expressions` |
+| `*` and `/`: one left-associative level below juxtaposition | `docs/definitions.md#Expressions > * and /` | `devdocs/architecture.md#Expressions` |
+| `+` and `-`: one left-associative level, loosest; operands must conform | `docs/definitions.md#Expressions > + and -` | `devdocs/architecture.md#Expressions`, `#Evaluation` |
+| Unary `-`: tighter than `*`/`/`, looser than juxtaposition and `^`; no stacking; no unary `+`; where a `-` belongs (`2e-3`, `m^-1`, `2 -3`, `2 * -3`) | `docs/definitions.md#Expressions > - before a product` | `devdocs/architecture.md#Expressions` |
+| `^` with a literal exponent (signed decimal or parenthesized rational), tightest; the exponent is reduced within the significand limit at evaluation | `docs/definitions.md#Expressions > ^` | `devdocs/architecture.md#Expressions`, `#Evaluation` (`reduceExponent`); `devdocs/numbers.md#Roots and powers` |
+| Parentheses | `docs/definitions.md#Expressions > Parentheses` | `devdocs/architecture.md#Expressions` |
+| Calls: name immediately followed by `(`, comma-separated arguments; lexical rule (space → product); arity checked before arguments; an atom | `docs/definitions.md#Expressions > A call`, `#Functions` | `devdocs/architecture.md#Expressions`; `devdocs/functions.md#Calls`; `devdocs/builtins.md#Arity` |
 | Unit lists `a;b;c` in the `want` only; `;` not an expression, never inside parentheses | `docs/definitions.md#Unit lists` | `devdocs/architecture.md#Expressions`, `#Unit lists` |
 | Whitespace: spaces and tabs, no newline | — | `devdocs/architecture.md#Expressions` |
 | Evaluation order: left to right, first failure ends; error located at the operand or the whole operation | — | `devdocs/architecture.md#Evaluation` |
@@ -52,7 +52,7 @@
 - **Error location.** Spans on every node; the input at fault marked →
   `devdocs/architecture.md#Expressions`, `#Evaluation`, `#Messages`.
 
-#### 2.1.3 Formal grammar: does one exist, and what form for the reference
+#### 2.1.3 Formal grammar: does one exist, and how the reference documents it
 
 - No grammar file exists in the tree (no `.peg`, `.ebnf`, `.y` or
   similar; see §11). The grammar lives as code: the levels and binary
@@ -65,15 +65,24 @@
   `docs/definitions.md#Expressions` (the same rules by example). No
   EBNF for expressions appears anywhere; `devdocs/functions.md#Definitions`
   has an EBNF-style block for function and inverse lines only.
-- **Proposed form:** both. A short formal grammar (EBNF, about fifteen
-  productions: list, expr, sum, product, juxtaposition, unary, power,
-  atom, call, number, name, exponent) at the head of the expression
-  reference, derived from `expr.ts` in audit unit D1 and checked against
-  the property test in `src/testing/expr.ts`; then a precedence table;
-  then prose semantics per construct with examples and the pitfalls. The
-  grammar is small enough that the formal form is the clearer owner of
-  the binding rules, and the prose owns meaning (exactness, dimensions,
-  resolution).
+- **The intended end state** (owner's decision in review): the grammar
+  is written once, as a TypeScript DSL with paired data structures that
+  the parser and the printer are built from, and a tool generates a
+  readable EBNF-style grammar from it for the references. `LEVELS` and
+  `BINARY` are the seed of that DSL. It is a large work item of its own,
+  with no new dependency, and follows the docs audit and refactor (§4.4
+  lists the generated-docs work items together).
+- **In the interim**, the recommendation is to document the grammar in
+  prose with a precedence table and worked examples, and to write no
+  hand-maintained EBNF for the expression language: the prose and the
+  table are needed whatever the generator produces, so nothing is
+  thrown away, while a hand-written EBNF would be replaced wholesale and
+  would be a second source of truth to keep in step until then. Audit
+  unit D1 still reads `expr.ts` to verify the prose and the table
+  against the code and the property test. The alternatives: a
+  hand-written EBNF now (about fifteen productions, an hour's work, and
+  that second source of truth), or nothing beyond today's prose, with
+  no precedence table.
 
 #### 2.1.4 Source modules to check against
 
@@ -109,7 +118,7 @@
   bodies are evaluated once, at the ceiling, in exact mode (Q11); a
   function's body is evaluated afresh at every pass, so a function of no
   parameters names a computed constant without fixing it in the table →
-  `devdocs/functions.md#Definitions › A function has any number of
+  `devdocs/functions.md#Definitions > A function has any number of
   parameters`; `approx` in a body defines a measured constant →
   `devdocs/numbers.md#approx`.
 - **Dimensions.** Primitives and kinds come from the file (Q2); a prefix
@@ -134,7 +143,7 @@
   step of a body → `devdocs/functions.md#Precision, the radius and cost`
   (triplicated; see §9).
 
-#### 2.2.3 Formal grammar: does one exist, and what form for the reference
+#### 2.2.3 Formal grammar: does one exist, and how the reference documents it
 
 - A grammar block exists for the function and inverse heads only
   (`devdocs/functions.md#Definitions`). The line-level grammar (primitive,
@@ -142,16 +151,19 @@
   `docs/definitions.md#The format` and `devdocs/architecture.md#Definitions`.
   The parser is `src/core/definitions.ts` (combinators over the same
   toolkit); no grammar file.
-- **Proposed form:** both. One EBNF for the whole line grammar (about
-  twelve productions: file, line, comment, primitive, prefix, unit, list,
-  function, inverse, params, annotation, conditions, with `expr` imported
-  from the expression reference), followed by prose per definition kind,
-  the name rules (shared with the expression reference by link), the
-  build-time checks as a table of error → cause → fix, and the
-  function/inverse semantics (annotations, conditions, exactness and
-  cost). The formal part should be extracted in audit unit D2 from
-  `definitions.ts` and checked against the seeded property test
-  described in `devdocs/testing.md#The random source`.
+- **End state:** the same generated grammar as §2.1.3, with the
+  definition language's productions in the same DSL, so that one tool
+  emits both references' grammars.
+- **In the interim:** the definition language reference documents each
+  definition kind in prose by example, as `docs/definitions.md#The
+  format` does, with the name rules shared with the expression reference
+  by link, the build-time checks as a table of error, cause and fix, and
+  the function and inverse semantics. The existing hand-written block
+  for function heads stays where it is, in `devdocs/functions.md`,
+  marked as hand-maintained until generated; it is not extended to the
+  other kinds. Audit unit D2 reads `definitions.ts` to verify the prose
+  and that block against the seeded property test described in
+  `devdocs/testing.md#The random source`.
 
 #### 2.2.4 Source modules to check against
 

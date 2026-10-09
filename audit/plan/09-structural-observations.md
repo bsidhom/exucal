@@ -13,7 +13,7 @@
   scratch-build measurements.
 - **The representation.** `docs/settings.md#How a number is held…`
   restates `devdocs/numbers.md#The types` (fraction, power of ten, radius,
-  grid), `devdocs/settings.md#The model › The terms` and `› The two limits
+  grid), `devdocs/settings.md#The model > The terms` and `> The two limits
   meet in the grid` (the 2,453 derivation, "a grid point is itself a
   significand"), and `devdocs/numbers.md#The significand limit` (the dyadic
   `2^-30000` cost, `3^-100000`).
@@ -26,7 +26,7 @@
   latter saying the former "describes it from the user's side" and then
   restating it.
 - **Unit-list rounding and zero terms.** `docs/definitions.md#Unit lists`,
-  `devdocs/architecture.md#Unit lists`, `#The converter and its lines › A
+  `devdocs/architecture.md#Unit lists`, `#The converter and its lines > A
   unit list`.
 - **Conditions' three-valued check and "why conditions differ from the
   built-ins' edges".** `docs/definitions.md#Functions` and
@@ -35,8 +35,8 @@
   `devdocs/settings.md#The sheet`, `#The controls` (heights, Done/Escape,
   steppers, the three groups, the "default …" link).
 - **The update check.** `docs/settings.md#(top)` ("Tapping the build
-  number…") and `devdocs/offline.md#Offline behavior › Update checks`,
-  `› The worker's status`.
+  number…") and `devdocs/offline.md#Offline behavior > Update checks`,
+  `> The worker's status`.
 - **The intro.** Root `README.md#(top)` and `docs/README.md#(top)` are the
   same two paragraphs.
 - **Gamma-family cost figures.** `docs/functions.md#(top)` (gamma bullet:
@@ -48,7 +48,7 @@
   and `#Functions` (twice within docs), `devdocs/architecture.md#Expressions`,
   `devdocs/functions.md#Calls`.
 - **Angle rules.** `docs/functions.md#(top)` bullets 4–5 and
-  `devdocs/builtins.md#Dimension rules › Angles` (the latter adds the
+  `devdocs/builtins.md#Dimension rules > Angles` (the latter adds the
   rationale, which is right; the rules themselves are stated twice).
 
 ### 9.2 Links against the ownership direction
@@ -107,7 +107,7 @@ design, an interim state, or a count a tool regenerates, tagged as in
 | --- | --- | --- | --- |
 | `docs/definitions.md#(top)` | "This section describes that file" | update | the page is no longer a README section |
 | `docs/functions.md#(top)` | "Beside the functions the file defines", with "the file" undefined on the page | update | name the definitions file |
-| `docs/settings.md#(top) › Probe budget` and "The limits are set top-down" | the probe "times the costliest exact product and the costliest built-ins" | update | the composite is the four elementary routines, deliberately not the costlier special functions (`devdocs/settings.md#The probe`) |
+| `docs/settings.md#(top) > Probe budget` and "The limits are set top-down" | the probe "times the costliest exact product and the costliest built-ins" | update | the composite is the four elementary routines, deliberately not the costlier special functions (`devdocs/settings.md#The probe`) |
 | `docs/settings.md#(top)` | "There are six settings", against eight controls | update | one entry per control, the two nested ones under their mode |
 | `docs/functions.md#(top)` (gamma bullet) | "computed once per page load for each precision asked for beyond the last and kept" | update | the current rule stated once, in devdocs (a larger run replaces a smaller one); the docs keep a qualitative cost sentence |
 | `devdocs/cost.md#What the costs come from`, `#What the search has not reached` | "Typing out the 229 entries … 16,548 keystrokes"; "what four runs found, 714 cases in all" | update | counts the tool regenerates do not belong in hand-revised prose: drop them, or have the tool write them |
@@ -118,3 +118,4 @@ design, an interim state, or a count a tool regenerates, tagged as in
 | `devdocs/testing.md#Type-checking` | "the kernel's modules once formed an initialization cycle through `fixed.ts`, `ball.ts` and `context.ts` that only such imports kept alive, so that a module's top level ran before its constants existed…" | keep as intent | why every type-only import is `import type`: an `import { type X }` still loads its module, so an initialization cycle among the kernel's modules would run a module's top level before its constants exist |
 | `devdocs/benchmarks.md#What each benchmark asserts` | "(it costs about the same; before the index it cost fifty times as much)" | keep as intent | what the benchmark guards: without the index the check costs fifty times as much |
 | `devdocs/development.md#Commands` | "(The one place the flag is still written out is the cloud session hook, so that the hook reads as what it does.)" | update | the hook writes the flag out so that it reads as what it does; no "still" |
+| `devdocs/builtins.md#The Gamma and Beta families` (last paragraph); `devdocs/future.md#Ruled out, and why` | "Ruled out as built-ins: the general hypergeometric functions, Bessel `Y` and `K`…, the polygamma functions beyond `digamma`, `gamma` of a complex argument, and the statistical distributions" | update | ruled out for the initial calculator only (the owner's clarification): word them as not in the initial design, deferred, with the reasons kept |

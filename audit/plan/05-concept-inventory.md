@@ -20,7 +20,7 @@ convert to" (docs) ↔ `have`, `want`, `haveText`, `wantText`. *docs/:*
 *devdocs/:* `architecture.md#(top)`, `#Pipeline`, `#The converter and its
 lines`. *Depends on:* Q3, Q13, Q17. *Modules:*
 `src/core/pipeline.ts`, `src/unit-converter.ts`, `src/outcome.ts`. *Owner:*
-`quantities.md` › "How a conversion is answered" (definition); introduced
+`quantities.md` > "How a conversion is answered" (definition); introduced
 by example in `getting-started.md`.
 
 **C2. Output modes.** One unit (a ratio, with a reciprocal line), a unit
@@ -30,7 +30,7 @@ docs. *docs/:* `docs/definitions.md#Unit lists`, `#Functions`. *devdocs/:*
 `architecture.md#Pipeline`, `#Conversion`, `#Unit lists`, `#Functions`,
 `#The converter and its lines`. *Depends on:* Q13–Q17.
 *Modules:* `pipeline.ts`, `convert.ts`, `outcome.ts`. *Owner:*
-`quantities.md` › "How a conversion is answered".
+`quantities.md` > "How a conversion is answered".
 
 **C3. The result line: relation and notes.** A line is the have, `=` or
 `≈` (or `≈` with a dot), the result; notes in parentheses say what the
@@ -41,14 +41,14 @@ digits are worth; warnings name assumed conditions. *Class:* user.
 digit…", "An answer is written with = …"); `docs/functions.md#(top)`
 (paragraph "Every built-in takes plain numbers…"). *devdocs/:*
 `numbers.md#Certification and the display rule`;
-`architecture.md#The converter and its lines › The relation and the note`; `notation.md#(top)`. *Depends on:* N2, N9, N10.
+`architecture.md#The converter and its lines > The relation and the note`; `notation.md#(top)`. *Depends on:* N2, N9, N10.
 *Modules:* `display.ts`, `outcome.ts`, `unit-converter.ts`. *Owner:*
-`numbers.md` › "What a line says".
+`numbers.md` > "What a line says".
 
 **C4. The reciprocal line.** The conversion the other way round, on a
 second line. *Class:* user. *Terms:* "the other way round" (docs) ↔
 "reciprocal" (devdocs, `outcome.ts`). *docs/:* `docs/README.md#(top)`.
-*devdocs/:* `architecture.md#The converter and its lines › The reciprocal`; `numbers.md#Working precision and the schedule` ("outside
+*devdocs/:* `architecture.md#The converter and its lines > The reciprocal`; `numbers.md#Working precision and the schedule` ("outside
 the loop", #92); `notation.md#Where a ratio is written`. *Depends on:*
 Q14, N10. *Modules:* `outcome.ts`. *Owner:* `quantities.md`.
 
@@ -58,15 +58,15 @@ user. *Terms:* "copy", "typed back" ↔ "the printer", "canonical text",
 `print`, `text`. *docs/:* `docs/README.md#(top)`. *devdocs/:*
 `architecture.md#Expressions` (printer), `#The converter and its lines`; `notation.md#Every literal parses back`. *Depends on:* N12,
 Q18. *Modules:* `print.ts`, `copy-button.ts`, `outcome.ts`. *Owner:*
-`expressions.md` › "How the app writes expressions" (the printed form);
+`expressions.md` > "How the app writes expressions" (the printed form);
 one line in `getting-started.md`.
 
 **C6. Exact and inexact values.** Radius zero vs nonzero. *Class:*
 bridge. *Terms:* "exact" / "inexact", "known to a precision" ↔ `radius`,
 `Ball`, the `exact` kind. *docs/:* `docs/settings.md#How a number is held…`;
 `docs/functions.md#(top)` (approx bullet). *devdocs/:* `numbers.md#(top)`,
-`#The types › Ball`, `#Exact mode`. *Depends on:* N2, N3.
-*Modules:* `ball.ts`, `radius.ts`. *Owner:* `numbers.md` › "Exact and
+`#The types > Ball`, `#Exact mode`. *Depends on:* N2, N3.
+*Modules:* `ball.ts`, `radius.ts`. *Owner:* `numbers.md` > "Exact and
 approximate values".
 
 **C7. Ball, midpoint, radius.** The representation of a value with its
@@ -81,29 +81,29 @@ a leak). *devdocs/:* `numbers.md#The types`. *Modules:*
 **C8. Certified digits.** The digits both ends of the ball agree on under
 the rounding mode. *Class:* bridge. *Terms:* "certain" (notes, docs) ↔
 "certified" (devdocs), `certifies`, `certifiedDigits`. *docs/:*
-`docs/settings.md#(top) › Mode`, `#How a number is held…`. *devdocs/:*
+`docs/settings.md#(top) > Mode`, `#How a number is held…`. *devdocs/:*
 `architecture.md#Numbers`, `numbers.md#Certification and the display rule`. *Depends on:* N8, N9. *Modules:* `ball.ts`, `display.ts`.
-*Owner:* `numbers.md` › "Digits you can trust"; mechanism stays in devdocs.
+*Owner:* `numbers.md` > "Digits you can trust"; mechanism stays in devdocs.
 
 **C9. Passes and the retry loop.** Recomputation at rising working
 precision until the digits certify. *Class:* bridge. *Terms:* "computes
 again at more digits", "pass" (docs) ↔ "retry loop", "schedule",
 `workingContexts`, `resolve`, `GUARD_DIGITS`, "working contexts".
-*docs/:* `docs/settings.md#(top) › Precision limit`, `#How a number is
+*docs/:* `docs/settings.md#(top) > Precision limit`, `#How a number is
 held…`; `docs/functions.md#Very large results and approx` (the pass table).
 *devdocs/:* `architecture.md#Pipeline`, `numbers.md#Working precision and
 the schedule`, `cost.md#How a case is measured`. *Depends
-on:* N8. *Modules:* `pipeline.ts`, `context.ts`. *Owner:* `numbers.md` ›
+on:* N8. *Modules:* `pipeline.ts`, `context.ts`. *Owner:* `numbers.md` >
 "Digits you can trust" (as a user rule); the schedule in devdocs.
 
 **C10. The ceiling.** The finest grid, four times the precision limit
 plus ten. *Class:* bridge. *Terms:* "finest grid" (docs) ↔ "ceiling",
 `ceilingFor`, `DEFAULT_CEILING`, `ceilingContext`. *docs/:*
-`docs/settings.md#(top) › Precision limit`, `#How a number is held…`.
+`docs/settings.md#(top) > Precision limit`, `#How a number is held…`.
 *devdocs/:* `numbers.md#Working precision and the schedule`;
 `settings.md#The model` ("derived and shown, never set"). *Depends on:*
 N8. *Modules:* `context.ts`, `settings.ts`, `system-build.ts`. *Owner:*
-`settings.md` › Precision limit entry; defined in `numbers.md`.
+`settings.md` > Precision limit entry; defined in `numbers.md`.
 
 **C11. The working grid of a pass.** The decimal grid inexact midpoints
 are rounded onto at a given precision. *Class:* internal; collides in
@@ -111,7 +111,7 @@ name with C17. *Terms:* "grid" (docs/settings.md), "working digits" (the
 schedule's) ↔ `workingDigits`, `digitsFor(bitsFor(precision))`. *docs/:*
 `docs/settings.md#How a number is held…`. *devdocs/:* `numbers.md#The
 kernel's boundary`, `#Settling`, `#The working digits`
-(the collision flagged, #172); `settings.md#The model › The terms`.
+(the collision flagged, #172); `settings.md#The model > The terms`.
 *Depends on:* N8. *Modules:* `rounding.ts`, `fixed.ts`, `ball.ts`. *Owner:*
 `devdocs/numbers.md`; docs avoid "grid" outside the limits' explanation
 (§12, question 5).
@@ -125,56 +125,56 @@ held…` ("rounding it after every step"). *devdocs/:* `numbers.md#Settling`, `#
 **C13. Rounding modes.** The seven modes. *Class:* user. *Terms:* panel
 labels ("to nearest, ties to even") ↔ `halfEven`, `halfAwayFromZero`,
 `halfTowardZero`, `towardZero`, `awayFromZero`, `ceiling`, `floor`;
-`RoundingMode`, `ROUNDING_LABELS`. *docs/:* `docs/settings.md#(top) ›
+`RoundingMode`, `ROUNDING_LABELS`. *docs/:* `docs/settings.md#(top) >
 Rounding`; `docs/functions.md#(top)` (round). *devdocs/:* `numbers.md#The
 types` (rounding.ts), `#Certification and the display rule`;
-`settings.md#The model › Rounding` (default migrated); `builtins.md#The
+`settings.md#The model > Rounding` (default migrated); `builtins.md#The
 exact functions` (`round`). *Depends on:* N11. *Modules:* `rounding.ts`,
-`settings-lines.ts`, `builtins/round.ts`. *Owner:* `settings.md` › Rounding
+`settings-lines.ts`, `builtins/round.ts`. *Owner:* `settings.md` > Rounding
 entry (the modes); `numbers.md` (where the mode acts).
 
 **C14. Exact mode.** *Class:* user. *Terms:* "exact" ↔ `mode: "exact"`,
-`Mode`. *docs/:* `docs/settings.md#(top) › Mode`. *devdocs/:*
-`numbers.md#Exact mode`; `settings.md#The model › The modes are
+`Mode`. *docs/:* `docs/settings.md#(top) > Mode`. *devdocs/:*
+`numbers.md#Exact mode`; `settings.md#The model > The modes are
 exact and decimal`. *Depends on:* N1–N16. *Modules:* `context.ts`,
-`settings.ts`. *Owner:* `numbers.md` › "The two modes".
+`settings.ts`. *Owner:* `numbers.md` > "The two modes".
 
 **C15. Decimal mode.** *Class:* user. *Terms:* "decimal" (rejected:
 "rounded", "calculator") ↔ `mode: "decimal"`. *docs/:*
-`docs/settings.md#(top) › Mode`, `› Working digits`. *devdocs/:*
+`docs/settings.md#(top) > Mode`, `> Working digits`. *devdocs/:*
 `numbers.md#Decimal mode`;
 `#The working digits`; `settings.md#The model`. *Depends on:* N17–N20.
 *Modules:* `context.ts`, `ball.ts`, `evaluate.ts`, `pipeline.ts`. *Owner:*
-`numbers.md` › "The two modes".
+`numbers.md` > "The two modes".
 
 **C16. Uncertified rounding.** Decimal mode's `≈` with a dot. *Class:*
 user (rare). *Terms:* "a step could not be certified at the precision
-limit" ↔ `uncertified` flag and kind. *docs/:* `docs/settings.md#(top) ›
-Mode`. *devdocs/:* `numbers.md#Decimal mode › The ceiling`
+limit" ↔ `uncertified` flag and kind. *docs/:* `docs/settings.md#(top) >
+Mode`. *devdocs/:* `numbers.md#Decimal mode > The ceiling`
 (#173 open); `architecture.md#The converter and its lines`. *Depends on:*
 N18. *Modules:* `ball.ts`, `display.ts`, `unit-converter.ts`. *Owner:*
-`numbers.md` › decimal mode.
+`numbers.md` > decimal mode.
 
 **C17. Working digits (the setting).** Extended digits for every step
 but the last in decimal mode. *Class:* user. *Terms:* "Working digits",
 "extended" ↔ `mode.working`, `NumberContext.working`, `operandContext`,
-`extendedWorkingOf`. *docs/:* `docs/settings.md#(top) › Working digits`.
+`extendedWorkingOf`. *docs/:* `docs/settings.md#(top) > Working digits`.
 *devdocs/:* `numbers.md#The working digits`; `settings.md#The
-model › Working digits`, `#The controls`. *Depends on:* N19. *Modules:*
+model > Working digits`, `#The controls`. *Depends on:* N19. *Modules:*
 `context.ts`, `settings.ts`, `evaluate.ts`, `pipeline.ts`. *Owner:*
-`settings.md` › entry; rule in `numbers.md`.
+`settings.md` > entry; rule in `numbers.md`.
 
 **C18. Display digits.** *Class:* user. *Terms:* "display digits",
 "digits asked for", "digits shown" ↔ `displayDigits`,
-`NumberContext.precision` (user level). *docs/:* `docs/settings.md#(top) ›
-Display digits`. *devdocs/:* `settings.md#The model › Display digits`; `numbers.md#Working precision and the schedule`. *Depends on:*
+`NumberContext.precision` (user level). *docs/:* `docs/settings.md#(top) >
+Display digits`. *devdocs/:* `settings.md#The model > Display digits`; `numbers.md#Working precision and the schedule`. *Depends on:*
 N8, N17. *Modules:* `settings.ts`, `context.ts`. *Owner:* `settings.md`.
 
 **C19. Precision limit.** *Class:* user. *Terms:* "precision limit" ↔
 `precisionLimitDigits` (`maxDigits` in older stored versions, read by
 the migrations); rejected
-"digits limit", "grid limit". *docs/:* `docs/settings.md#(top) › Precision
-limit`. *devdocs/:* `settings.md#The model › Precision limit`,
+"digits limit", "grid limit". *docs/:* `docs/settings.md#(top) > Precision
+limit`. *devdocs/:* `settings.md#The model > Precision limit`,
 `#Storage` (4→5); `numbers.md#Working precision and the schedule`, `#The
 significand limit` (`precisionLimitFor`). *Depends on:* N8, N21. *Modules:*
 `settings.ts`, `context.ts`. *Owner:* `settings.md`.
@@ -184,23 +184,23 @@ significand; "would need a significand of about N bits". *Class:*
 bridge. *Terms:* "past the significand limit" ↔ `tooLarge`, `Need`,
 `Reach` (`fits`/`exceeds`), `significandLimitBits`; `maxBits` (an old
 stored key), "size limit", "most bits" (names argued and set aside in
-`settings.md#The model`). *docs/:* `docs/settings.md#(top) ›
+`settings.md#The model`). *docs/:* `docs/settings.md#(top) >
 Significand limit`, `#How a number is held…`; `docs/functions.md#Very large
-results and approx`. *devdocs/:* `numbers.md#The significand limit`, `#Which limit a refusal names`; `settings.md#The model ›
+results and approx`. *devdocs/:* `numbers.md#The significand limit`, `#Which limit a refusal names`; `settings.md#The model >
 Significand limit`; `builtins.md#The exact functions` (prediction).
 *Depends on:* N21, N24. *Modules:* `rational.ts`, `scaled.ts`, `ball.ts`,
-`evaluate.ts`, `messages.ts`, `settings.ts`. *Owner:* `numbers.md` ›
+`evaluate.ts`, `messages.ts`, `settings.ts`. *Owner:* `numbers.md` >
 "Values too big to hold" (rule, remedies); `settings.md` (the number).
 
 **C21. The exponent bound.** ±10^18 on a value's decimal exponent.
 *Class:* bridge. *Terms:* "too large / too small to compute: its exponent
 would pass 10^18 / fall below -10^18" ↔ `overflow`, `underflow`,
 `MAX_EXPONENT`, the classifier (`classifyExp`, …). *docs/:*
-`docs/functions.md#Very large results and approx`; `docs/settings.md#(top) ›
+`docs/functions.md#Very large results and approx`; `docs/settings.md#(top) >
 Significand limit`. *devdocs/:* `numbers.md#The exponent bound`, `#Which limit a refusal names`, `#Why the exponent bound stays
 at 10^18`; `builtins.md#The rules every built-in follows`. *Depends on:* N22,
 N24. *Modules:* `scaled.ts`, `ball.ts`, `builtins/*.ts`. *Owner:*
-`numbers.md` › "Values too big to hold"; the pass table and measurements
+`numbers.md` > "Values too big to hold"; the pass table and measurements
 stay in `devdocs/numbers.md`.
 
 **C22. Refusal.** The three size refusals as one class. *Class:* bridge.
@@ -218,7 +218,7 @@ tan); `docs/settings.md#(top)` ("cannot be divided by"). *devdocs/:*
 `numbers.md#Exact operations`, `#The exponent bound`;
 `builtins.md#The rules every built-in follows`; `architecture.md#Conversion`.
 *Depends on:* N14, N15. *Modules:* `ball.ts`, `builtin.ts`, `convert.ts`,
-`messages.ts`. *Owner:* `numbers.md` › "Values at an edge".
+`messages.ts`. *Owner:* `numbers.md` > "Values at an edge".
 
 **C24. Domain errors.** *Class:* user. *Terms:* "outside a function's
 domain" ↔ `domain` with reasons `notPositive`, `baseOne`,
@@ -262,18 +262,18 @@ values`. *Depends on:* N8. *Owner:* `devdocs/numbers.md`; named once in
 **C29. Ratio notation and its width.** *Class:* user. *Terms:* "ratio
 notation", "ratio", "width" ↔ `Notation`, `RatioDisplay`, `ratioParts`,
 `fraction: true`, `scale` (`fractions` and a string notation in older
-stored versions, read by the migrations). *docs/:* `docs/settings.md#(top) ›
+stored versions, read by the migrations). *docs/:* `docs/settings.md#(top) >
 Notation`. *devdocs/:* `notation.md#The rule`, `#The width`,
 `#Where a ratio is written`, `#Not in decimal mode`; `settings.md#The model`
 (nested choice), `#Storage`. *Depends on:* N13, N2. *Modules:*
 `display.ts`, `outcome.ts`, `settings.ts`. *Owner:* `settings.md` (entry);
-`numbers.md` › "How an exact value is written".
+`numbers.md` > "How an exact value is written".
 
 **C30. Number formatting.** `%g`-style digits and exponents. *Class:*
 user. *Terms:* "written as a decimal", "exponent" ↔ `format`, `roundTo`.
 *docs/:* examples only. *devdocs/:* `numbers.md#Formatting`.
 *Depends on:* N12. *Modules:* `scaled.ts`, `display.ts`. *Owner:*
-`numbers.md` › "How numbers are written".
+`numbers.md` > "How numbers are written".
 
 **C31. Zero and its bound.** "within 2e-30 of zero", written `0`.
 *Class:* user. *Terms:* ↔ kind `zero`, `zeroBound`. *docs/:*
@@ -295,11 +295,11 @@ sentence in `functions.md`'s Gamma preamble.
 **C33. Cost and the catalogue.** What an expression that never certifies
 costs. *Class:* bridge. *Terms:* "a limit on effort", "freeze", "hang" ↔
 cold, warm, passes, typing, `FLOOR_MS`, `DEADLINE_MS`. *docs/:*
-`docs/functions.md#(top)` (gamma timings); `docs/settings.md#(top) › Precision
+`docs/functions.md#(top)` (gamma timings); `docs/settings.md#(top) > Precision
 limit`. *devdocs/:* `numbers.md#Working precision and the schedule`,
 `cost.md`, `future.md#Extensions that fit`
 (#118). *Depends on:* N7, N8, N25. *Modules:* `pipeline.ts`,
-`bench/stress/*`. *Owner:* `devdocs/cost.md`; `numbers.md` › "What costs
+`bench/stress/*`. *Owner:* `devdocs/cost.md`; `numbers.md` > "What costs
 time" (qualitative).
 
 **C34. Dimension and dimension mismatch.** (Part of the quantity
@@ -311,14 +311,14 @@ abstraction; listed for naming.) *Class:* user. *Terms:* "dimension",
 *Class:* user. *Terms:* "kind", "kind primitive" (devdocs, `!kind`) ↔
 "dimensionless marker" (docs) ↔ `kindMismatch`. *docs/:*
 `docs/definitions.md#The format`. *devdocs/:* `architecture.md#Quantities,
-dimensions and kinds`; `builtins.md#Dimension rules › Angles`;
+dimensions and kinds`; `builtins.md#Dimension rules > Angles`;
 `future.md#Extensions that fit` (lenient conversion). *Depends on:* Q2–Q4.
-*Modules:* `dimension.ts`, `units.txt`. *Owner:* `quantities.md` › "Kinds".
+*Modules:* `dimension.ts`, `units.txt`. *Owner:* `quantities.md` > "Kinds".
 
 **C36. Conformance.** The test that two quantities can be added or
 converted. *Class:* bridge. *Terms:* "the same test that have and want
 must pass" (docs) ↔ "conform", "conformance check". *docs/:*
-`docs/definitions.md#Expressions › + and -`. *devdocs/:*
+`docs/definitions.md#Expressions > + and -`. *devdocs/:*
 `architecture.md#Quantities…`, `#Evaluation`;
 `functions.md#Annotations`. *Depends on:* Q3. *Modules:* `dimension.ts`,
 `evaluate.ts`, `convert.ts`. *Owner:* `quantities.md` (defines the word).
@@ -335,14 +335,14 @@ file contains`. *devdocs/:* `architecture.md#Quantities…`,
 `name-index.ts`, `prefixedName`, `ambiguous`. *docs/:*
 `docs/definitions.md#Names`. *devdocs/:* `architecture.md#Definitions`; `builtins.md#Names`; `benchmarks.md#What each benchmark
 asserts`. *Depends on:* Q9. *Modules:* `names.ts`, `name-index.ts`,
-`table.ts`, `build.ts`. *Owner:* `expressions.md` › "How a name is read";
+`table.ts`, `build.ts`. *Owner:* `expressions.md` > "How a name is read";
 the load-time checks in `definitions.md`.
 
 **C39. Unit lists.** *Class:* user. *Terms:* "unit list", "list", "a
 sum" ↔ `convertToList`, `roundTerms`, `parseUnitList`, `nonpositiveUnit`.
 *docs/:* `docs/definitions.md#Unit lists`, `#What the file contains`.
 *devdocs/:* `architecture.md#Unit lists`, `#The converter and
-its lines › A unit list`; `notation.md#Where a ratio is written`. *Depends
+its lines > A unit list`; `notation.md#Where a ratio is written`. *Depends
 on:* Q15, N10. *Modules:* `convert.ts`, `pipeline.ts`, `outcome.ts`,
 `display.ts`. *Owner:* `quantities.md` (semantics); `expressions.md` (the
 `;` syntax of the want); `units.md` (the defined lists).
@@ -353,7 +353,7 @@ function the file defines" ↔ `UnitFunction`, `Definition.function`,
 *devdocs/:* `architecture.md#Definitions`, `#Functions`, `functions.md#(top)`,
 `#Definitions`, `#Calls`, `#Build-time checks`, `#Alternatives considered`. *Depends on:* Q3, Q5, N14.
 *Modules:* `definitions.ts`, `build.ts`, `evaluate.ts`, `table.ts`.
-*Owner:* `definitions.md` › "Functions".
+*Owner:* `definitions.md` > "Functions".
 
 **C41. Inverses and conversion into a function.** *Class:* user. *Terms:*
 "inverse", "the `~` line", "the reading that gives the quantity",
@@ -392,7 +392,7 @@ shadowing` (#131). *Modules:* `definitions.ts`. *Owner:*
 
 **C45. Calls, arity, "not a function".** *Class:* user. *Terms:* "a
 call", "the space matters" ↔ `arityMismatch`, `notAFunction`,
-`functionAsUnit`. *docs/:* `docs/definitions.md#Expressions › A call`,
+`functionAsUnit`. *docs/:* `docs/definitions.md#Expressions > A call`,
 `#Functions`. *devdocs/:* `architecture.md#Expressions`, `functions.md#Calls`; `builtins.md#Arity`. *Depends on:* Q9. *Modules:* `expr.ts`,
 `evaluate.ts`, `table.ts`, `messages.ts`. *Owner:* `expressions.md`.
 
@@ -411,10 +411,9 @@ are functions).
 **C48. Angles and the radian kind.** *Class:* user. *Terms:* "angle",
 "the radian kind" ↔ `angleToNumber`, `numberToAngle`,
 `conformingToAngle`, `noAngles`. *docs/:* `docs/functions.md#(top)` bullets
-4–5. *devdocs/:* `architecture.md#Quantities…`, `builtins.md#Dimension rules
-› Angles`. *Depends on:* Q8. *Modules:* `builtin.ts`,
+4–5. *devdocs/:* `architecture.md#Quantities…`, `builtins.md#Dimension rules > Angles`. *Depends on:* Q8. *Modules:* `builtin.ts`,
 `builtins/trig.ts`, `builtins/inverse-trig.ts`, `units.txt`. *Owner:*
-`quantities.md` › "Kinds" (angles as the example); `functions.md` entries.
+`quantities.md` > "Kinds" (angles as the example); `functions.md` entries.
 
 **C49. Plain number.** A quantity with no dimension and no kind.
 *Class:* user. *Terms:* "plain number" (docs, builtins.md) ↔
@@ -447,15 +446,15 @@ sentence in `settings.md`.
 most 2,453 digits under the significand limit", "lowered from … to fit"
 ↔ `rangesOf`, `Bounds`, `clampSettings`, `clampsOf`, `refusalOf`,
 `minBy`/`maxBy`. *docs/:* `docs/settings.md#(top)` ("The limits are set
-top-down"). *devdocs/:* `settings.md#The model › The chain`,
+top-down"). *devdocs/:* `settings.md#The model > The chain`,
 `#Applying a change`. *Modules:* `settings.ts`,
-`settings-lines.ts`, `settings-panel.ts`. *Owner:* `settings.md` › "How
+`settings-lines.ts`, `settings-panel.ts`. *Owner:* `settings.md` > "How
 the settings bound each other".
 
 **C54. Defaults and resets.** *Class:* user. *Terms:* "default …",
 "Reset all settings" ↔ `withDefault`, `resetSettings`, `isAtDefault`,
 `DEFAULT_SETTINGS`, `DEFAULT_MODES`. *docs/:* `docs/settings.md#(top)`.
-*devdocs/:* `settings.md#Applying a change › Resets`.
+*devdocs/:* `settings.md#Applying a change > Resets`.
 *Modules:* `settings.ts`. *Owner:* `settings.md`.
 
 **C55. The probe.** "Measure this device" and its proposal. *Class:*
@@ -501,9 +500,8 @@ internal (future). *docs/:* none; domain errors reflect it. *devdocs/:*
 says "real values only" once.
 
 **C60. GNU units lineage and divergences.** *Class:* framing. *docs/:*
-`docs/README.md#(top)`, `docs/definitions.md#(top)`, `docs/settings.md#(top) ›
-Display digits`. *devdocs/:* `architecture.md#(top)`, `#Expressions`, `#Conversion`, `#The converter and its lines
-› The reciprocal`; `builtins.md#Names`; `functions.md#Annotations`,
+`docs/README.md#(top)`, `docs/definitions.md#(top)`, `docs/settings.md#(top) >
+Display digits`. *devdocs/:* `architecture.md#(top)`, `#Expressions`, `#Conversion`, `#The converter and its lines > The reciprocal`; `builtins.md#Names`; `functions.md#Annotations`,
 `#Alternatives considered`; `numbers.md#(top)`. *Owner:* §12, question 2.
 
 **C61. Juxtaposition.** *Class:* user. *Terms:* ↔ the `juxtapose` node.
@@ -512,12 +510,12 @@ Display digits`. *devdocs/:* `architecture.md#(top)`, `#Expressions`, `#Conversi
 
 **C62. Number literals and the parse-time bound.** *Class:* user.
 *Terms:* ↔ `parseDecimal`, `Rejection`, `check`, `rejected`. *docs/:*
-`docs/definitions.md#Expressions › Numbers`. *devdocs/:*
-`architecture.md#Expressions`, `#Parsing › Rejection is final`; `numbers.md#The exponent bound` (last sentence). *Owner:*
+`docs/definitions.md#Expressions > Numbers`. *devdocs/:*
+`architecture.md#Expressions`, `#Parsing > Rejection is final`; `numbers.md#The exponent bound` (last sentence). *Owner:*
 `expressions.md`.
 
 **C63. The `^` exponent and `pow`.** *Class:* user. *docs/:*
-`docs/definitions.md#Expressions › ^`; `docs/functions.md#(top)` bullet 3.
+`docs/definitions.md#Expressions > ^`; `docs/functions.md#(top)` bullet 3.
 *devdocs/:* `architecture.md#Expressions`, `#Evaluation`;
-`numbers.md#Roots and powers`; `builtins.md#Domains… › pow, and ^ with it`.
-*Owner:* `expressions.md` (syntax); `functions.md` › `pow` (the difference).
+`numbers.md#Roots and powers`; `builtins.md#Domains… > pow, and ^ with it`.
+*Owner:* `expressions.md` (syntax); `functions.md` > `pow` (the difference).

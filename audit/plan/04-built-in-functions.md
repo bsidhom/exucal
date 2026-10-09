@@ -2,38 +2,65 @@
 
 ## 4. Built-in functions
 
-### 4.1 Proposed entry template
+### 4.1 The plan: a reference generated from the source
 
-One entry per function, grouped by family; the same headings in the
-same order for every entry so that the mechanical check can parse it:
+The owner's decision in review inverts the flow this plan first
+proposed. The documentation of each built-in is to live beside its
+implementation, in the same file, as structured documentation (a
+JSDoc-like or otherwise well-formed comment), so that it is hard to
+change the code without changing the comment; a tool then generates the
+user-facing reference from those comments. The tool is written in
+TypeScript in this repository, under the project's rule against new
+dependencies. The detailed design and the implementation are a separate
+block of work that follows the rest of the docs refactor, so that no
+effort is spent hand-documenting the built-ins only to replace it.
 
-- **Signature.** `name(arg, …)`, the arity (or range for `round`), the
-  order of arguments and what each stands for (`log(b, x)`: base first;
-  `atan2(y, x)`; `incbeta(a, b, x)`: parameters first).
-- **Arguments.** Dimension requirement per argument (plain number; the
-  `radian` kind; any quantity; two of one dimension) and the domain
-  (`x > 0`, `[-1, 1]`, whole numbers known exactly), with the error
-  wording the user sees.
-- **Result.** Its dimension (plain, `radian`, the argument's, the
-  arguments'); the exact cases (inputs that give `=`); otherwise `≈` at
-  the digits asked.
-- **Edges and refusals.** Points where the value "cannot be told" from
-  an edge (poles, domain ends, rounding boundaries) and how they read;
-  size refusals (significand limit with the suggested remedy or none;
-  exponent bound) with the thresholds that matter to a user
-  (`exp` past about `2.3026e18`; `factorial` past the limit; `erfc`
-  past about `1.5e9`); huge and tiny arguments where the behaviour is
-  visible (`sin(1e-999999999 radian)`).
-- **Decimal mode.** One step, certified then rounded; where an exact
-  case is rounded to `p`; `approx` is the identity.
-- **Related settings.** Rounding (for `round`); precision limit (cost of
-  edges); significand limit (exact functions, trigonometric reduction).
-- **Cost.** Only where notable and qualitative (the Gamma family's first
-  call at a new precision; the incomplete functions at the ceiling);
-  no timings (see §12, question 9).
-- **See also.** Alternatives and pointers (`factorial` → `gamma(x + 1)`;
-  `binomial` → `beta`; `decibel` as a defined function; `pow` vs `^`).
-- **Examples.** Two to four typeable lines with their outputs.
+What the plan fixes now, so that the later design starts from it:
+
+- **Where the documentation lives.** With the implementation, in the
+  module under `src/core/builtins/` that defines the function, one
+  structured comment per built-in (a family module carries one per
+  function it defines). The comment is the only source; nothing about a
+  built-in is written by hand in `docs/`.
+- **What a structured comment carries,** the fields a user needs and
+  the generator verifies (the fields of the former entry template):
+  - the signature: name, arity or range, the order of arguments and
+    what each stands for (`log(b, x)`: base first; `atan2(y, x)`;
+    `incbeta(a, b, x)`: parameters first);
+  - per argument, the dimension requirement (plain number; the `radian`
+    kind; any quantity; two of one dimension) and the domain, with the
+    error wording the user sees;
+  - the result: its dimension; the exact cases (inputs that give `=`);
+    otherwise `≈` at the digits asked;
+  - edges and refusals: where the value "cannot be told" from an edge
+    and how that reads; size refusals, with the thresholds that matter
+    to a user (`exp` past about `2.3026e18`, `factorial` past the limit,
+    `erfc` past about `1.5e9`); huge and tiny arguments where visible;
+  - decimal mode: one observable step, certified then rounded once;
+    where an exact case is rounded to `p`; `approx` the identity;
+  - related settings (the rounding mode for `round`; the precision limit
+    for the cost of edges; the significand limit for the exact functions
+    and the trigonometric reduction);
+  - cost, only where notable and qualitative; no timings (§12,
+    question 9);
+  - see also: alternatives and pointers (`factorial` to `gamma(x + 1)`,
+    `binomial` to `beta`, `decibel` as a defined function, `pow` against
+    `^`);
+  - examples: two to four typeable lines with their outputs, which the
+    generator can also run as tests.
+- **What the tool does.** Reads the registry (`BUILTINS` in
+  `src/core/builtins.ts`) and each module's structured comments; fails
+  when a registered built-in lacks a comment or a comment lacks a
+  required field, so completeness is enforced by generation rather than
+  by a separate check; emits the reference page grouped by family in a
+  fixed order; and runs in CI (§12, question 30 asks whether the output
+  is committed or built).
+- **What stays hand-written,** in `devdocs/builtins.md` and the family
+  preamble of the generated page: the rules every built-in follows
+  (`devdocs/builtins.md#The rules every built-in follows`), the naming
+  decisions (`#Names`), arity (`#Arity`), the dimension rules as a table
+  (`#Dimension rules`), and the design of each family. These are intent
+  and mechanism, not per-function facts.
 
 ### 4.2 Functions mentioned in either corpus, by family
 
@@ -46,9 +73,9 @@ edges`, `#The exact functions`, `#The Gamma and Beta families`.
 | Constants | `pi()` | `docs/functions.md#(top)` bullet 1; `devdocs/builtins.md#Names`, `#The elementary routines` | `builtins/pi.ts` |
 | Exponential and logarithms | `exp`, `ln`, `log10`, `log2`, `log(b, x)` | bullet 2; `#Domains…`, `#The elementary routines` | `builtins/exp.ts`, `builtins/log.ts` |
 | Roots and powers | `sqrt`, `cbrt`, `pow(x, y)` | bullet 3; `#Domains…` (pow rules); `devdocs/numbers.md#Roots and powers` | `builtins/roots.ts`, `builtins/pow.ts` |
-| Trigonometric | `sin`, `cos`, `tan` | bullet 4; `#Dimension rules › Angles`; `#Huge and tiny arguments` | `builtins/trig.ts` |
+| Trigonometric | `sin`, `cos`, `tan` | bullet 4; `#Dimension rules > Angles`; `#Huge and tiny arguments` | `builtins/trig.ts` |
 | Inverse trigonometric | `asin`, `acos`, `atan`, `atan2(y, x)` | bullet 5; `#Domains…`, `#The elementary routines` | `builtins/inverse-trig.ts` |
-| Hyperbolic | `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh` | bullet 6; `#The elementary routines › The hyperbolic inverses` | `builtins/hyperbolic.ts` |
+| Hyperbolic | `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh` | bullet 6; `#The elementary routines > The hyperbolic inverses` | `builtins/hyperbolic.ts` |
 | Approximation | `approx(x)` | bullet 7, `#Very large results and approx`; `devdocs/numbers.md#approx` | `builtins/approx.ts` |
 | Magnitude and sign | `abs`, `sign` | bullet 8; `#The exact functions` | `builtins/abs.ts` |
 | Rounding | `floor`, `ceil`, `trunc`, `round(x)`, `round(x, places)` | bullet 8; `#The exact functions` | `builtins/round.ts` |
@@ -65,37 +92,46 @@ reference but the function reference should cross-link them): `tempC`,
 `docs/definitions.md#What the file contains`. Designed and deferred
 (#115): `zeta`, `lambertw`, `ellipk`, `ellipe`, `legendre`, `chebyshev`,
 Bessel `J` and `I` → `devdocs/builtins.md#The Gamma and Beta families` (last
-paragraph). Ruled out: hypergeometric, Bessel `Y`/`K`, polygamma beyond
-`digamma`, complex `gamma`, statistical distributions → same;
-`devdocs/future.md#Ruled out, and why`.
+paragraph). Not in the initial design, and deferred rather than ruled
+out indefinitely (the owner's clarification in review): the general
+hypergeometric functions, Bessel `Y` and `K`, polygamma beyond
+`digamma`, complex `gamma`, and the statistical distributions as
+built-ins → same; `devdocs/future.md#Ruled out, and why`, whose wording
+for these is to be updated (§9.4).
 
-Family-level facts the reference must state once, not per entry:
+Family-level facts the reference states once, not per entry:
 `devdocs/builtins.md#The rules every built-in follows` (returns the kernel's
 ball; exact cases; unbounded arguments; tiny arguments keep digits; wide
 arguments give a trivial bound; domain vs unresolved; the exponent-bound
 guard), `#Arity`, `#Names` (why `e` is `exp(1)`, why `log` is two-argument,
 why `decibel` not `dB`, no prefixes on functions).
 
-### 4.3 Do descriptions live in the source?
+### 4.3 Where the descriptions live today
 
 From the docs alone (unverified): a `Builtin` is "a name, the count of
 arguments it takes, a dimension rule … and the function itself"
 (`devdocs/builtins.md#(top)`; `devdocs/architecture.md#Functions`), with no
-description or documentation field mentioned. `BUILTINS` is a map by
-name gathered from one module per function or family
-(`devdocs/builtins.md#(top)`; `devdocs/layout.md#The modules`), each module
-carrying a header comment that `devdocs/development.md#Commands` requires
-to say "what the code now does". The one-line module summaries in
-`devdocs/layout.md#The modules` are the nearest thing to per-function
-descriptions, at module granularity.
+description or documentation field mentioned, and `BUILTINS` is a map
+by name gathered from one module per function or family
+(`devdocs/builtins.md#(top)`; `devdocs/layout.md#The modules`). The prose
+about each function lives in `docs/functions.md#(top)` and in
+`devdocs/builtins.md`, apart from the code. The plan in §4.1 moves it
+beside the code; until then the two pages stay as they are.
 
-So: the registry can mechanically supply the *list* of names, each
-arity range, and (if the dimension rule is data rather than a closure)
-the dimension rule; the prose of each entry does not appear to exist in
-the source and must be written in docs/. Recommendation: generate a
-table (name, arity, dimension rule, module) from `src/core/builtins.ts`
-with a script run in CI, and have the completeness check compare the
-reference's entry headings against `BUILTINS`' keys and arities, while
-the entries themselves stay hand-written. Whether to add a short
-description field to `Builtin` so that the sheet or an autocomplete can
-reuse it is a source change outside this audit (§12, question 20).
+### 4.4 In the interim, and the follow-on work
+
+- **During this refactor,** `docs/functions.md` keeps its prose list of
+  the built-ins, corrected only where §9.4 tags a stale passage, and
+  gains one sentence saying that the per-function reference will be
+  generated from the source. The foundation-level content it carries
+  today (`#Very large results and approx`) still moves to `numbers.md`
+  (§6.6). `devdocs/builtins.md` is audited for its family rules and
+  design (unit V3); no per-function entries are written anywhere.
+- **Audit units D5 to D7** verify the family-level rules and the
+  dimension-rule table against the code and tag stale passages; they do
+  not produce entries (§10.b).
+- **Follow-on work, after the refactor,** as separate blocks: the
+  structured-comment format and the generator for the built-in
+  reference (this section); the grammar DSL and its generator (§2.1.3,
+  §2.2.3). The two share the rule against dependencies and may share a
+  tool; whether they do is part of their design (§12, question 30).

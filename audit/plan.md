@@ -5,12 +5,17 @@ pages), `git log` over both, and a listing of the source tree. No source
 file was read; no code was run. Nothing in either corpus has been changed.
 
 **Pointer conventions.** `file#Heading` names a Markdown heading.
-`file#Heading › "label"` names a bullet by its bold label inside that
-heading. `file#(top)` is the untitled text before the first `##`.
-`docs/settings.md` has only two headings and holds its content as labelled
-bullets under `#(top)`, so most of its pointers use the bullet form.
-Claims are numbered `N1…` (numeric type) and `Q1…` (quantity) so that
-later sections can cite them.
+`file#Heading > Label` names a bullet by its bold label under that
+heading (the `>` is a breadcrumb separator, nothing more). `file#(top)`
+is the untitled text before the first `##`. `docs/settings.md` has only
+two headings and holds its content as labelled bullets under `#(top)`,
+so most of its pointers use the bullet form. Under a claim, a line that
+begins with `→` lists the passages the claim rests on. Claims are
+numbered `N1…` (numeric type) and `Q1…` (quantity) so that later
+sections can cite them. When a pointer becomes a link in a page, the
+link is a repo-relative path (`../devdocs/numbers.md`), never an
+absolute URL and never one that names the repository
+(`audit/principles.md`, "Linking principle").
 
 **The principle, and how the plan applies it.** The governing statement
 is the principle in `audit/principles.md`, "Documentation principle:
@@ -52,10 +57,10 @@ Nothing else in this plan depends on git history.
 The plan is one file per section under `plan/`. Section numbers in
 cross-references (§5, "§12, question 25") name these files.
 
-1. [Core abstractions](plan/01-core-abstractions.md): the numeric type and the quantity as numbered claims (N1 to N25, Q1 to Q19) with their devdocs sources, the settings that parameterize them, edge cases, what stays in devdocs, stale passages tagged update, keep as intent or drop, the claims to verify, and the modules to check.
-2. [The two languages](plan/02-the-two-languages.md): the expression language and the definition language: constructs by pointer, where syntax meets the core abstractions, whether a formal grammar exists and what form the references should take, and the modules to check.
+1. [Core abstractions](plan/01-core-abstractions.md): the numeric type and the quantity as numbered claims (N1 to N25, Q1 to Q19) with their devdocs sources, the settings that parameterize them, edge cases, what stays in devdocs, stale passages tagged update, keep as intent or drop, the claims to verify, the modules to check, and the design intents stated in review.
+2. [The two languages](plan/02-the-two-languages.md): the expression language and the definition language: constructs by pointer, where syntax meets the core abstractions, whether a formal grammar exists, how the references document the grammar until it is generated from the code, and the modules to check.
 3. [Settings](plan/03-settings.md): every setting, the model parameter or behaviour it controls, its default and range, and where it is documented today.
-4. [Built-in functions](plan/04-built-in-functions.md): the entry template for the function reference, the functions grouped into families, and whether descriptions live in the source.
+4. [Built-in functions](plan/04-built-in-functions.md): the plan for a function reference generated from structured comments beside each implementation, the functions grouped into families, and what the docs do in the interim.
 5. [Concept inventory](plan/05-concept-inventory.md): sixty-three further concepts, each with its class, term mappings, pointers into both corpora, dependencies, modules and proposed owner.
 6. [Coverage gaps in docs/, measured against the target](plan/06-coverage-gaps.md): what docs/ lacks against the target, with the devdocs passages the new content would derive from, and which existing pages must link to the foundation pages.
 7. [Proposed docs/ outline (skeleton)](plan/07-docs-outline.md): the page skeleton for the restructured docs/ and the unified concept map pairing each concept's user-side and developer-side owners.

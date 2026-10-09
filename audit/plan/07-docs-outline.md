@@ -19,7 +19,8 @@ tour that defines nothing and links everything.
 - Changing a setting (display digits, ratio notation, decimal mode)
 - When something is refused (a mismatch, a size refusal, an edge)
 - Installing and working offline
-- Differences from GNU units (pending §12, question 2)
+- Differences from GNU units (pending §12, question 2; the owner leans
+  against grounding the docs on GNU units)
 
 **`docs/numbers.md` — Numbers (foundation).** The numeric model a user
 needs to predict and interpret any result.
@@ -43,7 +44,8 @@ needs to predict and interpret any result.
 
 **`docs/quantities.md` — Quantities (foundation).** Units, dimensions,
 kinds and what a conversion is.
-- A quantity: a value with a dimension
+- A quantity: a value with a dimension; dimensions have rational
+  exponents by design, so `^` takes a literal rational exponent
 - Primitives, dimensions and kinds (angles as the example)
 - Conformance: what can be added, converted, passed
 - No unit of its own: consequences (floor, annotations)
@@ -85,8 +87,9 @@ file's format and the semantics of each definition kind.
 - Build-time checks (table: error, cause, fix)
 - User definitions today (system file only; #132)
 
-**`docs/units.md` — The units the app knows (reference).** The system
-file's contents (pending §12, question 4).
+**`docs/units.md` — The units the app knows (reference).** A friendly
+guide to the system file's contents; `src/units.txt` is the source of
+truth, and the page may defer to it (§12, question 4, settled).
 - The SI (base units, prefixes, derived, accepted non-SI)
 - US customary; UK imperial; naming conventions (`imp`, `uk`, `long`)
 - Constants and extras (CGS, pressure, calories, time, bits and bytes)
@@ -110,8 +113,9 @@ of the model parameter it sets.
 - How the settings bound each other (the chain; refusals; clamps)
 - Defaults and resets; storage (one sentence)
 
-**`docs/functions.md` — Built-in functions (reference).** One entry per
-function, the template of §4.1, grouped by family.
+**`docs/functions.md` — Built-in functions (reference).** Generated from
+structured comments beside each implementation, grouped by family (§4);
+until the generator exists, today's prose list, corrected.
 - Rules every built-in follows (plain numbers unless stated; exact
   cases; domains; edges; refusals; decimal mode; no prefixes; arity)
 - Constants (`pi`)
@@ -145,14 +149,14 @@ the units in §10.c reshape them to this map.
 
 | Concept area | docs/ owner (the rules) | devdocs/ owner (mechanism, decisions, ruled-out alternatives) |
 | --- | --- | --- |
-| Exactness and the error radius | `numbers.md` › Exact and approximate values | `devdocs/numbers.md#The types`, `#Exact mode` |
-| Digits, certification, the retry loop | `numbers.md` › Digits you can trust | `devdocs/numbers.md#Certification and the display rule`, `#Working precision and the schedule`, `#Settling` |
-| Comparison and edges | `numbers.md` › Comparison; Values at an edge | `devdocs/numbers.md#Comparison`, `#Exact operations` |
-| Decimal mode and working digits | `numbers.md` › The two modes | `devdocs/numbers.md#Decimal mode`, `#The working digits` |
-| Size limits and `approx` | `numbers.md` › Values too big to hold; `approx` | `devdocs/numbers.md#The significand limit`, `#The exponent bound`, `#Why the exponent bound stays at 10^18`, `#approx` |
-| Writing numbers; ratio notation | `numbers.md` › How numbers are written | `devdocs/numbers.md#Formatting`; `devdocs/notation.md` |
+| Exactness and the error radius | `numbers.md` > Exact and approximate values | `devdocs/numbers.md#The types`, `#Exact mode` |
+| Digits, certification, the retry loop | `numbers.md` > Digits you can trust | `devdocs/numbers.md#Certification and the display rule`, `#Working precision and the schedule`, `#Settling` |
+| Comparison and edges | `numbers.md` > Comparison; Values at an edge | `devdocs/numbers.md#Comparison`, `#Exact operations` |
+| Decimal mode and working digits | `numbers.md` > The two modes | `devdocs/numbers.md#Decimal mode`, `#The working digits` |
+| Size limits and `approx` | `numbers.md` > Values too big to hold; `approx` | `devdocs/numbers.md#The significand limit`, `#The exponent bound`, `#Why the exponent bound stays at 10^18`, `#approx` |
+| Writing numbers; ratio notation | `numbers.md` > How numbers are written | `devdocs/numbers.md#Formatting`; `devdocs/notation.md` |
 | Quantities, dimensions, kinds, conformance | `quantities.md` | `devdocs/architecture.md#Quantities, dimensions and kinds` |
-| Conversion and the output modes | `quantities.md` › How a conversion is answered; Unit lists; Conversion into a function | `devdocs/architecture.md#Conversion`, `#Unit lists`, `#The converter and its lines`; `devdocs/functions.md#A function as the want` |
+| Conversion and the output modes | `quantities.md` > How a conversion is answered; Unit lists; Conversion into a function | `devdocs/architecture.md#Conversion`, `#Unit lists`, `#The converter and its lines`; `devdocs/functions.md#A function as the want` |
 | The expression language | `expressions.md` | `devdocs/architecture.md#Expressions`, `#Parsing`, `#Evaluation` |
 | The definition language and user functions | `definitions.md` | `devdocs/architecture.md#Definitions`; `devdocs/functions.md` |
 | The units the app knows | `units.md` | `devdocs/development.md#Adding a unit` (the contributor's side); the comments in `src/units.txt` |

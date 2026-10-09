@@ -165,4 +165,4 @@ the later work each needs noted.
     door open: stable file names and heading anchors, repo-relative
     links, and pages written in a small, stable Markdown subset that
     such a renderer can carry (`audit/principles.md`, "Markdown
-    principle", proposed).
+    principle", confirmed).

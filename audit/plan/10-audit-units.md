@@ -95,6 +95,11 @@ table at the ceiling); `devdocs/builtins.md#Names`. *Modules:*
 
 ### 10.b docs/ units (audit existing content and confirm gaps; §1 as read-only context)
 
+Every docs unit writes within the Markdown subset of `audit/principles.md`
+and rewrites anything outside it in the pages it touches: in particular,
+reference-style issue links become inline links, written from the one
+place that owns the concept (§12, question 26).
+
 **D1. Expression language.** *Sections:* `docs/definitions.md#Expressions`,
 `#Names`; `devdocs/architecture.md#Expressions`, `#Parsing` (user-observable
 parts: rejections, error positions), `#Evaluation`. *Modules:*
@@ -201,7 +206,13 @@ a ruled-out alternative. The unit's output tags each such passage
 §1.2.5 and §9.4 for its pages and adding any it finds. Where a current
 page states a decision without its reason, the unit may read the
 removed design note in git for that reason alone, and defers to the
-owner where the note does not settle it (§12, question 1).
+owner where the note does not settle it (§12, question 1). Every
+devdocs unit also writes within the Markdown subset of
+`audit/principles.md` and rewrites what lies outside it in its pages:
+the reference-style issue links (`[110]: https://…`), which every
+topical page uses, become inline links at the one place that owns the
+concept (§12, question 26); the diagrams in fenced code blocks are
+within the subset and stay.
 
 **V1. `devdocs/numbers.md`.** All sections. *Modules:* those of A1–A6 (the
 unit re-reads only where the page's statements were not covered by an A

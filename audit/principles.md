@@ -2,8 +2,8 @@
 
 Rules that govern the audit and the restructuring of `docs/` and
 `devdocs/`. They live here while the revamp runs; each names the
-permanent home proposed for it once the revamp lands (`audit/plan.md`,
-§12, question 29).
+permanent home once the revamp lands, decided in `audit/plan.md`, §12,
+question 29.
 
 ## Documentation principle: intent, not history
 
@@ -23,7 +23,7 @@ Git history is the record of change; the docs are the record of intent.
 a superseded design "update", "keep as intent" or "drop", and every
 audit unit extends the list for its pages.
 
-*Proposed permanent home:* `devdocs/development.md#Style guide`, beside
+*Permanent home:* `devdocs/development.md#Style guide`, beside
 the existing rule that a code comment names a page and a section and
 never a plan, a task or a decision number, "the documentation describes
 the current state, and git holds the history", which is this principle
@@ -40,17 +40,21 @@ path that names the repository, so that the docs read the same in any
 clone, fork or rename. The plan's pointer convention (`file#Heading`)
 materializes as such links.
 
-## Markdown principle: a small, stable subset (proposed)
+## Markdown principle: a small, stable subset
 
-Proposed, pending the owner's confirmation. The documents useful to a
-user are to ship with the app, rendered from Markdown to HTML by a
-homegrown parser and generator rather than by a dependency
-(`audit/plan/12-open-questions.md`, question 31). So the pages are
-written in a small subset of Markdown that such a renderer can carry:
-headings, paragraphs, bulleted and numbered lists, emphasis, inline
-code, fenced code blocks, tables, and links by repo-relative path; no
-raw HTML, no footnote syntax, no nested constructs a renderer would have
-to special-case. A page that needs more is a design question for the
-renderer, not a reason to write past the subset. The subset is fixed
-when the renderer is designed; until then, writing within it costs
-nothing and keeps the door open.
+The documents useful to a user are to ship with the app, rendered from
+Markdown to HTML by a homegrown parser and generator rather than by a
+dependency (`audit/plan/12-open-questions.md`, question 31). So the
+pages are written in a small subset of Markdown that such a renderer
+can carry: headings, paragraphs, bulleted and numbered lists, emphasis,
+inline code, fenced code blocks (the diagrams drawn in them included),
+tables, and inline links written `[text](target)`, whose target is a
+repo-relative path between pages and an absolute URL only for an
+external reference such as an issue. Not in the subset: raw HTML,
+reference-style link definitions (`[110]: https://…`) and the footnote
+syntax, and nested constructs a renderer would have to special-case. A
+page that needs more is a design question for the renderer, not a
+reason to write past the subset. The subset is fixed when the renderer
+is designed; until then, writing within it costs nothing and keeps the
+door open. The audit units rewrite what lies outside it as they reach
+each page, the reference-style issue links first.

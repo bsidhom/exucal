@@ -60,7 +60,8 @@ group points to it.
   way (the docs are the record of intent, so "code wrong" is a real possibility); for a
   stale passage, the tag confirmed or questioned; otherwise one line.
 - **Related.** Open items (Q-), bugs (B-) and findings on other pages about the same issue.
-- **Decision.** Blank, for the owner.
+- **Decision.** Blank until the owner's answer in [decisions.md](decisions.md) is applied;
+  a proposed call stands unless that sheet overrides it.
 
 **Placement.** A finding goes under its user-side owner page when any of its passages is on
 the user side (a current `docs/` page, a plan §1 claim, a plan §6 gap); otherwise under the

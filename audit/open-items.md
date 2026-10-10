@@ -4,7 +4,8 @@ Every question the audit units put to the owner, deduplicated: 115 open items fr
 188 questions of the twenty-six reports under [reports/](reports/). The findings they touch
 are in [findings.md](findings.md), the code defects in [bugs.md](bugs.md). The owner's
 decisions belong in [plan/12-open-questions.md](plan/12-open-questions.md) once made, as
-[README.md](README.md) says; the Decision field here is where to note them meanwhile.
+[README.md](README.md) says; the owner answers in [decisions.md](decisions.md), and the
+Decision fields here are filled from it.
 
 ## How to read an open item
 
@@ -20,7 +21,7 @@ decisions belong in [plan/12-open-questions.md](plan/12-open-questions.md) once 
   unit.
 - **Settled by.** Findings (F-) or bugs (B-) whose evidence answers the question.
 - **Blocks.** The page rewrite that waits on the answer.
-- **Decision.** Blank, for the owner.
+- **Decision.** Blank until the owner's answer in [decisions.md](decisions.md) is applied.
 
 | Kind | Items |
 | --- | --- |

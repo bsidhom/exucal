@@ -627,94 +627,100 @@ and named in `builtins.md#Not in this design`.
 
 One proposal each, or a clear lean; `ok` takes it.
 
-- Section done:
+- Section done: yes
 
 ### Q-006. The "certified" code change: what rides with it, and when
 
 - Proposed: the change of the notes from "certain" to "certified" (`src/outcome.ts`) also rewords two of the sheet's lines (D4): `MODE_LINES.exact` becomes "Every digit shown is certified, found at rising precision; …", and `PROBE_LINE` is worded as F-491 decides (section 2). It lands before `docs/numbers.md` is written (D8), and the devdocs quotes follow it (A2).
 - Blocks: `docs/numbers.md#Digits you can trust`; the devdocs passages that quote the notes.
 - Evidence: F-427, F-021, B-068, B-017.
-- Decision:
+- Decision: ok
 
 ### Q-007. Quoting the app's messages and words in hand-written pages
 
 - Proposed: examples, never a catalogue (D8, D9, D4). `numbers.md` quotes the two size refusals; getting started quotes two or three messages as examples of their shapes; `app.md` quotes every footer word verbatim, so that a user can search for the one they see; devdocs name the function and paraphrase, quoting only where the exact text is the point. The generated catalogue (§12 question 6) is the complete list.
 - Blocks: `docs/getting-started.md#When something is refused`; `docs/numbers.md#Values too big to hold`; `docs/app.md`; `devdocs/settings.md#The probe`.
 - Evidence: F-008.
-- Decision:
+- Decision: ok
 
 ### Q-017. The scratch build's figures in `#Why the exponent bound stays at 10^18`
 
 - Proposed: keep the six-pass table, which is digits, and the qualitative finding: the cost grows at least as the square of the argument's length, past the probe's budget before `exp(1e500)`. Drop the per-size milliseconds (A5 and V1 agree).
 - Blocks: V1's rewrite of that section of `devdocs/numbers.md`.
 - Evidence: F-202.
-- Decision:
+- Decision: ok
 
 ### Q-020. The title of `devdocs/functions.md`
 
 - Proposed: "Defined functions", keeping the file name; the index lines of `devdocs/README.md` and `devdocs/architecture.md` are reworded to match (V4).
 - Blocks: `devdocs/functions.md#(top)`.
-- Decision:
+- Decision: I would prefer to rename this to `builtins.md`, in both the user
+  docs and devdocs. The title should be something like "Built-in functions".
 
 ### Q-021. The heading "A function as the want"
 
 - Proposed: keep the heading, which a code comment cites, and use §8's "conversion into a function" in the prose (V4).
 - Blocks: the heading of `devdocs/functions.md#A function as the want`.
-- Decision:
+- Decision: ok
 
 ### Q-023. Decimal mode's effect on units and edges, in `numbers.md`
 
 - Proposed: one sentence each in the decimal-mode section, as today's behaviour (A4): `turn` in `deg` is `= 359.99999 deg` at eight digits, each unit being rounded first; `tan(90 deg)` is `= -13660250`, where exact mode refuses at the pole.
 - Blocks: `docs/numbers.md#The two modes`.
-- Decision:
+- Decision: ok, but don't record that specific number in decimal, since it
+  changes with the parameterization and does not match the behavior I see in the
+  real app with my current settings. Keep the discussion to the fact that this
+  does (or even "may") produce an exact value in decimal mode while failing to
+  resolve in exact mode due to the pole.
 
 ### Q-024. The touch rule in `numbers.md`
 
 - Proposed: one sentence: a bound exactly met decides a non-strict comparison (`>=`) and leaves a strict one undecided (A6). The verdict table stays in devdocs.
 - Blocks: `docs/numbers.md#Comparison and equality`.
 - Evidence: F-029.
-- Decision:
+- Decision: ok
 
 ### Q-025. Rounding a value that cannot be told from zero
 
 - Proposed: one sentence in "Values at an edge": `trunc`, and `round` in a mode to nearest, decide such a value as `0`, while `floor`, `ceil` and `sign` do not (D6).
 - Blocks: `docs/numbers.md#Values at an edge`.
 - Evidence: F-031.
-- Decision:
+- Decision: ok, just make sure the discussion is complete. I think you've
+  captured all of the functions here.
 
 ### Q-026. The one log-space example
 
 - Proposed: the quotient of exponentials is the worked example, and the decimal exponent (`1e999 / ln(10)`) a closing clause (D8), since §12 question 10 gives one example; V1's two examples yield.
 - Blocks: `docs/numbers.md#Values too big to hold`.
 - Evidence: F-445.
-- Decision:
+- Decision: ok
 
 ### Q-027. "derived and shown": the ceiling on the panel
 
 - Proposed: the pages stop saying the panel shows the ceiling: "derived, and written as a number only in the probe's proposal" (A3, D4). Whether the panel should show it is a UI question outside the revamp. V5's draft of `devdocs/settings.md#The model` takes the change.
 - Blocks: V5's replacement of `devdocs/settings.md#The model`.
 - Evidence: F-126.
-- Decision:
+- Decision: ok
 
 ### Q-028. A privacy sentence in `docs/app.md`
 
 - Proposed: one sentence in the offline section: the app calls no service and sends nothing, with a link to `devdocs/security.md#The page` (V8). D9's draft of the page has no such sentence; the two drafts of `app.md` overlap (F-180).
 - Blocks: `docs/app.md#Offline use`.
 - Evidence: F-171, F-180.
-- Decision:
+- Decision: ok
 
 ### Q-029. A home for the linking and Markdown principles
 
 - Proposed: `devdocs/development.md#Style guide`, beside the documentation principle (§12 question 29), since all three bind every contributor (V8).
 - Blocks: `devdocs/development.md#Style guide`.
-- Decision:
+- Decision: ok
 
 ### Q-030. Who deploys
 
 - Proposed: Cloudflare Workers Builds runs the build and the deploy, and `devdocs/security.md`'s sentence about a developer's machine is rewritten (V8). If a developer's own `pnpm exec wrangler deploy` is also supported, `deployment.md` says so in one sentence and `security.md` says the credential is theirs. You know which holds.
 - Blocks: `devdocs/security.md#Toolchain and secrets`; `devdocs/deployment.md#(top)`.
 - Evidence: F-408.
-- Decision:
+- Decision: ok. I only use Cloudflare Workers Builds at the moment.
 
 ### Q-031. The build-error catalogue in `devdocs/architecture.md#Definitions`
 
@@ -723,54 +729,55 @@ One proposal each, or a clear lean; `ok` takes it.
 - Recommended: B. The ownership rule (§12 question 24) gives the list to the docs page, and A's list would duplicate that table.
 - Blocks: V2's replacement of `devdocs/architecture.md#Definitions`.
 - Evidence: F-232, F-233, F-105.
-- Decision:
+- Decision: ok
 
 ### Q-032. Why information (`bit`) is a dimension
 
 - Proposed: say why, in `src/units.txt`'s comment and in `units.md`'s primitives: a count of bits must not collapse into a plain number, so that `bit/s` stays apart from `Hz`, as `rad/s` does (D3). If your reason is another, give it.
 - Blocks: `docs/units.md` (the primitives).
 - Evidence: B-064.
-- Decision:
+- Decision: ok
 
 ### Q-033. The sources `units.md` names
 
 - Proposed: `units.md` cites what `src/units.txt` cites (D3's skeleton). The file's header gains the three documents the page names today, if you confirm them: the SI brochure (9th edition), NIST Handbook 44, and the Weights and Measures Act 1985. The two years get a source and an epoch in their comments, and `units.md` calls them measured values written exactly. `gravity` is marked "(exact by convention)" (A9, D3). The comments are code changes (B-062, B-063, B-065).
 - Blocks: `docs/units.md#Which factors are exact`.
 - Evidence: F-116, F-069.
-- Decision:
+- Decision: ok
 
 ### Q-034. "`W` is the watt": the Lambert W connection
 
 - Proposed: yes, the sentence means Lambert's W function, and D5's edit says so: "Lambert's function, when it comes, is `lambertw`: `e` is the elementary charge in `units.txt` and `W` is the watt, so neither name is free for a function or a constant".
 - Blocks: `devdocs/builtins.md#Names` (D5's edit 7).
 - Evidence: F-259.
-- Decision:
+- Decision: ok
 
 ### Q-035. Where the binary `approx(x, u)`'s tentative design lives
 
 - Proposed: it stays in `devdocs/numbers.md#approx`, beside the concept (C26), and `future.md`'s entry for #100 links to it in one line (V1).
 - Blocks: `devdocs/numbers.md#approx`; `devdocs/future.md#Extensions that fit`.
-- Decision:
+- Decision: this is future work and should not get in the way of the numbers
+  description yet.
 
 ### Q-036. The rounding functions' open cell
 
 - Proposed: record it as intent in `devdocs/builtins.md#The exact functions`: a touch counts as a straddle at every edge, so that no edge check has to know which end of a cell is closed. No code change (A6).
 - Blocks: one sentence of `devdocs/builtins.md#The exact functions`.
 - Evidence: F-279.
-- Decision:
+- Decision: ok
 
 ### Q-037. Typographic characters in the fields
 
 - Proposed: one intent in `devdocs/future.md`: accept the characters the screen or pasted text produces where each has one meaning (`×`, `·`, `−`, non-breaking and thin spaces), and keep `÷` and superscripts out unless someone asks for them (D1). Meanwhile `docs/expressions.md` lists them among the errors.
 - Blocks: `devdocs/future.md#Extensions that fit`; `docs/expressions.md#What is not accepted`.
-- Decision:
+- Decision: ok
 
 ### Q-038. Pointing at the grammars in the parsers' headers
 
 - Proposed: `docs/` keeps prose and the precedence table (§2.1.3). `devdocs/architecture.md#Expressions` names the grammar in `src/core/expr.ts`'s header as the hand-maintained form, quoting none of it, and `devdocs/functions.md#Definitions` does the same for `src/core/definitions.ts` (D1, V4). §2.1.3's "no EBNF exists" is corrected (F-500).
 - Blocks: one sentence of `devdocs/architecture.md#Expressions`.
 - Evidence: F-305, F-500.
-- Decision:
+- Decision: ok
 
 ### Q-049. A stored ratio width out of range resets the whole mode
 
@@ -782,7 +789,12 @@ an extended count out of range is clamped instead.
 - Recommended: B, unless the reset is deliberate. One rule for every stored value is easier to state and to trust.
 - Blocks: one sentence of `devdocs/settings.md#Storage`.
 - Evidence: F-333.
-- Decision:
+- Decision: other: We already have clamping behavior, and it flows from "most
+  constraining" to "least constraining", starting at the singificand precision
+  limit. I don't understand what aspect you're calling out here, but if there's
+  a bug here, then please spell it out. As I currently understand it, no
+  behavior requires changing and it should just be documented as it currently
+  behaves.
 
 ### Q-057. The internal kind name in the load-failure message
 
@@ -790,7 +802,7 @@ an extended count out of range is clamped instead.
 - B. The kind goes to the console only: a code change (B-023).
 - Recommended: A.
 - Blocks: how `docs/app.md` describes the failure.
-- Decision:
+- Decision: ok
 
 ### Q-064. "certifies" in the index's opening sentences
 
@@ -799,7 +811,7 @@ an extended count out of range is clamped instead.
 - Recommended: A: the index uses the word every page uses (§12 question 8).
 - Blocks: `docs/README.md#(top)`.
 - Evidence: F-428.
-- Decision:
+- Decision: A
 
 ## 6. Decisions that block nothing
 

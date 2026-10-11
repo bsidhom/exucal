@@ -564,7 +564,7 @@ and the list `dms`) are inexact, and no page names them. `units.md` will list th
 §12 question 26 links an open issue from one place: the passage that owns its concept. These
 four have competing owners. #88, #92 and #100 are settled (Q-102 to Q-104, section 8).
 
-- Section done:
+- Section done: yes
 
 ### Q-011. Issues #130 to #134, the definition language's open work
 
@@ -573,7 +573,10 @@ four have competing owners. #88, #92 and #100 are settled (Q-102 to Q-104, secti
 - Recommended: A. It agrees with §7 on #132. `future.md` and `cost.md` then mention these without links (V6).
 - Blocks: the issue-link edits of `devdocs/functions.md` and `docs/definitions.md`.
 - Evidence: F-421, F-321.
-- Decision:
+- Decision: other: Anything _not_ currently implemented should absolutely not be
+  mentioned as a first-class concept in user docs. These should be collected
+  into `future.md` and linked and described there only. The user docs do not
+  refer here at all, and devdocs refer to future work accordingly.
 
 ### Q-012. The kernel-cost issues: `builtins.md` or `cost.md`
 
@@ -586,7 +589,11 @@ four have competing owners. #88, #92 and #100 are settled (Q-102 to Q-104, secti
 - Recommended: A. A reader can predict it, and it matches C33, which makes `cost.md` the owner of cost. #103 stays with its algorithm, where V1, V3 and A3 also put it. Name as exceptions any issue that asks for a new algorithm rather than recording a cost.
 - Blocks: the issue-link edits of `devdocs/builtins.md` and `devdocs/cost.md`.
 - Evidence: F-416, F-420, F-422, F-423, F-425, F-193.
-- Decision:
+- Decision: A. I would lean toward my ruling above about all
+  not-currently-implemented work being listed under `future.md`, but I consider
+  these issues to be user-relevant in understanding current performance.
+  Moreover, this is not "future" or "aspirational" work, but a performance bug
+  (where there is an associated issue).
 
 ### Q-013. Issue #118, the scheduler
 
@@ -597,7 +604,11 @@ four have competing owners. #88, #92 and #100 are settled (Q-102 to Q-104, secti
 - Recommended: A, which goes with A in Q-012. Either way `settings.md` names the concern in words.
 - Blocks: the issue-link edits of `devdocs/settings.md`, `cost.md` and `future.md`.
 - Evidence: F-418, F-419, F-343.
-- Decision:
+- Decision: other: I'm not sure what you mean by option B above, but my ruling
+  is to put this into the future-work document and leave it at that. This is
+  emphatically _not_ a settings concern and arguably does not live under "cost"
+  because it's a planned improvement to be implemented in the future (and as
+  such should _not_ be captured in the living as-it-is documents).
 
 ### Q-014. Issue #98, significant figures
 
@@ -609,7 +620,8 @@ and named in `builtins.md#Not in this design`.
 - Recommended: whichever matches what #98 asks, which you know better than the reports: A if it asks for rounding to significant digits, B if it asks for carrying them through `approx(x, u)`. The other passages name the concept and link the chosen section.
 - Blocks: the issue-link edits of `devdocs/numbers.md#approx` and `devdocs/builtins.md`.
 - Evidence: F-413, F-221.
-- Decision:
+- Decision: Don't mention this in the sections above. This is a _future work_
+  item, and lives under `future.md`.
 
 ## 5. Other decisions that block a page
 

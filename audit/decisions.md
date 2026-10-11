@@ -65,7 +65,7 @@ them in here; the record is the same.
 
 The units, or the units and the plan, disagree on each of these, and each holds up a page.
 
-- Section done:
+- Section done: yes
 
 ### Q-001. `tooLarge`: one kind never retried, or classes some of which are retried
 
@@ -79,7 +79,12 @@ loop with the best result so far.
 - Recommended: A, unless you meant B. The code is consistent, the current pages describe it, and A1, A3, A5 and V1 agree.
 - Blocks: `docs/numbers.md#Values too big to hold`; `devdocs/numbers.md#The significand limit`, `#Which limit a refusal names`, `#Working precision and the schedule`.
 - Evidence: F-051, F-509.
-- Decision:
+- Decision: other: the internal retry looks as they exist in the code today
+  should be considered correct (unless there is some bug in internal
+  consistency, etc). The intent behind classification of failure kinds is to
+  signal the failure type to the _user_, who can choose to retry if there's a
+  chance that increasing the significand width would resolve the issue. This is
+  exactly what the kinds attempt to convey.
 
 ### Q-002. A literal whose rounding carries past the exponent bound
 
@@ -93,7 +98,11 @@ replaces it.
 - Recommended: A. It is the recorded decision, the line is correctly rounded, and it touches only values within a rounding of the bound. Either way B-002 is fixed before `docs/numbers.md` is written (section 9).
 - Blocks: `devdocs/notation.md#Every literal parses back`; `docs/numbers.md#How numbers are written` (claim N12's edge).
 - Evidence: F-060, B-002.
-- Decision:
+- Decision: B. The goal of being able to paste back literal values is firm. We
+  should fail on rounding, but surface an explicit and helpful error message to
+  the user, e.g., "rounding EXPRESSION causes an overflow", with the offending
+  expression referenced clearly. (Existing error messages, where they do not
+  have bugs, are currently quite good at this.)
 
 ### Q-003. The ratio before the reciprocal line's `×`: bare or in parentheses
 
@@ -107,7 +116,17 @@ squashed history does not say which came later.
 - Recommended: A. One printer rule beats a special case for one position, and three drafts already write the bare form. B is the intent the pages state, if you still hold it.
 - Blocks: `devdocs/notation.md#Where a ratio is written`; the Notation entry of `docs/settings.md`; `docs/numbers.md#How numbers are written`.
 - Evidence: F-121; the item's `= -1e+8` half is settled (F-120).
-- Decision:
+- Decision: A, as long as this results in the _correct_ AST parse. That was the
+  entire point of parentheses in the first place. If that concern doesn't apply
+  here, then ditch it. The original idea was to make fractional expressions
+  with bare units such as `(1/2) in` parse correctly. This is _not_ the same (in
+  the current grammar) as `1/2 in`, which a user might prefer to see, but which
+  is _not_ equal to `0.5 in` due to the fact that juxtaposition binds more
+  tightly than division via `/`. The docs need to clearly state this edge case
+  if it isn't already documented. Note that this is also a rough edge in the
+  expression grammar itself, and users might get tripped up by it at the moment.
+  I do want to revisit the grammar later, but that is not up for debate in the
+  current docs rewrite, which need to capture the current behavior as intent.
 
 ### Q-004. The ceiling's gloss, and "grid" in the user docs
 
@@ -122,7 +141,9 @@ about ten digits finer: 28 digits at the first pass of eight, 4,050 at the ceili
 - Recommended: B. C is about ten digits off on the units' evidence. The drafts already lean on "grid", so keeping the word, stated once, costs the least rework. The probe's proposal line, "a grid of 4,040 digits" (B-026), is reworded to match.
 - Blocks: the Precision limit entry of `docs/settings.md`; `docs/numbers.md#How a value is held` and `#Digits you can trust`; V5's replacement of `devdocs/settings.md#The model`.
 - Evidence: F-125, F-429, F-431.
-- Decision:
+- Decision: B. This is clearly semantically correct and is the intent we want to
+  capture in docs. And the "grid" abstraction is useful for understanding
+  rounding/snapping/midpoint behavior.
 
 ### Q-005. The ceiling's formula in the user docs
 
@@ -136,7 +157,7 @@ number only in the probe's proposal.
 - Recommended: A, so that a user who changes the limit can predict the ceiling, which the panel does not show. D4's and D8's drafts take the corrected wording either way.
 - Blocks: the Precision limit entry of `docs/settings.md`; `docs/numbers.md#Digits you can trust`.
 - Evidence: F-022, F-126; claim N8 is corrected either way (Q-073).
-- Decision:
+- Decision: A. The current, sloppy wording was an oversight.
 
 ### Q-008. When a devdocs edit may link a user page not yet written
 
@@ -150,7 +171,9 @@ yet, and their anchors are not fixed. The four units that asked gave four answer
 - Recommended: A. It fits the order of work: user pages first, devdocs after.
 - Blocks: every devdocs rewrite that pares a section to a sentence and a link (V1, V2, V4, V5).
 - Evidence: F-426.
-- Decision:
+- Decision: A. My intention was always to write the docs in topo order. If
+  that's not captured anywhere (and it goes beyond these smaller linking
+  problems anyway), please note that where relevant.
 
 ### Q-009. `docs/functions.md` before the generated reference: how much to correct
 
@@ -166,7 +189,7 @@ signature, one sentence and a link to `numbers.md#approx` (§12 question 14).
 - Recommended: B. A page left contradicting the code misleads until the reference lands, and §8 binds every page. New content is better written once, in the generated entries.
 - Blocks: the interim edits to `docs/functions.md` (D5, D6, D7, D8).
 - Evidence: F-148, F-138, F-154; Q-067 and Q-095 follow the answer.
-- Decision:
+- Decision: B
 
 ### Q-010. Statistical distributions: deferred built-ins, or definitions
 
@@ -181,7 +204,10 @@ deferred classes.
 - Recommended: C if V6's reason matches your intent, A if not. C keeps §1.3's "deferred", and V6's reason, without ruling anything out.
 - Blocks: `devdocs/future.md#Ruled out, and why`; the last paragraph of `devdocs/builtins.md#The Gamma and Beta families`; `docs/functions.md#Not provided`.
 - Evidence: F-348.
-- Decision:
+- Decision: other: Just note these as being deferred for now, with a possible
+  implementation to follow in the future. Not all functions of interest can be
+  efficiently implemented in user definitions anyway, for example,
+  inverse/quantile statistical functions.
 
 ### Q-015. The `dozen` running example
 
@@ -194,7 +220,8 @@ a unit. It could not be added to the file as written, and a reader cannot try it
 - Recommended: B. The example keeps its shape and stops colliding with the file, and V4's edits already use `twelve`.
 - Blocks: the examples of `devdocs/functions.md` (`#Definitions`, `#Annotations`, `#Display`) and of `docs/definitions.md#Functions`.
 - Evidence: units A8, D2, V4.
-- Decision:
+- Decision: B. (I would also accept creating an entirely new example that
+  doesn't even run into this `dozen` collision problem in the first place.)
 
 ### Q-016. Which numbers leave devdocs under question 25
 
@@ -211,7 +238,14 @@ Plan §10 says V3's measurements stay, against question 25 (F-510).
 - Recommended: A. It keeps every number that is part of the design, and drops every number that moves with the machine. §10's line yields to question 25.
 - Blocks: the measurement rewrites of `devdocs/builtins.md`, `testing.md`, `benchmarks.md` and `numbers.md`.
 - Evidence: F-188, F-209, F-300, F-371, F-386, F-392, F-510.
-- Decision:
+- Decision: A, for user docs. Just make sure to keep memory approximations,
+  since these will typically hold across machines and have more to do with
+  JavaScript engine representations (which change slowly and are constrained by
+  the spec anyway.) Ratios and machine-portable heuristics, etc., _are_ useful
+  in devdocs, not user docs. I do want to keep rough timings in _developer_ docs
+  where this clarifies issues or adds weight to decisions. Those should be
+  considered "rough" though, and only illustrative, or else the docs should just
+  talk about ratios or how things are physically observable to a user.
 
 ### Q-018. Rough durations: "a few seconds", "a fraction of a second"
 
@@ -225,7 +259,11 @@ waits while it runs" (F-131).
 - Recommended: A. A rough duration drifts like any timing, and "the quick run" says what the reader needs.
 - Blocks: `devdocs/development.md#Commands`; `devdocs/settings.md#The probe`; V7's pages, which follow the answer.
 - Evidence: F-131, F-393.
-- Decision:
+- Decision: B, while acknowledging that they may drift. To minimize risk of
+  drift, we should be very broad-generous in terms. Knowing "this test will take
+  a few seconds" versus "this test will take about half an hour" is crucial
+  information for a developer, and makes it clear why some tests are not to be
+  run on every commit (or conversely, why they _should_ be run on every commit).
 
 ## 2. Terminology
 

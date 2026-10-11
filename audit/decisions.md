@@ -283,7 +283,11 @@ code's rule `plainNumbers` and the messages say "plain number".
 - B. Devdocs say "dimensionless" throughout, with "dimensionless (a plain number)" once per section (D5, V2, V6, V7).
 - Recommended: A. `devdocs/builtins.md#Dimension rules` mirrors the rule names and messages a reader meets in the code, and one definition keeps the two words tied.
 - Evidence: F-460.
-- Decision:
+- Decision: A. "Dimensionless" should be preferred where it is not too clunky,
+  but "plain number" is sometimes clearer/simpler. The important thing is that
+  these should be considered _synonyms_, with the word "kind" used any time we
+  are attaching semantics to a particular class of values (as of now, only
+  angles are treated specially with kinds).
 
 ### Q-022. "build number" or "build ID"
 
@@ -292,38 +296,38 @@ code's rule `plainNumbers` and the messages say "plain number".
 - C. "build number" in docs, as §5 C57 and today's pages have it; "build ID" in devdocs and the code.
 - Recommended: A: one name in both corpora, the one the code uses.
 - Evidence: F-492, F-251.
-- Decision:
+- Decision: A
 
 ### F-431. A pass's grid, its precision, and the working digits
 
 - Proposed: in devdocs, "the working grid" for the grid a pass settles onto, "working precision" for a pass's precision, and "working digits" for the decimal-mode setting alone (A1, A3, V1). In docs, "the digits an approximate value is kept to" (D8). Never "working precision" for the grid; #172 renames the code.
 - Against: A4 keeps §8 as written; V3 and V5 write "working precision" for the grid's digits.
-- Decision:
+- Decision: ok
 
 ### F-436. "neighbor" and "the neighbor rule"
 
 - Proposed: the American spelling, "neighbor". "The neighbor rule" is devdocs-only; docs say "the correctly rounded sum" and show the example (A4, V1).
 - Against: claim N20, which `docs/numbers.md` is written from, names the rule.
-- Decision:
+- Decision: ok
 
 ### F-437. "absorbed into the radius"
 
 - A. Devdocs only; docs say it plainly, with "error radius" (A1).
 - B. Docs keep the idiom, always as "absorbed into the error radius" (A5, D8).
 - Recommended: B: plain language, with §8's noun for docs.
-- Decision:
+- Decision: B
 
 ### F-439. "canonical"
 
 - Proposed: devdocs-only, for the held form and the printed text alike. Docs say "the fraction is kept with no factor of ten in its denominator" (A1, V1), or "how the app writes an expression back" (D1).
-- Decision:
+- Decision: ok. We do need to spell out what "canonical" means explicitly.
 
 ### F-440. "decimal exponent"
 
 - A. §8's rule: docs may say "decimal exponent", saying which "decimal" at first use.
 - B. Docs say "the exponent", meaning the power of ten's; "decimal exponent" only in devdocs, where a binary one could be meant (D8).
 - Recommended: B. The user docs never meet a binary exponent, and D8's draft of `numbers.md` already reads so.
-- Decision:
+- Decision: B
 
 ### F-441. "hard bound"
 
@@ -333,102 +337,136 @@ near; never "hard precision bound". The choice is the docs phrase.
 - A. "the largest significand limit the settings allow" (D1).
 - B. "the most the significand limit can be set to" (A5, V1).
 - Recommended: B, the plainer.
-- Decision:
+- Decision: B
 
 ### F-442. "rejected" in the user docs
 
 - A. Docs say "an error" for text refused as typed, keeping "refusal" for the three size refusals (D1, §8).
 - B. Docs also say "rejected", for text the grammar does not read (A5, D2).
 - Recommended: A: §8 as written, and one word fewer for the reader. Devdocs keep "rejection" either way.
-- Decision:
+- Decision: A. Note that devdocs should be unified with this terminology, and
+  "rejection"/"rejected" should be kept as a distinct notion. A "refusal" is
+  _always_ a size refusal, and most likely involves evaluation (except perhaps
+  in the few cases where the grammar bounds things).
 
 ### F-447. Edge, boundary, bound; touch, straddle
 
 - Proposed: in devdocs, "touch" for an end exactly on the point and "straddle" for reaching across it; "edge" for the point a result depends on; "boundary" for a rounding cell's end; "bound" for a condition's, and for the exponent bound (A6, V1). In docs, one phrase, "a value whose bounds reach or meet the edge", with §8's "cannot be told from" (A6). D2's draft's "straddle" is reworded.
-- Decision:
+- Decision: ok
 
 ### F-451. "approximate" or "inexact" in the user headings
 
 - A. Headings use the plain gloss "approximate", as §7's do ("Exact and approximate values", "Making a value approximate").
 - B. Headings use "inexact" (D3, D6).
 - Recommended: A. Headings are what a reader scans, and §8 keeps "approximate" as the plain-language gloss. Body text follows §8 either way.
-- Decision:
+- Decision: B. Let's switch to "inexact" everywhere that we mean a number (ball)
+  with a non-zero radius. "Approximate" and its variants should be reserved for
+  the act of _making_ a value inexact (e.g., through `approx` and possibly other
+  utilities in the future). This firms up language and semantics.
 
 ### F-455. Rule 4's form in the ratio notation
 
 - A. "scaled ratio", glossed once as "a ratio times a power of ten" (V5).
 - B. "a ratio times its power of ten" in prose, with the field's name, `scale`, devdocs-only (A2).
 - Recommended: A. A name can be referred to, and V5's edit of rule 4 uses it.
-- Decision:
+- Decision: A. Note that there are still questions about canonicity here, due to
+  factors of ten in the significand (numerator _or_ denominator). That is a much
+  bigger design question than terminology though.
 
 ### F-457. "pastes back", "parses back", "typed back"
 
 - Proposed: docs say "pastes back", as §12 question 11 and §7 do; devdocs say "parses back" (A2). A2's "can be typed back" is the alternative for docs.
-- Decision:
+- Decision: ok. Note that "pastes back" is technically the only accurate reading
+  here, because the rendering _cannot_ be typed back as-is: we use some invalid
+  characters to make the results more "display-friendly". (Future grammars may
+  except them, but are out of scope right now.)
 
 ### F-459. The gloss for a kind primitive
 
 - Proposed: "a marker of a kind, with no dimension of its own" (V2), in both corpora. The alternatives are A7's "marks a kind of quantity that has no physical dimension, so that an angle is told from a plain number" and D2's "a marker that keeps apart quantities which would otherwise look alike".
-- Decision:
+- Decision: ok. I'm also fine relaxing or tweaking the wording to make it
+  shorter, e.g., by referring to such a marker as a "kind marker".
 
 ### F-468. Output modes by number
 
 - A. Name each output mode by its want (one unit, a unit list, a function, a blank want), never by an ordinal (A8).
 - B. Ordinals may stay as the devdocs' count: "the third output mode" (V2).
 - Recommended: A: a name survives a fifth mode. "output mode" joins §8 as a devdocs term either way.
-- Decision:
+- Decision: A
 
 ### F-471. When "have" and "want" reach the user pages
 
 - A. Each page uses them from its rewrite, the whole page at once (A8). Getting started introduces them when it is written, and `docs/app.md` names the field labels.
 - B. No page uses them until getting started exists (D2).
 - Recommended: A. Getting started is written last, so B would leave every page on the old phrasing until the end; and since each page is rewritten whole, D2's concern, one pass per page, holds anyway.
-- Decision:
+- Decision: A
 
 ### F-475. "system" for the definitions file
 
 - A. "system" may qualify the file against user definitions, as in "the system file" (A9), as §8 and §12 question 12 do.
 - B. "system" only for a system of units; the file is always "the definitions file" (D3).
 - Recommended: A. The plan already uses it so, and the contrast with user definitions needs a word.
-- Decision:
+- Decision: other: "system" on its own is ambiguous and overloaded. "System
+  definitions file" is acceptable, but I would prefer something like "predefined
+  units file" or even "preamble", which is most general and less confusing than
+  "system". I'm open to suggestions here, as "preamble" comes with its own
+  baggage and might feel like jargon to people not used to programming
+  languages.
 
 ### F-483. "interval" in the user docs
 
 - A. Never in docs, as §8 has it: "temperature difference" for the units (§12 question 19), and no mathematical interval either.
 - B. Docs may use the mathematical sense (D2's draft).
 - Recommended: A.
-- Decision:
+- Decision: A
 
 ### F-488. "sheet" and "panel"
 
 - Proposed: "the settings sheet", or "the sheet", in both corpora for what the user opens; "panel" only for the component, as `settings-panel.ts` names it (D9, V7). D4 and V5 agree on "sheet" and differ only on naming the component.
-- Decision:
+- Decision: "settings panel" is much clearer. "Panel" is generic and will almost
+  certainly hold under any UI refactoring. The "sheet" just so happens to be the
+  _current_ visual design, but is subject to change and not fundamental to the
+  settings flow.
 
 ### F-489. Naming the user corpus
 
 - A. "the user docs", the plan's term.
 - B. "the user guide" (V5).
 - Recommended: A, since §7 already uses "guide" for a page's role (getting started, `app.md`). V5's "line" for a line of the sheet joins §8 either way.
-- Decision:
+- Decision: A. The "user guide" is a specific getting-started/examples-driven
+  doc subset.
 
 ### F-491. The probe's functions
 
 - Proposed: "the four elementary functions" (§9.4), not "the costliest", which §12 question 23 calls incorrect for the built-ins, unless the benchmarks bear the ranking out (D4). The sheet's probe line in Q-006 follows this answer.
-- Decision:
+- Decision: ok. As I've noted elsewhere, I don't necessarily plan to extend the
+  probe to arbitrary, expensive special functions, which might be impractical to
+  satisfy to a high precision with good UI responsiveness. This is why we have
+  follow-up work to make the UI responseive even during long-running
+  computations.
 
 ### F-493. After "service worker" is named once in `docs/app.md`
 
 - A. Docs say "the service worker" from then on (D9).
 - B. Docs say "the app" or "its offline copy" from then on (V8).
 - Recommended: B: a user acts on the app, not on its mechanism. Devdocs say "service worker", then "the worker", either way.
-- Decision:
+- Decision: other: I'm not sure exactly how we are bringing up the term "service
+  worker" in user docs. This _feels_ like an implementation detail that many
+  users need not understand, but which is necessary to get the app working
+  offline robustly. It might be worth a brief mention, but in that case, we
+  should call it what it is ("service worker") rather than only informally
+  describe what it does. However, we should also clearly call out that it allows
+  the doc to be served offline in user docs at the time we introduce this term.
+  The devdocs should use "service worker" consistently.
 
 ### F-494. "a new version" and "update"
 
 - A. Docs say "a new version", and "update" only as the footer's word (D9).
 - B. Docs say "a new version" for what is deployed, and "update" for the footer's link and for switching to it (V8).
 - Recommended: B: "update" is the verb a user reaches for anyway. "deploy" stays devdocs-only either way.
-- Decision:
+- Decision: other: I think I want B, but I want to clarify: "a new version"
+  describes a new deployment that could be pulled, and "update" is always a
+  verb to describe what a user (or page refresh) does.
 
 ## 3. Design calls inside findings.md
 

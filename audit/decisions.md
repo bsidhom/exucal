@@ -272,7 +272,7 @@ disagree. Each answer becomes a §8 row and binds every page from then on. The o
 terminology findings carry one proposal each, or follow an item here, and go with the
 findings (section 10). The ceiling's gloss is Q-004.
 
-- Section done:
+- Section done: yes
 
 ### Q-019. "plain number" or "dimensionless" in devdocs
 

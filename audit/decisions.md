@@ -472,7 +472,7 @@ near; never "hard precision bound". The choice is the docs phrase.
 
 Findings whose call turns on what you intended, and which no open item asks.
 
-- Section done:
+- Section done: yes
 
 ### F-070. A conversion's ratio refused at the significand limit
 
@@ -485,7 +485,7 @@ ratio is never `tooLarge`.
 - B. Not intended: a conversion's ratio should not be refused at the limit. A code change.
 - Recommended: A. The refusal is the quotient's ordinary limit, and its message offers the remedy.
 - Blocks: `docs/quantities.md` (claim Q13); `devdocs/architecture.md#Conversion`.
-- Decision:
+- Decision: A
 
 ### F-340. The notation's radios and the Mode control
 
@@ -497,7 +497,7 @@ the working digits sit under the mode. D4's docs draft follows the page, D9's th
 - B. The panel moves the notation under the mode, as the page intends: a UI change.
 - Recommended: A, unless you want the UI change. The page's stated reason is the only evidence for B.
 - Blocks: the description of the controls in `docs/settings.md` and `devdocs/settings.md`.
-- Decision:
+- Decision: A
 
 ### F-078. A unit `a` for the are
 
@@ -507,7 +507,8 @@ same", but the file defines the are only as `are`, so there is no `a` to combine
 - A. There is no unit `a`: the example goes, and `units.md` says so (D1).
 - B. The file gains `a`, the SI symbol for the are: a code change.
 - Recommended: A.
-- Decision:
+- Decision: other: A, but drop the example and don't bother to mention the
+  absence of `a` in the docs. (Why would we need to?)
 
 ### F-374. The reference digits in the tests
 
@@ -518,7 +519,7 @@ checked to a thousand digits, and take values from mpmath as well.
 - A. The page states the tests as they are (V7).
 - B. Fifty digits is a requirement, and the tables are extended.
 - Recommended: A, unless fifty is a requirement.
-- Decision:
+- Decision: A. If we want to revisit precision, that is an explicit redesign.
 
 ### F-320. The rejections the definitions property test injects
 
@@ -530,7 +531,7 @@ unit is right.
 - A. If D2 is right, the page names the rejections the test injects.
 - B. If D2 is right, the test also draws the two missing ones, and the page stands.
 - Recommended: A now, with B as a test improvement if you want it.
-- Decision:
+- Decision: ok
 
 ### F-037. Where the list of decimal mode's steps lives
 
@@ -540,7 +541,7 @@ operators: a leading `-`, binary `-`, two factors side by side.
 - A. The list moves to `numbers.md#The two modes`, and the entry links to it (D4, by §12 question 5).
 - B. The entry keeps the list, corrected in place (A4).
 - Recommended: A. Wherever it lands, it carries A4's corrected list.
-- Decision:
+- Decision: A
 
 ### F-113. Naming the inexact units in `numbers.md`
 
@@ -551,7 +552,12 @@ and the list `dms`) are inexact, and no page names them. `units.md` will list th
 - A. `numbers.md#Exact and approximate values` adds one clause, linking `units.md`'s list (D8).
 - B. `units.md` and `quantities.md` only.
 - Recommended: A. That page explains `≈`, and `1 turn` in `deg` showing `≈ 360` surprises otherwise.
-- Decision:
+- Decision: A. Note that we do not currently have a mechnism to _mark_ a unit
+  definition as inexact. That is an interesting follow-up which I've been
+  considering, but which is its own large design consideration. `pi()` is the
+  only applicable example above with respect to the "inexact" terminology.
+  (Recall we have moved away from "approximate" based on terminology decisions
+  above.)
 
 ## 4. Where each issue is linked
 

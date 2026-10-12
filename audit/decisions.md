@@ -957,7 +957,7 @@ Both units drop the stray comma in "would need a significand, past the significa
 ### Q-066. `log10(1e999999999)`: the value or the line
 
 - Proposed: keep "exactly `999999999`": the section is about the value, and N10 owns the display (D5).
-- Decision ok:
+- Decision: ok
 
 ### Q-067. The incomplete functions' refusals and the precision
 
@@ -977,15 +977,14 @@ Both units drop the stray comma in "would need a significand, past the significa
 ### Q-070. Why the project keeps `experimentalDecorators`
 
 - Proposed: verify against the pinned Vite before the page is next edited. If the reason still holds, drop "yet"; if not, state the real reason, or remove the sentence with the flag (V7).
-- Decision: I don't actually understand why `experimentalDecorators` is
-  currently required. We're currently using Lit decorators, and this is
-  documented as the suggested fix at
-  https://lit.dev/docs/components/decorators/. However, there are instructions
-  on how to migrate to standard decorators. If this is a pain point or likely to
-  break in the future, I would rather move away from decorators entirely, as
-  they just result in compile-time code transformations and their behavior can
-  be replicated with just a _bit_ more verbosity. I'm agnostic to Vite and not
-  even convinced that it factors in here at all. Just drop that mention.
+- Decision: other: drop the clause about Vite. `devdocs/layout.md` keeps the
+  flag with its real reason: the components use Lit's decorators in
+  TypeScript's experimental form, which needs `experimentalDecorators` and
+  `useDefineForClassFields: false` in `tsconfig.base.json`, as
+  [Lit's decorators page](https://lit.dev/docs/components/decorators/)
+  describes. Moving to standard decorators, or away from decorators, is a
+  possible code change if the flag becomes a pain point; it is not page
+  content.
 
 ### Q-071. `audit/` and `.claude/skills/` in `layout.md`
 

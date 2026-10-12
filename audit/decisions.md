@@ -985,38 +985,38 @@ Both units drop the stray comma in "would need a significand, past the significa
 The plan says something the units found wrong; `ok` lets the apply step amend it as
 proposed.
 
-- Section done:
+- Section done: yes
 
 ### Q-073. Claim N8's formula wording
 
 - Proposed: N8 reads `4 × (L + 10)`, "four times the sum of the precision limit and ten" (A3).
 - Evidence: F-508, F-022.
-- Decision:
+- Decision: ok
 
 ### Q-074. The notes' module, and the want parsed again
 
 - Proposed: correct the plan: the notes are worded in `src/outcome.ts`, not `src/messages.ts` (§1.1.6 item 1), and the outcome receives the parsed want rather than parsing it again (§1.2.4, §5 C1 and C4) (A2). V2 would leave the plan and let the pages state the mechanism.
 - Evidence: F-506, F-505.
-- Decision:
+- Decision: ok
 
 ### Q-075. Names absent, or meaning something else
 
 - Proposed: §7's `units.md` bullet becomes "names that are absent or mean something else (`u`, `at`, `dB`, `e`, `rad`)" (D3), and claim Q9 adds that `at` reads as `a` + `t`, an attotonne (D1).
 - Blocks: `docs/units.md#Names deliberately absent` (its title and its list).
 - Evidence: F-502, F-112.
-- Decision:
+- Decision: ok
 
 ### Q-076. The module of `MIN_SIGNIFICAND_LIMIT_BITS`
 
 - Proposed: §11's row names `src/core/context.ts` (V7).
 - Evidence: F-503.
-- Decision:
+- Decision: ok
 
 ### Q-077. `layout.md#The files` in §9.2
 
 - Proposed: strike it from §9.2's row of devdocs passages that re-explain user semantics (V7).
 - Evidence: F-366.
-- Decision:
+- Decision: ok
 
 ## 8. Settled and coordination items
 
@@ -1083,8 +1083,8 @@ The open items above decide what changes; this decides when. The proposal:
 3. After the pages, each in its own commit: the message wording (B-015 to B-029) with the generated catalogue (§12 question 6), the test gaps (B-030 to B-033), the comments (B-034 to B-067, Q-059), and B-069 and B-070 with the work they belong to. Meanwhile the pages describe today's behaviour and quote no message that is about to change.
 4. Not scheduled: the behaviour the open items keep and document (B-007, B-008, B-010, B-011), what an open issue tracks (B-003 with #79, B-006 with #88, B-009 with #92), B-013, which is by design (Q-091), and B-014 (Q-041).
 
-- Section done:
-- Decision:
+- Section done: yes
+- Decision: ok
 
 ## 10. Everything else in findings.md
 
@@ -1104,8 +1104,8 @@ want to look through them.
 | --- | --- | --- |
 | | | |
 
-- Section done:
-- Decision:
+- Section done: yes
+- Decision: ok
 
 Here `ok` accepts the rule; anything else amends it.
 

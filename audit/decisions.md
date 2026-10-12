@@ -406,12 +406,9 @@ near; never "hard precision bound". The choice is the docs phrase.
 - A. "system" may qualify the file against user definitions, as in "the system file" (A9), as §8 and §12 question 12 do.
 - B. "system" only for a system of units; the file is always "the definitions file" (D3).
 - Recommended: A. The plan already uses it so, and the contrast with user definitions needs a word.
-- Decision: other: "system" on its own is ambiguous and overloaded. "System
-  definitions file" is acceptable, but I would prefer something like "predefined
-  units file" or even "preamble", which is most general and less confusing than
-  "system". I'm open to suggestions here, as "preamble" comes with its own
-  baggage and might feel like jargon to people not used to programming
-  languages.
+- Decision: other: "system" on its own is ambiguous and overloaded. I want you
+  to use "definitions file" here. In contexts where it's ambiguous, "predefined
+  definitions file" is acceptable and clear.
 
 ### F-483. "interval" in the user docs
 
@@ -604,11 +601,7 @@ four have competing owners. #88, #92 and #100 are settled (Q-102 to Q-104, secti
 - Recommended: A, which goes with A in Q-012. Either way `settings.md` names the concern in words.
 - Blocks: the issue-link edits of `devdocs/settings.md`, `cost.md` and `future.md`.
 - Evidence: F-418, F-419, F-343.
-- Decision: other: I'm not sure what you mean by option B above, but my ruling
-  is to put this into the future-work document and leave it at that. This is
-  emphatically _not_ a settings concern and arguably does not live under "cost"
-  because it's a planned improvement to be implemented in the future (and as
-  such should _not_ be captured in the living as-it-is documents).
+- Decision: B
 
 ### Q-014. Issue #98, significant figures
 
@@ -654,8 +647,7 @@ One proposal each, or a clear lean; `ok` takes it.
 
 - Proposed: "Defined functions", keeping the file name; the index lines of `devdocs/README.md` and `devdocs/architecture.md` are reworded to match (V4).
 - Blocks: `devdocs/functions.md#(top)`.
-- Decision: I would prefer to rename this to `builtins.md`, in both the user
-  docs and devdocs. The title should be something like "Built-in functions".
+- Decision: ok
 
 ### Q-021. The heading "A function as the want"
 
@@ -789,12 +781,7 @@ an extended count out of range is clamped instead.
 - Recommended: B, unless the reset is deliberate. One rule for every stored value is easier to state and to trust.
 - Blocks: one sentence of `devdocs/settings.md#Storage`.
 - Evidence: F-333.
-- Decision: other: We already have clamping behavior, and it flows from "most
-  constraining" to "least constraining", starting at the singificand precision
-  limit. I don't understand what aspect you're calling out here, but if there's
-  a bug here, then please spell it out. As I currently understand it, no
-  behavior requires changing and it should just be documented as it currently
-  behaves.
+- Decision: B
 
 ### Q-057. The internal kind name in the load-failure message
 
@@ -1071,8 +1058,8 @@ question 5. Q-110 stays unverified until the `devdocs/settings.md` session check
 settled by reading `public/favicon.svg` against `public/icons/`. Q-114's tables stay in
 `devdocs/builtins.md` until the generated reference replaces them.
 
-- Section done:
-- Decision:
+- Section done: yes
+- Decision: ok except Q-104: future.md; Q-088: devdocs follow Q-016
 
 ## 9. Code changes: when each lands
 
@@ -1105,7 +1092,8 @@ want to look through them.
 | | | |
 
 - Section done: yes
-- Decision: ok
+- Decision: ok; the rules set in sections 1–5 override any proposed call they
+  touch, whatever its Related line says
 
 Here `ok` accepts the rule; anything else amends it.
 

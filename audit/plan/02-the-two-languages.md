@@ -2,6 +2,11 @@
 
 ## 2. The two languages
 
+Amended on 2026-10-12 (§12, section 12.1): the two hand-maintained
+grammars in the parsers' header comments are named (F-500, Q-038), the
+"cannot disagree" claim is scoped (F-501), and the rules that bind
+every page (`audit/principles.md`) hold in the wording below.
+
 ### 2.1 The expression language
 
 #### 2.1.1 Constructs and semantics documented anywhere, by pointer
@@ -35,8 +40,9 @@
   the significand limit at evaluation (N21, N22).
 - **Exponents of `^`.** Known at parse time so that the dimension stays
   exact (Q1); the fraction formed within the significand limit at
-  evaluation; `^` and `pow` disagree on an unformable exponent (#88,
-  #89) → `devdocs/architecture.md#Evaluation`.
+  evaluation; `^` and `pow` disagree on an unformable exponent (#88, a
+  bug whose link stays with the owning passage, Q-012; #89 is on the
+  owner's list) → `devdocs/architecture.md#Evaluation`.
 - **Dimensions.** A number is a plain number; juxtaposition and `*`/`/`
   combine dimensions; `+`/`-` check conformance (Q3, Q6); the
   "fraction before a unit" pitfall → `docs/definitions.md#Expressions`
@@ -58,13 +64,21 @@
   similar; see §11). The grammar lives as code: the levels and binary
   operators are data in `src/core/expr.ts` (`LEVELS`, `BINARY`), built
   into parser combinators from `src/core/parser.ts`, with the printer in
-  `src/core/print.ts` driven by the same table so "the two cannot
-  disagree" → `devdocs/architecture.md#Expressions`, `#Parsing`.
+  `src/core/print.ts` driven by the same table for the binary operators,
+  so that the two cannot disagree there; the property test
+  (`src/core/print.test.ts`) covers the rest (F-501). An EBNF-style
+  grammar of twelve productions is hand-maintained in the header
+  comment of `src/core/expr.ts` (lines 6-19) and matches the
+  combinators production by production (F-500, Q-038) →
+  `devdocs/architecture.md#Expressions`, `#Parsing`.
 - In prose: `devdocs/architecture.md#Expressions` (precedence, the `-`
   rules, the call rule, the six node kinds) and
   `docs/definitions.md#Expressions` (the same rules by example). No
-  EBNF for expressions appears anywhere; `devdocs/functions.md#Definitions`
-  has an EBNF-style block for function and inverse lines only.
+  EBNF for expressions appears in either corpus: the one that exists is
+  the header comment of `src/core/expr.ts`, and
+  `devdocs/functions.md#Definitions` has an EBNF-style block for function
+  and inverse lines only, the function part of the line grammar in the
+  header of `src/core/definitions.ts` (lines 20-32; F-500).
 - **The intended end state** (owner's decision in review): the grammar
   is written once, as a TypeScript DSL with paired data structures that
   the parser and the printer are built from, and a tool generates a
@@ -75,7 +89,10 @@
   lists the generated-docs work items together).
 - **In the interim**, the recommendation is to document the grammar in
   prose with a precedence table and worked examples, and to write no
-  hand-maintained EBNF for the expression language: the prose and the
+  hand-maintained EBNF for the expression language in the pages (the
+  header grammars stay beside the code as the hand-maintained forms
+  until the DSL generates one, and `devdocs/architecture.md#Expressions`
+  names them, Q-038): the prose and the
   table are needed whatever the generator produces, so nothing is
   thrown away, while a hand-written EBNF would be replaced wholesale and
   would be a second source of truth to keep in step until then. Audit
@@ -110,8 +127,8 @@
 | Shadowing: a parameter may be named like a unit (hides it in the body); not like a unit its own head's annotations name; duplicate parameters | `docs/definitions.md#Functions` | `devdocs/functions.md#Names and shadowing` |
 | Any order; cycles, duplicates, ambiguous names, prefixed-unit names for lists/functions/built-ins, dimensioned prefixes, bad lists, mismatched annotations, orphan inverses, inverse arity, zero annotations, conditions without a parameter, undecided conditions at build: errors | `docs/definitions.md#The format` (summary sentence), `#Names`, `#Unit lists`, `#Functions` | `devdocs/architecture.md#Definitions` (the build-error catalogue); `devdocs/functions.md#Build-time checks` |
 | Reserved `name[` (dimension variables) | — | `devdocs/functions.md#Definitions`, `#Deferred` |
-| The system file's sections and conventions (`imp`/`uk` prefixes for imperial, `longton`, the three micros, binary prefixes, lists, temperature and logarithmic functions) | `docs/definitions.md#What the file contains` | `devdocs/development.md#Adding a unit`; `devdocs/functions.md#Definitions` (the five functions) |
-| User definitions: supported by `buildTable`, no storage or editor yet (#132); no message worded for a definitions rejection today | — | `devdocs/future.md#Extensions that fit`; `devdocs/functions.md#Annotations`, `#Deferred` |
+| The definitions file's sections and conventions (F-475) (`imp`/`uk` prefixes for imperial, `longton`, the three micros, binary prefixes, lists, temperature and logarithmic functions) | `docs/definitions.md#What the file contains` | `devdocs/development.md#Adding a unit`; `devdocs/functions.md#Definitions` (the five functions) |
+| User definitions: supported by `buildTable`, no storage or editor today (#132, `devdocs/future.md`'s alone, Q-011); no message worded for a definitions rejection today | — (the user docs state the plain fact that only the predefined definitions file is loaded) | `devdocs/future.md#Extensions that fit`; `devdocs/functions.md#Annotations`, `#Deferred` |
 
 #### 2.2.2 Where syntax meets the core abstractions
 
@@ -146,12 +163,15 @@
 
 #### 2.2.3 Formal grammar: does one exist, and how the reference documents it
 
-- A grammar block exists for the function and inverse heads only
-  (`devdocs/functions.md#Definitions`). The line-level grammar (primitive,
-  prefix, unit, list, function, inverse; comments) is prose in
-  `docs/definitions.md#The format` and `devdocs/architecture.md#Definitions`.
-  The parser is `src/core/definitions.ts` (combinators over the same
-  toolkit); no grammar file.
+- A grammar block exists in the pages for the function and inverse
+  heads only (`devdocs/functions.md#Definitions`). The whole line grammar
+  (primitive, prefix, unit, list, function, inverse; comments) is
+  hand-maintained in the header comment of `src/core/definitions.ts`
+  (lines 20-32), of which the page's block is the function and inverse
+  part (F-500, Q-038), and is prose in `docs/definitions.md#The format`
+  and `devdocs/architecture.md#Definitions`. The parser is
+  `src/core/definitions.ts` (combinators over the same toolkit); no
+  grammar file.
 - **End state:** the same generated grammar as §2.1.3, with the
   definition language's productions in the same DSL, so that one tool
   emits both references' grammars.

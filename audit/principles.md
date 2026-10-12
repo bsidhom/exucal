@@ -58,3 +58,92 @@ reason to write past the subset. The subset is fixed when the renderer
 is designed; until then, writing within it costs nothing and keeps the
 door open. The audit units rewrite what lies outside it as they reach
 each page, the reference-style issue links first.
+
+## Rules from the owner's decisions that bind every page
+
+Set by the owner's answers to the audit (`audit/decisions.md`, recorded
+in `audit/plan/12-open-questions.md`, section 12.1), on 2026-10-12.
+Each binds every page of both corpora from now on, whatever an earlier
+plan passage, finding or draft says; each page's work order applies
+them to its drafts. The owner's own words are in the record under the
+item named.
+
+**Future work (Q-011, with Q-013, Q-014, Q-035 and Q-104).** Anything
+not implemented today that might be implemented later is described in
+`devdocs/future.md`, with its issue links, and nowhere else: the user
+docs never mention it, and a devdocs page that needs to say something
+is planned links `future.md` rather than describing it. What is ruled
+out by intent is not future work but a current design decision, so it
+lives in the as-is pages: one sentence where a user would look for it
+in `docs/` (for example, that the app never shows the error radius),
+and the reason in the devdocs page that owns the concept. A user page
+may state what the app lacks today as a plain fact, with what to write
+instead, but never as something to come. Bugs and performance problems
+in today's behaviour are not future work: their issue links stay with
+the passage that owns the concept (Q-012: the cost and hang issues in
+`devdocs/cost.md`, the Bernoulli memo's in `devdocs/builtins.md`). So
+#130 to #134, #118 with #119 to #121, #98 and #100 are linked from
+`future.md` only. Where it is unclear whether an item is ruled out or
+might still be done, the owner is asked (the list at the end of
+`audit/decisions.md`); meanwhile the item is pending.
+
+**Inexact, not approximate (F-451).** "Inexact" names a value with a
+nonzero radius, everywhere, headings included ("Exact and inexact
+values", "which units are inexact", "the digits an inexact value is
+kept to"). "Approximate" and its variants are reserved for the act of
+making a value inexact (`approx`; "approximating a value") and are
+never the adjective of a value.
+
+**The settings panel (F-488).** What the user opens is "the settings
+panel", or "the panel", in both corpora; never "sheet", which is only
+today's visual design.
+
+**The definitions file (F-475).** `src/units.txt` is "the definitions
+file", or "the predefined definitions file" where a user's definitions
+could be meant; never "the system file", "system definitions" or
+"system" alone, which names only a system of units. Code identifiers
+are quoted as they are.
+
+**Which numbers the pages keep (Q-016, Q-018, Q-088).** The user docs
+carry no timing, run count or measured ratio: qualitative descriptions
+and warnings only (question 9), a rough duration among them where it
+warns. The devdocs keep the code's and the tools' constants, the model
+figures the thresholds derive from, the counts that describe an
+algorithm (terms, bits, convergents), memory sizes, measured ratios and
+machine-portable heuristics, and rough timings and durations where they
+clarify an issue or add weight to a decision, each marked as rough and
+illustrative and worded broad and generous so that it does not drift;
+a figure that does none of that leaves for the benchmarks and the
+stress tools. An item's own answer (Q-017) wins over this rule for its
+passage.
+
+**Refusal (F-442).** In both corpora "refusal" and "refuse" name only a
+size refusal: the significand limit's or the exponent bound's, a value
+the limits keep from being computed. In the docs everything else is
+"an error", and text the grammar does not read is "an error as it is
+typed". The devdocs keep "rejection" and "rejected" as the distinct
+notion for text the parser recognized and refused (a literal past the
+hard bound or the exponent bound, a definitions-line fault) and never
+say "refuse" for a domain error, an edge or a mismatch.
+
+**Topological order (Q-008).** The pages are written in topological
+order, each after the pages it depends on: the user pages first
+(numbers, quantities, expressions, definitions, units, settings, the
+built-ins, the app, the index), getting started last, and every
+devdocs page in one pass after the user pages it links exist, so that
+no link dangles and no page is edited twice. Where two user pages link
+each other, the page written first links the later one at the anchor
+the §7 outline fixes, and the later page keeps that heading (a rule the
+owner is asked to confirm). The work orders under `audit/work-orders/`
+are numbered in that order.
+
+**`docs/builtins.md` (Q-020's note).** The user page on the built-in
+functions is `docs/builtins.md`, titled "Built-in functions", matching
+`devdocs/builtins.md`; every link to the old name `docs/functions.md`
+follows, and "functions.md" then names only `devdocs/functions.md`,
+"Defined functions".
+
+Two further answers reach every page and are recorded in plan §8: the
+synonyms "dimensionless" and "plain number", with "kind" wherever
+semantics attach (Q-019); and "build ID", "the service worker", "a new
+version" and "update" as the app's words (Q-022, F-493, F-494).

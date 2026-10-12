@@ -3,7 +3,12 @@
 ## 7. Proposed docs/ outline (skeleton)
 
 Pages, each with title, role and a one-line scope, then the
-concept-level sections. File names are proposals.
+concept-level sections. File names are proposals. The headings below
+are the anchors other pages link to: the pages are written in
+topological order (§12, question 8 of section 12.1), and a page written
+earlier links a later page at these headings, so a session renames one
+only by updating every link to it. Amended on 2026-10-12 from the
+owner's answers (section 12.1 of §12); each change names its answer.
 
 **`docs/README.md` — index (guide).** What the app is in two sentences;
 the page list below with one line each; where the developer docs are.
@@ -19,50 +24,80 @@ similarity in conversion semantics or definitions helps.
 - Your first conversion (`3 ft` → `in`; the two lines; copy)
 - Lists of units (`ft;in`, `time`)
 - Functions and readings (`sin(30 deg)`, `tempC(20)`, `300 K` → `tempF`)
-- Making a value approximate (`approx(2.54)`)
+- Approximating a value (`approx(2.54)`) (F-451: "approximate" only for the act)
 - Changing a setting (display digits, ratio notation, decimal mode)
-- When something is refused (a mismatch, a size refusal, an edge)
-- Where to go next (the app guide for installing and offline use)
+- When something fails (a mismatch, a size refusal, an edge; only the
+  size refusal is a refusal, F-442; two or three messages as examples,
+  Q-007)
+- Where to go next (the app guide for installing and offline use);
+  written last of all the pages (Q-008), introducing have and want
+  (F-471)
 
 **`docs/numbers.md` — Numbers (foundation).** The numeric model a user
 needs to predict and interpret any result.
-- Exact and approximate values (the fraction times a power of ten; the
-  error radius; the sources of approximation)
+- Exact and inexact values (the fraction times a power of ten; the
+  error radius; the two sources of inexactness, F-010; one clause that
+  the units defined through `pi()` are inexact, linking `units.md`,
+  F-113; the app never shows the error radius, a ruled-out design
+  stated as a plain fact, Q-011)
 - How a value is held (the fraction and its bit size; the power of ten
-  and its bound; the error radius; the digits an approximate value is
-  kept to; the dyadic cost), as foundation that the settings reference
-  links to (§12, question 5)
+  and its bound; the error radius; the digits an inexact value is
+  kept to, the grid named once, Q-004; the dyadic cost), as foundation
+  that the settings reference links to (§12, question 5)
 - Operations that stay exact; exact cases of functions
-- Digits you can trust (display digits; retries up to a ceiling; what a
-  note says; the uncertified mark)
-- Comparison and equality (exact vs approximate; undecided at a bound)
-- Values at an edge ("cannot be told from")
+- Digits you can trust (display digits; retries up to a ceiling, the
+  highest precision any pass computes at, Q-004; what a note says, in
+  the "certified" wording after the code change, Q-006; the uncertified
+  mark)
+- Comparison and equality (exact vs inexact; undecided at a bound; the
+  touch rule in one sentence, Q-024; no equality operator, a plain fact,
+  Q-011)
+- Values at an edge ("cannot be told from", an error and never a
+  refusal, F-442; which rounding functions decide a value that cannot be
+  told from zero, Q-025)
 - Identities and cancellation (what never certifies; the dependency
   problem; what it costs)
-- The two modes (exact; decimal as rules 1–4; working digits)
-- `approx`
-- Rounding modes and where they act
+- The two modes (exact; decimal as rules 1–4, with the list of what
+  counts as a step, F-037; working digits; decimal mode's consequences
+  for units and edges without settings-dependent digits, Q-023; decimal
+  mode runs a single pass, F-039)
+- `approx` (the concept, with A5's, A2's and D6's facts, F-046; nothing
+  of the binary form, which is future work, Q-011: `devdocs/numbers.md`
+  names it in one clause, Q-035)
+- Rounding modes and where they act (`round(2.5)` under the default,
+  F-048)
 - Values too big to hold (the significand limit and its remedies; the
-  exponent bound; which message says which)
+  exponent bound, with a display rounding past it refused, Q-002; which
+  message says which, the two quoted as examples, Q-007; the one
+  log-space example, Q-026; "the exponent", never "decimal exponent",
+  F-440)
 - How numbers are written (digits, exponents, zero, ratio notation;
-  every result pastes back as input, §12 question 11)
-- What costs time (qualitative)
-- Real values only
+  the ratio bare before `×` and parenthesized before a unit, Q-003;
+  every result pastes back as input, §12 question 11, F-457)
+- What costs time (qualitative only, Q-016)
+- Real values only (a plain fact; nothing of what symbolic or complex
+  values would add, Q-011)
 
 **`docs/quantities.md` — Quantities (foundation).** Units, dimensions,
 kinds and what a conversion is.
 - A quantity: a value with a dimension; dimensions have rational
   exponents by design, so `^` takes a literal rational exponent
 - Primitives, dimensions and kinds (the radian the only kind today,
-  named verbosely; §12, question 20)
+  named by its kind; a kind primitive "a marker of a kind, with no
+  dimension of its own", F-459; §12, question 20 and Q-019)
 - Conformance: what can be added, converted, passed
 - No unit of its own: consequences (floor, annotations)
-- Units, prefixes and exactness of factors (which units are approximate)
-- How a conversion is answered (the ratio; a want with a magnitude; the
-  blank want; the reciprocal line; lines that type back)
+- Units, prefixes and exactness of factors (which units are inexact;
+  the rule, F-069: every factor is written exactly, so a conversion is
+  exact unless a unit calls `pi()`; `units.md` lists the measured values)
+- How a conversion is answered (the ratio, refused also at the
+  significand limit, F-070; a want with a magnitude; the blank want; the
+  reciprocal line; lines that paste back, F-457)
 - Unit lists (counts, remainder, rounding carry, validity)
 - Conversion into a function (readings)
-- Temperature and logarithmic levels as functions
+- Temperature and logarithmic levels as functions (readings are
+  functions, not units with an offset: a ruled-out design stated as a
+  plain fact, Q-011)
 - How dimensions are written in messages
 
 **`docs/expressions.md` — The expression language (reference).** Syntax
@@ -77,9 +112,11 @@ and semantics of what is typed into either field.
   call)
 - Evaluation order and error locations
 - What the app writes back (printed form, `×` vs `*`)
-- Pitfalls (`1/12 year`, `kg(m/s)`, `-2^2`, `m2`)
-- What is not accepted (display-only characters such as `×`; §12,
-  question 11)
+- Pitfalls (`1/12 year`, `1/2 in` against `(1/2) in` and `0.5 in`,
+  Q-003; `kg(m/s)`, `-2^2`, `m2`)
+- What is not accepted (display-only characters such as `×`, stated as
+  errors with what to type instead and nothing of what may come, Q-011,
+  Q-037; "an error as it is typed", never "rejected", F-442)
 - Appendix: parse and evaluation errors, generated from `src/messages.ts`
   by the docs tool (§12, question 6); nothing hand-written meanwhile
 
@@ -95,44 +132,62 @@ file's format and the semantics of each definition kind.
   body; exactness and cost; decimal mode)
 - Inverses (conditions; what a conversion into the function checks)
 - Names: namespaces, prefixed-name rule, shadowing
-- Build-time checks (table: error, cause, fix)
-- User definitions: intended, with the editing UX still to be designed
-  (#132); today only the system file is loaded (§12, question 12)
+- When the file does not load (table: error, cause, fix; "error",
+  never "rejected", F-442; "loaded" in docs, "build" in devdocs, F-476)
+- Only the predefined definitions file is loaded today, stated as a
+  plain fact (Q-011: that user definitions are to come, and #132, are
+  `devdocs/future.md`'s; F-475)
 
 **`docs/units.md` — The units the app knows (reference).** A friendly
-guide to the system file's contents; `src/units.txt` is the source of
+guide to the definitions file's contents (F-475); `src/units.txt` is the source of
 truth, and the page may defer to it; later possibly generated from
 structured comments in the file (§12, question 4).
+- The primitives, `bit` included, and why information is a dimension
+  (F-094, Q-032)
 - The SI (base units, prefixes, derived, accepted non-SI)
 - US customary; UK imperial; naming conventions (`imp`, `uk`, `long`)
-- Constants and extras (CGS, pressure, calories, time, bits and bytes)
-- Angle units (approximate through `pi()`)
+- Constants and extras (CGS, pressure, calories, time, bits and bytes);
+  other metric and scientific units, time beyond the day, information,
+  counts and ratios, naming conventions beyond `imp` and `uk`, as D3's
+  draft sections them (F-109, F-115)
+- Angles and rotation (inexact through `pi()`, F-451, F-113)
 - Temperature: differences and readings
 - Logarithmic levels
-- Unit lists defined in the file
-- Names deliberately absent (`u`, `at`, `dB`, `e`)
+- Unit lists defined in the file (`dms` the one inexact list, F-111)
+- Which factors are exact (the sources the file cites, Q-033; the
+  measured values, the dalton as CODATA 2018 and the two years; `gravity`
+  exact by convention, F-069)
+- Names that are absent or mean something else (`u`, `at`, `dB`, `e`,
+  `rad`; Q-075; nothing of a unit `a`, F-078)
 
 **`docs/settings.md` — Settings (reference).** Every control, in terms
 of the model parameter it sets, grouped and nested by mode and never
 counted; foundational detail lives in `numbers.md`, which each entry
 links to (§12, questions 5 and 16).
-- Where the settings are and how a change applies (short)
+- Where the settings are and how a change applies (short; the panel's
+  mechanics are `app.md`'s, F-176, F-488); the entries grouped as D4
+  drafts them, how it is shown, how it is computed, how much it may cost
+  (F-136)
 - Display digits
 - Rounding
 - Mode
 - Notation and ratio width
 - Working digits and the extended count
-- Precision limit
-- Significand limit
-- Probe budget and "Measure this device"
+- Precision limit (the formula once, "four times the sum of the limit
+  and ten", Q-005)
+- Significand limit (one sentence and a link, Q-108)
+- Probe budget and "Measure this device" (the four elementary
+  functions, F-491; as a procedure, F-129)
 - How the settings bound each other (the chain; refusals; clamps)
 - Defaults and resets; storage (one sentence)
 
-**`docs/functions.md` — Built-in functions (reference).** Generated from
+**`docs/builtins.md` — Built-in functions (reference).** Renamed from
+`docs/functions.md` (Q-020's note), every link following. Generated from
 structured comments beside each implementation, grouped by family (§4);
 until the generator exists, today's prose list, corrected.
 - Rules every built-in follows (plain numbers unless stated; exact
-  cases; domains; edges; refusals; decimal mode; no prefixes; arity)
+  cases; domains; edges; errors and the size refusals, F-442; decimal
+  mode; no prefixes; arity)
 - Constants (`pi`)
 - Exponential and logarithms
 - Roots and powers (`pow` vs `^`)
@@ -145,12 +200,22 @@ until the generator exists, today's prose list, corrected.
 - Integer functions
 - Gamma family; incomplete gamma; error functions; incomplete beta
 - Functions defined in the file (cross-reference to `units.md`)
-- Not provided, and what to write instead (distributions, deferred
-  specials)
+- Not provided, and what to write instead (a plain fact: what the app
+  lacks and what to write, never what may come; the deferred classes
+  are described in `devdocs/future.md` only, Q-010, Q-011)
 
-**`docs/app.md` — The app (guide).** What is specific to the web app:
-installing, offline use, updates and the build number, the settings
-sheet's mechanics, copying results (§12, questions 3 and 22).
+**`docs/app.md` — The app (guide).** What is specific to the web app
+(§12, questions 3 and 22), in six sections (D9's scope, F-180):
+- Installing
+- Offline use (the service worker named once as what lets the app be
+  served offline, F-493; the loading and failure messages, F-169; the
+  privacy sentence, Q-028)
+- Updates and the build ID (Q-022; every footer word quoted, Q-007;
+  "a new version" and "update", F-494)
+- The settings panel (F-488; the mechanics and the reset links, F-176)
+- Copying a result (pastes back, F-457; the button's feedback, F-178)
+- The two fields (the labels named beside have and want, F-471; the
+  hint described, not quoted, Q-056; which field an error marks, F-179)
 
 ### 7.1 The developer-side counterparts (unified concept map)
 
@@ -164,7 +229,7 @@ the units in §10.c reshape them to this map.
 
 | Concept area | docs/ owner (the rules) | devdocs/ owner (mechanism, decisions, ruled-out alternatives) |
 | --- | --- | --- |
-| Exactness and the error radius | `numbers.md` > Exact and approximate values | `devdocs/numbers.md#The types`, `#Exact mode` |
+| Exactness and the error radius | `numbers.md` > Exact and inexact values | `devdocs/numbers.md#The types`, `#Exact mode` |
 | Digits, certification, the retry loop | `numbers.md` > Digits you can trust | `devdocs/numbers.md#Certification and the display rule`, `#Working precision and the schedule`, `#Settling` |
 | Comparison and edges | `numbers.md` > Comparison; Values at an edge | `devdocs/numbers.md#Comparison`, `#Exact operations` |
 | Decimal mode and working digits | `numbers.md` > The two modes | `devdocs/numbers.md#Decimal mode`, `#The working digits` |
@@ -173,9 +238,10 @@ the units in §10.c reshape them to this map.
 | Quantities, dimensions, kinds, conformance | `quantities.md` | `devdocs/architecture.md#Quantities, dimensions and kinds` |
 | Conversion and the output modes | `quantities.md` > How a conversion is answered; Unit lists; Conversion into a function | `devdocs/architecture.md#Conversion`, `#Unit lists`, `#The converter and its lines`; `devdocs/functions.md#A function as the want` |
 | The expression language | `expressions.md` | `devdocs/architecture.md#Expressions`, `#Parsing`, `#Evaluation` |
-| The definition language and user functions | `definitions.md` | `devdocs/architecture.md#Definitions`; `devdocs/functions.md` |
+| The definition language and defined functions | `definitions.md` | `devdocs/architecture.md#Definitions`; `devdocs/functions.md` |
 | The units the app knows | `units.md` | `devdocs/development.md#Adding a unit` (the contributor's side); the comments in `src/units.txt` |
 | Settings | `settings.md` | `devdocs/settings.md` |
-| Built-in functions | `functions.md` | `devdocs/builtins.md` |
-| The app's surface | `app.md` or `getting-started.md` | `devdocs/architecture.md#UI`; `devdocs/offline.md` |
-| What is ruled out or deferred | one sentence where a user would look for it ("real values only") | `devdocs/future.md`; each page's "Not in this design" |
+| Built-in functions | `builtins.md` | `devdocs/builtins.md` |
+| The app's surface | `app.md` (F-513) | `devdocs/architecture.md#UI`; `devdocs/offline.md` |
+| What is ruled out by intent | one sentence where a user would look for it ("real values only"; the error radius is never shown) | the page that owns the concept, with the reason; each page's "Not in this design" (Q-011) |
+| What might still be done | nothing: the user docs never mention future work (Q-011) | `devdocs/future.md`, the one place, with the issue links |

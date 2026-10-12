@@ -60,8 +60,15 @@ group points to it.
   way (the docs are the record of intent, so "code wrong" is a real possibility); for a
   stale passage, the tag confirmed or questioned; otherwise one line.
 - **Related.** Open items (Q-), bugs (B-) and findings on other pages about the same issue.
-- **Decision.** Blank until the owner's answer in [decisions.md](decisions.md) is applied;
-  a proposed call stands unless that sheet overrides it.
+- **Decision.** Filled on 2026-10-12 from the owner's answers in [decisions.md](decisions.md),
+  recorded in [plan/12-open-questions.md](plan/12-open-questions.md), section 12.1: "stands"
+  means the proposed call stands (the sheet's section 10); "follows Q-nnn" or "follows F-nnn"
+  names the answer that settles it; "amended by" names a rule that changes part of it (the
+  rules are restated in [principles.md](principles.md)); "pending" marks what the list at
+  the end of decisions.md ("For the owner") still holds. Where a call leaves a choice between
+  drafts, the page's session picks and its pull request says which; where a call is
+  undetermined on a fact or flagged low confidence, the session reads the cited code and
+  follows it, and anything still open comes back to the owner as a new question.
 
 **Placement.** A finding goes under its user-side owner page when any of its passages is on
 the user side (a current `docs/` page, a plan §1 claim, a plan §6 gap); otherwise under the
@@ -245,7 +252,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: lead with the calculator, unit awareness and kind checking as features (§12 q2), as the app's own descriptions already do (`public/manifest.webmanifest:4` "An exact unit calculator that works offline", `package.json:5`): V2's first sentence keeps GNU units as lineage (V2 L108-110); A8's opening paragraph names the reciprocal line and keeps one line on installing and offline use (A8 L125-129); D9's two proposed intros name no GNU units in the index (D9 L101-153).
 - Proposed call: Confirm `update` (§12 q2 is binding): both openings lead with the calculator; GNU units stays as lineage in devdocs only (V2), the docs index naming it nowhere (A8's draft, D9); the index's page list is the §7.1 rewrite's (§12 q18).
 - Related: F-002, F-472
-- Decision:
+- Decision: Stands: both openings lead with the calculator; GNU units stays as lineage in devdocs only (Q-039 lets devdocs keep that one clause); the index's page list is §7.1's, with `docs/builtins.md` for the built-ins (Q-020's note).
 
 #### F-002. Index and root README share one intro; reshape them per §12 q18
 
@@ -257,7 +264,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A8 (F-001, A8 L125-129) rewrites the index's opening paragraph and keeps the worked examples (`3 ft` into `in`, `ft;in`, the reciprocal line, the two copy texts) in the index; D9 (L37, L56, L101-139) moves them to getting started, where the reciprocal line is introduced, and leaves two sentences and the page list.
 - Proposed call: Apply §12 q18 with D9's two files; settle the examples' place against §7's index ("what the app is in two sentences; the page list"), which A8's paragraph exceeds; fold V8's list entry into D9's.
 - Related: F-001
-- Decision:
+- Decision: Stands: §12 q18 with D9's two files, the examples moving to getting started (written last, Q-008); the index is written after the pages it lists (Q-008) and follows Q-064 ("certifies" stays) and F-488 ("the settings panel" in its line for `app.md`).
 
 #### F-003. Root README's devdocs bullet promises design notes that are gone
 
@@ -269,7 +276,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: update (D9; new)
 - Rewrite: "The developer's documentation, including how to build, run and test the app, is in `` [`devdocs/`](devdocs/README.md) ``." The notes and plans are gone from the tree (`ls devdocs`: sixteen current-state pages, no `design/` or `history/`; `audit/plan.md`), and the list names seven pages of sixteen (D9 L34, L148-152).
 - Proposed call: Confirm `update`; the sentence becomes one of the root README's three (§12 q18).
-- Decision:
+- Decision: Stands (update).
 
 #### F-004. Root README's tooling sentence goes; development.md owns the commands
 
@@ -280,7 +287,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "The app is built with Lit and Vite, written in TypeScript, and uses pnpm for package management; `pnpm install`, `pnpm dev` and `pnpm test` are the commands to start with, and development.md has the rest." agrees with `package.json:8-12` but has no place in three sentences and two links (§12 q18); `devdocs/development.md` names the stack and every command (V8 confirmed the fourteen, V8 L34). D9 tags it stale (update, "delete here"), though the sentence is current: the fault is placement.
 - Proposed call: Delete it from the root README; whether the stack earns a fourth sentence is D9 (Q-098).
 - Related: Q-098
-- Decision:
+- Decision: Stands; follows Q-098 (the sentence goes; `devdocs/development.md` keeps the commands).
 
 #### F-005. Index says "the other way round" for the reciprocal line
 
@@ -293,7 +300,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: "the reciprocal line, the conversion the other way round" once (§8); the examples move to getting started, where the reciprocal line is introduced (D9 L37).
 - Proposed call: Confirm `update`; it falls with the index rewrite, and the term itself is the terminology draft's.
 - Related: F-470
-- Decision:
+- Decision: Stands (update); follows F-470 ("the reciprocal line").
 
 #### F-006. Index page list describes the pages before the §7 outline
 
@@ -306,7 +313,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: the list of §7's pages, one line each (D9 L117-136): how a number is held and very large results belong to `numbers.md`, the expression language to `expressions.md`; the functions the definitions file defines are not "user-defined" while only the system file is loaded, **user definitions** being reserved for the intended user-written ones.
 - Proposed call: Confirm `update`; the list is replaced as the §7 pages land (their links resolve only then).
 - Related: F-478
-- Decision:
+- Decision: Stands (update): the list is §7's pages, the built-ins' line naming `docs/builtins.md` (Q-020's note), the functions the file defines named by F-478's "defined function" (never "user-defined" while only the predefined definitions file is loaded, F-475).
 
 #### F-007. §6.8: the index must link to the foundation pages
 
@@ -317,7 +324,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: The intro's `≈` lines link nowhere.
 - Sources: D9's proposed index (L101-139): the examples leave for getting started, whose "Reading `=`, `≈` and a note" links to `numbers.md`, and the index becomes the page list.
 - Proposed call: Resolved by the §7 form of the index; no separate link needed.
-- Decision:
+- Decision: Stands: resolved by the §7 index; getting started's link to `numbers.md` is written last (Q-008).
 
 ### Findings owned by other pages that touch this one
 
@@ -348,7 +355,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: §12 q6 generates the message catalogue from `src/messages.ts` and hand-writes none in the interim, while the skeleton's section shows what a refusal looks like; D9's facts (L93) quote five messages verbatim (mismatch, kind mismatch, size refusal, edge, unknown name).
 - Proposed call: Quote two or three messages as examples of the shapes (a mismatch, a size refusal, an edge), claiming no completeness, and link the generated catalogue once it exists, as D9 (Q-007) proposes (owner decision pending).
 - Related: Q-007
-- Decision:
+- Decision: Follows Q-007 (ok): two or three messages as examples of their shapes, claiming no completeness; "refused" only for a size refusal (F-442: the section is "When something fails", or keeps its title with a mismatch and an edge named as errors).
 
 #### F-009. Getting started is missing entirely (§6.7); D9 verified its facts
 
@@ -358,7 +365,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `docs/` has four pages and no guide; the index's intro is the only tour by example, and `devdocs/architecture.md#(top)` is the one place the fields' names, have and want, are introduced.
 - Sources: `docs/README.md#(top)`; `devdocs/architecture.md#(top)`; D9's skeleton facts, each reproduced through `outcomeOf` at the defaults (eight digits, half even, exact mode), D9 L84-95: `2 kg * 3 m/s^2` gives `2 kg × 3 m / s^2 = 6 m kg / s^2`; `1/3 ≈ 0.33333333` (exact, but shown with fewer digits than it has: N10); `sqrt(2)^2 - 2 ≈ 0 (within … of zero)`; `3 ft` into `in` gives `3 ft = 36 in` and `in ≈ 0.027777778 × 3 ft` (copy texts `36 in`, `0.027777778 * 3 ft`); `3661 s` into `time` is `= 1 hr + 1 min + 1 s`, no second line for a list; `300 K` into `tempF` is `300 K = tempF(80.33)`; `approx(2.54) cm` into `in` is `≈ 1 in`; in decimal mode `1/3 × 3 = 0.99999999`; a mismatch (`1 m` into `s`) marks neither field; `1 mi` into `1000 ft` is `1 mi = 5.28 × 1000 ft`; where to go next is `docs/app.md`
 - Proposed call: write the page from §7's skeleton with these facts, ending with a link to `docs/app.md` (D9 (F-180)); it takes over the introduction of have and want (§8); how its refusal section quotes messages is a finding of its own (D9 (F-008)).
-- Decision:
+- Decision: Stands: the page is written last, from §7's skeleton with D9's facts (Q-008); its headings follow F-451 ("Approximating a value"), F-488 ("the settings panel") and F-471 (it introduces have and want); it ends with a link to `docs/app.md`.
 
 ## `docs/numbers.md`
 
@@ -397,7 +404,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A5 confirms N3 ("Claim confirmed", A5 L56; its Findings record §1.1.6 item 9 as "N3's "exactly three sources": confirmed", A5 L335) while its Claims row confirms only the exact-mode part, "exactly two ways" (A5 L56): an internal inconsistency (A5 report). Read at face value, L335 keeps three sources and the page's "fourth", against A1's correction (A1 L52, L91-98) and V1, which follows A1 (L70, L316).
 - Proposed call: **doc wrong**: the code is coherent (a step's one rounding is exact; A1's decimal-mode runs show no radius) and `devdocs/numbers.md#Decimal mode` already keeps the radius carried through steps as a ruled-out alternative; N3's correction settles the "fourth source" sentence ("a third"). To settle the conflict, read A5 L56 against L335: L335 may mean the exact-mode half only, and A5's L56 evidence answers only item 9's `onGrid` question (a rounding charged to an already inexact result), not whether decimal mode's rounding is a source.
 - Related: Q-079, F-113
-- Decision:
+- Decision: Stands (doc wrong; two sources); follows Q-079 (ok: "a third source"); amended by F-451 ("inexact" in the corrected statement wherever it says "approximate"; the section is "Exact and inexact values").
 
 #### F-011. Gap §6.1: exact and approximate values, their sources, what `=` means
 
@@ -408,7 +415,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: The content exists at the wrong level, on the settings page.
 - Sources: `docs/settings.md` page L209-219
 - Proposed call: D8's drafted `numbers.md#Exact and approximate values`.
-- Decision:
+- Decision: Stands; the section is "Exact and inexact values" (F-451).
 
 #### F-012. Dyadic cost: 69,658 bits in the pages, "about 69,659" in the refusal
 
@@ -419,7 +426,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "`2^-30000` … costs 69,658 bits" is the true size of `5^30000`; the refusal of `2^-30000` says "would need a significand of about 69,659 bits", a one-bit gap that a reader who tries the example will see (also `3^-100000` refused with "about 158,497 bits"). A1 and A5 read the prediction (`canonicalBits`) as an upper bound within a bit (A1 report, A5 report). The sentence moves to `numbers.md#How a value is held` (§12 q5), where D8's draft carries 69,658 (D8 L180-190).
 - Proposed call: the pages keep the true size and say "about" (D4 Q2); whether the prediction should overshoot by one is a code question (D4 (B-013)).
 - Related: Q-091, B-013
-- Decision:
+- Decision: Stands; follows Q-091 (ok: the pages keep the true size and say "about").
 
 #### F-013. N1: the fraction keeps no factor of ten; the bound is on the value
 
@@ -434,7 +441,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D8 confirms the page's "`2.54` … `127/50`" (D8 report, D8 L104; its rerun shows `2.54` is `= 2.54`, the display, not the held form) and its drafted `docs/numbers.md#Exact and approximate values` keeps "kept in lowest terms as `127/50`" (D8 L172-178, D8 L176), against A1's computed form (A1 L50, L228-234).
 - Proposed call: doc wrong: `normalize` is deliberate and `devdocs/numbers.md#The types` states the canonical form (A1 report, A1 report); settle D8's draft against A1's computed form of `2.54` before it lands.
 - Related: F-053
-- Decision:
+- Decision: Stands (doc wrong); the session settles D8's draft against A1's computed form of `2.54`; follows F-439 (the docs say "the fraction is kept with no factor of ten in its denominator"; "canonical" is devdocs-only, spelled out once).
 
 #### F-014. `docs/settings.md`'s number section dissolves into `docs/numbers.md`
 
@@ -445,7 +452,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the section is foundation that §12 q5 gives to `docs/numbers.md`. D8's table places it: L209-219 to `#Exact and approximate values` (the decimal sentence to `#The two modes`); L221-233 to `#How a value is held` (the cancellation example to `#Identities and cancellation`; the float analogy and "snapped onto a decimal grid" stay in `devdocs/numbers.md#The types` and `#Settling`); L235-241 to `#How a value is held` and `#Digits you can trust`; L242-254 to `#How a value is held` in two sentences, the mechanism staying in devdocs; L256-269 to `#Digits you can trust` and `#The two modes`, the chain of limits staying in D4's "How the settings bound each other". D8 deletes the section with one linking sentence at the page's foot (L279-281); D4 deletes it and keeps two facts as one sentence each in the settings entries (a grid point at the ceiling fits the significand limit with room for a product of two; in exact mode no digits setting touches an exact value). A1 drafted five interim old→new pairs to keep the section true until then; whether `docs/numbers.md` states the `onGrid` rounding is A1 Q8.
 - Proposed call: dissolve per D8's table (D8 L66-70); apply A1's interim pairs only if the section outlives the creation of `docs/numbers.md`, and carry their corrections (N1, N3, N4, the ceiling's wording) into D8's drafted sections.
 - Related: Q-083, Q-108, F-011, F-015, F-016, F-018, F-020, F-021, F-022, F-026, F-027, F-032, F-036, F-045, F-127
-- Decision:
+- Decision: Stands: dissolve per D8's table; follows Q-108 (the sessions of `docs/numbers.md` and `docs/settings.md` reconcile D4's and D8's drafts, the entry keeping a sentence and a link); amended by F-451 and Q-004 in the carried text ("inexact"; the ceiling's gloss; "grid" named once).
 
 #### F-015. "working precision" for the digits of the grid
 
@@ -459,7 +466,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V5 reads the identical devdocs sentence as keeping the two terms apart (V5 (F-431), V5 L232), though V5's rewrite of `#The model` drops it (V5 L155-161).
 - Proposed call: Confirm `update`; the term decision is the terminology group's.
 - Related: F-431
-- Decision:
+- Decision: Stands (update); follows F-431 (ok: "the working grid" in devdocs; in docs "the digits an inexact value is kept to") and F-451.
 
 #### F-016. "midpoint" and "grid" in the user page
 
@@ -472,7 +479,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: "What is known of it lies within its error radius, and the app keeps it to a fixed number of digits" (§8: midpoint devdocs-only); why the grid is decimal and how the kernel rounds onto it stay in devdocs (§9.1) (D8 L43).
 - Proposed call: Confirm `update`.
 - Related: F-429, F-438
-- Decision:
+- Decision: Stands (update); follows F-438 and Q-004 (B: "grid" stays in the docs, explained once; the rewrite keeps "a fixed number of digits" or names the grid there).
 
 #### F-017. "A rounding adds half a grid cell" not verified by D8
 
@@ -484,7 +491,7 @@ What to settle before rewriting a page, in the order it bites.
 - Why unverified: settling is A3's.
 - Proposed call: A3 settles it (context A3 report): `gridded` adds half a unit in the last working digit, and a whole unit where the rounding's exponent would pass the bound; `devdocs/numbers.md#Settling` states the exact charge (D8 (Q-084)) and the user page keeps D8's plain wording.
 - Related: Q-084
-- Decision:
+- Decision: Stands; follows Q-084 (ok: A3's exact charge in `devdocs/numbers.md#Settling`, D8's plain wording in the docs); low confidence: the page's session reads `gridded` if it states the charge.
 
 #### F-018. Gap §6.1: how a value is held, to the depth that predicts refusals
 
@@ -496,7 +503,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `docs/settings.md` page L209-254 and the Significand limit entry (A5-verified)
 - Proposed call: D8's drafted `numbers.md#How a value is held`, reconciled with D4's Significand limit entry (the finding that carries A5 (F-019)).
 - Related: Q-108
-- Decision:
+- Decision: Stands; follows Q-108 (ok).
 
 #### F-019. N4: an exact operand meeting an inexact one is rounded
 
@@ -511,7 +518,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D8 confirms the page passage "with A5's sharpening" (D8 report, D8 L110), and A5 files it as a sharpening of the verified Significand limit entry (A5 L376-384), where A1 corrects it (L53, L99-106); the facts agree, only the verdicts differ.
 - Proposed call: **doc wrong** (scope the sentences): `onGrid` is deliberate and `devdocs/numbers.md#Sums and alignment` states it; `numbers.md#How a value is held` states both halves, as D8 drafts it, with one sentence on what such a result's error radius covers (A1 Q8, proposed yes); A5's sharpening applies when the Significand limit sentence moves.
 - Related: Q-083, F-046
-- Decision:
+- Decision: Stands (doc wrong, scoped); follows Q-083 (ok: one sentence in the docs on what such a result's error radius covers); amended by F-442 ("refused, not rounded" is right: a size refusal) and F-451.
 
 #### F-020. Gap §6.1 (partial): which operations stay exact
 
@@ -523,7 +530,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: those passages
 - Proposed call: D8's drafted How a value is held and `approx` sections.
 - Related: F-046
-- Decision:
+- Decision: Stands.
 
 #### F-021. "Certain" becomes "certified" in every page quoting the notes
 
@@ -536,7 +543,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: "certified" in each place, with the code change of `src/outcome.ts:507` (`noteOf`) that §12 q8 records for A2, proposed there and not applied (A2 L120-128): L765 and L997 (A2 L39; V1 L256, L282); L1069 goes with its paragraph's keep-as-intent rewrite, L1185 with the decimal-mode paragraph's (V1 L256); L1018 "8 of 12 digits are certified" (A2 L50, L104-109), or V2's rewrite of the paragraph (V2 L258-260), which drops the quotation for "the certified digits of those asked for"; the L194 sentence moves to `numbers.md` (D8 L32); in devdocs, V5's rewrite of `#The model` carries it (V5 L52), as do D4's pairs (D4 L361-363).
 - Proposed call: Confirm `update` (q8 is binding), applied with the code change: not a superseded design but a decided code change; the pages quote `src/outcome.ts:507` correctly today, so the quoted note changes only with that change, which is bugs.md's (A2 (B-068), D8 (B-068)) and which D8 (Q7) asks to land before `docs/numbers.md` quotes the notes; at L1018 the quote changes with it or is dropped as V2 drafts.
 - Related: Q-006, B-068, F-427
-- Decision:
+- Decision: Stands (update, with the code change); follows Q-006 (ok: the change lands before `docs/numbers.md`, carrying the panel's lines).
 
 #### F-022. "Four times the limit plus ten" reads as 4L + 10; limit and ceiling run together
 
@@ -551,7 +558,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: (1) Wording: D8's rewrite of L258-261 keeps "four times that limit plus ten digits" (D8 L44), and D4's drafted Precision limit entry keeps "the finest grid the app rounds onto, which is four times this limit plus ten digits" (D4 L257-259; D4 (F-126, F-136)), though both units confirm `4 × (L + 10)` (context D4 L35, D4 L47; D8 L112). (2) A1's interim text calls the ceiling a grid ("the app may raise the grid to four times the sum of the limit and ten", A1 L262-264, A1 L223-272 pair 4), while A3 holds that the ceiling is a pass's precision, keeps "grid" out of the user docs and changes §8's gloss (A3 L68, L134, L142); A1's and D8's rewrites of L258-261 differ. (3) D8 drops the "Why four times…" paragraph (L271; D8 (F-026), D8 L45) that A1 rewrites with a repo-relative link (A1 L266-272).
 - Proposed call: **doc wrong**: the code and its test are unambiguous, and the plan's own §1.1.2 table and `devdocs/settings.md#The model` write `4 × (L + 10)`; nothing points to code wrong. Every rewrite writes the formula or "four times the sum of the limit and ten", and the L258-261 sentence keeps the precision limit (the most digits an answer may be asked for) apart from the ceiling. Settle the wording ("the sum of"), the "grid" gloss (A3 Q2, §8) and D8's drop of L271 before the dissolved section's text lands; keeping the formula once in the settings entry (D4 (Q-005)) and amending N8 (A3 (Q-073)) are the owner's.
 - Related: Q-005, Q-073, B-041, F-026, F-125, F-126, F-136, F-429, F-508
-- Decision:
+- Decision: Stands (doc wrong); follows Q-005 (A: the formula once, in the Precision limit entry, "four times the sum of the limit and ten" with 4,040 beside it), Q-073 (N8 amended) and Q-004 (B: the ceiling is a pass's precision; "grid" stays in the docs, explained once, so A1's "raise the grid" is reworded and D8's drop of L271 stands).
 
 #### F-023. N10: the partial kind is reachable today, by more than one route
 
@@ -566,7 +573,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D5 (L58, L123-124, L183, L195) proposes that A2 record the directed-mode route as "the one route to the partial note today"; A2 (L27, L60) shows a second route under the default half-even mode, and A4 (L135) more inputs of it (`log` of a rational on a tie).
 - Proposed call: **doc wrong** (plan N10 and page L768-770; the `Shown` comment `src/core/display.ts:190-192` is bugs.md's): the display's kind order is coherent and deliberate, and N10's open question is settled, reachable today; the two-argument `approx` stays the designed route for a value given with an uncertainty. D5's "one route" is checked against A2's half-even run (`sqrt(2)^2 * 1.000000025`, seven of eight).
 - Related: Q-063, Q-078, B-044, F-024
-- Decision:
+- Decision: Stands (doc wrong); follows Q-078 (ok: reachable by two routes); amended by Q-011: the two-argument `approx` is named as future work only in `devdocs/future.md`, so N10's "(#100)" and "the intended route" do not travel into the pages.
 
 #### F-024. "or that none is certified" names a note that does not exist
 
@@ -580,7 +587,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "how many of them are certified ("7 of 8 digits are certified", and "0 of 8" when none is), or that the value is zero within a bound ("within 2e-30 of zero" …)" (D8 L200)
 - Proposed call: **doc wrong** (the page names the notes that exist); the unreachable note is code (D8 L11).
 - Related: Q-006, B-024
-- Decision:
+- Decision: Stands (doc wrong); follows Q-006.
 
 #### F-025. The two tail paragraphs move to numbers.md, one sentence in place
 
@@ -590,7 +597,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `docs/settings.md#(top)` tail paragraphs (page L192-197, L199-205)
 - Finding: Page L192-197 (what a note says) goes to `numbers.md#Digits you can trust`; L199-205 splits: the relations to Digits you can trust, the cancelling roots to Identities and cancellation, the divisor to Values at an edge. In place, one sentence: "How to read a result, its `=` or `≈` and the note beside it, is in `[Numbers](numbers.md#digits-you-can-trust)`." (D8 L267-271). The paragraphs state the model correctly (context A2 report, D8 report, D8 report). A2's in-place edit of L194 ("certified", A2 L116-118) is superseded by the move.
 - Proposed call: Move as D8 maps it and keep the one sentence at the settings page's foot.
-- Decision:
+- Decision: Stands.
 
 #### F-026. "Why four times the limit plus ten" pointer dropped
 
@@ -603,7 +610,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: delete with the section; `numbers.md#Digits you can trust` links `devdocs/numbers.md#Working precision and the schedule` at the section level (§7.1), and the Precision limit entry links `numbers.md` (§12 q5) (D8 L45).
 - Proposed call: Confirm `drop`. A1's interim edit keeps the heading as a repo-relative link until the section dissolves (A1 (F-013) pair 5): an overlap only while the section stands.
 - Related: Q-082, F-013, F-014, F-134
-- Decision:
+- Decision: Stands (drop); follows Q-082 (ok).
 
 #### F-027. Gap §6.1: digits you can trust
 
@@ -614,7 +621,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: Certification, the retries and the notes are scattered on the settings page.
 - Sources: those passages
 - Proposed call: D8's drafted `numbers.md#Digits you can trust`.
-- Decision:
+- Decision: Stands.
 
 #### F-028. N14 and devdocs: a difference "refused as too large" cannot arise
 
@@ -629,7 +636,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A6 handed V4 this phrase as the one thing wrong on `devdocs/functions.md#The check at a call` (A6 L443-457); V4 proposes no edit to the section (V4 L68).
 - Proposed call: **doc wrong** (A6, reasoned from code): the alignment path is deliberate and `#Sums and alignment` describes it; the phrase names a refusal two inexact operands never reach. One fix covers the plan claim and both pages; the same phrase in code comments is bugs.md's.
 - Related: Q-059, B-042
-- Decision:
+- Decision: Stands (doc wrong); low confidence: the page's session reads `addBallsCore` before applying; amended by F-442 ("refused as too large" is a size refusal, the only sense "refused" keeps).
 
 #### F-029. N14: a touch is not a straddle; the callers decide
 
@@ -644,7 +651,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: (1) Verdicts on N14: V4 marks it confirmed with the gloss corrected (V4 L26); A6, which owns N14, marks it corrected (A6 L80), with two corrections (the touch, as V4 does, and "a difference refused as too large", which V4 does not flag) and a refinement of the strict case. (2) A6 contradicts itself on `countOf`: listed among the callers that "all treat a touch as a straddle" (A6 L121-126) and written into the rewrite as "a unit list's counts treat a touch as a straddle, since the value may lie on the edge, where the answer jumps" (A6 L329-330, adopted by V1 L212), but called "the one place a touch decides a value without `decide`" (A6 L457-459); A8 reads `countOf` as taking the nearest integer for a ball that straddles or touches it (A8 (F-072)). (3) V3 cites `position` (`src/core/ball.ts:355-361`) as "touching counts as straddling" (V3 L27), and D5 and D6 confirm N14's "touching counts as straddling" as the built-ins apply it (D5 L125, D6 L30), while A6 and V4 make a touch an order of its own (V4 L26, `ball.ts:376-398`); the contexts differ (built-in edges against condition verdicts: A6, and V3 per V4 report, say the built-ins' edge checks fold a touch into a straddle while the conditions do not). (4) On `#The check at a call`, V4 keeps the section whole with no edit (V4 L68) and confirms the verdict table (V4 L86); A6, who had handed V4 the section (A6 L443-457), corrects the sentence.
 - Proposed call: **doc wrong**: the sentences state the callers' rule as `position`'s own, the code tells a touch from a straddle deliberately (`VERDICTS`; the six answers are tested), and the `#The check at a call` sentence contradicts the page's own table, which both units find correct. To settle the verdict label, compare A6's corrected statement (A6 L80), which also covers V4's point, with V4's note (V4 L26); before V1 L212 is applied, read `src/core/convert.ts:394-401` to settle whether a unit list's counts belong among the touch-as-straddle callers. Whether the user docs state the touch rule is A6 Q1.
 - Related: Q-024, F-072, F-447, F-514
-- Decision:
+- Decision: Stands (doc wrong); follows Q-024 (ok: one sentence on the touch rule in the docs) and F-447 (ok: touch and straddle in devdocs); the page's session reads `src/core/convert.ts:394-401` for the unit-list counts before applying V1 L212; low confidence noted.
 
 #### F-030. N16 and `#Conditions`: equality absent today, not ruled out
 
@@ -658,7 +665,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: N16 holds as a statement of the code (four comparators; equality only in the `at` row, the exact cases, `=` on a line and `disjoint`'s refutation); that the absence is incidental and equality operators may come is the owner's intent (§1.3), which no code can confirm (A6 L228-230).
 - Proposed call: Confirm `update`, and keep N16's intent sentence as the owner's statement, from §1.3 (nothing to check in code). The three drafts agree in substance: A6 says "today" and "an extension that fits"; D2 and V4 put it as a constraint on any design. The `future.md` entry the link needs does not exist yet (A6 (F-345); V6 is to add it).
 - Related: Q-112, F-345
-- Decision:
+- Decision: Stands (update) as amended by Q-011: the pages state the plain fact (the comparators are the four orderings; there is no equality and no `!=`), `devdocs/functions.md#Conditions` keeps the constraint that equality of inexact values is undecidable on balls and links `devdocs/future.md`, which carries the intent and A6's constraint (Q-112); the user docs say nothing of what may come. N16's intent sentence is `future.md`'s.
 
 #### F-031. Undecided comparisons in the exact functions: D6's rule 3 at an edge
 
@@ -670,7 +677,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/builtins.md#The exact functions` ("On balls"), which holds the cell mechanism (`round.ts:211-301` per D6)
 - Proposed call: one sentence in "Values at an edge" (D6 Q6), pointed to from "Comparison and equality".
 - Related: Q-025
-- Decision:
+- Decision: Stands; follows Q-025 (ok: one complete sentence naming every rounding function and mode); amended by F-442: "undecided", "cannot be told from", never "refused", for these.
 
 #### F-032. Gap §6.1 (partial): values at an edge
 
@@ -682,7 +689,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: those passages
 - Proposed call: D8's drafted sentences for `numbers.md#Values at an edge`; the other edges are A6's and the built-in units'.
 - Related: F-031
-- Decision:
+- Decision: Stands; amended by F-442 ("cannot be told from" is an error at the ceiling, not a refusal).
 
 #### F-033. The call-cost paragraph triplicated; where its parts go
 
@@ -694,7 +701,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D8 moves the hand-written rule, with its examples, and the decimal-mode rule to `numbers.md` (D8 L77-78). V4 keeps both in `definitions.md#Functions` and gives `numbers.md` only the dependency problem (V4 L563). V4's draft links "a hand-written equivalent … decimal mode … is in definitions.md, 'Functions'" (V4 L434-441). The two fit together if `definitions.md` keeps D8's clauses.
 - Proposed call: one user statement with links in `definitions.md#Functions`; the dependency problem in `numbers.md`; the mechanism in `devdocs/functions.md`; in `devdocs/architecture.md#Functions` the last paragraph becomes one sentence with links to `functions.md` and `docs/definitions.md` (V2 L234-236; V2 L81, taken up) and the want paragraph gains the link (V2 L226-228). Still to settle: whether the hand-written rule's examples (`log(2, 8)`, the `tanh` formula) move to `numbers.md` (D8) or stay (V4).
 - Related: Q-107, F-036
-- Decision:
+- Decision: Stands; follows Q-107 (ok: the user statement in `definitions.md#Functions`, the dependency problem in `numbers.md`, the mechanism in `devdocs/functions.md`, a pointer in `architecture.md`) and F-468 (A: V2's "the third output mode" becomes "conversion into a function, the output mode a function want gives"); the session of `docs/numbers.md` settles whether the hand-written rule's examples move (D8) or stay (V4); sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist.
 
 #### F-034. N7: a refusal the loop does not retry ends it early
 
@@ -709,7 +716,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A3 confirms N7 as written (A3 L26; its runs all reach the ceiling), though its own trace of `resolve` ends the loop on any unretried error with the best result (A3 L58), as A1 (L55) and A5 (A5 report) say of a later pass's `tooLarge`: the verdicts differ, not the facts.
 - Proposed call: doc wrong: the claim omits an end that `resolve`'s comment and `devdocs/numbers.md#Working precision and the schedule` both state; take V6's statement into the page.
 - Related: Q-001, F-351, F-509
-- Decision:
+- Decision: Stands (doc wrong); follows Q-001 (a refusal at a later pass ends the loop with the best result so far; no code change); amended by Q-011: the clause "not a design goal … the intended remedy is a symbolic layer" is `devdocs/future.md`'s (its "Symbolic values"); the user page states today's behaviour as a plain fact, and `devdocs/numbers.md` links `future.md`.
 
 #### F-035. A built-in against the same formula written by hand
 
@@ -721,7 +728,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/functions.md#Precision, the radius and cost` (the hand-written-equivalent bullet); `docs/definitions.md:321-326`.
 - Proposed call: D8's drafted paragraph in `numbers.md` "Identities and cancellation" (D8 L208-216). See the triplication finding for the destination conflict with V4.
 - Related: F-036
-- Decision:
+- Decision: Stands; the destination follows F-033 (the session settles).
 
 #### F-036. Gap §6.1: identities and cancellation, and their cost
 
@@ -732,7 +739,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: The material is spread over the settings and definitions pages.
 - Sources: those passages
 - Proposed call: D8's drafted `numbers.md#Identities and cancellation`.
-- Decision:
+- Decision: Stands.
 
 #### F-037. N17 and the Mode entry: step lists that miss operators
 
@@ -747,7 +754,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A4 corrects the Mode entry's list in place (A4 L109-113, L113); D4 drops it from the page and links `numbers.md`, "The two modes", for what counts as a step (D4 L217-219).
 - Proposed call: **doc wrong**: every node goes through `stepQuantity`, the `neg` case included; the lists missed operators. Whether the Mode entry keeps the list or moves it to `numbers.md#The two modes` (§7) is the owner's call; wherever it lands it carries A4's corrected list.
 - Related: F-433
-- Decision:
+- Decision: Follows its own answer (A): the list moves to `docs/numbers.md#The two modes` with A4's corrected list; the Mode entry links it. [decisions.md section 3; plan §12.1]
 
 #### F-038. N19: the reciprocal line is the reciprocal of the shown ratio
 
@@ -762,7 +769,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: (1) V5 (L28) counts the reciprocal confirmed on `3 m` in `m`, where the two readings agree; A4 (L75, L85) separates them on `3 m` in `in`. (2) A8 reports #92's decimal-mode row answered by `step` (A8 (F-412), A8 L27, L52); A4 (L28, L85) shows a decimal-mode reciprocal that is not the correctly rounded one.
 - Proposed call: **undetermined**. Doc wrong if the code's choice stands: A4 (Q1) proposes to keep and document it, recording the alternative (`want / have` from the working-digit operands) on #92. Code wrong if the page's "correctly rounded value of the last operation on `w`-digit operands" is the intent for the reciprocal too. Settled by A4 (Q-046), which comes before `devdocs/architecture.md` "The reciprocal" and the #92 link are rewritten; the paragraph then says which ratio it inverts in decimal mode.
 - Related: Q-046, B-008, B-009, F-043, F-412
-- Decision:
+- Decision: Stands (undetermined), settled by Q-046 (ok: keep and document; the alternative recorded on #92): doc wrong, the pages saying which ratio the line inverts in decimal mode.
 
 #### F-039. Gap (hedged): docs/ never says decimal mode runs a single pass
 
@@ -774,7 +781,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `src/core/pipeline.ts:286-303`; A3's account of the schedule (decimal mode's schedule is the user's context alone, A3 L56)
 - Proposed call: once the owner confirms the gap against the drafted pages, one sentence in the decimal-mode text of `numbers.md` "The two modes" (or in "What costs time").
 - Related: F-063
-- Decision:
+- Decision: Stands: one sentence in `numbers.md#The two modes` that decimal mode runs a single pass (confirmed by F-358's reading of `schedule`); low confidence noted.
 
 #### F-040. Decimal-mode sentences of the dissolving section: the radius serves inside a step
 
@@ -788,7 +795,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: the radius serves only inside a step, to certify the rounding of a function's value or of a unit defined through `pi()` (interim page text A1 L240-243).
 - Proposed call: **doc wrong** (L218-219): units go through the same `step` as calls. The sentences move to `docs/numbers.md#The two modes` (D8 (F-014)) with A1's correction of L217-219, and L261-266 in the light of A3's account of decimal mode's single pass and its `step` up to the ceiling (A3 L56).
 - Related: F-044, F-113
-- Decision:
+- Decision: Stands (doc wrong); low confidence: the session reads `step` for the unit case; amended by F-451 in the carried sentences.
 
 #### F-041. N17: a literal past the significand limit is refused in either mode
 
@@ -802,7 +809,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "…and is exact after that, unless its significand passes the significand limit, which refuses the literal before anything rounds it, in either mode ("The significand limit" below)" (A4 L98; V1 L292).
 - Proposed call: **doc wrong**: the code says "in either mode" on purpose; A4 (Q3) and D1 (Q9) ask the owner to confirm the intent, both proposing yes.
 - Related: Q-040
-- Decision:
+- Decision: Stands (doc wrong); follows Q-040 (ok: by intent; one clause in either mode).
 
 #### F-042. N18: `log` reaches the uncertified fallback
 
@@ -816,7 +823,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "**N18.** A built-in call in decimal mode is certified: computed in exact mode at the working contexts from the step's digits plus the guard up to the ceiling, until its rounding to the step's digits is certified; if never (a value exactly on a rounding boundary of those digits), the midpoint's rounding is shown flagged *uncertified* (`≈` with a dot, "a step could not be certified at the precision limit"), sticky through every later step, the pipeline's quotients and the reciprocal line included. Shipped built-ins reach it: `log(b, x)` whose value is rational but not an integer or the reciprocal of one, since its exact cases look for those alone, so `log(4, 8)` (`3/2`) at one display digit and `log(256, 512)` (`9/8`) at three are uncertified under a nearest mode; the tests reach it with an injected built-in." (A4 L27); page rewrite A4 L99-100, V1 L294-296.
 - Proposed call: **doc wrong**: the page's reasoning assumed every rational value of a built-in is an exact case, and `log`'s comment says otherwise on purpose; document it as reachable now (A4 Q2). The open alternatives, `log` looking for `x^q = b^p` (A4 (B-007), A4 Q5, handed to D5 and not taken up) and #173 (decide a tie as exact), would each make these lines `=`.
 - Related: Q-048, B-007
-- Decision:
+- Decision: Stands (doc wrong); follows Q-048 (ok: documented as reachable; the exact case waits for a review); #173 is named without a link on the page (its place is on the owner's list; pending in that part only).
 
 #### F-043. N19: with a `want`, the `have` is an operand rounded to `w`
 
@@ -831,7 +838,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V5 (L28) marks N19 confirmed "behaviourally for the have's root and the reciprocal", on examples that cannot tell the readings apart (`1/3*3` with a blank `want`; `3 m` in `m` gives `m = 0.33333333 × 3 m`); A4 corrects it on discriminating runs (L74-75, L85). D4 (L50) and V5 (L28) did not read the list of last steps.
 - Proposed call: **doc wrong**: the pipeline evaluates both texts at the operand context on purpose; V5's verdict is settled by A4's discriminating run (`39.370078` against `39.370079`).
 - Related: B-008
-- Decision:
+- Decision: Stands (doc wrong); follows Q-046.
 
 #### F-044. Decimal mode's unstated consequences for units, edges and directed modes
 
@@ -843,7 +850,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: A4's runs (A4 L87); `devdocs/numbers.md#Decimal mode` (the per-operation bullets).
 - Proposed call: one sentence each in `docs/numbers.md#The two modes`, as today's behaviour (A4 Q6).
 - Related: Q-023
-- Decision:
+- Decision: Stands; follows Q-023 (ok, without settings-dependent digits: the behaviour stated; `tan(90 deg)` "may give an exact value in decimal mode where exact mode fails at the pole"); pending in part: whether the `turn` example's `359.99999` is written (owner's list); amended by F-442 ("fails at the pole", not "refuses").
 
 #### F-045. Gap §6.1: decimal mode as rules
 
@@ -855,7 +862,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: those passages; `docs/settings.md#(top) > Mode`
 - Proposed call: D8's sentences for `numbers.md#The two modes` beside the Mode entry's rules.
 - Related: F-044
-- Decision:
+- Decision: Stands.
 
 #### F-046. `approx` as a concept (§6.1), with A5's, A2's and D6's facts
 
@@ -867,7 +874,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/numbers.md#approx` (accurate apart from D6's I6); `docs/functions.md:132-136`, `:179-200`, `:225-234` (substantial raw material, D8; L179-187 holds, A5 N23); A5's facts for the user page (A5 L246-257): the unit is one in the last of the pass's working digits (28 at the first pass at eight), so `approx(2.54) cm` into `in` is `≈ 1`; `approx` on one operand of a sum, a product or a quotient is enough; and `approx` turns a refusal into a value only where an inexact operand changes the arithmetic (a sum, product, quotient or integer power), never a built-in's own reach (`sin` of a huge angle; `exp(approx(1e999))` refused as `exp(1e999)` is; D8's rerun: `sin(approx(1e999999999) radian)` is refused "however it is computed", as `sin(1e999999999 radian)` is); A2's qualifier (A2 L152): `(approx(1e20) - approx(1e20))^1e100000` is refused "however it is computed", its exponent literal alone past the limit, so N23's "relaxes integer powers" must not read as a promise.
 - Proposed call: write `numbers.md#approx` from D8's draft (D8 L224-230), which carries A5's facts; add A2's qualifier and D6's two facts (the decimal-mode identity; a zero midpoint of any radius left as it is); the one-operand fact also goes into "How a value is held" (D8's drafts); D6's bullet 7 edit ("leaves a zero as it is") belongs to the finding on the bullets.
 - Related: Q-009, Q-059, Q-099, B-043, F-148, F-218
-- Decision:
+- Decision: Stands: `numbers.md#approx` from D8's draft with A5's facts, A2's qualifier (Q-099) and D6's two facts; amended by Q-011, Q-035 and Q-104: the binary form `approx(x, u)` and #100 are future work, of which the user page says nothing, `devdocs/numbers.md#approx` naming the form in one clause that links `devdocs/future.md`; amended by F-451 ("inexact" wherever the draft says "approximate").
 
 #### F-047. "At every pass" `exp` refuses: the first pass refuses and the loop ends
 
@@ -881,7 +888,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "At the first pass `exp` finds that the result's exponent passes the bound for every value within the argument's error radius, refuses, and the retry loop ends there." (D8 L35); the passage itself goes to `devdocs/numbers.md`, with one user-level sentence in `numbers.md#approx` (D8 Findings 1).
 - Proposed call: **doc wrong**: retrying a straddle and ending at a refusal is the loop's deliberate rule (A5 N22); the page overstates it.
 - Related: F-034, F-057
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-048. Gap confirmed (§6.1): rounding modes, and `round(2.5)` under the default
 
@@ -893,7 +900,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/numbers.md#Certification and the display rule` (last paragraph); `devdocs/builtins.md#The exact functions` (`round`).
 - Proposed call: state it in "Rounding modes"; D6's bullet 8 addition (L118-124) carries the same sentence for the entry.
 - Related: F-119
-- Decision:
+- Decision: Stands: `round(2.5)` under the default stated in "Rounding modes" of `numbers.md`; the bullet's addition on the user page waits for the generated reference (Q-009).
 
 #### F-049. D4's Significand limit entry and D8's drafts split its content differently
 
@@ -905,7 +912,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D4 keeps a condensed remedies paragraph in the entry (D4 L276-280); D8 moves it to `numbers.md` (D8 L234).
 - Proposed call: §12 q5 (binding) gives the entry one sentence and a link, with D8's sections taking the dyadic cost and the remedies; the owner reconciles the two drafts once, when `docs/numbers.md` is assembled (D8 Q5); D4's entry qualifies or drops "never refused for size" (the N21 finding).
 - Related: Q-108, F-019, F-050, F-053, F-136
-- Decision:
+- Decision: Stands; follows Q-108 (ok: §12 q5, the entry keeps one sentence and a link; D8's sections take the dyadic cost and the remedies; the two sessions reconcile the drafts); D4's "Inexact values are never refused for size" is dropped (F-056); amended by F-451.
 
 #### F-050. The 32,768-bit scenario reads as the default; where the diagram goes
 
@@ -919,7 +926,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: where the passes land, in `devdocs/numbers.md` (V1), name the default or say the midpoint fits any limit the app allows; V1 decides whether it is "stated as the default of 65,536 or left out" (D8 L34, L310).
 - Proposed call: **doc wrong** or **design changed without the docs following**, undetermined: nothing in the entries says whether 32,768 was once the default, and the fix is the same: the devdocs rewrite names the default 65,536 bits, or no limit, at the table, and the scenario's limit is named as not the default in both corpora (D8 L34); the docs-side wording (`docs/functions.md:198`, `:239`) leaves with the dissolution; the diagram goes to the devdocs section only if the owner wants it there (D8 Q4; D8's proposal under §12 question 10).
 - Related: Q-109, F-057
-- Decision:
+- Decision: Stands (undetermined between doc wrong and design changed; the fix is the same); follows Q-109 (ok: the `exp(1e999)` diagram stays in `numbers.md`; the passes' diagram and table in devdocs, V1 naming the default limit or none); the devdocs session reads `src/core/context.ts:170`.
 
 #### F-051. `tooLarge`: one kind, never retried, against the plan's owner review
 
@@ -934,7 +941,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: (1) The plan (N21 and the §1.1.5 row), stated as the owner's review, against A1 (L55), A3 (L58), A5 (L57, L67, L136-147) and V1 (L22, L43), which find one kind that the loop never retries. (2) Among units, A9 tags the page's sentence at L879-880 `update` with the plan row confirmed (A9 L36), while A5 and V1 withdraw the row as describing current passages (A5 L67, V1 L22). (3) A1 cites `src/core/pipeline.ts:87-91` for "`resolve` retries the `unresolved` family only" (A1 L55, L295), a header comment that A3 says omits `undecidedCondition` and `unresolvedBound` (A3 L148, `pipeline.ts:85-87`); A3's trace of the predicates is `pipeline.ts:377-404`.
 - Proposed call: **undetermined; the owner must confirm**. Doc (plan) wrong: the code is coherent, the pages describe it, and four units agree; if the review meant the in-node and in-step retries A3 names, the pages could name them. Code wrong: if the owner intended classes of refusal that the retry loop retries, the code does not do it. The conflict is chiefly with the plan, not between units. Settle by the owner saying what "classes, some retried" meant, then withdraw the row (A5, V1) or record a code change; V6 (F-509) also asks the row to name which refusals end the loop with a result.
 - Related: Q-001, Q-091, Q-099, F-509
-- Decision:
+- Decision: Follows Q-001: doc (plan) wrong; one error kind, `tooLarge`, carrying a reach and a need, never retried by the loop; the in-node and in-step retries are correct as the code has them; the kinds tell the user the failure's type; the §1.1.5 row is withdrawn and N21 and §1.1.6 item 14 are amended (F-509). No code change.
 
 #### F-052. N24: "sum" is the plan's; a sum never faces the choice of limit
 
@@ -948,7 +955,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "Which limit a refusal names: a product, quotient or power past both limits is reported at the exponent bound; a hair from the bound, at the significand limit (`7^1e19` is too large to compute; `2.54^1e18` is past the significand limit, with the reach the operation states, N21). A sum never faces the choice: a sum that aligns and passes the bound is too large or too small to compute, and a sum that cannot be aligned has the value of its larger operand, which is within the bound." (A5 L60)
 - Proposed call: **doc wrong** (the plan's claim; the devdocs page is right).
 - Related: F-509
-- Decision:
+- Decision: Stands (doc wrong: the plan's claim); N24 amended.
 
 #### F-053. The two size limits from the user's side (§6.1), with A5's and D6's facts
 
@@ -960,7 +967,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: the passages above, and A5's facts the page must carry: the bound is on the value, not the stored form (`1e1000000000000000000 / 3 * 10` is a value, `1e-1000000000000000000 / 7` too small); zero is within the bound at any exponent, so a ball around zero whose midpoint passes below it is zero within a bound, not a refusal; a literal past the bound is rejected as typed ("this number's exponent passes 10^18" or "falls below -10^18") while `0.001e1000000000000000003` parses (A5 L58, L208-219); a literal past the hard bound (about 315,000 digits), or a `^` exponent whose power of ten cannot be formed, is the parser's rejection, "this number is too large to represent", with no count and no remedy (A5 L126-134); the message texts as the tests pin them (A5 L149-182); decimal mode computes every `fits` example and refuses every `exceeds` one, so one sentence states both remedies (A5 L184-204).
 - Proposed call: write the section from D8's draft (D8 L232-265), adding the three N22 facts and the parser's rejection, which the draft lacks, and D6's family facts; messages are quoted as examples only, the catalogue being generated (§12 q6; D8 Q2).
 - Related: Q-007, Q-108, F-018, F-442
-- Decision:
+- Decision: Stands: the section from D8's draft with A5's N22 facts, the parser's rejection and D6's family facts; follows Q-007 (messages as examples); amended by F-442: in the docs a literal past the hard bound or the exponent bound is "an error as it is typed", never "rejected"; amended by F-440 ("the exponent") and F-451 in the draft; follows Q-108.
 
 #### F-054. Drop the closed issue #40 sentence
 
@@ -973,7 +980,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: delete the sentence; the paragraph ends at "`≈ 148.41316`." (A5 L433-440; D8 L30).
 - Proposed call: Confirm `drop`: #40 is closed (fixed by the merged PR #84; V6 checked); rerun (A5; D8), the difference is `≈ 5` and `exp` of it `≈ 148.41316` after seven passes, which the whole-ball paragraph already says; §12 q26 deletes every reference to a resolved issue. `devdocs/numbers.md` never cites #40 (V1), and the sentence does not travel to devdocs (A5; D8 L65, L289).
 - Related: Q-101
-- Decision:
+- Decision: Stands (drop); follows Q-101 (ok).
 
 #### F-055. Capital "The significand limit" mid-sentence
 
@@ -984,7 +991,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "a power that no setting could hold is reported at the bound even where The significand limit refuses it first" should read "… even where the significand limit refuses it first" (A5's edit, A5 L431-449, confirmed by D8).
 - Proposed call: moot once the section is dissolved, D8's rewritten sentence reading "the significand limit" (D8 L263); fix in passing only if the section outlives the dissolution.
 - Related: F-054
-- Decision:
+- Decision: Stands (moot once dissolved).
 
 #### F-056. N21 overstates "inexact results are never refused for size"
 
@@ -998,7 +1005,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: A5's N21: every exact result's size predicted before forming; the count's three forms; the `fits` and `exceeds` suggestion rule; never refused for an inexact operand of the exact operations, but refused at an argument's own bits; held to the exponent bound; a dyadic denominator stored with fives; `tooLarge` one kind, none retried (full text: A5 L57).
 - Proposed call: **doc wrong** (the plan): the code is deliberate, site by site, and the page states it; the user page takes A5's rule. This also answers D4's 69,658 against 69,659 (D4 (Q-091)): the stored size against the prediction's bound.
 - Related: Q-091, F-012, F-019, F-509
-- Decision:
+- Decision: Stands (doc wrong: the plan); follows Q-001 and Q-091; N21 amended.
 
 #### F-057. Dissolve docs/functions.md#Very large results and approx (§12 q10)
 
@@ -1009,7 +1016,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: §12 q10 dissolves the section; every example and both quoted messages reproduce (A5 report; D8 report-K9). D8's destinations: L132-141 to `#approx` (the rule) and `#Values too big to hold` (the two messages); L143-160 (significand times a power of ten, the `exp(1e999)` diagram) and L162-179 (the exponent bound and its thresholds, the whole-ball rule and the retry, the straddle also one sentence in `#Values at an edge`) to `#Values too big to hold`; L179-187 (what `approx` relaxes) to `#approx`; L189-200 to `#approx` in two sentences, the passes to devdocs; L202-223 (the radius diagram, the six-pass table) to devdocs, which has the table; L225-234 to devdocs, with one sentence in `#approx`; L236-244 to `#Values too big to hold` as the ruled-out alternative, with the link; L246-253 (log space) to `#Values too big to hold`, the #40 sentence dropped. Nothing stands in place: the `#(top)` forward pointer (L126-127), the one place depending on the section, becomes the link, and `approx` keeps a generated reference entry linking `numbers.md#approx` (§12 q14).
 - Proposed call: dissolve as D8 maps it (D8 L168-170), with D8's drafts of `#approx` and `#Values too big to hold`; A5's two small edits apply only if the section outlives it (A5 L448-449).
 - Related: Q-009, Q-026, Q-109, F-046, F-047, F-050, F-053, F-058, F-139, F-148
-- Decision:
+- Decision: Stands: dissolve as D8 maps it; follows Q-009 (B), Q-026 (ok), Q-109 (ok); the user page is `docs/builtins.md` (Q-020's note), so every link this finding writes to `docs/functions.md` targets `docs/builtins.md`.
 
 #### F-058. "The bound stays": keep the ruled-out higher bound, drop the test build
 
@@ -1022,7 +1029,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: "The bound is not a setting, and a higher one is ruled out", the two reasons kept, the measurements linked at `devdocs/numbers.md#why-the-exponent-bound-stays-at-1018`; "a test build that raised it" is history, which git holds (D8 L38).
 - Proposed call: Confirm `keep as intent`: the paragraph carries a ruled-out alternative; only the history clause goes.
 - Related: Q-017, F-057
-- Decision:
+- Decision: Stands (keep as intent); follows Q-017 (ok: the measurements linked are the six-pass table; the milliseconds are gone from devdocs); the sentence states the bound as not a setting and a higher one as ruled out, which Q-011 keeps on the as-is pages.
 
 #### F-059. D4's example corrections never reached numbers.md (hand-off not taken up)
 
@@ -1033,7 +1040,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: D4 asked D8 (D4 L414) to carry its three example corrections (`= -1e+8` for `-100000000`; the ratio bare before `×` on the reciprocal line, `in = 1/36 × 3 ft`; `1/3 × 1e+30` does not read back) and the "bare before `×`" rule into `numbers.md`. D8's report drafts no "How numbers are written" section and carries none of them, and its "The two modes" text leaves the mode's rules to D4 and A4; so far the corrections live only in D4's settings-page draft (D4 (F-136)). The rest of the hand-off, the sentences replacing page L192-205 and L207-271, was taken up (D8 (F-025, F-014)).
 - Proposed call: when `docs/numbers.md` is written, "How numbers are written" takes D4's rule and corrected examples, stating the ratio's parenthesization (bare before `×`), the decimal display's exponent form (N12), and that a result pastes back through the copy text, not the display text (§12 q11); "The two modes" takes `= -1e+8`. No unit has drafted that section.
 - Related: F-120, F-121, F-122
-- Decision:
+- Decision: Stands: "How numbers are written" takes D4's rule and corrected examples; follows Q-003 (A, with the juxtaposition edge stated: `1/2 in` is `1/(2 in)`, unlike `(1/2) in` and `0.5 in`) and F-457 ("pastes back" through the copy text).
 
 #### F-060. N12: the top-edge literal is not written; the outcome throws
 
@@ -1048,7 +1055,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: (1) The fix, and so the page text, differ. A2 (L29; A2 L145, L156; A2 (Q-002)) proposes implementing the page's decision: keep the display's text with a value built without the bound check, so the line is written and refused only when typed back (A2's rewrite of the section, A2 L96-98, assumes it); it names an error line as the alternative that refuses a correctly rounded value. A8 (L32, L146; A8 (Q-002)) proposes reporting the carry past the bound as the bound's refusal (`overflow`) and having N12 state the edge as that refusal, the route the rationale of `devdocs/notation.md` rules out. (2) V5 lists the edge literal as verified by its harness ("shows `1e+1000000000000000001`, and `parseDecimal` of that text fails with `overflow`", V5 report, V5 L66) and keeps the section as mechanism (V5 L66), against A2 and A8, whose runs through the outcome throw before any line exists; which layer V5 ran is not stated (its harness used both `show` and `outcomeOf`).
 - Proposed call: **code wrong** for the throw: no page intends a crash, both units call it a defect (bugs.md's), and `devdocs/notation.md#Every literal parses back` records a decision the code does not carry out (A2 L29). What `docs/numbers.md` says at the edge then waits on the owner's choice between A2's fix (one literal does not paste back, as N12 says; A2 (Q-002)) and A8's (every line pastes back; the value is refused as past the bound; A8 (Q-002)); **doc wrong** only if the owner takes A2's alternative, an error line for a rounding that carries past the bound. Settle V5's reading by running the literal through `outcomeOf`.
 - Related: Q-002, B-002
-- Decision:
+- Decision: Follows Q-002 (B): code wrong for the throw; the fix refuses such a rounding as the bound's `overflow` with a message naming the expression, so every line pastes back; N12's last sentence and `devdocs/notation.md#Every literal parses back` state the refusal (A2's draft of that section, which assumed A, is superseded); B-002 lands before `docs/numbers.md`.
 
 #### F-061. Ratio rule: the code forms no fraction for dyadic values that fit
 
@@ -1063,7 +1070,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A2 confirms N13 and rule 3 (context A2 L30, A2 report) and D4 confirms N13 as far as its modules reach (D4 L49, L127; context D4 L49, D4 report), neither testing a dyadic value past `2^-40`; V5 tabulates N13 "corrected" while calling the design right (V5 report).
 - Proposed call: **code wrong**: the pages state the rule and its predictability constraint, and the code's screen deviates on a flawed comment with no boundary test (V5 (Q-043): screen the exponent at `4W` and the numerator at `3W`). On the docs side N13 and rule 3 stand; until the fix lands, one sentence in `devdocs/notation.md#The rule` names the exception and links the issue if one is opened (V5 (Q-043)). The code side is in bugs.md.
 - Related: Q-043, B-004
-- Decision:
+- Decision: Stands (code wrong); follows Q-043 (ok: B-004 before `devdocs/notation.md`; a caveat sentence until then).
 
 #### F-062. N13: a whole number's width counts significant digits
 
@@ -1076,7 +1083,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: live `5e11` is `= 500000000000` at width 20 and `= 5e+11` at width 8 (A2); rule 2 confirmed by V5 (context V5 report)
 - Corrected statement: "an exact integer is written entire when it has at most `W` significant digits" (V5 L27)
 - Proposed call: **doc wrong** (the claim's wording); the devdocs page already says it.
-- Decision:
+- Decision: Stands (doc wrong: the claim's wording).
 
 #### F-063. What costs time, qualitatively: a §7 section with no §6.1 bullet
 
@@ -1087,7 +1094,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: §7 gives `docs/numbers.md` the section and §6.1 has no bullet for it; `docs/` says nothing qualitative about what a value that never certifies costs, beyond the timings in `docs/functions.md`'s gamma bullet. V6 hedges ("Gaps for §6, which this unit did not read, so they may already be listed"); D8 finds the same gap independently.
 - Sources: the passages above (an expression that never certifies runs to the ceiling on every keystroke; the cost of an exponential grows fast with its argument; a definition that reads small can be large; a hand-written function is slower than the built-in); `devdocs/cost.md#What the costs come from` (opening sentences)
 - Proposed call: add the section, qualitative only (§12 q9); D8's drafted `#Digits you can trust` already links to it, and `devdocs/cost.md` links to it.
-- Decision:
+- Decision: Stands: the section is added, qualitative only (Q-016 A for user docs; Q-018 allows a rough warning); `devdocs/cost.md` links it once it exists (sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist).
 
 #### F-064. The "at most about twice" cost bound fails near the ceiling
 
@@ -1102,7 +1109,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D4 calls "about twice the last" reasoning, not a code fact (`src/limits.ts:54-55`, D4 L47), yet its drafted probe text keeps "an expression that runs to the ceiling costs about twice its last pass" (D4 L336-339), against A3's exception.
 - Proposed call: undetermined between doc wrong (the test pins `[11, 22, 44, 45]`, so the schedule is deliberate) and code wrong (the page gives the bound as the schedule's design reason; dropping a doubled precision within some fraction of the ceiling would make it exact); A3 Q1 proposes the wording now and any code change after the revamp. Low confidence: "three times" holds "under a cost linear in the digits".
 - Related: Q-047, B-011
-- Decision:
+- Decision: Stands; follows Q-047 (ok: reword now; a schedule change, if any, after the revamp); low confidence noted.
 
 #### F-065. N25: every Gamma-value call pays the Bernoulli run
 
@@ -1113,7 +1120,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: N25 holds, with two notes for its page text: the Bernoulli run that N25 gives to "the first Gamma-family call at a new ceiling" is paid by any call that takes a Gamma value, the regularized incomplete gamma and incomplete beta functions included (`lowergammareg` at the highest precision limit pays as much cold as the Gamma family, `bench/stress/catalogue.json`); "milliseconds" is one machine's figure, stated qualitatively in the user docs (§12 q9).
 - Proposed call: when N25 becomes page text, name the functions that pay the cold run and keep its cost qualitative.
 - Related: F-356
-- Decision:
+- Decision: Stands: the functions that pay the cold run named, the cost qualitative in the user docs (Q-016).
 
 #### F-066. devdocs/numbers.md links nowhere in docs/: each section opens with a link
 
@@ -1123,7 +1130,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "Nothing in the page links to docs today; its fifteen links all point within devdocs." Per §12 q24 each section opens with one sentence and a link to its `docs/numbers.md` owner, then keeps mechanism and rationale; V1's table (L108-130) names per section the owner, the user-rule sentences that "become the link" and are cut, and what stays (mechanism, decisions, ruled-out alternatives, open issues). Owners: `#(top)` "Exact and approximate values"; `#The types` "How a value is held"; `#Exact operations` "Operations that stay exact" and "Values at an edge"; `#Sums and alignment` "Values too big to hold" and "The two modes"; `#Comparison` "Comparison and equality"; `#The kernel's boundary` and `#Settling` none, all of it staying; `#Memoized constants` "What costs time"; `#Roots and powers` "Operations that stay exact; exact cases of functions" and `docs/functions.md`; `#Working precision and the schedule` "Digits you can trust" and the settings page's precision-limit entry; `#Exact mode` "The two modes" and "Identities and cancellation"; `#The exponent bound`, `#Which limit a refusal names` (with the generated catalogue) and `#Why the exponent bound stays at 10^18` "Values too big to hold"; `#Certification and the display rule` "Digits you can trust" (and "How numbers are written" for the zero kind); `#Decimal mode` and `#The working digits` "The two modes"; `#The significand limit` "Values too big to hold" and "How a value is held"; `#approx` "approx"; `#Failures` "Values too big to hold" and "Values at an edge"; `#Formatting` "How numbers are written". V1 drafts the `#(top)` sentence now (L186); the openers wait for the page's anchors (L336, V1 Q6).
 - Proposed call: the phase that creates `docs/numbers.md` applies V1's table (V1 L106-130) as the list of openers and cuts (V1 Q6), with the openers of V1 L336; the `#(top)` sentence links a page not yet written, so it lands with that page or with an interim target.
 - Related: Q-008
-- Decision:
+- Decision: Follows Q-008 (A): V1's table is the list of openers and cuts, applied in the one-pass rewrite of `devdocs/numbers.md` after `docs/numbers.md` exists; nothing links a page that does not exist.
 
 ### Findings owned by other pages that touch this one
 
@@ -1159,7 +1166,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: Q8, A7 (L74): "Angles: `sin`, `cos`, `tan` require the `radian` kind (`sin(30 deg)` works, `sin(1)` says to write `sin(1 radian)`); `asin`, `acos`, `atan`, `atan2` return the `radian` kind, so `asin(0.5)` into `deg` is `30 deg` and into `turn` is `1/12 turn`, an angle still, while `asin(0.5) / radian` is the plain number; the hyperbolic functions take plain numbers; `atan2` takes two quantities of one dimension, kinds included. (The conversions into `deg` and `turn` are `≈`, the angle units carrying `pi()`; A2's rule.)" Angles paragraph, A7 (L261-274): "`2 asin(0.5) + 1` is the kind mismatch it is, and the plain number is one token away, `asin(0.5) / radian`; `asin(0.5)` into `turn` is the same angle counted in turns, an angle still."
 - Conflict: D5 confirms bullet 5's clause "as the bullet says" (L102, from the same harness line `≈ 0.083333333 turn`) and the Angles paragraph "in every example" (L64), and its edit 2 keeps the clause (L141); V3 confirms Q8 (L31) and its Angles rewrite drops the clause altogether (L331-370); V2 could not verify Q8 from its modules (L35); A7 corrects Q8 and the Angles paragraph (L74, L146-149, L261-274).
 - Proposed call: **doc wrong**, if "the number" means a plain number as §8 uses it (neither dimension nor kind): the radian kind on an inverse's result is deliberate (`devdocs/builtins.md` states the ruled-out alternative), and Q8 and both pages misread what a conversion into `turn` returns; D5's own harness line carries the unit `turn`, as A7's probe does, and D5 and V3 confirmed without separating the two conversions. Settle on that reading of the clause, then correct Q8, the Angles paragraph and bullet 5 together.
-- Decision:
+- Decision: Stands (doc wrong): Q8, the Angles paragraph and bullet 5 corrected together (`asin(0.5)` into `turn` is an angle still); follows Q-019 ("plain number" where the code's rule is quoted).
 
 #### F-068. One conformance check decides more than Q3 lists
 
@@ -1169,7 +1176,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: plan Q3; plan §1.2.6 item 1
 - Finding: Q3 holds, but the one check (`checkConformance`, every caller passing the table's primitives with their roles) also decides, in a conversion into a function, the have against the function's result (`src/core/pipeline.ts:713-718`) and each unit of a unit list against have (`src/core/convert.ts:223-227`), and, at build time only, a function's body against its result annotation, an inverse's body against its parameter's unit and each term of a condition against the next (`src/core/build.ts:586-597`, `670-681`, `739-750`); "adjacent terms of a condition" is never checked at the call, where `checkConditions` compares magnitudes alone (`src/core/evaluate.ts:1010-1015`). V2 (L30) lists the same callers.
 - Proposed call: `quantities.md#Conformance` names every place the check decides at the call (have and want, `+` and `-`, a call's argument, a conversion into a function, a list's units) and leaves a condition's terms to the definition reference's build-time checks.
-- Decision:
+- Decision: Stands.
 
 #### F-069. Q10 misfiles `gravity`; the pages miss the measured factors
 
@@ -1184,7 +1191,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: (1) the two Q10 corrections differ on one fact: A9 (L27) has the measured values "carried to the digits their source gives"; D3 (L28) has the years "written exactly to the digits the file gives" and cites `src/units.txt:344-345` as naming no source; check those lines for a source. (2) Placement: A9 rewrites `docs/definitions.md` lines 41-46 in place (L179-195), D3 moves the paragraph to `units.md` "Which factors are exact" (L296-307). (3) `gravity`: A9 Q1 asks for its conventional exactness to be named and A9's own edit omits it; D3's draft names it under "Constants" (L146-149). (4) `#approx`: V1 keeps the sentence on "D3 confirms" (V1 L128, L370) and A5 leaves it to D3 unchecked (L360, L363-364), while D3's report does not address it and D3 (L82) and A9 (L106-118) find the years measured and `gravity` exact by convention.
 - Proposed call: **doc wrong**: the file is coherent (the five constants marked `(exact)` and pinned by tests; its comments mark the measured values, `src/units.txt:267`, and leave `gravity` unmarked, A9 L352), and Q10, the page's rule and `#approx` misfile `gravity` or omit the measured values. Placement per D3 (L76) and D8 (L80): `quantities.md` states the rule; `units.md` "Which factors are exact" carries the page's corrected paragraph (D3 L296-307), naming the dalton, the two years and `gravity`, exact by convention, as D3's skeleton does; `numbers.md` keeps D8's one sentence that the angle units are inexact through `pi()`. `devdocs/numbers.md#approx`: check whether its "constants" covers the year lengths; if so, name them beside the dalton, with `gravity`'s convention, as D3 and A9 state them, or narrow the sentence explicitly to the physical constants of the constants section, in line with `units.md` "Which factors are exact". `gravity`'s missing mark is a comment change recorded with A9's code issue, not taken up in D3's report. Low confidence for `#approx` alone: no unit checked that sentence.
 - Related: Q-033, Q-041, Q-085, B-014, B-062, B-063, F-113, F-114, F-116
-- Decision:
+- Decision: Stands (doc wrong); follows Q-033 (ok), Q-041 (ok: CODATA 2018), Q-085 (ok: `units.md#Which factors are exact` names the measured values and `gravity`'s convention); the `devdocs/numbers.md#approx` sentence is checked by that page's session; amended by F-451 ("inexact" for the `pi()` units) and F-486 ("defined" and "measured" factors).
 
 #### F-070. A conversion's ratio is also refused at the significand limit (Q13)
 
@@ -1199,7 +1206,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V2 confirms Q13 with no note (V2 L40) and finds `#Conversion` holds (V2 report, V2 (F-245), V2 L79), its run covering the `overflow` example and the `0 s` mismatch only; A8 corrects both (A8 L26 L26, A8 L40 L40).
 - Proposed call: **design changed without the docs following**: the page's "today" marks the bound as the refusal of its time, and the refusal is the ball quotient's ordinary limit with a message that names `approx`; the one sign of a contrary intent is the comment at `convert.ts:132-138`, so the owner confirms that a conversion's ratio may be refused at the significand limit.
 - Related: B-038
-- Decision:
+- Decision: Follows its own answer (A): intended; the pages state the refusal and `convert.ts`'s comment is corrected (B-038). Q13 amended. [decisions.md section 3; plan §12.1]
 
 #### F-071. Two written forms of a line that no page shows (Q18)
 
@@ -1209,7 +1216,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: plan Q18
 - Finding: a negative value with a `want` that carries a magnitude is written as a negated, parenthesized product (`1 m` into `-ft` has the reciprocal line `-ft = -(0.3048 × 1 m)`), and a `want` that is a call is juxtaposed (`373.15 K = 1 tempC(100)`); A8 does not count them among its new gaps.
 - Proposed call: the section on lines that type back (or `expressions.md`'s "What the app writes back") shows both forms among its examples.
-- Decision:
+- Decision: Stands.
 
 #### F-072. A list's remainder is rounded at the digits it certifies (Q15)
 
@@ -1224,7 +1231,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V2 confirms Q15 with no note (V2 L42) and finds the converter section holds in every statement about what is shown apart from the re-parse (V2 report, V2 L83); A8 corrects both (A8 L28 L28, A8 L28 L85-87). V2's own pair 4 (V2 L262-264) rounds "at the digits certified" and drops "at the display precision", agreeing in substance.
 - Proposed call: **doc wrong**: the page contradicts itself and the code's rule is its next sentence; low confidence because A8 reasoned the rounding digits from code without a run (A8 L28), the ratio-notation case having run.
 - Related: Q-089
-- Decision:
+- Decision: Stands (doc wrong); follows Q-089 (ok); low confidence: the session reads `src/outcome.ts:548-560`.
 
 #### F-073. Unit-list example spacing differs from the app's
 
@@ -1238,7 +1245,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "`1 hr / 7 mi` in `min/mi;s/mi` is `8 min / mi + 34.285714 s / mi`", inside A8's full replacement of the section (A8 L113-123, which also names the fields have and want and says display digits). The list-name and load-time rules that replacement keeps, which A8 left to A9 or D3 (A8 L121-123), are verified by A9 (L26, A9 report: `src/core/build.ts:309-330`) and D2 (D2 report: `src/core/build.ts:853-885`).
 - Proposed call: **doc wrong**: the printer's text is canonical by design (one space around `/`); fix the example wherever the section's content lands (`quantities.md` for what a list answers).
 - Related: Q-089
-- Decision:
+- Decision: Stands (doc wrong); follows Q-089; A8's replacement uses have and want (F-471 A) and "display digits" (F-458).
 
 ### Findings owned by other pages that touch this one
 
@@ -1272,7 +1279,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/architecture.md#Expressions`; D1 Finding 1 (L40-52); the header grammar `src/core/expr.ts:6-19`
 - Proposed call: `docs/expressions.md` carries prose, D1's precedence table (L300-310) and worked examples, and no hand-written EBNF until the generated grammar (§2.1.3 interim, §12 q30); `devdocs/architecture.md#Expressions` names the header grammar as the hand-maintained form until the DSL generates one, quoting none of it (D1 Q1), which V2's pared section (L178-190) does not do.
 - Related: F-500
-- Decision:
+- Decision: Stands; follows Q-038 (ok) and F-500 (§2.1.3 corrected); D1's draft's "canonical" sentence follows F-439.
 
 #### F-075. Literal forms beyond the four examples unstated
 
@@ -1283,7 +1290,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `5.`, `1E3` and `2E+2` are literals; no space stands inside a literal; the exponent belongs to the literal only without a space and only with digits, so `2e -19 C` is `2 e - 19 C` and `2e` is `2 e` (`e` being the elementary charge).
 - Sources: `devdocs/architecture.md#Expressions` (a literal read as far as it goes); `src/core/expr.ts:287-288`; `src/core/expr.test.ts:373-382`, `:396-400`
 - Proposed call: "Numbers" as D1 drafts it (L312-319); the literal limits beside it are D1 (F-076)'s.
-- Decision:
+- Decision: Stands.
 
 #### F-076. Gap: literal limits at parse and at evaluation
 
@@ -1295,7 +1302,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `src/core/expr.ts:297-331`, `:450-463`; `src/messages.ts:316-328`, `:349-369`, `:390-399`; `src/core/evaluate.ts:505-519`, `:606-623` (D1 L176)
 - Proposed call: The "Literal limits" bullet of D1's proposed `docs/expressions.md` text (D1 L320-331), linked from `numbers.md` once it exists.
 - Related: F-053, F-090
-- Decision:
+- Decision: Stands; amended by F-442 and F-441: the docs say a literal past the hard bound ("longer than the limit can ever be set to") or the exponent bound is "an error as it is typed", never "rejected"; the link from `numbers.md` is written when the later page lands (Q-008).
 
 #### F-077. Name characters: letters of any script, but digits 0 to 9 only
 
@@ -1309,7 +1316,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: (D1) "A name is a letter of any script or an underscore, followed by letters of any script, the digits `0` to `9` and underscores; superscripts and subscripts, other scripts' digits, combining marks and symbols are not name characters, so `m²`, `H₂O` and an `Å` typed as `A` with a combining ring are errors." A9 (Q3, for D1): "a letter or underscore followed by letters in any script, the digits 0 to 9, and underscores".
 - Proposed call: doc wrong: the regex and its tests are deliberate and nothing on the pages states an intent for other digits, while "in any script" reads as covering the digits; adopt D1's wording (its `#Names` text, L246-252).
 - Related: Q-087
-- Decision:
+- Decision: Stands (doc wrong); follows Q-087 (ok).
 
 #### F-078. The `ha` example fails: there is no unit `a`
 
@@ -1324,7 +1331,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A9 (L164-170) finds `#Names` "holds throughout", the resolution included, without naming the `ha` sentence; D1 (L80) corrects it, with a harness run.
 - Proposed call: doc wrong: the file defines the are only as `are` and no unit proposes a unit `a` (code wrong only if the owner wants the SI symbol for the are); drop the example, as D1's `#Names` text does, and say in `units.md` that there is no unit `a` (D1 Q7). `src/units.txt:248-250` settles the conflict.
 - Related: F-112
-- Decision:
+- Decision: Follows its own answer (A, drop the example): the `ha` sentence goes; nothing is said anywhere of the absence of a unit `a` (amends F-112's and Q-075's calls on that point). [decisions.md section 3; plan §12.1]
 
 #### F-079. Name resolution is stated only in part
 
@@ -1336,7 +1343,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/architecture.md#Definitions`, `#Evaluation`; `devdocs/functions.md#Names and shadowing`; D1 rows L78, L84, L119
 - Proposed call: `docs/expressions.md` "Names" states the reading rules from D1's `#Names` text (L239-285); the load-time checks (one set of names, no list or function name readable as a prefixed unit, the ambiguity error) go to `docs/definitions.md` "Names"; the shared-names sentence is drafted twice (D1 L260-262, L271-272; D2 L212-216 in `#The format`): keep one. (`docs/definitions.md:198-199` already says a list's name means something only as the want.)
 - Related: F-104, F-308
-- Decision:
+- Decision: Stands; follows Q-113 (the prohibition, not a precedence) and F-475 ("the definitions file").
 
 #### F-080. "No `+` in front of anything" is too broad
 
@@ -1349,7 +1356,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/expr.ts:287-288` (`UNSIGNED` takes a signed exponent, `SIGNED` a leading sign); `src/core/expr.test.ts:218-219`, `:265`, `:277`, `:380`
 - Corrected statement: (D1) "There is no unary `+`: `+2` and `2 * +3` are errors. A `+` sign is accepted only in a literal's exponent (`2E+2`) and as the sign of a `^` exponent (`m^+2`, `m^(+3/2)`)."
 - Proposed call: doc wrong: the `+` exponents are tested forms; state the exceptions as D1's negation bullet does (L355-356).
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-081. Forms and limits of a `^` exponent unstated
 
@@ -1360,7 +1367,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: One exponent per factor (`m^2^3` is an error); a `+` sign allowed (`m^+2`); an unsigned second literal (`m^(1/-2)` is an error); `m^(2)` allowed; `m^x` and `m^(1/2 + 1)` errors; a zero divisor an error as typed; the fraction formed within the significand limit when evaluated, so `^` and `pow` differ (`2^(1e30/1e30)` is `2`, `2^1e-30000` is refused, `pow(2, 1e-30000)` is `≈ 1`); the two literals written back as typed (`m^(2/4)` stays unreduced).
 - Sources: `devdocs/architecture.md#Expressions`, `#Evaluation` (`reduceExponent`); `devdocs/numbers.md#Roots and powers`; D1 rows L68-69, L98, L116
 - Proposed call: The `^` entry of "Operators" as D1 drafts it (L357-371), stating the `^`/`pow` difference without the issue link (D1 Q3: the link stays in devdocs).
-- Decision:
+- Decision: Stands; the `^`/`pow` difference stated without the issue link (#88's one link is `devdocs/numbers.md#Roots and powers`, Q-102).
 
 #### F-082. Arity is a count or a range, and a call may take none
 
@@ -1374,7 +1381,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: (D1) "Each function takes a fixed count of arguments or, for some built-ins, a range (`round(x)` and `round(x, places)`); a call with another count is an error that says how many, reported before any argument is computed."
 - Proposed call: doc wrong: the range is deliberate and the message words it; D1's call bullet (L375-385) adds `pi()`, and its "When an expression fails" the order (L443-444).
 - Related: B-048
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-083. Have and want as two grammars, and which error comes first
 
@@ -1386,7 +1393,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `src/core/pipeline.ts:463-474`, `:503-504`, `:505-584`; `src/outcome.ts:200`, `:246-273`; D1 L145
 - Proposed call: "The have field" and "Evaluation order and error locations" state it, from D1's "The two fields" and "When an expression fails" ("An error marks its field, the have's before the want's").
 - Related: F-084
-- Decision:
+- Decision: Stands.
 
 #### F-084. The want field's own grammar is stated nowhere (§6.3)
 
@@ -1398,7 +1405,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/architecture.md#Pipeline`, `#Unit lists`, `#Functions`; D1's Finding 3 (D1 L135-145)
 - Proposed call: `expressions.md` "The want field" states the readings, linking `quantities.md` for what a list and a conversion into a function answer; D1's draft (D1 L404-424, D1 (F-090)) is the source, and leaves out on purpose that a bare name in parentheses still counts as bare.
 - Related: F-090
-- Decision:
+- Decision: Stands; the links to `quantities.md` are written when that page exists (Q-008; `quantities.md` comes before `expressions.md` in the order).
 
 #### F-085. Evaluation order and error locations missing from docs/
 
@@ -1409,7 +1416,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: Operands are computed left to right and the first failure ends it (`bogus / 0` reports the unknown unit); a division by zero, or by a value that cannot be told from zero, points at the divisor (`1 / (2 - 2)` quotes `(2 - 2)`); a power's base that cannot be told from zero at the base, any other failing power at the whole power; a sum, product or quotient refused at the whole operation; a literal past the significand limit at the literal; a nonconforming sum at the whole sum; a nonconforming argument at the whole call.
 - Sources: `devdocs/architecture.md#Evaluation`, confirmed by D1 (L126-131) and A7 (L120-128)
 - Proposed call: "Evaluation order and error locations" from D1's "When an expression fails" (L426-444); `devdocs/architecture.md#Evaluation` then opens with a link to it (§12 q24).
-- Decision:
+- Decision: Stands; `devdocs/architecture.md#Evaluation` opens with the link in its own one-pass rewrite (Q-008).
 
 #### F-086. The printed form missing from docs/
 
@@ -1420,7 +1427,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: None of the canonical text is in `docs/`: one space between juxtaposed factors and around the other operators, `^` and a quotient of two literals tight, arguments joined by `, `, literals and exponents as typed (`1e3` stays `1e3`, `m^(2/4)` stays), the fewest parentheses that read the tree back, and `×` on screen for a product written with `*` while the copy text has `*`.
 - Sources: `devdocs/architecture.md#Expressions` (printer), `#The converter and its lines`; `devdocs/notation.md#Where a ratio is written` (plan §6.3); `src/core/print.ts:1-29`, `:165-175`; `src/core/print.test.ts:48-117`
 - Proposed call: "What the app writes back" from D1's "How the app writes an expression back" (L446-458), linking `numbers.md` for the principle that every result pastes back (§12 q11) once that page exists.
-- Decision:
+- Decision: Stands; follows F-457 ("pastes back") and F-439 (no "canonical" in docs: "how the app writes an expression back").
 
 #### F-087. Readings to watch beyond a fraction before a unit
 
@@ -1431,7 +1438,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: Verified on the harness at the defaults: `m^1/2` is `(m^1) / 2`; `-2^2` is `-4`; `2^3^2` and `5 ft 3 in` are errors; `2e -19 C` is `2 e - 19 C` with no error and `2e` is `2 e`; `kg(m/s)` is a call and `tempC (1)` a product; `pi ()` is an error; `m²`, `30°` and `50%` are errors; `1 dB` is `d` + `B` (`= 0.8 bit`) and `1 at` is `a` + `t` (`= 1e-15 kg`); `1 m in ft` typed as the have is a volume, and `to` and `per` are unknown units; `1 m + 0` is an error; `1,000`, `2,54`, `1 000`, `2 × 3`, `2 − 3` and a non-breaking space are errors.
 - Sources: D1 Finding 4 (L147-172); `src/core/expr.ts:21-29`
 - Proposed call: "Pitfalls" from D1's "Readings to watch" (L460-482), which also covers §7's four examples (`1/12 year`, `kg(m/s)`, `-2^2`, `m2`).
-- Decision:
+- Decision: Stands; the juxtaposition edge Q-003 requires (`1/2 in` against `(1/2) in` and `0.5 in`) is stated here.
 
 #### F-088. Whitespace, and the characters the fields do not accept
 
@@ -1442,7 +1449,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: None of `×`, `÷`, `·`, `²`, `≤`, `≥`, `=`, `<`, `>`, `#`, `[`, `|`, `~`, `:` or a typographic minus is accepted (each is `Unexpected "…": expected …` where it stands), and nothing rewrites them; `#` starts no comment in an expression, which settles §12 q11's open point, and comments and comparisons belong to the definitions file's lines; whitespace is spaces and tabs, allowed before and after the text and between any two tokens, never inside a number or a name, never between a call's name and its `(`, never a newline; any other space, a non-breaking space included, is an error; below the grammar a space ends a token (`2e -19`, `m^- 1`).
 - Sources: `devdocs/architecture.md#Expressions` (whitespace); D1 Finding 5 (L174); `src/core/expr.ts:244-264`, `:274-290`; `src/core/definitions.ts:31-32`, `:388-389`; `src/messages.ts:75`, `:670-673`
 - Proposed call: "What is not accepted" and the whitespace rule as D1 drafts them (L386-402); the intent to accept `×` and its kin later is `devdocs/future.md`'s (D1 Q4).
-- Decision:
+- Decision: Stands; follows Q-037 (ok: the intent is `devdocs/future.md`'s); amended by Q-011: the docs list the characters as errors with what to type instead and say nothing of what may come; F-442: "an error", never "rejected".
 
 #### F-089. How parse errors read is missing from docs/
 
@@ -1454,7 +1461,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/architecture.md#Parsing`; D1 Finding 7 (L178); `src/core/parser.ts:379-386`; `src/messages.ts:71-78`; `src/core/expr.ts:342-349`
 - Proposed call: The page says how an error reads in general, from D1's "When an expression fails", and the catalogue is left to the generator (§12 q6); renaming the label "a unit name" to "a name" is a code change of its own (D1 Q5; bug side in bugs.md) and would change any message the page quotes.
 - Related: B-019
-- Decision:
+- Decision: Stands; follows Q-055 (ok: the label becomes "a name" in a code change of its own; the page quotes no message carrying the old label); amended by F-442 ("a refused literal" reads "a literal that is an error as typed" in the docs).
 
 #### F-090. Expression reference sits in definitions.md; D1's text is ready to move
 
@@ -1463,7 +1470,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `docs/definitions.md#Expressions`; `docs/definitions.md#Names`; `docs/definitions.md` (keeps the load-time name checks); plan §6.3, §9.3
 - Finding: The reference for the language of the have, the want and a definition's body sits under "Unit definitions" (§6.3 "partial, misplaced"; §9.3: a definitions page owns name resolution). D1 calls where the want's grammar, the errors and the readings to watch go before `docs/expressions.md` exists its hardest call: its complete `#Expressions` text extends the section with five subsections ("What an expression does not contain", "The two fields", "When an expression fails", "How the app writes an expression back", "Readings to watch"), written to move, with no link to a page not yet written; the printed-form subsection is for the section C5 names "How the app writes expressions".
 - Proposed call: Write `docs/expressions.md` from D1's `#Expressions` and `#Names` texts (L239-485), mapped onto §7's sections; until then they replace the two sections in place, ready to move, and `docs/definitions.md` keeps the load-time name checks with a link to the reference.
-- Decision:
+- Decision: Stands: `docs/expressions.md` from D1's texts; amended by F-442 (D1's "rejected as it is typed" becomes "an error as it is typed"), F-439 (its "canonical form" sentence reworded), F-457 and F-475 ("the definitions file"); the page is written after `numbers.md` and `quantities.md` (Q-008).
 
 ### Findings owned by other pages that touch this one
 
@@ -1500,7 +1507,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: the page does not state that indentation is allowed, that a comment may follow a body directly, that `\r\n` line endings are accepted, that there are no continuation lines, that a one-item list is a unit, or that a prefix's body is an expression and never `!` or a list. The tests confirm each (`src/core/definitions.ts:298-313`, `:574`, `:614-628`; tests `:197-202`, `:241-284`, `:396-401`).
 - Sources: D2's verified line-grammar facts (D2 L58-66). `devdocs/architecture.md#Definitions` states only the whitespace rule.
 - Proposed call: state them under "The file", as D2's `#The format` text does (D2 L172-177, L198-204).
-- Decision:
+- Decision: Stands.
 
 #### F-092. A line-level grammar for the six kinds (§6.4)
 
@@ -1512,7 +1519,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/functions.md#Definitions` (its head-grammar block matches the function and inverse part of that comment in every detail, D2 report); `devdocs/architecture.md#Definitions`.
 - Proposed call: interim prose (D2's `#The format` text). The EBNF waits for the generated grammar (§2.2.3, §12 q30).
 - Related: Q-038
-- Decision:
+- Decision: Stands; follows Q-038.
 
 #### F-093. A kind primitive called "dimensionless"
 
@@ -1526,7 +1533,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: the two glosses differ. A7 rewrites the same phrase on `devdocs/architecture.md:104` as "mark a kind of quantity that has no physical dimension" (A7 (F-190)).
 - Proposed call: Confirm `update` (§12 q20 is binding). Choose one gloss for both corpora. The same phrase in the code comment `src/core/definitions.ts:11` is bugs.md's.
 - Related: Q-097, B-057, F-190, F-459
-- Decision:
+- Decision: Stands (update); follows Q-097 and F-459 (ok: "a marker of a kind, with no dimension of its own", or "kind marker").
 
 #### F-094. The file's primitives: nine, with `bit`
 
@@ -1538,7 +1545,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `src/units.txt:17-25`, the source of truth (§12 q4); `src/units.test.ts:186-200`. No devdocs passage states the nine.
 - Proposed call: state the file's primitives, `bit` included, and say why information is a dimension (D3's question 4). D3 puts this in a primitives section of `units.md`. D2's draft of `#The format` (D2 L191-197) still names only the SI base units and the radian.
 - Related: Q-032, B-060, B-064
-- Decision:
+- Decision: Stands; follows Q-032 (ok).
 
 #### F-095. The call rule stated in four places
 
@@ -1549,7 +1556,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: §9.1 lists the call rule (`kg (m/s)` against `kg(m/s)`) in four places, and `#Functions` restates both the call rule and the arity error of `#Expressions > A call`. D1 asked D2 to have `#Functions` keep the function semantics and point to the call bullet (D1's question 6 and notes); D2's report does not take it up: its two `#Functions` edits (D2 (F-098), D2 L258-268) touch only the "cannot be decided" wording and the annotation-scale error, D2's report predating D1's and D2 reading no other unit's report, so the docs side is a loose end. V4 cuts `devdocs/functions.md#Calls` to what the rule buys the parser and the error, with a link to `expressions.md` "Calls" (V4 L288-343).
 - Proposed call: the rule and the arity error live in `docs/expressions.md` "Calls and arity", and `docs/definitions.md#Functions` keeps the function semantics and links there (D1's question 6). The devdocs keep the parser's reason (V4). `devdocs/architecture.md#Expressions` is handled with D1 (F-238).
 - Related: Q-106, F-234, F-238
-- Decision:
+- Decision: Stands; follows Q-106 (ok).
 
 #### F-096. How definitions interact with exactness (§6.4)
 
@@ -1560,7 +1567,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: confirmed. D2 verified each of these: the table is built once, at the ceiling, in exact mode; a function's body is evaluated afresh at each call, at the pass's working precision; a condition of a call inside an evaluated body is decided at the ceiling, and one left undecided fails the build; an annotation must be certainly nonzero; a list's units must be certainly positive and decreasing at the ceiling; a `^` exponent is reduced within the significand limit at build, while a literal is not held to it; conditions are three-valued, decided at the operand context; decimal mode rounds each step of a body.
 - Sources: `devdocs/numbers.md#Working precision and the schedule`, `#approx`; `devdocs/functions.md#Definitions`, `#Build-time checks`, `#The check at a call`, `#Precision, the radius and cost`.
 - Proposed call: write the list into §7's "Units" (evaluated once at the ceiling) and "Functions" (exactness and cost; decimal mode). Cost and decimal mode follow the triplication finding's split.
-- Decision:
+- Decision: Stands; amended by F-475 (the table built once from the definitions file); the cost and decimal-mode parts follow F-033.
 
 #### F-097. How definitions interact with dimensions (§6.4)
 
@@ -1571,7 +1578,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: confirmed. D2's list: the result's dimension is inferred from the body, with each parameter bound to its annotation's dimension (a plain number without one), and checked against the result's annotation; adjacent terms of a condition must conform, and each condition must mention a parameter; an inverse's parameter takes the function's result dimension; a prefix's body has neither a dimension nor a kind; an annotation checks a dimension and changes no value, so `: percent` is accepted; a built-in's dimension rule applies at build (finding above); a call's count and argument dimensions are checked at build; a parameter shadows a unit by its exact name, and a prefixed name is always a unit; parameter annotations are evaluated among the units alone.
 - Sources: `devdocs/functions.md#Annotations`, `#Names and shadowing`, `#Conditions`, `#Build-time checks`; `devdocs/architecture.md#Definitions`.
 - Proposed call: write these into "Functions" and "Prefixes" (§7).
-- Decision:
+- Decision: Stands.
 
 #### F-098. Pages describe messages for definitions errors; none is worded
 
@@ -1586,7 +1593,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D2's docs wording "is rejected" goes against D1's terminology row (D1 (F-442)): "rejection" stays devdocs-only, and docs say "an error as it is typed" (§8: error for everything but the three size refusals).
 - Proposed call: **doc wrong**. The messages described do not exist, and the page's own `#Annotations` says so. **Code wrong** was considered and set aside: the devdocs describe "the message meant", but the intended wordings belong with #132 (definitions typed into the app), and bugs.md records the absence of messages (D2 (B-029), V4 (B-029)).
 - Related: B-029, F-442
-- Decision:
+- Decision: Stands (doc wrong); amended by F-442: D2's "is rejected" becomes "is an error" in the docs (devdocs keep "rejection" for the parser's); amended by Q-011: the wording "belongs with #132" and #132 itself are `devdocs/future.md`'s only (F-306).
 
 #### F-099. The `dozen` example names a unit of the file
 
@@ -1601,7 +1608,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: on the remedy, D2 and V4 rename where A8 keeps `dozen` with a note; on the type, V4 tags a contradiction, D2 a new gap and A8 "other"; in the drafts, A8's `#Display` pairs write `dozen((1250/381) in)` (A8 L107-111) where V4's writes `twelve(2 in)`.
 - Proposed call: **doc wrong**; the file's unit `dozen` is deliberate. Nobody drafted the docs side: V4 hands the rename to D2 (V4 report), D2's report predates V4's, and D2's `#Functions` edits do not touch these lines. The page also writes `dozen(1 ft)` at :286. `devdocs/functions.md:182` correctly uses `dozen` as a unit.
 - Related: Q-015
-- Decision:
+- Decision: Stands (doc wrong); follows Q-015 (B: `twelve`, or a fresh example that collides with nothing); both pages use the one name.
 
 #### F-100. The three-valued check and "why conditions differ" duplicated
 
@@ -1611,7 +1618,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `docs/definitions.md#Functions` (page L263-279); `devdocs/functions.md#The check at a call`, `#An undecided condition`; plan §9.1
 - Finding: the user statement is in `docs/definitions.md#Functions`: a condition is decided on the value's bounds with no tolerance, an undecided one is assumed and warned of, and a condition differs from a built-in's edge. The devdocs repeat the rationale.
 - Proposed call: as V4 proposes: the verdict table and the retry mechanics stay in devdocs, and the rationale is quoted in one line with a link (§12 q24; V4 L263-278).
-- Decision:
+- Decision: Stands.
 
 #### F-101. An undecided guard and a later term that cannot be computed
 
@@ -1622,7 +1629,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the docs say a certainly failing guard keeps a later term from being evaluated (D2 report), but not what happens behind an undecided guard: a term that cannot be computed there is assumed and warned of, not the call's error (`src/core/evaluate.ts:1023-1027`; A6: `guarded(sqrt(2)^2 - 2)` is `≈ 0` with two warnings; D2: `gd0(x) | x > 0, ln(x) > -1` warns on both conditions). The devdocs state the rule (A6 L180-194, V4 report). A6 handed D2 the `guarded` example; D2 had found the fact itself but sent it only to A6, for devdocs, so nobody drafted it for the docs.
 - Proposed call: add one sentence and A6's `guarded` example to "Functions" (conditions). Whether the docs state the touch rule is A6's question 1.
 - Related: Q-024, Q-090, F-279
-- Decision:
+- Decision: Stands; follows Q-090 (ok) and Q-024 (ok).
 
 #### F-102. Inverse conditions and what a conversion checks (§6.4, refuted in part)
 
@@ -1633,7 +1640,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: refuted in part. The page already says that an inverse's conditions restrict what converts into its function, and that the function is reapplied and a mismatch refused (`src/messages.ts:466-472`, `:551-561`). The full sequence of checks is Q16's.
 - Sources: `devdocs/functions.md#Conditions` (last paragraph), `#A function as the want`.
 - Proposed call: keep the two sentences under "Inverses". The full sequence goes to `quantities.md` "Conversion into a function" (§12 q13).
-- Decision:
+- Decision: Stands.
 
 #### F-103. `#Names` omits that a list's name is checked like a function's
 
@@ -1643,7 +1650,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `docs/definitions.md#Names` (lines 119-122)
 - Finding: `#Names` says only that "a function's name may not itself read as a prefix followed by a unit"; the build applies the same `prefixedName` check to a unit list's and a built-in's name (`src/core/build.ts:309-330`). The page states the list rule under `#Unit lists` (`docs/definitions.md:196-198`) but not where names are explained. D1 (L84) confirms the sentence as far as it goes and notes that lists and built-ins are checked the same way; its `#Names` text (L267-271) names lists too. A9 drafts: "neither a function's name nor a unit list's may itself read as a prefix followed by a unit (see Unit lists and Functions below)".
 - Proposed call: `docs/definitions.md` "Names" names unit lists beside functions, with the pointer, as A9 (L197-205) and D1 (L267-271) both draft.
-- Decision:
+- Decision: Stands.
 
 #### F-104. Units, lists, functions and built-ins share one set of names
 
@@ -1655,7 +1662,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/functions.md#Definitions` (page L99-101); `devdocs/architecture.md#Definitions` (lists and functions "share the unit namespace").
 - Proposed call: state it once on the page. D2 drafts it in `#The format` (D2 L212-216); D1 drafts it in `#Names` ("The file's functions and the built-in functions share one set of names", D1 L271-273). §7 places namespaces under definitions.md "Names".
 - Related: F-079
-- Decision:
+- Decision: Stands.
 
 #### F-105. The build-time checks as a table (§6.4)
 
@@ -1666,7 +1673,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: confirmed. The summary sentence ("A name defined twice, a circular definition, a prefix whose body has a dimension, a unit list that breaks the rules below, a function whose body does not fit its annotations, or an inverse of no function is an error.") names six of some twenty checks; D2's stale row 5 tags it update. Every kind §6.4 names exists, and `inverseAnnotation` is to be added. Build order: the whole file is parsed, then indexed; then come the inverses, the ambiguity check and the prefixed names; then the primitives are collected and the definitions walked; the first failure ends the build. No message is worded for any of these checks, so the user table names causes and fixes, not messages or kinds (§12 q6).
 - Sources: `devdocs/architecture.md#Definitions` (the catalogue); `devdocs/functions.md#Build-time checks`, `#Names and shadowing`, `#Conditions`; D2's 26-row developer table (L75-102).
 - Proposed call: use D2's 28-row user table ("The file is rejected when / Example / What to write instead", L219-248). Its heading follows §7 ("Build-time checks").
-- Decision:
+- Decision: Stands; follows Q-031 (ok: the docs table is the one list; devdocs point at it); amended by F-442 and F-476: the table is headed by what fails when the file loads ("error" in the docs, never "rejected"), and §7's section is retitled to match; amended by Q-011: the table names causes and fixes, and nothing about messages to come.
 
 #### F-106. A built-in's dimension rule applies at build
 
@@ -1678,7 +1685,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/functions.md#Build-time checks` (step 2).
 - Conflict: D2 says neither corpus states it (L128, L146). V4 lists it among the statements the page makes correctly (L91; V4 report: `r3(x) = sin(x)` fails the build). Both drafts make step 2 say "a built-in's dimension rule included" (D2 L363, V4 L405).
 - Proposed call: add D2's table row (L245) to the docs, and make devdocs step 2 explicit as both drafts do. Whether the current wording already says it does not change the rewrite.
-- Decision:
+- Decision: Stands.
 
 #### F-107. The status of user definitions (§6.4)
 
@@ -1691,7 +1698,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: where the #132 link lives. D2 links it here (L253-255, L462); V4 links it in `devdocs/functions.md#Deferred` (L558); V6 (F-415) gives #130 to #134 to `functions.md`. Plan §7's outline names #132 under this page's "User definitions". See the issue-link finding.
 - Proposed call: one sentence that only the system file is loaded and that user definitions are intended (D2 L253-255). The link follows the owner's choice in the issue-link finding.
 - Related: Q-011, F-415
-- Decision:
+- Decision: Stands as amended by Q-011 and F-475: one sentence that only the predefined definitions file is loaded, as a plain fact, with no "intended" clause and no link; #132 and the intent are `devdocs/future.md`'s only (F-421).
 
 #### F-108. "How to add to it": the page has no such section
 
@@ -1704,7 +1711,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D1 applies only the plan row ("This section" → "This page") and keeps "how to add to it" (D1 L32, L233-236; D1 report); A9 drops it (L37); D3 drops it and moves "what it contains" to `units.md` (L65). For the devdocs sentence, A9 points at `development.md#Adding a unit` (L217-223), D2's question 3 asks the same (L463), and V2's pared `#Definitions` (V2 (F-227)) drops the clause without that pointer and still names `docs/definitions.md` for the file's contents (V2 L156).
 - Proposed call: Confirm `update`; the open point is how far the rewrite goes. A9's question 4 drops the clause from the docs top and points the architecture sentence at `development.md#Adding a unit`, as D2's question 3 does for that sentence (the format and the names at `docs/definitions.md`); D1 keeps the clause. To settle it, check two facts: neither page has a section on adding to the file (C50 puts it in `devdocs/development.md#Adding a unit`), and §7 moves the file's contents to `units.md` (decided with the catalogue's move, D3 (F-114)). D1's change to "have and want fields" applies whichever rewrite is chosen.
 - Related: Q-105, F-227
-- Decision:
+- Decision: Stands (update); follows Q-105 (ok: the top drops "how to add to it"; `devdocs/architecture.md` names `development.md#Adding a unit`; D1's "the have and want fields" applies) and F-475 ("the definitions file" in both sentences).
 
 ### Findings owned by other pages that touch this one
 
@@ -1755,7 +1762,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: Nothing in `docs/` names the other conventions: `long` and `short` for the ton and the hundredweight (`stone`, `quarter`, `rood`, `cental` carry no marker); symbol-and-name pairs; `metre`/`meter`, `litre`/`liter`, `deca-`/`deka-`; Unicode names with ASCII stand-ins (`Ω`/`ohm`, `Å`/`angstrom`, `µ`, `μ`, `u`); case-sensitive near-collisions (`Gal`/`gal`, `St`/`st`, `T`/`t`, `S`/`s`); `mho` as an alias of the siemens; `imppeck` and `impbushel` beside the imperial gallon.
 - Sources: `src/units.txt:504-505`, `:512-513`, `:124-125`, `:254-255`, `:43-44`, `:161-162`, `:275-276`, `:72-74`, `:285`, `:428`, `:287`, `:501`, `:168`, `:136`, `:163`, `:19`, `:165`, `:481-484`
 - Proposed call: `units.md` "Naming conventions" as D3 drafts it (L213-228), under §7's "US customary and UK imperial" (whose naming conventions name `imp`, `uk`, `long`).
-- Decision:
+- Decision: Stands.
 
 #### F-110. Why readings and levels are functions: already stated
 
@@ -1766,7 +1773,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: Refuted as a content gap: the page gives both reasons (a reading adds an offset; a level is the logarithm of a ratio), as the file's comments do; the fuller reason, that a quantity carries no offset, is at `devdocs/functions.md:10-16`.
 - Sources: `src/units.txt:185-188`, `:197-205`, `:212-221`; `devdocs/functions.md:10-16`
 - Proposed call: Placement only: the reason goes to `quantities.md` "Temperature and logarithmic levels" (§7, §12 q13); `units.md` "Temperature" and "Logarithmic levels" keep the entries and link there (D3 L230-246).
-- Decision:
+- Decision: Stands; amended by Q-011: the reason why readings are functions is a ruled-out alternative (an offset in `Quantity`), stated as a plain fact in `quantities.md` and with its reason in `devdocs/functions.md`; `devdocs/future.md`'s bullet on it moves there.
 
 #### F-111. Unit lists: `dms` is the one inexact list; the rules live elsewhere
 
@@ -1777,7 +1784,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: The page lists the fifteen lists but says neither that `dms` alone is inexact (through the angle units) nor where a list's counting rule lives (`quantities.md`, §7).
 - Sources: `src/units.txt:591-605`; `src/units.test.ts:777-801`, `:803-828` (the straddled count that follows)
 - Proposed call: `units.md` "Unit lists" with D3's table and its `dms` sentence (L259-281), linking `quantities.md` "Unit lists" for the rules.
-- Decision:
+- Decision: Stands; amended by F-451 ("the one inexact list").
 
 #### F-112. Names absent or meaning something else: `e`, `at`, no unit `a`
 
@@ -1789,7 +1796,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `src/units.txt:113`, `:142`, `:328`, `:235`, `:114`, `:52`, `:74`, `:78`, `:79`, `:136`, `:248-250`, `:264-266`, `:309`; `src/units.test.ts:368`, `:398-399`; D1's harness
 - Proposed call: `units.md`'s section, retitled as D3 drafts it ("Names that are absent, or mean something else", L283-295; D3's question 5), lists `u`, `at` (an attotonne when typed), `dB`, `e`, `rad` and the one-letter names, and adds that there is no unit `a` (D1's question 7); Q9's sentence gains "`at` reads as `a` + `t`"; the §7 bullet is corrected on the plan side.
 - Related: Q-075, F-502
-- Decision:
+- Decision: Stands; follows Q-075 (ok: the retitled section and its list, with `rad`; Q9 adds that `at` reads as `a` + `t`) as amended by F-078 (nothing about a unit `a`).
 
 #### F-113. Units defined through `pi()` are inexact, and no page names them
 
@@ -1802,7 +1809,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: destinations: D3 (L76) puts the rule in `quantities.md` and the list in `units.md`; A9 (L187) adds a sentence to `docs/definitions.md#What the file contains`; D8 (L174-178) adds a clause to `numbers.md` "Exact and approximate values". A9 files it as a new gap (it had no §6 in context) and D8 as a new fact to add, D3 as a confirmed §6.2 gap.
 - Proposed call: `units.md` lists the inexact units ("Angles and rotation", "Which factors are exact"; D3 L171-178, L296-308) and `quantities.md` states the rule (§7); D8 adds one clause to `numbers.md#Exact and approximate values` (D8 L174-178): decide whether `numbers.md` carries it as well.
 - Related: F-040
-- Decision:
+- Decision: Follows its own answer (A): one clause in `numbers.md`'s section on exact and inexact values, linking `units.md`'s list; the owner's note recorded (no mechanism marks a unit definition inexact; `pi()` is the only source). Amended by F-451 ("inexact" throughout). [decisions.md section 3; plan §12.1]
 
 #### F-114. The catalogue moves from the language page to docs/units.md
 
@@ -1813,7 +1820,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A9 (L179-195) edits the section in place (two old→new pairs) where D3 deletes it; the page's top sentence has three rewrites: D3 (L313-319) "This page describes the file's format and how to read it; the units it defines are described in `[units.md](units.md)`.", D1 (L219-237) keeping "how to add to it", A9 (L37) "what it contains and how to read it"; D2 Q3 (L463) leaves the top to D3.
 - Proposed call: Create `docs/units.md` from D3's draft and delete the section (§6.4, §9.3, §12 q4); carry A9's content into `units.md` instead of editing a section that goes; reconcile D3's section list with §7's; keep the `dB` example in `#Names` (D1's text); decide the top sentence with the `#(top)` finding.
 - Related: F-108
-- Decision:
+- Decision: Stands: `docs/units.md` from D3's draft; follows Q-105 and F-475 ("the definitions file"); amended by F-451 ("Angles and rotation" says "inexact"), F-483 ("temperature differences") and F-078; the page is written after `numbers.md` and `quantities.md` (Q-008).
 
 #### F-115. Five sections of the file are described nowhere
 
@@ -1824,7 +1831,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: The section heads of `src/units.txt` (`:15`, `:28`, `:84`, `:105`, `:122`, `:140`, `:231`, `:273`, `:336`, `:352`, `:365`, `:418`, `:425`, `:466`, `:487`, `:536`, `:562`, `:570`, `:577`, `:585`, `:608`)
 - Proposed call: `units.md` gives each section a home, as D3's draft does; §7's skeleton gains them (plan side).
 - Related: F-515
-- Decision:
+- Decision: Stands: §7's skeleton gains the sections (plan amended).
 
 #### F-116. Sources: three attributions unverified, five cited sources unnamed
 
@@ -1835,7 +1842,7 @@ What to settle before rewriting a page, in the order it bites.
 - Why unverified: The attributions appear nowhere in `src/units.txt` or `src/units.test.ts` (`:32-33`, `:55-58`, `:81-82` hold the 2022 prefixes; `:365-366` and `:394-396` cite the 1959 agreement and the Mendenhall Order; `:466` and `:468` cite nothing).
 - Proposed call: `units.md` cites what the file cites, as D3's draft does; the three attributions stay only if the owner confirms them and the file's header names them (D3 Q1); "CODATA 2018" for the dalton until the file changes (D3 Q2); the years named as measured values (D3 Q3); the comment changes are bugs.md's.
 - Related: B-014, B-063, B-065
-- Decision:
+- Decision: Stands; follows Q-033 (ok), Q-041 (ok); low confidence noted.
 
 ### Findings owned by other pages that touch this one
 
@@ -1876,7 +1883,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: update; plan row confirmed (§9.4) for the docs page (D4, D9); new for the devdocs page (V5)
 - Rewrite: no count; "The settings are kept in the browser, under a format version, so that they survive a reload and a later build reads what an earlier one stored", the controls listed grouped and nested by mode (D9 L32); devdocs: "The settings, kept in the browser: …" with the list (V5 L147). The sheet has eight controls (`src/settings-panel.ts:73-80`); the stored object's six fields are a storage fact for devdocs (D4 L58).
 - Proposed call: Confirm `update` on both pages (§12 q16); the rest of `devdocs/settings.md#(top)` stays (V5).
-- Decision:
+- Decision: Stands (update, both pages); amended by F-488: "the settings panel" ("the panel has eight controls" is a devdocs fact, never a count in the docs).
 
 #### F-118. "eight by default, as GNU units shows" goes (§12 q2)
 
@@ -1890,7 +1897,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A3 tags it update (A3 L50); D4 tags it drop, noting it is not a superseded design but §12 q2's framing decision (D4 L63).
 - Proposed call: Question: the tag. The clause applies an owner decision rather than recording history (D4); both tags give the same rewrite, so it goes either way.
 - Related: Q-081
-- Decision:
+- Decision: Stands (either tag; the rewrite is the same); follows Q-081 (ok).
 
 #### F-119. Rounding entry omits that the mode governs round()
 
@@ -1902,7 +1909,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: plan §3 (S2), N11; D4 could not verify `round()`, which A2 report and D6 report confirm (the one exact-function call that reads the mode).
 - Proposed call: One clause with a link to the function reference, as D4's replacement entry has (D4 L245-246).
 - Related: F-048
-- Decision:
+- Decision: Stands; the link targets `docs/builtins.md` (Q-020's note).
 
 #### F-120. `= -100000000` is displayed as `= -1e+8`
 
@@ -1916,7 +1923,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "`1 / (1 / 3 * 3 - 1)` is `= -1e+8`" (A4 L96, L112; D4 L215; V1 L288)
 - Proposed call: **doc wrong**: the exponent form past the display digits is the display's deliberate rule (N12), and nothing points to the code; the example is fixed on both pages and wherever the mode's rules land (`docs/numbers.md#The two modes`).
 - Related: Q-003, F-037
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-121. The ratio is bare before the reciprocal's `×`: `in = 1/36 × 3 ft`
 
@@ -1930,7 +1937,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "A ratio is parenthesized where a factor follows it by juxtaposition (before a unit, `(5000/127) in`; before a parenthesized have) and is bare where `×` follows it (`in = 1/36 × 3 ft`) or nothing does." (V5 L27)
 - Proposed call: **doc wrong** (all three units): one printer rule by the grammar's levels, pinned by `src/outcome.test.ts:97`. Against it, `devdocs/notation.md` gives a reader-facing reason for the parentheses, an intent the code does not carry, so **code wrong** stays possible; A2 (Q-003) asks the owner (the squashed history does not say which came first).
 - Related: Q-003
-- Decision:
+- Decision: Follows Q-003 (A): doc wrong; the pages write `in = 1/36 × 3 ft` and state the juxtaposition edge; N13 amended.
 
 #### F-122. Notation examples: the have as echoed, and "reads back as itself"
 
@@ -1945,7 +1952,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: (1) D4 lists `m / (3 m) = 1/3` as confirmed as written (D4 L109, context D4 report) and its replacement keeps both haves as typed (D4 L192, L195), against A2's canonical echo, which V5's run supports. (2) A2's rewrite keeps "which reads back as itself" (A2 L114), which D4's run refutes for the text on screen (D4 L107).
 - Proposed call: **doc wrong** on both counts if the runs stand. Settle (1) by running `m / (3 m)` and `(1/3) * 1e30` and reading the echoed have; on (2), §12 q11 has only the copy text read back, so the clause goes or names the copy.
 - Related: F-457
-- Decision:
+- Decision: Stands (doc wrong on both counts if the runs stand): the session of `docs/settings.md` runs `m / (3 m)` and `(1/3) * 1e30`; follows F-457 ("pastes back", of the copy text only).
 
 #### F-123. Gap: ratio width and extended count as entries of their own
 
@@ -1956,7 +1963,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: Each is a clause inside its parent's bullet; the width's range is not given.
 - Sources: `devdocs/notation.md#The rule` ("The width"); `devdocs/numbers.md#The working digits`
 - Proposed call: An entry each with key, unit, default and range, the width nested under Notation and the count under Working digits, as D4's replacement text has (D4 L184-191, L223-227).
-- Decision:
+- Decision: Stands.
 
 #### F-124. Gap: last ratio width and extended count offered again in a session
 
@@ -1967,7 +1974,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: Within a session the sheet offers the last width again when `ratio` is chosen and the last extended count when `extended` is checked (`src/settings-panel.ts:446-453`), so the count's default is the display digits only until a count has been seen; the page says only that coming back from decimal mode "finds digits again".
 - Sources: `devdocs/settings.md#The model > The mode is a nested choice` (page L186-188; confirmed by V5, context V5 report)
 - Proposed call: A clause in each entry ("the display digits by default, or the last count chosen in the session", D4 L226-227; the width, D4 L204-205), or in `docs/app.md`'s account of the sheet.
-- Decision:
+- Decision: Stands; amended by F-488 ("the panel offers the last width again").
 
 #### F-125. The ceiling is a pass's precision, not "the finest grid"
 
@@ -1982,7 +1989,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: (1) "grid" for the ceiling: D4's replacement entry keeps "a ceiling, the finest grid the app rounds onto" (D4 L257-258), following §8's gloss (D4 L394); V5's `#The model` text keeps "the finest grid the app rounds onto in either mode" and "the finest grid under a precision limit `L`" (V5 L157, L161); A1's interim settings text calls the ceiling "the grid" (A1 (F-013), A1 L262-264). (2) The grid's size at eight digits: A1 gives the working grid of a pass as `digitsFor(bitsFor(precision))` digits, "eighteen at eight display digits" (A1 L82-85, A1 report); A3 gives 28 digits at the first pass of eight and 4,050 at the ceiling pass, and keeps "grid" out of the user docs (A3 L57, L68, L134; V1 L266 takes A3's figures); A5 states both figures as different things, 18 "at a precision of eight" and 28 "at the schedule's first pass" (A5 L59).
 - Proposed call: **doc wrong** if A3's distinction holds (the code keeps a pass's precision and its settle grid apart on purpose); it turns on plan §8's gloss, which A3 (Q-004) asks the owner to change. Add A3's devdocs sentences once the owner settles what "the grid of a pass at eight display digits" means: A1's 18 is the grid at a precision of eight, A3's 28 the grid of the first pass, which runs at the display digits plus ten (A3 report). The probe's proposal line ("a grid of 4,040 digits") is code (A3 (B-026)).
 - Related: Q-004, B-026, F-429, F-431
-- Decision:
+- Decision: Follows Q-004 (B): doc wrong; the ceiling is "the highest precision any pass computes at", "grid" stays in the docs explained once in `numbers.md` (D4's and D8's drafts keep the word, A3's devdocs sentences on a pass's grid are added); B-026 is the code side (section 9 item 1).
 
 #### F-126. Precision limit entry misdescribes the panel's line; "derived and shown"
 
@@ -1997,7 +2004,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A3 deletes the sentence, D4 says where the ceiling shows. A3 (Q-027) asks V5 to rewrite "derived and shown" as "derived, and written as a number only in the probe's proposal"; V5's `#The model` text keeps "derived and shown" (V5 L157, L165). D4 confirms S17 "derived and shown" with the note that only the proposal shows it (D4 L44, context D4 L44).
 - Proposed call: **doc wrong**: the panel leaves the ceiling to the guide on purpose (the module comment). Keeping the formula once in the docs (D4 (Q-005)) and whether the panel should name the ceiling (A3 (Q-027)) are the owner's.
 - Related: Q-005, Q-027
-- Decision:
+- Decision: Stands (doc wrong); follows Q-027 (ok: "derived, and written as a number only in the probe's proposal") and Q-005 (A).
 
 #### F-127. Precision limit's pointer into the dissolved section
 
@@ -2010,7 +2017,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: "(what the grid is, `[Numbers](numbers.md#how-a-value-is-held)` says)"; it is the page's one inbound pointer to the dissolved section (D8 L39, L277).
 - Proposed call: Confirm `update`; D4's and A3's full replacements of the entry drop the parenthetical, and A3 keeps "grid" out of the user docs (the finding that carries A3 (F-125)), so the link may have nothing left to gloss.
 - Related: F-014
-- Decision:
+- Decision: Stands (update); follows Q-004 (the link's gloss is "grid", kept in the docs).
 
 #### F-128. The probe does not time "the costliest built-ins"
 
@@ -2025,7 +2032,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: "the four costliest" is a ranking D5 could not verify, a claim of the kernel benchmark's report (D5 (F-278)); `devdocs/settings.md#The probe` states it ("the four costliest routines of the kernel benchmark's report", page L442-444).
 - Proposed call: **doc wrong** (§12 q23; plan §9.4: the composite is the four elementary routines, not the costlier special functions). Settle the ranking against the kernel benchmark's report before the docs repeat it, or name the four functions without ranking them; the panel's "Times the costliest operations" is code (D4 (B-017)).
 - Related: Q-006, B-017, F-278, F-491, F-512
-- Decision:
+- Decision: Stands (doc wrong); follows F-491 (ok: "the four elementary functions", never "costliest"; D4's "the four costliest elementary functions" is not used) and Q-006 (B-017 with the code change).
 
 #### F-129. Gap: "Measure this device" as a procedure
 
@@ -2036,7 +2043,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: "Measure this device" is one paragraph; §6.5 asks for a procedure (what it times, what it proposes, Apply) with §9.4's correction.
 - Sources: `devdocs/settings.md#The probe`; D4's procedure read from `src/limits.ts:205-281` (confirmed by V5, context V5 report)
 - Proposed call: D4's `## Measure this device` (D4 L316-347), once the ranking is settled (the finding that carries D4 (F-128)).
-- Decision:
+- Decision: Stands; follows F-491.
 
 #### F-130. Gap: "Apply" goes through the same clamp-and-tell as an edit
 
@@ -2047,7 +2054,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: A proposal that lowers a setting the user raised is told before it lands; the page says only that nothing changes until "Apply" is pressed.
 - Sources: `devdocs/settings.md#The probe` (page L462-466); `src/settings-panel.ts:998-1003`
 - Proposed call: Step 4 of D4's procedure (D4 L340-344).
-- Decision:
+- Decision: Stands.
 
 #### F-131. "For a fraction of a second": a timing in the probe's description
 
@@ -2059,7 +2066,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D4 rewrites both to "and the page waits while it runs" (D4 L374; D4 (Q-018)); V5's `#The probe` edit keeps "for a fraction of a second" and changes only the #163 link (V5 L203).
 - Proposed call: docs/: "the page waits while it runs" (§12 q9, binding); devdocs/: §12 q25 favours D4's rewrite, for the owner to confirm (D4 (Q-018)).
 - Related: Q-018
-- Decision:
+- Decision: Docs: "the page waits while it runs" (§12 q9; Q-016 A). Devdocs: follows Q-018 (B): "for a fraction of a second" stays as a rough duration, worded generously ("well under a second at the default budget").
 
 #### F-132. Gap: the clamp chain and refusals as a short table
 
@@ -2070,7 +2077,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: The chain and the refusals are one paragraph.
 - Sources: `devdocs/settings.md#The model > The chain`, `#Applying a change`; D4's clamp table, produced by running `rangesOf`, `CLAMP_ORDER` and the lines (D4 L73-86)
 - Proposed call: D4's `## How the settings bound each other` (D4 L289-314).
-- Decision:
+- Decision: Stands.
 
 #### F-133. Gap: unreadable or newer stored settings fall back without notice
 
@@ -2082,7 +2089,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/settings.md#Storage` (page L301-334); `#Applying a change` (page L401-404: no path yet for a warning a user sees, #167)
 - Proposed call: One sentence in the storage paragraph (D4 L155-159); D9's draft of the same paragraph has none (D9 L155-163).
 - Related: Q-069
-- Decision:
+- Decision: Stands; amended by Q-011: the sentence states the fallback as a plain fact; #167 (a place for warnings a user sees) is future work, linked from `devdocs/future.md` only (on the owner's list to confirm).
 
 #### F-134. docs/settings.md names devdocs pages in inline code, against ownership
 
@@ -2093,7 +2100,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A1 (L266-272, L314-316) keeps the pointers as links: its interim text makes L271 `[Working precision and the schedule](../devdocs/numbers.md#working-precision-and-the-schedule)`, and it asks D4 and D8 to make the others repo-relative links (A1 Q7); D4 (L132) replaces each with a link to the owning docs page, D9 (L40, L60) drops them, none surviving its text, and D8 drops L271 with the dissolved section (D8 (F-026)).
 - Proposed call: two calls for the owner (A1 (Q-082), A2 (Q-082)): drop every docs-to-devdocs pointer and link the owning docs section (`numbers.md`) where a user needs the concept (D4, D9: §9.2 has docs not depend on devdocs, and the pointers carry nothing a user needs), or keep them as repo-relative links (A1: the linking principle; its L271 link targets devdocs). Either way the L271 one goes with the dissolved section, and the Notation entry reduces to the setting and a link once `numbers.md` owns how an exact value is written (A2 (Q-082)), which D4's replacement entry, still restating the rule and its examples, does not yet do.
 - Related: Q-082, F-026
-- Decision:
+- Decision: Stands; follows Q-082 (ok: every docs-to-devdocs pointer goes; the owning docs section is linked instead; the Notation entry reduces to the setting and a link once `numbers.md` owns how an exact value is written).
 
 #### F-135. Gap: one entry per control with key, unit, default and range
 
@@ -2103,7 +2110,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: Each control's key, default, range, bound and effect in each mode; today the Notation bullet gives the width's default but not its range, the Precision limit bullet no range (its top under the significand limit only in the "top-down" paragraph), the Significand limit bullet no range.
 - Sources: `devdocs/settings.md#The model`, `#Applying a change` (`rangesOf`); plan §3, every row confirmed by D4 (context D4 report)
 - Proposed call: D4's replacement entries (D4 L173-287).
-- Decision:
+- Decision: Stands.
 
 #### F-136. Restructure docs/settings.md by the sheet's groups, nested by mode
 
@@ -2112,7 +2119,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `docs/settings.md#(top)` (the page above the dissolved sections)
 - Finding: D4 rewrites the page as `## How it is shown` (Display digits; Notation with the ratio width), `## How it is computed` (Mode; Working digits; Rounding), `## How much it may cost` (Precision limit; Significand limit; Probe budget), `## How the settings bound each other` and `## Measure this device`, with no count and `numbers.md` linked rather than restated (§12 q5, q16). Plan §7 lists per-setting sections without the three groups, and D4's links cite §5's proposed `numbers.md` headings ("How an exact value is written" among them), not §7's ("How numbers are written").
 - Proposed call: Adopt the grouping (§12 q16: grouped and nested by mode), reconcile the headings with §7's section list, and fix the `numbers.md` anchors when that page lands.
-- Decision:
+- Decision: Stands: the grouping adopted, the headings reconciled with §7's; amended by F-488 ("How it is shown" and the rest name the panel) and F-451; the anchors into `numbers.md` are those of the page written first (Q-008).
 
 ### Findings owned by other pages that touch this one
 
@@ -2160,7 +2167,9 @@ What to settle before rewriting a page, in the order it bites.
 
 ## `docs/functions.md`
 
-32 findings (F-137 to F-168).
+32 findings (F-137 to F-168). The page is renamed `docs/builtins.md`, titled "Built-in
+functions" (Q-020's note, plan §12.1); the findings keep the name the units audited, and every
+link they write to the old name targets the new one.
 
 ### Proposed text in the reports
 
@@ -2186,7 +2195,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/numbers.md#Decimal mode > A built-in's call`
 - Proposed call: one rule in "Rules every built-in follows" and the family preamble, the cases in the generated reference's decimal-mode field (§4.1); D7 proposes no text, the source being outside its unit.
 - Related: F-044
-- Decision:
+- Decision: Stands; the user page is `docs/builtins.md` (Q-020's note), so every link this finding writes to `docs/functions.md` targets `docs/builtins.md`.
 
 #### F-138. Preamble: "every built-in takes plain numbers" omits six built-ins
 
@@ -2201,7 +2210,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: the corrections differ. D5 names six, `atan2` included (L39, L142); D6 names five, `approx`, `abs`, `sign`, `div`, `mod` (L236), and its "functions of bullets 7 to 9" also covers `floor`, `ceil`, `trunc` and `round`, which bullet 8 says take plain numbers. Settle the list against `devdocs/builtins.md#Dimension rules`, whose every row D5 (L62) and V3 (L68) confirm.
 - Proposed call: **doc wrong**: the dimension rules are deliberate (the table and its "`floor` and its kin" rationale) and the sentence contradicts the page's own bullets; nothing points at the code.
 - Related: Q-095, F-515
-- Decision:
+- Decision: Stands (doc wrong); follows Q-095 and Q-009 (B: D5's six-function list, `atan2` included, now); Q-019 ("plain number" kept as the gloss).
 
 #### F-139. Preamble's forward pointer to a section that dissolves
 
@@ -2215,7 +2224,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: different destinations: D5 the page `numbers.md`, D8 its section "Values too big to hold".
 - Proposed call: Confirm `update`, applied with the dissolution; the link targets the `numbers.md` section that ends up saying `approx` does not relax the exponent bound (D8's draft puts it under "Values too big to hold").
 - Related: F-057
-- Decision:
+- Decision: Stands (update); the link targets `docs/numbers.md#Values too big to hold`; the user page is `docs/builtins.md` (Q-020's note), so every link this finding writes to `docs/functions.md` targets `docs/builtins.md`.
 
 #### F-140. Gap confirmed: `log`'s exact cases and `b` checked first
 
@@ -2226,7 +2235,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: the exact cases both ways and `b` checked before `x` (`log(approx(1), 1)` "cannot be told from 1"); bullet 2 has neither.
 - Sources: `devdocs/builtins.md#Domains, exact cases and edges` > "`log`'s exact cases" (accurate).
 - Proposed call: the generated `log` entry (§4.1).
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-141. Gap new: exact cases of `log10`, `log2`, `sqrt` and `cbrt`
 
@@ -2237,7 +2246,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `log10` and `log2` are exact for an integer power of the base either way (`log10(1000) = 3`, `log2(1/8) = -3`); `sqrt` and `cbrt` share `^`'s exact cases, and `sqrt` of a value straddling zero "cannot be told from zero" while `cbrt` gives a value within an error radius of zero ("Roots and powers").
 - Sources: `devdocs/builtins.md#Domains, exact cases and edges` (the `ln` row once corrected), `#The elementary routines` (`sqrt` and `cbrt`).
 - Proposed call: per-entry facts for the generated reference, not hand-written text.
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-142. Gap confirmed: `pow`'s special bases and log-space route
 
@@ -2248,7 +2257,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `pow(1, y)`, `pow(0, y)`, `pow(-1, y)` by parity, `pow(0, 0)`, the log-space route; bullet 3 has none of it.
 - Sources: `devdocs/builtins.md#Domains, exact cases and edges` > "`pow`, and `^` with it", accurate once the `-1` cell is corrected (finding on the `pow` row).
 - Proposed call: the generated `pow` entry (§4.1).
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-143. Gap new: `pow` of a quantity base points at `^`
 
@@ -2259,7 +2268,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `pow(2 m, 2)` is refused with `Cannot apply "pow" to "2 m": the base must be a plain number; for a power of a quantity, write "(2 m)^2".`
 - Sources: `devdocs/builtins.md#Dimension rules` (introduction), `#Domains, exact cases and edges` > "`pow`, and `^` with it".
 - Proposed call: per-entry fact for the generated `pow` entry.
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-144. Bullet 5 writes inverse results with "is" where the app shows ≈
 
@@ -2273,7 +2282,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: D5 edit 2 (L141): "which return an angle, so `asin(0.5)` into `deg` is `≈ 30` and `atan2(3 m, 4 m)` into `deg` is `≈ 36.869898`, `≈` because the angle units are defined through `pi()`; `asin(0.5)` into `turn`, or `asin(0.5) / radian`, is the number." Its last clause is what A7 corrects (finding on `asin(0.5)` into `turn`).
 - Proposed call: **doc wrong**: the angle units are inexact through `pi()` by design (N7; `deg` is `pi() radian / 180` in the file), and the bullet drops the `≈` its own page requires.
 - Related: F-067
-- Decision:
+- Decision: Stands (doc wrong); follows Q-009 (B: the `≈` corrected now) and F-067 (the `turn` clause corrected: an angle still).
 
 #### F-145. Gap confirmed: `atan2`'s quadrants, a zero `y`, the origin
 
@@ -2284,7 +2293,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: the quadrant rules, `y` exactly zero and the origin; bullet 5 has only its two examples.
 - Sources: `devdocs/builtins.md#Domains, exact cases and edges`, `#Huge and tiny arguments`, accurate once the `atan2` edges cell is completed (finding on that cell).
 - Proposed call: the generated `atan2` entry (§4.1).
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-146. Gap confirmed in part: the inverses at their ends; the long-significand refusal
 
@@ -2295,7 +2304,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: the preamble does have `tan(90 deg)` at a pole; the ends of `asin`, `acos`, `acosh`, `atanh` and the refusal of `asin(0.1 + 1e-15000)` (#63) are absent.
 - Sources: `devdocs/builtins.md#Domains, exact cases and edges`, `#Huge and tiny arguments`.
 - Proposed call: the generated entries (§4.1).
-- Decision:
+- Decision: Stands (generated reference); #63 stays a bug linked from `devdocs/builtins.md#Huge and tiny arguments` (Q-011, Q-012); the docs name the refusal without a link.
 
 #### F-147. Gap new: `sinh` and `cosh` of a large negative argument; `tanh` never refused
 
@@ -2306,7 +2315,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `sinh(-1e30)` and `cosh(-1e30)` are too large, not too small (`classifyHyperbolic` checks the top edge alone, `ball.ts:1714-1725`); `tanh` is never refused (`tanh(1e999999999) ≈ 1`).
 - Sources: `devdocs/builtins.md#The rules every built-in follows` (the exponent-bound bullet).
 - Proposed call: per-entry facts for the generated reference.
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-148. Bullets 7, 8, 10 and the `approx` entry: what they keep and link
 
@@ -2318,7 +2327,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D8 (L224-231, L315) keeps bullet 7 brief and mechanical, the concept in `numbers.md` "approx"; D6 (L110-116) lengthens it, and itself says the zero pass-through and the decimal-mode identity "belong to the concept, not to the entry" (L82) while adding both to the entry.
 - Proposed call: §12 q14 (binding) keeps the entry mechanical: bullet 7 keeps the signature, one sentence and the link; D6's `approx` corrections and additions go to `numbers.md#approx`, reconciled with D8's draft; the owner rules on D6's other "(addition)" clauses (D6 Q5).
 - Related: Q-009, F-046
-- Decision:
+- Decision: Stands; follows Q-009 (B: bullet 7 keeps the signature, one sentence and the link to `numbers.md#approx`; D6's corrections go to `numbers.md#approx`; the "(addition)" clauses wait) and Q-035/Q-104 (nothing of the binary form on the user page); the user page is `docs/builtins.md` (Q-020's note), so every link this finding writes to `docs/functions.md` targets `docs/builtins.md`.
 
 #### F-149. Gap confirmed: `round(x, places)`
 
@@ -2329,7 +2338,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `places` an exact integer held to the limit, with the count limit D6 adds (gap on the count limit).
 - Sources: `devdocs/builtins.md#The exact functions` (`round`).
 - Proposed call: the generated `round` entry (§4.1).
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-150. Gap confirmed: `div` and `mod`'s sign convention and edges
 
@@ -2340,7 +2349,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: the sign convention and the `overflow`/`tooLarge` edges (D6's rule 4, its N22 row and C2).
 - Sources: `devdocs/builtins.md#The exact functions` (`div` and `mod`, "On balls").
 - Proposed call: the generated `div` and `mod` entries (§4.1).
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-151. Bullet 10: `factorial(approx(5))` is an error in exact mode only
 
@@ -2354,7 +2363,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: D6 (L126-132): "`gcd(a, b)` and `lcm(a, b)`, never negative, and `factorial(n)`, `binomial(n, k)` and `doublefactorial(n)`, all of whole numbers known exactly: `factorial(approx(5))` is an error in exact mode, since an inexact value is not known to be `5` (in decimal mode `approx` is the identity and it is `120`) (addition). The last three are refused past the significand limit before anything is computed: …" (full text: D6 L126-132).
 - Proposed call: **doc wrong**: the module declares the decimal-mode identity and N17 states it; the bullet's wording ("refused" for a `domain` error, "known to a precision" for inexact) is §8's to fix.
 - Related: Q-009, F-443, F-451
-- Decision:
+- Decision: Stands (doc wrong); follows Q-009 (B: corrected now) and Q-096; amended by F-442 ("is an error in exact mode", never "refused") and F-451 ("an inexact value is not known to be `5`").
 
 #### F-152. Gap confirmed: `gcd(0, 0)`, `lcm(a, 0)`, `binomial` outside `0..n`, `doublefactorial(-1)`
 
@@ -2366,7 +2375,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/builtins.md#The exact functions` (`gcd` and `lcm`, the factorials).
 - Proposed call: the generated entries (§4.1), after the code fix.
 - Related: B-001
-- Decision:
+- Decision: Stands; follows Q-050 (ok: B-001 before the built-ins pages); the generated entry states the intent.
 
 #### F-153. Bullet 12 misstates when the Bernoulli ratios are computed (§9.4 row)
 
@@ -2381,7 +2390,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: (1) who pays the run: D7 words the correction for "the family" and confirms cost.md's "a warm run costs about a cold one except in the Gamma family" (C47, L74); V6 (F-356) (V6 L27, L41, L63-64) finds in the stress catalogue the same cold surcharge on the regularized incomplete gamma and the incomplete beta calls. (2) D5's report counts 8 "update" rows in its Summary (L19) and lists 9 in its table (L32-42); the extra is this row.
 - Proposed call: design changed without the docs following: plan §9.4 tags the sentence stale (update, confirmed), and the devdocs, the record of intent, state the one-run rule the code implements; nothing points to code wrong. D7's rewrite governs. Before rewording, settle which calls pay the run (V6's catalogue; D7's own C34 has the regularized forms take `ln Γ` through `logGamma`).
 - Related: Q-093
-- Decision:
+- Decision: Stands (design changed); follows Q-093 (ok) and Q-009 (B: D7's rewrite now, the cost sentence qualitative: Q-016 A); the session checks which calls pay the run (F-356).
 
 #### F-154. Gamma-family cost figures given three times (plan §9.1)
 
@@ -2393,7 +2402,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: (1) the ordering that replaces the figures: D7 (L87, L95) and V3 (L50) have an inexact argument cost more than an exact one of short denominator ("several times", "a fraction of that"), while V6 L116 and V6 (F-354) (V6 L62, L116, L154, L227) find the catalogue's exact and inexact Gamma cases overlapping (inexact 0.21 to 2.05 s, exact 0.32 to 1.71 s; "about half" in the median only). (2) why an inexact argument's run is longer: D7 (L93) because its shift "stops at a smaller argument" and its series is longer; V3 (L49, L546-548) because of "an inexact argument's longer shift", against the page's exact shift "four times as far" (page L668, L698), which V3 itself confirms (L72, `fixed-gamma.ts:6-8,34-47`).
 - Proposed call: Confirm: the timings leave all three places (q9, q25) and live in cost.md's tables and the stress tools; the bullet keeps one qualitative sentence (V6 Q5), as D7's rewrite does; before the qualitative sentences land, check the exact/inexact ordering against the catalogue or a per-call benchmark, and the shift's direction against `fixed-gamma.ts:6-8,34-47`.
 - Related: Q-088, F-354, F-510
-- Decision:
+- Decision: Stands for the user bullet (qualitative only, Q-016 A); for the devdocs halves follows Q-088 (devdocs follow Q-016: the ordering and ratios the catalogue bears out stay, a rough timing may stay marked illustrative, never a figure the catalogue contradicts); the exact/inexact ordering is checked before it lands.
 
 #### F-155. Beta bullet: `gamma(1e6)` does fit
 
@@ -2406,7 +2415,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/builtins/beta.ts:19-25`, `:133-162`; `src/core/builtins/gamma.ts:326-333`, `:344-359`; harness
 - Corrected statement: "large arguments go through `lgamma`, so `beta(1e17, 1.5)` is `≈ 2.8024956e-26` where `gamma(1e17)` is refused as too large to compute, and `beta(1e6, 1e6)` is `≈ 3.6164047e-602063`" (both by the harness; D7 L37).
 - Proposed call: doc wrong: the log-space route and the exponent bound are deliberate (`gamma.ts:344-359`) and the clause overstates what `lgamma` buys; nothing points to code wrong.
-- Decision:
+- Decision: Stands (doc wrong); follows Q-009 (B: corrected now).
 
 #### F-156. Gap confirmed: `gamma`'s sign on the negative side
 
@@ -2417,7 +2426,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: the bullet gives only a positive example (`gamma(-1.5)`); nothing says `gamma(-2.5)` is `≈ -0.94530872` and `gamma(-3.5)` `≈ 0.27008821`, the sign being the parity of the floor (`gamma.ts:40-41`, `:434`; harness).
 - Sources: `devdocs/builtins.md#The Gamma and Beta families` (`lgamma` and `gamma`: the sign from the reflection, the parity of the floor)
 - Proposed call: the generated reference's result field (§4.1); no interim edit (§4.4).
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-157. Gap new: the size refusals beyond `erfc`'s
 
@@ -2428,7 +2437,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `gamma` too large near `6 × 10^16` (the bullet gives only `1e19`), `gamma` of a large negative non-integer too small, `beta(1e20000, 2)` past the significand limit, `beta(1e19, 1e19)` too small, `lowergamma(1e400, 2)` too large and `uppergamma(2, 1e400)` too small (harness; C27, C31, C33).
 - Sources: `devdocs/builtins.md#The Gamma and Beta families` (`lgamma` and `gamma`; `beta`; the incomplete gamma functions)
 - Proposed call: the generated reference's refusals field (§4.1); no hand-written edit (§4.4).
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-158. Gaps refuted: §6.6 family items the page already carries
 
@@ -2439,7 +2448,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: §6.6 lists as missing the `digamma` reflection and poles, `lgamma` as `ln |Γ|`, `beta` at a pole of the sum, the incomplete functions' exact cases and the `erfc` thresholds; all but the reflection are on the page (page L52-54, L55-56, L75-77, L89-91, L100-102; the thresholds confirmed, C18), and the reflection is mechanism, owned by `devdocs/builtins.md:674-678`, which no §4.1 field asks for.
 - Sources: —
 - Proposed call: strike these items from the §6.6 list; nothing to write.
-- Decision:
+- Decision: Stands: the items struck from §6.6 (plan amended).
 
 #### F-159. Incomplete functions' large-parameter refusal: wording and precision
 
@@ -2453,7 +2462,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: bullet 14: "A large order within a few percent of a large argument, past some millions at a high precision, is refused as past the significand limit, the limit there being one of cost rather than of size." Bullet 16: "Large parameters within a few percent of the median, past some millions at a high precision, are refused as past the significand limit, the limit there being one of cost rather than of size." (D7 L165, L181)
 - Proposed call: doc wrong: the refusal is deliberate ("a refusal that is never wrong about the value", page L808) and the bullets omit its wording and its dependence on the precision; check "at a high precision" for bullet 14 against the default-settings refusals before it lands (whether the docs name the precision at all is D7 (Q-067)). The message's own wording (cost against size; the stray comma in "would need a significand, past the significand limit") is bugs.md's.
 - Related: Q-067, B-015, B-020, F-444
-- Decision:
+- Decision: Stands (doc wrong); follows Q-067 (ok: "at a high precision") and Q-009; amended by F-442 and F-444 ("refused as past the significand limit" is a size refusal: the right word); the session checks "at a high precision" for bullet 14; B-015 and B-020 are the code side.
 
 #### F-160. Not verified: the incomplete functions' truncation bounds (bullets 14, 16)
 
@@ -2464,7 +2473,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "Every result is certified: the series and the continued fraction both carry their truncation bounds" (bullet 14) and "the series carries its truncation bound" (bullet 16): D7 confirms only that the fraction's bound is written and the call refused rather than given an unbounded radius (`incomplete.ts:38-43`), and the orientation (C21); V3 confirms the bracket check every eighth convergent (`fixed-incomplete.ts:64-66,243`, by header) and leaves the series' tail and the convergent counts unverified; neither read the incomplete beta's tail bound.
 - Why unverified: the bounds live in `src/core/fixed-incomplete.ts` and `src/core/fixed-incbeta.ts`, outside D7's modules and read by V3 by header only.
 - Proposed call: keep both sentences (§4.4 corrects only what is wrong); verify the bounds when the structured comments are written (§4.1).
-- Decision:
+- Decision: Stands (keep; verify with the structured comments).
 
 #### F-161. Gap new: the incomplete functions' "cannot be told from" edges
 
@@ -2475,7 +2484,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: an order or argument straddling zero, a parameter straddling zero, an argument straddling an end of `[0, 1]` (`incomplete.ts:183-184`, `:194-195`; `incbeta.ts:182-183`, `:200-202`; read, not run); the bullets name such edges only for `digamma`.
 - Sources: `devdocs/builtins.md#The Gamma and Beta families` (the incomplete gamma functions; the incomplete beta function)
 - Proposed call: the generated reference's edges field (§4.1); no hand-written edit (§4.4).
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-162. Erf bullet: `1 - erf(10)` does reach the digits
 
@@ -2488,7 +2497,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/pipeline.ts:425-440` (`resolve` retries until settled); `src/core/context.ts:210-225` (the schedule); harness
 - Corrected statement: "`erfc(10)` is `≈ 2.0884876e-45` at the first pass, where `1 - erf(10)` reaches the same digits only after the retry loop has raised the precision enough to certify them." (D7 L44)
 - Proposed call: doc wrong: the retry loop that raises the precision until a result certifies is the design, so the clause is false; its point, `erfc` keeping the digits at once, stands.
-- Decision:
+- Decision: Stands (doc wrong); follows Q-009 (B).
 
 #### F-163. Gap new: `erf` and `erfc` have no domain error
 
@@ -2499,7 +2508,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: both are defined on every real, `erfc` of a negative argument through `2 - erfc(-x)` (`erf.ts:26-27`, `:128-138`; read, not run); the bullet states no domain.
 - Sources: `devdocs/builtins.md#The Gamma and Beta families` (`erf` and `erfc`: `erf` odd)
 - Proposed call: the generated reference's domain field (§4.1); no hand-written edit (§4.4).
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-164. `incbetareg`'s exact case: the ten-thousand cap, worded off by one
 
@@ -2513,7 +2522,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "as it is for any whole numbers whose sum is at most ten thousand, at a fraction whose powers fit the significand limit" (D7 L47, L91, L177).
 - Conflict: inside D7: its corrected wording caps the sum (L47, L91, L177), while its C38 (L65), its gap row (L118, "the ten-thousand cap on `a + b - 1`") and its devdocs edit 10 (L215) cap `a + b - 1`, and its harness's exact `incbetareg(5001, 5000, 1/2)` (a sum of 10,001) fits only the latter (D7 report).
 - Proposed call: doc wrong: the cap is deliberate and the devdocs state it; settle from `incbeta.ts:447-452` which quantity it bounds before the bullet is corrected.
-- Decision:
+- Decision: Stands (doc wrong); follows Q-009 (B); the session settles the cap from `incbeta.ts:447-452`.
 
 #### F-165. Gap new: the incomplete beta function's end points
 
@@ -2524,7 +2533,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `x = 0` is `0`, and `x = 1` is `1` regularized and `beta(a, b)` otherwise (`incbeta.ts:186-193`; harness); bullet 16 states neither. The devdocs' statement of them is wrong at `x = 1` (separate finding).
 - Sources: `devdocs/builtins.md#The Gamma and Beta families` (the incomplete beta function, once corrected)
 - Proposed call: the generated reference's exact-cases field (§4.1); no hand-written edit (§4.4).
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-166. Gap confirmed: tiny and huge arguments where visible, every family
 
@@ -2534,7 +2543,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: nothing in docs. Elementary families (D5, confirmed): `sin(1e-999999999 radian)`, `atan` beyond `2^bits`, `tanh`'s saturation, `ln(1e999999999)`, `log10(1e999999999)`; every example of the source holds, with the display note on `log10(1e999999999)` (finding on that example). `digamma`, `erf` and `erfc` (D7, filed as new): `digamma(1e-999999999)` is `≈ -1e+999999999`, `digamma(1e30)` `≈ 69.077553`, `erf(1e-999999999)` `≈ 1.1283792e-999999999`, `erf(1e400)` `≈ 1`, `erfc(-1e400)` `≈ 2`, `erfc(1e400)` too small to compute (harness; `gamma.ts:17-27`, `erf.ts:13-20`).
 - Sources: `devdocs/builtins.md#Huge and tiny arguments`; `devdocs/builtins.md#The Gamma and Beta families` (`digamma`; `erf` and `erfc`)
 - Proposed call: the generated reference's huge-and-tiny field of each entry (§4.1); no hand-written edit (§4.4).
-- Decision:
+- Decision: Stands (generated reference).
 
 #### F-167. Page lead says "the file" without naming it
 
@@ -2546,7 +2555,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: "the definitions file", with a link to `definitions.md` (D5 L32; edit 1, L138).
 - Proposed call: Confirm `update`.
 - Related: F-478
-- Decision:
+- Decision: Stands (update); follows F-475 ("the definitions file") and F-478.
 
 #### F-168. Preamble lacks §4.4's sentence on the generated reference
 
@@ -2555,7 +2564,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `docs/functions.md#(top)`, after the preamble (page L128); plan §4.4
 - Finding: §4.4 asks the interim page to say, in one sentence, that each function's entry (signature, domain, exact cases, edges) will be generated from the structured comment beside its implementation, so the page lists the functions and their shared rules only; the page has no such sentence.
 - Proposed call: add the sentence after "No prefix applies to a function" (D5 edit 6, L145).
-- Decision:
+- Decision: Follows Q-011: the sentence is not added, since the generated reference is work that may come and `devdocs/future.md` alone records it (F-345); the page's prose list stands as the reference until the generator exists, and says nothing of it.
 
 ### Findings owned by other pages that touch this one
 
@@ -2602,7 +2611,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `src/app-shell.ts:168-185`, `255-272` (D9's reading); `devdocs/architecture.md#The shell and its parts`
 - Proposed call: `app.md` "Offline use" states them (D9's new page, D9 L165-265), and the shell sentence gains the Retry button, why the user decides when, and a link there (D9 L267-275); low confidence: reasoned from code, not run.
 - Related: B-023, F-170, F-180, F-251
-- Decision:
+- Decision: Stands; low confidence: the session reads `src/app-shell.ts`; follows Q-057 and Q-007; amended by F-493 (the service worker named as such where offline use is explained).
 
 #### F-170. The load-failure message shows the internal kind "(fetchFailed)"
 
@@ -2613,7 +2622,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "The unit definitions could not be loaded (fetchFailed)." shows an internal kind name, where §12 q6 keeps internal kind names out of the docs (reasoned from code, not run). No page states the loading and failure messages ("Loading units…"; "… Check your connection and try again." or "… This is a bug in the app, not in what you typed.", with a Retry button; the app never retries on its own, `src/app-shell.ts:168-185, 255-272`: D9 (F-169)).
 - Proposed call: app.md describes the failure and the Retry button without quoting the parenthesis (D9 L196-197); whether the app keeps the kind in its text for bug reports or moves it to the console is a code decision (D9 (Q-057); the code side is D9 (B-023)).
 - Related: Q-057, B-023, F-169
-- Decision:
+- Decision: Stands; follows Q-057 (ok: the app keeps it; the page does not quote the parenthesis).
 
 #### F-171. The privacy fact has no user-side statement
 
@@ -2625,7 +2634,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/security.md#The page`; V8's sentence for app.md (L145) and the link from `security.md#The page` to it (L295).
 - Proposed call: One sentence in app.md "Offline use" if the owner agrees (V8 (Q-028); D9's draft lacks it), linked from `security.md#The page` (devdocs to docs); V8's draft also links app.md down to `security.md`, against §9.2 (docs must not depend on devdocs).
 - Related: Q-028
-- Decision:
+- Decision: Stands; follows Q-028 (ok: the sentence in `app.md`, linked from `security.md`; the docs page links nothing down).
 
 #### F-172. offline.md#Offline behavior splits: the user's side moves to app.md
 
@@ -2636,7 +2645,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: The section mixes what a user sees (the app works offline once loaded; a new version downloads in the background and is offered; the running version stays until the user switches; the footer's words; the tap on the build) with mechanism (precaching, the manifest and its checks, the browser's update lifecycle, the check schedule and its reasons, the status as the registration reports it, the install manifest). Both units move the user's side to `docs/app.md` and keep the mechanism (§12 q24): V8 opens the section with a sentence and a link (L253), D9 puts the link inside the two bullets it rewrites (L293, L295).
 - Proposed call: Split as both propose, one link at the section's opening per §12 q24; reconcile the two drafts of the bullets (Proposed text).
 - Related: F-173
-- Decision:
+- Decision: Stands; amended by F-493 ("service worker" named in `app.md`), F-494 ("a new version", "update"), Q-022 ("build ID"); the devdocs split lands in `offline.md`'s one-pass rewrite after `app.md` (Q-008).
 
 #### F-173. "Tapping the build number…" moves to docs/app.md, with two omissions
 
@@ -2647,7 +2656,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: The update check is the footer's, not a setting (`src/app-footer.ts:142-146`), and `docs/app.md` owns it (§6.5, C57; §12 q22); D9 tags the paragraph stale, update. It holds as far as it goes (context D9 report) but omits that the build is plain text also when the service worker failed to register (`src/app-footer.ts:159-166`) and that following the "update to …" link reloads every open page of the app (`src/service-worker-updates.ts:5-16`, `:187-195`); the build is a build ID, a commit hash, not a number (`src/build-id.ts:1-14`). It duplicates `devdocs/offline.md:40-70` (§9.1), which keeps the mechanism (§12 q24).
 - Proposed call: Delete from `docs/settings.md`; `docs/app.md` restates it with both corrections (D9's and V8's drafts).
 - Related: Q-022, B-053, F-174, F-175, F-180, F-492
-- Decision:
+- Decision: Stands; follows Q-022 (A: "build ID"; the section "Updates and the build ID") and F-494.
 
 #### F-174. The footer's rarer words are documented nowhere; offline.md lists a subset
 
@@ -2662,7 +2671,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: where the words live: D9 (Q7, L321) has `app.md` quote every word verbatim and the devdocs bullet keep the mapping from status to word, words included; V8 (L55, L109, L261) lists the words once, in `docs/app.md`, and has `offline.md` name the statuses and defer the words to `src/app-footer.ts`.
 - Proposed call: **doc wrong** (the page lists a subset of deliberate states that both units read from `src/app-footer.ts`); settle the destination by §12 q24 (a devdocs section keeps the mechanism and links the docs owner), which decides whether the mapping repeats the words.
 - Related: F-173
-- Decision:
+- Decision: Stands (doc wrong); follows Q-007 (ok: `app.md` quotes every footer word verbatim) and §12 q24 (the devdocs bullet keeps the mapping from status to word); F-494 for "update".
 
 #### F-175. What the build ID is has no user-side statement
 
@@ -2674,7 +2683,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: the user-facing part of `devdocs/offline.md#Build ID` (the footer names the build; twelve digits; the tooltip; `-dirty`), which then opens with a link to `docs/app.md` and keeps the derivation (`vite-plugin-build-id.ts`, git alone, `unknown`, why every commit is a new build) as mechanism and intent (V8 L263-271).
 - Proposed call: State it in app.md (D9 L201-205; V8 L155); the term, build ID or the build, is the terminology draft's (V8 (Q-022)).
 - Related: Q-022, F-173, F-492
-- Decision:
+- Decision: Stands; follows Q-022 (A).
 
 #### F-176. The sheet's mechanics leave docs/settings.md for docs/app.md
 
@@ -2685,7 +2694,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: The first paragraph restates the sheet down to the handle, the keyboard's Done key and the steppers (`src/settings-panel.ts:56-101`; the mechanics hold, context D9 report); §7's settings page keeps only where the settings are and how a change applies (§6.5, §12 q3). §9.1's duplication with `devdocs/settings.md#The sheet` resolves the same way: those sections stay as design and open with a link to `docs/app.md` (V5). D9 did not read `devdocs/settings.md#The sheet` (D9 L59, hedged); V5 did. D4's opening still keeps the reset links on the settings page (D4 L162-167), which D9's `docs/app.md` draft also carries (D9 L228-243).
 - Proposed call: One sentence in `docs/settings.md` (where the settings are; a change applies as it is made) with a link to `docs/app.md#The settings sheet`, which takes the mechanics (D9's draft); `devdocs/settings.md#The sheet` opens with that link (V5 L209); the owner picks one page for the reset links.
 - Related: F-180, F-488
-- Decision:
+- Decision: Stands: one sentence in `docs/settings.md` with a link to `docs/app.md#The settings panel` (F-488), which takes the mechanics; the session of `app.md` keeps the reset links in one place; `devdocs/settings.md#The panel` opens with the link in its own rewrite (Q-008).
 
 #### F-177. The sheet's "About these settings" link: undocumented, and an absolute URL
 
@@ -2697,7 +2706,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: D9's draft "The settings sheet" (L239-243); V8's added sentence for `security.md#The page` on the one absolute URL, a link with nothing fetched from it (L295).
 - Proposed call: State the link in app.md and add V8's sentence to `security.md#The page`; once the pages ship with the app (§12 q31) the link becomes local and the sentence goes (D9 (Q-007), V8 (Q-115)).
 - Related: Q-007, Q-115, B-069, F-342
-- Decision:
+- Decision: Stands; follows Q-115 (ok) and Q-007; amended by F-488 ("the panel's foot").
 
 #### F-178. The copy button's feedback is undocumented
 
@@ -2708,7 +2717,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: The two-sheets icon becomes a check mark for a moment once the text is on the clipboard, or a cross in the error colour when the clipboard refused it, and a live region says "Copied" or "Couldn't copy" for a screen reader (`src/copy-button.ts:5-15, 105-118, 142-145`; reasoned from code, not run).
 - Sources: D9's draft section (L245-254), which names the check mark and the cross but not the screen reader's words; the copy path in `devdocs/architecture.md#The converter and its lines`.
 - Proposed call: State it in app.md "Copying a result", with the paste-back principle linked to `numbers.md` (§12 q11); V8 left this section to others (V8 L132).
-- Decision:
+- Decision: Stands; follows F-457 ("pastes back"); low confidence: the session reads `src/copy-button.ts`.
 
 #### F-179. The empty state and the fields' app-specific behaviour are undocumented
 
@@ -2720,7 +2729,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: D9's draft section (L256-264); `devdocs/architecture.md#The converter and its lines`.
 - Proposed call: State it in app.md without quoting the hint, whose wording frames conversion first against §12 q2: D9 (Q-056) proposes "Type an expression, such as `sqrt(2)` or `3 ft`, and, to convert it, the unit you want, such as `in` or `ft;in`." (a code change, D9 (B-022)).
 - Related: Q-056, B-022
-- Decision:
+- Decision: Stands; follows Q-056 (ok: B-022 in the code phase; the page describes the hint without quoting it).
 
 #### F-180. docs/app.md does not exist (§9.3); D9 and V8 drafted it independently
 
@@ -2732,7 +2741,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D9 drafts the whole page (Installing; Offline use; Updates and the build ID; The settings sheet; Copying a result; The two fields); V8, with no D9 report (V8 L6, L322), drafts three sections (Installing; Working offline; Updates and the build) and leaves the sheet and copying to others. They differ on: (1) the section names both units' devdocs edits link to ("Offline use", "Updates and the build ID" in D9 (F-251, F-403); "Working offline", "Updates and the build" in V8 (F-172, F-175, F-171); §7 says "updates and the build number"); (2) scope: D9 L97 gives the page the fields' app-specific behaviour, V8's opening (L137) sends "what the two fields do" to the other pages; (3) the periodic check runs "while it stays in view" (D9 L208; V8's own O4, L54) vs "while it stays open" (V8 L149); (4) the footer's words: D9's draft omits the bare "update" that D9 (F-174) and V8 (L158) list, and writes "bypassed" and "worker …" with a "reload" link where V8 quotes "bypassed · reload" and "worker … · reload"; (5) V8's page links down to `devdocs/offline.md` and `devdocs/security.md` (L145, L165), which D9 drops from docs/ under §9.2 (D9 (F-134)). V8 alone adds the privacy sentence (V8 (Q-028)) and that the app "still works online" after "worker failed".
 - Proposed call: `docs/app.md` owns these facts, with one line in the index, getting started ending with a link to it. Write the page to §7's six sections from D9's draft (the decision on `app.md` is D9's output, §10; V8 offered its sections to D9, V8 L132), folding in V8's word-by-word list and, if V8 (Q-028) is accepted, the privacy sentence; settle (1) with the build-ID term (V8 (Q-022)), (3) against `src/register-service-worker.ts`, (4) against `src/app-footer.ts:183-222` (D9 (Q-007) wants every word verbatim), (5) against §9.2.
 - Related: F-173
-- Decision:
+- Decision: Stands: `docs/app.md` from D9's draft with V8's word list and the privacy sentence (Q-028); follows Q-022 ("Updates and the build ID"), F-488 ("The settings panel"), F-493, F-494, Q-057, Q-007; (3) settled against `src/register-service-worker.ts` (F-403); (5) per §9.2, no link down to devdocs; the page is written after `settings.md` (Q-008).
 
 ### Findings owned by other pages that touch this one
 
@@ -2761,7 +2770,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V4 (V4 (F-478, Q-020): V4 L547, L559) asks V8 to reword `devdocs/README.md:23`, "user-defined functions in the definitions file", since the five functions are the system file's (§12 q12); V8's replacement keeps the wording (V8 L186).
 - Proposed call: Replace the page as drafted, with the `functions.md` line in whatever term the terminology draft settles for defined functions.
 - Related: Q-020, F-478
-- Decision:
+- Decision: Stands; follows Q-020 (ok: the `functions.md` line says "Defined functions"; the built-ins' counterpart is `docs/builtins.md`), Q-029 (the style guide holds the three principles) and F-488; the page is written last among the devdocs (Q-008).
 
 #### F-182. Developer index's security line omits "The page"
 
@@ -2774,7 +2783,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `devdocs/security.md:96`
 - Corrected statement: "the supply chain, the toolchain, secrets, the rules for code that runs commands, and the page"
 - Proposed call: **doc wrong**: the index under-lists the page's sections; applied in V8's replacement (L200).
-- Decision:
+- Decision: Stands (doc wrong).
 
 ### Findings owned by other pages that touch this one
 
@@ -2823,7 +2832,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "where GNU units defines `pi` as a decimal literal, exact to its digits and wrong past them" names GNU units in a numeric rationale; both units keep the rationale and drop the name (A1 L312-313; V1 L188).
 - Conflict: the ground differs: A1 says §12 q2 bars GNU units from the numeric semantics of docs/ and does not cover devdocs (L309-313); V1 cites "§12, question 2; C60" in its edit (L188) and "question 7" in its table (L110).
 - Proposed call: drop the name and keep the rationale; the owner says whether q2's rule extends to devdocs.
-- Decision:
+- Decision: Stands; follows Q-039 (ok: the rationale without the name).
 
 #### F-184. `#The types > Scaled`: the two-exponent history becomes ruled-out alternatives
 
@@ -2836,7 +2845,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: two exponents ruled out (the mixed base leaks into every operation: a log-space rebase, an undecidable comparison, the `log2 10` constant, display folding), a single binary exponent too; the one base costs a division per settle, small against a whole settle; timings dropped (A1 L61, V1 L194, same text).
 - Proposed call: Confirm `keep as intent`; the timing leaves (q25).
 - Related: F-220
-- Decision:
+- Decision: Stands (keep as intent); follows Q-016 (devdocs: the division's cost may stay as a rough, illustrative figure or as the ratio, the session's choice).
 
 #### F-185. `#The types > Scaled`: "`10^300000` take a minute"
 
@@ -2847,7 +2856,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "since one division per factor made normalizing `10^300000` take a minute" is a timing (§12 q25); the mechanism is `fivesIn` (`src/core/scaled.ts:1058-1083`). V1: "since one division per factor is a quadratic loop on a significand full of tens" (L192), the qualitative reason A1 also proposes (L304-308).
 - Proposed call: apply V1's text (tag `update`).
 - Related: B-034
-- Decision:
+- Decision: Stands (update to V1's qualitative reason); follows Q-016 (a rough timing may stay marked illustrative if it adds weight; the mechanism is the point).
 
 #### F-186. `#Exact operations`: an inexact base's integer power takes the product rule
 
@@ -2860,7 +2869,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/ball.ts:947-965`
 - Corrected statement: "…, and an integer power of an inexact base takes the product rule by squaring, settled after each product ("Settling" below)." (A1 L65, L173-176; V1 L198)
 - Proposed call: doc wrong: the squaring path is deliberate, and `#Settling` already says "`powBall` on an inexact base squares with settling" (tag `update`).
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-187. `#Exact operations`: when a divisor counts as containing zero
 
@@ -2873,7 +2882,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/ball.ts:296`, `334-339`, `351-353`, `446-467`, `828`, `864`; the module header, `100-105`.
 - Corrected statement: decided as every comparison of a midpoint with a radius is ("Comparison"), with the reason, `unresolved` rather than a wrong-sign quotient; the unbounded-radius clause kept (A6 L300-306, adopted by V1 L200; A1's text, L183-187, omits the reason).
 - Proposed call: doc wrong: the header states the current rule and `#Comparison` describes it (tag `update`).
-- Decision:
+- Decision: Stands (doc wrong; A6's text with the reason).
 
 #### F-188. `#Exact operations`: the gcd timing
 
@@ -2884,7 +2893,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "about forty times cheaper than Euclid's at 65,536 bits (19 ms against 686 ms)" is a timing (§12 q25); the gcd is exported for its benchmark (`src/core/rational.ts:507-523`).
 - Conflict: A1 keeps the ratio as the qualitative reason, "about forty times cheaper" (L304-308); V1 drops it: "far cheaper than Euclid's at the default limit; the benchmark holds the figures" (L202).
 - Proposed call: drop the milliseconds (tag `update`); the owner says whether a measured ratio counts as a timing under q25.
-- Decision:
+- Decision: Follows Q-016 and Q-088: the measured ratio stays ("about forty times cheaper", A1's reading); the milliseconds may stay only as a rough, illustrative figure, else the benchmark holds them.
 
 #### F-189. `#Exact operations` was not re-read line by line
 
@@ -2894,7 +2903,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/numbers.md#Exact operations`
 - Finding: A1 found two sentences the code has outgrown beyond the plan's rows (the power's radius, the zero containment) and asked V1 to read the section against `ball.ts` line by line; V1 did not re-read sections an A unit covered (V1 L7, L93), so the section's other sentences are checked only as far as A1 and A6 read it.
 - Proposed call: read the remaining sentences against `ball.ts` when the section is rewritten.
-- Decision:
+- Decision: Stands: read when the section is rewritten.
 
 #### F-190. Products and quotients take the context too, in three passages
 
@@ -2909,7 +2918,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: (1) the grid: V2 (L55, L146-148) adds the working grid an inexact operand is settled onto (`src/core/ball.ts:666-668`), as A1 and V1 do for `numbers.md` (A1 L67, V1 L208); A7 (L92, L183-202) names only the significand limit for the product and the quotient. (2) `#Evaluation`: D1 (L646-668) and V2 (L208-210) correct the sentence in complementary ways, D1 adding that every node is a step and that exact values are never rounded, V2 adding the collector. (3) the tag: A1, V1, A7 and V2 tag their passages stale (update) (V2 L58 for `#Evaluation`); D1 treats the `#Evaluation` sentence as a misstatement; the drafters' calls differ accordingly (doc wrong for `numbers.md`; design changed for `#Quantities, dimensions and kinds`; either for `#Evaluation`).
 - Proposed call: **design changed without the docs following** or **doc wrong**, the code deliberate either way. Design changed: the units tag the passages stale (update), the code holds exact products and quotients to the limit deliberately, the `quantity.ts` header still describes the older placement, and `#Quantities, dimensions and kinds` carrying the same omission suggests only the power once took a context. Doc wrong: the signatures are as the code has them, `#The significand limit` already describes the prediction products and quotients need, and D1 reads `#Evaluation` as a misstatement. Correct the three passages alike, merging D1's and V2's corrections for `#Evaluation`; settle the grid clause from `ball.ts:666-668`.
 - Related: Q-059, B-035
-- Decision:
+- Decision: Stands (deliberate code either way): the three passages corrected alike, D1's and V2's corrections merged for `#Evaluation`, the grid clause settled from `ball.ts:666-668`; follows F-459 for the kind-primitives bullet; B-035 is the code side.
 
 #### F-191. `#The kernel's boundary`: why the door allows four times the hard bound
 
@@ -2921,7 +2930,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent (plan row confirmed; `FORMABLE_BITS` is four times the hard bound and the comment sizes such a value at about three times it, `src/core/fixed.ts:136-144`; a third of `2^20` is about 349,500)
 - Rewrite: a significand of the limit's bits at a magnitude of `2^±significandLimitBits` has a power of ten of about three times the limit's bits, so the hard bound alone would not hold it once the limit passes about a third of the hard bound (V1 L218).
 - Proposed call: Confirm `keep as intent`.
-- Decision:
+- Decision: Stands (keep as intent); follows F-441 ("the hard bound", glossed once).
 
 #### F-192. `#The kernel's boundary`: the log-space exit's memos are served, not recomputed
 
@@ -2935,7 +2944,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: the conversion costs a logarithm and an exponential at the working bits plus the exponent's bit length, `ln 2` and `ln 10` coming from their memos, whose margin covers the exponent's bits at every pass (V1 L220).
 - Proposed call: design changed without the docs following: the header records the margin raised so that these requests are served (tag `update`).
 - Related: B-034
-- Decision:
+- Decision: Stands (update; the margin's reason); the stale timing goes with the mechanism it belonged to (Q-016 does not keep a figure of a design that changed).
 
 #### F-193. `#Memoized constants`: two requests pass the memo, `beta`'s unconfirmed; the 25 ms
 
@@ -2949,7 +2958,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: a request above the memo, a larger argument's reduction or a logarithm of `beta` at a larger one, computes the constant for the call and keeps nothing; `sin(1e5000 radian)` "pays for `pi` at its argument's bits each time it is typed …; the benchmarks measure it" (V1 L224; A3 L98 has the timing change without `beta`).
 - Proposed call: **doc wrong** (the header names both requests; the 25 ms leaves, A3 and V1): keep V1's two-request sentence, confirming the `beta` request in `beta.ts` before V1's `#Memoized constants` edit 1 lands, or accept the header's word, or word the sentence so it does not depend on it; low confidence until the `beta` case is confirmed.
 - Related: Q-012, F-160
-- Decision:
+- Decision: Stands (doc wrong); follows Q-012 (A: #103 is `builtins.md`'s); the `beta` request is confirmed in `beta.ts` by the session; the 25 ms may stay as a rough, illustrative figure (Q-016) or go for the benchmarks.
 
 #### F-194. `#Memoized constants`: the table's build fills `pi`'s memo
 
@@ -2962,7 +2971,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: run: `piMemoBits()` is `undefined` before the first build and 13,709 after it; `ln2MemoBits()` and `ln10MemoBits()` unfilled until needed (A3, V1).
 - Corrected statement: "Every memo of the core is filled on first use and none at module load; the build of the table is `pi`'s first use, through the angle units, so the memo of `pi` is filled by the first build, and `e`, `ln 2`, `ln 10` and `ln π` wait for the first expression that needs them." (A3 L45, L98; V1 L224)
 - Proposed call: doc wrong: "filled on first use" holds, the build being that use (tag `update`).
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-195. `#Memoized constants`: the Bernoulli ratios are not memoized "the same way"
 
@@ -2976,7 +2985,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: the ratios "hold the same margin for the same reason, memoized by the count the series reserve and the bits they ask for", with the pointer to `builtins.md` and without the #103 link (V1 L226; the link: see the issue-links finding).
 - Proposed call: doc wrong: the module's header states the keys; V3 left this detail unverified (V3 L764), which `bernoulli-ratios.ts:17-27` settles (tag `update`).
 - Related: Q-012, F-193
-- Decision:
+- Decision: Stands (doc wrong); follows Q-012 (the #103 link leaves this page for `builtins.md`).
 
 #### F-196. `#Roots and powers`: the integer-square-root timing
 
@@ -2989,7 +2998,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: "multiplications only", since V8 divides big integers quadratically and a square root by division "would cost more than `pi`'s whole series at a hundred thousand digits"; the timing goes (V1 L230).
 - Proposed call: Confirm `keep as intent`.
 - Related: B-034
-- Decision:
+- Decision: Stands (keep as intent); follows Q-016 (the measured ratio stays: "about ten times `pi`'s whole series"; the milliseconds may stay marked illustrative).
 
 #### F-197. `#Roots and powers`: the integer-roots sentence is the replaced design
 
@@ -3002,7 +3011,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: delete; the sentence before states the verified bound (V1 L232).
 - Proposed call: Confirm `drop`: it states a replaced design as current and carries no intent the section lacks.
 - Related: B-034
-- Decision:
+- Decision: Stands (drop).
 
 #### F-198. `#Roots and powers`: why the third case goes to log space
 
@@ -3014,7 +3023,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent (plan row confirmed; the comment states the reason in the present tense, `src/core/ball.ts:1297-1301`; the case goes to log space at `:1338`)
 - Rewrite: "which the conversion would turn to zero within an ulp and report as a false `unresolved`" (V1 L234).
 - Proposed call: Confirm `keep as intent`.
-- Decision:
+- Decision: Stands (keep as intent).
 
 #### F-199. `#Roots and powers`: the `pow` prediction clause (#89) is stale
 
@@ -3028,7 +3037,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: the sentence keeps its first half, "`^` and `pow` still disagree on a dimensionless base with an exact exponent", with #88 inline (V1 L238).
 - Proposed call: design changed without the docs following: the prediction #89 asks for is in the code; delete the clause either way and close #89 once its tests are checked (V1 Q1).
 - Related: Q-042, B-033
-- Decision:
+- Decision: Stands (design changed); follows Q-042 (ok: #89 closed once its tests are confirmed; the clause goes) and Q-102 (#88 stays inline here).
 
 #### F-200. The exponent bound's `gamma`, `erfc` and incomplete-function sites unverified
 
@@ -3039,7 +3048,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: A5 found the section accurate against `classifyExp`, `classifyHyperbolic` and `classifyPower` but left "the `gamma`, `erfc` and incomplete-function sites it names" to D7, with its question 4 on wide-argument hulls refused as `exceeds`. D7's report reads neither: `devdocs/numbers.md` is outside its sections (L119), and V1 did not re-read the sections an A unit covered (L7, L93). The three sites stay unverified and question 4 unanswered.
 - Proposed call: Verify the three sites against their classifiers when `devdocs/numbers.md` is rewritten; A5's question 4 stays an open item.
 - Related: Q-058
-- Decision:
+- Decision: Stands; follows Q-058 (ok).
 
 #### F-201. Which limit a refusal names: message quoted without its remedy
 
@@ -3052,7 +3061,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/messages.test.ts:157`; run (A5 L287).
 - Corrected statement: `"1e999999999 + 1" would need a significand of about 3,321,928,093 bits as an exact value, past the significand limit. Try "approx(1e999999999)" in place of "1e999999999", or decimal mode, to compute it to the digits asked.`, followed by "the first's second sentence is the `fits` remedy of "The significand limit" …, and a refusal that passes the limit however it is computed says so in its place" (A5 L421-429; V1 L242).
 - Proposed call: **doc wrong** (the tests pin the text). V1 (L119) moves the three messages to `docs/numbers.md#Values too big to hold` and the generated catalogue (§12 q6), so the quote may leave this section.
-- Decision:
+- Decision: Stands (doc wrong); follows Q-007 (the messages are the docs' examples and the catalogue's; the quote may leave this section).
 
 #### F-202. `#Why the exponent bound stays at 10^18`: the scratch build's timings
 
@@ -3063,7 +3072,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the **Cost** bullet gives a scratch build's per-size timings ("20 ms for `exp(1e100)`, 127 ms for `exp(1e999)`, 1.0 s for `exp(1e3000)` and 13.3 s for `exp(1e9000)` … the probe's default budget of 50 ms a pass") and the closing paragraph more ("(70 ms in the scratch build, agreeing with Python's `decimal` at 1,200 digits) … 391 ms in all; without the rule on the radius, the first pass spent 30 s in the kernel's squarings"). §12 q25 sends timings out of the pages, and the per-size milliseconds of a build that no longer exists cannot live in the benchmarks (V1). The rule on the radius the last sentence describes is current (`src/core/fixed-exp.ts:30-39`, `:119-135`); V1 keeps "several times the cost" and describes the rule (L248).
 - Proposed call: apply V1's qualitative text (L246, L248; tag `update`): V1 and A5 agree that the six-pass table (digits) stays and the per-size milliseconds go; the owner weighs §12 q10 ("devdocs owns the table and the measurements") against q25 (V1 (Q-017), A5 (Q-017)). D8's docs draft points at "the measurements" here (D8 L265) and follows the decision.
 - Related: Q-017
-- Decision:
+- Decision: Follows Q-017 (ok): the six-pass table and the qualitative finding stay; the per-size milliseconds go (this item's own answer, not Q-016's allowance).
 
 #### F-203. `#Certification and the display rule`: drop the first-version parenthesis
 
@@ -3075,7 +3084,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: drop (A2, V1; plan row confirmed)
 - Rewrite: delete; the distance rule stands on its own (A2 L37, L77, within its edits L75-81; V1 L252).
 - Proposed call: Confirm `drop`.
-- Decision:
+- Decision: Stands (drop).
 
 #### F-204. `#Certification and the display rule`: the `^1e100000` example is refused today
 
@@ -3089,7 +3098,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "(`(approx(1e20) - approx(1e20))^1e10000` carries a bound whose exponent runs to ten thousand digits)" (A2 L41, L80; V1 L258)
 - Proposed call: **doc wrong** (tag `update`): the example cannot run; the rule it illustrates holds.
 - Related: Q-099, F-046
-- Decision:
+- Decision: Stands (doc wrong); follows Q-099.
 
 #### F-205. `#Working precision`: a context silent on the mode is exact
 
@@ -3101,7 +3110,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent (new)
 - Rewrite: "… so that a context that says nothing of the mode is an exact one …" (A3 L41, V1 L262, same text).
 - Proposed call: Confirm `keep as intent`: the reason stays, the history goes.
-- Decision:
+- Decision: Stands (keep as intent).
 
 #### F-206. `#Working precision`: `checkContext` bounds the working digits in either mode
 
@@ -3114,7 +3123,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/context.ts:298-309`; `src/core/context.test.ts:237-242` ("The same bounds in exact mode, where the field is carried and ignored").
 - Corrected statement: "`checkContext` holds `precision <= ceiling` and, when working digits are given, `working >= precision` and `4 (working + GUARD_DIGITS) <= ceiling`, in either mode; exact mode carries the field and ignores it." (A3 L42; V1 L264)
 - Proposed call: doc wrong: a test names the exact-mode case (tag `update`).
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-207. `#Working precision`: "they moved once" is history
 
@@ -3126,7 +3135,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: drop (plan row confirmed by A3, A9 and V1)
 - Rewrite: delete; the sentence ends at "judgments, not measurements." (A3 L120, A9 L265, V1 L270, same text)
 - Proposed call: Confirm `drop`.
-- Decision:
+- Decision: Stands (drop).
 
 #### F-208. `#Working precision`: the unaffordable-pass parenthesis is untraced
 
@@ -3138,7 +3147,7 @@ What to settle before rewriting a page, in the order it bites.
 - Why unverified: "the code's shape and one test support but no single path proves" it; A3 Q7 hands the trace to A5. A5 names the only sites whose count grows with the pass, so that a later pass can be the first to refuse: `unaffordable` and the series' working bits (A5 L144-147, A5 (F-051)).
 - Proposed call: read A5 L144-147 against the sentence (it holds if "a `tooLarge` marking the pass unaffordable" covers the series' working bits too) and trace `classifyPower` (`src/core/ball.ts:734-740`) for A3's path; A9 tags the same sentence under the `tooLarge` row (the `tooLarge` finding).
 - Related: Q-001, F-051
-- Decision:
+- Decision: Stands; follows Q-001 (one kind, never retried by the loop; a later pass's refusal ends it): the session reads A5 L144-147 against the sentence.
 
 #### F-209. `#Working precision`: "milliseconds per pass" in the rebuild alternative
 
@@ -3152,7 +3161,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A3 lists "rebuilding at each pass's precision would cost milliseconds per pass" among the qualitative cost claims that hold and stay (A3 L74); A9 treats it as a timing to remove (L40, L323-325); V1, to whom A9 handed it (A9 Q5), proposes no change.
 - Proposed call: Confirm `keep as intent`; the owner decides whether "milliseconds per pass" is a timing under q25 (A9) or qualitative (A3).
 - Related: Q-088
-- Decision:
+- Decision: Stands (keep as intent); follows Q-088 and Q-018 ("milliseconds per pass" is a qualitative cost claim and may stay).
 
 #### F-210. `#Settling`: why every inexact result is settled
 
@@ -3165,7 +3174,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: a present-tense reason for settling, in two texts: A1, an inexact midpoint left to grow as an exact rational reaches the limit within a few operations, "a dyadic of some thirteen thousand bits raised to the fifth power" (L62); A3, "a kernel result of some thousands of bits raised to the fifth power is already past it", refused for digits that carry no information (L126), adopted by V1 (L274).
 - Conflict: the two rewrites differ in the example's size ("some thirteen thousand bits" against "some thousands of bits") and in A3's added reason.
 - Proposed call: Confirm `keep as intent`; pick one text (V1 picked A3's), checking the example's size against the `ball.ts:16-23` header.
-- Decision:
+- Decision: Stands (keep as intent); the session picks one text, checking the example's size against `ball.ts:16-23`.
 
 #### F-211. `#Settling`: why `settle` is not exported
 
@@ -3177,7 +3186,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent (plan row confirmed by A1, A3 and V1; `settle` is module-private, `src/core/ball.ts:1014`)
 - Rewrite: one reason in two wordings: a settle any inexact ball could reach from outside would be a contract that lives in documentation, "where `step` makes it one that lives in the code" (A1 L63); or "rather than in the one entrance" (A3 L130), adopted by V1 (L276).
 - Proposed call: Confirm `keep as intent`; pick one wording (same content).
-- Decision:
+- Decision: Stands (keep as intent); one wording.
 
 #### F-212. Decimal mode: the withdrawn-radius paragraph, kept as intent
 
@@ -3189,7 +3198,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent (A4, V1, A7; plan row confirmed)
 - Rewrite: in the present tense, a radius carried through the mode's steps is ruled out (it answers a question the mode does not ask, a directed rounding could never certify its last digit, it adds nothing exact mode lacks); the ball model stays inside a built-in (A4 L97; V1 L290).
 - Proposed call: Confirm `keep as intent`; the rewrite also mends the broken source, a blank line and a `- 3` list item inside the code span that render as a bullet (A4 L35, V1 L41), and drops the old note quote at L1069.
-- Decision:
+- Decision: Stands (keep as intent); the quoted note follows Q-006 ("certified").
 
 #### F-213. Decimal mode: what the significand limit binds
 
@@ -3202,7 +3211,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/evaluate.ts:510-518`, `1136-1156`; runs as quoted.
 - Corrected statement: "…with the denominator fixed it binds the exact intermediate before a rounding, the alignment of a sum, the significand of a literal as typed, which is refused past the limit in either mode rather than rounded, and the prediction of an exact power, which sends a power past the limit to the widened base." (A4 L102; V1 L300)
 - Proposed call: **doc wrong**.
-- Decision:
+- Decision: Stands (doc wrong); amended by F-442 ("refused past the limit" is a size refusal: the right word).
 
 #### F-214. Decimal mode: steps before the last, and the notes' wording
 
@@ -3216,7 +3225,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "In decimal mode every value is exact, a displayed value having at most `p` digits and a step before the last at most the working digits (below), so the display's `exact` kind applies to every line: `=`, every digit, no note; `≈`, "n of m digits are certified", "within … of zero" and "the digits are not certified" never appear for a rounding the mode certified." (V1 L298; A4 L101 keeps "certain" until the code change)
 - Proposed call: **doc wrong**.
 - Related: B-068
-- Decision:
+- Decision: Stands (doc wrong); follows Q-006 (V1's "certified" wording, after the code change).
 
 #### F-215. The significand limit: "checked first" inverts the mechanism
 
@@ -3229,7 +3238,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/scaled.ts:542-546`, `:609-614`, `:927-939`; `src/core/evaluate.ts:613-623`.
 - Corrected statement: "A result past both limits is reported at the bound: the prediction refuses it before anything is formed, and a `tooLarge` of a product or a quotient is then read against the operands' decimal exponents (`pastBoundBetween`), a power's through `powerRefusal`, and reported at the bound when every exponent the result can have lies past it ("Which limit a refusal names" above)." (V1 L312; A5 L399-404 writes "below")
 - Proposed call: **doc wrong**: one inverted mechanism sentence.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-216. The significand limit: `1 / 2^n` is refused from n = 28,225
 
@@ -3242,7 +3251,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: runs (A5 L294).
 - Corrected statement: "So `1 / 2^n` is refused from `n = 28,225` at the default (`5^28225` has 65,537 bits, and `1 / 2^28224` is a value), as `0.5^30000` is, since each is stored with `5^n`." (A5 L409-411; V1 L310)
 - Proposed call: **doc wrong**. The dyadic example's user side moves to `docs/numbers.md#How a value is held` (V1 L127).
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-217. The significand limit: measuring after forming, kept as intent
 
@@ -3254,7 +3263,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent (A5, V1; plan row confirmed)
 - Rewrite: the prediction runs after the cross-cancelling gcds, never on unreduced sizes (that would refuse `x / x` and bound no quotient); measuring after forming is the ruled-out alternative, bounding what is kept and not what is formed (A5 L66; V1 L314).
 - Proposed call: Confirm `keep as intent`.
-- Decision:
+- Decision: Stands (keep as intent).
 
 #### F-218. approx: "never the reverse" contradicts the function's purpose
 
@@ -3269,7 +3278,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A5 (L360, A5 report) finds `#approx` accurate; D6 (L68) flags this sentence. D6 did not consult A5's report (D6 L24, L242).
 - Proposed call: **doc wrong** as worded, if D6's reading holds: A5's own runs show `approx` turning a refusal into a value; check whether "refusal" was meant narrowly (an edge, or an inexact argument a built-in rejects) before taking D6's rewrite.
 - Related: F-046
-- Decision:
+- Decision: Stands (doc wrong as worded): the session checks whether "refusal" was meant narrowly before taking D6's rewrite; amended by F-442 (the sentence's "refusal" means a size refusal, the only sense kept).
 
 #### F-219. approx: the postfix `~` spelling, kept as intent
 
@@ -3281,7 +3290,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent (D6; plan row new)
 - Rewrite: "…terse, and the natural short spelling of `approx(x)` if one is ever wanted, but it needs grammar, applies to literals alone, and has no binary form" (D6 L47, L212).
 - Proposed call: Confirm `keep as intent`: a spelling weighed and left open, without the forecast; V1 (L128) keeps "the spellings left open" in the section.
-- Decision:
+- Decision: Stands (keep as intent) in part: the ruled-out spellings stay; whether the postfix `~` ("the likely spelling later") is ruled out or might still be done is on the owner's list (pending in that part: if future work, it moves to `devdocs/future.md` by Q-011).
 
 #### F-220. `#Formatting`: settle, product and exit timings
 
@@ -3292,7 +3301,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "so that a settle at the default ceiling costs about 0.4 ms (the 0.2 ms under "The types" is the division alone, measured when the base was chosen), a product of two settled balls 0.1 ms and the kernel's exit 0.2 ms" are timings (§12 q25).
 - Proposed call: apply A2's text, which V1 gives too (A2 L42, L84; V1 L328; tag `update`): the three "each stay a small fixed cost; the benchmarks hold the figures"; it also removes the cross-reference to the 0.2 ms, which `#The types` drops with V1's rewrite there.
 - Related: F-184
-- Decision:
+- Decision: Follows Q-016 and Q-088: the three costs stay as small fixed costs, with their rough figures marked illustrative or left to the benchmarks (the session's choice); the cross-reference to `#The types` goes with V1's rewrite there.
 
 #### F-221. `devdocs/numbers.md`: ten reference-style issue links go inline; #98's place disputed
 
@@ -3303,7 +3312,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: #98's one place: V1 (L144, L322, L363) keeps #98 inline in `#approx`, the page's one mention of significant-figure propagation, with V6 naming the extension without the link; D6 (L46, L210, L233) makes the `round` passage the one place and has this sentence point at the exact functions without the link. In K6, V3 also keeps #98 in the `round` bullet and D7 inlines it in `#Not in this design`.
 - Proposed call: inline each link where it stands as drafted (V1 L204, L236, L238, L296, L306; A4 L100, L107 and D4 L387-389, the same text for #172 and #173), #100 and #171 included (agreed); drop the #89 and #103 links and the foot definitions (V1 L332); for #98 the owner picks the one place by what the issue asks, rounding to significant digits in `round` or propagation through `approx(x, u)` (D6 Q4, V1 Q4); `devdocs/architecture.md#Evaluation` drops its own #88 link for a pointer here.
 - Related: Q-012, Q-014, Q-102, Q-104, B-003, B-006, F-042, F-190, F-281, F-303, F-411, F-413
-- Decision:
+- Decision: Stands for #78, #79, #88 (bugs or open design questions, inline where they stand, Q-012's rule), #89 (goes, Q-042) and #103 (leaves for `builtins.md`, Q-012); amended by Q-011: #98 (Q-014), #100 (Q-104, Q-035) and #171's future-work status leave this page for `devdocs/future.md`, the section naming the binary form in one clause; #172 (vocabulary) and #173 (rolling back uncertified results) are on the owner's list (pending in that part: future work goes to `future.md`, a design note on current behaviour stays inline); the foot's definitions go.
 
 ### Findings owned by other pages that touch this one
 
@@ -3391,7 +3400,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the list of pages with a design of their own names eight and omits `cost.md`, `offline.md`, `future.md`, `deployment.md` and `development.md`; `README.md` is the map (§12 q18). Its `functions.md` bullet carries the "user-defined functions" wording (V2 (F-478)).
 - Proposed call: replace the list with a pointer to `README.md` naming the pages leaned on most (`numbers.md`, `builtins.md`, `functions.md`, `notation.md`, `settings.md`), so the index lives in one place (V2's question 5).
 - Related: Q-068, F-478
-- Decision:
+- Decision: Stands; follows Q-068 (ok).
 
 #### F-223. The pipeline diagram ends in a `format` step that does not exist
 
@@ -3404,7 +3413,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/pipeline.ts:215-250`, `455-484`, `518-528`, `738-745`; `src/outcome.ts:194-217`
 - Corrected statement: the diagram ends at `Result<Conversion>` with "(or convertToList, or invertFunction)" (V2 L118-130), and "`convertText` returns a `Conversion`, the values and the texts as read, and the UI's `outcomeOf` (`src/outcome.ts`) composes the lines from it with `show` and `roundTerms` ("The converter and its lines" below)." (V2 L132-134)
 - Proposed call: **design changed without the docs following**: the plan's §1.2.5 row already tags the diagram update and V2 confirms it; the section stays as mechanism with the diagram fixed (V2 L72).
-- Decision:
+- Decision: Stands (design changed).
 
 #### F-224. "Each arrow is one pure function in its own module"
 
@@ -3417,7 +3426,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: none given at the edit (V2 L132-134); A8 places `parseUnitList` in `src/core/expr.ts:252-262` (A8 L30)
 - Corrected statement: "Each arrow is one pure function of the core, the two parsers of the user's texts sharing `expr.ts`." (V2 L132-134)
 - Proposed call: **doc wrong** if `parseExpr` and `parseUnitList` share `expr.ts` as V2's draft says; low confidence: V2 gives no evidence.
-- Decision:
+- Decision: Stands (doc wrong if `parseUnitList` shares `expr.ts`): low confidence, the session checks.
 
 #### F-225. The `#Numbers` summary is unverified
 
@@ -3428,7 +3437,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the section summarizes `numbers.md` in one paragraph and a link; V2 verified none of it, and no unit reports checking it.
 - Why unverified: its statements are V1's N claims, outside V2's modules; V1 audited `devdocs/numbers.md`, not this summary.
 - Proposed call: check the paragraph against the corrected N claims when `devdocs/numbers.md` is rewritten; otherwise it stays as it is, one paragraph and a link (V2 L73).
-- Decision:
+- Decision: Stands: checked against the corrected N claims when the page is rewritten (after `devdocs/numbers.md`, Q-008).
 
 #### F-226. Conformance rules become a link to `docs/quantities.md`
 
@@ -3438,7 +3447,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/architecture.md#Quantities, dimensions and kinds` ("Conformance between `have` and `want`…" through the `rad/s` and `Hz` example, page L108-117)
 - Finding: the section holds against `dimension.ts` and `quantity.ts`; what conforms to what and the arithmetic are the user's rules (`docs/quantities.md`), and the section keeps the mechanism: the roles plumbing, declaration order, the undeclared-name default (`src/core/dimension.ts:29-31`, `175`), `quantity.ts` as the pairing layer and what each operation takes, the dimension formatter's rule. V2's pair 2 gives the link and the two-step check with its reason (the physical error first, so a kind mismatch always means the same physical dimension).
 - Proposed call: apply V2's pair 2 (V2 L142-144) once `docs/quantities.md#Conformance` exists, the section opening with one sentence and the link (§12 q24).
-- Decision:
+- Decision: Stands; sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist.
 
 #### F-227. architecture.md#Definitions: format, kinds and name rules become a link
 
@@ -3448,7 +3457,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/architecture.md#Definitions`
 - Finding: the section holds against `build.ts` and `table.ts` in every statement V2 checked, except the catalogue and the order sentence. The format, the six kinds and the name rules become a link to `docs/definitions.md` (and to `docs/expressions.md` for how a name is read). What stays as mechanism: what the parser keeps and rejects, the walk, the primitives collected first, the namespaces as the build applies them, the lookup's one throw, lists and inverses outside the walk and functions in it, the ceiling and undecided conditions, the ambiguity check, the five modules and their order, and the catalogue.
 - Proposed call: apply V2's pared section (§12 q24), merged with A9's and D2's pairs (see Proposed text).
-- Decision:
+- Decision: Stands; follows Q-031 (ok) and F-475; sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist.
 
 #### F-228. User definitions described as if the app took them
 
@@ -3461,7 +3470,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/build.ts:291-295`; §12 q12
 - Corrected statement: A9: "`buildTable` takes one list of definitions and knows nothing of where they came from; today the system file is the whole list, and user definitions, when the app takes them, append to it and pass the same checks." V2: "`buildTable` takes one list of definitions, so that user definitions, once the app has a way to enter them, are appended to the system ones; today only the system file is loaded."
 - Proposed call: **doc wrong**. The page describes a deferred design (#132) as current; both units' stale rows are tagged update.
-- Decision:
+- Decision: Stands (doc wrong); amended by Q-011 and F-475: the sentence says that `buildTable` takes one list, and that today the predefined definitions file is the whole list; that user definitions are to come, and #132, are `devdocs/future.md`'s.
 
 #### F-229. The parser's rejection lists omit `inverseAnnotation`
 
@@ -3475,7 +3484,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: D2 (L389) rewrites the list: "The parser rejects, each where it is written: a chain that turns, `0 < x > 1`; an annotation with a number other than `1`, a sum or difference, a negation or a call; an annotation on an inverse's parameter; a parameter named twice, at its second occurrence; and a parameter named like a unit its own head's annotations use, at the annotation's use of the name. …" `functions.md#Definitions` adds "(one written there is rejected where it stands, `inverseAnnotation`)" (D2 L278 = V4 L149). V2's pared section names all seven kinds (V2 L158).
 - Conflict: D2 says the sentence also omits a duplicate parameter and a turning chain (L47); V2 says only `inverseAnnotation` is missing (L75). The page does name both outside that sentence: "none named twice" (page L194) and a turning chain "is rejected" (page L201-202). Every draft lists all seven, so the rewrite is unaffected.
 - Proposed call: **doc wrong**.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-230. The lookup's one throw: right about the cause, loose about the place
 
@@ -3489,7 +3498,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "…the one case that could reach it, a user's input naming a prefixed form of a unit that a definition put within a prefix's factor of the bound, throws (`table.ts`); the build's own lookup reports the same product refused at the reference that forms it, so a definition that writes such a form fails the build instead." (A9 L229-231)
 - Conflict: V2 keeps the sentence verbatim in its pared section (V2 L164) and records the throw as known and documented (V2 L71, L75; V2 L71).
 - Proposed call: **doc wrong** (A9 reasoned from code, and D2's table supports the located error). V2's check established that the throw exists, not which input reaches it.
-- Decision:
+- Decision: Stands (doc wrong); low confidence: the session reads `table.ts:204-212` and `build.ts:917-933`.
 
 #### F-231. A prefix's body evaluates call conditions at build too
 
@@ -3503,7 +3512,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "A unit, a prefix, a list's unit or an annotation that calls a function evaluates the call's conditions when the table is built, at the ceiling, and one left undecided fails the build, since a definition has nowhere to carry the warning." (D2 L393)
 - Conflict: V2 finds `#Definitions` holds except the catalogue and the order sentence (V2 L75). V2's pared text keeps "a unit, a list's unit or an annotation" (L168), and its catalogue says "a unit's, a list's or an annotation's body" (L174). A9's statement and catalogue draft list the same three (A9 L87-97, L241-245).
 - Proposed call: **doc wrong** if `src/core/build.ts:485-491` runs a prefix's body through the same check (D2 reasoned from code only). D2's own catalogue already includes the prefix.
-- Decision:
+- Decision: Stands (doc wrong if `build.ts:485-491` is as D2 reads it); low confidence: the session checks.
 
 #### F-232. The orphan-inverse check runs right after indexing
 
@@ -3516,7 +3525,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/build.ts:296-390` (`:300-304`), `:643-650`
 - Corrected statement: in architecture, after indexing, insert "reject an inverse of no defined function;" (A9 L239, V2 L172) or "check that every inverse names a defined function;" (D2 L397). In functions.md: "An inverse of no defined function is found as soon as the definitions are indexed, before any body is looked at (`orphanInverse`). Checking an inverse in its place means requesting its function, which must have exactly one parameter (`inverseArity` otherwise, for none as for several), …" (D2 L379 = V4 L421)
 - Proposed call: **doc wrong**.
-- Decision:
+- Decision: Stands (doc wrong); follows Q-031 (the order stated in devdocs; the kinds in the docs table).
 
 #### F-233. The build-error catalogue omits four kinds
 
@@ -3530,7 +3539,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: a completed catalogue (A9 L241-245; V2 L174; D2 L403-442, which puts it in build order and ends "No message is worded for a build error today, only the system file being loaded"). V2's question 2: keep it in prose.
 - Proposed call: **doc wrong**. Three drafts need reconciling: their order, whether they include the prefix (see the finding on a prefix's body, D2 (F-231)), and D2's closing sentence.
 - Related: Q-031
-- Decision:
+- Decision: Stands (doc wrong); follows Q-031 (ok: devdocs keep how the checks run and point at the docs table; no completed prose catalogue).
 
 #### F-234. Expression devdocs sections: what becomes a link, what stays
 
@@ -3540,7 +3549,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/architecture.md#Expressions` (page lines 347-442); `devdocs/architecture.md#Parsing`; `devdocs/architecture.md#Evaluation`; `docs/expressions.md` (to be written); plan §9.1, §12 q24
 - Finding: `#Expressions` restates the precedence and the `-` rules that `docs/definitions.md#Expressions` states (§9.1), after an opening that names `docs/definitions.md` in plain text, not as a link. V2's verdicts: in `#Expressions` the precedence, the `-` rules and the user's side of the call rule become a link to `docs/expressions.md`, while the data-driven levels, the tree's six nodes, spans, the three parser decisions (the lexical call rule, the undivided exponent, maximal names), the list grammar, the printer and its pieces stay as mechanism (complete pared text, L178-190); `#Parsing` stays whole (the combinators and the Pratt alternative, the three properties, the discipline new grammars follow, the call-rule reason as intent); `#Evaluation` stays as mechanism, its issue pointer moving to the one owner. D1 asks that the opening sentence become a link once the reference exists (§12 q24). V2 finds `#Expressions` and `#Parsing` holding where D1 corrects them: F-237, F-240, F-243, and D1 (F-241).
 - Proposed call: Pare `#Expressions` to V2's split once `docs/expressions.md` exists (V2 Q1), folding in D1's corrections rather than taking V2's text as it stands; keep `#Parsing` and `#Evaluation`; when `docs/expressions.md` states evaluation order and error locations, `#Evaluation` opens with a sentence and a link to it (§12 q24).
-- Decision:
+- Decision: Stands; follows Q-038 (the header grammar named) and Q-039 (one clause for GNU units at most); sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist.
 
 #### F-235. Juxtaposition is its own operator in the tree, not plain `*`
 
@@ -3554,7 +3563,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: (D1) "In the tree, juxtaposition is its own operator, `juxtapose`, which the evaluator multiplies as it does `*` and the printer writes back with a space; the section's last paragraph says so, and the sentence is tagged drop under Stale passages." V2's rewrite: "The evaluator treats it as `*`; the tree keeps it apart, as `juxtapose`, so that the printer can write `2 m` back as it was read."
 - Conflict: Tags differ: D1 tags the sentence drop (L35: delete it, the later paragraph stating the operator and why), V2 tags it update (L56: rewrite in place; its pared text, L182, merges the two statements).
 - Proposed call: design changed without the docs following: `juxtapose` is deliberate (the printer writes `2 m` back as read) and the sentence describes an earlier tree; drop it if the later paragraph keeps the reason (D1), or take V2's merged paragraph; either removes the contradiction.
-- Decision:
+- Decision: Stands (design changed; drop or merge).
 
 #### F-236. The binary-operation node list omits juxtaposition
 
@@ -3567,7 +3576,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/expr.ts:149-167` (`ExprNode`); `src/core/print.test.ts:153-174`
 - Corrected statement: (D1) "a binary operation (a sum, difference, product, quotient or juxtaposition) of two subtrees"
 - Proposed call: doc wrong: it follows from the tree's `juxtapose` (F-235); D1's pair and V2's pared text (L178-190) make the same fix.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-237. `LEVELS` and `BINARY` keep parser and printer in step only for operators
 
@@ -3582,7 +3591,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V2 (L76) finds `#Expressions` holding apart from the juxtaposition sentence and the timing, and its pared text (L178-190) keeps "so the two cannot disagree".
 - Proposed call: doc wrong: the printer's positional rules (`src/core/print.ts:14-23`) are deliberate and the property test carries the rest; settle V2's verdict against those lines and do not take V2's sentence as it stands. The plan's §2.1.3 repeats the claim (plan side).
 - Related: F-501
-- Decision:
+- Decision: Stands (doc wrong); F-501 amends §2.1.3.
 
 #### F-238. "Stays the product it always was"
 
@@ -3594,7 +3603,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: update (D1; plan row new)
 - Rewrite: "so `kg (m/s)` is a product" (D1 L34, pair L489-501); V2's pared text (L178-190) drops the phrase too.
 - Proposed call: Confirm `update`: "stays … it always was" points at an earlier grammar, and the present-tense fact is all the passage needs.
-- Decision:
+- Decision: Stands (update).
 
 #### F-239. Parser-reduction rationale carries timings and a past design
 
@@ -3606,7 +3615,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent (D1 and V2; plan row new); also a timing (§12 q25), which both units flag as a measurement
 - Rewrite: The ruled-out alternative without the timings: the parser has no context to bound a reduction by, and Euclid's gcd at the hard bound is far too slow to run on every keystroke, so the evaluator reduces the exponent within the significand limit in force (D1 L36, L518-536; V2 L57, L186, whose pared section ends at "every keystroke").
 - Proposed call: Confirm `keep as intent`: reducing in the parser is a ruled-out alternative worth keeping; the timings go (§12 q25); the two rewrites agree.
-- Decision:
+- Decision: Stands (keep as intent; the timings go with the ruled-out alternative's rewrite).
 
 #### F-240. "The precedence follows GNU units" is unverified
 
@@ -3618,7 +3627,7 @@ What to settle before rewriting a page, in the order it bites.
 - Why unverified: The tree holds no grammar of GNU units, so nothing in it confirms the likeness.
 - Conflict: V2 (L76) finds the section holding apart from two other sentences, and its pared text (L178-190) keeps "The precedence follows GNU units." verbatim; V2 cites no check of the claim.
 - Proposed call: Owner decides (D1 Q2): devdocs keep one clause as the rationale (a familiar convention for `kg m / s^2`) or drop it; the user reference says nothing of GNU units for the grammar (§12 q2), since a likeness stated there would owe the differences (`|` and `**` are errors here).
-- Decision:
+- Decision: Stands; follows Q-039 (ok: at most one clause naming GNU units as the familiar convention behind the precedence; nothing in the user reference).
 
 #### F-241. `#Parsing`'s "in two ways only" omits a third case
 
@@ -3633,7 +3642,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D1 (L695) finds the sentence incomplete; V2 finds `#Parsing` holds in every statement (V2 report, V2 L77).
 - Proposed call: **doc wrong** if `src/core/expr.ts:429-433` is as D1 reads it; low confidence (reasoned from code, not run): check those lines against the page's two cases and, if D1 is right, add the third case to V2's `#Parsing` edits.
 - Related: Q-100
-- Decision:
+- Decision: Stands (doc wrong if `expr.ts:429-433` is as D1 reads it); follows Q-100 (ok); low confidence: the session checks.
 
 #### F-242. Call-rule history in `#Parsing`, kept as intent
 
@@ -3645,7 +3654,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent; plan row confirmed (§1.2.5) by D1 and V2 (`src/core/expr.ts:408-422`: the lookahead includes the name's own characters)
 - Rewrite: Present tense: a plain name's lookahead includes its own characters, so a match cannot back off to a shorter name before a `(`; without it a nested failing call is read again at every level (`2^k`); a cut combinator is ruled out, since a misplaced cut changes the meaning of valid input (D1 L33, L593-607; V2 L52, L198-200).
 - Proposed call: Confirm `keep as intent`; the two rewrites agree in substance: take one wording.
-- Decision:
+- Decision: Stands (keep as intent; one wording).
 
 #### F-243. A composite node's span includes its `-`, its `)` and its parentheses
 
@@ -3659,7 +3668,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: (D1) "A composite node spans from its first part to its last: a negation from its `-`, a call from its name to its `)`, and an expression in parentheses with its parentheses, which is what a message quotes (`1 / (2 - 2)` quotes `(2 - 2)`)."
 - Conflict: V2 (L77) finds `#Parsing` holding "in every statement", with one nit (the `string`/`symbol` example).
 - Proposed call: doc wrong: the spans are tested and are what the messages quote; V2's section-level verdict does not cite these lines.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-244. `string("^")` is `symbol("^")` in the grammar
 
@@ -3672,7 +3681,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/expr.ts:475`
 - Corrected statement: (V2) `optional(seq(symbol("^"), exponent))`
 - Proposed call: doc wrong (a nit); D1 confirmed that the combinators the section names exist (L113) without checking this example.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-245. V2's `#Conversion` verdict has no drafted text
 
@@ -3682,7 +3691,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/architecture.md#Conversion` (page L653-679)
 - Finding: V2's verdict makes what a conversion answers a link to `docs/quantities.md` and keeps as mechanism the error kinds, which of them are retried, and the context for the size prediction; V2's proposed edits (L102-280) touch eleven sections and not this one, so the opener and the link are undrafted. The section's only drafted text is A8's significand-limit sentence (A8 L63-67).
 - Proposed call: when the section is pared, write the one-sentence opener and link that V2's verdict calls for (§12 q24) and apply A8's sentence.
-- Decision:
+- Decision: Stands: the opener and link written in the section's one-pass rewrite (Q-008); A8's sentence applied (F-070).
 
 #### F-246. A typed list's unit straddling zero at a pass is never retried
 
@@ -3694,7 +3703,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/numbers.md#Working precision and the schedule` (page L891-896); `src/core/pipeline.ts:93-96`, `394-404`
 - Proposed call: `#Unit lists` states the accepted gap, by A8's paragraph (A8 L69-73) or a sentence pointing at `numbers.md`'s statement; the owner decides between stating it and retrying `nonpositiveUnit` (A8's question 4).
 - Related: Q-045, B-010
-- Decision:
+- Decision: Stands; follows Q-045 (ok: the accepted gap stated as today's behaviour; the retry is recorded on #92, not on the page); amended by F-442 ("refused as not positive" is an error, not a size refusal: "fails as not positive").
 
 #### F-247. `#Unit lists` pared to its mechanism
 
@@ -3704,7 +3713,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/architecture.md#Unit lists` (page L681-750)
 - Finding: the section holds against the code, every example reproducing (V2 report); the rules and the answer become a link to `docs/quantities.md` (§9.1), and the section keeps the count rule's mechanics, `roundTerms` and its rebuild fallback, and how the pipeline reads the want. V2's full replacement also adds a defined function's bare name to the pipeline paragraph's readings (Q17), which the page's "any other one item is a unit" leaves out.
 - Proposed call: apply V2's replacement once `docs/quantities.md#Unit lists` exists, merging A8's accepted-gap paragraph and reconciling its "rounds the remainder's midpoint to the display precision" (page L720-722, kept by V2) with the rounding at the digits certified that A8 establishes for the converter section.
-- Decision:
+- Decision: Stands; sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist; the remainder's rounding follows F-072.
 
 #### F-248. A built-in's bare name as the want is `functionAsUnit`
 
@@ -3718,7 +3727,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "A built-in has no inverse and is not looked up as a `want`: its bare name there is a `functionAsUnit` error, as a defined function's name is anywhere but in a call or as the `want`." (V2 L230-232)
 - Proposed call: **doc wrong**: the causality misleads while the effect is right; a precision, applied with V2's pair.
 - Related: F-308
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-249. Which page carries the design of the table at the ceiling
 
@@ -3729,7 +3738,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: `src/system-build.ts:2` and `src/system-table.ts:10` cite "The shell and its parts" as the design of the table at the ceiling, which `devdocs/numbers.md#Working precision and the schedule` states in full; A9 asked V2 and D9 to confirm that the shell section carries the design or to have the comments point at `numbers.md` (A9's question 7). Neither report answers: V2 checks the section against those modules' headers and finds it holds (V2 report), and D9's edits to the section (D9 L267-275) leave it.
 - Proposed call: settle A9's question 7: either the shell section is the design and links `numbers.md` "Working precision and the schedule" for the reason, or the comments point at `numbers.md` (code side in bugs.md).
 - Related: Q-059, B-056
-- Decision:
+- Decision: Stands: the session of `devdocs/architecture.md` settles A9's question 7 with V2's rewrite of the shell section; B-056 follows in the comment pass (Q-059).
 
 #### F-250. The shell's parse carries a timing, "(a few milliseconds)"
 
@@ -3740,7 +3749,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "parses it on the main thread (a few milliseconds), once" is a timing (§12 q25); the reason is in `src/system-table.ts:6-8`. V2 tags it stale (update).
 - Proposed call: Drop the figure and keep the reason: "parses it on the main thread, once, the parse being quick enough that a worker would cost more than it saves" (V2 L240-242).
 - Related: F-338
-- Decision:
+- Decision: Stands (drop the figure, keep the reason); Q-016 would let "(a few milliseconds)" stay as a rough, illustrative figure: the session's choice.
 
 #### F-251. The shell section says "build number" for the build ID
 
@@ -3753,7 +3762,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: "and checks for an update when its build ID is tapped (`[offline.md](offline.md)`; what the user sees of it is in `[docs/app.md](../docs/app.md)`, "Updates and the build ID")" (D9 L273-275); D9 calls it the section's only correction (L325), and its second pair adds the Retry button to the failure state (L269-271).
 - Proposed call: Confirm `update` (a commit hash, not a number: `src/build-id.ts:1-14`); the term is the terminology draft's (V8's own drafts write "the build"), and the anchor follows app.md's section name.
 - Related: Q-022, F-492
-- Decision:
+- Decision: Stands (update); follows Q-022 (A: "build ID"; the anchor is `app.md`'s "Updates and the build ID").
 
 #### F-252. UI sections stay as mechanism; how many links to docs/app.md
 
@@ -3765,7 +3774,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V2 gives the sections "one link there and … nothing else" (on the settings sentence, V2 L244-246); D9 adds two links in the same section (the failure state, to "Offline use"; the build ID, to "Updates and the build ID") and a sentence on the Retry button and that the app never retries on its own (D9 L267-275).
 - Proposed call: Settle by §12 q24 (a section opens with one sentence and a link to its docs owner): choose one place among the three; the Retry fact may stay as mechanism.
 - Related: F-169, F-249
-- Decision:
+- Decision: Stands: one link per §12 q24, the session choosing the place; the Retry fact may stay as mechanism.
 
 #### F-253. The outcome does not parse the want again
 
@@ -3780,7 +3789,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: tags for the second passage differ: update (A2 L49; A8 L42) against drop (V2 L63), though V2's own pair 2 substitutes a sentence (V2 L254-256), an update in effect; all three tag the first passage update.
 - Proposed call: **design changed without the docs following**: the `Conversion` deliberately hands the parsed expressions back, three units and D9 agree, and the plan's §1.2.4 and §5 C1, C4 repeat the older mechanism (plan errors); confirm `update` for both passages.
 - Related: Q-074, F-505
-- Decision:
+- Decision: Stands (design changed; update both); follows Q-074 (ok: the plan corrected).
 
 #### F-254. `roundTerms` is `convert.ts`'s, not the display's
 
@@ -3794,7 +3803,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "`show` of `display.ts` and `roundTerms` of `convert.ts`" (V2 L250-252).
 - Proposed call: **doc wrong**: an attribution slip in the sentence the re-parse finding rewrites; A2's and A8's rewrites of that sentence (A2 L104-109, A8 L77-79) keep "the display's `show` and `roundTerms`".
 - Related: F-499
-- Decision:
+- Decision: Stands (doc wrong); follows F-499.
 
 #### F-255. The reciprocal is computed in `src/outcome.ts`, not "the component"
 
@@ -3808,7 +3817,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: A8: "and it stays in the outcome (`src/outcome.ts`), outside the pipeline: a second view of the same value, like the rounding, not a step of the conversion" (A8 L89-91); V2: "and it stays in the component's view (`src/outcome.ts`): …" (V2 L274-276). The naming differs ("the outcome", A8's terminology row A8 (F-472), against "the component's view").
 - Proposed call: **design changed without the docs following**: A8 tags the passage update, and the page and the comment at `pipeline.ts:95` both name a component that computes only `outcomeOf`; the intent, a second view and not a step of the conversion, holds; the wording waits on the terminology finding.
 - Related: B-034, B-037, F-472
-- Decision:
+- Decision: Stands (design changed); follows F-472 ("the outcome" for `src/outcome.ts`); B-037 is the code side.
 
 #### F-256. Converter section: what becomes links to `docs/`
 
@@ -3819,7 +3828,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the section holds against `src/outcome.ts` in every statement about what is shown, apart from the findings above; the relation and the notes become a link to `docs/numbers.md`, and the list's line, the function's line and when a reciprocal exists become links to `docs/quantities.md` (§9.3's split owner); it keeps the component's properties and state, `outcomeOf` as a pure view, how a line is composed from the pipeline's expressions, the printer's two glyphs and the copy path, why the reciprocal line is written swapped (GNU units' verbose form ruled out), why a list has none (three readings ruled out), and the reciprocal as one step outside the retry loop with the issue inline. V2's pairs 3-6 draft the links; pair 3 also lists a fourth note, "a step could not be certified at the precision limit", which the page's list of three omits (A2 L63 lists the four `noteOf` wordings). D9 quotes the labels as written ("You have", "You want"), mentions the hint while the have is blank and links `docs/app.md` ("The two fields", "Copying a result").
 - Proposed call: apply V2's and D9's links with §12 q24's one-sentence openers once `docs/numbers.md`, `docs/quantities.md` and `docs/app.md` exist (V2's question 1: after the D units' pages).
 - Related: F-471
-- Decision:
+- Decision: Stands; follows F-471 (A: the labels named in `app.md`), F-468 (modes by their want), Q-007; sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist.
 
 ### Findings owned by other pages that touch this one
 
@@ -3906,7 +3915,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/builtins.md#(top)`, first paragraph (page L3-11)
 - Finding: the first paragraph lists the built-ins from the user's side; it shrinks to one sentence and a link to `../docs/functions.md` (§12 q24), saying what this page keeps: how the built-ins are built, the rules their implementations share and the bounds they rest on, family by family. The second paragraph is mechanism, and every statement in it holds (V3 L63).
 - Proposed call: V3's replacement (L81-110) once `docs/functions.md` is reorganized; anchors settled when the docs pages exist.
-- Decision:
+- Decision: Stands; the link is `../docs/builtins.md` (Q-020's note); sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist.
 
 #### F-258. `#Names`: "no built-in is a prefix of another's name" is false
 
@@ -3921,7 +3930,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: three corrections: D5 and V3 read the clause as string prefixes, A9 as both readings, restating only the prefix one. D5 (Q2) and A9 (Q2) both prefer restating to deleting.
 - Proposed call: **doc wrong**: the build's checks are deliberate and named in the bullet's own first sentence; pick one restatement, possibly covering both readings.
 - Related: Q-086
-- Decision:
+- Decision: Stands (doc wrong); follows Q-086 (ok: restate; the session picks one text covering both readings).
 
 #### F-259. `#Names`: "`W` is the watt" does not say why it matters
 
@@ -3933,7 +3942,7 @@ What to settle before rewriting a page, in the order it bites.
 - Why unverified: the design note itself repeats the page's wording, so the connection rests on the plan's summary only; D5 puts it to the owner.
 - Proposed call: the owner confirms the reading (D5 Q1); then D5's edit 7 (L149) names `lambertw` and says neither `e` nor `W` is free "for a function or a constant". V3 keeps the bullet as intent, its facts holding (L64).
 - Related: Q-034
-- Decision:
+- Decision: Stands; follows Q-034 (ok: D5's edit 7).
 
 #### F-260. `#Arity`: the user's rule links to `docs/expressions.md`
 
@@ -3943,7 +3952,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/builtins.md#Arity`, first sentence (page L65-66)
 - Finding: the mechanism stays (the range, the check once the name resolves and before any argument is evaluated, no variadic function by design); the user's rule, a wrong count is an error, gets a link to `../docs/expressions.md`, the owner of calls (C45).
 - Proposed call: V3's first-sentence edit (L131-147).
-- Decision:
+- Decision: Stands; sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist; amended by F-442 ("a wrong count is an error").
 
 #### F-261. `#The rules every built-in follows`: three bullets restate user rules
 
@@ -3953,7 +3962,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/builtins.md#The rules every built-in follows`: the exact-case bullet (page L89-91), the domain bullet (L139-153), the exponent-bound bullet (L154-170)
 - Finding: the section is mechanism and stays; the exact-case rule (N6), the edge rule (N15) and the exponent bound (N22) each get a sentence with a link to `../docs/numbers.md` (§12 q24). V3's exact-case edit also drops the example "(`ln(8) / ln(2)` is `≈ 3`)" and points at the table and each module's header.
 - Proposed call: V3's three edits (L149-167, L200-221, L223-240) once `numbers.md` exists; the domain-bullet edit shares its bullet with A6's correction of the edge list.
-- Decision:
+- Decision: Stands; sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist.
 
 #### F-262. `#The rules every built-in follows`: the edges a message names are more than listed
 
@@ -3967,7 +3976,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: A6 (L386-398): "The edges a message can name are `zero`, a point written to twelve digits (`1`, `-1`, a rounding boundary, a multiple of the divisor for `div` and `mod`, or the result itself where a rounding function's cell cannot be formed), `a pole of the function`, and the point where the result passes the exponent bound."
 - Conflict: D5 confirms "the edges a message names are exactly the five listed" (L56, from `messages.ts:413-419`); A6 finds the list incomplete. The `div` and `mod` runs (A6, D6) show which points reach the point form.
 - Proposed call: **doc wrong** (incomplete): the code names any point, the page lists some; nothing suggests the `div` and `mod` wording is unintended.
-- Decision:
+- Decision: Stands (doc wrong, incomplete).
 
 #### F-263. `#The rules every built-in follows`: "one half for `asinh`" is a radius
 
@@ -3982,7 +3991,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D5 confirms the bullet's bounds as written, "one half for `asinh` with the radius added at the midpoint" (L55).
 - Proposed call: **doc wrong** (imprecise wording); settle by whether the test at `hyperbolic.ts:218` bounds the radius or the width.
 - Related: B-051
-- Decision:
+- Decision: Stands (doc wrong); low confidence: the session settles from `hyperbolic.ts:218`; B-051 is the code side.
 
 #### F-264. `#The rules every built-in follows`: "about 181,727" not recomputed
 
@@ -3993,7 +4002,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "the argument the kernel is handed stays below about 181,727 at the largest ceiling the settings allow" (`tanh`) is a derived constant, stated identically in `hyperbolic.ts:36-39`.
 - Why unverified: D5 did not recompute it, and no other unit did.
 - Proposed call: recompute it when `tanh`'s structured comment is written; until then it stands as the code comment states it.
-- Decision:
+- Decision: Stands (stands as the comment states it).
 
 #### F-265. `#Huge and tiny arguments`: the tiny-ratio bullet contradicts the module
 
@@ -4006,7 +4015,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/builtins/inverse-trig.ts:294-299`, `:267-290`, `:178,201-211`, `atanKernel` at `:438-445`; V3 scratch: `atan2(1e-999999999999999999, 1)` is its argument on the first pass; the section's fourth bullet already says so for `atan2` (D5 L36).
 - Corrected statement: both rewrite the bullet whole, the same facts in different words (full texts: D5 L159, edit 11; V3 L269-293).
 - Proposed call: **design changed without the docs following**: the module's branches are deliberate and the neighbouring bullet states them; D5 calls this "the one real staleness" of the devdocs (L204).
-- Decision:
+- Decision: Stands (design changed); the session picks one of the two rewrites.
 
 #### F-266. `#Huge and tiny arguments`: the `acos(1e-9860)` aside
 
@@ -4019,7 +4028,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: delete; the sentence ends "long before `2^-significandLimitBits`." (D5 L156; V3 L242-266, which also writes "no digit certified" for "no digit certain" at page L191).
 - Proposed call: Confirm `drop`.
 - Related: B-034
-- Decision:
+- Decision: Stands (drop); the quoted note follows Q-006 ("certified").
 
 #### F-267. `#Huge and tiny arguments`: `log10(1e999999999)` "exactly" is the value, not the line
 
@@ -4030,7 +4039,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "`log10(1e999999999)` exactly `999999999`" is true of the value, but the line reads `≈ 1e+9` at eight digits under N10 (an exact value with more digits than shown); at nine digits or under ratio notation it reads `= 999999999` (`log.ts:161-166`, `:221-233`; harness).
 - Proposed call: keep the page's statement (the section is about the value; N10 owns the display); the generated `log10` entry can show both lines (D5 Q9).
 - Related: Q-066
-- Decision:
+- Decision: Stands; follows Q-066 (ok).
 
 #### F-268. `#Dimension rules`: the `div` and `mod` rows omit "kinds included"
 
@@ -4044,7 +4053,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "two quantities of one dimension, kinds included" (D5 L164, V3 L315-329, A7 L247-259, identical).
 - Proposed call: **doc wrong**: one helper conforms kinds for all three two-argument rules.
 - Related: Q-094
-- Decision:
+- Decision: Stands (doc wrong); follows Q-094 (ok).
 
 #### F-269. `#Dimension rules`: "the mistake they were introduced against"
 
@@ -4057,7 +4066,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: "…an angle from being mistaken for a number, the degree-radian confusion first among such mistakes, so the rule is strict;" (A7 L276-291)
 - Conflict: V3 keeps the paragraph unchanged as intent, "already in the present tense" (L68).
 - Proposed call: Confirm `keep as intent`: the rationale stays; "were introduced against" narrates origin, and A7's reword drops it at no cost to the reason.
-- Decision:
+- Decision: Stands (keep as intent, A7's reword).
 
 #### F-270. `#Dimension rules`: the Angles and `floor` paragraphs restate the user's rule
 
@@ -4067,7 +4076,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/builtins.md#Dimension rules`, the Angles paragraph (page L264-280) and "`floor` and its kin" (page L299-308)
 - Finding: "Angles" states Q8 twice over (§9.1): the rule shrinks to one sentence linking `../docs/functions.md` and `../docs/quantities.md` ("Kinds"); the mechanism stays (the kernel sees radians because `radian` is the primitive; `RADIAN` by convention; `noAngles`); the rationale paragraph after it stays as intent. "`floor` and its kin" is Q5's rationale and stays, with a link for the rule to `../docs/functions.md`.
 - Proposed call: V3's two edits (L331-370, L372-385), carrying A7's correction of the `turn` clause (V3's rewrite drops the clause) and reconciled with A7's reword of the alternative's paragraph.
-- Decision:
+- Decision: Stands; the links target `docs/builtins.md` and `docs/quantities.md` (Q-020's note); sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist; follows Q-019 ("plain number" as the gloss, defined once).
 
 #### F-271. `#Domains…`: the `ln`, `log10`, `log2` row's exact cases
 
@@ -4081,7 +4090,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "`ln(1)`, `log10(1)`, `log2(1)`; for `log10` and `log2`, an integer power of the base either way (`log10(1000)`, `log2(1/8)`)" (D5 L168).
 - Conflict: V3 confirms the table row by row apart from the `atan2` cell (L69).
 - Proposed call: **doc wrong** (imprecise): the cell reads as giving `ln` integer-power cases; settle against V3's confirmation by whether "the base" was meant to cover `ln`.
-- Decision:
+- Decision: Stands (doc wrong, imprecise).
 
 #### F-272. `#Domains…`: `pow(-1, y)` is not exact "for any `y`"
 
@@ -4096,7 +4105,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V3 confirms the row and the `pow` prose, with the same `-1` cases (L69).
 - Proposed call: **doc wrong**: the cell contradicts the prose under it, which both units confirm; D5 asks the owner to confirm (Q3).
 - Related: Q-092
-- Decision:
+- Decision: Stands (doc wrong); follows Q-092 (ok).
 
 #### F-273. `#Domains…`: `atan2`'s edges cell omits the edges at `x`
 
@@ -4109,7 +4118,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `inverse-trig.ts:263-264`, `:332-336`; harness: `atan2(0, sqrt(2)^2 - 2)` and `atan2(1e-30000, 1 - approx(1))` blame `x`.
 - Corrected statement: D5 (L169): "zero for `y` when `x` is not positive; zero for `x` when `y` is zero, or when `x / y` reaches the significand limit"; V3 (L387-399): "zero for `y`, when `x` is not positive; zero for `x`, when `y` is zero or far wider than `x`" (the same two cases, worded differently).
 - Proposed call: **doc wrong** (incomplete cell).
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-274. `#Domains…`: the edges column omits the exponent bound
 
@@ -4123,7 +4132,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: add "the exponent bound" to the `exp`, `sinh`, `cosh` and `pow` cells; the `tanh` cell stays blank (D5 L169).
 - Conflict: V3 confirms the table row by row apart from the `atan2` cell (L69).
 - Proposed call: **doc wrong** (incomplete): the column omits an edge the section's own rules bullet names; check whether it was meant to list domain edges only.
-- Decision:
+- Decision: Stands (doc wrong, incomplete); the session checks whether the column was meant for domain edges only.
 
 #### F-275. `#Domains…`: `pow`'s difference from `^` links the user's side
 
@@ -4133,7 +4142,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/builtins.md#Domains, exact cases and edges` > "`pow`, and `^` with it", first sentence (page L352-354)
 - Finding: the first sentence restates the user's rule (C63) and gets a link to `../docs/functions.md` (`pow`); `log`'s and `pow`'s paragraphs are mechanism and stay.
 - Proposed call: V3's first-sentence edit (L401-417).
-- Decision:
+- Decision: Stands; the link targets `docs/builtins.md` (Q-020's note); sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist.
 
 #### F-276. `#The elementary routines`: per-routine timings
 
@@ -4144,7 +4153,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "Every routine costs 9 to 13 ms at the default ceiling of 4,040 digits (`bench/kernel.bench.ts` reports each), V8 multiplying integers of that size by the schoolbook rule, about sixty microseconds a product." Both units tag it update under §12 q25 and keep the qualitative reason: the routines cost about the same, the cost being big-integer products by the schoolbook rule; V3 adds that a routine's cost is counted in full multiplications and the series are arranged to need few (D5 L37, edit 16 at L173; V3 L48, L419-440). V3 notes that the plan's §10 entry for its unit says "measurements kept", against q25, and follows q25.
 - Proposed call: drop the figures under §12 q25 (binding) and keep the qualitative sentence; `bench/kernel.bench.ts` holds the numbers.
 - Related: Q-016, F-510
-- Decision:
+- Decision: Follows Q-016 and Q-088: the qualitative reason stays; the per-routine figures may stay as rough, illustrative figures or leave for `bench/kernel.bench.ts` (the session's choice).
 
 #### F-277. `#The elementary routines`: the gcd sentence, kept as intent
 
@@ -4156,7 +4165,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent; plan row confirmed by both (`src/core/rational.ts:507-521` strips the common power of two and runs Lehmer's algorithm on the odd parts).
 - Rewrite: present tense, no timing: the gcd strips the common power of two first because settled midpoints are dyadics of the ceiling's size, on which Euclid's gcd would dominate a sum (D5 L34); V3 adds "and runs Lehmer's algorithm on the odd parts" (L39).
 - Proposed call: Confirm `keep as intent`.
-- Decision:
+- Decision: Stands (keep as intent); Q-018 lets "tens of milliseconds a sum" stay as a rough duration if the session keeps it.
 
 #### F-278. `#The elementary routines`: "the four costliest routines" rests on a benchmark
 
@@ -4169,7 +4178,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D4 builds the user wording on the ranking, "one expression of the four costliest elementary functions" (D4 (F-128, F-491)).
 - Proposed call: check the ranking against `bench/kernel.bench.ts`'s report before `docs/settings.md` states it; failing that, both pages name the four functions without ranking them.
 - Related: F-128, F-491
-- Decision:
+- Decision: Stands; follows F-491 (ok: "the four elementary functions", no ranking).
 
 #### F-279. `#The exact functions`: the open-cell rule's reason is not recorded
 
@@ -4180,7 +4189,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the rounding functions decide a ball "against the open cell", so a ball inside a closed cell that ends exactly on its closed end (`[2, 2.5]` for `floor`) is `unresolved` though every value in it floors to `2`; the rule is uniform and the next pass removes the touch (reasoned from code, not run). A6 asked V3 to record the intent in `#The exact functions`, "a touch is a straddle at every edge, so that no edge check has to know which end of a cell is closed", with no code change (A6 question 5); V3's report neither takes it up nor mentions it.
 - Proposed call: add the one-sentence reason to "On balls" with V3's edits to the section, once the owner answers A6 Q5 (A6 proposes recording it as intent, with no code change).
 - Related: Q-036
-- Decision:
+- Decision: Stands; follows Q-036 (ok: the sentence of intent; no code change).
 
 #### F-280. `#The exact functions`: the opening misstates inexact arguments and quantities
 
@@ -4194,7 +4203,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: D6 (L138-144): "Thirteen functions that are exact on exact arguments whatever the working precision. On an inexact argument, `sign`, `floor`, `ceil`, `trunc`, `round` and `div` are exact where the argument's interval decides the answer and `unresolved` where it does not; `abs` and `mod` carry the radius through, as the arithmetic does; and `gcd`, `lcm`, `factorial`, `binomial` and `doublefactorial`, which take integers known exactly, refuse it as a `domain` error. Four of them take quantities: `abs` and `mod` return their argument's dimension, `sign` and `div` a plain number; the other nine take plain numbers (`#Dimension rules`)." V3 (L45) rewrites the second sentence only, to the same four and nine.
 - Conflict: V3's new paragraph (L476-500) keeps the first sentence D6 shows false.
 - Proposed call: **doc wrong**: the behaviours D6 ran are the modules' deliberate rules (the integer functions' `notExact`; `abs` and `mod` carrying the radius as the arithmetic does); D6's correction of the first sentence belongs in whichever text is kept.
-- Decision:
+- Decision: Stands (doc wrong); amended by F-442 (the integer functions "report a `domain` error", never "refuse").
 
 #### F-281. `#The exact functions`: no built-in is named `ceiling`
 
@@ -4207,7 +4216,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `ceiling(2.5)` reads `Unknown function "ceiling"` (D6 harness); `src/core/rounding.ts:80`; `src/core/builtins.ts:83-86`.
 - Corrected statement: D6: "one of the modes' names, `floor`, is a function (`ceiling` is a letter from `ceil`)"; V3: "one of the modes' names, `floor`, is already a function". "There is no mode argument" is a ruled-out alternative and stays (V3).
 - Proposed call: **doc wrong** (a slip).
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-282. `#The exact functions`: the Gamma pointer is on two of the three errors
 
@@ -4222,7 +4231,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V3 confirms the "On balls" paragraph as mechanism that holds (L71).
 - Proposed call: **doc wrong**: the missing pointer on `negative` is deliberate and right (D6); "refusals" is §8 terminology (D6 (F-443)).
 - Related: Q-096, F-443
-- Decision:
+- Decision: Stands (doc wrong); follows Q-096 and F-442 ("errors", not "refusals").
 
 #### F-283. `#The exact functions`: `div`, `mod` and the rounding functions can form large results
 
@@ -4236,7 +4245,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: D6 (L190-196): "`gcd` and `lcm` form nothing larger than their arguments' product; `div`, `mod` and the rounding functions form their results through the exact arithmetic, which holds each to the significand limit as it holds any sum or product, so `round(1/3, 20000)` and `mod(-1, 1e20000)`, whose results would have twenty thousand digits, are `tooLarge`."
 - Conflict: V3 confirms the prediction paragraph (L71; its scratch refuses `mod(-1, 1e20000)`).
 - Proposed call: **doc wrong**: the exact arithmetic's limit is the deliberate guard; the sentence states a bound that does not exist.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-284. `#The exact functions`: `mod`'s alignment refusal is not worded as a sum's
 
@@ -4251,7 +4260,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V3 confirms the paragraph as mechanism that holds (L71), its scratch refusing `mod(-1, 1e20000)`.
 - Proposed call: **code wrong**: by the reach rule an alignment an inexact operand would settle is `fits`, which is what "as any exact sum's is" states (D6 C2); **doc wrong** only if the owner keeps `exceeds` (D6 Q2), and then edit (e)'s second text applies.
 - Related: Q-044, B-005
-- Decision:
+- Decision: Stands (code wrong); follows Q-044 (ok: B-005; D6's edit takes its first form).
 
 #### F-285. `#The exact functions`: `gcd(a, 0)` is `|a|` on the page, not in the code
 
@@ -4265,7 +4274,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: none; both units keep the page's statement as the specification ("the page stands").
 - Proposed call: **code wrong**: the page states the intent, both units ran the defect, and the called function's precondition explains it; the fix and its tests are the bugs list's (D6 Q1, V3 Q1); the generated `gcd` entry (§6.6 gap) states the intent.
 - Related: Q-050, B-001
-- Decision:
+- Decision: Stands (code wrong); follows Q-050 (ok: B-001 before the pages).
 
 #### F-286. Gap new: `round(x, places)`'s count of units is held to the limit
 
@@ -4276,7 +4285,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `places` is an exact integer formed within the significand limit (`round(2.5, 1e20000)` is `tooLarge`, as the page says), and the count of units is held to the limit too: `round(1/3, 20000)` is `tooLarge` and `round(1/3, 19000)` a value; a value below a tenth of the unit forms no power of ten (`round(1e-999999999, 2)` is `0`, or `0.01` under `awayFromZero` and `ceiling`).
 - Sources: D6's rule 5 (`round.ts:146-150`, `:112-123`; `integers.ts:35-53`); edit (c) (L154-160).
 - Proposed call: add D6's clause to the `round` bullet (edit (c)).
-- Decision:
+- Decision: Stands.
 
 #### F-287. Gap new: `div`'s undecided edge is named in the dividend's terms
 
@@ -4287,7 +4296,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `div` decides against the floor's cell with the boundary named in `a`'s terms, the quotient's boundary times the divisor: `div(8 + sqrt(2) - sqrt(2), 2)` "cannot be told from 8".
 - Sources: D6's rule 4 (`division.ts:88-91`); edit (d) (L162-168); the edge list (finding on the edges a message names).
 - Proposed call: add D6's clause (edit (d)).
-- Decision:
+- Decision: Stands.
 
 #### F-288. Gap new: past a million the integer functions name no count
 
@@ -4299,7 +4308,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: D6's rule 6 (`integers.ts:92`, `:141`); edit (g) (L190-196).
 - Proposed call: add D6's sentence (edit (g)).
 - Related: B-020
-- Decision:
+- Decision: Stands.
 
 #### F-289. Incomplete beta passage broken by a formatter: `- 1)` renders as a bullet
 
@@ -4309,7 +4318,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/builtins.md#The Gamma and Beta families` (incomplete beta, exact cases, page L864-874)
 - Finding: a formatter broke the passage from "one integer over q^(a + b" to "coming from beta": a blank line (page L868), then a line beginning `- 1)` that Markdown reads as a list item, code spans run into the words around them ("`a + b - 1`is", "whole numbers'`B(a, b)`coming from`beta`", "ball of `x`is", "with`x`"), and an indented last line; a formatting break, not a design change. Both units repair it in their edits, D7 keeping `q^(a + b - 1)` on one line so that no wrap can recreate the bullet, V3 also making the timing qualitative and inlining #150. D7 cites page L867-872 and V3 L866-872 in their rows, both edits L864-874: the same passage.
 - Proposed call: re-flow the passage once (D7's edit 10, L214-215, or V3's full text, L636-665), applying in the same edit its content corrections (`x = 1`, the timing).
-- Decision:
+- Decision: Stands.
 
 #### F-290. `#The Gamma and Beta families` repeats the cost issues and the ruled-out list
 
@@ -4320,7 +4329,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the section repeats the kernel's cost issues and the ruled-out list that `cost.md` and `future.md` also carry (§9.4).
 - Proposed call: link `cost.md` for the costs and hangs, keep #103 and the deferred list here (V6 Q8, under its Q1 mapping); V3's and D7's rewrites of the paragraph are covered by the findings on `#The Gamma and Beta families`.
 - Related: Q-012, F-348, F-415
-- Decision:
+- Decision: Stands; follows Q-012 (A: `cost.md` for the costs; #103 kept here); amended by Q-010 and Q-011: the deferred list leaves this paragraph for `devdocs/future.md`, this page naming the classes only as absent and linking `future.md`; pending in part: #115's place (the owner's list).
 
 #### F-291. The memo's "five times over" kept as intent
 
@@ -4332,7 +4341,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent (D7, V3; plan §1.1.5 row confirmed; V3 cites `fixed-gamma.ts:21-24`)
 - Rewrite: "a memo grown term by term would recompute the run several times in one cold pass", the reason a series reserves its count before it sums (D7 L84; V3 L40, L539-540).
 - Proposed call: Confirm keep as intent; the two rewrites agree.
-- Decision:
+- Decision: Stands (keep as intent).
 
 #### F-292. `gamma` paragraph: the factorial's refusal names no remedy
 
@@ -4346,7 +4355,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "the kernel's value is the remedy for a factorial past the significand limit; the refusal itself names none, offering nothing on `exceeds` (the docs point there)" (D7 L55).
 - Proposed call: doc wrong: N21 and the code agree that the refusal suggests nothing; only this sentence and its code comment say otherwise.
 - Related: Q-059, Q-096, B-045
-- Decision:
+- Decision: Stands (doc wrong); follows Q-096.
 
 #### F-293. `beta(1e15, 1)` is the exact case, not a logarithm example
 
@@ -4361,7 +4370,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: the units replace the example differently, D7 with `beta(1e15, 1.5)` (harness, L59), V3 with `beta(1e15, approx(1))`, an inexact ball shown `1e-15` (scratch, L47); each ran its own.
 - Proposed call: doc wrong: the integer exact case is deliberate (`beta` and `binomial` agree on what fits, page L740-742); pick one of the two verified examples.
 - Related: Q-059, B-045, B-046
-- Decision:
+- Decision: Stands (doc wrong); the session picks one of the two verified examples.
 
 #### F-294. Incomplete gamma: the regularized forms do not divide by `gamma(s)`
 
@@ -4374,7 +4383,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/builtins/incomplete.ts:410-451`, `:192`, `:498`
 - Corrected statement: "The regularized forms carry `ln Γ(s)` (for the lower form, `ln Γ(s + 1)`) in the exponent through `logGamma` rather than dividing by `gamma(s)`" (D7 L97).
 - Proposed call: doc wrong: the same paragraph forms the exponent with `ln Γ(s + 1)` (page L787-791), so the code is the design the page describes; nothing suggests an intended division.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-295. Incomplete gamma timings in the families section
 
@@ -4384,7 +4393,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/builtins.md#The Gamma and Beta families` (incomplete gamma, page L814-818)
 - Finding: "Measured for the regularized upper form: one to two milliseconds a call at forty digits, forty to eighty at a thousand, and about a second at the default ceiling, two for `x = 1000`" are timings, not re-measured (C35). Both units tag the passage update under §12 q25, with different qualitative rewrites: D7 "The fraction's convergents grow with the square of the working bits and the series' terms with the bits, so a call far below the ceiling is cheap and the cost lies at the ceiling" (L98); V3 "The cost grows with the convergents or terms the route takes, so a large `x` under the fraction is the costly case at the ceiling (`[cost.md](cost.md)`)" (L51).
 - Proposed call: Confirm update (q25); one sentence combining the two, which do not contradict each other; the convergent counts stay (the kept-measurements finding).
-- Decision:
+- Decision: Follows Q-016 and Q-088: one qualitative sentence from the two rewrites; the convergent counts stay; a rough timing may stay marked illustrative.
 
 #### F-296. `erf` timing sentence goes
 
@@ -4395,7 +4404,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "A call is one to three milliseconds at forty digits." is a timing, not re-measured (C37); the cost is the incomplete gamma's. Both units delete it.
 - Conflict: D7 tags it drop (L99), V3 update with the rewrite "delete" (L52); the outcome is the same.
 - Proposed call: Confirm deletion (q25); what takes its place, if anything, is the `erf` tiny-argument finding.
-- Decision:
+- Decision: Stands (deletion); Q-016 would let a rough figure stay, but the cost is the incomplete gamma's and the sentence adds nothing.
 
 #### F-297. `erf`'s tiny-argument rule: proposed for the families section, already stated
 
@@ -4407,7 +4416,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/builtins.md#Huge and tiny arguments` (page L188-190)
 - Conflict: the page already states the rule there, "`erf` of a tiny argument is `2x / √π` within `|x|^3`", for an argument throughout below `2^-significandLimitBits` (`isTiny`), which V3 confirms (V3 L67, `erf.ts:154-170`; V3 report); D7, which read only the families section, puts the threshold on the square.
 - Proposed call: one statement only: check D7's threshold (`erf.ts:13-20`) against `#Huge and tiny arguments`; correct that bullet if D7's reading holds, otherwise drop D7's sentence.
-- Decision:
+- Decision: Stands: one statement only; the session checks D7's threshold against `#Huge and tiny arguments`.
 
 #### F-298. Incomplete beta: at `x = 1` the unregularized value is `B(a, b)`
 
@@ -4420,7 +4429,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/builtins/incbeta.ts:190-193`; harness
 - Corrected statement: "`x = 0` is `0`, and `x = 1` is `1` regularized and `B(a, b)` otherwise" (D7 L66).
 - Proposed call: doc wrong: the page's `1` holds for the regularized function only, and the code gives the unregularized end point the definition requires.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-299. Incomplete beta timings in the families section
 
@@ -4430,7 +4439,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/builtins.md#The Gamma and Beta families` (incomplete beta, page L872-874)
 - Finding: "Measured at forty digits: a few milliseconds a call for moderate parameters, fifty for `(1e4, 1e4, 0.5)`" are timings, not re-measured (C40). Both units tag the passage update under §12 q25, with different rewrites: D7 "The series' cost grows with the parameters' size and with the bits" (L100); V3 "Large parameters near the median are the costly case, since both orientations then take many terms" (L53). Both keep #150 on this sentence.
 - Proposed call: Confirm update (q25); combine the two rewrites in the repaired passage.
-- Decision:
+- Decision: Follows Q-016 and Q-088: the two rewrites combined; a rough timing may stay marked illustrative.
 
 #### F-300. Memory figures and term counts kept as the schedule's reasons
 
@@ -4441,7 +4450,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the ratio counts and sizes (730 to 1,430 ratios, about 0.8 to 1 MB, the run up to about 1.8 MB, the tangent numbers up to about 2.2 MB, about 80 KB at a thousand digits, under a kilobyte at forty), the convergent counts 768 and 443,000, and 89 terms against 11,837 are measurements but not timings; none was re-measured (C25, C35, C38).
 - Proposed call: keep them as the quantitative reason the ratio schedule and the rate constant rest on, §12 q25 naming timings (D7's Q1; V3's Q3 proposes the same for bit, term and convergent counts and memory sizes); the owner settles it with the plan's "measurements kept" (V3 (F-510)).
 - Related: Q-016, F-510
-- Decision:
+- Decision: Follows Q-016 (A, with the note): the memory figures, ratio counts, convergent counts and term counts stay as the quantitative reason the schedule rests on.
 
 #### F-301. Not verified: kernel-side statements of the families section
 
@@ -4452,7 +4461,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: still unverified after both reports: a wide ball's `gamma` "about six times the true width at `-2.5 ± 0.1`" (C29); the series' tail taken from `|x|` and the fraction's convergent counts (`fixed-incomplete.ts` bodies); the incomplete beta's tail bound and its full-precision division per term (`fixed-incbeta.ts`). Settled between the units: the Bernoulli memo by count and by bits, which V3 left unverified, D7 confirms from `bernoulli-ratios.ts` (C24); the shift to a third of the working bits and the series' end, which D7 did not read, V3 confirms (`fixed-gamma.ts:6-8,34-47`, `:88-89`).
 - Why unverified: the kernels (`fixed-*.ts`) are outside D7's modules and were read by V3 by header only; no ball of that radius was typed.
 - Proposed call: keep the statements; verify them when the kernels' comments or the structured comments are next written.
-- Decision:
+- Decision: Stands (keep; verify with the structured comments).
 
 #### F-302. `#Not in this design`: no argument is complex; `sqrt(-1)`'s error
 
@@ -4466,7 +4475,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: D7: "no built-in takes or gives a value off the real line; `gamma` of a complex argument is deferred with the other special functions, and `gamma`'s domain errors are its poles" (L70), its rewrite keeping "`ln(-1)` and `sqrt(-1)` are domain errors" (L104). V3: "Complex values: `ln(-1)` is a domain error and `sqrt(-1)` an even root of a negative value, and no argument leaves the real line, since the language has no complex literal (`[future.md](future.md)`, "Complex numbers")." (L55)
 - Conflict: D7 keeps `sqrt(-1)` among the domain errors (L104; `roots.ts` is outside its modules), V3 corrects it to `negativeRadicand` (L55), whose wording D5 also confirms (D5 report). They also place complex `gamma` differently: D7 in this bullet as deferred, V3 in the families' last paragraph (L710-711).
 - Proposed call: doc wrong on `gamma` (both units); for `sqrt(-1)`, check whether `negativeRadicand` counts as a domain error: the page's domain-reason list omits it (page L330-334), and its `pow` and `sqrt` paragraphs name it apart from `domain` (page L367-368, L476).
-- Decision:
+- Decision: Stands (doc wrong on `gamma`); amended by Q-011: complex values are future work, so the bullet states the plain fact (no argument leaves the real line; `ln(-1)` is a domain error, `sqrt(-1)` an even root of a negative value) and links `devdocs/future.md`; the session checks whether `negativeRadicand` counts as a domain error; F-442 ("error", never "refused").
 
 #### F-303. Reference-style issue links and their thirteen definitions
 
@@ -4476,7 +4485,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: every issue pointer on the page is a reference-style link (`[#63][63]` to `[#152][152]`), outside the Markdown subset; in the Gamma section and `#Not in this design` they are `[#103][103]`, `[#107][107]`, `[#112][112]`, `[#115][115]`, `[#125][125]`, `[#149][149]`, `[#150][150]`, `[#151][151]`, `[#152][152]`, `[#98][98]` and `[#100][100]`. All thirteen issues (#63, #65, #98, #100, #103, #107, #112, #115, #125, #149, #150, #151, #152) are open (V3 checked, L8), so the rewrite moves pointers rather than deleting them. #63 and #65 stay inline in `#Huge and tiny arguments`' closing paragraph, which owns both concepts; `tanh(75)` at 32 digits still takes two passes, so #65's sentence is current (V3 L67). V3's new text rewords that sentence, a statement made only in its edit: "`tanh` loses half its working bits between the exponential's fold and its saturation, which costs a pass" (L295-313). The definitions: D5 deletes `[63]` and `[65]` (L160); D7 inlines its sections' links and deletes `[98]` to `[152]` (page L907-917) once no passage uses them, leaving `[63]` and `[65]` (page L905-906) to the sections they serve; V3 deletes all thirteen.
 - Proposed call: inline each issue at the one passage that owns it (§12 q26; which passage that is, for #98, #100, #152 and the issues shared with cost.md, is the cross-page issue-links finding's) and delete the definitions block with its last user.
 - Related: Q-104
-- Decision:
+- Decision: Stands for the Markdown subset (inline links, the definitions block deleted); the places follow Q-012 (A: #103 and #115 here, the cost issues in `cost.md`), Q-014 and Q-104 (#98 and #100 are `future.md`'s), Q-011 (#63 and #65 are bugs and stay here); pending in part: #115 (the owner's list).
 
 #### F-304. What `devdocs/builtins.md` keeps, and the tables until the reference is generated
 
@@ -4486,7 +4495,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: stays as mechanism: `#(top)`'s second paragraph, `#Arity`, `#The rules every built-in follows`, `#Huge and tiny arguments`, `#Dimension rules`' introduction and the Angles mechanism, `log`'s and `pow`'s paragraphs, the algorithms of `#The elementary routines` and `#The Gamma and Beta families`, the "On balls" and prediction paragraphs. Stays as intent: `#Names`' rationale and ruled-out names, the Angles rationale, Boute's case and the ruled-out pairs, "There is no mode argument" (corrected), `#Not in this design`. The two per-function tables and the exact functions' definitions are the only per-function statement today and the seed of the structured comments (§12 q17).
 - Proposed call: adopt V3's map; the tables and definitions stay until the generated reference exists, then become one link each (V3 Q2).
 - Related: Q-114
-- Decision:
+- Decision: Stands; follows Q-114 (ok).
 
 ### Findings owned by other pages that touch this one
 
@@ -4555,7 +4564,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: "…, hand-maintained until the references' grammars are generated from the parser's own data; the whole line grammar, every kind of definition included, is the comment at the top of `src/core/definitions.ts`:" (identical in D2 L274 and V4 L129)
 - Proposed call: Confirm `update`; both units drafted the same sentence.
 - Related: Q-038
-- Decision:
+- Decision: Stands (update); follows Q-038.
 
 #### F-306. Annotations: "since definitions cannot be typed" and the intended wording
 
@@ -4569,7 +4578,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: #132 is linked here (D2) or in "Deferred" (V4), and the wording is "open" (D2) or "deferred" (V4). See the issue-link finding.
 - Proposed call: Confirm `update`. The link is settled with the issue-link finding.
 - Related: Q-011, B-029
-- Decision:
+- Decision: Stands (update) as amended by Q-011 and F-475: "No message is worded for a definitions rejection today: only the predefined definitions file is loaded", with no issue link and no "open"/"deferred"; #132 is `devdocs/future.md`'s only.
 
 #### F-307. `zeroDeclaredUnit`: an annotation must be certainly nonzero
 
@@ -4582,7 +4591,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/build.ts:833-838`; `src/core/ball.ts:334-339`; harness: the annotation `approx(1e-50 m) - approx(1e-50 m)` gives `zeroDeclaredUnit` (D2)
 - Corrected statement: "An annotation must be certainly nonzero: a value that is zero, or that cannot be told from zero, is rejected (`zeroDeclaredUnit`), since a count of either means nothing; with the restriction above, that can fail only for a unit defined as zero or as an inexact value around it." (V4 L41; D2 L292 is the same with "nonzero, and certainly so")
 - Proposed call: **doc wrong**. The check is made on the ball, and `devdocs/architecture.md`'s catalogue already says "zero, or cannot be told from zero"; both stale rows are tagged update.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-308. Defined-before-built-in precedence: state the prohibition instead
 
@@ -4594,7 +4603,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V4's draft states the precedence (V4 L310-311), where A9 says to drop it (A9 L326-330). V3 confirms the `builtins.md` sentence as true of the code (V3 report), and V2 hands V3 the order as a fact (V2 L308). D1 finds the order unobservable, so "the reference need not state it" (D1 (F-079), D1 report; D1 L205).
 - Proposed call: `devdocs/functions.md#Names and shadowing` states the prohibition (a definition may not take a built-in's name) and leaves the lookup's order to the code comment (A9's proposal); drop "the defined functions first" from V4's step 1; `devdocs/builtins.md#(top)`, V3's page, keeps the duplicate rule and drops or qualifies the order.
 - Related: Q-113, F-079
-- Decision:
+- Decision: Stands; follows Q-113 (ok: the prohibition stated, the order left to the code comment; V4's "the defined functions first" dropped).
 
 #### F-309. Calls: each argument is checked as soon as it is evaluated
 
@@ -4607,7 +4616,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/evaluate.ts:692-719`
 - Corrected statement: merge steps 3 and 4: "3. The arguments are evaluated left to right, each once (a call is by value), and each is checked as soon as it is evaluated: … a failure is `argumentMismatch`, …, and it is reported before any later argument is evaluated." Steps 5 and 6 become 4 and 5. The text is identical in D2 L340-346 and V4 L315-321.
 - Proposed call: **doc wrong**. Both units reasoned from code, and V4 re-verified D2's row.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-310. A function's name in a unit list is `functionAsUnit`
 
@@ -4621,7 +4630,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "…in a unit list (`tempC;degC`) it is `functionAsUnit`, as it is in an expression ("Calls"), where a list's name is an unknown unit." (V4 L48). A8 (L45) says the same in other words.
 - Proposed call: **doc wrong**.
 - Related: B-036
-- Decision:
+- Decision: Stands (doc wrong); B-036 is the code side.
 
 #### F-311. The `noInverse` message is misquoted
 
@@ -4635,7 +4644,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: `"normcdf" has no inverse, so it cannot be the unit to convert to. Define "~normcdf(y) = …" to give it one.`
 - Conflict: A8 finds that the wording the page quotes is the one `src/messages.ts:465` writes (A8 report, A8 L54).
 - Proposed call: **doc wrong** if the inner quotes are in the message, as V4's run shows. A8's check may not have compared the quote marks; compare `src/messages.ts:464-465` with step 1 to settle it.
-- Decision:
+- Decision: Stands (doc wrong if the inner quotes are in the message): the session compares `src/messages.ts:464-465`.
 
 #### F-312. The fields of `Conversion`'s `function` kind
 
@@ -4648,7 +4657,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/pipeline.ts:237-250`
 - Corrected statement: "The conversion (`Conversion`'s `function` kind) carries the `have`, as read and as evaluated, the function's name, the recovered argument, the parameter's annotation with its text, and the argument as a count of that unit" (V4 L50)
 - Proposed call: **doc wrong** (V4, reasoned from code).
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-313. The contexts of a conversion into a function are left implicit
 
@@ -4659,7 +4668,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the page does not say at which context each step runs. The inverse, the function applied back and both condition checks run at the operand context of the pass (`src/core/pipeline.ts:724`); the count is stepped at the pass's context (`:796-800`); a count refused as any quotient may be is the conversion's refusal (`:801-805`). V4's draft of the section's last paragraph keeps "(a quotient past the exponent bound)", where A8 words it as any quotient's refusal and A8 (F-070) adds the significand limit to a ratio's refusals. A8 reasoned from code.
 - Proposed call: name the two contexts in step 6 in one clause. Before keeping "(a quotient past the exponent bound)", check whether the count can also be refused at the significand limit.
 - Related: F-070
-- Decision:
+- Decision: Stands; the session names the two contexts and checks whether the count can be refused at the significand limit (F-070).
 
 #### F-314. Display: a ratio inside a call is bare only for a plain number
 
@@ -4673,7 +4682,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "A ratio is written bare inside the call when the argument is a plain number, `tempC(-5443/20)`, and parenthesized before its unit as it is anywhere else, `dozen((1250/381) in)` (`[notation.md](notation.md)`); a negative argument is written inside the call, `dozen(-2 in)`." (A8 L107-111)
 - Conflict: V4 lists "a ratio bare inside the call and parenthesized before a unit" among the statements it verified (V4 L90; V4 report: `tempC(-475/27)` against `(1/10) kg`). V4's replacement keeps "written bare inside the call (`tempC(-475/27)`), where before a unit it would be parenthesized" (V4 L379-382) and does not name a ratio before the parameter's unit inside a call.
 - Proposed call: **doc wrong**, per A8's run. Check whether V4's wording covers `twelve((1250/381) in)`. A8's example name follows the `dozen` finding.
-- Decision:
+- Decision: Stands (doc wrong); follows Q-015 (B: the example is `twelve`).
 
 #### F-315. Display: the annotation is written back by the printer
 
@@ -4686,7 +4695,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/outcome.ts:634-647`; scratch: an annotation written `(in)` shows as `paren(2 in)`, one written `1` as `one(3)`
 - Corrected statement: "followed by the annotation, written back by the printer as a `want` is, and by nothing when the annotation is `1`, written or absent" (V4 L51)
 - Proposed call: **doc wrong**.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-316. Build-time checks: the order of a function's checks
 
@@ -4699,7 +4708,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/build.ts:539-553`, `:555-567`, `:568-575`, `:576-598` (`:542-549` among the units; `:609-617` `PLAIN`)
 - Corrected statement: four steps (full text: D2 L356-374, V4 L398-416): (1) each parameter's annotation is evaluated among the units and must be certainly nonzero; (2) the body's dimension is taken by `dimensionOf`, a built-in's dimension rule included; (3) each condition's terms are taken the same way; (4) the result's annotation is evaluated and checked (`functionMismatch`, naming the result).
 - Proposed call: **doc wrong**.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-317. Build-time checks: the "first version" history sentence
 
@@ -4712,7 +4721,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: delete it; the sentence before it gives the reason in the present tense.
 - Proposed call: Confirm `drop`. The same history in the code comments (`src/core/build.ts:50-53`, `src/core/dimension-of.ts:3-4`) is bugs.md's.
 - Related: Q-059, B-034
-- Decision:
+- Decision: Stands (drop); the comments follow in the comment pass (Q-059).
 
 #### F-318. A body of `1e30000` builds, and its call succeeds
 
@@ -4726,7 +4735,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "…so a body whose literal has more digits than the limit holds, within the parser's hard bound, builds and fails at the call" (V4 L47)
 - Proposed call: **doc wrong** (the example). D2's harness agrees that the body builds (`big(x) = 1e30000 x`, D2 L104). The same example in `src/core/dimension-of.ts:26-28` is bugs.md's.
 - Related: Q-059, B-047
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-319. Benchmark numbers in prose
 
@@ -4736,7 +4745,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/functions.md#Precision, the radius and cost` (page L699-704)
 - Finding: "the benchmark builds 500 and 2,000 functions, …, and the cost grows about fourfold" is a measurement in prose (§12 q25). The benchmark asserts a bound instead: four times the functions, at most eight times the cost (`bench/build.bench.ts:69-110`, over the file `bench/synthetic.ts:114-123` writes).
 - Proposed call: as V4: "the benchmark builds a file of functions, …, then one four times as long, and asserts that the cost grows in proportion, within a margin" (V4 L477-483).
-- Decision:
+- Decision: Follows Q-016: V4's wording, or the benchmark's constants with the asserted bound as a ratio (the session's choice).
 
 #### F-320. "Injects each rejected piece": two rejections are not drawn
 
@@ -4750,7 +4759,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: none given. D2 records this as test coverage and proposes no page edit.
 - Conflict: V4 confirms the page's sentence (V4 report, V4 L92) and keeps it in its draft (V4 L481-483).
 - Proposed call: **undetermined**. Either the page names which rejections the test injects (doc), or the test also draws the two missing ones (code; D2 L67).
-- Decision:
+- Decision: Follows its own answer (ok): if D2 is right the page names the rejections the test injects; the two missing draws are a test improvement to take up separately if wanted. [decisions.md section 3; plan §12.1]
 
 #### F-321. Issue links #130 to #134: reference-style and linked more than once
 
@@ -4762,7 +4771,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: on placement, D2 (question 2, L462) puts #130 under "Annotations", #131 under "Names and shadowing", #132 in `docs/definitions.md#The format` (`future.md` keeping the intent without a link) and #133 under "Deferred", the rest becoming plain mentions; V4 (question 1, L558) puts #130 to #133 inline in "Deferred" and #134 in "An undecided condition", every other place referring to those sections, and says either placement satisfies q26; V6 (F-415) has `functions.md` own #130 to #134, with `future.md` pointing at the owning section; and plan §7 names #132 under `docs/definitions.md` "User definitions". On wording, D2 writes "is open" and V4 "is deferred".
 - Proposed call: link each issue once, inline, at its owning passage; delete the five definitions; make every other mention a plain reference. The owner chooses D2's or V4's placement (both meet q26). `future.md` and `cost.md` follow (V6's pages).
 - Related: Q-011, F-347, F-360, F-415
-- Decision:
+- Decision: Follows Q-011: #130 to #134 are linked from `devdocs/future.md` only; every mention on this page becomes a plain reference to `future.md` ("is future work", never "deferred" or "open" with a number), the `#Deferred` section leaves for `future.md` with its design text, and the five definitions go.
 
 #### F-322. Alternatives considered: the first form as one alternative
 
@@ -4774,7 +4783,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent (plan row confirmed)
 - Rewrite: list the forms set aside, each with what it loses: a bracketed head, annotated signatures with the inverse after `;`, GNU units' keyword clauses, and a multi-line block. Putting the inverse on its own line makes "optional" literal. (V4 L522-537)
 - Proposed call: Confirm `keep as intent`. The ruled-out forms stay with their reasons, without a "first form" chronology.
-- Decision:
+- Decision: Stands (keep as intent).
 
 #### F-323. devdocs/functions.md re-explains user rules: per-section link and stay
 
@@ -4784,7 +4793,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: V4's table (L61-78), section by section, giving what becomes a link and what stays. (top): links to `definitions.md` "Functions" and `quantities.md` "Conversion into a function"; why functions exist stays. `#Definitions`: the user rules become links and the `units.txt` block one sentence (§12 q4); the grammar block (marked), the head's rules, the build errors and `Definition`'s shape stay, and the function-of-none bullet is rewritten. `#Annotations`: the opening rule is linked; the rationale stays. `#Names and shadowing`: the user rule is linked; why shadowing is allowed, the sigil alternative and the two parse errors stay. `#Conditions`: syntax and meaning are linked and the examples block goes. `#An undecided condition`: the rationale is quoted in one line; the retry treatment, the warning, the collector and the build's refusal stay. `#Calls`: the call rule is linked; the steps stay. `#A function as the want`: the opening sentence is linked; the six steps, the refutation and the alternatives stay. `#Display`: the line's meaning is linked; how the outcome writes it stays. `#Precision, the radius and cost`: the user consequences are linked; the mechanism stays. `#The check at a call`, `#Build-time checks`, `#Where it lives`, `#Not in this design`, `#Deferred` and `#Alternatives considered` stay as they are.
 - Proposed call: apply V4's table (§12 q24): one sentence and a link, then mechanism and rationale. For interim link targets, see the finding on links to docs pages that do not exist yet (V4 (F-426)).
 - Related: Q-020, Q-021
-- Decision:
+- Decision: Stands: V4's table applied in the one-pass rewrite after `docs/definitions.md`, `quantities.md` and `expressions.md` exist (Q-008); amended by Q-011: `#Deferred` moves to `devdocs/future.md` (F-321), `#Not in this design` stays as ruled-out alternatives; pending in part: whether "inverse calls in expressions" and "optional parameters" are ruled out or might still be done (the owner's list).
 
 ### Findings owned by other pages that touch this one
 
@@ -4841,7 +4850,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: The section opens with a link to the docs' owner of the notation (the Notation entry of `docs/settings.md`, later `numbers.md`'s section on how numbers are written). The second paragraph restates the user rule for the decimal display's `=`.
 - Conflict: V5's Findings (L88) make it one line with a link to the docs' "What a line says" (no such section in §7's outline; the nearest is `numbers.md#Digits you can trust`), while V5's proposed text (L113) keeps the paragraph and links devdocs `numbers.md`, "Certification and the display rule" (V5 report).
 - Proposed call: Open with the link (§12 q24); the owner picks between V5's two versions of the second paragraph.
-- Decision:
+- Decision: Stands: the opener with the link to `docs/numbers.md#How numbers are written` (its owner once that page exists, Q-008); the session picks between V5's two versions of the second paragraph.
 
 #### F-325. Rule 1's `sqrt(2)` midpoint figure is not what is held
 
@@ -4855,7 +4864,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "the midpoint held is the root's digits on the first pass's grid, a few dozen of them over the matching power of ten, a true fraction of what is held and no truth about `sqrt(2)`" (V5 L40)
 - Proposed call: **doc wrong**: the example pins a value of the schedule's internals that the rule does not need.
 - Related: F-452, F-455, F-456
-- Decision:
+- Decision: Stands (doc wrong); follows F-456 and F-455.
 
 #### F-326. Rule 3 names `toRational`; `ratioParts` forms the fraction itself
 
@@ -4868,7 +4877,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/scaled.ts:218`; `src/core/display.ts:140-141`
 - Corrected statement: "(`ratioParts` multiplies the power of ten back in and reduces)" (V5 L41)
 - Proposed call: **doc wrong**.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-327. "The first rule tied the fit to the display digits" (keep as intent)
 
@@ -4881,7 +4890,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: the ruled-out alternative in the present tense ("A fit tied to the display digits … is ruled out: it couples a length to a precision…"); V5 also puts "Eight, the display digits' default, was set aside" and "no bound was set aside" in the present tense (A2 L86-89; D4 L382-385; V5 L127-133).
 - Proposed call: Confirm `keep as intent`; three drafts of the same sentence (OVERLAP), V5's covering the whole paragraph.
 - Related: F-511
-- Decision:
+- Decision: Stands (keep as intent); the pointer form follows F-511 (plan corrected).
 
 #### F-328. Reference-style issue links: #178 here, #92 on architecture.md
 
@@ -4892,7 +4901,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: Reference-style issue links with definitions at the page foot, outside the Markdown subset; A2 and V5 tag them stale, update. No unit states the issues' open or closed status.
 - Proposed call: An inline link at the one owning passage, saying only what is open (§12 q26: "is open (`[#178](…)`)", V5 L131), the definitions deleted; check each issue's status first, since a closed issue's references go.
 - Related: F-221, F-411, F-412
-- Decision:
+- Decision: Stands for #92 (its one home is `devdocs/architecture.md#The converter and its lines`, Q-103) and for the inline form; pending in part: whether #178 (a study of the exact-mode display) is future work for `future.md` or a design note that stays inline (the owner's list).
 
 #### F-329. The parentheses are the printer's, not the outcome's
 
@@ -4905,7 +4914,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/print.ts:5-6`, `:14-23`, `:136-147`, `:165-175`; `src/outcome.ts:411-443`, `:157-169`
 - Corrected statement: "The outcome composes the line as an expression … and the printer (`print.ts`) decides the parentheses from the grammar's levels: a ratio is parenthesized before a factor joined by juxtaposition and bare before `×`." (V5 L139; A2 L94)
 - Proposed call: **design changed without the docs following**: `print.ts`'s header owns parenthesization (V5 L245) and the line is a tree, so "only it knows what follows" no longer holds. OVERLAP on `#Where it lives`: A2 adds a `print.ts` bullet (A2 L100-102), V5 names the printer inside the `outcome.ts` bullet (V5 L141-143).
-- Decision:
+- Decision: Stands (design changed): the printer decides the parentheses; follows Q-003 (A).
 
 #### F-330. notation.md: which sections stay as mechanism, which open with a link
 
@@ -4914,7 +4923,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/notation.md#The rule`, `#Where a ratio is written`, `#Every literal parses back`, `#Not in decimal mode`, `#Not in this design`, `#Where it lives`
 - Finding: `#The rule` stays as mechanism (the five rules with their reasons and the predictability constraint); `#Where a ratio is written` stays, corrected to the printer's rule; `#Every literal parses back` stays, the paste-back principle linked to `numbers.md` rather than restated (§12 q11); `#Not in decimal mode` opens with a link to the docs' Notation entry and keeps the enforcement at `outcomeOf` and the pipeline's settling; `#Not in this design` and `#Where it lives` stay, the latter corrected.
 - Proposed call: As V5 maps it (§12 q24); V5 drafts no text for the two opening links (`#Every literal parses back`, `#Not in decimal mode`).
-- Decision:
+- Decision: Stands; amended by Q-002 (B): `#Every literal parses back` states the refusal at the bound (A2's draft is superseded); the two opening links written in the one-pass rewrite (Q-008); F-457 ("parses back" in devdocs, "pastes back" in the linked docs).
 
 ### Findings owned by other pages that touch this one
 
@@ -4956,7 +4965,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V5's text keeps "the finest grid the app rounds onto" and "derived and shown" (V5 L157, L161, L165), which A3 disputes (the findings that carry A3 (F-125) and A3 (F-126)).
 - Proposed call: Adopt V5's structure (§12 q5, q24); settle the two phrasings with A3 (Q-004) and A3 (Q-027) before it lands.
 - Related: Q-004, Q-027
-- Decision:
+- Decision: Stands (adopt V5's structure); follows Q-004 (B: the ceiling's gloss; "grid" kept, named once in the docs) and Q-027 (ok: "derived, and written as a number only in the probe's proposal"); amended by F-488 ("The panel"; V5's text names the sheet throughout) and F-451.
 
 #### F-332. Rounding default's migration history
 
@@ -4968,7 +4977,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: drop; plan row confirmed (both)
 - Rewrite: delete; the sentence ends at "where ties away from zero drift", keeping the default's reason (D4 L360; V5 L175).
 - Proposed call: Confirm `drop`.
-- Decision:
+- Decision: Stands (drop).
 
 #### F-333. Load-time asymmetry: an out-of-range width resets the whole mode
 
@@ -4979,7 +4988,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: A stored ratio width outside 1 … 1,000 is not clamped but makes the whole mode fall back to its default, exact mode with digits (`src/settings.ts:397-427`), while a stored extended count outside its range is clamped (`:429-443`, `:553-558`); D4 asks whether that is intended (D4 question 6). The page says it only implicitly ("a `ratio` needs a width in its range, an `extended` a count the clamp then brings between the display digits and the precision limit"). D4 asked V5 to state it in `#Storage`, or else to have the code clamp both (D4 L414); V5's `#Storage` rewrite (V5 (F-334)) does not mention it.
 - Proposed call: The owner decides (D4 (Q-049)): if intended, `#Storage` says so in one clause with its reason, beside V5's edit; if not, the width is clamped like the count (code, D4 (B-012)).
 - Related: Q-049, B-012
-- Decision:
+- Decision: Follows Q-049 (B): the width is clamped like the count (B-012, before this page is written); `#Storage` then states one rule.
 
 #### F-334. Storage's per-version migration list moves to the code
 
@@ -4991,7 +5000,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: update; plan row confirmed
 - Rewrite: one paragraph on the shape a migration takes and the current version's fields; what each version moved is the code's, in the comment beside the function that moves it (`MIGRATIONS`); a current-version object carrying an old key loads that field's default (V5 L181).
 - Proposed call: Confirm `update` (§12 q27).
-- Decision:
+- Decision: Stands (update; §12 q27).
 
 #### F-335. Resets: `withDefault` clamps nothing; the shell clamps and tells
 
@@ -5005,7 +5014,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "through `withDefault`, which puts the one setting at its default and clamps nothing; the shell then clamps and tells as after any change (`clampsOf`, `clampSettings`), so resetting the significand limit may lower the precision limit and say so with the clamp's line." (V5 L193)
 - Conflict: D4 states that `#Applying a change` matches the code line for line apart from its own rows (D4 L414, context D4 report).
 - Proposed call: **doc wrong**: V5 cites the two functions; what a user sees, a reset that clamps and tells, holds either way.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-336. The clamp report's property is `clamps`, not `clampLine`
 
@@ -5019,7 +5028,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "…passes it to the panel as a property beside the settings (`clamps`), and `clampLine` writes each setting's line" (V5 L187)
 - Conflict: D4 states that `#Applying a change` matches the code line for line apart from its own rows (D4 L414, context D4 report).
 - Proposed call: **doc wrong**.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-337. The probe "leaves the memos at the largest ceiling it tried": not checked
 
@@ -5031,7 +5040,7 @@ What to settle before rewriting a page, in the order it bites.
 - Why unverified: the memos lie outside V5's modules, and the hand-off was not taken up.
 - Proposed call: keep the sentence meanwhile (V5 (Q-110)); verify it against the memo code, by the owner of `devdocs/builtins.md` as V5 asks or when `#The probe` is rewritten (V1's memo probes, `piMemoBits` and `ln2MemoBits`, are the cheap check).
 - Related: Q-110
-- Decision:
+- Decision: Stands; follows Q-110 (ok: unverified until this page's session checks the memos).
 
 #### F-338. Timings in #Applying a change and #The probe
 
@@ -5041,7 +5050,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/settings.md#Applying a change` (page L411-413); `devdocs/settings.md#The probe` (page L469, L472-473)
 - Finding: "a few milliseconds that the shell memoizes by the ceiling"; "a thousand digits of `gamma(0.3)` take tens of milliseconds"; "though a ceiling pass of those costs seconds": concrete timings (§12 q25); V5 tags them stale, update. D4 rewrites the first as "a build the shell memoizes by the ceiling" and drops the `gamma(0.3)` clause (D4 L367, L373); V5 writes "a cost the shell memoizes by the ceiling…", drops the clause and makes the third "costs many times the budget" (V5 L50, L191, L201), which D4 leaves.
 - Proposed call: Make each qualitative (§12 q25); the two drafts differ in wording only (OVERLAP), V5's also covering "costs seconds".
-- Decision:
+- Decision: Follows Q-016 and Q-088: qualitative, or a rough figure marked illustrative where it adds weight (the session's choice, D4's and V5's drafts differing in wording only).
 
 #### F-339. The quoted probe proposal drifted from `proposalLine`
 
@@ -5055,7 +5064,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: paraphrase and name `proposalLine`: "each size with the time it took, against the budget, then the two limits" (D4 L372); "the line names the significand limit timed and what the exact product took, the grid the built-ins ran on and what they took, whether both are within the budget, and the two limits proposed" (V5 L199)
 - Proposed call: **doc wrong**; D4 (Q-007) proposes naming functions and paraphrasing panel text, quoting only where the exact text is the point. OVERLAP: V5 keeps the floor's quote with its figure elided ("over the … budget"), D4 drops it; V5's "the grid the built-ins ran on" echoes the code's "grid" for the ceiling (the finding that carries A3 (F-125)).
 - Related: Q-007, B-026
-- Decision:
+- Decision: Stands (doc wrong); follows Q-007 (ok: name `proposalLine` and paraphrase) and Q-004 ("the grid the built-ins ran on" is the code's word for the ceiling: paraphrase as the precision the built-ins ran at); B-026 is the code side.
 
 #### F-340. The notation's radios are not under the Mode control
 
@@ -5069,7 +5078,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "Under it, in decimal mode, the working digits … The notation, exact mode's dependent, sits in the first group under the display digits, since it is a way of showing a result, and is shown in exact mode alone; so a change of mode shows one dependent and hides the other, each in the group of what it is for." (V5 L47, L215)
 - Conflict: D4 states that `#The controls` matches the code line for line apart from its own rows (D4 L414, context D4 report), and D4's replacement docs text says "Under the mode sits the control that belongs to it: the notation in exact mode, the working digits in decimal mode" (D4 L221-222; also L170-171), while D9's draft groups the notation with how a result is shown (D9 L159), as V5 finds.
 - Proposed call: **doc wrong** on V5's citation of the render order; the page's stated reason ("which shows what each belongs to") is an intent, so **code wrong** is possible if the owner wants the notation under the mode. Either way, D4's docs text follows the decision.
-- Decision:
+- Decision: Follows its own answer (A): the pages describe the panel as it is; D4's docs text follows. [decisions.md section 3; plan §12.1]
 
 #### F-341. "sentences as options once made the panel overflow a phone"
 
@@ -5081,7 +5090,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent; plan row confirmed (both)
 - Rewrite: "and a select is as wide as its widest option's text, so the options are bare names, and `min-width: 0` on the labels keeps a long one from overflowing a phone" (D4 L379); V5's adds "(a sentence as an option overflows a phone)" (V5 L38, L215).
 - Proposed call: Confirm `keep as intent`; two near-identical drafts (OVERLAP).
-- Decision:
+- Decision: Stands (keep as intent); amended by F-488 ("the panel").
 
 #### F-342. "pointing at docs/settings.md until the guide lands (#191)"
 
@@ -5094,7 +5103,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: name the page the link points at and let the issue say what is pending, inline: "what is open about where the link should land is `[#191](…)`" (D4 L60) or "where the link lands once the user guide is restructured is open (`[#191](…)`)" (V5 L217).
 - Proposed call: Confirm `update`; two near-identical drafts (OVERLAP).
 - Related: Q-007, Q-115, B-069
-- Decision:
+- Decision: Stands (update); follows Q-115 (ok); pending in part: #191 is resolved by this rewrite if the owner closes it, in which case the clause states where the link lands and names no issue (the owner's list).
 
 #### F-343. Reference-style issue links; #118 linked from three passages
 
@@ -5105,7 +5114,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: #118's owner: D4 says `devdocs/future.md` and keeps one inline link at the first passage of `#The probe` (D4 (Q-013), D4 L375); V5 says the page that owns the scheduler (`devdocs/cost.md`, or `future.md#Extensions that fit`) and leaves `settings.md` unlinked, naming "the scheduler's concern" (V5 (Q-013); V5 report: its edit assumes that answer); V6 assigns #118 to `cost.md` (V6 (F-415)).
 - Proposed call: Inline each link at its owning passage once its status is checked; #118's one home is the owner's call (D4 (Q-013), V5 (Q-013), V6 (Q-011)), and `settings.md` then names the concern in words.
 - Related: Q-011, Q-013, F-347, F-360, F-415
-- Decision:
+- Decision: Stands for the Markdown subset; follows Q-013 (B: #118's one link is `devdocs/future.md`'s; this page names the concern in words); #163 is a bug and stays at `#The probe`; #167 and #186 are classified future work for `future.md` and #191 as resolved by the rewrite, all three on the owner's list (pending in that part).
 
 #### F-344. settings.md: which sections open with a link to docs
 
@@ -5114,7 +5123,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/settings.md#Applying a change`, `#The probe`, `#Where it lives`
 - Finding: `#Applying a change` opens with one sentence and a link to the docs paragraph that owns the user rule ("The limits are set top-down"), then mechanism and the three ruled-out alternatives; `#The probe` opens with a link to the docs' probe entry ("Measure this device"); `#Where it lives` stays. D4's restructure renames the first target `## How the settings bound each other` (D4 L289).
 - Proposed call: As V5 maps it (§12 q24), the links pointed at the headings `docs/settings.md` lands with.
-- Decision:
+- Decision: Stands; sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist; amended by F-488 (the targets are `docs/settings.md`'s headings as that page lands, and `docs/app.md#The settings panel`).
 
 ### Findings owned by other pages that touch this one
 
@@ -5155,7 +5164,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: three units asked V6 to record plan §1.3 intents here: "Equality operators and conditional expressions", with the constraint that a design must say what an undecidable comparison of inexact values yields (A6 question 2; V1); the two-argument `approx`, linking in one line to the binary form's tentative design in `devdocs/numbers.md#approx`, and significant-figure propagation (#98's extension) named without the #98 link (V1 questions 4 and 5); typographic characters such as `×` accepted by the grammar, D1 proposing `×`, `·`, `−`, non-breaking and thin spaces, not `÷` or superscripts (D1 question 4). V6's replacement text for the section (L181-191) has none of them, while D2's and V4's proposed `#Conditions` texts (D2 L314-322, V4 L196-259) already link `devdocs/functions.md#Conditions` to an equality entry here. Of §1.3's other intents it carries only the deferred function classes and user definitions (the symbolic layer keeps its own section): configurable number formatting, a display policy separable from the model, the grammar generated from a TypeScript DSL, the generated built-in reference, a toggle that suppresses the conversion target and the units page generated from the file are on neither the page nor V6's text. V6's report cites §1.3 only inside its corrected N7 statement (L26), for the symbolic layer, never as the list the plan asks the units to record here.
 - Proposed call: add one-sentence entries beside the concept each touches, each linking to the section that holds its design rather than restating it: the equality operators and conditional expressions (with A6's constraint) and the two-argument `approx`, before V4's and D2's links into this section are applied; the typographic characters once D1 Q4 is answered; and the rest of §1.3's intents as the owner confirms which belong there (the plan asks for one entry per intent).
 - Related: Q-014, Q-035, Q-037, Q-112, F-030
-- Decision:
+- Decision: Follows Q-011: every §1.3 intent is recorded here, one entry each beside the concept it touches (the equality operators and conditional expressions with A6's constraint, Q-112; the two-argument `approx` with its tentative design, Q-035; significant-figure propagation, Q-014; the typographic characters, Q-037; configurable number formatting; a display policy separable from the model; the grammar generated from a DSL; the generated built-in reference; a toggle that suppresses the conversion target; user definitions, #130 to #134; the units page generated from the file; the hand-written pages shipped with the app, §12 q31; the deferred function classes, Q-010); the owner confirms the list where it is unsure (the owner's list names the unclear items).
 
 #### F-346. "More special functions" carries a chronology
 
@@ -5167,7 +5176,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: update (V6: a chronology); new
 - Rewrite: "Eight special functions are deferred, not ruled out (`[builtins.md](builtins.md)`, "Not in this design", which says which are which and carries the issue)"; builtins.md owns #115 (V6 L37, L187).
 - Proposed call: Confirm `update`. Point the link at builtins.md "The Gamma and Beta families", which carries #115 and the deferred list (builtins.md page L876-894) and where V3 and D7 keep them; neither V6's text nor the current page's pointer ("Not in this design") names that section.
-- Decision:
+- Decision: Stands (update); follows Q-012 (A: #115 in `builtins.md`, provisionally) as amended by Q-011 (the deferred functions are described here, `builtins.md` naming them only as absent); pending in part: #115's place (the owner's list).
 
 #### F-347. future.md's reference-style issue links
 
@@ -5178,7 +5187,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the `[#118][118]` references and the block of definitions from `[103]: https://github.com/bsidhom/exucal/issues/103` to `[152]: https://github.com/bsidhom/exucal/issues/152` are outside the Markdown subset; #120 is implied by "[#119][119] to [#121][121]" and has no definition. Every issue the page names is open (V6 (F-415)).
 - Proposed call: delete the definitions block; inline each issue at the one passage that owns it (§12 q26), which on this page is #126 alone under V6's mapping, the rest becoming links to the owning page's section.
 - Related: F-321, F-415
-- Decision:
+- Decision: Stands (the definitions block deleted; inline links); follows Q-011 and Q-013: this page carries the one link of every future-work issue (#118 to #121, #130 to #134, #98, #100, #126, #186, #167 if confirmed), and links the owning page's section for the bug and cost issues (Q-012).
 
 #### F-348. Ruled-out function classes reworded as deferred, on both pages (§9.4)
 
@@ -5192,7 +5201,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: (1) The statistical distributions. Deferred as built-ins: D7's builtins.md rewrite keeps them in its "deferred rather than ruled out" list (D7 L85, L218), as plan §1.3, §4.2 and §9.4 do (§1.3 and §4.2 list "statistical distributions as built-ins" among the classes "deferred, not ruled out indefinitely"). Placed, not deferred: V6 keeps future.md's bullet under "Ruled out" (V6 L35, L207, L226; V6 Q4), and V3's builtins.md rewrite sides with V6, "not built-ins because they need not be" (V3 L696-718, the sentence at L711-715). (2) V6 against itself: L101 says "the two bullets the owner called deferred move to `#Extensions that fit`", while its edit (L195-207) moves only the hypergeometric and Bessel bullet. (3) The hangs' links in builtins.md's paragraph: D7 keeps #151 and #152 there, V3 sends them to cost.md (the issue-links finding).
 - Proposed call: Confirm `update` for the hypergeometric and Bessel items on both pages and for the polygamma and complex `gamma` items on builtins.md: it matches plan §1.3 and §4.2 ("deferred, not ruled out indefinitely") and §9.4, and D7's and V3's builtins.md rewrites agree with V6's move. The distributions' status is the owner's (V6 Q4): deferred as built-ins (plan §1.3, §4.2, §9.4; D7) or placed in definitions (V6, V3); then word future.md and builtins.md alike.
 - Related: Q-010, F-290
-- Decision:
+- Decision: Follows Q-010 and Q-011: every class (hypergeometric, Bessel `Y` and `K`, Bessel at large argument, polygamma beyond `digamma`, complex `gamma`, the statistical distributions) is deferred, described here under "More special functions" with its reason kept and the distributions' note (not every function is efficient as a definition); `devdocs/builtins.md` names them only as absent and links here; `docs/builtins.md` states what is not provided as a plain fact with what to write instead; pending in part: #115's place.
 
 #### F-349. Stored digits of pi or e: `e` is not the exp routine's series
 
@@ -5205,7 +5214,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/constants.ts:32-37` (`eSeries`); `src/core/constants.ts:8-16` (Chudnovsky); reasoned from code, not run.
 - Corrected statement: kept as intent, without timings: Chudnovsky computes `pi` to any precision the settings allow in a time nobody notices; a Machin formula is slower by a small factor; spigot algorithms are quadratic; stored digits cost about 0.42 bytes a digit, so a table would add more to the payload than it saves; the constants are computed on demand and memoized, `e` by "a binary-splitting sum of its own beside it (`eSeries` of constants.ts)" (full text: V6 L205). The stale row tags the passage keep as intent (new): a ruled-out alternative whose timings go under §12 q25.
 - Proposed call: **doc wrong**: `eSeries` is deliberate and `devdocs/layout.md#The modules` already says "pi by Chudnovsky's series and e by its series, both with binary splitting"; nothing points to the code. Keep the bullet as intent without timings.
-- Decision:
+- Decision: Stands (doc wrong; keep as intent) as amended by Q-011: the ruled-out alternative moves to `devdocs/numbers.md#Memoized constants`, the page that owns the constants; by Q-016 its ratios stay and its timings may stay as rough, illustrative figures (the session's choice).
 
 #### F-350. future.md: every section stays, as intent, map or ruled-out list
 
@@ -5214,7 +5223,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/future.md#(top)`, `#Symbolic values`, `#Complex numbers`, `#Extensions that fit`, `#Ruled out, and why`
 - Finding: no section becomes a link to docs/: #(top), #Symbolic values and #Complex numbers stay as intent (what the extension is, why not now, what it would take, what keeps it possible), since the user docs state today's behaviour (N7) and never mirror future work; once `docs/numbers.md` exists, "Why not now" in #Symbolic values can cite it in one sentence for the `≈` the user sees. #Extensions that fit stays as the map of extensions, its issue links moving to the owning pages; #Ruled out, and why stays as ruled-out alternatives.
 - Proposed call: keep the five sections (§12 q24; §7.1's "What is ruled out or deferred" row); move the links per the issue-ownership finding (V6 (F-415)).
-- Decision:
+- Decision: Stands for `#(top)`, `#Symbolic values`, `#Complex numbers` and `#Extensions that fit`; amended by Q-011: `#Ruled out, and why` dissolves, each decision moving to the page that owns its concept (the number type's alternatives and the radius display to `devdocs/numbers.md`, the stored digits to `#Memoized constants`, the unbounded exponent already there, the temperature offset to `devdocs/functions.md`) with one sentence in the docs where a user would look (the error radius is never shown), and the deferred function classes staying here as future work; the page's top paragraph is reworded; the classification of each bullet is on the owner's list to confirm.
 
 ### Findings owned by other pages that touch this one
 
@@ -5262,7 +5271,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: the count is the schedule's length for its settings (`[numbers.md](numbers.md)`, "Working precision and the schedule"): nine at the default settings, eight at thirty-two display digits, eleven at the highest precision limit the default significand limit allows, fifteen at the hard bound; "A count short of the schedule marks a pass that ended the loop with a refusal the loop does not retry, after which the best result so far is shown." (full text: V6 L132-136)
 - Proposed call: **doc wrong**: `resolve` ends the loop with the best result so far on any error it does not retry (`pipeline.ts:325-327`), a deliberate rule A5 confirms for `tooLarge` (A5 report); the page gives the defaults' count as if it were every case's.
 - Related: Q-001, F-034, F-509
-- Decision:
+- Decision: Stands (doc wrong); follows Q-001.
 
 #### F-352. cost.md and benchmarks.md both explain the deadline
 
@@ -5272,7 +5281,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/cost.md#How a case is measured`, `#The hangs`; `devdocs/benchmarks.md#The harness`, `#The search`, `#The stress suite`
 - Finding: benchmarks.md owns the harness, the search and the stress suite as tools, which cost.md only names; the two pages should not both explain cold, warm and the deadline, and benchmarks.md already defers to cost.md for cold and warm (#The harness ends on a link to cost.md, "How a case is measured"). V6 handed this to V7, whose report does not take it up (its only note on cost.md is the vocabulary hand-off, V7 L317, L334); V6's own text reduces cost.md's side to naming `DEADLINE_MS`.
 - Proposed call: benchmarks.md explains the deadlines once (the search's constant; the suite's four times the catalogued time); cost.md names them and links there.
-- Decision:
+- Decision: Stands.
 
 #### F-353. Counts that every run changes, in cost.md's prose
 
@@ -5283,7 +5292,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "Typing out the 229 entries at the default precision limit (the default, `digits32` and fractions profiles) … took 16,548 keystrokes. Exactly 229 of them took 100 ms or more: the last keystroke of each case" is stale: those profiles hold 272 entries (225, 32 and 15), 252 typed out over 18,524 keystrokes, 253 at or above 100 ms (251 cases with one, one `digits32` case with two, the extra on the keystroke completing its inner composed call; in all 252 the slow keystroke is the last). "What four runs found, 714 cases in all" is current (257 + 274 + 144 + 39) but changes with every run. Plan §9.4 row (update) confirmed by V6 (figures revised) and by D7, which left the rewrite to cost.md's unit.
 - Proposed call: Confirm `update`: drop the counts now, as V6's text does (L146-170); a summary the tool writes between markers is V6 Q2 (later, proposed).
 - Related: Q-061
-- Decision:
+- Decision: Stands (update); follows Q-061 (ok: dropped now).
 
 #### F-354. Hand-copied timings in "What the costs come from"
 
@@ -5294,7 +5303,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the bullets copy timings the generated tables carry, and several no longer match the catalogue (342 entries, 45 hangs, 4 runs, all from one four-core container): incomplete beta "0.7 to 7 s a call" (0.59 to 6.85 s: roughly current); `erf`, `erfc` and incomplete gamma "0.3 to 1.5 s … 3 to 5 s at a large one" (0.26 to 1.45 s; 0.53 to 5.15 s with a large argument, so the large range starts lower); Gamma family "0.6 to 2 s", exact "0.3 to 0.8 s" (0.21 to 2.05 s and 0.32 to 1.71 s: stale at both ends, "about half" holds in the median only, and `beta(0.3, 7)` is not an entry); the Bernoulli run "several seconds … about a minute"; the reference case "tens of milliseconds" (17 ms: current); `exp(355/113) - exp(355/113)` "0.8 s a call" (0.62 s; the costliest elementary `maxcap` entry is a `pow` cancellation at 1.21 s); `cos` "20 s" at the hard bound (21.5 s); the first keystroke completing a call "150 to 200 ms, against about 50 ms at the defaults" (`maxcap` 11 to 200 ms, median 115 ms; `default` 10 to 88 ms, median 47 ms). V6's stale rows tag them update; D7 read them as qualitative notes and left the call to this page's unit (D7 L253). One of plan §9.1's three sets of Gamma-family cost figures.
 - Proposed call: Confirm `update` under §12 q25: state the orderings and ratios the tables bear out, never a timing, as V6 drafts (L146-159); the figures stay in the generated tables.
 - Related: Q-088, F-154
-- Decision:
+- Decision: Stands (update) as Q-088 and Q-016 word it: the prose states the orderings and ratios the tables bear out; a rough timing may stay marked illustrative where it adds weight, never a figure the catalogue contradicts; the tables hold the figures.
 
 #### F-355. The cost formula's two halves contradict each other
 
@@ -5307,7 +5316,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `bench/stress/catalogue.json` (V6's scratch analysis); stale row tagged update (new).
 - Corrected statement: "Its cost is the sum of its passes, and the last, at the ceiling, usually outweighs all the earlier ones together"
 - Proposed call: **doc wrong**: the sentence is inconsistent with itself and the measurements bear out the sum; nothing points to the code.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-356. The Bernoulli run's cold cost reaches past the Gamma family
 
@@ -5321,7 +5330,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "except for the calls that take a Gamma value, the Gamma family itself, the regularized incomplete gamma functions and the incomplete beta functions, whose cold run also builds the Bernoulli numbers"; in the Gamma bullet, "a surcharge of about half the warm cost at the defaults that grows faster than the ceiling, to about twice the warm cost at the highest precision limit" (V6 L154, L157).
 - Proposed call: **doc wrong**: the page scopes the run more narrowly than the code; V6's note on plan N25 (V6 (F-065)) says the same.
 - Related: F-065
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-357. cost.md: the mechanism stays; one sentence and a link open the causes
 
@@ -5331,7 +5340,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/cost.md#(top)`, `#How a case is measured`, `#Reproducing a case`, `#What the costs come from`, `#What the search has not reached`, `#The hangs`, `#The catalogue`
 - Finding: #(top), #How a case is measured, #Reproducing a case, #The hangs and #The catalogue stay as mechanism (the tool's measures, the catalogue's rules, the generated tables); #What the search has not reached stays as the tool's coverage. The opening of #What the costs come from restates user semantics (a value that never certifies runs every pass to the ceiling and costs seconds; one that certifies costs little): under §12 q24 it becomes one sentence and a link to `docs/numbers.md`'s "What costs time" once that page exists (§5 C33), meanwhile to `devdocs/numbers.md`, "Working precision and the schedule"; the rest stays as mechanism.
 - Proposed call: as V6 proposes (L146-159); the final link waits on the docs gap (V6 (F-063)).
-- Decision:
+- Decision: Stands; the opener links `docs/numbers.md#What costs time` (written before this page, Q-008); amended by Q-013 (the scheduler is named in words, the link to `future.md`).
 
 #### F-358. The decimal profile's empty slot is structural, not empirical
 
@@ -5345,7 +5354,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "**The decimal profile has no entries,** and can hardly have any: decimal mode has no schedule, its one pass being the context itself (`[numbers.md](numbers.md)`, "Decimal mode"), so a case there costs a single pass at the working digits, and none has reached the floor."
 - Proposed call: **doc wrong**: the single pass is the design (A4 confirms the schedule is the user's context alone in decimal mode, A4 report); the page presents a structural fact as an observation.
 - Related: F-039
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-359. "Four functions … have no entry yet": a count runs change
 
@@ -5355,7 +5364,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/cost.md#What the search has not reached` (page L143-145)
 - Finding: "Four functions it draws have no entry yet: `log10`, `acos`, `asinh` and `acosh`" holds only counting hangs: `sqrt` has no entry either, only a hang; the count is one the tool could write and runs change. Stale row tagged update (new).
 - Proposed call: Confirm `update`: retitle the bullet "Elementary functions without an entry", drop the count, keep the four names and why none is caught (V6 L166).
-- Decision:
+- Decision: Stands (update); follows Q-061.
 
 #### F-360. cost.md's bare issue numbers and the hangs table's Issue column
 
@@ -5366,7 +5375,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: bare issue numbers (`#118`, `#119 to #121`, `#149`, `#150`, `#107`, `#125`, `#103`, `#121`, `#132`, `#151`, `#152`, `#120`) where §12 q26 asks for an inline link at the one owning place; the generated hangs table's Issue column is emitted as bare numbers (`bench/stress/catalogue.ts:561`, `hangsTable`). V6's proposed text inlines absolute issue URLs (allowed for an external reference), but itself links #118 twice (L126, L159) with a third, bare mention, "(#118, with #120's workers, linked above)" (L179), #121 twice (L126, L154) and #152 twice (L155, L177).
 - Proposed call: inline links where cost.md owns the issue and links to the owning page's section elsewhere (issue-ownership finding, V6 (F-415)), one link per issue; before making the Issue column emit links (V6 Q3: a one-line change to `hangsTable`), square it with q26, since #151 tags 21 hangs and #152 19 (V6 L73).
 - Related: Q-011, Q-062, B-070
-- Decision:
+- Decision: Stands for the Markdown subset; follows Q-012 (A: this page links #107, #125, #149 to #152 once each, and the owning page's section for #103), Q-013 (#118 to #121 named in words, linked to `future.md`), Q-011 (#132 named in words) and Q-062 (ok: `hangsTable` emits links, B-070).
 
 #### F-361. The deadline is the search's constant, not the harness's
 
@@ -5379,7 +5388,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: as cited; reasoned from code, not run.
 - Corrected statement: "A case that passes the search's deadline (`DEADLINE_MS` of catalogue.ts, which the harness enforces) is a hang."; in `#The hangs`, "Some cases run past the search's deadline (`DEADLINE_MS` of catalogue.ts)".
 - Proposed call: **doc wrong**: V7 confirms `FLOOR_MS` and `DEADLINE_MS` as constants of `catalogue.ts` (V7 report); the page names the wrong owner.
-- Decision:
+- Decision: Stands (doc wrong).
 
 ### Findings owned by other pages that touch this one
 
@@ -5426,7 +5435,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V7 (L53, L71, L190-196) corrects `layout.md` and hands `offline.md#Icons` to V8 to align (Q9, V7 L330; L330, L334); V8 confirms O12, "the SVGs in `public/icons/` are the only sources" (L62), notes that `favicon.svg` sits at the root of `public/` and stays precached (O14, L64), and keeps `#Icons` whole with no edit (V8 L111), so the favicon hand-off was not taken up, while V7 L330's other hand-offs, the command table and the two tests, were (V8 D5, D16, S11).
 - Proposed call: **undetermined** between V7 and V8: check whether `public/favicon.svg` is its own drawing or rendered from an `icons/` SVG, and decide what "icon" covers (V8's confirmation holds only if it excludes the tab's icon). If the favicon is its own drawing and counts, **doc wrong** on both pages: `layout.md#The files` takes V7's wording and `offline.md#Icons` (L107) names the favicon as the tab icon's separate source in the same wording; if the sentences mean the app icon's forms, both pages say so.
 - Related: Q-111
-- Decision:
+- Decision: Stands (undetermined); follows Q-111 (ok: the session reads `public/favicon.svg` against `public/icons/` and aligns both pages).
 
 #### F-363. builtins/exact.test.ts, the one test beside no module, is unstated
 
@@ -5438,7 +5447,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: V7's edit of the `src/core/` bullet: "`builtins/exact.test.ts`, which is beside no one module, runs the exact functions through the pipeline (`[testing.md](testing.md)`)" (L184-188); V7 Q4: keep it in the table, name it in the bullet.
 - Proposed call: add the clause to layout.md's bullet as V7 drafts, and the same to testing.md#(top)'s rule.
 - Related: Q-072
-- Decision:
+- Decision: Stands; follows Q-072 (ok).
 
 #### F-364. audit/ and the audit-unit skill are not in "The files"
 
@@ -5450,7 +5459,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: the tree; `.claude/settings.json:1-14`
 - Proposed call: list neither while the revamp runs, since `audit/` leaves when it lands (§12 q29) and the skill with it; one bullet each if either stays (V7 Q3).
 - Related: Q-071
-- Decision:
+- Decision: Stands; follows Q-071 (ok: neither listed).
 
 #### F-365. Why experimentalDecorators: a claim about Vite that moves
 
@@ -5462,7 +5471,7 @@ What to settle before rewriting a page, in the order it bites.
 - Why unverified: the reason concerns a dependency's behaviour, which the tree cannot show.
 - Proposed call: verify against the pinned Vite before the page is next edited; if true, drop "yet" ("because Vite's TypeScript transform does not handle standard decorators"); if not, state why the project keeps the legacy flag, or remove the sentence with the flag (V7 Q1).
 - Related: Q-070
-- Decision:
+- Decision: Follows Q-070: the Vite clause goes; the flag's real reason (Lit's decorators in TypeScript's experimental form, with `useDefineForClassFields: false`) is stated.
 
 #### F-366. §9.2's row on layout.md's units.txt pointer is refuted
 
@@ -5474,7 +5483,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: the page.
 - Proposed call: no change to the page; the bullet stays, its pointer for the file's contents moving to `docs/units.md` once that page exists (V7 (F-369)); striking the row is the plan's correction (V7 Q8).
 - Related: Q-077, F-504
-- Decision:
+- Decision: Stands; follows Q-077 (ok: §9.2 corrected).
 
 #### F-367. src/testing/random.test.ts is mentioned nowhere
 
@@ -5485,7 +5494,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `src/testing/random.test.ts` checks the random source against the published vectors (`src/testing/random.test.ts:21-22`) and no page names it; testing.md says the vectors are checked without naming the test; the table's convention for a module outside `src/core/` is to name its test on the line (V7's new gap 2).
 - Sources: V7's table line: `src/testing/random.ts` names `src/testing/random.test.ts`, which "checks it against the published vectors" (L202).
 - Proposed call: name the test on the table's line, as V7 drafts.
-- Decision:
+- Decision: Stands.
 
 #### F-368. Module table lines omit the stress tests and two exports
 
@@ -5495,7 +5504,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/layout.md#The modules` (page L160, L183, L186-189); `devdocs/benchmarks.md#The stress tools` (page L118-122)
 - Finding: `bench/stress/cases.test.ts`, `catalogue.test.ts`, `harness.test.ts` and `pool.test.ts` are named only in benchmarks.md#The stress tools, not on their modules' table lines, as the lines of the modules under `src/` name theirs; `bench/harness.ts` also exports `millis`, the report's format every benchmark uses, and `src/testing/fraction.ts` exports `inLowestTerms`, neither on its line.
 - Proposed call: name the four tests on the lines of `harness.ts`, `cases.ts`, `pool.ts` and `catalogue.ts`, and `millis` on `bench/harness.ts`'s ("bestOf, word and millis: the timing, the names and the report's format only the benchmarks need"), as V7 drafts (L198-205); V7 drafts nothing for `inLowestTerms`.
-- Decision:
+- Decision: Stands.
 
 #### F-369. layout.md, testing.md and benchmarks.md stay as mechanism
 
@@ -5504,7 +5513,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/layout.md`; `devdocs/testing.md`; `devdocs/benchmarks.md`
 - Finding: none of the three pages carries user semantics, so no section becomes a link to docs/; all stay as mechanism, with their intent and ruled-out alternatives kept as written (present tense apart from the stale rows). layout.md keeps why three type-checking programs, the node project matching by pattern, `.env` committed and what may not go in it, icons rendered without a dependency; testing.md keeps why the benchmarks are in `pnpm test:all`, contexts built from the constants, cases in a `Worker`, time reported not asserted, known violations failing both ways, `import type`, the probe's own generator, and rules out a second runner, Node's `todo`, `node:test`'s `timeout`, a per-case budget, `import { type X }`; benchmarks.md keeps why a ratio is asserted and a timing reported, loose thresholds, floor and deadline as constants, a hit written at once under a lock and a rename, settings in the app's envelope, cheap entries kept, the line's text never compared, and rules out a benchmark library, a timing threshold, options for the floor and the deadline, Prettier's `--write`, comparing an outcome's digits. The one link into docs/, layout.md's pointer for `src/units.txt` to `docs/definitions.md`, stays for the format; for the contents it points to `docs/units.md` once that page exists (unit D3).
 - Proposed call: keep the three pages as mechanism (§12 q24); retarget the contents pointer when `docs/units.md` lands.
-- Decision:
+- Decision: Stands; the contents pointer retargets `docs/units.md` in the page's one-pass rewrite after that page lands (Q-008); amended by F-475 ("the definitions file").
 
 ### Findings owned by other pages that touch this one
 
@@ -5539,7 +5548,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent; plan row confirmed (§9.4)
 - Rewrite: "a benchmark left out of it fails unnoticed, often before reaching its assertion, when the table it builds or the expression it times is refused"; `bench/synthetic.ts:14-19` is the guard that came of it (V7 L207-215).
 - Proposed call: Confirm `keep as intent`.
-- Decision:
+- Decision: Stands (keep as intent).
 
 #### F-371. "Within five seconds": a timing, or a constant that stays?
 
@@ -5551,7 +5560,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V7 with itself: stale row 8, T12 and the section's rewrite replace it with "within a small fixed budget" (L38, L93, L221), while Q5 counts "the probe test's budget" among the tools' constants that stay, "since they are the design and the code's" (L326).
 - Proposed call: owner decision under §12 q25 (V7 Q5): a constant of the test keeps "five seconds"; a timing becomes "a small fixed budget", as V7's text has it (L217-223).
 - Related: Q-016
-- Decision:
+- Decision: Follows Q-016 (A): the probe test's budget is the test's constant and stays as "five seconds" (V7's "a small fixed budget" is not used).
 
 #### F-372. Not only the shell calls contextOf: the stress tools do too
 
@@ -5564,7 +5573,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/app-shell.ts:256`; `bench/stress/harness.ts:448`; `bench/stress/harness.test.ts:25,43,64`
 - Corrected statement: "only the shell reads the browser's settings, through `contextOf`; the stress tools call `contextOf` too, on a catalogued case's settings, which the catalogue stores, never on the browser's"
 - Proposed call: **doc wrong**: the stress tools still depend on no device's limits, so the paragraph's intent holds and only its wording is too narrow.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-373. build.bench.ts does not build the system table at the ceiling
 
@@ -5577,7 +5586,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/units.test.ts:75`; `src/messages.test.ts:60,84,95,686`; `src/system-build.test.ts:30`; `bench/build.bench.ts:32-37`; `src/core/rounding.ts:45`; `bench/rational.bench.ts:86-89`
 - Corrected statement: "The tests of the system table (`units.test.ts`, `messages.test.ts`, `system-build.test.ts`) build it at the ceiling context, as the app does, so that no unit holds a pass back; `build.bench.ts` builds synthetic tables at the default precision, since it measures the build and not the units."
 - Proposed call: **doc wrong**: `build.bench.ts` measures how the build scales on synthetic files (benchmarks.md#What each benchmark asserts), so its precision is deliberate.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-374. Reference digits: from mpmath too, and to forty digits
 
@@ -5590,7 +5599,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/fixed-gamma.test.ts:38,189`; `src/core/fixed-incomplete.test.ts:53`; `src/core/fixed-gamma.test.ts:103,212` (forty digits); `:56,208` (a thousand)
 - Corrected statement: "values from Python's `decimal` module and from mpmath, named in the test, to forty digits at least, and for the Gamma and the incomplete families at one argument each to a thousand"
 - Proposed call: **undetermined**: doc wrong per V7 (the forty-digit tables, with a thousand-digit check per family, are the tests as written); code wrong is possible because the page gives fifty digits a reason (catching a wrong tail). Settle by asking whether fifty is a requirement on the tests.
-- Decision:
+- Decision: Follows its own answer (A): the page states the tests as they are. [decisions.md section 3; plan §12.1]
 
 #### F-375. Lists on testing.md omit exactDec and two draws
 
@@ -5600,7 +5609,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/testing.md#The numeric test patterns` (page L71-76); `devdocs/testing.md#The random source` (page L155-160); `devdocs/layout.md#The files` (`src/main.ts` bullet, page L12-13)
 - Finding: the helpers listed for `src/testing/scaled.ts` (`dec`, `fr`, `fraction`, `ball`, `digitsOf`) omit `exactDec`, a sixth; the draws listed omit `key` and `words`; "hundreds" of drawn definition lines holds (400); `src/main.ts` registers the components by importing the shell and the registration module. V7 confirms the statements and drafts no edit.
 - Proposed call: add `exactDec` and the two draws when those sections are next edited; nothing else.
-- Decision:
+- Decision: Stands.
 
 #### F-376. The sweeps' case counts and timings
 
@@ -5610,7 +5619,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/testing.md#The edge sweeps` (page L147-148)
 - Finding: "The ball level runs about 36,000 cases in half a minute and the text level a few hundred in a few seconds": the counts' order holds (the `pnpm test:sweep` run reported 36,353 ball-level and 274 text-level cases), but the count is one the tool regenerates and the durations are timings (§12 q25). Stale row tagged update (new).
 - Proposed call: Confirm `update`: "The ball level runs tens of thousands of cases and the text level a few hundred, which is why the sweeps run before a commit rather than on every edit; the run reports how many cases it ran and how long they took." (V7 L247-251)
-- Decision:
+- Decision: Follows Q-018 (B) and Q-016: the rough counts and durations stay, worded broad and generous ("tens of thousands of cases in about half a minute"; "a few hundred in a few seconds"), with why the sweeps run before a commit.
 
 #### F-377. testing.md's reference-style issue links, their status unchecked
 
@@ -5620,7 +5629,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/testing.md#The edge sweeps` (page L150-151); `devdocs/testing.md#Type-checking` (page L201-202); the definitions at the foot, after `#The UI` (page L228-230)
 - Finding: `[#114][114]`, `[#110][110]` and `[#179][179]` are reference-style links, outside the Markdown subset; V7 did not read the tracker, yet its rewrites word each one "is open".
 - Proposed call: inline links at the owning passage ("is open ([#114](https://github.com/bsidhom/exucal/issues/114))", likewise #110 and #179) and delete the three definitions (V7 L251, L259, L263); check each issue's status first, and if one is closed, delete its reference and state the current design (§12 q26).
-- Decision:
+- Decision: Stands for the inline form and the status check; pending in part: #110, #114 and #179 are developer-tooling issues whose class under Q-011 is on the owner's list (provisionally they stay with the passages that own them).
 
 #### F-378. The three-argument functions do not take the cube of the second operands
 
@@ -5633,7 +5642,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/core/edges.sweep.ts:301-307,1594-1597`
 - Corrected statement: "the three-argument functions take the second operands as their first two arguments and a small third-operand set as their third, since the full set cubed would be most of the sweep" (V7's proposed text: "take that subset as their first two arguments", L239-243)
 - Proposed call: **doc wrong**: the sweep's shape is deliberate (its size).
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-379. Type-checking: "(one did, …)" goes
 
@@ -5645,7 +5654,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: drop; plan row confirmed (§9.4: the reason is already stated in the present tense)
 - Rewrite: delete (V7 L255).
 - Proposed call: Confirm `drop`.
-- Decision:
+- Decision: Stands (drop).
 
 #### F-380. Type-checking: the past initialization cycle as a present reason
 
@@ -5657,7 +5666,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: keep as intent; plan row confirmed (§9.4)
 - Rewrite: "so a cycle among the kernel's modules (`fixed.ts`, `ball.ts`, `context.ts`) that only such imports kept alive would run a module's top level before its constants exist, depending on which module a test imports first"; #179 inline (V7 L259).
 - Proposed call: Confirm `keep as intent`.
-- Decision:
+- Decision: Stands (keep as intent); #179's place is on the owner's list with F-377 (pending in that part).
 
 #### F-381. The Playwright checklist cannot be checked from the tree
 
@@ -5668,7 +5677,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: no Playwright configuration or script is in the tree; the page says the run is recorded in each change's description.
 - Why unverified: a procedure carried out per change, not a claim about code.
 - Proposed call: keep as stated (V7).
-- Decision:
+- Decision: Stands.
 
 ### Findings owned by other pages that touch this one
 
@@ -5704,7 +5713,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the format of "ℹ 76 prefixes, 3000 units: parse 41.77 ms (13.6 µs per definition), build 9.95 ms (3.2 µs per definition)" is confirmed (`bench/build.bench.ts:41-43`); the figures are one run's. Stale row tagged update (new).
 - Proposed call: elide the figures ("parse … ms (… µs per definition), build … ms (… µs per definition)"), or keep a real line and say it is one run's (V7 Q6).
 - Related: Q-088
-- Decision:
+- Decision: Follows Q-088 and Q-016: keep a real line and say it is one run's (a rough, illustrative figure), or elide the figures; the session's choice.
 
 #### F-383. The thresholds are not uniformly twice the expected ratios
 
@@ -5717,7 +5726,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: as cited.
 - Corrected statement: "The thresholds lie well above the expected ratios, about twice them in most cases, so that noise never fails a benchmark that a regression would not fail by a wide margin."
 - Proposed call: **doc wrong**: the page's own bullets give both exceptions (the `names` check "costs about the same" yet is held to five; `pi`'s fifty against Karatsuba's 38 and the quadratic hundred), so the general sentence misstates them. By V7's own figures the kernel threshold is about 1.3 times its expected ratio, which "well above" overstates.
-- Decision:
+- Decision: Stands (doc wrong); "well above" is not used for the kernel threshold.
 
 #### F-384. names.bench.ts: "fifty times as much" before the index
 
@@ -5730,7 +5739,7 @@ What to settle before rewriting a page, in the order it bites.
 - Rewrite: "(it costs about the same; without the index the check grows with the number of prefixes, many times over this range, which is what the benchmark guards)" (V7 L279)
 - Proposed call: Confirm `keep as intent` without the figure; the code comment's figure is a code change (V7 Q2).
 - Related: Q-059, Q-088, B-066
-- Decision:
+- Decision: Stands (keep as intent); follows Q-088: a ratio may stay, but this one is unmeasurable today and contradicts the comment's thirtyfold, so "many times" (V7) unless the session measures it; B-066 is the code side.
 
 #### F-385. rational.bench.ts reports its quotients and does not assert them
 
@@ -5743,7 +5752,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `bench/rational.bench.ts:37-47,52-66,69-98`
 - Corrected statement: "…asserts of both that doubling the size costs at most eight times, twice what the quadratic gcd gives; it also reports two long quotients, at twice the default significand limit since the second is refused at the default."
 - Proposed call: **doc wrong** per V7: the code reports the quotients beside two assertions; code wrong only if the quotients were meant to be guarded, which the page does not say.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-386. "About forty times cheaper": a measured ratio in a rationale
 
@@ -5754,7 +5763,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "Lehmer's gcd is about forty times cheaper than Euclid's at the default significand limit" is the code's own figure (`bench/rational.bench.ts:18-25`) but a measured ratio; stale row tagged keep as intent (new). The code comment keeps the figure, while V7 asks only `names.bench.ts`'s comment to lose its own (V7 report). V1 tags the same figure on `devdocs/numbers.md#Exact operations` update ("far cheaper than Euclid's at the default limit; the benchmark holds the figures"); both drop the number.
 - Proposed call: Confirm `keep as intent`: "many times cheaper … and still quadratic" (V7 L291).
 - Related: F-188
-- Decision:
+- Decision: Follows Q-016 (the measured ratio stays: "about forty times cheaper … and still quadratic"); keep as intent.
 
 #### F-387. kernel.bench.ts: two of its four tests are not on the page
 
@@ -5765,7 +5774,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: the bullet omits `exp` of a large argument at the ceiling against `exp` of one, with the digits in log space timed beside it (`bench/kernel.bench.ts:124-147`), and the decimal grid's own costs, the settle, the product of settled balls and the kernel's exit, at the ceiling against a quarter (`:207-257`) (V7's new gap 1).
 - Sources: V7's appended text (L281-283): `exp` of a large argument costs within a small factor of `exp` of one "since the squaring loop renormalizes"; the grid's costs "scale from a quarter of the ceiling to the ceiling under the same bound of 64, being far below any routine".
 - Proposed call: append the two tests to the bullet, as V7 drafts.
-- Decision:
+- Decision: Stands.
 
 #### F-388. The stress search reads git
 
@@ -5778,7 +5787,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `bench/stress/search.ts:199`; `bench/stress/tooling.ts:51-63`
 - Corrected statement: "The command reads the current commit from git, to record it with each run and hit, and changes nothing there: committing is the person's."
 - Proposed call: **doc wrong**: reading the commit is deliberate (it is recorded with each run); the intent, that committing stays the person's, holds.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-389. The catalogue's lock is also taken over after a fixed time
 
@@ -5789,7 +5798,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: the lock is also taken over when held past a fixed time, not only from a process that is gone (`bench/stress/tooling.ts:137,169-173`) (V7's new gap 3).
 - Sources: V7's edit: "(`bench/stress/catalogue.lock`, ignored by git, taken over when the process that holds it is gone or has held it past a fixed time)" (L295).
 - Proposed call: as V7 drafts.
-- Decision:
+- Decision: Stands.
 
 #### F-390. --jobs, which sets the stress commands' lanes, is not on the page
 
@@ -5800,7 +5809,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: `--jobs` sets the lanes of both stress commands (`bench/stress/search.ts:4-5,195-197`; `bench/stress/verify.ts:3-4,322-323`); "one per core" is its default (V7's new gap 4).
 - Sources: V7's edit: "lanes, one per core unless `--jobs` says otherwise, take the next case as they come free (`pool.ts`)" (L299).
 - Proposed call: as V7 drafts.
-- Decision:
+- Decision: Stands.
 
 #### F-391. The stress suite's minutes and hour
 
@@ -5810,7 +5819,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/benchmarks.md#The stress suite` (page L210-212)
 - Finding: "One function's cases take one to four minutes on four cores; a full run, every case and every hang, takes the better part of an hour" are timings; no stress run was made, so whether they are current is unchecked; the suite prints at the start what the catalogue's timings predict for the run (`bench/stress/verify.ts:352-364`). Stale row tagged update (new).
 - Proposed call: Confirm `update` under §12 q25, which needs no run: "One function's cases take minutes; a full run, every case and every hang, takes far longer, since the catalogue is the costliest inputs known, and the suite says at the start how long the catalogue's own timings predict for the run." (V7 L303-309)
-- Decision:
+- Decision: Follows Q-018 (B): the rough durations stay, worded generously ("minutes"; "the better part of an hour"), with the suite's own prediction named.
 
 #### F-392. Which numbers leave testing.md and benchmarks.md under §12 q25
 
@@ -5821,7 +5830,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V7 lists the probe test's budget among the constants that stay (L326), yet its stale row 8 and rewrite drop "five seconds" (L38, L221); recorded also on the five-seconds finding (V7 (F-371)).
 - Proposed call: owner decision (V7 Q5); V7's split fits §12 q25 ("a decision keeps the qualitative reason it rests on"); settle the probe budget and "a few seconds" with it.
 - Related: Q-016, F-510
-- Decision:
+- Decision: Follows Q-016 (A, with the note): V7's split confirmed, with the tools' constants (the probe test's five seconds included), the model figures, the counts and the memory sizes staying; the measurements that leave may stay as rough, illustrative figures where they add weight.
 
 ### Findings owned by other pages that touch this one
 
@@ -5857,7 +5866,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V7 confirms "`pnpm test` takes a few seconds" (`testing.md`, T3, V7 L84) and "`pnpm bench`, a few seconds" (`benchmarks.md`, B2, V7 L128) as qualitative and proposes no change, yet drops "in a few seconds" from `testing.md#The edge sweeps` as a timing, with that sentence's other figures (V7 (F-376), V7 L35); V8 drops the same words from `development.md` as a timing under §12 q25 (Q6, V8 L316).
 - Proposed call: owner decision on §12 q25's reach (V8 (Q-018)): decide once whether "a few seconds" is a qualitative description that may stay or a timing that goes, and apply it to the three pages alike.
 - Related: Q-018, F-376
-- Decision:
+- Decision: Follows Q-018 (B): "a few seconds" stays on all three pages as a rough, generous duration (V8's rewrite is not used).
 
 #### F-394. Commands: "still written out" (§9.4 row)
 
@@ -5869,7 +5878,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: update (plan row confirmed by V8 and D3)
 - Rewrite: "The cloud session hook writes the flag out so that it reads as what it does." (V8 L205-209; D3 L66 words it "…so that the hook reads as what it does."). The fact holds: the hook is the one place outside `node_modules` (`.claude/hooks/session-start.sh:18-21,57`).
 - Proposed call: Confirm `update`.
-- Decision:
+- Decision: Stands (update).
 
 #### F-395. Cloud environment: the setup script also writes a profile.d entry
 
@@ -5882,7 +5891,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `scripts/cloud-setup.sh:45,50,55-56,61,64,122-155,225-235`
 - Corrected statement: "…under `/opt/node24`, and a `profile.d` entry that puts it first on `PATH` for login shells; nothing per-session, since a snapshot cannot hold per-session state."
 - Proposed call: **doc wrong**: the script and the page's own hook bullet agree on the entry. V8's third pair for the section ("A cloud session (a session of Claude Code on the web, claude.ai/code) runs…", L223-225) is terminology (V8 (F-496)).
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-396. Cloud environment: the wrong-toolchain sentence over-states two things
 
@@ -5895,7 +5904,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `scripts/cloud-setup.sh:118-120,185,242`; the listing of `/opt/node24/bin` in V8's session; `.claude/hooks/session-start.sh:44-47,53`
 - Corrected statement: "A session that starts without the project's toolchain, and so would run the base image's Node.js or reach for `npm`, is what this arrangement exists to prevent; if one does, the hook's output at session start names the setup script, and prints the versions it found." (V8 L99, L221)
 - Proposed call: **doc wrong**: the script and the hook behave deliberately; the page over-states what is prevented and what the hook reports.
-- Decision:
+- Decision: Stands (doc wrong).
 
 #### F-397. development.md: tool and platform behaviour nothing in the tree confirms
 
@@ -5906,7 +5915,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: `npx` stops with `EBADDEVENGINES` under the pnpm declaration (D2); "pnpm 10 or newer switches to it automatically" (D4's hedged part); the base image has Node.js 22 on its `PATH` and the cloud runs the setup script once, as root, without a checkout, then snapshots the filesystem (D11); the claude.ai settings and the menu path the page gives (D15's hedged part).
 - Why unverified: npm's, pnpm's and the platform's behaviour, outside the tree; running `npx` is what the page forbids; the script's header states D11 (`scripts/cloud-setup.sh:14-24`) and V8's session's `/opt` matches the layout it describes.
 - Proposed call: Keep as stated; change only if the owner knows otherwise.
-- Decision:
+- Decision: Stands (keep as stated).
 
 #### F-398. Test failure shows the build error, not "the offending definition"
 
@@ -5921,7 +5930,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V8 (L48) confirms the sentence ("The failing assertion prints the build's error"), citing `src/units.test.ts:169-183`, `:753-803`.
 - Proposed call: undetermined: doc wrong if the build error is what a contributor needs (D3's text: "fails with the build error, which names the text at fault and where it is"), code wrong if the failure should name the line, as D3 Q6 proposes; the owner's answer to D3 Q6 settles it, and with it V8's reading.
 - Related: B-032
-- Decision:
+- Decision: Stands (undetermined), settled by Q-060 (ok): the page describes the failure as the test reports it when the page is written (D3's text), the line-naming failure being the code track's (B-032).
 
 #### F-399. The unit lists' section is not at the end of the file
 
@@ -5935,7 +5944,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: (D3) "Unit lists have a section of their own, after the units and before the counts and ratios that end the file."
 - Conflict: V8 (L48) confirms "a section at the end of the file", citing `src/units.txt:585` (of 615 lines).
 - Proposed call: doc wrong, or design changed without the docs following (D3's stale tag); V8's own citation leaves thirty lines after the lists' heading; adopt D3's sentence.
-- Decision:
+- Decision: Stands (doc wrong; D3's sentence).
 
 #### F-400. A function or a primitive also needs a test change
 
@@ -5948,7 +5957,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `src/units.test.ts:186-200`, `:275-278`, `:777-801`, `:203-240`
 - Corrected statement: (D3) "A function or a primitive goes in the file the same way and into the test's list of them, which pins both; a prefix needs no test change."
 - Proposed call: doc wrong: the pinned lists are deliberate and the passage already says so for unit lists; adopt D3's text (L325), which also names the test row a unit earns and the `units.md` link.
-- Decision:
+- Decision: Stands (doc wrong; D3's text with the `units.md` link, which exists by then: Q-008).
 
 #### F-401. development.md stays whole; Adding a unit opens with a link to docs
 
@@ -5959,7 +5968,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: The page stays whole as the contributor's side (the pnpm rule and its table, Prerequisites, Commands, Cloud environment, Adding a unit and Style guide are mechanism, decisions and their reasons); `#Adding a unit` opens with a link to `docs/definitions.md`, and to `docs/units.md` once it exists (§7.1); V8's corrections D12, D17 and D18 and the §9.4 row apply.
 - Proposed call: Keep the page; add the link (V8 L227-231, routed elsewhere) together with D3's full replacement of `#Adding a unit` (D3 (F-398)).
 - Related: F-398
-- Decision:
+- Decision: Stands; follows F-475 ("the definitions file"); sequenced by Q-008: the devdocs edit lands with its page's one-pass rewrite, after the user pages it links exist.
 
 #### F-402. Style guide gains the documentation principle (§12 q29)
 
@@ -5970,7 +5979,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: §12 q29 makes `#Style guide` the principle's permanent home, beside the rule on code comments, with `devdocs/README.md` keeping a one-sentence statement and a link. V8 drafts both, so the install is covered: the section's first bullet states the documentation principle (and that a `CLAUDE.md`, if ever added, points there), and the README's framing and development line link it (V8 L179, L197). V8's third bullet also installs the linking and Markdown principles of `audit/principles.md`, for which q29 names no home.
 - Proposed call: Install the documentation principle and the README link as drafted (q29 is decided); the third bullet waits for the owner (V8 (Q-029)).
 - Related: Q-029
-- Decision:
+- Decision: Stands; follows Q-029 (ok: all three principles in the style guide, the README linking it).
 
 ### Findings owned by other pages that touch this one
 
@@ -6005,7 +6014,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "whenever it comes back into view or, while in view, back online", "the build ID", and the intervals named by their constants (`PERIODIC_CHECK` and `CHECK_INTERVAL` in `src/register-service-worker.ts`) rather than as figures (full bullet: D9 L293).
 - Conflict: V8 confirms the passage as written (O4, V8 L54: `src/register-service-worker.ts:29-33,70-83,146-148`) and edits only "Tapping the build number" to "Tapping the build" (L255-257), keeping "every hour" and "five minutes"; D9 corrects the online clause and replaces the figures by the constants' names. D9 handed these bullets to V8 (D9 L325), but V8 had no D9 report (V8 L6, L322).
 - Proposed call: **undetermined**: read the `online` handler at `src/register-service-worker.ts:76-83`; if it tests visibility, **doc wrong** (the page over-states when a check runs). Figures or constant names is a wording choice for the owner: they are parameters, not measurements.
-- Decision:
+- Decision: Stands (undetermined): the session reads `src/register-service-worker.ts:76-83`; the intervals are named by their constants (parameters, not measurements); follows Q-022.
 
 #### F-404. offline.md: platform behaviour nothing in the tree confirms
 
@@ -6016,7 +6025,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: Browsers check for a changed worker on every navigation, bypassing the HTTP cache, and a new worker waits until every page of the old version has closed (O3); Chromium-based browsers accept SVG install icons and Safari ignores manifest icons and needs a PNG `apple-touch-icon` (O8); iOS copies the home-screen icon once and never fetches it again, Chromium re-reads the manifest on launch at most once a day (O15); Cloudflare Workers Builds has no browser to lean on (O17).
 - Why unverified: browser, OS and Cloudflare behaviour outside the tree; in-tree comments state O3 (`src/sw.ts:14-21`, with the default `updateViaCache` at `src/register-service-worker.ts:61`), O8 (`vite.config.ts:10-14`) and O17 (`rasterize-svg.ts:7-9`); nothing bears on O15.
 - Proposed call: Keep as stated: they carry the reasons for the design; the owner confirms O15 and O17 if wanted.
-- Decision:
+- Decision: Stands (keep as stated).
 
 #### F-405. Build ID: "There is no other versioning yet."
 
@@ -6028,7 +6037,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: update (V8; new)
 - Rewrite: "The build ID is the app's only version." (V8 L269-271)
 - Proposed call: Confirm `update`: "yet" frames the build ID historically, and the rewrite keeps the fact.
-- Decision:
+- Decision: Stands (update).
 
 ### Findings owned by other pages that touch this one
 
@@ -6068,7 +6077,7 @@ What to settle before rewriting a page, in the order it bites.
 - Tag: update (V8; new)
 - Rewrite: drop the stamp, which mirrors the pin in `package.json` and reads as history after the next bump, and add "Both are worth rechecking when wrangler is updated." (V8 L275-277). The page otherwise stays whole: mechanism, decisions with their reasons, one ruled-out alternative (`pnpm dlx wrangler`).
 - Proposed call: Confirm `update`.
-- Decision:
+- Decision: Stands (update).
 
 #### F-407. Deployment: wrangler and Workers Builds behaviour not verifiable
 
@@ -6079,7 +6088,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: Workers Builds runs `pnpm run build` and `pnpm exec wrangler deploy` (P1); wrangler never removes a domain added in the dashboard, applies both switches on every deploy, and building a Preview does not change them (P4); wrangler sends its "autoconfig" events without reading the project config and loads `.env` first, and `DO_NOT_TRACK=1` overrides either setting (P6); `pnpm dlx wrangler` fails under `strictDepBuilds` because `esbuild` and `workerd` ship install scripts (P8).
 - Why unverified: dashboard configuration and wrangler's internals; both commands resolve in the tree (`package.json:9,30`), the configuration's comments state P4 (`wrangler.jsonc:21-33`) and `.env`'s comment P6 (`.env:6-9`); for P8 the denial entries are in the tree (`pnpm-workspace.yaml:39-50`), but the lockfile records `hasBin` for both and no `requiresBuild` (`pnpm-lock.yaml:833-836,1057-1060`), and running `dlx` is what the page forbids.
 - Proposed call: Keep as stated (P8 is a ruled-out alternative with its reason); the owner confirms P8's mechanism if it matters.
-- Decision:
+- Decision: Stands (keep as stated).
 
 ### Findings owned by other pages that touch this one
 
@@ -6112,7 +6121,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "nothing the project builds, tests or runs needs one: the deploy is made by Cloudflare Workers Builds, with credentials Cloudflare holds, never from a cloud session (`[deployment.md](deployment.md)`)."
 - Proposed call: **doc wrong** on the evidence of two pages and the rasterizer's header; unless the owner answers V8 (Q-030) that a developer's own `pnpm exec wrangler deploy` is also supported, in which case `deployment.md` says so in one sentence and `security.md` says the credential is theirs.
 - Related: Q-030, B-054
-- Decision:
+- Decision: Stands (doc wrong); follows Q-030 (ok: Workers Builds alone); B-054 is the code side.
 
 #### F-409. Security: DO_NOT_TRACK is set only in the cloud environment
 
@@ -6122,7 +6131,7 @@ What to settle before rewriting a page, in the order it bites.
 - Where: `devdocs/security.md#Toolchain and secrets` (page L69-70)
 - Finding: "Telemetry is off where a tool offers it (`DO_NOT_TRACK`, and `WRANGLER_SEND_METRICS=false` in `.env`)" holds, but `DO_NOT_TRACK` is set only in the cloud environment's variables (`scripts/cloud-env:29-34`); a developer's machine relies on `.env` (`.env:10`) and `send_metrics` in `wrangler.jsonc` (`wrangler.jsonc:16`), which the sentence does not name.
 - Proposed call: Name where each opt-out lives: "(`DO_NOT_TRACK` in the cloud environment's variables, `send_metrics` in `wrangler.jsonc`, and `WRANGLER_SEND_METRICS=false` in `.env`)" (V8 L283).
-- Decision:
+- Decision: Stands.
 
 #### F-410. Security: the command rule omits spawn, Prettier and the stress tools
 
@@ -6135,7 +6144,7 @@ What to settle before rewriting a page, in the order it bites.
 - Evidence: `vite-plugin-build-id.ts:73-78`; `tsconfig-coverage.test.ts:55-57,76-78`; `bench/stress/tooling.ts:7,53-62,108-116`; greps for `exec`, `spawn`, `shell:`
 - Corrected statement: "A command runs with its arguments as an array (`execFileSync`, `execFile` or `spawn`), never as a command string"; "the tests, plugins and stress tools that call git, tsc or Prettier" (the proposed text adds "and never with `shell` set", V8 L289).
 - Proposed call: **doc wrong**: the rule's intent holds in every call; the page under-lists the APIs and the callers.
-- Decision:
+- Decision: Stands (doc wrong).
 
 ### Findings owned by other pages that touch this one
 
@@ -6158,7 +6167,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: #88 (`^` and `pow` disagree on such an exponent) is open and reproduces (V1: `2^1e-30000` refused, about 99,659 bits "however it is computed", where `pow(2, 1e-30000)` is `≈ 1`; `1^1e999999999` rejected as typed where `pow(1, 1e999999999)` is `= 1`); `#Evaluation`'s "`^` and `pow` disagree on such an exponent, which [#88][88] tracks" holds (`src/core/evaluate.ts:24-26`, D1). Both links are reference-style, outside the Markdown subset, and two places break §12 q26. A7 (L204-227, L332-338), D1 (L627-644, L690) and V2 (L204-206, L300) drop the link from `#Evaluation`, keep its pointer to `numbers.md` "Roots and powers" ("which carries/links the open issue") and delete the definition at page L1119, which nothing else on that page uses (`[92]` stays, for its own section); V1 (L238) keeps #88 inline at `#Roots and powers`, dropping the #89 clause and link beside it. D1 offers the inverse as an alternative (the link inline at `#Evaluation`, `numbers.md` dropping its own) and adds that the user reference states the current difference without a link and the generated `pow` entry inherits what its structured comment says; V2's Q3 names `builtins.md`'s entry for `pow` as the other candidate, answering `numbers.md` itself.
 - Proposed call: `devdocs/numbers.md#Roots and powers`, which owns the disagreement, keeps the one link, inline (V1's text); `#Evaluation` points at that section without the issue and its definition line goes; D1's inverse and V2's `builtins.md` candidate are the owner's only alternatives.
 - Related: Q-102, B-006, F-199, F-221
-- Decision:
+- Decision: Stands; follows Q-102 (ok: `devdocs/numbers.md#Roots and powers` keeps the one link); #88 is a bug and stays there under Q-011.
 
 #### F-412. Issue #92: one link today, at "The reciprocal"; no second to remove
 
@@ -6168,7 +6177,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the one link is reference-style, outside the Markdown subset; #92 is open (A8 read its state and body). Of its three rows, the decimal-mode one is answered by `step` (`3 m` into `m` gives `m = 0.33333333 × 3 m`, exact), while no retry and no words for a refusal stand, the two that "Both are" names; a reciprocal refused at the exponent bound is also left out silently (`5e1000000000000000000 m` into `m` gives one line, the issue's first row) (A8 L27, L52). A2 (L51, L109), A8 (L44, L93-95, L147) and V2 (L96, L278-280, L301) agree on one inline link here, the passage that owns the reciprocal (C4's devdocs owner), the definition deleted. A8 (Q2, L147) and V2 (Q4, L301) also expected a second link in `numbers.md#Working precision and the schedule`, from plan §5 C4, for V1 to remove; V1's inventory of that page's ten issue definitions has no #92 (V1 L134, L138-149), and the section names the reciprocal with a page link to "The converter and its lines" only (page L896-898), so there is nothing to remove. A4 (Q1, L132) would record on #92 that the decimal-mode reciprocal is `1 / value` of the shown ratio (`3 m` in `in`: `0.0084666664` shown, `0.0084666667` exact), and A8 (Q4, L149) that a retry of a list's unit could ride the work on #92. Wording differs: A2 and A8 "Both are `[#92](…)`.", V2 "…; both are open in `[issue 92](…)`."
 - Proposed call: `devdocs/architecture.md#The converter and its lines > The reciprocal` keeps the one link, inline, saying what is open; the `[92]:` line goes; nothing to remove in `devdocs/numbers.md`; Q14's "(#92)" does not travel into `docs/quantities.md`; whether the decimal-mode row is answered depends on A4's case.
 - Related: Q-046, Q-103, B-009, F-038, F-328, F-507
-- Decision:
+- Decision: Stands; follows Q-103 (ok) and Q-046; #92 is a bug and stays there under Q-011.
 
 #### F-413. Issue #98: three links on two pages; its one place disputed
 
@@ -6179,7 +6188,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: `round`'s bullet (D6 L46, L210, L233; V3 L57, L757) against `numbers.md#approx` (V1 L144, L322, L363; A5 L360-362); D7 (L226-228) keeps a third link at `#Not in this design`.
 - Proposed call: owner decides between `devdocs/builtins.md#The exact functions` (`round`; D6, V3) and `devdocs/numbers.md#approx` (V1, A5) by what #98 asks, rounding to significant digits or their propagation through `approx(x, u)`; the other passages name the concept and link the chosen section, D7's `#Not in this design` text included.
 - Related: Q-012, Q-014, F-221, F-303, F-345
-- Decision:
+- Decision: Follows Q-014: neither page links or describes #98; it is future work in `devdocs/future.md` only (Q-011); D6's `round` text, V1's `#approx` sentence and D7's `#Not in this design` text drop it.
 
 #### F-414. Issue #100: three links; `numbers.md#approx` its agreed place
 
@@ -6190,7 +6199,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D7 (L226-228) keeps an inline #100 at `builtins.md#Not in this design`, a second place, against the single link at `numbers.md#approx` that A5, D5, D6, V1 and V3 propose.
 - Proposed call: `devdocs/numbers.md#approx` keeps the one link, inline; both `builtins.md` passages link that section without the issue (D5, V3), D7's `#Not in this design` text with them; N10's "(#100)" does not travel into `docs/numbers.md`.
 - Related: Q-012, Q-104, F-221, F-303
-- Decision:
+- Decision: Follows Q-104 (future.md) and Q-035: #100's one link, with the binary form's tentative design, is in `devdocs/future.md`; `numbers.md#approx` names the binary form in one clause linking there; both `builtins.md` passages link that clause or `future.md` without the issue; N10's "(#100)" does not travel into the docs.
 
 #### F-415. Issue #103: named on four pages; `builtins.md` or `cost.md`
 
@@ -6201,7 +6210,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: `builtins.md#The Gamma and Beta families` (A3 L72; V1 L226, L362; V3 L542; V6 L93, L154, L223) against `cost.md` (D7 L248), D7's own edit (L187-188) siding with the former.
 - Proposed call: `devdocs/builtins.md#The Gamma and Beta families`, the passage that owns the Bernoulli memo, keeps the one link (§12 q26); `numbers.md`, `cost.md` and `future.md` name the footprint and link that section (V1, V6).
 - Related: Q-011, Q-012, F-193, F-195, F-221, F-290, F-303, F-347, F-360
-- Decision:
+- Decision: Stands; follows Q-012 (A: `builtins.md#The Gamma and Beta families` keeps the one link); `numbers.md`, `cost.md` and `future.md` name the footprint and link that section.
 
 #### F-416. Issue #107: on three pages; `builtins.md` or `cost.md`
 
@@ -6212,7 +6221,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: `cost.md#What the costs come from` (V6 L93, L153, L223) against `builtins.md#The Gamma and Beta families` (D7 L205-206, L248; V3 L611).
 - Proposed call: owner decides between `devdocs/builtins.md#The Gamma and Beta families` (the expansions are the incomplete gamma's algorithm; D7, V3) and `devdocs/cost.md#What the costs come from` (the regime is a catalogued cost; V6), in one decision with #125, #149 and #150; the other passage names the regime and links that section.
 - Related: Q-011, Q-012, F-303, F-347, F-360
-- Decision:
+- Decision: Follows Q-012 (A): `devdocs/cost.md#What the costs come from` keeps the one link; `builtins.md` names the regime and links `cost.md`.
 
 #### F-417. Issue #115: `builtins.md` agreed; `future.md` points at the wrong section
 
@@ -6223,7 +6232,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: the passage within `builtins.md`: the families' last paragraph (D7 L217-218; V3 L694-717) against `#Not in this design` (V6 L37, L187).
 - Proposed call: `devdocs/builtins.md#The Gamma and Beta families`, last paragraph, keeps the one link; `future.md`'s "More special functions" points at that section, not at "Not in this design" (today's pointer and V6's text both name the wrong section).
 - Related: Q-011, Q-012, F-303, F-346, F-347
-- Decision:
+- Decision: Stands for the pointer (the families' last paragraph, not `#Not in this design`); the one link follows Q-012 (A: `builtins.md`) provisionally, pending the owner's answer on #115 (Q-011 would make it `future.md`'s).
 
 #### F-418. Issue #118: linked from three pages; `cost.md` or `future.md`
 
@@ -6234,7 +6243,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: `future.md` (D4 L409), with D4's interim link kept in `settings.md#The probe` (L375), against `cost.md` (V6 L93, L223; V5's first choice, L238, which leaves `future.md#Extensions that fit` open as the alternative).
 - Proposed call: owner decides between `devdocs/cost.md` (V6; V5's first choice; plan §5 C33 names cost.md the owner of cost and the catalogue) and `devdocs/future.md#Extensions that fit` (D4; V5's alternative); `settings.md` names the concern in words in all three passages (D4 and V5 agree on that, D4's interim link going too), and the chosen page links #118 once (V6's cost.md text links it twice).
 - Related: Q-011, Q-013, F-343, F-347, F-360
-- Decision:
+- Decision: Follows Q-013 (B): `devdocs/future.md#Extensions that fit` keeps the one link; `settings.md` and `cost.md` name the concern in words and link `future.md` (V6's cost.md text links it nowhere).
 
 #### F-419. Issues #119 to #121: #118's parts, on `cost.md` and `future.md`
 
@@ -6244,7 +6253,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: the three are open and are the three parts `future.md` lists for #118 (V6 L79): interactive results at a reduced precision, finalized after a debounce; the finalization in a web worker above a threshold; the slow, separable computations such as the Bernoulli run in a worker (page L146-149). #119 and #121 are named on both pages, #121 twice on `cost.md`; #120 is named bare on `cost.md` and implied on `future.md` by "#119 to #121", with no link definition. V6 alone places them (L93, L223): `cost.md` owns #118 to #121, `future.md`'s entry pointing at cost.md's top (L185); its fallback, if the owner keeps the links on `future.md`, inlines them there and links cost.md's numbers to `future.md` (L120). V6's own cost.md text links all three at the top (L126), links #121 again in the Gamma family's cause, "would move the run to a worker" (L154), and names #120 bare in `#The hangs`, "#120's workers, linked above" (L179).
 - Proposed call: the parts follow #118: one inline link each beside #118's one link (under V6's mapping `cost.md#(top)`), every other mention in words or a section link, V6's L154 and L179 mentions included; the owner's #118 decision carries them.
 - Related: Q-011, F-347, F-360
-- Decision:
+- Decision: Follows Q-013 (B) with the parts: #119 to #121 are linked once each beside #118 in `future.md`; every other mention is in words or a link to `future.md`.
 
 #### F-420. Issue #125: on three pages; `builtins.md` or `cost.md`
 
@@ -6255,7 +6264,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: `cost.md#What the costs come from` (V6 L93, L154, L223; D7 L248) against `builtins.md#The Gamma and Beta families` (V3 L572; D7's own edit, L196-197).
 - Proposed call: owner decides between `devdocs/builtins.md#The Gamma and Beta families` (the section that describes the shift; V3's and D7's edits) and `devdocs/cost.md#What the costs come from` (V6, D7's question 2), in one decision with #107, #149 and #150; the other passage names the shift and links that section.
 - Related: Q-011, Q-012, F-303, F-347, F-360
-- Decision:
+- Decision: Follows Q-012 (A): `cost.md` keeps the one link; `builtins.md` names the shift and links `cost.md`.
 
 #### F-421. Issues #130 to #134: one owner page, two placements proposed
 
@@ -6266,7 +6275,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D2 (L462: each issue at the section that discusses it, #132 at the user page) against V4 (L558) and V6 (L188-189, following V4's `#Deferred`); D2's own edits link #132 twice (L255, L288).
 - Proposed call: owner decides between D2's placement and V4's (both meet q26 once D2's second #132 link goes); `future.md` and `cost.md` then link the chosen section without the numbers (V6).
 - Related: Q-011, F-306, F-321, F-347, F-360
-- Decision:
+- Decision: Follows Q-011: `devdocs/future.md` keeps the one link of each of #130 to #134 (the user-functions entry, and the user-definitions entry for #132); `devdocs/functions.md`, `docs/definitions.md` and `cost.md` name none of them, the docs stating only the plain fact that the predefined definitions file alone is loaded (F-475).
 
 #### F-422. Issue #149: on three pages; `builtins.md` or `cost.md`
 
@@ -6277,7 +6286,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: `cost.md#What the costs come from` (V6 L93, L153, L223; D7 L248) against `builtins.md#The Gamma and Beta families` (V3 L619; D7's own edit, L208-209).
 - Proposed call: owner decides between `devdocs/builtins.md#The Gamma and Beta families` (the series' algorithm; V3's and D7's edits) and `devdocs/cost.md#What the costs come from` (V6, D7's question 2), in one decision with #107, #125 and #150.
 - Related: Q-011, Q-012, F-303, F-347, F-360
-- Decision:
+- Decision: Follows Q-012 (A): `cost.md` keeps the one link.
 
 #### F-423. Issue #150: on three pages; `builtins.md` or `cost.md`
 
@@ -6288,7 +6297,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: `cost.md#What the costs come from` (V6 L93, L152, L223; D7 L248) against `builtins.md#The Gamma and Beta families` (V3 L664; D7's own edit, L214-215).
 - Proposed call: owner decides between `devdocs/builtins.md#The Gamma and Beta families` (V3's and D7's edits) and `devdocs/cost.md#What the costs come from` (V6, D7's question 2), in one decision with #107, #125 and #149.
 - Related: Q-011, Q-012, F-303, F-347, F-360
-- Decision:
+- Decision: Follows Q-012 (A): `cost.md` keeps the one link.
 
 #### F-424. Issue #151: `cost.md` agreed, but one edit keeps it in `builtins.md`
 
@@ -6299,7 +6308,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D7's edit (L217-218) keeps a `builtins.md` link against its own question 2 (L248), V3 (L757) and V6 (L93, L223).
 - Proposed call: `devdocs/cost.md#The hangs`, which catalogues the hangs, keeps the one link (V3, V6, D7's question 2); the families paragraph points at `cost.md` without the number (V3's text); before the Issue column emits links, square 21 rows with q26 (V6 Q3).
 - Related: Q-011, Q-012, Q-062, B-070, F-303, F-360
-- Decision:
+- Decision: Follows Q-012 (A): `cost.md#The hangs` keeps the one link; the families paragraph points at `cost.md` without the number; Q-062 for the table.
 
 #### F-425. Issue #152: `expFixed`'s bullet or `cost.md`'s hangs
 
@@ -6310,7 +6319,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: `expFixed`'s bullet (V3 L57, L757; D5 L42, L197, deferring to V3) against `cost.md` (V6 L93, L223; D7 L248); D7's edit (L217-218) keeps the families paragraph's link as well.
 - Proposed call: owner decides between `devdocs/cost.md#The hangs` (the hangs at the hard bound, special functions among them; V6, D7's question 2) and `devdocs/builtins.md#The elementary routines` (`expFixed`, the cause; V3, D5); V6's text and the table's 19 rows lean to `cost.md` unless #152 is only `expFixed`'s series; the other passages point at the chosen section and V6's second cost.md link goes.
 - Related: Q-011, Q-012, Q-062, B-070, F-303, F-360
-- Decision:
+- Decision: Follows Q-012 (A): `cost.md` keeps the one link (`#The hangs`); `expFixed`'s bullet and the families paragraph point at `cost.md` without the number; V6's second link goes.
 
 #### F-426. Proposed text links docs pages and anchors not yet written
 
@@ -6321,7 +6330,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: whether a link may dangle meanwhile: apply once the target exists (V1 L365; V2 L298; V4 L564; D1 L485, L700) against write now and set anchors later (V5 L239; D8 L152, L319; D9 L103, L138); and the interim targets (V2 L104 against V4 L111, L564).
 - Proposed call: one sequencing rule for every draft that links a §7 page, the owner's answer to the open question (V1 Q6, V2 Q1, V4 Q7, V5 Q4): apply such edits as each target page lands, or write the links to the outline's names now and check every anchor once the headings are final; if any edit goes in before its target, one interim map, not V2's and V4's two.
 - Related: Q-008, F-066
-- Decision:
+- Decision: Follows Q-008 (A): an edit that links a page lands only once the page exists, in the linking page's one-pass rewrite; the whole rewrite runs in topological order (user pages first, in the sheet's order; getting started last; every devdocs page after the user pages it links), so no interim map is needed; where two user pages link each other, the page written first links at the anchor §7 fixes and the later page keeps that anchor (on the owner's list to confirm).
 
 ## Terminology (plan §8)
 
@@ -6339,7 +6348,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8 "certified" row; §12 q8, which records the note's code change for A2).
 - Proposed call: follow §12 q8 in every passage listed; land A2's code change (note and sheet line) first, so that the pages quoting the note (A8, V2, D8, V1) all read "certified" when published.
 - Related: Q-006, B-068, F-021, F-023, F-037, F-214, F-266, F-332
-- Decision:
+- Decision: Stands; follows Q-006 (ok: the code change first, the pages quoting "certified").
 
 #### F-428. "certifies" in the index before the reader has met it
 
@@ -6351,7 +6360,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (the canonical word, §12 q8); only the order of first use is in question.
 - Proposed call: keep "certifies" in the index, with getting started's "Reading =, ≈ and a note" defining it (D9's proposal), unless the owner prefers D9's plain alternative.
 - Related: Q-064
-- Decision:
+- Decision: Stands; follows Q-064 (A).
 
 #### F-429. "ceiling", its gloss "the finest grid", and "grid" in the user docs
 
@@ -6364,7 +6373,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A3 (L68, L134, L142) against D4 (L394), D8 (L301) and A1 (L280) on the gloss and on "grid" in docs. A3 (reasoned from code) says the ceiling is the last pass's precision and that pass's grid is `digitsFor(bitsFor(ceiling))`, 4,050 digits at the default ceiling of 4,040; D8's own rerun reports "the last grid having 4,050" at that ceiling (D8 L109) and grids ten digits beyond each pass (D8 (F-431)), against the gloss D8 keeps; A1's draft calls the ceiling's digit count "the grid". D4's draft also uses "grid" freely in the settings entries, against D8's "elsewhere in docs, 'digits' and 'the pass'".
 - Proposed call: settle the gloss on the facts first (if the ceiling pass's grid is ten digits finer than the ceiling, as A3 and D8's rerun say, §8's gloss needs rewording); then decide whether "grid" appears in docs once (§8, A1, D8) or never (A3), and hold D4's, D8's and A1's drafts to it.
 - Related: Q-004, B-026, F-022, F-125, F-126, F-127
-- Decision:
+- Decision: Follows Q-004 (B): the ceiling glossed "the highest precision any pass computes at" (§8 reworded); "grid" stays in the docs, explained once in `numbers.md` as the digits an inexact value is kept to (F-451), and D4's, D8's and A1's drafts are held to one gloss.
 
 #### F-430. "the ceiling rounding" for the bound's rounding up
 
@@ -6375,7 +6384,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: A2: **the bound's rounding up**, so that "ceiling" keeps its one meaning.
 - Against §8/§12: consistent (§8 gives "ceiling" one meaning); new wording. Plan N20 (material of `docs/numbers.md`) also writes "under ceiling" for a rounding mode, a third use of the word, where the docs name the directed modes "toward zero, away from zero, up, down" (`docs/settings.md:46`).
 - Proposed call: adopt A2's wording; where N20's "under ceiling" becomes page text, name the mode as the docs name the directed modes.
-- Decision:
+- Decision: Stands (A2's wording; N20's mode named as the docs name it); a new §8 row.
 
 #### F-431. "working digits" in three senses; "the working grid"; "working precision" for the grid
 
@@ -6388,7 +6397,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: the devdocs name for a pass's grid now ("the working grid", A1 L280, A3 L135, V1 L345; "working digits of the pass" until #172, D8 L295; "the pass's working precision", V3 L748); and "working precision" for the grid's digit count, accepted by V5 (L232) and refuted by D8's run (L41, L107: passes of 18, 36, 72 digits have grids of 28, 46, 82), which also bears on V3's replacement.
 - Proposed call: add to §8 a name for the grid a pass settles onto (devdocs "the working grid", docs "the digits an approximate value is kept to", or D8's interim), never "working precision" for it; check V5's and V3's passages against D8's run; #172 renames the code.
 - Related: F-015, F-022
-- Decision:
+- Decision: Follows its own answer (ok): "the working grid" (devdocs), "working precision" (a pass's), "working digits" (the setting); in the docs "the digits an inexact value is kept to"; never "working precision" for the grid; #172 renames the code. [decisions.md section 2; plan §12.1]
 
 #### F-432. "the guard" for two guards
 
@@ -6399,7 +6408,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: A3, V1: **the schedule's guard** and **the kernel's guard bits** wherever both are within reach of a sentence.
 - Against §8/§12: new; devdocs-only.
 - Proposed call: add to §8 (devdocs-only) as A3 and V1 propose.
-- Decision:
+- Decision: Stands; a new §8 row (devdocs-only).
 
 #### F-433. "step", "operation", "node"; "pass", "settle", "certify", "schedule"
 
@@ -6411,7 +6420,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent with §8's rows for "pass", "retry loop", "schedule" and "settle" (devdocs-only); "step" and "node" are new.
 - Proposed call: add to §8: "step" (docs, glossed once as A4 has it), "node" devdocs-only; the code names stay #172's.
 - Related: F-221
-- Decision:
+- Decision: Stands; new §8 rows ("step" in docs, glossed once; "node" devdocs-only).
 
 #### F-434. "the fallback" of decimal mode's ceiling
 
@@ -6423,7 +6432,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8 "uncertified" row). "Fallback" also names the decimal display in `devdocs/notation.md` (A2 (F-454)), a second sense.
 - Proposed call: follow §8; keep "the fallback" for this mechanism only, devdocs-only.
 - Related: F-042
-- Decision:
+- Decision: Stands (§8's "uncertified").
 
 #### F-435. "exact in that arithmetic" in the sheet's decimal-mode line
 
@@ -6435,7 +6444,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: new; consistent with the pages.
 - Proposed call: align the sheet's line to the pages (a code change, beside A2's note wording); nothing for §8.
 - Related: B-025
-- Decision:
+- Decision: Stands: the panel's line is aligned in the code change of Q-006 (B-025).
 
 #### F-436. "neighbor rule" / "neighbour"
 
@@ -6447,7 +6456,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: new. Plan N20, the material of `docs/numbers.md`, names the rule that A4 and V1 keep out of docs.
 - Conflict: A1 says the page and the code write "neighbor" (no code location); D4 says the code writes "neighbour" (`rounding.ts`); A4's own report spells "neighbour" in its claim rows (A4 L28-29) and "neighbor" in its term row (A4 L125). The code's spelling does not change the pages.
 - Proposed call: add to §8: "neighbor" in the pages; "the neighbor rule" devdocs-only, the docs saying "the correctly rounded sum" (A4); N20's wording follows when it becomes page text; the code's spelling is D4 L397's.
-- Decision:
+- Decision: Follows its own answer (ok): "neighbor"; "the neighbor rule" devdocs-only, the docs saying "the correctly rounded sum". A new §8 row. [decisions.md section 2; plan §12.1]
 
 #### F-437. "absorbed into the radius"
 
@@ -6459,7 +6468,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: A5's and D8's docs use conflicts with §8's ball/midpoint/radius row (docs say "error radius"; the bare "radius" is a devdocs word leaking into docs); A1 is consistent.
 - Conflict: A1 (L281) against A5 (L459) and D8 (L303).
 - Proposed call: decide whether docs keep the idiom (A5, D8) or say it with "error radius" or plainly (A1, §8).
-- Decision:
+- Decision: Follows its own answer (B): the docs keep the idiom, always as "absorbed into the error radius". A new §8 row. [decisions.md section 2; plan §12.1]
 
 #### F-438. "ball" and "midpoint" in the user docs
 
@@ -6471,7 +6480,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8 ball row).
 - Proposed call: follow §8 as D8 drafts.
 - Related: F-016, F-050
-- Decision:
+- Decision: Stands (§8: "error radius"; ball and midpoint devdocs-only); amended by Q-004 ("grid" may stay in the docs, named once).
 
 #### F-439. "canonical" (form, significand, text) and "the printed form"
 
@@ -6484,7 +6493,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D1's own `docs/expressions.md` draft ("How the app writes an expression back") says "in a canonical form that reads back as the same expression" (D1 L448-449), against its row (L683).
 - Proposed call: add to §8: "canonical" devdocs-only in both senses; reword D1's draft sentence when it is applied.
 - Related: F-013, F-090
-- Decision:
+- Decision: Follows its own answer (ok): "canonical" devdocs-only, spelled out where first used; D1's draft sentence reworded. A new §8 row. [decisions.md section 2; plan §12.1]
 
 #### F-440. "decimal exponent" beside "the exponent"
 
@@ -6497,7 +6506,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D8's own draft of `docs/numbers.md#Values too big to hold` ("The exponent bound") writes "decimal exponent" three times (D8 L257, L263, L265), against its row (L300).
 - Proposed call: either keep §8's rule (the term stays in docs, said which on first use) or adopt D8's narrowing and reword D8's draft; owner's call.
 - Related: Q-026, F-053, F-057
-- Decision:
+- Decision: Follows its own answer (B): the docs say "the exponent"; "decimal exponent" devdocs-only; D8's draft reworded; §8's "decimal" row amended. [decisions.md section 2; plan §12.1]
 
 #### F-441. "hard bound" (and "formable")
 
@@ -6510,7 +6519,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: the docs phrase (D1 against A5, V1); whether docs name the term once (D1) or never (A5, V1); the devdocs name (qualified, V3, against bare, D1, A5, V6).
 - Proposed call: add to §8: devdocs "the hard bound", glossed once and qualified where C58's other bounds are near; one plain docs phrase (D1's or A5's); never "hard precision bound".
 - Related: F-239
-- Decision:
+- Decision: Follows its own answer (B): devdocs "the hard bound", glossed once, qualified near C58's other bounds, never "hard precision bound"; docs "the most the significand limit can be set to". A new §8 row. [decisions.md section 2; plan §12.1]
 
 #### F-442. "rejected" / "rejection" beside "refusal" and "error"
 
@@ -6523,7 +6532,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D1 (L681) against A5 (L457-458); D2's drafts for `docs/definitions.md` also say "rejected" ("The file is rejected when", "and is rejected; write the scale in the body", D2 L38, L217-219, L268).
 - Proposed call: decide whether docs say "rejected" (A5, D2) or only "an error" (D1, §8) for text refused as typed; devdocs keep "rejection" either way.
 - Related: F-090, F-098
-- Decision:
+- Decision: Follows its own answer (A, with the note as a rule): docs say "an error" for everything but a size refusal, text the grammar does not read being "an error as it is typed"; devdocs keep "rejection" as the distinct notion for what the parser recognized and refused, and never "refuse" for a domain error, an edge or a mismatch; §8's refusal row amended. [decisions.md section 2; plan §12.1]
 
 #### F-443. "refused" for a domain error; "error" for a size refusal
 
@@ -6535,7 +6544,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8 refusal row).
 - Proposed call: follow §8 as D6 and D8 draft.
 - Related: F-151
-- Decision:
+- Decision: Stands (D6's and D8's wording) as F-442's rule: "error" for a domain error, "refusal" for the size refusals only, in both corpora.
 
 #### F-444. Wording of the significand limit's refusal: reach, fits, exceeds, need, unaffordable
 
@@ -6547,7 +6556,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent with §8's `tooLarge` row (docs: past the significand limit).
 - Proposed call: follow §8; add the code's words (`Reach`, `fits`, `exceeds`, `Need`, "unaffordable") as devdocs-only.
 - Related: F-051, F-208
-- Decision:
+- Decision: Stands (§8; the code's words devdocs-only).
 
 #### F-445. "log space" and its examples
 
@@ -6560,7 +6569,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: V1 (L356) against §12 q10 and D8's draft.
 - Proposed call: follow §12 q10 (one example, as D8 drafts); keep "log space" as the docs' phrase and the route devdocs-only.
 - Related: Q-026, F-057
-- Decision:
+- Decision: Stands; follows Q-026 (ok: one example); amended by F-440 ("the exponent" in the docs).
 
 #### F-446. "rounding boundary", "tie", "grid point", "half-way mode"
 
@@ -6572,7 +6581,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: new; agrees with A6 and V1's "boundary" for a rounding cell's end (next finding); "grid point" uses the devdocs "grid" (see the ceiling finding).
 - Proposed call: add to §8 (devdocs): rounding boundary, tie, grid point, a mode to nearest; docs "exactly halfway between two roundings".
 - Related: B-044, F-023
-- Decision:
+- Decision: Stands; new §8 rows (devdocs).
 
 #### F-447. "edge", "boundary", "bound"; "touch", "straddle"
 
@@ -6585,7 +6594,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D2's draft for `docs/definitions.md#Functions` keeps "An inexact value can straddle the bound" (D2 L264-265) in docs, against A6's docs phrase and §8.
 - Proposed call: add to §8 the devdocs pairs as A6 and V1 propose and A6's one docs phrase; reword "straddle" in D2's draft.
 - Related: F-028, F-029, F-098
-- Decision:
+- Decision: Follows its own answer (ok): the devdocs pairs and A6's one docs phrase; D2's "straddle" reworded. New §8 rows. [decisions.md section 2; plan §12.1]
 
 #### F-448. "kernel", "series", "continued fraction", "truncation bound" in docs/functions.md
 
@@ -6597,7 +6606,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8 "kernel" devdocs-only); "series", "continued fraction", "truncation bound" new, devdocs-only.
 - Proposed call: follow §8; mechanism words stay in devdocs when bullets 14 and 16 are next touched.
 - Related: Q-093, F-160
-- Decision:
+- Decision: Stands; follows Q-093 (ok).
 
 #### F-449. Devdocs-only built-in vocabulary: door, boundary, whole range, saturates, ulp, F-division
 
@@ -6609,7 +6618,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8 "kernel" devdocs-only); the rest new, devdocs-only.
 - Proposed call: add to §8 as devdocs-only terms, each glossed once where first used.
 - Related: F-265
-- Decision:
+- Decision: Stands; new §8 rows (devdocs-only, glossed once).
 
 #### F-450. "recognizes as exact" for an exact case
 
@@ -6620,7 +6629,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D5: **exact case**, glossed once (its edit 4: "An exact case, a value the function recognizes as exact, is shown with `=`").
 - Against §8/§12: consistent (§8 "exact case").
 - Proposed call: follow §8 as D5's edit 4.
-- Decision:
+- Decision: Stands (§8: "exact case").
 
 #### F-451. "approximate", "known to a precision" for inexact
 
@@ -6631,7 +6640,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D3: **inexact** in the skeleton; D6: **inexact**.
 - Against §8/§12: consistent with §8's model words; §8 keeps "approximate" as the plain-language gloss, and §7 uses it in other headings ("Exact and approximate values", "Making a value approximate", "which units are approximate").
 - Proposed call: follow §8 in body text; decide once whether §7's headings use the gloss "approximate" or "inexact", for all of them.
-- Decision:
+- Decision: Follows its own answer (B, a rule): "inexact" everywhere a value with a nonzero radius is meant, headings included; "approximate" and its variants only for the act of making a value inexact; §8's row and §7's headings amended, every draft held to it. [decisions.md section 2; plan §12.1]
 
 #### F-452. "whole number" and "integer"
 
@@ -6642,7 +6651,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D8: **whole number**, **whole-number power** in docs. V5: **integer** in devdocs, mapped once; the sheet's lines are user text and keep "whole number". D6, D7: both as §8 maps them ("regularized", "complement", "the median" uncontested).
 - Against §8/§12: consistent (§8 "whole number" row).
 - Proposed call: follow §8 as D8 and V5 propose.
-- Decision:
+- Decision: Stands (§8).
 
 #### F-453. "relation" for `=`, `≈` and the uncertified sign
 
@@ -6653,7 +6662,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: A2: **relation**, in both corpora.
 - Against §8/§12: new.
 - Proposed call: add to §8: "relation" for `=`, `≈` and the uncertified sign, in both corpora.
-- Decision:
+- Decision: Stands; a new §8 row ("relation").
 
 #### F-454. "the decimal display", "the fallback", "the digits notation"
 
@@ -6664,7 +6673,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: A2: **the decimal display** (§8); never "fallback" in docs.
 - Against §8/§12: consistent (§8: "digits" the notation's value, "the decimal display" the mechanism). "The fallback" also names decimal mode's ceiling mechanism (A4 (F-434), V1 (F-434)).
 - Proposed call: follow §8; drop "fallback" for the decimal display so that the word keeps one sense in devdocs.
-- Decision:
+- Decision: Stands (§8: "the decimal display"; "fallback" dropped for it).
 
 #### F-455. Rule 4's form: "scaled ratio" or "a ratio times its power of ten"
 
@@ -6677,7 +6686,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A2 (L136) against V5 (L228) for the same passage.
 - Proposed call: pick one name for rule 4's form (V5's term or A2's phrase) and add it to §8.
 - Related: F-325, F-329
-- Decision:
+- Decision: Follows its own answer (A): "scaled ratio", glossed once; the canonicity question is outside the rewrite. A new §8 row. [decisions.md section 2; plan §12.1]
 
 #### F-456. "fraction" reserved for the held value
 
@@ -6689,7 +6698,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8's ratio-notation row; §12 q5's "the fraction and its bit size").
 - Proposed call: follow §8 as D1 and V5 propose.
 - Related: F-325
-- Decision:
+- Decision: Stands (§8).
 
 #### F-457. "parses back", "typed back", "reads back", "pastes back"
 
@@ -6702,7 +6711,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A2's docs choice against the units' docs drafts: "reads back" in A8 (`docs/README.md`), D9 (`docs/app.md`, L247-248), D1 (`docs/expressions.md`, L449, L458) and A2's own edit of `docs/settings.md:82` (L114); "can be typed back as a have" in A8's `#Unit lists` draft; V5 (L92) writes §12 q11's "pastes back".
 - Proposed call: add to §8 one docs phrase (§12 q11's "pastes back", or A2's "can be typed back") and "parses back" for devdocs; align the drafts to it.
 - Related: F-060, F-122
-- Decision:
+- Decision: Follows its own answer (ok): docs "pastes back", devdocs "parses back"; the drafts aligned. A new §8 row. [decisions.md section 2; plan §12.1]
 
 #### F-458. "the digits of the Settings" for display digits
 
@@ -6713,7 +6722,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: A8: **display digits** (§8), applied in its edit.
 - Against §8/§12: consistent.
 - Proposed call: follow §8 as A8's edit.
-- Decision:
+- Decision: Stands (§8).
 
 #### F-459. "dimensionless markers" for the kind primitives
 
@@ -6726,7 +6735,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: two replacement texts for `devdocs/architecture.md:104` (A7 L166-181, V2 L138-140) and two for `docs/definitions.md#The format` (D2's draft, V2 Q7).
 - Proposed call: follow §12 q20; pick one wording per passage; the code comments are a code change (A7 Q1).
 - Related: Q-059, Q-097, B-057, F-093, F-190
-- Decision:
+- Decision: Follows its own answer (ok): "a marker of a kind, with no dimension of its own", or "kind marker", in both corpora; §8's kind row and §5 C35 amended; the code comments are the code track (B-057). [decisions.md section 2; plan §12.1]
 
 #### F-460. "plain number" against "dimensionless"
 
@@ -6739,7 +6748,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A7, V3, V4, A9 against D5, V2, V6, V7: on one page (`devdocs/builtins.md`, A7 and V3 against D5, with A7 and V3 drafting different gloss sentences for `#Dimension rules`) and one passage (`devdocs/architecture.md#Definitions`, A9 no change against V2's change).
 - Proposed call: owner settles §8's reading for devdocs ("dimensionless" only, or "plain number" as a gloss defined once), then one gloss sentence for `#Dimension rules`; the messages' wording is code (D5 L180).
 - Related: Q-019, F-067
-- Decision:
+- Decision: Follows Q-019 (A, with the note): "dimensionless" and "plain number" are synonyms, each defined once per page, "plain number" wherever the code's rules and messages are quoted; one gloss sentence for `#Dimension rules`; the messages' wording is code.
 
 #### F-461. "dimensionless checks" for the checks on the ball
 
@@ -6750,7 +6759,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D5: "the checks on the ball (the domain, the edges and the exact cases)".
 - Against §8/§12: consistent (§8 and §12 q20 keep "dimensionless" for a plain scalar).
 - Proposed call: follow §8 as D5 proposes.
-- Decision:
+- Decision: Stands (D5's wording).
 
 #### F-462. "conform", "dimension mismatch", "kind mismatch"; "conformance tests"
 
@@ -6762,7 +6771,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8 conform row; §12 q20); "dimension mismatch" and "kind mismatch" new; V8 removes a clash with §8's sense.
 - Proposed call: follow §8; add "dimension mismatch" and "kind mismatch"; drop "conformance tests" for the sweeps.
 - Related: Q-065
-- Decision:
+- Decision: Stands; follows Q-065 (ok: "the edge sweeps"); new §8 rows ("dimension mismatch", "kind mismatch").
 
 #### F-463. A plain number's dimension written `1` in messages
 
@@ -6773,7 +6782,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: A7: consistent with the pages; the user docs gloss it once where such a message is quoted.
 - Against §8/§12: new; fits §7's `quantities.md` "How dimensions are written in messages" and §12 q6 (messages catalogued by the tool, none hand-written).
 - Proposed call: gloss `1` once in `quantities.md`'s section on how dimensions are written; nothing else.
-- Decision:
+- Decision: Stands.
 
 #### F-464. "units" for a quantity's dimension
 
@@ -6784,7 +6793,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D6: **dimension**; a quantity carries no unit of its own (plan claim Q5).
 - Against §8/§12: new to §8; consistent with Q5 and §7's "No unit of its own".
 - Proposed call: add to §8: "dimension", never "units", for what a value carries.
-- Decision:
+- Decision: Stands; a new §8 row ("dimension", never "units", for what a value carries).
 
 #### F-465. "base unit"
 
@@ -6796,7 +6805,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8 primitive row: "base unit" only when quoting the SI).
 - Proposed call: follow §8 as D2 and D6 propose.
 - Related: Q-060, B-060
-- Decision:
+- Decision: Stands (§8).
 
 #### F-466. "kind" in "the section its kind belongs to"
 
@@ -6807,7 +6816,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D3: "the section it belongs to"; "kind" is the quantity model's word.
 - Against §8/§12: consistent (§8 kind row).
 - Proposed call: follow D3.
-- Decision:
+- Decision: Stands (D3's wording).
 
 #### F-467. Conversion into a function: "function conversion", "function want", "a function as the want"
 
@@ -6819,7 +6828,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8 row; §12 q13).
 - Proposed call: follow §8 in prose; the heading is V4 (Q-021)'s decision.
 - Related: Q-021, F-033, F-314
-- Decision:
+- Decision: Stands; follows Q-021 (ok: the heading stays).
 
 #### F-468. Output modes by ordinal ("the third output mode")
 
@@ -6832,7 +6841,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A8 (L139) against V2 (L289) on the same page.
 - Proposed call: add "output mode" to §8 (devdocs) and decide whether ordinals stay (V2) or go (A8).
 - Related: F-033
-- Decision:
+- Decision: Follows its own answer (A): modes named by their want, never by an ordinal; "output mode" a devdocs term in §8. [decisions.md section 2; plan §12.1]
 
 #### F-469. "a typed list" and "a defined list"
 
@@ -6844,7 +6853,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: new (§8 has "unit list" only).
 - Proposed call: add to §8 as A8 proposes.
 - Related: F-246
-- Decision:
+- Decision: Stands; new §8 rows.
 
 #### F-470. "the other way round" for the reciprocal line
 
@@ -6856,7 +6865,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8 reciprocal row).
 - Proposed call: follow §8 (A8 and D9 both drafted `docs/README.md#(top)`; one draft is kept).
 - Related: F-001, F-005
-- Decision:
+- Decision: Stands (§8).
 
 #### F-471. Have and want: "the quantity to convert", "the unit to convert to"; the labels
 
@@ -6869,7 +6878,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: timing on one page (A8 now in `#Unit lists`; D2 later in the other two sections); where the terms are first introduced (§8: getting started; D9: `app.md`).
 - Proposed call: change all of `docs/definitions.md` in one pass (D2) or section by section (A8), owner's call; getting started introduces the terms (§8), `app.md` names the labels.
 - Related: F-180, F-256
-- Decision:
+- Decision: Follows its own answer (A): each page uses have and want from its own rewrite; getting started introduces them; `app.md` names the labels. [decisions.md section 2; plan §12.1]
 
 #### F-472. "the converter" for the app, the fields and the outcome module
 
@@ -6881,7 +6890,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8 product row; §12 q2, whose "not grounded on GNU units" governs `docs/`; V2's lineage clause is devdocs).
 - Proposed call: follow §8 and §12 q2; add "the outcome" for `src/outcome.ts` (A8).
 - Related: B-022, B-037, F-001
-- Decision:
+- Decision: Stands (§8, §12 q2); "the outcome" added for `src/outcome.ts`.
 
 #### F-473. Expression words: juxtaposition, negation, literal
 
@@ -6893,7 +6902,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: juxtaposition consistent (§8); negation and number/literal new.
 - Proposed call: follow §8 for juxtaposition; add negation and number/literal as D1 proposes.
 - Related: F-090
-- Decision:
+- Decision: Stands; new §8 rows ("negation"; "number" in docs, "literal" in devdocs).
 
 #### F-474. "a unit name", the parse messages' label for any name
 
@@ -6905,7 +6914,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: new.
 - Proposed call: docs say "name" and quote messages as written; the label is D1 (Q-055)'s code question.
 - Related: Q-055, B-019, F-089
-- Decision:
+- Decision: Stands; follows Q-055 (ok).
 
 #### F-475. "the definitions file" and "system"
 
@@ -6918,7 +6927,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A9 (L282-285) against D3 (L335).
 - Proposed call: decide whether "system" may qualify the file against user definitions (A9; §8 and §12 q12 do so) or only name systems of units (D3).
 - Related: B-061
-- Decision:
+- Decision: Follows its own answer (a rule): "the definitions file", or "the predefined definitions file" where a user's definitions could be meant; never "the system file" or "system" alone; §8's row, §12 q12, §5 C50, §7, §10 and §11 amended; B-061 is the code side. [decisions.md section 2; plan §12.1]
 
 #### F-476. "loaded" (docs) and "build" (devdocs)
 
@@ -6929,7 +6938,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D2: **loaded** in docs (the file is read when the app starts), **build** in devdocs, mapped once in `devdocs/architecture.md#Definitions`.
 - Against §8/§12: new. §7 names a `docs/definitions.md` section "Build-time checks", which D2's term would retitle (D2's draft heads its table "The file is rejected when" and leaves the heading to §7).
 - Proposed call: add to §8 as D2 proposes, and retitle §7's "Build-time checks" for docs to match.
-- Decision:
+- Decision: Stands; a new §8 row ("loaded" in docs, "build" in devdocs, mapped once); §7's "Build-time checks" retitled for the docs page.
 
 #### F-477. "head" of a function or inverse line
 
@@ -6940,7 +6949,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D2, V4: devdocs-only, glossed once at its first use.
 - Against §8/§12: new.
 - Proposed call: add to §8 (devdocs-only).
-- Decision:
+- Decision: Stands; a new §8 row (devdocs-only).
 
 #### F-478. "user-defined functions" for the functions the file defines
 
@@ -6952,7 +6961,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: new; consistent with §12 q12; §5 C40 ("User-defined functions") and §7.1 ("user functions") use the wording the units retire.
 - Proposed call: add to §8: "defined function" against "built-in"; "user definitions" only for the intended user-typed ones (§12 q12); the title is V4 (Q-020)'s.
 - Related: Q-020, F-006, F-348
-- Decision:
+- Decision: Stands; follows Q-020 (ok: "Defined functions"); a new §8 row ("defined function" against "built-in"; "user definitions" only for the intended user-typed ones, which are `devdocs/future.md`'s by Q-011); §5 C40 and §7.1 amended.
 
 #### F-479. "the unit it takes" as the gloss of "annotation"
 
@@ -6963,7 +6972,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D2: **annotation**, with "the unit it takes" as its gloss.
 - Against §8/§12: consistent (§8 annotation row), keeping the synonym as the gloss.
 - Proposed call: follow §8, with D2's gloss.
-- Decision:
+- Decision: Stands (§8, with D2's gloss).
 
 #### F-480. A condition's outcome: undecided, holds, fails, verdict, assumed, "certainly"
 
@@ -6975,7 +6984,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent (§8: docs "undecided" for conditions; §12 q8 keeps "certified" for digits on the ball, not verdicts).
 - Proposed call: follow §8: docs name "undecided" once (D2), then plain words; "verdict" and "assumption" devdocs-only.
 - Related: Q-090, F-098
-- Decision:
+- Decision: Stands (§8).
 
 #### F-481. "its own domain", "a restriction" for conditions
 
@@ -6986,7 +6995,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: V4: "its own conditions"; "restricts" as the verb only ("a condition restricts a body").
 - Against §8/§12: consistent (§8: condition; "domain" reserved for built-ins).
 - Proposed call: follow §8 as V4 proposes.
-- Decision:
+- Decision: Stands (§8).
 
 #### F-482. A call as "the body typed out in its place"
 
@@ -6998,7 +7007,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: new.
 - Proposed call: add to §8 as D8 proposes.
 - Related: F-033
-- Decision:
+- Decision: Stands; a new §8 row.
 
 #### F-483. "intervals" for the temperature units; "interval" elsewhere
 
@@ -7011,7 +7020,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D2's `docs/definitions.md#The format` draft writes "a chain that bounds an interval, `0 < x < 1`" (D2 L230) in docs, against §8's devdocs-only "interval".
 - Proposed call: follow §12 q19; decide whether the mathematical "interval" may appear in docs (D2's draft) or not (§8).
 - Related: Q-060, B-059, F-069, F-114
-- Decision:
+- Decision: Follows its own answer (A): "interval" never in the docs; D2's draft reworded. [decisions.md section 2; plan §12.1]
 
 #### F-484. Names of units: alias, spelling, symbol, name; pair and split
 
@@ -7022,7 +7031,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D3: **alias** for a unit defined as another's bare name (`metre  m`); **spelling** for one name in another script or convention (`µ`, `μ`, `u`; `deca-`, `deka-`); **symbol** and **name** kept, as the SI uses them. A9: **pair** in docs, **split** in devdocs (the code's word).
 - Against §8/§12: new.
 - Proposed call: add to §8 as D3 and A9 propose.
-- Decision:
+- Decision: Stands; new §8 rows.
 
 #### F-485. "logarithmic units"
 
@@ -7033,7 +7042,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D3: **the logarithmic functions** for the names, **level** for what a call denotes; "logarithmic units" only when quoting the SI brochure.
 - Against §8/§12: new; consistent with §7 ("Logarithmic levels").
 - Proposed call: add to §8 as D3 proposes.
-- Decision:
+- Decision: Stands; a new §8 row.
 
 #### F-486. "defined" and "measured" factors
 
@@ -7044,7 +7053,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D3: **defined** when a document fixes it, **measured** when it is a CODATA or astronomical value, both written exactly.
 - Against §8/§12: new.
 - Proposed call: add to §8 as D3 proposes.
-- Decision:
+- Decision: Stands; a new §8 row.
 
 #### F-487. Built-in reference words: pole; order, argument, parameters
 
@@ -7055,7 +7064,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D7: **pole** in both corpora, "a pole of the function" as the edge's wording; **order**, **argument**, **parameters** as the names in the generated reference's signature field.
 - Against §8/§12: new; consistent with §12 q17 (generated reference).
 - Proposed call: add to §8 as D7 proposes.
-- Decision:
+- Decision: Stands; new §8 rows.
 
 #### F-488. "sheet" and "panel"
 
@@ -7067,7 +7076,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: new to §8; §5 C56 and §12 q3 say "sheet", while §12 q15 writes "the panel's 'width'".
 - Conflict: whether devdocs prose may call the component "the panel" (D4, V5) or name it only by its code identifier (D9, V7).
 - Proposed call: add to §8: "the settings sheet" in both corpora for what the user sees; "panel" for the component only, in the form the owner picks.
-- Decision:
+- Decision: Follows its own answer (a rule): "the settings panel", or "the panel", in both corpora; never "sheet"; §8, §5 C56, §3, §6.5, §7, §9.1, §11 and §12 q3 amended; `devdocs/settings.md`'s heading "The sheet" is renamed by its session. [decisions.md section 2; plan §12.1]
 
 #### F-489. "line", `hint`, `notice`; "the guide"
 
@@ -7078,7 +7087,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: V5: **line** in the pages, mapped once to the two classes; name the page, `docs/settings.md`, and "the user guide" for the corpus.
 - Against §8/§12: new; §7 uses "guide" as a page role (getting started, `app.md`) and the plan says "user docs" for the corpus.
 - Proposed call: add "line" as V5 proposes; for the corpus, choose between the plan's "user docs" and V5's "the user guide".
-- Decision:
+- Decision: Follows its own answer (A): "the user docs"; "line" joins §8. [decisions.md section 2; plan §12.1]
 
 #### F-490. "locked to the display digits" and "not extended"
 
@@ -7089,7 +7098,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D4: **locked to the display digits** in docs, with "(the `extended` box unchecked)" once; the stored names stay in devdocs.
 - Against §8/§12: new.
 - Proposed call: add to §8 as D4 proposes.
-- Decision:
+- Decision: Stands; a new §8 row.
 
 #### F-491. "the costliest built-ins" for the probe's composite
 
@@ -7101,7 +7110,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: consistent with §12 q23, which calls "the costliest built-ins" incorrect; §9.4 describes the composite as "the four elementary routines, deliberately not the costlier special functions". D4's wording still ranks them "costliest", which D5 could not verify ("The four costliest routines" is a benchmark claim, D5 (F-278)).
 - Proposed call: follow §12 q23; confirm the ranking against the benchmarks before keeping "costliest", or say "the four elementary functions" (§9.4).
 - Related: B-017, F-128, F-278, F-512
-- Decision:
+- Decision: Follows its own answer (ok): "the four elementary functions", never "the costliest"; `PROBE_LINE` worded so with Q-006's code change; the probe is not to be extended to the expensive special functions (the note recorded). [decisions.md section 2; plan §12.1]
 
 #### F-492. "build number" and "build ID"
 
@@ -7114,7 +7123,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: what the tapped footer item is called ("its build ID is tapped", D9 L273-275, against "Tapping the build", V8 L257), and the `app.md` section names the drafts use (D9's page: "Offline use", "Updates and the build ID"; V8's links: "Working offline", "Updates and the build").
 - Proposed call: add "build ID" to §8; settle the footer item's name and the `app.md` headings once, then align D9's page and V8's links.
 - Related: Q-022, F-173, F-174, F-175, F-180, F-251
-- Decision:
+- Decision: Follows Q-022 (A): "build ID" in both corpora; the footer item is "the build ID" and the `app.md` section "Updates and the build ID"; D9's page and V8's links aligned; a new §8 row.
 
 #### F-493. "service worker" and "the worker"
 
@@ -7126,7 +7135,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: new.
 - Conflict: the docs' wording after the first mention ("the service worker", D9, against "the app" or "its copy", V8).
 - Proposed call: add to §8: named once in `app.md`; owner picks the follow-on wording.
-- Decision:
+- Decision: Follows its own answer: the docs name the service worker as such, once in `app.md` where it is introduced as what lets the app be served offline, and keep the term; devdocs "service worker" consistently. A new §8 row. [decisions.md section 2; plan §12.1]
 
 #### F-494. "a new version", "an update", "a deploy"
 
@@ -7138,7 +7147,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: new.
 - Conflict: whether docs use "update" for the act of switching (V8) or only quote the footer (D9).
 - Proposed call: add "a new version" (docs) to §8 and settle "update" between D9 and V8.
-- Decision:
+- Decision: Follows its own answer (B, clarified): "a new version" is a new deployment that could be pulled; "update" always a verb for what a user or a page refresh does; "deploy" devdocs-only. A new §8 row. [decisions.md section 2; plan §12.1]
 
 #### F-495. App-surface words: the cog, the checks the app makes on its own, install
 
@@ -7149,7 +7158,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: D9: **the cog** in docs, `<settings-button>` devdocs-only; "the checks the app makes on its own" (on view, on line, periodic), in `app.md`; **install**, **installed to the home screen**, "progressive web app (PWA)" expanded once per page.
 - Against §8/§12: new; consistent with §5 C56 ("cog").
 - Proposed call: add to §8 as D9 proposes.
-- Decision:
+- Decision: Stands; new §8 rows; "the cog" opens the settings panel (F-488).
 
 #### F-496. Deployment words in devdocs: precache, Preview, cloud session
 
@@ -7160,7 +7169,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: V8: "precache" kept, devdocs-only, docs saying **the copy** the browser keeps; "Preview" kept, capitalized, Cloudflare's term; **cloud session**, named in full once per page.
 - Against §8/§12: new.
 - Proposed call: add to §8 as V8 proposes.
-- Decision:
+- Decision: Stands; new §8 rows.
 
 #### F-497. The stress catalogue's vocabulary and "hang"
 
@@ -7171,7 +7180,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: V6: **hang** for the catalogue's case only, the interface **freezes**; **settings profile** on first use, then "profile"; `fractions` in code font, glossed the ratio-notation profile; the five catalogue terms defined in one sentence at the top of `#How a case is measured`; never "row" for an entry. V7: the stress words kept, devdocs-only, as the code names them.
 - Against §8/§12: new; devdocs-only; V6's gloss follows §8's "ratio notation".
 - Proposed call: add to §8 as devdocs-only, as V6 and V7 propose.
-- Decision:
+- Decision: Stands; new §8 rows (devdocs-only).
 
 #### F-498. "reached only through" for a module only tests exercise
 
@@ -7182,7 +7191,7 @@ What to settle before rewriting a page, in the order it bites.
 - Proposed canonical: V7: **exercised only through**.
 - Against §8/§12: new (wording).
 - Proposed call: apply V7's wording.
-- Decision:
+- Decision: Stands (V7's wording).
 
 #### F-499. "the display's `show` and `roundTerms`"
 
@@ -7194,7 +7203,7 @@ What to settle before rewriting a page, in the order it bites.
 - Against §8/§12: not a §8 matter; a misattribution, corrected in V2's contradiction finding.
 - Proposed call: apply with V2's correction of the passage.
 - Related: F-253, F-254
-- Decision:
+- Decision: Stands (with F-254).
 
 ## The audit plan itself
 
@@ -7211,7 +7220,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: `src/core/expr.ts:6-19` holds an EBNF-style grammar of twelve productions that matches the combinators of `:379-529` production by production (D1 report), and `src/core/definitions.ts:20-32` (D1; D2 cites `:19-32`) holds the whole line grammar, every kind of definition included, of which the block in `devdocs/functions.md#Definitions` is the function and inverse part (D2). Both are hand-maintained beside the code, "the second source of truth §2.1.3 advises the docs against" (D1). §11's "no grammar file" stays true: these are header comments.
 - Proposed call: Correct both sections to name the two header grammars as the hand-maintained forms until the DSL generates one; the interim decision (no hand-written EBNF in `docs/`) stands. Whether pages point at them is D1's question 1; D2's and V4's edits already name the `definitions.ts` comment.
 - Related: Q-038, F-074, F-092, F-229, F-305
-- Decision:
+- Decision: Stands; follows Q-038 (ok): §2.1.3 and §2.2.3 corrected to name the two header grammars as the hand-maintained forms.
 
 #### F-501. §2.1.3: "the two cannot disagree" holds for binary operators only
 
@@ -7222,7 +7231,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: The same overstatement as `devdocs/architecture.md#Expressions` (D1 (F-237)): `LEVELS` and `BINARY` drive the parser and the printer for the binary operators only; the property test (`src/core/print.test.ts:134-151`) covers the rest.
 - Proposed call: Amend the bullet: shared data for the binary operators, the property test for the rest; the §1.3 DSL intent is unchanged.
 - Related: F-237
-- Decision:
+- Decision: Stands: §2.1.3 amended (shared data for the binary operators; the property test for the rest).
 
 #### F-502. §7 units.md skeleton lists `e` and `at` as absent names
 
@@ -7233,7 +7242,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: `e` is defined and tested as the elementary charge (`src/units.txt:113`; `src/units.test.ts:398-399`); what is absent is a name for Euler's number, which is `exp(1)`. `at` is absent as the technical atmosphere but reads today as `a` + `t`, an attotonne (D3's scratch run; D1). D1 adds that the file has no unit `a` (the are is `are`).
 - Proposed call: The skeleton bullet becomes "Names that are absent or mean something else (`u`, `at`, `dB`, `e`, `rad`)" (D3 question 5); the units guide notes `a` and `at` as D1 proposes (question 7).
 - Related: Q-075, F-112
-- Decision:
+- Decision: Stands; follows Q-075 (ok) as amended by F-078 (nothing about a unit `a`): §7's bullet corrected.
 
 #### F-503. §11 places `MIN_SIGNIFICAND_LIMIT_BITS` in `rational.ts`
 
@@ -7244,7 +7253,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: `MIN_SIGNIFICAND_LIMIT_BITS` is defined in `src/core/context.ts:269`, derived from `ceilingFor(1)`; `rational.ts` holds only `MAX_SIGNIFICAND_LIMIT_BITS`. V5 read it in `context.ts` as well. "A note for the plan, not the pages."
 - Proposed call: Correct the row: `rational.ts` (`MAX_SIGNIFICAND_LIMIT_BITS`), `context.ts` (`MIN_SIGNIFICAND_LIMIT_BITS`), `scaled.ts` (`MAX_EXPONENT`).
 - Related: Q-076
-- Decision:
+- Decision: Stands; follows Q-076 (ok): §11 corrected.
 
 #### F-504. §9.2 wrongly lists `layout.md#The files` as re-explaining docs
 
@@ -7255,7 +7264,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: `layout.md`'s bullet for `src/units.txt` is one sentence and a link and explains nothing beyond naming the file; it is V7's one refuted gap. V7's notes also list the §11 and module-list errors drafted in their own findings.
 - Proposed call: Strike `devdocs/layout.md#The files` from the bullet (V7 question 8).
 - Related: Q-077, F-366
-- Decision:
+- Decision: Stands; follows Q-077 (ok): §9.2 corrected.
 
 #### F-505. §1.2.4: `outcome.ts` does not parse the `want` again
 
@@ -7267,7 +7276,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A2 refers the correction to the plan (question 6, L149); V2 proposes no change to the plan, the report recording it (question 6, L303).
 - Proposed call: Correct §1.2.4's bullet to the current mechanism (the reciprocal line in `outcome.ts`; the parsed `have` and `want` handed over in the `Conversion`); C1 and C4 need no change once the page is fixed.
 - Related: Q-074, F-253, F-255
-- Decision:
+- Decision: Stands; follows Q-074 (ok): §1.2.4 corrected.
 
 #### F-506. §1.1.6 item 1 points at `messages.ts` for the notes
 
@@ -7278,7 +7287,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: The notes are worded in `noteOf` (`src/outcome.ts:504-517`): "N of M digits are certain", "within B of zero", "the digits are not certified", "a step could not be certified at the precision limit". `src/messages.ts` words none of them, only the warnings of an assumed condition (`describeAssumption`, called at `src/outcome.ts:232`). The item lists `messages.ts` beside `outcome.ts`; A2 reads it as naming `messages.ts` for the notes. A2's notes also record its other slips, drafted in the module-list and scope findings.
 - Proposed call: Name `outcome.ts` (`noteOf`) for the notes and `messages.ts` for the assumption warnings only; low stakes, the unit has run.
 - Related: Q-074
-- Decision:
+- Decision: Stands; follows Q-074 (ok): §1.1.6 item 1 corrected.
 
 #### F-507. §5 C4 cites a `#92` link that `numbers.md` does not have
 
@@ -7289,7 +7298,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: The passage (`devdocs/numbers.md:896-898`, read at consolidation) says the reciprocal line is one step outside the loop and points at `architecture.md` "The converter and its lines", with no issue link; #92 is linked only from `devdocs/architecture.md#The converter and its lines > The reciprocal` (`:1100`). A8 (question 2) and V2 (question 4) took C4's parenthetical for a second #92 link and asked the `numbers.md` unit to remove it; V1's inventory of the page's links has no #92, so V2's hand-off to V1 is moot.
 - Proposed call: Drop "#92" from C4's `numbers.md` pointer; #92's one home is `architecture.md` "The reciprocal", as A8 and V2 both propose.
 - Related: Q-103, F-412
-- Decision:
+- Decision: Stands; follows Q-103 (ok): C4's pointer corrected.
 
 #### F-508. Claim N8: "four times the precision limit plus ten" is ambiguous
 
@@ -7300,7 +7309,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: The phrase reads as `4L + 10`; the ceiling is `4 × (L + 10)` (`ceilingFor`; the schedule test's expected lists, `src/core/pipeline.test.ts:222-245`), as §1.1.2 (`:253`) and §1.1.6 item 4 (`:380`) write it. N8 carries the pages' wording, so a unit that checked the pages against the claim alone would miss the fault.
 - Proposed call: Amend N8 to "a ceiling of four times the sum of the precision limit and ten, `4 × (L + 10)`" when the claims are updated (A3 question 9); the pages' fix is drafted with the pages.
 - Related: Q-005, Q-073, B-041, F-022, F-026, F-125
-- Decision:
+- Decision: Stands; follows Q-073 (ok): N8 amended.
 
 #### F-509. §1.1.5 `tooLarge` row withdrawn, against the owner's review statement
 
@@ -7312,7 +7321,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: A5 (L49-50) and V1 (L22, L43) withdraw the row; V6 (L229) keeps it, revised to name the refusals that end the loop with a result. Both readings contradict the row's report of the owner's review ("some of which are retried"), so the withdrawal needs the owner's confirmation.
 - Proposed call: Owner to confirm A5's reading against the review statement; if confirmed, mark the row withdrawn, amend N21 and §1.1.6 item 14 (A5 (F-056, F-051)), and carry V6's point in the N7 correction (V6 (F-034)) rather than in this row.
 - Related: Q-001, F-034, F-051, F-056
-- Decision:
+- Decision: Follows Q-001: the row is withdrawn, N21 and §1.1.6 item 14 amended, and V6's point (which refusals end the loop with a result) carried in N7's correction (F-034).
 
 #### F-510. "Measurements kept" (§10 V3, q10) against §12 question 25
 
@@ -7323,7 +7332,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: V3 calls its entry's "measurements kept" "the one conflict inside the plan" and follows question 25: timings leave for `cost.md` and the benchmarks, while bit counts, term and convergent counts, limits and memory sizes stay as bounds and characteristics (its question 3). V1 notes the same tension between questions 10 and 25 for `devdocs/numbers.md#Why the exponent bound stays at 10^18`, keeping the six-pass table (digits) and dropping the timings (its question 2); A5 proposes the same (its question 5). V7 says how far question 25 reaches on pages about measuring shapes most of its proposed text (its question 5).
 - Proposed call: Owner to confirm that question 25 governs "measurements" in question 10, §1.1.4, §9.1 and §10's V3 entry (timings go; tables of digits and counts stay, as V1, V3 and A5 read it), then reword those four places.
 - Related: Q-016, Q-017
-- Decision:
+- Decision: Follows Q-016 (A, with the note) and Q-017: question 25 governs "measurements" in question 10, §1.1.4, §9.1 and §10's V3 entry, which are reworded: the six-pass table (digits) stays; timings go unless kept as rough, illustrative figures that add weight.
 
 #### F-511. Pointer `devdocs/notation.md#The width` names a label, not a heading
 
@@ -7334,7 +7343,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "The width" is a bold paragraph label under `## The rule` (`devdocs/notation.md:113`), not a heading, so the pointer should read `devdocs/notation.md#The rule > The width`. D4 found it in its own entry; the other five occurrences come from the consolidation's search of the plan. D4's notes also list the §9.4, module-list and context corrections drafted separately.
 - Proposed call: Correct the six pointers; D4's stale row already uses the corrected form (D4 (F-327)).
 - Related: F-327
-- Decision:
+- Decision: Stands: the six pointers corrected to `devdocs/notation.md#The rule > The width`.
 
 #### F-512. §9.4 places "the costliest built-ins" in the Probe budget bullet
 
@@ -7345,7 +7354,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: The phrase occurs only in the "top-down" paragraph (`docs/settings.md:175-177`); the Probe budget bullet (`:160`) does not carry it.
 - Proposed call: Correct the row's location to the "top-down" paragraph alone; D4's stale row is placed there.
 - Related: F-128
-- Decision:
+- Decision: Stands: §9.4's row relocated to the "top-down" paragraph; its wording follows F-491.
 
 #### F-513. §7.1 still offers `getting-started.md` for the app's surface
 
@@ -7356,7 +7365,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: §12 questions 3 and 22 decide `docs/app.md`, and §7's own page list has it; D9 confirms that the row resolves to `app.md`, getting started linking to it ("Where to go next"). D9's notes also confirm §9.4's "six settings" row and record its module-list gap (next finding).
 - Proposed call: The row reads `app.md`.
 - Related: F-180
-- Decision:
+- Decision: Stands: §7.1's row reads `app.md`.
 
 #### F-514. §10 module lists fall short of what the claims needed
 
@@ -7366,7 +7375,7 @@ What to settle before rewriting a page, in the order it bites.
 - Plan location: `audit/plan/10-audit-units.md:11-279` (each entry's *Modules*)
 - Finding: Units read beyond their entry's modules, each under "Also read": A1 `display.ts`, `outcome.ts` (what `=` means, N2, N3), `evaluate.ts`, `quantity.ts` (how a node reaches `step`), `pipeline.ts` (end-to-end runs); A2 `src/core/print.ts` (the parentheses the pages give the outcome are the printer's); A3 `evaluate.ts` (the `unit` node) and `table.ts` (`unitLookup`) for Q11, `settings.ts` and `settings-lines.ts` (the precision-limit panel claim); A4 `table.ts` (N17), `convert.ts` (N19), `quantity.ts` (the flag from a call's arguments); A5 `pipeline.ts`, `builtin.ts`, `context.ts` and the refusal sites under `builtins/` (§1.1.6 item 14, the suggestion rule); A6 `messages.ts` (N15's wording), the edge checks of six built-in modules (D5–D7's) and `step` (the decimal-mode retry); A7 a dozen lines of `units.txt` beyond the declarations (the Q4, Q5, Q8 examples), `build.ts` (Q3's condition terms), `pipeline.ts` (Q16's conformance step), the `dimensions` line of every built-in module; D1 `pipeline.ts` and `outcome.ts` (the want grammar), `names.ts`, `table.ts`, `build.ts` (`#Names`), two built-ins (arity), and the property test lives in `src/core/print.test.ts`, `src/testing/expr.ts` being only the tree generator; D2 `evaluate.ts` (the call case, `checkConditions`, `evaluateBound`; §2.2.4 lists it, the entry does not) and `names.ts`; D4 `settings-panel.ts` (V5's) and the harness for the page's worked examples; D5 `messages.ts`, `evaluate.ts`, `ball.ts`'s edge and classifier functions, the other families' registry lines (the whole dimension-rule table), `units.txt`; D6 `builtin.ts`, `ball.ts` (`widened`, `position`), `messages.ts`, `evaluate.ts`'s call node, and `builtins/exact.test.ts` is thinner than the entry's "checklist of exact behaviour in every mode"; D7 `bernoulli-ratios.ts` (§9.4's gamma-bullet row), `messages.ts`; D9 `app-shell.ts`, `sw.ts`, `build-id.ts`, `subscription.ts`, `settings-panel.ts`'s header (the six "list only" modules hold neither the shell, the worker nor the sheet); V2 `quantity.ts` and `dimension.ts`, and `outcome.ts` in full (listed header-only, though only its body settles the re-parse); V3 its "`fixed-*.ts` by header only" left the Bernoulli memo by count and bits and `fixed-incomplete.ts`'s bodies unverified (V3 (F-160); D7 verified the memo rule, D7 report); V4 `table.ts`, `messages.ts`, `ball.ts`; V5 `app-shell.ts` beyond its header (the cog, `render`, the settings handlers) and `print.ts`'s header; V6 "`bench/stress/*` by header" undersells the work: `cases.ts` and `catalogue.ts` in full and a scratch analysis of `catalogue.json`; V7 "test and bench files by name" understates it: the bench and stress modules in full, the sweeps by section; V8 `app-footer.ts`, `build-id.ts`, `vite.config.ts`, the manifest, `index.html`, `.env`, `.gitignore`, the Prettier configuration, the rasterizer's header, `tsconfig-coverage.test.ts`, `bench/stress/tooling.ts`. A8, A9 and V1 call their scope right, with single-clause extras (A8 `evaluate.ts` for `evaluateBound` and `checkConditions`; A9 `context.ts`, `evaluate.ts`, `quantity.ts`, `ball.ts`, `builtins.ts`, `expr.ts`; V1 `bernoulli-ratios.ts`, `hyperbolic.ts`, `radius.ts`); D3 and D8 needed nothing more. Recurring: `messages.ts` (A6, D5, D6, D7, V4), `evaluate.ts` (A1, A3, A8, A9, D2, D5, D6), `table.ts` (A3, A4, D1, V4), `pipeline.ts` (A1, A5, A7, D1), `print.ts` (A2, V5).
 - Proposed call: No correction needed for this audit (historical scope notes; every unit read what it needed). If an entry is re-run, add the modules named here and name the harness (`outcomeOf`, `evaluateText` or `convertText` from a scratch script, the table built as `src/outcome.test.ts` builds it) as the instrument for examples; V2's advice holds: a unit whose page describes a module should expect to read that module whole.
-- Decision:
+- Decision: Stands (no correction for this audit; recorded for a re-run).
 
 #### F-515. §10 entries: section, claim and context scopes that did not fit
 
@@ -7377,7 +7386,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: A2: "N24's display part" is not defined (N24 is about which limit a refusal names); A2 read it as the display's handling of the exponent bound. D2: its section pointers overlap neighbours: `#Conditions`' subsections are A6's, `#Names` rests on `names.ts` and the `NAME` regex (A9's and D1's), `#Calls` describes `evaluate.ts` step by step, and most of `#Unit lists` is conversion semantics (Q15's owner). D3: the entry's "sections" cannot be checked bullet by bullet (the page's six bullets against the file's twenty-one sections; D3 maps them and names the five the page omits), and it assigns the absent `u` and `at` of `docs/definitions.md#Names`, a section D1 and D2 own. D4: §6.5, on which its findings rest, is not in its context (read anyway). D5 and D6: what the D5 entry calls "the preamble paragraph" follows the bullets (`docs/functions.md:115`), and its "every built-in takes plain numbers" is contradicted by D6's bullets 7 to 9; both units found it (D5 (F-138), D6 (Q-095)). D5 is also asked to verify the whole dimension-rule table, though four rows are D6's and D7's.
 - Proposed call: No correction needed: historical scope notes, every case was covered. For a re-run, define N24's display part, list `evaluate.ts` and `names.ts` for D2, add §6.5 and §6.8 to D4's context, and give the paragraph after the bullets to D5 and D6 jointly.
 - Related: Q-095, F-138
-- Decision:
+- Decision: Stands (no correction for this audit; recorded for a re-run).
 
 ## Needs spot-check
 

@@ -4,7 +4,19 @@
 
 Each unit fits one focused session. Each lists its doc sections, the
 source modules to read, and the read-only context. The getting started
-guide has no unit; it is written last.
+guide has no unit; it is written last (Q-008).
+
+Amended on 2026-10-12 (§12, section 12.1). The units have run and their
+reports are consolidated in `audit/findings.md`, `audit/open-items.md`
+and `audit/bugs.md`; the entries stand as the record of each unit's
+scope, with the owner's answers noted where they change an entry's
+terms. The rewrite that follows runs by the work orders under
+`audit/work-orders/`, one per page in topological order: the user pages
+first (numbers, quantities, expressions, definitions, units, settings,
+`builtins.md`, `app.md`, the index), getting started last, and each
+devdocs page in one pass after the user pages it links exist (Q-008).
+`docs/functions.md` in a pointer below names today's page; the
+rewritten page is `docs/builtins.md` (Q-020).
 
 ### 10.a Core-abstraction units (verify §1 claims against the code)
 
@@ -83,7 +95,7 @@ lists`, `#Functions` (the want), `#The converter and its lines`;
 `evaluate.ts` (`invertFunction`), `src/copy-button.ts` (what it copies).
 *Context:* §1.2.1, §1.2.6 items 2, 3, 8, 9.
 
-**A9. Names, the table and the system definitions' exactness.** Claims
+**A9. Names, the table and the definitions file's exactness** (F-475). Claims
 Q9–Q12. *Sections:* `devdocs/architecture.md#Definitions`;
 `docs/definitions.md#Names`, `#What the file contains` (the exactness and
 `pi()` claims); `devdocs/numbers.md#Working precision and the schedule` (the
@@ -98,7 +110,9 @@ table at the ceiling); `devdocs/builtins.md#Names`. *Modules:*
 Every docs unit writes within the Markdown subset of `audit/principles.md`
 and rewrites anything outside it in the pages it touches: in particular,
 reference-style issue links become inline links, written from the one
-place that owns the concept (§12, question 26).
+place that owns the concept (§12, question 26); under Q-011 an issue
+that is future work is linked from `devdocs/future.md` only, and the
+user docs link no such issue.
 
 **D1. Expression language.** *Sections:* `docs/definitions.md#Expressions`,
 `#Names`; `devdocs/architecture.md#Expressions`, `#Parsing` (user-observable
@@ -122,20 +136,20 @@ property test's rejected pieces, as a checklist). *Output:* the line grammar's f
 stays hand-maintained until generated, §2.2.3), the build-error table, the exactness/dimension interaction
 list. *Context:* A6, A7, A9, §2.2.
 
-**D3. The system units catalogue.** *Sections:* `docs/definitions.md#What
+**D3. The units catalogue (the definitions file, F-475).** *Sections:* `docs/definitions.md#What
 the file contains`; `devdocs/development.md#Adding a unit`;
 `devdocs/functions.md#Definitions` (the five functions). *Modules:*
 `src/units.txt` (read in full here), `src/units.test.ts`. *Output:*
 verification of every claim in "What the file contains" (that the
 radian is the only `!kind` primitive, §12 question 20; sections,
 spellings of micro, binary prefixes, `imp`/`uk`, the lists, the absent
-`u`/`at`, exact factors and their sources) and the skeleton of
-`units.md`. *Context:* A9, §7 (`units.md`), §12 question 4.
+`u` and `at` (which reads as `a` + `t`, Q-075), exact factors and
+their sources) and the skeleton of `units.md`. *Context:* A9, §7 (`units.md`), §12 question 4.
 
 **D4. Settings.** *Sections:* `docs/settings.md` (all); `devdocs/settings.md#The
 model`, `#Applying a change`, `#The probe`, `#The controls` (labels and
-lines); `devdocs/notation.md#The width`; `devdocs/numbers.md#The working
-digits`. *Modules:* `src/settings.ts` (defaults, `rangesOf`,
+lines); `devdocs/notation.md#The rule > The width`;
+`devdocs/numbers.md#The working digits`. *Modules:* `src/settings.ts` (defaults, `rangesOf`,
 `clampSettings`, `refusalOf`, `contextOf`, `ratioOf`, `STORAGE_VERSION`),
 `src/settings-lines.ts` (every line's text), `src/limits.ts`,
 `src/core/context.ts` (`ceilingFor`, defaults), `src/core/rounding.ts`.
@@ -211,8 +225,9 @@ devdocs unit also writes within the Markdown subset of
 `audit/principles.md` and rewrites what lies outside it in its pages:
 the reference-style issue links (`[110]: https://…`), which every
 topical page uses, become inline links at the one place that owns the
-concept (§12, question 26); the diagrams in fenced code blocks are
-within the subset and stay.
+concept (§12, question 26; future work's in `devdocs/future.md` only,
+Q-011, and a bug's with the passage that owns the concept, Q-012); the
+diagrams in fenced code blocks are within the subset and stay.
 
 **V1. `devdocs/numbers.md`.** All sections. *Modules:* those of A1–A6 (the
 unit re-reads only where the page's statements were not covered by an A
@@ -233,7 +248,9 @@ checked against `app.md`'s decision.
 **V3. `devdocs/builtins.md`.** All sections. *Modules:* `builtin.ts`,
 `builtins.ts`, `builtins/*.ts` (as in D5–D7), `fixed-*.ts` by header only.
 *Context:* D5–D7 entries; claims N6, N15, N21, N22, Q5, Q8; §9.1 (angle rules, cost figures), §1.1.5 rows for this page. *Output:* the user-rule passages replaced by links
-to `functions.md` entries; the algorithms, bounds and measurements kept.
+to `docs/builtins.md` entries (Q-020); the algorithms, bounds, counts
+and memory sizes kept, timings only as rough, illustrative figures that
+add weight (Q-016, Q-018, F-510).
 
 **V4. `devdocs/functions.md`.** All sections. *Modules:* `definitions.ts`,
 `build.ts`, `dimension-of.ts`, `evaluate.ts`, `pipeline.ts`, `outcome.ts`
@@ -246,9 +263,9 @@ considered" kept as intent, the ruled-out alternatives and deferred designs with
 *Modules:* `display.ts`, `outcome.ts`, `settings.ts`, `settings-lines.ts`,
 `settings-panel.ts`, `limits.ts`, `app-shell.ts` (headers). *Context:* D4
 output; claims N11, N13, N19; `docs/settings.md`; §9.1 (representation,
-the sheet), §9.4 (`ABOUT`, "six settings"). *Output:* `#The model`
+the panel), §9.4 (`ABOUT`, "six settings"). *Output:* `#The model`
 rewritten to build on `numbers.md` and `settings.md`; the storage,
-probe, sheet and controls kept as design.
+probe, panel and controls kept as design (F-488).
 
 **V6. `devdocs/future.md` and `devdocs/cost.md`.** All sections. *Modules:*
 `bench/stress/*` by header; `pipeline.ts` (`PassObserver`). *Context:*

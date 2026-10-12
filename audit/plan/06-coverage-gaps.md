@@ -2,6 +2,11 @@
 
 ## 6. Coverage gaps in docs/, measured against the target
 
+Amended on 2026-10-12 (§12, section 12.1). The units confirmed or
+refuted each gap; the findings under each page in `audit/findings.md`
+record which, and the work orders carry the result. The rules that
+bind every page (`audit/principles.md`) hold in the wording below.
+
 ### 6.1 Foundation: the numeric type — missing as a page
 
 What exists is scattered and partly at the wrong level:
@@ -19,7 +24,7 @@ Missing or thin, with the devdocs passages to derive from:
   `devdocs/numbers.md#Exact mode`, `#The types > Ball` (the claim only).
 - How a value is held, to the depth needed to predict refusals: the
   fraction and its bit size, the power of ten and its bound, the error
-  radius, the digits an approximate value is kept to, the dyadic cost:
+  radius, the digits an inexact value is kept to, the dyadic cost:
   `#The types` (the claims only), `#The significand limit`, `#The
   exponent bound` (§12, question 5).
 - Which operations are exact and that exact values are never rounded;
@@ -55,8 +60,9 @@ Missing or thin, with the devdocs passages to derive from:
   `#Where a ratio is written`.
 - Rounding modes and where the mode acts: `#Certification…` (last
   paragraph); `devdocs/builtins.md#The exact functions` (`round`).
-- Real values only; what symbolic exactness would add (one sentence):
-  `devdocs/future.md#Symbolic values`, `#Complex numbers`.
+- Real values only, stated as a plain fact; nothing about what symbolic
+  exactness or complex numbers would add, which is `devdocs/future.md`'s
+  alone (Q-011; `#Symbolic values`, `#Complex numbers`).
 
 ### 6.2 Foundation: the quantity — missing as a page
 
@@ -88,7 +94,9 @@ Missing, with sources:
   definitions.md#What the file contains` (keep), `devdocs/builtins.md#The
   elementary routines`, `devdocs/numbers.md#approx` (constants).
 - Why temperature readings and logarithmic levels are functions, not
-  units: `devdocs/functions.md#(top)`; `devdocs/future.md#Ruled out`.
+  units: `devdocs/functions.md#(top)`; `devdocs/future.md#Ruled out`
+  (today; a design ruled out by intent, whose reason belongs to the
+  owning devdocs page under Q-011).
 - How a dimension is written in errors: `devdocs/architecture.md#Quantities…`.
 
 ### 6.3 Expression language reference — partial, misplaced
@@ -140,33 +148,39 @@ Missing or thin:
   `devdocs/functions.md#Annotations`, `#Conditions`; `devdocs/architecture.md#Definitions`.
 - Inverse conditions and what a conversion into a function checks:
   `devdocs/functions.md#Conditions` (last paragraph), `#A function as the want`.
-- The status of user definitions (system file only today; #132):
-  `devdocs/future.md#Extensions that fit`.
+- The status of user definitions: only the predefined definitions file
+  is loaded, stated as a plain fact (F-475); #132 and what may come are
+  `devdocs/future.md#Extensions that fit`'s alone (Q-011).
 - `docs/definitions.md#What the file contains` is a catalogue, not
   language; see §7 (`units.md`) and §12, question 4.
 
 ### 6.5 Settings reference — complete in coverage, wrong in shape
 
-Every setting is described, but `docs/settings.md` mixes the sheet's
-mechanics, the model, and representation. Missing or to restructure:
+Every setting is described, but `docs/settings.md` mixes the panel's
+mechanics (F-488), the model, and representation. Missing or to restructure:
 
 - One entry per control with stored key, default, range and what bounds
   it, effect in each mode: `devdocs/settings.md#The model`, `#Applying a
   change` (`rangesOf`).
-- The clamp chain and refusals as a short table: `devdocs/settings.md#The
-  model > The chain`, `#Applying a change`.
+- The clamp chain and the edits the panel does not accept, as a short
+  table (the code's "refusals"; how the pages name them under F-442 is
+  on the owner's list): `devdocs/settings.md#The model > The chain`,
+  `#Applying a change`.
 - "Measure this device" as a procedure (what it times, what it proposes,
   Apply): `devdocs/settings.md#The probe`.
 - The ratio width and the extended working digits as entries of their
-  own: `devdocs/notation.md#The width`; `devdocs/numbers.md#The working digits`.
+  own: `devdocs/notation.md#The rule > The width`; `devdocs/numbers.md#The
+  working digits`.
 - Remove from here: the update-check paragraph (to `app.md`, C57); the
   representation section (to `numbers.md`, which each settings entry
-  links to rather than restating, §12 question 5); the sheet's layout
-  detail beyond what a user needs to find a control (to `app.md`).
+  links to rather than restating, §12 question 5); the panel's layout
+  detail beyond what a user needs to find a control (to `app.md`,
+  F-176).
 
 ### 6.6 Built-in function reference — a prose list, not a reference
 
-`docs/functions.md#(top)` covers every family in bullets. Missing per
+`docs/functions.md#(top)` covers every family in bullets; the rewritten
+page is `docs/builtins.md` (Q-020). Missing per
 entry (the fields of §4.1, to be supplied by the generated reference, not by hand): signature and argument order; dimension
 requirements and result; exact cases; domain wording; edges; decimal
 mode; related settings. Specific gaps, with sources in
@@ -179,8 +193,8 @@ mode; related settings. Specific gaps, with sources in
 - `atan2`: quadrant rules, `y` exactly zero, the origin: `#Domains…`,
   `#Huge and tiny arguments`.
 - `tan` at a pole; `asin`/`acos`/`acosh`/`atanh` at their ends;
-  `asin(0.1 + 1e-15000)` refused (#63): `#Domains…`, `#Huge and tiny
-  arguments`.
+  `asin(0.1 + 1e-15000)` fails (#63, a bug, whose link stays with the
+  owning passage, Q-012): `#Domains…`, `#Huge and tiny arguments`.
 - Tiny and huge arguments where visible (`sin(1e-999999999 radian)`,
   `atan` beyond `2^bits`, `tanh` saturation, `ln(1e999999999)`,
   `log10(1e999999999)` exact): `#Huge and tiny arguments`.
@@ -190,10 +204,11 @@ mode; related settings. Specific gaps, with sources in
   `#The exact functions`.
 - `gcd(0, 0)`, `lcm(a, 0)`, `binomial` outside `0..n`,
   `doublefactorial(-1)`: `#The exact functions`.
-- `digamma` reflection and poles, `lgamma` as `ln |Γ|`, `gamma`'s sign,
-  `beta` at a pole of the sum, the incomplete functions' exact cases and
-  the `tooLarge` regime, `erfc` thresholds, `incbetareg`'s polynomial
-  case: `#The Gamma and Beta families`.
+- `gamma`'s sign, the incomplete functions' `tooLarge` regime,
+  `incbetareg`'s polynomial case: `#The Gamma and Beta families` (the
+  `digamma` reflection and poles, `lgamma` as `ln |Γ|`, `beta` at a pole
+  of the sum, the incomplete functions' exact cases and the `erfc`
+  thresholds are struck: the page carries them, F-158).
 - Decimal-mode behaviour of each family (one step, exact cases rounded):
   `devdocs/numbers.md#Decimal mode > A built-in's call`.
 - `docs/functions.md#Very large results and approx` belongs to the numeric
@@ -203,7 +218,8 @@ mode; related settings. Specific gaps, with sources in
 ### 6.7 Getting started — missing entirely
 
 The seed is `docs/README.md#(top)` (the intro paragraph) and
-`devdocs/architecture.md#(top)`. It should teach by example: a
+`devdocs/architecture.md#(top)`; the page is written last, after every
+page it links (Q-008). It should teach by example: a
 conversion, the reciprocal line, a unit list, a calculation with a
 blank want, `approx`, a function call, a conversion into `tempC`, a
 settings change (display digits, ratio notation, decimal mode), and

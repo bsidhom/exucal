@@ -12,6 +12,14 @@ are tagged in §1.1.5, §1.2.5 and §9.4); *depends on* (claims of §1);
 (proposed owning location in the restructured docs/, naming pages from
 the outline in §7).
 
+Amended on 2026-10-12 from the owner's answers (§12, section 12.1):
+owners named `functions.md` on the docs side now read `builtins.md`
+(Q-020's note; `docs/functions.md` in a pointer names today's page);
+"approximate" reads "inexact" (F-451), "sheet" reads "panel" (F-488)
+and "the system file" reads "the definitions file" (F-475); an issue
+that is future work is linked from `devdocs/future.md` only (Q-011),
+and a bug's link stays with the passage that owns the concept (Q-012).
+
 **C1. have and want.** The quantity to convert and the unit (or list, or
 function) to convert it to. *Class:* user. *Terms:* "You have" / "You
 want" (the fields' labels) ↔ "the quantity to convert" / "the unit to
@@ -49,13 +57,15 @@ digit…", "An answer is written with = …"); `docs/functions.md#(top)`
 second line. *Class:* user. *Terms:* "the other way round" (docs) ↔
 "reciprocal" (devdocs, `outcome.ts`). *docs/:* `docs/README.md#(top)`.
 *devdocs/:* `architecture.md#The converter and its lines > The reciprocal`; `numbers.md#Working precision and the schedule` ("outside
-the loop", #92); `notation.md#Where a ratio is written`. *Depends on:*
+the loop"; #92 is linked only from `architecture.md`'s reciprocal
+paragraph, F-507, Q-103); `notation.md#Where a ratio is written`. *Depends on:*
 Q14, N10. *Modules:* `outcome.ts`. *Owner:* `quantities.md`.
 
 **C5. Typeable-back lines and copy text.** Every line parses back as a
 have; the copy button writes `*` where the screen shows `×`. *Class:*
-user. *Terms:* "copy", "typed back" ↔ "the printer", "canonical text",
-`print`, `text`. *docs/:* `docs/README.md#(top)`. *devdocs/:*
+user. *Terms:* "copy", "pastes back" (docs; "parses back" in devdocs,
+F-457) ↔ "the printer", "canonical text" (devdocs-only, spelled out
+once, F-439), `print`, `text`. *docs/:* `docs/README.md#(top)`. *devdocs/:*
 `architecture.md#Expressions` (printer), `#The converter and its lines`; `notation.md#Every literal parses back`. *Depends on:* N12,
 Q18. *Modules:* `print.ts`, `copy-button.ts`, `outcome.ts`. *Owner:*
 `numbers.md` for the principle (every result is input the calculator
@@ -69,7 +79,7 @@ bridge. *Terms:* "exact" / "inexact", "known to a precision" ↔ `radius`,
 `docs/functions.md#(top)` (approx bullet). *devdocs/:* `numbers.md#(top)`,
 `#The types > Ball`, `#Exact mode`. *Depends on:* N2, N3.
 *Modules:* `ball.ts`, `radius.ts`. *Owner:* `numbers.md` > "Exact and
-approximate values".
+inexact values" (F-451).
 
 **C7. Ball, midpoint, radius.** The representation of a value with its
 error bound. *Class:* internal (docs may say "a value with an error
@@ -98,12 +108,14 @@ the schedule`, `cost.md#How a case is measured`. *Depends
 on:* N8. *Modules:* `pipeline.ts`, `context.ts`. *Owner:* `numbers.md` >
 "Digits you can trust" (as a user rule); the schedule in devdocs.
 
-**C10. The ceiling.** The finest grid, four times the precision limit
-plus ten. *Class:* bridge. *Terms:* "finest grid" (docs) ↔ "ceiling",
+**C10. The ceiling.** The precision of the last pass, four times the
+sum of the precision limit and ten (Q-004, F-022). *Class:* bridge.
+*Terms:* "ceiling" (docs, defined once; not "the finest grid") ↔ "ceiling",
 `ceilingFor`, `DEFAULT_CEILING`, `ceilingContext`. *docs/:*
 `docs/settings.md#(top) > Precision limit`, `#How a number is held…`.
 *devdocs/:* `numbers.md#Working precision and the schedule`;
-`settings.md#The model` ("derived and shown, never set"). *Depends on:*
+`settings.md#The model` ("derived, never set"; not shown by the panel,
+Q-027). *Depends on:*
 N8. *Modules:* `context.ts`, `settings.ts`, `system-build.ts`. *Owner:*
 `settings.md` > Precision limit entry; defined in `numbers.md`.
 
@@ -116,8 +128,8 @@ kernel's boundary`, `#Settling`, `#The working digits`
 (the collision flagged, #172); `settings.md#The model > The terms`.
 *Depends on:* N8. *Modules:* `rounding.ts`, `fixed.ts`, `ball.ts`. *Owner:*
 `numbers.md` > "How a value is held" for the user-facing rule (the
-digits an approximate value is kept to); `devdocs/numbers.md` for the
-mechanism (§12, question 5).
+digits an inexact value is kept to; "grid" explained once in the docs,
+Q-004); `devdocs/numbers.md` for the mechanism (§12, question 5).
 
 **C12. Settling.** Rounding every inexact result to the working grid.
 *Class:* internal. *Terms:* none in docs ↔ `settle`, `step`, `onGrid`,
@@ -142,7 +154,7 @@ entry (the modes); `numbers.md` (where the mode acts).
 exact and decimal`. *Depends on:* N1–N16. *Modules:* `context.ts`,
 `settings.ts`. *Owner:* `numbers.md` > "The two modes".
 
-**C15. Decimal mode.** *Class:* user. *Terms:* "decimal" (rejected:
+**C15. Decimal mode.** *Class:* user. *Terms:* "decimal" (set aside:
 "rounded", "calculator") ↔ `mode: "decimal"`. *docs/:*
 `docs/settings.md#(top) > Mode`, `> Working digits`. *devdocs/:*
 `numbers.md#Decimal mode`;
@@ -175,7 +187,7 @@ N8, N17. *Modules:* `settings.ts`, `context.ts`. *Owner:* `settings.md`.
 
 **C19. Precision limit.** *Class:* user. *Terms:* "precision limit" ↔
 `precisionLimitDigits` (`maxDigits` in older stored versions, read by
-the migrations); rejected
+the migrations); set aside:
 "digits limit", "grid limit". *docs/:* `docs/settings.md#(top) > Precision
 limit`. *devdocs/:* `settings.md#The model > Precision limit`,
 `#Storage` (4→5); `numbers.md#Working precision and the schedule`, `#The
@@ -203,10 +215,14 @@ would pass 10^18 / fall below -10^18" ↔ `overflow`, `underflow`,
 Significand limit`. *devdocs/:* `numbers.md#The exponent bound`, `#Which limit a refusal names`, `#Why the exponent bound stays
 at 10^18`; `builtins.md#The rules every built-in follows`. *Depends on:* N22,
 N24. *Modules:* `scaled.ts`, `ball.ts`, `builtins/*.ts`. *Owner:*
-`numbers.md` > "Values too big to hold"; the pass table and measurements
-stay in `devdocs/numbers.md`.
+`numbers.md` > "Values too big to hold"; the pass table of digits stays
+in `devdocs/numbers.md`, its timings only as rough, illustrative figures
+(Q-016, Q-017).
 
-**C22. Refusal.** The three size refusals as one class. *Class:* bridge.
+**C22. Refusal.** The three size refusals as one class, the only sense
+of "refused" in either corpus (F-442): everything else is "an error" in
+the docs, and the devdocs keep "rejection" for text the parser
+recognized and refused (C62). *Class:* bridge.
 *Terms:* "refused" ↔ `Refusal`, `isRefusal`. *docs/:* used throughout
 `docs/settings.md`, `docs/functions.md`. *devdocs/:* `numbers.md#Which limit a
 refusal names`. *Modules:* `scaled.ts`, `rational.ts`,
@@ -215,8 +231,8 @@ refusal names`. *Modules:* `scaled.ts`, `rational.ts`,
 **C23. Unresolved values ("cannot be told from").** A value straddling an
 edge where the answer would change. *Class:* bridge. *Terms:* "cannot be
 told from zero / a pole / the point where the result passes the exponent
-bound, at this precision" ↔ `unresolved`, `Edge`, `unresolvedWant`,
-`unresolvedBound`. *docs/:* `docs/functions.md#(top)` (floor, digamma,
+bound, at this precision" (an error, never a refusal, F-442) ↔
+`unresolved`, `Edge`, `unresolvedWant`, `unresolvedBound`. *docs/:* `docs/functions.md#(top)` (floor, digamma,
 tan); `docs/settings.md#(top)` ("cannot be divided by"). *devdocs/:*
 `numbers.md#Exact operations`, `#The exponent bound`;
 `builtins.md#The rules every built-in follows`; `architecture.md#Conversion`.
@@ -230,7 +246,7 @@ domain" ↔ `domain` with reasons `notPositive`, `baseOne`,
 *docs/:* `docs/functions.md#(top)`. *devdocs/:* `builtins.md#Domains, exact
 cases and edges`; `future.md#Complex numbers`. *Depends on:*
 N15. *Modules:* `builtin.ts`, `builtins/*.ts`, `messages.ts`. *Owner:*
-`functions.md` (per entry, with the family preamble).
+`builtins.md` (per entry, with the family preamble; Q-020).
 
 **C25. Exact cases.** Inputs a built-in recognizes as giving a rational.
 *Class:* user. *Terms:* "recognized as exact" ↔ "exact case",
@@ -238,15 +254,16 @@ N15. *Modules:* `builtin.ts`, `builtins/*.ts`, `messages.ts`. *Owner:*
 `builtins.md#The rules every built-in follows`, `#Domains, exact cases and
 edges`; `numbers.md#Roots and powers`; `testing.md#The numeric
 test patterns`. *Depends on:* N6. *Modules:* `builtins/*.ts`,
-`rational.ts`. *Owner:* `functions.md` (per entry); the rule in `numbers.md`.
+`rational.ts`. *Owner:* `builtins.md` (per entry); the rule in `numbers.md`.
 
 **C26. approx.** *Class:* user. *Terms:* "known to the working precision
 and no better" ↔ `approx`, `widened`, `decimal: "identity"`. *docs/:*
 `docs/functions.md#(top)` bullet 7, `#Very large results and approx`.
 *devdocs/:* `numbers.md#approx`, `#The significand limit`;
-`builtins.md#The rules every built-in follows`; #100, #171. *Depends on:*
-N23. *Modules:* `builtins/approx.ts`, `ball.ts`. *Owner:* `numbers.md`
-(the concept) and `functions.md` (the entry).
+`builtins.md#The rules every built-in follows`; #100 and #171 are
+`future.md`'s alone (Q-011, Q-104; #171 on the owner's list). *Depends
+on:* N23. *Modules:* `builtins/approx.ts`, `ball.ts`. *Owner:*
+`numbers.md` (the concept) and `builtins.md` (the entry).
 
 **C27. The dependency problem.** Two occurrences of one value are
 independent. *Class:* bridge. *Terms:* "two independent copies of its
@@ -266,7 +283,7 @@ values`. *Depends on:* N8. *Owner:* `devdocs/numbers.md`; named once in
 notation", "ratio", "width" ↔ `Notation`, `RatioDisplay`, `ratioParts`,
 `fraction: true`, `scale` (`fractions` and a string notation in older
 stored versions, read by the migrations). *docs/:* `docs/settings.md#(top) >
-Notation`. *devdocs/:* `notation.md#The rule`, `#The width`,
+Notation`. *devdocs/:* `notation.md#The rule`, `#The rule > The width`,
 `#Where a ratio is written`, `#Not in decimal mode`; `settings.md#The model`
 (nested choice), `#Storage`. *Depends on:* N13, N2. *Modules:*
 `display.ts`, `outcome.ts`, `settings.ts`. *Owner:* `settings.md` (entry);
@@ -290,18 +307,20 @@ delay. *Terms:* "computed once per page load … and kept" (docs) ↔
 `MEMO_MARGIN`, `constants.ts`, `bernoulli-ratios.ts`. *docs/:*
 `docs/functions.md#(top)` (gamma bullet). *devdocs/:* `numbers.md#Memoized
 constants`; `builtins.md#The Gamma and Beta families`;
-`cost.md#What the costs come from`; `future.md` (#103). *Depends on:* N25.
+`cost.md#What the costs come from`; `builtins.md` keeps #103, a
+performance issue (Q-012), not `future.md`. *Depends on:* N25.
 *Modules:* `constants.ts`, `fixed-log.ts`, `fixed-gamma.ts`,
 `bernoulli.ts`, `bernoulli-ratios.ts`. *Owner:* devdocs; one qualitative
-sentence in `functions.md`'s Gamma preamble.
+sentence in `builtins.md`'s Gamma preamble.
 
 **C33. Cost and the catalogue.** What an expression that never certifies
 costs. *Class:* bridge. *Terms:* "a limit on effort", "freeze", "hang" ↔
 cold, warm, passes, typing, `FLOOR_MS`, `DEADLINE_MS`. *docs/:*
 `docs/functions.md#(top)` (gamma timings); `docs/settings.md#(top) > Precision
 limit`. *devdocs/:* `numbers.md#Working precision and the schedule`,
-`cost.md`, `future.md#Extensions that fit`
-(#118). *Depends on:* N7, N8, N25. *Modules:* `pipeline.ts`,
+`cost.md` (the cost and hang issues, Q-012); `future.md#Extensions that
+fit` (#118, the scheduler, with #186 and #167; Q-013). *Depends on:* N7,
+N8, N25. *Modules:* `pipeline.ts`,
 `bench/stress/*`. *Owner:* `devdocs/cost.md`; `numbers.md` > "What costs
 time" (qualitative).
 
@@ -310,9 +329,11 @@ abstraction; listed for naming.) *Class:* user. *Terms:* "dimension",
 "quantities of the same thing" ↔ `Dimension`, `dimensionMismatch`,
 `ConformanceError`. *Owner:* `quantities.md`. Pointers in §1.2.
 
-**C35. Kinds.** Dimensionless markers that keep angles from numbers.
-*Class:* user. *Terms:* "kind", "kind primitive" (devdocs, `!kind`) ↔
-"dimensionless marker" (docs) ↔ `kindMismatch`. *docs/:*
+**C35. Kinds.** Markers of a kind, with no dimension of their own, that
+keep angles from plain numbers. *Class:* user. *Terms:* "kind", "kind
+primitive" (devdocs, `!kind`) ↔ "kind marker", "a marker of a kind,
+with no dimension of its own" (both corpora, F-459; not "dimensionless
+marker") ↔ `kindMismatch`. *docs/:*
 `docs/definitions.md#The format`. *devdocs/:* `architecture.md#Quantities,
 dimensions and kinds`; `builtins.md#Dimension rules > Angles`;
 `future.md#Extensions that fit` (lenient conversion). *Depends on:* Q2–Q4.
@@ -350,7 +371,7 @@ on:* Q15, N10. *Modules:* `convert.ts`, `pipeline.ts`, `outcome.ts`,
 `display.ts`. *Owner:* `quantities.md` (semantics); `expressions.md` (the
 `;` syntax of the want); `units.md` (the defined lists).
 
-**C40. User-defined functions.** *Class:* user. *Terms:* "function", "a
+**C40. Defined functions.** *Class:* user. *Terms:* "function", "a
 function the file defines" ↔ `UnitFunction`, `Definition.function`,
 `applyFunction`, `callFailed`. *docs/:* `docs/definitions.md#Functions`.
 *devdocs/:* `architecture.md#Definitions`, `#Functions`, `functions.md#(top)`,
@@ -390,7 +411,7 @@ semantics); the comparison rule in `numbers.md`.
 **C44. Parameter names and shadowing.** *Class:* user. *Terms:* ↔
 `parameterNamesUnit`, `duplicateParameter`. *docs/:*
 `docs/definitions.md#Functions`. *devdocs/:* `functions.md#Names and
-shadowing` (#131). *Modules:* `definitions.ts`. *Owner:*
+shadowing` (#131 is `future.md`'s alone, Q-011). *Modules:* `definitions.ts`. *Owner:*
 `definitions.md`.
 
 **C45. Calls, arity, "not a function".** *Class:* user. *Terms:* "a
@@ -402,7 +423,7 @@ call", "the space matters" ↔ `arityMismatch`, `notAFunction`,
 **C46. Temperature readings and differences.** *Class:* user. *Terms:*
 "reading" vs "difference" ("interval" in docs) ↔ `tempC`, `tempF`,
 `degC`, `degF`, `degR`. *docs/:* `docs/definitions.md#What the file
-contains`, `#Functions`. *devdocs/:* `functions.md#(top)`, `#Definitions`; `future.md#Ruled out, and why` (offsets). *Modules:*
+contains`, `#Functions`. *devdocs/:* `functions.md#(top)`, `#Definitions`; `future.md#Ruled out, and why` (offsets: a design ruled out by intent, whose reason belongs to the owning devdocs page under Q-011; the classification of that section's bullets is on the owner's list). *Modules:*
 `units.txt`. *Owner:* `units.md` (entries); `quantities.md` (why readings
 are functions).
 
@@ -416,18 +437,20 @@ are functions).
 `conformingToAngle`, `noAngles`. *docs/:* `docs/functions.md#(top)` bullets
 4–5. *devdocs/:* `architecture.md#Quantities…`, `builtins.md#Dimension rules > Angles`. *Depends on:* Q8. *Modules:* `builtin.ts`,
 `builtins/trig.ts`, `builtins/inverse-trig.ts`, `units.txt`. *Owner:*
-`quantities.md` > "Kinds" (angles as the example); `functions.md` entries.
+`quantities.md` > "Kinds" (angles as the example); `builtins.md` entries.
 
 **C49. Dimensionless number.** A quantity with no dimension and no
-kind. *Class:* user. *Terms:* "dimensionless", reserved for this (§12,
-question 20) and glossed "a plain number" in docs ↔ "dimensionless" in
-architecture.md, which there sometimes includes kinds (to be fixed);
-"plain number" in builtins.md. *Owner:* `quantities.md` defines it; see
+kind. *Class:* user. *Terms:* "dimensionless" and "plain number",
+synonyms (Q-019: "dimensionless" preferred where it is not clunky,
+"plain number" where it is clearer; "kind" wherever semantics attach to
+a class of values) ↔ "dimensionless" in architecture.md, which there
+sometimes includes kinds (to be fixed); "plain number" in builtins.md. *Owner:* `quantities.md` defines it; see
 §8.
 
-**C50. The system definitions file.** `src/units.txt` and what it holds.
-*Class:* user. *Terms:* "definitions file", "the file", "system
-definitions", "the unit table" ↔ `loadSystemDefinitions`,
+**C50. The definitions file.** `src/units.txt` and what it holds.
+*Class:* user. *Terms:* "the definitions file", "the predefined
+definitions file" where a user's could be meant (F-475; never "the
+system file" or "system definitions"), "the file", "the unit table" ↔ `loadSystemDefinitions`,
 `buildSystemTable`, `UnitTable`. *docs/:* `docs/definitions.md#(top)`,
 `#What the file contains`. *devdocs/:* `architecture.md#Definitions`, `#The shell and its parts`; `development.md#Adding a unit`;
 `layout.md#The files`. *Depends on:* Q10, Q11. *Modules:* `units.txt`,
@@ -447,7 +470,9 @@ message says…", "marks the input at fault" ↔ `messages.ts`, `Span`,
 *Modules:* `settings.ts`. *Owner:* `devdocs/settings.md#Storage`; one
 sentence in `settings.md`.
 
-**C53. The clamp chain and refused edits.** *Class:* user. *Terms:* "at
+**C53. The clamp chain and the edits the panel does not accept** (its
+"refusals" in the code's terms; how the pages name them under F-442 is
+on the owner's list). *Class:* user. *Terms:* "at
 most 2,453 digits under the significand limit", "lowered from … to fit"
 ↔ `rangesOf`, `Bounds`, `clampSettings`, `clampsOf`, `refusalOf`,
 `minBy`/`maxBy`. *docs/:* `docs/settings.md#(top)` ("The limits are set
@@ -469,17 +494,19 @@ user. *Terms:* ↔ `recommendLimits`, `Probe`, `Recommendation`,
 (the composite); `testing.md#What a test may depend on`. *Modules:*
 `limits.ts`, `settings-panel.ts`. *Owner:* `settings.md`.
 
-**C56. The settings sheet.** The cog, the sheet, its controls. *Class:*
-user (interface). *Terms:* "sheet", "panel", "cog" ↔ `settings-panel.ts`,
+**C56. The settings panel.** The cog, the panel, its controls (F-488;
+never "sheet"). *Class:* user (interface). *Terms:* "the settings
+panel", "the panel", "cog" ↔ `settings-panel.ts`,
 `settings-button.ts`, `step-button.ts`. *docs/:* `docs/settings.md#(top)`
 (first paragraph). *devdocs/:* `architecture.md#UI`, `settings.md#The
-sheet`, `#The controls`. *Modules:* `settings-panel.ts`,
+sheet` (retitled "The panel", F-488), `#The controls`. *Modules:* `settings-panel.ts`,
 `settings-button.ts`, `step-button.ts`, `app-shell.ts`. *Owner:* `app.md`
 (§12, question 3).
 
-**C57. Installation, offline use, updates, the build number.** *Class:*
-user. *Terms:* "build number", "update to …", "up to date", "couldn't
-check (offline?)" ↔ `BUILD_ID`, `sw.ts`, precache, `register-service-worker.ts`,
+**C57. Installation, offline use, updates, the build ID.** *Class:*
+user. *Terms:* "build ID" (Q-022, F-173), "the service worker" (F-493),
+"a new version" and "update" (F-494), "update to …", "up to date",
+"couldn't check (offline?)" ↔ `BUILD_ID`, `sw.ts`, precache, `register-service-worker.ts`,
 `service-worker-updates.ts`. *docs/:* `docs/README.md#(top)`;
 `docs/settings.md#(top)` ("Tapping the build number…"). *devdocs/:*
 `offline.md`; `layout.md#The files`; `architecture.md#The shell
@@ -494,15 +521,17 @@ ranges in the panel ↔ `MAX_SIGNIFICAND_LIMIT_BITS` (2^20),
 `ROOT_DEGREE_LIMIT` (2^32), `FORMABLE_RADIUS_BITS` (2^16),
 `BUDGET_MS_RANGE`. *docs/:* `docs/settings.md#(top)` (ranges as numbers).
 *devdocs/:* `numbers.md` (several sections), `settings.md#The model`,
-`notation.md#The width`, `testing.md#What a test may depend on`. *Modules:* `rational.ts`, `scaled.ts`, `context.ts`,
+`notation.md#The rule > The width`, `testing.md#What a test may depend on`. *Modules:* `rational.ts`, `scaled.ts`, `context.ts`,
 `settings.ts`, `fixed.ts`, `ball.ts`. *Owner:* `settings.md` (ranges);
 devdocs (constants).
 
-**C59. Symbolic values and complex numbers (ruled out).** *Class:*
-internal (future). *docs/:* none; domain errors reflect it. *devdocs/:*
-`future.md#Symbolic values`, `#Complex numbers`;
-`builtins.md#Not in this design`. *Owner:* `devdocs/future.md`; `numbers.md`
-says "real values only" once.
+**C59. Symbolic values and complex numbers.** *Class:* internal (future
+work: possible extensions, `devdocs/future.md`'s alone, Q-011). *docs/:*
+none; domain errors reflect it, and `numbers.md` says "real values
+only" once, as a plain fact. *devdocs/:* `future.md#Symbolic values`,
+`#Complex numbers`; `builtins.md#Not in this design` (which names them
+only as absent and links `future.md`, F-348). *Owner:*
+`devdocs/future.md`.
 
 **C60. GNU units lineage and divergences.** *Class:* framing. *docs/:*
 `docs/README.md#(top)`, `docs/definitions.md#(top)`, `docs/settings.md#(top) >
@@ -517,7 +546,9 @@ and definitions), never in `numbers.md` (§12, question 2).
 `architecture.md#Expressions`. *Owner:* `expressions.md`.
 
 **C62. Number literals and the parse-time bound.** *Class:* user.
-*Terms:* ↔ `parseDecimal`, `Rejection`, `check`, `rejected`. *docs/:*
+*Terms:* ↔ `parseDecimal`, `Rejection`, `check`, `rejected` (devdocs:
+"rejection", text the parser recognized and refused; docs: "an error as
+it is typed", F-442). *docs/:*
 `docs/definitions.md#Expressions > Numbers`. *devdocs/:*
 `architecture.md#Expressions`, `#Parsing > Rejection is final`; `numbers.md#The exponent bound` (last sentence). *Owner:*
 `expressions.md`.
@@ -526,4 +557,4 @@ and definitions), never in `numbers.md` (§12, question 2).
 `docs/definitions.md#Expressions > ^`; `docs/functions.md#(top)` bullet 3.
 *devdocs/:* `architecture.md#Expressions`, `#Evaluation`;
 `numbers.md#Roots and powers`; `builtins.md#Domains… > pow, and ^ with it`.
-*Owner:* `expressions.md` (syntax); `functions.md` > `pow` (the difference).
+*Owner:* `expressions.md` (syntax); `builtins.md` > `pow` (the difference).

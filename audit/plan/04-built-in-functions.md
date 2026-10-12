@@ -2,6 +2,13 @@
 
 ## 4. Built-in functions
 
+Amended on 2026-10-12 (§12, section 12.1): the user page is
+`docs/builtins.md`, "Built-in functions" (Q-020's note; `docs/functions.md`
+in a pointer names today's page); the deferred function classes are
+`devdocs/future.md`'s (Q-010, Q-011); "the system file" reads "the
+definitions file" (F-475); an edge is an error and a refusal a size
+refusal only (F-442).
+
 ### 4.1 The plan: a reference generated from the source
 
 The owner's decision in review inverts the flow this plan first
@@ -33,7 +40,8 @@ What the plan fixes now, so that the later design starts from it:
   - the result: its dimension; the exact cases (inputs that give `=`);
     otherwise `≈` at the digits asked;
   - edges and refusals: where the value "cannot be told" from an edge
-    and how that reads; size refusals, with the thresholds that matter
+    and how that reads (an error, F-442); size refusals, with the
+    thresholds that matter
     to a user (`exp` past about `2.3026e18`, `factorial` past the limit,
     `erfc` past about `1.5e9`); huge and tiny arguments where visible;
   - decimal mode: one observable step, certified then rounded once;
@@ -89,18 +97,23 @@ edges`, `#The exact functions`, `#The Gamma and Beta families`.
 | Error functions | `erf`, `erfc` | bullet 15; same | `builtins/erf.ts` |
 | Incomplete beta | `incbeta`, `incbetareg` | bullet 16; same | `builtins/incbeta.ts` |
 
-Defined in the system file, not built in (they belong to the units
+Defined in the definitions file, not built in (they belong to the units
 reference but the function reference should cross-link them): `tempC`,
 `tempF`, `neper`, `bel`, `decibel` → `devdocs/functions.md#Definitions`;
 `docs/definitions.md#What the file contains`. Designed and deferred
 (#115): `zeta`, `lambertw`, `ellipk`, `ellipe`, `legendre`, `chebyshev`,
 Bessel `J` and `I` → `devdocs/builtins.md#The Gamma and Beta families` (last
-paragraph). Not in the initial design, and deferred rather than ruled
-out indefinitely (the owner's clarification in review): the general
-hypergeometric functions, Bessel `Y` and `K`, polygamma beyond
-`digamma`, complex `gamma`, and the statistical distributions as
-built-ins → same; `devdocs/future.md#Ruled out, and why`, whose wording
-for these is to be updated (§9.4).
+paragraph) today; where #115 lives after the rewrite (that paragraph,
+Q-012, or `devdocs/future.md`, Q-011) is the first item on the owner's
+list. Not in the initial design, deferred for now with a possible
+implementation to follow (Q-010): the general hypergeometric functions,
+Bessel `Y` and `K`, polygamma beyond `digamma`, complex `gamma`, and
+the statistical distributions as built-ins → `devdocs/future.md#Extensions
+that fit` ("More special functions"), with the reasons kept and the
+note that not every function is efficient as a definition;
+`devdocs/builtins.md` names them only as absent and links there, and
+`docs/builtins.md` states what is not provided as a plain fact, with
+what to write instead (F-348, Q-011).
 
 Family-level facts the reference states once, not per entry:
 `devdocs/builtins.md#The rules every built-in follows` (returns the kernel's
@@ -123,12 +136,14 @@ beside the code; until then the two pages stay as they are.
 
 ### 4.4 In the interim, and the follow-on work
 
-- **During this refactor,** `docs/functions.md` keeps its prose list of
-  the built-ins, corrected only where §9.4 tags a stale passage, and
-  gains one sentence saying that the per-function reference will be
-  generated from the source. The foundation-level content it carries
-  today (`#Very large results and approx`) still moves to `numbers.md`
-  (§6.6). `devdocs/builtins.md` is audited for its family rules and
+- **During this refactor,** the page, renamed `docs/builtins.md`
+  (Q-020), keeps its prose list of the built-ins, corrected where §9.4
+  tags a stale passage and wherever the units found a contradiction or
+  a term against §8, with the one-clause additions that state today's
+  behaviour (Q-009, B); it says nothing of the generated reference to
+  come, which is `devdocs/future.md`'s alone (Q-011). The
+  foundation-level content it carries today (`#Very large results and
+  approx`) still moves to `numbers.md` (§6.6). `devdocs/builtins.md` is audited for its family rules and
   design (unit V3); no per-function entries are written anywhere.
 - **Audit units D5 to D7** verify the family-level rules and the
   dimension-rule table against the code and tag stale passages; they do
@@ -145,4 +160,5 @@ beside the code; until then the two pages stay as they are.
   the app, rendered from Markdown to HTML by a homegrown parser and
   generator and cached for offline use, is a further chunk of its own
   with its own design (§12, question 31); the refactor only keeps its
-  door open.
+  door open. Each of these is recorded in `devdocs/future.md` as intent
+  (F-345, Q-011) and nowhere else in the pages.

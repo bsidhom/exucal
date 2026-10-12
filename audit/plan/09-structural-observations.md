@@ -2,6 +2,10 @@
 
 ## 9. Preliminary structural observations (from the docs alone; unverified)
 
+Amended on 2026-10-12 (§12, section 12.1): the units verified these
+observations, and `audit/findings.md` records the outcome of each; the
+rows and bullets below carry the owner's answers where they change one.
+
 ### 9.1 Cross-corpus duplication
 
 - **The exponent bound and `approx`.** `docs/functions.md#Very large results
@@ -9,8 +13,9 @@
   both carry the six-pass table of `approx(1e999)`, the "what `approx`
   relaxes" examples and the log-space advice; the docs version adds an
   ASCII diagram and the issue (#40). Owner should be `numbers.md`
-  (docs) for the rule and `devdocs/numbers.md` for the table and the
-  scratch-build measurements.
+  (docs) for the rule and `devdocs/numbers.md` for the six-pass table of
+  digits, the scratch build's timings leaving or staying only as rough,
+  illustrative figures that add weight (Q-016, Q-017, F-510).
 - **The representation.** `docs/settings.md#How a number is held…`
   restates `devdocs/numbers.md#The types` (fraction, power of ten, radius,
   grid), `devdocs/settings.md#The model > The terms` and `> The two limits
@@ -31,9 +36,11 @@
 - **Conditions' three-valued check and "why conditions differ from the
   built-ins' edges".** `docs/definitions.md#Functions` and
   `devdocs/functions.md#The check at a call`, `#An undecided condition`.
-- **The sheet.** `docs/settings.md#(top)` (first paragraph) and
-  `devdocs/settings.md#The sheet`, `#The controls` (heights, Done/Escape,
-  steppers, the three groups, the "default …" link).
+- **The panel.** `docs/settings.md#(top)` (first paragraph) and
+  `devdocs/settings.md#The sheet` (retitled "The panel", F-488), `#The
+  controls` (heights, Done/Escape, steppers, the three groups, the
+  "default …" link); resolved by moving the mechanics to `docs/app.md`,
+  the devdocs section opening with a link to it (F-176).
 - **The update check.** `docs/settings.md#(top)` ("Tapping the build
   number…") and `devdocs/offline.md#Offline behavior > Update checks`,
   `> The worker's status`.
@@ -43,7 +50,8 @@
   "about half a second the first time and a tenth of a second a call
   after"), `devdocs/builtins.md#The Gamma and Beta families` ("0.12 s …
   0.45 s and 1.2 s"), `devdocs/cost.md#What the costs come from` ("0.6 to
-  2 s a call"): three sets of numbers for one thing.
+  2 s a call"): three sets of numbers for one thing (the user docs keep
+  none, Q-016; the devdocs keep rough figures marked as such, Q-018).
 - **The call rule (`kg (m/s)` vs `kg(m/s)`).** `docs/definitions.md#Expressions`
   and `#Functions` (twice within docs), `devdocs/architecture.md#Expressions`,
   `devdocs/functions.md#Calls`.
@@ -63,9 +71,10 @@
   index link to `devdocs/README.md`, acceptable as navigation).
 - devdocs → docs exist but do not "build on" docs: `devdocs/architecture.md#Definitions`
   and `#Expressions`, `devdocs/builtins.md#(top)`, `devdocs/functions.md#(top)`,
-  `devdocs/settings.md#(top)` and `#The controls` (the `ABOUT` link),
-  `devdocs/layout.md#The files` each point at docs as "the user's side" and
-  then re-explain the user semantics. After the foundation pages exist,
+  `devdocs/settings.md#(top)` and `#The controls` (the `ABOUT` link)
+  each point at docs as "the user's side" and then re-explain the user
+  semantics (`devdocs/layout.md#The files` is struck from the list: its
+  bullet is one sentence and a link, F-504, F-366, Q-077). After the foundation pages exist,
   these passages should shrink to a link plus what is mechanism.
 - devdocs → docs for the *settings' semantics* is inverted today: the
   user-level rules of the modes, notation and limits are fuller in
@@ -88,8 +97,9 @@
   `devdocs/builtins.md`.
 - Error messages: `src/messages.ts` has no page; quoted messages are
   spread over every page.
-- The system units catalogue: `docs/definitions.md#What the file contains`
-  only, inside a language page.
+- The units catalogue (the definitions file's contents, F-475):
+  `docs/definitions.md#What the file contains` only, inside a language
+  page.
 - Installation, offline, updates: `docs/README.md`, `docs/settings.md`,
   `devdocs/offline.md`.
 - Latency expectations for users: `docs/functions.md` (gamma bullet) and
@@ -107,15 +117,15 @@ design, an interim state, or a count a tool regenerates, tagged as in
 | --- | --- | --- | --- |
 | `docs/definitions.md#(top)` | "This section describes that file" | update | the page is no longer a README section |
 | `docs/functions.md#(top)` | "Beside the functions the file defines", with "the file" undefined on the page | update | name the definitions file |
-| `docs/settings.md#(top) > Probe budget` and "The limits are set top-down" | the probe "times the costliest exact product and the costliest built-ins" | update | the composite is the four elementary routines, deliberately not the costlier special functions (`devdocs/settings.md#The probe`) |
+| `docs/settings.md#(top)`, the "The limits are set top-down" paragraph (not the Probe budget bullet, F-512) | the probe "times the costliest exact product and the costliest built-ins" | update | the composite is the four elementary routines, deliberately not the costlier special functions (`devdocs/settings.md#The probe`); the wording follows F-491 |
 | `docs/settings.md#(top)` | "There are six settings", against eight controls | update | no count at all: list the controls grouped and nested by mode (§12, question 16) |
 | `docs/functions.md#(top)` (gamma bullet) | "computed once per page load for each precision asked for beyond the last and kept" | update | the current rule stated once, in devdocs (a larger run replaces a smaller one); the docs keep a qualitative cost sentence |
 | `devdocs/cost.md#What the costs come from`, `#What the search has not reached` | "Typing out the 229 entries … 16,548 keystrokes"; "what four runs found, 714 cases in all" | update | counts the tool regenerates do not belong in hand-revised prose: drop them, or have the tool write them |
-| `devdocs/settings.md#The controls` | "pointing at docs/settings.md until the guide lands (#191)" | update | what the link points at; the issue says what is pending |
+| `devdocs/settings.md#The controls` | "pointing at docs/settings.md until the guide lands (#191)" | update | what the link points at, and nothing about what is pending (Q-011; #191 is on the owner's list) |
 | `devdocs/settings.md#The controls` | "(sentences as options once made the panel overflow a phone; `min-width: 0` on the labels is a belt to that)" | keep as intent | a select is as wide as its widest option, so the options are bare names and `min-width: 0` on the labels keeps a long one from overflowing a phone |
 | `devdocs/testing.md#(top)` | "three of them once failed unnoticed for a whole stage, two of them before reaching their assertions" | keep as intent | why the benchmarks run in `test:all`: a benchmark left out of it fails unnoticed, often before reaching its assertion |
 | `devdocs/testing.md#Type-checking` | "(one did, until the projects were made to match by pattern)" | drop | the reason is already stated in the present tense |
 | `devdocs/testing.md#Type-checking` | "the kernel's modules once formed an initialization cycle through `fixed.ts`, `ball.ts` and `context.ts` that only such imports kept alive, so that a module's top level ran before its constants existed…" | keep as intent | why every type-only import is `import type`: an `import { type X }` still loads its module, so an initialization cycle among the kernel's modules would run a module's top level before its constants exist |
 | `devdocs/benchmarks.md#What each benchmark asserts` | "(it costs about the same; before the index it cost fifty times as much)" | keep as intent | what the benchmark guards: without the index the check costs fifty times as much |
 | `devdocs/development.md#Commands` | "(The one place the flag is still written out is the cloud session hook, so that the hook reads as what it does.)" | update | the hook writes the flag out so that it reads as what it does; no "still" |
-| `devdocs/builtins.md#The Gamma and Beta families` (last paragraph); `devdocs/future.md#Ruled out, and why` | "Ruled out as built-ins: the general hypergeometric functions, Bessel `Y` and `K`…, the polygamma functions beyond `digamma`, `gamma` of a complex argument, and the statistical distributions" | update | ruled out for the initial calculator only (the owner's clarification): word them as not in the initial design, deferred, with the reasons kept |
+| `devdocs/builtins.md#The Gamma and Beta families` (last paragraph); `devdocs/future.md#Ruled out, and why` | "Ruled out as built-ins: the general hypergeometric functions, Bessel `Y` and `K`…, the polygamma functions beyond `digamma`, `gamma` of a complex argument, and the statistical distributions" | update | deferred for now, with a possible implementation to follow (Q-010): described in `devdocs/future.md#Extensions that fit` ("More special functions") with the reasons kept and the note that not every function is efficient as a definition; `builtins.md` names them only as absent and links there, and `docs/builtins.md` states what is not provided as a plain fact (F-348, Q-011) |

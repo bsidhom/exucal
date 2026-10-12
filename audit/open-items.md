@@ -5,7 +5,7 @@ Every question the audit units put to the owner, deduplicated: 115 open items fr
 are in [findings.md](findings.md), the code defects in [bugs.md](bugs.md). The owner's
 decisions belong in [plan/12-open-questions.md](plan/12-open-questions.md) once made, as
 [README.md](README.md) says; the owner answers in [decisions.md](decisions.md), and the
-Decision fields here are filled from it.
+Decision fields here are filled from it (done; see each item's Decision and plan §12.1).
 
 ## How to read an open item
 
@@ -21,7 +21,7 @@ Decision fields here are filled from it.
   unit.
 - **Settled by.** Findings (F-) or bugs (B-) whose evidence answers the question.
 - **Blocks.** The page rewrite that waits on the answer.
-- **Decision.** Blank until the owner's answer in [decisions.md](decisions.md) is applied.
+- **Decision.** The owner's answer as written in [decisions.md](decisions.md), applied on 2026-10-12; the full record, with how each answer is applied and which earlier decisions it amends, is [plan/12-open-questions.md](plan/12-open-questions.md), section 12.1. "Pending" marks what the list at the end of decisions.md ("For the owner") still holds.
 
 | Kind | Items |
 | --- | --- |
@@ -76,7 +76,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A1: A5 settles the row against `classifyPower`'s `unaffordable` (`src/core/ball.ts:734-740`) and the pipeline's predicates. A3: A5 traces the classifier; "which the retry loop never retries" holds for `resolve`, so the row's update belongs to A5's sections, not the schedule section. V6: V1 names, among the classes, which end the loop with a result and which with the error. A5 answers (A5 (F-051, F-509); V1 (F-509) follows it): one error kind whose only classes are its reach (`fits`/`exceeds`) and its need (`exact`/`bound`/`unknown`), as `devdocs/numbers.md:1376-1398` already says; `resolve` retries none; any `tooLarge` ends the loop, with the best earlier result when a pass produced one that assumed no condition, otherwise with the refusal; only `unaffordable` and the series' working bits can make a later pass the first to refuse; the row is withdrawn. A3 (F-051) adds that a `tooLarge` is retried inside a node or a step (decimal mode's `powered` and `summed`, the settle-first sum, the retried product and quotient), never by the schedule, which may be what the review meant. The reports contradict the plan's record of the owner's review, so the owner says which holds: if classes some of which are retried are the intent, the code deviates (code wrong); if not, N21 and the §1.1.5 row are corrected and the passages kept.
 - Settled by: —
 - Blocks: V1's rewrite of `devdocs/numbers.md#The significand limit`, `#Which limit a refusal names` and `#Working precision and the schedule`; `docs/numbers.md#Values too big to hold`.
-- Decision:
+- Decision: other: the internal retry looks as they exist in the code today should be considered correct (unless there is some bug in internal consistency, etc). The intent behind classification of failure kinds is to signal the failure type to the _user_, who can choose to retry if there's a chance that increasing the significand width would resolve the issue. This is exactly what the kinds attempt to convey. [plan §12.1]
 
 ### Q-002. A literal whose rounding carries past the exponent bound
 
@@ -87,7 +87,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A2: implement the page's decision in `numberExpr`: keep the display's text with a value built from it without the bound check when `parseDecimal` refuses it as past the bound, since the outcome's expression is printed and never evaluated (`src/core/expr.ts:150` requires a `value`), with a test; the alternative, an error line, keeps every line parseable but refuses a correctly rounded value. A8: report a display rounding that carries past the bound as the bound's refusal (`overflow`), since the value as shown would pass it; the page then states the edge as that refusal and N12 follows. The answers differ (A8 takes A2's alternative); either way the crash is a defect.
 - Settled by: —
 - Blocks: `devdocs/notation.md#Every literal parses back` (A2's edit is written pending this); `docs/numbers.md#How numbers are written` (N12's edge).
-- Decision:
+- Decision: B. The goal of being able to paste back literal values is firm. We should fail on rounding, but surface an explicit and helpful error message to the user, e.g., "rounding EXPRESSION causes an overflow", with the offending expression referenced clearly. (Existing error messages, where they do not have bugs, are currently quite good at this.) [plan §12.1]
 
 ### Q-003. The ratio before the reciprocal line's `×`: bare or parenthesized
 
@@ -98,7 +98,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A2: the code stands and the pages follow, since the printer has one rule, the fewest parentheses that read a line back as its tree (`src/core/print.ts:14-23`), `*` and `/` being one level; a rule for this one position would be a special case in the printer or the outcome. D4 (F-121), V5 (F-121) and A8 (A8 report) write the bare form. The page's stated reason is the evidence for the other reading (code wrong). V5: D4 corrects both from the harness; the `= -1e+8` half is settled by D4 (F-120) and A4 (F-120).
 - Settled by: — (the `= -1e+8` half: F-120)
 - Blocks: `devdocs/notation.md#Where a ratio is written` (A2's and V5's edits); the Notation entry of `docs/settings.md`; `docs/numbers.md#How numbers are written`.
-- Decision:
+- Decision: A, as long as this results in the _correct_ AST parse. That was the entire point of parentheses in the first place. If that concern doesn't apply here, then ditch it. The original idea was to make fractional expressions with bare units such as `(1/2) in` parse correctly. This is _not_ the same (in the current grammar) as `1/2 in`, which a user might prefer to see, but which is _not_ equal to `0.5 in` due to the fact that juxtaposition binds more tightly than division via `/`. The docs need to clearly state this edge case if it isn't already documented. Note that this is also a rough edge in the expression grammar itself, and users might get tripped up by it at the moment. I do want to revisit the grammar later, but that is not up for debate in the current docs rewrite, which need to capture the current behavior as intent. [plan §12.1]
 
 ### Q-004. The ceiling: "the finest grid the app rounds onto", or a pass's precision
 
@@ -109,7 +109,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A3: yes; the same gloss in `devdocs/settings.md`; the proposal line's wording is a code change for later. Against it: D4's proposed Precision limit entry (D4 (F-429)) and D8's terminology row (D8 (F-429)) keep §8's gloss; V5's full replacement of `#The model` (V5 (F-331)) keeps "the finest grid the app rounds onto in either mode"; A1 keeps "grid" in docs as §8 has it (A1 (F-429)) and drafts "the app may raise the grid to …". The units disagree; the owner decides whether §8 changes.
 - Settled by: —
 - Blocks: the Precision limit entry of `docs/settings.md`; `docs/numbers.md#How a value is held` and `#Digits you can trust`; V5's replacement of `devdocs/settings.md#The model`.
-- Decision:
+- Decision: B. This is clearly semantically correct and is the intent we want to capture in docs. And the "grid" abstraction is useful for understanding rounding/snapping/midpoint behavior. [plan §12.1]
 
 ### Q-005. The ceiling's formula: its wording, and whether the docs give it
 
@@ -120,7 +120,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A1: "four times the sum of the limit and ten" everywhere; A3 and D4 own the places outside A1's sections. A3: D8 dissolves `:259-261` keeping the distinction between the limit and the ceiling. D4: keep the formula once, in the Precision limit entry with the link to `numbers.md`; the panel stays as it is. D4's drafted Precision limit entry (D4 L253-266) and D8's rewrite of `:258-261` (D8 (F-022)) still say "four times this (that) limit plus ten", the wording A1 and A3 correct. From the reports: the formula once (D4), in A1's wording, with 4,040 beside it.
 - Settled by: — (the reading: F-022; N8 is a separate plan correction below)
 - Blocks: the Precision limit entry of `docs/settings.md`; `docs/numbers.md#Digits you can trust`.
-- Decision:
+- Decision: A. The current, sloppy wording was an oversight. [plan §12.1]
 
 ### Q-006. The "certified" code change: what rides with it, and when it lands
 
@@ -131,7 +131,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D4: yes, the panel to "Every digit shown is certified, found at rising precision; …" and "Times the costliest exact product and the costliest elementary functions at rising sizes and proposes …". D8: land A2's change before `numbers.md` is assembled. A2: the devdocs quotes and the sheet's line follow the change; `devdocs/builtins.md:191`'s directed-mode examples then read `≈ 1 (0 of 8 digits are certified)`.
 - Settled by: —
 - Blocks: the assembly of `docs/numbers.md` (`#Digits you can trust`); the devdocs passages that quote the notes.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-007. Quoting the app's messages and UI text in hand-written pages
 
@@ -142,7 +142,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D8: the two quotes stay as the foundation's examples, the catalogue being the complete list. D9: getting started quotes two or three messages as examples of the shapes (a mismatch, a size refusal, an edge), claiming no completeness, and links the generated catalogue once it exists; `app.md` quotes every footer word verbatim, so that a user can search for the one they see, and names the service worker once, the mapping from status to word staying in `devdocs/offline.md`. D4: devdocs name the function and paraphrase, quoting only where the exact text is the point (the refusal lines, which the tests pin). The answers agree: examples, never a catalogue.
 - Settled by: —
 - Blocks: `docs/getting-started.md#When something is refused`; `docs/numbers.md#Values too big to hold`; `docs/app.md#Updates and the build number`; `devdocs/settings.md#The probe`.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-008. devdocs edits that link docs pages not yet written: when to apply
 
@@ -153,7 +153,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V1: the phase that creates `docs/numbers.md` applies V1's section openers from its table, cutting the sentences it names; V1's other edits apply now. V2: apply V2's pared sections after the D units' pages exist, so that no link is ever dangling. V4: apply when the skeleton lands; applied earlier, each such link points at `../docs/definitions.md`, "Functions", which holds the rules today. V5: write the links to the outline's names now and set the anchors when the D units create the pages; until then the sentences read correctly as prose. The four answers differ on whether a link may dangle meanwhile.
 - Settled by: —
 - Blocks: every devdocs rewrite that pares a section to one sentence and a link (V1, V2, V4, V5); D8's and D9's drafts, which link `docs/numbers.md` and `docs/app.md`, wait on the same pages.
-- Decision:
+- Decision: A. My intention was always to write the docs in topo order. If that's not captured anywhere (and it goes beyond these smaller linking problems anyway), please note that where relevant. [plan §12.1] Rule: the whole rewrite runs in topological order, and the work orders are numbered so; the forward-link convention for two user pages that link each other is on the owner's list to confirm (decisions.md, "For the owner").
 
 ### Q-009. `docs/functions.md` in the interim: corrections beyond §9.4's rows
 
@@ -164,7 +164,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D6: apply the terminology changes now, since §8 binds, and the additions too, each stating today's behaviour in one clause; the rest waits for the generated reference. D8: D6 points the `approx` bullet at `numbers.md#approx` and keeps the signature and one sentence; D6's bullet 7 edit instead keeps the description, with an addition, and links `numbers.md` once it exists (D6 (F-148)). D5's six old→new pairs (D5 (F-138)) and D7's bullet edits (D7 L133-153 to D7 L173-181) also correct contradictions §9.4 does not tag; their scope follows this decision.
 - Settled by: —
 - Blocks: the interim edits to `docs/functions.md#(top)` (D5, D6, D7, D8).
-- Decision:
+- Decision: B [plan §12.1]
 
 ### Q-010. Statistical distributions: deferred built-ins, or definitions
 
@@ -175,7 +175,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V6: not deferred but placed, in definitions (the system file's or a user's) rather than in the kernel, as V6's text says (V6 (F-348), V6 L193-209). D7 rewords `devdocs/builtins.md`'s list, distributions included, as "Not in the initial design, deferred rather than ruled out" (D7 (F-348)); V3's rewrite of the same paragraph says the distributions need not be built-ins (V3 L667-718). V6's answer departs from §1.3 as written.
 - Settled by: —
 - Blocks: `devdocs/future.md#Ruled out, and why`; the last paragraph of `devdocs/builtins.md#The Gamma and Beta families`; `docs/functions.md#Not provided`.
-- Decision:
+- Decision: other: Just note these as being deferred for now, with a possible implementation to follow in the future. Not all functions of interest can be efficiently implemented in user definitions anyway, for example, inverse/quantile statistical functions. [plan §12.1]
 
 ### Q-011. Where issues #130 to #134 are linked
 
@@ -186,7 +186,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D2: #130 at `devdocs/functions.md#Annotations`, #131 at `#Names and shadowing`, #132 at `docs/definitions.md#The format` (the user statement) with `devdocs/future.md#Extensions that fit` keeping the intent without a second link, #133 at `devdocs/functions.md#Deferred`; the other occurrences become plain mentions. V4: #130 to #133 in `#Deferred`, the page's list of what is open, the other sections naming it; #134 in `#An undecided condition`, where the reason it is open is stated, "Not in this design" referring there; either placement satisfies the rule, and V4's edits follow its own. V6: `functions.md` owns #130 to #134. §7's skeleton and §12 question 12 put #132 beside `docs/definitions.md`'s "User definitions".
 - Settled by: —
 - Blocks: the issue-link edits of `devdocs/functions.md` (V4) and `docs/definitions.md` (D2).
-- Decision:
+- Decision: other: Future work lives only in `devdocs/future.md`. Anything not implemented today that we might implement later is described there, with its issue links, and nowhere else: the user docs never mention it, and a devdocs page that needs to say something is planned links `future.md` rather than describing it. So #130 to #134 are linked from `future.md` only. What is ruled out by intent is not future work but a current design decision, so it lives in the as-is pages: one sentence where a user would look for it in `docs/` (for example, that the app never shows the error radius), and the reason in the devdocs page that owns the concept. `future.md`'s "Ruled out, and why" is split accordingly: its decisions move to those pages, and anything in it we might still do (the function classes deferred in §1.3 and Q-010) stays as future work. A user page may state what the app lacks today as a plain fact, with what to write instead, but never as something to come. Bugs and performance problems in today's behaviour are not future work either: their issue links stay with the passage that owns the concept (Q-012). Where it is unclear whether an item is ruled out or might still be done, ask me. [plan §12.1] Rule; applied to every finding, open item, plan passage and draft it touches (plan §12.1, principles.md); the items whose status under it is unclear are on the owner's list.
 
 ### Q-012. Where the kernel-cost issues are linked: `builtins.md` or `cost.md`
 
@@ -197,7 +197,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D7: `builtins.md` keeps #107, #112 and #115; `cost.md` keeps #103, #125, #149, #150, #151 and #152, and the families section links only `cost.md` for them (D7's own edits nonetheless inline all of them in `builtins.md`, D7 report). V6: `cost.md` owns #107, #125 and #149 to #152 (and #118 to #121); `builtins.md` owns #103 and #115, its Gamma section linking `cost.md` for the costs. V1: #103 leaves `numbers.md#Memoized constants` for `builtins.md#The Gamma and Beta families`, which owns the Bernoulli memo (A3 (F-221) agrees); V3 adds it there if absent and confirms the memo's rule. V3: #152 stays at `expFixed`'s bullet and #151 lives in `cost.md` only; V3's edits keep #103, #107, #125, #149 and #150 inline in the Gamma section. D5: one of the two #152 links goes (a note for V3); V3 verified the elementary routines' algorithm bullets that D5 left (V3 report L70). Positions differ on #103 (D7 against V1, V3 and V6), #107 (D7 and V3 against V6), and #125, #149, #150 and #152 (V3 against D7 and V6).
 - Settled by: —
 - Blocks: the issue-link edits of `devdocs/builtins.md` (V3, D7) and `devdocs/cost.md` (V6); the hangs-table change below.
-- Decision:
+- Decision: A. I would lean toward my ruling above about all not-currently-implemented work being listed under `future.md`, but I consider these issues to be user-relevant in understanding current performance. Moreover, this is not "future" or "aspirational" work, but a performance bug (where there is an associated issue). [plan §12.1] Pending in part: #115's one place (Q-011's rule would put it in future.md; this answer keeps it in builtins.md); see decisions.md, "For the owner".
 
 ### Q-013. Where issue #118 (the scheduler) is linked
 
@@ -208,7 +208,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D4: `devdocs/future.md`, the probe section keeping the words "the interface's responsiveness" without the link. V5: the page that owns the interface's responsiveness and the retry loop's cost, `devdocs/cost.md` or `future.md#Extensions that fit` (where §5 C33 places it), `settings.md` naming the concern in words; V5's edits link `cost.md` (V5 report). V6: `cost.md` owns #118 to #121.
 - Settled by: —
 - Blocks: the issue-link edits of `devdocs/settings.md` (D4, V5), `devdocs/cost.md` and `devdocs/future.md` (V6).
-- Decision:
+- Decision: B [plan §12.1] #186 and #167, which build on #118, are classified future work with it; on the owner's list to confirm.
 
 ### Q-014. Where issue #98 (significant figures) is linked
 
@@ -219,7 +219,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D6: `devdocs/builtins.md#The exact functions`, the `round` passage; `numbers.md#approx` mentions the concept without the link (D6 (F-221)). V3: #98 stays at `round`'s bullet. V1: keep it in `numbers.md#approx`, since the sentence that carries it (significant-figure propagation, cheap with the binary form) stays, and V6 mentions the extension in `future.md` without the link; §1.3 records no such intent for `future.md`. D7's replacement of `builtins.md#Not in this design` (D7 L222-234) inlines #98 there as well.
 - Settled by: —
 - Blocks: the issue-link edits of `devdocs/numbers.md#approx` (V1, D6) and `devdocs/builtins.md` (V3, D6, D7).
-- Decision:
+- Decision: Don't mention this in the sections above. This is a _future work_ item, and lives under `future.md`. [plan §12.1] future.md only (Q-011).
 
 ### Q-015. The `dozen` running example
 
@@ -230,7 +230,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A8: keep it, said once where the page introduces it as its own definition, since the file has no function with an annotated parameter and an inverse that could replace it. D2: rename it to a name the file does not define, keeping its shape. V4: `twelve`, which V4's proposed edits use. A8 differs from D2 and V4.
 - Settled by: —
 - Blocks: the examples of `devdocs/functions.md` (`#Definitions`, `#Annotations`, `#Display`) and `docs/definitions.md#Functions`.
-- Decision:
+- Decision: B. (I would also accept creating an entirely new example that doesn't even run into this `dozen` collision problem in the first place.) [plan §12.1]
 
 ### Q-016. What leaves devdocs under question 25: ratios, counts, memory, constants
 
@@ -241,7 +241,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V7: measurements go (the sweep's counts and times, the stress suite's minutes and hour, the example diagnostic line, the forty-times ratio); the tools' constants stay, being the design and the code's; model figures stay, the thresholds deriving from them. V3: question 25 governs over §10; timings leave `builtins.md` for `cost.md` and the benchmarks; bit, term and convergent counts, limits and memory sizes stay as bounds and characteristics of the algorithms. D7: the memory figures and term counts are measurements but not timings; keep them as the quantitative reason the ratio schedule and the rate constant rest on. A1: drop the timings of `devdocs/numbers.md#Exact operations` and `#The types > Scaled` ("19 ms against 686 ms", "0.2 ms against 0.04 ms", "took a minute") and keep "about forty times cheaper" and "a quadratic loop"; V1 drops the timings (V1 (F-188, F-184)) and the ratio too ("far cheaper … the benchmark holds the figures"), as V7 does in `benchmarks.md` ("many times cheaper", V7 (F-386)). V7's report is inconsistent on the probe test's budget (a constant that stays in its answer; "a small fixed budget" in its stale row, V7 report).
 - Settled by: —
 - Blocks: the measurement rewrites of `devdocs/builtins.md`, `testing.md`, `benchmarks.md` and `numbers.md`.
-- Decision:
+- Decision: A, for user docs. Just make sure to keep memory approximations, since these will typically hold across machines and have more to do with JavaScript engine representations (which change slowly and are constrained by the spec anyway.) Ratios and machine-portable heuristics, etc., _are_ useful in devdocs, not user docs. I do want to keep rough timings in _developer_ docs where this clarifies issues or adds weight to decisions. Those should be considered "rough" though, and only illustrative, or else the docs should just talk about ratios or how things are physically observable to a user. [plan §12.1] Rule for both corpora (plan §12.1, principles.md); Q-088 makes the devdocs follow it.
 
 ### Q-017. The scratch build's figures in `#Why the exponent bound stays at 10^18`
 
@@ -252,7 +252,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A5: keep the table, drop the per-size milliseconds. V1: the qualitative finding (the cost growing at least as the square of the argument's length, past the probe's budget before `exp(1e500)`), the six-pass table being digits and staying; the figures are recoverable from git if the question reopens, and the page says what raising the bound would take. The two agree.
 - Settled by: —
 - Blocks: V1's rewrite of `devdocs/numbers.md#Why the exponent bound stays at 10^18`.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-018. Rough durations: "a few seconds", "a fraction of a second"
 
@@ -263,7 +263,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V8: "`pnpm test` is the quick run for every edit". D4: the docs say "the page waits while it runs"; devdocs keep the mechanism and the issue. V7 instead confirms "`pnpm test` takes a few seconds" and "`pnpm bench`, a few seconds" on its own pages as qualitative, with no stale row (V7 (F-393); V7 report). V7 and V8 treat the same phrase in opposite ways.
 - Settled by: —
 - Blocks: `devdocs/development.md#Commands`; the probe paragraph of `docs/settings.md`; `devdocs/settings.md#The probe`.
-- Decision:
+- Decision: B, while acknowledging that they may drift. To minimize risk of drift, we should be very broad-generous in terms. Knowing "this test will take a few seconds" versus "this test will take about half an hour" is crucial information for a developer, and makes it clear why some tests are not to be run on every commit (or conversely, why they _should_ be run on every commit). [plan §12.1] Rule (plan §12.1, principles.md).
 
 ### Q-019. "plain number" in `devdocs/builtins.md` against §8's "dimensionless"
 
@@ -274,7 +274,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A7: keep "plain number" in the rows as the gloss and define it once (A7's edit), rather than rewrite the table. V3: keep it where the page quotes the rules and the messages, glossed once at its first use: "a plain number, which is dimensionless: neither dimension nor kind". Both ask for an exception to §8 on this page.
 - Settled by: —
 - Blocks: the terminology pass of `devdocs/builtins.md` (V3).
-- Decision:
+- Decision: A. "Dimensionless" should be preferred where it is not too clunky, but "plain number" is sometimes clearer/simpler. The important thing is that these should be considered _synonyms_, with the word "kind" used any time we are attaching semantics to a particular class of values (as of now, only angles are treated specially with kinds). [plan §12.1] The note is a rule (plan §12.1, principles.md).
 
 ### Q-020. The title of `devdocs/functions.md`
 
@@ -285,7 +285,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V4: the title "Defined functions", the file name `functions.md` unchanged for the links; `devdocs/README.md:23` and `devdocs/architecture.md:42`, which describe the page as "user-defined functions", reworded by V8 and V2.
 - Settled by: —
 - Blocks: `devdocs/functions.md#(top)`; the index lines of `devdocs/README.md` and `devdocs/architecture.md`.
-- Decision:
+- Decision: ok. Separately, rename the user page `docs/functions.md` to `docs/builtins.md`, titled "Built-in functions", so that it matches `devdocs/builtins.md`. §7's outline follows, and so does every link to the old name: the root `README.md`, `docs/README.md`, the link in `devdocs/builtins.md`, and two comments in `src/units.txt`. After that, "functions.md" names only `devdocs/functions.md`, "Defined functions". [plan §12.1] The note is a rule: docs/functions.md is renamed docs/builtins.md (plan §12.1, principles.md).
 
 ### Q-021. The heading "A function as the want"
 
@@ -296,7 +296,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V4: keep the heading, since it names the want's form and `src/core/pipeline.ts:19-20` cites it, and use the canonical term in the prose; renaming it costs that comment and the plan's pointers.
 - Settled by: —
 - Blocks: `devdocs/functions.md#A function as the want` (its heading only).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-022. "build number" or "build ID"
 
@@ -307,7 +307,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V8: "build ID" in both corpora, with the footer's label "Build" quoted where the footer is described; §5 C57's term changes with it. D9's drafts say "build ID" too (D9 (F-492, F-180, F-251)).
 - Settled by: —
 - Blocks: `docs/app.md#Updates and the build number` (the section's name); `devdocs/offline.md`.
-- Decision:
+- Decision: A [plan §12.1]
 
 ### Q-023. `numbers.md`: decimal mode's consequences for units and edges
 
@@ -318,7 +318,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A4: yes, one sentence each in the decimal-mode section of the new `numbers.md`, as today's behaviour. A3 handed the `turn` example to A4, to stand beside `sin(pi() radian)` as the example users will meet. §1.3 has the user docs state the exact-mode `turn` case as today's behaviour, a limitation and not a goal. D8's drafted `#The two modes` leaves the mode rules to A4 and D4 (D8 L218-222).
 - Settled by: —
 - Blocks: `docs/numbers.md#The two modes`.
-- Decision:
+- Decision: ok, but don't record that specific number in decimal, since it changes with the parameterization and does not match the behavior I see in the real app with my current settings. Keep the discussion to the fact that this does (or even "may") produce an exact value in decimal mode while failing to resolve in exact mode due to the pole. [plan §12.1] Pending in part: whether the `turn` example's `359.99999` may be written at the default settings, or only the behaviour; see decisions.md, "For the owner".
 
 ### Q-024. `numbers.md`: the touch rule in comparisons
 
@@ -329,7 +329,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A6: one sentence for the non-strict case, since every `>=` condition at absolute zero meets it; the six-row verdict table stays in devdocs. How the devdocs name a touch (a straddle, or an order of its own) is a finding for the pages (A6 (F-029), V4 (F-029), V3's N15 row), not this item.
 - Settled by: —
 - Blocks: `docs/numbers.md#Comparison and equality`.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-025. `numbers.md`: which rounding functions decide a value that cannot be told from zero
 
@@ -340,7 +340,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D6: one sentence in `numbers.md`'s "Values at an edge": `trunc`, and `round` in a mode to nearest, decide such a value as `0`, while `floor`, `ceil` and `sign` do not.
 - Settled by: —
 - Blocks: `docs/numbers.md#Values at an edge`.
-- Decision:
+- Decision: ok, just make sure the discussion is complete. I think you've captured all of the functions here. [plan §12.1]
 
 ### Q-026. `numbers.md`: the one log-space example
 
@@ -351,7 +351,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D8: the quotient is the worked example and the exponent a closing clause, as drafted.
 - Settled by: —
 - Blocks: `docs/numbers.md#Values too big to hold`.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-027. Should the panel show the ceiling ("derived and shown")?
 
@@ -362,7 +362,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A3: the docs stop saying so now; V5 rewrites "derived and shown" to "derived, and written as a number only in the probe's proposal"; whether the panel's line should name the ceiling is a UI question outside the revamp. D4 agrees for `docs/settings.md` (D4 (F-126)). V5's full replacement of `#The model` keeps "the ceiling is derived and shown, never set" (V5 (F-331); V5 report L157, L165), and D4 counts the claim as confirmed (D4 L44).
 - Settled by: —
 - Blocks: V5's replacement of `devdocs/settings.md#The model`.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-028. A privacy sentence in `docs/app.md`
 
@@ -373,7 +373,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V8: yes, one sentence under "Working offline", as V8's draft of `app.md` has it (V8 (F-180)). D9's own draft of `app.md` (D9 (F-180)) has no such sentence; the two drafts of the page overlap.
 - Settled by: —
 - Blocks: `docs/app.md#Offline use`.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-029. A home for the linking and Markdown principles
 
@@ -384,7 +384,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V8: they live in the same bullet list, as V8's third bullet proposes, since all three bind every contributor.
 - Settled by: —
 - Blocks: `devdocs/development.md#Style guide`.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-030. Who deploys: Workers Builds or a developer's machine
 
@@ -395,7 +395,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V8: Workers Builds is the deploy, and the two sentences are rewritten as V8 proposes; if a developer's own `pnpm exec wrangler deploy` with their own login is also supported, `deployment.md` says so in one sentence and `security.md` says the credential is theirs.
 - Settled by: —
 - Blocks: `devdocs/security.md#Toolchain and secrets`; `devdocs/deployment.md#(top)`.
-- Decision:
+- Decision: ok. I only use Cloudflare Workers Builds at the moment. [plan §12.1]
 
 ### Q-031. The build-error catalogue in `devdocs/architecture.md#Definitions`
 
@@ -406,7 +406,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V2: keep it completed; it is the one prose account of what the build checks, and a reader of the page should not need the source to learn that a condition must mention a parameter. §7 gives `docs/definitions.md` a build-time checks table (error, cause, fix), a confirmed gap (D2 (F-105)), which a completed devdocs catalogue would duplicate.
 - Settled by: —
 - Blocks: `devdocs/architecture.md#Definitions` (V2's full replacement).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-032. Why information (`bit`) is a dimension
 
@@ -417,7 +417,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D3: the reason in the file's comment and in the primitives section of `units.md`: a count of bits must not collapse into a plain number, so that `bit/s` stays apart from `Hz` as `rad/s` does; if the reason is another, the owner gives it.
 - Settled by: —
 - Blocks: `docs/units.md`, the primitives.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-033. The sources: what the file cites, and what `units.md` names
 
@@ -428,7 +428,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D3: `units.md` cites what the file cites, as in D3's skeleton, and the file's header gains the three names beside its rule on comments (a code-comment change); the years get a source and an epoch in the comment, and `units.md` names them as measured values written exactly. A9: the comment says "(exact by convention)", a code change for D3's catalogue; D3 agrees that `gravity` is exact by convention (D3 report L91) but does not take up the comment.
 - Settled by: —
 - Blocks: `docs/units.md#Which factors are exact` (the sources).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-034. "`W` is the watt": the Lambert W connection
 
@@ -439,7 +439,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D5: yes; D5's edit 7 states it ("Lambert's function, when it comes, is `lambertw`: `e` is the elementary charge in `units.txt` and `W` is the watt, so neither name is free for a function or a constant").
 - Settled by: —
 - Blocks: `devdocs/builtins.md#Names` (edit 7, pending).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-035. Where the binary `approx(x, u)`'s tentative design lives
 
@@ -450,7 +450,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V1: it stays in `#approx`, where C26 places the concept; `future.md`'s entry links to it in one line.
 - Settled by: —
 - Blocks: `devdocs/numbers.md#approx`; `devdocs/future.md#Extensions that fit`.
-- Decision:
+- Decision: this is future work and should not get in the way of the numbers description yet. [plan §12.1] Applied as future work: future.md carries #100 and the tentative design (Q-104); numbers.md#approx names the binary form in one clause.
 
 ### Q-036. The rounding functions' open cell: record as intent?
 
@@ -461,7 +461,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A6: record it as intent in V3's page (a touch is a straddle at every edge, so that no edge check has to know which end of a cell is closed), with no code change. V3's report does not record it.
 - Settled by: —
 - Blocks: `devdocs/builtins.md#The exact functions` (one sentence).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-037. The intent for typographic characters in the fields
 
@@ -472,7 +472,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D1: yes, as one intent: accept the characters the screen or pasted text produces where each has one meaning (`×`, `·`, `−`, non-breaking and thin spaces), and keep `÷` and superscripts out unless asked for.
 - Settled by: —
 - Blocks: `devdocs/future.md#Extensions that fit` (one entry); `docs/expressions.md#What is not accepted`.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-038. Pointing the pages at the grammar in the parsers' headers
 
@@ -483,7 +483,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D1: `docs/` keeps prose and the precedence table, as §2.1.3 decides; `devdocs/architecture.md#Expressions` names the header grammar as the hand-maintained form until the DSL generates one (§1.3), quoting none of it, so that the header stays the one copy. V4 does the same for the definition lines in `devdocs/functions.md#Definitions` (V4 (F-305)).
 - Settled by: —
 - Blocks: `devdocs/architecture.md#Expressions` (one sentence).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-039. GNU units in devdocs and in the grammar reference
 
@@ -494,7 +494,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A1: keep the rationale without the name ("where a decimal literal for `pi` is exact to its digits and wrong past them"); V1 does so (V1 (F-183)). D1: devdocs keep one clause as the precedence's rationale, a familiar convention for `kg m / s^2`; the user reference says nothing of GNU units for the grammar, since a likeness stated there would owe the differences (`|` and `**` are errors here). V2's replacement of `devdocs/architecture.md#(top)` keeps "in the lineage of GNU units" (V2 (F-001)). The owner says whether question 2's rule reaches devdocs.
 - Settled by: —
 - Blocks: nothing (one clause each in `devdocs/numbers.md#(top)`, `devdocs/architecture.md#(top)` and `#Expressions`).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-040. A literal past the significand limit in decimal mode: refused by intent?
 
@@ -505,7 +505,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A4: yes, since the limit refuses before anything is formed; document it in one clause (A4's `#Decimal mode` edit). D1: one clause in the decimal-mode rules, and the literal-limits text says "in both modes". V1 rewrites the page the same way (V1 (F-041)). The code comment marks the behaviour deliberate.
 - Settled by: —
 - Blocks: nothing (the clause documents today's behaviour either way).
-- Decision:
+- Decision: ok. This prevents silently losing data or precision, which is exactly the behavior I want. [plan §12.1]
 
 ### Q-041. The dalton's CODATA edition
 
@@ -516,7 +516,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D3: `units.md` says what the file says, "CODATA 2018"; whether the file follows an adjustment, and when, is the owner's call, recorded in the file's comment.
 - Settled by: —
 - Blocks: nothing (the page states the file's edition).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-042. Close issue #89?
 
@@ -527,7 +527,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V1: yes, after the tests the issue asks for are checked in `src/core/rational.test.ts` (outside V1's reading); the clause goes either way, the behaviour it describes being gone (§12 question 26).
 - Settled by: —
 - Blocks: nothing (`devdocs/numbers.md#Roots and powers` drops the clause either way).
-- Decision:
+- Decision: ok [plan §12.1] The closing of #89 is on the owner's list as housekeeping.
 
 ### Q-043. The ratio notation's screen rejects dyadic values that fit
 
@@ -538,7 +538,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V5: a code fix: screening the exponent at `4W` and the numerator's digits at `3W` keeps the fraction from being formed for a value that cannot fit, admits every value that can, and costs nothing at those sizes; until it lands, one sentence in `#The rule` names the exception and links the issue, if one is opened; N13 then stands as the plan writes it.
 - Settled by: —
 - Blocks: nothing (`devdocs/notation.md#The rule` takes a caveat until the fix).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-044. `mod`'s alignment refusal: `exceeds` or `fits`
 
@@ -549,7 +549,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D6: the two `tooLarge("exceeds", UNKNOWN_NEED)` of `modBall`'s exact path become `fits` with the need `subtract` or `multiply` reports, and D6's edit (e) takes its first form; otherwise its second ("names no count and offers no remedy, though `approx` …").
 - Settled by: —
 - Blocks: `devdocs/builtins.md#The exact functions` (which of D6's two texts applies).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-045. A typed list's unit that may be zero is not retried
 
@@ -560,7 +560,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A8: state it now; the retry is a small change that could ride the work on #92, which reshapes what the loop retries.
 - Settled by: —
 - Blocks: nothing (the page states today's behaviour).
-- Decision:
+- Decision: ok [plan §12.1] On the owner's list only to confirm that it needs no future.md entry.
 
 ### Q-046. The reciprocal line in decimal mode with extended working digits
 
@@ -571,7 +571,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A4: keep and document, as A4's `#The working digits` edit does (V1 the same, V1 (F-043)), and record the alternative on #92, which owns what the reciprocal lacks from the pipeline.
 - Settled by: —
 - Blocks: nothing (documented as today's behaviour).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-047. The schedule's cost bound: reword, or change `workingContexts`
 
@@ -582,7 +582,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A3: the wording now (V1's edit does it, V1 (F-064)); the code change, if wanted, as its own change after the revamp.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1] On the owner's list only to confirm that it needs no future.md entry.
 
 ### Q-048. `log`'s exact cases for a rational exponent
 
@@ -593,7 +593,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A4: document the fallback as reachable now (V1 does, V1 (F-042)) and leave the exact case to D5's review of the logarithm family; the decision on #173 (decide a tie as exact instead of flagging it) would make these lines `=` as well. D5 confirms the exact cases as they are (D5 report) and does not weigh the rational case.
 - Settled by: —
 - Blocks: nothing (the pages state today's behaviour).
-- Decision:
+- Decision: ok [plan §12.1] On the owner's list only to confirm that it needs no future.md entry.
 
 ### Q-049. A stored ratio width out of range resets the whole mode
 
@@ -604,7 +604,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D4: state it in `devdocs/settings.md#Storage` (V5), or clamp the width like the count; the owner's call.
 - Settled by: —
 - Blocks: `devdocs/settings.md#Storage` (one sentence, if the asymmetry stays).
-- Decision:
+- Decision: B [plan §12.1]
 
 ### Q-050. Fix `gcd(a, 0)`
 
@@ -615,7 +615,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D6 and V3: a code fix outside the audit, in `gcdOfIntegers` (`src/core/builtins/integers.ts:55-58`, returning the other argument's magnitude when one is zero) or in `rational.ts`'s `gcd` (made total, its precondition widened), with `gcd(5, 0)`, `gcd(0, 5)`, `gcd(0, 0)`, `gcd(-10, 0)` and `lcm(5, 0)` added to `src/core/builtins/integers.test.ts` and a zero in either position to `exact.test.ts`; the page's statement stands as the specification.
 - Settled by: —
 - Blocks: nothing (the page's statement stands).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-051. Wording of the size refusal with no count
 
@@ -626,7 +626,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A5: yes, to "would need a significand past the significand limit" in both. D7: "would need a significand past the significand limit, however it is computed". The two agree on the comma and may differ on keeping "however it is computed".
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: A [plan §12.1]
 
 ### Q-052. Bit counts past a double's integers
 
@@ -637,7 +637,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A5: yes, in the code phase, to two significant digits above `2^53`.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-053. The edge message's "which side of it it lies"
 
@@ -648,7 +648,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A6: a code change outside the audit, naming the edge once more in short ("which side of the pole", "which side of the bound"), recorded as the "certain" wording was (§12 question 8).
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-054. The errors for `round`'s second argument
 
@@ -659,7 +659,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D6: `src/messages.ts` words `notInteger` and `notExact` by the argument's place where the function's first argument need not be an integer, for example "the number of places of `round` must be a whole number".
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-055. The parse label "a unit name"
 
@@ -670,7 +670,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D1: rename the label to "a name" in a code change of its own; the order of the labels is the order tried and can stay.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-056. The empty output area's hint leads with conversion
 
@@ -681,7 +681,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D9: "Type an expression, such as `sqrt(2)` or `3 ft`, and, to convert it, the unit you want, such as `in` or `ft;in`.", a code change outside the audit.
 - Settled by: —
 - Blocks: nothing (`docs/app.md#The two fields` describes whichever hint ships).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-057. An internal kind name in the load-failure message
 
@@ -692,7 +692,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D9: the app keeps it, since it is what a bug report needs, and `app.md` describes the message without quoting the parenthesis; the alternative, the kind on the console alone, is a code change.
 - Settled by: —
 - Blocks: `docs/app.md` (how the failure is described).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-058. `exceeds` for the hull of a wide argument
 
@@ -703,7 +703,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A5: leave the code; D7 states that a wide argument is refused as the step's reach. D7's report does not take it up.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-059. Code comments that contradict the code or the pages, or carry history: one pass, and when
 
@@ -714,7 +714,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: one comment commit after the audit, outside the revamp (A3, V3; A7, in the direction `src/core/evaluate.ts:7-11`'s note sets, module headers restating less of the architecture page); one commit beside V8's edit to `devdocs/development.md#Style guide`, for the history (A5, V1); in the change that applies the page edits (A8, D9, D7; A6, when the page is fixed); a code change outside the audit (D2, D5, V4; V8, recorded for the owner); with A2's code change (D4); when the structured comments are written (D6, §4); V2 confirms that the shell section carries the table's design, or the comments repoint at `numbers.md` (A9). bugs.md lists each comment as a defect.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-060. The units test's wording and its failure message
 
@@ -725,7 +725,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D2: "temperature difference", a code change recorded with A2's note-wording change. D3: fix the comments with the next change to the test and have the failure name the line, both outside the unit; `devdocs/development.md#Adding a unit` is worded as the test behaves today.
 - Settled by: —
 - Blocks: nothing (D3's `#Adding a unit` text describes today's test).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-061. Counts in `cost.md`'s prose: drop, or generate
 
@@ -736,7 +736,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V6: dropped now; a generated summary is a small addition to `tooling.ts`'s `update` for later, since the tool already owns both tables.
 - Settled by: —
 - Blocks: nothing (V6's rewrite drops them).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-062. The hangs table's Issue column as links
 
@@ -747,7 +747,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V6: yes, a one-line change to `hangsTable`; it follows the kernel-cost issue item above.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-063. The note when no digit is certified ("0 of 1 digits")
 
@@ -758,7 +758,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A2: leave it; the case is a value on a one-digit tie at one display digit.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-064. "certifies" in the index's opening sentences
 
@@ -769,7 +769,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D9: keep it, since getting started's second section defines it and the word is the one §12 question 8 settles on; the alternative is "and says how many digits it is sure of".
 - Settled by: —
 - Blocks: `docs/README.md#(top)` (D9's draft).
-- Decision:
+- Decision: A [plan §12.1]
 
 ### Q-065. "the conformance tests" in `development.md`'s command table
 
@@ -780,7 +780,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V8: "the edge sweeps".
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok. Note that the edge sweeps behave as "conformance tests", but we haven't standardized that terminology yet, and "edge sweeps" is precise and correct. [plan §12.1]
 
 ### Q-066. `log10(1e999999999)`: the value or the line
 
@@ -791,7 +791,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D5: keep the page's statement, since the section is about the value and N10 owns the display policy; the generated entry can show both.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-067. The incomplete functions' refusals move with the precision
 
@@ -802,7 +802,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D7: yes, by the words "at a high precision", as D7's bullet edits apply them (D7 L161-165, D7 L173-181).
 - Settled by: —
 - Blocks: nothing (within the interim `docs/functions.md` item above).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-068. `architecture.md`'s list of sister pages
 
@@ -813,7 +813,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V2: the pointer, so that the index is kept in one place (V2 (F-222)); §12 question 18 makes `devdocs/README.md` the developer index.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-069. A stored version above the build's: the console warning
 
@@ -824,7 +824,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V5: the page stays as it is; a console diagnostic is not a behaviour a reader of the page needs.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-070. Why the project keeps `experimentalDecorators`
 
@@ -835,7 +835,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V7: verify it against the pinned Vite before the page is next edited; if still true, drop "yet" ("because Vite's TypeScript transform does not handle standard decorators"); if not, state the reason the project keeps the legacy flag, or remove the sentence with the flag. Unverified.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: other: drop the clause about Vite. `devdocs/layout.md` keeps the flag with its real reason: the components use Lit's decorators in TypeScript's experimental form, which needs `experimentalDecorators` and `useDefineForClassFields: false` in `tsconfig.base.json`, as [Lit's decorators page](https://lit.dev/docs/components/decorators/) describes. Moving to standard decorators, or away from decorators, is a possible code change if the flag becomes a pain point; it is not page content. [plan §12.1]
 
 ### Q-071. `audit/` and `.claude/skills/` in `layout.md`
 
@@ -846,7 +846,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V7: not listed while the revamp runs, since `audit/` leaves when the revamp lands (§12 question 29) and the skill with it; if either is to stay, one bullet each.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok. As noted above, these will be dropped after the doc refactor finishes and I don't want them mentioned elsewhere. [plan §12.1]
 
 ### Q-072. `exact.test.ts` in the module table
 
@@ -857,7 +857,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V7: keep it in the module table, as the sweeps are, and name it in the `src/core/` bullet (V7's edit), rather than move it into prose; the table is where a reader looks for a file.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ## Plan correction
 
@@ -870,7 +870,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A3: the owner amends N8 to the corrected statement (`4 × (L + 10)`, "four times the sum of the precision limit and ten") when the reports are merged.
 - Settled by: F-508, F-022
 - Blocks: nothing (N8 reaches `numbers.md` through D8, whose wording follows the ceiling-formula item above).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-074. Plan §1.1.6 item 1, §1.2.4 and §5 C1, C4: the notes' module; the want is not parsed again
 
@@ -881,7 +881,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A2: correct the plan (no wording given). V2: no change to the plan; the report records it, and the page's edit states the current mechanism. The two differ on whether the plan is amended.
 - Settled by: F-506, F-505
 - Blocks: nothing (the page edits, A2 (F-253) and V2 (F-253) to V2 (F-253), state the mechanism).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-075. Plan §7 and claim Q9: names absent, or meaning something else
 
@@ -892,7 +892,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D3: the bullet becomes "names that are absent or mean something else (`u`, `at`, `dB`, `e`, `rad`)", which D3's skeleton carries (D3 (F-112)). D1: the units guide notes both, and Q9's "`u`, `at` are absent" gains "`at` reads as `a` + `t`"; D1's proposed `#Names` text says "`at` reads as `a` + `t`, an attotonne, which converts to no pressure".
 - Settled by: F-502, F-112
 - Blocks: `docs/units.md#Names deliberately absent` (its title and list).
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-076. Plan §11: the module of `MIN_SIGNIFICAND_LIMIT_BITS`
 
@@ -903,7 +903,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V7: correct the row in §11.
 - Settled by: F-503
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ### Q-077. Plan §9.2: `layout.md#The files` does not re-explain user semantics
 
@@ -914,7 +914,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V7: strike `layout.md` from that row.
 - Settled by: F-366
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1]
 
 ## Settled by a finding
 
@@ -927,7 +927,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A2 records it, as the one route to the partial note today (D5), for A2's finding (D6), and checks the note's wording for zero certified digits (V3; that part is the "0 of 1 digits" item above).
 - Settled by: F-023 (two routes: an identity through an irrational step whose value sits on a rounding boundary, and any ball straddling a grid point under a directed mode), F-023 (V1 (F-023))
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-079. "A fourth source of inexactness" in `#The significand limit`
 
@@ -938,7 +938,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A1: V1 recounts when it rewrites the page.
 - Settled by: F-010 (V1 (F-010): "fourth source" → "third source"). The count rests on N3's correction (A1 (F-010): two sources), which A5's report states both ways (A5 report: "exactly two ways" in its claims table, "exactly three sources" confirmed in its findings).
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-080. `widened`'s behaviour (plan §1.1.6 item 8)
 
@@ -949,7 +949,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A1: A5 records it as confirmed.
 - Settled by: A1 L299-303; A5's confirmed statements A5 report and A5 report (§1.1.6 item 8 confirmed).
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-081. "eight by default, as GNU units shows"
 
@@ -960,7 +960,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A2: the phrase goes.
 - Settled by: §12 question 2, which names this note; F-118, F-118 (A3 (F-118))
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-082. `docs/settings.md`'s backticked devdocs names
 
@@ -971,7 +971,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A1: D4 and D8 make them repo-relative links, as A1's last interim edit does for its one (a link down to `../devdocs/numbers.md`). A2: once `numbers.md` owns how an exact value is written (§5 C29), the Notation bullet reduces to the setting and a link.
 - Settled by: F-134 (D4's full replacement links each to the owning docs page), F-134, F-134; F-026 drops the "Why four times …" line, `numbers.md#Digits you can trust` linking devdocs at the section level (§7.1). A1's interim edit, a docs → devdocs link, is superseded.
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-083. `numbers.md`: an exact operand rounded into an inexact result
 
@@ -982,7 +982,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A1: one sentence in docs, as in A1's third `docs/settings.md` edit, since it says what the error radius of such a result covers; the mechanism stays in devdocs.
 - Settled by: F-019 (D8's drafted `#How a value is held` states it, with A5's sharpening), F-019
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-084. "A rounding adds half a grid cell to the radius"
 
@@ -993,7 +993,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D8: A3 settles it and `devdocs/numbers.md#Settling` states the exact charge.
 - Settled by: A3's confirmed statement A3 report: `gridded` rounds an inexact midpoint `halfEven` to the pass's working digits and, when the rounding moved it, adds half a unit in the last working digit (a whole unit, rounding `towardZero`, where the rounding's exponent would pass `MAX_EXPONENT`); A3 report finds `#Settling` correct as it stands. F-017
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-085. Naming the measured factors
 
@@ -1004,7 +1004,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A9: yes, in one sentence (A9's edit names the measured values but not `gravity`).
 - Settled by: F-069, F-069: D3's `units.md` skeleton names them (D3 (F-114)) and moves the section out of `definitions.md` (D3 (F-114)), and D3 calls `gravity` exact by convention. A9's edit to the section D3 deletes overlaps D3's text; the owner page is `docs/units.md#Which factors are exact`.
 - Blocks: nothing.
-- Decision:
+- Decision: ok: `docs/units.md#Which factors are exact` names the measured values and `gravity`'s convention (the owner page); the file's comments are the code track (Q-033). [plan §12.1, section 8 of the sheet]
 
 ### Q-086. "no built-in is a prefix of another's name either"
 
@@ -1015,7 +1015,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A9: restate, since the guarantee that holds (a call's name is never split) is worth one clause. D5: replace it by D5's edit 8, which says what is true and why it does not matter.
 - Settled by: F-258, F-258: all three restate it; three texts are drafted (A9 (F-258), D5 (F-258) edit 8, V3 (F-258)), to reconcile.
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-087. Name characters: letters of any script, ASCII digits
 
@@ -1026,7 +1026,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A9: "a letter or underscore followed by letters in any script, the digits 0 to 9, and underscores".
 - Settled by: F-077; D1's replacement of `#Names` (D1 (F-079)) states it ("any script's letters, digits `0`-`9`; `m²` an error").
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-088. Timings the units replace with their reasons
 
@@ -1037,7 +1037,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A9: the qualitative wording of A9's stale row. V7: no figure on the page, and the code comment should lose its figure too (that comment is in the code-comments item); the example line with its figures elided, or one real line said to be one run's. D7: that page's own call. V6: the D unit rewrites the gamma bullet as one qualitative sentence (§12 question 9).
 - Settled by: F-209 (A9 (F-207), "a build per pass"); F-384 (V7 L275-291); F-382 (V7 L265-273); F-354 (V6 L146-159: the prose keeps orderings and ratios, the tables the figures); F-154 (D7 L133-153 makes the gamma bullet's cost sentence qualitative)
 - Blocks: nothing.
-- Decision:
+- Decision: devdocs follow Q-016: a measured ratio stays, a rough timing may stay marked illustrative, counts that every run changes go (Q-061); F-209, F-384, F-382, F-354 follow under that rule, F-154's docs bullet stays qualitative. [plan §12.1, section 8 of the sheet]
 
 ### Q-089. Conversion into a unit list on `docs/definitions.md`: verified
 
@@ -1048,7 +1048,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D2: the unit that owns Q15 verifies those lines.
 - Settled by: F-072 (Q15 corrected with two refinements, read against that page section), F-073; A8's confirmed statement A8 report (the count, straddle, carry and zero-term rules hold and every example reproduces).
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-090. A condition term that fails behind an undecided comparison
 
@@ -1059,7 +1059,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D2: A6 confirms that the section states it.
 - Settled by: D2 L117; A6's confirmed statement A6 report: `checkConditions` matches the section's three bullets, a term failing behind an undecided comparison recording the condition as assumed (A6 report L180-194).
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-091. `2^-30000`: "about 69,659 bits" against the pages' 69,658
 
@@ -1070,7 +1070,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D4: the pages keep the true size and say "about"; the overshoot is A5's to look at in `src/core/rational.ts`.
 - Settled by: F-051 (the need `bound` is "a prediction a bit or so over the truth"), F-012; A1's confirmed statement A1 report (`canonicalBits` is an upper bound within a bit, `src/core/scaled.ts:448-459`) and A5 report. The pages give the storage cost, the message the prediction, by design.
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-092. `pow`'s base `-1`: special only for an exact exponent that cannot be formed
 
@@ -1081,7 +1081,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D5: none separate (edit 15 states it).
 - Settled by: F-272; V3's confirmed statement V3 report (`pow(-1, 5^-16000)` exact `-1`, `pow(-1, 2 * 5^-16000)` exact `1`).
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-093. The gamma bullet's §9.4 row and the "kernel" leak
 
@@ -1092,7 +1092,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: none given (a note for D7).
 - Settled by: F-153 (bullet 12's Bernoulli memo corrected; D7 L133-153 replaces the bullet), F-448 ("kernel" in bullet 12)
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-094. The `div` and `mod` rows: "kinds included"
 
@@ -1103,7 +1103,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: none given (edit 13).
 - Settled by: F-268; V3's edit V3 (F-268) says the same; D6's confirmed statement D6 report (`mod(-30 deg, 360 deg)`).
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-095. "Every built-in takes plain numbers, apart from the angles above"
 
@@ -1114,7 +1114,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D6: "apart from the angles above and the functions of bullets 7 to 9, which take quantities".
 - Settled by: F-138: D5's edit 3 names six, `atan2` included ("apart from the angles above and the six that take any quantity (`approx`, `abs` and `sign`, and `div`, `mod` and `atan2`, …)"); D6's wording omits `atan2`. The texts are reconciled under the interim `docs/functions.md` item.
 - Blocks: nothing.
-- Decision:
+- Decision: ok, within Q-009's interim edits (D5's six-function list, `atan2` included). [plan §12.1, section 8 of the sheet]
 
 ### Q-096. `factorial(20000)`: nothing should read as if the refusal suggested `gamma`
 
@@ -1125,7 +1125,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: none given (a note for D6).
 - Settled by: D6's bullet 10 (D6 (F-151)) says only that `gamma(20001)` gives it; F-282 (the Gamma pointer is on the non-integer and inexact errors, not on every `factorial` error); F-292 (the devdocs' "the remedy the factorial's refusal names" corrected). D7's own replacement of bullet 12 (D7 L133-153) keeps "or one past the significand limit, is pointed", which reads that way; reconcile it.
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-097. "a dimensionless marker" in `docs/definitions.md#The format`
 
@@ -1136,7 +1136,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V2: "a marker of a kind, with no dimension of its own".
 - Settled by: F-093, F-459 (D2 rewrites `:66` and `:80-82`); §12 question 20. The same words in `src/core/definitions.ts:11` are in the code-comments item.
 - Blocks: nothing.
-- Decision:
+- Decision: ok, with F-459's wording ("a marker of a kind, with no dimension of its own", or "kind marker"). [plan §12.1, section 8 of the sheet]
 
 ### Q-098. The root README's tooling sentence
 
@@ -1147,7 +1147,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D9: it goes, V8 confirming that `devdocs/development.md` carries the commands; if the stack is to be named at the root, a fourth sentence rather than a list.
 - Settled by: §12 question 18; F-004 (D9 (F-002), the three-sentence README); V8 keeps `devdocs/development.md` whole, commands included (V8 (F-401)).
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-099. `approx` on the base does not relax an exponent literal past the limit
 
@@ -1158,7 +1158,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A2: as stated (for A5).
 - Settled by: F-051 (an exponent literal past the limit is `exceeds`, refused whatever the operands), F-046 (`approx` turns a refusal into a value only where an inexact operand changes the arithmetic), F-046 (the sharpened rule in D8's `numbers.md#approx`); the page's example is corrected separately (A2 (F-204), V1 (F-204): `^1e100000` → `^1e10000`).
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-100. "in two ways only": a third way an alternative fails
 
@@ -1169,7 +1169,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D1: name it as the third case.
 - Settled by: F-241. V2's edits to `#Parsing` (V2 (F-244, F-242)) do not take it up; V2's rewrite should.
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-101. Issue #40, cited by `docs/functions.md`, is closed
 
@@ -1180,7 +1180,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V6: delete the reference and state the current design (§12 question 26).
 - Settled by: F-054 (the sentence goes as `#Very large results and approx` dissolves), F-054
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ## Coordination
 
@@ -1193,7 +1193,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A7, D1 and V2: `devdocs/numbers.md#Roots and powers`, which owns the disagreement, keeps the one link, inline; `#Evaluation` points at that section without the issue. D1 adds that the user reference states the current difference without a link and that the generated `pow` entry inherits what its structured comment says. Owner page: `devdocs/numbers.md`.
 - Settled by: F-221 (V1 (F-199) inlines it there), F-411 (D1 (F-190)), F-411 (V2 (F-411))
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-103. Where issue #92 (the reciprocal line) is linked
 
@@ -1204,7 +1204,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A8 and V2: the reciprocal paragraph of `devdocs/architecture.md#The converter and its lines`, C4's devdocs owner, keeps it, and V1 removes the pointer from `numbers.md`. The pages link #92 only at `devdocs/architecture.md:1100` today; `numbers.md` has none to remove (V1's issue inventory lists no #92). Owner page: `devdocs/architecture.md`.
 - Settled by: F-412 (V2 (F-412) inlines it), F-412
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-104. Where issue #100 (`approx(x, u)`) is linked
 
@@ -1215,7 +1215,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V3: `builtins.md` links that section and not the issue. V1 and D6 inline #100 at `numbers.md#approx` (V1 (F-221), D6 (F-221)), and D5 replaces `builtins.md`'s link with a link to `numbers.md` (D5 (F-414)); D7's replacement of `builtins.md#Not in this design` (D7 L222-234) inlines #100 (and #98) again, to reconcile. Owner page: `devdocs/numbers.md#approx`.
 - Settled by: F-221, F-303, F-414
 - Blocks: nothing.
-- Decision:
+- Decision: future.md: #100's one link is in `devdocs/future.md` (Q-011, Q-035); `devdocs/numbers.md#approx` and `devdocs/builtins.md` name the binary form without the link. F-414, F-221, F-303 follow. [plan §12.1, section 8 of the sheet]
 
 ### Q-105. "how to add to it": where adding to the definitions file is documented
 
@@ -1226,7 +1226,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A9: the devdocs pointer names `development.md`, and the docs page's top drops "how to add to it", as the stale rows propose. D2: the architecture sentence points at the docs page for the format and the names and at `development.md#Adding a unit` for adding; D3 or the owner of `docs/definitions.md#(top)` settles the top. D1's stale row and edit for the same sentence keep "how to add to it" (D1 report), against A9 and D3. Owner pages: `docs/definitions.md#(top)`; `devdocs/architecture.md#Definitions`.
 - Settled by: F-108, F-108 (A9 (F-108)), F-108
 - Blocks: nothing.
-- Decision:
+- Decision: ok: `devdocs/development.md#Adding a unit` documents adding to the file; `docs/definitions.md#(top)` drops "how to add to it" (A9, D3), and the file is "the definitions file" (F-475). [plan §12.1, section 8 of the sheet]
 
 ### Q-106. The call rule stated twice in `docs/definitions.md`
 
@@ -1237,7 +1237,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D1: `#Functions` keeps the function semantics and points to the call bullet. D2's report does not take it up; V4 finds the call rule in four places (V4 (F-095)). Owner page: `docs/expressions.md#Calls and arity` (§7), `docs/definitions.md#Functions` linking there.
 - Settled by: F-095
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-107. The call-cost paragraph stated three times
 
@@ -1248,7 +1248,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D8: the drafted `definitions.md` keeps the user rule and `devdocs/functions.md` the mechanism; V2 reduces `architecture.md#Functions` to a link to the latter. V4: `docs/definitions.md#Functions` keeps the user statement, `numbers.md` the dependency problem (C27), `devdocs/functions.md` the mechanism, and `architecture.md#Functions` a pointer there. Owner pages as both say; V2's edit makes the pointer (V2 (F-033)).
 - Settled by: F-033, F-033
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-108. The Significand limit entry and `numbers.md#Values too big to hold`
 
@@ -1259,7 +1259,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D8: the owner reconciles D4's and D8's drafts when `numbers.md` is assembled, D8's text taking those two paragraphs. By §12 question 5 `docs/numbers.md` owns both. D4's proposed Significand limit entry already drops them and links `numbers.md` "How a value is held" and "Values too big to hold" (D4 L267-283), though in several sentences where question 5 asks for one; D4's Precision limit entry links "Digits you can trust" where D8 links `#how-a-value-is-held` (D8 (F-127)). Owner page: `docs/numbers.md`.
 - Settled by: F-018, F-014
 - Blocks: the assembly of `docs/numbers.md` and `docs/settings.md`.
-- Decision:
+- Decision: ok, with the sessions of `docs/numbers.md` and `docs/settings.md` reconciling D4's and D8's drafts by question 5 (the entry keeps a sentence and a link). [plan §12.1, section 8 of the sheet]
 
 ### Q-109. The dissolved section's diagrams and its 32,768-bit scenario
 
@@ -1270,7 +1270,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D8: the `exp(1e999)` diagram stays in `numbers.md`; only the passes' diagram and table go to devdocs, where V1 keeps the one table, adds the diagram only if the page lacks it, and names the default limit or none. The devdocs section carries the six-pass table and names "a significand limit of 32,768 bits" (`devdocs/numbers.md:691`) but no diagram, and V1's report takes up neither. Owner pages per §12 question 10: `docs/numbers.md` (the rule and one example), `devdocs/numbers.md` (the table and the measurements).
 - Settled by: F-057, F-050 (D8 (F-050) leaves both to V1)
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-110. "The probe leaves the memos at the largest ceiling it tried"
 
@@ -1281,7 +1281,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V5: the unit that owns `devdocs/builtins.md` confirms it; it stays meanwhile. V3's report does not check it, so it remains unverified (V5 (F-337)). Owner page: `devdocs/settings.md#The probe`.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok, unverified until the `devdocs/settings.md` session checks it against the memo code (F-337). [plan §12.1, section 8 of the sheet]
 
 ### Q-111. The favicon and `offline.md#Icons`
 
@@ -1292,7 +1292,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V7: V8 aligns that section with whichever wording is chosen. V8 does not: it confirms "the SVGs in `public/icons/` are the only sources" (O12) and "the favicon stays" (O14), and keeps `#Icons` whole (V7 (F-362)). The two reports conflict on the fact; reading `public/favicon.svg` against `public/icons/` settles it. Owner pages: `devdocs/offline.md#Icons`, `devdocs/layout.md#The files`.
 - Settled by: F-362
 - Blocks: nothing.
-- Decision:
+- Decision: ok, settled by reading `public/favicon.svg` against `public/icons/` in the `devdocs/layout.md` session (F-362). [plan §12.1, section 8 of the sheet]
 
 ### Q-112. `future.md` has no entry for equality operators
 
@@ -1303,7 +1303,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A6: V6 adds the entry under "Extensions that fit", with the constraint that a design must say what an undecidable comparison of inexact values yields, and V4 links to it. V4's edit links it (V4 (F-030)); V6's rewrite of `#Extensions that fit` (V6 L181-191) records no §1.3 intent, this one included. Owner page: `devdocs/future.md#Extensions that fit`, where §1.3 has the units record its intents.
 - Settled by: F-345, F-030
 - Blocks: nothing (V4's link points at a missing entry until it exists).
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-113. Defined functions before built-ins: a precedence or a prohibition
 
@@ -1314,7 +1314,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A9: `devdocs/functions.md#Names and shadowing` states the prohibition and leaves the lookup's order to the code comment. Neither D2 nor V4 takes it up; `devdocs/functions.md:99-101` already calls a function and a built-in of one name a duplicate. Owner page: `devdocs/functions.md#Names and shadowing`.
 - Settled by: F-308
 - Blocks: nothing.
-- Decision:
+- Decision: ok [plan §12.1, section 8 of the sheet]
 
 ### Q-114. `devdocs/builtins.md`'s per-function tables until the generated reference
 
@@ -1325,7 +1325,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V3: they stay in `devdocs/builtins.md` until the reference generated from structured comments exists (§12 question 17), seed those comments, and then become one link each to `docs/functions.md`; this follows §4.4 (no per-function entries written meanwhile). Owner page: `devdocs/builtins.md` now, `docs/functions.md` once generated.
 - Settled by: —
 - Blocks: nothing.
-- Decision:
+- Decision: ok: the tables stay in `devdocs/builtins.md` until the generated reference replaces them. [plan §12.1, section 8 of the sheet]
 
 ### Q-115. The settings sheet's absolute link to `docs/settings.md`
 
@@ -1336,4 +1336,4 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V8 and D9: it becomes a relative, local link once the documents ship with the app (§12 question 31); `devdocs/security.md#The page` can then drop its sentence about it. Nothing changes before the question 31 work.
 - Settled by: F-177
 - Blocks: nothing.
-- Decision:
+- Decision: ok: the "About these settings" link becomes local when the pages ship with the app (question 31); nothing before. [plan §12.1, section 8 of the sheet]

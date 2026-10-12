@@ -7,26 +7,26 @@ Conflicting or synonymous terms found, with a proposed canonical term.
 
 | Found | Where | Proposed canonical |
 | --- | --- | --- |
-| "the quantity to convert" / "the unit to convert to" (docs) vs `have` / `want` (devdocs, 100+ uses) vs "You have" / "You want" (the fields) | `docs/definitions.md`; `devdocs/architecture.md` | **have** and **want**, introduced once in getting started as the fields' names; devdocs keep the code names unchanged. |
-| "exact" / "inexact" (both) vs "approximate", "known to a precision" (docs) | `docs/functions.md`, `devdocs/numbers.md` | **exact** / **inexact** as the model's words; "approximate" only as the plain-language gloss and in `approx`'s name. |
+| "the quantity to convert" / "the unit to convert to" (docs) vs `have` / `want` (devdocs, 100+ uses) vs "You have" / "You want" (the fields) | `docs/definitions.md`; `devdocs/architecture.md` | **have** and **want**, used by every docs page from its own rewrite, getting started (written last) introducing them and `docs/app.md` naming the fields' labels beside them (F-471); devdocs keep the code names unchanged. |
+| "exact" / "inexact" (both) vs "approximate", "known to a precision" (docs) | `docs/functions.md`, `devdocs/numbers.md` | **exact** / **inexact** for every value, in both corpora and in headings; "approximate" and its variants only for the act of making a value inexact (`approx`, "approximating a value"), never as the adjective of a value (F-451). |
 | "certain" (the notes; docs) vs "certified" (devdocs) | counts in §9.1 | **certified** / **certification** everywhere applicable, in both corpora and in the app's notes, since the term has its specific meaning on the ball (§12, question 8); aligning the note text is a code change recorded for unit A2. |
 | "pass", "retry loop", "retries", "escalation", "schedule", "working contexts" | `devdocs/numbers.md`, `cost.md`, `docs/settings.md` | **pass** (one evaluation at a precision) and **retry loop** in both; "schedule" devdocs-only. |
-| "finest grid" (docs) vs "ceiling" (devdocs) | `docs/settings.md`; `devdocs/numbers.md`, `settings.md` | **ceiling**, glossed once as "the finest grid the app rounds onto". |
-| "working digits" (the decimal-mode setting) vs "working digits" / "working precision" of a pass (`workingDigits`, `workingContexts`; #172) | `devdocs/numbers.md#The working digits` | **working digits** = the setting only; **working precision** = a pass's precision; devdocs to rename the schedule's "working digits" (code vocabulary is #172's). |
+| "finest grid" (docs) vs "ceiling" (devdocs) | `docs/settings.md`; `devdocs/numbers.md`, `settings.md` | **ceiling**, glossed once as "the highest precision any pass computes at" (Q-004); the grid of the ceiling pass is about ten digits finer (4,050 at the default). |
+| "working digits" (the decimal-mode setting) vs "working digits" / "working precision" of a pass (`workingDigits`, `workingContexts`; #172) | `devdocs/numbers.md#The working digits` | **working digits** = the setting only; **working precision** = a pass's precision; **the working grid** (devdocs) = the digits a pass settles onto, `digitsFor(bitsFor(p))`, about ten beyond its precision, never called "working precision" (F-431); in docs "the digits an inexact value is kept to"; the code vocabulary is #172's. |
 | "display digits" vs "digits asked for" vs "digits shown" vs `precision` | both | **display digits**; devdocs map `NumberContext.precision` once. |
 | "significand" vs "mantissa"; "significand limit" vs `maxBits`, "size limit", "most bits" | settled in `devdocs/settings.md#The model` | **significand**, **significand limit** (already canonical). |
 | "precision limit" vs `maxDigits`, "digits limit", "grid limit" | settled | **precision limit**. |
 | "exact mode" / "decimal mode" vs "certified", "calculator", "rounded" | settled in `devdocs/settings.md` | **exact mode** / **decimal mode**. |
 | "ratio notation" / "ratio" vs "fractions" (old flag, commit subjects) vs "fraction" (devdocs for the value's representation) | `devdocs/notation.md`, `settings.md#Storage` | **ratio notation**, **ratio** (the written form), **width**; "fraction" reserved for the significand in devdocs. |
 | "digits notation" vs "the decimal display" / "decimal expansion" | `devdocs/notation.md` | **digits** (the notation's value) and **the decimal display** (the mechanism, devdocs). |
-| "decimal" overloaded: decimal mode, decimal literal, decimal display, decimal grid, decimal exponent | both | keep, but each page says which on first use; never "decimal" alone for the mode in docs ("decimal mode"). |
-| "plain number" (docs, builtins.md) vs "dimensionless" (architecture.md, sometimes including kinds) vs "number" | both | **dimensionless** is reserved for a plain scalar number, with neither dimension nor kind, in both corpora, glossed "a plain number" in docs; a kind is never called dimensionless; a quantity with a kind and no dimension is named verbosely by its kind ("an angle", "of the radian kind"), the radian being the only kind today, and a general term is settled later (§12, question 20). |
-| "kind" / "kind primitive" (devdocs) vs "dimensionless marker" (docs) vs "angle" | both | **kind**; "the radian kind" / "an angle" for the one kind the file declares. |
+| "decimal" overloaded: decimal mode, decimal literal, decimal display, decimal grid, decimal exponent | both | keep in devdocs, each page saying which on first use; in docs "the exponent" means the power of ten's and "decimal exponent" is not used (F-440); never "decimal" alone for the mode in docs ("decimal mode"). |
+| "plain number" (docs, builtins.md) vs "dimensionless" (architecture.md, sometimes including kinds) vs "number" | both | **dimensionless** and **plain number** are synonyms for a plain scalar number, with neither dimension nor kind, in both corpora: "dimensionless" where it is not clunky, "plain number" where it is clearer and wherever the code's rules and messages are quoted, each page defining the pair once (Q-019); a kind is never called dimensionless; "kind" is used whenever semantics attach to a class of values; a quantity with a kind and no dimension is named by its kind ("an angle", "of the radian kind"), the radian being the only kind today, and a general term is settled later (§12, question 20). |
+| "kind" / "kind primitive" (devdocs) vs "dimensionless marker" (docs) vs "angle" | both | **kind**; "the radian kind" / "an angle" for the one kind the file declares; a kind primitive is "a marker of a kind, with no dimension of its own", or "kind marker" once glossed (F-459). |
 | "conform" / "conformance" (devdocs) vs "quantities of the same thing", "the same test" (docs) | both | **conform** / **conformance**, defined in `quantities.md`. |
 | "primitive" / "dimension primitive" / "base unit" | both | **primitive** (with its role); "base unit" only when quoting the SI. |
 | "ball", "midpoint", "radius" (devdocs; leaks into docs/functions.md ×4, docs/settings.md ×1) vs "error radius", "how well a value is known", "within a bound" (docs) | §9.1 | docs: **error radius** (named once) and plain phrasing; **ball** devdocs-only. |
 | "unresolved" (internal) vs "cannot be told from …" (messages) vs "straddles" vs "undecided" (conditions) | both | docs: **cannot be told from** (edges) and **undecided** (conditions); devdocs keep `unresolved`. |
-| "refused" / "refusal" vs "error" | both | **refusal** for the three size refusals; **error** for everything else. |
+| "refused" / "refusal" vs "error" | both | **refusal** only for a size refusal (the significand limit's or the exponent bound's), in both corpora; in docs **error** for everything else, "an error as it is typed" for text the grammar does not read; devdocs keep **rejection** for text the parser recognized and refused, and never say "refuse" for a domain error, an edge or a mismatch (F-442). |
 | `tooLarge` vs "past the significand limit" vs "would need a significand of N bits" | both | docs: **past the significand limit**. |
 | `overflow` / `underflow` vs "too large / too small to compute" vs "the bound" | both | docs: **too large / too small to compute** (the exponent bound's refusals); **exponent bound** for the limit. |
 | "unit list" / "list" / "a sum" | both | **unit list**; "sum" only for the written form. |
@@ -36,17 +36,69 @@ Conflicting or synonymous terms found, with a proposed canonical term.
 | "annotation" vs "the unit it takes" vs "declared unit" (`zeroDeclaredUnit`) | both | **annotation**. |
 | "condition" vs "domain" (GNU `domain=`) vs "restriction" | both | **condition**; "domain" reserved for built-ins. |
 | "inverse" vs "the `~` line" | both | **inverse**. |
-| "definitions file" / "units file" / "the file" / "system definitions" / "the unit table" vs "user definitions" | both | **the definitions file** (the system one, `src/units.txt`) vs **user definitions**; "unit table" devdocs-only. |
+| "definitions file" / "units file" / "the file" / "system definitions" / "the unit table" vs "user definitions" | both | **the definitions file** (`src/units.txt`), or **the predefined definitions file** where a user's definitions could be meant, against **user definitions**, which exist only as future work (`devdocs/future.md`); never "the system file" or "system" alone, which names only a system of units; "unit table" devdocs-only (F-475). |
 | "interval" for `degC` etc. (docs) vs "interval" of a ball (devdocs) | `docs/definitions.md#What the file contains` | **temperature difference** for the units; "interval" devdocs-only. |
 | "note" vs "warning" | `devdocs/architecture.md`, `functions.md` | **note** (about digits) and **warning** (an assumed condition). |
 | "`≈` with a dot", "uncertified" | both | **uncertified** (`≈̇`), named in docs. |
-| "grid" | `docs/settings.md` (many), devdocs | explained once in `numbers.md`'s section on how a value is held, as the digits an approximate value is kept to; the mechanism in devdocs (§12, question 5). |
+| "grid" | `docs/settings.md` (many), devdocs | named in both corpora (Q-004): explained once in `numbers.md`'s section on how a value is held, as the digits an inexact value is kept to; the mechanism in devdocs (§12, question 5). |
 | "settle" / "settling" | devdocs | devdocs-only. |
 | "kernel" (leaks once into docs/functions.md) | both | devdocs-only. |
 | "the probe" vs "Measure this device" | both | **"Measure this device"** in docs with "(the probe)" once; **probe** in devdocs. |
 | "format version" (docs) vs "stored version" / "storage version" (commits, `STORAGE_VERSION`) | both | **format version**. |
 | "whole number" (docs) vs "integer" (devdocs) | both | **whole number** in docs, **integer** in devdocs, mapped once. |
-| "Exucal" / "the app" / "the converter" / "the calculator" | both | **Exucal** for the product, **the calculator** for what it is, with unit awareness and kind checking as features, **the app** generically, **the converter** only for the two-field component (§12, question 2). |
+| "Exucal" / "the app" / "the converter" / "the calculator" | both | **Exucal** for the product, **the calculator** for what it is, with unit awareness and kind checking as features, **the app** generically, **the converter** only for the two-field component (§12, question 2); **the outcome** for `src/outcome.ts` (F-472). |
 | "span" vs "the text at fault" | both | docs: "the text at fault"; **span** devdocs-only. |
 | "exact case" vs "recognized as exact" | both | **exact case**. |
 | "juxtaposition" (both) | both | keep; gloss "writing two factors side by side" once. |
+
+### Rows added from the audit
+
+The terminology findings of [findings.md](../findings.md) (F-427 to F-499) and the owner's
+answers (section 12.1 of [12-open-questions.md](12-open-questions.md)) add these rows; where a
+row above was changed by an answer, the answer's id is in the row. Every page follows this
+table; the rules that reach beyond a term are in [principles.md](../principles.md).
+
+| Found | Where | Canonical |
+| --- | --- | --- |
+| "the ceiling rounding" for a bound rounded up | `devdocs/numbers.md` | **the bound's rounding up**; "ceiling" keeps its one meaning; a rounding mode is named as the docs name the directed modes (F-430) |
+| "the guard" for two guards | `devdocs/numbers.md` | **the schedule's guard** (ten digits) and **the kernel's guard bits** (32) wherever both are near (F-432), devdocs-only |
+| "step", "operation", "node" | both | **step** in docs, glossed once "an operation you can see"; "node" devdocs-only; "operation" for the arithmetic itself (F-433); "pass", "settle", "certify" as #172 settles the code's names |
+| "the fallback" (decimal mode's ceiling; the decimal display) | `devdocs/numbers.md`, `notation.md` | **uncertified** for the value and the line; "the fallback" devdocs-only and only for decimal mode's ceiling mechanism; **the decimal display** for the notation's mechanism (F-434, F-454) |
+| "neighbor" / "neighbour" | both | **neighbor**; "the neighbor rule" devdocs-only, the docs saying "the correctly rounded sum" with the example (F-436) |
+| "absorbed into the radius" | both | **absorbed into the error radius** in docs; devdocs may say "the radius" (F-437) |
+| "canonical" (form, significand, text) | devdocs | devdocs-only, spelled out where first used; docs say "the fraction is kept with no factor of ten in its denominator" and "how the app writes an expression back" (F-439) |
+| "hard bound", "formable" | devdocs | **the hard bound**, glossed once as the most the significand limit can be set to and qualified where C58's other bounds are near; never "hard precision bound"; docs say "the most the significand limit can be set to" (F-441) |
+| `Reach`, `fits`, `exceeds`, `Need`, "unaffordable" | both | devdocs-only; docs say "past the significand limit" and name the remedy the message offers (F-444) |
+| "rounding boundary", "tie", "grid point", "half-way mode" | devdocs | **rounding boundary** (general), **tie** (a nearest mode's), **grid point** (a directed mode's), **a mode to nearest**; docs say "exactly halfway between two roundings" (F-446) |
+| "touching", "straddles", "across"; "edge", "boundary", "bound" | both | devdocs: **touch** (an end exactly on the point) and **straddle** (reaching across); **edge** the point a result depends on, **boundary** a rounding cell's end, **bound** a condition's and the exponent bound; docs: "a value whose bounds reach or meet the edge", with "cannot be told from" (F-447) |
+| "door", "exit", "the kernel's boundary", "whole range", "trivial bound", "saturates", "ulp", "F-division", "concordant" | devdocs | devdocs-only, each glossed once where first used (F-449) |
+| "relation" | both | **relation** for `=`, `≈` and the uncertified sign (F-453) |
+| "scale", "the factored form", "the scaled form" | `devdocs/notation.md` | **scaled ratio**, glossed once "a ratio times a power of ten"; `scale` the field, devdocs-only (F-455) |
+| "parses back", "typed back", "reads back", "pastes back" | both | docs **pastes back** (the copy text; the screen's `×` cannot be typed), devdocs **parses back** (F-457) |
+| "quantities of the same thing", "the same test"; "conformance tests" | both | **conform**, glossed once; **dimension mismatch** and **kind mismatch** for the two failures; the sweeps are "the edge sweeps", never "the conformance tests" (F-462, Q-065) |
+| `1` for the empty dimension in messages | messages | glossed once in `quantities.md`'s section on how dimensions are written (F-463) |
+| "units" for what a value carries | docs | **dimension**; a quantity carries no unit of its own (F-464) |
+| "second/third output mode" | devdocs | **output mode**, named by its want (one unit, a unit list, a function, a blank want), never by an ordinal (F-468) |
+| "typed list", "named list", "defined list" | devdocs | **a typed list** (`ft;in`) and **a defined list** (`time`) (F-469) |
+| "unary minus", "`-` before a product"; "literal" vs "number" | both | **negation**, glossed once "a `-` before a product"; **number** in docs, **literal** in devdocs, mapped once (F-473) |
+| "loaded" vs "build" | both | **loaded** in docs (the file is read when the app starts), **build** in devdocs, mapped once; §7's docs section is "When the file does not load" (F-476) |
+| "head" of a function or inverse line | devdocs | devdocs-only, glossed once (F-477) |
+| "user-defined function", "user function", "user-supplied definitions" | both | **defined function** (one the definitions file defines) against **built-in**; "user definitions" only for the intended user-typed ones, which are `devdocs/future.md`'s (F-478, Q-020) |
+| "a shorthand for its body", "the expanded expression" | docs | **as the body typed out in its place**; "expanded" devdocs-only (F-482) |
+| the names a unit has; how a name divides | both | **alias** (a unit defined as another's bare name), **spelling** (another script or convention), **symbol** and **name** as the SI uses them; **pair** in docs, **split** in devdocs (F-484) |
+| "logarithmic units" | both | **the logarithmic functions** for the names, **level** for what a call denotes; "logarithmic units" only when quoting the SI (F-485) |
+| "defined" and "measured" factors | `docs/units.md` | **defined** when a document fixes it, **measured** when it is a CODATA or astronomical value, both written exactly (F-486) |
+| "pole"; "order", "argument", "parameters" | both | **pole** in both corpora, "a pole of the function" as the edge's wording; **order**, **argument**, **parameters** as the generated reference's names (F-487) |
+| "sheet" / "panel" | both | **the settings panel**, or **the panel**, in both corpora; never "sheet" (F-488) |
+| "the user guide", "the user's guide" | devdocs | **the user docs** for the corpus; "the user guide" only for the getting-started subset; **line** for a line of the panel, mapped once to `hint` and `notice` (F-489) |
+| "locked to the display digits", "not extended", `digits` | both | **locked to the display digits** in docs, with "(the `extended` box unchecked)" once; the stored names devdocs-only (F-490) |
+| "the costliest built-ins", "the costliest operations" | both | **the four elementary functions**; never "costliest" (F-491, §12 question 23) |
+| "build number" | both | **build ID**; the footer's label "Build" quoted where the footer is described (F-492, Q-022) |
+| "service worker", "the worker" | both | **the service worker**, named once in `docs/app.md` as what lets the app be served offline and kept after that; devdocs "service worker" consistently (F-493) |
+| "a new version", "an update", "a deploy" | both | docs: **a new version** for a deployment that could be pulled, **update** always a verb for what a user or a page refresh does; "deploy" devdocs-only (F-494) |
+| "cog", "settings button"; "the app's own checks"; "installed to the home screen" | both | **the cog** in docs (`<settings-button>` devdocs-only); "the checks the app makes on its own"; **install**, "installed to the home screen", "progressive web app (PWA)" expanded once per page (F-495) |
+| "precache", "Preview", "cloud session" | devdocs | "precache" devdocs-only (docs say "the copy the browser keeps"); "Preview", capitalized, Cloudflare's term; **cloud session**, named in full once per page (F-496) |
+| the stress catalogue's words; "hang" | devdocs | **hang** for the catalogue's case only (the interface **freezes**); "settings profile" then "profile"; `fractions` in code font glossed as the ratio-notation profile; case, family, entry, hit, lane, floor, deadline, cold, warm, typing defined once at the top of `cost.md#How a case is measured`; never "row" for an entry (F-497) |
+| "reached only through" | `devdocs/layout.md`, `testing.md` | **exercised only through** (F-498) |
+| a condition's outcome | both | docs name **undecided** once, then plain words (holds, fails, cannot be decided); "verdict" and "assumption" devdocs-only; "certainly" glosses the verdicts, never a digit (F-480) |
+| "its own domain", "a restriction" for conditions | `devdocs/functions.md` | "its own conditions"; "restricts" as the verb only (F-481) |

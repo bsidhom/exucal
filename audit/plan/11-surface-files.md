@@ -3,7 +3,10 @@
 ## 11. User-facing surface files (from the tree; not read)
 
 For later mechanical coverage checks. No grammar file (`.peg`, `.ebnf`,
-`.y`, `.pegjs`, `.ohm` or similar) exists anywhere in the tree.
+`.y`, `.pegjs`, `.ohm` or similar) exists anywhere in the tree; the two
+hand-maintained grammars are header comments, `src/core/expr.ts:6-19`
+for expressions and `src/core/definitions.ts:20-32` for the definition
+lines (F-500, Q-038). Amended on 2026-10-12 (§12, section 12.1).
 
 **Expression language parser and grammar**
 - `src/core/expr.ts` — `Expr`, `parseExpr`, `parseUnitList`, `Rejection`;
@@ -45,8 +48,8 @@ For later mechanical coverage checks. No grammar file (`.peg`, `.ebnf`,
   source for the completeness check).
 
 **Unit definitions**
-- `src/units.txt` — the system definitions file (units, prefixes,
-  primitives, lists, functions and inverses).
+- `src/units.txt` — the definitions file (units, prefixes, primitives,
+  lists, functions and inverses; F-475: never "the system file").
 - `src/units.test.ts` — builds the file and checks the list of lists.
 - `src/system-table.ts`, `src/system-build.ts` — loading and building.
 
@@ -55,13 +58,14 @@ For later mechanical coverage checks. No grammar file (`.peg`, `.ebnf`,
   defaults, ranges (`rangesOf`), clamps, refusals, storage and
   migrations, `contextOf`, `ratioOf`.
 - `src/settings-lines.ts` — every line, label, refusal and proposal text
-  the sheet shows.
+  the settings panel shows (F-488).
 - `src/settings-panel.ts` — the controls.
 - `src/limits.ts` — the probe (`recommendLimits`).
 - `src/core/context.ts` — `NumberContext`, `ceilingFor`, the defaults.
 - `src/core/rounding.ts` — `RoundingMode`, `ROUNDING_MODES`.
-- `src/core/rational.ts` (`MAX_SIGNIFICAND_LIMIT_BITS`,
-  `MIN_SIGNIFICAND_LIMIT_BITS`), `src/core/scaled.ts` (`MAX_EXPONENT`) —
+- `src/core/rational.ts` (`MAX_SIGNIFICAND_LIMIT_BITS`),
+  `src/core/context.ts` (`MIN_SIGNIFICAND_LIMIT_BITS`, derived from
+  `ceilingFor(1)`; F-503, Q-076), `src/core/scaled.ts` (`MAX_EXPONENT`) —
   the hard bounds the ranges quote.
 
 **Messages and output (for an error and line catalogue)**

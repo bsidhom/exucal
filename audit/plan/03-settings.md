@@ -5,6 +5,10 @@
 Every setting mentioned in either corpus. "Where documented" cites the
 current owner of the user-level description (docs/) and the design
 (devdocs/). The stored keys are from `devdocs/settings.md#Storage`.
+Amended on 2026-10-12 from the owner's answers (§12, section 12.1):
+"sheet" reads "panel" (F-488), the ceiling is a pass's precision
+(Q-004) and is not shown by the panel (Q-027), and a stored ratio
+width out of range is clamped like the count (Q-049).
 
 | Setting (panel label) | Stored key | Controls (model parameter / behaviour) | Default; range (bounded by) | docs/ | devdocs/ |
 | --- | --- | --- | --- | --- | --- |
@@ -12,7 +16,7 @@ current owner of the user-level description (docs/) and the design
 | Rounding | `rounding` | the context's rounding mode: the display's last digit in exact mode, every step in decimal mode, `round()` | half even; the seven modes | `docs/settings.md#(top) > Rounding` | `devdocs/settings.md#The model > Rounding`; `devdocs/numbers.md#The types` (rounding.ts); `devdocs/builtins.md#The exact functions` |
 | Mode | `mode.kind` | `NumberContext.mode`: exact or decimal arithmetic | exact | `docs/settings.md#(top) > Mode` | `devdocs/settings.md#The model > The mode is a nested choice`; `devdocs/numbers.md#Exact mode`, `#Decimal mode` |
 | Notation (exact mode) | `mode.notation.kind` | how an exact value is written: `digits` or `ratio` | digits | `docs/settings.md#(top) > Notation` | `devdocs/notation.md#(top)`, `#The rule`; `devdocs/settings.md#The model` |
-| Ratio width (with `ratio`) | `mode.notation.width` | `RatioDisplay.width`: most digits of a whole number or of a ratio's two parts written entire | 20; 1 … 1000 (nothing clamps it) | `docs/settings.md#(top) > Notation` | `devdocs/notation.md#The width`; `devdocs/settings.md#The model > The chain` |
+| Ratio width (with `ratio`) | `mode.notation.width` | `RatioDisplay.width`: most digits of a whole number or of a ratio's two parts written entire | 20; 1 … 1000 (nothing clamps it at an edit; a stored value out of range is clamped at load once B-012 lands, Q-049) | `docs/settings.md#(top) > Notation` | `devdocs/notation.md#The rule > The width`; `devdocs/settings.md#The model > The chain` |
 | Working digits (decimal mode) | `mode.working.kind` | locked to the display digits, or extended | digits (locked) | `docs/settings.md#(top) > Working digits` | `devdocs/numbers.md#The working digits`; `devdocs/settings.md#The model > Working digits` |
 | Extended working digits (with `extended`) | `mode.working.digits` | `NumberContext.working`: the grid of every step but the last | display digits; display digits … precision limit | `docs/settings.md#(top) > Working digits` | same |
 | Precision limit | `precisionLimitDigits` | caps display and working digits; `ceiling = 4 × (L + 10)`; rebuilds the unit table | 1,000; 1 … `precisionLimitFor(S)` (2,453 at the default) | `docs/settings.md#(top) > Precision limit`; `#How a number is held…` | `devdocs/settings.md#The model > Precision limit`, `> The two limits meet in the grid`; `devdocs/numbers.md#Working precision and the schedule`, `#The significand limit` |
@@ -24,22 +28,27 @@ Not settings but documented beside them:
 - "Measure this device" / Apply (the probe's proposal):
   `docs/settings.md#(top)` (paragraph "The limits are set top-down");
   `devdocs/settings.md#The probe`.
-- The chain of clamps and refusals ("At most 2,453 digits under the
-  significand limit", "lowered from 1,000 to 26 digits…"):
+- The chain of clamps and the edits the panel does not accept (its
+  "refusals" in the code's terms; how the pages name them under F-442
+  is on the owner's list): "At most 2,453 digits under the significand
+  limit", "lowered from 1,000 to 26 digits…":
   `docs/settings.md#(top)` (same paragraph); `devdocs/settings.md#Applying a
   change`.
 - Per-setting "default …" reset links and "Reset all settings":
   `docs/settings.md#(top)`; `devdocs/settings.md#Applying a change > Resets`.
-- The sheet's mechanics (cog, bottom/side sheet, Done/Escape, steppers,
-  on-screen keyboard): `docs/settings.md#(top)`; `devdocs/settings.md#The
-  sheet`, `#The controls`.
+- The settings panel's mechanics (cog, bottom/side panel, Done/Escape,
+  steppers, on-screen keyboard): `docs/settings.md#(top)` today, `docs/app.md`
+  after the rewrite (F-176); `devdocs/settings.md#The sheet` (to be
+  retitled "The panel", F-488), `#The controls`.
 - Storage: one JSON envelope under `settings`, format version 5, `savedBy`,
   migrations 1→5, newer-version policy: `docs/settings.md#(top)` ("under a
   format version of their own"); `devdocs/settings.md#Storage`.
-- The build number tap (update check) is described in
-  `docs/settings.md#(top)` though it is not a setting; design in
-  `devdocs/offline.md#Offline behavior > Update checks`.
+- The build ID tap (update check; Q-022) is described in
+  `docs/settings.md#(top)` though it is not a setting, and moves to
+  `docs/app.md` (F-173); design in `devdocs/offline.md#Offline behavior >
+  Update checks`.
 - Constants that are deliberately not settings: the exponent bound
   (`devdocs/numbers.md#Why the exponent bound stays at 10^18`, "A setting for
-  the bound was weighed and set aside"); the ceiling ("derived and
-  shown, never set", `devdocs/settings.md#The model`); the guard and factor.
+  the bound was weighed and set aside"); the ceiling (derived, never set,
+  and written as a number only in the probe's proposal, Q-027:
+  `devdocs/settings.md#The model`); the guard and factor.

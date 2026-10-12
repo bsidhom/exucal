@@ -39,7 +39,10 @@ is `audit/plan/08-terminology.md`.*
   A2, A4 and D8 drafted entries or pairs that D4's text absorbs or that
   correct it (section 7).
 - **Output.** The page, the deletions, and in the pull request the
-  choices made and any question for the owner.
+  choices made and any question for the owner. This page is the user's
+  guide to the settings that #191 asks for, and it lands with this
+  refactor (the owner's list, item 9): the pull request says that the
+  page closes #191, which the owner closes.
 - **Not in scope.** No code; `devdocs/settings.md` is work order 16.
 
 ## 2. The reader, and what earlier pages taught
@@ -65,7 +68,7 @@ the settings are and that a change applies as it is made.
   `app.md#the-settings-panel` (F-176).
 - **Refusal only for a size refusal (F-442).** What the panel does with
   an edit outside a setting's range is not a refusal in the docs; under
-  the provisional reading on the owner's list (conflict 8, section 8) the
+  the owner's answer to conflict 8 of the owner's list (section 8) the
   page says the panel "does not accept" the edit, or that the value is
   "held to" its range, and D4 L305 ("refused") is reworded; the size
   refusals of `numbers.md` keep the word.
@@ -228,8 +231,9 @@ Q-115 (the "About these settings" link changes only when the pages ship
 with the app; nothing here); the rules F-442, F-451, F-488, F-490,
 F-491, F-492, F-493, F-494, F-495.
 
-Still open: conflict 8 of the owner's list (how the pages name the
-panel's declined edits), applied provisionally (section 3). Nothing else.
+Still open: nothing. Conflict 8 of the owner's list (how the pages name
+the panel's declined edits) is answered: "does not accept" and "held
+to" (section 3).
 
 ## 7. Proposed text to start from, and what the rules change in it
 
@@ -249,10 +253,11 @@ panel's declined edits), applied provisionally (section 3). Nothing else.
 
 ## 8. Conflicts left to settle
 
-From the owner's list (`audit/decisions.md`, "For the owner"): conflict
-1, forward links (this page links `builtins.md#magnitude-sign-and-rounding`
-and `app.md#the-settings-panel`); conflict 8, the panel's declined edits,
-applied as "does not accept" and "held to" until the owner answers.
+From the owner's list (`audit/decisions.md`, "For the owner"), both
+answered: conflict 1, forward links, confirmed as the rule (this page
+links `builtins.md#magnitude-sign-and-rounding` and
+`app.md#the-settings-panel`); conflict 8, the panel's declined edits,
+"does not accept" and "held to".
 The session records in its pull request the echoed forms it ran
 (F-122) and the panel lines it quotes.
 

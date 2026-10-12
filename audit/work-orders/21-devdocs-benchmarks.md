@@ -77,8 +77,8 @@ only as section 3 keeps it.
   appears, in the words `cost.md` uses (F-497); "the settings panel"
   (F-488); "refused" only for a size refusal (V7 L287, L291: "the
   second is refused at the default", a significand-limit refusal,
-  stays); "the table built from the definitions file" (F-475;
-  conflict 3, provisional).
+  stays); "the definitions table", or "the table built from the
+  definitions file" (F-475; conflict 3, answered).
 - **Markdown (principles).** Inline links.
 
 ## 4. The page, section by section
@@ -151,7 +151,7 @@ Still open: nothing that blocks the page.
 ## 8. Conflicts left to settle
 
 None of the owner's list touches this page's text; conflict 3 ("the
-table built from the definitions file") and conflict 4 (a figure kept
+definitions table") and conflict 4 (a figure kept
 only as rough and illustrative) are applied as section 3 says. The
 session records in its pull request the figures kept.
 

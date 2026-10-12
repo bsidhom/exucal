@@ -273,7 +273,7 @@ Still open: nothing that blocks the page.
 ## 8. Conflicts left to settle
 
 From the owner's list (`audit/decisions.md`, "For the owner"): conflict
-1, forward links (this page links `units.md` and `builtins.md` at §7's
+1, forward links, confirmed as the rule (this page links `units.md` and `builtins.md` at §7's
 anchors). Nothing else touches this page. The session records in its
 pull request the running example's new name (which `devdocs/functions.md`
 then uses, work order 14) and which of the two drafts of the shared-names

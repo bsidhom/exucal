@@ -81,8 +81,8 @@ tense.
   where their reasons and the distributions' note now live (F-290,
   F-348); the eight designed functions (`zeta`, `lambertw`, `ellipk`,
   `ellipe`, `legendre`, `chebyshev`, Bessel `J` and `I`) are named in
-  the same sentence, with #115's link kept here provisionally in a
-  one-line mention (the owner's list, item 1; F-417); V3 L675-704's
+  the same sentence, with #115's link kept here in a one-line mention
+  (the owner's list, item 1, confirmed; F-417); V3 L675-704's
   and D7 L217-218's descriptions of the eight and of the classes are
   the text handed to work order 18. The word "deferred" is not used
   on this page. #98 leaves the `round` bullet (D6 L148 and L152, V3
@@ -105,7 +105,10 @@ tense.
   hangs` (#151 and #152 at V3 L672-673 and D7 L218; #152 again at
   `expFixed`'s bullet, V3 L446 and L455, D5 L173), never the number
   (F-416, F-420, F-422 to F-425). #112 stays linked once in the
-  families paragraph provisionally (the owner's list, item 10).
+  families paragraph (the owner's list, item 10, confirmed). #200,
+  the exact cases `log` does not look for (B-007), is linked once at
+  the logarithm row of `#Domains, exact cases and edges` (item 14;
+  Q-012's rule for a bug in today's behaviour).
 - **Refusal only for a size refusal (F-442, F-443).** "Refuses" and
   "refusal" stay where the outcome is `tooLarge` (the hull of a wide
   argument, `exceeds`, Q-058: V3 L299, L308, L625, L632; the
@@ -214,7 +217,7 @@ tense.
 - **Domains, exact cases and edges.** D5 L166-169 and V3 L387-417:
   the `ln`, `log10`, `log2` row: "`ln(1)`, `log10(1)`, `log2(1)`; for
   `log10` and `log2`, an integer power of the base either way"
-  (F-271); the `pow(x, y)` row: "`x` a perfect `q`-th power for `y =
+  (F-271), with #200 linked once there (section 3); the `pow(x, y)` row: "`x` a perfect `q`-th power for `y =
   p/q`; `pow(x, 0)` is `1`; the bases `0` and `1` for any `y`, and
   `-1` for an exact `y`, by parity" (F-272, Q-092); `atan2`'s edges
   cell: zero for `y` when `x` is not positive, zero for `x` when `y`
@@ -291,7 +294,7 @@ tense.
   paragraph (D7 L217-218, V3 L667-718): the costs and the hangs
   pointed at `cost.md` without the numbers (F-424, F-425); the
   deferred classes as section 3 has it (F-290, F-348; #115 and #112
-  provisional). The kernel-side statements (page L725-729, L771-798,
+  stay here). The kernel-side statements (page L725-729, L771-798,
   L839-847) stay as they are (F-301).
 - **Not in this design.** D7 L222-234 or V3 L720-736: the ruled-out
   designs with their reasons; the complex-values bullet as the plain
@@ -340,7 +343,7 @@ tense.
 | F-287 | The exact functions | D6's `div` clause |
 | F-288 | The exact functions | D6's sentence, paraphrasing the message (B-020) |
 | F-289 | The Gamma and Beta families | Re-flow once |
-| F-290 | The Gamma and Beta families | `cost.md` for the costs; the classes to `future.md`; #103 here; #115 provisional |
+| F-290 | The Gamma and Beta families | `cost.md` for the costs; the classes to `future.md`; #103 and #115 here |
 | F-291 | The Gamma and Beta families | Keep as intent |
 | F-292 | The Gamma and Beta families | The refusal names no remedy (Q-096) |
 | F-293 | The Gamma and Beta families | One of the two verified examples |
@@ -370,12 +373,11 @@ Q-018, Q-019, Q-020, Q-034, Q-035, Q-036, Q-044, Q-050, Q-058, Q-066,
 Q-086, Q-088, Q-092, Q-094, Q-096, Q-102, Q-104, Q-110 (the memo claim
 is `devdocs/settings.md`'s to check), Q-114; the rules of section 3.
 
-Still open: #115's one place (the owner's list, item 1 of the Q-011
-list; provisionally here, in a one-line mention), #112's (item 10;
-provisionally here), both pending in F-290, F-303, F-346 and F-417;
-Q-048 is on the owner's list only to confirm that `log`'s exact cases
-for a rational exponent need no `future.md` entry (the page states
-today's behaviour). Nothing else blocks the page.
+Still open: nothing. #115's one place is here, in a one-line mention
+(the owner's list, item 1, confirmed), and #112's too (item 10); Q-048
+gets no `future.md` entry (item 14): the exact cases for a rational
+exponent are issue #200, linked once from the logarithm row (section
+3), the page stating today's behaviour.
 
 ## 7. Proposed text to start from, and what the rules change in it
 
@@ -396,18 +398,18 @@ today's behaviour). Nothing else blocks the page.
 | incomplete gamma | D7 L202-209; V3 L592-620 | D7's `ln Γ` correction; one timing sentence from both | #107, #149 as `cost.md` links |
 | `erf` and `erfc` | D7 L211-212; V3 L622-634 | V3's deletion | D7's sentence only per F-297 |
 | incomplete beta | D7 L214-215; V3 L636-665 | D7's `x = 1`; both timing rewrites combined | #150 as a `cost.md` link |
-| the last paragraph | D7 L217-218; V3 L667-718 | neither whole: one sentence (section 3), the rest handed to work order 18 | #151, #152 as `cost.md` links; #115, #112 provisional |
+| the last paragraph | D7 L217-218; V3 L667-718 | neither whole: one sentence (section 3), the rest handed to work order 18 | #151, #152 as `cost.md` links; #115, #112 stay |
 | Not in this design | D7 L222-234; V3 L720-736 | V3's complex-values bullet; D7's other bullets if they say more | no #98, #100; `negativeRadicand` checked |
 | the link definitions | V3 L738-740; D5 L160; D7 L220 | V3 (delete all) | — |
 
 ## 8. Conflicts left to settle
 
-From the owner's list: #115's place (item 1, which is also conflict
-5) and #112's (item 10); conflict 4 (a figure kept only as rough and
-illustrative: the session decides passage by passage, section 3);
-conflict 3 ("the system table": if the page names the table built
-from the definitions file, it says "the table" or quotes the module's
-name). The session records in its pull request the drafts picked, the
+From the owner's list, all answered: #115's place (item 1, which is
+also conflict 5) and #112's (item 10) are here; conflict 4 (a figure
+kept only as rough and illustrative: the session decides passage by
+passage, section 3); conflict 3 ("the definitions table", or "the
+table built from the definitions file", if the page names it; module
+names quoted as they are). The session records in its pull request the drafts picked, the
 figures kept and the text handed to work order 18.
 
 ## 9. Code changes it waits on
@@ -422,8 +424,8 @@ message, paraphrased), B-045, B-046, B-051 and B-057 (comments, Q-059).
 - Every section opens with its link to `docs/builtins.md` (or the
   user page that owns the rule) and keeps mechanism, decisions and
   alternatives only, in the present tense.
-- No reference-style link, no issue number but #63, #65, #103 and
-  (provisionally) #115 and #112; the cost issues are links to
+- No reference-style link, no issue number but #63, #65, #103, #112,
+  #115 and #200; the cost issues are links to
   `cost.md`'s sections; "deferred" does not occur; the function
   classes that are not built-ins are named in one sentence linking
   `future.md`.

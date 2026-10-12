@@ -101,13 +101,14 @@ alternatives, in the present tense.
   `future.md#Extensions that fit`, never the number (D4 L375, V5 L201,
   L205, L211; F-343, F-418). #186 (the settings' typing riding that
   scheduler, V5 L211) and #167 (a warning path a user sees, D4 L368,
-  V5 L189) are future work provisionally (the owner's list, items 8
-  and 7): the page states the plain facts, that the debounce is the
+  V5 L189) are future work (the owner's list, items 8 and 7,
+  confirmed): the page states the plain facts, that the debounce is the
   panel's own device today and that a stored value that fails to
   parse falls back silently, and links `future.md` for what may come,
   with neither number. #163 (the probe's freeze) is a bug and stays
   inline at `#The probe`, "(its freeze is open, #163)" (V5 L203; D4
-  L374). #191 is resolved by this rewrite (item 9): the controls'
+  L374). #191 is resolved by this rewrite (item 9, confirmed: the user's
+  guide to the settings lands with this refactor): the controls'
   sentence states where the "About these settings" link lands and
   names no issue (F-342; Q-115: the link stays the absolute URL until
   the pages ship with the app, B-069).
@@ -128,14 +129,14 @@ alternatives, in the present tense.
 - **Refusal only for a size refusal (F-442; conflict 8).** The lines
   with which the panel declines an edit are "the edits the panel does
   not accept", a value being "held to" its range; "refusal" appears
-  only as the code's identifier (`refusalOf`), quoted as such, until
-  the owner answers conflict 8 of the owner's list.
+  only as the code's identifier (`refusalOf`), quoted as such (conflict
+  8 of the owner's list, confirmed).
 - **The words (§8).** "The working precision of a pass" (V5 L157;
   F-431), never for the grid; "line", `hint`, `notice` as §8 has them,
   and "the user docs", never "the guide" (F-489; D4 L380, V5 L217);
-  "the table built from the definitions file", or "the table", for
-  what a change to the precision limit rebuilds, never "the system
-  table" in prose (F-475; conflict 3, provisional); "build ID" if the
+  "the definitions table", or "the table built from the definitions
+  file", for what a change to the precision limit rebuilds, never "the
+  system table" in prose (F-475; conflict 3, answered); "build ID" if the
   page names it (Q-022); "significand", never "mantissa", with V5's
   reason (V5 L159).
 - **Markdown (principles).** Inline links; the definitions block (page
@@ -216,7 +217,7 @@ alternatives, in the present tense.
 | F-340 | The controls | The panel described as it is (A) |
 | F-341 | The controls | Keep as intent; "the panel" |
 | F-342 | The controls | Where the link lands; no #191 (Q-115) |
-| F-343 | (the page) | Inline links; #118 in words to `future.md` (Q-013 B); #163 stays; #167, #186 provisional future work; #191 resolved |
+| F-343 | (the page) | Inline links; #118 in words to `future.md` (Q-013 B); #163 stays; #167, #186 future work; #191 resolved (items 7 to 9, confirmed) |
 | F-344 | (the page) | V5's map at `docs/settings.md`'s and `docs/app.md`'s headings (Q-008, F-488) |
 
 Owned elsewhere and read here: F-015, F-021, F-117 (no count of the
@@ -229,10 +230,10 @@ F-427, F-429, F-431, F-475, F-488, F-489.
 Followed: Q-004, Q-006, Q-007, Q-008, Q-011, Q-013, Q-016, Q-018,
 Q-022, Q-027, Q-049, Q-069, Q-088, Q-110, Q-115; the rules of section 3.
 
-Still open: #167's, #186's and #191's status (the owner's list, items
-7, 8 and 9 of the Q-011 list; provisional readings in section 3,
-pending in F-343 and F-342); conflict 8 (the panel's declined edits);
-conflict 3 ("the system table"). Nothing else blocks the page.
+Still open: nothing. #167's, #186's and #191's status (the owner's
+list, items 7, 8 and 9), conflict 8 (the panel's declined edits) and
+conflict 3 ("the definitions table") are answered as section 3 has
+them.
 
 ## 7. Proposed text to start from, and what the rules change in it
 
@@ -249,12 +250,11 @@ conflict 3 ("the system table"). Nothing else blocks the page.
 
 ## 8. Conflicts left to settle
 
-From the owner's list: items 7, 8 and 9 of the Q-011 list (section 6);
-conflict 8, the panel's declined edits ("does not accept", "held to",
-`refusalOf` as the identifier, provisionally); conflict 3 ("the
-table built from the definitions file", provisionally); conflict 4
-(each figure kept only as rough and illustrative, the session's
-choice passage by passage). The session records in its pull request
+From the owner's list, all answered: items 7, 8 and 9 of the Q-011
+list (section 6); conflict 8, the panel's declined edits ("does not
+accept", "held to", `refusalOf` as the identifier); conflict 3 ("the
+definitions table"); conflict 4 (each figure kept only as rough and
+illustrative, the session's choice passage by passage). The session records in its pull request
 the drafts picked, the figures kept, and the result of the memo check.
 
 ## 9. Code changes it waits on

@@ -182,9 +182,9 @@ Followed: Q-001, Q-008, Q-011, Q-012, Q-013, Q-016, Q-061, Q-062,
 Q-088; the rules of section 3.
 
 Still open: nothing that blocks the page. A generated summary line
-for the counts (Q-061's "later") is on the owner's list only to
-confirm that it gets no `future.md` entry (item 14); the page states
-no count meanwhile.
+for the counts (Q-061's "later") is issue #201 (the owner's list, item
+14: no `future.md` entry, and the page does not link it); the page
+states no count meanwhile.
 
 ## 7. Proposed text to start from, and what the rules change in it
 

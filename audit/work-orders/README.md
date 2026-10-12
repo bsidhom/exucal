@@ -25,12 +25,12 @@ else.
 
 Every work order stands on its own and all of them use the same
 terms and rules, those of `audit/principles.md` and
-`audit/plan/08-terminology.md`. Where the record left an item
+`audit/plan/08-terminology.md`. Where the record had left an item
 unsettled, the owner's list at the end of `audit/decisions.md` ("For
-the owner") names it, with the provisional reading the work order
-applies until the owner answers; the work order says which items it
-carries under "still open" (section 6) and "Conflicts left to settle"
-(section 8).
+the owner") named it; the owner answered every item on 2026-10-12
+(`audit/plan/12-open-questions.md`, section 12.2), and each work order
+states the settled reading under "still open" (section 6) and
+"Conflicts left to settle" (section 8).
 
 ## The order
 
@@ -99,8 +99,7 @@ finds each thing in the same place:
    the section each lands in and the decision that settles it; then
    the findings owned by other pages that the session reads.
 6. **Decisions followed, and still open.** The open items the page
-   follows, and the ones still open on the owner's list, with the
-   provisional reading applied.
+   follows, and what the owner's list settled for it.
 7. **Proposed text to start from, and what the rules change in it.**
    A table of the report lines that hold the drafts, which to take
    where two overlap, and what the rules change.
@@ -131,7 +130,7 @@ the decisions followed, what is not scheduled, the conflicts, and
   outline does not name. Where two user pages link each other, the
   page written first links the later page at that anchor and the
   later page keeps the heading (conflict 1 of the owner's list,
-  provisional). A developer page links a developer page written later
+  confirmed). A developer page links a developer page written later
   at its current heading; a later page that renames one updates the
   inbound links in its own rewrite; no heading is renamed without
   updating every link to it.
@@ -146,11 +145,13 @@ the decisions followed, what is not scheduled, the conflicts, and
   (23); the code track's pull requests give the page sessions the final
   wording of every user-visible line they quote.
 - **The owner's list.** `audit/decisions.md`, "For the owner": fifteen
-  items whose status under Q-011 is unclear (future work, or ruled out)
-  and eight conflicts the rules do not settle. A work order names the
-  items that touch its page and applies the provisional reading; an
-  answer that changes one moves a sentence between pages in a later
-  pass, never a rewrite.
+  items whose status under Q-011 was unclear and eight conflicts the
+  rules did not settle, all answered by the owner on 2026-10-12 and
+  recorded in `audit/plan/12-open-questions.md`, section 12.2. A work
+  order names the items that touch its page and the settled reading.
+  Five follow-ups the pages do not describe have issues of their own
+  (#198 to #202); the three that are bugs in today's behaviour are
+  linked once from the devdocs passage that owns the concept (Q-012).
 - **The pull request.** Each session's pull request changes its page
   (and, where the work order says so, the inbound links a renamed
   heading needs) and nothing else, and records the choices and

@@ -25,12 +25,12 @@ Q19, amended), `§8` is `audit/plan/08-terminology.md`.*
 - **Forward links.** This page links pages written after it (`units.md`,
   `expressions.md`, `settings.md`, `builtins.md`, `quantities.md`) at
   the anchors §7 fixes, in their lower-case, hyphenated form (the
-  provisional rule of `audit/principles.md`, "Topological order",
-  which the owner is asked to confirm; section 8 below). A link to a
+  rule of `audit/principles.md`, "Topological order", confirmed by the
+  owner; section 8 below). A link to a
   heading §7 does not name is not written.
 - **Status.** Ready once the first batch of the code track has landed
-  (work order 00: B-068, B-002, B-017, B-025, B-026). Two items are
-  pending in part (section 8); neither blocks the page.
+  (work order 00: B-068, B-002, B-017, B-025, B-026). Nothing on the
+  owner's list blocks the page (section 8).
 - **Output.** The page, and in the pull request a note saying which
   draft the session picked wherever the findings leave a choice
   (the sheet's section 10, `audit/decisions.md`), and any question
@@ -464,9 +464,9 @@ an exponent literal), Q-101 (#40 dropped), Q-107 (the call-cost
 paragraph split), Q-108 (the entry keeps a sentence and a link),
 Q-109 (the diagram stays).
 
-Still open, pending in part: Q-023 (whether `359.99999` may be written
-"at the default settings"; applied without the number). Nothing else
-blocks the page.
+Still open: nothing. Q-023 is settled (conflict 2 of the owner's list):
+`359.99999` is not written; the `turn` example is stated without
+settings-dependent digits.
 
 ## 7. Proposed text to start from, and what the rules change in it
 
@@ -489,17 +489,17 @@ blocks the page.
 ## 8. Conflicts left to settle
 
 From the owner's list at the end of `audit/decisions.md` ("For the
-owner"), as they touch this page, with the provisional reading applied:
+owner"), as they touch this page, all answered on 2026-10-12:
 
-1. **Forward links between user pages.** This page links `units.md`,
-   `expressions.md`, `settings.md`, `builtins.md` and `quantities.md`
-   before they exist, at §7's anchors in lower-case, hyphenated form;
-   those pages keep the headings. The owner is asked to confirm the
-   convention; until then it is the rule.
-2. **Q-023's "that specific number".** `turn` into `deg` is stated as
-   `=` with a value a little under 360, no digits; the owner may allow
-   `359.99999` "at the default settings".
-3. **F-442 and N15's wording.** Applied: an edge is an error.
+1. **Forward links between user pages (conflict 1, confirmed).** This
+   page links `units.md`, `expressions.md`, `settings.md`, `builtins.md`
+   and `quantities.md` before they exist, at §7's anchors in lower-case,
+   hyphenated form; those pages keep the headings.
+2. **Q-023's "that specific number" (conflict 2, confirmed).** `turn`
+   into `deg` is stated as `=` with a value a little under 360, no
+   digits.
+3. **F-442 and N15's wording (conflict 6, confirmed).** An edge is an
+   error.
 
 Choices the session makes and records in its pull request (the sheet's
 section 10): the destination of the hand-written rule's examples

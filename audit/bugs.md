@@ -108,6 +108,8 @@ listed last: they are not defects, but the pages will quote their result.
 
 ### B-007. `log`'s exact cases miss rational exponents other than `n` and `1/n`
 
+- Issue: #200 (opened 2026-10-12; plan §12.2, item 14)
+
 - Category: behaviour
 - Severity (guess): medium — rational results shown uncertified or partly certified
 - Location: `src/core/builtins/log.ts:17-24` (exact cases, `:21-24`)
@@ -138,6 +140,8 @@ listed last: they are not defects, but the pages will quote their result.
 
 ### B-010. A typed list's unit straddling zero is refused, not retried
 
+- Issue: #198 (opened 2026-10-12; plan §12.2, item 14)
+
 - Category: behaviour
 - Severity (guess): medium — refused where the same unit as a single `want` is retried and answers
 - Location: `src/core/pipeline.ts:394-404` (the comment at `:93-96`)
@@ -147,6 +151,8 @@ listed last: they are not defects, but the pages will quote their result.
 - Rewrite impact: none — `devdocs/architecture.md#Unit lists` states the accepted gap (A8's insertion) until a retry removes it.
 
 ### B-011. Passes cost about three times the last at the ceiling's edge
+
+- Issue: #199 (opened 2026-10-12; plan §12.2, item 14)
 
 - Category: behaviour
 - Severity (guess): low — cost, not answers

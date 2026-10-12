@@ -43,7 +43,7 @@ helps (§7).
 
 - **Inexact, not approximate (F-451).** The section is "Approximating a
   value", the verb naming the act (`approx(2.54)`); the value it gives
-  is "inexact" (on the owner's list, conflict 7, to confirm the heading).
+  is "inexact" (conflict 7 of the owner's list, confirmed).
 - **Refusal only for a size refusal (F-442).** The section is "When
   something fails": a mismatch and an edge are errors, the size
   refusal alone is a refusal (F-008).
@@ -116,8 +116,8 @@ started defines "certified" by example), F-457, F-470, F-471.
 Followed: Q-007, Q-008, Q-011, Q-016, Q-020, Q-056; §12 questions 2
 and 21; the rules F-442, F-451, F-457, F-470, F-471, F-488, F-495.
 
-Still open: conflict 7 of the owner's list (the heading "Approximating
-a value"), applied as written until the owner says otherwise.
+Still open: nothing. Conflict 7 of the owner's list (the heading
+"Approximating a value") is confirmed.
 
 ## 7. Proposed text to start from, and what the rules change in it
 
@@ -129,7 +129,7 @@ a value"), applied as written until the owner says otherwise.
 ## 8. Conflicts left to settle
 
 From the owner's list (`audit/decisions.md`, "For the owner"): conflict
-7, the heading. Nothing else. The session records in its pull request the
+7, the heading, confirmed. Nothing else. The session records in its pull request the
 messages it quotes.
 
 ## 9. Code changes it waits on

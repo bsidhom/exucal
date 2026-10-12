@@ -71,8 +71,9 @@ and what the test checks (V8 L227-231, D3 L321-325; F-401; Q-105).
   `src/settings-lines.ts`'s" (V8 L244's "sheet"; F-488); "a cloud
   session (a session of Claude Code on the web)" glossed once, and
   "Preview" and "precache" as §8 has them (F-496); "kind" in "the
-  section its kind belongs to" stays (F-466, D3's wording); "the table
-  built from the definitions file" (conflict 3, provisional).
+  section its kind belongs to" stays (F-466, D3's wording); "the
+  definitions table", or "the table built from the definitions file"
+  (conflict 3, answered).
 - **Markdown (principles).** Inline links; the command table stays.
 
 ## 4. The page, section by section
@@ -151,7 +152,7 @@ Still open: nothing that blocks the page.
 ## 8. Conflicts left to settle
 
 None of the owner's list touches this page's text; conflict 3 ("the
-table built from the definitions file") is applied as section 3 says.
+definitions table") is applied as section 3 says.
 The session records in its pull request what `src/units.test.ts`
 reports at the time of writing.
 

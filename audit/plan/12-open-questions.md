@@ -209,8 +209,9 @@ Some answers set rules wider than their item. Each is marked **rule** below and 
 - **`docs/builtins.md`** (Q-020's note): the user page on the built-ins is renamed, with
   every link to the old name; "functions.md" then names only `devdocs/functions.md`.
 
-Items these rules leave unsettled are listed at the end of decisions.md ("For the owner")
-and marked pending in open-items.md and findings.md.
+Items these rules left unsettled were listed at the end of decisions.md ("For the owner"),
+marked pending in open-items.md and findings.md, and answered by the owner on 2026-10-12:
+section 12.2 below records the answers; nothing is pending now.
 
 ### The answers, by the sheet's sections
 
@@ -308,11 +309,11 @@ and marked pending in open-items.md and findings.md.
 #### Section 4. Where each issue is linked
 
 - **Q-011. Issues #130 to #134, the definition language's open work.** Decision: other: Future work lives only in `devdocs/future.md`. Anything not implemented today that we might implement later is described there, with its issue links, and nowhere else: the user docs never mention it, and a devdocs page that needs to say something is planned links `future.md` rather than describing it. So #130 to #134 are linked from `future.md` only. What is ruled out by intent is not future work but a current design decision, so it lives in the as-is pages: one sentence where a user would look for it in `docs/` (for example, that the app never shows the error radius), and the reason in the devdocs page that owns the concept. `future.md`'s "Ruled out, and why" is split accordingly: its decisions move to those pages, and anything in it we might still do (the function classes deferred in §1.3 and Q-010) stays as future work. A user page may state what the app lacks today as a plain fact, with what to write instead, but never as something to come. Bugs and performance problems in today's behaviour are not future work either: their issue links stay with the passage that owns the concept (Q-012). Where it is unclear whether an item is ruled out or might still be done, ask me.
-  Applied: a **rule** (the owner's text is the rule; see `audit/principles.md`): future work lives only in `devdocs/future.md`, with its issue links, and nowhere else; the user docs never mention it, and a devdocs page that needs to say something is planned links `future.md` rather than describing it; so #130 to #134 are linked from `future.md` only. What is ruled out by intent is a current design decision and lives in the as-is pages: one sentence where a user would look for it in `docs/`, the reason in the devdocs page that owns the concept; `future.md`'s "Ruled out, and why" is split accordingly, its decisions moving to those pages and what might still be done (the function classes deferred in §1.3 and Q-010) staying as future work. A user page may state what the app lacks today as a plain fact, with what to write instead, never as something to come. Bugs and performance problems in today's behaviour are not future work: their issue links stay with the passage that owns the concept (Q-012). Where it is unclear whether an item is ruled out or might still be done, the owner is asked: the list is at the end of `audit/decisions.md` ("For the owner"), and what it touches is marked pending. Amends question 26 above (an open issue is linked from the passage that owns its concept only for a bug or a performance problem; a future extension's one link is in `future.md`), question 12 (the intent that user definitions are to come is recorded in `future.md`, and `docs/definitions.md` states as a plain fact that only the predefined definitions file is loaded), question 11 (the docs do not say that `×` may be accepted later), plan §1.3 (every intent listed there is recorded in `future.md`, none on the as-is pages or in the user docs), N7 and N16 (their intent clauses are `future.md`'s), §1.2.5's `#Conditions` row, §6.1's last bullet ("what symbolic exactness would add": not in docs), §6.4 ("the status of user definitions"), §7 (`definitions.md`'s "User definitions" bullet; `builtins.md`'s "Not provided" bullet; `expressions.md`'s "What is not accepted"; §7.1's last row), §4.2 and §9.4's last row (the deferred classes); Q-013, Q-014, Q-035, Q-104, Q-112, Q-037, F-030, F-107, F-306, F-321, F-345, F-346, F-348, F-350, F-413, F-414, F-417, F-418, F-419, F-421, F-302 and the `#Deferred` section of `devdocs/functions.md` follow.
+  Applied: a **rule** (the owner's text is the rule; see `audit/principles.md`): future work lives only in `devdocs/future.md`, with its issue links, and nowhere else; the user docs never mention it, and a devdocs page that needs to say something is planned links `future.md` rather than describing it; so #130 to #134 are linked from `future.md` only. What is ruled out by intent is a current design decision and lives in the as-is pages: one sentence where a user would look for it in `docs/`, the reason in the devdocs page that owns the concept; `future.md`'s "Ruled out, and why" is split accordingly, its decisions moving to those pages and what might still be done (the function classes deferred in §1.3 and Q-010) staying as future work. A user page may state what the app lacks today as a plain fact, with what to write instead, never as something to come. Bugs and performance problems in today's behaviour are not future work: their issue links stay with the passage that owns the concept (Q-012). Where it was unclear whether an item is ruled out or might still be done, the owner was asked: the list at the end of `audit/decisions.md` ("For the owner") was answered on 2026-10-12 (section 12.2 below), and nothing it touched is pending. Amends question 26 above (an open issue is linked from the passage that owns its concept only for a bug or a performance problem; a future extension's one link is in `future.md`), question 12 (the intent that user definitions are to come is recorded in `future.md`, and `docs/definitions.md` states as a plain fact that only the predefined definitions file is loaded), question 11 (the docs do not say that `×` may be accepted later), plan §1.3 (every intent listed there is recorded in `future.md`, none on the as-is pages or in the user docs), N7 and N16 (their intent clauses are `future.md`'s), §1.2.5's `#Conditions` row, §6.1's last bullet ("what symbolic exactness would add": not in docs), §6.4 ("the status of user definitions"), §7 (`definitions.md`'s "User definitions" bullet; `builtins.md`'s "Not provided" bullet; `expressions.md`'s "What is not accepted"; §7.1's last row), §4.2 and §9.4's last row (the deferred classes); Q-013, Q-014, Q-035, Q-104, Q-112, Q-037, F-030, F-107, F-306, F-321, F-345, F-346, F-348, F-350, F-413, F-414, F-417, F-418, F-419, F-421, F-302 and the `#Deferred` section of `devdocs/functions.md` follow.
 - **Q-012. The kernel-cost issues: `builtins.md` or `cost.md`.** Decision: A. I would lean toward my ruling above about all not-currently-implemented work being listed under `future.md`, but I consider these issues to be user-relevant in understanding current performance. Moreover, this is not "future" or "aspirational" work, but a performance bug (where there is an associated issue).
-  Applied: A: `cost.md` links every issue about what a computation costs or where it hangs (#107, #125, #149 to #152); `builtins.md` links #103 (the Bernoulli memo) and #115, and points at `cost.md` for costs; the owner's reason: these are performance bugs in today's behaviour, user-relevant and not future work, so Q-011's rule does not move them. Conflict recorded for the owner: #115 (eight special functions designed and deferred) is future work by Q-011's rule, which would place it in `future.md`, while this item's own answer keeps it in `builtins.md`; the item's own answer is applied provisionally and the point is on the list at the end of `decisions.md`, marked pending. Amends plan §5 C32 ("future.md (#103)") and C33; F-193, F-195, F-290, F-303, F-415, F-416, F-420, F-422, F-423, F-424, F-425, Q-062 and B-070 follow.
+  Applied: A: `cost.md` links every issue about what a computation costs or where it hangs (#107, #125, #149 to #152); `builtins.md` links #103 (the Bernoulli memo) and #115, and points at `cost.md` for costs; the owner's reason: these are performance bugs in today's behaviour, user-relevant and not future work, so Q-011's rule does not move them. Conflict recorded for the owner: #115 (eight special functions designed and deferred) is future work by Q-011's rule, which would place it in `future.md`, while this item's own answer keeps it in `builtins.md`; the item's own answer was applied provisionally and the point put on the list at the end of `decisions.md`; the owner confirmed it on 2026-10-12 (section 12.2, item 1): #115 stays in `builtins.md`. Amends plan §5 C32 ("future.md (#103)") and C33; F-193, F-195, F-290, F-303, F-415, F-416, F-420, F-422, F-423, F-424, F-425, Q-062 and B-070 follow.
 - **Q-013. Issue #118, the scheduler.** Decision: B
-  Applied: B: #118's one link is in `devdocs/future.md#Extensions that fit`, with #119 to #121 beside it (F-419: the parts follow #118); `settings.md` and `cost.md` name the concern in words and link `future.md`. Amends plan §5 C33 ("future.md (#118)" stands; `cost.md` is not the link's home); F-343, F-418, F-419, F-360 follow; #186, which builds on #118, is future work too (on the owner's list to confirm).
+  Applied: B: #118's one link is in `devdocs/future.md#Extensions that fit`, with #119 to #121 beside it (F-419: the parts follow #118); `settings.md` and `cost.md` name the concern in words and link `future.md`. Amends plan §5 C33 ("future.md (#118)" stands; `cost.md` is not the link's home); F-343, F-418, F-419, F-360 follow; #186, which builds on #118, is future work too (confirmed on 2026-10-12, section 12.2, item 8).
 - **Q-014. Issue #98, significant figures.** Decision: Don't mention this in the sections above. This is a _future work_ item, and lives under `future.md`.
   Applied: #98 is not mentioned in `devdocs/numbers.md#approx` or `devdocs/builtins.md`: it is future work and lives in `future.md` only (Q-011); the two pages say nothing of significant-figure rounding or propagation beyond the plain fact that `round` rounds to places. Amends plan §5 C26; F-413, F-221, F-303, D6's `round` text and V1's `#approx` sentence follow.
 
@@ -388,7 +389,7 @@ and marked pending in open-items.md and findings.md.
 - **Q-047. The schedule's cost bound.** Decision: ok
   Applied: ok: reword the cost bound now ("at most about twice the pass that succeeds", with the exception near the ceiling); a change to `workingContexts`, if wanted, is after the revamp and not page content. F-064 follows; B-011 not scheduled.
 - **Q-048. `log`'s exact cases for a rational exponent.** Decision: ok
-  Applied: ok: the pages document the uncertified fallback as reachable now; looking for `x^q = b^p` waits for a review of the logarithm family (not page content; on the owner's list only to confirm it needs no `future.md` entry). F-042 follows; B-007 not scheduled.
+  Applied: ok: the pages document the uncertified fallback as reachable now; looking for `x^q = b^p` waits for a review of the logarithm family (not page content; no `future.md` entry, confirmed on 2026-10-12, section 12.2, item 14: it is issue #200, linked once from the logarithm row of `devdocs/builtins.md`). F-042 follows; B-007 not scheduled.
 - **Q-050. Fix `gcd(a, 0)`.** Decision: ok
   Applied: ok: a code fix (B-001, before `docs/builtins.md` and `devdocs/builtins.md` are written) with the five tests; the page's statement (`|a|`) is the specification. F-285, F-152 follow.
 - **Q-051. The size refusal with no count.** Decision: A
@@ -516,7 +517,8 @@ Decision: ok; the rules set in sections 1–5 override any proposed call they to
 Applied: every proposed call of findings.md stands unless an answer above touches it, and
 the rules marked **rule** override a call whatever its Related line says. The Decision field
 of each finding says which: "stands", "follows Q-nnn" or "follows F-nnn", "amended by" a
-rule, or "pending" where the owner's list at the end of decisions.md holds it. A call that
+rule, or (until the owner answered the list at the end of decisions.md, section 12.2) "pending"
+where that list held it. A call that
 leaves a choice between drafts is the page's session's, and its pull request says which; a
 call undetermined on a fact, or flagged low confidence, is read against the cited code by the
 page's session, and anything still open comes back to the owner as a new question.
@@ -573,3 +575,96 @@ questions keep their text, since the numbering is cited throughout the plan and 
   the same place (Q-029).
 - **Question 31** (the hand-written pages shipping with the app): the panel's "About these
   settings" link becomes local then (Q-115); nothing changes before.
+
+## 12.2 The owner's list, answered
+
+The list at the end of [decisions.md](../decisions.md) ("For the owner"), written by the
+apply session on 2026-10-12, was answered by the owner the same day (commit bedbfe8). Each answer
+is recorded here word for word, with what it settles and which earlier decisions it amends;
+the Decision lines of open-items.md and findings.md, [principles.md](../principles.md),
+plan §8 and the work orders under [../work-orders/](../work-orders/) were updated from it.
+"ok" takes the provisional reading the list stated.
+
+### Items whose status under Q-011 was unclear
+
+1. **#115, the eight designed special functions.** `ok`. Settled: the one link stays in
+   `devdocs/builtins.md#The Gamma and Beta families`, in a one-line mention; `future.md`'s
+   "More special functions" names the eight without the number and links that section.
+   Settles the pending part of Q-012, F-290, F-303, F-346, F-348, F-417 and conflict 5.
+2. **#78, where a quotient's reduction should run.** "Move this to future work." Settled:
+   #78 is future work; its one link moves to `devdocs/future.md#Extensions that fit` (an entry
+   beside the exact operations, linking `devdocs/numbers.md#Exact operations` for today's
+   behaviour), and `#Exact operations` states where the reduction runs today as a plain fact,
+   naming no issue. Amends F-221's decision and Q-012's reading that #78 stays inline as an
+   open design question; work orders 11 and 18 follow.
+3. **#171, the semantics of `approx`.** `ok`. Settled: future work; the sentence and its link
+   leave `devdocs/numbers.md#approx` for `future.md`'s `approx(x, u)` entry (F-221, F-046).
+4. **#172, the vocabulary of step, pass, settle and certify.** `ok`. Settled: it stays inline
+   at `devdocs/numbers.md#The working digits`, its one link there (F-221, F-431).
+5. **#173, rolling back uncertified results in decimal mode.** `ok`. Settled: future work, one
+   link in `future.md` beside the display policy; `#Decimal mode` states the behaviour as a
+   plain fact (F-221, F-042).
+6. **#178, one uniform rule for the exact-mode display.** `ok`. Settled: future work, one
+   link in `future.md` beside the display policy; `devdocs/notation.md`'s width paragraph
+   states the rule as it is (F-328; work order 12, which had placed it inline, follows).
+7. **#167, surfacing warnings and errors to the user.** `ok`. Settled: future work in
+   `future.md`; the settings pages state the silent fallback as a plain fact (F-133, F-343).
+8. **#186, applying cheap settings changes as typed.** `ok`. Settled: future work, beside #118
+   in `future.md` (F-343).
+9. **#191, the user's guide to the settings.** "ok. Note that this should land with the
+   current docs refactor." Settled: `docs/settings.md` (work order 06) is that guide and lands
+   with this refactor; the devdocs clause states where the panel's link lands and names no
+   issue; the owner closes #191 when the page lands (F-342, F-343, Q-115).
+10. **#110, #112, #114 and #179, developer-tooling issues.** `ok`. Settled: each stays linked
+    once from the devdocs passage that owns it (F-290, F-377, F-380).
+11. **The postfix `~` spelling.** `ok`. Settled: a ruled-out alternative, kept with its reason,
+    the sentence losing "the likely spelling … later" (F-219).
+12. **Two bullets of `devdocs/functions.md#Not in this design`.** `ok`. Settled: both ruled
+    out, the first with its reason, the second gaining one or going (F-323).
+13. **The bullets of `devdocs/future.md#Ruled out, and why`.** `ok`. Settled as classified:
+    the number type's alternatives, the radius display, exactness as a flag and the stored
+    digits move to `devdocs/numbers.md`; the offset in `Quantity` to `devdocs/functions.md`;
+    the hypergeometric and Bessel functions and the statistical distributions stay as future
+    work under "More special functions" (F-348, F-349, F-350).
+14. **Small follow-ups with no issue of their own.** "ok. Create an issue for each of these
+    that doesn't already have one, and be sure to include sufficient context in each issue."
+    Settled: none gets a `future.md` entry; none had an issue, so one was opened for each on
+    2026-10-12: #198 (Q-045, B-010: retry a typed list's unit whose ball straddles zero), #199
+    (Q-047, B-011: skip a doubled precision just under the ceiling), #200 (Q-048, B-007:
+    `log`'s exact cases for a rational exponent), #201 (Q-061: a generated summary line in
+    `devdocs/cost.md`), #202 (F-320: the two draws the definitions property test lacks). By
+    Q-012's rule for bugs in today's behaviour, the three bugs' issues are linked once from
+    the devdocs passage that owns the concept (#198 at `devdocs/architecture.md#Unit lists`,
+    #199 at `devdocs/numbers.md#Working precision and the schedule`, #200 at the logarithm
+    row of `devdocs/builtins.md#Domains, exact cases and edges`); #201 and #202 are tooling
+    and test follow-ups that no page links. The user docs name none of them.
+15. **#89.** `ok`. Settled: housekeeping; the owner closes it once its tests are confirmed
+    (Q-042, B-033).
+
+### Conflicts the rules did not settle
+
+1. **Forward links between user pages (Q-008).** `ok`. The provisional rule is the rule: the
+   page written first links the later page at the anchor the §7 outline fixes (the heading's
+   lower-case, hyphenated form), the later page keeps that heading, and a page never links a
+   heading the outline does not name. Amends Q-008's and F-426's decisions ("to confirm");
+   restated in principles.md.
+2. **Q-023's "that specific number".** `ok`. Both examples are stated without
+   settings-dependent digits: `turn` into `deg` is `=` with a value a little under 360, no
+   figure (Q-023, F-044).
+3. **"The system table" (F-475).** "ok. If you have to name it, you can use the long form or
+   else the "definitions table", since it will eventually apply to _all_ definitions (whether
+   predefined or user-defined)." A **rule**, extending F-475: in prose the table built from the
+   definitions file is "the definitions table", or "the table built from the definitions
+   file"; never "the system table"; module and function names (`src/system-table.ts`,
+   `buildSystemTable`) are quoted as they are. Restated in principles.md and §8.
+4. **Q-016 against Q-017.** `ok`. As applied: Q-017's section loses its milliseconds; elsewhere
+   a figure stays only marked rough and illustrative, the page's session deciding passage by
+   passage.
+5. **Q-012 against Q-011 on #115.** Item 1 above.
+6. **F-442 and N15's wording.** `ok`. As applied: a value that cannot be told from an edge at
+   the ceiling is an error, not a refusal.
+7. **F-451 and the getting-started heading.** `ok`. "Approximating a value" stands.
+8. **F-442 and the settings panel's declined edits.** `ok`. A **rule**, extending F-442: the
+   docs say the panel "does not accept" an edit, or that a value is "held to" its range; the
+   devdocs keep "refusal" there only as the code's identifier (`refusalOf`). Restated in
+   principles.md and §8; plan §3, §5 C53 and §6.5 amended.

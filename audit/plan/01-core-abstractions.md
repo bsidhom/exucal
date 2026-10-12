@@ -249,7 +249,7 @@ Decimal mode
   since its exact cases look for those alone, so `log(4, 8)` (`3/2`) at
   one display digit and `log(256, 512)` (`9/8`) at three are uncertified
   under a nearest mode (documented as reachable; the exact case waits
-  for a review, Q-048, and #173's place is on the owner's list).
+  for a review, Q-048, issue #200; #173 is future work, `future.md`'s).
   (Amended: F-042.)
   → `devdocs/numbers.md#Decimal mode > The ceiling`.
 - **N19.** Working digits (decimal mode): with `w ≥ p`, every step but the
@@ -835,8 +835,9 @@ each beside the concept it touches ("Extensions that fit"), as intent
 and not as a plan, with its issue links; a devdocs page that must say
 something is planned links that entry rather than describing it, and
 the user docs state today's behaviour as a plain fact and never mention
-them (F-345). The owner's list at the end of `audit/decisions.md` names
-the intents whose status, ruled out or still possible, is unclear.
+them (F-345). The owner's list at the end of `audit/decisions.md` named
+the intents whose status, ruled out or still possible, was unclear; the
+owner answered it on 2026-10-12 (plan §12.2).
 
 - **A symbolic layer for a subset of identities,** so that cases like
   `sqrt(2)/sqrt(2)` and `turn` into `deg` can certify exactly (N5, N7).

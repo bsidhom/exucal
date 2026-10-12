@@ -104,8 +104,8 @@ page as written (item 13 of the Q-011 list).
 
 ## 8. Conflicts left to settle
 
-None of the owner's list touches this page beyond item 13's effect on
-one line.
+None of the owner's list touches this page; item 13, confirmed, leaves
+the `future.md` line without "and what is ruled out".
 
 ## 9. Code changes it waits on
 

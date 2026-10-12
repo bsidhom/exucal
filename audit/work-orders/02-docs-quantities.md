@@ -23,8 +23,8 @@ amended on 2026-10-12, are this page's material), `§8` is
   Every later page links it, so its headings are the anchors §7 fixes
   (section 4). It links `units.md`, `expressions.md`, `definitions.md`
   and `builtins.md` before they exist, at §7's anchors in lower-case,
-  hyphenated form (the provisional rule of `audit/principles.md`,
-  "Topological order"; section 8).
+  hyphenated form (the rule of `audit/principles.md`, "Topological
+  order"; section 8).
 - **Status.** Ready; nothing blocks it. No report drafted the page, so
   it is written from §1's quantity claims as amended, A7's and A8's
   verified facts, and A8's replacement of `docs/definitions.md#Unit
@@ -251,9 +251,9 @@ Q-020 (`builtins.md`), Q-033, Q-041 and Q-085 (the measured values are
 line as it is), Q-089 (the list rules verified); the rules F-442,
 F-451, F-457, F-458, F-459, F-462, F-468, F-471, F-475, F-483, F-486.
 
-Still open: nothing that blocks the page. Q-045 is on the owner's list
-only to confirm that it needs no `future.md` entry; the page's
-sentence does not depend on it.
+Still open: nothing that blocks the page. Q-045 is settled (the owner's
+list, item 14): no `future.md` entry; the retry is issue #198, which
+`devdocs/architecture.md` links once and this page does not name.
 
 ## 7. Proposed text to start from, and what the rules change in it
 
@@ -265,8 +265,8 @@ sentence does not depend on it.
 ## 8. Conflicts left to settle
 
 From the owner's list (`audit/decisions.md`, "For the owner"): conflict
-1, forward links between user pages, applied as the provisional rule says
-(this page links `units.md`, `expressions.md`, `definitions.md` and
+1, forward links between user pages, confirmed as the rule (this page
+links `units.md`, `expressions.md`, `definitions.md` and
 `builtins.md` at §7's anchors). Nothing else touches this page. The
 session records in its pull request which running example it uses for
 a conversion into a function (`tempF`, or the renamed example of work

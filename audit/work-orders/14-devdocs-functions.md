@@ -71,8 +71,8 @@ the decisions with their reasons, and the alternatives considered.
   assertion on a result's value), their reasons with them, and the
   equality bullet of `#Conditions` keeps the constraint and links
   `future.md` for the operators that may come (F-030, Q-112; A6 L343-359,
-  D2 L314-322, V4 L196-259 agree); two of its bullets are pending
-  (section 8).
+  D2 L314-322, V4 L196-259 agree); two of its bullets are confirmed
+  ruled out (section 8).
 - **Received from `devdocs/future.md` (Q-011; F-350).** The ruled-out
   alternative "an offset in `Quantity`" for temperatures (`future.md`
   page L227-229: every operation would need a rule for it, where a
@@ -184,7 +184,9 @@ the decisions with their reasons, and the alternatives considered.
   D2's reading holds, the session checking
   `src/core/definitions.test.ts` (F-320).
 - **Not in this design.** V4 L486-490 without the #134 link: the
-  ruled-out designs with their reasons; two bullets pending (section 8).
+  ruled-out designs with their reasons, "inverse calls in expressions"
+  with its reason and "optional parameters and defaults" gaining one or
+  going (the owner's list, item 12, confirmed; section 8).
 - **Deferred.** Removed: one sentence linking `devdocs/future.md`, its
   text (V4 L492-514) handed to work order 18.
 - **Alternatives considered.** V4 L516-541: the forms set aside, each
@@ -213,8 +215,8 @@ the decisions with their reasons, and the alternatives considered.
 | F-320 | Precision, the radius and cost | The rejections the test injects named, if D2 is right |
 | F-321 | Deferred; Annotations; Names and shadowing; An undecided condition; Not in this design | #130 to #134 are `future.md`'s; `#Deferred` leaves; plain references here |
 | F-322 | Alternatives considered | Keep as intent |
-| F-323 | (the page) | V4's table of links and mechanism; `#Deferred` to `future.md`; two bullets pending |
-| F-350 (received) | Alternatives considered | The offset in `Quantity`, from `future.md` (Q-011); item 13 pending |
+| F-323 | (the page) | V4's table of links and mechanism; `#Deferred` to `future.md`; two bullets confirmed ruled out |
+| F-350 (received) | Alternatives considered | The offset in `Quantity`, from `future.md` (Q-011); item 13 confirmed |
 
 Owned elsewhere and read here: F-028, F-029, F-030, F-033, F-095,
 F-096, F-098, F-099, F-100, F-104, F-106, F-229, F-232, F-345, F-421,
@@ -226,13 +228,12 @@ F-481, F-483.
 Followed: Q-003, Q-008, Q-011, Q-015, Q-016, Q-020, Q-021, Q-031,
 Q-038, Q-090, Q-107, Q-112, Q-113; the rules of section 3.
 
-Still open: whether "inverse calls in expressions" and "optional
-parameters" (two bullets of `#Not in this design`) are ruled out or
-might still be done (the owner's list, item 12 of the Q-011 list): the
-bullets stay as written until the owner answers, and move to
-`future.md` if the answer is future work (F-323, pending in part); and
-item 13, which confirms that the offset bullet this page receives from
-`future.md` (section 3) is ruled out by intent.
+Still open: nothing. "Inverse calls in expressions" and "optional
+parameters" (two bullets of `#Not in this design`) are ruled out (the
+owner's list, item 12, confirmed): the first stays with its reason,
+the second gains one or goes (F-323); and the offset bullet this page
+receives from `future.md` (section 3) is ruled out by intent (item 13,
+confirmed).
 
 ## 7. Proposed text to start from, and what the rules change in it
 
@@ -257,8 +258,8 @@ item 13, which confirms that the offset bullet this page receives from
 ## 8. Conflicts left to settle
 
 From the owner's list: the two `#Not in this design` bullets and the
-offset bullet received from `future.md` (section 6). Nothing else
-touches this page. The session records in its pull
+offset bullet received from `future.md`, both answered (section 6).
+Nothing else touches this page. The session records in its pull
 request the drafts picked and the `#Deferred` text it handed on.
 
 ## 9. Code changes it waits on

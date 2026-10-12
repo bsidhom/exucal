@@ -64,8 +64,9 @@ group points to it.
   recorded in [plan/12-open-questions.md](plan/12-open-questions.md), section 12.1: "stands"
   means the proposed call stands (the sheet's section 10); "follows Q-nnn" or "follows F-nnn"
   names the answer that settles it; "amended by" names a rule that changes part of it (the
-  rules are restated in [principles.md](principles.md)); "pending" marks what the list at
-  the end of decisions.md ("For the owner") still holds. Where a call leaves a choice between
+  rules are restated in [principles.md](principles.md)); "pending" marked what the list at
+  the end of decisions.md ("For the owner") held until the owner answered it on 2026-10-12
+  (plan §12.2), after which no mark remains. Where a call leaves a choice between
   drafts, the page's session picks and its pull request says which; where a call is
   undetermined on a fact or flagged low confidence, the session reads the cited code and
   follows it, and anything still open comes back to the owner as a new question.
@@ -823,7 +824,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: "**N18.** A built-in call in decimal mode is certified: computed in exact mode at the working contexts from the step's digits plus the guard up to the ceiling, until its rounding to the step's digits is certified; if never (a value exactly on a rounding boundary of those digits), the midpoint's rounding is shown flagged *uncertified* (`≈` with a dot, "a step could not be certified at the precision limit"), sticky through every later step, the pipeline's quotients and the reciprocal line included. Shipped built-ins reach it: `log(b, x)` whose value is rational but not an integer or the reciprocal of one, since its exact cases look for those alone, so `log(4, 8)` (`3/2`) at one display digit and `log(256, 512)` (`9/8`) at three are uncertified under a nearest mode; the tests reach it with an injected built-in." (A4 L27); page rewrite A4 L99-100, V1 L294-296.
 - Proposed call: **doc wrong**: the page's reasoning assumed every rational value of a built-in is an exact case, and `log`'s comment says otherwise on purpose; document it as reachable now (A4 Q2). The open alternatives, `log` looking for `x^q = b^p` (A4 (B-007), A4 Q5, handed to D5 and not taken up) and #173 (decide a tie as exact), would each make these lines `=`.
 - Related: Q-048, B-007
-- Decision: Stands (doc wrong); follows Q-048 (ok: documented as reachable; the exact case waits for a review); #173 is named without a link on the page (its place is on the owner's list; pending in that part only).
+- Decision: Stands (doc wrong); follows Q-048 (ok: documented as reachable; the exact case waits for a review); #173 is future work (confirmed on 2026-10-12, plan §12.2, item 5): `devdocs/future.md` carries its one link beside the display policy, and `#Decimal mode` states the behaviour as a plain fact naming no issue; the exact cases for a rational exponent are issue #200, linked once from the logarithm row of `devdocs/builtins.md` (Q-012's rule, B-007).
 
 #### F-043. N19: with a `want`, the `have` is an operand rounded to `w`
 
@@ -850,7 +851,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: A4's runs (A4 L87); `devdocs/numbers.md#Decimal mode` (the per-operation bullets).
 - Proposed call: one sentence each in `docs/numbers.md#The two modes`, as today's behaviour (A4 Q6).
 - Related: Q-023
-- Decision: Stands; follows Q-023 (ok, without settings-dependent digits: the behaviour stated; `tan(90 deg)` "may give an exact value in decimal mode where exact mode fails at the pole"); pending in part: whether the `turn` example's `359.99999` is written (owner's list); amended by F-442 ("fails at the pole", not "refuses").
+- Decision: Stands; follows Q-023 (ok, without settings-dependent digits: the behaviour stated; `tan(90 deg)` "may give an exact value in decimal mode where exact mode fails at the pole"); settled on 2026-10-12 (plan §12.2, conflict 2): the `turn` example is written without settings-dependent digits, a value a little under 360; amended by F-442 ("fails at the pole", not "refuses").
 
 #### F-045. Gap §6.1: decimal mode as rules
 
@@ -2089,7 +2090,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/settings.md#Storage` (page L301-334); `#Applying a change` (page L401-404: no path yet for a warning a user sees, #167)
 - Proposed call: One sentence in the storage paragraph (D4 L155-159); D9's draft of the same paragraph has none (D9 L155-163).
 - Related: Q-069
-- Decision: Stands; amended by Q-011: the sentence states the fallback as a plain fact; #167 (a place for warnings a user sees) is future work, linked from `devdocs/future.md` only (on the owner's list to confirm).
+- Decision: Stands; amended by Q-011: the sentence states the fallback as a plain fact; #167 (a place for warnings a user sees) is future work, linked from `devdocs/future.md` only (confirmed on 2026-10-12, plan §12.2, item 7).
 
 #### F-134. docs/settings.md names devdocs pages in inline code, against ownership
 
@@ -3290,7 +3291,7 @@ link they write to the old name targets the new one.
 - Tag: keep as intent (D6; plan row new)
 - Rewrite: "…terse, and the natural short spelling of `approx(x)` if one is ever wanted, but it needs grammar, applies to literals alone, and has no binary form" (D6 L47, L212).
 - Proposed call: Confirm `keep as intent`: a spelling weighed and left open, without the forecast; V1 (L128) keeps "the spellings left open" in the section.
-- Decision: Stands (keep as intent) in part: the ruled-out spellings stay; whether the postfix `~` ("the likely spelling later") is ruled out or might still be done is on the owner's list (pending in that part: if future work, it moves to `devdocs/future.md` by Q-011).
+- Decision: Stands (keep as intent) in part: the ruled-out spellings stay; the postfix `~` is a ruled-out alternative too (confirmed on 2026-10-12, plan §12.2, item 11): it stays with its reason, the sentence losing "the likely spelling … later".
 
 #### F-220. `#Formatting`: settle, product and exit timings
 
@@ -3312,7 +3313,7 @@ link they write to the old name targets the new one.
 - Conflict: #98's one place: V1 (L144, L322, L363) keeps #98 inline in `#approx`, the page's one mention of significant-figure propagation, with V6 naming the extension without the link; D6 (L46, L210, L233) makes the `round` passage the one place and has this sentence point at the exact functions without the link. In K6, V3 also keeps #98 in the `round` bullet and D7 inlines it in `#Not in this design`.
 - Proposed call: inline each link where it stands as drafted (V1 L204, L236, L238, L296, L306; A4 L100, L107 and D4 L387-389, the same text for #172 and #173), #100 and #171 included (agreed); drop the #89 and #103 links and the foot definitions (V1 L332); for #98 the owner picks the one place by what the issue asks, rounding to significant digits in `round` or propagation through `approx(x, u)` (D6 Q4, V1 Q4); `devdocs/architecture.md#Evaluation` drops its own #88 link for a pointer here.
 - Related: Q-012, Q-014, Q-102, Q-104, B-003, B-006, F-042, F-190, F-281, F-303, F-411, F-413
-- Decision: Stands for #78, #79, #88 (bugs or open design questions, inline where they stand, Q-012's rule), #89 (goes, Q-042) and #103 (leaves for `builtins.md`, Q-012); amended by Q-011: #98 (Q-014), #100 (Q-104, Q-035) and #171's future-work status leave this page for `devdocs/future.md`, the section naming the binary form in one clause; #172 (vocabulary) and #173 (rolling back uncertified results) are on the owner's list (pending in that part: future work goes to `future.md`, a design note on current behaviour stays inline); the foot's definitions go.
+- Decision: Stands for #79 and #88 (bugs, inline where they stand, Q-012's rule), and #199 joins them at `#Working precision and the schedule` (B-011; plan §12.2, item 14); #78 is future work (the owner on 2026-10-12, plan §12.2, item 2): its one link moves to `devdocs/future.md`, and `#Exact operations` states where a quotient's reduction runs today as a plain fact, #89 (goes, Q-042) and #103 (leaves for `builtins.md`, Q-012); amended by Q-011: #98 (Q-014), #100 (Q-104, Q-035) and #171's future-work status leave this page for `devdocs/future.md`, the section naming the binary form in one clause; #172 (vocabulary) stays inline at `#The working digits`, and #173 (rolling back uncertified results) is future work whose one link is `future.md`'s, `#Decimal mode` stating the behaviour as a plain fact (confirmed on 2026-10-12, plan §12.2, items 4 and 5); the foot's definitions go.
 
 ### Findings owned by other pages that touch this one
 
@@ -4329,7 +4330,7 @@ link they write to the old name targets the new one.
 - Finding: the section repeats the kernel's cost issues and the ruled-out list that `cost.md` and `future.md` also carry (§9.4).
 - Proposed call: link `cost.md` for the costs and hangs, keep #103 and the deferred list here (V6 Q8, under its Q1 mapping); V3's and D7's rewrites of the paragraph are covered by the findings on `#The Gamma and Beta families`.
 - Related: Q-012, F-348, F-415
-- Decision: Stands; follows Q-012 (A: `cost.md` for the costs; #103 kept here); amended by Q-010 and Q-011: the deferred list leaves this paragraph for `devdocs/future.md`, this page naming the classes only as absent and linking `future.md`; pending in part: #115's place (the owner's list).
+- Decision: Stands; follows Q-012 (A: `cost.md` for the costs; #103 kept here); amended by Q-010 and Q-011: the deferred list leaves this paragraph for `devdocs/future.md`, this page naming the classes only as absent and linking `future.md`; #115's one link stays here, in a one-line mention (confirmed on 2026-10-12, plan §12.2, item 1).
 
 #### F-291. The memo's "five times over" kept as intent
 
@@ -4485,7 +4486,7 @@ link they write to the old name targets the new one.
 - Finding: every issue pointer on the page is a reference-style link (`[#63][63]` to `[#152][152]`), outside the Markdown subset; in the Gamma section and `#Not in this design` they are `[#103][103]`, `[#107][107]`, `[#112][112]`, `[#115][115]`, `[#125][125]`, `[#149][149]`, `[#150][150]`, `[#151][151]`, `[#152][152]`, `[#98][98]` and `[#100][100]`. All thirteen issues (#63, #65, #98, #100, #103, #107, #112, #115, #125, #149, #150, #151, #152) are open (V3 checked, L8), so the rewrite moves pointers rather than deleting them. #63 and #65 stay inline in `#Huge and tiny arguments`' closing paragraph, which owns both concepts; `tanh(75)` at 32 digits still takes two passes, so #65's sentence is current (V3 L67). V3's new text rewords that sentence, a statement made only in its edit: "`tanh` loses half its working bits between the exponential's fold and its saturation, which costs a pass" (L295-313). The definitions: D5 deletes `[63]` and `[65]` (L160); D7 inlines its sections' links and deletes `[98]` to `[152]` (page L907-917) once no passage uses them, leaving `[63]` and `[65]` (page L905-906) to the sections they serve; V3 deletes all thirteen.
 - Proposed call: inline each issue at the one passage that owns it (§12 q26; which passage that is, for #98, #100, #152 and the issues shared with cost.md, is the cross-page issue-links finding's) and delete the definitions block with its last user.
 - Related: Q-104
-- Decision: Stands for the Markdown subset (inline links, the definitions block deleted); the places follow Q-012 (A: #103 and #115 here, the cost issues in `cost.md`), Q-014 and Q-104 (#98 and #100 are `future.md`'s), Q-011 (#63 and #65 are bugs and stay here); pending in part: #115 (the owner's list).
+- Decision: Stands for the Markdown subset (inline links, the definitions block deleted); the places follow Q-012 (A: #103 and #115 here, the cost issues in `cost.md`), Q-014 and Q-104 (#98 and #100 are `future.md`'s), Q-011 (#63 and #65 are bugs and stay here); #115 and #112 stay here (confirmed on 2026-10-12, plan §12.2, items 1 and 10); #200 is linked once from the logarithm row (item 14, B-007).
 
 #### F-304. What `devdocs/builtins.md` keeps, and the tables until the reference is generated
 
@@ -4759,7 +4760,7 @@ link they write to the old name targets the new one.
 - Corrected statement: none given. D2 records this as test coverage and proposes no page edit.
 - Conflict: V4 confirms the page's sentence (V4 report, V4 L92) and keeps it in its draft (V4 L481-483).
 - Proposed call: **undetermined**. Either the page names which rejections the test injects (doc), or the test also draws the two missing ones (code; D2 L67).
-- Decision: Follows its own answer (ok): if D2 is right the page names the rejections the test injects; the two missing draws are a test improvement to take up separately if wanted. [decisions.md section 3; plan §12.1]
+- Decision: Follows its own answer (ok): if D2 is right the page names the rejections the test injects; the two missing draws are a test improvement to take up separately if wanted. [decisions.md section 3; plan §12.1] Issue #202 tracks the two draws (opened on 2026-10-12; plan §12.2, item 14); the pages do not link it.
 
 #### F-321. Issue links #130 to #134: reference-style and linked more than once
 
@@ -4793,7 +4794,7 @@ link they write to the old name targets the new one.
 - Finding: V4's table (L61-78), section by section, giving what becomes a link and what stays. (top): links to `definitions.md` "Functions" and `quantities.md` "Conversion into a function"; why functions exist stays. `#Definitions`: the user rules become links and the `units.txt` block one sentence (§12 q4); the grammar block (marked), the head's rules, the build errors and `Definition`'s shape stay, and the function-of-none bullet is rewritten. `#Annotations`: the opening rule is linked; the rationale stays. `#Names and shadowing`: the user rule is linked; why shadowing is allowed, the sigil alternative and the two parse errors stay. `#Conditions`: syntax and meaning are linked and the examples block goes. `#An undecided condition`: the rationale is quoted in one line; the retry treatment, the warning, the collector and the build's refusal stay. `#Calls`: the call rule is linked; the steps stay. `#A function as the want`: the opening sentence is linked; the six steps, the refutation and the alternatives stay. `#Display`: the line's meaning is linked; how the outcome writes it stays. `#Precision, the radius and cost`: the user consequences are linked; the mechanism stays. `#The check at a call`, `#Build-time checks`, `#Where it lives`, `#Not in this design`, `#Deferred` and `#Alternatives considered` stay as they are.
 - Proposed call: apply V4's table (§12 q24): one sentence and a link, then mechanism and rationale. For interim link targets, see the finding on links to docs pages that do not exist yet (V4 (F-426)).
 - Related: Q-020, Q-021
-- Decision: Stands: V4's table applied in the one-pass rewrite after `docs/definitions.md`, `quantities.md` and `expressions.md` exist (Q-008); amended by Q-011: `#Deferred` moves to `devdocs/future.md` (F-321), `#Not in this design` stays as ruled-out alternatives; pending in part: whether "inverse calls in expressions" and "optional parameters" are ruled out or might still be done (the owner's list).
+- Decision: Stands: V4's table applied in the one-pass rewrite after `docs/definitions.md`, `quantities.md` and `expressions.md` exist (Q-008); amended by Q-011: `#Deferred` moves to `devdocs/future.md` (F-321), `#Not in this design` stays as ruled-out alternatives; both "inverse calls in expressions" and "optional parameters" are ruled out (confirmed on 2026-10-12, plan §12.2, item 12): the first keeps its reason, the second gains one or goes.
 
 ### Findings owned by other pages that touch this one
 
@@ -4901,7 +4902,7 @@ link they write to the old name targets the new one.
 - Finding: Reference-style issue links with definitions at the page foot, outside the Markdown subset; A2 and V5 tag them stale, update. No unit states the issues' open or closed status.
 - Proposed call: An inline link at the one owning passage, saying only what is open (§12 q26: "is open (`[#178](…)`)", V5 L131), the definitions deleted; check each issue's status first, since a closed issue's references go.
 - Related: F-221, F-411, F-412
-- Decision: Stands for #92 (its one home is `devdocs/architecture.md#The converter and its lines`, Q-103) and for the inline form; pending in part: whether #178 (a study of the exact-mode display) is future work for `future.md` or a design note that stays inline (the owner's list).
+- Decision: Stands for #92 (its one home is `devdocs/architecture.md#The converter and its lines`, Q-103) and for the inline form; #178 (a study of the exact-mode display) is future work (confirmed on 2026-10-12, plan §12.2, item 6): its one link is `devdocs/future.md`'s, beside the display policy, and the width paragraph states the rule as it is, naming no issue.
 
 #### F-329. The parentheses are the printer's, not the outcome's
 
@@ -5103,7 +5104,7 @@ link they write to the old name targets the new one.
 - Rewrite: name the page the link points at and let the issue say what is pending, inline: "what is open about where the link should land is `[#191](…)`" (D4 L60) or "where the link lands once the user guide is restructured is open (`[#191](…)`)" (V5 L217).
 - Proposed call: Confirm `update`; two near-identical drafts (OVERLAP).
 - Related: Q-007, Q-115, B-069
-- Decision: Stands (update); follows Q-115 (ok); pending in part: #191 is resolved by this rewrite if the owner closes it, in which case the clause states where the link lands and names no issue (the owner's list).
+- Decision: Stands (update); follows Q-115 (ok); #191 is resolved by this rewrite (confirmed on 2026-10-12, plan §12.2, item 9: the user's guide to the settings lands with this refactor): the clause states where the link lands and names no issue, and the owner closes #191 when `docs/settings.md` lands.
 
 #### F-343. Reference-style issue links; #118 linked from three passages
 
@@ -5114,7 +5115,7 @@ link they write to the old name targets the new one.
 - Conflict: #118's owner: D4 says `devdocs/future.md` and keeps one inline link at the first passage of `#The probe` (D4 (Q-013), D4 L375); V5 says the page that owns the scheduler (`devdocs/cost.md`, or `future.md#Extensions that fit`) and leaves `settings.md` unlinked, naming "the scheduler's concern" (V5 (Q-013); V5 report: its edit assumes that answer); V6 assigns #118 to `cost.md` (V6 (F-415)).
 - Proposed call: Inline each link at its owning passage once its status is checked; #118's one home is the owner's call (D4 (Q-013), V5 (Q-013), V6 (Q-011)), and `settings.md` then names the concern in words.
 - Related: Q-011, Q-013, F-347, F-360, F-415
-- Decision: Stands for the Markdown subset; follows Q-013 (B: #118's one link is `devdocs/future.md`'s; this page names the concern in words); #163 is a bug and stays at `#The probe`; #167 and #186 are classified future work for `future.md` and #191 as resolved by the rewrite, all three on the owner's list (pending in that part).
+- Decision: Stands for the Markdown subset; follows Q-013 (B: #118's one link is `devdocs/future.md`'s; this page names the concern in words); #163 is a bug and stays at `#The probe`; #167 and #186 are future work for `future.md` and #191 is resolved by the rewrite (confirmed on 2026-10-12, plan §12.2, items 7 to 9).
 
 #### F-344. settings.md: which sections open with a link to docs
 
@@ -5164,7 +5165,7 @@ link they write to the old name targets the new one.
 - Finding: three units asked V6 to record plan §1.3 intents here: "Equality operators and conditional expressions", with the constraint that a design must say what an undecidable comparison of inexact values yields (A6 question 2; V1); the two-argument `approx`, linking in one line to the binary form's tentative design in `devdocs/numbers.md#approx`, and significant-figure propagation (#98's extension) named without the #98 link (V1 questions 4 and 5); typographic characters such as `×` accepted by the grammar, D1 proposing `×`, `·`, `−`, non-breaking and thin spaces, not `÷` or superscripts (D1 question 4). V6's replacement text for the section (L181-191) has none of them, while D2's and V4's proposed `#Conditions` texts (D2 L314-322, V4 L196-259) already link `devdocs/functions.md#Conditions` to an equality entry here. Of §1.3's other intents it carries only the deferred function classes and user definitions (the symbolic layer keeps its own section): configurable number formatting, a display policy separable from the model, the grammar generated from a TypeScript DSL, the generated built-in reference, a toggle that suppresses the conversion target and the units page generated from the file are on neither the page nor V6's text. V6's report cites §1.3 only inside its corrected N7 statement (L26), for the symbolic layer, never as the list the plan asks the units to record here.
 - Proposed call: add one-sentence entries beside the concept each touches, each linking to the section that holds its design rather than restating it: the equality operators and conditional expressions (with A6's constraint) and the two-argument `approx`, before V4's and D2's links into this section are applied; the typographic characters once D1 Q4 is answered; and the rest of §1.3's intents as the owner confirms which belong there (the plan asks for one entry per intent).
 - Related: Q-014, Q-035, Q-037, Q-112, F-030
-- Decision: Follows Q-011: every §1.3 intent is recorded here, one entry each beside the concept it touches (the equality operators and conditional expressions with A6's constraint, Q-112; the two-argument `approx` with its tentative design, Q-035; significant-figure propagation, Q-014; the typographic characters, Q-037; configurable number formatting; a display policy separable from the model; the grammar generated from a DSL; the generated built-in reference; a toggle that suppresses the conversion target; user definitions, #130 to #134; the units page generated from the file; the hand-written pages shipped with the app, §12 q31; the deferred function classes, Q-010); the owner confirms the list where it is unsure (the owner's list names the unclear items).
+- Decision: Follows Q-011: every §1.3 intent is recorded here, one entry each beside the concept it touches (the equality operators and conditional expressions with A6's constraint, Q-112; the two-argument `approx` with its tentative design, Q-035; significant-figure propagation, Q-014; the typographic characters, Q-037; configurable number formatting; a display policy separable from the model; the grammar generated from a DSL; the generated built-in reference; a toggle that suppresses the conversion target; user definitions, #130 to #134; the units page generated from the file; the hand-written pages shipped with the app, §12 q31; the deferred function classes, Q-010); the owner confirmed the unclear items on 2026-10-12 (plan §12.2): #78 joins the entries, beside the exact operations, with #171, #173, #178, #167 and #186 as the list placed them.
 
 #### F-346. "More special functions" carries a chronology
 
@@ -5176,7 +5177,7 @@ link they write to the old name targets the new one.
 - Tag: update (V6: a chronology); new
 - Rewrite: "Eight special functions are deferred, not ruled out (`[builtins.md](builtins.md)`, "Not in this design", which says which are which and carries the issue)"; builtins.md owns #115 (V6 L37, L187).
 - Proposed call: Confirm `update`. Point the link at builtins.md "The Gamma and Beta families", which carries #115 and the deferred list (builtins.md page L876-894) and where V3 and D7 keep them; neither V6's text nor the current page's pointer ("Not in this design") names that section.
-- Decision: Stands (update); follows Q-012 (A: #115 in `builtins.md`, provisionally) as amended by Q-011 (the deferred functions are described here, `builtins.md` naming them only as absent); pending in part: #115's place (the owner's list).
+- Decision: Stands (update); follows Q-012 (A: #115 in `builtins.md`, confirmed on 2026-10-12, plan §12.2, item 1) as amended by Q-011 (the deferred functions are described here, `builtins.md` naming them only as absent); the pointer is the families' section, which carries #115.
 
 #### F-347. future.md's reference-style issue links
 
@@ -5201,7 +5202,7 @@ link they write to the old name targets the new one.
 - Conflict: (1) The statistical distributions. Deferred as built-ins: D7's builtins.md rewrite keeps them in its "deferred rather than ruled out" list (D7 L85, L218), as plan §1.3, §4.2 and §9.4 do (§1.3 and §4.2 list "statistical distributions as built-ins" among the classes "deferred, not ruled out indefinitely"). Placed, not deferred: V6 keeps future.md's bullet under "Ruled out" (V6 L35, L207, L226; V6 Q4), and V3's builtins.md rewrite sides with V6, "not built-ins because they need not be" (V3 L696-718, the sentence at L711-715). (2) V6 against itself: L101 says "the two bullets the owner called deferred move to `#Extensions that fit`", while its edit (L195-207) moves only the hypergeometric and Bessel bullet. (3) The hangs' links in builtins.md's paragraph: D7 keeps #151 and #152 there, V3 sends them to cost.md (the issue-links finding).
 - Proposed call: Confirm `update` for the hypergeometric and Bessel items on both pages and for the polygamma and complex `gamma` items on builtins.md: it matches plan §1.3 and §4.2 ("deferred, not ruled out indefinitely") and §9.4, and D7's and V3's builtins.md rewrites agree with V6's move. The distributions' status is the owner's (V6 Q4): deferred as built-ins (plan §1.3, §4.2, §9.4; D7) or placed in definitions (V6, V3); then word future.md and builtins.md alike.
 - Related: Q-010, F-290
-- Decision: Follows Q-010 and Q-011: every class (hypergeometric, Bessel `Y` and `K`, Bessel at large argument, polygamma beyond `digamma`, complex `gamma`, the statistical distributions) is deferred, described here under "More special functions" with its reason kept and the distributions' note (not every function is efficient as a definition); `devdocs/builtins.md` names them only as absent and links here; `docs/builtins.md` states what is not provided as a plain fact with what to write instead; pending in part: #115's place.
+- Decision: Follows Q-010 and Q-011: every class (hypergeometric, Bessel `Y` and `K`, Bessel at large argument, polygamma beyond `digamma`, complex `gamma`, the statistical distributions) is deferred, described here under "More special functions" with its reason kept and the distributions' note (not every function is efficient as a definition); `devdocs/builtins.md` names them only as absent and links here; `docs/builtins.md` states what is not provided as a plain fact with what to write instead; #115 stays in `devdocs/builtins.md` (confirmed on 2026-10-12, plan §12.2, item 1).
 
 #### F-349. Stored digits of pi or e: `e` is not the exp routine's series
 
@@ -5223,7 +5224,7 @@ link they write to the old name targets the new one.
 - Where: `devdocs/future.md#(top)`, `#Symbolic values`, `#Complex numbers`, `#Extensions that fit`, `#Ruled out, and why`
 - Finding: no section becomes a link to docs/: #(top), #Symbolic values and #Complex numbers stay as intent (what the extension is, why not now, what it would take, what keeps it possible), since the user docs state today's behaviour (N7) and never mirror future work; once `docs/numbers.md` exists, "Why not now" in #Symbolic values can cite it in one sentence for the `≈` the user sees. #Extensions that fit stays as the map of extensions, its issue links moving to the owning pages; #Ruled out, and why stays as ruled-out alternatives.
 - Proposed call: keep the five sections (§12 q24; §7.1's "What is ruled out or deferred" row); move the links per the issue-ownership finding (V6 (F-415)).
-- Decision: Stands for `#(top)`, `#Symbolic values`, `#Complex numbers` and `#Extensions that fit`; amended by Q-011: `#Ruled out, and why` dissolves, each decision moving to the page that owns its concept (the number type's alternatives and the radius display to `devdocs/numbers.md`, the stored digits to `#Memoized constants`, the unbounded exponent already there, the temperature offset to `devdocs/functions.md`) with one sentence in the docs where a user would look (the error radius is never shown), and the deferred function classes staying here as future work; the page's top paragraph is reworded; the classification of each bullet is on the owner's list to confirm.
+- Decision: Stands for `#(top)`, `#Symbolic values`, `#Complex numbers` and `#Extensions that fit`; amended by Q-011: `#Ruled out, and why` dissolves, each decision moving to the page that owns its concept (the number type's alternatives and the radius display to `devdocs/numbers.md`, the stored digits to `#Memoized constants`, the unbounded exponent already there, the temperature offset to `devdocs/functions.md`) with one sentence in the docs where a user would look (the error radius is never shown), and the deferred function classes staying here as future work; the page's top paragraph is reworded; the classification of each bullet was confirmed by the owner on 2026-10-12 (plan §12.2, item 13).
 
 ### Findings owned by other pages that touch this one
 
@@ -5629,7 +5630,7 @@ link they write to the old name targets the new one.
 - Where: `devdocs/testing.md#The edge sweeps` (page L150-151); `devdocs/testing.md#Type-checking` (page L201-202); the definitions at the foot, after `#The UI` (page L228-230)
 - Finding: `[#114][114]`, `[#110][110]` and `[#179][179]` are reference-style links, outside the Markdown subset; V7 did not read the tracker, yet its rewrites word each one "is open".
 - Proposed call: inline links at the owning passage ("is open ([#114](https://github.com/bsidhom/exucal/issues/114))", likewise #110 and #179) and delete the three definitions (V7 L251, L259, L263); check each issue's status first, and if one is closed, delete its reference and state the current design (§12 q26).
-- Decision: Stands for the inline form and the status check; pending in part: #110, #114 and #179 are developer-tooling issues whose class under Q-011 is on the owner's list (provisionally they stay with the passages that own them).
+- Decision: Stands for the inline form and the status check; #110, #114 and #179 are developer-tooling issues that stay linked once from the passages that own them (confirmed on 2026-10-12, plan §12.2, item 10).
 
 #### F-378. The three-argument functions do not take the cube of the second operands
 
@@ -5666,7 +5667,7 @@ link they write to the old name targets the new one.
 - Tag: keep as intent; plan row confirmed (§9.4)
 - Rewrite: "so a cycle among the kernel's modules (`fixed.ts`, `ball.ts`, `context.ts`) that only such imports kept alive would run a module's top level before its constants exist, depending on which module a test imports first"; #179 inline (V7 L259).
 - Proposed call: Confirm `keep as intent`.
-- Decision: Stands (keep as intent); #179's place is on the owner's list with F-377 (pending in that part).
+- Decision: Stands (keep as intent); #179 stays inline here (confirmed on 2026-10-12, plan §12.2, item 10).
 
 #### F-381. The Playwright checklist cannot be checked from the tree
 
@@ -6232,7 +6233,7 @@ link they write to the old name targets the new one.
 - Conflict: the passage within `builtins.md`: the families' last paragraph (D7 L217-218; V3 L694-717) against `#Not in this design` (V6 L37, L187).
 - Proposed call: `devdocs/builtins.md#The Gamma and Beta families`, last paragraph, keeps the one link; `future.md`'s "More special functions" points at that section, not at "Not in this design" (today's pointer and V6's text both name the wrong section).
 - Related: Q-011, Q-012, F-303, F-346, F-347
-- Decision: Stands for the pointer (the families' last paragraph, not `#Not in this design`); the one link follows Q-012 (A: `builtins.md`) provisionally, pending the owner's answer on #115 (Q-011 would make it `future.md`'s).
+- Decision: Stands for the pointer (the families' last paragraph, not `#Not in this design`); the one link follows Q-012 (A: `builtins.md`), confirmed by the owner on 2026-10-12 (plan §12.2, item 1).
 
 #### F-418. Issue #118: linked from three pages; `cost.md` or `future.md`
 
@@ -6330,7 +6331,7 @@ link they write to the old name targets the new one.
 - Conflict: whether a link may dangle meanwhile: apply once the target exists (V1 L365; V2 L298; V4 L564; D1 L485, L700) against write now and set anchors later (V5 L239; D8 L152, L319; D9 L103, L138); and the interim targets (V2 L104 against V4 L111, L564).
 - Proposed call: one sequencing rule for every draft that links a §7 page, the owner's answer to the open question (V1 Q6, V2 Q1, V4 Q7, V5 Q4): apply such edits as each target page lands, or write the links to the outline's names now and check every anchor once the headings are final; if any edit goes in before its target, one interim map, not V2's and V4's two.
 - Related: Q-008, F-066
-- Decision: Follows Q-008 (A): an edit that links a page lands only once the page exists, in the linking page's one-pass rewrite; the whole rewrite runs in topological order (user pages first, in the sheet's order; getting started last; every devdocs page after the user pages it links), so no interim map is needed; where two user pages link each other, the page written first links at the anchor §7 fixes and the later page keeps that anchor (on the owner's list to confirm).
+- Decision: Follows Q-008 (A): an edit that links a page lands only once the page exists, in the linking page's one-pass rewrite; the whole rewrite runs in topological order (user pages first, in the sheet's order; getting started last; every devdocs page after the user pages it links), so no interim map is needed; where two user pages link each other, the page written first links at the anchor §7 fixes and the later page keeps that anchor (confirmed on 2026-10-12, plan §12.2, conflict 1; the rule is in principles.md).
 
 ## Terminology (plan §8)
 
@@ -6532,7 +6533,7 @@ link they write to the old name targets the new one.
 - Conflict: D1 (L681) against A5 (L457-458); D2's drafts for `docs/definitions.md` also say "rejected" ("The file is rejected when", "and is rejected; write the scale in the body", D2 L38, L217-219, L268).
 - Proposed call: decide whether docs say "rejected" (A5, D2) or only "an error" (D1, §8) for text refused as typed; devdocs keep "rejection" either way.
 - Related: F-090, F-098
-- Decision: Follows its own answer (A, with the note as a rule): docs say "an error" for everything but a size refusal, text the grammar does not read being "an error as it is typed"; devdocs keep "rejection" as the distinct notion for what the parser recognized and refused, and never "refuse" for a domain error, an edge or a mismatch; §8's refusal row amended. [decisions.md section 2; plan §12.1]
+- Decision: Follows its own answer (A, with the note as a rule): docs say "an error" for everything but a size refusal, text the grammar does not read being "an error as it is typed"; devdocs keep "rejection" as the distinct notion for what the parser recognized and refused, and never "refuse" for a domain error, an edge or a mismatch; §8's refusal row amended. [decisions.md section 2; plan §12.1] Extended on 2026-10-12 (plan §12.2, conflict 8): the settings panel's lines that decline an edit are not refusals in the docs, which say the panel "does not accept" an edit or that a value is "held to" its range; the devdocs keep "refusal" there only as the code's identifier (`refusalOf`).
 
 #### F-443. "refused" for a domain error; "error" for a size refusal
 
@@ -6927,7 +6928,7 @@ link they write to the old name targets the new one.
 - Conflict: A9 (L282-285) against D3 (L335).
 - Proposed call: decide whether "system" may qualify the file against user definitions (A9; §8 and §12 q12 do so) or only name systems of units (D3).
 - Related: B-061
-- Decision: Follows its own answer (a rule): "the definitions file", or "the predefined definitions file" where a user's definitions could be meant; never "the system file" or "system" alone; §8's row, §12 q12, §5 C50, §7, §10 and §11 amended; B-061 is the code side. [decisions.md section 2; plan §12.1]
+- Decision: Follows its own answer (a rule): "the definitions file", or "the predefined definitions file" where a user's definitions could be meant; never "the system file" or "system" alone; §8's row, §12 q12, §5 C50, §7, §10 and §11 amended; B-061 is the code side. [decisions.md section 2; plan §12.1] Extended on 2026-10-12 (plan §12.2, conflict 3): the table built from the file is "the definitions table", or "the table built from the definitions file", never "the system table" in prose; module and function names (`src/system-table.ts`, `buildSystemTable`) are quoted as they are.
 
 #### F-476. "loaded" (docs) and "build" (devdocs)
 

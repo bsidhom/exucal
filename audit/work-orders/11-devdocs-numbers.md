@@ -90,14 +90,19 @@ ruled-out alternatives with theirs, in the present tense.
   minute" becomes V1's qualitative reason (F-185).
 - **Issue links (Q-011, Q-012; §12 question 26).** Inline, once, where
   the passage that owns the concept stands; the foot's definitions go
-  (F-221). Bugs and open design questions stay here: #78 (pending, see
-  section 8), #79 (B-003), #88 (`#Roots and powers`, the one link,
-  Q-102). Future work leaves for `devdocs/future.md`: #98 (the sentence
-  goes, Q-014), #100 with the binary form's tentative design (Q-035,
-  Q-104: `#approx` names the form in one clause linking `future.md`),
-  #171 (pending), #89 (the clause goes, Q-042), #103 (to
-  `builtins.md`, Q-012, F-195). #172 and #173 are on the owner's list
-  (section 8).
+  (F-221). Bugs stay here: #79 (B-003), #88 (`#Roots and powers`, the
+  one link, Q-102), and #199, the schedule's edge (B-011), linked once
+  at `#Working precision and the schedule` (the owner's list, item 14).
+  Future work leaves for `devdocs/future.md`: #78 (the owner's list,
+  item 2: `#Exact operations` states where a quotient's reduction runs
+  today as a plain fact, naming no issue), #98 (the sentence goes,
+  Q-014), #100 with the binary form's tentative design (Q-035, Q-104:
+  `#approx` names the form in one clause linking `future.md`), #171
+  (its sentence goes with it, item 3), #173 (item 5: `#Decimal mode`
+  states the behaviour as a plain fact), #89 (the clause goes, Q-042),
+  #103 (to `builtins.md`, Q-012, F-195). #172 stays inline at `#The
+  working digits` (item 4). All of these the owner confirmed on
+  2026-10-12 (section 8).
 - **Refusal only for a size refusal (F-442).** "Refused" for the
   significand limit's and the bound's refusals (they are: F-213, F-216,
   F-215); "rejection" for the parser's; never "refused" for an edge, a
@@ -140,9 +145,10 @@ take and what the rules change:
   an inexact base takes the product rule by squaring (F-186); when a
   divisor counts as containing zero, A6's text with the reason (A6
   L300-306, adopted at V1 L200; F-187); the gcd ratio with its
-  milliseconds rough or left to the benchmark (F-188); #78 inline as
-  the open question it is (A1 L193, V1 L204), pending as section 8
-  says; the rest of the section read against `src/core/ball.ts` as the
+  milliseconds rough or left to the benchmark (F-188); the sentence on
+  where a quotient's reduction runs (A1 L193, V1 L204) states today's
+  behaviour as a plain fact, the open question and #78 being
+  `future.md`'s (section 8); the rest of the section read against `src/core/ball.ts` as the
   session rewrites it (F-189).
 - **Sums and alignment.** A1 L204-209 and V1 L208: each operation on
   `Scaled` takes the significand limit and returns a `Result` for it and
@@ -205,7 +211,9 @@ take and what the rules change:
   ceiling pass's grid is `digitsFor(bitsFor(ceiling))`, about ten digits
   above the ceiling; F-022, F-125); the cost bound's edge, "about three
   times the last" where the ceiling lies just above a doubled precision
-  (F-064, Q-047); the unaffordable-pass parenthesis read against A5
+  (F-064, Q-047), with #199 linked once there (B-011; Q-012's rule for a
+  bug in today's behaviour); the unaffordable-pass parenthesis read
+  against A5
   L144-147 and kept only if it holds under Q-001 (F-208, F-051: one
   `tooLarge` kind, never retried; a refusal first raised at a later
   pass ends the loop with the best earlier result); the rebuild
@@ -228,13 +236,13 @@ take and what the rules change:
   `-` (F-037); a literal past the limit refused in either mode (F-041,
   Q-040); `log` reaches the uncertified fallback (F-042, Q-048: the
   exact case waits for a review), the second half of "The ceiling"
-  rewritten as A4 L100 and V1 L296 have it, with #173 handled as
-  section 8 says; the user's consequences (A4 L137) are
+  rewritten as A4 L100 and V1 L296 have it, with #173's link gone to
+  `future.md` and the behaviour stated as a plain fact (section 8); the user's consequences (A4 L137) are
   `docs/numbers.md`'s.
 - **The working digits.** A4 L104-107, V1 L302-306 and D4 L387-389: the
   second bullet (with a want the have is an operand rounded to `w`; the
   reciprocal line inverts the ratio shown; F-038, F-043, Q-046); #172
-  inline, pending as section 8 says.
+  inline, confirmed (section 8).
 - **The significand limit.** A5 L388-411 and V1 L308-316: `1 / 2^n`
   refused from `n = 28,225` (F-216); the mechanism sentence, not
   "checked first" (F-215); measuring after forming kept as intent
@@ -242,10 +250,12 @@ take and what the rules change:
   there (F-056); "a third source" (Q-079); "about 69,658 bits" (F-012).
 - **approx.** D6 L200-212 and V1 L318-324: the "never the reverse"
   sentence settled as section 3 says (F-218); the ruled-out spellings
-  kept as intent, the postfix `~` pending (F-219); the binary form named
+  kept as intent, the postfix `~` among them, its sentence losing "the
+  likely spelling … later" (F-219, confirmed); the binary form named
   in one clause that links `devdocs/future.md`, its tentative design
   and #100 moved there (Q-035, Q-104; the session hands that text to
-  work order 18); the #98 sentence dropped (Q-014); #171 pending;
+  work order 18); the #98 sentence dropped (Q-014); #171's sentence
+  gone to `future.md` with its link (item 3, confirmed);
   `approx` on a base does not relax an exponent literal (Q-099);
   `widened`'s behaviour as confirmed (Q-080).
 - **Failures.** The rule the throw of B-003 breaks, stated; unchanged
@@ -281,10 +291,10 @@ take and what the rules change:
 | F-210, F-211 | Settling | One text each |
 | F-212, F-213, F-214 | Decimal mode | Keep as intent, the source mended; doc wrong; "certified" |
 | F-215, F-216, F-217 | The significand limit | Doc wrong; doc wrong; keep as intent |
-| F-218, F-219 | approx | "refusal" read in its size sense first; the `~` spelling pending |
+| F-218, F-219 | approx | "refusal" read in its size sense first; the `~` spelling ruled out, kept as intent |
 | F-220 | Formatting | Small fixed costs; figures rough or the benchmarks' |
-| F-221 | (the page) | Links inline; #98, #100, #171 leave for `future.md`; #89 goes; #103 to `builtins.md`; #172, #173 pending |
-| F-349, F-350 (received) | The types; Decimal mode; Certification and the display rule; Memoized constants | The ruled-out bullets of `future.md`, stated here as intent (Q-011); `e` by `eSeries`; item 13 pending |
+| F-221 | (the page) | Links inline; #78, #98, #100, #171, #173 leave for `future.md`; #89 goes; #103 to `builtins.md`; #172 stays; #199 added |
+| F-349, F-350 (received) | The types; Decimal mode; Certification and the display rule; Memoized constants | The ruled-out bullets of `future.md`, stated here as intent (Q-011); `e` by `eSeries`; item 13 confirmed |
 
 Owned elsewhere and read here, each applied by its owner and giving
 this page a sentence or a link: F-010, F-012, F-021, F-022, F-023,
@@ -303,10 +313,10 @@ Q-063, Q-078, Q-079, Q-080, Q-084, Q-088, Q-091, Q-099, Q-102, Q-103,
 Q-104, Q-109; the rules F-427, F-430 to F-434, F-436, F-437, F-439 to
 F-442, F-444, F-446, F-447, F-449, F-451.
 
-Still open: Q-047 and Q-048 are on the owner's list only to confirm
-that they need no `future.md` entry (the page states today's
-behaviour either way); the pending items of section 8; item 13 of
-the Q-011 list, which confirms that the bullets this page receives
+Still open: nothing. Q-047 and Q-048 get no `future.md` entry (the
+owner's list, item 14): their issues are #199, linked once here, and
+#200, linked once in `devdocs/builtins.md`; the owner's list is answered
+(section 8), item 13 confirming that the bullets this page receives
 from `devdocs/future.md` (section 3) are ruled out by intent.
 
 ## 7. Proposed text to start from, and what the rules change in it
@@ -318,7 +328,7 @@ the source; where they differ, the row says which.
 | --- | --- | --- | --- |
 | (top) | V1 L186, L188; A1 L309-313 | V1 | "inexact" (L186) |
 | The types | V1 L192, L194; A1 L61 | V1 | the timing rough or the ratio |
-| Exact operations | A1 L166-196; A6 L292-307; V1 L198-204 | V1, with A6's zero-containment text | the ms rough or benchmark's; #78 pending |
+| Exact operations | A1 L166-196; A6 L292-307; V1 L198-204 | V1, with A6's zero-containment text | the ms rough or benchmark's; the reduction sentence a plain fact, #78 in `future.md` |
 | Sums and alignment | A1 L198-209; V1 L208 | same | the grid clause settled |
 | Comparison | A6 L309-341; V1 L212-214 | same | the unit-list clause checked |
 | The kernel's boundary | V1 L218, L220 | V1 | — |
@@ -330,35 +340,34 @@ the source; where they differ, the row says which.
 | Working precision | A3 L100-120; A9 L257-273; V1 L262-270 | V1, with A3's grid sentence and A9's rebuild alternative | the unaffordable parenthesis checked |
 | Settling | A1 L62-63; A3 L122-130; V1 L274-276 | V1 (A3's), or A1's | the example's size checked |
 | Exact mode | A1 L211-221; V1 L280-282 | same | — |
-| Decimal mode | A4 L93-102; V1 L284-300 | V1 ("certified"; "behavior") | #173 per section 8 |
-| The working digits | A4 L104-107; V1 L302-306; D4 L387-389 | same | #172 per section 8 |
+| Decimal mode | A4 L93-102; V1 L284-300 | V1 ("certified"; "behavior") | #173's link to `future.md`; the behaviour a plain fact |
+| The working digits | A4 L104-107; V1 L302-306; D4 L387-389 | same | #172 inline |
 | The significand limit | A5 L388-411; V1 L308-316; A5 L66 | V1 ("above") | — |
-| approx | D6 L200-212; V1 L318-324 | D6's rewrite after the check; V1's links | #98 gone; #100 and the tentative design to `future.md`; #171 pending |
+| approx | D6 L200-212; V1 L318-324 | D6's rewrite after the check; V1's links | #98 gone; #100 and the tentative design to `future.md`; #171's sentence with them |
 | Formatting | A2 L42, L82-85; V1 L326-328 | same | the figures rough or gone |
 | The foot | V1 L332 | V1 | — |
 | Openers | V1 L106-130, L336 | V1 | "inexact"; `docs/numbers.md`'s anchors as written |
 
 ## 8. Conflicts left to settle
 
-From the owner's list (`audit/decisions.md`, "For the owner"): conflict
-4, Q-016 against Q-017 (applied: Q-017's section loses its milliseconds;
-elsewhere a figure stays only marked rough and illustrative); items 2,
-3, 4 and 5 of the Q-011 list (#78, #171, #172, #173, each on this
-page): applied provisionally as follows until the owner answers. #78
-stays inline as the open question in `#Exact operations`; #171 is
-named without a link in `#approx` ("the semantics of `approx` as a
-whole are under study") and its link goes to `future.md`; #172 stays
-inline in `#The working digits` as the vocabulary note it is; #173 stays
-inline in `#Decimal mode` as a design note on today's behaviour. If the
-owner classes any of them as future work, its link and sentence move
-to `devdocs/future.md` and this page keeps a plain statement of the
-behaviour. The postfix `~` spelling (F-219) is pending the same way.
-Item 13 of the Q-011 list classifies the bullets this page receives
-from `devdocs/future.md` (section 3): they are written here as ruled
-out, with their reasons, until the owner answers. The session records
-in its pull request each choice between drafts (sections 4 and 7), the
-figures it kept as rough, and the received bullets' places, which work
-order 18 checks.
+From the owner's list (`audit/decisions.md`, "For the owner"), all
+answered on 2026-10-12: conflict 4, Q-016 against Q-017 (confirmed:
+Q-017's section loses its milliseconds; elsewhere a figure stays only
+marked rough and illustrative); items 2, 3, 4 and 5 of the Q-011 list
+(#78, #171, #172, #173, each on this page). #78 is future work: `#Exact
+operations` states where a quotient's reduction runs today as a plain
+fact, and `future.md` carries the open question and its one link.
+#171's sentence ("the semantics of `approx` as a whole are under
+study") and its link go to `future.md`'s `approx(x, u)` entry. #172
+stays inline in `#The working digits` as the vocabulary note it is.
+#173 is future work: `#Decimal mode` states the behaviour as a plain
+fact, and `future.md` carries the link. The postfix `~` spelling
+(F-219, item 11) is a ruled-out alternative, kept with its reason, the
+sentence losing "the likely spelling … later". Item 13 confirms that
+the bullets this page receives from `devdocs/future.md` (section 3)
+are ruled out by intent. The session records in its pull request each
+choice between drafts (sections 4 and 7), the figures it kept as
+rough, and the received bullets' places, which work order 18 checks.
 
 ## 9. Code changes it waits on
 
@@ -383,7 +392,8 @@ order 18 checks.
   definitions are gone.
 - No "approximate" for a value, no "refused" for an edge, "certified"
   in every quoted note.
-- The pull request names the drafts picked, the figures kept, the
-  provisional placement of #78, #171, #172 and #173 and the `~`
-  spelling, and any question for the owner, and changes nothing outside
-  this file.
+- #78, #171 and #173 do not occur; #172, #79, #88 and #199 occur once
+  each; the `~` spelling is a ruled-out alternative without "likely …
+  later".
+- The pull request names the drafts picked, the figures kept, and any
+  question for the owner, and changes nothing outside this file.

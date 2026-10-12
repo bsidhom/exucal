@@ -153,7 +153,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V1: the phase that creates `docs/numbers.md` applies V1's section openers from its table, cutting the sentences it names; V1's other edits apply now. V2: apply V2's pared sections after the D units' pages exist, so that no link is ever dangling. V4: apply when the skeleton lands; applied earlier, each such link points at `../docs/definitions.md`, "Functions", which holds the rules today. V5: write the links to the outline's names now and set the anchors when the D units create the pages; until then the sentences read correctly as prose. The four answers differ on whether a link may dangle meanwhile.
 - Settled by: —
 - Blocks: every devdocs rewrite that pares a section to one sentence and a link (V1, V2, V4, V5); D8's and D9's drafts, which link `docs/numbers.md` and `docs/app.md`, wait on the same pages.
-- Decision: A. My intention was always to write the docs in topo order. If that's not captured anywhere (and it goes beyond these smaller linking problems anyway), please note that where relevant. [plan §12.1] Rule: the whole rewrite runs in topological order, and the work orders are numbered so; the forward-link convention for two user pages that link each other is on the owner's list to confirm (decisions.md, "For the owner").
+- Decision: A. My intention was always to write the docs in topo order. If that's not captured anywhere (and it goes beyond these smaller linking problems anyway), please note that where relevant. [plan §12.1] Rule: the whole rewrite runs in topological order, and the work orders are numbered so; the forward-link convention for two user pages that link each other (the page written first links the later page at the §7 anchor; the later page keeps the heading) was confirmed by the owner on 2026-10-12 (plan §12.2, conflict 1) and is the rule (principles.md).
 
 ### Q-009. `docs/functions.md` in the interim: corrections beyond §9.4's rows
 
@@ -186,7 +186,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D2: #130 at `devdocs/functions.md#Annotations`, #131 at `#Names and shadowing`, #132 at `docs/definitions.md#The format` (the user statement) with `devdocs/future.md#Extensions that fit` keeping the intent without a second link, #133 at `devdocs/functions.md#Deferred`; the other occurrences become plain mentions. V4: #130 to #133 in `#Deferred`, the page's list of what is open, the other sections naming it; #134 in `#An undecided condition`, where the reason it is open is stated, "Not in this design" referring there; either placement satisfies the rule, and V4's edits follow its own. V6: `functions.md` owns #130 to #134. §7's skeleton and §12 question 12 put #132 beside `docs/definitions.md`'s "User definitions".
 - Settled by: —
 - Blocks: the issue-link edits of `devdocs/functions.md` (V4) and `docs/definitions.md` (D2).
-- Decision: other: Future work lives only in `devdocs/future.md`. Anything not implemented today that we might implement later is described there, with its issue links, and nowhere else: the user docs never mention it, and a devdocs page that needs to say something is planned links `future.md` rather than describing it. So #130 to #134 are linked from `future.md` only. What is ruled out by intent is not future work but a current design decision, so it lives in the as-is pages: one sentence where a user would look for it in `docs/` (for example, that the app never shows the error radius), and the reason in the devdocs page that owns the concept. `future.md`'s "Ruled out, and why" is split accordingly: its decisions move to those pages, and anything in it we might still do (the function classes deferred in §1.3 and Q-010) stays as future work. A user page may state what the app lacks today as a plain fact, with what to write instead, but never as something to come. Bugs and performance problems in today's behaviour are not future work either: their issue links stay with the passage that owns the concept (Q-012). Where it is unclear whether an item is ruled out or might still be done, ask me. [plan §12.1] Rule; applied to every finding, open item, plan passage and draft it touches (plan §12.1, principles.md); the items whose status under it is unclear are on the owner's list.
+- Decision: other: Future work lives only in `devdocs/future.md`. Anything not implemented today that we might implement later is described there, with its issue links, and nowhere else: the user docs never mention it, and a devdocs page that needs to say something is planned links `future.md` rather than describing it. So #130 to #134 are linked from `future.md` only. What is ruled out by intent is not future work but a current design decision, so it lives in the as-is pages: one sentence where a user would look for it in `docs/` (for example, that the app never shows the error radius), and the reason in the devdocs page that owns the concept. `future.md`'s "Ruled out, and why" is split accordingly: its decisions move to those pages, and anything in it we might still do (the function classes deferred in §1.3 and Q-010) stays as future work. A user page may state what the app lacks today as a plain fact, with what to write instead, but never as something to come. Bugs and performance problems in today's behaviour are not future work either: their issue links stay with the passage that owns the concept (Q-012). Where it is unclear whether an item is ruled out or might still be done, ask me. [plan §12.1] Rule; applied to every finding, open item, plan passage and draft it touches (plan §12.1, principles.md); the items whose status under it is unclear are on the owner's list. The items whose status under this rule was unclear were answered on 2026-10-12 (plan §12.2): each provisional reading confirmed, except #78, which is future work.
 
 ### Q-012. Where the kernel-cost issues are linked: `builtins.md` or `cost.md`
 
@@ -197,7 +197,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D7: `builtins.md` keeps #107, #112 and #115; `cost.md` keeps #103, #125, #149, #150, #151 and #152, and the families section links only `cost.md` for them (D7's own edits nonetheless inline all of them in `builtins.md`, D7 report). V6: `cost.md` owns #107, #125 and #149 to #152 (and #118 to #121); `builtins.md` owns #103 and #115, its Gamma section linking `cost.md` for the costs. V1: #103 leaves `numbers.md#Memoized constants` for `builtins.md#The Gamma and Beta families`, which owns the Bernoulli memo (A3 (F-221) agrees); V3 adds it there if absent and confirms the memo's rule. V3: #152 stays at `expFixed`'s bullet and #151 lives in `cost.md` only; V3's edits keep #103, #107, #125, #149 and #150 inline in the Gamma section. D5: one of the two #152 links goes (a note for V3); V3 verified the elementary routines' algorithm bullets that D5 left (V3 report L70). Positions differ on #103 (D7 against V1, V3 and V6), #107 (D7 and V3 against V6), and #125, #149, #150 and #152 (V3 against D7 and V6).
 - Settled by: —
 - Blocks: the issue-link edits of `devdocs/builtins.md` (V3, D7) and `devdocs/cost.md` (V6); the hangs-table change below.
-- Decision: A. I would lean toward my ruling above about all not-currently-implemented work being listed under `future.md`, but I consider these issues to be user-relevant in understanding current performance. Moreover, this is not "future" or "aspirational" work, but a performance bug (where there is an associated issue). [plan §12.1] Pending in part: #115's one place (Q-011's rule would put it in future.md; this answer keeps it in builtins.md); see decisions.md, "For the owner".
+- Decision: A. I would lean toward my ruling above about all not-currently-implemented work being listed under `future.md`, but I consider these issues to be user-relevant in understanding current performance. Moreover, this is not "future" or "aspirational" work, but a performance bug (where there is an associated issue). [plan §12.1] Settled on 2026-10-12 (plan §12.2, item 1): #115's one link stays in `devdocs/builtins.md#The Gamma and Beta families`, in a one-line mention; `future.md`'s entry names the eight functions without the number. #78 is future work (item 2), not an open design question kept inline.
 
 ### Q-013. Where issue #118 (the scheduler) is linked
 
@@ -208,7 +208,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D4: `devdocs/future.md`, the probe section keeping the words "the interface's responsiveness" without the link. V5: the page that owns the interface's responsiveness and the retry loop's cost, `devdocs/cost.md` or `future.md#Extensions that fit` (where §5 C33 places it), `settings.md` naming the concern in words; V5's edits link `cost.md` (V5 report). V6: `cost.md` owns #118 to #121.
 - Settled by: —
 - Blocks: the issue-link edits of `devdocs/settings.md` (D4, V5), `devdocs/cost.md` and `devdocs/future.md` (V6).
-- Decision: B [plan §12.1] #186 and #167, which build on #118, are classified future work with it; on the owner's list to confirm.
+- Decision: B [plan §12.1] #186 and #167, which build on #118, are future work with it (confirmed on 2026-10-12, plan §12.2, items 7 and 8).
 
 ### Q-014. Where issue #98 (significant figures) is linked
 
@@ -318,7 +318,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A4: yes, one sentence each in the decimal-mode section of the new `numbers.md`, as today's behaviour. A3 handed the `turn` example to A4, to stand beside `sin(pi() radian)` as the example users will meet. §1.3 has the user docs state the exact-mode `turn` case as today's behaviour, a limitation and not a goal. D8's drafted `#The two modes` leaves the mode rules to A4 and D4 (D8 L218-222).
 - Settled by: —
 - Blocks: `docs/numbers.md#The two modes`.
-- Decision: ok, but don't record that specific number in decimal, since it changes with the parameterization and does not match the behavior I see in the real app with my current settings. Keep the discussion to the fact that this does (or even "may") produce an exact value in decimal mode while failing to resolve in exact mode due to the pole. [plan §12.1] Pending in part: whether the `turn` example's `359.99999` may be written at the default settings, or only the behaviour; see decisions.md, "For the owner".
+- Decision: ok, but don't record that specific number in decimal, since it changes with the parameterization and does not match the behavior I see in the real app with my current settings. Keep the discussion to the fact that this does (or even "may") produce an exact value in decimal mode while failing to resolve in exact mode due to the pole. [plan §12.1] Settled on 2026-10-12 (plan §12.2, conflict 2): both examples are stated without settings-dependent digits; `turn` into `deg` is `=` with a value a little under 360, no figure.
 
 ### Q-024. `numbers.md`: the touch rule in comparisons
 
@@ -527,7 +527,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V1: yes, after the tests the issue asks for are checked in `src/core/rational.test.ts` (outside V1's reading); the clause goes either way, the behaviour it describes being gone (§12 question 26).
 - Settled by: —
 - Blocks: nothing (`devdocs/numbers.md#Roots and powers` drops the clause either way).
-- Decision: ok [plan §12.1] The closing of #89 is on the owner's list as housekeeping.
+- Decision: ok [plan §12.1] The closing of #89 is housekeeping the owner confirmed on 2026-10-12 (plan §12.2, item 15): close it once its tests are confirmed (B-033).
 
 ### Q-043. The ratio notation's screen rejects dyadic values that fit
 
@@ -560,7 +560,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A8: state it now; the retry is a small change that could ride the work on #92, which reshapes what the loop retries.
 - Settled by: —
 - Blocks: nothing (the page states today's behaviour).
-- Decision: ok [plan §12.1] On the owner's list only to confirm that it needs no future.md entry.
+- Decision: ok [plan §12.1] Confirmed on 2026-10-12 (plan §12.2, item 14): no `future.md` entry; the retry is issue #198, which `devdocs/architecture.md#Unit lists` links once beside the gap it states (Q-012's rule for a bug, B-010) and the user docs do not name.
 
 ### Q-046. The reciprocal line in decimal mode with extended working digits
 
@@ -582,7 +582,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A3: the wording now (V1's edit does it, V1 (F-064)); the code change, if wanted, as its own change after the revamp.
 - Settled by: —
 - Blocks: nothing.
-- Decision: ok [plan §12.1] On the owner's list only to confirm that it needs no future.md entry.
+- Decision: ok [plan §12.1] Confirmed on 2026-10-12 (plan §12.2, item 14): no `future.md` entry; the schedule change is issue #199, which `devdocs/numbers.md#Working precision and the schedule` links once beside the edge it states (Q-012's rule, B-011).
 
 ### Q-048. `log`'s exact cases for a rational exponent
 
@@ -593,7 +593,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A4: document the fallback as reachable now (V1 does, V1 (F-042)) and leave the exact case to D5's review of the logarithm family; the decision on #173 (decide a tie as exact instead of flagging it) would make these lines `=` as well. D5 confirms the exact cases as they are (D5 report) and does not weigh the rational case.
 - Settled by: —
 - Blocks: nothing (the pages state today's behaviour).
-- Decision: ok [plan §12.1] On the owner's list only to confirm that it needs no future.md entry.
+- Decision: ok [plan §12.1] Confirmed on 2026-10-12 (plan §12.2, item 14): no `future.md` entry; the exact cases for a rational exponent are issue #200, linked once from the logarithm row of `devdocs/builtins.md#Domains, exact cases and edges` (Q-012's rule, B-007); the pages state the fallback as reachable.
 
 ### Q-049. A stored ratio width out of range resets the whole mode
 
@@ -736,7 +736,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V6: dropped now; a generated summary is a small addition to `tooling.ts`'s `update` for later, since the tool already owns both tables.
 - Settled by: —
 - Blocks: nothing (V6's rewrite drops them).
-- Decision: ok [plan §12.1]
+- Decision: ok [plan §12.1] The generated summary line is issue #201 (opened on 2026-10-12; plan §12.2, item 14): no `future.md` entry, and the page does not link it.
 
 ### Q-062. The hangs table's Issue column as links
 
@@ -1336,4 +1336,4 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V8 and D9: it becomes a relative, local link once the documents ship with the app (§12 question 31); `devdocs/security.md#The page` can then drop its sentence about it. Nothing changes before the question 31 work.
 - Settled by: F-177
 - Blocks: nothing.
-- Decision: ok: the "About these settings" link becomes local when the pages ship with the app (question 31); nothing before. [plan §12.1, section 8 of the sheet]
+- Decision: ok: the "About these settings" link becomes local when the pages ship with the app (question 31); nothing before. [plan §12.1, section 8 of the sheet] #191 closes when `docs/settings.md` lands, with this refactor (the owner on 2026-10-12, plan §12.2, item 9).

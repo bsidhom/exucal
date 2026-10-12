@@ -83,9 +83,13 @@ in today's behaviour are not future work: their issue links stay with
 the passage that owns the concept (Q-012: the cost and hang issues in
 `devdocs/cost.md`, the Bernoulli memo's in `devdocs/builtins.md`). So
 #130 to #134, #118 with #119 to #121, #98 and #100 are linked from
-`future.md` only. Where it is unclear whether an item is ruled out or
-might still be done, the owner is asked (the list at the end of
-`audit/decisions.md`); meanwhile the item is pending.
+`future.md` only. Where it was unclear whether an item is ruled out or
+might still be done, the owner was asked (the list at the end of
+`audit/decisions.md`) and answered on 2026-10-12 (plan §12.2): #78, #171,
+#173, #178, #167 and #186 are future work, linked from `future.md`
+only; #115, #172, #110, #112, #114 and #179 stay with the passages
+that own them; the ruled-out bullets of `future.md` move to the pages
+that own their concepts. Nothing is pending.
 
 **Inexact, not approximate (F-451).** "Inexact" names a value with a
 nonzero radius, everywhere, headings included ("Exact and inexact
@@ -101,8 +105,11 @@ today's visual design.
 **The definitions file (F-475).** `src/units.txt` is "the definitions
 file", or "the predefined definitions file" where a user's definitions
 could be meant; never "the system file", "system definitions" or
-"system" alone, which names only a system of units. Code identifiers
-are quoted as they are.
+"system" alone, which names only a system of units. The table built
+from the file is "the definitions table", or "the table built from the
+definitions file", never "the system table" in prose (conflict 3 of the
+owner's list, answered). Code identifiers (`src/system-table.ts`,
+`buildSystemTable`) are quoted as they are.
 
 **Which numbers the pages keep (Q-016, Q-018, Q-088).** The user docs
 carry no timing, run count or measured ratio: qualitative descriptions
@@ -124,7 +131,11 @@ the limits keep from being computed. In the docs everything else is
 typed". The devdocs keep "rejection" and "rejected" as the distinct
 notion for text the parser recognized and refused (a literal past the
 hard bound or the exponent bound, a definitions-line fault) and never
-say "refuse" for a domain error, an edge or a mismatch.
+say "refuse" for a domain error, an edge or a mismatch. The settings
+panel's lines that decline an edit are not refusals either: the docs
+say the panel "does not accept" an edit, or that a value is "held to"
+its range, and the devdocs keep "refusal" there only as the code's
+identifier, `refusalOf` (conflict 8 of the owner's list, answered).
 
 **Topological order (Q-008).** The pages are written in topological
 order, each after the pages it depends on: the user pages first
@@ -133,8 +144,8 @@ built-ins, the app, the index), getting started last, and every
 devdocs page in one pass after the user pages it links exist, so that
 no link dangles and no page is edited twice. Where two user pages link
 each other, the page written first links the later one at the anchor
-the §7 outline fixes, and the later page keeps that heading (a rule the
-owner is asked to confirm). The work orders under `audit/work-orders/`
+the §7 outline fixes, and the later page keeps that heading (confirmed
+by the owner on 2026-10-12). The work orders under `audit/work-orders/`
 are numbered in that order.
 
 **`docs/builtins.md` (Q-020's note).** The user page on the built-in

@@ -261,7 +261,7 @@ and no better" ↔ `approx`, `widened`, `decimal: "identity"`. *docs/:*
 `docs/functions.md#(top)` bullet 7, `#Very large results and approx`.
 *devdocs/:* `numbers.md#approx`, `#The significand limit`;
 `builtins.md#The rules every built-in follows`; #100 and #171 are
-`future.md`'s alone (Q-011, Q-104; #171 on the owner's list). *Depends
+`future.md`'s alone (Q-011, Q-104; #171 confirmed as future work). *Depends
 on:* N23. *Modules:* `builtins/approx.ts`, `ball.ts`. *Owner:*
 `numbers.md` (the concept) and `builtins.md` (the entry).
 
@@ -423,7 +423,7 @@ call", "the space matters" ↔ `arityMismatch`, `notAFunction`,
 **C46. Temperature readings and differences.** *Class:* user. *Terms:*
 "reading" vs "difference" ("interval" in docs) ↔ `tempC`, `tempF`,
 `degC`, `degF`, `degR`. *docs/:* `docs/definitions.md#What the file
-contains`, `#Functions`. *devdocs/:* `functions.md#(top)`, `#Definitions`; `future.md#Ruled out, and why` (offsets: a design ruled out by intent, whose reason belongs to the owning devdocs page under Q-011; the classification of that section's bullets is on the owner's list). *Modules:*
+contains`, `#Functions`. *devdocs/:* `functions.md#(top)`, `#Definitions`; `future.md#Ruled out, and why` (offsets: a design ruled out by intent, whose reason moves to `devdocs/functions.md#Alternatives considered` under Q-011, as the owner confirmed). *Modules:*
 `units.txt`. *Owner:* `units.md` (entries); `quantities.md` (why readings
 are functions).
 
@@ -471,8 +471,8 @@ message says…", "marks the input at fault" ↔ `messages.ts`, `Span`,
 sentence in `settings.md`.
 
 **C53. The clamp chain and the edits the panel does not accept** (its
-"refusals" in the code's terms; how the pages name them under F-442 is
-on the owner's list). *Class:* user. *Terms:* "at
+"refusals" in the code's terms; the pages say "does not accept" and
+"held to", F-442 as answered). *Class:* user. *Terms:* "at
 most 2,453 digits under the significand limit", "lowered from … to fit"
 ↔ `rangesOf`, `Bounds`, `clampSettings`, `clampsOf`, `refusalOf`,
 `minBy`/`maxBy`. *docs/:* `docs/settings.md#(top)` ("The limits are set

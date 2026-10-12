@@ -41,8 +41,8 @@ every page (`audit/principles.md`) hold in the wording below.
 - **Exponents of `^`.** Known at parse time so that the dimension stays
   exact (Q1); the fraction formed within the significand limit at
   evaluation; `^` and `pow` disagree on an unformable exponent (#88, a
-  bug whose link stays with the owning passage, Q-012; #89 is on the
-  owner's list) → `devdocs/architecture.md#Evaluation`.
+  bug whose link stays with the owning passage, Q-012; #89 closes as
+  housekeeping, Q-042) → `devdocs/architecture.md#Evaluation`.
 - **Dimensions.** A number is a plain number; juxtaposition and `*`/`/`
   combine dimensions; `+`/`-` check conformance (Q3, Q6); the
   "fraction before a unit" pitfall → `docs/definitions.md#Expressions`

@@ -163,8 +163,8 @@ mechanics (F-488), the model, and representation. Missing or to restructure:
   it, effect in each mode: `devdocs/settings.md#The model`, `#Applying a
   change` (`rangesOf`).
 - The clamp chain and the edits the panel does not accept, as a short
-  table (the code's "refusals"; how the pages name them under F-442 is
-  on the owner's list): `devdocs/settings.md#The model > The chain`,
+  table (the code's "refusals"; the pages say "does not accept" and
+  "held to", F-442 as answered): `devdocs/settings.md#The model > The chain`,
   `#Applying a change`.
 - "Measure this device" as a procedure (what it times, what it proposes,
   Apply): `devdocs/settings.md#The probe`.

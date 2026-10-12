@@ -242,10 +242,10 @@ Q-025, Q-048, Q-050, Q-067, Q-088 (the docs bullet qualitative),
 Q-093, Q-095, Q-096, Q-101, Q-102, Q-114 (the per-function tables stay
 in the devdocs); the rules F-442, F-443, F-451, F-475.
 
-Still open: nothing that blocks the page. #115's place after the
-rewrite (the devdocs paragraph or `future.md`) is the first item on the
-owner's list; it does not touch this page, which names the designed
-functions as absent, nothing more.
+Still open: nothing that blocks the page. #115 stays in
+`devdocs/builtins.md` (the owner's list, item 1, confirmed); it does not
+touch this page, which names the designed functions as absent, nothing
+more.
 
 ## 7. Proposed text to start from, and what the rules change in it
 

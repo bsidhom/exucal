@@ -26,7 +26,7 @@ report is `merged.md`; every other unit's is `fable.md`). `§7` is
   `app.md`, getting started), so its headings are the anchors §7 fixes
   (section 4). It links `definitions.md`, `units.md`, `builtins.md` and
   `app.md` before they exist, at §7's anchors in lower-case, hyphenated
-  form (the provisional rule of `audit/principles.md`; section 8).
+  form (the rule of `audit/principles.md`, confirmed; section 8).
 - **Status.** Ready. D1 drafted the whole page as replacement text for
   `docs/definitions.md#Expressions` and `#Names`, "written to move into
   `docs/expressions.md`" (D1 L239-285, L287-485); the page is assembled
@@ -292,7 +292,7 @@ Still open: nothing that blocks the page.
 ## 8. Conflicts left to settle
 
 From the owner's list (`audit/decisions.md`, "For the owner"): conflict
-1, forward links (this page links `definitions.md`, `units.md`,
+1, forward links, confirmed as the rule (this page links `definitions.md`, `units.md`,
 `builtins.md` and `app.md` at §7's anchors); conflict 7 does not touch
 this page. The session records in its pull request the two or three error
 messages it quotes.

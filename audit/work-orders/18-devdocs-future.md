@@ -24,8 +24,7 @@ list of design intents in `audit/plan/01-core-abstractions.md`
   than restating it (F-345, F-350). What is ruled out by intent is not
   this page's: `#Ruled out, and why` dissolves, each decision having
   moved to the page that owns its concept (section 3), and the title
-  drops "and what is ruled out" (provisional: the owner's list, item
-  13).
+  drops "and what is ruled out" (the owner's list, item 13, confirmed).
 - **Order.** Eighteenth: after every page whose design it links
   (`devdocs/numbers.md`, `notation.md`, `architecture.md`,
   `functions.md`, `builtins.md`, `settings.md`, `cost.md`) and after
@@ -72,20 +71,25 @@ page links (Q-012).
   #130, #131, #133, #134 in the defined-functions entry and #132 in
   the user-definitions entry (F-421); #100 in the `approx(x, u)` entry
   (Q-104, Q-035; F-414); #98 in the significant-figures entry (Q-014;
-  F-413); #126 in the cheaper-kernels entry (F-347); and, provisionally
-  (the owner's list), #167 and #186 beside #118 (items 7 and 8), #171
-  in the `approx(x, u)` entry (item 3), #173 beside decimal mode (item
-  5) and #178 beside the display policy (item 6). Not here: the cost
+  F-413); #126 in the cheaper-kernels entry (F-347); and, by the owner's
+  answers to the owner's list, #167 and #186 beside #118 (items 7 and
+  8), #171 in the `approx(x, u)` entry (item 3), #173 beside decimal
+  mode (item 5), #178 beside the display policy (item 6), and #78 in an
+  entry of its own beside the exact operations (item 2: where a
+  quotient's reduction should run, the open question that
+  `devdocs/numbers.md#Exact operations` no longer carries; the entry
+  links that section for today's behaviour). Not here: the cost
   issues #103, #107, #125, #149 to #152, whose one link is
   `devdocs/cost.md`'s or `devdocs/builtins.md`'s (Q-012 A; F-415,
   F-416, F-420, F-422 to F-425): the cheaper-kernels entry names the
   causes in words and links `cost.md#What the costs come from` and
-  `builtins.md#The Gamma and Beta families`; #115, provisionally
-  `builtins.md`'s (item 1; F-346, F-417): the entry names the eight
+  `builtins.md#The Gamma and Beta families`; #115, `builtins.md`'s
+  (item 1, confirmed; F-346, F-417): the entry names the eight
   functions without the number and links that section; the
   developer-tooling issues #110, #112, #114, #179 (item 10), which stay
   with the passages that own them.
-- **The ruled-out bullets have moved (Q-011; F-350, F-349; item 13).**
+- **The ruled-out bullets have moved (Q-011; F-350, F-349; item 13,
+  confirmed).**
   Before this page is written, work order 11 put into
   `devdocs/numbers.md` the third number type with a rational
   significand (`#Decimal mode`), binary floats or a configurable radix
@@ -101,15 +105,14 @@ page links (Q-012).
   a unit with an offset). The session checks each landed (the pull
   requests of 11 and 14 say so) and then deletes `#Ruled out, and why`
   whole; the hypergeometric, Bessel and distributions bullets do not
-  move but become future work here (next rule). If the owner's answer
-  to item 13 changes a bullet's class, the page that received it
-  follows in a later pass; this page only drops the section.
+  move but become future work here (next rule). The owner confirmed
+  every classification (item 13); this page only drops the section.
 - **The deferred function classes are future work (Q-010, Q-011;
   F-348, F-346).** "More special functions" names the eight designed
   functions (`zeta`, `lambertw`, `ellipk`, `ellipe`, `legendre`,
   `chebyshev`, Bessel `J` and `I`), linking
   `builtins.md#The Gamma and Beta families` for the context (#115 is
-  there, provisionally), and then the classes deferred for now, each
+  there), and then the classes deferred for now, each
   with its reason kept as why it waits: the general hypergeometric
   functions, Bessel `Y` and `K` and the Bessel functions at large
   argument ("library-sized casework, for little use yet", V6 L187,
@@ -135,8 +138,7 @@ page links (Q-012).
   order 11 moved out of `numbers.md#approx` (Q-035, Q-104); rounding
   to significant figures and their propagation (Q-014); configurable
   number formatting (N12); a display policy separable from the model
-  (N10), with #178 and #173 provisionally beside it (section 3's first
-  rule); a grammar generated from a TypeScript DSL (§2.1.3, §2.2.3); a
+  (N10), with #178 and #173 beside it (section 3's first rule); a grammar generated from a TypeScript DSL (§2.1.3, §2.2.3); a
   built-in reference generated from structured comments (§4; until
   then `docs/builtins.md`'s prose list is the reference and
   `devdocs/builtins.md`'s tables stay, Q-114); the units page
@@ -184,7 +186,7 @@ page links (Q-012).
 - **Extensions that fit.** V6 L181-191 as the base, each entry linking
   the owning section, with the links moved per section 3 and the
   entries added per section 3: the responsive interface (V6 L185;
-  #118 to #121; #167 and #186 provisionally beside it, each in one
+  #118 to #121; #167 and #186 beside it, each in one
   clause that links `settings.md#Applying a change` and `#The
   panel`); cheaper kernels (V6 L186; the causes in words with the
   `cost.md` link; #126 here); more special functions (section 3);
@@ -198,10 +200,11 @@ page links (Q-012).
   design); user definitions (V6 L189; #132; `buildTable` takes one
   list of definitions, storage and an editor are what is missing,
   definitions typed into the app the first step); equality operators
-  and conditional expressions; `approx(x, u)` (the tentative design
-  from `numbers.md#approx`, #100, and #171 provisionally); significant
-  figures (#98); configurable number formatting; the display policy
-  (#178, #173 provisionally); the generated grammar; the generated
+  and conditional expressions; where a quotient's reduction should run
+  (#78, item 2, linking `numbers.md#Exact operations`); `approx(x, u)`
+  (the tentative design from `numbers.md#approx`, #100, and #171);
+  significant figures (#98); configurable number formatting; the
+  display policy (#178, #173); the generated grammar; the generated
   built-in reference; the generated units page; the generated message
   catalogue; the conversion-target toggle; typographic characters;
   the pages shipped with the app; lenient kind conversion (V6 L190);
@@ -214,9 +217,9 @@ page links (Q-012).
 | Finding | Section | Decision |
 | --- | --- | --- |
 | F-345 | Extensions that fit | One entry per §1.3 intent, each linking its design's section (Q-011) |
-| F-346 | Extensions that fit | No chronology; the pointer is the families' section (Q-012, provisional) |
+| F-346 | Extensions that fit | No chronology; the pointer is the families' section, which carries #115 (item 1, confirmed) |
 | F-347 | (the page) | Inline links; the definitions deleted; this page carries the future-work issues (Q-011, Q-013) |
-| F-348 | Extensions that fit | Every deferred class described here as future work (Q-010, Q-011); #115 provisional |
+| F-348 | Extensions that fit | Every deferred class described here as future work (Q-010, Q-011); #115 stays in `builtins.md` |
 | F-349 | (moved) | The stored-digits bullet is `devdocs/numbers.md#Memoized constants`' (work order 11) |
 | F-350 | (the page) | Four sections stay; `#Ruled out, and why` dissolves; the top reworded (Q-011) |
 
@@ -229,15 +232,14 @@ F-472, F-475, F-478, F-494, F-497.
 Followed: Q-008, Q-010, Q-011, Q-012, Q-013, Q-014, Q-016, Q-018,
 Q-035, Q-037, Q-104, Q-112, Q-114, Q-115; the rules of section 3.
 
-Still open, all on the owner's list and all provisional here: #115's
-place (item 1); #171 (item 3), #173 (item 5), #178 (item 6), #167
-(item 7), #186 (item 8), whose links this page carries provisionally;
-#110, #112, #114, #179 (item 10), which it does not; the classification
-of every `#Ruled out, and why` bullet (item 13); the small follow-ups
-that get no entry (item 14: Q-045, Q-047, Q-048, Q-061, F-320). The
-page is written on the provisional readings; an answer that changes
-one moves a sentence between this page and the owning page in a later
-pass.
+Still open: nothing. The owner answered the list on 2026-10-12: #115
+stays in `builtins.md` (item 1); #78 (item 2), #171 (item 3), #173
+(item 5), #178 (item 6), #167 (item 7) and #186 (item 8) are future
+work whose one link this page carries; #110, #112, #114 and #179 (item
+10) stay with the passages that own them; every `#Ruled out, and why`
+bullet is classified as section 3 has it (item 13); the small
+follow-ups get no entry (item 14), each living on its own issue (#198
+to #202), which this page does not link.
 
 ## 7. Proposed text to start from, and what the rules change in it
 
@@ -252,11 +254,10 @@ pass.
 
 ## 8. Conflicts left to settle
 
-From the owner's list: items 1, 3, 5, 6, 7, 8, 10, 13 and 14 of the
-Q-011 list (section 6). The session's pull request lists every entry
-the page carries and the bullets it confirmed moved, so that the
-owner can answer item 13 against the page as written, and flags any
-intent it added or left out beyond the list of section 3.
+From the owner's list: items 1, 2, 3, 5, 6, 7, 8, 10, 13 and 14 of the
+Q-011 list, all answered (section 6). The session's pull request lists
+every entry the page carries and the bullets it confirmed moved, and
+flags any intent it added or left out beyond the list of section 3.
 
 ## 9. Code changes it waits on
 

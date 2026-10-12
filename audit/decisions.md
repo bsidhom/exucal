@@ -1162,12 +1162,18 @@ and push.
 
 Added by the apply session on 2026-10-12, after every section above was applied (the record is
 [plan/12-open-questions.md](plan/12-open-questions.md), section 12.1). Two lists: the items
-whose status under Q-011 is unclear (ruled out, or might still be done), and the conflicts the
-rules of sections 1 to 5 do not settle. Each names what it touches, which is marked pending in
-open-items.md, findings.md and the work orders, and the provisional reading applied meanwhile,
-which a page's session follows unless this list is answered first. Answer as above, on the
-`- Decision:` line under each item (`ok` takes the provisional reading); the next session applies
-the answers.
+whose status under Q-011 was unclear (ruled out, or might still be done), and the conflicts the
+rules of sections 1 to 5 did not settle. Each names what it touches, which was marked pending in
+open-items.md, findings.md and the work orders, and the provisional reading applied meanwhile.
+The owner answered on the `- Decision:` line under each item (`ok` takes the provisional
+reading), and the next session applied the answers, as the following paragraph records.
+
+Answered by the owner on 2026-10-12 (commit bedbfe8) and applied the same day: the record is
+[plan/12-open-questions.md](plan/12-open-questions.md), section 12.2; every pending mark
+named below is lifted (each Decision line now states the settled reading), the work orders
+carry the settled readings, the three rules the answers extend (Q-011's list, F-475's
+"definitions table", F-442's panel lines) are restated in [principles.md](principles.md), and
+issues #198 to #202 were opened for item 14.
 
 ### Q-011: items whose status is unclear
 
@@ -1307,9 +1313,13 @@ applies until the item is answered.
    the code's identifier. Confirm, or extend "refusal" to the panel's lines.
    - Decision: ok
 
-### What is marked pending
+### What was marked pending
 
-- open-items.md: Q-008, Q-012, Q-013, Q-023, Q-042, Q-045, Q-047, Q-048 (each says which part).
+Lifted on 2026-10-12, when the answers above were applied (plan §12.2); each Decision line below now
+states the settled reading, and the work orders carry it under "still open" and "Conflicts left
+to settle".
+
+- open-items.md: Q-008, Q-012, Q-013, Q-023, Q-042, Q-045, Q-047, Q-048.
 - findings.md: F-042, F-044, F-133, F-219, F-221, F-290, F-303, F-323, F-328, F-342, F-343,
-  F-346, F-348, F-350, F-377, F-380, F-417, F-426 (each says which part).
-- The work orders name the pending items they carry under "Open".
+  F-346, F-348, F-350, F-377, F-380, F-417, F-426.
+- The work orders, sections 6 and 8.

@@ -70,9 +70,10 @@ digits).
   and the work order of the code track.
 - **Issue links (Q-011; §12 question 26).** Inline, once; the foot's
   definitions go; #92 is `architecture.md`'s only (Q-103; F-328). #178
-  (a study of the exact-mode display) is on the owner's list: inline
-  here as "is open (#178)" provisionally, moved to `devdocs/future.md`
-  if the owner classes it as future work (section 8).
+  (a study of the exact-mode display) is future work (the owner's list,
+  item 6, confirmed): its one link is `devdocs/future.md`'s, and the
+  width paragraph states the rule as it is, naming no issue (section
+  8).
 - **The words (§8).** "Scaled ratio", glossed once, for rule 4's form
   (F-455); "fraction" only for the held value, so rule 1's example
   names the midpoint held, not a fraction about `sqrt(2)` (F-325,
@@ -92,7 +93,7 @@ digits).
   held is the root's digits on the first pass's grid; F-325); rule 3
   names `ratioParts`, which multiplies the power of ten back in and
   reduces, not `toRational` (F-326); rule 4 as "a scaled ratio" (F-455);
-  the width's paragraph in the present tense (F-327), #178 inline per
+  the width's paragraph in the present tense (F-327), without #178, per
   section 3 (F-328); no caveat on the screen (F-061, B-004).
 - **Where a ratio is written.** V5 L135-139 or A2 L91-94: the printer's
   rule, `in = 1/36 × 3 ft` (F-329, Q-003); the last paragraph on `show`'s
@@ -119,7 +120,7 @@ digits).
 | F-325 | The rule | Rule 1's example corrected; "fraction" reserved (F-456), "scaled ratio" (F-455) |
 | F-326 | The rule | `ratioParts` |
 | F-327 | The rule | Keep as intent; the pointer is `#The rule > The width` (F-511) |
-| F-328 | The rule | #178 inline, pending; #92 is `architecture.md`'s (Q-103) |
+| F-328 | The rule | #178 to `future.md` (item 6); #92 is `architecture.md`'s (Q-103) |
 | F-329 | Where a ratio is written; Where it lives | The printer decides the parentheses (Q-003) |
 | F-330 | (the page) | V5's map of links and mechanism; `#Every literal parses back` states the refusal (Q-002); "parses back" |
 
@@ -132,8 +133,8 @@ F-454, F-455, F-456, F-457, F-511.
 Followed: Q-002 (B), Q-003 (A), Q-008, Q-011, Q-043, Q-103; the rules
 F-440, F-452, F-454, F-455, F-456, F-457.
 
-Still open: #178's status (the owner's list, item 6 of the Q-011
-list), applied inline provisionally.
+Still open: nothing. #178 is future work (the owner's list, item 6,
+confirmed): its link leaves for `future.md`.
 
 ## 7. Proposed text to start from, and what the rules change in it
 
@@ -141,15 +142,15 @@ list), applied inline provisionally.
 | --- | --- | --- | --- |
 | (top) | V5 L107-113 | V5, one of its two second paragraphs | — |
 | The rule | V5 L115-125 | V5 | "scaled ratio" glossed (L123) |
-| The width | A2 L86-89; D4 L382-385; V5 L127-133 | V5 (covers the whole paragraph) | #178 inline, pending |
+| The width | A2 L86-89; D4 L382-385; V5 L127-133 | V5 (covers the whole paragraph) | the #178 clause removed, the rule stated as it is |
 | Where a ratio is written | A2 L91-94; V5 L135-139 | either (same substance) | "parses back" (L139) |
 | Every literal parses back | A2 L96-98 | not used (assumes the other fix) | the refusal at the bound, from the code after B-002 |
 | Where it lives | A2 L100-102; V5 L141-143 | one of the two | — |
 
 ## 8. Conflicts left to settle
 
-From the owner's list: #178's status (future work, or a design note
-that stays inline), applied inline. Nothing else touches this page.
+From the owner's list: #178's status, answered as future work (item 6):
+the link leaves for `future.md`. Nothing else touches this page.
 
 ## 9. Code changes it waits on
 

@@ -52,7 +52,8 @@ tense; a figure stays only where section 3 keeps it.
   run reporting its own count and time (V7 L247-251 with the rough
   figures kept; F-376); "a few seconds" for `pnpm test` stays (F-393).
   The model figures, the counts and the memory sizes stay (F-392).
-- **Issue links (Q-011; the owner's list, item 10).** #110 and #114
+- **Issue links (Q-011; the owner's list, item 10, confirmed).** #110
+  and #114
   (`#The edge sweeps`) and #179 (`#Type-checking`) are developer-tooling
   issues, not future work: each stays linked inline, once, at the
   passage that owns it, worded "is open (#…)", after the session
@@ -64,8 +65,8 @@ tense; a figure stays only where section 3 keeps it.
   sweeps", never "the conformance tests".
 - **The words (§8).** "The settings panel" where the UI checklist
   names it (F-488); "reached only through" for a module only tests
-  exercise (F-498); "the definitions file" and "the table built from
-  it" (F-475; conflict 3 of the owner's list, provisional); "the hard
+  exercise (F-498); "the definitions file" and "the definitions table"
+  (F-475; conflict 3 of the owner's list, answered); "the hard
   bound" glossed once (V7 L221; F-441); "refused" only for a size
   refusal (V7 L215's "when the table it builds or the expression it
   times is refused" is one, and stays).
@@ -124,7 +125,7 @@ tense; a figure stays only where section 3 keeps it.
 | F-374 | The numeric test patterns | The tests as they are (A) |
 | F-375 | The numeric test patterns; The random source | `exactDec` and the two draws |
 | F-376 | The edge sweeps | Rough counts and durations, generous (Q-018, Q-016) |
-| F-377 | The edge sweeps; Type-checking | Inline, status checked; item 10 provisional |
+| F-377 | The edge sweeps; Type-checking | Inline, status checked; item 10 confirmed |
 | F-378 | The edge sweeps | The three-argument functions corrected |
 | F-379 | Type-checking | Drop |
 | F-380 | Type-checking | Keep as intent; #179 inline |
@@ -137,9 +138,8 @@ the terminology findings F-441, F-462, F-475, F-488, F-498.
 
 Followed: Q-008, Q-016, Q-018, Q-065, Q-072; the rules of section 3.
 
-Still open: the class of #110, #114 and #179 (the owner's list, item
-10 of the Q-011 list; provisionally they stay inline here, pending in
-F-377 and F-380). Nothing else blocks the page.
+Still open: nothing. #110, #114 and #179 stay inline here (the owner's
+list, item 10, confirmed; F-377, F-380).
 
 ## 7. Proposed text to start from, and what the rules change in it
 
@@ -155,8 +155,8 @@ F-377 and F-380). Nothing else blocks the page.
 
 ## 8. Conflicts left to settle
 
-From the owner's list: item 10 (section 6); conflict 3 ("the table
-built from the definitions file", provisional). The session records in
+From the owner's list, both answered: item 10 (section 6); conflict 3
+("the definitions table"). The session records in
 its pull request the issue statuses it found and the figures it kept.
 
 ## 9. Code changes it waits on

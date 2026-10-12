@@ -166,7 +166,8 @@ promises, `gcd(a, 0)`, `mod`'s reach and the `ceiling` slip among
 them. B-032 (Q-060, ok): a failing build of `src/units.txt`
 (`src/units.test.ts:72-78`) reports the line, not the offsets. B-033:
 the tests #89 asks for are checked; closing the issue is the owner's
-(on the owner's list at the end of `audit/decisions.md`).
+(housekeeping the owner confirmed: item 15 of the owner's list at the
+end of `audit/decisions.md`).
 
 **Comments (B-034 to B-067), one pass after the audit (Q-059, ok).**
 Each as its bug describes; those the owner's answers word:
@@ -249,16 +250,19 @@ F-384, F-408, F-474.
   #92.
 - B-013 (69,659 against 69,658), by design (Q-091); B-014 (Q-041).
 - Renames the owner has not scheduled: the code's "working digits"
-  (#172, F-431) and the other items on the owner's list at the end of
-  `audit/decisions.md`; no code identifier changes for a page's term
-  (F-475: identifiers are quoted as they are).
+  (#172, F-431), which stays with the code; no code identifier changes
+  for a page's term (F-475: identifiers are quoted as they are).
+- The follow-ups the owner's list gave issues of their own (item 14,
+  answered): #198 (B-010), #199 (B-011), #200 (B-007), #201 (Q-061) and
+  #202 (F-320); each lives on its issue, outside this track.
 
 ## 7. Conflicts left to settle
 
 None settled by this track; one touches it: conflict 8 of the owner's
 list (`audit/decisions.md`, "For the owner"), how the pages name the
-panel's declined edits, which the code calls refusals (`refusalOf`).
-The identifiers stay whatever the owner decides.
+panel's declined edits, which the code calls refusals (`refusalOf`);
+answered: the pages say "does not accept" and "held to", and the
+identifiers stay.
 
 ## 8. Done when
 

@@ -29,8 +29,8 @@ Not settings but documented beside them:
   `docs/settings.md#(top)` (paragraph "The limits are set top-down");
   `devdocs/settings.md#The probe`.
 - The chain of clamps and the edits the panel does not accept (its
-  "refusals" in the code's terms; how the pages name them under F-442
-  is on the owner's list): "At most 2,453 digits under the significand
+  "refusals" in the code's terms; the pages say "does not accept" and
+  "held to", F-442 as answered): "At most 2,453 digits under the significand
   limit", "lowered from 1,000 to 26 digits…":
   `docs/settings.md#(top)` (same paragraph); `devdocs/settings.md#Applying a
   change`.

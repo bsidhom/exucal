@@ -171,7 +171,7 @@ Still open: nothing that blocks the page.
 ## 8. Conflicts left to settle
 
 From the owner's list (`audit/decisions.md`, "For the owner"): conflict
-1, forward links (this page links `builtins.md#constants`). Nothing else
+1, forward links, confirmed as the rule (this page links `builtins.md#constants`). Nothing else
 touches this page.
 
 ## 9. Code changes it waits on

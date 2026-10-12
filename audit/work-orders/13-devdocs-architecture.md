@@ -138,7 +138,8 @@ present tense.
   when its exact significand would pass it, "today" dropped (F-070).
 - **Unit lists.** V2 L212-222 with A8 L69-73 merged (F-247): the
   accepted gap stated as today's behaviour, "fails as not positive"
-  (F-246, Q-045); the remainder rounded at the digits certified, not
+  (F-246, Q-045), with its issue, #198, linked once beside it (B-010;
+  Q-012's rule for a bug in today's behaviour); the remainder rounded at the digits certified, not
   "the midpoint to the display precision" (F-072); the mode named by
   its want (F-468).
 - **Functions.** V2 L224-236: "conversion into a function" (F-468) with
@@ -275,8 +276,9 @@ Followed: Q-003 (the printer's parentheses), Q-006, Q-007, Q-008,
 Q-011, Q-020, Q-022, Q-031, Q-038, Q-039, Q-045, Q-068, Q-074, Q-100,
 Q-102, Q-103, Q-105, Q-107; the rules of section 3.
 
-Still open: nothing that blocks the page. Q-045 is on the owner's list
-only to confirm it needs no `future.md` entry.
+Still open: nothing that blocks the page. Q-045 is settled (the owner's
+list, item 14): no `future.md` entry; the retry is issue #198, which
+`#Unit lists` links once beside the gap it states.
 
 ## 7. Proposed text to start from, and what the rules change in it
 

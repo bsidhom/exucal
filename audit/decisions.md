@@ -1182,61 +1182,61 @@ applies until the item is answered.
    `devdocs/builtins.md#The Gamma and Beta families` keeps the one link in a one-line mention
    and `future.md`'s entry names the eight without the number. Touches F-290, F-303, F-346,
    F-348, F-417 and the work orders of `devdocs/builtins.md` and `devdocs/future.md`.
-   - Decision:
+   - Decision: ok
 2. **#78 ("Investigate where a quotient's reduction should run")**, an open design question
    on the kernel, linked inline at `devdocs/numbers.md#Exact operations`. Ruled out, future
    work, or a note on the current design? Provisional: it stays inline, as a note on the
    current design. Touches F-221.
-   - Decision:
+   - Decision: Move this to future work.
 3. **#171 ("Study the semantics of `approx`")**, named at the end of
    `devdocs/numbers.md#approx`. Provisional: future work; the sentence leaves for `future.md`'s
    `approx(x, u)` entry. Touches F-221, F-046.
-   - Decision:
+   - Decision: ok
 4. **#172 ("Settle the vocabulary of step, pass, settle and certify")**, linked at
    `devdocs/numbers.md#The working digits` and named by F-433 and F-431: housekeeping of the
    code's names, not an app feature. Provisional: it stays inline where the vocabulary is
    explained, its one link there. Touches F-221, F-431.
-   - Decision:
+   - Decision: ok
 5. **#173 ("Consider rolling back 'uncertified' results in decimal mode")**, linked at
    `devdocs/numbers.md#Decimal mode > The ceiling`: a possible change to current behaviour.
    Provisional: future work, one link in `future.md`; the section states the behaviour as a
    plain fact. Touches F-221, F-042.
-   - Decision:
+   - Decision: ok
 6. **#178 ("Study the exact-mode display: one uniform rule for digits, ratios and the power
    of ten")**, linked at `devdocs/notation.md#The rule > The width`. Provisional: future work,
    `future.md`; the width paragraph states the rule as it is. Touches F-328.
-   - Decision:
+   - Decision: ok
 7. **#167 ("Surface the app's warnings and errors somewhere a user sees them")**, named at
    `devdocs/settings.md#Applying a change` and by F-133. Provisional: future work (`future.md`);
    the settings pages state the silent fallback as a plain fact. Touches F-133, F-343.
-   - Decision:
+   - Decision: ok
 8. **#186 ("Settings: apply cheap changes as they are typed, on the scheduler #118 gives the
    converter")**, linked at `devdocs/settings.md#The sheet`. Provisional: future work, beside
    #118 in `future.md`. Touches F-343.
-   - Decision:
+   - Decision: ok
 9. **#191 ("Write the user's guide to the settings, after the app-wide docs cleanup")**,
    linked at `devdocs/settings.md#The controls` for the panel's "About these settings" link.
    This rewrite writes that guide (`docs/settings.md`), so the issue would close with it.
    Provisional: the page states where the link lands and names no issue; you close #191 when
    `docs/settings.md` lands. Touches F-342, F-343, Q-115.
-   - Decision:
+   - Decision: ok. Note that this should land with the current docs refactor.
 10. **#110, #112, #114 and #179** (a faster test suite; an audit of every numeric routine; the
     edge sweep split into modules; the import cycles removed): developer-tooling issues, not
     app features. Provisional: each stays linked once from the devdocs passage that owns it
     (`testing.md#The edge sweeps`, `builtins.md`'s families paragraph, `testing.md#Type-checking`),
     as the bugs and performance problems do. Touches F-290, F-377, F-380.
-    - Decision:
+    - Decision: ok
 11. **The postfix `~` spelling** ("the likely spelling of `approx(x)` later") and the other
     spellings "weighed and left open" in `devdocs/numbers.md#approx`: ruled out, or might still
     be done? Provisional: kept as ruled-out alternatives with their reasons, the `~` sentence
     losing "likely … later". Touches F-219.
-    - Decision:
+    - Decision: ok
 12. **Two bullets of `devdocs/functions.md#Not in this design`**: "Inverse calls in
     expressions" (which says the check "would be reconsidered with that use's costs") and
     "Optional parameters and defaults" (no reason given). Ruled out, or deferred? Provisional:
     both stay as ruled out, the first with its reason, the second gaining one or going.
     Touches F-323.
-    - Decision:
+    - Decision: ok
 13. **The bullets of `devdocs/future.md#Ruled out, and why`**, classified for the split Q-011
     orders; confirm or change. Ruled out by intent, moving to the page that owns the concept:
     a float with a rational significand as a third number type (`devdocs/numbers.md`, the
@@ -1248,17 +1248,18 @@ applies until the item is answered.
     an offset in `Quantity` (`devdocs/functions.md`, with `quantities.md` stating that readings
     are functions). Might still be done, staying as future work: the hypergeometric and
     Bessel functions, and the statistical distributions (Q-010). Touches F-348, F-349, F-350.
-    - Decision:
+    - Decision: ok
 14. **Small follow-ups the sheet keeps off the pages, with no issue of their own**: retrying a
     typed list's unit that may be zero (Q-045, "could ride the work on #92"); a change to
     `workingContexts` near the ceiling (Q-047); `log`'s exact cases for a rational exponent
     (Q-048, "waits for a review of the logarithm family"); a generated summary line for
     `cost.md` (Q-061); the two draws the property test lacks (F-320). Provisional: none gets a
     `future.md` entry; each lives on its issue or nowhere. Confirm, or name the ones to record.
-    - Decision:
+    - Decision: ok. Create an issue for each of these that doesn't already have
+      one, and be sure to include sufficient context in each issue.
 15. **#89**: Q-042 closes it once its tests are confirmed; housekeeping, listed so that it is
     not forgotten.
-    - Decision:
+    - Decision: ok
 
 ### Conflicts the rules do not settle
 
@@ -1268,41 +1269,43 @@ applies until the item is answered.
    work orders: the page written first links the later page at the anchor the §7 outline
    fixes (the heading's lower-case, hyphenated form), and the later page keeps that heading;
    a page never links a heading the outline does not name. Confirm.
-   - Decision:
+   - Decision: ok
 2. **Q-023's "that specific number".** Your note rules out `tan(90 deg)`'s decimal result; the
    `turn` example in the same answer carries `359.99999` at eight digits, which also moves
    with the settings. Provisional: both examples are stated without settings-dependent digits
    (`turn` into `deg` is `=` with a value a little under 360). Say if `359.99999` may be
    written "at the default settings".
-   - Decision:
+   - Decision: ok
 3. **"The system table" (F-475).** The rule covers the file; the devdocs also say "the system
    table" for the table built from it (`src/system-table.ts`, `buildSystemTable`).
    Provisional: prose says "the table", or "the table built from the definitions file", and
    module and function names are quoted as they are. Confirm.
-   - Decision:
+   - Decision: ok. If you have to name it, you can use the long form or else the
+     "definitions table", since it will eventually apply to _all_ definitions
+     (whether predefined or user-defined).
 4. **Q-016 against Q-017 and the keep-as-intent rewrites.** Q-016 lets a rough timing stay in
    devdocs where it adds weight; Q-017, and the rewrites of several stale passages, drop
    particular figures. Applied: an item's own answer wins (Q-017's section loses its
    milliseconds), and elsewhere the page's session decides passage by passage, keeping a
    figure only marked as rough and illustrative. No answer needed unless you want every
    figure out.
-   - Decision:
+   - Decision: ok
 5. **Q-012 against Q-011 on #115**: item 1 of the list above.
 6. **F-442 and N15's wording.** Under the rule a value that cannot be told from an edge at
    the ceiling is an error, not a refusal; N15 and several drafts say "refused". Applied:
    "an error" ("cannot be told from …"), the plan amended. No answer needed unless
    "refusal" should cover the edge errors too.
-   - Decision:
+   - Decision: ok
 7. **F-451 and the getting-started heading "Making a value approximate" (§7).** Applied as
    "Approximating a value", the verb naming the act. Confirm, or give the wording you want.
-   - Decision:
+   - Decision: ok
 8. **F-442 and the settings panel's declined edits (C53; §3, §6.5; `refusalOf`,
    `src/settings-lines.ts`).** The rule reserves "refusal" for a size refusal; the pages and
    the code call the panel's lines that decline an edit ("At most 2,453 digits under the
    significand limit") refusals too. Provisional: the docs say the panel "does not accept" an
    edit, or that a value is "held to" its range, and the devdocs keep "refusal" there only as
    the code's identifier. Confirm, or extend "refusal" to the panel's lines.
-   - Decision:
+   - Decision: ok
 
 ### What is marked pending
 

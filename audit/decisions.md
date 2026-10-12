@@ -570,10 +570,24 @@ four have competing owners. #88, #92 and #100 are settled (Q-102 to Q-104, secti
 - Recommended: A. It agrees with §7 on #132. `future.md` and `cost.md` then mention these without links (V6).
 - Blocks: the issue-link edits of `devdocs/functions.md` and `docs/definitions.md`.
 - Evidence: F-421, F-321.
-- Decision: other: Anything _not_ currently implemented should absolutely not be
-  mentioned as a first-class concept in user docs. These should be collected
-  into `future.md` and linked and described there only. The user docs do not
-  refer here at all, and devdocs refer to future work accordingly.
+- Decision: other: Future work lives only in `devdocs/future.md`. Anything
+  not implemented today that we might implement later is described there,
+  with its issue links, and nowhere else: the user docs never mention it,
+  and a devdocs page that needs to say something is planned links
+  `future.md` rather than describing it. So #130 to #134 are linked from
+  `future.md` only. What is ruled out by intent is not future work but a
+  current design decision, so it lives in the as-is pages: one sentence
+  where a user would look for it in `docs/` (for example, that the app
+  never shows the error radius), and the reason in the devdocs page that
+  owns the concept. `future.md`'s "Ruled out, and why" is split
+  accordingly: its decisions move to those pages, and anything in it we
+  might still do (the function classes deferred in §1.3 and Q-010) stays
+  as future work. A user page may state what the app lacks today as a
+  plain fact, with what to write instead, but never as something to come.
+  Bugs and performance problems in today's behaviour are not future work
+  either: their issue links stay with the passage that owns the concept
+  (Q-012). Where it is unclear whether an item is ruled out or might still
+  be done, ask me.
 
 ### Q-012. The kernel-cost issues: `builtins.md` or `cost.md`
 
@@ -647,7 +661,12 @@ One proposal each, or a clear lean; `ok` takes it.
 
 - Proposed: "Defined functions", keeping the file name; the index lines of `devdocs/README.md` and `devdocs/architecture.md` are reworded to match (V4).
 - Blocks: `devdocs/functions.md#(top)`.
-- Decision: ok
+- Decision: ok. Separately, rename the user page `docs/functions.md` to
+  `docs/builtins.md`, titled "Built-in functions", so that it matches
+  `devdocs/builtins.md`. §7's outline follows, and so does every link to the
+  old name: the root `README.md`, `docs/README.md`, the link in
+  `devdocs/builtins.md`, and two comments in `src/units.txt`. After that,
+  "functions.md" names only `devdocs/functions.md`, "Defined functions".
 
 ### Q-021. The heading "A function as the want"
 

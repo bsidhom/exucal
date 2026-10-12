@@ -805,63 +805,64 @@ an extended count out of range is clamped instead.
 Each changes a sentence, a message or a later commit; none holds up a page. `ok` takes the
 proposal, and `defer` leaves the item for when its page or its code comes up.
 
-- Section done:
+- Section done: yes
 
 ### Q-039. GNU units in devdocs
 
 - Proposed: devdocs drop GNU units from the numeric semantics, keeping the `pi()` rationale without the name (A1, V1), and keep at most one clause naming GNU units as the familiar convention behind the precedence (D1).
 - Evidence: F-183, F-240.
-- Decision:
+- Decision: ok
 
 ### Q-040. A literal past the significand limit in decimal mode
 
 - Proposed: intended, as the code's comment says: one clause that the limit refuses such a literal in either mode, before anything is rounded (A4, D1, V1).
-- Decision:
+- Decision: ok. This prevents silently losing data or precision, which is
+  exactly the behavior I want.
 
 ### Q-041. The dalton's CODATA edition
 
 - Proposed: `units.md` says what the file says, "CODATA 2018". Whether and when the file moves to the 2022 adjustment is yours, recorded in its comment (D3): name the edition to follow, or `ok` to stay.
-- Decision:
+- Decision: ok
 
 ### Q-042. Close issue #89
 
 - Proposed: yes, once the tests the issue asks for are confirmed in `src/core/rational.test.ts`; the page's clause goes either way (V1, B-033).
-- Decision:
+- Decision: ok
 
 ### Q-043. The ratio notation's screen
 
 - Proposed: a code fix (B-004): screen the exponent at `4W` and the numerator's digits at `3W`, which admits every dyadic value that fits. Until it lands, one sentence in `devdocs/notation.md#The rule` names the exception (V5).
-- Decision:
+- Decision: ok
 
 ### Q-044. `mod`'s alignment refusal
 
 - Proposed: a code change (B-005): the two refusals become `fits`, carrying the need the subtraction or the product reports, so that the message offers `approx` as a sum's does. D6's edit then takes its first form.
-- Decision:
+- Decision: ok
 
 ### Q-045. A typed list's unit that may be zero
 
 - Proposed: the pages state the gap now; retrying such a unit is a small change that can ride the work on #92 (A8).
-- Decision:
+- Decision: ok
 
 ### Q-046. The reciprocal line in decimal mode
 
 - Proposed: keep the behaviour and document it, and record the alternative, `want / have` from the working-digit operands, on #92 (A4, V1).
-- Decision:
+- Decision: ok
 
 ### Q-047. The schedule's cost bound
 
 - Proposed: reword "at most about twice the pass that succeeds" now (V1's edit); a change to `workingContexts`, if wanted, after the revamp (A3).
-- Decision:
+- Decision: ok
 
 ### Q-048. `log`'s exact cases for a rational exponent
 
 - Proposed: document the uncertified fallback as reachable now (V1). Looking for `x^q = b^p` waits for a review of the logarithm family, and the decision on #173 would make these lines `=` anyway (A4).
-- Decision:
+- Decision: ok
 
 ### Q-050. Fix `gcd(a, 0)`
 
 - Proposed: a code fix (B-001), with tests for `gcd(5, 0)`, `gcd(0, 5)`, `gcd(0, 0)`, `gcd(-10, 0)` and `lcm(5, 0)`. The page's statement, the magnitude of `a`, stands as the specification (D6, V3).
-- Decision:
+- Decision: ok
 
 ### Q-051. The size refusal with no count
 
@@ -870,102 +871,113 @@ Both units drop the stray comma in "would need a significand, past the significa
 - A. Keep ", however it is computed" after it (D7).
 - B. Drop it too: "would need a significand past the significand limit" (A5).
 - Recommended: A: the clause tells the user that no remedy exists.
-- Decision:
+- Decision: A
 
 ### Q-052. Bit counts past a double's integers
 
 - Proposed: round such a count to two significant digits above `2^53`, in the code phase (A5, B-018).
-- Decision:
+- Decision: ok
 
 ### Q-053. "which side of it it lies"
 
 - Proposed: name the edge once more, in short: "which side of the pole", "which side of the bound" (A6, B-021).
-- Decision:
+- Decision: ok
 
 ### Q-054. The errors for `round`'s second argument
 
 - Proposed: word the errors by the argument's place where the first argument need not be an integer, for example "the number of places of `round` must be a whole number" (D6, B-016).
-- Decision:
+- Decision: ok
 
 ### Q-055. The parse label "a unit name"
 
 - Proposed: "a name", in a code change of its own (D1, B-019).
-- Decision:
+- Decision: ok
 
 ### Q-056. The empty output area's hint
 
 - Proposed: "Type an expression, such as `sqrt(2)` or `3 ft`, and, to convert it, the unit you want, such as `in` or `ft;in`." (D9, B-022), so that the calculator leads (§12 question 2).
-- Decision:
+- Decision: ok
 
 ### Q-058. `exceeds` for the hull of a wide argument
 
 - Proposed: leave the code; `devdocs/builtins.md` says that a wide argument is refused as the step's reach (A5).
-- Decision:
+- Decision: ok
 
 ### Q-059. The code comments: one pass, and when
 
 - Proposed: one commit for all the comments bugs.md lists (B-034 to B-067), made after the pages land, so that a comment citing a page cites its final headings; the history comments go in the same commit, under the style guide's new rule. The units differ only on timing.
-- Decision:
+- Decision: ok
 
 ### Q-060. The units test's wording and its failure message
 
 - Proposed: "temperature difference" in the test's names and comments, `bit` among the primitives in its header, and a failure that names the line (D2, D3; B-032, B-059, B-060), in the code track. `devdocs/development.md#Adding a unit` describes the test as it behaves when the page is written (F-398).
-- Decision:
+- Decision: ok
 
 ### Q-061. Counts in `cost.md`'s prose
 
 - Proposed: dropped now; a summary line generated by the stress tool later, if wanted (V6).
-- Decision:
+- Decision: ok
 
 ### Q-062. The hangs table's Issue column
 
 - Proposed: emit links, a one-line change to `hangsTable` (B-070), once Q-012 has placed the issues (V6).
-- Decision:
+- Decision: ok
 
 ### Q-063. The note "0 of 1 digits are certified"
 
 - Proposed: leave its wording (A2).
-- Decision:
+- Decision: ok
 
 ### Q-065. "the conformance tests" in `development.md`
 
 - Proposed: "the edge sweeps", keeping "conformance" for quantities (V8).
-- Decision:
+- Decision: ok. Note that the edge sweeps behave as "conformance tests", but we
+  haven't standardized that terminology yet, and "edge sweeps" is precise and
+  correct.
 
 ### Q-066. `log10(1e999999999)`: the value or the line
 
 - Proposed: keep "exactly `999999999`": the section is about the value, and N10 owns the display (D5).
-- Decision:
+- Decision ok:
 
 ### Q-067. The incomplete functions' refusals and the precision
 
 - Proposed: say that they move with it, by the words "at a high precision" (D7), within Q-009's interim edits.
-- Decision:
+- Decision: ok
 
 ### Q-068. `architecture.md`'s list of sister pages
 
 - Proposed: replace it with a pointer at `devdocs/README.md`'s map (V2; §12 question 18).
-- Decision:
+- Decision: ok
 
 ### Q-069. The console warning for a stored version above the build's
 
 - Proposed: the page stays as it is (V5).
-- Decision:
+- Decision: ok
 
 ### Q-070. Why the project keeps `experimentalDecorators`
 
 - Proposed: verify against the pinned Vite before the page is next edited. If the reason still holds, drop "yet"; if not, state the real reason, or remove the sentence with the flag (V7).
-- Decision:
+- Decision: I don't actually understand why `experimentalDecorators` is
+  currently required. We're currently using Lit decorators, and this is
+  documented as the suggested fix at
+  https://lit.dev/docs/components/decorators/. However, there are instructions
+  on how to migrate to standard decorators. If this is a pain point or likely to
+  break in the future, I would rather move away from decorators entirely, as
+  they just result in compile-time code transformations and their behavior can
+  be replicated with just a _bit_ more verbosity. I'm agnostic to Vite and not
+  even convinced that it factors in here at all. Just drop that mention.
 
 ### Q-071. `audit/` and `.claude/skills/` in `layout.md`
 
 - Proposed: not listed while the revamp runs, since `audit/` leaves when it lands (§12 question 29) (V7).
-- Decision:
+- Decision: ok. As noted above, these will be dropped after the doc refactor
+  finishes and I don't want them mentioned elsewhere.
 
 ### Q-072. `exact.test.ts` in the module table
 
 - Proposed: keep it in the table, and name it in the `src/core/` bullet (V7).
-- Decision:
+- Decision: ok
 
 ## 7. Plan corrections
 

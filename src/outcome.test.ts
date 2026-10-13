@@ -400,6 +400,8 @@ test("what is copied, typed back as a have and converted into the line's own uni
       ["in", "", false, ["m"]],
       ["3 ft", "in", false, ["in", "3 ft"], decimal],
       ["1 m", "in", false, ["in", "1 m"], decimal],
+      // At the exponent bound: the value and its reciprocal lie within it.
+      ["1e1000000000000000000 m", "m", false, ["m", "1e1000000000000000000 m"]],
     ];
   for (const [have, want, fractions, wantsBack, context = CONTEXT] of cases) {
     const lines = resultLines(have, want, fractions, context);
@@ -422,6 +424,68 @@ test("what is copied, typed back as a have and converted into the line's own uni
       }
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// The exponent bound (devdocs/numbers.md, "The exponent bound")
+
+test("a value whose rounding to the display digits carries past the exponent bound is refused, and not written", () => {
+  const one: NumberContext = { ...CONTEXT, precision: 1 };
+  const refused = (rounded: string): string =>
+    `Rounding ${rounded} to the display digits causes an overflow: the rounded value's exponent would pass 10^18.`;
+  // At one digit 9.5 rounds to 10, and at the default eight 9.99999999
+  // does: the exponent 10^18, at the bound, carries to 10^18 + 1, which no
+  // literal within the bound writes, so the line would not paste back and
+  // none is written. With a blank want the have is at fault, as for every
+  // error of a blank want; in a conversion neither text is.
+  assert.deepEqual(outcome("9.5e1000000000000000000", "", one), {
+    kind: "error",
+    side: "have",
+    message: refused('"9.5e1000000000000000000"'),
+  });
+  assert.deepEqual(outcome("9.5e1000000000000000000 m", "m", one), {
+    kind: "error",
+    message: refused('"9.5e1000000000000000000 m" into "m"'),
+  });
+  assert.deepEqual(outcome("9.99999999e1000000000000000000", ""), {
+    kind: "error",
+    side: "have",
+    message: refused('"9.99999999e1000000000000000000"'),
+  });
+  assert.deepEqual(outcome("9.99999999e1000000000000000000 m", "m"), {
+    kind: "error",
+    message: refused('"9.99999999e1000000000000000000 m" into "m"'),
+  });
+  // Rounded toward zero, or shown at a digit more, the same value stays
+  // within the bound and is written.
+  assert.deepEqual(
+    lines("9.5e1000000000000000000", "", false, {
+      ...one,
+      rounding: "towardZero",
+    }),
+    ["9.5e1000000000000000000 ≈ 9e+1000000000000000000"],
+  );
+  assert.deepEqual(
+    lines("9.5e1000000000000000000", "", false, { ...CONTEXT, precision: 2 }),
+    ["9.5e1000000000000000000 = 9.5e+1000000000000000000"],
+  );
+  assert.deepEqual(
+    lines("9.99999999e1000000000000000000 m", "m", false, {
+      ...CONTEXT,
+      precision: 9,
+    }),
+    ["9.99999999e1000000000000000000 m = 9.99999999e+1000000000000000000 m"],
+  );
+  // A value at the bound itself carries nothing, and both of its lines
+  // are written; a rounding that carries within the bound is written too.
+  assert.deepEqual(lines("1e1000000000000000000 m", "m", false), [
+    "1e1000000000000000000 m = 1e+1000000000000000000 m",
+    "m = 1e-1000000000000000000 × 1e1000000000000000000 m",
+  ]);
+  assert.deepEqual(lines("9.99999999e-1000000000000000000 m", "m", false), [
+    "9.99999999e-1000000000000000000 m ≈ 1e-999999999999999999 m",
+    "m ≈ 1e+999999999999999999 × 9.99999999e-1000000000000000000 m",
+  ]);
 });
 
 /** The first number of a line's result, as written. */

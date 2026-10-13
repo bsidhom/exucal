@@ -1,5 +1,5 @@
 // The display rule: what a ball is shown as, how many of its digits are
-// certain, and whether the display may say `=`. devdocs/numbers.md
+// certified, and whether the display may say `=`. devdocs/numbers.md
 // ("Certification and the display rule") states the rule. `=` is shown
 // when the radius is zero and the digits displayed are all the digits
 // held; everything else is `≈`. So a
@@ -14,7 +14,7 @@
 // the ball round to it, so that the digits shown are the true value's
 // correctly rounded in the mode, never merely close. The kinds say how far
 // that goes: `exact` and `certified` show every digit asked for, the first
-// with `=`; `partial` shows the digits that are certain, fewer than asked,
+// with `=`; `partial` shows the digits that are certified, fewer than asked,
 // and says how many; `zero` is a ball containing zero without being it,
 // which certifies no digit and is shown as `0` with a bound on how far
 // from zero the value may be; `unbounded` is a radius not known at all,
@@ -187,9 +187,11 @@ export type Shown =
   /** Every digit asked for is certified; the value is inexact, or exact with more digits than shown. */
   | { readonly kind: "certified"; readonly text: string }
   /**
-   * Only `certified` of the digits asked for are certain, and `text` shows
-   * those; `certified` is zero only for a value on a rounding tie at the
-   * digits asked, and `text` is then the midpoint at the digits asked.
+   * Fewer digits than asked for are certified: `certified` counts them,
+   * and `text` shows those; `certified` is zero when no count from the
+   * digits asked down to one certifies (`approx(1)` under `floor`, whose
+   * ends round apart at every count), and `text` is then the midpoint at
+   * the digits asked.
    */
   | {
       readonly kind: "partial";

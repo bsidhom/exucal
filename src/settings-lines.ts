@@ -258,7 +258,7 @@ export function formatMs(ms: number): string {
 /** The line each mode has under the Mode select. */
 export const MODE_LINES: Readonly<Record<Mode, string>> = {
   exact:
-    "Every digit shown is certain, found at rising precision; an exact value is written as its digits or as a ratio.",
+    "Every digit shown is certified, found at rising precision; an exact value is written as its digits or as a ratio.",
   decimal:
     "Every step is rounded to the display digits in the rounding mode, as a hand calculator does; every answer is exact in that arithmetic.",
 };

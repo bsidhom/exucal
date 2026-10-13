@@ -1323,3 +1323,114 @@ to settle".
 - findings.md: F-042, F-044, F-133, F-219, F-221, F-290, F-303, F-323, F-328, F-342, F-343,
   F-346, F-348, F-350, F-377, F-380, F-417, F-426.
 - The work orders, sections 6 and 8.
+
+## For the owner: the review of the apply step
+
+Added on 2026-10-13 by the session that reviewed the apply step against the answers above.
+These are calls the apply step made on its own, or that two answers leave open between them.
+Answer them as the rest of the sheet is answered ("How to answer"): a letter, `ok` for the
+recommendation, `other: …`, `defer` or `ask: …`, and `yes` on the Section done line once you
+have been through them. Q-028's link and its wording are two items, so there are eight. The
+review's other corrections need no decision (text left stale by the second pass, and slips
+against answers already given); the fix pass applies them together with these answers.
+
+- Section done:
+
+### R-1. Q-028: does the privacy sentence link down to the devdocs?
+
+You accepted V8's proposal: one sentence in `docs/app.md`'s offline section, "with a link to
+`devdocs/security.md#The page`". The apply step reversed the link, citing §9.2 ("docs must not
+depend on devdocs"): `app.md` links nothing under `devdocs/`, and `security.md#The page` links
+up to `app.md` (plan/12 §12.1 Q-028; F-171, F-180; work orders 08 and 25). §9.2 does not forbid
+every link down: work order 01 links `devdocs/numbers.md` at the section level (Q-082).
+
+- A. As you accepted: the sentence links `devdocs/security.md#The page`, which may link back.
+- B. As the apply step has it: no link down; `security.md` links `app.md`.
+- Recommended: A. It is your answer; the sentence stands on its own, and the link only leads a curious reader to the mechanism, as work order 01's section-level links do.
+- Decision:
+
+### R-2. Q-028: the privacy sentence's wording
+
+You accepted "the app calls no service and sends nothing". Work order 08 narrows it, without
+saying why, to "calls no third-party service and sends nothing anywhere".
+
+- A. Your accepted wording.
+- B. The narrowed wording. The app does contact the host it was loaded from, to check for and fetch a new version (`app.md`'s "Updates and the build ID"), which a reader could count as calling a service.
+- Recommended: B, for accuracy, keeping V8's lead-in, "Nothing you type leaves the device".
+- Decision:
+
+### R-3. Item 14: do the pages link the new issues?
+
+You accepted item 14's provisional reading ("none gets a `future.md` entry; each lives on its
+issue or nowhere") and asked for the issues. The apply step then linked three of them once
+each, reading them as bugs in today's behaviour under Q-012: #198 at
+`devdocs/architecture.md#Unit lists` (a typed list's unit that may be zero is not retried), #199
+at `devdocs/numbers.md#Working precision and the schedule` (the passes' cost near the ceiling)
+and #200 at the logarithm row of `devdocs/builtins.md` (`log`'s exact cases). #201 and #202 are
+linked from no page.
+
+- A. Keep the three links: each page states the gap as today's behaviour, and its issue sits beside it, as Q-012 does for bugs.
+- B. No page links them: each lives on its issue only, as the reading you accepted says.
+- Recommended: A. The three are shortfalls in today's behaviour, which Q-012 keeps with the passage that states them. Either way the record's entries for Q-045 and Q-047, which still say "not on a page", are corrected.
+- Decision:
+
+### R-4. F-442: is a literal past a size limit a refusal or a rejection?
+
+Your note: "A 'refusal' is _always_ a size refusal, and most likely involves evaluation (except
+perhaps in the few cases where the grammar bounds things)." The apply step put a literal past
+the exponent bound or the hard bound among the rejections: the devdocs call it a rejection
+(`parseDecimal` returns the code's `Rejection`), the docs "an error as it is typed", and
+"refusal" names only a value the limits keep from being computed (`principles.md`, the refusal
+rule; §8; §5 C22 and C62; F-441's docs phrase).
+
+- A. As applied: such a literal is an error as it is typed (docs) and a rejection (devdocs).
+- B. It is a size refusal in both corpora, since a size limit stops it, as your note allows for the grammar's bounds. "Rejection" then covers only text refused for its form and the definitions-line faults, and the code's `Rejection` is named as it is. A literal past the exponent bound is the same kind of refusal, `overflow`, as a computed value past it.
+- Recommended: B. A user meets one limit whether the number was typed or computed, and your note leaves room for it.
+- Decision:
+
+### R-5. `!=` in conditions: ruled out, or future work?
+
+Work order 14 keeps "disjunctions and `!=` in conditions" in `devdocs/functions.md#Not in this
+design` as ruled out by intent. The record treats equality the other way: N16 and §1.3 say
+equality operators and conditional expressions may come, `devdocs/future.md` records it
+(Q-112), and `#Conditions` states "no equality and no `!=`" as a plain fact. The apply step did
+not put `!=` on its list.
+
+- A. `!=` goes with equality: future work, under `future.md`'s equality entry. `#Not in this design` keeps disjunctions and the assertion on a result's value.
+- B. `!=` in conditions is ruled out by intent, as work order 14 has it, while equality operators stay future work.
+- Recommended: A. `!=` is the negation of equality and meets the same constraint (the equality of an inexact value cannot be decided on a ball); ruling out one while keeping the other possible would need a reason no page gives.
+- Decision:
+
+### R-6. F-491: how firm is your note on the probe?
+
+You wrote: "I don't necessarily plan to extend the probe to arbitrary, expensive special
+functions…". The record makes it a decision: "the probe is not to be extended to the expensive
+special functions, which the scheduler work (#118) addresses instead" (plan/12 §12.1, F-491's
+applied line; F-491's Decision field).
+
+- A. Your words: no plan to extend the probe to the expensive special functions; keeping the interface responsive during long computations is the scheduler's work (#118, future work).
+- B. A firm decision, as the record has it.
+- Recommended: A.
+- Decision:
+
+### R-7. "Real values only": a plain fact, or a ruled-out design?
+
+Plan §7.1's row for the designs ruled out by intent gives "real values only" as its example.
+Everywhere else complex numbers are future work: §5 C59, `devdocs/future.md#Complex numbers`
+(kept by work order 18), and `docs/numbers.md`'s "Real values only", stated as a plain fact.
+
+- A. A plain fact about today: §7.1's example becomes "the error radius is never shown", and complex numbers stay future work.
+- B. Ruled out by intent: `#Complex numbers` leaves `future.md`, and its reason moves to `devdocs/numbers.md`.
+- Recommended: A.
+- Decision:
+
+### R-8. "update" as a noun in headings
+
+F-494 makes "update" "always a verb". Q-022 gave `docs/app.md` the section "Updates and the
+build ID", and work order 23 keeps `devdocs/offline.md`'s label "Update checks"; both use the
+noun.
+
+- A. Headings and labels keep the noun ("Updates and the build ID", "Update checks"); prose follows F-494.
+- B. No exception: "New versions and the build ID" and "Checks for a new version", with every link to the old headings following.
+- Recommended: A, since the section's title is your Q-022 answer; B if you meant F-494 to reach headings too.
+- Decision:

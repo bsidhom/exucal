@@ -32,9 +32,10 @@ amended on 2026-10-12, are this page's material), `§8` is
   lists` (A8 L113-123), which this page's "Unit lists" absorbs.
 - **Output.** The page, and in the pull request the choices made where
   the record leaves one and any question for the owner.
-- **Not in scope.** No other page changes: `docs/definitions.md`'s
-  sections on lists and on the file's contents are removed by work
-  orders 04 and 05. No code changes.
+- **Not in scope.** No other page changes: work order 04 rewrites
+  `docs/definitions.md`'s section on lists (the defining of a list
+  stays there; what a list answers is this page's) and deletes its
+  section on the file's contents. No code changes.
 
 ## 2. The reader, and what earlier pages taught
 

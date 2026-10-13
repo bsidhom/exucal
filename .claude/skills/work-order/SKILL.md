@@ -6,7 +6,9 @@ argument-hint: "<NN | 00.B> [label] [part]"
 
 # Carry out one work order of the documentation rewrite
 
-Arguments: `$ARGUMENTS`. The first word is the work order: `01` to `26`
+Arguments: `$ARGUMENTS` (when this file is read as a plain prompt
+instead of invoked as a skill, the arguments are the ones the prompt
+gives). The first word is the work order: `01` to `26`
 for a page, or `00.1`, `00.2`, `00.3` for a batch of the code track
 (work order 00). The second word, optional, is the run label (the
 model's name or a run number), used in the branch name; without it,

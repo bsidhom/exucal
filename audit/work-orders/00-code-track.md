@@ -257,9 +257,8 @@ F-384, F-408, F-474.
 - Behaviour the open items keep and the pages document: B-007 (`log`'s
   exact cases miss rational exponents; Q-048, under review), B-008 (the
   reciprocal line inverts the ratio shown; Q-046: the alternative,
-  `want / have` from the working-digit operands, is recorded on #92 in a
-  comment, the owner's housekeeping like the closing of #89, not this
-  track's), B-010 (a typed list's
+  `want / have` from the working-digit operands, was recorded on #92 in
+  a comment on 2026-10-13), B-010 (a typed list's
   unit straddling zero is not retried; Q-045), B-011 (the schedule's
   cost at the ceiling's edge; Q-047).
 - What an open issue tracks: B-003 with #79, B-006 with #88, B-009 with

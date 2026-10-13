@@ -388,7 +388,7 @@ they change say so. Nothing is pending now.
 - **Q-045. A typed list's unit that may be zero.** Decision: ok
   Applied: ok: the pages state the accepted gap (a typed list's unit that may be zero is refused, not retried) as today's behaviour; the retry, a small change that could ride the work on #92, is issue #198 (section 12.2, item 14), linked once from `devdocs/architecture.md#Unit lists` beside the gap (section 12.3, R-3); the user docs name no issue. F-246 follows; B-010 not scheduled.
 - **Q-046. The reciprocal line in decimal mode.** Decision: ok
-  Applied: ok: keep and document the decimal-mode reciprocal line (the reciprocal of the shown ratio); the alternative (`want / have` from the working-digit operands) is recorded on #92 in a comment, the owner's housekeeping beside the closing of #89 (work order 00, section 6), not page content. F-038, F-043 follow; B-008 not scheduled.
+  Applied: ok: keep and document the decimal-mode reciprocal line (the reciprocal of the shown ratio); the alternative (`want / have` from the working-digit operands) is recorded on #92 in a comment, posted on 2026-10-13, not page content. F-038, F-043 follow; B-008 not scheduled.
 - **Q-047. The schedule's cost bound.** Decision: ok
   Applied: ok: reword the cost bound now ("at most about twice the pass that succeeds", with the exception near the ceiling); a change to `workingContexts`, if wanted, is after the revamp: it is issue #199 (section 12.2, item 14), linked once from `devdocs/numbers.md#Working precision and the schedule` beside the exception (section 12.3, R-3). F-064 follows; B-011 not scheduled.
 - **Q-048. `log`'s exact cases for a rational exponent.** Decision: ok
@@ -795,8 +795,8 @@ Applied on 2026-10-13 with the answers above; none needed a decision.
   contains` and links `units.md` forward (conflict 1), and work order 05 carries its
   contents. A developer page renames or deletes a heading only where its work order says
   so, and updates every link to it in the same pull request (the work orders' README; work
-  orders 07, 16 and 18). The alternative Q-046 records on #92 is the owner's housekeeping, a
-  comment on the issue (Q-046's entry, work order 00).
+  orders 07, 16 and 18). The alternative Q-046 records on #92 was posted there as a comment on
+  2026-10-13 (Q-046's entry, work order 00).
 - **Checked and left as it was.** Work order 13's two GNU units clauses (lineage at the top,
   the precedence in `#Expressions`) match Q-039's accepted proposal, one clause in each
   place, and F-001's decision.

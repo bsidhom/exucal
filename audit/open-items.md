@@ -571,7 +571,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A4: keep and document, as A4's `#The working digits` edit does (V1 the same, V1 (F-043)), and record the alternative on #92, which owns what the reciprocal lacks from the pipeline.
 - Settled by: —
 - Blocks: nothing (documented as today's behaviour).
-- Decision: ok [plan §12.1] The alternative is recorded on #92 in a comment, the owner's housekeeping (work order 00, section 6).
+- Decision: ok [plan §12.1] The alternative was recorded on #92 in a comment on 2026-10-13.
 
 ### Q-047. The schedule's cost bound: reword, or change `workingContexts`
 

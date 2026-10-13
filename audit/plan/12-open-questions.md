@@ -507,8 +507,12 @@ form Q-002 chose (B-002, a refusal with an explicit message); item 2 (before the
 would otherwise carry a caveat) carries `gcd(a, 0)` (B-001, before `docs/builtins.md` and
 `devdocs/builtins.md`), the ratio screen (B-004, before `devdocs/notation.md`), `mod`'s refusal
 (B-005, before `devdocs/builtins.md`) and the stored width (B-012, before `docs/settings.md`, which
-states the clamp, and `devdocs/settings.md`, Q-049 being B); item 3 (after the pages) carries the message wording with the generated
-catalogue, the test gaps, the comments (Q-059) and B-069 and B-070; item 4 stays unscheduled.
+states the clamp, and `devdocs/settings.md`, Q-049 being B); item 3 (after the pages) carries the
+message wording, without the generated catalogue, which is future work (the owner's answer of
+2026-10-13, section 12.3), the test gaps (B-032 with the clause of `devdocs/development.md` it
+makes stale), the comments (Q-059) and B-070 (regenerating the hangs table of
+`devdocs/cost.md`); B-069 waits until the pages ship with the app (Q-115), outside this
+rewrite; item 4 stays unscheduled.
 The rename of `docs/functions.md` to `docs/builtins.md` (Q-020's note) repoints two comments in
 `src/units.txt`, which the page's own pull request changes with the other links to the old
 name (work order 07), so that none dangles; the code track does not carry them. The work order for the code track
@@ -757,6 +761,15 @@ decision, are listed after the answers.
    verb). Amends F-494's entry in section 12.1 and its decision, principles.md and plan §8's
    row; work orders 08, 13 and 23 follow.
 
+### Answered after the review
+
+- **Batch 3's message wording and the catalogue.** Section 9 of the sheet had the message
+  wording (B-015 to B-029) land "with the generated catalogue (§12 question 6)", a tool that
+  is future work (`devdocs/future.md`), which could leave the rewording waiting indefinitely.
+  Asked on 2026-10-13, the owner answered: "Land the rewording without the catalogue".
+  Settled: the message wording lands in batch 3, after the pages, without the catalogue,
+  which stays future work. Amends section 9's item 3 (section 12.1) and work order 00.
+
 ### The review's other corrections
 
 Applied on 2026-10-13 with the answers above; none needed a decision.
@@ -796,7 +809,10 @@ Applied on 2026-10-13 with the answers above; none needed a decision.
   contents. A developer page renames or deletes a heading only where its work order says
   so, and updates every link to it in the same pull request (the work orders' README; work
   orders 07, 16 and 18). The alternative Q-046 records on #92 was posted there as a comment on
-  2026-10-13 (Q-046's entry, work order 00).
+  2026-10-13 (Q-046's entry, work order 00). In batch 3, B-032's pull request updates the
+  clause of `devdocs/development.md#Adding a unit` that it makes stale, and B-070's
+  regenerates the hangs table of `devdocs/cost.md` (work orders 00 and 22); B-069 is outside
+  this rewrite (Q-115).
 - **Checked and left as it was.** Work order 13's two GNU units clauses (lineage at the top,
   the precedence in `#Expressions`) match Q-039's accepted proposal, one clause in each
   place, and F-001's decision.

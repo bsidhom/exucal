@@ -132,8 +132,10 @@ it later (the sheet's section 9, item 2).
 The pages describe today's behaviour and quote no message that is
 about to change; these land once the pages are written.
 
-**Message wording (B-015 to B-029), with the generated catalogue (§12
-question 6) when that tool exists.**
+**Message wording (B-015 to B-029), without the generated catalogue.**
+The owner decided on 2026-10-13 that the rewording lands in this batch
+and does not wait for the message catalogue of §12 question 6, which is
+future work (plan §12.3).
 
 - B-015: the incomplete gamma refusal (`src/messages.ts:357-360`)
   blames the significand limit for a cost limit (#107); the message

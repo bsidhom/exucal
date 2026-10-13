@@ -183,9 +183,9 @@ export function budgetLine(settings: Settings): string {
   return `${rangeLine("budgetMs", settings)} The time the probe allows one pass.`;
 }
 
-/** The line under the probe's button: what it measures and what it promises. */
+/** The line under the probe's button: what it times (limits.ts) and what it promises. */
 export const PROBE_LINE =
-  "Times the costliest operations at rising sizes and proposes the largest limits that stay within the budget a pass; nothing changes until the proposal is applied.";
+  "Times an exact product and the four elementary functions at rising sizes and proposes the largest limits that stay within the budget a pass; nothing changes until the proposal is applied.";
 
 /**
  * The line that refuses an edit of `setting`: not a whole number, or past
@@ -230,9 +230,11 @@ export function clampLine(clamp: Clamp): string {
 
 /**
  * The probe's proposal: the sizes it timed and what they took, against
- * the budget, and the two limits it proposes. A size at a setting's floor
- * may have cost more than the budget; the line says so rather than
- * claiming the floor fit.
+ * the budget, and the two limits it proposes. The built-ins' size is the
+ * ceiling the proposed precision limit gives, named as the precision it
+ * is; the grid that pass settles onto, about ten digits finer, is not
+ * said. A size at a setting's floor may have cost more than the budget;
+ * the line says so rather than claiming the floor fit.
  */
 export function proposalLine(
   proposal: Recommendation,
@@ -240,8 +242,8 @@ export function proposalLine(
 ): string {
   const bits = measure(proposal.significandLimitBits, "bits");
   const digits = measure(proposal.precisionLimitDigits, "digits");
-  const grid = measure(ceilingFor(proposal.precisionLimitDigits), "digits");
-  const timings = `Exact products at ${bits} took ${formatMs(proposal.productMs)} and the built-ins on a grid of ${grid} took ${formatMs(proposal.builtinsMs)}`;
+  const ceiling = measure(ceilingFor(proposal.precisionLimitDigits), "digits");
+  const timings = `Exact products at ${bits} took ${formatMs(proposal.productMs)} and the built-ins at a precision of ${ceiling} took ${formatMs(proposal.builtinsMs)}`;
   const within =
     proposal.productMs <= budgetMs && proposal.builtinsMs <= budgetMs
       ? `within the ${formatNumber(budgetMs)} ms budget`
@@ -260,7 +262,7 @@ export const MODE_LINES: Readonly<Record<Mode, string>> = {
   exact:
     "Every digit shown is certified, found at rising precision; an exact value is written as its digits or as a ratio.",
   decimal:
-    "Every step is rounded to the display digits in the rounding mode, as a hand calculator does; every answer is exact in that arithmetic.",
+    "Every step is rounded to the display digits in the rounding mode, as a hand calculator does; every answer is exact under the mode's rounding.",
 };
 
 /** What the rounding mode rounds, in each mode. */

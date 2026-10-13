@@ -42,12 +42,23 @@ What a value costs, and what the two limits bound, follows from how it
 is held.
 
 - **An exact value costs its fraction's bits.** The fraction is kept in
-  lowest terms with no factor of ten in its denominator: `2.54` is held
-  as `254` times `10^-2`, and `1/6` as `5/3` times `10^-1`. `1/3` is
-  small and `3^100000` is not: what an exact value costs to hold and to
-  compute with is the bits of its numerator and of its denominator, and
-  the significand limit bounds each of them, so that `3^100000`, whose
-  158,497 bits pass the default limit, is refused
+  one fixed form: in lowest terms, with every power of ten moved out
+  into the exponent, and with a denominator that has no factor of two
+  or five at all (coprime to ten, in the words of number theory), so
+  that `2.54` is held as `254` times `10^-2`, and `1/6` as `5/3` times
+  `10^-1`, the two of the six traded for a five above the line and one
+  power of ten in the exponent. A value has exactly one such form,
+  whatever route a computation reaches it by. Its fraction in lowest
+  terms is unique; the only denominator the rule allows is that
+  fraction's with every two and five taken out; with the denominator
+  fixed, the exponent can only be the largest that still leaves the
+  numerator a whole number; and the numerator is then whatever is left.
+  Each step is forced, so equal values are held alike, and the app can
+  tell two values are equal by comparing the parts it holds, with no
+  arithmetic. `1/3` is small and `3^100000` is not: what an exact value
+  costs to hold and to compute with is the bits of its numerator and of
+  its denominator, and the significand limit bounds each of them, so
+  that `3^100000`, whose 158,497 bits pass the default limit, is refused
   ([Values too big to hold](#values-too-big-to-hold)). Nothing else
   touches an exact value in exact mode: no digits setting applies to it,
   and an exact result of exact operands is never rounded. Only where an
@@ -72,8 +83,9 @@ is held.
   bound, which holds every value, exact or inexact, within `10^18`
   either way ([Values too big to hold](#values-too-big-to-hold)). A
   power of two in a denominator, though, is held as a power of five in
-  the numerator, since the fraction keeps no factor of ten below the
-  line: `2^-30000`, a 30,000-bit value, is held as `5^30000` times
+  the numerator, since no two or five may stay below the line (a five
+  goes the other way, into a power of two, which costs less): `2^-30000`,
+  a 30,000-bit value, is held as `5^30000` times
   `10^-30000` and costs about 69,658 bits, so it is refused at the
   default limit where `2^-28000` is a value. That is the one case where
   the cost is more than the value's own bits, and it only matters for a

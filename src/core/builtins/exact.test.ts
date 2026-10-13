@@ -112,6 +112,24 @@ test("the exact functions through the pipeline, with their messages", () => {
     'Cannot apply "mod" to "7 ft" and "2 s": "7 ft" has dimension m, but "2 s" has dimension s.',
   );
   assert.equal(run("mod(1, 0)"), 'Division by zero in "mod(1, 0)".');
+  // A remainder whose alignment passes the significand limit is refused
+  // as a sum's is, with the count and the remedies, which work.
+  assert.equal(
+    run("mod(-1, 1e20000)"),
+    '"mod(-1, 1e20000)" would need a significand of about 66,440 bits as an exact value, past the significand limit. Try "approx(-1)" in place of "-1", or decimal mode, to compute it to the digits asked.',
+  );
+  assert.equal(
+    run("-1 - 1e20000"),
+    '"-1 - 1e20000" would need a significand of about 66,440 bits as an exact value, past the significand limit. Try "approx(-1)" in place of "-1", or decimal mode, to compute it to the digits asked.',
+  );
+  assert.equal(run("mod(approx(-1), 1e20000)"), "≈ 1e+20000");
+  assert.equal(run("mod(-1, approx(1e20000))"), "≈ 1e+20000");
+  // A quotient past the exponent bound has no remainder to form, and the
+  // refusal says that no rewriting helps.
+  assert.equal(
+    run("mod(5e1000000000000000000, 1e-400)"),
+    '"mod(5e1000000000000000000, 1e-400)" would need a significand, past the significand limit, however it is computed.',
+  );
   // The identity, through the arithmetic.
   for (const [a, b] of [
     ["7", "2"],

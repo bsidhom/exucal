@@ -35,14 +35,7 @@ import {
 } from "../builtin.ts";
 import type { NumberContext } from "../context.ts";
 import { err, ok, type Result } from "../result.ts";
-import {
-  ZERO,
-  fromInteger,
-  isRefusal,
-  isZero,
-  multiply,
-  subtract,
-} from "../scaled.ts";
+import { ZERO, fromInteger, isZero, multiply, subtract } from "../scaled.ts";
 import { floorBall } from "./round.ts";
 
 /** The quotient `a / b` as a ball with its floor, or the floor alone where the quotient is below the exponent bound. */
@@ -109,9 +102,12 @@ export function divBall(
  * quotient past the top, whose floor cannot be formed, is `tooLarge`
  * rather than `overflow`, since no value of the remainder passes the
  * bound; one below the bottom leaves `a`, or `a + b` for the floor of
- * minus one. A remainder whose alignment passes the significand limit
- * (`mod(-1, 1e20000)` has twenty thousand digits) is `tooLarge`, as any
- * exact sum's is.
+ * minus one. A remainder whose alignment or whose product passes the
+ * significand limit (`mod(-1, 1e20000)` has twenty thousand digits) is
+ * refused as the subtraction or the product refuses it, as any exact
+ * sum's is: `tooLarge` with `fits` and the bits the step would take,
+ * since an inexact operand settles it (`mod(approx(-1), 1e20000)` is a
+ * value), so that the message offers `approx` and decimal mode.
  */
 export function modBall(
   a: Ball,
@@ -133,7 +129,7 @@ export function modBall(
       count.mid,
       context.significandLimitBits,
     );
-    if (!fraction.ok) return tooLarge("exceeds", UNKNOWN_NEED);
+    if (!fraction.ok) return err(fromBallError(fraction.error, 0));
     // The product is within `|b|`, so it can only fall below the bound.
     const remainder = multiply(
       fraction.value,
@@ -141,9 +137,7 @@ export function modBall(
       context.significandLimitBits,
     );
     if (remainder.ok) return ok(exact(remainder.value));
-    return isRefusal(remainder.error)
-      ? err(remainder.error)
-      : tooLarge("exceeds", UNKNOWN_NEED);
+    return err(fromBallError(remainder.error, 0));
   }
   const fraction = subtractBalls(quotient, count, context);
   if (!fraction.ok) return err(fromBallError(fraction.error, 0));

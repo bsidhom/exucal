@@ -21,8 +21,8 @@ batch of the code track. The session reads its work order,
 `audit/principles.md`, and what the work order cites (a finding, an
 open item or a bug at its id; a report at the lines a pointer names;
 a plan section it names), and nothing else. It writes its page in one
-pass, changes no other page and no code, and says in its pull request
-the choices it made (which draft it took where two overlap, which
+pass, changes no other page and no code, and says in its pull
+request's review notes the choices it made (which draft it took where two overlap, which
 figures it kept as rough and illustrative, what it checked in the
 code) and any question for the owner. The code track's session makes
 the code changes of work order 00, one batch at a time, and nothing
@@ -179,5 +179,8 @@ the decisions followed, what is not scheduled, the conflicts, and
   12.3. A work order names the ones that touch its page.
 - **The pull request.** Each session's pull request changes its page
   (and, where the work order says so, the links a renamed file or
-  heading needs) and nothing else, and records the choices and
-  questions the work order asks for.
+  heading needs) and nothing else. Its title, commit messages and
+  description are written for the repository's history and read on
+  their own, without the audit; the choices and questions the work
+  order asks for go in its first comment, the review notes (the
+  `work-order` skill, section 5).

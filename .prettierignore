@@ -3,3 +3,9 @@
 # local overrides) is already skipped; this file only lists generated files
 # that are committed.
 pnpm-lock.yaml
+
+# The documentation audit and the skills that run it are kept as written
+# (their work orders cite report lines, which formatting would shift) and
+# are removed when the documentation revamp lands.
+audit/
+.claude/skills/

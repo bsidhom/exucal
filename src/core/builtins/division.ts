@@ -35,7 +35,15 @@ import {
 } from "../builtin.ts";
 import type { NumberContext } from "../context.ts";
 import { err, ok, type Result } from "../result.ts";
-import { ZERO, fromInteger, isZero, multiply, subtract } from "../scaled.ts";
+import {
+  ZERO,
+  fromInteger,
+  isRefusal,
+  isZero,
+  multiply,
+  subtract,
+  type ScaledError,
+} from "../scaled.ts";
 import { floorBall } from "./round.ts";
 
 /** The quotient `a / b` as a ball with its floor, or the floor alone where the quotient is below the exponent bound. */
@@ -129,7 +137,7 @@ export function modBall(
       count.mid,
       context.significandLimitBits,
     );
-    if (!fraction.ok) return err(fromBallError(fraction.error, 0));
+    if (!fraction.ok) return refused(fraction.error);
     // The product is within `|b|`, so it can only fall below the bound.
     const remainder = multiply(
       fraction.value,
@@ -137,12 +145,25 @@ export function modBall(
       context.significandLimitBits,
     );
     if (remainder.ok) return ok(exact(remainder.value));
-    return err(fromBallError(remainder.error, 0));
+    return refused(remainder.error);
   }
   const fraction = subtractBalls(quotient, count, context);
   if (!fraction.ok) return err(fromBallError(fraction.error, 0));
   const remainder = multiplyBalls(fraction.value, b, context);
   return remainder.ok ? remainder : err(fromBallError(remainder.error, 0));
+}
+
+/**
+ * A failure of the exact arithmetic on the midpoints as `mod`'s own: a
+ * refusal of either limit passes through as it is, with the reach and
+ * the count the subtraction or the product reports. The arithmetic of
+ * two values already formed raises nothing else, so the other branch is
+ * defensive and should not run: anything unforeseen is refused as
+ * `exceeds` with no count, which claims no remedy, rather than passed on
+ * as an error it is not.
+ */
+function refused(error: ScaledError): Result<never, BuiltinError> {
+  return isRefusal(error) ? err(error) : tooLarge("exceeds", UNKNOWN_NEED);
 }
 
 export const div: Builtin = {

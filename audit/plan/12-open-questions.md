@@ -796,6 +796,16 @@ decision, are listed after the answers.
   the tests asserting the invariant). Amends F-439's entry in section 12.1 and its
   decision, F-013's decision, plan §8's row, principles.md, plan §1 N1 and §1.1.4, §5 C5,
   §7's bullets for `numbers.md` and `expressions.md`, and work orders 01, 03, 11 and 13.
+- **The ratio notation's crash at the bound (B-071, #206).** Found during the same review:
+  a value within the exponent bound whose canonical exponent passes it
+  (`1e1000000000000000000 / 3 * 10`) throws in the outcome under the ratio notation, while
+  the digits notation writes it; the code's comments file the case under #178. The owner,
+  2026-10-13: "This crash is independent of #178 and deserves its own bug. Please file an
+  issue and link it as appropriate." Settled: filed as #206 and recorded as B-071 in
+  bugs.md; `devdocs/notation.md#Every literal parses back` states the exception with the
+  one link (Q-012's rule for a bug in today's behaviour; work order 12); the code track
+  lists it among the bugs that live on their issues and repoints the two comments in its
+  comment pass (work order 00, sections 4 and 6); the user page says nothing of it.
 
 ### The review's other corrections
 

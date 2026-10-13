@@ -2,8 +2,10 @@
 
 The audit units changed no code; these are the defects they met while checking the pages
 against it, deduplicated: 70 bugs from the code-issue rows and code findings of the
-twenty-six reports under [reports/](reports/). Nothing here was re-run or re-read in the
-code by the consolidation; each bug rests on the evidence its units cite. Severity is a
+twenty-six reports under [reports/](reports/), and one found after the audit (B-071, filed
+as #206 on 2026-10-13 during the review of work order 01's pull request). Nothing here was
+re-run or re-read in the code by the consolidation; each bug rests on the evidence its
+units cite. Severity is a
 rough guess: `high`, a wrong answer or a crash a user can reach; `medium`, wrong or
 misleading user-visible text, a wrong refusal class, an edge that misbehaves; `low`,
 comments, naming, test gaps and internals.
@@ -15,12 +17,12 @@ listed last: they are not defects, but the pages will quote their result.
 
 | Category | High | Medium | Low | Total |
 | --- | --- | --- | --- | --- |
-| behaviour | 3 | 7 | 4 | 14 |
+| behaviour | 4 | 7 | 4 | 15 |
 | message wording | 0 | 5 | 10 | 15 |
 | test gap | 0 | 0 | 4 | 4 |
 | misleading comment | 0 | 0 | 34 | 34 |
 | decided code change | 0 | 1 | 2 | 3 |
-| **total** | 3 | 13 | 54 | **70** |
+| **total** | 4 | 13 | 54 | **71** |
 
 ## Bugs that block or complicate the rewrite
 
@@ -35,7 +37,7 @@ listed last: they are not defects, but the pages will quote their result.
   lands: B-001 (`gcd(a, 0)`), B-004 (the ratio notation's screen),
   B-005 (`mod`'s refusal class), B-007 (`log`'s exact cases),
   B-008 (decimal mode's reciprocal line), B-012 (a stored ratio width out
-  of range). The page describes the behaviour without quoting the app's text until the
+  of range), B-071 (the ratio notation's crash at the bound, #206). The page describes the behaviour without quoting the app's text until the
   wording changes: B-017 (the probe's sheet line), B-022 (the empty-state
   hint), B-023 (the load-failure message), B-029 (no message for a
   definitions rejection), B-032 (a failing build reported by offsets).
@@ -759,3 +761,15 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: V6 (L46, L225)
 - Docs side: F-360
 - Rewrite impact: complicates — `devdocs/cost.md`'s hangs table keeps bare numbers until the generator emits links.
+
+### B-071. The ratio notation crashes the outcome for a value within the bound whose canonical exponent passes it
+
+- Issue: #206 (opened 2026-10-13, during the review of work order 01's pull request; the owner: independent of #178, a bug of its own)
+
+- Category: behaviour
+- Severity (guess): high — no line, and the component loses its render, on a legal value
+- Location: `src/core/display.ts` (`ratioParts`: rule 4's scale is the canonical `exp`, unscreened against the bound); `src/outcome.ts` (`literal` and `numberExpr`, which throw on a text past the bound); the comments at both, which file the case under #178
+- Description: `1e1000000000000000000 / 3 * 10` and `123/7 * 1e-1000000000000000000 / 10` are values within the bound, at its two ends, whose canonical exponents lie one past it; the digits notation writes them (`≈ 3.3333333e+1000000000000000000`), and the ratio notation at width 20 writes `1/3` or `123/7` with a scale of `1e+1000000000000000001` or `1e-1000000000000000001`, which `parseDecimal` refuses, so `literal` throws "The display wrote 1e+1000000000000000001, not a literal". No test covers it. The issue weighs three fixes: refuse the line as B-002's fix refuses a display rounding (worse here, the value being legal); fall back to the decimal display when the scale would pass the bound (cheapest, every line parseable); split the tens so that the scale lies within the bound (the parts then no longer the canonical form rule 4 promises, and #178's ground). Whichever is chosen, the comments at `ratioParts` and `literal` name #206 instead of #178 for the crash, and a test pins the two reproductions.
+- Units: none; found by the session of work order 01 while checking that a line is a function of the value, its exactness and the settings (plan §12.3, "The canonical form, a user-docs concept")
+- Docs side: — (`docs/numbers.md` states the rule and says nothing of the crash; `devdocs/notation.md#Every literal parses back` states the exception with its one link, Q-012's rule for a bug in today's behaviour)
+- Rewrite impact: complicates — `devdocs/notation.md#The rule` (rule 4) and `#Every literal parses back` state the scaled form as it is; until the fix lands, the latter names the exception in one sentence with the link to #206 (work order 12).

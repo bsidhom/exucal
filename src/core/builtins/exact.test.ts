@@ -68,6 +68,7 @@ test("the exact functions through the pipeline, with their messages", () => {
   assert.equal(run("div(-7, 2)"), "= -4");
   assert.equal(run("div(7 ft, 2 ft)"), "= 3");
   assert.equal(run("gcd(-6, 4)"), "= 2");
+  assert.equal(run("gcd(5, 0)"), "= 5");
   assert.equal(run("factorial(5)"), "= 120");
   assert.equal(run("binomial(5, 7)"), "= 0");
   assert.equal(run("doublefactorial(-1)"), "= 1");

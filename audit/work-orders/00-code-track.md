@@ -242,6 +242,10 @@ answers word:
   the rename (Q-020's note), so that no link dangles; this track does
   not touch them. B-014 (the dalton as CODATA 2018) stays as it is
   (Q-041, ok); the comment records the edition.
+- B-071's two comments: `ratioParts` (`src/core/display.ts`) and
+  `literal` (`src/outcome.ts`) file the crash at the bound under #178;
+  they name #206, the bug's own issue (section 6), unless the fix has
+  landed first and rewritten them.
 
 **With the work they belong to.** B-069: the panel's "About these
 settings" link (`src/settings-lines.ts:114-117`) becomes a local link
@@ -281,6 +285,13 @@ F-384, F-408, F-474.
 - The follow-ups the owner's list gave issues of their own (item 14,
   answered): #198 (B-010), #199 (B-011), #200 (B-007), #201 (Q-061) and
   #202 (F-320); each lives on its issue, outside this track.
+- B-071 (#206), the ratio notation's crash on a value within the bound
+  whose canonical exponent passes it, found on 2026-10-13 during the
+  review of work order 01's pull request and filed as its own issue
+  (the owner: independent of #178): lives on its issue, outside this
+  track, with the fix the issue weighs; the comment pass (batch 3)
+  points the comments at `ratioParts` (`src/core/display.ts`) and
+  `literal` (`src/outcome.ts`) at #206 instead of #178 for the crash.
 
 ## 7. Conflicts left to settle
 

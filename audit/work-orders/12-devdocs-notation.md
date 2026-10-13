@@ -102,7 +102,13 @@ digits).
   `fraction` and `scale` as V5 rewrites it, "parses back".
 - **Every literal parses back.** The refusal at the bound (Q-002 B,
   B-002), written by the session from the code's message; A2 L96-98 not
-  used (F-330).
+  used (F-330). One sentence states the ratio notation's own exception
+  as today's behaviour, with its link: a value within the bound whose
+  canonical exponent passes it (`1e1000000000000000000 / 3 * 10`) is
+  written by no scaled ratio within the bound, and the outcome throws
+  on it today (B-071, #206; Q-012's rule for a bug in today's
+  behaviour: the link once, at the passage that owns the concept),
+  until the fix lands, when the sentence states what the code then does.
 - **Not in decimal mode.** Opens with its link (V5 drafted none: the
   session writes the one sentence linking
   `docs/numbers.md#the-two-modes`); the mechanism stays.
@@ -157,6 +163,10 @@ the link leaves for `future.md`. Nothing else touches this page.
 ## 9. Code changes it waits on
 
 - **Before the page:** B-002 (batch 1) and B-004 (batch 2, Q-043).
+- **Complicates, no wait:** B-071 (#206), the ratio notation's crash on
+  a value within the bound whose canonical exponent passes it:
+  `#Every literal parses back` states the exception with the link until
+  the fix lands.
 - **None else.** B-008 and B-013 do not touch this page.
 
 ## 10. Done when
@@ -165,7 +175,8 @@ the link leaves for `future.md`. Nothing else touches this page.
   mechanism, decisions and ruled-out alternatives only, in the present
   tense.
 - `#Every literal parses back` states the refusal at the bound as the
-  code has it; `#The rule` carries no caveat on the screen; the
+  code has it, and the ratio notation's exception at the bound with its
+  link (B-071, #206); `#The rule` carries no caveat on the screen; the
   parentheses are the printer's.
 - Every issue link is inline, once; the foot's definitions are gone;
   #92 is not on this page.

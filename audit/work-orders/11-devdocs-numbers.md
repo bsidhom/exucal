@@ -127,7 +127,9 @@ ruled-out alternatives with theirs, in the present tense.
   glossed once (F-441, F-191); "the guard" told apart from the kernel's
   guard bits (F-432); "node" (F-433); "uncertified", never "the
   fallback" (F-434); "neighbor", "the neighbor rule" (F-436); "absorbed
-  into the radius" (F-437); "canonical", spelled out once (F-439);
+  into the radius" (F-437); "canonical", spelled out once, the user
+  page now naming the form too (F-439 as the owner amended it on
+  2026-10-13, plan §12.3);
   "decimal exponent" allowed here (F-440); the refusal's words, reach,
   fits, exceeds, need (F-444); "rounding boundary", "tie", "grid point"
   (F-446); "touch" and "straddle" (F-447); "the ceiling rounding" as
@@ -151,6 +153,16 @@ take and what the rules change:
   V1 L194, the same as A1 L61 (two exponents and a single binary
   exponent ruled out, in the present tense; the one base's cost a
   division per settle, its figure rough or the ratio) (F-184, F-185).
+  The section opens with its link to `docs/numbers.md#how-a-value-is-held`,
+  which names the canonical form and gives the uniqueness argument in
+  plain words, and carries the formal argument (the lowest-terms
+  fraction is unique; the denominator is its ten-free part; the exponent
+  is the largest that leaves the numerator whole; the numerator follows)
+  with its implementation half: `rational` is the one reducing
+  constructor, every operation preserves lowest terms, `normalize`
+  relies on it without a gcd, `equals` is structural, and the tests
+  assert the invariant (F-439 as the owner amended it on 2026-10-13,
+  plan §12.3).
 - **Exact operations.** A1 L166-196 and V1 L198-204: an integer power of
   an inexact base takes the product rule by squaring (F-186); when a
   divisor counts as containing zero, A6's text with the reason (A6

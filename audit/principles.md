@@ -171,6 +171,20 @@ functions is `docs/builtins.md`, titled "Built-in functions", matching
 follows, and "functions.md" then names only `devdocs/functions.md`,
 "Defined functions".
 
+**The canonical form and the predictable display (F-439, amended by
+the owner on 2026-10-13; plan §12.3).** The one form a value is held in
+is a user-level concept, core to the number type and to the
+predictability a user relies on. `docs/numbers.md` names the canonical
+form once, glossed in plain words (in lowest terms, with every power of
+ten in the exponent and the denominator coprime to ten, that is, with
+no factor of two or five), says why a value has exactly one, and draws
+the consequences: equal values are held alike, compared part by part,
+and cost the same whatever route produced them; and what is written is
+likewise a function of the value, its exactness and the settings, never
+of the route. "Canonical" is a word of both corpora, glossed once per
+page where used; the devdocs keep the mechanism, the formal argument
+and its implementation.
+
 Two further answers reach every page and are recorded in plan §8: the
 synonyms "dimensionless" and "plain number", with "kind" wherever
 semantics attach (Q-019); and "build ID", "the service worker", "a new

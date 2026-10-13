@@ -442,7 +442,7 @@ What to settle before rewriting a page, in the order it bites.
 - Conflict: D8 confirms the page's "`2.54` … `127/50`" (D8 report, D8 L104; its rerun shows `2.54` is `= 2.54`, the display, not the held form) and its drafted `docs/numbers.md#Exact and approximate values` keeps "kept in lowest terms as `127/50`" (D8 L172-178, D8 L176), against A1's computed form (A1 L50, L228-234).
 - Proposed call: doc wrong: `normalize` is deliberate and `devdocs/numbers.md#The types` states the canonical form (A1 report, A1 report); settle D8's draft against A1's computed form of `2.54` before it lands.
 - Related: F-053
-- Decision: Stands (doc wrong); the session settles D8's draft against A1's computed form of `2.54`; follows F-439 (the docs say "the fraction is kept with no factor of ten in its denominator"; "canonical" is devdocs-only, spelled out once).
+- Decision: Stands (doc wrong); the session settles D8's draft against A1's computed form of `2.54`; follows F-439 (the docs say "the fraction is kept with no factor of ten in its denominator"; "canonical" is devdocs-only, spelled out once). Amended on 2026-10-13 (plan §12.3): the docs state the rule as the denominator coprime to ten, with no factor of two or five, name the canonical form once, glossed, and say why a value has exactly one.
 
 #### F-014. `docs/settings.md`'s number section dissolves into `docs/numbers.md`
 
@@ -1280,7 +1280,7 @@ What to settle before rewriting a page, in the order it bites.
 - Sources: `devdocs/architecture.md#Expressions`; D1 Finding 1 (L40-52); the header grammar `src/core/expr.ts:6-19`
 - Proposed call: `docs/expressions.md` carries prose, D1's precedence table (L300-310) and worked examples, and no hand-written EBNF until the generated grammar (§2.1.3 interim, §12 q30); `devdocs/architecture.md#Expressions` names the header grammar as the hand-maintained form until the DSL generates one, quoting none of it (D1 Q1), which V2's pared section (L178-190) does not do.
 - Related: F-500
-- Decision: Stands; follows Q-038 (ok) and F-500 (§2.1.3 corrected); D1's draft's "canonical" sentence follows F-439.
+- Decision: Stands; follows Q-038 (ok) and F-500 (§2.1.3 corrected); D1's draft's "canonical" sentence follows F-439, which the owner amended on 2026-10-13 (plan §12.3): "canonical" may stand in the docs, glossed once.
 
 #### F-075. Literal forms beyond the four examples unstated
 
@@ -1428,7 +1428,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: None of the canonical text is in `docs/`: one space between juxtaposed factors and around the other operators, `^` and a quotient of two literals tight, arguments joined by `, `, literals and exponents as typed (`1e3` stays `1e3`, `m^(2/4)` stays), the fewest parentheses that read the tree back, and `×` on screen for a product written with `*` while the copy text has `*`.
 - Sources: `devdocs/architecture.md#Expressions` (printer), `#The converter and its lines`; `devdocs/notation.md#Where a ratio is written` (plan §6.3); `src/core/print.ts:1-29`, `:165-175`; `src/core/print.test.ts:48-117`
 - Proposed call: "What the app writes back" from D1's "How the app writes an expression back" (L446-458), linking `numbers.md` for the principle that every result pastes back (§12 q11) once that page exists.
-- Decision: Stands; follows F-457 ("pastes back") and F-439 (no "canonical" in docs: "how the app writes an expression back").
+- Decision: Stands; follows F-457 ("pastes back") and F-439 (no "canonical" in docs: "how the app writes an expression back"). Amended on 2026-10-13 (plan §12.3): the printer's text may be called canonical, glossed once.
 
 #### F-087. Readings to watch beyond a fraction before a unit
 
@@ -6494,7 +6494,7 @@ link they write to the old name targets the new one.
 - Conflict: D1's own `docs/expressions.md` draft ("How the app writes an expression back") says "in a canonical form that reads back as the same expression" (D1 L448-449), against its row (L683).
 - Proposed call: add to §8: "canonical" devdocs-only in both senses; reword D1's draft sentence when it is applied.
 - Related: F-013, F-090
-- Decision: Follows its own answer (ok): "canonical" devdocs-only, spelled out where first used; D1's draft sentence reworded. A new §8 row. [decisions.md section 2; plan §12.1]
+- Decision: Follows its own answer (ok): "canonical" devdocs-only, spelled out where first used; D1's draft sentence reworded. A new §8 row. [decisions.md section 2; plan §12.1] Amended by the owner on 2026-10-13 (plan §12.3, "The canonical form, a user-docs concept"): "canonical" is a word of both corpora, glossed once per page; `docs/numbers.md` names the canonical form (in lowest terms, every power of ten in the exponent, the denominator coprime to ten, with no factor of two or five), says why a value has exactly one, and states a line as a function of the value, its exactness and the settings; D1's draft sentence may keep "canonical", glossed; §8's row amended.
 
 #### F-440. "decimal exponent" beside "the exponent"
 

@@ -19,17 +19,24 @@ done later is `devdocs/future.md`'s alone (Q-011). Pointers into
 Values and exactness
 
 - **N1.** A value is an exact fraction times a power of ten. The
-  fraction is kept in lowest terms with no factor of ten in its
-  denominator, so a power of two in a denominator is held as a power of
-  five in the numerator (`1/6` is `5/3 × 10^-1`; `2^-30000` is
-  `5^30000 × 10^-30000`), and that form is what the significand limit, a
-  setting, measures (N21); the value's decimal exponent, the one the
-  display writes, must lie within a fixed bound of ±10^18 (N22), so a
-  value's magnitude is cheap to hold but not unbounded. Decimal literals
-  are read exactly (`1.5e-3` is `15 × 10^-4`; `0.1 + 0.2` is exactly
-  `0.3`). That the fraction and the power of ten are two types, one
-  composed of the other, is representation and stays in devdocs.
-  (Amended: F-013; "canonical" is devdocs-only, F-439.)
+  fraction is kept in its canonical form: in lowest terms, with every
+  power of ten moved into the exponent, and with its denominator
+  coprime to ten, that is, with no factor of two or five, so a power of
+  two in a denominator is held as a power of five in the numerator
+  (`1/6` is `5/3 × 10^-1`; `2^-30000` is `5^30000 × 10^-30000`). A
+  value has exactly one such form, whatever route produced it, so equal
+  values are held alike and compared part by part, and that form is
+  what the significand limit, a setting, measures (N21); the value's
+  decimal exponent, the one the display writes, must lie within a fixed
+  bound of ±10^18 (N22), so a value's magnitude is cheap to hold but
+  not unbounded. Decimal literals are read exactly (`1.5e-3` is
+  `15 × 10^-4`; `0.1 + 0.2` is exactly `0.3`). That the fraction and the
+  power of ten are two types, one composed of the other, is
+  representation and stays in devdocs, as do the formal argument for
+  the form's uniqueness and its implementation; the user page names the
+  form, glosses it, and gives the argument in plain words.
+  (Amended: F-013; F-439 as the owner amended it on 2026-10-13, plan
+  §12.3: "canonical" is a docs word too.)
   → `devdocs/numbers.md#(top)`, `#The types > Rational`, `#The types >
   Scaled`, `#Exact mode`.
 - **N2.** Every value carries an error radius bounding its distance from
@@ -416,7 +423,10 @@ and the schedule`, `#The significand limit`.
 #### 1.1.4 What stays in devdocs (representation and mechanism), by pointer
 
 - The type tower `Rational`/`Scaled`/`Radius`/`Ball`/`Fixed`/`Floating`,
-  canonical form, why one decimal exponent: `devdocs/numbers.md#The types`.
+  the canonical form's mechanism and the formal argument for its
+  uniqueness (the form itself, glossed, and the argument in plain words
+  are `docs/numbers.md#How a value is held`'s, F-439 as amended
+  2026-10-13), why one decimal exponent: `devdocs/numbers.md#The types`.
 - Henrici/Lehmer gcd, cross-cancellation, `BOUND_BAND`, `log2Bounds`:
   `#Exact operations`, `#The exponent bound`.
 - The kernel's door and exit, memoized constants, `MEMO_MARGIN`:

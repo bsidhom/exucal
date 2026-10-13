@@ -116,8 +116,12 @@ What each changes in the drafts this page is built from:
   `settings.md`, which alone gives "four times the sum of the limit
   and ten" with 4,040 beside it (F-022).
 - **The words (§8).** "The exponent", never "decimal exponent" (F-440;
-  D8 L257, L263, L265); "the fraction is kept with no factor of ten in
-  its denominator", never "canonical" (F-439); "the digits an inexact
+  D8 L257, L263, L265); the fraction's canonical form, named once and
+  glossed in plain words (in lowest terms, with every power of ten in
+  the exponent and the denominator coprime to ten, that is, with no
+  factor of two or five), with why a value has exactly one and what
+  follows (F-439 as the owner amended it on 2026-10-13, plan §12.3);
+  "the digits an inexact
   value is kept to", never "working precision" for the grid (F-431);
   "absorbed into the error radius" (F-437); "the correctly rounded sum",
   never "the neighbor rule" (F-436); "the most the significand limit
@@ -170,10 +174,16 @@ state.
   takes the dyadic cost and the remedies, and the entry keeps one
   sentence and a link (F-018, F-049; the session of `settings.md`
   reconciles the same two drafts from its side).
-- Facts: §1 N1 and N21 as amended. The fraction kept in lowest terms
-  with no factor of ten in its denominator, so `2^-30000` is held as
-  `5^30000 × 10^-30000` and costs about 69,658 bits (F-013, F-012,
-  Q-091); D8 L176's "kept in lowest terms as `127/50`" is settled
+- Facts: §1 N1 and N21 as amended. The fraction kept in its canonical
+  form, in lowest terms with every power of ten in the exponent and the
+  denominator coprime to ten (no factor of two or five), the form named
+  once and glossed, why a value has exactly one stated in plain words
+  (the lowest-terms fraction is unique; the rule allows one denominator;
+  the exponent is then forced, and the numerator with it) with what
+  follows (equal values held alike and compared part by part; the same
+  cost by every route), so `2^-30000` is held as `5^30000 × 10^-30000`
+  and costs about 69,658 bits (F-013, F-012, Q-091; F-439 as amended
+  2026-10-13); D8 L176's "kept in lowest terms as `127/50`" is settled
   against A1's computed form of `2.54` (A1 L228-234) before it lands.
   The exponent and its bound. The digits an inexact value is kept to,
   "a little beyond the precision the pass works at", the grid named
@@ -361,7 +371,11 @@ state.
   code's screen today forms no fraction for some dyadic values the rule
   admits (`2^-41` to `2^-63` at the default width; F-061, B-004): the
   section states the rule and uses no example from that range until
-  B-004 lands.
+  B-004 lands. One paragraph states that a line is a function of the
+  value, its exactness and the settings, never of the route a
+  computation took, the ratio notation's scaled form being the value's
+  canonical parts (F-439 as the owner amended it on 2026-10-13, plan
+  §12.3).
 
 ### What costs time
 
@@ -393,7 +407,7 @@ anything it cannot settle.
 | F-010 | Exact and inexact values | Two sources of a nonzero radius in either mode (N3); "inexact" throughout |
 | F-011 | Exact and inexact values | D8's draft, retitled |
 | F-012 | How a value is held | "about 69,658 bits" |
-| F-013 | How a value is held | No factor of ten in the denominator; settle D8 L176 against A1's form of `2.54`; "canonical" not used |
+| F-013 | How a value is held | The canonical form, named once and glossed: lowest terms, every power of ten in the exponent, the denominator coprime to ten (no factor of two or five); why a value has exactly one; settle D8 L176 against A1's form of `2.54` (F-439 as amended 2026-10-13) |
 | F-014 | How a value is held | Dissolve the settings section per D8's table; carry A1's corrections, not its pairs |
 | F-015 | How a value is held | "the digits an inexact value is kept to" |
 | F-016 | How a value is held | D8's wording; the grid named once |
@@ -556,8 +570,10 @@ the code has it (Q-007).
   low-confidence ones after reading only the code named.
 - No "approximate" for a value, no "refused" for anything but a size
   refusal, no issue number, no timing, no "decimal exponent", no
-  "canonical", no "finest grid", no "working precision", no "sheet", no
-  `docs/functions.md`.
+  "finest grid", no "working precision", no "sheet", no
+  `docs/functions.md`; "canonical" named and glossed once, in "How a
+  value is held", with why a value has exactly one form (F-439 as
+  amended 2026-10-13).
 - Every link is a repo-relative path to an existing page or to a §7
   anchor of a page written later; none to a heading §7 does not name.
 - The pull request names the drafts picked (section 8) and any

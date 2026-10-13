@@ -64,8 +64,8 @@ Q14, N10. *Modules:* `outcome.ts`. *Owner:* `quantities.md`.
 **C5. Typeable-back lines and copy text.** Every line parses back as a
 have; the copy button writes `*` where the screen shows `×`. *Class:*
 user. *Terms:* "copy", "pastes back" (docs; "parses back" in devdocs,
-F-457) ↔ "the printer", "canonical text" (devdocs-only, spelled out
-once, F-439), `print`, `text`. *docs/:* `docs/README.md#(top)`. *devdocs/:*
+F-457) ↔ "the printer" (devdocs), "canonical text" (both corpora,
+glossed once per page, F-439 as amended 2026-10-13), `print`, `text`. *docs/:* `docs/README.md#(top)`. *devdocs/:*
 `architecture.md#Expressions` (printer), `#The converter and its lines`; `notation.md#Every literal parses back`. *Depends on:* N12,
 Q18. *Modules:* `print.ts`, `copy-button.ts`, `outcome.ts`. *Owner:*
 `numbers.md` for the principle (every result is input the calculator

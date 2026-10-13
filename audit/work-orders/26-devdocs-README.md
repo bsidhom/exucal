@@ -5,7 +5,8 @@ The session that rewrites this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `V8 (L172-203)` is `audit/reports/V8/fable.md`, lines 172 to 203. `§7.1`
@@ -51,9 +52,9 @@ explains nothing itself.
   says "build ID" (Q-022).
 - **Future work (Q-011; F-350).** The `future.md` line describes the
   page as rewritten: the extensions that fit and the two that would
-  reshape the number type, without "and what is ruled out" (V8 L189)
-  unless the owner's answer to item 13 of the Q-011 list kept a
-  ruled-out section there, which the session checks on the page.
+  reshape the number type, without "and what is ruled out" (V8 L189):
+  item 13 of the owner's list, answered, left `future.md` no ruled-out
+  section.
 - **The security line (F-182).** "the supply chain, the toolchain,
   secrets, the rules for code that runs commands, and the page" (V8
   L200).

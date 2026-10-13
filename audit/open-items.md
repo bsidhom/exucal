@@ -285,7 +285,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V4: the title "Defined functions", the file name `functions.md` unchanged for the links; `devdocs/README.md:23` and `devdocs/architecture.md:42`, which describe the page as "user-defined functions", reworded by V8 and V2.
 - Settled by: —
 - Blocks: `devdocs/functions.md#(top)`; the index lines of `devdocs/README.md` and `devdocs/architecture.md`.
-- Decision: ok. Separately, rename the user page `docs/functions.md` to `docs/builtins.md`, titled "Built-in functions", so that it matches `devdocs/builtins.md`. §7's outline follows, and so does every link to the old name: the root `README.md`, `docs/README.md`, the link in `devdocs/builtins.md`, and two comments in `src/units.txt`. After that, "functions.md" names only `devdocs/functions.md`, "Defined functions". [plan §12.1] The note is a rule: docs/functions.md is renamed docs/builtins.md (plan §12.1, principles.md).
+- Decision: ok. Separately, rename the user page `docs/functions.md` to `docs/builtins.md`, titled "Built-in functions", so that it matches `devdocs/builtins.md`. §7's outline follows, and so does every link to the old name: the root `README.md`, `docs/README.md`, the link in `devdocs/builtins.md`, and two comments in `src/units.txt`. After that, "functions.md" names only `devdocs/functions.md`, "Defined functions". [plan §12.1] The note is a rule: docs/functions.md is renamed docs/builtins.md (plan §12.1, principles.md). The pull request that renames the page (work order 07) repoints every link to the old name, so that none dangles.
 
 ### Q-021. The heading "A function as the want"
 
@@ -373,7 +373,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V8: yes, one sentence under "Working offline", as V8's draft of `app.md` has it (V8 (F-180)). D9's own draft of `app.md` (D9 (F-180)) has no such sentence; the two drafts of the page overlap.
 - Settled by: —
 - Blocks: `docs/app.md#Offline use`.
-- Decision: ok [plan §12.1]
+- Decision: ok [plan §12.1] Settled further on 2026-10-13 (plan §12.3, R-1 and R-2): the sentence links `devdocs/security.md#The page`, which may link back, and says, after V8's "Nothing you type leaves the device", that the app calls no third-party service, contacts only the host it was loaded from, and only for its own static files (to load them, and to check for and fetch a new version), and sends that host no local data.
 
 ### Q-029. A home for the linking and Markdown principles
 
@@ -428,7 +428,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D3: `units.md` cites what the file cites, as in D3's skeleton, and the file's header gains the three names beside its rule on comments (a code-comment change); the years get a source and an epoch in the comment, and `units.md` names them as measured values written exactly. A9: the comment says "(exact by convention)", a code change for D3's catalogue; D3 agrees that `gravity` is exact by convention (D3 report L91) but does not take up the comment.
 - Settled by: —
 - Blocks: `docs/units.md#Which factors are exact` (the sources).
-- Decision: ok [plan §12.1]
+- Decision: ok [plan §12.1] The page names the three documents when it is written, and the header gains them in the comment pass after the pages (B-065, Q-059), so that the two agree once it lands.
 
 ### Q-034. "`W` is the watt": the Lambert W connection
 
@@ -560,7 +560,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A8: state it now; the retry is a small change that could ride the work on #92, which reshapes what the loop retries.
 - Settled by: —
 - Blocks: nothing (the page states today's behaviour).
-- Decision: ok [plan §12.1] Confirmed on 2026-10-12 (plan §12.2, item 14): no `future.md` entry; the retry is issue #198, which `devdocs/architecture.md#Unit lists` links once beside the gap it states (Q-012's rule for a bug, B-010) and the user docs do not name.
+- Decision: ok [plan §12.1] Confirmed on 2026-10-12 (plan §12.2, item 14): no `future.md` entry; the retry is issue #198, which `devdocs/architecture.md#Unit lists` links once beside the gap it states (Q-012's rule for a bug, B-010) and the user docs do not name. The link is kept (plan §12.3, R-3).
 
 ### Q-046. The reciprocal line in decimal mode with extended working digits
 
@@ -571,7 +571,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A4: keep and document, as A4's `#The working digits` edit does (V1 the same, V1 (F-043)), and record the alternative on #92, which owns what the reciprocal lacks from the pipeline.
 - Settled by: —
 - Blocks: nothing (documented as today's behaviour).
-- Decision: ok [plan §12.1]
+- Decision: ok [plan §12.1] The alternative is recorded on #92 in a comment, the owner's housekeeping (work order 00, section 6).
 
 ### Q-047. The schedule's cost bound: reword, or change `workingContexts`
 
@@ -582,7 +582,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A3: the wording now (V1's edit does it, V1 (F-064)); the code change, if wanted, as its own change after the revamp.
 - Settled by: —
 - Blocks: nothing.
-- Decision: ok [plan §12.1] Confirmed on 2026-10-12 (plan §12.2, item 14): no `future.md` entry; the schedule change is issue #199, which `devdocs/numbers.md#Working precision and the schedule` links once beside the edge it states (Q-012's rule, B-011).
+- Decision: ok [plan §12.1] Confirmed on 2026-10-12 (plan §12.2, item 14): no `future.md` entry; the schedule change is issue #199, which `devdocs/numbers.md#Working precision and the schedule` links once beside the edge it states (Q-012's rule, B-011). The link is kept (plan §12.3, R-3).
 
 ### Q-048. `log`'s exact cases for a rational exponent
 
@@ -593,7 +593,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A4: document the fallback as reachable now (V1 does, V1 (F-042)) and leave the exact case to D5's review of the logarithm family; the decision on #173 (decide a tie as exact instead of flagging it) would make these lines `=` as well. D5 confirms the exact cases as they are (D5 report) and does not weigh the rational case.
 - Settled by: —
 - Blocks: nothing (the pages state today's behaviour).
-- Decision: ok [plan §12.1] Confirmed on 2026-10-12 (plan §12.2, item 14): no `future.md` entry; the exact cases for a rational exponent are issue #200, linked once from the logarithm row of `devdocs/builtins.md#Domains, exact cases and edges` (Q-012's rule, B-007); the pages state the fallback as reachable.
+- Decision: ok [plan §12.1] Confirmed on 2026-10-12 (plan §12.2, item 14): no `future.md` entry; the exact cases for a rational exponent are issue #200, linked once from the logarithm row of `devdocs/builtins.md#Domains, exact cases and edges` (Q-012's rule, B-007); the pages state the fallback as reachable. The link is kept (plan §12.3, R-3).
 
 ### Q-049. A stored ratio width out of range resets the whole mode
 
@@ -1303,7 +1303,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: A6: V6 adds the entry under "Extensions that fit", with the constraint that a design must say what an undecidable comparison of inexact values yields, and V4 links to it. V4's edit links it (V4 (F-030)); V6's rewrite of `#Extensions that fit` (V6 L181-191) records no §1.3 intent, this one included. Owner page: `devdocs/future.md#Extensions that fit`, where §1.3 has the units record its intents.
 - Settled by: F-345, F-030
 - Blocks: nothing (V4's link points at a missing entry until it exists).
-- Decision: ok [plan §12.1, section 8 of the sheet]
+- Decision: ok [plan §12.1, section 8 of the sheet] `!=` in conditions belongs to the same entry (plan §12.3, R-5).
 
 ### Q-113. Defined functions before built-ins: a precedence or a prohibition
 

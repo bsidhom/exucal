@@ -5,7 +5,8 @@ The session that writes this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D9 (L84-95)` is `audit/reports/D9/fable.md`, lines 84 to 95. `§7` is
@@ -14,7 +15,9 @@ bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 ## 1. The page and its place in the order
 
 - **Page.** `docs/getting-started.md`, titled "Getting started": a
-  task-oriented tour that defines nothing and links everything (§7).
+  task-oriented tour that links everything and defines one word,
+  "certified", by example, since the index uses it first (§7; Q-064,
+  A; F-428).
 - **Order.** Last of the user pages (Q-008; plan §10): every page it
   links exists, and the index already lists it by name. It links no
   page written after it; the devdocs do not link it.
@@ -32,8 +35,11 @@ The reader has read nothing but the index. The page teaches by doing:
 each section is a thing to type, what the app answers, and one or two
 sentences on what the answer means, with a link to the page that owns
 the concept. It introduces have and want, the names of the two fields,
-and uses them from then on (F-471). It defines no term: "certified",
-"inexact", "kind", "conform" each get a link, not a definition. It
+and uses them from then on (F-471). It defines one term, "certified",
+by example in "Reading `=`, `≈` and a note" (the index says the app
+"certifies every digit it shows otherwise", Q-064, A; F-428), with a
+link to `numbers.md#digits-you-can-trust` for the rule; "inexact",
+"kind", "conform" each get a link, not a definition. It
 opens with the calculator and adds conversions after it, since the
 calculator is the app's focus (§12 questions 2 and 21); GNU units is
 named only where a similarity in conversion semantics or definitions
@@ -74,7 +80,9 @@ re-run by the session at the defaults before they are written.
   labels).
 - **Reading `=`, `≈` and a note.** `1/3 ≈ 0.33333333` (exact, shown with
   fewer digits than it has), `sqrt(2)^2 - 2 ≈ 0 (within … of zero)`, a
-  partial note in the "certified" wording; links
+  partial note in the "certified" wording, which defines the word by
+  example, in agreement with `numbers.md#digits-you-can-trust`, which
+  states the rule (F-428); links
   `numbers.md#exact-and-inexact-values` and `#digits-you-can-trust`.
 - **Your first conversion.** `3 ft` into `in`: `3 ft = 36 in` and the
   reciprocal line; the copy button (one line: what it copies pastes
@@ -93,7 +101,10 @@ re-run by the session at the defaults before they are written.
 - **When something fails.** A mismatch (`1 m + 1 s`), a size refusal
   (`1e999999999 + 1`, refused with the bits needed), an edge
   (`1 / (sqrt(2)^2 - 2)`, which cannot be told from zero), two or three
-  messages quoted as examples (F-008, Q-007); links
+  messages quoted as examples (F-008, Q-007), the edge's described
+  rather than quoted, since B-021 rewords it after the pages (or quoted
+  only up to "cannot be told from zero", the part that does not
+  change); links
   `quantities.md#conformance`, `numbers.md#values-too-big-to-hold`,
   `#values-at-an-edge`.
 - **Where to go next.** The app guide for installing and offline use
@@ -136,14 +147,17 @@ messages it quotes.
 
 - **Before the page:** batch 1 (B-068: the notes quoted say "certified").
 - **Complicates, no wait:** B-022 (the hint not quoted), B-020 (the
-  size refusal quoted is one with a count).
+  size refusal quoted is one with a count), B-021 (the edge message
+  reworded after the pages: not quoted past "cannot be told from
+  zero").
 
 ## 10. Done when
 
 - The nine sections exist under their headings, each a worked example
   with its output re-run at the defaults and a link to the owning page.
-- No definition, no "approximate" for a value, no "refused" for a
-  mismatch or an edge, no issue number, no timing, no "sheet".
+- No definition but "certified", given by example; no "approximate"
+  for a value, no "refused" for a mismatch or an edge, no issue number,
+  no timing, no "sheet".
 - Every link resolves; the page ends with `app.md`.
 - The pull request names the messages quoted and any question for the
   owner, and changes nothing outside this file.

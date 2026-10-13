@@ -5,7 +5,8 @@ The session that writes this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D7 (L133-153)` is `audit/reports/D7/fable.md`, lines 133 to 153. `§7`
@@ -17,11 +18,17 @@ is `audit/plan/07-docs-outline.md`, `§4` is
 
 - **Page.** `docs/builtins.md`, titled "Built-in functions", renamed
   from `docs/functions.md` (Q-020's note, a rule): the session moves the
-  file (`git mv`), and every link to the old name in the pages written
-  before this one already targets the new name; the root `README.md`
-  and `docs/README.md` are work order 09's, the link in
-  `devdocs/builtins.md` work order 15's, and the two comments in
-  `src/units.txt` the code track's. The page keeps today's prose list of
+  file (`git mv`). Every link to the old name in the pages written
+  before this one already targets the new name, and this pull request
+  repoints every other link to the old name, so that none dangles
+  (Q-008): the root `README.md` and `docs/README.md` (rewritten later
+  by work order 09), the link in `devdocs/builtins.md` (rewritten later
+  by work order 15), the two comments in `src/units.txt` that link the
+  page, and any other link a search of the tree for `functions.md`
+  finds outside `devdocs/functions.md`'s own name; each change is the
+  link's target alone, and a link to the deleted `#Very large results
+  and approx` goes to the `numbers.md` section that took it. The page
+  keeps today's prose list of
   the built-ins, corrected and restructured under §7's sections; the
   per-function reference generated from structured comments beside
   each implementation is later work (§4) and no per-function entry is
@@ -190,14 +197,17 @@ sections in order; the preamble maps onto the first section.
   `incbeta.ts:447-452` bounds it, which the session settles (F-164);
   the end points are the generated reference's (F-165).
 - **Functions defined in the file.** `tempC`, `tempF`, `neper`, `bel`,
-  `decibel`: a cross-reference to `units.md#temperature-differences-and-readings`
-  and `#logarithmic-levels`, and to `definitions.md#functions`.
+  `decibel`: a cross-reference to
+  `units.md#temperature-differences-and-readings` and
+  `#logarithmic-levels`, and to `definitions.md#functions`.
 - **Not provided, and what to write instead.** A plain fact: the
   functions the app lacks (`zeta`, `lambertw`, `ellipk`, `ellipe`,
   `legendre`, `chebyshev`, the Bessel functions, polygamma beyond
   `digamma`, complex `gamma`, the statistical distributions) and what
-  to write instead where a definition can stand in; nothing of what may
-  come (Q-010, Q-011, F-348's docs clause).
+  to write instead with the functions provided, where an expression can
+  stand in (a user cannot add a definition today: only the predefined
+  definitions file loads, Q-011); nothing of what may come (Q-010,
+  Q-011, F-348's docs clause).
 
 Tiny and huge arguments where visible (F-166) are the generated
 reference's; today's bullets keep what they say.
@@ -260,9 +270,10 @@ more.
 
 ## 8. Conflicts left to settle
 
-None of the owner's list touches this page (conflict 1 does not: the
-page links no later page). The session records in its pull request which
-calls pay the Bernoulli run as it found them, whether it kept D7's
+Of the owner's list, conflict 1 touches this page as the later page: the
+pages written before it link its §7 headings, which it keeps (section
+4); it links no later page. The session records in its pull request
+which calls pay the Bernoulli run as it found them, whether it kept D7's
 example swap, and the cap's quantity.
 
 ## 9. Code changes it waits on
@@ -273,9 +284,9 @@ example swap, and the cap's quantity.
   refusal is described, not quoted), B-007 (`log`'s exact cases as
   today's behaviour), B-068 (any note quoted says "certified"; batch 1
   has landed).
-- **After the page:** the two comments in `src/units.txt` that link
-  `docs/functions.md` (code track, batch 3, landed with or right after
-  this page).
+- **With the page:** the two comments in `src/units.txt` that link
+  `docs/functions.md` are repointed by this pull request (section 1),
+  not by the code track.
 
 ## 10. Done when
 
@@ -286,6 +297,8 @@ example swap, and the cap's quantity.
 - No "refused" for a domain error, no "known to a precision", no
   "kernel", no issue number, no timing, nothing of the generated
   reference or of functions to come, no "units" for a dimension.
-- Every link is a repo-relative path to an existing page.
+- Every link is a repo-relative path to an existing page, and no link
+  anywhere in the tree targets `docs/functions.md`.
 - The pull request names the choices made and any question for the
-  owner, and changes nothing outside this file.
+  owner, and changes nothing outside this file but the links to the
+  old name (section 1).

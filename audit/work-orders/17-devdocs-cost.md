@@ -5,7 +5,8 @@ The session that rewrites this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `V6 (L146-159)` is `audit/reports/V6/fable.md`, lines 146 to 159. `§7.1`
@@ -93,8 +94,9 @@ order the tables bear out, and the issues, one link each.
   are the model's and stay (F-351); the term-count formulas and the
   surcharge ratios stay (F-356).
 - **Refusal only for a size refusal (F-442).** V6's uses are size
-  refusals and stay: "a refusal the loop does not retry" (V6 L136),
-  "the significand limit's refusals" (V6 L165).
+  refusals and stay: the refusal that ends the loop (V6 L136, without
+  "the loop does not retry", since the loop retries no refusal,
+  Q-001), "the significand limit's refusals" (V6 L165).
 - **The words (§8).** "The hard bound", glossed once at its first use
   (V6 L136, L155, L168, L177; F-441); the stress vocabulary (case,
   profile, floor, deadline, hang, warm and cold, lane) glossed once
@@ -119,7 +121,7 @@ order the tables bear out, and the issues, one link each.
   defaults, eight at thirty-two display digits, eleven at the highest
   precision limit under the default significand limit, fifteen at the
   hard bound), and a count short of the schedule marks a pass that
-  ended the loop with a refusal the loop does not retry, after which
+  ended the loop with a refusal (the loop retries none), after which
   the best result so far is shown (F-351, Q-001); the deadline is the
   search's constant, `DEADLINE_MS` of `bench/stress/catalogue.ts`,
   which the harness enforces (F-361); the floor and the deadline are
@@ -198,9 +200,11 @@ states no count meanwhile.
 
 ## 8. Conflicts left to settle
 
-None of the owner's list touches this page's text; conflict 4 (a
-figure kept only as rough and illustrative) is the session's choice
-passage by passage under section 3. The session records in its pull
+Of the owner's list: item 14 (#201, the generated summary line, which
+this page does not link; R-3 of the review left #201 and #202 unlinked,
+plan §12.3) and conflict 4 (a figure kept only as rough and
+illustrative), the session's choice passage by passage under section
+3. The session records in its pull
 request the figures kept and the links placed.
 
 ## 9. Code changes it waits on

@@ -5,16 +5,20 @@
 Pages, each with title, role and a one-line scope, then the
 concept-level sections. File names are proposals. The headings below
 are the anchors other pages link to: the pages are written in
-topological order (§12, question 8 of section 12.1), and a page written
-earlier links a later page at these headings, so a session renames one
-only by updating every link to it. Amended on 2026-10-12 from the
-owner's answers (section 12.1 of §12); each change names its answer.
+topological order (Q-008, recorded in §12, section 12.1), and a page
+written earlier links a later page at these headings, which the later
+page keeps (conflict 1 of the owner's list, §12 section 12.2). Amended
+on 2026-10-12 from the owner's answers (§12, sections 12.1 and 12.2)
+and on 2026-10-13 from the answers to the review of the apply step
+(section 12.3); each change names its answer.
 
 **`docs/README.md` — index (guide).** What the app is in two sentences;
 the page list below with one line each; where the developer docs are.
 
 **`docs/getting-started.md` — Getting started (guide).** A task-oriented
-tour that defines nothing and links everything; it opens with the
+tour that links everything and defines one word, "certified", by
+example in "Reading `=`, `≈` and a note", the word the index uses
+before it (Q-064, A; F-428); it opens with the
 calculator and adds conversions after it, since the calculator is the
 app's focus (§12, questions 2 and 21). GNU units is named only where a
 similarity in conversion semantics or definitions helps.
@@ -178,7 +182,8 @@ links to (§12, questions 5 and 16).
 - Significand limit (one sentence and a link, Q-108)
 - Probe budget and "Measure this device" (the four elementary
   functions, F-491; as a procedure, F-129)
-- How the settings bound each other (the chain; refusals; clamps)
+- How the settings bound each other (the chain; the edits the panel
+  does not accept and the values held to their range, conflict 8)
 - Defaults and resets; storage (one sentence)
 
 **`docs/builtins.md` — Built-in functions (reference).** Renamed from
@@ -209,9 +214,11 @@ until the generator exists, today's prose list, corrected.
 - Installing
 - Offline use (the service worker named once as what lets the app be
   served offline, F-493; the loading and failure messages, F-169; the
-  privacy sentence, Q-028)
+  privacy sentence, Q-028, linking `devdocs/security.md#The page`, R-1
+  and R-2)
 - Updates and the build ID (Q-022; every footer word quoted, Q-007;
-  "a new version" and "update", F-494)
+  "a new version" and "update", F-494, the heading keeping the noun,
+  R-8)
 - The settings panel (F-488; the mechanics and the reset links, F-176)
 - Copying a result (pastes back, F-457; the button's feedback, F-178)
 - The two fields (the labels named beside have and want, F-471; the
@@ -243,5 +250,5 @@ the units in §10.c reshape them to this map.
 | Settings | `settings.md` | `devdocs/settings.md` |
 | Built-in functions | `builtins.md` | `devdocs/builtins.md` |
 | The app's surface | `app.md` (F-513) | `devdocs/architecture.md#UI`; `devdocs/offline.md` |
-| What is ruled out by intent | one sentence where a user would look for it ("real values only"; the error radius is never shown) | the page that owns the concept, with the reason; each page's "Not in this design" (Q-011) |
+| What is ruled out by intent | one sentence where a user would look for it (a temperature reading is a function, not a unit with an offset; "real values only" is not one: it is a plain fact about today, complex numbers being future work, R-7) | the page that owns the concept, with the reason; each page's "Not in this design" (Q-011) |
 | What might still be done | nothing: the user docs never mention future work (Q-011) | `devdocs/future.md`, the one place, with the issue links |

@@ -44,7 +44,9 @@ owner's decisions are recorded.
 The runs are done and consolidated: `findings.md` (every finding, by
 the page that owns it), `open-items.md` (every question) and `bugs.md`
 (every code defect), each item carrying the owner's decision from
-`decisions.md`, recorded in section 12.1 of the plan's §12. The rules
+`decisions.md`, recorded in sections 12.1 to 12.3 of the plan's §12 (the
+answers to the audit, to the apply step's list, and to the review of
+the apply step). The rules
 those decisions set for every page are in `principles.md`. The rewrite
 runs by the work orders under [work-orders/](work-orders/README.md):
 one per page, numbered in topological order, each standing on its own,

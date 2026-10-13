@@ -5,7 +5,8 @@ The session that writes these two files reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`; each is
 read at its id. A report pointer such as `D9 (L101-139)` is
 `audit/reports/D9/fable.md`, lines 101 to 139. `§7` is

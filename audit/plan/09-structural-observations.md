@@ -14,8 +14,8 @@ rows and bullets below carry the owner's answers where they change one.
   relaxes" examples and the log-space advice; the docs version adds an
   ASCII diagram and the issue (#40). Owner should be `numbers.md`
   (docs) for the rule and `devdocs/numbers.md` for the six-pass table of
-  digits, the scratch build's timings leaving or staying only as rough,
-  illustrative figures that add weight (Q-016, Q-017, F-510).
+  digits, the scratch build's per-size milliseconds going (Q-017, which
+  governs that section over Q-016's rule; F-510).
 - **The representation.** `docs/settings.md#How a number is held…`
   restates `devdocs/numbers.md#The types` (fraction, power of ten, radius,
   grid), `devdocs/settings.md#The model > The terms` and `> The two limits

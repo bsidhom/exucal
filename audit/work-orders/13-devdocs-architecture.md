@@ -5,7 +5,8 @@ The session that rewrites this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `V2 (L150-174)` is `audit/reports/V2/fable.md`, lines 150 to 174 (D1's
@@ -70,8 +71,10 @@ present tense.
   pointer to `devdocs/numbers.md#Roots and powers` (Q-102; the
   definition at page L1119 deleted; D1 L644, V2 L204). #92 is linked
   here once, at "The reciprocal", the one owning place (Q-103, F-412;
-  B-009's two gaps stated); the retry of a typed list's unit is
-  recorded on #92, not promised on the page (Q-045, F-246). `#Not in
+  B-009's two gaps stated); the retry of a typed list's unit is issue
+  #198, linked once at `#Unit lists` beside the gap it states and not
+  promised as something to come (Q-045, F-246; the owner's list, item
+  14; R-3 of the review, plan §12.3). `#Not in
   this design` keeps the designs ruled out by intent; anything in it
   that might still be done is `future.md`'s, which the session names in
   its pull request if it finds one.
@@ -80,7 +83,14 @@ present tense.
   F-246); the ratio "refused" at the exponent bound or the significand
   limit keeps the word (A8 L67; F-070); the lookup's "refusal" (A9
   L227-231) is a size refusal and keeps it; "rejection" stays for the
-  parser's (D1 L612, L620; D2 L387-389).
+  parser's text rejected for its form and for the definitions-line
+  faults (D1 L612, L620; D2 L387-389). A literal past the hard bound or
+  the exponent bound is a size refusal, past the exponent bound the
+  bound's `overflow`, as a computed value past it is (R-4 of the
+  review, plan §12.3): `#Parsing` names the code's `Rejection` as it is
+  and says the user meets such a literal as a size refusal, and the
+  session reads `src/core/expr.ts` and `src/messages.ts`
+  (`describeRejection`) to state how it is reported.
 - **The definitions file (F-475).** V2 L154 and L156 and A9 L219 say
   "the system file" and "system units": "the definitions file",
   "the file's units"; "how to add to it" names `development.md#Adding a
@@ -139,9 +149,9 @@ present tense.
 - **Unit lists.** V2 L212-222 with A8 L69-73 merged (F-247): the
   accepted gap stated as today's behaviour, "fails as not positive"
   (F-246, Q-045), with its issue, #198, linked once beside it (B-010;
-  Q-012's rule for a bug in today's behaviour); the remainder rounded at the digits certified, not
-  "the midpoint to the display precision" (F-072); the mode named by
-  its want (F-468).
+  Q-012's rule for a bug in today's behaviour); the remainder rounded at
+  the digits certified, not "the midpoint to the display precision"
+  (F-072); the mode named by its want (F-468).
 - **Functions.** V2 L224-236: "conversion into a function" (F-468) with
   the link to `docs/quantities.md#conversion-into-a-function` (V2
   L226-228); a built-in's bare name as the want is `functionAsUnit` (V2
@@ -196,8 +206,10 @@ present tense.
   parse "quick enough that a worker would cost more than it saves", the
   milliseconds gone or rough (F-250); the settings sentence with "the
   panel" and the link to `docs/app.md` (F-488); the failure state with
-  the Retry button as mechanism (D9 L269-271; F-169); "checks for an
-  update when its build ID is tapped", with `offline.md` and
+  the Retry button as mechanism (D9 L269-271; F-169); "checks for a
+  new version when its build ID is tapped" (D9's "checks for an
+  update" reworded: in prose "update" is a verb, F-494), with
+  `offline.md` and
   `docs/app.md#updates-and-the-build-id` (D9 L273-275; F-251); one
   link to `docs/app.md` per §12 question 24, the session choosing its
   place among `#UI`, `#The shell and its parts` and `#Not in this
@@ -299,11 +311,15 @@ list, item 14): no `future.md` entry; the retry is issue #198, which
 
 ## 8. Conflicts left to settle
 
-None of the owner's list touches this page. The session records in its
-pull request: the place of the one link to `docs/app.md`; whether the
-shell section keeps the ceiling table's design; the drafts picked in
-section 7; the figures kept as rough; any `#Not in this design` bullet
-that reads as still possible.
+Of the owner's list: item 14 (#198, linked once at `#Unit lists`; kept
+by R-3 of the review) and conflict 3 ("the definitions table" in
+`#Definitions`, `buildSystemTable` and `src/system-table.ts` quoted as
+they are). Of the review's answers (plan §12.3): R-3, R-4 (`#Parsing`,
+section 3) and R-8 ("checks for a new version", section 4). The session
+records in its pull request: the place of the one link to `docs/app.md`;
+whether the shell section keeps the ceiling table's design; the drafts
+picked in section 7; the figures kept as rough; any `#Not in this
+design` bullet that reads as still possible.
 
 ## 9. Code changes it waits on
 
@@ -312,16 +328,16 @@ that reads as still possible.
   settles under F-249), B-035, B-036, B-037 (comments; the comment
   pass, Q-059), B-067 (the TODO; a later pass).
 - **Documented as today's behaviour, no wait:** B-009 (#92), B-010
-  (the typed list's unit).
+  (the typed list's unit; #198).
 
 ## 10. Done when
 
 - Every section opens with its link to the owning user page and keeps
   mechanism, decisions and ruled-out alternatives only, in the present
   tense; the diagram is corrected.
-- No "the system file", no "user definitions" as a present fact, no
-  #88 or #132 link, #92 once; no "sheet", no "build number", no ordinal
-  output mode, no "dimensionless marker"; "the outcome" for
+- No "the system file", no "user definitions" as a present fact, no #88
+  or #132 link, #92 once, #198 once; no "sheet", no "build number", no
+  ordinal output mode, no "dimensionless marker"; "the outcome" for
   `src/outcome.ts`.
 - Every figure left is a count or a rough, illustrative timing marked as
   such.

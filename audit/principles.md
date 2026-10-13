@@ -62,7 +62,8 @@ each page, the reference-style issue links first.
 ## Rules from the owner's decisions that bind every page
 
 Set by the owner's answers to the audit (`audit/decisions.md`, recorded
-in `audit/plan/12-open-questions.md`, section 12.1), on 2026-10-12.
+in `audit/plan/12-open-questions.md`, sections 12.1 to 12.3), on
+2026-10-12 and 2026-10-13.
 Each binds every page of both corpora from now on, whatever an earlier
 plan passage, finding or draft says; each page's work order applies
 them to its drafts. The owner's own words are in the record under the
@@ -81,7 +82,9 @@ may state what the app lacks today as a plain fact, with what to write
 instead, but never as something to come. Bugs and performance problems
 in today's behaviour are not future work: their issue links stay with
 the passage that owns the concept (Q-012: the cost and hang issues in
-`devdocs/cost.md`, the Bernoulli memo's in `devdocs/builtins.md`). So
+`devdocs/cost.md`, the Bernoulli memo's in `devdocs/builtins.md`; #198,
+#199 and #200, opened for three gaps the devdocs state as today's
+behaviour, each beside its gap, plan §12.3, R-3). So
 #130 to #134, #118 with #119 to #121, #98 and #100 are linked from
 `future.md` only. Where it was unclear whether an item is ruled out or
 might still be done, the owner was asked (the list at the end of
@@ -89,7 +92,13 @@ might still be done, the owner was asked (the list at the end of
 #173, #178, #167 and #186 are future work, linked from `future.md`
 only; #115, #172, #110, #112, #114 and #179 stay with the passages
 that own them; the ruled-out bullets of `future.md` move to the pages
-that own their concepts. Nothing is pending.
+that own their concepts. The answers to the review of the apply step
+(plan §12.3) add two: `!=` in conditions is future work with the
+equality operators (R-5), and "real values only" is a plain fact about
+today, complex numbers being future work (R-7). One question is open
+(plan §12.3, R-7): whether the error radius's display, too, might
+change; until the owner answers, it stays ruled out by intent, as item
+13 classified it.
 
 **Inexact, not approximate (F-451).** "Inexact" names a value with a
 nonzero radius, everywhere, headings included ("Exact and inexact
@@ -126,12 +135,15 @@ passage.
 
 **Refusal (F-442).** In both corpora "refusal" and "refuse" name only a
 size refusal: the significand limit's or the exponent bound's, a value
-the limits keep from being computed. In the docs everything else is
-"an error", and text the grammar does not read is "an error as it is
-typed". The devdocs keep "rejection" and "rejected" as the distinct
-notion for text the parser recognized and refused (a literal past the
-hard bound or the exponent bound, a definitions-line fault) and never
-say "refuse" for a domain error, an edge or a mismatch. The settings
+the limits keep from being computed or a literal past a size limit. A
+literal past the hard bound or the exponent bound is a size refusal as
+it is typed, in both corpora; past the exponent bound it is the same
+refusal, `overflow`, as a computed value past it (plan §12.3, R-4). In
+the docs everything else is "an error", and text the grammar does not
+read is "an error as it is typed". The devdocs keep "rejection" and
+"rejected" as the distinct notion for text rejected for its form and
+for the definitions-line faults, name the code's `Rejection` as it is,
+and never say "refuse" for a domain error, an edge or a mismatch. The settings
 panel's lines that decline an edit are not refusals either: the docs
 say the panel "does not accept" an edit, or that a value is "held to"
 its range, and the devdocs keep "refusal" there only as the code's
@@ -157,4 +169,6 @@ follows, and "functions.md" then names only `devdocs/functions.md`,
 Two further answers reach every page and are recorded in plan §8: the
 synonyms "dimensionless" and "plain number", with "kind" wherever
 semantics attach (Q-019); and "build ID", "the service worker", "a new
-version" and "update" as the app's words (Q-022, F-493, F-494).
+version" and "update" as the app's words (Q-022, F-493, F-494), where
+"update" is a verb in prose and headings and labels keep the noun
+("Updates and the build ID", "Update checks"; plan §12.3, R-8).

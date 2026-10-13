@@ -103,9 +103,10 @@ reference but the function reference should cross-link them): `tempC`,
 `docs/definitions.md#What the file contains`. Designed and deferred
 (#115): `zeta`, `lambertw`, `ellipk`, `ellipe`, `legendre`, `chebyshev`,
 Bessel `J` and `I` → `devdocs/builtins.md#The Gamma and Beta families` (last
-paragraph) today; where #115 lives after the rewrite (that paragraph,
-Q-012, or `devdocs/future.md`, Q-011) is the first item on the owner's
-list. Not in the initial design, deferred for now with a possible
+paragraph), where #115 keeps its one link in a one-line mention, and
+`devdocs/future.md`'s "More special functions" names the eight without
+the number and links that section (Q-012; the owner's list, item 1,
+answered 2026-10-12). Not in the initial design, deferred for now with a possible
 implementation to follow (Q-010): the general hypergeometric functions,
 Bessel `Y` and `K`, polygamma beyond `digamma`, complex `gamma`, and
 the statistical distributions as built-ins → `devdocs/future.md#Extensions
@@ -139,8 +140,8 @@ beside the code; until then the two pages stay as they are.
 - **During this refactor,** the page, renamed `docs/builtins.md`
   (Q-020), keeps its prose list of the built-ins, corrected where §9.4
   tags a stale passage and wherever the units found a contradiction or
-  a term against §8, with the one-clause additions that state today's
-  behaviour (Q-009, B); it says nothing of the generated reference to
+  a term against §8; D6's one-clause additions wait for the generated
+  reference (Q-009, B); it says nothing of the generated reference to
   come, which is `devdocs/future.md`'s alone (Q-011). The
   foundation-level content it carries today (`#Very large results and
   approx`) still moves to `numbers.md` (§6.6). `devdocs/builtins.md` is audited for its family rules and

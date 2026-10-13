@@ -69,7 +69,7 @@ cross-references (§5, "§12, question 25") name these files.
 9. [Preliminary structural observations (from the docs alone; unverified)](plan/09-structural-observations.md): duplication across the corpora, links against the ownership direction, concepts without an owner, and stale passages elsewhere tagged the same way; all unverified.
 10. [Audit units](plan/10-audit-units.md): twenty-six audit units in order: the core abstractions, then docs/ by target area, then devdocs/ page by page, each sized for one session.
 11. [User-facing surface files (from the tree; not read)](plan/11-surface-files.md): the source files that define the parsers, the built-in registry, the unit definitions and the settings, for later mechanical coverage checks.
-12. [Open questions](plan/12-open-questions.md): the owner's decisions on ownership, terminology and placement, recorded question by question, and, in section 12.1, the owner's answers to the audit (`decisions.md`), which bind every page and amend the earlier questions where they differ.
+12. [Open questions](plan/12-open-questions.md): the owner's decisions on ownership, terminology and placement, recorded question by question, and, in sections 12.1 to 12.3, the owner's answers to the audit, to the apply step's list and to the review of the apply step (`decisions.md`), which bind every page and amend the earlier questions where they differ.
 
 The principle that governs the revamp, "intent, not history", is in
 [principles.md](principles.md), with the rules the owner's answers set

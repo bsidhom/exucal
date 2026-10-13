@@ -202,8 +202,9 @@ Some answers set rules wider than their item. Each is marked **rule** below and 
   count or measured ratio; devdocs keep constants, model figures, algorithmic counts, memory
   sizes, ratios and heuristics, and rough timings and durations marked as such.
 - **Refusal** (F-442): "refusal" only for a size refusal, in both corpora; "error" for
-  everything else in the docs; "rejection" the devdocs' word for text the parser recognized
-  and refused.
+  everything else in the docs; a literal past the hard bound or the exponent bound is a size
+  refusal too (section 12.3, R-4); "rejection" the devdocs' word for text rejected for its
+  form and for the definitions-line faults.
 - **Topological order** (Q-008): pages are written each after the pages it depends on, the
   user pages first, getting started last, every devdocs page after the user pages it links.
 - **`docs/builtins.md`** (Q-020's note): the user page on the built-ins is renamed, with
@@ -211,7 +212,9 @@ Some answers set rules wider than their item. Each is marked **rule** below and 
 
 Items these rules left unsettled were listed at the end of decisions.md ("For the owner"),
 marked pending in open-items.md and findings.md, and answered by the owner on 2026-10-12:
-section 12.2 below records the answers; nothing is pending now.
+section 12.2 below records the answers. A review of the apply step then put eight more calls
+to the owner, answered on 2026-10-13: section 12.3 records them, and the entries below that
+they change say so. Nothing is pending now but the question section 12.3 names under R-7.
 
 ### The answers, by the sheet's sections
 
@@ -257,9 +260,9 @@ section 12.2 below records the answers; nothing is pending now.
 - **F-440. "decimal exponent".** Decision: B
   Applied: B: docs say "the exponent", meaning the power of ten's; "decimal exponent" only in devdocs, where a binary one could be meant. Amends plan §8 (the "decimal" row); D8's draft of `numbers.md#Values too big to hold` is reworded (F-053, Q-026).
 - **F-441. "hard bound".** Decision: B
-  Applied: B: devdocs keep "the hard bound", glossed once and qualified where §5 C58's other bounds are near, never "hard precision bound"; docs say "the most the significand limit can be set to" and, for a literal, that a number longer than the limit can ever be set to is an error as it is typed. A new row of plan §8.
+  Applied: B: devdocs keep "the hard bound", glossed once and qualified where §5 C58's other bounds are near, never "hard precision bound"; docs say "the most the significand limit can be set to" and, for a literal, that a number longer than the limit can ever be set to is refused as it is typed, a size refusal (section 12.3, R-4). A new row of plan §8.
 - **F-442. "rejected" in the user docs.** Decision: A. Note that devdocs should be unified with this terminology, and "rejection"/"rejected" should be kept as a distinct notion. A "refusal" is _always_ a size refusal, and most likely involves evaluation (except perhaps in the few cases where the grammar bounds things).
-  Applied: A, with the note as a **rule**: in the docs "error" names everything but the size refusals ("a size refusal" is the significand limit's or the exponent bound's, always a value the limits keep from being computed), and text the grammar does not read is "an error as it is typed"; the devdocs use the same words, keeping "rejection"/"rejected" as the distinct notion for text the parser recognized and refused (a literal past the hard bound or the exponent bound, a definitions-line fault), and never "refuse" for a domain error, an edge or a mismatch. Amends plan §8 (the refusal row), N15 ("refused with 'cannot be told from'" becomes an error at the ceiling), §5 C22 and C23; F-443, F-098 (D2's "is rejected"), F-282, F-151, F-090 (D1's "rejected as it is typed") and A5's docs phrase follow.
+  Applied: A, with the note as a **rule**: in the docs "error" names everything but the size refusals ("a size refusal" is the significand limit's or the exponent bound's: a value the limits keep from being computed, or a literal past a size limit, stopped as it is typed), and text the grammar does not read is "an error as it is typed"; the devdocs use the same words, keeping "rejection"/"rejected" as the distinct notion for text rejected for its form and for a definitions-line fault (the code's `Rejection` named as it is), and never "refuse" for a domain error, an edge or a mismatch. A literal past the hard bound or the exponent bound is a size refusal in both corpora, past the exponent bound the bound's `overflow`, as a computed value past it is (the owner's answer to the review, section 12.3, R-4: the apply step had first placed such a literal among the rejections). Amends plan §8 (the refusal row), N15 ("refused with 'cannot be told from'" becomes an error at the ceiling), §5 C22, C23 and C62; F-443, F-098 (D2's "is rejected"), F-282, F-151, F-090 (D1's "rejected as it is typed", said of a literal past a size limit: "refused") and F-441's docs phrase follow.
 - **F-447. Edge, boundary, bound; touch, straddle.** Decision: ok
   Applied: ok: devdocs say "touch" and "straddle" (the two answers of `position`), "edge" for the point a result depends on, "boundary" for a rounding cell's end, "bound" for a condition's and for the exponent bound; docs say one phrase, "a value whose bounds reach or meet the edge", with "cannot be told from". New rows of plan §8; D2's draft's "straddle" is reworded.
 - **F-451. "approximate" or "inexact" in the user headings.** Decision: B. Let's switch to "inexact" everywhere that we mean a number (ball) with a non-zero radius. "Approximate" and its variants should be reserved for the act of _making_ a value inexact (e.g., through `approx` and possibly other utilities in the future). This firms up language and semantics.
@@ -283,11 +286,11 @@ section 12.2 below records the answers; nothing is pending now.
 - **F-489. Naming the user corpus.** Decision: A. The "user guide" is a specific getting-started/examples-driven doc subset.
   Applied: A: "the user docs" for the corpus; "the user guide" names only the getting-started, examples-driven subset; V5's "line" for a line of the panel joins plan §8 (mapped once to the code's `hint` and `notice`).
 - **F-491. The probe's functions.** Decision: ok. As I've noted elsewhere, I don't necessarily plan to extend the probe to arbitrary, expensive special functions, which might be impractical to satisfy to a high precision with good UI responsiveness. This is why we have follow-up work to make the UI responseive even during long-running computations.
-  Applied: ok: "the four elementary functions" (never "the costliest"); the sheet's `PROBE_LINE` is worded the same way in the code change of Q-006 (B-017). The owner's note is recorded for the probe's design: the probe is not to be extended to the expensive special functions, which the scheduler work (#118) addresses instead. Amends plan §9.4's probe row (D4's "the four costliest elementary functions" is not used); F-128, F-278, Q-006 follow.
+  Applied: ok: "the four elementary functions" (never "the costliest"); the sheet's `PROBE_LINE` is worded the same way in the code change of Q-006 (B-017). The owner's note is recorded in the owner's words, not as a decision (section 12.3, R-6): there is no plan to extend the probe to the expensive special functions, which might be impractical to satisfy to a high precision with good responsiveness; keeping the interface responsive during long computations is the scheduler's work (#118, future work). Amends plan §9.4's probe row (D4's "the four costliest elementary functions" is not used); F-128, F-278, Q-006 follow.
 - **F-493. After "service worker" is named once in `docs/app.md`.** Decision: other: I'm not sure exactly how we are bringing up the term "service worker" in user docs. This _feels_ like an implementation detail that many users need not understand, but which is necessary to get the app working offline robustly. It might be worth a brief mention, but in that case, we should call it what it is ("service worker") rather than only informally describe what it does. However, we should also clearly call out that it allows the doc to be served offline in user docs at the time we introduce this term. The devdocs should use "service worker" consistently.
   Applied: the docs name the service worker as what it is, "the service worker", once in `docs/app.md` where it is introduced, saying there that it is what lets the app be served offline, and keep the term after that (D9's wording, not V8's "the app"); the devdocs say "service worker" consistently. A new row of plan §8; F-172, F-174, F-180 follow.
 - **F-494. "a new version" and "update".** Decision: other: I think I want B, but I want to clarify: "a new version" describes a new deployment that could be pulled, and "update" is always a verb to describe what a user (or page refresh) does.
-  Applied: B, with the clarification: "a new version" is a new deployment that could be pulled; "update" is always a verb for what a user, or a page refresh, does; "deploy" stays devdocs-only. A new row of plan §8; F-173, F-180 follow.
+  Applied: B, with the clarification: "a new version" is a new deployment that could be pulled; "update" is always a verb for what a user, or a page refresh, does; "deploy" stays devdocs-only. Headings and labels keep the noun ("Updates and the build ID", Q-022's section; `devdocs/offline.md`'s "Update checks"), and prose follows the rule (section 12.3, R-8). A new row of plan §8; F-173, F-180 follow.
 
 #### Section 3. Design calls inside findings.md
 
@@ -326,11 +329,11 @@ section 12.2 below records the answers; nothing is pending now.
 - **Q-017. The scratch build's figures in `#Why the exponent bound stays at 10^18`.** Decision: ok
   Applied: ok: the six-pass table (digits) and the qualitative finding stay; the scratch build's per-size milliseconds go. This item's own answer governs that section where Q-016's rule would otherwise let a rough timing stay. F-202 follows.
 - **Q-020. The title of `devdocs/functions.md`.** Decision: ok. Separately, rename the user page `docs/functions.md` to `docs/builtins.md`, titled "Built-in functions", so that it matches `devdocs/builtins.md`. §7's outline follows, and so does every link to the old name: the root `README.md`, `docs/README.md`, the link in `devdocs/builtins.md`, and two comments in `src/units.txt`. After that, "functions.md" names only `devdocs/functions.md`, "Defined functions".
-  Applied: ok, and a **rule** from the note: `devdocs/functions.md` is titled "Defined functions" (file name unchanged; the index lines of `devdocs/README.md` and `devdocs/architecture.md` reworded); the user page `docs/functions.md` is renamed `docs/builtins.md`, titled "Built-in functions", to match `devdocs/builtins.md`, and every link to the old name follows (the root `README.md`, `docs/README.md`, the link in `devdocs/builtins.md`, two comments in `src/units.txt`, the code track); after that "functions.md" names only `devdocs/functions.md`. Amends plan §7 (the page's name), §7.1 (the built-in functions row), §4 (every `docs/functions.md` pointer), §10 (D5 to D8's titles), §5 (C24, C25, C26, C32, C48, C63 owners); F-181, F-257, F-260, F-270, F-275 and the findings of the `docs/functions.md` group follow (their link target is `docs/builtins.md`).
+  Applied: ok, and a **rule** from the note: `devdocs/functions.md` is titled "Defined functions" (file name unchanged; the index lines of `devdocs/README.md` and `devdocs/architecture.md` reworded); the user page `docs/functions.md` is renamed `docs/builtins.md`, titled "Built-in functions", to match `devdocs/builtins.md`, and every link to the old name follows (the root `README.md`, `docs/README.md`, the link in `devdocs/builtins.md`, two comments in `src/units.txt`), all repointed by the pull request that renames the page (work order 07), so that none dangles (Q-008); after that "functions.md" names only `devdocs/functions.md`. Amends plan §7 (the page's name), §7.1 (the built-in functions row), §4 (every `docs/functions.md` pointer), §10 (D5 to D8's titles), §5 (C24, C25, C26, C32, C48, C63 owners); F-181, F-257, F-260, F-270, F-275 and the findings of the `docs/functions.md` group follow (their link target is `docs/builtins.md`).
 - **Q-021. The heading "A function as the want".** Decision: ok
   Applied: ok: the heading "A function as the want" stays; the prose says "conversion into a function" (plan §8).
 - **Q-023. Decimal mode's effect on units and edges, in `numbers.md`.** Decision: ok, but don't record that specific number in decimal, since it changes with the parameterization and does not match the behavior I see in the real app with my current settings. Keep the discussion to the fact that this does (or even "may") produce an exact value in decimal mode while failing to resolve in exact mode due to the pole.
-  Applied: ok, without settings-dependent digits: `docs/numbers.md#The two modes` says that in decimal mode a unit that carries `pi()` is rounded as it is looked up, so `turn` into `deg` is `=` with a value a little under 360, and that an argument never straddles an edge, so `tan(90 deg)` may give an exact value in decimal mode where exact mode fails at the pole; no specific decimal result is recorded. Open for the owner (on the list): whether the `turn` example's `359.99999` may be written at the default settings, or only the behaviour. F-044 follows.
+  Applied: ok, without settings-dependent digits: `docs/numbers.md#The two modes` says that in decimal mode a unit that carries `pi()` is rounded as it is looked up, so `turn` into `deg` is `=` with a value a little under 360, and that an argument never straddles an edge, so `tan(90 deg)` may give an exact value in decimal mode where exact mode fails at the pole; no specific decimal result is recorded, not even at the default settings (the owner confirmed on 2026-10-12, section 12.2, conflict 2). F-044 follows.
 - **Q-024. The touch rule in `numbers.md`.** Decision: ok
   Applied: ok: one sentence in `docs/numbers.md#Comparison and equality` (a bound exactly met decides a non-strict comparison and leaves a strict one undecided); the verdict table stays in devdocs. F-029, F-101 follow.
 - **Q-025. Rounding a value that cannot be told from zero.** Decision: ok, just make sure the discussion is complete. I think you've captured all of the functions here.
@@ -340,7 +343,7 @@ section 12.2 below records the answers; nothing is pending now.
 - **Q-027. "derived and shown": the ceiling on the panel.** Decision: ok
   Applied: ok: the pages stop saying the panel shows the ceiling ("derived, and written as a number only in the probe's proposal"); whether the panel should show it is outside the revamp. Amends plan §3's note ("derived and shown") and §5 C10; F-126, F-331 follow.
 - **Q-028. A privacy sentence in `docs/app.md`.** Decision: ok
-  Applied: ok: one sentence in `docs/app.md#Offline use` that the app calls no service and sends nothing, linked from `devdocs/security.md#The page` (devdocs to docs; the docs page does not link down). F-171, F-180 follow.
+  Applied: ok, with the link and the wording settled by the owner's answers to the review (section 12.3, R-1 and R-2): one sentence in `docs/app.md#Offline use`, led by V8's "Nothing you type leaves the device": the app calls no third-party service, contacts only the host it was loaded from, and only for its own static files (to load them, and to check for and fetch a new version), and sends that host no local data; the sentence links `devdocs/security.md#The page`, as V8 proposed, and `security.md` may link back. F-171, F-180 follow.
 - **Q-029. A home for the linking and Markdown principles.** Decision: ok
   Applied: ok: the linking and Markdown principles live in `devdocs/development.md#Style guide` beside the documentation principle. Amends question 29 above; F-402 follows.
 - **Q-030. Who deploys.** Decision: ok. I only use Cloudflare Workers Builds at the moment.
@@ -350,7 +353,7 @@ section 12.2 below records the answers; nothing is pending now.
 - **Q-032. Why information (`bit`) is a dimension.** Decision: ok
   Applied: ok: `units.md`'s primitives say why information is a dimension (a count of bits must not collapse into a plain number, so that `bit/s` stays apart from `Hz`), and the file's comment says the same (B-064, code track). F-094 follows.
 - **Q-033. The sources `units.md` names.** Decision: ok
-  Applied: ok: `units.md` cites what the file cites; the file's header gains the three documents, the two years a source and an epoch, `gravity` the mark "(exact by convention)" (B-062, B-063, B-065, code track); `units.md` calls the years measured values written exactly. F-116, F-069 follow.
+  Applied: ok: `units.md` cites what the file cites; the file's header gains the three documents, the two years a source and an epoch, `gravity` the mark "(exact by convention)" (B-062, B-063, B-065, code track); `units.md` calls the years measured values written exactly. Since the comments land in one commit after the pages (Q-059), `units.md` names the three documents when it is written, and the file agrees once that commit lands (section 12.3, the review's corrections). F-116, F-069 follow.
 - **Q-034. "`W` is the watt": the Lambert W connection.** Decision: ok
   Applied: ok: D5's edit 7 (Lambert's function is `lambertw`; neither `e` nor `W` is free for a function or a constant). F-259 follows.
 - **Q-035. Where the binary `approx(x, u)`'s tentative design lives.** Decision: this is future work and should not get in the way of the numbers description yet.
@@ -362,7 +365,7 @@ section 12.2 below records the answers; nothing is pending now.
 - **Q-038. Pointing at the grammars in the parsers' headers.** Decision: ok
   Applied: ok: `docs/` keeps prose and the precedence table; `devdocs/architecture.md#Expressions` names the header grammar of `src/core/expr.ts` as the hand-maintained form, quoting none of it, and `devdocs/functions.md#Definitions` does the same for `src/core/definitions.ts`. Amends plan §2.1.3 and §2.2.3 (F-500) and §11 ("no grammar file" stands; the header comments are named). F-074, F-092, F-305 follow.
 - **Q-049. A stored ratio width out of range resets the whole mode.** Decision: B
-  Applied: B: the stored ratio width is clamped like the count (B-012, before `devdocs/settings.md` is written); `#Storage` then states one rule. F-333 follows.
+  Applied: B: the stored ratio width is clamped like the count (B-012, before `docs/settings.md`, which states the clamp, and `devdocs/settings.md` are written); `#Storage` then states one rule. F-333 follows.
 - **Q-057. The internal kind name in the load-failure message.** Decision: ok
   Applied: ok (A): the app keeps "(fetchFailed)"; `docs/app.md` describes the message without quoting the parenthesis. F-170 follows; B-023 is not scheduled.
 - **Q-064. "certifies" in the index's opening sentences.** Decision: A
@@ -383,11 +386,11 @@ section 12.2 below records the answers; nothing is pending now.
 - **Q-044. `mod`'s alignment refusal.** Decision: ok
   Applied: ok: a code change (B-005): `mod`'s two refusals become `fits` with the need the subtraction or the product reports; D6's edit (e) takes its first form. F-284 follows.
 - **Q-045. A typed list's unit that may be zero.** Decision: ok
-  Applied: ok: the pages state the accepted gap (a typed list's unit that may be zero is refused, not retried) as today's behaviour; the retry is recorded on #92, not on a page. F-246 follows; B-010 not scheduled.
+  Applied: ok: the pages state the accepted gap (a typed list's unit that may be zero is refused, not retried) as today's behaviour; the retry, a small change that could ride the work on #92, is issue #198 (section 12.2, item 14), linked once from `devdocs/architecture.md#Unit lists` beside the gap (section 12.3, R-3); the user docs name no issue. F-246 follows; B-010 not scheduled.
 - **Q-046. The reciprocal line in decimal mode.** Decision: ok
-  Applied: ok: keep and document the decimal-mode reciprocal line (the reciprocal of the shown ratio); the alternative is recorded on #92. F-038, F-043 follow; B-008 not scheduled.
+  Applied: ok: keep and document the decimal-mode reciprocal line (the reciprocal of the shown ratio); the alternative (`want / have` from the working-digit operands) is recorded on #92 in a comment, the owner's housekeeping beside the closing of #89 (work order 00, section 6), not page content. F-038, F-043 follow; B-008 not scheduled.
 - **Q-047. The schedule's cost bound.** Decision: ok
-  Applied: ok: reword the cost bound now ("at most about twice the pass that succeeds", with the exception near the ceiling); a change to `workingContexts`, if wanted, is after the revamp and not page content. F-064 follows; B-011 not scheduled.
+  Applied: ok: reword the cost bound now ("at most about twice the pass that succeeds", with the exception near the ceiling); a change to `workingContexts`, if wanted, is after the revamp: it is issue #199 (section 12.2, item 14), linked once from `devdocs/numbers.md#Working precision and the schedule` beside the exception (section 12.3, R-3). F-064 follows; B-011 not scheduled.
 - **Q-048. `log`'s exact cases for a rational exponent.** Decision: ok
   Applied: ok: the pages document the uncertified fallback as reachable now; looking for `x^q = b^p` waits for a review of the logarithm family (not page content; no `future.md` entry, confirmed on 2026-10-12, section 12.2, item 14: it is issue #200, linked once from the logarithm row of `devdocs/builtins.md`). F-042 follows; B-007 not scheduled.
 - **Q-050. Fix `gcd(a, 0)`.** Decision: ok
@@ -503,16 +506,17 @@ worded by F-491, B-025, B-026 worded by Q-004) and the fix for the crash at the 
 form Q-002 chose (B-002, a refusal with an explicit message); item 2 (before the page that
 would otherwise carry a caveat) carries `gcd(a, 0)` (B-001, before `docs/builtins.md` and
 `devdocs/builtins.md`), the ratio screen (B-004, before `devdocs/notation.md`), `mod`'s refusal
-(B-005, before `devdocs/builtins.md`) and the stored width (B-012, before `devdocs/settings.md`,
-Q-049 being B); item 3 (after the pages) carries the message wording with the generated
+(B-005, before `devdocs/builtins.md`) and the stored width (B-012, before `docs/settings.md`, which
+states the clamp, and `devdocs/settings.md`, Q-049 being B); item 3 (after the pages) carries the message wording with the generated
 catalogue, the test gaps, the comments (Q-059) and B-069 and B-070; item 4 stays unscheduled.
-The rename of `docs/functions.md` to `docs/builtins.md` (Q-020's note) adds two comments in
-`src/units.txt` to the code track, with the page. The work order for the code track
+The rename of `docs/functions.md` to `docs/builtins.md` (Q-020's note) repoints two comments in
+`src/units.txt`, which the page's own pull request changes with the other links to the old
+name (work order 07), so that none dangles; the code track does not carry them. The work order for the code track
 (`audit/work-orders/`) lists each change with the page that waits on it.
 
 #### Section 10. Everything else in findings.md
 
-Decision: ok; the rules set in sections 1–5 override any proposed call they touch, whatever its Related line says Here `ok` accepts the rule; anything else amends it.
+Decision: ok; the rules set in sections 1–5 override any proposed call they touch, whatever its Related line says
 
 Applied: every proposed call of findings.md stands unless an answer above touches it, and
 the rules marked **rule** override a call whatever its Related line says. The Decision field
@@ -668,3 +672,123 @@ plan §8 and the work orders under [../work-orders/](../work-orders/) were updat
    docs say the panel "does not accept" an edit, or that a value is "held to" its range; the
    devdocs keep "refusal" there only as the code's identifier (`refusalOf`). Restated in
    principles.md and §8; plan §3, §5 C53 and §6.5 amended.
+
+## 12.3 The owner's answers to the review of the apply step
+
+A review of the apply step (sections 12.1 and 12.2, the rules, the plan amendments and the
+work orders, read against the owner's answers) put eight calls to the owner at the end of
+[decisions.md](../decisions.md) ("For the owner: the review of the apply step"), which the
+owner answered on 2026-10-13 (commit 30438f8). Each answer is recorded here word for word,
+with what it settles; the entries of sections 12.1 and 12.2 it changes, the Decision lines of
+open-items.md and findings.md, [principles.md](../principles.md), the plan sections and the
+work orders under [../work-orders/](../work-orders/) were corrected from it the same day.
+"ok" takes the review's recommendation. The review's other corrections, which needed no
+decision, are listed after the answers.
+
+### The answers
+
+1. **R-1. Q-028: does the privacy sentence link down to the devdocs?** `ok`. Settled: as
+   the owner accepted V8's proposal, the privacy sentence in `docs/app.md#Offline use` links
+   `devdocs/security.md#The page`, which may link back; §9.2 does not forbid every link down
+   (work order 01 links `devdocs/numbers.md` at the section level, Q-082). The heading "The
+   page" stays, since a page written earlier links it; nothing else on `app.md` links down
+   (F-180 (5)). Amends Q-028's entry in section 12.1 and the decisions of F-171 and F-180;
+   work orders 08 and 25 follow.
+2. **R-2. Q-028: the privacy sentence's wording.** "B, with the clarification that it
+   _only_ polls the service for updates to the static assets and does _not_ push any local
+   data to the service, etc. As noted, "nothing you type leaves the device"." Settled: the
+   sentence opens with V8's "Nothing you type leaves the device" and says that the app calls
+   no third-party service, that it contacts only the host it was loaded from, and only for
+   its own static files (to load them, and to check for and fetch a new version), and that
+   it sends that host no local data. In page prose "update" stays a verb (F-494), so the page says "a new version"
+   where the owner's note says "updates", and says how often the app checks as "Updates and
+   the build ID" describes it. Work orders 08 and 25 follow.
+3. **R-3. Item 14: do the pages link the new issues?** `ok`. Settled: the three links stay,
+   each beside the gap its page states as today's behaviour (Q-012's rule for a bug): #198
+   at `devdocs/architecture.md#Unit lists`, #199 at `devdocs/numbers.md#Working precision
+   and the schedule`, #200 at the logarithm row of `devdocs/builtins.md#Domains, exact cases
+   and edges`; #201 and #202 are linked from no page, and the user docs name none of them.
+   Corrects the entries of Q-045 and Q-047 in section 12.1, which said "not on a page";
+   work orders 11, 13, 15 and 17 follow.
+4. **R-4. F-442: is a literal past a size limit a refusal or a rejection?** `B`. Settled: a
+   literal past the hard bound or the exponent bound is a size refusal in both corpora,
+   stopped as it is typed (the owner's note allowed for the grammar's bounds); past the
+   exponent bound it is the same refusal, `overflow`, as a computed value past it.
+   "Rejection" covers only text rejected for its form and the definitions-line faults, and
+   the code's `Rejection` is named as it is; in the docs, text the grammar does not read
+   stays "an error as it is typed". Amends the entries of F-441 and F-442 in section 12.1,
+   the refusal rule of principles.md, plan §8's refusal and hard-bound rows, §5 C22 and C62,
+   and the decisions of F-053, F-076, F-090, F-441 and F-442; work orders 01, 03, 11, 13
+   and 14 follow.
+5. **R-5. `!=` in conditions: ruled out, or future work?** `A`. Settled: `!=` goes with
+   equality as future work, under `devdocs/future.md`'s entry for the equality operators and
+   conditional expressions (Q-112); `devdocs/functions.md#Not in this design` keeps
+   disjunctions and the assertion on a result's value; `#Conditions` and `docs/numbers.md`
+   state as a plain fact that there is no equality and no `!=`. The decisions of F-030,
+   F-323, F-345 and Q-112 note it; work orders 01, 14 and 18 follow.
+6. **R-6. F-491: how firm is the owner's note on the probe?** "A. That was always the
+   intention, and this is why I hedged with "necessarily"." Settled: the note is recorded in
+   the owner's words, not as a decision: there is no plan to extend the probe to the
+   expensive special functions; keeping the interface responsive during long computations is
+   the scheduler's work (#118, future work). Amends F-491's entry in section 12.1 and its
+   decision; work order 00 follows (B-017 changes the line's wording only).
+7. **R-7. "Real values only": a plain fact, or a ruled-out design?** "A. Just as with
+   complex numbers, this might be changed in the future." Settled: "real values only" is a
+   plain fact about today, stated so in `docs/numbers.md#Real values only`, and complex
+   numbers stay future work (`devdocs/future.md#Complex numbers`). Plan §7.1's row for the
+   designs ruled out by intent no longer gives "real values only" as its example. In place of
+   the error radius that A proposed, it gives the temperature reading (a function, not a unit
+   with an offset), a ruled-out design both corpora state (item 13; work orders 02 and 14),
+   because the owner's "this" may also cover the radius display: whether it does, which
+   would make the radius display future work rather than a design ruled out (item 13 and the
+   owner's Q-011 text have it ruled out), is put to the owner. Until answered, item 13
+   stands. Work orders 01, 11 and 18 follow.
+8. **R-8. "update" as a noun in headings.** `A`. Settled: headings and labels keep the noun
+   ("Updates and the build ID", Q-022's section of `docs/app.md`; "Update checks" in
+   `devdocs/offline.md`); prose follows F-494 ("a new version" for the deployment, "update" a
+   verb). Amends F-494's entry in section 12.1 and its decision, principles.md and plan §8's
+   row; work orders 08, 13 and 23 follow.
+
+### The review's other corrections
+
+Applied on 2026-10-13 with the answers above; none needed a decision.
+
+- **Left stale by the second pass (section 12.2).** Q-023's entry no longer asks the owner
+  (conflict 2 settled it); Q-045's and Q-047's name their issues (R-3); section 10's Decision
+  line had the sheet's own instruction appended to it, now removed; plan §4.2's #115
+  sentence states item 1's answer; work orders 11, 14 and 26 no longer wait on item 13; the
+  work orders' README lists section 12.2's hand-offs (#78 and #173 from 11, #178 from 12,
+  #167 and #186 from 16, all to 18), and every work order cites sections 12.1 to 12.3.
+- **Slips against answers already given.** B-020's wording keeps ", however it is computed"
+  (Q-051, A); D6's one-clause additions wait for the generated reference (Q-009, B: plan
+  §4.4); the scratch build's per-size milliseconds go (Q-017: plan §1.1.4, §5 C21, §9.1,
+  work order 01); getting started defines "certified" by example (Q-064, A; F-428: plan §7,
+  work order 10); work order 07's pull request repoints every link to `docs/functions.md`,
+  the two comments in `src/units.txt` included (Q-020, Q-008: work orders 00 and 07, Q-020's
+  entry, section 9's paragraph); `units.md` names the three documents Q-033 adds to the
+  file's header (work order 05, Q-033's entry); no page quotes the edge message before B-021
+  rewords it, and `numbers.md` quotes the two size refusals (Q-007: work orders 01 and 10);
+  the rounding sentence names every function and mode (Q-025: work order 01); the kinds'
+  intent reaches `devdocs/numbers.md` (Q-001: work order 11); no page names the code track
+  (Q-071: work order 12); D7's Gamma ordering waits on F-154's check (work order 15); the
+  distributions carry the owner's Q-010 note alone, and #173 sits beside the display policy
+  (work order 18); the comments land in one commit after all the pages (Q-059: work orders
+  00 and 22); B-012 lands before `docs/settings.md` too (Q-049's entry, section 9's
+  paragraph, work order 00); "neighbor" (F-436: plan §1); the notes quoted as "certified"
+  (Q-006: plan §1 N10, N11); no "refusal the loop does not retry" (Q-001: plan §1 N7, work
+  orders 01 and 17); "half a cell of the working grid" (F-431, Q-084: work order 11); the docs' edge
+  phrase, never "straddle" or "midpoint" (F-447, F-438: work orders 02 and 04); "the
+  definitions table" (conflict 3: work order 02); `atan2` among the functions that take
+  quantities (Q-095: work order 02); `1` glossed as a plain number's dimension (F-463: work
+  order 02); "grid" on the settings page (Q-004: work order 06); the settings outline's
+  "refusals; clamps" (conflict 8: plan §7); "refusal" on `devdocs/settings.md` (F-442: work
+  order 16); F-362's branches restated and F-375 left to `testing.md` (work order 19).
+- **Process.** `docs/definitions.md` is edited once: work order 04 deletes `#What the file
+  contains` and links `units.md` forward (conflict 1), and work order 05 carries its
+  contents. A developer page renames or deletes a heading only where its work order says
+  so, and updates every link to it in the same pull request (the work orders' README; work
+  orders 07, 16 and 18). The alternative Q-046 records on #92 is the owner's housekeeping, a
+  comment on the issue (Q-046's entry, work order 00).
+- **Checked and left as it was.** Work order 13's two GNU units clauses (lineage at the top,
+  the precedence in `#Expressions`) match Q-039's accepted proposal, one clause in each
+  place, and F-001's decision.

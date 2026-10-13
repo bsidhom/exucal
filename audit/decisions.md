@@ -1334,6 +1334,14 @@ have been through them. Q-028's link and its wording are two items, so there are
 review's other corrections need no decision (text left stale by the second pass, and slips
 against answers already given); the fix pass applies them together with these answers.
 
+Answered by the owner on 2026-10-13 (commit 30438f8; every item carries an answer) and applied
+the same day, with the review's other corrections: the record is
+[plan/12-open-questions.md](plan/12-open-questions.md), section 12.3, and the entries of
+sections 12.1 and 12.2 that the answers change, the Decision lines of open-items.md and
+findings.md, [principles.md](principles.md), the plan sections and the work orders were
+corrected from it. One question is left for the owner, under R-7: whether "this might be
+changed in the future" also covers the error radius that option A names.
+
 - Section done:
 
 ### R-1. Q-028: does the privacy sentence link down to the devdocs?

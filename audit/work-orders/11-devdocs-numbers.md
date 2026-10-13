@@ -5,7 +5,8 @@ The session that rewrites this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `V1 (L186)` is `audit/reports/V1/fable.md`, line 186. `§7.1` is the
@@ -74,9 +75,8 @@ ruled-out alternatives with theirs, in the present tense.
   algorithms quadratic, stored digits about 0.42 bytes a digit) and
   the millisecond figures rough and illustrative or gone (F-349). The
   unbounded exponent is already at `#Why the exponent bound stays at
-  10^18`. Item 13 of the owner's Q-011 list confirms the
-  classification; the bullets are written as ruled out until it is
-  answered.
+  10^18`. Item 13 of the owner's list confirmed the classification on
+  2026-10-12: the bullets are written as ruled out by intent.
 - **Which numbers the page keeps (Q-016, Q-018, Q-088).** A measured
   ratio stays ("about forty times cheaper than Euclid's", F-188; "about
   ten times `pi`'s whole series", F-196); a rough timing may stay only
@@ -105,7 +105,11 @@ ruled-out alternatives with theirs, in the present tense.
   2026-10-12 (section 8).
 - **Refusal only for a size refusal (F-442).** "Refused" for the
   significand limit's and the bound's refusals (they are: F-213, F-216,
-  F-215); "rejection" for the parser's; never "refused" for an edge, a
+  F-215), a literal past the hard bound or the exponent bound included
+  (R-4 of the review, plan §12.3: a size refusal as it is typed, past
+  the exponent bound the bound's `overflow`, as a computed value past
+  it is); "rejection" for text the parser rejects for its form, the
+  code's `Rejection` named as it is; never "refused" for an edge, a
   domain error or a mismatch, so "a difference refused as too large"
   goes (F-028: a difference that cannot be formed as a value), and
   `#approx`'s "never the reverse" sentence is read with "refusal" in
@@ -189,7 +193,11 @@ take and what the rules change:
   message quoted with its remedy sentence, or left to `docs/numbers.md`
   and the generated catalogue (F-201, Q-007); the sum never faces the
   choice (F-052, §1 N24 as amended); the mechanism sentence with the
-  pointer "above" (F-215).
+  pointer "above" (F-215). The intent of the classes, in the owner's
+  words (Q-001): they tell the user the type of failure, so that a
+  user who may succeed with a wider significand limit can choose to
+  retry with one; the retries inside a node or a step are correct as
+  the code has them, and `resolve` retries no refusal.
 - **Why the exponent bound stays at 10^18.** V1 L244-248: the six-pass
   table and the qualitative finding stay, the per-size milliseconds go
   (F-202, Q-017); the passes' diagram and table live here, the
@@ -224,8 +232,10 @@ take and what the rules change:
   inexact result is settled, one text picked with the example's size
   checked against `src/core/ball.ts:16-23` (F-210); why `settle` is not
   exported, one wording (F-211); the exact charge of a rounding (half a
-  unit in the last working digit; a whole unit where the rounding's
-  exponent would pass the bound), stated here (Q-084).
+  cell of the working grid; a whole cell where the rounding's exponent
+  would pass the bound), stated here (Q-084), in F-431's words: "the
+  working grid", never "working digits", which name the decimal-mode
+  setting alone.
 - **Exact mode.** A1 L211-221 and V1 L280-282: "exactly two things ever
   produce a nonzero radius" (F-010); "certified" (V1 L282).
 - **Decimal mode.** A4 L93-102 and V1 L284-300 (the eight pairs, V1's
@@ -317,7 +327,8 @@ Still open: nothing. Q-047 and Q-048 get no `future.md` entry (the
 owner's list, item 14): their issues are #199, linked once here, and
 #200, linked once in `devdocs/builtins.md`; the owner's list is answered
 (section 8), item 13 confirming that the bullets this page receives
-from `devdocs/future.md` (section 3) are ruled out by intent.
+from `devdocs/future.md` (section 3) are ruled out by intent. R-3 of
+the review (plan §12.3) keeps #199's link.
 
 ## 7. Proposed text to start from, and what the rules change in it
 
@@ -365,9 +376,15 @@ fact, and `future.md` carries the link. The postfix `~` spelling
 (F-219, item 11) is a ruled-out alternative, kept with its reason, the
 sentence losing "the likely spelling … later". Item 13 confirms that
 the bullets this page receives from `devdocs/future.md` (section 3)
-are ruled out by intent. The session records in its pull request each
-choice between drafts (sections 4 and 7), the figures it kept as
-rough, and the received bullets' places, which work order 18 checks.
+are ruled out by intent; item 14 gives #199 (kept by R-3 of the
+review). Of the review's answers (plan §12.3, 2026-10-13): R-3, #199
+stays linked once at `#Working precision and the schedule`; R-4, a
+literal past the hard bound or the exponent bound is a size refusal
+(section 3); R-7, "real values only" is a plain fact and complex
+numbers are future work, so nothing on complex values is received
+here. The session records in its pull request each choice between
+drafts (sections 4 and 7), the figures it kept as rough, and the
+received bullets' places, which work order 18 checks.
 
 ## 9. Code changes it waits on
 

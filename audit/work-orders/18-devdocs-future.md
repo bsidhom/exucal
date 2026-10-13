@@ -5,7 +5,8 @@ The session that rewrites this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `V6 (L181-191)` is `audit/reports/V6/fable.md`, lines 181 to 191. `§7.1`
@@ -73,8 +74,8 @@ page links (Q-012).
   (Q-104, Q-035; F-414); #98 in the significant-figures entry (Q-014;
   F-413); #126 in the cheaper-kernels entry (F-347); and, by the owner's
   answers to the owner's list, #167 and #186 beside #118 (items 7 and
-  8), #171 in the `approx(x, u)` entry (item 3), #173 beside decimal
-  mode (item 5), #178 beside the display policy (item 6), and #78 in an
+  8), #171 in the `approx(x, u)` entry (item 3), #173 and #178 beside
+  the display policy (items 5 and 6), and #78 in an
   entry of its own beside the exact operations (item 2: where a
   quotient's reduction should run, the open question that
   `devdocs/numbers.md#Exact operations` no longer carries; the entry
@@ -118,11 +119,13 @@ page links (Q-012).
   argument ("library-sized casework, for little use yet", V6 L187,
   L203); polygamma beyond `digamma`; `gamma` of a complex argument
   (linking `#Complex numbers`); and the statistical distributions,
-  with the owner's note that they are deferred, a possible
-  implementation to follow, since not every function of interest is
-  efficient as a definition, the inverse and quantile functions for
-  example (Q-010; V6 L207's "the system file's or a user's" is not
-  used, F-475). The text work order 15 handed over (V3 L675-704, D7
+  with the owner's note alone as their reason: deferred for now, a
+  possible implementation to follow, since not every function of
+  interest can be written efficiently as a definition, the inverse and
+  quantile functions for example (Q-010). V6 L207's reason for the
+  distributions (one-line functions in the file or a user's) is not
+  used: the owner worded them as deferred, not as one-line user
+  functions. The text work order 15 handed over (V3 L675-704, D7
   L217-218) is the source; no chronology ("deferred when the Gamma
   and Beta families landed", page L160-161, goes: F-346); "Not in this
   design" is not the pointer (F-417).
@@ -130,10 +133,12 @@ page links (Q-012).
   (V6 L185-191: the responsive interface, cheaper kernels, more
   special functions, more of the defined functions, user definitions,
   lenient kind conversion, richer UX), the page gains one entry each
-  for: equality operators and conditional expressions, with A6's
-  constraint that equality of an inexact argument can never be
-  decided on a ball, so a design must say what an undecidable
-  comparison yields, linking `functions.md#Conditions` (Q-112; F-030);
+  for: equality operators and conditional expressions, `!=` in
+  conditions among them (R-5 of the review, plan §12.3: the negation
+  of equality meets the same constraint), with A6's constraint that
+  equality of an inexact argument can never be decided on a ball, so
+  a design must say what an undecidable comparison yields, linking
+  `functions.md#Conditions` (Q-112; F-030);
   the two-argument `approx(x, u)`, with the tentative design work
   order 11 moved out of `numbers.md#approx` (Q-035, Q-104); rounding
   to significant figures and their propagation (Q-014); configurable
@@ -200,7 +205,8 @@ page links (Q-012).
   design); user definitions (V6 L189; #132; `buildTable` takes one
   list of definitions, storage and an editor are what is missing,
   definitions typed into the app the first step); equality operators
-  and conditional expressions; where a quotient's reduction should run
+  and conditional expressions, `!=` included (R-5); where a quotient's
+  reduction should run
   (#78, item 2, linking `numbers.md#Exact operations`); `approx(x, u)`
   (the tentative design from `numbers.md#approx`, #100, and #171);
   significant figures (#98); configurable number formatting; the
@@ -249,13 +255,20 @@ to #202), which this page does not link.
 | Symbolic values | page L16-100 | the page | one optional sentence citing `docs/numbers.md` |
 | Complex numbers | page L101-135 | the page | — |
 | Extensions that fit | V6 L181-191; V4 L492-514 (from work order 14); V3 L675-704 and D7 L217-218 (from 15); `numbers.md#approx`'s binary-form design (from 11) | V6 with the handed-over texts | the links per section 3; the entries added; "the app", "defined functions", "the definitions file"; no chronology |
-| Ruled out, and why | V6 L193-209 | not used: the section is deleted | the hypergeometric, Bessel and distributions bullets reappear under "More special functions" (V6 L203, L207 reworded) |
+| Ruled out, and why | V6 L193-209 | not used: the section is deleted | the hypergeometric, Bessel and distributions bullets reappear under "More special functions" (V6 L203 reworded; the distributions with the owner's Q-010 note in place of V6 L207's reason) |
 | the link definitions | V6 L209 | delete | — |
 
 ## 8. Conflicts left to settle
 
 From the owner's list: items 1, 2, 3, 5, 6, 7, 8, 10, 13 and 14 of the
-Q-011 list, all answered (section 6). The session's pull request lists
+Q-011 list, all answered (section 6). Of the review's answers (plan
+§12.3): R-5, `!=` joins the equality entry; R-7, `#Complex numbers`
+stays as future work, "real values only" being a plain fact on the
+as-is pages. Before deleting `#Ruled out, and why`, the session
+searches `docs/`, `devdocs/` and `src/` for links to that anchor and
+repoints each to the page that now owns the decision (this pull
+request may change those links and nothing else outside this file).
+The session's pull request lists
 every entry the page carries and the bullets it confirmed moved, and
 flags any intent it added or left out beyond the list of section 3.
 
@@ -275,6 +288,8 @@ None.
   link; no "deferred when", no "the converter", no "user-defined
   functions", no "the system file".
 - Every earlier page's link to `#Extensions that fit` and `#Complex
-  numbers` still resolves.
+  numbers` still resolves, and no link anywhere targets `#Ruled out,
+  and why`.
 - The pull request lists the entries, the moves confirmed and the
-  questions for the owner, and changes nothing outside this file.
+  questions for the owner, and changes nothing outside this file but
+  the links to `#Ruled out, and why` (section 8).

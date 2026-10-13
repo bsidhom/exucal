@@ -5,7 +5,8 @@ The session that writes this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D1 (L287-485)` is `audit/reports/D1/merged.md`, lines 287 to 485 (D1's
@@ -57,12 +58,14 @@ function's name that would read as a prefixed unit) are
 ## 3. Rules that bind the page, applied to D1's draft
 
 - **Refusal only for a size refusal (F-442).** Text the grammar does
-  not read, a literal past the hard bound or the exponent bound, an
-  unmatched character: "an error as it is typed", never "rejected" or
-  "a rejected literal" (D1's text says "rejected as it is typed" and
-  "a rejected literal"; F-089, F-090). A literal past the significand
-  limit at evaluation, a sum, product or quotient past a limit: "refused"
-  (D1 L321, L371, L442 hold).
+  not read, an unmatched character: "an error as it is typed", never
+  "rejected" (D1's text says "rejected as it is typed"; F-089, F-090).
+  A literal past the hard bound or the exponent bound is a size
+  refusal, "refused as it is typed", never "a rejected literal" (R-4 of
+  the review, plan §12.3: past the exponent bound it is the bound's own
+  refusal, as a computed value past it is). A literal past the
+  significand limit at evaluation, a sum, product or quotient past a
+  limit: "refused" (D1 L321, L371, L442 hold).
 - **Inexact, not approximate (F-451).** Nothing in D1's draft needs it;
   hold any addition to it.
 - **Future work is `devdocs/future.md`'s alone (Q-011).** "What is not
@@ -118,9 +121,10 @@ give way to these.
   without a space and with digits, so `2e -19 C` is `2 e - 19 C`;
   F-075) and D1 L320-331 (the literal limits, F-076): a literal past
   the most the significand limit can be set to, or past the exponent
-  bound, is an error as it is typed; a literal past the significand
-  limit as set is refused when the expression is evaluated, in either
-  mode (Q-040); "read exactly" links `numbers.md`.
+  bound, is refused as it is typed, a size refusal (R-4); a literal
+  past the significand limit as set is refused when the expression is
+  evaluated, in either mode (Q-040); "read exactly" and the size
+  refusals link `numbers.md`.
 
 ### Names
 
@@ -245,7 +249,7 @@ give way to these.
 | --- | --- | --- |
 | F-074 | Grammar and precedence | Prose, D1's table and examples; no hand-written EBNF (Q-038, F-500) |
 | F-075 | Numbers | D1's literal forms |
-| F-076 | Numbers | D1's literal limits; "an error as it is typed" (F-442); "the most the limit can be set to" (F-441) |
+| F-076 | Numbers | D1's literal limits, each a size refusal, the hard bound's and the exponent bound's as the literal is typed (F-442, R-4); "the most the limit can be set to" (F-441) |
 | F-077 | Names | Letters of any script, the digits `0` to `9` (Q-087) |
 | F-078 | Names | The `ha` example goes; nothing of a unit `a` |
 | F-079 | Names | D1's reading rules here; the load-time checks in `definitions.md`; one shared-names sentence, there (Q-113) |
@@ -284,7 +288,7 @@ Still open: nothing that blocks the page.
 
 | Section | Report lines | Use | What changes |
 | --- | --- | --- | --- |
-| The whole page | D1 L287-485 (`#Expressions` with five new subsections) | the text, mapped onto §7's headings | "rejected" to "an error as it is typed"; "reads back" to "pastes back" (L449, L458, L485); "canonical form" to "how the app writes an expression back" (L449); L485's link list applied: "must conform" to `quantities.md#conformance`, "read exactly" and the literal limits to `numbers.md`, "pastes back" to `numbers.md#how-numbers-are-written` |
+| The whole page | D1 L287-485 (`#Expressions` with five new subsections) | the text, mapped onto §7's headings | "rejected" to "an error as it is typed" for text the grammar does not read, and to "refused as it is typed" for a literal past a size limit (R-4); "reads back" to "pastes back" (L449, L458, L485); "canonical form" to "how the app writes an expression back" (L449); L485's link list applied: "must conform" to `quantities.md#conformance`, "read exactly" and the literal limits to `numbers.md`, "pastes back" to `numbers.md#how-numbers-are-written` |
 | Names | D1 L239-285 | the text | the `ha` sentence goes; the load-time checks and the shared-names sentence (L260-262, L271-272) go to `definitions.md`; link `units.md` for the absent names |
 | Names (load-time check) | A9 L197-205; D2 L212-216 | not here: `definitions.md`'s (work order 04) | — |
 | The have field (which field an error marks) | D9 L256-264 | not here: `app.md`'s (work order 08), linked | — |
@@ -292,10 +296,12 @@ Still open: nothing that blocks the page.
 ## 8. Conflicts left to settle
 
 From the owner's list (`audit/decisions.md`, "For the owner"): conflict
-1, forward links, confirmed as the rule (this page links `definitions.md`, `units.md`,
-`builtins.md` and `app.md` at §7's anchors); conflict 7 does not touch
-this page. The session records in its pull request the two or three error
-messages it quotes.
+1, forward links, confirmed as the rule (this page links
+`definitions.md`, `units.md`, `builtins.md` and `app.md` at §7's
+anchors); conflict 7 does not touch this page. Of the review's answers
+(plan §12.3), R-4: a literal past a size limit is a size refusal as it
+is typed (section 3). The session records in its pull request the two or
+three error messages it quotes.
 
 ## 9. Code changes it waits on
 

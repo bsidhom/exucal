@@ -5,7 +5,8 @@ The session that rewrites this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D9 (L289-295)` is `audit/reports/D9/fable.md`, lines 289 to 295. `§7.1`
@@ -63,9 +64,11 @@ says where each comes from), the build ID's source, the icons' sources.
   V8's link text "Updates and the build" is D9's); "service worker",
   never "the worker" (the bullet "The worker's status" is "The service
   worker's status"; D9 L291-295, V8 L259-261); "a new version" for a
-  deployment that could be pulled, "update" only as a verb, "deploy"
-  on this page only as the developer's act (V8 L251's "after a deploy"
-  stays); "the cog", "install" as §8 has them; "precache" glossed once.
+  deployment that could be pulled, "update" only as a verb in prose
+  (the bullet's label "Update checks" keeps the noun, as headings and
+  labels do: R-8 of the review, plan §12.3), "deploy" on this page only
+  as the developer's act (V8 L251's "after a deploy" stays); "the cog",
+  "install" as §8 has them; "precache" glossed once.
 - **Parameters, not measurements (F-403; Q-016).** The check intervals
   are named by their constants, `PERIODIC_CHECK` and `CHECK_INTERVAL`
   in `src/register-service-worker.ts`, not as figures (D9 L293).
@@ -137,9 +140,10 @@ Still open: nothing that blocks the page.
 
 ## 8. Conflicts left to settle
 
-None of the owner's list touches this page. The session records in
-its pull request the `online` handler's behaviour as read and the
-favicon wording applied.
+None of the owner's list touches this page; of the review's answers
+(plan §12.3), R-8 keeps the label "Update checks" (section 3). The
+session records in its pull request the `online` handler's behaviour
+as read and the favicon wording applied.
 
 ## 9. Code changes it waits on
 

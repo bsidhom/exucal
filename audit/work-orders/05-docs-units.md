@@ -5,7 +5,8 @@ The session that writes this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D3 (L97-311)` is `audit/reports/D3/fable.md`, lines 97 to 311. `§7` is
@@ -29,11 +30,13 @@ bug in `audit/bugs.md`; each is read at its id. A report pointer such as
   deletion of `docs/definitions.md#What the file contains` with its
   contents carried over bullet by bullet (D3 L313-319); A9's two
   in-place pairs for that section (A9 L179-195) are carried into this
-  page instead (F-114). This session deletes that section of
-  `docs/definitions.md`, which work order 04 left in place with one
-  pointing sentence, and nothing else there.
-- **Output.** The page, the deletion, and in the pull request the
-  choices made and any question for the owner.
+  page instead (F-114). Work order 04 deleted that section already
+  (conflict 1: it links this page forward), so this session carries its
+  contents here from D3's map (D3 L313-319) and from the section as it
+  stood before work order 04's pull request (`git log -p --
+  docs/definitions.md`), and changes nothing in `docs/definitions.md`.
+- **Output.** The page, and in the pull request the choices made and
+  any question for the owner.
 - **Not in scope.** The file's comments (B-061 to B-065, B-059, B-014)
   are the code track's and do not change the page.
 
@@ -124,11 +127,12 @@ differ in wording from these, these win.
   names: the measured values written exactly, the dalton (CODATA 2018)
   and the tropical and sidereal years; the five SI defining constants
   exact by the 2019 SI; `gravity` exact by convention (F-069, Q-085,
-  Q-041); the sources the file cites, named as the file cites them
-  (Q-033; F-116 is low confidence: the three attributions the old page
-  made that the file does not cite stay only once the file's header
-  names them, which is the code track's B-065, so until then the page
-  names the file's own sources only).
+  Q-041); the sources: those the file cites, named as the file cites
+  them, and the three documents the owner's answer adds to the file's
+  header, the SI brochure (9th edition), NIST Handbook 44 and the
+  Weights and Measures Act 1985 (Q-033, ok; F-116). The header gains
+  them with B-065 in the comment pass after the pages (Q-059), so the
+  page names them now and the file agrees once that pass lands.
 - **Names that are absent or mean something else.** `u` and `at` (the
   symbols of the dalton and the technical atmosphere, not defined; `at`
   typed reads as `a` + `t`, an attotonne), `dB` (`d` + `B`; use
@@ -166,31 +170,35 @@ Still open: nothing that blocks the page.
 | Section | Report lines | Use | What changes |
 | --- | --- | --- | --- |
 | The whole page | D3 L97-311 | the draft, under section 4's headings | "inexact" for the angle units and `dms`; "the definitions file"; "temperature differences"; "an error when the file loads" (L287); `builtins.md` for `functions.md` (L150); nothing of a unit `a`; the reason for readings as functions linked, not restated |
-| `docs/definitions.md#What the file contains` | D3 L313-319 (delete and carry); A9 L179-195 (two pairs, carried here) | the deletion; A9's facts | A9 L191 "intervals" reads "temperature differences" |
+| The contents of the deleted `docs/definitions.md#What the file contains` | D3 L313-319 (the map, carried); A9 L179-195 (two pairs, carried here) | the contents (work order 04 made the deletion); A9's facts | A9 L191 "intervals" reads "temperature differences" |
 
 ## 8. Conflicts left to settle
 
 From the owner's list (`audit/decisions.md`, "For the owner"): conflict
-1, forward links, confirmed as the rule (this page links `builtins.md#constants`). Nothing else
-touches this page.
+1, forward links, confirmed as the rule (this page links
+`builtins.md#constants`; `docs/definitions.md`, written before it,
+deleted `#What the file contains` and links this page's §7 headings,
+which it keeps). Nothing else touches this page.
 
 ## 9. Code changes it waits on
 
 None. The file's comment changes (B-061 the header's term, B-062
 `gravity`'s mark, B-063 the years' source, B-064 `bit`'s reason, B-065
 the header's sources, B-059 "temperature difference") are the code
-track's batch 3; the page states the facts now and names the file's
-sources as the file has them when the page is written. B-014 (the
+track's batch 3 (one commit after the pages, Q-059); the page states
+the facts now and names the file's own sources and the three documents
+B-065 adds (section 4). B-014 (the
 dalton's edition) is not scheduled: "CODATA 2018".
 
 ## 10. Done when
 
 - Every section of section 4 exists under its heading, the linked
-  headings exactly as written; `docs/definitions.md#What the file
-  contains` is gone and every fact it carried is here.
+  headings exactly as written; every fact `docs/definitions.md#What
+  the file contains` carried before work order 04 deleted it is
+  here.
 - No "approximate" for a unit, no "system file", no "interval", no
   issue number, nothing of a unit `a`, no `docs/functions.md`.
 - Every link is a repo-relative path to an existing page or to
   `builtins.md#constants`.
 - The pull request names the choices made and any question for the
-  owner, and changes nothing outside this file and the deleted section.
+  owner, and changes nothing outside this file.

@@ -216,13 +216,15 @@ Significand limit`. *devdocs/:* `numbers.md#The exponent bound`, `#Which limit a
 at 10^18`; `builtins.md#The rules every built-in follows`. *Depends on:* N22,
 N24. *Modules:* `scaled.ts`, `ball.ts`, `builtins/*.ts`. *Owner:*
 `numbers.md` > "Values too big to hold"; the pass table of digits stays
-in `devdocs/numbers.md`, its timings only as rough, illustrative figures
-(Q-016, Q-017).
+in `devdocs/numbers.md` and the scratch build's per-size milliseconds go
+(Q-017, which governs that section over Q-016's rule).
 
 **C22. Refusal.** The three size refusals as one class, the only sense
 of "refused" in either corpus (F-442): everything else is "an error" in
-the docs, and the devdocs keep "rejection" for text the parser
-recognized and refused (C62). *Class:* bridge.
+the docs. A literal past the hard bound or the exponent bound is a size
+refusal too, stopped as it is typed (C62; R-4 of the review, plan
+§12.3); the devdocs keep "rejection" for text rejected for its form and
+for the definitions-line faults. *Class:* bridge.
 *Terms:* "refused" ↔ `Refusal`, `isRefusal`. *docs/:* used throughout
 `docs/settings.md`, `docs/functions.md`. *devdocs/:* `numbers.md#Which limit a
 refusal names`. *Modules:* `scaled.ts`, `rational.ts`,
@@ -546,9 +548,11 @@ and definitions), never in `numbers.md` (§12, question 2).
 `architecture.md#Expressions`. *Owner:* `expressions.md`.
 
 **C62. Number literals and the parse-time bound.** *Class:* user.
-*Terms:* ↔ `parseDecimal`, `Rejection`, `check`, `rejected` (devdocs:
-"rejection", text the parser recognized and refused; docs: "an error as
-it is typed", F-442). *docs/:*
+*Terms:* ↔ `parseDecimal`, `Rejection`, `check`, `rejected` (a literal
+past the hard bound or the exponent bound is a size refusal as it is
+typed, in both corpora, the code's `Rejection` named as it is; text the
+grammar does not read is "an error as it is typed" in the docs; F-442,
+R-4 of the review, plan §12.3). *docs/:*
 `docs/definitions.md#Expressions > Numbers`. *devdocs/:*
 `architecture.md#Expressions`, `#Parsing > Rejection is final`; `numbers.md#The exponent bound` (last sentence). *Owner:*
 `expressions.md`.

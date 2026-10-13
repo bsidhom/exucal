@@ -3,8 +3,8 @@
 The briefs the rewrite runs on: one per page under `docs/` and
 `devdocs/`, and one for the code track, written on 2026-10-12 from the
 owner's answers in [`../decisions.md`](../decisions.md) (recorded in
-[`../plan/12-open-questions.md`](../plan/12-open-questions.md), section
-12.1) and the consolidated audit ([`../findings.md`](../findings.md),
+[`../plan/12-open-questions.md`](../plan/12-open-questions.md), sections
+12.1 to 12.3) and the consolidated audit ([`../findings.md`](../findings.md),
 [`../open-items.md`](../open-items.md), [`../bugs.md`](../bugs.md)).
 The pages are rewritten into the outline of
 [`../plan/07-docs-outline.md`](../plan/07-docs-outline.md) under the
@@ -30,7 +30,11 @@ unsettled, the owner's list at the end of `audit/decisions.md` ("For
 the owner") named it; the owner answered every item on 2026-10-12
 (`audit/plan/12-open-questions.md`, section 12.2), and each work order
 states the settled reading under "still open" (section 6) and
-"Conflicts left to settle" (section 8).
+"Conflicts left to settle" (section 8). A review of the apply step then
+put eight more calls to the owner (R-1 to R-8, at the end of
+`audit/decisions.md`), answered on 2026-10-13 and recorded in section
+12.3; the work orders were corrected with them on that day, together
+with the review's other corrections.
 
 ## The order
 
@@ -63,7 +67,7 @@ batch 3 after the pages.
 | 15 | [15-devdocs-builtins.md](15-devdocs-builtins.md) | `devdocs/builtins.md` | 11, 13, 14; batch 1; B-001, B-005 (batch 2) |
 | 16 | [16-devdocs-settings.md](16-devdocs-settings.md) | `devdocs/settings.md` | 11, 13, 15; batch 1; B-012 (batch 2) |
 | 17 | [17-devdocs-cost.md](17-devdocs-cost.md) | `devdocs/cost.md` | 11, 15, 16 |
-| 18 | [18-devdocs-future.md](18-devdocs-future.md) | `devdocs/future.md` | 11 to 17 (it receives text from 11, 14 and 15) |
+| 18 | [18-devdocs-future.md](18-devdocs-future.md) | `devdocs/future.md` | 11 to 17 (it receives text and links from 11, 12, 14, 15 and 16) |
 | 19 | [19-devdocs-layout.md](19-devdocs-layout.md) | `devdocs/layout.md` | 05; the design pages |
 | 20 | [20-devdocs-testing.md](20-devdocs-testing.md) | `devdocs/testing.md` | 19 |
 | 21 | [21-devdocs-benchmarks.md](21-devdocs-benchmarks.md) | `devdocs/benchmarks.md` | 17, 19, 20 |
@@ -131,16 +135,27 @@ the decisions followed, what is not scheduled, the conflicts, and
   page written first links the later page at that anchor and the
   later page keeps the heading (conflict 1 of the owner's list,
   confirmed). A developer page links a developer page written later
-  at its current heading; a later page that renames one updates the
-  inbound links in its own rewrite; no heading is renamed without
-  updating every link to it.
+  at its current heading, and the later page keeps it: a heading is
+  renamed or removed only where a finding or the page's work order
+  says so (work order 16, for example, renames `#The sheet` to `#The
+  panel`, and work order 18 deletes `#Ruled out, and why`), and that
+  page's pull request updates every link to the old heading, in either
+  corpus and in `src/`. The same holds for the one renamed file: work
+  order 07's pull request repoints every link to `docs/functions.md`.
+  Such link updates are the only changes a pull request makes outside
+  its page.
 - **Hand-offs.** Text that leaves one page for another travels with
   the work orders: `devdocs/numbers.md` (11) hands the binary
-  `approx(x, u)` design and #171 to `devdocs/future.md` (18);
+  `approx(x, u)` design and #171 to `devdocs/future.md` (18), and #78
+  and #173 with their open questions (the owner's list, items 2 and 5);
+  `devdocs/notation.md` (12) hands #178 (item 6) to 18;
   `devdocs/functions.md` (14) hands its `#Deferred` text to 18;
   `devdocs/builtins.md` (15) hands the deferred function classes to 18;
+  `devdocs/settings.md` (16) hands #167 and #186 (items 7 and 8) to 18;
   `devdocs/future.md`'s ruled-out bullets go to 11 and 14 (and the user
   sentences to 01 and 02) before 18 drops the section;
+  `docs/definitions.md` (04) deletes `#What the file contains`, whose
+  contents `docs/units.md` (05) carries;
   `devdocs/layout.md` (19) hands the favicon check to `devdocs/offline.md`
   (23); the code track's pull requests give the page sessions the final
   wording of every user-visible line they quote.
@@ -151,8 +166,13 @@ the decisions followed, what is not scheduled, the conflicts, and
   order names the items that touch its page and the settled reading.
   Five follow-ups the pages do not describe have issues of their own
   (#198 to #202); the three that are bugs in today's behaviour are
-  linked once from the devdocs passage that owns the concept (Q-012).
+  linked once from the devdocs passage that owns the concept (Q-012;
+  kept by R-3 of the review).
+- **The review's calls.** `audit/decisions.md`, "For the owner: the
+  review of the apply step": R-1 to R-8, answered by the owner on
+  2026-10-13 and recorded in `audit/plan/12-open-questions.md`, section
+  12.3. A work order names the ones that touch its page.
 - **The pull request.** Each session's pull request changes its page
-  (and, where the work order says so, the inbound links a renamed
+  (and, where the work order says so, the links a renamed file or
   heading needs) and nothing else, and records the choices and
   questions the work order asks for.

@@ -5,7 +5,8 @@ The session that rewrites this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `V5 (L107-113)` is `audit/reports/V5/fable.md`, lines 107 to 113. `§7.1`
@@ -67,7 +68,8 @@ digits).
 - **Q-043 (ok) in `#The rule`.** Rule 3 stands as design; B-004 has
   landed before this page, so no caveat sentence is written (F-061); if
   the session finds B-004 not landed, one sentence names the exception
-  and the work order of the code track.
+  (Q-043), and nothing on the page names the code track or a work order
+  (Q-071: `audit/` is mentioned nowhere; the pull request says it).
 - **Issue links (Q-011; §12 question 26).** Inline, once; the foot's
   definitions go; #92 is `architecture.md`'s only (Q-103; F-328). #178
   (a study of the exact-mode display) is future work (the owner's list,

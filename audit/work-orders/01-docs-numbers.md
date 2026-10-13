@@ -5,7 +5,8 @@ The session that writes this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D8 (L172-178)` is `audit/reports/D8/fable.md`, lines 172 to 178 (D1's
@@ -76,23 +77,30 @@ What each changes in the drafts this page is built from:
   mismatch, a failed condition: "an error", never "refused". So D8
   L206 ("Values at an edge") and A4 L137 ("a refusal at the pole") are
   reworded; "cannot be told from zero" is an error. A literal past the
-  hard bound or the exponent bound is "an error as it is typed", never
-  "rejected" (D8 L232-265 and A5 L126-134 say "rejection").
+  hard bound or the exponent bound is a size refusal, refused as it is
+  typed (past the exponent bound it is the bound's own refusal, as a
+  computed value past it is), never "rejected" (D8 L232-265 and A5
+  L126-134 say "rejection"); text the grammar does not read is "an
+  error as it is typed" (R-4 of the review, plan §12.3).
 - **Future work is `devdocs/future.md`'s alone (Q-011).** The page
   mentions nothing that may come: no two-argument `approx` and no #100
   (F-023, F-046), no symbolic layer (F-034), no equality operator to
   come (F-030), no configurable formatting, no issue of any kind. What
-  is ruled out by intent is stated as a plain fact where a user would
-  look for it: the app never shows the error radius ("Exact and inexact
-  values"); there is no equality operator ("Comparison and equality");
-  readings are not units with an offset (that one is `quantities.md`'s);
-  real values only ("Real values only"); the exponent bound is not a
-  setting and a higher one is ruled out, with the two reasons (F-058).
+  the app lacks today is stated as a plain fact where a user would look
+  for it, never as something to come: there is no equality operator and
+  no `!=` ("Comparison and equality"; both future work, Q-112, R-5 of
+  the review); real values only ("Real values only"; a plain fact about
+  today, complex numbers being future work, R-7). What is ruled out by
+  intent is stated the same way: the app never shows the error radius
+  ("Exact and inexact values"); readings are not units with an offset
+  (that one is `quantities.md`'s); the exponent bound is not a setting
+  and a higher one is ruled out, with the two reasons (F-058).
 - **Which numbers the page keeps (Q-016, Q-018).** No timing, run count
   or measured ratio: "What costs time" is qualitative, and a rough
   duration appears only where it warns ("a few seconds"). The six-pass
-  table of `approx(1e999)` and the scratch build's figures stay in
-  `devdocs/numbers.md`, linked at the section level (F-058, Q-017). The
+  table of `approx(1e999)` stays in `devdocs/numbers.md`, linked at the
+  section level, and the scratch build's per-size milliseconds leave
+  the docs altogether (F-058, Q-017). The
   one count the page keeps is the dyadic cost of `2^-30000`, "about
   69,658 bits" (Q-091, F-012).
 - **The ceiling is a pass's precision (Q-004); the formula once, in the
@@ -119,11 +127,14 @@ What each changes in the drafts this page is built from:
   outcome, then plain words; "dimensionless" and "plain number" as
   synonyms (Q-019). The built-in functions page is `docs/builtins.md`
   (Q-020): every link D8 or A5 writes to `docs/functions.md` targets it.
-- **Messages (Q-007).** The app's messages are quoted as examples only,
-  two or three in "Values too big to hold" and one at an edge, in the
-  wording the code has once the first batch of the code track has
-  landed; the no-count forms of the size refusal are not quoted until
-  B-020 lands (Q-051).
+- **Messages (Q-007).** The app's messages are quoted as examples only:
+  the two size refusals in "Values too big to hold" (the significand
+  limit's and the exponent bound's), in the wording the code has once
+  the first batch of the code track has landed. No message at an edge
+  is quoted, since B-021 rewords the edge message after the pages
+  (batch 3): "Values at an edge" describes it and may use its stable
+  phrase "cannot be told from". The no-count forms of the size refusal
+  are not quoted either (B-020 rewords them after the pages, Q-051).
 - **Markdown (principles).** The subset only: no reference-style links,
   no raw HTML; the `exp(1e999)` diagram stays as a fenced block
   (Q-109); every link is a repo-relative path.
@@ -224,21 +235,23 @@ state.
 
 - Start from D8 L202-206 (D8's sentences only), reworded under F-442.
 - Facts: §1 N15 as amended. "Cannot be told from" is an error at the
-  ceiling, never a refusal (F-032). One complete sentence names which
-  rounding functions decide a value that cannot be told from zero and
-  how, D6's rule 3 (F-031, Q-025: D6 L55, L81, L95: `floor` decides a
-  ball against the cell from its result to the next integer, `ceil` the
-  cell below, `trunc` the cell on the result's side of zero, `round`
-  half a unit either way, `sign`, `div` and `mod` as D6 states them; the
-  owner asks that the list be complete).
+  ceiling, never a refusal (F-032). One complete sentence names every
+  rounding function and mode, D6's rule 3 in full (F-031, Q-025; D6
+  L55, L81, L95): `trunc`, and `round` in a mode to nearest or toward
+  zero, decide a value that cannot be told from zero as `0`; `floor`,
+  `ceil`, `sign`, and `round` in `awayFromZero`, `ceiling` and `floor`
+  do not, and the result is an error. That is the list the owner
+  confirmed complete; the session checks it against D6 before writing
+  the sentence.
 
 ### Identities and cancellation
 
 - Start from D8 L208-216.
 - Facts: §1 N5 and N7 as amended (F-034): an identity through an
   inexact step never certifies exactly; such an expression runs every
-  pass up to the ceiling, or until a pass ends with a refusal the loop
-  does not retry, when the best result so far is shown; dividing by
+  pass up to the ceiling, or until a refusal at a later pass ends the
+  loop (the loop retries no refusal, Q-001), when the best result so
+  far is shown; dividing by
   such a value is an error. Today's behaviour as a plain fact, nothing
   of a remedy to come (Q-011). The dependency problem (`x - x`,
   `sqrt(2)/sqrt(2)`), one paragraph. A formula written by hand against
@@ -299,8 +312,10 @@ state.
 ### Values too big to hold
 
 - Start from D8 L232-265, adding A5's three facts on the exponent bound
-  (A5 L58), the literal past the hard bound or the bound, "an error as
-  it is typed" (A5 L126-134, under F-442), and D6's family facts (D6
+  (A5 L58), the literal past the hard bound or the bound, a size
+  refusal as it is typed (A5 L126-134, under F-442 as R-4 of the review
+  settles it: past the exponent bound, the bound's own refusal), and
+  D6's family facts (D6
   L84: the integer functions' refusals never offer `approx` or decimal
   mode and apply in both modes; `round(x, places)` and `mod` are
   refused when their results would pass the limit) (F-053).
@@ -415,7 +430,7 @@ anything it cannot settle.
 | F-050 | Values too big to hold | The `exp(1e999)` diagram stays; the passes' table goes to devdocs |
 | F-051 | Values too big to hold | One refusal kind, never retried (Q-001) |
 | F-052 | Values too big to hold | A sum never faces the choice (N24) |
-| F-053 | Values too big to hold | D8's draft plus A5's and D6's facts; messages as examples; "an error as it is typed" |
+| F-053 | Values too big to hold | D8's draft plus A5's and D6's facts; messages as examples; a literal past a size limit refused as it is typed (R-4) |
 | F-054 | Values too big to hold | The #40 sentence dropped |
 | F-055 | Values too big to hold | Moot: the section dissolves |
 | F-056 | Values too big to hold | A built-in at an argument's own bits refuses there (N21) |
@@ -479,7 +494,7 @@ settings-dependent digits.
 | Identities and cancellation | D8 L208-216 | the draft | L212, L216 hold ("refused" there names size refusals); the examples' destination settled per F-033 |
 | The two modes | D8 L218-222; A4 L26-28; A4 L137; D4 L217-219; A1 L240-243 | D8's sentences, A4's rules and consequences | "inexact"; "fails at the pole"; no settings-dependent digits; the step list with a leading `-`; no issue |
 | `approx` | D8 L224-230; A2 L152; A5 L246-257 | the draft plus the facts | "inexact" (L228, L230); nothing of the binary form; "at the first pass" (F-047) |
-| Values too big to hold | D8 L232-265; A5 L58; A5 L126-134; D6 L84 | the draft plus the facts | "the exponent" (L257, L263, L265); "inexact" (L257); "an error as it is typed" for the parser's rejections; L265: link the devdocs table, no "measurements" |
+| Values too big to hold | D8 L232-265; A5 L58; A5 L126-134; D6 L84 | the draft plus the facts | "the exponent" (L257, L263, L265); "inexact" (L257); a literal past the hard bound or the exponent bound "refused" as it is typed, a size refusal, where the drafts say "rejection" (R-4); L265: link the devdocs table, no "measurements" |
 | How numbers are written | D4 L101-107, L195-201 | D4's rule and examples | the ratio bare before `×`; "pastes back"; the overflow edge |
 | Dissolved: `docs/functions.md#Very large results and approx` | D8 L168-170 (the map); A5 L431-449 (not applied) | the map only | links target `docs/builtins.md` |
 | Dissolved: `docs/settings.md#How a number is held…` | D8 L66-70 (the map); A1 L223-272 (not applied) | the map only | — |
@@ -501,10 +516,17 @@ owner"), as they touch this page, all answered on 2026-10-12:
 3. **F-442 and N15's wording (conflict 6, confirmed).** An edge is an
    error.
 
+Of the review's answers (plan §12.3, answered on 2026-10-13): R-4, a
+literal past the hard bound or the exponent bound is a size refusal as
+it is typed (section 3); R-5, no `!=` is stated as a plain fact, with
+the equality operators, never as something to come; R-7, "Real values
+only" is a plain fact about today, not a design ruled out.
+
 Choices the session makes and records in its pull request (the sheet's
 section 10): the destination of the hand-written rule's examples
 (F-033); any wording where D8's and D4's drafts of the same fact differ
-after the Q-108 split; the two or three messages quoted.
+after the Q-108 split; the wording of the two size refusals quoted, as
+the code has it (Q-007).
 
 ## 9. Code changes it waits on
 
@@ -516,6 +538,7 @@ after the Q-108 split; the two or three messages quoted.
 - **Complicates, no wait:** B-004 (no dyadic example from `2^-41` to
   `2^-63` until it lands), B-007 (`log`'s uncertified lines stated as
   today's behaviour), B-020 (the no-count refusal forms not quoted),
+  B-021 (the edge message described, not quoted, until it is reworded),
   B-013 ("about 69,658"), B-008 and B-011 (kept and documented in the
   devdocs; the user page says what the reciprocal line inverts and
   stays qualitative on cost).

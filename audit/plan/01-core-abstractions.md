@@ -61,7 +61,7 @@ Values and exactness
   operands is never rounded in exact mode, and an exact value is never
   replaced by a different exact value. A sum that cannot be aligned
   within the significand limit is refused, not rounded (in decimal mode
-  it takes the neighbour rule, N20). Where an exact operand meets an
+  it takes the neighbor rule, N20). Where an exact operand meets an
   inexact one and the exact step would pass the limit, the exact operand
   is rounded onto the working grid with the rounding charged to the
   radius, as `approx` would do, so that the result, inexact in any case,
@@ -88,14 +88,15 @@ Values and exactness
   step never certifies zero or a rational: `sqrt(2)^2 - 2` is `≈ 0`
   within a bound, `turn` into `deg` is `≈ 360`, `sin(pi() radian)` is
   `≈ 0`; such expressions run every pass up to the ceiling, or until a
-  pass ends the loop with a refusal the loop does not retry, when the
-  best result so far is shown (cost), and dividing by such a value is an
-  error ("cannot be told from zero"). The user docs state this as
-  today's behaviour, a plain fact; that it is a consequence of the
-  current representation rather than a design goal, and that the remedy,
-  if one comes, is a symbolic layer for a subset of identities, is
-  `devdocs/future.md#Symbolic values`'s alone (§1.3), which
-  `devdocs/numbers.md` links (Q-011). (Amended: F-034, Q-001, F-442.)
+  refusal at a later pass ends the loop (the loop retries no refusal,
+  Q-001), when the best result so far is shown (cost), and dividing by
+  such a value is an error ("cannot be told from zero"). The user docs
+  state this as today's behaviour, a plain fact; that it is a
+  consequence of the current representation rather than a design goal,
+  and that the remedy, if one comes, is a symbolic layer for a subset
+  of identities, is `devdocs/future.md#Symbolic values`'s alone (§1.3),
+  which `devdocs/numbers.md` links (Q-011). (Amended: F-034, Q-001,
+  F-442.)
   → `devdocs/numbers.md#Exact mode`, `#Exact operations` (`unresolved`),
   `#Working precision and the schedule`; `devdocs/cost.md#What the costs
   come from`; `devdocs/future.md#Symbolic values`.
@@ -123,17 +124,19 @@ Precision, certification and display (exact mode)
   (no operation produces one today), *exact* (`=`), *zero* ("within
   2e-30 of zero", the value written `0` whatever the sign), *certified*
   (every digit asked for, `≈`), *partial* ("8 of 12 digits are
-  certain"). Under today's display policy an exact value with more
+  certified"). Under today's display policy an exact value with more
   digits than shown is `≈` with no note (`1/3 ≈ 0.33333333`); that the
   policy is separable from the model and may change is
   `devdocs/future.md`'s to say (§1.3). *Partial* is reachable today by
   two routes: in exact mode a `log` whose value is rational but not an
   integer (`log(256, 512)` at three digits shows `≈ 1.1 (2 of 3 digits
-  are certain)`), and under a directed mode a ball straddling a grid
+  are certified)`), and under a directed mode a ball straddling a grid
   point (`approx(1)` and `cosh(1e-999999999)` show `≈ 1` with no digit
-  certain). The two-argument `approx` (#100) is future work, named in
+  certified). The two-argument `approx` (#100) is future work, named in
   `devdocs/future.md` only; neither it nor the issue travels into the
-  pages. (Amended: F-023, Q-078, F-414, Q-011.)
+  pages. (Amended: F-023, Q-078, F-414, Q-011; the notes are quoted as
+  they read after the "certified" change, Q-006, B-068, which lands
+  before the pages: today's notes say "certain".)
   → `devdocs/numbers.md#Certification and the display rule`;
   `devdocs/architecture.md#The converter and its lines > The relation and
   the note`.
@@ -142,7 +145,8 @@ Precision, certification and display (exact mode)
   mode (N17); `round(x[, places])` is the one place it acts inside an
   expression. Directed modes show the value on the side they name, so a
   ball straddling a grid point under a directed mode certifies nothing
-  (`cosh(1e-999999999)`, `approx(1)` show `≈ 1` with no digit certain).
+  (`cosh(1e-999999999)`, `approx(1)` show `≈ 1` with no digit
+  certified).
   → `devdocs/numbers.md#The types` (rounding.ts), `#Certification…`;
   `devdocs/builtins.md#The exact functions`, `#Huge and tiny arguments`.
 - **N12.** Formatting is `%g`-like: significant digits in the mode,
@@ -263,12 +267,12 @@ Decimal mode
   (so `3 m` in `in` at eight digits gives `0.0084666664` whatever the
   working digits; kept and documented, Q-046). A function's conditions,
   an inverse's body and the function applied back are evaluated at `w`.
-  Under a directed mode the answer is the neighbour of a value on the
+  Under a directed mode the answer is the neighbor of a value on the
   grid, as that mode asks. (Amended: F-043, F-038.)
   → `devdocs/numbers.md#The working digits`.
 - **N20.** In decimal mode `sin(pi() radian)` is `sin(3.1415927 radian)`
   `= -4.6410207e-8`; `1/3*3 = 0.99999999`; `2.5400001 cm` at three digits
-  is `= 1 in`; two exact operands that cannot align take the neighbour
+  is `= 1 in`; two exact operands that cannot align take the neighbor
   rule (`1e999999999 + 1` is `1e+999999999`, or `1.0000001e+999999999`
   under ceiling).
   → `devdocs/numbers.md#Decimal mode`, `#Sums and alignment`.
@@ -422,10 +426,9 @@ and the schedule`, `#The significand limit`.
 - The classifier for the exponent bound, `logPowerBlame`,
   `powerRefusal`: `#The exponent bound`, `#Which limit a refusal names`.
 - Why 10^18 stays and the six-pass table of digits (the scratch build's
-  timings leave, or stay only as rough, illustrative figures that add
-  weight to the decision; Q-016, Q-017, F-510): `#Why the exponent bound
-  stays at 10^18` (duplicated today in `docs/functions.md#Very large
-  results and approx`; see §9).
+  per-size milliseconds go, Q-017 governing the section over Q-016's
+  rule; F-510): `#Why the exponent bound stays at 10^18` (duplicated
+  today in `docs/functions.md#Very large results and approx`; see §9).
 - Certification of unformable radii, `certifiedDigits` scanning,
   `zeroBound`: `#Certification and the display rule`.
 - The schedule's derivation (why four and ten), `workingContexts`,
@@ -489,7 +492,7 @@ outcome noted where its premise was corrected.
 2. N17's list of what counts as a step in decimal mode, literal rounding
    as read, and "a prefixed unit is rounded once" (`evaluate.ts`,
    `table.ts`, `context.ts`).
-3. N19's list of "last steps" and the directed-mode neighbour claim
+3. N19's list of "last steps" and the directed-mode neighbor claim
    (`pipeline.ts`, `outcome.ts`, `context.ts#operandContext`).
 4. N8's schedule (p + 10, doubling, `4 × (L + 10)`, nine passes at eight
    digits) and N21/N22 constants (65,536; 2,453; 358; 2^20; 10^18;

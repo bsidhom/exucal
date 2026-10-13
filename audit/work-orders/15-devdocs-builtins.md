@@ -5,7 +5,8 @@ The session that rewrites this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `V3 (L81-110)` is `audit/reports/V3/fable.md`, lines 81 to 110. `§7.1`
@@ -131,8 +132,13 @@ tense.
   a sum" may stay as a rough duration (F-277, Q-018); the Bernoulli
   run's "half a second … about two" (D7 L190, V3 L531) becomes the
   ratio or a rough figure (F-291); the Gamma costs (D7 L196-197, V3
-  L558) become D7's ratio wording, "several times one on an exact
-  argument", never the ordering V6 questions (F-354 in `cost.md`); the
+  L558) take D7's ratio wording, "several times one on an exact
+  argument", only once the session has checked that ordering against
+  the stress catalogue or a per-call benchmark, as F-154 requires: V6
+  finds the catalogue's exact and inexact Gamma cases overlapping,
+  "about half" holding in the median only (F-354, `cost.md`'s), so if
+  the catalogue does not bear the ordering out, the sentence states
+  only what it does bear out; the
   incomplete gamma's and the incomplete beta's timings become one
   qualitative sentence each, the convergent counts staying (F-295,
   F-299); the `erf` timing goes (F-296); the memory figures, ratio
@@ -409,7 +415,9 @@ also conflict 5) and #112's (item 10) are here; conflict 4 (a figure
 kept only as rough and illustrative: the session decides passage by
 passage, section 3); conflict 3 ("the definitions table", or "the
 table built from the definitions file", if the page names it; module
-names quoted as they are). The session records in its pull request the drafts picked, the
+names quoted as they are); item 14 (#200 at the logarithm row), which
+R-3 of the review keeps (plan §12.3). The session records in its pull
+request the drafts picked, the
 figures kept and the text handed to work order 18.
 
 ## 9. Code changes it waits on

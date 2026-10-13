@@ -5,7 +5,8 @@ The session that writes this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D2 (L167-256)` is `audit/reports/D2/fable.md`, lines 167 to 256 (D1's
@@ -20,10 +21,13 @@ is `audit/plan/02-the-two-languages.md`, `§8` is
   kind (§7). The page exists today and is rewritten in place: its
   sections `#Expressions` and `#Names` move to `expressions.md` (work
   order 03, done before this one) and `#What the file contains` moves
-  to `units.md` (work order 05, after this one), so this session
-  removes the first two and leaves the third in place with one
-  sentence pointing at `units.md`'s anchor until that page lands; work
-  order 05 then deletes it.
+  to `units.md` (work order 05, after this one). This session removes
+  all three: the page's top says, in D3's sentence, that the units the
+  file defines are in `units.md`, linking it forward at §7's anchor
+  (conflict 1 of the owner's list), so that the page is edited once
+  (Q-008) and work order 05 does not touch it. D3 L313-319 maps the
+  deleted section's contents, bullet by bullet, onto `units.md`, where
+  work order 05 carries them.
 - **Order.** Fourth, after `numbers.md`, `quantities.md` and
   `expressions.md`, which it links for exactness and cost, for
   conformance and conversion into a function, and for the name rules
@@ -122,12 +126,12 @@ the app loads".
 ### Primitives
 
 - `!` and `!kind`; the file declares nine primitives, the seven SI base
-  units, `bit` and the kind `radian` (F-094), and why information is a
-  dimension (Q-032: a count of bits must not collapse into a plain
-  number, so that `bit/s` stays apart from `Hz` as `rad/s` does); a kind
-  primitive is a marker of a kind with no dimension of its own (F-093);
-  that the radian is the only kind is the file's choice, not the
-  core's. `units.md#the-primitives` lists them with their meaning.
+  units, `bit` and the kind `radian` (F-094); a kind primitive is a
+  marker of a kind with no dimension of its own (F-093); that the
+  radian is the only kind is the file's choice, not the core's.
+  `units.md#the-primitives` lists them with their meaning and says why
+  information is a dimension (Q-032: that page owns the reason, which
+  this page links and does not restate).
 
 ### Prefixes
 
@@ -245,7 +249,7 @@ Owned elsewhere and read here: F-033, F-035, F-036, F-045, F-063 (the
 cost and decimal-mode facts are `numbers.md`'s; this page links them),
 F-079 and F-090 (the name rules split with `expressions.md`), F-114
 (the catalogue leaves for `units.md`), F-323 (`devdocs/functions.md`
-links this page's sections in work order 14), F-421, F-442, F-456,
+links this page's sections in work order 14), F-421, F-442, F-447, F-456,
 F-459, F-465, F-471, F-472, F-476, F-479, F-480, F-482, F-483, F-484,
 F-485.
 
@@ -266,18 +270,18 @@ Still open: nothing that blocks the page.
 | --- | --- | --- | --- |
 | (top) | D3 L313-319; A9 L37; D1 L219-237 | D3's sentence (the contents are `units.md`'s); "how to add to it" dropped | "the definitions file" |
 | The file, Grammar, Primitives, Prefixes, Units, Unit lists, Names | D2 L167-256 | the text, mapped onto §7's headings | `bit` added to the primitives; the kind gloss (F-459); "the file does not load when" for "rejected" (L219); "reserved" without "for later" (L231); L253-255 reduced to the plain sentence, #132 gone; the shared-names sentence kept once (against D1 L260-262); "a range" for "an interval" (L230) |
-| Functions | D2 L258-268 | the two pairs | "is an error" for "is rejected" (L268); the renamed example; the call-rule pointer added (D1's question 6) |
+| Functions | D2 L258-268 | the two pairs | "is an error" for "is rejected" (L268); "can straddle the bound" (L264-265) reworded with the docs' one phrase, a value whose bounds reach or meet it, never "straddle" (F-447); the renamed example; the call-rule pointer added (D1's question 6) |
 | Names (the list clause) | A9 L197-205; D1 L267-271 | one of the two | — |
 | Functions (the cost paragraph) | D8 L154-160; V4 L434-441 | the split Q-107 fixes: one user statement with links here | — |
 
 ## 8. Conflicts left to settle
 
 From the owner's list (`audit/decisions.md`, "For the owner"): conflict
-1, forward links, confirmed as the rule (this page links `units.md` and `builtins.md` at §7's
-anchors). Nothing else touches this page. The session records in its
-pull request the running example's new name (which `devdocs/functions.md`
-then uses, work order 14) and which of the two drafts of the shared-names
-sentence it kept.
+1, forward links, confirmed as the rule (this page links `units.md` and
+`builtins.md` at §7's anchors). Nothing else touches this page. The
+session records in its pull request the running example's new name
+(which `devdocs/functions.md` then uses, work order 14) and which of the
+two drafts of the shared-names sentence it kept.
 
 ## 9. Code changes it waits on
 
@@ -290,11 +294,12 @@ page quotes none.
 
 - Every section of section 4 exists under its heading, in order; the
   sections `#Expressions` and `#Names` are gone (their content is
-  `expressions.md`'s) and `#What the file contains` carries one sentence
-  pointing at `units.md#the-primitives` until work order 05 deletes it.
-- No "rejected", no "build" for loading, no "interval" for a
-  temperature unit, no "dimensionless marker", no "system file", no
-  issue number, nothing of user definitions to come, no `docs/functions.md`.
+  `expressions.md`'s) and so is `#What the file contains` (its content
+  is `units.md`'s), the page's top linking `units.md`.
+- No "rejected", no "build" for loading, no "interval" for a temperature
+  unit, no "straddle", no "dimensionless marker", no "system file", no
+  issue number, nothing of user definitions to come, no
+  `docs/functions.md`.
 - Every link is a repo-relative path to an existing page or to a §7
   anchor of `units.md` or `builtins.md`.
 - The pull request names the choices made and any question for the

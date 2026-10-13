@@ -5,7 +5,8 @@ The session that writes this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D4 (L141-350)` is `audit/reports/D4/fable.md`, lines 141 to 350. `§7`
@@ -82,8 +83,10 @@ the settings are and that a change applies as it is made.
   (D4 L258; F-125): the ceiling is "the highest precision any pass
   computes at"; the entry says the ceiling is derived from the limit
   and never set, and written as a number only in the probe's proposal
-  (F-126, Q-027); "grid" appears only in a link to `numbers.md`, which
-  explains it (F-127).
+  (F-126, Q-027). "Grid" is `numbers.md`'s word, explained there once
+  (Q-004, B): this page uses it without explaining it again, linking
+  `numbers.md` where it first appears (Display digits), and the
+  Precision limit entry's link keeps "grid" as its gloss (F-127).
 - **The probe (F-491).** "The four elementary functions", `sin`,
   `atan`, `exp` and `ln`, each named once, never "the costliest" (D4
   L322, L328, L333; F-128); the panel's own line is not quoted until
@@ -223,13 +226,15 @@ F-444, F-457, F-488, F-490, F-491, F-492, F-493, F-494, F-495.
 
 ## 6. Decisions followed, and still open
 
-Followed: Q-003, Q-004 (B), Q-005 (A), Q-006, Q-007, Q-008, Q-011,
-Q-016 (A) and Q-018 (B: no timing in the user docs; the stored unit and
-the panel's facts stay), Q-020, Q-022 (build ID, in `app.md`), Q-027,
-Q-049 (B: the stored width clamped), Q-081, Q-082, Q-091, Q-108,
-Q-115 (the "About these settings" link changes only when the pages ship
-with the app; nothing here); the rules F-442, F-451, F-488, F-490,
-F-491, F-492, F-493, F-494, F-495.
+Followed: Q-003, Q-004 (B), Q-005 (A), Q-006, Q-007, Q-008, Q-011, Q-016
+(A: no timing, run count or measured ratio in the user docs; the stored
+unit and the panel's facts stay) and Q-018 (B: a rough duration may stay
+where it warns; the probe's "for a fraction of a second" goes all the
+same, F-131's docs half following question 9 and Q-016), Q-020, Q-022
+(build ID, in `app.md`), Q-027, Q-049 (B: the stored width clamped),
+Q-081, Q-082, Q-091, Q-108, Q-115 (the "About these settings" link
+changes only when the pages ship with the app; nothing here); the rules
+F-442, F-451, F-488, F-490, F-491, F-492, F-493, F-494, F-495.
 
 Still open: nothing. Conflict 8 of the owner's list (how the pages name
 the panel's declined edits) is answered: "does not accept" and "held

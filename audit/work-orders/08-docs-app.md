@@ -5,7 +5,8 @@ The session that writes this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D9 (L165-265)` is `audit/reports/D9/fable.md`, lines 165 to 265. `§7`
@@ -23,7 +24,10 @@ is `audit/plan/07-docs-outline.md`, `§8` is `audit/plan/08-terminology.md`.*
   pages link it (`docs/README.md`, getting started, the devdocs:
   `offline.md`, `settings.md`, `security.md`, `architecture.md`), so its
   headings are §7's anchors (section 4). `settings.md` already links
-  `app.md#the-settings-panel`.
+  `app.md#the-settings-panel`. Its one link to a page written after it
+  is the privacy sentence's, to `devdocs/security.md#The page`
+  (`../devdocs/security.md#the-page`; R-1 of the review, plan §12.3),
+  whose heading work order 25 keeps.
 - **Status.** Ready. D9 drafted the page (D9 L165-265); V8 drafted three
   of its sections independently (V8 L130-166); the page is D9's draft
   with V8's word-by-word list and the privacy sentence (F-180). The
@@ -58,10 +62,11 @@ for which field an error points at.
   the section "Updates and the build ID"; "the service worker", named
   once where offline use is explained as what lets the app be served
   offline, then kept; "a new version" for a new deployment that could
-  be pulled, "update" always a verb, never "deploy" or "deployed" (D9
-  L205 "last deployed", V8 L149 "after a new version is deployed":
-  reworded, "the version the footer names", "once a new version is
-  available").
+  be pulled, "update" always a verb in prose, never "deploy" or
+  "deployed" (D9 L205 "last deployed", V8 L149 "after a new version is
+  deployed": reworded, "the version the footer names", "once a new
+  version is available"); the heading "Updates and the build ID" keeps
+  the noun, as headings and labels do (R-8 of the review, plan §12.3).
 - **Pastes back (F-457).** D9 L248's "reads back" reads "pastes back";
   the principle is `numbers.md`'s, linked.
 - **Refusal only for a size refusal (F-442).** D9 L251's "when the
@@ -76,10 +81,13 @@ for which field an error points at.
 - **Future work is `devdocs/future.md`'s alone (Q-011).** No issue is
   named; nothing of the "About these settings" link becoming local one
   day (Q-115: the page states the link as it is).
-- **No link down to the devdocs (§9.2; F-180).** V8's draft links
-  `security.md`; the page links nothing under `devdocs/`: the privacy
-  sentence stands on its own (Q-028, F-171), and `security.md` links
-  here.
+- **One link down, the privacy sentence's (Q-028; R-1).** The privacy
+  sentence links `devdocs/security.md#The page`, as V8's draft has it
+  and as the owner accepted (Q-028; confirmed in the review, plan §12.3,
+  R-1), and `security.md` may link back; the sentence stands on its own
+  and the link only leads a curious reader to the mechanism. Nothing
+  else on the page links under `devdocs/` (F-180 (5)): V8's link to
+  `devdocs/offline.md` is not taken.
 - **Numbers (Q-016).** No timing; "twelve characters" of the commit
   hash is a fact of the footer and stays (F-175).
 
@@ -97,8 +105,15 @@ panel", "Copying a result", "The two fields".
   load ("Loading units…") and when they fail (the message, the Retry
   button, the retry the user's and never automatic), described from
   `src/app-shell.ts`, which the session reads (F-169, low confidence;
-  F-170); the privacy sentence: the page calls no third-party service
-  and sends nothing anywhere (Q-028, F-171).
+  F-170); the privacy sentence, led by V8's "Nothing you type leaves the
+  device": the app calls no third-party service; it contacts only the
+  host it was loaded from, and only for its own static files (to load
+  them, and to check for and fetch a new version); and it sends that
+  host no local data, neither what is typed nor what is stored (Q-028,
+  F-171; the owner's wording, plan §12.3, R-2). The checks are worded
+  as "Updates and the build ID" describes them (no frequency the code
+  does not set), "a new version" and not "updates" (F-494), and the
+  sentence links `devdocs/security.md#The page` (R-1).
 - **Updates and the build ID.** The paragraph that left `docs/settings.md`
   with its two omissions restored: the build is plain text also when
   the service worker failed to register, and following the "update to …"
@@ -140,7 +155,7 @@ panel", "Copying a result", "The two fields".
 | --- | --- | --- |
 | F-169 | Offline use | The loading and failure messages, read from `src/app-shell.ts`; "service worker" named there (F-493) |
 | F-170 | Offline use | The failure described without "(fetchFailed)" (Q-057) |
-| F-171 | Offline use | The privacy sentence (Q-028); no link down |
+| F-171 | Offline use | The privacy sentence (Q-028; R-2's wording), linking `devdocs/security.md#The page` (R-1) |
 | F-172 | Offline use | The user's side here; `offline.md`'s split is work order 23 |
 | F-173 | Updates and the build ID | The paragraph here with the two omissions restored (Q-022, F-494) |
 | F-174 | Updates and the build ID | Every footer word quoted (Q-007); the status mapping stays in devdocs |
@@ -149,7 +164,7 @@ panel", "Copying a result", "The two fields".
 | F-177 | The settings panel | The "About these settings" link stated (Q-115, Q-007); "the panel's foot" |
 | F-178 | Copying a result | The feedback, read from `src/copy-button.ts`; "pastes back" |
 | F-179 | The two fields | The hint described, not quoted (Q-056) |
-| F-180 | (the page) | D9's draft with V8's word list and the privacy sentence; no link down; the terms per Q-022, F-488, F-493, F-494 |
+| F-180 | (the page) | D9's draft with V8's word list and the privacy sentence; one link down, the privacy sentence's (R-1), V8's link to `offline.md` not taken; the terms per Q-022, F-488, F-493, F-494 |
 
 Owned elsewhere and read here: F-426, F-492.
 
@@ -157,7 +172,8 @@ Owned elsewhere and read here: F-426, F-492.
 
 Followed: Q-007, Q-008 (the page after `settings.md`), Q-011, Q-022
 (A), Q-028, Q-056, Q-057, Q-115; the rules F-442, F-457, F-471, F-488,
-F-492, F-493, F-494, F-495.
+F-492, F-493, F-494, F-495; the review's answers R-1, R-2 and R-8 (plan
+§12.3).
 
 Still open: nothing that blocks the page.
 
@@ -166,14 +182,18 @@ Still open: nothing that blocks the page.
 | Section | Report lines | Use | What changes |
 | --- | --- | --- | --- |
 | The whole page | D9 L165-265 | the draft | "sheet" to "panel" (L175, L228-239); "last deployed" (L205) reworded; "reads back" (L248) to "pastes back"; "refused the clipboard" (L251) reworded; the privacy sentence and V8's word list folded in |
-| Installing; Offline use; Updates and the build ID | V8 L130-166 | the facts and the word list; V8's framing where D9 lacks it | "deployed" (L149) reworded; "sheet" (L132, L141); the link down to `security.md` dropped |
+| Installing; Offline use; Updates and the build ID | V8 L130-166 | the facts and the word list; V8's framing where D9 lacks it; V8's privacy sentence | "deployed" (L149) reworded; "sheet" (L132, L141); the link down to `security.md` kept on the privacy sentence (R-1), the one to `offline.md` dropped; the privacy sentence in R-2's wording |
 | Deleted from `docs/settings.md`: the build-ID paragraph | D9 L161-163; V8 L168-170; D4 L350 | done by work order 06 | — |
 
 ## 8. Conflicts left to settle
 
-None of the owner's list touches this page. The session records in its
-pull request the footer words as it found them in `src/app-footer.ts`
-and what it read in `src/app-shell.ts` and `src/copy-button.ts`.
+Of the owner's list, conflict 1: the page's headings are §7's anchors,
+which the pages written after it link and which it keeps. Of the
+review's answers (plan §12.3), R-1 and R-2 (the privacy sentence's
+link and wording, section 4) and R-8 (the heading keeps the noun,
+section 3). The session records in its pull request the footer words
+as it found them in `src/app-footer.ts` and what it read in
+`src/app-shell.ts` and `src/copy-button.ts`.
 
 ## 9. Code changes it waits on
 
@@ -187,7 +207,9 @@ with the app; the page states the link, not its target's form).
 - The six sections exist under their headings, in order, each stating
   the app's behaviour and linking the reference for everything else.
 - No "sheet", no "deploy", no "build number", no "reads back", no
-  "refused", no issue number, no link under `devdocs/`.
+  "refused", no issue number, no "update" as a noun outside the
+  heading; one link under `devdocs/`, the privacy sentence's to
+  `devdocs/security.md#The page`.
 - Every footer word is quoted as the code has it; the hint and the
   failure message are described, not quoted.
 - The pull request names what the session read in the three source

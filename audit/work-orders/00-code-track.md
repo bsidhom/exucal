@@ -6,7 +6,8 @@ The session that makes the code changes reads this file,
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, section 9 "Code changes: when each lands", marked
 done and accepted, with the items it names; recorded in
-`audit/plan/12-open-questions.md`, section 12.1). Ids: B-nnn is a bug in
+`audit/plan/12-open-questions.md`, sections 12.1 to 12.3; amended
+2026-10-13 after the review of the apply step). Ids: B-nnn is a bug in
 `audit/bugs.md` (its Location, Description and Units fields give the
 files, lines and evidence), F-nnn a finding in `audit/findings.md`, Q-nnn
 an open item in `audit/open-items.md`; each is read at its id. A report
@@ -58,8 +59,12 @@ pointer such as `A2 (L120-128)` is `audit/reports/A2/fable.md`, lines
    operations": it names what the probe times, an exact product and
    the four elementary functions at rising sizes, and never says
    "costliest" (F-491 overrides D4's proposed "the costliest exact
-   product and the costliest elementary functions", D4 L398). The probe
-   itself is not extended (F-491's note).
+   product and the costliest elementary functions", D4 L398). The
+   change is the line's wording only; what the probe times stays as it
+   is (the owner's note on F-491, recorded in the owner's words: no plan
+   to extend the probe to the expensive special functions, keeping the
+   interface responsive being the scheduler's work, #118; plan §12.3,
+   R-6).
 3. **B-025, the decimal-mode line** (F-435). `MODE_LINES.decimal`
    (`src/settings-lines.ts:263`): "exact in that arithmetic" becomes
    "exact under the mode's rounding".
@@ -119,7 +124,7 @@ it later (the sheet's section 9, item 2).
    (`devdocs/settings.md#Storage`); `docs/settings.md` (work order 06)
    then states the clamp.
 
-## 4. Batch 3: after the pages, each in its own commit
+## 4. Batch 3: after the pages
 
 The pages describe today's behaviour and quote no message that is
 about to change; these land once the pages are written.
@@ -139,9 +144,13 @@ question 6) when that tool exists.**
 - B-019 (Q-055, ok; F-474, F-089): the parse label "a unit name"
   (`src/core/expr.ts:342-346`; `:335`, `:348`, `:420`) becomes "a name",
   the order of the labels unchanged, in a change of its own.
-- B-020 (Q-051, A): a size refusal without a count reads "would need a
-  significand past the significand limit" (A5's wording, A5 L470-475;
-  `src/messages.ts:349-381`), the stray comma gone, in both forms.
+- B-020 (Q-051, A): a size refusal whose need is unknown reads "would
+  need a significand past the significand limit, however it is
+  computed" (D7's wording, D7 L249; `src/messages.ts:349-381`): the stray
+  comma goes and the clause stays, since it tells the user that no
+  remedy exists. The `fits` form with no count ("would need a
+  significand as an exact value, past the significand limit") is not
+  worded by the answer and stays as it is.
 - B-021 (Q-053, ok): the edge message (`src/messages.ts:94`) names the
   edge once more, "which side of the pole", "which side of the bound".
 - B-022 (Q-056, ok; F-179): the empty-state hint
@@ -169,8 +178,11 @@ the tests #89 asks for are checked; closing the issue is the owner's
 (housekeeping the owner confirmed: item 15 of the owner's list at the
 end of `audit/decisions.md`).
 
-**Comments (B-034 to B-067), one pass after the audit (Q-059, ok).**
-Each as its bug describes; those the owner's answers word:
+**Comments (B-034 to B-067), one pass in one commit, after all the
+pages land (Q-059, ok)**, so that a comment citing a page cites its
+final headings; the history comments go in the same commit under the
+style guide's rule. Each as its bug describes; those the owner's
+answers word:
 
 - B-034: the history in comments goes, under the style guide's rule
   (`devdocs/development.md#Style guide`, after work order 22).
@@ -216,10 +228,11 @@ Each as its bug describes; those the owner's answers word:
 - B-067: the TODO in `src/core/evaluate.ts:7-11` is resolved by a later
   comment pass that makes module headers restate less of
   `devdocs/architecture.md`; not scheduled here.
-- The two comments in `src/units.txt` that link `docs/functions.md` link
-  `docs/builtins.md` (Q-020's note), landed with or right after work
-  order 07, so that no link dangles. B-014 (the dalton as CODATA 2018)
-  stays as it is (Q-041, ok); the comment records the edition.
+- The two comments in `src/units.txt` that link `docs/functions.md` are
+  repointed to `docs/builtins.md` by work order 07's pull request, with
+  the rename (Q-020's note), so that no link dangles; this track does
+  not touch them. B-014 (the dalton as CODATA 2018) stays as it is
+  (Q-041, ok); the comment records the edition.
 
 **With the work they belong to.** B-069: the panel's "About these
 settings" link (`src/settings-lines.ts:114-117`) becomes a local link
@@ -243,7 +256,10 @@ F-384, F-408, F-474.
 
 - Behaviour the open items keep and the pages document: B-007 (`log`'s
   exact cases miss rational exponents; Q-048, under review), B-008 (the
-  reciprocal line inverts the ratio shown; Q-046), B-010 (a typed list's
+  reciprocal line inverts the ratio shown; Q-046: the alternative,
+  `want / have` from the working-digit operands, is recorded on #92 in a
+  comment, the owner's housekeeping like the closing of #89, not this
+  track's), B-010 (a typed list's
   unit straddling zero is not retried; Q-045), B-011 (the schedule's
   cost at the ceiling's edge; Q-047).
 - What an open issue tracks: B-003 with #79, B-006 with #88, B-009 with
@@ -267,8 +283,9 @@ identifiers stay.
 ## 8. Done when
 
 - Batch 1 is pushed before work order 01 starts, batch 2 before work
-  orders 07, 12, 15 and 16, batch 3 after the pages, each bug its own
-  commit or part of a named group.
+  orders 06, 07, 12, 15 and 16 (B-012 before 06, which states the
+  clamp), batch 3 after the pages; each bug its own commit or part of a
+  named group, and the comments (B-034 to B-067) one commit (Q-059).
 - The repository's checks pass on every push, and each pull request
   lists the final wording of every user-visible line it changed.
 - Nothing in section 6 changed; no page changed.

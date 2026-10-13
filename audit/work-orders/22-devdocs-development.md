@@ -5,7 +5,8 @@ The session that rewrites this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D3 (L321-325)` is `audit/reports/D3/fable.md`, lines 321 to 325. `§8`
@@ -24,8 +25,9 @@ is `audit/plan/08-terminology.md`, `§12` is
   and `docs/units.md` (05), which `#Adding a unit` links, and after
   `devdocs/testing.md` (20) and `devdocs/benchmarks.md` (21), which
   the commands link. `devdocs/README.md` (26) links the style guide;
-  the code track's comment pass (B-034, Q-059) follows the style
-  guide after this page lands (work order 00).
+  the code track's comment pass (B-034 to B-067, one commit, Q-059)
+  follows the style guide once all the pages have landed, this one
+  included (work order 00).
 - **Status.** Ready. V8 audited the page (its edits, V8 L205-247); D3
   drafted `#Adding a unit` whole (D3 L321-325), correcting two
   statements V8 confirmed (V8 L48), so D3's text is taken there.

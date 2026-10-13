@@ -5,7 +5,8 @@ The session that rewrites this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `V5 (L149-175)` is `audit/reports/V5/fable.md`, lines 149 to 175. `§7.1`
@@ -128,9 +129,12 @@ alternatives, in the present tense.
   the model's and stay (V5 L147, L157).
 - **Refusal only for a size refusal (F-442; conflict 8).** The lines
   with which the panel declines an edit are "the edits the panel does
-  not accept", a value being "held to" its range; "refusal" appears
-  only as the code's identifier (`refusalOf`), quoted as such (conflict
-  8 of the owner's list, confirmed).
+  not accept", a value being "held to" its range; for those lines
+  "refusal" appears only as the code's identifier (`refusalOf`), quoted
+  as such (conflict 8 of the owner's list, confirmed). Elsewhere on the
+  page "refusal" names a size refusal and nothing else (the
+  significand limit's or the exponent bound's, where the limits are
+  discussed).
 - **The words (§8).** "The working precision of a pass" (V5 L157;
   F-431), never for the grid; "line", `hint`, `notice` as §8 has them,
   and "the user docs", never "the guide" (F-489; D4 L380, V5 L217);
@@ -273,7 +277,8 @@ until then (Q-115).
   to the old anchor in `devdocs/` and `src/` is updated.
 - No reference-style link; #118, #167, #186 and #191 do not occur,
   #163 once; "certified"; "inexact"; "the ceiling" glossed once;
-  "refusal" only as the code's identifier.
+  "refusal" only for a size refusal, and as the code's identifier
+  `refusalOf`.
 - `#Storage` states one rule for a stored value out of range.
 - The pull request names the choices made, the figures kept and the
   memo check's result, and changes nothing outside this file and the

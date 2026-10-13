@@ -5,7 +5,8 @@ The session that rewrites this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `V7 (L180-196)` is `audit/reports/V7/fable.md`, lines 180 to 196. `§8`
@@ -58,15 +59,19 @@ ball, the pipeline, the shell, the panel), never a second explanation.
   `.prettierrc.json`, `.prettierignore`, `LICENSE` and the root
   `README.md` stay unlisted too (F-364).
 - **The favicon (Q-111; F-362).** The session reads `public/favicon.svg`
-  against `public/icons/`. If the favicon is its own drawing, the
-  manifest bullet takes V7's wording: "`public/icons/` holds the icons
+  against `public/icons/` and settles F-362's two questions: whether
+  the favicon is its own drawing (V7: drawn at 32 units, linked from
+  `index.html:12`, not rendered from `icons/`), and what "icon" covers
+  in the two pages' sentences. If the favicon is rendered from an
+  `icons/` SVG, the sentences hold as written. If it is its own drawing
+  and counts as one of the app's icons, both pages are wrong: the
+  manifest bullet takes V7's wording, "`public/icons/` holds the icons
   the manifest points to and the PNG some platforms need is rendered
   from; `public/favicon.svg`, which `index.html` links, is the browser
-  tab's icon" (V7 L190-196), and the pull request tells work order 23
-  to name the favicon as the tab icon's separate source in
-  `offline.md#Icons` in the same words. If it is rendered from an
-  `icons/` SVG, both pages say the sentences mean the app icon's
-  forms, and the pull request says so for work order 23.
+  tab's icon" (V7 L190-196), and work order 23 names the favicon as
+  the tab icon's separate source in `offline.md#Icons` in the same
+  words. If the sentences mean the app icon's forms only, both pages
+  say so. The pull request tells work order 23 which case holds.
 - **The definitions file (F-475; F-366, F-369).** The `src/units.txt`
   bullet names the file as "the definitions file" and points at
   `docs/units.md` for its contents (the page's own one-sentence pointer
@@ -84,9 +89,10 @@ ball, the pipeline, the shell, the panel), never a second explanation.
   "`builtins/exact.test.ts`, which is beside no one module, runs the
   exact functions through the pipeline" with the link to
   `testing.md` (F-363, Q-072); the `src/units.txt` bullet (section 3);
-  the `src/main.ts` bullet names `exactDec` and the two draws if V7's
-  list of what it omits is right (F-375: the session checks
-  `src/main.ts`); the manifest bullet (section 3); the
+  the `src/main.ts` bullet stands as it is (F-375 confirms it: the
+  file registers the components by importing the shell and the
+  registration module; `exactDec` and the two draws F-375 adds are
+  `testing.md`'s, work order 20); the manifest bullet (section 3); the
   `experimentalDecorators` sentence (section 3); `audit/` and the skill
   absent (section 3).
 - **The modules.** V7 L198-205: `src/testing/random.ts`'s line names

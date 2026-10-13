@@ -5,7 +5,8 @@ The session that rewrites this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `V4 (L113-119)` is `audit/reports/V4/fable.md`, lines 113 to 119. `§7.1`
@@ -67,12 +68,16 @@ the decisions with their reasons, and the alternatives considered.
   definitions file is loaded", with nothing of what may come (F-306,
   F-098; "the system file" in D2 L288 and V4 L167 reads "the
   predefined definitions file", F-475). `#Not in this design` keeps the
-  designs ruled out by intent (disjunctions and `!=` in conditions; an
-  assertion on a result's value), their reasons with them, and the
-  equality bullet of `#Conditions` keeps the constraint and links
-  `future.md` for the operators that may come (F-030, Q-112; A6 L343-359,
-  D2 L314-322, V4 L196-259 agree); two of its bullets are confirmed
-  ruled out (section 8).
+  designs ruled out by intent (disjunctions in conditions; an assertion
+  on a result's value), their reasons with them. `!=` in conditions is
+  not among them: it goes with equality, as future work (R-5 of the
+  review, plan §12.3), so `#Conditions` states as a plain fact that
+  there is no equality and no `!=`, keeps the constraint that the
+  equality of an inexact value cannot be decided on a ball, and links
+  `future.md`'s entry for the equality operators, which covers `!=`
+  too (F-030, Q-112; A6 L343-359, D2 L314-322, V4 L196-259 agree); two
+  of `#Not in this design`'s bullets are confirmed ruled out (section
+  8).
 - **Received from `devdocs/future.md` (Q-011; F-350).** The ruled-out
   alternative "an offset in `Quantity`" for temperatures (`future.md`
   page L227-229: every operation would need a rule for it, where a
@@ -80,15 +85,16 @@ the decisions with their reasons, and the alternatives considered.
   considered`, stated as intent in the present tense, the user's
   sentence being `docs/quantities.md`'s (work order 02); it links
   nothing of `future.md`, which, written later, drops the bullet.
-  Item 13 of the owner's Q-011 list confirms the classification; the
-  bullet is written as ruled out until it is answered.
+  Item 13 of the owner's list confirmed the classification on
+  2026-10-12: the bullet is written as ruled out by intent.
 - **Refusal only for a size refusal (F-442).** "A difference that
   cannot be formed as a value, past the exponent bound or straddling
   it, counting as across zero", never "refused as too large" (A6
   L366; F-028); `floor(sqrt(2)^2)` "is an error", not "refused" (V4
   L271); a function's name in a unit list "is `functionAsUnit`", the
   lookup reporting the error, not "refuses it" (A8 L101; F-310);
-  "rejected" stays for the parser's (D2 L278, V4 L149, L171).
+  "rejected" stays for the parser's, here the definitions-line faults
+  (D2 L278, V4 L149, L171; R-4 of the review keeps the word for them).
 - **The words (§8).** "Defined function", "the functions the file
   defines", never "user-defined" while only the predefined file is
   loaded (F-478); "head" (F-477); "annotation", glossed "the unit it
@@ -259,7 +265,9 @@ confirmed).
 
 From the owner's list: the two `#Not in this design` bullets and the
 offset bullet received from `future.md`, both answered (section 6).
-Nothing else touches this page. The session records in its pull
+Of the review's answers (plan §12.3): R-5, `!=` in conditions is
+future work with equality, not ruled out (section 3). Nothing else
+touches this page. The session records in its pull
 request the drafts picked and the `#Deferred` text it handed on.
 
 ## 9. Code changes it waits on

@@ -5,7 +5,8 @@ The session that writes this page reads this file,
 [`audit/principles.md`](../principles.md) and what this file cites, and
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
-section 12.1) and the consolidated audit. Ids: F-nnn is a finding in
+sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
+step) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `A8 (L113-123)` is `audit/reports/A8/fable.md`, lines 113 to 123. `§7`
@@ -63,8 +64,8 @@ a definition's form is `definitions.md`'s, and which units exist is
   unit, none). What is ruled out by intent is a plain fact: a
   temperature reading is a function, not a unit with an offset, and
   the reason is one sentence here, the fuller reason the devdocs'
-  (F-110); kind-lenient conversion, complex magnitudes and offsets are
-  not mentioned.
+  (F-110); kind-lenient conversion and complex magnitudes are not
+  mentioned, and offsets only in that plain fact.
 - **Numbers (Q-016).** None: no timing, no count.
 - **The words (§8).** "Have" and "want" for the two fields, used from
   this page's first conversion on (F-471); the output modes named by
@@ -128,8 +129,9 @@ written in messages".
   annotation checks a dimension and changes no value; `floor`, `ceil`,
   `trunc`, `round` and the integer functions take plain numbers
   (`floor(3.7 ft)` is an error; write `floor(3.7 ft / ft) ft`); `abs`,
-  `sign`, `div`, `mod`, `approx` take quantities (the entries are
-  `builtins.md`'s).
+  `sign` and `approx` take any quantity, and `div`, `mod` and `atan2`
+  two of one dimension (D5's six-function list, F-138, Q-095; the
+  entries are `builtins.md`'s).
 
 ### Units, prefixes and exactness of factors
 
@@ -138,12 +140,14 @@ written in messages".
   (F-069): every factor is read exactly as written, so a conversion is
   exact unless a unit calls `pi()`; most factors are the exact values
   their defining documents state, a few are measured values carried to
-  the digits their source gives; the angle units and everything built
-  on them, `parsec` and `oersted` are inexact; `units.md#which-factors-are-exact`
-  names the measured values and `gravity`'s convention (Q-085; this
-  page does not list them). The unit table is built once, in exact
-  mode, at the ceiling; in decimal mode a unit is rounded once as it is
-  looked up (one clause; the rule is `numbers.md#the-two-modes`'s).
+  the digits their source gives; the angle units and everything built on
+  them, `parsec` and `oersted` are inexact;
+  `units.md#which-factors-are-exact` names the measured values and
+  `gravity`'s convention (Q-085; this page does not list them). The
+  definitions table (the table built from the definitions file; "unit
+  table" is devdocs-only, §8) is built once, in exact mode, at the
+  ceiling; in decimal mode a unit is rounded once as it is looked up
+  (one clause; the rule is `numbers.md#the-two-modes`'s).
 
 ### How a conversion is answered
 
@@ -151,19 +155,21 @@ written in messages".
   magnitudes after conformance; a want with a magnitude (`1 mi` into
   `1000 ft` is `5.28 × 1000 ft`); the blank want answers in the
   primitives; the failures: a mismatch, a want of zero, a want that
-  cannot be told from zero (errors), a ratio past the exponent bound or
-  straddling it, and a ratio whose exact significand would pass the
-  significand limit, refused with `approx` named around the have
-  (F-070); the reciprocal line, when there is one and when not (a unit
-  list, a blank want, a function want, a zero or an unresolvable
-  value), left out without a word when it is itself refused (B-009,
-  stated as today's behaviour, no issue); in decimal mode it is the
-  reciprocal of the ratio shown (Q-046; one clause, the rule being
-  `numbers.md#the-two-modes`'s); how the want field is read is
-  `expressions.md#the-want-field`'s, this page saying what each reading
-  answers; every line pastes back as a have, a want with a magnitude
-  joined with `×`, a want that is a sum, difference or negation
-  parenthesized, both forms shown among the examples (F-071, F-457).
+  cannot be told from zero, a ratio that cannot be told from the point
+  where it passes the exponent bound (errors: conflict 6; the docs'
+  phrase, never "straddling", F-447), a ratio past the exponent bound,
+  and a ratio whose exact significand would pass the significand limit,
+  refused with `approx` named around the have (F-070); the reciprocal
+  line, when there is one and when not (a unit list, a blank want, a
+  function want, a zero or an unresolvable value), left out without a
+  word when it is itself refused (B-009, stated as today's behaviour, no
+  issue); in decimal mode it is the reciprocal of the ratio shown
+  (Q-046; one clause, the rule being `numbers.md#the-two-modes`'s); how
+  the want field is read is `expressions.md#the-want-field`'s, this page
+  saying what each reading answers; every line pastes back as a have, a
+  want with a magnitude joined with `×`, a want that is a sum,
+  difference or negation parenthesized, both forms shown among the
+  examples (F-071, F-457).
 
 ### Unit lists
 
@@ -173,19 +179,21 @@ written in messages".
   to `definitions.md#unit-lists` and `expressions.md#the-want-field`,
   linked.
 - Facts: §1 Q15 as amended (F-072): largest first, an integer count for
-  every unit but the last, the last the remainder; a count whose ratio
-  straddles or touches an integer takes the integer nearest its
-  midpoint; the remainder rounded at the digits it certifies and a
-  rounding that reaches a whole of an earlier unit carries, while under
-  the ratio notation an exact remainder that fits its width is written
-  entire and nothing carries; zero terms left out, as is a last term
-  that cannot be told from zero; `=` only when every term is exact; the
-  units must conform to the have, be positive throughout their ball
-  and decrease along the list; a typed list's unit that straddles zero
-  at a pass is an error, not retried (Q-045, B-010; today's behaviour,
-  no issue); the example spacing is the app's, `8 min / mi +
-  34.285714 s / mi` (F-073). F-072 is low confidence: the session reads
-  `src/outcome.ts:548-560` before stating the remainder's digits.
+  every unit but the last, the last the remainder; a count whose ratio's
+  bounds reach or meet an integer takes the integer nearest the ratio
+  (the docs' phrase, F-447; "midpoint" is devdocs-only, F-438); the
+  remainder rounded at the digits it certifies and a rounding that
+  reaches a whole of an earlier unit carries, while under the ratio
+  notation an exact remainder that fits its width is written entire and
+  nothing carries; zero terms left out, as is a last term that cannot be
+  told from zero; `=` only when every term is exact; the units must
+  conform to the have, be positive (every value within the error radius;
+  "ball" is devdocs-only, F-438) and decrease along the list; a typed
+  list's unit that cannot be told from zero at a pass is an error, not
+  retried (Q-045, B-010; today's behaviour, no issue); the example
+  spacing is the app's, `8 min / mi + 34.285714 s / mi` (F-073). F-072
+  is low confidence: the session reads `src/outcome.ts:548-560` before
+  stating the remainder's digits.
   `units.md#unit-lists-defined-in-the-file` lists the defined lists;
   `dms` being the one inexact list is that page's (F-111).
 
@@ -219,7 +227,9 @@ written in messages".
 - Facts: §1 Q7 and Q19. Primitives in declaration order, positive
   exponents first, negative ones after `/`, `1` for an empty numerator,
   a non-integer exponent parenthesized (`m^2 kg / s^3 A`, `m^(1/2)`), so
-  that an error's dimension can be typed back; an error points at the
+  that an error's dimension pastes back (F-457); a plain number's
+  dimension is written `1`, glossed once here where a message shows it
+  (`1 m + 0`: "… but 0 has dimension 1"; F-463); an error points at the
   text at fault and a sum's mismatch is worded as the same mismatch
   between have and want.
 
@@ -234,6 +244,7 @@ written in messages".
 | F-071 | How a conversion is answered | Both written forms shown among the examples |
 | F-072 | Unit lists | Q15's four refinements; read `src/outcome.ts:548-560` first |
 | F-073 | Unit lists | A8's replacement, with have and want and "display digits"; the app's spacing |
+| F-463 | How dimensions are written in messages | `1` for a plain number's dimension, glossed once |
 
 Owned elsewhere and read here for what this page must provide: F-084
 (the want field's grammar is `expressions.md`'s; this page says what a
@@ -244,8 +255,10 @@ rules and links), F-458 ("display digits").
 
 ## 6. Decisions followed, and still open
 
-Followed: Q-011, Q-015 (the running example renamed in `definitions.md`;
-this page uses the one name that page picks, or `tempF`), Q-016, Q-019,
+Followed: Q-011, Q-015 (the running example is `definitions.md`'s,
+renamed there by work order 04, which is written after this page; this
+page uses `tempF` for a conversion into a function and does not name
+the running example), Q-016, Q-019,
 Q-020 (`builtins.md`), Q-033, Q-041 and Q-085 (the measured values are
 `units.md`'s), Q-045 (today's behaviour stated), Q-046 (the reciprocal
 line as it is), Q-089 (the list rules verified); the rules F-442,
@@ -267,11 +280,11 @@ list, item 14): no `future.md` entry; the retry is issue #198, which
 From the owner's list (`audit/decisions.md`, "For the owner"): conflict
 1, forward links between user pages, confirmed as the rule (this page
 links `units.md`, `expressions.md`, `definitions.md` and
-`builtins.md` at §7's anchors). Nothing else touches this page. The
-session records in its pull request which running example it uses for
-a conversion into a function (`tempF`, or the renamed example of work
-order 04 if that order's session has fixed the name first; the two
-pages use one name).
+`builtins.md` at §7's anchors), and conflict 3 ("the definitions
+table", section 4). Nothing else touches this page. The session uses
+`tempF` for a conversion into a function: the running example is
+renamed later, by work order 04 (Q-015), so this page does not name
+it.
 
 ## 9. Code changes it waits on
 

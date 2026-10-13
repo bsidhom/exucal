@@ -120,13 +120,17 @@ function zeroBoundUnclamped(ball: Ball): Scaled {
  * writes exactly in the same characters. The sign, the slash and the
  * scale are not counted. The fraction is formed
  * only when it can fit: for an exponent `k > 0`, its numerator has at
- * least `k + 1` digits; for `k < 0`, its denominator keeps at least
- * `5^-k` of the `10^-k`, the significand's numerator being coprime to ten,
- * so it has more than `-k × log10 5` digits, and its numerator is at most
- * the significand's, which has at most `2^-k` times fewer digits. So an
- * exponent beyond twice `width` in magnitude, or a significand numerator
- * beyond twice `width` in digits, cannot fit as a fraction, and nothing
- * is formed for it. The scaled form's power of ten is the canonical
+ * least `k + 1` digits; for `k < 0`, the `10^-k` cancels against the
+ * significand's numerator, which is not divisible by ten and so holds
+ * twos or fives but not both, so the denominator keeps at least `2^-k`
+ * of it, more than `-k × log10 2` digits, and the numerator loses at
+ * most its fives, `-k × log10 5` digits. So an exponent beyond four
+ * times `width` in magnitude, or a significand numerator beyond three
+ * times `width` in digits, cannot fit as a fraction, and nothing is
+ * formed for it, while every value that can fit passes: a dyadic the
+ * width admits, `2^-63` at twenty (`5^63 × 10^-63` in canonical form,
+ * a numerator of forty-five digits), is formed. The scaled form's power
+ * of ten is the canonical
  * exponent itself, which lies past the exponent bound for some values
  * within it (a third of `10^(10^18 + 1)` has the exponent `10^18 + 1`),
  * and the outcome then cannot write the line and throws (outcome.ts,
@@ -136,9 +140,9 @@ function zeroBoundUnclamped(ball: Ball): Scaled {
 function ratioParts(s: Scaled, width: Precision): Ratio | undefined {
   const { num, den } = s.significand;
   const k = s.exp;
-  const twice = 2n * BigInt(width);
+  const bound = 4n * BigInt(width);
   const numDigits = decimalDigits(magnitude(num));
-  if (k <= twice && k >= -twice && numDigits <= 2 * width) {
+  if (k <= bound && k >= -bound && numDigits <= 3 * width) {
     // For `k >= 0` the parts stay coprime, the denominator being coprime
     // to ten; for `k < 0` the power of ten cancels against the numerator's
     // twos or fives, which `rational` reduces.

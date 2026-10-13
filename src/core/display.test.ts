@@ -20,7 +20,14 @@ import { show, type Shown } from "./display.ts";
 import { UNBOUNDED, powerOfTenRadius, powerOfTwoRadius } from "./radius.ts";
 import { rational } from "./rational.ts";
 import { ROUNDING_MODES } from "./rounding.ts";
-import { ZERO, compare, format, fromRational, type Scaled } from "./scaled.ts";
+import {
+  ZERO,
+  compare,
+  decimalDigits,
+  format,
+  fromRational,
+  type Scaled,
+} from "./scaled.ts";
 import { ball, dec, fr } from "../testing/scaled.ts";
 
 /** A context at `precision` digits, in the default mode. */
@@ -666,6 +673,65 @@ test("with the ratio notation, a ratio that fits only with its power of ten on t
   });
   // A sixth is 5/3 × 10^-1 in canonical form: the fraction first.
   assert.deepEqual(ratio(exact(fr(1n, 6n)), 2), asRatio("1/6"));
+});
+
+test("with the ratio notation, a dyadic value is its fraction whenever its parts fit the width: the screen before forming admits every value that can", () => {
+  // 2^-k is 5^k × 10^-k in canonical form, a numerator of about 0.7k
+  // digits over a denominator of one, and its fraction is 1/2^k: at the
+  // default width it fits up to 2^-63, nineteen digits under the one,
+  // and not from 2^-64, twenty.
+  assert.deepEqual(
+    ratio(exact(fr(1n, 2n ** 40n)), 20),
+    asRatio("1/1099511627776"),
+  );
+  assert.deepEqual(
+    ratio(exact(fr(1n, 2n ** 41n)), 20),
+    asRatio("1/2199023255552"),
+  );
+  assert.deepEqual(
+    ratio(exact(fr(3n, 2n ** 45n)), 20),
+    asRatio("3/35184372088832"),
+  );
+  assert.deepEqual(
+    ratio(exact(fr(1n, 7n * 2n ** 41n)), 20),
+    asRatio("1/15393162788864"),
+  );
+  assert.deepEqual(
+    ratio(exact(fr(1n, 2n ** 60n)), 20),
+    asRatio("1/1152921504606846976"),
+  );
+  assert.deepEqual(
+    ratio(exact(fr(1n, 2n ** 63n)), 20),
+    asRatio("1/9223372036854775808"),
+  );
+  assert.deepEqual(ratio(exact(fr(1n, 2n ** 64n)), 20), {
+    kind: "certified",
+    text: "5.4210109e-20",
+  });
+  // The boundary, at every width: for the powers of two and of five and
+  // their multiples by a small odd factor, each in lowest terms with a
+  // denominator of one in canonical form, the fraction is formed exactly
+  // when its parts fit the width, the rule and nothing else deciding.
+  for (const width of [1, 2, 3, 5, 8, 13, 20, 33, 50]) {
+    for (let k = 1n; k <= 200n; k++) {
+      for (const [num, base] of [
+        [1n, 2n],
+        [3n, 2n],
+        [7n, 2n],
+        [1n, 5n],
+        [3n, 5n],
+      ] as const) {
+        const den = base ** k;
+        const shown = ratio(exact(fr(num, den)), width);
+        const label = `${num}/${base}^${k} at a width of ${width}`;
+        if (decimalDigits(num) + decimalDigits(den) <= width) {
+          assert.deepEqual(shown, asRatio(`${num}/${den}`), label);
+        } else {
+          assert.ok(shown.kind !== "exact" || shown.fraction !== true, label);
+        }
+      }
+    }
+  }
 });
 
 test("without the width, or for an inexact value, nothing changes", () => {

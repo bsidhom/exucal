@@ -146,6 +146,18 @@ test("the mode lines say what the digits shown are worth in each mode", () => {
     MODE_LINES.exact,
     "Every digit shown is certified, found at rising precision; an exact value is written as its digits or as a ratio.",
   );
+  assert.equal(
+    MODE_LINES.decimal,
+    "Every step is rounded to the display digits in the rounding mode, as a hand calculator does; every answer is exact under the mode's rounding.",
+  );
+});
+
+test("the probe's line names what it times, an exact product and the four elementary functions, and ranks nothing", () => {
+  assert.equal(
+    PROBE_LINE,
+    "Times an exact product and the four elementary functions at rising sizes and proposes the largest limits that stay within the budget a pass; nothing changes until the proposal is applied.",
+  );
+  assert.doesNotMatch(PROBE_LINE, /costliest/);
 });
 
 test("the precision limit's line says its top under the significand limit as a number, by mode, and no formula", () => {
@@ -250,7 +262,7 @@ test("the proposal says the sizes timed, what they took against the budget, and 
       },
       50,
     ),
-    "Exact products at 65,536 bits took 31 ms and the built-ins on a grid of 4,040 digits took 44 ms, within the 50 ms budget: significand limit 65,536 bits, precision limit 1,000 digits.",
+    "Exact products at 65,536 bits took 31 ms and the built-ins at a precision of 4,040 digits took 44 ms, within the 50 ms budget: significand limit 65,536 bits, precision limit 1,000 digits.",
   );
   // A floor that cost more than the budget is said to have.
   assert.equal(
@@ -263,7 +275,7 @@ test("the proposal says the sizes timed, what they took against the budget, and 
       },
       50,
     ),
-    "Exact products at 358 bits took 80 ms and the built-ins on a grid of 44 digits took under 0.1 ms, over the 50 ms budget at the least this device may be set to: significand limit 358 bits, precision limit 1 digit.",
+    "Exact products at 358 bits took 80 ms and the built-ins at a precision of 44 digits took under 0.1 ms, over the 50 ms budget at the least this device may be set to: significand limit 358 bits, precision limit 1 digit.",
   );
   assert.equal(measure(1, "digits"), "1 digit");
   assert.equal(measure(2453, "digits"), "2,453 digits");

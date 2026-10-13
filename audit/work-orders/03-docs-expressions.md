@@ -76,8 +76,10 @@ function's name that would read as a prefixed unit) are
   without #88 (F-081, Q-102); no issue is named; nothing of a grammar
   to be generated.
 - **The words (§8).** "Pastes back", never "reads back" (D1 L449, L458,
-  L485; F-457); "how the app writes an expression back", never
-  "canonical form" (D1 L449; F-439); "the definitions file" (F-475);
+  L485; F-457); "how the app writes an expression back", and
+  "canonical" for the printer's text, glossed once (D1 L449; F-439 as
+  the owner amended it on 2026-10-13, plan §12.3); "the definitions
+  file" (F-475);
   "number" for what the user types, "literal" devdocs-only (F-473);
   "juxtaposition" and "negation" as §8 has them (F-473); "conform",
   glossed once, with a link (F-462); "a name" for what the parser
@@ -209,7 +211,10 @@ give way to these.
   written with `*` while the copy text has `*`; what the copy button
   copies pastes back, while text selected on the screen may not
   (F-086); the principle that every result pastes back is
-  `numbers.md#how-numbers-are-written`'s, linked (§12 question 11).
+  `numbers.md#how-numbers-are-written`'s, linked (§12 question 11);
+  the printed text may be called canonical, glossed once as one text
+  for one expression, with numbers spelled as typed (F-439 as the owner
+  amended it on 2026-10-13, plan §12.3).
 
 ### Pitfalls
 
@@ -259,7 +264,7 @@ give way to these.
 | F-083 | The have field | Two grammars; the have's error first |
 | F-084 | The want field | The readings; what each answers is `quantities.md`'s, linked |
 | F-085 | Evaluation order and error locations | D1's text; the devdocs link it later (Q-008) |
-| F-086 | What the app writes back | D1's text; "pastes back" (F-457); no "canonical" (F-439) |
+| F-086 | What the app writes back | D1's text; "pastes back" (F-457); "canonical" glossed once (F-439 as amended 2026-10-13) |
 | F-087 | Pitfalls | D1's readings to watch, with the `1/2 in` edge (Q-003) |
 | F-088 | What is not accepted | D1's list as errors with what to type instead; nothing of what may come (Q-037, Q-011) |
 | F-089 | Errors | How an error reads, in general; no catalogue; no message with the old label (Q-055) |
@@ -314,7 +319,7 @@ zero-divisor exponent error), B-028. B-006 (#88) is not named.
 
 - Every section of section 4 exists under its heading, in order, with
   D1's facts and no catalogue of messages.
-- No "rejected", no "reads back", no "canonical", no "hard bound", no
+- No "rejected", no "reads back", no "hard bound", no
   issue number, no mention of what may come, no `docs/functions.md`.
 - Every link is a repo-relative path to `numbers.md` or `quantities.md`,
   or to a §7 anchor of a later page.

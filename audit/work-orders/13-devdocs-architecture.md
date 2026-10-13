@@ -110,7 +110,10 @@ present tense.
   `roundTerms` of `convert.ts`" (F-254, F-499); "the settings panel",
   never "sheet" (V2 L246; F-488); "build ID", with the anchor
   `app.md#updates-and-the-build-id` (D9 L273; F-251, Q-022, F-492);
-  "canonical", spelled out once (V2 L190; F-439); "the hard bound",
+  "canonical", spelled out once, or linked to
+  `docs/expressions.md#what-the-app-writes-back`, which may name it too
+  (V2 L190; F-439 as the owner amended it on 2026-10-13, plan §12.3);
+  "the hard bound",
   glossed once (D1 L523, L532; F-441); "parses back" here (F-457);
   "defined function" (F-478); "node", "step" (F-433); "certified" in any
   quoted note (A2 L108; F-427); "build" for the file's loading, mapped

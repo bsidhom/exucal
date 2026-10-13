@@ -44,8 +44,10 @@ needs to predict and interpret any result.
   the units defined through `pi()` are inexact, linking `units.md`,
   F-113; the app never shows the error radius, a plain fact about
   today's display, neither ruled out nor future work, R-7)
-- How a value is held (the fraction and its bit size; the power of ten
-  and its bound; the error radius; the digits an inexact value is
+- How a value is held (the fraction and its bit size, in its canonical
+  form, named once and glossed, with why a value has exactly one and
+  what follows, F-439 as the owner amended it on 2026-10-13; the power
+  of ten and its bound; the error radius; the digits an inexact value is
   kept to, the grid named once, Q-004; the dyadic cost), as foundation
   that the settings reference links to (§12, question 5)
 - Operations that stay exact; exact cases of functions
@@ -77,7 +79,9 @@ needs to predict and interpret any result.
   F-440)
 - How numbers are written (digits, exponents, zero, ratio notation;
   the ratio bare before `×` and parenthesized before a unit, Q-003;
-  every result pastes back as input, §12 question 11, F-457)
+  every result pastes back as input, §12 question 11, F-457; a line a
+  function of the value, its exactness and the settings, never of the
+  route, the scaled ratio being the canonical parts, F-439 as amended)
 - What costs time (qualitative only, Q-016)
 - Real values only (a plain fact; nothing of what symbolic or complex
   values would add, Q-011)
@@ -115,7 +119,8 @@ and semantics of what is typed into either field.
 - The want field (a unit, a list, a list's name, a function's name, a
   call)
 - Evaluation order and error locations
-- What the app writes back (printed form, `×` vs `*`)
+- What the app writes back (printed form, which may be called canonical,
+  glossed once, F-439 as amended; `×` vs `*`)
 - Pitfalls (`1/12 year`, `1/2 in` against `(1/2) in` and `0.5 in`,
   Q-003; `kg(m/s)`, `-2^2`, `m2`)
 - What is not accepted (display-only characters such as `×`, stated as

@@ -256,7 +256,7 @@ they change say so. Nothing is pending now.
 - **F-437. "absorbed into the radius".** Decision: B
   Applied: B: the docs keep the idiom, always as "absorbed into the error radius". A new row of plan §8.
 - **F-439. "canonical".** Decision: ok. We do need to spell out what "canonical" means explicitly.
-  Applied: ok: "canonical" is devdocs-only, for the held form and the printed text alike, and the devdocs spell out what it means where they first use it (the fraction kept in lowest terms with no factor of ten in its denominator; the printer's one text for a tree); docs say "the fraction is kept with no factor of ten in its denominator" and "how the app writes an expression back". A new row of plan §8; D1's draft sentence is reworded when applied.
+  Applied: ok: "canonical" is devdocs-only, for the held form and the printed text alike, and the devdocs spell out what it means where they first use it (the fraction kept in lowest terms with no factor of ten in its denominator; the printer's one text for a tree); docs say "the fraction is kept with no factor of ten in its denominator" and "how the app writes an expression back". A new row of plan §8; D1's draft sentence is reworded when applied. Amended on 2026-10-13 ("The canonical form, a user-docs concept", under "Answered after the review" in section 12.3): "canonical" is a docs word too, and the docs state the rule as the denominator coprime to ten.
 - **F-440. "decimal exponent".** Decision: B
   Applied: B: docs say "the exponent", meaning the power of ten's; "decimal exponent" only in devdocs, where a binary one could be meant. Amends plan §8 (the "decimal" row); D8's draft of `numbers.md#Values too big to hold` is reworded (F-053, Q-026).
 - **F-441. "hard bound".** Decision: B
@@ -769,6 +769,33 @@ decision, are listed after the answers.
   Asked on 2026-10-13, the owner answered: "Land the rewording without the catalogue".
   Settled: the message wording lands in batch 3, after the pages, without the catalogue,
   which stays future work. Amends section 9's item 3 (section 12.1) and work order 00.
+- **The canonical form, a user-docs concept.** Reviewing work order 01's pull request on
+  2026-10-13, the owner first asked for the fraction's rule to be sharpened: "the
+  denominator is coprime to 10, not simply containing no factors of 10. For
+  user-friendliness for people who may not recall number theory terms, be sure to call out
+  that this implies there are no factors of 2 or 5 in the denominator. Then explain _why_
+  this invariant (and always going through the rational constructor for the significand
+  itself) is canonical (ie, why two values which are logically equal necessarily have the
+  same representation, and structural equality is admissible)." Then: "This is absolutely
+  core to the data type and is part of the predictability story on the user's side as well.
+  We should discuss this and "canonicalization" on the user docs side." Settled: the
+  canonical form is a user-level concept, not a devdocs-only mechanism. "Canonical" is a
+  word of both corpora, glossed once per page where it is used. `docs/numbers.md#How a
+  value is held` names the canonical form once, in plain words (one form per value: in
+  lowest terms, every power of ten in the exponent, and the denominator coprime to ten,
+  that is, with no factor of two or five), says why a value has exactly one (its
+  lowest-terms fraction is unique; the rule allows one denominator; the exponent is then
+  forced, and the numerator with it) and what follows (equal values are held alike,
+  compared part by part, and cost the same by every route); `#How numbers are written`
+  states that a line is a function of the value, its exactness and the settings, never of
+  the route a computation took, the ratio notation's scaled form being the value's
+  canonical parts; `docs/expressions.md`'s "What the app writes back" may call the
+  printer's text canonical. The devdocs keep the mechanism and carry the formal argument
+  with its implementation half (`rational` the one reducing constructor, every operation
+  preserving lowest terms, `normalize` relying on it without a gcd, `equals` structural,
+  the tests asserting the invariant). Amends F-439's entry in section 12.1 and its
+  decision, F-013's decision, plan §8's row, principles.md, plan §1 N1 and §1.1.4, §5 C5,
+  §7's bullets for `numbers.md` and `expressions.md`, and work orders 01, 03, 11 and 13.
 
 ### The review's other corrections
 

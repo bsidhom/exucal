@@ -42,7 +42,9 @@
 // the significand limit holds (`precisionLimitFor`), then the display digits,
 // clamped to the precision limit, then the working digits of decimal
 // mode, clamped between the display digits and the precision limit. The
-// budget is a setting of the probe alone and depends on nothing. The same
+// budget is a setting of the probe alone and depends on nothing; the
+// ratio's width depends on nothing either, and a stored width past its
+// limit is clamped to it, as a stored count out of its range is. The same
 // clamping applies when a setting is changed in the panel, so lowering a
 // limit lowers what depends on it and a stored or edited entry can never
 // leave the app with an inconsistent context; `clampsOf` says what a
@@ -390,9 +392,11 @@ function settingsFrom(fields: unknown): Settings {
  * The mode setting `value` holds, built afresh from its fields, or
  * `undefined` where it is not one: an object whose `kind` is one of the
  * two modes with, for `exact`, a `notation` of one of its two shapes
- * (`ratio` with a width in its range) and, for `decimal`, a `working`
- * whose kind is `digits` or `extended` with a positive integer count.
- * The count's range is the clamp's; the width's is its own.
+ * (`ratio` with a positive integer width) and, for `decimal`, a
+ * `working` whose kind is `digits` or `extended` with a positive integer
+ * count. A width or a count out of its range is clamped, never a reason
+ * to default the mode: the count by the chain (`clampSettings`), whose
+ * bounds other settings set, and the width here, to its own fixed range.
  */
 function modeSettingFrom(value: unknown): ModeSetting | undefined {
   if (!isRecord(value)) return undefined;
@@ -417,8 +421,8 @@ function notationFrom(value: unknown): Notation | undefined {
       return { kind: "digits" };
     case "ratio": {
       const { width } = value;
-      return isIntegerIn(width, WIDTH_RANGE)
-        ? { kind: "ratio", width }
+      return isPositiveInteger(width)
+        ? { kind: "ratio", width: clampTo(width, WIDTH_RANGE) }
         : undefined;
     }
     default:
@@ -547,8 +551,10 @@ export type Clamp = {
  * limit is brought within its range under the significand limit, the
  * display digits within theirs under the clamped precision limit, and an
  * extended count of working digits within its range under both. The
- * significand limit and the budget are taken as they are; a caller
- * checks them with `isSignificandLimit` and `isIntegerIn` first.
+ * significand limit and the budget are taken as they are, a caller
+ * checking them with `isSignificandLimit` and `isIntegerIn` first, and
+ * so is the ratio's width, whose range is fixed: the panel holds an
+ * edit to it, and `notationFrom` clamps a stored width to it.
  */
 export function clampSettings(settings: Settings): Settings {
   return CLAMP_ORDER.reduce(

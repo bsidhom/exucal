@@ -154,7 +154,25 @@ test("the mode is one of two variants, each built afresh from its fields, and an
       .mode,
     DECIMAL,
   );
-  // The names of the old shape, and every malformed variant, default.
+  // A stored width past its limit is clamped to it, as a stored count out
+  // of its range is, never a reason to default the mode.
+  assert.deepEqual(
+    load({ mode: { kind: "exact", notation: { kind: "ratio", width: 1001 } } })
+      .mode,
+    WIDE,
+  );
+  assert.deepEqual(
+    load({ mode: { kind: "exact", notation: { kind: "ratio", width: 5000 } } })
+      .mode,
+    WIDE,
+  );
+  assert.deepEqual(
+    load({ mode: { kind: "exact", notation: { kind: "ratio", width: 1 } } })
+      .mode,
+    { kind: "exact", notation: { kind: "ratio", width: 1 } },
+  );
+  // The names of the old shape, and every malformed variant, default: a
+  // width or a count that is not a positive integer among them.
   for (const mode of [
     undefined,
     "exact",
@@ -165,7 +183,7 @@ test("the mode is one of two variants, each built afresh from its fields, and an
     { kind: "exact", notation: { kind: "fraction" } },
     { kind: "exact", notation: { kind: "ratio" } },
     { kind: "exact", notation: { kind: "ratio", width: 0 } },
-    { kind: "exact", notation: { kind: "ratio", width: 1001 } },
+    { kind: "exact", notation: { kind: "ratio", width: -1 } },
     { kind: "exact", notation: { kind: "ratio", width: 2.5 } },
     { kind: "exact", notation: { kind: "ratio", width: "20" } },
     { kind: "exact", notation: true },

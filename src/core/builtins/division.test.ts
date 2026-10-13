@@ -8,7 +8,7 @@ import {
   type NumberContext,
 } from "../context.ts";
 import { DIMENSIONLESS, primitive } from "../dimension.ts";
-import { ZERO, equals } from "../scaled.ts";
+import { ZERO, equals, subtract } from "../scaled.ts";
 import {
   assertExact,
   assertUnresolved,
@@ -99,10 +99,40 @@ test("div and mod are floored division, concordant, on rationals and over signs"
   }
   assert.equal(error(d("1", "0")).kind, "divisionByZero");
   assert.equal(error(m("1", "0")).kind, "divisionByZero");
-  // A quotient past the top: div is overflow, mod is tooLarge.
+  // A quotient past the top: div is overflow, mod is tooLarge, with no
+  // count and no remedy, since no value of the remainder can be formed.
   const top = `5e${(10n ** 18n).toString()}`;
   assert.equal(error(d(top, "1e-400")).kind, "overflow");
-  assert.equal(error(m(top, "1e-400")).kind, "tooLarge");
+  assert.deepEqual(error(m(top, "1e-400")), {
+    kind: "tooLarge",
+    inexact: "exceeds",
+    need: { kind: "unknown" },
+  });
+  // A remainder whose alignment passes the significand limit is refused
+  // as the subtraction refuses it, and as the sum of the two is: `fits`,
+  // with the bits the alignment would take, since an inexact operand
+  // settles it.
+  const sum = subtract(
+    dec("-1"),
+    dec("1e20000"),
+    DEFAULT_SIGNIFICAND_LIMIT_BITS,
+  );
+  assert.ok(!sum.ok && sum.error.kind === "tooLarge");
+  assert.deepEqual(error(m("-1", "1e20000")), sum.error);
+  assert.deepEqual(error(m("-1", "1e20000")), {
+    kind: "tooLarge",
+    inexact: "fits",
+    need: { kind: "bound", bits: 66440 },
+  });
+  for (const [a, b] of [
+    [ball(dec("-1"), dec("1e-20")), exact(dec("1e20000"))],
+    [exact(dec("-1")), ball(dec("1e20000"), dec("1e19980"))],
+    [ball(dec("-1"), dec("1e-20")), ball(dec("1e20000"), dec("1e19980"))],
+  ] as const) {
+    const remainder = value(mod.apply([a, b], CONTEXT));
+    assert.ok(!isExact(remainder));
+    assert.ok(equals(remainder.mid, dec("1e20000")));
+  }
 });
 
 test("div and mod on balls", () => {

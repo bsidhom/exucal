@@ -619,7 +619,11 @@ export function describeAssumption(assumption: Assumption): string {
  * (devdocs/numbers.md, "The exponent bound"). The rounding is named as
  * the cause, the texts are quoted as a conversion's refusal quotes them,
  * and the bound is said as a computed value past it says it; the display
- * digits in force are not restated, the panel showing them.
+ * digits in force are not restated, the panel showing them. Only a
+ * rounding carries the decimal display's exponent past the bound; a
+ * scaled ratio whose power of ten, the canonical exponent, lies past it
+ * is no rounding, and the outcome words no line for it here (outcome.ts,
+ * `literal`).
  */
 export function describeRoundingRefusal(have: string, want: string): string {
   const rounded =

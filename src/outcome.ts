@@ -437,12 +437,16 @@ function expr(node: ExprNode): Expr {
 
 /**
  * The literal the display wrote as `text`, or the bound's refusal when
- * `text` names a value past the exponent bound, which no literal within
- * it writes: a value within the bound whose rounding to the digits shown
- * carries into the next power of ten past the bound
+ * `text` names a value past the exponent bound above, which no literal
+ * within the bound writes: a value within the bound whose rounding to
+ * the digits shown carries into the next power of ten past the bound
  * (`9.5e1000000000000000000` at one digit, written `1e+1000000000000000001`)
- * is such a text (devdocs/numbers.md, "The exponent bound"). A text that
- * is no literal for any other reason is a defect of the display.
+ * is such a text (devdocs/numbers.md, "The exponent bound"). The decimal
+ * display writes the value's own decimal exponent, whatever the
+ * canonical split of the tens between significand and exponent, so only
+ * a rounding moves that exponent, and only up. A text past the bound
+ * below, or no literal at all, throws; `literal` says which text the
+ * display writes that can be one.
  */
 function numberExpr(text: string): Result<Expr, RoundingRefusal> {
   const value = parseDecimal(text);
@@ -451,7 +455,17 @@ function numberExpr(text: string): Result<Expr, RoundingRefusal> {
   throw new Error(`The display wrote ${text}, not a literal`);
 }
 
-/** The display's `text` where it rounded nothing, a ratio's part or its scale: a literal, or a defect of the display. */
+/**
+ * The display's `text` where it rounded nothing, a ratio's part or its
+ * scale, as the literal it is; a text past the bound throws. A ratio's
+ * parts fit the width. Its scale is the canonical exponent, the
+ * significand's tens moved into it, which lies past the bound on either
+ * side for some values within it: a third of `10^(10^18 + 1)` is within
+ * the bound and is written `1/3 × 1e+1000000000000000001`, and `123/7`
+ * times `10^(-10^18 - 1)` is written with `1e-1000000000000000001`. The
+ * ratio notation's rule does not screen the scale (display.ts,
+ * `ratioParts`), so such a line throws here.
+ */
 function literal(text: string): Expr {
   const value = numberExpr(text);
   if (!value.ok) throw new Error(`The display wrote ${text}, not a literal`);
@@ -481,7 +495,8 @@ function quantityExpr(
       throw new Error(`The display wrote the fraction ${text}`);
     }
     // A ratio is not rounded: its parts fit the width, and its scale is
-    // the value's own power of ten (display.ts, `ratioParts`).
+    // the canonical exponent (`literal` says where that lies past the
+    // bound).
     const numerator = negative ? negated(literal(num)) : literal(num);
     const fraction = expr({
       kind: "binary",

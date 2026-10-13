@@ -13,8 +13,11 @@ for a page, or `00.1`, `00.2`, `00.3` for a batch of the code track
 (work order 00). The second word, optional, is the run label (the
 model's name or a run number), used in the branch name; without it,
 use `run`. For `00.3` only, a third word may name one part of batch 3,
-`messages`, `tests` or `comments`; do only that part. Do exactly this
-one work order, or batch, then stop.
+as section 4 of work order 00 divides it: `messages` (B-015 to B-029),
+`tests` (B-030 to B-033), `comments` (B-034 to B-067) or `hangs`
+(B-070); do only that part. Without it, do all four, in that order.
+B-069 is never part of a run: it waits until the pages ship with the
+app. Do exactly this one work order, batch or part, then stop.
 
 ## 1. Set up the branch on the latest `docs-revamp`
 
@@ -92,7 +95,9 @@ Read nothing else in the corpus or the tree.
 - **Scope.** Change only the files your work order names (its page, or
   for 09 its two files, or for a batch of 00 that batch's code and
   tests), and the links it explicitly tells you to repoint elsewhere
-  (07, 16 and 18 do). Do not edit another page, `audit/`, the plan, the
+  (07, 16 and 18 do; in batch 3, B-032's clause of
+  `devdocs/development.md` and B-070's regenerated table in
+  `devdocs/cost.md`). Do not edit another page, `audit/`, the plan, the
   principles or, outside the code track, any code. A problem you find
   elsewhere goes under "Questions for the owner" in one line.
 - **Decisions are settled.** The owner's answers (`audit/plan/12-open-questions.md`,
@@ -138,7 +143,8 @@ goes in the pull request.
    in section 1. If the push is rejected, stop and say so; never
    force-push.
 4. Open a pull request into `docs-revamp`, titled `Work order <NN>:
-   <the page's path>` (for a batch, `Work order 00, batch <B>`), whose
+   <the page's path>` (for a batch, `Work order 00, batch <B>`, adding
+   the part in parentheses when you were given one), whose
    body has these sections: "Summary" (what changed, in a few lines);
    "Choices" (what your work order asks you to record, sections 7 and
    8); "Done when" (each item of section 10, met or not); "Questions

@@ -20,7 +20,10 @@ pointer such as `A2 (L120-128)` is `audit/reports/A2/fable.md`, lines
   three batches section 9 of the sheet fixes. Nothing else in `src/`,
   `bench/` or `scripts/` changes: the behaviour the owner kept is kept
   (section 6), and no page under `docs/` or `devdocs/` is touched, those
-  being the page sessions' (work orders 01 to 26).
+  being the page sessions' (work orders 01 to 26), with two exceptions
+  in batch 3: the one clause of `devdocs/development.md#Adding a unit`
+  that B-032 makes stale, and the hangs table of `devdocs/cost.md` that
+  B-070 regenerates with the tool.
 - **Why it is numbered first.** Batch 1 lands before `docs/numbers.md`
   (work order 01), the first page, because the pages quote the wording
   it changes; batch 2 lands before the first page that would otherwise
@@ -173,7 +176,11 @@ pins the partial note's text (A2's cases, A2 L127). B-031:
 `src/core/builtins/exact.test.ts` gains the cases its description
 promises, `gcd(a, 0)`, `mod`'s reach and the `ceiling` slip among
 them. B-032 (Q-060, ok): a failing build of `src/units.txt`
-(`src/units.test.ts:72-78`) reports the line, not the offsets. B-033:
+(`src/units.test.ts:72-78`) reports the line, not the offsets; the same
+pull request updates the clause of `devdocs/development.md#Adding a
+unit` that says how the test reports a failure, which the page wrote
+as the test behaved before (Q-060), and nothing else on that page.
+B-033:
 the tests #89 asks for are checked; closing the issue is the owner's
 (housekeeping the owner confirmed: item 15 of the owner's list at the
 end of `audit/decisions.md`).
@@ -236,10 +243,12 @@ answers word:
 
 **With the work they belong to.** B-069: the panel's "About these
 settings" link (`src/settings-lines.ts:114-117`) becomes a local link
-once the pages ship with the app (§12 question 31), not before. B-070
-(F-360): the stress tool's hangs table (`bench/stress/catalogue.ts:561`)
-emits inline issue links once `devdocs/cost.md` owns those issues (work
-order 17).
+once the pages ship with the app (§12 question 31), not before: it is
+not part of this rewrite. B-070 (F-360): the stress tool's hangs table
+(`bench/stress/catalogue.ts:561`) emits inline issue links once
+`devdocs/cost.md` owns those issues (work order 17); the pull request
+regenerates the hangs table of `devdocs/cost.md` with the tool and
+edits nothing else on that page.
 
 ## 5. Decisions followed
 

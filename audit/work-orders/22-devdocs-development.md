@@ -160,8 +160,10 @@ reports at the time of writing.
 
 ## 9. Code changes it waits on
 
-None. B-032 (the test naming the line) lands in batch 3 and the page
-then updates one clause; B-034 (the comment pass) follows the style
+None. B-032 (the test naming the line) lands in batch 3, and the code
+track's pull request for it updates the one clause of `#Adding a unit`
+that says how the test reports a failure (work order 00); B-034 (the
+comment pass) follows the style
 guide this page states; B-054 is `scripts/cloud-env`'s.
 
 ## 10. Done when

@@ -464,7 +464,9 @@ function numberExpr(text: string): Result<Expr, RoundingRefusal> {
  * the bound and is written `1/3 × 1e+1000000000000000001`, and `123/7`
  * times `10^(-10^18 - 1)` is written with `1e-1000000000000000001`. The
  * ratio notation's rule does not screen the scale (display.ts,
- * `ratioParts`), so such a line throws here.
+ * `ratioParts`), so such a line throws here; how the display should
+ * split the tens between the ratio and its power is issue #178's, the
+ * study of one uniform rule for the exact-mode display.
  */
 function literal(text: string): Expr {
   const value = numberExpr(text);

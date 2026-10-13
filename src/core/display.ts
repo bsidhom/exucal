@@ -126,7 +126,12 @@ function zeroBoundUnclamped(ball: Ball): Scaled {
  * the significand's, which has at most `2^-k` times fewer digits. So an
  * exponent beyond twice `width` in magnitude, or a significand numerator
  * beyond twice `width` in digits, cannot fit as a fraction, and nothing
- * is formed for it.
+ * is formed for it. The scaled form's power of ten is the canonical
+ * exponent itself, which lies past the exponent bound for some values
+ * within it (a third of `10^(10^18 + 1)` has the exponent `10^18 + 1`),
+ * and the outcome then cannot write the line and throws (outcome.ts,
+ * `literal`); whether the display should choose its own split of the
+ * tens is issue #178's.
  */
 function ratioParts(s: Scaled, width: Precision): Ratio | undefined {
   const { num, den } = s.significand;

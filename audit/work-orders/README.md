@@ -12,7 +12,12 @@ principles of [`../principles.md`](../principles.md).
 
 ## How a work order is used
 
-One session per work order. The session reads its work order,
+One session per work order, run through the project skill
+`work-order` (`.claude/skills/work-order/SKILL.md`) so that every run
+follows the same prompt whatever the model: start a Claude Code
+session on `docs-revamp` and run `/work-order <NN> [label]`, for
+example `/work-order 01 fable`, or `/work-order 00.1 fable` for a
+batch of the code track. The session reads its work order,
 `audit/principles.md`, and what the work order cites (a finding, an
 open item or a bug at its id; a report at the lines a pointer names;
 a plan section it names), and nothing else. It writes its page in one

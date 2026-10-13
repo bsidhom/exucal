@@ -236,7 +236,7 @@ test("an inexact value that certifies fewer digits than asked is partial, at tho
   );
   assert.equal(shown.text, format(reference, shown.certified, nearest));
   // 1.2345 ± 1e-30 at four digits, to nearest: the fourth digit is a tie the
-  // ball straddles, so three digits are certain and shown.
+  // ball straddles, so three digits are certified and shown.
   assert.deepEqual(
     show(about("1.2345", "1e-30"), { digits: 4, rounding: nearest }),
     {

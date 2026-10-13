@@ -22,7 +22,7 @@
 // What is shown is what `show` certifies
 // (devdocs/numbers.md, "Certification and the display rule"): every digit
 // asked for when the value allows, and otherwise the certified digits
-// with a note saying how many of those asked for are certain, `≈ 0` with
+// with a note saying how many of those asked for are certified, `≈ 0` with
 // a note giving the bound within which the value lies when it cannot be
 // told from zero, or the midpoint's digits with a note that none is
 // certified when the radius is not known. A list is certified
@@ -123,7 +123,7 @@ export const UNCERTIFIED = "≈\u0307";
  * One line of a result: `have` is `relation` `result`, as in `3 ft = 36
  * in`, `1 m ≈ 39.370079 in` and `1 m ≈ 3 ft + 3.3700787 in`, each side an
  * expression the printer writes. `note` says what the digits are worth
- * when they are not all certain: how many are, that the value is within
+ * when they are not all certified: how many are, that the value is within
  * a bound of zero, that none is certified, or that a step of a
  * decimal-mode computation could not be certified.
  */
@@ -500,11 +500,11 @@ function sumExpr(
   );
 }
 
-/** The note for a `shown` value at `digits` asked for, or none when every digit shown is certain. */
+/** The note for a `shown` value at `digits` asked for, or none when every digit shown is certified. */
 function noteOf(shown: Shown, digits: Precision): string | undefined {
   switch (shown.kind) {
     case "partial":
-      return `${shown.certified} of ${digits} digits are certain`;
+      return `${shown.certified} of ${digits} digits are certified`;
     case "zero":
       return `within ${shown.bound} of zero`;
     case "unbounded":

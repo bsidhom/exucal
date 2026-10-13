@@ -141,6 +141,13 @@ test("the groups, the resets and the foot say their words", () => {
   assert.match(ABOUT.href, /\/docs\/settings\.md$/);
 });
 
+test("the mode lines say what the digits shown are worth in each mode", () => {
+  assert.equal(
+    MODE_LINES.exact,
+    "Every digit shown is certified, found at rising precision; an exact value is written as its digits or as a ratio.",
+  );
+});
+
 test("the precision limit's line says its top under the significand limit as a number, by mode, and no formula", () => {
   const exact = precisionLimitLine(DEFAULT_SETTINGS);
   assert.equal(

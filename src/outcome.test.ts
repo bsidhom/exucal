@@ -270,7 +270,7 @@ test("a value that assumes a condition is shown, `≈`, with a warning apart fro
   assert.deepEqual(lines("tempC(approx(-273.15))", "", false, decimal), [
     "tempC(approx(-273.15)) = 0 K",
   ]);
-  // A value whose digits are all certain is `≈` all the same, on the
+  // A value whose digits are all certified is `≈` all the same, on the
   // reciprocal line too, and the same assumption is warned of once.
   assert.deepEqual(lines("tempC(approx(-273.15)) + 1 K", "K", false), [
     "tempC(approx(-273.15)) + 1 K ≈ 1 K",
@@ -408,7 +408,7 @@ test("what is copied, typed back as a have and converted into the line's own uni
       const back = resultLines(copied, wantsBack[i]!, fractions, context)[0]!;
       const where = `${have} into ${want}: ${displayText(line)} copied as ${copied}, read back as ${displayText(back)}`;
       if (context.mode !== "decimal" && line.note === undefined) {
-        // Every digit shown is certain: the copy is the value, and reads
+        // Every digit shown is certified: the copy is the value, and reads
         // back as the same result.
         assert.equal(resultText(back), resultText(line), where);
       } else {

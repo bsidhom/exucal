@@ -76,8 +76,9 @@ docs never mention it, and a devdocs page that needs to say something
 is planned links `future.md` rather than describing it. What is ruled
 out by intent is not future work but a current design decision, so it
 lives in the as-is pages: one sentence where a user would look for it
-in `docs/` (for example, that the app never shows the error radius),
-and the reason in the devdocs page that owns the concept. A user page
+in `docs/` (for example, that a temperature reading is a function, not
+a unit with an offset), and the reason in the devdocs page that owns
+the concept. A user page
 may state what the app lacks today as a plain fact, with what to write
 instead, but never as something to come. Bugs and performance problems
 in today's behaviour are not future work: their issue links stay with
@@ -92,13 +93,17 @@ might still be done, the owner was asked (the list at the end of
 #173, #178, #167 and #186 are future work, linked from `future.md`
 only; #115, #172, #110, #112, #114 and #179 stay with the passages
 that own them; the ruled-out bullets of `future.md` move to the pages
-that own their concepts. The answers to the review of the apply step
-(plan §12.3) add two: `!=` in conditions is future work with the
-equality operators (R-5), and "real values only" is a plain fact about
-today, complex numbers being future work (R-7). One question is open
-(plan §12.3, R-7): whether the error radius's display, too, might
-change; until the owner answers, it stays ruled out by intent, as item
-13 classified it.
+that own their concepts, all but the radius display's. The answers to
+the review of the apply step (plan §12.3) add three: `!=` in
+conditions is future work with the equality operators (R-5); "real
+values only" is a plain fact about today, complex numbers being future
+work (R-7); and that the app never shows the error radius is a plain
+fact about today's display, neither ruled out by intent nor future work
+(R-7, as the owner clarified it, correcting the example the owner's
+Q-011 text gave). Not everything the app lacks is one or the other: a
+plain fact about today is described as it is, with no reason given as
+for a design decision and no entry in `future.md`. Nothing is
+pending.
 
 **Inexact, not approximate (F-451).** "Inexact" names a value with a
 nonzero radius, everywhere, headings included ("Exact and inexact

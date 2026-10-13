@@ -94,8 +94,7 @@ page links (Q-012).
   Before this page is written, work order 11 put into
   `devdocs/numbers.md` the third number type with a rational
   significand (`#Decimal mode`), binary floats or a configurable radix
-  and exactness as a flag (`#The types`), a radius shown to the user
-  (`#Certification and the display rule`), and stored digits of `pi`
+  and exactness as a flag (`#The types`), and stored digits of `pi`
   or `e` (`#Memoized constants`, corrected: `e` is `eSeries`'s own
   binary-splitting sum, the ratios kept and the timings rough or gone,
   F-349); the unbounded exponent is already at `#Why the exponent
@@ -103,11 +102,16 @@ page links (Q-012).
   into `devdocs/functions.md#Alternatives considered`; and the user
   docs state the plain facts (`docs/numbers.md`: the app never shows
   the error radius; `docs/quantities.md`: a reading is a function, not
-  a unit with an offset). The session checks each landed (the pull
-  requests of 11 and 14 say so) and then deletes `#Ruled out, and why`
-  whole; the hypergeometric, Bessel and distributions bullets do not
-  move but become future work here (next rule). The owner confirmed
-  every classification (item 13); this page only drops the section.
+  a unit with an offset). The bullet on a radius shown to the user
+  moves nowhere: the owner clarified on 2026-10-13 that never showing
+  the radius is a plain fact about today's display, neither a design
+  ruled out nor future work (R-7, plan §12.3), so it gets no entry
+  here and goes with the section. The session checks each move landed
+  (the pull requests of 11 and 14 say so) and then deletes `#Ruled
+  out, and why` whole; the hypergeometric, Bessel and distributions
+  bullets do not move but become future work here (next rule). The
+  owner confirmed every classification (item 13, amended by R-7 for
+  the radius display); this page only drops the section.
 - **The deferred function classes are future work (Q-010, Q-011;
   F-348, F-346).** "More special functions" names the eight designed
   functions (`zeta`, `lambertw`, `ellipk`, `ellipe`, `legendre`,
@@ -264,10 +268,13 @@ From the owner's list: items 1, 2, 3, 5, 6, 7, 8, 10, 13 and 14 of the
 Q-011 list, all answered (section 6). Of the review's answers (plan
 §12.3): R-5, `!=` joins the equality entry; R-7, `#Complex numbers`
 stays as future work, "real values only" being a plain fact on the
-as-is pages. Before deleting `#Ruled out, and why`, the session
-searches `docs/`, `devdocs/` and `src/` for links to that anchor and
-repoints each to the page that now owns the decision (this pull
-request may change those links and nothing else outside this file).
+as-is pages, and the radius display gets no entry, being a plain fact
+about today's display (section 3). Before deleting `#Ruled out, and
+why`, the session searches `docs/`, `devdocs/` and `src/` for links to
+that anchor and repoints each to the page that now owns the decision,
+a link about the radius display to `devdocs/numbers.md#Certification
+and the display rule` (this pull request may change those links and
+nothing else outside this file).
 The session's pull request lists
 every entry the page carries and the bullets it confirmed moved, and
 flags any intent it added or left out beyond the list of section 3.
@@ -281,7 +288,7 @@ None.
 - The page has four sections, `#(top)`, `#Symbolic values`, `#Complex
   numbers` and `#Extensions that fit`; `#Ruled out, and why` is gone
   and each of its bullets is on its owner page or under "More special
-  functions".
+  functions", but the radius display's, which goes with it (R-7).
 - Every §1.3 intent has one entry, each linking the section that holds
   its design, none restating it; the future-work issues are linked
   here once each and the cost issues not at all; no reference-style

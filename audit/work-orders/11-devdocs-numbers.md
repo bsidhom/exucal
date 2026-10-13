@@ -65,9 +65,7 @@ ruled-out alternatives with theirs, in the present tense.
   as a third number type (`future.md` page L187-195, into `#Decimal
   mode`, which the bullet already cites); binary floats or a
   configurable radix (page L196-199) and exactness as a flag on values
-  (page L204-206), into `#The types`; a radius shown to the user (page
-  L200-203), into `#Certification and the display rule`, the user's
-  sentence being `docs/numbers.md`'s (work order 01); stored digits of
+  (page L204-206), into `#The types`; stored digits of
   `pi` or `e` (page L207-218), into `#Memoized constants`, corrected:
   `e` is computed by `eSeries` of `constants.ts`, a binary-splitting
   sum of its own, not "as the `exp` routine's series", the ratios
@@ -76,7 +74,15 @@ ruled-out alternatives with theirs, in the present tense.
   the millisecond figures rough and illustrative or gone (F-349). The
   unbounded exponent is already at `#Why the exponent bound stays at
   10^18`. Item 13 of the owner's list confirmed the classification on
-  2026-10-12: the bullets are written as ruled out by intent.
+  2026-10-12: the bullets are written as ruled out by intent. The
+  bullet on a radius shown to the user (page L200-203) is not
+  received: the owner clarified on 2026-10-13 that never showing the
+  radius is a plain fact about today's display, neither a design ruled
+  out nor future work (R-7, plan §12.3), so `#Certification and the
+  display rule` describes the display as it is (the certified digits
+  and the note, never the radius), giving no reason as for a design
+  decision and nothing of what may come; the user's sentence is
+  `docs/numbers.md`'s (work order 01).
 - **Which numbers the page keeps (Q-016, Q-018, Q-088).** A measured
   ratio stays ("about forty times cheaper than Euclid's", F-188; "about
   ten times `pi`'s whole series", F-196); a rough timing may stay only
@@ -304,7 +310,7 @@ take and what the rules change:
 | F-218, F-219 | approx | "refusal" read in its size sense first; the `~` spelling ruled out, kept as intent |
 | F-220 | Formatting | Small fixed costs; figures rough or the benchmarks' |
 | F-221 | (the page) | Links inline; #78, #98, #100, #171, #173 leave for `future.md`; #89 goes; #103 to `builtins.md`; #172 stays; #199 added |
-| F-349, F-350 (received) | The types; Decimal mode; Certification and the display rule; Memoized constants | The ruled-out bullets of `future.md`, stated here as intent (Q-011); `e` by `eSeries`; item 13 confirmed |
+| F-349, F-350 (received) | The types; Decimal mode; Memoized constants | The ruled-out bullets of `future.md`, stated here as intent (Q-011), all but the radius display's, a plain fact about today that is not received (R-7); `e` by `eSeries`; item 13 confirmed |
 
 Owned elsewhere and read here, each applied by its owner and giving
 this page a sentence or a link: F-010, F-012, F-021, F-022, F-023,
@@ -382,7 +388,9 @@ stays linked once at `#Working precision and the schedule`; R-4, a
 literal past the hard bound or the exponent bound is a size refusal
 (section 3); R-7, "real values only" is a plain fact and complex
 numbers are future work, so nothing on complex values is received
-here. The session records in its pull request each choice between
+here, and the radius display is a plain fact about today's display,
+neither ruled out nor future work, so its bullet is not received
+either (section 3). The session records in its pull request each choice between
 drafts (sections 4 and 7), the figures it kept as rough, and the
 received bullets' places, which work order 18 checks.
 

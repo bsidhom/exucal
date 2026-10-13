@@ -90,11 +90,13 @@ What each changes in the drafts this page is built from:
   for it, never as something to come: there is no equality operator and
   no `!=` ("Comparison and equality"; both future work, Q-112, R-5 of
   the review); real values only ("Real values only"; a plain fact about
-  today, complex numbers being future work, R-7). What is ruled out by
-  intent is stated the same way: the app never shows the error radius
-  ("Exact and inexact values"); readings are not units with an offset
-  (that one is `quantities.md`'s); the exponent bound is not a setting
-  and a higher one is ruled out, with the two reasons (F-058).
+  today, complex numbers being future work, R-7); the app never shows
+  the error radius ("Exact and inexact values"; a plain fact about
+  today's display, neither ruled out nor future work, R-7 as the owner
+  clarified it). What is ruled out by intent is stated the same way:
+  readings are not units with an offset (that one is `quantities.md`'s);
+  the exponent bound is not a setting and a higher one is ruled out,
+  with the two reasons (F-058).
 - **Which numbers the page keeps (Q-016, Q-018).** No timing, run count
   or measured ratio: "What costs time" is qualitative, and a rough
   duration appears only where it warns ("a few seconds"). The six-pass
@@ -158,7 +160,8 @@ state.
   clause says that some units are inexact because they are defined
   through `pi()`, linking `units.md#which-factors-are-exact` (F-113,
   owned by `units.md`). One plain sentence that the app never shows the
-  error radius (Q-011).
+  error radius, describing today's display as it is, with no reason and
+  nothing of what may come (Q-011; R-7).
 
 ### How a value is held
 
@@ -519,8 +522,10 @@ owner"), as they touch this page, all answered on 2026-10-12:
 Of the review's answers (plan §12.3, answered on 2026-10-13): R-4, a
 literal past the hard bound or the exponent bound is a size refusal as
 it is typed (section 3); R-5, no `!=` is stated as a plain fact, with
-the equality operators, never as something to come; R-7, "Real values
-only" is a plain fact about today, not a design ruled out.
+the equality operators, never as something to come; R-7, as the owner
+clarified it, "Real values only" and the error radius never shown are
+plain facts about today, neither a design ruled out, and complex
+numbers are future work while the radius display is not.
 
 Choices the session makes and records in its pull request (the sheet's
 section 10): the destination of the hand-written rule's examples

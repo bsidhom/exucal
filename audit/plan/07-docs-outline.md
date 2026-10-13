@@ -42,8 +42,8 @@ needs to predict and interpret any result.
 - Exact and inexact values (the fraction times a power of ten; the
   error radius; the two sources of inexactness, F-010; one clause that
   the units defined through `pi()` are inexact, linking `units.md`,
-  F-113; the app never shows the error radius, a ruled-out design
-  stated as a plain fact, Q-011)
+  F-113; the app never shows the error radius, a plain fact about
+  today's display, neither ruled out nor future work, R-7)
 - How a value is held (the fraction and its bit size; the power of ten
   and its bound; the error radius; the digits an inexact value is
   kept to, the grid named once, Q-004; the dyadic cost), as foundation
@@ -250,5 +250,5 @@ the units in §10.c reshape them to this map.
 | Settings | `settings.md` | `devdocs/settings.md` |
 | Built-in functions | `builtins.md` | `devdocs/builtins.md` |
 | The app's surface | `app.md` (F-513) | `devdocs/architecture.md#UI`; `devdocs/offline.md` |
-| What is ruled out by intent | one sentence where a user would look for it (a temperature reading is a function, not a unit with an offset; "real values only" is not one: it is a plain fact about today, complex numbers being future work, R-7) | the page that owns the concept, with the reason; each page's "Not in this design" (Q-011) |
+| What is ruled out by intent | one sentence where a user would look for it (a temperature reading is a function, not a unit with an offset; neither "real values only" nor "the error radius is never shown" is one: each is a plain fact about today, complex numbers being future work and the radius display neither, R-7) | the page that owns the concept, with the reason; each page's "Not in this design" (Q-011) |
 | What might still be done | nothing: the user docs never mention future work (Q-011) | `devdocs/future.md`, the one place, with the issue links |

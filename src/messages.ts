@@ -611,6 +611,24 @@ export function describeAssumption(assumption: Assumption): string {
   return `Could not tell whether ${describeAssumed(assumption)}; the value assumes ${plural ? "they do" : "it does"}.`;
 }
 
+/**
+ * Why no line is written for `have` (into `want`, when there is one), as
+ * one sentence: rounding the value to the display digits carried its
+ * exponent past the exponent bound, which no literal within the bound
+ * writes, and a line that could not be typed back is not written
+ * (devdocs/numbers.md, "The exponent bound"). The rounding is named as
+ * the cause, the texts are quoted as a conversion's refusal quotes them,
+ * and the bound is said as a computed value past it says it; the display
+ * digits in force are not restated, the panel showing them.
+ */
+export function describeRoundingRefusal(have: string, want: string): string {
+  const rounded =
+    want.trim() === ""
+      ? quote(have.trim())
+      : `${quote(have.trim())} into ${quote(want.trim())}`;
+  return `Rounding ${rounded} to the display digits causes an overflow: the rounded value's exponent would pass 10^18.`;
+}
+
 /** What an assumed condition is about, and the condition: `the argument of "tempC" meets "x >= -273.15"`. */
 function describeAssumed(assumption: Assumption): string {
   const name = quote(assumption.name);

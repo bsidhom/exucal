@@ -42,6 +42,7 @@ import type { UnitTable } from "./core/table.ts";
 import {
   describeAssumption,
   describeConversionError,
+  describeRoundingRefusal,
   describeTextError,
 } from "./messages.ts";
 
@@ -369,6 +370,20 @@ test("a ratio beyond the exponent bound quotes both texts", () => {
   assert.equal(
     conversionMessage("1e-999999999999999999 m", "1e999999999999999999 m"),
     '"1e-999999999999999999 m" into "1e999999999999999999 m" is too small to compute: its exponent would fall below -10^18.',
+  );
+});
+
+test("a rounding past the exponent bound names the rounding, the texts and the bound", () => {
+  // The outcome's own refusal (outcome.ts): the rounded value's exponent
+  // passes the bound, so no literal within it writes the line. The texts
+  // are quoted trimmed, as a conversion's refusal quotes them.
+  assert.equal(
+    describeRoundingRefusal("9.5e1000000000000000000", ""),
+    'Rounding "9.5e1000000000000000000" to the display digits causes an overflow: the rounded value\'s exponent would pass 10^18.',
+  );
+  assert.equal(
+    describeRoundingRefusal(" 9.99999999e1000000000000000000 m ", " m "),
+    'Rounding "9.99999999e1000000000000000000 m" into "m" to the display digits causes an overflow: the rounded value\'s exponent would pass 10^18.',
   );
 });
 

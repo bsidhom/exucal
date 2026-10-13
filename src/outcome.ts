@@ -69,7 +69,11 @@
 // call. The printer (print.ts) writes both back canonically, deciding the
 // parentheses, with `×` for the screen (`resultPieces`) and `*` for the
 // clipboard (`copyText`); what it writes reads back as the same tree, so
-// every line can be typed as a `have`.
+// every line can be typed as a `have`. A value whose rounding to the
+// digits shown carries its exponent past the exponent bound is written by
+// no literal within the bound, so no line is written for it: the outcome
+// is the bound's refusal, worded by messages.ts, rather than a line that
+// could not be typed back (devdocs/numbers.md, "The exponent bound").
 
 import { divideBalls, exact, step, type Ball } from "./core/ball.ts";
 import { modeOf, type NumberContext } from "./core/context.ts";
@@ -86,6 +90,7 @@ import {
   type PassObserver,
   type Side,
 } from "./core/pipeline.ts";
+import { err, ok, type Result } from "./core/result.ts";
 import type { Precision } from "./core/rounding.ts";
 import {
   ONE,
@@ -95,12 +100,14 @@ import {
   isZero,
   parseDecimal,
   sign,
+  type Refusal,
 } from "./core/scaled.ts";
 import type { Span } from "./core/span.ts";
 import type { UnitTable } from "./core/table.ts";
 import {
   describeAssumption,
   describeConversionError,
+  describeRoundingRefusal,
   describeTextError,
 } from "./messages.ts";
 
@@ -152,6 +159,18 @@ export type Outcome =
     }
   /** `message` says what is wrong, with the text on `side` if it is one text's fault. */
   | { readonly kind: "error"; readonly side?: Side; readonly message: string };
+
+/** The outcome that is lines, before `outcomeOf` adds its warnings. */
+type Lines = Extract<Outcome, { kind: "result" }>;
+
+/**
+ * The bound's refusal of a display rounding: rounding a value within the
+ * exponent bound to the digits shown carried its exponent past the bound,
+ * so no literal within the bound writes the rounded value
+ * (devdocs/numbers.md, "The exponent bound"). A rounding never lowers an
+ * exponent, so the refusal is `overflow` alone.
+ */
+type RoundingRefusal = Extract<Refusal, { kind: "overflow" }>;
 
 /** The result of `line` as pieces for the screen, its numbers apart from its units, with `×` for a product. */
 export function resultPieces(line: Line): readonly Piece[] {
@@ -221,10 +240,7 @@ export function outcomeOf(
  * every line's relation `≈`, since a value that rests on an assumption is
  * not known to be the definition's at all; `result` itself without any.
  */
-function warned(
-  result: Extract<Outcome, { kind: "result" }>,
-  assumptions: readonly Assumption[],
-): Outcome {
+function warned(result: Lines, assumptions: readonly Assumption[]): Outcome {
   if (assumptions.length === 0) return result;
   return {
     kind: "result",
@@ -267,10 +283,9 @@ function outcomeAssuming(
     }
     const { magnitude, dimension } = quantity.value;
     const unit = dimensionExpr(dimension, table.primitives);
-    return {
-      kind: "result",
-      lines: [line(parsedHave(haveText), magnitude, unit, context, ratio)],
-    };
+    const written = line(parsedHave(haveText), magnitude, unit, context, ratio);
+    if (!written.ok) return roundingRefused(haveText, wantString);
+    return { kind: "result", lines: [written.value] };
   }
   const conversion = convertText(
     table,
@@ -294,14 +309,37 @@ function outcomeAssuming(
       ),
     };
   }
-  switch (conversion.value.kind) {
+  const written = conversionLines(conversion.value, context, ratio);
+  return written.ok ? written.value : roundingRefused(haveText, wantString);
+}
+
+/** The lines of a conversion, by its kind, or the bound's refusal of a rounding in one of them. */
+function conversionLines(
+  conversion: Conversion,
+  context: NumberContext,
+  ratio: RatioDisplay | undefined,
+): Result<Lines, RoundingRefusal> {
+  switch (conversion.kind) {
     case "unit":
-      return unitResult(conversion.value, context, ratio);
+      return unitResult(conversion, context, ratio);
     case "list":
-      return listResult(conversion.value, context, ratio);
+      return listResult(conversion, context, ratio);
     case "function":
-      return functionResult(conversion.value, context, ratio);
+      return functionResult(conversion, context, ratio);
   }
+}
+
+/**
+ * The error outcome for a rounding the bound refused, worded by
+ * messages.ts: the `have`'s fault alone with a blank want, as every error
+ * of a blank want is, and neither text's in a conversion, as a
+ * conversion's own refusal is.
+ */
+function roundingRefused(haveText: string, wantString: string): Outcome {
+  const message = describeRoundingRefusal(haveText, wantString);
+  return wantString.trim() === ""
+    ? { kind: "error", side: "have", message }
+    : { kind: "error", message };
 }
 
 /**
@@ -324,16 +362,20 @@ function unitResult(
   conversion: Extract<Conversion, { kind: "unit" }>,
   context: NumberContext,
   ratio: RatioDisplay | undefined,
-): Outcome {
+): Result<Lines, RoundingRefusal> {
   const { haveExpr, wantExpr, value } = conversion;
-  const lines = [line(haveExpr, value, wantExpr, context, ratio)];
+  const first = line(haveExpr, value, wantExpr, context, ratio);
+  if (!first.ok) return first;
+  const lines = [first.value];
   // A step of the expression (`step` of ball.ts): settled in exact mode,
   // rounded once in decimal mode.
   const inverse = step(() => divideBalls(exact(ONE), value, context), context);
   if (inverse.ok) {
-    lines.push(line(wantExpr, inverse.value, haveExpr, context, ratio));
+    const second = line(wantExpr, inverse.value, haveExpr, context, ratio);
+    if (!second.ok) return second;
+    lines.push(second.value);
   }
-  return { kind: "result", lines };
+  return ok<Lines>({ kind: "result", lines });
 }
 
 /**
@@ -342,7 +384,8 @@ function unitResult(
  * kinds that do not show every digit asked for. With the ratio notation
  * (`ratio`), an exact value is written entire where it fits its width
  * (devdocs/notation.md, "The rule"). With no `unit`, the value is a plain
- * number.
+ * number. A rounding that carried the value past the exponent bound is
+ * the bound's refusal, and no line.
  */
 function line(
   have: Expr,
@@ -350,18 +393,20 @@ function line(
   unit: Expr | undefined,
   context: NumberContext,
   ratio: RatioDisplay | undefined,
-): Line {
+): Result<Line, RoundingRefusal> {
   const shown = show(value, {
     digits: context.precision,
     rounding: context.rounding,
     ratio,
   });
-  return {
+  const result = quantityExpr(shown, isNegative(value, shown), unit);
+  if (!result.ok) return result;
+  return ok<Line>({
     have,
     relation: relationOf([shown]),
-    result: quantityExpr(shown, isNegative(value, shown), unit),
+    result: result.value,
     note: noteOf(shown, context.precision),
-  };
+  });
 }
 
 /**
@@ -390,11 +435,27 @@ function expr(node: ExprNode): Expr {
   return { span: SPAN, node };
 }
 
-/** The literal the display wrote as `text`. */
-function numberExpr(text: string): Expr {
+/**
+ * The literal the display wrote as `text`, or the bound's refusal when
+ * `text` names a value past the exponent bound, which no literal within
+ * it writes: a value within the bound whose rounding to the digits shown
+ * carries into the next power of ten past the bound
+ * (`9.5e1000000000000000000` at one digit, written `1e+1000000000000000001`)
+ * is such a text (devdocs/numbers.md, "The exponent bound"). A text that
+ * is no literal for any other reason is a defect of the display.
+ */
+function numberExpr(text: string): Result<Expr, RoundingRefusal> {
   const value = parseDecimal(text);
+  if (value.ok) return ok(expr({ kind: "number", value: value.value, text }));
+  if (value.error.kind === "overflow") return err(value.error);
+  throw new Error(`The display wrote ${text}, not a literal`);
+}
+
+/** The display's `text` where it rounded nothing, a ratio's part or its scale: a literal, or a defect of the display. */
+function literal(text: string): Expr {
+  const value = numberExpr(text);
   if (!value.ok) throw new Error(`The display wrote ${text}, not a literal`);
-  return expr({ kind: "number", value: value.value, text });
+  return value.value;
 }
 
 /**
@@ -412,19 +473,21 @@ function quantityExpr(
   shown: Shown,
   negative: boolean,
   unit: Expr | undefined,
-): Expr {
+): Result<Expr, RoundingRefusal> {
   const text = shown.text.startsWith("-") ? shown.text.slice(1) : shown.text;
   if (shown.kind === "exact" && shown.fraction === true) {
     const [num, den] = text.split("/");
     if (num === undefined || den === undefined) {
       throw new Error(`The display wrote the fraction ${text}`);
     }
-    const numerator = negative ? negated(numberExpr(num)) : numberExpr(num);
+    // A ratio is not rounded: its parts fit the width, and its scale is
+    // the value's own power of ten (display.ts, `ratioParts`).
+    const numerator = negative ? negated(literal(num)) : literal(num);
     const fraction = expr({
       kind: "binary",
       op: "div",
       left: numerator,
-      right: numberExpr(den),
+      right: literal(den),
     });
     const value =
       shown.scale === undefined
@@ -433,13 +496,15 @@ function quantityExpr(
             kind: "binary",
             op: "mul",
             left: fraction,
-            right: numberExpr(shown.scale),
+            right: literal(shown.scale),
           });
-    return unit === undefined ? value : timesFirst(value, unit);
+    return ok(unit === undefined ? value : timesFirst(value, unit));
   }
   const value = numberExpr(text);
-  const product = unit === undefined ? value : timesFirst(value, unit);
-  return negative ? negated(product) : product;
+  if (!value.ok) return value;
+  const product =
+    unit === undefined ? value.value : timesFirst(value.value, unit);
+  return ok(negative ? negated(product) : product);
 }
 
 function negated(operand: Expr): Expr {
@@ -533,7 +598,7 @@ function listResult(
   conversion: Extract<Conversion, { kind: "list" }>,
   context: NumberContext,
   ratio: RatioDisplay | undefined,
-): Outcome {
+): Result<Lines, RoundingRefusal> {
   const { haveExpr, units, terms } = conversion;
   const { precision, rounding } = context;
   const last = terms.length - 1;
@@ -572,7 +637,8 @@ function listResult(
         ratio,
       })
     : unrounded;
-  const all = rounded.map((value, i) => {
+  const all: { value: Ball; negative: boolean; quantity: Expr }[] = [];
+  for (const [i, value] of rounded.entries()) {
     const magnitude = sign(value.mid) < 0 ? absolute(value.mid) : value.mid;
     // The remainder's fraction is taken from the magnitude's own ball,
     // which is exact as the term is; a count and a rounded remainder are
@@ -589,12 +655,14 @@ function listResult(
                 ratio,
               })
             : { kind: "exact", text: format(magnitude, certified, rounding) };
-    return {
+    const quantity = quantityExpr(shown, false, units[i]!.expr);
+    if (!quantity.ok) return quantity;
+    all.push({
       value,
       negative: isNegative(value, shown),
-      quantity: quantityExpr(shown, false, units[i]!.expr),
-    };
-  });
+      quantity: quantity.value,
+    });
+  }
   // A term of zero is left out, and so is a last term that cannot be told
   // from zero, with its note; a sum of nothing but zeros keeps its last
   // term, note and all.
@@ -604,7 +672,7 @@ function listResult(
   );
   const kept = nonzero.length > 0 ? nonzero : all.slice(-1);
   const keepsRemainder = kept.includes(all[last]!);
-  return {
+  return ok<Lines>({
     kind: "result",
     lines: [
       {
@@ -614,7 +682,7 @@ function listResult(
         note: keepsRemainder ? noteOf(remainder, precision) : undefined,
       },
     ],
-  };
+  });
 }
 
 /**
@@ -630,23 +698,25 @@ function functionResult(
   conversion: Extract<Conversion, { kind: "function" }>,
   context: NumberContext,
   ratio: RatioDisplay | undefined,
-): Outcome {
+): Result<Lines, RoundingRefusal> {
   const { haveExpr, name, value, unit } = conversion;
-  const { relation, result } = line(
+  const written = line(
     haveExpr,
     value,
     unit.text === "1" ? undefined : unit.expr,
     context,
     ratio,
   );
+  if (!written.ok) return written;
+  const { relation, result } = written.value;
   const call = expr({
     kind: "call",
     name,
     nameSpan: SPAN,
     arguments: [result],
   });
-  return {
+  return ok<Lines>({
     kind: "result",
     lines: [{ have: haveExpr, relation, result: call }],
-  };
+  });
 }

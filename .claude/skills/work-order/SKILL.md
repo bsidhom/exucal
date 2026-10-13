@@ -14,13 +14,42 @@ use `run`. For `00.3` only, a third word may name one part of batch 3,
 `messages`, `tests` or `comments`; do only that part. Do exactly this
 one work order, or batch, then stop.
 
-## 1. Set up the branch
+## 1. Set up the branch on the latest `docs-revamp`
 
-1. `git fetch origin docs-revamp`.
-2. `git checkout -b claude/wo-<NN>-<label> origin/docs-revamp` (for a
-   batch, `claude/wo-00-<B>-<label>`). If the remote already has a
-   branch of that name, add `-2`, `-3`, … to the label.
-3. Read the row for your work order in the table of
+The checkout a session starts from can be stale: a cloud session's
+clone may lag the remote and be shallow, and no branch but the default
+is brought up to date for you. So take the base from the remote, every
+time, before anything else, and never trust a local `docs-revamp`.
+
+1. Check that the working tree is clean (`git status --porcelain`
+   prints nothing); if it is not, stop and say so.
+2. Fetch the two heads from the remote, forcing the remote-tracking
+   refs:
+   `git fetch origin +refs/heads/docs-revamp:refs/remotes/origin/docs-revamp +refs/heads/main:refs/remotes/origin/main`.
+   When `git rev-parse --is-shallow-repository` prints `true`, run it
+   as `git fetch --unshallow origin …` with the same two refspecs, so
+   that the whole history is there for step 6. If the
+   fetch fails on the network, retry up to four times, waiting 2, 4, 8
+   and 16 seconds.
+3. Check the result against the remote itself: the hash that
+   `git ls-remote origin refs/heads/docs-revamp` prints must equal
+   `git rev-parse origin/docs-revamp`. If it does not, fetch again as in
+   step 2; if it still differs, stop and say so, changing nothing.
+4. Put your branch on that head. Your branch is the one your session
+   names for your work, if it names one (a cloud session does);
+   otherwise `claude/wo-<NN>-<label>` (for a batch,
+   `claude/wo-00-<B>-<label>`), adding `-2`, `-3`, … to the label if the
+   remote already has a branch of that name.
+   - If the branch exists locally with commits of its own (that is,
+     `git log --oneline <branch> --not origin/docs-revamp origin/main`
+     prints anything), check it out and merge the head into it:
+     `git merge origin/docs-revamp`. On a conflict, stop and say so.
+   - Otherwise create it at the head, or move it there:
+     `git checkout -B <branch> origin/docs-revamp`.
+5. Confirm that `git merge-base --is-ancestor origin/docs-revamp HEAD`
+   succeeds, and note `git rev-parse --short origin/docs-revamp` as the
+   base revision; the pull request names it.
+6. Read the row for your work order in the table of
    `audit/work-orders/README.md` ("Waits on"); batch 2 waits on batch 1,
    and batch 3 on every page work order, 01 to 26. For each work order
    or batch it waits on, check that it has landed:
@@ -99,15 +128,22 @@ goes in the pull request.
 1. Commit with the subject `Work order <NN>: <the page's path>` (for a
    batch, one commit per change, each subject starting
    `Work order 00, batch <B>: `).
-2. `git push -u origin <your branch>`.
-3. Open a pull request into `docs-revamp`, titled `Work order <NN>:
+2. Fetch again as in steps 2 and 3 of section 1. If `docs-revamp` has
+   moved since you began, merge it (`git merge origin/docs-revamp`); on a
+   conflict, stop and say so. Then repeat section 4's checks for what
+   the merge brought in that touches your files.
+3. `git push -u origin <your branch>`, retrying on a network failure as
+   in section 1. If the push is rejected, stop and say so; never
+   force-push.
+4. Open a pull request into `docs-revamp`, titled `Work order <NN>:
    <the page's path>` (for a batch, `Work order 00, batch <B>`), whose
    body has these sections: "Summary" (what changed, in a few lines);
    "Choices" (what your work order asks you to record, sections 7 and
    8); "Done when" (each item of section 10, met or not); "Questions
-   for the owner" (or `None.`); for a batch, also "User-visible
-   wording" (the final text of every line the app shows that you
-   changed). If you cannot open a pull request, put that body in your
-   reply instead.
-4. Reply in one line with the branch and the pull request, then stop.
+   for the owner" (or `None.`); "Base" (the base revision of section 1,
+   and the head you merged at the end, if it moved); for a batch, also
+   "User-visible wording" (the final text of every line the app shows
+   that you changed). If you cannot open a pull request, put that body
+   in your reply instead.
+5. Reply in one line with the branch and the pull request, then stop.
    Do not merge, and do not start another work order.

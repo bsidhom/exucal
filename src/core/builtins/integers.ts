@@ -52,8 +52,14 @@ export function integerOf(
   return ok(formed.value.num);
 }
 
-/** `gcd(a, b)` on integers, non-negative. */
+/**
+ * `gcd(a, b)` on integers, non-negative: the magnitude of the other when
+ * one is zero (`gcd(5, 0)` is `5`, `gcd(0, 0)` zero), since every integer
+ * divides zero, and the fraction's `gcd` on the magnitudes otherwise,
+ * whose contract takes a positive second argument.
+ */
 export function gcdOfIntegers(a: bigint, b: bigint): bigint {
+  if (b === 0n) return abs(a);
   return gcdOf(abs(a), abs(b));
 }
 

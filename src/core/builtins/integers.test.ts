@@ -58,7 +58,19 @@ test("gcd and lcm on integers are non-negative", () => {
   assertExact(g("0", "0"), "0");
   assertExact(g("0", "-5"), "5");
   assertExact(g("1e400", "1e300"), "1e300");
+  // A zero on either side: the other's magnitude, in full (devdocs/builtins.md,
+  // "The exact functions"), on whichever side the zero is.
+  assertExact(g("5", "0"), "5");
+  assertExact(g("0", "5"), "5");
+  assertExact(g("-10", "0"), "10");
+  assertExact(g("7", "0"), "7");
+  assertExact(g("12", "0"), "12");
+  assertExact(g("2", "0"), "2");
+  assertExact(g("1", "0"), "1");
+  assertExact(g("1000000007", "0"), "1000000007");
+  assertExact(g("1e400", "0"), "1e400");
   assertExact(l("-6", "4"), "12");
+  assertExact(l("5", "0"), "0");
   assertExact(l("6", "0"), "0");
   assertExact(l("0", "0"), "0");
   assertExact(l("4", "6"), "12");

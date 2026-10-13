@@ -2,9 +2,12 @@
 
 How the app holds a number, when a result is exact, which digits you can
 trust, what the two size limits refuse and why, and how a result is
-written. Every other page assumes this one: a conversion, a definition
-and a built-in function all produce values of the kind described here,
-and the pages on them link back to the section that owns each rule.
+written. One idea runs through it: what the app holds, and what it
+writes, depends on the value and the settings alone, never on the route
+a computation took to it. Every other page assumes this one: a
+conversion, a definition and a built-in function all produce values of
+the kind described here, and the pages on them link back to the section
+that owns each rule.
 
 ## Exact and inexact values
 
@@ -42,20 +45,23 @@ What a value costs, and what the two limits bound, follows from how it
 is held.
 
 - **An exact value costs its fraction's bits.** The fraction is kept in
-  one fixed form: in lowest terms, with every power of ten moved out
-  into the exponent, and with a denominator that has no factor of two
-  or five at all (coprime to ten, in the words of number theory), so
-  that `2.54` is held as `254` times `10^-2`, and `1/6` as `5/3` times
-  `10^-1`, the two of the six traded for a five above the line and one
-  power of ten in the exponent. A value has exactly one such form,
-  whatever route a computation reaches it by. Its fraction in lowest
-  terms is unique; the only denominator the rule allows is that
-  fraction's with every two and five taken out; with the denominator
-  fixed, the exponent can only be the largest that still leaves the
-  numerator a whole number; and the numerator is then whatever is left.
-  Each step is forced, so equal values are held alike, and the app can
-  tell two values are equal by comparing the parts it holds, with no
-  arithmetic. `1/3` is small and `3^100000` is not: what an exact value
+  one fixed form, its canonical form: in lowest terms, with every power
+  of ten moved out into the exponent, and with a denominator that has
+  no factor of two or five at all (coprime to ten, in the words of
+  number theory), so that `2.54` is held as `254` times `10^-2`, and
+  `1/6` as `5/3` times `10^-1`, the two of the six traded for a five
+  above the line and one power of ten in the exponent. A value has
+  exactly one canonical form, whatever route a computation reaches it
+  by. Its fraction in lowest terms is unique; the only denominator the
+  rule allows is that fraction's with every two and five taken out;
+  with the denominator fixed, the exponent can only be the largest that
+  still leaves the numerator a whole number; and the numerator is then
+  whatever is left. Each step is forced, which is what makes the held
+  value predictable: equal values are held alike, whatever expressions
+  produced them, so the app can tell two values are equal by comparing
+  the parts it holds, with no arithmetic, and a value costs the same
+  bits, and meets the significand limit the same way, by every route.
+  `1/3` is small and `3^100000` is not: what an exact value
   costs to hold and to compute with is the bits of its numerator and of
   its denominator, and the significand limit bounds each of them, so
   that `3^100000`, whose 158,497 bits pass the default limit, is refused
@@ -554,10 +560,12 @@ a setting of exact mode alone, writes an exact value as a fraction
 where one fits the ratio width, which is independent of the display
 digits: a whole number is written entire when it has at most the
 width's significant digits, a fraction as `n/d` when its numerator and
-denominator together have at most that many digits, and otherwise as a
-fraction times a power of ten, `1/3 × 1e+30`, where that fits; anything
-longer is written as digits, and an inexact value is always written as
-digits (`sqrt(2) m ≈ 1.4142136 m`). So under the notation `1 m` in `in`
+denominator together have at most that many digits, and otherwise,
+where that fits, as a fraction times a power of ten, `1/3 × 1e+30`, the
+two being the value's canonical form
+([How a value is held](#how-a-value-is-held)); anything longer is
+written as digits, and an inexact value is always written as digits
+(`sqrt(2) m ≈ 1.4142136 m`). So under the notation `1 m` in `in`
 is `= (5000/127) in` and `3^20` is `= 3486784401`, where the digits
 notation writes `≈ 39.370079 in` and `≈ 3.4867844e+9` at eight display
 digits. The notation changes how an exact value is written, never what
@@ -578,6 +586,16 @@ and the one rounding that could write a number past the exponent
 bound, a value within the bound whose rounding to the display digits
 carries past it, is refused instead
 ([Values too big to hold](#values-too-big-to-hold)).
+
+What is written is as fixed as what is held. A line is a function of the
+value, of whether it is exact, and of the settings, never of the route
+a computation took: `2.54`, `254/100` and `2.5 + 0.04` are all `= 2.54`,
+or `= 127/50` under the ratio notation, and `1e30/3` and `(1/3) * 1e30`
+are both `≈ 3.3333333e+29`, or `= 1/3 × 1e+30`. What can depend on the
+route is the value itself, in decimal mode, where every step is rounded
+([The two modes](#the-two-modes)), and whether the value is exact, where
+a step was inexact ([Digits you can trust](#digits-you-can-trust)); a
+given value, exact or not, is written one way.
 
 ## What costs time
 

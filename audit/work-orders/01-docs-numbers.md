@@ -135,6 +135,10 @@ What each changes in the drafts this page is built from:
   outcome, then plain words; "dimensionless" and "plain number" as
   synonyms (Q-019). The built-in functions page is `docs/builtins.md`
   (Q-020): every link D8 or A5 writes to `docs/functions.md` targets it.
+  The page names the numeric types `Rational`, `Scaled`, `Radius` and
+  `Ball` in its introduction and says how they compose, and uses
+  "midpoint" where it describes a `Ball` (the owner, 2026-10-14, plan
+  §12.3).
 - **Messages (Q-007).** The app's messages are quoted as examples only:
   the two size refusals in "Values too big to hold" (the significand
   limit's and the exponent bound's), in the wording the code has once
@@ -581,5 +585,10 @@ the code has it (Q-007).
   amended 2026-10-13).
 - Every link is a repo-relative path to an existing page or to a §7
   anchor of a page written later; none to a heading §7 does not name.
+- The page reads as a narrative (principles.md, "Narrative pages and
+  typed examples"): an introduction on the numeric types and why their
+  semantics matter, a summary of the rules, a lead-in at each section,
+  sub-headings inside the long sections, and examples set apart in
+  tables as typed, with the result shown beside.
 - The pull request names the drafts picked (section 8) and any
   question for the owner, and changes nothing outside this file.

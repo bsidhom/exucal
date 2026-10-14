@@ -1,7 +1,7 @@
 # Numbers
 
-Exucal is a calculator before it is a converter, and it was built to
-be exact wherever it can be and explicit wherever it cannot. When a
+Exucal is first and foremost a calculator, and it was built to be
+exact wherever it can be and explicit wherever it cannot. When a
 result can be exact, you get the exact value. When it cannot, you get
 the digits the calculator has certified, behind `≈` rather than `=`,
 and a note wherever a digit shown could not be certified; and when not
@@ -19,10 +19,14 @@ to the one below it:
   That is what lets `1e999999999` be a value rather than a billion
   digits, and it is the form every exact value is held in.
 - **`Ball`** is a `Scaled` midpoint together with a `Radius`, a bound on
-  how far the number held may lie from the number meant. Every value
-  the calculator computes with is a `Ball`. When the radius is zero the
-  value is exact; when it is not, the value is inexact, and the radius
-  is what lets the calculator say which digits of it are right.
+  how far the number held may lie from the number meant. A `Radius` is
+  a coarse binary magnitude, a short significand times a power of two,
+  and every operation on radii rounds it up: it is always a true bound
+  and never an exact one, which is what lets it be carried through an
+  expression at almost no cost. Every value the calculator computes
+  with is a `Ball`. When the radius is zero the value is exact; when it
+  is not, the value is inexact, and the radius is what lets the
+  calculator say which digits of it are right.
 
 Two goals shaped this type. The first is that exactness. The second
 is the functions a calculator is used for, all the elementary

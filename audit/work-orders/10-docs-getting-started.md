@@ -65,6 +65,10 @@ helps (§7).
 - **The words (§8).** "The reciprocal line, the conversion the other way
   round" once (F-470); "pastes back" (F-457); "a plain number"; "the
   cog" (F-495); `docs/builtins.md` (Q-020).
+- **The goal (plan §12.3, 2026-10-14).** The page's first sentence says
+  what Exucal is for, exact where it can be and explicit where it
+  cannot, and the first calculation shows it; stated as Exucal's, never
+  as unique to it, and no other calculator is named.
 
 ## 4. The outline, section by section
 

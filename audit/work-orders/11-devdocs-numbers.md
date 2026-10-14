@@ -148,7 +148,14 @@ with its link to `docs/numbers.md` (V1 L336). Per section, the text to
 take and what the rules change:
 
 - **(top).** V1 L186 (the opener, "inexact") and V1 L188 or A1 L309-313
-  for the `pi()` rationale without GNU units' name (F-183, Q-039).
+  for the `pi()` rationale without GNU units' name (F-183, Q-039). As
+  rationale, the comparison that `docs/numbers.md`'s introduction makes
+  in a paragraph, in full: Arb, for the midpoint-and-radius form, with
+  its floating-point midpoint; Android's ExactCalculator, with its exact
+  fractions and constructive reals; Qalculate!, with its symbolic forms
+  and floating-point intervals; Frink, with its exact fractions and
+  floating point otherwise; each checked against its own documentation
+  before it is described (plan §12.3, 2026-10-14).
 - **The types.** V1 L192 (the fives division's reason, no minute) and
   V1 L194, the same as A1 L61 (two exponents and a single binary
   exponent ruled out, in the present tense; the one base's cost a

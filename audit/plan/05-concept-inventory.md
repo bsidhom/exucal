@@ -541,7 +541,11 @@ Display digits`. *devdocs/:* `architecture.md#(top)`, `#Expressions`, `#Conversi
 `#Alternatives considered`; `numbers.md#(top)`. *Owner:* no page of its
 own: a similarity to GNU units is called out only where it helps a user
 onboard, in `quantities.md` and `definitions.md` (conversion semantics
-and definitions), never in `numbers.md` (§12, question 2).
+and definitions), never in `numbers.md` (§12, question 2). Other
+calculators (Arb for the midpoint-and-radius form; Android's
+ExactCalculator, Qalculate! and Frink) are named in `numbers.md`'s
+introduction only, for the contrast with the goal, and in
+`devdocs/numbers.md`'s opening as rationale (§12.3, 2026-10-14).
 
 **C61. Juxtaposition.** *Class:* user. *Terms:* ↔ the `juxtapose` node.
 *docs/:* `docs/definitions.md#Expressions`. *devdocs/:*

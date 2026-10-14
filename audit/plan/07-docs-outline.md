@@ -12,15 +12,18 @@ on 2026-10-12 from the owner's answers (§12, sections 12.1 and 12.2)
 and on 2026-10-13 from the answers to the review of the apply step
 (section 12.3); each change names its answer.
 
-**`docs/README.md` — index (guide).** What the app is in two sentences;
-the page list below with one line each; where the developer docs are.
+**`docs/README.md` — index (guide).** What the app is in two sentences,
+the first stating the goal, exact where it can be and explicit where it
+cannot (§12.3, 2026-10-14); the page list below with one line each;
+where the developer docs are.
 
 **`docs/getting-started.md` — Getting started (guide).** A task-oriented
 tour that links everything and defines one word, "certified", by
 example in "Reading `=`, `≈` and a note", the word the index uses
 before it (Q-064, A; F-428); it opens with the
 calculator and adds conversions after it, since the calculator is the
-app's focus (§12, questions 2 and 21). GNU units is named only where a
+app's focus (§12, questions 2 and 21), its first sentence stating the
+goal (§12.3, 2026-10-14). GNU units is named only where a
 similarity in conversion semantics or definitions helps.
 - Your first calculation (`2 kg * 3 m/s^2`, `exp(1)`, `sqrt(2)`; the
   blank want)
@@ -38,7 +41,11 @@ similarity in conversion semantics or definitions helps.
   (F-471)
 
 **`docs/numbers.md` — Numbers (foundation).** The numeric model a user
-needs to predict and interpret any result.
+needs to predict and interpret any result. Its introduction states the
+goal the types exist for, exact where it can be and explicit where it
+cannot, credits ball arithmetic, as in Arb, for the midpoint and
+radius, and contrasts the calculators that share parts of the goal,
+the only user page that names one (§12.3, 2026-10-14).
 - Exact and inexact values (the fraction times a power of ten; the
   error radius; the two sources of inexactness, F-010; one clause that
   the units defined through `pi()` are inexact, linking `units.md`,

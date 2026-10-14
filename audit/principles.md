@@ -200,6 +200,21 @@ and only the terminology's terms. No filler, and no reserved word used
 loosely. `docs/numbers.md` names the numeric types `Rational`,
 `Scaled`, `Radius` and `Ball` and says how they compose.
 
+**The goal every opening states (the owner, 2026-10-14; plan §12.3).**
+Exucal is built to be exact where it can be and explicit where it
+cannot: a result is the exact value, or every digit shown is certified
+and the line says so, or a message says why there is none. The numeric
+types and the evaluator's passes exist for that goal, every other
+design consideration follows from it, and unit awareness and kind
+checking stand beside it. The openings that say what the app is
+(`docs/README.md`, the root `README.md`, `docs/getting-started.md`,
+`docs/numbers.md`, `devdocs/architecture.md`) state it in a sentence.
+No page calls the goal unique to Exucal: other calculators share parts
+of it (plan §12.3 names three, checked against their documentation),
+and they are named only in `docs/numbers.md`'s introduction, which
+contrasts them in a paragraph, and in `devdocs/numbers.md`'s opening,
+which carries the comparison as rationale.
+
 Two further answers reach every page and are recorded in plan §8: the
 synonyms "dimensionless" and "plain number", with "kind" wherever
 semantics attach (Q-019); and "build ID", "the service worker", "a new

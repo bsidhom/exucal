@@ -129,7 +129,10 @@ present tense.
   GNU units as lineage) and V2 L112-114 (the list of sister pages
   replaced by a pointer at `README.md`, naming the pages leaned on
   most; F-222, Q-068; the line for `functions.md` reads "Defined
-  functions", Q-020).
+  functions", Q-020). The first paragraph states the goal, exact where
+  it can be and explicit where it cannot, and that the pipeline and the
+  numeric type exist for it, with unit awareness and kind checking
+  beside it (plan §12.3, 2026-10-14).
 - **Pipeline.** V2 L118-134: the diagram ends at `Result<Conversion>`,
   "(or `convertToList`, or `invertFunction`)", and the sentences after
   it say `convertText` returns a `Conversion` that the UI's `outcomeOf`

@@ -46,9 +46,11 @@ each corpus lives, and nothing of how to build or run it, which
   with the calculator: Exucal is a calculator with unit awareness and
   kind checking; "the converter" is never the app; GNU units is not
   named (it is lineage in the devdocs only, Q-039). Each opening states
-  the three goals in priority order, in brief, in the wording
-  principles.md gives them and never in the review's shorthand (plan
-  §12.3, 2026-10-14): exact calculation that is explicit about
+  the three goals in priority order, in brief, in the pages' own
+  prose for their readers, with the substance principles.md fixes,
+  copying neither its list nor the review's shorthand, and with "kind"
+  glossed in a clause or left to the quantities page (plan §12.3,
+  2026-10-14): exact calculation that is explicit about
   inexactness, in a portable format, the browser; the elementary
   functions and the special functions that matter most in
   combinatorics, probability and physics, under the same guarantee;

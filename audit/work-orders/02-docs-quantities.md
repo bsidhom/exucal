@@ -83,8 +83,9 @@ a definition's form is `definitions.md`'s, and which units exist is
   as §8 has it (F-465). GNU units is named only where a similarity in
   conversion semantics helps a user onboard (§5 C60).
 - **The third goal (plan §12.3, 2026-10-14).** The page's opening
-  states the goal it serves, in the wording principles.md gives it and
-  never in the review's shorthand: calculation and conversion aware of
+  states the goal it serves, in the page's own prose for its reader,
+  with the substance principles.md fixes, copying neither its list nor
+  the review's shorthand: calculation and conversion aware of
   units and kinds, a quantity carrying its dimension and its kind
   through every operation and conversion, so that a result has the
   unit it should and a mismatch is an error and never a number; the

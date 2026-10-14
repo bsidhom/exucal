@@ -925,7 +925,17 @@ decision, are listed after the answers.
   10); `docs/app.md` the portable format, the browser, where the app installs and works
   offline (work order 08). The history in the owner's parenthesis, a units conversion
   utility first, is not for the docs (intent, not history); the devdocs keep GNU units as
-  lineage in one clause (Q-039). F-001's decision is amended.
+  lineage in one clause (Q-039). F-001's decision is amended. Then, on the principles'
+  list: "One issue is that "kind" hasn't been defined above, yet it's used in one of the
+  stated design goals. Otherwise, I'm fine with the above for internal principles, but the
+  language is still stilted and not sufficiently "narrative" for human-facing docs."
+  Settled: the third goal's statement glosses a kind (from `docs/definitions.md`'s
+  description of a kind primitive, the radian keeping a revolution per second from a cycle
+  per second) and names `docs/quantities.md` as the page that defines it; the list fixes
+  what the goals mean and is read by the sessions that write the pages, never by the
+  pages' readers, so every human-facing page states the goals in its own sentences for its
+  reader (the narrative rule), copying neither the list nor the shorthand, and
+  `docs/numbers.md`'s introduction is reworded so.
 
 ### The review's other corrections
 

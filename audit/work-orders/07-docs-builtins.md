@@ -109,8 +109,9 @@ functions by family with their examples.
 - **Markdown (principles).** No reference-style links; every link
   repo-relative.
 - **The second goal (plan §12.3, 2026-10-14).** The page's opening
-  states the goal it serves, in the wording principles.md gives it and
-  never in the review's shorthand: the elementary functions and the
+  states the goal it serves, in the page's own prose for its reader,
+  with the substance principles.md fixes, copying neither its list nor
+  the review's shorthand: the elementary functions and the
   special functions that matter most in combinatorics, probability and
   physics, under the same guarantee as the arithmetic, exact in their
   exact cases and certified otherwise, as the aim of today's set,

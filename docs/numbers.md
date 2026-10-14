@@ -1,12 +1,15 @@
 # Numbers
 
-Exucal is a calculator before it is a converter, built to be exact
-where it can be and explicit where it cannot: a result is the exact
-value, or every digit it shows is certified and the line says so, or
-there is no result and a message says why. Every result it shows is a
-number of one data type: a conversion multiplies one, a defined
-function computes one, a built-in returns one. That type is built in
-three layers, each adding one idea to the one below it:
+Exucal is a calculator before it is a converter, and it was built to
+be exact wherever it can be and explicit wherever it cannot. When a
+result can be exact, you get the exact value. When it cannot, you get
+the digits the calculator has certified, behind `≈` rather than `=`,
+and a note wherever a digit shown could not be certified; and when not
+even that is possible, you get a message saying why rather than a
+plausible number. Every result is a value of one data type: a
+conversion multiplies one, a defined function computes one, a built-in
+returns one. That type is built in three layers, each adding one idea
+to the one below it:
 
 - **`Rational`** is an exact fraction: a whole number of any size over
   a positive one, kept in lowest terms. `1/3` is one over three, not a
@@ -21,12 +24,13 @@ three layers, each adding one idea to the one below it:
   value is exact; when it is not, the value is inexact, and the radius
   is what lets the calculator say which digits of it are right.
 
-That exactness is the first of Exucal's goals. The second is the
-functions it is to serve under the same guarantee: all the elementary
-functions, and the special functions that matter most in
-combinatorics, probability and physics. The two shaped the numeric
-types and the way a result is computed, in passes at rising precision
-until its digits certify, and every other design consideration on
+Two goals shaped this type. The first is that exactness. The second
+is the functions a calculator is used for, all the elementary
+functions and the special functions that matter most in combinatorics,
+probability and physics, each computed under the same guarantee: exact
+where it has an exact case, certified otherwise. Between them they
+decided the numeric types and the way a result is computed, in passes
+at rising precision until its digits certify, and everything else on
 this page follows from them.
 
 The midpoint-and-radius form is borrowed from ball arithmetic, as in
@@ -42,8 +46,8 @@ certifies, at rising precision until they do. So `0.1 + 0.2` is exactly
 `= 1`, and an input the limits cannot hold is refused rather than
 answered wrongly.
 
-Other calculators share parts of the first goal, and the contrast says
-what the representation buys. Frink keeps exact fractions, its unit
+Exucal is not alone in wanting exactness, and the contrast with three
+neighbours shows what the representation buys. Frink keeps exact fractions, its unit
 definitions included, and computes in floating point otherwise.
 Qalculate! keeps exact fractions and symbolic forms, writes `≈` before
 the rest and tracks their precision with intervals of floating-point

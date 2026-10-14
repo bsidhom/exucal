@@ -222,14 +222,24 @@ context (plan §12.3 keeps the shorthand as the record).
    grow toward a more complete coverage of the special functions is
    future work, `devdocs/future.md`'s alone (Q-011).
 3. **Calculation and conversion aware of units and kinds.** A quantity
-   carries its dimension and its kind through every operation and
-   conversion, so that a result has the unit it should, a conversion
-   is exact where the definitions are, and a mismatch of dimension or
-   kind is an error and never a number.
+   carries its dimension, and its kind where it has one, through every
+   operation and conversion, so that a result has the unit it should,
+   a conversion is exact where the definitions are, and a mismatch of
+   dimension or kind is an error and never a number. A kind is a
+   marker that keeps apart quantities which would otherwise look
+   alike, as the radian keeps a revolution per second from a cycle per
+   second; `docs/quantities.md` defines it, and a page that names
+   kinds before that page is read glosses the word in a clause or
+   says "units" alone.
 
-The design is described as following from them in that order: the
-numeric types and the evaluator's passes exist for the first two, and
-unit awareness and kind checking stand beside them. The three are
+This list fixes what the goals mean; it is not prose for a page, and
+its readers are the sessions that write the pages, never the pages'
+readers. A human-facing page states the goals in its own sentences,
+written for its reader as the narrative rule requires, matching this
+substance and copying nothing from here or from the review's
+shorthand. The design is described as following from them in that
+order: the numeric types and the evaluator's passes exist for the
+first two, and unit awareness and kind checking stand beside them. The three are
 stated in order where a page says what the app is: in brief in
 `docs/README.md`'s two sentences and the root `README.md`'s three, and
 in full in `devdocs/architecture.md`'s first paragraph. Every other

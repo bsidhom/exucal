@@ -130,8 +130,9 @@ present tense.
   replaced by a pointer at `README.md`, naming the pages leaned on
   most; F-222, Q-068; the line for `functions.md` reads "Defined
   functions", Q-020). The first paragraph states the three goals in
-  priority order, in full, in the wording principles.md gives them and
-  never in the review's shorthand: exact calculation that is explicit
+  priority order, in full, in the page's own prose for its reader,
+  with the substance principles.md fixes, copying neither its list nor
+  the review's shorthand: exact calculation that is explicit
   about inexactness, in a portable format, the browser; the elementary
   functions and the special functions that matter most in
   combinatorics, probability and physics, under the same guarantee;

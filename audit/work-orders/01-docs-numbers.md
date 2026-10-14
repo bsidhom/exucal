@@ -587,7 +587,10 @@ the code has it (Q-007).
   anchor of a page written later; none to a heading §7 does not name.
   The one exception is "Comparison with other approaches", whose links
   to a library's or a calculator's own site or paper are absolute URLs,
-  the Markdown principle's external reference.
+  the Markdown principle's external reference; the same section links
+  `devdocs/numbers.md#the-types` for the trade the canonical form
+  makes, the page's third link down to the devdocs (review,
+  2026-10-14).
 - The page reads as a narrative (principles.md, "Narrative pages and
   typed examples"): an introduction that states the first goal, exact
   where it can be and explicit where it cannot, and that the first two

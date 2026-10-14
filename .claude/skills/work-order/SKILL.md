@@ -131,6 +131,13 @@ Read nothing else in the corpus or the tree.
   as the display writes them, with the result the calculator shows
   beside. Bold a defined term once, where it is defined, and only the
   terminology's terms. No filler; no reserved word used loosely.
+  Items of a list that themselves contain commas are separated by
+  semicolons; an active construction wherever it simplifies or
+  clarifies; as concise as stays clear; a word the page leans on, such
+  as "line", defined at its first use; a list of built-ins is examples,
+  never an inventory, each built-in's entry documenting its own
+  exactness; `approx` is always called out as the one operation whose
+  purpose is to make a value inexact.
 - **The words and the format** follow `audit/plan/08-terminology.md` and
   the principles: the Markdown subset (inline links only, repo-relative
   between pages, absolute only for an external reference such as an

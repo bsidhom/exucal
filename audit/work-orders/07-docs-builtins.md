@@ -118,6 +118,11 @@ functions by family with their examples.
   stated as Exucal's and never as unique to it; nothing of a more
   complete set to come, which is `devdocs/future.md`'s alone (Q-011;
   work order 18).
+- **Each entry documents its own exactness (review, 2026-10-14; plan
+  §12.3).** An entry says when its function is exact and that its
+  value is otherwise inexact; `docs/numbers.md`'s lists of inexact
+  built-ins and of exact cases are examples that link here, never
+  inventories, so this page is the one place the set is complete.
 
 ## 4. The outline, section by section
 

@@ -971,6 +971,27 @@ decision, are listed after the answers.
   exactness behavior" (work order 07); and `approx` "is the big one that must be called
   out now and in the future". The style rules are in principles.md and the work-order
   prompt's section 3.
+- **The review of the page, second part (2026-10-14).** Fifteen threads, all applied: the
+  summary says "a value whose radius reaches across an edge", that decimal mode "holds
+  each rounded value as exact, so its results are `=`", and the settings' nesting in
+  separate sentences; the comparison notes that Arb is now part of FLINT, says of Frink
+  that fractions are the whole of its exactness, everything else a floating-point number
+  carrying no error bound unless an interval is asked for, of Qalculate! that `≈` marks an
+  inexact value and that with its interval arithmetic on, the default, it shows only the
+  digits the interval guarantees, and of the Android calculator that it shows a fraction as
+  such, evaluates the whole expression as a constructive real with no step rounded, and
+  shows digits within one unit in the last place; the sources of inexactness include `^`
+  with a fractional exponent, with `2^(1/3)` and `8^(1/3)` beside `sqrt`; the fraction's
+  cost starts from what the significand limit bounds, each of numerator and denominator,
+  and what the bits cost in memory and in the gcd of every operation; a paragraph says why
+  each rule of the canonical form is there and that only the three together pin one form,
+  the third buying that a value has a finite decimal expansion exactly when its
+  denominator is one; the grid is defined as the set of values with the pass's digits,
+  after the pass itself is introduced, so that the section reads linearly; the exponent
+  bound is stated as a bound on the exponent itself, `1e1000000000000000000` being a
+  value; and "Two limits, two units" opens from the fact that everything, the grid
+  included, lives within the significand limit. The review asked that a page read
+  linearly, no term before its definition: a rule in principles.md and the prompt.
 
 ### The review's other corrections
 

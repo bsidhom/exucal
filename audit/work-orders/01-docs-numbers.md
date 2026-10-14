@@ -586,12 +586,13 @@ the code has it (Q-007).
 - Every link is a repo-relative path to an existing page or to a §7
   anchor of a page written later; none to a heading §7 does not name.
 - The page reads as a narrative (principles.md, "Narrative pages and
-  typed examples"): an introduction that states the goal the types
-  exist for, exact where it can be and explicit where it cannot, names
-  the types and why their semantics matter, and contrasts the
-  calculators that share parts of the goal, each described from its
-  own documentation (plan §12.3, 2026-10-14); a summary of the rules, a
-  lead-in at each section,
+  typed examples"): an introduction that states the first goal, exact
+  where it can be and explicit where it cannot, and that the first two
+  goals shaped the types, the third beside them; names the types and
+  why their semantics matter; and contrasts the calculators that share
+  parts of the first goal, each described from its own documentation
+  (plan §12.3, 2026-10-14); a summary of the rules, a lead-in at each
+  section,
   sub-headings inside the long sections, and examples set apart in
   tables as typed, with the result shown beside.
 - The pull request names the drafts picked (section 8) and any

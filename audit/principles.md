@@ -200,20 +200,33 @@ and only the terminology's terms. No filler, and no reserved word used
 loosely. `docs/numbers.md` names the numeric types `Rational`,
 `Scaled`, `Radius` and `Ball` and says how they compose.
 
-**The goal every opening states (the owner, 2026-10-14; plan §12.3).**
-Exucal is built to be exact where it can be and explicit where it
-cannot: a result is the exact value, or every digit shown is certified
-and the line says so, or a message says why there is none. The numeric
-types and the evaluator's passes exist for that goal, every other
-design consideration follows from it, and unit awareness and kind
-checking stand beside it. The openings that say what the app is
-(`docs/README.md`, the root `README.md`, `docs/getting-started.md`,
-`docs/numbers.md`, `devdocs/architecture.md`) state it in a sentence.
-No page calls the goal unique to Exucal: other calculators share parts
-of it (plan §12.3 names three, checked against their documentation),
-and they are named only in `docs/numbers.md`'s introduction, which
-contrasts them in a paragraph, and in `devdocs/numbers.md`'s opening,
-which carries the comparison as rationale.
+**The goals, in priority order, and where each is stated (the owner,
+2026-10-14; plan §12.3).** Three goals have guided the design, in this
+order: exact calculation, exact where it can be and explicit where it
+cannot, in a portable format, which is the browser; all the elementary
+functions and the most important special functions of combinatorics,
+probability and physics; and unit- and kind-aware calculation and
+conversion. The design is described as following from them in that
+order: the numeric types and the evaluator's passes exist for the
+first two, and unit awareness and kind checking stand beside them. A
+result under the first goal is the exact value, or every digit shown
+is certified and the line says so, or a message says why there is
+none. The three are stated in full, in order, where a page says what
+the app is: `docs/README.md`'s two sentences, the root `README.md`'s
+three and `devdocs/architecture.md`'s first paragraph. Every other
+opening states the goal its page serves: `docs/numbers.md` the first
+two, as they shaped the types, with the third beside them;
+`docs/builtins.md` the second, as the aim of today's set, with "a more
+complete set" `devdocs/future.md`'s alone (Q-011); `docs/quantities.md`
+the third; `docs/getting-started.md` the first, the tour then showing
+the other two; `docs/app.md` the portable format. No page calls a goal
+unique to Exucal: other calculators share parts of the first (plan
+§12.3 names three, checked against their documentation), and they are
+named only in `docs/numbers.md`'s introduction, which contrasts them
+in a paragraph, and in `devdocs/numbers.md`'s opening, which carries
+the comparison as rationale. That the app began as a units conversion
+utility is history, not intent, and no page says it; the devdocs keep
+GNU units as lineage in one clause (Q-039).
 
 Two further answers reach every page and are recorded in plan §8: the
 synonyms "dimensionless" and "plain number", with "kind" wherever

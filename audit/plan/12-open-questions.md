@@ -894,6 +894,31 @@ decision, are listed after the answers.
   `devdocs/architecture.md`'s first paragraph (work order 13) state the goal in a sentence;
   `devdocs/numbers.md`'s opening (work order 11) carries the fuller comparison as
   rationale. A rule in principles.md.
+- **The goals, in priority order.** On 2026-10-14, as the statement above was being carried
+  to the plan, the owner made the goals explicit, the list's bullets joined here: "Here are the goals that have guided
+  Exucal design from the beginning (even though it did not _start_ with exact calculations
+  and only began with a basic units conversion utility). The goals are stated in priority
+  order: "exact" precision calculations (as described previously), in a portable format
+  (browser JS is what I've settled on); support for all elementary functions and the most
+  important special functions in combinatorics, probability, and physics (with an eye
+  toward a more complete set in the future); unit- and kind-aware calculations and
+  conversion utilities. I'm not sure if this particular doc is the right place to stuff
+  _all_ of these, but the exactness (and support for elementary and special functions)
+  clearly guided the design of the core numeric types. The other stated goals may be better
+  enumerated elsewhere, but should be captured in the doc audit plan." Settled: the three
+  goals, in that order, are the rule in principles.md that the entry above's rule becomes,
+  and the design is described as following from them in that order. Stated in full, in
+  order, where a page says what the app is: `docs/README.md`'s two sentences and the root
+  `README.md`'s three (work order 09) and `devdocs/architecture.md`'s first paragraph (work
+  order 13). Each other opening states the goal its page serves: `docs/numbers.md` the
+  first two, which shaped the types, with the third beside them (work order 01);
+  `docs/builtins.md` the second, as the aim of today's set, "a more complete set" being
+  `devdocs/future.md`'s alone (Q-011; work orders 07 and 18); `docs/quantities.md` the
+  third (work order 02); `docs/getting-started.md` the first, the tour then showing the
+  other two (work order 10); `docs/app.md` the portable format, the browser, where the app
+  installs and works offline (work order 08). The history in the owner's parenthesis, a
+  units conversion utility first, is not for the docs (intent, not history); the devdocs
+  keep GNU units as lineage in one clause (Q-039). F-001's decision is amended.
 
 ### The review's other corrections
 

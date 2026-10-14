@@ -197,7 +197,15 @@ table, as a user types them and never as the display writes them,
 since the display's text cannot be typed back, with the result the
 calculator shows beside. Defined terms are bold once, where defined,
 and only the terminology's terms. No filler, and no reserved word used
-loosely. `docs/numbers.md` names the numeric types `Rational`,
+loosely. Style, from the review of 2026-10-14 and binding every page:
+items of a list that themselves contain commas are separated by
+semicolons; an active construction wherever it simplifies or
+clarifies; as concise as stays clear; a word a page leans on, such as
+"line", is defined at its first use ("an output line"); a list of
+built-ins on any page but the built-ins page is examples, never an
+inventory, since each built-in's entry documents its own exactness;
+and `approx` is always called out as the one operation whose purpose
+is to make a value inexact. `docs/numbers.md` names the numeric types `Rational`,
 `Scaled`, `Radius` and `Ball` and says how they compose.
 
 **The goals, in priority order, and where each is stated (the owner,

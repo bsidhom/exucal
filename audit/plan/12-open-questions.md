@@ -953,6 +953,24 @@ decision, are listed after the answers.
   inspiration and contrasted on the midpoint and each calculator is linked to its own
   site, the Markdown principle's external reference (work order 01's checks; C60; work
   order 11).
+- **The review of the page, first part (2026-10-14).** Thirteen threads on the page, all
+  applied: "Nested comma-separated lists should themselves be separated by semicolons as is
+  standard style. This applies throughout the documentation."; "use active construction
+  where this simplifies/clarifies prose (there are certainly exceptions to this, so use
+  your judgement). Beyond that, phrase or frame things as concisely as possible while
+  keeping them readable and clear."; a word the page leans on is defined ("an output line
+  is..."); `Ball` is used by name once introduced, "in lieu of referring to it as an
+  abstract 'type' or 'value'"; the summary's limits bullet notes how the display digits,
+  the precision limit and the significand limit nest, "since the interaction between these
+  settings may not be obvious"; the comparison names the trade the canonical form makes
+  (the dyadic cost, with the developer page weighing the rest: a third link down to the
+  devdocs, at `#the-types`, added to work order 01's two), says that Qalculate! computes
+  at the one precision set, with intervals deciding the digits shown, and that the Android
+  calculator recomputes as one scrolls rather than certifying a fixed count; the list of
+  inexact built-ins is examples, "since each builtin should eventually document its own
+  exactness behavior" (work order 07); and `approx` "is the big one that must be called
+  out now and in the future". The style rules are in principles.md and the work-order
+  prompt's section 3.
 
 ### The review's other corrections
 

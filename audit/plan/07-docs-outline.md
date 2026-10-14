@@ -13,9 +13,12 @@ and on 2026-10-13 from the answers to the review of the apply step
 (section 12.3); each change names its answer.
 
 **`docs/README.md` — index (guide).** What the app is in two sentences,
-the first stating the goal, exact where it can be and explicit where it
-cannot (§12.3, 2026-10-14); the page list below with one line each;
-where the developer docs are.
+stating the three goals in priority order, exact calculation, exact
+where it can be and explicit where it cannot, in the browser; all the
+elementary functions and the most important special functions of
+combinatorics, probability and physics; unit- and kind-aware
+calculation and conversion (§12.3, 2026-10-14); the page list below
+with one line each; where the developer docs are.
 
 **`docs/getting-started.md` — Getting started (guide).** A task-oriented
 tour that links everything and defines one word, "certified", by
@@ -23,7 +26,7 @@ example in "Reading `=`, `≈` and a note", the word the index uses
 before it (Q-064, A; F-428); it opens with the
 calculator and adds conversions after it, since the calculator is the
 app's focus (§12, questions 2 and 21), its first sentence stating the
-goal (§12.3, 2026-10-14). GNU units is named only where a
+first goal, the tour then showing the other two (§12.3, 2026-10-14). GNU units is named only where a
 similarity in conversion semantics or definitions helps.
 - Your first calculation (`2 kg * 3 m/s^2`, `exp(1)`, `sqrt(2)`; the
   blank want)
@@ -42,10 +45,11 @@ similarity in conversion semantics or definitions helps.
 
 **`docs/numbers.md` — Numbers (foundation).** The numeric model a user
 needs to predict and interpret any result. Its introduction states the
-goal the types exist for, exact where it can be and explicit where it
-cannot, credits ball arithmetic, as in Arb, for the midpoint and
-radius, and contrasts the calculators that share parts of the goal,
-the only user page that names one (§12.3, 2026-10-14).
+first goal, exact where it can be and explicit where it cannot, and
+that the first two goals shaped the types, the third beside them;
+credits ball arithmetic, as in Arb, for the midpoint and radius; and
+contrasts the calculators that share parts of the first goal, the only
+user page that names one (§12.3, 2026-10-14).
 - Exact and inexact values (the fraction times a power of ten; the
   error radius; the two sources of inexactness, F-010; one clause that
   the units defined through `pi()` are inexact, linking `units.md`,
@@ -96,7 +100,8 @@ the only user page that names one (§12.3, 2026-10-14).
   values would add, Q-011)
 
 **`docs/quantities.md` — Quantities (foundation).** Units, dimensions,
-kinds and what a conversion is.
+kinds and what a conversion is. Its opening states the third goal,
+unit- and kind-aware calculation and conversion (§12.3, 2026-10-14).
 - A quantity: a value with a dimension; dimensions have rational
   exponents by design, so `^` takes a literal rational exponent
 - Primitives, dimensions and kinds (the radian the only kind today,
@@ -206,7 +211,11 @@ links to (§12, questions 5 and 16).
 **`docs/builtins.md` — Built-in functions (reference).** Renamed from
 `docs/functions.md` (Q-020's note), every link following. Generated from
 structured comments beside each implementation, grouped by family (§4);
-until the generator exists, today's prose list, corrected.
+until the generator exists, today's prose list, corrected. Its opening
+states the second goal, all the elementary functions and the most
+important special functions of combinatorics, probability and physics,
+as the aim of today's set, nothing of a set to come (Q-011; §12.3,
+2026-10-14).
 - Rules every built-in follows (plain numbers unless stated; exact
   cases; domains; edges; errors and the size refusals, F-442; decimal
   mode; no prefixes; arity)
@@ -229,7 +238,9 @@ until the generator exists, today's prose list, corrected.
   are described in `devdocs/future.md` only, Q-010, Q-011)
 
 **`docs/app.md` — The app (guide).** What is specific to the web app
-(§12, questions 3 and 22), in six sections (D9's scope, F-180):
+(§12, questions 3 and 22), in six sections (D9's scope, F-180), its
+opening stating the portable format of the first goal, the browser,
+where the app installs and works offline (§12.3, 2026-10-14):
 - Installing
 - Offline use (the service worker named once as what lets the app be
   served offline, F-493; the loading and failure messages, F-169; the

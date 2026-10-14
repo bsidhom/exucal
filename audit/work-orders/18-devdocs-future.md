@@ -177,6 +177,14 @@ page links (Q-012).
   (Q-018).
 - **Markdown (principles).** Inline links; the definitions block
   (page L231-247) deleted (F-347).
+- **A more complete set of special functions (plan §12.3,
+  2026-10-14).** The second goal's "eye toward a more complete set in
+  the future" is future work and this page's alone (Q-011): one entry,
+  beside the deferred function classes, saying that the set is to grow
+  toward the special functions of combinatorics, probability and
+  physics it lacks, with issue links where they exist;
+  `docs/builtins.md` states the goal as the aim of today's set and
+  nothing of the set to come (work order 07).
 
 ## 4. The page, section by section
 

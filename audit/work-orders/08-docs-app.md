@@ -90,6 +90,11 @@ for which field an error points at.
   `devdocs/offline.md` is not taken.
 - **Numbers (Q-016).** No timing; "twelve characters" of the commit
   hash is a fact of the footer and stays (F-175).
+- **The portable format (plan §12.3, 2026-10-14).** The page's opening
+  states the half of the first goal it serves: the browser as the
+  portable format, where the app installs to the home screen and works
+  offline, as a fact about today, nothing of other platforms to come
+  (Q-011).
 
 ## 4. The outline, section by section
 

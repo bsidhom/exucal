@@ -108,6 +108,12 @@ functions by family with their examples.
   keeps (F-445); "an angle", "the radian kind" (F-067).
 - **Markdown (principles).** No reference-style links; every link
   repo-relative.
+- **The second goal (plan §12.3, 2026-10-14).** The page's opening
+  states the goal it serves: all the elementary functions and the most
+  important special functions of combinatorics, probability and
+  physics, as the aim of today's set, stated as Exucal's and never as
+  unique to it; nothing of a more complete set to come, which is
+  `devdocs/future.md`'s alone (Q-011; work order 18).
 
 ## 4. The outline, section by section
 

@@ -21,11 +21,14 @@ three layers, each adding one idea to the one below it:
   value is exact; when it is not, the value is inexact, and the radius
   is what lets the calculator say which digits of it are right.
 
-The types, and the way a result is computed, in passes at rising
-precision until its digits certify, exist for that one goal, and every
-other design consideration on this page follows from it. Beside it
-stand unit awareness and kind checking, the calculator's other
-features
+Exucal's goals, in order, are that exactness, in a calculator that
+runs in the browser; all the elementary functions and the most
+important special functions of combinatorics, probability and physics,
+computed under it; and unit- and kind-aware calculation and
+conversion. The first two shaped the numeric types and the way a
+result is computed, in passes at rising precision until its digits
+certify, and every other design consideration on this page follows
+from them. The third stands beside them
 ([Primitives, dimensions and kinds](quantities.md#primitives-dimensions-and-kinds)).
 
 The midpoint-and-radius form is borrowed from ball arithmetic, as in
@@ -41,8 +44,8 @@ certifies, at rising precision until they do. So `0.1 + 0.2` is exactly
 `= 1`, and an input the limits cannot hold is refused rather than
 answered wrongly.
 
-Other calculators share parts of the goal, and the contrast says what
-the representation buys. Frink keeps exact fractions, its unit
+Other calculators share parts of the first goal, and the contrast says
+what the representation buys. Frink keeps exact fractions, its unit
 definitions included, and computes in floating point otherwise.
 Qalculate! keeps exact fractions and symbolic forms, writes `≈` before
 the rest and tracks their precision with intervals of floating-point

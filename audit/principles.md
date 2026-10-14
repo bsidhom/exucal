@@ -201,32 +201,52 @@ loosely. `docs/numbers.md` names the numeric types `Rational`,
 `Scaled`, `Radius` and `Ball` and says how they compose.
 
 **The goals, in priority order, and where each is stated (the owner,
-2026-10-14; plan §12.3).** Three goals have guided the design, in this
-order: exact calculation, exact where it can be and explicit where it
-cannot, in a portable format, which is the browser; all the elementary
-functions and the most important special functions of combinatorics,
-probability and physics; and unit- and kind-aware calculation and
-conversion. The design is described as following from them in that
-order: the numeric types and the evaluator's passes exist for the
-first two, and unit awareness and kind checking stand beside them. A
-result under the first goal is the exact value, or every digit shown
-is certified and the line says so, or a message says why there is
-none. The three are stated in full, in order, where a page says what
-the app is: `docs/README.md`'s two sentences, the root `README.md`'s
-three and `devdocs/architecture.md`'s first paragraph. Every other
-opening states the goal its page serves: `docs/numbers.md` the first
-two, as they shaped the types, with the third beside them;
-`docs/builtins.md` the second, as the aim of today's set, with "a more
-complete set" `devdocs/future.md`'s alone (Q-011); `docs/quantities.md`
-the third; `docs/getting-started.md` the first, the tour then showing
-the other two; `docs/app.md` the portable format. No page calls a goal
-unique to Exucal: other calculators share parts of the first (plan
-§12.3 names three, checked against their documentation), and they are
-named only in `docs/numbers.md`'s introduction, which contrasts them
-in a paragraph, and in `devdocs/numbers.md`'s opening, which carries
-the comparison as rationale. That the app began as a units conversion
-utility is history, not intent, and no page says it; the devdocs keep
-GNU units as lineage in one clause (Q-039).
+2026-10-14; plan §12.3).** Three goals have guided the design. The
+pages state them in the wording below, which is the plan's statement
+of them, and not in the review's shorthand, which leaned on its
+context (plan §12.3 keeps the shorthand as the record).
+
+1. **Exact calculation, explicit about inexactness.** A result that
+   can be exact is the exact value, held as a fraction and never
+   rounded. Where a value cannot be exact, because an inexact function
+   was called or the user asked for an approximation, the calculator
+   shows only the digits it has certified, marks the result inexact,
+   and says in a note or a message what it could not certify, decide
+   or hold, rather than showing a digit it has not checked. The
+   calculator runs in a portable format, as JavaScript in the browser,
+   installed from a web page and working offline.
+2. **The functions a calculator is used for, under the same
+   guarantee.** All the elementary functions, and the special functions
+   that matter most in combinatorics, probability and physics, each
+   exact in its exact cases and certified otherwise. That the set is to
+   grow toward a more complete coverage of the special functions is
+   future work, `devdocs/future.md`'s alone (Q-011).
+3. **Calculation and conversion aware of units and kinds.** A quantity
+   carries its dimension and its kind through every operation and
+   conversion, so that a result has the unit it should, a conversion
+   is exact where the definitions are, and a mismatch of dimension or
+   kind is an error and never a number.
+
+The design is described as following from them in that order: the
+numeric types and the evaluator's passes exist for the first two, and
+unit awareness and kind checking stand beside them. The three are
+stated in order where a page says what the app is: in brief in
+`docs/README.md`'s two sentences and the root `README.md`'s three, and
+in full in `devdocs/architecture.md`'s first paragraph. Every other
+opening states, in a sentence, the goal its page serves:
+`docs/numbers.md` the first two, as they shaped the types, and nothing
+of the third, which is orthogonal to the numeric model;
+`docs/builtins.md` the second, as the aim of today's set;
+`docs/quantities.md` the third; `docs/getting-started.md` the first,
+the tour then showing the other two; `docs/app.md` the portable
+format. No page calls a goal unique to Exucal: other calculators share
+parts of the first (plan §12.3 names three, checked against their
+documentation), and they are named only in `docs/numbers.md`'s
+introduction, which contrasts them in a paragraph, and in
+`devdocs/numbers.md`'s opening, which carries the comparison as
+rationale. That the app began as a units conversion utility is
+history, not intent, and no page says it; the devdocs keep GNU units
+as lineage in one clause (Q-039).
 
 Two further answers reach every page and are recorded in plan §8: the
 synonyms "dimensionless" and "plain number", with "kind" wherever

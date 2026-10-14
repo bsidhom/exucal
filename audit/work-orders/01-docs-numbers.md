@@ -588,7 +588,8 @@ the code has it (Q-007).
 - The page reads as a narrative (principles.md, "Narrative pages and
   typed examples"): an introduction that states the first goal, exact
   where it can be and explicit where it cannot, and that the first two
-  goals shaped the types, the third beside them; names the types and
+  goals, exactness and the functions, shaped the types, nothing of the
+  third, which is orthogonal to the numeric model; names the types and
   why their semantics matter; and contrasts the calculators that share
   parts of the first goal, each described from its own documentation
   (plan §12.3, 2026-10-14); a summary of the rules, a lead-in at each

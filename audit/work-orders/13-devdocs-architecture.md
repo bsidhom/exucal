@@ -130,11 +130,13 @@ present tense.
   replaced by a pointer at `README.md`, naming the pages leaned on
   most; F-222, Q-068; the line for `functions.md` reads "Defined
   functions", Q-020). The first paragraph states the three goals in
-  priority order, exact calculation, exact where it can be and explicit
-  where it cannot, in the browser; all the elementary functions and the
-  most important special functions of combinatorics, probability and
-  physics; unit- and kind-aware calculation and conversion, and that
-  the design follows from them in that order, the numeric type and the
+  priority order, in full, in the wording principles.md gives them and
+  never in the review's shorthand: exact calculation that is explicit
+  about inexactness, in a portable format, the browser; the elementary
+  functions and the special functions that matter most in
+  combinatorics, probability and physics, under the same guarantee;
+  calculation and conversion aware of units and kinds; and that the
+  design follows from them in that order, the numeric type and the
   pipeline's passes existing for the first two (plan §12.3,
   2026-10-14); that the app began as a units conversion utility is
   history and stays out (principles), GNU units staying as lineage in

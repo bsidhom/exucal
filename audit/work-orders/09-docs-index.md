@@ -46,16 +46,18 @@ each corpus lives, and nothing of how to build or run it, which
   with the calculator: Exucal is a calculator with unit awareness and
   kind checking; "the converter" is never the app; GNU units is not
   named (it is lineage in the devdocs only, Q-039). Each opening states
-  the three goals in priority order (plan §12.3, 2026-10-14): exact
-  calculation, exact where it can be and explicit where it cannot, in
-  the browser; all the elementary functions and the most important
-  special functions of combinatorics, probability and physics; unit-
-  and kind-aware calculation and conversion. "Computes exactly wherever
-  it can, certifies every digit it shows otherwise" says the first; the
-  goals are stated as Exucal's, never as unique to it, no other
-  calculator is named, and nothing is said of a set of functions to
-  come (Q-011) or of what the app began as (principles: intent, not
-  history).
+  the three goals in priority order, in brief, in the wording
+  principles.md gives them and never in the review's shorthand (plan
+  §12.3, 2026-10-14): exact calculation that is explicit about
+  inexactness, in a portable format, the browser; the elementary
+  functions and the special functions that matter most in
+  combinatorics, probability and physics, under the same guarantee;
+  calculation and conversion aware of units and kinds. "Computes
+  exactly wherever it can, certifies every digit it shows otherwise"
+  says the first; the goals are stated as Exucal's, never as unique to
+  it, no other calculator is named, and nothing is said of a set of
+  functions to come (Q-011) or of what the app began as (principles:
+  intent, not history).
 - **"certifies" stays (Q-064, A; F-428).** The intro may say the app
   "computes exactly wherever it can, certifies every digit it shows
   otherwise", since getting started's second section defines the word.

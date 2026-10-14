@@ -109,11 +109,14 @@ functions by family with their examples.
 - **Markdown (principles).** No reference-style links; every link
   repo-relative.
 - **The second goal (plan §12.3, 2026-10-14).** The page's opening
-  states the goal it serves: all the elementary functions and the most
-  important special functions of combinatorics, probability and
-  physics, as the aim of today's set, stated as Exucal's and never as
-  unique to it; nothing of a more complete set to come, which is
-  `devdocs/future.md`'s alone (Q-011; work order 18).
+  states the goal it serves, in the wording principles.md gives it and
+  never in the review's shorthand: the elementary functions and the
+  special functions that matter most in combinatorics, probability and
+  physics, under the same guarantee as the arithmetic, exact in their
+  exact cases and certified otherwise, as the aim of today's set,
+  stated as Exucal's and never as unique to it; nothing of a more
+  complete set to come, which is `devdocs/future.md`'s alone (Q-011;
+  work order 18).
 
 ## 4. The outline, section by section
 

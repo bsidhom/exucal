@@ -21,15 +21,13 @@ three layers, each adding one idea to the one below it:
   value is exact; when it is not, the value is inexact, and the radius
   is what lets the calculator say which digits of it are right.
 
-Exucal's goals, in order, are that exactness, in a calculator that
-runs in the browser; all the elementary functions and the most
-important special functions of combinatorics, probability and physics,
-computed under it; and unit- and kind-aware calculation and
-conversion. The first two shaped the numeric types and the way a
-result is computed, in passes at rising precision until its digits
-certify, and every other design consideration on this page follows
-from them. The third stands beside them
-([Primitives, dimensions and kinds](quantities.md#primitives-dimensions-and-kinds)).
+That exactness is the first of Exucal's goals. The second is the
+functions it is to serve under the same guarantee: all the elementary
+functions, and the special functions that matter most in
+combinatorics, probability and physics. The two shaped the numeric
+types and the way a result is computed, in passes at rising precision
+until its digits certify, and every other design consideration on
+this page follows from them.
 
 The midpoint-and-radius form is borrowed from ball arithmetic, as in
 Arb. The midpoint is where Exucal departs: Arb holds a binary
@@ -241,7 +239,7 @@ digits), and `approx` is the way to compute with one
 
 ### Two limits, two units
 
-The two kinds of value are limited by two different things, which is
+Exact and inexact values are limited by two different things, which is
 why the limits come in two units: the **significand limit**, in bits,
 bounds an exact value, and the **precision limit**, in decimal digits,
 bounds how far an inexact one is refined. An inexact value at the

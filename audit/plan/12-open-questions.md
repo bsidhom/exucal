@@ -834,6 +834,36 @@ decision, are listed after the answers.
   (N19), the one place that rule can be stated, pending the owner's holistic read of the
   finished pages. The owner also accepted the page's keeping the storage size of
   `3^100000` beside the dyadic cost.
+- **Readability: the page as a narrative, the types by name.** Reviewing the page as a
+  whole on 2026-10-14, the owner: "we need a complete overhaul of the number document
+  itself, in terms of _readability_. The contents _at a glance_ seem fine (as in, the
+  topics I want covered appear to be mostly there), but the page flow is completely opaque
+  and unreadable. This is meant to be used to on-board a human reader and needs to read as
+  a coherent "narrative", as standard with technical docs. [...] I would rather start with
+  an introduction that essentially says that the numeric types are the core data types in
+  this calculator and explains why it's important to understand their semantics. Then it
+  should proceed to discuss the numeric shapes, semantics, canonicalization, etc." Asked to
+  tie-break: the §7 headings stay, with an introduction, a lead-in per section and
+  sub-headings inside the long sections ("a good starting point"); examples set in code
+  "as a user would type it, _not_ as the calculator would display. That display cannot
+  literally be typed back, but has to be copied by a special function which rewrites
+  certain symbols. Users need to be able to literally copy paste snippets here and have
+  them work."; "a summary is mandatory"; defined terms in bold, "but stick to the defined
+  and agreed-upon terms". On the sample opening: no filler ("The kind is unusual"), no
+  reserved word used loosely ("kind"), and "It should talk in terms of data types and data
+  structures rather than circuitously--the audience is expected to be technical. I was
+  imagining referring to the (composed) numeric types by their type names here and even
+  discussing how they compose."; "novel" only if true (left out: midpoint-radius ball
+  arithmetic with an exact midpoint type is established practice, as in Arb). Settled, for
+  this page and as a rule for every user page (principles.md; the work-order prompt's
+  section 3): a page reads as a narrative for a technical reader new to the project, with
+  an introduction that says what its concepts are and why their semantics matter, a
+  summary of the rules it explains, a lead-in at each section, sub-headings inside long
+  sections (which no page links), and examples set apart in tables as a user types them,
+  with the result the calculator shows beside; defined terms in bold once, the
+  terminology's terms only. `docs/numbers.md` names the numeric types `Rational`,
+  `Scaled`, `Radius` and `Ball` in its introduction and says how they compose, and uses
+  "midpoint" where it describes a `Ball` (plan §8's row amended; work order 01's words).
 
 ### The review's other corrections
 

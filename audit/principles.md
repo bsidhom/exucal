@@ -185,6 +185,21 @@ of the route. "Canonical" is a word of both corpora, glossed once per
 page where used; the devdocs keep the mechanism, the formal argument
 and its implementation.
 
+**Narrative pages and typed examples (the owner, 2026-10-14; plan
+§12.3).** A user page is written to on-board a technical reader new to
+the project, and reads as a narrative, as technical docs do: an
+introduction that says what the page's concepts are and why their
+semantics matter, a summary of the rules the page explains, each
+linking its section, a lead-in at each section that says what question
+it answers, sub-headings inside long sections (which no page links, the
+outline's headings being the anchors), and examples set apart, in a
+table, as a user types them and never as the display writes them,
+since the display's text cannot be typed back, with the result the
+calculator shows beside. Defined terms are bold once, where defined,
+and only the terminology's terms. No filler, and no reserved word used
+loosely. `docs/numbers.md` names the numeric types `Rational`,
+`Scaled`, `Radius` and `Ball` and says how they compose.
+
 Two further answers reach every page and are recorded in plan §8: the
 synonyms "dimensionless" and "plain number", with "kind" wherever
 semantics attach (Q-019); and "build ID", "the service worker", "a new

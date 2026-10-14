@@ -121,7 +121,16 @@ Read nothing else in the corpus or the tree.
   your scope, and put the question to the owner in the review notes.
 - **One pass.** Write the page whole, under the headings section 4 of
   your work order fixes, in the order it gives; keep every heading
-  another page links.
+  another page links. Write it as a narrative for a technical reader
+  new to the project (`audit/principles.md`, "Narrative pages and typed
+  examples"): an introduction that says what the page's concepts are
+  and why their semantics matter, a summary of the rules it explains,
+  each linking its section, a lead-in at each section saying what
+  question it answers, sub-headings inside long sections (no page links
+  them), and examples set apart in tables as a user types them, never
+  as the display writes them, with the result the calculator shows
+  beside. Bold a defined term once, where it is defined, and only the
+  terminology's terms. No filler; no reserved word used loosely.
 - **The words and the format** follow `audit/plan/08-terminology.md` and
   the principles: the Markdown subset (inline links only, repo-relative
   between pages, absolute only for an external reference such as an

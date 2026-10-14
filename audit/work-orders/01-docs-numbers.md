@@ -578,8 +578,9 @@ the code has it (Q-007).
 - Every finding in section 5 is applied as its decision says, the
   low-confidence ones after reading only the code named.
 - No "approximate" for a value, no "refused" for anything but a size
-  refusal, no issue number, no timing, no "decimal exponent", no
-  "finest grid", no "working precision", no "sheet", no
+  refusal, no issue number, no timing, no "decimal exponent", "finest grid"
+  only for the grid of the ceiling's pass and never for the ceiling
+  itself (review, 2026-10-14), no "working precision", no "sheet", no
   `docs/functions.md`; "canonical" named and glossed once, in "How a
   value is held", with why a value has exactly one form (F-439 as
   amended 2026-10-13).

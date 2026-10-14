@@ -346,7 +346,10 @@ Cost (observable as latency)
   certifies runs to the ceiling, which is why the precision limit is a
   cost setting; the first Gamma-family call at a new ceiling computes
   the Bernoulli numbers (seconds); constants are computed on first use
-  and kept.
+  and kept. (Amended: F-065 as the owner amended it on 2026-10-14, plan
+  §12.3: `docs/numbers.md` says only that some built-ins pay a cost
+  once at a new precision and some are expensive at any precision; the
+  family's cold start and the calls that pay it are `docs/builtins.md`'s.)
   → `devdocs/numbers.md#Working precision and the schedule`, `#Memoized
   constants`; `devdocs/builtins.md#The Gamma and Beta families`;
   `devdocs/cost.md#What the costs come from`.

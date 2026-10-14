@@ -82,7 +82,9 @@ needs to predict and interpret any result.
   every result pastes back as input, §12 question 11, F-457; a line a
   function of the value, its exactness and the settings, never of the
   route, the scaled ratio being the canonical parts, F-439 as amended)
-- What costs time (qualitative only, Q-016)
+- What costs time (qualitative only, Q-016; generic: no built-in named,
+  the Gamma family's cold start being the built-ins page's, F-065 as the
+  owner amended it on 2026-10-14)
 - Real values only (a plain fact; nothing of what symbolic or complex
   values would add, Q-011)
 
@@ -101,7 +103,10 @@ kinds and what a conversion is.
 - How a conversion is answered (the ratio, refused also at the
   significand limit, F-070; a want with a magnitude; the blank want; the
   reciprocal line; lines that paste back, F-457)
-- Unit lists (counts, remainder, rounding carry, validity)
+- Unit lists (counts, remainder, rounding carry, validity; what a
+  comparison that cannot be decided does in a list, the count's whole
+  number and the unit at zero, linking `numbers.md`'s comparison and
+  edge sections, which no longer mention lists; the owner, 2026-10-14)
 - Conversion into a function (readings)
 - Temperature and logarithmic levels as functions (readings are
   functions, not units with an offset: a ruled-out design stated as a
@@ -208,7 +213,9 @@ until the generator exists, today's prose list, corrected.
   `round`)
 - Division (`div`, `mod`)
 - Integer functions
-- Gamma family; incomplete gamma; error functions; incomplete beta
+- Gamma family; incomplete gamma; error functions; incomplete beta (the
+  one user page naming the calls that pay the family's cold start,
+  F-065 as amended 2026-10-14)
 - Functions defined in the file (cross-reference to `units.md`)
 - Not provided, and what to write instead (a plain fact: what the app
   lacks and what to write, never what may come; the deferred classes

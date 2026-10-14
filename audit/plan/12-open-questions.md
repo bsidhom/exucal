@@ -806,6 +806,34 @@ decision, are listed after the answers.
   one link (Q-012's rule for a bug in today's behaviour; work order 12); the code track
   lists it among the bugs that live on their issues and repoints the two comments in its
   comment pass (work order 00, sections 4 and 6); the user page says nothing of it.
+- **The numbers page's scope: built-ins' costs and unit lists.** Reviewing the page on
+  2026-10-14, the owner: "It is totally inappropriate to get into the weeds of expensive
+  builtins on the core numeric abstraction page. This is about onboarding and getting
+  users and developers to understand number structures. Built-ins will be documented on
+  their own. It's reasonable to keep the costs "generic" about some built-ins paying an
+  amortized cost at new precisions (but even this doesn't tell the whole story, as some
+  will _still_ be very expensive anyway). Just shrink the section as appropriate." On
+  unit lists: "Unit lists is _also_ not part of the core numeric abstraction. However,
+  the _directed rounding_ rules are relevant examples (though they should be discussed
+  under builtins). Unit lists fall under conversion per se, and outputs." Then: "Yes,
+  amend the quantities WO to cover unit lists comparison and equality, rounding, etc. I
+  agree, it's crucial for users to understand both the ball model itself and implications
+  of this with respect to various rounding modes; go ahead and keep that discussion about
+  values at an edge. I don't quite understand your point about "The two modes", but if
+  this is the only coherent place for that statement to live, then leave it here for
+  now. I'll give the final output docs a holistic read to refine and re-home as needed."
+  Settled: `docs/numbers.md#What costs time` names no built-in and no duration, saying
+  only that some built-ins pay a cost once at a new precision and some are expensive at
+  any precision, and points at the built-ins page, which is the one user page naming the
+  calls that pay the Gamma family's cold start (F-065 amended; work orders 01 and 07; N25
+  and §7 follow). `docs/numbers.md#Comparison and equality` no longer mentions unit lists;
+  the quantities page's "Unit lists" owns what a comparison that cannot be decided does
+  in a list and links the numbers page's comparison and edge sections (F-029 amended;
+  work order 02; §7 follows). "Values at an edge" keeps the complete rounding-functions
+  sentence (Q-025 stands), and "The two modes" keeps decimal mode's list of last steps
+  (N19), the one place that rule can be stated, pending the owner's holistic read of the
+  finished pages. The owner also accepted the page's keeping the storage size of
+  `3^100000` beside the dyadic cost.
 
 ### The review's other corrections
 

@@ -197,6 +197,17 @@ written in messages".
   stating the remainder's digits.
   `units.md#unit-lists-defined-in-the-file` lists the defined lists;
   `dms` being the one inexact list is that page's (F-111).
+- This section is the one user page that says what a comparison that
+  cannot be decided does inside a list: the count takes the whole
+  number the ratio cannot be told from, leaving a remainder around zero
+  rather than a whole of the unit (`countOf` in `src/core/convert.ts`,
+  read by the session of work order 01; the Facts above state it as the
+  ratio's bounds reaching or meeting a whole number), and a unit that
+  cannot be told from zero is an error, as above. It links
+  `numbers.md#comparison-and-equality` and `numbers.md#values-at-an-edge`
+  for the model, and `numbers.md` no longer mentions lists there (the
+  owner, 2026-10-14, plan §12.3: unit lists are conversion and output,
+  not the numeric model).
 
 ### Conversion into a function
 

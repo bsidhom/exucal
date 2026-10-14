@@ -98,8 +98,10 @@ What each changes in the drafts this page is built from:
   the exponent bound is not a setting and a higher one is ruled out,
   with the two reasons (F-058).
 - **Which numbers the page keeps (Q-016, Q-018).** No timing, run count
-  or measured ratio: "What costs time" is qualitative, and a rough
-  duration appears only where it warns ("a few seconds"). The six-pass
+  or measured ratio: "What costs time" is qualitative and generic, and
+  names no built-in and no duration (the Gamma family's cold start, with
+  its rough duration, is the built-ins page's; F-065 as the owner
+  amended it on 2026-10-14, plan §12.3). The six-pass
   table of `approx(1e999)` stays in `devdocs/numbers.md`, linked at the
   section level, and the scratch build's per-size milliseconds leave
   the docs altogether (F-058, Q-017). The
@@ -237,12 +239,12 @@ state.
   cannot be formed as a value counts as across zero (no difference is
   ever "refused as too large"). F-028 and F-029 are low confidence: the
   session reads `addBallsCore` and `orderOf` in `src/core/ball.ts`
-  before stating the alignment, and `src/core/convert.ts:394-401` before
-  listing a unit list's counts among the places an undecided comparison
-  surfaces. No equality operator and no `!=`, as a plain fact, with
+  before stating the alignment; a unit list's counts are the quantities
+  page's and are not listed here (work order 02; the owner, 2026-10-14,
+  plan §12.3). No equality operator and no `!=`, as a plain fact, with
   nothing of what may come (F-030, Q-011). Where an undecided comparison
-  surfaces (conditions, division, the rounding functions, lists,
-  inverses) is pointed to "Values at an edge" (F-031).
+  surfaces (conditions, division, the rounding functions, inverses) is
+  pointed to "Values at an edge" (F-031).
 
 ### Values at an edge
 
@@ -383,9 +385,12 @@ state.
   certifies runs to the ceiling on every keystroke; the cost of an
   exponential grows fast with its argument; a definition that reads
   small can be large; a hand-written function is slower than the
-  built-in; the first Gamma-family call at a new ceiling computes the
-  Bernoulli numbers, naming the functions that pay it (F-065), the
-  cost named only as a rough warning (Q-018). The schedule's cost bound
+  built-in; some built-ins pay a cost once, at a new precision, and some
+  are expensive at any precision, in one generic sentence that names no
+  function and no duration and points at the built-ins page, which
+  names the calls that pay the Gamma family's cold start (F-065 as the
+  owner amended it on 2026-10-14, plan §12.3; work order 07). The
+  schedule's cost bound
   and its edge (F-064) stay in devdocs. `devdocs/cost.md` links this
   section once it exists (work order 17).
 
@@ -423,7 +428,7 @@ anything it cannot settle.
 | F-026 | Digits you can trust | The pointer dropped; link the devdocs section at the section level |
 | F-027 | Digits you can trust | D8's draft |
 | F-028 | Comparison and equality | A difference that cannot be formed as a value counts as across zero; read `addBallsCore` first |
-| F-029 | Comparison and equality | The touch rule in one sentence (Q-024), A6's docs phrase; read `convert.ts:394-401` before naming lists |
+| F-029 | Comparison and equality | The touch rule in one sentence (Q-024), A6's docs phrase; a unit list's counts are `quantities.md`'s (work order 02; the owner, 2026-10-14) |
 | F-030 | Comparison and equality | No equality operator, a plain fact; nothing of what may come |
 | F-031 | Values at an edge | One complete sentence on the rounding functions (Q-025); "undecided", never "refused" |
 | F-032 | Values at an edge | D8's sentences; an error, not a refusal |
@@ -459,7 +464,7 @@ anything it cannot settle.
 | F-062 | How numbers are written | `W` significant digits |
 | F-063 | What costs time | The section, qualitative only |
 | F-064 | What costs time | Devdocs name the edge; the user page stays qualitative |
-| F-065 | What costs time | The functions that pay the cold run named; the cost qualitative |
+| F-065 | What costs time | One generic sentence naming no function; the calls that pay the cold run are the built-ins page's (work order 07; the owner, 2026-10-14) |
 | F-066 | (devdocs) | `devdocs/numbers.md` opens each section with a link here, in its own rewrite (work order 11) |
 
 Findings owned by other pages that touch this one, each applied by its

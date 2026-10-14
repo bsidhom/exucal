@@ -88,7 +88,12 @@ functions by family with their examples.
   with what to write, never that it may come (Q-010: the deferred
   classes are described in `devdocs/future.md` only).
 - **Numbers (Q-016).** The Gamma-family cost is one qualitative
-  sentence (F-153, F-154); no timing, no count.
+  sentence (F-153, F-154); no timing, no count. This page is the one
+  user page that names which calls pay the family's cold start:
+  `numbers.md#what-costs-time` says only that some built-ins pay a cost
+  once, at a new precision, and some are expensive at any precision,
+  and points here (F-065 as the owner amended it on 2026-10-14, plan
+  §12.3).
 - **The words (§8).** "The definitions file" in the page lead, with a
   link to `definitions.md` (F-167, F-475); "plain number" where the
   code's rules are quoted, "dimensionless" its synonym, each defined

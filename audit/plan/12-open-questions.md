@@ -853,8 +853,12 @@ decision, are listed after the answers.
   reserved word used loosely ("kind"), and "It should talk in terms of data types and data
   structures rather than circuitously--the audience is expected to be technical. I was
   imagining referring to the (composed) numeric types by their type names here and even
-  discussing how they compose."; "novel" only if true (left out: midpoint-radius ball
-  arithmetic with an exact midpoint type is established practice, as in Arb). Settled, for
+  discussing how they compose."; "novel" only if true. The claim was first left out on the
+  ground that Arb holds an exact midpoint, which the owner corrected on 2026-10-14: Arb's
+  midpoint is an arbitrary-precision floating-point number beside its radius, "I borrowed
+  the notion of midpoint-and-radius from Arb, of course", and "the trade-offs all flow from
+  that exact decomposition, choices with respect to canonicalization, etc."; the page now
+  credits ball arithmetic for the form and calls the decomposition novel. Settled, for
   this page and as a rule for every user page (principles.md; the work-order prompt's
   section 3): a page reads as a narrative for a technical reader new to the project, with
   an introduction that says what its concepts are and why their semantics matter, a

@@ -18,14 +18,18 @@ built in three layers, each adding one idea to the one below it:
   value is exact; when it is not, the value is inexact, and the radius
   is what lets the calculator say which digits of it are right.
 
-The representation is chosen for a particular set of trade-offs. Exact
-arithmetic stays exact however long the numbers grow, until a limit you
-set says they may grow no further. Everything else is computed with an
-error radius and shown only to the digits that radius certifies, at
-rising precision until they do. So `0.1 + 0.2` is exactly `0.3`,
-`1/3 * 3` is exactly `1`, `sqrt(2) / sqrt(2)` is `≈ 1` and not `= 1`,
-and an input the limits cannot hold is refused rather than answered
-wrongly. To predict what the calculator will show, to trust its digits
+The midpoint-and-radius form is borrowed from ball arithmetic, as in
+Arb. The midpoint is where Exucal departs: Arb holds a binary
+floating-point number rounded to a set number of bits, Exucal an exact
+rational, scaled by a power of ten and held in one canonical form. That
+decomposition is novel, and the representation's trade-offs follow from
+it. Exact arithmetic stays exact however long the numbers grow, until a
+limit you set says they may grow no further. Everything else is
+computed with an error radius and shown only to the digits that radius
+certifies, at rising precision until they do. So `0.1 + 0.2` is exactly
+`0.3`, `1/3 * 3` is exactly `1`, `sqrt(2) / sqrt(2)` is `≈ 1` and not
+`= 1`, and an input the limits cannot hold is refused rather than
+answered wrongly. To predict what the calculator will show, to trust its digits
 and to read its refusals, you need the semantics of this type. This
 page gives them from the ground up; the pages on quantities,
 expressions, settings and the built-in functions assume them and link

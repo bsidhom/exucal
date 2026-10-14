@@ -303,7 +303,9 @@ limit**, in decimal digits, bounds how far an inexact value is
 refined: the highest precision any pass computes at, the **ceiling**,
 is set from it, and the midpoint at the ceiling must fit within the
 significand limit, so the significand limit caps the precision limit
-in turn and bounds how fine any pass's grid can be
+in turn, and with it the finest grid: the set of values the ceiling's
+pass rounds onto, a little finer than the ceiling itself, and the
+finest any value is ever held on
 ([How the settings bound each other](settings.md#how-the-settings-bound-each-other)).
 
 ## Operations that stay exact; exact cases of functions
@@ -776,18 +778,18 @@ need, exactly or about, where the operation knows:
 ```
 
 Where the operation that refused expects the same step to fit when
-computed inexactly, the message suggests what to try: `approx(…)` around the operand it
-names, so that the part is computed to the digits asked and shown with
-`≈` ([approx](#approx)); or decimal mode, which rounds every step and
-so never holds the exact value. Where the
-operation expects the value to pass the limit however it is computed,
-the message says so and suggests nothing, and what a wider limit would
-need is yours to judge. That is the case for a built-in whose value
-needs more bits than the limit holds even rounded, `factorial(20000)`
-or `sin` of an angle whose reduction passes the limit; for a number
-typed with more digits than the limit; and for a power whose exponent
-cannot be formed within it, `2^1e-30000`. The suggestion is the
-operation's expectation, not a promise.
+computed inexactly, the message suggests what to try: `approx(…)` around
+the operand it names, so that the part is computed to the digits asked
+and shown with `≈` ([approx](#approx)); or decimal mode, which rounds
+every step and so never holds the exact value. Where the operation
+expects the value to pass the limit however it is computed, the message
+says so and suggests nothing, and what a wider limit would need is yours
+to judge. That is the case for a built-in whose value needs more bits
+than the limit holds even rounded, `factorial(20000)` or `sin` of an
+angle whose reduction passes the limit; for a number typed with more
+digits than the limit; and for a power whose exponent cannot be formed
+within it, `2^1e-30000`. The suggestion is the operation's expectation,
+not a promise.
 
 A refusal is never retried at more digits, and one that a later pass is
 the first to meet ends the retry loop with the best result so far: the
@@ -846,14 +848,15 @@ A product, quotient or power that no setting could hold is reported at
 the bound even where the significand limit would refuse it first:
 `7^1e19`, a whole number of about `8.5 × 10^18` digits, is too large to
 compute, where `2.54^1e18`, a hair within the bound, is past the
-significand limit. A sum never faces that choice: a sum that aligns and passes the bound
-is too large or too small to compute; and one that cannot be aligned is
-refused at the significand limit or, with an inexact operand, has the
-value of its larger operand, which is within the bound. A refusal at the bound needs every value within the error
-radius to lie past it; an argument whose value may lie on either side
-of the bound is retried at more digits, and at the ceiling cannot be
-told from the point where the result passes the exponent bound
-([Values at an edge](#values-at-an-edge)).
+significand limit. A sum never faces that choice: a sum that aligns and
+passes the bound is too large or too small to compute; and one that
+cannot be aligned is refused at the significand limit or, with an
+inexact operand, has the value of its larger operand, which is within
+the bound. A refusal at the bound needs every value within the error
+radius to lie past it; an argument whose value may lie on either side of
+the bound is retried at more digits, and at the ceiling cannot be told
+from the point where the result passes the exponent bound ([Values at an
+edge](#values-at-an-edge)).
 
 The bound is not a setting, and a higher one is ruled out: parts of the
 parts of `Ball` are exact only because the exponent is at most `10^18`,

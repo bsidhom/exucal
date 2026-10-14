@@ -990,8 +990,16 @@ decision, are listed after the answers.
   after the pass itself is introduced, so that the section reads linearly; the exponent
   bound is stated as a bound on the exponent itself, `1e1000000000000000000` being a
   value; and "Two limits, two units" opens from the fact that everything, the grid
-  included, lives within the significand limit. The review asked that a page read
-  linearly, no term before its definition: a rule in principles.md and the prompt.
+  included, lives within the significand limit. The review asked that a page read linearly, no term before its definition: a rule in
+  principles.md and the prompt. On "finest grid", which the page had avoided as a banned
+  phrase: "the rules should not _forbid_ discussing 'finest grid'. Rather, this terminology
+  must be used precisely. That was my only complaint here. 'Precision' discusses this in
+  terms of decimal digits of working accuracy, and 'grid' refers to the coarseness of the
+  discrete space itself. It is absolutely fine (and desirable, based on the context) to
+  talk about both, but in the correct sense." Settled: §8's row and F-125's decision no
+  longer keep the phrase out; "finest grid" names the grid of the ceiling's pass, never the
+  ceiling, and `docs/numbers.md`'s "Two limits, two units" says so, the significand limit
+  capping the precision limit and with it the finest grid.
 
 ### The review's other corrections
 

@@ -1,9 +1,12 @@
 # Numbers
 
-Exucal is a calculator before it is a converter, and every result it
-shows is a number of one data type: a conversion multiplies one, a
-defined function computes one, a built-in returns one. That type is
-built in three layers, each adding one idea to the one below it:
+Exucal is a calculator before it is a converter, built to be exact
+where it can be and explicit where it cannot: a result is the exact
+value, or every digit it shows is certified and the line says so, or
+there is no result and a message says why. Every result it shows is a
+number of one data type: a conversion multiplies one, a defined
+function computes one, a built-in returns one. That type is built in
+three layers, each adding one idea to the one below it:
 
 - **`Rational`** is an exact fraction: a whole number of any size over
   a positive one, kept in lowest terms. `1/3` is one over three, not a
@@ -18,6 +21,13 @@ built in three layers, each adding one idea to the one below it:
   value is exact; when it is not, the value is inexact, and the radius
   is what lets the calculator say which digits of it are right.
 
+The types, and the way a result is computed, in passes at rising
+precision until its digits certify, exist for that one goal, and every
+other design consideration on this page follows from it. Beside it
+stand unit awareness and kind checking, the calculator's other
+features
+([Primitives, dimensions and kinds](quantities.md#primitives-dimensions-and-kinds)).
+
 The midpoint-and-radius form is borrowed from ball arithmetic, as in
 Arb. The midpoint is where Exucal departs: Arb holds a binary
 floating-point number rounded to a set number of bits, Exucal an exact
@@ -29,7 +39,23 @@ computed with an error radius and shown only to the digits that radius
 certifies, at rising precision until they do. So `0.1 + 0.2` is exactly
 `0.3`, `1/3 * 3` is exactly `1`, `sqrt(2) / sqrt(2)` is `≈ 1` and not
 `= 1`, and an input the limits cannot hold is refused rather than
-answered wrongly. To predict what the calculator will show, to trust its digits
+answered wrongly.
+
+Other calculators share parts of the goal, and the contrast says what
+the representation buys. Frink keeps exact fractions, its unit
+definitions included, and computes in floating point otherwise.
+Qalculate! keeps exact fractions and symbolic forms, writes `≈` before
+the rest and tracks their precision with intervals of floating-point
+numbers. Android's calculator, from Android 6, whose source is named
+ExactCalculator, keeps an exact fraction where it can and a
+constructive real otherwise: a value recomputed to whatever precision
+the digits you scroll to need. Exucal differs in the mechanism this
+page describes: one canonical form for every exact value, a ball with
+an exact midpoint for every inexact one, digits certified by
+recomputing at rising precision up to a ceiling, and a refusal, never
+a wrong answer, for what its limits cannot hold.
+
+To predict what the calculator will show, to trust its digits
 and to read its refusals, you need the semantics of this type. This
 page gives them from the ground up; the pages on quantities,
 expressions, settings and the built-in functions assume them and link

@@ -869,6 +869,32 @@ decision, are listed after the answers.
   `Scaled`, `Radius` and `Ball` in its introduction and says how they compose, and uses
   "midpoint" where it describes a `Ball` (plan §8's row amended; work order 01's words).
 
+- **The goal, stated where the app is described, and the calculators that share it.** On
+  2026-10-14, after the attribution to Arb, the owner: "For the interested reader, it might
+  _also_ be worth contrasting Exucal with the other calculators you mentioned above. As far
+  as I'm aware, I'm not aware of any other calculators which bill themselves as "exact", and
+  the very point of Exucal is to be "exact" where we can be, and _explicit_ where we cannot
+  be. This must be mentioned somewhere. Not necessarily in the _numeric types_ doc, but
+  somewhere in the app description, user guide, etc. Even if we did have that spelled out
+  elsewhere, it's probably worth noting that these numeric types (and the evaluator/pipeline
+  strategies) exist to enable this specific goal. Every other design consideration follows
+  from that (plus unit- and kind-awareness)." Checked the same day against the calculators'
+  own documentation: Android's calculator from Android 6, whose source project is named
+  ExactCalculator (Boehm's), keeps an exact fraction where it can and a constructive real
+  otherwise, so the goal is not Exucal's alone; Qalculate! writes `=` or `≈` before a
+  result, has an always-exact mode and tracks the precision of approximate results with
+  interval arithmetic; Frink keeps exact fractions, its unit definitions included, and
+  computes in floating point otherwise. Settled: the goal is stated as Exucal's, never as
+  unique to it. `docs/numbers.md`'s introduction states it in its first sentence, says that
+  the types and the passes exist for it and that every other design consideration follows
+  from it, with unit awareness and kind checking beside it, and contrasts the three
+  calculators in one paragraph, the only user page that names another calculator (C60
+  amended; §7's numbers entry; work order 01's checks). The index's two sentences and the
+  root README's three (work order 09), getting started's opening (work order 10) and
+  `devdocs/architecture.md`'s first paragraph (work order 13) state the goal in a sentence;
+  `devdocs/numbers.md`'s opening (work order 11) carries the fuller comparison as
+  rationale. A rule in principles.md.
+
 ### The review's other corrections
 
 Applied on 2026-10-13 with the answers above; none needed a decision.

@@ -45,7 +45,12 @@ each corpus lives, and nothing of how to build or run it, which
 - **The framing (§12 question 2; F-001, F-472).** Both openings lead
   with the calculator: Exucal is a calculator with unit awareness and
   kind checking; "the converter" is never the app; GNU units is not
-  named (it is lineage in the devdocs only, Q-039).
+  named (it is lineage in the devdocs only, Q-039). The first sentence
+  of each states the goal: Exucal is exact where it can be and explicit
+  where it cannot (plan §12.3, 2026-10-14), which "computes exactly
+  wherever it can, certifies every digit it shows otherwise" also says;
+  the goal is stated as Exucal's, never as unique to it, and no other
+  calculator is named.
 - **"certifies" stays (Q-064, A; F-428).** The intro may say the app
   "computes exactly wherever it can, certifies every digit it shows
   otherwise", since getting started's second section defines the word.
@@ -132,8 +137,8 @@ None.
 ## 10. Done when
 
 - The index is two sentences, the page list and the devdocs line; the
-  root README is three sentences; every link but the getting-started
-  line resolves.
+  root README is three sentences; the first sentence of each states
+  the goal; every link but the getting-started line resolves.
 - No "converter" for the app, no GNU units, no "approximate values",
   no "sheet", no "user-defined", no `functions.md` on the user side.
 - The pull request changes nothing outside the two files.

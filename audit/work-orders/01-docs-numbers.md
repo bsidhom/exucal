@@ -585,15 +585,20 @@ the code has it (Q-007).
   amended 2026-10-13).
 - Every link is a repo-relative path to an existing page or to a §7
   anchor of a page written later; none to a heading §7 does not name.
+  The one exception is "Comparison with other approaches", whose links
+  to a library's or a calculator's own site or paper are absolute URLs,
+  the Markdown principle's external reference.
 - The page reads as a narrative (principles.md, "Narrative pages and
   typed examples"): an introduction that states the first goal, exact
   where it can be and explicit where it cannot, and that the first two
-  goals, exactness and the functions, shaped the types, nothing of the
-  third, which is orthogonal to the numeric model; names the types and
-  why their semantics matter; and contrasts the calculators that share
-  parts of the first goal, each described from its own documentation
-  (plan §12.3, 2026-10-14); a summary of the rules, a lead-in at each
-  section,
+  goals, exactness and the functions, guided the design, nothing of
+  the third, which is orthogonal to the numeric model, and names the
+  types and why their semantics matter; a first section, "Comparison
+  with other approaches", short and set apart, crediting Arb with the
+  midpoint and radius and naming Frink, Qalculate! and Android's
+  ExactCalculator, each linked to its own site and described from its
+  own documentation (plan §12.3, 2026-10-14); a summary of the rules,
+  a lead-in at each section,
   sub-headings inside the long sections, and examples set apart in
   tables as typed, with the result shown beside.
 - The pull request names the drafts picked (section 8) and any

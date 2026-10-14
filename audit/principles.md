@@ -237,22 +237,24 @@ its readers are the sessions that write the pages, never the pages'
 readers. A human-facing page states the goals in its own sentences,
 written for its reader as the narrative rule requires, matching this
 substance and copying nothing from here or from the review's
-shorthand. The design is described as following from them in that
-order: the numeric types and the evaluator's passes exist for the
-first two, and unit awareness and kind checking stand beside them. The three are
+shorthand. The design is described as guided by them in that order,
+never as forced by them: the numeric types and the evaluator's passes
+serve the first two, and unit awareness and kind checking stand beside
+them. The three are
 stated in order where a page says what the app is: in brief in
 `docs/README.md`'s two sentences and the root `README.md`'s three, and
 in full in `devdocs/architecture.md`'s first paragraph. Every other
 opening states, in a sentence, the goal its page serves:
-`docs/numbers.md` the first two, as they shaped the types, and nothing
-of the third, which is orthogonal to the numeric model;
+`docs/numbers.md` the first two, as they guided the design, and
+nothing of the third, which is orthogonal to the numeric model;
 `docs/builtins.md` the second, as the aim of today's set;
 `docs/quantities.md` the third; `docs/getting-started.md` the first,
 the tour then showing the other two; `docs/app.md` the portable
 format. No page calls a goal unique to Exucal: other calculators share
 parts of the first (plan §12.3 names three, checked against their
-documentation), and they are named only in `docs/numbers.md`'s
-introduction, which contrasts them in a paragraph, and in
+documentation), and they are named only in `docs/numbers.md`'s first
+section, "Comparison with other approaches", short, set apart from the
+introduction and linking each to its own site, and in
 `devdocs/numbers.md`'s opening, which carries the comparison as
 rationale. That the app began as a units conversion utility is
 history, not intent, and no page says it; the devdocs keep GNU units

@@ -28,41 +28,17 @@ to the one below it:
   is not, the value is inexact, and the radius is what lets the
   calculator say which digits of it are right.
 
-Two goals shaped this type. The first is that exactness. The second
-is the functions a calculator is used for, all the elementary
-functions and the special functions that matter most in combinatorics,
-probability and physics, each computed under the same guarantee: exact
-where it has an exact case, certified otherwise. Between them they
-decided the numeric types and the way a result is computed, in passes
-at rising precision until its digits certify, and everything else on
-this page follows from them.
-
-The midpoint-and-radius form is borrowed from ball arithmetic, as in
-Arb. The midpoint is where Exucal departs: Arb holds a binary
-floating-point number rounded to a set number of bits, Exucal an exact
-rational, scaled by a power of ten and held in one canonical form. That
-decomposition is novel, and the representation's trade-offs follow from
-it. Exact arithmetic stays exact however long the numbers grow, until a
-limit you set says they may grow no further. Everything else is
-computed with an error radius and shown only to the digits that radius
-certifies, at rising precision until they do. So `0.1 + 0.2` is exactly
-`0.3`, `1/3 * 3` is exactly `1`, `sqrt(2) / sqrt(2)` is `≈ 1` and not
-`= 1`, and an input the limits cannot hold is refused rather than
-answered wrongly.
-
-Exucal is not alone in wanting exactness, and the contrast with three
-neighbours shows what the representation buys. Frink keeps exact fractions, its unit
-definitions included, and computes in floating point otherwise.
-Qalculate! keeps exact fractions and symbolic forms, writes `≈` before
-the rest and tracks their precision with intervals of floating-point
-numbers. Android's calculator, from Android 6, whose source is named
-ExactCalculator, keeps an exact fraction where it can and a
-constructive real otherwise: a value recomputed to whatever precision
-the digits you scroll to need. Exucal differs in the mechanism this
-page describes: one canonical form for every exact value, a ball with
-an exact midpoint for every inexact one, digits certified by
-recomputing at rising precision up to a ceiling, and a refusal, never
-a wrong answer, for what its limits cannot hold.
+Two goals guided this design: the exactness just described, and the
+functions a calculator is used for, all the elementary functions and
+the special functions that matter most in combinatorics, probability
+and physics, each exact where it has an exact case and certified
+otherwise. What the representation buys is this. Exact arithmetic
+stays exact however long the numbers grow, until a limit you set says
+they may grow no further. Everything else is computed with an error
+radius and shown only to the digits that radius certifies, at rising
+precision until they do. So `0.1 + 0.2` is exactly `0.3`, `1/3 * 3`
+is exactly `1`, `sqrt(2) / sqrt(2)` is `≈ 1` and not `= 1`, and an
+input the limits cannot hold is refused rather than answered wrongly.
 
 To predict what the calculator will show, to trust its digits
 and to read its refusals, you need the semantics of this type. This
@@ -105,6 +81,35 @@ In brief, the rules this page explains:
 - **What is written is predictable**: a line is a function of the
   value, its exactness and the settings, and pastes back as input
   ([How numbers are written](#how-numbers-are-written)).
+
+## Comparison with other approaches
+
+The midpoint-and-radius form comes from ball arithmetic, and the
+inspiration is [Arb](https://arblib.org/). Arb's midpoint is a binary
+floating-point number rounded to a set number of bits, so a value is
+exact there only if it is a whole number times a power of two;
+Exucal's midpoint is an exact rational, scaled by a power of ten and
+held in one canonical form. That decomposition is novel, and the
+trade-offs above follow from it. Three calculators share the aim of
+exactness, each by its own route:
+
+- [Frink](https://frinklang.org/) keeps exact fractions, its unit
+  definitions included, and computes in floating point otherwise.
+- [Qalculate!](https://qalculate.github.io/) keeps exact fractions and
+  symbolic forms, writes `≈` before the rest and tracks their precision
+  with intervals of floating-point numbers.
+- Android's calculator, from Android 6, whose source is named
+  [ExactCalculator](https://android.googlesource.com/platform/packages/apps/ExactCalculator/),
+  keeps an exact fraction where it can and a constructive real
+  otherwise: a value recomputed to whatever precision the digits you
+  scroll to need
+  ([Boehm, 2017](https://cacm.acm.org/practice/small-data-computing/)).
+
+Exucal differs in the mechanism this page describes: one canonical
+form for every exact value, a ball with an exact midpoint for every
+inexact one, digits certified by recomputing at rising precision up to
+a ceiling, and a refusal, never a wrong answer, for what its limits
+cannot hold.
 
 ## Exact and inexact values
 

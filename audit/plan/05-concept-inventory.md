@@ -544,8 +544,9 @@ onboard, in `quantities.md` and `definitions.md` (conversion semantics
 and definitions), never in `numbers.md` (§12, question 2). Other
 calculators (Arb for the midpoint-and-radius form; Android's
 ExactCalculator, Qalculate! and Frink) are named in `numbers.md`'s
-introduction only, for the contrast with the goal, and in
-`devdocs/numbers.md`'s opening as rationale (§12.3, 2026-10-14).
+first section, "Comparison with other approaches", only, each linked
+to its own site, and in `devdocs/numbers.md`'s opening as rationale
+(§12.3, 2026-10-14).
 
 **C61. Juxtaposition.** *Class:* user. *Terms:* ↔ the `juxtapose` node.
 *docs/:* `docs/definitions.md#Expressions`. *devdocs/:*

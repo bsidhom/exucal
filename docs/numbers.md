@@ -220,11 +220,7 @@ function makes ([Conversion into a function](quantities.md#conversion-into-a-fun
 
 Where a comparison that cannot be decided surfaces is
 [Values at an edge](#values-at-an-edge): a divisor, a function's domain
-or pole, a rounding function, the exponent bound, and that check. A
-unit list's counts are the one place that decides instead: a ratio that
-cannot be told from a whole number is counted as that whole number,
-leaving a remainder around zero rather than a whole of the unit
-([Unit lists](quantities.md#unit-lists)).
+or pole, a rounding function, the exponent bound, and that check.
 
 ## Values at an edge
 
@@ -616,13 +612,11 @@ for a number of thousands of digits
 hand is slower than the built-in, and a defined function costs what its
 body typed out in its place would cost, a body that calls a function
 twice computing it twice, at every pass
-([Identities and cancellation](#identities-and-cancellation)). The
-first call that takes a Gamma value, `gamma`, `lgamma` or `beta` and
-the incomplete gamma and beta functions with them, and the first again
-after the precision limit is raised, computes a table of constants the
-family needs at that ceiling, which can take a few seconds; the table
-is kept, so the calls after it do not pay it. Constants such as `pi()`
-are likewise computed on first use and kept.
+([Identities and cancellation](#identities-and-cancellation)). Some
+built-ins pay a cost once, the first time they are called at a new
+precision, for a constant or a table they then keep, and some are
+expensive at any precision; their entries say which
+([Built-in functions](builtins.md)).
 
 ## Real values only
 

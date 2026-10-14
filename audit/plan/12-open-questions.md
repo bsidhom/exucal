@@ -227,7 +227,7 @@ they change say so. Nothing is pending now.
 - **Q-003. The ratio before the reciprocal line's `×`: bare or in parentheses.** Decision: A, as long as this results in the _correct_ AST parse. That was the entire point of parentheses in the first place. If that concern doesn't apply here, then ditch it. The original idea was to make fractional expressions with bare units such as `(1/2) in` parse correctly. This is _not_ the same (in the current grammar) as `1/2 in`, which a user might prefer to see, but which is _not_ equal to `0.5 in` due to the fact that juxtaposition binds more tightly than division via `/`. The docs need to clearly state this edge case if it isn't already documented. Note that this is also a rough edge in the expression grammar itself, and users might get tripped up by it at the moment. I do want to revisit the grammar later, but that is not up for debate in the current docs rewrite, which need to capture the current behavior as intent.
   Applied: A: the code stands and the pages follow (`in = 1/36 × 3 ft`), since the printer's text parses back to the same tree (`*` and `/` share a level; juxtaposition binds tighter, so `3 ft` is one factor). Condition kept from the note: the pages must state the juxtaposition edge plainly, that `1/2 in` is `1/(2 in)` and differs from `(1/2) in` and from `0.5 in`, where `docs/expressions.md` (Pitfalls) owns the rule and `docs/numbers.md` (How numbers are written) states why the printer parenthesizes a ratio before a unit; the grammar itself is not revisited in this rewrite. Amends plan N13 ("parenthesized before a unit and bare alone": bare before `×` too) and Q18; F-121, F-059 follow.
 - **Q-004. The ceiling's gloss, and "grid" in the user docs.** Decision: B. This is clearly semantically correct and is the intent we want to capture in docs. And the "grid" abstraction is useful for understanding rounding/snapping/midpoint behavior.
-  Applied: B: the ceiling is glossed "the highest precision any pass computes at"; "grid" stays in the user docs, explained once in `numbers.md` as the digits an inexact value is kept to (about ten beyond the pass's precision). Amends plan §8 (the ceiling row's gloss; the grid row), §5 C10 and C11, question 5 above ("the digits an inexact value is kept to"); F-125, F-126, F-127, F-429, F-431 and B-026 follow.
+  Applied: B: the ceiling is glossed "the highest precision any pass computes at"; "grid" stays in the user docs, explained once in `numbers.md` as the digits an inexact value is kept to (about ten beyond the pass's precision). Clarified on 2026-10-14 (section 12.3): the fix was the settings page's wording, never a ban on "grid" anywhere, and "finest grid" is used precisely, for the grid of the ceiling's pass. Amends plan §8 (the ceiling row's gloss; the grid row), §5 C10 and C11, question 5 above ("the digits an inexact value is kept to"); F-125, F-126, F-127, F-429, F-431 and B-026 follow.
 - **Q-005. The ceiling's formula in the user docs.** Decision: A. The current, sloppy wording was an oversight.
   Applied: A: the formula once, in the Precision limit entry of `docs/settings.md`, as "four times the sum of the limit and ten" with 4,040 beside it; elsewhere the number or a link. Amends plan N8 (with Q-073); F-022, F-126 follow.
 - **Q-008. When a devdocs edit may link a user page not yet written.** Decision: A. My intention was always to write the docs in topo order. If that's not captured anywhere (and it goes beyond these smaller linking problems anyway), please note that where relevant.
@@ -999,7 +999,15 @@ decision, are listed after the answers.
   talk about both, but in the correct sense." Settled: §8's row and F-125's decision no
   longer keep the phrase out; "finest grid" names the grid of the ceiling's pass, never the
   ceiling, and `docs/numbers.md`'s "Two limits, two units" says so, the significand limit
-  capping the precision limit and with it the finest grid.
+  capping the precision limit and with it the finest grid. Then, setting the record
+  straight: "the intention was to fix the wording on the settings page itself, but to
+  globally ban mention of the word 'grid'", read, with the message before it, as "not to
+  globally ban". Settled, and the record already agreed: Q-004 (B) keeps "grid" in both
+  corpora, explained once in `docs/numbers.md`; the fix was the settings page's gloss of
+  the ceiling (F-125, F-429; work order 06), and the only banned use is "the finest grid"
+  as a name or gloss for the ceiling. §8's two rows, Q-004's applied line, F-429's
+  decision, §7's numbers entry and work orders 01 and 06 now say so, "named once"
+  reading "explained once" wherever it stood.
 
 ### The review's other corrections
 

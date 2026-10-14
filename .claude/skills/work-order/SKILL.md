@@ -151,7 +151,11 @@ words, with the docs' terms (`audit/plan/08-terminology.md`). Outside
 the marker that ends a title, the `Audit:` trailer, the References
 section and the review notes, write no audit ids (F-, Q-, B-), no
 report names (A1 to V8), no section or conflict numbers, and none of
-"batch", "session", "skill" or "work order".
+"batch", "session", "skill" or "work order". Never name who decided:
+not "the owner", and no one's name. A change made at a reviewer's
+request is made "in review" or "as decided in review"; the trail of
+the review is welcome, the person is not. The review notes, which are
+not for the history, may say "the owner".
 
 - **Titles.** The pull request's title and every commit subject take the
   form `<Topic>: <what changed> (work order <id>)`. The topic is a

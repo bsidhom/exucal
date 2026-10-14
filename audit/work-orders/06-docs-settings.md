@@ -250,7 +250,7 @@ to" (section 3).
 | Mode | D4 L209-222; A4 L109-113 | D4's entry with A4's "certified" | the step list linked, not restated; the notation not nested under the mode |
 | Working digits | D4 L223-237 | D4's entries | "locked" and "extended" per §8 (F-490) |
 | Rounding | D4 L238-249 | D4's entry | `builtins.md` for `functions.md` (L246) |
-| Precision limit | D4 L253-266; A3 L86-92; D8 L273-277 | A3's formula wording in D4's entry | no "finest grid", no "plus ten" (L258); Q-027's sentence |
+| Precision limit | D4 L253-266; A3 L86-92; D8 L273-277 | A3's formula wording in D4's entry | "the finest grid" never as the ceiling's gloss, no "plus ten" (L258); Q-027's sentence |
 | Significand limit | D4 L267-283; D8 L180-190, L232-265 (for what leaves) | one sentence and a link | the dyadic cost and remedies are `numbers.md`'s; "never refused for size" dropped |
 | Probe budget and Measure this device | D4 L284-287, L316-347 | D4's entry and procedure | "costliest" gone (L322, L328, L333); "for a fraction of a second" gone; "sheet" (L319) |
 | How the settings bound each other | D4 L289-314 | D4's table | "refused" (L305) reworded per section 3 |
@@ -280,7 +280,7 @@ The session records in its pull request the echoed forms it ran
   entry with key, default, range and what bounds it, linking `numbers.md`
   rather than restating it; the dissolved sections and the build-ID
   paragraph are gone, one sentence at the foot linking `numbers.md`.
-- No "sheet", no count of the settings, no "finest grid", no "four
+- No "sheet", no count of the settings, "the finest grid" never as the ceiling's gloss, no "four
   times this limit plus ten", no "costliest", no timing, no devdocs
   pointer, no "refused" for a declined edit, no "inexact values are
   never refused for size", no issue number, no `docs/functions.md`.

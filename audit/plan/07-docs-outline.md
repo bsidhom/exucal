@@ -63,7 +63,7 @@ model (§12.3, 2026-10-14).
   form, named once and glossed, with why a value has exactly one and
   what follows, F-439 as the owner amended it on 2026-10-13; the power
   of ten and its bound; the error radius; the digits an inexact value is
-  kept to, the grid named once, Q-004; the dyadic cost), as foundation
+  kept to, the grid explained once, Q-004; the dyadic cost), as foundation
   that the settings reference links to (§12, question 5)
 - Operations that stay exact; exact cases of functions
 - Digits you can trust (display digits; retries up to a ceiling, the

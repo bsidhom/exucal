@@ -109,7 +109,8 @@ What each changes in the drafts this page is built from:
   69,658 bits" (Q-091, F-012).
 - **The ceiling is a pass's precision (Q-004); the formula once, in the
   settings page (Q-005).** The ceiling is "the highest precision any
-  pass computes at", never "the finest grid"; the grid is named once,
+  pass computes at", never "the finest grid" as its name or gloss; the
+  grid is explained once,
   in "How a value is held", as what an inexact value is kept to, and
   stays the word for rounding onto it. D8 L196's "four times the
   precision limit plus ten digits (4,040 …)" does not travel here:
@@ -192,7 +193,7 @@ state.
   2026-10-13); D8 L176's "kept in lowest terms as `127/50`" is settled
   against A1's computed form of `2.54` (A1 L228-234) before it lands.
   The exponent and its bound. The digits an inexact value is kept to,
-  "a little beyond the precision the pass works at", the grid named
+  "a little beyond the precision the pass works at", the grid explained
   here once (F-015, F-016, Q-004). What a rounding adds to the radius
   is D8's plain wording; the exact charge is `devdocs/numbers.md`'s
   (F-017, Q-084), and the session reads `gridded` in `src/core/ball.ts`
@@ -419,7 +420,7 @@ anything it cannot settle.
 | F-013 | How a value is held | The canonical form, named once and glossed: lowest terms, every power of ten in the exponent, the denominator coprime to ten (no factor of two or five); why a value has exactly one; settle D8 L176 against A1's form of `2.54` (F-439 as amended 2026-10-13) |
 | F-014 | How a value is held | Dissolve the settings section per D8's table; carry A1's corrections, not its pairs |
 | F-015 | How a value is held | "the digits an inexact value is kept to" |
-| F-016 | How a value is held | D8's wording; the grid named once |
+| F-016 | How a value is held | D8's wording; the grid explained once |
 | F-017 | How a value is held | D8's plain wording; read `gridded` only if stating the charge |
 | F-018 | How a value is held | D8's draft reconciled with D4's entry (Q-108) |
 | F-019 | Operations that stay exact | N4 as amended; one sentence on the radius of a rounded exact operand (Q-083) |
@@ -515,7 +516,7 @@ settings-dependent digits.
 | --- | --- | --- | --- |
 | Exact and inexact values | D8 L172-178 | the draft | retitle; "inexact" (L172, L178); add the `pi()` clause with its link and the error-radius sentence |
 | How a value is held | D8 L180-190; D4 L267-282 (the entry, for reconciliation); A1 L228-234 (the form of `2.54`) | D8's draft, taking the dyadic cost and remedies | "inexact" (L186, L187, L190); the grid named once (Q-004); no "working precision"; settle L176 |
-| Digits you can trust | D8 L192-200 | the draft | L196: no formula, no "finest grid", no "working precision"; the ceiling as a pass's precision; "certified" |
+| Digits you can trust | D8 L192-200 | the draft | L196: no formula, "the finest grid" never as the ceiling's gloss, no "working precision"; the ceiling as a pass's precision; "certified" |
 | Values at an edge | D8 L202-206; D6 L55, L81, L95 | D8's sentences, D6's rule 3 | L206: "inexact"; an error, not a refusal |
 | Identities and cancellation | D8 L208-216 | the draft | L212, L216 hold ("refused" there names size refusals); the examples' destination settled per F-033 |
 | The two modes | D8 L218-222; A4 L26-28; A4 L137; D4 L217-219; A1 L240-243 | D8's sentences, A4's rules and consequences | "inexact"; "fails at the pole"; no settings-dependent digits; the step list with a leading `-`; no issue |

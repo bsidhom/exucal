@@ -935,7 +935,24 @@ decision, are listed after the answers.
   what the goals mean and is read by the sessions that write the pages, never by the
   pages' readers, so every human-facing page states the goals in its own sentences for its
   reader (the narrative rule), copying neither the list nor the shorthand, and
-  `docs/numbers.md`'s introduction is reworded so.
+  `docs/numbers.md`'s introduction is reworded so. Then, reading on: "The two paragraphs
+  following the introduction of the core types are reduplicative. Clean and shorten those
+  up (likely merging them into one shorter paragraph). I'm not even sure it needs to be
+  said that these design decisions forced the final shape (it's not even necessarily true,
+  it just guided them and suggested some paths while blocking others). I did explicitly
+  ask for a comparison with other calculators, but I don't like how it's in-line with the
+  introductory flow. Either separate it under a new heading (comparison with other
+  approaches) or put it into an appendix somehow. To give an immediate feel, I'm leaning
+  toward keeping it at the top, but it needs to be clearly delineated and concise (and
+  correct, of course). The comparison with Arb should likely be drawn there (though Arb
+  should be credited with the inspiration). Please cite or link those other calculators as
+  well, including Arb." Settled: one paragraph after the types, the goals guiding the
+  design and never forcing it (principles.md's rule says "guided"); the comparison leaves
+  the introduction for a section of its own, "Comparison with other approaches", the
+  page's first, added to §7 as a heading of the page, where Arb is credited with the
+  inspiration and contrasted on the midpoint and each calculator is linked to its own
+  site, the Markdown principle's external reference (work order 01's checks; C60; work
+  order 11).
 
 ### The review's other corrections
 

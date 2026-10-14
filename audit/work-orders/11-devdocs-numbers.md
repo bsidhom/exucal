@@ -149,8 +149,8 @@ take and what the rules change:
 
 - **(top).** V1 L186 (the opener, "inexact") and V1 L188 or A1 L309-313
   for the `pi()` rationale without GNU units' name (F-183, Q-039). As
-  rationale, the comparison that `docs/numbers.md`'s introduction makes
-  in a paragraph, in full: Arb, for the midpoint-and-radius form, with
+  rationale, the comparison that `docs/numbers.md`'s first section,
+  "Comparison with other approaches", makes briefly, in full: Arb, for the midpoint-and-radius form, with
   its floating-point midpoint; Android's ExactCalculator, with its exact
   fractions and constructive reals; Qalculate!, with its symbolic forms
   and floating-point intervals; Frink, with its exact fractions and

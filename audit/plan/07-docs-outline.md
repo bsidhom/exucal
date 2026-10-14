@@ -44,11 +44,16 @@ similarity in conversion semantics or definitions helps.
 **`docs/numbers.md` — Numbers (foundation).** The numeric model a user
 needs to predict and interpret any result. Its introduction states the
 first goal, exact where it can be and explicit where it cannot, and
-that the first two goals, exactness and the functions, shaped the
-types, nothing of the third, which is orthogonal to the numeric model;
-credits ball arithmetic, as in Arb, for the midpoint and radius; and
-contrasts the calculators that share parts of the first goal, the only
-user page that names one (§12.3, 2026-10-14).
+that the first two goals, exactness and the functions, guided the
+design, nothing of the third, which is orthogonal to the numeric
+model (§12.3, 2026-10-14).
+- Comparison with other approaches (the first section, short and set
+  apart from the introduction, as decided in review on 2026-10-14:
+  Arb credited as the inspiration for the midpoint and radius and
+  contrasted on the midpoint; Frink, Qalculate! and Android's
+  ExactCalculator, each linked to its own site and described from its
+  own documentation; what differs in Exucal; the only user page that
+  names another calculator; no page links it)
 - Exact and inexact values (the fraction times a power of ten; the
   error radius; the two sources of inexactness, F-010; one clause that
   the units defined through `pi()` are inexact, linking `units.md`,

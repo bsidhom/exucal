@@ -72,9 +72,9 @@ This page explains the following rules:
   an error saying the value cannot be told from the edge
   ([Values at an edge](#values-at-an-edge)).
 - **There are two arithmetics**: exact mode, the default; and decimal
-  mode, which rounds every step to the display digits as a hand
-  calculator does and holds each rounded value as exact, so its results
-  are `=` ([The two modes](#the-two-modes)).
+  mode, which rounds every step as a hand calculator does and holds each
+  rounded value as exact, so its results are `=`
+  ([The two modes](#the-two-modes)).
 - **Two size limits refuse what they cannot hold**: the significand
   limit, a setting, on the bits of a fraction; and the exponent bound,
   fixed, on the power of ten. The message names the limit and what to
@@ -572,34 +572,50 @@ Prefer the built-in, and where there is none, work in log space
 
 ## The two modes
 
-Exucal has two arithmetics. Exact mode, the default, is what the rest of
-this page describes. Decimal mode is the arithmetic of a hand
-calculator: every step is rounded to the digits shown. This section
-states decimal mode as four rules and says what follows from them.
+Exucal has two arithmetics: exact mode, the default, and decimal mode,
+the arithmetic of a hand calculator, in which every step is rounded to
+a set number of digits. This section states decimal mode as four rules
+and says what follows from them.
 
 ### Exact mode
 
-An exact value stays exact however long it is, an inexact one carries
-its error radius, and the digits shown are certified by passes at
-rising precision. Everything on this page is about exact mode unless it
-says otherwise.
+Exact mode is the arithmetic every other section of this page
+describes, and the mode a section means when it names none. An exact
+value stays exact however long it is, an inexact one carries its error
+radius, and the digits shown are certified by passes at rising
+precision.
 
 ### Decimal mode
 
-1. **Every step is rounded once, and the rounded value is the value.** A
-   **step** is an operation you can see: each `+`, `-`, `*`, `/` and
-   `^`; two factors written side by side; a negation (a `-` before a
-   product); each number typed; each unit (a prefixed unit being one
-   step); and each built-in call as a whole. The calculator rounds each
-   step's exact result to the display digits in the rounding mode, exact
-   values included, and keeps nothing beyond those digits. No value is
-   inexact, so every answer is written with `=`, apart from the
-   uncertified mark. A number typed with more digits than the display
-   digits is rounded as it is read, unless it passes the significand
-   limit; the limit refuses it before anything rounds it, in either mode
+1. **Every step is rounded once, and the rounded value is the step's
+   exact result.**
+
+   A **step** is an operation you can see:
+
+   - each `+`, `-`, `*`, `/` and `^`;
+   - two factors written side by side;
+   - a negation, a `-` before a product;
+   - each number typed;
+   - each unit, a prefixed unit being one step;
+   - each built-in call, as a whole.
+
+   The calculator rounds each step's exact result in the rounding mode
+   to the **working digits**, a setting that equals the display digits
+   unless you raise it
+   ([Working digits and the extended count](settings.md#working-digits-and-the-extended-count)),
+   and keeps nothing beyond those digits. Exact values are rounded like
+   any other. Under a rounding mode that rounds in one direction, every
+   step rounds that way
+   ([Rounding modes and where they act](#rounding-modes-and-where-they-act)).
+   The rounded value is exact, so no value is inexact, and every answer
+   is written with `=`, apart from the uncertified mark.
+
+   A number typed with more digits than the working digits is rounded
+   as it is read, unless it passes the significand limit; the limit
+   refuses it before anything rounds it, in either mode
    ([Values too big to hold](#values-too-big-to-hold)). A sum whose
-   operands cannot be aligned within that limit is refused in exact mode
-   and correctly rounded here.
+   operands cannot be aligned within that limit is refused in exact
+   mode and correctly rounded here.
 
    | You type              | Exucal shows (decimal mode, eight display digits) |
    | --------------------- | ------------------------------------------------- |
@@ -607,55 +623,61 @@ says otherwise.
    | `1 / (1 / 3 * 3 - 1)` | `= -1e+8`                                         |
    | `1e999999999 + 1`     | `= 1e+999999999`                                  |
 
-2. **A built-in call is one step, certified and rounded once.** The
-   calculator computes the call's value at rising precision, up to the
-   same ceiling as in exact mode, until its rounding to the step's
-   digits is certified; so the precision limit bounds that certification
-   as it bounds the display digits. The error radius serves only inside
-   the step, to certify the rounding of a function's value or of a unit
-   defined through `pi()`, and the step's one rounding removes it. A
-   value that lies exactly halfway between two roundings of the step's
-   digits never certifies. It is then shown as it rounds, under the
-   uncertified mark, `≈` with a dot above it (`≈̇`), with the note "a
-   step could not be certified at the precision limit", and the note
-   stays with every later step. A function defined in the definitions
-   file is not one step but its body's steps, each rounded as a hand
-   calculator rounds each keystroke, where a built-in's value is rounded
-   once ([Functions](definitions.md#functions)).
+2. **A built-in call is one step, certified and rounded once.**
+
+   The calculator computes the call's value at rising precision, up to
+   the same ceiling as in exact mode, until its rounding to the step's
+   digits is certified; so the precision limit bounds that
+   certification as it bounds the display digits. The error radius
+   serves only inside the step, to certify the rounding of a function's
+   value or of a unit defined through `pi()`, and the step's one
+   rounding removes it.
+
+   A value that lies exactly halfway between two roundings of the
+   step's digits never certifies. It is then shown as it rounds, under
+   the uncertified mark, `≈` with a dot above it (`≈̇`), with the note
+   "a step could not be certified at the precision limit", and the note
+   stays with every later step.
+
+   A function defined in the definitions file is not one step but its
+   body's steps, each rounded as a hand calculator rounds each
+   keystroke, where a built-in's value is rounded once
+   ([Functions](definitions.md#functions)).
 
    | You type                   | Exucal shows                                                 | Note                                                                                            |
    | -------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
    | `log(4, 8)`                | `≈̇ 2 (a step could not be certified at the precision limit)` | at one display digit; the value `3/2` is computed inexactly                                     |
    | `(exp(1e-30) - 1) / 1e-30` | `= 0`                                                        | at eight digits: `exp(1e-30)` was rounded to `1` before the subtraction; exact mode gives `≈ 1` |
 
-   | | `log(4, 8)` | `≈̇ 2 (a step could not be certified
-at the precision limit)` | at one display digit; the value `3/2` is
-   computed inexactly | |
-   `(exp(1e-30) - 1) / 1e-30` | `= 0`
-   | at eight digits: `exp(1e-30)` was rounded to `1` before the
-   subtraction; exact mode gives `≈ 1` |
+3. **Decimal mode runs a single outer pass.**
 
-3. **Decimal mode runs a single pass.** There is no retry loop: nothing
-   is computed again at more digits, and an expression that would run
-   to the ceiling in exact mode costs one pass here
-   ([What costs time](#what-costs-time)). `approx` is the identity
-   ([approx](#approx)), and a comparison always decides, since every
-   value is exact.
+   There is no outer retry loop: nothing you typed is computed again at
+   more digits, and only a built-in call retries, inside its own step,
+   as rule 2 says. An expression that would run to the ceiling in exact
+   mode costs one pass here ([What costs time](#what-costs-time)).
+   `approx` is the identity ([approx](#approx)), and a comparison
+   always decides, since every value is exact.
 
-4. **The working digits round every step but the last.** With **working
-   digits** set above the display digits ([Working digits and the
-   extended count](settings.md#working-digits-and-the-extended-count)),
-   every step is rounded to the working digits, and only the last step
-   of each value shown is rounded to the display digits, directly from
-   the exact result of its operation. The last steps are: the result of
-   the expression you typed, when nothing is converted into; the
-   conversion's ratio; a unit list's counts and remainder; and the count
-   a conversion into a function recovers. When something is converted
-   into, the expression typed and what it is converted into are both
-   operands, rounded to the working digits. The **reciprocal line**, the
-   conversion the other way round, is the exception: it is the
-   reciprocal of the ratio shown, at the display digits, whatever the
-   working digits.
+4. **The last step of each value shown is rounded to the display
+   digits.**
+
+   When the working digits are above the display digits, the flow is
+   this. The calculator rounds every intermediate step to the working
+   digits. It rounds only the last step of each value it shows to the
+   display digits, directly from that step's exact result. The last
+   steps are:
+
+   - the result of the expression you typed, when nothing is converted
+     into;
+   - the conversion's ratio;
+   - a unit list's counts and remainder;
+   - the count a conversion into a function recovers.
+
+   When something is converted into, the expression you typed and what
+   it is converted into are both operands, so both are rounded to the
+   working digits. The **reciprocal line**, the conversion the other
+   way round, is the exception: it is the reciprocal of the ratio
+   shown, at the display digits, whatever the working digits.
 
    | You type        | Into | Exucal shows     | Note                       |
    | --------------- | ---- | ---------------- | -------------------------- |
@@ -672,9 +694,7 @@ value a little under 360, where exact mode gives `≈ 360 deg`. And since
 every argument is exact, no argument reaches across an edge: `tan(90
 deg)` may give a value in decimal mode where exact mode fails at the
 pole, because the value is the tangent of the rounded degree, not of a
-right angle. Under a rounding mode that rounds in one direction, every
-step rounds that way ([Rounding modes and where they
-act](#rounding-modes-and-where-they-act)).
+right angle.
 
 ## `approx`
 

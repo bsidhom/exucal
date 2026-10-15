@@ -205,9 +205,11 @@ clarifies; as concise as stays clear; a word a page leans on, such as
 built-ins on any page but the built-ins page is examples, never an
 inventory, since each built-in's entry documents its own exactness;
 and `approx` is always called out as the one operation whose purpose
-is to make a value inexact. A page reads linearly: no term is used
-before the page defines it, and no passage asks the reader to jump
-ahead or read twice. `docs/numbers.md` names the numeric types `Rational`,
+is to make a value inexact. A page reads linearly: no term is used before the page defines it,
+and no passage asks the reader to jump ahead or read twice. Few
+clauses set off by commas as asides, and no fragment that leaves the
+reader to supply its subject and verb ("only its exponent counted"):
+a second sentence instead. `docs/numbers.md` names the numeric types `Rational`,
 `Scaled`, `Radius` and `Ball` and says how they compose.
 
 **The goals, in priority order, and where each is stated (the owner,

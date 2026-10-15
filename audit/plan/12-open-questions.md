@@ -1008,6 +1008,19 @@ decision, are listed after the answers.
   as a name or gloss for the ceiling. §8's two rows, Q-004's applied line, F-429's
   decision, §7's numbers entry and work orders 01 and 06 now say so, "named once"
   reading "explained once" wherever it stood.
+- **The review of the page, third part (2026-10-15).** Ten threads on "How a value is
+  held", all applied, the bulk on readability and flow: "I'm realizing there's too much
+  parenthetical phrasing via comma-separated clauses in general" and "I don't like
+  fragments like 'only its exponent counted'", both now rules in principles.md and the
+  prompt; "in the words of number theory" dropped; the third rule of the canonical form
+  stated as a choice among rules that pin one form, its real reason the equivalence,
+  stated as "if and only if", between a finite decimal expansion and a denominator of one;
+  a pass's precision made specific (ten digits above the display digits at the first pass,
+  doubled at each retry, capped at the ceiling, which is now defined where the grid is);
+  the grid of the ceiling's pass as the finest grid; "Two limits, two units" renamed
+  "Two limits, bits and digits", the owner not liking "unit" for a configured limit, and
+  its paragraph rewritten directly, with a reminder of why an inexact midpoint's
+  denominator is one.
 
 ### The review's other corrections
 

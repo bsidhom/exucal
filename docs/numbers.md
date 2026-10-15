@@ -84,7 +84,7 @@ This page explains the following rules:
   precision limit caps how far the retry loop may climb to certify
   them. The significand limit must hold the fraction that climb ends
   at, so it caps the precision limit in turn
-  ([Two limits, two units](#two-limits-two-units)).
+  ([Two limits, bits and digits](#two-limits-bits-and-digits)).
 - **What is written is predictable**: an output line is a function of
   the value, its exactness and the settings, and pastes back as input
   ([How numbers are written](#how-numbers-are-written)).
@@ -186,11 +186,10 @@ you asked for.
 
 ## How a value is held
 
-Two settings bound a value, the significand limit in bits and the
-precision limit in decimal digits, and the message that refuses a value
-names one of them. To predict both, you need to know how a value is
-held. The same knowledge is where the calculator's predictability comes
-from.
+Two settings bound a value: the significand limit, in bits, and the
+precision limit, in decimal digits. A message that refuses a value
+names one of them. To predict both, and to see why the calculator is
+predictable, you need to know how a value is held.
 
 ### The fraction and its canonical form
 
@@ -208,24 +207,22 @@ The fraction is kept in one fixed form, its **canonical form**:
 
 - in lowest terms;
 - with every power of ten moved out of the fraction into the exponent;
-- with a denominator that has no factor of two or five at all (coprime
-  to ten, in the words of number theory).
+- with a denominator coprime to ten: no factor of two or five at all.
 
 So `2.54` is held as `254` times `10^-2`, and `1/6` as `5/3` times
 `10^-1`: the two of the six is traded for a five above the line and one
 power of ten in the exponent.
 
-Each rule earns its place, and only the three together pin a value to
-one form. Lowest terms makes `2/4` and `1/2` one fraction. Moving every
-power of ten into the exponent keeps the significand small while the
-exponent flexes, so that magnitude costs nothing. The third rule is the
-one that looks odd, since it turns `1/2` into `5 × 10^-1`; without it,
-those would be two forms of one value, and comparing parts would not
-decide equality. With it, a value has a finite decimal expansion
-exactly when its denominator is `1`, and its significand is then its
-digits, which puts exact values and the digits the display writes in
-one form. Other conventions were possible, and this one is a choice;
-that alignment is what it buys.
+Each rule earns its place. Lowest terms makes `2/4` and `1/2` one
+fraction. Moving every power of ten into the exponent keeps the
+significand small while the exponent flexes, so magnitude costs
+nothing. The third rule looks odd, since it turns `1/2` into
+`5 × 10^-1`. The three together pin a value to one form, but another
+rule for the twos and fives would pin it just as well, to a different
+form. The real reason for this one is decimal: with it, a value has a
+finite decimal expansion if and only if its denominator is `1`, and
+its significand is then exactly its digits. That puts exact values and
+the digits the display writes in one form.
 
 A value has exactly one canonical form, whatever route a computation
 reaches it by, because each step of building it is forced:
@@ -249,33 +246,35 @@ limit the same way, by every route.
 | `1/6`, `5/30`, `0.5/3`                    | `5/3 × 10^-1` |
 | `1e30/3`, `(1/3)*1e30`                    | `1/3 × 10^30` |
 
-Nothing else touches an exact value in exact mode: no digits setting
+In exact mode nothing else touches an exact value. No digits setting
 applies to it, and an exact result of exact operands is never rounded.
-Only where an exact value meets an inexact one is any of it rounded,
-into the inexact result's error radius ([Operations that stay
-exact](#operations-that-stay-exact-exact-cases-of-functions)).
+An exact value is rounded only where it meets an inexact one, and that
+rounding goes into the inexact result's error radius
+([Operations that stay exact](#operations-that-stay-exact-exact-cases-of-functions)).
 
 ### The digits an inexact value is kept to
 
 An inexact value is never held to more digits than its error radius
-makes meaningful. The calculator computes an answer in one or more
-passes, each a computation at a set precision, a count of decimal
-digits, and retries at a higher precision when the digits asked for do
-not certify ([Digits you can trust](#digits-you-can-trust) gives the
-schedule). Within a pass, every inexact midpoint is kept on the pass's
-**grid**: the set of values with a fixed number of significant digits,
-a little beyond the precision the pass works at. After every step the
-midpoint is rounded onto the grid, and the rounding is charged to the
-error radius. A grid value is decimal digits times a power of ten, the
-same `Scaled` form the display writes, so the digits computed and the
-digits shown are one thing.
+makes meaningful. The calculator computes an answer in passes, each at
+a precision counted in decimal digits. The first pass runs ten digits
+above the display digits. Each retry doubles the precision. No pass
+runs above the **ceiling**, the highest precision any pass computes
+at, which the precision limit sets
+([Digits you can trust](#digits-you-can-trust) gives the schedule).
+Within a pass, every inexact midpoint is kept on the pass's **grid**:
+the set of values with a fixed number of significant digits, about ten
+beyond the pass's precision. After every step the midpoint is rounded
+onto the grid, and the rounding is charged to the error radius. A grid
+value is decimal digits times a power of ten, the same `Scaled` form
+the display writes, so the digits computed and the digits shown are
+one thing.
 
 ### The power of ten is free; a power of two is not
 
-The exponent costs nothing, whatever its size: `10^1000000000` is
-`= 1e+1000000000`, only its exponent counted, against the exponent
-bound. That bound caps the exponent itself, not the value, at `10^18`
-either way, so `1e1000000000000000000` is a value, and nothing larger
+The exponent costs nothing, whatever its size. `10^1000000000` is
+`= 1e+1000000000`, and the calculator counts only its exponent, against
+the exponent bound. That bound caps the exponent itself at `10^18`
+either way, so `1e1000000000000000000` is a value and nothing larger
 is ([Values too big to hold](#values-too-big-to-hold)).
 
 A power of two in a denominator is another matter. The canonical form
@@ -291,21 +290,20 @@ number that simple by its factors is still a big number by its digits
 digits), and `approx` is the way to compute with one
 ([approx](#approx)).
 
-### Two limits, two units
+### Two limits, bits and digits
 
-Everything the calculator holds lives within the significand limit,
-inexact values included: the midpoint of an inexact value is a
-fraction too, a whole number of digits over one, and the grid it is
-rounded onto must fit within the limit like any other fraction. That
-is why the limits come in two units. The **significand limit**, in
-bits, bounds the fraction every value is held as. The **precision
-limit**, in decimal digits, bounds how far an inexact value is
-refined: the highest precision any pass computes at, the **ceiling**,
-is set from it, and the midpoint at the ceiling must fit within the
-significand limit, so the significand limit caps the precision limit
-in turn, and with it the finest grid: the set of values the ceiling's
-pass rounds onto, a little finer than the ceiling itself, and the
-finest any value is ever held on
+The significand limit bounds every value the calculator holds, exact
+or inexact. An inexact midpoint is a grid value, a finite decimal, so
+its canonical denominator is `1` and its significand is its digits;
+the grid it is rounded onto must fit within the limit like any other
+fraction. So one limit is counted in bits and the other in digits. The
+**significand limit**, in bits, bounds the fraction every value is
+held as. The **precision limit**, in decimal digits, bounds how far an
+inexact value is refined: it sets the ceiling, and the grid of the
+ceiling's pass must fit within the significand limit. The significand
+limit therefore caps the precision limit in turn, and with it the
+finest grid, the grid of the ceiling's pass, which is a little finer
+than the ceiling itself and the finest any value is ever held on
 ([How the settings bound each other](settings.md#how-the-settings-bound-each-other)).
 
 ## Operations that stay exact; exact cases of functions

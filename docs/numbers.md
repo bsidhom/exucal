@@ -325,8 +325,9 @@ exact value is never replaced by a different exact value.
 | `3^20`      | `≈ 3.4867844e+9` | exact and entire, `3486784401`, written to eight display digits |
 
 What the arithmetic cannot do exactly, it does not do inexactly on its
-own. A sum whose operands cannot be aligned within the significand
-limit is refused rather than rounded.
+own. A sum first aligns its operands at one scale, as on paper; when they
+cannot both be written at that scale within the significand limit, the
+sum is refused rather than rounded.
 
 | You type          | Exucal shows                                                                                    |
 | ----------------- | ----------------------------------------------------------------------------------------------- |
@@ -373,13 +374,21 @@ every value within the error radius rounds to it. The calculator first
 computes at a precision ten digits above the display digits; that
 computation is one **pass**. Where the digits do not certify, it
 computes again at twice the precision, pass by pass, up to the ceiling
-([Precision limit](settings.md#precision-limit) gives the number). This
-is the **retry loop**. The display digits themselves may be set as high
-as the precision limit. An expression whose digits never certify runs
-every pass up to the ceiling on every keystroke, so what the precision
-limit limits is effort ([What costs time](#what-costs-time); the passes
-and the precision each works at are in [the schedule of
-passes](../devdocs/numbers.md#working-precision-and-the-schedule)).
+([Precision limit](settings.md#precision-limit) gives the number). This is the **retry loop**. The display digits themselves may be set
+as high as the precision limit. An expression whose digits never
+certify runs every pass up to the ceiling on every keystroke, so the
+precision limit limits effort ([What costs time](#what-costs-time);
+the passes and the precision each works at are in
+[the schedule of passes](../devdocs/numbers.md#working-precision-and-the-schedule)).
+
+The loop runs over the whole computation, never over a part of it.
+Each pass evaluates everything you typed, conversion included, from
+the start at its own precision, and keeps from the pass before only
+the best result so far, which is what the ceiling shows when no pass
+certifies. A subexpression is never recomputed on its own: when a step
+certifies poorly, the whole expression runs again at twice the
+precision. In decimal mode the loop belongs to each built-in call
+instead ([The two modes](#the-two-modes)).
 
 On an output line, `=` means that the value is exact and every digit
 it has is shown; `≈` means that digits were rounded away or that a
@@ -422,9 +431,9 @@ dot above it, and a note says so ([The two modes](#the-two-modes)).
 
 ## Comparison and equality
 
-A comparison is decided by the error radii as much as by the values.
-This section says when a comparison is decided and when it is not, and
-what equality means here.
+A comparison is decided by both the midpoints and the radii. This
+section says when a comparison is decided and when it is not; it also
+says what equality means here.
 
 A comparison appears in the conditions of a defined function
 ([Functions](definitions.md#functions)) and inside every built-in that
@@ -445,12 +454,16 @@ comparison, `<` or `>`, in its favour, and it decides a non-strict one,
 | `tempC(-273.15)`         | `= 0 K`                                          | exact: the condition `x >= -273.15` is met                                                                         |
 | `tempC(approx(-273.15))` | `≈ 0 K (within 2e-4047 of zero)`, with a warning | the range reaches across `-273.15`, so the condition cannot be decided at any pass, and the value assumes it holds |
 
-Two inexact values are compared through their difference against
-zero. Where the two cannot be aligned, the smaller operand is absorbed
-into the error radius, so alignment never blocks the difference. A
-difference whose exponent would pass the bound cannot be formed as a
-value; it counts as reaching across zero, and the comparison is
-undecided.
+To compare two inexact values, the calculator subtracts one from the
+other and compares the difference with zero. The difference carries
+both error radii, so it decides the comparison when it lies on one
+side of zero and leaves it undecided when it reaches across. Two cases
+need care. When the values differ so much in magnitude that the
+smaller cannot be written at the larger's scale within the significand
+limit, the smaller is absorbed into the error radius, and the
+difference is still formed. When the difference's exponent would pass
+the exponent bound, the difference cannot be held as a value; it
+counts as reaching across zero, and the comparison is undecided.
 
 There is no equality operator and no `!=`. The comparisons are `<`,
 `<=`, `>` and `>=`. Equality appears in three places only: as `=` on
@@ -460,7 +473,7 @@ conversion into a function makes
 
 The next section says where an undecided comparison surfaces: at a
 divisor, a function's domain or pole, a rounding function, the
-exponent bound, and that check.
+exponent bound, and the check a conversion into a function makes.
 
 ## Values at an edge
 
@@ -468,11 +481,18 @@ Some points are edges: a result would jump if the value lay a hair to
 one side of them. This section says what the calculator does when an
 inexact value reaches across one.
 
-The edges are zero as a divisor; the end of a function's domain (`1`
-for `asin`); a pole of the function (`tan` at `90 deg`, `gamma` at
-zero); a whole number for `floor` and a point halfway between two
-roundings for `round`; a multiple of the divisor for `div` and `mod`;
-and the point where a result passes the exponent bound.
+The edges are:
+
+- zero, as a divisor;
+- the end of a function's domain, as `1` for `asin`;
+- a pole of a function, as `90 deg` for `tan` or zero for `gamma`;
+- a whole number, for `floor`, `ceil` and `trunc`, and for `round` in
+  a mode that rounds in one direction;
+- a point halfway between two roundings, for `round` in a mode to
+  nearest;
+- zero, for `sign`;
+- a multiple of the divisor, for `div` and `mod`;
+- the point where a result passes the exponent bound.
 
 An inexact value whose error radius reaches across such an edge is not
 guessed at. The calculator computes again at more digits, pass by pass.
@@ -480,12 +500,13 @@ When the error radius still reaches across the edge at the ceiling, the
 result is an error: the value **cannot be told from** the edge at this
 precision. An exact value exactly on an edge is decided.
 
-| You type                                 | Exucal shows                                   | Note                                                                                                                                                                            |
-| ---------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `(2^(1/2))^2 - 2`                        | `≈ 0 (within 4e-4049 of zero)`                 | zero within a bound at every precision                                                                                                                                          |
-| `1 / ((2^(1/2))^2 - 2)`                  | an error: the divisor cannot be told from zero |                                                                                                                                                                                 |
-| `exp(approx(1e999) - approx(1e999 - 5))` | `≈ 148.41316`                                  | at its first pass the difference is `5` only within a wide error radius, which reaches across the exponent bound; the calculator retries until the radius lies within the bound |
-| `floor(2)`                               | `= 2`                                          | an exact value on the edge is decided                                                                                                                                           |
+| You type                                 | Exucal shows                                     | Note                                                                                                                                                                            |
+| ---------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `(2^(1/2))^2 - 2`                        | `≈ 0 (within 4e-4049 of zero)`                   | zero within a bound at every precision                                                                                                                                          |
+| `1 / ((2^(1/2))^2 - 2)`                  | an error: the divisor cannot be told from zero   |                                                                                                                                                                                 |
+| `exp(approx(1e999) - approx(1e999 - 5))` | `≈ 148.41316`                                    | at its first pass the difference is `5` only within a wide error radius, which reaches across the exponent bound; the calculator retries until the radius lies within the bound |
+| `floor(2)`                               | `= 2`                                            | an exact value on the edge is decided                                                                                                                                           |
+| `round(approx(2.5))`                     | an error: the argument cannot be told from `2.5` | a tie: the radius reaches across the halfway point at every precision, so every pass runs and the ceiling fails                                                                 |
 
 A value that still reaches across the bound at the ceiling cannot be
 told from the point where the result passes it.
@@ -498,6 +519,13 @@ value that cannot be told from zero and others do not:
 - `floor`, `ceil`, `sign` and `round` (in the modes away from zero, up
   and down) do not, and the result is an error
   ([Rounding modes and where they act](#rounding-modes-and-where-they-act)).
+
+`round` has an edge of its own in the three modes to nearest: a point
+halfway between two roundings. An inexact value whose error radius
+reaches across one cannot be told from it at any pass, however small
+the radius, so `round(approx(2.5))` runs to the ceiling and is an error
+there, where `round(2.5)` is decided. In a mode that rounds in one
+direction the halfway point is no edge, and the whole numbers are.
 
 ## Identities and cancellation
 

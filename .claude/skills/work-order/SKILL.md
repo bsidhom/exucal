@@ -138,8 +138,10 @@ Read nothing else in the corpus or the tree.
   never an inventory, each built-in's entry documenting its own
   exactness; `approx` is always called out as the one operation whose
   purpose is to make a value inexact; the page reads linearly, no term used before the page defines it;
-  few clauses set off by commas as asides, and no fragment that leaves
-  the reader to supply its subject and verb: a second sentence instead.
+  few clauses set off by commas as asides; no fragment that leaves the
+  reader to supply its subject and verb, a second sentence instead; no
+  cleft sentence ("what the limit limits is effort"), the plain subject
+  and verb instead.
 - **The words and the format** follow `audit/plan/08-terminology.md` and
   the principles: the Markdown subset (inline links only, repo-relative
   between pages, absolute only for an external reference such as an

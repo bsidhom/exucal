@@ -1019,8 +1019,22 @@ decision, are listed after the answers.
   doubled at each retry, capped at the ceiling, which is now defined where the grid is);
   the grid of the ceiling's pass as the finest grid; "Two limits, two units" renamed
   "Two limits, bits and digits", the owner not liking "unit" for a configured limit, and
-  its paragraph rewritten directly, with a reminder of why an inexact midpoint's
-  denominator is one.
+  its paragraph rewritten directly, with a reminder of why an inexact midpoint's denominator is
+  one.
+- **The review of the page, fourth part (2026-10-15).** Nine threads, eight applied and one
+  a remark on the prompt (its own fragments are for the session, not for a page; no change).
+  The cleft "what the precision limit limits is effort" is a style rule now, in
+  principles.md and the prompt. "Digits you can trust" says at what level the retry loop
+  runs and how it is seeded: over the whole computation, every pass evaluating everything
+  typed from the start, keeping only the best result so far, never a subexpression on its
+  own, with decimal mode's loop belonging to each built-in call. "Comparison and equality"
+  opens on the midpoints and the radii, its lead-in shortened; the comparison of two
+  inexact values is restated without "aligned"; "that check" is named. The edges are a
+  bulleted list, precise per function and mode (whole numbers for `floor`, `ceil`, `trunc`
+  and `round` in a directed mode; the halfway points for `round` in a mode to nearest;
+  zero for `sign`), and the tie that `round` cannot decide at any pass, raised in review,
+  is stated with `round(approx(2.5))` as its example, run through the evaluator under the
+  default and the directed modes.
 
 ### The review's other corrections
 

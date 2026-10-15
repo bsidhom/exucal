@@ -1048,6 +1048,19 @@ decision, are listed after the answers.
   its step; rule 4 is titled by what happens, the last step rounded to the display
   digits, and describes the flow in order. A leftover fragment of a table, from the
   re-wrap of the style pass, is removed. The summary's bullet on the modes follows.
+- **The review of the page, sixth part (2026-10-15).** Six threads, all applied. Rule 1 of
+  decimal mode says a call of a defined function is not one step but its body's steps;
+  rule 2 says the tie that never certifies is an inexact value's, its radius reaching
+  across the tie at every precision, and that an exact value on a tie is rounded by the
+  mode, with `pow(2.25, 1/2)` at one display digit over twelve working digits (`= 2`)
+  beside `log(4, 8)` in the table; rule 4 says what the reciprocal line is and that the
+  calculator computes it from the ratio as shown, the reciprocal of the rounded ratio
+  rounded to the display digits, checked on `7 m` into `ft`; `approx` is stated to take a
+  quantity with a unit, keeping the unit and making only the magnitude inexact, as the
+  review noted it does today; the paragraph on what `approx` cannot help names each case
+  (`sin` of a huge angle, `exp` at the bound, a power's exponent that the significand
+  limit cannot hold, the whole-number functions), with `approx(2)^1e-30000` in the table;
+  and the paragraph on `exp` reads directly, in the simple tense.
 
 ### The review's other corrections
 

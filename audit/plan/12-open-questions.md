@@ -1035,6 +1035,19 @@ decision, are listed after the answers.
   zero for `sign`), and the tie that `round` cannot decide at any pass, raised in review,
   is stated with `round(approx(2.5))` as its example, run through the evaluator under the
   default and the directed modes.
+- **The review of the page, fifth part (2026-10-15).** Ten threads on "The two modes", all
+  applied. The lead-in no longer says the rest of the page describes exact mode; the one
+  statement that a section means exact mode when it names none is the exact-mode
+  subsection's. Decimal mode's four rules are each a bold sentence followed by short
+  paragraphs, the step's definition and the last steps as nested bulleted lists, in the
+  multi-paragraph list-item syntax of CommonMark, which prettier parses. Rule 1 says that
+  a step is rounded to the working digits, defined there as the setting that equals the
+  display digits unless raised, that the rounded value is the step's exact result, and
+  that under a directed rounding mode every step rounds that way, moved up from the
+  consequences; rule 3 says "no outer retry loop", since a built-in call retries inside
+  its step; rule 4 is titled by what happens, the last step rounded to the display
+  digits, and describes the flow in order. A leftover fragment of a table, from the
+  re-wrap of the style pass, is removed. The summary's bullet on the modes follows.
 
 ### The review's other corrections
 

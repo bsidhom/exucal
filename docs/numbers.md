@@ -713,7 +713,12 @@ may round it. This section says what it does and what it cannot do.
 `approx(x)` is `x` known to the precision of the pass and no better.
 An exact argument becomes inexact, with an error radius of one unit in
 the last of the digits the pass keeps; an inexact argument is left as
-it is, never narrowed. `approx` takes a quantity with a unit as well as a plain number; it
+it is, never narrowed. The radius is set on the magnitude as the
+calculator holds it, in the primitive units
+([Primitives, dimensions and kinds](quantities.md#primitives-dimensions-and-kinds)),
+so its absolute size follows that magnitude and not the number you
+typed; relative to the value it is the same either way, one part in
+the digits the pass keeps. `approx` takes a quantity with a unit as well as a plain number; it
 keeps the unit and makes only the magnitude inexact, so `approx(2 m)`
 is `≈ 2 m`. It leaves a zero as it is, and a value that is zero within
 a bound keeps its bound. In decimal mode it is the identity, since every value there is already
@@ -745,9 +750,10 @@ asked once one operand is inexact, and shown with `≈` instead of `=`
 `approx` says how well a value is known, not how large it is. It never
 changes an exponent, and it relaxes a limit only where an inexact
 operand changes the arithmetic, as the table above shows. Where the
-arithmetic is the same either way, `approx` does not help. `sin` of a
-huge angle must first reduce the angle, at the angle's own size,
-whether the angle is exact or not. `exp` of a huge argument is refused
+arithmetic is the same either way, `approx` does not help. `sin` of a huge angle must first subtract a multiple of `2π` from it,
+and for that it needs `π` to as many digits as the angle has before its
+decimal point, which the significand limit cannot hold for
+`1e999999999 radian` whether the angle is exact or not. `exp` of a huge argument is refused
 at the exponent bound for every value within the error radius. A
 power's exponent must be formed within the significand limit before
 anything is computed, so `approx(2)^1e-30000` is refused as
@@ -776,8 +782,9 @@ within the argument's error radius, refuses, and the retry loop ends.
 The rounding mode is one setting with three places to act. This section
 says where.
 
-The **rounding mode** ([Rounding](settings.md#rounding)) is the rule for
-the last digit kept when a value is cut to fewer digits than it has.
+The **rounding mode** ([Rounding](settings.md#rounding)) decides the
+last digit kept when the calculator cuts a value to fewer digits than
+it has.
 Three modes round to the nearest value and differ only on a value
 exactly halfway between two roundings: the default sends it to the
 even digit, and the other two send it away from zero or toward zero.
@@ -815,10 +822,11 @@ Everything else that stops a result (a mismatch, a condition that
 fails, a value that cannot be told from an edge) is an error.
 
 A value is held as a significand times a power of ten ([How a value is
-held](#how-a-value-is-held)). The settings bound the significand: the
-display digits and the precision limit say how many of its digits must
-be certified, and the significand limit says how many bits its numerator
-and its denominator may have. The exponent has a fixed bound of its own,
+held](#how-a-value-is-held)). The settings bound the significand. The significand limit says how
+many bits its numerator and its denominator may have. The precision
+limit, which the significand limit bounds in turn, says how far an
+inexact value is refined, and the display digits say how many of its
+digits must be certified. The exponent has a fixed bound of its own,
 `10^18` either way, and that bound is not a setting. `1e999` is `1 ×
 10^999`, well within both. `exp(1e999)` has a significand that 32 digits
 hold with ease and an exponent that is itself a number of 999 digits:
@@ -826,10 +834,10 @@ hold with ease and an exponent that is itself a number of 999 digits:
 ```
 exp(1e999) = 2.0307164965753263882718190599363 × 10^434294481903251827…4497145
              └───────── significand ─────────┘      └─────── exponent ───────┘
-             the settings' part: the display        fixed, not a setting:
-             digits, the precision limit and        at most 10^18 either
-             the significand limit; 32 digits       way; this one has 999
-             fit with ease                          digits, 4.3 × 10^998
+             the settings' part: the significand    fixed, not a setting:
+             limit, the precision limit and the     at most 10^18 either
+             display digits; 32 digits fit with     way; this one has 999
+             ease                                   digits, 4.3 × 10^998
 ```
 
 ### The significand limit
@@ -845,11 +853,14 @@ it would need, exactly or about, where the operation knows:
 ```
 
 Where the operation that refused expects the same step to fit when
-computed inexactly, the message suggests what to try: `approx(…)` around
-the operand it names, so that the part is computed to the digits asked
-and shown with `≈` ([approx](#approx)); or decimal mode, which rounds
-every step and so never holds the exact value. Where the operation
-expects the value to pass the limit however it is computed, the message
+computed inexactly, the message suggests what to try:
+
+- `approx(…)` around the operand it names, so that the part is computed
+  to the digits asked and shown with `≈` ([approx](#approx));
+- decimal mode, which rounds every step and so never holds the exact
+  value ([The two modes](#the-two-modes)).
+
+Where the operation expects the value to pass the limit however it is computed, the message
 says so and suggests nothing; whether a wider limit would help is yours
 to judge. That is the case for a built-in whose value needs more bits
 than the limit holds even when rounded (`factorial(20000)`, or `sin` of
@@ -858,16 +869,22 @@ digits than the limit; and for a power whose exponent cannot be formed
 within it (`2^1e-30000`). The suggestion is the operation's expectation,
 not a promise.
 
-A refusal is never retried at more digits. One that a later pass is the
-first to meet ends the retry loop with the best result so far, and the
-message says which failure it is, so that you can decide whether a wider
-limit, `approx` or decimal mode would help. A built-in that works at its
-argument's own size refuses by that size whether the argument is exact
-or not, so `approx` does not help there; the whole-number functions'
-refusals, `factorial`'s among them, never offer `approx` or decimal mode
-and apply in both modes; and `round(x, places)` and `mod` are refused
-when their results would pass the limit. A number typed longer than the
-highest significand limit that can be set is refused as it is typed. The
+A refusal is never retried at more digits. A refusal that the early
+passes did not meet but a later, finer pass does ends the retry loop.
+If an earlier pass produced a result, and that result rests on no
+undecided condition, the result is shown, with its note; otherwise the
+refusal is shown, and its message says which limit was passed, so that
+you can decide whether a wider limit, `approx` or decimal mode would
+help. Some built-ins need their argument to more
+digits than the result shows, as `sin` of a huge angle needs `π` to the
+angle's own length; they are refused at the significand limit when the
+argument is too large, exact or inexact, so `approx` does not help
+them. The whole-number functions' refusals, `factorial`'s among them,
+never offer `approx` or decimal mode and apply in both modes.
+`round(x, places)` and `mod` are refused when their results would pass
+the limit. A number you type with more digits than the significand
+limit can ever be set to hold is refused as you type it, whatever the
+limit is set to. The
 limit is what makes `3^1000000000` a refusal rather than a hang; the
 setting is in [Significand limit](settings.md#significand-limit).
 
@@ -881,8 +898,12 @@ value is exact or inexact:
 "exp(1e999)" is too large to compute: its exponent would pass 10^18.
 ```
 
-The bound applies to the value's own exponent, not to the exponent of
-the form it is held in. Zero is within the bound at any exponent, so a
+The bound is on the value's magnitude, the power of ten of its leading
+digit, and not on the exponent of its canonical form, which can differ
+from that by the length of the significand:
+`1e1000000000000000000 / 3 * 10` is a value, its magnitude
+`3.3e1000000000000000000` within the bound, though its canonical
+exponent is one past it. Zero is within the bound at any exponent, so a
 value that is zero within a bound is never refused at the bound,
 however small the bound. A number typed past the bound is refused as
 it is typed. So is a number within the bound whose rounding to the

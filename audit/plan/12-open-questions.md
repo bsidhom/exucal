@@ -1061,6 +1061,19 @@ decision, are listed after the answers.
   (`sin` of a huge angle, `exp` at the bound, a power's exponent that the significand
   limit cannot hold, the whole-number functions), with `approx(2)^1e-30000` in the table;
   and the paragraph on `exp` reads directly, in the simple tense.
+- **The review of the page, seventh part (2026-10-15).** Eight threads, all applied. The
+  `approx` section says that the radius is set on the magnitude as held, in the primitive
+  units, so that its absolute size follows that magnitude and its relative size is the
+  same whatever unit was typed (the review's point, with the relative error the invariant);
+  "at the argument's own size", which the review could not parse, is gone from the page,
+  replaced by what it meant, that `sin` of a huge angle needs `π` to as many digits as the
+  angle has before its decimal point; the rounding mode's definition is active; the three
+  settings are named in the order of what bounds what, the significand limit first, with
+  the precision limit bounded by it, in the prose and in the diagram; the message's two
+  suggestions are a list; the refusal a later pass meets is restated, with what is shown
+  in each case; the parse-time refusal of a number longer than the limit can ever be set
+  to hold is said plainly; and the exponent bound is stated as a bound on the value's
+  magnitude, not on the canonical exponent, with the example that differs in the two.
 
 ### The review's other corrections
 

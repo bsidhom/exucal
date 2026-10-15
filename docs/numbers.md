@@ -599,6 +599,9 @@ precision.
    - each unit, a prefixed unit being one step;
    - each built-in call, as a whole.
 
+   A call of a defined function is not one step but its body's steps;
+   rule 2 says more.
+
    The calculator rounds each step's exact result in the rounding mode
    to the **working digits**, a setting that equals the display digits
    unless you raise it
@@ -633,21 +636,24 @@ precision.
    value or of a unit defined through `pi()`, and the step's one
    rounding removes it.
 
-   A value that lies exactly halfway between two roundings of the
-   step's digits never certifies. It is then shown as it rounds, under
-   the uncertified mark, `≈` with a dot above it (`≈̇`), with the note
-   "a step could not be certified at the precision limit", and the note
-   stays with every later step.
+   An inexact value whose true value lies exactly halfway between two
+   roundings of the step's digits never certifies: its error radius
+   reaches across the tie at every precision. It is then shown as it
+   rounds, under the uncertified mark, `≈` with a dot above it (`≈̇`),
+   with the note "a step could not be certified at the precision
+   limit", and the note stays with every later step. An exact value on
+   a tie is simply rounded by the mode.
 
    A function defined in the definitions file is not one step but its
    body's steps, each rounded as a hand calculator rounds each
    keystroke, where a built-in's value is rounded once
    ([Functions](definitions.md#functions)).
 
-   | You type                   | Exucal shows                                                 | Note                                                                                            |
-   | -------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-   | `log(4, 8)`                | `≈̇ 2 (a step could not be certified at the precision limit)` | at one display digit; the value `3/2` is computed inexactly                                     |
-   | `(exp(1e-30) - 1) / 1e-30` | `= 0`                                                        | at eight digits: `exp(1e-30)` was rounded to `1` before the subtraction; exact mode gives `≈ 1` |
+   | You type                   | Exucal shows                                                 | Note                                                                                                 |
+   | -------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+   | `log(4, 8)`                | `≈̇ 2 (a step could not be certified at the precision limit)` | at one display digit; the value `3/2` is computed inexactly                                          |
+   | `(exp(1e-30) - 1) / 1e-30` | `= 0`                                                        | at eight digits: `exp(1e-30)` was rounded to `1` before the subtraction; exact mode gives `≈ 1`      |
+   | `pow(2.25, 1/2)`           | `= 2`                                                        | at one display digit over twelve working digits: an exact case, `1.5`, on a tie, rounded by the mode |
 
 3. **Decimal mode runs a single outer pass.**
 
@@ -675,9 +681,11 @@ precision.
 
    When something is converted into, the expression you typed and what
    it is converted into are both operands, so both are rounded to the
-   working digits. The **reciprocal line**, the conversion the other
-   way round, is the exception: it is the reciprocal of the ratio
-   shown, at the display digits, whatever the working digits.
+   working digits. The **reciprocal line**, the line under a conversion
+   that gives the unit you asked for as a multiple of what you typed,
+   is the exception. The calculator computes it from the ratio as
+   shown: it takes the reciprocal of the rounded ratio and rounds that
+   to the display digits, so the working digits play no part in it.
 
    | You type        | Into | Exucal shows     | Note                       |
    | --------------- | ---- | ---------------- | -------------------------- |
@@ -705,9 +713,10 @@ may round it. This section says what it does and what it cannot do.
 `approx(x)` is `x` known to the precision of the pass and no better.
 An exact argument becomes inexact, with an error radius of one unit in
 the last of the digits the pass keeps; an inexact argument is left as
-it is, never narrowed. `approx` keeps the dimension and leaves a zero
-as it is, a value that is zero within a bound keeping its bound. In
-decimal mode it is the identity, since every value there is already
+it is, never narrowed. `approx` takes a quantity with a unit as well as a plain number; it
+keeps the unit and makes only the magnitude inexact, so `approx(2 m)`
+is `≈ 2 m`. It leaves a zero as it is, and a value that is zero within
+a bound keeps its bound. In decimal mode it is the identity, since every value there is already
 rounded ([The two modes](#the-two-modes)). Its unit of error lies well
 beyond the display digits, so `approx(2.54) cm` into `in` is `≈ 1 in`:
 the digits are the same, and the `≈` is the point.
@@ -734,27 +743,33 @@ asked once one operand is inexact, and shown with `≈` instead of `=`
 | `approx(3^32767) * 7^21845` | `≈ 9.9732685e+34094`    |                                                       |
 
 `approx` says how well a value is known, not how large it is. It never
-changes an exponent, and it relaxes no limit except where an inexact
-operand changes the arithmetic. A function that works at its
-argument's own size refuses by that size whether the argument is
-inexact or not. `approx` on the base of a power does not help an
-exponent that cannot itself be formed within the significand limit.
+changes an exponent, and it relaxes a limit only where an inexact
+operand changes the arithmetic, as the table above shows. Where the
+arithmetic is the same either way, `approx` does not help. `sin` of a
+huge angle must first reduce the angle, at the angle's own size,
+whether the angle is exact or not. `exp` of a huge argument is refused
+at the exponent bound for every value within the error radius. A
+power's exponent must be formed within the significand limit before
+anything is computed, so `approx(2)^1e-30000` is refused as
+`2^1e-30000` is. And the whole-number functions, `factorial` among
+them, take only an exact argument.
 
 | You type                          | Exucal shows                                                |
 | --------------------------------- | ----------------------------------------------------------- |
 | `exp(approx(1e999))`              | too large to compute, as `exp(1e999)` is                    |
 | `sin(approx(1e999999999) radian)` | past the significand limit, as `sin(1e999999999 radian)` is |
+| `approx(2)^1e-30000`              | past the significand limit, as `2^1e-30000` is              |
 
-Nor would `approx` help `exp` if the exponent were allowed, because of
-what the exponential does to an error radius. `exp(x ± r)` is `exp(x)`
-times a factor between `e^-r` and `e^r`, so the argument's absolute
-error radius becomes the result's relative error, and `exp` of a large
-argument needs that argument to many more digits than the result
-shows. At the first pass `exp` finds that the result's exponent passes
-the bound for every value within the argument's error radius, refuses,
-and the retry loop ends there. An exact argument gives those digits
-for free; an inexact one gives them only after enough passes to shrink
-its error radius below one.
+`approx` would not help `exp` even if the exponent were allowed,
+because of what the exponential does to an error radius. `exp(x ± r)`
+is `exp(x)` times a factor between `e^-r` and `e^r`: the argument's
+absolute error radius becomes the result's relative error. So `exp` of
+a large argument needs that argument to many more digits than the
+result shows. An exact argument has those digits already. An inexact
+argument has them only after enough passes to shrink its error radius
+below one, and the loop never gets there: at the first pass `exp`
+finds that the result's exponent passes the bound for every value
+within the argument's error radius, refuses, and the retry loop ends.
 
 ## Rounding modes and where they act
 

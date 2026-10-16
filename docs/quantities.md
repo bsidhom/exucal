@@ -5,17 +5,18 @@ quantity. A **quantity** is a **scalar** paired with a **dimension**.
 The scalar is a value (a `Ball`, as [Numbers](numbers.md) describes
 it), exact or inexact; the dimension is the thing the quantity
 measures: a length, a speed, an energy, etc. Some quantities also carry
-a **kind**, a marker that keeps apart quantities which would otherwise
-look alike; the radian, which marks an angle, is one such marker. A
+a **kind**, a marker that keeps apart quantities which share a
+dimension and would otherwise look alike; the radian, which marks an
+angle, is one such marker. A
 quantity carries its dimension and its kind through every operation
 and every conversion.
 
-Unit awareness, in calculation and in conversion, promises three
-things:
+Because the calculator keeps track of them, in calculation and in
+conversion, it promises three things:
 
 - a result's dimension is right, and the result is written in the unit
   you ask for;
-- a conversion is exact wherever the definitions are exact;
+- a conversion is exact wherever the units' definitions are exact;
 - a mismatch of dimension or kind, in a sum, a conversion or a call, is
   an error and never a number.
 
@@ -34,17 +35,19 @@ text file in the definition language that the app loads as it starts
 [Units](units.md) lists the contents). A **unit** is a name the file
 gives to a quantity, the metre or the inch, so that other quantities
 can be written as multiples of it; the file also defines prefixes, unit
-lists and functions, and it declares the primitives and the kinds. The
+lists and functions, and it declares the primitives, the base
+quantities every dimension is built from, and the kinds. The
 app loads the predefined definitions file, the one that ships with it,
 and this page describes the calculator with that file loaded.
 
 Examples on this page give what you type, what you convert it into,
 and what Exucal shows: the result side of an output line, with the
 relation, `=` or `≈`, in front of the value; where a conversion's
-second line matters, the page quotes it whole. The quantity you type
+second line, the one that answers in the opposite direction, matters,
+the page quotes it whole. The quantity you type
 is the **have**; the unit, list or function you convert it into is the
 **want**. The want may be left blank; a blank want asks for the have
-in the primitives, the base quantities the next section defines. The
+in the primitives. The
 typed forms paste straight into the two fields. A setting or a mode an
 example depends on stands in its note. Where the calculator reports an
 error, the table says so and describes the message in a few words; the
@@ -64,18 +67,17 @@ A quantity follows these rules:
   One check decides a sum, a conversion, a call's argument and a list's
   units, and a failure is a dimension mismatch or a kind mismatch
   ([Conformance](#conformance)).
-- **A quantity carries no unit of its own.** It does not keep the units
-  you typed. It keeps its scalar and the exponents of the primitives,
-  the units that define the base dimensions, and it is put in that form
-  as soon as it is read, so `100 lb` and `45.359237 kg` are one
-  quantity. A function does not change the underlying units of its
-  declared parameters. It only checks them. A function that takes a
-  plain number fails for any other quantity
+- **A quantity carries no unit of its own.** It does not carry the
+  units you typed. It carries its scalar and the exponents of the
+  primitives, reduced to that form as soon as it is read, so `100 lb`
+  and `45.359237 kg` are one quantity. A function does not change the
+  underlying units of its declared parameters. It only checks them. A
+  function that takes a plain number fails for any other quantity
   ([No unit of its own](#no-unit-of-its-own)).
 - **Every factor is read exactly as written.** A unit is defined as a
   factor times other units. The factor is read the same way a typed
   number is, so a conversion is exact unless a unit's definition uses
-  an inexact function, as the angle units use `pi()`
+  an inexact function, as the definition of `deg` uses `pi()`
   ([Units, prefixes and exactness of factors](#units-prefixes-and-exactness-of-factors)).
 - **A conversion into one unit answers the ratio of the two scalars**
   ([How a conversion is answered](#how-a-conversion-is-answered)):
@@ -161,7 +163,7 @@ quantities at all, not a failure of arithmetic.
 ## Primitives, dimensions and kinds
 
 This section says where the primitives come from, what a kind is and
-what it does, and how a kind behaves, with the radian as the example.
+what it does, with the radian as the example.
 
 The definitions file declares the primitives, in the two roles the
 last section named ([The primitives](units.md#the-primitives)): the
@@ -252,7 +254,7 @@ One check decides, at every call, where a quantity meets another:
 The annotation check shows best on a function that computes with the
 number of some unit in its arguments: a body-mass index is computed
 from how many kilograms a weight holds and how many metres a height
-holds. Given this definition
+holds. Say the definitions file defines one as follows
 ([Functions](definitions.md#functions) says how a function is
 written):
 
@@ -364,12 +366,12 @@ unit, as a prefix and a unit, as a parameter or as a function.
 
 Every factor in the definitions file is read exactly as written, the
 same way a typed number is
-([Exact and inexact values](numbers.md#exact-and-inexact-values)), so
+([Exact and inexact values](numbers.md#exact-and-inexact-values)). So
 a conversion is exact unless a unit on either side is defined through
-an inexact function, whose value no fraction holds. Exact
-here is the sense of [Numbers](numbers.md): the value is exact,
-whatever the relation shown, which is `≈` where digits were left out,
-as `1 m` into `in` shows. Most factors are **defined** factors, fixed
+an inexact function, one whose value no fraction holds. "Exact" here
+has the sense [Numbers](numbers.md) gives it: the value is exact,
+whatever the relation shown. The relation is `≈` where digits were
+left out, as `1 m` into `in` shows. Most factors are **defined** factors, fixed
 by the unit's defining document: an inch is fixed at `2.54 cm` and a
 pound at `0.45359237 kg`, so `1 in` into `cm` is `= 2.54 cm`, exact
 and entire. A few are **measured** factors, carried to the digits
@@ -380,12 +382,13 @@ true as the measurement behind the digits.
 [Which factors are exact](units.md#which-factors-are-exact) names the
 measured ones.
 
-In the predefined file that function is `pi()`: `deg`, `grad`, `turn`,
-`parsec` and `oersted` are defined through it, so they are inexact
-units, and so is every unit built on one of them;
+In the predefined file, `pi()` is the inexact function such
+definitions use: `deg`, `grad`, `turn`, `parsec` and `oersted` are
+defined through it, so they are inexact units, and so is every unit
+built on one of them;
 [Which factors are exact](units.md#which-factors-are-exact) lists them
-by name. A conversion through an inexact unit is `≈`. `sr`, defined as
-`radian^2`, is exact: its factor is one.
+by name. A conversion through an inexact unit is `≈`. `sr`, defined as `radian^2` with no factor but one, is exact, as the
+radian itself is.
 
 The **definitions table** is the table the app builds from the
 definitions file when it loads it. It is built once, in exact mode, and

@@ -82,8 +82,10 @@ the decisions with their reasons, and the alternatives considered.
   alternative "an offset in `Quantity`" for temperatures (`future.md`
   page L227-229: every operation would need a rule for it, where a
   function with an inverse needs nothing new) moves to `#Alternatives
-  considered`, stated as intent in the present tense, the user's
-  sentence being `docs/quantities.md`'s (work order 02); it links
+  considered`, stated as intent in the present tense, with the mechanism;
+  the statement with its reason, as far as a user needs it, is
+  `docs/quantities.md`'s, in full, which this page links for it (work
+  order 02; plan §12.3, 2026-10-16); it links
   nothing of `future.md`, which, written later, drops the bullet.
   Item 13 of the owner's list confirmed the classification on
   2026-10-12: the bullet is written as ruled out by intent.

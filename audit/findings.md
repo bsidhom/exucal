@@ -1774,7 +1774,7 @@ What to settle before rewriting a page, in the order it bites.
 - Gap: Refuted as a content gap: the page gives both reasons (a reading adds an offset; a level is the logarithm of a ratio), as the file's comments do; the fuller reason, that a quantity carries no offset, is at `devdocs/functions.md:10-16`.
 - Sources: `src/units.txt:185-188`, `:197-205`, `:212-221`; `devdocs/functions.md:10-16`
 - Proposed call: Placement only: the reason goes to `quantities.md` "Temperature and logarithmic levels" (§7, §12 q13); `units.md` "Temperature" and "Logarithmic levels" keep the entries and link there (D3 L230-246).
-- Decision: Stands; amended by Q-011: the reason why readings are functions is a ruled-out alternative (an offset in `Quantity`), stated as a plain fact in `quantities.md` and with its reason in `devdocs/functions.md`; `devdocs/future.md`'s bullet on it moves there.
+- Decision: Stands; amended by Q-011: the reason why readings are functions is a ruled-out alternative (an offset in `Quantity`), stated as a plain fact in `quantities.md` and with its reason in `devdocs/functions.md`; `devdocs/future.md`'s bullet on it moves there. Amended on 2026-10-16 (plan §12.3): the reason is `docs/quantities.md`'s in full; `devdocs/functions.md` keeps the alternative and the mechanism and links the user page.
 
 #### F-111. Unit lists: `dms` is the one inexact list; the rules live elsewhere
 

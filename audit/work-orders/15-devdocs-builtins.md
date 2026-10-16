@@ -19,10 +19,12 @@ is the concept map in `audit/plan/07-docs-outline.md`, `§4` is
 - **Page.** `devdocs/builtins.md`, "Built-in functions": the design of
   the built-ins, which is the mechanism (the routines and kernels, the
   series and their memos, the exact functions' rules on balls, the
-  families' algorithms), each decision with its reason, and the
-  alternatives ruled out; for every user-facing rule it links
-  `docs/builtins.md`, the owner, instead of restating it (§7.1; §4.4;
-  F-304).
+  families' algorithms), the alternatives ruled out with their reasons,
+  and the reasons that belong to the implementation; a decision's
+  reason as far as a user needs it is `docs/builtins.md`'s, and for
+  every user-facing rule and reason it links that page, the owner,
+  instead of restating it (§7.1 as amended on 2026-10-16, plan §12.3;
+  §4.4; F-304).
 - **Order.** Fifteenth: after the user pages it links
   (`docs/builtins.md`, `docs/numbers.md`, `docs/quantities.md`,
   `docs/expressions.md`) and after `devdocs/numbers.md`,

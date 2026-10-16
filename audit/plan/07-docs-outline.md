@@ -271,9 +271,12 @@ where the app installs and works offline (§12.3, 2026-10-14):
 
 The focus is the conceptual building blocks, unified across the two
 sides: each concept area has one user-side owner, which states the
-rules, and one developer-side owner, which keeps three things and no
-more: the mechanism, the decision with its reason, and the
-ruled-out alternatives with theirs. Each side links to the other at the
+rules and the decisions behind them, with their reasons as far as a
+user needs them, since the user docs are the canonical home of a
+concept both sides need (§12.3, 2026-10-16), and one developer-side
+owner, which keeps three things and no more: the mechanism, the
+alternatives ruled out with their reasons, and the reasons that belong
+to the implementation. Each side links to the other at the
 section level. The developer-side owners below are the existing pages;
 the units in §10.c reshape them to this map.
 
@@ -293,5 +296,5 @@ the units in §10.c reshape them to this map.
 | Settings | `settings.md` | `devdocs/settings.md` |
 | Built-in functions | `builtins.md` | `devdocs/builtins.md` |
 | The app's surface | `app.md` (F-513) | `devdocs/architecture.md#UI`; `devdocs/offline.md` |
-| What is ruled out by intent | one sentence where a user would look for it (a temperature reading is a function, not a unit with an offset; neither "real values only" nor "the error radius is never shown" is one: each is a plain fact about today, complex numbers being future work and the radius display neither, R-7) | the page that owns the concept, with the reason; each page's "Not in this design" (Q-011) |
+| What is ruled out by intent | the decision with its reason, as far as a user needs it, where a user would look for it (a temperature reading is a function, not a unit with an offset, since every operation would need a rule for an offset; neither "real values only" nor "the error radius is never shown" is one: each is a plain fact about today, complex numbers being future work and the radius display neither, R-7) | the page that owns the concept, with the mechanism and the alternatives considered; each page's "Not in this design" (Q-011; §12.3, 2026-10-16) |
 | What might still be done | nothing: the user docs never mention future work (Q-011) | `devdocs/future.md`, the one place, with the issue links |

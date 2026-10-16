@@ -153,6 +153,37 @@ it to the whole text, not only to the sentence that prompted it.
   sentence, so the reviewer need not open the text.
 - Credit a decision to the review, not to a person, in anything that
   stays in the history.
+- Before handing a text to its reviewer, have it critiqued as section
+  7 says, by a reader with no part in the writing, and fix what the
+  critique finds. The reviewer's time goes to what has passed that
+  reading.
+
+## 7. Critiquing a text against this guide
+
+A critique is a reader's account of the text, not a list of rules
+broken. When asked to critique a text against this guide:
+
+- Read it as the reader it is written for, from the top, once, as they
+  would.
+- Report by passage, in the text's order, quoting the words: what
+  stopped you; what you could not follow, or had to read twice; what
+  you did not believe, because it was asserted and not argued; what was
+  said twice; what was teased rather than named; what a term meant
+  before the text defined it; what you could not parse.
+- Say why each point costs the reader, in this guide's terms, naming
+  the section it falls under. A point that fits no rule is still a
+  point; the rules came from such readings.
+- Rank by what costs the reader most, and leave out what a careful
+  reviewer would not raise.
+- Where it helps the author see the point, say in a clause what would
+  read better; never rewrite the text. The author fixes; you read.
+- Say what reads well only where the author might otherwise change it.
+- Stop when you would raise nothing with the author.
+
+The author fixes every point they agree with, across the whole text
+where a point recurs, says why for each point they leave, and has the
+text read again by a fresh reader, until a reading raises nothing. The
+reviewer then reads a text that has passed that first reading.
 
 ## Quick check before handing over
 

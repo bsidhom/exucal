@@ -17,9 +17,11 @@ amended), `§8` is `audit/plan/08-terminology.md`.*
 ## 1. The page and its place in the order
 
 - **Page.** `devdocs/numbers.md`, the design of the numeric type: it
-  keeps the mechanism, each decision with its reason, and the ruled-out
-  alternatives with theirs, and for every user-facing rule it links
-  `docs/numbers.md`, the owner, instead of restating it (§7.1).
+  keeps the mechanism, the ruled-out alternatives with their reasons,
+  and the reasons that belong to the implementation; a decision's
+  reason as far as a user needs it is `docs/numbers.md`'s, and for every
+  user-facing rule and reason it links that page, the owner, instead of
+  restating it (§7.1 as amended on 2026-10-16, plan §12.3).
 - **Order.** The first developer page, eleventh overall: after every
   user page, so that `docs/numbers.md` exists for its links (Q-008).
   Later developer pages link it (`notation.md`, `architecture.md`,

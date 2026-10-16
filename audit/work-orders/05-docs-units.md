@@ -146,7 +146,7 @@ differ in wording from these, these win.
 | Finding | Section | Decision |
 | --- | --- | --- |
 | F-109 | Naming conventions | D3's section |
-| F-110 | Temperature | The entries here; the reason is `quantities.md`'s (and the devdocs'), Q-011 |
+| F-110 | Temperature | The entries here; the reason is `quantities.md`'s, in full (Q-011 as amended on 2026-10-16, plan §12.3) |
 | F-111 | Unit lists defined in the file | D3's table and the `dms` sentence; "the one inexact list" |
 | F-112 | Names that are absent or mean something else | D3's retitled section and list, with `rad`; nothing of a unit `a` (Q-075, F-078) |
 | F-113 | Angles and rotation; Which factors are exact | The inexact units listed here; `numbers.md` and `quantities.md` link this list |

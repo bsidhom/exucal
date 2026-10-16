@@ -164,6 +164,25 @@ allows for a page written later; and that no inline code span, link or
 emphasis breaks across a line ending. Fix what fails; what you cannot
 fix goes in the review notes.
 
+Then, for a page, have it critiqued before you commit, and fix what
+the critique finds, so that the owner's review starts from a page that
+has passed this first reading. Start a fresh subagent (the Agent tool,
+with no view of your session) and give it only the page's path,
+`.claude/skills/prose-style/SKILL.md` and the reader your work order
+names. Ask it to read the page as that reader, from the top, and to
+critique it as the house style's section 7 says: how each passage
+reads and why, in the guide's terms, with the passage quoted, ranked
+by what costs the reader most, and no rewrite of the page. Fix every
+point you agree with, across the whole page where a point recurs, and
+re-run every example an edit touches. Then have the page critiqued
+again, by a fresh subagent, until a critique raises nothing you would
+act on, at most three readings in all. Record the readings in the
+review notes under `Style critique`: how many, and each point of the
+last one you left as it was, with your reason, so that the owner reads
+only what has passed. Before a later push that changes the page's
+prose, have the passages changed since the last reading read the same
+way.
+
 ## 5. Write for the history
 
 Titles, commit messages and the pull request's description stay in the
@@ -235,8 +254,9 @@ not for the history, may say "the owner".
   `Base` (your base revision, and the head you merged at the end, if it
   moved); `Sources and choices` (which drafts and report lines you
   used, what you read in the code, and any choice about the process,
-  such as the branch name); `Questions for the owner` (numbered), or
-  `None.`
+  such as the branch name); `Style critique` (how many readings the
+  page had, and each point of the last one left as it was, with the
+  reason); `Questions for the owner` (numbered), or `None.`
 
 ## 6. Finish
 

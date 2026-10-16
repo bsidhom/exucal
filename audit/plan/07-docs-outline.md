@@ -176,7 +176,7 @@ file's format and the semantics of each definition kind.
   plain fact (Q-011: that user definitions are to come, and #132, are
   `devdocs/future.md`'s; F-475)
 
-**`docs/units.md` — The units the app knows (reference).** A friendly
+**`docs/units.md` — Units (reference).** A friendly
 guide to the definitions file's contents (F-475); `src/units.txt` is the source of
 truth, and the page may defer to it; later possibly generated from
 structured comments in the file (§12, question 4).
@@ -292,7 +292,7 @@ the units in §10.c reshape them to this map.
 | Conversion and the output modes | `quantities.md` > How a conversion is answered; Unit lists; Conversion into a function | `devdocs/architecture.md#Conversion`, `#Unit lists`, `#The converter and its lines`; `devdocs/functions.md#A function as the want` |
 | The expression language | `expressions.md` | `devdocs/architecture.md#Expressions`, `#Parsing`, `#Evaluation` |
 | The definition language and defined functions | `definitions.md` | `devdocs/architecture.md#Definitions`; `devdocs/functions.md` |
-| The units the app knows | `units.md` | `devdocs/development.md#Adding a unit` (the contributor's side); the comments in `src/units.txt` |
+| Units | `units.md` | `devdocs/development.md#Adding a unit` (the contributor's side); the comments in `src/units.txt` |
 | Settings | `settings.md` | `devdocs/settings.md` |
 | Built-in functions | `builtins.md` | `devdocs/builtins.md` |
 | The app's surface | `app.md` (F-513) | `devdocs/architecture.md#UI`; `devdocs/offline.md` |

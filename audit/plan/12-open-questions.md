@@ -1144,6 +1144,21 @@ decision, are listed after the answers.
   today's behaviour, the owner adding: "The developer docs will need to explain the
   subtleties more thoroughly of course" (work order 13, `#Unit lists`).
 
+- **The first review of the quantities page (2026-10-16).** Twenty-two threads, all
+  applied. The value a quantity pairs with its dimension is its "scalar", never its
+  "magnitude", which is overloaded (a new §8 row; plan §1's "magnitude" is read as the
+  scalar); the units page is titled "Units" (§7, work order 05); the page's opening keeps
+  what unit awareness promises and no longer places it among the goals, which the index
+  states (principles.md amended); the body-mass index is "defined", hypothetically, with
+  no caveat about pasting back, since the definition and the calls are both grammatical
+  and parse; no page is called earlier or later than another. The style rules the review
+  set are recorded in principles.md's narrative paragraph and in the prose-style skill:
+  a page states its rules as the subject's; a hard break rather than a semicolon between
+  statements that stand on their own; the actor first; the simpler phrase even when
+  passive; no quaint voice; no implied exhaustiveness; a fact of the current file that
+  may drift presented as an example; clauses to scan set as a list; an unexpected error
+  called out where its rule is summarized; a concrete type named where it clarifies.
+
 ### The review's other corrections
 
 Applied on 2026-10-13 with the answers above; none needed a decision.

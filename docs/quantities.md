@@ -35,7 +35,7 @@ a name the file gives to a quantity, the metre or the inch, so that a
 magnitude can be written in it; the file also defines prefixes, unit
 lists and functions, and it declares the primitives and the kinds. The
 app loads the predefined definitions file, the one that ships with it,
-and no other; this page describes the calculator with that file loaded.
+and this page describes the calculator with that file loaded.
 
 Examples on this page give what you type, what you convert it into,
 and what Exucal shows: the result side of an output line, with the
@@ -44,10 +44,10 @@ second line matters, the page quotes it whole. The quantity you type
 is the **have**; the unit, list or function you convert it into is the
 **want**. The want may be left blank; a blank want asks for the have
 in the primitives, the base quantities the next section defines. The
-typed forms paste straight into the two fields, except the calls of
-`bmi`, a function the page supposes defined for its examples, since the
-predefined file has no function with an annotated parameter. A setting
-or a mode an example depends on stands in its note. Where the calculator reports
+typed forms paste straight into the two fields, except the examples
+that use `bmi`, a function the predefined file does not define and the
+page supposes for its examples. A setting or a mode an example depends
+on stands in its note. Where the calculator reports
 an error, the table says so and describes the message in a few words;
 the last section quotes messages as the calculator writes them.
 
@@ -245,11 +245,12 @@ One check decides, at every call, where a quantity meets another:
   function ([Conversion into a function](#conversion-into-a-function));
 - each unit of a unit list against the have ([Unit lists](#unit-lists)).
 
-A body-mass index is computed from how many kilograms a weight holds
-and how many metres a height holds. A defined function can take the
-two quantities and compute with those numbers; suppose the definitions
-file held one ([Functions](definitions.md#functions) says how a
-function is written):
+The annotation check shows best on a function that computes with the
+number of some unit in its arguments: a body-mass index is computed
+from how many kilograms a weight holds and how many metres a height
+holds. Suppose the definitions file held one
+([Functions](definitions.md#functions) says how a function is
+written):
 
 ```
 bmi(weight: kg, height: m): 1 = (weight / kg) / (height / m)^2
@@ -261,8 +262,9 @@ number. Each argument is checked against its annotation:
 `bmi(100, 4 ft)` is a dimension mismatch, since `100` is a plain number
 where a mass is needed, and `bmi(100 lb, 4 s)` is a dimension mismatch
 too, since `4 s` is a time where a length is needed. The predefined
-file does not define `bmi`; the page supposes it to show the rules, and
-its calls are the examples that do not paste back.
+file does not define `bmi`, and the app loads no other file, the
+predefined one being built into it; the examples that use `bmi` are the
+ones that do not paste back.
 
 A defined function may also carry a condition, a comparison its
 argument must satisfy. `tempC`, which gives the temperature that a
@@ -277,17 +279,17 @@ call, not for conformance.
 The check comes before anything else. `1 m` into `0 s` is a dimension
 mismatch, and the zero is never looked at.
 
-| You type           | Into    | Exucal shows                                                                           | Note                                                                                             |
-| ------------------ | ------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `1 m`              | `s`     | an error, a dimension mismatch: `m` against `s`                                        | the have against the want                                                                        |
-| `1 m`              | `0 s`   | an error, the same dimension mismatch                                                  | checked before the zero                                                                          |
-| `1 m + 1 s`        |         | an error, a dimension mismatch: `m` against `s`                                        | the operands of `+`                                                                              |
-| `1 rad/s`          | `Hz`    | an error, a kind mismatch: the radian                                                  | the have against the want                                                                        |
-| `tempC(20 m)`      |         | an error, a dimension mismatch: `m` against `1`, the parameter taking a plain number   | a call's argument                                                                                |
-| `bmi(100, 4 ft)`   |         | an error, a dimension mismatch: `1` against `kg`, the parameter `weight` taking a mass | a call's argument, with `bmi` defined above                                                      |
-| `bmi(100 lb, 4 s)` |         | an error, a dimension mismatch: `s` against `m`                                        | a call's argument, with `bmi` defined above                                                      |
-| `300 m`            | `tempF` | an error, a dimension mismatch: `m` against `K`                                        | the have against the result of `tempF`, which gives the temperature a Fahrenheit reading denotes |
-| `1 m`              | `ft;s`  | an error, a dimension mismatch: `m` against `s`                                        | a list's unit                                                                                    |
+| You type           | Into    | Exucal shows                                                                         | Note                                                                                             |
+| ------------------ | ------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `1 m`              | `s`     | an error, a dimension mismatch: `m` against `s`                                      | the have against the want                                                                        |
+| `1 m`              | `0 s`   | an error, the same dimension mismatch                                                | checked before the zero                                                                          |
+| `1 m + 1 s`        |         | an error, a dimension mismatch: `m` against `s`                                      | the operands of `+`                                                                              |
+| `1 rad/s`          | `Hz`    | an error, a kind mismatch: the radian                                                | the have against the want                                                                        |
+| `tempC(20 m)`      |         | an error, a dimension mismatch: `m` against `1`, the parameter taking a plain number | a call's argument                                                                                |
+| `bmi(100, 4 ft)`   |         | an error, a dimension mismatch: `1` against `kg`, named for the parameter `weight`   | a call's argument, with `bmi` as above                                                           |
+| `bmi(100 lb, 4 s)` |         | an error, a dimension mismatch: `s` against `m`, named for the parameter `height`    | a call's argument, with `bmi` as above                                                           |
+| `300 m`            | `tempF` | an error, a dimension mismatch: `m` against `K`                                      | the have against the result of `tempF`, which gives the temperature a Fahrenheit reading denotes |
+| `1 m`              | `ft;s`  | an error, a dimension mismatch: `m` against `s`                                      | a list's unit                                                                                    |
 
 ## No unit of its own
 
@@ -305,12 +307,12 @@ Three things follow.
 - An annotation on a defined function's parameter checks conformance
   and changes no value: the argument is held in the primitives whatever
   unit the annotation names ([Functions](definitions.md#functions)).
-  With `bmi` as defined above, `bmi(100 lb, 4 ft)` and
+  With `bmi` as supposed above, `bmi(100 lb, 4 ft)` and
   `bmi(45.359237 kg, 1.2192 m)` are one call, and both give
   `≈ 30.515173`. The body wants the number of kilograms in the weight
-  and the number of metres in the height, and it gets each by dividing
-  the argument by the unit whose count it wants, `weight / kg` and
-  `height / m`, since the argument remembers no unit.
+  and the number of metres in the height. It gets each by dividing the
+  argument by the unit in question, `weight / kg` for the kilograms and
+  `height / m` for the metres, since the argument remembers no unit.
 - A call of a function that takes a plain number fails for any other
   quantity, with a dimension or a kind, whatever unit it was typed in.
   `floor`, `ceil`, `trunc` and `round` are such functions, and so are
@@ -329,21 +331,21 @@ Three things follow.
   examples; the entry of each function says what it takes and gives
   ([Built-in functions](builtins.md#rules-every-built-in-follows)).
 
-| You type                      | Into  | Exucal shows                                             | Note                                                         |
-| ----------------------------- | ----- | -------------------------------------------------------- | ------------------------------------------------------------ |
-| `100 lb`                      |       | `= 45.359237 kg`                                         | held in the primitives                                       |
-| `45.359237 kg`                | `lb`  | `= 100 lb`                                               | the same quantity                                            |
-| `bmi(100 lb, 4 ft)`           |       | `≈ 30.515173`                                            | with `bmi` defined above; exact, with more digits than shown |
-| `bmi(45.359237 kg, 1.2192 m)` |       | `≈ 30.515173`                                            | the same call                                                |
-| `floor(3.7 ft)`               |       | an error: the argument of `floor` must be a plain number |                                                              |
-| `floor(3.7 ft / ft) ft`       | `ft`  | `= 3 ft`                                                 | the unit divided out and back                                |
-| `abs(-3 m)`                   |       | `= 3 m`                                                  | the dimension kept                                           |
-| `sign(-3 m)`                  |       | `= -1`                                                   | a plain number                                               |
-| `approx(2 m)`                 |       | `≈ 2 m`                                                  | the magnitude made inexact on purpose                        |
-| `div(7 ft, 2 ft)`             |       | `= 3`                                                    | a plain number                                               |
-| `mod(7 ft, 2 ft)`             | `ft`  | `= 1 ft`                                                 | the dimension kept                                           |
-| `mod(-30 deg, 360 deg)`       | `deg` | `≈ 330 deg`                                              | angles are quantities too                                    |
-| `atan2(3 m, 4 m)`             | `deg` | `≈ 36.869898 deg`                                        | an angle from two lengths                                    |
+| You type                      | Into  | Exucal shows                                             | Note                                                    |
+| ----------------------------- | ----- | -------------------------------------------------------- | ------------------------------------------------------- |
+| `100 lb`                      |       | `= 45.359237 kg`                                         | held in the primitives                                  |
+| `45.359237 kg`                | `lb`  | `= 100 lb`                                               | the same quantity                                       |
+| `bmi(100 lb, 4 ft)`           |       | `≈ 30.515173`                                            | with `bmi` as above; exact, with more digits than shown |
+| `bmi(45.359237 kg, 1.2192 m)` |       | `≈ 30.515173`                                            | the same call                                           |
+| `floor(3.7 ft)`               |       | an error: the argument of `floor` must be a plain number |                                                         |
+| `floor(3.7 ft / ft) ft`       | `ft`  | `= 3 ft`                                                 | the unit divided out and back                           |
+| `abs(-3 m)`                   |       | `= 3 m`                                                  | the dimension kept                                      |
+| `sign(-3 m)`                  |       | `= -1`                                                   | a plain number                                          |
+| `approx(2 m)`                 |       | `≈ 2 m`                                                  | the magnitude made inexact on purpose                   |
+| `div(7 ft, 2 ft)`             |       | `= 3`                                                    | a plain number                                          |
+| `mod(7 ft, 2 ft)`             | `ft`  | `= 1 ft`                                                 | the dimension kept                                      |
+| `mod(-30 deg, 360 deg)`       | `deg` | `≈ 330 deg`                                              | angles are quantities too                               |
+| `atan2(3 m, 4 m)`             | `deg` | `≈ 36.869898 deg`                                        | an angle from two lengths                               |
 
 ## Units, prefixes and exactness of factors
 
@@ -685,12 +687,11 @@ reading denotes, so `300 K` into `tempF` is `= tempF(80.33)`, since
 
 1. The function must have an inverse, written in the definitions file
    ([Inverses](definitions.md#inverses)); a function without one cannot
-   be a want. The conversion recovers the one argument the function
-   would need, so only a function of one parameter can have an inverse,
-   and it has one only where the file writes it. `25` into `bmi`, the
-   function of two parameters supposed in [Conformance](#conformance),
-   is an error: `bmi` has no inverse. The functions the predefined file
-   defines each have one, and a built-in has none.
+   be a want. The conversion recovers a single argument from a single
+   have, so only a function of one parameter can have an inverse. `25`
+   into `bmi`, the function of two parameters supposed in
+   [Conformance](#conformance), is an error: `bmi` has no inverse. The
+   functions the predefined file defines each have an inverse.
 2. The have must conform to the function's result: `300 m` into
    `tempF` is a dimension mismatch.
 3. The inverse must accept the have: its conditions must hold, and it
@@ -742,27 +743,26 @@ This section says what the temperature units measure, why a reading
 on a temperature scale and a logarithmic level are functions here
 rather than units, and how to write each.
 
-A reading on a temperature scale is not a multiple of anything: zero
-degrees Celsius is not zero kelvin, so no factor turns the one into the
-other. Exucal has no unit with an offset, because every operation would
-then need a rule for it. A unit is multiplied in as the expression is
-read ([No unit of its own](#no-unit-of-its-own)), so no operation sees
-one; an offset cannot be multiplied in, so every operation would have
-to decide what to do with it: twice a reading is not the reading with
-twice the number, and the sum of two readings is not a reading of the
-sum. A function needs nothing new: the offset lives in its body, and a
-call is a quantity like any other once the body has run. So a reading
-is a function.
+A **reading** on a temperature scale, a number on that scale, is not a
+multiple of anything: zero degrees Celsius is not zero kelvin, so no
+factor turns the one into the other. Exucal has no unit with an offset.
+A unit is multiplied in as the expression is read
+([No unit of its own](#no-unit-of-its-own)), so no operation sees one.
+An offset cannot be multiplied in, so every operation would need a rule
+for it: twice a reading is not the reading with twice the number, and
+the sum of two readings is not a reading of the sum. A function needs
+nothing new: the offset lives in its body, and a call is a quantity
+like any other once the body has run. So a reading is a function.
 
 `degC`, `degF` and `degR` are **temperature differences**, not
 readings: `1 degC` is `1 K`, and `1 degF` is five ninths of a kelvin. A
-reading is a call of
-`tempC` or `tempF`: `tempC(20)` is `= 293.15 K`. The functions have
-inverses, so a function can be the want and a reading converts into a
-reading: `tempC(20)` into `tempF` is `= tempF(68)`, and `2 tempC(20)`
-into `tempC` is `= tempC(313.15)`, the reading of twice the temperature
-and not of twice the number
-([Conversion into a function](#conversion-into-a-function)).
+reading is a call of `tempC` or `tempF`: `tempC(20)` is `= 293.15 K`.
+The functions have inverses, so a function can be the want and a
+reading converts into a reading: `tempC(20)` into `tempF` is
+`= tempF(68)` ([Conversion into a function](#conversion-into-a-function)).
+And twice a reading is twice the temperature: `2 tempC(20)` is
+`= 586.3 K`, and into `tempC` it is `= tempC(313.15)`, not `tempC(40)`,
+the reading with twice the number.
 
 The distinction matters when you type. `20 degC` is a difference of
 twenty kelvin and not a reading of twenty degrees, so into `tempF` it

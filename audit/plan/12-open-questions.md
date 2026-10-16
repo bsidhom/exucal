@@ -1098,6 +1098,18 @@ decision, are listed after the answers.
   always inverts the order and makes the prose very opaque", so no sentence opens with a
   what-clause as its subject and none takes the form "X is what lets Y" (twelve sentences
   rewritten, "One value, one line" and the lead-in of "What costs time" among them).
+- **The review of the page, ninth part (2026-10-16).** Four threads, all applied. "A
+  little finer than the ceiling itself", which the review could not place, is replaced by
+  the fact: every pass's grid has ten digits more than the pass's precision (the kernel's
+  32 guard bits are worth 9.63 digits, and the count rounds up, so the gap is ten at every
+  precision, checked at 1 to 4,040 digits), so the finest grid has ten digits more than
+  the ceiling, and it is the finest grid an inexact value is ever rounded onto; "about
+  ten" is now "ten". The two limits in the lead-in of "Values too big to hold" are a
+  list, and the style rule says so for any enumeration whose items each carry a
+  qualifier, unless the flow needs it inline (in a sentence, semicolons separate such
+  items). The significand limit counts the numerator and the denominator each on its own
+  (`significandWithin` in `src/core/scaled.ts`), and the page says so. "Before it is
+  anything else" is dropped as filler.
 
 ### The review's other corrections
 

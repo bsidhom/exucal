@@ -132,7 +132,9 @@ Read nothing else in the corpus or the tree.
   beside. Bold a defined term once, where it is defined, and only the
   terminology's terms. No filler; no reserved word used loosely.
   Items of a list that themselves contain commas are separated by
-  semicolons; an active construction wherever it simplifies or
+  semicolons, and an enumeration whose items each carry a qualifier is
+  set as a list, not run into a sentence, unless the flow needs it
+  inline; an active construction wherever it simplifies or
   clarifies; as concise as stays clear; a word the page leans on, such
   as "line", defined at its first use; a list of built-ins is examples,
   never an inventory, each built-in's entry documenting its own

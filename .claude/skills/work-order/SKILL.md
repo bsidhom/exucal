@@ -141,11 +141,16 @@ Read nothing else in the corpus or the tree.
   few clauses set off by commas as asides; no fragment that leaves the
   reader to supply its subject and verb, a second sentence instead; no
   cleft sentence ("what the limit limits is effort"), the plain subject
-  and verb instead.
+  and verb instead; no sentence that opens with a what-clause as its
+  subject ("What costs time is passes and bits"), and none of the form
+  "X is what lets Y", the thing itself named first with the plain verb
+  ("Two things cost time, passes and bits").
 - **The words and the format** follow `audit/plan/08-terminology.md` and
   the principles: the Markdown subset (inline links only, repo-relative
   between pages, absolute only for an external reference such as an
-  issue; no reference-style links, no raw HTML); no history.
+  issue; no reference-style links, no raw HTML; an inline code span, a
+  link or an emphasis written within one line, never broken across a
+  line ending, the line re-broken around it instead); no history.
 - **Quoting the app** follows your work order and the code as it is at
   your base revision.
 - **The code track** (00) follows work order 00: one commit per bug, or
@@ -158,8 +163,9 @@ Read nothing else in the corpus or the tree.
 Go through section 10 of your work order ("Done when"), item by item.
 For a page, also check that every link resolves: the path exists, and
 the anchor is a heading of the target, or a heading your work order
-allows for a page written later. Fix what fails; what you cannot fix
-goes in the review notes.
+allows for a page written later; and that no inline code span, link or
+emphasis breaks across a line ending. Fix what fails; what you cannot
+fix goes in the review notes.
 
 ## 5. Write for the history
 

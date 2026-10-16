@@ -16,17 +16,17 @@ the one below it:
   string of threes.
 - **`Scaled`** is a `Rational` times a power of ten, written
   `significand × 10^exp`, with the exponent held as a number of its own.
-  That is what lets `1e999999999` be a value rather than a billion
-  digits, and it is the form every exact value is held in.
+  That exponent lets `1e999999999` be a value rather than a billion
+  digits, and `Scaled` is the form every exact value is held in.
 - **`Ball`** is a `Scaled` midpoint together with a `Radius`, a bound on
   how far the number held may lie from the number meant. A `Radius` is
   a coarse binary magnitude, a short significand times a power of two,
   and every operation on radii rounds it up: it is always a true bound
-  and never an exact one, which is what lets it be carried through an
+  and never an exact one, which lets it be carried through an
   expression at almost no cost. Every value the calculator computes
   with is a `Ball`. When the radius is zero the value is exact; when it
-  is not, the value is inexact, and the radius is what lets the
-  calculator say which digits of it are right.
+  is not, the value is inexact, and the radius lets the calculator say
+  which digits of it are right.
 
 Two goals guided this design: the exactness just described; and the
 functions a calculator is used for, all the elementary functions and the
@@ -62,10 +62,9 @@ This page explains the following rules:
 - **A value has one canonical form**, so equal values are held alike
   and cost the same, whatever route produced them
   ([How a value is held](#how-a-value-is-held)).
-- **`=` means exact and shown entire; `≈` means digits were left out
-  or a step was inexact.** Every digit shown is certified: the
-  calculator recomputes at rising precision, up to a ceiling, until the
-  digits you asked for certify
+- **`=` means exact and shown entire; `≈` means digits were left out or a step was inexact.**
+  Every digit shown is certified: the calculator recomputes at rising
+  precision, up to a ceiling, until the digits you asked for certify
   ([Digits you can trust](#digits-you-can-trust)).
 - **A value whose radius reaches across an edge is never guessed at**:
   a divisor at zero, a pole, a domain's end. At the ceiling the result is
@@ -85,9 +84,9 @@ This page explains the following rules:
   them. The significand limit must hold the fraction that climb ends
   at, so it caps the precision limit in turn
   ([Two limits, bits and digits](#two-limits-bits-and-digits)).
-- **What is written is predictable**: an output line is a function of
-  the value, its exactness and the settings, and pastes back as input
-  ([How numbers are written](#how-numbers-are-written)).
+- **An output line is predictable**: it is a function of the value, its
+  exactness and the settings, never of the route, and it pastes back as
+  input ([How numbers are written](#how-numbers-are-written)).
 
 ## Comparison with other approaches
 
@@ -101,11 +100,11 @@ canonical form. That decomposition is novel, and it is a trade. Equal
 values cost the same by every route; but a power of two in a denominator
 becomes a power of five in the significand, so a dyadic value costs more
 bits here than its binary size, and the significand limit measures that
-cost ([The power of ten is free; a power of two is
-not](#the-power-of-ten-is-free-a-power-of-two-is-not)). The developer
-page on numbers weighs the rest ([The
-types](../devdocs/numbers.md#the-types)). Three calculators share the
-aim of exactness, each by its own route:
+cost
+([The power of ten is free; a power of two is not](#the-power-of-ten-is-free-a-power-of-two-is-not)).
+The developer page on numbers weighs the rest
+([The types](../devdocs/numbers.md#the-types)). Three calculators share
+the aim of exactness, each by its own route:
 
 - [Frink](https://frinklang.org/) keeps exact fractions, its unit
   definitions included, and that is the whole of its exactness:
@@ -160,8 +159,9 @@ built-in or `^` with a fractional exponent, whose value no fraction
 holds: a root, `exp`, `ln`, `pi()` and the others each entry names as
 such ([Built-in functions](builtins.md)). The units defined through
 `pi()` are inexact for the same reason, so a conversion through `deg` or
-`turn` is `≈` ([Which factors are
-exact](units.md#which-factors-are-exact) lists them). The other is
+`turn` is `≈`
+([Which factors are exact](units.md#which-factors-are-exact) lists them).
+The other is
 `approx`, the one operation whose purpose is to make a value inexact
 ([approx](#approx)). Nothing else does: an operation on an inexact value
 rounds it and charges the rounding to the error radius the value already
@@ -180,9 +180,9 @@ In decimal mode every step is rounded and the rounded value is the
 value, so no value you see there is inexact; the error radius serves
 only inside a step ([The two modes](#the-two-modes)).
 
-The calculator never shows the error radius. What it shows is the
-digits the radius leaves certified, and a note when they are fewer than
-you asked for.
+The calculator never shows the error radius. It shows the digits the
+radius leaves certified, and a note when they are fewer than you asked
+for.
 
 ## How a value is held
 
@@ -234,7 +234,7 @@ reaches it by, because each step of building it is forced:
    that still leaves the numerator a whole number.
 4. The numerator is then whatever is left.
 
-This is what makes a held value predictable. Equal values are held
+This makes a held value predictable. Equal values are held
 alike, whatever expressions produced them, so the calculator can tell
 that two values are equal by comparing the parts it holds, with no
 arithmetic; and a value costs the same bits, and meets the significand
@@ -249,8 +249,8 @@ limit the same way, by every route.
 In exact mode nothing else touches an exact value. No digits setting
 applies to it, and an exact result of exact operands is never rounded.
 An exact value is rounded only where it meets an inexact one, and that
-rounding goes into the inexact result's error radius ([Operations that
-stay exact](#operations-that-stay-exact-exact-cases-of-functions)).
+rounding goes into the inexact result's error radius
+([Operations that stay exact](#operations-that-stay-exact-exact-cases-of-functions)).
 
 ### The digits an inexact value is kept to
 
@@ -296,15 +296,15 @@ The significand limit bounds every value the calculator holds, exact or
 inexact. An inexact midpoint is a grid value, a finite decimal, so its
 canonical denominator is `1` and its significand is its digits; the grid
 it is rounded onto must fit within the limit like any other fraction. So
-one limit is counted in bits and the other in digits. The **significand
-limit**, in bits, bounds the fraction every value is held as. The
-**precision limit**, in decimal digits, bounds how far an inexact value
-is refined: it sets the ceiling, and the grid of the ceiling's pass must
-fit within the significand limit. The significand limit therefore caps
-the precision limit in turn, and with it the finest grid, the grid of
-the ceiling's pass, which is a little finer than the ceiling itself and
-the finest any value is ever held on ([How the settings bound each
-other](settings.md#how-the-settings-bound-each-other)).
+one limit is counted in bits and the other in digits. The
+**significand limit**, in bits, bounds the fraction every value is held
+as. The **precision limit**, in decimal digits, bounds how far an
+inexact value is refined: it sets the ceiling, and the grid of the
+ceiling's pass must fit within the significand limit. The significand
+limit therefore caps the precision limit in turn, and with it the
+finest grid, the grid of the ceiling's pass, which is a little finer
+than the ceiling itself and the finest any value is ever held on
+([How the settings bound each other](settings.md#how-the-settings-bound-each-other)).
 
 ## Operations that stay exact; exact cases of functions
 
@@ -324,8 +324,9 @@ exact value is never replaced by a different exact value.
 | `0.1 + 0.2` | `= 0.3`          |                                                                 |
 | `3^20`      | `≈ 3.4867844e+9` | exact and entire, `3486784401`, written to eight display digits |
 
-What the arithmetic cannot do exactly, it does not do inexactly on its
-own. A sum first aligns its operands at one scale, as on paper; when they
+An exact step that the limits cannot hold is refused, never done
+inexactly in its place. A sum first aligns its operands at one scale,
+as on paper; when they
 cannot both be written at that scale within the significand limit, the
 sum is refused rather than rounded.
 
@@ -384,7 +385,7 @@ the passes and the precision each works at are in
 The loop runs over the whole computation, never over a part of it.
 Each pass evaluates everything you typed, conversion included, from
 the start at its own precision, and keeps from the pass before only
-the best result so far, which is what the ceiling shows when no pass
+the best result so far, which the ceiling shows when no pass
 certifies. A subexpression is never recomputed on its own: when a step
 certifies poorly, the whole expression runs again at twice the
 precision. In decimal mode the loop belongs to each built-in call
@@ -587,8 +588,7 @@ precision.
 
 ### Decimal mode
 
-1. **Every step is rounded once, and the rounded value is the step's
-   exact result.**
+1. **Every step is rounded once, and the rounded value is the step's exact result.**
 
    A **step** is an operation you can see:
 
@@ -664,8 +664,7 @@ precision.
    `approx` is the identity ([approx](#approx)), and a comparison
    always decides, since every value is exact.
 
-4. **The last step of each value shown is rounded to the display
-   digits.**
+4. **The last step of each value shown is rounded to the display digits.**
 
    When the working digits are above the display digits, the flow is
    this. The calculator rounds every intermediate step to the working
@@ -699,9 +698,10 @@ precision.
 Two consequences follow. A unit that carries `pi()` is rounded as it is
 looked up, like any other step, so `1 turn` into `deg` is `=` with a
 value a little under 360, where exact mode gives `≈ 360 deg`. And since
-every argument is exact, no argument reaches across an edge: `tan(90
-deg)` may give a value in decimal mode where exact mode fails at the
-pole, because the value is the tangent of the rounded degree, not of a
+every argument is exact, no argument reaches across an edge:
+`tan(90 deg)` may give a value in decimal mode where exact mode fails
+at the pole, because the value is the tangent of the rounded degree,
+not of a
 right angle.
 
 ## `approx`
@@ -720,11 +720,18 @@ so its absolute size follows that magnitude and not the number you
 typed; relative to the value it is the same either way, one part in
 the digits the pass keeps. `approx` takes a quantity with a unit as well as a plain number; it
 keeps the unit and makes only the magnitude inexact, so `approx(2 m)`
-is `≈ 2 m`. It leaves a zero as it is, and a value that is zero within
-a bound keeps its bound. In decimal mode it is the identity, since every value there is already
-rounded ([The two modes](#the-two-modes)). Its unit of error lies well
-beyond the display digits, so `approx(2.54) cm` into `in` is `≈ 1 in`:
-the digits are the same, and the `≈` is the point.
+is `≈ 2 m`. It leaves a zero as it is, and a value that is zero within a bound
+keeps its bound. In exact mode the radius it sets lies at least ten
+digits beyond the display digits, whatever the settings: the first pass
+computes ten digits above the display digits and each later pass more
+([Digits you can trust](#digits-you-can-trust)), and raising the
+display digits raises every pass with them. So an exact argument's
+digits are shown as they are, and the `≈` is the point:
+`approx(2.54) cm` into `in` is `≈ 1 in`. The one exception is an
+argument on a tie at the display digits, whose last digit no radius
+certifies ([Values at an edge](#values-at-an-edge)). In decimal mode `approx` is
+the identity, since every value there is already rounded
+([The two modes](#the-two-modes)).
 
 | You type          | Into | Exucal shows |
 | ----------------- | ---- | ------------ |
@@ -812,24 +819,26 @@ The rounding functions' entries are in
 
 ## Values too big to hold
 
-Two limits bound a value, on two different parts of it, and a refusal
-names the one it passes. This section says what each limit is, what it
-refuses, what the message says, and what to try.
+Two limits bound a value, each on one of its parts: the significand
+limit, in bits, on the fraction it is held as, and the exponent bound,
+on its power of ten. A refusal names the one it passes. This section
+says what each limit refuses, what the message says, and what to try.
 
 A **refusal** is the one failure this page calls by that name: a
 value the limits keep from being computed, or a number typed past them.
 Everything else that stops a result (a mismatch, a condition that
 fails, a value that cannot be told from an edge) is an error.
 
-A value is held as a significand times a power of ten ([How a value is
-held](#how-a-value-is-held)). The settings bound the significand. The significand limit says how
-many bits its numerator and its denominator may have. The precision
-limit, which the significand limit bounds in turn, says how far an
-inexact value is refined, and the display digits say how many of its
-digits must be certified. The exponent has a fixed bound of its own,
-`10^18` either way, and that bound is not a setting. `1e999` is `1 ×
-10^999`, well within both. `exp(1e999)` has a significand that 32 digits
-hold with ease and an exponent that is itself a number of 999 digits:
+A value is held as a significand times a power of ten
+([How a value is held](#how-a-value-is-held)). The settings bound the
+significand. The significand limit says how many bits its numerator
+and its denominator may have. The precision limit, which the
+significand limit bounds in turn, says how far an inexact value is
+refined, and the display digits say how many of its digits must be
+certified. The exponent has a fixed bound of its own, `10^18` either
+way, and that bound is not a setting. `1e999` is `1 × 10^999`, well
+within both. `exp(1e999)` has a significand that 32 digits hold with
+ease and an exponent that is itself a number of 999 digits:
 
 ```
 exp(1e999) = 2.0307164965753263882718190599363 × 10^434294481903251827…4497145
@@ -884,9 +893,9 @@ never offer `approx` or decimal mode and apply in both modes.
 `round(x, places)` and `mod` are refused when their results would pass
 the limit. A number you type with more digits than the significand
 limit can ever be set to hold is refused as you type it, whatever the
-limit is set to. The
-limit is what makes `3^1000000000` a refusal rather than a hang; the
-setting is in [Significand limit](settings.md#significand-limit).
+limit is set to. The limit makes `3^1000000000` a refusal rather than
+a hang; the setting is in
+[Significand limit](settings.md#significand-limit).
 
 ### The exponent bound
 
@@ -903,9 +912,12 @@ digit, and not on the exponent of its canonical form, which can differ
 from that by the length of the significand:
 `1e1000000000000000000 / 3 * 10` is a value, its magnitude
 `3.3e1000000000000000000` within the bound, though its canonical
-exponent is one past it. Zero is within the bound at any exponent, so a
-value that is zero within a bound is never refused at the bound,
-however small the bound. A number typed past the bound is refused as
+exponent is one past it. The bound is on the value so that a refusal at
+it is never false about the value
+([The exponent bound](../devdocs/numbers.md#the-exponent-bound) gives
+the reasons). Zero is within the bound at any exponent, so a value that
+is zero within a bound is never refused at the bound, however small the
+bound. A number typed past the bound is refused as
 it is typed. So is a number within the bound whose rounding to the
 display digits would carry past it, so that every line written pastes
 back ([How numbers are written](#how-numbers-are-written)).
@@ -949,8 +961,8 @@ The bound is not a setting, and a higher one is ruled out. Parts of
 `Ball` are exact only because the exponent is at most `10^18`, and the
 cost of an exponential grows fast with its argument once the bound is
 raised. The reasons, and the passes an inexact argument costs `exp` near
-the bound, are in [Why the exponent bound stays at
-10^18](../devdocs/numbers.md#why-the-exponent-bound-stays-at-1018).
+the bound, are in
+[Why the exponent bound stays at 10^18](../devdocs/numbers.md#why-the-exponent-bound-stays-at-1018).
 
 ### Working in log space
 
@@ -1016,9 +1028,9 @@ digits:
 The notation changes how an exact value is written, never what is
 exact.
 
-A ratio is written in parentheses where a unit follows it, `(5000/127)
-in`, and bare where `×` follows it or nothing does, as on the reciprocal
-line `in = 1/36 × 3 ft` of `3 ft = 36 in`. The parentheses matter: two
+A ratio is written in parentheses where a unit follows it,
+`(5000/127) in`, and bare where `×` follows it or nothing does, as on
+the reciprocal line `in = 1/36 × 3 ft` of `3 ft = 36 in`. The parentheses matter: two
 factors written side by side, a **juxtaposition**, bind tighter than
 `/`, so `1/2 in` is `1/(2 in)`, a quantity per inch, unlike `(1/2) in`
 and `0.5 in` ([Pitfalls](expressions.md#pitfalls)).
@@ -1036,24 +1048,26 @@ That rounding is refused instead
 
 ### One value, one line
 
-What is written is as fixed as what is held. An output line is a
-function of the value, of whether it is exact, and of the settings,
-and never of the route a computation took.
+An output line is a function of the value, of whether it is exact,
+and of the settings, and of nothing else. The route a computation took
+leaves no trace: two expressions that reach the same value are written
+the same way.
 
 | You type                        | Digits notation   | Ratio notation  |
 | ------------------------------- | ----------------- | --------------- |
 | `2.54`, `254/100`, `2.5 + 0.04` | `= 2.54`          | `= 127/50`      |
 | `1e30/3`, `(1/3)*1e30`          | `≈ 3.3333333e+29` | `= 1/3 × 1e+30` |
 
-What can depend on the route is the value itself, in decimal mode,
-where every step is rounded ([The two modes](#the-two-modes)); and
+The route can change the value itself, in decimal mode, where every
+step is rounded ([The two modes](#the-two-modes)), and it can change
 whether the value is exact, where a step was inexact
 ([Digits you can trust](#digits-you-can-trust)). A given value, exact
-or not, is written one way.
+or not, is still written one way.
 
 ## What costs time
 
-What costs time is passes and bits.
+Two things cost time, passes and bits. This section says where each
+is spent.
 
 An expression whose digits certify at the first pass costs one pass.
 One whose digits never certify (an identity through an inexact step,
@@ -1064,8 +1078,8 @@ mode runs one pass whatever happens ([The two modes](#the-two-modes)).
 
 Bits cost too. The cost of an exponential grows fast with its argument,
 and so does the cost of the functions built on it, which is one reason
-the exponent bound stays where it is ([Values too big to
-hold](#values-too-big-to-hold)). An exact power or product costs the
+the exponent bound stays where it is
+([Values too big to hold](#values-too-big-to-hold)). An exact power or product costs the
 bits of its result, so a definition that reads small can be large: a few
 characters of exponent can stand for a number of thousands of digits
 ([How a value is held](#how-a-value-is-held)).

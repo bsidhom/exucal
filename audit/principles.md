@@ -57,7 +57,12 @@ page that needs more is a design question for the renderer, not a
 reason to write past the subset. The subset is fixed when the renderer
 is designed; until then, writing within it costs nothing and keeps the
 door open. The audit units rewrite what lies outside it as they reach
-each page, the reference-style issue links first.
+each page, the reference-style issue links first. An inline construct,
+a code span, a link or an emphasis, is written within one line and
+never broken across a line ending; the line is re-broken around it
+instead. CommonMark joins the lines of a code span, but a viewer that
+reads line by line does not, and the subset the renderer will carry
+need not (the review of 2026-10-16; plan §12.3).
 
 ## Rules from the owner's decisions that bind every page
 
@@ -210,7 +215,13 @@ and no passage asks the reader to jump ahead or read twice. Few clauses set off 
 reader to supply its subject and verb ("only its exponent counted"),
 a second sentence instead; and no cleft sentence ("what the precision
 limit limits is effort"), the plain subject and verb instead ("the
-precision limit limits effort"). `docs/numbers.md` names the numeric types `Rational`,
+precision limit limits effort"). From the review of 2026-10-16: no
+sentence opens with a what-clause as its subject ("What is written is
+as fixed as what is held", "What costs time is passes and bits"), which
+inverts the order and hides the subject, and none takes the form "X is
+what lets Y" ("the limit is what makes `3^1000000000` a refusal"): the
+thing itself is named first, with the plain verb ("Two things cost
+time, passes and bits"; "the limit makes `3^1000000000` a refusal"). `docs/numbers.md` names the numeric types `Rational`,
 `Scaled`, `Radius` and `Ball` and says how they compose.
 
 **The goals, in priority order, and where each is stated (the owner,

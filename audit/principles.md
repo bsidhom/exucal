@@ -215,7 +215,11 @@ and `approx` is always called out as the one operation whose purpose
 is to make a value inexact. A page reads linearly: no term is used before the page defines it,
 and no passage asks the reader to jump ahead or read twice. Few clauses set off by commas as asides; no fragment that leaves the
 reader to supply its subject and verb ("only its exponent counted"),
-a second sentence instead; and no cleft sentence ("what the precision
+a second sentence instead, and no clause of a pair that leaves out its
+verb for the reader to carry over ("how many bits its numerator may
+have, and how many its denominator"), the verb repeated so that the
+two read in parallel ("how many bits its numerator may have and how
+many bits its denominator may have"; the review of 2026-10-16); and no cleft sentence ("what the precision
 limit limits is effort"), the plain subject and verb instead ("the
 precision limit limits effort"). From the review of 2026-10-16: no
 sentence opens with a what-clause as its subject ("What is written is

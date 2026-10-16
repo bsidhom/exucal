@@ -382,13 +382,18 @@ true as the measurement behind the digits.
 [Which factors are exact](units.md#which-factors-are-exact) names the
 measured ones.
 
-In the predefined file, `pi()` is the inexact function such
-definitions use: `deg`, `grad`, `turn`, `parsec` and `oersted` are
-defined through it, so they are inexact units, and so is every unit
-built on one of them;
+In the predefined file, the only function a unit's definition calls is
+`pi()`, and it is inexact: `deg`, `grad`, `turn`, `parsec` and
+`oersted` are defined through it, so they are inexact units, and so is
+every unit built on one of them.
 [Which factors are exact](units.md#which-factors-are-exact) lists them
-by name. A conversion through an inexact unit is `≈`. `sr`, defined as `radian^2` with no factor but one, is exact, as the
-radian itself is.
+by name. A conversion through an inexact unit is `≈`. `sr`, defined
+as `radian^2` with no factor but one, is exact, as the radian itself
+is. The file's level functions, `neper`, `bel` and `decibel`, call
+`exp()`, `ln()`, `pow()` and `log10()` in their bodies, but a function
+is not a unit.
+[Temperature and logarithmic levels as functions](#temperature-and-logarithmic-levels-as-functions)
+describes them.
 
 The **definitions table** is the table the app builds from the
 definitions file when it loads it. It is built once, in exact mode, and

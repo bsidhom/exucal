@@ -262,7 +262,7 @@ runs above the **ceiling**, the highest precision any pass computes
 at, which the precision limit sets
 ([Digits you can trust](#digits-you-can-trust) gives the schedule).
 Within a pass, every inexact midpoint is kept on the pass's **grid**:
-the set of values with a fixed number of significant digits, about ten
+the set of values with a fixed number of significant digits, ten
 beyond the pass's precision. After every step the midpoint is rounded
 onto the grid, and the rounding is charged to the error radius. A grid
 value is decimal digits times a power of ten, the same `Scaled` form
@@ -302,8 +302,10 @@ as. The **precision limit**, in decimal digits, bounds how far an
 inexact value is refined: it sets the ceiling, and the grid of the
 ceiling's pass must fit within the significand limit. The significand
 limit therefore caps the precision limit in turn, and with it the
-finest grid, the grid of the ceiling's pass, which is a little finer
-than the ceiling itself and the finest any value is ever held on
+finest grid, the grid of the ceiling's pass. Every pass's grid has ten
+digits more than the pass's precision, so the finest grid has ten
+digits more than the ceiling, and it is the finest grid an inexact
+value is ever rounded onto
 ([How the settings bound each other](settings.md#how-the-settings-bound-each-other)).
 
 ## Operations that stay exact; exact cases of functions
@@ -819,9 +821,12 @@ The rounding functions' entries are in
 
 ## Values too big to hold
 
-Two limits bound a value, each on one of its parts: the significand
-limit, in bits, on the fraction it is held as, and the exponent bound,
-on its power of ten. A refusal names the one it passes. This section
+Two limits bound a value, each on one of its parts:
+
+- the significand limit, in bits, on the fraction it is held as;
+- the exponent bound, on its power of ten.
+
+A refusal names the one it passes. This section
 says what each limit refuses, what the message says, and what to try.
 
 A **refusal** is the one failure this page calls by that name: a
@@ -831,8 +836,8 @@ fails, a value that cannot be told from an edge) is an error.
 
 A value is held as a significand times a power of ten
 ([How a value is held](#how-a-value-is-held)). The settings bound the
-significand. The significand limit says how many bits its numerator
-and its denominator may have. The precision limit, which the
+significand. The significand limit says how many bits its numerator may have, and
+how many its denominator, each counted on its own. The precision limit, which the
 significand limit bounds in turn, says how far an inexact value is
 refined, and the display digits say how many of its digits must be
 certified. The exponent has a fixed bound of its own, `10^18` either
@@ -1072,8 +1077,8 @@ is spent.
 An expression whose digits certify at the first pass costs one pass.
 One whose digits never certify (an identity through an inexact step,
 or a value at an edge) runs every pass up to the ceiling on every
-keystroke, so the precision limit is a cost setting before it is
-anything else ([Digits you can trust](#digits-you-can-trust)). Decimal
+keystroke, so the precision limit is a cost setting
+([Digits you can trust](#digits-you-can-trust)). Decimal
 mode runs one pass whatever happens ([The two modes](#the-two-modes)).
 
 Bits cost too. The cost of an exponential grows fast with its argument,

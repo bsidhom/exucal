@@ -204,7 +204,9 @@ calculator shows beside. Defined terms are bold once, where defined,
 and only the terminology's terms. No filler, and no reserved word used
 loosely. Style, from the review of 2026-10-14 and binding every page:
 items of a list that themselves contain commas are separated by
-semicolons; an active construction wherever it simplifies or
+semicolons, and an enumeration whose items each carry a qualifier of
+their own is set as a list rather than run into a sentence, unless the
+flow needs it inline (the review of 2026-10-16); an active construction wherever it simplifies or
 clarifies; as concise as stays clear; a word a page leans on, such as
 "line", is defined at its first use ("an output line"); a list of
 built-ins on any page but the built-ins page is examples, never an

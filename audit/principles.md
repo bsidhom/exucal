@@ -228,7 +228,11 @@ inverts the order and hides the subject, and none takes the form "X is
 what lets Y" ("the limit is what makes `3^1000000000` a refusal"): the
 thing itself is named first, with the plain verb ("Two things cost
 time, passes and bits"; "the limit makes `3^1000000000` a refusal"). `docs/numbers.md` names the numeric types `Rational`,
-`Scaled`, `Radius` and `Ball` and says how they compose.
+`Scaled`, `Radius` and `Ball` and says how they compose. The style
+rules of this paragraph are collected, as the house style every run of
+the rewrite reads, in `.claude/skills/prose-style/SKILL.md`; this
+paragraph records where each came from, and a rule set later is added
+in both places.
 
 **The goals, in priority order, and where each is stated (the owner,
 2026-10-14; plan §12.3).** Three goals have guided the design. The

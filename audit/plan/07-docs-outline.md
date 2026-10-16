@@ -10,7 +10,13 @@ written earlier links a later page at these headings, which the later
 page keeps (conflict 1 of the owner's list, §12 section 12.2). Amended
 on 2026-10-12 from the owner's answers (§12, sections 12.1 and 12.2)
 and on 2026-10-13 from the answers to the review of the apply step
-(section 12.3); each change names its answer.
+(section 12.3); each change names its answer. Amended on 2026-10-16,
+in the review of the quantities page's pull request: the headings
+"Names" (`expressions.md`) and "The primitives" (`units.md`) are the
+short names, as work orders 03 and 05 fix them and as the pages written
+earlier link them (`expressions.md#names`, `units.md#the-primitives`);
+the rest of each line is the section's scope, in parentheses as on
+every other line.
 
 **`docs/README.md` — index (guide).** What the app is in two sentences,
 stating the three goals in priority order, in brief, in its own prose
@@ -135,7 +141,7 @@ for its reader, with the substance principles.md fixes (§12.3,
 and semantics of what is typed into either field.
 - Grammar (EBNF) and precedence table
 - Numbers (literals, exactness, limits)
-- Names and how a name is read (units, prefixes, parameters, functions)
+- Names (how a name is read: units, prefixes, parameters, functions)
 - Operators (juxtaposition, `* /`, `+ -`, unary `-`, `^`, parentheses)
 - Calls and arity
 - The have field (an expression)
@@ -174,8 +180,8 @@ file's format and the semantics of each definition kind.
 guide to the definitions file's contents (F-475); `src/units.txt` is the source of
 truth, and the page may defer to it; later possibly generated from
 structured comments in the file (§12, question 4).
-- The primitives, `bit` included, and why information is a dimension
-  (F-094, Q-032)
+- The primitives (`bit` included, and why information is a dimension;
+  F-094, Q-032)
 - The SI (base units, prefixes, derived, accepted non-SI)
 - US customary; UK imperial; naming conventions (`imp`, `uk`, `long`)
 - Constants and extras (CGS, pressure, calories, time, bits and bytes);

@@ -1074,6 +1074,30 @@ decision, are listed after the answers.
   in each case; the parse-time refusal of a number longer than the limit can ever be set
   to hold is said plainly; and the exponent bound is stated as a bound on the value's
   magnitude, not on the canonical exponent, with the example that differs in the two.
+- **The review of the page, eighth part (2026-10-16).** Seven threads, all applied. The
+  `approx` section argues its claim about the display digits instead of asserting it, for
+  exact mode by name: the radius `approx` sets lies at least ten digits beyond the display
+  digits whatever the settings, since the first pass computes ten digits above them and
+  raising the display digits raises every pass with them; the one exception, an argument
+  on a tie at the display digits, is named (checked at 8, 32 and 1000 display digits, and
+  `approx(2.5)` at one digit certifying nothing). The lead-in of "Values too big to hold"
+  names the two limits instead of teasing them. The review asked whether the exponent
+  bound is really on the value's magnitude and not on the canonical exponent, whether that
+  changed, and what the check costs: it is the design since the commit of 2026-09-30 that
+  put the bound on the value (`src/core/scaled.ts`, header; `devdocs/numbers.md`, "The
+  exponent bound"), so that a refusal at the bound is never false about the value and so
+  that whether a value is held does not depend on whether it is exact; the check computes
+  the decimal exponent only when the canonical exponent lies within a band of the bound,
+  so the common case is one comparison; the page now gives the reason in one sentence and
+  links the devdocs' section. Two style rules from the review, recorded in the principles
+  and the skill: the owner's viewer does not join a code span broken across a line ending,
+  and the app's renderer will carry a subset of CommonMark, so no inline code span, link or
+  emphasis breaks across a line ending (the page's three code spans, eight links and four
+  bold spans that did are re-broken around); and, in the owner's words, "I'm inclined to
+  ban 'what can..' or 'what is...', etc., at the start of a sentence, since this nearly
+  always inverts the order and makes the prose very opaque", so no sentence opens with a
+  what-clause as its subject and none takes the form "X is what lets Y" (twelve sentences
+  rewritten, "One value, one line" and the lead-in of "What costs time" among them).
 
 ### The review's other corrections
 

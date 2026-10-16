@@ -83,12 +83,15 @@ memory of other sessions.
    principle seem to disagree, the work order applies the principle
    to your page; if they truly conflict, follow the principle and say
    so in the review notes.
-4. What your work order cites, at the place it cites: a finding
+4. `.claude/skills/prose-style/SKILL.md`, in full: the house style
+   every page is written in. Its rules bind the whole page; section 3
+   adds only this rewrite's own.
+5. What your work order cites, at the place it cites: a finding
    (`audit/findings.md`), an open item (`audit/open-items.md`) or a bug
    (`audit/bugs.md`) at its id, the entry alone; a report at the lines
    a pointer names (`audit/reports/<UNIT>/fable.md`, `merged.md` for
    D1); a plan section it names, under `audit/plan/`.
-5. The page you rewrite, as it stands; the pages your work order tells
+6. The page you rewrite, as it stands; the pages your work order tells
    you to link or check, as they have landed (an earlier session hands
    you a name, a wording or a check's result through its landed page:
    read it there, and if it is missing, ask in the review notes rather
@@ -129,27 +132,16 @@ Read nothing else in the corpus or the tree.
   question it answers, sub-headings inside long sections (no page links
   them), and examples set apart in tables as a user types them, never
   as the display writes them, with the result the calculator shows
-  beside. Bold a defined term once, where it is defined, and only the
-  terminology's terms. No filler; no reserved word used loosely.
-  Items of a list that themselves contain commas are separated by
-  semicolons, and an enumeration whose items each carry a qualifier is
-  set as a list, not run into a sentence, unless the flow needs it
-  inline; an active construction wherever it simplifies or
-  clarifies; as concise as stays clear; a word the page leans on, such
-  as "line", defined at its first use; a list of built-ins is examples,
-  never an inventory, each built-in's entry documenting its own
-  exactness; `approx` is always called out as the one operation whose
-  purpose is to make a value inexact; the page reads linearly, no term used before the page defines it;
-  few clauses set off by commas as asides; no fragment that leaves the
-  reader to supply its subject and verb, a second sentence instead, and
-  no clause of a pair that leaves out its verb for the reader to carry
-  over ("how many bits its numerator may have, and how many its
-  denominator"), the verb repeated so that the two read in parallel; no
-  cleft sentence ("what the limit limits is effort"), the plain subject
-  and verb instead; no sentence that opens with a what-clause as its
-  subject ("What costs time is passes and bits"), and none of the form
-  "X is what lets Y", the thing itself named first with the plain verb
-  ("Two things cost time, passes and bits").
+  beside. The prose follows the house style,
+  `.claude/skills/prose-style/SKILL.md`, read in section 2, and every
+  rule of it binds the whole page: a rule set in review is swept across
+  the page before the next push, and the reply says how many places
+  changed. This rewrite adds its own: bold a defined term once, where
+  it is defined, and only the terminology's terms; no reserved word
+  used loosely; a list of built-ins is examples, never an inventory,
+  each built-in's entry documenting its own exactness; and `approx` is
+  always called out as the one operation whose purpose is to make a
+  value inexact.
 - **The words and the format** follow `audit/plan/08-terminology.md` and
   the principles: the Markdown subset (inline links only, repo-relative
   between pages, absolute only for an external reference such as an

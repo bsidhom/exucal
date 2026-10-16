@@ -24,6 +24,11 @@ it to the whole text, not only to the sentence that prompted it.
 - A page is a narrative, read once from top to bottom, not a reference
   card. It opens by saying what the thing is and what it is for, then
   why its semantics matter, then the rules, each with examples.
+- A page states its rules as the subject's: "A quantity follows these
+  rules", never "This page explains the following rules".
+- No page is earlier or later than another, and nothing exposes the
+  order in which the pages were written: each page stands on its own,
+  and a link names the page by its title.
 - Lead with the subject itself. "Exucal is first and foremost a
   calculator, and it was built to ..." beats any sentence that
   approaches the subject sideways.
@@ -62,6 +67,17 @@ it to the whole text, not only to the sentence that prompted it.
     effort" but "the precision limit limits effort".
 - Keep sentences short. A sentence that carries three or more parts
   is broken up, or becomes a list.
+- A statement that stands on its own gets a sentence of its own: a
+  hard break, not a semicolon. A long sentence, or an implied
+  connective between its parts, is hard to hold in the head.
+- Put the actor first: not "the unit a function declares for a
+  parameter changes no value" but "a function does not change the
+  underlying units of its declared parameters".
+- The simpler phrase wins even when it is passive: "is read the same
+  way a typed number is" beats "is read as a number you type is".
+  Complex phrasing costs more than a passive verb.
+- No quaint voice: "in the opposite direction", not "the other way
+  round".
 - Every sentence has a subject and a verb. No fragment ("only its
   exponent counted"); write a second sentence instead.
 - In a pair of parallel clauses, repeat the verb rather than leaving it
@@ -92,7 +108,12 @@ it to the whole text, not only to the sentence that prompted it.
   as a bulleted list, not run into a sentence, unless the flow needs it
   inline.
 - A list of examples is examples, never an inventory; say so, and say
-  where the inventory lives.
+  where the inventory lives. An enumeration that is not exhaustive says
+  so (", etc.", "such as"); one that implies exhaustiveness is made
+  exhaustive.
+- Clauses a reader must scan, as in a summary's bullet, are set as a
+  list, which is easier to scan and understand than a sentence of
+  semicolons.
 - Nested lists use list syntax, one idea per item, with a full sentence
   where an item makes a claim.
 - Order the items of a list by what matters: the fundamental thing
@@ -126,6 +147,14 @@ it to the whole text, not only to the sentence that prompted it.
   one counterexample makes the claim false.
 - State facts about today. No history ("it used to"), no futures ("it
   will"), no speculation, in anything a user reads.
+- A fact of the current definitions file that may drift (the radian as
+  the only kind) is presented as an example where it is relevant, never
+  stated as the state of things.
+- Call out an error a reader might not expect where its rule is
+  summarized (a unit list whose units do not decrease is an error to
+  ask for), pointing to the section with the rationale.
+- Name the concrete type where it makes a representation clearer (a
+  value is a `Ball`).
 - Quote a system's own output verbatim or describe it; never
   paraphrase it as if quoting.
 

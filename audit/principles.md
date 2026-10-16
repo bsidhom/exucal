@@ -244,7 +244,29 @@ inverts the order and hides the subject, and none takes the form "X is
 what lets Y" ("the limit is what makes `3^1000000000` a refusal"): the
 thing itself is named first, with the plain verb ("Two things cost
 time, passes and bits"; "the limit makes `3^1000000000` a refusal"). `docs/numbers.md` names the numeric types `Rational`,
-`Scaled`, `Radius` and `Ball` and says how they compose. The style
+`Scaled`, `Radius` and `Ball` and says how they compose. From the
+review of the quantities page (2026-10-16): a page states its rules as
+the subject's ("A quantity follows these rules"), never as what "this
+page" does; no page is called earlier or later than another, and
+nothing exposes the order in which the pages were written, since each
+page stands on its own; a statement that stands on its own gets a
+sentence of its own, a hard break rather than a semicolon, since a long
+sentence and an implied connective between its parts are hard to hold;
+the actor comes first ("a function does not change the underlying
+units of its declared parameters", not "the unit a function declares
+changes no value"); the simpler phrase wins even when it is passive
+("is read the same way a typed number is"), since complex phrasing
+costs more than a passive verb; an enumeration implies no
+exhaustiveness it does not have (", etc.", or the exhaustive list); a
+fact of the current definitions file that may drift (the radian as the
+only kind) is presented as an example, never as the state of things;
+no quaint voice ("the other way round"); clauses a reader must scan,
+as in a summary's bullet, are set as a list; an error a reader might
+not expect (a unit list whose units do not decrease) is called out
+where its rule is summarized; a concrete type is named where it makes
+a representation clearer (a value is a `Ball`); and the value a
+quantity pairs with its dimension is its "scalar", never its
+"magnitude" (§8). The style
 rules of this paragraph are collected, as the house style every run of
 the rewrite reads, in `.claude/skills/prose-style/SKILL.md`; this
 paragraph records where each came from, and a rule set later is added
@@ -298,7 +320,8 @@ opening states, in a sentence, the goal its page serves:
 `docs/numbers.md` the first two, as they guided the design, and
 nothing of the third, which is orthogonal to the numeric model;
 `docs/builtins.md` the second, as the aim of today's set;
-`docs/quantities.md` the third; `docs/getting-started.md` the first,
+`docs/quantities.md` what unit awareness brings, without placing it
+among the goals (the review of 2026-10-16); `docs/getting-started.md` the first,
 the tour then showing the other two; `docs/app.md` the portable
 format. No page calls a goal unique to Exucal: other calculators share
 parts of the first (plan §12.3 names three, checked against their

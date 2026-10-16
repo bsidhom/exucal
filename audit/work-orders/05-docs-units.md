@@ -1,4 +1,4 @@
-# Work order 05: `docs/units.md` (The units the app knows)
+# Work order 05: `docs/units.md` (Units)
 
 *One of the work orders under `audit/work-orders/` ([README.md](README.md)).
 The session that writes this page reads this file,
@@ -14,7 +14,8 @@ bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 
 ## 1. The page and its place in the order
 
-- **Page.** `docs/units.md`, titled "The units the app knows": a friendly
+- **Page.** `docs/units.md`, titled "Units" (the review of 2026-10-16;
+  §7 follows): a friendly
   guide to the definitions file's contents (§7). `src/units.txt` is the
   source of truth and the page may defer to it; it is a hand-written
   catalogue for now (a page generated from structured comments in the

@@ -836,8 +836,8 @@ fails, a value that cannot be told from an edge) is an error.
 
 A value is held as a significand times a power of ten
 ([How a value is held](#how-a-value-is-held)). The settings bound the
-significand. The significand limit says how many bits its numerator may have, and
-how many its denominator, each counted on its own. The precision limit, which the
+significand. The significand limit says how many bits its numerator may have and
+how many bits its denominator may have, each counted on its own. The precision limit, which the
 significand limit bounds in turn, says how far an inexact value is
 refined, and the display digits say how many of its digits must be
 certified. The exponent has a fixed bound of its own, `10^18` either

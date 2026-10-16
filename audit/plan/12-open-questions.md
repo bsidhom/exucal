@@ -1110,6 +1110,12 @@ decision, are listed after the answers.
   items). The significand limit counts the numerator and the denominator each on its own
   (`significandWithin` in `src/core/scaled.ts`), and the page says so. "Before it is
   anything else" is dropped as filler.
+- **The review of the page, tenth part (2026-10-16).** One thread, applied. "How many bits
+  its numerator may have, and how many its denominator" left its second clause without a
+  verb; the verb is repeated so that the two read in parallel. The review asked that the
+  rule against incomplete sentences cover such clauses, so the principles and the skill
+  now say: no clause of a pair that leaves out its verb for the reader to carry over, the
+  verb repeated instead.
 
 ### The review's other corrections
 

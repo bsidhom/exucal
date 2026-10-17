@@ -80,10 +80,14 @@ not implemented today that might be implemented later is described in
 docs never mention it, and a devdocs page that needs to say something
 is planned links `future.md` rather than describing it. What is ruled
 out by intent is not future work but a current design decision, so it
-lives in the as-is pages: one sentence where a user would look for it
-in `docs/` (for example, that a temperature reading is a function, not
-a unit with an offset), and the reason in the devdocs page that owns
-the concept. A user page
+lives in the as-is pages: on the user page that owns the concept, where
+a user would look for it, with its reason as far as a user needs it
+(that a temperature reading is a function, not a unit with an offset,
+since every operation would need a rule for an offset), and on the
+devdocs page that owns the concept with the mechanism and the
+alternatives considered (the rule below on the canonical home of a
+shared concept, the owner, 2026-10-16; until then the user page had one
+sentence and the devdocs the reason). A user page
 may state what the app lacks today as a plain fact, with what to write
 instead, but never as something to come. Bugs and performance problems
 in today's behaviour are not future work: their issue links stay with
@@ -109,6 +113,18 @@ Q-011 text gave). Not everything the app lacks is one or the other: a
 plain fact about today is described as it is, with no reason given as
 for a design decision and no entry in `future.md`. Nothing is
 pending.
+
+**The canonical home of a shared concept (the owner, 2026-10-16; plan
+§12.3).** Anything a user should reasonably be expected to understand
+appears in the user docs, and a concept relevant and essential to both
+users and developers has its canonical home there: the user page that
+owns the concept states the rules and the design decisions behind them,
+with their reasons as far as a user needs them, and the developer page
+that owns the concept keeps the mechanism, the alternatives considered
+with their reasons, and the reasons that belong to the implementation,
+linking the user page rather than restating it. A reason a user needs
+is never left to the developer docs alone. §7.1 and the work orders of
+the developer pages follow.
 
 **Inexact, not approximate (F-451).** "Inexact" names a value with a
 nonzero radius, everywhere, headings included ("Exact and inexact
@@ -228,7 +244,42 @@ inverts the order and hides the subject, and none takes the form "X is
 what lets Y" ("the limit is what makes `3^1000000000` a refusal"): the
 thing itself is named first, with the plain verb ("Two things cost
 time, passes and bits"; "the limit makes `3^1000000000` a refusal"). `docs/numbers.md` names the numeric types `Rational`,
-`Scaled`, `Radius` and `Ball` and says how they compose. The style
+`Scaled`, `Radius` and `Ball` and says how they compose. From the
+review of the quantities page (2026-10-16): a page states its rules as
+the subject's ("A quantity follows these rules"), never as what "this
+page" does; no page is called earlier or later than another, and
+nothing exposes the order in which the pages were written, since each
+page stands on its own; a statement that stands on its own gets a
+sentence of its own, a hard break rather than a semicolon, since a long
+sentence and an implied connective between its parts are hard to hold;
+the actor comes first ("a function does not change the underlying
+units of its declared parameters", not "the unit a function declares
+changes no value"); the simpler phrase wins even when it is passive
+("is read the same way a typed number is"), since complex phrasing
+costs more than a passive verb; an enumeration implies no
+exhaustiveness it does not have (", etc.", or the exhaustive list); a
+fact of the current definitions file that may drift (the radian as the
+only kind) is presented as an example, never as the state of things;
+no quaint voice ("the other way round"); clauses a reader must scan,
+as in a summary's bullet, are set as a list; an error a reader might
+not expect (a unit list whose units do not decrease) is called out
+where its rule is summarized; a concrete type is named where it makes
+a representation clearer (a value is a `Ball`); and the value a
+quantity pairs with its dimension is its "scalar", never its
+"magnitude" (§8). From the page's second review (2026-10-17): a
+section starts by describing its subject, and no lead-in restates its
+title or announces what "this section says"; self-references ("this
+page", "this section", "this list") are minimized, since describing
+the thing itself flows better and runs shorter; a sentence that tells
+the reader what they need or will meet ("you need the semantics", "you
+meet the angle in the built-ins") is filler and is cut; a sentence
+runs to about twenty words with one idea, and one that needs both a
+colon and a semicolon is split; no idiom stands for a literal relation
+("as much as" keeps its literal sense); "dimensionless" is the default
+word for a quantity with neither dimension nor kind and "plain number"
+its synonym, as Q-019 already prefers, and the words the messages use
+are not cited, since the messages may change; and "scalar" is the word
+in all documentation, user docs and devdocs alike. The style
 rules of this paragraph are collected, as the house style every run of
 the rewrite reads, in `.claude/skills/prose-style/SKILL.md`; this
 paragraph records where each came from, and a rule set later is added
@@ -282,7 +333,8 @@ opening states, in a sentence, the goal its page serves:
 `docs/numbers.md` the first two, as they guided the design, and
 nothing of the third, which is orthogonal to the numeric model;
 `docs/builtins.md` the second, as the aim of today's set;
-`docs/quantities.md` the third; `docs/getting-started.md` the first,
+`docs/quantities.md` what unit awareness brings, without placing it
+among the goals (the review of 2026-10-16); `docs/getting-started.md` the first,
 the tour then showing the other two; `docs/app.md` the portable
 format. No page calls a goal unique to Exucal: other calculators share
 parts of the first (plan §12.3 names three, checked against their

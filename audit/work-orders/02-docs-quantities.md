@@ -64,8 +64,9 @@ a definition's form is `definitions.md`'s, and which units exist is
   named (not #92 on the reciprocal line, not #130 on the annotated
   unit, none). What is ruled out by intent is a plain fact: a
   temperature reading is a function, not a unit with an offset, and
-  the reason is one sentence here, the fuller reason the devdocs'
-  (F-110); kind-lenient conversion and complex magnitudes are not
+  the reason is here in full (F-110; amended on 2026-10-16, plan §12.3:
+  the user page is the canonical home of a reason a user needs, the
+  devdocs keeping the mechanism and the alternative); kind-lenient conversion and complex magnitudes are not
   mentioned, and offsets only in that plain fact.
 - **Numbers (Q-016).** None: no timing, no count.
 - **The words (§8).** "Have" and "want" for the two fields, used from
@@ -237,9 +238,11 @@ written in messages".
 - Facts: §1 Q12. `degC`, `degF`, `degR` are temperature differences
   (`1 degC` is `1 K`); a reading is a call of `tempC` or `tempF`, whose
   inverses let the function be the want; there are no units with an
-  offset, as a plain fact with its one-sentence reason (a quantity
-  carries no offset, so a reading cannot be a unit), the fuller reason
-  being `devdocs/functions.md`'s (F-110, Q-011); logarithmic levels
+  offset, as a plain fact with its reason in full: a unit is multiplied
+  in as the expression is read and an offset cannot be, so every
+  operation would need a rule for it, where a function keeps the offset
+  in its body (F-110; Q-011 as amended on 2026-10-16, plan §12.3;
+  `devdocs/functions.md` keeps the alternative and the mechanism); logarithmic levels
   (`decibel`, `bel`, `neper`) are functions the same way; the entries
   are `units.md#temperature-differences-and-readings` and
   `units.md#logarithmic-levels`.

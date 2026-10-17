@@ -163,8 +163,12 @@ present tense.
   when its exact significand would pass it, "today" dropped (F-070).
 - **Unit lists.** V2 L212-222 with A8 L69-73 merged (F-247): the
   accepted gap stated as today's behaviour, "fails as not positive"
-  (F-246, Q-045), with its issue, #198, linked once beside it (B-010;
-  Q-012's rule for a bug in today's behaviour); the remainder rounded at
+  (F-246, Q-045), and explained thoroughly, as the owner asked on
+  2026-10-16 (plan §12.3): which check fails, why the retry loop ends
+  there, and that the same expression as a single want is retried and
+  answers, `docs/quantities.md#unit-lists` stating the behaviour in one
+  sentence; with its issue, #198, linked once beside it (B-010; Q-012's
+  rule for a bug in today's behaviour); the remainder rounded at
   the digits certified, not "the midpoint to the display precision"
   (F-072); the mode named by its want (F-468).
 - **Functions.** V2 L224-236: "conversion into a function" (F-468) with

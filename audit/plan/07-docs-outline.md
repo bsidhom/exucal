@@ -10,7 +10,13 @@ written earlier links a later page at these headings, which the later
 page keeps (conflict 1 of the owner's list, §12 section 12.2). Amended
 on 2026-10-12 from the owner's answers (§12, sections 12.1 and 12.2)
 and on 2026-10-13 from the answers to the review of the apply step
-(section 12.3); each change names its answer.
+(section 12.3); each change names its answer. Amended on 2026-10-16,
+in the review of the quantities page's pull request: the headings
+"Names" (`expressions.md`) and "The primitives" (`units.md`) are the
+short names, as work orders 03 and 05 fix them and as the pages written
+earlier link them (`expressions.md#names`, `units.md#the-primitives`);
+the rest of each line is the section's scope, in parentheses as on
+every other line.
 
 **`docs/README.md` — index (guide).** What the app is in two sentences,
 stating the three goals in priority order, in brief, in its own prose
@@ -135,7 +141,7 @@ for its reader, with the substance principles.md fixes (§12.3,
 and semantics of what is typed into either field.
 - Grammar (EBNF) and precedence table
 - Numbers (literals, exactness, limits)
-- Names and how a name is read (units, prefixes, parameters, functions)
+- Names (how a name is read: units, prefixes, parameters, functions)
 - Operators (juxtaposition, `* /`, `+ -`, unary `-`, `^`, parentheses)
 - Calls and arity
 - The have field (an expression)
@@ -170,12 +176,12 @@ file's format and the semantics of each definition kind.
   plain fact (Q-011: that user definitions are to come, and #132, are
   `devdocs/future.md`'s; F-475)
 
-**`docs/units.md` — The units the app knows (reference).** A friendly
+**`docs/units.md` — Units (reference).** A friendly
 guide to the definitions file's contents (F-475); `src/units.txt` is the source of
 truth, and the page may defer to it; later possibly generated from
 structured comments in the file (§12, question 4).
-- The primitives, `bit` included, and why information is a dimension
-  (F-094, Q-032)
+- The primitives (`bit` included, and why information is a dimension;
+  F-094, Q-032)
 - The SI (base units, prefixes, derived, accepted non-SI)
 - US customary; UK imperial; naming conventions (`imp`, `uk`, `long`)
 - Constants and extras (CGS, pressure, calories, time, bits and bytes);
@@ -265,9 +271,12 @@ where the app installs and works offline (§12.3, 2026-10-14):
 
 The focus is the conceptual building blocks, unified across the two
 sides: each concept area has one user-side owner, which states the
-rules, and one developer-side owner, which keeps three things and no
-more: the mechanism, the decision with its reason, and the
-ruled-out alternatives with theirs. Each side links to the other at the
+rules and the decisions behind them, with their reasons as far as a
+user needs them, since the user docs are the canonical home of a
+concept both sides need (§12.3, 2026-10-16), and one developer-side
+owner, which keeps three things and no more: the mechanism, the
+alternatives ruled out with their reasons, and the reasons that belong
+to the implementation. Each side links to the other at the
 section level. The developer-side owners below are the existing pages;
 the units in §10.c reshape them to this map.
 
@@ -283,9 +292,9 @@ the units in §10.c reshape them to this map.
 | Conversion and the output modes | `quantities.md` > How a conversion is answered; Unit lists; Conversion into a function | `devdocs/architecture.md#Conversion`, `#Unit lists`, `#The converter and its lines`; `devdocs/functions.md#A function as the want` |
 | The expression language | `expressions.md` | `devdocs/architecture.md#Expressions`, `#Parsing`, `#Evaluation` |
 | The definition language and defined functions | `definitions.md` | `devdocs/architecture.md#Definitions`; `devdocs/functions.md` |
-| The units the app knows | `units.md` | `devdocs/development.md#Adding a unit` (the contributor's side); the comments in `src/units.txt` |
+| Units | `units.md` | `devdocs/development.md#Adding a unit` (the contributor's side); the comments in `src/units.txt` |
 | Settings | `settings.md` | `devdocs/settings.md` |
 | Built-in functions | `builtins.md` | `devdocs/builtins.md` |
 | The app's surface | `app.md` (F-513) | `devdocs/architecture.md#UI`; `devdocs/offline.md` |
-| What is ruled out by intent | one sentence where a user would look for it (a temperature reading is a function, not a unit with an offset; neither "real values only" nor "the error radius is never shown" is one: each is a plain fact about today, complex numbers being future work and the radius display neither, R-7) | the page that owns the concept, with the reason; each page's "Not in this design" (Q-011) |
+| What is ruled out by intent | the decision with its reason, as far as a user needs it, where a user would look for it (a temperature reading is a function, not a unit with an offset, since every operation would need a rule for an offset; neither "real values only" nor "the error radius is never shown" is one: each is a plain fact about today, complex numbers being future work and the radius display neither, R-7) | the page that owns the concept, with the mechanism and the alternatives considered; each page's "Not in this design" (Q-011; §12.3, 2026-10-16) |
 | What might still be done | nothing: the user docs never mention future work (Q-011) | `devdocs/future.md`, the one place, with the issue links |

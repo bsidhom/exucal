@@ -312,7 +312,7 @@ they change say so. Nothing is pending now.
 #### Section 4. Where each issue is linked
 
 - **Q-011. Issues #130 to #134, the definition language's open work.** Decision: other: Future work lives only in `devdocs/future.md`. Anything not implemented today that we might implement later is described there, with its issue links, and nowhere else: the user docs never mention it, and a devdocs page that needs to say something is planned links `future.md` rather than describing it. So #130 to #134 are linked from `future.md` only. What is ruled out by intent is not future work but a current design decision, so it lives in the as-is pages: one sentence where a user would look for it in `docs/` (for example, that the app never shows the error radius), and the reason in the devdocs page that owns the concept. `future.md`'s "Ruled out, and why" is split accordingly: its decisions move to those pages, and anything in it we might still do (the function classes deferred in §1.3 and Q-010) stays as future work. A user page may state what the app lacks today as a plain fact, with what to write instead, but never as something to come. Bugs and performance problems in today's behaviour are not future work either: their issue links stay with the passage that owns the concept (Q-012). Where it is unclear whether an item is ruled out or might still be done, ask me.
-  Applied: a **rule** (the owner's text is the rule; see `audit/principles.md`): future work lives only in `devdocs/future.md`, with its issue links, and nowhere else; the user docs never mention it, and a devdocs page that needs to say something is planned links `future.md` rather than describing it; so #130 to #134 are linked from `future.md` only. What is ruled out by intent is a current design decision and lives in the as-is pages: one sentence where a user would look for it in `docs/`, the reason in the devdocs page that owns the concept; `future.md`'s "Ruled out, and why" is split accordingly, its decisions moving to those pages and what might still be done (the function classes deferred in §1.3 and Q-010) staying as future work. A user page may state what the app lacks today as a plain fact, with what to write instead, never as something to come. Bugs and performance problems in today's behaviour are not future work: their issue links stay with the passage that owns the concept (Q-012). Where it was unclear whether an item is ruled out or might still be done, the owner was asked: the list at the end of `audit/decisions.md` ("For the owner") was answered on 2026-10-12 (section 12.2 below), and nothing it touched is pending. Amends question 26 above (an open issue is linked from the passage that owns its concept only for a bug or a performance problem; a future extension's one link is in `future.md`), question 12 (the intent that user definitions are to come is recorded in `future.md`, and `docs/definitions.md` states as a plain fact that only the predefined definitions file is loaded), question 11 (the docs do not say that `×` may be accepted later), plan §1.3 (every intent listed there is recorded in `future.md`, none on the as-is pages or in the user docs), N7 and N16 (their intent clauses are `future.md`'s), §1.2.5's `#Conditions` row, §6.1's last bullet ("what symbolic exactness would add": not in docs), §6.4 ("the status of user definitions"), §7 (`definitions.md`'s "User definitions" bullet; `builtins.md`'s "Not provided" bullet; `expressions.md`'s "What is not accepted"; §7.1's last row), §4.2 and §9.4's last row (the deferred classes); Q-013, Q-014, Q-035, Q-104, Q-112, Q-037, F-030, F-107, F-306, F-321, F-345, F-346, F-348, F-350, F-413, F-414, F-417, F-418, F-419, F-421, F-302 and the `#Deferred` section of `devdocs/functions.md` follow. The owner's example of a ruled-out design, that the app never shows the error radius, was corrected by the owner on 2026-10-13 (section 12.3, R-7): it is a plain fact about today's display, neither ruled out by intent nor future work.
+  Applied: a **rule** (the owner's text is the rule; see `audit/principles.md`): future work lives only in `devdocs/future.md`, with its issue links, and nowhere else; the user docs never mention it, and a devdocs page that needs to say something is planned links `future.md` rather than describing it; so #130 to #134 are linked from `future.md` only. What is ruled out by intent is a current design decision and lives in the as-is pages: one sentence where a user would look for it in `docs/`, the reason in the devdocs page that owns the concept; `future.md`'s "Ruled out, and why" is split accordingly, its decisions moving to those pages and what might still be done (the function classes deferred in §1.3 and Q-010) staying as future work. A user page may state what the app lacks today as a plain fact, with what to write instead, never as something to come. Bugs and performance problems in today's behaviour are not future work: their issue links stay with the passage that owns the concept (Q-012). Where it was unclear whether an item is ruled out or might still be done, the owner was asked: the list at the end of `audit/decisions.md` ("For the owner") was answered on 2026-10-12 (section 12.2 below), and nothing it touched is pending. Amends question 26 above (an open issue is linked from the passage that owns its concept only for a bug or a performance problem; a future extension's one link is in `future.md`), question 12 (the intent that user definitions are to come is recorded in `future.md`, and `docs/definitions.md` states as a plain fact that only the predefined definitions file is loaded), question 11 (the docs do not say that `×` may be accepted later), plan §1.3 (every intent listed there is recorded in `future.md`, none on the as-is pages or in the user docs), N7 and N16 (their intent clauses are `future.md`'s), §1.2.5's `#Conditions` row, §6.1's last bullet ("what symbolic exactness would add": not in docs), §6.4 ("the status of user definitions"), §7 (`definitions.md`'s "User definitions" bullet; `builtins.md`'s "Not provided" bullet; `expressions.md`'s "What is not accepted"; §7.1's last row), §4.2 and §9.4's last row (the deferred classes); Q-013, Q-014, Q-035, Q-104, Q-112, Q-037, F-030, F-107, F-306, F-321, F-345, F-346, F-348, F-350, F-413, F-414, F-417, F-418, F-419, F-421, F-302 and the `#Deferred` section of `devdocs/functions.md` follow. The owner's example of a ruled-out design, that the app never shows the error radius, was corrected by the owner on 2026-10-13 (section 12.3, R-7): it is a plain fact about today's display, neither ruled out by intent nor future work. Amended on 2026-10-16 (section 12.3, "The canonical home of a shared concept"): the user page states a design ruled out by intent with its reason as far as a user needs it, and the devdocs keep the mechanism and the alternatives.
 - **Q-012. The kernel-cost issues: `builtins.md` or `cost.md`.** Decision: A. I would lean toward my ruling above about all not-currently-implemented work being listed under `future.md`, but I consider these issues to be user-relevant in understanding current performance. Moreover, this is not "future" or "aspirational" work, but a performance bug (where there is an associated issue).
   Applied: A: `cost.md` links every issue about what a computation costs or where it hangs (#107, #125, #149 to #152); `builtins.md` links #103 (the Bernoulli memo) and #115, and points at `cost.md` for costs; the owner's reason: these are performance bugs in today's behaviour, user-relevant and not future work, so Q-011's rule does not move them. Conflict recorded for the owner: #115 (eight special functions designed and deferred) is future work by Q-011's rule, which would place it in `future.md`, while this item's own answer keeps it in `builtins.md`; the item's own answer was applied provisionally and the point put on the list at the end of `decisions.md`; the owner confirmed it on 2026-10-12 (section 12.2, item 1): #115 stays in `builtins.md`. Amends plan §5 C32 ("future.md (#103)") and C33; F-193, F-195, F-290, F-303, F-415, F-416, F-420, F-422, F-423, F-424, F-425, Q-062 and B-070 follow.
 - **Q-013. Issue #118, the scheduler.** Decision: B
@@ -1116,6 +1116,66 @@ decision, are listed after the answers.
   rule against incomplete sentences cover such clauses, so the principles and the skill
   now say: no clause of a pair that leaves out its verb for the reader to carry over, the
   verb repeated instead.
+
+- **The canonical home of a shared concept (2026-10-16).** Reviewing the quantities page's
+  pull request, where the reason a temperature reading is a function had gone to the
+  developer docs by Q-011's rule, the owner: "anything the user should reasonably be
+  expected to understand should appear in the user docs. Concepts that are relevant and
+  essential to both developers and users have a canonical home in _user_ docs." Asked
+  whether the amendment should be made in that pull request, the owner answered that it
+  should. Settled: a rule in principles.md, "The canonical home of a shared concept": the
+  user page that owns a concept states the rules and the decisions behind them with their
+  reasons as far as a user needs them; the developer page keeps the mechanism, the
+  alternatives considered with their reasons, and the implementation's own reasons, and
+  links the user page. Q-011's clause on what is ruled out by intent ("one sentence where
+  a user would look for it, the reason in the devdocs page that owns the concept") is
+  amended accordingly, and so are §7.1's ownership sentence and its row, the decisions of
+  Q-011 and F-110, and work orders 02, 05, 11, 14 and 15. `docs/quantities.md` gives the
+  reason in full; `devdocs/functions.md` (work order 14) keeps the alternative, an offset
+  in `Quantity`, with the mechanism, and links the user page. `docs/numbers.md`, checked
+  against the rule, already gives the user-level reason where it sends the reader to the
+  developer docs for more (the exponent bound's).
+- **Two more from the same review (2026-10-16).** The owner prefers the body-mass index
+  as the example of an annotated parameter, although the predefined file has no such
+  function: a page may suppose a definition for an example the file cannot give, show the
+  definition, and say that those examples do not paste back (work order 02; the running
+  example of work order 04 stands). And the sentence that a typed list's unit which
+  cannot be told from zero is an error and is not retried stays on the user page as
+  today's behaviour, the owner adding: "The developer docs will need to explain the
+  subtleties more thoroughly of course" (work order 13, `#Unit lists`).
+
+- **The first review of the quantities page (2026-10-16).** Twenty-two threads, all
+  applied. The value a quantity pairs with its dimension is its "scalar", never its
+  "magnitude", which is overloaded (a new §8 row; plan §1's "magnitude" is read as the
+  scalar); the units page is titled "Units" (§7, work order 05); the page's opening keeps
+  what unit awareness promises and no longer places it among the goals, which the index
+  states (principles.md amended); the body-mass index is "defined", hypothetically, with
+  no caveat about pasting back, since the definition and the calls are both grammatical
+  and parse; no page is called earlier or later than another. The style rules the review
+  set are recorded in principles.md's narrative paragraph and in the prose-style skill:
+  a page states its rules as the subject's; a hard break rather than a semicolon between
+  statements that stand on their own; the actor first; the simpler phrase even when
+  passive; no quaint voice; no implied exhaustiveness; a fact of the current file that
+  may drift presented as an example; clauses to scan set as a list; an unexpected error
+  called out where its rule is summarized; a concrete type named where it clarifies.
+- **The second review of the quantities page (2026-10-17).** Thirteen threads, twelve
+  applied and one answered. "Primitives" is bold at its first use, in the opening, and the
+  glossary already carries it (§8). The opening's long sentences are split (the unit's
+  definition, the examples paragraph), and its "you need" sentence and "This page gives
+  them" are cut. Every section's lead-in ("This section says ...") is removed: a section
+  starts by describing its subject, and self-references are minimized (a new style rule;
+  the prose-style skill's section 1 rule on lead-ins is replaced). `^` is called out as
+  the one way to raise a quantity that is not dimensionless to a power, `pow()` taking a
+  dimensionless base, in the summary and in "A quantity", with `pow(2 m, 2)` as the
+  example row. "Are the same quantity" rather than "are one quantity"; a primitive that
+  does not occur "implicitly" has the exponent zero. "Dimensionless" is the page's default
+  word, with "plain number" defined once as its synonym, as Q-019 already prefers; the
+  words the messages use are no longer cited, since the owner may change the messages.
+  The zero sentence is simplified without the idiom "as much as", and "You meet the angle
+  in the built-ins" is cut as filler (two new style rules). The §8 row for "scalar" now
+  says that it is the word in all documentation. The owner's remark that torque and
+  energy sharing a dimension may be shored up one day is an open design question outside
+  the docs; the page states today's behaviour.
 
 ### The review's other corrections
 

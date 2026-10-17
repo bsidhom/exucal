@@ -24,13 +24,23 @@ it to the whole text, not only to the sentence that prompted it.
 - A page is a narrative, read once from top to bottom, not a reference
   card. It opens by saying what the thing is and what it is for, then
   why its semantics matter, then the rules, each with examples.
+- A page states its rules as the subject's: "A quantity follows these
+  rules", never "This page explains the following rules".
+- No page is earlier or later than another, and nothing exposes the
+  order in which the pages were written: each page stands on its own,
+  and a link names the page by its title.
 - Lead with the subject itself. "Exucal is first and foremost a
   calculator, and it was built to ..." beats any sentence that
   approaches the subject sideways.
 - After the introduction, a summary of the rules the page explains,
   one line each, each linking its section.
-- Every section opens with a lead-in that says what question it
-  answers. A long section gets sub-headings.
+- A section starts by describing its subject. Its title says what it
+  covers; no lead-in restates the title or announces what "this
+  section says". A long section gets sub-headings.
+- Minimize self-reference: "this page", "this section", "this list",
+  "the page quotes". Describe the thing itself; the text flows better
+  and runs shorter. A self-reference stays only where it states a
+  scope the reader needs ("the rules here assume the predefined file").
 - A page reads linearly: no term is used before the page defines it,
   and no passage asks the reader to jump ahead or to read twice.
 - Define a word the page leans on at its first use, even an ordinary
@@ -60,8 +70,25 @@ it to the whole text, not only to the sentence that prompted it.
     a hang."
   - No cleft sentence at all: not "what the precision limit limits is
     effort" but "the precision limit limits effort".
-- Keep sentences short. A sentence that carries three or more parts
-  is broken up, or becomes a list.
+- Keep sentences short, about twenty words, one idea each. A sentence
+  that carries three or more parts is broken up, or becomes a list; one
+  that needs both a colon and a semicolon, or an aside inside an aside,
+  is split before anything else is done to it.
+- A statement that stands on its own gets a sentence of its own: a
+  hard break, not a semicolon. A long sentence, or an implied
+  connective between its parts, is hard to hold in the head.
+- Put the actor first: not "the unit a function declares for a
+  parameter changes no value" but "a function does not change the
+  underlying units of its declared parameters".
+- The simpler phrase wins even when it is passive: "is read the same
+  way a typed number is" beats "is read as a number you type is".
+  Complex phrasing costs more than a passive verb.
+- No quaint voice: "in the opposite direction", not "the other way
+  round".
+- No idiom for a literal relation. "As much as" keeps its literal
+  sense ("weighs as much as"); to say that two things fall in one class
+  or behave alike, say so directly ("both `0` and `1` are
+  dimensionless").
 - Every sentence has a subject and a verb. No fragment ("only its
   exponent counted"); write a second sentence instead.
 - In a pair of parallel clauses, repeat the verb rather than leaving it
@@ -73,7 +100,10 @@ it to the whole text, not only to the sentence that prompted it.
   usually belongs in its own sentence, or nowhere.
 - No filler and no rhetorical weight: drop "before it is anything
   else", "in the words of number theory", "the very point", and any
-  phrase that adds nothing when removed.
+  phrase that adds nothing when removed. A sentence that tells the
+  reader what they need or will meet ("you need the semantics of a
+  quantity", "you meet the angle in the built-ins") is filler too:
+  state the thing instead.
 - No teasing. Name the thing: not "two limits bound a value" and a wait,
   but "two limits bound a value: the significand limit, on the fraction,
   and the exponent bound, on the power of ten".
@@ -92,7 +122,12 @@ it to the whole text, not only to the sentence that prompted it.
   as a bulleted list, not run into a sentence, unless the flow needs it
   inline.
 - A list of examples is examples, never an inventory; say so, and say
-  where the inventory lives.
+  where the inventory lives. An enumeration that is not exhaustive says
+  so (", etc.", "such as"); one that implies exhaustiveness is made
+  exhaustive.
+- Clauses a reader must scan, as in a summary's bullet, are set as a
+  list, which is easier to scan and understand than a sentence of
+  semicolons.
 - Nested lists use list syntax, one idea per item, with a full sentence
   where an item makes a claim.
 - Order the items of a list by what matters: the fundamental thing
@@ -126,6 +161,14 @@ it to the whole text, not only to the sentence that prompted it.
   one counterexample makes the claim false.
 - State facts about today. No history ("it used to"), no futures ("it
   will"), no speculation, in anything a user reads.
+- A fact of the current definitions file that may drift (the radian as
+  the only kind) is presented as an example where it is relevant, never
+  stated as the state of things.
+- Call out an error a reader might not expect where its rule is
+  summarized (a unit list whose units do not decrease is an error to
+  ask for), pointing to the section with the rationale.
+- Name the concrete type where it makes a representation clearer (a
+  value is a `Ball`).
 - Quote a system's own output verbatim or describe it; never
   paraphrase it as if quoting.
 
@@ -196,3 +239,5 @@ reviewer then reads a text that has passed that first reading.
 6. Any claim asserted without its mechanism, or without its scope?
 7. Any code span, link or emphasis broken across a line?
 8. Any filler phrase that reads the same without it?
+9. Any "this page" or "this section", or a lead-in that restates a
+   title?

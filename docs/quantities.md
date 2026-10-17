@@ -65,13 +65,12 @@ A quantity follows these rules:
   Conformance is required of a sum, a conversion, a call's argument and
   a list's units, and a failure is a dimension mismatch or a kind
   mismatch ([Conformance](#conformance)).
-- **A quantity carries no unit of its own.** It does not carry the
-  units you typed. It carries its scalar and the exponents of the
-  primitives, reduced to that form as soon as it is read, so `100 lb`
-  and `45.359237 kg` are the same quantity. A function does not change
-  the underlying units of its declared parameters. It only checks the
-  argument against them. A function that takes a dimensionless
-  argument fails for an argument with a dimension or a kind
+- **A quantity carries no unit of its own.** It carries its scalar and
+  the exponents of the primitives, reduced to that form as soon as it
+  is read, so `100 lb` and `45.359237 kg` are the same quantity. A
+  function does not change the underlying units of its declared
+  parameters. A function that takes a dimensionless argument fails for
+  an argument with a dimension or a kind
   ([No unit of its own](#no-unit-of-its-own)).
 - **Every factor is read exactly as written.** A unit is defined as a
   factor times other units. The factor is read the same way a typed
@@ -80,9 +79,12 @@ A quantity follows these rules:
   ([Units, prefixes and exactness of factors](#units-prefixes-and-exactness-of-factors)).
 - **A conversion into one unit answers with the ratio of the two scalars**
   ([How a conversion is answered](#how-a-conversion-is-answered)).
-  - The want may carry a number of its own.
+  - The want may carry a number of its own, and the answer is then a
+    multiple of it.
   - A blank want answers in the primitives.
   - A second line answers in the opposite direction.
+  - A mismatch, a want that is zero or cannot be told from zero, or a
+    ratio at or past a size limit stops the conversion.
   - Every line pastes back.
 - **A unit list answers with a sum, largest unit first**: a whole number
   of each unit but the last, and the remainder in the last. Asking for a
@@ -129,15 +131,15 @@ takes nothing else: `pow(2 m, 2)` is an error whose message says to
 write `(2 m)^2`. So `^` is the one way to raise a quantity with a
 dimension or a kind to a power.
 
-The operators act on dimensions as on paper:
+The operators act on the exponents, the kind's entry among them, as on
+paper.
 
-- A juxtaposition, two factors written side by side, multiplies the
-  dimensions, and so does `*`: the exponents are added.
-- `/` divides them: the exponents are subtracted.
-- `^` multiplies every exponent of the dimension by the power it
-  raises to.
+- A juxtaposition, two quantities written side by side, multiplies
+  them, and so does `*`: the exponents are added.
+- `/` divides: the exponents are subtracted.
+- `^` multiplies every exponent by the exponent written after it.
 - `+` and `-` require their two operands to conform
-  ([Conformance](#conformance)) and keep the shared dimension.
+  ([Conformance](#conformance)) and keep the shared dimension and kind.
 - A negation, a `-` before a product, touches the scalar alone.
 
 Only the scalar can fail in arithmetic: at a divisor at zero, at a
@@ -218,10 +220,10 @@ and it is an angle whatever unit it is shown in: into `turn` it is
 
 ## Conformance
 
-Two quantities **conform** when they measure the same thing. The word
-is borrowed from [GNU units](https://www.gnu.org/software/units/),
-which calls such quantities conformable. The check has two steps, in a
-fixed order. First the dimensions must agree: the
+Two quantities **conform** when their dimensions agree and their kinds
+agree. The word is borrowed from
+[GNU units](https://www.gnu.org/software/units/). The check has two
+steps, in a fixed order. First the dimensions must agree: the
 exponent of every dimension primitive must be the same on both sides.
 Then the kinds must agree: the entry for every kind primitive must be
 the same too. A failure at the first step is a
@@ -308,16 +310,13 @@ Three things follow.
   unit the annotation names ([Functions](definitions.md#functions)).
   With `bmi` defined as above, `bmi(100 lb, 4 ft)` and
   `bmi(45.359237 kg, 1.2192 m)` are the same call, and both give
-  `≈ 30.515173`. The body wants the number of kilograms in the weight
+  `≈ 30.515173`. The body needs the number of kilograms in the weight
   and the number of metres in the height. It gets each by dividing the
-  argument by the unit in question, `weight / kg` for the kilograms and
-  `height / m` for the metres, since the argument remembers no unit.
-  The division is what makes the body right for any scale. A scale
-  fitted to pounds and feet would divide by `lb` and `ft`, where
-  `weight / height^2` alone would give the number in the primitives,
-  kilograms and metres, and so mislead. The result is dimensionless for
-  the reason [Conformance](#conformance) gives: it is a number on the
-  scale.
+  argument by that unit, `weight / kg` and `height / m`, since the
+  argument remembers no unit. A scale fitted to pounds and feet would
+  divide by `lb` and `ft` in the same way, and its number would come out
+  right whatever unit the caller typed. Dividing by anything else, the
+  primitives included, would give a number the scale does not define.
 - A call of a function that takes a dimensionless argument fails for an
   argument with a dimension or a kind, whatever unit it was typed in.
   `floor`, `ceil`, `trunc` and `round` are such functions, and so are
@@ -387,10 +386,8 @@ is `pi() radian / 180` and the turn `2 pi() radian`, so `deg` and
 `turn` are inexact units, and so is every unit built on one of them.
 [Which factors are exact](units.md#which-factors-are-exact) lists the
 inexact units by name. A conversion through an inexact unit is `≈`.
-`sr`, defined as `radian^2` with no factor but one, is exact, as the
-radian itself is.
-[Temperature and logarithmic levels as functions](#temperature-and-logarithmic-levels-as-functions)
-describes them.
+`sr`, the steradian, defined as `radian^2` with the factor `1`, is
+exact, as the radian itself is.
 
 The **definitions table** is the table the app builds from the
 definitions file when it loads it. It is built once, in exact mode, and
@@ -429,11 +426,13 @@ it, joined with `×`: `1 mi` into `1000 ft` is `= 5.28 × 1000 ft`. A
 blank want answers in the primitives: `1 in` with a blank want is
 `= 0.0254 m`.
 
-[The want field](expressions.md#the-want-field) says how the want is
-read. Each form answers in its own way.
+The want takes several forms, and
+[The want field](expressions.md#the-want-field) says how each is read.
+Each form answers in its own way.
 
 - One unit, or any other expression, a call included, answers with
-  the ratio ([The ratio](#the-ratio)).
+  the ratio above.
+- A blank want answers in the primitives, as above.
 - Units separated by `;`, or the name of a list the definitions file
   defines, answer with a sum ([Unit lists](#unit-lists)).
 - A defined function's name answers with a call
@@ -498,9 +497,8 @@ than are shown. There is no reciprocal line in three cases.
   into `in` is the one line `= 0 in`.
 - A reciprocal line that would itself be refused for its size is left
   out, and no message says so. `5e1000000000000000000 m` into `m`
-  shows one line, since the reciprocal is past the exponent bound,
-  while the have itself can be held, its exponent being at the bound
-  and not past it.
+  shows one line. The have itself can be held, since its exponent is
+  at the bound and not past it, but the reciprocal is past the bound.
 
 In decimal mode the reciprocal line is computed from the ratio as
 shown, as [The two modes](numbers.md#the-two-modes) describes.
@@ -620,18 +618,22 @@ of nothing but zeros keeps its last term: `0 m` into `ft;in` is
 
 ### What a list's units must satisfy
 
-A list's units must satisfy three rules.
+The calculator checks a list's units, in order, before it counts
+anything, and the first failure is the error.
 
 - Each unit conforms to the have ([Conformance](#conformance)).
-- Each unit is positive throughout its error radius.
+- Each unit is positive throughout its error radius, since a count of
+  a unit that may be zero or negative means nothing.
 - The units decrease along the list, each smaller than the one before
-  it: `in;ft` is an error, and so is `ft;12 in`.
+  it, since a sum is read largest unit first and a unit larger than
+  the one before it could only hold part of that unit's remainder:
+  `in;ft` is an error, and so is `ft;12 in`.
 
 They need not be multiples of one another: `1.5 mi` into `mi;km` is
-`= 1 mi + 0.804672 km`. They may carry numbers, as `ft;in/8` does. A
-list the definitions file defines is checked by the same rules when
-the file loads ([Unit lists](definitions.md#unit-lists)), so it can
-fail only for not conforming to the have.
+`= 1 mi + 0.804672 km`. A list the definitions file defines is checked
+by the same rules when the file loads
+([Unit lists](definitions.md#unit-lists)), so it can fail only for not
+conforming to the have.
 
 | You type | Into       | Exucal shows                                             |
 | -------- | ---------- | -------------------------------------------------------- |
@@ -793,13 +795,15 @@ and [Logarithmic levels](units.md#logarithmic-levels).
 A dimension in a message, and in an answer with a blank want, is
 written in the expression language:
 
-- The primitives come in the order the definitions file declares them.
-- Those with positive exponents come first, then a `/`, then those
-  with negative exponents, their exponents written positive after the
-  `/`.
+- The primitives with positive exponents come first, then a `/`, then
+  those with negative exponents, their exponents written positive after
+  the `/`. Without a negative exponent there is no `/`.
+- On each side of the `/`, the primitives come in the order the
+  definitions file declares them.
+- An exponent of one is not written, and an exponent that is not a
+  whole number is parenthesized.
 - `1` stands for an empty numerator, and a dimensionless quantity's
   dimension is `1` alone, the empty product.
-- An exponent that is not a whole number is parenthesized.
 
 The watt's dimension is written `m^2 kg / s^3`, the hertz's `1 / s`,
 and a square root of a metre `m^(1/2)`. A kind primitive is written
